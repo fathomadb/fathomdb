@@ -12,8 +12,10 @@ AC-050c) gates merges against this invariant.
 
 ## 0.8.22 — 2026-08-08
 
-**Publication status: pending.** This version is unavailable from registries
-until the tagged release workflow completes its ordered publishes and registry smokes.
+**Publication status: pending.** This version is not yet tagged. Its package
+availability begins when the tagged release workflow performs its ordered
+publishes; the main npm package remains on `next` until every registry smoke
+succeeds, then is promoted to `latest`.
 
 Schema version **25 → 26**.
 

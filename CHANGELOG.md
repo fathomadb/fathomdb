@@ -1,18 +1,21 @@
 # Changelog
 
 Release notes for the FathomDB engine, Python SDK, and TypeScript SDK.
-Cuts follow the version tagged on `0.6.0-rewrite`. Each released section
-MUST list every removed public symbol under a `### Removed` heading;
+Cuts normally follow the version tagged on `0.6.0-rewrite`. A final release
+heading may be prepared immediately before its tag so the release gate can
+verify it; it must state when registry publication remains pending. Each
+released section MUST list every removed public symbol under a `### Removed` heading;
 the removal-detect linter (`scripts/security/check-removal-changelog.sh`,
 AC-050c) gates merges against this invariant.
 
 ## [Unreleased]
 
-### 0.8.22 release candidate — publication held
+## 0.8.22 — 2026-08-08
 
-This local candidate is not tagged or published. The tag, ordered platform
-publication, registry smokes, and `latest` promotion remain explicitly held.
-Move this section to a dated release heading only after those gates complete.
+**Publication status: pending.** This version is not yet tagged. Its package
+availability begins when the tagged release workflow performs its ordered
+publishes; the main npm package remains on `next` until every registry smoke
+succeeds, then is promoted to `latest`.
 
 Schema version **25 → 26**.
 

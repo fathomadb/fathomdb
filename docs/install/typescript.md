@@ -4,9 +4,9 @@ The `fathomdb` npm package is a [napi-rs](https://napi.rs/) binding
 over the native Rust runtime. The published package selects a
 platform-tagged `.node` binary at load time.
 
-> **0.8.22 is published on npm's `latest` dist-tag.** It ships Linux
-> x86_64/glibc and AArch64/glibc, macOS x64 and ARM64, and Windows x64 native
-> packages.
+> **0.8.21 is published on npm's `next` dist-tag.** It ships Linux
+> x86_64/glibc and Linux AArch64/glibc native packages; other hosts must build
+> from source.
 > FathomDB is pre-1.0 and the surface is **beta**.
 >
 > **TS SDK parity caveat.** Both bindings expose the same governed command
@@ -18,16 +18,15 @@ platform-tagged `.node` binary at load time.
 ## Requirements
 
 - Node **18** or later (release.yml runs CI on Node 25.9.0).
-- The published `0.8.22` npm package supports Linux
-  `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`, macOS
-  `x86_64-apple-darwin` and `aarch64-apple-darwin`, and Windows
-  `x86_64-pc-windows-msvc`.
+- The published `0.8.21` npm package supports Linux
+  `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`. Other hosts
+  must build from source.
 - SQLite + `sqlite-vec` (statically linked into the platform binary).
 
 ## Install the published package
 
 ```bash
-npm install fathomdb
+npm install fathomdb@next
 ```
 
 ## Install (current path — build from source)

@@ -1,6 +1,8 @@
 # Reference
 
-Reference for the published 0.8.22 surface. Field spellings and type-level details are authoritative
+Reference for the published 0.8.21 surface and the local, unpublished 0.8.22
+candidate. Candidate-only APIs are not available from a registry until the held
+release gates complete. Field spellings and type-level details are authoritative
 in the locked internal interface specs (`dev/interfaces/{python,typescript,cli}.md`);
 this section is the client-facing view.
 

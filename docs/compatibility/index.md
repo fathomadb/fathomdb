@@ -1,10 +1,10 @@
 # Compatibility
 
 Supported platforms, toolchains, and version-alignment policy for the
-published **0.8.22** release.
+published **0.8.21** release.
 
 > **Pre-1.0 = beta.** FathomDB is on a pre-1.0 line. The surface may
-> change between micro releases, and the 0.8.20–0.8.22 line carries compatibility changes
+> change between micro releases, and 0.8.21 carries breaking changes
 > relative to 0.8.9 (see [breaking changes](#breaking-changes-since-089)).
 > "GA" in earlier release notes referred to release *engineering* — a
 > tagged, published artifact — not to an API-stability promise.
@@ -24,23 +24,23 @@ toolchain (which bundles npm **11.12.1**).
 Rust **1.95.0**. This is the declared MSRV and the exact compiler used by CI
 and release jobs.
 
-## Prebuilt artifacts — five supported targets published
+## Prebuilt artifacts — Linux x86_64 and AArch64 published
 
-⚠ **The published 0.8.22 wheel and npm platform binaries support Linux
-`x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` glibc, macOS
-`x86_64-apple-darwin` and `aarch64-apple-darwin`, and Windows
-`x86_64-pc-windows-msvc`.** Linux musl and other targets are unsupported.
+⚠ **The published 0.8.21 wheel and npm platform binaries support Linux
+`x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` glibc.** Linux
+aarch64 is published for Python and npm. Do not expect the published npm
+package to install on macOS, Windows, or Linux musl.
 
 | OS      | Architecture                | Published prebuilt? |
 | ------- | --------------------------- | ------------------- |
 | Linux   | `x86_64-unknown-linux-gnu`  | **yes** (manylinux 2_28) |
 | Linux   | `aarch64-unknown-linux-gnu` | **yes** (manylinux 2_28) |
-| macOS   | `x86_64-apple-darwin`       | **yes** |
-| macOS   | `aarch64-apple-darwin`      | **yes** |
-| Windows | `x86_64-pc-windows-msvc`    | **yes** |
+| macOS   | `x86_64-apple-darwin`       | no — unsupported published artifact |
+| macOS   | `aarch64-apple-darwin`      | no — unsupported published artifact |
+| Windows | `x86_64-pc-windows-msvc`    | no — unsupported published artifact |
 
-Platforms outside the five published targets are unsupported for the published
-Python and npm packages in this release.
+Platforms outside the two published Linux glibc artifacts are unsupported for the
+published Python and npm packages in this release.
 
 ## SQLite + sqlite-vec
 
@@ -53,8 +53,8 @@ Python and npm packages in this release.
 
 ## On-disk schema
 
-The released 0.8.22 line sets `SCHEMA_VERSION` to **26** (0.8.21 used
-**25**; 0.8.20 shipped **24**). Migration runs at
+The 0.8.22 development line sets `SCHEMA_VERSION` to **26** (the released
+0.8.21 line is **25**; 0.8.20 shipped **24**). Migration runs at
 `Engine.open` and only there.
 
 ⚠ **Migration step 23 does not preserve edge data.** The step recreates
@@ -66,7 +66,7 @@ after upgrading** rather than relying on an in-place upgrade.
 
 ## Versioning — two axes
 
-0.8.22 follows two-axis versioning:
+0.8.21 follows two-axis versioning:
 
 - **Axis W (workspace lockstep)** — the runtime / binding / CLI crates
   plus the Python and TypeScript packages all carry the same workspace

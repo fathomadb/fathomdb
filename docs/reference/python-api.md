@@ -3,7 +3,9 @@
 Module: `fathomdb`. Authoritative spec:
 [`dev/interfaces/python.md`](https://github.com/coreyt/fathomdb/blob/main/dev/interfaces/python.md).
 
-> **Release state.** 0.8.22 is the current published release.
+> **Release state.** 0.8.21 is the current published release. This reference
+> also documents the local 0.8.22 candidate; its candidate-only APIs are not
+> available from a registry until the held release gates complete.
 
 ## Top-level
 

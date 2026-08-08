@@ -8,7 +8,11 @@ AC-050c) gates merges against this invariant.
 
 ## [Unreleased]
 
-## 0.8.22 — 2026-08-08
+### 0.8.22 release candidate — publication held
+
+This local candidate is not tagged or published. The tag, ordered platform
+publication, registry smokes, and `latest` promotion remain explicitly held.
+Move this section to a dated release heading only after those gates complete.
 
 Schema version **25 → 26**.
 

@@ -17,10 +17,10 @@ operator CLI.
   deletion obligation.
 - Optional in-process default embedder (`bge-small-en-v1.5`, pure Rust).
 
-**Status: 0.8.22, pre-1.0 beta.** The surface may change between micro
-releases. **v0.8.22 is published** to crates.io, PyPI, and npm; native Python
-and npm artifacts cover Linux x86_64/glibc and AArch64/glibc, macOS x64 and
-ARM64, and Windows x64. The main npm package is on the `latest` dist-tag.
+**Status: 0.8.21, pre-1.0 beta.** The surface may change between micro
+releases. **v0.8.21 is published** to crates.io, PyPI, and npm; native Python
+and npm artifacts cover Linux x86_64/glibc and Linux AArch64/glibc. The main npm
+package is on the `next` dist-tag.
 Licensed **MIT** (see `LICENSE`).
 
 Public documentation: `docs/` (built with `mkdocs build --strict`).

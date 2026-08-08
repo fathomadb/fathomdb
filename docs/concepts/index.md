@@ -1,9 +1,7 @@
 # Concepts
 
-Mental model for the unpublished 0.8.22 development candidate. The current
-published release is 0.8.21; candidate-only APIs described here are not
-available from a registry until the held release gates complete. Detailed
-treatment lives in internal design docs under
+Mental model for the published 0.8.22 release. Detailed treatment of
+implementation decisions lives in internal design docs under
 [`dev/design/`](https://github.com/coreyt/fathomdb/tree/main/dev/design);
 this page is the consumer-facing overview.
 

@@ -8,7 +8,7 @@ Two consumption paths for Rust users:
   `fathomdb recover` verbs. Operator-only; does **not**
   ship `search` / `get` / `list` query verbs.
 
-> **0.8.21 is published to crates.io.** FathomDB is pre-1.0 and the surface
+> **0.8.22 is published to crates.io.** FathomDB is pre-1.0 and the surface
 > is **beta**.
 
 ## Requirements
@@ -32,7 +32,7 @@ cargo add fathomdb
 CLI:
 
 ```bash
-cargo install fathomdb-cli --version 0.8.21
+cargo install fathomdb-cli --version 0.8.22
 ```
 
 ## Install (current path — from git)

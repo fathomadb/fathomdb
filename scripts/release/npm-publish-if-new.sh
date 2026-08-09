@@ -33,8 +33,10 @@ usage() {
 Usage: npm-publish-if-new.sh [--dry-run] --tag <dist-tag> [-- <extra npm publish args>]
 
 Publishes ./package.json's name@version to npm only if that version is not
-already on the registry. --dry-run forwards to `npm publish --dry-run`
-regardless of registry state.
+already on the registry. --dry-run forwards to `npm publish --dry-run` when
+the version is absent. For an already-published version it instead runs
+`npm pack --dry-run`, which rehearses package construction without asking npm
+to overwrite an immutable version.
 USAGE
 }
 
@@ -70,18 +72,27 @@ BASE="${NPM_PUBLISH_IF_NEW_REGISTRY:-https://registry.npmjs.org}"
 # registry error we cannot interpret (fail-closed — do not blind-publish).
 # The npm registry packument exposes published versions under `.versions`.
 registry_has_version() {
-  local url body
+  local url response body http_status
   # Scoped names (@scope/pkg) must be URL-encoded (/ -> %2f) for the packument.
   url="${BASE}/$(printf '%s' "$NAME" | sed 's#/#%2f#')"
-  if ! body="$(curl --silent --show-error --max-time 30 \
+  if ! response="$(curl --silent --show-error --max-time 30 \
+        --write-out '\n%{http_code}' \
         -H "User-Agent: fathomdb-release-npm-guard (https://github.com/coreyt/fathomdb)" \
         "$url" 2>/dev/null)"; then
     return 2
   fi
-  # A 404 packument (never-published package) is a valid "absent" answer.
-  if printf '%s' "$body" | jq -e '.error == "Not found" or .error == "version not found"' >/dev/null 2>&1; then
+  http_status="${response##*$'\n'}"
+  body="${response%$'\n'*}"
+  # Only an HTTP 404 packument (never-published package) is a valid "absent"
+  # answer. A parseable JSON error body from a rate-limit or outage must stay a
+  # release blocker; treating it as absent would invoke npm blindly.
+  if [ "$http_status" = "404" ]; then
     return 1
   fi
+  case "$http_status" in
+    2??) ;;
+    *) return 2 ;;
+  esac
   if ! printf '%s' "$body" | jq . >/dev/null 2>&1; then
     return 2
   fi
@@ -91,24 +102,44 @@ registry_has_version() {
   return 1
 }
 
-if [ "$DRY_RUN" -eq 1 ]; then
-  printf 'npm-publish-if-new: %s@%s — dry-run (registry=%s)\n' "$NAME" "$VERSION" "$BASE"
-  # SAFETY (Fix-1): route the publish to the SAME registry we queried ($BASE).
-  # Without --registry, `npm publish` targets the public registry from ambient
-  # config even when NPM_PUBLISH_IF_NEW_REGISTRY points at a staging/test index,
-  # which would let a staging run publish to PROD. --registry "$BASE" makes a
-  # staging/test run structurally incapable of touching prod. In production
-  # $BASE == https://registry.npmjs.org (the setup-node registry-url), so this
-  # is a no-op there and preserves OIDC trusted publishing.
-  # NPM_BIN may be a multi-word command ("npx npm@latest") — intentional split.
-  # shellcheck disable=SC2086
-  exec $NPM_BIN publish --registry "$BASE" --dry-run --tag "$DIST_TAG" "${EXTRA[@]}"
-fi
-
 set +e
 registry_has_version
 rc=$?
 set -e
+
+if [ "$DRY_RUN" -eq 1 ]; then
+  case "$rc" in
+    0)
+      printf 'npm-publish-if-new: %s@%s already published; rehearsing with npm pack --dry-run\n' \
+        "$NAME" "$VERSION"
+      # `npm publish --dry-run` still asks the registry to reserve the version,
+      # which fails for an immutable version after a partial release. `npm pack`
+      # builds the same local tarball but has no publish operation at all.
+      # NPM_BIN may be a multi-word command ("npx npm@latest") — intentional split.
+      # shellcheck disable=SC2086
+      exec $NPM_BIN pack --dry-run --registry "$BASE"
+      ;;
+    1)
+      printf 'npm-publish-if-new: %s@%s — dry-run (registry=%s)\n' "$NAME" "$VERSION" "$BASE"
+      # SAFETY (Fix-1): route the publish to the SAME registry we queried ($BASE).
+      # Without --registry, `npm publish` targets the public registry from ambient
+      # config even when NPM_PUBLISH_IF_NEW_REGISTRY points at a staging/test index,
+      # which would let a staging run publish to PROD. --registry "$BASE" makes a
+      # staging/test run structurally incapable of touching prod. In production
+      # $BASE == https://registry.npmjs.org (the setup-node registry-url), so this
+      # is a no-op there and preserves OIDC trusted publishing.
+      # NPM_BIN may be a multi-word command ("npx npm@latest") — intentional split.
+      # shellcheck disable=SC2086
+      exec $NPM_BIN publish --registry "$BASE" --dry-run --tag "$DIST_TAG" "${EXTRA[@]}"
+      ;;
+    *)
+      printf 'npm-publish-if-new: registry query failed for %s; refusing to blind-dry-run\n' \
+        "$NAME" >&2
+      exit 1
+      ;;
+  esac
+fi
+
 case "$rc" in
   0)
     printf 'npm-publish-if-new: %s@%s already published; skipping\n' "$NAME" "$VERSION"

@@ -180,7 +180,15 @@ const srv = http.createServer((req, res) => {
       return;
     }
     if (req.method === "GET") {
-      const doc = store.get(pkgName(req.url));
+      const n = pkgName(req.url);
+      // A syntactically-valid error body must not be mistaken for an absent
+      // package. This reproduces a rate-limited npm packument request.
+      if (n === "fathomdb-rate-limited") {
+        res.writeHead(429, { "content-type": "application/json" });
+        res.end(JSON.stringify({ error: "Too Many Requests" }));
+        return;
+      }
+      const doc = store.get(n);
       if (!doc) { res.writeHead(404, { "content-type": "application/json" }); res.end(JSON.stringify({ error: "Not found" })); return; }
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ name: doc.name, "dist-tags": doc["dist-tags"], versions: doc.versions }));
@@ -233,6 +241,58 @@ registry=${NPM_REG}
 //127.0.0.1:${NPM_PORT}/:_authToken=fake-token
 NPMRC
 
+ABSENT_DRY_RUN_DIR="$WORK_DIR/absent-dry-run"; mkdir -p "$ABSENT_DRY_RUN_DIR"
+cat >"$ABSENT_DRY_RUN_DIR/package.json" <<'PJ'
+{ "name": "fathomdb-dry-run-absent", "version": "9.9.9" }
+PJ
+
+RATE_LIMIT_DIR="$WORK_DIR/rate-limited"; mkdir -p "$RATE_LIMIT_DIR"
+cat >"$RATE_LIMIT_DIR/package.json" <<'PJ'
+{ "name": "fathomdb-rate-limited", "version": "9.9.9" }
+PJ
+
+# --- Dry-run command contract and HTTP error fail-closed behavior ----------
+NPM_DRY_RUN_LOG="$TMP/npm-dry-run-command.log"
+cat >"$SHIM_DIR/npm-dry-run-capture" <<'SHIM'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$NPM_DRY_RUN_LOG"
+exit 0
+SHIM
+chmod +x "$SHIM_DIR/npm-dry-run-capture"
+
+# An absent package still needs the exact npm publish --dry-run rehearsal used
+# by the workflow: same registry, dist-tag, and publishing extras.
+: >"$NPM_DRY_RUN_LOG"
+if out="$(cd "$ABSENT_DRY_RUN_DIR" && NPM_PUBLISH_IF_NEW_REGISTRY="$NPM_REG" \
+          NPM_DRY_RUN_LOG="$NPM_DRY_RUN_LOG" NPM_BIN="$SHIM_DIR/npm-dry-run-capture" \
+          "$NPM_HELPER" --dry-run --tag next -- --access public --provenance 2>&1)"; then
+  NPM_DRY_RUN_COMMAND="$(<"$NPM_DRY_RUN_LOG")"
+  if printf '%s' "$out" | grep -q 'fathomdb-dry-run-absent@9.9.9 — dry-run' \
+     && printf '%s\n' "$NPM_DRY_RUN_COMMAND" | grep -Fx \
+        "publish --registry $NPM_REG --dry-run --tag next --access public --provenance" >/dev/null; then
+    pass "npm absent-version dry-run preserves publish registry/tag/extras"
+  else
+    fail "npm absent-version dry-run: out='$out' npm='$NPM_DRY_RUN_COMMAND'"
+  fi
+else
+  fail "npm absent-version dry-run exited non-zero: $out"
+fi
+
+# A valid JSON error response such as npm's 429 rate-limit envelope is not an
+# absent packument. The helper must stop before attempting any npm command.
+: >"$NPM_DRY_RUN_LOG"
+if out="$(cd "$RATE_LIMIT_DIR" && NPM_PUBLISH_IF_NEW_REGISTRY="$NPM_REG" \
+          NPM_DRY_RUN_LOG="$NPM_DRY_RUN_LOG" NPM_BIN="$SHIM_DIR/npm-dry-run-capture" \
+          "$NPM_HELPER" --dry-run --tag next -- --access public 2>&1)"; then
+  fail "npm dry-run HTTP 429 unexpectedly succeeded: $out"
+elif printf '%s' "$out" | grep -q 'registry query failed' \
+   && [ ! -s "$NPM_DRY_RUN_LOG" ]; then
+  pass "npm dry-run HTTP 429 fails closed (no npm command invoked)"
+else
+  NPM_DRY_RUN_COMMAND="$(<"$NPM_DRY_RUN_LOG")"
+  fail "npm dry-run HTTP 429: out='$out' npm='$NPM_DRY_RUN_COMMAND'"
+fi
+
 # --- REAL publish through the helper (absent -> publishes) -----------------
 if out="$(cd "$PLAT_DIR" && NPM_PUBLISH_IF_NEW_REGISTRY="$NPM_REG" NPM_BIN=npm \
           "$NPM_HELPER" --tag next -- --registry "$NPM_REG" 2>&1)"; then
@@ -268,6 +328,51 @@ if out="$(cd "$PLAT_DIR" && NPM_PUBLISH_IF_NEW_REGISTRY="$NPM_REG" NPM_BIN=npm \
   fi
 else
   fail "npm no-op helper exited non-zero: $out"
+fi
+
+# --- REAL dry-run recovery: a published version still rehearses packing -----
+#
+# A release dry-run may follow a partial real release, where a platform package
+# is already immutable on npm. `npm publish --dry-run` rejects that state with
+# the same overwrite error as a real publish. The helper must instead use
+# `npm pack --dry-run`: it exercises the local package construction without
+# publishing or asking npm to overwrite the immutable version.
+PUTS_BEFORE_DRY_RUN="$(wc -l <"$PUT_LOG")"
+if out="$(cd "$PLAT_DIR" && NPM_PUBLISH_IF_NEW_REGISTRY="$NPM_REG" NPM_BIN=npm \
+          "$NPM_HELPER" --dry-run --tag next -- --access public --provenance 2>&1)"; then
+  PUTS_AFTER_DRY_RUN="$(wc -l <"$PUT_LOG")"
+  if printf '%s' "$out" | grep -q 'already published; rehearsing with npm pack --dry-run' \
+     && printf '%s' "$out" | grep -q 'fathomdb-linux-x64-gnu-9.9.9.tgz' \
+     && [ "$PUTS_AFTER_DRY_RUN" -eq "$PUTS_BEFORE_DRY_RUN" ]; then
+    pass "npm dry-run for a published version packs locally (zero new PUTs)"
+  else
+    fail "npm published-version dry-run: out='$out' puts_before=$PUTS_BEFORE_DRY_RUN puts_after=$PUTS_AFTER_DRY_RUN"
+  fi
+else
+  fail "npm published-version dry-run exited non-zero: $out"
+fi
+
+# A dry-run must not turn an unavailable registry into a blind local pack or
+# publish attempt. The publish command is a sentinel: the helper must stop at
+# the failed registry query before invoking it.
+NPM_DRY_RUN_LOG="$TMP/npm-dry-run-command.log"
+cat >"$SHIM_DIR/npm-dry-run-sentinel" <<'SHIM'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$NPM_DRY_RUN_LOG"
+exit 99
+SHIM
+chmod +x "$SHIM_DIR/npm-dry-run-sentinel"
+: >"$NPM_DRY_RUN_LOG"
+if out="$(cd "$PLAT_DIR" && NPM_PUBLISH_IF_NEW_REGISTRY="http://127.0.0.1:1" \
+          NPM_DRY_RUN_LOG="$NPM_DRY_RUN_LOG" NPM_BIN="$SHIM_DIR/npm-dry-run-sentinel" \
+          "$NPM_HELPER" --dry-run --tag next -- --access public 2>&1)"; then
+  fail "npm dry-run registry error unexpectedly succeeded: $out"
+elif printf '%s' "$out" | grep -q 'registry query failed' \
+   && [ ! -s "$NPM_DRY_RUN_LOG" ]; then
+  pass "npm dry-run registry error fails closed (no npm command invoked)"
+else
+  NPM_DRY_RUN_COMMAND="$(<"$NPM_DRY_RUN_LOG")"
+  fail "npm dry-run registry error: out='$out' npm='$NPM_DRY_RUN_COMMAND'"
 fi
 
 # --- REAL install from the registry + REAL loader exercise -----------------

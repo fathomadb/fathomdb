@@ -72,18 +72,27 @@ BASE="${NPM_PUBLISH_IF_NEW_REGISTRY:-https://registry.npmjs.org}"
 # registry error we cannot interpret (fail-closed — do not blind-publish).
 # The npm registry packument exposes published versions under `.versions`.
 registry_has_version() {
-  local url body
+  local url response body http_status
   # Scoped names (@scope/pkg) must be URL-encoded (/ -> %2f) for the packument.
   url="${BASE}/$(printf '%s' "$NAME" | sed 's#/#%2f#')"
-  if ! body="$(curl --silent --show-error --max-time 30 \
+  if ! response="$(curl --silent --show-error --max-time 30 \
+        --write-out '\n%{http_code}' \
         -H "User-Agent: fathomdb-release-npm-guard (https://github.com/coreyt/fathomdb)" \
         "$url" 2>/dev/null)"; then
     return 2
   fi
-  # A 404 packument (never-published package) is a valid "absent" answer.
-  if printf '%s' "$body" | jq -e '.error == "Not found" or .error == "version not found"' >/dev/null 2>&1; then
+  http_status="${response##*$'\n'}"
+  body="${response%$'\n'*}"
+  # Only an HTTP 404 packument (never-published package) is a valid "absent"
+  # answer. A parseable JSON error body from a rate-limit or outage must stay a
+  # release blocker; treating it as absent would invoke npm blindly.
+  if [ "$http_status" = "404" ]; then
     return 1
   fi
+  case "$http_status" in
+    2??) ;;
+    *) return 2 ;;
+  esac
   if ! printf '%s' "$body" | jq . >/dev/null 2>&1; then
     return 2
   fi

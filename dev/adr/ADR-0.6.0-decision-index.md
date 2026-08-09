@@ -114,6 +114,12 @@ Slice-0 gate before Slices 15 and 25 open.
 | - | -------- | ------------------ | ------------ | -------- |
 | 41 | interface | Nested-source projections for Memex B15 — declared literal member paths, engine-owned scalar EAV/property-FTS derivation, portable attribute filtering and projected-text search; canonical-text equality intentionally collapses `"1"` and `1` | accepted (HITL 2026-08-04; remapped to Slice 60 by `seq-242`) | ADR-0.8.21-nested-source-projections.md |
 
+## Phase 0.8.22 (release-artifact decision)
+
+| # | Category | Candidate decision | HITL verdict | ADR file |
+| - | -------- | ------------------ | ------------ | -------- |
+| 42 | release | Windows x64 MSVC native package uses `fathomdb-native-win32-x64-msvc`; all non-Windows packages retain the unscoped `fathomdb-<triple>` convention | accepted (HITL 2026-08-09) | ADR-0.8.22-windows-native-npm-package.md |
+
 ## Categories
 
 acceptance | architecture | design | interface.

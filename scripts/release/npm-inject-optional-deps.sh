@@ -4,8 +4,9 @@
 # (R-REL-4f).
 #
 # Why publish-time injection (the napi-rs idiom) and not a committed field:
-# the unscoped `fathomdb-<triple>` binary packages are published DURING the
-# release, so at dev time they do not exist on the registry. Committing them as
+# the platform binary packages are published DURING the release, so at dev time
+# they do not exist on the registry. They use unscoped `fathomdb-<triple>` names
+# except Windows x64 MSVC (`fathomdb-native-win32-x64-msvc`). Committing them as
 # `optionalDependencies` would desync `package-lock.json` and break every
 # `npm ci`. Instead the committed package.json is `npm ci`-clean, and this
 # script writes the optionalDependencies into it just before `npm publish` so

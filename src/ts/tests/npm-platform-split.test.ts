@@ -28,10 +28,18 @@ test("npm_platform_split_contract: triple resolution for supported hosts", () =>
   assert.equal(resolveTriple("win32", "x64", false), "win32-x64-msvc");
 });
 
-test("npm_platform_split_contract: platform package name is unscoped", () => {
+test("npm_platform_split_contract: platform package name preserves unscoped names except Windows", () => {
   assert.equal(
     platformPackageName("linux-x64-gnu"),
     "fathomdb-linux-x64-gnu",
+  );
+  assert.equal(
+    platformPackageName("darwin-arm64"),
+    "fathomdb-darwin-arm64",
+  );
+  assert.equal(
+    platformPackageName("win32-x64-msvc"),
+    "fathomdb-native-win32-x64-msvc",
   );
 });
 

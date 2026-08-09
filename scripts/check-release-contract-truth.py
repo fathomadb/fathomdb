@@ -306,6 +306,8 @@ def main() -> None:
             fail(f"{publish_job} does not stage napi-{triple}")
         if f"working-directory: {entry['package_dir']}" not in publish_block:
             fail(f"{publish_job} does not publish {entry['package_dir']}")
+        if f"name: Publish {entry['npm_package']}" not in publish_block:
+            fail(f"{publish_job} does not name its published npm package")
         publish_jobs.append(publish_job)
 
         smoke_job = entry["smoke_job"]

@@ -706,7 +706,7 @@ jobs:
         with:
           name: napi-win32-x64-msvc
           path: src/ts/npm/win32-x64-msvc
-      - name: Publish fathomdb-win32-x64-msvc
+      - name: Publish fathomdb-native-win32-x64-msvc
         shell: bash
         working-directory: src/ts/npm/win32-x64-msvc
         env:

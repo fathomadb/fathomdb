@@ -204,6 +204,20 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
+needle = "      - name: Publish fathomdb-native-win32-x64-msvc\n"
+if text.count(needle) != 1:
+    raise SystemExit("test fixture no longer contains exactly one Windows package publish label")
+path.write_text(text.replace(needle, "      - name: Publish incorrect-windows-package\n", 1))
+PY
+expect_fail "$FIXTURE" 'rejects a Windows publish label that disagrees with package metadata'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
 needle = 'smoke-${{ matrix.smoke }}.sh'
 if text.count(needle) != 1:
     raise SystemExit("test fixture no longer contains exactly one shared smoke command")

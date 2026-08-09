@@ -1,6 +1,8 @@
 # ADR-0.8.20 — Unscoped npm platform packages
 
-- **Status: ACCEPTED (HITL approved 2026-08-02).** Supersedes the scoped-name
+- **Status: PARTIALLY SUPERSEDED by
+  ADR-0.8.22-windows-native-npm-package.** Accepted 2026-08-02; superseded
+  only for the Windows x64 MSVC package name. It supersedes the scoped-name
   portion of ADR-0.8.18's per-platform npm package topology.
 
 ## Decision

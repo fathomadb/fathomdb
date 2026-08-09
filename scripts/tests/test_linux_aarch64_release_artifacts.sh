@@ -117,7 +117,7 @@ cp "$REPO_ROOT/src/ts/package.json" "$scratch/package.json"
 bash "$REPO_ROOT/scripts/release/npm-inject-optional-deps.sh" "$scratch" "$REPO_ROOT/src/ts/npm" >/dev/null
 injected="$(node -e 'process.stdout.write(JSON.stringify(require(process.argv[1]).optionalDependencies))' "$scratch/package.json")"
 version="$(node -e 'process.stdout.write(require(process.argv[1]).version)' "$REPO_ROOT/src/ts/package.json")"
-expected="{\"fathomdb-darwin-arm64\":\"$version\",\"fathomdb-darwin-x64\":\"$version\",\"fathomdb-linux-arm64-gnu\":\"$version\",\"fathomdb-linux-x64-gnu\":\"$version\",\"fathomdb-win32-x64-msvc\":\"$version\"}"
+expected="{\"fathomdb-darwin-arm64\":\"$version\",\"fathomdb-darwin-x64\":\"$version\",\"fathomdb-linux-arm64-gnu\":\"$version\",\"fathomdb-linux-x64-gnu\":\"$version\",\"fathomdb-native-win32-x64-msvc\":\"$version\"}"
 if [ "$injected" != "$expected" ]; then
   printf 'FAIL  main npm package must inject every stable platform dependency, got: %s\n' "$injected" >&2
   exit 1

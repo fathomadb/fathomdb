@@ -4,7 +4,7 @@
 //
 // The published `fathomdb` package is a THIN main package: it ships no `.node`
 // binary itself. Each platform's compiled binding is published as a separate
-// `fathomdb-<triple>` package carrying `os`/`cpu` (+ `libc`) so npm
+// platform package carrying `os`/`cpu` (+ `libc`) so npm
 // installs only the one matching the host and SKIPS the rest (they are
 // `optionalDependencies`). The loader below picks the right platform package
 // for the running host and — critically — throws a CLEAR "unsupported
@@ -86,6 +86,9 @@ export function resolveTriple(
 
 /** The published binary package name for a triple. */
 export function platformPackageName(triple: string): string {
+  if (triple === "win32-x64-msvc") {
+    return "fathomdb-native-win32-x64-msvc";
+  }
   return `fathomdb-${triple}`;
 }
 
@@ -96,7 +99,7 @@ export interface LoaderSeams {
   /** Returns the local dev binary module if `fathomdb.<triple>.node` exists next
    *  to the loader (napi `--platform` build output), else `null`. */
   loadLocal: (triple: string) => unknown | null;
-  /** `require("fathomdb-<triple>")`; MUST throw if the (optional)
+  /** Require the published platform package for the triple; MUST throw if the (optional)
    *  platform package is not installed. */
   requirePackage: (pkg: string) => unknown;
 }
@@ -104,7 +107,7 @@ export interface LoaderSeams {
 /**
  * Load the native binding for the running host. Order:
  *   1. local dev binary (`fathomdb.<triple>.node`) if present;
- *   2. the published `fathomdb-<triple>` platform package;
+ *   2. the published platform package selected by `platformPackageName`;
  *   3. otherwise throw `UnsupportedPlatformError` — a mac/win install that
  *      skipped the linux optionalDependency lands here at REQUIRE time (loud),
  *      never as a silent `.node` load / runtime segfault.

@@ -47,8 +47,10 @@ semantics are a 0.8.23 architecture/documentation follow-up.
   each supported platform package; unsupported hosts retain a clear error.
 - Python wheels and napi binaries build and registry-smoke on actual target
   runners for every triple.
-- A trusted-publishing bootstrap exists for each new unscoped npm package and
-  relies on GitHub OIDC, never a long-lived npm token.
+- A trusted-publishing bootstrap exists for each new npm package and relies on
+  GitHub OIDC, never a long-lived npm token. Non-Windows packages are unscoped
+  `fathomdb-<triple>` names; Windows x64 MSVC is
+  `fathomdb-native-win32-x64-msvc`.
 - The immutable candidate passes dry-run and full CI. A failed platform smoke
   leaves `latest` untouched and the version recoverable from its tag.
 - A two-phase `repo-prune` classification records current authorities and

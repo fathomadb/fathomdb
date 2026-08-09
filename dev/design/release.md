@@ -203,9 +203,10 @@ Per `feedback_release_verification`, "green CI + published wheel" is not
 done. Release-evidence sweep installs the published wheel from PyPI and
 runs an end-to-end open + close + exit smoke before the release is
 declared signed. Equivalent npm smoke applies for `fathomdb` publishes.
-The npm packages are published as bare `fathomdb` and
-`fathomdb-<triple>` (not a `@fathomdb/` scope), per the unscoped platform
-package recovery — single brand across crates, wheel, and npm.
+The npm packages are published as bare `fathomdb` and unscoped
+`fathomdb-<triple>` names (not a `@fathomdb/` scope), except Windows x64 MSVC,
+which is `fathomdb-native-win32-x64-msvc` because that is the registry-owned
+publishable name. This preserves a single brand across crates, wheel, and npm.
 Crate publishes are smoked via `cargo install fathomdb-cli`
 followed by `fathomdb doctor check-integrity --json` against a fresh
 fixture database.

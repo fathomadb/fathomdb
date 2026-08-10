@@ -289,6 +289,10 @@ run_tier_suite fast test-release-workflow-scope bash scripts/tests/test_release_
 # drift without interpreting public documentation.
 run_tier_suite fast test-release-contract-truth bash scripts/tests/test_release_contract_truth.sh
 
+# Slice 0 (0.8.23): CPU CI checks the CUDA feature/build/preflight seam
+# statically; the real build and smoke remain restricted to the release runner.
+run_tier_suite fast test-cuda-release-contract bash scripts/tests/test_cuda_release_contract.sh
+
 # Slice 15: each release-ready runner must consume its locally built wheel and
 # matching N-API platform package before the later registry smoke gate.
 run_tier_suite fast test-native-artifact-runtime-validation bash scripts/tests/test_native_artifact_runtime_validation.sh

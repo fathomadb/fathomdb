@@ -111,6 +111,41 @@ PY
 expect_fail "$FIXTURE" 'rejects a CUDA builder whose nvcc compiler-bindir is not GCC 13'
 
 make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/build-napi-cuda.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = 'export CUDACXX="$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin/nvcc"'
+if text.count(needle) != 1:
+    raise SystemExit("fixture no longer contains exactly one N-API nvcc selection")
+path.write_text(text.replace(needle, 'export CUDACXX="/usr/bin/g++"', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA N-API build wrapper without nvcc selection'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/Dockerfile.cuda-manylinux" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+path.write_text(path.read_text() + "\nRUN nvcc --allow-unsupported-compiler\n")
+PY
+expect_fail "$FIXTURE" 'rejects allow-unsupported-compiler in CUDA release tooling'
+
+if ! grep -Fq "CUDA_MANYLINUX_GCC_RPM='gcc-toolset-13-gcc-13.3.1-2.2.el8_10.x86_64'" \
+  "$REPO_ROOT/scripts/release/cuda-artifact-contract.sh"; then
+  printf 'FAIL  CUDA manylinux contract must pin the exact GCC 13.3.1 RPM NEVRA\n' >&2
+  exit 1
+fi
+if ! grep -Fq "CUDA_MANYLINUX_GXX_RPM='gcc-toolset-13-gcc-c++-13.3.1-2.2.el8_10.x86_64'" \
+  "$REPO_ROOT/scripts/release/cuda-artifact-contract.sh"; then
+  printf 'FAIL  CUDA manylinux contract must pin the exact G++ 13.3.1 RPM NEVRA\n' >&2
+  exit 1
+fi
+
+make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/cuda-artifact-contract.sh" <<'PY'
 from pathlib import Path
 import sys

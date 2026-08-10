@@ -175,6 +175,20 @@ PY
 expect_fail "$FIXTURE" 'rejects CUDA preflight permissions broader than read-only'
 
 make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a'
+if text.count(needle) != 3:
+    raise SystemExit("fixture CUDA witness upload must use the reviewed full artifact SHA")
+path.write_text(text.replace(needle, needle[:-1], 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA witness uploader with a shortened action SHA'
+
+make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/Dockerfile.cuda-manylinux" <<'PY'
 from pathlib import Path
 import sys

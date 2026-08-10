@@ -1,6 +1,13 @@
 {
   "release": "0.8.22",
-  "release_kind": "even, stable publish candidate",
+  "release_kind": "even, published historical release",
+  "published": {
+    "tag": "v0.8.22",
+    "tag_commit": "93cd1a14e35bbf68a57dd97aac76794f3bf1d887",
+    "published_on": "2026-08-10",
+    "npm_dist_tag": "latest",
+    "evidence": "GitHub Release v0.8.22 was published 2026-08-10T13:31:45Z. npm records fathomdb@0.8.22 as both latest and next after registry smoke and recovery verification."
+  },
   "board": "dev/plans/runs/STATUS-0.8.22.md",
   "plan": "dev/plans/plan-0.8.22.md",
   "master": "dev/plans/0.8.6-0.8.16-PROGRAM-SEQUENCING.md",
@@ -26,16 +33,13 @@
     {"slice": 21, "short": "PROJ-STATE", "title": "truthful projection runtime state and safe boot graft", "depends_on": [19], "status": "LANDED", "sha": "e95afd292561d203d1001ea992ecbc191e129536", "merge_subject": "Merge pull request #207 from coreyt/integrate/0.8.22-slices-19-22-20260807", "design_refs": ["dev/design/0.8.22-slice-21-projection-state.md"], "evidence": "PR #207 landed at this merge commit after every CI check passed. Runtime RED 36558bc3, GREEN 43b4b1c7, and FIX-1 through FIX-5 ending 26bdd2ce are independently reviewed. Post-integration stale cross-SDK contract fixtures were corrected through FIX-3 at ae873e1a and independently approved; the refreshed default-embedder and full verify CI jobs passed."},
     {"slice": 22, "short": "PROJ-STATUS", "title": "governed pure projection-status read", "depends_on": [21], "status": "LANDED", "sha": "e95afd292561d203d1001ea992ecbc191e129536", "merge_subject": "Merge pull request #207 from coreyt/integrate/0.8.22-slices-19-22-20260807", "design_refs": ["dev/design/0.8.22-slice-22-projection-status.md"], "evidence": "PR #207 landed at this merge commit after every CI check passed. HITL C5 decision seq-247 and the 34/5/5 governed-surface pin preparation are independently approved. Runtime RED commits 1cbef71a/48906511, GREEN da8d2c3e, and FIX-1 3d6d2157/6aeee48e closed all P1/P2; isolated all-tier verification and the refreshed protected-branch CI passed."},
     {"slice": 23, "short": "FTS-PREFIX", "title": "direct FTS limit-prefix stability", "depends_on": [18, 19, 22], "status": "LANDED", "sha": "f1ccf2694087e1da4cee2204fe7b80389420a4b0", "merge_subject": "fix(0.8.22): stabilize direct FTS result prefixes", "design_refs": ["dev/design/0.8.22-slice-23-text-limit-prefix-stability.md", "dev/design/retrieval-result-limits.md"], "evidence": "HITL seq-248 ruled the direct FTS limit-dependent top-K behavior a P2 defect before publication. RED 38438e8c/cb8a0539, GREEN 9ba52e32, AC7 8b86cc05, and FIX-1 8a79d507/bd008a47 are retained on the isolated branch; independent review passed through its state-renderer FIX-1 d5344048. PR #209 landed the repair at this SHA after CI run #31265399431 passed. Hybrid/vector candidate-fanout semantics remain a 0.8.23 architecture/documentation follow-up."},
-    {"slice": 20, "short": "PUBLISH", "title": "ordered platform publication and registry smokes", "depends_on": [15, 18, 22, 23], "status": "PREP_COMPLETE_PUBLISH_HELD", "local_prep_sha": "2f94085c", "design_refs": ["dev/design/release.md", "dev/design/bindings.md"], "evidence": "The local native-validation handoff guard is closed: RED a15cc9f3/aabfd65e/b0ac862e, GREEN 4f709e75/9baa2db0/2f94085c, and independent reviews through FIX-2 closed all P1/P2. An isolated ordinary clone at 2f94085c passed the native validation test, actionlint, agent-verify --tier=all, and full workspace clippy/check. Real ordered publication and registry smokes remain explicitly held pending new explicit authorization."},
-    {"slice": 25, "short": "PROMOTE", "title": "next-to-latest promotion after every smoke", "depends_on": [20], "status": "NOT_STARTED", "design_refs": ["dev/design/release.md"]}
+    {"slice": 20, "short": "PUBLISH", "title": "ordered platform publication and registry smokes", "depends_on": [15, 18, 22, 23], "status": "LANDED", "sha": "93cd1a14e35bbf68a57dd97aac76794f3bf1d887", "local_prep_sha": "2f94085c", "design_refs": ["dev/design/release.md", "dev/design/bindings.md"], "evidence": "v0.8.22 published from 93cd1a14 after ordered registry publication and recovery verification; the public GitHub Release and npm latest/next state are the durable publish witnesses."},
+    {"slice": 25, "short": "PROMOTE", "title": "next-to-latest promotion after every smoke", "depends_on": [20], "status": "LANDED", "sha": "93cd1a14e35bbf68a57dd97aac76794f3bf1d887", "design_refs": ["dev/design/release.md"], "evidence": "npm records fathomdb@0.8.22 as latest and next after the completed registry-smoke recovery."}
   ],
-  "landed": [0, 5, 10, 12, 15, 17, 18, 19, 21, 22, 23],
-  "next_slice": 20,
-  "remaining_ladder": [20, 25],
+  "landed": [0, 5, 10, 12, 15, 17, 18, 19, 20, 21, 22, 23, 25],
+  "next_slice": null,
+  "remaining_ladder": [],
   "generated_views": [
-    {"id": "plan-landed-roll-up", "file": "dev/plans/plan-0.8.22.md", "location": "Landed release state", "renders": "every landed slice + its landing SHA, the SCHEMA version, and the remaining ladder"},
-    {"id": "plan-immediate-next", "file": "dev/plans/plan-0.8.22.md", "location": "Immediate next slice", "renders": "the next slice and remaining ladder"},
-    {"id": "status-current-state", "file": "dev/plans/runs/STATUS-0.8.22.md", "location": "Current state", "renders": "the state-owned next-slice and landed evidence summary"},
-    {"id": "status-next-action", "file": "dev/plans/runs/STATUS-0.8.22.md", "location": "Immediate next action", "renders": "the state-owned next lifecycle action and remaining ladder"}
+    {"id": "plan-landed-roll-up", "file": "dev/plans/plan-0.8.22.md", "location": "Landed release state", "renders": "every landed slice + its landing SHA, the SCHEMA version, and the remaining ladder"}
   ]
 }

@@ -1,0 +1,88 @@
+{
+  "release": "0.8.23",
+  "release_kind": "odd, release-ready implementation; publication held",
+  "board": "dev/plans/runs/STATUS-0.8.23.md",
+  "plan": "dev/plans/plan-0.8.23.md",
+  "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
+  "schema_version": 26,
+  "origin_main_schema_version": 26,
+  "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
+  "ladder": [
+    {
+      "slice": 0,
+      "short": "CUDA-CONTRACT",
+      "title": "CUDA artifact contract, dependency probe, and protected runner gate",
+      "depends_on": [],
+      "status": "NOT_STARTED",
+      "design_refs": ["dev/design/0.8.23-gpu-artifacts.md"]
+    },
+    {
+      "slice": 10,
+      "short": "MEMEX-INTEGRATION",
+      "title": "Memex integration feedback, readiness, and lifecycle characterization",
+      "depends_on": [0],
+      "status": "NOT_STARTED",
+      "design_refs": ["dev/design/0.8.23-embedding-configuration-feedback.md", "dev/design/0.8.23-memex-integration.md"]
+    },
+    {
+      "slice": 5,
+      "short": "CUDA-PACKAGE",
+      "title": "build, package, release gate, and installed-artifact CUDA smoke",
+      "depends_on": [0, 10],
+      "status": "NOT_STARTED",
+      "design_refs": ["dev/design/0.8.23-gpu-artifacts.md"]
+    }
+  ],
+  "landed": [],
+  "next_slice": 0,
+  "remaining_ladder": [0, 10, 5],
+  "decisions": {
+    "unruled": [],
+    "ruled": [
+      {
+        "id": "scope",
+        "title": "Linux x86_64 CUDA artifacts only; CPU remains the default",
+        "halts_run": false,
+        "source": "HITL 2026-08-10"
+      },
+      {
+        "id": "publication",
+        "title": "Complete implementation and rehearsal without publishing 0.8.23",
+        "halts_run": false,
+        "source": "HITL 2026-08-10"
+      },
+      {
+        "id": "embedding-configuration-feedback",
+        "title": "Body-bearing graph work without a usable embedder returns typed, actionable SDK feedback rather than an opaque retry-driven drain failure",
+        "halts_run": false,
+        "source": "HITL direction 2026-08-10; design dev/design/0.8.23-embedding-configuration-feedback.md"
+      },
+      {
+        "id": "memex-integration-feedback",
+        "title": "Dedicated slice validates Memex graph integration and provides typed readiness feedback; embedder availability is independent of client vector-ranking policy",
+        "halts_run": false,
+        "source": "HITL direction 2026-08-10; design dev/design/0.8.23-memex-integration.md"
+      }
+    ]
+  },
+  "generated_views": [
+    {
+      "id": "plan-immediate-next",
+      "file": "dev/plans/plan-0.8.23.md",
+      "location": "Immediate next slice",
+      "renders": "the state-owned next slice and remaining ladder"
+    },
+    {
+      "id": "status-current-state",
+      "file": "dev/plans/runs/STATUS-0.8.23.md",
+      "location": "Current state",
+      "renders": "the state-owned next-slice and landed evidence summary"
+    },
+    {
+      "id": "status-next-action",
+      "file": "dev/plans/runs/STATUS-0.8.23.md",
+      "location": "Immediate next action",
+      "renders": "the lifecycle-aware next action and remaining ladder"
+    }
+  ]
+}

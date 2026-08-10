@@ -1,12 +1,17 @@
 # STATUS — FathomDB 0.8.22
 
+> **CLOSED — historical record.** v0.8.22 was published 2026-08-10. Current
+> release state is 0.8.23.
+
 > **Board of record.** The single writer is
 > `dev/plans/release-state-0.8.22.json`; the release plan is
 > `dev/plans/plan-0.8.22.md`.
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.22:status-current-state -->**Next is Slice 20 (PUBLISH), PREP_COMPLETE_PUBLISH_HELD.** Landed on `origin/main`: 0 (`55792858b2adce00d3d87193d02b23a5d8d52dd7`) · 5 (`55792858b2adce00d3d87193d02b23a5d8d52dd7`) · 10 (`4c7bb26b`) · 12 (`72a83049`) · 17 (`5a7f2484`) · 15 (`13341688fca3d02d11c10bb10eb26232156f8032`) · 18 (`8fdb27dbf00a0663772ffc8e27a243ac1e7dcd74`) · 19 (`e95afd292561d203d1001ea992ecbc191e129536`) · 21 (`e95afd292561d203d1001ea992ecbc191e129536`) · 22 (`e95afd292561d203d1001ea992ecbc191e129536`) · 23 (`f1ccf2694087e1da4cee2204fe7b80389420a4b0`) — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.22:status-current-state -->
+**Published and complete.** Tag `v0.8.22` points to
+`93cd1a14e35bbf68a57dd97aac76794f3bf1d887`; npm `latest` and `next` both
+resolve `fathomdb` to 0.8.22.
 
 | | |
 | --- | --- |
@@ -30,14 +35,14 @@
 | 21 | Truthful projection runtime state and safe boot graft | Landed in PR #207 at `e95afd292561d203d1001ea992ecbc191e129536`; FIX-1 through FIX-5 and the post-integration test-only FIX-1 through FIX-3 correction are closed. |
 | 22 | Governed pure projection-status read | Landed in PR #207 at `e95afd292561d203d1001ea992ecbc191e129536`; C5 seq-247, RED→GREEN→FIX-1, isolated verification, independent re-review, and refreshed CI are complete. |
 | 23 | Direct FTS result-prefix stability | Landed in PR #209 at `f1ccf2694087e1da4cee2204fe7b80389420a4b0`; RED→GREEN, cross-SDK verification, independent FIX-1 closure, repeat documentation review, and CI run #31265399431 are complete. |
-| 20 | Ordered publication and registry smokes | Local preparation is closed at `2f94085c` after RED→GREEN→FIX-2 and independent reviews. Ordered publication and registry smokes remain explicitly held pending new explicit authorization. |
-| 25 | `next` to `latest` promotion and release truth | Not started. |
+| 20 | Ordered publication and registry smokes | Published from `93cd1a14` after recovery verification. |
+| 25 | `next` to `latest` promotion and release truth | Complete: `fathomdb@0.8.22` is npm `latest` and `next`. |
 
 ## Immediate next action
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.22:status-next-action -->**Await explicit publication authorization for Slice 20 (PUBLISH)** — ordered platform publication and registry smokes. **Remaining ladder:** 20 → 25.<!-- END GENERATED release-state:0.8.22:status-next-action --> |
+| **Final action** | Published and closed; do not reopen this release board. |
 
 ## Slice 22 pickup gate
 

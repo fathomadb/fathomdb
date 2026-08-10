@@ -1,18 +1,19 @@
 ---
-title: FathomDB 0.8.23 — CUDA-capable Linux artifacts
-status: PROPOSED
+title: FathomDB 0.8.23 — CUDA-capable artifacts and Memex integration feedback
+status: ACTIVE
 target_release: 0.8.23
 ---
 
-# FathomDB 0.8.23 — CUDA-capable Linux artifacts
+# FathomDB 0.8.23 — CUDA-capable artifacts and Memex integration feedback
 
 0.8.23 makes the published Linux x86_64 Python wheel and Node native binary
 capable of using NVIDIA CUDA. CPU remains the runtime default; CUDA is an
 explicit opt-in through `FATHOMDB_EMBED_DEVICE=cuda:N`.
 
-This release packages existing CUDA embedder support. It does not introduce a
-new GPU backend, automatic GPU selection, or a change to the CPU-only,
-deterministic retrieval path.
+This release packages existing CUDA embedder support and makes embedding-dependent
+graph integration diagnosable to SDK consumers. It does not introduce a new GPU
+backend, automatic GPU selection, or a change to the CPU-only, deterministic
+retrieval path.
 
 ## Goal and scope
 
@@ -21,6 +22,9 @@ deterministic retrieval path.
 3. Require a real CUDA smoke before a 0.8.23 publish can proceed.
 4. Keep ordinary GitHub-hosted CI CPU-only; GPU work runs only on a
    workflow-restricted organization or enterprise runner group.
+5. Make graph writes that need embedding observable and actionable across the
+   Rust, Python, and TypeScript SDKs, rather than leaving clients to infer a
+   configuration mistake from retry exhaustion.
 
 **Out of scope:** Windows CUDA artifacts, macOS Metal artifacts, dynamic GPU
 selection, NVML-based scheduling, memory budgeting, and ONNX execution-provider
@@ -36,17 +40,29 @@ has a reproducible build and hardware smoke.
 | G23-3 | An explicit CUDA request uses a real NVIDIA device in the shipped-artifact path. | On `windchill3-fathomdb-cuda`, a release-equivalent artifact runs with `FATHOMDB_EMBED_DEVICE=cuda:0`; the smoke PID is observed on the selected CUDA device. |
 | G23-4 | GPU release evidence cannot be silently replaced by ordinary CI or untrusted code. | A workflow-restricted organization or enterprise runner group admits only the verified release workflow ref used for publication and requires the CUDA build-and-smoke job. |
 | G23-5 | Users can tell what is supported. | Platform capability metadata and public installation/embedder documentation name Linux x86_64 CUDA only and retain CPU fallback semantics. |
+| G23-6 | A client can distinguish absent embedder configuration from scheduler/runtime failure. | Rust, Python, and TypeScript expose a stable typed code, remediation, and readiness/report surface; a body-bearing graph edge without an embedder does not consume retry backoff before giving feedback. |
+| G23-7 | Memex graph integration has a tested, documented supported configuration. | Direct public-SDK controls classify body-bearing and structural edges, live versus absent embedder, retrieval-candidate policy, sequential stores, and child-process lifecycle; an actual current-main runtime failure receives a separate remediation slice. |
 
 ## Slice ladder
 
 ```text
-0 → 5
+0 → 10 → 5
 ```
 
 | Slice | Title | Depends on |
 | ---: | --- | --- |
 | 0 | CUDA artifact contract, dependency probe, and protected runner gate | — |
-| 5 | Build, package, release-gate, and installed-artifact CUDA smoke | 0 |
+| 10 | Memex integration feedback, readiness, and lifecycle characterization | 0 |
+| 5 | Build, package, release-gate, and installed-artifact CUDA smoke | 0, 10 |
+
+## Reserved-gap policy
+
+Any reproduction that shows a live configured embedder still leaves graph work
+undrainable, or that a fresh parent process aborts in a public-SDK reproduction,
+is a release-blocking reliability defect. It receives a separate RED/GREEN
+remediation slice before Slice 5; it is not folded silently into the CUDA
+packaging work. Expected no-embedder deferred work is Slice 10's typed,
+actionable SDK-feedback contract, not a generic drain timeout.
 
 ## Slice 0 — CUDA artifact contract, dependency probe, and protected runner gate
 
@@ -83,17 +99,85 @@ The design of record is
 `dev/design/0.8.23-gpu-artifacts.md`. Its review must close these questions
 before Slice 5 starts: runtime-library behavior on driverless Linux, exact
 artifact ownership, release-workflow dependency graph, runner trust boundary,
-and the observable GPU-engagement witness.
+the observable GPU-engagement witness. Slice 10 separately owns the public
+client-feedback and graph-integration contract.
 
 ### Implementation discipline — TDD (RED/GREEN)
 
-1. **RED:** add the release-artifact contract test and run it against the
-   existing feature and workflow wiring; it must fail for the missing CUDA
-   path.
+1. **RED:** add the release-artifact contract test. It must fail for the
+   missing CUDA path.
 2. **GREEN:** make only the minimum contract/probe and protected-runner changes
    required for the test and design witnesses to pass.
 3. **REFACTOR:** remove duplicated build-feature spelling so one checked source
    owns each artifact's feature set.
+
+## Slice 10 — Memex integration feedback, readiness, and lifecycle characterization
+
+### Requirements
+
+- Reproduce and classify the five Memex findings through public FathomDB SDK
+  calls with safe, owned-synthetic data: sequential edges, sequential fresh
+  stores, child-process then fresh-parent lifecycle, structural-edge graph
+  expansion, and the independent embedder-versus-vector-candidate controls.
+- Preserve compatibility for accepted deferred writes, but provide immediate,
+  typed, non-retryable feedback whenever `drain()` can prove pending embedding
+  work cannot progress because the session has no usable embedder.
+- Provide a public, cross-SDK readiness/report surface so a client can inspect
+  pending/blocked embedding work immediately after open, write, or an
+  unsuccessful drain without parsing an opaque error string or trace output.
+- Define a stable remediation contract: diagnostic code, affected operation,
+  blocked/deferred state, safe remediation choices, and a documentation URL;
+  do not expose edge-body content in diagnostics or traces.
+- Document the supported Memex configuration: graph-edge projection needs an
+  embedder independently of whether Memex elects to include vector candidates
+  in its own ranking policy.
+
+### Acceptance criteria
+
+- RED-first public-SDK tests cover body-less and body-bearing graph edges with
+  absent and usable embedders, two fresh stores in one process, and child then
+  fresh-parent process control. A live-embedder drain failure or reproducible
+  parent abnormal exit blocks the release and creates a dedicated remediation
+  slice.
+- The no-embedder body-bearing control returns `FDB_EMBEDDER_REQUIRED` before
+  retry backoff. Rust, Python, and TypeScript expose the same machine-readable
+  code, affected operation, state, remediations, and stable documentation link.
+- Each SDK exposes an additive embedding-readiness/report method returning
+  ready/processing/deferred/blocked state, usable-embedder availability,
+  affected kinds, pending count, and the same diagnostic payload when blocked.
+- A bounded lifecycle diagnostic/event and counters use that same code without
+  leaking edge body text. Trace data may assist diagnosis, but trace collection
+  is not required for a caller to receive configuration feedback.
+- Direct public-SDK controls establish and document whether a structural
+  body-less edge participates in the graph-expansion path. Memex's supported
+  graph witness uses a live embedder for body-bearing edge projection while
+  independently suppressing vector candidates in Memex when it needs a
+  graph-only ranking arm.
+- Rust, Python, and TypeScript interface documents and a consumer guide show
+  the readiness/report API and remediation. The external Memex findings receive
+  a bounded response identifying either the corrected configuration or the
+  FathomDB remediation commit.
+
+### Design and design review
+
+The designs of record are
+`dev/design/0.8.23-embedding-configuration-feedback.md` and
+`dev/design/0.8.23-memex-integration.md`. Review freezes the non-breaking
+write-versus-drain behavior, error-envelope parity, report shape, lifecycle
+event privacy, structural-edge traversal promise, and the boundary between
+FathomDB embedder availability and Memex retrieval-candidate policy.
+
+### Implementation discipline — TDD (RED/GREEN)
+
+1. **RED:** add failing public-SDK characterizations and parity tests for the
+   missing typed drain outcome and readiness report; preserve each initial
+   failure command in the slice witness.
+2. **GREEN:** implement the minimum Rust domain outcome, PyO3/N-API envelope,
+   SDK methods, lifecycle diagnostic, and documentation to make the contract
+   pass. Do not change a test merely to conceal an existing scheduler or
+   lifecycle failure.
+3. **REFACTOR:** centralize code/remediation/report conversion so all bindings
+   retain the same contract and one source owns its documentation URL.
 
 ## Slice 5 — build, package, release-gate, and installed-artifact CUDA smoke
 
@@ -144,13 +228,13 @@ proposal; it does not widen this slice.
 3. **REFACTOR:** centralize release feature lists and smoke invocation so Python,
    npm, CI, and release workflows cannot silently drift.
 
-## Cross-cutting Definition of Done
+## Cross-cutting DoD
 
 - Every implementation change is red → green → refactor, with the initial
   failing command preserved in the slice witness.
 - The CPU query/retrieval path remains CPU-only, deterministic, and unchanged.
-- The final release rehearsal passes all ordinary platform builds, the driverless
-  CPU smoke, and the CUDA build/smoke. A release is not complete until
+- The final release rehearsal passes the Memex integration controls, all ordinary
+  platform builds, the driverless CPU smoke, and the CUDA build/smoke. A release is not complete until
   registry-installed Python and npm smokes pass and npm `latest` plus the GitHub
   Release are promoted.
 - The self-hosted runner may be used only by an organization or enterprise
@@ -182,3 +266,8 @@ main-dispatch or exact-tag allow-list procedure before the first CUDA release.
 **Slice 0 — CUDA artifact contract, dependency probe, and protected runner
 gate.** Commission it from a fresh `main` worktree after the 0.8.23 release
 state is opened.
+
+<!-- BEGIN GENERATED release-state:0.8.23:plan-immediate-next -->
+**IMMEDIATE NEXT: Slice 0** (`CUDA-CONTRACT`) — CUDA artifact contract, dependency probe, and protected runner gate
+
+**Remaining ladder:** 0 → 10 → 5.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->

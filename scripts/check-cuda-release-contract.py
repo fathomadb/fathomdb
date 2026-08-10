@@ -54,6 +54,7 @@ CUDA_RUSTUP_INIT_URL = (
     "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-unknown-linux-gnu/rustup-init"
 )
 CUDA_RUSTUP_INIT_SHA256 = "4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10"
+UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 
 
 def fail(message: str) -> None:
@@ -344,6 +345,7 @@ def main() -> None:
         fail("cuda-contract-preflight must not inherit release publishing permissions")
     require_fragment(job, "bash scripts/release/cuda-preflight.sh", "cuda-contract-preflight")
     require_fragment(job, "${{ env.RELEASE_CHECKOUT_REF }}", "cuda-contract-preflight checkout")
+    require_fragment(job, UPLOAD_ARTIFACT_ACTION, "cuda-contract-preflight witness upload")
     require_fragment(job, "name: cuda-preflight-witness", "cuda-contract-preflight witness upload")
     require_fragment(job, "${{ github.workspace }}/cuda-preflight-witness", "cuda-contract-preflight witness path")
 

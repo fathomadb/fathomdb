@@ -34,6 +34,12 @@ expect_fail() {
 
 FIXTURE="$TMPROOT/fixture"
 
+if ! grep -Fq "NVCC_CCBIN=/opt/rh/gcc-toolset-13/root/usr/bin/g++" \
+  "$REPO_ROOT/scripts/release/Dockerfile.cuda-manylinux"; then
+  printf 'FAIL  CUDA manylinux image must pin nvcc to the GCC 13 host compiler\n' >&2
+  exit 1
+fi
+
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/cuda-artifact-contract.sh" <<'PY'
 from pathlib import Path

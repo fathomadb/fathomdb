@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.22 — cross-platform stable release
-status: ACTIVE
+status: COMPLETE
 target_release: 0.8.22
 ---
 
@@ -191,7 +191,7 @@ their own policies.
 ## Landed release state
 
 <!-- BEGIN GENERATED release-state:0.8.22:plan-landed-roll-up -->
-**LANDED on `origin/main`, in full:** Slices 0 (`55792858b2adce00d3d87193d02b23a5d8d52dd7`) · 5 (`55792858b2adce00d3d87193d02b23a5d8d52dd7`) · 10 (`4c7bb26b`) · 12 (`72a83049`) · 15 (`13341688fca3d02d11c10bb10eb26232156f8032`) · 17 (`5a7f2484`) · 18 (`8fdb27dbf00a0663772ffc8e27a243ac1e7dcd74`) · 19 (`e95afd292561d203d1001ea992ecbc191e129536`) · 21 (`e95afd292561d203d1001ea992ecbc191e129536`) · 22 (`e95afd292561d203d1001ea992ecbc191e129536`) · 23 (`f1ccf2694087e1da4cee2204fe7b80389420a4b0`). SCHEMA is 26; remaining ladder = 20 → 25.<!-- END GENERATED release-state:0.8.22:plan-landed-roll-up -->
+**LANDED on `origin/main`, in full:** Slices 0 (`55792858b2adce00d3d87193d02b23a5d8d52dd7`) · 5 (`55792858b2adce00d3d87193d02b23a5d8d52dd7`) · 10 (`4c7bb26b`) · 12 (`72a83049`) · 15 (`13341688fca3d02d11c10bb10eb26232156f8032`) · 17 (`5a7f2484`) · 18 (`8fdb27dbf00a0663772ffc8e27a243ac1e7dcd74`) · 19 (`e95afd292561d203d1001ea992ecbc191e129536`) · 20 (`93cd1a14e35bbf68a57dd97aac76794f3bf1d887`) · 21 (`e95afd292561d203d1001ea992ecbc191e129536`) · 22 (`e95afd292561d203d1001ea992ecbc191e129536`) · 23 (`f1ccf2694087e1da4cee2204fe7b80389420a4b0`) · 25 (`93cd1a14e35bbf68a57dd97aac76794f3bf1d887`). SCHEMA is 26; remaining ladder = none.<!-- END GENERATED release-state:0.8.22:plan-landed-roll-up -->
 
 ## Reserved-gap policy
 
@@ -228,7 +228,7 @@ prepares and verifies the release path; it does not authorize a registry write.
 
 ## Immediate next slice
 
-<!-- BEGIN GENERATED release-state:0.8.22:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 20** (`PUBLISH`) — ordered platform publication and registry smokes
-
-**Remaining ladder:** 20 → 25.<!-- END GENERATED release-state:0.8.22:plan-immediate-next -->
+**COMPLETE — v0.8.22 published.** Slice 20 completed ordered registry
+publication and Slice 25 promoted `fathomdb@0.8.22` to npm `latest` after
+recovery verification. The durable release witness is tag `v0.8.22` at
+`93cd1a14e35bbf68a57dd97aac76794f3bf1d887`.

@@ -32,6 +32,11 @@ export CUDA_MANYLINUX_BASE_IMAGE='quay.io/pypa/manylinux_2_28_x86_64@sha256:aba9
 export CUDA_TOOLKIT_IMAGE='nvidia/cuda:12.6.3-devel-rockylinux8@sha256:83bc2b9fcf3ab1a4e324f81e962b58957370fa71f7ac61e3a24af399a0ba7595'
 export CUDA_RUST_VERSION='1.95.0'
 export CUDA_MATURIN_VERSION='1.14.1'
+export CUDA_MANYLINUX_GCC_TOOLSET='gcc-toolset-13'
+export CUDA_MANYLINUX_GCC_VERSION='13.3.1'
+export CUDA_MANYLINUX_GCC_ROOT='/opt/rh/gcc-toolset-13/root/usr'
+export CUDA_MANYLINUX_CC='/opt/rh/gcc-toolset-13/root/usr/bin/gcc'
+export CUDA_MANYLINUX_CXX='/opt/rh/gcc-toolset-13/root/usr/bin/g++'
 export CUDA_MANYLINUX_DOCKERFILE='scripts/release/Dockerfile.cuda-manylinux'
 # rustup-init is a pinned bootstrap binary. Rustup subsequently resolves the
 # explicitly-versioned Rust toolchain from static.rust-lang.org at image build

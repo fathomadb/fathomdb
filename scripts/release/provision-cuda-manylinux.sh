@@ -45,11 +45,17 @@ validate_image() {
   assert_cuda_manylinux_image
   docker run --rm --network none --platform "$CUDA_MANYLINUX_PLATFORM" \
     -e CUDA_RUST_VERSION -e CUDA_MATURIN_VERSION \
+    -e CUDA_MANYLINUX_GCC_VERSION -e CUDA_MANYLINUX_CC -e CUDA_MANYLINUX_CXX \
     "$CUDA_MANYLINUX_IMAGE" sh -ceu '
     test -x /opt/python/cp311-cp311/bin/python
     /opt/python/cp311-cp311/bin/python --version | grep -E "Python 3\.11\."
     rustc --version | grep -F "rustc $CUDA_RUST_VERSION"
     maturin --version | grep -F "maturin $CUDA_MATURIN_VERSION"
+    test "$CC" = "$CUDA_MANYLINUX_CC"
+    test "$CXX" = "$CUDA_MANYLINUX_CXX"
+    test "$CUDAHOSTCXX" = "$CUDA_MANYLINUX_CXX"
+    "$CC" --version | grep -F "$CUDA_MANYLINUX_GCC_VERSION"
+    "$CXX" --version | grep -F "$CUDA_MANYLINUX_GCC_VERSION"
     /usr/local/cuda-12.6/bin/nvcc --version | grep -F "release 12.6"
   '
 }
@@ -78,6 +84,8 @@ docker build --platform "$CUDA_MANYLINUX_PLATFORM" \
   --tag "$CUDA_MANYLINUX_IMAGE" \
   --build-arg "RUST_VERSION=$CUDA_RUST_VERSION" \
   --build-arg "MATURIN_VERSION=$CUDA_MATURIN_VERSION" \
+  --build-arg "CUDA_GCC_TOOLSET=$CUDA_MANYLINUX_GCC_TOOLSET" \
+  --build-arg "CUDA_GCC_VERSION=$CUDA_MANYLINUX_GCC_VERSION" \
   --build-arg "RUSTUP_INIT_URL=$CUDA_RUSTUP_INIT_URL" \
   --build-arg "RUSTUP_INIT_SHA256=$CUDA_RUSTUP_INIT_SHA256" \
   --file "$REPO_ROOT/$CUDA_MANYLINUX_DOCKERFILE" \

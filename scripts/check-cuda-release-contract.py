@@ -54,6 +54,10 @@ CUDA_RUSTUP_INIT_URL = (
     "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-unknown-linux-gnu/rustup-init"
 )
 CUDA_RUSTUP_INIT_SHA256 = "4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10"
+CUDA_MANYLINUX_GCC_TOOLSET = "gcc-toolset-13"
+CUDA_MANYLINUX_GCC_VERSION = "13.3.1"
+CUDA_MANYLINUX_CC = "/opt/rh/gcc-toolset-13/root/usr/bin/gcc"
+CUDA_MANYLINUX_CXX = "/opt/rh/gcc-toolset-13/root/usr/bin/g++"
 UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 
 
@@ -165,6 +169,11 @@ def main() -> None:
         f"CUDA_TOOLKIT_IMAGE='{CUDA_TOOLKIT_IMAGE}'",
         "CUDA_RUST_VERSION='1.95.0'",
         "CUDA_MATURIN_VERSION='1.14.1'",
+        f"CUDA_MANYLINUX_GCC_TOOLSET='{CUDA_MANYLINUX_GCC_TOOLSET}'",
+        f"CUDA_MANYLINUX_GCC_VERSION='{CUDA_MANYLINUX_GCC_VERSION}'",
+        "CUDA_MANYLINUX_GCC_ROOT='/opt/rh/gcc-toolset-13/root/usr'",
+        f"CUDA_MANYLINUX_CC='{CUDA_MANYLINUX_CC}'",
+        f"CUDA_MANYLINUX_CXX='{CUDA_MANYLINUX_CXX}'",
         "CUDA_MANYLINUX_DOCKERFILE='scripts/release/Dockerfile.cuda-manylinux'",
         f"CUDA_RUSTUP_INIT_URL='{CUDA_RUSTUP_INIT_URL}'",
         f"CUDA_RUSTUP_INIT_SHA256='{CUDA_RUSTUP_INIT_SHA256}'",
@@ -189,6 +198,8 @@ def main() -> None:
     for fragment in (
         "ARG RUST_VERSION=1.95.0",
         "ARG MATURIN_VERSION=1.14.1",
+        f"ARG CUDA_GCC_TOOLSET={CUDA_MANYLINUX_GCC_TOOLSET}",
+        f"ARG CUDA_GCC_VERSION={CUDA_MANYLINUX_GCC_VERSION}",
         f"ARG RUSTUP_INIT_URL={CUDA_RUSTUP_INIT_URL}",
         f"ARG RUSTUP_INIT_SHA256={CUDA_RUSTUP_INIT_SHA256}",
         "COPY --from=cuda /usr/local/cuda-12.6 /usr/local/cuda-12.6",
@@ -197,9 +208,19 @@ def main() -> None:
         'grep -F "maturin $MATURIN_VERSION"',
         "grep -F 'release 12.6'",
         "cargo install maturin --version \"$MATURIN_VERSION\" --locked",
+        "dnf install -y gcc-toolset-13-gcc gcc-toolset-13-gcc-c++",
+        "CUDACXX=/usr/local/cuda-12.6/bin/nvcc",
+        "CC=/opt/rh/gcc-toolset-13/root/usr/bin/gcc",
+        "CXX=/opt/rh/gcc-toolset-13/root/usr/bin/g++",
+        "CUDAHOSTCXX=/opt/rh/gcc-toolset-13/root/usr/bin/g++",
+        '"$CC" --version | grep -F "$CUDA_GCC_VERSION"',
+        '"$CXX" --version | grep -F "$CUDA_GCC_VERSION"',
+        'test "$CUDAHOSTCXX" = "$CXX"',
         "io.fathomdb.cuda.manylinux=2_28",
         "io.fathomdb.cuda.rust=$RUST_VERSION",
         "io.fathomdb.cuda.maturin=$MATURIN_VERSION",
+        "io.fathomdb.cuda.compiler=$CUDA_GCC_TOOLSET",
+        "io.fathomdb.cuda.compiler-version=$CUDA_GCC_VERSION",
         "io.fathomdb.cuda.manylinux-base=quay.io/pypa/manylinux_2_28_x86_64@sha256:",
         "io.fathomdb.cuda.toolkit-base=nvidia/cuda:12.6.3-devel-rockylinux8@sha256:",
         "io.fathomdb.cuda.rustup-init-sha256=$RUSTUP_INIT_SHA256",
@@ -221,6 +242,8 @@ def main() -> None:
         "io.fathomdb.cuda.python=$CUDA_MANYLINUX_PYTHON_ABI",
         "io.fathomdb.cuda.rust=$CUDA_RUST_VERSION",
         "io.fathomdb.cuda.maturin=$CUDA_MATURIN_VERSION",
+        "io.fathomdb.cuda.compiler=$CUDA_MANYLINUX_GCC_TOOLSET",
+        "io.fathomdb.cuda.compiler-version=$CUDA_MANYLINUX_GCC_VERSION",
         "io.fathomdb.cuda.rustup-init-sha256=$CUDA_RUSTUP_INIT_SHA256",
     ):
         require_fragment(image_attestation, fragment, "CUDA image attestation")
@@ -237,8 +260,11 @@ def main() -> None:
         '--tag "$CUDA_MANYLINUX_IMAGE"',
         '--file "$REPO_ROOT/$CUDA_MANYLINUX_DOCKERFILE"',
         'docker run --rm --network none --platform "$CUDA_MANYLINUX_PLATFORM"',
+        '-e CUDA_MANYLINUX_GCC_VERSION -e CUDA_MANYLINUX_CC -e CUDA_MANYLINUX_CXX',
         'test -x /opt/python/cp311-cp311/bin/python',
         "assert_cuda_manylinux_image",
+        '--build-arg "CUDA_GCC_TOOLSET=$CUDA_MANYLINUX_GCC_TOOLSET"',
+        '--build-arg "CUDA_GCC_VERSION=$CUDA_MANYLINUX_GCC_VERSION"',
     ):
         require_fragment(provisioner, fragment, "CUDA manylinux provisioner")
     if provisioner.count("sha256sum --check --status") != 1:
@@ -268,6 +294,15 @@ def main() -> None:
         'grep -F "rustc $CUDA_RUST_VERSION"',
         'CUDACXX=/usr/local/cuda-12.6/bin/nvcc',
         'CUDA_PATH=/usr/local/cuda-12.6',
+        '-e "CC=$CUDA_MANYLINUX_CC"',
+        '-e "CXX=$CUDA_MANYLINUX_CXX"',
+        '-e "CUDAHOSTCXX=$CUDA_MANYLINUX_CXX"',
+        '-e CUDA_MANYLINUX_GCC_VERSION -e CUDA_MANYLINUX_CC -e CUDA_MANYLINUX_CXX',
+        'test "$CC" = "$CUDA_MANYLINUX_CC"',
+        'test "$CXX" = "$CUDA_MANYLINUX_CXX"',
+        'test "$CUDAHOSTCXX" = "$CUDA_MANYLINUX_CXX"',
+        '"$CC" --version | grep -F "$CUDA_MANYLINUX_GCC_VERSION"',
+        '"$CXX" --version | grep -F "$CUDA_MANYLINUX_GCC_VERSION"',
         '--mount "type=bind,src=$REPO_ROOT,dst=/workspace"',
         'manylinux-build.txt',
         'CUDA_DRIVERLESS_PYTHON_IMAGE',

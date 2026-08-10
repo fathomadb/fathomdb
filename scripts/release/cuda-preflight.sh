@@ -103,12 +103,21 @@ docker run --rm \
   -e CUDA_MANYLINUX_PYTHON \
   -e CUDA_RUST_VERSION \
   -e CUDA_MATURIN_VERSION \
+  -e "CC=$CUDA_MANYLINUX_CC" \
+  -e "CXX=$CUDA_MANYLINUX_CXX" \
+  -e "CUDAHOSTCXX=$CUDA_MANYLINUX_CXX" \
+  -e CUDA_MANYLINUX_GCC_VERSION -e CUDA_MANYLINUX_CC -e CUDA_MANYLINUX_CXX \
   "$CUDA_MANYLINUX_IMAGE" \
   sh -ceu '
     command -v maturin
     command -v auditwheel
     maturin --version | grep -F "maturin $CUDA_MATURIN_VERSION"
     rustc --version | grep -F "rustc $CUDA_RUST_VERSION"
+    test "$CC" = "$CUDA_MANYLINUX_CC"
+    test "$CXX" = "$CUDA_MANYLINUX_CXX"
+    test "$CUDAHOSTCXX" = "$CUDA_MANYLINUX_CXX"
+    "$CC" --version | grep -F "$CUDA_MANYLINUX_GCC_VERSION"
+    "$CXX" --version | grep -F "$CUDA_MANYLINUX_GCC_VERSION"
     /usr/local/cuda-12.6/bin/nvcc --version | grep -F "release 12.6"
     maturin build --release --out /witness/python-dist \
       --features "$CUDA_PYTHON_FEATURES" \

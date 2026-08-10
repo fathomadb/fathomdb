@@ -249,12 +249,18 @@ fi
 # build, platform publish, registry smoke, and promotion job.
 NODE_PIN_FAILED=0
 setup_node_total=0
+# RED — the old contract was thirteen release setup-node actions and eighteen
+# across CI plus release. Slice 0 adds a pinned preflight setup-node action, so
+# this deliberate stale baseline must fail before its successor is accepted.
+EXPECTED_CI_SETUP_NODE_COUNT=5
+EXPECTED_RELEASE_SETUP_NODE_COUNT=13
+EXPECTED_SETUP_NODE_TOTAL=18
 for workflow in "$CI_YML" "$RELEASE_YML"; do
   setup_node_count="$(grep -c 'uses: actions/setup-node@' "$workflow" || true)"
   node_pin_count="$(grep -c 'node-version: "25.9.0"' "$workflow" || true)"
   case "$workflow" in
-    "$CI_YML") expected_setup_node_count=5 ;;
-    "$RELEASE_YML") expected_setup_node_count=13 ;;
+    "$CI_YML") expected_setup_node_count=$EXPECTED_CI_SETUP_NODE_COUNT ;;
+    "$RELEASE_YML") expected_setup_node_count=$EXPECTED_RELEASE_SETUP_NODE_COUNT ;;
   esac
   setup_node_total=$((setup_node_total + setup_node_count))
   if [ "$setup_node_count" -ne "$expected_setup_node_count" ] || [ "$setup_node_count" -ne "$node_pin_count" ]; then
@@ -267,7 +273,7 @@ for workflow in "$CI_YML" "$RELEASE_YML"; do
     NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))
   fi
 done
-if [ "$setup_node_total" -ne 18 ]; then
+if [ "$setup_node_total" -ne "$EXPECTED_SETUP_NODE_TOTAL" ]; then
   printf 'FAIL  ci.yml and release.yml must contain exactly eighteen setup-node steps total (got %s)\n' \
     "$setup_node_total" >&2
   NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))

@@ -59,9 +59,9 @@
       },
       {
         "id": "memex-integration-feedback",
-        "title": "Dedicated slice validates Memex graph integration and provides typed readiness feedback; embedder availability is independent of client vector-ranking policy",
+        "title": "Dedicated slice validates Memex graph integration and provides typed readiness feedback; it also closes the public graph-on/vector-off query-policy contract",
         "halts_run": false,
-        "source": "HITL direction 2026-08-10; design dev/design/0.8.23-memex-integration.md"
+        "source": "HITL direction 2026-08-10; Memex issue-0006 2026-08-10; design dev/design/0.8.23-memex-integration.md"
       }
     ]
   },

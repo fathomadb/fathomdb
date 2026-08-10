@@ -115,10 +115,11 @@ client-feedback and graph-integration contract.
 
 ### Requirements
 
-- Reproduce and classify the five Memex findings through public FathomDB SDK
+- Reproduce and classify the six Memex findings through public FathomDB SDK
   calls with safe, owned-synthetic data: sequential edges, sequential fresh
   stores, child-process then fresh-parent lifecycle, structural-edge graph
-  expansion, and the independent embedder-versus-vector-candidate controls.
+  expansion, independent embedder-versus-vector-candidate controls, and the
+  requested graph-expansion-without-vector public query policy.
 - Preserve compatibility for accepted deferred writes, but provide immediate,
   typed, non-retryable feedback whenever `drain()` can prove pending embedding
   work cannot progress because the session has no usable embedder.
@@ -153,6 +154,11 @@ client-feedback and graph-integration contract.
   graph witness uses a live embedder for body-bearing edge projection while
   independently suppressing vector candidates in Memex when it needs a
   graph-only ranking arm.
+- The graph-on/vector-off request receives a closed public-contract disposition:
+  demonstrate an existing supported query shape across bindings, add a typed
+  arm-selection/query-options surface with truthful `explain` counts, or
+  explicitly document and validate that graph expansion requires vector
+  candidates. No client may be left to infer this policy from fused results.
 - Rust, Python, and TypeScript interface documents and a consumer guide show
   the readiness/report API and remediation. The external Memex findings receive
   a bounded response identifying either the corrected configuration or the

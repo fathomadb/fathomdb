@@ -249,12 +249,13 @@ fi
 # build, platform publish, registry smoke, and promotion job.
 NODE_PIN_FAILED=0
 setup_node_total=0
-# RED — the old contract was thirteen release setup-node actions and eighteen
-# across CI plus release. Slice 0 adds a pinned preflight setup-node action, so
-# this deliberate stale baseline must fail before its successor is accepted.
+# Slice 0's CUDA preflight is a sixth release consumer of Node: its pinned
+# setup action makes the checked release count fourteen and the cross-workflow
+# total nineteen. The wrong-order control below re-enters this same assertion,
+# so these constants deliberately govern both its primary and fixture paths.
 EXPECTED_CI_SETUP_NODE_COUNT=5
-EXPECTED_RELEASE_SETUP_NODE_COUNT=13
-EXPECTED_SETUP_NODE_TOTAL=18
+EXPECTED_RELEASE_SETUP_NODE_COUNT=14
+EXPECTED_SETUP_NODE_TOTAL=19
 for workflow in "$CI_YML" "$RELEASE_YML"; do
   setup_node_count="$(grep -c 'uses: actions/setup-node@' "$workflow" || true)"
   node_pin_count="$(grep -c 'node-version: "25.9.0"' "$workflow" || true)"
@@ -274,7 +275,7 @@ for workflow in "$CI_YML" "$RELEASE_YML"; do
   fi
 done
 if [ "$setup_node_total" -ne "$EXPECTED_SETUP_NODE_TOTAL" ]; then
-  printf 'FAIL  ci.yml and release.yml must contain exactly eighteen setup-node steps total (got %s)\n' \
+  printf 'FAIL  ci.yml and release.yml must contain exactly nineteen setup-node steps total (got %s)\n' \
     "$setup_node_total" >&2
   NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))
 fi
@@ -329,7 +330,8 @@ if [ "${SKIP_CRATES_OIDC_ORDER_CONTROL:-}" != "1" ]; then
     }
     capture && cargo && !/^      - name: Wait for crates.io index propagation/ { print }
   ' "$RELEASE_YML" > "$WRONG_ORDER_FIXTURE"
-  if "$ACTIONLINT_BIN" "$WRONG_ORDER_FIXTURE" >/dev/null 2>&1; then
+  if "$ACTIONLINT_BIN" -config-file "$REPO_ROOT/.github/actionlint.yaml" \
+    "$WRONG_ORDER_FIXTURE" >/dev/null 2>&1; then
     if wrong_order_out="$(RELEASE_YML="$WRONG_ORDER_FIXTURE" SKIP_CRATES_OIDC_ORDER_CONTROL=1 bash "$0" 2>&1)"; then
       printf 'FAIL  crates.io OIDC order guard accepted deliberately wrong-order fixture\n' >&2
       FIXTURE_FAILED=$((FIXTURE_FAILED + 1))

@@ -19,8 +19,8 @@ deterministic retrieval path.
 1. Ship a GPU-capable Linux x86_64 binary in the normal PyPI and npm packages.
 2. Preserve install and CPU operation on hosts without an NVIDIA driver.
 3. Require a real CUDA smoke before a 0.8.23 publish can proceed.
-4. Keep ordinary GitHub-hosted CI CPU-only; GPU work runs only on the protected
-   `windchill3-fathomdb-cuda` repository runner.
+4. Keep ordinary GitHub-hosted CI CPU-only; GPU work runs only on a
+   workflow-restricted organization or enterprise runner group.
 
 **Out of scope:** Windows CUDA artifacts, macOS Metal artifacts, dynamic GPU
 selection, NVML-based scheduling, memory budgeting, and ONNX execution-provider
@@ -32,9 +32,9 @@ has a reproducible build and hardware smoke.
 | ID | Requirement | Acceptance criterion |
 | --- | --- | --- |
 | G23-1 | Linux x86_64 npm and PyPI release artifacts compile the existing CUDA embedder. | Contract tests inspect the exact release build arguments and prove the N-API feature path forwards `embed-cuda`. |
-| G23-2 | A CUDA-built artifact remains usable without an NVIDIA driver when CPU is selected. | A clean CPU-only smoke opens, writes, searches, closes, and exits with the release-equivalent artifact. |
-| G23-3 | An explicit CUDA request uses a real NVIDIA device in the shipped-artifact path. | On `windchill3-fathomdb-cuda`, a release-equivalent artifact runs with `FATHOMDB_EMBED_DEVICE=cuda:0`; the smoke passes and records CUDA process memory/activity. |
-| G23-4 | GPU release evidence cannot be silently replaced by ordinary CI. | The release workflow requires the self-hosted CUDA build-and-smoke job; pull-request workflows never target its labels. |
+| G23-2 | A CUDA-built artifact remains usable without an NVIDIA driver when CPU is selected. | A driverless Linux container or host runs the release-equivalent open/write/search/close/exit CPU smoke. |
+| G23-3 | An explicit CUDA request uses a real NVIDIA device in the shipped-artifact path. | On `windchill3-fathomdb-cuda`, a release-equivalent artifact runs with `FATHOMDB_EMBED_DEVICE=cuda:0`; the smoke PID is observed on the selected CUDA device. |
+| G23-4 | GPU release evidence cannot be silently replaced by ordinary CI or untrusted code. | A workflow-restricted organization or enterprise runner group admits only the verified release workflow ref used for publication and requires the CUDA build-and-smoke job. |
 | G23-5 | Users can tell what is supported. | Platform capability metadata and public installation/embedder documentation name Linux x86_64 CUDA only and retain CPU fallback semantics. |
 
 ## Slice ladder
@@ -54,22 +54,28 @@ has a reproducible build and hardware smoke.
 
 - Freeze the Linux x86_64-only CUDA artifact policy and CPU-default behavior.
 - Establish whether the actual shared objects require a CUDA runtime at process
-  load, then make the CPU-without-NVIDIA case a release requirement rather than
-  an assumption.
-- Record the dedicated runner identity, labels, lifecycle owner, and workflow
-  trust boundary.
+  load, then prove the CPU-without-NVIDIA case in a genuinely driverless
+  environment rather than infer it from `ldd`.
+- Verify that the repository is eligible for an organization or enterprise
+  runner group, then move the dedicated host into a group restricted to the
+  actual release workflow ref; a repository-level runner is not an adequate
+  boundary for this public repository.
 
 ### Acceptance criteria
 
 - A red-first contract test fails against the current release configuration:
   N-API has no `embed-cuda` forwarding feature and Linux release jobs omit it.
 - The design review records the `readelf`/`ldd` dependency result for the
-  release-equivalent Node binary and Python extension, plus the clean CPU smoke
-  environment required by G23-2.
-- `windchill3-fathomdb-cuda` is online with labels `self-hosted`, `Linux`,
-  `X64`, `gpu`, and `cuda-12`; its service is enabled for the `coreyt` user.
-- The CUDA runner is reachable only from protected branch/tag or explicit
-  dispatch jobs, never from untrusted pull-request code.
+  release-equivalent Node binary and Python extension, and the driverless
+  container/host command that passes the G23-2 CPU smoke.
+- The repository ownership and enterprise assignment are verified before runner
+  registration. A selected-repository, workflow-restricted group permits only
+  the actual protected publication ref: either a main-pinned dispatch path or a
+  pre-tag allow-list entry for the immutable `v0.8.23` release workflow ref.
+- A non-publishing preflight proves the chosen workflow restriction accepts the
+  release ref and rejects a pull-request workflow ref before the runner starts.
+- CUDA 12.6, the installed driver, `nvcc`, and the exact manylinux/maturin
+  build strategy are captured in a preflight witness before Slice 5 starts.
 
 ### Design and design review
 
@@ -95,23 +101,27 @@ and the observable GPU-engagement witness.
 
 - Forward `embed-cuda` through the N-API crate and select it for the Linux
   x86_64 release NPM artifact and Python wheel.
-- Build the Linux CUDA artifacts on the dedicated runner using CUDA 12.6;
-  preserve all non-Linux-CUDA artifact builds unchanged.
-- Gate publication on a real GPU smoke of release-equivalent, then
-  registry-installed, artifacts.
+- Build the Linux CUDA artifacts on the dedicated runner using the Slice 0
+  verified CUDA 12.6/manylinux strategy; preserve all non-Linux-CUDA artifact
+  builds unchanged.
+- Gate publication on CPU and GPU smoke of release-equivalent artifacts; after
+  publication, gate npm `latest` promotion, GitHub Release creation, and release
+  completion on registry-installed CPU and GPU smokes.
 
 ### Acceptance criteria
 
 - The N-API package exposes an `embed-cuda` feature that forwards to the engine;
   a release-equivalent Node build has that feature enabled only for Linux x86_64.
 - The Linux x86_64 wheel is built with `pyo3/extension-module`,
-  `default-embedder`, and `embed-cuda`; its clean CPU smoke passes without a
-  CUDA device request.
+  `default-embedder`, and `embed-cuda`; its driverless CPU smoke passes without
+  a CUDA device request.
 - The GPU smoke runs an installed npm package and installed PyPI wheel on
   `cuda:0`, verifies correct open/write/search/close/exit behavior, and records
-  a CUDA engagement witness.
-- The release workflow blocks before publish when the CUDA build, CPU fallback
-  smoke, GPU smoke, or post-publish installed-package smoke fails.
+  the spawned smoke PID on `cuda:0` as its CUDA engagement witness.
+- The release workflow blocks before publish when the CUDA build, driverless CPU
+  smoke, or GPU smoke fails. Registry-installed failures block npm `latest`, the
+  GitHub Release, and release completion; they cannot retroactively block the
+  immutable registry upload.
 - Platform metadata, npm documentation, and public embedder documentation agree
   that CUDA is supported for Linux x86_64 only in this release.
 
@@ -126,7 +136,8 @@ proposal; it does not widen this slice.
 ### Implementation discipline — TDD (RED/GREEN)
 
 1. **RED:** land failing tests for N-API feature forwarding, Linux-only release
-   arguments, runner-label isolation, CPU fallback, and GPU witness parsing.
+   arguments, runner-group restriction, driverless CPU fallback, and smoke-PID
+   GPU witness parsing.
 2. **GREEN:** implement the smallest Cargo, package-script, workflow, capability,
    and documentation changes that make each test pass; run the real CUDA smoke
    on the self-hosted runner.
@@ -138,10 +149,13 @@ proposal; it does not widen this slice.
 - Every implementation change is red → green → refactor, with the initial
   failing command preserved in the slice witness.
 - The CPU query/retrieval path remains CPU-only, deterministic, and unchanged.
-- The final release rehearsal passes all ordinary platform builds and the CUDA
-  build/smoke; a release is not declared complete until registry-installed
-  Python and npm smokes pass.
-- No untrusted pull-request workflow may run on the self-hosted runner.
+- The final release rehearsal passes all ordinary platform builds, the driverless
+  CPU smoke, and the CUDA build/smoke. A release is not complete until
+  registry-installed Python and npm smokes pass and npm `latest` plus the GitHub
+  Release are promoted.
+- The self-hosted runner may be used only by an organization or enterprise
+  runner group with explicit workflow restriction; labels alone are not access
+  control.
 
 ## Decisions recorded
 
@@ -149,8 +163,18 @@ proposal; it does not widen this slice.
   Windows CUDA follows only after its own reproducible build and hardware smoke.
 - 2026-08-10 — CPU remains the default runtime device. CUDA is an explicit
   `FATHOMDB_EMBED_DEVICE=cuda:N` opt-in.
-- 2026-08-10 — GitHub-hosted CI remains CPU-only. CUDA release proof runs on
-  the repository-scoped `windchill3-fathomdb-cuda` self-hosted runner.
+- 2026-08-10 — GitHub-hosted CI remains CPU-only. CUDA release proof must run on
+  a workflow-restricted organization or enterprise runner group, not a
+  repository-scoped self-hosted runner.
+
+## Open configuration gate
+
+`coreyt/fathomdb` is currently personally owned. GitHub organization runner
+groups cannot grant access to a personal repository. Before Slice 0 can start,
+the HITL must select one of: transfer the repository to an Enterprise-owned
+organization, use an Enterprise-supported repository-placement mechanism, or
+re-scope the GPU release infrastructure. The existing repository-level runner
+is deliberately disabled pending that decision.
 
 ## Immediate next slice
 

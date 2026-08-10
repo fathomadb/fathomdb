@@ -56,10 +56,9 @@ has a reproducible build and hardware smoke.
 - Establish whether the actual shared objects require a CUDA runtime at process
   load, then prove the CPU-without-NVIDIA case in a genuinely driverless
   environment rather than infer it from `ldd`.
-- Verify that the repository is eligible for an organization or enterprise
-  runner group, then move the dedicated host into a group restricted to the
-  actual release workflow ref; a repository-level runner is not an adequate
-  boundary for this public repository.
+- Verify the runner group admits the actual release workflow ref; the dedicated
+  host already belongs to the restricted organization group. A repository-level
+  runner is not an adequate boundary for this public repository.
 
 ### Acceptance criteria
 
@@ -68,10 +67,11 @@ has a reproducible build and hardware smoke.
 - The design review records the `readelf`/`ldd` dependency result for the
   release-equivalent Node binary and Python extension, and the driverless
   container/host command that passes the G23-2 CPU smoke.
-- The repository ownership and enterprise assignment are verified before runner
-  registration. A selected-repository, workflow-restricted group permits only
-  the actual protected publication ref: either a main-pinned dispatch path or a
-  pre-tag allow-list entry for the immutable `v0.8.23` release workflow ref.
+- The selected-repository, workflow-restricted `fathomdb-gpu-release` group in
+  `fathomadb` permits the trusted `release.yml` main reference. Before a tagged
+  release, it must permit the actual protected publication ref: either a
+  main-pinned dispatch path or a pre-tag allow-list entry for the immutable
+  `v0.8.23` release workflow ref.
 - A non-publishing preflight proves the chosen workflow restriction accepts the
   release ref and rejects a pull-request workflow ref before the runner starts.
 - CUDA 12.6, the installed driver, `nvcc`, and the exact manylinux/maturin
@@ -163,18 +163,19 @@ proposal; it does not widen this slice.
   Windows CUDA follows only after its own reproducible build and hardware smoke.
 - 2026-08-10 — CPU remains the default runtime device. CUDA is an explicit
   `FATHOMDB_EMBED_DEVICE=cuda:N` opt-in.
-- 2026-08-10 — GitHub-hosted CI remains CPU-only. CUDA release proof must run on
-  a workflow-restricted organization or enterprise runner group, not a
-  repository-scoped self-hosted runner.
+- 2026-08-10 — `coreyt/fathomdb` transferred to `fathomadb/fathomdb` so CUDA
+  proof can use the selected-repository, workflow-restricted
+  `fathomdb-gpu-release` organization group. It contains the persistent
+  `windchill3-fathomdb-cuda` runner and the one-concurrent GitHub-hosted
+  `fathomdb-gpu-t4` runner.
 
 ## Open configuration gate
 
-`coreyt/fathomdb` is currently personally owned. GitHub organization runner
-groups cannot grant access to a personal repository. Before Slice 0 can start,
-the HITL must select one of: transfer the repository to an Enterprise-owned
-organization, use an Enterprise-supported repository-placement mechanism, or
-re-scope the GPU release infrastructure. The existing repository-level runner
-is deliberately disabled pending that decision.
+The organization placement and runner group are complete. Before Slice 0 can
+close, it must prove the publication-reference policy: the group currently
+allows trusted `release.yml` on `main`, while normal publication evaluates the
+workflow from an immutable `v*` tag. The preflight must test the selected
+main-dispatch or exact-tag allow-list procedure before the first CUDA release.
 
 ## Immediate next slice
 

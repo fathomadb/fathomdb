@@ -120,7 +120,13 @@ if [ -z "$WHEEL" ]; then
   printf 'cuda-preflight: CUDA Python build produced no wheel\n' >&2
   exit 1
 fi
-auditwheel show "$WHEEL" | tee "$WITNESS_DIR/python-auditwheel.txt"
+WHEEL_BASENAME="$(basename "$WHEEL")"
+docker run --rm --network none \
+  --mount "type=bind,src=$WITNESS_DIR,dst=/witness,readonly" \
+  -e "WHEEL_BASENAME=$WHEEL_BASENAME" \
+  "$CUDA_MANYLINUX_IMAGE" \
+  sh -ceu 'auditwheel show "/witness/python-dist/$WHEEL_BASENAME"' \
+  | tee "$WITNESS_DIR/python-auditwheel.txt"
 if ! grep -F 'manylinux_2_28' "$WITNESS_DIR/python-auditwheel.txt" >/dev/null; then
   printf 'cuda-preflight: Python wheel is not reported as manylinux_2_28 by auditwheel\n' >&2
   exit 1

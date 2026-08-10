@@ -277,7 +277,7 @@ def main() -> None:
         'sha256sum --check --status',
         '. "$SCRIPT_DIR/cuda-image-attestation.sh"',
         'assert_cuda_manylinux_image',
-        'auditwheel show "$WHEEL"',
+        'auditwheel show "/witness/python-dist/$WHEEL_BASENAME"',
         "manylinux_2_28",
         "--query-compute-apps=pid --format=csv,noheader",
         "--gpus ",
@@ -294,6 +294,7 @@ def main() -> None:
         "CUDACXX=/opt/cuda/bin/nvcc",
         'ldd "$NAPI_BINARY" || true',
         'ldd "$PYTHON_EXTENSION" || true',
+        'auditwheel show "$WHEEL"',
     ):
         if forbidden in preflight:
             fail(f"CUDA preflight must not contain {forbidden!r}")
@@ -301,8 +302,8 @@ def main() -> None:
         fail("CUDA preflight must not use a no-embedder Python smoke")
     if "{ useDefaultEmbedder: false }" in preflight:
         fail("CUDA preflight must not use a no-embedder N-API smoke")
-    if preflight.count('docker run --rm --network none') != 2:
-        fail("CUDA preflight must isolate both installed-artifact CPU smokes from the network")
+    if preflight.count('docker run --rm --network none') != 3:
+        fail("CUDA preflight must isolate both installed-artifact CPU smokes and the image-owned auditwheel report from the network")
     if preflight.count(
         '--mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly"'
     ) != 3:

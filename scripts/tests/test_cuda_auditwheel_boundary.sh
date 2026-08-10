@@ -32,7 +32,7 @@ expect_fail() {
   printf 'PASS  %s\n' "$description"
 }
 
-if grep -Fq 'auditwheel show "$WHEEL"' "$REPO_ROOT/scripts/release/cuda-preflight.sh"; then
+if grep -Fq "auditwheel show \"\$WHEEL\"" "$REPO_ROOT/scripts/release/cuda-preflight.sh"; then
   printf 'FAIL  auditwheel must run in the attested CUDA manylinux image, never on the host\n' >&2
   exit 1
 fi

@@ -1,0 +1,33 @@
+# syntax=docker/dockerfile:1
+# The pinned manylinux base provides CPython 3.11 at the path consumed by the
+# release preflight. CUDA is copied from a separately pinned vendor image so
+# neither CUDA nor the manylinux policy is inherited from a mutable tag.
+FROM nvidia/cuda:12.6.3-devel-rockylinux8@sha256:83bc2b9fcf3ab1a4e324f81e962b58957370fa71f7ac61e3a24af399a0ba7595 AS cuda
+
+FROM quay.io/pypa/manylinux_2_28_x86_64@sha256:aba9efd7dec389abd76506219e461014015b1c1cb95f2a36f27946128910dd07
+
+ARG RUST_VERSION=1.95.0
+ARG MATURIN_VERSION=1.14.1
+
+LABEL io.fathomdb.cuda.toolkit=12.6.3 \
+      io.fathomdb.cuda.manylinux=2_28 \
+      io.fathomdb.cuda.python=cp311-cp311 \
+      io.fathomdb.cuda.rust=$RUST_VERSION \
+      io.fathomdb.cuda.maturin=$MATURIN_VERSION
+
+COPY --from=cuda /usr/local/cuda-12.6 /usr/local/cuda-12.6
+
+ENV CUDA_PATH=/usr/local/cuda-12.6 \
+    CUDACXX=/usr/local/cuda-12.6/bin/nvcc \
+    CARGO_HOME=/root/.cargo \
+    RUSTUP_HOME=/root/.rustup \
+    PATH=/root/.cargo/bin:/usr/local/cuda-12.6/bin:$PATH
+
+RUN curl --proto '=https' --tlsv1.2 --fail --silent --show-error https://sh.rustup.rs \
+      | sh -s -- -y --profile minimal --default-toolchain "$RUST_VERSION" \
+    && cargo install maturin --version "$MATURIN_VERSION" --locked \
+    && test -x /opt/python/cp311-cp311/bin/python \
+    && /opt/python/cp311-cp311/bin/python --version \
+    && rustc --version | grep -F "rustc $RUST_VERSION" \
+    && maturin --version | grep -F "maturin $MATURIN_VERSION" \
+    && /usr/local/cuda-12.6/bin/nvcc --version | grep -F 'release 12.6'

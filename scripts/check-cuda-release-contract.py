@@ -28,11 +28,27 @@ WORKFLOW = ROOT / ".github/workflows/release.yml"
 CUDA_CONTRACT = ROOT / "scripts/release/cuda-artifact-contract.sh"
 CUDA_NAPI_BUILD = ROOT / "scripts/release/build-napi-cuda.sh"
 CUDA_PREFLIGHT = ROOT / "scripts/release/cuda-preflight.sh"
+CUDA_MANYLINUX_DOCKERFILE = ROOT / "scripts/release/Dockerfile.cuda-manylinux"
+CUDA_MANYLINUX_PROVISIONER = ROOT / "scripts/release/provision-cuda-manylinux.sh"
 
 NAPI_CUDA_FEATURE = ["default-embedder", "fathomdb-engine/embed-cuda"]
 NAPI_CUDA_BUILD = "bash ../../scripts/release/build-napi-cuda.sh"
 PYTHON_CUDA_FEATURES = "pyo3/extension-module,embed-cuda"
 RUNNER_LABELS = ("self-hosted", "Linux", "X64", "gpu", "cuda-12")
+CUDA_MANYLINUX_BASE_IMAGE = (
+    "quay.io/pypa/manylinux_2_28_x86_64@sha256:"
+    "aba9efd7dec389abd76506219e461014015b1c1cb95f2a36f27946128910dd07"
+)
+CUDA_MANYLINUX_IMAGE = "fathomdb-cuda-manylinux:12.6-manylinux_2_28"
+CUDA_TOOLKIT_IMAGE = (
+    "nvidia/cuda:12.6.3-devel-rockylinux8@sha256:"
+    "83bc2b9fcf3ab1a4e324f81e962b58957370fa71f7ac61e3a24af399a0ba7595"
+)
+CUDA_CACHE_DIGESTS = {
+    "config.json": "094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750",
+    "tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+    "model.safetensors": "3c9f31665447c8911517620762200d2245a2518d6e7208acc78cd9db317e21ad",
+}
 
 
 def fail(message: str) -> None:
@@ -125,14 +141,66 @@ def main() -> None:
         "CUDA artifact contract",
     )
     for fragment in (
-        "CUDA_MANYLINUX_IMAGE=",
+        f"CUDA_MANYLINUX_IMAGE='{CUDA_MANYLINUX_IMAGE}'",
         "CUDA_MANYLINUX_PYTHON=",
+        "CUDA_MANYLINUX_PLATFORM='linux/amd64'",
+        "CUDA_TOOLKIT_VERSION='12.6.3'",
+        "CUDA_MANYLINUX_PYTHON_ABI='cp311-cp311'",
+        f"CUDA_MANYLINUX_BASE_IMAGE='{CUDA_MANYLINUX_BASE_IMAGE}'",
+        f"CUDA_TOOLKIT_IMAGE='{CUDA_TOOLKIT_IMAGE}'",
+        "CUDA_RUST_VERSION='1.95.0'",
+        "CUDA_MATURIN_VERSION='1.14.1'",
+        "CUDA_MANYLINUX_DOCKERFILE='scripts/release/Dockerfile.cuda-manylinux'",
         "CUDA_DRIVERLESS_PYTHON_IMAGE=",
         "CUDA_DRIVERLESS_NODE_IMAGE=",
         "CUDA_DEFAULT_EMBEDDER_HF_REPO=",
         "CUDA_DEFAULT_EMBEDDER_HF_REVISION=",
     ):
         require_fragment(contract, fragment, "CUDA artifact contract")
+    for file_name, digest in CUDA_CACHE_DIGESTS.items():
+        if file_name == "config.json":
+            variable = "CUDA_DEFAULT_EMBEDDER_CONFIG_SHA256"
+        elif file_name == "tokenizer.json":
+            variable = "CUDA_DEFAULT_EMBEDDER_TOKENIZER_SHA256"
+        else:
+            variable = "CUDA_DEFAULT_EMBEDDER_MODEL_SHA256"
+        require_fragment(contract, f"{variable}='{digest}'", "CUDA artifact contract")
+
+    dockerfile = read_text(CUDA_MANYLINUX_DOCKERFILE)
+    require_fragment(dockerfile, f"FROM {CUDA_TOOLKIT_IMAGE} AS cuda", "CUDA manylinux Dockerfile")
+    require_fragment(dockerfile, f"FROM {CUDA_MANYLINUX_BASE_IMAGE}", "CUDA manylinux Dockerfile")
+    for fragment in (
+        "ARG RUST_VERSION=1.95.0",
+        "ARG MATURIN_VERSION=1.14.1",
+        "COPY --from=cuda /usr/local/cuda-12.6 /usr/local/cuda-12.6",
+        "test -x /opt/python/cp311-cp311/bin/python",
+        'grep -F "rustc $RUST_VERSION"',
+        'grep -F "maturin $MATURIN_VERSION"',
+        "grep -F 'release 12.6'",
+        "cargo install maturin --version \"$MATURIN_VERSION\" --locked",
+        "io.fathomdb.cuda.manylinux=2_28",
+    ):
+        require_fragment(dockerfile, fragment, "CUDA manylinux Dockerfile")
+
+    provisioner = read_text(CUDA_MANYLINUX_PROVISIONER)
+    for fragment in (
+        '. "$SCRIPT_DIR/cuda-artifact-contract.sh"',
+        "DEFAULT_EMBEDDER_SNAPSHOT=",
+        "models--${CUDA_DEFAULT_EMBEDDER_HF_REPO//\\//--}/snapshots/$CUDA_DEFAULT_EMBEDDER_HF_REVISION",
+        "https://huggingface.co/${CUDA_DEFAULT_EMBEDDER_HF_REPO}/resolve/${CUDA_DEFAULT_EMBEDDER_HF_REVISION}/${file_name}",
+        "sha256sum --check --status",
+        'docker build --platform "$CUDA_MANYLINUX_PLATFORM"',
+        '--tag "$CUDA_MANYLINUX_IMAGE"',
+        '--file "$REPO_ROOT/$CUDA_MANYLINUX_DOCKERFILE"',
+        'docker run --rm --network none --platform "$CUDA_MANYLINUX_PLATFORM"',
+        'test -x /opt/python/cp311-cp311/bin/python',
+    ):
+        require_fragment(provisioner, fragment, "CUDA manylinux provisioner")
+    if provisioner.count("sha256sum --check --status") != 1:
+        fail("CUDA manylinux provisioner must verify the complete cache through one pinned manifest")
+    for forbidden in ("docker pull", "docker image rm", "docker system prune", "--privileged"):
+        if forbidden in provisioner:
+            fail(f"CUDA manylinux provisioner must not contain {forbidden!r}")
     napi_build = read_text(CUDA_NAPI_BUILD)
     require_fragment(napi_build, '"$CUDA_NAPI_FEATURES"', "CUDA N-API build wrapper")
     require_fragment(napi_build, 'export CUDA_PATH="$CUDA_TOOLKIT_ROOT"', "CUDA N-API build wrapper")
@@ -164,6 +232,7 @@ def main() -> None:
         'await engine.embed("driverless N-API CUDA-capable default-embedder proof")',
         'npm install --offline --ignore-scripts --no-audit --no-fund',
         'test ! -e /dev/nvidiactl',
+        'sha256sum --check --status',
     ):
         require_fragment(preflight, fragment, "CUDA preflight")
     if "Engine.open(str(db_path), use_default_embedder=False)" in preflight:
@@ -176,6 +245,8 @@ def main() -> None:
         fail("CUDA preflight must mount the pinned local default-embedder mirror into both smokes")
     if preflight.count("-e HF_HOME=/fathomdb-hf") < 2:
         fail("CUDA preflight must make both smokes load only from the mounted local mirror")
+    if preflight.count("sha256sum --check --status") != 1:
+        fail("CUDA preflight must verify the complete pinned default-embedder cache manifest")
 
     job = workflow_job("cuda-contract-preflight")
     require_fragment(

@@ -36,18 +36,19 @@ fi
 if ! docker image inspect "$CUDA_MANYLINUX_IMAGE" >/dev/null 2>&1; then
   printf 'cuda-preflight: designated runner lacks required CUDA/manylinux image %s\n' \
     "$CUDA_MANYLINUX_IMAGE" >&2
-  printf 'cuda-preflight: provision that image with CUDA 12.6, Rust, maturin, and %s before rerunning\n' \
-    "$CUDA_MANYLINUX_PYTHON" >&2
+  printf 'cuda-preflight: run bash scripts/release/provision-cuda-manylinux.sh on the designated runner before rerunning\n' >&2
   exit 1
 fi
-for file_name in config.json tokenizer.json model.safetensors; do
-  if [ ! -f "$DEFAULT_EMBEDDER_SNAPSHOT/$file_name" ]; then
-    printf 'cuda-preflight: required local default-embedder cache file is absent: %s\n' \
-      "$DEFAULT_EMBEDDER_SNAPSHOT/$file_name" >&2
-    printf 'cuda-preflight: warm the pinned cache/mirror on the designated runner; driverless smokes never use network\n' >&2
-    exit 1
-  fi
-done
+if ! {
+  printf '%s  %s/config.json\n' "$CUDA_DEFAULT_EMBEDDER_CONFIG_SHA256" "$DEFAULT_EMBEDDER_SNAPSHOT"
+  printf '%s  %s/tokenizer.json\n' "$CUDA_DEFAULT_EMBEDDER_TOKENIZER_SHA256" "$DEFAULT_EMBEDDER_SNAPSHOT"
+  printf '%s  %s/model.safetensors\n' "$CUDA_DEFAULT_EMBEDDER_MODEL_SHA256" "$DEFAULT_EMBEDDER_SNAPSHOT"
+} | sha256sum --check --status; then
+  printf 'cuda-preflight: pinned default-embedder cache is absent, incomplete, or has a digest mismatch: %s\n' \
+    "$DEFAULT_EMBEDDER_SNAPSHOT" >&2
+  printf 'cuda-preflight: run bash scripts/release/provision-cuda-manylinux.sh on the designated runner before rerunning\n' >&2
+  exit 1
+fi
 
 if [ -e "$WITNESS_DIR" ]; then
   printf 'cuda-preflight: witness directory must be new: %s\n' "$WITNESS_DIR" >&2

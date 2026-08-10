@@ -8,12 +8,17 @@ FROM quay.io/pypa/manylinux_2_28_x86_64@sha256:aba9efd7dec389abd76506219e4610140
 
 ARG RUST_VERSION=1.95.0
 ARG MATURIN_VERSION=1.14.1
+ARG RUSTUP_INIT_URL=https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-unknown-linux-gnu/rustup-init
+ARG RUSTUP_INIT_SHA256=4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10
 
-LABEL io.fathomdb.cuda.toolkit=12.6.3 \
+LABEL io.fathomdb.cuda.manylinux-base=quay.io/pypa/manylinux_2_28_x86_64@sha256:aba9efd7dec389abd76506219e461014015b1c1cb95f2a36f27946128910dd07 \
+      io.fathomdb.cuda.toolkit-base=nvidia/cuda:12.6.3-devel-rockylinux8@sha256:83bc2b9fcf3ab1a4e324f81e962b58957370fa71f7ac61e3a24af399a0ba7595 \
+      io.fathomdb.cuda.toolkit=12.6.3 \
       io.fathomdb.cuda.manylinux=2_28 \
       io.fathomdb.cuda.python=cp311-cp311 \
       io.fathomdb.cuda.rust=$RUST_VERSION \
-      io.fathomdb.cuda.maturin=$MATURIN_VERSION
+      io.fathomdb.cuda.maturin=$MATURIN_VERSION \
+      io.fathomdb.cuda.rustup-init-sha256=$RUSTUP_INIT_SHA256
 
 COPY --from=cuda /usr/local/cuda-12.6 /usr/local/cuda-12.6
 
@@ -23,8 +28,11 @@ ENV CUDA_PATH=/usr/local/cuda-12.6 \
     RUSTUP_HOME=/root/.rustup \
     PATH=/root/.cargo/bin:/usr/local/cuda-12.6/bin:$PATH
 
-RUN curl --proto '=https' --tlsv1.2 --fail --silent --show-error https://sh.rustup.rs \
-      | sh -s -- -y --profile minimal --default-toolchain "$RUST_VERSION" \
+RUN curl --proto '=https' --tlsv1.2 --fail --silent --show-error --output /tmp/rustup-init "$RUSTUP_INIT_URL" \
+    && printf '%s  %s\n' "$RUSTUP_INIT_SHA256" /tmp/rustup-init | sha256sum --check --status \
+    && chmod 0755 /tmp/rustup-init \
+    && /tmp/rustup-init -y --profile minimal --default-toolchain "$RUST_VERSION" \
+    && rm /tmp/rustup-init \
     && cargo install maturin --version "$MATURIN_VERSION" --locked \
     && test -x /opt/python/cp311-cp311/bin/python \
     && /opt/python/cp311-cp311/bin/python --version \

@@ -30,6 +30,7 @@ CUDA_NAPI_BUILD = ROOT / "scripts/release/build-napi-cuda.sh"
 CUDA_PREFLIGHT = ROOT / "scripts/release/cuda-preflight.sh"
 CUDA_MANYLINUX_DOCKERFILE = ROOT / "scripts/release/Dockerfile.cuda-manylinux"
 CUDA_MANYLINUX_PROVISIONER = ROOT / "scripts/release/provision-cuda-manylinux.sh"
+CUDA_IMAGE_ATTESTATION = ROOT / "scripts/release/cuda-image-attestation.sh"
 
 NAPI_CUDA_FEATURE = ["default-embedder", "fathomdb-engine/embed-cuda"]
 NAPI_CUDA_BUILD = "bash ../../scripts/release/build-napi-cuda.sh"
@@ -49,6 +50,10 @@ CUDA_CACHE_DIGESTS = {
     "tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
     "model.safetensors": "3c9f31665447c8911517620762200d2245a2518d6e7208acc78cd9db317e21ad",
 }
+CUDA_RUSTUP_INIT_URL = (
+    "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-unknown-linux-gnu/rustup-init"
+)
+CUDA_RUSTUP_INIT_SHA256 = "4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10"
 
 
 def fail(message: str) -> None:
@@ -137,7 +142,12 @@ def main() -> None:
     require_fragment(contract, "CUDA_COMPUTE_CAP='75'", "CUDA artifact contract")
     require_fragment(
         contract,
-        "CUDA_TOOLKIT_ROOT='/usr/local/cuda-12.6'",
+        "CUDA_NAPI_HOST_TOOLKIT_ROOT='/usr/local/cuda-12.6'",
+        "CUDA artifact contract",
+    )
+    require_fragment(
+        contract,
+        "CUDA_NAPI_HOST_NVCC_VERSION='Cuda compilation tools, release 12.6, V12.6.68'",
         "CUDA artifact contract",
     )
     for fragment in (
@@ -151,6 +161,8 @@ def main() -> None:
         "CUDA_RUST_VERSION='1.95.0'",
         "CUDA_MATURIN_VERSION='1.14.1'",
         "CUDA_MANYLINUX_DOCKERFILE='scripts/release/Dockerfile.cuda-manylinux'",
+        f"CUDA_RUSTUP_INIT_URL='{CUDA_RUSTUP_INIT_URL}'",
+        f"CUDA_RUSTUP_INIT_SHA256='{CUDA_RUSTUP_INIT_SHA256}'",
         "CUDA_DRIVERLESS_PYTHON_IMAGE=",
         "CUDA_DRIVERLESS_NODE_IMAGE=",
         "CUDA_DEFAULT_EMBEDDER_HF_REPO=",
@@ -172,6 +184,8 @@ def main() -> None:
     for fragment in (
         "ARG RUST_VERSION=1.95.0",
         "ARG MATURIN_VERSION=1.14.1",
+        f"ARG RUSTUP_INIT_URL={CUDA_RUSTUP_INIT_URL}",
+        f"ARG RUSTUP_INIT_SHA256={CUDA_RUSTUP_INIT_SHA256}",
         "COPY --from=cuda /usr/local/cuda-12.6 /usr/local/cuda-12.6",
         "test -x /opt/python/cp311-cp311/bin/python",
         'grep -F "rustc $RUST_VERSION"',
@@ -179,12 +193,37 @@ def main() -> None:
         "grep -F 'release 12.6'",
         "cargo install maturin --version \"$MATURIN_VERSION\" --locked",
         "io.fathomdb.cuda.manylinux=2_28",
+        "io.fathomdb.cuda.rust=$RUST_VERSION",
+        "io.fathomdb.cuda.maturin=$MATURIN_VERSION",
+        "io.fathomdb.cuda.manylinux-base=quay.io/pypa/manylinux_2_28_x86_64@sha256:",
+        "io.fathomdb.cuda.toolkit-base=nvidia/cuda:12.6.3-devel-rockylinux8@sha256:",
+        "io.fathomdb.cuda.rustup-init-sha256=$RUSTUP_INIT_SHA256",
+        'curl --proto \'=https\' --tlsv1.2 --fail --silent --show-error --output /tmp/rustup-init "$RUSTUP_INIT_URL"',
+        "sha256sum --check --status",
+        '"$RUSTUP_INIT_SHA256" /tmp/rustup-init',
     ):
         require_fragment(dockerfile, fragment, "CUDA manylinux Dockerfile")
+    if "https://sh.rustup.rs" in dockerfile:
+        fail("CUDA manylinux Dockerfile must not install rustup from the mutable sh.rustup.rs script")
+
+    image_attestation = read_text(CUDA_IMAGE_ATTESTATION)
+    for fragment in (
+        "assert_cuda_manylinux_image()",
+        "io.fathomdb.cuda.manylinux-base=$CUDA_MANYLINUX_BASE_IMAGE",
+        "io.fathomdb.cuda.toolkit-base=$CUDA_TOOLKIT_IMAGE",
+        "io.fathomdb.cuda.toolkit=$CUDA_TOOLKIT_VERSION",
+        "io.fathomdb.cuda.manylinux=$CUDA_MANYLINUX",
+        "io.fathomdb.cuda.python=$CUDA_MANYLINUX_PYTHON_ABI",
+        "io.fathomdb.cuda.rust=$CUDA_RUST_VERSION",
+        "io.fathomdb.cuda.maturin=$CUDA_MATURIN_VERSION",
+        "io.fathomdb.cuda.rustup-init-sha256=$CUDA_RUSTUP_INIT_SHA256",
+    ):
+        require_fragment(image_attestation, fragment, "CUDA image attestation")
 
     provisioner = read_text(CUDA_MANYLINUX_PROVISIONER)
     for fragment in (
         '. "$SCRIPT_DIR/cuda-artifact-contract.sh"',
+        '. "$SCRIPT_DIR/cuda-image-attestation.sh"',
         "DEFAULT_EMBEDDER_SNAPSHOT=",
         "models--${CUDA_DEFAULT_EMBEDDER_HF_REPO//\\//--}/snapshots/$CUDA_DEFAULT_EMBEDDER_HF_REVISION",
         "https://huggingface.co/${CUDA_DEFAULT_EMBEDDER_HF_REPO}/resolve/${CUDA_DEFAULT_EMBEDDER_HF_REVISION}/${file_name}",
@@ -194,6 +233,7 @@ def main() -> None:
         '--file "$REPO_ROOT/$CUDA_MANYLINUX_DOCKERFILE"',
         'docker run --rm --network none --platform "$CUDA_MANYLINUX_PLATFORM"',
         'test -x /opt/python/cp311-cp311/bin/python',
+        "assert_cuda_manylinux_image",
     ):
         require_fragment(provisioner, fragment, "CUDA manylinux provisioner")
     if provisioner.count("sha256sum --check --status") != 1:
@@ -203,12 +243,13 @@ def main() -> None:
             fail(f"CUDA manylinux provisioner must not contain {forbidden!r}")
     napi_build = read_text(CUDA_NAPI_BUILD)
     require_fragment(napi_build, '"$CUDA_NAPI_FEATURES"', "CUDA N-API build wrapper")
-    require_fragment(napi_build, 'export CUDA_PATH="$CUDA_TOOLKIT_ROOT"', "CUDA N-API build wrapper")
+    require_fragment(napi_build, 'export CUDA_PATH="$CUDA_NAPI_HOST_TOOLKIT_ROOT"', "CUDA N-API build wrapper")
     require_fragment(napi_build, "export CUDA_COMPUTE_CAP", "CUDA N-API build wrapper")
-    require_fragment(napi_build, 'export PATH="$CUDA_TOOLKIT_ROOT/bin:$PATH"', "CUDA N-API build wrapper")
+    require_fragment(napi_build, 'export PATH="$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin:$PATH"', "CUDA N-API build wrapper")
+    require_fragment(napi_build, 'grep -F "$CUDA_NAPI_HOST_NVCC_VERSION"', "CUDA N-API build wrapper")
     preflight = read_text(CUDA_PREFLIGHT)
     for fragment in (
-        '"$CUDA_TOOLKIT_ROOT/bin/nvcc" --version',
+        '"$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin/nvcc" --version',
         'maturin build --release --out /witness/python-dist',
         '--features "$CUDA_PYTHON_FEATURES"',
         '--manylinux "$CUDA_MANYLINUX"',
@@ -216,11 +257,12 @@ def main() -> None:
         'readelf -d "$PYTHON_EXTENSION"',
         'docker run --rm --network none',
         'CUDA_MANYLINUX_IMAGE',
-        'docker image inspect "$CUDA_MANYLINUX_IMAGE"',
         'maturin --version',
         'rustc --version',
-        'CUDACXX=/opt/cuda/bin/nvcc',
-        '--mount "type=bind,src=$CUDA_TOOLKIT_ROOT,dst=/opt/cuda,readonly"',
+        'grep -F "maturin $CUDA_MATURIN_VERSION"',
+        'grep -F "rustc $CUDA_RUST_VERSION"',
+        'CUDACXX=/usr/local/cuda-12.6/bin/nvcc',
+        'CUDA_PATH=/usr/local/cuda-12.6',
         '--mount "type=bind,src=$REPO_ROOT,dst=/workspace"',
         'manylinux-build.txt',
         'CUDA_DRIVERLESS_PYTHON_IMAGE',
@@ -228,25 +270,54 @@ def main() -> None:
         'DEFAULT_EMBEDDER_HF_HOME',
         'Engine.open(str(db_path), use_default_embedder=True)',
         'engine.embed("driverless Python CUDA-capable default-embedder proof")',
-        'useDefaultEmbedder: true',
+        '{ useDefaultEmbedder: true }',
         'await engine.embed("driverless N-API CUDA-capable default-embedder proof")',
         'npm install --offline --ignore-scripts --no-audit --no-fund',
         'test ! -e /dev/nvidiactl',
         'sha256sum --check --status',
+        '. "$SCRIPT_DIR/cuda-image-attestation.sh"',
+        'assert_cuda_manylinux_image',
+        'auditwheel show "$WHEEL"',
+        "manylinux_2_28",
+        "--query-compute-apps=pid --format=csv,noheader",
+        "--gpus ",
+        "FATHOMDB_EMBED_DEVICE=cuda:0",
+        "installed Python CUDA artifact GPU proof",
+        "installed N-API CUDA artifact GPU proof",
+        "gpu-python-cuda-witness.txt",
+        "gpu-node-cuda-witness.txt",
     ):
         require_fragment(preflight, fragment, "CUDA preflight")
+    for forbidden in (
+        '--mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT,dst=/opt/cuda,readonly"',
+        '--mount "type=bind,src=$CUDA_TOOLKIT_ROOT,dst=/opt/cuda,readonly"',
+        "CUDACXX=/opt/cuda/bin/nvcc",
+        'ldd "$NAPI_BINARY" || true',
+        'ldd "$PYTHON_EXTENSION" || true',
+    ):
+        if forbidden in preflight:
+            fail(f"CUDA preflight must not contain {forbidden!r}")
     if "Engine.open(str(db_path), use_default_embedder=False)" in preflight:
         fail("CUDA preflight must not use a no-embedder Python smoke")
-    if preflight.count("--network none") < 2:
+    if "{ useDefaultEmbedder: false }" in preflight:
+        fail("CUDA preflight must not use a no-embedder N-API smoke")
+    if preflight.count('docker run --rm --network none') != 2:
         fail("CUDA preflight must isolate both installed-artifact CPU smokes from the network")
     if preflight.count(
         '--mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly"'
-    ) < 2:
-        fail("CUDA preflight must mount the pinned local default-embedder mirror into both smokes")
-    if preflight.count("-e HF_HOME=/fathomdb-hf") < 2:
-        fail("CUDA preflight must make both smokes load only from the mounted local mirror")
+    ) != 3:
+        fail("CUDA preflight must mount the pinned local default-embedder mirror into both Python smokes and the driverless N-API smoke")
+    if preflight.count("-e HF_HOME=/fathomdb-hf") != 3:
+        fail("CUDA preflight must make its containerized CPU and GPU smokes load only from the mounted local mirror")
+    require_fragment(
+        preflight,
+        'HF_HOME="$DEFAULT_EMBEDDER_HF_HOME" FATHOMDB_EMBED_DEVICE=cuda:0 exec node "$NODE_GPU_SMOKE"',
+        "CUDA preflight N-API GPU smoke",
+    )
     if preflight.count("sha256sum --check --status") != 1:
         fail("CUDA preflight must verify the complete pinned default-embedder cache manifest")
+    if preflight.count("--query-compute-apps=pid --format=csv,noheader") != 2:
+        fail("CUDA preflight must observe the spawned Python and N-API GPU smoke PIDs on CUDA:0")
 
     job = workflow_job("cuda-contract-preflight")
     require_fragment(

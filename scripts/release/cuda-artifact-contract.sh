@@ -4,7 +4,11 @@
 # It is sourced only by release preflight/build helpers. CPU CI and every
 # non-Linux release lane deliberately retain their existing feature lists.
 
-export CUDA_TOOLKIT_ROOT='/usr/local/cuda-12.6'
+# N-API is intentionally the one host-toolchain exception: its native build
+# runs on the trusted runner, not inside the manylinux image. Keep that host
+# compiler identity separate from the image-owned Python wheel toolchain.
+export CUDA_NAPI_HOST_TOOLKIT_ROOT='/usr/local/cuda-12.6'
+export CUDA_NAPI_HOST_NVCC_VERSION='Cuda compilation tools, release 12.6, V12.6.68'
 export CUDA_MANYLINUX='2_28'
 # CUDA 7.5 is the lowest device in the restricted runner group (the hosted
 # T4). The self-hosted RTX 3090 is forward-compatible with this build target.
@@ -29,6 +33,11 @@ export CUDA_TOOLKIT_IMAGE='nvidia/cuda:12.6.3-devel-rockylinux8@sha256:83bc2b9fc
 export CUDA_RUST_VERSION='1.95.0'
 export CUDA_MATURIN_VERSION='1.14.1'
 export CUDA_MANYLINUX_DOCKERFILE='scripts/release/Dockerfile.cuda-manylinux'
+# rustup-init is a pinned bootstrap binary. Rustup subsequently resolves the
+# explicitly-versioned Rust toolchain from static.rust-lang.org at image build
+# time, so the Docker build is reproducible in inputs but not fully hermetic.
+export CUDA_RUSTUP_INIT_URL='https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-unknown-linux-gnu/rustup-init'
+export CUDA_RUSTUP_INIT_SHA256='4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10'
 # Separate minimal images keep the CPU fallback proof honest: neither image
 # receives a GPU device and both execute with `--network none`.
 export CUDA_DRIVERLESS_PYTHON_IMAGE='python:3.11-slim'

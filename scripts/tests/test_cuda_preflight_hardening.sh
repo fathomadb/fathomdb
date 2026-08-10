@@ -32,7 +32,7 @@ expect_fail() {
   printf 'PASS  %s\n' "$description"
 }
 
-if grep -Fq -- '--mount "type=bind,src=$CUDA_TOOLKIT_ROOT,dst=/opt/cuda,readonly"' \
+if grep -Fq -- "--mount \"type=bind,src=\$CUDA_TOOLKIT_ROOT,dst=/opt/cuda,readonly\"" \
   "$REPO_ROOT/scripts/release/cuda-preflight.sh"; then
   printf 'FAIL  Python CUDA wheel build must use only the provisioned image toolkit\n' >&2
   exit 1
@@ -47,7 +47,7 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = "      io.fathomdb.cuda.rust=$RUST_VERSION \\\n+"
+needle = "io.fathomdb.cuda.rust=$RUST_VERSION"
 if text.count(needle) != 1:
     raise SystemExit("fixture no longer contains exactly one Rust provenance label")
 path.write_text(text.replace(needle, "", 1))
@@ -75,10 +75,10 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = "--query-compute-apps=pid"
-if text.count(needle) != 1:
-    raise SystemExit("fixture no longer contains exactly one process-bound CUDA witness query")
-path.write_text(text.replace(needle, "--query-gpu=name", 1))
+needle = "--query-compute-apps=pid --format=csv,noheader"
+if text.count(needle) != 2:
+    raise SystemExit("fixture no longer contains both process-bound CUDA witness queries")
+path.write_text(text.replace(needle, "--query-gpu=name", 2))
 PY
 expect_fail "$FIXTURE" 'rejects GPU smokes without a process-bound CUDA witness'
 
@@ -89,10 +89,10 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = "ldd \"$NAPI_BINARY\" || true"
+needle = "printf '\\n[node ldd]\\n'; ldd \"$NAPI_BINARY\""
 if text.count(needle) != 1:
-    raise SystemExit("fixture no longer contains the pre-hardening permissive Node ldd")
-path.write_text(text.replace(needle, "ldd \"$NAPI_BINARY\"", 1))
+    raise SystemExit("fixture no longer contains exactly one strict Node ldd")
+path.write_text(text.replace(needle, needle + " || true", 1))
 PY
 expect_fail "$FIXTURE" 'rejects dynamic dependency checks that tolerate ldd failure'
 

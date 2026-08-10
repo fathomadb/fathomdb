@@ -7,6 +7,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # shellcheck source=cuda-artifact-contract.sh
 . "$SCRIPT_DIR/cuda-artifact-contract.sh"
+# shellcheck source=cuda-image-attestation.sh
+. "$SCRIPT_DIR/cuda-image-attestation.sh"
 
 DEFAULT_EMBEDDER_HF_HOME="${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}"
 DEFAULT_EMBEDDER_SNAPSHOT="$DEFAULT_EMBEDDER_HF_HOME/hub/models--${CUDA_DEFAULT_EMBEDDER_HF_REPO//\//--}/snapshots/$CUDA_DEFAULT_EMBEDDER_HF_REVISION"
@@ -40,25 +42,7 @@ download_file() {
 }
 
 validate_image() {
-  local label value actual_label
-  while IFS='=' read -r label value; do
-    if ! actual_label="$(docker image inspect --format "{{ index .Config.Labels \"$label\" }}" "$CUDA_MANYLINUX_IMAGE")"; then
-      printf 'provision-cuda-manylinux: cannot inspect required image %s\n' "$CUDA_MANYLINUX_IMAGE" >&2
-      exit 1
-    fi
-    if [ "$actual_label" != "$value" ]; then
-      printf 'provision-cuda-manylinux: image %s lacks expected %s=%s\n' \
-        "$CUDA_MANYLINUX_IMAGE" "$label" "$value" >&2
-      exit 1
-    fi
-  done <<EOF
-io.fathomdb.cuda.toolkit=$CUDA_TOOLKIT_VERSION
-io.fathomdb.cuda.manylinux=$CUDA_MANYLINUX
-io.fathomdb.cuda.python=$CUDA_MANYLINUX_PYTHON_ABI
-io.fathomdb.cuda.rust=$CUDA_RUST_VERSION
-io.fathomdb.cuda.maturin=$CUDA_MATURIN_VERSION
-EOF
-
+  assert_cuda_manylinux_image
   docker run --rm --network none --platform "$CUDA_MANYLINUX_PLATFORM" \
     -e CUDA_RUST_VERSION -e CUDA_MATURIN_VERSION \
     "$CUDA_MANYLINUX_IMAGE" sh -ceu '
@@ -94,6 +78,8 @@ docker build --platform "$CUDA_MANYLINUX_PLATFORM" \
   --tag "$CUDA_MANYLINUX_IMAGE" \
   --build-arg "RUST_VERSION=$CUDA_RUST_VERSION" \
   --build-arg "MATURIN_VERSION=$CUDA_MATURIN_VERSION" \
+  --build-arg "RUSTUP_INIT_URL=$CUDA_RUSTUP_INIT_URL" \
+  --build-arg "RUSTUP_INIT_SHA256=$CUDA_RUSTUP_INIT_SHA256" \
   --file "$REPO_ROOT/$CUDA_MANYLINUX_DOCKERFILE" \
   "$REPO_ROOT/scripts/release"
 validate_image

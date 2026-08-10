@@ -150,6 +150,10 @@ def main() -> None:
         "CUDA_NAPI_HOST_NVCC_VERSION='Cuda compilation tools, release 12.6, V12.6.68'",
         "CUDA artifact contract",
     )
+    rustup_init_download = (
+        'curl --proto \'=https\' --tlsv1.2 --fail --silent --show-error '
+        '--output /tmp/rustup-init "$RUSTUP_INIT_URL"'
+    )
     for fragment in (
         f"CUDA_MANYLINUX_IMAGE='{CUDA_MANYLINUX_IMAGE}'",
         "CUDA_MANYLINUX_PYTHON=",
@@ -198,13 +202,13 @@ def main() -> None:
         "io.fathomdb.cuda.manylinux-base=quay.io/pypa/manylinux_2_28_x86_64@sha256:",
         "io.fathomdb.cuda.toolkit-base=nvidia/cuda:12.6.3-devel-rockylinux8@sha256:",
         "io.fathomdb.cuda.rustup-init-sha256=$RUSTUP_INIT_SHA256",
-        'curl --proto \'=https\' --tlsv1.2 --fail --silent --show-error --output /tmp/rustup-init "$RUSTUP_INIT_URL"',
+        rustup_init_download,
         "sha256sum --check --status",
         '"$RUSTUP_INIT_SHA256" /tmp/rustup-init',
     ):
         require_fragment(dockerfile, fragment, "CUDA manylinux Dockerfile")
-    if "https://sh.rustup.rs" in dockerfile:
-        fail("CUDA manylinux Dockerfile must not install rustup from the mutable sh.rustup.rs script")
+    if dockerfile.count(rustup_init_download) != 1 or dockerfile.count("curl --proto '=https'") != 1:
+        fail("CUDA manylinux Dockerfile must have exactly one fixed, verified rustup-init download")
 
     image_attestation = read_text(CUDA_IMAGE_ATTESTATION)
     for fragment in (

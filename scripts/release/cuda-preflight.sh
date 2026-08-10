@@ -83,7 +83,9 @@ mkdir -p "$WITNESS_DIR/python-dist" "$WITNESS_DIR/python-unpacked"
 } | tee "$WITNESS_DIR/environment.txt"
 
 printf 'cuda-preflight: build Linux CUDA N-API artifact\n'
-"$SCRIPT_DIR/build-napi-cuda.sh"
+CC="$CUDA_NAPI_HOST_CC" CXX="$CUDA_NAPI_HOST_CXX" \
+  CUDAHOSTCXX="$CUDA_NAPI_HOST_CXX" NVCC_CCBIN="$CUDA_NAPI_HOST_CXX" \
+  "$SCRIPT_DIR/build-napi-cuda.sh"
 NAPI_BINARY="$(find "$REPO_ROOT/src/ts" -maxdepth 1 -type f -name 'fathomdb.linux-x64-gnu.node' -print -quit)"
 if [ -z "$NAPI_BINARY" ]; then
   printf 'cuda-preflight: Linux CUDA N-API build produced no linux-x64-gnu artifact\n' >&2
@@ -103,12 +105,23 @@ docker run --rm \
   -e CUDA_MANYLINUX_PYTHON \
   -e CUDA_RUST_VERSION \
   -e CUDA_MATURIN_VERSION \
+  -e "CC=$CUDA_MANYLINUX_CC" \
+  -e "CXX=$CUDA_MANYLINUX_CXX" \
+  -e "CUDAHOSTCXX=$CUDA_MANYLINUX_CXX" \
+  -e "NVCC_CCBIN=$CUDA_MANYLINUX_CXX" \
+  -e CUDA_MANYLINUX_GCC_VERSION -e CUDA_MANYLINUX_CC -e CUDA_MANYLINUX_CXX \
   "$CUDA_MANYLINUX_IMAGE" \
   sh -ceu '
     command -v maturin
     command -v auditwheel
     maturin --version | grep -F "maturin $CUDA_MATURIN_VERSION"
     rustc --version | grep -F "rustc $CUDA_RUST_VERSION"
+    test "$CC" = "$CUDA_MANYLINUX_CC"
+    test "$CXX" = "$CUDA_MANYLINUX_CXX"
+    test "$CUDAHOSTCXX" = "$CUDA_MANYLINUX_CXX"
+    test "$NVCC_CCBIN" = "$CUDA_MANYLINUX_CXX"
+    "$CC" --version | grep -F "$CUDA_MANYLINUX_GCC_VERSION"
+    "$CXX" --version | grep -F "$CUDA_MANYLINUX_GCC_VERSION"
     /usr/local/cuda-12.6/bin/nvcc --version | grep -F "release 12.6"
     maturin build --release --out /witness/python-dist \
       --features "$CUDA_PYTHON_FEATURES" \

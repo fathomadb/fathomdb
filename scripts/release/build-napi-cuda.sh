@@ -15,8 +15,26 @@ if ! "$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin/nvcc" --version | grep -F "$CUDA_NAPI_HOS
   printf 'build-napi-cuda: host CUDA compiler does not match the release contract\n' >&2
   exit 1
 fi
+for compiler in "$CUDA_NAPI_HOST_CC" "$CUDA_NAPI_HOST_CXX"; do
+  if [ ! -x "$compiler" ]; then
+    printf 'build-napi-cuda: expected GCC 13 compiler at %s\n' "$compiler" >&2
+    exit 1
+  fi
+done
+if ! "$CUDA_NAPI_HOST_CC" --version | grep -F "$CUDA_NAPI_HOST_GCC_VERSION"; then
+  printf 'build-napi-cuda: host C compiler does not match the release contract\n' >&2
+  exit 1
+fi
+if ! "$CUDA_NAPI_HOST_CXX" --version | grep -F "$CUDA_NAPI_HOST_GCC_VERSION"; then
+  printf 'build-napi-cuda: host C++ compiler does not match the release contract\n' >&2
+  exit 1
+fi
 export CUDA_PATH="$CUDA_NAPI_HOST_TOOLKIT_ROOT"
 export CUDACXX="$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin/nvcc"
+export CC="$CUDA_NAPI_HOST_CC"
+export CXX="$CUDA_NAPI_HOST_CXX"
+export CUDAHOSTCXX="$CUDA_NAPI_HOST_CXX"
+export NVCC_CCBIN="$CUDA_NAPI_HOST_CXX"
 export CUDA_COMPUTE_CAP
 export PATH="$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin:$PATH"
 

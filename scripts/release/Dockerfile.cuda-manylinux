@@ -8,6 +8,10 @@ FROM quay.io/pypa/manylinux_2_28_x86_64@sha256:aba9efd7dec389abd76506219e4610140
 
 ARG RUST_VERSION=1.95.0
 ARG MATURIN_VERSION=1.14.1
+ARG CUDA_GCC_TOOLSET=gcc-toolset-13
+ARG CUDA_GCC_VERSION=13.3.1
+ARG CUDA_GCC_RPM=gcc-toolset-13-gcc-13.3.1-2.2.el8_10.x86_64
+ARG CUDA_GXX_RPM=gcc-toolset-13-gcc-c++-13.3.1-2.2.el8_10.x86_64
 ARG RUSTUP_INIT_URL=https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-unknown-linux-gnu/rustup-init
 ARG RUSTUP_INIT_SHA256=4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10
 
@@ -18,17 +22,27 @@ LABEL io.fathomdb.cuda.manylinux-base=quay.io/pypa/manylinux_2_28_x86_64@sha256:
       io.fathomdb.cuda.python=cp311-cp311 \
       io.fathomdb.cuda.rust=$RUST_VERSION \
       io.fathomdb.cuda.maturin=$MATURIN_VERSION \
+      io.fathomdb.cuda.compiler=$CUDA_GCC_TOOLSET \
+      io.fathomdb.cuda.compiler-version=$CUDA_GCC_VERSION \
+      io.fathomdb.cuda.compiler-rpm=$CUDA_GCC_RPM \
+      io.fathomdb.cuda.compiler-cxx-rpm=$CUDA_GXX_RPM \
       io.fathomdb.cuda.rustup-init-sha256=$RUSTUP_INIT_SHA256
 
 COPY --from=cuda /usr/local/cuda-12.6 /usr/local/cuda-12.6
 
 ENV CUDA_PATH=/usr/local/cuda-12.6 \
     CUDACXX=/usr/local/cuda-12.6/bin/nvcc \
+    CC=/opt/rh/gcc-toolset-13/root/usr/bin/gcc \
+    CXX=/opt/rh/gcc-toolset-13/root/usr/bin/g++ \
+    CUDAHOSTCXX=/opt/rh/gcc-toolset-13/root/usr/bin/g++ \
+    NVCC_CCBIN=/opt/rh/gcc-toolset-13/root/usr/bin/g++ \
     CARGO_HOME=/root/.cargo \
     RUSTUP_HOME=/root/.rustup \
-    PATH=/root/.cargo/bin:/usr/local/cuda-12.6/bin:$PATH
+    PATH=/opt/rh/gcc-toolset-13/root/usr/bin:/root/.cargo/bin:/usr/local/cuda-12.6/bin:$PATH
 
-RUN curl --proto '=https' --tlsv1.2 --fail --silent --show-error --output /tmp/rustup-init "$RUSTUP_INIT_URL" \
+RUN dnf install -y "$CUDA_GCC_RPM" "$CUDA_GXX_RPM" \
+    && dnf clean all \
+    && curl --proto '=https' --tlsv1.2 --fail --silent --show-error --output /tmp/rustup-init "$RUSTUP_INIT_URL" \
     && printf '%s  %s\n' "$RUSTUP_INIT_SHA256" /tmp/rustup-init | sha256sum --check --status \
     && chmod 0755 /tmp/rustup-init \
     && /tmp/rustup-init -y --profile minimal --default-toolchain "$RUST_VERSION" \
@@ -38,4 +52,8 @@ RUN curl --proto '=https' --tlsv1.2 --fail --silent --show-error --output /tmp/r
     && /opt/python/cp311-cp311/bin/python --version \
     && rustc --version | grep -F "rustc $RUST_VERSION" \
     && maturin --version | grep -F "maturin $MATURIN_VERSION" \
+    && "$CC" --version | grep -F "$CUDA_GCC_VERSION" \
+    && "$CXX" --version | grep -F "$CUDA_GCC_VERSION" \
+    && test "$CUDAHOSTCXX" = "$CXX" \
+    && test "$NVCC_CCBIN" = "$CXX" \
     && /usr/local/cuda-12.6/bin/nvcc --version | grep -F 'release 12.6'

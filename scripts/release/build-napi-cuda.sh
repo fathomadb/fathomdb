@@ -7,14 +7,18 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # shellcheck source=cuda-artifact-contract.sh
 . "$SCRIPT_DIR/cuda-artifact-contract.sh"
 
-if [ ! -x "$CUDA_TOOLKIT_ROOT/bin/nvcc" ]; then
-  printf 'build-napi-cuda: expected CUDA compiler at %s/bin/nvcc\n' "$CUDA_TOOLKIT_ROOT" >&2
+if [ ! -x "$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin/nvcc" ]; then
+  printf 'build-napi-cuda: expected host CUDA compiler at %s/bin/nvcc\n' "$CUDA_NAPI_HOST_TOOLKIT_ROOT" >&2
   exit 1
 fi
-export CUDA_PATH="$CUDA_TOOLKIT_ROOT"
-export CUDACXX="$CUDA_TOOLKIT_ROOT/bin/nvcc"
+if ! "$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin/nvcc" --version | grep -F "$CUDA_NAPI_HOST_NVCC_VERSION"; then
+  printf 'build-napi-cuda: host CUDA compiler does not match the release contract\n' >&2
+  exit 1
+fi
+export CUDA_PATH="$CUDA_NAPI_HOST_TOOLKIT_ROOT"
+export CUDACXX="$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin/nvcc"
 export CUDA_COMPUTE_CAP
-export PATH="$CUDA_TOOLKIT_ROOT/bin:$PATH"
+export PATH="$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin:$PATH"
 
 cd "$REPO_ROOT/src/ts"
 npm exec -- napi build --platform --release \

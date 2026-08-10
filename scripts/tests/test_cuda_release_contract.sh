@@ -16,8 +16,22 @@ make_fixture() {
   cp "$REPO_ROOT/scripts/release/cuda-artifact-contract.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/build-napi-cuda.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/cuda-preflight.sh" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/release/Dockerfile.cuda-manylinux" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/release/provision-cuda-manylinux.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/src/rust/crates/fathomdb-napi/Cargo.toml" "$root/src/rust/crates/fathomdb-napi/"
   cp "$REPO_ROOT/src/ts/package.json" "$root/src/ts/"
+}
+
+require_provisioning_assets() {
+  local file
+  for file in \
+    "$REPO_ROOT/scripts/release/Dockerfile.cuda-manylinux" \
+    "$REPO_ROOT/scripts/release/provision-cuda-manylinux.sh"; do
+    if [ ! -f "$file" ]; then
+      printf 'FAIL  missing reproducible CUDA provisioning asset: %s\n' "$file" >&2
+      exit 1
+    fi
+  done
 }
 
 expect_pass() {
@@ -38,6 +52,8 @@ expect_fail() {
   fi
   printf 'PASS  %s\n' "$description"
 }
+
+require_provisioning_assets
 
 FIXTURE="$TMPROOT/fixture"
 make_fixture "$FIXTURE"
@@ -156,5 +172,47 @@ if text.count(needle) != 1:
 path.write_text(text.replace(needle, needle + '    permissions:\n      contents: write\n', 1))
 PY
 expect_fail "$FIXTURE" 'rejects CUDA preflight permissions broader than read-only'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/Dockerfile.cuda-manylinux" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = "@sha256:"
+if needle not in text:
+    raise SystemExit("fixture Dockerfile no longer pins its base image by digest")
+path.write_text(text.replace(needle, ":", 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA manylinux Dockerfile with a mutable base image'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/provision-cuda-manylinux.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = 'sha256sum --check --status'
+if text.count(needle) != 1:
+    raise SystemExit("fixture provisioner no longer verifies exactly one pinned cache manifest")
+path.write_text(text.replace(needle, 'true', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA provisioner that accepts an unchecked model cache'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = 'sha256sum --check --status'
+if text.count(needle) != 1:
+    raise SystemExit("fixture preflight no longer verifies exactly one pinned cache manifest")
+path.write_text(text.replace(needle, 'true', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA preflight that accepts an unchecked model cache'
 
 printf '\nCUDA release-contract tests passed\n'

@@ -63,6 +63,20 @@ PY
 expect_fail "$FIXTURE" 'rejects an unpinned CUDA builder Rust toolchain'
 
 make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/Dockerfile.cuda-manylinux" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = "CUDACXX=/usr/local/cuda-12.6/bin/nvcc"
+if text.count(needle) != 1:
+    raise SystemExit("fixture no longer contains the image-owned CUDA compiler selection")
+path.write_text(text.replace(needle, "CUDACXX=/usr/bin/g++", 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA builder without the pinned GCC 13 compiler selection'
+
+make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/cuda-artifact-contract.sh" <<'PY'
 from pathlib import Path
 import sys

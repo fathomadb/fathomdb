@@ -54,6 +54,7 @@ validate_image() {
     test "$CC" = "$CUDA_MANYLINUX_CC"
     test "$CXX" = "$CUDA_MANYLINUX_CXX"
     test "$CUDAHOSTCXX" = "$CUDA_MANYLINUX_CXX"
+    test "$NVCC_CCBIN" = "$CUDA_MANYLINUX_CXX"
     "$CC" --version | grep -F "$CUDA_MANYLINUX_GCC_VERSION"
     "$CXX" --version | grep -F "$CUDA_MANYLINUX_GCC_VERSION"
     /usr/local/cuda-12.6/bin/nvcc --version | grep -F "release 12.6"

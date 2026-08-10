@@ -97,6 +97,20 @@ PY
 expect_fail "$FIXTURE" 'rejects a CUDA builder whose nvcc host compiler is not GCC 13'
 
 make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/Dockerfile.cuda-manylinux" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = "NVCC_CCBIN=/opt/rh/gcc-toolset-13/root/usr/bin/g++"
+if text.count(needle) != 1:
+    raise SystemExit("fixture no longer contains exactly one NVCC GCC 13 selection")
+path.write_text(text.replace(needle, "NVCC_CCBIN=/usr/bin/g++", 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA builder whose nvcc compiler-bindir is not GCC 13'
+
+make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/cuda-artifact-contract.sh" <<'PY'
 from pathlib import Path
 import sys

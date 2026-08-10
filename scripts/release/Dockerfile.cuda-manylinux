@@ -31,6 +31,7 @@ ENV CUDA_PATH=/usr/local/cuda-12.6 \
     CC=/opt/rh/gcc-toolset-13/root/usr/bin/gcc \
     CXX=/opt/rh/gcc-toolset-13/root/usr/bin/g++ \
     CUDAHOSTCXX=/opt/rh/gcc-toolset-13/root/usr/bin/g++ \
+    NVCC_CCBIN=/opt/rh/gcc-toolset-13/root/usr/bin/g++ \
     CARGO_HOME=/root/.cargo \
     RUSTUP_HOME=/root/.rustup \
     PATH=/opt/rh/gcc-toolset-13/root/usr/bin:/root/.cargo/bin:/usr/local/cuda-12.6/bin:$PATH
@@ -50,4 +51,5 @@ RUN dnf install -y gcc-toolset-13-gcc gcc-toolset-13-gcc-c++ \
     && "$CC" --version | grep -F "$CUDA_GCC_VERSION" \
     && "$CXX" --version | grep -F "$CUDA_GCC_VERSION" \
     && test "$CUDAHOSTCXX" = "$CXX" \
+    && test "$NVCC_CCBIN" = "$CXX" \
     && /usr/local/cuda-12.6/bin/nvcc --version | grep -F 'release 12.6'

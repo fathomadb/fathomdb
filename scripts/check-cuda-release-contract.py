@@ -124,6 +124,15 @@ def main() -> None:
         "CUDA_TOOLKIT_ROOT='/usr/local/cuda-12.6'",
         "CUDA artifact contract",
     )
+    for fragment in (
+        "CUDA_MANYLINUX_IMAGE=",
+        "CUDA_MANYLINUX_PYTHON=",
+        "CUDA_DRIVERLESS_PYTHON_IMAGE=",
+        "CUDA_DRIVERLESS_NODE_IMAGE=",
+        "CUDA_DEFAULT_EMBEDDER_HF_REPO=",
+        "CUDA_DEFAULT_EMBEDDER_HF_REVISION=",
+    ):
+        require_fragment(contract, fragment, "CUDA artifact contract")
     napi_build = read_text(CUDA_NAPI_BUILD)
     require_fragment(napi_build, '"$CUDA_NAPI_FEATURES"', "CUDA N-API build wrapper")
     require_fragment(napi_build, 'export CUDA_PATH="$CUDA_TOOLKIT_ROOT"', "CUDA N-API build wrapper")
@@ -132,16 +141,41 @@ def main() -> None:
     preflight = read_text(CUDA_PREFLIGHT)
     for fragment in (
         '"$CUDA_TOOLKIT_ROOT/bin/nvcc" --version',
-        'maturin build --release --out "$WITNESS_DIR/python-dist"',
+        'maturin build --release --out /witness/python-dist',
         '--features "$CUDA_PYTHON_FEATURES"',
         '--manylinux "$CUDA_MANYLINUX"',
         'readelf -d "$NAPI_BINARY"',
         'readelf -d "$PYTHON_EXTENSION"',
         'docker run --rm --network none',
-        'FATHOMDB_EMBED_DEVICE=cpu python',
+        'CUDA_MANYLINUX_IMAGE',
+        'docker image inspect "$CUDA_MANYLINUX_IMAGE"',
+        'maturin --version',
+        'rustc --version',
+        'CUDACXX=/opt/cuda/bin/nvcc',
+        '--mount "type=bind,src=$CUDA_TOOLKIT_ROOT,dst=/opt/cuda,readonly"',
+        '--mount "type=bind,src=$REPO_ROOT,dst=/workspace"',
+        'manylinux-build.txt',
+        'CUDA_DRIVERLESS_PYTHON_IMAGE',
+        'CUDA_DRIVERLESS_NODE_IMAGE',
+        'DEFAULT_EMBEDDER_HF_HOME',
+        'Engine.open(str(db_path), use_default_embedder=True)',
+        'engine.embed("driverless Python CUDA-capable default-embedder proof")',
+        'useDefaultEmbedder: true',
+        'await engine.embed("driverless N-API CUDA-capable default-embedder proof")',
+        'npm install --offline --ignore-scripts --no-audit --no-fund',
         'test ! -e /dev/nvidiactl',
     ):
         require_fragment(preflight, fragment, "CUDA preflight")
+    if "Engine.open(str(db_path), use_default_embedder=False)" in preflight:
+        fail("CUDA preflight must not use a no-embedder Python smoke")
+    if preflight.count("--network none") < 2:
+        fail("CUDA preflight must isolate both installed-artifact CPU smokes from the network")
+    if preflight.count(
+        '--mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly"'
+    ) < 2:
+        fail("CUDA preflight must mount the pinned local default-embedder mirror into both smokes")
+    if preflight.count("-e HF_HOME=/fathomdb-hf") < 2:
+        fail("CUDA preflight must make both smokes load only from the mounted local mirror")
 
     job = workflow_job("cuda-contract-preflight")
     require_fragment(
@@ -153,6 +187,14 @@ def main() -> None:
     for label in RUNNER_LABELS:
         require_fragment(job, label, "cuda-contract-preflight runner labels")
     require_fragment(job, "needs: verify-release", "cuda-contract-preflight")
+    if not re.search(
+        r"^    permissions:\n      contents: read\n",
+        job,
+        re.MULTILINE,
+    ):
+        fail("cuda-contract-preflight must declare job-level read-only contents permission")
+    if "contents: write" in job or "id-token: write" in job:
+        fail("cuda-contract-preflight must not inherit release publishing permissions")
     require_fragment(job, "bash scripts/release/cuda-preflight.sh", "cuda-contract-preflight")
     require_fragment(job, "${{ env.RELEASE_CHECKOUT_REF }}", "cuda-contract-preflight checkout")
     require_fragment(job, "name: cuda-preflight-witness", "cuda-contract-preflight witness upload")

@@ -93,10 +93,68 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = '--network none'
-if text.count(needle) != 1:
-    raise SystemExit("fixture no longer contains exactly one network-isolated driverless smoke")
+if text.count(needle) < 2:
+    raise SystemExit("fixture no longer contains both network-isolated driverless smokes")
 path.write_text(text.replace(needle, '--network host', 1))
 PY
-expect_fail "$FIXTURE" 'rejects a driverless smoke without network isolation'
+expect_fail "$FIXTURE" 'rejects either driverless smoke without network isolation'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = 'Engine.open(str(db_path), use_default_embedder=True)'
+if needle not in text:
+    needle = 'Engine.open(str(db_path))'
+if text.count(needle) != 1:
+    raise SystemExit("fixture no longer contains exactly one driverless Python open")
+path.write_text(text.replace(needle, 'Engine.open(str(db_path), use_default_embedder=False)', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a driverless Python smoke that skips the default embedder'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = '{ useDefaultEmbedder: true }'
+if text.count(needle) != 1:
+    raise SystemExit("fixture no longer contains exactly one driverless N-API default-embedder open")
+path.write_text(text.replace(needle, '{ useDefaultEmbedder: false }', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a driverless installed N-API smoke that skips the default embedder'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = '--mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly"'
+if text.count(needle) < 2:
+    raise SystemExit("fixture no longer mounts the local default-embedder mirror for both smokes")
+path.write_text(text.replace(needle, '--mount "type=bind,src=/missing-model-cache,dst=/fathomdb-hf,readonly"', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a driverless artifact smoke without the pinned local model mirror'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = '    runs-on: [self-hosted, Linux, X64, gpu, cuda-12]\n'
+if text.count(needle) != 1:
+    raise SystemExit("fixture no longer contains exactly one CUDA runner selection")
+path.write_text(text.replace(needle, needle + '    permissions:\n      contents: write\n', 1))
+PY
+expect_fail "$FIXTURE" 'rejects CUDA preflight permissions broader than read-only'
 
 printf '\nCUDA release-contract tests passed\n'

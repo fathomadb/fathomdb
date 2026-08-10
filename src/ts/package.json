@@ -20,6 +20,7 @@
   "//napi-platform-split": "R-REL-4f. Thin main package: ships NO .node. Each host's binary is a separate unscoped fathomdb-<triple> package (src/ts/npm/<triple>/) carrying os/cpu, except Windows x64 MSVC which is fathomdb-native-win32-x64-msvc. The loader in src/ts/src/platform.ts resolves the published name. optionalDependencies are INJECTED at publish time by scripts/release/npm-inject-optional-deps.sh (one entry per published platform, pinned to this version) so the committed package-lock.json stays in sync with `npm ci`. Linux x64 and arm64 glibc packages publish under a non-latest dist-tag (NPM_DIST_TAG); the follow-on adds the remaining platforms and promotes latest.",
   "scripts": {
     "build:native": "napi build --platform --release --cargo-cwd ../rust/crates/fathomdb-napi --features default-embedder --js false",
+    "build:native:cuda": "bash ../../scripts/release/build-napi-cuda.sh",
     "build:native:debug": "napi build --platform --cargo-cwd ../rust/crates/fathomdb-napi --features test-hooks,default-embedder --js false",
     "build": "npm run build:native && tsc -p tsconfig.build.json",
     "build:debug": "npm run build:native:debug && tsc -p tsconfig.build.json",

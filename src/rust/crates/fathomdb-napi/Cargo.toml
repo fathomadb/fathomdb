@@ -18,6 +18,9 @@ test-hooks = []
 # `useDefaultEmbedder: true` option actually materializes a real
 # `CandleBgeEmbedder`. See fathomdb-py's mirror comment.
 default-embedder = ["fathomdb-engine/default-embedder"]
+# Linux CUDA release artifacts select this opt-in feature. It owns the N-API
+# forwarding edge; runtime device selection remains CPU by default.
+embed-cuda = ["default-embedder", "fathomdb-engine/embed-cuda"]
 
 [dependencies]
 fathomdb-embedder.workspace = true

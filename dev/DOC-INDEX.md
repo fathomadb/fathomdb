@@ -47,6 +47,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/needs.md` | Product/consumer needs driving requirements | — | 2026-05-28 |
 | `dev/notes/earp-agent-orientation.md` · `earp-hitl-decisions.md` | EARP navigation, boundaries, and current HITL rulings | EARP developer harness | 2026-08-08 |
 | `dev/notes/0.8.23-architecture-tradeoffs.md` | 0.8.23 architecture documentation follow-up | 0.8.23 planning | 2026-08-07 |
+| `dev/plans/plan-0.8.23.md` | Proposed two-slice Linux CUDA artifact release plan | 0.8.23 Slices 0/5 | 2026-08-10 |
 | `dev/requirements.md` | Numbered requirements (REQ-*); REQ-053 = governed SDK surface (allowlist + parity + recovery-denylist + typed boundary) | 25 amended REQ-053 (Q3) | 2026-06-04 |
 | `dev/acceptance.md` | Acceptance criteria (AC-*); AC-057a five-verb cap superseded by AC-074 (governed surface); AC-074 Rust-facade... | 25 (AC-057a→AC-074); 27 fills AC-074 Rust clause; 27 fix-1 method-level; 40/GA-2 mints AC-075/076 | 2026-06-08 |
 | `dev/interfaces/rust.md` | Rust public interface (owner of Rust-visible spelling + governed facade contract); Slice 21 records dense readiness and Slice 22 records the pure projection-status facade. | 27 (governed-surface contract); Slices 21/22 integrated in `main` | 2026-08-08 |
@@ -81,6 +82,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/design/README.md` | Design-notes index | — | (tree) |
 | `dev/design/steward-cold-start-budget.md` | Steward cold-start token budget — RATIFIED plan (ledger `seq-226`); §3 liveness filter, `steward_cold_start_set` ratchet, repo-prune merge verdict | — (program hygiene; Phase 3 gated on 0.8.20 publish) | 2026-07-31 |
 | `dev/design/gpu-eval-activities-policy.md` | Policy — repo MUST use the 3090s for eval/embed activities when there is room | 0.8.14 Slice 20 (eu7 policy) | 2026-07-05 |
+| `dev/design/0.8.23-gpu-artifacts.md` | Design for Linux CUDA release artifacts and trusted GPU proof | 0.8.23 Slices 0/5 | 2026-08-10 |
 | `dev/design/free-threaded-python-value-lift-and-experiments.md` | Free-threaded Python (PEP 703) for FathomDB — value, lift, experiment plan | 0.8.15 ladder (pyo3 dep @ 0.8.8) | 2026-06-27 |
 | `dev/design/0.8.18-slice-20-publish-pipeline.md` | 0.8.18 Slice 20 — #11-full full publish pipeline (implementation design) | 0.8.18 Slice 20 | 2026-07-09 |
 | `dev/adr/ADR-0.8.18-full-publish-pipeline.md` | #11-full full publish pipeline | 0.8.18 Slice 0 gates; Slice 20 implements | 2026-07-09 |

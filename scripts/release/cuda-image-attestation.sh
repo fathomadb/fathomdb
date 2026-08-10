@@ -28,6 +28,8 @@ io.fathomdb.cuda.rust=$CUDA_RUST_VERSION
 io.fathomdb.cuda.maturin=$CUDA_MATURIN_VERSION
 io.fathomdb.cuda.compiler=$CUDA_MANYLINUX_GCC_TOOLSET
 io.fathomdb.cuda.compiler-version=$CUDA_MANYLINUX_GCC_VERSION
+io.fathomdb.cuda.compiler-rpm=$CUDA_MANYLINUX_GCC_RPM
+io.fathomdb.cuda.compiler-cxx-rpm=$CUDA_MANYLINUX_GXX_RPM
 io.fathomdb.cuda.rustup-init-sha256=$CUDA_RUSTUP_INIT_SHA256
 EOF
 }

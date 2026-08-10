@@ -83,7 +83,9 @@ mkdir -p "$WITNESS_DIR/python-dist" "$WITNESS_DIR/python-unpacked"
 } | tee "$WITNESS_DIR/environment.txt"
 
 printf 'cuda-preflight: build Linux CUDA N-API artifact\n'
-"$SCRIPT_DIR/build-napi-cuda.sh"
+CC="$CUDA_NAPI_HOST_CC" CXX="$CUDA_NAPI_HOST_CXX" \
+  CUDAHOSTCXX="$CUDA_NAPI_HOST_CXX" NVCC_CCBIN="$CUDA_NAPI_HOST_CXX" \
+  "$SCRIPT_DIR/build-napi-cuda.sh"
 NAPI_BINARY="$(find "$REPO_ROOT/src/ts" -maxdepth 1 -type f -name 'fathomdb.linux-x64-gnu.node' -print -quit)"
 if [ -z "$NAPI_BINARY" ]; then
   printf 'cuda-preflight: Linux CUDA N-API build produced no linux-x64-gnu artifact\n' >&2

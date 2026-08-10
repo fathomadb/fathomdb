@@ -125,6 +125,20 @@ PY
 expect_fail "$FIXTURE" 'rejects a CUDA N-API build wrapper without nvcc selection'
 
 make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = 'CC="$CUDA_NAPI_HOST_CC" CXX="$CUDA_NAPI_HOST_CXX"'
+if text.count(needle) != 1:
+    raise SystemExit("fixture no longer contains exactly one N-API preflight compiler selection")
+path.write_text(text.replace(needle, 'CC="$CUDA_NAPI_HOST_CC" CXX="/usr/bin/g++"', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA preflight that does not pass GCC 13 to N-API'
+
+make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/Dockerfile.cuda-manylinux" <<'PY'
 from pathlib import Path
 import sys
@@ -144,6 +158,20 @@ if ! grep -Fq "CUDA_MANYLINUX_GXX_RPM='gcc-toolset-13-gcc-c++-13.3.1-2.2.el8_10.
   printf 'FAIL  CUDA manylinux contract must pin the exact G++ 13.3.1 RPM NEVRA\n' >&2
   exit 1
 fi
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-artifact-contract.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = "CUDA_MANYLINUX_GCC_RPM='gcc-toolset-13-gcc-13.3.1-2.2.el8_10.x86_64'"
+if text.count(needle) != 1:
+    raise SystemExit("fixture no longer contains exactly one pinned GCC RPM NEVRA")
+path.write_text(text.replace(needle, "CUDA_MANYLINUX_GCC_RPM='gcc-toolset-13-gcc-13.3.1-2.2.el8_9.x86_64'", 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA builder with a changed GCC RPM NEVRA'
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/cuda-artifact-contract.sh" <<'PY'

@@ -229,6 +229,11 @@ def main() -> None:
         "CXX=/opt/rh/gcc-toolset-13/root/usr/bin/g++",
         "CUDAHOSTCXX=/opt/rh/gcc-toolset-13/root/usr/bin/g++",
         "NVCC_CCBIN=/opt/rh/gcc-toolset-13/root/usr/bin/g++",
+        "CARGO_HOME=/opt/fathomdb/cargo",
+        "RUSTUP_HOME=/opt/fathomdb/rustup",
+        "/opt/fathomdb/cargo/bin",
+        'install -d -m 0755 "$CARGO_HOME" "$RUSTUP_HOME"',
+        'chmod -R a+rX "$CARGO_HOME" "$RUSTUP_HOME"',
         '"$CC" --version | grep -F "$CUDA_GCC_VERSION"',
         '"$CXX" --version | grep -F "$CUDA_GCC_VERSION"',
         'test "$CUDAHOSTCXX" = "$CXX"',
@@ -310,6 +315,12 @@ def main() -> None:
     require_fragment(napi_build, 'grep -F "$CUDA_NAPI_HOST_NVCC_VERSION"', "CUDA N-API build wrapper")
     preflight = read_text(CUDA_PREFLIGHT)
     for fragment in (
+        'CONTAINER_UID="$(id -u)"',
+        'CONTAINER_GID="$(id -g)"',
+        'CONTAINER_USER="$CONTAINER_UID:$CONTAINER_GID"',
+    ):
+        require_fragment(preflight, fragment, "CUDA preflight container ownership")
+    for fragment in (
         '"$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin/nvcc" --version',
         'CC="$CUDA_NAPI_HOST_CC" CXX="$CUDA_NAPI_HOST_CXX"',
         'CUDAHOSTCXX="$CUDA_NAPI_HOST_CXX" NVCC_CCBIN="$CUDA_NAPI_HOST_CXX"',
@@ -338,7 +349,7 @@ def main() -> None:
         'test "$NVCC_CCBIN" = "$CUDA_MANYLINUX_CXX"',
         '"$CC" --version | grep -F "$CUDA_MANYLINUX_GCC_VERSION"',
         '"$CXX" --version | grep -F "$CUDA_MANYLINUX_GCC_VERSION"',
-        '--mount "type=bind,src=$REPO_ROOT,dst=/workspace"',
+        '--mount "type=bind,src=$REPO_ROOT,dst=/workspace,readonly"',
         'manylinux-build.txt',
         'CUDA_DRIVERLESS_PYTHON_IMAGE',
         'CUDA_DRIVERLESS_NODE_IMAGE',
@@ -370,9 +381,26 @@ def main() -> None:
         'ldd "$NAPI_BINARY" || true',
         'ldd "$PYTHON_EXTENSION" || true',
         'auditwheel show "$WHEEL"',
+        '--mount "type=bind,src=$REPO_ROOT,dst=/workspace"',
     ):
         if forbidden in preflight:
             fail(f"CUDA preflight must not contain {forbidden!r}")
+    workspace_build = re.search(
+        r'docker run --rm \\\n(?P<options>.*?--mount "type=bind,src=\$REPO_ROOT,dst=/workspace,readonly".*?)\n'
+        r'  "\$CUDA_MANYLINUX_IMAGE" \\\n  sh -ceu',
+        preflight,
+        re.DOTALL,
+    )
+    if workspace_build is None:
+        fail("CUDA preflight must have exactly one read-only workspace CUDA wheel build")
+    for fragment in (
+        '--user "$CONTAINER_USER"',
+        "-e HOME=/tmp",
+        "-e CARGO_HOME=/tmp/fathomdb-cargo",
+        "-e RUSTUP_HOME=/opt/fathomdb/rustup",
+        "-e CARGO_TARGET_DIR=/tmp/fathomdb-cargo-target",
+    ):
+        require_fragment(workspace_build.group("options"), fragment, "CUDA workspace wheel build")
     for path in (
         CUDA_CONTRACT,
         CUDA_NAPI_BUILD,

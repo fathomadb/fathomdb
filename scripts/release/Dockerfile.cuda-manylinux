@@ -36,11 +36,12 @@ ENV CUDA_PATH=/usr/local/cuda-12.6 \
     CXX=/opt/rh/gcc-toolset-13/root/usr/bin/g++ \
     CUDAHOSTCXX=/opt/rh/gcc-toolset-13/root/usr/bin/g++ \
     NVCC_CCBIN=/opt/rh/gcc-toolset-13/root/usr/bin/g++ \
-    CARGO_HOME=/root/.cargo \
-    RUSTUP_HOME=/root/.rustup \
-    PATH=/opt/rh/gcc-toolset-13/root/usr/bin:/root/.cargo/bin:/usr/local/cuda-12.6/bin:$PATH
+    CARGO_HOME=/opt/fathomdb/cargo \
+    RUSTUP_HOME=/opt/fathomdb/rustup \
+    PATH=/opt/rh/gcc-toolset-13/root/usr/bin:/opt/fathomdb/cargo/bin:/usr/local/cuda-12.6/bin:$PATH
 
-RUN dnf install -y "$CUDA_GCC_RPM" "$CUDA_GXX_RPM" \
+RUN install -d -m 0755 "$CARGO_HOME" "$RUSTUP_HOME" \
+    && dnf install -y "$CUDA_GCC_RPM" "$CUDA_GXX_RPM" \
     && dnf clean all \
     && curl --proto '=https' --tlsv1.2 --fail --silent --show-error --output /tmp/rustup-init "$RUSTUP_INIT_URL" \
     && printf '%s  %s\n' "$RUSTUP_INIT_SHA256" /tmp/rustup-init | sha256sum --check --status \
@@ -48,6 +49,7 @@ RUN dnf install -y "$CUDA_GCC_RPM" "$CUDA_GXX_RPM" \
     && /tmp/rustup-init -y --profile minimal --default-toolchain "$RUST_VERSION" \
     && rm /tmp/rustup-init \
     && cargo install maturin --version "$MATURIN_VERSION" --locked \
+    && chmod -R a+rX "$CARGO_HOME" "$RUSTUP_HOME" \
     && test -x /opt/python/cp311-cp311/bin/python \
     && /opt/python/cp311-cp311/bin/python --version \
     && rustc --version | grep -F "rustc $RUST_VERSION" \

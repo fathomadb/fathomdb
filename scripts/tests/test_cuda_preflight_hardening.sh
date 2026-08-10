@@ -96,4 +96,46 @@ path.write_text(text.replace(needle, needle + " || true", 1))
 PY
 expect_fail "$FIXTURE" 'rejects dynamic dependency checks that tolerate ldd failure'
 
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = '--user "$CONTAINER_USER"'
+if text.count(needle) != 1:
+    raise SystemExit("fixture must contain exactly one non-root CUDA wheel build user")
+path.write_text(text.replace(needle, "", 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA wheel build that runs as Docker root'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = '--mount "type=bind,src=$REPO_ROOT,dst=/workspace,readonly"'
+if text.count(needle) != 1:
+    raise SystemExit("fixture must contain exactly one read-only CUDA workspace mount")
+path.write_text(text.replace(needle, '--mount "type=bind,src=$REPO_ROOT,dst=/workspace"', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA wheel build with a writable checkout mount'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = '-e CARGO_TARGET_DIR=/tmp/fathomdb-cargo-target'
+if text.count(needle) != 1:
+    raise SystemExit("fixture must contain exactly one container-local Cargo target directory")
+path.write_text(text.replace(needle, "", 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA wheel build without a container-local Cargo target directory'
+
 printf '\nCUDA preflight-hardening tests passed\n'

@@ -261,15 +261,19 @@ def cargo_governed_pins(root: Path) -> list[dict[str, str | None]]:
         except (OSError, tomllib.TOMLDecodeError) as exc:
             raise Unverified(f"cannot parse Cargo manifest {manifest}: {exc}") from exc
         relative = manifest.relative_to(root)
-        def add_pin(mechanism: str, package: str, spec: Any) -> None:
+        def add_pin(mechanism: str, package: str, spec: Any, lock_package: str | None = None) -> None:
             pin: dict[str, str | None] = {
                 "manifest": str(relative),
                 "mechanism": mechanism,
                 "package": package,
+                "lock_package": lock_package if lock_package is not None else package,
                 "git": None,
                 "rev": None,
             }
             if isinstance(spec, dict):
+                renamed_package = spec.get("package")
+                if renamed_package is not None:
+                    pin["lock_package"] = renamed_package if isinstance(renamed_package, str) else None
                 git = spec.get("git")
                 rev = spec.get("rev")
                 if isinstance(git, str):
@@ -292,7 +296,8 @@ def cargo_governed_pins(root: Path) -> list[dict[str, str | None]]:
                         add_pin(f"patch.{registry}", str(package), spec)
             else:
                 for package, spec in section.items():
-                    add_pin("replace", str(package), spec)
+                    package_id = str(package)
+                    add_pin("replace", package_id, spec, package_id.split(":", 1)[0])
 
         def find_git_dependencies(value: Any, path: list[str]) -> None:
             if not isinstance(value, dict):
@@ -377,6 +382,13 @@ def validate_cargo_pins(root: Path, metadata: dict[str, Any]) -> list[str]:
             failures.append(f"Cargo pin {label} revision disagrees with metadata")
         if not GIT_REV.fullmatch(recorded_rev):
             failures.append(f"Cargo pin {label} metadata revision must be an immutable 40-character Git revision")
+        lock_package = pin["lock_package"]
+        if not isinstance(lock_package, str) or not lock_package:
+            failures.append(f"Cargo pin {label} must identify a resolved Cargo.lock package")
+            continue
+        recorded_lock_package = nonempty_string(record.get("lock_package"), f"Cargo pin {label}.lock_package")
+        if recorded_lock_package != lock_package:
+            failures.append(f"Cargo pin {label} resolved lock package disagrees with metadata")
         version = nonempty_string(record.get("version"), f"Cargo pin {label}.version")
         version_tuple(version)
         rationale = record.get("rationale")
@@ -394,7 +406,7 @@ def validate_cargo_pins(root: Path, metadata: dict[str, Any]) -> list[str]:
             if not isinstance(posture_rationale, str) or not posture_rationale.strip():
                 failures.append(f"Cargo pin {label} advisory posture has no recorded rationale")
         expected_source = f"git+{git}?rev={rev}#{rev}"
-        if expected_source not in lock_sources.get((str(pin["package"]), version), set()):
+        if expected_source not in lock_sources.get((lock_package, version), set()):
             failures.append(f"Cargo pin {label} has no matching Cargo.lock source")
     for manifest, mechanism, package in sorted(records):
         failures.append(

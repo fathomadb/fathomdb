@@ -344,6 +344,21 @@ root = Path(sys.argv[1])
 mode = sys.argv[2]
 git = "https://example.invalid/candle.git"
 rev = "0123456789abcdef0123456789abcdef01234567"
+entry_package = "candle-core-fathomdb"
+lock_package = "candle-core-fathomdb"
+mechanism = "patch.crates-io"
+manifest_pin = f"[patch.crates-io]\n{entry_package} = {{ git = \"{git}\", rev = \"{rev}\" }}\n"
+if mode == "replace-package-id":
+    entry_package = "candle-core-fathomdb:0.10.2"
+    mechanism = "replace"
+    manifest_pin = f"[replace]\n\"{entry_package}\" = {{ git = \"{git}\", rev = \"{rev}\" }}\n"
+elif mode == "renamed-dependency":
+    entry_package = "candle-alias"
+    mechanism = "workspace.dependencies"
+    manifest_pin = (
+        "[workspace.dependencies]\n"
+        f"{entry_package} = {{ package = \"{lock_package}\", git = \"{git}\", rev = \"{rev}\" }}\n"
+    )
 metadata_path = root / "scripts/pinned-override-rot.json"
 metadata = json.loads(metadata_path.read_text())
 metadata["schema_version"] = 3
@@ -351,8 +366,9 @@ metadata["cargo_pins"] = []
 if mode != "undeclared":
     metadata["cargo_pins"] = [{
         "manifest": "Cargo.toml",
-        "mechanism": "patch.crates-io",
-        "package": "candle-core-fathomdb",
+        "mechanism": mechanism,
+        "package": entry_package,
+        "lock_package": lock_package,
         "git": git,
         "rev": rev if mode != "metadata-revision-mismatch" else "89abcdef0123456789abcdef0123456789abcdef",
         "version": "0.10.2",
@@ -367,13 +383,12 @@ metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
 (root / "package.json").write_text(json.dumps({"overrides": {}}), encoding="utf-8")
 (root / "package-lock.json").write_text(json.dumps({"lockfileVersion": 3, "packages": {}}), encoding="utf-8")
 (root / "Cargo.toml").write_text(
-    "[workspace]\nresolver = \"2\"\n\n[patch.crates-io]\n"
-    f"candle-core-fathomdb = {{ git = \"{git}\", rev = \"{rev}\" }}\n",
+    "[workspace]\nresolver = \"2\"\n\n" + manifest_pin,
     encoding="utf-8",
 )
 lock_rev = rev if mode != "lock-revision-mismatch" else "89abcdef0123456789abcdef0123456789abcdef"
 (root / "Cargo.lock").write_text(
-    "version = 4\n\n[[package]]\nname = \"candle-core-fathomdb\"\n"
+    f"version = 4\n\n[[package]]\nname = \"{lock_package}\"\n"
     "version = \"0.10.2\"\n"
     f"source = \"git+{git}?rev={lock_rev}#{lock_rev}\"\n",
     encoding="utf-8",
@@ -393,6 +408,18 @@ if [ "$RC" -ne 0 ]; then
   fail "governed Cargo pin must pass when manifest, metadata, and lock agree, got rc=$RC output=$OUT"
 fi
 pass 'governed Cargo Git source pin passes only with exact offline provenance'
+
+make_and_run_cargo_pin_fixture replace-package-id replace-package-id
+if [ "$RC" -ne 0 ]; then
+  fail "governed Cargo replace package-ID pin must pass, got rc=$RC output=$OUT"
+fi
+pass 'governed Cargo replace package-ID resolves its distinct lock package'
+
+make_and_run_cargo_pin_fixture renamed-dependency renamed-dependency
+if [ "$RC" -ne 0 ]; then
+  fail "governed renamed Cargo Git dependency must pass, got rc=$RC output=$OUT"
+fi
+pass 'governed renamed Cargo Git dependency resolves its distinct lock package'
 
 make_and_run_cargo_pin_fixture undeclared undeclared
 if [ "$RC" -ne 1 ]; then

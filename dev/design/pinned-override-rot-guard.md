@@ -57,11 +57,15 @@ come, so a pin outlives its reason and silently holds the tree back.
   particular prose style.
 - **R4 — every Cargo source is reproducible and explicitly bounded.** For
   every Cargo `[patch]`, `[replace]`, or Git dependency, a record must name the
-  manifest location, mechanism, package, immutable 40-character Git revision,
-  package version, and human rationale. The same package/version must carry
-  the exact `git+…?rev=…#…` source in `Cargo.lock`; a record not present in the
-  manifest is also a failure. This fails closed for an undeclared source, a
-  mutable Git reference, or manifest/lock disagreement.
+  manifest location, mechanism, manifest-entry package identity, resolved
+  `Cargo.lock` package identity, immutable 40-character Git revision, package
+  version, and human rationale. The resolved package/version must carry the
+  exact `git+…?rev=…#…` source in `Cargo.lock`; a record not present in the
+  manifest is also a failure. The two identities are intentionally separate:
+  a `[replace]` key can be a package ID such as `foo:1.2.3`, and a Git
+  dependency can use an alias with `package = "foo"`, while `Cargo.lock`
+  records the resolved package name `foo`. This fails closed for an undeclared
+  source, a mutable Git reference, or manifest/lock disagreement.
 
 ## Design constraints
 

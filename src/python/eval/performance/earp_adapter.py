@@ -717,6 +717,7 @@ def run_characterization_repetitions(*, workload: WorkloadRef, plan: Performance
         raise ValueError("characterization requires the verified experiments root")
     _verify_workload_reference(root, workload)
     config_doc = _admit_canonical_config(workload, config_doc)
+    _require_diagnostic_scenario(workload, scenario)
     corpus, gold = config_doc.get("corpus"), config_doc.get("gold")
     if not isinstance(corpus, Mapping) or not isinstance(gold, Mapping):
         raise ValueError("characterization config lacks corpus or gold identity")

@@ -8,6 +8,7 @@ publication workload by hand.
 from __future__ import annotations
 
 import json
+import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -237,11 +238,17 @@ def test_performance_artifact_is_validated_digest_linked_and_idempotent(
     assert second == first
 
     record = json.loads((first.run_dir / "record.json").read_text())
-    document = json.loads((first.run_dir / PERFORMANCE_RESULT_NAME).read_text())
-    assert document["artifact_digests"][PERFORMANCE_RESULT_NAME]
-    assert record["artifact_digests"][f"runs/{first.run_id}/{PERFORMANCE_RESULT_NAME}"] == document[
-        "artifact_digests"
-    ][PERFORMANCE_RESULT_NAME]
+    sidecar_bytes = (first.run_dir / PERFORMANCE_RESULT_NAME).read_bytes()
+    advertised = next(
+        artifact
+        for artifact in record["artifacts"]
+        if artifact["path"] == f"runs/{first.run_id}/{PERFORMANCE_RESULT_NAME}"
+    )
+    assert advertised["sha256"] == hashlib.sha256(sidecar_bytes).hexdigest()
+    document = json.loads(sidecar_bytes)
+    assert PERFORMANCE_RESULT_NAME not in document.get("artifact_digests", {})
+    assert document["parent_manifest"]["sha256"]
+    assert document["inputs"]["quality_result"]["sha256"]
 
     with pytest.raises(PerformanceCollision):
         write_performance_result(

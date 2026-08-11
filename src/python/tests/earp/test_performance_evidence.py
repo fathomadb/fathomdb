@@ -10,7 +10,6 @@ from __future__ import annotations
 from pathlib import Path
 
 from eval.earp.observed_cost import (
-    OBSERVED_COST_NAME,
     Observation,
     capture_sqlite_storage,
 )
@@ -34,14 +33,21 @@ def test_observed_cost_sidecar_is_explicitly_one_run_evidence(tmp_path: Path) ->
         phases_ms={"open": 1.25, "write": 3.5, "query": 0.75},
         counts={"accepted": 2, "queries": 1, "results": 1},
         storage=capture_sqlite_storage(db),
+        query_samples=(
+            {"query_id": "q-1", "wall_ms": 0.75, "result_count": 1, "outcome": "complete"},
+        ),
+        unavailable={"engine_trace": {"code": "not_exposed", "message": "no trace hook"}},
+        provenance={"candidate_sha": "b" * 40, "clean": True, "device": {"kind": "cpu"}},
     )
 
     document = observation.as_document()
-    assert document["schema_version"] == "earp.observed-cost.v1"
+    assert document["schema_version"] == "earp.observed-cost.v2"
     assert document["scope"] == "one_run_observation"
     assert document["evidence_family_id"] == "quality-run-1"
     assert document["storage"] == {"database_bytes": 4, "wal_bytes": 3, "shm_bytes": 0}
-    assert OBSERVED_COST_NAME.endswith(".json")
+    assert document["query_samples"][0]["query_id"] == "q-1"
+    assert document["unavailable"]["engine_trace"]["code"] == "not_exposed"
+    assert document["provenance"]["candidate_sha"] == "b" * 40
 
 
 def test_short_repetition_summary_cannot_claim_percentiles() -> None:

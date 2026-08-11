@@ -33,6 +33,6 @@ def test_diagnostic_performance_writes_linked_independent_artifact(tmp_path: Pat
     )
 
     artifact = json.loads((outcome.run_dir / PERFORMANCE_RESULT_NAME).read_text())
-    assert artifact["workload"]["parent_run_id"] == "quality-run"
+    assert artifact["workload"]["parent_run_id"] == workload.parent_run_id
     assert len(artifact["samples"]) == 2
     assert not any(path.name == "earp.result.v1.json" for path in outcome.run_dir.iterdir())

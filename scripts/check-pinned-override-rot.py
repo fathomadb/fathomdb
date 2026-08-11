@@ -11,14 +11,16 @@ import re
 import sys
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 
 class Unverified(Exception):
     """The checked-in evidence cannot support a trustworthy verdict."""
 
 
-VERSION = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
-PRERELEASE_VERSION = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-[0-9A-Za-z.-]+$")
+SEMVER = r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
+VERSION = re.compile(rf"^{SEMVER}$")
+PRERELEASE_VERSION = re.compile(rf"^{SEMVER}-[0-9A-Za-z.-]+$")
 COMPARATOR = re.compile(r"^(<=|>=|<|>|=)?\s*(\d+\.\d+\.\d+)$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 GIT_REV = re.compile(r"^[0-9a-f]{40}$")
@@ -35,6 +37,10 @@ GITHUB_ADVISORY_SOURCE = "GitHub Advisory Database"
 PINNED_ADVISORY_SNAPSHOT_SHA256 = "0aee0fc7be3dceb63bcd5abcb4877eaac256a03ca9511b37448f235a1a3c1f97"
 EXTERNAL_SOURCE_ADVISORY_STATUS = "external-source-unassessed"
 EXTERNAL_SOURCE_ADVISORY_SCOPE = "outside the checked-in npm advisory snapshot"
+CARGO_PACKAGE_NAME = r"[A-Za-z0-9][A-Za-z0-9_-]*"
+BARE_REPLACE_PACKAGE_ID = re.compile(rf"^(?P<name>{CARGO_PACKAGE_NAME}):(?P<version>{SEMVER})$")
+URL_REPLACE_PACKAGE_FRAGMENT = re.compile(rf"^(?P<name>{CARGO_PACKAGE_NAME})@(?P<version>{SEMVER})$")
+LOCK_PACKAGE_UNSPECIFIED = object()
 
 
 def read_json(path: Path, label: str) -> dict[str, Any]:
@@ -246,6 +252,25 @@ def advisory_index(advisories: list[dict[str, Any]]) -> dict[str, list[dict[str,
     return indexed
 
 
+def replace_lock_package(package_id: str) -> str | None:
+    """Resolve only Cargo's supported replace-key forms to a lock package name."""
+    bare = BARE_REPLACE_PACKAGE_ID.fullmatch(package_id)
+    if bare:
+        return bare.group("name")
+    parsed = urlsplit(package_id)
+    if (
+        parsed.scheme != "https"
+        or not parsed.netloc
+        or not parsed.path
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+    ):
+        return None
+    fragment = URL_REPLACE_PACKAGE_FRAGMENT.fullmatch(parsed.fragment)
+    return fragment.group("name") if fragment else None
+
+
 def cargo_governed_pins(root: Path) -> list[dict[str, str | None]]:
     """Identify Cargo override sources without calling Cargo or the network."""
     try:
@@ -261,12 +286,23 @@ def cargo_governed_pins(root: Path) -> list[dict[str, str | None]]:
         except (OSError, tomllib.TOMLDecodeError) as exc:
             raise Unverified(f"cannot parse Cargo manifest {manifest}: {exc}") from exc
         relative = manifest.relative_to(root)
-        def add_pin(mechanism: str, package: str, spec: Any, lock_package: str | None = None) -> None:
+        def add_pin(
+            mechanism: str,
+            package: str,
+            spec: Any,
+            lock_package: str | None | object = LOCK_PACKAGE_UNSPECIFIED,
+        ) -> None:
+            if lock_package is LOCK_PACKAGE_UNSPECIFIED:
+                resolved_lock_package: str | None = package
+            elif isinstance(lock_package, str) or lock_package is None:
+                resolved_lock_package = lock_package
+            else:  # pragma: no cover - internal callers use only the declared forms
+                raise AssertionError("invalid Cargo lock package sentinel")
             pin: dict[str, str | None] = {
                 "manifest": str(relative),
                 "mechanism": mechanism,
                 "package": package,
-                "lock_package": lock_package if lock_package is not None else package,
+                "lock_package": resolved_lock_package,
                 "git": None,
                 "rev": None,
             }
@@ -297,7 +333,7 @@ def cargo_governed_pins(root: Path) -> list[dict[str, str | None]]:
             else:
                 for package, spec in section.items():
                     package_id = str(package)
-                    add_pin("replace", package_id, spec, package_id.split(":", 1)[0])
+                    add_pin("replace", package_id, spec, replace_lock_package(package_id))
 
         def find_git_dependencies(value: Any, path: list[str]) -> None:
             if not isinstance(value, dict):

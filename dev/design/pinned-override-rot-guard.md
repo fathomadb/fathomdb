@@ -62,10 +62,15 @@ come, so a pin outlives its reason and silently holds the tree back.
   version, and human rationale. The resolved package/version must carry the
   exact `git+…?rev=…#…` source in `Cargo.lock`; a record not present in the
   manifest is also a failure. The two identities are intentionally separate:
-  a `[replace]` key can be a package ID such as `foo:1.2.3`, and a Git
+  a `[replace]` key can be a package ID such as `foo:1.2.3` or a fully
+  qualified registry URL such as
+  `https://github.com/rust-lang/crates.io-index#foo@1.2.3`, and a Git
   dependency can use an alias with `package = "foo"`, while `Cargo.lock`
-  records the resolved package name `foo`. This fails closed for an undeclared
-  source, a mutable Git reference, or manifest/lock disagreement.
+  records the resolved package name `foo`. The checker accepts only those two
+  exact-version replace-key forms—bare `name:version` and `https` URL with a
+  `#name@version` fragment—so malformed or unknown forms fail closed rather
+  than being broadly split. This also fails closed for an undeclared source, a
+  mutable Git reference, or manifest/lock disagreement.
 
 ## Design constraints
 

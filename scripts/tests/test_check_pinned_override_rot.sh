@@ -352,6 +352,14 @@ if mode == "replace-package-id":
     entry_package = "candle-core-fathomdb:0.10.2"
     mechanism = "replace"
     manifest_pin = f"[replace]\n\"{entry_package}\" = {{ git = \"{git}\", rev = \"{rev}\" }}\n"
+elif mode == "replace-url-package-id":
+    entry_package = "https://github.com/rust-lang/crates.io-index#candle-core-fathomdb@0.10.2"
+    mechanism = "replace"
+    manifest_pin = f"[replace]\n\"{entry_package}\" = {{ git = \"{git}\", rev = \"{rev}\" }}\n"
+elif mode == "replace-malformed-package-id":
+    entry_package = "https://github.com/rust-lang/crates.io-index#candle-core-fathomdb@not-a-version"
+    mechanism = "replace"
+    manifest_pin = f"[replace]\n\"{entry_package}\" = {{ git = \"{git}\", rev = \"{rev}\" }}\n"
 elif mode == "renamed-dependency":
     entry_package = "candle-alias"
     mechanism = "workspace.dependencies"
@@ -414,6 +422,19 @@ if [ "$RC" -ne 0 ]; then
   fail "governed Cargo replace package-ID pin must pass, got rc=$RC output=$OUT"
 fi
 pass 'governed Cargo replace package-ID resolves its distinct lock package'
+
+make_and_run_cargo_pin_fixture replace-url-package-id replace-url-package-id
+if [ "$RC" -ne 0 ]; then
+  fail "governed fully-qualified Cargo replace package-ID must pass, got rc=$RC output=$OUT"
+fi
+pass 'governed fully-qualified Cargo replace package-ID resolves its lock package'
+
+make_and_run_cargo_pin_fixture replace-malformed-package-id replace-malformed-package-id
+if [ "$RC" -ne 1 ]; then
+  fail "malformed fully-qualified Cargo replace package-ID must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'must identify a resolved Cargo.lock package' \
+  'malformed fully-qualified Cargo replace package-ID fails closed'
 
 make_and_run_cargo_pin_fixture renamed-dependency renamed-dependency
 if [ "$RC" -ne 0 ]; then

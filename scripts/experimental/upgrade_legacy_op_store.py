@@ -9,11 +9,12 @@ not a general database upgrader and deliberately refuses every other schema.
 from __future__ import annotations
 
 import argparse
+import shutil
 import sqlite3
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
-from urllib.parse import quote
 
 
 _LEGACY_COLUMNS = (
@@ -34,16 +35,6 @@ _UNSUPPORTED_WARNING = (
 
 class UpgradeRefused(RuntimeError):
     """The requested input is outside this deliberately narrow tool's contract."""
-
-
-def _readonly_uri(path: Path) -> str:
-    """Return a SQLite URI that cannot create or write ``path``."""
-    return f"file:{quote(str(path), safe='/')}?mode=ro"
-
-
-def _connect_readonly(path: Path) -> sqlite3.Connection:
-    """Open an existing database with SQLite's read-only mode enforced."""
-    return sqlite3.connect(_readonly_uri(path), uri=True)
 
 
 def _check_integrity(connection: sqlite3.Connection, label: str) -> None:
@@ -76,6 +67,24 @@ def _backup_copy(source: sqlite3.Connection, output: Path) -> None:
     """Make a consistent SQLite backup snapshot without writing the source."""
     with sqlite3.connect(output) as destination:
         source.backup(destination)
+
+
+def _copy_input_to_private_snapshot(input_path: Path, staging_dir: Path) -> Path:
+    """Copy the SQLite main file and live-WAL sidecars without opening the input.
+
+    SQLite's read-only URI can still write lock state into a live ``-shm`` file.
+    This helper uses ordinary file reads only; all SQLite access starts after the
+    files have been copied under ``staging_dir``.
+    """
+    snapshot = staging_dir / "snapshot.sqlite"
+    shutil.copy2(input_path, snapshot)
+    for suffix in ("-wal", "-shm"):
+        sidecar = Path(f"{input_path}{suffix}")
+        if sidecar.exists():
+            if not sidecar.is_file():
+                raise UpgradeRefused(f"input sidecar is not a regular file: {sidecar}")
+            shutil.copy2(sidecar, Path(f"{snapshot}{suffix}"))
+    return snapshot
 
 
 def _add_compatibility_columns(output: Path) -> None:
@@ -137,10 +146,18 @@ def upgrade_copy(input_path: Path, output_path: Path) -> None:
     if source == output:
         raise UpgradeRefused("input and output paths must differ")
 
-    with _connect_readonly(source) as connection:
-        _check_integrity(connection, "input")
-        _require_exact_legacy_schema(connection)
-        _backup_copy(connection, output)
+    if not output.parent.is_dir():
+        raise UpgradeRefused(f"output parent directory does not exist: {output.parent}")
+
+    with tempfile.TemporaryDirectory(
+        prefix=f".{output.name}.legacy-op-store-",
+        dir=output.parent,
+    ) as temporary_dir:
+        snapshot = _copy_input_to_private_snapshot(source, Path(temporary_dir))
+        with sqlite3.connect(snapshot) as connection:
+            _check_integrity(connection, "private input snapshot")
+            _require_exact_legacy_schema(connection)
+            _backup_copy(connection, output)
 
     _add_compatibility_columns(output)
     _verify_with_fathomdb(output)

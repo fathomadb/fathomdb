@@ -37,8 +37,11 @@ python scripts/experimental/upgrade_legacy_op_store.py \
 
 The tool does all of the following:
 
-- Opens the input with SQLite read-only mode and runs `integrity_check` plus
-  `quick_check`.
+- Never opens the input with SQLite. SQLite read-only mode can still mutate a
+  live input's `-shm` sidecar while taking locks.
+- Copies the main database plus any `-wal` and `-shm` sidecars through ordinary
+  file reads into a private temporary directory beneath the requested output.
+  It runs `integrity_check` and `quick_check` only against that private snapshot.
 - Refuses every shape except the exact eight-column legacy table above.
 - Uses SQLite's backup API to create the explicit new output path, so it never
   writes the input database or its sidecars.
@@ -52,6 +55,7 @@ defaulted zero cursors are sufficient for current read-back but are not a
 reconstructed historical cursor sequence. Archive the original first; do not
 interpret this experiment as official backwards-compatibility support.
 
-The focused synthetic test takes a SHA-256 witness of its input before and
-after the tool runs; the original input bytes are unchanged. This proves the
-tool's copy-only boundary without reading or operating on the Memex database.
+The focused synthetic live-WAL test takes SHA-256 witnesses of the input main
+database, `-wal`, and `-shm` sidecars before and after the tool runs. All three
+original artifacts remain byte-unchanged. This proves the tool's copy-only
+boundary without reading or operating on the Memex database.

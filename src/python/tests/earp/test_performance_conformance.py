@@ -47,6 +47,14 @@ def _execution_provenance(*, candidate_sha: str = "b" * 40) -> dict[str, object]
     }
 
 
+def _declared_samples(*, fresh_query_ms: float = 1.0) -> tuple[RunSample, RunSample]:
+    """One sample for every treatment declared by the quality manifest."""
+    return (
+        RunSample("fresh_store", 0, {"query": fresh_query_ms}, {"results": 1}),
+        RunSample("fresh_store_warm_query", 0, {"query": 0.5}, {"results": 1}),
+    )
+
+
 def test_complete_cell_carries_distinct_execution_provenance(tmp_path: Path) -> None:
     """FIX-2: quality identity may never be copied into an execution cell."""
     result = write_performance_result(
@@ -54,8 +62,8 @@ def test_complete_cell_carries_distinct_execution_provenance(tmp_path: Path) -> 
         experiment="earp-performance",
         ts=TS,
         workload=_workload(tmp_path),
-        plan=PerformancePlan(repetitions=1, treatments=("fresh_store",)),
-        samples=(RunSample("fresh_store", 0, {"query": 1.0}, {"results": 1}),),
+        plan=PerformancePlan(repetitions=1, treatments=("fresh_store", "fresh_store_warm_query")),
+        samples=_declared_samples(),
         execution_provenance=_execution_provenance(candidate_sha="e" * 40),
     )
 
@@ -157,8 +165,8 @@ def test_unverified_or_incomplete_evidence_cannot_claim_repeated_performance(
             experiment="earp-performance",
             ts=TS,
             workload=_workload(tmp_path),
-            plan=PerformancePlan(repetitions=1, treatments=("fresh_store",)),
-            samples=(RunSample("fresh_store", 0, {"query": 1.0}, {"results": 1}),),
+            plan=PerformancePlan(repetitions=1, treatments=("fresh_store", "fresh_store_warm_query")),
+            samples=_declared_samples(),
         )
 
 
@@ -170,8 +178,8 @@ def test_writer_requires_complete_execution_provenance(tmp_path: Path) -> None:
             experiment="earp-performance",
             ts=TS,
             workload=_workload(tmp_path),
-            plan=PerformancePlan(repetitions=1, treatments=("fresh_store",)),
-            samples=(RunSample("fresh_store", 0, {"query": 1.0}, {"results": 1}),),
+            plan=PerformancePlan(repetitions=1, treatments=("fresh_store", "fresh_store_warm_query")),
+            samples=_declared_samples(),
             execution_provenance={"candidate_sha": "b" * 40},
         )
 
@@ -195,8 +203,8 @@ def test_invalid_performance_schema_leaves_no_run_or_index(tmp_path: Path) -> No
             experiment="earp-performance",
             ts=TS,
             workload=workload,
-            plan=PerformancePlan(repetitions=1, treatments=("fresh_store",)),
-            samples=(RunSample("fresh_store", 0, {"query": 1.0}, {"results": 1}),),
+            plan=PerformancePlan(repetitions=1, treatments=("fresh_store", "fresh_store_warm_query")),
+            samples=_declared_samples(),
             execution_provenance={**_execution_provenance(), "device": {"kind": "unknown"}},
         )
     assert (root / "index.jsonl").read_bytes() == index_before
@@ -244,8 +252,8 @@ def test_performance_artifact_is_validated_digest_linked_and_idempotent(
         "experiment": "earp-performance",
         "ts": TS,
         "workload": _workload(tmp_path),
-        "plan": PerformancePlan(repetitions=1, treatments=("fresh_store",)),
-        "samples": (RunSample("fresh_store", 0, {"query": 1.0}, {"results": 1}),),
+        "plan": PerformancePlan(repetitions=1, treatments=("fresh_store", "fresh_store_warm_query")),
+        "samples": _declared_samples(),
         "execution_provenance": _execution_provenance(),
     }
     first = write_performance_result(**kwargs)
@@ -267,5 +275,5 @@ def test_performance_artifact_is_validated_digest_linked_and_idempotent(
 
     with pytest.raises(PerformanceCollision):
         write_performance_result(
-            **{**kwargs, "samples": (RunSample("fresh_store", 0, {"query": 2.0}, {"results": 1}),)}
+            **{**kwargs, "samples": _declared_samples(fresh_query_ms=2.0)}
         )

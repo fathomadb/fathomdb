@@ -326,7 +326,7 @@ def _scenario_value(scenario: Any, name: str) -> Any:
     return value.value if hasattr(value, "value") else value
 
 
-def _require_diagnostic_scenario(workload: WorkloadRef, scenario: Any) -> None:
+def _scenario_expectations(workload: WorkloadRef) -> dict[str, Any]:
     expected = {
         "config_sha256": workload.config_sha256,
         "query_call": workload.query_call,
@@ -344,11 +344,46 @@ def _require_diagnostic_scenario(workload: WorkloadRef, scenario: Any) -> None:
             # Older manifests did not serialize these resolver-derived values.
             # They remain part of admission whenever the caller supplies them.
             expected[key] = default
+    return expected
+
+
+def _require_diagnostic_scenario(
+    workload: WorkloadRef, scenario: Any, config_doc: Mapping[str, Any]
+) -> Any:
+    """Return an admitted scenario, resolving wholly omitted derived fields."""
+    expected = _scenario_expectations(workload)
+    missing = {key for key in expected if not hasattr(scenario, key)}
+    normalized = {
+        "retrieval_mode",
+        "max_measurable_k",
+        "use_default_embedder",
+    }
+    missing_normalized = missing & normalized
+    if missing_normalized:
+        # A caller may not mix supplied and implicit normalized fields: that
+        # would let it select a partially unverified execution identity. When
+        # they are all omitted, prefer a resolver-derived canonical scenario
+        # only when it agrees with the admitted workload manifest.
+        if missing_normalized != normalized:
+            raise ValueError("diagnostic scenario lacks normalized verified workload identity")
+        from eval.earp.config import resolve_config
+
+        resolution = resolve_config(config_doc)
+        if (
+            resolution.scenario is not None
+            and not resolution.blockers
+            and all(
+                _scenario_value(resolution.scenario, key) == value
+                for key, value in expected.items()
+            )
+        ):
+            scenario = resolution.scenario
     if any(
         hasattr(scenario, key) and _scenario_value(scenario, key) != value
         for key, value in expected.items()
     ):
         raise ValueError("diagnostic scenario does not match verified workload")
+    return scenario
 
 
 def _admit_canonical_config(
@@ -642,7 +677,7 @@ def run_diagnostic_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, 
     from eval.earp.schema.models import RunVerdict
     _verify_workload_reference(Path(experiments_root), workload)
     config_doc = _admit_canonical_config(workload, config_doc)
-    _require_diagnostic_scenario(workload, scenario)
+    scenario = _require_diagnostic_scenario(workload, scenario, config_doc)
     _require_predeclared_plan(workload, plan)
     provenance = _bridge_provenance()
     def execute(_workload: WorkloadRef, treatment: str, repetition: int) -> PerformanceCell:
@@ -663,7 +698,7 @@ def run_characterization_repetitions(*, workload: WorkloadRef, plan: Performance
         raise ValueError("characterization requires the verified experiments root")
     _verify_workload_reference(root, workload)
     config_doc = _admit_canonical_config(workload, config_doc)
-    _require_diagnostic_scenario(workload, scenario)
+    scenario = _require_diagnostic_scenario(workload, scenario, config_doc)
     corpus, gold = config_doc.get("corpus"), config_doc.get("gold")
     if not isinstance(corpus, Mapping) or not isinstance(gold, Mapping):
         raise ValueError("characterization config lacks corpus or gold identity")

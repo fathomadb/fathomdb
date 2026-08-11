@@ -50,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
             )
         treatments = tuple(item.strip() for item in args.treatments.split(",") if item.strip())
         predeclared = workload.predeclared_plan
-        if predeclared.get("kind") != "descriptive_nonclaim" and (
+        if (
             args.repetitions != predeclared.get("repetitions")
             or list(treatments) != predeclared.get("treatments")
         ):

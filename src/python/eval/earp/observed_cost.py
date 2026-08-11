@@ -26,7 +26,15 @@ _CHECKPOINTS: dict[str, tuple[str, str]] = {
     "storage.wal_bytes": ("storage", "wal_bytes"),
     "storage.shm_bytes": ("storage", "shm_bytes"),
 }
-_PROVENANCE_KEYS = ("candidate_sha", "clean", "toolchain", "device")
+_PROVENANCE_KEYS = (
+    "candidate_sha",
+    "clean",
+    "command",
+    "lockfile_sha256",
+    "toolchain",
+    "device",
+    "fixtures",
+)
 _PROVENANCE_SENTINELS = {"unknown", "unavailable-outside-git"}
 
 

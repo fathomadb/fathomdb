@@ -351,6 +351,27 @@ def _require_diagnostic_scenario(workload: WorkloadRef, scenario: Any) -> None:
         raise ValueError("diagnostic scenario does not match verified workload")
 
 
+def _admit_canonical_config(
+    workload: WorkloadRef, config_doc: Mapping[str, Any]
+) -> Mapping[str, Any]:
+    """Use only the admitted config, while rejecting supplied contradictions."""
+    canonical = dict(workload.resolved_config_document)
+    supplied = dict(config_doc)
+    if _lib.canonical_json(supplied) == _lib.canonical_json(canonical):
+        return canonical
+    # Legacy low-level bridge callers supplied either no config at all, or the
+    # characterization identity subset.  They never control execution: after
+    # checking every supplied member, execution still receives canonical bytes.
+    if not supplied:
+        return canonical
+    allowed_subset = {"corpus", "gold", "projections", "embedder", "device"}
+    if set(supplied).issubset(allowed_subset) and all(
+        canonical.get(name) == value for name, value in supplied.items()
+    ):
+        return canonical
+    raise ValueError("config does not match the verified workload")
+
+
 def run_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, execute: Callable[[WorkloadRef, str, int], RunSample | PerformanceCell], execution_provenance: Mapping[str, Any] | None = None) -> tuple[PerformanceCell, ...]:
     """Execute every planned cell once, preserving executor failure as evidence."""
     cells: list[PerformanceCell] = []
@@ -598,6 +619,69 @@ def _bridge_provenance() -> dict[str, Any]:
     return result
 
 
+def _bridge_execution_provenance(
+    provenance: Mapping[str, Any],
+    *,
+    workload: WorkloadRef,
+    plan: PerformancePlan,
+    config_doc: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Add bridge-captured facts without overwriting typed unavailability."""
+    result = dict(provenance)
+    unavailable = dict(result.get("unavailable", {}))
+
+    def replace_not_captured(name: str, value: Any) -> None:
+        reason = unavailable.get(name)
+        if isinstance(reason, Mapping) and reason.get("code") == "not_captured":
+            unavailable.pop(name)
+            result[name] = value
+
+    replace_not_captured(
+        "command",
+        " ".join(
+            (
+                "fathomdb-performance",
+                str(config_doc.get("campaign", "unknown")),
+                "--quality-run",
+                workload.parent_run_id,
+                "--repetitions",
+                str(plan.repetitions),
+                "--treatments",
+                ",".join(plan.treatments),
+            )
+        ),
+    )
+    device = config_doc.get("device")
+    if isinstance(device, Mapping) and device.get("kind") in {"cpu", "cuda", "metal"}:
+        replace_not_captured("device", dict(device))
+    else:
+        replace_not_captured("device", {"kind": "cpu", "source": "Engine.open default"})
+    fixture_identity: dict[str, str] = {"quality_manifest_sha256": workload.parent_manifest_sha256}
+    scenario = config_doc.get("scenario")
+    if isinstance(scenario, Mapping) and isinstance(scenario.get("fixture"), str):
+        fixture = Path(scenario["fixture"])
+        if fixture.is_file():
+            fixture_identity["scenario_fixture_sha256"] = _file_sha(fixture)
+    corpus = config_doc.get("corpus")
+    if isinstance(corpus, Mapping) and isinstance(corpus.get("snapshot"), str):
+        fixture_identity["corpus_snapshot"] = str(corpus["snapshot"])
+    replace_not_captured("fixtures", fixture_identity)
+    lockfile = Path.cwd() / "Cargo.lock"
+    lockfile_reason = unavailable.get("lockfile_sha256")
+    if lockfile.is_file() and isinstance(lockfile_reason, Mapping) and lockfile_reason.get("code") == "lockfile_absent":
+        unavailable.pop("lockfile_sha256")
+        result["lockfile_sha256"] = _file_sha(lockfile)
+    if unavailable:
+        result["unavailable"] = unavailable
+    else:
+        result.pop("unavailable", None)
+    return result
+
+
+def _bridge_provenance_is_complete(provenance: Mapping[str, Any]) -> bool:
+    return not bool(provenance.get("unavailable"))
+
+
 def _sample_from_observed(treatment: str, repetition: int, observed: Mapping[str, Any], warm: bool) -> RunSample:
     phases, counts = observed.get("phases_ms"), observed.get("counts")
     if not isinstance(phases, Mapping) or not isinstance(counts, Mapping):
@@ -609,14 +693,19 @@ def run_diagnostic_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, 
     from eval.earp.runner import run_diagnostic
     from eval.earp.schema.models import RunVerdict
     _verify_workload_reference(Path(experiments_root), workload)
+    config_doc = _admit_canonical_config(workload, config_doc)
     _require_diagnostic_scenario(workload, scenario)
     _require_predeclared_plan(workload, plan)
-    provenance = _bridge_provenance()
+    provenance = _bridge_execution_provenance(
+        _bridge_provenance(), workload=workload, plan=plan, config_doc=config_doc
+    )
     def execute(_workload: WorkloadRef, treatment: str, repetition: int) -> PerformanceCell:
         result = run_diagnostic(scenario=scenario, config_doc=config_doc, experiments_root=experiments_root, experiment=experiment, ts=ts, persist=False, warmup_query=treatment == "fresh_store_warm_query")
         raw = (_sample_from_observed(treatment, repetition, result.observed_cost, treatment == "fresh_store_warm_query"),) if result.observed_cost else ()
-        if result.verdict is RunVerdict.COMPLETE:
+        if result.verdict is RunVerdict.COMPLETE and _bridge_provenance_is_complete(provenance):
             return PerformanceCell.complete(treatment=treatment, repetition=repetition, samples=raw, execution_provenance=provenance)
+        if result.verdict is RunVerdict.COMPLETE:
+            return PerformanceCell.invalid(treatment=treatment, repetition=repetition, raw_samples=raw, invalidity={"code": "provenance_unavailable", "message": "bridge provenance is typed unavailable"}, execution_provenance=provenance)
         return PerformanceCell.invalid(treatment=treatment, repetition=repetition, raw_samples=raw, invalidity={"code": _invalidity_code(RuntimeError(result.failure or str(result.blockers))), "message": result.failure or str(result.blockers)}, execution_provenance=provenance)
     return run_repetitions(workload=workload, plan=plan, execute=execute, execution_provenance=provenance)
 
@@ -627,6 +716,7 @@ def run_characterization_repetitions(*, workload: WorkloadRef, plan: Performance
     if root is None:
         raise ValueError("characterization requires the verified experiments root")
     _verify_workload_reference(root, workload)
+    config_doc = _admit_canonical_config(workload, config_doc)
     corpus, gold = config_doc.get("corpus"), config_doc.get("gold")
     if not isinstance(corpus, Mapping) or not isinstance(gold, Mapping):
         raise ValueError("characterization config lacks corpus or gold identity")
@@ -650,12 +740,16 @@ def run_characterization_repetitions(*, workload: WorkloadRef, plan: Performance
     for key, value in actual.items():
         if key not in expected or expected[key] != value:
             raise ValueError("characterization inputs do not match verified workload")
-    provenance = _bridge_provenance()
+    provenance = _bridge_execution_provenance(
+        _bridge_provenance(), workload=workload, plan=plan, config_doc=config_doc
+    )
     def execute(_workload: WorkloadRef, treatment: str, repetition: int) -> PerformanceCell:
         arm = execute_arm(scenario=scenario, data_root=Path(str(corpus.get("data_root") or "")), snapshot_path=Path(str(corpus.get("snapshot") or "")), gold_path=Path(str(gold.get("path") or "")), gold_sha256=str(gold.get("sha256") or ""), corpus_hash=str(gold.get("corpus_hash") or ""), qrels_version=str(gold.get("qrels_version") or ""), warmup_queries=treatment == "fresh_store_warm_query")
         raw = (_sample_from_observed(treatment, repetition, arm.observed_cost, treatment == "fresh_store_warm_query"),) if arm.observed_cost else ()
-        if arm.blocker is None:
+        if arm.blocker is None and _bridge_provenance_is_complete(provenance):
             return PerformanceCell.complete(treatment=treatment, repetition=repetition, samples=raw, execution_provenance=provenance)
+        if arm.blocker is None:
+            return PerformanceCell.invalid(treatment=treatment, repetition=repetition, raw_samples=raw, invalidity={"code": "provenance_unavailable", "message": "bridge provenance is typed unavailable"}, execution_provenance=provenance)
         return PerformanceCell.invalid(treatment=treatment, repetition=repetition, raw_samples=raw, invalidity={"code": arm.blocker.code.value, "message": arm.blocker.message}, execution_provenance=provenance)
     return run_repetitions(workload=workload, plan=plan, execute=execute, execution_provenance=provenance)
 

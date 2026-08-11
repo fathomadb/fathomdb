@@ -21,10 +21,12 @@ SCHEMA_DIR = Path(__file__).resolve().parent
 CONFIG_SCHEMA_PATH = SCHEMA_DIR / "earp.config.v1.schema.json"
 RESULT_SCHEMA_PATH = SCHEMA_DIR / "earp.result.v1.schema.json"
 PER_QUERY_SCHEMA_PATH = SCHEMA_DIR / "earp.per-query.v1.schema.json"
+WORKLOAD_MANIFEST_SCHEMA_PATH = SCHEMA_DIR / "earp.workload-manifest.v1.schema.json"
 
 __all__ = [
     "CONFIG_SCHEMA_PATH",
     "PER_QUERY_SCHEMA_PATH",
     "RESULT_SCHEMA_PATH",
     "SCHEMA_DIR",
+    "WORKLOAD_MANIFEST_SCHEMA_PATH",
 ]

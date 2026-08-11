@@ -15,7 +15,9 @@ Design of record: `dev/design/earp-slice-4-design.md`.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
+import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,7 +25,11 @@ from typing import Any, Mapping, Sequence
 
 from eval.earp._experiments import lib as _lib
 from eval.earp.observed_cost import OBSERVED_COST_NAME, Observation, SCHEMA_VERSION as OBSERVED_COST_SCHEMA_VERSION
-from eval.earp.schema import PER_QUERY_SCHEMA_PATH, RESULT_SCHEMA_PATH
+from eval.earp.schema import (
+    PER_QUERY_SCHEMA_PATH,
+    RESULT_SCHEMA_PATH,
+    WORKLOAD_MANIFEST_SCHEMA_PATH,
+)
 from eval.earp.schema.models import (
     SCHEMA_VERSION_PER_QUERY,
     SCHEMA_VERSION_RESULT,
@@ -37,9 +43,13 @@ _RESULT_SCHEMA: dict[str, Any] = json.loads(RESULT_SCHEMA_PATH.read_text(encodin
 _PER_QUERY_SCHEMA: dict[str, Any] = json.loads(
     PER_QUERY_SCHEMA_PATH.read_text(encoding="utf-8")
 )
+_WORKLOAD_MANIFEST_SCHEMA: dict[str, Any] = json.loads(
+    WORKLOAD_MANIFEST_SCHEMA_PATH.read_text(encoding="utf-8")
+)
 
 SIDECAR_NAME = "earp.result.v1.json"
 PER_QUERY_NAME = "earp.per-query.v1.jsonl"
+WORKLOAD_MANIFEST_NAME = "earp.workload-manifest.v1.json"
 
 
 @dataclass(frozen=True)
@@ -158,37 +168,65 @@ def write_run(
             ),
         )
 
-    # 4. Sidecars land BEFORE the shared record and the index line.
+    # 4. Stage the complete directed artifact graph before record/index
+    # materialization.  ``write_record`` will write the same config bytes
+    # again, but staging it here lets the manifest bind its exact digest first.
+    config_text = _lib._dump_yaml(document)
     (run_dir / SIDECAR_NAME).write_text(sidecar_text, encoding="utf-8")
     (run_dir / PER_QUERY_NAME).write_text(per_query_text, encoding="utf-8")
+    (run_dir / "config.resolved.yaml").write_text(config_text, encoding="utf-8")
     if observed_text is not None:
         (run_dir / OBSERVED_COST_NAME).write_text(observed_text, encoding="utf-8")
-
-    # 5. Materialize + append (one call, index last inside it).
-    index_path = root / "index.jsonl"
-    _lib.write_record(
-        experiment,
-        ts=ts,
-        config_obj=document,
-        metrics=dict(metrics),
-        verdict=verdict.value,
-        read=read,
-        code=dict(code),
-        corpus=dict(corpus),
-        seeds=dict(seeds),
-        env=dict(env),
-        cost_usd=cost_usd,
-        n=n,
-        headline=dict(headline) if headline else None,
-        tdd_evidence=dict(tdd_evidence) if tdd_evidence else None,
-        artifacts=[
-            f"runs/{run_id}/{SIDECAR_NAME}",
-            f"runs/{run_id}/{PER_QUERY_NAME}",
-            *([f"runs/{run_id}/{OBSERVED_COST_NAME}"] if observed_text is not None else []),
-        ],
-        base_dir=root,
-        index_path=index_path,
+    manifest = _workload_manifest(
+        run_id=run_id,
+        config_sha256=sha,
+        result_doc=result_doc,
+        code=code,
+        result_sha256=_sha256_text(sidecar_text),
+        config_sha256_bytes=_sha256_text(config_text),
     )
+    manifest_text = _canonical(manifest)
+    manifest_findings = validate(json.loads(manifest_text), _WORKLOAD_MANIFEST_SCHEMA)
+    if manifest_findings:
+        shutil.rmtree(run_dir, ignore_errors=True)
+        raise ValueError(f"workload manifest does not conform: {[f.message for f in manifest_findings][:4]}")
+    (run_dir / WORKLOAD_MANIFEST_NAME).write_text(manifest_text, encoding="utf-8")
+
+    artifacts = [
+        _artifact(run_id, SIDECAR_NAME, sidecar_text),
+        _artifact(run_id, PER_QUERY_NAME, per_query_text),
+        _artifact(run_id, "config.resolved.yaml", config_text),
+        _artifact(run_id, WORKLOAD_MANIFEST_NAME, manifest_text),
+    ]
+    if observed_text is not None:
+        artifacts.append(_artifact(run_id, OBSERVED_COST_NAME, observed_text))
+
+    # 5. Materialize + append (one call, index last inside it).  Any failure
+    # removes staged files so there is no complete-looking orphan.
+    index_path = root / "index.jsonl"
+    try:
+        _lib.write_record(
+            experiment,
+            ts=ts,
+            config_obj=document,
+            metrics=dict(metrics),
+            verdict=verdict.value,
+            read=read,
+            code=dict(code),
+            corpus=dict(corpus),
+            seeds=dict(seeds),
+            env=dict(env),
+            cost_usd=cost_usd,
+            n=n,
+            headline=dict(headline) if headline else None,
+            tdd_evidence=dict(tdd_evidence) if tdd_evidence else None,
+            artifacts=artifacts,
+            base_dir=root,
+            index_path=index_path,
+        )
+    except Exception:
+        shutil.rmtree(run_dir, ignore_errors=True)
+        raise
 
     # 6. INDEX.md is GENERATED from index.jsonl, so it regenerates after the
     # append -- and both paths are passed, or the default would overwrite the
@@ -210,7 +248,7 @@ def _normalize_observed_cost(
     if not isinstance(observed_cost, Mapping):
         raise TypeError("observed_cost must be a mapping")
     if observed_cost.get("schema_version") != OBSERVED_COST_SCHEMA_VERSION:
-        raise ValueError("observed_cost schema_version is not supported")
+        raise ValueError("observed-cost.v2 is the only complete observed-cost schema")
     if observed_cost.get("scope") != "one_run_observation":
         raise ValueError("observed_cost must be one_run_observation evidence")
     document = dict(observed_cost)
@@ -220,6 +258,9 @@ def _normalize_observed_cost(
         phases_ms=_mapping(document, "phases_ms"),
         counts=_mapping(document, "counts"),
         storage=_mapping(document, "storage"),
+        query_samples=tuple(document.get("query_samples", ())),
+        unavailable=_mapping_or_empty(document, "unavailable"),
+        provenance=_mapping_or_empty(document, "provenance"),
     )
     return observation.as_document()
 
@@ -229,6 +270,70 @@ def _mapping(document: Mapping[str, Any], key: str) -> Mapping[str, Any]:
     if not isinstance(value, Mapping):
         raise ValueError(f"observed_cost {key} must be a mapping")
     return value
+
+
+def _mapping_or_empty(document: Mapping[str, Any], key: str) -> Mapping[str, Any]:
+    value = document.get(key, {})
+    if not isinstance(value, Mapping):
+        raise ValueError(f"observed_cost {key} must be a mapping")
+    return value
+
+
+def _sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _artifact(run_id: str, name: str, text: str) -> dict[str, str]:
+    return {"path": f"runs/{run_id}/{name}", "sha256": _sha256_text(text)}
+
+
+def _workload_manifest(
+    *,
+    run_id: str,
+    config_sha256: str,
+    result_doc: Mapping[str, Any],
+    code: Mapping[str, Any],
+    result_sha256: str,
+    config_sha256_bytes: str,
+) -> dict[str, Any]:
+    scenario = result_doc.get("scenario")
+    if not isinstance(scenario, Mapping):
+        raise ValueError("quality result lacks a resolved scenario for workload manifest")
+    query_call = scenario.get("query_call")
+    if not isinstance(query_call, str) or not query_call:
+        raise ValueError("quality result lacks query_call for workload manifest")
+    knobs = scenario.get("effective_knobs", {})
+    if not isinstance(knobs, Mapping):
+        raise ValueError("quality result effective_knobs must be a mapping")
+    return {
+        "schema_version": "earp.workload-manifest.v1",
+        "quality_parent": {
+            "run_id": run_id,
+            "evidence_family_id": run_id,
+            "result_path": SIDECAR_NAME,
+            "result_sha256": result_sha256,
+            "candidate_sha": str(code.get("git_sha") or ""),
+            "clean": not bool(code.get("dirty")),
+        },
+        "resolved_config": {
+            "path": "config.resolved.yaml",
+            "sha256": config_sha256_bytes,
+            "canonical_json": _lib.canonical_json(dict(result_doc.get("scenario", {}))),
+        },
+        "workload": {
+            "config_sha256": config_sha256,
+            "query_call": query_call,
+            "effective_knobs": dict(knobs),
+        },
+        "performance_plan": {
+            "treatments": ["fresh_store", "fresh_store_warm_query"],
+            "repetitions": 20,
+            "warmup_rule": "fresh_store_warm_query performs one unmeasured query after fresh ingest",
+            "aggregation_rule": "descriptive_empirical_order_statistics",
+            "invalid_result_policy": "typed_cell",
+            "command": "fathomdb-performance",
+        },
+    }
 
 
 def _default_sidecar(
@@ -249,4 +354,4 @@ def _default_sidecar(
     }
 
 
-__all__ = ["PER_QUERY_NAME", "SCHEMA_VERSION_PER_QUERY", "SIDECAR_NAME", "WriteOutcome", "write_run"]
+__all__ = ["PER_QUERY_NAME", "SCHEMA_VERSION_PER_QUERY", "SIDECAR_NAME", "WORKLOAD_MANIFEST_NAME", "WriteOutcome", "write_run"]

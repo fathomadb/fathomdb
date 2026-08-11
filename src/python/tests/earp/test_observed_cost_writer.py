@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -57,9 +58,12 @@ def test_observed_cost_is_staged_before_shared_record_and_index(tmp_path: Path) 
     assert sidecar["query_samples"][0]["query_id"] == "q-1"
     assert sidecar["unavailable"]["engine_trace"]["code"] == "not_exposed"
     record = json.loads((outcome.run_dir / "record.json").read_text(encoding="utf-8"))
+    assert "sha256" not in sidecar
     assert {
         "path": f"runs/{outcome.run_id}/{OBSERVED_COST_V2_NAME}",
-        "sha256": sidecar["sha256"],
+        "sha256": hashlib.sha256(
+            (outcome.run_dir / OBSERVED_COST_V2_NAME).read_bytes()
+        ).hexdigest(),
     } in record["artifacts"]
 
 

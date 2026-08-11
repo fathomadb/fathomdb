@@ -1,30 +1,40 @@
-"""Independent repeated-performance artifacts linked to an EARP workload.
-
-The adapter owns repeated samples and percentile summaries. It accepts the
-already-resolved EARP workload identity rather than a second hand-authored set
-of benchmark knobs, preserving EARP's retrieval-evaluation boundary.
-"""
+"""Durable repeated-performance evidence linked to verified EARP quality work."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
-import statistics
-from dataclasses import dataclass
+import shutil
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 from eval.earp._experiments import lib as _lib
+from eval.earp.schema import WORKLOAD_MANIFEST_SCHEMA_PATH
+from eval.earp.schema.validate import validate
 
 PERFORMANCE_RESULT_NAME = "performance.earp.v1.json"
 SCHEMA_VERSION = "performance.earp.v1"
+WORKLOAD_MANIFEST_NAME = "earp.workload-manifest.v1.json"
 _EARP_RESULT_NAME = "earp.result.v1.json"
+_MANIFEST_SCHEMA = json.loads(WORKLOAD_MANIFEST_SCHEMA_PATH.read_text(encoding="utf-8"))
+_PERFORMANCE_SCHEMA_PATH = Path(__file__).with_name("schema") / "performance.earp.v1.schema.json"
+_PERFORMANCE_SCHEMA = json.loads(_PERFORMANCE_SCHEMA_PATH.read_text(encoding="utf-8"))
+
+
+class PerformanceSchemaError(ValueError):
+    """A performance publication document violates its durable schema."""
+
+
+class PerformanceCollision(RuntimeError):
+    """A deterministic performance identity already contains different bytes."""
 
 
 @dataclass(frozen=True)
 class WorkloadRef:
-    """Identity shared by a quality run and its performance evidence."""
+    """Verified quality-workload identity; never reconstructed from a record."""
 
     parent_run_id: str
     evidence_family_id: str
@@ -32,17 +42,21 @@ class WorkloadRef:
     candidate_sha: str
     query_call: str
     effective_knobs: Mapping[str, Any]
+    parent_manifest_path: str = ""
+    parent_manifest_sha256: str = ""
+    quality_result_path: str = _EARP_RESULT_NAME
+    quality_result_sha256: str = ""
+    resolved_config_path: str = "config.resolved.yaml"
+    resolved_config_sha256: str = ""
+    quality_clean: bool = False
 
     def __post_init__(self) -> None:
         if not self.parent_run_id or not self.evidence_family_id or not self.query_call:
             raise ValueError("workload identifiers and query_call must be non-empty")
-        if len(self.config_sha256) != 64:
-            raise ValueError("config_sha256 must be a full SHA-256")
-        if not self.candidate_sha:
-            raise ValueError("candidate_sha must be non-empty")
+        if not _sha(self.config_sha256) or not self.candidate_sha:
+            raise ValueError("config_sha256 must be full and candidate_sha non-empty")
 
     def as_document(self) -> dict[str, Any]:
-        """Return the immutable link back to the EARP quality workload."""
         return {
             "parent_run_id": self.parent_run_id,
             "evidence_family_id": self.evidence_family_id,
@@ -55,429 +69,403 @@ class WorkloadRef:
 
 @dataclass(frozen=True)
 class PerformancePlan:
-    """Declared treatments and repetitions for a performance run."""
+    """Predeclared execution matrix and statistical eligibility policy."""
 
     repetitions: int
     treatments: tuple[str, ...]
 
     def __post_init__(self) -> None:
-        if self.repetitions < 1:
-            raise ValueError("repetitions must be >= 1")
-        if not self.treatments or len(set(self.treatments)) != len(self.treatments):
-            raise ValueError("treatments must be non-empty and unique")
-        if any(not treatment for treatment in self.treatments):
-            raise ValueError("treatment names must be non-empty")
+        if self.repetitions < 1 or not self.treatments or len(set(self.treatments)) != len(self.treatments):
+            raise ValueError("repetitions must be >= 1 and treatments non-empty/unique")
+        allowed = {"fresh_store", "fresh_store_warm_query"}
+        if any(treatment not in allowed for treatment in self.treatments):
+            raise ValueError("only fresh_store and fresh_store_warm_query are supported")
 
     def as_document(self) -> dict[str, Any]:
-        return {"repetitions": self.repetitions, "treatments": list(self.treatments)}
+        return {
+            "repetitions": self.repetitions,
+            "treatments": list(self.treatments),
+            "aggregation_rule": "descriptive_empirical_order_statistics",
+            "invalid_result_policy": "typed_cell",
+        }
 
 
 @dataclass(frozen=True)
 class RunSample:
-    """One completed treatment repetition with raw phase timings."""
+    """One raw timing observation retained even when its cell later fails."""
 
     treatment: str
     repetition: int
     phases_ms: Mapping[str, float]
     counts: Mapping[str, int]
+    treatment_witness: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.treatment or self.repetition < 0:
             raise ValueError("treatment must be non-empty and repetition >= 0")
-        _validate_nonnegative(self.phases_ms, "phase")
-        _validate_nonnegative(self.counts, "count")
+        _nonnegative(self.phases_ms, "phase")
+        _nonnegative(self.counts, "count")
 
     def as_document(self) -> dict[str, Any]:
         return {
             "treatment": self.treatment,
             "repetition": self.repetition,
-            "phases_ms": {key: float(value) for key, value in self.phases_ms.items()},
-            "counts": {key: int(value) for key, value in self.counts.items()},
+            "phases_ms": {name: float(value) for name, value in self.phases_ms.items()},
+            "counts": {name: int(value) for name, value in self.counts.items()},
+            **({"treatment_witness": dict(self.treatment_witness)} if self.treatment_witness else {}),
         }
 
 
 @dataclass(frozen=True)
-class PerformanceWriteOutcome:
-    """Location of one durable repeated-performance artifact."""
+class PerformanceCell:
+    """A total matrix cell: complete measurements or typed invalid evidence."""
 
+    treatment: str
+    repetition: int
+    status: str
+    raw_samples: tuple[RunSample, ...]
+    execution_provenance: Mapping[str, Any]
+    invalidity: Mapping[str, str] | None = None
+
+    @classmethod
+    def complete(
+        cls, *, treatment: str, repetition: int, samples: Sequence[RunSample], execution_provenance: Mapping[str, Any]
+    ) -> "PerformanceCell":
+        return cls(treatment, repetition, "complete", tuple(samples), dict(execution_provenance))
+
+    @classmethod
+    def invalid(
+        cls, *, treatment: str, repetition: int, raw_samples: Sequence[RunSample], invalidity: Mapping[str, str], execution_provenance: Mapping[str, Any]
+    ) -> "PerformanceCell":
+        return cls(treatment, repetition, "invalid", tuple(raw_samples), dict(execution_provenance), dict(invalidity))
+
+    @property
+    def phases_ms(self) -> Mapping[str, float]:
+        return self.raw_samples[-1].phases_ms if self.raw_samples else {}
+
+    @property
+    def counts(self) -> Mapping[str, int]:
+        return self.raw_samples[-1].counts if self.raw_samples else {}
+
+    @property
+    def treatment_witness(self) -> Mapping[str, Any]:
+        return self.raw_samples[-1].treatment_witness if self.raw_samples else {}
+
+    def as_document(self) -> dict[str, Any]:
+        document: dict[str, Any] = {
+            "treatment": self.treatment,
+            "repetition": self.repetition,
+            "status": self.status,
+            "raw_samples": [sample.as_document() for sample in self.raw_samples],
+            "execution_provenance": dict(self.execution_provenance),
+        }
+        if self.invalidity is not None:
+            document["invalidity"] = dict(self.invalidity)
+        return document
+
+
+@dataclass(frozen=True)
+class PerformanceWriteOutcome:
     run_id: str
     run_dir: Path
 
 
-def load_earp_workload(experiments_root: Path, quality_run_id: str) -> WorkloadRef:
-    """Load the immutable workload reference from completed EARP artifacts.
+def _file_sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
-    The adapter intentionally reads both the result sidecar (the resolved
-    query contract) and shared record (candidate provenance). A missing value
-    is a refusal: guessing a SHA or retyping knobs would break the one
-    declaration invariant.
-    """
+
+def _sha(value: Any) -> bool:
+    return isinstance(value, str) and len(value) == 64 and all(char in "0123456789abcdef" for char in value)
+
+
+def _artifact(record: Mapping[str, Any], expected_path: str) -> Mapping[str, Any]:
+    artifacts = record.get("artifacts")
+    if not isinstance(artifacts, list):
+        raise ValueError("quality record lacks workload manifest advertisement")
+    for item in artifacts:
+        if isinstance(item, Mapping) and item.get("path") == expected_path and _sha(item.get("sha256")):
+            return item
+    raise ValueError("quality record lacks workload manifest advertisement")
+
+
+def load_earp_workload(experiments_root: Path, quality_run_id: str) -> WorkloadRef:
+    """Verify the record → manifest → quality input directed digest graph."""
     run_dir = Path(experiments_root) / "runs" / quality_run_id
     try:
         record = json.loads((run_dir / "record.json").read_text(encoding="utf-8"))
-        result = json.loads((run_dir / _EARP_RESULT_NAME).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"cannot read EARP quality artifacts for {quality_run_id}: {exc}") from exc
-    code = record.get("code")
-    scenario = result.get("scenario")
-    if not isinstance(code, Mapping) or not isinstance(scenario, Mapping):
-        raise ValueError("EARP artifacts lack code or scenario mappings")
-    candidate_sha = code.get("git_sha")
-    if not isinstance(candidate_sha, str) or not candidate_sha:
-        raise ValueError("EARP quality artifact lacks a candidate SHA")
-    config_sha256 = scenario.get("config_sha256")
-    query_call = scenario.get("query_call")
-    if not isinstance(config_sha256, str) or not isinstance(query_call, str):
-        raise ValueError("EARP quality artifact lacks resolved scenario identity")
-    # `effective_knobs` is being introduced under `scenario`; accept the
-    # short-lived root staging shape as input too so an interrupted writer can
-    # be diagnosed rather than silently losing the knobs it already recorded.
-    knobs = scenario.get("effective_knobs", result.get("effective_knobs", {}))
-    if not isinstance(knobs, Mapping):
-        raise ValueError("EARP effective_knobs must be a mapping")
-    effective_knobs = dict(knobs)
-    fanout = scenario.get("fanout_used")
-    if isinstance(fanout, int) and not isinstance(fanout, bool):
-        effective_knobs.setdefault("limit", fanout)
+    manifest_rel = f"runs/{quality_run_id}/{WORKLOAD_MANIFEST_NAME}"
+    advertised = _artifact(record, manifest_rel)
+    manifest_path = run_dir / WORKLOAD_MANIFEST_NAME
+    if not manifest_path.is_file():
+        raise ValueError("workload manifest digest does not match record advertisement")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"manifest schema is invalid: {exc}") from exc
+    findings = validate(manifest, _MANIFEST_SCHEMA)
+    if findings:
+        raise ValueError("manifest schema is invalid")
+    parent = manifest["quality_parent"]
+    resolved = manifest["resolved_config"]
+    workload = manifest["workload"]
+    if not parent["candidate_sha"]:
+        raise ValueError("manifest lacks candidate provenance")
+    if _file_sha(manifest_path) != advertised["sha256"]:
+        raise ValueError("workload manifest digest does not match record advertisement")
+    if parent["run_id"] != quality_run_id or parent["evidence_family_id"] != quality_run_id:
+        raise ValueError("manifest quality parent does not match requested run")
+    result_path = run_dir / parent["result_path"]
+    if not result_path.is_file() or _file_sha(result_path) != parent["result_sha256"]:
+        raise ValueError("quality result digest does not match manifest")
+    config_path = run_dir / resolved["path"]
+    if not config_path.is_file() or _file_sha(config_path) != resolved["sha256"]:
+        raise ValueError("resolved config digest does not match manifest")
     return WorkloadRef(
         parent_run_id=quality_run_id,
-        evidence_family_id=quality_run_id,
-        config_sha256=config_sha256,
-        candidate_sha=candidate_sha,
-        query_call=query_call,
-        effective_knobs=effective_knobs,
+        evidence_family_id=parent["evidence_family_id"],
+        config_sha256=workload["config_sha256"],
+        candidate_sha=parent["candidate_sha"],
+        query_call=workload["query_call"],
+        effective_knobs=dict(workload["effective_knobs"]),
+        parent_manifest_path=manifest_rel,
+        parent_manifest_sha256=advertised["sha256"],
+        quality_result_path=parent["result_path"],
+        quality_result_sha256=parent["result_sha256"],
+        resolved_config_path=resolved["path"],
+        resolved_config_sha256=resolved["sha256"],
+        quality_clean=bool(parent["clean"]),
     )
 
 
-def run_repetitions(
-    *,
-    workload: WorkloadRef,
-    plan: PerformancePlan,
-    execute: Callable[[WorkloadRef, str, int], RunSample],
-) -> tuple[RunSample, ...]:
-    """Execute every declared cell once and reject a substituted workload cell.
-
-    The caller supplies the actual database workload executor. This layer owns
-    only the invariant that a timing cell is the treatment/repetition it
-    claims, rather than a warm sample relabelled as fresh-store or vice versa.
-    """
-    samples: list[RunSample] = []
+def run_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, execute: Callable[[WorkloadRef, str, int], RunSample | PerformanceCell]) -> tuple[PerformanceCell, ...]:
+    """Execute every planned cell once, preserving executor failure as evidence."""
+    cells: list[PerformanceCell] = []
     for treatment in plan.treatments:
         for repetition in range(plan.repetitions):
-            sample = execute(workload, treatment, repetition)
-            if (sample.treatment, sample.repetition) != (treatment, repetition):
-                raise ValueError(
-                    "executor returned a sample for a different declared cell: "
-                    f"expected {(treatment, repetition)}, got "
-                    f"{(sample.treatment, sample.repetition)}"
-                )
-            samples.append(sample)
-    return tuple(samples)
+            try:
+                returned = execute(workload, treatment, repetition)
+            except Exception as exc:  # executor errors are typed matrix evidence
+                cells.append(PerformanceCell.invalid(
+                    treatment=treatment, repetition=repetition, raw_samples=(),
+                    invalidity={"code": _invalidity_code(exc), "message": f"{type(exc).__name__}: {exc}"},
+                    execution_provenance={},
+                ))
+                continue
+            if (returned.treatment, returned.repetition) != (treatment, repetition):
+                raise ValueError("executor returned a sample for a different declared cell")
+            if isinstance(returned, PerformanceCell):
+                cells.append(returned)
+            else:
+                cells.append(PerformanceCell.complete(
+                    treatment=treatment, repetition=repetition, samples=(returned,), execution_provenance={}
+                ))
+    return tuple(cells)
 
 
-def run_diagnostic_repetitions(
-    *,
-    workload: WorkloadRef,
-    plan: PerformancePlan,
-    scenario: Any,
-    config_doc: Mapping[str, Any],
-    experiments_root: Path,
-    experiment: str,
-    ts: datetime,
-) -> tuple[RunSample, ...]:
-    """Run a resolved diagnostic workload without writing duplicate quality runs.
-
-    ``fresh_store`` opens a new temporary engine/database for the cell in this
-    process. It is deliberately not called process-cold: proving process and
-    OS-cache coldness needs a subprocess executor and explicit cache witness.
-    ``warm`` performs one unmeasured query after that setup before the timed
-    query. The diagnostic fixture is intentionally small; corpus-scale warm
-    suites remain the performance protocol's separate executor.
-    """
-    from eval.earp.runner import run_diagnostic  # noqa: PLC0415 -- avoids cycle
-    from eval.earp.schema.models import RunVerdict  # noqa: PLC0415
-
-    if scenario.config_sha256 != workload.config_sha256:
-        raise ValueError("diagnostic scenario does not match workload config SHA")
-    if scenario.query_call != workload.query_call:
-        raise ValueError("diagnostic scenario does not match workload query call")
-    if any(treatment not in {"fresh_store", "warm"} for treatment in plan.treatments):
-        raise ValueError("diagnostic bridge supports only fresh_store and warm treatments")
-
-    def execute(_workload: WorkloadRef, treatment: str, repetition: int) -> RunSample:
-        result = run_diagnostic(
-            scenario=scenario,
-            config_doc=config_doc,
-            experiments_root=experiments_root,
-            experiment=experiment,
-            ts=ts,
-            persist=False,
-            warmup_query=treatment == "warm",
-        )
-        if result.verdict is not RunVerdict.COMPLETE:
-            raise RuntimeError(
-                f"diagnostic performance cell {(treatment, repetition)} did not complete: "
-                f"{result.failure or result.blockers}"
-            )
-        observed = result.observed_cost
-        phases = observed.get("phases_ms")
-        counts = observed.get("counts")
-        if not isinstance(phases, Mapping) or not isinstance(counts, Mapping):
-            raise RuntimeError("diagnostic execution did not emit observed-cost evidence")
-        return RunSample(treatment, repetition, phases, counts)
-
-    return run_repetitions(workload=workload, plan=plan, execute=execute)
-
-
-def run_and_write_diagnostic_performance(
-    *,
-    workload: WorkloadRef,
-    plan: PerformancePlan,
-    scenario: Any,
-    config_doc: Mapping[str, Any],
-    experiments_root: Path,
-    experiment: str,
-    ts: datetime,
-) -> PerformanceWriteOutcome:
-    """Execute diagnostic repetitions, then publish one independent artifact."""
-    samples = run_diagnostic_repetitions(
-        workload=workload,
-        plan=plan,
-        scenario=scenario,
-        config_doc=config_doc,
-        experiments_root=experiments_root,
-        experiment=experiment,
-        ts=ts,
-    )
-    return write_performance_result(
-        experiments_root=experiments_root,
-        experiment=experiment,
-        ts=ts,
-        workload=workload,
-        plan=plan,
-        samples=samples,
-    )
-
-
-def run_characterization_repetitions(
-    *,
-    workload: WorkloadRef,
-    plan: PerformancePlan,
-    scenario: Any,
-    config_doc: Mapping[str, Any],
-) -> tuple[RunSample, ...]:
-    """Repeat the resolved corpus-scale EARP workload without quality writes."""
-    from eval.earp.characterize import execute_arm  # noqa: PLC0415 -- avoids cycle
-
-    if scenario.config_sha256 != workload.config_sha256:
-        raise ValueError("characterization scenario does not match workload config SHA")
-    if scenario.query_call != workload.query_call:
-        raise ValueError("characterization scenario does not match workload query call")
-    corpus = config_doc.get("corpus")
-    gold = config_doc.get("gold")
-    if not isinstance(corpus, Mapping) or not isinstance(gold, Mapping):
-        raise ValueError("characterization config lacks corpus or gold identity")
-    if any(treatment not in {"fresh_store", "warm"} for treatment in plan.treatments):
-        raise ValueError("characterization bridge supports only fresh_store and warm")
-
-    def execute(_workload: WorkloadRef, treatment: str, repetition: int) -> RunSample:
-        arm = execute_arm(
-            scenario=scenario,
-            data_root=Path(str(corpus.get("data_root") or "")),
-            snapshot_path=Path(str(corpus.get("snapshot") or "")),
-            gold_path=Path(str(gold.get("path") or "")),
-            gold_sha256=str(gold.get("sha256") or ""),
-            corpus_hash=str(gold.get("corpus_hash") or ""),
-            qrels_version=str(gold.get("qrels_version") or ""),
-            warmup_queries=treatment == "warm",
-        )
-        if arm.blocker is not None:
-            raise RuntimeError(
-                f"characterization performance cell {(treatment, repetition)} blocked: "
-                f"{arm.blocker.message}"
-            )
-        observed = arm.observed_cost
-        phases = observed.get("phases_ms")
-        counts = observed.get("counts")
-        if not isinstance(phases, Mapping) or not isinstance(counts, Mapping):
-            raise RuntimeError("characterization execution did not emit observed-cost evidence")
-        return RunSample(treatment, repetition, phases, counts)
-
-    return run_repetitions(workload=workload, plan=plan, execute=execute)
-
-
-def run_and_write_characterization_performance(
-    *,
-    workload: WorkloadRef,
-    plan: PerformancePlan,
-    scenario: Any,
-    config_doc: Mapping[str, Any],
-    experiments_root: Path,
-    experiment: str,
-    ts: datetime,
-) -> PerformanceWriteOutcome:
-    """Execute corpus-scale repetitions, then publish one independent artifact.
-
-    This deliberately uses the same pure arm executor that EARP comparisons
-    use. It creates no extra quality result, per-query sidecar, or comparison
-    claim while gathering the timing distribution.
-    """
-    samples = run_characterization_repetitions(
-        workload=workload,
-        plan=plan,
-        scenario=scenario,
-        config_doc=config_doc,
-    )
-    return write_performance_result(
-        experiments_root=experiments_root,
-        experiment=experiment,
-        ts=ts,
-        workload=workload,
-        plan=plan,
-        samples=samples,
-    )
-
-
-def summarize_samples(
-    samples: Sequence[RunSample],
-) -> dict[str, dict[str, dict[str, float | int]]]:
-    """Summarize each treatment/phase without pooling treatments.
-
-    The percentile rule is nearest-rank, which is deterministic and leaves raw
-    samples in the sidecar for later reanalysis.
-    """
+def summarize_samples(samples: Sequence[RunSample]) -> dict[str, dict[str, dict[str, float | int | str]]]:
     grouped: dict[str, dict[str, list[float]]] = {}
     for sample in samples:
-        phases = grouped.setdefault(sample.treatment, {})
         for phase, value in sample.phases_ms.items():
-            phases.setdefault(phase, []).append(float(value))
-    return {
-        treatment: {
-            phase: _summary(values)
-            for phase, values in sorted(phases.items())
-        }
-        for treatment, phases in sorted(grouped.items())
-    }
+            grouped.setdefault(sample.treatment, {}).setdefault(phase, []).append(float(value))
+    return {treatment: {phase: _summary(values) for phase, values in sorted(phases.items())} for treatment, phases in sorted(grouped.items())}
 
 
-def _summary(values: Sequence[float]) -> dict[str, float | int]:
+def _summary(values: Sequence[float]) -> dict[str, float | int | str]:
     ordered = sorted(values)
-    count = len(ordered)
-    if not count:
-        raise ValueError("cannot summarize an empty sample set")
-    return {
-        "n": count,
-        "min_ms": ordered[0],
-        "max_ms": ordered[-1],
-        "mean_ms": sum(ordered) / count,
-        # p50 is the conventional median, including the midpoint between the
-        # two central samples for an even-sized set. High percentiles retain a
-        # nearest-rank rule, and the raw samples remain durable.
-        "p50_ms": float(statistics.median(ordered)),
-        "p95_ms": _nearest_rank(ordered, 0.95),
-        "p99_ms": _nearest_rank(ordered, 0.99),
-    }
+    result: dict[str, float | int | str] = {"n": len(ordered), "min_ms": ordered[0], "max_ms": ordered[-1], "mean_ms": sum(ordered) / len(ordered)}
+    if len(ordered) >= 20:
+        result.update({"p50_ms": _nearest(ordered, .5), "p95_ms": _nearest(ordered, .95), "aggregation_scope": "descriptive_empirical_order_statistic"})
+    if len(ordered) >= 100:
+        result["p99_ms"] = _nearest(ordered, .99)
+    return result
 
 
-def _nearest_rank(ordered: Sequence[float], quantile: float) -> float:
-    index = max(0, math.ceil(quantile * len(ordered)) - 1)
-    return ordered[index]
+def _nearest(values: Sequence[float], quantile: float) -> float:
+    return values[max(0, math.ceil(quantile * len(values)) - 1)]
 
 
-def write_performance_result(
-    *,
-    experiments_root: Path,
-    experiment: str,
-    ts: datetime,
-    workload: WorkloadRef,
-    plan: PerformancePlan,
-    samples: Sequence[RunSample],
-) -> PerformanceWriteOutcome:
-    """Stage a performance sidecar before materializing/indexing its record."""
-    _validate_plan_samples(plan, samples)
-    root = Path(experiments_root)
-    config = {
-        "schema_version": SCHEMA_VERSION,
-        "workload": workload.as_document(),
-        "plan": plan.as_document(),
-    }
-    sha = _lib.config_sha256(config)
-    run_id = _lib.make_run_id(experiment, ts, sha)
-    run_dir = root / "runs" / run_id
+def _execution_provenance(value: Mapping[str, Any]) -> dict[str, Any]:
+    required = ("candidate_sha", "clean", "command", "lockfile_sha256", "toolchain", "device", "fixtures")
+    if not isinstance(value, Mapping) or any(key not in value for key in required):
+        raise ValueError("execution provenance is incomplete")
+    if not isinstance(value["candidate_sha"], str) or not value["candidate_sha"]:
+        raise ValueError("execution provenance candidate_sha is invalid")
+    if not isinstance(value["clean"], bool) or not isinstance(value["command"], str) or not value["command"]:
+        raise ValueError("execution provenance is incomplete")
+    if not _sha(value["lockfile_sha256"]) or not isinstance(value["toolchain"], Mapping) or not isinstance(value["fixtures"], Mapping):
+        raise ValueError("execution provenance is incomplete")
+    device = value["device"]
+    if not isinstance(device, Mapping) or device.get("kind") not in {"cpu", "cuda", "metal"}:
+        raise PerformanceSchemaError("execution provenance device is invalid")
+    return dict(value)
+
+
+def _validate_cells(plan: PerformancePlan, cells: Sequence[PerformanceCell]) -> None:
+    expected = {(t, r) for t in plan.treatments for r in range(plan.repetitions)}
+    actual = {(cell.treatment, cell.repetition) for cell in cells}
+    if actual != expected or len(cells) != len(expected):
+        raise ValueError("cells must contain exactly the declared complete matrix")
+    for cell in cells:
+        if cell.status not in {"complete", "invalid"}:
+            raise PerformanceSchemaError("cell status is invalid")
+        if cell.status == "complete" and not cell.raw_samples:
+            raise ValueError("complete matrix cell has no raw samples")
+        if cell.status == "invalid" and not cell.invalidity:
+            raise ValueError("invalid cell has no typed invalidity")
+
+
+def write_performance_result(*, experiments_root: Path, experiment: str, ts: datetime, workload: WorkloadRef, plan: PerformancePlan, samples: Sequence[RunSample] | None = None, cells: Sequence[PerformanceCell] | None = None, execution_provenance: Mapping[str, Any] | None = None) -> PerformanceWriteOutcome:
+    """Validate then atomically stage a repeated-performance artifact and record."""
+    if not workload.parent_manifest_path or not _sha(workload.parent_manifest_sha256):
+        raise ValueError("manifest is required for repeated performance")
+    provenance = _execution_provenance(execution_provenance) if execution_provenance is not None else None
+    if cells is not None and samples is not None:
+        raise ValueError("supply cells or samples, not both")
+    if cells is None:
+        if samples is None:
+            raise ValueError("complete matrix requires samples")
+        cells = tuple(PerformanceCell.complete(
+            treatment=sample.treatment, repetition=sample.repetition, samples=(sample,), execution_provenance=provenance or {}
+        ) for sample in samples)
+    else:
+        cells = tuple(cells)
+        for cell in cells:
+            if cell.execution_provenance:
+                _execution_provenance(cell.execution_provenance)
+    _validate_cells(plan, cells)
+    cross = any((cell.execution_provenance or provenance or {}).get("candidate_sha") != workload.candidate_sha for cell in cells)
+    normalized_cells: list[PerformanceCell] = []
+    for cell in cells:
+        cell_provenance = _execution_provenance(cell.execution_provenance or provenance or {})
+        if cell_provenance["candidate_sha"] != workload.candidate_sha and cell.status == "complete":
+            cell = PerformanceCell.invalid(treatment=cell.treatment, repetition=cell.repetition, raw_samples=cell.raw_samples, invalidity={"code": "cross_candidate", "message": "execution candidate differs from quality candidate"}, execution_provenance=cell_provenance)
+        normalized_cells.append(cell)
+    cells = tuple(normalized_cells)
+    complete_samples = [sample for cell in cells if cell.status == "complete" for sample in cell.raw_samples]
+    quality_digest = hashlib.sha256(_lib.canonical_json(workload.as_document()).encode()).hexdigest()
+    execution_digest = hashlib.sha256(_lib.canonical_json({"quality": quality_digest, "provenance": [cell.execution_provenance for cell in cells]}).encode()).hexdigest()
+    config = {"schema_version": SCHEMA_VERSION, "workload": workload.as_document(), "plan": plan.as_document(), "execution_workload_sha256": execution_digest}
+    run_id = _lib.make_run_id(experiment, ts, _lib.config_sha256(config))
+    run_dir = Path(experiments_root) / "runs" / run_id
     document = {
-        "schema_version": SCHEMA_VERSION,
-        "run_id": run_id,
-        "workload": workload.as_document(),
-        "plan": plan.as_document(),
-        "samples": [sample.as_document() for sample in samples],
-        "summary": summarize_samples(samples),
-        "scope": "repeated_performance_characterization",
+        "schema_version": SCHEMA_VERSION, "run_id": run_id, "scope": "repeated_performance_characterization",
+        "relation": "cross_candidate_reexecution" if cross else "same_candidate_reexecution",
+        "quality_workload_sha256": quality_digest, "execution_workload_sha256": execution_digest,
+        "workload": workload.as_document(), "plan": plan.as_document(),
+        "parent_manifest": {"path": workload.parent_manifest_path, "sha256": workload.parent_manifest_sha256},
+        "inputs": {"quality_result": {"path": workload.quality_result_path, "sha256": workload.quality_result_sha256}, "resolved_config": {"path": workload.resolved_config_path, "sha256": workload.resolved_config_sha256}},
+        "cells": [cell.as_document() for cell in cells],
+        # Kept as a convenience rendering, while cells remain the authoritative matrix.
+        "samples": [sample.as_document() for sample in complete_samples],
+        "summary": summarize_samples(complete_samples),
     }
+    _validate_performance_document(document)
+    text = json.dumps(document, indent=2, sort_keys=True) + "\n"
     try:
         run_dir.mkdir(parents=True, exist_ok=False)
-    except FileExistsError as exc:
-        raise FileExistsError(f"performance run collision at {run_dir}") from exc
-    (run_dir / PERFORMANCE_RESULT_NAME).write_text(
-        json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
-    _lib.write_record(
-        experiment,
-        ts=ts,
-        config_obj=config,
-        metrics=document["summary"],
-        verdict="complete",
-        read=(
-            f"repeated performance evidence for EARP quality run {workload.parent_run_id}"
-        ),
-        code={
-            "git_sha": workload.candidate_sha,
-            "dirty": False,
-            "branch": "",
-            "baseline_commit": None,
-        },
-        corpus={"source": None, "manifest_sha256": None, "datasets": []},
-        seeds={},
-        env={"python": "", "lockfile_sha256": None, "gpu": None, "key_deps": {}},
-        cost_usd=0.0,
-        artifacts=[f"runs/{run_id}/{PERFORMANCE_RESULT_NAME}"],
-        base_dir=root,
-        index_path=root / "index.jsonl",
-    )
-    _lib.regen_index_md(index_path=root / "index.jsonl", md_path=root / "INDEX.md")
-    return PerformanceWriteOutcome(run_id=run_id, run_dir=run_dir)
+    except FileExistsError:
+        sidecar = run_dir / PERFORMANCE_RESULT_NAME
+        if sidecar.is_file() and sidecar.read_text(encoding="utf-8") == text:
+            return PerformanceWriteOutcome(run_id, run_dir)
+        raise PerformanceCollision(f"performance run collision at {run_dir}")
+    try:
+        sidecar_path = run_dir / PERFORMANCE_RESULT_NAME
+        sidecar_path.write_text(text, encoding="utf-8")
+        _lib.write_record(
+            experiment, ts=ts, config_obj=config, metrics=document["summary"], verdict="complete", read=f"repeated performance evidence for EARP quality run {workload.parent_run_id}",
+            code={"git_sha": cells[0].execution_provenance["candidate_sha"], "dirty": not cells[0].execution_provenance["clean"], "branch": "", "baseline_commit": None},
+            corpus={"source": None, "manifest_sha256": None, "datasets": []}, seeds={},
+            env={"python": str(cells[0].execution_provenance["toolchain"].get("python", "")), "lockfile_sha256": cells[0].execution_provenance["lockfile_sha256"], "gpu": cells[0].execution_provenance["device"], "key_deps": {}}, cost_usd=0.0,
+            artifacts=[{"path": f"runs/{run_id}/{PERFORMANCE_RESULT_NAME}", "sha256": _file_sha(sidecar_path)}], base_dir=experiments_root, index_path=Path(experiments_root) / "index.jsonl")
+        _lib.regen_index_md(index_path=Path(experiments_root) / "index.jsonl", md_path=Path(experiments_root) / "INDEX.md")
+    except Exception:
+        shutil.rmtree(run_dir, ignore_errors=True)
+        raise
+    return PerformanceWriteOutcome(run_id, run_dir)
 
 
-def _validate_plan_samples(plan: PerformancePlan, samples: Sequence[RunSample]) -> None:
-    expected = {(treatment, repetition) for treatment in plan.treatments for repetition in range(plan.repetitions)}
-    actual = {(sample.treatment, sample.repetition) for sample in samples}
-    if actual != expected:
-        raise ValueError(
-            f"samples must contain exactly the declared treatment/repetition matrix: "
-            f"expected {sorted(expected)}, got {sorted(actual)}"
+def _validate_performance_document(document: Mapping[str, Any]) -> None:
+    findings = validate(document, _PERFORMANCE_SCHEMA)
+    if findings:
+        raise PerformanceSchemaError(
+            f"performance sidecar does not conform: {[finding.message for finding in findings][:4]}"
         )
+    for name in ("parent_manifest", "inputs", "cells", "summary"):
+        if name not in document:
+            raise PerformanceSchemaError(f"performance sidecar lacks {name}")
+    if not _sha(document["parent_manifest"].get("sha256")):
+        raise PerformanceSchemaError("performance sidecar parent manifest digest is invalid")
 
 
-def _validate_nonnegative(values: Mapping[str, float | int], label: str) -> None:
+def _invalidity_code(exc: Exception) -> str:
+    text = f"{type(exc).__name__}: {exc}".lower()
+    if "timeout" in text:
+        return "timeout"
+    return "execution_error"
+
+
+def _bridge_provenance() -> dict[str, Any]:
+    try:
+        code = _lib.git_info()
+    except Exception:
+        code = {"git_sha": "unknown", "dirty": True}
+    env = _lib.env_info()
+    return {"candidate_sha": code["git_sha"], "clean": not code["dirty"], "command": "fathomdb-performance", "lockfile_sha256": env.get("lockfile_sha256") or "0" * 64, "toolchain": {"python": env.get("python", "")}, "device": {"kind": "cpu"}, "fixtures": {}}
+
+
+def _sample_from_observed(treatment: str, repetition: int, observed: Mapping[str, Any], warm: bool) -> RunSample:
+    phases, counts = observed.get("phases_ms"), observed.get("counts")
+    if not isinstance(phases, Mapping) or not isinstance(counts, Mapping):
+        raise RuntimeError("execution did not emit observed-cost evidence")
+    return RunSample(treatment, repetition, phases, counts, {"fresh_database": True, "unmeasured_query_warmup": warm, "open_write_scope": "fresh_store"})
+
+
+def run_diagnostic_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, scenario: Any, config_doc: Mapping[str, Any], experiments_root: Path, experiment: str, ts: datetime) -> tuple[PerformanceCell, ...]:
+    from eval.earp.runner import run_diagnostic
+    from eval.earp.schema.models import RunVerdict
+    if scenario.config_sha256 != workload.config_sha256 or scenario.query_call != workload.query_call:
+        raise ValueError("diagnostic scenario does not match verified workload")
+    provenance = _bridge_provenance()
+    def execute(_workload: WorkloadRef, treatment: str, repetition: int) -> PerformanceCell:
+        result = run_diagnostic(scenario=scenario, config_doc=config_doc, experiments_root=experiments_root, experiment=experiment, ts=ts, persist=False, warmup_query=treatment == "fresh_store_warm_query")
+        raw = (_sample_from_observed(treatment, repetition, result.observed_cost, treatment == "fresh_store_warm_query"),) if result.observed_cost else ()
+        if result.verdict is RunVerdict.COMPLETE:
+            return PerformanceCell.complete(treatment=treatment, repetition=repetition, samples=raw, execution_provenance=provenance)
+        return PerformanceCell.invalid(treatment=treatment, repetition=repetition, raw_samples=raw, invalidity={"code": _invalidity_code(RuntimeError(result.failure or str(result.blockers))), "message": result.failure or str(result.blockers)}, execution_provenance=provenance)
+    return run_repetitions(workload=workload, plan=plan, execute=execute)
+
+
+def run_characterization_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, scenario: Any, config_doc: Mapping[str, Any]) -> tuple[PerformanceCell, ...]:
+    from eval.earp.characterize import execute_arm
+    corpus, gold = config_doc.get("corpus"), config_doc.get("gold")
+    if not isinstance(corpus, Mapping) or not isinstance(gold, Mapping):
+        raise ValueError("characterization config lacks corpus or gold identity")
+    provenance = _bridge_provenance()
+    def execute(_workload: WorkloadRef, treatment: str, repetition: int) -> PerformanceCell:
+        arm = execute_arm(scenario=scenario, data_root=Path(str(corpus.get("data_root") or "")), snapshot_path=Path(str(corpus.get("snapshot") or "")), gold_path=Path(str(gold.get("path") or "")), gold_sha256=str(gold.get("sha256") or ""), corpus_hash=str(gold.get("corpus_hash") or ""), qrels_version=str(gold.get("qrels_version") or ""), warmup_queries=treatment == "fresh_store_warm_query")
+        raw = (_sample_from_observed(treatment, repetition, arm.observed_cost, treatment == "fresh_store_warm_query"),) if arm.observed_cost else ()
+        if arm.blocker is None:
+            return PerformanceCell.complete(treatment=treatment, repetition=repetition, samples=raw, execution_provenance=provenance)
+        return PerformanceCell.invalid(treatment=treatment, repetition=repetition, raw_samples=raw, invalidity={"code": arm.blocker.code.value, "message": arm.blocker.message}, execution_provenance=provenance)
+    return run_repetitions(workload=workload, plan=plan, execute=execute)
+
+
+def run_and_write_diagnostic_performance(**kwargs: Any) -> PerformanceWriteOutcome:
+    cells = run_diagnostic_repetitions(**kwargs)
+    return write_performance_result(experiments_root=kwargs["experiments_root"], experiment=kwargs["experiment"], ts=kwargs["ts"], workload=kwargs["workload"], plan=kwargs["plan"], cells=cells, execution_provenance=_bridge_provenance())
+
+
+def run_and_write_characterization_performance(**kwargs: Any) -> PerformanceWriteOutcome:
+    cells = run_characterization_repetitions(workload=kwargs["workload"], plan=kwargs["plan"], scenario=kwargs["scenario"], config_doc=kwargs["config_doc"])
+    return write_performance_result(experiments_root=kwargs["experiments_root"], experiment=kwargs["experiment"], ts=kwargs["ts"], workload=kwargs["workload"], plan=kwargs["plan"], cells=cells, execution_provenance=_bridge_provenance())
+
+
+def _nonnegative(values: Mapping[str, float | int], label: str) -> None:
     for name, value in values.items():
-        if not name:
-            raise ValueError(f"{label} name must be non-empty")
-        if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
-            raise ValueError(f"{label} {name!r} must be a non-negative number")
+        if not name or isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+            raise ValueError(f"{label} {name!r} must be non-negative")
 
 
-__all__ = [
-    "PERFORMANCE_RESULT_NAME",
-    "PerformancePlan",
-    "PerformanceWriteOutcome",
-    "RunSample",
-    "SCHEMA_VERSION",
-    "WorkloadRef",
-    "load_earp_workload",
-    "run_diagnostic_repetitions",
-    "run_and_write_diagnostic_performance",
-    "run_and_write_characterization_performance",
-    "run_characterization_repetitions",
-    "run_repetitions",
-    "summarize_samples",
-    "write_performance_result",
-]
+__all__ = ["PERFORMANCE_RESULT_NAME", "PerformanceCell", "PerformanceCollision", "PerformancePlan", "PerformanceSchemaError", "PerformanceWriteOutcome", "RunSample", "SCHEMA_VERSION", "WorkloadRef", "load_earp_workload", "run_and_write_characterization_performance", "run_and_write_diagnostic_performance", "run_characterization_repetitions", "run_diagnostic_repetitions", "run_repetitions", "summarize_samples", "write_performance_result"]

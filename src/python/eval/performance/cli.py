@@ -35,8 +35,8 @@ def main(argv: list[str] | None = None) -> int:
         subcommand.add_argument("--repetitions", required=True, type=int)
         subcommand.add_argument(
             "--treatments",
-            default="fresh_store,warm",
-            help="comma-separated treatments (default: fresh_store,warm)",
+            default="fresh_store,fresh_store_warm_query",
+            help="comma-separated treatments (default: fresh_store,fresh_store_warm_query)",
         )
     args = parser.parse_args(argv)
     try:

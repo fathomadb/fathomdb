@@ -74,24 +74,26 @@ def test_runner_persists_a_typed_invalid_cell_without_losing_prior_raw_samples(
     """FIX-3: the planned matrix survives a timeout/error as typed evidence."""
     from eval.performance.earp_adapter import PerformanceCell  # noqa: PLC0415
 
+    workload = _workload(tmp_path)
+    provenance = _execution_provenance(candidate_sha=workload.candidate_sha)
     complete = PerformanceCell.complete(
         treatment="fresh_store",
         repetition=0,
         samples=(RunSample("fresh_store", 0, {"query": 1.0}, {"results": 1}),),
-        execution_provenance=_execution_provenance(),
+        execution_provenance=provenance,
     )
     timed_out = PerformanceCell.invalid(
         treatment="fresh_store_warm_query",
         repetition=0,
         raw_samples=(RunSample("fresh_store_warm_query", 0, {"open": 0.5}, {}),),
         invalidity={"code": "timeout", "message": "query exceeded 10 s"},
-        execution_provenance=_execution_provenance(),
+        execution_provenance=provenance,
     )
     result = write_performance_result(
         experiments_root=tmp_path / "experiments",
         experiment="earp-performance",
         ts=TS,
-        workload=_workload(tmp_path),
+        workload=workload,
         plan=PerformancePlan(
             repetitions=1, treatments=("fresh_store", "fresh_store_warm_query")
         ),
@@ -175,22 +177,35 @@ def test_writer_requires_complete_execution_provenance(tmp_path: Path) -> None:
 
 
 def test_invalid_performance_schema_leaves_no_run_or_index(tmp_path: Path) -> None:
-    """FIX-8: validation happens before a directory or index makes it visible."""
+    """FIX-8: schema rejection leaves the quality parent byte-for-byte intact."""
     from eval.performance.earp_adapter import PerformanceSchemaError  # noqa: PLC0415
 
+    workload = _workload(tmp_path)
     root = tmp_path / "experiments"
+    parent_dir = root / "runs" / workload.parent_run_id
+    parent_bytes = {
+        path.relative_to(parent_dir): path.read_bytes()
+        for path in parent_dir.iterdir()
+        if path.is_file()
+    }
+    index_before = (root / "index.jsonl").read_bytes()
     with pytest.raises(PerformanceSchemaError):
         write_performance_result(
             experiments_root=root,
             experiment="earp-performance",
             ts=TS,
-            workload=_workload(tmp_path),
+            workload=workload,
             plan=PerformancePlan(repetitions=1, treatments=("fresh_store",)),
             samples=(RunSample("fresh_store", 0, {"query": 1.0}, {"results": 1}),),
             execution_provenance={**_execution_provenance(), "device": {"kind": "unknown"}},
         )
-    assert not (root / "runs").exists()
-    assert not (root / "index.jsonl").exists()
+    assert (root / "index.jsonl").read_bytes() == index_before
+    assert {
+        path.relative_to(parent_dir): path.read_bytes()
+        for path in parent_dir.iterdir()
+        if path.is_file()
+    } == parent_bytes
+    assert not list((root / "runs").glob("earp-performance*/**/*"))
 
 
 def test_index_failure_cleans_staged_performance_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

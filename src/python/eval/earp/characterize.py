@@ -296,6 +296,7 @@ def execute_arm(
     phases_ms: dict[str, float] = {}
     counts: dict[str, int] = {"accepted": 0, "queries": 0, "results": 0}
     storage: dict[str, int] = {}
+    query_samples: list[dict[str, Any]] = []
 
     try:
         started = time.monotonic()
@@ -348,6 +349,7 @@ def execute_arm(
         for query in gold_set.queries:
             retrievals += 1
             counts["queries"] += 1
+            query_started = time.monotonic()
             try:
                 if retrieve_override is not None:
                     result = call(query.query)
@@ -359,8 +361,22 @@ def execute_arm(
                     if getattr(hit.id, "space", None) == "logical"
                 ]
                 counts["results"] += len(result.results)
+                query_samples.append(
+                    {
+                        "query_id": query.query_id,
+                        "wall_ms": _elapsed_ms(query_started),
+                        "result_count": len(result.results),
+                        "outcome": "complete",
+                    }
+                )
             except Exception as exc:  # noqa: BLE001 -- typed per-query failure
                 errors[query.query_id] = f"{type(exc).__name__}: {exc}"
+                query_samples.append(
+                    {
+                        "query_id": query.query_id,
+                        "outcome": "failed",
+                    }
+                )
         phases_ms["query"] = _elapsed_ms(started)
     finally:
         if engine is not None:
@@ -393,6 +409,19 @@ def execute_arm(
             phases_ms=phases_ms,
             counts=counts,
             storage=storage,
+            query_samples=tuple(query_samples),
+            unavailable={
+                "engine_trace": {
+                    "code": "not_exposed",
+                    "message": "the public Python binding exposes no engine trace hook",
+                }
+            },
+            provenance={
+                "candidate_sha": _git_sha(False) or "unknown",
+                "clean": True,
+                "toolchain": {"python": platform.python_version()},
+                "device": {"kind": "cpu"},
+            },
         ).as_document(),
     )
 

@@ -302,7 +302,7 @@ def run_diagnostic(
             stage="runner.fixture",
             detail={"path": str(fixture_path)},
         )
-        observed_cost = _observed_cost(scenario, {}, {}, {})
+        observed_cost = _observed_cost(scenario, {}, {}, {}, query_samples=())
         outcome = (
             _write(
                 scenario, config_doc, experiments_root, experiment, ts,
@@ -550,7 +550,19 @@ def run_diagnostic(
         storage = capture_sqlite_storage(database_path)
         shutil.rmtree(db_dir, ignore_errors=True)
 
-    observed_cost = _observed_cost(scenario, phases_ms, counts, storage)
+    query_samples: tuple[Mapping[str, Any], ...] = ()
+    if "query" in phases_ms:
+        query_samples = (
+            {
+                "query_id": "diagnostic-query",
+                "wall_ms": phases_ms["query"],
+                "result_count": counts.get("results", 0),
+                "outcome": "complete" if verdict is RunVerdict.COMPLETE else "failed",
+            },
+        )
+    observed_cost = _observed_cost(
+        scenario, phases_ms, counts, storage, query_samples=query_samples
+    )
     outcome = (
         _write(
             scenario, config_doc, experiments_root, experiment, ts,
@@ -680,6 +692,8 @@ def _observed_cost(
     phases_ms: Mapping[str, float],
     counts: Mapping[str, int],
     storage: Mapping[str, int],
+    *,
+    query_samples: tuple[Mapping[str, Any], ...],
 ) -> dict[str, Any]:
     """Build a one-run observation; the durable writer binds its run ID."""
     return Observation(
@@ -688,6 +702,19 @@ def _observed_cost(
         phases_ms=phases_ms,
         counts=counts,
         storage=storage,
+        query_samples=query_samples,
+        unavailable={
+            "engine_trace": {
+                "code": "not_exposed",
+                "message": "the public Python binding exposes no engine trace hook",
+            }
+        },
+        provenance={
+            "candidate_sha": _code_provenance().get("git_sha") or "unknown",
+            "clean": not bool(_code_provenance().get("dirty")),
+            "toolchain": {"python": _lib.env_info().get("python", "")},
+            "device": {"kind": "cpu"},
+        },
     ).as_document()
 
 

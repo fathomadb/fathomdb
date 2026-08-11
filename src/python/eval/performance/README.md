@@ -23,8 +23,10 @@ python -m eval.performance.cli characterization \
 ```
 
 The runner records an independent `performance.earp.v1.json` artifact linked
-to the quality run. `fresh_store` and `warm` are separate treatments.
+to the quality run. `fresh_store` and `fresh_store_warm_query` are separate treatments.
 `fresh_store` means a newly created database in the same process; it makes no
-process-cold or OS-cache-cold claim. It does not reinterpret a one-run EARP
-observation as percentile or support evidence. It consumes the saved resolved
-configuration; it does not accept duplicate corpus, query, or knob flags.
+process-cold or OS-cache-cold claim. `fresh_store_warm_query` performs one
+unmeasured query only after the fresh database is opened and written; it does
+not warm ingestion. The runner verifies the saved manifest and its input
+digests before execution, and does not accept duplicate corpus, query, or knob
+flags.

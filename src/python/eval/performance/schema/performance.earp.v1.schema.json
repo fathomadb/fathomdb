@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "performance.earp.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "scope", "relation", "quality_workload_sha256", "execution_workload_sha256", "workload", "plan", "parent_manifest", "inputs", "cells", "samples", "summary"],
+  "properties": {
+    "schema_version": {"const": "performance.earp.v1"},
+    "run_id": {"type": "string"},
+    "scope": {"const": "repeated_performance_characterization"},
+    "relation": {"enum": ["same_candidate_reexecution", "cross_candidate_reexecution"]},
+    "quality_workload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "execution_workload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "workload": {"type": "object"},
+    "plan": {"type": "object"},
+    "parent_manifest": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
+    "inputs": {"type": "object"},
+    "cells": {"type": "array", "items": {"type": "object"}},
+    "samples": {"type": "array", "items": {"type": "object"}},
+    "summary": {"type": "object"}
+  }
+}

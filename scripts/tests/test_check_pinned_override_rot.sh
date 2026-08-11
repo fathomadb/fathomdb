@@ -28,8 +28,7 @@ root = Path(sys.argv[1])
 mode = sys.argv[2]
 metadata = root / "scripts/pinned-override-rot.json"
 data = json.loads(metadata.read_text())
-data["schema_version"] = 3
-data["cargo_pins"] = []
+data["schema_version"] = 4
 package = "js-yaml"
 version = "4.2.0" if mode == "vulnerable" else "4.3.0"
 if mode == "prerelease":
@@ -93,8 +92,25 @@ metadata.write_text(json.dumps(data), encoding="utf-8")
         package: ">=4.0.0, <5.0.0"
     }}}
 }), encoding="utf-8")
-(root / "Cargo.toml").write_text("[workspace]\nresolver = '2'\n", encoding="utf-8")
-(root / "Cargo.lock").write_text("version = 4\n", encoding="utf-8")
+candle_git = "https://github.com/coreyt/candle-fathomdb.git"
+candle_rev = "5719d90e60edd14c4c1a3bf87952648131b2153a"
+candle_packages = ["candle-core-fathomdb", "candle-nn-fathomdb", "candle-transformers-fathomdb"]
+(root / "Cargo.toml").write_text(
+    "[workspace]\nresolver = '2'\n\n[patch.crates-io]\n"
+    + "".join(f'{item} = {{ git = "{candle_git}", rev = "{candle_rev}" }}\n' for item in candle_packages),
+    encoding="utf-8",
+)
+(root / "Cargo.lock").write_text(
+    "version = 4\n\n"
+    + "\n".join(
+        "[[package]]\n"
+        f'name = "{item}"\n'
+        'version = "0.10.2"\n'
+        f'source = "git+{candle_git}?rev={candle_rev}#{candle_rev}"\n'
+        for item in candle_packages
+    ),
+    encoding="utf-8",
+)
 PY
   printf '%s' "$fixture"
 }
@@ -324,11 +340,9 @@ expect_failure 'Cargo.toml:workspace.dependencies.workspace-git' \
 expect_failure 'member/Cargo.toml:target.cfg(unix).dependencies.target-git' \
   'Cargo target-specific dependency git override is detected'
 
-# Cargo Git sources are permitted only when their manifest identity, immutable
-# revision, checked-in lock source, rationale, and explicitly non-assertive
-# advisory posture agree with one governed record. The fixture starts with a
-# deliberately small patch source so this remains an offline structural test.
-make_cargo_pin_fixture() {
+# Cargo scope is deliberately a single FathomDB exception, not a general
+# package-ID parser. The fixture permits only the exact three Candle patches.
+make_candle_fixture() {
   local name="$1"
   local mode="$2"
   local fixture="$WORK/$name"
@@ -342,126 +356,100 @@ from pathlib import Path
 
 root = Path(sys.argv[1])
 mode = sys.argv[2]
-git = "https://example.invalid/candle.git"
-rev = "0123456789abcdef0123456789abcdef01234567"
-entry_package = "candle-core-fathomdb"
-lock_package = "candle-core-fathomdb"
-mechanism = "patch.crates-io"
-manifest_pin = f"[patch.crates-io]\n{entry_package} = {{ git = \"{git}\", rev = \"{rev}\" }}\n"
-if mode == "replace-package-id":
-    entry_package = "candle-core-fathomdb:0.10.2"
-    mechanism = "replace"
-    manifest_pin = f"[replace]\n\"{entry_package}\" = {{ git = \"{git}\", rev = \"{rev}\" }}\n"
-elif mode == "replace-url-package-id":
-    entry_package = "https://github.com/rust-lang/crates.io-index#candle-core-fathomdb@0.10.2"
-    mechanism = "replace"
-    manifest_pin = f"[replace]\n\"{entry_package}\" = {{ git = \"{git}\", rev = \"{rev}\" }}\n"
-elif mode == "replace-malformed-package-id":
-    entry_package = "https://github.com/rust-lang/crates.io-index#candle-core-fathomdb@not-a-version"
-    mechanism = "replace"
-    manifest_pin = f"[replace]\n\"{entry_package}\" = {{ git = \"{git}\", rev = \"{rev}\" }}\n"
-elif mode == "renamed-dependency":
-    entry_package = "candle-alias"
-    mechanism = "workspace.dependencies"
-    manifest_pin = (
-        "[workspace.dependencies]\n"
-        f"{entry_package} = {{ package = \"{lock_package}\", git = \"{git}\", rev = \"{rev}\" }}\n"
-    )
-metadata_path = root / "scripts/pinned-override-rot.json"
-metadata = json.loads(metadata_path.read_text())
-metadata["schema_version"] = 3
-metadata["cargo_pins"] = []
-if mode != "undeclared":
-    metadata["cargo_pins"] = [{
-        "manifest": "Cargo.toml",
-        "mechanism": mechanism,
-        "package": entry_package,
-        "lock_package": lock_package,
-        "git": git,
-        "rev": rev if mode != "metadata-revision-mismatch" else "89abcdef0123456789abcdef0123456789abcdef",
-        "version": "0.10.2",
-        "rationale": "fixture CUDA dynamic-loading source pin",
-        "advisory_posture": {
-            "status": "external-source-unassessed",
-            "scope": "outside the checked-in npm advisory snapshot",
-            "rationale": "fixture makes no vulnerability assertion for an external Git source"
-        }
-    }]
-metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+git = "https://github.com/coreyt/candle-fathomdb.git"
+rev = "5719d90e60edd14c4c1a3bf87952648131b2153a"
+packages = ["candle-core-fathomdb", "candle-nn-fathomdb", "candle-transformers-fathomdb"]
+manifest_packages = packages.copy()
+manifest_revs = {package: rev for package in packages}
+lock_revs = {package: rev for package in packages}
+extra_manifest = ""
+if mode == "missing":
+    manifest_packages.pop()
+elif mode == "split":
+    manifest_revs["candle-nn-fathomdb"] = "89abcdef0123456789abcdef0123456789abcdef"
+elif mode == "revision-drift":
+    manifest_revs = {package: "89abcdef0123456789abcdef0123456789abcdef" for package in packages}
+elif mode == "lock-drift":
+    lock_revs["candle-core-fathomdb"] = "89abcdef0123456789abcdef0123456789abcdef"
+elif mode == "replace":
+    extra_manifest = "\n[replace]\n\"other:1.0.0\" = { git = \"https://example.invalid/other.git\", rev = \"0123456789abcdef0123456789abcdef01234567\" }\n"
+elif mode == "direct-git":
+    extra_manifest = "\n[workspace.dependencies]\nother = { git = \"https://example.invalid/other.git\", rev = \"0123456789abcdef0123456789abcdef01234567\" }\n"
 (root / "package.json").write_text(json.dumps({"overrides": {}}), encoding="utf-8")
 (root / "package-lock.json").write_text(json.dumps({"lockfileVersion": 3, "packages": {}}), encoding="utf-8")
+patches = "".join(
+    f'{package} = {{ git = "{git}", rev = "{manifest_revs[package]}" }}\n'
+    for package in manifest_packages
+)
 (root / "Cargo.toml").write_text(
-    "[workspace]\nresolver = \"2\"\n\n" + manifest_pin,
+    "[workspace]\nresolver = \"2\"\n\n[patch.crates-io]\n" + patches + extra_manifest,
     encoding="utf-8",
 )
-lock_rev = rev if mode != "lock-revision-mismatch" else "89abcdef0123456789abcdef0123456789abcdef"
-(root / "Cargo.lock").write_text(
-    f"version = 4\n\n[[package]]\nname = \"{lock_package}\"\n"
-    "version = \"0.10.2\"\n"
-    f"source = \"git+{git}?rev={lock_rev}#{lock_rev}\"\n",
-    encoding="utf-8",
+lock_packages = "\n".join(
+    "[[package]]\n"
+    f'name = "{package}"\n'
+    'version = "0.10.2"\n'
+    f'source = "git+{git}?rev={lock_revs[package]}#{lock_revs[package]}"\n'
+    for package in packages
 )
+(root / "Cargo.lock").write_text("version = 4\n\n" + lock_packages, encoding="utf-8")
 PY
   printf '%s' "$fixture"
 }
 
-make_and_run_cargo_pin_fixture() {
+make_and_run_candle_fixture() {
   local fixture
-  fixture="$(make_cargo_pin_fixture "$@")"
+  fixture="$(make_candle_fixture "$@")"
   run_fixture "$fixture"
 }
 
-make_and_run_cargo_pin_fixture governed governed
+make_and_run_candle_fixture approved approved
 if [ "$RC" -ne 0 ]; then
-  fail "governed Cargo pin must pass when manifest, metadata, and lock agree, got rc=$RC output=$OUT"
+  fail "approved Candle patch cohort must pass, got rc=$RC output=$OUT"
 fi
-pass 'governed Cargo Git source pin passes only with exact offline provenance'
+pass 'approved FathomDB Candle patch cohort passes'
 
-make_and_run_cargo_pin_fixture replace-package-id replace-package-id
-if [ "$RC" -ne 0 ]; then
-  fail "governed Cargo replace package-ID pin must pass, got rc=$RC output=$OUT"
-fi
-pass 'governed Cargo replace package-ID resolves its distinct lock package'
-
-make_and_run_cargo_pin_fixture replace-url-package-id replace-url-package-id
-if [ "$RC" -ne 0 ]; then
-  fail "governed fully-qualified Cargo replace package-ID must pass, got rc=$RC output=$OUT"
-fi
-pass 'governed fully-qualified Cargo replace package-ID resolves its lock package'
-
-make_and_run_cargo_pin_fixture replace-malformed-package-id replace-malformed-package-id
+make_and_run_candle_fixture missing missing
 if [ "$RC" -ne 1 ]; then
-  fail "malformed fully-qualified Cargo replace package-ID must fail, got rc=$RC output=$OUT"
+  fail "missing Candle patch must fail, got rc=$RC output=$OUT"
 fi
-expect_failure 'must identify a resolved Cargo.lock package' \
-  'malformed fully-qualified Cargo replace package-ID fails closed'
+expect_failure 'missing approved Candle patch candle-transformers-fathomdb' \
+  'missing Candle package from the approved cohort is rejected'
 
-make_and_run_cargo_pin_fixture renamed-dependency renamed-dependency
-if [ "$RC" -ne 0 ]; then
-  fail "governed renamed Cargo Git dependency must pass, got rc=$RC output=$OUT"
-fi
-pass 'governed renamed Cargo Git dependency resolves its distinct lock package'
-
-make_and_run_cargo_pin_fixture undeclared undeclared
+make_and_run_candle_fixture split split
 if [ "$RC" -ne 1 ]; then
-  fail "undeclared Cargo pin must fail, got rc=$RC output=$OUT"
+  fail "split Candle revision must fail, got rc=$RC output=$OUT"
 fi
-expect_failure 'Cargo pin Cargo.toml:patch.crates-io.candle-core-fathomdb has no governed record' \
-  'Cargo Git source without a governed record is rejected'
+expect_failure 'Candle patch candle-nn-fathomdb revision is not the approved immutable revision' \
+  'split Candle source revisions are rejected'
 
-make_and_run_cargo_pin_fixture metadata-revision-mismatch metadata-revision-mismatch
+make_and_run_candle_fixture revision-drift revision-drift
 if [ "$RC" -ne 1 ]; then
-  fail "Cargo metadata revision mismatch must fail, got rc=$RC output=$OUT"
+  fail "Candle revision drift must fail, got rc=$RC output=$OUT"
 fi
-expect_failure 'Cargo pin Cargo.toml:patch.crates-io.candle-core-fathomdb revision disagrees with metadata' \
-  'Cargo Git source metadata revision must match the manifest'
+expect_failure 'Candle patch candle-core-fathomdb revision is not the approved immutable revision' \
+  'Candle revision drift is rejected'
 
-make_and_run_cargo_pin_fixture lock-revision-mismatch lock-revision-mismatch
+make_and_run_candle_fixture lock-drift lock-drift
 if [ "$RC" -ne 1 ]; then
-  fail "Cargo lock revision mismatch must fail, got rc=$RC output=$OUT"
+  fail "Candle lock drift must fail, got rc=$RC output=$OUT"
 fi
-expect_failure 'Cargo pin Cargo.toml:patch.crates-io.candle-core-fathomdb has no matching Cargo.lock source' \
-  'Cargo Git source lock provenance must match the immutable manifest revision'
+expect_failure 'Candle patch candle-core-fathomdb has no matching Cargo.lock source' \
+  'Candle lock-source drift is rejected'
+
+make_and_run_candle_fixture replace replace
+if [ "$RC" -ne 1 ]; then
+  fail "non-Candle Cargo replace must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'unsupported Cargo override/git source Cargo.toml:replace.other:1.0.0' \
+  'non-Candle Cargo replace is rejected'
+
+make_and_run_candle_fixture direct-git direct-git
+if [ "$RC" -ne 1 ]; then
+  fail "direct Cargo Git dependency must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'unsupported Cargo override/git source Cargo.toml:workspace.dependencies.other' \
+  'direct Cargo Git dependency is rejected'
 
 # The real tree is the regression half: after removing obsolete root overrides,
 # the snapshot remains parseable and the gate stays clean without a network.

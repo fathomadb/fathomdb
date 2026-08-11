@@ -55,22 +55,15 @@ come, so a pin outlives its reason and silently holds the tree back.
   cannot be evaluated by a future reader. The existing `comment-overrides`
   convention is the shape; the guard should require *a* rationale, not a
   particular prose style.
-- **R4 — every Cargo source is reproducible and explicitly bounded.** For
-  every Cargo `[patch]`, `[replace]`, or Git dependency, a record must name the
-  manifest location, mechanism, manifest-entry package identity, resolved
-  `Cargo.lock` package identity, immutable 40-character Git revision, package
-  version, and human rationale. The resolved package/version must carry the
-  exact `git+…?rev=…#…` source in `Cargo.lock`; a record not present in the
-  manifest is also a failure. The two identities are intentionally separate:
-  a `[replace]` key can be a package ID such as `foo:1.2.3` or a fully
-  qualified registry URL such as
-  `https://github.com/rust-lang/crates.io-index#foo@1.2.3`, and a Git
-  dependency can use an alias with `package = "foo"`, while `Cargo.lock`
-  records the resolved package name `foo`. The checker accepts only those two
-  exact-version replace-key forms—bare `name:version` and `https` URL with a
-  `#name@version` fragment—so malformed or unknown forms fail closed rather
-  than being broadly split. This also fails closed for an undeclared source, a
-  mutable Git reference, or manifest/lock disagreement.
+- **R4 — the Candle exception is reproducible and explicitly bounded.** The
+  only supported Cargo exception is the root `[patch.crates-io]` cohort for
+  `candle-core-fathomdb`, `candle-nn-fathomdb`, and
+  `candle-transformers-fathomdb`. All three must use the one checker-owned
+  coreyt/candle-fathomdb immutable revision, version `0.10.2`, and exact
+  `git+…?rev=…#…` `Cargo.lock` source. A missing member, split revision, or
+  lock-source disagreement fails. Any other Cargo `[patch]`, `[replace]`, or
+  direct Git dependency fails as unsupported rather than being interpreted by
+  a general package-ID parser.
 
 ## Design constraints
 
@@ -91,15 +84,16 @@ vulnerable". It does **not** answer "is this pin still the right pin", which is
 R2, nor does it distinguish a vulnerability the pin *caused* from one it merely
 failed to prevent. Use `npm audit` as one input; do not stop there.
 
-**Scope beyond npm, deliberately.** Cargo `[patch]`, `[replace]`, and Git
-dependencies are now in scope. Their `cargo_pins` metadata uses an
-`external-source-unassessed` advisory posture: it records that the checked-in
+**Scope beyond npm, deliberately.** The root Candle patch cohort is in scope;
+Cargo override grammar is not. `cargo_candle_exception` records the single
+exception and its `external-source-unassessed` advisory posture: the checked-in
 npm GitHub Advisory snapshot does not support a Rust vulnerability assertion.
 It is not a substitute for a Rust advisory scan and must never be phrased as
 "no known vulnerabilities"; changing the immutable revision requires a fresh
-human advisory review. `scripts/governed-surface-pin.json` pins repository
-contract content rather than an external dependency version, so its integrity
-remains owned by `scripts/check-governed-surface-pin.sh`.
+human advisory review and a deliberate guard redesign. `scripts/governed-
+surface-pin.json` pins repository contract content rather than an external
+dependency version, so its integrity remains owned by
+`scripts/check-governed-surface-pin.sh`.
 
 ## Notes for implementation
 
@@ -111,9 +105,9 @@ remains owned by `scripts/check-governed-surface-pin.sh`.
 - Red-first is required: the test must construct a pin that has become
   vulnerable and prove the guard fails on it. Re-pinning js-yaml back to 4.2.0
   in a fixture is the exact historical case and makes the regression concrete.
-- Cargo fixtures must prove the complementary invariant: a governed external
-  Git source passes only when its manifest, metadata, and lock provenance
-  match exactly; an omitted record and either revision mismatch must fail.
+- Cargo fixtures must prove the narrow exception: the approved three-package
+  Candle cohort passes, but a missing/split/revision/lock drift fails and any
+  `[replace]` or direct Git dependency is unsupported.
 - The guard runs where it can act — this is cheap and static, so it belongs in
   the fast, always-on tier alongside the other governance gates, not behind the
   ~35-minute `verify`.

@@ -11,16 +11,14 @@ import re
 import sys
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
 
 
 class Unverified(Exception):
     """The checked-in evidence cannot support a trustworthy verdict."""
 
 
-SEMVER = r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)"
-VERSION = re.compile(rf"^{SEMVER}$")
-PRERELEASE_VERSION = re.compile(rf"^{SEMVER}-[0-9A-Za-z.-]+$")
+VERSION = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
+PRERELEASE_VERSION = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-[0-9A-Za-z.-]+$")
 COMPARATOR = re.compile(r"^(<=|>=|<|>|=)?\s*(\d+\.\d+\.\d+)$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 GIT_REV = re.compile(r"^[0-9a-f]{40}$")
@@ -37,10 +35,16 @@ GITHUB_ADVISORY_SOURCE = "GitHub Advisory Database"
 PINNED_ADVISORY_SNAPSHOT_SHA256 = "0aee0fc7be3dceb63bcd5abcb4877eaac256a03ca9511b37448f235a1a3c1f97"
 EXTERNAL_SOURCE_ADVISORY_STATUS = "external-source-unassessed"
 EXTERNAL_SOURCE_ADVISORY_SCOPE = "outside the checked-in npm advisory snapshot"
-CARGO_PACKAGE_NAME = r"[A-Za-z0-9][A-Za-z0-9_-]*"
-BARE_REPLACE_PACKAGE_ID = re.compile(rf"^(?P<name>{CARGO_PACKAGE_NAME}):(?P<version>{SEMVER})$")
-URL_REPLACE_PACKAGE_FRAGMENT = re.compile(rf"^(?P<name>{CARGO_PACKAGE_NAME})@(?P<version>{SEMVER})$")
-LOCK_PACKAGE_UNSPECIFIED = object()
+CANDLE_MANIFEST = "Cargo.toml"
+CANDLE_MECHANISM = "patch.crates-io"
+CANDLE_PACKAGES = (
+    "candle-core-fathomdb",
+    "candle-nn-fathomdb",
+    "candle-transformers-fathomdb",
+)
+CANDLE_GIT = "https://github.com/coreyt/candle-fathomdb.git"
+CANDLE_REV = "5719d90e60edd14c4c1a3bf87952648131b2153a"
+CANDLE_VERSION = "0.10.2"
 
 
 def read_json(path: Path, label: str) -> dict[str, Any]:
@@ -124,23 +128,39 @@ def records_by_package(metadata: dict[str, Any]) -> dict[str, dict[str, Any]]:
     return indexed
 
 
-def cargo_records(metadata: dict[str, Any]) -> dict[tuple[str, str, str], dict[str, Any]]:
-    """Index the explicit records required for every Cargo override source."""
-    records = metadata.get("cargo_pins")
-    if not isinstance(records, list):
-        raise Unverified("metadata has no cargo_pins list")
-    indexed: dict[tuple[str, str, str], dict[str, Any]] = {}
-    for index, record in enumerate(records):
-        if not isinstance(record, dict):
-            raise Unverified(f"cargo_pins[{index}] must be an object")
-        manifest = nonempty_string(record.get("manifest"), f"cargo_pins[{index}].manifest")
-        mechanism = nonempty_string(record.get("mechanism"), f"cargo_pins[{index}].mechanism")
-        package = nonempty_string(record.get("package"), f"cargo_pins[{index}].package")
-        key = (manifest, mechanism, package)
-        if key in indexed:
-            raise Unverified(f"cargo_pins records {manifest}:{mechanism}.{package} more than once")
-        indexed[key] = record
-    return indexed
+def validate_candle_exception(metadata: dict[str, Any]) -> None:
+    """Authenticate the one Cargo exception this guard deliberately supports."""
+    exception = metadata.get("cargo_candle_exception")
+    if not isinstance(exception, dict):
+        raise Unverified("metadata has no cargo_candle_exception object")
+    expected = {
+        "manifest": CANDLE_MANIFEST,
+        "mechanism": CANDLE_MECHANISM,
+        "git": CANDLE_GIT,
+        "rev": CANDLE_REV,
+        "version": CANDLE_VERSION,
+    }
+    for key, value in expected.items():
+        if exception.get(key) != value:
+            raise Unverified(f"cargo_candle_exception.{key} must equal the checker-owned Candle exception")
+    packages = exception.get("packages")
+    if packages != list(CANDLE_PACKAGES):
+        raise Unverified("cargo_candle_exception.packages must equal the checker-owned Candle cohort")
+    rationale = exception.get("rationale")
+    if not isinstance(rationale, str) or not rationale.strip():
+        raise Unverified("cargo_candle_exception.rationale must be a non-empty string")
+    posture = exception.get("advisory_posture")
+    if not isinstance(posture, dict):
+        raise Unverified("cargo_candle_exception.advisory_posture must be an object")
+    if posture.get("status") != EXTERNAL_SOURCE_ADVISORY_STATUS:
+        raise Unverified(
+            f"cargo_candle_exception.advisory_posture.status must be {EXTERNAL_SOURCE_ADVISORY_STATUS}"
+        )
+    if posture.get("scope") != EXTERNAL_SOURCE_ADVISORY_SCOPE:
+        raise Unverified("cargo_candle_exception.advisory_posture.scope must name the npm advisory snapshot")
+    posture_rationale = posture.get("rationale")
+    if not isinstance(posture_rationale, str) or not posture_rationale.strip():
+        raise Unverified("cargo_candle_exception.advisory_posture.rationale must be a non-empty string")
 
 
 def advisory_snapshot_path(root: Path, metadata: dict[str, Any]) -> Path:
@@ -219,10 +239,10 @@ def validate_advisories(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def validate_metadata(metadata: dict[str, Any], advisories: list[dict[str, Any]]) -> None:
-    if metadata.get("schema_version") != 3:
-        raise Unverified("metadata schema_version must be 3")
+    if metadata.get("schema_version") != 4:
+        raise Unverified("metadata schema_version must be 4")
     records = records_by_package(metadata)
-    cargo_records(metadata)
+    validate_candle_exception(metadata)
     scope = metadata.get("scope")
     if not isinstance(scope, dict):
         raise Unverified("metadata has no scope object")
@@ -252,27 +272,8 @@ def advisory_index(advisories: list[dict[str, Any]]) -> dict[str, list[dict[str,
     return indexed
 
 
-def replace_lock_package(package_id: str) -> str | None:
-    """Resolve only Cargo's supported replace-key forms to a lock package name."""
-    bare = BARE_REPLACE_PACKAGE_ID.fullmatch(package_id)
-    if bare:
-        return bare.group("name")
-    parsed = urlsplit(package_id)
-    if (
-        parsed.scheme != "https"
-        or not parsed.netloc
-        or not parsed.path
-        or parsed.username is not None
-        or parsed.password is not None
-        or parsed.query
-    ):
-        return None
-    fragment = URL_REPLACE_PACKAGE_FRAGMENT.fullmatch(parsed.fragment)
-    return fragment.group("name") if fragment else None
-
-
 def cargo_governed_pins(root: Path) -> list[dict[str, str | None]]:
-    """Identify Cargo override sources without calling Cargo or the network."""
+    """Identify every Cargo override source so unsupported forms cannot hide."""
     try:
         import tomllib
     except ImportError as exc:  # pragma: no cover - supported CI Python has it
@@ -286,30 +287,15 @@ def cargo_governed_pins(root: Path) -> list[dict[str, str | None]]:
         except (OSError, tomllib.TOMLDecodeError) as exc:
             raise Unverified(f"cannot parse Cargo manifest {manifest}: {exc}") from exc
         relative = manifest.relative_to(root)
-        def add_pin(
-            mechanism: str,
-            package: str,
-            spec: Any,
-            lock_package: str | None | object = LOCK_PACKAGE_UNSPECIFIED,
-        ) -> None:
-            if lock_package is LOCK_PACKAGE_UNSPECIFIED:
-                resolved_lock_package: str | None = package
-            elif isinstance(lock_package, str) or lock_package is None:
-                resolved_lock_package = lock_package
-            else:  # pragma: no cover - internal callers use only the declared forms
-                raise AssertionError("invalid Cargo lock package sentinel")
+        def add_pin(mechanism: str, package: str, spec: Any) -> None:
             pin: dict[str, str | None] = {
                 "manifest": str(relative),
                 "mechanism": mechanism,
                 "package": package,
-                "lock_package": resolved_lock_package,
                 "git": None,
                 "rev": None,
             }
             if isinstance(spec, dict):
-                renamed_package = spec.get("package")
-                if renamed_package is not None:
-                    pin["lock_package"] = renamed_package if isinstance(renamed_package, str) else None
                 git = spec.get("git")
                 rev = spec.get("rev")
                 if isinstance(git, str):
@@ -332,8 +318,7 @@ def cargo_governed_pins(root: Path) -> list[dict[str, str | None]]:
                         add_pin(f"patch.{registry}", str(package), spec)
             else:
                 for package, spec in section.items():
-                    package_id = str(package)
-                    add_pin("replace", package_id, spec, replace_lock_package(package_id))
+                    add_pin("replace", str(package), spec)
 
         def find_git_dependencies(value: Any, path: list[str]) -> None:
             if not isinstance(value, dict):
@@ -387,67 +372,36 @@ def cargo_lock_sources(lockfile_path: Path) -> dict[tuple[str, str], set[str]]:
     return sources
 
 
-def validate_cargo_pins(root: Path, metadata: dict[str, Any]) -> list[str]:
-    """Require exact manifest, metadata, and lock provenance for every Cargo pin."""
-    records = cargo_records(metadata)
+def validate_cargo_pins(root: Path) -> list[str]:
+    """Allow exactly FathomDB's root Candle patch cohort and nothing else."""
     pins = cargo_governed_pins(root)
-    if not pins:
-        return [
-            f"metadata records Cargo pin {manifest}:{mechanism}.{package}, but no such Cargo pin exists"
-            for manifest, mechanism, package in sorted(records)
-        ]
-    lock_sources = cargo_lock_sources(root / "Cargo.lock")
     failures: list[str] = []
+    expected = {(CANDLE_MANIFEST, CANDLE_MECHANISM, package) for package in CANDLE_PACKAGES}
+    found: set[tuple[str, str, str]] = set()
     for pin in pins:
         label = cargo_pin_label(pin)
         key = (str(pin["manifest"]), str(pin["mechanism"]), str(pin["package"]))
-        record = records.pop(key, None)
-        if record is None:
-            failures.append(f"Cargo pin {label} has no governed record")
+        if key not in expected:
+            failures.append(f"unsupported Cargo override/git source {label}")
             continue
+        if key in found:
+            failures.append(f"duplicate approved Candle patch {pin['package']}")
+            continue
+        found.add(key)
         git = pin["git"]
         rev = pin["rev"]
-        if not isinstance(git, str) or not isinstance(rev, str) or not GIT_REV.fullmatch(rev):
-            failures.append(f"Cargo pin {label} must use an immutable 40-character Git revision")
-            continue
-        recorded_git = nonempty_string(record.get("git"), f"Cargo pin {label}.git")
-        recorded_rev = nonempty_string(record.get("rev"), f"Cargo pin {label}.rev")
-        if recorded_git != git:
-            failures.append(f"Cargo pin {label} Git source disagrees with metadata")
-        if recorded_rev != rev:
-            failures.append(f"Cargo pin {label} revision disagrees with metadata")
-        if not GIT_REV.fullmatch(recorded_rev):
-            failures.append(f"Cargo pin {label} metadata revision must be an immutable 40-character Git revision")
-        lock_package = pin["lock_package"]
-        if not isinstance(lock_package, str) or not lock_package:
-            failures.append(f"Cargo pin {label} must identify a resolved Cargo.lock package")
-            continue
-        recorded_lock_package = nonempty_string(record.get("lock_package"), f"Cargo pin {label}.lock_package")
-        if recorded_lock_package != lock_package:
-            failures.append(f"Cargo pin {label} resolved lock package disagrees with metadata")
-        version = nonempty_string(record.get("version"), f"Cargo pin {label}.version")
-        version_tuple(version)
-        rationale = record.get("rationale")
-        if not isinstance(rationale, str) or not rationale.strip():
-            failures.append(f"Cargo pin {label} has no recorded rationale")
-        posture = record.get("advisory_posture")
-        if not isinstance(posture, dict):
-            failures.append(f"Cargo pin {label} has no explicit advisory posture")
-        else:
-            if posture.get("status") != EXTERNAL_SOURCE_ADVISORY_STATUS:
-                failures.append(f"Cargo pin {label} advisory posture must be {EXTERNAL_SOURCE_ADVISORY_STATUS}")
-            if posture.get("scope") != EXTERNAL_SOURCE_ADVISORY_SCOPE:
-                failures.append(f"Cargo pin {label} advisory posture must scope to the checked-in npm snapshot")
-            posture_rationale = posture.get("rationale")
-            if not isinstance(posture_rationale, str) or not posture_rationale.strip():
-                failures.append(f"Cargo pin {label} advisory posture has no recorded rationale")
-        expected_source = f"git+{git}?rev={rev}#{rev}"
-        if expected_source not in lock_sources.get((lock_package, version), set()):
-            failures.append(f"Cargo pin {label} has no matching Cargo.lock source")
-    for manifest, mechanism, package in sorted(records):
-        failures.append(
-            f"metadata records Cargo pin {manifest}:{mechanism}.{package}, but no such Cargo pin exists"
-        )
+        if git != CANDLE_GIT:
+            failures.append(f"Candle patch {pin['package']} Git source is not the approved source")
+        if rev != CANDLE_REV:
+            failures.append(f"Candle patch {pin['package']} revision is not the approved immutable revision")
+    for manifest, mechanism, package in sorted(expected - found):
+        failures.append(f"missing approved Candle patch {package}")
+    lock_sources = cargo_lock_sources(root / "Cargo.lock") if found else {}
+    expected_source = f"git+{CANDLE_GIT}?rev={CANDLE_REV}#{CANDLE_REV}"
+    for package in CANDLE_PACKAGES:
+        key = (CANDLE_MANIFEST, CANDLE_MECHANISM, package)
+        if key in found and expected_source not in lock_sources.get((package, CANDLE_VERSION), set()):
+            failures.append(f"Candle patch {package} has no matching Cargo.lock source")
     return failures
 
 
@@ -488,7 +442,7 @@ def check(root: Path, manifest_path: Path, lockfile_path: Path, metadata_path: P
     for extra in sorted(records):
         failures.append(f"metadata records npm override {extra!r}, but package.json has no such override")
 
-    failures.extend(validate_cargo_pins(root, metadata))
+    failures.extend(validate_cargo_pins(root))
     if not failures and overrides:
         packages = ", ".join(sorted(overrides))
         raise Unverified(
@@ -519,7 +473,7 @@ def main() -> int:
             print(f"FAIL  pinned-override-rot: {failure}", file=sys.stderr)
         return 1
     print(
-        "ok pinned-override-rot: every governed npm override and Cargo Git source has exact offline provenance"
+        "ok pinned-override-rot: governed npm overrides and the approved Candle patch cohort have exact provenance"
     )
     return 0
 

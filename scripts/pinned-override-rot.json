@@ -1,5 +1,5 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "advisory_snapshot": {
     "source": "GitHub Advisory Database",
     "retrieved_at": "2026-08-04",
@@ -9,55 +9,26 @@
   },
   "scope": {
     "npm": "All root package.json overrides are governed. Each must have a matching npm_overrides record with a rationale and a complete per-pin advisory_ids mapping. R2 deliberately fails closed for any live override: npm's lockfile records the override result, not a mechanically reproducible no-override resolution.",
-    "cargo": "Cargo [patch], [replace], and git dependencies are governed override mechanisms. Every discovered source must exactly match one cargo_pins record and its Cargo.lock Git source. External Git sources use the explicit external-source-unassessed advisory posture: it records that the checked-in npm GHSA snapshot cannot make a Rust advisory claim, rather than inventing one.",
+    "cargo": "This checker does not implement a general Cargo override grammar. The only supported Cargo exception is the root [patch.crates-io] Candle 0.10.2 cohort declared by cargo_candle_exception. Any other [patch], [replace], or direct Git dependency hard-fails as unsupported; adding one requires an explicit guard redesign.",
     "governed_commit_pins": "scripts/governed-surface-pin.json pins repository contract content, not an external dependency version. Its commit/hash integrity is enforced by scripts/check-governed-surface-pin.sh; it has no package-advisory semantics and is explicitly not reinterpreted here."
   },
   "npm_overrides": [],
-  "cargo_pins": [
-    {
-      "manifest": "Cargo.toml",
-      "mechanism": "patch.crates-io",
-      "package": "candle-core-fathomdb",
-      "lock_package": "candle-core-fathomdb",
-      "git": "https://github.com/coreyt/candle-fathomdb.git",
-      "rev": "5719d90e60edd14c4c1a3bf87952648131b2153a",
-      "version": "0.10.2",
-      "rationale": "FathomDB-maintained Candle 0.10.2 preserves the Linux AArch64 CPU Gemm/F16 fallback. This immutable source revision changes cudarc only to load the NVIDIA driver dynamically, keeping libcuda.so.1 out of distributable artifacts; core, nn, and transformers must remain one source cohort so their public types stay unified.",
-      "advisory_posture": {
-        "status": "external-source-unassessed",
-        "scope": "outside the checked-in npm advisory snapshot",
-        "rationale": "This is not a claim that the external Rust source has or lacks a vulnerability. The checked-in GitHub advisory snapshot covers only governed npm overrides; any revision change requires a fresh human advisory review."
-      }
-    },
-    {
-      "manifest": "Cargo.toml",
-      "mechanism": "patch.crates-io",
-      "package": "candle-nn-fathomdb",
-      "lock_package": "candle-nn-fathomdb",
-      "git": "https://github.com/coreyt/candle-fathomdb.git",
-      "rev": "5719d90e60edd14c4c1a3bf87952648131b2153a",
-      "version": "0.10.2",
-      "rationale": "FathomDB-maintained Candle 0.10.2 preserves the Linux AArch64 CPU Gemm/F16 fallback. This immutable source revision changes cudarc only to load the NVIDIA driver dynamically, keeping libcuda.so.1 out of distributable artifacts; core, nn, and transformers must remain one source cohort so their public types stay unified.",
-      "advisory_posture": {
-        "status": "external-source-unassessed",
-        "scope": "outside the checked-in npm advisory snapshot",
-        "rationale": "This is not a claim that the external Rust source has or lacks a vulnerability. The checked-in GitHub advisory snapshot covers only governed npm overrides; any revision change requires a fresh human advisory review."
-      }
-    },
-    {
-      "manifest": "Cargo.toml",
-      "mechanism": "patch.crates-io",
-      "package": "candle-transformers-fathomdb",
-      "lock_package": "candle-transformers-fathomdb",
-      "git": "https://github.com/coreyt/candle-fathomdb.git",
-      "rev": "5719d90e60edd14c4c1a3bf87952648131b2153a",
-      "version": "0.10.2",
-      "rationale": "FathomDB-maintained Candle 0.10.2 preserves the Linux AArch64 CPU Gemm/F16 fallback. This immutable source revision changes cudarc only to load the NVIDIA driver dynamically, keeping libcuda.so.1 out of distributable artifacts; core, nn, and transformers must remain one source cohort so their public types stay unified.",
-      "advisory_posture": {
-        "status": "external-source-unassessed",
-        "scope": "outside the checked-in npm advisory snapshot",
-        "rationale": "This is not a claim that the external Rust source has or lacks a vulnerability. The checked-in GitHub advisory snapshot covers only governed npm overrides; any revision change requires a fresh human advisory review."
-      }
+  "cargo_candle_exception": {
+    "manifest": "Cargo.toml",
+    "mechanism": "patch.crates-io",
+    "packages": [
+      "candle-core-fathomdb",
+      "candle-nn-fathomdb",
+      "candle-transformers-fathomdb"
+    ],
+    "git": "https://github.com/coreyt/candle-fathomdb.git",
+    "rev": "5719d90e60edd14c4c1a3bf87952648131b2153a",
+    "version": "0.10.2",
+    "rationale": "FathomDB-maintained Candle 0.10.2 preserves the Linux AArch64 CPU Gemm/F16 fallback. This immutable source revision changes cudarc only to load the NVIDIA driver dynamically, keeping libcuda.so.1 out of distributable artifacts; core, nn, and transformers remain one source cohort so their public types stay unified.",
+    "advisory_posture": {
+      "status": "external-source-unassessed",
+      "scope": "outside the checked-in npm advisory snapshot",
+      "rationale": "This is not a claim that the external Rust source has or lacks a vulnerability. The checked-in GitHub advisory snapshot covers only governed npm overrides; any revision change requires a fresh human advisory review."
     }
-  ]
+  }
 }

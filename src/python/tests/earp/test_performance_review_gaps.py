@@ -54,6 +54,7 @@ def _quality_graph(root: Path, *, poisoned_record_config: bool = False) -> tuple
         "aggregation_rule": "descriptive_empirical_order_statistics",
         "invalid_result_policy": "typed_cell",
         "command": "fathomdb-performance diagnostic",
+        "kind": "descriptive_nonclaim",
     }
     manifest = {
         "schema_version": "earp.workload-manifest.v1",
@@ -668,21 +669,37 @@ def test_observed_cost_v2_provenance_has_actual_or_unavailable_operational_field
         assert name in document["provenance"] or document["provenance"]["unavailable"][name]["code"]
 
 
-def test_direct_bridge_never_fabricates_command_lockfile_or_fixture_provenance(
-    monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("bridge", ("diagnostic", "characterization"))
+def test_direct_programmatic_bridges_preserve_unavailable_operational_provenance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, bridge: str
 ) -> None:
     from eval.performance import earp_adapter
+    from eval.earp.schema.models import RunVerdict
 
-    monkeypatch.setattr(earp_adapter._lib, "git_info", lambda: {"git_sha": CANDIDATE, "dirty": False})
+    root = tmp_path / "experiments"
+    run_id, manifest = (_quality_graph if bridge == "diagnostic" else _characterization_graph)(root)
+    unrelated = tmp_path / "unrelated-cwd"
+    unrelated.mkdir()
+    monkeypatch.chdir(unrelated)
     monkeypatch.setattr(earp_adapter._lib, "env_info", lambda: {"python": "3.12", "lockfile_sha256": None})
-    provenance = earp_adapter._bridge_provenance()
-    unavailable = provenance.get("unavailable", {})
+    monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **_: SimpleNamespace(verdict=RunVerdict.COMPLETE, observed_cost={"phases_ms": {"open": 1.0}, "counts": {"queries": 1}}, failure=None, blockers=()))
+    monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **_: SimpleNamespace(blocker=None, observed_cost={"phases_ms": {"open": 1.0}, "counts": {"queries": 1}}))
+    workload = earp_adapter.load_earp_workload(root, run_id)
+    scenario = SimpleNamespace(config_sha256=SHA, query_call="Engine.search", query_params=manifest["workload"]["effective_knobs"])
+    plan = earp_adapter.PerformancePlan(20, ("fresh_store",))
+    config = json.loads(manifest["resolved_config"]["canonical_json"])
+    if bridge == "diagnostic":
+        cells = earp_adapter.run_diagnostic_repetitions(workload=workload, plan=plan, scenario=scenario, config_doc=config, experiments_root=root, experiment="review", ts=TS)
+        outcome = earp_adapter.run_and_write_diagnostic_performance(workload=workload, plan=plan, scenario=scenario, config_doc=config, experiments_root=root, experiment="review-write", ts=TS)
+    else:
+        cells = earp_adapter.run_characterization_repetitions(workload=workload, plan=plan, scenario=scenario, config_doc=config)
+        outcome = earp_adapter.run_and_write_characterization_performance(workload=workload, plan=plan, scenario=scenario, config_doc=config, experiments_root=root, experiment="review-write", ts=TS)
+    assert cells[0].status == "invalid"
+    unavailable = cells[0].execution_provenance["unavailable"]
     for field in ("command", "lockfile_sha256", "fixtures"):
-        assert field in unavailable
         assert unavailable[field]["code"] and unavailable[field]["message"]
-    assert provenance.get("command") not in {"fathomdb-performance", "python"}
-    assert provenance.get("lockfile_sha256") not in {"", SHA, "0" * 64}
-    assert provenance.get("fixtures") not in ({}, {"path": "fixture.jsonl"})
+    document = json.loads((outcome.run_dir / "performance.earp.v1.json").read_text(encoding="utf-8"))
+    assert document["cells"][0]["status"] == "invalid"
 
 
 @pytest.mark.parametrize("bridge", ("diagnostic", "characterization"))

@@ -9,6 +9,7 @@ not a general database upgrader and deliberately refuses every other schema.
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import sqlite3
 import subprocess
@@ -45,22 +46,43 @@ def _check_integrity(connection: sqlite3.Connection, label: str) -> None:
             raise UpgradeRefused(f"{label}: PRAGMA {pragma} did not return exactly ok: {rows!r}")
 
 
-def _operational_mutation_columns(connection: sqlite3.Connection) -> tuple[str, ...]:
-    """Return the physical column order of ``operational_mutations``."""
+def _require_exact_legacy_schema(connection: sqlite3.Connection) -> None:
+    """Allow only the recognized integer-cursor legacy table shape.
+
+    This is deliberately stricter than names and order alone. In particular,
+    real 0.5.x stores used a TEXT primary key, which cannot be decoded by the
+    current reader's integer ``after_id`` cursor and is not upgradeable through
+    additive columns.
+    """
     rows = list(connection.execute("PRAGMA table_info(operational_mutations)"))
     if not rows:
         raise UpgradeRefused("refusing unknown schema: operational_mutations table is absent")
-    return tuple(str(row[1]) for row in rows)
-
-
-def _require_exact_legacy_schema(connection: sqlite3.Connection) -> None:
-    """Allow only the Memex-issue-0007 legacy table shape."""
-    columns = _operational_mutation_columns(connection)
+    columns = tuple(str(row[1]) for row in rows)
     if columns != _LEGACY_COLUMNS:
         raise UpgradeRefused(
             "refusing unknown operational_mutations schema: "
             f"expected {list(_LEGACY_COLUMNS)!r}, found {list(columns)!r}",
         )
+
+    metadata = {str(row[1]): (str(row[2]).upper(), int(row[3]), int(row[5])) for row in rows}
+    if metadata["id"] != ("INTEGER", 0, 1):
+        raise UpgradeRefused("refusing unknown operational_mutations schema: id must be an INTEGER primary key")
+    if metadata["source_ref"] != ("TEXT", 0, 0):
+        raise UpgradeRefused(
+            "refusing unknown operational_mutations schema: source_ref must be nullable TEXT",
+        )
+    for name in ("collection_name", "record_key", "op_kind", "payload_json"):
+        if metadata[name] != ("TEXT", 1, 0):
+            raise UpgradeRefused(
+                "refusing unknown operational_mutations schema: "
+                f"{name} must be NOT NULL TEXT",
+            )
+    for name in ("created_at", "mutation_order"):
+        if metadata[name] != ("INTEGER", 1, 0):
+            raise UpgradeRefused(
+                "refusing unknown operational_mutations schema: "
+                f"{name} must be NOT NULL INTEGER",
+            )
 
 
 def _backup_copy(source: sqlite3.Connection, output: Path) -> None:
@@ -102,6 +124,30 @@ def _add_compatibility_columns(output: Path) -> None:
             raise
         connection.commit()
         _check_integrity(connection, "upgraded copy")
+
+
+def _publish_verified_candidate(candidate: Path, output: Path) -> None:
+    """Atomically publish a verified candidate without overwriting an output path."""
+    try:
+        os.link(candidate, output)
+    except FileExistsError as error:
+        raise UpgradeRefused(f"refusing to overwrite output path: {output}") from error
+    try:
+        candidate.unlink()
+    except OSError:
+        output.unlink(missing_ok=True)
+        raise
+
+
+def _checkpoint_private_candidate(candidate: Path) -> None:
+    """Flush private WAL state before publishing only the verified main file."""
+    with sqlite3.connect(candidate) as connection:
+        checkpoint = connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+        if checkpoint is None or int(checkpoint[0]) != 0:
+            raise UpgradeRefused(f"private candidate WAL checkpoint did not complete: {checkpoint!r}")
+        _check_integrity(connection, "verified candidate")
+    for suffix in ("-wal", "-shm"):
+        Path(f"{candidate}{suffix}").unlink(missing_ok=True)
 
 
 def _verify_with_fathomdb(output: Path) -> None:
@@ -153,14 +199,18 @@ def upgrade_copy(input_path: Path, output_path: Path) -> None:
         prefix=f".{output.name}.legacy-op-store-",
         dir=output.parent,
     ) as temporary_dir:
-        snapshot = _copy_input_to_private_snapshot(source, Path(temporary_dir))
+        staging_dir = Path(temporary_dir)
+        snapshot = _copy_input_to_private_snapshot(source, staging_dir)
+        candidate = staging_dir / "candidate.sqlite"
         with sqlite3.connect(snapshot) as connection:
             _check_integrity(connection, "private input snapshot")
             _require_exact_legacy_schema(connection)
-            _backup_copy(connection, output)
+            _backup_copy(connection, candidate)
 
-    _add_compatibility_columns(output)
-    _verify_with_fathomdb(output)
+        _add_compatibility_columns(candidate)
+        _verify_with_fathomdb(candidate)
+        _checkpoint_private_candidate(candidate)
+        _publish_verified_candidate(candidate, output)
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:

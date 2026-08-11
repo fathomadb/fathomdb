@@ -35,32 +35,50 @@ def _tool_environment() -> dict[str, str]:
     return environment
 
 
-def _legacy_database(path: Path, *, unexpected_column: bool = False) -> None:
+def _broken_fathom_environment(tmp_path: Path) -> dict[str, str]:
+    """Force the tool's post-copy runtime proof to fail in a separate process."""
+    package = tmp_path / "broken-runtime" / "fathomdb"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("raise ImportError('forced verification failure')\n")
+    environment = _tool_environment()
+    environment["PYTHONPATH"] = str(package.parent)
+    return environment
+
+
+def _legacy_database(
+    path: Path,
+    *,
+    unexpected_column: bool = False,
+    id_declaration: str = "id INTEGER PRIMARY KEY AUTOINCREMENT",
+    source_ref_declaration: str = "source_ref TEXT",
+    with_row: bool = True,
+) -> None:
     extra = ", unexpected TEXT" if unexpected_column else ""
     with sqlite3.connect(path) as connection:
         connection.execute(
             """
             CREATE TABLE operational_mutations(
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                %s,
                 collection_name TEXT NOT NULL,
                 record_key TEXT NOT NULL,
                 op_kind TEXT NOT NULL,
                 payload_json TEXT NOT NULL,
-                source_ref TEXT,
+                %s,
                 created_at INTEGER NOT NULL,
                 mutation_order INTEGER NOT NULL%s
             )
-            """ % extra,
+            """ % (id_declaration, source_ref_declaration, extra),
         )
-        connection.execute(
-            """
-            INSERT INTO operational_mutations(
-                collection_name, record_key, op_kind, payload_json,
-                source_ref, created_at, mutation_order
-            ) VALUES ('schema_migrations', '0001', 'append', '{"revision":"0001"}',
-                      'memex', 1, 1)
-            """,
-        )
+        if with_row:
+            connection.execute(
+                """
+                INSERT INTO operational_mutations(
+                    collection_name, record_key, op_kind, payload_json,
+                    source_ref, created_at, mutation_order
+                ) VALUES ('schema_migrations', '0001', 'append', '{"revision":"0001"}',
+                          'memex', 1, 1)
+                """,
+            )
 
 
 def _legacy_wal_database(path: Path) -> sqlite3.Connection:
@@ -160,6 +178,64 @@ def test_copy_only_tool_refuses_a_nearby_unknown_schema(tmp_path: Path) -> None:
     assert "refusing unknown operational_mutations schema" in completed.stderr
     assert not output.exists()
     assert _columns(source) == [*_LEGACY_COLUMNS, "unexpected"]
+
+
+def test_copy_only_tool_removes_candidate_when_fathom_verification_fails(tmp_path: Path) -> None:
+    """The requested output path stays absent until the Fathom runtime proof passes."""
+    source = tmp_path / "legacy.sqlite"
+    output = tmp_path / "must-not-remain.sqlite"
+    _legacy_database(source)
+
+    completed = subprocess.run(
+        [sys.executable, str(_TOOL), "--input", str(source), "--output", str(output)],
+        text=True,
+        capture_output=True,
+        check=False,
+        env=_broken_fathom_environment(tmp_path),
+    )
+
+    assert completed.returncode != 0
+    assert "FathomDB open/read.collection verification failed" in completed.stderr
+    assert not output.exists()
+    assert not list(tmp_path.glob(".must-not-remain.sqlite.legacy-op-store-*"))
+
+
+def test_copy_only_tool_refuses_the_real_pre_06_text_primary_key_shape(tmp_path: Path) -> None:
+    """The historical v0.5.x TEXT primary key cannot satisfy current integer pagination."""
+    source = tmp_path / "v05.sqlite"
+    output = tmp_path / "must-not-exist.sqlite"
+    _legacy_database(source, id_declaration="id TEXT PRIMARY KEY", with_row=False)
+
+    completed = subprocess.run(
+        [sys.executable, str(_TOOL), "--input", str(source), "--output", str(output)],
+        text=True,
+        capture_output=True,
+        check=False,
+        env=_tool_environment(),
+    )
+
+    assert completed.returncode != 0
+    assert "id must be an INTEGER primary key" in completed.stderr
+    assert not output.exists()
+
+
+def test_copy_only_tool_refuses_nonnullable_legacy_source_ref(tmp_path: Path) -> None:
+    """A nearby table with a changed nullability contract is not silently accepted."""
+    source = tmp_path / "wrong-nullability.sqlite"
+    output = tmp_path / "must-not-exist.sqlite"
+    _legacy_database(source, source_ref_declaration="source_ref TEXT NOT NULL")
+
+    completed = subprocess.run(
+        [sys.executable, str(_TOOL), "--input", str(source), "--output", str(output)],
+        text=True,
+        capture_output=True,
+        check=False,
+        env=_tool_environment(),
+    )
+
+    assert completed.returncode != 0
+    assert "source_ref must be nullable TEXT" in completed.stderr
+    assert not output.exists()
 
 
 def test_copy_only_tool_never_opens_or_mutates_a_live_wal_input(tmp_path: Path) -> None:

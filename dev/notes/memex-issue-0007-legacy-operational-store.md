@@ -26,8 +26,8 @@ the normal versioned migration path.
 
 `scripts/experimental/upgrade_legacy_op_store.py` is intentionally **NOT
 OFFICIALLY SUPPORTED**. It is a copy-only, opt-in workaround for precisely the
-issue-0007 column sequence, not an upgrade path for arbitrary historical
-FathomDB databases.
+issue-0007 column sequence with current-reader-compatible metadata, not an
+upgrade path for arbitrary historical FathomDB databases.
 
 ```bash
 python scripts/experimental/upgrade_legacy_op_store.py \
@@ -42,13 +42,18 @@ The tool does all of the following:
 - Copies the main database plus any `-wal` and `-shm` sidecars through ordinary
   file reads into a private temporary directory beneath the requested output.
   It runs `integrity_check` and `quick_check` only against that private snapshot.
-- Refuses every shape except the exact eight-column legacy table above.
-- Uses SQLite's backup API to create the explicit new output path, so it never
-  writes the input database or its sidecars.
-- Adds only `schema_id TEXT` and `write_cursor INTEGER NOT NULL DEFAULT 0` to
-  the output. It does not infer or rewrite the legacy `mutation_order` data.
-- Rechecks output integrity, then requires the invoking FathomDB Python runtime
-  to open the output with no default embedder and execute `read.collection`.
+- Refuses every shape except the exact eight-column sequence with an `INTEGER`
+  primary-key `id`, nullable `TEXT source_ref`, `TEXT NOT NULL` collection /
+  record / operation / payload fields, and `INTEGER NOT NULL` timestamp /
+  mutation-order fields. It rejects the actual pre-0.6 v0.5.x `TEXT PRIMARY
+  KEY id` shape because the current reader requires an integer pagination id.
+- Uses SQLite's backup API to create and alter a private candidate only. It adds
+  only `schema_id TEXT` and `write_cursor INTEGER NOT NULL DEFAULT 0`, and does
+  not infer or rewrite legacy `mutation_order` data.
+- Rechecks candidate integrity, requires the invoking FathomDB Python runtime
+  to open it with no default embedder and execute `read.collection`, then
+  checkpoints private WAL state and atomically creates the requested output.
+  Any failure before that publish leaves no altered requested output path.
 
 The output is a candidate for deliberate review and extraction only. The
 defaulted zero cursors are sufficient for current read-back but are not a

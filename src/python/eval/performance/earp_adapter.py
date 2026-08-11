@@ -358,6 +358,14 @@ def _require_diagnostic_scenario(
         "max_measurable_k",
         "use_default_embedder",
     }
+    missing_core = missing - normalized
+    if missing_core:
+        raise ValueError("diagnostic scenario lacks verified workload identity")
+    if any(
+        hasattr(scenario, key) and _scenario_value(scenario, key) != value
+        for key, value in expected.items()
+    ):
+        raise ValueError("diagnostic scenario does not match verified workload")
     missing_normalized = missing & normalized
     if missing_normalized:
         # A caller may not mix supplied and implicit normalized fields: that
@@ -369,19 +377,15 @@ def _require_diagnostic_scenario(
         from eval.earp.config import resolve_config
 
         resolution = resolve_config(config_doc)
-        if (
-            resolution.scenario is not None
-            and not resolution.blockers
-            and all(
-                _scenario_value(resolution.scenario, key) == value
-                for key, value in expected.items()
-            )
+        if resolution.scenario is None or resolution.blockers:
+            raise ValueError("canonical config does not resolve a verified scenario")
+        if any(
+            _scenario_value(resolution.scenario, key) != value
+            for key, value in expected.items()
         ):
-            scenario = resolution.scenario
-    if any(
-        hasattr(scenario, key) and _scenario_value(scenario, key) != value
-        for key, value in expected.items()
-    ):
+            raise ValueError("canonical config scenario does not match verified workload")
+        scenario = resolution.scenario
+    if any(_scenario_value(scenario, key) != value for key, value in expected.items()):
         raise ValueError("diagnostic scenario does not match verified workload")
     return scenario
 
@@ -404,7 +408,7 @@ def _admit_canonical_config(
         canonical.get(name) == value for name, value in supplied.items()
     ):
         return canonical
-    raise ValueError("config does not match the verified workload")
+    raise ValueError("canonical config does not match the verified workload")
 
 
 def run_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, execute: Callable[[WorkloadRef, str, int], RunSample | PerformanceCell], execution_provenance: Mapping[str, Any] | None = None) -> tuple[PerformanceCell, ...]:

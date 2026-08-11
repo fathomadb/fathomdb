@@ -469,9 +469,33 @@ def run_characterization(
     deepest = max(ladder)
 
     def _blocked_result(blocker: Blocker) -> CharacterizationResult:
+        blocked_observation = Observation(
+            evidence_family_id="pending-writer-binding",
+            config_sha256=_lib.config_sha256(dict(config_doc)),
+            phases_ms={},
+            counts={},
+            storage={},
+            unavailable={
+                "query_samples": {
+                    "code": "blocked_before_execution",
+                    "message": blocker.message,
+                },
+                "engine_trace": {
+                    "code": "not_exposed",
+                    "message": "the public Python binding exposes no engine trace hook",
+                },
+            },
+            provenance={
+                "candidate_sha": _git_sha(blank_provenance) or "unavailable-outside-git",
+                "clean": not blank_provenance,
+                "toolchain": {"python": platform.python_version()},
+                "device": {"kind": "cpu"},
+            },
+        ).as_document()
         outcome = _write(
             config_doc, experiments_root, experiment, ts, RunVerdict.BLOCKED,
             {}, [], (blocker,), blocker.message, blank_provenance, deepest,
+            blocked_observation,
         )
         return CharacterizationResult(
             verdict=RunVerdict.BLOCKED,

@@ -13,8 +13,8 @@
     "execution_workload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "workload": {"type": "object"},
     "plan": {"type": "object"},
-    "parent_manifest": {"type": "object", "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
-    "inputs": {"type": "object"},
+    "parent_manifest": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
+    "inputs": {"type": "object", "additionalProperties": false, "required": ["quality_result", "resolved_config"], "properties": {"quality_result": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}, "resolved_config": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}}},
     "cells": {"type": "array", "items": {"type": "object"}},
     "samples": {"type": "array", "items": {"type": "object"}},
     "summary": {"type": "object"}

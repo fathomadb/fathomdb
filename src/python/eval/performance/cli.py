@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 from eval.earp.config import resolve_config
 from eval.performance.earp_adapter import (
@@ -42,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         root = Path(args.experiments_root)
         workload = load_earp_workload(root, args.quality_run)
-        config = _quality_config(root, args.quality_run)
+        config = dict(workload.resolved_config_document)
         resolution = resolve_config(config)
         if resolution.scenario is None or resolution.blockers:
             raise ValueError(f"quality config does not resolve: {list(resolution.blockers)}")
@@ -51,6 +49,12 @@ def main(argv: list[str] | None = None) -> int:
                 f"{args.command} runner requires an EARP {args.command} quality run"
             )
         treatments = tuple(item.strip() for item in args.treatments.split(",") if item.strip())
+        predeclared = workload.predeclared_plan
+        if (
+            args.repetitions != predeclared.get("repetitions")
+            or list(treatments) != predeclared.get("treatments")
+        ):
+            raise ValueError("requested repetitions/treatments do not match the predeclared plan")
         common = {
             "workload": workload,
             "plan": PerformancePlan(repetitions=args.repetitions, treatments=treatments),
@@ -71,19 +75,6 @@ def main(argv: list[str] | None = None) -> int:
     print(f"  artifact {outcome.run_dir}")
     print(f"  parent   {workload.parent_run_id}")
     return 0
-
-
-def _quality_config(experiments_root: Path, run_id: str) -> dict[str, Any]:
-    """Load the raw config hashed by the quality writer, preserving its identity."""
-    path = Path(experiments_root) / "runs" / run_id / "record.json"
-    try:
-        record = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError(f"cannot read EARP quality record {run_id}: {exc}") from exc
-    config = record.get("config")
-    if not isinstance(config, dict) or not isinstance(config.get("resolved"), dict):
-        raise ValueError("quality record lacks its resolved configuration")
-    return dict(config["resolved"])
 
 
 if __name__ == "__main__":  # pragma: no cover

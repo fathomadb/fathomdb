@@ -43,26 +43,43 @@ def combine_arm_observations(
     single ``query`` duration. Consumers must select an arm explicitly rather
     than treating control and treatment samples as one distribution.
     """
-    phases: dict[str, float] = {}
-    counts: dict[str, int] = {}
-    storage: dict[str, int] = {}
+    arm_documents: dict[str, dict[str, Any]] = {}
     for arm, document in arms.items():
-        for source, target in (
-            (document.get("phases_ms"), phases),
-            (document.get("counts"), counts),
-            (document.get("storage"), storage),
-        ):
-            if not isinstance(source, Mapping):
-                continue
-            for name, value in source.items():
-                target[f"arm.{arm}.{name}"] = value
-    return Observation(
-        evidence_family_id="pending-writer-binding",
-        config_sha256=config_sha256,
-        phases_ms=phases,
-        counts=counts,
-        storage=storage,
-    ).as_document()
+        provenance = document.get("provenance", {})
+        unavailable = document.get("unavailable", {})
+        if not provenance:
+            provenance = {
+                "unavailable": {
+                    "candidate_sha": {
+                        "code": "arm_blocked_before_execution",
+                        "message": "the arm did not reach execution provenance capture",
+                    }
+                }
+            }
+        if not unavailable:
+            unavailable = {
+                "query_samples": {
+                    "code": "arm_blocked_before_execution",
+                    "message": "the arm did not produce query observations",
+                }
+            }
+        arm_documents[arm] = Observation(
+            evidence_family_id="pending-writer-binding",
+            config_sha256=config_sha256,
+            phases_ms=document.get("phases_ms", {}),
+            counts=document.get("counts", {}),
+            storage=document.get("storage", {}),
+            query_samples=tuple(document.get("query_samples", ())),
+            unavailable=unavailable,
+            provenance=provenance,
+        ).as_document()
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "scope": "one_run_observation",
+        "evidence_family_id": "pending-writer-binding",
+        "config_sha256": config_sha256,
+        "arms": arm_documents,
+    }
 
 
 @dataclass(frozen=True)
@@ -90,6 +107,8 @@ class Observation:
         provenance = self.provenance
         if not isinstance(unavailable, Mapping) or not isinstance(provenance, Mapping):
             raise ValueError("unavailable and provenance must be mappings")
+        if not provenance:
+            raise ValueError("provenance must be recorded or typed unavailable")
         for field_name, reason in unavailable.items():
             if not field_name or not isinstance(reason, Mapping):
                 raise ValueError("unavailable fields need typed reasons")

@@ -49,6 +49,9 @@ class WorkloadRef:
     resolved_config_path: str = "config.resolved.yaml"
     resolved_config_sha256: str = ""
     quality_clean: bool = False
+    resolved_workload: Mapping[str, Any] = field(default_factory=dict)
+    predeclared_plan: Mapping[str, Any] = field(default_factory=dict)
+    resolved_config_document: Mapping[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.parent_run_id or not self.evidence_family_id or not self.query_call:
@@ -64,6 +67,12 @@ class WorkloadRef:
             "candidate_sha": self.candidate_sha,
             "query_call": self.query_call,
             "effective_knobs": dict(self.effective_knobs),
+            "workload": dict(self.resolved_workload) if self.resolved_workload else {
+                "config_sha256": self.config_sha256,
+                "query_call": self.query_call,
+                "effective_knobs": dict(self.effective_knobs),
+            },
+            "performance_plan": dict(self.predeclared_plan),
         }
 
 
@@ -188,6 +197,13 @@ def _artifact(record: Mapping[str, Any], expected_path: str) -> Mapping[str, Any
     raise ValueError("quality record lacks workload manifest advertisement")
 
 
+def _relative_artifact_path(value: Any) -> bool:
+    """Accept one contained relative artifact path, never an escape or URI."""
+    if not isinstance(value, str) or not value or Path(value).is_absolute():
+        return False
+    return all(part not in {"", ".", ".."} for part in Path(value).parts)
+
+
 def load_earp_workload(experiments_root: Path, quality_run_id: str) -> WorkloadRef:
     """Verify the record → manifest → quality input directed digest graph."""
     run_dir = Path(experiments_root) / "runs" / quality_run_id
@@ -210,6 +226,8 @@ def load_earp_workload(experiments_root: Path, quality_run_id: str) -> WorkloadR
     parent = manifest["quality_parent"]
     resolved = manifest["resolved_config"]
     workload = manifest["workload"]
+    if not _relative_artifact_path(parent["result_path"]) or not _relative_artifact_path(resolved["path"]):
+        raise ValueError("manifest schema is invalid")
     if not parent["candidate_sha"]:
         raise ValueError("manifest lacks candidate provenance")
     if _file_sha(manifest_path) != advertised["sha256"]:
@@ -222,6 +240,12 @@ def load_earp_workload(experiments_root: Path, quality_run_id: str) -> WorkloadR
     config_path = run_dir / resolved["path"]
     if not config_path.is_file() or _file_sha(config_path) != resolved["sha256"]:
         raise ValueError("resolved config digest does not match manifest")
+    try:
+        config_document = json.loads(resolved["canonical_json"])
+    except (TypeError, json.JSONDecodeError) as exc:
+        raise ValueError("manifest schema is invalid") from exc
+    if not isinstance(config_document, Mapping):
+        raise ValueError("manifest schema is invalid")
     return WorkloadRef(
         parent_run_id=quality_run_id,
         evidence_family_id=parent["evidence_family_id"],
@@ -236,10 +260,20 @@ def load_earp_workload(experiments_root: Path, quality_run_id: str) -> WorkloadR
         resolved_config_path=resolved["path"],
         resolved_config_sha256=resolved["sha256"],
         quality_clean=bool(parent["clean"]),
+        resolved_workload=dict(workload),
+        predeclared_plan=dict(manifest["performance_plan"]),
+        resolved_config_document=dict(config_document),
     )
 
 
-def run_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, execute: Callable[[WorkloadRef, str, int], RunSample | PerformanceCell]) -> tuple[PerformanceCell, ...]:
+def _verify_workload_reference(experiments_root: Path, workload: WorkloadRef) -> None:
+    """Re-admit a loaded reference immediately before execution/publication."""
+    verified = load_earp_workload(experiments_root, workload.parent_run_id)
+    if verified.as_document() != workload.as_document() or verified.parent_manifest_sha256 != workload.parent_manifest_sha256:
+        raise ValueError("manifest does not match the verified workload reference")
+
+
+def run_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, execute: Callable[[WorkloadRef, str, int], RunSample | PerformanceCell], execution_provenance: Mapping[str, Any] | None = None) -> tuple[PerformanceCell, ...]:
     """Execute every planned cell once, preserving executor failure as evidence."""
     cells: list[PerformanceCell] = []
     for treatment in plan.treatments:
@@ -250,7 +284,7 @@ def run_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, execute: Ca
                 cells.append(PerformanceCell.invalid(
                     treatment=treatment, repetition=repetition, raw_samples=(),
                     invalidity={"code": _invalidity_code(exc), "message": f"{type(exc).__name__}: {exc}"},
-                    execution_provenance={},
+                    execution_provenance=dict(execution_provenance or {}),
                 ))
                 continue
             if (returned.treatment, returned.repetition) != (treatment, repetition):
@@ -259,7 +293,7 @@ def run_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, execute: Ca
                 cells.append(returned)
             else:
                 cells.append(PerformanceCell.complete(
-                    treatment=treatment, repetition=repetition, samples=(returned,), execution_provenance={}
+                    treatment=treatment, repetition=repetition, samples=(returned,), execution_provenance=dict(execution_provenance or {})
                 ))
     return tuple(cells)
 
@@ -288,16 +322,31 @@ def _nearest(values: Sequence[float], quantile: float) -> float:
 
 def _execution_provenance(value: Mapping[str, Any]) -> dict[str, Any]:
     required = ("candidate_sha", "clean", "command", "lockfile_sha256", "toolchain", "device", "fixtures")
-    if not isinstance(value, Mapping) or any(key not in value for key in required):
+    unavailable = value.get("unavailable", {}) if isinstance(value, Mapping) else {}
+    if not isinstance(value, Mapping) or not isinstance(unavailable, Mapping):
         raise ValueError("execution provenance is incomplete")
-    if not isinstance(value["candidate_sha"], str) or not value["candidate_sha"]:
+    missing = [key for key in required if key not in value and key not in unavailable]
+    if missing:
+        raise ValueError("execution provenance is incomplete")
+    for key in required:
+        if key not in value:
+            reason = unavailable[key]
+            if not isinstance(reason, Mapping) or not isinstance(reason.get("code"), str) or not isinstance(reason.get("message"), str):
+                raise ValueError("execution provenance is incomplete")
+    if "candidate_sha" in value and (not isinstance(value["candidate_sha"], str) or not value["candidate_sha"]):
         raise ValueError("execution provenance candidate_sha is invalid")
-    if not isinstance(value["clean"], bool) or not isinstance(value["command"], str) or not value["command"]:
+    if "clean" in value and not isinstance(value["clean"], bool):
         raise ValueError("execution provenance is incomplete")
-    if not _sha(value["lockfile_sha256"]) or not isinstance(value["toolchain"], Mapping) or not isinstance(value["fixtures"], Mapping):
+    if "command" in value and (not isinstance(value["command"], str) or not value["command"]):
         raise ValueError("execution provenance is incomplete")
-    device = value["device"]
-    if not isinstance(device, Mapping) or device.get("kind") not in {"cpu", "cuda", "metal"}:
+    if "lockfile_sha256" in value and not _sha(value["lockfile_sha256"]):
+        raise ValueError("execution provenance is incomplete")
+    if "toolchain" in value and not isinstance(value["toolchain"], Mapping):
+        raise ValueError("execution provenance is incomplete")
+    if "fixtures" in value and not isinstance(value["fixtures"], Mapping):
+        raise ValueError("execution provenance is incomplete")
+    device = value.get("device")
+    if device is not None and (not isinstance(device, Mapping) or device.get("kind") not in {"cpu", "cuda", "metal"}):
         raise PerformanceSchemaError("execution provenance device is invalid")
     return dict(value)
 
@@ -320,6 +369,7 @@ def write_performance_result(*, experiments_root: Path, experiment: str, ts: dat
     """Validate then atomically stage a repeated-performance artifact and record."""
     if not workload.parent_manifest_path or not _sha(workload.parent_manifest_sha256):
         raise ValueError("manifest is required for repeated performance")
+    _verify_workload_reference(Path(experiments_root), workload)
     provenance = _execution_provenance(execution_provenance) if execution_provenance is not None else None
     if cells is not None and samples is not None:
         raise ValueError("supply cells or samples, not both")
@@ -343,7 +393,18 @@ def write_performance_result(*, experiments_root: Path, experiment: str, ts: dat
             cell = PerformanceCell.invalid(treatment=cell.treatment, repetition=cell.repetition, raw_samples=cell.raw_samples, invalidity={"code": "cross_candidate", "message": "execution candidate differs from quality candidate"}, execution_provenance=cell_provenance)
         normalized_cells.append(cell)
     cells = tuple(normalized_cells)
-    complete_samples = [sample for cell in cells if cell.status == "complete" for sample in cell.raw_samples]
+    complete_treatments = {
+        treatment
+        for treatment in plan.treatments
+        if all(cell.status == "complete" for cell in cells if cell.treatment == treatment)
+    }
+    complete_samples = [
+        sample
+        for cell in cells
+        if cell.status == "complete"
+        for sample in cell.raw_samples
+    ]
+    eligible_samples = [sample for sample in complete_samples if sample.treatment in complete_treatments]
     quality_digest = hashlib.sha256(_lib.canonical_json(workload.as_document()).encode()).hexdigest()
     execution_digest = hashlib.sha256(_lib.canonical_json({"quality": quality_digest, "provenance": [cell.execution_provenance for cell in cells]}).encode()).hexdigest()
     config = {"schema_version": SCHEMA_VERSION, "workload": workload.as_document(), "plan": plan.as_document(), "execution_workload_sha256": execution_digest}
@@ -359,7 +420,7 @@ def write_performance_result(*, experiments_root: Path, experiment: str, ts: dat
         "cells": [cell.as_document() for cell in cells],
         # Kept as a convenience rendering, while cells remain the authoritative matrix.
         "samples": [sample.as_document() for sample in complete_samples],
-        "summary": summarize_samples(complete_samples),
+        "summary": summarize_samples(eligible_samples),
     }
     _validate_performance_document(document)
     text = json.dumps(document, indent=2, sort_keys=True) + "\n"
@@ -375,9 +436,9 @@ def write_performance_result(*, experiments_root: Path, experiment: str, ts: dat
         sidecar_path.write_text(text, encoding="utf-8")
         _lib.write_record(
             experiment, ts=ts, config_obj=config, metrics=document["summary"], verdict="complete", read=f"repeated performance evidence for EARP quality run {workload.parent_run_id}",
-            code={"git_sha": cells[0].execution_provenance["candidate_sha"], "dirty": not cells[0].execution_provenance["clean"], "branch": "", "baseline_commit": None},
+            code={"git_sha": cells[0].execution_provenance.get("candidate_sha"), "dirty": not bool(cells[0].execution_provenance.get("clean", False)), "branch": "", "baseline_commit": None},
             corpus={"source": None, "manifest_sha256": None, "datasets": []}, seeds={},
-            env={"python": str(cells[0].execution_provenance["toolchain"].get("python", "")), "lockfile_sha256": cells[0].execution_provenance["lockfile_sha256"], "gpu": cells[0].execution_provenance["device"], "key_deps": {}}, cost_usd=0.0,
+            env={"python": str(cells[0].execution_provenance.get("toolchain", {}).get("python", "")), "lockfile_sha256": cells[0].execution_provenance.get("lockfile_sha256"), "gpu": cells[0].execution_provenance.get("device"), "key_deps": {}}, cost_usd=0.0,
             artifacts=[{"path": f"runs/{run_id}/{PERFORMANCE_RESULT_NAME}", "sha256": _file_sha(sidecar_path)}], base_dir=experiments_root, index_path=Path(experiments_root) / "index.jsonl")
         _lib.regen_index_md(index_path=Path(experiments_root) / "index.jsonl", md_path=Path(experiments_root) / "INDEX.md")
     except Exception:
@@ -397,6 +458,16 @@ def _validate_performance_document(document: Mapping[str, Any]) -> None:
             raise PerformanceSchemaError(f"performance sidecar lacks {name}")
     if not _sha(document["parent_manifest"].get("sha256")):
         raise PerformanceSchemaError("performance sidecar parent manifest digest is invalid")
+    parent = document["parent_manifest"]
+    inputs = document["inputs"]
+    if not isinstance(parent, Mapping) or not _relative_artifact_path(parent.get("path")):
+        raise PerformanceSchemaError("performance sidecar parent manifest path is invalid")
+    if not isinstance(inputs, Mapping):
+        raise PerformanceSchemaError("performance sidecar inputs are invalid")
+    for name in ("quality_result", "resolved_config"):
+        item = inputs.get(name)
+        if not isinstance(item, Mapping) or not _relative_artifact_path(item.get("path")) or not _sha(item.get("sha256")):
+            raise PerformanceSchemaError("performance sidecar input path is invalid")
 
 
 def _invalidity_code(exc: Exception) -> str:
@@ -410,9 +481,23 @@ def _bridge_provenance() -> dict[str, Any]:
     try:
         code = _lib.git_info()
     except Exception:
-        code = {"git_sha": "unknown", "dirty": True}
+        code = {}
     env = _lib.env_info()
-    return {"candidate_sha": code["git_sha"], "clean": not code["dirty"], "command": "fathomdb-performance", "lockfile_sha256": env.get("lockfile_sha256") or "0" * 64, "toolchain": {"python": env.get("python", "")}, "device": {"kind": "cpu"}, "fixtures": {}}
+    unavailable: dict[str, dict[str, str]] = {}
+    result: dict[str, Any] = {"command": "fathomdb-performance", "toolchain": {"python": env.get("python", "")}, "device": {"kind": "cpu"}, "fixtures": {}}
+    if code.get("git_sha"):
+        result["candidate_sha"] = code["git_sha"]
+        result["clean"] = not bool(code.get("dirty"))
+    else:
+        unavailable["candidate_sha"] = {"code": "git_unavailable", "message": "git provenance is unavailable"}
+        unavailable["clean"] = {"code": "git_unavailable", "message": "git cleanliness is unavailable"}
+    if env.get("lockfile_sha256"):
+        result["lockfile_sha256"] = env["lockfile_sha256"]
+    else:
+        unavailable["lockfile_sha256"] = {"code": "lockfile_absent", "message": "no lockfile digest is available"}
+    if unavailable:
+        result["unavailable"] = unavailable
+    return result
 
 
 def _sample_from_observed(treatment: str, repetition: int, observed: Mapping[str, Any], warm: bool) -> RunSample:
@@ -427,6 +512,7 @@ def run_diagnostic_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, 
     from eval.earp.schema.models import RunVerdict
     if scenario.config_sha256 != workload.config_sha256 or scenario.query_call != workload.query_call:
         raise ValueError("diagnostic scenario does not match verified workload")
+    _verify_workload_reference(Path(experiments_root), workload)
     provenance = _bridge_provenance()
     def execute(_workload: WorkloadRef, treatment: str, repetition: int) -> PerformanceCell:
         result = run_diagnostic(scenario=scenario, config_doc=config_doc, experiments_root=experiments_root, experiment=experiment, ts=ts, persist=False, warmup_query=treatment == "fresh_store_warm_query")
@@ -434,7 +520,7 @@ def run_diagnostic_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, 
         if result.verdict is RunVerdict.COMPLETE:
             return PerformanceCell.complete(treatment=treatment, repetition=repetition, samples=raw, execution_provenance=provenance)
         return PerformanceCell.invalid(treatment=treatment, repetition=repetition, raw_samples=raw, invalidity={"code": _invalidity_code(RuntimeError(result.failure or str(result.blockers))), "message": result.failure or str(result.blockers)}, execution_provenance=provenance)
-    return run_repetitions(workload=workload, plan=plan, execute=execute)
+    return run_repetitions(workload=workload, plan=plan, execute=execute, execution_provenance=provenance)
 
 
 def run_characterization_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, scenario: Any, config_doc: Mapping[str, Any]) -> tuple[PerformanceCell, ...]:
@@ -442,6 +528,18 @@ def run_characterization_repetitions(*, workload: WorkloadRef, plan: Performance
     corpus, gold = config_doc.get("corpus"), config_doc.get("gold")
     if not isinstance(corpus, Mapping) or not isinstance(gold, Mapping):
         raise ValueError("characterization config lacks corpus or gold identity")
+    actual = {
+        "corpus": dict(corpus),
+        "gold": dict(gold),
+        "projections": config_doc.get("projections", {}),
+        "embedder": config_doc.get("embedder", {}),
+        "device": config_doc.get("device", {"kind": "cpu"}),
+        "effective_knobs": dict(getattr(scenario, "query_params", {})),
+    }
+    expected = workload.resolved_workload
+    for key, value in actual.items():
+        if key in expected and expected[key] != value:
+            raise ValueError("characterization inputs do not match verified workload")
     provenance = _bridge_provenance()
     def execute(_workload: WorkloadRef, treatment: str, repetition: int) -> PerformanceCell:
         arm = execute_arm(scenario=scenario, data_root=Path(str(corpus.get("data_root") or "")), snapshot_path=Path(str(corpus.get("snapshot") or "")), gold_path=Path(str(gold.get("path") or "")), gold_sha256=str(gold.get("sha256") or ""), corpus_hash=str(gold.get("corpus_hash") or ""), qrels_version=str(gold.get("qrels_version") or ""), warmup_queries=treatment == "fresh_store_warm_query")
@@ -449,7 +547,7 @@ def run_characterization_repetitions(*, workload: WorkloadRef, plan: Performance
         if arm.blocker is None:
             return PerformanceCell.complete(treatment=treatment, repetition=repetition, samples=raw, execution_provenance=provenance)
         return PerformanceCell.invalid(treatment=treatment, repetition=repetition, raw_samples=raw, invalidity={"code": arm.blocker.code.value, "message": arm.blocker.message}, execution_provenance=provenance)
-    return run_repetitions(workload=workload, plan=plan, execute=execute)
+    return run_repetitions(workload=workload, plan=plan, execute=execute, execution_provenance=provenance)
 
 
 def run_and_write_diagnostic_performance(**kwargs: Any) -> PerformanceWriteOutcome:

@@ -150,7 +150,25 @@ def write_run(
     except FileExistsError:
         existing = run_dir / SIDECAR_NAME
         prior = existing.read_text(encoding="utf-8") if existing.is_file() else None
-        if prior == sidecar_text:
+        existing_record = run_dir / "record.json"
+        prior_record: Mapping[str, Any] = {}
+        if existing_record.is_file():
+            try:
+                decoded = json.loads(existing_record.read_text(encoding="utf-8"))
+                if isinstance(decoded, Mapping):
+                    prior_record = decoded
+            except json.JSONDecodeError:
+                pass
+        prior_code = prior_record.get("code")
+        same_code = isinstance(prior_code, Mapping) and dict(prior_code) == {
+            "git_sha": code.get("git_sha"),
+            "dirty": code.get("dirty"),
+            "branch": code.get("branch"),
+            "baseline_commit": code.get("baseline_commit"),
+        }
+        if prior == sidecar_text and same_code and _existing_artifact_graph_is_valid(
+            run_dir, prior_record
+        ):
             return WriteOutcome(run_id=run_id, run_dir=run_dir)
         # The hashes are EQUAL by construction in a real collision -- the
         # measurements are what differ -- so the comparison is on bytes.
@@ -182,6 +200,7 @@ def write_run(
         config_sha256=sha,
         result_doc=result_doc,
         code=code,
+        config_doc=document,
         result_sha256=_sha256_text(sidecar_text),
         config_sha256_bytes=_sha256_text(config_text),
     )
@@ -252,6 +271,20 @@ def _normalize_observed_cost(
     if observed_cost.get("scope") != "one_run_observation":
         raise ValueError("observed_cost must be one_run_observation evidence")
     document = dict(observed_cost)
+    arms = document.get("arms")
+    if isinstance(arms, Mapping):
+        normalized_arms: dict[str, Any] = {}
+        for name, arm in arms.items():
+            if not isinstance(name, str) or not isinstance(arm, Mapping):
+                raise ValueError("observed_cost arms must be named mappings")
+            normalized_arms[name] = _normalize_observed_cost(arm, run_id, config_sha256)
+        return {
+            "schema_version": OBSERVED_COST_SCHEMA_VERSION,
+            "scope": "one_run_observation",
+            "evidence_family_id": run_id,
+            "config_sha256": config_sha256,
+            "arms": normalized_arms,
+        }
     observation = Observation(
         evidence_family_id=run_id,
         config_sha256=config_sha256,
@@ -287,12 +320,35 @@ def _artifact(run_id: str, name: str, text: str) -> dict[str, str]:
     return {"path": f"runs/{run_id}/{name}", "sha256": _sha256_text(text)}
 
 
+def _existing_artifact_graph_is_valid(run_dir: Path, record: Mapping[str, Any]) -> bool:
+    """Accept idempotence only for a complete, digest-verified prior graph."""
+    artifacts = record.get("artifacts")
+    if not isinstance(artifacts, list) or not artifacts:
+        return False
+    prefix = f"runs/{run_dir.name}/"
+    for artifact in artifacts:
+        if not isinstance(artifact, Mapping):
+            return False
+        path = artifact.get("path")
+        digest = artifact.get("sha256")
+        if not isinstance(path, str) or not path.startswith(prefix):
+            return False
+        name = path[len(prefix):]
+        if not name or "/" in name or not isinstance(digest, str):
+            return False
+        candidate = run_dir / name
+        if not candidate.is_file() or hashlib.sha256(candidate.read_bytes()).hexdigest() != digest:
+            return False
+    return True
+
+
 def _workload_manifest(
     *,
     run_id: str,
     config_sha256: str,
     result_doc: Mapping[str, Any],
     code: Mapping[str, Any],
+    config_doc: Mapping[str, Any],
     result_sha256: str,
     config_sha256_bytes: str,
 ) -> dict[str, Any]:
@@ -318,16 +374,21 @@ def _workload_manifest(
         "resolved_config": {
             "path": "config.resolved.yaml",
             "sha256": config_sha256_bytes,
-            "canonical_json": _lib.canonical_json(dict(result_doc.get("scenario", {}))),
+            "canonical_json": _lib.canonical_json(dict(config_doc)),
         },
         "workload": {
             "config_sha256": config_sha256,
             "query_call": query_call,
             "effective_knobs": dict(knobs),
+            **({"corpus": dict(config_doc["corpus"])} if isinstance(config_doc.get("corpus"), Mapping) else {}),
+            **({"gold": dict(config_doc["gold"])} if isinstance(config_doc.get("gold"), Mapping) else {}),
+            **({"projections": config_doc["projections"]} if isinstance(config_doc.get("projections"), Mapping) else {}),
+            **({"embedder": config_doc["embedder"]} if isinstance(config_doc.get("embedder"), Mapping) else {}),
+            "device": {"kind": "cpu"},
         },
         "performance_plan": {
             "treatments": ["fresh_store", "fresh_store_warm_query"],
-            "repetitions": 20,
+            "repetitions": 1,
             "warmup_rule": "fresh_store_warm_query performs one unmeasured query after fresh ingest",
             "aggregation_rule": "descriptive_empirical_order_statistics",
             "invalid_result_policy": "typed_cell",

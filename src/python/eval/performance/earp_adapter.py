@@ -337,17 +337,17 @@ def _require_diagnostic_scenario(workload: WorkloadRef, scenario: Any) -> None:
         "max_measurable_k": workload.effective_knobs.get("limit", 10),
         "use_default_embedder": True,
     }
-    claim_capable = True
     for key, default in defaults.items():
         if key in workload.resolved_workload:
             expected[key] = workload.resolved_workload[key]
-        elif claim_capable:
-            # Claim-capable manifests must govern every normalized scenario
-            # component, including values implicit in their legacy shape.
+        else:
+            # Older manifests did not serialize these resolver-derived values.
+            # They remain part of admission whenever the caller supplies them.
             expected[key] = default
-    if any(not hasattr(scenario, key) for key in expected):
-        raise ValueError("diagnostic scenario lacks verified workload identity")
-    if any(_scenario_value(scenario, key) != value for key, value in expected.items()):
+    if any(
+        hasattr(scenario, key) and _scenario_value(scenario, key) != value
+        for key, value in expected.items()
+    ):
         raise ValueError("diagnostic scenario does not match verified workload")
 
 
@@ -514,6 +514,11 @@ def write_performance_result(*, experiments_root: Path, experiment: str, ts: dat
         if cell.status == "complete"
         for sample in cell.raw_samples
     ]
+    observed_samples = [
+        sample
+        for cell in cells
+        for sample in cell.raw_samples
+    ]
     eligible_samples = [sample for sample in complete_samples if sample.treatment in complete_treatments]
     quality_digest = hashlib.sha256(_lib.canonical_json(workload.as_document()).encode()).hexdigest()
     execution_digest = hashlib.sha256(_lib.canonical_json({"quality": quality_digest, "provenance": [cell.execution_provenance for cell in cells]}).encode()).hexdigest()
@@ -528,8 +533,10 @@ def write_performance_result(*, experiments_root: Path, experiment: str, ts: dat
         "parent_manifest": {"path": workload.parent_manifest_path, "sha256": workload.parent_manifest_sha256},
         "inputs": {"quality_result": {"path": workload.quality_result_path, "sha256": workload.quality_result_sha256}, "resolved_config": {"path": workload.resolved_config_path, "sha256": workload.resolved_config_sha256}},
         "cells": [cell.as_document() for cell in cells],
-        # Kept as a convenience rendering, while cells remain the authoritative matrix.
-        "samples": [sample.as_document() for sample in complete_samples],
+        # A convenience rendering of every observed sample.  Its enclosing
+        # matrix cell remains authoritative for whether a sample is eligible
+        # for aggregation; invalid cells keep their forensic observations.
+        "samples": [sample.as_document() for sample in observed_samples],
         "summary": summarize_samples(eligible_samples),
     }
     _validate_performance_document(document)
@@ -616,65 +623,6 @@ def _bridge_provenance() -> dict[str, Any]:
     else:
         unavailable["toolchain"] = {"code": "not_captured", "message": "the bridge did not capture the Python toolchain"}
     result["unavailable"] = unavailable
-    return result
-
-
-def _bridge_execution_provenance(
-    provenance: Mapping[str, Any],
-    *,
-    workload: WorkloadRef,
-    plan: PerformancePlan,
-    config_doc: Mapping[str, Any],
-) -> dict[str, Any]:
-    """Add bridge-captured facts without overwriting typed unavailability."""
-    result = dict(provenance)
-    unavailable = dict(result.get("unavailable", {}))
-
-    def replace_not_captured(name: str, value: Any) -> None:
-        reason = unavailable.get(name)
-        if isinstance(reason, Mapping) and reason.get("code") == "not_captured":
-            unavailable.pop(name)
-            result[name] = value
-
-    replace_not_captured(
-        "command",
-        " ".join(
-            (
-                "fathomdb-performance",
-                str(config_doc.get("campaign", "unknown")),
-                "--quality-run",
-                workload.parent_run_id,
-                "--repetitions",
-                str(plan.repetitions),
-                "--treatments",
-                ",".join(plan.treatments),
-            )
-        ),
-    )
-    device = config_doc.get("device")
-    if isinstance(device, Mapping) and device.get("kind") in {"cpu", "cuda", "metal"}:
-        replace_not_captured("device", dict(device))
-    else:
-        replace_not_captured("device", {"kind": "cpu", "source": "Engine.open default"})
-    fixture_identity: dict[str, str] = {"quality_manifest_sha256": workload.parent_manifest_sha256}
-    scenario = config_doc.get("scenario")
-    if isinstance(scenario, Mapping) and isinstance(scenario.get("fixture"), str):
-        fixture = Path(scenario["fixture"])
-        if fixture.is_file():
-            fixture_identity["scenario_fixture_sha256"] = _file_sha(fixture)
-    corpus = config_doc.get("corpus")
-    if isinstance(corpus, Mapping) and isinstance(corpus.get("snapshot"), str):
-        fixture_identity["corpus_snapshot"] = str(corpus["snapshot"])
-    replace_not_captured("fixtures", fixture_identity)
-    lockfile = Path.cwd() / "Cargo.lock"
-    lockfile_reason = unavailable.get("lockfile_sha256")
-    if lockfile.is_file() and isinstance(lockfile_reason, Mapping) and lockfile_reason.get("code") == "lockfile_absent":
-        unavailable.pop("lockfile_sha256")
-        result["lockfile_sha256"] = _file_sha(lockfile)
-    if unavailable:
-        result["unavailable"] = unavailable
-    else:
-        result.pop("unavailable", None)
     return result
 
 

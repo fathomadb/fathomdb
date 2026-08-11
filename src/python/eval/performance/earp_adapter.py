@@ -337,7 +337,7 @@ def _require_diagnostic_scenario(workload: WorkloadRef, scenario: Any) -> None:
         "max_measurable_k": workload.effective_knobs.get("limit", 10),
         "use_default_embedder": True,
     }
-    claim_capable = workload.predeclared_plan.get("kind") != "descriptive_nonclaim"
+    claim_capable = True
     for key, default in defaults.items():
         if key in workload.resolved_workload:
             expected[key] = workload.resolved_workload[key]
@@ -346,7 +346,7 @@ def _require_diagnostic_scenario(workload: WorkloadRef, scenario: Any) -> None:
             # component, including values implicit in their legacy shape.
             expected[key] = default
     if any(not hasattr(scenario, key) for key in expected):
-        return
+        raise ValueError("diagnostic scenario lacks verified workload identity")
     if any(_scenario_value(scenario, key) != value for key, value in expected.items()):
         raise ValueError("diagnostic scenario does not match verified workload")
 
@@ -696,9 +696,7 @@ def run_diagnostic_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, 
     config_doc = _admit_canonical_config(workload, config_doc)
     _require_diagnostic_scenario(workload, scenario)
     _require_predeclared_plan(workload, plan)
-    provenance = _bridge_execution_provenance(
-        _bridge_provenance(), workload=workload, plan=plan, config_doc=config_doc
-    )
+    provenance = _bridge_provenance()
     def execute(_workload: WorkloadRef, treatment: str, repetition: int) -> PerformanceCell:
         result = run_diagnostic(scenario=scenario, config_doc=config_doc, experiments_root=experiments_root, experiment=experiment, ts=ts, persist=False, warmup_query=treatment == "fresh_store_warm_query")
         raw = (_sample_from_observed(treatment, repetition, result.observed_cost, treatment == "fresh_store_warm_query"),) if result.observed_cost else ()
@@ -741,9 +739,7 @@ def run_characterization_repetitions(*, workload: WorkloadRef, plan: Performance
     for key, value in actual.items():
         if key not in expected or expected[key] != value:
             raise ValueError("characterization inputs do not match verified workload")
-    provenance = _bridge_execution_provenance(
-        _bridge_provenance(), workload=workload, plan=plan, config_doc=config_doc
-    )
+    provenance = _bridge_provenance()
     def execute(_workload: WorkloadRef, treatment: str, repetition: int) -> PerformanceCell:
         arm = execute_arm(scenario=scenario, data_root=Path(str(corpus.get("data_root") or "")), snapshot_path=Path(str(corpus.get("snapshot") or "")), gold_path=Path(str(gold.get("path") or "")), gold_sha256=str(gold.get("sha256") or ""), corpus_hash=str(gold.get("corpus_hash") or ""), qrels_version=str(gold.get("qrels_version") or ""), warmup_queries=treatment == "fresh_store_warm_query")
         raw = (_sample_from_observed(treatment, repetition, arm.observed_cost, treatment == "fresh_store_warm_query"),) if arm.observed_cost else ()

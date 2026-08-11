@@ -32,27 +32,29 @@ def test_runner_executes_every_declared_cell_once() -> None:
 
     samples = run_repetitions(
         workload=_workload(),
-        plan=PerformancePlan(repetitions=2, treatments=("fresh_store", "warm")),
+        plan=PerformancePlan(
+            repetitions=2, treatments=("fresh_store", "fresh_store_warm_query")
+        ),
         execute=execute,
     )
 
     assert calls == [
         ("fresh_store", 0, "a" * 64),
         ("fresh_store", 1, "a" * 64),
-        ("warm", 0, "a" * 64),
-        ("warm", 1, "a" * 64),
+        ("fresh_store_warm_query", 0, "a" * 64),
+        ("fresh_store_warm_query", 1, "a" * 64),
     ]
     assert [(sample.treatment, sample.repetition) for sample in samples] == [
         ("fresh_store", 0),
         ("fresh_store", 1),
-        ("warm", 0),
-        ("warm", 1),
+        ("fresh_store_warm_query", 0),
+        ("fresh_store_warm_query", 1),
     ]
 
 
 def test_runner_rejects_an_executor_that_changes_the_declared_cell() -> None:
     def execute(_workload: WorkloadRef, _treatment: str, _repetition: int) -> RunSample:
-        return RunSample("warm", 0, {"query": 1.0}, {})
+        return RunSample("fresh_store_warm_query", 0, {"query": 1.0}, {})
 
     with pytest.raises(ValueError, match="declared cell"):
         run_repetitions(

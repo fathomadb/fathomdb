@@ -52,7 +52,9 @@ def test_diagnostic_performance_writes_linked_independent_artifact(tmp_path: Pat
             query_call=resolution.scenario.query_call,
             effective_knobs={"limit": 10},
         ),
-        plan=PerformancePlan(repetitions=1, treatments=("fresh_store", "warm")),
+        plan=PerformancePlan(
+            repetitions=1, treatments=("fresh_store", "fresh_store_warm_query")
+        ),
         scenario=resolution.scenario,
         config_doc=config,
         experiments_root=tmp_path / "experiments",

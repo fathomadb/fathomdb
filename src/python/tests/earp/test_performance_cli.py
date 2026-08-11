@@ -58,6 +58,8 @@ def test_cli_consumes_quality_run_without_retyping_workload(tmp_path: Path, caps
             quality.run_id,
             "--repetitions",
             "1",
+            "--treatments",
+            "fresh_store,fresh_store_warm_query",
         ]
     )
 
@@ -86,6 +88,8 @@ def test_cli_repeats_a_characterization_quality_run(
             quality.run_id,
             "--repetitions",
             "1",
+            "--treatments",
+            "fresh_store,fresh_store_warm_query",
         ]
     )
 

@@ -60,13 +60,15 @@ def test_bridge_repeats_the_same_characterization_workload(tmp_path: Path) -> No
 
     samples = run_characterization_repetitions(
         workload=workload,
-        plan=PerformancePlan(repetitions=1, treatments=("fresh_store", "warm")),
+        plan=PerformancePlan(
+            repetitions=1, treatments=("fresh_store", "fresh_store_warm_query")
+        ),
         scenario=scenario,
         config_doc=config,
     )
 
     assert [(sample.treatment, sample.repetition) for sample in samples] == [
         ("fresh_store", 0),
-        ("warm", 0),
+        ("fresh_store_warm_query", 0),
     ]
     assert all({"open", "write", "query"} <= set(sample.phases_ms) for sample in samples)

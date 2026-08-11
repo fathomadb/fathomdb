@@ -67,7 +67,9 @@ def test_characterization_performance_writes_only_the_linked_artifact(
             query_call="Engine.search_text_only",
             effective_knobs={"limit": 10},
         ),
-        plan=PerformancePlan(repetitions=1, treatments=("fresh_store", "warm")),
+        plan=PerformancePlan(
+            repetitions=1, treatments=("fresh_store", "fresh_store_warm_query")
+        ),
         scenario=scenario,
         config_doc=config,
         experiments_root=tmp_path / "experiments",

@@ -61,16 +61,23 @@ def test_repeated_performance_artifact_links_to_exact_quality_workload(tmp_path:
         query_call="Engine.search",
         effective_knobs={"limit": 10, "rerank_depth": 20},
     )
-    plan = PerformancePlan(repetitions=2, treatments=("fresh_store", "warm"))
+    plan = PerformancePlan(
+        repetitions=2, treatments=("fresh_store", "fresh_store_warm_query")
+    )
     samples = (
         RunSample("fresh_store", 0, {"query": 4.0}, {"results": 1}),
         RunSample("fresh_store", 1, {"query": 6.0}, {"results": 1}),
-        RunSample("warm", 0, {"query": 2.0}, {"results": 1}),
-        RunSample("warm", 1, {"query": 3.0}, {"results": 1}),
+        RunSample("fresh_store_warm_query", 0, {"query": 2.0}, {"results": 1}),
+        RunSample("fresh_store_warm_query", 1, {"query": 3.0}, {"results": 1}),
     )
     summary = summarize_samples(samples)
-    assert summary["fresh_store"]["query"]["p95_ms"] == 6.0
-    assert summary["warm"]["query"]["p50_ms"] == 2.5
+    for treatment in plan.treatments:
+        assert summary[treatment]["query"] == {
+            "n": 2,
+            "min_ms": 2.0 if treatment.endswith("warm_query") else 4.0,
+            "max_ms": 3.0 if treatment.endswith("warm_query") else 6.0,
+            "mean_ms": 2.5 if treatment.endswith("warm_query") else 5.0,
+        }
 
     result = write_performance_result(
         experiments_root=tmp_path / "experiments",
@@ -115,7 +122,34 @@ def test_performance_result_stages_sidecar_before_index_append(
             query_call="Engine.search_text_only",
             effective_knobs={"limit": 10},
         ),
-        plan=PerformancePlan(repetitions=1, treatments=("warm",)),
-        samples=(RunSample("warm", 0, {"query": 1.0}, {"results": 1}),),
+        plan=PerformancePlan(repetitions=1, treatments=("fresh_store",)),
+        samples=(RunSample("fresh_store", 0, {"query": 1.0}, {"results": 1}),),
     )
     assert observed == {"sidecar": True}
+
+
+def test_summary_percentiles_require_the_declared_completed_sample_count() -> None:
+    """Percentile fields are eligibility-gated, never decorative labels."""
+    def samples(count: int) -> tuple[RunSample, ...]:
+        return tuple(
+            RunSample("fresh_store", index, {"query": float(index + 1)}, {"results": 1})
+            for index in range(count)
+        )
+
+    under_twenty = summarize_samples(samples(19))["fresh_store"]["query"]
+    assert set(under_twenty) == {"n", "min_ms", "max_ms", "mean_ms"}
+
+    descriptive = summarize_samples(samples(20))["fresh_store"]["query"]
+    assert set(descriptive) == {
+        "n",
+        "min_ms",
+        "max_ms",
+        "mean_ms",
+        "p50_ms",
+        "p95_ms",
+        "aggregation_scope",
+    }
+    assert descriptive["aggregation_scope"] == "descriptive_empirical_order_statistic"
+
+    hundred = summarize_samples(samples(100))["fresh_store"]["query"]
+    assert "p99_ms" in hundred

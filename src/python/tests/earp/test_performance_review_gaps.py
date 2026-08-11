@@ -175,10 +175,11 @@ def test_load_and_write_reject_tampered_or_forged_workload_reference(tmp_path: P
 def test_executor_exception_is_persisted_with_real_or_typed_unavailable_provenance(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from eval.performance import earp_adapter
 
-    run_id, _ = _quality_graph(tmp_path / "experiments")
-    workload = earp_adapter.load_earp_workload(tmp_path / "experiments", run_id)
+    root = tmp_path / "experiments"
+    run_id, manifest = _quality_graph(root)
+    workload = earp_adapter.load_earp_workload(root, run_id)
     monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **_: (_ for _ in ()).throw(TimeoutError("boom")))
-    cells = earp_adapter.run_diagnostic_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(20, ("fresh_store",)), scenario=SimpleNamespace(config_sha256=SHA, query_call="Engine.search"), config_doc={}, experiments_root=tmp_path / "experiments", experiment="review", ts=TS)
+    cells = earp_adapter.run_diagnostic_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(20, ("fresh_store",)), scenario=_matching_scenario(manifest), config_doc=json.loads(manifest["resolved_config"]["canonical_json"]), experiments_root=root, experiment="review", ts=TS)
     assert cells[0].status == "invalid"
     assert cells[0].invalidity["code"] == "timeout"
     _assert_total_provenance(cells[0].execution_provenance)
@@ -644,7 +645,7 @@ def test_unavailable_bridge_provenance_makes_raw_sample_cell_invalid_not_complet
     unavailable = {name: {"code": "not_observable", "message": f"{name} unavailable"} for name in ("command", "device", "fixtures")}
     monkeypatch.setattr(earp_adapter, "_bridge_provenance", lambda: {"candidate_sha": CANDIDATE, "clean": True, "lockfile_sha256": SHA, "toolchain": {"python": "3"}, "unavailable": unavailable})
     monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **_: SimpleNamespace(verdict=RunVerdict.COMPLETE, observed_cost={"phases_ms": {"open": 1.0}, "counts": {"queries": 1}}, failure=None, blockers=()))
-    cells = earp_adapter.run_diagnostic_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(20, ("fresh_store",)), scenario=SimpleNamespace(config_sha256=SHA, query_call="Engine.search"), config_doc=json.loads(manifest["resolved_config"]["canonical_json"]), experiments_root=root, experiment="review", ts=TS)
+    cells = earp_adapter.run_diagnostic_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(20, ("fresh_store",)), scenario=_matching_scenario(manifest), config_doc=json.loads(manifest["resolved_config"]["canonical_json"]), experiments_root=root, experiment="review", ts=TS)
     assert cells[0].status == "invalid"
     assert cells[0].raw_samples
     assert cells[0].execution_provenance["unavailable"] == unavailable
@@ -698,7 +699,7 @@ def test_direct_programmatic_bridges_preserve_unavailable_operational_provenance
     monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **_: SimpleNamespace(verdict=RunVerdict.COMPLETE, observed_cost={"phases_ms": {"open": 1.0}, "counts": {"queries": 1}}, failure=None, blockers=()))
     monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **_: SimpleNamespace(blocker=None, observed_cost={"phases_ms": {"open": 1.0}, "counts": {"queries": 1}}))
     workload = earp_adapter.load_earp_workload(root, run_id)
-    scenario = SimpleNamespace(config_sha256=SHA, query_call="Engine.search", query_params=manifest["workload"]["effective_knobs"])
+    scenario = _matching_scenario(manifest)
     plan = earp_adapter.PerformancePlan(20, ("fresh_store",))
     config = json.loads(manifest["resolved_config"]["canonical_json"])
     if bridge == "diagnostic":

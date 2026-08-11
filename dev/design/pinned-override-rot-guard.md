@@ -63,7 +63,9 @@ come, so a pin outlives its reason and silently holds the tree back.
   `git+…?rev=…#…` `Cargo.lock` source. A missing member, split revision, or
   lock-source disagreement fails. Any other Cargo `[patch]`, `[replace]`, or
   direct Git dependency fails as unsupported rather than being interpreted by
-  a general package-ID parser.
+  a general package-ID parser. Repository `.cargo/config.toml` and
+  `.cargo/config` are also fail-closed: any `[patch]` table or an unparseable
+  candidate fails, while ordinary non-patch configuration remains valid.
 
 ## Design constraints
 

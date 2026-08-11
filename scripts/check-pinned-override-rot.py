@@ -272,6 +272,27 @@ def advisory_index(advisories: list[dict[str, Any]]) -> dict[str, list[dict[str,
     return indexed
 
 
+def cargo_config_failures(root: Path) -> list[str]:
+    """Reject repository Cargo config patches without claiming to model their keys."""
+    try:
+        import tomllib
+    except ImportError as exc:  # pragma: no cover - supported CI Python has it
+        raise Unverified("python3.11+ tomllib is required to inspect Cargo config") from exc
+    failures: list[str] = []
+    for relative in (Path(".cargo/config.toml"), Path(".cargo/config")):
+        path = root / relative
+        if not path.is_file():
+            continue
+        try:
+            parsed = tomllib.loads(path.read_text(encoding="utf-8"))
+        except (OSError, tomllib.TOMLDecodeError):
+            failures.append(f"unparseable Cargo config {relative}")
+            continue
+        if parsed.get("patch") is not None:
+            failures.append(f"ungoverned Cargo config patch {relative}")
+    return failures
+
+
 def cargo_governed_pins(root: Path) -> list[dict[str, str | None]]:
     """Identify every Cargo override source so unsupported forms cannot hide."""
     try:
@@ -375,7 +396,7 @@ def cargo_lock_sources(lockfile_path: Path) -> dict[tuple[str, str], set[str]]:
 def validate_cargo_pins(root: Path) -> list[str]:
     """Allow exactly FathomDB's root Candle patch cohort and nothing else."""
     pins = cargo_governed_pins(root)
-    failures: list[str] = []
+    failures = cargo_config_failures(root)
     expected = {(CANDLE_MANIFEST, CANDLE_MECHANISM, package) for package in CANDLE_PACKAGES}
     found: set[tuple[str, str, str]] = set()
     for pin in pins:

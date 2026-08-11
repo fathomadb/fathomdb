@@ -393,6 +393,18 @@ lock_packages = "\n".join(
     for package in packages
 )
 (root / "Cargo.lock").write_text("version = 4\n\n" + lock_packages, encoding="utf-8")
+if mode == "config-patch":
+    config_dir = root / ".cargo"
+    config_dir.mkdir()
+    (config_dir / "config.toml").write_text("[patch.crates-io]\n", encoding="utf-8")
+elif mode == "config-unparseable":
+    config_dir = root / ".cargo"
+    config_dir.mkdir()
+    (config_dir / "config").write_text("not = [valid", encoding="utf-8")
+elif mode == "config-ordinary":
+    config_dir = root / ".cargo"
+    config_dir.mkdir()
+    (config_dir / "config.toml").write_text("[build]\ntarget-dir = \"target\"\n", encoding="utf-8")
 PY
   printf '%s' "$fixture"
 }
@@ -450,6 +462,26 @@ if [ "$RC" -ne 1 ]; then
 fi
 expect_failure 'unsupported Cargo override/git source Cargo.toml:workspace.dependencies.other' \
   'direct Cargo Git dependency is rejected'
+
+make_and_run_candle_fixture config-ordinary config-ordinary
+if [ "$RC" -ne 0 ]; then
+  fail "ordinary Cargo config must remain allowed, got rc=$RC output=$OUT"
+fi
+pass 'ordinary Cargo config remains allowed'
+
+make_and_run_candle_fixture config-patch config-patch
+if [ "$RC" -ne 1 ]; then
+  fail "Cargo config patch must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'ungoverned Cargo config patch .cargo/config.toml' \
+  'Cargo config patch is rejected'
+
+make_and_run_candle_fixture config-unparseable config-unparseable
+if [ "$RC" -ne 1 ]; then
+  fail "unparseable Cargo config must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'unparseable Cargo config .cargo/config' \
+  'unparseable Cargo config is rejected'
 
 # The real tree is the regression half: after removing obsolete root overrides,
 # the snapshot remains parseable and the gate stays clean without a network.

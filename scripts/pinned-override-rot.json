@@ -9,7 +9,7 @@
   },
   "scope": {
     "npm": "All root package.json overrides are governed. Each must have a matching npm_overrides record with a rationale and a complete per-pin advisory_ids mapping. R2 deliberately fails closed for any live override: npm's lockfile records the override result, not a mechanically reproducible no-override resolution.",
-    "cargo": "This checker does not implement a general Cargo override grammar. The only supported Cargo exception is the root [patch.crates-io] Candle 0.10.2 cohort declared by cargo_candle_exception. Any other [patch], [replace], or direct Git dependency hard-fails as unsupported; adding one requires an explicit guard redesign.",
+    "cargo": "This checker does not implement a general Cargo override grammar. The only supported Cargo exception is the root [patch.crates-io] Candle 0.10.2 cohort declared by cargo_candle_exception. Any other [patch], [replace], or direct Git dependency hard-fails as unsupported. Root .cargo/config.toml and .cargo/config are also parsed: any [patch] table or unparseable candidate hard-fails; ordinary non-patch config remains allowed. Adding a new Cargo exception requires an explicit guard redesign.",
     "governed_commit_pins": "scripts/governed-surface-pin.json pins repository contract content, not an external dependency version. Its commit/hash integrity is enforced by scripts/check-governed-surface-pin.sh; it has no package-advisory semantics and is explicitly not reinterpreted here."
   },
   "npm_overrides": [],

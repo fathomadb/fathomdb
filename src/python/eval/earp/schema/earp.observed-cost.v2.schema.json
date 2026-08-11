@@ -33,7 +33,7 @@
     "arms": {
       "type": "object", "additionalProperties": false,
       "required": ["schema_version", "scope", "evidence_family_id", "config_sha256", "arms"],
-      "properties": {"schema_version": {"const": "earp.observed-cost.v2"}, "scope": {"const": "one_run_observation"}, "evidence_family_id": {"type": "string"}, "config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "arms": {"type": "object", "minItems": 1, "additionalProperties": {"$ref": "#/$defs/flat"}}}
+      "properties": {"schema_version": {"const": "earp.observed-cost.v2"}, "scope": {"const": "one_run_observation"}, "evidence_family_id": {"type": "string"}, "config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "arms": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/flat"}}}
     }
   }
 }

@@ -313,8 +313,6 @@ def _require_predeclared_plan(workload: WorkloadRef, plan: PerformancePlan) -> N
     declared = workload.predeclared_plan
     if not declared:
         return
-    if declared.get("kind") == "descriptive_nonclaim":
-        return
     if plan.repetitions != declared.get("repetitions") or list(plan.treatments) != declared.get("treatments"):
         raise ValueError("plan does not match the predeclared manifest plan")
 
@@ -574,10 +572,15 @@ def _bridge_provenance() -> dict[str, Any]:
     except Exception:
         code = {}
     env = _lib.env_info()
-    unavailable: dict[str, dict[str, str]] = {}
-    result: dict[str, Any] = {"command": "fathomdb-performance", "toolchain": {"python": env.get("python", "")}, "device": {"kind": "cpu"}, "fixtures": {}}
-    if code.get("git_sha"):
-        result["candidate_sha"] = code["git_sha"]
+    unavailable: dict[str, dict[str, str]] = {
+        "command": {"code": "not_captured", "message": "the bridge invocation command was not captured"},
+        "device": {"code": "not_captured", "message": "the bridge did not capture the execution device"},
+        "fixtures": {"code": "not_captured", "message": "the bridge did not capture fixture identities"},
+    }
+    result: dict[str, Any] = {}
+    candidate = code.get("git_sha")
+    if isinstance(candidate, str) and candidate and candidate not in {"unknown", "unavailable-outside-git"}:
+        result["candidate_sha"] = candidate
         result["clean"] = not bool(code.get("dirty"))
     else:
         unavailable["candidate_sha"] = {"code": "git_unavailable", "message": "git provenance is unavailable"}
@@ -586,8 +589,12 @@ def _bridge_provenance() -> dict[str, Any]:
         result["lockfile_sha256"] = env["lockfile_sha256"]
     else:
         unavailable["lockfile_sha256"] = {"code": "lockfile_absent", "message": "no lockfile digest is available"}
-    if unavailable:
-        result["unavailable"] = unavailable
+    python = env.get("python")
+    if isinstance(python, str) and python:
+        result["toolchain"] = {"python": python}
+    else:
+        unavailable["toolchain"] = {"code": "not_captured", "message": "the bridge did not capture the Python toolchain"}
+    result["unavailable"] = unavailable
     return result
 
 

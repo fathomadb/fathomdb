@@ -38,6 +38,7 @@ _INTERPRETED = frozenset(
         "minimum",
         "maximum",
         "minItems",
+        "minProperties",
         "uniqueItems",
         "pattern",
         # Added for the sidecar schemas. The result schema puts nearly all its
@@ -223,6 +224,10 @@ def validate(
                 findings.extend(validate(item, item_schema, f"{path}[{index}]", root, _seen))
 
     if isinstance(value, dict):
+        if "minProperties" in schema and len(value) < schema["minProperties"]:
+            findings.append(
+                Finding("invalid", here, f"needs >= {schema['minProperties']} properties")
+            )
         properties = schema.get("properties", {})
         for name in schema.get("required", []):
             if name not in value:

@@ -54,6 +54,7 @@ CUDA_RUSTUP_INIT_URL = (
     "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-unknown-linux-gnu/rustup-init"
 )
 CUDA_RUSTUP_INIT_SHA256 = "4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10"
+CUDA_RUSTUP_TOOLCHAIN = "1.95.0-x86_64-unknown-linux-gnu"
 CUDA_MANYLINUX_GCC_TOOLSET = "gcc-toolset-13"
 CUDA_MANYLINUX_GCC_VERSION = "13.3.1"
 CUDA_MANYLINUX_CC = "/opt/rh/gcc-toolset-13/root/usr/bin/gcc"
@@ -179,6 +180,7 @@ def main() -> None:
         f"CUDA_MANYLINUX_BASE_IMAGE='{CUDA_MANYLINUX_BASE_IMAGE}'",
         f"CUDA_TOOLKIT_IMAGE='{CUDA_TOOLKIT_IMAGE}'",
         "CUDA_RUST_VERSION='1.95.0'",
+        f"CUDA_RUSTUP_TOOLCHAIN='{CUDA_RUSTUP_TOOLCHAIN}'",
         "CUDA_MATURIN_VERSION='1.14.1'",
         f"CUDA_MANYLINUX_GCC_TOOLSET='{CUDA_MANYLINUX_GCC_TOOLSET}'",
         f"CUDA_MANYLINUX_GCC_VERSION='{CUDA_MANYLINUX_GCC_VERSION}'",
@@ -229,6 +231,11 @@ def main() -> None:
         "CXX=/opt/rh/gcc-toolset-13/root/usr/bin/g++",
         "CUDAHOSTCXX=/opt/rh/gcc-toolset-13/root/usr/bin/g++",
         "NVCC_CCBIN=/opt/rh/gcc-toolset-13/root/usr/bin/g++",
+        "CARGO_HOME=/opt/fathomdb/cargo",
+        "RUSTUP_HOME=/opt/fathomdb/rustup",
+        "/opt/fathomdb/cargo/bin",
+        'install -d -m 0755 "$CARGO_HOME" "$RUSTUP_HOME"',
+        'chmod -R a+rX "$CARGO_HOME" "$RUSTUP_HOME"',
         '"$CC" --version | grep -F "$CUDA_GCC_VERSION"',
         '"$CXX" --version | grep -F "$CUDA_GCC_VERSION"',
         'test "$CUDAHOSTCXX" = "$CXX"',
@@ -310,6 +317,12 @@ def main() -> None:
     require_fragment(napi_build, 'grep -F "$CUDA_NAPI_HOST_NVCC_VERSION"', "CUDA N-API build wrapper")
     preflight = read_text(CUDA_PREFLIGHT)
     for fragment in (
+        'CONTAINER_UID="$(id -u)"',
+        'CONTAINER_GID="$(id -g)"',
+        'CONTAINER_USER="$CONTAINER_UID:$CONTAINER_GID"',
+    ):
+        require_fragment(preflight, fragment, "CUDA preflight container ownership")
+    for fragment in (
         '"$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin/nvcc" --version',
         'CC="$CUDA_NAPI_HOST_CC" CXX="$CUDA_NAPI_HOST_CXX"',
         'CUDAHOSTCXX="$CUDA_NAPI_HOST_CXX" NVCC_CCBIN="$CUDA_NAPI_HOST_CXX"',
@@ -325,6 +338,8 @@ def main() -> None:
         'rustc --version',
         'grep -F "maturin $CUDA_MATURIN_VERSION"',
         'grep -F "rustc $CUDA_RUST_VERSION"',
+        'test "$RUSTUP_TOOLCHAIN" = "$CUDA_RUSTUP_TOOLCHAIN"',
+        'test ! -w /opt/fathomdb/rustup',
         'CUDACXX=/usr/local/cuda-12.6/bin/nvcc',
         'CUDA_PATH=/usr/local/cuda-12.6',
         '-e "CC=$CUDA_MANYLINUX_CC"',
@@ -338,7 +353,7 @@ def main() -> None:
         'test "$NVCC_CCBIN" = "$CUDA_MANYLINUX_CXX"',
         '"$CC" --version | grep -F "$CUDA_MANYLINUX_GCC_VERSION"',
         '"$CXX" --version | grep -F "$CUDA_MANYLINUX_GCC_VERSION"',
-        '--mount "type=bind,src=$REPO_ROOT,dst=/workspace"',
+        '--mount "type=bind,src=$REPO_ROOT,dst=/workspace,readonly"',
         'manylinux-build.txt',
         'CUDA_DRIVERLESS_PYTHON_IMAGE',
         'CUDA_DRIVERLESS_NODE_IMAGE',
@@ -370,9 +385,28 @@ def main() -> None:
         'ldd "$NAPI_BINARY" || true',
         'ldd "$PYTHON_EXTENSION" || true',
         'auditwheel show "$WHEEL"',
+        '--mount "type=bind,src=$REPO_ROOT,dst=/workspace"',
     ):
         if forbidden in preflight:
             fail(f"CUDA preflight must not contain {forbidden!r}")
+    workspace_build = re.search(
+        r'docker run --rm \\\n(?P<options>.*?--mount "type=bind,src=\$REPO_ROOT,dst=/workspace,readonly".*?)\n'
+        r'  "\$CUDA_MANYLINUX_IMAGE" \\\n  sh -ceu',
+        preflight,
+        re.DOTALL,
+    )
+    if workspace_build is None:
+        fail("CUDA preflight must have exactly one read-only workspace CUDA wheel build")
+    for fragment in (
+        '--user "$CONTAINER_USER"',
+        "-e HOME=/tmp",
+        "-e CARGO_HOME=/tmp/fathomdb-cargo",
+        "-e RUSTUP_HOME=/opt/fathomdb/rustup",
+        "-e CUDA_RUSTUP_TOOLCHAIN",
+        '-e "RUSTUP_TOOLCHAIN=$CUDA_RUSTUP_TOOLCHAIN"',
+        "-e CARGO_TARGET_DIR=/tmp/fathomdb-cargo-target",
+    ):
+        require_fragment(workspace_build.group("options"), fragment, "CUDA workspace wheel build")
     for path in (
         CUDA_CONTRACT,
         CUDA_NAPI_BUILD,

@@ -10,6 +10,9 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 WITNESS_DIR="$1"
+CONTAINER_UID="$(id -u)"
+CONTAINER_GID="$(id -g)"
+CONTAINER_USER="$CONTAINER_UID:$CONTAINER_GID"
 # shellcheck source=cuda-artifact-contract.sh
 . "$SCRIPT_DIR/cuda-artifact-contract.sh"
 # shellcheck source=cuda-image-attestation.sh
@@ -93,10 +96,19 @@ if [ -z "$NAPI_BINARY" ]; then
 fi
 
 printf 'cuda-preflight: build Linux CUDA Python wheel\n'
+# The runner's UID/GID owns the Actions checkout. Keep every bind-mounted
+# output owned by that account so the next actions/checkout can clean it.
 docker run --rm \
-  --mount "type=bind,src=$REPO_ROOT,dst=/workspace" \
+  --user "$CONTAINER_USER" \
+  --mount "type=bind,src=$REPO_ROOT,dst=/workspace,readonly" \
   --mount "type=bind,src=$WITNESS_DIR,dst=/witness" \
   --workdir /workspace/src/python \
+  -e HOME=/tmp \
+  -e CARGO_HOME=/tmp/fathomdb-cargo \
+  -e RUSTUP_HOME=/opt/fathomdb/rustup \
+  -e CUDA_RUSTUP_TOOLCHAIN \
+  -e "RUSTUP_TOOLCHAIN=$CUDA_RUSTUP_TOOLCHAIN" \
+  -e CARGO_TARGET_DIR=/tmp/fathomdb-cargo-target \
   -e CUDA_PATH=/usr/local/cuda-12.6 \
   -e CUDACXX=/usr/local/cuda-12.6/bin/nvcc \
   -e CUDA_COMPUTE_CAP \
@@ -116,6 +128,8 @@ docker run --rm \
     command -v auditwheel
     maturin --version | grep -F "maturin $CUDA_MATURIN_VERSION"
     rustc --version | grep -F "rustc $CUDA_RUST_VERSION"
+    test "$RUSTUP_TOOLCHAIN" = "$CUDA_RUSTUP_TOOLCHAIN"
+    test ! -w /opt/fathomdb/rustup
     test "$CC" = "$CUDA_MANYLINUX_CC"
     test "$CXX" = "$CUDA_MANYLINUX_CXX"
     test "$CUDAHOSTCXX" = "$CUDA_MANYLINUX_CXX"

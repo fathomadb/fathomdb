@@ -666,3 +666,52 @@ def test_observed_cost_v2_provenance_has_actual_or_unavailable_operational_field
     document = Observation("quality", SHA, {}, {}, {}, unavailable={"query_samples": {"code": "not_run", "message": "blocked"}}, provenance={"candidate_sha": CANDIDATE, "clean": True, "toolchain": {"python": "3"}, "device": {"kind": "cpu"}, "unavailable": unavailable}).as_document()
     for name in ("command", "lockfile_sha256", "fixtures"):
         assert name in document["provenance"] or document["provenance"]["unavailable"][name]["code"]
+
+
+def test_direct_bridge_never_fabricates_command_lockfile_or_fixture_provenance(
+    monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eval.performance import earp_adapter
+
+    monkeypatch.setattr(earp_adapter._lib, "git_info", lambda: {"git_sha": CANDIDATE, "dirty": False})
+    monkeypatch.setattr(earp_adapter._lib, "env_info", lambda: {"python": "3.12", "lockfile_sha256": None})
+    provenance = earp_adapter._bridge_provenance()
+    unavailable = provenance.get("unavailable", {})
+    for field in ("command", "lockfile_sha256", "fixtures"):
+        assert field in unavailable
+        assert unavailable[field]["code"] and unavailable[field]["message"]
+    assert provenance.get("command") not in {"fathomdb-performance", "python"}
+    assert provenance.get("lockfile_sha256") not in {"", SHA, "0" * 64}
+    assert provenance.get("fixtures") not in ({}, {"path": "fixture.jsonl"})
+
+
+@pytest.mark.parametrize("bridge", ("diagnostic", "characterization"))
+@pytest.mark.parametrize(
+    "component,value",
+    (("retrieval_mode", "vector"), ("use_default_embedder", False), ("effective_limit", 999)),
+)
+def test_descriptive_bridges_reject_retrieval_scenario_drift_before_execution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, bridge: str, component: str, value: object
+) -> None:
+    from eval.performance import earp_adapter
+
+    root = tmp_path / "experiments"
+    graph = _quality_graph if bridge == "diagnostic" else _characterization_graph
+    run_id, manifest = graph(root)
+    workload = earp_adapter.load_earp_workload(root, run_id)
+    monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **_: pytest.fail("must reject drift before execution"))
+    monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **_: pytest.fail("must reject drift before execution"))
+    scenario_fields = {"config_sha256": SHA, "query_call": "Engine.search", "query_params": dict(manifest["workload"]["effective_knobs"]), "retrieval_mode": "text", "use_default_embedder": True, "max_measurable_k": 10}
+    if component == "effective_limit":
+        scenario_fields["query_params"]["limit"] = value
+        scenario_fields["max_measurable_k"] = value
+    else:
+        scenario_fields[component] = value
+    scenario = SimpleNamespace(**scenario_fields)
+    plan = earp_adapter.PerformancePlan(20, ("fresh_store",))
+    config = json.loads(manifest["resolved_config"]["canonical_json"])
+    with pytest.raises(ValueError, match="scenario|verified workload|input"):
+        if bridge == "diagnostic":
+            earp_adapter.run_diagnostic_repetitions(workload=workload, plan=plan, scenario=scenario, config_doc=config, experiments_root=root, experiment="review", ts=TS)
+        else:
+            earp_adapter.run_characterization_repetitions(workload=workload, plan=plan, scenario=scenario, config_doc=config)

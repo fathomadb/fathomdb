@@ -54,6 +54,7 @@ CUDA_RUSTUP_INIT_URL = (
     "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-unknown-linux-gnu/rustup-init"
 )
 CUDA_RUSTUP_INIT_SHA256 = "4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10"
+CUDA_RUSTUP_TOOLCHAIN = "1.95.0-x86_64-unknown-linux-gnu"
 CUDA_MANYLINUX_GCC_TOOLSET = "gcc-toolset-13"
 CUDA_MANYLINUX_GCC_VERSION = "13.3.1"
 CUDA_MANYLINUX_CC = "/opt/rh/gcc-toolset-13/root/usr/bin/gcc"
@@ -179,6 +180,7 @@ def main() -> None:
         f"CUDA_MANYLINUX_BASE_IMAGE='{CUDA_MANYLINUX_BASE_IMAGE}'",
         f"CUDA_TOOLKIT_IMAGE='{CUDA_TOOLKIT_IMAGE}'",
         "CUDA_RUST_VERSION='1.95.0'",
+        f"CUDA_RUSTUP_TOOLCHAIN='{CUDA_RUSTUP_TOOLCHAIN}'",
         "CUDA_MATURIN_VERSION='1.14.1'",
         f"CUDA_MANYLINUX_GCC_TOOLSET='{CUDA_MANYLINUX_GCC_TOOLSET}'",
         f"CUDA_MANYLINUX_GCC_VERSION='{CUDA_MANYLINUX_GCC_VERSION}'",
@@ -336,6 +338,8 @@ def main() -> None:
         'rustc --version',
         'grep -F "maturin $CUDA_MATURIN_VERSION"',
         'grep -F "rustc $CUDA_RUST_VERSION"',
+        'test "$RUSTUP_TOOLCHAIN" = "$CUDA_RUSTUP_TOOLCHAIN"',
+        'test ! -w /opt/fathomdb/rustup',
         'CUDACXX=/usr/local/cuda-12.6/bin/nvcc',
         'CUDA_PATH=/usr/local/cuda-12.6',
         '-e "CC=$CUDA_MANYLINUX_CC"',
@@ -398,6 +402,8 @@ def main() -> None:
         "-e HOME=/tmp",
         "-e CARGO_HOME=/tmp/fathomdb-cargo",
         "-e RUSTUP_HOME=/opt/fathomdb/rustup",
+        "-e CUDA_RUSTUP_TOOLCHAIN",
+        '-e "RUSTUP_TOOLCHAIN=$CUDA_RUSTUP_TOOLCHAIN"',
         "-e CARGO_TARGET_DIR=/tmp/fathomdb-cargo-target",
     ):
         require_fragment(workspace_build.group("options"), fragment, "CUDA workspace wheel build")

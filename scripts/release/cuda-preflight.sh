@@ -106,6 +106,8 @@ docker run --rm \
   -e HOME=/tmp \
   -e CARGO_HOME=/tmp/fathomdb-cargo \
   -e RUSTUP_HOME=/opt/fathomdb/rustup \
+  -e CUDA_RUSTUP_TOOLCHAIN \
+  -e "RUSTUP_TOOLCHAIN=$CUDA_RUSTUP_TOOLCHAIN" \
   -e CARGO_TARGET_DIR=/tmp/fathomdb-cargo-target \
   -e CUDA_PATH=/usr/local/cuda-12.6 \
   -e CUDACXX=/usr/local/cuda-12.6/bin/nvcc \
@@ -126,6 +128,8 @@ docker run --rm \
     command -v auditwheel
     maturin --version | grep -F "maturin $CUDA_MATURIN_VERSION"
     rustc --version | grep -F "rustc $CUDA_RUST_VERSION"
+    test "$RUSTUP_TOOLCHAIN" = "$CUDA_RUSTUP_TOOLCHAIN"
+    test ! -w /opt/fathomdb/rustup
     test "$CC" = "$CUDA_MANYLINUX_CC"
     test "$CXX" = "$CUDA_MANYLINUX_CXX"
     test "$CUDAHOSTCXX" = "$CUDA_MANYLINUX_CXX"

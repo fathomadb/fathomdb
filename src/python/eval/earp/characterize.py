@@ -13,6 +13,7 @@ import json
 import platform
 import shutil
 import tempfile
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
@@ -24,6 +25,7 @@ from eval.earp.config import ResolvedScenario
 from eval.earp.depth import check_depth
 from eval.earp.gold import GoldQuery, verify_gold
 from eval.earp.metrics import KResult, aggregate, resolve_ndcg, validate_methodology
+from eval.earp.observed_cost import Observation, capture_sqlite_storage
 from eval.earp.runner import PARAM_RENAMES, resolve_call
 from eval.earp.schema.models import (
     ENGINE_DEFAULT_RESULT_LIMIT,
@@ -192,6 +194,7 @@ class ArmExecution:
     per_k: Mapping[int, KResult] = field(default_factory=dict)
     rows: list[dict[str, Any]] = field(default_factory=list)
     queries: tuple[GoldQuery, ...] = ()
+    observed_cost: Mapping[str, Any] = field(default_factory=dict)
 
 
 def execute_arm(
@@ -205,6 +208,7 @@ def execute_arm(
     qrels_version: str,
     manifest_path: Path | None = None,
     retrieve_override: Callable[[str], Any] | None = None,
+    warmup_queries: bool = False,
 ) -> ArmExecution:
     """Run one resolved scenario over a FRESH database and score it.
 
@@ -284,21 +288,28 @@ def execute_arm(
 
     limit = scenario.max_measurable_k
     db_dir = tempfile.mkdtemp(prefix="earp-arm-")
+    database_path = Path(db_dir) / "corpus.db"
     engine = None
     cache: dict[str, list[str]] = {}
     errors: dict[str, str] = {}
     retrievals = 0
+    phases_ms: dict[str, float] = {}
+    counts: dict[str, int] = {"accepted": 0, "queries": 0, "results": 0}
+    storage: dict[str, int] = {}
 
     try:
+        started = time.monotonic()
         engine = Engine.open(
-            str(Path(db_dir) / "corpus.db"),
+            str(database_path),
             use_default_embedder=scenario.use_default_embedder,
         )
+        phases_ms["open"] = _elapsed_ms(started)
         if scenario.projections:
             # BEFORE ingest (the S7 order): the engine backfills
             # same-transaction FTS builds on a fresh, empty database.
             from fathomdb.types import ProjectionSpec  # noqa: PLC0415
 
+            started = time.monotonic()
             engine.configure_projections(
                 [
                     ProjectionSpec(
@@ -310,7 +321,11 @@ def execute_arm(
                     for projection in scenario.projections
                 ]
             )
-        engine.write(items)
+            phases_ms["configure_projections"] = _elapsed_ms(started)
+        started = time.monotonic()
+        receipt = engine.write(items)
+        phases_ms["write"] = _elapsed_ms(started)
+        counts["accepted"] = len(receipt.row_cursors)
 
         params = {
             PARAM_RENAMES.get(key, key): value
@@ -322,9 +337,17 @@ def execute_arm(
             if retrieve_override is not None
             else resolve_call(engine, scenario.query_call)
         )
+        if warmup_queries:
+            for query in gold_set.queries:
+                if retrieve_override is not None:
+                    call(query.query)
+                else:
+                    call(query.query, **params)
         # Retrieve ONCE per query with the arm's resolved public limit.
+        started = time.monotonic()
         for query in gold_set.queries:
             retrievals += 1
+            counts["queries"] += 1
             try:
                 if retrieve_override is not None:
                     result = call(query.query)
@@ -335,14 +358,17 @@ def execute_arm(
                     for hit in result.results[:limit]
                     if getattr(hit.id, "space", None) == "logical"
                 ]
+                counts["results"] += len(result.results)
             except Exception as exc:  # noqa: BLE001 -- typed per-query failure
                 errors[query.query_id] = f"{type(exc).__name__}: {exc}"
+        phases_ms["query"] = _elapsed_ms(started)
     finally:
         if engine is not None:
             try:
                 engine.close()
             except Exception:  # noqa: BLE001, S110
                 pass
+        storage = capture_sqlite_storage(database_path)
         shutil.rmtree(db_dir, ignore_errors=True)
 
     def _cached(query: GoldQuery) -> list[str]:
@@ -361,6 +387,13 @@ def execute_arm(
         per_k=per_k,
         rows=rows,
         queries=gold_set.queries,
+        observed_cost=Observation(
+            evidence_family_id="pending-writer-binding",
+            config_sha256=scenario.config_sha256,
+            phases_ms=phases_ms,
+            counts=counts,
+            storage=storage,
+        ).as_document(),
     )
 
 
@@ -461,7 +494,7 @@ def run_characterization(
         _metrics_document(execution.per_k), execution.rows, (),
         f"characterization over {execution.ingested} docs, "
         f"{len(execution.queries)} queries",
-        blank_provenance, deepest,
+        blank_provenance, deepest, execution.observed_cost,
     )
     return CharacterizationResult(
         verdict=RunVerdict.COMPLETE,
@@ -612,6 +645,7 @@ def _write(
     read: str,
     blank_provenance: bool,
     fanout_used: int,
+    observed_cost: Mapping[str, Any] | None = None,
 ) -> Any:
     sha = _lib.config_sha256(dict(config_doc))
     run_id = _lib.make_run_id(experiment, ts, sha)
@@ -625,6 +659,7 @@ def _write(
             "query_call": "Engine.search_text_only",
             "retrieval_mode": "fts_only",
             "fanout_used": fanout_used,
+            "effective_knobs": {"limit": fanout_used},
         },
         "metrics": dict(metrics),
         "witnesses": [],
@@ -657,7 +692,13 @@ def _write(
         corpus={"source": None, "manifest_sha256": None, "datasets": []},
         seeds={},
         cost_usd=0.0,
+        observed_cost=observed_cost,
     )
+
+
+def _elapsed_ms(started: float) -> float:
+    """Return one monotonic phase interval in milliseconds."""
+    return (time.monotonic() - started) * 1000
 
 
 def replay(

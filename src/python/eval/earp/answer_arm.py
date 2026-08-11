@@ -679,7 +679,7 @@ def run_answer_campaign(
         outcome = _write(
             config_doc, scenario, experiments_root, experiment, ts,
             RunVerdict.BLOCKED, {}, [], (), (execution.blocker,), cost,
-            execution.blocker.message, blank_provenance,
+            execution.blocker.message, blank_provenance, execution.observed_cost,
         )
         return AnswerCampaignResult(
             verdict=RunVerdict.BLOCKED,
@@ -756,7 +756,7 @@ def run_answer_campaign(
     outcome = _write(
         config_doc, scenario, experiments_root, experiment, ts,
         verdict, metrics, rows, arm_outcome.witnesses, arm_outcome.blockers,
-        cost, str(read), blank_provenance,
+        cost, str(read), blank_provenance, execution.observed_cost,
     )
     return AnswerCampaignResult(
         verdict=verdict,
@@ -786,6 +786,7 @@ def _write(
     cost: CostLedger,
     read: str,
     blank_provenance: bool,
+    observed_cost: Mapping[str, Any] | None = None,
 ) -> Any:
     sha = _lib.config_sha256(dict(config_doc))
     run_id = _lib.make_run_id(experiment, ts, sha)
@@ -806,6 +807,9 @@ def _write(
             "query_call": scenario.query_call,
             "retrieval_mode": scenario.retrieval_mode.value,
             "fanout_used": scenario.max_measurable_k,
+            "effective_knobs": {
+                key: value for key, value in scenario.query_params.items() if key != "text"
+            },
         },
         "metrics": dict(metrics),
         "cost": cost_value,
@@ -856,6 +860,7 @@ def _write(
         # Actual spend feeds the index row -- which is what makes the D-3
         # ledger self-feeding for the NEXT run's preflight.
         cost_usd=cost.actual_usd if cost.actual_usd is not None else 0.0,
+        observed_cost=observed_cost,
     )
 
 

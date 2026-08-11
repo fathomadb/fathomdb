@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from eval.earp._experiments import lib as _lib
+from eval.earp.observed_cost import OBSERVED_COST_NAME, Observation, SCHEMA_VERSION as OBSERVED_COST_SCHEMA_VERSION
 from eval.earp.schema import PER_QUERY_SCHEMA_PATH, RESULT_SCHEMA_PATH
 from eval.earp.schema.models import (
     SCHEMA_VERSION_PER_QUERY,
@@ -69,6 +70,7 @@ def write_run(
     per_query: Sequence[Mapping[str, Any]] = (),
     sidecar: Mapping[str, Any] | None = None,
     sidecar_blockers: Sequence[Mapping[str, Any]] = (),
+    observed_cost: Mapping[str, Any] | None = None,
     tdd_evidence: Mapping[str, Any] | None = None,
     n: int | None = None,
     headline: Mapping[str, Any] | None = None,
@@ -126,6 +128,11 @@ def write_run(
                 f"{[f.message for f in row_findings][:4]}"
             )
     per_query_text = "".join(line + "\n" for line in per_query_lines)
+    observed_text = (
+        _canonical(_normalize_observed_cost(observed_cost, run_id, sha))
+        if observed_cost is not None
+        else None
+    )
 
     # 3. Claim the directory with one atomic syscall rather than exists-then-write.
     try:
@@ -154,6 +161,8 @@ def write_run(
     # 4. Sidecars land BEFORE the shared record and the index line.
     (run_dir / SIDECAR_NAME).write_text(sidecar_text, encoding="utf-8")
     (run_dir / PER_QUERY_NAME).write_text(per_query_text, encoding="utf-8")
+    if observed_text is not None:
+        (run_dir / OBSERVED_COST_NAME).write_text(observed_text, encoding="utf-8")
 
     # 5. Materialize + append (one call, index last inside it).
     index_path = root / "index.jsonl"
@@ -172,7 +181,11 @@ def write_run(
         n=n,
         headline=dict(headline) if headline else None,
         tdd_evidence=dict(tdd_evidence) if tdd_evidence else None,
-        artifacts=[f"runs/{run_id}/{SIDECAR_NAME}", f"runs/{run_id}/{PER_QUERY_NAME}"],
+        artifacts=[
+            f"runs/{run_id}/{SIDECAR_NAME}",
+            f"runs/{run_id}/{PER_QUERY_NAME}",
+            *([f"runs/{run_id}/{OBSERVED_COST_NAME}"] if observed_text is not None else []),
+        ],
         base_dir=root,
         index_path=index_path,
     )
@@ -182,6 +195,40 @@ def write_run(
     # repo's committed INDEX.md from this tmp index.
     _lib.regen_index_md(index_path=index_path, md_path=root / "INDEX.md")
     return WriteOutcome(run_id=run_id, run_dir=run_dir)
+
+
+def _normalize_observed_cost(
+    observed_cost: Mapping[str, Any], run_id: str, config_sha256: str
+) -> dict[str, Any]:
+    """Validate caller observations while binding their durable identity here.
+
+    The writer is the only component that knows the collision-safe run ID. A
+    caller therefore supplies measurements, while this boundary supplies the
+    evidence-family and resolved-config linkage rather than trusting a stale
+    or hand-typed value.
+    """
+    if not isinstance(observed_cost, Mapping):
+        raise TypeError("observed_cost must be a mapping")
+    if observed_cost.get("schema_version") != OBSERVED_COST_SCHEMA_VERSION:
+        raise ValueError("observed_cost schema_version is not supported")
+    if observed_cost.get("scope") != "one_run_observation":
+        raise ValueError("observed_cost must be one_run_observation evidence")
+    document = dict(observed_cost)
+    observation = Observation(
+        evidence_family_id=run_id,
+        config_sha256=config_sha256,
+        phases_ms=_mapping(document, "phases_ms"),
+        counts=_mapping(document, "counts"),
+        storage=_mapping(document, "storage"),
+    )
+    return observation.as_document()
+
+
+def _mapping(document: Mapping[str, Any], key: str) -> Mapping[str, Any]:
+    value = document.get(key)
+    if not isinstance(value, Mapping):
+        raise ValueError(f"observed_cost {key} must be a mapping")
+    return value
 
 
 def _default_sidecar(

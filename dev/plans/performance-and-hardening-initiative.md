@@ -192,8 +192,11 @@ or context budget.
   measures.
 - **2026-08-11, HITL / seq-249:** assign the initiative's first implementation
   and measurement work to 0.8.24, while 0.8.23 remains on its CUDA and Memex
-  ladder. The 0.8.24 specification keeps the EARP-sidecar versus independent
-  performance-runner architecture choice open for a focused ruling.
+  ladder.
+- **2026-08-11, HITL / seq-250:** choose the independent performance runner
+  with an EARP adapter. EARP records one-run observed cost; the independent
+  runner owns repeated sampling and performance claims from the same resolved
+  workload.
 - **Pending baseline evidence:** set any new numerical latency, throughput,
   storage, or quality support threshold. The existing 10k gate remains intact;
   100k/1M/2M require current measurements before a new promise.
@@ -203,9 +206,10 @@ or context budget.
 
 ## Immediate next action
 
-Obtain the 0.8.24 architecture ruling in
-[`0.8.24-retrieval-performance-evidence-spec.md`](0.8.24-retrieval-performance-evidence-spec.md),
-then create the measurement manifest and capability matrix. That first bounded
-slice inventories public Rust/Python/TypeScript calls and knobs, reuses the
-existing scale runner and result-artifact conventions, and produces no
+The 0.8.24 evidence-integration foundation is implemented locally: EARP now
+emits one-run observed cost, and the independent runner repeats saved
+diagnostic and characterization workloads without a second configuration. The
+next bounded slice is the measurement manifest and capability matrix. It
+inventories public Rust/Python/TypeScript calls and knobs, reuses the existing
+scale runner and result-artifact conventions, and produces no
 performance-support claim or retrieval rewrite.

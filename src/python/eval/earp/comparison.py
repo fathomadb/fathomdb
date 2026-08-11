@@ -30,6 +30,7 @@ from eval.earp.characterize import (
     execute_arm,
 )
 from eval.earp.config import resolve_config
+from eval.earp.observed_cost import combine_arm_observations
 from eval.earp.schema.models import (
     SCHEMA_VERSION_RESULT,
     Blocker,
@@ -363,6 +364,11 @@ def _run_arms(
             "query_call": arm.scenario.query_call,
             "retrieval_mode": arm.scenario.retrieval_mode.value,
             "fanout_used": arm.scenario.max_measurable_k,
+            "effective_knobs": {
+                key: value
+                for key, value in arm.scenario.query_params.items()
+                if key != "text"
+            },
             "arm_config_sha256": arm.scenario.config_sha256,
             "blockers": [
                 {
@@ -394,6 +400,11 @@ def _run_arms(
             "query_call": control_arm.scenario.query_call,
             "retrieval_mode": control_arm.scenario.retrieval_mode.value,
             "fanout_used": control_arm.scenario.max_measurable_k,
+            "effective_knobs": {
+                key: value
+                for key, value in control_arm.scenario.query_params.items()
+                if key != "text"
+            },
         },
         "arms": arms_value,
         "metrics": (
@@ -456,6 +467,10 @@ def _run_arms(
         ),
         cost_usd=0.0,
         n=n if comparison_value is not None else None,
+        observed_cost=combine_arm_observations(
+            config_sha256=sha,
+            arms={name: execution.observed_cost for name, execution in executions.items()},
+        ),
     )
     return ArmsCampaignResult(
         verdict=verdict,

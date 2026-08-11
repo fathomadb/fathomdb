@@ -20,7 +20,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
+from eval.earp._experiments import lib as _lib
 from eval.earp.config import ResolvedScenario
+from eval.earp.observed_cost import Observation, capture_sqlite_storage
 from eval.earp.schema.models import (
     SCHEMA_VERSION_RESULT,
     Blocker,
@@ -51,6 +53,7 @@ class DiagnosticResult:
     hit_doc_ids: list[str] = field(default_factory=list)
     failure: str | None = None
     db_dir: str | None = None
+    observed_cost: Mapping[str, Any] = field(default_factory=dict)
 
 
 def load_fixture(path: Path) -> list[dict[str, Any]]:
@@ -272,6 +275,9 @@ def run_diagnostic(
     ts: datetime,
     query_override: Callable[..., Any] | None = None,
     poll_override: Callable[[], tuple[Sequence[Any], float]] | None = None,
+    clock: Callable[[], float] = time.monotonic,
+    persist: bool = True,
+    warmup_query: bool = False,
 ) -> DiagnosticResult:
     """Run one diagnostic scenario against a real engine.
 
@@ -296,15 +302,22 @@ def run_diagnostic(
             stage="runner.fixture",
             detail={"path": str(fixture_path)},
         )
-        outcome = _write(
-            scenario, config_doc, experiments_root, experiment, ts,
-            RunVerdict.BLOCKED, (), (blocker,), "fixture missing",
+        observed_cost = _observed_cost(scenario, {}, {}, {})
+        outcome = (
+            _write(
+                scenario, config_doc, experiments_root, experiment, ts,
+                RunVerdict.BLOCKED, (), (blocker,), "fixture missing",
+                observed_cost=observed_cost,
+            )
+            if persist
+            else None
         )
         return DiagnosticResult(
             verdict=RunVerdict.BLOCKED,
-            run_id=outcome.run_id,
-            run_dir=outcome.run_dir,
+            run_id=outcome.run_id if outcome is not None else None,
+            run_dir=outcome.run_dir if outcome is not None else None,
             blockers=(blocker,),
+            observed_cost=observed_cost,
         )
 
     items = load_fixture(fixture_path)
@@ -312,6 +325,7 @@ def run_diagnostic(
     # One fresh temp DIRECTORY, not just a file: close() checkpoints away
     # -wal/-shm but leaves a .lock sidecar, so per-file deletion is wrong.
     db_dir = tempfile.mkdtemp(prefix="earp-diagnostic-")
+    database_path = Path(db_dir) / "diagnostic.db"
     witnesses: list[Witness] = []
     blockers: list[Blocker] = []
     failure: str | None = None
@@ -321,12 +335,17 @@ def run_diagnostic(
     declared = scenario.projections
     dense_required = any(projection.vector for projection in declared)
     projection_witnesses: ProjectionWitnesses | None = None
+    phases_ms: dict[str, float] = {}
+    counts: dict[str, int] = {"accepted": 0, "queries": 0, "results": 0}
+    storage: dict[str, int] = {}
 
     try:
+        started = clock()
         engine = Engine.open(
-            str(Path(db_dir) / "diagnostic.db"),
+            str(database_path),
             use_default_embedder=scenario.use_default_embedder,
         )
+        phases_ms["open"] = _elapsed_ms(clock, started)
         report_value = _report_mapping(engine.open_report())
         open_witnesses, open_blockers = classify_open(
             report_value, dense_required=dense_required
@@ -349,6 +368,7 @@ def run_diagnostic(
             # BEFORE ingest: the engine backfills same-transaction FTS builds,
             # and the delta on a fresh, empty database is the declaration's
             # honest diff.
+            started = clock()
             delta = engine.configure_projections(
                 [
                     ProjectionSpec(
@@ -360,6 +380,7 @@ def run_diagnostic(
                     for projection in declared
                 ]
             )
+            phases_ms["configure_projections"] = _elapsed_ms(clock, started)
             delta_value = {
                 "built": list(delta.built),
                 "dropped": list(delta.dropped),
@@ -375,7 +396,10 @@ def run_diagnostic(
                 projection_witnesses, configure_delta=delta_value
             )
 
+        started = clock()
         receipt = engine.write(list(items))
+        phases_ms["write"] = _elapsed_ms(clock, started)
+        counts["accepted"] = len(receipt.row_cursors)
         witnesses.append(
             Witness(
                 name="write_receipt",
@@ -392,7 +416,9 @@ def run_diagnostic(
         # `get_many` returns None for an id it cannot find, so a filtered
         # comprehension is the difference between "two landed" and a crash on
         # exactly the silent-write case this witness exists to catch.
+        started = clock()
         landed = [record for record in fathom_read.get_many(engine, expected) if record]
+        phases_ms["landed_read"] = _elapsed_ms(clock, started)
         witnesses.append(
             Witness(
                 name="fixture_landed",
@@ -418,11 +444,13 @@ def run_diagnostic(
         )
 
         if declared:
+            started = clock()
             readiness, stuck = _poll_readiness(
                 poll_override or _readiness_view(engine),
                 declared,
                 scenario.readiness_timeout_s,
             )
+            phases_ms["readiness"] = _elapsed_ms(clock, started)
             witnesses.append(
                 Witness(
                     name="projection_readiness",
@@ -488,7 +516,13 @@ def run_diagnostic(
             for key, value in scenario.query_params.items()
             if key != "text"
         }
+        if warmup_query:
+            call(query_text, **params)
+        started = clock()
         result = call(query_text, **params)
+        phases_ms["query"] = _elapsed_ms(clock, started)
+        counts["queries"] = 1
+        counts["results"] = len(result.results)
         hit_doc_ids, unmapped = _doc_ids(result.results)
         witnesses.append(
             Witness(
@@ -513,23 +547,31 @@ def run_diagnostic(
                 engine.close()
             except Exception:  # noqa: BLE001, S110 -- teardown must not mask
                 pass
+        storage = capture_sqlite_storage(database_path)
         shutil.rmtree(db_dir, ignore_errors=True)
 
-    outcome = _write(
-        scenario, config_doc, experiments_root, experiment, ts,
-        verdict, tuple(witnesses), tuple(blockers),
-        failure or f"diagnostic run: {len(hit_doc_ids)} hit(s)",
-        projection_witnesses=projection_witnesses,
+    observed_cost = _observed_cost(scenario, phases_ms, counts, storage)
+    outcome = (
+        _write(
+            scenario, config_doc, experiments_root, experiment, ts,
+            verdict, tuple(witnesses), tuple(blockers),
+            failure or f"diagnostic run: {len(hit_doc_ids)} hit(s)",
+            projection_witnesses=projection_witnesses,
+            observed_cost=observed_cost,
+        )
+        if persist
+        else None
     )
     return DiagnosticResult(
         verdict=verdict,
-        run_id=outcome.run_id,
-        run_dir=outcome.run_dir,
+        run_id=outcome.run_id if outcome is not None else None,
+        run_dir=outcome.run_dir if outcome is not None else None,
         witnesses=tuple(witnesses),
         blockers=tuple(blockers),
         hit_doc_ids=hit_doc_ids,
         failure=failure,
         db_dir=db_dir,
+        observed_cost=observed_cost,
     )
 
 
@@ -565,6 +607,7 @@ def _write(
     blockers: tuple[Blocker, ...],
     read: str,
     projection_witnesses: ProjectionWitnesses | None = None,
+    observed_cost: Mapping[str, Any] | None = None,
 ) -> WriteOutcome:
     """Hand the run to S4. `metrics` is structurally `{}` -- a diagnostic makes
     no relevance claim, so there is no code path by which one could appear."""
@@ -580,6 +623,9 @@ def _write(
             # The public result limit in effect (S6a). The resolver injected it
             # into query_params, so the engine call above genuinely used it.
             "fanout_used": scenario.max_measurable_k,
+            "effective_knobs": {
+                key: value for key, value in scenario.query_params.items() if key != "text"
+            },
         },
         "metrics": {},
         "witnesses": [
@@ -612,18 +658,50 @@ def _write(
         read=read,
         metrics={},
         sidecar=sidecar,
-        code={"git_sha": "", "dirty": False, "branch": "", "baseline_commit": None},
-        env={"python": "", "lockfile_sha256": None, "gpu": None, "key_deps": {}},
+        code=_code_provenance(),
+        env=_lib.env_info(),
         corpus={"source": None, "manifest_sha256": None, "datasets": []},
         seeds={},
         cost_usd=0.0,
+        observed_cost=observed_cost,
     )
 
 
-def _lib_run_id(experiment: str, ts: datetime, sha: str) -> str:
-    from eval.earp._experiments import lib as _lib  # noqa: PLC0415
+def _elapsed_ms(clock: Callable[[], float], started: float) -> float:
+    """Return a monotonic interval in milliseconds, rejecting a bad test clock."""
+    elapsed = (clock() - started) * 1000
+    if elapsed < 0:
+        raise ValueError("monotonic clock moved backwards")
+    return elapsed
 
+
+def _observed_cost(
+    scenario: ResolvedScenario,
+    phases_ms: Mapping[str, float],
+    counts: Mapping[str, int],
+    storage: Mapping[str, int],
+) -> dict[str, Any]:
+    """Build a one-run observation; the durable writer binds its run ID."""
+    return Observation(
+        evidence_family_id="pending-writer-binding",
+        config_sha256=scenario.config_sha256,
+        phases_ms=phases_ms,
+        counts=counts,
+        storage=storage,
+    ).as_document()
+
+
+def _lib_run_id(experiment: str, ts: datetime, sha: str) -> str:
     return _lib.make_run_id(experiment, ts, sha)
+
+
+def _code_provenance() -> dict[str, Any]:
+    """Capture local candidate identity without making a diagnostic fail outside git."""
+    try:
+        info = _lib.git_info()
+    except Exception:  # noqa: BLE001 -- the runner is usable from an export
+        return {"git_sha": "", "dirty": False, "branch": "", "baseline_commit": None}
+    return {**info, "baseline_commit": None}
 
 
 __all__ = [

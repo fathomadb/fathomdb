@@ -59,3 +59,12 @@ fathomdb-embedder-api = { path = "src/rust/crates/fathomdb-embedder-api", versio
 fathomdb-engine       = { path = "src/rust/crates/fathomdb-engine",       version = "0.8.22" }
 fathomdb-query        = { path = "src/rust/crates/fathomdb-query",        version = "0.8.22" }
 fathomdb-schema       = { path = "src/rust/crates/fathomdb-schema",       version = "0.8.22" }
+
+# Fathom-maintained Candle 0.10.2 preserves the Linux AArch64 CPU Gemm/F16
+# fallback; pin core, nn, and transformers together so those public types stay
+# unified. This revision changes only CUDA runtime loading: cudarc loads the
+# NVIDIA driver dynamically rather than linking it into shipped artifacts.
+[patch.crates-io]
+candle-core-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "5719d90e60edd14c4c1a3bf87952648131b2153a" }
+candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "5719d90e60edd14c4c1a3bf87952648131b2153a" }
+candle-transformers-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "5719d90e60edd14c4c1a3bf87952648131b2153a" }

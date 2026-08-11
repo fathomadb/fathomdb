@@ -16,11 +16,12 @@ storage, FTS, vectors, graph traversal, hybrids, and public SDK use before
 selecting a remediation. It does not make a support or performance claim from a
 synthetic fixture, one host, or a green symbol-presence test.
 
-The initiative is cross-release. It does not alter the active 0.8.23 CUDA and
-Memex ladder, and it does not authorize a tag, registry publication, ANN, a new
-default retrieval arm, or a schema change. The program schedule currently
-reserves 0.8.24 for a stated scale envelope; a later HITL decision must place
-each implementation slice in a release.
+The initiative is cross-release, with its first implementation and measurement
+release assigned to 0.8.24 by HITL (`steward` ledger seq-249). It does not
+alter the active 0.8.23 CUDA and Memex ladder, and it does not authorize a tag,
+registry publication, ANN, a new default retrieval arm, or a schema change.
+The 0.8.24 evidence-integration contract is
+[`0.8.24-retrieval-performance-evidence-spec.md`](0.8.24-retrieval-performance-evidence-spec.md).
 
 ## Product goal
 
@@ -189,9 +190,10 @@ or context budget.
 - **2026-08-11, HITL:** create this iterative performance-and-hardening
   initiative and require ingestion, search, retrieval-quality, and SDK-surface
   measures.
-- **Pending HITL:** assign the first implementation/measurement slice to a
-  release. Recommendation: use the already-reserved 0.8.24 scale-envelope
-  placement after 0.8.23’s reproducibility gate is closed.
+- **2026-08-11, HITL / seq-249:** assign the initiative's first implementation
+  and measurement work to 0.8.24, while 0.8.23 remains on its CUDA and Memex
+  ladder. The 0.8.24 specification keeps the EARP-sidecar versus independent
+  performance-runner architecture choice open for a focused ruling.
 - **Pending baseline evidence:** set any new numerical latency, throughput,
   storage, or quality support threshold. The existing 10k gate remains intact;
   100k/1M/2M require current measurements before a new promise.
@@ -201,7 +203,9 @@ or context budget.
 
 ## Immediate next action
 
-Create the measurement-manifest and capability matrix as the initiative’s first
-bounded slice. It must inventory public Rust/Python/TypeScript calls and their
-knobs, reuse the existing scale runner and result-artifact conventions, and
-produce no performance-support claim or retrieval rewrite.
+Obtain the 0.8.24 architecture ruling in
+[`0.8.24-retrieval-performance-evidence-spec.md`](0.8.24-retrieval-performance-evidence-spec.md),
+then create the measurement manifest and capability matrix. That first bounded
+slice inventories public Rust/Python/TypeScript calls and knobs, reuses the
+existing scale runner and result-artifact conventions, and produces no
+performance-support claim or retrieval rewrite.

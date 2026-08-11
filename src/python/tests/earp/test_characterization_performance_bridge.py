@@ -121,10 +121,13 @@ def test_bridge_preserves_raw_observation_when_characterization_cell_blocks(
     monkeypatch.setattr(characterize, "execute_arm", blocked_after_open)
     cells = run_characterization_repetitions(
         workload=workload,
-        plan=PerformancePlan(repetitions=1, treatments=("fresh_store",)),
+        plan=PerformancePlan(
+            repetitions=1, treatments=("fresh_store", "fresh_store_warm_query")
+        ),
         scenario=scenario,
         config_doc=config,
     )
     assert cells[0].status == "invalid"
     assert cells[0].invalidity["code"] == "dense_readiness_timeout"
     assert cells[0].raw_samples[0].phases_ms["open"] == 1.0
+    assert [cell.treatment for cell in cells] == ["fresh_store", "fresh_store_warm_query"]

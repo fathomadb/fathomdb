@@ -232,8 +232,10 @@ def test_index_failure_cleans_staged_performance_output(tmp_path: Path, monkeypa
             experiment="earp-performance",
             ts=TS,
             workload=workload,
-            plan=PerformancePlan(repetitions=1, treatments=("fresh_store",)),
-            samples=(RunSample("fresh_store", 0, {"query": 1.0}, {"results": 1}),),
+            plan=PerformancePlan(
+                repetitions=1, treatments=("fresh_store", "fresh_store_warm_query")
+            ),
+            samples=_declared_samples(),
             execution_provenance=_execution_provenance(),
         )
     performance_records = list((root / "runs").glob("earp-performance*/record.json"))

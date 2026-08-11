@@ -80,7 +80,9 @@ def test_bridge_preserves_raw_observation_when_one_cell_fails(
     monkeypatch.setattr(runner, "run_diagnostic", fail_after_open)
     cells = run_diagnostic_repetitions(
         workload=workload,
-        plan=PerformancePlan(repetitions=1, treatments=("fresh_store",)),
+        plan=PerformancePlan(
+            repetitions=1, treatments=("fresh_store", "fresh_store_warm_query")
+        ),
         scenario=scenario,
         config_doc=config,
         experiments_root=root,
@@ -90,3 +92,4 @@ def test_bridge_preserves_raw_observation_when_one_cell_fails(
     assert cells[0].status == "invalid"
     assert cells[0].invalidity["code"] == "timeout"
     assert cells[0].raw_samples[0].phases_ms["open"] == 1.0
+    assert [cell.treatment for cell in cells] == ["fresh_store", "fresh_store_warm_query"]

@@ -55,6 +55,13 @@ come, so a pin outlives its reason and silently holds the tree back.
   cannot be evaluated by a future reader. The existing `comment-overrides`
   convention is the shape; the guard should require *a* rationale, not a
   particular prose style.
+- **R4 — every Cargo source is reproducible and explicitly bounded.** For
+  every Cargo `[patch]`, `[replace]`, or Git dependency, a record must name the
+  manifest location, mechanism, package, immutable 40-character Git revision,
+  package version, and human rationale. The same package/version must carry
+  the exact `git+…?rev=…#…` source in `Cargo.lock`; a record not present in the
+  manifest is also a failure. This fails closed for an undeclared source, a
+  mutable Git reference, or manifest/lock disagreement.
 
 ## Design constraints
 
@@ -75,11 +82,15 @@ vulnerable". It does **not** answer "is this pin still the right pin", which is
 R2, nor does it distinguish a vulnerability the pin *caused* from one it merely
 failed to prevent. Use `npm audit` as one input; do not stop there.
 
-**Scope beyond npm, deliberately.** The same rot applies to the Cargo
-workspace's pinned dependencies and to `scripts/governed-surface-pin.json`,
-which pins a commit rather than a version. The slice should decide explicitly
-whether to cover them now or record them as out of scope with a reason — not
-leave the question unasked.
+**Scope beyond npm, deliberately.** Cargo `[patch]`, `[replace]`, and Git
+dependencies are now in scope. Their `cargo_pins` metadata uses an
+`external-source-unassessed` advisory posture: it records that the checked-in
+npm GitHub Advisory snapshot does not support a Rust vulnerability assertion.
+It is not a substitute for a Rust advisory scan and must never be phrased as
+"no known vulnerabilities"; changing the immutable revision requires a fresh
+human advisory review. `scripts/governed-surface-pin.json` pins repository
+contract content rather than an external dependency version, so its integrity
+remains owned by `scripts/check-governed-surface-pin.sh`.
 
 ## Notes for implementation
 
@@ -91,6 +102,9 @@ leave the question unasked.
 - Red-first is required: the test must construct a pin that has become
   vulnerable and prove the guard fails on it. Re-pinning js-yaml back to 4.2.0
   in a fixture is the exact historical case and makes the regression concrete.
+- Cargo fixtures must prove the complementary invariant: a governed external
+  Git source passes only when its manifest, metadata, and lock provenance
+  match exactly; an omitted record and either revision mismatch must fail.
 - The guard runs where it can act — this is cheap and static, so it belongs in
   the fast, always-on tier alongside the other governance gates, not behind the
   ~35-minute `verify`.

@@ -28,6 +28,8 @@ root = Path(sys.argv[1])
 mode = sys.argv[2]
 metadata = root / "scripts/pinned-override-rot.json"
 data = json.loads(metadata.read_text())
+data["schema_version"] = 3
+data["cargo_pins"] = []
 package = "js-yaml"
 version = "4.2.0" if mode == "vulnerable" else "4.3.0"
 if mode == "prerelease":
@@ -92,6 +94,7 @@ metadata.write_text(json.dumps(data), encoding="utf-8")
     }}}
 }), encoding="utf-8")
 (root / "Cargo.toml").write_text("[workspace]\nresolver = '2'\n", encoding="utf-8")
+(root / "Cargo.lock").write_text("version = 4\n", encoding="utf-8")
 PY
   printf '%s' "$fixture"
 }
@@ -296,6 +299,7 @@ cp "$REPO_ROOT/scripts/pinned-override-rot.json" "$cargo_fixture/scripts/pinned-
 cp "$REPO_ROOT/scripts/pinned-override-advisories.json" "$cargo_fixture/scripts/pinned-override-advisories.json"
 printf '%s\n' '{"overrides": {}}' >"$cargo_fixture/package.json"
 printf '%s\n' '{"lockfileVersion": 3, "packages": {}}' >"$cargo_fixture/package-lock.json"
+printf '%s\n' 'version = 4' 'package = []' >"$cargo_fixture/Cargo.lock"
 cat >"$cargo_fixture/Cargo.toml" <<'EOF'
 [workspace]
 resolver = "2"
@@ -320,10 +324,101 @@ expect_failure 'Cargo.toml:workspace.dependencies.workspace-git' \
 expect_failure 'member/Cargo.toml:target.cfg(unix).dependencies.target-git' \
   'Cargo target-specific dependency git override is detected'
 
+# Cargo Git sources are permitted only when their manifest identity, immutable
+# revision, checked-in lock source, rationale, and explicitly non-assertive
+# advisory posture agree with one governed record. The fixture starts with a
+# deliberately small patch source so this remains an offline structural test.
+make_cargo_pin_fixture() {
+  local name="$1"
+  local mode="$2"
+  local fixture="$WORK/$name"
+  mkdir -p "$fixture/scripts"
+  cp "$REPO_ROOT/scripts/pinned-override-rot.json" "$fixture/scripts/pinned-override-rot.json"
+  cp "$REPO_ROOT/scripts/pinned-override-advisories.json" "$fixture/scripts/pinned-override-advisories.json"
+  python3 - "$fixture" "$mode" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+mode = sys.argv[2]
+git = "https://example.invalid/candle.git"
+rev = "0123456789abcdef0123456789abcdef01234567"
+metadata_path = root / "scripts/pinned-override-rot.json"
+metadata = json.loads(metadata_path.read_text())
+metadata["schema_version"] = 3
+metadata["cargo_pins"] = []
+if mode != "undeclared":
+    metadata["cargo_pins"] = [{
+        "manifest": "Cargo.toml",
+        "mechanism": "patch.crates-io",
+        "package": "candle-core-fathomdb",
+        "git": git,
+        "rev": rev if mode != "metadata-revision-mismatch" else "89abcdef0123456789abcdef0123456789abcdef",
+        "version": "0.10.2",
+        "rationale": "fixture CUDA dynamic-loading source pin",
+        "advisory_posture": {
+            "status": "external-source-unassessed",
+            "scope": "outside the checked-in npm advisory snapshot",
+            "rationale": "fixture makes no vulnerability assertion for an external Git source"
+        }
+    }]
+metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+(root / "package.json").write_text(json.dumps({"overrides": {}}), encoding="utf-8")
+(root / "package-lock.json").write_text(json.dumps({"lockfileVersion": 3, "packages": {}}), encoding="utf-8")
+(root / "Cargo.toml").write_text(
+    "[workspace]\nresolver = \"2\"\n\n[patch.crates-io]\n"
+    f"candle-core-fathomdb = {{ git = \"{git}\", rev = \"{rev}\" }}\n",
+    encoding="utf-8",
+)
+lock_rev = rev if mode != "lock-revision-mismatch" else "89abcdef0123456789abcdef0123456789abcdef"
+(root / "Cargo.lock").write_text(
+    "version = 4\n\n[[package]]\nname = \"candle-core-fathomdb\"\n"
+    "version = \"0.10.2\"\n"
+    f"source = \"git+{git}?rev={lock_rev}#{lock_rev}\"\n",
+    encoding="utf-8",
+)
+PY
+  printf '%s' "$fixture"
+}
+
+make_and_run_cargo_pin_fixture() {
+  local fixture
+  fixture="$(make_cargo_pin_fixture "$@")"
+  run_fixture "$fixture"
+}
+
+make_and_run_cargo_pin_fixture governed governed
+if [ "$RC" -ne 0 ]; then
+  fail "governed Cargo pin must pass when manifest, metadata, and lock agree, got rc=$RC output=$OUT"
+fi
+pass 'governed Cargo Git source pin passes only with exact offline provenance'
+
+make_and_run_cargo_pin_fixture undeclared undeclared
+if [ "$RC" -ne 1 ]; then
+  fail "undeclared Cargo pin must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'Cargo pin Cargo.toml:patch.crates-io.candle-core-fathomdb has no governed record' \
+  'Cargo Git source without a governed record is rejected'
+
+make_and_run_cargo_pin_fixture metadata-revision-mismatch metadata-revision-mismatch
+if [ "$RC" -ne 1 ]; then
+  fail "Cargo metadata revision mismatch must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'Cargo pin Cargo.toml:patch.crates-io.candle-core-fathomdb revision disagrees with metadata' \
+  'Cargo Git source metadata revision must match the manifest'
+
+make_and_run_cargo_pin_fixture lock-revision-mismatch lock-revision-mismatch
+if [ "$RC" -ne 1 ]; then
+  fail "Cargo lock revision mismatch must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'Cargo pin Cargo.toml:patch.crates-io.candle-core-fathomdb has no matching Cargo.lock source' \
+  'Cargo Git source lock provenance must match the immutable manifest revision'
+
 # The real tree is the regression half: after removing obsolete root overrides,
 # the snapshot remains parseable and the gate stays clean without a network.
 run_fixture "$REPO_ROOT"
 if [ "$RC" -ne 0 ]; then
   fail "real repository must pass the offline pin-rot gate: $OUT"
 fi
-pass 'real repository has no unrecorded or stale governed npm override'
+pass 'real repository has exact governed npm and Cargo pin provenance'

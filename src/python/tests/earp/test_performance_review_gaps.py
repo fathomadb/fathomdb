@@ -560,3 +560,48 @@ def test_performance_schema_rejects_unknown_nested_cell_field() -> None:
     assert validate(document, schema) == []
     document["cells"][0]["unexpected"] = True
     assert validate(document, schema)
+
+
+@pytest.mark.parametrize("status", ("complete", "invalid"))
+def test_default_descriptive_nonclaim_manifest_refuses_plan_mismatch(
+    tmp_path: Path, status: str
+) -> None:
+    """The writer's default nonclaim plan is just as authoritative as an explicit one."""
+    from eval.performance.earp_adapter import PerformanceCell, PerformancePlan, RunSample, load_earp_workload, write_performance_result
+
+    root = tmp_path / "experiments"
+    run_id, manifest = _quality_graph(root)
+    assert manifest["performance_plan"]["command"] == "fathomdb-performance diagnostic"
+    workload = load_earp_workload(root, run_id)
+    provenance = {"candidate_sha": CANDIDATE, "clean": True, "command": "test", "lockfile_sha256": SHA, "toolchain": {"python": "3"}, "device": {"kind": "cpu"}, "fixtures": {}}
+    if status == "complete":
+        cells = (PerformanceCell.complete(treatment="fresh_store", repetition=0, samples=(RunSample("fresh_store", 0, {"query": 1.0}, {"queries": 1}, {"fresh_database": True, "open_write_scope": "fresh_store"}),), execution_provenance=provenance),)
+    else:
+        cells = (PerformanceCell.invalid(treatment="fresh_store", repetition=0, raw_samples=(), invalidity={"code": "timeout", "message": "boom"}, execution_provenance=provenance),)
+    with pytest.raises(ValueError, match="plan"):
+        write_performance_result(experiments_root=root, experiment="review-default-plan", ts=TS, workload=workload, plan=PerformancePlan(1, ("fresh_store",)), cells=cells)
+
+
+def test_bridge_provenance_is_authoritative_or_typed_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    from eval.performance import earp_adapter
+
+    monkeypatch.setattr(earp_adapter._lib, "git_info", lambda: {"git_sha": "unknown", "dirty": False})
+    monkeypatch.setattr(earp_adapter._lib, "env_info", lambda: {"python": "", "lockfile_sha256": None})
+    provenance = earp_adapter._bridge_provenance()
+    unavailable = provenance.get("unavailable", {})
+    for field in ("command", "device", "fixtures", "lockfile_sha256"):
+        assert field in provenance or field in unavailable
+        if field in provenance:
+            assert provenance[field] not in ({}, "", "fathomdb-performance", {"kind": "cpu"})
+        else:
+            assert unavailable[field]["code"] and unavailable[field]["message"]
+    assert "candidate_sha" in unavailable
+
+
+def test_observed_cost_v2_schema_rejects_empty_arm_container() -> None:
+    from eval.earp.schema.validate import validate
+
+    schema_path = Path(__file__).resolve().parents[2] / "eval/earp/schema/earp.observed-cost.v2.schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    arms = {"schema_version": "earp.observed-cost.v2", "scope": "one_run_observation", "evidence_family_id": "quality", "config_sha256": SHA, "arms": {}}
+    assert validate(arms, schema)

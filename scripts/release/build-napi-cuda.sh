@@ -36,6 +36,9 @@ export CXX="$CUDA_NAPI_HOST_CXX"
 export CUDAHOSTCXX="$CUDA_NAPI_HOST_CXX"
 export NVCC_CCBIN="$CUDA_NAPI_HOST_CXX"
 export CUDA_COMPUTE_CAP
+# The CUDA runtime stays a normal toolkit dependency for the generated kernels;
+# the Candle source pin keeps the NVIDIA driver dynamically loaded instead.
+export LIBRARY_PATH="$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64${LIBRARY_PATH:+:$LIBRARY_PATH}"
 export PATH="$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin:$PATH"
 
 cd "$REPO_ROOT/src/ts"

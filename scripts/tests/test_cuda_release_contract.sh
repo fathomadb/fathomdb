@@ -12,6 +12,7 @@ trap 'rm -rf "$TMPROOT"' EXIT
 make_fixture() {
   local root="$1"
   mkdir -p "$root/.github/workflows" "$root/scripts/release" "$root/src/rust/crates/fathomdb-napi" "$root/src/ts"
+  cp "$REPO_ROOT/Cargo.toml" "$REPO_ROOT/Cargo.lock" "$root/"
   cp "$REPO_ROOT/.github/workflows/release.yml" "$root/.github/workflows/"
   cp "$REPO_ROOT/scripts/release/cuda-artifact-contract.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/build-napi-cuda.sh" "$root/scripts/release/"
@@ -59,6 +60,62 @@ require_provisioning_assets
 FIXTURE="$TMPROOT/fixture"
 make_fixture "$FIXTURE"
 expect_pass "$FIXTURE" 'baseline CUDA contract agrees'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = '-e "LIBRARY_PATH=$CUDA_MANYLINUX_CUDA_LIB64:$CUDA_MANYLINUX_GCC_LIB"'
+if text.count(needle) != 1:
+    raise SystemExit("fixture no longer contains exactly one CUDA runtime linker search path")
+path.write_text(text.replace(needle, "", 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA build without image-owned runtime link search paths'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/build-napi-cuda.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = 'export LIBRARY_PATH="$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64${LIBRARY_PATH:+:$LIBRARY_PATH}"\n'
+if text.count(needle) != 1:
+    raise SystemExit("fixture no longer contains exactly one N-API CUDA runtime linker search path")
+path.write_text(text.replace(needle, "", 1))
+PY
+expect_fail "$FIXTURE" 'rejects an N-API CUDA build without a toolkit runtime link search path'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/Cargo.toml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = 'candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "5719d90e60edd14c4c1a3bf87952648131b2153a" }\n'
+if text.count(needle) != 1:
+    raise SystemExit("fixture no longer contains exactly one Candle NN source pin")
+path.write_text(text.replace(needle, "", 1))
+PY
+expect_fail "$FIXTURE" 'rejects a split Candle source selection'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/Cargo.lock" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = 'source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=5719d90e60edd14c4c1a3bf87952648131b2153a#5719d90e60edd14c4c1a3bf87952648131b2153a"'
+if text.count(needle) != 3:
+    raise SystemExit("fixture no longer contains all three immutable Candle lock sources")
+path.write_text(text.replace(needle, 'source = "registry+https://github.com/rust-lang/crates.io-index"', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a Candle lockfile that falls back to crates.io'
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/src/rust/crates/fathomdb-napi/Cargo.toml" <<'PY'

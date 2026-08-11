@@ -44,6 +44,11 @@ export CUDA_MANYLINUX_GCC_VERSION='13.3.1'
 export CUDA_MANYLINUX_GCC_ROOT='/opt/rh/gcc-toolset-13/root/usr'
 export CUDA_MANYLINUX_CC='/opt/rh/gcc-toolset-13/root/usr/bin/gcc'
 export CUDA_MANYLINUX_CXX='/opt/rh/gcc-toolset-13/root/usr/bin/g++'
+# `cudarc` dynamic-loading deliberately omits its dynamic-linking search paths,
+# while Candle kernels still link the CUDA runtime and libstdc++. Keep both
+# image-owned locations explicit without reintroducing a driver-library link.
+export CUDA_MANYLINUX_CUDA_LIB64='/usr/local/cuda-12.6/lib64'
+export CUDA_MANYLINUX_GCC_LIB='/opt/rh/gcc-toolset-13/root/usr/lib/gcc/x86_64-redhat-linux/13'
 export CUDA_MANYLINUX_GCC_RPM='gcc-toolset-13-gcc-13.3.1-2.2.el8_10.x86_64'
 export CUDA_MANYLINUX_GXX_RPM='gcc-toolset-13-gcc-c++-13.3.1-2.2.el8_10.x86_64'
 export CUDA_MANYLINUX_DOCKERFILE='scripts/release/Dockerfile.cuda-manylinux'

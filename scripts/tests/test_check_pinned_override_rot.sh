@@ -28,6 +28,7 @@ root = Path(sys.argv[1])
 mode = sys.argv[2]
 metadata = root / "scripts/pinned-override-rot.json"
 data = json.loads(metadata.read_text())
+data["schema_version"] = 4
 package = "js-yaml"
 version = "4.2.0" if mode == "vulnerable" else "4.3.0"
 if mode == "prerelease":
@@ -91,7 +92,25 @@ metadata.write_text(json.dumps(data), encoding="utf-8")
         package: ">=4.0.0, <5.0.0"
     }}}
 }), encoding="utf-8")
-(root / "Cargo.toml").write_text("[workspace]\nresolver = '2'\n", encoding="utf-8")
+candle_git = "https://github.com/coreyt/candle-fathomdb.git"
+candle_rev = "5719d90e60edd14c4c1a3bf87952648131b2153a"
+candle_packages = ["candle-core-fathomdb", "candle-nn-fathomdb", "candle-transformers-fathomdb"]
+(root / "Cargo.toml").write_text(
+    "[workspace]\nresolver = '2'\n\n[patch.crates-io]\n"
+    + "".join(f'{item} = {{ git = "{candle_git}", rev = "{candle_rev}" }}\n' for item in candle_packages),
+    encoding="utf-8",
+)
+(root / "Cargo.lock").write_text(
+    "version = 4\n\n"
+    + "\n".join(
+        "[[package]]\n"
+        f'name = "{item}"\n'
+        'version = "0.10.2"\n'
+        f'source = "git+{candle_git}?rev={candle_rev}#{candle_rev}"\n'
+        for item in candle_packages
+    ),
+    encoding="utf-8",
+)
 PY
   printf '%s' "$fixture"
 }
@@ -296,6 +315,7 @@ cp "$REPO_ROOT/scripts/pinned-override-rot.json" "$cargo_fixture/scripts/pinned-
 cp "$REPO_ROOT/scripts/pinned-override-advisories.json" "$cargo_fixture/scripts/pinned-override-advisories.json"
 printf '%s\n' '{"overrides": {}}' >"$cargo_fixture/package.json"
 printf '%s\n' '{"lockfileVersion": 3, "packages": {}}' >"$cargo_fixture/package-lock.json"
+printf '%s\n' 'version = 4' 'package = []' >"$cargo_fixture/Cargo.lock"
 cat >"$cargo_fixture/Cargo.toml" <<'EOF'
 [workspace]
 resolver = "2"
@@ -320,10 +340,153 @@ expect_failure 'Cargo.toml:workspace.dependencies.workspace-git' \
 expect_failure 'member/Cargo.toml:target.cfg(unix).dependencies.target-git' \
   'Cargo target-specific dependency git override is detected'
 
+# Cargo scope is deliberately a single FathomDB exception, not a general
+# package-ID parser. The fixture permits only the exact three Candle patches.
+make_candle_fixture() {
+  local name="$1"
+  local mode="$2"
+  local fixture="$WORK/$name"
+  mkdir -p "$fixture/scripts"
+  cp "$REPO_ROOT/scripts/pinned-override-rot.json" "$fixture/scripts/pinned-override-rot.json"
+  cp "$REPO_ROOT/scripts/pinned-override-advisories.json" "$fixture/scripts/pinned-override-advisories.json"
+  python3 - "$fixture" "$mode" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1])
+mode = sys.argv[2]
+git = "https://github.com/coreyt/candle-fathomdb.git"
+rev = "5719d90e60edd14c4c1a3bf87952648131b2153a"
+packages = ["candle-core-fathomdb", "candle-nn-fathomdb", "candle-transformers-fathomdb"]
+manifest_packages = packages.copy()
+manifest_revs = {package: rev for package in packages}
+lock_revs = {package: rev for package in packages}
+extra_manifest = ""
+if mode == "missing":
+    manifest_packages.pop()
+elif mode == "split":
+    manifest_revs["candle-nn-fathomdb"] = "89abcdef0123456789abcdef0123456789abcdef"
+elif mode == "revision-drift":
+    manifest_revs = {package: "89abcdef0123456789abcdef0123456789abcdef" for package in packages}
+elif mode == "lock-drift":
+    lock_revs["candle-core-fathomdb"] = "89abcdef0123456789abcdef0123456789abcdef"
+elif mode == "replace":
+    extra_manifest = "\n[replace]\n\"other:1.0.0\" = { git = \"https://example.invalid/other.git\", rev = \"0123456789abcdef0123456789abcdef01234567\" }\n"
+elif mode == "direct-git":
+    extra_manifest = "\n[workspace.dependencies]\nother = { git = \"https://example.invalid/other.git\", rev = \"0123456789abcdef0123456789abcdef01234567\" }\n"
+(root / "package.json").write_text(json.dumps({"overrides": {}}), encoding="utf-8")
+(root / "package-lock.json").write_text(json.dumps({"lockfileVersion": 3, "packages": {}}), encoding="utf-8")
+patches = "".join(
+    f'{package} = {{ git = "{git}", rev = "{manifest_revs[package]}" }}\n'
+    for package in manifest_packages
+)
+(root / "Cargo.toml").write_text(
+    "[workspace]\nresolver = \"2\"\n\n[patch.crates-io]\n" + patches + extra_manifest,
+    encoding="utf-8",
+)
+lock_packages = "\n".join(
+    "[[package]]\n"
+    f'name = "{package}"\n'
+    'version = "0.10.2"\n'
+    f'source = "git+{git}?rev={lock_revs[package]}#{lock_revs[package]}"\n'
+    for package in packages
+)
+(root / "Cargo.lock").write_text("version = 4\n\n" + lock_packages, encoding="utf-8")
+if mode == "config-patch":
+    config_dir = root / ".cargo"
+    config_dir.mkdir()
+    (config_dir / "config.toml").write_text("[patch.crates-io]\n", encoding="utf-8")
+elif mode == "config-unparseable":
+    config_dir = root / ".cargo"
+    config_dir.mkdir()
+    (config_dir / "config").write_text("not = [valid", encoding="utf-8")
+elif mode == "config-ordinary":
+    config_dir = root / ".cargo"
+    config_dir.mkdir()
+    (config_dir / "config.toml").write_text("[build]\ntarget-dir = \"target\"\n", encoding="utf-8")
+PY
+  printf '%s' "$fixture"
+}
+
+make_and_run_candle_fixture() {
+  local fixture
+  fixture="$(make_candle_fixture "$@")"
+  run_fixture "$fixture"
+}
+
+make_and_run_candle_fixture approved approved
+if [ "$RC" -ne 0 ]; then
+  fail "approved Candle patch cohort must pass, got rc=$RC output=$OUT"
+fi
+pass 'approved FathomDB Candle patch cohort passes'
+
+make_and_run_candle_fixture missing missing
+if [ "$RC" -ne 1 ]; then
+  fail "missing Candle patch must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'missing approved Candle patch candle-transformers-fathomdb' \
+  'missing Candle package from the approved cohort is rejected'
+
+make_and_run_candle_fixture split split
+if [ "$RC" -ne 1 ]; then
+  fail "split Candle revision must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'Candle patch candle-nn-fathomdb revision is not the approved immutable revision' \
+  'split Candle source revisions are rejected'
+
+make_and_run_candle_fixture revision-drift revision-drift
+if [ "$RC" -ne 1 ]; then
+  fail "Candle revision drift must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'Candle patch candle-core-fathomdb revision is not the approved immutable revision' \
+  'Candle revision drift is rejected'
+
+make_and_run_candle_fixture lock-drift lock-drift
+if [ "$RC" -ne 1 ]; then
+  fail "Candle lock drift must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'Candle patch candle-core-fathomdb has no matching Cargo.lock source' \
+  'Candle lock-source drift is rejected'
+
+make_and_run_candle_fixture replace replace
+if [ "$RC" -ne 1 ]; then
+  fail "non-Candle Cargo replace must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'unsupported Cargo override/git source Cargo.toml:replace.other:1.0.0' \
+  'non-Candle Cargo replace is rejected'
+
+make_and_run_candle_fixture direct-git direct-git
+if [ "$RC" -ne 1 ]; then
+  fail "direct Cargo Git dependency must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'unsupported Cargo override/git source Cargo.toml:workspace.dependencies.other' \
+  'direct Cargo Git dependency is rejected'
+
+make_and_run_candle_fixture config-ordinary config-ordinary
+if [ "$RC" -ne 0 ]; then
+  fail "ordinary Cargo config must remain allowed, got rc=$RC output=$OUT"
+fi
+pass 'ordinary Cargo config remains allowed'
+
+make_and_run_candle_fixture config-patch config-patch
+if [ "$RC" -ne 1 ]; then
+  fail "Cargo config patch must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'ungoverned Cargo config patch .cargo/config.toml' \
+  'Cargo config patch is rejected'
+
+make_and_run_candle_fixture config-unparseable config-unparseable
+if [ "$RC" -ne 1 ]; then
+  fail "unparseable Cargo config must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'unparseable Cargo config .cargo/config' \
+  'unparseable Cargo config is rejected'
+
 # The real tree is the regression half: after removing obsolete root overrides,
 # the snapshot remains parseable and the gate stays clean without a network.
 run_fixture "$REPO_ROOT"
 if [ "$RC" -ne 0 ]; then
   fail "real repository must pass the offline pin-rot gate: $OUT"
 fi
-pass 'real repository has no unrecorded or stale governed npm override'
+pass 'real repository has exact governed npm and Cargo pin provenance'

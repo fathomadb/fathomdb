@@ -22,6 +22,8 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 CI fallback
 
 
 ROOT = Path(os.environ.get("REPO_ROOT", Path(__file__).resolve().parents[1]))
+WORKSPACE_MANIFEST = ROOT / "Cargo.toml"
+LOCKFILE = ROOT / "Cargo.lock"
 NAPI_MANIFEST = ROOT / "src/rust/crates/fathomdb-napi/Cargo.toml"
 TS_PACKAGE = ROOT / "src/ts/package.json"
 WORKFLOW = ROOT / ".github/workflows/release.yml"
@@ -59,12 +61,21 @@ CUDA_MANYLINUX_GCC_TOOLSET = "gcc-toolset-13"
 CUDA_MANYLINUX_GCC_VERSION = "13.3.1"
 CUDA_MANYLINUX_CC = "/opt/rh/gcc-toolset-13/root/usr/bin/gcc"
 CUDA_MANYLINUX_CXX = "/opt/rh/gcc-toolset-13/root/usr/bin/g++"
+CUDA_MANYLINUX_CUDA_LIB64 = "/usr/local/cuda-12.6/lib64"
+CUDA_MANYLINUX_GCC_LIB = "/opt/rh/gcc-toolset-13/root/usr/lib/gcc/x86_64-redhat-linux/13"
 CUDA_MANYLINUX_GCC_RPM = "gcc-toolset-13-gcc-13.3.1-2.2.el8_10.x86_64"
 CUDA_MANYLINUX_GXX_RPM = "gcc-toolset-13-gcc-c++-13.3.1-2.2.el8_10.x86_64"
 CUDA_NAPI_HOST_GCC_VERSION = "13.3.0"
 CUDA_NAPI_HOST_CC = "/usr/bin/gcc-13"
 CUDA_NAPI_HOST_CXX = "/usr/bin/g++-13"
 UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
+CANDLE_GIT_URL = "https://github.com/coreyt/candle-fathomdb.git"
+CANDLE_GIT_REV = "5719d90e60edd14c4c1a3bf87952648131b2153a"
+CANDLE_PACKAGES = (
+    "candle-core-fathomdb",
+    "candle-nn-fathomdb",
+    "candle-transformers-fathomdb",
+)
 
 
 def fail(message: str) -> None:
@@ -118,6 +129,43 @@ def require_fragment(block: str, fragment: str, label: str) -> None:
 
 
 def main() -> None:
+    workspace_manifest = load_toml(WORKSPACE_MANIFEST)
+    patches = workspace_manifest.get("patch")
+    if not isinstance(patches, dict):
+        fail("workspace Cargo.toml has no [patch.crates-io] Candle source pin")
+    crates_io_patch = patches.get("crates-io")
+    if not isinstance(crates_io_patch, dict):
+        fail("workspace Cargo.toml has no [patch.crates-io] Candle source pin")
+    for package_name in CANDLE_PACKAGES:
+        pin = crates_io_patch.get(package_name)
+        if not isinstance(pin, dict):
+            fail(f"[patch.crates-io] lacks a source pin for {package_name!r}")
+        if pin.get("git") != CANDLE_GIT_URL or pin.get("rev") != CANDLE_GIT_REV:
+            fail(
+                f"{package_name!r} must pin {CANDLE_GIT_URL}@{CANDLE_GIT_REV}; "
+                f"got {pin!r}"
+            )
+
+    lockfile = load_toml(LOCKFILE)
+    locked_packages = lockfile.get("package")
+    if not isinstance(locked_packages, list):
+        fail("Cargo.lock has no package entries")
+    expected_source = f"git+{CANDLE_GIT_URL}?rev={CANDLE_GIT_REV}#{CANDLE_GIT_REV}"
+    for package_name in CANDLE_PACKAGES:
+        entries = [
+            entry
+            for entry in locked_packages
+            if isinstance(entry, dict) and entry.get("name") == package_name
+        ]
+        if len(entries) != 1:
+            fail(f"Cargo.lock must contain exactly one {package_name!r} package; got {len(entries)}")
+        source = entries[0].get("source")
+        if source != expected_source:
+            fail(
+                f"Cargo.lock must resolve {package_name!r} from {expected_source!r}; "
+                f"got {source!r}"
+            )
+
     manifest = load_toml(NAPI_MANIFEST)
     features = manifest.get("features")
     if not isinstance(features, dict):
@@ -187,6 +235,8 @@ def main() -> None:
         "CUDA_MANYLINUX_GCC_ROOT='/opt/rh/gcc-toolset-13/root/usr'",
         f"CUDA_MANYLINUX_CC='{CUDA_MANYLINUX_CC}'",
         f"CUDA_MANYLINUX_CXX='{CUDA_MANYLINUX_CXX}'",
+        f"CUDA_MANYLINUX_CUDA_LIB64='{CUDA_MANYLINUX_CUDA_LIB64}'",
+        f"CUDA_MANYLINUX_GCC_LIB='{CUDA_MANYLINUX_GCC_LIB}'",
         f"CUDA_MANYLINUX_GCC_RPM='{CUDA_MANYLINUX_GCC_RPM}'",
         f"CUDA_MANYLINUX_GXX_RPM='{CUDA_MANYLINUX_GXX_RPM}'",
         "CUDA_MANYLINUX_DOCKERFILE='scripts/release/Dockerfile.cuda-manylinux'",
@@ -310,6 +360,11 @@ def main() -> None:
     require_fragment(napi_build, 'export CXX="$CUDA_NAPI_HOST_CXX"', "CUDA N-API build wrapper")
     require_fragment(napi_build, 'export CUDAHOSTCXX="$CUDA_NAPI_HOST_CXX"', "CUDA N-API build wrapper")
     require_fragment(napi_build, 'export NVCC_CCBIN="$CUDA_NAPI_HOST_CXX"', "CUDA N-API build wrapper")
+    require_fragment(
+        napi_build,
+        'export LIBRARY_PATH="$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64${LIBRARY_PATH:+:$LIBRARY_PATH}"',
+        "CUDA N-API build wrapper",
+    )
     require_fragment(napi_build, '"$CUDA_NAPI_HOST_CC" --version | grep -F "$CUDA_NAPI_HOST_GCC_VERSION"', "CUDA N-API build wrapper")
     require_fragment(napi_build, '"$CUDA_NAPI_HOST_CXX" --version | grep -F "$CUDA_NAPI_HOST_GCC_VERSION"', "CUDA N-API build wrapper")
     require_fragment(napi_build, "export CUDA_COMPUTE_CAP", "CUDA N-API build wrapper")
@@ -346,11 +401,15 @@ def main() -> None:
         '-e "CXX=$CUDA_MANYLINUX_CXX"',
         '-e "CUDAHOSTCXX=$CUDA_MANYLINUX_CXX"',
         '-e "NVCC_CCBIN=$CUDA_MANYLINUX_CXX"',
+        '-e "LIBRARY_PATH=$CUDA_MANYLINUX_CUDA_LIB64:$CUDA_MANYLINUX_GCC_LIB"',
+        '-e "LD_LIBRARY_PATH=$CUDA_MANYLINUX_CUDA_LIB64:$CUDA_MANYLINUX_GCC_LIB"',
         '-e CUDA_MANYLINUX_GCC_VERSION -e CUDA_MANYLINUX_CC -e CUDA_MANYLINUX_CXX',
         'test "$CC" = "$CUDA_MANYLINUX_CC"',
         'test "$CXX" = "$CUDA_MANYLINUX_CXX"',
         'test "$CUDAHOSTCXX" = "$CUDA_MANYLINUX_CXX"',
         'test "$NVCC_CCBIN" = "$CUDA_MANYLINUX_CXX"',
+        'test "$LIBRARY_PATH" = "$CUDA_MANYLINUX_CUDA_LIB64:$CUDA_MANYLINUX_GCC_LIB"',
+        'test "$LD_LIBRARY_PATH" = "$CUDA_MANYLINUX_CUDA_LIB64:$CUDA_MANYLINUX_GCC_LIB"',
         '"$CC" --version | grep -F "$CUDA_MANYLINUX_GCC_VERSION"',
         '"$CXX" --version | grep -F "$CUDA_MANYLINUX_GCC_VERSION"',
         '--mount "type=bind,src=$REPO_ROOT,dst=/workspace,readonly"',

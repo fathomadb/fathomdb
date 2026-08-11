@@ -7,7 +7,7 @@ from pathlib import Path
 
 from eval.performance.earp_adapter import (
     PerformancePlan,
-    WorkloadRef,
+    load_earp_workload,
     run_characterization_repetitions,
 )
 
@@ -16,27 +16,22 @@ pytest.importorskip("fathomdb._fathomdb", reason="native binding not built")
 
 def test_bridge_repeats_the_same_characterization_workload(tmp_path: Path) -> None:
     from test_characterization import _bed  # noqa: PLC0415
+    from eval.earp.characterize import run_characterization  # noqa: PLC0415
     from eval.earp.config import ResolvedScenario  # noqa: PLC0415
     from eval.earp.schema.models import CampaignKind, RetrievalMode  # noqa: PLC0415
 
     bed = _bed(tmp_path)
-    config = {
-        "schema_version": "earp.v1",
-        "campaign": "characterization",
-        "corpus": {"snapshot": str(bed["snapshot_path"]), "data_root": str(bed["data_root"])},
-        "gold": {
-            "path": str(bed["gold_path"]),
-            "sha256": bed["gold_sha256"],
-            "corpus_hash": bed["corpus_hash"],
-            "qrels_version": bed["qrels_version"],
-        },
-        "scenario": {"engine": {"use_default_embedder": False}, "query": {"call": "Engine.search_text_only", "limit": 10}},
-        "metrics": {"evidence_recall_k": [5, 10]},
-    }
+    quality = run_characterization(**bed)
+    assert quality.run_id is not None
+    assert quality.run_dir is not None
+    assert (quality.run_dir / "earp.workload-manifest.v1.json").is_file()
+    workload = load_earp_workload(bed["experiments_root"], quality.run_id)
+    config = quality.config_doc
+    assert config is not None
     scenario = ResolvedScenario(
         campaign=CampaignKind.CHARACTERIZATION,
-        config_sha256="a" * 64,
-        query_call="Engine.search_text_only",
+        config_sha256=workload.config_sha256,
+        query_call=workload.query_call,
         retrieval_mode=RetrievalMode.FTS_ONLY,
         max_measurable_k=10,
         use_default_embedder=False,
@@ -49,15 +44,6 @@ def test_bridge_repeats_the_same_characterization_workload(tmp_path: Path) -> No
         consumed_paths=frozenset(),
         carried_paths=frozenset(),
     )
-    workload = WorkloadRef(
-        parent_run_id="quality-run",
-        evidence_family_id="quality-run",
-        config_sha256="a" * 64,
-        candidate_sha="b" * 40,
-        query_call="Engine.search_text_only",
-        effective_knobs={"limit": 10},
-    )
-
     samples = run_characterization_repetitions(
         workload=workload,
         plan=PerformancePlan(
@@ -72,3 +58,4 @@ def test_bridge_repeats_the_same_characterization_workload(tmp_path: Path) -> No
         ("fresh_store_warm_query", 0),
     ]
     assert all({"open", "write", "query"} <= set(sample.phases_ms) for sample in samples)
+    assert samples[1].treatment_witness["unmeasured_query_warmup"] is True

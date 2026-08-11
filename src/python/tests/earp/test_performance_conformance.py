@@ -1,8 +1,8 @@
 """Red contracts for the eight 0.8.24 performance-evidence review fixes.
 
-These tests describe the durable artifact boundary. They deliberately do not
-exercise a native engine: an evidence writer must remain correct when a cell is
-invalid or no engine is available.
+These tests describe the durable artifact boundary. Success paths use a real
+quality run and the adapter's verified-manifest loader; they never construct a
+publication workload by hand.
 """
 
 from __future__ import annotations
@@ -18,23 +18,20 @@ from eval.performance.earp_adapter import (
     PERFORMANCE_RESULT_NAME,
     PerformancePlan,
     RunSample,
-    WorkloadRef,
     write_performance_result,
 )
+from performance_quality_fixture import diagnostic_quality_workload
 
 TS = datetime(2026, 8, 11, 12, 0, tzinfo=timezone.utc)
 SHA = "a" * 64
 
 
-def _workload() -> WorkloadRef:
-    return WorkloadRef(
-        parent_run_id="quality-run",
-        evidence_family_id="quality-run",
-        config_sha256=SHA,
-        candidate_sha="b" * 40,
-        query_call="Engine.search_text_only",
-        effective_knobs={"limit": 10},
-    )
+pytest.importorskip("fathomdb._fathomdb", reason="native binding not built")
+
+
+def _workload(tmp_path: Path):
+    """Return only a writer-originated quality workload verified by the adapter."""
+    return diagnostic_quality_workload(tmp_path)[3]
 
 
 def _execution_provenance(*, candidate_sha: str = "b" * 40) -> dict[str, object]:
@@ -55,7 +52,7 @@ def test_complete_cell_carries_distinct_execution_provenance(tmp_path: Path) -> 
         experiments_root=tmp_path / "experiments",
         experiment="earp-performance",
         ts=TS,
-        workload=_workload(),
+        workload=_workload(tmp_path),
         plan=PerformancePlan(repetitions=1, treatments=("fresh_store",)),
         samples=(RunSample("fresh_store", 0, {"query": 1.0}, {"results": 1}),),
         execution_provenance=_execution_provenance(candidate_sha="e" * 40),
@@ -93,7 +90,7 @@ def test_runner_persists_a_typed_invalid_cell_without_losing_prior_raw_samples(
         experiments_root=tmp_path / "experiments",
         experiment="earp-performance",
         ts=TS,
-        workload=_workload(),
+        workload=_workload(tmp_path),
         plan=PerformancePlan(
             repetitions=1, treatments=("fresh_store", "fresh_store_warm_query")
         ),
@@ -156,10 +153,68 @@ def test_unverified_or_incomplete_evidence_cannot_claim_repeated_performance(
             experiments_root=tmp_path / "experiments",
             experiment="earp-performance",
             ts=TS,
-            workload=_workload(),
+            workload=_workload(tmp_path),
             plan=PerformancePlan(repetitions=1, treatments=("fresh_store",)),
             samples=(RunSample("fresh_store", 0, {"query": 1.0}, {"results": 1}),),
         )
+
+
+def test_writer_requires_complete_execution_provenance(tmp_path: Path) -> None:
+    """FIX-2: a candidate SHA alone is not an execution provenance record."""
+    with pytest.raises(ValueError, match="execution provenance"):
+        write_performance_result(
+            experiments_root=tmp_path / "experiments",
+            experiment="earp-performance",
+            ts=TS,
+            workload=_workload(tmp_path),
+            plan=PerformancePlan(repetitions=1, treatments=("fresh_store",)),
+            samples=(RunSample("fresh_store", 0, {"query": 1.0}, {"results": 1}),),
+            execution_provenance={"candidate_sha": "b" * 40},
+        )
+
+
+def test_invalid_performance_schema_leaves_no_run_or_index(tmp_path: Path) -> None:
+    """FIX-8: validation happens before a directory or index makes it visible."""
+    from eval.performance.earp_adapter import PerformanceSchemaError  # noqa: PLC0415
+
+    root = tmp_path / "experiments"
+    with pytest.raises(PerformanceSchemaError):
+        write_performance_result(
+            experiments_root=root,
+            experiment="earp-performance",
+            ts=TS,
+            workload=_workload(tmp_path),
+            plan=PerformancePlan(repetitions=1, treatments=("fresh_store",)),
+            samples=(RunSample("fresh_store", 0, {"query": 1.0}, {"results": 1}),),
+            execution_provenance={**_execution_provenance(), "device": {"kind": "unknown"}},
+        )
+    assert not (root / "runs").exists()
+    assert not (root / "index.jsonl").exists()
+
+
+def test_index_failure_cleans_staged_performance_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FIX-8: an index failure may not leave a complete-looking artifact."""
+    from eval.earp._experiments import lib as _lib  # noqa: PLC0415
+
+    def fail_append(*_args: object, **_kwargs: object) -> None:
+        raise OSError("simulated index failure")
+
+    workload = _workload(tmp_path)
+    monkeypatch.setattr(_lib, "append_index", fail_append)
+    root = tmp_path / "experiments"
+    with pytest.raises(OSError, match="index failure"):
+        write_performance_result(
+            experiments_root=root,
+            experiment="earp-performance",
+            ts=TS,
+            workload=workload,
+            plan=PerformancePlan(repetitions=1, treatments=("fresh_store",)),
+            samples=(RunSample("fresh_store", 0, {"query": 1.0}, {"results": 1}),),
+            execution_provenance=_execution_provenance(),
+        )
+    performance_records = list((root / "runs").glob("earp-performance*/record.json"))
+    assert not performance_records
+    assert not list((root / "runs").glob("earp-performance*/performance.earp.v1.json"))
 
 
 def test_performance_artifact_is_validated_digest_linked_and_idempotent(
@@ -172,7 +227,7 @@ def test_performance_artifact_is_validated_digest_linked_and_idempotent(
         "experiments_root": tmp_path / "experiments",
         "experiment": "earp-performance",
         "ts": TS,
-        "workload": _workload(),
+        "workload": _workload(tmp_path),
         "plan": PerformancePlan(repetitions=1, treatments=("fresh_store",)),
         "samples": (RunSample("fresh_store", 0, {"query": 1.0}, {"results": 1}),),
         "execution_provenance": _execution_provenance(),

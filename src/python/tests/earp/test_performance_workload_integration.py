@@ -59,6 +59,9 @@ def test_real_earp_run_exports_effective_knobs_and_observed_cost(tmp_path: Path)
 
     workload = load_earp_workload(tmp_path / "experiments", result.run_id)
     assert workload.effective_knobs == {"alpha": 0.7, "rerank_depth": 20, "limit": 10}
-    observed = json.loads((result.run_dir / "earp.observed-cost.v1.json").read_text())
+    observed = json.loads((result.run_dir / "earp.observed-cost.v2.json").read_text())
     assert observed["evidence_family_id"] == result.run_id
     assert {"open", "write", "query"} <= set(observed["phases_ms"])
+    assert observed["query_samples"][0]["outcome"] == "complete"
+    assert observed["unavailable"]["engine_trace"]["code"] == "not_exposed"
+    assert observed["provenance"]["candidate_sha"]

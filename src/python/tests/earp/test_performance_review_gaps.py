@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import json
 from copy import deepcopy
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -257,8 +258,10 @@ def test_manifest_rejects_one_nested_malformed_value_after_valid_baseline(
 
 
 def test_performance_schema_rejects_nested_bad_input_path_before_materialization() -> None:
-    from eval.performance.earp_adapter import PerformanceSchemaError, _validate_performance_document
+    from eval.earp.schema.validate import validate
 
+    schema_path = Path(__file__).resolve().parents[2] / "eval/performance/schema/performance.earp.v1.schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
     baseline = {
         "schema_version": "performance.earp.v1", "run_id": "review", "scope": "repeated_performance_characterization",
         "relation": "same_candidate_reexecution", "quality_workload_sha256": SHA, "execution_workload_sha256": SHA,
@@ -270,11 +273,10 @@ def test_performance_schema_rejects_nested_bad_input_path_before_materialization
         "samples": [{"treatment": "fresh_store", "repetition": 0, "phases_ms": {"query": 1.0}, "counts": {"queries": 1}, "treatment_witness": {"fresh_database": True, "open_write_scope": "fresh_store"}}],
         "summary": {"fresh_store": {"query": {"n": 1, "min": 1.0, "max": 1.0, "median": 1.0}}},
     }
-    _validate_performance_document(baseline)
+    assert validate(baseline, schema) == []
     document = deepcopy(baseline)
     document["inputs"]["quality_result"]["path"] = "../outside.json"
-    with pytest.raises(PerformanceSchemaError):
-        _validate_performance_document(document)
+    assert validate(document, schema)
 
 
 def test_every_bridge_and_writer_refuse_a_plan_other_than_the_manifest_plan(
@@ -284,31 +286,51 @@ def test_every_bridge_and_writer_refuse_a_plan_other_than_the_manifest_plan(
     from eval.performance import earp_adapter
 
     root = tmp_path / "experiments"
-    run_id, _ = _quality_graph(root)
+    run_id, manifest = _quality_graph(root)
     workload = earp_adapter.load_earp_workload(root, run_id)
     wrong_plan = earp_adapter.PerformancePlan(1, ("fresh_store",))
     scenario = SimpleNamespace(config_sha256=SHA, query_call="Engine.search", query_params={})
     monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **_: pytest.fail("must reject plan before execution"))
     monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **_: pytest.fail("must reject plan before execution"))
     with pytest.raises(ValueError, match="plan"):
-        earp_adapter.run_diagnostic_repetitions(workload=workload, plan=wrong_plan, scenario=scenario, config_doc=workload.resolved_config_document, experiments_root=root, experiment="review", ts=TS)
+        earp_adapter.run_diagnostic_repetitions(workload=workload, plan=wrong_plan, scenario=scenario, config_doc=json.loads(manifest["resolved_config"]["canonical_json"]), experiments_root=root, experiment="review", ts=TS)
     with pytest.raises(ValueError, match="plan"):
         earp_adapter.run_characterization_repetitions(workload=workload, plan=wrong_plan, scenario=scenario, config_doc={"corpus": {}, "gold": {}})
 
 
-def test_diagnostic_rechecks_full_scenario_and_canonical_staged_inputs(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    "component,value",
+    [
+        ("config_sha256", "f" * 64),
+        ("query_call", "Engine.search_forged"),
+        ("query_params", {"limit": 999, "alpha": 0.7}),
+        ("retrieval_mode", "forged"),
+        ("max_measurable_k", 999),
+        ("use_default_embedder", False),
+    ],
+)
+def test_diagnostic_rechecks_every_normalized_scenario_component(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, component: str, value: object
 ) -> None:
     from eval.performance import earp_adapter
 
     root = tmp_path / "experiments"
-    run_id, _ = _quality_graph(root)
+    run_id, manifest = _quality_graph(root)
     workload = earp_adapter.load_earp_workload(root, run_id)
     plan = earp_adapter.PerformancePlan(20, ("fresh_store",))
     monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **_: pytest.fail("must reject before execution"))
-    wrong_scenario = SimpleNamespace(config_sha256=SHA, query_call="Engine.search", query_params={"limit": 999})
+    normalized = {
+        "config_sha256": SHA,
+        "query_call": "Engine.search",
+        "query_params": {"limit": 10, "alpha": 0.7},
+        "retrieval_mode": "text",
+        "max_measurable_k": 10,
+        "use_default_embedder": True,
+    }
+    normalized[component] = value
+    wrong_scenario = SimpleNamespace(**normalized)
     with pytest.raises(ValueError, match="verified workload"):
-        earp_adapter.run_diagnostic_repetitions(workload=workload, plan=plan, scenario=wrong_scenario, config_doc=workload.resolved_config_document, experiments_root=root, experiment="review", ts=TS)
+        earp_adapter.run_diagnostic_repetitions(workload=workload, plan=plan, scenario=wrong_scenario, config_doc=json.loads(manifest["resolved_config"]["canonical_json"]), experiments_root=root, experiment="review", ts=TS)
 
     # The manifest digest may be internally consistent yet the staged config
     # must still equal its canonical JSON and quality sidecar workload.
@@ -336,40 +358,47 @@ def test_diagnostic_rechecks_full_scenario_and_canonical_staged_inputs(
 @pytest.mark.parametrize(
     "field,value",
     [
-        ("parent_manifest_path", "runs/quality-review/other-manifest.json"),
-        ("parent_manifest_sha256", "f" * 64),
-        ("quality_result_path", "other-result.json"),
-        ("quality_result_sha256", "f" * 64),
-        ("resolved_config_path", "other-config.yaml"),
-        ("resolved_config_sha256", "f" * 64),
+        ("candidate_sha", "f" * 40),
+        ("evidence_family_id", "forged-family"),
+        ("config_sha256", "f" * 64),
+        ("query_call", "Engine.search_forged"),
+        ("effective_knobs", {"limit": 999}),
+        ("resolved_workload", {"config_sha256": SHA, "query_call": "Engine.search", "effective_knobs": {"limit": 999}}),
+        ("predeclared_plan", {"repetitions": 1, "treatments": ["fresh_store"]}),
         ("resolved_config_document", {"campaign": "forged"}),
     ],
 )
-def test_re_admission_refuses_each_mutated_workload_reference_field(
+def test_writer_rejects_each_mutated_loaded_workload_identity_or_config(
     tmp_path: Path, field: str, value: object
 ) -> None:
-    from eval.performance.earp_adapter import _verify_workload_reference, load_earp_workload
+    """Only a freshly loaded, unmodified reference is admissible to publication."""
+    from eval.performance.earp_adapter import PerformanceCell, PerformancePlan, RunSample, load_earp_workload, write_performance_result
 
     root = tmp_path / "experiments"
-    run_id, _ = _quality_graph(root)
-    workload = load_earp_workload(root, run_id)
-    object.__setattr__(workload, field, value)
+    run_id, manifest = _quality_graph(root)
+    workload = replace(load_earp_workload(root, run_id), **{field: value})
+    plan = PerformancePlan(manifest["performance_plan"]["repetitions"], tuple(manifest["performance_plan"]["treatments"]))
+    provenance = {"candidate_sha": CANDIDATE, "clean": True, "command": "test", "lockfile_sha256": SHA, "toolchain": {"python": "3"}, "device": {"kind": "cpu"}, "fixtures": {}}
+    cells = tuple(PerformanceCell.complete(treatment="fresh_store", repetition=rep, samples=(RunSample("fresh_store", rep, {"query": 1.0}, {"queries": 1}, {"fresh_database": True, "open_write_scope": "fresh_store"}),), execution_provenance=provenance) for rep in range(20))
     with pytest.raises(ValueError, match="verified workload"):
-        _verify_workload_reference(root, workload)
+        write_performance_result(experiments_root=root, experiment="review-mutated", ts=TS, workload=workload, plan=plan, cells=cells)
 
 
-def test_characterization_re_admits_before_execution(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("component", ("corpus", "gold", "projections", "embedder", "device"))
+def test_characterization_refuses_each_resolved_workload_component_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, component: str
+) -> None:
     from eval.performance import earp_adapter
 
     root = tmp_path / "experiments"
-    run_id, _ = _quality_graph(root)
+    run_id, manifest = _quality_graph(root)
     workload = earp_adapter.load_earp_workload(root, run_id)
-    object.__setattr__(workload, "quality_result_path", "forged-result.json")
-    monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **_: pytest.fail("must re-admit before execution"))
-    scenario = SimpleNamespace(config_sha256=SHA, query_call="Engine.search", query_params=workload.resolved_workload["effective_knobs"])
-    config = {key: workload.resolved_workload[key] for key in ("corpus", "gold", "projections", "embedder", "device")}
+    monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **_: pytest.fail("must refuse before execution"))
+    scenario = SimpleNamespace(config_sha256=SHA, query_call="Engine.search", query_params=manifest["workload"]["effective_knobs"])
+    config = {key: deepcopy(manifest["workload"][key]) for key in ("corpus", "gold", "projections", "embedder", "device")}
+    config[component] = {"forged": component}
     with pytest.raises(ValueError, match="verified workload"):
-        earp_adapter.run_characterization_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(20, ("fresh_store",)), scenario=scenario, config_doc=config, experiments_root=root)
+        earp_adapter.run_characterization_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(20, ("fresh_store",)), scenario=scenario, config_doc=config)
 
 
 def test_typed_unavailable_execution_provenance_persists_without_fabrication(
@@ -392,15 +421,24 @@ def test_typed_unavailable_execution_provenance_persists_without_fabrication(
 def test_observed_cost_v2_schema_is_total_for_flat_and_arm_documents() -> None:
     from eval.earp.observed_cost import Observation, combine_arm_observations
     from eval.earp.schema.validate import validate
-    from eval.earp.schema import observed_cost_v2_schema
-
-    flat = Observation("quality", SHA, {"open": 1.0}, {"queries": 1}, {"database_bytes": 1}, query_samples=(), unavailable={"query_samples": {"code": "not_run", "message": "blocked"}}, provenance={"unavailable": {"candidate_sha": {"code": "not_observable", "message": "blocked"}, "clean": {"code": "not_observable", "message": "blocked"}, "command": {"code": "not_observable", "message": "blocked"}, "lockfile_sha256": {"code": "not_observable", "message": "blocked"}, "toolchain": {"code": "not_observable", "message": "blocked"}, "device": {"code": "not_observable", "message": "blocked"}, "fixtures": {"code": "not_observable", "message": "blocked"}}}).as_document()
-    assert validate(flat, observed_cost_v2_schema()) == []
-    missing = deepcopy(flat)
-    del missing["unavailable"]["query_samples"]
-    assert validate(missing, observed_cost_v2_schema())
+    schema_path = Path(__file__).resolve().parents[2] / "eval/earp/schema/earp.observed-cost.v2.schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    checkpoints = (
+        "phases_ms.open", "phases_ms.ingest", "phases_ms.query",
+        "counts.documents", "counts.queries",
+        "storage.database_bytes", "storage.wal_bytes", "storage.shm_bytes",
+        "query_samples",
+    )
+    unavailable = {name: {"code": "not_run", "message": f"{name} unavailable"} for name in checkpoints}
+    provenance = {"unavailable": {name: {"code": "not_observable", "message": f"{name} unavailable"} for name in ("candidate_sha", "clean", "command", "lockfile_sha256", "toolchain", "device", "fixtures")}}
+    flat = Observation("quality", SHA, {}, {}, {}, query_samples=(), unavailable=unavailable, provenance=provenance).as_document()
+    assert validate(flat, schema) == []
+    for checkpoint in checkpoints:
+        missing = deepcopy(flat)
+        del missing["unavailable"][checkpoint]
+        assert validate(missing, schema), checkpoint
     arms = combine_arm_observations(config_sha256=SHA, arms={"control": flat})
-    assert validate(arms, observed_cost_v2_schema()) == []
+    assert validate(arms, schema) == []
 
 
 def test_quality_writer_collides_when_observed_per_query_evidence_changes(tmp_path: Path) -> None:
@@ -408,8 +446,12 @@ def test_quality_writer_collides_when_observed_per_query_evidence_changes(tmp_pa
     from eval.earp.writer import write_run
 
     kwargs = {"experiment": "earp-diagnostic", "ts": TS, "config_doc": {"schema_version": "earp.v1", "campaign": "diagnostic"}, "experiments_root": tmp_path / "experiments", "verdict": RunVerdict.COMPLETE, "read": "review", "metrics": {}, "code": {"git_sha": CANDIDATE, "dirty": False, "branch": "same", "baseline_commit": None}, "env": {"python": "3", "lockfile_sha256": None, "gpu": None, "key_deps": {}}, "corpus": {"source": None, "manifest_sha256": None, "datasets": []}, "seeds": {}, "cost_usd": 0.0}
-    first = write_run(**kwargs, observed_cost={"schema_version": "earp.observed-cost.v2", "scope": "one_run_observation", "phases_ms": {}, "counts": {}, "storage": {}, "query_samples": [{"query_id": "q", "outcome": "complete", "wall_ms": 1.0, "result_count": 1}], "unavailable": {}, "provenance": {"candidate_sha": CANDIDATE}})
-    second = write_run(**kwargs, observed_cost={"schema_version": "earp.observed-cost.v2", "scope": "one_run_observation", "phases_ms": {}, "counts": {}, "storage": {}, "query_samples": [{"query_id": "q", "outcome": "complete", "wall_ms": 9.0, "result_count": 1}], "unavailable": {}, "provenance": {"candidate_sha": CANDIDATE}})
+    provenance = {"candidate_sha": CANDIDATE, "clean": True, "command": "test", "lockfile_sha256": SHA, "toolchain": {"python": "3"}, "device": {"kind": "cpu"}, "fixtures": {}}
+    observed = {"schema_version": "earp.observed-cost.v2", "scope": "one_run_observation", "phases_ms": {"open": 1.0, "ingest": 2.0, "query": 3.0}, "counts": {"documents": 1, "queries": 1}, "storage": {"database_bytes": 1, "wal_bytes": 0, "shm_bytes": 0}, "query_samples": [{"query_id": "q", "outcome": "complete", "wall_ms": 1.0, "result_count": 1}], "unavailable": {}, "provenance": provenance}
+    first = write_run(**kwargs, observed_cost=observed)
+    changed = deepcopy(observed)
+    changed["query_samples"][0]["wall_ms"] = 9.0
+    second = write_run(**kwargs, observed_cost=changed)
     assert first.run_id == second.run_id
     assert second.blocker is not None
 
@@ -427,24 +469,30 @@ def test_writer_refuses_a_plan_that_differs_from_the_advertised_manifest(tmp_pat
         write_performance_result(experiments_root=root, experiment="review-plan", ts=TS, workload=workload, plan=PerformancePlan(1, ("fresh_store",)), cells=(cell,))
 
 
-def test_nested_performance_validation_rejects_semantic_cell_errors() -> None:
-    from eval.performance.earp_adapter import PerformanceCell, PerformancePlan, RunSample, _validate_cells
+def test_writer_rejects_semantic_cell_errors(tmp_path: Path) -> None:
+    from eval.performance.earp_adapter import PerformanceCell, PerformancePlan, RunSample, load_earp_workload, write_performance_result
 
-    sample = RunSample("fresh_store", 1, {"query": 1.0}, {"queries": 1}, {"fresh_database": True, "open_write_scope": "fresh_store"})
+    root = tmp_path / "experiments"
+    run_id, manifest = _quality_graph(root)
+    workload = load_earp_workload(root, run_id)
     provenance = {"candidate_sha": CANDIDATE, "clean": True, "command": "test", "lockfile_sha256": SHA, "toolchain": {"python": "3"}, "device": {"kind": "cpu"}, "fixtures": {}}
-    mismatched = PerformanceCell.complete(treatment="fresh_store", repetition=0, samples=(sample,), execution_provenance=provenance)
+    plan = PerformancePlan(manifest["performance_plan"]["repetitions"], tuple(manifest["performance_plan"]["treatments"]))
+    cells = [PerformanceCell.complete(treatment="fresh_store", repetition=rep, samples=(RunSample("fresh_store", rep, {"query": 1.0}, {"queries": 1}, {"fresh_database": True, "open_write_scope": "fresh_store"}),), execution_provenance=provenance) for rep in range(20)]
+    mismatched = PerformanceCell.complete(treatment="fresh_store", repetition=0, samples=(RunSample("fresh_store", 99, {"query": 1.0}, {"queries": 1}, {"fresh_database": True, "open_write_scope": "fresh_store"}),), execution_provenance=provenance)
+    cells[0] = mismatched
     with pytest.raises(ValueError, match="raw sample"):
-        _validate_cells(PerformancePlan(1, ("fresh_store",)), (mismatched,))
-    malformed = PerformanceCell.invalid(treatment="fresh_store", repetition=0, raw_samples=(), invalidity={"code": "", "message": 1}, execution_provenance=provenance)
+        write_performance_result(experiments_root=root, experiment="review-semantic", ts=TS, workload=workload, plan=plan, cells=cells)
+    cells[0] = PerformanceCell.invalid(treatment="fresh_store", repetition=0, raw_samples=(), invalidity={"code": "", "message": 1}, execution_provenance=provenance)
     with pytest.raises(ValueError, match="invalidity"):
-        _validate_cells(PerformancePlan(1, ("fresh_store",)), (malformed,))
+        write_performance_result(experiments_root=root, experiment="review-invalidity", ts=TS, workload=workload, plan=plan, cells=cells)
 
 
 def test_performance_schema_rejects_unknown_nested_cell_field() -> None:
-    from eval.performance.earp_adapter import PerformanceSchemaError, _validate_performance_document
+    from eval.earp.schema.validate import validate
 
+    schema_path = Path(__file__).resolve().parents[2] / "eval/performance/schema/performance.earp.v1.schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
     document = {"schema_version": "performance.earp.v1", "run_id": "review", "scope": "repeated_performance_characterization", "relation": "same_candidate_reexecution", "quality_workload_sha256": SHA, "execution_workload_sha256": SHA, "workload": {"config_sha256": SHA, "query_call": "Engine.search", "effective_knobs": {}}, "plan": {"repetitions": 1, "treatments": ["fresh_store"]}, "parent_manifest": {"path": "runs/quality/earp.workload-manifest.v1.json", "sha256": SHA}, "inputs": {"quality_result": {"path": "earp.result.v1.json", "sha256": SHA}, "resolved_config": {"path": "config.resolved.yaml", "sha256": SHA}}, "cells": [{"treatment": "fresh_store", "repetition": 0, "status": "invalid", "raw_samples": [], "invalidity": {"code": "timeout", "message": "boom"}, "execution_provenance": {"candidate_sha": CANDIDATE, "clean": True, "command": "test", "lockfile_sha256": SHA, "toolchain": {"python": "3"}, "device": {"kind": "cpu"}, "fixtures": {}}}], "samples": [], "summary": {}}
-    _validate_performance_document(document)
+    assert validate(document, schema) == []
     document["cells"][0]["unexpected"] = True
-    with pytest.raises(PerformanceSchemaError):
-        _validate_performance_document(document)
+    assert validate(document, schema)

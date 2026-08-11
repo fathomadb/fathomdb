@@ -164,7 +164,7 @@ def test_executor_exception_is_persisted_with_real_or_typed_unavailable_provenan
     run_id, _ = _quality_graph(tmp_path / "experiments")
     workload = earp_adapter.load_earp_workload(tmp_path / "experiments", run_id)
     monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **_: (_ for _ in ()).throw(TimeoutError("boom")))
-    cells = earp_adapter.run_diagnostic_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(1, ("fresh_store",)), scenario=SimpleNamespace(config_sha256=SHA, query_call="Engine.search"), config_doc={}, experiments_root=tmp_path / "experiments", experiment="review", ts=TS)
+    cells = earp_adapter.run_diagnostic_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(20, ("fresh_store",)), scenario=SimpleNamespace(config_sha256=SHA, query_call="Engine.search"), config_doc={}, experiments_root=tmp_path / "experiments", experiment="review", ts=TS)
     assert cells[0].status == "invalid"
     assert cells[0].invalidity["code"] == "timeout"
     _assert_total_provenance(cells[0].execution_provenance)
@@ -202,9 +202,9 @@ def test_one_invalid_of_twenty_one_planned_cells_suppresses_treatment_summary(tm
             {"queries": 1},
             {"fresh_database": True, "open_write_scope": "fresh_store"},
         )
-    cells = [PerformanceCell.complete(treatment="fresh_store", repetition=rep, samples=(sample(rep),), execution_provenance=provenance) for rep in range(20)]
-    cells.append(PerformanceCell.invalid(treatment="fresh_store", repetition=20, raw_samples=(), invalidity={"code": "timeout", "message": "boom"}, execution_provenance=provenance))
-    outcome = write_performance_result(experiments_root=root, experiment="review", ts=TS, workload=workload, plan=PerformancePlan(21, ("fresh_store",)), cells=cells)
+    cells = [PerformanceCell.complete(treatment="fresh_store", repetition=rep, samples=(sample(rep),), execution_provenance=provenance) for rep in range(19)]
+    cells.append(PerformanceCell.invalid(treatment="fresh_store", repetition=19, raw_samples=(), invalidity={"code": "timeout", "message": "boom"}, execution_provenance=provenance))
+    outcome = write_performance_result(experiments_root=root, experiment="review", ts=TS, workload=workload, plan=PerformancePlan(20, ("fresh_store",)), cells=cells)
     document = json.loads((outcome.run_dir / "performance.earp.v1.json").read_text(encoding="utf-8"))
     assert "fresh_store" not in document["summary"]
 
@@ -474,10 +474,10 @@ def test_typed_unavailable_execution_provenance_persists_without_fabrication(
     run_id, _ = _quality_graph(root)
     workload = load_earp_workload(root, run_id)
     unavailable = {name: {"code": "not_observable", "message": f"{name} unavailable"} for name in ("candidate_sha", "clean", "command", "lockfile_sha256", "toolchain", "device", "fixtures")}
-    cells = run_repetitions(workload=workload, plan=PerformancePlan(1, ("fresh_store",)), execution_provenance={"unavailable": unavailable}, execute=lambda *_: (_ for _ in ()).throw(TimeoutError("boom")))
+    cells = run_repetitions(workload=workload, plan=PerformancePlan(20, ("fresh_store",)), execution_provenance={"unavailable": unavailable}, execute=lambda *_: (_ for _ in ()).throw(TimeoutError("boom")))
     assert cells[0].status == "invalid"
     assert cells[0].execution_provenance == {"unavailable": unavailable}
-    outcome = write_performance_result(experiments_root=root, experiment="review-unavailable", ts=TS, workload=workload, plan=PerformancePlan(1, ("fresh_store",)), cells=cells)
+    outcome = write_performance_result(experiments_root=root, experiment="review-unavailable", ts=TS, workload=workload, plan=PerformancePlan(20, ("fresh_store",)), cells=cells)
     document = json.loads((outcome.run_dir / "performance.earp.v1.json").read_text(encoding="utf-8"))
     assert document["cells"][0]["execution_provenance"] == {"unavailable": unavailable}
 

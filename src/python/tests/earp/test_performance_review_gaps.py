@@ -10,7 +10,6 @@ from __future__ import annotations
 import hashlib
 import json
 from copy import deepcopy
-from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -279,23 +278,47 @@ def test_performance_schema_rejects_nested_bad_input_path_before_materialization
     assert validate(document, schema)
 
 
-def test_every_bridge_and_writer_refuse_a_plan_other_than_the_manifest_plan(
+def test_diagnostic_matching_baseline_reaches_executor_then_plan_drift_refuses(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Plan equality is admission, not merely a CLI convenience check."""
+    """Plan refusal is independent of scenario/config admission."""
+    from eval.performance import earp_adapter
+    from eval.earp.schema.models import RunVerdict
+
+    root = tmp_path / "experiments"
+    run_id, manifest = _quality_graph(root)
+    workload = earp_adapter.load_earp_workload(root, run_id)
+    calls: list[object] = []
+    monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **kwargs: calls.append(kwargs) or SimpleNamespace(verdict=RunVerdict.COMPLETE, observed_cost={"phases_ms": {"query": 1.0}, "counts": {"queries": 1}}, failure=None, blockers=()))
+    scenario = SimpleNamespace(config_sha256=SHA, query_call="Engine.search", query_params={"limit": 10, "alpha": 0.7}, retrieval_mode="text", max_measurable_k=10, use_default_embedder=True)
+    matching = earp_adapter.PerformancePlan(manifest["performance_plan"]["repetitions"], tuple(manifest["performance_plan"]["treatments"]))
+    earp_adapter.run_diagnostic_repetitions(workload=workload, plan=matching, scenario=scenario, config_doc=json.loads(manifest["resolved_config"]["canonical_json"]), experiments_root=root, experiment="review", ts=TS)
+    assert len(calls) == 20
+    calls.clear()
+    with pytest.raises(ValueError, match="plan"):
+        earp_adapter.run_diagnostic_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(1, ("fresh_store",)), scenario=scenario, config_doc=json.loads(manifest["resolved_config"]["canonical_json"]), experiments_root=root, experiment="review", ts=TS)
+    assert calls == []
+
+
+def test_characterization_matching_baseline_reaches_executor_then_plan_drift_refuses(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from eval.performance import earp_adapter
 
     root = tmp_path / "experiments"
     run_id, manifest = _quality_graph(root)
     workload = earp_adapter.load_earp_workload(root, run_id)
-    wrong_plan = earp_adapter.PerformancePlan(1, ("fresh_store",))
-    scenario = SimpleNamespace(config_sha256=SHA, query_call="Engine.search", query_params={})
-    monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **_: pytest.fail("must reject plan before execution"))
-    monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **_: pytest.fail("must reject plan before execution"))
+    calls: list[object] = []
+    monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **kwargs: calls.append(kwargs) or SimpleNamespace(blocker=None, observed_cost={"phases_ms": {"query": 1.0}, "counts": {"queries": 1}}))
+    scenario = SimpleNamespace(config_sha256=SHA, query_call="Engine.search", query_params=manifest["workload"]["effective_knobs"])
+    config = {key: deepcopy(manifest["workload"][key]) for key in ("corpus", "gold", "projections", "embedder", "device")}
+    matching = earp_adapter.PerformancePlan(manifest["performance_plan"]["repetitions"], tuple(manifest["performance_plan"]["treatments"]))
+    earp_adapter.run_characterization_repetitions(workload=workload, plan=matching, scenario=scenario, config_doc=config)
+    assert len(calls) == 20
+    calls.clear()
     with pytest.raises(ValueError, match="plan"):
-        earp_adapter.run_diagnostic_repetitions(workload=workload, plan=wrong_plan, scenario=scenario, config_doc=json.loads(manifest["resolved_config"]["canonical_json"]), experiments_root=root, experiment="review", ts=TS)
-    with pytest.raises(ValueError, match="plan"):
-        earp_adapter.run_characterization_repetitions(workload=workload, plan=wrong_plan, scenario=scenario, config_doc={"corpus": {}, "gold": {}})
+        earp_adapter.run_characterization_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(1, ("fresh_store",)), scenario=scenario, config_doc=config)
+    assert calls == []
 
 
 @pytest.mark.parametrize(
@@ -318,8 +341,10 @@ def test_diagnostic_rechecks_every_normalized_scenario_component(
     run_id, manifest = _quality_graph(root)
     workload = earp_adapter.load_earp_workload(root, run_id)
     plan = earp_adapter.PerformancePlan(20, ("fresh_store",))
-    monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **_: pytest.fail("must reject before execution"))
-    normalized = {
+    calls: list[object] = []
+    from eval.earp.schema.models import RunVerdict
+    monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **kwargs: calls.append(kwargs) or SimpleNamespace(verdict=RunVerdict.COMPLETE, observed_cost={"phases_ms": {"query": 1.0}, "counts": {"queries": 1}}, failure=None, blockers=()))
+    baseline = {
         "config_sha256": SHA,
         "query_call": "Engine.search",
         "query_params": {"limit": 10, "alpha": 0.7},
@@ -327,10 +352,15 @@ def test_diagnostic_rechecks_every_normalized_scenario_component(
         "max_measurable_k": 10,
         "use_default_embedder": True,
     }
+    earp_adapter.run_diagnostic_repetitions(workload=workload, plan=plan, scenario=SimpleNamespace(**baseline), config_doc=json.loads(manifest["resolved_config"]["canonical_json"]), experiments_root=root, experiment="review", ts=TS)
+    assert len(calls) == 20
+    calls.clear()
+    normalized = dict(baseline)
     normalized[component] = value
     wrong_scenario = SimpleNamespace(**normalized)
     with pytest.raises(ValueError, match="verified workload"):
         earp_adapter.run_diagnostic_repetitions(workload=workload, plan=plan, scenario=wrong_scenario, config_doc=json.loads(manifest["resolved_config"]["canonical_json"]), experiments_root=root, experiment="review", ts=TS)
+    assert calls == []
 
     # The manifest digest may be internally consistent yet the staged config
     # must still equal its canonical JSON and quality sidecar workload.
@@ -356,35 +386,38 @@ def test_diagnostic_rechecks_every_normalized_scenario_component(
 
 
 @pytest.mark.parametrize(
-    "field,value",
-    [
-        ("candidate_sha", "f" * 40),
-        ("evidence_family_id", "forged-family"),
-        ("config_sha256", "f" * 64),
-        ("query_call", "Engine.search_forged"),
-        ("effective_knobs", {"limit": 999}),
-        ("resolved_workload", {"config_sha256": SHA, "query_call": "Engine.search", "effective_knobs": {"limit": 999}}),
-        ("predeclared_plan", {"repetitions": 1, "treatments": ["fresh_store"]}),
-        ("resolved_config_document", {"campaign": "forged"}),
-    ],
+    "edge",
+    ("parent_manifest_bytes", "quality_result_path", "quality_result_digest", "resolved_config_path", "resolved_config_digest"),
 )
-def test_writer_rejects_each_mutated_loaded_workload_identity_or_config(
-    tmp_path: Path, field: str, value: object
+def test_writer_rejects_loaded_reference_after_each_artifact_edge_tamper(
+    tmp_path: Path, edge: str
 ) -> None:
-    """Only a freshly loaded, unmodified reference is admissible to publication."""
     from eval.performance.earp_adapter import PerformanceCell, PerformancePlan, RunSample, load_earp_workload, write_performance_result
 
     root = tmp_path / "experiments"
     run_id, manifest = _quality_graph(root)
-    workload = replace(load_earp_workload(root, run_id), **{field: value})
+    workload = load_earp_workload(root, run_id)
+    run = root / "runs" / run_id
+    changed = json.loads((run / "earp.workload-manifest.v1.json").read_text(encoding="utf-8"))
+    if edge == "parent_manifest_bytes":
+        changed["quality_parent"]["clean"] = False
+    elif edge == "quality_result_path":
+        changed["quality_parent"]["result_path"] = "other-result.json"
+    elif edge == "quality_result_digest":
+        changed["quality_parent"]["result_sha256"] = "f" * 64
+    elif edge == "resolved_config_path":
+        changed["resolved_config"]["path"] = "other-config.yaml"
+    else:
+        changed["resolved_config"]["sha256"] = "f" * 64
+    _rewrite_manifest_advertisement(root, run_id, changed)
     plan = PerformancePlan(manifest["performance_plan"]["repetitions"], tuple(manifest["performance_plan"]["treatments"]))
     provenance = {"candidate_sha": CANDIDATE, "clean": True, "command": "test", "lockfile_sha256": SHA, "toolchain": {"python": "3"}, "device": {"kind": "cpu"}, "fixtures": {}}
     cells = tuple(PerformanceCell.complete(treatment="fresh_store", repetition=rep, samples=(RunSample("fresh_store", rep, {"query": 1.0}, {"queries": 1}, {"fresh_database": True, "open_write_scope": "fresh_store"}),), execution_provenance=provenance) for rep in range(20))
-    with pytest.raises(ValueError, match="verified workload"):
-        write_performance_result(experiments_root=root, experiment="review-mutated", ts=TS, workload=workload, plan=plan, cells=cells)
+    with pytest.raises(ValueError, match="verified workload|digest|manifest"):
+        write_performance_result(experiments_root=root, experiment="review-tamper", ts=TS, workload=workload, plan=plan, cells=cells)
 
 
-@pytest.mark.parametrize("component", ("corpus", "gold", "projections", "embedder", "device"))
+@pytest.mark.parametrize("component", ("corpus", "gold", "projections", "embedder", "device", "query_knobs"))
 def test_characterization_refuses_each_resolved_workload_component_mismatch(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, component: str
 ) -> None:
@@ -393,12 +426,21 @@ def test_characterization_refuses_each_resolved_workload_component_mismatch(
     root = tmp_path / "experiments"
     run_id, manifest = _quality_graph(root)
     workload = earp_adapter.load_earp_workload(root, run_id)
-    monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **_: pytest.fail("must refuse before execution"))
+    calls: list[object] = []
+    monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **kwargs: calls.append(kwargs) or SimpleNamespace(blocker=None, observed_cost={"phases_ms": {"query": 1.0}, "counts": {"queries": 1}}))
     scenario = SimpleNamespace(config_sha256=SHA, query_call="Engine.search", query_params=manifest["workload"]["effective_knobs"])
     config = {key: deepcopy(manifest["workload"][key]) for key in ("corpus", "gold", "projections", "embedder", "device")}
-    config[component] = {"forged": component}
+    plan = earp_adapter.PerformancePlan(20, ("fresh_store",))
+    earp_adapter.run_characterization_repetitions(workload=workload, plan=plan, scenario=scenario, config_doc=config)
+    assert len(calls) == 20
+    calls.clear()
+    if component == "query_knobs":
+        scenario = SimpleNamespace(config_sha256=SHA, query_call="Engine.search", query_params={"limit": 999})
+    else:
+        config[component] = {"forged": component}
     with pytest.raises(ValueError, match="verified workload"):
-        earp_adapter.run_characterization_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(20, ("fresh_store",)), scenario=scenario, config_doc=config)
+        earp_adapter.run_characterization_repetitions(workload=workload, plan=plan, scenario=scenario, config_doc=config)
+    assert calls == []
 
 
 def test_typed_unavailable_execution_provenance_persists_without_fabrication(

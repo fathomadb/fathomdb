@@ -757,3 +757,50 @@ def test_direct_bridges_refuse_missing_normalized_scenario_field_before_executio
             earp_adapter.run_diagnostic_repetitions(workload=workload, plan=plan, scenario=scenario, config_doc=config, experiments_root=root, experiment="review", ts=TS)
         else:
             earp_adapter.run_characterization_repetitions(workload=workload, plan=plan, scenario=scenario, config_doc=config)
+
+
+@pytest.mark.parametrize("bridge", ("diagnostic", "characterization"))
+@pytest.mark.parametrize("missing", ("retrieval_mode", "max_measurable_k", "use_default_embedder"))
+def test_missing_normalized_field_refuses_when_canonical_config_is_invalid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, bridge: str, missing: str
+) -> None:
+    from eval.performance import earp_adapter
+
+    root = tmp_path / "experiments"
+    graph = _quality_graph if bridge == "diagnostic" else _characterization_graph
+    run_id, manifest = graph(root)
+    workload = earp_adapter.load_earp_workload(root, run_id)
+    monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **_: pytest.fail("must refuse before execution"))
+    monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **_: pytest.fail("must refuse before execution"))
+    fields = {"config_sha256": SHA, "query_call": "Engine.search", "query_params": dict(manifest["workload"]["effective_knobs"]), "retrieval_mode": "text", "max_measurable_k": 10, "use_default_embedder": True}
+    del fields[missing]
+    scenario = SimpleNamespace(**fields)
+    with pytest.raises(ValueError, match="canonical config"):
+        if bridge == "diagnostic":
+            earp_adapter.run_diagnostic_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(20, ("fresh_store",)), scenario=scenario, config_doc={"forged": True}, experiments_root=root, experiment="review", ts=TS)
+        else:
+            earp_adapter.run_characterization_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(20, ("fresh_store",)), scenario=scenario, config_doc={"forged": True})
+
+
+@pytest.mark.parametrize("bridge", ("diagnostic", "characterization"))
+@pytest.mark.parametrize("missing", ("config_sha256", "query_call", "query_params"))
+def test_direct_bridges_refuse_missing_core_scenario_field_before_execution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, bridge: str, missing: str
+) -> None:
+    from eval.performance import earp_adapter
+
+    root = tmp_path / "experiments"
+    graph = _quality_graph if bridge == "diagnostic" else _characterization_graph
+    run_id, manifest = graph(root)
+    workload = earp_adapter.load_earp_workload(root, run_id)
+    monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **_: pytest.fail("must refuse before execution"))
+    monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **_: pytest.fail("must refuse before execution"))
+    fields = {"config_sha256": SHA, "query_call": "Engine.search", "query_params": dict(manifest["workload"]["effective_knobs"]), "retrieval_mode": "text", "max_measurable_k": 10, "use_default_embedder": True}
+    del fields[missing]
+    scenario = SimpleNamespace(**fields)
+    config = json.loads(manifest["resolved_config"]["canonical_json"])
+    with pytest.raises(ValueError, match="scenario|normalized|verified workload"):
+        if bridge == "diagnostic":
+            earp_adapter.run_diagnostic_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(20, ("fresh_store",)), scenario=scenario, config_doc=config, experiments_root=root, experiment="review", ts=TS)
+        else:
+            earp_adapter.run_characterization_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(20, ("fresh_store",)), scenario=scenario, config_doc=config)

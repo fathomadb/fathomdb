@@ -85,6 +85,30 @@ def _rewrite_manifest_advertisement(root: Path, run_id: str, manifest: dict[str,
     record_path.write_text(json.dumps(record, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def _characterization_graph(root: Path) -> tuple[str, dict[str, object]]:
+    """Create a complete characterization-shaped graph for bridge admission."""
+    run_id, manifest = _quality_graph(root)
+    run = root / "runs" / run_id
+    workload = manifest["workload"]
+    config = {
+        "schema_version": "earp.v1",
+        "campaign": "characterization",
+        "corpus": workload["corpus"],
+        "gold": workload["gold"],
+        "projections": workload["projections"],
+        "embedder": workload["embedder"],
+        "device": workload["device"],
+        "scenario": {"query": {"call": workload["query_call"], **workload["effective_knobs"]}},
+    }
+    (run / "config.resolved.yaml").write_text(json.dumps(config) + "\n", encoding="utf-8")
+    result = {"scenario": {"config_sha256": SHA, "query_call": workload["query_call"], "effective_knobs": workload["effective_knobs"]}}
+    (run / "earp.result.v1.json").write_text(json.dumps(result) + "\n", encoding="utf-8")
+    manifest["resolved_config"] = {"path": "config.resolved.yaml", "sha256": _digest(run / "config.resolved.yaml"), "canonical_json": json.dumps(config, sort_keys=True)}
+    manifest["quality_parent"]["result_sha256"] = _digest(run / "earp.result.v1.json")
+    _rewrite_manifest_advertisement(root, run_id, manifest)
+    return run_id, manifest
+
+
 def test_manifest_round_trips_every_execution_input_and_predeclared_plan(tmp_path: Path) -> None:
     from eval.performance.earp_adapter import load_earp_workload
 
@@ -306,7 +330,7 @@ def test_characterization_matching_baseline_reaches_executor_then_plan_drift_ref
     from eval.performance import earp_adapter
 
     root = tmp_path / "experiments"
-    run_id, manifest = _quality_graph(root)
+    run_id, manifest = _characterization_graph(root)
     workload = earp_adapter.load_earp_workload(root, run_id)
     calls: list[object] = []
     monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **kwargs: calls.append(kwargs) or SimpleNamespace(blocker=None, observed_cost={"phases_ms": {"query": 1.0}, "counts": {"queries": 1}}))
@@ -385,13 +409,7 @@ def test_diagnostic_rechecks_every_normalized_scenario_component(
         earp_adapter.load_earp_workload(root, run_id)
 
 
-@pytest.mark.parametrize(
-    "edge",
-    ("parent_manifest_bytes", "quality_result_path", "quality_result_digest", "resolved_config_path", "resolved_config_digest"),
-)
-def test_writer_rejects_loaded_reference_after_each_artifact_edge_tamper(
-    tmp_path: Path, edge: str
-) -> None:
+def test_writer_rejects_a_stale_reference_after_manifest_bytes_change(tmp_path: Path) -> None:
     from eval.performance.earp_adapter import PerformanceCell, PerformancePlan, RunSample, load_earp_workload, write_performance_result
 
     root = tmp_path / "experiments"
@@ -399,22 +417,36 @@ def test_writer_rejects_loaded_reference_after_each_artifact_edge_tamper(
     workload = load_earp_workload(root, run_id)
     run = root / "runs" / run_id
     changed = json.loads((run / "earp.workload-manifest.v1.json").read_text(encoding="utf-8"))
-    if edge == "parent_manifest_bytes":
-        changed["quality_parent"]["clean"] = False
-    elif edge == "quality_result_path":
-        changed["quality_parent"]["result_path"] = "other-result.json"
-    elif edge == "quality_result_digest":
-        changed["quality_parent"]["result_sha256"] = "f" * 64
-    elif edge == "resolved_config_path":
-        changed["resolved_config"]["path"] = "other-config.yaml"
-    else:
-        changed["resolved_config"]["sha256"] = "f" * 64
+    changed["quality_parent"]["clean"] = False
     _rewrite_manifest_advertisement(root, run_id, changed)
     plan = PerformancePlan(manifest["performance_plan"]["repetitions"], tuple(manifest["performance_plan"]["treatments"]))
     provenance = {"candidate_sha": CANDIDATE, "clean": True, "command": "test", "lockfile_sha256": SHA, "toolchain": {"python": "3"}, "device": {"kind": "cpu"}, "fixtures": {}}
     cells = tuple(PerformanceCell.complete(treatment="fresh_store", repetition=rep, samples=(RunSample("fresh_store", rep, {"query": 1.0}, {"queries": 1}, {"fresh_database": True, "open_write_scope": "fresh_store"}),), execution_provenance=provenance) for rep in range(20))
     with pytest.raises(ValueError, match="verified workload|digest|manifest"):
         write_performance_result(experiments_root=root, experiment="review-tamper", ts=TS, workload=workload, plan=plan, cells=cells)
+
+
+@pytest.mark.parametrize("edge", ("quality_result_path", "quality_result_digest", "resolved_config_path", "resolved_config_digest"))
+def test_loader_rejects_each_invalid_outgoing_artifact_edge_before_admission(
+    tmp_path: Path, edge: str
+) -> None:
+    from eval.performance.earp_adapter import load_earp_workload
+
+    root = tmp_path / "experiments"
+    run_id, _ = _quality_graph(root)
+    run = root / "runs" / run_id
+    manifest = json.loads((run / "earp.workload-manifest.v1.json").read_text(encoding="utf-8"))
+    if edge == "quality_result_path":
+        manifest["quality_parent"]["result_path"] = "other-result.json"
+    elif edge == "quality_result_digest":
+        manifest["quality_parent"]["result_sha256"] = "f" * 64
+    elif edge == "resolved_config_path":
+        manifest["resolved_config"]["path"] = "other-config.yaml"
+    else:
+        manifest["resolved_config"]["sha256"] = "f" * 64
+    _rewrite_manifest_advertisement(root, run_id, manifest)
+    with pytest.raises(ValueError, match="digest|manifest|quality|config"):
+        load_earp_workload(root, run_id)
 
 
 @pytest.mark.parametrize("component", ("corpus", "gold", "projections", "embedder", "device", "query_knobs"))
@@ -424,7 +456,7 @@ def test_characterization_refuses_each_resolved_workload_component_mismatch(
     from eval.performance import earp_adapter
 
     root = tmp_path / "experiments"
-    run_id, manifest = _quality_graph(root)
+    run_id, manifest = _characterization_graph(root)
     workload = earp_adapter.load_earp_workload(root, run_id)
     calls: list[object] = []
     monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **kwargs: calls.append(kwargs) or SimpleNamespace(blocker=None, observed_cost={"phases_ms": {"query": 1.0}, "counts": {"queries": 1}}))

@@ -4,20 +4,36 @@
   "oneOf": [{"$ref": "#/$defs/flat"}, {"$ref": "#/$defs/arms"}],
   "$defs": {
     "reason": {"type": "object", "additionalProperties": false, "required": ["code", "message"], "properties": {"code": {"type": "string"}, "message": {"type": "string"}}},
+    "number_map": {"type": "object", "additionalProperties": {"type": "number"}},
+    "query_sample": {"type": "object", "additionalProperties": false, "required": ["query_id", "outcome"], "properties": {"query_id": {"type": "string"}, "outcome": {"enum": ["complete", "failed"]}, "wall_ms": {"type": "number", "minimum": 0}, "result_count": {"type": "integer", "minimum": 0}}},
+    "provenance": {"type": "object", "additionalProperties": false, "properties": {"candidate_sha": {"type": "string"}, "clean": {"type": "boolean"}, "command": {"type": "string"}, "lockfile_sha256": {"type": "string"}, "toolchain": {"type": "object"}, "device": {"type": "object"}, "fixtures": {"type": "object"}, "unavailable": {"type": "object", "additionalProperties": {"$ref": "#/$defs/reason"}}}},
     "flat": {
       "type": "object", "additionalProperties": false,
       "required": ["schema_version", "scope", "evidence_family_id", "config_sha256", "phases_ms", "counts", "storage", "query_samples", "unavailable", "provenance"],
       "properties": {
         "schema_version": {"const": "earp.observed-cost.v2"}, "scope": {"const": "one_run_observation"},
         "evidence_family_id": {"type": "string"}, "config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
-        "phases_ms": {"type": "object"}, "counts": {"type": "object"}, "storage": {"type": "object"}, "query_samples": {"type": "array"}, "provenance": {"type": "object"},
-        "unavailable": {"type": "object", "required": ["phases_ms.open", "phases_ms.ingest", "phases_ms.query", "counts.documents", "counts.queries", "storage.database_bytes", "storage.wal_bytes", "storage.shm_bytes", "query_samples"], "additionalProperties": {"$ref": "#/$defs/reason"}}
-      }
+        "phases_ms": {"$ref": "#/$defs/number_map"}, "counts": {"$ref": "#/$defs/number_map"}, "storage": {"$ref": "#/$defs/number_map"},
+        "query_samples": {"type": "array", "items": {"$ref": "#/$defs/query_sample"}},
+        "unavailable": {"type": "object", "additionalProperties": {"$ref": "#/$defs/reason"}},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      },
+      "allOf": [
+        {"oneOf": [{"properties": {"phases_ms": {"required": ["open"]}}}, {"properties": {"unavailable": {"required": ["phases_ms.open"]}}}]},
+        {"oneOf": [{"properties": {"phases_ms": {"required": ["ingest"]}}}, {"properties": {"phases_ms": {"required": ["write"]}}}, {"properties": {"unavailable": {"required": ["phases_ms.ingest"]}}}]},
+        {"oneOf": [{"properties": {"phases_ms": {"required": ["query"]}}}, {"properties": {"unavailable": {"required": ["phases_ms.query"]}}}]},
+        {"oneOf": [{"properties": {"counts": {"required": ["documents"]}}}, {"properties": {"counts": {"required": ["accepted"]}}}, {"properties": {"unavailable": {"required": ["counts.documents"]}}}]},
+        {"oneOf": [{"properties": {"counts": {"required": ["queries"]}}}, {"properties": {"unavailable": {"required": ["counts.queries"]}}}]},
+        {"oneOf": [{"properties": {"storage": {"required": ["database_bytes"]}}}, {"properties": {"unavailable": {"required": ["storage.database_bytes"]}}}]},
+        {"oneOf": [{"properties": {"storage": {"required": ["wal_bytes"]}}}, {"properties": {"unavailable": {"required": ["storage.wal_bytes"]}}}]},
+        {"oneOf": [{"properties": {"storage": {"required": ["shm_bytes"]}}}, {"properties": {"unavailable": {"required": ["storage.shm_bytes"]}}}]},
+        {"oneOf": [{"properties": {"query_samples": {"minItems": 1}}}, {"properties": {"unavailable": {"required": ["query_samples"]}}}]}
+      ]
     },
     "arms": {
       "type": "object", "additionalProperties": false,
       "required": ["schema_version", "scope", "evidence_family_id", "config_sha256", "arms"],
-      "properties": {"schema_version": {"const": "earp.observed-cost.v2"}, "scope": {"const": "one_run_observation"}, "evidence_family_id": {"type": "string"}, "config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "arms": {"type": "object", "additionalProperties": {"$ref": "#/$defs/flat"}}}
+      "properties": {"schema_version": {"const": "earp.observed-cost.v2"}, "scope": {"const": "one_run_observation"}, "evidence_family_id": {"type": "string"}, "config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "arms": {"type": "object", "minItems": 1, "additionalProperties": {"$ref": "#/$defs/flat"}}}
     }
   }
 }

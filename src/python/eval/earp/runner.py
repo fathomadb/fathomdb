@@ -696,6 +696,25 @@ def _observed_cost(
     query_samples: tuple[Mapping[str, Any], ...],
 ) -> dict[str, Any]:
     """Build a one-run observation; the durable writer binds its run ID."""
+    code = _code_provenance()
+    provenance: dict[str, Any] = {
+        "toolchain": {"python": _lib.env_info().get("python", "")},
+        "device": {"kind": "cpu"},
+    }
+    if code.get("git_sha"):
+        provenance["candidate_sha"] = code["git_sha"]
+        provenance["clean"] = not bool(code.get("dirty"))
+    else:
+        provenance["unavailable"] = {
+            "candidate_sha": {
+                "code": "git_unavailable",
+                "message": "candidate identity is unavailable outside a git checkout",
+            },
+            "clean": {
+                "code": "git_unavailable",
+                "message": "git cleanliness is unavailable outside a git checkout",
+            },
+        }
     return Observation(
         evidence_family_id="pending-writer-binding",
         config_sha256=scenario.config_sha256,
@@ -709,12 +728,7 @@ def _observed_cost(
                 "message": "the public Python binding exposes no engine trace hook",
             }
         },
-        provenance={
-            "candidate_sha": _code_provenance().get("git_sha") or "unknown",
-            "clean": not bool(_code_provenance().get("dirty")),
-            "toolchain": {"python": _lib.env_info().get("python", "")},
-            "device": {"kind": "cpu"},
-        },
+        provenance=provenance,
     ).as_document()
 
 

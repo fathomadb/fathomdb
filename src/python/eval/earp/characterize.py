@@ -416,12 +416,7 @@ def execute_arm(
                     "message": "the public Python binding exposes no engine trace hook",
                 }
             },
-            provenance={
-                "candidate_sha": _git_sha(False) or "unknown",
-                "clean": True,
-                "toolchain": {"python": platform.python_version()},
-                "device": {"kind": "cpu"},
-            },
+            provenance=_observed_provenance(_git_sha(False), clean=True),
         ).as_document(),
     )
 
@@ -485,12 +480,9 @@ def run_characterization(
                     "message": "the public Python binding exposes no engine trace hook",
                 },
             },
-            provenance={
-                "candidate_sha": _git_sha(blank_provenance) or "unavailable-outside-git",
-                "clean": not blank_provenance,
-                "toolchain": {"python": platform.python_version()},
-                "device": {"kind": "cpu"},
-            },
+            provenance=_observed_provenance(
+                _git_sha(blank_provenance), clean=not blank_provenance
+            ),
         ).as_document()
         outcome = _write(
             config_doc, experiments_root, experiment, ts, RunVerdict.BLOCKED,
@@ -684,6 +676,29 @@ def _git_sha(blank: bool) -> str:
         return _lib.git_info()["git_sha"]
     except Exception:  # noqa: BLE001 -- outside a repo, provenance is absent
         return ""
+
+
+def _observed_provenance(candidate_sha: str, *, clean: bool) -> dict[str, Any]:
+    """Represent unavailable git identity as typed absence, never a sentinel."""
+    provenance: dict[str, Any] = {
+        "toolchain": {"python": platform.python_version()},
+        "device": {"kind": "cpu"},
+    }
+    if candidate_sha:
+        provenance["candidate_sha"] = candidate_sha
+        provenance["clean"] = clean
+    else:
+        provenance["unavailable"] = {
+            "candidate_sha": {
+                "code": "git_unavailable",
+                "message": "candidate identity is unavailable outside a git checkout",
+            },
+            "clean": {
+                "code": "git_unavailable",
+                "message": "git cleanliness is unavailable outside a git checkout",
+            },
+        }
+    return provenance
 
 
 def _write(

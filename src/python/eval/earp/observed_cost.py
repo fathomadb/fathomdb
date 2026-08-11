@@ -15,6 +15,20 @@ from typing import Any, Mapping
 OBSERVED_COST_NAME = "earp.observed-cost.v2.json"
 SCHEMA_VERSION = "earp.observed-cost.v2"
 
+_CHECKPOINTS: dict[str, tuple[str, str]] = {
+    "phases_ms.open": ("phases_ms", "open"),
+    # ``write`` is the established public-runner spelling for ingest work.
+    "phases_ms.ingest": ("phases_ms", "ingest"),
+    "phases_ms.query": ("phases_ms", "query"),
+    "counts.documents": ("counts", "documents"),
+    "counts.queries": ("counts", "queries"),
+    "storage.database_bytes": ("storage", "database_bytes"),
+    "storage.wal_bytes": ("storage", "wal_bytes"),
+    "storage.shm_bytes": ("storage", "shm_bytes"),
+}
+_PROVENANCE_KEYS = ("candidate_sha", "clean", "toolchain", "device")
+_PROVENANCE_SENTINELS = {"unknown", "unavailable-outside-git"}
+
 
 def capture_sqlite_storage(database_path: Path) -> dict[str, int]:
     """Return byte counts for SQLite's main database and adjacent WAL files.
@@ -123,7 +137,13 @@ class Observation:
                 _validate_nonnegative({"wall_ms": sample.get("wall_ms")}, "query sample")
                 _validate_nonnegative({"result_count": sample.get("result_count")}, "query sample")
         candidate = provenance.get("candidate_sha")
-        if candidate is not None and (not isinstance(candidate, str) or not candidate):
+        if candidate is not None and (
+            not isinstance(candidate, str)
+            or not candidate
+            or candidate in _PROVENANCE_SENTINELS
+        ):
+            if candidate in _PROVENANCE_SENTINELS:
+                raise ValueError("provenance sentinel is not evidence")
             raise ValueError("provenance candidate_sha must be non-empty when present")
 
     def as_document(self) -> dict[str, Any]:
@@ -137,8 +157,10 @@ class Observation:
             "counts": {key: int(value) for key, value in self.counts.items()},
             "storage": {key: int(value) for key, value in self.storage.items()},
             "query_samples": [dict(sample) for sample in self.query_samples],
-            "unavailable": {key: dict(value) for key, value in self.unavailable.items()},
-            "provenance": dict(self.provenance),
+            "unavailable": _total_unavailable(
+                self.phases_ms, self.counts, self.storage, self.query_samples, self.unavailable
+            ),
+            "provenance": _total_provenance(self.provenance),
         }
         return document
 
@@ -149,6 +171,55 @@ def _validate_nonnegative(values: Mapping[str, Any], label: str) -> None:
             raise ValueError(f"{label} name must be non-empty")
         if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
             raise ValueError(f"{label} {name!r} must be a non-negative number")
+
+
+def _total_unavailable(
+    phases_ms: Mapping[str, float],
+    counts: Mapping[str, int],
+    storage: Mapping[str, int],
+    query_samples: tuple[Mapping[str, Any], ...],
+    unavailable: Mapping[str, Mapping[str, str]],
+) -> dict[str, dict[str, str]]:
+    """Record every unmeasured canonical checkpoint with a typed reason."""
+    result = {name: dict(reason) for name, reason in unavailable.items()}
+    values: Mapping[str, Mapping[str, Any]] = {
+        "phases_ms": phases_ms,
+        "counts": counts,
+        "storage": storage,
+    }
+    for checkpoint, (section, name) in _CHECKPOINTS.items():
+        measured = name in values[section]
+        if checkpoint == "phases_ms.ingest":
+            measured = measured or "write" in phases_ms
+        if not measured and checkpoint not in result:
+            result[checkpoint] = {
+                "code": "not_observed",
+                "message": f"{checkpoint} was not observed in this run",
+            }
+    if not query_samples and "query_samples" not in result:
+        result["query_samples"] = {
+            "code": "not_observed",
+            "message": "no query samples were observed in this run",
+        }
+    return result
+
+
+def _total_provenance(provenance: Mapping[str, Any]) -> dict[str, Any]:
+    """Fill absent provenance with typed absence, never a fabricated sentinel."""
+    result = dict(provenance)
+    unavailable = result.get("unavailable", {})
+    if not isinstance(unavailable, Mapping):
+        raise ValueError("provenance unavailable must be a mapping")
+    reasons = {name: dict(reason) for name, reason in unavailable.items()}
+    for key in _PROVENANCE_KEYS:
+        if key not in result and key not in reasons:
+            reasons[key] = {
+                "code": "not_observed",
+                "message": f"{key} was not observable for this run",
+            }
+    if reasons:
+        result["unavailable"] = reasons
+    return result
 
 
 __all__ = [

@@ -26,6 +26,7 @@ from typing import Any, Mapping, Sequence
 from eval.earp._experiments import lib as _lib
 from eval.earp.observed_cost import OBSERVED_COST_NAME, Observation, SCHEMA_VERSION as OBSERVED_COST_SCHEMA_VERSION
 from eval.earp.schema import (
+    OBSERVED_COST_V2_SCHEMA_PATH,
     PER_QUERY_SCHEMA_PATH,
     RESULT_SCHEMA_PATH,
     WORKLOAD_MANIFEST_SCHEMA_PATH,
@@ -45,6 +46,9 @@ _PER_QUERY_SCHEMA: dict[str, Any] = json.loads(
 )
 _WORKLOAD_MANIFEST_SCHEMA: dict[str, Any] = json.loads(
     WORKLOAD_MANIFEST_SCHEMA_PATH.read_text(encoding="utf-8")
+)
+_OBSERVED_COST_SCHEMA: dict[str, Any] = json.loads(
+    OBSERVED_COST_V2_SCHEMA_PATH.read_text(encoding="utf-8")
 )
 
 SIDECAR_NAME = "earp.result.v1.json"
@@ -284,13 +288,15 @@ def _normalize_observed_cost(
             if not isinstance(name, str) or not isinstance(arm, Mapping):
                 raise ValueError("observed_cost arms must be named mappings")
             normalized_arms[name] = _normalize_observed_cost(arm, run_id, config_sha256)
-        return {
+        normalized = {
             "schema_version": OBSERVED_COST_SCHEMA_VERSION,
             "scope": "one_run_observation",
             "evidence_family_id": run_id,
             "config_sha256": config_sha256,
             "arms": normalized_arms,
         }
+        _validate_observed_cost(normalized)
+        return normalized
     observation = Observation(
         evidence_family_id=run_id,
         config_sha256=config_sha256,
@@ -301,7 +307,17 @@ def _normalize_observed_cost(
         unavailable=_mapping_or_empty(document, "unavailable"),
         provenance=_mapping_or_empty(document, "provenance"),
     )
-    return observation.as_document()
+    normalized = observation.as_document()
+    _validate_observed_cost(normalized)
+    return normalized
+
+
+def _validate_observed_cost(document: Mapping[str, Any]) -> None:
+    findings = validate(document, _OBSERVED_COST_SCHEMA)
+    if findings:
+        raise ValueError(
+            f"observed_cost does not conform: {[finding.message for finding in findings][:4]}"
+        )
 
 
 def _mapping(document: Mapping[str, Any], key: str) -> Mapping[str, Any]:
@@ -395,11 +411,12 @@ def _workload_manifest(
             ),
             **({"corpus": dict(config_doc["corpus"])} if isinstance(config_doc.get("corpus"), Mapping) else {}),
             **({"gold": dict(config_doc["gold"])} if isinstance(config_doc.get("gold"), Mapping) else {}),
-            **({"projections": config_doc["projections"]} if isinstance(config_doc.get("projections"), Mapping) else {}),
-            **({"embedder": config_doc["embedder"]} if isinstance(config_doc.get("embedder"), Mapping) else {}),
+            "projections": dict(config_doc.get("projections", {})) if isinstance(config_doc.get("projections", {}), Mapping) else {},
+            "embedder": dict(config_doc.get("embedder", {})) if isinstance(config_doc.get("embedder", {}), Mapping) else {},
             "device": {"kind": "cpu"},
         },
         "performance_plan": {
+            "kind": "descriptive_nonclaim",
             "treatments": ["fresh_store", "fresh_store_warm_query"],
             "repetitions": 1,
             "warmup_rule": "fresh_store_warm_query performs one unmeasured query after fresh ingest",

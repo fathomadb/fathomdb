@@ -54,6 +54,7 @@ class WorkloadRef:
     resolved_workload: Mapping[str, Any] = field(default_factory=dict)
     predeclared_plan: Mapping[str, Any] = field(default_factory=dict)
     resolved_config_document: Mapping[str, Any] = field(default_factory=dict)
+    experiments_root: Path | None = field(default=None, compare=False, repr=False)
 
     def __post_init__(self) -> None:
         if not self.parent_run_id or not self.evidence_family_id or not self.query_call:
@@ -69,6 +70,20 @@ class WorkloadRef:
             "candidate_sha": self.candidate_sha,
             "query_call": self.query_call,
             "effective_knobs": dict(self.effective_knobs),
+            "quality_parent": {
+                "manifest_path": self.parent_manifest_path,
+                "manifest_sha256": self.parent_manifest_sha256,
+                "candidate_sha": self.candidate_sha,
+                "clean": self.quality_clean,
+            },
+            "quality_result": {
+                "path": self.quality_result_path,
+                "sha256": self.quality_result_sha256,
+            },
+            "resolved_config": {
+                "path": self.resolved_config_path,
+                "sha256": self.resolved_config_sha256,
+            },
             "workload": dict(self.resolved_workload) if self.resolved_workload else {
                 "config_sha256": self.config_sha256,
                 "query_call": self.query_call,
@@ -283,6 +298,7 @@ def load_earp_workload(experiments_root: Path, quality_run_id: str) -> WorkloadR
         resolved_workload=dict(workload),
         predeclared_plan=dict(manifest["performance_plan"]),
         resolved_config_document=dict(config_document),
+        experiments_root=Path(experiments_root),
     )
 
 
@@ -297,10 +313,7 @@ def _require_predeclared_plan(workload: WorkloadRef, plan: PerformancePlan) -> N
     declared = workload.predeclared_plan
     if not declared:
         return
-    # A one-repetition local observation is not a repeated characterization
-    # claim.  Enforce the manifest plan once it declares the 20+ repetitions
-    # required for the claim-capable performance evidence contract.
-    if int(declared.get("repetitions", 0)) < 20:
+    if declared.get("kind") == "descriptive_nonclaim":
         return
     if plan.repetitions != declared.get("repetitions") or list(plan.treatments) != declared.get("treatments"):
         raise ValueError("plan does not match the predeclared manifest plan")
@@ -326,7 +339,7 @@ def _require_diagnostic_scenario(workload: WorkloadRef, scenario: Any) -> None:
         "max_measurable_k": workload.effective_knobs.get("limit", 10),
         "use_default_embedder": True,
     }
-    claim_capable = int(workload.predeclared_plan.get("repetitions", 0)) >= 20
+    claim_capable = workload.predeclared_plan.get("kind") != "descriptive_nonclaim"
     for key, default in defaults.items():
         if key in workload.resolved_workload:
             expected[key] = workload.resolved_workload[key]
@@ -459,8 +472,7 @@ def write_performance_result(*, experiments_root: Path, experiment: str, ts: dat
             if cell.execution_provenance:
                 _execution_provenance(cell.execution_provenance)
     _validate_cells(plan, cells)
-    if all(cell.status == "complete" for cell in cells):
-        _require_predeclared_plan(workload, plan)
+    _require_predeclared_plan(workload, plan)
     cross = any(
         (cell.execution_provenance or provenance or {}).get("candidate_sha") not in {None, workload.candidate_sha}
         for cell in cells
@@ -591,8 +603,7 @@ def run_diagnostic_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, 
     from eval.earp.schema.models import RunVerdict
     _verify_workload_reference(Path(experiments_root), workload)
     _require_diagnostic_scenario(workload, scenario)
-    if all(hasattr(scenario, name) for name in ("query_params", "retrieval_mode", "max_measurable_k", "use_default_embedder")):
-        _require_predeclared_plan(workload, plan)
+    _require_predeclared_plan(workload, plan)
     provenance = _bridge_provenance()
     def execute(_workload: WorkloadRef, treatment: str, repetition: int) -> PerformanceCell:
         result = run_diagnostic(scenario=scenario, config_doc=config_doc, experiments_root=experiments_root, experiment=experiment, ts=ts, persist=False, warmup_query=treatment == "fresh_store_warm_query")
@@ -603,23 +614,34 @@ def run_diagnostic_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, 
     return run_repetitions(workload=workload, plan=plan, execute=execute, execution_provenance=provenance)
 
 
-def run_characterization_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, scenario: Any, config_doc: Mapping[str, Any]) -> tuple[PerformanceCell, ...]:
+def run_characterization_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, scenario: Any, config_doc: Mapping[str, Any], experiments_root: Path | None = None) -> tuple[PerformanceCell, ...]:
     from eval.earp.characterize import execute_arm
+    root = Path(experiments_root) if experiments_root is not None else workload.experiments_root
+    if root is None:
+        raise ValueError("characterization requires the verified experiments root")
+    _verify_workload_reference(root, workload)
     corpus, gold = config_doc.get("corpus"), config_doc.get("gold")
     if not isinstance(corpus, Mapping) or not isinstance(gold, Mapping):
         raise ValueError("characterization config lacks corpus or gold identity")
     _require_predeclared_plan(workload, plan)
+    if any(
+        not hasattr(scenario, key)
+        for key in ("config_sha256", "query_call", "query_params")
+    ):
+        raise ValueError("characterization scenario lacks verified workload identity")
     actual = {
+        "config_sha256": _scenario_value(scenario, "config_sha256"),
+        "query_call": _scenario_value(scenario, "query_call"),
         "corpus": dict(corpus),
         "gold": dict(gold),
         "projections": config_doc.get("projections", {}),
         "embedder": config_doc.get("embedder", {}),
         "device": config_doc.get("device", {"kind": "cpu"}),
-        "effective_knobs": dict(getattr(scenario, "query_params", {})),
+        "effective_knobs": _scenario_value(scenario, "query_params"),
     }
     expected = workload.resolved_workload
     for key, value in actual.items():
-        if key in expected and expected[key] != value:
+        if key not in expected or expected[key] != value:
             raise ValueError("characterization inputs do not match verified workload")
     provenance = _bridge_provenance()
     def execute(_workload: WorkloadRef, treatment: str, repetition: int) -> PerformanceCell:
@@ -637,7 +659,7 @@ def run_and_write_diagnostic_performance(**kwargs: Any) -> PerformanceWriteOutco
 
 
 def run_and_write_characterization_performance(**kwargs: Any) -> PerformanceWriteOutcome:
-    cells = run_characterization_repetitions(workload=kwargs["workload"], plan=kwargs["plan"], scenario=kwargs["scenario"], config_doc=kwargs["config_doc"])
+    cells = run_characterization_repetitions(workload=kwargs["workload"], plan=kwargs["plan"], scenario=kwargs["scenario"], config_doc=kwargs["config_doc"], experiments_root=kwargs["experiments_root"])
     return write_performance_result(experiments_root=kwargs["experiments_root"], experiment=kwargs["experiment"], ts=kwargs["ts"], workload=kwargs["workload"], plan=kwargs["plan"], cells=cells, execution_provenance=_bridge_provenance())
 
 

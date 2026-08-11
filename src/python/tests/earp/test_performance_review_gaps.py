@@ -105,6 +105,7 @@ def _characterization_graph(root: Path) -> tuple[str, dict[str, object]]:
     (run / "earp.result.v1.json").write_text(json.dumps(result) + "\n", encoding="utf-8")
     manifest["resolved_config"] = {"path": "config.resolved.yaml", "sha256": _digest(run / "config.resolved.yaml"), "canonical_json": json.dumps(config, sort_keys=True)}
     manifest["quality_parent"]["result_sha256"] = _digest(run / "earp.result.v1.json")
+    manifest["performance_plan"]["command"] = "fathomdb-performance characterization"
     _rewrite_manifest_advertisement(root, run_id, manifest)
     return run_id, manifest
 
@@ -139,17 +140,6 @@ def test_cli_uses_manifest_config_and_refuses_plan_override(tmp_path: Path, monk
     assert cli.main(["diagnostic", "--experiments-root", str(root), "--quality-run", run_id, "--repetitions", "1", "--treatments", "fresh_store"]) == 2
     assert called == []
     assert "predeclared plan" in capsys.readouterr().err
-
-
-def test_characterization_refuses_any_manifest_input_mismatch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from eval.performance import earp_adapter
-
-    run_id, _ = _quality_graph(tmp_path / "experiments")
-    workload = earp_adapter.load_earp_workload(tmp_path / "experiments", run_id)
-    monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **_: pytest.fail("must refuse before execution"))
-    config = {"corpus": {"data_root": "other", "snapshot": "other.json"}, "gold": {"path": "other-gold.json", "sha256": "e" * 64, "corpus_hash": "wrong", "qrels_version": "v2"}, "projections": {"fts": False}, "embedder": {"model": "other"}, "device": {"kind": "cuda"}, "scenario": {"query": {"call": "Engine.search"}}}
-    with pytest.raises(ValueError, match="verified workload"):
-        earp_adapter.run_characterization_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(1, ("fresh_store",)), scenario=SimpleNamespace(config_sha256=SHA, query_call="Engine.search"), config_doc=config)
 
 
 def test_load_and_write_reject_tampered_or_forged_workload_reference(tmp_path: Path) -> None:

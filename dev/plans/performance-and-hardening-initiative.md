@@ -206,10 +206,13 @@ or context budget.
 
 ## Immediate next action
 
-The 0.8.24 evidence-integration foundation is implemented locally: EARP now
-emits one-run observed cost, and the independent runner repeats saved
-diagnostic and characterization workloads without a second configuration. The
-next bounded slice is the measurement manifest and capability matrix. It
-inventories public Rust/Python/TypeScript calls and knobs, reuses the existing
-scale runner and result-artifact conventions, and produces no
-performance-support claim or retrieval rewrite.
+The 0.8.24 evidence-integration foundation has a partial local observed-cost
+prototype and a deliberately non-claiming/non-conforming repeated-runner
+prototype. Before either may make a complete cost or repeated-performance
+claim, they need the workload-manifest, execution-provenance, typed-invalidity,
+statistical, and artifact-durability contracts in
+[`0.8.24-retrieval-performance-evidence-spec.md`](0.8.24-retrieval-performance-evidence-spec.md).
+The next bounded slice is that conformance work, followed by the measurement
+manifest and capability matrix. It inventories public Rust/Python/TypeScript
+calls and knobs, reuses the existing scale runner and result-artifact
+conventions, and produces no performance-support claim or retrieval rewrite.

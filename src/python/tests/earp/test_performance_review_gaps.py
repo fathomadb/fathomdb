@@ -111,6 +111,19 @@ def _characterization_graph(root: Path) -> tuple[str, dict[str, object]]:
     return run_id, manifest
 
 
+def _matching_scenario(manifest: dict[str, object]) -> SimpleNamespace:
+    """Complete normalized scenario used only by legacy success fixtures."""
+    workload = manifest["workload"]
+    return SimpleNamespace(
+        config_sha256=SHA,
+        query_call=workload["query_call"],
+        query_params=dict(workload["effective_knobs"]),
+        retrieval_mode="text",
+        max_measurable_k=10,
+        use_default_embedder=True,
+    )
+
+
 def test_manifest_round_trips_every_execution_input_and_predeclared_plan(tmp_path: Path) -> None:
     from eval.performance.earp_adapter import load_earp_workload
 
@@ -325,7 +338,7 @@ def test_characterization_matching_baseline_reaches_executor_then_plan_drift_ref
     workload = earp_adapter.load_earp_workload(root, run_id)
     calls: list[object] = []
     monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **kwargs: calls.append(kwargs) or SimpleNamespace(blocker=None, observed_cost={"phases_ms": {"query": 1.0}, "counts": {"queries": 1}}))
-    scenario = SimpleNamespace(config_sha256=SHA, query_call="Engine.search", query_params=manifest["workload"]["effective_knobs"])
+    scenario = _matching_scenario(manifest)
     config = {key: deepcopy(manifest["workload"][key]) for key in ("corpus", "gold", "projections", "embedder", "device")}
     matching = earp_adapter.PerformancePlan(manifest["performance_plan"]["repetitions"], tuple(manifest["performance_plan"]["treatments"]))
     earp_adapter.run_characterization_repetitions(workload=workload, plan=matching, scenario=scenario, config_doc=config)
@@ -451,7 +464,7 @@ def test_characterization_refuses_each_resolved_workload_component_mismatch(
     workload = earp_adapter.load_earp_workload(root, run_id)
     calls: list[object] = []
     monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **kwargs: calls.append(kwargs) or SimpleNamespace(blocker=None, observed_cost={"phases_ms": {"query": 1.0}, "counts": {"queries": 1}}))
-    scenario = SimpleNamespace(config_sha256=SHA, query_call="Engine.search", query_params=manifest["workload"]["effective_knobs"])
+    scenario = _matching_scenario(manifest)
     config = {key: deepcopy(manifest["workload"][key]) for key in ("corpus", "gold", "projections", "embedder", "device")}
     plan = earp_adapter.PerformancePlan(20, ("fresh_store",))
     earp_adapter.run_characterization_repetitions(workload=workload, plan=plan, scenario=scenario, config_doc=config)
@@ -649,7 +662,7 @@ def test_bridges_reject_canonical_config_mismatch_before_execution(
     workload = earp_adapter.load_earp_workload(root, run_id)
     monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **_: pytest.fail("must refuse before execution"))
     monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **_: pytest.fail("must refuse before execution"))
-    scenario = SimpleNamespace(config_sha256=SHA, query_call="Engine.search", query_params=manifest["workload"]["effective_knobs"])
+    scenario = _matching_scenario(manifest)
     config = json.loads(manifest["resolved_config"]["canonical_json"])
     config["forged"] = True
     plan = earp_adapter.PerformancePlan(20, ("fresh_store",))

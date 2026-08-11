@@ -166,7 +166,13 @@ def write_run(
             "branch": code.get("branch"),
             "baseline_commit": code.get("baseline_commit"),
         }
-        if prior == sidecar_text and same_code and _existing_artifact_graph_is_valid(
+        same_per_query = (run_dir / PER_QUERY_NAME).read_text(encoding="utf-8") == per_query_text if (run_dir / PER_QUERY_NAME).is_file() else not per_query_text
+        same_observed = (
+            (run_dir / OBSERVED_COST_NAME).read_text(encoding="utf-8") == observed_text
+            if observed_text is not None and (run_dir / OBSERVED_COST_NAME).is_file()
+            else observed_text is None and not (run_dir / OBSERVED_COST_NAME).exists()
+        )
+        if prior == sidecar_text and same_code and same_per_query and same_observed and _existing_artifact_graph_is_valid(
             run_dir, prior_record
         ):
             return WriteOutcome(run_id=run_id, run_dir=run_dir)
@@ -380,6 +386,13 @@ def _workload_manifest(
             "config_sha256": config_sha256,
             "query_call": query_call,
             "effective_knobs": dict(knobs),
+            "retrieval_mode": str(scenario.get("retrieval_mode", "fts_only")),
+            "max_measurable_k": int(scenario.get("fanout_used", knobs.get("limit", 10))),
+            "use_default_embedder": bool(
+                isinstance(config_doc.get("scenario"), Mapping)
+                and isinstance(config_doc["scenario"].get("engine"), Mapping)
+                and config_doc["scenario"]["engine"].get("use_default_embedder")
+            ),
             **({"corpus": dict(config_doc["corpus"])} if isinstance(config_doc.get("corpus"), Mapping) else {}),
             **({"gold": dict(config_doc["gold"])} if isinstance(config_doc.get("gold"), Mapping) else {}),
             **({"projections": config_doc["projections"]} if isinstance(config_doc.get("projections"), Mapping) else {}),

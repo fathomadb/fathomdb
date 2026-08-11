@@ -13,9 +13,9 @@
     "execution_workload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "workload": {"type": "object"},
     "plan": {"type": "object"},
-    "parent_manifest": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
-    "inputs": {"type": "object", "additionalProperties": false, "required": ["quality_result", "resolved_config"], "properties": {"quality_result": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}, "resolved_config": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}}},
-    "cells": {"type": "array", "items": {"type": "object"}},
+    "parent_manifest": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*$"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}},
+    "inputs": {"type": "object", "additionalProperties": false, "required": ["quality_result", "resolved_config"], "properties": {"quality_result": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*$"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}, "resolved_config": {"type": "object", "additionalProperties": false, "required": ["path", "sha256"], "properties": {"path": {"type": "string", "pattern": "^(?!.*\\.\\.)[A-Za-z0-9][A-Za-z0-9._/-]*$"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}}},
+    "cells": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["treatment", "repetition", "status", "raw_samples", "execution_provenance"], "properties": {"treatment": {"type": "string"}, "repetition": {"type": "integer", "minimum": 0}, "status": {"enum": ["complete", "invalid"]}, "raw_samples": {"type": "array", "items": {"type": "object"}}, "execution_provenance": {"type": "object"}, "invalidity": {"type": "object"}}}},
     "samples": {"type": "array", "items": {"type": "object"}},
     "summary": {"type": "object"}
   }

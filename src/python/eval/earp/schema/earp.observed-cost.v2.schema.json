@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "earp.observed-cost.v2",
+  "oneOf": [{"$ref": "#/$defs/flat"}, {"$ref": "#/$defs/arms"}],
+  "$defs": {
+    "reason": {"type": "object", "additionalProperties": false, "required": ["code", "message"], "properties": {"code": {"type": "string"}, "message": {"type": "string"}}},
+    "flat": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "scope", "evidence_family_id", "config_sha256", "phases_ms", "counts", "storage", "query_samples", "unavailable", "provenance"],
+      "properties": {
+        "schema_version": {"const": "earp.observed-cost.v2"}, "scope": {"const": "one_run_observation"},
+        "evidence_family_id": {"type": "string"}, "config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "phases_ms": {"type": "object"}, "counts": {"type": "object"}, "storage": {"type": "object"}, "query_samples": {"type": "array"}, "provenance": {"type": "object"},
+        "unavailable": {"type": "object", "required": ["phases_ms.open", "phases_ms.ingest", "phases_ms.query", "counts.documents", "counts.queries", "storage.database_bytes", "storage.wal_bytes", "storage.shm_bytes", "query_samples"], "additionalProperties": {"$ref": "#/$defs/reason"}}
+      }
+    },
+    "arms": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_version", "scope", "evidence_family_id", "config_sha256", "arms"],
+      "properties": {"schema_version": {"const": "earp.observed-cost.v2"}, "scope": {"const": "one_run_observation"}, "evidence_family_id": {"type": "string"}, "config_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "arms": {"type": "object", "additionalProperties": {"$ref": "#/$defs/flat"}}}
+    }
+  }
+}

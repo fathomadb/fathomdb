@@ -11,6 +11,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
+import yaml
+
 from eval.earp._experiments import lib as _lib
 from eval.earp.schema import WORKLOAD_MANIFEST_SCHEMA_PATH
 from eval.earp.schema.validate import validate
@@ -242,10 +244,28 @@ def load_earp_workload(experiments_root: Path, quality_run_id: str) -> WorkloadR
         raise ValueError("resolved config digest does not match manifest")
     try:
         config_document = json.loads(resolved["canonical_json"])
-    except (TypeError, json.JSONDecodeError) as exc:
-        raise ValueError("manifest schema is invalid") from exc
+        staged_config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (TypeError, json.JSONDecodeError):
+        try:
+            config_document = json.loads(resolved["canonical_json"])
+            staged_config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+        except (TypeError, json.JSONDecodeError, yaml.YAMLError) as exc:
+            raise ValueError("manifest canonical config is invalid") from exc
+    if not isinstance(staged_config, Mapping) or not isinstance(config_document, Mapping) or _lib.canonical_json(dict(staged_config)) != _lib.canonical_json(dict(config_document)):
+        raise ValueError("staged config does not match manifest canonical config")
     if not isinstance(config_document, Mapping):
         raise ValueError("manifest schema is invalid")
+    try:
+        result_document = json.loads(result_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError("quality sidecar is invalid") from exc
+    result_scenario = result_document.get("scenario") if isinstance(result_document, Mapping) else None
+    if not isinstance(result_scenario, Mapping) or (
+        result_scenario.get("config_sha256") != workload["config_sha256"]
+        or result_scenario.get("query_call") != workload["query_call"]
+        or result_scenario.get("effective_knobs", {}) != workload["effective_knobs"]
+    ):
+        raise ValueError("quality sidecar does not match manifest workload")
     return WorkloadRef(
         parent_run_id=quality_run_id,
         evidence_family_id=parent["evidence_family_id"],
@@ -271,6 +291,53 @@ def _verify_workload_reference(experiments_root: Path, workload: WorkloadRef) ->
     verified = load_earp_workload(experiments_root, workload.parent_run_id)
     if verified.as_document() != workload.as_document() or verified.parent_manifest_sha256 != workload.parent_manifest_sha256:
         raise ValueError("manifest does not match the verified workload reference")
+
+
+def _require_predeclared_plan(workload: WorkloadRef, plan: PerformancePlan) -> None:
+    declared = workload.predeclared_plan
+    if not declared:
+        return
+    # A one-repetition local observation is not a repeated characterization
+    # claim.  Enforce the manifest plan once it declares the 20+ repetitions
+    # required for the claim-capable performance evidence contract.
+    if int(declared.get("repetitions", 0)) < 20:
+        return
+    if plan.repetitions != declared.get("repetitions") or list(plan.treatments) != declared.get("treatments"):
+        raise ValueError("plan does not match the predeclared manifest plan")
+
+
+def _scenario_value(scenario: Any, name: str) -> Any:
+    value = getattr(scenario, name)
+    if name == "query_params" and isinstance(value, Mapping):
+        # Query text is quality input, not a performance knob; the admitted
+        # workload records the runner's effective knobs without it.
+        return {key: item for key, item in value.items() if key != "text"}
+    return value.value if hasattr(value, "value") else value
+
+
+def _require_diagnostic_scenario(workload: WorkloadRef, scenario: Any) -> None:
+    expected = {
+        "config_sha256": workload.config_sha256,
+        "query_call": workload.query_call,
+        "query_params": dict(workload.effective_knobs),
+    }
+    defaults = {
+        "retrieval_mode": "text",
+        "max_measurable_k": workload.effective_knobs.get("limit", 10),
+        "use_default_embedder": True,
+    }
+    claim_capable = int(workload.predeclared_plan.get("repetitions", 0)) >= 20
+    for key, default in defaults.items():
+        if key in workload.resolved_workload:
+            expected[key] = workload.resolved_workload[key]
+        elif claim_capable:
+            # Claim-capable manifests must govern every normalized scenario
+            # component, including values implicit in their legacy shape.
+            expected[key] = default
+    if any(not hasattr(scenario, key) for key in expected):
+        return
+    if any(_scenario_value(scenario, key) != value for key, value in expected.items()):
+        raise ValueError("diagnostic scenario does not match verified workload")
 
 
 def run_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, execute: Callable[[WorkloadRef, str, int], RunSample | PerformanceCell], execution_provenance: Mapping[str, Any] | None = None) -> tuple[PerformanceCell, ...]:
@@ -363,6 +430,13 @@ def _validate_cells(plan: PerformancePlan, cells: Sequence[PerformanceCell]) -> 
             raise ValueError("complete matrix cell has no raw samples")
         if cell.status == "invalid" and not cell.invalidity:
             raise ValueError("invalid cell has no typed invalidity")
+        if cell.status == "invalid":
+            assert cell.invalidity is not None
+            if not isinstance(cell.invalidity.get("code"), str) or not cell.invalidity["code"] or not isinstance(cell.invalidity.get("message"), str) or not cell.invalidity["message"]:
+                raise ValueError("invalidity must have non-empty string code and message")
+        for sample in cell.raw_samples:
+            if (sample.treatment, sample.repetition) != (cell.treatment, cell.repetition):
+                raise ValueError("raw sample does not match its cell identity")
 
 
 def write_performance_result(*, experiments_root: Path, experiment: str, ts: datetime, workload: WorkloadRef, plan: PerformancePlan, samples: Sequence[RunSample] | None = None, cells: Sequence[PerformanceCell] | None = None, execution_provenance: Mapping[str, Any] | None = None) -> PerformanceWriteOutcome:
@@ -385,11 +459,16 @@ def write_performance_result(*, experiments_root: Path, experiment: str, ts: dat
             if cell.execution_provenance:
                 _execution_provenance(cell.execution_provenance)
     _validate_cells(plan, cells)
-    cross = any((cell.execution_provenance or provenance or {}).get("candidate_sha") != workload.candidate_sha for cell in cells)
+    if all(cell.status == "complete" for cell in cells):
+        _require_predeclared_plan(workload, plan)
+    cross = any(
+        (cell.execution_provenance or provenance or {}).get("candidate_sha") not in {None, workload.candidate_sha}
+        for cell in cells
+    )
     normalized_cells: list[PerformanceCell] = []
     for cell in cells:
         cell_provenance = _execution_provenance(cell.execution_provenance or provenance or {})
-        if cell_provenance["candidate_sha"] != workload.candidate_sha and cell.status == "complete":
+        if cell_provenance.get("candidate_sha") not in {None, workload.candidate_sha} and cell.status == "complete":
             cell = PerformanceCell.invalid(treatment=cell.treatment, repetition=cell.repetition, raw_samples=cell.raw_samples, invalidity={"code": "cross_candidate", "message": "execution candidate differs from quality candidate"}, execution_provenance=cell_provenance)
         normalized_cells.append(cell)
     cells = tuple(normalized_cells)
@@ -510,9 +589,10 @@ def _sample_from_observed(treatment: str, repetition: int, observed: Mapping[str
 def run_diagnostic_repetitions(*, workload: WorkloadRef, plan: PerformancePlan, scenario: Any, config_doc: Mapping[str, Any], experiments_root: Path, experiment: str, ts: datetime) -> tuple[PerformanceCell, ...]:
     from eval.earp.runner import run_diagnostic
     from eval.earp.schema.models import RunVerdict
-    if scenario.config_sha256 != workload.config_sha256 or scenario.query_call != workload.query_call:
-        raise ValueError("diagnostic scenario does not match verified workload")
     _verify_workload_reference(Path(experiments_root), workload)
+    _require_diagnostic_scenario(workload, scenario)
+    if all(hasattr(scenario, name) for name in ("query_params", "retrieval_mode", "max_measurable_k", "use_default_embedder")):
+        _require_predeclared_plan(workload, plan)
     provenance = _bridge_provenance()
     def execute(_workload: WorkloadRef, treatment: str, repetition: int) -> PerformanceCell:
         result = run_diagnostic(scenario=scenario, config_doc=config_doc, experiments_root=experiments_root, experiment=experiment, ts=ts, persist=False, warmup_query=treatment == "fresh_store_warm_query")
@@ -528,6 +608,7 @@ def run_characterization_repetitions(*, workload: WorkloadRef, plan: Performance
     corpus, gold = config_doc.get("corpus"), config_doc.get("gold")
     if not isinstance(corpus, Mapping) or not isinstance(gold, Mapping):
         raise ValueError("characterization config lacks corpus or gold identity")
+    _require_predeclared_plan(workload, plan)
     actual = {
         "corpus": dict(corpus),
         "gold": dict(gold),

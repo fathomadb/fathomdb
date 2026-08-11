@@ -605,3 +605,64 @@ def test_observed_cost_v2_schema_rejects_empty_arm_container() -> None:
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     arms = {"schema_version": "earp.observed-cost.v2", "scope": "one_run_observation", "evidence_family_id": "quality", "config_sha256": SHA, "arms": {}}
     assert validate(arms, schema)
+
+
+def test_cli_default_descriptive_plan_refuses_override_before_execution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eval.performance import cli
+
+    root = tmp_path / "experiments"
+    run_id, _ = _quality_graph(root)
+    monkeypatch.setattr(cli, "run_and_write_diagnostic_performance", lambda **_: pytest.fail("must refuse before execution"))
+    assert cli.main(["diagnostic", "--experiments-root", str(root), "--quality-run", run_id, "--repetitions", "1", "--treatments", "fresh_store"]) == 2
+
+
+def test_unavailable_bridge_provenance_makes_raw_sample_cell_invalid_not_complete(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from eval.performance import earp_adapter
+    from eval.earp.schema.models import RunVerdict
+
+    root = tmp_path / "experiments"
+    run_id, manifest = _quality_graph(root)
+    workload = earp_adapter.load_earp_workload(root, run_id)
+    unavailable = {name: {"code": "not_observable", "message": f"{name} unavailable"} for name in ("command", "device", "fixtures")}
+    monkeypatch.setattr(earp_adapter, "_bridge_provenance", lambda: {"candidate_sha": CANDIDATE, "clean": True, "lockfile_sha256": SHA, "toolchain": {"python": "3"}, "unavailable": unavailable})
+    monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **_: SimpleNamespace(verdict=RunVerdict.COMPLETE, observed_cost={"phases_ms": {"open": 1.0}, "counts": {"queries": 1}}, failure=None, blockers=()))
+    cells = earp_adapter.run_diagnostic_repetitions(workload=workload, plan=earp_adapter.PerformancePlan(20, ("fresh_store",)), scenario=SimpleNamespace(config_sha256=SHA, query_call="Engine.search"), config_doc=json.loads(manifest["resolved_config"]["canonical_json"]), experiments_root=root, experiment="review", ts=TS)
+    assert cells[0].status == "invalid"
+    assert cells[0].raw_samples
+    assert cells[0].execution_provenance["unavailable"] == unavailable
+
+
+@pytest.mark.parametrize("bridge", ("diagnostic", "characterization"))
+def test_bridges_reject_canonical_config_mismatch_before_execution(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, bridge: str
+) -> None:
+    from eval.performance import earp_adapter
+
+    root = tmp_path / "experiments"
+    graph = _quality_graph if bridge == "diagnostic" else _characterization_graph
+    run_id, manifest = graph(root)
+    workload = earp_adapter.load_earp_workload(root, run_id)
+    monkeypatch.setattr("eval.earp.runner.run_diagnostic", lambda **_: pytest.fail("must refuse before execution"))
+    monkeypatch.setattr("eval.earp.characterize.execute_arm", lambda **_: pytest.fail("must refuse before execution"))
+    scenario = SimpleNamespace(config_sha256=SHA, query_call="Engine.search", query_params=manifest["workload"]["effective_knobs"])
+    config = json.loads(manifest["resolved_config"]["canonical_json"])
+    config["forged"] = True
+    plan = earp_adapter.PerformancePlan(20, ("fresh_store",))
+    with pytest.raises(ValueError, match="config|verified workload"):
+        if bridge == "diagnostic":
+            earp_adapter.run_diagnostic_repetitions(workload=workload, plan=plan, scenario=scenario, config_doc=config, experiments_root=root, experiment="review", ts=TS)
+        else:
+            earp_adapter.run_characterization_repetitions(workload=workload, plan=plan, scenario=scenario, config_doc=config)
+
+
+def test_observed_cost_v2_provenance_has_actual_or_unavailable_operational_fields() -> None:
+    from eval.earp.observed_cost import Observation
+
+    unavailable = {name: {"code": "not_observable", "message": f"{name} unavailable"} for name in ("command", "lockfile_sha256", "fixtures")}
+    document = Observation("quality", SHA, {}, {}, {}, unavailable={"query_samples": {"code": "not_run", "message": "blocked"}}, provenance={"candidate_sha": CANDIDATE, "clean": True, "toolchain": {"python": "3"}, "device": {"kind": "cpu"}, "unavailable": unavailable}).as_document()
+    for name in ("command", "lockfile_sha256", "fixtures"):
+        assert name in document["provenance"] or document["provenance"]["unavailable"][name]["code"]

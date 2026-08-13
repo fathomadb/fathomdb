@@ -22,6 +22,12 @@ experiments/
   _lib.py                     # the shared, pure, typed helper (TDD'd)
 ```
 
+New `record.json` files use `experiments.record.v1`; new index rows use
+`experiments.index-row.v1`. Versionless historical records/rows are read as
+v0 without being rewritten. Campaign configs and sidecars retain their own
+schemas (for example `earp.v1` / `earp.result.v1`), nested inside this common
+envelope.
+
 `run_id = <experiment-slug>-<UTC-ts:YYYYMMDDTHHMMZ>-<config_sha8>`, where
 `config_sha8` is the first 8 hex of the sha256 of the canonical-JSON of the
 resolved config. Given a fixed timestamp + config, the `run_id` is deterministic.
@@ -66,3 +72,43 @@ Two distinct ledgers, do not conflate:
 
 `dev/experiments-ledger.md` is the human-distillation layer above this machine
 index — prose findings and narrative; `index.jsonl` is the structured ledger.
+
+## Native comparator receipts
+
+External benchmark harnesses use the same generic record layout but keep their
+own result schema. They must not be relabelled as EARP runs. The native Mem0
+OSS LOCOMO adapter is `python -m experiments.mem0_oss`; start from
+`configs/mem0-oss/locomo-native-predict.example.json`. It accepts no
+credentials in its configuration. The campaign's Mem0 container receives an
+Airlock key through its environment, while the resolved experiment config
+records only the Airlock endpoint, aliases, and hashes of the non-secret
+Compose/config overlays. The configuration also pins the isolated Python
+interpreter used to execute the official harness; it never reuses FathomDB's
+development environment.
+
+Native harness output remains under a durable, access-controlled external
+output root because it can contain corpus-derived questions, answers, and Mem0
+memories. The receipt stores only a content-free aggregate manifest digest and
+safe summaries; it never copies payloads or their filenames into
+`experiments/runs/`.
+
+The adapter ships `configs/mem0-oss/compose.airlock.override.example.yaml` and
+`configs/mem0-oss/mem0-airlock.example.yaml`. They bridge the Mem0 container to
+the already-running host systemd Airlock; they neither start nor configure an
+Airlock container.
+
+The initial matched FathomDB arm is exposed by
+`python -m experiments.fathomdb_oss_facade`. It implements the official Mem0
+OSS HTTP seam with one private FathomDB FTS database per official user ID. The
+current public FTS API returns at most ten results, so the paired campaign is
+pinned to `top_k: 10` and cutoff `10`; a larger retrieval-depth comparison is
+not emitted until FathomDB exposes a compatible limit control.
+
+Run the two configured arms with `python -m experiments.mem0_oss run …` and
+`python -m experiments.fathomdb_locomo run …`; then pass their `record.json`
+files to `python -m experiments.mem0_comparison`. The comparison writer refuses
+non-complete or workload-mismatched arm receipts.
+
+For the native arm, `python -m experiments.mem0_oss services-up …` starts only
+the named campaign's Mem0 and Qdrant Compose services; then `preflight` must
+pass before `run`. It never starts an Airlock container.

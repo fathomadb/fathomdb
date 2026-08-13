@@ -89,6 +89,7 @@ class Env:
 
 @dataclass
 class Record:
+    schema_version: str
     run_id: str
     experiment: str
     title: str
@@ -100,7 +101,7 @@ class Record:
     seeds: dict
     env: Env
     metrics: Any
-    cost_usd: float
+    cost_usd: float | None
     tdd_evidence: dict
     tests: Any
     files_changed: list
@@ -115,6 +116,21 @@ _NESTED: dict[str, type] = {
     "corpus": Corpus,
     "env": Env,
 }
+
+RECORD_V0 = "experiments.record.v0"
+RECORD_V1 = "experiments.record.v1"
+INDEX_ROW_V0 = "experiments.index-row.v0"
+INDEX_ROW_V1 = "experiments.index-row.v1"
+
+
+def _normalize_record_version(data: dict[str, Any]) -> dict[str, Any]:
+    """Add the legacy version marker without mutating a historical record."""
+    normalized = dict(data)
+    version = normalized.get("schema_version", RECORD_V0)
+    if version not in {RECORD_V0, RECORD_V1}:
+        raise ValueError(f"unsupported experiment record schema_version: {version!r}")
+    normalized["schema_version"] = version
+    return normalized
 
 
 def _build_nested(cls: type, value: Any, name: str) -> Any:
@@ -140,6 +156,7 @@ def record_from_dict(data: dict[str, Any]) -> Record:
     (top-level AND nested) so a typo fails loudly instead of being dropped."""
     if not isinstance(data, dict):
         raise ValueError(f"record must be a mapping, got {type(data).__name__}")
+    data = _normalize_record_version(data)
     known = {f.name for f in fields(Record)}
     unknown = set(data) - known
     if unknown:
@@ -159,6 +176,37 @@ def record_from_dict(data: dict[str, Any]) -> Record:
         else:
             kwargs[key] = value
     return Record(**kwargs)
+
+
+_INDEX_ROW_V1_FIELDS = {
+    "schema_version", "run_id", "repo", "experiment", "ts", "git_sha", "dirty",
+    "config_sha256", "corpus", "seeds", "n", "headline", "cost_usd", "verdict", "review",
+}
+
+
+def normalize_index_row(data: dict[str, Any]) -> dict[str, Any]:
+    """Normalize a legacy index row or strictly validate a v1 row.
+
+    Versionless rows predate the envelope contract and remain append-only input;
+    they are interpreted as v0 in memory only and are never rewritten.
+    """
+    if not isinstance(data, dict):
+        raise ValueError(f"index row must be a mapping, got {type(data).__name__}")
+    normalized = dict(data)
+    version = normalized.get("schema_version", INDEX_ROW_V0)
+    if version == INDEX_ROW_V0:
+        normalized["schema_version"] = INDEX_ROW_V0
+        return normalized
+    if version != INDEX_ROW_V1:
+        raise ValueError(f"unsupported experiment index schema_version: {version!r}")
+    actual = set(normalized)
+    if actual != _INDEX_ROW_V1_FIELDS:
+        raise ValueError(
+            "index row v1 keys mismatch: "
+            f"missing={sorted(_INDEX_ROW_V1_FIELDS - actual)}, "
+            f"unknown={sorted(actual - _INDEX_ROW_V1_FIELDS)}"
+        )
+    return normalized
 
 
 # --- canonical JSON + hashing ----------------------------------------------
@@ -310,6 +358,7 @@ def append_index(record: dict, *, index_path: str | Path | None = None) -> None:
     existing lines). Self-heals a truncated partial last line by writing a
     leading newline first."""
     path = Path(index_path) if index_path is not None else INDEX_PATH
+    record = normalize_index_row(record)
     path.parent.mkdir(parents=True, exist_ok=True)
     line = json.dumps(record, sort_keys=True, ensure_ascii=False)
     prefix = ""
@@ -357,7 +406,7 @@ def regen_index_md(
         for line in idx.read_text(encoding="utf-8").splitlines():
             line = line.strip()
             if line:
-                rows.append(json.loads(line))
+                rows.append(normalize_index_row(json.loads(line)))
     rows.sort(key=lambda r: (str(r.get("ts", "")), str(r.get("run_id", ""))))
 
     headers = [label for label, _ in _MD_COLUMNS]
@@ -389,7 +438,7 @@ def write_record(
     corpus: dict,
     seeds: dict,
     env: dict,
-    cost_usd: float,
+    cost_usd: float | None,
     title: str | None = None,
     headline: dict | None = None,
     n: int | None = None,
@@ -417,6 +466,7 @@ def write_record(
     run_dir = base / "runs" / run_id
 
     record_dict = {
+        "schema_version": RECORD_V1,
         "run_id": run_id,
         "experiment": experiment,
         "title": title if title is not None else experiment,
@@ -467,6 +517,7 @@ def write_record(
     )
 
     index_row = {
+        "schema_version": INDEX_ROW_V1,
         "run_id": run_id,
         "repo": "fathomdb",
         "experiment": experiment,

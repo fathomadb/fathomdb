@@ -1,0 +1,10 @@
+services:
+  mem0:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # Supply only Airlock's virtual/master key at launch. Do not pass the
+      # direct OpenAI backend credential into this container.
+      OPENAI_API_KEY: ${AIRLOCK_VIRTUAL_KEY:?set Airlock key for Mem0}
+    volumes:
+      - ${MEM0_AIRLOCK_CONFIG:?set path to mem0-airlock.yaml}:/app/config.yaml:ro

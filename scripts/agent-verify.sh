@@ -55,8 +55,9 @@ if [ "$verify_tier" != "heavy" ]; then
   run_step lint || exit 1
   run_step typecheck || exit 1
   # AC-036/037/038/050a/050c. STRICT=1 promotes toolchain blockers to
-  # hard failures so the gate is real (rc=2 → exit). Local dev hosts
-  # without strace must run scripts/bootstrap.sh first.
+  # hard failures so the gate is real (rc=2 → exit). Local dev hosts need strace
+  # (run scripts/bootstrap.sh) and a ptrace-capable executor for AC-036; rerun
+  # unconfined when the sandbox denies ptrace rather than disabling the gate.
   #
   # AC037_LIVE_OPTIONAL=1: this gate runs on ubuntu-latest (and most dev hosts),
   # where unprivileged userns is blocked by AppArmor, so AC-037's LIVE netns

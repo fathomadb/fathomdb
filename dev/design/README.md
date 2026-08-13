@@ -8,7 +8,9 @@ status: UNREVIEWED
 > cross-cutting *topic* specs (`engine.md`, `retrieval.md`, `vector.md`, `op-store.md`,
 > `migrations.md`, `errors.md`, `embedder.md`, `lifecycle.md`, `scheduler.md`, `recovery.md`,
 > `projections.md`, `bindings.md`, `orchestration.md`, `perf-gates.md`, `ann-index-vec0.md`,
-> `release.md`) plus the live experiment decision-tree (`0.8.x-portfolio-features-and-experiment-tree.md`,
+> `release.md`, `worktree-branch-consolidation.md`, `worktree-branch-consolidator.md`,
+> `worktree-branch-consolidator-requirements.md`,
+> `worktree-branch-consolidator-acceptance-criteria.md`) plus the live experiment decision-tree (`0.8.x-portfolio-features-and-experiment-tree.md`,
 > `0.8.x-parity-portfolio-strategy.md`) and the in-flight `0.8.5-*` slice design.
 > The per-slice memos (`slice-*-design.md`, `0.6.x/0.7.x/0.8.0–0.8.4-*`) are **historical
 > records of closed slices — may be STALE**; their results are distilled in

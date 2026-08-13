@@ -5,7 +5,7 @@
 # Exit semantics:
 #   0  — every gate green (downgrades, if any, are informational).
 #   1  — at least one gate found a real violation (always fatal).
-#   2  — toolchain blocker (e.g. strace missing for AC-036/AC-037);
+#   2  — tooling blocker (e.g. strace missing or ptrace denied for AC-036);
 #        gates that BLOCKER do not fail the overall script unless
 #        STRICT=1 is set.
 #
@@ -23,8 +23,9 @@
 #
 # Wiring: scripts/agent-verify.sh invokes this with STRICT=1 (and
 # AC037_LIVE_OPTIONAL=1), so a real blocker fails the agent loop on hosts where
-# bootstrap.sh has run. Local dev hosts without strace must either run
-# scripts/bootstrap.sh (which apt-installs strace on Debian) or install it.
+# bootstrap.sh has run. Local dev hosts need both strace (bootstrap installs it
+# on Debian) and a ptrace-capable executor for AC-036; a sandbox denial is a
+# blocker, so rerun unconfined rather than disabling the gate.
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

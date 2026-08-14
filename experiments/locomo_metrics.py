@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import random
 from pathlib import Path
 
 from experiments.locomo_provenance import search_request_fingerprint
@@ -31,6 +32,18 @@ def _validated_requests(sidecar: object) -> dict[str, list[dict[str, object]]]:
 
 def _dcg(relevances: list[bool], *, limit: int) -> float:
     return sum(1 / math.log2(rank + 1) for rank, relevant in enumerate(relevances[:limit], start=1) if relevant)
+
+
+def bootstrap_standard_error(values: list[float], *, seed: int, resamples: int) -> float:
+    """Return a deterministic nonparametric-bootstrap standard error of a mean."""
+    if len(values) < 2 or resamples < 2:
+        raise ValueError("bootstrap requires at least two values and resamples")
+    if any(not math.isfinite(value) for value in values):
+        raise ValueError("bootstrap values must be finite")
+    generator = random.Random(seed)
+    sample_means = [sum(generator.choice(values) for _ in values) / len(values) for _ in range(resamples)]
+    mean = sum(sample_means) / resamples
+    return math.sqrt(sum((value - mean) ** 2 for value in sample_means) / (resamples - 1))
 
 
 def summarize_predictions(predictions_dir: str | Path, provenance_sidecar: object) -> dict[str, object]:

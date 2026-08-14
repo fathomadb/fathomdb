@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from experiments.locomo_metrics import summarize_predictions
+import pytest
+
+from experiments.locomo_metrics import bootstrap_standard_error, summarize_predictions
 from experiments.locomo_provenance import search_request_fingerprint
 
 
@@ -46,3 +48,9 @@ def test_safe_metric_summary_uses_hashed_queries_and_reports_temporal_proxy(tmp_
     ]
     assert "alpha" not in json.dumps(summary)
     assert "D1:1" not in json.dumps(summary)
+
+
+def test_bootstrap_standard_error_is_seeded_and_rejects_degenerate_input():
+    assert bootstrap_standard_error([0.0, 1.0, 1.0], seed=7, resamples=10) == 0.23570226039551584
+    with pytest.raises(ValueError, match="at least two"):
+        bootstrap_standard_error([1.0], seed=7, resamples=10)

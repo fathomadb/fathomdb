@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from experiments import fathomdb_oss_facade as facade
@@ -107,6 +109,14 @@ def test_store_rejects_unmapped_ingest_and_returns_safe_provenance_and_timings(t
     assert metrics["engine_query_ms"]["n"] == 1
     assert metrics["ingest_ack_ms"]["n"] == 1
     assert metrics["ready_to_search_ms"]["n"] == 1
+    provenance_sidecar = store.provenance_snapshot()
+    encoded = json.dumps(provenance_sidecar)
+    assert provenance_sidecar["schema_version"] == "locomo-facade-provenance.v1"
+    assert len(provenance_sidecar["requests"]) == 1
+    assert "alpha" not in encoded
+    assert provenance_sidecar["requests"][next(iter(provenance_sidecar["requests"]))] == [{
+        "conversation_id": "locomo-0", "session_id": "session-1", "turn_ids": ["D1:1"],
+    }]
 
     with pytest.raises(ValueError, match="unmapped"):
         store.add({"user_id": "locomo_0_run", "messages": [{"role": "user", "content": "unknown"}]})

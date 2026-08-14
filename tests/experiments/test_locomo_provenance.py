@@ -11,6 +11,7 @@ from experiments.locomo_provenance import (
     ProvenanceMap,
     build_manifest_document,
     payload_fingerprint,
+    search_request_fingerprint,
 )
 
 
@@ -69,3 +70,11 @@ def test_manifest_builder_has_no_corpus_text_and_covers_turn_and_session_units()
     assert sessions["entries"][0]["turn_ids"] == ["D1:1", "D1:2"]
     assert "secret alpha" not in json.dumps(turns)
     assert "secret beta" not in json.dumps(sessions)
+
+
+def test_search_request_fingerprint_normalizes_run_id_without_retaining_query_text():
+    first = search_request_fingerprint("locomo_7_run-one", "sensitive question")
+    second = search_request_fingerprint("locomo_7_run-two", "sensitive question")
+
+    assert first == second
+    assert "sensitive question" not in first

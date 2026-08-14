@@ -154,6 +154,21 @@ def _wait_for_health(host: str, port: int, process: subprocess.Popen[Any]) -> No
     raise RuntimeError("FathomDB OSS façade health check timed out")
 
 
+def _capture_facade_sidecar(host: str, port: int, endpoint: str, raw_dir: Path) -> dict[str, Any]:
+    """Persist one content-free façade sidecar beside external raw outputs."""
+    try:
+        with urlopen(f"http://{host}:{port}/{endpoint}", timeout=10) as response:  # noqa: S310 - fixed loopback
+            if response.status != 200:
+                raise RuntimeError(f"façade {endpoint} endpoint returned HTTP {response.status}")
+            payload = json.loads(response.read())
+    except (OSError, URLError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"façade {endpoint} sidecar unavailable") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"façade {endpoint} sidecar is not an object")
+    (raw_dir / f"facade-{endpoint}.v1.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return payload
+
+
 def run(config: dict[str, Any], *, base_dir: str | Path) -> tuple[str, Path, int]:
     """Start a fresh façade process, run the official harness, then close a receipt."""
     resolved = resolve_config(config)
@@ -194,6 +209,8 @@ def run(config: dict[str, Any], *, base_dir: str | Path) -> tuple[str, Path, int
                                                 verdict="blocked_prerequisite", read="harness checkout or interpreter unavailable", completion=completion)
         return receipt_id, receipt_dir, 2
     process: subprocess.Popen[Any] | None = None
+    facade_metrics: dict[str, Any] | None = None
+    facade_provenance: dict[str, Any] | None = None
     try:
         process = subprocess.Popen(
             [resolved["facade"]["python"], "-m", "experiments.fathomdb_oss_facade", "--root", str(raw_dir / "fathomdb"),
@@ -211,6 +228,8 @@ def run(config: dict[str, Any], *, base_dir: str | Path) -> tuple[str, Path, int
                 command, cwd=checkout, stdout=stdout, stderr=stderr, check=False,
                 env=predict_only_harness_env(),
             )
+        facade_metrics = _capture_facade_sidecar(resolved["facade"]["host"], resolved["facade"]["port"], "metrics", raw_dir)
+        facade_provenance = _capture_facade_sidecar(resolved["facade"]["host"], resolved["facade"]["port"], "provenance", raw_dir)
     except (OSError, RuntimeError) as exc:
         completion = {"complete": False, "expected_questions": resolved["corpus"]["eligible_questions"]}
         receipt_id, receipt_dir = write_receipt(
@@ -228,6 +247,8 @@ def run(config: dict[str, Any], *, base_dir: str | Path) -> tuple[str, Path, int
                 process.kill()
                 process.wait(timeout=10)
     completion = mem0_oss.predict_completion(resolved, raw_dir)
+    completion["facade_metrics"] = facade_metrics
+    completion["facade_provenance_requests"] = len(facade_provenance.get("requests", {})) if facade_provenance else 0
     verdict = "complete" if completed.returncode == 0 and completion["complete"] else "incomplete"
     receipt_id, receipt_dir = write_receipt(resolved, ts=ts, base_dir=base_dir, raw_dir=raw_dir, verdict=verdict,
                                             read="official LOCOMO FathomDB seam completed" if verdict == "complete" else "official LOCOMO FathomDB seam incomplete", completion=completion)

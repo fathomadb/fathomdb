@@ -18,13 +18,18 @@ _ENTRY_KEYS = {"fingerprint", "conversation_id", "session_id", "turn_ids"}
 _SESSION_KEY = re.compile(r"^session_(\d+)$")
 
 
+def _normalized_user_id(user_id: object) -> str:
+    match = _USER_ID.fullmatch(user_id) if isinstance(user_id, str) else None
+    if match is None:
+        raise ValueError("ingestion payload must carry an official LOCOMO user_id")
+    return f"locomo_{match.group(1)}"
+
+
 def _normalized_payload(payload: object) -> dict[str, object]:
     if not isinstance(payload, dict):
         raise ValueError("ingestion payload must be an object")
     user_id, messages = payload.get("user_id"), payload.get("messages")
-    match = _USER_ID.fullmatch(user_id) if isinstance(user_id, str) else None
-    if match is None:
-        raise ValueError("ingestion payload must carry an official LOCOMO user_id")
+    normalized_user_id = _normalized_user_id(user_id)
     if not isinstance(messages, list) or not messages:
         raise ValueError("ingestion payload must carry non-empty messages")
     for message in messages:
@@ -32,7 +37,7 @@ def _normalized_payload(payload: object) -> dict[str, object]:
             raise ValueError("each ingestion message must contain only role and content")
         if not isinstance(message["role"], str) or not isinstance(message["content"], str):
             raise ValueError("each ingestion message role and content must be strings")
-    normalized: dict[str, object] = {"user_id": f"locomo_{match.group(1)}", "messages": messages}
+    normalized: dict[str, object] = {"user_id": normalized_user_id, "messages": messages}
     if "timestamp" in payload and payload["timestamp"] is not None:
         timestamp = payload["timestamp"]
         if isinstance(timestamp, bool) or not isinstance(timestamp, int):
@@ -44,6 +49,15 @@ def _normalized_payload(payload: object) -> dict[str, object]:
 def payload_fingerprint(payload: object) -> str:
     """Hash the run-id-normalized official ingestion payload without retaining text."""
     encoded = json.dumps(_normalized_payload(payload), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def search_request_fingerprint(user_id: object, query: object) -> str:
+    """Hash a normalized search request without retaining its query text."""
+    if not isinstance(query, str) or not query:
+        raise ValueError("search query must be a non-empty string")
+    encoded = json.dumps({"user_id": _normalized_user_id(user_id), "query": query}, sort_keys=True,
+                         separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 

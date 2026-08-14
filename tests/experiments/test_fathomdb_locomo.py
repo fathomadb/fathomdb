@@ -63,6 +63,27 @@ def test_fathomdb_arm_rejects_a_missing_or_tampered_provenance_manifest(tmp_path
         fathomdb_locomo.resolve_config(config)
 
 
+def test_capture_facade_sidecar_writes_only_the_loopback_json_payload(tmp_path, monkeypatch):
+    class _Response:
+        status = 200
+
+        def read(self):
+            return b'{"schema_version":"locomo-facade-provenance.v1","requests":{}}'
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    monkeypatch.setattr(fathomdb_locomo, "urlopen", lambda *_args, **_kwargs: _Response())
+
+    payload = fathomdb_locomo._capture_facade_sidecar("127.0.0.1", 8889, "provenance", tmp_path)
+
+    assert payload["requests"] == {}
+    assert json.loads((tmp_path / "facade-provenance.v1.json").read_text()) == payload
+
+
 def test_fathomdb_arm_receipt_has_a_typed_safe_result_sidecar(tmp_path):
     config = fathomdb_locomo.resolve_config(_config(tmp_path))
     raw = tmp_path / "external" / "raw"

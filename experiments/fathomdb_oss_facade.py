@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import parse_qs, urlparse
 
-from experiments.locomo_provenance import ProvenanceEntry, ProvenanceMap, load_manifest
+from experiments.locomo_provenance import ProvenanceEntry, ProvenanceMap, load_manifest, search_request_fingerprint
 
 
 MAX_FTS_RESULTS = 10
@@ -86,6 +86,7 @@ class FathomDBOssStore:
         self._chunk_counts: dict[str, int] = {}
         self._provenance = provenance
         self._provenance_by_logical_id: dict[str, ProvenanceEntry] = {}
+        self._query_provenance: dict[str, list[dict[str, object]]] = {}
         self._timings: dict[str, list[float]] = {
             "facade_query_ms": [], "engine_query_ms": [], "ingest_ack_ms": [], "ready_to_search_ms": [],
         }
@@ -158,6 +159,13 @@ class FathomDBOssStore:
                     except KeyError as exc:
                         raise ValueError("search hit has no safe evaluation provenance") from exc
                 results.append(result)
+            if self._provenance is not None:
+                request_fingerprint = search_request_fingerprint(user_id, query)
+                safe_results = [result["evaluation_provenance"] for result in results]
+                existing = self._query_provenance.get(request_fingerprint)
+                if existing is not None and existing != safe_results:
+                    raise ValueError("search request provenance changed during one campaign run")
+                self._query_provenance[request_fingerprint] = safe_results
         self._timings["facade_query_ms"].append((time.monotonic() - facade_started) * 1000)
         return {"results": results}
 
@@ -165,6 +173,14 @@ class FathomDBOssStore:
         """Return deterministic aggregate timings without query or corpus text."""
         with self._lock:
             return {name: _timing_summary(values) for name, values in self._timings.items()}
+
+    def provenance_snapshot(self) -> dict[str, object]:
+        """Return hashed-query retrieval provenance without text or raw payloads."""
+        with self._lock:
+            return {
+                "schema_version": "locomo-facade-provenance.v1",
+                "requests": {key: list(value) for key, value in sorted(self._query_provenance.items())},
+            }
 
     def delete_user(self, user_id: str) -> None:
         """Close and remove the isolated store for one official user ID."""
@@ -211,6 +227,8 @@ def handler_for(store: FathomDBOssStore) -> type[BaseHTTPRequestHandler]:
                 self._send(HTTPStatus.OK, {"status": "ok"})
             elif self.path == "/metrics":
                 self._send(HTTPStatus.OK, store.metrics_snapshot())
+            elif self.path == "/provenance":
+                self._send(HTTPStatus.OK, store.provenance_snapshot())
             else:
                 self._send(HTTPStatus.NOT_FOUND, {"detail": "not found"})
 

@@ -1,0 +1,31 @@
+benchmark:
+  categories: 1,2,3,4
+  conversations: 0,1,2,3,4,5,6,7,8,9
+  max_workers: 1
+  predict_only: true
+  project_name: fathomdb-locomo-a0-turn-fts-full
+  resume: true
+  rpm: 1
+  top_k: 10
+  top_k_cutoffs:
+  - 10
+campaign: official_seam_predict_only
+corpus:
+  dataset_path: external-verified-corpus
+  eligible_questions: 1540
+  normalized_sha256: e9999b551ac67e899f0008c9ec446cecce937ce12f01f2f08cefa9f690fc4c7c
+  raw_sha256: 79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4
+  sessions: 272
+facade:
+  host: 127.0.0.1
+  port: 8891
+  provenance_manifest: external-provenance-manifest
+  provenance_manifest_sha256: 43453c5d1b865dd1721bd0892f1af7f965e2c8484fea999eefa5cddf9da78f66
+  python: external-verified-interpreter
+harness:
+  checkout: external-verified-checkout
+  git_sha: 4b61c5d31b9c668a12b4f5e78064248a02c82d2b
+  python: external-verified-interpreter
+output:
+  external_root: external-access-controlled
+schema_version: fathomdb-locomo.v1

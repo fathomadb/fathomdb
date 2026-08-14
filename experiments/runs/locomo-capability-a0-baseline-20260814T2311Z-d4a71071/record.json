@@ -1,0 +1,90 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "locomo-capability-a0-baseline-20260814T2311Z-d4a71071",
+  "experiment": "locomo-capability-a0-baseline",
+  "title": "locomo-capability-a0-baseline",
+  "verdict": "complete",
+  "read": "Canonical A0 turn-level FTS baseline and pre-registered M1 margin are complete",
+  "code": {
+    "git_sha": "ac8882679d72c2d70974a6f91d24f546ef347b94",
+    "dirty": true,
+    "branch": "campaign/locomo-capability-20260814",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "d4a710712db66cf2d6a0032f706a46d9691d12afcb8e2c7cb870033b49e49d66",
+    "path": null,
+    "resolved": {
+      "schema_version": "locomo-a0-baseline.v1",
+      "source_arm_run": "fathomdb-locomo-official-seam-20260814T2303Z-fb622897",
+      "retrieval_mode": "fts_only",
+      "ingest_unit": "turn",
+      "top_k": 10,
+      "source_retrieval_metrics_sha256": "dedb329481751dda7cc8a40de87b99a6be6c56893255c0983f198076c0abb34b",
+      "source_margin_contract_sha256": "1c0fade71b568452ebb619c3cfccd4a5ce28f96b89d8afb0c888ab3275513c85"
+    }
+  },
+  "corpus": {
+    "source": "LOCOMO",
+    "manifest_sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+    "datasets": []
+  },
+  "seeds": {
+    "bootstrap": 20260814
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {}
+  },
+  "metrics": {
+    "phase": "a0_baseline",
+    "aggregate": {
+      "n": 1536,
+      "excluded_no_evidence": 4,
+      "r_at_5": 0.5930989583333334,
+      "r_at_10": 0.6673177083333334,
+      "r_at_20": 0.6673177083333334,
+      "mrr": 0.44627097800925924,
+      "r_at_1": 0.34375,
+      "ndcg_at_10": 0.4653289731424966,
+      "temporal_evidence_recall": 0.7414330218068536
+    },
+    "m1_margin": {
+      "schema_version": "locomo-a0-margin.v1",
+      "source_metric_sha256": "dedb329481751dda7cc8a40de87b99a6be6c56893255c0983f198076c0abb34b",
+      "metric": "r_at_10",
+      "n": 1536,
+      "bootstrap": {
+        "seed": 20260814,
+        "resamples": 10000,
+        "standard_error": 0.012025653666724924
+      },
+      "delta": 0.02405130733344985,
+      "sanity_range": [
+        0.01,
+        0.04
+      ],
+      "sanity_pass": true
+    },
+    "m4": "unmeasured",
+    "m4_proxy": "temporal_evidence_recall"
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [
+    {
+      "path": "external-retrieval-metrics.v1",
+      "sha256": "dedb329481751dda7cc8a40de87b99a6be6c56893255c0983f198076c0abb34b"
+    },
+    {
+      "path": "external-a0-margin.v1",
+      "sha256": "1c0fade71b568452ebb619c3cfccd4a5ce28f96b89d8afb0c888ab3275513c85"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

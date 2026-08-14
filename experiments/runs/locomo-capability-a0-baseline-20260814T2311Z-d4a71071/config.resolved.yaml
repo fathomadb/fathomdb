@@ -1,0 +1,7 @@
+ingest_unit: turn
+retrieval_mode: fts_only
+schema_version: locomo-a0-baseline.v1
+source_arm_run: fathomdb-locomo-official-seam-20260814T2303Z-fb622897
+source_margin_contract_sha256: 1c0fade71b568452ebb619c3cfccd4a5ce28f96b89d8afb0c888ab3275513c85
+source_retrieval_metrics_sha256: dedb329481751dda7cc8a40de87b99a6be6c56893255c0983f198076c0abb34b
+top_k: 10

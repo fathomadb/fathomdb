@@ -7,6 +7,8 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
+
 from experiments import fathomdb_locomo
 
 
@@ -20,13 +22,18 @@ def _sha(path: Path) -> str:
 def _config(tmp_path: Path) -> dict:
     dataset = tmp_path / "locomo.json"
     dataset.write_text("[]", encoding="utf-8")
+    provenance = tmp_path / "locomo-provenance.json"
+    provenance.write_text('{"schema_version":"locomo-provenance.v1","entries":[]}', encoding="utf-8")
     return {
         "schema_version": "fathomdb-locomo.v1",
         "campaign": "official_seam_predict_only",
         "harness": {"checkout": str(tmp_path / "harness"), "python": "/bin/python", "git_sha": "abc123def456"},
         "corpus": {"dataset_path": str(dataset), "raw_sha256": _sha(dataset), "normalized_sha256": "0" * 64, "sessions": 1, "eligible_questions": 1},
         "benchmark": {"project_name": "fathomdb-locomo", "conversations": "0", "categories": "1", "top_k": 10, "top_k_cutoffs": [10], "max_workers": 1, "rpm": 1, "predict_only": True, "resume": True},
-        "facade": {"python": "/bin/python", "host": "127.0.0.1", "port": 8889},
+        "facade": {
+            "python": "/bin/python", "host": "127.0.0.1", "port": 8889,
+            "provenance_manifest": str(provenance), "provenance_manifest_sha256": _sha(provenance),
+        },
         "output": {"external_root": str(tmp_path / "external")},
     }
 
@@ -46,6 +53,14 @@ def test_predict_only_harness_environment_replaces_any_direct_openai_key(monkeyp
     environment = fathomdb_locomo.predict_only_harness_env()
 
     assert environment["OPENAI_API_KEY"] == "predict-only-placeholder"
+
+
+def test_fathomdb_arm_rejects_a_missing_or_tampered_provenance_manifest(tmp_path):
+    config = _config(tmp_path)
+    config["facade"]["provenance_manifest_sha256"] = "0" * 64
+
+    with pytest.raises(ValueError, match="provenance manifest"):
+        fathomdb_locomo.resolve_config(config)
 
 
 def test_fathomdb_arm_receipt_has_a_typed_safe_result_sidecar(tmp_path):

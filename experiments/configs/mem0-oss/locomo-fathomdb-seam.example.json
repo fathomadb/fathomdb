@@ -27,7 +27,9 @@
   "facade": {
     "python": "/home/coreyt/projects/fathomdb/.venv/bin/python",
     "host": "127.0.0.1",
-    "port": 8889
+    "port": 8889,
+    "provenance_manifest": "/srv/fathomdb-experiments/locomo-capability/locomo-provenance.v1.json",
+    "provenance_manifest_sha256": "REPLACE_WITH_SHA256"
   },
   "output": {
     "external_root": "/srv/fathomdb-experiments/mem0-locomo"

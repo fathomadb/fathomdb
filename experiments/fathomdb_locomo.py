@@ -24,7 +24,7 @@ _TOP_LEVEL = {"schema_version", "campaign", "harness", "corpus", "benchmark", "f
 _HARNESS = {"checkout", "python", "git_sha"}
 _CORPUS = {"dataset_path", "raw_sha256", "normalized_sha256", "sessions", "eligible_questions"}
 _BENCHMARK = {"project_name", "conversations", "categories", "top_k", "top_k_cutoffs", "max_workers", "rpm", "predict_only", "resume"}
-_FACADE = {"python", "host", "port"}
+_FACADE = {"python", "host", "port", "provenance_manifest", "provenance_manifest_sha256"}
 _OUTPUT = {"external_root"}
 
 
@@ -77,6 +77,9 @@ def resolve_config(document: object) -> dict[str, Any]:
         raise ValueError("facade must bind a valid loopback port")
     if not isinstance(facade["python"], str) or not facade["python"]:
         raise ValueError("facade.python must be non-empty")
+    provenance_manifest = Path(str(facade["provenance_manifest"]))
+    if not provenance_manifest.is_file() or _sha256(provenance_manifest) != facade["provenance_manifest_sha256"]:
+        raise ValueError("facade provenance manifest path or sha256 is invalid")
     if not isinstance(output["external_root"], str) or not output["external_root"]:
         raise ValueError("output.external_root must be non-empty")
     return root
@@ -194,7 +197,8 @@ def run(config: dict[str, Any], *, base_dir: str | Path) -> tuple[str, Path, int
     try:
         process = subprocess.Popen(
             [resolved["facade"]["python"], "-m", "experiments.fathomdb_oss_facade", "--root", str(raw_dir / "fathomdb"),
-             "--host", resolved["facade"]["host"], "--port", str(resolved["facade"]["port"])],
+             "--host", resolved["facade"]["host"], "--port", str(resolved["facade"]["port"]),
+             "--provenance-manifest", resolved["facade"]["provenance_manifest"]],
             cwd=_lib.REPO_ROOT,
             stdout=(raw_dir / "facade.stdout.log").open("w", encoding="utf-8"),
             stderr=(raw_dir / "facade.stderr.log").open("w", encoding="utf-8"),

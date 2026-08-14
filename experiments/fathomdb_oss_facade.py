@@ -11,14 +11,18 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import shutil
 import threading
+import time
 from collections.abc import Callable
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Protocol
 from urllib.parse import parse_qs, urlparse
+
+from experiments.locomo_provenance import ProvenanceEntry, ProvenanceMap, load_manifest
 
 
 MAX_FTS_RESULTS = 10
@@ -52,10 +56,22 @@ def _user_token(user_id: str) -> str:
     return hashlib.sha256(user_id.encode("utf-8")).hexdigest()[:24]
 
 
+def _timing_summary(values: list[float]) -> dict[str, float | int | None]:
+    if not values:
+        return {"n": 0, "p50": None, "p95": None, "p99": None}
+    ordered = sorted(values)
+
+    def percentile(q: float) -> float:
+        return ordered[max(0, math.ceil(len(ordered) * q) - 1)]
+
+    return {"n": len(ordered), "p50": percentile(0.50), "p95": percentile(0.95), "p99": percentile(0.99)}
+
+
 class FathomDBOssStore:
     """One FathomDB database per official Mem0 user ID."""
 
-    def __init__(self, root: str | Path, *, engine_factory: Callable[[str], _Engine] | None = None) -> None:
+    def __init__(self, root: str | Path, *, engine_factory: Callable[[str], _Engine] | None = None,
+                 provenance: ProvenanceMap | None = None) -> None:
         self.root = Path(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         if engine_factory is None:
@@ -68,6 +84,11 @@ class FathomDBOssStore:
         self._engine_factory = engine_factory
         self._engines: dict[str, _Engine] = {}
         self._chunk_counts: dict[str, int] = {}
+        self._provenance = provenance
+        self._provenance_by_logical_id: dict[str, ProvenanceEntry] = {}
+        self._timings: dict[str, list[float]] = {
+            "facade_query_ms": [], "engine_query_ms": [], "ingest_ack_ms": [], "ready_to_search_ms": [],
+        }
         self._lock = threading.RLock()
 
     def _path(self, user_id: str) -> Path:
@@ -86,18 +107,27 @@ class FathomDBOssStore:
         user_id = payload.get("user_id")
         _user_token(user_id)
         body = render_messages(payload.get("messages"))
+        provenance = self._provenance.resolve(payload) if self._provenance is not None else None
         with self._lock:
             engine = self._engine(user_id)
             chunk = self._chunk_counts[user_id]
             token = _user_token(user_id)
+            logical_id = f"mem0-oss:{token}:{chunk}"
+            started = time.monotonic()
             engine.write([{
                 "kind": "locomo_message_chunk",
                 "body": body,
                 "source_id": f"mem0-oss:{token}",
-                "logical_id": f"mem0-oss:{token}:{chunk}",
+                "logical_id": logical_id,
             }])
+            acked = time.monotonic()
             engine.drain(timeout_s=30)
+            ready = time.monotonic()
             self._chunk_counts[user_id] += 1
+            self._timings["ingest_ack_ms"].append((acked - started) * 1000)
+            self._timings["ready_to_search_ms"].append((ready - started) * 1000)
+            if provenance is not None:
+                self._provenance_by_logical_id[logical_id] = provenance
         return {"results": []}
 
     def search(self, payload: object) -> dict[str, list[dict[str, object]]]:
@@ -110,15 +140,31 @@ class FathomDBOssStore:
             raise ValueError("query must be a non-empty string")
         if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= MAX_FTS_RESULTS:
             raise ValueError(f"limit must be an integer in [1, {MAX_FTS_RESULTS}]")
+        facade_started = time.monotonic()
         with self._lock:
             engine = self._engines.get(user_id)
             if engine is None:
                 return {"results": []}
+            engine_started = time.monotonic()
             hits = engine.search_text_only(query).results[:limit]
-        return {"results": [
-            {"memory": hit.body, "score": hit.score, "id": hit.id.value}
-            for hit in hits
-        ]}
+            engine_ended = time.monotonic()
+            self._timings["engine_query_ms"].append((engine_ended - engine_started) * 1000)
+            results: list[dict[str, object]] = []
+            for hit in hits:
+                result: dict[str, object] = {"memory": hit.body, "score": hit.score, "id": hit.id.value}
+                if self._provenance is not None:
+                    try:
+                        result["evaluation_provenance"] = self._provenance_by_logical_id[hit.id.value].safe_metadata()
+                    except KeyError as exc:
+                        raise ValueError("search hit has no safe evaluation provenance") from exc
+                results.append(result)
+        self._timings["facade_query_ms"].append((time.monotonic() - facade_started) * 1000)
+        return {"results": results}
+
+    def metrics_snapshot(self) -> dict[str, dict[str, float | int | None]]:
+        """Return deterministic aggregate timings without query or corpus text."""
+        with self._lock:
+            return {name: _timing_summary(values) for name, values in self._timings.items()}
 
     def delete_user(self, user_id: str) -> None:
         """Close and remove the isolated store for one official user ID."""
@@ -163,6 +209,8 @@ def handler_for(store: FathomDBOssStore) -> type[BaseHTTPRequestHandler]:
         def do_GET(self) -> None:  # noqa: N802
             if self.path == "/health":
                 self._send(HTTPStatus.OK, {"status": "ok"})
+            elif self.path == "/metrics":
+                self._send(HTTPStatus.OK, store.metrics_snapshot())
             else:
                 self._send(HTTPStatus.NOT_FOUND, {"detail": "not found"})
 
@@ -203,8 +251,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, required=True, help="external campaign database root")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8889)
+    parser.add_argument("--provenance-manifest", type=Path, required=True,
+                        help="content-free LOCOMO payload-to-ID manifest outside the repository")
     args = parser.parse_args(argv)
-    store = FathomDBOssStore(args.root)
+    store = FathomDBOssStore(args.root, provenance=load_manifest(args.provenance_manifest))
     server = ThreadingHTTPServer((args.host, args.port), handler_for(store))
     try:
         server.serve_forever()

@@ -153,10 +153,14 @@ def resolve_config(document: object) -> dict[str, Any]:
 
     if mem0["host"] != "http://127.0.0.1:8888":
         raise ValueError("mem0.host must be the local official OSS service")
-    if airlock["base_url"] != "http://host.docker.internal:4000/v1":
-        raise ValueError("airlock.base_url must use host.docker.internal from the Mem0 container")
-    if airlock["host_gateway"] is not True:
-        raise ValueError("airlock.host_gateway must be true for the Linux Compose host-gateway mapping")
+    airlock_routes = {
+        "http://host.docker.internal:4000/v1": True,
+        "http://127.0.0.1:4000/v1": False,
+    }
+    if airlock["base_url"] not in airlock_routes:
+        raise ValueError("airlock.base_url must be a local Airlock OpenAI endpoint")
+    if airlock["host_gateway"] is not airlock_routes[airlock["base_url"]]:
+        raise ValueError("airlock.host_gateway must match the selected container network route")
     if airlock["llm_alias"] != mem0["llm_model"] or airlock["embedder_alias"] != mem0["embedder_model"]:
         raise ValueError("Airlock aliases must exactly match the Mem0 model identifiers")
     if airlock["redaction_smoke"] != "required":
@@ -227,17 +231,18 @@ def preflight(config: dict[str, Any]) -> list[str]:
     mem0_config = artifacts_by_name["mem0_airlock_config"]
     compose_text = compose.read_text(encoding="utf-8")
     mem0_text = mem0_config.read_text(encoding="utf-8")
-    for required in (
-        "host.docker.internal:host-gateway",
-        "OPENAI_API_KEY: ${AIRLOCK_VIRTUAL_KEY",
-        ":/app/config.yaml:ro",
-    ):
+    required_compose = (
+        ("host.docker.internal:host-gateway", "OPENAI_API_KEY: ${AIRLOCK_VIRTUAL_KEY", ":/app/config.yaml:ro")
+        if resolved["airlock"]["host_gateway"]
+        else ("network_mode: host", "QDRANT_HOST: 127.0.0.1", "OPENAI_API_KEY: ${AIRLOCK_VIRTUAL_KEY", ":/app/config.yaml:ro")
+    )
+    for required in required_compose:
         if required not in compose_text:
             failures.append(f"compose overlay is missing {required!r}")
     for required in (
         "gpt-4o-mini",
         "text-embedding-3-small",
-        "http://host.docker.internal:4000/v1",
+        resolved["airlock"]["base_url"],
         "${OPENAI_API_KEY}",
     ):
         if required not in mem0_text:
@@ -373,7 +378,10 @@ def predict_completion(config: dict[str, Any], raw_dir: Path) -> dict[str, Any]:
     conversations = {int(item) for item in str(config["benchmark"]["conversations"]).split(",")}
     for conversation_index in sorted(conversations):
         try:
-            checkpoint = json.loads((raw_dir / f"_ingestion_{conversation_index}.json").read_text(encoding="utf-8"))
+            checkpoint_path = output_dir / f"_ingestion_{conversation_index}.json"
+            if not checkpoint_path.is_file():
+                checkpoint_path = raw_dir / f"_ingestion_{conversation_index}.json"
+            checkpoint = json.loads(checkpoint_path.read_text(encoding="utf-8"))
             if checkpoint.get("conversation_idx") != conversation_index or checkpoint.get("total_chunks_failed") != 0:
                 raise ValueError("invalid or failed ingestion checkpoint")
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):

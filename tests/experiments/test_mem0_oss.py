@@ -79,7 +79,7 @@ def _config(tmp_path: Path) -> dict:
     }
 
 
-def test_resolve_config_rejects_secrets_and_non_airlock_container_endpoint(tmp_path):
+def test_resolve_config_rejects_secrets_and_accepts_local_loopback_airlock(tmp_path):
     config = _config(tmp_path)
     config["mem0"]["api_key"] = "sk-direct-openai-key"
     with pytest.raises(ValueError, match="secrets"):
@@ -87,8 +87,8 @@ def test_resolve_config_rejects_secrets_and_non_airlock_container_endpoint(tmp_p
 
     config = _config(tmp_path)
     config["airlock"]["base_url"] = "http://127.0.0.1:4000/v1"
-    with pytest.raises(ValueError, match="host.docker.internal"):
-        mem0_oss.resolve_config(config)
+    config["airlock"]["host_gateway"] = False
+    assert mem0_oss.resolve_config(config)["airlock"]["base_url"] == "http://127.0.0.1:4000/v1"
 
 
 def test_resolve_config_requires_predict_only_resume_and_hashed_artifacts(tmp_path):
@@ -140,7 +140,7 @@ def test_write_receipt_uses_generic_run_layout_and_typed_unavailable_cost(tmp_pa
         json.dumps({"question_id": "conv0_q0", "retrieval": {"search_results": [], "search_latency_ms": 3.0, "total_results": 0}}),
         encoding="utf-8",
     )
-    (raw / "_ingestion_0.json").write_text(
+    (native / "_ingestion_0.json").write_text(
         json.dumps({"conversation_idx": 0, "total_chunks_failed": 0}), encoding="utf-8"
     )
 
@@ -211,7 +211,7 @@ def test_predict_completion_is_incomplete_when_selected_question_output_is_missi
     native = tmp_path / "raw" / "predicted_fathomdb-mem0-locomo-native"
     native.mkdir(parents=True)
     (native / "conv0_q0.json").write_text(json.dumps({"question_id": "conv0_q0", "retrieval": {"search_results": [], "search_latency_ms": 1.0, "total_results": 0}}), encoding="utf-8")
-    (native.parent / "_ingestion_0.json").write_text(
+    (native / "_ingestion_0.json").write_text(
         json.dumps({"conversation_idx": 0, "total_chunks_failed": 0}), encoding="utf-8"
     )
 
@@ -219,6 +219,28 @@ def test_predict_completion_is_incomplete_when_selected_question_output_is_missi
 
     assert completion["complete"] is False
     assert completion["missing_question_ids"] == ["conv0_q1"]
+
+
+def test_predict_completion_reads_native_ingestion_checkpoints_from_prediction_dir(tmp_path):
+    config = _config(tmp_path)
+    dataset = tmp_path / "selected-locomo10.json"
+    dataset.write_text(json.dumps([{"qa": [{"category": 1}]}]), encoding="utf-8")
+    config["corpus"]["dataset_path"] = str(dataset)
+    config["corpus"]["raw_sha256"] = _sha(dataset)
+    config["benchmark"]["conversations"] = "0"
+    config["benchmark"]["categories"] = "1"
+    config = mem0_oss.resolve_config(config)
+    native = tmp_path / "raw" / "predicted_fathomdb-mem0-locomo-native"
+    native.mkdir(parents=True)
+    (native / "conv0_q0.json").write_text(
+        json.dumps({"question_id": "conv0_q0", "retrieval": {"search_results": [], "search_latency_ms": 1.0, "total_results": 0}}),
+        encoding="utf-8",
+    )
+    (native / "_ingestion_0.json").write_text(
+        json.dumps({"conversation_idx": 0, "total_chunks_failed": 0}), encoding="utf-8"
+    )
+
+    assert mem0_oss.predict_completion(config, native.parent)["complete"] is True
 
 
 def test_write_receipt_rejects_raw_output_inside_experiment_runs(tmp_path):

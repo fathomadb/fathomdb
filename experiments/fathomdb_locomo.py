@@ -95,6 +95,13 @@ def build_harness_command(config: dict[str, Any], *, run_id: str, raw_dir: Path)
     ]
 
 
+def predict_only_harness_env() -> dict[str, str]:
+    """Supply the inert constructor credential the upstream runner requires."""
+    environment = dict(os.environ)
+    environment["OPENAI_API_KEY"] = "predict-only-placeholder"
+    return environment
+
+
 def write_receipt(config: dict[str, Any], *, ts: datetime, base_dir: str | Path, raw_dir: Path,
                   verdict: str, read: str, completion: dict[str, Any]) -> tuple[str, Path]:
     """Write the generic envelope and a content-free FathomDB arm result."""
@@ -196,7 +203,10 @@ def run(config: dict[str, Any], *, base_dir: str | Path) -> tuple[str, Path, int
         command = build_harness_command(resolved, run_id=run_id, raw_dir=raw_dir)
         (raw_dir / "command.json").write_text(json.dumps(command, indent=2) + "\n", encoding="utf-8")
         with (raw_dir / "stdout.log").open("w", encoding="utf-8") as stdout, (raw_dir / "stderr.log").open("w", encoding="utf-8") as stderr:
-            completed = subprocess.run(command, cwd=checkout, stdout=stdout, stderr=stderr, check=False)
+            completed = subprocess.run(
+                command, cwd=checkout, stdout=stdout, stderr=stderr, check=False,
+                env=predict_only_harness_env(),
+            )
     except (OSError, RuntimeError) as exc:
         completion = {"complete": False, "expected_questions": resolved["corpus"]["eligible_questions"]}
         receipt_id, receipt_dir = write_receipt(

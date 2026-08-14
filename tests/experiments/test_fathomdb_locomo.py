@@ -40,6 +40,14 @@ def test_fathomdb_arm_command_uses_the_official_runner_and_local_facade(tmp_path
     assert command[command.index("--top-k") + 1] == "10"
 
 
+def test_predict_only_harness_environment_replaces_any_direct_openai_key(monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-direct-key-must-not-reach-harness")
+
+    environment = fathomdb_locomo.predict_only_harness_env()
+
+    assert environment["OPENAI_API_KEY"] == "predict-only-placeholder"
+
+
 def test_fathomdb_arm_receipt_has_a_typed_safe_result_sidecar(tmp_path):
     config = fathomdb_locomo.resolve_config(_config(tmp_path))
     raw = tmp_path / "external" / "raw"

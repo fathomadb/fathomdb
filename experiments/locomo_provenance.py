@@ -7,6 +7,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -31,7 +32,13 @@ def _normalized_payload(payload: object) -> dict[str, object]:
             raise ValueError("each ingestion message must contain only role and content")
         if not isinstance(message["role"], str) or not isinstance(message["content"], str):
             raise ValueError("each ingestion message role and content must be strings")
-    return {"user_id": f"locomo_{match.group(1)}", "messages": messages}
+    normalized: dict[str, object] = {"user_id": f"locomo_{match.group(1)}", "messages": messages}
+    if "timestamp" in payload and payload["timestamp"] is not None:
+        timestamp = payload["timestamp"]
+        if isinstance(timestamp, bool) or not isinstance(timestamp, int):
+            raise ValueError("ingestion payload timestamp must be an integer")
+        normalized["timestamp"] = timestamp
+    return normalized
 
 
 def payload_fingerprint(payload: object) -> str:
@@ -142,6 +149,17 @@ def _messages_for_session(conversation: dict[str, Any], turns: object) -> list[t
     return messages
 
 
+def _locomo_epoch(value: object) -> int | None:
+    if not isinstance(value, str):
+        return None
+    for date_format in ("%I:%M %p on %d %B, %Y", "%I:%M %p on %d %b, %Y"):
+        try:
+            return int(datetime.strptime(value, date_format).replace(tzinfo=timezone.utc).timestamp())
+        except ValueError:
+            continue
+    return None
+
+
 def build_manifest_document(corpus: object, *, ingest_unit: str) -> dict[str, object]:
     """Build a content-free manifest for turn or complete-session ingestion."""
     if ingest_unit not in {"turn", "session"}:
@@ -153,17 +171,27 @@ def build_manifest_document(corpus: object, *, ingest_unit: str) -> dict[str, ob
         if not isinstance(item, dict) or not isinstance(item.get("conversation"), dict):
             raise ValueError("LOCOMO corpus entry is missing conversation")
         conversation = item["conversation"]
-        session_keys = sorted(
-            (key for key in conversation if _SESSION_KEY.fullmatch(key)),
-            key=lambda key: int(_SESSION_KEY.fullmatch(key).group(1)),
-        )
-        for session_id in session_keys:
-            messages = _messages_for_session(conversation, conversation[session_id])
+        sessions = [
+            (key, conversation.get(f"{key}_date_time", ""), conversation[key])
+            for key in conversation if _SESSION_KEY.fullmatch(key)
+        ]
+        sessions.sort(key=lambda item: (
+            0 if _locomo_epoch(item[1]) is not None else 1,
+            _locomo_epoch(item[1]) if _locomo_epoch(item[1]) is not None else int(_SESSION_KEY.fullmatch(item[0]).group(1)),
+        ))
+        for session_id, session_date, turns in sessions:
+            messages = _messages_for_session(conversation, turns)
             if not messages:
                 continue
             groups = [messages] if ingest_unit == "session" else [[message] for message in messages]
             for group in groups:
-                payload = {"user_id": f"locomo_{conversation_index}_manifest", "messages": [message for message, _ in group]}
+                payload: dict[str, object] = {
+                    "user_id": f"locomo_{conversation_index}_manifest",
+                    "messages": [message for message, _ in group],
+                }
+                timestamp = _locomo_epoch(session_date)
+                if timestamp is not None:
+                    payload["timestamp"] = timestamp
                 entries.append({
                     "fingerprint": payload_fingerprint(payload),
                     "conversation_id": f"locomo-{conversation_index}",

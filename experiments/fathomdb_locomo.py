@@ -98,6 +98,23 @@ def build_harness_command(config: dict[str, Any], *, run_id: str, raw_dir: Path)
     ]
 
 
+def receipt_config(config: dict[str, Any]) -> dict[str, Any]:
+    """Project an executable config into the reproducible, path-free receipt form."""
+    return {
+        "schema_version": config["schema_version"], "campaign": config["campaign"],
+        "harness": {"checkout": "external-verified-checkout", "python": "external-verified-interpreter",
+                    "git_sha": config["harness"]["git_sha"]},
+        "corpus": {"dataset_path": "external-verified-corpus", "raw_sha256": config["corpus"]["raw_sha256"],
+                   "normalized_sha256": config["corpus"]["normalized_sha256"], "sessions": config["corpus"]["sessions"],
+                   "eligible_questions": config["corpus"]["eligible_questions"]},
+        "benchmark": dict(config["benchmark"]),
+        "facade": {"python": "external-verified-interpreter", "host": config["facade"]["host"],
+                   "port": config["facade"]["port"], "provenance_manifest": "external-provenance-manifest",
+                   "provenance_manifest_sha256": config["facade"]["provenance_manifest_sha256"]},
+        "output": {"external_root": "external-access-controlled"},
+    }
+
+
 def predict_only_harness_env() -> dict[str, str]:
     """Supply the inert constructor credential the upstream runner requires."""
     environment = dict(os.environ)
@@ -109,7 +126,8 @@ def write_receipt(config: dict[str, Any], *, ts: datetime, base_dir: str | Path,
                   verdict: str, read: str, completion: dict[str, Any]) -> tuple[str, Path]:
     """Write the generic envelope and a content-free FathomDB arm result."""
     resolved = resolve_config(config)
-    run_id = _lib.make_run_id(EXPERIMENT, ts, _lib.config_sha256(resolved))
+    public_config = receipt_config(resolved)
+    run_id = _lib.make_run_id(EXPERIMENT, ts, _lib.config_sha256(public_config))
     run_dir = Path(base_dir) / "runs" / run_id
     if raw_dir.resolve().is_relative_to((Path(base_dir) / "runs").resolve()):
         raise ValueError("raw output must remain outside experiments/runs")
@@ -126,14 +144,14 @@ def write_receipt(config: dict[str, Any], *, ts: datetime, base_dir: str | Path,
     manifest_path = raw_dir / "external-artifacts.manifest.v1.json"
     manifest_path.write_text(json.dumps(mem0_oss.external_artifact_manifest(raw_dir), indent=2) + "\n", encoding="utf-8")
     _lib.write_record(
-        EXPERIMENT, ts=ts, config_obj=resolved, metrics={"phase": "ingest_search_predict_only", "completion": completion},
+        EXPERIMENT, ts=ts, config_obj=public_config, metrics={"phase": "ingest_search_predict_only", "completion": completion},
         verdict=verdict, read=read, code=_lib.git_info(),
-        corpus={"source": "LOCOMO", "manifest_sha256": resolved["corpus"]["raw_sha256"], "datasets": []},
+        corpus={"source": "LOCOMO", "manifest_sha256": public_config["corpus"]["raw_sha256"], "datasets": []},
         seeds={}, env=_lib.env_info(), cost_usd=0.0, headline={"retrieval_mode": "fts_only"},
-        n=resolved["corpus"]["eligible_questions"],
+        n=public_config["corpus"]["eligible_questions"],
         artifacts=[
             {"path": str(sidecar_path.relative_to(Path(base_dir))), "sha256": _sha256(sidecar_path)},
-            {"path": str(manifest_path), "sha256": _sha256(manifest_path)},
+            {"path": "external-artifacts.manifest.v1", "sha256": _sha256(manifest_path)},
         ], base_dir=base_dir,
     )
     _lib.regen_index_md(index_path=Path(base_dir) / "index.jsonl", md_path=Path(base_dir) / "INDEX.md")

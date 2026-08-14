@@ -98,3 +98,7 @@ def test_fathomdb_arm_receipt_has_a_typed_safe_result_sidecar(tmp_path):
     assert sidecar["run_id"] == run_id
     record = json.loads((run_dir / "record.json").read_text())
     assert record["experiment"] == "fathomdb-locomo-official-seam"
+    serialized = json.dumps(record)
+    assert str(raw) not in serialized
+    assert str(config["harness"]["checkout"]) not in serialized
+    assert record["artifacts"][1]["path"] == "external-artifacts.manifest.v1"

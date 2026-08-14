@@ -15,6 +15,7 @@ are cross-compatible — the index row's `repo` field (`"fathomdb"` here,
 experiments/
   index.jsonl                 # append-only; ONE JSON line per run (source-of-truth)
   INDEX.md                    # GENERATED human table (never hand-edit)
+  SCOREBOARD.md               # GENERATED aggregate capability comparison table
   runs/<run_id>/
     record.json               # canonical per-run record (typed schema)
     config.resolved.yaml      # the config AFTER defaults+overrides merge
@@ -52,6 +53,9 @@ resolved config. Given a fixed timestamp + config, the `run_id` is deterministic
 - `index.jsonl` is **append-only**: never rewrite or reorder existing lines.
 - `INDEX.md` is **generated** from `index.jsonl` (`_lib.regen_index_md()` is
   idempotent). Do not hand-edit it.
+- `SCOREBOARD.md` is **generated** from the safe aggregate fields in committed
+  `runs/*/record.json` receipts (`python -m experiments.scorecard`). It is a
+  comparison layer, not a raw-artifact store; do not hand-edit it.
 - `_lib.py` is **pure/no-network** and the timestamp is passed IN by the caller
   (a live runner supplies `datetime.now(UTC)`), so hashing/`run_id` stay testable.
 - Git subprocess calls strip `GIT_DIR`/`GIT_WORK_TREE` (`_lib.git_env`) so a

@@ -339,15 +339,16 @@ other.
   },
   "baseline": {
     "ref": "origin/main",
-    "sha": "<sha>",
-    "attestation_sha256": "<sha256>",
-    "expires_at": "<RFC3339>"
+    "sha": "<sha>"
   },
   "baseline_requirement": {"max_age_seconds": 900},
   "policy_sha256": "<sha256>",
   "owner_map_sha256": "<sha256>",
   "owner_map_review_sha256": "<sha256 of exact approved owner-map review attestation>",
-  "retirement_proofs": null,
+  "retirement_proofs": {
+    "proofs_sha256": "<sha256>",
+    "approval_sha256": "<sha256>"
+  },
   "goal": {"target_worktrees": 6, "source": "inferred"},
   "preservation": {
     "bundle_name_algorithm": "wtc-bundle-v1",
@@ -357,20 +358,39 @@ other.
   },
   "entries": [
     {
-      "kind": "worktree|branch",
-      "target": "absolute-worktree-path|refs/heads/name",
-      "classification": "merged-retirable|archive-required",
+      "kind": "worktree",
+      "target": "/canonical/absolute/worktree-path",
+      "classification": "merged-retirable",
       "owner": {
-        "value": "none|<owner-id>",
-        "release_role": "none|<role-id>",
+        "value": "none",
+        "release_role": "none",
         "evidence_sha256": "<owner-map-sha256>"
       },
-      "action": "remove_worktree|delete_local_ref",
+      "action": "remove_worktree",
       "witness": {
         "tip": "<sha>",
         "clean": true,
         "unused_by_retained_worktree": true,
-        "recovery_requirement": "execution_bundle|retained_ref:<ref>"
+        "recovery_requirement": "execution_bundle"
+      }
+    },
+    {
+      "kind": "branch",
+      "target": "refs/heads/non-ancestor-name",
+      "classification": "proof-retirable",
+      "owner": {
+        "value": "none",
+        "release_role": "none",
+        "evidence_sha256": "<owner-map-sha256>"
+      },
+      "action": "delete_local_ref",
+      "witness": {
+        "tip": "<sha>",
+        "clean": true,
+        "unused_by_retained_worktree": true,
+        "recovery_requirement": "execution_bundle",
+        "proof_type": "stable_patch_coverage",
+        "proof_entry_sha256": "<sha256>"
       }
     }
   ],
@@ -382,6 +402,13 @@ other.
   }
 }
 ```
+
+`retirement_proofs` is exactly `null` when the manifest has no proof-backed
+actions; otherwise it is an object containing exactly `proofs_sha256` and
+`approval_sha256`. Executable entries use only `merged-retirable` or
+`proof-retirable`. Every executable witness requires
+`recovery_requirement: "execution_bundle"`; a `proof-retirable` witness also
+requires exactly one supported `proof_type` and its `proof_entry_sha256`.
 
 `baseline_requirement.max_age_seconds` must equal
 `policy.baseline_max_age_seconds`, and `dryrun_requirement.max_age_seconds`

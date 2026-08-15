@@ -243,6 +243,56 @@ Pass both files to `manifest`, then the same immutable files to `dryrun` and
 Every stage recomputes the relation from live Git. Drift requires a new audit,
 proof review, manifest review, and dry run.
 
+For a proof-backed run, use both proof files unchanged in all three executable
+stages. Create the manifest approval after the first command and the freeze
+attestation after the second, as described in the following sections:
+
+```bash
+scripts/worktree-consolidator.py manifest \
+  --repo /repo/main \
+  --audit /secure/fathomdb-wtc/evidence/audit.json \
+  --owner-map /secure/fathomdb-wtc/evidence/owner-map.json \
+  --owner-map-review-attestation /secure/fathomdb-wtc/evidence/owner-map-review.json \
+  --policy /secure/fathomdb-wtc/evidence/policy.json \
+  --baseline-attestation /secure/fathomdb-wtc/evidence/baseline.json \
+  --retirement-proofs /secure/fathomdb-wtc/evidence/retirement-proofs.json \
+  --retirement-proof-approval /secure/fathomdb-wtc/evidence/proof-approval.json \
+  --evidence-dir /secure/fathomdb-wtc/evidence \
+  --target-worktrees 6 \
+  --output /secure/fathomdb-wtc/evidence/manifest.json \
+  --json
+
+scripts/worktree-consolidator.py dryrun \
+  --repo /repo/main \
+  --manifest /secure/fathomdb-wtc/evidence/manifest.json \
+  --owner-map /secure/fathomdb-wtc/evidence/owner-map.json \
+  --owner-map-review-attestation /secure/fathomdb-wtc/evidence/owner-map-review.json \
+  --approval-attestation /secure/fathomdb-wtc/evidence/approval.json \
+  --baseline-attestation /secure/fathomdb-wtc/evidence/baseline.json \
+  --retirement-proofs /secure/fathomdb-wtc/evidence/retirement-proofs.json \
+  --retirement-proof-approval /secure/fathomdb-wtc/evidence/proof-approval.json \
+  --archive-dir /secure/fathomdb-wtc/archive \
+  --evidence-dir /secure/fathomdb-wtc/evidence \
+  --json
+
+scripts/worktree-consolidator.py consolidate \
+  --repo /repo/main \
+  --manifest /secure/fathomdb-wtc/evidence/manifest.json \
+  --owner-map /secure/fathomdb-wtc/evidence/owner-map.json \
+  --owner-map-review-attestation /secure/fathomdb-wtc/evidence/owner-map-review.json \
+  --approval-attestation /secure/fathomdb-wtc/evidence/approval.json \
+  --baseline-attestation /secure/fathomdb-wtc/evidence/baseline.json \
+  --retirement-proofs /secure/fathomdb-wtc/evidence/retirement-proofs.json \
+  --retirement-proof-approval /secure/fathomdb-wtc/evidence/proof-approval.json \
+  --dryrun-receipt /secure/fathomdb-wtc/evidence/dryrun-<hash>.json \
+  --freeze-attestation /secure/fathomdb-wtc/evidence/freeze.json \
+  --archive-dir /secure/fathomdb-wtc/archive \
+  --evidence-dir /secure/fathomdb-wtc/evidence \
+  --confirm-manifest-sha256 "<sha256sum-manifest.json>" \
+  --confirm "CONSOLIDATE <manifest-id>" \
+  --json
+```
+
 ## 3. Generate and review a manifest
 
 Ask for an explicit target, or use `--infer-target` to apply the policy lower

@@ -62,6 +62,8 @@ Common options:
 | `--baseline-attestation PATH` | JSON evidence that the named baseline was fetched by an operator at the stated time and SHA; required for an executable plan, `dryrun`, and `consolidate`. |
 | `--owner-map PATH` | Strict JSON ownership/release-role mapping. It is required for a snapshot eligible for an executable manifest, and for `dryrun`/`consolidate`; absent or unknown ownership blocks retirement. |
 | `--owner-map-review-attestation PATH` | Independent, unexpired review of the exact owner-map bytes. Required by `manifest`, `dryrun`, and `consolidate`; absence produces `owner_map_review_required`. |
+| `--retirement-proofs PATH` | Optional reviewed metadata proving one closed redundancy relation for each non-ancestor local head. Must be paired with `--retirement-proof-approval`. |
+| `--retirement-proof-approval PATH` | Independent approval of the exact proof-set and owner-map hashes; required at every later stage when the manifest binds proofs. |
 | `--policy PATH` | Strict JSON theme/goal/recovery policy; required by `manifest`, and its canonical hash must match later stages. |
 | `--evidence-dir PATH` | Durable manifest/receipt/attestation directory for `manifest`, `dryrun`, and `consolidate`; must be outside every registered worktree. |
 | `--json` | Emit canonical machine-readable JSON to stdout. |
@@ -143,6 +145,14 @@ the repository identity, exact owner-map SHA-256, reviewer identity,
 `decision: "approved"`, issue time, and expiry. `manifest`, `dryrun`, and
 `consolidate` require it; the manifest and dry-run receipt retain its hash so a
 later stage cannot replace it with a review of different ownership evidence.
+
+For a reviewed unused local head that is not a baseline ancestor, the v2
+manifest may bind one proof from
+`dev/design/worktree-consolidator-retirement-proofs-design.md`. Proof evidence
+and its independent approval are direct children of the evidence directory.
+The manifest and dry-run receipt bind both hashes, and dry run/consolidation
+recompute the relation. These proofs establish redundancy only; they do not
+infer semantic obsolescence or weaken owner-map review.
 
 The approval attestation is an independently created JSON record with the
 candidate manifest SHA-256, reviewer identity, decision, review time, and
@@ -319,7 +329,7 @@ other.
 
 ```json
 {
-  "schema": "fathomdb-worktree-consolidator/v1",
+  "schema": "fathomdb-worktree-consolidator/v2",
   "plan_sha256": "<sha256 of payload without manifest_id or plan_sha256>",
   "manifest_id": "wtc-<snapshot-sha8>-<plan-sha8>",
   "snapshot_id": "<sha256>",
@@ -337,6 +347,7 @@ other.
   "policy_sha256": "<sha256>",
   "owner_map_sha256": "<sha256>",
   "owner_map_review_sha256": "<sha256 of exact approved owner-map review attestation>",
+  "retirement_proofs": null,
   "goal": {"target_worktrees": 6, "source": "inferred"},
   "preservation": {
     "bundle_name_algorithm": "wtc-bundle-v1",

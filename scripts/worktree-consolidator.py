@@ -20,18 +20,21 @@ import stat
 import subprocess
 import sys
 import tempfile
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
 
-SCHEMA = "fathomdb-worktree-consolidator/v1"
+SCHEMA = "fathomdb-worktree-consolidator/v2"
 OWNER_SCHEMA = "fathomdb-worktree-owner-map/v1"
 OWNER_MAP_REVIEW_SCHEMA = "fathomdb-worktree-owner-map-review-attestation/v1"
 BASELINE_SCHEMA = "fathomdb-worktree-baseline-attestation/v1"
 APPROVAL_SCHEMA = "fathomdb-worktree-approval-attestation/v1"
 DRYRUN_SCHEMA = "fathomdb-worktree-dryrun-receipt/v1"
 FREEZE_SCHEMA = "fathomdb-worktree-freeze-attestation/v1"
+RETIREMENT_PROOFS_SCHEMA = "fathomdb-worktree-retirement-proofs/v1"
+RETIREMENT_PROOF_APPROVAL_SCHEMA = "fathomdb-worktree-retirement-proof-approval/v1"
 
 
 class SafetyError(RuntimeError):
@@ -100,6 +103,21 @@ def git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProce
         detail = result.stderr.strip() or result.stdout.strip() or "unknown git error"
         raise SafetyError(f"git {' '.join(args)} failed: {detail}")
     return result
+
+
+def git_bytes(repo: Path, *args: str, stdin: bytes | None = None) -> bytes:
+    """Run shell-free Git without decoding or logging a proof payload."""
+    env = os.environ.copy()
+    for key in tuple(env):
+        if key.startswith("GIT_"):
+            env.pop(key)
+    env["GIT_OPTIONAL_LOCKS"] = "0"
+    result = subprocess.run(
+        ["git", *args], cwd=repo, input=stdin, capture_output=True, env=env, check=False
+    )
+    if result.returncode:
+        raise SafetyError(f"git {' '.join(args)} failed while computing proof")
+    return result.stdout
 
 
 def realpath(path: str | Path) -> Path:
@@ -546,6 +564,8 @@ def candidate_manifest(
     owner_review_hash: str,
     target: int,
     source: str,
+    proof_entries: dict[str, dict[str, Any]],
+    proof_chain: dict[str, str] | None,
 ) -> dict[str, Any]:
     """Create a conservative immutable candidate from a complete snapshot."""
     required_tips = sorted(item["tip"] for item in snapshot["local_refs"])
@@ -595,6 +615,37 @@ def candidate_manifest(
                         "witness": {"tip": item["tip"], "clean": True, "unused_by_retained_worktree": True, "recovery_requirement": "execution_bundle"},
                     }
                 )
+        refs = {item["ref"]: item for item in snapshot["local_refs"]}
+        for target_ref, proof in sorted(proof_entries.items()):
+            item = refs.get(target_ref)
+            if (
+                item is None
+                or item["used_by_worktree"]
+                or item["baseline_ancestor"]
+                or item["classification"] != "integration-required"
+            ):
+                raise SafetyError("proof-backed target is not an unused non-ancestor local ref")
+            entries.append(
+                {
+                    "kind": "branch",
+                    "target": target_ref,
+                    "classification": "proof-retirable",
+                    "owner": {
+                        "value": "none",
+                        "release_role": "none",
+                        "evidence_sha256": owner_hash,
+                    },
+                    "action": "delete_local_ref",
+                    "witness": {
+                        "tip": item["tip"],
+                        "clean": True,
+                        "unused_by_retained_worktree": True,
+                        "recovery_requirement": "execution_bundle",
+                        "proof_type": proof["proof_type"],
+                        "proof_entry_sha256": sha256(proof),
+                    },
+                }
+            )
     body: dict[str, Any] = {
         "schema": SCHEMA,
         "snapshot_id": snapshot["snapshot_id"],
@@ -604,6 +655,7 @@ def candidate_manifest(
         "policy_sha256": sha256(policy),
         "owner_map_sha256": owner_hash,
         "owner_map_review_sha256": owner_review_hash,
+        "retirement_proofs": proof_chain,
         "goal": {"target_worktrees": target, "source": source},
         "preservation": {"bundle_name_algorithm": "wtc-bundle-v1", "include_all_local_refs": True, "required_tips": required_tips, "reflog_candidates": selected},
         "entries": entries,
@@ -625,7 +677,7 @@ def command_manifest(args: argparse.Namespace) -> int:
     if snapshot.get("repository") != repo.identity:
         raise SafetyError("audit snapshot repository identity mismatch")
     owners_path = regular_child(args.owner_map, evidence, "owner map")
-    owner_entries(read_json(owners_path, "owner map"), repo)
+    owners = owner_entries(read_json(owners_path, "owner map"), repo)
     owner_hash = sha256(owners_path.read_bytes())
     if snapshot.get("owner_map_sha256") != owner_hash:
         raise SafetyError("owner map does not match audit snapshot")
@@ -660,14 +712,55 @@ def command_manifest(args: argparse.Namespace) -> int:
             raise SafetyError("manifest requires --target-worktrees or --infer-target")
         if target < lower or target < min_target or target > max_target:
             raise GoalBlocked("goal_inference_blocked: requested target violates policy lower bound")
-    manifest = candidate_manifest(snapshot, policy, owner_hash, owner_review_hash, target, source)
+    proof_entries: dict[str, dict[str, Any]] = {}
+    proof_chain: dict[str, str] | None = None
+    proof_requested = args.retirement_proofs is not None
+    proof_approval_requested = args.retirement_proof_approval is not None
+    if proof_requested != proof_approval_requested:
+        raise SafetyError("retirement proofs require a matching retirement proof approval")
+    if proof_requested:
+        if not policy["retire_local_heads"]:
+            raise SafetyError("retirement proofs require retire_local_heads policy")
+        proof_path = regular_child(args.retirement_proofs, evidence, "retirement proofs")
+        proof_approval_path = regular_child(
+            args.retirement_proof_approval, evidence, "retirement proof approval"
+        )
+        proof_value = read_json(proof_path, "retirement proofs")
+        proof_targets = {
+            item.get("target")
+            for item in proof_value.get("proofs", [])
+            if isinstance(item, dict) and isinstance(item.get("target"), str)
+        }
+        proof_entries, proof_hash, proof_approval_hash = load_retirement_proof_chain(
+            proof_path,
+            proof_approval_path,
+            repo,
+            snapshot["baseline"],
+            owner_hash,
+            owners,
+            proof_targets,
+        )
+        proof_chain = {
+            "proofs_sha256": proof_hash,
+            "approval_sha256": proof_approval_hash,
+        }
+    manifest = candidate_manifest(
+        snapshot,
+        policy,
+        owner_hash,
+        owner_review_hash,
+        target,
+        source,
+        proof_entries,
+        proof_chain,
+    )
     output(manifest, args, evidence)
     return 0
 
 
 def verify_manifest(manifest: dict[str, Any], repo: Repository) -> None:
     """Validate core immutable manifest fields before any dependent evidence."""
-    required = {"schema", "plan_sha256", "manifest_id", "snapshot_id", "repository", "baseline", "baseline_requirement", "policy_sha256", "owner_map_sha256", "owner_map_review_sha256", "goal", "preservation", "entries", "approval_requirement", "dryrun_requirement", "freeze_requirement"}
+    required = {"schema", "plan_sha256", "manifest_id", "snapshot_id", "repository", "baseline", "baseline_requirement", "policy_sha256", "owner_map_sha256", "owner_map_review_sha256", "retirement_proofs", "goal", "preservation", "entries", "approval_requirement", "dryrun_requirement", "freeze_requirement"}
     if set(manifest) != required or manifest.get("schema") != SCHEMA or manifest.get("repository") != repo.identity:
         raise SafetyError("manifest schema or repository identity mismatch")
     payload = {key: value for key, value in manifest.items() if key not in {"manifest_id", "plan_sha256"}}
@@ -676,12 +769,26 @@ def verify_manifest(manifest: dict[str, Any], repo: Repository) -> None:
     expected_id = f"wtc-{manifest['snapshot_id'][:8]}-{manifest['plan_sha256'][:8]}"
     if manifest["manifest_id"] != expected_id:
         raise SafetyError("manifest_id mismatch")
+    proof_chain = manifest["retirement_proofs"]
+    if proof_chain is not None and (
+        not isinstance(proof_chain, dict)
+        or set(proof_chain) != {"proofs_sha256", "approval_sha256"}
+        or not all(isinstance(value, str) and len(value) == 64 for value in proof_chain.values())
+    ):
+        raise SafetyError("manifest retirement proof chain is invalid")
 
 
-def require_nonempty_string(value: object, field: str) -> None:
-    """Reject missing or blank accountable identities in an attestation."""
-    if not isinstance(value, str) or not value.strip():
-        raise SafetyError(f"{field} must be a non-empty string")
+def accountable_identity(value: object, field: str) -> str:
+    """Require one canonical, printable accountable identity."""
+    if (
+        not isinstance(value, str)
+        or not value
+        or len(value) > 256
+        or value != value.strip()
+        or any(unicodedata.category(character).startswith("C") for character in value)
+    ):
+        raise SafetyError(f"{field} must be a canonical accountable identity")
+    return value
 
 
 def verify_approval(path: Path, manifest_hash: str, repo: Repository, maximum_age: int) -> str:
@@ -690,7 +797,7 @@ def verify_approval(path: Path, manifest_hash: str, repo: Repository, maximum_ag
     if set(value) != {"schema", "repository", "manifest_sha256", "reviewer", "decision", "issued_at", "expires_at"}:
         raise SafetyError("approval attestation has unknown or missing fields")
     valid_attestation(value, schema=APPROVAL_SCHEMA, repo=repo, maximum_age=maximum_age, label="approval attestation")
-    require_nonempty_string(value.get("reviewer"), "approval attestation.reviewer")
+    accountable_identity(value.get("reviewer"), "approval attestation.reviewer")
     if value.get("manifest_sha256") != manifest_hash or value.get("decision") != "approved":
         raise SafetyError("approval attestation does not approve this manifest")
     return sha256(path.read_bytes())
@@ -709,7 +816,7 @@ def verify_owner_map_review(path: Path, repo: Repository, owner_map_hash: str) -
         maximum_age=86400,
         label="owner-map review attestation",
     )
-    require_nonempty_string(value.get("reviewer"), "owner-map review attestation.reviewer")
+    accountable_identity(value.get("reviewer"), "owner-map review attestation.reviewer")
     if value.get("owner_map_sha256") != owner_map_hash or value.get("decision") != "approved":
         raise SafetyError("owner-map review attestation does not approve this owner map")
     return sha256(path.read_bytes())
@@ -727,14 +834,288 @@ def check_manifest_owner_map(
     return digest, entries
 
 
+def exact_ref_tip(repo: Repository, ref: object, namespace: str) -> str:
+    """Resolve one exact, non-symbolic ref in the required namespace."""
+    if not isinstance(ref, str) or not ref.startswith(namespace):
+        raise SafetyError(f"proof ref must be in {namespace}")
+    if git(repo.root, "check-ref-format", ref, check=False).returncode:
+        raise SafetyError("proof ref name is invalid")
+    if git(repo.root, "symbolic-ref", "-q", ref, check=False).returncode == 0:
+        raise SafetyError("proof ref must not be symbolic")
+    tip = git(repo.root, "show-ref", "--verify", "--hash", ref, check=False).stdout.strip()
+    if not tip:
+        raise SafetyError(f"proof ref is missing: {ref}")
+    return tip
+
+
+def stable_patch_id(repo: Repository, commit: str) -> str:
+    """Compute one config-independent stable patch ID without persisting its patch."""
+    patch = git_bytes(
+        repo.root,
+        "show",
+        "--pretty=format:",
+        "--patch",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--no-renames",
+        "--binary",
+        commit,
+    )
+    raw = git_bytes(repo.root, "patch-id", "--stable", stdin=patch)
+    fields = raw.decode("ascii", errors="strict").split()
+    if len(fields) != 2:
+        raise SafetyError("stable patch proof contains an empty commit")
+    try:
+        int(fields[0], 16)
+    except ValueError as exc:
+        raise SafetyError("stable patch proof produced a non-hex patch ID") from exc
+    if len(fields[0]) not in {40, 64}:
+        raise SafetyError("stable patch proof produced an invalid patch ID")
+    return fields[0]
+
+
+def baseline_patch_index(repo: Repository, baseline_sha: str) -> dict[str, list[str]]:
+    """Index all non-merge, non-empty baseline commits by stable patch ID."""
+    commits = git(
+        repo.root, "rev-list", "--reverse", "--no-merges", baseline_sha
+    ).stdout.splitlines()
+    index: dict[str, list[str]] = {}
+    for commit in commits:
+        try:
+            patch_id = stable_patch_id(repo, commit)
+        except SafetyError as exc:
+            if "empty commit" in str(exc):
+                continue
+            raise
+        index.setdefault(patch_id, []).append(commit)
+    return {patch_id: sorted(matches) for patch_id, matches in index.items()}
+
+
+def validate_stable_patch_proof(
+    repo: Repository,
+    proof: dict[str, Any],
+    baseline_sha: str,
+    patch_index: dict[str, list[str]],
+) -> None:
+    """Require complete exact stable-patch coverage of one live target."""
+    source = proof.get("source_commits")
+    if not isinstance(source, list) or not source:
+        raise SafetyError("complete stable-patch coverage requires non-empty source commits")
+    live_commits = git(
+        repo.root,
+        "rev-list",
+        "--reverse",
+        proof["target_tip"],
+        "--not",
+        baseline_sha,
+    ).stdout.splitlines()
+    if not live_commits or len(source) != len(live_commits):
+        raise SafetyError("complete stable-patch coverage does not match every source commit")
+    expected: list[dict[str, Any]] = []
+    for commit in live_commits:
+        parents = git(repo.root, "rev-list", "--parents", "-n", "1", commit).stdout.split()
+        if len(parents) > 2:
+            raise SafetyError("complete stable-patch coverage cannot cover merge commits")
+        patch_id = stable_patch_id(repo, commit)
+        matches = patch_index.get(patch_id, [])
+        if not matches:
+            raise SafetyError("stable patch has no exact match on the captured baseline")
+        expected.append(
+            {
+                "commit": commit,
+                "stable_patch_id": patch_id,
+                "baseline_matches": matches,
+            }
+        )
+    if source != expected:
+        raise SafetyError("complete stable patch coverage evidence differs from live Git")
+
+
+def validate_retirement_proof_set(
+    value: dict[str, Any],
+    repo: Repository,
+    baseline_value: dict[str, Any],
+    owner_hash: str,
+    owners: dict[str, dict[str, Any]],
+    retiring_targets: set[str],
+    live_targets: set[str] | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Validate closed proof schemas and recompute selected live Git relations."""
+    required = {
+        "schema", "repository", "baseline", "owner_map_sha256", "author", "issued_at", "proofs"
+    }
+    if (
+        set(value) != required
+        or value.get("schema") != RETIREMENT_PROOFS_SCHEMA
+        or value.get("repository") != repo.identity
+        or value.get("baseline") != baseline_value
+        or value.get("owner_map_sha256") != owner_hash
+    ):
+        raise SafetyError("retirement proof set schema or hash binding mismatch")
+    accountable_identity(value.get("author"), "retirement proof author")
+    if parse_time(value.get("issued_at"), "retirement proofs.issued_at") > utcnow():
+        raise SafetyError("retirement proof set is future-dated")
+    if not isinstance(value.get("proofs"), list) or not value["proofs"]:
+        raise SafetyError("retirement proof set must contain at least one proof")
+    baseline_sha = baseline_value.get("sha")
+    if not isinstance(baseline_sha, str) or not baseline_sha:
+        raise SafetyError("retirement proof baseline must resolve to a commit")
+    common = {
+        "target", "target_tip", "proof_type", "semantic_disposition", "evidence_id"
+    }
+    patch_index: dict[str, list[str]] | None = None
+    proofs: dict[str, dict[str, Any]] = {}
+    for raw in value["proofs"]:
+        if not isinstance(raw, dict):
+            raise SafetyError("retirement proof entry must be an object")
+        target = raw.get("target")
+        if not isinstance(target, str) or target in proofs:
+            raise SafetyError("retirement proof targets must be unique local refs")
+        proof_type = raw.get("proof_type")
+        if live_targets is not None and target not in live_targets:
+            if not common <= set(raw) or proof_type not in {
+                "stable_patch_coverage", "retained_local_ref", "remote_tracking_ref"
+            }:
+                raise SafetyError("retirement proof entry schema changed")
+            proofs[target] = raw
+            continue
+        target_tip = exact_ref_tip(repo, target, "refs/heads/")
+        if raw.get("target_tip") != target_tip:
+            raise SafetyError("retirement proof target tip differs from live Git")
+        if any(item["branch"] == target for item in repo.worktrees):
+            raise SafetyError("retirement proof target remains used by a worktree")
+        mapped = owners.get(target)
+        if mapped is None or mapped["owner"] != "none" or mapped["release_role"] != "none":
+            raise SafetyError("retirement proof target lacks explicit no-owner evidence")
+        if raw.get("semantic_disposition") != "retire-local-ref":
+            raise SafetyError("retirement proof lacks reviewed retire-local-ref disposition")
+        accountable_identity(raw.get("evidence_id"), "retirement proof evidence_id")
+        if git(
+            repo.root, "merge-base", "--is-ancestor", target_tip, baseline_sha, check=False
+        ).returncode == 0:
+            raise SafetyError("retirement proof is only valid for a non-baseline-ancestor tip")
+        if proof_type == "stable_patch_coverage":
+            if set(raw) != common | {"source_commits"}:
+                raise SafetyError("stable-patch proof has unknown or missing fields")
+            if patch_index is None:
+                patch_index = baseline_patch_index(repo, baseline_sha)
+            validate_stable_patch_proof(repo, raw, baseline_sha, patch_index)
+        elif proof_type == "retained_local_ref":
+            if set(raw) != common | {"relation", "retained_ref", "retained_tip"}:
+                raise SafetyError("retained-local-ref proof has unknown or missing fields")
+            retained_ref = raw.get("retained_ref")
+            if retained_ref == target:
+                raise SafetyError("retained local ref must differ from its retirement target")
+            retained_tip = exact_ref_tip(repo, retained_ref, "refs/heads/")
+            retained_owner = owners.get(str(retained_ref))
+            if (
+                retained_owner is None
+                or (
+                    retained_owner["owner"] == "none"
+                    and retained_owner["release_role"] == "none"
+                )
+                or retained_ref in retiring_targets
+            ):
+                raise SafetyError("proof does not name one explicitly retained local ref")
+            if raw.get("retained_tip") != retained_tip:
+                raise SafetyError("retained local ref tip differs from live Git")
+            relation = raw.get("relation")
+            same_tip = retained_tip == target_tip
+            ancestor = git(
+                repo.root, "merge-base", "--is-ancestor", target_tip, retained_tip, check=False
+            ).returncode == 0
+            if relation not in {"same-tip", "ancestor"} or (
+                relation == "same-tip" and not same_tip
+            ) or (relation == "ancestor" and (same_tip or not ancestor)):
+                raise SafetyError("retained local ref relation differs from live Git")
+        elif proof_type == "remote_tracking_ref":
+            if set(raw) != common | {"remote_ref", "remote_tip"}:
+                raise SafetyError("remote-tracking proof has unknown or missing fields")
+            remote_tip = exact_ref_tip(repo, raw.get("remote_ref"), "refs/remotes/")
+            if raw.get("remote_tip") != remote_tip or remote_tip != target_tip:
+                raise SafetyError("proof does not name an exact remote-tracking ref")
+        else:
+            raise SafetyError("retirement proof type is unsupported")
+        proofs[target] = raw
+    return proofs
+
+
+def verify_retirement_proof_approval(
+    value: dict[str, Any],
+    repo: Repository,
+    proof_hash: str,
+    owner_hash: str,
+    author: str,
+) -> None:
+    """Validate independent hash-bound semantic approval of one proof set."""
+    required = {
+        "schema", "repository", "owner_map_sha256", "retirement_proofs_sha256",
+        "reviewer", "decision", "issued_at", "expires_at"
+    }
+    if set(value) != required:
+        raise SafetyError("retirement proof approval has unknown or missing fields")
+    valid_attestation(
+        value,
+        schema=RETIREMENT_PROOF_APPROVAL_SCHEMA,
+        repo=repo,
+        maximum_age=86400,
+        label="retirement proof approval",
+    )
+    reviewer = accountable_identity(
+        value.get("reviewer"), "retirement proof approval reviewer"
+    )
+    if (
+        value.get("owner_map_sha256") != owner_hash
+        or value.get("retirement_proofs_sha256") != proof_hash
+        or value.get("decision") != "approved"
+        or reviewer == author
+    ):
+        raise SafetyError("retirement proof approval is not independent or hash-bound")
+
+
+def load_retirement_proof_chain(
+    proof_path: Path,
+    approval_path: Path,
+    repo: Repository,
+    baseline_value: dict[str, Any],
+    owner_hash: str,
+    owners: dict[str, dict[str, Any]],
+    retiring_targets: set[str],
+    live_targets: set[str] | None = None,
+) -> tuple[dict[str, dict[str, Any]], str, str]:
+    """Read, approve, and live-validate one retirement proof chain."""
+    proof_value = read_json(proof_path, "retirement proofs")
+    proof_hash = sha256(proof_path.read_bytes())
+    approval_value = read_json(approval_path, "retirement proof approval")
+    verify_retirement_proof_approval(
+        approval_value,
+        repo,
+        proof_hash,
+        owner_hash,
+        accountable_identity(proof_value.get("author"), "retirement proof author"),
+    )
+    proofs = validate_retirement_proof_set(
+        proof_value,
+        repo,
+        baseline_value,
+        owner_hash,
+        owners,
+        retiring_targets,
+        live_targets,
+    )
+    return proofs, proof_hash, sha256(approval_path.read_bytes())
+
+
 def validate_entry(entry: object, owners: dict[str, dict[str, Any]], owner_hash: str) -> dict[str, Any]:
     """Validate one executable action and its explicit no-owner witness."""
     if not isinstance(entry, dict) or set(entry) != {"kind", "target", "classification", "owner", "action", "witness"}:
         raise SafetyError("manifest entry has unknown or missing fields")
     if entry["kind"] not in {"worktree", "branch"} or not isinstance(entry["target"], str):
         raise SafetyError("manifest entry kind or target is invalid")
-    if entry["classification"] != "merged-retirable":
-        raise SafetyError("only merged-retirable entries are executable")
+    if entry["classification"] not in {"merged-retirable", "proof-retirable"}:
+        raise SafetyError("only reviewed retirable entries are executable")
+    if entry["classification"] == "proof-retirable" and entry["kind"] != "branch":
+        raise SafetyError("proof-retirable entries must be local branches")
     expected_action = "remove_worktree" if entry["kind"] == "worktree" else "delete_local_ref"
     if entry["action"] != expected_action:
         raise SafetyError("manifest entry action does not match target kind")
@@ -752,10 +1133,23 @@ def validate_entry(entry: object, owners: dict[str, dict[str, Any]], owner_hash:
     ):
         raise SafetyError("manifest entry ownership or release-role evidence is unsafe")
     witness = entry["witness"]
-    if not isinstance(witness, dict) or set(witness) != {"tip", "clean", "unused_by_retained_worktree", "recovery_requirement"}:
+    required_witness = {
+        "tip", "clean", "unused_by_retained_worktree", "recovery_requirement"
+    }
+    if entry["classification"] == "proof-retirable":
+        required_witness |= {"proof_type", "proof_entry_sha256"}
+    if not isinstance(witness, dict) or set(witness) != required_witness:
         raise SafetyError("manifest entry witness is invalid")
     if witness["clean"] is not True or witness["unused_by_retained_worktree"] is not True or witness["recovery_requirement"] != "execution_bundle":
         raise SafetyError("manifest entry witness is unsafe")
+    if entry["classification"] == "proof-retirable" and (
+        witness["proof_type"] not in {
+            "stable_patch_coverage", "retained_local_ref", "remote_tracking_ref"
+        }
+        or not isinstance(witness["proof_entry_sha256"], str)
+        or len(witness["proof_entry_sha256"]) != 64
+    ):
+        raise SafetyError("manifest entry retirement proof witness is invalid")
     return entry
 
 
@@ -767,6 +1161,73 @@ def current_snapshot_matches(repo: Repository, manifest: dict[str, Any], owner_m
     if snapshot["baseline"] != manifest["baseline"]:
         raise SafetyError("current baseline differs from manifest")
     return snapshot
+
+
+def revalidate_manifest_retirement_proofs(
+    args: argparse.Namespace,
+    evidence: Path,
+    repo: Repository,
+    manifest: dict[str, Any],
+    owner_hash: str,
+    owners: dict[str, dict[str, Any]],
+    live_targets: set[str] | None = None,
+) -> tuple[str | None, str | None]:
+    """Re-read the manifest-bound proof chain and recompute live relations."""
+    chain = manifest["retirement_proofs"]
+    proof_arg = getattr(args, "retirement_proofs", None)
+    approval_arg = getattr(args, "retirement_proof_approval", None)
+    if chain is None:
+        if proof_arg is not None or approval_arg is not None:
+            raise SafetyError("manifest does not bind retirement proof evidence")
+        if any(
+            isinstance(entry, dict) and entry.get("classification") == "proof-retirable"
+            for entry in manifest["entries"]
+        ):
+            raise SafetyError("proof-retirable entry lacks a manifest proof chain")
+        return None, None
+    if proof_arg is None or approval_arg is None:
+        raise SafetyError("manifest requires retirement proofs and their approval")
+    proof_path = regular_child(proof_arg, evidence, "retirement proofs")
+    approval_path = regular_child(
+        approval_arg, evidence, "retirement proof approval"
+    )
+    retiring_targets = {
+        entry["target"]
+        for entry in manifest["entries"]
+        if isinstance(entry, dict) and entry.get("kind") == "branch"
+    }
+    try:
+        proofs, proof_hash, approval_hash = load_retirement_proof_chain(
+            proof_path,
+            approval_path,
+            repo,
+            manifest["baseline"],
+            owner_hash,
+            owners,
+            retiring_targets,
+            live_targets,
+        )
+    except SafetyError as exc:
+        raise SafetyError(f"retirement proof live revalidation failed: {exc}") from exc
+    if chain != {"proofs_sha256": proof_hash, "approval_sha256": approval_hash}:
+        raise SafetyError("retirement proof evidence hashes differ from manifest")
+    proof_entries = {
+        entry["target"]: entry
+        for entry in manifest["entries"]
+        if isinstance(entry, dict) and entry.get("classification") == "proof-retirable"
+    }
+    if set(proof_entries) != set(proofs):
+        raise SafetyError("manifest proof-backed targets differ from reviewed proofs")
+    for target, proof in proofs.items():
+        if live_targets is not None and target not in live_targets:
+            continue
+        witness = proof_entries[target].get("witness", {})
+        if (
+            witness.get("proof_type") != proof["proof_type"]
+            or witness.get("proof_entry_sha256") != sha256(proof)
+        ):
+            raise SafetyError("manifest proof-entry hash or type mismatch")
+    return proof_hash, approval_hash
 
 
 def derived_bundle_name(manifest: dict[str, Any]) -> str:
@@ -798,6 +1259,9 @@ def command_dryrun(args: argparse.Namespace) -> int:
     owner_review_hash = verify_owner_map_review(owner_review_path, repo, owner_hash)
     if owner_review_hash != manifest["owner_map_review_sha256"]:
         raise SafetyError("owner-map review attestation hash mismatch")
+    proof_hash, proof_approval_hash = revalidate_manifest_retirement_proofs(
+        args, evidence, repo, manifest, owner_hash, owners
+    )
     snapshot = current_snapshot_matches(repo, manifest, owner_path)
     archive = validate_private_directory(args.archive_dir, repo, "archive directory")
     bundle = archive / derived_bundle_name(manifest)
@@ -826,6 +1290,8 @@ def command_dryrun(args: argparse.Namespace) -> int:
         "baseline_attestation_sha256": baseline_hash,
         "owner_map_sha256": owner_hash,
         "owner_map_review_sha256": owner_review_hash,
+        "retirement_proofs_sha256": proof_hash,
+        "retirement_proof_approval_sha256": proof_approval_hash,
         "snapshot_id": snapshot["snapshot_id"],
         "archive": directory_attributes(archive),
         "evidence": directory_attributes(evidence),
@@ -847,7 +1313,8 @@ def verify_dryrun(path: Path, manifest_hash: str, repo: Repository, maximum_age:
     value = read_json(path, "dry-run receipt")
     required = {
         "schema", "repository", "manifest_sha256", "approval_attestation_sha256",
-        "baseline_attestation_sha256", "owner_map_sha256", "owner_map_review_sha256", "snapshot_id", "archive",
+        "baseline_attestation_sha256", "owner_map_sha256", "owner_map_review_sha256",
+        "retirement_proofs_sha256", "retirement_proof_approval_sha256", "snapshot_id", "archive",
         "evidence", "bundle_path", "expected_actions", "predicted_post_state", "result",
         "issued_at", "expires_at",
     }
@@ -895,8 +1362,20 @@ def assert_entry_snapshot(snapshot: dict[str, Any], entry: dict[str, Any]) -> No
     collection = snapshot["worktrees"] if entry["kind"] == "worktree" else snapshot["local_refs"]
     key = "path" if entry["kind"] == "worktree" else "ref"
     audited = next((item for item in collection if item[key] == entry["target"]), None)
-    if audited is None or audited["classification"] != "merged-retirable":
-        raise SafetyError("target is not merged-retirable in the current audit")
+    expected_class = (
+        "integration-required"
+        if entry["classification"] == "proof-retirable"
+        else "merged-retirable"
+    )
+    if audited is None or audited["classification"] != expected_class:
+        if entry["classification"] == "merged-retirable":
+            raise SafetyError("target is not merged-retirable in the current audit")
+        raise SafetyError("proof-backed target is not integration-required in the current audit")
+    if entry["classification"] == "proof-retirable" and (
+        audited.get("baseline_ancestor") is not False
+        or audited.get("used_by_worktree") is not False
+    ):
+        raise SafetyError("proof-backed target is no longer an unused non-ancestor ref")
     tip = audited["head"] if entry["kind"] == "worktree" else audited["tip"]
     if tip != entry["witness"]["tip"]:
         raise SafetyError("target audit tip differs from manifest witness")
@@ -1058,13 +1537,19 @@ def command_consolidate(args: argparse.Namespace) -> int:
     owner_review_hash = verify_owner_map_review(owner_review_path, repo, owner_hash)
     if owner_review_hash != manifest["owner_map_review_sha256"]:
         raise SafetyError("owner-map review attestation hash mismatch")
+    proof_hash, proof_approval_hash = revalidate_manifest_retirement_proofs(
+        args, evidence, repo, manifest, owner_hash, owners
+    )
     dryrun = verify_dryrun(dryrun_path, manifest_hash, repo, manifest["dryrun_requirement"]["max_age_seconds"])
     dryrun_hash = sha256(dryrun_path.read_bytes())
     verify_freeze(freeze_path, manifest_hash, dryrun_hash, repo, manifest["freeze_requirement"])
-    if dryrun.get("approval_attestation_sha256") != approval_hash or dryrun.get("baseline_attestation_sha256") != baseline_hash or dryrun.get("owner_map_sha256") != owner_hash or dryrun.get("owner_map_review_sha256") != owner_review_hash:
+    if dryrun.get("approval_attestation_sha256") != approval_hash or dryrun.get("baseline_attestation_sha256") != baseline_hash or dryrun.get("owner_map_sha256") != owner_hash or dryrun.get("owner_map_review_sha256") != owner_review_hash or dryrun.get("retirement_proofs_sha256") != proof_hash or dryrun.get("retirement_proof_approval_sha256") != proof_approval_hash:
         raise SafetyError("dry-run evidence chain mismatch")
     archive = validate_private_directory(args.archive_dir, repo, "archive directory")
     with consolidation_lock(repo):
+        revalidate_manifest_retirement_proofs(
+            args, evidence, repo, manifest, owner_hash, owners
+        )
         snapshot = current_snapshot_matches(repo, manifest, owner_path)
         if dryrun.get("snapshot_id") != snapshot["snapshot_id"]:
             raise SafetyError("dry-run snapshot differs from current state")
@@ -1102,6 +1587,16 @@ def command_consolidate(args: argparse.Namespace) -> int:
         failure: Exception | None = None
         for entry in entries:
             try:
+                if entry["classification"] == "proof-retirable":
+                    revalidate_manifest_retirement_proofs(
+                        args,
+                        evidence,
+                        repo,
+                        manifest,
+                        owner_hash,
+                        owners,
+                        {entry["target"]},
+                    )
                 assert_entry_snapshot(
                     make_snapshot(repo, str(manifest["baseline"]["ref"]), str(owner_path)), entry
                 )
@@ -1184,6 +1679,8 @@ def parser() -> argparse.ArgumentParser:
     manifest.add_argument("--policy", required=True)
     manifest.add_argument("--owner-map-review-attestation")
     manifest.add_argument("--baseline-attestation", required=True)
+    manifest.add_argument("--retirement-proofs")
+    manifest.add_argument("--retirement-proof-approval")
     manifest.add_argument("--evidence-dir", required=True)
     group = manifest.add_mutually_exclusive_group(required=True)
     group.add_argument("--target-worktrees", type=int)
@@ -1197,6 +1694,8 @@ def parser() -> argparse.ArgumentParser:
     dryrun.add_argument("--approval-attestation", required=True)
     dryrun.add_argument("--owner-map-review-attestation")
     dryrun.add_argument("--baseline-attestation", required=True)
+    dryrun.add_argument("--retirement-proofs")
+    dryrun.add_argument("--retirement-proof-approval")
     dryrun.add_argument("--archive-dir", required=True)
     dryrun.add_argument("--evidence-dir", required=True)
     dryrun.set_defaults(handler=command_dryrun)
@@ -1207,6 +1706,8 @@ def parser() -> argparse.ArgumentParser:
     consolidate.add_argument("--approval-attestation", required=True)
     consolidate.add_argument("--owner-map-review-attestation")
     consolidate.add_argument("--baseline-attestation", required=True)
+    consolidate.add_argument("--retirement-proofs")
+    consolidate.add_argument("--retirement-proof-approval")
     consolidate.add_argument("--dryrun-receipt", required=True)
     consolidate.add_argument("--freeze-attestation", required=True)
     consolidate.add_argument("--archive-dir", required=True)

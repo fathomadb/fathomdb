@@ -49,6 +49,13 @@ path, expired approval, missing owner-map review, missing owner-map entry, or ex
 stops the current run. A `git cherry` result is advisory only; it is never a
 retirement proof.
 
+An unused non-ancestor local head needs a separately reviewed proof. The proof
+does not decide obsolescence; the reviewed owner map and semantic disposition
+do. It establishes only complete exact stable-patch coverage on the baseline,
+same-tip/ancestor redundancy with one explicitly retained local ref, or an
+exact matching remote-tracking ref. The verified recovery bundle remains the
+preservation guarantee, and no remote ref is modified.
+
 ## Optional semantic triage in Codex
 
 When many worktrees remain, use `scripts/worktree-semantic-triage.py` before
@@ -205,6 +212,36 @@ candidate found in the audit must have exactly one disposition.
 Use `{}` for `reflog_candidates` only when the audit listed none. Set
 `retire_local_heads` to `true` only when separately reviewed unused local heads
 may be included; worktree removal otherwise retains its branch.
+
+### Optional proof chain for non-ancestor local heads
+
+This capability uses `fathomdb-worktree-consolidator/v2`; regenerate audit and
+manifest evidence instead of reusing a version-1 artifact. Create canonical
+`fathomdb-worktree-retirement-proofs/v1` metadata with one proof per target:
+
+- `stable_patch_coverage` lists every target-only commit, stable patch ID, and
+  all exact baseline matches. Partial, empty, and merge-containing sets fail.
+- `retained_local_ref` names one explicit retained local ref and its `same-tip`
+  or `ancestor` relation.
+- `remote_tracking_ref` names one direct, non-symbolic `refs/remotes/*` ref
+  whose tip exactly matches the local target.
+
+The file contains no diffs, contents, messages, prompts, or completions. An
+independent reviewer writes a canonical
+`fathomdb-worktree-retirement-proof-approval/v1` attestation binding its exact
+SHA-256 and the owner-map hash. Author and reviewer identities must be distinct,
+untrimmed, printable canonical strings.
+
+Pass both files to `manifest`, then the same immutable files to `dryrun` and
+`consolidate`:
+
+```text
+--retirement-proofs /secure/fathomdb-wtc/evidence/retirement-proofs.json
+--retirement-proof-approval /secure/fathomdb-wtc/evidence/proof-approval.json
+```
+
+Every stage recomputes the relation from live Git. Drift requires a new audit,
+proof review, manifest review, and dry run.
 
 ## 3. Generate and review a manifest
 

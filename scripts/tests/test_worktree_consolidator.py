@@ -2009,6 +2009,10 @@ def test_ac_wtc_s01_status_treats_any_lock_as_executing_without_mutation(
     assert "pid" not in result.stdout.lower()
     assert lock.exists()
     assert repo_fingerprint(fixture_repo) == before
+    source = TOOL.read_text(encoding="utf-8")
+    assert "os.kill" not in source
+    assert '"/proc"' not in source
+    assert '"ps"' not in source
 
 
 def test_ac_wtc_s02_status_reports_completed_only_for_complete_success_chain(
@@ -2067,6 +2071,24 @@ def test_ac_wtc_s03_fallback_partial_dominates_a_coexisting_success_receipt(
     assert observed["state"] == "recovery_required"
     assert observed["phase"] == "partial"
     assert "diagnostic" not in result.stdout
+
+
+def test_ac_wtc_s03_status_rejects_malformed_final_even_while_locked(
+    fixture_repo: Path, evidence_dir: Path
+):
+    """A present lock never suppresses contradictory durable evidence."""
+    manifest_path, _, manifest_hash, _, final_path = status_fixture(fixture_repo, evidence_dir)
+    final = json.loads(final_path.read_text(encoding="utf-8"))
+    final.pop("post_snapshot_id")
+    write_json(final_path, final)
+    common_raw = Path(git(fixture_repo, "rev-parse", "--git-common-dir").strip())
+    common = common_raw if common_raw.is_absolute() else (fixture_repo / common_raw).resolve()
+    (common / "worktree-consolidator.lock").write_text("opaque\n", encoding="utf-8")
+
+    result = run_status(fixture_repo, manifest_path, evidence_dir)
+
+    assert result.returncode == 1
+    assert manifest_hash[:16] in final_path.name
 
 
 @pytest.mark.parametrize("fault", ["foreign-manifest", "unexpected-progress"])

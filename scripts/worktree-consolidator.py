@@ -11,9 +11,11 @@ from __future__ import annotations
 import argparse
 import contextlib
 import datetime as dt
+import errno
 import hashlib
 import json
 import os
+import re
 import secrets
 import shutil
 import stat
@@ -35,6 +37,7 @@ DRYRUN_SCHEMA = "fathomdb-worktree-dryrun-receipt/v1"
 FREEZE_SCHEMA = "fathomdb-worktree-freeze-attestation/v1"
 RETIREMENT_PROOFS_SCHEMA = "fathomdb-worktree-retirement-proofs/v1"
 RETIREMENT_PROOF_APPROVAL_SCHEMA = "fathomdb-worktree-retirement-proof-approval/v1"
+STATUS_SCHEMA = "fathomdb-worktree-execution-status/v1"
 
 
 class SafetyError(RuntimeError):
@@ -305,6 +308,344 @@ def write_partial_fallback(evidence: Path, receipt: dict[str, Any], failure: Exc
         except Exception:
             continue
     raise PartialBatch("could not persist fallback partial execution receipt") from failure
+
+
+def status_regular_json(path: Path, label: str) -> tuple[dict[str, Any], str] | None:
+    """Read and hash one optional receipt without following a filesystem link."""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise SafetyError(f"cannot safely open {label}") from exc
+    try:
+        with os.fdopen(fd, "rb") as handle:
+            if not stat.S_ISREG(os.fstat(handle.fileno()).st_mode):
+                raise SafetyError(f"{label} must be a regular non-symlink file")
+            raw = handle.read()
+    except OSError as exc:
+        raise SafetyError(f"cannot read {label}") from exc
+    try:
+        value = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SafetyError(f"cannot parse {label}") from exc
+    if not isinstance(value, dict) or raw != canonical_bytes(value):
+        raise SafetyError(f"{label} is not canonical JSON object evidence")
+    return value, sha256(raw)
+
+
+def status_hex(value: object, label: str) -> str:
+    """Require a lower-case SHA-256 digest in status evidence."""
+    if not isinstance(value, str) or re.fullmatch(r"[0-9a-f]{64}", value) is None:
+        raise SafetyError(f"{label} must be a SHA-256 digest")
+    return value
+
+
+def status_string_list(value: object, label: str, *, unique: bool = True) -> list[str]:
+    """Require sorted string-list evidence, optionally preserving repeated tips."""
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        raise SafetyError(f"{label} must be a list of strings")
+    expected = sorted(set(value)) if unique else sorted(value)
+    if value != expected:
+        raise SafetyError(f"{label} must be sorted" + (" and duplicate-free" if unique else ""))
+    return value
+
+
+def status_manifest_inputs(manifest: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
+    """Extract the immutable action and preservation facts a receipt must bind."""
+    preservation = manifest.get("preservation")
+    required = {
+        "bundle_name_algorithm",
+        "include_all_local_refs",
+        "required_tips",
+        "reflog_candidates",
+    }
+    if not isinstance(preservation, dict) or set(preservation) != required:
+        raise SafetyError("manifest preservation inputs are invalid")
+    if (
+        preservation["bundle_name_algorithm"] != "wtc-bundle-v1"
+        or preservation["include_all_local_refs"] is not True
+    ):
+        raise SafetyError("manifest preservation policy is invalid")
+    required_tips = status_string_list(
+        preservation["required_tips"], "manifest required_tips", unique=False
+    )
+    reflog_candidates = status_string_list(
+        preservation["reflog_candidates"], "manifest reflog_candidates"
+    )
+    entries = manifest.get("entries")
+    if not isinstance(entries, list) or any(not isinstance(entry, dict) for entry in entries):
+        raise SafetyError("manifest entries are invalid")
+    return entries, sorted(set(required_tips) | set(reflog_candidates))
+
+
+def validate_status_preservation(
+    value: dict[str, Any], repo: Repository, manifest_hash: str, covered_tips: list[str]
+) -> None:
+    """Validate the pre-retirement preservation receipt used by all later evidence."""
+    required = {
+        "schema",
+        "repository",
+        "manifest_sha256",
+        "bundle_path",
+        "bundle_sha256",
+        "covered_tips",
+        "bundle_inputs",
+        "bundle_verify",
+        "verified_before_retirement",
+        "issued_at",
+    }
+    if set(value) != required or value.get("schema") != "fathomdb-worktree-preservation-receipt/v1":
+        raise SafetyError("preservation receipt has unknown or missing fields")
+    if value.get("repository") != repo.identity or value.get("manifest_sha256") != manifest_hash:
+        raise SafetyError("preservation receipt does not bind this manifest")
+    if (
+        not isinstance(value.get("bundle_path"), str)
+        or not isinstance(value.get("bundle_verify"), str)
+        or value.get("verified_before_retirement") is not True
+    ):
+        raise SafetyError("preservation receipt has invalid metadata")
+    status_hex(value.get("bundle_sha256"), "preservation bundle_sha256")
+    if status_string_list(value.get("covered_tips"), "preservation covered_tips") != covered_tips:
+        raise SafetyError("preservation receipt covered tips differ from manifest")
+    if not isinstance(value.get("bundle_inputs"), list) or any(
+        not isinstance(item, str) for item in value["bundle_inputs"]
+    ):
+        raise SafetyError("preservation receipt bundle_inputs are invalid")
+    parse_time(value.get("issued_at"), "preservation receipt issued_at")
+
+
+def validate_status_progress(
+    value: dict[str, Any],
+    repo: Repository,
+    manifest_hash: str,
+    preservation_hash: str,
+    entries: list[dict[str, Any]],
+    index: int,
+) -> None:
+    """Validate one contiguous durable action-prefix receipt."""
+    required = {
+        "schema",
+        "repository",
+        "manifest_sha256",
+        "preservation_receipt_sha256",
+        "completed_actions",
+        "issued_at",
+    }
+    if set(value) != required or value.get("schema") != "fathomdb-worktree-progress-receipt/v1":
+        raise SafetyError("progress receipt has unknown or missing fields")
+    if (
+        value.get("repository") != repo.identity
+        or value.get("manifest_sha256") != manifest_hash
+        or value.get("preservation_receipt_sha256") != preservation_hash
+        or value.get("completed_actions") != entries[:index]
+    ):
+        raise SafetyError("progress receipt does not bind the completed action prefix")
+    parse_time(value.get("issued_at"), "progress receipt issued_at")
+
+
+def validate_status_final(
+    value: dict[str, Any],
+    repo: Repository,
+    manifest_hash: str,
+    preservation_hash: str,
+    preservation: dict[str, Any],
+    entries: list[dict[str, Any]],
+    progress_count: int,
+    *,
+    fallback: bool,
+) -> str:
+    """Validate a deterministic or randomized terminal execution receipt."""
+    required = {
+        "schema",
+        "repository",
+        "manifest_sha256",
+        "preservation_receipt_sha256",
+        "bundle_path",
+        "bundle_sha256",
+        "covered_tips",
+        "completed_actions",
+        "post_snapshot_id",
+        "result",
+        "issued_at",
+    }
+    if fallback:
+        required |= {"failure"}
+    if set(value) != required or value.get("schema") != "fathomdb-worktree-execution-receipt/v1":
+        raise SafetyError("execution receipt has unknown or missing fields")
+    if (
+        value.get("repository") != repo.identity
+        or value.get("manifest_sha256") != manifest_hash
+        or value.get("preservation_receipt_sha256") != preservation_hash
+        or value.get("bundle_path") != preservation["bundle_path"]
+        or value.get("bundle_sha256") != preservation["bundle_sha256"]
+        or value.get("covered_tips") != preservation["covered_tips"]
+    ):
+        raise SafetyError("execution receipt does not bind preservation evidence")
+    if not isinstance(value.get("completed_actions"), list):
+        raise SafetyError("execution receipt completed_actions are invalid")
+    completed = value["completed_actions"]
+    if completed != entries[: len(completed)] or len(completed) > len(entries):
+        raise SafetyError("execution receipt actions are not a manifest prefix")
+    result = value.get("result")
+    if result not in {"success", "partial"}:
+        raise SafetyError("execution receipt result is invalid")
+    post_snapshot = value.get("post_snapshot_id")
+    if result == "success":
+        if (
+            fallback
+            or len(completed) != len(entries)
+            or progress_count != len(entries)
+            or not isinstance(post_snapshot, str)
+        ):
+            raise SafetyError("success receipt is incomplete")
+        status_hex(post_snapshot, "execution receipt post_snapshot_id")
+    elif post_snapshot is not None or len(completed) not in {progress_count, progress_count + 1}:
+        raise SafetyError("partial receipt action prefix is invalid")
+    if fallback and not isinstance(value.get("failure"), str):
+        raise SafetyError("fallback partial receipt failure is invalid")
+    parse_time(value.get("issued_at"), "execution receipt issued_at")
+    return result
+
+
+def status_receipts(
+    evidence: Path, repo: Repository, manifest: dict[str, Any], manifest_hash: str
+) -> tuple[int, int, bool, bool]:
+    """Validate one exact evidence namespace and return its terminal facts."""
+    entries, covered_tips = status_manifest_inputs(manifest)
+    prefix = manifest_hash[:16]
+    preservation_path = evidence / f"preservation-{prefix}.json"
+    final_path = evidence / f"execution-{prefix}.json"
+    fallback_pattern = re.compile(rf"partial-{re.escape(prefix)}-[0-9a-f]{{16}}\.json")
+    progress_pattern = re.compile(rf"progress-{re.escape(prefix)}-([0-9]{{4}})\.json")
+    fallback_paths: list[Path] = []
+    progress_paths: dict[int, Path] = {}
+    for path in evidence.iterdir():
+        name = path.name
+        if name.startswith(f"partial-{prefix}-"):
+            if fallback_pattern.fullmatch(name) is None:
+                raise SafetyError("fallback partial receipt name is invalid")
+            fallback_paths.append(path)
+        elif name.startswith(f"progress-{prefix}-"):
+            matched = progress_pattern.fullmatch(name)
+            if matched is None:
+                raise SafetyError("progress receipt name is invalid")
+            index = int(matched.group(1))
+            if index < 1 or index > len(entries):
+                raise SafetyError("progress receipt number is outside manifest range")
+            progress_paths[index] = path
+        elif name.startswith(f"preservation-{prefix}") and name != preservation_path.name:
+            raise SafetyError("preservation receipt name is invalid")
+        elif name.startswith(f"execution-{prefix}") and name != final_path.name:
+            raise SafetyError("execution receipt name is invalid")
+    if len(fallback_paths) > 1:
+        raise SafetyError("multiple fallback partial receipts are unsafe")
+    preservation_record = status_regular_json(preservation_path, "preservation receipt")
+    final_record = status_regular_json(final_path, "execution receipt")
+    preservation = preservation_record[0] if preservation_record is not None else None
+    final = final_record[0] if final_record is not None else None
+    progress_count = 0
+    if progress_paths and preservation is None:
+        raise SafetyError("progress receipts require preservation evidence")
+    if preservation is not None:
+        validate_status_preservation(preservation, repo, manifest_hash, covered_tips)
+        assert preservation_record is not None
+        preservation_hash = preservation_record[1]
+        for index in range(1, len(entries) + 1):
+            path = progress_paths.get(index)
+            if path is None:
+                if any(number > index for number in progress_paths):
+                    raise SafetyError("progress receipts are not contiguous")
+                break
+            progress_record = status_regular_json(path, f"progress receipt {index}")
+            assert progress_record is not None
+            value = progress_record[0]
+            validate_status_progress(
+                value, repo, manifest_hash, preservation_hash, entries, index
+            )
+            progress_count = index
+        if final is not None:
+            validate_status_final(
+                final,
+                repo,
+                manifest_hash,
+                preservation_hash,
+                preservation,
+                entries,
+                progress_count,
+                fallback=False,
+            )
+        for path in fallback_paths:
+            fallback_record = status_regular_json(path, "fallback partial receipt")
+            assert fallback_record is not None
+            fallback = fallback_record[0]
+            validate_status_final(
+                fallback,
+                repo,
+                manifest_hash,
+                preservation_hash,
+                preservation,
+                entries,
+                progress_count,
+                fallback=True,
+            )
+    elif final is not None or fallback_paths:
+        raise SafetyError("terminal receipt requires preservation evidence")
+    final_success = final is not None and final.get("result") == "success"
+    return progress_count, len(entries), preservation is not None, bool(fallback_paths) or not final_success
+
+
+def status_lock_present(repo: Repository) -> bool:
+    """Observe the cooperative lock without reading or interpreting its payload."""
+    try:
+        os.lstat(repo.common_dir / "worktree-consolidator.lock")
+    except OSError as exc:
+        if exc.errno == errno.ENOENT:
+            return False
+        raise SafetyError("cannot observe consolidator lock") from exc
+    return True
+
+
+def command_status(args: argparse.Namespace) -> int:
+    """Report durable execution state without changing Git or evidence."""
+    repo = repository(args.repo)
+    evidence = validate_private_directory(args.evidence_dir, repo, "evidence directory")
+    manifest_path = regular_child(args.manifest, evidence, "manifest")
+    manifest = read_json(manifest_path, "manifest")
+    verify_manifest(manifest, repo)
+    manifest_hash = sha256(manifest_path.read_bytes())
+    completed, total, has_preservation, terminal_incomplete = status_receipts(
+        evidence, repo, manifest, manifest_hash
+    )
+    lock_present = status_lock_present(repo)
+    if lock_present:
+        state = "executing"
+        phase = "finalizing" if has_preservation and not terminal_incomplete else "running"
+        action = "monitor durable receipts; do not clear lock or start another consolidation"
+    elif not has_preservation:
+        state = "not_started"
+        phase = "none"
+        action = "review the manifest before any consolidation"
+    elif terminal_incomplete:
+        state = "recovery_required"
+        phase = "partial"
+        action = "preserve evidence; investigate; do not clear lock or resume this manifest"
+    else:
+        state = "completed"
+        phase = "complete"
+        action = "preserve evidence; no further action is required"
+    output(
+        {
+            "schema": STATUS_SCHEMA,
+            "state": state,
+            "phase": phase,
+            "completed_actions": completed,
+            "total_actions": total,
+            "operator_action": action,
+        },
+        args,
+    )
+    return 0
 
 
 def baseline(repo: Repository, ref: str) -> dict[str, str | None]:
@@ -1715,6 +2056,13 @@ def parser() -> argparse.ArgumentParser:
     consolidate.add_argument("--confirm-manifest-sha256", required=True)
     consolidate.add_argument("--confirm", required=True)
     consolidate.set_defaults(handler=command_consolidate)
+
+    status = sub.add_parser("status", help="observe durable execution state without mutation")
+    status.add_argument("--repo", default=".")
+    status.add_argument("--manifest", required=True)
+    status.add_argument("--evidence-dir", required=True)
+    status.add_argument("--json", action="store_true")
+    status.set_defaults(handler=command_status)
     return root
 
 

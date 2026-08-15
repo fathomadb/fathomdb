@@ -84,7 +84,7 @@ make the old manifest reusable.
 The canonical response is metadata-only:
 
 ```json
-{"completed_actions":2,"expected_actions":15,"liveness":"unknown","lock_present":true,"manifest_sha256":"<hash>","result":"executing","schema":"fathomdb-worktree-execution-status/v1"}
+{"completed_actions":2,"operator_action":"monitor durable receipts; do not clear lock or start another consolidation","phase":"running","schema":"fathomdb-worktree-execution-status/v1","state":"executing","total_actions":15}
 ```
 
 For `recovery_required`, the fixed `operator_action` is

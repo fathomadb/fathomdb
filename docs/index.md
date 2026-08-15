@@ -53,4 +53,6 @@ documentation source for users, operators, and SDK consumers.
   search hits, retrieve-by-id.
 - [Operations](operations/index.md) — including
   [erasure](operations/erasure.md): what `erase_source` / `purge`
-  guarantee and what they do not.
+  guarantee and what they do not; and
+  [worktree and branch consolidation](operations/worktree-consolidation.md),
+  the manifest-gated local cleanup workflow.

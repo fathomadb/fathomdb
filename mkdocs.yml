@@ -27,6 +27,7 @@ nav:
   - Operations:
       - Overview: operations/index.md
       - Erasure: operations/erasure.md
+      - Worktree and Branch Consolidation: operations/worktree-consolidation.md
   - Guides:
       - Overview: guides/index.md
       - Structured Search Hits: guides/structured-search-hits.md

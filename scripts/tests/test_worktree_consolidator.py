@@ -600,11 +600,11 @@ def generate_manifest(
     return manifest_path, json.loads(result.stdout), map_path, baseline_path
 
 
-def test_ac_wtc_001_cli_exposes_exact_four_modes(fixture_repo: Path):
+def test_ac_wtc_001_cli_exposes_exact_five_modes(fixture_repo: Path):
     """AC-WTC-001: the public CLI exposes the authority-separated pipeline."""
     result = run_tool(fixture_repo, "--help")
     assert result.returncode == 0, result.stderr
-    for mode in ("audit", "manifest", "dryrun", "consolidate"):
+    for mode in ("audit", "manifest", "dryrun", "consolidate", "status"):
         assert mode in result.stdout
 
 
@@ -1913,3 +1913,211 @@ def test_ac_wtc_p06_direct_ancestor_regression_needs_no_proof_files(
         "recovery_requirement",
     }
     assert manifest["retirement_proofs"] is None
+
+
+def status_fixture(
+    repo: Path, evidence_dir: Path, *, result: str = "success", progress: bool = True
+) -> tuple[Path, dict[str, Any], str, Path, Path]:
+    """Create manifest-bound receipt fixtures without performing a retirement."""
+    manifest_path, manifest, _, _ = generate_manifest(repo, evidence_dir, target=1)
+    manifest_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    prefix = manifest_hash[:16]
+    covered_tips = sorted(
+        set(manifest["preservation"]["required_tips"])
+        | set(manifest["preservation"]["reflog_candidates"])
+    )
+    preservation_path = evidence_dir / f"preservation-{prefix}.json"
+    preservation = {
+        "schema": "fathomdb-worktree-preservation-receipt/v1",
+        "repository": manifest["repository"],
+        "manifest_sha256": manifest_hash,
+        "bundle_path": str(evidence_dir / "fixture.bundle"),
+        "bundle_sha256": "a" * 64,
+        "covered_tips": covered_tips,
+        "bundle_inputs": ["refs/heads/main", "refs/heads/retirable"],
+        "bundle_verify": "fixture standalone verification",
+        "verified_before_retirement": True,
+        "issued_at": "2026-08-15T00:00:00Z",
+    }
+    preservation_hash = write_json(preservation_path, preservation)
+    actions = manifest["entries"]
+    if progress:
+        write_json(
+            evidence_dir / f"progress-{prefix}-0001.json",
+            {
+                "schema": "fathomdb-worktree-progress-receipt/v1",
+                "repository": manifest["repository"],
+                "manifest_sha256": manifest_hash,
+                "preservation_receipt_sha256": preservation_hash,
+                "completed_actions": actions,
+                "issued_at": "2026-08-15T00:01:00Z",
+            },
+        )
+    final_path = evidence_dir / f"execution-{prefix}.json"
+    write_json(
+        final_path,
+        {
+            "schema": "fathomdb-worktree-execution-receipt/v1",
+            "repository": manifest["repository"],
+            "manifest_sha256": manifest_hash,
+            "preservation_receipt_sha256": preservation_hash,
+            "bundle_path": preservation["bundle_path"],
+            "bundle_sha256": preservation["bundle_sha256"],
+            "covered_tips": covered_tips,
+            "completed_actions": actions,
+            "post_snapshot_id": "b" * 64 if result == "success" else None,
+            "result": result,
+            "issued_at": "2026-08-15T00:02:00Z",
+        },
+    )
+    return manifest_path, manifest, manifest_hash, preservation_path, final_path
+
+
+def run_status(repo: Path, manifest_path: Path, evidence_dir: Path) -> subprocess.CompletedProcess[str]:
+    """Run the read-only execution-state observer through its public CLI."""
+    return run_tool(
+        repo,
+        "status",
+        "--repo",
+        str(repo),
+        "--manifest",
+        str(manifest_path),
+        "--evidence-dir",
+        str(evidence_dir),
+        "--json",
+        criterion="AC-WTC-S01",
+    )
+
+
+def test_ac_wtc_s01_status_treats_any_lock_as_executing_without_mutation(
+    fixture_repo: Path, evidence_dir: Path
+):
+    """A PID-looking lock is opaque; status must not probe or clear it."""
+    manifest_path, _, _, _, _ = status_fixture(fixture_repo, evidence_dir)
+    common_raw = Path(git(fixture_repo, "rev-parse", "--git-common-dir").strip())
+    common = common_raw if common_raw.is_absolute() else (fixture_repo / common_raw).resolve()
+    lock = common / "worktree-consolidator.lock"
+    lock.write_text("pid=secret-unobservable-process\n", encoding="utf-8")
+    before = repo_fingerprint(fixture_repo)
+
+    result = run_status(fixture_repo, manifest_path, evidence_dir)
+
+    assert result.returncode == 0, result.stderr
+    observed = json.loads(result.stdout)
+    assert observed["state"] == "executing"
+    assert observed["phase"] == "finalizing"
+    assert "pid" not in result.stdout.lower()
+    assert lock.exists()
+    assert repo_fingerprint(fixture_repo) == before
+
+
+def test_ac_wtc_s02_status_reports_completed_only_for_complete_success_chain(
+    fixture_repo: Path, evidence_dir: Path
+):
+    """A complete, unlocked success chain is the sole completed state."""
+    manifest_path, _, _, _, _ = status_fixture(fixture_repo, evidence_dir)
+
+    result = run_status(fixture_repo, manifest_path, evidence_dir)
+
+    assert result.returncode == 0, result.stderr
+    observed = json.loads(result.stdout)
+    assert observed == {
+        "schema": "fathomdb-worktree-execution-status/v1",
+        "state": "completed",
+        "phase": "complete",
+        "completed_actions": 1,
+        "total_actions": 1,
+        "operator_action": "preserve evidence; no further action is required",
+    }
+
+
+def test_ac_wtc_s03_fallback_partial_dominates_a_coexisting_success_receipt(
+    fixture_repo: Path, evidence_dir: Path
+):
+    """A directory-fsync fallback blocks false completion and hides failure text."""
+    manifest_path, manifest, manifest_hash, preservation_path, _ = status_fixture(
+        fixture_repo, evidence_dir
+    )
+    preservation = json.loads(preservation_path.read_text(encoding="utf-8"))
+    fallback = evidence_dir / f"partial-{manifest_hash[:16]}-0123456789abcdef.json"
+    write_json(
+        fallback,
+        {
+            "schema": "fathomdb-worktree-execution-receipt/v1",
+            "repository": manifest["repository"],
+            "manifest_sha256": manifest_hash,
+            "preservation_receipt_sha256": hashlib.sha256(
+                preservation_path.read_bytes()
+            ).hexdigest(),
+            "bundle_path": preservation["bundle_path"],
+            "bundle_sha256": preservation["bundle_sha256"],
+            "covered_tips": preservation["covered_tips"],
+            "completed_actions": manifest["entries"],
+            "post_snapshot_id": None,
+            "result": "partial",
+            "issued_at": "2026-08-15T00:03:00Z",
+            "failure": "do not expose this diagnostic",
+        },
+    )
+
+    result = run_status(fixture_repo, manifest_path, evidence_dir)
+
+    assert result.returncode == 0, result.stderr
+    observed = json.loads(result.stdout)
+    assert observed["state"] == "recovery_required"
+    assert observed["phase"] == "partial"
+    assert "diagnostic" not in result.stdout
+
+
+@pytest.mark.parametrize("fault", ["foreign-manifest", "unexpected-progress"])
+def test_ac_wtc_s04_status_rejects_malformed_exact_namespace_evidence(
+    fixture_repo: Path, evidence_dir: Path, fault: str
+):
+    """Foreign hashes and invalid receipt numbering cannot be silently ignored."""
+    manifest_path, manifest, manifest_hash, _, _ = status_fixture(fixture_repo, evidence_dir)
+    prefix = manifest_hash[:16]
+    if fault == "foreign-manifest":
+        path = evidence_dir / f"partial-{prefix}-0123456789abcdef.json"
+        value = {
+            "schema": "fathomdb-worktree-execution-receipt/v1",
+            "repository": manifest["repository"],
+            "manifest_sha256": "c" * 64,
+            "preservation_receipt_sha256": "d" * 64,
+            "bundle_path": str(evidence_dir / "foreign.bundle"),
+            "bundle_sha256": "e" * 64,
+            "covered_tips": [],
+            "completed_actions": [],
+            "post_snapshot_id": None,
+            "result": "partial",
+            "issued_at": "2026-08-15T00:03:00Z",
+            "failure": "foreign",
+        }
+    else:
+        path = evidence_dir / f"progress-{prefix}-0002.json"
+        value = {"foreign": "progress"}
+    write_json(path, value)
+    before = repo_fingerprint(fixture_repo)
+
+    result = run_status(fixture_repo, manifest_path, evidence_dir)
+
+    assert result.returncode == 1
+    assert repo_fingerprint(fixture_repo) == before
+
+
+def test_ac_wtc_s04_status_reports_not_started_without_execution_evidence(
+    fixture_repo: Path, evidence_dir: Path
+):
+    """No receipt namespace is a valid non-mutating not-started observation."""
+    manifest_path, _, _, _, final_path = status_fixture(fixture_repo, evidence_dir)
+    for path in evidence_dir.glob("preservation-*.json"):
+        path.unlink()
+    for path in evidence_dir.glob("progress-*.json"):
+        path.unlink()
+    final_path.unlink()
+
+    result = run_status(fixture_repo, manifest_path, evidence_dir)
+
+    assert result.returncode == 0, result.stderr
+    observed = json.loads(result.stdout)
+    assert observed["state"] == "not_started"
+    assert observed["completed_actions"] == 0

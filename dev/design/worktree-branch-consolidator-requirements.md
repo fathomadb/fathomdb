@@ -18,7 +18,7 @@ a repository to an approved worktree target without losing local work or
 silently expanding cleanup scope. It supports the controlled pipeline:
 
 ```text
-audit → manifest → independent approval → dryrun → freeze → consolidate → verify
+audit → manifest → independent approval → dryrun → freeze → consolidate → status → verify
 ```
 
 The tool is preservation-first. It does not make semantic integration,
@@ -37,10 +37,18 @@ The CLI provides exactly these modes:
 - `dryrun`: re-audit current state and simulate one independently approved
   manifest without mutating Git state; and
 - `consolidate`: apply only the confirmed, freshly rehearsed manifest.
+- `status`: observe one named execution's durable evidence and cooperative lock
+  without making any repository, evidence, archive, lock, process, or remote
+  mutation.
 
 `manifest` never performs cleanup. `dryrun` never repairs, regenerates, or
 widens a plan. `consolidate` never performs semantic Git operations such as
 merge, checkout, rebase, reset, or push.
+
+`status` never treats a missing or inaccessible lock PID as evidence that an
+execution has stopped. A present lock is an active-or-unobservable execution
+until its owner releases it; status may report durable progress but cannot
+clear, take over, resume, or retry the execution.
 
 ### REQ-WTC-002 — bounded objective and classification
 

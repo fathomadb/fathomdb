@@ -15,7 +15,7 @@ refs:
 
 Implement `scripts/worktree-consolidator.py`, a stdlib-only local Git operator
 tool that applies the [worktree and branch consolidation protocol](worktree-branch-consolidation.md).
-The tool has four authority-separated modes:
+The tool has five authority-separated modes:
 
 | Mode | Purpose | Permitted mutation |
 | --- | --- | --- |
@@ -23,6 +23,7 @@ The tool has four authority-separated modes:
 | `manifest` | Solve a declared or inferred topology goal into a candidate manifest. | No Git mutation; may explicitly write a candidate manifest outside every registered worktree. |
 | `dryrun` | Rehearse one independently approved manifest against the current repository state. | No Git mutation; may explicitly write a receipt outside every registered worktree. |
 | `consolidate` | Apply one approved and freshly rehearsed exact retirement manifest. | Local bundle/archive creation, approved worktree removal, and approved local-ref deletion only. |
+| `status` | Observe one immutable execution's lock and durable receipt chain. | None. |
 
 The tool must not infer that semantic work is equivalent merely because a ref is
 merged or `git cherry` reports no unmatched patch. It may identify candidates;
@@ -51,6 +52,7 @@ scripts/worktree-consolidator.py audit [OPTIONS]
 scripts/worktree-consolidator.py manifest --audit SNAPSHOT --evidence-dir PATH [OPTIONS]
 scripts/worktree-consolidator.py dryrun --manifest APPROVED-MANIFEST --owner-map PATH --owner-map-review-attestation PATH --approval-attestation PATH --archive-dir PATH --evidence-dir PATH [OPTIONS]
 scripts/worktree-consolidator.py consolidate [OPTIONS]
+scripts/worktree-consolidator.py status --manifest EVIDENCE/MANIFEST --evidence-dir EVIDENCE [OPTIONS]
 ```
 
 Common options:
@@ -65,7 +67,7 @@ Common options:
 | `--retirement-proofs PATH` | Optional reviewed metadata proving one closed redundancy relation for each non-ancestor local head. Must be paired with `--retirement-proof-approval`. |
 | `--retirement-proof-approval PATH` | Independent approval of the exact proof-set and owner-map hashes; required at every later stage when the manifest binds proofs. |
 | `--policy PATH` | Strict JSON theme/goal/recovery policy; required by `manifest`, and its canonical hash must match later stages. |
-| `--evidence-dir PATH` | Durable manifest/receipt/attestation directory for `manifest`, `dryrun`, and `consolidate`; must be outside every registered worktree. |
+| `--evidence-dir PATH` | Durable manifest/receipt/attestation directory for `manifest`, `dryrun`, `consolidate`, and read-only `status`; must be outside every registered worktree. |
 | `--json` | Emit canonical machine-readable JSON to stdout. |
 | `--output PATH` | `manifest` only: explicitly write the otherwise-stdout candidate directly under `--evidence-dir`. |
 
@@ -115,6 +117,14 @@ worktree. It writes one expiring receipt under the evidence directory
 containing the manifest and approval hashes, current snapshot ID, expected
 actions, and predicted post-state. It returns non-zero if any action would be
 blocked; it never repairs or regenerates the manifest.
+
+`status` requires `--manifest` and `--evidence-dir` plus optional `--repo` and
+`--json`. It reads the exact manifest-bound execution evidence and observes the
+cooperative lock entry, but never probes a lock PID, clears a lock, writes a
+report, starts a process, or changes Git state. A present lock is always
+reported as executing or finalizing even if the caller cannot see a recorded
+PID. An unlocked incomplete receipt chain is `recovery_required`, not authority
+to resume the old manifest.
 
 `consolidate` requires all of:
 

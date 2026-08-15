@@ -2,10 +2,12 @@
 
 ## Purpose and authority
 
-This is the 0.8.23 **soft/advisory** F-17 deliverable: characterize eu7
-ANN-fidelity on the grown **18,472-document** corpus and give the HITL an
-evidence-backed advisory operating envelope. It is the explicit carried work
-`TC-5` in the program sequencing record.
+This is an **out-of-band experiments** deliverable for the soft/advisory F-17
+scale characterization: characterize eu7 ANN-fidelity on the grown
+**18,472-document** corpus and give the HITL an evidence-backed advisory
+operating envelope. It is the explicit carried work `TC-5` in the program
+sequencing record, but is not allocated to, delivered by, or a gate for a
+numbered release.
 
 It is not an automatic relaxation of the 0.90 floor, a release gate, an ANN
 change, an IR/evidence-recall result, or a claim about latency at a larger
@@ -154,6 +156,6 @@ Decision rubric for the HITL:
 
 After an actual run, append a safe factual summary to the experiments ledger,
 index its receipt, and update TC-5 through the ledger tool with the HITL's
-ruling. Do not change `CURRENT_FLOOR`, publish a stated/hard scale promise, or
-convert the advisory result into a release condition without a later approved
-decision and the corresponding test/contract update.
+ruling. Do not change `CURRENT_FLOOR`, attach this result to a release
+condition, publish a stated/hard scale promise, or imply release completion
+without a later approved decision and the corresponding test/contract update.

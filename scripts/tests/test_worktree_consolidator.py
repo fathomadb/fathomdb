@@ -272,6 +272,293 @@ def owner_map_review(evidence_dir: Path, snapshot: dict[str, Any], owner_path: P
     return path
 
 
+def stable_patch_id(repo: Path, commit: str) -> str:
+    """Return Git's stable patch ID for one fixture commit."""
+    patch = subprocess.run(
+        ["git", "show", "--pretty=format:", "--patch", "--no-ext-diff", "--no-textconv", "--no-renames", "--binary", commit],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    ).stdout
+    result = subprocess.run(
+        ["git", "patch-id", "--stable"],
+        cwd=repo,
+        input=patch,
+        check=True,
+        capture_output=True,
+    )
+    return result.stdout.decode("ascii").split()[0]
+
+
+def commit_on_new_branch(
+    repo: Path, name: str, base: str, changes: list[tuple[str, str]]
+) -> list[str]:
+    """Create fixture commits on a temporary linked worktree, then remove it."""
+    path = repo.parent / f"{name}-worktree"
+    git(repo, "worktree", "add", "-b", name, str(path), base)
+    commits = []
+    for index, (filename, contents) in enumerate(changes, start=1):
+        (path / filename).write_text(contents, encoding="utf-8")
+        git(path, "add", filename)
+        git(path, "commit", "-m", f"{name}-{index}", "--quiet")
+        commits.append(git(path, "rev-parse", "HEAD").strip())
+    git(repo, "worktree", "remove", str(path))
+    return commits
+
+
+def proof_owner_map(repo: Path, retained_refs: tuple[str, ...] = ()) -> dict[str, Any]:
+    """Return explicit fixture ownership with selected refs marked retained."""
+    value = owner_map(repo)
+    for entry in value["entries"]:
+        if entry["target"] in retained_refs:
+            entry.update(
+                {
+                    "owner": "fixture-retainer",
+                    "release_role": "retained-proof-anchor",
+                    "evidence": "explicit fixture retention",
+                }
+            )
+    return value
+
+
+def common_proof(target: str, tip: str, proof_type: str) -> dict[str, Any]:
+    """Return the closed common fields for one reviewed fixture proof."""
+    return {
+        "target": target,
+        "target_tip": tip,
+        "proof_type": proof_type,
+        "semantic_disposition": "retire-local-ref",
+        "evidence_id": f"fixture-decision:{target}",
+    }
+
+
+def make_proof_scenario(
+    repo: Path, proof_type: str, *, relation: str = "same-tip"
+) -> tuple[dict[str, Any], tuple[str, ...], str | None]:
+    """Materialize one valid non-ancestor proof scenario."""
+    initial = git(repo, "rev-list", "--max-parents=0", "HEAD").strip()
+    target_ref = "refs/heads/proof-target"
+    retained: tuple[str, ...] = ()
+    remote_ref: str | None = None
+    if proof_type == "stable_patch_coverage":
+        (repo / "covered.txt").write_text("covered\n", encoding="utf-8")
+        git(repo, "add", "covered.txt")
+        git(repo, "commit", "-m", "baseline-version", "--quiet")
+        baseline_commit = git(repo, "rev-parse", "HEAD").strip()
+        git(repo, "update-ref", "refs/remotes/origin/main", baseline_commit)
+        [target_tip] = commit_on_new_branch(
+            repo, "proof-target", initial, [("covered.txt", "covered\n")]
+        )
+        proof = common_proof(target_ref, target_tip, proof_type)
+        proof["source_commits"] = [
+            {
+                "commit": target_tip,
+                "stable_patch_id": stable_patch_id(repo, target_tip),
+                "baseline_matches": [baseline_commit],
+            }
+        ]
+    elif proof_type == "retained_local_ref":
+        [target_tip] = commit_on_new_branch(
+            repo, "proof-target", initial, [("unique.txt", "unique\n")]
+        )
+        git(repo, "branch", "proof-retained", target_tip)
+        retained_tip = target_tip
+        if relation == "ancestor":
+            [retained_tip] = commit_on_new_branch(
+                repo,
+                "proof-descendant",
+                target_tip,
+                [("descendant.txt", "descendant\n")],
+            )
+            git(repo, "branch", "-f", "proof-retained", retained_tip)
+            git(repo, "branch", "-D", "proof-descendant")
+        retained_ref = "refs/heads/proof-retained"
+        retained = (retained_ref,)
+        proof = common_proof(target_ref, target_tip, proof_type)
+        proof.update(
+            {
+                "relation": relation,
+                "retained_ref": retained_ref,
+                "retained_tip": retained_tip,
+            }
+        )
+    else:
+        [target_tip] = commit_on_new_branch(
+            repo, "proof-target", initial, [("remote.txt", "remote\n")]
+        )
+        remote_ref = "refs/remotes/origin/proof-target"
+        git(repo, "update-ref", remote_ref, target_tip)
+        proof = common_proof(target_ref, target_tip, proof_type)
+        proof.update({"remote_ref": remote_ref, "remote_tip": target_tip})
+    return proof, retained, remote_ref
+
+
+def proof_manifest_context(
+    repo: Path,
+    evidence_dir: Path,
+    proofs: list[dict[str, Any]],
+    *,
+    retained_refs: tuple[str, ...] = (),
+    author: str = "fixture-semantic-owner",
+    reviewer: str = "fixture-independent-reviewer",
+    approval_decision: str = "approved",
+    approval_expired: bool = False,
+    approval_hash: str | None = None,
+    proof_schema: str = "fathomdb-worktree-retirement-proofs/v1",
+) -> dict[str, Any]:
+    """Build reviewed proof evidence and invoke manifest through the public CLI."""
+    map_path = evidence_dir / "owner-map.json"
+    owner_hash = write_json(map_path, proof_owner_map(repo, retained_refs))
+    audit = run_tool(
+        repo, "audit", "--repo", str(repo), "--owner-map", str(map_path), "--json",
+        criterion="AC-WTC-P04",
+    )
+    assert audit.returncode == 0, audit.stderr
+    snapshot = json.loads(audit.stdout)
+    snapshot_path = evidence_dir / "snapshot.json"
+    snapshot_path.write_text(audit.stdout, encoding="utf-8")
+    owner_review_path = owner_map_review(evidence_dir, snapshot, map_path)
+    policy_path, baseline_path = policy_and_baseline(
+        evidence_dir, snapshot, target_range=[1, 8], retire_local_heads=True
+    )
+    issued_at, expires_at = now_window()
+    proof_path = evidence_dir / "retirement-proofs.json"
+    proof_hash = write_json(
+        proof_path,
+        {
+            "schema": proof_schema,
+            "repository": snapshot["repository"],
+            "baseline": snapshot["baseline"],
+            "owner_map_sha256": owner_hash,
+            "author": author,
+            "issued_at": issued_at,
+            "proofs": proofs,
+        },
+    )
+    proof_approval_path = evidence_dir / "retirement-proof-approval.json"
+    write_json(
+        proof_approval_path,
+        {
+            "schema": "fathomdb-worktree-retirement-proof-approval/v1",
+            "repository": snapshot["repository"],
+            "owner_map_sha256": owner_hash,
+            "retirement_proofs_sha256": approval_hash or proof_hash,
+            "reviewer": reviewer,
+            "decision": approval_decision,
+            "issued_at": issued_at,
+            "expires_at": "2000-01-01T00:00:00Z" if approval_expired else expires_at,
+        },
+    )
+    manifest_path = evidence_dir / "candidate.json"
+    result = run_tool(
+        repo,
+        "manifest",
+        "--repo", str(repo), "--audit", str(snapshot_path),
+        "--owner-map", str(map_path),
+        "--owner-map-review-attestation", str(owner_review_path),
+        "--policy", str(policy_path), "--baseline-attestation", str(baseline_path),
+        "--retirement-proofs", str(proof_path),
+        "--retirement-proof-approval", str(proof_approval_path),
+        "--evidence-dir", str(evidence_dir), "--target-worktrees", "2",
+        "--output", str(manifest_path), "--json", criterion="AC-WTC-P01",
+    )
+    return {
+        "result": result,
+        "snapshot": snapshot,
+        "manifest_path": manifest_path,
+        "owner_path": map_path,
+        "owner_review_path": owner_review_path,
+        "baseline_path": baseline_path,
+        "proof_path": proof_path,
+        "proof_approval_path": proof_approval_path,
+    }
+
+
+def approve_and_dryrun(repo: Path, evidence_dir: Path, context: dict[str, Any]) -> dict[str, Any]:
+    """Approve a valid proof manifest and complete its dry run."""
+    manifest = json.loads(context["manifest_path"].read_text(encoding="utf-8"))
+    manifest_hash = hashlib.sha256(context["manifest_path"].read_bytes()).hexdigest()
+    issued_at, expires_at = now_window()
+    approval_path = evidence_dir / "approval.json"
+    write_json(
+        approval_path,
+        {
+            "schema": "fathomdb-worktree-approval-attestation/v1",
+            "repository": manifest["repository"],
+            "manifest_sha256": manifest_hash,
+            "reviewer": "fixture-manifest-reviewer",
+            "decision": "approved",
+            "issued_at": issued_at,
+            "expires_at": expires_at,
+        },
+    )
+    archive_dir = repo.parent / "archive"
+    archive_dir.mkdir(mode=0o700)
+    result = run_tool(
+        repo,
+        "dryrun",
+        "--repo", str(repo), "--manifest", str(context["manifest_path"]),
+        "--owner-map", str(context["owner_path"]),
+        "--owner-map-review-attestation", str(context["owner_review_path"]),
+        "--approval-attestation", str(approval_path),
+        "--baseline-attestation", str(context["baseline_path"]),
+        "--retirement-proofs", str(context["proof_path"]),
+        "--retirement-proof-approval", str(context["proof_approval_path"]),
+        "--archive-dir", str(archive_dir), "--evidence-dir", str(evidence_dir),
+        "--json", criterion="AC-WTC-P05",
+    )
+    receipt_path = evidence_dir / f"dryrun-{manifest_hash[:16]}.json"
+    context.update(
+        {
+            "manifest": manifest,
+            "manifest_hash": manifest_hash,
+            "approval_path": approval_path,
+            "archive_dir": archive_dir,
+            "dryrun_result": result,
+            "dryrun_path": receipt_path,
+        }
+    )
+    return context
+
+
+def consolidate_context(repo: Path, evidence_dir: Path, context: dict[str, Any]) -> subprocess.CompletedProcess[str]:
+    """Freeze and invoke consolidation for a previously successful dry run."""
+    issued_at, expires_at = now_window()
+    freeze_path = evidence_dir / "freeze.json"
+    write_json(
+        freeze_path,
+        {
+            "schema": "fathomdb-worktree-freeze-attestation/v1",
+            "repository": context["manifest"]["repository"],
+            "manifest_sha256": context["manifest_hash"],
+            "dryrun_receipt_sha256": hashlib.sha256(context["dryrun_path"].read_bytes()).hexdigest(),
+            "snapshot_id": context["manifest"]["snapshot_id"],
+            "operator": "fixture-operator",
+            "writers": [],
+            "issued_at": issued_at,
+            "expires_at": expires_at,
+        },
+    )
+    return run_tool(
+        repo,
+        "consolidate",
+        "--repo", str(repo), "--manifest", str(context["manifest_path"]),
+        "--owner-map", str(context["owner_path"]),
+        "--owner-map-review-attestation", str(context["owner_review_path"]),
+        "--approval-attestation", str(context["approval_path"]),
+        "--baseline-attestation", str(context["baseline_path"]),
+        "--retirement-proofs", str(context["proof_path"]),
+        "--retirement-proof-approval", str(context["proof_approval_path"]),
+        "--dryrun-receipt", str(context["dryrun_path"]),
+        "--freeze-attestation", str(freeze_path),
+        "--archive-dir", str(context["archive_dir"]),
+        "--evidence-dir", str(evidence_dir),
+        "--confirm-manifest-sha256", context["manifest_hash"],
+        "--confirm", f"CONSOLIDATE {context['manifest']['manifest_id']}",
+        "--json", criterion="AC-WTC-P06",
+    )
+
+
 def generate_manifest(
     repo: Path, evidence_dir: Path, target: int, *, retire_local_heads: bool = False
 ) -> tuple[Path, dict[str, Any], Path, Path]:
@@ -1205,3 +1492,424 @@ def test_bundle_accepts_recovery_commit_reachable_from_advertised_head(
     git(recovery_repo, "init", "--quiet")
     git(recovery_repo, "bundle", "unbundle", str(bundle))
     git(recovery_repo, "cat-file", "-e", f"{recovery_tip}^{{commit}}")
+
+
+@pytest.mark.parametrize(
+    ("proof_type", "relation"),
+    [
+        ("stable_patch_coverage", "same-tip"),
+        ("retained_local_ref", "same-tip"),
+        ("retained_local_ref", "ancestor"),
+        ("remote_tracking_ref", "same-tip"),
+    ],
+)
+def test_ac_wtc_p01_to_p03_accepts_each_exact_proof_relation(
+    fixture_repo: Path, evidence_dir: Path, proof_type: str, relation: str
+):
+    """AC-WTC-P01..P03: each closed live relation produces one bound action."""
+    proof, retained, _ = make_proof_scenario(
+        fixture_repo, proof_type, relation=relation
+    )
+
+    context = proof_manifest_context(
+        fixture_repo, evidence_dir, [proof], retained_refs=retained
+    )
+
+    assert context["result"].returncode == 0, context["result"].stderr
+    manifest = json.loads(context["result"].stdout)
+    entry = next(item for item in manifest["entries"] if item["target"] == proof["target"])
+    assert entry["classification"] == "proof-retirable"
+    assert entry["witness"]["proof_type"] == proof_type
+    assert entry["witness"]["proof_entry_sha256"] == hashlib.sha256(
+        canonical_json(proof)
+    ).hexdigest()
+    assert manifest["owner_map_review_sha256"] == hashlib.sha256(
+        context["owner_review_path"].read_bytes()
+    ).hexdigest()
+
+
+@pytest.mark.parametrize("fault", ["partial", "wrong-patch"])
+def test_ac_wtc_p01_rejects_inexact_stable_patch_evidence(
+    fixture_repo: Path, evidence_dir: Path, fault: str
+):
+    """AC-WTC-P01: stable-patch evidence is complete and recomputed."""
+    initial = git(fixture_repo, "rev-list", "--max-parents=0", "HEAD").strip()
+    baseline_commits = []
+    for filename in ("one.txt", "two.txt"):
+        (fixture_repo / filename).write_text(f"{filename}\n", encoding="utf-8")
+        git(fixture_repo, "add", filename)
+        git(fixture_repo, "commit", "-m", f"baseline-{filename}", "--quiet")
+        baseline_commits.append(git(fixture_repo, "rev-parse", "HEAD").strip())
+    git(fixture_repo, "update-ref", "refs/remotes/origin/main", baseline_commits[-1])
+    commits = commit_on_new_branch(
+        fixture_repo,
+        "proof-target",
+        initial,
+        [("one.txt", "one.txt\n"), ("two.txt", "two.txt\n")],
+    )
+    proof = common_proof(
+        "refs/heads/proof-target", commits[-1], "stable_patch_coverage"
+    )
+    records = [
+        {
+            "commit": commit,
+            "stable_patch_id": stable_patch_id(fixture_repo, commit),
+            "baseline_matches": [baseline],
+        }
+        for commit, baseline in zip(commits, baseline_commits, strict=True)
+    ]
+    if fault == "partial":
+        records.pop()
+    else:
+        records[0]["stable_patch_id"] = "0" * 40
+    proof["source_commits"] = records
+
+    context = proof_manifest_context(fixture_repo, evidence_dir, [proof])
+
+    assert context["result"].returncode != 0
+    assert not context["manifest_path"].exists()
+
+
+@pytest.mark.parametrize("fault", ["empty", "merge"])
+def test_ac_wtc_p01_rejects_empty_and_merge_stable_patch_commits(
+    fixture_repo: Path, evidence_dir: Path, fault: str
+):
+    """AC-WTC-P01: empty and merge commits are outside the proof domain."""
+    initial = git(fixture_repo, "rev-list", "--max-parents=0", "HEAD").strip()
+    if fault == "empty":
+        path = fixture_repo.parent / "proof-target-worktree"
+        git(fixture_repo, "worktree", "add", "-b", "proof-target", str(path), initial)
+        git(path, "commit", "--allow-empty", "-m", "empty", "--quiet")
+        tip = git(path, "rev-parse", "HEAD").strip()
+        git(fixture_repo, "worktree", "remove", str(path))
+        source_commits = [{"commit": tip, "stable_patch_id": "0" * 40, "baseline_matches": []}]
+    else:
+        baseline = []
+        for filename in ("left.txt", "right.txt"):
+            (fixture_repo / filename).write_text(f"{filename}\n", encoding="utf-8")
+            git(fixture_repo, "add", filename)
+            git(fixture_repo, "commit", "-m", f"baseline-{filename}", "--quiet")
+            baseline.append(git(fixture_repo, "rev-parse", "HEAD").strip())
+        git(fixture_repo, "update-ref", "refs/remotes/origin/main", baseline[-1])
+        [left] = commit_on_new_branch(
+            fixture_repo, "proof-target", initial, [("left.txt", "left.txt\n")]
+        )
+        [right] = commit_on_new_branch(
+            fixture_repo, "proof-side", initial, [("right.txt", "right.txt\n")]
+        )
+        path = fixture_repo.parent / "proof-merge-worktree"
+        git(fixture_repo, "worktree", "add", str(path), "proof-target")
+        git(path, "merge", "--no-ff", "proof-side", "-m", "unique merge", "--quiet")
+        tip = git(path, "rev-parse", "HEAD").strip()
+        git(fixture_repo, "worktree", "remove", str(path))
+        git(fixture_repo, "branch", "-D", "proof-side")
+        source_commits = [
+            {"commit": left, "stable_patch_id": stable_patch_id(fixture_repo, left), "baseline_matches": [baseline[0]]},
+            {"commit": right, "stable_patch_id": stable_patch_id(fixture_repo, right), "baseline_matches": [baseline[1]]},
+            {"commit": tip, "stable_patch_id": "0" * 40, "baseline_matches": []},
+        ]
+    proof = common_proof("refs/heads/proof-target", tip, "stable_patch_coverage")
+    proof["source_commits"] = source_commits
+
+    context = proof_manifest_context(fixture_repo, evidence_dir, [proof])
+
+    assert context["result"].returncode != 0
+    assert fault in context["result"].stderr.lower()
+
+
+@pytest.mark.parametrize("fault", ["missing", "moved", "self", "unretained"])
+def test_ac_wtc_p02_rejects_unsafe_retained_local_ref(
+    fixture_repo: Path, evidence_dir: Path, fault: str
+):
+    """AC-WTC-P02: a retained anchor must remain exact, distinct, and owned."""
+    proof, retained, _ = make_proof_scenario(fixture_repo, "retained_local_ref")
+    if fault == "missing":
+        proof["retained_ref"] = "refs/heads/missing-retained"
+    elif fault == "moved":
+        proof["retained_tip"] = git(fixture_repo, "rev-parse", "origin/main").strip()
+    elif fault == "self":
+        proof["retained_ref"] = proof["target"]
+        proof["retained_tip"] = proof["target_tip"]
+    else:
+        retained = ()
+
+    context = proof_manifest_context(
+        fixture_repo, evidence_dir, [proof], retained_refs=retained
+    )
+
+    assert context["result"].returncode != 0
+    assert not context["manifest_path"].exists()
+
+
+def test_ac_wtc_p02_rejects_retained_ref_that_is_also_a_proof_target(
+    fixture_repo: Path, evidence_dir: Path
+):
+    """AC-WTC-P02: the preservation anchor cannot occur in retirement targets."""
+    proof, _, _ = make_proof_scenario(fixture_repo, "retained_local_ref")
+    retained_tip = proof["retained_tip"]
+    remote_ref = "refs/remotes/origin/proof-retained"
+    git(fixture_repo, "update-ref", remote_ref, retained_tip)
+    second = common_proof(
+        "refs/heads/proof-retained", retained_tip, "remote_tracking_ref"
+    )
+    second.update({"remote_ref": remote_ref, "remote_tip": retained_tip})
+
+    context = proof_manifest_context(fixture_repo, evidence_dir, [proof, second])
+
+    assert context["result"].returncode != 0
+
+
+@pytest.mark.parametrize("fault", ["local", "symbolic", "missing"])
+def test_ac_wtc_p03_rejects_non_direct_remote_evidence(
+    fixture_repo: Path, evidence_dir: Path, fault: str
+):
+    """AC-WTC-P03: remote evidence is exact, direct, and in refs/remotes."""
+    proof, _, _ = make_proof_scenario(fixture_repo, "remote_tracking_ref")
+    if fault == "local":
+        proof["remote_ref"] = proof["target"]
+    elif fault == "symbolic":
+        git(fixture_repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main")
+        proof["remote_ref"] = "refs/remotes/origin/HEAD"
+    else:
+        proof["remote_ref"] = "refs/remotes/origin/missing"
+
+    context = proof_manifest_context(fixture_repo, evidence_dir, [proof])
+
+    assert context["result"].returncode != 0
+
+
+@pytest.mark.parametrize(
+    ("fault", "kwargs"),
+    [
+        ("rejected", {"approval_decision": "rejected"}),
+        ("expired", {"approval_expired": True}),
+        ("same-author", {"reviewer": "fixture-semantic-owner"}),
+        ("hash-mismatch", {"approval_hash": "0" * 64}),
+    ],
+)
+def test_ac_wtc_p04_rejects_invalid_proof_approval(
+    fixture_repo: Path, evidence_dir: Path, fault: str, kwargs: dict[str, Any]
+):
+    """AC-WTC-P04: semantic approval is independent, current, and hash-bound."""
+    proof, _, _ = make_proof_scenario(fixture_repo, "remote_tracking_ref")
+
+    context = proof_manifest_context(fixture_repo, evidence_dir, [proof], **kwargs)
+
+    assert context["result"].returncode != 0, fault
+    assert not context["manifest_path"].exists()
+
+
+@pytest.mark.parametrize(
+    ("identity_field", "identity"),
+    [
+        ("author", " leading"),
+        ("author", "trailing "),
+        ("author", "control\u0007"),
+        ("author", "format\u200e"),
+        ("reviewer", " leading"),
+        ("reviewer", "trailing "),
+        ("reviewer", "control\u0007"),
+        ("reviewer", "format\u200e"),
+    ],
+)
+def test_ac_wtc_p04_rejects_noncanonical_accountable_identity(
+    fixture_repo: Path, evidence_dir: Path, identity_field: str, identity: str
+):
+    """AC-WTC-P04: accountable identities have one canonical display form."""
+    proof, _, _ = make_proof_scenario(fixture_repo, "remote_tracking_ref")
+    kwargs = {identity_field: identity}
+
+    context = proof_manifest_context(fixture_repo, evidence_dir, [proof], **kwargs)
+
+    assert context["result"].returncode != 0
+
+
+@pytest.mark.parametrize("fault", ["schema", "type", "privacy-field"])
+def test_ac_wtc_p04_rejects_unknown_or_payload_bearing_proof(
+    fixture_repo: Path, evidence_dir: Path, fault: str
+):
+    """AC-WTC-P04/P07: closed metadata schemas reject generic semantic payloads."""
+    proof, _, _ = make_proof_scenario(fixture_repo, "remote_tracking_ref")
+    schema = "fathomdb-worktree-retirement-proofs/v1"
+    if fault == "schema":
+        schema = "fathomdb-worktree-retirement-proofs/unknown"
+    elif fault == "type":
+        proof["proof_type"] = "generic_archive"
+    else:
+        proof["prompt"] = "durable source payload is forbidden"
+
+    context = proof_manifest_context(
+        fixture_repo, evidence_dir, [proof], proof_schema=schema
+    )
+
+    assert context["result"].returncode != 0
+    assert not context["manifest_path"].exists()
+
+
+def test_ac_wtc_p04_rejects_proof_file_altered_after_approval(
+    fixture_repo: Path, evidence_dir: Path
+):
+    """AC-WTC-P04: later stages bind the exact independently reviewed bytes."""
+    proof, _, _ = make_proof_scenario(fixture_repo, "remote_tracking_ref")
+    context = proof_manifest_context(fixture_repo, evidence_dir, [proof])
+    assert context["result"].returncode == 0, context["result"].stderr
+    value = json.loads(context["proof_path"].read_text(encoding="utf-8"))
+    value["proofs"][0]["evidence_id"] = "fixture-decision:altered"
+    write_json(context["proof_path"], value)
+
+    context = approve_and_dryrun(fixture_repo, evidence_dir, context)
+
+    assert context["dryrun_result"].returncode != 0
+    assert not context["dryrun_path"].exists()
+
+
+@pytest.mark.parametrize("fault", ["mismatch", "expired"])
+def test_ac_wtc_p04_dryrun_preserves_owner_map_review_gate(
+    fixture_repo: Path, evidence_dir: Path, fault: str
+):
+    """AC-WTC-P04: proof inputs cannot bypass owner review during rehearsal."""
+    proof, _, _ = make_proof_scenario(fixture_repo, "remote_tracking_ref")
+    context = proof_manifest_context(fixture_repo, evidence_dir, [proof])
+    assert context["result"].returncode == 0, context["result"].stderr
+    review = json.loads(context["owner_review_path"].read_text(encoding="utf-8"))
+    if fault == "mismatch":
+        review["reviewer"] = "replacement-owner-reviewer"
+    else:
+        review["expires_at"] = "2000-01-01T00:00:00Z"
+    write_json(context["owner_review_path"], review)
+
+    context = approve_and_dryrun(fixture_repo, evidence_dir, context)
+
+    assert context["dryrun_result"].returncode != 0
+    assert not context["dryrun_path"].exists()
+
+
+@pytest.mark.parametrize("fault", ["missing", "mismatch", "expired"])
+def test_ac_wtc_p04_consolidate_preserves_owner_map_review_gate(
+    fixture_repo: Path, evidence_dir: Path, fault: str
+):
+    """AC-WTC-P04: execution rechecks the exact current owner-map review."""
+    proof, _, _ = make_proof_scenario(fixture_repo, "remote_tracking_ref")
+    context = proof_manifest_context(fixture_repo, evidence_dir, [proof])
+    assert context["result"].returncode == 0, context["result"].stderr
+    context = approve_and_dryrun(fixture_repo, evidence_dir, context)
+    assert context["dryrun_result"].returncode == 0, context["dryrun_result"].stderr
+    if fault != "missing":
+        review = json.loads(context["owner_review_path"].read_text(encoding="utf-8"))
+        if fault == "mismatch":
+            review["reviewer"] = "replacement-owner-reviewer"
+        else:
+            review["expires_at"] = "2000-01-01T00:00:00Z"
+        write_json(context["owner_review_path"], review)
+    if fault == "missing":
+        context["owner_review_path"] = evidence_dir / "missing-owner-review.json"
+
+    result = consolidate_context(fixture_repo, evidence_dir, context)
+
+    assert result.returncode != 0
+    assert git(fixture_repo, "rev-parse", "--verify", "refs/heads/proof-target").strip()
+    assert not list(context["archive_dir"].iterdir())
+
+
+@pytest.mark.parametrize("drift", ["target", "retained", "baseline", "remote"])
+def test_ac_wtc_p05_consolidate_rejects_every_proof_path_drift(
+    fixture_repo: Path, evidence_dir: Path, drift: str
+):
+    """AC-WTC-P05: every live path is recomputed after a successful dry run."""
+    proof_type = "retained_local_ref" if drift == "retained" else "remote_tracking_ref"
+    proof, retained, remote_ref = make_proof_scenario(fixture_repo, proof_type)
+    context = proof_manifest_context(
+        fixture_repo, evidence_dir, [proof], retained_refs=retained
+    )
+    assert context["result"].returncode == 0, context["result"].stderr
+    context = approve_and_dryrun(fixture_repo, evidence_dir, context)
+    assert context["dryrun_result"].returncode == 0, context["dryrun_result"].stderr
+    if drift == "target":
+        git(fixture_repo, "update-ref", "refs/heads/proof-target", "origin/main")
+    elif drift == "retained":
+        git(fixture_repo, "update-ref", "refs/heads/proof-retained", "origin/main")
+    elif drift == "remote":
+        assert remote_ref
+        git(fixture_repo, "update-ref", remote_ref, "origin/main")
+    else:
+        (fixture_repo / "baseline-drift.txt").write_text("drift\n", encoding="utf-8")
+        git(fixture_repo, "add", "baseline-drift.txt")
+        git(fixture_repo, "commit", "-m", "baseline drift", "--quiet")
+        git(fixture_repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+
+    result = consolidate_context(fixture_repo, evidence_dir, context)
+
+    assert result.returncode != 0
+    assert not list(context["archive_dir"].iterdir())
+
+
+@pytest.mark.parametrize(
+    "proof_type",
+    ["stable_patch_coverage", "retained_local_ref", "remote_tracking_ref"],
+)
+def test_ac_wtc_p06_end_to_end_proof_retirement_is_recoverable(
+    fixture_repo: Path, evidence_dir: Path, tmp_path: Path, proof_type: str
+):
+    """AC-WTC-P06: each proof path bundles before expected-old-SHA deletion."""
+    proof, retained, _ = make_proof_scenario(fixture_repo, proof_type)
+    target_tip = proof["target_tip"]
+    remote_before = git(
+        fixture_repo, "for-each-ref", "--format=%(refname) %(objectname)", "refs/remotes"
+    )
+    context = proof_manifest_context(
+        fixture_repo, evidence_dir, [proof], retained_refs=retained
+    )
+    assert context["result"].returncode == 0, context["result"].stderr
+    context = approve_and_dryrun(fixture_repo, evidence_dir, context)
+    assert context["dryrun_result"].returncode == 0, context["dryrun_result"].stderr
+
+    result = consolidate_context(fixture_repo, evidence_dir, context)
+
+    assert result.returncode == 0, result.stderr
+    assert subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", "refs/heads/proof-target"],
+        cwd=fixture_repo,
+        check=False,
+        capture_output=True,
+    ).returncode != 0
+    assert git(
+        fixture_repo, "for-each-ref", "--format=%(refname) %(objectname)", "refs/remotes"
+    ) == remote_before
+    bundles = list(context["archive_dir"].glob("*.bundle"))
+    assert len(bundles) == 1
+    recovery = tmp_path / f"recovery-{proof_type}"
+    recovery.mkdir()
+    git(recovery, "init", "--bare", "--quiet")
+    git(recovery, "bundle", "unbundle", str(bundles[0]))
+    git(recovery, "cat-file", "-e", f"{target_tip}^{{commit}}")
+    execution = list(evidence_dir.glob("execution-*.json"))
+    assert len(execution) == 1
+    completed = json.loads(execution[0].read_text(encoding="utf-8"))["completed_actions"]
+    target_action = next(item for item in completed if item["target"] == "refs/heads/proof-target")
+    assert target_action["witness"]["tip"] == target_tip
+    assert target_action["witness"]["recovery_requirement"] == "execution_bundle"
+
+
+def test_ac_wtc_p06_direct_ancestor_regression_needs_no_proof_files(
+    fixture_repo: Path, evidence_dir: Path
+):
+    """AC-WTC-P06: reviewed direct ancestry retains the original protocol."""
+    git(fixture_repo, "branch", "legacy-direct-ancestor", "origin/main")
+
+    _, manifest, _, _ = generate_manifest(
+        fixture_repo, evidence_dir, target=2, retire_local_heads=True
+    )
+
+    entry = next(
+        item
+        for item in manifest["entries"]
+        if item["target"] == "refs/heads/legacy-direct-ancestor"
+    )
+    assert entry["classification"] == "merged-retirable"
+    assert set(entry["witness"]) == {
+        "tip",
+        "clean",
+        "unused_by_retained_worktree",
+        "recovery_requirement",
+    }
+    assert manifest["retirement_proofs"] is None

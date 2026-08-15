@@ -49,7 +49,7 @@ retirement transitions whose proof obligations are already witnessed.
 ```text
 scripts/worktree-consolidator.py audit [OPTIONS]
 scripts/worktree-consolidator.py manifest --audit SNAPSHOT --evidence-dir PATH [OPTIONS]
-scripts/worktree-consolidator.py dryrun --manifest APPROVED-MANIFEST --owner-map PATH --approval-attestation PATH --archive-dir PATH --evidence-dir PATH [OPTIONS]
+scripts/worktree-consolidator.py dryrun --manifest APPROVED-MANIFEST --owner-map PATH --owner-map-review-attestation PATH --approval-attestation PATH --archive-dir PATH --evidence-dir PATH [OPTIONS]
 scripts/worktree-consolidator.py consolidate [OPTIONS]
 ```
 
@@ -61,6 +61,7 @@ Common options:
 | `--baseline REF` | Ref used for ancestry evidence; defaults to `origin/main`. Its current SHA is recorded, never presumed fresh. |
 | `--baseline-attestation PATH` | JSON evidence that the named baseline was fetched by an operator at the stated time and SHA; required for an executable plan, `dryrun`, and `consolidate`. |
 | `--owner-map PATH` | Strict JSON ownership/release-role mapping. It is required for a snapshot eligible for an executable manifest, and for `dryrun`/`consolidate`; absent or unknown ownership blocks retirement. |
+| `--owner-map-review-attestation PATH` | Independent, unexpired review of the exact owner-map bytes. Required by `manifest`, `dryrun`, and `consolidate`; absence produces `owner_map_review_required`. |
 | `--policy PATH` | Strict JSON theme/goal/recovery policy; required by `manifest`, and its canonical hash must match later stages. |
 | `--evidence-dir PATH` | Durable manifest/receipt/attestation directory for `manifest`, `dryrun`, and `consolidate`; must be outside every registered worktree. |
 | `--json` | Emit canonical machine-readable JSON to stdout. |
@@ -72,6 +73,13 @@ filesystem artifact. It records the observed baseline ref/SHA as `unattested`;
 manifest generation later validates a baseline attestation against that exact
 snapshot. An unattested audit can support analysis but not a retirement plan.
 
+When an owner map is supplied, `audit` also emits
+`retirement_review.entries` for every local head with both owner and release
+role set to `none`. Each entry contains `is_main`, `checked_out_by_worktree`,
+`ancestor_of_baseline`, `matching_remote_refs`, the exact
+`owner_map_evidence`, and a `mechanically-eligible` or `blocked` result. This
+is a review aid, not an assertion that the branch's purpose is obsolete.
+
 `manifest` consumes an audit snapshot and policy, then solves for a declared or
 inferred goal. Its command-specific options are:
 
@@ -80,14 +88,16 @@ inferred goal. Its command-specific options are:
 | `--audit PATH` | Immutable JSON snapshot emitted by `audit`. |
 | `--policy PATH` | Strict policy file describing themes, ranges, and reflog dispositions. |
 | `--owner-map PATH` | Strict owner/release-role map whose hash must match the audit snapshot. |
+| `--owner-map-review-attestation PATH` | Review attestation for that exact owner-map hash. |
 | `--evidence-dir PATH` | Durable directory containing the baseline attestation and candidate output. |
 | `--target-worktrees N` | Desired steady-state active-worktree count, `1 ≤ N ≤ 64`. |
 | `--infer-target` | Infer a feasible target instead of accepting a number. Mutually exclusive with `--target-worktrees`. |
 
-It emits the only manifest format `consolidate` may execute, but the result is
-a candidate until independently approved with a separate attestation. Without
-a valid baseline attestation it emits a review-only candidate, never an
-executable manifest. It validates that the operator-designated durable evidence
+It emits the only manifest format `consolidate` may execute, but only after an
+independent reviewer has attested to the exact owner map. If that evidence is
+absent, it emits `owner_map_review_required` and no candidate. The result is
+then a candidate until independently approved with a separate manifest
+attestation. It validates that the operator-designated durable evidence
 directory is resolved, non-symlink-ambiguous, outside all registered
 worktrees, owned by the effective user, and not group/world writable; it must
 contain the baseline attestation before the tool reads or writes plan evidence.
@@ -109,6 +119,7 @@ blocked; it never repairs or regenerates the manifest.
 ```text
 --manifest approved-manifest.json
 --owner-map PATH
+--owner-map-review-attestation PATH
 --approval-attestation PATH
 --archive-dir PATH
 --evidence-dir PATH
@@ -126,6 +137,12 @@ is placed in that durable evidence directory and independently approved.
 
 The confirmation hash is the canonical JSON SHA-256 of the manifest. This makes
 the user confirm the exact plan, not merely a filename that could change.
+
+The owner-map review attestation is an independently created JSON record with
+the repository identity, exact owner-map SHA-256, reviewer identity,
+`decision: "approved"`, issue time, and expiry. `manifest`, `dryrun`, and
+`consolidate` require it; the manifest and dry-run receipt retain its hash so a
+later stage cannot replace it with a review of different ownership evidence.
 
 The approval attestation is an independently created JSON record with the
 candidate manifest SHA-256, reviewer identity, decision, review time, and
@@ -149,7 +166,7 @@ observed snapshot ID, baseline-attestation hash, result, issue time, and expiry.
 that the plan was possible at a point in time, not permission to skip the
 transaction's own revalidation.
 
-All approval, baseline, freeze, and dry-run receipt paths must resolve to
+All owner-map review, approval, baseline, freeze, and dry-run receipt paths must resolve to
 regular non-symlink files directly under the resolved `--evidence-dir`; the
 tool rejects paths elsewhere or beneath a registered worktree. This gives the
 attestation chain one durable, inspectable retention boundary.
@@ -319,6 +336,7 @@ other.
   "baseline_requirement": {"max_age_seconds": 900},
   "policy_sha256": "<sha256>",
   "owner_map_sha256": "<sha256>",
+  "owner_map_review_sha256": "<sha256 of exact approved owner-map review attestation>",
   "goal": {"target_worktrees": 6, "source": "inferred"},
   "preservation": {
     "bundle_name_algorithm": "wtc-bundle-v1",
@@ -407,7 +425,7 @@ attestation contains repository identity, manifest SHA-256, reviewer identity,
 repository identity, baseline ref/SHA, fetch time, issue time, and expiry. A
 dry-run receipt contains repository identity, manifest SHA-256,
 approval-attestation SHA-256, baseline-attestation SHA-256, snapshot ID,
-owner-map SHA-256,
+owner-map SHA-256, owner-map-review-attestation SHA-256,
 canonical archive/evidence directories, deterministic bundle path/name,
 archive/evidence destination attributes (device, inode, owner UID/GID, mode,
 and no-symlink result), expected ordered actions, result, issue time, and
@@ -448,13 +466,16 @@ manifest is immutable: amendments create a new manifest with a new hash.
    effective-user-owned, non-group/world-writable, and non-symlink-ambiguous;
    create the deterministic bundle from all local refs plus manifest-selected
    reflog candidates in a newly created, no-clobber temporary file there; fsync
-   it, require `git bundle verify` to report no prerequisites, verify every
-   required tip with `git bundle list-heads`, hash it, publish it to the
-   previously nonexistent final basename through an atomic no-clobber hard-link
-   (never `os.replace`), remove the temporary link, fsync the parent directory,
-   and write a fsynced preservation receipt proving required-tip coverage before
-   removing any target. A filesystem lacking this safe publication primitive
-   fails closed;
+   it, require `git bundle verify` to report no prerequisites, then unpack it
+   into a fresh temporary bare repository and use `git cat-file -e` there to
+   prove every required commit is recoverable. `git bundle list-heads` is not a
+   coverage proof because it advertises heads rather than every reachable
+   commit. Remove the probe before publication, hash the bundle, publish it to
+   the previously nonexistent final basename through an atomic no-clobber
+   hard-link (never `os.replace`), remove the temporary link, fsync the parent
+   directory, and write a fsynced preservation receipt proving required-tip
+   coverage before removing any target. A filesystem lacking this safe
+   publication primitive fails closed;
 5. apply worktree actions first, one entry at a time, retaining their branches;
 6. revalidate branch use, then delete only manifest-listed local heads with an
    expected-old-SHA compare-and-delete (`git update-ref -d <ref> <expected>`),
@@ -531,9 +552,10 @@ worktree layouts. The tests must assert:
 - an unresolved owner, dirty worktree, lock, primary checkout, detached state,
   changed baseline, changed tip, or ref-in-use blocks retirement;
 - duplicate target entries and unknown/missing manifest fields fail loudly;
-- canonical JSON, repository identity, approval-attestation, and policy-hash
+- canonical JSON, repository identity, owner-map-review/approval-attestation,
+  and policy-hash
   mismatches fail loudly;
-- absent, changed, malformed, or owner/release-role-non-`none` owner-map
+- absent, changed, malformed, unreviewed, or owner/release-role-non-`none` owner-map
   evidence blocks retirement in every executable stage;
 - reflog-only and unreachable commit candidates are reported and each requires
   a policy disposition; selected candidates are present in the verified bundle;
@@ -574,7 +596,8 @@ Land in stages:
    authorizing use on FathomDB’s active checkout.
 
 No stage automatically executes against the current topology. The first real
-run is a baseline-attested `audit`; `manifest` then generates the candidate
-manifest. A human review approves that exact candidate, `dryrun` rehearses it
+run is a baseline-attested `audit`; an independent reviewer then approves the
+exact owner map before `manifest` generates the candidate manifest. A human
+review approves that exact candidate, `dryrun` rehearses it
 against the still-current state, and `consolidate` applies the same hashed
 manifest only while its dry-run and freeze attestations remain valid.

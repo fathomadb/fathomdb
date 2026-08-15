@@ -253,6 +253,25 @@ def policy_and_baseline(
     return policy_path, baseline_path
 
 
+def owner_map_review(evidence_dir: Path, snapshot: dict[str, Any], owner_path: Path) -> Path:
+    """Write independent approval evidence for the complete fixture owner map."""
+    issued_at, expires_at = now_window()
+    path = evidence_dir / "owner-map-review.json"
+    write_json(
+        path,
+        {
+            "schema": "fathomdb-worktree-owner-map-review-attestation/v1",
+            "repository": snapshot["repository"],
+            "owner_map_sha256": hashlib.sha256(owner_path.read_bytes()).hexdigest(),
+            "reviewer": "fixture-owner-map-reviewer",
+            "decision": "approved",
+            "issued_at": issued_at,
+            "expires_at": expires_at,
+        },
+    )
+    return path
+
+
 def generate_manifest(
     repo: Path, evidence_dir: Path, target: int, *, retire_local_heads: bool = False
 ) -> tuple[Path, dict[str, Any], Path, Path]:
@@ -264,6 +283,7 @@ def generate_manifest(
         target_range=[1, 8],
         retire_local_heads=retire_local_heads,
     )
+    review_path = owner_map_review(evidence_dir, snapshot, map_path)
     manifest_path = evidence_dir / "candidate.json"
     result = run_tool(
         repo,
@@ -274,6 +294,8 @@ def generate_manifest(
         str(snapshot_path),
         "--owner-map",
         str(map_path),
+        "--owner-map-review-attestation",
+        str(review_path),
         "--policy",
         str(policy_path),
         "--baseline-attestation",
@@ -328,6 +350,42 @@ def test_ac_wtc_001_audit_is_observational_and_classifies_fixture(
     assert repo_fingerprint(fixture_repo) == before
 
 
+def test_ac_wtc_001_audit_explains_each_proposed_head_retirement(
+    fixture_repo: Path, evidence_dir: Path
+):
+    """AC-WTC-001: audit makes proposed branch retirement reviewable by predicate."""
+    git(fixture_repo, "branch", "stale-local-head", "origin/main")
+    map_path = evidence_dir / "owner-map.json"
+    write_json(map_path, owner_map(fixture_repo))
+
+    result = run_tool(
+        fixture_repo,
+        "audit",
+        "--repo", str(fixture_repo), "--owner-map", str(map_path), "--json",
+        criterion="AC-WTC-001",
+    )
+
+    assert result.returncode == 0, result.stderr
+    review = json.loads(result.stdout)["retirement_review"]
+    assert review["schema"] == "fathomdb-worktree-retirement-review/v1"
+    proposed = next(
+        entry for entry in review["entries"] if entry["target"] == "refs/heads/stale-local-head"
+    )
+    assert proposed == {
+        "target": "refs/heads/stale-local-head",
+        "tip": git(fixture_repo, "rev-parse", "refs/heads/stale-local-head").strip(),
+        "is_main": False,
+        "checked_out_by_worktree": False,
+        "ancestor_of_baseline": True,
+        "matching_remote_refs": ["refs/remotes/origin/main"],
+        "owner_map_evidence": "fixture",
+        "result": "mechanically-eligible",
+    }
+    main = next(entry for entry in review["entries"] if entry["target"] == "refs/heads/main")
+    assert main["is_main"] is True
+    assert main["result"] == "blocked"
+
+
 def test_ac_wtc_002_manifest_refuses_goal_below_theme_lower_bound(
     fixture_repo: Path, evidence_dir: Path
 ):
@@ -348,6 +406,7 @@ def test_ac_wtc_002_manifest_refuses_goal_below_theme_lower_bound(
     snapshot_path = evidence_dir / "snapshot.json"
     snapshot_path.write_text(audit.stdout, encoding="utf-8")
     snapshot = json.loads(audit.stdout)
+    review_path = owner_map_review(evidence_dir, snapshot, map_path)
 
     baseline_path = evidence_dir / "baseline.json"
     issued_at = datetime.now(UTC)
@@ -391,6 +450,8 @@ def test_ac_wtc_002_manifest_refuses_goal_below_theme_lower_bound(
         str(snapshot_path),
         "--owner-map",
         str(map_path),
+        "--owner-map-review-attestation",
+        str(review_path),
         "--policy",
         str(policy_path),
         "--baseline-attestation",
@@ -405,6 +466,104 @@ def test_ac_wtc_002_manifest_refuses_goal_below_theme_lower_bound(
 
     assert result.returncode == 3
     assert "goal_inference_blocked" in result.stdout
+
+
+def test_ac_wtc_002_manifest_announces_missing_owner_map_review(
+    fixture_repo: Path, evidence_dir: Path
+):
+    """AC-WTC-002: planning cannot turn an unreviewed map into an action plan."""
+    snapshot_path, snapshot, map_path = audit_snapshot(fixture_repo, evidence_dir)
+    policy_path, baseline_path = policy_and_baseline(evidence_dir, snapshot, target_range=[1, 8])
+    output_path = evidence_dir / "must-not-exist.json"
+
+    result = run_tool(
+        fixture_repo,
+        "manifest",
+        "--repo", str(fixture_repo), "--audit", str(snapshot_path),
+        "--owner-map", str(map_path), "--policy", str(policy_path),
+        "--baseline-attestation", str(baseline_path), "--evidence-dir", str(evidence_dir),
+        "--target-worktrees", "2", "--output", str(output_path), "--json", criterion="AC-WTC-002",
+    )
+
+    assert result.returncode == 3
+    assert json.loads(result.stdout)["result"] == "owner_map_review_required"
+    assert not output_path.exists()
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    [
+        ("reviewer", ""),
+        ("decision", "rejected"),
+        ("owner_map_sha256", "0" * 64),
+        ("expires_at", "2000-01-01T00:00:00Z"),
+    ],
+)
+def test_ac_wtc_002_manifest_rejects_invalid_owner_map_review(
+    fixture_repo: Path, evidence_dir: Path, field: str, replacement: str
+):
+    """AC-WTC-002: review evidence is strict before a candidate can be written."""
+    snapshot_path, snapshot, map_path = audit_snapshot(fixture_repo, evidence_dir)
+    policy_path, baseline_path = policy_and_baseline(evidence_dir, snapshot, target_range=[1, 8])
+    review_path = owner_map_review(evidence_dir, snapshot, map_path)
+    review = json.loads(review_path.read_text(encoding="utf-8"))
+    review[field] = replacement
+    write_json(review_path, review)
+    output_path = evidence_dir / "must-not-exist.json"
+
+    result = run_tool(
+        fixture_repo,
+        "manifest",
+        "--repo", str(fixture_repo), "--audit", str(snapshot_path),
+        "--owner-map", str(map_path), "--owner-map-review-attestation", str(review_path),
+        "--policy", str(policy_path), "--baseline-attestation", str(baseline_path),
+        "--evidence-dir", str(evidence_dir), "--target-worktrees", "2",
+        "--output", str(output_path), "--json", criterion="AC-WTC-002",
+    )
+
+    assert result.returncode != 0
+    assert not output_path.exists()
+
+
+def test_ac_wtc_004_dryrun_announces_missing_owner_map_review(
+    fixture_repo: Path, evidence_dir: Path
+):
+    """AC-WTC-004: rehearsal cannot use a manifest without reviewed ownership."""
+    manifest_path, manifest, owner_path, baseline_path = generate_manifest(
+        fixture_repo, evidence_dir, target=1
+    )
+    manifest_hash = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+    issued_at, expires_at = now_window()
+    approval_path = evidence_dir / "approval.json"
+    write_json(
+        approval_path,
+        {
+            "schema": "fathomdb-worktree-approval-attestation/v1",
+            "repository": manifest["repository"],
+            "manifest_sha256": manifest_hash,
+            "reviewer": "fixture-reviewer",
+            "decision": "approved",
+            "issued_at": issued_at,
+            "expires_at": expires_at,
+        },
+    )
+    archive_dir = fixture_repo.parent / "archive"
+    archive_dir.mkdir(mode=0o700)
+    before = repo_fingerprint(fixture_repo)
+
+    result = run_tool(
+        fixture_repo,
+        "dryrun",
+        "--repo", str(fixture_repo), "--manifest", str(manifest_path),
+        "--owner-map", str(owner_path), "--approval-attestation", str(approval_path),
+        "--baseline-attestation", str(baseline_path), "--archive-dir", str(archive_dir),
+        "--evidence-dir", str(evidence_dir), "--json", criterion="AC-WTC-004",
+    )
+
+    assert result.returncode == 3
+    assert json.loads(result.stdout)["result"] == "owner_map_review_required"
+    assert repo_fingerprint(fixture_repo) == before
+    assert not (evidence_dir / f"dryrun-{manifest_hash[:16]}.json").exists()
 
 
 def test_ac_wtc_003_consolidate_rejects_unapproved_manifest_without_mutation(
@@ -582,6 +741,7 @@ def test_ac_wtc_008_post_action_final_receipt_failure_writes_partial_evidence(
         "dryrun",
         "--repo", str(fixture_repo), "--manifest", str(manifest_path),
         "--owner-map", str(owner_path), "--approval-attestation", str(approval_path),
+        "--owner-map-review-attestation", str(evidence_dir / "owner-map-review.json"),
         "--baseline-attestation", str(baseline_path), "--archive-dir", str(archive_dir),
         "--evidence-dir", str(evidence_dir), criterion="AC-WTC-004",
     )
@@ -615,6 +775,7 @@ def test_ac_wtc_008_post_action_final_receipt_failure_writes_partial_evidence(
     monkeypatch.setattr(module, "durable_write", fail_final)
     command = SimpleNamespace(
         repo=str(fixture_repo), manifest=str(manifest_path), owner_map=str(owner_path),
+        owner_map_review_attestation=str(evidence_dir / "owner-map-review.json"),
         approval_attestation=str(approval_path), baseline_attestation=str(baseline_path),
         dryrun_receipt=str(dryrun_path), freeze_attestation=str(freeze_path),
         archive_dir=str(archive_dir), evidence_dir=str(evidence_dir),
@@ -671,6 +832,7 @@ def test_ac_wtc_002_manifest_blocks_when_proven_candidates_cannot_meet_goal(
     git(linked, "commit", "-m", "unmerged", "--quiet")
     snapshot_path, snapshot, map_path = audit_snapshot(fixture_repo, evidence_dir)
     policy_path, baseline_path = policy_and_baseline(evidence_dir, snapshot, target_range=[1, 2])
+    review_path = owner_map_review(evidence_dir, snapshot, map_path)
     result = run_tool(
         fixture_repo,
         "manifest",
@@ -680,6 +842,8 @@ def test_ac_wtc_002_manifest_blocks_when_proven_candidates_cannot_meet_goal(
         str(snapshot_path),
         "--owner-map",
         str(map_path),
+        "--owner-map-review-attestation",
+        str(review_path),
         "--policy",
         str(policy_path),
         "--baseline-attestation",
@@ -701,6 +865,7 @@ def test_ac_wtc_002_manifest_rejects_a_ref_as_a_theme_worktree_target(
     """AC-WTC-002: themes retain protected worktrees, never bare branch names."""
     snapshot_path, snapshot, map_path = audit_snapshot(fixture_repo, evidence_dir)
     policy_path, baseline_path = policy_and_baseline(evidence_dir, snapshot, target_range=[1, 8])
+    review_path = owner_map_review(evidence_dir, snapshot, map_path)
     policy = json.loads(policy_path.read_text(encoding="utf-8"))
     policy["active_themes"] = ["campaign"]
     policy["theme_targets"] = {"campaign": "refs/heads/main"}
@@ -715,6 +880,8 @@ def test_ac_wtc_002_manifest_rejects_a_ref_as_a_theme_worktree_target(
         str(snapshot_path),
         "--owner-map",
         str(map_path),
+        "--owner-map-review-attestation",
+        str(review_path),
         "--policy",
         str(policy_path),
         "--baseline-attestation",
@@ -795,6 +962,8 @@ def test_ac_wtc_004_dryrun_rejects_forged_unmerged_retirement_entry(
         str(manifest_path),
         "--owner-map",
         str(owner_path),
+        "--owner-map-review-attestation",
+        str(evidence_dir / "owner-map-review.json"),
         "--approval-attestation",
         str(approval_path),
         "--baseline-attestation",
@@ -847,6 +1016,8 @@ def test_ac_wtc_003_to_009_valid_chain_rehearses_and_retires_exact_worktree(
         str(manifest_path),
         "--owner-map",
         str(owner_path),
+        "--owner-map-review-attestation",
+        str(evidence_dir / "owner-map-review.json"),
         "--approval-attestation",
         str(approval_path),
         "--baseline-attestation",
@@ -861,6 +1032,10 @@ def test_ac_wtc_003_to_009_valid_chain_rehearses_and_retires_exact_worktree(
     assert dryrun.returncode == 0, dryrun.stderr
     receipt_path = evidence_dir / f"dryrun-{manifest_hash[:16]}.json"
     assert receipt_path.is_file()
+    review_path = evidence_dir / "owner-map-review.json"
+    review_bytes = review_path.read_bytes()
+    assert manifest["owner_map_review_sha256"] == hashlib.sha256(review_bytes).hexdigest()
+    assert json.loads(receipt_path.read_text(encoding="utf-8"))["owner_map_review_sha256"] == hashlib.sha256(review_bytes).hexdigest()
     receipt_hash = hashlib.sha256(receipt_path.read_bytes()).hexdigest()
     issued_at, expires_at = now_window(900)
     freeze_path = evidence_dir / "freeze.json"
@@ -879,6 +1054,27 @@ def test_ac_wtc_003_to_009_valid_chain_rehearses_and_retires_exact_worktree(
         },
     )
 
+    changed_review = json.loads(review_bytes.decode("utf-8"))
+    changed_review["reviewer"] = "replacement-reviewer"
+    write_json(review_path, changed_review)
+    replaced = run_tool(
+        fixture_repo,
+        "consolidate",
+        "--repo", str(fixture_repo), "--manifest", str(manifest_path),
+        "--owner-map", str(owner_path), "--owner-map-review-attestation", str(review_path),
+        "--approval-attestation", str(approval_path), "--baseline-attestation", str(baseline_path),
+        "--dryrun-receipt", str(receipt_path), "--freeze-attestation", str(freeze_path),
+        "--archive-dir", str(archive_dir), "--evidence-dir", str(evidence_dir),
+        "--confirm-manifest-sha256", manifest_hash,
+        "--confirm", f"CONSOLIDATE {manifest['manifest_id']}",
+        criterion="AC-WTC-005",
+    )
+    assert replaced.returncode != 0
+    assert "owner-map review attestation hash mismatch" in replaced.stderr
+    assert (fixture_repo.parent / "linked").is_dir()
+    assert not list(archive_dir.iterdir())
+    review_path.write_bytes(review_bytes)
+
     execution_path = evidence_dir / f"execution-{manifest_hash[:16]}.json"
     execution_path.write_bytes(b"occupied")
     collision = run_tool(
@@ -890,6 +1086,8 @@ def test_ac_wtc_003_to_009_valid_chain_rehearses_and_retires_exact_worktree(
         str(manifest_path),
         "--owner-map",
         str(owner_path),
+        "--owner-map-review-attestation",
+        str(evidence_dir / "owner-map-review.json"),
         "--approval-attestation",
         str(approval_path),
         "--baseline-attestation",
@@ -924,6 +1122,8 @@ def test_ac_wtc_003_to_009_valid_chain_rehearses_and_retires_exact_worktree(
         str(manifest_path),
         "--owner-map",
         str(owner_path),
+        "--owner-map-review-attestation",
+        str(evidence_dir / "owner-map-review.json"),
         "--approval-attestation",
         str(approval_path),
         "--baseline-attestation",
@@ -962,3 +1162,46 @@ def test_ac_wtc_003_to_009_valid_chain_rehearses_and_retires_exact_worktree(
     assert preservation["verified_before_retirement"] is True
     assert preservation["bundle_inputs"]
     assert preservation["bundle_verify"]
+
+
+def test_bundle_accepts_recovery_commit_reachable_from_advertised_head(
+    fixture_repo: Path, tmp_path: Path
+):
+    """A recovery commit may be covered without appearing in ``list-heads``."""
+    module = load_tool_module()
+    linked = fixture_repo.parent / "linked"
+    git(fixture_repo, "worktree", "remove", str(linked))
+    git(fixture_repo, "branch", "-D", "retirable")
+    recovery_tip = git(fixture_repo, "rev-parse", "HEAD").strip()
+    (fixture_repo / "README.md").write_text("fixture successor\n", encoding="utf-8")
+    git(fixture_repo, "add", "README.md")
+    git(fixture_repo, "commit", "-m", "successor", "--quiet")
+    current_tip = git(fixture_repo, "rev-parse", "HEAD").strip()
+    archive = tmp_path / "archive"
+    archive.mkdir(mode=0o700)
+    manifest = {
+        "snapshot_id": "a" * 64,
+        "plan_sha256": "b" * 64,
+        "preservation": {
+            "bundle_name_algorithm": "wtc-bundle-v1",
+            "required_tips": [current_tip],
+            "reflog_candidates": [recovery_tip],
+        },
+    }
+
+    bundle, _, covered, _, _ = module.publish_bundle(
+        module.repository(fixture_repo), archive, manifest
+    )
+
+    assert not list(archive.glob(".wtc-coverage-*"))
+    advertised = {
+        line.split()[0]
+        for line in git(fixture_repo, "bundle", "list-heads", str(bundle)).splitlines()
+    }
+    assert recovery_tip not in advertised
+    assert set(covered) == {current_tip, recovery_tip}
+    recovery_repo = tmp_path / "recovery"
+    recovery_repo.mkdir()
+    git(recovery_repo, "init", "--quiet")
+    git(recovery_repo, "bundle", "unbundle", str(bundle))
+    git(recovery_repo, "cat-file", "-e", f"{recovery_tip}^{{commit}}")

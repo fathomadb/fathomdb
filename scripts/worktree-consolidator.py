@@ -15,6 +15,7 @@ import hashlib
 import json
 import os
 import secrets
+import shutil
 import stat
 import subprocess
 import sys
@@ -26,6 +27,7 @@ from typing import Any, Iterable
 
 SCHEMA = "fathomdb-worktree-consolidator/v1"
 OWNER_SCHEMA = "fathomdb-worktree-owner-map/v1"
+OWNER_MAP_REVIEW_SCHEMA = "fathomdb-worktree-owner-map-review-attestation/v1"
 BASELINE_SCHEMA = "fathomdb-worktree-baseline-attestation/v1"
 APPROVAL_SCHEMA = "fathomdb-worktree-approval-attestation/v1"
 DRYRUN_SCHEMA = "fathomdb-worktree-dryrun-receipt/v1"
@@ -38,6 +40,10 @@ class SafetyError(RuntimeError):
 
 class GoalBlocked(SafetyError):
     """The requested topology cannot be reached without an unsafe transition."""
+
+
+class ReviewRequired(SafetyError):
+    """A required human review attestation has not been supplied."""
 
 
 class PartialBatch(SafetyError):
@@ -303,6 +309,42 @@ def local_refs(repo: Repository, base: dict[str, str | None]) -> list[dict[str, 
     return sorted(refs, key=lambda entry: entry["ref"])
 
 
+def retirement_review(
+    repo: Repository, refs: Iterable[dict[str, Any]], owners: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    """Explain every owner-proposed local-head retirement with observed predicates."""
+    remote_by_tip: dict[str, list[str]] = {}
+    remote_raw = git(
+        repo.root, "for-each-ref", "--format=%(refname) %(objectname)", "refs/remotes"
+    ).stdout
+    for line in remote_raw.splitlines():
+        ref, tip = line.split(" ", 1)
+        remote_by_tip.setdefault(tip, []).append(ref)
+    entries = []
+    for entry in refs:
+        owner = owners.get(entry["ref"])
+        if owner is None or owner["owner"] != "none" or owner["release_role"] != "none":
+            continue
+        is_main = entry["ref"] == "refs/heads/main"
+        eligible = not is_main and not entry["used_by_worktree"] and entry["baseline_ancestor"]
+        entries.append(
+            {
+                "target": entry["ref"],
+                "tip": entry["tip"],
+                "is_main": is_main,
+                "checked_out_by_worktree": entry["used_by_worktree"],
+                "ancestor_of_baseline": entry["baseline_ancestor"],
+                "matching_remote_refs": sorted(remote_by_tip.get(entry["tip"], [])),
+                "owner_map_evidence": owner["evidence"],
+                "result": "mechanically-eligible" if eligible else "blocked",
+            }
+        )
+    return {
+        "schema": "fathomdb-worktree-retirement-review/v1",
+        "entries": sorted(entries, key=lambda entry: entry["target"]),
+    }
+
+
 def recovery_candidates(repo: Repository, refs: Iterable[dict[str, Any]]) -> list[str]:
     """Return locally visible reflog/unreachable commit candidates conservatively."""
     reachable = {entry["tip"] for entry in refs}
@@ -400,6 +442,7 @@ def make_snapshot(repo: Repository, base_ref: str, owner_map_path: str | None) -
         "executable": executable,
         "worktrees": worktrees,
         "local_refs": output_refs,
+        "retirement_review": retirement_review(repo, refs, owners),
         "recovery_candidates": recovery_candidates(repo, refs),
     }
     body["snapshot_id"] = sha256(body)
@@ -497,7 +540,12 @@ def command_audit(args: argparse.Namespace) -> int:
 
 
 def candidate_manifest(
-    snapshot: dict[str, Any], policy: dict[str, Any], owner_hash: str, target: int, source: str
+    snapshot: dict[str, Any],
+    policy: dict[str, Any],
+    owner_hash: str,
+    owner_review_hash: str,
+    target: int,
+    source: str,
 ) -> dict[str, Any]:
     """Create a conservative immutable candidate from a complete snapshot."""
     required_tips = sorted(item["tip"] for item in snapshot["local_refs"])
@@ -555,6 +603,7 @@ def candidate_manifest(
         "baseline_requirement": {"max_age_seconds": policy["baseline_max_age_seconds"]},
         "policy_sha256": sha256(policy),
         "owner_map_sha256": owner_hash,
+        "owner_map_review_sha256": owner_review_hash,
         "goal": {"target_worktrees": target, "source": source},
         "preservation": {"bundle_name_algorithm": "wtc-bundle-v1", "include_all_local_refs": True, "required_tips": required_tips, "reflog_candidates": selected},
         "entries": entries,
@@ -580,6 +629,12 @@ def command_manifest(args: argparse.Namespace) -> int:
     owner_hash = sha256(owners_path.read_bytes())
     if snapshot.get("owner_map_sha256") != owner_hash:
         raise SafetyError("owner map does not match audit snapshot")
+    if not args.owner_map_review_attestation:
+        raise ReviewRequired("owner_map_review_required: provide --owner-map-review-attestation")
+    owner_review_path = regular_child(
+        args.owner_map_review_attestation, evidence, "owner-map review attestation"
+    )
+    owner_review_hash = verify_owner_map_review(owner_review_path, repo, owner_hash)
     policy_path = regular_child(args.policy, evidence, "policy")
     policy = policy_value(policy_path)
     if set(policy["reflog_candidates"]) != set(snapshot.get("recovery_candidates", [])):
@@ -605,14 +660,14 @@ def command_manifest(args: argparse.Namespace) -> int:
             raise SafetyError("manifest requires --target-worktrees or --infer-target")
         if target < lower or target < min_target or target > max_target:
             raise GoalBlocked("goal_inference_blocked: requested target violates policy lower bound")
-    manifest = candidate_manifest(snapshot, policy, owner_hash, target, source)
+    manifest = candidate_manifest(snapshot, policy, owner_hash, owner_review_hash, target, source)
     output(manifest, args, evidence)
     return 0
 
 
 def verify_manifest(manifest: dict[str, Any], repo: Repository) -> None:
     """Validate core immutable manifest fields before any dependent evidence."""
-    required = {"schema", "plan_sha256", "manifest_id", "snapshot_id", "repository", "baseline", "baseline_requirement", "policy_sha256", "owner_map_sha256", "goal", "preservation", "entries", "approval_requirement", "dryrun_requirement", "freeze_requirement"}
+    required = {"schema", "plan_sha256", "manifest_id", "snapshot_id", "repository", "baseline", "baseline_requirement", "policy_sha256", "owner_map_sha256", "owner_map_review_sha256", "goal", "preservation", "entries", "approval_requirement", "dryrun_requirement", "freeze_requirement"}
     if set(manifest) != required or manifest.get("schema") != SCHEMA or manifest.get("repository") != repo.identity:
         raise SafetyError("manifest schema or repository identity mismatch")
     payload = {key: value for key, value in manifest.items() if key not in {"manifest_id", "plan_sha256"}}
@@ -623,14 +678,40 @@ def verify_manifest(manifest: dict[str, Any], repo: Repository) -> None:
         raise SafetyError("manifest_id mismatch")
 
 
+def require_nonempty_string(value: object, field: str) -> None:
+    """Reject missing or blank accountable identities in an attestation."""
+    if not isinstance(value, str) or not value.strip():
+        raise SafetyError(f"{field} must be a non-empty string")
+
+
 def verify_approval(path: Path, manifest_hash: str, repo: Repository, maximum_age: int) -> str:
     """Validate a hash-bound independent approval attestation."""
     value = read_json(path, "approval attestation")
     if set(value) != {"schema", "repository", "manifest_sha256", "reviewer", "decision", "issued_at", "expires_at"}:
         raise SafetyError("approval attestation has unknown or missing fields")
     valid_attestation(value, schema=APPROVAL_SCHEMA, repo=repo, maximum_age=maximum_age, label="approval attestation")
+    require_nonempty_string(value.get("reviewer"), "approval attestation.reviewer")
     if value.get("manifest_sha256") != manifest_hash or value.get("decision") != "approved":
         raise SafetyError("approval attestation does not approve this manifest")
+    return sha256(path.read_bytes())
+
+
+def verify_owner_map_review(path: Path, repo: Repository, owner_map_hash: str) -> str:
+    """Validate independent review of the exact owner-map bytes."""
+    value = read_json(path, "owner-map review attestation")
+    required = {"schema", "repository", "owner_map_sha256", "reviewer", "decision", "issued_at", "expires_at"}
+    if set(value) != required:
+        raise SafetyError("owner-map review attestation has unknown or missing fields")
+    valid_attestation(
+        value,
+        schema=OWNER_MAP_REVIEW_SCHEMA,
+        repo=repo,
+        maximum_age=86400,
+        label="owner-map review attestation",
+    )
+    require_nonempty_string(value.get("reviewer"), "owner-map review attestation.reviewer")
+    if value.get("owner_map_sha256") != owner_map_hash or value.get("decision") != "approved":
+        raise SafetyError("owner-map review attestation does not approve this owner map")
     return sha256(path.read_bytes())
 
 
@@ -703,12 +784,20 @@ def command_dryrun(args: argparse.Namespace) -> int:
     approval_path = regular_child(args.approval_attestation, evidence, "approval attestation")
     baseline_path = regular_child(args.baseline_attestation, evidence, "baseline attestation")
     owner_path = regular_child(args.owner_map, evidence, "owner map")
+    if not args.owner_map_review_attestation:
+        raise ReviewRequired("owner_map_review_required: provide --owner-map-review-attestation")
+    owner_review_path = regular_child(
+        args.owner_map_review_attestation, evidence, "owner-map review attestation"
+    )
     manifest = read_json(manifest_path, "manifest")
     verify_manifest(manifest, repo)
     manifest_hash = sha256(manifest_path.read_bytes())
     approval_hash = verify_approval(approval_path, manifest_hash, repo, manifest["approval_requirement"]["max_age_seconds"])
     baseline_hash = validate_baseline_attestation(baseline_path, repo, manifest, manifest["baseline_requirement"]["max_age_seconds"])
     owner_hash, owners = check_manifest_owner_map(owner_path, repo, manifest)
+    owner_review_hash = verify_owner_map_review(owner_review_path, repo, owner_hash)
+    if owner_review_hash != manifest["owner_map_review_sha256"]:
+        raise SafetyError("owner-map review attestation hash mismatch")
     snapshot = current_snapshot_matches(repo, manifest, owner_path)
     archive = validate_private_directory(args.archive_dir, repo, "archive directory")
     bundle = archive / derived_bundle_name(manifest)
@@ -736,6 +825,7 @@ def command_dryrun(args: argparse.Namespace) -> int:
         "approval_attestation_sha256": approval_hash,
         "baseline_attestation_sha256": baseline_hash,
         "owner_map_sha256": owner_hash,
+        "owner_map_review_sha256": owner_review_hash,
         "snapshot_id": snapshot["snapshot_id"],
         "archive": directory_attributes(archive),
         "evidence": directory_attributes(evidence),
@@ -757,7 +847,7 @@ def verify_dryrun(path: Path, manifest_hash: str, repo: Repository, maximum_age:
     value = read_json(path, "dry-run receipt")
     required = {
         "schema", "repository", "manifest_sha256", "approval_attestation_sha256",
-        "baseline_attestation_sha256", "owner_map_sha256", "snapshot_id", "archive",
+        "baseline_attestation_sha256", "owner_map_sha256", "owner_map_review_sha256", "snapshot_id", "archive",
         "evidence", "bundle_path", "expected_actions", "predicted_post_state", "result",
         "issued_at", "expires_at",
     }
@@ -841,13 +931,7 @@ def verify_post_state(
     text = verification.stdout.lower() + verification.stderr.lower()
     if "requires" in text:
         raise SafetyError("preservation bundle gained prerequisites")
-    bundled = {
-        line.split()[0]
-        for line in git(repo.root, "bundle", "list-heads", str(bundle)).stdout.splitlines()
-        if line
-    }
-    if not set(covered) <= bundled:
-        raise SafetyError("preservation bundle lost covered tips")
+    verify_bundle_coverage(bundle, set(covered))
     removed_worktrees = {entry["target"] for entry in completed if entry["kind"] == "worktree"}
     removed_refs = {entry["target"] for entry in completed if entry["kind"] == "branch"}
     before_worktrees = {item["path"]: item for item in before["worktrees"]}
@@ -866,6 +950,26 @@ def verify_post_state(
     after_counts = unresolved_or_dirty_counts(after)
     if after_counts[0] > before_counts[0] or after_counts[1] > before_counts[1]:
         raise SafetyError("consolidation increased unresolved or dirty state")
+
+
+def verify_bundle_coverage(bundle: Path, required: set[str]) -> None:
+    """Prove every required commit can be recovered from a standalone bundle."""
+    probe = Path(tempfile.mkdtemp(prefix=".wtc-coverage-", dir=bundle.parent))
+    try:
+        git(probe, "init", "--bare", "--quiet")
+        git(probe, "bundle", "unbundle", str(bundle))
+        missing = [
+            tip
+            for tip in sorted(required)
+            if git(probe, "cat-file", "-e", f"{tip}^{{commit}}", check=False).returncode != 0
+        ]
+        if missing:
+            raise SafetyError("bundle does not cover every required tip")
+    finally:
+        try:
+            shutil.rmtree(probe)
+        except OSError as exc:
+            raise SafetyError("bundle coverage probe cleanup failed") from exc
 
 
 def publish_bundle(
@@ -891,11 +995,8 @@ def publish_bundle(
         verification = git(repo.root, "bundle", "verify", str(temp))
         if "requires" in verification.stdout.lower() or "requires" in verification.stderr.lower():
             raise SafetyError("bundle has prerequisites")
-        heads = git(repo.root, "bundle", "list-heads", str(temp)).stdout
-        present = {line.split()[0] for line in heads.splitlines() if line}
         required = set(manifest["preservation"]["required_tips"]) | set(manifest["preservation"]["reflog_candidates"])
-        if not required <= present:
-            raise SafetyError("bundle does not cover every required tip")
+        verify_bundle_coverage(temp, required)
         digest = hashlib.sha256(temp.read_bytes()).hexdigest()
         try:
             os.link(temp, final)
@@ -937,6 +1038,11 @@ def command_consolidate(args: argparse.Namespace) -> int:
     evidence = validate_private_directory(args.evidence_dir, repo, "evidence directory")
     manifest_path = regular_child(args.manifest, evidence, "manifest")
     owner_path = regular_child(args.owner_map, evidence, "owner map")
+    if not args.owner_map_review_attestation:
+        raise ReviewRequired("owner_map_review_required: provide --owner-map-review-attestation")
+    owner_review_path = regular_child(
+        args.owner_map_review_attestation, evidence, "owner-map review attestation"
+    )
     approval_path = regular_child(args.approval_attestation, evidence, "approval attestation")
     baseline_path = regular_child(args.baseline_attestation, evidence, "baseline attestation")
     dryrun_path = regular_child(args.dryrun_receipt, evidence, "dry-run receipt")
@@ -949,10 +1055,13 @@ def command_consolidate(args: argparse.Namespace) -> int:
     approval_hash = verify_approval(approval_path, manifest_hash, repo, manifest["approval_requirement"]["max_age_seconds"])
     baseline_hash = validate_baseline_attestation(baseline_path, repo, manifest, manifest["baseline_requirement"]["max_age_seconds"])
     owner_hash, owners = check_manifest_owner_map(owner_path, repo, manifest)
+    owner_review_hash = verify_owner_map_review(owner_review_path, repo, owner_hash)
+    if owner_review_hash != manifest["owner_map_review_sha256"]:
+        raise SafetyError("owner-map review attestation hash mismatch")
     dryrun = verify_dryrun(dryrun_path, manifest_hash, repo, manifest["dryrun_requirement"]["max_age_seconds"])
     dryrun_hash = sha256(dryrun_path.read_bytes())
     verify_freeze(freeze_path, manifest_hash, dryrun_hash, repo, manifest["freeze_requirement"])
-    if dryrun.get("approval_attestation_sha256") != approval_hash or dryrun.get("baseline_attestation_sha256") != baseline_hash or dryrun.get("owner_map_sha256") != owner_hash:
+    if dryrun.get("approval_attestation_sha256") != approval_hash or dryrun.get("baseline_attestation_sha256") != baseline_hash or dryrun.get("owner_map_sha256") != owner_hash or dryrun.get("owner_map_review_sha256") != owner_review_hash:
         raise SafetyError("dry-run evidence chain mismatch")
     archive = validate_private_directory(args.archive_dir, repo, "archive directory")
     with consolidation_lock(repo):
@@ -1073,6 +1182,7 @@ def parser() -> argparse.ArgumentParser:
     common(manifest, owner=True)
     manifest.add_argument("--audit", required=True)
     manifest.add_argument("--policy", required=True)
+    manifest.add_argument("--owner-map-review-attestation")
     manifest.add_argument("--baseline-attestation", required=True)
     manifest.add_argument("--evidence-dir", required=True)
     group = manifest.add_mutually_exclusive_group(required=True)
@@ -1085,6 +1195,7 @@ def parser() -> argparse.ArgumentParser:
     common(dryrun, owner=True)
     dryrun.add_argument("--manifest", required=True)
     dryrun.add_argument("--approval-attestation", required=True)
+    dryrun.add_argument("--owner-map-review-attestation")
     dryrun.add_argument("--baseline-attestation", required=True)
     dryrun.add_argument("--archive-dir", required=True)
     dryrun.add_argument("--evidence-dir", required=True)
@@ -1094,6 +1205,7 @@ def parser() -> argparse.ArgumentParser:
     common(consolidate, owner=True)
     consolidate.add_argument("--manifest", required=True)
     consolidate.add_argument("--approval-attestation", required=True)
+    consolidate.add_argument("--owner-map-review-attestation")
     consolidate.add_argument("--baseline-attestation", required=True)
     consolidate.add_argument("--dryrun-receipt", required=True)
     consolidate.add_argument("--freeze-attestation", required=True)
@@ -1110,6 +1222,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
         return args.handler(args)
+    except ReviewRequired as exc:
+        print(json.dumps({"result": "owner_map_review_required", "error": str(exc)}, separators=(",", ":")))
+        return 3
     except GoalBlocked as exc:
         print(json.dumps({"result": "goal_inference_blocked", "error": str(exc)}, separators=(",", ":")))
         return 3

@@ -14,7 +14,7 @@ authority.
 The tool follows this pipeline:
 
 ```text
-audit → manifest → independent approval → dryrun → freeze → consolidate
+audit → owner-map review → manifest → independent approval → dryrun → freeze → consolidate
 ```
 
 Each stage produces evidence for the next one. `manifest` is the planning step;
@@ -45,9 +45,59 @@ An audit classifies each worktree and local head as one of:
 | `unresolved` | Missing ownership evidence, detached/locked state, or unproven ancestry; stop and resolve it. |
 
 The tool fails closed. A stale baseline, changed worktree, occupied evidence
-path, expired approval, missing owner-map entry, or extra recovery candidate
+path, expired approval, missing owner-map review, missing owner-map entry, or extra recovery candidate
 stops the current run. A `git cherry` result is advisory only; it is never a
 retirement proof.
+
+## Optional semantic triage in Codex
+
+When many worktrees remain, use `scripts/worktree-semantic-triage.py` before
+creating the owner map. It collects metadata only, packages bounded tasks for
+Codex, and validates structured model suggestions into a **review-only** owner
+map draft. It does not call a model, read an API key, inspect source-file or
+untracked-file contents, create an attestation, or run Git cleanup.
+
+```bash
+scripts/worktree-semantic-triage.py collect \
+  --repo /repo/main --baseline origin/main \
+  > /secure/fathomdb-wtc/evidence/semantic-casebook.json
+
+install -d -m 700 /secure/fathomdb-wtc/semantic-packets
+scripts/worktree-semantic-triage.py packets \
+  --runner codex \
+  --casebook /secure/fathomdb-wtc/evidence/semantic-casebook.json \
+  --output-dir /secure/fathomdb-wtc/semantic-packets --batch-size 8
+```
+
+Give each packet to Codex using the internal
+`dev/design/worktree-semantic-triage-codex-prompt.md` prompt. Codex returns
+one canonical scoped response per packet. Store those responses in a separate
+owner-private empty directory, then merge them mechanically before validation:
+
+```bash
+install -d -m 700 /secure/fathomdb-wtc/semantic-responses
+
+scripts/worktree-semantic-triage.py merge-decisions \
+  --casebook /secure/fathomdb-wtc/evidence/semantic-casebook.json \
+  --packets-dir /secure/fathomdb-wtc/semantic-packets \
+  --input-dir /secure/fathomdb-wtc/semantic-responses \
+  --output /secure/fathomdb-wtc/evidence/semantic-decisions.json
+```
+
+Validate the merged document before an operator reviews it:
+
+```bash
+scripts/worktree-semantic-triage.py validate \
+  --casebook /secure/fathomdb-wtc/evidence/semantic-casebook.json \
+  --decisions /secure/fathomdb-wtc/evidence/semantic-decisions.json \
+  --owner-map-output /secure/fathomdb-wtc/evidence/owner-map-draft.json \
+  --report-output /secure/fathomdb-wtc/evidence/semantic-report.json
+```
+
+The report is intentionally labeled `review_required`. Review the proposed
+owners/dispositions and create a normal owner-map review attestation for the
+accepted map; only then begin this guide's `audit → manifest → dryrun →
+consolidate` pipeline. A model's suggestion is never deletion authority.
 
 ## Before starting
 
@@ -100,7 +150,40 @@ scripts/worktree-consolidator.py audit \
 so redirecting it is the operator's explicit decision. Review every class,
 cleanliness count, local head, and `recovery_candidates` entry before planning.
 
-## 2. Attest the baseline and write the policy
+When the owner map marks a local head `none`/`none`, the snapshot's
+`retirement_review.entries` gives a compact proof table in JSON. It checks the
+three automatable facts: the head is not `main`, no worktree checks it out, and
+its tip is reachable from the audited baseline. It also reports same-tip remote
+refs and copies the owner-map evidence text. Filter it for a concise terminal
+review:
+
+```bash
+scripts/worktree-consolidator.py audit \
+  --repo /repo/main --baseline origin/main \
+  --owner-map /secure/fathomdb-wtc/evidence/owner-map.json --json \
+  | jq -r '.retirement_review.entries[] |
+      [.target, .ancestor_of_baseline, .checked_out_by_worktree, .is_main,
+       (.matching_remote_refs | join(",")), .result, .owner_map_evidence] | @tsv'
+```
+
+`mechanically-eligible` means Git proves those predicates; it does not decide
+that the branch's business purpose is obsolete. Review that final policy
+judgment, then approve the owner map.
+
+## 2. Review the owner map, then attest the baseline and write the policy
+
+Before a manifest can be generated, an independent reviewer must attest the
+exact canonical bytes of `owner-map.json`. This is deliberately before manifest
+generation: an LLM or human may help classify the audit, but its proposed owner
+map is not authority until a reviewer records this approval.
+
+```json
+{"decision":"approved","expires_at":"2026-08-14T18:00:00Z","issued_at":"2026-08-13T18:00:00Z","owner_map_sha256":"<sha256sum-owner-map.json>","repository":{"git_common_dir":"/repo/main/.git","primary_root":"/repo/main"},"reviewer":"reviewer-id","schema":"fathomdb-worktree-owner-map-review-attestation/v1"}
+```
+
+Save it as `/secure/fathomdb-wtc/evidence/owner-map-review.json`. If it is
+absent, `manifest` and `dryrun` return exit code `3` with
+`{"result":"owner_map_review_required",...}` and perform no cleanup.
 
 The baseline attestation binds the audit's exact `baseline` object. Substitute
 the `repository` and `baseline` objects copied from `audit.json`; timestamps
@@ -134,6 +217,7 @@ scripts/worktree-consolidator.py manifest \
   --repo /repo/main \
   --audit /secure/fathomdb-wtc/evidence/audit.json \
   --owner-map /secure/fathomdb-wtc/evidence/owner-map.json \
+  --owner-map-review-attestation /secure/fathomdb-wtc/evidence/owner-map-review.json \
   --policy /secure/fathomdb-wtc/evidence/policy.json \
   --baseline-attestation /secure/fathomdb-wtc/evidence/baseline.json \
   --evidence-dir /secure/fathomdb-wtc/evidence \
@@ -165,6 +249,7 @@ scripts/worktree-consolidator.py dryrun \
   --repo /repo/main \
   --manifest /secure/fathomdb-wtc/evidence/manifest.json \
   --owner-map /secure/fathomdb-wtc/evidence/owner-map.json \
+  --owner-map-review-attestation /secure/fathomdb-wtc/evidence/owner-map-review.json \
   --approval-attestation /secure/fathomdb-wtc/evidence/approval.json \
   --baseline-attestation /secure/fathomdb-wtc/evidence/baseline.json \
   --archive-dir /secure/fathomdb-wtc/archive \
@@ -193,6 +278,7 @@ scripts/worktree-consolidator.py consolidate \
   --repo /repo/main \
   --manifest /secure/fathomdb-wtc/evidence/manifest.json \
   --owner-map /secure/fathomdb-wtc/evidence/owner-map.json \
+  --owner-map-review-attestation /secure/fathomdb-wtc/evidence/owner-map-review.json \
   --approval-attestation /secure/fathomdb-wtc/evidence/approval.json \
   --baseline-attestation /secure/fathomdb-wtc/evidence/baseline.json \
   --dryrun-receipt /secure/fathomdb-wtc/evidence/dryrun-<hash>.json \
@@ -216,7 +302,7 @@ the post-snapshot and bundle linkage.
 | --- | --- | --- |
 | `0` | Requested mode succeeded. | Retain evidence and verify the resulting audit. |
 | `1` | Safety precondition failed. No requested cleanup should have started. | Inspect the error, resolve drift/evidence, and restart at the appropriate earlier stage. |
-| `3` | `goal_inference_blocked`. | Reduce the target ambition or resolve/protect the uncertain work; do not force a deletion. |
+| `3` | `goal_inference_blocked` or `owner_map_review_required`. | Reduce the target ambition, or have an independent reviewer approve the exact owner map; do not force a deletion. |
 | `4` | Partial batch after preservation. | Stop writers, inspect preservation/progress/partial receipts and the bundle, then decide recovery or a newly audited manifest. |
 
 The archive bundle is a recovery artifact. Verify it with:

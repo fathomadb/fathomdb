@@ -71,9 +71,8 @@ FathomDB-vs-Mem0 LOCOMO run (FTS-only default config only) motivated a
 FathomDB-self-characterization phase ahead of any further competitive run.
 See
 [the 2026-08-14 LOCOMO FathomDB capability campaign plan](2026-08-14-locomo-fathomdb-capability-campaign-plan.md) —
-it sequences a knob/config sweep against FathomDB's own baseline (feeding
-[`../design/retrieval-measures-initiative.md`](../design/retrieval-measures-initiative.md))
-before any Mem0 comparison is re-run.
+it sequences a knob/config sweep against FathomDB's own baseline before any
+Mem0 comparison is re-run.
 
 ## Additional on-disk gold worth reusing
 

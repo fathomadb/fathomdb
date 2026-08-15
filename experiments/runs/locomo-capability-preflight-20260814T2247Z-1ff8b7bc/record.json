@@ -66,11 +66,11 @@
   "files_changed": [],
   "artifacts": [
     {
-      "path": "/home/coreyt/.local/share/fathomdb-experiments/locomo-capability-20260814/provenance/locomo-turn-provenance.v1.json",
+      "path": "locomo-turn-provenance.v1",
       "sha256": "43453c5d1b865dd1721bd0892f1af7f965e2c8484fea999eefa5cddf9da78f66"
     },
     {
-      "path": "/home/coreyt/.local/share/fathomdb-experiments/locomo-capability-20260814/provenance/locomo-session-provenance.v1.json",
+      "path": "locomo-session-provenance.v1",
       "sha256": "46e928b1d4afa865e59689682101a56a024dea46348154ba37e60da97e66c6e4"
     }
   ],

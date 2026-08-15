@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from experiments import fathomdb_locomo
+from experiments import _lib, fathomdb_locomo
 
 
 TS = datetime(2026, 8, 13, 12, 30, tzinfo=timezone.utc)
@@ -102,3 +102,27 @@ def test_fathomdb_arm_receipt_has_a_typed_safe_result_sidecar(tmp_path):
     assert str(raw) not in serialized
     assert str(config["harness"]["checkout"]) not in serialized
     assert record["artifacts"][1]["path"] == "external-artifacts.manifest.v1"
+
+
+def test_run_allocates_raw_output_under_its_public_receipt_id(tmp_path, monkeypatch):
+    class _FrozenDateTime:
+        @classmethod
+        def now(cls, _tz):
+            return TS
+
+    config = _config(tmp_path)
+    monkeypatch.setattr(fathomdb_locomo, "datetime", _FrozenDateTime)
+
+    run_id, _run_dir, returncode = fathomdb_locomo.run(
+        config, base_dir=tmp_path / "experiments"
+    )
+
+    assert returncode == 2
+    assert (Path(config["output"]["external_root"]) / run_id).is_dir()
+
+
+def test_committed_receipts_use_only_logical_artifact_names():
+    for receipt_path in sorted((_lib.EXPERIMENTS_DIR / "runs").glob("*/record.json")):
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        for artifact in receipt["artifacts"]:
+            assert not Path(artifact["path"]).is_absolute(), receipt_path

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from experiments import scorecard
+from experiments import _lib, scorecard
 
 
 def _record(*, run_id: str, metrics: dict) -> dict:
@@ -85,3 +85,20 @@ def test_scorecard_rejects_unknown_or_non_numeric_metric_fields(tmp_path):
 
     with pytest.raises(ValueError, match="finite number"):
         scorecard.scorecard_rows(tmp_path / "runs")
+
+
+def test_committed_a0_receipt_renders_a_capability_scorecard_row():
+    rows = scorecard.scorecard_rows(_lib.EXPERIMENTS_DIR / "runs")
+
+    assert {
+        "run_id": "locomo-capability-a0-baseline-20260814T2311Z-d4a71071",
+        "verdict": "complete",
+        "configuration": "a0-turn-fts-top-10",
+        "m1_r_at_10": 0.6673177083333334,
+        "m2_mrr": 0.44627097800925924,
+        "m2_r_at_1": 0.34375,
+        "m2_ndcg_at_10": 0.4653289731424966,
+        "m4_proxy_temporal_evidence_recall": 0.7414330218068536,
+        "m6_query_p95_ms": 64.93023299935885,
+        "m7_ready_to_search_ms": 2.3506400002588634,
+    } in rows

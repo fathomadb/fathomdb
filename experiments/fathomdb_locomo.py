@@ -115,6 +115,10 @@ def receipt_config(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _receipt_run_id(config: dict[str, Any], *, ts: datetime) -> str:
+    return _lib.make_run_id(EXPERIMENT, ts, _lib.config_sha256(receipt_config(config)))
+
+
 def predict_only_harness_env() -> dict[str, str]:
     """Supply the inert constructor credential the upstream runner requires."""
     environment = dict(os.environ)
@@ -127,7 +131,7 @@ def write_receipt(config: dict[str, Any], *, ts: datetime, base_dir: str | Path,
     """Write the generic envelope and a content-free FathomDB arm result."""
     resolved = resolve_config(config)
     public_config = receipt_config(resolved)
-    run_id = _lib.make_run_id(EXPERIMENT, ts, _lib.config_sha256(public_config))
+    run_id = _receipt_run_id(resolved, ts=ts)
     run_dir = Path(base_dir) / "runs" / run_id
     if raw_dir.resolve().is_relative_to((Path(base_dir) / "runs").resolve()):
         raise ValueError("raw output must remain outside experiments/runs")
@@ -191,7 +195,7 @@ def run(config: dict[str, Any], *, base_dir: str | Path) -> tuple[str, Path, int
     """Start a fresh façade process, run the official harness, then close a receipt."""
     resolved = resolve_config(config)
     ts = datetime.now(timezone.utc).replace(second=0, microsecond=0)
-    run_id = _lib.make_run_id(EXPERIMENT, ts, _lib.config_sha256(resolved))
+    run_id = _receipt_run_id(resolved, ts=ts)
     raw_dir = Path(resolved["output"]["external_root"]) / run_id
     if raw_dir.resolve().is_relative_to((Path(base_dir) / "runs").resolve()):
         raise ValueError("output.external_root must remain outside experiments/runs")

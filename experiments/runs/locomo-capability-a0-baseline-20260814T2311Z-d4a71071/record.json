@@ -69,7 +69,17 @@
       "sanity_pass": true
     },
     "m4": "unmeasured",
-    "m4_proxy": "temporal_evidence_recall"
+    "m4_proxy": "temporal_evidence_recall",
+    "capability_scorecard": {
+      "configuration": "a0-turn-fts-top-10",
+      "m1_r_at_10": 0.6673177083333334,
+      "m2_mrr": 0.44627097800925924,
+      "m2_r_at_1": 0.34375,
+      "m2_ndcg_at_10": 0.4653289731424966,
+      "m4_proxy_temporal_evidence_recall": 0.7414330218068536,
+      "m6_query_p95_ms": 64.93023299935885,
+      "m7_ready_to_search_ms": 2.3506400002588634
+    }
   },
   "cost_usd": 0.0,
   "tdd_evidence": {},

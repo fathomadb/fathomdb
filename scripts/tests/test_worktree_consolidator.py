@@ -2029,6 +2029,7 @@ def test_ac_wtc_s02_status_reports_completed_only_for_complete_success_chain(
         "schema": "fathomdb-worktree-execution-status/v1",
         "state": "completed",
         "phase": "complete",
+        "liveness": "unknown",
         "completed_actions": 1,
         "total_actions": 1,
         "operator_action": "preserve evidence; no further action is required",
@@ -2057,7 +2058,7 @@ def test_ac_wtc_s03_fallback_partial_dominates_a_coexisting_success_receipt(
             "bundle_sha256": preservation["bundle_sha256"],
             "covered_tips": preservation["covered_tips"],
             "completed_actions": manifest["entries"],
-            "post_snapshot_id": None,
+            "post_snapshot_id": "b" * 64,
             "result": "partial",
             "issued_at": "2026-08-15T00:03:00Z",
             "failure": "do not expose this diagnostic",
@@ -2071,6 +2072,30 @@ def test_ac_wtc_s03_fallback_partial_dominates_a_coexisting_success_receipt(
     assert observed["state"] == "recovery_required"
     assert observed["phase"] == "partial"
     assert "diagnostic" not in result.stdout
+
+
+@pytest.mark.parametrize("mode", ["deterministic-partial", "missing-final"])
+def test_ac_wtc_s03_status_requires_recovery_for_incomplete_execution(
+    fixture_repo: Path, evidence_dir: Path, mode: str
+):
+    """Neither an honest partial nor a crash before finalization is completion."""
+    manifest_path, _, _, _, final_path = status_fixture(
+        fixture_repo,
+        evidence_dir,
+        result="partial" if mode == "deterministic-partial" else "success",
+        progress=mode != "deterministic-partial",
+    )
+    if mode == "missing-final":
+        final_path.unlink()
+
+    result = run_status(fixture_repo, manifest_path, evidence_dir)
+
+    assert result.returncode == 0, result.stderr
+    observed = json.loads(result.stdout)
+    assert observed["state"] == "recovery_required"
+    assert observed["operator_action"] == (
+        "preserve evidence; investigate; do not clear lock or resume this manifest"
+    )
 
 
 def test_ac_wtc_s03_status_rejects_malformed_final_even_while_locked(
@@ -2089,6 +2114,38 @@ def test_ac_wtc_s03_status_rejects_malformed_final_even_while_locked(
 
     assert result.returncode == 1
     assert manifest_hash[:16] in final_path.name
+
+
+def test_ac_wtc_s04_status_rejects_fifo_receipt_without_opening_it(
+    fixture_repo: Path, evidence_dir: Path
+):
+    """A FIFO cannot make the observer block while inspecting its namespace."""
+    manifest_path, _, manifest_hash, _, _ = status_fixture(fixture_repo, evidence_dir)
+    fifo = evidence_dir / f"progress-{manifest_hash[:16]}-0001.json"
+    fifo.unlink()
+    os.mkfifo(fifo)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(TOOL),
+            "status",
+            "--repo",
+            str(fixture_repo),
+            "--manifest",
+            str(manifest_path),
+            "--evidence-dir",
+            str(evidence_dir),
+            "--json",
+        ],
+        cwd=fixture_repo,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=2,
+    )
+
+    assert result.returncode == 1
 
 
 @pytest.mark.parametrize("fault", ["foreign-manifest", "unexpected-progress"])

@@ -313,9 +313,15 @@ def write_partial_fallback(evidence: Path, receipt: dict[str, Any], failure: Exc
 def status_regular_json(path: Path, label: str) -> tuple[dict[str, Any], str] | None:
     """Read and hash one optional receipt without following a filesystem link."""
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+        mode = os.lstat(path).st_mode
     except FileNotFoundError:
         return None
+    except OSError as exc:
+        raise SafetyError(f"cannot safely observe {label}") from exc
+    if not stat.S_ISREG(mode):
+        raise SafetyError(f"{label} must be a regular non-symlink file")
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
     except OSError as exc:
         raise SafetyError(f"cannot safely open {label}") from exc
     try:
@@ -500,8 +506,10 @@ def validate_status_final(
         ):
             raise SafetyError("success receipt is incomplete")
         status_hex(post_snapshot, "execution receipt post_snapshot_id")
-    elif post_snapshot is not None or len(completed) not in {progress_count, progress_count + 1}:
+    elif len(completed) not in {progress_count, progress_count + 1}:
         raise SafetyError("partial receipt action prefix is invalid")
+    elif post_snapshot is not None:
+        status_hex(post_snapshot, "partial receipt post_snapshot_id")
     if fallback and not isinstance(value.get("failure"), str):
         raise SafetyError("fallback partial receipt failure is invalid")
     parse_time(value.get("issued_at"), "execution receipt issued_at")
@@ -639,6 +647,7 @@ def command_status(args: argparse.Namespace) -> int:
             "schema": STATUS_SCHEMA,
             "state": state,
             "phase": phase,
+            "liveness": "unknown",
             "completed_actions": completed,
             "total_actions": total,
             "operator_action": action,

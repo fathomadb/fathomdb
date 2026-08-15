@@ -518,7 +518,7 @@ def validate_status_final(
 
 def status_receipts(
     evidence: Path, repo: Repository, manifest: dict[str, Any], manifest_hash: str
-) -> tuple[int, int, bool, bool]:
+) -> tuple[int, int, bool, bool, bool]:
     """Validate one exact evidence namespace and return its terminal facts."""
     entries, covered_tips = status_manifest_inputs(manifest)
     prefix = manifest_hash[:16]
@@ -530,11 +530,11 @@ def status_receipts(
     progress_paths: dict[int, Path] = {}
     for path in evidence.iterdir():
         name = path.name
-        if name.startswith(f"partial-{prefix}-"):
+        if name.startswith(f"partial-{prefix}"):
             if fallback_pattern.fullmatch(name) is None:
                 raise SafetyError("fallback partial receipt name is invalid")
             fallback_paths.append(path)
-        elif name.startswith(f"progress-{prefix}-"):
+        elif name.startswith(f"progress-{prefix}"):
             matched = progress_pattern.fullmatch(name)
             if matched is None:
                 raise SafetyError("progress receipt name is invalid")
@@ -555,6 +555,7 @@ def status_receipts(
     progress_count = 0
     if progress_paths and preservation is None:
         raise SafetyError("progress receipts require preservation evidence")
+    fallback_value: dict[str, Any] | None = None
     if preservation is not None:
         validate_status_preservation(preservation, repo, manifest_hash, covered_tips)
         assert preservation_record is not None
@@ -597,10 +598,25 @@ def status_receipts(
                 progress_count,
                 fallback=True,
             )
+            fallback_value = fallback
     elif final is not None or fallback_paths:
         raise SafetyError("terminal receipt requires preservation evidence")
     final_success = final is not None and final.get("result") == "success"
-    return progress_count, len(entries), preservation is not None, bool(fallback_paths) or not final_success
+    terminal_present = final is not None or fallback_value is not None
+    terminal_actions = (
+        len(fallback_value["completed_actions"])
+        if fallback_value is not None
+        else len(final["completed_actions"])
+        if final is not None
+        else progress_count
+    )
+    return (
+        terminal_actions,
+        len(entries),
+        preservation is not None,
+        fallback_value is not None or not final_success,
+        terminal_present,
+    )
 
 
 def status_lock_present(repo: Repository) -> bool:
@@ -622,13 +638,13 @@ def command_status(args: argparse.Namespace) -> int:
     manifest = read_json(manifest_path, "manifest")
     verify_manifest(manifest, repo)
     manifest_hash = sha256(manifest_path.read_bytes())
-    completed, total, has_preservation, terminal_incomplete = status_receipts(
+    completed, total, has_preservation, terminal_incomplete, terminal_present = status_receipts(
         evidence, repo, manifest, manifest_hash
     )
     lock_present = status_lock_present(repo)
     if lock_present:
         state = "executing"
-        phase = "finalizing" if has_preservation and not terminal_incomplete else "running"
+        phase = "finalizing" if terminal_present else "running"
         action = "monitor durable receipts; do not clear lock or start another consolidation"
     elif not has_preservation:
         state = "not_started"

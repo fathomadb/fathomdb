@@ -1001,8 +1001,13 @@ def test_ac_wtc_008_partial_receipt_fallback_retries_a_colliding_name(
     assert receipt["failure"] == "simulated final receipt failure"
 
 
+@pytest.mark.parametrize("failure_mode", ["before-publish", "after-publish"])
 def test_ac_wtc_008_post_action_final_receipt_failure_writes_partial_evidence(
-    fixture_repo: Path, evidence_dir: Path, monkeypatch: pytest.MonkeyPatch
+    fixture_repo: Path,
+    evidence_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    failure_mode: str,
 ):
     """AC-WTC-008: an I/O failure after retirement yields a linked partial receipt."""
     manifest_path, manifest, owner_path, baseline_path = generate_manifest(fixture_repo, evidence_dir, target=1)
@@ -1056,6 +1061,8 @@ def test_ac_wtc_008_post_action_final_receipt_failure_writes_partial_evidence(
 
     def fail_final(path: Path, value: dict[str, Any]) -> None:
         if path == final_path:
+            if failure_mode == "after-publish":
+                original(path, value)
             raise OSError("simulated final receipt disk failure")
         original(path, value)
 
@@ -1080,6 +1087,13 @@ def test_ac_wtc_008_post_action_final_receipt_failure_writes_partial_evidence(
     partial = json.loads(partial_paths[0].read_text(encoding="utf-8"))
     assert partial["preservation_receipt_sha256"] == hashlib.sha256(preservation.read_bytes()).hexdigest()
     assert len(partial["completed_actions"]) == 1
+    status = SimpleNamespace(
+        repo=str(fixture_repo), manifest=str(manifest_path), evidence_dir=str(evidence_dir)
+    )
+    assert module.command_status(status) == 0
+    observed = json.loads(capsys.readouterr().out)
+    assert observed["state"] == "recovery_required"
+    assert observed["completed_actions"] == 1
 
 
 def test_ac_wtc_002_clean_unmerged_worktree_is_not_retirement_candidate(
@@ -2071,6 +2085,7 @@ def test_ac_wtc_s03_fallback_partial_dominates_a_coexisting_success_receipt(
     observed = json.loads(result.stdout)
     assert observed["state"] == "recovery_required"
     assert observed["phase"] == "partial"
+    assert observed["completed_actions"] == 1
     assert "diagnostic" not in result.stdout
 
 
@@ -2096,6 +2111,47 @@ def test_ac_wtc_s03_status_requires_recovery_for_incomplete_execution(
     assert observed["operator_action"] == (
         "preserve evidence; investigate; do not clear lock or resume this manifest"
     )
+    assert observed["completed_actions"] == 1
+
+
+@pytest.mark.parametrize("terminal", ["partial", "fallback"])
+def test_ac_wtc_s02_lock_with_any_valid_terminal_receipt_is_finalizing(
+    fixture_repo: Path, evidence_dir: Path, terminal: str
+):
+    """A writer with a terminal receipt may only be finalizing, never stale."""
+    manifest_path, manifest, manifest_hash, preservation_path, final_path = status_fixture(
+        fixture_repo, evidence_dir, result="partial" if terminal == "partial" else "success"
+    )
+    if terminal == "fallback":
+        preservation = json.loads(preservation_path.read_text(encoding="utf-8"))
+        write_json(
+            evidence_dir / f"partial-{manifest_hash[:16]}-0123456789abcdef.json",
+            {
+                "schema": "fathomdb-worktree-execution-receipt/v1",
+                "repository": manifest["repository"],
+                "manifest_sha256": manifest_hash,
+                "preservation_receipt_sha256": hashlib.sha256(
+                    preservation_path.read_bytes()
+                ).hexdigest(),
+                "bundle_path": preservation["bundle_path"],
+                "bundle_sha256": preservation["bundle_sha256"],
+                "covered_tips": preservation["covered_tips"],
+                "completed_actions": manifest["entries"],
+                "post_snapshot_id": "b" * 64,
+                "result": "partial",
+                "issued_at": "2026-08-15T00:03:00Z",
+                "failure": "opaque",
+            },
+        )
+    assert final_path.is_file()
+    common_raw = Path(git(fixture_repo, "rev-parse", "--git-common-dir").strip())
+    common = common_raw if common_raw.is_absolute() else (fixture_repo / common_raw).resolve()
+    (common / "worktree-consolidator.lock").write_text("opaque\n", encoding="utf-8")
+
+    result = run_status(fixture_repo, manifest_path, evidence_dir)
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["phase"] == "finalizing"
 
 
 def test_ac_wtc_s03_status_rejects_malformed_final_even_while_locked(
@@ -2181,6 +2237,19 @@ def test_ac_wtc_s04_status_rejects_malformed_exact_namespace_evidence(
 
     assert result.returncode == 1
     assert repo_fingerprint(fixture_repo) == before
+
+
+@pytest.mark.parametrize("name", ["partial-{prefix}.json", "progress-{prefix}.json", "partial-{prefix}-bad.json"])
+def test_ac_wtc_s04_status_rejects_every_exact_prefix_name(
+    fixture_repo: Path, evidence_dir: Path, name: str
+):
+    """Prefix-scoped evidence cannot hide behind a nearly valid filename."""
+    manifest_path, _, manifest_hash, _, _ = status_fixture(fixture_repo, evidence_dir)
+    write_json(evidence_dir / name.format(prefix=manifest_hash[:16]), {"ignored": True})
+
+    result = run_status(fixture_repo, manifest_path, evidence_dir)
+
+    assert result.returncode == 1
 
 
 def test_ac_wtc_s04_status_reports_not_started_without_execution_evidence(

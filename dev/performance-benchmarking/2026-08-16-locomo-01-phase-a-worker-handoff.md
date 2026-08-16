@@ -88,3 +88,24 @@ contract, with particular attention to: (1) historical hashes and A0 pins;
 (2) whether every treatment/runtime semantic cell is distinct and stable under
 axis ordering; (3) the plan-only refusal boundary; and (4) that no future caller
 could interpret this catalog as live-execution authorization.
+
+## Independent-review remediation
+
+An independent review found that the first resolver checked treatment IDs and
+the neighbor-expansion flag, but did not freeze the remaining semantics for
+each named treatment. This is integration-blocking because a fixed ID could
+silently acquire a different retrieval mode, cross-encoder setting, or candidate
+breadth.
+
+Red remediation checkpoint: `6b36f1f5`
+(`test(perf): pin locomo treatment semantics`). Its six human-intended,
+parameterized cases mutated every semantic field—retrieval mode, cross-encoder
+alpha, candidate pool, candidate depth, and neighbor expansion—for every named
+treatment ID. Before the fix, all six cases found an accepted mutation.
+
+The remediation adds exact, value-and-type checked semantic mappings for all
+six IDs. Any change now raises a treatment-specific frozen-tuple error. The
+same focused no-live suite now has 24 passing tests, and catalog validation,
+48-cell preview, Ruff, Markdown lint, `git diff --check`, and Track Runner check
+all pass. The full-gate native-extension boundary above is unchanged and was not
+re-run.

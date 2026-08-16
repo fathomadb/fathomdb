@@ -22,10 +22,33 @@ _M1 = {"metric", "paired_confidence_rule", "bootstrap", "margin", "sanity_range"
 _GRID = {"ingest_units", "treatments", "runtime_cells"}
 _RUNTIME = {"device", "cache_state"}
 _TREATMENT = {"id", "retrieval", "cross_encoder", "candidate_pool", "candidate_depth", "bounded_neighbor_expansion"}
-_TREATMENT_IDS = {
-    "fts_only", "hybrid", "hybrid_ce_alpha_03_pool_10", "hybrid_ce_alpha_10_pool_10",
-    "hybrid_ce_alpha_10_pool_20", "fts_bounded_neighbor",
+_TREATMENT_SEMANTICS = {
+    "fts_only": {
+        "retrieval": "fts", "cross_encoder": None, "candidate_pool": None, "candidate_depth": None,
+        "bounded_neighbor_expansion": False,
+    },
+    "hybrid": {
+        "retrieval": "hybrid", "cross_encoder": None, "candidate_pool": None, "candidate_depth": None,
+        "bounded_neighbor_expansion": False,
+    },
+    "hybrid_ce_alpha_03_pool_10": {
+        "retrieval": "hybrid", "cross_encoder": "alpha_0.3", "candidate_pool": 10, "candidate_depth": 10,
+        "bounded_neighbor_expansion": False,
+    },
+    "hybrid_ce_alpha_10_pool_10": {
+        "retrieval": "hybrid", "cross_encoder": "alpha_1.0", "candidate_pool": 10, "candidate_depth": 10,
+        "bounded_neighbor_expansion": False,
+    },
+    "hybrid_ce_alpha_10_pool_20": {
+        "retrieval": "hybrid", "cross_encoder": "alpha_1.0", "candidate_pool": 20, "candidate_depth": 20,
+        "bounded_neighbor_expansion": False,
+    },
+    "fts_bounded_neighbor": {
+        "retrieval": "fts", "cross_encoder": None, "candidate_pool": None, "candidate_depth": None,
+        "bounded_neighbor_expansion": True,
+    },
 }
+_TREATMENT_IDS = set(_TREATMENT_SEMANTICS)
 _RUNTIME_CELLS = {("cpu", "cold"), ("cpu", "steady"), ("gpu", "cold"), ("gpu", "steady")}
 
 
@@ -118,11 +141,14 @@ def resolve_config(document: object) -> dict[str, Any]:
     treatment_ids = set()
     for treatment in grid["treatments"]:
         treatment = _exact(treatment, "grid.treatment", _TREATMENT)
-        treatment_ids.add(treatment["id"])
-        if treatment["id"] == "fts_bounded_neighbor" and treatment["bounded_neighbor_expansion"] is not True:
-            raise ValueError("bounded-neighbor treatment must enable bounded expansion")
-        if treatment["id"] != "fts_bounded_neighbor" and treatment["bounded_neighbor_expansion"] is not False:
-            raise ValueError("only bounded-neighbor treatment may enable expansion")
+        treatment_id = _nonempty(treatment["id"], "grid.treatment.id")
+        expected = _TREATMENT_SEMANTICS.get(treatment_id)
+        if expected is None:
+            raise ValueError(f"unknown grid treatment: {treatment_id}")
+        actual = {key: treatment[key] for key in expected}
+        if actual != expected or any(type(actual[key]) is not type(expected[key]) for key in expected):
+            raise ValueError(f"grid treatment semantic tuple for {treatment_id} mismatches its frozen mapping")
+        treatment_ids.add(treatment_id)
     if treatment_ids != _TREATMENT_IDS:
         raise ValueError("grid retrieval treatments mismatch")
     return root

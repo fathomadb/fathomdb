@@ -41,6 +41,7 @@ from fathomdb._fathomdb import read_mutations as _native_mutations
 from fathomdb._fathomdb import crossed_boundary_since as _native_crossed_boundary_since
 from fathomdb._fathomdb import read_projections as _native_read_projections
 from fathomdb._fathomdb import read_projection_status as _native_read_projection_status
+from fathomdb._fathomdb import read_embedding_readiness as _native_read_embedding_readiness
 from fathomdb._fathomdb import ReadView as _NativeReadView
 from fathomdb._fathomdb import BoundaryCrossing as _NativeBoundaryCrossing
 from fathomdb.types import (
@@ -48,6 +49,7 @@ from fathomdb.types import (
     NodeRecord,
     OpStoreRow,
     ProjectionRuntimeStatus,
+    EmbeddingReadiness,
     ProjectionRuntimeStatusEntry,
     ProjectionSpec,
     ReadView,
@@ -294,6 +296,17 @@ def projection_status(engine: "Engine") -> ProjectionRuntimeStatus:
     )
 
 
+def embedding_readiness(engine: "Engine") -> EmbeddingReadiness:
+    """Return pure typed readiness for pending embedding projection work."""
+    status = _native_read_embedding_readiness(engine._native)
+    return EmbeddingReadiness(
+        state=status.state, usable_embedder=status.usable_embedder,
+        pending_count=status.pending_count, affected_kinds=tuple(status.affected_kinds),
+        code=status.code, operation=status.operation, remediations=tuple(status.remediations),
+        documentation_url=status.documentation_url,
+    )
+
+
 def _validate_limit(limit: int) -> None:
     if not isinstance(limit, int) or isinstance(limit, bool):
         raise ValueError("read.collection/read.mutations require an integer limit")
@@ -310,4 +323,5 @@ __all__ = [
     "crossed_boundary_since",
     "projections",
     "projection_status",
+    "embedding_readiness",
 ]

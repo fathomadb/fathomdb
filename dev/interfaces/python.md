@@ -27,7 +27,7 @@ The full governed set is pinned by
 loads: the core five plus `engine.search_text_only`, `engine.embed`,
 `rerank`, the `read.*` namespace (`get`, `get_many`, `collection`,
 `mutations`, `list`, `crossed_boundary_since`, `projections`,
-`projection_status`), the `graph.*` namespace (`neighbors`, `search_expand`),
+`projection_status`, `embedding_readiness`), the `graph.*` namespace (`neighbors`, `search_expand`),
 the BYO-LLM verbs
 (`engine.ingest_with_extractor`, `engine.consolidate_with_provider`),
 `engine.configure_projections`, and the lifecycle/erasure verbs below.

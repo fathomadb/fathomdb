@@ -101,6 +101,7 @@ _NOW_LIVE_READ_VERBS = frozenset(
         "read.collection",
         "read.mutations",
         "read.projection_status",
+        "read.embedding_readiness",
     }
 )
 

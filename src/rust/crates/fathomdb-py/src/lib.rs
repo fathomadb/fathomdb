@@ -38,7 +38,8 @@ use fathomdb_engine::{
     rerank_passages as rust_rerank_passages, BoundaryCrossing as RustBoundaryCrossing,
     ComparisonOp as RustComparisonOp, ConsolidateAxis as RustConsolidateAxis,
     ConsolidateReceipt as RustConsolidateReceipt, CorruptionDetail, CorruptionKind,
-    DenseReadiness as RustDenseReadiness, EmbedderChoice, Engine as RustEngine,
+    DenseReadiness as RustDenseReadiness, EmbedderChoice,
+    EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
     EngineError as RustEngineError, EngineOpenError, ExciseReport as RustExciseReport,
     Explanation as RustExplanation, ExtractDocument as RustExtractDocument, Filter as RustFilter,
     FilterTerm as RustFilterTerm, IdSpace as RustIdSpace,
@@ -76,6 +77,7 @@ create_exception!(_fathomdb, VectorError, EngineError);
 create_exception!(_fathomdb, KindNotVectorIndexedError, VectorError);
 create_exception!(_fathomdb, EmbedderError, EngineError);
 create_exception!(_fathomdb, EmbedderNotConfiguredError, EmbedderError);
+create_exception!(_fathomdb, EmbedderRequiredError, EmbedderError);
 create_exception!(_fathomdb, SchedulerError, EngineError);
 create_exception!(_fathomdb, OpStoreError, EngineError);
 create_exception!(_fathomdb, WriteValidationError, EngineError);
@@ -181,6 +183,19 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
         RustEngineError::Embedder => EmbedderError::new_err("embedder error"),
         RustEngineError::EmbedderNotConfigured => {
             EmbedderNotConfiguredError::new_err("embedder is not configured")
+        }
+        RustEngineError::EmbedderRequired(required) => {
+            let exc =
+                EmbedderRequiredError::new_err("embedder is required for pending projection work");
+            Python::attach(|py| {
+                let v = exc.value(py);
+                let _ = v.setattr("code", required.code);
+                let _ = v.setattr("operation", required.operation.as_str());
+                let _ = v.setattr("state", required.state.as_str());
+                let _ = v.setattr("remediations", required.remediations);
+                let _ = v.setattr("documentation_url", required.documentation_url);
+            });
+            exc
         }
         RustEngineError::KindNotVectorIndexed => {
             KindNotVectorIndexedError::new_err("kind is not configured for vector indexing")
@@ -1117,6 +1132,43 @@ impl PyProjectionRuntimeStatus {
     }
 }
 
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "EmbeddingReadiness",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyEmbeddingReadiness {
+    state: String,
+    usable_embedder: bool,
+    pending_count: u64,
+    affected_kinds: Vec<String>,
+    code: Option<String>,
+    operation: Option<String>,
+    remediations: Vec<String>,
+    documentation_url: Option<String>,
+}
+
+impl PyEmbeddingReadiness {
+    fn from_rust(readiness: &RustEmbeddingReadiness) -> Self {
+        let blocked = readiness.blocked.as_ref();
+        Self {
+            state: readiness.state.as_str().to_string(),
+            usable_embedder: readiness.usable_embedder,
+            pending_count: readiness.pending_count,
+            affected_kinds: readiness.affected_kinds.clone(),
+            code: blocked.map(|b| b.code.to_string()),
+            operation: blocked.map(|b| b.operation.as_str().to_string()),
+            remediations: blocked
+                .map(|b| b.remediations.iter().map(|s| (*s).to_string()).collect())
+                .unwrap_or_default(),
+            documentation_url: blocked.map(|b| b.documentation_url.to_string()),
+        }
+    }
+}
+
 #[pyclass(module = "fathomdb._fathomdb", name = "OpStoreRow", frozen, get_all, skip_from_py_object)]
 #[derive(Clone)]
 struct PyOpStoreRow {
@@ -1923,6 +1975,14 @@ fn read_projection_status(
 }
 
 #[pyfunction]
+#[pyo3(signature = (engine))]
+fn read_embedding_readiness(py: Python<'_>, engine: &PyEngine) -> PyResult<PyEmbeddingReadiness> {
+    let inner = Arc::clone(&engine.inner);
+    let readiness = call_engine(py, move || inner.read_embedding_readiness())?;
+    Ok(PyEmbeddingReadiness::from_rust(&readiness))
+}
+
+#[pyfunction]
 #[pyo3(signature = (engine, logical_id, view = None))]
 fn read_get(
     py: Python<'_>,
@@ -2711,10 +2771,12 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(configure_projections, &m)?)?;
     m.add_function(wrap_pyfunction!(read_projections, &m)?)?;
     m.add_function(wrap_pyfunction!(read_projection_status, &m)?)?;
+    m.add_function(wrap_pyfunction!(read_embedding_readiness, &m)?)?;
     m.add_class::<PyProjectionSpec>()?;
     m.add_class::<PyProjectionDelta>()?;
     m.add_class::<PyProjectionRuntimeStatusEntry>()?;
     m.add_class::<PyProjectionRuntimeStatus>()?;
+    m.add_class::<PyEmbeddingReadiness>()?;
     // Slice 30 — governed read.* native fns (G2/G3).
     m.add_function(wrap_pyfunction!(read_get, &m)?)?;
     m.add_function(wrap_pyfunction!(read_get_many, &m)?)?;
@@ -2744,6 +2806,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("KindNotVectorIndexedError", py.get_type::<KindNotVectorIndexedError>())?;
     m.add("EmbedderError", py.get_type::<EmbedderError>())?;
     m.add("EmbedderNotConfiguredError", py.get_type::<EmbedderNotConfiguredError>())?;
+    m.add("EmbedderRequiredError", py.get_type::<EmbedderRequiredError>())?;
     m.add("SchedulerError", py.get_type::<SchedulerError>())?;
     m.add("OpStoreError", py.get_type::<OpStoreError>())?;
     m.add("WriteValidationError", py.get_type::<WriteValidationError>())?;

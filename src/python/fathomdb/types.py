@@ -27,6 +27,8 @@ DenseReadiness = Literal["unavailable", "embedding", "ready"]
 ProjectionRuntimeUnavailabilityReason = Literal[
     "none", "no_runtime", "vector_equivalence_disabled"
 ]
+EmbeddingReadinessState = Literal["ready", "processing", "deferred", "blocked"]
+EmbeddingOperation = Literal["graph_edge_body_projection", "vector_projection"]
 
 #: Projection-status dense readiness. ``"not_declared"`` is distinct from
 #: ``"unavailable"``: it means the declaration has no effective
@@ -62,6 +64,19 @@ class ProjectionRuntimeStatus:
     runtime_unavailability_reason: ProjectionRuntimeUnavailabilityReason
     projections: tuple[ProjectionRuntimeStatusEntry, ...]
     vector_unsupported_kinds: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class EmbeddingReadiness:
+    """Pure current embedding configuration and outstanding-work state."""
+    state: EmbeddingReadinessState
+    usable_embedder: bool
+    pending_count: int
+    affected_kinds: tuple[str, ...]
+    code: Literal["FDB_EMBEDDER_REQUIRED"] | None
+    operation: EmbeddingOperation | None
+    remediations: tuple[str, ...]
+    documentation_url: str | None
 
 
 @dataclass(frozen=True)

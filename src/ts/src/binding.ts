@@ -112,6 +112,17 @@ export interface NativeProjectionRuntimeStatus {
   vectorUnsupportedKinds: string[];
 }
 
+export interface NativeEmbeddingReadiness {
+  state: string;
+  usableEmbedder: boolean;
+  pendingCount: number;
+  affectedKinds: string[];
+  code?: string | null;
+  operation?: string | null;
+  remediations: string[];
+  documentationUrl?: string | null;
+}
+
 interface NativeSoftFallback {
   branch: string;
 }
@@ -390,6 +401,7 @@ export interface NativeEngine {
   ): Promise<NativeProjectionDelta>;
   readProjections(): Promise<NativeProjectionSpec[]>;
   readProjectionStatus(): Promise<NativeProjectionRuntimeStatus>;
+  readEmbeddingReadiness(): Promise<NativeEmbeddingReadiness>;
   search(
     query: string,
     filter?: NativeSearchFilter,

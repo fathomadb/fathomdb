@@ -26,7 +26,7 @@ The full governed set is pinned by
 `src/conformance/governed-surface-allowlist.json`, which `surface.test.ts`
 loads: the core five plus `engine.searchTextOnly`, `engine.embed`, `rerank`,
 the `read.*` namespace (`get`, `getMany`, `collection`, `mutations`, `list`,
-`crossedBoundarySince`, `projections`, `projectionStatus`), the `graph.*`
+`crossedBoundarySince`, `projections`, `projectionStatus`, `embeddingReadiness`), the `graph.*`
 namespace (`neighbors`, `searchExpand`), the BYO-LLM verbs
 (`engine.ingestWithExtractor`,
 `engine.consolidateWithProvider`), `engine.configureProjections`, and the

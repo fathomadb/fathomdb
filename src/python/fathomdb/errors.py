@@ -35,6 +35,7 @@ from fathomdb._fathomdb import (
 from fathomdb._fathomdb import (
     EmbedderNotConfiguredError as _EmbedderNotConfiguredError,
 )
+from fathomdb._fathomdb import EmbedderRequiredError as _EmbedderRequiredError
 from fathomdb._fathomdb import (
     EmbedderIdentityMismatchError as _EmbedderIdentityMismatchError,
 )
@@ -108,6 +109,7 @@ ProjectionError = _ProjectionError
 VectorError = _VectorError
 EmbedderError = _EmbedderError
 EmbedderNotConfiguredError = _EmbedderNotConfiguredError
+EmbedderRequiredError = _EmbedderRequiredError
 KindNotVectorIndexedError = _KindNotVectorIndexedError
 SchedulerError = _SchedulerError
 OpStoreError = _OpStoreError
@@ -167,6 +169,7 @@ _install_typed_init(
     ("stored_name", "stored_revision", "supplied_name", "supplied_revision"),
 )
 _install_typed_init(EmbedderDimensionMismatchError, ("stored", "supplied"))
+_install_typed_init(EmbedderRequiredError, ("code", "operation", "state", "remediations", "documentation_url"))
 # 0.8.18 Slice 5 — the query-time refusal carries the divergence `reason`.
 _install_typed_init(VectorEquivalenceMismatchError, ("reason",))
 # OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle-verb payloads.
@@ -186,6 +189,7 @@ __all__ = [
     "EmbedderError",
     "EmbedderIdentityMismatchError",
     "EmbedderNotConfiguredError",
+    "EmbedderRequiredError",
     "ConsolidatorError",
     "EngineError",
     "ErasureIncompleteError",

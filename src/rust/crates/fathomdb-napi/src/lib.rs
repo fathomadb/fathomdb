@@ -34,11 +34,12 @@ use fathomdb_engine::{
     BoundaryCrossing as RustBoundaryCrossing, ComparisonOp as RustComparisonOp,
     ConsolidateAxis as RustConsolidateAxis, ConsolidateReceipt as RustConsolidateReceipt,
     CorruptionDetail, CorruptionKind, DenseReadiness as RustDenseReadiness, EmbedderChoice,
-    Engine as RustEngine, EngineError as RustEngineError, EngineOpenError,
-    ExciseReport as RustExciseReport, Explanation as RustExplanation,
-    ExtractDocument as RustExtractDocument, Filter as RustFilter, FilterTerm as RustFilterTerm,
-    IdSpace as RustIdSpace, IngestWithExtractorReceipt as RustIngestWithExtractorReceipt,
-    InitialState, LifecycleState as RustLifecycleState, NodeRecord as RustNodeRecord,
+    EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
+    EngineError as RustEngineError, EngineOpenError, ExciseReport as RustExciseReport,
+    Explanation as RustExplanation, ExtractDocument as RustExtractDocument, Filter as RustFilter,
+    FilterTerm as RustFilterTerm, IdSpace as RustIdSpace,
+    IngestWithExtractorReceipt as RustIngestWithExtractorReceipt, InitialState,
+    LifecycleState as RustLifecycleState, NodeRecord as RustNodeRecord,
     OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
     PerHitExplain as RustPerHitExplain, Predicate as RustPredicate, PreparedWrite,
     ProjectionDelta as RustProjectionDelta, ProjectionFts as RustProjectionFts,
@@ -68,6 +69,7 @@ const CODE_PROJECTION: &str = "FDB_PROJECTION";
 const CODE_VECTOR: &str = "FDB_VECTOR";
 const CODE_EMBEDDER: &str = "FDB_EMBEDDER";
 const CODE_EMBEDDER_NOT_CONFIGURED: &str = "FDB_EMBEDDER_NOT_CONFIGURED";
+const CODE_EMBEDDER_REQUIRED: &str = "FDB_EMBEDDER_REQUIRED";
 const CODE_KIND_NOT_VECTOR_INDEXED: &str = "FDB_KIND_NOT_VECTOR_INDEXED";
 const CODE_EMBEDDER_DIMENSION_MISMATCH: &str = "FDB_EMBEDDER_DIMENSION_MISMATCH";
 const CODE_SCHEDULER: &str = "FDB_SCHEDULER";
@@ -187,6 +189,16 @@ fn engine_error_to_napi(err: RustEngineError) -> Error {
         RustEngineError::EmbedderNotConfigured => {
             typed_error(CODE_EMBEDDER_NOT_CONFIGURED, "embedder is not configured", JsonValue::Null)
         }
+        RustEngineError::EmbedderRequired(required) => typed_error(
+            CODE_EMBEDDER_REQUIRED,
+            "embedder is required for pending projection work",
+            json!({
+                "operation": required.operation.as_str(),
+                "state": required.state.as_str(),
+                "remediations": required.remediations,
+                "documentationUrl": required.documentation_url,
+            }),
+        ),
         RustEngineError::KindNotVectorIndexed => typed_error(
             CODE_KIND_NOT_VECTOR_INDEXED,
             "kind is not configured for vector indexing",
@@ -798,6 +810,36 @@ impl ProjectionRuntimeStatus {
                 .map(ProjectionRuntimeStatusEntry::from_rust)
                 .collect(),
             vector_unsupported_kinds: status.vector_unsupported_kinds.clone(),
+        }
+    }
+}
+
+#[napi(object)]
+pub struct EmbeddingReadiness {
+    pub state: String,
+    pub usable_embedder: bool,
+    pub pending_count: i64,
+    pub affected_kinds: Vec<String>,
+    pub code: Option<String>,
+    pub operation: Option<String>,
+    pub remediations: Vec<String>,
+    pub documentation_url: Option<String>,
+}
+
+impl EmbeddingReadiness {
+    fn from_rust(readiness: &RustEmbeddingReadiness) -> Self {
+        let blocked = readiness.blocked.as_ref();
+        Self {
+            state: readiness.state.as_str().to_string(),
+            usable_embedder: readiness.usable_embedder,
+            pending_count: readiness.pending_count as i64,
+            affected_kinds: readiness.affected_kinds.clone(),
+            code: blocked.map(|b| b.code.to_string()),
+            operation: blocked.map(|b| b.operation.as_str().to_string()),
+            remediations: blocked
+                .map(|b| b.remediations.iter().map(|s| (*s).to_string()).collect())
+                .unwrap_or_default(),
+            documentation_url: blocked.map(|b| b.documentation_url.to_string()),
         }
     }
 }
@@ -1614,6 +1656,13 @@ impl Engine {
         let engine = Arc::clone(&self.inner);
         let status = call_engine(move || engine.read_projection_status()).await?;
         Ok(ProjectionRuntimeStatus::from_rust(&status))
+    }
+
+    #[napi]
+    pub async fn read_embedding_readiness(&self) -> Result<EmbeddingReadiness> {
+        let engine = Arc::clone(&self.inner);
+        let readiness = call_engine(move || engine.read_embedding_readiness()).await?;
+        Ok(EmbeddingReadiness::from_rust(&readiness))
     }
 
     #[napi]

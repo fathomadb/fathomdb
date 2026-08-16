@@ -216,6 +216,7 @@ DEFAULT facade, not behind the `operator` feature.
 - `Engine::configure_projections(...) -> Result<ProjectionDelta, EngineError>`
 - `Engine::read_projections() -> Result<Vec<ProjectionSpec>, EngineError>`
 - `Engine::read_projection_status() -> Result<ProjectionRuntimeStatus, EngineError>`
+- `Engine::read_embedding_readiness() -> Result<EmbeddingReadiness, EngineError>`
 
 See § "Projection registry" below.
 

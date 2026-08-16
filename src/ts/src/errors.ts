@@ -29,6 +29,12 @@ export class OverloadedError extends FathomDbError {}
 export class ClosingError extends FathomDbError {}
 
 export class EmbedderNotConfiguredError extends EmbedderError {}
+export interface EmbedderRequiredErrorPayload { operation: string; state: string; remediations: string[]; documentationUrl: string; }
+export class EmbedderRequiredError extends EmbedderError {
+  readonly code = "FDB_EMBEDDER_REQUIRED";
+  readonly operation: string; readonly state: string; readonly remediations: string[]; readonly documentationUrl: string;
+  constructor(message: string, payload: EmbedderRequiredErrorPayload) { super(message); Object.assign(this, payload); }
+}
 export class KindNotVectorIndexedError extends VectorError {}
 
 export interface DatabaseLockedErrorPayload {
@@ -210,6 +216,7 @@ type ErrorCode =
   | "FDB_VECTOR"
   | "FDB_EMBEDDER"
   | "FDB_EMBEDDER_NOT_CONFIGURED"
+  | "FDB_EMBEDDER_REQUIRED"
   | "FDB_KIND_NOT_VECTOR_INDEXED"
   | "FDB_EMBEDDER_DIMENSION_MISMATCH"
   | "FDB_SCHEDULER"
@@ -285,6 +292,8 @@ function build(envelope: Envelope): Error {
       return new EmbedderError(envelope.message);
     case "FDB_EMBEDDER_NOT_CONFIGURED":
       return new EmbedderNotConfiguredError(envelope.message);
+    case "FDB_EMBEDDER_REQUIRED":
+      return new EmbedderRequiredError(envelope.message, { operation: String(p.operation ?? ""), state: String(p.state ?? ""), remediations: Array.isArray(p.remediations) ? p.remediations.map(String) : [], documentationUrl: String(p.documentationUrl ?? "") });
     case "FDB_KIND_NOT_VECTOR_INDEXED":
       return new KindNotVectorIndexedError(envelope.message);
     case "FDB_EMBEDDER_DIMENSION_MISMATCH":

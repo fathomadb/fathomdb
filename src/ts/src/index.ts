@@ -234,6 +234,19 @@ export interface ProjectionRuntimeStatus {
   vectorUnsupportedKinds: string[];
 }
 
+export type EmbeddingReadinessState = "ready" | "processing" | "deferred" | "blocked";
+export type EmbeddingOperation = "graph_edge_body_projection" | "vector_projection";
+export interface EmbeddingReadiness {
+  state: EmbeddingReadinessState;
+  usableEmbedder: boolean;
+  pendingCount: number;
+  affectedKinds: string[];
+  code: "FDB_EMBEDDER_REQUIRED" | null;
+  operation: EmbeddingOperation | null;
+  remediations: string[];
+  documentationUrl: string | null;
+}
+
 /** G11 (Slice 15) — BYO-LLM ingest receipt. */
 export interface IngestWithExtractorReceipt {
   /** Number of `canonical_nodes` rows written (new insertions only). */

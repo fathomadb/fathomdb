@@ -97,6 +97,7 @@ const NOW_LIVE_READ_VERBS = [
   "read.collection",
   "read.mutations",
   "read.projection_status",
+  "read.embedding_readiness",
 ] as const;
 
 // camelCase → snake_case so the introspected TS `read` verb identity maps to the

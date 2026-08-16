@@ -3743,6 +3743,11 @@ pub enum EngineError {
     Vector,
     Embedder,
     EmbedderNotConfigured,
+    /// Pending projection work requires an embedder that this session did not
+    /// configure. Unlike [`Self::EmbedderNotConfigured`], this is a drain-time
+    /// configuration outcome: the accepted write remains durable and can be
+    /// completed by a later session with a usable embedder.
+    EmbedderRequired(EmbedderRequired),
     KindNotVectorIndexed,
     EmbedderDimensionMismatch {
         expected: u32,
@@ -3857,6 +3862,12 @@ impl Display for EngineError {
             Self::Vector => write!(f, "vector error"),
             Self::Embedder => write!(f, "embedder error"),
             Self::EmbedderNotConfigured => write!(f, "embedder is not configured"),
+            Self::EmbedderRequired(required) => write!(
+                f,
+                "{} requires a configured embedder; see {}",
+                required.operation.as_str(),
+                required.documentation_url
+            ),
             Self::KindNotVectorIndexed => write!(f, "kind is not configured for vector indexing"),
             Self::EmbedderDimensionMismatch { expected, actual } => {
                 write!(f, "embedder dimension mismatch: expected {expected}, actual {actual}")
@@ -3917,6 +3928,7 @@ impl EngineError {
             Self::Vector => "VectorError",
             Self::Embedder => "EmbedderError",
             Self::EmbedderNotConfigured => "EmbedderNotConfiguredError",
+            Self::EmbedderRequired(_) => "EmbedderRequiredError",
             Self::KindNotVectorIndexed => "KindNotVectorIndexedError",
             Self::EmbedderDimensionMismatch { .. } => "EmbedderDimensionMismatchError",
             Self::Scheduler => "SchedulerError",
@@ -4233,6 +4245,101 @@ pub struct ProjectionRuntimeStatus {
     pub projections: Vec<ProjectionRuntimeStatusEntry>,
     /// Sorted, deduplicated permanently non-committable kinds for an effective arm.
     pub vector_unsupported_kinds: Vec<String>,
+}
+
+/// The lifecycle state of outstanding embedding work for this open session.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EmbeddingReadinessState {
+    /// No eligible embedding work is outstanding.
+    Ready,
+    /// A usable embedder is processing eligible work.
+    Processing,
+    /// Work exists but the session is unavailable for a non-configuration reason.
+    Deferred,
+    /// Work exists and this session has no configured embedder.
+    Blocked,
+}
+
+impl EmbeddingReadinessState {
+    /// Stable lower-case wire spelling.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Ready => "ready",
+            Self::Processing => "processing",
+            Self::Deferred => "deferred",
+            Self::Blocked => "blocked",
+        }
+    }
+}
+
+/// The projection operation that needs an embedder.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EmbeddingOperation {
+    /// The body of a canonical graph edge projects as `edge_fact`.
+    GraphEdgeBodyProjection,
+    /// A caller-declared vector projection has outstanding work.
+    VectorProjection,
+}
+
+impl EmbeddingOperation {
+    /// Stable lower-case wire spelling.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::GraphEdgeBodyProjection => "graph_edge_body_projection",
+            Self::VectorProjection => "vector_projection",
+        }
+    }
+}
+
+/// A typed configuration outcome shared by drain errors and readiness reports.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmbedderRequired {
+    /// Stable error code for all bindings.
+    pub code: &'static str,
+    /// The blocked embedding operation.
+    pub operation: EmbeddingOperation,
+    /// Stable state spelling, always `blocked` for this payload.
+    pub state: EmbeddingReadinessState,
+    /// Ordered, machine-readable corrective actions.
+    pub remediations: Vec<&'static str>,
+    /// Stable documentation address for this outcome.
+    pub documentation_url: &'static str,
+}
+
+/// A Rust-owned, pure current report for embedding readiness.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmbeddingReadiness {
+    /// `ready`, `processing`, `deferred`, or `blocked`.
+    pub state: EmbeddingReadinessState,
+    /// Whether this session can use its dense runtime now.
+    pub usable_embedder: bool,
+    /// Number of eligible rows awaiting embedding.
+    pub pending_count: u64,
+    /// Sorted projection kinds represented by the pending rows.
+    pub affected_kinds: Vec<String>,
+    /// Present exactly when `state` is `blocked`.
+    pub blocked: Option<EmbedderRequired>,
+}
+
+fn embedder_required_for(affected_kinds: &[String]) -> EmbedderRequired {
+    let operation = if affected_kinds.iter().any(|kind| kind == EDGE_FACT_KIND) {
+        EmbeddingOperation::GraphEdgeBodyProjection
+    } else {
+        EmbeddingOperation::VectorProjection
+    };
+    EmbedderRequired {
+        code: "FDB_EMBEDDER_REQUIRED",
+        operation,
+        state: EmbeddingReadinessState::Blocked,
+        remediations: vec![
+            "configure_default_embedder",
+            "configure_caller_embedder",
+            "submit_non_embedding_input",
+        ],
+        documentation_url: "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED",
+    }
 }
 
 /// 0.8.20 Slice 15d (R-20-PR) — the `searchable→vector` sub-target selector.
@@ -7618,6 +7725,9 @@ impl Engine {
     /// instrumentation; semantics are owned by `dev/design/lifecycle.md`.
     pub fn drain(&self, timeout_ms: u64) -> Result<(), EngineError> {
         self.ensure_open()?;
+        if let Some(blocked) = self.read_embedding_readiness()?.blocked {
+            return Err(EngineError::EmbedderRequired(blocked));
+        }
         if self.projection_runtime.wait_for_idle(timeout_ms) {
             Ok(())
         } else {
@@ -9051,6 +9161,37 @@ impl Engine {
             projections,
             vector_unsupported_kinds,
         })
+    }
+
+    /// Report whether this session can complete outstanding embedding work.
+    ///
+    /// This is a pure read over the current session and durable projection
+    /// state. It neither configures an embedder nor wakes, schedules, or drains
+    /// work. A `Blocked` report carries the exact payload that [`Self::drain`]
+    /// returns immediately as [`EngineError::EmbedderRequired`].
+    pub fn read_embedding_readiness(&self) -> Result<EmbeddingReadiness, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let pending = pending_embedding_work(connection).map_err(|_| EngineError::Storage)?;
+        let pending_count = pending.iter().map(|(_, count)| *count).sum();
+        let affected_kinds: Vec<String> = pending.iter().map(|(kind, _)| kind.clone()).collect();
+        let usable_embedder = self.usable_dense_runtime();
+        let blocked = if !pending.is_empty() && self.projection_runtime.shared.embedder.is_none() {
+            Some(embedder_required_for(&affected_kinds))
+        } else {
+            None
+        };
+        let state = if blocked.is_some() {
+            EmbeddingReadinessState::Blocked
+        } else if pending.is_empty() {
+            EmbeddingReadinessState::Ready
+        } else if usable_embedder {
+            EmbeddingReadinessState::Processing
+        } else {
+            EmbeddingReadinessState::Deferred
+        };
+        Ok(EmbeddingReadiness { state, usable_embedder, pending_count, affected_kinds, blocked })
     }
 
     /// OPP-12 Phase-1 (0.8.19 Slice 10, R-PG-1/2) — irreversibly hard-erase a
@@ -14123,6 +14264,36 @@ fn connection_has_pending_projection_work(connection: &Connection) -> rusqlite::
             rusqlite::Error::QueryReturnedNoRows => Ok(false),
             _ => Err(err),
         })
+}
+
+/// One pure, count-preserving view of the projection rows that are presently
+/// eligible for embedding. It shares the scheduler and drain predicates, so a
+/// readiness report never names work that `drain` does not wait for.
+fn pending_embedding_work(connection: &Connection) -> rusqlite::Result<Vec<(String, u64)>> {
+    let cursor = load_projection_cursor(connection)?;
+    let sql = format!(
+        "SELECT kind, COUNT(*) FROM (
+             SELECT canonical_nodes.kind AS kind
+             FROM canonical_nodes
+             JOIN _fathomdb_vector_kinds
+               ON _fathomdb_vector_kinds.kind = canonical_nodes.kind
+             LEFT JOIN _fathomdb_projection_terminal
+               ON _fathomdb_projection_terminal.write_cursor = canonical_nodes.write_cursor
+             WHERE canonical_nodes.write_cursor > ?1
+               AND _fathomdb_projection_terminal.write_cursor IS NULL
+             UNION ALL
+             SELECT 'edge_fact' AS kind
+             {}
+         ) GROUP BY kind ORDER BY kind",
+        pending_edge_projection_from_where(2)
+    );
+    let mut statement = connection.prepare_cached(&sql)?;
+    let rows = statement
+        .query_map(params![cursor, current_epoch_seconds()], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, u64>(1)?))
+        })?
+        .collect();
+    rows
 }
 
 /// 0.8.20 Slice 20 (R-20-DR) — the `dense_readiness` of the `searchable→vector`

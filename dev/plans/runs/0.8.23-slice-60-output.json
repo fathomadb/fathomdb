@@ -27,10 +27,12 @@
   "tdd": {
     "red": "The staged Windows parent required a ready sentinel before the ignored child existed; this is a deterministic timeout on a Windows runner.",
     "green": "The child opens a separate SQLite reader transaction, writes ready, waits release, commits, and is reaped by the parent.",
+    "fix_n_marker_red": "At 6bfe592a, the Linux-runnable workflow contract was extended to require eight source diagnostic markers and failed all eight because the source emitted none.",
+    "fix_n_marker_green": "The parent/child now emit child_started, child_ready, parent_ready_observed, checkpoint_start/result with elapsed time, release_signaled, child_release_observed, and child_reaped success; the contract passes 23 assertions, including a mutation that proves child-start evidence is load-bearing.",
     "windows_execution": "PENDING: x86_64-pc-windows-msvc target is absent on the local Linux host; GitHub-hosted windows-latest is the authoritative witness."
   },
   "local_verification": {
-    "workflow_contract": "PASS (14 assertions, including mutation and actionlint)",
+    "workflow_contract": "PASS (23 assertions, including lifecycle-marker mutation coverage and actionlint)",
     "agent_test_tiers": "PASS",
     "same_process_erasure_regression": "PASS",
     "windows_cfg_test_on_linux": "0 selected by design",

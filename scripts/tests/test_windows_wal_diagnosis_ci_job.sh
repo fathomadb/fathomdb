@@ -7,6 +7,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CI="${CI_YML:-$REPO_ROOT/.github/workflows/ci.yml}"
+SOURCE_TEST="${SOURCE_TEST:-$REPO_ROOT/src/rust/crates/fathomdb-engine/tests/erasure_completeness.rs}"
 PASSED=0
 FAILED=0
 
@@ -27,6 +28,15 @@ assert_contains() {
     pass "$description"
   else
     fail "$description (missing: $needle)"
+  fi
+}
+
+assert_source_marker() {
+  local marker="$1" description="$2"
+  if grep -Fq -- "$marker" "$SOURCE_TEST"; then
+    pass "$description"
+  else
+    fail "$description (missing source marker: $marker)"
   fi
 }
 
@@ -53,6 +63,15 @@ if [ -n "$JOB" ]; then
   assert_contains "$CODE" '${{ runner.temp }}/slice60-windows-wal-diagnostic.log' "upload path matches the diagnostic file"
 fi
 
+assert_source_marker 'slice60_windows_wal child_started pid=' "child start/PID is retained"
+assert_source_marker 'slice60_windows_wal child_ready pid=' "child ready sentinel is retained"
+assert_source_marker 'slice60_windows_wal parent_ready_observed child_pid=' "parent ready observation is retained"
+assert_source_marker 'slice60_windows_wal checkpoint_start child_pid=' "checkpoint start is retained"
+assert_source_marker 'slice60_windows_wal checkpoint_result elapsed_ms=' "checkpoint result and elapsed time are retained"
+assert_source_marker 'slice60_windows_wal release_signaled child_pid=' "parent release signal is retained"
+assert_source_marker 'slice60_windows_wal child_release_observed pid=' "child release observation is retained"
+assert_source_marker 'slice60_windows_wal child_reaped child_pid=' "successful child reaping is retained"
+
 if [ "${WINDOWS_WAL_CI_FIXTURE:-0}" != "1" ]; then
   TMPROOT="$(mktemp -d)"
   cleanup() {
@@ -74,6 +93,19 @@ if [ "${WINDOWS_WAL_CI_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves the job-existence assertion is load-bearing"
   else
     fail "mutation did not make the job-existence assertion fail: $mutation_out"
+  fi
+
+  MUTATED_SOURCE="$TMPROOT/erasure_completeness.rs"
+  sed '/slice60_windows_wal child_started pid=/d' "$SOURCE_TEST" >"$MUTATED_SOURCE"
+  set +e
+  marker_mutation_out="$(WINDOWS_WAL_CI_FIXTURE=1 SOURCE_TEST="$MUTATED_SOURCE" bash "$0" 2>&1)"
+  marker_mutation_rc=$?
+  set -e
+  if [ "$marker_mutation_rc" -ne 0 ] \
+    && grep -Fq 'child start/PID is retained (missing source marker' <<<"$marker_mutation_out"; then
+    pass "marker mutation proves retained child-start evidence is load-bearing"
+  else
+    fail "marker mutation did not make the source-marker assertion fail: $marker_mutation_out"
   fi
 
   if actionlint "$CI"; then

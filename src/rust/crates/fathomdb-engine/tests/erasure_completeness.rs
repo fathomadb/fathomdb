@@ -91,12 +91,12 @@ fn wait_for_child_file(child: &mut Child, path: &Path, timeout: Duration) {
 }
 
 #[cfg(windows)]
-fn reap_child(child: &mut Child, timeout: Duration) {
+fn reap_child(child: &mut Child, timeout: Duration) -> std::process::ExitStatus {
     let started = Instant::now();
     loop {
         if let Some(status) = child.try_wait().expect("poll child") {
             assert!(status.success(), "reader child failed: {status}");
-            return;
+            return status;
         }
         if started.elapsed() >= timeout {
             let _ = child.kill();
@@ -263,13 +263,29 @@ fn erasure_busy_cross_process_windows_yields_typed_diagnostic() {
         .stderr(Stdio::inherit())
         .spawn()
         .expect("spawn reader child");
+    let child_pid = child.id();
+    eprintln!("slice60_windows_wal child_started pid={child_pid}");
     wait_for_child_file(&mut child, &ready, Duration::from_secs(10));
+    eprintln!("slice60_windows_wal parent_ready_observed child_pid={child_pid}");
 
+    eprintln!("slice60_windows_wal checkpoint_start child_pid={child_pid}");
     let started = Instant::now();
     let result = opened.engine.excise_source("S1");
     let elapsed = started.elapsed();
+    match &result {
+        Ok(_) => eprintln!(
+            "slice60_windows_wal checkpoint_result elapsed_ms={} outcome=unexpected_success",
+            elapsed.as_millis()
+        ),
+        Err(err) => eprintln!(
+            "slice60_windows_wal checkpoint_result elapsed_ms={} outcome={err:?}",
+            elapsed.as_millis()
+        ),
+    }
     std::fs::write(&release, b"release reader").expect("signal reader release");
-    reap_child(&mut child, Duration::from_secs(10));
+    eprintln!("slice60_windows_wal release_signaled child_pid={child_pid}");
+    let status = reap_child(&mut child, Duration::from_secs(10));
+    eprintln!("slice60_windows_wal child_reaped child_pid={child_pid} status=success ({status})");
 
     let err = result.expect_err("excise must refuse while a cross-process reader pins WAL");
     let (stage, detail) = match &err {
@@ -277,7 +293,7 @@ fn erasure_busy_cross_process_windows_yields_typed_diagnostic() {
         other => panic!("expected ErasureIncomplete{{wal_checkpoint}}, got {other:?}"),
     };
     eprintln!(
-        "slice60 windows WAL diagnostic: elapsed_ms={} stage={stage} detail={detail}",
+        "slice60_windows_wal typed_diagnostic elapsed_ms={} stage={stage} detail={detail}",
         elapsed.as_millis()
     );
     assert_eq!(stage, "wal_checkpoint", "wrong fail-closed erasure stage: {detail}");
@@ -296,6 +312,8 @@ fn erasure_busy_cross_process_windows_yields_typed_diagnostic() {
 #[test]
 #[ignore]
 fn child_holds_cross_process_wal_snapshot_windows() {
+    let pid = std::process::id();
+    eprintln!("slice60_windows_wal child_started pid={pid}");
     let path = std::env::var_os("FATHOMDB_SLICE60_DB_PATH").expect("db path");
     let ready = PathBuf::from(std::env::var_os("FATHOMDB_SLICE60_READY_PATH").expect("ready path"));
     let release =
@@ -306,8 +324,10 @@ fn child_holds_cross_process_wal_snapshot_windows() {
         .query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))
         .expect("pin WAL snapshot");
     std::fs::write(&ready, b"WAL snapshot pinned").expect("write ready sentinel");
+    eprintln!("slice60_windows_wal child_ready pid={pid}");
 
     wait_for_file(&release, Duration::from_secs(30));
+    eprintln!("slice60_windows_wal child_release_observed pid={pid}");
     blocker.execute_batch("COMMIT").expect("release reader transaction");
 }
 

@@ -550,9 +550,11 @@ Rust, Python and TypeScript:
   session, however long you wait. It is **not** lost: no failure is recorded and
   no terminal is written, so the next session opened WITH an approved runtime
   embeds it through the ordinary scheduler — no re-apply, no operator `rebuild`.
-  Expect the timeout there and do not read it as data loss.
-- **`drain` stays bounded** and rejects with the existing timeout error rather
-  than hanging; size `timeoutMs` for the backfill you just asked for.
+  The configuration outcome is immediate; it is not a timeout and does not
+  indicate data loss.
+- **`drain` stays bounded** for operational embedding work. Size `timeoutMs`
+  for an approved-runtime backfill; an absent runtime instead rejects
+  immediately with `EmbedderRequiredError`.
 
 ## Errors
 

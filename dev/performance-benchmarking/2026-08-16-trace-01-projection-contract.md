@@ -42,7 +42,9 @@ index, or a harness configuration.
    its projections become `superseded` and non-searchable.
 3. Erasure makes the named source and all of its projections `erased` and
    non-searchable. Re-open restores only an erased source and its projections to
-   `active` and searchable. It does not revive a superseded source.
+   `active` and searchable. A source identified as the prior side of a
+   supersession is irreversibly non-current: re-open rejects it even after an
+   intervening erasure. A written sidecar likewise rejects an active prior source.
 4. The produced sidecar may contain only schema/version identifiers, source and
    projection identifiers, SHA-256 values, projection kinds, lifecycle states,
    booleans, counts, and fixed diagnostic codes. It never contains source text,

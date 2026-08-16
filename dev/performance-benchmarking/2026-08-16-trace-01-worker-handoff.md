@@ -53,6 +53,20 @@ identifiers and a payload injected into diagnostics. The follow-up implementatio
 must fail closed for both cases and pass the expanded synthetic test set before
 a second independent review.
 
+The second review found a lifecycle P1: `supersede prior → erase prior → reopen
+prior` could make the prior searchable. Red checkpoint `759670a0` captures that
+sequence and a sidecar with an active supersession prior. The follow-up makes a
+superseded source irreversibly non-current and rejects the invalid written
+sidecar. Focused evidence after that fix is
+`python3 -m pytest tests/experiments/test_trace_projection.py -q` — `10 passed`.
+
+The most recent unconfined full gate completed its Rust and security phases but
+failed the existing Python suite after 689 seconds. Its capped Python log is
+`/tmp/fathomdb-agent-test-python-2805454.log`; failures concern native
+embedder/rebuild test-environment expectations, not TRACE. The local worktree
+uses only untracked symlinks to the primary checkout's `.venv`, `node_modules`,
+and existing native extension; nothing was built, copied, or installed.
+
 ## Review focus
 
 1. Confirm no raw `prior_body`, `supersedes_hint`, or source text can reach the

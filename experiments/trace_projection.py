@@ -155,7 +155,9 @@ def _supersessions(
     return sorted(supersessions, key=lambda row: (row["source_id"], row["prior_source_id"]))
 
 
-def _apply_events(events: Iterable[LifecycleEvent], states: dict[str, str]) -> set[str]:
+def _apply_events(
+    events: Iterable[LifecycleEvent], states: dict[str, str], superseded_sources: set[str]
+) -> set[str]:
     diagnostics: set[str] = set()
     for event in events:
         source_id = _require_identifier(event.source_id, "lifecycle source_id")
@@ -165,6 +167,8 @@ def _apply_events(events: Iterable[LifecycleEvent], states: dict[str, str]) -> s
             states[source_id] = "erased"
             diagnostics.add("source-erased")
         elif event.kind == "reopen":
+            if source_id in superseded_sources:
+                raise TraceProjectionError("reopen cannot revive a superseded source")
             if states[source_id] != "erased":
                 raise TraceProjectionError("reopen requires an erased source")
             states[source_id] = "active"
@@ -190,7 +194,9 @@ def build_trace_projection(
     projection_rows = _validate_projections(projections, registered_sources)
     states = {source_id: "active" for source_id in registered_sources}
     supersessions = _supersessions(accepted_elps_result, registered_sources, states)
-    diagnostics = _apply_events(events, states)
+    diagnostics = _apply_events(
+        events, states, {row["prior_source_id"] for row in supersessions}
+    )
     if supersessions:
         diagnostics.add("supersession-applied")
 
@@ -308,6 +314,8 @@ def _validate_sidecar(sidecar: Mapping[str, object]) -> None:
         _require_sha256(row["prior_body_sha256"], "supersession prior_body_sha256")
         if source_id not in sources or prior_source_id not in sources or source_id == prior_source_id:
             raise TraceProjectionError("supersession source attribution is invalid")
+        if sources[prior_source_id][1] == "active":
+            raise TraceProjectionError("supersession prior source must not be active")
         supersession_keys.append((source_id, prior_source_id))
     if len(set(supersession_keys)) != len(supersession_keys) or supersession_keys != sorted(supersession_keys):
         raise TraceProjectionError("sidecar supersessions must use deterministic identifier order")

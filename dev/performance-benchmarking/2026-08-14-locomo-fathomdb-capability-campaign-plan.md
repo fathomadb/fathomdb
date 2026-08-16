@@ -1,9 +1,11 @@
 # LOCOMO FathomDB capability campaign — revised
 
-> **Program relationship.** This is active track L0, followed by L1, in the
+> **Program relationship.** This is active track `LOCOMO-01` in the
 > [overall performance benchmarking and experiments program](PROGRAM.md).
-> The selected L0/L1 configuration is the only FathomDB arm eligible for the
-> later native Mem0 track M0.
+> Its dated Phase-A preparation contract is
+> [2026-08-16-locomo-01-phase-a-contract.md](2026-08-16-locomo-01-phase-a-contract.md).
+> The selected `LOCOMO-01` configuration is the only FathomDB arm eligible for
+> the later native Mem0 comparison work.
 
 ## Phase A gates
 

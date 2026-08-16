@@ -43,6 +43,7 @@ new session rather than archived history:
 | `LIBRARY-BUMP-ORCHESTRATOR-TEMPLATE.md` | Per-sweep Library Bump Orchestrator template. |
 | `PLAN-TEMPLATE.md` | Per-release plan-authoring template (fill-in skeleton for a new `plan-<release>.md`). |
 
-Everything else in this directory is closed-line and archived-in-place. For the current
-program state, read `dev/DOC-INDEX.md` and the live `dev/plans/runs/STATUS-0.8.20.md`
-board, not a scan of this directory.
+Everything else in this directory is closed-line and archived-in-place. For
+current program state, read the single live
+`dev/plans/release-state-*.json` file, then the board named by its `board` key
+(currently `dev/plans/runs/STATUS-0.8.23.md`), not a scan of this directory.

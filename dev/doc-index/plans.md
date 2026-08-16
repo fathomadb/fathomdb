@@ -12,6 +12,9 @@
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
+| `dev/plans/plan-0.8.23.md` | **Current 0.8.23 release plan.** Planning Slices 0–6 supply the hygiene/preparation workplan; later work remains explicitly commissioned. | 0.8.23 Slices 0–6 | 2026-08-15 |
+| `dev/plans/release-state-0.8.23.json` | **Current single writer.** Names the live plan/board and owns the release ladder, landed witnesses, and next work. | 0.8.23 release state | 2026-08-15 |
+| `dev/plans/runs/STATUS-0.8.23.md` | **Current live state board.** Read only after resolving it through the release-state JSON. | 0.8.23 release state | 2026-08-15 |
 | `dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md` | **Program schedule-of-record (THE master).** Current allocation, release sequencing, and safety rules from 0.8.20 through 0.9.0. | Program Steward (keeps true) | 2026-08-10 |
 | `dev/plans/0.8.6-0.8.16-PROGRAM-SEQUENCING.md` | **Superseded historical sequencing record.** Retained decision evidence for the former 0.8.x master; no new allocation belongs here. | historical | 2026-08-10 |
 | `dev/plans/prompts/0.8.x-STEWARD-HANDOFF.md` | **Program Steward hand-off — role/mandate (canonical).** Opening prompt for a program-scope Steward session: keep the master true, reconcile drift, place + sequence cross-cutting work, **commission** execution (do not implement, never hand-drive a release ladder), be the truthful propose-first HITL interface, trust-git-not-narration. | Program Steward (entry point) | 2026-06-27 |

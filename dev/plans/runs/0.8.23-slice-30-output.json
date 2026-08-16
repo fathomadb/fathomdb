@@ -1,0 +1,29 @@
+{
+  "phase": "0.8.23-slice-30",
+  "baseline_sha": "f88dc65f7f6cffec4eefa6f3a010db7743d404b4",
+  "head_sha": "3285a44d813fb923d5ad7bf1024cce628d78b452",
+  "commits": [
+    "b797b922: feat(0.8.23): add embedding readiness feedback",
+    "dee1f61f: fix(0.8.23): map embedder required CLI error",
+    "5ffceab6: fix(0.8.23): preserve refused embedder semantics",
+    "78977d14: docs(0.8.23): correct readiness pin guidance",
+    "8af475da: docs(0.8.23): clarify worker terminal behavior",
+    "3285a44d: fix(0.8.23): initialize embedder error payload"
+  ],
+  "status_record": "dev/plans/runs/0.8.23-slice-30-memex-integration.md",
+  "review": {
+    "codex_review": "The mandated wrapper was invoked twice, but both executor transcripts ended without a terminal verdict; the independent adversarial fallback terminal record passed.",
+    "terminal_record": "dev/plans/runs/codex/0.8.23/slice-30-adversarial-rereview-20260816.md",
+    "verdict": "PASS"
+  },
+  "verification": {
+    "workspace_check": 0,
+    "workspace_clippy": 0,
+    "governed_surface_pin": 0,
+    "python_real_engine": 0,
+    "typescript_typecheck": 0,
+    "typescript_readiness_test": 0,
+    "typescript_typed_error_test": 0
+  },
+  "remaining_blocker": "The release-state remote-reachability guard fails until authorized integration carries the recorded 0.8.23 landed SHAs to origin/main; Slice 30 is not closed in release state or the board."
+}

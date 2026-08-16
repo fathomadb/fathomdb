@@ -91,6 +91,6 @@ development; it is not, by itself, an automated CI or release-evidence path.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 6** (`PREPARATION-WORKPLAN`) — hygiene and in-flight release preparation workplan
+**IMMEDIATE NEXT: Slice 30** (`MEMEX-INTEGRATION`) — Memex readiness and graph-integration contract
 
-**Remaining ladder:** 6 → 10 → 20 → 30 → 40 → 50 → 60.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->
+**Remaining ladder:** 30 → 60 → 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->

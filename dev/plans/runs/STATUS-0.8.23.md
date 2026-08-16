@@ -6,7 +6,7 @@
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.23:status-current-state -->**Next is Slice 6 (PREPARATION-WORKPLAN), WORKPLAN_READY.** Landed on `origin/main`: 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.23:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.23:status-current-state -->**Next is Slice 30 (MEMEX-INTEGRATION), NOT_STARTED.** Landed on `origin/main`: 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.23:status-current-state -->
 
 0.8.23 is in planning-only mode. Existing CUDA and related commits are inputs
 to review, not approved feature-slice closures. Publication is held.
@@ -23,7 +23,7 @@ to review, not approved feature-slice closures. Publication is held.
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Commission Slice 6 (PREPARATION-WORKPLAN)** — hygiene and in-flight release preparation workplan. **Remaining ladder:** 6 → 10 → 20 → 30 → 40 → 50 → 60.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Commission Slice 30 (MEMEX-INTEGRATION)** — Memex readiness and graph-integration contract. **Remaining ladder:** 30 → 60 → 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
 
 ## Stop gate
 

@@ -14,12 +14,16 @@ the verified integration SHA at each accepted lane close.
 
 ## Current lanes
 
-`TRACE-01` is commissioned to an isolated writer worktree at
+`TRACE-01` is in an isolated writer worktree at
 `/tmp/fathomdb-trace-01-20260816` on branch
 `experiments/performance-trace-01-20260816`, based on `1613824f`. The worker
-owns the dated trace contract, safe sidecar implementation, and lifecycle
-tests; this coordinator owns this board and PROGRAM state. The next gate is a
-worker handoff followed by an independent read-only review. No corpus,
+handed off `7ae0ae50` after its red checkpoint `ebb30ff0`; focused lifecycle
+tests passed, but the first independent review requested changes. It found that
+the writer did not fully validate sidecar payloads, identifiers were too
+permissive for a content-free artifact, and deterministic diagnostics/order
+needed explicit tests. The worker now owns a new red-test/fix cycle; this
+coordinator owns this board and PROGRAM state. The next gate is a re-handoff,
+full verifier result, and fresh independent read-only review. No corpus,
 GPU/model, paid, or external execution is authorized by this status entry.
 
 ## Track status
@@ -27,7 +31,7 @@ GPU/model, paid, or external execution is authorized by this status entry.
 | ID | Portfolio state | Runner state | Verified evidence / next gate |
 | --- | --- | --- | --- |
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
-| TRACE-01 | Planned | Worker commissioned | Base `1613824f`; implement dated contract, warning-only ELPS mapping, and synthetic lifecycle tests in the isolated worktree. |
+| TRACE-01 | Planned | Review changes requested | `7ae0ae50` is not accepted: enforce complete safe-sidecar validation, safe identifier grammar, and deterministic diagnostics/order before re-review. |
 | LOCOMO-01 | Active | Prepared, no worker lane | Complete Phase-A provenance/timing/GPU readiness before the full grid. |
 | PARENT-01 | Planned | Blocked on TRACE-01 integration | Consume the accepted trace contract; then freeze its bounded treatment. |
 | SCALE-01 | Planned | Queued independent lane | Implement and test manifest-backed all-real fidelity runner. |

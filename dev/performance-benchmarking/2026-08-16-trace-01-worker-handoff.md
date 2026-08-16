@@ -5,8 +5,8 @@
 **Charter:** [TRACE-01 in PROGRAM](PROGRAM.md#trace-01--projection-lifecycle-integrity)
 
 **Base:** `1b404101`
-**Outcome:** implementation is pending follow-up independent read-only review;
-the full verification gate is blocked by the worktree's native Python binding.
+**Outcome:** implementation is ready for follow-up independent read-only review;
+the full verification gate passes in the isolated worktree.
 
 ## Scope and ownership
 
@@ -25,19 +25,19 @@ the full verification gate is blocked by the worktree's native Python binding.
 - Exact red command: `python3 -m pytest tests/experiments/test_trace_projection.py -q`.
 - Exact red result before implementation: collection stopped with
   `ModuleNotFoundError: No module named 'experiments.trace_projection'`.
-- Passing focused command after implementation:
+- Final focused command:
   `python3 -m pytest tests/experiments/test_trace_projection.py -q` —
-  `5 passed`.
-- Exact final command:
-  `PATH=/home/coreyt/projects/fathomdb/.venv/bin:$PATH ./scripts/agent-verify.sh`.
-- Final result: failed at `typecheck-python` (exit 1). Pyright reported
-  `venv .venv subdirectory not found in venv path
-  /tmp/fathomdb-trace-01-20260816`, then existing repository-wide unresolved
-  `numpy` and `pytest` imports. The unaltered capped log is
-  `/tmp/fathomdb-agent-typecheck-python-3978.log`.
-- A documented, untracked `node_modules` symlink to the primary checkout was
-  created only to clear the preceding markdown-linter prerequisite; no package
-  was installed and no tracked receipt, configuration, or artifact changed.
+  `10 passed`.
+- Final required command: `./scripts/agent-verify.sh`, run unconfined only for
+  AC-036 ptrace support. It passed: `agent-test.sh: 72/73 suites passed
+  (skipped=1 excluded=0)`.
+- Local-only prerequisite: the worktree has an ignored local `.venv` copied
+  from the primary checkout, then `./scripts/earp-build-binding.sh` rebuilt the
+  native extension into it. `sys.prefix` is
+  `/tmp/fathomdb-trace-01-20260816/.venv`, and the imported extension is the
+  local regular file `src/python/fathomdb/_fathomdb.abi3.so`. An ignored
+  `node_modules` symlink supplies the Markdown tool. No network, receipt,
+  corpus, model, GPU, or external service was used.
 
 ## Review follow-up
 
@@ -60,12 +60,10 @@ superseded source irreversibly non-current and rejects the invalid written
 sidecar. Focused evidence after that fix is
 `python3 -m pytest tests/experiments/test_trace_projection.py -q` — `10 passed`.
 
-The most recent unconfined full gate completed its Rust and security phases but
-failed the existing Python suite after 689 seconds. Its capped Python log is
-`/tmp/fathomdb-agent-test-python-2805454.log`; failures concern native
-embedder/rebuild test-environment expectations, not TRACE. The local worktree
-uses only untracked symlinks to the primary checkout's `.venv`, `node_modules`,
-and existing native extension; nothing was built, copied, or installed.
+An earlier full-gate attempt lacked a worktree-local binding; its diagnostics are
+retained at `/tmp/fathomdb-agent-test-python-2805454.log`. The final passing
+gate used the local-only prerequisite above and supersedes that environment
+blocker.
 
 ## Review focus
 

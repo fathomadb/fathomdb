@@ -29,12 +29,13 @@
     "python_real_engine": 0,
     "typescript_typecheck": 0,
     "typescript_readiness_test": 0,
-    "typescript_typed_error_test": 0
+    "typescript_typed_error_test": 0,
+    "release_state_views": 0
   },
   "status": "COMPLETE",
   "release_completion": {
     "ref": "origin/release/0.8.23",
     "main_integration": "PENDING"
   },
-  "remaining_blocker": "None for Slice 30. Integration into origin/main remains pending and is recorded separately from release-branch completion."
+  "remaining_blocker": "None for Slice 30. `scripts/check-release-state-views.sh` verifies the recorded landed SHA set against origin/release/0.8.23; integration into origin/main remains PENDING and is recorded separately from release-branch completion."
 }

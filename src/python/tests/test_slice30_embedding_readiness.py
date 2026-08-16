@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from types import SimpleNamespace
+from typing import Literal, cast
 
 import pytest
 
@@ -63,3 +64,47 @@ def test_embedding_readiness_and_immediate_error_are_typed_and_body_private(tmp_
         assert secret not in repr(error)
     finally:
         engine.close()
+
+
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    [
+        ({"remediations": []}, "omitted its required payload"),
+        ({"documentation_url": None}, "omitted its required payload"),
+        ({"documentation_url": ""}, "omitted its required payload"),
+        (
+            {
+                "state": "ready",
+                "code": None,
+                "operation": None,
+                "remediations": [],
+                "documentation_url": "",
+            },
+            "included a blocked payload",
+        ),
+    ],
+)
+def test_embedding_readiness_rejects_incomplete_or_spurious_native_payload(
+    monkeypatch: pytest.MonkeyPatch, payload: dict[str, object], message: str
+) -> None:
+    """The native transport cannot smuggle a partial blocked payload into the SDK."""
+
+    status = {
+        "state": "blocked",
+        "usable_embedder": False,
+        "pending_count": 1,
+        "affected_kinds": ["edge_fact"],
+        "code": "FDB_EMBEDDER_REQUIRED",
+        "operation": "graph_edge_body_projection",
+        "remediations": ["configure_default_embedder"],
+        "documentation_url": "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED",
+    }
+    status.update(payload)
+    monkeypatch.setattr(
+        read,
+        "_native_read_embedding_readiness",
+        lambda _native: SimpleNamespace(**status),
+    )
+
+    with pytest.raises(RuntimeError, match=message):
+        read.embedding_readiness(cast(Engine, SimpleNamespace(_native=object())))

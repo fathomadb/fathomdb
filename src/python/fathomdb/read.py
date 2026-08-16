@@ -333,9 +333,19 @@ def embedding_readiness(engine: "Engine") -> EmbeddingReadiness:
     code = _embedding_required_code(status.code)
     operation = _embedding_operation(status.operation)
     if state == "blocked":
-        if code is None or operation is None:
+        if (
+            code is None
+            or operation is None
+            or not status.remediations
+            or not status.documentation_url
+        ):
             raise RuntimeError("native blocked embedding readiness omitted its required payload")
-    elif code is not None or operation is not None or status.remediations or status.documentation_url:
+    elif (
+        code is not None
+        or operation is not None
+        or status.remediations
+        or status.documentation_url is not None
+    ):
         raise RuntimeError("native non-blocked embedding readiness included a blocked payload")
     return EmbeddingReadiness(
         state=state, usable_embedder=status.usable_embedder,

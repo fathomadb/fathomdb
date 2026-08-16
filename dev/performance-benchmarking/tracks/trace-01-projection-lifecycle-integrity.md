@@ -1,7 +1,8 @@
 # TRACE-01 — Projection lifecycle integrity
 
-**Status:** planned; required before parent-child, extracted-memory, or graph
-experiments can make lifecycle claims.
+**Status:** complete canary; integrated at `ca5b656d` after independent review
+and a passing synthetic lifecycle suite. It authorizes lifecycle-dependent
+preparation, not a live benchmark.
 
 ## Decision
 

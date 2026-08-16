@@ -7,23 +7,21 @@ index remain the source of execution evidence.
 
 **Last reconciled:** 2026-08-16
 
-**Integration base:** `aa12226a` on
-`experiments/performance-experiments-20260815`. Track Runner control and the
-verified harness-contract changes are committed at this base; replace it with
-the verified integration SHA at each accepted lane close.
+**Integration base:** `ca5b656d` on
+`experiments/performance-experiments-20260815`. This is the verified TRACE-01
+integration SHA; replace it with the verified integration SHA at each accepted
+lane close.
 
 ## Current lanes
 
-`TRACE-01` is in an isolated writer worktree at
-`/tmp/fathomdb-trace-01-20260816` on branch
-`experiments/performance-trace-01-20260816`, based on `1613824f`. The worker
-completed its third red-test/fix cycle at `15745883` after checkpoint
-`759670a0`; final independent review accepted the full range and the focused
-lifecycle suite passed 10 tests. The worker then supplied verification evidence
-at `a4a7ed0b`: its source-owned, worktree-local environment passed the unchanged
+No writer lane is active. `TRACE-01` integrated at `ca5b656d` after final
+independent review accepted `a4a7ed0b`; its fixed synthetic lifecycle suite had
+10 passing tests and its source-owned local environment passed the unchanged
 `./scripts/agent-verify.sh` gate (`72/73` suites passed; one documented skip).
-A fresh read-only review of that final evidence commit is pending before
-integration. This coordinator owns this board and PROGRAM state. No corpus,
+The next authorized writer lanes are `LOCOMO-01` Phase-A runner/config work and
+`SCALE-01` manifest-runner work, with a maximum of two writers. `PARENT-01` may
+consume the accepted trace contract in preparation but is not commissioned by
+this entry. This coordinator owns this board and PROGRAM state. No corpus,
 GPU/model, paid, or external execution is authorized by this status entry.
 
 ## Track status
@@ -31,10 +29,10 @@ GPU/model, paid, or external execution is authorized by this status entry.
 | ID | Portfolio state | Runner state | Verified evidence / next gate |
 | --- | --- | --- | --- |
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
-| TRACE-01 | Planned | Final evidence review pending | `a4a7ed0b` records `agent-verify` pass after three red-first fixes and 10 focused tests; review the evidence commit before integration. |
-| LOCOMO-01 | Active | Prepared, no worker lane | Complete Phase-A provenance/timing/GPU readiness before the full grid. |
-| PARENT-01 | Planned | Blocked on TRACE-01 integration | Consume the accepted trace contract; then freeze its bounded treatment. |
-| SCALE-01 | Planned | Queued independent lane | Implement and test manifest-backed all-real fidelity runner. |
+| TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
+| LOCOMO-01 | Active | Next authorized writer lane | Commission only Phase-A provenance/timing/GPU readiness and runner/config work; no live grid. |
+| PARENT-01 | Planned | Contract dependency satisfied; not commissioned | May consume the accepted trace contract in preparation; hold writer work behind the two-lane authorization. |
+| SCALE-01 | Planned | Next authorized writer lane | Commission manifest-backed all-real fidelity runner implementation and tests; no live execution. |
 | CORPUS-01 | Planned | Queued independent preparation | Create corpus/license matrix and human-gold readiness contract. |
 | ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |
 | MEMORY-01 | Blocked | Waiting for ANSWER-01 | Require selected profile, native prerequisites, and declared spend ceiling. |

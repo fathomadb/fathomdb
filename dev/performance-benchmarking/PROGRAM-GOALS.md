@@ -2,7 +2,7 @@
 
 The central hypothesis should be: FathomDB becomes world-class not by choosing one “best” chunk size or retrieval algorithm, but by making an agent’s durable memory a provenance-preserving canonical record with multiple, selectively materialized retrieval projections.
 
-The chunking result is a warning against treating passage-vector retrieval as universally beneficial: independently embedded `128/96` windows improved dense-only retrieval, yet the fused result remained slightly below text-only retrieval. For conversational, discourse-heavy personal memory, a weak dense arm can displace a strong lexical result. The current L0 plan sensibly starts with a smaller, more revealing question: whether turns, sessions, source-aware neighbors, hybrid retrieval, and cross-encoder reranking earn their latency and quality costs on LOCOMO. [Chunking findings](/tmp/fathomdb-performance-experiments-20260815/dev/design/chunking-strategy-and-test-guidance.md) · [L0 campaign](/tmp/fathomdb-performance-experiments-20260815/dev/performance-benchmarking/2026-08-14-locomo-fathomdb-capability-campaign-plan.md)
+The chunking result is a warning against treating passage-vector retrieval as universally beneficial: independently embedded `128/96` windows improved dense-only retrieval, yet the fused result remained slightly below text-only retrieval. For conversational, discourse-heavy personal memory, a weak dense arm can displace a strong lexical result. The current L0 plan sensibly starts with a smaller, more revealing question: whether turns, sessions, source-aware neighbors, hybrid retrieval, and cross-encoder reranking earn their latency and quality costs on LOCOMO. [Chunking findings](../design/chunking-strategy-and-test-guidance.md) · [L0 campaign](2026-08-14-locomo-fathomdb-capability-campaign-plan.md)
 
 ## Product hypothesis
 
@@ -19,7 +19,7 @@ That yields a useful split:
 | Multi-hop “who/why/relationship” questions | Extracted entities/claims/edges with provenance | Lexical seeds → bounded graph expansion → rerank |
 | Global synthesis | Documents/sessions plus summaries or graph communities | Coverage-oriented retrieval and map-reduce only when justified |
 
-The crucial property is reversibility and attribution: an extracted fact, vector child, graph edge, summary, or embedding should point back to an erasable canonical source record. Derived memories must not become an untraceable second database. That aligns with FathomDB’s lifecycle, source-erasure, and projection-registry direction—not merely better search. [Rust interface](/tmp/fathomdb-performance-experiments-20260815/dev/interfaces/rust.md)
+The crucial property is reversibility and attribution: an extracted fact, vector child, graph edge, summary, or embedding should point back to an erasable canonical source record. Derived memories must not become an untraceable second database. That aligns with FathomDB’s lifecycle, source-erasure, and projection-registry direction—not merely better search. [Rust interface](../interfaces/rust.md)
 
 ## Multiple approaches, as needed
 
@@ -48,6 +48,6 @@ LOCOMO should be the primary personal-memory anchor, but not the only judge:
 - **AP-News/AutoE and SummHay:** global sensemaking, coverage, citation quality, and the point at which a graph or map-reduce treatment has earned its high cost.
 - **ELPS:** extraction/projection conformance only; not a retrieval-quality proxy.
 
-This directly follows the program’s separation of retrieval quality, answer/task quality, cost, and fidelity/scale—and prevents a local dense-recall gain from being mistaken for a personal-memory product win. [Program](/tmp/fathomdb-performance-experiments-20260815/dev/performance-benchmarking/PROGRAM.md) · [Available gold data](/tmp/fathomdb-performance-experiments-20260815/dev/performance-benchmarking/README.md)
+This directly follows the program’s separation of retrieval quality, answer/task quality, cost, and fidelity/scale—and prevents a local dense-recall gain from being mistaken for a personal-memory product win. [Program](PROGRAM.md) · [Available gold data](README.md)
 
 The near-term priority is therefore not to build late chunking or a full graph system now. Complete L0 with provenance, turn/session treatments, neighbor expansion, hybrid and bounded rerank; characterize each class and cost cell; then use the failures to commission one next mechanism. The evidence already supports that FTS is a serious baseline, reranking may be a precision lever, and graph or late-chunking capabilities need query-shape-specific proof rather than architectural faith.

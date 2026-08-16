@@ -323,6 +323,11 @@ printf '# fixture plan\n\n**LANDED on main:** Slices 30 (`9b3ed0e3`)\n' \
 # need not be the first item in that canonical roll-up.
 printf '# fixture plan\n\n**LANDED on `origin/main`, in full:** Slices 0 (`2ea2c884`) · 5 (`a6cf2bbe`) · 10 (`f94275e1`) · 15 (`19d8f072`).\n' \
   >"$PLANS/landed-rollup-prior-items.md"
+# A release branch may truthfully complete a slice before integrating the
+# release line into main. Its generated roll-up is an equally affirmative,
+# exact-id dependency witness.
+printf '# fixture plan\n\n**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`2ea2c884`) · 6 (`e98f727d`) · 30 (`776d2c20`).\n' \
+  >"$PLANS/completed-release-rollup.md"
 # Status words must be affirmative closure witnesses, not merely substrings. A
 # negated or prefixed status must not authorize a dependent spawn.
 printf '# fixture plan\n\n- Slice 39 — NOT CLOSED\n' >"$PLANS/not-closed.md"
@@ -345,7 +350,7 @@ for alt in alt1 alt2; do
   else
     fail "site 4 RECURRENCE ($alt): Slice 39.5's CLOSED witness cleared --expect-closed 39; got rc=0, out: $OUT"
   fi
-  if printf '%s' "$OUT" | grep -q "^HARD .*Slice/Phase 39 has NO 'CLOSED' or 'LANDED' witness"; then
+  if printf '%s' "$OUT" | grep -q "^HARD .*Slice/Phase 39 has NO 'CLOSED', 'LANDED', or 'COMPLETED' witness"; then
     pass "site 4 ($alt): the refusal names the dependency that is not closed"
   else
     fail "expected a HARD line naming Slice/Phase 39 as not CLOSED; got: $OUT"
@@ -362,7 +367,7 @@ for landed in landed-frac-alt1 landed-frac-alt2 landed-frac-rollup; do
   else
     fail "LANDED boundary RECURRENCE ($landed): Slice 39.5 cleared --expect-closed 39; got rc=0, out: $OUT"
   fi
-  if printf '%s' "$OUT" | grep -q "^HARD .*Slice/Phase 39 has NO 'CLOSED' or 'LANDED' witness"; then
+  if printf '%s' "$OUT" | grep -q "^HARD .*Slice/Phase 39 has NO 'CLOSED', 'LANDED', or 'COMPLETED' witness"; then
     pass "LANDED boundary ($landed): the refusal names the dependency that is not closed"
   else
     fail "expected a HARD line naming Slice/Phase 39 as not closed or landed; got: $OUT"
@@ -379,7 +384,7 @@ for alt in alt1 alt2; do
   else
     fail "duty 1 RECURRENCE ($alt): the unescaped '.' matched 'x'; got rc=0, out: $OUT"
   fi
-  if printf '%s' "$OUT" | grep -q "^HARD .*Slice/Phase 39.5 has NO 'CLOSED' or 'LANDED' witness"; then
+  if printf '%s' "$OUT" | grep -q "^HARD .*Slice/Phase 39.5 has NO 'CLOSED', 'LANDED', or 'COMPLETED' witness"; then
     pass "duty 1 ($alt): the refusal names the dependency that is not closed"
   else
     fail "expected a HARD line naming Slice/Phase 39.5 as not CLOSED; got: $OUT"
@@ -398,7 +403,7 @@ for negated in 'not-closed:39:NOT CLOSED' 'unclosed:39.5:UNCLOSED' 'unlanded:39:
   else
     fail "negation recurrence ($phrase): a non-affirmative status cleared --expect-closed $expected; got rc=0, out: $OUT"
   fi
-  if printf '%s' "$OUT" | grep -q "^HARD .*Slice/Phase $expected has NO 'CLOSED' or 'LANDED' witness"; then
+  if printf '%s' "$OUT" | grep -q "^HARD .*Slice/Phase $expected has NO 'CLOSED', 'LANDED', or 'COMPLETED' witness"; then
     pass "negation guard ($phrase): the refusal names the dependency that is not closed"
   else
     fail "negation guard ($phrase): expected a HARD refusal for Slice/Phase $expected; got: $OUT"
@@ -437,6 +442,12 @@ if [ "$RC" -eq 0 ]; then
   pass "regression guard: a generated LANDED roll-up recognizes a later landed slice"
 else
   fail "a later entry in a generated LANDED roll-up must clear the gate; got rc=$RC, out: $OUT"
+fi
+run_preflight "$LINKED" --expect-closed 6 --plan "$PLANS/completed-release-rollup.md"
+if [ "$RC" -eq 0 ]; then
+  pass "release-branch completion roll-up satisfies --expect-closed without claiming origin/main integration"
+else
+  fail "a generated COMPLETED release-branch roll-up must clear the gate; got rc=$RC, out: $OUT"
 fi
 run_preflight "$LINKED" --expect-closed 39 --plan "$PLANS/int-trailing-period.md"
 if [ "$RC" -eq 0 ]; then

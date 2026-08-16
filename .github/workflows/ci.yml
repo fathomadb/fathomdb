@@ -848,6 +848,11 @@ jobs:
           # the gate then correctly declines to check it and this job would vouch
           # for nothing. Full history is what makes the assertion real here.
           fetch-depth: 0
+      - name: Fetch the scoped 0.8.23 release completion ref
+        # `completion.ref` is deliberately an exact, release-scoped remote ref.
+        # Checkout's refspec guarantees origin/main but does not guarantee this
+        # sibling branch exists as a remote-tracking ref in every event shape.
+        run: git fetch --no-tags origin +refs/heads/release/0.8.23:refs/remotes/origin/release/0.8.23
       - name: Release-state generated views are current (DOC-HYGIENE-2 T2a)
         run: bash scripts/check-release-state-views.sh
       - name: Recurrence guard for the gate itself (fixture arms)

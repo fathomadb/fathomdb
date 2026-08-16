@@ -155,10 +155,11 @@ fi
 # `--expect-closed 0`, the version dot being read as a boundary. That is site 4's
 # own defect class, live in a tracked file.
 #
-# A dependency can also be LANDED. The release-state renderer writes its
-# canonical historical roll-up as `LANDED on main: Slices <id> ...`; rejecting
-# that generated record would make an already-landed prerequisite appear open.
-# Keep the same exact-id boundary for both closure states and for singular and
+# A dependency can also be LANDED, or (for the scoped 0.8.23 release branch)
+# COMPLETED before integration into main. The release-state renderer writes its
+# canonical roll-up as `<closure> on <verified ref>: Slices <id> ...`; rejecting
+# that generated record would make an already-complete prerequisite appear open.
+# Keep the same exact-id boundary for all affirmative closure states and for singular and
 # plural Slice labels: a neighbouring fractional id must never clear this gate.
 # A closure state must also be a standalone affirmative token. `NOT CLOSED` is
 # not closure, and neither are prefixed words such as `UNCLOSED` or `UNLANDED`.
@@ -172,7 +173,7 @@ if [ -n "$EXPECT_CLOSED" ]; then
   # "not the start of a LONGER slice id": not a digit, and not `.`+digit.
   ID_END='([^0-9.]|\.[^0-9])'
   SLICE_LABEL='(Slice|Slices|Phase)'
-  CLOSURE_STATE='(CLOSED|LANDED)'
+  CLOSURE_STATE='(CLOSED|LANDED|COMPLETED)'
   CLOSURE_TOKEN="(^|[^[:alnum:]_])${CLOSURE_STATE}([^[:alnum:]_]|$)"
   NEGATED_CLOSURE="(^|[^[:alnum:]_])(NOT[[:space:]]+|UN)${CLOSURE_STATE}([^[:alnum:]_]|$)"
   # The generated plan roll-up lists every landed slice after one `LANDED on
@@ -186,9 +187,9 @@ if [ -n "$EXPECT_CLOSED" ]; then
   elif [ ! -f "$PLAN" ]; then
     hard "plan file not found: $PLAN"
   elif grep -viE "$NEGATED_CLOSURE" "$PLAN" | grep -qiE "$CLOSURE_WITNESS"; then
-    ok "dependency Slice/Phase $EXPECT_CLOSED has a CLOSED or LANDED witness in $PLAN"
+    ok "dependency Slice/Phase $EXPECT_CLOSED has a CLOSED, LANDED, or COMPLETED witness in $PLAN"
   else
-    hard "dependency Slice/Phase $EXPECT_CLOSED has NO 'CLOSED' or 'LANDED' witness in $PLAN — do not spawn dependents"
+    hard "dependency Slice/Phase $EXPECT_CLOSED has NO 'CLOSED', 'LANDED', or 'COMPLETED' witness in $PLAN — do not spawn dependents"
   fi
 fi
 

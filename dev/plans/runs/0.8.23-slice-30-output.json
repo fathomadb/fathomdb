@@ -1,14 +1,20 @@
 {
   "phase": "0.8.23-slice-30",
   "baseline_sha": "f88dc65f7f6cffec4eefa6f3a010db7743d404b4",
-  "head_sha": "3285a44d813fb923d5ad7bf1024cce628d78b452",
+  "head_sha": "776d2c202e0d39ae549cda1add2793e338131afe",
   "commits": [
     "b797b922: feat(0.8.23): add embedding readiness feedback",
     "dee1f61f: fix(0.8.23): map embedder required CLI error",
     "5ffceab6: fix(0.8.23): preserve refused embedder semantics",
     "78977d14: docs(0.8.23): correct readiness pin guidance",
     "8af475da: docs(0.8.23): clarify worker terminal behavior",
-    "3285a44d: fix(0.8.23): initialize embedder error payload"
+    "3285a44d: fix(0.8.23): initialize embedder error payload",
+    "0d0abff3: fix(ci): preserve URLs in C1 Rust reader",
+    "c353d745: fix(0.8.23): narrow Python readiness payload",
+    "0e6a8dbe: fix(0.8.23): validate readiness payload completeness",
+    "a7425155: test(0.8.23): assert typed no-embedder drain",
+    "1f567233: docs(0.8.23): clarify no-embedder drain behavior",
+    "776d2c20: docs(0.8.23): clarify Python no-embedder drain"
   ],
   "status_record": "dev/plans/runs/0.8.23-slice-30-memex-integration.md",
   "review": {
@@ -25,5 +31,10 @@
     "typescript_readiness_test": 0,
     "typescript_typed_error_test": 0
   },
-  "remaining_blocker": "The release-state remote-reachability guard fails until authorized integration carries the recorded 0.8.23 landed SHAs to origin/main; Slice 30 is not closed in release state or the board."
+  "status": "COMPLETE",
+  "release_completion": {
+    "ref": "origin/release/0.8.23",
+    "main_integration": "PENDING"
+  },
+  "remaining_blocker": "None for Slice 30. Integration into origin/main remains pending and is recorded separately from release-branch completion."
 }

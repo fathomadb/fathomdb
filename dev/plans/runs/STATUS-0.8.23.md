@@ -6,7 +6,7 @@
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.23:status-current-state -->**Next is Slice 30 (MEMEX-INTEGRATION), NOT_STARTED.** Landed on `origin/main`: 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.23:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.23:status-current-state -->**Next is Slice 60 (WINDOWS-WAL), NOT_STARTED.** Completed on `origin/release/0.8.23`; `origin/main` integration is PENDING: 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 30 (`776d2c20`) · 50 (`ae7cef0e`) — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.23:status-current-state -->
 
 0.8.23 is in planning-only mode. Existing CUDA and related commits are inputs
 to review, not approved feature-slice closures. Publication is held.
@@ -22,7 +22,7 @@ to review, not approved feature-slice closures. Publication is held.
 | 4 | ARCHITECTURE — architecture and high-level code-alignment review | LANDED (`a7df1590`). |
 | 5 | VERIFICATION — verification-adequacy review | LANDED (`00f865f3`). |
 | 6 | PREPARATION-WORKPLAN — hygiene and in-flight release preparation workplan | LANDED (`e98f727d`). |
-| 30 | MEMEX-INTEGRATION — Memex readiness and graph-integration contract | PR [#227](https://github.com/fathomadb/fathomdb/pull/227) is in CI; not yet landed. |
+| 30 | MEMEX-INTEGRATION — Memex readiness and graph-integration contract | COMPLETED on `origin/release/0.8.23` (`776d2c20`); `origin/main` integration is PENDING. |
 | 50 | GITLEAKS-GUARDS — staged pre-commit and always-on CI secret scanning | LANDED (`ae7cef0e`). |
 | 60 | WINDOWS-WAL — Windows WAL checkpoint reader-conflict diagnosis | NOT_STARTED. |
 | 40 | SCALE-CHARACTERIZATION — fixture-scoped scale characterization | NOT_STARTED. |
@@ -33,7 +33,7 @@ to review, not approved feature-slice closures. Publication is held.
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Commission Slice 30 (MEMEX-INTEGRATION)** — Memex readiness and graph-integration contract. **Remaining ladder:** 30 → 60 → 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Commission Slice 60 (WINDOWS-WAL)** — Windows WAL checkpoint reader-conflict diagnosis. **Remaining ladder:** 60 → 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
 
 ## Stop gate
 

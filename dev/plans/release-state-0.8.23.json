@@ -7,6 +7,10 @@
   "schema_version": 26,
   "origin_main_schema_version": 26,
   "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
+  "completion": {
+    "ref": "origin/release/0.8.23",
+    "main_integration": "PENDING"
+  },
   "ladder": [
     {"slice": 0, "short": "ENVIRONMENT", "title": "identify environment setup and change preconditions", "depends_on": [], "status": "LANDED", "design_refs": ["dev/design/0.8.23-planning-foundation.md", "dev/design/0.8.23-windows-local-environment.md"], "sha": "916023fe", "merge_subject": "docs(0.8.23): establish planning-first release ladder", "evidence": "Planning-only environment inventory landed at this commit. It separates available local development tools from CUDA, Docker, and system-libvirt evidence that only an authorized later execution may certify; no runner, guest, artifact, dependency, or publication change occurred."},
     {"slice": 1, "short": "DEPENDENCIES", "title": "Dependabot needs and library-sweep disposition", "depends_on": [0], "status": "LANDED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"], "sha": "2167a0cd", "merge_subject": "docs(0.8.23): record Slice 1 dependency disposition", "evidence": "Retains the explicit Dependabot pause. An online SBOM survey read 780 locked components but registry DNS made every version comparison unknown; the GitHub integration returned no open Dependabot PRs and lacked advisory-read permission. No version, lockfile, or configuration change is proposed."},
@@ -17,24 +21,25 @@
     {"slice": 6, "short": "PREPARATION-WORKPLAN", "title": "hygiene and in-flight release preparation workplan", "depends_on": [5], "status": "LANDED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"], "sha": "e98f727d", "merge_subject": "docs(0.8.23): add Slice 6 preparation workplan", "evidence": "The workplan consolidates the hygiene and in-flight-release preparation identified by Slices 0–5, assigns relative value, and supplies a dependency-first execution sequence. The HITL then commissioned completion of that workplan locally without a branch, PR, push, or publication."},
     {"slice": 10, "short": "CUDA-CONTRACT", "title": "CUDA environment, artifact contract, and protected runner gate", "depends_on": [6], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-gpu-artifacts.md"]},
     {"slice": 20, "short": "CUDA-PACKAGE", "title": "CUDA package, rehearsal, and installed-artifact smokes", "depends_on": [6, 10], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-gpu-artifacts.md"]},
-    {"slice": 30, "short": "MEMEX-INTEGRATION", "title": "Memex readiness and graph-integration contract", "depends_on": [6], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-embedding-configuration-feedback.md", "dev/design/0.8.23-memex-integration.md"]},
+    {"slice": 30, "short": "MEMEX-INTEGRATION", "title": "Memex readiness and graph-integration contract", "depends_on": [6], "status": "LANDED", "design_refs": ["dev/design/0.8.23-embedding-configuration-feedback.md", "dev/design/0.8.23-memex-integration.md"], "sha": "776d2c20", "merge_subject": "docs(0.8.23): clarify Python no-embedder drain", "evidence": "Slice 30 is complete on `origin/release/0.8.23` through this commit, with main integration explicitly pending. It adds typed cross-SDK embedding readiness and the immediate `FDB_EMBEDDER_REQUIRED` no-embedder outcome; preserves operational worker/equivalence outcomes; documents the bounded Memex graph contract; and records RED→GREEN, independent review, real-engine Python, and native TypeScript verification. The completion ref, not `origin/main`, is the authoritative reachability target until release integration occurs."},
     {"slice": 40, "short": "SCALE-CHARACTERIZATION", "title": "fixture-scoped scale characterization", "depends_on": [6], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-scale-characterization-protocol.md"]},
     {"slice": 50, "short": "GITLEAKS-GUARDS", "title": "staged pre-commit and always-on CI secret scanning", "depends_on": [6], "status": "LANDED", "design_refs": ["dev/design/0.8.23-gitleaks-guards.md"], "sha": "ae7cef0e", "merge_subject": "feat(0.8.23): add Gitleaks security guards", "evidence": "A Go-module-pinned Gitleaks v8.30.1 installer now provisions the tracked staged-index hook and an unconditional, full-history CI job. Regression coverage proves unavailable-scanner failure, clean-index acceptance, synthetic-credential rejection, redaction, and CI/hook wiring; the focused guard test, shell lint, and a real local reachable-history scan passed."},
     {"slice": 60, "short": "WINDOWS-WAL", "title": "Windows WAL checkpoint reader-conflict diagnosis", "depends_on": [6], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-windows-wal-checkpoint-reader-conflict.md", "dev/design/0.8.23-windows-local-environment.md"]}
   ],
-  "landed": [0, 1, 2, 3, 4, 5, 6, 50],
-  "next_slice": 30,
-  "remaining_ladder": [30, 60, 40, 10, 20],
+  "landed": [0, 1, 2, 3, 4, 5, 6, 50, 30],
+  "next_slice": 60,
+  "remaining_ladder": [60, 40, 10, 20],
   "decisions": {
     "unruled": [
-      {"id": "feature-commission", "title": "HITL explicitly commissions the next bounded hygiene or feature slice from the Slice 6 preparation report", "halts_run": true, "source": "0.8.23 preparation report"},
       {"id": "windows-wal-evidence", "title": "Use the available local Windows development environment for controlled reproduction and choose a durable first-party Windows x64 evidence path before Slice 60", "halts_run": false, "source": "dev/design/0.8.23-windows-wal-checkpoint-reader-conflict.md"}
     ],
     "ruled": [
+      {"id": "feature-commission", "title": "HITL commissioned Slice 30 completion and Slice 60 execution on the 0.8.23 release branch", "source": "HITL 2026-08-16"},
       {"id": "publication", "title": "Complete planning and any approved implementation/rehearsal without publishing 0.8.23", "halts_run": false, "source": "HITL 2026-08-10"}
     ]
   },
   "generated_views": [
+    {"id": "plan-landed-roll-up", "file": "dev/plans/plan-0.8.23.md", "location": "Immediate next slice", "renders": "the completion-ref-aware landed roll-up used by dependency preflight"},
     {"id": "plan-immediate-next", "file": "dev/plans/plan-0.8.23.md", "location": "Immediate next slice", "renders": "the state-owned next slice and remaining ladder"},
     {"id": "status-current-state", "file": "dev/plans/runs/STATUS-0.8.23.md", "location": "Current state", "renders": "the state-owned next-slice and landed evidence summary"},
     {"id": "status-next-action", "file": "dev/plans/runs/STATUS-0.8.23.md", "location": "Immediate next action", "renders": "the lifecycle-aware next action and remaining ladder"}

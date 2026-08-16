@@ -91,6 +91,14 @@ def test_ambiguous_projection_source_attribution_is_rejected():
         build_trace_projection(sources, ambiguous, accepted_result)
 
 
+def test_source_text_cannot_be_used_as_an_identifier():
+    sources, projections, accepted_result = _fixture()
+    unsafe_sources = (Source(PRIOR_BODY, sources[0].source_sha256), sources[1])
+
+    with pytest.raises(TraceProjectionError, match="safe identifier"):
+        build_trace_projection(unsafe_sources, projections, accepted_result)
+
+
 def test_competing_elps_edge_supersession_representation_is_rejected():
     sources, projections, _ = _fixture()
     competing_result = {
@@ -139,3 +147,25 @@ def test_reopen_recovers_only_the_erased_source_projections():
         "text-current", "vector-current",
     }
     assert all(PRIOR_BODY not in value for value in json.dumps(sidecar).splitlines())
+
+
+def test_sidecar_writer_rejects_payload_injection_after_build(tmp_path):
+    sources, projections, accepted_result = _fixture()
+    sidecar = build_trace_projection(sources, projections, accepted_result)
+    sidecar["diagnostics"] = [PRIOR_BODY]
+
+    with pytest.raises(TraceProjectionError, match="diagnostic"):
+        write_trace_projection(tmp_path / "unsafe-trace-projection.json", sidecar)
+
+
+def test_sidecar_output_and_bytes_are_deterministic_across_input_order(tmp_path):
+    sources, projections, accepted_result = _fixture()
+
+    first = build_trace_projection(sources, projections, accepted_result)
+    second = build_trace_projection(tuple(reversed(sources)), tuple(reversed(projections)), accepted_result)
+    first_path = write_trace_projection(tmp_path / "first.json", first)
+    second_path = write_trace_projection(tmp_path / "second.json", second)
+
+    assert first == second
+    assert first_path.read_bytes() == second_path.read_bytes()
+    assert first["diagnostics"] == ["supersession-applied"]

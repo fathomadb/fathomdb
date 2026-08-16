@@ -44,7 +44,7 @@ They must be inspected through this ladder rather than inferred as complete.
 | 3 | Draft CRUD changes to user needs, requirements, and acceptance criteria; allocate every draft to a feature slice. | Draft requirements allocation; no action. |
 | 4 | Review architecture and perform a high-level code-to-architecture alignment review. | Architecture/code proposal; no action. |
 | 5 | Review verification adequacy: requirements→ACs, ACs→tests, product goals, and critical paths. | Test/verification proposal; no action. |
-| 6 | Consolidate the hygiene and preparation work identified by Slices 0–5. | Hygiene/preparation report; no feature implementation. |
+| 6 | Consolidate, value-rate, prioritize, and sequence the hygiene and preparation work identified by Slices 0–5. | Hygiene/preparation report and workplan; no feature implementation. |
 
 Slices 0–6 use [the planning foundation](../design/0.8.23-planning-foundation.md).
 Slice 6 records the concrete hygiene, environment, contract, design, and
@@ -91,6 +91,6 @@ development; it is not, by itself, an automated CI or release-evidence path.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 6** (`PREPARATION-REPORT`) — hygiene and in-flight release preparation report
+**IMMEDIATE NEXT: Slice 6** (`PREPARATION-WORKPLAN`) — hygiene and in-flight release preparation workplan
 
 **Remaining ladder:** 6 → 10 → 20 → 30 → 40 → 50 → 60.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->

@@ -29,11 +29,27 @@ export class OverloadedError extends FathomDbError {}
 export class ClosingError extends FathomDbError {}
 
 export class EmbedderNotConfiguredError extends EmbedderError {}
-export interface EmbedderRequiredErrorPayload { operation: string; state: string; remediations: string[]; documentationUrl: string; }
+export interface EmbedderRequiredErrorPayload {
+  operation: string;
+  state: string;
+  remediations: string[];
+  documentationUrl: string;
+}
+
 export class EmbedderRequiredError extends EmbedderError {
   readonly code = "FDB_EMBEDDER_REQUIRED";
-  readonly operation: string; readonly state: string; readonly remediations: string[]; readonly documentationUrl: string;
-  constructor(message: string, payload: EmbedderRequiredErrorPayload) { super(message); Object.assign(this, payload); }
+  readonly operation: string;
+  readonly state: string;
+  readonly remediations: string[];
+  readonly documentationUrl: string;
+
+  constructor(message: string, payload: EmbedderRequiredErrorPayload) {
+    super(message);
+    this.operation = payload.operation;
+    this.state = payload.state;
+    this.remediations = payload.remediations;
+    this.documentationUrl = payload.documentationUrl;
+  }
 }
 export class KindNotVectorIndexedError extends VectorError {}
 

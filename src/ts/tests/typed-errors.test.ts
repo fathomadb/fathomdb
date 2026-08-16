@@ -17,6 +17,7 @@ import {
   EmbedderError,
   EmbedderIdentityMismatchError,
   EmbedderNotConfiguredError,
+  EmbedderRequiredError,
   FathomDbError,
   InvalidArgumentError,
   KindNotVectorIndexedError,
@@ -92,6 +93,27 @@ test("EmbedderNotConfiguredError is a distinct leaf under EmbedderError", () => 
   assert.ok(err instanceof EmbedderError);
   assert.ok(err instanceof FathomDbError);
   assert.notEqual(EmbedderNotConfiguredError, EmbedderError);
+});
+
+test("EmbedderRequiredError initializes its typed configuration payload", () => {
+  const remediations = [
+    "configure_default_embedder",
+    "configure_caller_embedder",
+    "submit_non_embedding_input",
+  ];
+  const err = new EmbedderRequiredError("embedder required", {
+    operation: "graph_edge_body_projection",
+    state: "blocked",
+    remediations,
+    documentationUrl: "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED",
+  });
+
+  assert.equal(err.code, "FDB_EMBEDDER_REQUIRED");
+  assert.equal(err.operation, "graph_edge_body_projection");
+  assert.equal(err.state, "blocked");
+  assert.deepEqual(err.remediations, remediations);
+  assert.equal(err.documentationUrl, "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED");
+  assert.ok(err instanceof EmbedderError);
 });
 
 test("KindNotVectorIndexedError is a distinct leaf under VectorError", () => {

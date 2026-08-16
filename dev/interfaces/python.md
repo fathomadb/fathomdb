@@ -522,9 +522,11 @@ commands. The pinned invariant, tested in Rust, Python and TypeScript:
   session, however long you wait. It is **not** lost: no failure is recorded and
   no terminal is written, so the next session opened WITH an approved runtime
   embeds it through the ordinary scheduler — no re-apply, no operator `rebuild`.
-  Expect the timeout there and do not read it as data loss.
-- **`drain` stays bounded** and raises the existing timeout error rather than
-  blocking; size `timeout_s` for the backfill you just asked for.
+  The configuration outcome is immediate; it is not a timeout and does not
+  indicate data loss.
+- **`drain` stays bounded** for operational embedding work. Size `timeout_s`
+  for an approved-runtime backfill; an absent runtime instead raises
+  `EmbedderRequiredError` immediately.
 
 ## Errors
 

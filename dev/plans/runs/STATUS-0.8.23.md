@@ -8,8 +8,9 @@
 
 <!-- BEGIN GENERATED release-state:0.8.23:status-current-state -->**Next is Slice 40 (SCALE-CHARACTERIZATION), NOT_STARTED.** Completed on `origin/release/0.8.23`; `origin/main` integration is PENDING: 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 30 (`776d2c20`) · 50 (`ae7cef0e`) · 60 (`423baf6a`) — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.23:status-current-state -->
 
-0.8.23 is in planning-only mode. Existing CUDA and related commits are inputs
-to review, not approved feature-slice closures. Publication is held.
+0.8.23 remains planning-first and publication-held. Slices 30, 50, and 60 are
+completed on `origin/release/0.8.23`; integration to `origin/main` remains
+pending. The remaining candidate slices require explicit commission.
 
 ## Slice ladder
 
@@ -38,7 +39,8 @@ to review, not approved feature-slice closures. Publication is held.
 ## Stop gate
 
 The Slice 6 report prepares bounded hygiene and feature work but does not
-commission it. Do not start Slices 10–60 without an explicit instruction.
+commission it. Do not start the remaining Slices 40, 10, or 20 without an
+explicit instruction.
 
 The report is [0.8.23 Slice 6 preparation report](0.8.23-slice-6-hitl-package.md).
 Its companion is the [Slice 6 workplan](0.8.23-slice-6-workplan.md).

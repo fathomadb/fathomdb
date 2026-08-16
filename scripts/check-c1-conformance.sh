@@ -1481,6 +1481,80 @@ _code_cache = {}
 _IDENT_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_")
 
 
+def blank_comments(text):
+    """Replace Rust comments with spaces without treating literal contents as code.
+
+    This is deliberately a small lexer rather than a parser. It preserves every
+    non-comment byte, including `//` in normal, byte, raw, and byte-raw string
+    literals, so the later literal blanker always sees the matching delimiter.
+    Nested block comments are accepted because Rust accepts them; an unterminated
+    comment blanks through EOF, preserving the gate's fail-closed parse result.
+    """
+    out = list(text)
+    i, n = 0, len(text)
+    while i < n:
+        if text.startswith("//", i):
+            end = text.find("\n", i)
+            end = n if end == -1 else end
+            for p in range(i, end):
+                out[p] = " "
+            i = end
+            continue
+        if text.startswith("/*", i):
+            depth, end = 1, i + 2
+            while end < n and depth:
+                if text.startswith("/*", end):
+                    depth += 1
+                    end += 2
+                elif text.startswith("*/", end):
+                    depth -= 1
+                    end += 2
+                else:
+                    end += 1
+            for p in range(i, min(end, n)):
+                out[p] = "\n" if text[p] == "\n" else " "
+            i = end
+            continue
+
+        char = text[i]
+        # Raw/byte-raw strings have no escapes, so consume their complete body
+        # before looking for comment markers inside it.
+        if char in "rb" and (i == 0 or text[i - 1] not in _IDENT_CHARS):
+            j = i + 1 if char == "b" and i + 1 < n and text[i + 1] == "r" else i
+            if j < n and text[j] == "r":
+                k = j + 1
+                while k < n and text[k] == "#":
+                    k += 1
+                if k < n and text[k] == '"':
+                    close = '"' + "#" * (k - j - 1)
+                    end = text.find(close, k + 1)
+                    i = n if end == -1 else end + len(close)
+                    continue
+        if char == '"':
+            i += 1
+            while i < n:
+                if text[i] == "\\":
+                    i += 2
+                elif text[i] == '"':
+                    i += 1
+                    break
+                else:
+                    i += 1
+            continue
+        if char == "'":
+            if i + 1 < n and text[i + 1] == "\\":
+                i += 2
+                while i < n and text[i] != "'":
+                    i += 1
+                i += 1
+                continue
+            if i + 2 < n and text[i + 2] == "'":
+                i += 3
+                continue
+        i += 1
+    return "".join(out)
+
+
 def blank_literals(text):
     """`text` with the CONTENTS of every string/char literal replaced by spaces.
 
@@ -1559,11 +1633,7 @@ def rust_view(rel):
     this view and in `rust_code`.
     """
     if rel not in _view_cache:
-        text = read_source(rel)
-        text = re.sub(r"/\*.*?\*/",
-                      lambda m: re.sub(r"[^\n]", " ", m.group(0)), text, flags=re.S)
-        text = re.sub(r"//[^\n]*", lambda m: " " * len(m.group(0)), text)
-        _view_cache[rel] = text
+        _view_cache[rel] = blank_comments(read_source(rel))
     return _view_cache[rel]
 
 

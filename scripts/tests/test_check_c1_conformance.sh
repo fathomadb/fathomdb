@@ -310,6 +310,33 @@ run_checker --contract "$CLEAN_CONTRACT" --pin "$REAL_PIN" --root "$CLEAN_ROOT"
 expect_rc 0 "an unmodified COPY of the contract + a copied source root passes"
 expect_out 'ok +c1-contract-conformance' "the copied-fixture pass says ok"
 
+# === Arm 2a (REGRESSION): Rust URLs are strings, not line comments ==========
+#
+# The structural reader strips comments before blanking literals. A regex that
+# mistakes the `//` in `https://` for a line comment removes the string's closing
+# quote, then `blank_literals` treats the rest of the file as one unterminated
+# literal. This fixture keeps a URL literal immediately before ProjectionSpec,
+# so the C1 structural check must still see that subsequent contract subject.
+URL_LITERAL_ROOT="$(make_root url-literal-before-projection-spec)"
+python3 - "$URL_LITERAL_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" <<'PY'
+import sys
+
+p = sys.argv[1]
+text = open(p, encoding="utf-8").read()
+marker = "pub struct ProjectionSpec {"
+assert marker in text
+text = text.replace(
+    marker,
+    'const C1_URL_LITERAL_REGRESSION: &str = "https://fathomdb.dev/c1-regression";\n\n' + marker,
+    1,
+)
+open(p, "w", encoding="utf-8").write(text)
+PY
+run_checker --contract "$CLEAN_CONTRACT" --pin "$REAL_PIN" --root "$URL_LITERAL_ROOT"
+expect_rc 0 "a Rust https:// literal does not hide the subsequent ProjectionSpec"
+expect_out 'ok +c1-contract-conformance' \
+  "the URL-literal fixture keeps subsequent structural subjects visible"
+
 # === Arm 2a (RED): the approved three-value readiness contract ==============
 #
 # Slice 21's HITL ruling closes the C1 vocabulary as exactly

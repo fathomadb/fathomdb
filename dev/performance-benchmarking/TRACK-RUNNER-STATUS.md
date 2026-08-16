@@ -16,11 +16,15 @@ close.
 
 `LOCOMO-01` handed off `6bfc1004` from
 `/tmp/fathomdb-locomo-01-20260816` on
-`experiments/performance-locomo-01-20260816`; it is awaiting independent
-read-only review. Its focused tests, catalog validation/preview, and static
-checks passed. Its full verifier passed Rust but stopped at Python collection
-because this isolated worktree has no local native binding; that environmental
-limitation is recorded in its handoff, not treated as a green gate.
+`experiments/performance-locomo-01-20260816`; independent review requested a
+targeted correction before integration. The review accepted its red-first,
+no-live scope and pin evidence, but found that treatment IDs could retain their
+names while their semantic parameters drifted. The worker must add a red test
+and fail-closed validation for all six frozen treatment mappings, then obtain a
+follow-up read-only review. Its full verifier passed Rust but stopped at Python
+collection because this isolated worktree has no local native binding; that
+environmental limitation is recorded in its handoff, not treated as a green
+gate.
 
 `SCALE-01` remains the sole active writer in
 `/tmp/fathomdb-scale-01-20260816` on
@@ -38,7 +42,7 @@ run, extractor, GPU/model, paid service, external write, or push.
 | --- | --- | --- | --- |
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
-| LOCOMO-01 | Active | Handoff pending independent review | Worker SHA `6bfc1004`; focused 18-test suite and 48-cell plan-only catalog passed. Full verifier environment-blocked at Python collection for missing worktree-local native binding after Rust passed. Next gate: independent read-only review; no live grid. |
+| LOCOMO-01 | Active | Review requested changes: frozen treatment semantics | Review of `6bfc1004` accepts scope but requires exact parameter validation for six named treatments before integration. Next gate: red-first correction, focused no-live verification, and follow-up independent review; no live grid. |
 | PARENT-01 | Planned | Contract dependency satisfied; not commissioned | May consume the accepted trace contract in preparation; hold writer work behind the two-lane authorization. |
 | SCALE-01 | Planned | Commissioned: isolated manifest-runner preparation | Base `d599d4a5`; worker owns TC-5 runner/tests and dated handoff only. Next gate: worker handoff, then independent read-only review; no live execution. |
 | CORPUS-01 | Planned | Queued independent preparation | Create corpus/license matrix and human-gold readiness contract. |

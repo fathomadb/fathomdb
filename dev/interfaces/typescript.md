@@ -351,8 +351,11 @@ occurs only when pending work exists and the engine was opened without a
 configured runtime. In that condition `engine.drain(...)` rejects immediately
 with `EmbedderRequiredError` carrying the same camelCase fields; callers must
 not parse the message. An attached runtime refused by identity/equivalence
-checks, or a runtime whose worker fails, remains operational `"deferred"`
-behavior and is never recast as this configuration error.
+checks leaves outstanding work as operational `"deferred"` behavior and is
+never recast as this configuration error. A worker that exhausts its retries
+instead records a durable `failed` terminal; once the scheduler is idle,
+`engine.drain(...)` may resolve normally. Neither operational path is
+`EmbedderRequiredError`.
 
 ### `fts` / `vector` require the `searchable` role (0.8.20 Slice 23, R-20-SV)
 

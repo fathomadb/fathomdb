@@ -332,8 +332,11 @@ exists and the engine was opened without any configured runtime. In that
 condition `engine.drain(...)` raises the typed `EmbedderRequiredError`
 immediately with the same fields; callers must use the attributes rather than
 parse its message. An attached runtime refused by the identity/equivalence
-guard, or a runtime whose worker fails, remains an operational `"deferred"`
-outcome and is never converted to this configuration error.
+guard leaves outstanding work as operational `"deferred"` and is never
+converted to this configuration error. A worker that exhausts its retries
+instead records a durable `failed` terminal; once the scheduler is idle,
+`engine.drain(...)` may return normally. Neither operational path is
+`EmbedderRequiredError`.
 
 ### `fts` / `vector` require the `searchable` role (0.8.20 Slice 23, R-20-SV)
 

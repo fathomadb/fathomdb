@@ -215,9 +215,11 @@ rename the semantic class stems or collapse distinct rows.
 Its stable `FDB_EMBEDDER_REQUIRED` payload has `operation`, `state`, ordered
 `remediations`, and the documentation URL; Python exposes
 `documentation_url`, TypeScript exposes `documentationUrl`. It applies only to
-an absent configured runtime. `SchedulerError` remains the ordinary bounded
-drain outcome for attached-but-equivalence-refused or live-worker operational
-failures, and must not be collapsed into this configuration error.
+an absent configured runtime. `SchedulerError` remains the bounded-drain result
+while outstanding operational work, such as equivalence-refused work, prevents
+idleness. A worker that exhausts retries instead records a durable `failed`
+terminal, after which `drain` may return `Ok` once idle. Neither is this
+configuration error.
 
 | Rust-side surface                    | Python class stem                | TypeScript class stem            | CLI dispatch class    |
 | ------------------------------------ | -------------------------------- | -------------------------------- | --------------------- |

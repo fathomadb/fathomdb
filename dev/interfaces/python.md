@@ -319,7 +319,7 @@ roles (`filterable`, `searchable→FTS`) build same-transaction; `rankable` and 
 HITL-authorized governed read. It is a pure current view: it does not configure
 an embedder or wake, schedule, or drain work. `EmbeddingReadiness` has
 `state: Literal["ready", "processing", "deferred", "blocked"]`,
-`usable_embedder: bool`, `pending_count: int`, `affected_kinds: list[str]`, and
+`usable_embedder: bool`, `pending_count: int`, `affected_kinds: tuple[str, ...]`, and
 nullable `code`, `operation`, and `documentation_url` fields plus ordered
 `remediations`. `affected_kinds` is sorted and the report contains no pending
 body text.

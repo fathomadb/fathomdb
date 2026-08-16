@@ -77,10 +77,10 @@
     "typed payloads. Core and the five-name recovery denylist are unchanged.",
     "",
     "REPRODUCE THE PIN FROM GIT:",
-    "  git cat-file blob 51307bd870ebc895ad11704f854fa1e007e558e5",
+    "  git cat-file blob ade9a9daf5869462d7d197058432639860e7832e",
     "    -> the signed allowlist bytes (content-addressed; no commit needed)",
     "  sha256sum src/conformance/governed-surface-allowlist.json",
-    "    -> 2f92f833852545cbb39993066944d207cb0b2808a505b67aff2823fc78e5f5b7   (= sha256 below)"
+    "    -> 6aedeca5006810d53a47e430400a086d58a877b1cbae316511f584083b3e01b2   (= sha256 below)"
   ],
   "ac": "AC-079; 0.8.21 Slice 60; 0.8.22 Slice 21 F5; 0.8.22 Slice 22 C5; 0.8.23 Slice 30 (explicit HITL commission)",
   "covers": "0.8.20 Slices 5d + 10b + 15b + 15d, 0.8.21 Slice 60 projected-text search, 0.8.22 Slice 21 F5 DenseReadiness, 0.8.22 Slice 22 C5 projection-status reads, and 0.8.23 Slice 30 embedding-readiness reads — authorized by the HITL",

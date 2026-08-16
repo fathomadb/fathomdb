@@ -32,10 +32,11 @@ index, or a harness configuration.
 
 ## Required safety and lifecycle rules
 
-1. Every projection must identify exactly one registered source and reproduce
-   that source's hash. A repeated projection identifier with different sources,
-   an unknown source, or a hash mismatch is rejected as ambiguous or
-   unattributed attribution.
+1. Every source and projection identifier must match the safe identifier grammar
+   `[A-Za-z0-9][A-Za-z0-9._:-]{0,127}`. Every projection must identify exactly
+   one registered source and reproduce that source's hash. A repeated projection
+   identifier with different sources, an unknown source, or a hash mismatch is
+   rejected as ambiguous or unattributed attribution.
 2. A `supersedes` warning must resolve exactly one prior source by the hash of
    its `prior_body`; otherwise the trace is rejected. The old source and all of
    its projections become `superseded` and non-searchable.
@@ -46,6 +47,9 @@ index, or a harness configuration.
    projection identifiers, SHA-256 values, projection kinds, lifecycle states,
    booleans, counts, and fixed diagnostic codes. It never contains source text,
    `prior_body`, `supersedes_hint`, corpus paths, model output, or credentials.
+   `write_trace_projection` validates every sidecar field, ordering, lifecycle
+   relation, count, and diagnostic before writing; it fails closed on an
+   arbitrary mapping.
 
 ## `trace-projection.v1` output
 

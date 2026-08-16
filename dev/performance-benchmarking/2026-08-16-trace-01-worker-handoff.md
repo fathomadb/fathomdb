@@ -5,8 +5,8 @@
 **Charter:** [TRACE-01 in PROGRAM](PROGRAM.md#trace-01--projection-lifecycle-integrity)
 
 **Base:** `1b404101`
-**Outcome:** implementation is ready for independent read-only review; the
-full verification gate is blocked by the worktree's absent Python environment.
+**Outcome:** implementation is pending follow-up independent read-only review;
+the full verification gate is blocked by the worktree's native Python binding.
 
 ## Scope and ownership
 
@@ -38,6 +38,20 @@ full verification gate is blocked by the worktree's absent Python environment.
 - A documented, untracked `node_modules` symlink to the primary checkout was
   created only to clear the preceding markdown-linter prerequisite; no package
   was installed and no tracked receipt, configuration, or artifact changed.
+
+## Review follow-up
+
+The first independent read-only review returned **REQUEST-CHANGES**:
+
+1. Validate every sidecar field before writing rather than serializing an
+   arbitrary mapping.
+2. Restrict identifiers to a safe grammar.
+3. Assert deterministic diagnostics, ordering, and serialized bytes.
+
+Red checkpoint `2eefaed4` demonstrates the initial failures for source-text
+identifiers and a payload injected into diagnostics. The follow-up implementation
+must fail closed for both cases and pass the expanded synthetic test set before
+a second independent review.
 
 ## Review focus
 

@@ -12,7 +12,10 @@ from typing import Iterable, Mapping
 
 TRACE_PROJECTION_V1 = "trace-projection.v1"
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+_SAFE_IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _PROJECTION_KINDS = frozenset({"text", "vector_child", "summary", "extracted_fact", "entity", "edge"})
+_LIFECYCLE_STATES = frozenset({"active", "superseded", "erased"})
+_DIAGNOSTICS = frozenset({"source-erased", "source-reopened", "supersession-applied"})
 
 
 class TraceProjectionError(ValueError):
@@ -46,14 +49,20 @@ class LifecycleEvent:
 
 
 def _require_identifier(value: object, field: str) -> str:
-    if not isinstance(value, str) or not value:
-        raise TraceProjectionError(f"{field} must be a non-empty identifier")
+    if not isinstance(value, str) or _SAFE_IDENTIFIER_RE.fullmatch(value) is None:
+        raise TraceProjectionError(f"{field} must be a safe identifier")
     return value
 
 
 def _require_sha256(value: object, field: str) -> str:
     if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
         raise TraceProjectionError(f"{field} must be a lowercase SHA-256 hex value")
+    return value
+
+
+def _require_nonempty_text(value: object, field: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise TraceProjectionError(f"{field} must be non-empty text")
     return value
 
 
@@ -121,7 +130,7 @@ def _supersessions(
         prior_body = warning.get("prior_body")
         if not isinstance(prior_body, str) or not prior_body:
             raise TraceProjectionError("supersedes warning must include prior_body")
-        _require_identifier(warning.get("supersedes_hint"), "supersedes supersedes_hint")
+        _require_nonempty_text(warning.get("supersedes_hint"), "supersedes supersedes_hint")
         if source_id not in sources:
             raise TraceProjectionError("supersedes warning names an unregistered source")
 
@@ -229,9 +238,116 @@ def build_trace_projection(
     }
 
 
-def write_trace_projection(path: Path, sidecar: Mapping[str, object]) -> Path:
-    """Write a canonical, payload-free TRACE-01 sidecar to an explicit path."""
+def _require_exact_keys(value: Mapping[str, object], expected: set[str], field: str) -> None:
+    actual = set(value)
+    if actual != expected:
+        raise TraceProjectionError(f"{field} keys do not match trace-projection.v1")
+
+
+def _require_sidecar_list(value: object, field: str) -> list[Mapping[str, object]]:
+    if not isinstance(value, list) or not all(isinstance(item, Mapping) for item in value):
+        raise TraceProjectionError(f"{field} must be a list of objects")
+    return value
+
+
+def _validate_sidecar(sidecar: Mapping[str, object]) -> None:
+    _require_exact_keys(
+        sidecar,
+        {"schema_version", "sources", "projections", "supersessions", "outcomes", "diagnostics"},
+        "sidecar",
+    )
     if sidecar.get("schema_version") != TRACE_PROJECTION_V1:
         raise TraceProjectionError("sidecar schema_version must be trace-projection.v1")
+
+    source_rows = _require_sidecar_list(sidecar["sources"], "sources")
+    sources: dict[str, tuple[str, str]] = {}
+    for row in source_rows:
+        _require_exact_keys(row, {"source_id", "source_sha256", "lifecycle"}, "source")
+        source_id = _require_identifier(row["source_id"], "source_id")
+        source_sha256 = _require_sha256(row["source_sha256"], "source_sha256")
+        lifecycle = row["lifecycle"]
+        if not isinstance(lifecycle, str) or lifecycle not in _LIFECYCLE_STATES:
+            raise TraceProjectionError("source lifecycle is invalid")
+        if source_id in sources:
+            raise TraceProjectionError("sidecar contains duplicate source identifiers")
+        sources[source_id] = (source_sha256, lifecycle)
+    if list(sources) != sorted(sources):
+        raise TraceProjectionError("sidecar sources must use deterministic identifier order")
+
+    projection_rows = _require_sidecar_list(sidecar["projections"], "projections")
+    projection_ids: list[str] = []
+    for row in projection_rows:
+        _require_exact_keys(
+            row,
+            {"projection_id", "source_id", "source_sha256", "kind", "lifecycle", "searchable"},
+            "projection",
+        )
+        projection_id = _require_identifier(row["projection_id"], "projection_id")
+        source_id = _require_identifier(row["source_id"], "projection source_id")
+        source_sha256 = _require_sha256(row["source_sha256"], "projection source_sha256")
+        if source_id not in sources or source_sha256 != sources[source_id][0]:
+            raise TraceProjectionError("projection source attribution is invalid")
+        if row["kind"] not in _PROJECTION_KINDS:
+            raise TraceProjectionError("projection kind is invalid")
+        if row["lifecycle"] != sources[source_id][1]:
+            raise TraceProjectionError("projection lifecycle must match its source")
+        if not isinstance(row["searchable"], bool) or row["searchable"] != (row["lifecycle"] == "active"):
+            raise TraceProjectionError("projection searchable state is invalid")
+        projection_ids.append(projection_id)
+    if len(set(projection_ids)) != len(projection_ids):
+        raise TraceProjectionError("sidecar contains duplicate projection identifiers")
+    if projection_ids != sorted(projection_ids):
+        raise TraceProjectionError("sidecar projections must use deterministic identifier order")
+
+    supersession_rows = _require_sidecar_list(sidecar["supersessions"], "supersessions")
+    supersession_keys: list[tuple[str, str]] = []
+    for row in supersession_rows:
+        _require_exact_keys(row, {"source_id", "prior_source_id", "prior_body_sha256"}, "supersession")
+        source_id = _require_identifier(row["source_id"], "supersession source_id")
+        prior_source_id = _require_identifier(row["prior_source_id"], "supersession prior_source_id")
+        _require_sha256(row["prior_body_sha256"], "supersession prior_body_sha256")
+        if source_id not in sources or prior_source_id not in sources or source_id == prior_source_id:
+            raise TraceProjectionError("supersession source attribution is invalid")
+        supersession_keys.append((source_id, prior_source_id))
+    if len(set(supersession_keys)) != len(supersession_keys) or supersession_keys != sorted(supersession_keys):
+        raise TraceProjectionError("sidecar supersessions must use deterministic identifier order")
+
+    outcomes = sidecar["outcomes"]
+    if not isinstance(outcomes, Mapping):
+        raise TraceProjectionError("outcomes must be an object")
+    _require_exact_keys(
+        outcomes,
+        {
+            "source_count", "active_source_count", "superseded_source_count", "erased_source_count",
+            "projection_count", "searchable_projection_count", "unattributed_projection_count",
+            "stale_searchable_projection_count",
+        },
+        "outcomes",
+    )
+    expected_outcomes = {
+        "source_count": len(source_rows),
+        "active_source_count": sum(state == "active" for _, state in sources.values()),
+        "superseded_source_count": sum(state == "superseded" for _, state in sources.values()),
+        "erased_source_count": sum(state == "erased" for _, state in sources.values()),
+        "projection_count": len(projection_rows),
+        "searchable_projection_count": sum(row["searchable"] for row in projection_rows),
+        "unattributed_projection_count": 0,
+        "stale_searchable_projection_count": 0,
+    }
+    if dict(outcomes) != expected_outcomes:
+        raise TraceProjectionError("sidecar outcomes do not match its lifecycle rows")
+
+    diagnostics = sidecar["diagnostics"]
+    if not isinstance(diagnostics, list) or not all(isinstance(item, str) for item in diagnostics):
+        raise TraceProjectionError("diagnostics must be a list of fixed codes")
+    if set(diagnostics) - _DIAGNOSTICS:
+        raise TraceProjectionError("sidecar contains an unrecognized diagnostic")
+    if diagnostics != sorted(set(diagnostics)):
+        raise TraceProjectionError("sidecar diagnostics must be deterministic and unique")
+
+
+def write_trace_projection(path: Path, sidecar: Mapping[str, object]) -> Path:
+    """Write a canonical, payload-free TRACE-01 sidecar to an explicit path."""
+    _validate_sidecar(sidecar)
     path.write_text(json.dumps(sidecar, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     return path

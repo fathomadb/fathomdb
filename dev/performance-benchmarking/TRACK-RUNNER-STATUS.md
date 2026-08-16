@@ -7,22 +7,26 @@ index remain the source of execution evidence.
 
 **Last reconciled:** 2026-08-16
 
-**Integration base:** `ca5b656d` on
+**Integration base:** `d599d4a5` on
 `experiments/performance-experiments-20260815`. This is the verified TRACE-01
-integration SHA; replace it with the verified integration SHA at each accepted
-lane close.
+closure SHA; replace it with the verified integration SHA at each accepted lane
+close.
 
 ## Current lanes
 
-No writer lane is active. `TRACE-01` integrated at `ca5b656d` after final
-independent review accepted `a4a7ed0b`; its fixed synthetic lifecycle suite had
-10 passing tests and its source-owned local environment passed the unchanged
-`./scripts/agent-verify.sh` gate (`72/73` suites passed; one documented skip).
-The next authorized writer lanes are `LOCOMO-01` Phase-A runner/config work and
-`SCALE-01` manifest-runner work, with a maximum of two writers. `PARENT-01` may
-consume the accepted trace contract in preparation but is not commissioned by
-this entry. This coordinator owns this board and PROGRAM state. No corpus,
-GPU/model, paid, or external execution is authorized by this status entry.
+Two isolated writer lanes are commissioned from `d599d4a5`; the two-writer cap
+is now full. `LOCOMO-01` owns only Phase-A runner/config preparation in
+`/tmp/fathomdb-locomo-01-20260816` on
+`experiments/performance-locomo-01-20260816`. `SCALE-01` owns only the
+manifest-runner preparation in `/tmp/fathomdb-scale-01-20260816` on
+`experiments/performance-scale-01-20260816`. Each worker must provide a dated
+handoff, human-intended red-first tests, local verification, and an independent
+read-only review before the coordinator integrates its accepted commit.
+
+`PARENT-01` may consume the accepted trace contract in preparation but is not
+commissioned by this entry. The coordinator alone edits this board and PROGRAM
+state. This commission authorizes no corpus acquisition, live grid or smoke
+run, extractor, GPU/model, paid service, external write, or push.
 
 ## Track status
 
@@ -30,9 +34,9 @@ GPU/model, paid, or external execution is authorized by this status entry.
 | --- | --- | --- | --- |
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
-| LOCOMO-01 | Active | Next authorized writer lane | Commission only Phase-A provenance/timing/GPU readiness and runner/config work; no live grid. |
+| LOCOMO-01 | Active | Commissioned: isolated Phase-A preparation | Base `d599d4a5`; worker owns LOCOMO-specific runner/config/tests and dated handoff only. Next gate: worker handoff, then independent read-only review; no live grid. |
 | PARENT-01 | Planned | Contract dependency satisfied; not commissioned | May consume the accepted trace contract in preparation; hold writer work behind the two-lane authorization. |
-| SCALE-01 | Planned | Next authorized writer lane | Commission manifest-backed all-real fidelity runner implementation and tests; no live execution. |
+| SCALE-01 | Planned | Commissioned: isolated manifest-runner preparation | Base `d599d4a5`; worker owns TC-5 runner/tests and dated handoff only. Next gate: worker handoff, then independent read-only review; no live execution. |
 | CORPUS-01 | Planned | Queued independent preparation | Create corpus/license matrix and human-gold readiness contract. |
 | ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |
 | MEMORY-01 | Blocked | Waiting for ANSWER-01 | Require selected profile, native prerequisites, and declared spend ceiling. |

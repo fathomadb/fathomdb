@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 import pytest
 
 from fathomdb import Engine, read
@@ -47,6 +49,11 @@ def test_embedding_readiness_and_immediate_error_are_typed_and_body_private(tmp_
         with pytest.raises(EmbedderRequiredError) as raised:
             engine.drain(timeout_s=30)
         error = raised.value
+        _code: Literal["FDB_EMBEDDER_REQUIRED"] = error.code
+        _operation: Literal["graph_edge_body_projection", "vector_projection"] = error.operation
+        _state: Literal["blocked"] = error.state
+        _remediations: list[str] = error.remediations
+        _documentation_url: str = error.documentation_url
         assert error.code == "FDB_EMBEDDER_REQUIRED"
         assert error.operation == "graph_edge_body_projection"
         assert error.state == "blocked"

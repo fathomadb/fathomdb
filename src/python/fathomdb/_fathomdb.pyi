@@ -5,10 +5,11 @@ Hand-maintained — keep in sync with the binding's `#[pyclass]` /
 `create_exception!` / `#[pyfunction]` exports.
 """
 
-from typing import Any, Iterable
+from typing import Any, Iterable, Literal
 
 from fathomdb.types import (
     DenseReadiness,
+    EmbeddingOperation,
     EmbedderEvent,
     ProjectionRuntimeUnavailabilityReason,
     ProjectionStatusDenseReadiness,
@@ -509,7 +510,21 @@ class VectorError(EngineError): ...
 class KindNotVectorIndexedError(VectorError): ...
 class EmbedderError(EngineError): ...
 class EmbedderNotConfiguredError(EmbedderError): ...
-class EmbedderRequiredError(EmbedderError): ...
+class EmbedderRequiredError(EmbedderError):
+    code: Literal["FDB_EMBEDDER_REQUIRED"]
+    operation: EmbeddingOperation
+    state: Literal["blocked"]
+    remediations: list[str]
+    documentation_url: str
+    def __init__(
+        self,
+        *args: Any,
+        code: Literal["FDB_EMBEDDER_REQUIRED"] = ...,
+        operation: EmbeddingOperation = ...,
+        state: Literal["blocked"] = ...,
+        remediations: list[str] = ...,
+        documentation_url: str = ...,
+    ) -> None: ...
 class SchedulerError(EngineError): ...
 class OpStoreError(EngineError): ...
 class WriteValidationError(EngineError): ...

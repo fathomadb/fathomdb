@@ -19,12 +19,11 @@ the verified integration SHA at each accepted lane close.
 `experiments/performance-trace-01-20260816`, based on `1613824f`. The worker
 completed its third red-test/fix cycle at `15745883` after checkpoint
 `759670a0`; final independent review accepted the full range and the focused
-lifecycle suite passed 10 tests. The full verifier reached Python tests after
-lint, typecheck, security, and Rust passed, but failed on pre-existing native
-binding/configuration mismatches in the worktree context; its exact log is
-`/tmp/fathomdb-agent-test-python-2805454.log`. Integration is held until the
-required full gate is reproduced in a compatible, non-worktree native test
-environment. This coordinator owns this board and PROGRAM state. No corpus,
+lifecycle suite passed 10 tests. The worker then supplied verification evidence
+at `a4a7ed0b`: its source-owned, worktree-local environment passed the unchanged
+`./scripts/agent-verify.sh` gate (`72/73` suites passed; one documented skip).
+A fresh read-only review of that final evidence commit is pending before
+integration. This coordinator owns this board and PROGRAM state. No corpus,
 GPU/model, paid, or external execution is authorized by this status entry.
 
 ## Track status
@@ -32,7 +31,7 @@ GPU/model, paid, or external execution is authorized by this status entry.
 | ID | Portfolio state | Runner state | Verified evidence / next gate |
 | --- | --- | --- | --- |
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
-| TRACE-01 | Planned | Review accepted; gate held | `15745883` accepted after three red-first fixes; focused suite is 10 passed. Hold integration until the full verifier passes in a compatible native environment. |
+| TRACE-01 | Planned | Final evidence review pending | `a4a7ed0b` records `agent-verify` pass after three red-first fixes and 10 focused tests; review the evidence commit before integration. |
 | LOCOMO-01 | Active | Prepared, no worker lane | Complete Phase-A provenance/timing/GPU readiness before the full grid. |
 | PARENT-01 | Planned | Blocked on TRACE-01 integration | Consume the accepted trace contract; then freeze its bounded treatment. |
 | SCALE-01 | Planned | Queued independent lane | Implement and test manifest-backed all-real fidelity runner. |

@@ -88,6 +88,6 @@ development; it is not, by itself, an automated CI or release-evidence path.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 2** (`CRUFT-REVIEW`) — repository and documentation cruft proposal
+**IMMEDIATE NEXT: Slice 3** (`DRAFT-CONTRACTS`) — draft needs, requirements, and acceptance-criteria CRUD allocation
 
-**Remaining ladder:** 2 → 3 → 4 → 5 → 6 → 10 → 20 → 30 → 40 → 50 → 60.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->
+**Remaining ladder:** 3 → 4 → 5 → 6 → 10 → 20 → 30 → 40 → 50 → 60.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->

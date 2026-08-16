@@ -6,7 +6,7 @@
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.23:status-current-state -->**Next is Slice 2 (CRUFT-REVIEW), NOT_STARTED.** Landed on `origin/main`: 0 (`916023fe`) · 1 (`2167a0cd`) — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.23:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.23:status-current-state -->**Next is Slice 3 (DRAFT-CONTRACTS), NOT_STARTED.** Landed on `origin/main`: 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.23:status-current-state -->
 
 0.8.23 is in planning-only mode. Existing CUDA and related commits are inputs
 to review, not approved feature-slice closures. Publication is held.
@@ -22,7 +22,7 @@ to review, not approved feature-slice closures. Publication is held.
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Commission Slice 2 (CRUFT-REVIEW)** — repository and documentation cruft proposal. **Remaining ladder:** 2 → 3 → 4 → 5 → 6 → 10 → 20 → 30 → 40 → 50 → 60.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Commission Slice 3 (DRAFT-CONTRACTS)** — draft needs, requirements, and acceptance-criteria CRUD allocation. **Remaining ladder:** 3 → 4 → 5 → 6 → 10 → 20 → 30 → 40 → 50 → 60.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
 
 ## Stop gate
 

@@ -12,7 +12,7 @@
     {"slice": 1, "short": "DEPENDENCIES", "title": "Dependabot needs and library-sweep disposition", "depends_on": [0], "status": "LANDED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"], "sha": "2167a0cd", "merge_subject": "docs(0.8.23): record Slice 1 dependency disposition", "evidence": "Retains the explicit Dependabot pause. An online SBOM survey read 780 locked components but registry DNS made every version comparison unknown; the GitHub integration returned no open Dependabot PRs and lacked advisory-read permission. No version, lockfile, or configuration change is proposed."},
     {"slice": 2, "short": "CRUFT-REVIEW", "title": "repository and documentation cruft proposal", "depends_on": [1], "status": "LANDED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"], "sha": "b363af85", "merge_subject": "docs(0.8.23): record Slice 2 cruft disposition", "evidence": "Classifies current authority, historical records, and future bounded maintenance proposals across program, developer, public, source, and test documentation. It authorizes no cleanup and proposes no deletion without the existing two-phase prune method and HITL approval."},
     {"slice": 3, "short": "DRAFT-CONTRACTS", "title": "draft needs, requirements, and acceptance-criteria CRUD allocation", "depends_on": [2], "status": "LANDED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"], "sha": "91e162c2", "merge_subject": "docs(0.8.23): record Slice 3 draft allocation", "evidence": "Temporary N23/R23/AC23 drafts allocate every feature candidate to Slices 10, 20, 30, 40, 50, or 60 without minting authoritative requirement or acceptance identifiers before Slice 6 HITL disposition."},
-    {"slice": 4, "short": "ARCHITECTURE", "title": "architecture and high-level code-alignment review", "depends_on": [3], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"]},
+    {"slice": 4, "short": "ARCHITECTURE", "title": "architecture and high-level code-alignment review", "depends_on": [3], "status": "LANDED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"], "sha": "a7df1590", "merge_subject": "docs(0.8.23): record Slice 4 architecture review", "evidence": "Candidate designs align to existing embedding, binding, release, experiment, hook/CI, and fail-closed erasure seams. The record preserves public-surface, CPU-default, provenance, and Windows-evidence boundaries without authorizing implementation."},
     {"slice": 5, "short": "VERIFICATION", "title": "verification-adequacy review", "depends_on": [4], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"]},
     {"slice": 6, "short": "HITL-PACKAGE", "title": "scored planning package and HITL stop", "depends_on": [5], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"]},
     {"slice": 10, "short": "CUDA-CONTRACT", "title": "CUDA environment, artifact contract, and protected runner gate", "depends_on": [6], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-gpu-artifacts.md"]},
@@ -22,9 +22,9 @@
     {"slice": 50, "short": "GITLEAKS-GUARDS", "title": "staged pre-commit and always-on CI secret scanning", "depends_on": [6], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-gitleaks-guards.md"]},
     {"slice": 60, "short": "WINDOWS-WAL", "title": "Windows WAL checkpoint reader-conflict diagnosis", "depends_on": [6], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-windows-wal-checkpoint-reader-conflict.md", "dev/design/0.8.23-windows-local-environment.md"]}
   ],
-  "landed": [0, 1, 2, 3],
-  "next_slice": 4,
-  "remaining_ladder": [4, 5, 6, 10, 20, 30, 40, 50, 60],
+  "landed": [0, 1, 2, 3, 4],
+  "next_slice": 5,
+  "remaining_ladder": [5, 6, 10, 20, 30, 40, 50, 60],
   "decisions": {
     "unruled": [
       {"id": "slice-6-scope", "title": "HITL selects included and postponed feature candidates after Slice 6", "halts_run": true, "source": "0.8.23 planning-first ladder"},

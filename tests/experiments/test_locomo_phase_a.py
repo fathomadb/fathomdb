@@ -12,6 +12,17 @@ from experiments import locomo_phase_a
 
 
 CONFIG_PATH = Path("experiments/configs/locomo-01/phase-a-grid.v1.json")
+TREATMENT_SEMANTIC_FIELDS = (
+    "retrieval", "cross_encoder", "candidate_pool", "candidate_depth", "bounded_neighbor_expansion",
+)
+TREATMENT_SEMANTICS = {
+    "fts_only": {"retrieval": "fts", "cross_encoder": None, "candidate_pool": None, "candidate_depth": None, "bounded_neighbor_expansion": False},
+    "hybrid": {"retrieval": "hybrid", "cross_encoder": None, "candidate_pool": None, "candidate_depth": None, "bounded_neighbor_expansion": False},
+    "hybrid_ce_alpha_03_pool_10": {"retrieval": "hybrid", "cross_encoder": "alpha_0.3", "candidate_pool": 10, "candidate_depth": 10, "bounded_neighbor_expansion": False},
+    "hybrid_ce_alpha_10_pool_10": {"retrieval": "hybrid", "cross_encoder": "alpha_1.0", "candidate_pool": 10, "candidate_depth": 10, "bounded_neighbor_expansion": False},
+    "hybrid_ce_alpha_10_pool_20": {"retrieval": "hybrid", "cross_encoder": "alpha_1.0", "candidate_pool": 20, "candidate_depth": 20, "bounded_neighbor_expansion": False},
+    "fts_bounded_neighbor": {"retrieval": "fts", "cross_encoder": None, "candidate_pool": None, "candidate_depth": None, "bounded_neighbor_expansion": True},
+}
 
 
 def _document() -> dict[str, object]:
@@ -59,6 +70,31 @@ def test_phase_a_grid_identity_is_invariant_to_axis_ordering():
     reordered_ids = {cell["id"] for cell in locomo_phase_a.grid_cells(locomo_phase_a.resolve_config(reordered))}
 
     assert reordered_ids == original_ids
+
+
+@pytest.mark.parametrize(
+    "treatment_id",
+    (
+        "fts_only", "hybrid", "hybrid_ce_alpha_03_pool_10", "hybrid_ce_alpha_10_pool_10",
+        "hybrid_ce_alpha_10_pool_20", "fts_bounded_neighbor",
+    ),
+)
+def test_phase_a_grid_rejects_every_changed_semantic_tuple_for_each_named_treatment(treatment_id):
+    expected = TREATMENT_SEMANTICS[treatment_id]
+    for field in TREATMENT_SEMANTIC_FIELDS:
+        changed = _document()
+        treatment = next(item for item in changed["grid"]["treatments"] if item["id"] == treatment_id)
+        replacement = {
+            "retrieval": "invalid-retrieval",
+            "cross_encoder": "invalid-alpha",
+            "candidate_pool": 99,
+            "candidate_depth": 99,
+            "bounded_neighbor_expansion": not expected["bounded_neighbor_expansion"],
+        }[field]
+        treatment[field] = replacement
+
+        with pytest.raises(ValueError, match=f"semantic tuple for {treatment_id}"):
+            locomo_phase_a.resolve_config(changed)
 
 
 def test_phase_a_config_rejects_live_execution_and_runner_always_blocks():

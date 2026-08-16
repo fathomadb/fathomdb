@@ -759,17 +759,18 @@ in Rust, Python and TypeScript:
   idempotent re-apply remains a repair door.
 - **…but graceful-absent stops at the enrolment boundary** (fix-4). Once a kind
   IS enrolled — i.e. some earlier session DID have an embedder — a write of that
-  kind is dense work the workspace has committed to, and a session with no usable
-  dense runtime cannot make it go away. Such a write is **accepted** and stays
-  lexically searchable, but it stays **outstanding**: `dense_readiness` reads
-  `Unavailable` and `drain` returns `EngineError::Scheduler` for the rest of that
-  session, however long you wait. It is **not** lost — no failure is recorded and
-  no terminal is written, so the next session opened WITH an approved runtime
-  embeds it through the ordinary scheduler, with no re-apply and no operator
-  `rebuild`. Callers who write to an enrolled corpus without a usable runtime
-  should therefore expect `drain` to time out and should not treat that as data
-  loss. (Reporting `Ready` there instead would be a torn `ready`-without-vector — the silent miss
-  this slice exists to eliminate.)
+  kind is dense work the workspace has committed to, and an absent runtime cannot
+  make it go away. Such a write is **accepted** and stays lexically searchable,
+  but it remains **outstanding**: `dense_readiness` reads `Unavailable` and
+  `drain` returns immediate `EngineError::EmbedderRequired`
+  (`FDB_EMBEDDER_REQUIRED`) rather than spending its scheduler timeout. It is
+  **not** lost — no failure is recorded and no terminal is written, so the next
+  session opened WITH an approved runtime embeds it through the ordinary
+  scheduler, with no re-apply and no operator `rebuild`. An attached runtime
+  refused by the equivalence guard is different operational deferral: it is not
+  `FDB_EMBEDDER_REQUIRED`, and a bounded `drain` may return
+  `EngineError::Scheduler`. (Reporting `Ready` here instead would be a torn
+  `ready`-without-vector — the silent miss this slice exists to eliminate.)
 - **`drain` remains bounded**, returning the typed timeout error rather than
   blocking; a caller sizes `timeout_ms` for the backfill it just asked for.
 

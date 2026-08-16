@@ -13536,23 +13536,17 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>) {
             PROJECTION_INFLIGHT_LIMIT.saturating_sub(state.active_jobs + state.queued_jobs)
         };
         let fetch_cap = budget.clamp(1, PROJECTION_SCAN_FETCH);
-        // With no usable dense runtime a NODE job can only come back DEFERRED
-        // (`ProjectionOutcome::Deferred`),
-        // which by design records no terminal, so dispatching one would re-fetch
-        // the SAME cursor forever. fix-5 (codex §9 round 4 [P1]) moved that
-        // exclusion INSIDE the scan, so the `LIMIT` applies to the already-filtered
-        // set and a pending EDGE body behind a full window of node rows is still
-        // reachable. See `next_pending_projection_jobs`.
+        // A session without a configured runtime dispatches no embedding jobs.
+        // Its pending rows stay recoverable for a later configured session; see
+        // `next_pending_projection_jobs` for the Slice-30 no-dispatch boundary.
         let fetched =
             next_pending_projection_jobs(&connection, &in_flight, fetch_cap, dense_arm_live);
-        // Cheap assertion only — it can never DROP a job, which is precisely what
-        // the fix-4 shape did.
+        // Keep the no-runtime no-dispatch contract local to the dispatcher too:
+        // a future scan change must not turn configuration absence into a worker
+        // terminal behind the caller's back.
         debug_assert!(
-            fetched
-                .as_ref()
-                .map(|jobs| dense_arm_live || jobs.iter().all(|job| job.kind == EDGE_FACT_KIND))
-                .unwrap_or(true),
-            "no-embedder scan returned a NODE job: the exclusion must be in the scan's SQL"
+            fetched.as_ref().map(|jobs| dense_arm_live || jobs.is_empty()).unwrap_or(true),
+            "no-runtime scan returned embedding jobs despite the no-dispatch contract"
         );
         match fetched {
             Ok(jobs) if !jobs.is_empty() => {

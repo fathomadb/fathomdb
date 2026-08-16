@@ -7,10 +7,10 @@ index remain the source of execution evidence.
 
 **Last reconciled:** 2026-08-16
 
-**Integration base:** `d599d4a5` on
-`experiments/performance-experiments-20260815`. This is the verified TRACE-01
-closure SHA; replace it with the verified integration SHA at each accepted lane
-close.
+**Integration base:** `4bbc1b4f` on
+`experiments/performance-experiments-20260815`. This integrates the accepted
+LOCOMO-01 Phase-A preparation history; replace it with the verified integration
+SHA at each accepted lane close.
 
 ## Current lanes
 
@@ -22,10 +22,11 @@ no-live scope and pin evidence, but found that treatment IDs could retain their
 names while their semantic parameters drifted. Remediation handoff `65427d29`
 adds red-first mutation coverage and fail-closed, type-checked validation for
 all six frozen treatment mappings; follow-up independent review accepted
-`65427d29` for integration. Its full verifier passed Rust but stopped at Python
-collection because this isolated worktree has no local native binding; that
-environmental limitation is recorded in its handoff, not treated as a green
-gate.
+`65427d29`, integrated here as `4bbc1b4f`. Its full verifier passed Rust but
+stopped at Python collection because this isolated worktree has no local native
+binding; that environmental limitation is recorded in its handoff, not treated
+as a green gate. The integrated catalog is plan-only; no LOCOMO execution is
+authorized.
 
 `SCALE-01` remains the sole active writer in
 `/tmp/fathomdb-scale-01-20260816` on
@@ -43,7 +44,7 @@ run, extractor, GPU/model, paid service, external write, or push.
 | --- | --- | --- | --- |
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
-| LOCOMO-01 | Active | Review accepted; integration pending | Accepted worker SHA `65427d29` freezes and type-checks all six treatment tuples after a replayed-red mutation checkpoint. Next gate: coordinator integration and root verification; no live grid. |
+| LOCOMO-01 | Active | Phase-A preparation integrated | `4bbc1b4f` integrates accepted worker `65427d29`: six frozen treatment tuples, 48-cell plan-only catalog, and no live runner. Next gate: separately authorized fixed-subset dry run/execution preparation; no live grid is authorized here. |
 | PARENT-01 | Planned | Contract dependency satisfied; not commissioned | May consume the accepted trace contract in preparation; hold writer work behind the two-lane authorization. |
 | SCALE-01 | Planned | Commissioned: isolated manifest-runner preparation | Base `d599d4a5`; worker owns TC-5 runner/tests and dated handoff only. Next gate: worker handoff, then independent read-only review; no live execution. |
 | CORPUS-01 | Planned | Queued independent preparation | Create corpus/license matrix and human-gold readiness contract. |

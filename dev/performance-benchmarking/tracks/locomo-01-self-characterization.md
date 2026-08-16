@@ -1,6 +1,7 @@
 # LOCOMO-01 — LOCOMO retrieval self-characterization
 
-**Status:** active after Phase-A execution readiness is re-established.
+**Status:** active; Phase-A plan-only preparation integrated. Execution remains
+separately authorized.
 
 ## Decision
 

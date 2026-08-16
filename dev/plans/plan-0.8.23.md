@@ -91,9 +91,9 @@ development; it is not, by itself, an automated CI or release-evidence path.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-landed-roll-up -->
-**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`). SCHEMA is 26; remaining ladder = 60 → 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
+**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`) · 60 (`423baf6a`). SCHEMA is 26; remaining ladder = 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 60** (`WINDOWS-WAL`) — Windows WAL checkpoint reader-conflict diagnosis
+**IMMEDIATE NEXT: Slice 40** (`SCALE-CHARACTERIZATION`) — fixture-scoped scale characterization
 
-**Remaining ladder:** 60 → 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->
+**Remaining ladder:** 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->

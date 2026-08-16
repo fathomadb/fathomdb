@@ -1,7 +1,7 @@
 {
   "phase": "0.8.23-slice-60",
   "baseline_sha": "f887690d69efbf2c2cf85a34b600fc3acacfb686",
-  "status": "IMPLEMENTED_PENDING_FIRST_PARTY_WINDOWS_EVIDENCE",
+  "status": "COMPLETE",
   "status_record": "dev/plans/runs/0.8.23-slice-60-windows-wal-diagnosis.md",
   "design": "dev/design/0.8.23-windows-wal-checkpoint-reader-conflict.md",
   "draft_disposition": {
@@ -31,7 +31,7 @@
     "fix_n_marker_green": "The parent/child now emit child_started, child_ready, parent_ready_observed, checkpoint_start/result with elapsed time, release_signaled, child_release_observed, and child_reaped success; the contract passes 23 assertions, including a mutation that proves child-start evidence is load-bearing.",
     "fix_n2_child_nocapture_red": "Job 95235671915 exposed that the child test captured successful eprintln output. The targeted Linux source contract then failed because the child invocation lacked .arg(\"--nocapture\").",
     "fix_n2_child_nocapture_green": "The child invocation now includes --nocapture and a committed mutation arm proves removing it fails the targeted contract assertion.",
-    "windows_execution": "PENDING: x86_64-pc-windows-msvc target is absent on the local Linux host; GitHub-hosted windows-latest is the authoritative witness."
+    "windows_execution": "PASS: repaired GitHub-hosted windows-latest job 95236592394 (https://github.com/fathomadb/fathomdb/actions/runs/31976435962/job/95236592394) passed the source test and retained the complete parent/child lifecycle evidence."
   },
   "local_verification": {
     "workflow_contract": "PASS (25 assertions, including lifecycle-marker and child --nocapture mutation coverage plus actionlint)",
@@ -42,8 +42,24 @@
   },
   "first_windows_run": {
     "job": "95235671915",
+    "url": "https://github.com/fathomadb/fathomdb/actions/runs/31976063970/job/95235671915",
     "result": "PASS but insufficient retained lifecycle artifact: child_ready and child_release_observed were absent because child output was captured.",
     "closure_effect": "Does not close Slice 60; rerun required after child --nocapture repair."
   },
-  "closure_gate": "Independent review plus a rerun of the GitHub-hosted windows-latest source-test diagnostic with the complete retained parent/child lifecycle sequence."
+  "repaired_windows_run": {
+    "job": "95236592394",
+    "url": "https://github.com/fathomadb/fathomdb/actions/runs/31976435962/job/95236592394",
+    "result": "PASS: 1 source test passed. The retained artifact records child_started, child_ready, parent_ready_observed, checkpoint_start/result (116 ms), typed ErasureIncomplete at wal_checkpoint with SQLITE_BUSY on all 5 attempts and 212 frames, release_signaled, child_release_observed, and successful child_reaped.",
+    "closure_effect": "Satisfies the first-party Windows x64 evidence gate."
+  },
+  "supporting_note": {
+    "path": "dev/notes/0.8.23-memex-windows-x64-wal-evidence-20260816.md",
+    "review": "Reviewed as downstream supporting evidence for fail-closed behavior and against speculative retry tuning; it makes no root-cause claim."
+  },
+  "closure_gate": "SATISFIED: independent review and repaired GitHub-hosted windows-latest source-test diagnostic supplied the complete retained parent/child lifecycle sequence.",
+  "completion": {
+    "ref": "origin/release/0.8.23",
+    "sha": "423baf6a",
+    "main_integration": "PENDING"
+  }
 }

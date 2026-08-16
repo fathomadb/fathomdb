@@ -1,6 +1,7 @@
 {
   "schema_version": "fathomdb-locomo.v1",
   "campaign": "official_seam_predict_only",
+  "program_track": "LOCOMO-01",
   "harness": {
     "checkout": "/tmp/fathomdb-mem0-memory-benchmarks",
     "python": "/tmp/fathomdb-mem0-memory-benchmarks/.venv/bin/python",

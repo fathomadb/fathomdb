@@ -21,13 +21,17 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _validate_arm(record: dict[str, Any], *, expected_experiment: str) -> dict[str, Any]:
+def _validate_arm(
+    record: dict[str, Any], *, expected_experiment: str, expected_program_track: str
+) -> dict[str, Any]:
     normalized = _lib.record_from_dict(record)
     arm = _lib.asdict(normalized)
     if arm["schema_version"] != _lib.RECORD_V1:
         raise ValueError("comparison arms must use experiments.record.v1")
     if arm["experiment"] != expected_experiment:
         raise ValueError(f"expected {expected_experiment} arm receipt")
+    if arm["config"]["resolved"].get("program_track") != expected_program_track:
+        raise ValueError(f"{expected_experiment} arm must declare program_track={expected_program_track}")
     if arm["verdict"] != "complete" or not arm["metrics"].get("completion", {}).get("complete"):
         raise ValueError(f"{expected_experiment} arm must be complete")
     return arm
@@ -64,11 +68,20 @@ def _matched_workload(native: dict[str, Any], fathom: dict[str, Any]) -> dict[st
 def write_receipt(native_record: dict[str, Any], fathom_record: dict[str, Any], *, ts: datetime,
                   base_dir: str | Path) -> tuple[str, Path]:
     """Validate two completed arm records and write a generic comparison receipt."""
-    native = _validate_arm(native_record, expected_experiment="mem0-oss-locomo-native")
-    fathom = _validate_arm(fathom_record, expected_experiment="fathomdb-locomo-official-seam")
+    native = _validate_arm(
+        native_record,
+        expected_experiment="mem0-oss-locomo-native",
+        expected_program_track="MEMORY-01",
+    )
+    fathom = _validate_arm(
+        fathom_record,
+        expected_experiment="fathomdb-locomo-official-seam",
+        expected_program_track="LOCOMO-01",
+    )
     workload = _matched_workload(native, fathom)
     config = {
         "schema_version": SCHEMA_VERSION, "campaign": "locomo_predict_only",
+        "program_track": "MEMORY-01",
         "workload": workload,
         "arms": {"mem0_oss": native["run_id"], "fathomdb": fathom["run_id"]},
     }

@@ -34,6 +34,7 @@ def _config(tmp_path: Path) -> dict:
     return {
         "schema_version": "mem0-oss.v1",
         "campaign": "native_locomo_predict",
+        "program_track": "MEMORY-01",
         "harness": {
             "checkout": str(tmp_path / "memory-benchmarks"),
             "python": "/tmp/fathomdb-mem0-memory-benchmarks/.venv/bin/python",
@@ -108,6 +109,14 @@ def test_resolve_config_requires_predict_only_resume_and_hashed_artifacts(tmp_pa
         mem0_oss.resolve_config(config)
 
 
+def test_native_mem0_arm_requires_its_track_runner_identifier(tmp_path):
+    config = _config(tmp_path)
+    config["program_track"] = "LOCOMO-01"
+
+    with pytest.raises(ValueError, match="program_track"):
+        mem0_oss.resolve_config(config)
+
+
 def test_build_command_is_native_oss_predict_only_and_credential_free(tmp_path):
     config = mem0_oss.resolve_config(_config(tmp_path))
     command = mem0_oss.build_harness_command(config, run_id="native-run", raw_dir=tmp_path / "raw")
@@ -162,6 +171,7 @@ def test_write_receipt_uses_generic_run_layout_and_typed_unavailable_cost(tmp_pa
     record = json.loads((run_dir / "record.json").read_text(encoding="utf-8"))
     assert record["experiment"] == "mem0-oss-locomo-native"
     assert record["schema_version"] == "experiments.record.v1"
+    assert record["config"]["resolved"]["program_track"] == "MEMORY-01"
     assert record["cost_usd"] is None
     assert record["metrics"]["cost"]["status"] == "unavailable"
     assert str(output) not in (run_dir / "record.json").read_text(encoding="utf-8")

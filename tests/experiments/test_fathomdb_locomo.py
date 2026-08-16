@@ -27,6 +27,7 @@ def _config(tmp_path: Path) -> dict:
     return {
         "schema_version": "fathomdb-locomo.v1",
         "campaign": "official_seam_predict_only",
+        "program_track": "LOCOMO-01",
         "harness": {"checkout": str(tmp_path / "harness"), "python": "/bin/python", "git_sha": "abc123def456"},
         "corpus": {"dataset_path": str(dataset), "raw_sha256": _sha(dataset), "normalized_sha256": "0" * 64, "sessions": 1, "eligible_questions": 1},
         "benchmark": {"project_name": "fathomdb-locomo", "conversations": "0", "categories": "1", "top_k": 10, "top_k_cutoffs": [10], "max_workers": 1, "rpm": 1, "predict_only": True, "resume": True},
@@ -60,6 +61,14 @@ def test_fathomdb_arm_rejects_a_missing_or_tampered_provenance_manifest(tmp_path
     config["facade"]["provenance_manifest_sha256"] = "0" * 64
 
     with pytest.raises(ValueError, match="provenance manifest"):
+        fathomdb_locomo.resolve_config(config)
+
+
+def test_fathomdb_arm_requires_its_track_runner_identifier(tmp_path):
+    config = _config(tmp_path)
+    config["program_track"] = "MEMORY-01"
+
+    with pytest.raises(ValueError, match="program_track"):
         fathomdb_locomo.resolve_config(config)
 
 
@@ -98,6 +107,7 @@ def test_fathomdb_arm_receipt_has_a_typed_safe_result_sidecar(tmp_path):
     assert sidecar["run_id"] == run_id
     record = json.loads((run_dir / "record.json").read_text())
     assert record["experiment"] == "fathomdb-locomo-official-seam"
+    assert record["config"]["resolved"]["program_track"] == "LOCOMO-01"
     serialized = json.dumps(record)
     assert str(raw) not in serialized
     assert str(config["harness"]["checkout"]) not in serialized

@@ -28,6 +28,7 @@ SCHEMA_VERSION = "mem0-oss.v1"
 _TOP_LEVEL = {
     "schema_version",
     "campaign",
+    "program_track",
     "harness",
     "corpus",
     "mem0",
@@ -123,6 +124,8 @@ def resolve_config(document: object) -> dict[str, Any]:
         raise ValueError(f"schema_version must be {SCHEMA_VERSION!r}")
     if root["campaign"] != "native_locomo_predict":
         raise ValueError("campaign must be 'native_locomo_predict'")
+    if root["program_track"] != "MEMORY-01":
+        raise ValueError("program_track must be 'MEMORY-01' for the native Mem0 arm")
 
     harness = _require_keys(root["harness"], name="harness", expected=_FIELDS["harness"])
     corpus = _require_keys(root["corpus"], name="corpus", expected=_FIELDS["corpus"])

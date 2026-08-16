@@ -60,6 +60,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/security-review.md` | Security review (SR-*) | — (SR-005/SR-011 candidate reserved-gap) | 2026-05-02 |
 | `dev/learnings.md` | Cross-phase engineering learnings | per-slice as discovered | 2026-05-31 |
 | `dev/experiments-ledger.md` | Distilled results of record for EVERY FathomDB experiment | ledger-prune (`scripts/repo-prune/prompts/prune-docs.md`) | 2026-06-26 |
+| `dev/performance-benchmarking/TRACK-RUNNER*.md` | Codex-native execution control and live progress board for PROGRAM | performance experiments | 2026-08-16 |
 | `scripts/repo-prune/README.md` | repo-prune mini-project | repo-prune (tooling) | 2026-06-26 |
 | `dev/tools/onnx/README.md` · `dev/tools/onnx/export_bge_small_onnx.py` | ONNX embedder export tooling (0.8.16 Slice 10) | 0.8.16 Slice 10 (tooling) | 2026-07-08 |
 | `dev/notes/0.8.0-fts5-tokenizer-latency-experiment.md` | B2 FTS5 tokenizer latency experiment report | Slice 6 (B2) | 2026-06-07 |

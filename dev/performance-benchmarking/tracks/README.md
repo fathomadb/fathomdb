@@ -8,6 +8,13 @@ a run identifier policy, a cost limit where applicable, and an eligibility
 rule. Every completed run still writes the common `experiments.record.v1`
 receipt and one append-only `experiments.index-row.v1` row.
 
+Every charter is run through [Track Runner](../TRACK-RUNNER.md). It defines the
+coordinator/worker/reviewer handoff, the two-writer WIP limit after the trace
+canary, and the external-execution approval boundary. Read the charter through
+`./scripts/track-runner.sh brief <TRACK-ID>` before starting its preparation.
+Read [the live status board](../TRACK-RUNNER-STATUS.md) first; only the
+coordinator updates it after a worker handoff or review gate.
+
 ## Identifier migration
 
 | Current ID | Earlier identifier | Track charter | Existing detailed document |

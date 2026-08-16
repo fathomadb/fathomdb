@@ -50,6 +50,25 @@ resolved config. Given a fixed timestamp + config, the `run_id` is deterministic
    on each record is the honest finding that rolls up into
    [`dev/experiments-ledger.md`](../dev/experiments-ledger.md).
 
+## PROGRAM Track Runner
+
+For new work governed by
+[PROGRAM](../dev/performance-benchmarking/PROGRAM.md), the experiment harness
+uses [Track Runner](../dev/performance-benchmarking/TRACK-RUNNER.md). Before
+preparing a runner or configuration, execute:
+
+```bash
+./scripts/track-runner.sh check
+./scripts/track-runner.sh brief <TRACK-ID>
+```
+
+The control is read-only and does not authorize a live run. A new PROGRAM
+configuration declares `program_track: <TRACK-ID>` in its typed resolved
+configuration, while the existing common receipt/index schemas remain stable.
+Historical configurations and receipts are not rewritten just to add this
+field. Corpus acquisition, GPU/model work, paid calls, and external writes
+continue to require their explicit authorization gate.
+
 ## Rules for the writer
 
 - `index.jsonl` is **append-only**: never rewrite or reorder existing lines.

@@ -14,11 +14,13 @@ TS = datetime(2026, 8, 13, 12, 30, tzinfo=timezone.utc)
 
 
 def _record(run_id: str, experiment: str, verdict: str = "complete") -> dict:
+    program_track = "MEMORY-01" if experiment == "mem0-oss-locomo-native" else "LOCOMO-01"
     return {
         "schema_version": "experiments.record.v1", "run_id": run_id, "experiment": experiment,
         "title": experiment, "verdict": verdict, "read": "ok",
         "code": {"git_sha": "abc", "dirty": False, "branch": "b", "baseline_commit": None},
         "config": {"sha256": "a" * 64, "path": None, "resolved": {
+            "program_track": program_track,
             "harness": {"git_sha": "abc123"},
             "benchmark": {"top_k": 10, "top_k_cutoffs": [10], "conversations": "0", "categories": "1", "predict_only": True, "resume": True, "max_workers": 1, "rpm": 1},
             "corpus": {"raw_sha256": "b" * 64, "normalized_sha256": "c" * 64, "sessions": 1, "eligible_questions": 1},
@@ -41,6 +43,11 @@ def test_comparison_rejects_incomplete_or_mismatched_arm_receipts(tmp_path):
     with pytest.raises(ValueError, match="top_k"):
         mem0_comparison.write_receipt(native, fathom, ts=TS, base_dir=tmp_path)
 
+    native = _record("native", "mem0-oss-locomo-native")
+    native["config"]["resolved"]["program_track"] = "LOCOMO-01"
+    with pytest.raises(ValueError, match="program_track"):
+        mem0_comparison.write_receipt(native, fathom, ts=TS, base_dir=tmp_path)
+
 
 def test_comparison_writes_generic_receipt_and_typed_result(tmp_path):
     run_id, run_dir = mem0_comparison.write_receipt(
@@ -54,3 +61,4 @@ def test_comparison_writes_generic_receipt_and_typed_result(tmp_path):
     record = json.loads((run_dir / "record.json").read_text())
     assert record["experiment"] == "fathomdb-vs-mem0-locomo-comparison"
     assert record["run_id"] == run_id
+    assert record["config"]["resolved"]["program_track"] == "MEMORY-01"

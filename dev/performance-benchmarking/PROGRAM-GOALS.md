@@ -2,6 +2,10 @@
 
 The central hypothesis should be: FathomDB becomes world-class not by choosing one “best” chunk size or retrieval algorithm, but by making an agent’s durable memory a provenance-preserving canonical record with multiple, selectively materialized retrieval projections.
 
+Execution of these goals is governed by the [Track Runner control](TRACK-RUNNER.md):
+isolated Codex worker lanes, per-track independent review, coordinator-only
+integration, and explicit authorization boundaries for external runs.
+
 The chunking result is a warning against treating passage-vector retrieval as universally beneficial: independently embedded `128/96` windows improved dense-only retrieval, yet the fused result remained slightly below text-only retrieval. For conversational, discourse-heavy personal memory, a weak dense arm can displace a strong lexical result. The current L0 plan sensibly starts with a smaller, more revealing question: whether turns, sessions, source-aware neighbors, hybrid retrieval, and cross-encoder reranking earn their latency and quality costs on LOCOMO. [Chunking findings](../design/chunking-strategy-and-test-guidance.md) · [L0 campaign](2026-08-14-locomo-fathomdb-capability-campaign-plan.md)
 
 ## Product hypothesis

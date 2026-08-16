@@ -33,6 +33,7 @@ Three layers have distinct responsibilities:
 | Layer | Answers | Source of truth |
 | --- | --- | --- |
 | Program planning | What should run next, why, and after which prerequisites? | This document and its track plans |
+| Coordination progress | Which lanes are active, reviewed, blocked, or next? | [Track Runner status](TRACK-RUNNER-STATUS.md), updated only by the coordinator |
 | Execution evidence | What actually ran, with which configuration, and what did it measure? | [`../../experiments/`](../../experiments/README.md) — append-only `index.jsonl` and per-run receipts |
 | Decision record | What does the evidence establish or rule out? | [`../experiments-ledger.md`](../experiments-ledger.md) and the relevant result note |
 
@@ -100,6 +101,12 @@ receipts, not inferred from a branch name or narration.
 | SEARCH-01 | complete | IR-C FTS population: establish a FathomDB-only descriptive retrieval baseline. | Complete historical baseline; not a competitor, answer-quality, lifecycle, or latency claim. | [track plan](tracks/search-01-ir-c-baseline.md) |
 
 ## Execution order
+
+Every track below is governed by the Codex-native
+[Track Runner control](TRACK-RUNNER.md): a coordinator integrates isolated,
+reviewed worker lanes; it is not a release-ladder workflow. The control fixes
+the worker handoff, review, WIP, and authorization boundaries for the duration
+of this program.
 
 ```text
 SAFETY-01

@@ -20,7 +20,7 @@ from experiments import _lib, mem0_oss
 
 EXPERIMENT = "fathomdb-locomo-official-seam"
 SCHEMA_VERSION = "fathomdb-locomo.v1"
-_TOP_LEVEL = {"schema_version", "campaign", "harness", "corpus", "benchmark", "facade", "output"}
+_TOP_LEVEL = {"schema_version", "campaign", "program_track", "harness", "corpus", "benchmark", "facade", "output"}
 _HARNESS = {"checkout", "python", "git_sha"}
 _CORPUS = {"dataset_path", "raw_sha256", "normalized_sha256", "sessions", "eligible_questions"}
 _BENCHMARK = {"project_name", "conversations", "categories", "top_k", "top_k_cutoffs", "max_workers", "rpm", "predict_only", "resume"}
@@ -59,6 +59,8 @@ def resolve_config(document: object) -> dict[str, Any]:
     _reject_secrets(root)
     if root["schema_version"] != SCHEMA_VERSION or root["campaign"] != "official_seam_predict_only":
         raise ValueError("config must declare the FathomDB official predict-only campaign")
+    if root["program_track"] != "LOCOMO-01":
+        raise ValueError("program_track must be 'LOCOMO-01' for the FathomDB LOCOMO arm")
     harness = _exact(root["harness"], "harness", _HARNESS)
     corpus = _exact(root["corpus"], "corpus", _CORPUS)
     benchmark = _exact(root["benchmark"], "benchmark", _BENCHMARK)
@@ -102,6 +104,7 @@ def receipt_config(config: dict[str, Any]) -> dict[str, Any]:
     """Project an executable config into the reproducible, path-free receipt form."""
     return {
         "schema_version": config["schema_version"], "campaign": config["campaign"],
+        "program_track": config["program_track"],
         "harness": {"checkout": "external-verified-checkout", "python": "external-verified-interpreter",
                     "git_sha": config["harness"]["git_sha"]},
         "corpus": {"dataset_path": "external-verified-corpus", "raw_sha256": config["corpus"]["raw_sha256"],

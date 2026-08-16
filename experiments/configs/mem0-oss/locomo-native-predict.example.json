@@ -1,6 +1,7 @@
 {
   "schema_version": "mem0-oss.v1",
   "campaign": "native_locomo_predict",
+  "program_track": "MEMORY-01",
   "harness": {
     "checkout": "/tmp/fathomdb-mem0-memory-benchmarks",
     "python": "/tmp/fathomdb-mem0-memory-benchmarks/.venv/bin/python",

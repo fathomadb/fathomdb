@@ -88,6 +88,6 @@ development; it is not, by itself, an automated CI or release-evidence path.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 5** (`VERIFICATION`) — verification-adequacy review
+**IMMEDIATE NEXT: Slice 6** (`HITL-PACKAGE`) — scored planning package and HITL stop
 
-**Remaining ladder:** 5 → 6 → 10 → 20 → 30 → 40 → 50 → 60.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->
+**Remaining ladder:** 6 → 10 → 20 → 30 → 40 → 50 → 60.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->

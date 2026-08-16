@@ -1379,6 +1379,33 @@ impl ProjectionRuntime {
         }
     }
 
+    /// Wait until the runtime has no queued or active jobs, deliberately
+    /// without consulting durable pending work. Erasure uses this only after it
+    /// has frozen the dispatcher for a session with no configured embedder:
+    /// those pending rows cannot be projected in that session and will instead
+    /// be deleted by the erasure transaction.
+    fn wait_for_workers_idle(&self, timeout_ms: u64) -> bool {
+        let deadline = Instant::now() + Duration::from_millis(timeout_ms);
+        let mut state = match self.shared.state.lock() {
+            Ok(state) => state,
+            Err(_) => return false,
+        };
+        loop {
+            if state.active_jobs == 0 && state.queued_jobs == 0 {
+                return true;
+            }
+            let now = Instant::now();
+            if now >= deadline {
+                return false;
+            }
+            let wait = deadline.saturating_duration_since(now);
+            let Ok((next_state, _)) = self.shared.state_cvar.wait_timeout(state, wait) else {
+                return false;
+            };
+            state = next_state;
+        }
+    }
+
     fn set_retry_delays_for_test(&self, delays_ms: &[u64]) {
         if let Ok(mut delays) = self.shared.retry_delays_ms.lock() {
             *delays = delays_ms.to_vec();
@@ -7735,6 +7762,53 @@ impl Engine {
         }
     }
 
+    /// Settle projection execution and freeze new scans for an erasure
+    /// transaction. A direct [`Self::drain`] keeps Slice 30's immediate typed
+    /// configuration feedback, but erasure must be able to remove pending work
+    /// from a no-embedder session rather than returning that feedback instead
+    /// of discharging the destructive request.
+    fn freeze_projection_for_erasure(&self) -> Result<(), EngineError> {
+        let no_configured_embedder = match self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS) {
+            Ok(()) => false,
+            Err(EngineError::EmbedderRequired(_)) => true,
+            Err(error) => return Err(error),
+        };
+
+        self.projection_runtime.set_frozen(true);
+        let settled = if no_configured_embedder {
+            // The dispatcher is frozen before the transaction. Existing jobs
+            // may still be completing their final batch, so wait for those
+            // workers only; durable rows that need an absent embedder are the
+            // rows the following erasure transaction removes.
+            if self.projection_runtime.wait_for_workers_idle(LIFECYCLE_DRAIN_TIMEOUT_MS) {
+                Ok(())
+            } else {
+                Err(EngineError::Scheduler)
+            }
+        } else {
+            // With a configured runtime, preserve the established two-drain
+            // ordering: all durable work settles unfrozen, then no worker is
+            // active once new scans are frozen.
+            self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS)
+        };
+        if settled.is_err() {
+            self.projection_runtime.set_frozen(false);
+        }
+        settled
+    }
+
+    /// Wait before a metadata-only mutation that must not turn an absent
+    /// embedder into an unrelated operation failure. Direct [`Self::drain`]
+    /// still reports the typed Slice-30 feedback; with no configured runtime
+    /// no embedding worker can be concurrently committing the durable pending
+    /// rows, so registry and lifecycle metadata may be updated safely.
+    fn drain_for_non_embedding_mutation(&self) -> Result<(), EngineError> {
+        match self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS) {
+            Ok(()) | Err(EngineError::EmbedderRequired(_)) => Ok(()),
+            Err(error) => Err(error),
+        }
+    }
+
     /// Snapshot of engine-internal counters.
     ///
     /// Field set owned by `dev/design/lifecycle.md`.
@@ -8912,7 +8986,7 @@ impl Engine {
         // This drain remains load-bearing because the worker owns a separate
         // connection while this state flip still reads before its own write; it
         // keeps that deferred transaction out of the worker's write window.
-        self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS)?;
+        self.drain_for_non_embedding_mutation()?;
 
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
@@ -9033,7 +9107,7 @@ impl Engine {
         // Settle in-flight async projection work first. The worker commits on its
         // own connection with `BEGIN IMMEDIATE`; a backfill issued in that write
         // window would SQLITE_BUSY.
-        self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS)?;
+        self.drain_for_non_embedding_mutation()?;
 
         // The backfill is gated on a usable dense runtime. Without one, the
         // declaration persists and defers rather than queueing unsafe work. A
@@ -9229,16 +9303,11 @@ impl Engine {
         // already dequeued a job for a purged cursor commit its vec0 /
         // `_fathomdb_vector_rows` INSERT after our DELETE releases the writer
         // lock, leaving residue that defeats the erasure sweep.
-        // Settle every pending projection FIRST (unfrozen) so no unprojected row
-        // is left behind that a subsequent freeze would wedge `drain` on, and so
-        // the async worker is idle. THEN freeze the scanner (no new work is queued
-        // while we erase), confirm idle, and erase in one writer transaction.
-        // Freezing before the first drain would stall projection of any
-        // just-written row → `database_has_pending_projection_work` never clears →
-        // `drain` times out into `Scheduler`.
-        self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS)?;
-        self.projection_runtime.set_frozen(true);
-        let outcome = self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS).and_then(|()| self.purge_inner(&lid));
+        // With a configured runtime, settle every pending projection unfrozen
+        // before freezing the scanner; with no configured runtime, freeze after
+        // the immediate Slice-30 feedback and remove the pending row instead.
+        self.freeze_projection_for_erasure()?;
+        let outcome = self.purge_inner(&lid);
         self.projection_runtime.set_frozen(false);
         // 0.8.20 Slice 5b (R-20-E5/E6) — the rows are gone from the tables; now
         // finish the erasure AT REST (telemetry sink + `-wal` bytes) before
@@ -9431,20 +9500,11 @@ impl Engine {
         // lock, leaving residue and breaking AC-028b. Surface the
         // timeout instead of swallowing it (Pack A pattern).
         //
-        // ORDER IS LOAD-BEARING, exactly as in `purge`: settle every pending
-        // projection FIRST (UNFROZEN), and only THEN freeze the scanner and
-        // confirm idle. Freezing first parks the dispatcher, so a row written
-        // moments ago can never be scanned and enqueued — while `drain` ->
-        // `wait_for_idle` keeps seeing it via
-        // `database_has_pending_projection_work`, which reads the DATABASE and
-        // not the queue. The result is that the ordinary sequence "write a
-        // vector-indexed row, then erase it" stalls for the whole
-        // LIFECYCLE_DRAIN_TIMEOUT_MS and fails with `Scheduler`.
-        // (codex §9 [P2]; `erase_source_drains_before_freezing`.)
-        self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS)?;
-        self.projection_runtime.set_frozen(true);
-        let drain_result = self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS);
-        let outcome = drain_result.and_then(|()| self.excise_source_inner(verb, source_id));
+        // The helper preserves the configured-runtime drain-before-freeze
+        // ordering, while allowing this destructive operation to delete
+        // otherwise-unserviceable no-embedder rows.
+        self.freeze_projection_for_erasure()?;
+        let outcome = self.excise_source_inner(verb, source_id);
         self.projection_runtime.set_frozen(false);
         // 0.8.20 Slice 5b (R-20-E5/E6) — finish the erasure AT REST before
         // reporting success: redact the erased stable ids out of the telemetry
@@ -14100,33 +14160,21 @@ fn pending_edge_projection_from_where(now_idx: usize) -> String {
 /// `dense_arm_live` is `ProjectionRuntimeShared::embedder.is_some()`, read once
 /// per dispatcher because it is fixed for the session's lifetime.
 ///
-/// # fix-5 (codex §9 round 4 [P1]) — why the node exclusion is IN the SQL
+/// # No configured embedder
 ///
-/// With no usable dense runtime a NODE job can only come back
-/// [`ProjectionOutcome::Deferred`], which by design records no terminal (fix-4),
-/// so dispatching one would re-fetch the SAME cursor forever: a hot loop for the
-/// whole life of the session. fix-4 suppressed that by filtering the vector this
-/// function RETURNS — i.e. after the `ORDER BY … LIMIT`, so the `LIMIT` still
-/// applied to the UNFILTERED set. More than `PROJECTION_SCAN_FETCH` pending node
-/// rows ordered before a pending EDGE body therefore filled the entire window
-/// with jobs that were then all dropped, the dispatcher went back to sleep with
-/// `pending_scan` already consumed, and the edge body was never scheduled at all
-/// — permanently, since those node rows stay pending for the session's life. The
-/// exclusion belongs here, where the `LIMIT` applies to the ALREADY-FILTERED set
-/// and a later edge job is always reachable.
-///
-/// Edges are NOT excluded: `'edge_fact'` is auto-registered by the edge write
-/// itself, un-gated on the embedder (`project_canonical_edge_row`, G11, and the
-/// note in [`Engine::enrol_batch_vector_kinds`]), so an edge body still
-/// TERMINATES on an absent embedder exactly as it has shipped since G11. Making
-/// edges recoverable too needs that enrolment gated first (OOS-13).
+/// A session with no configured runtime does not dispatch either node or edge
+/// embedding jobs. Dispatching an edge into the retry ladder used to record a
+/// durable `failed` terminal, contradicting Slice 30's immediate
+/// `FDB_EMBEDDER_REQUIRED` configuration feedback and losing work that a later
+/// configured session must be able to complete. The durable rows stay pending;
+/// `drain` names the configuration error and an erasure verb can remove them.
 fn next_pending_projection_jobs(
     connection: &Connection,
     in_flight: &BTreeSet<u64>,
     max_jobs: usize,
     dense_arm_live: bool,
 ) -> rusqlite::Result<Vec<ProjectionJob>> {
-    if max_jobs == 0 {
+    if max_jobs == 0 || !dense_arm_live {
         return Ok(Vec::new());
     }
     let cursor = load_projection_cursor(connection)?;
@@ -14139,12 +14187,9 @@ fn next_pending_projection_jobs(
     // The UNION is ordered by write_cursor so projection proceeds in
     // insertion order across nodes and edges.
     //
-    // fix-5 [P1]: with no dense arm the NODE arm is omitted outright rather than
-    // predicated false, so the planner never walks it. The edge arm keeps both
-    // binds (`?1` the cursor, `?2` the `:now` seam), so the bound parameter set
-    // is identical either way.
-    let node_arm = if dense_arm_live {
-        "SELECT canonical_nodes.write_cursor AS write_cursor,
+    let sql = format!(
+        "SELECT write_cursor, kind, body FROM (
+             SELECT canonical_nodes.write_cursor AS write_cursor,
                     canonical_nodes.kind AS kind,
                     canonical_nodes.body AS body
              FROM canonical_nodes
@@ -14157,13 +14202,7 @@ fn next_pending_projection_jobs(
 
              UNION ALL
 
-             "
-    } else {
-        ""
-    };
-    let sql = format!(
-        "SELECT write_cursor, kind, body FROM (
-             {node_arm}SELECT ce.write_cursor AS write_cursor,
+             SELECT ce.write_cursor AS write_cursor,
                     'edge_fact' AS kind,
                     ce.body AS body
              {edge_arm}
@@ -14175,7 +14214,7 @@ fn next_pending_projection_jobs(
         // cannot disagree about what is outstanding. The `write_cursor > ?1`
         // watermark is appended here and ONLY here — see the fragment's doc.
         // TC-33: `?1` is the projection cursor ⇒ the edge `:now` binds at `?2`.
-        edge_arm = pending_edge_projection_from_where(2)
+        edge_arm = pending_edge_projection_from_where(2),
     );
     let mut statement = connection.prepare_cached(&sql)?;
     let rows = statement.query_map(params![cursor, current_epoch_seconds()], |row| {

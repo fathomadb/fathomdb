@@ -9,8 +9,10 @@ use fathomdb_engine::{
     EmbeddingOperation, EmbeddingReadinessState, Engine, EngineError, PreparedWrite, SourceId,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
+use rusqlite::OptionalExtension;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tempfile::TempDir;
 
 fn db_path(dir: &TempDir, name: &str) -> std::path::PathBuf {
@@ -119,6 +121,40 @@ fn body_bearing_edge_without_embedder_reports_blocked_and_drain_is_immediate_typ
             if required.operation == EmbeddingOperation::GraphEdgeBodyProjection
                 && required.code == "FDB_EMBEDDER_REQUIRED"
     ));
+}
+
+/// Configuration feedback is not merely a faster error from `drain`: absent
+/// configuration must leave the body edge pending for a later configured
+/// session, not dispatch it into the worker retry ladder and record a terminal
+/// failure behind the caller's back.
+#[test]
+fn absent_embedder_does_not_dispatch_body_edge_into_a_failed_terminal() {
+    let dir = TempDir::new().expect("tempdir");
+    let path = db_path(&dir, "missing_embedder_no_dispatch");
+    let opened = Engine::open(&path).expect("open without embedder");
+    opened.engine.set_projection_retry_delays_for_test(&[]);
+    let receipt = opened.engine.write(&[body_edge()]).expect("accepted deferred edge write");
+
+    let deadline = Instant::now() + Duration::from_secs(1);
+    loop {
+        let connection = rusqlite::Connection::open(&path).expect("open raw sqlite");
+        let terminal: Option<String> = connection
+            .query_row(
+                "SELECT state FROM _fathomdb_projection_terminal WHERE write_cursor = ?1",
+                [receipt.cursor as i64],
+                |row| row.get(0),
+            )
+            .optional()
+            .expect("read terminal");
+        assert!(
+            terminal.is_none(),
+            "no configured embedder must leave the body edge pending, not record {terminal:?}"
+        );
+        if Instant::now() >= deadline {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
 }
 
 #[test]

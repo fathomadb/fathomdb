@@ -88,6 +88,6 @@ development; it is not, by itself, an automated CI or release-evidence path.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 0** (`ENVIRONMENT`) — identify environment setup and change preconditions
+**IMMEDIATE NEXT: Slice 1** (`DEPENDENCIES`) — Dependabot needs and library-sweep disposition
 
-**Remaining ladder:** 0 → 1 → 2 → 3 → 4 → 5 → 6 → 10 → 20 → 30 → 40 → 50 → 60.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->
+**Remaining ladder:** 1 → 2 → 3 → 4 → 5 → 6 → 10 → 20 → 30 → 40 → 50 → 60.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->

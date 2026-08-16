@@ -6,7 +6,7 @@
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.23:status-current-state -->**Next is Slice 0 (ENVIRONMENT), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.23:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.23:status-current-state -->**Next is Slice 1 (DEPENDENCIES), NOT_STARTED.** Landed on `origin/main`: 0 (`916023fe`) — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.23:status-current-state -->
 
 0.8.23 is in planning-only mode. Existing CUDA and related commits are inputs
 to review, not approved feature-slice closures. Publication is held.
@@ -22,7 +22,7 @@ to review, not approved feature-slice closures. Publication is held.
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Commission Slice 0 (ENVIRONMENT)** — identify environment setup and change preconditions. **Remaining ladder:** 0 → 1 → 2 → 3 → 4 → 5 → 6 → 10 → 20 → 30 → 40 → 50 → 60.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Commission Slice 1 (DEPENDENCIES)** — Dependabot needs and library-sweep disposition. **Remaining ladder:** 1 → 2 → 3 → 4 → 5 → 6 → 10 → 20 → 30 → 40 → 50 → 60.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
 
 ## Stop gate
 

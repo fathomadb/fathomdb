@@ -8,7 +8,7 @@
   "origin_main_schema_version": 26,
   "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
   "ladder": [
-    {"slice": 0, "short": "ENVIRONMENT", "title": "identify environment setup and change preconditions", "depends_on": [], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-planning-foundation.md", "dev/design/0.8.23-windows-local-environment.md"]},
+    {"slice": 0, "short": "ENVIRONMENT", "title": "identify environment setup and change preconditions", "depends_on": [], "status": "LANDED", "design_refs": ["dev/design/0.8.23-planning-foundation.md", "dev/design/0.8.23-windows-local-environment.md"], "sha": "916023fe", "merge_subject": "docs(0.8.23): establish planning-first release ladder", "evidence": "Planning-only environment inventory landed at this commit. It separates available local development tools from CUDA, Docker, and system-libvirt evidence that only an authorized later execution may certify; no runner, guest, artifact, dependency, or publication change occurred."},
     {"slice": 1, "short": "DEPENDENCIES", "title": "Dependabot needs and library-sweep disposition", "depends_on": [0], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"]},
     {"slice": 2, "short": "CRUFT-REVIEW", "title": "repository and documentation cruft proposal", "depends_on": [1], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"]},
     {"slice": 3, "short": "DRAFT-CONTRACTS", "title": "draft needs, requirements, and acceptance-criteria CRUD allocation", "depends_on": [2], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"]},
@@ -22,9 +22,9 @@
     {"slice": 50, "short": "GITLEAKS-GUARDS", "title": "staged pre-commit and always-on CI secret scanning", "depends_on": [6], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-gitleaks-guards.md"]},
     {"slice": 60, "short": "WINDOWS-WAL", "title": "Windows WAL checkpoint reader-conflict diagnosis", "depends_on": [6], "status": "NOT_STARTED", "design_refs": ["dev/design/0.8.23-windows-wal-checkpoint-reader-conflict.md", "dev/design/0.8.23-windows-local-environment.md"]}
   ],
-  "landed": [],
-  "next_slice": 0,
-  "remaining_ladder": [0, 1, 2, 3, 4, 5, 6, 10, 20, 30, 40, 50, 60],
+  "landed": [0],
+  "next_slice": 1,
+  "remaining_ladder": [1, 2, 3, 4, 5, 6, 10, 20, 30, 40, 50, 60],
   "decisions": {
     "unruled": [
       {"id": "slice-6-scope", "title": "HITL selects included and postponed feature candidates after Slice 6", "halts_run": true, "source": "0.8.23 planning-first ladder"},

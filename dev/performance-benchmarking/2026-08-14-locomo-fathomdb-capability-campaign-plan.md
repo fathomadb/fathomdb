@@ -1,5 +1,10 @@
 # LOCOMO FathomDB capability campaign — revised
 
+> **Program relationship.** This is active track L0, followed by L1, in the
+> [overall performance benchmarking and experiments program](PROGRAM.md).
+> The selected L0/L1 configuration is the only FathomDB arm eligible for the
+> later native Mem0 track M0.
+
 ## Phase A gates
 
 1. Checkpoint the recorder code/test diff only; exclude `logs/`, raw artifacts, and unreviewed run directories. Create an isolated campaign worktree from that commit, reconcile it with current `origin/main`, and record checkpoint, main, dependency-lock, harness, and wheel hashes.

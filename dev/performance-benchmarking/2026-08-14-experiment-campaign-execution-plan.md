@@ -1,5 +1,10 @@
 # Out-of-band experiment campaign — execution plan
 
+> **Program relationship.** This runbook executes C0, L0/L1, T0, and F0 from
+> the [overall performance benchmarking and experiments program](PROGRAM.md).
+> Use that program for cross-track priority and blockers; use this document for
+> the concrete campaign sequence.
+
 ## Boundary
 
 This is the execution runbook for the experiments campaign. Every item is

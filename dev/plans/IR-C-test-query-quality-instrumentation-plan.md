@@ -6,6 +6,11 @@ status: UNKNOWN
 
 Status: **in progress** · Drafted 2026-06-11 · Branch `claude/recent-changes-state-a6wth3`
 
+> **Program relationship.** This historical instrumentation plan supplies
+> retrieval-quality evidence used by I0 and related tracks. Current
+> cross-track priority and experiment execution live in the
+> [overall performance benchmarking and experiments program](../performance-benchmarking/PROGRAM.md).
+
 **Landed (code + tests):** WI-2 (query tracers) + WI-3a (evidence-span locators)
 — gold schema + build script (`6f39b3a`). WI-1L (lexical diagnostics + shared
 `ir_retrieval.rs` seams) — `bm25_gold_rank`/`idf_overlap` sidecar (`72643f8`).

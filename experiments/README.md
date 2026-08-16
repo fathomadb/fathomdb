@@ -6,8 +6,10 @@ memex's scheme: the two repos' indices share one record + index-row schema and
 are cross-compatible — the index row's `repo` field (`"fathomdb"` here,
 `"memex"` there) distinguishes them.
 
-> Scope note: this slice provides the CAPABILITY. No fathomdb eval run is wired
-> to it yet; the eval program adopts it when it lands.
+The [overall performance benchmarking and experiments program](../dev/performance-benchmarking/PROGRAM.md)
+decides what to run and in what order. This directory records what actually
+ran. It already contains safe receipts for the LOCOMO campaign; it is not a
+future-only capability.
 
 ## Layout
 

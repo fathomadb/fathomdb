@@ -1,5 +1,10 @@
 # TC-5 — eu7 grown-corpus characterization and advisory envelope
 
+> **Program relationship.** This is track T0 in the
+> [overall performance benchmarking and experiments program](PROGRAM.md). It
+> may inform F0's advisory scale envelope, but it is neither a competitor
+> comparison nor a latency claim.
+
 ## Purpose and authority
 
 This is an **out-of-band experiments** deliverable for the soft/advisory F-17

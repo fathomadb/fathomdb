@@ -36,7 +36,7 @@ import { spawnSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 
 import { Engine, read } from "../src/index.js";
-import { SchedulerError } from "../src/errors.js";
+import { EmbedderRequiredError } from "../src/errors.js";
 import type { ProjectionSpec } from "../src/index.js";
 import { freshDbPath } from "./helpers.js";
 
@@ -560,7 +560,9 @@ test("a no-embedder session leaves an enrolled kind's write recoverable", async 
   // The CONSUMER-VISIBLE consequence is asserted on purpose, so it cannot change
   // back silently: with no usable dense runtime, readiness reads `"unavailable"`
   // regardless of outstanding work. The pending row remains recoverable and
-  // `drain` rejects with `SchedulerError`, rather than recording a failed terminal.
+  // Slice 30 ratified this configuration boundary: `drain` immediately reports
+  // the typed remediation-bearing EmbedderRequiredError, rather than retrying
+  // into a scheduler timeout or recording a failed terminal.
   if (skipNetwork()) return;
   const path = freshDbPath();
 
@@ -592,17 +594,38 @@ test("a no-embedder session leaves an enrolled kind's write recoverable", async 
 
     // THE CONSUMER-VISIBLE CONSEQUENCE. An enrolled row with no vector is
     // outstanding and this session cannot satisfy it, so the barrier must NOT
-    // clear. At baseline it cleared by recording a `'failed'` terminal — which
-    // is exactly how the write got lost.
-    await assert.rejects(() => cold.drain(3_000), SchedulerError);
-
-    // Give the BASELINE its full retry ladder (0 + 1 + 4 + 16 s) before the
-    // probes below. Without this wait they all read a merely-unterminated row
-    // and pass VACUOUSLY on the broken code — the SDKs expose no equivalent of
-    // the Rust suite's `set_projection_retry_delays_for_test` seam, so waiting
-    // is the only way to make them falsifying. Under the fix the row is never
-    // dispatched, so this is dead time and nothing changes across it.
-    await new Promise((resolve) => setTimeout(resolve, LADDER_SETTLE_MS));
+    // clear. Slice 30 ratified an immediate configuration outcome here; it must
+    // preserve the exact public payload rather than looking like the old generic
+    // scheduler timeout. The accepted write stays recoverable below.
+    const blocked = await read.embeddingReadiness(cold);
+    assert.deepEqual(blocked, {
+      state: "blocked",
+      usableEmbedder: false,
+      pendingCount: 1,
+      affectedKinds: ["doc"],
+      code: "FDB_EMBEDDER_REQUIRED",
+      operation: "vector_projection",
+      remediations: [
+        "configure_default_embedder",
+        "configure_caller_embedder",
+        "submit_non_embedding_input",
+      ],
+      documentationUrl: "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED",
+    });
+    const started = Date.now();
+    await assert.rejects(
+      () => cold.drain(3_000),
+      (error: unknown) => {
+        assert.ok(error instanceof EmbedderRequiredError);
+        assert.equal(error.code, blocked.code);
+        assert.equal(error.operation, blocked.operation);
+        assert.equal(error.state, blocked.state);
+        assert.deepEqual(error.remediations, blocked.remediations);
+        assert.equal(error.documentationUrl, blocked.documentationUrl);
+        return true;
+      },
+    );
+    assert.ok(Date.now() - started < 1_000, "configuration feedback must not wait for retry backoff");
 
     assert.equal(
       await readiness(cold),

@@ -3,7 +3,8 @@
 **Track:** `TRACE-01`  
 **Charter:** [TRACE-01 in PROGRAM](PROGRAM.md#trace-01--projection-lifecycle-integrity)  
 **Base:** `1b404101`  
-**Outcome:** ready for independent read-only review after the final verification gate.
+**Outcome:** implementation is ready for independent read-only review; the
+full verification gate is blocked by the worktree's absent Python environment.
 
 ## Scope and ownership
 
@@ -25,8 +26,16 @@
 - Passing focused command after implementation:
   `python3 -m pytest tests/experiments/test_trace_projection.py -q` —
   `5 passed`.
-- Final `./scripts/agent-verify.sh` result: passed on 2026-08-16 after the
-  focused lifecycle test passed.
+- Exact final command:
+  `PATH=/home/coreyt/projects/fathomdb/.venv/bin:$PATH ./scripts/agent-verify.sh`.
+- Final result: failed at `typecheck-python` (exit 1). Pyright reported
+  `venv .venv subdirectory not found in venv path
+  /tmp/fathomdb-trace-01-20260816`, then existing repository-wide unresolved
+  `numpy` and `pytest` imports. The unaltered capped log is
+  `/tmp/fathomdb-agent-typecheck-python-3978.log`.
+- A documented, untracked `node_modules` symlink to the primary checkout was
+  created only to clear the preceding markdown-linter prerequisite; no package
+  was installed and no tracked receipt, configuration, or artifact changed.
 
 ## Review focus
 

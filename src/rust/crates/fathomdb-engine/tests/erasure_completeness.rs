@@ -21,6 +21,11 @@ use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
 use tempfile::TempDir;
 
+#[cfg(windows)]
+use std::process::{Child, Command, Stdio};
+#[cfg(windows)]
+use std::time::Instant;
+
 fn db_path(dir: &TempDir, name: &str) -> PathBuf {
     dir.path().join(format!("{name}{SQLITE_SUFFIX}"))
 }
@@ -40,6 +45,66 @@ fn file_contains_bytes(path: &Path, needle: &str) -> bool {
         return false;
     }
     bytes.windows(needle.len()).any(|window| window == needle)
+}
+
+#[cfg(windows)]
+fn current_test_binary() -> PathBuf {
+    std::env::current_exe().expect("test binary path")
+}
+
+#[cfg(windows)]
+fn wait_for_file(path: &Path, timeout: Duration) {
+    let started = Instant::now();
+    loop {
+        if path.is_file() {
+            return;
+        }
+        assert!(
+            started.elapsed() < timeout,
+            "timed out after {timeout:?} waiting for child sentinel {}",
+            path.display()
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+#[cfg(windows)]
+fn wait_for_child_file(child: &mut Child, path: &Path, timeout: Duration) {
+    let started = Instant::now();
+    loop {
+        if path.is_file() {
+            return;
+        }
+        if let Some(status) = child.try_wait().expect("poll child") {
+            panic!("reader child exited {status} before writing its sentinel {}", path.display());
+        }
+        if started.elapsed() >= timeout {
+            let _ = child.kill();
+            let status = child.wait().expect("reap timed-out child");
+            panic!(
+                "timed out after {timeout:?} waiting for child sentinel {}; reaped {status}",
+                path.display()
+            );
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+#[cfg(windows)]
+fn reap_child(child: &mut Child, timeout: Duration) {
+    let started = Instant::now();
+    loop {
+        if let Some(status) = child.try_wait().expect("poll child") {
+            assert!(status.success(), "reader child failed: {status}");
+            return;
+        }
+        if started.elapsed() >= timeout {
+            let _ = child.kill();
+            let status = child.wait().expect("reap timed-out child");
+            panic!("reader child did not exit within {timeout:?}; reaped {status}");
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
 }
 
 fn write_node(engine: &Engine, body: &str, source_id: &str, logical_id: Option<&str>) -> u64 {
@@ -167,6 +232,83 @@ fn erasure_busy_yields_incomplete_not_success() {
     blocker.execute_batch("COMMIT").expect("release blocker");
     drop(blocker);
     opened.engine.close().unwrap();
+}
+
+/// Windows-only first-party diagnosis: a reader in a distinct OS process pins
+/// a real SQLite WAL snapshot. The erasure must refuse with its existing typed
+/// `wal_checkpoint` outcome, never report a false successful erasure. The
+/// paired ignored child below writes its ready sentinel only after the snapshot
+/// query acquired the lock, so this test does not race process startup.
+#[cfg(windows)]
+#[test]
+fn erasure_busy_cross_process_windows_yields_typed_diagnostic() {
+    let dir = TempDir::new().expect("temp dir");
+    let path = db_path(&dir, "wal_busy_cross_process_windows");
+    let ready = dir.path().join("reader-ready");
+    let release = dir.path().join("reader-release");
+    let opened = Engine::open(&path).expect("open");
+
+    write_node(&opened.engine, "cross-process erasable body", "S1", Some("victim-1"));
+    write_node(&opened.engine, "cross-process retained body", "S2", Some("control-1"));
+    opened.engine.drain(10_000).expect("drain");
+
+    let mut child = Command::new(current_test_binary())
+        .arg("--exact")
+        .arg("child_holds_cross_process_wal_snapshot_windows")
+        .arg("--ignored")
+        .env("FATHOMDB_SLICE60_DB_PATH", &path)
+        .env("FATHOMDB_SLICE60_READY_PATH", &ready)
+        .env("FATHOMDB_SLICE60_RELEASE_PATH", &release)
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .expect("spawn reader child");
+    wait_for_child_file(&mut child, &ready, Duration::from_secs(10));
+
+    let started = Instant::now();
+    let result = opened.engine.excise_source("S1");
+    let elapsed = started.elapsed();
+    std::fs::write(&release, b"release reader").expect("signal reader release");
+    reap_child(&mut child, Duration::from_secs(10));
+
+    let err = result.expect_err("excise must refuse while a cross-process reader pins WAL");
+    let (stage, detail) = match &err {
+        EngineError::ErasureIncomplete { stage, detail } => (stage, detail),
+        other => panic!("expected ErasureIncomplete{{wal_checkpoint}}, got {other:?}"),
+    };
+    eprintln!(
+        "slice60 windows WAL diagnostic: elapsed_ms={} stage={stage} detail={detail}",
+        elapsed.as_millis()
+    );
+    assert_eq!(stage, "wal_checkpoint", "wrong fail-closed erasure stage: {detail}");
+    assert!(
+        detail.contains("BUSY on all 5 attempts") && detail.contains("frames still in the log"),
+        "typed WAL diagnostic lost its bounded-attempt/lock evidence: {detail}"
+    );
+
+    opened.engine.close().expect("close engine");
+}
+
+/// The process side of `erasure_busy_cross_process_windows_yields_typed_diagnostic`.
+/// It is invoked only by that parent test and holds a real SQLite read
+/// transaction until the parent records the checkpoint outcome.
+#[cfg(windows)]
+#[test]
+#[ignore]
+fn child_holds_cross_process_wal_snapshot_windows() {
+    let path = std::env::var_os("FATHOMDB_SLICE60_DB_PATH").expect("db path");
+    let ready = PathBuf::from(std::env::var_os("FATHOMDB_SLICE60_READY_PATH").expect("ready path"));
+    let release =
+        PathBuf::from(std::env::var_os("FATHOMDB_SLICE60_RELEASE_PATH").expect("release path"));
+    let blocker = Connection::open(path).expect("open reader connection");
+    blocker.execute_batch("BEGIN").expect("begin reader transaction");
+    let _pinned = blocker
+        .query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))
+        .expect("pin WAL snapshot");
+    std::fs::write(&ready, b"WAL snapshot pinned").expect("write ready sentinel");
+
+    wait_for_file(&release, Duration::from_secs(30));
+    blocker.execute_batch("COMMIT").expect("release reader transaction");
 }
 
 // ===== R-20-E6 · Telemetry selective redaction ========================

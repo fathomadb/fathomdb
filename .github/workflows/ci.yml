@@ -442,6 +442,34 @@ jobs:
           cargo test -p fathomdb-cli --features default-embedder \
             --test cli_warm_cache
 
+  # 0.8.23 Slice 60: a separate OS process holds a real SQLite WAL read
+  # snapshot while `excise_source` attempts its truncating checkpoint. This is
+  # deliberately a focused Windows x64 source test, not artifact validation:
+  # its retained log records elapsed checkpoint time and the typed lock result.
+  windows-wal-checkpoint-diagnosis:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        with:
+          toolchain: "1.95.0"
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Run cross-process WAL checkpoint diagnosis
+        shell: pwsh
+        run: |
+          cargo test -p fathomdb-engine --features operator --test erasure_completeness erasure_busy_cross_process_windows_yields_typed_diagnostic -- --exact --nocapture 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\slice60-windows-wal-diagnostic.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload cross-process WAL checkpoint diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: slice60-windows-wal-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/slice60-windows-wal-diagnostic.log
+          if-no-files-found: error
+
    # EU-6 FIX-1 / ADR-0.6.0-default-embedder.md EMB-3 — wheel-size gate.
   #
   # Per `dev/design/0.7.1-EU-6-FIX-1-design.md` D2:

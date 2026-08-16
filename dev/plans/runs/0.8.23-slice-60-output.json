@@ -1,0 +1,40 @@
+{
+  "phase": "0.8.23-slice-60",
+  "baseline_sha": "f887690d69efbf2c2cf85a34b600fc3acacfb686",
+  "status": "IMPLEMENTED_PENDING_FIRST_PARTY_WINDOWS_EVIDENCE",
+  "status_record": "dev/plans/runs/0.8.23-slice-60-windows-wal-diagnosis.md",
+  "design": "dev/design/0.8.23-windows-wal-checkpoint-reader-conflict.md",
+  "draft_disposition": {
+    "approved": [
+      "N23-WINDOWS-WAL",
+      "R23-WINDOWS-WAL-DIAGNOSIS",
+      "AC23-WINDOWS-WAL-DIAGNOSIS",
+      "Windows x64 real-SQLite cross-process diagnostic",
+      "Retained first-party CI timing/lock output"
+    ],
+    "rejected_without_data": [
+      "retry budget tuning",
+      "binding finalizer or GC-cause theory",
+      "reader-pool restructuring",
+      "public EngineError field expansion"
+    ]
+  },
+  "implementation": {
+    "source_test": "src/rust/crates/fathomdb-engine/tests/erasure_completeness.rs",
+    "ci_job": "windows-wal-checkpoint-diagnosis",
+    "production_behavior_changed": false
+  },
+  "tdd": {
+    "red": "The staged Windows parent required a ready sentinel before the ignored child existed; this is a deterministic timeout on a Windows runner.",
+    "green": "The child opens a separate SQLite reader transaction, writes ready, waits release, commits, and is reaped by the parent.",
+    "windows_execution": "PENDING: x86_64-pc-windows-msvc target is absent on the local Linux host; GitHub-hosted windows-latest is the authoritative witness."
+  },
+  "local_verification": {
+    "workflow_contract": "PASS (14 assertions, including mutation and actionlint)",
+    "agent_test_tiers": "PASS",
+    "same_process_erasure_regression": "PASS",
+    "windows_cfg_test_on_linux": "0 selected by design",
+    "windows_target_check": "NOT_RUN: target not installed (E0463)"
+  },
+  "closure_gate": "Independent review plus a retained successful GitHub-hosted windows-latest source-test diagnostic."
+}

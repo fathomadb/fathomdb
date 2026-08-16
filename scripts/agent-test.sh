@@ -302,6 +302,10 @@ run_tier_suite fast test-gitleaks-guards bash scripts/tests/test_gitleaks_guards
 # Rust, Python, and TypeScript bindings.
 run_tier_suite fast test-default-embedder-ci-contract bash scripts/tests/test_default_embedder_ci_contract.sh
 
+# 0.8.23 Slice 60: retain the first-party Windows x64 cross-process SQLite
+# WAL diagnosis job, its fail-closed cargo result, and its diagnostic artifact.
+run_tier_suite fast test-windows-wal-diagnosis-ci-job bash scripts/tests/test_windows_wal_diagnosis_ci_job.sh
+
 # Slice 15: each release-ready runner must consume its locally built wheel and
 # matching N-API platform package before the later registry smoke gate.
 run_tier_suite fast test-native-artifact-runtime-validation bash scripts/tests/test_native_artifact_runtime_validation.sh

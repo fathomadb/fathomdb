@@ -71,6 +71,7 @@ assert_source_marker 'slice60_windows_wal checkpoint_result elapsed_ms=' "checkp
 assert_source_marker 'slice60_windows_wal release_signaled child_pid=' "parent release signal is retained"
 assert_source_marker 'slice60_windows_wal child_release_observed pid=' "child release observation is retained"
 assert_source_marker 'slice60_windows_wal child_reaped child_pid=' "successful child reaping is retained"
+assert_source_marker '.arg("--nocapture")' "child self-invocation exposes lifecycle diagnostics"
 
 if [ "${WINDOWS_WAL_CI_FIXTURE:-0}" != "1" ]; then
   TMPROOT="$(mktemp -d)"
@@ -106,6 +107,19 @@ if [ "${WINDOWS_WAL_CI_FIXTURE:-0}" != "1" ]; then
     pass "marker mutation proves retained child-start evidence is load-bearing"
   else
     fail "marker mutation did not make the source-marker assertion fail: $marker_mutation_out"
+  fi
+
+  NOCAPTURE_MUTATED_SOURCE="$TMPROOT/erasure_completeness-without-child-nocapture.rs"
+  sed '/\.arg("--nocapture")/d' "$SOURCE_TEST" >"$NOCAPTURE_MUTATED_SOURCE"
+  set +e
+  nocapture_mutation_out="$(WINDOWS_WAL_CI_FIXTURE=1 SOURCE_TEST="$NOCAPTURE_MUTATED_SOURCE" bash "$0" 2>&1)"
+  nocapture_mutation_rc=$?
+  set -e
+  if [ "$nocapture_mutation_rc" -ne 0 ] \
+    && grep -Fq 'child self-invocation exposes lifecycle diagnostics (missing source marker' <<<"$nocapture_mutation_out"; then
+    pass "mutation proves child --nocapture evidence is load-bearing"
+  else
+    fail "mutation did not make the child --nocapture assertion fail: $nocapture_mutation_out"
   fi
 
   if actionlint "$CI"; then

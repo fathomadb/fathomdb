@@ -256,6 +256,7 @@ fn erasure_busy_cross_process_windows_yields_typed_diagnostic() {
         .arg("--exact")
         .arg("child_holds_cross_process_wal_snapshot_windows")
         .arg("--ignored")
+        .arg("--nocapture")
         .env("FATHOMDB_SLICE60_DB_PATH", &path)
         .env("FATHOMDB_SLICE60_READY_PATH", &ready)
         .env("FATHOMDB_SLICE60_RELEASE_PATH", &release)

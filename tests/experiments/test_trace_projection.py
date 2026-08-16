@@ -149,6 +149,41 @@ def test_reopen_recovers_only_the_erased_source_projections():
     assert all(PRIOR_BODY not in value for value in json.dumps(sidecar).splitlines())
 
 
+def test_reopen_rejects_a_source_that_was_already_superseded():
+    sources, projections, accepted_result = _fixture()
+
+    with pytest.raises(TraceProjectionError, match="superseded source"):
+        build_trace_projection(
+            sources,
+            projections,
+            accepted_result,
+            events=(
+                LifecycleEvent("erase", "source-prior"),
+                LifecycleEvent("reopen", "source-prior"),
+            ),
+        )
+
+
+def test_writer_rejects_a_supersession_with_an_active_prior_source(tmp_path):
+    sources, projections, accepted_result = _fixture()
+    sidecar = build_trace_projection(sources, projections, accepted_result)
+    for source in sidecar["sources"]:
+        if source["source_id"] == "source-prior":
+            source["lifecycle"] = "active"
+    for projection in sidecar["projections"]:
+        if projection["source_id"] == "source-prior":
+            projection["lifecycle"] = "active"
+            projection["searchable"] = True
+    sidecar["outcomes"].update({
+        "active_source_count": 2,
+        "superseded_source_count": 0,
+        "searchable_projection_count": 8,
+    })
+
+    with pytest.raises(TraceProjectionError, match="supersession prior source"):
+        write_trace_projection(tmp_path / "unsafe-supersession.json", sidecar)
+
+
 def test_sidecar_writer_rejects_payload_injection_after_build(tmp_path):
     sources, projections, accepted_result = _fixture()
     sidecar = build_trace_projection(sources, projections, accepted_result)

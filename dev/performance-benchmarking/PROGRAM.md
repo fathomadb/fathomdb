@@ -1,9 +1,30 @@
-# Overall performance benchmarking and experiments program
+# Overall performance benchmarking and agent-memory experiments program
 
 This is the authoritative plan for FathomDB's performance benchmarking and
 experiments program. It prioritizes work, records dependencies, and names the
 decision that each track may inform. It does not replace a track's frozen
 measurement contract, and it is not a results ledger.
+
+The intended product outcome is stated in
+[the program goals](PROGRAM-GOALS.md): an agent-memory database with one
+provenance-preserving canonical record and selectively materialized retrieval
+projections. This program tests whether a projection or retrieval treatment
+earns use for a named query shape; it does not assume that vectors, chunking,
+graphs, or an external comparator are product defaults.
+
+## Track names and execution status
+
+Track identifiers use a readable `WORD-01` form. The word names the capability
+or corpus; the number distinguishes its step. An identifier is an anchor, not
+a substitute for the track's decision question.
+
+- **Active** means the named plan may execute after its stated preconditions.
+- **Planned** means the program has authorized planning, but a dated
+  measurement contract is required before execution.
+- **Parked** means neither implementation nor paid work may start until the
+  listed diagnostic or external prerequisite is satisfied.
+- **Complete historical** means retained evidence; it does not authorize a
+  current product claim.
 
 ## System of record
 
@@ -35,14 +56,24 @@ exists; its stated exit condition and any required HITL ruling still apply.
 - `blocked_prerequisite` is evidence, not failure. Credential, cost, license,
   corpus-integrity, or environment blockers remain visible until resolved or
   explicitly retired.
+- A retrieval treatment earns a default only against its declared baseline and
+  query shape. A dense-only gain, a single receipt, or a competitor result does
+  not establish a product default.
+- Derived memories are projections, not independent sources of truth. A
+  vector child, summary, extracted fact, or graph edge must retain canonical
+  source identity and participate in its supersession and erasure semantics.
+- Report LOCOMO factoid, temporal, and multi-session results separately. An
+  overall score may screen candidates, but it must not conceal a material
+  class regression.
 
 ## Metric families
 
 | Family | Measures | Examples |
 | --- | --- | --- |
-| Retrieval quality | Whether the needed evidence is retrieved | R@10, R@5/R@20, MRR, r@1, nDCG@10, supporting-passage recall/precision |
-| Answer and task quality | Whether retrieved evidence yields a useful answer | answer accuracy, temporal correctness, MuSiQue EM/F1, AutoE comprehensiveness/diversity/empowerment |
-| Time and resource cost | Observed work cost under a named treatment | query p50/p95/p99, ingest acknowledgement and ready-to-search time, throughput, seed/open cost, stress errors |
+| Retrieval quality | Whether the needed evidence is retrieved, at the appropriate unit | R@10, R@5/R@20, MRR, r@1, nDCG@10, child-evidence recall, parent/document recall, duplicate-result rate |
+| Answer and task quality | Whether retrieved evidence yields a useful and grounded answer | answer accuracy, temporal correctness, MuSiQue EM/F1, AutoE comprehensiveness/diversity/empowerment |
+| Time and resource cost | Observed work cost under a named treatment | query p50/p95/p99, ingest acknowledgement and ready-to-search time, mutation-to-ready time, projection storage amplification, throughput, seed/open cost, stress errors |
+| Projection and lifecycle fidelity | Whether derived retrieval units remain correct, attributable, and erasable | canonical-source coverage, stale-hit rate after supersession, post-erasure searchability, projection completeness |
 | Fidelity and scale | Retrieval fidelity at a specified corpus size and backend | vector-stage recall@10, bootstrap CI, completeness, manifest-qualified scale envelope |
 
 ## Portfolio board
@@ -53,29 +84,48 @@ receipts, not inferred from a branch name or narration.
 
 | ID | Priority | Track and decision | Status and dependency | Current plan |
 | --- | --- | --- | --- | --- |
-| C0 | complete | Campaign controls and safe experiment receipts | Complete; retain as infrastructure | [execution runbook](2026-08-14-experiment-campaign-execution-plan.md) |
-| L0 | P1 | LOCOMO FathomDB self-characterization: which retrieval configuration is eligible for scored comparison? | Active; complete Phase-A provenance, timing, and GPU readiness before the full grid | [LOCOMO campaign](2026-08-14-locomo-fathomdb-capability-campaign-plan.md) |
-| T0 | P1 | TC-5 eu7 scale fidelity: what manifest-qualified all-real CPU fidelity envelope is observed? | Planned; manifest and test-only runner precede execution | [TC-5 plan](2026-08-14-eu7-tc5-scale-envelope-rebaseline-plan.md) |
-| L1 | P2 | LOCOMO shortlist scoring: do the L0 retrieval winners improve answer and temporal quality? | Blocked on L0 shortlist and its scorer/cost preflight | [LOCOMO campaign](2026-08-14-locomo-fathomdb-capability-campaign-plan.md) |
-| M0 | P3 | Native Mem0 comparison: is a selected FathomDB profile near-parity or better under the official harness? | Blocked on L0/L1 selection plus Docker, official credential, LongMemEval acquisition, and a spend ceiling | [Mem0 readiness](plans/2026-08-11-mem0-oss-baseline-readiness.md) |
-| F0 | P3 | F-17 advisory scale envelope: what measured local-first range is supportable? | Blocked on T0's primary receipt and a pre-registered workload matrix | [execution runbook](2026-08-14-experiment-campaign-execution-plan.md) |
-| G0 | parked | Native GraphRAG comparison: reproduce and then compare global sensemaking fairly | Blocked on a declared cost ceiling, metering/abort rule, and native reproduction | [GraphRAG readiness](plans/2026-08-11-graphrag-baseline-readiness.md) |
-| H0 | parked | Native HippoRAG-2 comparison: cross-check multi-hop retrieval and QA | Blocked on Python 3.10, official credential, and official-corpus reconciliation | [HippoRAG-2 readiness](plans/2026-08-11-hipporag2-baseline-readiness.md) |
-| I0 | complete | IR-C FTS population: establish a FathomDB-only descriptive baseline | Complete historical baseline; not a competitor or latency claim | [initial population](2026-08-11-initial-population-plan.md) |
+| SAFETY-01 | complete | Campaign controls and safe experiment receipts | Complete; retain as infrastructure | [execution runbook](2026-08-14-experiment-campaign-execution-plan.md) |
+| TRACE-01 | P1 | Projection lifecycle integrity: can every derived retrieval unit retain canonical source identity and be superseded or erased without a stale hit? | Planned; extend LOCOMO Phase A before any parent-child, extracted-memory, or graph treatment. Requires a dated contract and human-intended test cases. | New plan required |
+| LOCOMO-01 | P1 | LOCOMO self-characterization: which FathomDB retrieval configuration is eligible for answer scoring? | Active; complete Phase-A provenance, timing, and GPU readiness before the full grid. Report factoid, temporal, and multi-session results separately. | [LOCOMO campaign](2026-08-14-locomo-fathomdb-capability-campaign-plan.md) |
+| PARENT-01 | P1 | Parent-child LOCOMO screening: does retrieving a turn/child and returning its session/parent plus bounded neighbors improve evidence and answer context over parent-only retrieval? | Planned; one bounded, pre-registered treatment may join the LOCOMO grid after TRACE-01. Otherwise it follows LOCOMO-01 before an answer-scoring or comparator winner is chosen. | New plan or LOCOMO-plan amendment required |
+| SCALE-01 | P1 | TC-5 eu7 scale fidelity: what manifest-qualified all-real CPU fidelity envelope is observed? | Planned; manifest and test-only runner precede execution. May proceed independently of LOCOMO work. | [TC-5 plan](2026-08-14-eu7-tc5-scale-envelope-rebaseline-plan.md) |
+| CORPUS-01 | P1 | Agent-memory gold coverage: are temporal change, knowledge update, supersession, and erasure represented well enough for a broad personal-memory claim? | Planned; prepare corpus/license and human-gold readiness in parallel. LOCOMO alone is insufficient because it has no knowledge-update class. | New plan required |
+| ANSWER-01 | P2 | LOCOMO shortlist scoring: do the selected retrieval survivors improve answer and temporal quality? | Blocked on the selected LOCOMO-01/PARENT-01 survivor and scorer/cost preflight. Preserve class-level results and attribution. | [LOCOMO campaign](2026-08-14-locomo-fathomdb-capability-campaign-plan.md) |
+| MEMORY-01 | P3 | Native Mem0 comparison: is the selected FathomDB memory profile near-parity or better under the official harness? | Blocked on ANSWER-01 selection plus Docker, official credential, LongMemEval acquisition, and a spend ceiling. Report raw-evidence and extracted-semantic-memory regimes separately. | [Mem0 readiness](plans/2026-08-11-mem0-oss-baseline-readiness.md) |
+| SCALE-02 | P3 | F-17 advisory scale envelope: what measured local-first range is supportable for the selected projection profile? | Blocked on SCALE-01's primary receipt, a selected LOCOMO-01/PARENT-01 profile, and a pre-registered workload matrix. Measure canonical records and derived projection rows separately. | [execution runbook](2026-08-14-experiment-campaign-execution-plan.md) |
+| LATENT-01 | P3 | Long-context/late-chunking feasibility: does a token-output, long-context embedder address a diagnosed cross-window discourse failure at acceptable cost? | Parked until LOCOMO-01/PARENT-01 diagnose that failure. Requires a model/interface preflight, labelled subset, and separate quality-and-cost contract; it is not a stride sweep. | New plan required |
+| GRAPH-01 | P3 | FathomDB graph-projection self-characterization: do high-confidence, provenance-backed graph projections improve multi-hop retrieval enough to justify extraction and maintenance? | Planned; requires a bounded graph design and supporting-evidence protocol before native graph comparison is prioritized. | New plan required |
+| GLOBAL-01 | parked | Native GraphRAG comparison: reproduce and compare global sensemaking fairly. | Parked pending GRAPH-01 relevance, a declared cost ceiling, metering/abort rule, and native reproduction. This is global-sensemaking calibration, not a default personal-memory gate. | [GraphRAG readiness](plans/2026-08-11-graphrag-baseline-readiness.md) |
+| REASON-01 | parked | Native HippoRAG-2 comparison: cross-check multi-hop retrieval and QA. | Parked pending GRAPH-01 relevance, Python 3.10, official credential, and official-corpus reconciliation. | [HippoRAG-2 readiness](plans/2026-08-11-hipporag2-baseline-readiness.md) |
+| SEARCH-01 | complete | IR-C FTS population: establish a FathomDB-only descriptive retrieval baseline. | Complete historical baseline; not a competitor, answer-quality, lifecycle, or latency claim. | [initial population](2026-08-11-initial-population-plan.md) |
 
 ## Execution order
 
 ```text
-C0 → L0 → L1 → M0
-      └──────→ T0 → F0
-G0 and H0 remain parked until their independent prerequisites are met.
+SAFETY-01
+├── TRACE-01 ──→ LOCOMO-01 ──→ PARENT-01 ──→ ANSWER-01 ──→ MEMORY-01
+│                                     │
+│                                     └──→ diagnosis: LATENT-01 or GRAPH-01
+├── CORPUS-01 ──→ broad agent-memory claim eligibility
+└── SCALE-01 ──→ SCALE-02
+
+GLOBAL-01 and REASON-01 remain parked until GRAPH-01 relevance and their
+independent external prerequisites are met.
 ```
 
-L0 and T0 may proceed in parallel once their own test and provenance
-preconditions are met. GPU enablement gates only GPU L0 cells; CPU/FTS L0 cells
-do not wait for it. M0 never starts from an arbitrary FathomDB profile: it uses
-only the selected L0/L1 configuration and the shared native-comparator
-contract.
+TRACE-01, CORPUS-01, LOCOMO-01, and SCALE-01 may prepare in parallel once their
+own test, provenance, and corpus preconditions are met. CPU/FTS LOCOMO-01 cells
+do not wait for GPU enablement; it gates only GPU cells. PARENT-01 may join the
+LOCOMO-01 grid only through a frozen amendment; otherwise it runs before
+ANSWER-01 selects its shortlist. MEMORY-01 never starts from an arbitrary
+FathomDB profile: it uses only the selected answer-scored profile and the
+shared native-comparator contract.
+
+SCALE-02 is not a generic document-count exercise. Its workload matrix names
+the selected profile, canonical-record count, and every derived projection-row
+or vector count. It must report those quantities separately so that a
+parent-child, summary, or graph projection multiplier cannot be hidden behind
+a user-visible memory count.
 
 ## Track organization
 
@@ -108,3 +158,9 @@ question. In the same change, update the track plan and link the relevant
 `experiments` run IDs. Do not update historical plans solely to make their
 past state resemble the current portfolio; instead, link them from the active
 track or result note that supersedes their role.
+
+Before executing a row marked "New plan required" or "New plan or
+LOCOMO-plan amendment required", create the dated plan, register its track ID
+here, and freeze its measurements, uncertainty treatment, cost limit, and
+eligibility rule. Do not let this portfolio board itself become an executable
+measurement contract.

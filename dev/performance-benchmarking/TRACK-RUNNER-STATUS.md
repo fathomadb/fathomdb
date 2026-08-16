@@ -14,14 +14,18 @@ close.
 
 ## Current lanes
 
-Two isolated writer lanes are commissioned from `d599d4a5`; the two-writer cap
-is now full. `LOCOMO-01` owns only Phase-A runner/config preparation in
+`LOCOMO-01` handed off `6bfc1004` from
 `/tmp/fathomdb-locomo-01-20260816` on
-`experiments/performance-locomo-01-20260816`. `SCALE-01` owns only the
-manifest-runner preparation in `/tmp/fathomdb-scale-01-20260816` on
-`experiments/performance-scale-01-20260816`. Each worker must provide a dated
-handoff, human-intended red-first tests, local verification, and an independent
-read-only review before the coordinator integrates its accepted commit.
+`experiments/performance-locomo-01-20260816`; it is awaiting independent
+read-only review. Its focused tests, catalog validation/preview, and static
+checks passed. Its full verifier passed Rust but stopped at Python collection
+because this isolated worktree has no local native binding; that environmental
+limitation is recorded in its handoff, not treated as a green gate.
+
+`SCALE-01` remains the sole active writer in
+`/tmp/fathomdb-scale-01-20260816` on
+`experiments/performance-scale-01-20260816`. Its worker must provide the same
+red-first, verification, and independent-review evidence before integration.
 
 `PARENT-01` may consume the accepted trace contract in preparation but is not
 commissioned by this entry. The coordinator alone edits this board and PROGRAM
@@ -34,7 +38,7 @@ run, extractor, GPU/model, paid service, external write, or push.
 | --- | --- | --- | --- |
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
-| LOCOMO-01 | Active | Commissioned: isolated Phase-A preparation | Base `d599d4a5`; worker owns LOCOMO-specific runner/config/tests and dated handoff only. Next gate: worker handoff, then independent read-only review; no live grid. |
+| LOCOMO-01 | Active | Handoff pending independent review | Worker SHA `6bfc1004`; focused 18-test suite and 48-cell plan-only catalog passed. Full verifier environment-blocked at Python collection for missing worktree-local native binding after Rust passed. Next gate: independent read-only review; no live grid. |
 | PARENT-01 | Planned | Contract dependency satisfied; not commissioned | May consume the accepted trace contract in preparation; hold writer work behind the two-lane authorization. |
 | SCALE-01 | Planned | Commissioned: isolated manifest-runner preparation | Base `d599d4a5`; worker owns TC-5 runner/tests and dated handoff only. Next gate: worker handoff, then independent read-only review; no live execution. |
 | CORPUS-01 | Planned | Queued independent preparation | Create corpus/license matrix and human-gold readiness contract. |

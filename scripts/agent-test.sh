@@ -476,11 +476,13 @@ if [ -n "$python_bin" ] && "$python_bin" -c 'import pytest' >/dev/null 2>&1 && [
   # `python3` — or to any environment that is not ours to rebind — we stay
   # silent and conftest degrades to visibly SKIPPING the hook-dependent tests
   # rather than repointing a shared venv. conftest re-checks venv ownership
-  # itself; this is the outer half of a belt-and-suspenders pair.
+  # itself; this is the outer half of a belt-and-suspenders pair. The generic
+  # loop also skips network-hitting Python model fixtures; the cache-owning
+  # default-embedder CI job runs those after warming the model cache.
   if [ "$python_bin" = ".venv/bin/python" ]; then
-    python_suite_command=(env FATHOMDB_TESTS_ALLOW_REBUILD=1 "$python_bin" -m pytest -q src/python/tests)
+    python_suite_command=(env FATHOMDB_SKIP_NETWORK_TESTS=1 FATHOMDB_TESTS_ALLOW_REBUILD=1 "$python_bin" -m pytest -q src/python/tests)
   else
-    python_suite_command=("$python_bin" -m pytest -q src/python/tests)
+    python_suite_command=(env FATHOMDB_SKIP_NETWORK_TESTS=1 "$python_bin" -m pytest -q src/python/tests)
   fi
 else
   python_suite_skip_reason="pytest not installed or no tests dir"

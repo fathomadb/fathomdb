@@ -7,11 +7,15 @@ Exercises:
   - use_graph_arm type validation: non-bool raises TypeError.
   - Temporal filter: edges with t_invalid in the past do not contribute.
 
-All test databases are isolated per-test via the ``db_path`` fixture.
-No embedder needed — FTS search only.
+All test databases are isolated per-test via the ``db_path`` fixture. The
+edge-body seeding fixture uses the default embedder because a body-bearing edge
+is vector-eligible projection work; the remaining graph-arm fixtures use FTS
+only.
 """
 
 from __future__ import annotations
+
+import os
 
 import pytest
 
@@ -28,6 +32,11 @@ _SOURCE_ID = "py-test:functional-graph-arm"
 
 def open_engine(path: str) -> fathomdb.Engine:
     return fathomdb.Engine.open(path, use_default_embedder=False)
+
+
+def _skip_if_no_network() -> None:
+    if os.environ.get("FATHOMDB_SKIP_NETWORK_TESTS"):
+        pytest.skip("FATHOMDB_SKIP_NETWORK_TESTS set; skipping default-embedder test")
 
 
 def _node(logical_id: str, body: str, kind: str = "doc") -> dict:
@@ -85,7 +94,8 @@ def test_edge_body_enables_edge_fact_seeding(db_path: str) -> None:
     the entity node bodies), so a graph-arm hit can only appear if the edge body
     reached the engine. Pre-fix (edge body dropped → NULL) this returned no graph
     hits for an edge-body query."""
-    engine = open_engine(db_path)
+    _skip_if_no_network()
+    engine = fathomdb.Engine.open(db_path, use_default_embedder=True)
     try:
         engine.write([
             _node("alice", "alice profile record"),

@@ -34,3 +34,19 @@ require 'src/python/tests/test_use_default_embedder.py' \
   'Python default-embedder open contract runs against the warmed cache'
 require 'src/python/tests/test_embed.py' \
   'Python default-embedder inference contract runs against the warmed cache'
+require 'src/python/tests/test_functional_graph_arm.py::test_edge_body_enables_edge_fact_seeding' \
+  'Python edge-body graph-arm seeding runs against the warmed cache'
+require 'src/python/tests/test_slice20c_flush_barrier.py::test_a_no_embedder_session_leaves_an_enrolled_kinds_write_recoverable' \
+  'Python no-embedder recovery runs against the warmed cache'
+
+agent_python_block="$(awk '
+  /^# Python$/ { in_python = 1 }
+  in_python && /^# ledgerwatch / { exit }
+  in_python { print }
+' scripts/agent-test.sh)"
+if [[ "$agent_python_block" == *'FATHOMDB_SKIP_NETWORK_TESTS=1'* ]]; then
+  printf 'PASS generic heavy Python suite skips network-hitting model fixtures\n'
+else
+  printf 'FAIL generic heavy Python suite must set FATHOMDB_SKIP_NETWORK_TESTS=1\n' >&2
+  exit 1
+fi

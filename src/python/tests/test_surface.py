@@ -240,14 +240,15 @@ def test_module_level_embedder_helper_asymmetry_is_tracked() -> None:
         )
 
     # The module-level embedder-helper surface is EXACTLY the ledger's Python
-    # side. A new module-level `embed*` callable (e.g. a future `embed_batch`)
+    # side. A new module-level `embed*` routine (e.g. a future `embed_batch`)
     # breaks this and forces a conscious TS-parity decision rather than drifting
-    # silently. (`Engine.embed` is a class method, not a module attribute, so it
-    # is correctly out of scope for this module-level check.)
+    # silently. Slice 30's exported `Embedding*` type names are not routines;
+    # `Engine.embed` is a class method, not a module attribute, so it is also
+    # correctly out of scope for this module-level check.
     live_module_embed_helpers = {
         n
         for n in getattr(fathomdb, "__all__", ())
-        if "embed" in n.lower() and callable(getattr(fathomdb, n, None))
+        if "embed" in n.lower() and inspect.isroutine(getattr(fathomdb, n, None))
     }
     assert live_module_embed_helpers == set(_MODULE_LEVEL_EMBEDDER_HELPER_PARITY), (
         "module-level embedder-helper surface drifted from the parity ledger; "

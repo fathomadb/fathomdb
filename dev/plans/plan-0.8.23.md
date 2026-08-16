@@ -11,8 +11,8 @@ tag, registry upload, or release dispatch is implied by this plan.
 
 ## Goal and scope
 
-The goal is a decision-ready 0.8.23 release scope. Planning Slices 0–6 are
-review-only; feature implementation begins only after Slice 6 and HITL approval.
+The goal is a hygienic, evidence-ready 0.8.23 release plan. Planning Slices
+0–6 are review-only; a feature begins only after its explicit commission.
 
 ## Release requirements and acceptance criteria
 
@@ -34,7 +34,7 @@ disposition for every excluded candidate.
 Existing commits and witnesses are candidate evidence, not a slice closure.
 They must be inspected through this ladder rather than inferred as complete.
 
-## Slice ladder — mandatory stop at Slice 6
+## Slice ladder — preparation report at Slice 6
 
 | Slice | Mandate | Durable output |
 | ---: | --- | --- |
@@ -44,18 +44,20 @@ They must be inspected through this ladder rather than inferred as complete.
 | 3 | Draft CRUD changes to user needs, requirements, and acceptance criteria; allocate every draft to a feature slice. | Draft requirements allocation; no action. |
 | 4 | Review architecture and perform a high-level code-to-architecture alignment review. | Architecture/code proposal; no action. |
 | 5 | Review verification adequacy: requirements→ACs, ACs→tests, product goals, and critical paths. | Test/verification proposal; no action. |
-| 6 | Collect, score, and present every proposal for HITL decision. | Decision package; **stop**. |
+| 6 | Consolidate the hygiene and preparation work identified by Slices 0–5. | Hygiene/preparation report; no feature implementation. |
 
 Slices 0–6 use [the planning foundation](../design/0.8.23-planning-foundation.md).
-Slice 6 scores each proposal for understanding, risk, effort, and
-include-versus-postpone. No code or feature work starts before HITL responds to
-that package.
+Slice 6 records the concrete hygiene, environment, contract, design, and
+verification preparation work identified by the prior reviews. Feature work is
+commissioned only by an explicit subsequent instruction; the report itself
+does not select feature scope. No code or feature work starts merely because a
+preparation packet exists.
 
 ## Reserved-gap policy
 
-Unplanned reliability findings receive a numbered feature slice only after
-Slice 6 and HITL disposition. They do not bypass the planning ladder or widen
-an in-flight feature slice.
+Unplanned reliability findings receive a numbered feature slice only after the
+Slice 6 report and an explicit commission. They do not bypass the planning
+ladder or widen an in-flight feature slice.
 
 ## Feature/function candidates — not commissioned
 
@@ -80,7 +82,8 @@ development; it is not, by itself, an automated CI or release-evidence path.
 
 - Every planning slice writes its required durable record and takes no product
   action.
-- Slice 6 presents a concise, scored include/postpone package and stops.
+- Slice 6 presents a concise hygiene and preparation report; the next bounded
+  task is explicitly commissioned.
 - Every approved feature slice follows review, design, RED→GREEN TDD, code
   review, verification, and a Slice status record.
 - Publication remains a separate explicit HITL decision.
@@ -88,6 +91,6 @@ development; it is not, by itself, an automated CI or release-evidence path.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 6** (`HITL-PACKAGE`) — scored planning package and HITL stop
+**IMMEDIATE NEXT: Slice 6** (`PREPARATION-REPORT`) — hygiene and in-flight release preparation report
 
 **Remaining ladder:** 6 → 10 → 20 → 30 → 40 → 50 → 60.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->

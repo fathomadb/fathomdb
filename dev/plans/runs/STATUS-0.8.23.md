@@ -6,7 +6,7 @@
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.23:status-current-state -->**Next is Slice 6 (HITL-PACKAGE), AWAITING_HITL.** Landed on `origin/main`: 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.23:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.23:status-current-state -->**Next is Slice 6 (PREPARATION-REPORT), REPORT_READY.** Landed on `origin/main`: 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.23:status-current-state -->
 
 0.8.23 is in planning-only mode. Existing CUDA and related commits are inputs
 to review, not approved feature-slice closures. Publication is held.
@@ -16,18 +16,18 @@ to review, not approved feature-slice closures. Publication is held.
 | Slice | Scope | Status |
 | ---: | --- | --- |
 | 0–5 | Planning foundation through verification review | Landed locally; package inputs are complete. |
-| 6 | Scored planning package and mandatory stop | Awaiting HITL disposition; no feature slice is commissioned. |
-| 10+ | Feature/function candidates | Not commissioned; blocked by Slice 6. |
+| 6 | Hygiene and in-flight release preparation report | Report ready; no feature slice is commissioned automatically. |
+| 10+ | Feature/function candidates | Not commissioned automatically; prepared packets are in Slice 6. |
 
 ## Immediate next action
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Commission Slice 6 (HITL-PACKAGE)** — scored planning package and HITL stop. **Remaining ladder:** 6 → 10 → 20 → 30 → 40 → 50 → 60.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Commission Slice 6 (PREPARATION-REPORT)** — hygiene and in-flight release preparation report. **Remaining ladder:** 6 → 10 → 20 → 30 → 40 → 50 → 60.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
 
 ## Stop gate
 
-After Slice 6 presents its scored package, stop for HITL disposition. Do not
-commission Slices 10–60 from this plan without that decision.
+The Slice 6 report prepares bounded hygiene and feature work but does not
+commission it. Do not start Slices 10–60 without an explicit instruction.
 
-The package is [0.8.23 Slice 6 HITL package](0.8.23-slice-6-hitl-package.md).
+The report is [0.8.23 Slice 6 preparation report](0.8.23-slice-6-hitl-package.md).

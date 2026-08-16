@@ -533,6 +533,24 @@ The C5 facade types are also public Rust surface:
 `ProjectionStatusDenseReadiness`. They are deliberately distinct from the
 internal lifecycle `ProjectionStatus` enum.
 
+### Embedding readiness (0.8.23 Slice 30)
+
+`Engine::read_embedding_readiness() -> Result<EmbeddingReadiness, EngineError>`
+is an additive, pure current read. `EmbeddingReadiness` exposes
+`state: EmbeddingReadinessState`, `usable_embedder`, `pending_count`, sorted
+`affected_kinds`, and `blocked: Option<EmbedderRequired>`; it exposes no pending
+body text. `EmbeddingReadinessState` has the closed values `Ready`,
+`Processing`, `Deferred`, and `Blocked` (`as_str()` supplies the lower-case
+wire forms).
+
+`blocked` is present only for pending work with no configured runtime. Its
+`EmbedderRequired` payload has stable code `FDB_EMBEDDER_REQUIRED`, an
+`EmbeddingOperation`, state `Blocked`, ordered remediations, and a documentation
+URL. In the same condition `Engine::drain` returns
+`EngineError::EmbedderRequired` immediately. An attached runtime refused by the
+identity/equivalence guard, and a live worker failure, remain operational:
+readiness is `Deferred` and `drain` retains ordinary bounded behavior.
+
 Types:
 
 - `ProjectionSpec { name: String, roles: BTreeSet<ProjectionRole>, fts:

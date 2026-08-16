@@ -9177,7 +9177,11 @@ impl Engine {
         let pending_count = pending.iter().map(|(_, count)| *count).sum();
         let affected_kinds: Vec<String> = pending.iter().map(|(kind, _)| kind.clone()).collect();
         let usable_embedder = self.usable_dense_runtime();
-        let blocked = if !pending.is_empty() && self.projection_runtime.shared.embedder.is_none() {
+        // The scheduler intentionally drops a runtime that equivalence refused,
+        // but it remains attached to this Engine. Only an actually absent
+        // configuration is the typed caller-remediable outcome; a refused or
+        // failed live runtime remains an operational deferred condition.
+        let blocked = if !pending.is_empty() && self.runtime_embedder.is_none() {
             Some(embedder_required_for(&affected_kinds))
         } else {
             None

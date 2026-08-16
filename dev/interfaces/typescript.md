@@ -332,6 +332,28 @@ sub-target are persisted-but-deferred (reported in `ProjectionDelta.deferred`).
 `{ built, dropped, deferred, unchanged, vectorUnsupportedKinds }`. Field names
 are camelCase per this file's casing rule.
 
+### Embedding readiness (0.8.23 Slice 30)
+
+`read.embeddingReadiness(engine): Promise<EmbeddingReadiness>` is an additive,
+HITL-authorized governed read. It is a pure current view: it neither configures
+an embedder nor wakes, schedules, or drains work. `EmbeddingReadiness` is
+`{ state: "ready" | "processing" | "deferred" | "blocked",
+usableEmbedder: boolean, pendingCount: number, affectedKinds: string[],
+code: "FDB_EMBEDDER_REQUIRED" | null,
+operation: "graph_edge_body_projection" | "vector_projection" | null,
+remediations: string[], documentationUrl: string | null }`. `affectedKinds` is
+sorted and no pending body text is exposed.
+
+For `state === "blocked"`, `code` is `"FDB_EMBEDDER_REQUIRED"`, `operation` is
+non-null, and the other payload fields are populated. For every other state,
+the three nullable fields are `null` and `remediations` is empty. `"blocked"`
+occurs only when pending work exists and the engine was opened without a
+configured runtime. In that condition `engine.drain(...)` rejects immediately
+with `EmbedderRequiredError` carrying the same camelCase fields; callers must
+not parse the message. An attached runtime refused by identity/equivalence
+checks, or a runtime whose worker fails, remains operational `"deferred"`
+behavior and is never recast as this configuration error.
+
 ### `fts` / `vector` require the `searchable` role (0.8.20 Slice 23, R-20-SV)
 
 ⚠ **BREAKING.** `engine.configureProjections` REJECTS a `ProjectionSpec` with
@@ -518,7 +540,10 @@ Rust, Python and TypeScript:
   kind from a session opened with `useDefaultEmbedder: false` leaves real dense
   work outstanding, and this session cannot satisfy it. The write is **accepted**
   and stays lexically searchable, but `vectorDenseReadiness` reads
-  `"unavailable"` and `drain` rejects with `SchedulerError` for the rest of that
+  `"unavailable"` and `drain` rejects with typed `EmbedderRequiredError`
+  (`FDB_EMBEDDER_REQUIRED`) immediately when configuration is absent. An
+  attached-but-equivalence-refused runtime remains an operational unavailable
+  condition and is not relabelled as configuration feedback for the rest of that
   session, however long you wait. It is **not** lost: no failure is recorded and
   no terminal is written, so the next session opened WITH an approved runtime
   embeds it through the ordinary scheduler — no re-apply, no operator `rebuild`.
@@ -529,7 +554,7 @@ Rust, Python and TypeScript:
 ## Errors
 
 TypeScript exposes one concrete class per canonical row in
-`design/errors.md` — **27** of them as of 0.8.20, 1:1 with the Python set
+`design/errors.md` — **28** of them as of 0.8.23, 1:1 with the Python set
 below `EngineError`.
 
 Class examples:

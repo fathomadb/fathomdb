@@ -1,7 +1,8 @@
 # TRACE-01 projection lifecycle contract
 
-**Track:** `TRACE-01`  
-**Date:** 2026-08-16  
+**Track:** `TRACE-01`
+
+**Date:** 2026-08-16
 **Scope:** fixed synthetic lifecycle fixture only; no corpus, extractor, model, GPU,
 or external service execution.
 

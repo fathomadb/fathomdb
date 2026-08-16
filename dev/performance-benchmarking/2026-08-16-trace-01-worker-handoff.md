@@ -1,8 +1,10 @@
 # TRACE-01 worker handoff
 
-**Track:** `TRACE-01`  
-**Charter:** [TRACE-01 in PROGRAM](PROGRAM.md#trace-01--projection-lifecycle-integrity)  
-**Base:** `1b404101`  
+**Track:** `TRACE-01`
+
+**Charter:** [TRACE-01 in PROGRAM](PROGRAM.md#trace-01--projection-lifecycle-integrity)
+
+**Base:** `1b404101`
 **Outcome:** implementation is ready for independent read-only review; the
 full verification gate is blocked by the worktree's absent Python environment.
 

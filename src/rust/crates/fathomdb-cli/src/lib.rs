@@ -802,6 +802,7 @@ fn engine_error_code(err: &EngineError) -> &'static str {
         EngineError::Vector => "VectorError",
         EngineError::Embedder => "EmbedderError",
         EngineError::EmbedderNotConfigured => "EmbedderNotConfiguredError",
+        EngineError::EmbedderRequired(_) => "EmbedderRequiredError",
         EngineError::KindNotVectorIndexed => "KindNotVectorIndexedError",
         EngineError::EmbedderDimensionMismatch { .. } => "EmbedderDimensionMismatchError",
         EngineError::Scheduler => "SchedulerError",
@@ -1068,6 +1069,18 @@ mod tests {
     fn engine_error_storage_maps_to_unrecoverable() {
         assert_eq!(engine_error_to_outcome(&EngineError::Storage), CliOutcome::Unrecoverable);
         assert_eq!(engine_error_to_outcome(&EngineError::Closing), CliOutcome::LockHeld);
+    }
+
+    #[test]
+    fn embedder_required_uses_the_stable_cli_error_code() {
+        let error = EngineError::EmbedderRequired(fathomdb::EmbedderRequired {
+            code: "FDB_EMBEDDER_REQUIRED",
+            operation: fathomdb::EmbeddingOperation::GraphEdgeBodyProjection,
+            state: fathomdb::EmbeddingReadinessState::Blocked,
+            remediations: vec!["configure_default_embedder"],
+            documentation_url: "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED",
+        });
+        assert_eq!(engine_error_code(&error), "EmbedderRequiredError");
     }
 
     #[test]

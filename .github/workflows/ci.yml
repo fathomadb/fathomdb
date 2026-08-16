@@ -21,6 +21,20 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # 0.8.23 Slice 50: reachable history is scanned independently of the
+  # docs-only detector, because a path filter cannot be a security boundary.
+  gitleaks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Install pinned Gitleaks
+        run: bash scripts/install-gitleaks.sh
+      - name: Scan reachable Git history
+        run: bash scripts/security/gitleaks-history.sh
+
   # 0.8.21 Slice 35 (SHELL-LINT-CI) — the shell gate, EARLY and INDEPENDENT.
   # Design of record: dev/design/ci-verify-robustness-review.md R2.1.
   #

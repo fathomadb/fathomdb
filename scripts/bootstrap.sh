@@ -15,6 +15,10 @@ echo "Internal engineering docs live in dev/."
 echo "Rust workspace members live under src/rust/crates/."
 echo "Run scripts/agent-verify.sh during the agent loop, scripts/check.sh as the broader CI gate."
 
+# Gitleaks guards both the staged pre-commit index and reachable CI history.
+# Its installer is separate so CI can provision only this pinned scanner.
+bash "$SCRIPT_DIR/install-gitleaks.sh"
+
 # Repo-tracked git hooks: activate via core.hooksPath (repo-relative, so linked
 # worktrees inherit it too). pre-commit = fast fmt/ruff + AST-guarded markdown
 # auto-fix/enforce; pre-push = fast clippy/actionlint (full verify opt-in via

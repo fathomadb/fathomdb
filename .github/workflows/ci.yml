@@ -390,6 +390,11 @@ jobs:
           fi
           # Never fail the job on warm-cache failure — the env gate covers it.
           exit 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Install the Python binding from this checkout
+        run: python -m pip install -e 'src/python[dev]'
       # The generic agent loop deliberately sets FATHOMDB_SKIP_NETWORK_TESTS=1
       # so developers can run its full prework without a live model download.
       # This cache-owning job runs the complementary live/release TypeScript
@@ -427,6 +432,11 @@ jobs:
         run: |
           cargo test -p fathomdb-engine --features default-embedder \
             --test eu5b_lockflip
+      - name: Network-hitting EU-5b tests (Python binding)
+        run: |
+          python -m pytest \
+            src/python/tests/test_use_default_embedder.py \
+            src/python/tests/test_embed.py
       - name: Network-hitting EU-5b tests (cli warm-cache)
         run: |
           cargo test -p fathomdb-cli --features default-embedder \

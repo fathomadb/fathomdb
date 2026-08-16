@@ -298,6 +298,10 @@ run_tier_suite fast test-cuda-release-contract bash scripts/tests/test_cuda_rele
 # reject synthetic credentials without exposing them in diagnostics.
 run_tier_suite fast test-gitleaks-guards bash scripts/tests/test_gitleaks_guards.sh
 
+# 0.8.23 Slice 30 preparation: keep the warmed real-engine CI witness across
+# Rust, Python, and TypeScript bindings.
+run_tier_suite fast test-default-embedder-ci-contract bash scripts/tests/test_default_embedder_ci_contract.sh
+
 # Slice 15: each release-ready runner must consume its locally built wheel and
 # matching N-API platform package before the later registry smoke gate.
 run_tier_suite fast test-native-artifact-runtime-validation bash scripts/tests/test_native_artifact_runtime_validation.sh

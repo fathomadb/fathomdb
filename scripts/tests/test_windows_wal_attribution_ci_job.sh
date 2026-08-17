@@ -100,11 +100,15 @@ assert_contains "$CODE" 'test-hooks' "job builds a non-shipping test-hooks wheel
 assert_contains "$CODE" 'fathomdb==0.8.22' "job installs the released 0.8.22 comparison wheel"
 assert_contains "$CODE" 'serial_wheel_selector=released-0.8.22' "job retains released-wheel selector"
 assert_contains "$CODE" 'serial_wheel_selector=current-source-test-hooks' "job retains current-wheel selector"
-assert_contains "$CODE" '--expect-erasure-incomplete' "job explicitly records the released serial failure baseline"
+assert_contains "$CODE" '--observe-baseline-first-erase' "job explicitly observes exactly the released serial first erase"
 assert_contains "$CODE" '$releasedSerialExit' "job retains the released serial process outcome"
-assert_contains "$CODE" 'OBSERVED_EXPECTED_ERASURE_INCOMPLETE' "job emits the expected released failure observation"
-assert_contains "$CODE" 'released serial baseline did not exit with the expected observation code' "job rejects a released baseline process outcome other than the typed observation"
-assert_contains "$CODE" 'released serial baseline did not retain typed WAL checkpoint evidence' "job rejects a released baseline without typed WAL checkpoint facts"
+assert_contains "$CODE" 'BASELINE_FIRST_ERASE outcome=typed_erasure_incomplete' "job parses the typed first-erase baseline observation"
+assert_contains "$CODE" 'BASELINE_FIRST_ERASE outcome=clean_completion' "job parses the clean first-erase baseline observation"
+assert_contains "$CODE" 'OBSERVED_EXPECTED_ERASURE_INCOMPLETE' "job emits the typed released failure observation"
+assert_contains "$CODE" 'OBSERVED_CLEAN_SERIAL_COMPLETION' "job emits the clean released completion observation"
+assert_contains "$CODE" '$releasedSerialExit -eq 65' "job accepts only the typed baseline observation exit"
+assert_contains "$CODE" '$releasedSerialExit -eq 66' "job accepts only the clean baseline observation exit"
+assert_contains "$CODE" 'released serial baseline did not produce an accepted first-erase observation' "job rejects every other released baseline process outcome"
 assert_contains "$CODE" 'serial_current_attribution_expected=1' "job validates current serial attribution marker"
 assert_contains "$CODE" 'serial_idle_after_read_get=passed' "job retains immediate serial read.get idle marker"
 assert_contains "$CODE" 'serial_idle_after_neighbors=passed' "job retains immediate serial neighbors idle marker"
@@ -153,8 +157,8 @@ assert_contains "$(<"$ENGINE_SOURCE")" \
   'fresh_writer_connection_open=' \
   "source records the live fresh writer connection fact"
 assert_contains "$(<"$PY_CONTROL")" \
-  '--expect-erasure-incomplete' \
-  "installed serial control can terminate only a typed released baseline observation"
+  '--observe-baseline-first-erase' \
+  "installed serial control has an explicit first-erase baseline observation mode"
 assert_contains "$(<"$PY_CONTROL")" \
   'ErasureIncompleteError' \
   "installed serial baseline accepts only the typed erasure error"
@@ -164,11 +168,19 @@ assert_contains "$(<"$PY_CONTROL")" \
 assert_contains "$(<"$PY_CONTROL")" \
   'frames still in the log' \
   "installed serial baseline records normalized WAL frame evidence"
+assert_contains "$(<"$PY_CONTROL")" \
+  'BASELINE_FIRST_ERASE outcome=clean_completion' \
+  "installed serial baseline records clean first-erase completion separately"
+assert_before_in_text \
+  "$(function_body "$PY_CONTROL" "run_serial_incident")" \
+  'if not observe_baseline_first_erase:' \
+  'fresh.transition' \
+  "baseline observation mode does not continue to the follow-on purge lifecycle"
 assert_before_in_text \
   "$CODE" \
-  'OBSERVED_EXPECTED_ERASURE_INCOMPLETE' \
+  'OBSERVED_CLEAN_SERIAL_COMPLETION' \
   'serial_wheel_selector=current-source-test-hooks' \
-  "current instrumented serial control runs after the retained released baseline observation"
+  "current instrumented serial control runs after either retained released baseline observation"
 for control in \
   wal_attribution_close_boundary_fresh_open_is_clean \
   wal_attribution_close_boundary_read_get_is_clean \
@@ -276,30 +288,30 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     fail "mutation did not fail current-wheel resolved-path assertion: $wheel_path_out"
   fi
 
-  BASELINE_OBSERVATION_MUTATED="$TMPROOT/ci-without-baseline-observation.yml"
-  sed '/OBSERVED_EXPECTED_ERASURE_INCOMPLETE/d' "$CI" >"$BASELINE_OBSERVATION_MUTATED"
+  BASELINE_TYPED_OBSERVATION_MUTATED="$TMPROOT/ci-without-typed-baseline-observation.yml"
+  sed '/OBSERVED_EXPECTED_ERASURE_INCOMPLETE/d' "$CI" >"$BASELINE_TYPED_OBSERVATION_MUTATED"
   set +e
-  baseline_observation_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$BASELINE_OBSERVATION_MUTATED" bash "$0" 2>&1)"
-  baseline_observation_rc=$?
+  baseline_typed_observation_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$BASELINE_TYPED_OBSERVATION_MUTATED" bash "$0" 2>&1)"
+  baseline_typed_observation_rc=$?
   set -e
-  if [ "$baseline_observation_rc" -ne 0 ] \
-    && grep -Fq 'job emits the expected released failure observation (missing: OBSERVED_EXPECTED_ERASURE_INCOMPLETE)' <<<"$baseline_observation_out"; then
-    pass "mutation proves released baseline observation is load-bearing"
+  if [ "$baseline_typed_observation_rc" -ne 0 ] \
+    && grep -Fq 'job emits the typed released failure observation (missing: OBSERVED_EXPECTED_ERASURE_INCOMPLETE)' <<<"$baseline_typed_observation_out"; then
+    pass "mutation proves typed released baseline observation is load-bearing"
   else
-    fail "mutation did not fail released baseline observation assertion: $baseline_observation_out"
+    fail "mutation did not fail typed released baseline observation assertion: $baseline_typed_observation_out"
   fi
 
-  BASELINE_CONTINUATION_MUTATED="$TMPROOT/ci-without-baseline-continuation.yml"
-  sed '/released serial baseline did not exit with the expected observation code/d' "$CI" >"$BASELINE_CONTINUATION_MUTATED"
+  BASELINE_CLEAN_OBSERVATION_MUTATED="$TMPROOT/ci-without-clean-baseline-observation.yml"
+  sed '/OBSERVED_CLEAN_SERIAL_COMPLETION/d' "$CI" >"$BASELINE_CLEAN_OBSERVATION_MUTATED"
   set +e
-  baseline_continuation_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$BASELINE_CONTINUATION_MUTATED" bash "$0" 2>&1)"
-  baseline_continuation_rc=$?
+  baseline_clean_observation_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$BASELINE_CLEAN_OBSERVATION_MUTATED" bash "$0" 2>&1)"
+  baseline_clean_observation_rc=$?
   set -e
-  if [ "$baseline_continuation_rc" -ne 0 ] \
-    && grep -Fq 'job rejects a released baseline process outcome other than the typed observation (missing: released serial baseline did not exit with the expected observation code)' <<<"$baseline_continuation_out"; then
-    pass "mutation proves released baseline continuation guard is load-bearing"
+  if [ "$baseline_clean_observation_rc" -ne 0 ] \
+    && grep -Fq 'job emits the clean released completion observation (missing: OBSERVED_CLEAN_SERIAL_COMPLETION)' <<<"$baseline_clean_observation_out"; then
+    pass "mutation proves clean released baseline observation is load-bearing"
   else
-    fail "mutation did not fail released baseline continuation assertion: $baseline_continuation_out"
+    fail "mutation did not fail clean released baseline observation assertion: $baseline_clean_observation_out"
   fi
 
   FRESH_CONNECTION_MUTATED="$TMPROOT/lib-without-fresh-connection-marker.rs"

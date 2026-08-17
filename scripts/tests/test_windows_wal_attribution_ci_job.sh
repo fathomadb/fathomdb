@@ -96,6 +96,19 @@ assert_before_in_text() {
   fi
 }
 
+assert_cfg_test_near_marker() {
+  local source="$1" marker="$2" description="$3"
+  if awk -v marker="$marker" '
+    /#\[cfg\(test\)\]/{ last_test_cfg = NR }
+    index($0, marker) { exit !(NR - last_test_cfg >= 0 && NR - last_test_cfg <= 5) }
+    END { if (!found) {} }
+  ' "$source"; then
+    pass "$description"
+  else
+    fail "$description (missing nearby #[cfg(test)] for: $marker)"
+  fi
+}
+
 JOB="$(job_block "$CI")"
 CODE="$(grep -v '^[[:space:]]*#' <<<"$JOB" || true)"
 if [ -n "$JOB" ]; then pass "ci.yml defines Windows WAL attribution"; else fail "ci.yml has no windows-wal-attribution job"; fi
@@ -249,6 +262,20 @@ assert_contains "$(<"$ENGINE_SOURCE")" \
 assert_contains "$(<"$ENGINE_SOURCE")" \
   'ManagedConnectionCategory' \
   "source classifies every Engine-managed SQLite open"
+for marker in \
+  'runtime_probe_lifecycle: Mutex<RuntimeProbeLifecycle>' \
+  'struct RuntimeProbeLifecycle' \
+  'struct RuntimeProbeRegistration' \
+  'struct RuntimeProbeConnection' \
+  'fn register_runtime_probe' \
+  'impl RuntimeProbeRegistration' \
+  'impl Drop for RuntimeProbeRegistration' \
+  'impl RuntimeProbeConnection'; do
+  assert_cfg_test_near_marker \
+    "$ENGINE_SOURCE" \
+    "$marker" \
+    "runtime-probe ladder bookkeeping is cfg(test)-only: $marker"
+done
 assert_contains "$(<"$ENGINE_SOURCE")" \
   'fn open_managed_connection' \
   "source centralizes Engine-managed SQLite opens through the audited factory"

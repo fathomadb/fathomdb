@@ -36,12 +36,19 @@ or Track Runner state.
      tests/experiments/test_tc5_live_executor.py \
      tests/experiments/test_tc5_manifest.py \
      tests/experiments/test_tc5_characterization.py -q
-   52 passed
+   53 passed
 
    python3 -m ruff check experiments/tc5_external_driver.py \
      tests/experiments/test_tc5_external_driver.py
    All checks passed
    ```
+
+4. Corrective commit `e210c1a5` restores the shared
+   `src/rust/crates/fathomdb-py/src/lib.rs` byte-for-byte to campaign base
+   `8101f1db76e96b6b1f7e7cd422dc23c14bc26d86`. The driver now uses a scoped
+   runtime protocol and refuses fused-search substitution while a separately
+   reviewed exact runtime is unavailable. The full
+   `./scripts/agent-verify.sh` passed after that correction.
 
 ## Review focus
 

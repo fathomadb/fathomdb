@@ -111,6 +111,16 @@ def _write_json(path: Path, document: dict[str, object]) -> Path:
     return path
 
 
+def test_committed_configuration_is_the_disabled_frozen_cpu_contract():
+    config_path = Path(__file__).resolve().parents[2] / "experiments/configs/scale-01/tc5-execution.v1.json"
+
+    config = load_execution_config(config_path)
+
+    assert config.configuration_id == "tc5-cpu-all-real-v1"
+    assert config.execution_enabled is False
+    assert list(config.arms) == _config()["arms"]
+
+
 def test_preparation_freezes_cpu_two_arm_receipt_without_external_paths_or_measurement(tmp_path):
     manifest_path = _write_json(tmp_path / "manifest.json", _manifest())
     config_path = _write_json(tmp_path / "tc5-execution.json", _config())

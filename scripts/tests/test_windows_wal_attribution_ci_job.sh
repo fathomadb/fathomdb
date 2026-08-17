@@ -86,6 +86,11 @@ assert_contains "$CODE" 'reader-handoff attribution command selected zero tests'
 assert_contains "$CODE" 'slice65_wal reader_handoff_idle_before_reply=passed' "job requires the reader-handoff artifact marker"
 assert_contains "$CODE" 'wal_attribution_reopen_recovery_reads_then_nested_erasure_are_idle' "job runs incident-shaped reopen control"
 assert_contains "$CODE" 'wal_attribution_projection_worker_transaction_is_owned_then_idle' "job runs projection transaction control"
+assert_contains "$CODE" 'tests::wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic' "job selects the exact post-commit diagnostic control"
+assert_contains "$CODE" 'post-commit diagnostic command selected zero tests' "job rejects a zero-test post-commit diagnostic invocation"
+assert_contains "$CODE" 'slice65_wal post_commit_ack inventory=' "job requires the post-commit acknowledgement inventory artifact"
+assert_contains "$CODE" 'slice65_wal post_commit_raw case=pre_close' "job requires redacted pre-close raw checkpoint samples"
+assert_contains "$CODE" 'slice65_wal post_commit_child_raw case=after_close' "job requires the redacted fresh-child probe outcome"
 assert_contains "$CODE" 'wal_attribution_close_boundary_raw_checkpoint_is_clean' "job runs direct close-boundary control"
 assert_contains "$CODE" 'wal_attribution_close_boundary_fresh_open_is_clean' "job runs fresh-open close-boundary control"
 assert_contains "$CODE" 'wal_attribution_close_boundary_read_get_is_clean' "job runs read-get close-boundary control"
@@ -144,6 +149,11 @@ for marker in \
   'reopen_nested_serial=passed' \
   'retained_materialized_idle=passed' \
   'projection_worker_transaction_ready' \
+  'fn wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic' \
+  'post_commit_ack_for_test' \
+  'post_commit_raw case=pre_close' \
+  'post_commit_child_raw case=after_close' \
+  'WalConnectionInventory' \
   'fn wal_attribution_close_boundary_raw_checkpoint_is_clean' \
   'fn wal_attribution_close_boundary_fresh_open_is_clean' \
   'fn wal_attribution_close_boundary_read_get_is_clean' \
@@ -186,9 +196,9 @@ assert_before_in_text \
   "baseline observation mode does not continue to the follow-on purge lifecycle"
 assert_before_in_text \
   "$CODE" \
-  'OBSERVED_CLEAN_SERIAL_COMPLETION' \
+  'post-commit diagnostic command selected zero tests' \
   'serial_wheel_selector=current-source-test-hooks' \
-  "current instrumented serial control runs after either retained released baseline observation"
+  "current instrumented serial control runs after post-commit diagnostic artifact"
 for control in \
   wal_attribution_close_boundary_fresh_open_is_clean \
   wal_attribution_close_boundary_read_get_is_clean \
@@ -268,6 +278,46 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves reader-handoff artifact assertion is load-bearing"
   else
     fail "mutation did not fail reader-handoff artifact assertion: $handoff_marker_out"
+  fi
+
+  POST_COMMIT_SELECTOR_MUTATED="$TMPROOT/ci-without-post-commit-selector.yml"
+  sed '/tests::wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic/d' "$CI" \
+    >"$POST_COMMIT_SELECTOR_MUTATED"
+  set +e
+  post_commit_selector_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$POST_COMMIT_SELECTOR_MUTATED" bash "$0" 2>&1)"
+  post_commit_selector_rc=$?
+  set -e
+  if [ "$post_commit_selector_rc" -ne 0 ] \
+    && grep -Fq 'job selects the exact post-commit diagnostic control (missing: tests::wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic)' <<<"$post_commit_selector_out"; then
+    pass "mutation proves post-commit selector assertion is load-bearing"
+  else
+    fail "mutation did not fail post-commit selector assertion: $post_commit_selector_out"
+  fi
+
+  POST_COMMIT_GUARD_MUTATED="$TMPROOT/ci-without-post-commit-guard.yml"
+  sed '/post-commit diagnostic command selected zero tests/d' "$CI" >"$POST_COMMIT_GUARD_MUTATED"
+  set +e
+  post_commit_guard_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$POST_COMMIT_GUARD_MUTATED" bash "$0" 2>&1)"
+  post_commit_guard_rc=$?
+  set -e
+  if [ "$post_commit_guard_rc" -ne 0 ] \
+    && grep -Fq 'job rejects a zero-test post-commit diagnostic invocation (missing: post-commit diagnostic command selected zero tests)' <<<"$post_commit_guard_out"; then
+    pass "mutation proves post-commit zero-test guard assertion is load-bearing"
+  else
+    fail "mutation did not fail post-commit zero-test guard assertion: $post_commit_guard_out"
+  fi
+
+  POST_COMMIT_ARTIFACT_MUTATED="$TMPROOT/ci-without-post-commit-artifact.yml"
+  sed '/slice65_wal post_commit_ack inventory=/d' "$CI" >"$POST_COMMIT_ARTIFACT_MUTATED"
+  set +e
+  post_commit_artifact_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$POST_COMMIT_ARTIFACT_MUTATED" bash "$0" 2>&1)"
+  post_commit_artifact_rc=$?
+  set -e
+  if [ "$post_commit_artifact_rc" -ne 0 ] \
+    && grep -Fq 'job requires the post-commit acknowledgement inventory artifact (missing: slice65_wal post_commit_ack inventory=)' <<<"$post_commit_artifact_out"; then
+    pass "mutation proves post-commit artifact assertion is load-bearing"
+  else
+    fail "mutation did not fail post-commit artifact assertion: $post_commit_artifact_out"
   fi
 
   IDENTITY_MUTATED="$TMPROOT/ci-without-wheel-identity.yml"

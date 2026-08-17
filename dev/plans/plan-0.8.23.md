@@ -30,6 +30,8 @@ disposition for every excluded candidate.
 - Staged pre-commit and always-on CI Gitleaks scanning.
 - Windows WAL checkpoint reader-conflict diagnosis, contingent on first-party
   Windows evidence.
+- Windows WAL checkpoint attribution across Engine-owned readers, the Python
+  SDK, serial lifecycle controls, and an external-reader control.
 
 Existing commits and witnesses are candidate evidence, not a slice closure.
 They must be inspected through this ladder rather than inferred as complete.
@@ -69,6 +71,7 @@ ladder or widen an in-flight feature slice.
 | 40 | Fixture-scoped scale characterization | 6 | `0.8.23-scale-characterization-protocol.md` |
 | 50 | Gitleaks staged pre-commit and always-on CI guards | 6 | `0.8.23-gitleaks-guards.md` |
 | 60 | Windows WAL checkpoint reader-conflict diagnosis | 6 | `0.8.23-windows-wal-checkpoint-reader-conflict.md`, `0.8.23-windows-local-environment.md` |
+| 65 | Windows WAL checkpoint root-cause attribution | 6, 60 | `0.8.23-wal-attribution-investigation.md` |
 
 Each feature slice, if approved, must review its assigned candidate features,
 drafted needs/requirements/ACs, and design inputs; approve, reject, or adjust
@@ -77,6 +80,9 @@ verify, and write its Slice status record. Slice 60 additionally requires a
 first-party Windows x64 evidence path before it can be commissioned. A local
 Windows development environment is available for controlled reproduction and
 development; it is not, by itself, an automated CI or release-evidence path.
+Slice 65 is expressly commissioned as a post-Slice-60 investigation. Its
+design is complete, but its RED-to-GREEN instrumentation and Windows execution
+remain a separate implementation phase on the release branch.
 
 ## Cross-cutting DoD
 
@@ -91,9 +97,9 @@ development; it is not, by itself, an automated CI or release-evidence path.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-landed-roll-up -->
-**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`) · 60 (`423baf6a`). SCHEMA is 26; remaining ladder = 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
+**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`) · 60 (`423baf6a`). SCHEMA is 26; remaining ladder = 65 → 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 40** (`SCALE-CHARACTERIZATION`) — fixture-scoped scale characterization
+**IMMEDIATE NEXT: Slice 65** (`WAL-ATTRIBUTION`) — Windows WAL checkpoint root-cause attribution
 
-**Remaining ladder:** 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->
+**Remaining ladder:** 65 → 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->

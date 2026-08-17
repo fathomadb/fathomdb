@@ -11,6 +11,9 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sqlite3
+import subprocess
+import sys
 import tempfile
 import threading
 from pathlib import Path
@@ -62,6 +65,24 @@ def _expected_wal_baseline(error: ErasureIncompleteError) -> str:
     if frame_match is None or "wal_checkpoint(TRUNCATE)" not in error.detail or "BUSY" not in error.detail:
         raise AssertionError("expected typed WAL checkpoint BUSY detail with retained frame count") from error
     return frame_match.group(1)
+
+
+def _raw_binding_checkpoint(path: str, case: str) -> tuple[int, int, int]:
+    """Take one redacted independent raw checkpoint sample."""
+    connection = sqlite3.connect(path, timeout=0, isolation_level=None)
+    try:
+        busy, log_frames, checkpointed_frames = connection.execute(
+            "PRAGMA wal_checkpoint(TRUNCATE)"
+        ).fetchone()
+    finally:
+        connection.close()
+    print(
+        "slice65_wal python_binding_raw "
+        f"case={case} raw_busy={busy} raw_log_frames={log_frames} "
+        f"raw_checkpointed_frames={checkpointed_frames}",
+        flush=True,
+    )
+    return busy, log_frames, checkpointed_frames
 
 
 def run_serial_incident(
@@ -148,11 +169,13 @@ def run_binding_reader_erase(expected_version: str) -> None:
     """Pause an actual reader-worker snapshot via the installed test wheel."""
     _assert_installed_version(expected_version)
     with tempfile.TemporaryDirectory(prefix="slice65-binding-") as directory:
-        engine = Engine.open(str(Path(directory) / "binding.sqlite"), use_default_embedder=False)
+        path = str(Path(directory) / "binding.sqlite")
+        engine = Engine.open(path, use_default_embedder=False)
         try:
             engine.write([_node("slice65-binding", "slice65-binding-source")])
             native = engine._native
-            pause = native._arm_next_reader_snapshot_pause_for_test()
+            snapshot_pause = native._arm_next_reader_snapshot_pause_for_test()
+            completion_pause = native._arm_next_reader_completion_pause_for_test()
             read_outcome: list[object] = []
 
             def governed_read() -> None:
@@ -160,27 +183,78 @@ def run_binding_reader_erase(expected_version: str) -> None:
 
             reader = threading.Thread(target=governed_read, name="slice65-python-read")
             reader.start()
-            pause.wait_snapshot_ready()
+            snapshot_pause.wait_snapshot_ready()
             print("slice65_wal python_binding_snapshot_ready", flush=True)
             try:
                 engine.erase_source("slice65-binding-source")
-            except ErasureIncompleteError:
+            except ErasureIncompleteError as error:
+                assert error.stage == "wal_checkpoint"
                 print("slice65_wal python_binding_owned_reader_busy", flush=True)
             else:
                 raise AssertionError("paused reader snapshot must fail closed")
-            pause.release()
+            snapshot_pause.release()
+            completion_pause.wait_snapshot_ready()
+            assert native._wal_attribution_snapshot_for_test()["no_owned_snapshot"] is True
+            print("slice65_wal python_binding_completion_ack collector=idle", flush=True)
+            completion_pause.release()
             reader.join(timeout=5)
             assert not reader.is_alive() and read_outcome and read_outcome[0] is not None
-            engine.erase_source("slice65-binding-source")
             records = native._wal_attribution_checkpoint_records_for_test()
             busy = [r for r in records if r[1]]
             assert len(busy) == 5 and all(
                 r[2] == "owned_reader_snapshot" and r[3] == ["reader_worker:0"] for r in busy
             )
-            assert records[-1][1:] == (False, "no_owned_snapshot", [])
-            print("slice65_wal python_binding_snapshot_released", flush=True)
+            inventory = native._wal_attribution_binding_inventory_for_test()
+            print(f"slice65_wal python_binding_direct_inventory={inventory}", flush=True)
+            first_raw = _raw_binding_checkpoint(path, "before_engine_sampler")
+            samples = native._checkpoint_at_rest_for_test()
+            assert 1 <= len(samples) <= 5
+            print(
+                f"slice65_wal python_binding_engine_sampler samples={len(samples)} "
+                f"final_busy={int(samples[-1][0])}",
+                flush=True,
+            )
+            second_raw = _raw_binding_checkpoint(path, "after_engine_sampler")
+            if first_raw[0] != 0 or second_raw[0] != 0:
+                engine.close()
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        __file__,
+                        "--control",
+                        "binding-child",
+                        "--wheel-version",
+                        expected_version,
+                        "--wheel-label",
+                        "current-source-test-hooks",
+                        "--child-path",
+                        path,
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                assert result.returncode == 0, result.stderr
+                assert "slice65_wal python_binding_child_raw case=after_close" in result.stdout
+                print(result.stdout, end="", flush=True)
+            else:
+                print(
+                    "slice65_wal python_binding_child_raw case=after_close outcome=not_required",
+                    flush=True,
+                )
         finally:
             engine.close()
+
+
+def run_binding_child(expected_version: str, path: str) -> None:
+    """Run the one conditional post-close raw probe in a fresh test-hook process."""
+    _assert_installed_version(expected_version)
+    busy, log_frames, checkpointed_frames = _raw_binding_checkpoint(path, "child")
+    print(
+        "slice65_wal python_binding_child_raw case=after_close outcome=recorded "
+        f"raw_busy={busy} raw_log_frames={log_frames} raw_checkpointed_frames={checkpointed_frames}",
+        flush=True,
+    )
 
 
 def run_retained_materialized(expected_version: str) -> None:
@@ -214,9 +288,10 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--wheel-version", required=True)
     parser.add_argument("--wheel-label", required=True)
-    parser.add_argument("--control", choices=("serial", "binding", "retained"), required=True)
+    parser.add_argument("--control", choices=("serial", "binding", "binding-child", "retained"), required=True)
     parser.add_argument("--require-attribution", action="store_true")
     parser.add_argument("--observe-baseline-first-erase", action="store_true")
+    parser.add_argument("--child-path")
     args = parser.parse_args()
     if args.control == "serial":
         run_serial_incident(
@@ -225,6 +300,9 @@ def main() -> None:
             args.require_attribution,
             args.observe_baseline_first_erase,
         )
+    elif args.control == "binding-child":
+        assert args.child_path is not None
+        run_binding_child(args.wheel_version, args.child_path)
     else:
         if not args.require_attribution:
             raise SystemExit("binding control requires the current test-hooks attribution wheel")

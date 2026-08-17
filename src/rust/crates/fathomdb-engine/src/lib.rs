@@ -366,9 +366,9 @@ pub struct Engine {
     wal_attribution: Arc<WalAttributionCollector>,
     /// Slice 65 Fix-N: test-only audited inventory of every live Engine-owned
     /// SQLite connection. It is absent from production and binding builds.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-hooks"))]
     managed_connections: Arc<ManagedConnectionRegistry>,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-hooks"))]
     writer_connection_registration: Mutex<Option<ManagedConnectionRegistration>>,
     provenance_row_cap: AtomicU64,
     /// Per-connection profile-callback contexts. Each box's pointer is
@@ -462,9 +462,9 @@ struct ProjectionRuntimeShared {
     /// background connections rather than through an `Engine` method call.
     subscribers: Arc<lifecycle::SubscriberRegistry>,
     wal_attribution: Arc<WalAttributionCollector>,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-hooks"))]
     managed_connections: Arc<ManagedConnectionRegistry>,
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-hooks"))]
     runtime_inventory_request: Mutex<Option<RuntimeConnectionInventoryRequest>>,
     state: Mutex<ProjectionRuntimeState>,
     state_cvar: Condvar,
@@ -636,14 +636,14 @@ struct ProjectionRuntime {
 /// one registration after its actual SQLite handle exists and drops it when the
 /// handle leaves service; an incomplete registry is a diagnostic failure, never
 /// evidence of an external WAL holder.
-#[cfg(test)]
+#[cfg(any(test, feature = "test-hooks"))]
 #[derive(Default)]
 struct ManagedConnectionRegistry {
     live: Mutex<BTreeSet<(WalAttributionRole, usize)>>,
     opens: Mutex<BTreeMap<ManagedConnectionCategory, usize>>,
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-hooks"))]
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 enum ManagedConnectionCategory {
     Writer,
@@ -653,14 +653,14 @@ enum ManagedConnectionCategory {
     RuntimeProbe,
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-hooks"))]
 struct ManagedConnectionRegistration {
     registry: Arc<ManagedConnectionRegistry>,
     role: WalAttributionRole,
     index: usize,
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-hooks"))]
 impl ManagedConnectionRegistry {
     fn register(
         self: &Arc<Self>,
@@ -707,7 +707,7 @@ impl ManagedConnectionRegistry {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-hooks"))]
 impl Drop for ManagedConnectionRegistration {
     fn drop(&mut self) {
         if let Ok(mut live) = self.registry.live.lock() {
@@ -716,7 +716,7 @@ impl Drop for ManagedConnectionRegistration {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-hooks"))]
 struct RuntimeConnectionInventoryRequest {
     pending: BTreeSet<(WalAttributionRole, usize)>,
     respond: SyncSender<(WalAttributionRole, usize, bool)>,
@@ -1210,7 +1210,7 @@ enum ReaderRequest {
     },
     /// Slice 65 follow-on: reports this reader's direct SQLite transaction
     /// state for the private complete-connection inventory.
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-hooks"))]
     WalConnectionInventory {
         respond: SyncSender<bool>,
     },
@@ -1285,7 +1285,9 @@ impl ReaderWorkerPool {
     fn new(
         connections: Vec<Connection>,
         wal_attribution: Arc<WalAttributionCollector>,
-        #[cfg(test)] managed_connections: Arc<ManagedConnectionRegistry>,
+        #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
+            ManagedConnectionRegistry,
+        >,
     ) -> Self {
         let live_workers = Arc::new(AtomicUsize::new(0));
         let mut senders = Vec::with_capacity(connections.len());
@@ -1294,7 +1296,7 @@ impl ReaderWorkerPool {
             let (tx, rx) = mpsc::sync_channel::<ReaderRequest>(READER_WORKER_CHANNEL_CAPACITY);
             let live = Arc::clone(&live_workers);
             let attribution = Arc::clone(&wal_attribution);
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-hooks"))]
             let worker_connections = Arc::clone(&managed_connections);
             let handle = thread::Builder::new()
                 .name(format!("fathomdb-reader-{idx}"))
@@ -1305,7 +1307,7 @@ impl ReaderWorkerPool {
                         live,
                         idx,
                         attribution,
-                        #[cfg(test)]
+                        #[cfg(any(test, feature = "test-hooks"))]
                         worker_connections,
                     )
                 })
@@ -1330,7 +1332,7 @@ impl ReaderWorkerPool {
         self.live_workers.load(Ordering::SeqCst)
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-hooks"))]
     fn wal_connection_inventory_for_test(&self) -> Vec<bool> {
         self.senders
             .iter()
@@ -1471,9 +1473,9 @@ fn reader_worker_loop(
     live_workers: Arc<AtomicUsize>,
     worker_idx: usize,
     wal_attribution: Arc<WalAttributionCollector>,
-    #[cfg(test)] managed_connections: Arc<ManagedConnectionRegistry>,
+    #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<ManagedConnectionRegistry>,
 ) {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-hooks"))]
     let _connection_registration =
         managed_connections.register(WalAttributionRole::ReaderWorker, worker_idx);
     wal_attribution.register(WalAttributionRole::ReaderWorker, worker_idx);
@@ -1684,7 +1686,7 @@ fn reader_worker_loop(
                 finish_reader_request(&wal_attribution, worker_idx);
                 committed.wait();
             }
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-hooks"))]
             ReaderRequest::WalConnectionInventory { respond } => {
                 let _ = respond.send(connection.is_autocommit());
             }
@@ -1709,6 +1711,8 @@ fn finish_reader_request(wal_attribution: &WalAttributionCollector, worker_idx: 
     wal_attribution.set(WalAttributionRole::ReaderWorker, worker_idx, false, "idle");
     #[cfg(test)]
     reader_handoff_pause::fire();
+    #[cfg(any(test, feature = "test-hooks"))]
+    reader_completion_pause::fire();
 }
 
 /// 0.8.20 keystone closeout fix-3 — a test-only rendezvous hook fired at the TOP
@@ -1781,7 +1785,9 @@ impl ProjectionRuntime {
         mean_already_pinned: bool,
         subscribers: Arc<lifecycle::SubscriberRegistry>,
         wal_attribution: Arc<WalAttributionCollector>,
-        #[cfg(test)] managed_connections: Arc<ManagedConnectionRegistry>,
+        #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
+            ManagedConnectionRegistry,
+        >,
     ) -> Self {
         // EU-5b/EU-5f — only allocate the streaming accumulator when the
         // workspace's identity is MC-required AND no mean has been pinned
@@ -1801,9 +1807,9 @@ impl ProjectionRuntime {
             embedder_identity,
             subscribers,
             wal_attribution,
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-hooks"))]
             managed_connections,
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-hooks"))]
             runtime_inventory_request: Mutex::new(None),
             state: Mutex::new(ProjectionRuntimeState::default()),
             state_cvar: Condvar::new(),
@@ -1853,7 +1859,7 @@ impl ProjectionRuntime {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-hooks"))]
     fn report_runtime_connection_inventory_for_test(
         &self,
     ) -> Result<Vec<(WalAttributionRole, usize, bool)>, &'static str> {
@@ -1909,7 +1915,7 @@ impl ProjectionRuntime {
                 drop(state);
                 if !database_has_pending_projection_work(
                     &self.shared.path,
-                    #[cfg(test)]
+                    #[cfg(any(test, feature = "test-hooks"))]
                     &self.shared.managed_connections,
                 )
                 .unwrap_or(true)
@@ -5443,14 +5449,14 @@ impl Engine {
     ) -> Result<OpenedEngine, EngineOpenError> {
         let canonical_path = canonical_database_path(&path.into())?;
         let lock = acquire_lock(&canonical_path)?;
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-hooks"))]
         let managed_connections = Arc::new(ManagedConnectionRegistry::default());
         let open_result = Self::open_locked(
             canonical_path.clone(),
             migrations,
             &embedder_identity,
             emit_migration_event,
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-hooks"))]
             Arc::clone(&managed_connections),
         );
 
@@ -5515,7 +5521,7 @@ impl Engine {
                 let slow_threshold_ms = Arc::new(AtomicU64::new(DEFAULT_SLOW_THRESHOLD_MS));
                 let wal_attribution = Arc::new(WalAttributionCollector::new());
                 wal_attribution.register(WalAttributionRole::Writer, 0);
-                #[cfg(test)]
+                #[cfg(any(test, feature = "test-hooks"))]
                 let writer_connection_registration =
                     managed_connections.register(WalAttributionRole::Writer, 0);
                 let mut profile_contexts: Vec<Box<ProfileContext>> = Vec::new();
@@ -5528,7 +5534,7 @@ impl Engine {
                     report.embedder_mean_vec_pinned,
                     Arc::clone(&subscribers),
                     Arc::clone(&wal_attribution),
-                    #[cfg(test)]
+                    #[cfg(any(test, feature = "test-hooks"))]
                     Arc::clone(&managed_connections),
                 );
 
@@ -5559,7 +5565,7 @@ impl Engine {
                         reader_pool: ReaderWorkerPool::new(
                             readers,
                             Arc::clone(&wal_attribution),
-                            #[cfg(test)]
+                            #[cfg(any(test, feature = "test-hooks"))]
                             Arc::clone(&managed_connections),
                         ),
                         counters: lifecycle::Counters::new(),
@@ -5570,9 +5576,9 @@ impl Engine {
                         runtime_embedder_identity: embedder_identity,
                         projection_runtime,
                         wal_attribution,
-                        #[cfg(test)]
+                        #[cfg(any(test, feature = "test-hooks"))]
                         managed_connections,
-                        #[cfg(test)]
+                        #[cfg(any(test, feature = "test-hooks"))]
                         writer_connection_registration: Mutex::new(Some(
                             writer_connection_registration,
                         )),
@@ -5596,7 +5602,7 @@ impl Engine {
                     && (boot_graft_enqueued
                         || database_has_pending_projection_work(
                             &canonical_path,
-                            #[cfg(test)]
+                            #[cfg(any(test, feature = "test-hooks"))]
                             &opened.engine.managed_connections,
                         )
                         .unwrap_or(false))
@@ -5620,15 +5626,17 @@ impl Engine {
         migrations: &'static [fathomdb_schema::Migration],
         embedder_identity: &EmbedderIdentity,
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
-        #[cfg(test)] managed_connections: Arc<ManagedConnectionRegistry>,
+        #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
+            ManagedConnectionRegistry,
+        >,
     ) -> Result<(Connection, Vec<Connection>, OpenReport, Vec<i32>), EngineOpenError> {
         init_perf_experiments_runtime();
         register_sqlite_vec_extension();
         let mut connection = open_managed_connection(
             &path,
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-hooks"))]
             ManagedConnectionCategory::Writer,
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-hooks"))]
             &managed_connections,
         )
         .map_err(|err| map_open_sqlite_error(err, OpenStage::HeaderProbe))?;
@@ -5846,9 +5854,9 @@ impl Engine {
         for _ in 0..READER_POOL_SIZE {
             let reader = open_managed_connection(
                 &path,
-                #[cfg(test)]
+                #[cfg(any(test, feature = "test-hooks"))]
                 ManagedConnectionCategory::ReaderWorker,
-                #[cfg(test)]
+                #[cfg(any(test, feature = "test-hooks"))]
                 &managed_connections,
             )
             .map_err(|err| map_open_sqlite_error(err, OpenStage::HeaderProbe))?;
@@ -5937,6 +5945,18 @@ impl Engine {
         reader_snapshot_pause::arm()
     }
 
+    /// Arm a private completion rendezvous for the next public reader request.
+    ///
+    /// The ready barrier fires only after the helper-local SQLite transaction
+    /// and statements have dropped, the attribution collector is idle, and
+    /// before the materialized response is delivered. Available only to tests
+    /// and disposable `test-hooks` artifacts.
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn arm_next_reader_completion_pause_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
+        reader_completion_pause::arm()
+    }
+
     /// Private Slice 65 test rendezvous. Unlike the snapshot hook this is
     /// deliberately unavailable to test-hook artifacts: it verifies only the
     /// collector's internal response-handoff boundary.
@@ -5971,6 +5991,98 @@ impl Engine {
     #[doc(hidden)]
     pub fn wal_attribution_idle_for_test(&self) -> bool {
         self.wal_attribution_snapshot().no_owned_snapshot
+    }
+
+    /// Return direct, complete managed-connection facts for the private Slice
+    /// 65 installed-binding diagnostic. This is intentionally unavailable from
+    /// ordinary builds and never enters an SDK error or diagnostic surface.
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn binding_connection_inventory_for_test(&self) -> Result<String, EngineError> {
+        self.ensure_open()?;
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while !self.managed_connections.exact_live() && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(5));
+        }
+        if !self.managed_connections.exact_live() {
+            return Err(EngineError::Storage);
+        }
+        let creation = self.managed_connections.creation_counts().ok_or(EngineError::Storage)?;
+        if creation != (1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, 2) {
+            return Err(EngineError::Storage);
+        }
+        let writer_autocommit = self
+            .connection
+            .lock()
+            .map_err(|_| EngineError::Storage)?
+            .as_ref()
+            .is_some_and(Connection::is_autocommit);
+        if !writer_autocommit {
+            return Err(EngineError::Storage);
+        }
+        let readers = self.reader_pool.wal_connection_inventory_for_test();
+        if readers.len() != READER_POOL_SIZE || readers.into_iter().any(|autocommit| !autocommit) {
+            return Err(EngineError::Storage);
+        }
+        let runtime = self
+            .projection_runtime
+            .report_runtime_connection_inventory_for_test()
+            .map_err(|_| EngineError::Storage)?;
+        let expected = BTreeSet::from([
+            (WalAttributionRole::ProjectionDispatcher, 0),
+            (WalAttributionRole::ProjectionWorker, 0),
+            (WalAttributionRole::ProjectionWorker, 1),
+        ]);
+        let actual =
+            runtime.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>();
+        if actual != expected || runtime.iter().any(|(_, _, autocommit)| !autocommit) {
+            return Err(EngineError::Storage);
+        }
+        let snapshot = self.wal_attribution_snapshot();
+        if !snapshot.no_owned_snapshot
+            || snapshot.roles.iter().any(|role| role.active || role.phase != "idle")
+        {
+            return Err(EngineError::Storage);
+        }
+        Ok(format!(
+            "roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=8-autocommit;dispatcher=autocommit;workers=2-autocommit;creation=writer:{},readers:{},dispatcher:{},workers:{},probes:{}",
+            creation.0, creation.1, creation.2, creation.3, creation.4,
+        ))
+    }
+
+    /// Run one bounded, test-only checkpoint sampler without performing any
+    /// erasure work. The returned records are private diagnostic observations,
+    /// not a retry or reclassification of an erasure outcome.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn checkpoint_at_rest_for_test(&self) -> Result<Vec<(bool, u32, u32)>, EngineError> {
+        self.ensure_open()?;
+        let mut reports = Vec::new();
+        for attempt in 0..ERASURE_WAL_TRUNCATE_ATTEMPTS {
+            self.wal_attribution.set(WalAttributionRole::Writer, 0, true, "checkpoint_start");
+            let overlap = self.wal_attribution.checkpoint_begin();
+            let started = Instant::now();
+            let report = self.wal_checkpoint_truncate_once(false)?;
+            self.wal_attribution.checkpoint_end();
+            self.wal_attribution.set(WalAttributionRole::Writer, 0, false, "idle");
+            let snapshot = self.wal_attribution_snapshot();
+            let classification = self.wal_attribution.classification(&snapshot, overlap);
+            self.wal_attribution.checkpoint_event(
+                (attempt + 1) as usize,
+                started.elapsed(),
+                &report,
+                classification,
+                snapshot.active_roles,
+            );
+            reports.push((report.busy != 0, report.log_frames, report.checkpointed_frames));
+            if report.busy == 0 {
+                break;
+            }
+            if attempt + 1 < ERASURE_WAL_TRUNCATE_ATTEMPTS {
+                thread::sleep(Duration::from_millis(ERASURE_WAL_TRUNCATE_BACKOFF_MS));
+            }
+        }
+        Ok(reports)
     }
 
     #[cfg(debug_assertions)]
@@ -8439,7 +8551,7 @@ impl Engine {
             }
             connection.take();
         }
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-hooks"))]
         if let Ok(mut registration) = self.writer_connection_registration.lock() {
             registration.take();
         }
@@ -8921,9 +9033,9 @@ impl Engine {
         self.ensure_open()?;
         let connection = open_runtime_connection(
             &self.path,
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-hooks"))]
             ManagedConnectionCategory::RuntimeProbe,
-            #[cfg(test)]
+            #[cfg(any(test, feature = "test-hooks"))]
             &self.managed_connections,
         )
         .map_err(|_| EngineError::Storage)?;
@@ -12505,6 +12617,34 @@ mod reader_handoff_pause {
     }
 }
 
+/// Slice 65 private test-hook rendezvous at the real reader completion
+/// boundary. It fires after helper-local statements and the read transaction
+/// have dropped and after the collector is idle, but before the worker sends
+/// the materialized response. It is absent from ordinary builds.
+#[cfg(any(test, feature = "test-hooks"))]
+mod reader_completion_pause {
+    use super::Barrier;
+    use std::sync::{Arc, Mutex};
+
+    static PAUSE: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>> = Mutex::new(None);
+
+    pub(crate) fn arm() -> (Arc<Barrier>, Arc<Barrier>) {
+        let ready = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        *PAUSE.lock().expect("reader completion pause mutex") =
+            Some((Arc::clone(&ready), Arc::clone(&release)));
+        (ready, release)
+    }
+
+    pub(crate) fn fire() {
+        if let Some((ready, release)) = PAUSE.lock().expect("reader completion pause mutex").take()
+        {
+            ready.wait();
+            release.wait();
+        }
+    }
+}
+
 /// Read projection cursor and matching body rows inside one read tx.
 #[allow(clippy::too_many_arguments)]
 fn read_projected_text_in_tx(
@@ -14316,7 +14456,7 @@ fn explain_graph_neighbors_in_tx(
     Ok(out)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-hooks"))]
 fn report_runtime_connection_inventory_for_test(
     shared: &ProjectionRuntimeShared,
     connection: &Connection,
@@ -14345,15 +14485,15 @@ fn report_runtime_connection_inventory_for_test(
 fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_idx: usize) {
     let connection = match open_runtime_connection(
         &shared.path,
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-hooks"))]
         ManagedConnectionCategory::ProjectionDispatcher,
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-hooks"))]
         &shared.managed_connections,
     ) {
         Ok(connection) => connection,
         Err(_) => return,
     };
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-hooks"))]
     let _connection_registration = shared
         .managed_connections
         .register(WalAttributionRole::ProjectionDispatcher, dispatcher_idx);
@@ -14362,7 +14502,7 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
     // `ProjectionRuntimeShared::embedder` is fixed for the session's lifetime.
     let dense_arm_live = shared.embedder.is_some();
     loop {
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-hooks"))]
         report_runtime_connection_inventory_for_test(
             &shared,
             &connection,
@@ -14379,7 +14519,7 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
                     || state.frozen
                     || state.active_jobs + state.queued_jobs >= PROJECTION_INFLIGHT_LIMIT)
             {
-                #[cfg(test)]
+                #[cfg(any(test, feature = "test-hooks"))]
                 report_runtime_connection_inventory_for_test(
                     &shared,
                     &connection,
@@ -14460,9 +14600,9 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
 fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usize) {
     let mut connection = match open_runtime_connection(
         &shared.path,
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-hooks"))]
         ManagedConnectionCategory::ProjectionWorker,
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-hooks"))]
         &shared.managed_connections,
     ) {
         Ok(connection) => connection,
@@ -14471,12 +14611,12 @@ fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usiz
     if ensure_vector_partition(&mut connection, shared.embedder_identity.dimension).is_err() {
         return;
     }
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-hooks"))]
     let _connection_registration =
         shared.managed_connections.register(WalAttributionRole::ProjectionWorker, worker_idx);
     shared.wal_attribution.register(WalAttributionRole::ProjectionWorker, worker_idx);
     loop {
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-hooks"))]
         report_runtime_connection_inventory_for_test(
             &shared,
             &connection,
@@ -14508,7 +14648,7 @@ fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usiz
                     }
                     break jobs;
                 }
-                #[cfg(test)]
+                #[cfg(any(test, feature = "test-hooks"))]
                 report_runtime_connection_inventory_for_test(
                     &shared,
                     &connection,
@@ -15149,13 +15289,13 @@ fn next_pending_projection_jobs(
 
 fn database_has_pending_projection_work(
     path: &Path,
-    #[cfg(test)] managed_connections: &Arc<ManagedConnectionRegistry>,
+    #[cfg(any(test, feature = "test-hooks"))] managed_connections: &Arc<ManagedConnectionRegistry>,
 ) -> rusqlite::Result<bool> {
     let connection = open_runtime_connection(
         path,
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-hooks"))]
         ManagedConnectionCategory::RuntimeProbe,
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-hooks"))]
         managed_connections,
     )?;
     connection_has_pending_projection_work(&connection)
@@ -15685,24 +15825,24 @@ fn locator_from_rusqlite_error(err: &rusqlite::Error) -> CorruptionLocator {
 
 fn open_managed_connection(
     path: &Path,
-    #[cfg(test)] category: ManagedConnectionCategory,
-    #[cfg(test)] managed_connections: &Arc<ManagedConnectionRegistry>,
+    #[cfg(any(test, feature = "test-hooks"))] category: ManagedConnectionCategory,
+    #[cfg(any(test, feature = "test-hooks"))] managed_connections: &Arc<ManagedConnectionRegistry>,
 ) -> rusqlite::Result<Connection> {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-hooks"))]
     managed_connections.record_open(category);
     Connection::open(path)
 }
 
 fn open_runtime_connection(
     path: &Path,
-    #[cfg(test)] category: ManagedConnectionCategory,
-    #[cfg(test)] managed_connections: &Arc<ManagedConnectionRegistry>,
+    #[cfg(any(test, feature = "test-hooks"))] category: ManagedConnectionCategory,
+    #[cfg(any(test, feature = "test-hooks"))] managed_connections: &Arc<ManagedConnectionRegistry>,
 ) -> rusqlite::Result<Connection> {
     let connection = open_managed_connection(
         path,
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-hooks"))]
         category,
-        #[cfg(test)]
+        #[cfg(any(test, feature = "test-hooks"))]
         managed_connections,
     )?;
     connection.pragma_update(None, "journal_mode", "WAL")?;

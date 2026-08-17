@@ -1657,6 +1657,12 @@ impl PyEngine {
     }
 
     #[cfg(feature = "test-hooks")]
+    fn _arm_next_reader_completion_pause_for_test(&self) -> PyWalSnapshotPause {
+        let (snapshot_ready, release) = self.inner.arm_next_reader_completion_pause_for_test();
+        PyWalSnapshotPause { snapshot_ready, release }
+    }
+
+    #[cfg(feature = "test-hooks")]
     fn _wal_attribution_checkpoint_records_for_test(
         &self,
     ) -> Vec<(usize, bool, String, Vec<String>)> {
@@ -1671,6 +1677,18 @@ impl PyEngine {
         let record = PyDict::new(py);
         record.set_item("no_owned_snapshot", self.inner.wal_attribution_idle_for_test())?;
         Ok(record)
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _wal_attribution_binding_inventory_for_test(&self, py: Python<'_>) -> PyResult<String> {
+        let engine = Arc::clone(&self.inner);
+        call_engine(py, move || engine.binding_connection_inventory_for_test())
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _checkpoint_at_rest_for_test(&self, py: Python<'_>) -> PyResult<Vec<(bool, u32, u32)>> {
+        let engine = Arc::clone(&self.inner);
+        call_engine(py, move || engine.checkpoint_at_rest_for_test())
     }
 
     #[pyo3(signature = (timeout_s = 0.0))]

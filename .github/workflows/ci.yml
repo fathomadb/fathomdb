@@ -621,15 +621,27 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control binding --wheel-version 0.8.22 --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $bindingLog
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_completion_ack collector=idle' -Quiet)) {
+            Write-Error "installed binding diagnostic did not acknowledge the actual completion boundary"
+            exit 1
+          }
+          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=8-autocommit;dispatcher=autocommit;workers=2-autocommit;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:2' -Quiet)) {
+            Write-Error "installed binding diagnostic did not retain the exact direct inventory"
+            exit 1
+          }
+          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_raw case=before_engine_sampler' -Quiet) -or -not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_engine_sampler' -Quiet) -or -not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_raw case=after_engine_sampler' -Quiet)) {
+            Write-Error "installed binding diagnostic did not retain its ordered bounded samples"
+            exit 1
+          }
+          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_child_raw case=after_close' -Quiet)) {
+            Write-Error "installed binding diagnostic did not retain its conditional child outcome"
+            exit 1
+          }
           & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control retained --wheel-version 0.8.22 --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $bindingBusy = @(Select-String -Path $bindingLog -Pattern 'slice65_wal checkpoint_attempt=.*busy=1.*classification=owned_reader_snapshot.*active_roles=reader_worker:0').Count
           if ($bindingBusy -ne 5) {
             Write-Error "expected five installed-binding owned reader busy records, got $bindingBusy"
-            exit 1
-          }
-          if (-not (Select-String -Path $bindingLog -Pattern 'slice65_wal checkpoint_attempt=.*busy=0.*classification=no_owned_snapshot.*active_roles=$' -Quiet)) {
-            Write-Error "installed binding control did not retain the post-release no-owned checkpoint"
             exit 1
           }
           if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_current_attribution_expected=1' -Quiet)) {

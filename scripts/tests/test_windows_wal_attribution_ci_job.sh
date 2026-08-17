@@ -116,6 +116,13 @@ assert_contains "$CODE" 'runs-on: windows-latest' "job runs on hosted Windows x6
 assert_contains "$CODE" 'FATHOMDB_WAL_ATTRIBUTION = "1"' "job opts into private attribution"
 assert_contains "$CODE" 'wal_attribution_owned_reader_records_exact_busy_and_idle_success' "job runs retained managed-reader record contract"
 assert_contains "$CODE" 'tests::wal_attribution_owned_reader_records_exact_busy_and_idle_success' "job selects the full exact lib-test path"
+assert_contains "$CODE" 'managed-reader attribution command selected zero tests' "job rejects a zero-test managed-reader invocation"
+assert_contains "$CODE" 'managed_reader_original_erase=typed_erasure_incomplete owned_busy_attempts=5' "job requires the original managed-reader typed busy marker"
+assert_contains "$CODE" 'managed_reader_completion_ack reader_autocommit=1 collector_roles=idle' "job requires post-finish managed-reader acknowledgement"
+assert_contains "$CODE" 'managed_reader_native_state_inventory=state_inventory=complete reason=complete' "job requires complete managed-reader native-state inventory"
+assert_contains "$CODE" 'managed_reader_sampler_native_state control=binding_sampler phase=before' "job requires managed-reader sampler before facts"
+assert_contains "$CODE" 'managed_reader_sampler_native_state control=binding_sampler phase=after' "job requires managed-reader sampler after facts"
+assert_contains "$CODE" 'managed_reader_sampler_terminal outcome=' "job requires managed-reader sampler terminal outcome"
 assert_contains "$CODE" 'wal_attribution_retained_materialized_result_is_idle_at_checkpoint' "job runs retained-result idle control"
 assert_contains "$CODE" 'tests::wal_attribution_reader_handoff_is_idle_before_materialized_reply' "job selects the exact reader-handoff control"
 assert_contains "$CODE" 'reader-handoff attribution command selected zero tests' "job rejects a zero-test reader-handoff invocation"
@@ -444,6 +451,28 @@ assert_absent "$actual_checkpoint_body" \
 assert_absent "$actual_checkpoint_body" \
   'wal_checkpoint_truncate_once' \
   "direct-Rust actual-checkpoint control has no extra checkpoint call"
+managed_reader_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_owned_reader_records_exact_busy_and_idle_success")"
+managed_reader_erase_calls="$(grep -Fc 'opened.engine.erase_source(' <<<"$managed_reader_body" || true)"
+if [ "$managed_reader_erase_calls" -eq 1 ]; then
+  pass "managed-reader diagnostic retains exactly one original erase"
+else
+  fail "managed-reader diagnostic must retain exactly one original erase; found $managed_reader_erase_calls"
+fi
+assert_contains "$managed_reader_body" \
+  'arm_next_reader_completion_pause_for_test' \
+  "managed-reader diagnostic waits for post-finish owner-thread acknowledgement"
+assert_contains "$managed_reader_body" \
+  'binding_native_state_inventory_for_test' \
+  "managed-reader diagnostic requires complete native-state inventory"
+assert_contains "$managed_reader_body" \
+  'arm_binding_native_state_observation_for_test' \
+  "managed-reader diagnostic arms the bounded sampler observer"
+assert_contains "$managed_reader_body" \
+  'checkpoint_at_rest_for_test' \
+  "managed-reader diagnostic runs exactly one bounded sampler"
+assert_absent "$managed_reader_body" \
+  'retry after release' \
+  "managed-reader diagnostic does not retry the original erase"
 actual_checkpoint_engine_body="$(function_body "$ENGINE_SOURCE" "complete_erasure_at_rest")"
 assert_before_in_text \
   "$actual_checkpoint_engine_body" \

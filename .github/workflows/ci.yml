@@ -497,10 +497,15 @@ jobs:
         run: |
           $env:FATHOMDB_WAL_ATTRIBUTION = "1"
           $artifact = "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log"
-          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_owned_reader_records_exact_busy_and_idle_success -- --exact --nocapture 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log"
+          $managedReaderLog = "$env:RUNNER_TEMP\slice65-windows-wal-managed-reader.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_owned_reader_records_exact_busy_and_idle_success -- --exact --nocapture 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log" | Tee-Object -FilePath $managedReaderLog
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (-not (Select-String -Path "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log" -SimpleMatch "running 1 test" -Quiet)) {
+          if (-not (Select-String -Path $managedReaderLog -SimpleMatch "running 1 test" -Quiet)) {
             Write-Error "managed-reader attribution command selected zero tests"
+            exit 1
+          }
+          if (-not (Select-String -Path $managedReaderLog -SimpleMatch 'slice65_wal managed_reader_original_erase=typed_erasure_incomplete owned_busy_attempts=5' -Quiet) -or -not (Select-String -Path $managedReaderLog -SimpleMatch 'slice65_wal managed_reader_completion_ack reader_autocommit=1 collector_roles=idle' -Quiet) -or -not (Select-String -Path $managedReaderLog -SimpleMatch 'slice65_wal managed_reader_native_state_inventory=state_inventory=complete reason=complete' -Quiet) -or -not (Select-String -Path $managedReaderLog -SimpleMatch 'slice65_wal managed_reader_sampler_native_state control=binding_sampler phase=before' -Quiet) -or -not (Select-String -Path $managedReaderLog -SimpleMatch 'slice65_wal managed_reader_sampler_native_state control=binding_sampler phase=after' -Quiet) -or -not (Select-String -Path $managedReaderLog -SimpleMatch 'slice65_wal managed_reader_sampler_terminal outcome=' -Quiet)) {
+            Write-Error "managed-reader attribution artifact is incomplete"
             exit 1
           }
           cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_retained_materialized_result_is_idle_at_checkpoint -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append

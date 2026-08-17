@@ -13,6 +13,11 @@ executor, qualification, and coordinator-state set plus the accepted LOCOMO
 normalized-corpus correction; replace it with the verified integration SHA at
 each accepted lane close.
 
+The [program-completion execution hand-off](2026-08-17-program-completion-execution-handoff.md)
+is the next coordinator packet. It retains the existing frozen inputs and
+release gates while authorizing prerequisite resolution and the already-approved
+executors in their contract order.
+
 ## Current lanes
 
 `LOCOMO-01` handed off `6bfc1004` from

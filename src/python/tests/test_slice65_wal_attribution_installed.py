@@ -69,10 +69,14 @@ def run_serial_incident(expected_version: str, wheel_label: str, require_attribu
         try:
             first = read.get(fresh, "slice65-root")
             assert first is not None and first.logical_id == "slice65-root"
+            if require_attribution:
+                assert fresh._native._wal_attribution_snapshot_for_test()["no_owned_snapshot"] is True
+                print("slice65_wal serial_idle_after_read_get=passed", flush=True)
             neighbors = graph.neighbors(fresh, "slice65-root", depth=1, direction="outgoing")
             assert [node.logical_id for node in neighbors] == ["slice65-nested"]
             if require_attribution:
                 assert fresh._native._wal_attribution_snapshot_for_test()["no_owned_snapshot"] is True
+                print("slice65_wal serial_idle_after_neighbors=passed", flush=True)
             print("slice65_wal serial_recovery_reads=passed", flush=True)
 
             before = len(fresh._native._wal_attribution_checkpoint_records_for_test()) if require_attribution else 0

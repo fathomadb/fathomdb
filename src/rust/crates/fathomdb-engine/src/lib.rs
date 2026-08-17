@@ -21512,7 +21512,15 @@ mod tests {
             1
         );
         assert!(fresh.engine.wal_attribution_snapshot().no_owned_snapshot);
+        let before_erase = fresh.engine.wal_attribution_checkpoints_for_test().len();
         fresh.engine.erase_source("slice65-nested-source").expect("nested erase");
+        let erase_records = &fresh.engine.wal_attribution_checkpoints_for_test()[before_erase..];
+        assert!(!erase_records.is_empty(), "nested erase must record a checkpoint");
+        assert!(erase_records.iter().all(|record| {
+            !record.busy
+                && record.classification == "no_owned_snapshot"
+                && record.active_roles.is_empty()
+        }));
         fresh
             .engine
             .transition(
@@ -21521,11 +21529,15 @@ mod tests {
                 Some("slice65 incident".to_string()),
             )
             .expect("delete root");
+        let before_purge = fresh.engine.wal_attribution_checkpoints_for_test().len();
         fresh.engine.purge("slice65-root").expect("purge root");
-        let records = fresh.engine.wal_attribution_checkpoints_for_test();
-        assert!(records
-            .iter()
-            .all(|record| !record.busy && record.classification == "no_owned_snapshot"));
+        let purge_records = &fresh.engine.wal_attribution_checkpoints_for_test()[before_purge..];
+        assert!(!purge_records.is_empty(), "root purge must record a checkpoint");
+        assert!(purge_records.iter().all(|record| {
+            !record.busy
+                && record.classification == "no_owned_snapshot"
+                && record.active_roles.is_empty()
+        }));
         eprintln!("slice65_wal reopen_nested_serial=passed");
     }
 

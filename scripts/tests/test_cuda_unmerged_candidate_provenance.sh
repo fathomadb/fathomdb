@@ -6,7 +6,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 AUTHORIZE="$REPO_ROOT/scripts/release/verify-cuda-unmerged-candidate.py"
 VERIFY_RECEIPT="$REPO_ROOT/scripts/release/verify-cuda-unmerged-receipt.py"
-MANIFEST="$REPO_ROOT/dev/release/cuda-unmerged-candidates.json"
 
 TMPROOT="$(mktemp -d)"
 trap 'rm -rf "$TMPROOT"' EXIT

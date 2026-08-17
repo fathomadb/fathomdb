@@ -555,6 +555,10 @@ mod tests {
     //! provider. Pure — no model, no ONNX Runtime native lib, no GPU required.
     use super::{map_device_request, OrtProvider};
     use crate::device::parse_device_request;
+    use crate::{
+        CudaProbeError, CudaProvider, DeviceResolutionError, DeviceResolutionReason,
+        EmbedDevicePolicy,
+    };
 
     fn resolve(raw: &str) -> (OrtProvider, Option<String>) {
         map_device_request(&parse_device_request(raw))
@@ -662,6 +666,31 @@ mod tests {
         });
         assert_eq!(eff, OrtProvider::Cpu);
         assert!(warn.is_none());
+    }
+
+    #[test]
+    fn strict_onnx_forced_cuda_never_resolves_to_cpu() {
+        let error = super::resolve_ort_device_policy_with(
+            EmbedDevicePolicy::Cuda(2),
+            &mut UnavailableCudaProvider,
+        )
+        .expect_err("forced CUDA must fail rather than become an ONNX CPU session");
+
+        assert_eq!(
+            error,
+            DeviceResolutionError::ForcedCudaUnavailable {
+                ordinal: 2,
+                reason: DeviceResolutionReason::NoVisibleCudaDevice,
+            },
+        );
+    }
+
+    struct UnavailableCudaProvider;
+
+    impl CudaProvider for UnavailableCudaProvider {
+        fn probe_cuda(&mut self, _ordinal: usize) -> Result<crate::CudaDeviceInfo, CudaProbeError> {
+            Err(CudaProbeError::NoVisibleDevice)
+        }
     }
 
     /// SESSION-BUILD RUNTIME loud fallback (codex §9 fix-2): a NON-CPU provider

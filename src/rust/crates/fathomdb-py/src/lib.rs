@@ -3005,6 +3005,25 @@ mod tests {
         assert!(validate_ffi_string(valid_high_unicode).is_ok());
     }
 
+    #[test]
+    fn embed_device_policy_open_error_uses_a_typed_python_exception() {
+        Python::attach(|py| {
+            let error = engine_open_error_to_py(EngineOpenError::EmbedDevicePolicy(
+                fathomdb_embedder::EmbedDevicePolicyError::Resolution(
+                    fathomdb_embedder::DeviceResolutionError::CudaNotCompiled { ordinal: 2 },
+                ),
+            ));
+
+            assert!(error.is_instance_of::<EmbedDevicePolicyError>(py));
+            let value = error.value(py);
+            assert_eq!(
+                value.getattr("kind").unwrap().extract::<String>().unwrap(),
+                "cuda_not_compiled"
+            );
+            assert_eq!(value.getattr("ordinal").unwrap().extract::<usize>().unwrap(), 2);
+        });
+    }
+
     // fix-1 finding 2: the CLS-embedder singleton must NOT cache a failed load.
     // `cls_embedder_singleton` itself is `#[cfg(feature = "default-embedder")]`
     // and drives a real model load, so we test the caching contract through the

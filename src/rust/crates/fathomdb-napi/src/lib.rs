@@ -2861,4 +2861,18 @@ mod tests {
         // napi-rs string conversion (covered by ffi-safety.test.ts).
         assert!(validate_ffi_string("\u{FFFD}").is_ok());
     }
+
+    #[test]
+    fn embed_device_policy_open_error_uses_a_typed_napi_envelope() {
+        let error = engine_open_error_to_napi(EngineOpenError::EmbedDevicePolicy(
+            fathomdb_embedder::EmbedDevicePolicyError::Resolution(
+                fathomdb_embedder::DeviceResolutionError::CudaNotCompiled { ordinal: 2 },
+            ),
+        ));
+        let envelope: JsonValue = serde_json::from_str(&error.reason).expect("typed envelope");
+
+        assert_eq!(envelope["code"], "FDB_EMBED_DEVICE_POLICY");
+        assert_eq!(envelope["payload"]["kind"], "cuda_not_compiled");
+        assert_eq!(envelope["payload"]["ordinal"], 2);
+    }
 }

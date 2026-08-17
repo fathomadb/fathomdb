@@ -1088,4 +1088,16 @@ mod tests {
         let err = EngineOpenError::DatabaseLocked { holder_pid: Some(1234) };
         assert_eq!(engine_open_error_to_outcome(&err), CliOutcome::LockHeld);
     }
+
+    #[test]
+    fn embed_device_policy_open_error_has_a_stable_cli_code_and_failure_class() {
+        let err = EngineOpenError::EmbedDevicePolicy(
+            fathomdb_embedder::EmbedDevicePolicyError::Resolution(
+                fathomdb_embedder::DeviceResolutionError::CudaNotCompiled { ordinal: 2 },
+            ),
+        );
+
+        assert_eq!(engine_open_error_code(&err), "EmbedDevicePolicyError");
+        assert_eq!(engine_open_error_to_outcome(&err), CliOutcome::Unrecoverable);
+    }
 }

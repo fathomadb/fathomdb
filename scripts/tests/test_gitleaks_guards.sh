@@ -191,6 +191,33 @@ else
   pass "current-tree policy redacts synthetic key in an allowed path"
 fi
 
+ENUM_FIXTURE="$TMPROOT/current-enumeration-fixture"
+mkdir -p "$ENUM_FIXTURE"
+git -C "$ENUM_FIXTURE" init -q
+git -C "$ENUM_FIXTURE" config user.email gitleaks-enumeration-test@example.invalid
+git -C "$ENUM_FIXTURE" config user.name 'Gitleaks Enumeration Test'
+printf 'clean=true\n' >"$ENUM_FIXTURE/proof.log"
+git -C "$ENUM_FIXTURE" add proof.log
+
+mkdir -p "$TMPROOT/fail-git"
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'if [[ " $* " == *" ls-files -z -- *.log "* ]]; then' \
+  '  exit 77' \
+  'fi' \
+  'exec "$REAL_GIT" "$@"' >"$TMPROOT/fail-git/git"
+chmod +x "$TMPROOT/fail-git/git"
+set +e
+enumeration_failure_out="$(PATH="$TMPROOT/fail-git:$PATH" REAL_GIT="$(command -v git)" GITLEAKS_BIN="$GITLEAKS_BIN" "$CURRENT_GUARD" "$ENUM_FIXTURE" 2>&1)"
+enumeration_failure_rc=$?
+set -e
+expect_nonzero "$enumeration_failure_rc" "current-tree guard fails closed when tracked-log enumeration fails"
+if [[ "$enumeration_failure_out" == *"synthetic_"* ]]; then
+  fail "tracked-log enumeration failure keeps fixed safe output"
+else
+  pass "tracked-log enumeration failure keeps fixed safe output"
+fi
+
 set +e
 staged_out="$(GITLEAKS_BIN="$GITLEAKS_BIN" "$STAGED_GUARD" "$FIXTURE" 2>&1)"
 staged_rc=$?

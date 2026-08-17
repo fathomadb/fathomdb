@@ -53,10 +53,14 @@ worker handoff, review, safe receipt/index, or artifact boundaries. No paid
 service, extractor, push, or downstream ANSWER-01/MEMORY-01/SCALE-02 execution
 is authorized.
 
-`PARENT-01` may join the LOCOMO grid by HITL direction but is not commissioned:
-its exact child/parent relation, neighbor bound, fusion, and returned context
-remain a proposal for HITL approval. The coordinator alone edits this board and
-PROGRAM state.
+HITL decision `seq-250` approves `parent_child_turn_session_v1`: its exact
+frozen amendment is linked from PARENT-01. Later empirical variants remain
+permitted only through a new frozen amendment and normal review. The 0.90 TC-5
+goal remains in force; a current-configuration ground-truth remediation is
+authorized but must first receive a dated diagnostic contract. SCALE-02 claim
+policy remains open pending an HITL proposal; no product policy is authorized
+before initial measures. The coordinator alone edits this board and PROGRAM
+state.
 
 ## Track status
 
@@ -65,12 +69,12 @@ PROGRAM state.
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
 | LOCOMO-01 | Active | Execution authorization recorded; not yet commissioned | `seq-249` authorizes the fixed-subset dry run, Phase-B CPU/FTS grid, and GPU/CE cells. Next gate: commission a reviewed executable lane with frozen external inputs and receipts. |
-| PARENT-01 | Planned | Grid inclusion authorized; frozen treatment proposal pending | TRACE-01 dependency is satisfied and HITL directed that it join the LOCOMO grid. Next gate: approve the exact treatment, then commission preparation/implementation. |
-| SCALE-01 | Planned | Execution authorization recorded; not yet commissioned | `seq-249` authorizes the TC-5 smoke and long CPU characterization. Next gate: commission a reviewed executor with manifest, external-root, and host preflight evidence. |
+| PARENT-01 | Active | Frozen v1 authorized; not yet commissioned | `seq-250` approves `parent_child_turn_session_v1`. Next gate: commission isolated preparation/implementation under its dated amendment; empirical variants require a new amendment and review. |
+| SCALE-01 | Planned | Execution plus ground-truth remediation authorized; not yet commissioned | `seq-249` authorizes the TC-5 smoke and long CPU characterization; `seq-250` retains 0.90 as the goal and authorizes a separate remediation. Next gate: commission the executor and author a dated remediation contract. |
 | CORPUS-01 | Planned | Corpus and gold-work authorization recorded; not yet commissioned | `seq-249` authorizes corpus/license matrix and human-gold work. Next gate: commission the preparation lane with external-data and licensing boundaries. |
 | ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |
 | MEMORY-01 | Blocked | Waiting for ANSWER-01 | Require selected profile, native prerequisites, and declared spend ceiling. |
-| SCALE-02 | Blocked | Waiting for SCALE-01 and selected profile | Freeze workload matrix and distinguish canonical from derived counts. |
+| SCALE-02 | Blocked | Waiting for initial measures and selected profile | Claim policy remains open pending an HITL proposal. Freeze workload matrix and distinguish canonical from derived counts after the evidence exists. |
 | LATENT-01 | Parked | Not commissioned | Requires diagnosed cross-window discourse failure. |
 | GRAPH-01 | Planned | Not commissioned | Requires bounded graph design and supporting-evidence protocol. |
 | GLOBAL-01 | Parked | Not commissioned | Requires GRAPH-01 relevance and native cost/reproduction preflight. |

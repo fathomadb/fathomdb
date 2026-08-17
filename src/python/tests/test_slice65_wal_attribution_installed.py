@@ -196,6 +196,9 @@ def run_binding_reader_erase(expected_version: str) -> None:
             reader = threading.Thread(target=governed_read, name="slice65-python-read")
             reader.start()
             snapshot_pause.wait_snapshot_ready()
+            snapshot_state = snapshot_pause.reader_native_state_for_test()
+            assert "auto=0" in snapshot_state and "txn=read" in snapshot_state
+            print(f"slice65_wal python_binding_held_reader_native_state={snapshot_state}", flush=True)
             print("slice65_wal python_binding_snapshot_ready", flush=True)
             try:
                 engine.erase_source("slice65-binding-source")
@@ -223,8 +226,15 @@ def run_binding_reader_erase(expected_version: str) -> None:
             inventory = native._wal_attribution_binding_inventory_for_test()
             print(f"slice65_wal python_binding_direct_inventory={inventory}", flush=True)
             first_raw = _raw_binding_checkpoint(path, "before_engine_sampler")
+            native._arm_binding_native_state_observation_for_test()
             samples = native._checkpoint_at_rest_for_test()
             assert 1 <= len(samples) <= 5
+            state_records = native._drain_binding_native_state_observations_for_test()
+            assert len(state_records) == len(samples) * 2
+            for before, after in zip(state_records[::2], state_records[1::2], strict=True):
+                assert "state_inventory=complete" in before and "state_inventory=complete" in after
+                print(f"slice65_wal python_binding_native_state {before}", flush=True)
+                print(f"slice65_wal python_binding_native_state {after}", flush=True)
             print(
                 f"slice65_wal python_binding_engine_sampler samples={len(samples)} "
                 f"final_busy={int(samples[-1][0])}",

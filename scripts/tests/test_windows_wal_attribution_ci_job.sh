@@ -139,6 +139,9 @@ assert_absent "$CODE" 'python_binding_completion_ack collector=idle' "job does n
 assert_contains "$CODE" "\$artifact -SimpleMatch 'slice65_wal python_binding_completion_ack reader_autocommit=1 collector=idle'" "job requires the binding completion acknowledgement in the retained artifact"
 assert_absent "$CODE" 'python_binding_snapshot_released' "job does not require the removed binding post-release marker"
 assert_contains "$CODE" 'python_binding_direct_inventory=' "job requires direct installed binding inventory"
+assert_contains "$CODE" 'python_binding_held_reader_native_state=' "job requires the held reader native-state positive control"
+assert_contains "$CODE" 'python_binding_native_state control=binding_sampler phase=before' "job requires binding sampler native state before each checkpoint"
+assert_contains "$CODE" 'python_binding_native_state control=binding_sampler phase=after' "job requires binding sampler native state after each checkpoint"
 assert_contains "$CODE" 'python_binding_raw case=before_engine_sampler' "job requires the first installed binding raw sample"
 assert_contains "$CODE" 'python_binding_engine_sampler' "job requires exactly one installed binding Engine-path sampler"
 assert_contains "$CODE" 'python_binding_raw case=after_engine_sampler' "job requires the second installed binding raw sample"
@@ -238,6 +241,10 @@ assert_contains "$(<"$PY_SOURCE")" \
   '_wal_attribution_binding_inventory_for_test' \
   "installed binding exposes completion and direct-inventory hooks only in its test-hooks build"
 assert_contains "$(<"$PY_SOURCE")" \
+  '_arm_binding_native_state_observation_for_test' \
+  '_drain_binding_native_state_observations_for_test' \
+  "installed binding exposes the private binding native-state observer only in its test-hooks build"
+assert_contains "$(<"$PY_SOURCE")" \
   '_native_raw_wal_checkpoint_for_test' \
   'wrap_pyfunction!(native_raw_wal_checkpoint_for_test, &m)' \
   "installed binding exposes the native child raw-checkpoint hook only in its test-hooks build"
@@ -256,6 +263,11 @@ assert_contains "$(<"$ENGINE_SOURCE")" \
   'binding_connection_inventory_for_test' \
   'checkpoint_at_rest_for_test' \
   "engine retains private completion, inventory, and checkpoint sampler seams"
+assert_contains "$(<"$ENGINE_SOURCE")" \
+  'NativeTransactionState' \
+  'native_connection_state_for_test' \
+  'binding_native_state_observations' \
+  "engine retains private native SQLite transaction and statement-state observation"
 assert_contains "$(<"$ENGINE_SOURCE")" \
   '#[cfg(any(test, feature = "test-hooks"))]' \
   'actual_checkpoint_observations: Mutex<Option<ActualCheckpointObserver>>' \

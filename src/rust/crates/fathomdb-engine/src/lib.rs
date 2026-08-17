@@ -22293,6 +22293,39 @@ mod tests {
         eprintln!("slice65_wal retained_record_contract=passed");
     }
 
+    /// Slice 65 N23-WAL-BINDING-NATIVE-STATE RED: an autocommit connection
+    /// may still own a stepped SQLite statement.  The diagnostic must retain
+    /// the direct owning-connection state, then observe it reset after the
+    /// rows/statement values are dropped.
+    #[test]
+    fn wal_attribution_native_state_observes_busy_statement_then_reset() {
+        let connection = Connection::open_in_memory().expect("open");
+        connection
+            .execute_batch(
+                "CREATE TABLE state_probe(value INTEGER); INSERT INTO state_probe VALUES (1);",
+            )
+            .expect("seed");
+        let mut statement = connection.prepare("SELECT value FROM state_probe").expect("prepare");
+        let mut rows = statement.query([]).expect("query");
+        assert!(rows.next().expect("step").is_some(), "step one real row");
+
+        let stepped =
+            native_connection_state_for_test(&connection, WalAttributionRole::ReaderWorker, 0);
+        assert!(stepped.autocommit, "implicit stepped reads remain autocommit");
+        assert_eq!(stepped.transaction, NativeTransactionState::Read);
+        assert!(stepped.busy_statement, "stepped rows keep their statement busy");
+
+        drop(rows);
+        let reset =
+            native_connection_state_for_test(&connection, WalAttributionRole::ReaderWorker, 0);
+        assert!(!reset.busy_statement, "dropping Rows resets the statement");
+        drop(statement);
+        let dropped =
+            native_connection_state_for_test(&connection, WalAttributionRole::ReaderWorker, 0);
+        assert_eq!(dropped.transaction, NativeTransactionState::None);
+        assert!(!dropped.busy_statement, "dropping Statement leaves no busy statement");
+    }
+
     /// Slice 65 follow-on: establish whether the observed post-release busy
     /// checkpoint occurs before or after SQLite has actually committed the held
     /// reader. This is a diagnostic only: it deliberately runs exactly one

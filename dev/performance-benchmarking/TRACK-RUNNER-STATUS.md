@@ -7,9 +7,9 @@ index remain the source of execution evidence.
 
 **Last reconciled:** 2026-08-16
 
-**Integration base:** `db3a9363` on
-`experiments/performance-experiments-20260815`. This is the verified integrated
-LOCOMO/PARENT and TC-5 factual-input qualification set; replace it with the
+**Integration base:** `2598aad5` on
+`experiments/performance-experiments-20260815`. This is the verified initial
+executor, qualification, and coordinator-state set; replace it with the
 verified integration SHA at each accepted lane close.
 
 ## Current lanes
@@ -277,6 +277,13 @@ unsupported native claims, unqualified human-gold amendments, incomplete
 factual preflight, and untrusted approval bindings. The next gate is a
 coordinator-created trusted amendment registry only when a real, approved
 human-gold batch needs it; no payload or human-review work has yet begun.
+
+The final cross-lane review accepted the reconciled initial executor and
+qualification state at `2598aad5`. It verified that PROGRAM and the PARENT-01,
+SCALE-01, and CORPUS-01 charters agree with this board: the mechanisms are
+integrated, but all authorized measurements remain blocked on their factual
+external prerequisites and a coordinator release. No action, result, receipt,
+or experiment-index row has been issued after HITL authorization.
 
 ## Track status
 

@@ -78,7 +78,8 @@
     },
   "incident_ladder_follow_on": {
     "commission": "Job 95323862568 observed the direct-Rust close-old/fresh-read_get/graph_neighbors nested-source erase fail closed with typed ErasureIncomplete at wal_checkpoint after five BUSY attempts and 25 frames. Replace the prior clean-erase expectation with one private test-only incident checkpoint ladder: independent raw samples after old close, after complete fresh-read direct inventory plus collector idle, and after an explicit RuntimeProbe actual-drop acknowledgement before the one destructive erase. Raw samples do not retry, relabel, or complete that erase. A BUSY pre-erasure raw sample requires fresh close/join, one same-process raw sample, and exactly one native FathomDB/Rusqlite fresh-child raw sample. RuntimeProbe lifecycle facts must be complete before any external classification. Installed-Python serial clean and direct-Rust typed incident facts are distinct; disposition remains UNATTRIBUTED and no remedy is selected.",
-    "status": "COMMISSIONED_NOT_YET_HOSTED"
+    "status": "IMPLEMENTED_LOCAL_NOT_HOSTED",
+    "green_evidence": "The focused Linux direct-Rust ladder passed with clean old-close, after-fresh-reads, and after-erasure-preflight raw samples, complete direct long-lived autocommit inventory, collector idle, RuntimeProbe actual-drop acknowledgements, and clean erase observation. This is not Windows evidence and does not select a remedy. The hosted Windows artifact must retain the typed-or-clean observation without retrying the erase."
   },
   "remaining_controls": [
     "hosted Windows execution of the committed post-COMMIT acknowledgement diagnostic, exact inventory, bounded independent raw TRUNCATE samples, and conditional fresh-child probe after the existing held-reader fail-closed erase",

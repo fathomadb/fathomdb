@@ -641,6 +641,7 @@ struct ProjectionRuntime {
 struct ManagedConnectionRegistry {
     live: Mutex<BTreeSet<(WalAttributionRole, usize)>>,
     opens: Mutex<BTreeMap<ManagedConnectionCategory, usize>>,
+    runtime_probe_lifecycle: Mutex<RuntimeProbeLifecycle>,
 }
 
 #[cfg(any(test, feature = "test-hooks"))]
@@ -658,6 +659,30 @@ struct ManagedConnectionRegistration {
     registry: Arc<ManagedConnectionRegistry>,
     role: WalAttributionRole,
     index: usize,
+}
+
+/// Private lifecycle facts for an independent diagnostic probe. A probe is
+/// useful only after its native SQLite connection has actually been dropped;
+/// an implicit drop is deliberately retained as incomplete rather than being
+/// mistaken for an external holder.
+#[cfg(any(test, feature = "test-hooks"))]
+#[derive(Clone, Copy, Debug, Default)]
+struct RuntimeProbeLifecycle {
+    live: usize,
+    actual_drops: usize,
+    incomplete_drops: usize,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+struct RuntimeProbeRegistration {
+    registry: Arc<ManagedConnectionRegistry>,
+    acknowledged: bool,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+struct RuntimeProbeConnection {
+    connection: Option<Connection>,
+    registration: RuntimeProbeRegistration,
 }
 
 #[cfg(any(test, feature = "test-hooks"))]
@@ -705,6 +730,12 @@ impl ManagedConnectionRegistry {
             *opens.get(&ManagedConnectionCategory::RuntimeProbe).unwrap_or(&0),
         ))
     }
+
+    fn register_runtime_probe(self: &Arc<Self>) -> RuntimeProbeRegistration {
+        let mut lifecycle = self.runtime_probe_lifecycle.lock().expect("runtime probe lifecycle");
+        lifecycle.live += 1;
+        RuntimeProbeRegistration { registry: Arc::clone(self), acknowledged: false }
+    }
 }
 
 #[cfg(any(test, feature = "test-hooks"))]
@@ -713,6 +744,53 @@ impl Drop for ManagedConnectionRegistration {
         if let Ok(mut live) = self.registry.live.lock() {
             live.remove(&(self.role, self.index));
         }
+    }
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+impl RuntimeProbeRegistration {
+    fn acknowledge_actual_drop(&mut self) -> RuntimeProbeLifecycle {
+        let mut lifecycle =
+            self.registry.runtime_probe_lifecycle.lock().expect("runtime probe lifecycle");
+        assert!(lifecycle.live > 0, "runtime probe acknowledgement without a live probe");
+        lifecycle.live -= 1;
+        lifecycle.actual_drops += 1;
+        self.acknowledged = true;
+        *lifecycle
+    }
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+impl Drop for RuntimeProbeRegistration {
+    fn drop(&mut self) {
+        if !self.acknowledged {
+            if let Ok(mut lifecycle) = self.registry.runtime_probe_lifecycle.lock() {
+                lifecycle.live = lifecycle.live.saturating_sub(1);
+                lifecycle.incomplete_drops += 1;
+            }
+        }
+    }
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+impl RuntimeProbeConnection {
+    fn open(path: &Path, registry: &Arc<ManagedConnectionRegistry>) -> rusqlite::Result<Self> {
+        let connection =
+            open_managed_connection(path, ManagedConnectionCategory::RuntimeProbe, registry)?;
+        Ok(Self { connection: Some(connection), registration: registry.register_runtime_probe() })
+    }
+
+    fn connection(&self) -> &Connection {
+        self.connection.as_ref().expect("runtime probe connection remains live")
+    }
+
+    fn close_and_acknowledge(mut self) -> rusqlite::Result<RuntimeProbeLifecycle> {
+        self.connection
+            .take()
+            .expect("runtime probe connection remains live")
+            .close()
+            .map_err(|(_, error)| error)?;
+        Ok(self.registration.acknowledge_actual_drop())
     }
 }
 
@@ -21905,8 +21983,9 @@ unsafe extern "C" fn profile_callback_trampoline(
 mod tests {
     use super::{
         derive_stable_id, resolve_source_type, Engine, EngineError, IdSpace, IdSpaceKind,
-        InitialState, PreparedWrite, SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS,
-        KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
+        InitialState, ManagedConnectionRegistry, PreparedWrite, RuntimeProbeConnection, SourceId,
+        WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL,
+        PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
     use rusqlite::Connection;
@@ -22504,100 +22583,261 @@ mod tests {
         report
     }
 
-    /// Slice 65 RED: model the audited Memex lifecycle precisely: close an old
-    /// store, recover through a fresh store's reads, then erase nested source
-    /// content and purge the deleted root without a retry loop.
+    /// Slice 65 follow-on: retain the direct-Rust incident as one typed
+    /// fail-closed observation. Ordered native raw samples distinguish the old
+    /// close, completed fresh recovery reads, and pre-erasure probe lifecycle;
+    /// none retries or changes the original nested-source erase.
     #[test]
-    fn wal_attribution_reopen_recovery_reads_then_nested_erasure_are_idle() {
+    fn wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation() {
+        const CHILD_PATH: &str = "FATHOMDB_SLICE65_INCIDENT_LADDER_CHILD_PATH";
+
+        if let Some(path) = std::env::var_os(CHILD_PATH) {
+            let registry = Arc::new(ManagedConnectionRegistry::default());
+            let report = incident_ladder_raw_checkpoint(
+                Path::new(&path),
+                "fresh_child",
+                &registry,
+                true,
+                false,
+            );
+            eprintln!(
+                "slice65_wal incident_ladder child_raw stage=fresh_child raw_busy={} raw_log_frames={} raw_checkpointed_frames={}",
+                report.busy, report.log_frames, report.checkpointed_frames,
+            );
+            return;
+        }
+
         let dir = TempDir::new().expect("temp dir");
-        let path = dir.path().join("wal-attribution-reopen.sqlite");
-        let old = Engine::open(&path).expect("old open");
-        old.engine
-            .write(&[
-                PreparedWrite::Node {
-                    kind: "doc".to_string(),
-                    body: "root".to_string(),
-                    source_id: SourceId::new("slice65-root-source").expect("source"),
-                    logical_id: Some("slice65-root".to_string()),
-                    state: InitialState::Active,
-                    reason: None,
-                    valid_from: None,
-                    valid_until: None,
-                },
-                PreparedWrite::Node {
-                    kind: "doc".to_string(),
-                    body: "nested".to_string(),
-                    source_id: SourceId::new("slice65-nested-source").expect("source"),
-                    logical_id: Some("slice65-nested".to_string()),
-                    state: InitialState::Active,
-                    reason: None,
-                    valid_from: None,
-                    valid_until: None,
-                },
-                PreparedWrite::Edge {
-                    kind: "relates_to".to_string(),
-                    from: "slice65-root".to_string(),
-                    to: "slice65-nested".to_string(),
-                    source_id: SourceId::new("slice65-nested-source").expect("source"),
-                    logical_id: Some("slice65-incident-edge".to_string()),
-                    body: None,
-                    t_valid: None,
-                    t_invalid: None,
-                    confidence: None,
-                    extractor_model_id: None,
-                    temporal_fallback: None,
-                },
-            ])
-            .expect("old write");
+        let path = dir.path().join("wal-attribution-incident-ladder.sqlite");
+        let old = seed_close_boundary_database(&path);
         old.engine.close().expect("old close");
+        assert_closed_engine_is_idle(&old);
+        let old_report = incident_ladder_raw_checkpoint(
+            &path,
+            "old_close",
+            &old.engine.managed_connections,
+            true,
+            false,
+        );
 
         let fresh = Engine::open(&path).expect("fresh open");
         assert!(fresh
             .engine
-            .read_get("slice65-root", &Default::default())
-            .expect("recovery read")
+            .read_get("slice65-close-root", &Default::default())
+            .expect("fresh recovery read")
             .is_some());
         assert_eq!(
             fresh
                 .engine
                 .graph_neighbors(
-                    "slice65-root",
+                    "slice65-close-root",
                     1,
                     super::TraversalDirection::Outgoing,
                     &Default::default(),
                 )
-                .expect("nested recovery read")
+                .expect("fresh recovery neighbors")
                 .len(),
             1
         );
-        assert!(fresh.engine.wal_attribution_snapshot().no_owned_snapshot);
-        let before_erase = fresh.engine.wal_attribution_checkpoints_for_test().len();
-        fresh.engine.erase_source("slice65-nested-source").expect("nested erase");
-        let erase_records = &fresh.engine.wal_attribution_checkpoints_for_test()[before_erase..];
-        assert!(!erase_records.is_empty(), "nested erase must record a checkpoint");
-        assert!(erase_records.iter().all(|record| {
-            !record.busy
-                && record.classification == "no_owned_snapshot"
-                && record.active_roles.is_empty()
-        }));
-        fresh
+        let inventory =
+            incident_ladder_long_lived_inventory(&fresh).expect("complete fresh inventory");
+        eprintln!(
+            "slice65_wal incident_ladder stage=after_fresh_reads direct_inventory={inventory} collector_roles=idle"
+        );
+        let fresh_reads_report = incident_ladder_raw_checkpoint(
+            &path,
+            "after_fresh_reads",
+            &fresh.engine.managed_connections,
+            false,
+            true,
+        );
+        incident_ladder_runtime_probe_preflight(&path, &fresh.engine.managed_connections);
+        let preflight_report = incident_ladder_raw_checkpoint(
+            &path,
+            "after_erasure_preflight",
+            &fresh.engine.managed_connections,
+            false,
+            true,
+        );
+
+        let observed = fresh.engine.erase_source("slice65-close-nested-source");
+        match observed {
+            Err(EngineError::ErasureIncomplete { stage, .. }) if stage == "wal_checkpoint" => {
+                eprintln!("slice65_wal incident_ladder typed_erase_observation=wal_checkpoint");
+                eprintln!("slice65_wal incident_ladder erase_observation=typed_erasure_incomplete");
+            }
+            Ok(report) => {
+                assert_eq!(
+                    report.nodes_excised, 1,
+                    "clean incident observation must excise nested node"
+                );
+                eprintln!("slice65_wal incident_ladder erase_observation=clean_completion");
+            }
+            other => panic!("incident erase produced an unrecognized outcome: {other:?}"),
+        }
+
+        let any_busy = [old_report, fresh_reads_report, preflight_report]
+            .into_iter()
+            .any(|report| report.busy != 0);
+        if any_busy {
+            fresh.engine.close().expect("close and join fresh Engine before follow-up samples");
+            assert_closed_engine_is_idle(&fresh);
+            let same_process = incident_ladder_raw_checkpoint(
+                &path,
+                "after_fresh_close",
+                &fresh.engine.managed_connections,
+                true,
+                false,
+            );
+            eprintln!(
+                "slice65_wal incident_ladder same_process_raw stage=after_fresh_close raw_busy={} raw_log_frames={} raw_checkpointed_frames={}",
+                same_process.busy, same_process.log_frames, same_process.checkpointed_frames,
+            );
+            let output = Command::new(std::env::current_exe().expect("current test executable"))
+                .arg("--exact")
+                .arg("tests::wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation")
+                .arg("--nocapture")
+                .env(CHILD_PATH, &path)
+                .output()
+                .expect("run native fresh-child incident probe");
+            assert!(
+                output.status.success(),
+                "native fresh-child incident probe failed with status {:?}",
+                output.status
+            );
+            eprint!("{}", String::from_utf8_lossy(&output.stderr));
+            eprintln!("slice65_wal incident_ladder child_raw stage=fresh_child outcome=recorded");
+        } else {
+            eprintln!(
+                "slice65_wal incident_ladder child_raw stage=fresh_child outcome=not_required"
+            );
+        }
+        eprintln!("slice65_wal incident_ladder=recorded");
+    }
+
+    fn incident_ladder_long_lived_inventory(
+        opened: &super::OpenedEngine,
+    ) -> Result<String, &'static str> {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let mut snapshot = opened.engine.wal_attribution_snapshot();
+        while snapshot.roles.len() < 1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS
+            && Instant::now() < deadline
+        {
+            thread::sleep(Duration::from_millis(5));
+            snapshot = opened.engine.wal_attribution_snapshot();
+        }
+        if snapshot.roles.len() != 1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS
+            || !opened.engine.managed_connections.exact_live()
+        {
+            return Err("registry_mismatch");
+        }
+        if !snapshot.no_owned_snapshot
+            || snapshot.roles.iter().any(|role| role.active || role.phase != "idle")
+        {
+            return Err("collector_not_idle");
+        }
+        let writer_autocommit = opened
             .engine
-            .transition(
-                "slice65-root",
-                super::LifecycleState::Deleted,
-                Some("slice65 incident".to_string()),
-            )
-            .expect("delete root");
-        let before_purge = fresh.engine.wal_attribution_checkpoints_for_test().len();
-        fresh.engine.purge("slice65-root").expect("purge root");
-        let purge_records = &fresh.engine.wal_attribution_checkpoints_for_test()[before_purge..];
-        assert!(!purge_records.is_empty(), "root purge must record a checkpoint");
-        assert!(purge_records.iter().all(|record| {
-            !record.busy
-                && record.classification == "no_owned_snapshot"
-                && record.active_roles.is_empty()
-        }));
-        eprintln!("slice65_wal reopen_nested_serial=passed");
+            .connection
+            .lock()
+            .map_err(|_| "writer_lock")?
+            .as_ref()
+            .is_some_and(Connection::is_autocommit);
+        if !writer_autocommit {
+            return Err("writer_not_autocommit");
+        }
+        let readers = opened.engine.reader_pool.wal_connection_inventory_for_test();
+        if readers.len() != READER_POOL_SIZE || readers.into_iter().any(|autocommit| !autocommit) {
+            return Err("reader_not_autocommit");
+        }
+        let runtime =
+            opened.engine.projection_runtime.report_runtime_connection_inventory_for_test()?;
+        let expected = BTreeSet::from([
+            (WalAttributionRole::ProjectionDispatcher, 0),
+            (WalAttributionRole::ProjectionWorker, 0),
+            (WalAttributionRole::ProjectionWorker, 1),
+        ]);
+        let actual =
+            runtime.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>();
+        if actual != expected || runtime.iter().any(|(_, _, autocommit)| !autocommit) {
+            return Err("runtime_not_autocommit");
+        }
+        let creation =
+            opened.engine.managed_connections.creation_counts().ok_or("creation_audit_lock")?;
+        Ok(format!(
+            "writer:autocommit;readers:8-autocommit;dispatcher:autocommit;workers:2-autocommit;creation=writer:{},readers:{},dispatcher:{},workers:{},probes:{}",
+            creation.0, creation.1, creation.2, creation.3, creation.4,
+        ))
+    }
+
+    fn incident_ladder_runtime_probe_preflight(
+        path: &Path,
+        registry: &Arc<ManagedConnectionRegistry>,
+    ) {
+        let probe =
+            RuntimeProbeConnection::open(path, registry).expect("open runtime probe preflight");
+        let _: i64 = probe
+            .connection()
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .expect("query runtime probe preflight");
+        let lifecycle = probe.close_and_acknowledge().expect("close runtime probe preflight");
+        assert_eq!(lifecycle.live, 0, "runtime probe must not remain live at preflight");
+        assert_eq!(
+            lifecycle.incomplete_drops, 0,
+            "runtime probe preflight must retain an actual close acknowledgement"
+        );
+        eprintln!(
+            "slice65_wal incident_ladder runtime_probe_drop_ack stage=erasure_preflight live={} actual_drops={} incomplete_drops={}",
+            lifecycle.live, lifecycle.actual_drops, lifecycle.incomplete_drops,
+        );
+    }
+
+    fn incident_ladder_raw_checkpoint(
+        path: &Path,
+        stage: &str,
+        registry: &Arc<ManagedConnectionRegistry>,
+        old_engine_closed: bool,
+        fresh_engine_open: bool,
+    ) -> super::TruncateWalReport {
+        let started = Instant::now();
+        let probe =
+            RuntimeProbeConnection::open(path, registry).expect("open native runtime probe");
+        probe.connection().busy_timeout(Duration::ZERO).expect("raw probe no wait");
+        let (busy, log_frames, checkpointed_frames): (i64, i64, i64) = probe
+            .connection()
+            .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
+            .expect("native runtime probe checkpoint");
+        let lifecycle = probe.close_and_acknowledge().expect("close native runtime probe");
+        assert_eq!(lifecycle.live, 0, "runtime probe must be dropped before recording {stage}");
+        assert_eq!(
+            lifecycle.incomplete_drops, 0,
+            "runtime probe lifecycle is incomplete at {stage}"
+        );
+        let report = super::TruncateWalReport {
+            status: if busy == 0 {
+                super::TruncateWalStatus::Done
+            } else {
+                super::TruncateWalStatus::Busy
+            },
+            busy: busy.max(0) as u32,
+            log_frames: log_frames.max(0) as u32,
+            checkpointed_frames: checkpointed_frames.max(0) as u32,
+        };
+        eprintln!(
+            "slice65_wal incident_ladder stage={stage} old_engine_closed={} fresh_engine_open={} elapsed_ms={} raw_busy={} raw_log_frames={} raw_checkpointed_frames={} runtime_probe_live={} runtime_probe_actual_drop={} runtime_probe_incomplete_drops={}",
+            u8::from(old_engine_closed),
+            u8::from(fresh_engine_open),
+            started.elapsed().as_millis(),
+            report.busy,
+            report.log_frames,
+            report.checkpointed_frames,
+            lifecycle.live,
+            lifecycle.actual_drops,
+            lifecycle.incomplete_drops,
+        );
+        report
     }
 
     /// Slice 65 RED: an active projection worker is attributed only after its

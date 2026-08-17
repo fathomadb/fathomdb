@@ -107,13 +107,13 @@ assert_contains "$CODE" 'wal_attribution_retained_materialized_result_is_idle_at
 assert_contains "$CODE" 'tests::wal_attribution_reader_handoff_is_idle_before_materialized_reply' "job selects the exact reader-handoff control"
 assert_contains "$CODE" 'reader-handoff attribution command selected zero tests' "job rejects a zero-test reader-handoff invocation"
 assert_contains "$CODE" 'slice65_wal reader_handoff_idle_before_reply=passed' "job requires the reader-handoff artifact marker"
-assert_contains "$CODE" 'wal_attribution_reopen_recovery_reads_then_nested_erasure_are_idle' "job runs incident-shaped reopen control"
 assert_contains "$CODE" 'tests::wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation' "job selects the exact incident checkpoint ladder"
 assert_contains "$CODE" 'incident checkpoint ladder selected zero tests' "job rejects a zero-test incident checkpoint ladder invocation"
-assert_contains "$CODE" 'slice65_wal incident_ladder stage=old_close' "job requires the old-close incident ladder artifact"
+assert_contains "$CODE" 'slice65_wal incident_ladder stage=old_close old_engine_closed=1 fresh_engine_open=0' "job requires the old-close incident ladder artifact"
 assert_contains "$CODE" 'slice65_wal incident_ladder stage=after_fresh_reads' "job requires the fresh-read incident ladder artifact"
+assert_contains "$CODE" 'slice65_wal incident_ladder stage=after_fresh_reads old_engine_closed=0 fresh_engine_open=1' "job retains the live fresh-Engine ladder fact"
 assert_contains "$CODE" 'slice65_wal incident_ladder runtime_probe_drop_ack' "job requires the runtime-probe actual-drop acknowledgement"
-assert_contains "$CODE" 'slice65_wal incident_ladder typed_erase_observation=wal_checkpoint' "job requires the typed incident erase observation"
+assert_contains "$CODE" 'slice65_wal incident_ladder erase_observation=' "job retains the direct-Rust incident erase observation"
 assert_contains "$CODE" 'wal_attribution_projection_worker_transaction_is_owned_then_idle' "job runs projection transaction control"
 assert_contains "$CODE" 'tests::wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic' "job selects the exact post-commit diagnostic control"
 assert_contains "$CODE" 'post-commit diagnostic command selected zero tests' "job rejects a zero-test post-commit diagnostic invocation"
@@ -190,12 +190,12 @@ for marker in \
   'owned_reader_snapshot' \
   'owned_runtime_transaction' \
   'reader_handoff_idle_before_reply=passed' \
-  'reopen_nested_serial=passed' \
   'fn wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation' \
-  'incident_ladder stage=old_close' \
+  '"old_close"' \
   'incident_ladder stage=after_fresh_reads' \
   'incident_ladder runtime_probe_drop_ack' \
   'incident_ladder typed_erase_observation=wal_checkpoint' \
+  'incident_ladder erase_observation=' \
   'RuntimeProbeRegistration' \
   'runtime_probe_actual_drop' \
   'retained_materialized_idle=passed' \
@@ -365,12 +365,12 @@ else
 fi
 assert_before_in_text \
   "$incident_ladder_body" \
-  'incident_ladder_raw_checkpoint(&path, "old_close"' \
+  'let old_report = incident_ladder_raw_checkpoint(' \
   'let fresh = Engine::open(&path)' \
   "incident ladder samples old-close before fresh open"
 assert_before_in_text \
   "$incident_ladder_body" \
-  'incident_ladder_raw_checkpoint(&path, "after_fresh_reads"' \
+  'let fresh_reads_report = incident_ladder_raw_checkpoint(' \
   'incident_ladder_runtime_probe_preflight(&path' \
   "incident ladder samples fresh reads before runtime-probe preflight"
 assert_before_in_text \
@@ -497,6 +497,59 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves post-commit artifact assertion is load-bearing"
   else
     fail "mutation did not fail post-commit artifact assertion: $post_commit_artifact_out"
+  fi
+
+  INCIDENT_LADDER_SELECTOR_MUTATED="$TMPROOT/ci-without-incident-ladder-selector.yml"
+  sed '/tests::wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation/d' "$CI" \
+    >"$INCIDENT_LADDER_SELECTOR_MUTATED"
+  set +e
+  incident_ladder_selector_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$INCIDENT_LADDER_SELECTOR_MUTATED" bash "$0" 2>&1)"
+  incident_ladder_selector_rc=$?
+  set -e
+  if [ "$incident_ladder_selector_rc" -ne 0 ] \
+    && grep -Fq 'job selects the exact incident checkpoint ladder (missing: tests::wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation)' <<<"$incident_ladder_selector_out"; then
+    pass "mutation proves incident ladder selector assertion is load-bearing"
+  else
+    fail "mutation did not fail incident ladder selector assertion: $incident_ladder_selector_out"
+  fi
+
+  INCIDENT_LADDER_GUARD_MUTATED="$TMPROOT/ci-without-incident-ladder-guard.yml"
+  sed '/incident checkpoint ladder selected zero tests/d' "$CI" >"$INCIDENT_LADDER_GUARD_MUTATED"
+  set +e
+  incident_ladder_guard_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$INCIDENT_LADDER_GUARD_MUTATED" bash "$0" 2>&1)"
+  incident_ladder_guard_rc=$?
+  set -e
+  if [ "$incident_ladder_guard_rc" -ne 0 ] \
+    && grep -Fq 'job rejects a zero-test incident checkpoint ladder invocation (missing: incident checkpoint ladder selected zero tests)' <<<"$incident_ladder_guard_out"; then
+    pass "mutation proves incident ladder zero-test guard is load-bearing"
+  else
+    fail "mutation did not fail incident ladder zero-test guard: $incident_ladder_guard_out"
+  fi
+
+  INCIDENT_LADDER_ARTIFACT_MUTATED="$TMPROOT/ci-without-incident-ladder-artifact.yml"
+  sed '/slice65_wal incident_ladder stage=old_close old_engine_closed=1 fresh_engine_open=0/d' "$CI" >"$INCIDENT_LADDER_ARTIFACT_MUTATED"
+  set +e
+  incident_ladder_artifact_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$INCIDENT_LADDER_ARTIFACT_MUTATED" bash "$0" 2>&1)"
+  incident_ladder_artifact_rc=$?
+  set -e
+  if [ "$incident_ladder_artifact_rc" -ne 0 ] \
+    && grep -Fq 'job requires the old-close incident ladder artifact (missing: slice65_wal incident_ladder stage=old_close old_engine_closed=1 fresh_engine_open=0)' <<<"$incident_ladder_artifact_out"; then
+    pass "mutation proves incident ladder artifact assertion is load-bearing"
+  else
+    fail "mutation did not fail incident ladder artifact assertion: $incident_ladder_artifact_out"
+  fi
+
+  RUNTIME_PROBE_LIFECYCLE_MUTATED="$TMPROOT/lib-without-runtime-probe-registration.rs"
+  sed 's/RuntimeProbeRegistration/ProbeLifecycleRegistrationRemoved/g' "$ENGINE_SOURCE" >"$RUNTIME_PROBE_LIFECYCLE_MUTATED"
+  set +e
+  runtime_probe_lifecycle_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$RUNTIME_PROBE_LIFECYCLE_MUTATED" bash "$0" 2>&1)"
+  runtime_probe_lifecycle_rc=$?
+  set -e
+  if [ "$runtime_probe_lifecycle_rc" -ne 0 ] \
+    && grep -Fq 'source retains RuntimeProbeRegistration (missing: RuntimeProbeRegistration)' <<<"$runtime_probe_lifecycle_out"; then
+    pass "mutation proves runtime-probe lifecycle assertion is load-bearing"
+  else
+    fail "mutation did not fail runtime-probe lifecycle assertion: $runtime_probe_lifecycle_out"
   fi
 
   IDENTITY_MUTATED="$TMPROOT/ci-without-wheel-identity.yml"

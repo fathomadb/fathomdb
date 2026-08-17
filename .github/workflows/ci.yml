@@ -516,8 +516,17 @@ jobs:
             Write-Error "reader-handoff attribution artifact is missing success marker"
             exit 1
           }
-          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_reopen_recovery_reads_then_nested_erasure_are_idle -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append
+          $incidentLadderLog = "$env:RUNNER_TEMP\slice65-windows-wal-incident-ladder.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $incidentLadderLog
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $incidentLadderLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "incident checkpoint ladder selected zero tests"
+            exit 1
+          }
+          if (-not (Select-String -Path $incidentLadderLog -SimpleMatch 'slice65_wal incident_ladder stage=old_close old_engine_closed=1 fresh_engine_open=0' -Quiet) -or -not (Select-String -Path $incidentLadderLog -SimpleMatch 'slice65_wal incident_ladder stage=after_fresh_reads direct_inventory=' -Quiet) -or -not (Select-String -Path $incidentLadderLog -SimpleMatch 'slice65_wal incident_ladder stage=after_fresh_reads old_engine_closed=0 fresh_engine_open=1' -Quiet) -or -not (Select-String -Path $incidentLadderLog -SimpleMatch 'collector_roles=idle' -Quiet) -or -not (Select-String -Path $incidentLadderLog -SimpleMatch 'slice65_wal incident_ladder runtime_probe_drop_ack stage=erasure_preflight' -Quiet) -or -not (Select-String -Path $incidentLadderLog -SimpleMatch 'slice65_wal incident_ladder stage=after_erasure_preflight' -Quiet) -or -not (Select-String -Path $incidentLadderLog -SimpleMatch 'slice65_wal incident_ladder erase_observation=' -Quiet) -or -not (Select-String -Path $incidentLadderLog -SimpleMatch 'slice65_wal incident_ladder child_raw stage=fresh_child' -Quiet) -or -not (Select-String -Path $incidentLadderLog -SimpleMatch 'slice65_wal incident_ladder=recorded' -Quiet)) {
+            Write-Error "incident checkpoint ladder artifact is incomplete"
+            exit 1
+          }
           cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_projection_worker_transaction_is_owned_then_idle -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $postCommitLog = "$env:RUNNER_TEMP\slice65-windows-wal-post-commit.log"

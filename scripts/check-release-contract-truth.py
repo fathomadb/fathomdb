@@ -218,6 +218,12 @@ def require_implicit_success(job_name: str, block: str) -> None:
         fail(f"{job_name} must not bypass failed dependencies with a status condition")
 
 
+def require_candidate_free(job_name: str, block: str) -> None:
+    conditions = re.findall(r"^    if:\s*(.+)$", block, re.MULTILINE)
+    if len(conditions) != 1 or "inputs.candidate_commit == ''" not in conditions[0]:
+        fail(f"{job_name} must be unreachable from an unmerged candidate dispatch")
+
+
 def main() -> None:
     repo = root()
     manifest = read_json(repo / "dev/platform-capabilities.json")
@@ -338,6 +344,7 @@ def main() -> None:
     if "co-tagging-assert" not in promotion_needs:
         fail("promote-npm-latest must depend on co-tagging-assert")
     require_implicit_success("promote-npm-latest", promotion)
+    require_candidate_free("promote-npm-latest", promotion)
     promotion_command_count = promotion.count("npm dist-tag add")
     if promotion_command_count != 1 or not PROMOTION_COMMAND.search(promotion):
         fail("promote-npm-latest must promote only fathomdb@${RELEASE_TAG#v} to latest")
@@ -348,6 +355,7 @@ def main() -> None:
     if "promote-npm-latest" not in needs("github-release", github_release):
         fail("github-release must depend on promote-npm-latest")
     require_implicit_success("github-release", github_release)
+    require_candidate_free("github-release", github_release)
 
     print(f"ok    release-contract-truth: {release} has {len(ready)} release-ready native triples")
 

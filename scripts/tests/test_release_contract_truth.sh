@@ -55,10 +55,10 @@ text = path.read_text()
 start = text.index('  canonical-cuda-package-route-required:\n')
 end = text.index('  all-builds-passed:\n', start)
 block = text[start:end]
-needle = '    permissions:\n      contents: read\n'
+needle = '    permissions: {}\n'
 if block.count(needle) != 1:
-    raise SystemExit('fixture canonical CUDA blocker lacks its read-token permission')
-path.write_text(text[:start] + block.replace(needle, '    permissions: {}\n', 1) + text[end:])
+    raise SystemExit('fixture canonical CUDA blocker lacks its empty permission map')
+path.write_text(text)
 PY
 expect_pass "$FIXTURE" 'accepts a credentialless canonical CUDA route blocker'
 
@@ -72,13 +72,10 @@ text = path.read_text()
 start = text.index('  canonical-cuda-package-route-required:\n')
 end = text.index('  all-builds-passed:\n', start)
 block = text[start:end]
-needle = '    permissions:\n      contents: read\n'
+needle = '    permissions: {}\n'
 if block.count(needle) != 1:
-    raise SystemExit('fixture canonical CUDA blocker lacks its read-token permission')
-credentialless = block.replace(needle, '    permissions: {}\n', 1)
-if credentialless.count('    permissions: {}\n') != 1:
-    raise SystemExit('fixture failed to create a credentialless canonical CUDA blocker')
-mutated = credentialless.replace('    permissions: {}\n', needle, 1)
+    raise SystemExit('fixture canonical CUDA blocker lacks its empty permission map')
+mutated = block.replace(needle, '    permissions:\n      contents: read\n', 1)
 path.write_text(text[:start] + mutated + text[end:])
 PY
 expect_fail "$FIXTURE" 'rejects a canonical CUDA route blocker that mints a read token'

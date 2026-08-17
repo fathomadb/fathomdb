@@ -140,11 +140,18 @@ def test_aggregator_derives_characterized_only_from_complete_valid_matrix() -> N
     finally:
         _cleanup(root)
     assert artifact["status"] == "CHARACTERIZED"
-    assert len(artifact["matrix"]) == 6
+    matrix = artifact["matrix"]
+    assert isinstance(matrix, list) and len(matrix) == 6
     assert artifact["summary"] is not None
-    warm = next(cell for cell in artifact["matrix"] if cell["treatment"] == "warm")
-    assert len(warm["repetitions"][0]["samples_us"]) == 1000
-    assert "p99_us" in warm["repetitions"][0]["query_statistics"]
+    warm = next(cell for cell in matrix if isinstance(cell, dict) and cell["treatment"] == "warm")
+    repetitions = warm["repetitions"]
+    assert isinstance(repetitions, list) and repetitions
+    first = repetitions[0]
+    assert isinstance(first, dict)
+    samples = first["samples_us"]
+    statistics = first["query_statistics"]
+    assert isinstance(samples, list) and len(samples) == 1000
+    assert isinstance(statistics, dict) and "p99_us" in statistics
 
 
 @pytest.mark.parametrize("kind,expected", [("partial", "INSUFFICIENT_SAMPLES"), ("dirty", "ENVIRONMENT_INVALID"), ("malformed", "ENVIRONMENT_INVALID")])

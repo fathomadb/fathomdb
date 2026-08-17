@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 
 import pytest
@@ -10,11 +11,18 @@ import pytest
 from experiments import locomo_external_adapter as adapter
 
 
-def _write_inputs(tmp_path: Path, *, question_count: int = 32) -> dict[str, str]:
+def _write_inputs(
+    tmp_path: Path,
+    *,
+    question_count: int = 32,
+    turn_ids: tuple[str, ...] = ("turn-1",),
+    evidence_id: str = "turn-1",
+) -> dict[str, str]:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     questions = [
         {
             "question": f"question {index}",
-            "evidence": ["turn-1"],
+            "evidence": [evidence_id],
             "category": (index % 3) + 1,
         }
         for index in range(question_count)
@@ -26,9 +34,10 @@ def _write_inputs(tmp_path: Path, *, question_count: int = 32) -> dict[str, str]
                 "session_1": [
                     {
                         "speaker": "Ada",
-                        "text": "raw corpus text must not leak",
-                        "dia_id": "turn-1",
-                    },
+                        "text": f"raw corpus text {turn_id} must not leak",
+                        "dia_id": turn_id,
+                    }
+                    for turn_id in turn_ids
                 ],
             },
             "qa": questions,
@@ -57,18 +66,24 @@ def _write_inputs(tmp_path: Path, *, question_count: int = 32) -> dict[str, str]
         json.dumps(adapter.synthetic_trace_sidecar("source-1")), encoding="utf-8"
     )
     relation_path = tmp_path / "relations.json"
-    relation_path.write_text(
-        json.dumps(
+    relations = adapter.relation_proof_document(
+        turns,
+        sessions,
+        child_id=turn_ids[0],
+        session_id="session_1",
+        source_id="source-1",
+    )
+    for child_id in turn_ids[1:]:
+        relations["entries"].extend(
             adapter.relation_proof_document(
                 turns,
                 sessions,
-                child_id="turn-1",
+                child_id=child_id,
                 session_id="session_1",
                 source_id="source-1",
-            )
-        ),
-        encoding="utf-8",
-    )
+            )["entries"]
+        )
+    relation_path.write_text(json.dumps(relations), encoding="utf-8")
     return {
         "corpus": str(corpus_path),
         "turn_provenance": str(turn_path),
@@ -107,14 +122,14 @@ class _Hit:
 
 
 class _Result:
-    def __init__(self, logical_id: str) -> None:
-        self.results = [_Hit(logical_id)]
+    def __init__(self, logical_ids: list[str]) -> None:
+        self.results = [_Hit(logical_id) for logical_id in logical_ids]
 
 
 class _Engine:
     def __init__(self) -> None:
         self.calls: list[tuple[str, object]] = []
-        self.logical_id = "turn-1"
+        self.logical_ids = ["turn-1"]
 
     def write(self, rows):  # noqa: ANN001
         self.calls.append(("write", len(rows)))
@@ -124,11 +139,11 @@ class _Engine:
 
     def search_text_only(self, query: str, *, limit: int):
         self.calls.append(("fts", query))
-        return _Result(self.logical_id)
+        return _Result(self.logical_ids)
 
     def search(self, query: str, **kwargs):
         self.calls.append(("hybrid", kwargs))
-        return _Result(self.logical_id)
+        return _Result(self.logical_ids)
 
     def dense_disabled(self) -> bool:
         return False
@@ -188,33 +203,81 @@ def test_gpu_cell_never_silently_uses_cpu_when_cuda_attestation_fails(
         adapter.execute_request(request, engine_factory=lambda _path, _dense: _Engine())
 
 
-def test_parent_cell_uses_hybrid_retrieval_and_returns_only_proven_parent_hits(
-    tmp_path,
-):
-    engine = _Engine()
+def _parent_request(tmp_path, *, turn_ids=("turn-1",), evidence_id="turn-1"):
     request = _request(tmp_path, treatment="parent_child_turn_session_v1")
+    request["external_inputs"] = _write_inputs(
+        tmp_path, turn_ids=turn_ids, evidence_id=evidence_id
+    )
     request["cell"]["program_track"] = "PARENT-01"
     request["cell"]["retrieval"] = "hybrid"
     request["cell"]["parent_child"] = adapter.PARENT_CHILD_FROZEN
+    return request
+
+
+def test_remediation_rejects_nonfrozen_cells_and_action_partitions_before_loading_inputs(
+    tmp_path,
+):
+    arbitrary = _request(tmp_path)
+    arbitrary["cell"]["cell_id"] = "turn--invented--cpu--cold"
+    arbitrary["cell"]["treatment"] = "invented"
+    with pytest.raises(adapter.AdapterError, match="frozen"):
+        adapter.execute_request(
+            arbitrary, engine_factory=lambda _path, _dense: _Engine()
+        )
+
+
+def test_remediation_rejects_cells_outside_the_released_action_partition(tmp_path):
+    wrong_partition = _request(tmp_path)
+    wrong_partition["action"] = "cpu_grid"
+    wrong_partition["mode"] = "full_grid"
+    wrong_partition["cell"]["runtime"]["device"] = "gpu"
+    wrong_partition["cell"]["cell_id"] = "turn--fts_only--gpu--cold"
+    with pytest.raises(adapter.AdapterError, match="action partition"):
+        adapter.execute_request(
+            wrong_partition, engine_factory=lambda _path, _dense: _Engine()
+        )
+
+
+def test_remediation_preserves_rank_for_metrics_and_parent_child_proof(tmp_path):
+    engine = _Engine()
+    engine.logical_ids = ["turn-miss", "turn-1"]
+    locomo_result = adapter.execute_request(
+        _request(tmp_path), engine_factory=lambda _path, _dense: engine
+    )
+    assert locomo_result["metric_summary"]["m2"] == {
+        "mrr": 0.5,
+        "r_at_1": 0.0,
+        "ndcg_at_10": pytest.approx(1 / math.log2(3)),
+    }
+
+    parent_engine = _Engine()
+    parent_engine.logical_ids = ["turn-1"]
+    parent = adapter.execute_request(
+        _parent_request(tmp_path / "parent"),
+        engine_factory=lambda _path, _dense: parent_engine,
+    )
+    assert parent["parent_hits"][0]["rank"] == 1
+    assert "raw corpus text" not in json.dumps(parent)
+
+
+def test_remediation_derives_parent_duplicate_and_context_metrics_from_bundles(
+    tmp_path,
+):
+    engine = _Engine()
+    engine.logical_ids = ["turn-2", "turn-1"]
+    request = _parent_request(
+        tmp_path, turn_ids=("turn-1", "turn-2", "turn-3"), evidence_id="turn-2"
+    )
 
     result = adapter.execute_request(
         request, engine_factory=lambda _path, _dense: engine
     )
 
     assert any(name == "hybrid" for name, _ in engine.calls)
-    assert result["parent_hits"] == [
-        {
-            "child_id": "turn-1",
-            "rank": 1,
-            "child_provenance": {
-                "parent_session_ids": ["session_1"],
-                "ordinal": 0,
-                "trace_source_id": "source-1",
-            },
-            "neighbors": [],
-        }
-    ]
-    assert "raw corpus text must not leak" not in json.dumps(result)
+    assert result["parent_hits"][0]["child_id"] == "turn-2"
+    assert result["parent_hits"][0]["rank"] == 1
+    assert result["metric_summary"]["parent_metrics"]["duplicate_rate"] == 0.5
+    assert result["metric_summary"]["parent_metrics"]["context_expansion_count"] == 2
 
 
 def test_adapter_stdout_parser_rejects_duplicate_keys_and_parent_requires_relation_proof(
@@ -232,3 +295,27 @@ def test_adapter_stdout_parser_rejects_duplicate_keys_and_parent_requires_relati
     )
     with pytest.raises(adapter.AdapterError, match="parent relation proof"):
         adapter.execute_request(request, engine_factory=lambda _path, _dense: _Engine())
+
+
+def test_remediation_rejects_forged_relation_ordinals_and_repository_output_escape(
+    tmp_path,
+):
+    request = _parent_request(tmp_path)
+    relation_path = Path(request["external_inputs"]["parent_relation_proof"])
+    relation = json.loads(relation_path.read_text(encoding="utf-8"))
+    relation["entries"][0]["ordinal"] = 9
+    relation["entries"][0]["session_members"][0]["ordinal"] = 9
+    relation_path.write_text(json.dumps(relation), encoding="utf-8")
+    with pytest.raises(adapter.AdapterError, match="canonical provenance"):
+        adapter.execute_request(request, engine_factory=lambda _path, _dense: _Engine())
+
+
+def test_remediation_rejects_repository_and_historical_output_escape_at_abi_boundary(
+    tmp_path,
+):
+    escaped = _request(tmp_path / "escape")
+    escaped["output_root"] = str(
+        adapter._REPOSITORY_ROOT / "experiments" / "runs" / "adapter-escape"
+    )
+    with pytest.raises(adapter.AdapterError, match="outside the repository"):
+        adapter._validate_request(escaped)

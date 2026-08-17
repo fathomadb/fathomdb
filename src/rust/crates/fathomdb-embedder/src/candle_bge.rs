@@ -37,7 +37,10 @@ use tokenizers::{Tokenizer, TruncationParams};
 
 use crate::{
     diagnose_gpu,
-    loader::{load_pinned_default_embedder, EmbedderLoadError, LoadedWeights, HF_REVISION},
+    loader::{
+        load_pinned_default_embedder, load_pinned_default_embedder_from_local_asset,
+        EmbedderLoadError, LoadedWeights, HF_REVISION,
+    },
     resolve_embed_device_policy_from_env, CudaDeviceInfo, CudaProbeError, CudaProvider,
     CudaVisibleDevice, DeviceResolution, DoctorGpuDiagnosticResult, EffectiveEmbedDevice,
     EmbedDevicePolicyError,
@@ -75,6 +78,31 @@ pub enum Pooling {
     Mean,
     /// `[CLS]` token (position 0) — the mode bge-small was trained for.
     Cls,
+}
+
+/// Concrete device selected by the private TC-5 preflight.
+///
+/// This value never parses ambient configuration and cannot fall back from a
+/// CUDA request to CPU.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExplicitCandleDevice {
+    /// Use Candle's CPU backend.
+    Cpu,
+    /// Use the exact CUDA ordinal selected by TC-5 preflight.
+    Cuda(usize),
+}
+
+/// Concrete device selected by the TC-5 benchmark preflight.
+///
+/// Unlike the ordinary constructors, this enum is never derived from an
+/// environment variable and never permits a CPU fallback for a CUDA request.
+/// It is available only with the `tc5-benchmark` feature.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExplicitCandleDevice {
+    /// Use Candle's CPU backend.
+    Cpu,
+    /// Use the exact CUDA ordinal selected by benchmark preflight.
+    Cuda(usize),
 }
 
 /// L2-normalize a `(1, D)` pooled tensor.
@@ -324,12 +352,48 @@ impl CandleBgeEmbedder {
         Self::new_from_weights_with_device_resolution(weights, &resolution)
     }
 
-    /// Construct from already-fetched weights and one prior strict device
-    /// resolution. Engine open uses this after resolving the ambient policy,
-    /// so the report and the constructed backend have one shared selection.
+    /// Construct from already-fetched weights and one prior strict device resolution.
     pub fn new_from_weights_with_device_resolution(
         weights: LoadedWeights,
         resolution: &DeviceResolution,
+    ) -> Result<Self, EmbedderLoadError> {
+        Self::new_from_weights_on_device(weights, device_from_resolution(resolution)?)
+    }
+
+    /// Constructs a cache-only TC-5 embedder using the explicitly preflighted device.
+    #[cfg(feature = "tc5-benchmark")]
+    pub fn new_from_local_asset_on_device(
+        asset_dir: &Path,
+        requested_device: ExplicitCandleDevice,
+    ) -> Result<Self, EmbedderLoadError> {
+        let weights = load_pinned_default_embedder_from_local_asset(asset_dir)?;
+        let device = match requested_device {
+            ExplicitCandleDevice::Cpu => Device::Cpu,
+            ExplicitCandleDevice::Cuda(ordinal) => {
+                #[cfg(feature = "embed-cuda")]
+                {
+                    Device::new_cuda(ordinal).map_err(|error| {
+                        EmbedderLoadError::DeviceUnavailable {
+                            device: format!("cuda:{ordinal}"),
+                            reason: error.to_string(),
+                        }
+                    })?
+                }
+                #[cfg(not(feature = "embed-cuda"))]
+                {
+                    return Err(EmbedderLoadError::DeviceUnavailable {
+                        device: format!("cuda:{ordinal}"),
+                        reason: "the benchmark binary lacks the `embed-cuda` feature".to_string(),
+                    });
+                }
+            }
+        };
+        Self::new_from_weights_on_device(weights, device)
+    }
+
+    fn new_from_weights_on_device(
+        weights: LoadedWeights,
+        device: Device,
     ) -> Result<Self, EmbedderLoadError> {
         // Design §8: safetensors are little-endian; we never run on BE.
         // Tightened in EU-5d follow-up from a debug_assert into a
@@ -376,11 +440,7 @@ impl CandleBgeEmbedder {
             }))
             .map_err(|e| EmbedderLoadError::TokenizerLoad { source: e })?;
 
-        // 3. mmap safetensors and build a BertModel on the previously resolved
-        // backend. This cannot perform an ambient fallback: `resolution` is the
-        // sole selection input and forced CUDA has already either succeeded or
-        // returned a typed policy error.
-        let device = device_from_resolution(resolution)?;
+        // 3. mmap safetensors on the explicitly resolved device.
         let vb = unsafe {
             VarBuilder::from_mmaped_safetensors(
                 &[weights.model_safetensors_path.as_path() as &Path],

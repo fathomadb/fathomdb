@@ -124,6 +124,8 @@ mod ort_bge;
 #[cfg(feature = "default-reranker")]
 mod candle_reranker;
 
+#[cfg(feature = "tc5-benchmark")]
+pub use candle_bge::ExplicitCandleDevice;
 #[cfg(feature = "default-embedder")]
 pub use candle_bge::{
     diagnose_default_embedder_gpu_from_env, resolve_default_embedder_device_from_env,

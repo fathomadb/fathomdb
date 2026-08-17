@@ -1241,6 +1241,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "fathomdb-tc5-benchmark"
+version = "0.8.22"
+dependencies = [
+ "fathomdb-engine",
+ "serde",
+ "serde_json",
+ "sha2 0.11.0",
+ "tempfile",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

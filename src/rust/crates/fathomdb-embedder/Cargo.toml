@@ -131,6 +131,10 @@ onnx-embedder = [
 # feature — `load_pinned_default_embedder()` is the only production-blessed
 # entry point per ADR-0.7.1 scope-guardrail #1.
 loader-test-hooks = ["default-embedder"]
+# TC-5's offline benchmark path. This is deliberately separate from the
+# ordinary default embedder: it accepts only a preflight-selected device and a
+# verified local asset directory, never `FATHOMDB_EMBED_DEVICE` or the loader.
+tc5-benchmark = ["default-embedder"]
 
 [dev-dependencies]
 httpmock = "0.7"
@@ -147,4 +151,4 @@ required-features = ["default-embedder"]
 
 [[test]]
 name = "tc5_cache_only_factory"
-required-features = ["default-embedder"]
+required-features = ["tc5-benchmark"]

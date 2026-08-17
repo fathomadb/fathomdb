@@ -190,6 +190,11 @@ pub enum EmbedderLoadError {
     #[error("model dimension mismatch: expected {expected}, got {actual}")]
     DimensionMismatch { expected: u32, actual: u32 },
 
+    /// An explicitly requested benchmark device could not be constructed.
+    /// The cache-only factory never converts this failure into a CPU fallback.
+    #[error("requested device {device} is unavailable: {reason}")]
+    DeviceUnavailable { device: String, reason: String },
+
     #[error("cache I/O error at {path:?}: {source}")]
     CacheIoError {
         path: PathBuf,
@@ -455,6 +460,56 @@ impl LoaderConfig {
 /// crate ever needs.
 pub fn load_pinned_default_embedder() -> Result<LoadedWeights, EmbedderLoadError> {
     load_with_config_internal(LoaderConfig::production()?)
+}
+
+/// Opens the three pinned default-embedder files from an already-populated
+/// local asset directory.
+///
+/// This is the cache-only half of the TC-5 benchmark boundary. It deliberately
+/// does not create a cache directory, probe the Hugging Face cache, acquire a
+/// loader lock, inspect environment variables, or invoke the downloader. Every
+/// required file is present and checksum-verified before a caller can create a
+/// device-backed model.
+pub(crate) fn load_pinned_default_embedder_from_local_asset(
+    asset_dir: &Path,
+) -> Result<LoadedWeights, EmbedderLoadError> {
+    let files = [
+        ("config.json", CONFIG_JSON_SHA256),
+        ("tokenizer.json", TOKENIZER_JSON_SHA256),
+        ("model.safetensors", MODEL_SAFETENSORS_SHA256),
+    ];
+    let mut paths = Vec::with_capacity(files.len());
+
+    for (file_name, expected_sha) in files {
+        let path = asset_dir.join(file_name);
+        if !path.is_file() {
+            return Err(EmbedderLoadError::CacheIoError {
+                path,
+                source: std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "required local TC-5 model asset is not a file",
+                ),
+            });
+        }
+        let actual = sha256_file(&path)
+            .map_err(|source| EmbedderLoadError::CacheIoError { path: path.clone(), source })?;
+        if actual != expected_sha {
+            return Err(EmbedderLoadError::ChecksumMismatch {
+                file: path,
+                expected: expected_sha.to_string(),
+                actual,
+            });
+        }
+        paths.push(path);
+    }
+
+    Ok(LoadedWeights {
+        config_json_path: paths[0].clone(),
+        tokenizer_json_path: paths[1].clone(),
+        model_safetensors_path: paths[2].clone(),
+        bytes_downloaded: 0,
+        events: Vec::new(),
+    })
 }
 
 /// Test/integration entry point. Same body as the production path but takes

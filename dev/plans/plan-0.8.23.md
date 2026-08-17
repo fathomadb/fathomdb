@@ -66,7 +66,7 @@ ladder or widen an in-flight feature slice.
 | Slice | Candidate | Depends on | Design inputs |
 | ---: | --- | --- | --- |
 | 10 | CUDA environment/artifact contract and protected runner gate | 6 | `0.8.23-gpu-artifacts.md` |
-| 20 | CUDA package, release rehearsal, driverless CPU, and GPU smokes | 6, 10 | `0.8.23-gpu-artifacts.md` |
+| 20 | CUDA package, release rehearsal, driverless CPU, and GPU smokes | 6 | `0.8.23-gpu-artifacts.md` |
 | 30 | Memex embedding-readiness and graph-integration contract | 6 | `0.8.23-embedding-configuration-feedback.md`, `0.8.23-memex-integration.md` |
 | 40 | Fixture-scoped scale characterization | 6 | v1 historical: `0.8.23-scale-characterization-protocol.md`; v2 authority: `0.8.23-scale-characterization-v2.md`, `0.8.23-scale-artifact-v2.schema.json` |
 | 50 | Gitleaks staged pre-commit and always-on CI guards | 6 | `0.8.23-gitleaks-guards.md` |
@@ -94,7 +94,8 @@ HITL commissioned Slices 10, 20, and 70 on 2026-08-17. Slice 10's local
 contract work is complete; its external provenance, runner-policy, and hardware
 witness condition is `PENDING_EXTERNAL`. Per HITL seq:249, that condition
 blocks release completion and publication, not local Slice 20 or Slice 70 work.
-Slice 20 is next; Slice 70 remains sequenced after Slice 20. Their work remains
+Slice 20's local control plane is complete and its external rehearsal evidence is
+pending; Slice 70 is next. Their work remains
 subject to their reviewed designs, acceptance criteria, and non-publication
 boundary. Slice 20's candidate dry-run CUDA rehearsal is never a canonical tag
 producer: canonical Linux x64 publication remains hard-blocked before all
@@ -114,9 +115,9 @@ owned canonical-route design, provenance, and evidence package pass review.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-landed-roll-up -->
-**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`) · 60 (`423baf6a`) · 65 (`6b57557c`). SCHEMA is 26; remaining ladder = 20 → 70 → 40.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
+**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`) · 60 (`423baf6a`) · 65 (`6b57557c`). SCHEMA is 26; remaining ladder = 70 → 40.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 20** (`CUDA-PACKAGE`) — CUDA package, rehearsal, and installed-artifact smokes
+**IMMEDIATE NEXT: Slice 70** (`TC5-VECTOR-STAGE`) — exact pre-fusion vector-stage controls for TC-5
 
-**Remaining ladder:** 20 → 70 → 40.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->
+**Remaining ladder:** 70 → 40.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->

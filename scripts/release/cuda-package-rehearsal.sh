@@ -69,6 +69,7 @@ done
 
 mkdir -p "$output_dir/packages" "$output_dir/smoke"
 cp -- "$route_receipt" "$output_dir/route-receipt.json"
+cp -- "$witness_dir/cuda-preflight-witness.json" "$output_dir/preflight-witness.json"
 cp -- "$build_input" "$output_dir/build-input.json"
 cp -- "$python_wheel" "$output_dir/packages/$(basename "$python_wheel")"
 cp -- "$npm_main" "$output_dir/packages/$(basename "$npm_main")"

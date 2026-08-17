@@ -19,6 +19,7 @@ COMMIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
 MANIFEST = "cuda-package-rehearsal.json"
 ROUTE_RECEIPT = "route-receipt.json"
 BUILD_INPUT = "build-input.json"
+PREFLIGHT_WITNESS = "preflight-witness.json"
 PACKAGE_DIR = "packages"
 SMOKE_DIR = "smoke"
 SMOKE_NAMES = frozenset({"cpu-python.json", "cpu-napi.json", "gpu-python.json", "gpu-napi.json"})
@@ -170,7 +171,7 @@ def validate(root: Path, candidate_sha: str) -> None:
     if require_sha(candidate_sha, "requested candidate SHA", COMMIT_SHA) != candidate_sha:
         fail("unreachable")
     require_regular_directory(root, "rehearsal directory")
-    allowed_root = {MANIFEST, ROUTE_RECEIPT, BUILD_INPUT, PACKAGE_DIR, SMOKE_DIR}
+    allowed_root = {MANIFEST, ROUTE_RECEIPT, PREFLIGHT_WITNESS, BUILD_INPUT, PACKAGE_DIR, SMOKE_DIR}
     if {path.name for path in root.iterdir()} != allowed_root:
         fail("rehearsal directory has missing or unknown members")
     manifest, _ = load_object(root / MANIFEST, "rehearsal manifest")
@@ -188,7 +189,15 @@ def validate(root: Path, candidate_sha: str) -> None:
         fail("route receipt does not bind the requested candidate")
     if require_sha(manifest["route_receipt_sha256"], "route receipt digest") != hashlib.sha256(route_bytes).hexdigest():
         fail("route receipt digest mismatch")
-    require_sha(manifest["preflight_witness_sha256"], "preflight witness digest")
+    preflight_witness, preflight_witness_bytes = load_object(root / PREFLIGHT_WITNESS, "preflight witness")
+    if (
+        preflight_witness.get("schema_version") != "fathomdb.cuda-preflight-witness/v1"
+        or preflight_witness.get("candidate_sha") != candidate_sha
+        or preflight_witness.get("outcome") != "passed"
+    ):
+        fail("preflight witness does not bind the requested candidate passed outcome")
+    if require_sha(manifest["preflight_witness_sha256"], "preflight witness digest") != hashlib.sha256(preflight_witness_bytes).hexdigest():
+        fail("preflight witness digest mismatch")
 
     build_input_path = root / BUILD_INPUT
     build_input, build_input_bytes = load_object(build_input_path, "build input")

@@ -280,6 +280,7 @@ def require_cuda_package_rehearsal() -> None:
         "package inventory must contain exactly three retained artifacts",
         "package digest mismatch",
         "route receipt does not bind the requested candidate",
+        "preflight witness digest mismatch",
         "CPU {consumer} smoke does not prove the driverless installed-artifact contract",
         "GPU {consumer} smoke lacks GPU UUID/PID correlation",
         'raw != canonical_json(value)',

@@ -72,7 +72,7 @@ ladder or widen an in-flight feature slice.
 | 50 | Gitleaks staged pre-commit and always-on CI guards | 6 | `0.8.23-gitleaks-guards.md` |
 | 60 | Windows WAL checkpoint reader-conflict diagnosis | 6 | `0.8.23-windows-wal-checkpoint-reader-conflict.md`, `0.8.23-windows-local-environment.md` |
 | 65 | Windows WAL checkpoint root-cause attribution | 6, 60 | `0.8.23-wal-attribution-investigation.md` |
-| 70 | Exact pre-fusion vector-stage controls for TC-5 | 6, 20 | `0.8.23-slice-70-tc5-vector-stage-hypothesis.md` |
+| 70 | Supported dual CPU/GPU runtime policy, diagnostics, artifacts, and exact pre-fusion TC-5 controls | 6, 20 | `0.8.23-slice-70-dual-runtime-device-policy.md`, `0.8.23-slice-70-tc5-vector-stage-hypothesis.md` |
 
 Each feature slice, if approved, must review its assigned candidate features,
 drafted needs/requirements/ACs, and design inputs; approve, reject, or adjust
@@ -118,6 +118,6 @@ owned canonical-route design, provenance, and evidence package pass review.
 **COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`) · 60 (`423baf6a`) · 65 (`6b57557c`). SCHEMA is 26; remaining ladder = 70 → 40.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 70** (`TC5-VECTOR-STAGE`) — exact pre-fusion vector-stage controls for TC-5
+**IMMEDIATE NEXT: Slice 70** (`DUAL-RUNTIME-TC5`) — supported dual CPU/GPU runtime policy, diagnostics, artifacts, and exact pre-fusion TC-5 controls
 
 **Remaining ladder:** 70 → 40.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->

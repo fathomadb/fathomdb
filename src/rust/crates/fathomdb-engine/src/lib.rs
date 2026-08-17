@@ -21446,6 +21446,38 @@ mod tests {
         eprintln!("slice65_wal retained_materialized_idle=passed");
     }
 
+    #[test]
+    fn wal_attribution_reader_handoff_is_idle_before_materialized_reply() {
+        let dir = TempDir::new().expect("temp dir");
+        let opened = Arc::new(Engine::open(dir.path().join("wal-attribution-reader-handoff.sqlite")).expect("open"));
+        opened.engine.write(&[PreparedWrite::Node {
+            kind: "doc".to_string(),
+            body: "reader handoff materialized body".to_string(),
+            source_id: SourceId::new("slice65-reader-handoff-source").expect("source"),
+            logical_id: Some("slice65-reader-handoff".to_string()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        }]).expect("write");
+        let (handoff_ready, release) = opened.engine.pause_next_reader_handoff_for_test();
+        let reader = {
+            let engine = Arc::clone(&opened);
+            thread::spawn(move || engine.engine.read_get("slice65-reader-handoff", &Default::default()))
+        };
+        handoff_ready.wait();
+        let idle = opened.engine.wal_attribution_snapshot();
+        assert!(idle.no_owned_snapshot, "the collector must be idle before the materialized response send: {idle:?}");
+        opened.engine.erase_source("slice65-reader-handoff-source").expect("checkpoint while materialized reply is parked");
+        let record = opened.engine.wal_attribution_checkpoints_for_test().last().cloned().expect("checkpoint record");
+        assert!(!record.busy && record.classification == "no_owned_snapshot");
+        assert!(record.active_roles.is_empty());
+        release.wait();
+        let materialized = reader.join().expect("reader thread").expect("read result").expect("materialized record");
+        assert_eq!(materialized.logical_id, "slice65-reader-handoff");
+        eprintln!("slice65_wal reader_handoff_idle_before_reply=passed");
+    }
+
     /// Slice 65 RED: a fully closed Engine is not itself a reader-holder. The
     /// raw checkpoint is deliberately independent so this distinguishes the
     /// close boundary from the incident-shaped recovery reads below.

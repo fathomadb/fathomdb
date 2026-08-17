@@ -124,6 +124,8 @@ def main() -> int:
         'empty_ignore="$scan_root/empty-ignore"',
         ': >"$empty_ignore"',
         'if [ -s "$empty_ignore" ]; then',
+        "unset GITLEAKS_CONFIG",
+        "unset GITLEAKS_CONFIG_TOML",
         "--ignore-gitleaks-allow",
         '--gitleaks-ignore-path "$empty_ignore"',
         '--log-opts="--all"',
@@ -136,14 +138,18 @@ def main() -> int:
         "--exit-code 0",
         ".gitleaksignore",
         "--config",
-        "GITLEAKS_CONFIG",
         "--enable-rule",
         "--allowlist",
         "global-allowlist",
     )
     def guard_contract(text: str) -> bool:
-        return all(token in text for token in required) and not any(
-            token in text for token in forbidden
+        config_env_lines = [
+            line.strip() for line in text.splitlines() if "GITLEAKS_CONFIG" in line
+        ]
+        return (
+            all(token in text for token in required)
+            and not any(token in text for token in forbidden)
+            and config_env_lines == ["unset GITLEAKS_CONFIG", "unset GITLEAKS_CONFIG_TOML"]
         )
     failures += expect(
         guard_contract(history_text),
@@ -186,6 +192,18 @@ def main() -> int:
     failures += expect(
         not guard_contract(history_text + "\nGITLEAKS_CONFIG=unreviewed.toml\n"),
         "history guard contract rejects an unreviewed scanner config environment input",
+    )
+    failures += expect(
+        not guard_contract(history_text.replace("unset GITLEAKS_CONFIG\n", "", 1)),
+        "history guard contract rejects a deleted path-config neutralization",
+    )
+    failures += expect(
+        not guard_contract(history_text.replace("unset GITLEAKS_CONFIG_TOML", "", 1)),
+        "history guard contract rejects a deleted TOML-config neutralization",
+    )
+    failures += expect(
+        not guard_contract(history_text + "\nGITLEAKS_CONFIG_TOML=unreviewed\n"),
+        "history guard contract rejects an unreviewed TOML-config environment input",
     )
     failures += expect(
         not guard_contract(history_text + "\n--allowlist unreviewed.txt\n"),

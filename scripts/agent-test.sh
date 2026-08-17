@@ -347,6 +347,7 @@ run_tier_suite fast test-tegra-gpu-witness python3 scripts/tests/test_tegra_gpu_
 # reject synthetic credentials without exposing them in diagnostics.
 run_tier_suite fast test-gitleaks-guards bash scripts/tests/test_gitleaks_guards.sh
 run_tier_suite fast test-gitleaks-history-classifier python3 scripts/tests/test_gitleaks_history_classifier.py
+run_tier_suite fast test-gitleaks-history-environment bash scripts/tests/test_gitleaks_history_environment.sh
 
 # 0.8.23 Slice 30 preparation: keep the warmed real-engine CI witness across
 # Rust, Python, and TypeScript bindings.

@@ -8,6 +8,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 repo="${1:-.}"
 repo="$(git -C "$repo" rev-parse --show-toplevel)" || exit 1
+# Gitleaks gives inherited configuration priority over the repository policy.
+# This boundary owns its policy, so callers cannot suppress historical findings.
+unset GITLEAKS_CONFIG
+unset GITLEAKS_CONFIG_TOML
 "$SCRIPT_DIR/gitleaks-current.sh" "$repo"
 gitleaks_bin="$(require_gitleaks_bin gitleaks-history)" || exit 1
 

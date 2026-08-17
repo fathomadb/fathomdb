@@ -26,15 +26,14 @@ mkdir -p "$fixture"
 git -C "$fixture" init -q
 git -C "$fixture" config user.email gitleaks-history-environment@example.invalid
 git -C "$fixture" config user.name 'Gitleaks History Environment Test'
-printf '%s\n' \
-  '[[rules]]' \
-  'id = "fixture-environment-history-rule"' \
-  "regex = '''marker_[A-Z0-9]{24}'''" >"$fixture/.gitleaks.toml"
-token="$(printf '%s%s%s%s%s%s%s' \
-  'marker_' 'ABCD' 'EF12' '3456' '7890' 'ABCD' 'EF12')"
+token="$(printf '%s%s%s%s' \
+  'aB3dE6fG' '9hJ2kL5m' 'N8pQ1rS4' 'tU7vW0xY')"
 printf 'credential=%s\n' "$token" >"$fixture/history.txt"
-git -C "$fixture" add .gitleaks.toml history.txt
+git -C "$fixture" add history.txt
 git -C "$fixture" commit -qm 'fixture environment history'
+printf 'clean=true\n' >"$fixture/history.txt"
+git -C "$fixture" add history.txt
+git -C "$fixture" commit -qm 'fixture environment clean'
 printf '%s\n' '[allowlist]' "paths = ['.*']" >"$tmp_root/suppress-history.toml"
 
 set +e

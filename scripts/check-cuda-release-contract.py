@@ -682,6 +682,20 @@ def main() -> None:
         fail("cuda-contract-preflight receipt verifier must bind the exact main-owned manifest")
     candidate_checkout = job.index("ref: ${{ env.RELEASE_CHECKOUT_REF }}")
     receipt_check = job.index("control-plane/scripts/release/verify-cuda-unmerged-receipt.py")
+    control_plane_checkout = re.search(
+        r"^      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0(?: #.*)?\n"
+        r"        if: \$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.dry_run == true \}\}\n"
+        r"        with:\n"
+        r"          ref: \$\{\{ github\.workflow_sha \}\}\n"
+        r"          path: control-plane\n"
+        r"          persist-credentials: false\n",
+        job,
+        re.MULTILINE,
+    )
+    if control_plane_checkout is None:
+        fail("cuda-contract-preflight must check out the pinned main-owned control plane")
+    if control_plane_checkout.start() >= receipt_check:
+        fail("cuda-contract-preflight must check out the main-owned control plane before receipt verification")
     if receipt_check >= candidate_checkout:
         fail("cuda-contract-preflight must verify the hosted receipt before candidate checkout")
     if not re.search(

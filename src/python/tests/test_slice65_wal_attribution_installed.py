@@ -16,6 +16,7 @@ import sys
 import tempfile
 import threading
 from pathlib import Path
+from typing import Protocol, cast
 
 import fathomdb
 import fathomdb._fathomdb as native
@@ -32,6 +33,60 @@ NATIVE_IDLE_ROLE_FACTS = (
     "workers:0(auto=1,txn=none,busy=0,received=1)",
     "workers:1(auto=1,txn=none,busy=0,received=1)",
 )
+
+
+class _WalSnapshotPauseForTest(Protocol):
+    """Dev-only rendezvous exposed by the disposable ``test-hooks`` wheel."""
+
+    def wait_snapshot_ready(self) -> None: ...
+
+    def release(self) -> None: ...
+
+    def reader_connection_autocommit_for_test(self) -> bool: ...
+
+    def reader_native_state_for_test(self) -> str: ...
+
+
+class _WalAttributionTestHooks(Protocol):
+    """Private Slice 65 diagnostics, absent from the shipped SDK surface."""
+
+    def _arm_next_reader_snapshot_pause_for_test(self) -> _WalSnapshotPauseForTest: ...
+
+    def _arm_next_reader_completion_pause_for_test(self) -> _WalSnapshotPauseForTest: ...
+
+    def _wal_attribution_checkpoint_records_for_test(self) -> list[tuple[int, bool, str, list[str]]]: ...
+
+    def _wal_attribution_snapshot_for_test(self) -> dict[str, bool]: ...
+
+    def _arm_actual_checkpoint_observation_for_test(self) -> None: ...
+
+    def _drain_actual_checkpoint_observations_for_test(self) -> list[str]: ...
+
+    def _wal_attribution_binding_inventory_for_test(self) -> str: ...
+
+    def _wal_attribution_binding_native_state_inventory_for_test(self) -> str: ...
+
+    def _arm_binding_native_state_observation_for_test(self) -> None: ...
+
+    def _drain_binding_native_state_observations_for_test(self) -> list[str]: ...
+
+    def _checkpoint_at_rest_for_test(self) -> list[tuple[bool, int, int]]: ...
+
+
+class _NativeRawCheckpointTestHook(Protocol):
+    """Private module-level raw probe in the disposable ``test-hooks`` wheel."""
+
+    def _native_raw_wal_checkpoint_for_test(self, path: str) -> tuple[bool, int, int]: ...
+
+
+def _wal_attribution_test_hooks(engine: Engine) -> _WalAttributionTestHooks:
+    """Narrow the installed control to its disposable test-hook wheel boundary."""
+    return cast(_WalAttributionTestHooks, engine._native)
+
+
+def _native_raw_checkpoint_test_hook() -> _NativeRawCheckpointTestHook:
+    """Narrow the private raw probe without advertising it in the public stub."""
+    return cast(_NativeRawCheckpointTestHook, native)
 
 
 def _node(logical_id: str, source_id: str) -> dict[str, str]:
@@ -76,7 +131,7 @@ def _expected_wal_baseline(error: ErasureIncompleteError) -> str:
 
 def _raw_binding_checkpoint(path: str, case: str) -> tuple[int, int, int]:
     """Take one redacted independent native/Rusqlite checkpoint sample."""
-    busy, log_frames, checkpointed_frames = native._native_raw_wal_checkpoint_for_test(path)
+    busy, log_frames, checkpointed_frames = _native_raw_checkpoint_test_hook()._native_raw_wal_checkpoint_for_test(path)
     print(
         "slice65_wal python_binding_raw "
         f"case={case} raw_busy={busy} raw_log_frames={log_frames} "
@@ -108,22 +163,23 @@ def run_serial_incident(
         old.close()
 
         fresh = Engine.open(path, use_default_embedder=False)
+        test_hooks = _wal_attribution_test_hooks(fresh)
         baseline_observation: tuple[str, str | None] | None = None
         try:
             first = read.get(fresh, "slice65-root")
             assert first is not None and first.logical_id == "slice65-root"
             if require_attribution:
-                assert fresh._native._wal_attribution_snapshot_for_test()["no_owned_snapshot"] is True
+                assert test_hooks._wal_attribution_snapshot_for_test()["no_owned_snapshot"] is True
                 print("slice65_wal serial_idle_after_read_get=passed", flush=True)
             neighbors = graph.neighbors(fresh, "slice65-root", depth=1, direction="outgoing")
             assert [node.logical_id for node in neighbors] == ["slice65-nested"]
             if require_attribution:
-                assert fresh._native._wal_attribution_snapshot_for_test()["no_owned_snapshot"] is True
+                assert test_hooks._wal_attribution_snapshot_for_test()["no_owned_snapshot"] is True
                 print("slice65_wal serial_idle_after_neighbors=passed", flush=True)
             print("slice65_wal serial_recovery_reads=passed", flush=True)
 
             if require_attribution:
-                fresh._native._arm_actual_checkpoint_observation_for_test()
+                test_hooks._arm_actual_checkpoint_observation_for_test()
             try:
                 nested = fresh.erase_source("slice65-nested-source")
             except ErasureIncompleteError as error:
@@ -145,7 +201,7 @@ def run_serial_incident(
                     print("slice65_wal serial_current_erase_observation=clean_completion", flush=True)
             if not observe_baseline_first_erase:
                 if require_attribution:
-                    records = fresh._native._drain_actual_checkpoint_observations_for_test()
+                    records = test_hooks._drain_actual_checkpoint_observations_for_test()
                     assert records and len(records) % 2 == 0
                     for before, after in zip(records[::2], records[1::2], strict=True):
                         assert "control=python_serial phase=before" in before
@@ -192,9 +248,9 @@ def run_binding_reader_erase(expected_version: str) -> None:
         engine = Engine.open(path, use_default_embedder=False)
         try:
             engine.write([_node("slice65-binding", "slice65-binding-source")])
-            native = engine._native
-            snapshot_pause = native._arm_next_reader_snapshot_pause_for_test()
-            completion_pause = native._arm_next_reader_completion_pause_for_test()
+            test_hooks = _wal_attribution_test_hooks(engine)
+            snapshot_pause = test_hooks._arm_next_reader_snapshot_pause_for_test()
+            completion_pause = test_hooks._arm_next_reader_completion_pause_for_test()
             read_outcome: list[object] = []
 
             def governed_read() -> None:
@@ -217,7 +273,7 @@ def run_binding_reader_erase(expected_version: str) -> None:
             snapshot_pause.release()
             completion_pause.wait_snapshot_ready()
             assert completion_pause.reader_connection_autocommit_for_test() is True
-            assert native._wal_attribution_snapshot_for_test()["no_owned_snapshot"] is True
+            assert test_hooks._wal_attribution_snapshot_for_test()["no_owned_snapshot"] is True
             print(
                 "slice65_wal python_binding_completion_ack reader_autocommit=1 collector=idle",
                 flush=True,
@@ -225,21 +281,21 @@ def run_binding_reader_erase(expected_version: str) -> None:
             completion_pause.release()
             reader.join(timeout=5)
             assert not reader.is_alive() and read_outcome and read_outcome[0] is not None
-            records = native._wal_attribution_checkpoint_records_for_test()
+            records = test_hooks._wal_attribution_checkpoint_records_for_test()
             busy = [r for r in records if r[1]]
             assert len(busy) == 5 and all(
                 r[2] == "owned_reader_snapshot" and r[3] == ["reader_worker:0"] for r in busy
             )
-            legacy_inventory = native._wal_attribution_binding_inventory_for_test()
+            legacy_inventory = test_hooks._wal_attribution_binding_inventory_for_test()
             print(f"slice65_wal python_binding_direct_inventory={legacy_inventory}", flush=True)
-            inventory = native._wal_attribution_binding_native_state_inventory_for_test()
+            inventory = test_hooks._wal_attribution_binding_native_state_inventory_for_test()
             assert "state_inventory=complete" in inventory
             print(f"slice65_wal python_binding_native_state_inventory={inventory}", flush=True)
             first_raw = _raw_binding_checkpoint(path, "before_engine_sampler")
-            native._arm_binding_native_state_observation_for_test()
-            samples = native._checkpoint_at_rest_for_test()
+            test_hooks._arm_binding_native_state_observation_for_test()
+            samples = test_hooks._checkpoint_at_rest_for_test()
             assert 1 <= len(samples) <= 5
-            state_records = native._drain_binding_native_state_observations_for_test()
+            state_records = test_hooks._drain_binding_native_state_observations_for_test()
             assert len(state_records) == len(samples) * 2
             for before, after in zip(state_records[::2], state_records[1::2], strict=True):
                 assert "state_inventory=complete" in before and "state_inventory=complete" in after
@@ -287,7 +343,7 @@ def run_binding_reader_erase(expected_version: str) -> None:
 def run_binding_child(expected_version: str, path: str) -> None:
     """Run the one conditional post-close raw probe in a fresh test-hook process."""
     _assert_installed_version(expected_version)
-    busy, log_frames, checkpointed_frames = native._native_raw_wal_checkpoint_for_test(path)
+    busy, log_frames, checkpointed_frames = _native_raw_checkpoint_test_hook()._native_raw_wal_checkpoint_for_test(path)
     print(
         "slice65_wal python_binding_child_raw case=after_close outcome=recorded "
         f"raw_busy={busy} raw_log_frames={log_frames} raw_checkpointed_frames={checkpointed_frames}",
@@ -309,13 +365,13 @@ def run_retained_materialized(expected_version: str) -> None:
             )
             retained = read.get(engine, "slice65-retained")
             assert retained is not None and json.loads(retained.body)["nested"]["value"] == "kept"
-            native = engine._native
-            assert native._wal_attribution_snapshot_for_test()["no_owned_snapshot"] is True
-            before = len(native._wal_attribution_checkpoint_records_for_test())
+            test_hooks = _wal_attribution_test_hooks(engine)
+            assert test_hooks._wal_attribution_snapshot_for_test()["no_owned_snapshot"] is True
+            before = len(test_hooks._wal_attribution_checkpoint_records_for_test())
             engine.erase_source("slice65-retained-source")
             engine.transition("slice65-retained-root", "deleted", "slice65 retained idle control")
             engine.purge("slice65-retained-root")
-            records = native._wal_attribution_checkpoint_records_for_test()[before:]
+            records = test_hooks._wal_attribution_checkpoint_records_for_test()[before:]
             assert records and all(r[1:] == (False, "no_owned_snapshot", []) for r in records)
             print("slice65_wal python_retained_materialized_idle=passed", flush=True)
         finally:

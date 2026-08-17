@@ -561,6 +561,25 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
   TMPROOT="$(mktemp -d)"
   trap 'rm -rf "$TMPROOT"' EXIT
 
+  for marker in \
+    'managed_reader_completion_ack reader_autocommit=1 collector_roles=idle' \
+    'managed_reader_native_state_inventory=state_inventory=complete reason=complete' \
+    'managed_reader_sampler_native_state control=binding_sampler phase=before' \
+    'managed_reader_sampler_native_state control=binding_sampler phase=after' \
+    'managed_reader_sampler_terminal outcome='; do
+    MANAGED_MARKER_MUTATED="$TMPROOT/ci-without-managed-marker.yml"
+    sed "s|$marker|managed-marker-removed|" "$CI" >"$MANAGED_MARKER_MUTATED"
+    set +e
+    managed_marker_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$MANAGED_MARKER_MUTATED" bash "$0" 2>&1)"
+    managed_marker_rc=$?
+    set -e
+    if [ "$managed_marker_rc" -ne 0 ] && grep -Fq "missing: $marker" <<<"$managed_marker_out"; then
+      pass "mutation proves managed-reader artifact marker is load-bearing: $marker"
+    else
+      fail "mutation did not fail managed-reader artifact marker: $marker: $managed_marker_out"
+    fi
+  done
+
   MANAGED_READER_REERASE_MUTATED="$TMPROOT/lib-with-managed-reader-second-erase.rs"
   sed 's/let samples = opened/let _second = opened.engine.erase_source("slice65-owned-reader");\n        let samples = opened/' "$ENGINE_SOURCE" \
     >"$MANAGED_READER_REERASE_MUTATED"

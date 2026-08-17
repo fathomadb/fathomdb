@@ -22752,7 +22752,7 @@ mod tests {
     /// Slice 65 managed-reader witness: preserve the original typed refusal,
     /// then observe post-finish connection state without retrying that erase.
     #[test]
-    fn wal_attribution_owned_reader_records_exact_busy_and_idle_success() {
+    fn wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded() {
         let dir = TempDir::new().expect("temp dir");
         let opened = Engine::open(dir.path().join("wal-attribution-owned.sqlite")).expect("open");
         opened
@@ -22802,9 +22802,14 @@ mod tests {
         completion_release.wait();
 
         let inventory = opened.engine.native_state_inventory_for_test();
-        assert!(inventory.complete, "post-finish native inventory: {inventory:?}");
         let inventory_text = super::native_state_inventory_text(&inventory);
         eprintln!("slice65_wal managed_reader_native_state_inventory={inventory_text}");
+        if !inventory.complete {
+            eprintln!(
+                "slice65_wal managed_reader_native_state_inventory=state_inventory=incomplete"
+            );
+        }
+        assert!(inventory.complete, "post-finish native inventory: {inventory:?}");
 
         opened.engine.arm_binding_native_state_observation_for_test();
         let samples = opened
@@ -22815,8 +22820,13 @@ mod tests {
         let state_records = opened.engine.drain_binding_native_state_observations_for_test();
         assert_eq!(state_records.len(), samples.len() * 2);
         for state in &state_records {
-            assert!(state.contains("state_inventory=complete reason=complete"));
             eprintln!("slice65_wal managed_reader_sampler_native_state {state}");
+            if !state.contains("state_inventory=complete reason=complete") {
+                eprintln!(
+                    "slice65_wal managed_reader_sampler_native_state state_inventory=incomplete"
+                );
+            }
+            assert!(state.contains("state_inventory=complete reason=complete"));
         }
         let (busy, log_frames, checkpointed_frames) =
             samples.last().copied().expect("sampler result");

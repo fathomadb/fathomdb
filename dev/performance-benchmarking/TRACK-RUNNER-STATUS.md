@@ -208,6 +208,12 @@ registry rows, and omitted recorded post-fix full-verifier evidence. The
 worker is correcting those narrow gaps; no corpus or human-gold work is
 released.
 
+The CORPUS-01 corrected handoff `cb920dd2` passed its code and red-replay
+review, but received one final documentation `REQUEST-CHANGES`: it did not
+durably record the already-green post-fix full-verifier result and still used
+future-tense rerun wording. The worker is making that docs-only evidence
+correction; no corpus or human-gold work is released.
+
 The TC-5 external-driver preparation lane is commissioned from campaign base
 `8101f1db` in `/tmp/fathomdb-perf-tc5-external-driver-20260816` on
 `experiments/performance-tc5-external-driver-20260816`. It may implement and

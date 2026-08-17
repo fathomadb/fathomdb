@@ -11,7 +11,8 @@
 - Branch: `experiments/performance-locomo-parent-exec-20260816`.
 - Verified base before changes: `378a8214041033891d6a1e66fae8dcf9f8cc9681`.
 - Red checkpoint: `f2b652c20e5a888780951211f3f9f7f507c2a5b0`.
-- Implementation commit: `e6ad61bd97a54ea58675973ae2d374c1bf2166d5`.
+- Implementation commits: `e6ad61bd97a54ea58675973ae2d374c1bf2166d5` and
+  `57c19876419564668983d703bfadfca9141d9fa5`.
 
 The worker owned only the new Phase-B adapter, its typed configuration, its
 human-intended tests, and these dated contract/handoff documents. It did not
@@ -36,7 +37,8 @@ historical configurations or receipts, the index, or external artifacts.
   later-reviewed cell executor.
 - `write_safe_receipt` composes the unchanged common receipt/index helper with
   logical metrics references and digests only. It rejects repository and
-  historical-output destinations.
+  historical-output destinations, and an executed dry-run proof is recorded
+  honestly as a complete receipt rather than as a planned run.
 
 ## TDD and verification evidence
 

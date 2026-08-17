@@ -408,12 +408,12 @@ assert_before_in_python_function \
   "$PY_CONTROL" \
   "run_binding_reader_erase" \
   '_raw_binding_checkpoint(path, "before_engine_sampler")' \
-  'samples = native._checkpoint_at_rest_for_test()' \
+  'samples = test_hooks._checkpoint_at_rest_for_test()' \
   "binding diagnostic places the Engine sampler after raw sample one"
 assert_before_in_python_function \
   "$PY_CONTROL" \
   "run_binding_reader_erase" \
-  'samples = native._checkpoint_at_rest_for_test()' \
+  'samples = test_hooks._checkpoint_at_rest_for_test()' \
   '_raw_binding_checkpoint(path, "after_engine_sampler")' \
   "binding diagnostic places raw sample two after the Engine sampler"
 binding_erase_calls="$(python_function_body "$PY_CONTROL" "run_binding_reader_erase" | grep -Fc 'engine.erase_source(' || true)"
@@ -445,7 +445,7 @@ else
 fi
 binding_child_body="$(python_function_body "$PY_CONTROL" "run_binding_child")"
 assert_contains "$binding_child_body" \
-  'native._native_raw_wal_checkpoint_for_test(path)' \
+  '_native_raw_checkpoint_test_hook()._native_raw_wal_checkpoint_for_test(path)' \
   "fresh child calls the native FathomDB/Rusqlite checkpoint hook"
 actual_checkpoint_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts")"
 assert_contains "$actual_checkpoint_body" \
@@ -562,14 +562,14 @@ assert_absent "$actual_direct_inventory_body" \
   "normal actual observer cannot request runtime native facts"
 serial_incident_body="$(python_function_body "$PY_CONTROL" "run_serial_incident")"
 assert_contains "$serial_incident_body" \
-  'fresh._native._arm_actual_checkpoint_observation_for_test()' \
+  'test_hooks._arm_actual_checkpoint_observation_for_test()' \
   "installed Python serial arms the private observer immediately before erase"
 assert_contains "$serial_incident_body" \
-  'fresh._native._drain_actual_checkpoint_observations_for_test()' \
+  'test_hooks._drain_actual_checkpoint_observations_for_test()' \
   "installed Python serial drains real-attempt records after erase"
 assert_before_in_text \
   "$serial_incident_body" \
-  'fresh._native._arm_actual_checkpoint_observation_for_test()' \
+  'test_hooks._arm_actual_checkpoint_observation_for_test()' \
   'nested = fresh.erase_source(' \
   "installed Python observer arms immediately before its original erase"
 assert_absent "$serial_incident_body" \

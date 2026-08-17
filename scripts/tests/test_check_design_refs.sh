@@ -50,8 +50,8 @@
 # NO TOKEN DERIVATION OF ITS OWN (arm 6). The check DRIVES
 # `scripts/commission-manifest.sh` and reads its coverage report, so the two can
 # never disagree about what a slice's tokens are. Arm 7 pins the manifest's
-# stdout byte-identical to the base commit for all 14 real ladder slices, because
-# the `design_refs` mechanism's whole safety argument rests on that byte-identity.
+# stdout byte-identical to the base commit for every unaffected real slice; its
+# separate assertions make the two intentional curated-output changes explicit.
 #
 # LOCAL-ONLY BY DESIGN (arm 9). CI does not invoke `scripts/hooks/pre-commit` and
 # does not auto-discover `scripts/tests/*`. Every check in
@@ -73,11 +73,10 @@ PREFLIGHT="$REPO_ROOT/scripts/preflight.sh"
 AGENT_TEST="$REPO_ROOT/scripts/agent-test.sh"
 FIXTURE_STATE="$SCRIPT_DIR/fixtures/release-state-9.9.9-design-refs.json"
 
-# The commit this unit was cut from. The manifest's stdout for every real ladder
-# slice must still be byte-identical to it (arm 7). If the manifest is ever
-# changed deliberately, this pin moves in the same commit as the change.
-BASE_SHA="2671346dff75c92c4486e674886fc2c61cfb096b"
-REAL_SLICES=(0 5 10 15 20 21 22 23 25 30 31 32 33 40)
+# The release completion ref this repair starts from. The manifest's stdout for
+# every unaffected real slice must remain byte-identical to it (arm 7).
+BASE_SHA="73c71907a40e434c6d53adb06c16cb843130cd81"
+UNCHANGED_REAL_SLICES=(0 5 10 15 22 23 25 30 31 32 33 40)
 
 FAILED=0
 pass() { printf 'PASS  %s\n' "$1"; }
@@ -370,16 +369,16 @@ else
   fail "arm 6b (drift detector): rc=$RC out=$OUT"
 fi
 
-# --- Arm 7: THE MANIFEST'S OUTPUT IS BYTE-IDENTICAL TO THE BASE COMMIT -----
-# `design_refs` is safely additive only because the eight uncurated slices render
-# exactly as they did before it existed. This unit adds a CONSUMER of the
-# manifest; it must not become an editor of it.
+# --- Arm 7: ONLY THE TWO CURATED MANIFESTS MAY CHANGE ------------------------
+# `design_refs` is safely additive only when an explicit state citation explains
+# the output delta. Every unaffected slice stays byte-identical to the base;
+# Slice 20 and 21 must show their new authoritative plan citation and token.
 if git -C "$REPO_ROOT" cat-file -e "$BASE_SHA:scripts/commission-manifest.sh" 2>/dev/null; then
   BASE_GEN="$TMPROOT/commission-manifest.base.sh"
   git -C "$REPO_ROOT" show "$BASE_SHA:scripts/commission-manifest.sh" >"$BASE_GEN"
   chmod +x "$BASE_GEN"
   DIFFS=""
-  for s in "${REAL_SLICES[@]}"; do
+  for s in "${UNCHANGED_REAL_SLICES[@]}"; do
     set +e
     A="$(cd "$REPO_ROOT" && bash "$BASE_GEN" 0.8.20 "$s" 2>/dev/null)"
     B="$(cd "$REPO_ROOT" && bash "$GEN" 0.8.20 "$s" 2>/dev/null)"
@@ -387,10 +386,22 @@ if git -C "$REPO_ROOT" cat-file -e "$BASE_SHA:scripts/commission-manifest.sh" 2>
     [ "$A" = "$B" ] || DIFFS="$DIFFS $s"
   done
   if [ -z "$DIFFS" ]; then
-    pass "commission-manifest stdout is byte-identical to $BASE_SHA for all 14 ladder slices"
+    pass "commission-manifest stdout is byte-identical to $BASE_SHA for all unaffected ladder slices"
   else
     fail "arm 7 (byte-identity): slices differ:$DIFFS"
   fi
+  for token in '20|TC-45' '21|ac_002'; do
+    slice="${token%%|*}"
+    required_token="${token#*|}"
+    current="$(cd "$REPO_ROOT" && bash "$GEN" 0.8.20 "$slice" 2>/dev/null)"
+    if grep -Fq 'CURATED' <<<"$current" \
+       && grep -Fq 'dev/plans/plan-0.8.20.md' <<<"$current" \
+       && grep -Fq "$required_token" <<<"$current"; then
+      pass "Slice $slice manifest curates the authoritative plan for $required_token"
+    else
+      fail "arm 7 (curated coverage): Slice $slice lacks the plan citation for $required_token"
+    fi
+  done
 else
   fail "arm 7 (byte-identity): base commit $BASE_SHA is unreachable; the pin cannot be checked"
 fi

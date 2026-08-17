@@ -385,32 +385,10 @@ STATE_GLOB = "dev/plans/release-state-*.json"
 # ---------------------------------------------------------------------------
 # THE FROZEN BASELINE EXEMPTION TABLE
 # ---------------------------------------------------------------------------
-# Measured at 2671346d, the commit this check was written against: across all 14
-# 0.8.20 ladder slices, EXACTLY TWO carry a token no design document mentions.
-# Both slices are LANDED. Curating `design_refs` for them is the Steward's edit
-# to the state file, not this check's, and back-linking them by hand is the
-# superseded "Requirement traceability" blockquote. So they are enumerated here,
-# individually, with a reason — and ANYTHING NOT IN THIS TABLE IS A HARD FAILURE.
-#
-# That asymmetry is the whole design: green today, and a new uncovered token goes
-# red immediately, on a landed slice or a future one. The table is expected to
-# SHRINK (when the Steward curates `design_refs` for either entry, its row goes
-# stale and the check says so). Growing it is a deliberate, reviewable edit.
-EXEMPTIONS = {
-    ("0.8.20", 20, "TC-45"): (
-        "LANDED. TC-45 is the supersession-terminal fix carried by R-20-DR; the "
-        "dense_readiness design predates the id and the entry carries no "
-        "design_refs. Curating it is the Steward's edit to the state file "
-        "(TC-92 remedy (b)); hand-annotating the doc is the superseded remedy."
-    ),
-    ("0.8.20", 21, "ac_002"): (
-        "LANDED. Slice 21's curated design_ref covers the TC-57 write-race leg "
-        "and says nothing about the ac_002 oracle replacement, which is the "
-        "second shape TC-92 records: one incidental match, honestly reported, "
-        "easy to read past. Its design of record is the plan's requirements "
-        "section, not a design memo."
-    ),
-}
+# The two 0.8.20 baseline exceptions were retired when the Steward curated the
+# authoritative plan into their entries' `design_refs`. Keep the table empty:
+# any new uncovered token is a hard failure, including on landed history.
+EXEMPTIONS = {}
 
 # ---------------------------------------------------------------------------
 # ANTI-DRIFT: the manifest's whole-token boundary, asserted not assumed.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Independently scan every reachable commit in CI with redacted findings.
+# Independently classify every reachable commit after the current-tree scan.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -8,6 +8,34 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 repo="${1:-.}"
 repo="$(git -C "$repo" rev-parse --show-toplevel)" || exit 1
+"$SCRIPT_DIR/gitleaks-current.sh" "$repo"
 gitleaks_bin="$(require_gitleaks_bin gitleaks-history)" || exit 1
 
-exec "$gitleaks_bin" git --log-opts="--all" --redact=100 --no-banner --no-color --exit-code 1 "$repo"
+scan_root="$(mktemp -d)"
+trap 'rm -rf "$scan_root"' EXIT
+safe_report="$scan_root/safe-report"
+
+set +e
+"$gitleaks_bin" git \
+  --log-opts="--all" \
+  --redact=100 \
+  --no-banner \
+  --no-color \
+  --exit-code 1 \
+  --report-format template \
+  --report-template "$SCRIPT_DIR/gitleaks-history-safe-report.tmpl" \
+  --report-path "$safe_report" \
+  "$repo" >"$scan_root/scanner-output" 2>&1
+scan_rc=$?
+set -e
+
+case "$scan_rc" in
+  0 | 1) ;;
+  *)
+    printf '%s\n' 'gitleaks-history: scanner did not produce a comparable safe report' >&2
+    exit 1
+    ;;
+esac
+
+python3 "$SCRIPT_DIR/check-gitleaks-history.py" \
+  "$SCRIPT_DIR/gitleaks-history-manifest.json" "$safe_report"

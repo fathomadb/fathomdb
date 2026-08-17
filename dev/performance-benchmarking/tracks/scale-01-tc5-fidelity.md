@@ -1,7 +1,10 @@
 # SCALE-01 — TC-5 all-real fidelity characterization
 
-**Status:** planned; manifest-runner preparation integrated and independent of
-LOCOMO work. Execution remains separately authorized.
+**Status:** active; the manifest runner, release-gated executor, and external
+driver are integrated and independent of LOCOMO work. Execution remains blocked
+before release until an eligible all-real 18,472/7,667 source, manifest, output
+root, CPU/model/ground-truth/runtime inventory, and coordinator release are
+qualified.
 
 ## Decision
 

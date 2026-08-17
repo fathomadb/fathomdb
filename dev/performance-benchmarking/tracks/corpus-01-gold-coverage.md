@@ -1,6 +1,10 @@
 # CORPUS-01 — Agent-memory gold coverage
 
-**Status:** planned; prepare in parallel with LOCOMO-01.
+**Status:** active; the fail-closed corpus/license matrix and human-gold
+protocol are integrated and may prepare in parallel with LOCOMO-01. No corpus
+payload or human-review batch has begun: factual qualification is required
+before a batch, and a coordinator-bound trusted amendment registry is required
+only when a qualified human-gold batch needs one.
 
 ## Decision
 

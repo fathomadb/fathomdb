@@ -1,8 +1,11 @@
 # PARENT-01 — Parent-child retrieval screening
 
 **Status:** active; `parent_child_turn_session_v1` is HITL-approved in the
-[dated grid amendment](../2026-08-17-parent-01-v1-grid-amendment.md).
-Implementation and execution remain uncommissioned.
+[dated grid amendment](../2026-08-17-parent-01-v1-grid-amendment.md). Its
+release-gated executor, external adapter, and factual qualifier are integrated.
+Execution is blocked before release on a qualified byte-matching LOCOMO corpus,
+fixed subset, and unambiguous canonical parent proof; GPU cells additionally
+require a working NVIDIA driver.
 
 ## Decision
 

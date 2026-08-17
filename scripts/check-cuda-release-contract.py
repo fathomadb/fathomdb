@@ -35,6 +35,12 @@ CUDA_MANYLINUX_PROVISIONER = ROOT / "scripts/release/provision-cuda-manylinux.sh
 CUDA_IMAGE_ATTESTATION = ROOT / "scripts/release/cuda-image-attestation.sh"
 CUDA_PREFLIGHT_WITNESS_SCHEMA = ROOT / "scripts/release/cuda-preflight-witness.schema.json"
 CUDA_PREFLIGHT_WITNESS_VERIFIER = ROOT / "scripts/release/verify-cuda-preflight-witness.py"
+UNMERGED_CANDIDATE_MANIFEST = ROOT / "dev/release/cuda-unmerged-candidates.json"
+UNMERGED_CANDIDATE_SCHEMA = ROOT / "dev/release/cuda-unmerged-candidates.schema.json"
+UNMERGED_PROTECTION_BASELINE = ROOT / "dev/release/cuda-protection-baseline.json"
+UNMERGED_RECEIPT_SCHEMA = ROOT / "scripts/release/cuda-unmerged-route-receipt.schema.json"
+UNMERGED_CANDIDATE_VERIFIER = ROOT / "scripts/release/verify-cuda-unmerged-candidate.py"
+UNMERGED_RECEIPT_VERIFIER = ROOT / "scripts/release/verify-cuda-unmerged-receipt.py"
 
 NAPI_CUDA_FEATURE = ["default-embedder", "fathomdb-engine/embed-cuda"]
 NAPI_CUDA_BUILD = "bash ../../scripts/release/build-napi-cuda.sh"
@@ -86,46 +92,6 @@ DRIVERLESS_DEVICE_SELECTION_VARIABLES = (
     "HIP_VISIBLE_DEVICES",
     "ROCR_VISIBLE_DEVICES",
 )
-EXPECTED_CUDA_TRUSTED_ROUTE_JOB = """\
-  verify-cuda-trusted-route:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, inspect only the immutable candidate
-        with:
-          ref: ${{ inputs.candidate_commit }}
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Verify default-branch-owned CUDA route
-        shell: bash
-        env:
-          WORKFLOW_REF: ${{ github.workflow_ref }}
-          CANDIDATE_SHA: ${{ inputs.candidate_commit }}
-        run: |
-          set -euo pipefail
-          if [ "$WORKFLOW_REF" != 'fathomadb/fathomdb/.github/workflows/release.yml@refs/heads/main' ]; then
-            echo "CUDA trusted route must run from the default-branch release workflow" >&2
-            exit 1
-          fi
-          if ! [[ "$CANDIDATE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
-            echo "CUDA trusted route requires a full immutable candidate SHA" >&2
-            exit 1
-          fi
-          RESOLVED_CANDIDATE="$(git rev-parse --verify "${CANDIDATE_SHA}^{commit}")"
-          if [ "$(git rev-parse HEAD)" != "$RESOLVED_CANDIDATE" ]; then
-            echo "CUDA trusted route checkout does not match the requested candidate" >&2
-            exit 1
-          fi
-          git rev-parse --verify refs/remotes/origin/main
-          if ! git merge-base --is-ancestor "$RESOLVED_CANDIDATE" refs/remotes/origin/main; then
-            echo "CUDA trusted route candidate is not reachable from default branch" >&2
-            exit 1
-          fi"""
-
-
 def fail(message: str) -> None:
     print(f"cuda-release-contract: {message}", file=sys.stderr)
     raise SystemExit(1)
@@ -174,6 +140,57 @@ def workflow_job(name: str) -> str:
 def require_fragment(block: str, fragment: str, label: str) -> None:
     if fragment not in block:
         fail(f"{label} is missing {fragment!r}")
+
+
+def require_unmerged_candidate_control_plane() -> None:
+    manifest = load_json(UNMERGED_CANDIDATE_MANIFEST)
+    if manifest != {"schema_version": "fathomdb.cuda-unmerged-candidates/v1", "candidates": []}:
+        fail("local unmerged candidate manifest must be a canonical empty control-plane manifest")
+    if read_text(UNMERGED_CANDIDATE_MANIFEST).encode("utf-8") != (
+        b'{"candidates":[],"schema_version":"fathomdb.cuda-unmerged-candidates/v1"}\n'
+    ):
+        fail("local unmerged candidate manifest must use the reviewed canonical bytes")
+    for path, marker in (
+        (UNMERGED_CANDIDATE_SCHEMA, "fathomdb.cuda-unmerged-candidate/v1"),
+        (UNMERGED_RECEIPT_SCHEMA, "fathomdb.cuda-unmerged-route-receipt/v1"),
+        (UNMERGED_CANDIDATE_VERIFIER, "def validate_manifest"),
+        (UNMERGED_RECEIPT_VERIFIER, "receipt workflow SHA does not match this consumer"),
+    ):
+        require_fragment(read_text(path), marker, str(path))
+    baseline = load_json(UNMERGED_PROTECTION_BASELINE)
+    if set(baseline) != {
+        "schema_version", "expires_at", "main_protection_sha256", "runner_group_sha256", "environment_sha256"
+    } or baseline.get("schema_version") != "fathomdb.cuda-protection-baseline/v1":
+        fail("unmerged CUDA protection baseline has an unsupported shape")
+
+
+def require_unmerged_workflow_route() -> None:
+    trusted_route = workflow_job("verify-cuda-trusted-route")
+    for fragment in (
+        "runs-on: ubuntu-latest",
+        "permissions:\n      contents: read",
+        "ref: ${{ github.workflow_sha }}",
+        "fetch-depth: 1",
+        "persist-credentials: false",
+        "scripts/release/verify-cuda-unmerged-candidate.py authorize",
+        "dev/release/cuda-unmerged-candidates.json",
+        "dev/release/cuda-protection-baseline.json",
+        "${{ github.workflow_ref }}",
+        "${{ github.workflow_sha }}",
+        "${{ github.run_id }}",
+        "${{ github.run_attempt }}",
+        "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+        "cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}",
+    ):
+        require_fragment(trusted_route, fragment, "GitHub-hosted unmerged CUDA route")
+    for forbidden in (
+        "ref: ${{ inputs.candidate_commit }}", "RELEASE_CHECKOUT_REF", "npm ", "cargo ", "pip ", "uses: ./",
+        "run: ./candidate", "run: bash candidate", "uses: owner/action@ref",
+    ):
+        if forbidden in trusted_route:
+            fail(f"GitHub-hosted unmerged CUDA route must not execute candidate code: {forbidden!r}")
+    for name in ("verify-release", "build-python", "build-napi", "build-rust"):
+        require_fragment(workflow_job(name), "verify-cuda-trusted-route", f"{name} candidate route dependency")
 
 
 def driverless_smoke_sections(preflight: str) -> tuple[str, str]:
@@ -593,17 +610,16 @@ def main() -> None:
         fail("CUDA preflight must observe the spawned Python and N-API GPU smoke PIDs on CUDA:0")
     require_driverless_device_absence(preflight)
 
-    trusted_route = workflow_job("verify-cuda-trusted-route")
-    trusted_route = trusted_route.split("\n\n  # Slice 0:", 1)[0].rstrip()
-    if trusted_route != EXPECTED_CUDA_TRUSTED_ROUTE_JOB:
-        fail("GitHub-hosted CUDA trusted-route verifier differs from the exact approved allowlist")
+    require_unmerged_candidate_control_plane()
+    require_unmerged_workflow_route()
 
     job = workflow_job("cuda-contract-preflight")
-    require_fragment(
+    if not re.search(
+        r"^    if: \$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.dry_run == true \}\}$",
         job,
-        "if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}",
-        "cuda-contract-preflight",
-    )
+        re.MULTILINE,
+    ):
+        fail("cuda-contract-preflight must be dry-run-only at job scope")
     require_fragment(job, "runs-on: [self-hosted, Linux, X64, gpu, cuda-12]", "cuda-contract-preflight")
     for label in RUNNER_LABELS:
         require_fragment(job, label, "cuda-contract-preflight runner labels")
@@ -612,6 +628,13 @@ def main() -> None:
         "needs: [verify-release, verify-cuda-trusted-route]",
         "cuda-contract-preflight",
     )
+    require_fragment(job, "environment: cuda-unmerged-preflight", "cuda-contract-preflight")
+    require_fragment(job, "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093", "cuda-contract-preflight")
+    require_fragment(job, "control-plane/scripts/release/verify-cuda-unmerged-receipt.py", "cuda-contract-preflight")
+    candidate_checkout = job.index("ref: ${{ env.RELEASE_CHECKOUT_REF }}")
+    receipt_check = job.index("control-plane/scripts/release/verify-cuda-unmerged-receipt.py")
+    if receipt_check >= candidate_checkout:
+        fail("cuda-contract-preflight must verify the hosted receipt before candidate checkout")
     if not re.search(
         r"^    permissions:\n      contents: read\n",
         job,

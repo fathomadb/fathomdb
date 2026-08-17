@@ -36,7 +36,7 @@ Windows evidence; the remaining candidate slices require explicit commission.
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Commission Slice 65 (WAL-ATTRIBUTION)** — Windows WAL checkpoint root-cause attribution. **Remaining ladder:** 65 → 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Continue Slice 65 (WAL-ATTRIBUTION)** — Windows WAL checkpoint root-cause attribution. **Remaining ladder:** 65 → 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
 
 ## Stop gate
 

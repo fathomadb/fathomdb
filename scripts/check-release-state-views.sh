@@ -651,14 +651,16 @@ def render_status_next_action(st):
     orchestrator to commission it again is a false instruction. It must be
     landed through the repository's integration path instead. Likewise,
     `PREP_COMPLETE_PUBLISH_HELD` is not a commission: publication needs a new
-    explicit authorization. Other live states retain the ordinary commission
-    action.
+    explicit authorization. `IN_PROGRESS` is also not a commission: its
+    remaining controls must continue. Other live states retain the ordinary
+    commission action.
     """
     nxt = st["next_slice"]
     entry = _by_slice(st)[nxt]
     action = {
         "REVIEWED_PENDING_INTEGRATION": "Land reviewed Slice",
         "PREP_COMPLETE_PUBLISH_HELD": "Await explicit publication authorization for Slice",
+        "IN_PROGRESS": "Continue Slice",
     }.get(entry["status"], "Commission Slice")
     return ("**%s %s (%s)** — %s. **Remaining ladder:** %s."
             % (action, _slice_str(nxt), entry["short"], entry["title"],

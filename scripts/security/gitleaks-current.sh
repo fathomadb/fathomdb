@@ -19,6 +19,12 @@ trap 'rm -rf "$scan_root"' EXIT
 # files by default, so scan those explicitly below as well.
 git -C "$repo" ls-files -z | (cd "$repo" && tar --null --files-from=- -cf -) | tar -xf - -C "$scan_root"
 
+tracked_logs="$scan_root/tracked-logs"
+if ! git -C "$repo" ls-files -z -- '*.log' >"$tracked_logs" 2>/dev/null; then
+  printf '%s\n' 'gitleaks-current: cannot enumerate tracked log files' >&2
+  exit 1
+fi
+
 cd "$scan_root"
 set +e
 "$gitleaks_bin" dir \
@@ -50,7 +56,7 @@ while IFS= read -r -d '' path; do
   if [ "$log_rc" -ne 0 ]; then
     scan_rc=1
   fi
-done < <(git -C "$repo" ls-files -z -- '*.log')
+done <"$tracked_logs"
 set -e
 
 exit "$scan_rc"

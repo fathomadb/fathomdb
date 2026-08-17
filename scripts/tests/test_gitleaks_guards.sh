@@ -207,8 +207,9 @@ printf '%s\n' \
   'fi' \
   'exec "$REAL_GIT" "$@"' >"$TMPROOT/fail-git/git"
 chmod +x "$TMPROOT/fail-git/git"
+real_git="$(command -v git)"
 set +e
-enumeration_failure_out="$(PATH="$TMPROOT/fail-git:$PATH" REAL_GIT="$(command -v git)" GITLEAKS_BIN="$GITLEAKS_BIN" "$CURRENT_GUARD" "$ENUM_FIXTURE" 2>&1)"
+enumeration_failure_out="$(PATH="$TMPROOT/fail-git:$PATH" REAL_GIT="$real_git" GITLEAKS_BIN="$GITLEAKS_BIN" "$CURRENT_GUARD" "$ENUM_FIXTURE" 2>&1)"
 enumeration_failure_rc=$?
 set -e
 expect_nonzero "$enumeration_failure_rc" "current-tree guard fails closed when tracked-log enumeration fails"

@@ -192,6 +192,7 @@ def _fake_runner(path: Path) -> Path:
         "    'source_commit': '" + "b" * 40 + "',\n"
         "    'cargo_lock_sha256': '" + "c" * 64 + "',\n"
         "    'model_asset_sha256': '" + "d" * 64 + "',\n"
+        "    'rust_version': '1.90.0', 'engine_features': ['default-embedder', 'operator'],\n"
         "    'cpu_identity': 'cpu-identity', 'os_identity': 'os-identity',\n"
         "    'embed_device': 'cpu', 'model_identity': 'fathomdb-bge-small-en-v1.5',\n"
         "    'candidate_breadth': 192, 'query_count': 100,\n"
@@ -284,6 +285,46 @@ def test_executor_rejects_repository_and_historical_eu7_output_roots_before_runn
     assert not (repository / "dev/plans/runs/eu7-latest-measurements.json").is_dir()
 
 
+def test_executor_rejects_arm_directory_and_receipt_symlink_escapes_before_runner_start(tmp_path):
+    base_config, live_config_path, manifest_path, corpus_root, output_root, runner = _paths(tmp_path)
+    release_path = _write_json(
+        tmp_path / "release.json",
+        _release(live_config=_live_config(_base_config()), manifest=_manifest(), executable=runner),
+    )
+    escaped_arm = tmp_path / "escaped-arm"
+    escaped_arm.mkdir()
+    (output_root / "tc5-smoke").symlink_to(escaped_arm, target_is_directory=True)
+
+    with pytest.raises(Tc5LiveExecutorError, match="escapes the declared external output root"):
+        execute_tc5(
+            action="tc5-smoke", release_path=release_path, live_config_path=live_config_path,
+            base_execution_config_path=base_config, manifest_path=manifest_path,
+            corpus_root=corpus_root, output_root=output_root,
+        )
+
+    assert list(escaped_arm.iterdir()) == []
+
+
+def test_executor_rejects_receipt_symlink_escape_before_any_arm_driver_runs(tmp_path):
+    base_config, live_config_path, manifest_path, corpus_root, output_root, runner = _paths(tmp_path)
+    release_path = _write_json(
+        tmp_path / "release.json",
+        _release(live_config=_live_config(_base_config()), manifest=_manifest(), executable=runner),
+    )
+    escaped_receipt = tmp_path / "escaped-receipt.json"
+    (output_root / "tc5-tc5-smoke-receipt.json").symlink_to(escaped_receipt)
+
+    with pytest.raises(Tc5LiveExecutorError, match="escapes the declared external output root"):
+        execute_tc5(
+            action="tc5-smoke", release_path=release_path, live_config_path=live_config_path,
+            base_execution_config_path=base_config, manifest_path=manifest_path,
+            corpus_root=corpus_root, output_root=output_root,
+        )
+
+    assert not (output_root / "tc5-smoke").exists()
+    assert not escaped_receipt.exists()
+
+
 def test_executor_runs_only_bridge_then_primary_and_emits_a_safe_complete_receipt(tmp_path):
     base_config, live_config_path, manifest_path, corpus_root, output_root, runner = _paths(tmp_path)
     release_path = _write_json(
@@ -305,6 +346,12 @@ def test_executor_runs_only_bridge_then_primary_and_emits_a_safe_complete_receip
         "append_status": "not_appended",
         "eligibility": "eligible_after_complete_safe_two_arm_receipt",
     }
+    assert receipt["input_digests"] == {
+        "live_executor_config_sha256": hashlib.sha256(_canonical(_live_config(_base_config()))).hexdigest(),
+        "execution_config_sha256": hashlib.sha256(_canonical(_base_config())).hexdigest(),
+        "release_record_sha256": json.loads(release_path.read_text(encoding="utf-8"))["release_sha256"],
+        "runner_sha256": hashlib.sha256(runner.read_bytes()).hexdigest(),
+    }
     serialized = json.dumps(receipt)
     assert str(corpus_root) not in serialized
     assert str(output_root) not in serialized
@@ -317,6 +364,7 @@ def test_executor_runs_only_bridge_then_primary_and_emits_a_safe_complete_receip
     [
         (lambda release: release.__setitem__("expires_at", "2000-01-01T00:00:00Z"), "stale"),
         (lambda release: release.__setitem__("approved_actions", ["tc5-smoke"]), "not approved"),
+        (lambda release: release.__setitem__("live_config_sha256", "c" * 64), "live executor configuration"),
         (lambda release: release.__setitem__("manifest_sha256", "f" * 64), "manifest"),
         (lambda release: release.__setitem__("runner_sha256", "e" * 64), "runner"),
     ],
@@ -347,6 +395,10 @@ def test_release_fails_closed_on_stale_or_mismatched_authority(tmp_path, mutate,
         ("partial", "query_completion_count"),
         ("substitution", "document_count"),
         ("provenance", "source_artifact_sha256"),
+        ("rust-version", "rust_version"),
+        ("engine-features", "engine_features"),
+        ("nan-sigma", "bootstrap_sigma"),
+        ("infinite-sigma", "bootstrap_sigma"),
         ("claim", "SCALE-02"),
     ],
 )
@@ -366,6 +418,10 @@ def test_executor_rejects_unqualified_arm_result_without_index_eligibility(tmp_p
             "partial": "result['query_completion_count'] = 99",
             "substitution": "result['document_count'] = 1",
             "provenance": "result['provenance']['source_artifact_sha256'] = 'e' * 64",
+            "rust-version": "result['provenance']['rust_version'] = '1.91.0'",
+            "engine-features": "result['provenance']['engine_features'] = ['operator', 'default-embedder']",
+            "nan-sigma": "result['metrics']['bootstrap_sigma'] = float('nan')",
+            "infinite-sigma": "result['metrics']['bootstrap_sigma'] = float('inf')",
             "claim": "result['scale_02_claim'] = 'supported through 50k'",
         }[mutation]
         + "\njson.dump(result, open(result_path, 'w', encoding='utf-8'), sort_keys=True)\n",

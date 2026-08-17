@@ -60,6 +60,19 @@ def _approved_registry(amendment: dict[str, object]) -> dict[str, object]:
     }
 
 
+def _amendment(
+    matrix: dict[str, object], qualified: corpus_matrix.QualifiedHumanGoldManifest, *, approval_ref: str
+) -> dict[str, object]:
+    return {
+        "schema_version": "corpus-01-human-gold-amendment.v1",
+        "amendment_id": "corpus-01-locomo-knowledge-update-001",
+        "matrix_sha256": corpus_matrix.canonical_sha256(matrix),
+        "qualified_manifest_sha256": qualified.manifest_sha256,
+        "corpus_id": "locomo", "category": "knowledge_update",
+        "approval_ref": approval_ref, "eligibility": "approved_human_gold",
+    }
+
+
 def test_native_and_human_gold_eligibility_are_explicitly_distinct():
     matrix = _matrix()
 
@@ -143,6 +156,42 @@ def test_fabricated_ledger_sequence_cannot_approve_an_unsupported_pair():
     with pytest.raises(corpus_matrix.CorpusMatrixError, match="approved-amendment registry"):
         corpus_matrix.validate_human_gold_amendment(
             fabricated_amendment, matrix, qualified, approved_registry=empty_registry
+        )
+
+
+def test_existing_three_argument_amendment_api_fails_closed_without_registry():
+    matrix = _matrix()
+    protocol = _protocol()
+    qualified = corpus_matrix.validate_qualified_human_gold_manifest(
+        _qualified_manifest(matrix, protocol), matrix, protocol
+    )
+    fabricated_amendment = _amendment(matrix, qualified, approval_ref="seq-999999")
+
+    with pytest.raises(corpus_matrix.CorpusMatrixError, match="requires a coordinator-supplied registry"):
+        corpus_matrix.validate_human_gold_amendment(fabricated_amendment, matrix, qualified)
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    [
+        ("corpus_id", "musique"),
+        ("category", "supersession"),
+        ("approval_ref", "seq-250"),
+    ],
+)
+def test_registry_exact_hash_is_insufficient_when_any_approval_binding_field_differs(field, replacement):
+    matrix = _matrix()
+    protocol = _protocol()
+    qualified = corpus_matrix.validate_qualified_human_gold_manifest(
+        _qualified_manifest(matrix, protocol), matrix, protocol
+    )
+    amendment = _amendment(matrix, qualified, approval_ref="seq-249")
+    registry = _approved_registry(amendment)
+    registry["entries"][0][field] = replacement
+
+    with pytest.raises(corpus_matrix.CorpusMatrixError, match="registry binding does not match"):
+        corpus_matrix.validate_human_gold_amendment(
+            amendment, matrix, qualified, approved_registry=registry
         )
 
 

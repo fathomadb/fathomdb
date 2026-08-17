@@ -15,7 +15,8 @@
 - Coordinator-release validation bound to integrated SHA, frozen config,
   qualified manifest, action, external runner hash, and expiry.
 - Bridge-then-primary external execution protocol, strict safe arm-result
-  validation, safe external two-arm receipt, and resume-safe reuse.
+  validation, resolved-root/symlink containment, safe external two-arm receipt,
+  and resume-safe reuse.
 - Human-intended red-first tests and the dated live-executor contract.
 
 ## Red-first evidence
@@ -50,10 +51,15 @@ external sidecars.
 2. Confirm the release sidecar rejects absent/tampered/stale/mismatched
    authority before external output creation.
 3. Confirm the executor can run only bridge then primary, rejects GPU,
-   padding/substitution, incomplete or provenance-drifted results, and keeps
-   all receipts free of raw paths, document IDs, payloads, and SCALE-02 claims.
+   padding/substitution, `NaN`/infinite uncertainty, incomplete or
+   provenance-drifted results (including Rust version and sorted engine
+   features), and keeps all receipts free of raw paths, document IDs, payloads,
+   and SCALE-02 claims.
 4. Confirm a complete two-arm receipt is merely index-eligible and does not
-   append the experiment index itself.
+   append the experiment index itself; it must carry safe digests for config,
+   frozen execution config, release sidecar, and runner.
+5. Confirm resolved arm and receipt destinations cannot escape the external
+   root through symlinks before any directory, driver, or receipt operation.
 
 ## Future coordinator command and prerequisites
 

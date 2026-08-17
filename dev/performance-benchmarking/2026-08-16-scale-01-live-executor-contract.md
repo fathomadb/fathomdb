@@ -23,6 +23,12 @@ the pinned CPU model, `K=192`, 100-query, and 1,000-bootstrap settings to the
 external driver through named environment variables. No GPU, padded or
 substituted corpus result can become eligible.
 
+Every generated arm directory, arm-result destination, and final receipt
+destination is resolved against the declared external output root before any
+directory creation, driver start, or receipt write. A path that resolves into
+the repository or escapes through a symlink fails closed. The executor repeats
+that containment check immediately before driver and receipt operations.
+
 ## Frozen inputs
 
 `experiments/configs/scale-01/tc5-live-executor.v1.json` binds the existing
@@ -62,11 +68,13 @@ candidate/query/bootstrap/ground-truth/SUT pins.
 The driver must write the declared external `tc5-arm-result.v1` sidecar. Its
 strict safe projection includes only arm identity/count, manifest and result
 digests, completion count, zero synthetic documents, aggregate recall/CI/sigma,
-and pinned input provenance. It has no raw path, document ID, payload,
+and pinned input provenance. Provenance repeats and validates the manifest's
+Rust version and canonical sorted engine-feature list as well as source,
+model, CPU/OS, and measurement pins. It has no raw path, document ID, payload,
 prediction, model output, or SCALE-02 claim field. The executor rejects every
 unknown or missing field, a missing ground-truth digest, incomplete queries or
-bootstrap, GPU, padding/substitution, invalid aggregate uncertainty, or any
-provenance drift.
+bootstrap, GPU, padding/substitution, non-finite (`NaN`/infinite) uncertainty,
+or any provenance drift.
 
 Completed qualified arm sidecars are resume-safe: the executor validates and
 reuses them rather than launching the arm again. A partial or invalid existing
@@ -79,6 +87,11 @@ external `tc5-live-executor-receipt.v1`. Its index projection is explicitly
 `not_appended` and becomes eligible only after a complete safe two-arm receipt.
 The executor never writes `experiments/index.jsonl`, repository output, or the
 historical `dev/plans/runs/eu7-latest-measurements.json`.
+
+The receipt's `input_digests` projects safe SHA-256 values for the live
+executor config, frozen disabled execution config, release sidecar integrity
+record, and external runner. It therefore identifies the exact release inputs
+without carrying their paths or payloads.
 
 ## Future coordinator invocation
 

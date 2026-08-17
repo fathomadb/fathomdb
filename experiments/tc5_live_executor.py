@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
@@ -107,6 +108,7 @@ class Tc5LiveExecutorConfig:
 
     executor_id: str
     config_sha256: str
+    execution_config_sha256: str
     arms: tuple[tuple[str, int], ...]
     approved_actions: tuple[str, ...]
 
@@ -119,6 +121,8 @@ class Tc5ReleaseRecord:
     integrated_sha: str
     approved_actions: tuple[str, ...]
     runner_argv: tuple[str, ...]
+    record_sha256: str
+    runner_sha256: str
 
 
 def _repository_root() -> Path:
@@ -126,7 +130,9 @@ def _repository_root() -> Path:
 
 
 def _canonical_json(value: object) -> bytes:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False
+    ).encode("utf-8")
 
 
 def _require_sha256(value: object, label: str) -> str:
@@ -165,6 +171,17 @@ def _external_directory(path: str | Path, label: str) -> Path:
     return resolved
 
 
+def _safe_external_output_path(output_root: Path, *parts: str, label: str) -> Path:
+    """Resolve one output destination and reject repository or symlink escapes."""
+    candidate = output_root.joinpath(*parts)
+    resolved = candidate.resolve(strict=False)
+    if not resolved.is_relative_to(output_root):
+        raise Tc5LiveExecutorError(f"{label} escapes the declared external output root")
+    if resolved.is_relative_to(_repository_root()):
+        raise Tc5LiveExecutorError(f"{label} must remain outside the repository")
+    return resolved
+
+
 def _execution_config_sha256(path: str | Path) -> str:
     document = _load_json(path, "execution configuration", external=False)
     return hashlib.sha256(_canonical_json(document)).hexdigest()
@@ -200,9 +217,11 @@ def load_live_executor_config(
         raise Tc5LiveExecutorError("live executor configuration approved_actions do not match TC-5 scope")
     if document["result_contract"] != _RESULT_CONTRACT:
         raise Tc5LiveExecutorError("live executor configuration result_contract does not match safe result boundary")
+    execution_config_sha256 = _execution_config_sha256(base_execution_config_path)
     return Tc5LiveExecutorConfig(
         executor_id=executor_id,
         config_sha256=hashlib.sha256(_canonical_json(document)).hexdigest(),
+        execution_config_sha256=execution_config_sha256,
         arms=_ARMS,
         approved_actions=_ACTIONS,
     )
@@ -276,18 +295,17 @@ def _load_release(
     executable = Path(argv[0]).resolve()
     if executable.is_relative_to(_repository_root()) or not executable.is_file():
         raise Tc5LiveExecutorError("release runner must be an existing external file")
-    if document["runner_sha256"] != hashlib.sha256(executable.read_bytes()).hexdigest():
+    runner_sha256 = _require_sha256(document["runner_sha256"], "release record runner_sha256")
+    if runner_sha256 != hashlib.sha256(executable.read_bytes()).hexdigest():
         raise Tc5LiveExecutorError("release record runner_sha256 does not match the external runner")
     return Tc5ReleaseRecord(
         release_id=release_id,
         integrated_sha=released_sha,
         approved_actions=tuple(actions),
         runner_argv=tuple(argv),
+        record_sha256=_require_sha256(document["release_sha256"], "release record release_sha256"),
+        runner_sha256=runner_sha256,
     )
-
-
-def _result_path(output_root: Path, action: str, arm: str) -> Path:
-    return output_root / action / arm / "result.json"
 
 
 def _result_provenance(manifest: Tc5Manifest) -> dict[str, object]:
@@ -297,6 +315,8 @@ def _result_provenance(manifest: Tc5Manifest) -> dict[str, object]:
         "source_commit": provenance["source_commit"],
         "cargo_lock_sha256": provenance["cargo_lock_sha256"],
         "model_asset_sha256": provenance["model_asset_sha256"],
+        "rust_version": provenance["rust_version"],
+        "engine_features": list(provenance["engine_features"]),
         "cpu_identity": provenance["cpu_identity"],
         "os_identity": provenance["os_identity"],
         "embed_device": "cpu",
@@ -311,7 +331,12 @@ def _result_provenance(manifest: Tc5Manifest) -> dict[str, object]:
 
 
 def _safe_metric(value: object, label: str) -> float:
-    if not isinstance(value, (int, float)) or isinstance(value, bool) or not 0.0 <= float(value) <= 1.0:
+    if (
+        not isinstance(value, (int, float))
+        or isinstance(value, bool)
+        or not math.isfinite(float(value))
+        or not 0.0 <= float(value) <= 1.0
+    ):
         raise Tc5LiveExecutorError(f"{label} must be a finite probability")
     return float(value)
 
@@ -359,11 +384,19 @@ def _validate_arm_result(
     if ci_low > ci_high or not ci_low <= recall <= ci_high:
         raise Tc5LiveExecutorError("arm result ci_95 does not contain recall_at_10")
     sigma = metrics["bootstrap_sigma"]
-    if not isinstance(sigma, (int, float)) or isinstance(sigma, bool) or float(sigma) < 0.0:
-        raise Tc5LiveExecutorError("arm result bootstrap_sigma must be non-negative")
+    if (
+        not isinstance(sigma, (int, float))
+        or isinstance(sigma, bool)
+        or not math.isfinite(float(sigma))
+        or float(sigma) < 0.0
+    ):
+        raise Tc5LiveExecutorError("arm result bootstrap_sigma must be finite and non-negative")
     expected_provenance = _result_provenance(manifest)
     if not isinstance(result["provenance"], dict) or set(result["provenance"]) != set(expected_provenance):
         raise Tc5LiveExecutorError("arm result input provenance keys drift")
+    engine_features = result["provenance"].get("engine_features")
+    if not isinstance(engine_features, list) or engine_features != sorted(engine_features):
+        raise Tc5LiveExecutorError("arm result provenance engine_features drift")
     for field, expected in expected_provenance.items():
         if result["provenance"][field] != expected:
             raise Tc5LiveExecutorError(f"arm result provenance {field} drift")
@@ -394,12 +427,18 @@ def _run_arm(
     corpus_root: Path,
     output_root: Path,
 ) -> dict[str, object]:
-    destination = _result_path(output_root, action, arm)
+    arm_directory = _safe_external_output_path(output_root, action, arm, label="arm directory")
+    destination = _safe_external_output_path(
+        output_root, action, arm, "result.json", label="arm result destination"
+    )
     if destination.exists():
         return _validate_arm_result(
             destination, action=action, arm=arm, document_count=document_count, manifest=manifest
         )
-    destination.parent.mkdir(parents=True, exist_ok=True)
+    arm_directory.mkdir(parents=True, exist_ok=True)
+    destination = _safe_external_output_path(
+        output_root, action, arm, "result.json", label="arm result destination"
+    )
     environment = dict(os.environ)
     environment.update(
         {
@@ -437,6 +476,9 @@ def _run_arm(
         raise Tc5LiveExecutorError(f"external arm runner could not start: {exc}") from exc
     if completed.returncode != 0:
         raise Tc5LiveExecutorError(f"external arm runner failed for {arm}")
+    destination = _safe_external_output_path(
+        output_root, action, arm, "result.json", label="arm result destination"
+    )
     return _validate_arm_result(
         destination, action=action, arm=arm, document_count=document_count, manifest=manifest
     )
@@ -464,6 +506,12 @@ def _receipt(
         "artifact_refs": {
             "corpus_root_sha256": hashlib.sha256(str(corpus_root).encode("utf-8")).hexdigest(),
             "output_root_sha256": hashlib.sha256(str(output_root).encode("utf-8")).hexdigest(),
+        },
+        "input_digests": {
+            "live_executor_config_sha256": config.config_sha256,
+            "execution_config_sha256": config.execution_config_sha256,
+            "release_record_sha256": release.record_sha256,
+            "runner_sha256": release.runner_sha256,
         },
         "frozen_configuration": {
             "embed_device": "cpu",
@@ -515,6 +563,9 @@ def execute_tc5(
     corpus = _external_directory(corpus_root, "corpus root")
     output = _external_directory(output_root, "output root")
     release = _load_release(release_path, config=config, manifest=manifest, action=action)
+    receipt_destination = _safe_external_output_path(
+        output, f"tc5-{action}-receipt.json", label="receipt destination"
+    )
     arm_results = [
         _run_arm(
             release,
@@ -537,9 +588,11 @@ def execute_tc5(
         output_root=output,
         arms=arm_results,
     )
-    destination = output / f"tc5-{action}-receipt.json"
-    destination.write_bytes(_canonical_json(receipt) + b"\n")
-    return destination
+    receipt_destination = _safe_external_output_path(
+        output, f"tc5-{action}-receipt.json", label="receipt destination"
+    )
+    receipt_destination.write_bytes(_canonical_json(receipt) + b"\n")
+    return receipt_destination
 
 
 def main(argv: Sequence[str] | None = None) -> int:

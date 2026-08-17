@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import tempfile
 import threading
 from pathlib import Path
@@ -17,6 +18,9 @@ from pathlib import Path
 import fathomdb
 from fathomdb import Engine, graph, read
 from fathomdb.errors import ErasureIncompleteError
+
+
+EXPECTED_BASELINE_OBSERVATION_EXIT = 65
 
 
 def _node(logical_id: str, source_id: str) -> dict[str, str]:
@@ -49,7 +53,22 @@ def _assert_installed_version(expected: str) -> None:
     assert "site-packages" in package_file.parts, f"not an installed wheel: {package_file}"
 
 
-def run_serial_incident(expected_version: str, wheel_label: str, require_attribution: bool) -> None:
+def _expected_wal_baseline(error: ErasureIncompleteError) -> str:
+    """Normalize only the released WAL-checkpoint refusal for the artifact."""
+    if error.stage != "wal_checkpoint":
+        raise AssertionError(f"expected WAL checkpoint stage, got {error.stage!r}") from error
+    frame_match = re.search(r"\((\d+) frames still in the log\)", error.detail)
+    if frame_match is None or "wal_checkpoint(TRUNCATE)" not in error.detail or "BUSY" not in error.detail:
+        raise AssertionError("expected typed WAL checkpoint BUSY detail with retained frame count") from error
+    return frame_match.group(1)
+
+
+def run_serial_incident(
+    expected_version: str,
+    wheel_label: str,
+    require_attribution: bool,
+    expect_erasure_incomplete: bool,
+) -> None:
     """Run the audited close/reopen/recovery-read/nested-erasure shape once."""
     _assert_installed_version(expected_version)
     print(f"slice65_wal serial_wheel_selector={wheel_label}", flush=True)
@@ -66,6 +85,7 @@ def run_serial_incident(expected_version: str, wheel_label: str, require_attribu
         old.close()
 
         fresh = Engine.open(path, use_default_embedder=False)
+        expected_baseline_frames: str | None = None
         try:
             first = read.get(fresh, "slice65-root")
             assert first is not None and first.logical_id == "slice65-root"
@@ -80,16 +100,31 @@ def run_serial_incident(expected_version: str, wheel_label: str, require_attribu
             print("slice65_wal serial_recovery_reads=passed", flush=True)
 
             before = len(fresh._native._wal_attribution_checkpoint_records_for_test()) if require_attribution else 0
-            nested = fresh.erase_source("slice65-nested-source")
-            assert nested.nodes_excised == 1
-            fresh.transition("slice65-root", "deleted", "slice65 incident control")
-            fresh.purge("slice65-root")
-            if require_attribution:
-                records = fresh._native._wal_attribution_checkpoint_records_for_test()[before:]
-                assert records and all(r[1:] == (False, "no_owned_snapshot", []) for r in records)
-                print("slice65_wal serial_current_attribution_expected=1", flush=True)
+            try:
+                nested = fresh.erase_source("slice65-nested-source")
+            except ErasureIncompleteError as error:
+                if not expect_erasure_incomplete:
+                    raise
+                expected_baseline_frames = _expected_wal_baseline(error)
+            if expected_baseline_frames is None:
+                assert nested.nodes_excised == 1
+                fresh.transition("slice65-root", "deleted", "slice65 incident control")
+                fresh.purge("slice65-root")
+                if require_attribution:
+                    records = fresh._native._wal_attribution_checkpoint_records_for_test()[before:]
+                    assert records and all(r[1:] == (False, "no_owned_snapshot", []) for r in records)
+                    print("slice65_wal serial_current_attribution_expected=1", flush=True)
         finally:
             fresh.close()
+    if expect_erasure_incomplete:
+        if expected_baseline_frames is None:
+            raise AssertionError("released serial baseline unexpectedly completed instead of refusing WAL erasure")
+        print(
+            "slice65_wal serial_expected_erasure "
+            f"type=ErasureIncompleteError stage=wal_checkpoint wal_frames={expected_baseline_frames}",
+            flush=True,
+        )
+        raise SystemExit(EXPECTED_BASELINE_OBSERVATION_EXIT)
     print(
         f"slice65_wal serial_result=passed wheel_version={expected_version} wheel_selector={wheel_label}",
         flush=True,
@@ -168,9 +203,15 @@ def main() -> None:
     parser.add_argument("--wheel-label", required=True)
     parser.add_argument("--control", choices=("serial", "binding", "retained"), required=True)
     parser.add_argument("--require-attribution", action="store_true")
+    parser.add_argument("--expect-erasure-incomplete", action="store_true")
     args = parser.parse_args()
     if args.control == "serial":
-        run_serial_incident(args.wheel_version, args.wheel_label, args.require_attribution)
+        run_serial_incident(
+            args.wheel_version,
+            args.wheel_label,
+            args.require_attribution,
+            args.expect_erasure_incomplete,
+        )
     else:
         if not args.require_attribution:
             raise SystemExit("binding control requires the current test-hooks attribution wheel")

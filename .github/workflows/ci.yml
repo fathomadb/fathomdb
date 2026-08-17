@@ -578,8 +578,19 @@ jobs:
           & "$releasedEnv\Scripts\python.exe" -m pip show fathomdb 2>&1 | Tee-Object -FilePath $artifact -Append
           $releasedNative = (Get-ChildItem "$releasedEnv\Lib\site-packages\fathomdb\_fathomdb*.pyd" | Select-Object -First 1).FullName
           "slice65_wal released_native_sha256=$((Get-FileHash $releasedNative -Algorithm SHA256).Hash)" | Tee-Object -FilePath $artifact -Append
-          & "$releasedEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control serial --wheel-version 0.8.22 --wheel-label released-0.8.22 2>&1 | Tee-Object -FilePath $artifact -Append
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$releasedEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control serial --wheel-version 0.8.22 --wheel-label released-0.8.22 --expect-erasure-incomplete 2>&1 | Tee-Object -FilePath $artifact -Append
+          $releasedSerialExit = $LASTEXITCODE
+          if ($releasedSerialExit -ne 65) {
+            Write-Error "released serial baseline did not exit with the expected observation code: $releasedSerialExit"
+            exit 1
+          }
+          $releasedTypedObservation = Select-String -Path $artifact -Pattern 'slice65_wal serial_expected_erasure type=ErasureIncompleteError stage=wal_checkpoint wal_frames=(?<frames>\d+)' | Select-Object -Last 1
+          if ($null -eq $releasedTypedObservation) {
+            Write-Error "released serial baseline did not retain typed WAL checkpoint evidence"
+            exit 1
+          }
+          $releasedFrames = $releasedTypedObservation.Matches[0].Groups['frames'].Value
+          "slice65_wal OBSERVED_EXPECTED_ERASURE_INCOMPLETE wheel_version=0.8.22 wheel_selector=released-0.8.22 exit=$releasedSerialExit type=ErasureIncompleteError stage=wal_checkpoint frames=$releasedFrames" | Tee-Object -FilePath $artifact -Append
           python -m venv $currentEnv
           $currentWheelCandidates = @(Get-ChildItem -Path "dist-slice65-test" -Filter "*.whl" -File)
           if ($currentWheelCandidates.Count -ne 1) {

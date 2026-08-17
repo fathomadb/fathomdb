@@ -13,18 +13,20 @@ trap 'rm -rf "$TMPROOT"' EXIT
 
 CANDIDATE='0123456789abcdef0123456789abcdef01234567'
 OTHER_CANDIDATE='89abcdef0123456789abcdef0123456789abcdef'
+PROVENANCE_HEAD='2222222222222222222222222222222222222222'
+PROVENANCE_MERGE='1111111111111111111111111111111111111111'
 WORKFLOW_SHA='fedcba9876543210fedcba9876543210fedcba98'
 WORKFLOW_REF='fathomadb/fathomdb/.github/workflows/release.yml@refs/heads/main'
 NOW='2026-08-17T18:00:00Z'
 
 write_fixture() {
   local manifest="$1" facts="$2" candidate="$3"
-  python3 - "$manifest" "$facts" "$candidate" "$NOW" <<'PY'
+  python3 - "$manifest" "$facts" "$candidate" "$NOW" "$PROVENANCE_HEAD" "$PROVENANCE_MERGE" <<'PY'
 import hashlib
 import json
 import sys
 
-manifest_path, facts_path, candidate, now = sys.argv[1:]
+manifest_path, facts_path, candidate, now, provenance_head, provenance_merge = sys.argv[1:]
 
 def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode() + b"\n"
@@ -41,7 +43,8 @@ record = {
     "expires_at": "2026-08-18T18:00:00Z",
     "purpose": "0.8.23 non-publishing CUDA preflight",
     "provenance_pr": 229,
-    "provenance_commit": "1111111111111111111111111111111111111111",
+    "provenance_head_sha": provenance_head,
+    "provenance_commit": provenance_merge,
     "provenance_required_reviewers": ["independent-provenance-reviewer"],
 }
 manifest = {
@@ -75,14 +78,15 @@ provenance_pr = {
     "state": "closed",
     "merged": True,
     "base": {"ref": "main", "repo_full_name": "fathomadb/fathomdb"},
-    "merge_commit_sha": "1111111111111111111111111111111111111111",
+    "head": {"sha": provenance_head, "repo_full_name": "fathomadb/fathomdb"},
+    "merge_commit_sha": provenance_merge,
     "user": {"login": "provenance-author"},
 }
 provenance_reviews = [{
     "id": 322,
     "user": {"login": "independent-provenance-reviewer"},
     "state": "APPROVED",
-    "commit_id": "1111111111111111111111111111111111111111",
+    "commit_id": provenance_head,
     "submitted_at": "2026-08-17T16:00:00Z",
 }]
 facts = {
@@ -201,8 +205,31 @@ elif mutation == "provenance-self-approved":
     facts["provenance_pull_request"]["user"]["login"] = "independent-provenance-reviewer"
 elif mutation == "provenance-review-changed":
     facts["provenance_reviews"][0]["state"] = "CHANGES_REQUESTED"
+elif mutation == "provenance-review-wrong-head":
+    facts["provenance_reviews"][0]["commit_id"] = record["provenance_commit"]
+elif mutation == "equal-time-review-ambiguity":
+    facts["reviews"].append({
+        "id": 323,
+        "user": {"login": "independent-reviewer"},
+        "state": "CHANGES_REQUESTED",
+        "commit_id": candidate,
+        "submitted_at": facts["reviews"][0]["submitted_at"],
+    })
 else:
     raise SystemExit("unknown mutation: " + mutation)
+if mutation != "api-digest":
+    def canonical(value):
+        return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode() + b"\n"
+    def digest(value):
+        return __import__("hashlib").sha256(canonical(value)).hexdigest()
+    for name, value in (
+        ("protection_baseline", facts["protection_baseline"]),
+        ("pull_request", facts["pull_request"]),
+        ("reviews", facts["reviews"]),
+        ("provenance_pull_request", facts["provenance_pull_request"]),
+        ("provenance_reviews", facts["provenance_reviews"]),
+    ):
+        facts["api_response_sha256"][name] = digest(value)
 for path, value in ((manifest_path, manifest), (facts_path, facts)):
     open(path, "w", encoding="utf-8").write(json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n")
 PY
@@ -226,6 +253,8 @@ mutate_and_expect_fail provenance-unmerged 'rejects an unmerged provenance PR'
 mutate_and_expect_fail provenance-wrong-commit 'rejects a provenance PR with a different merge commit'
 mutate_and_expect_fail provenance-self-approved 'rejects provenance self-approval'
 mutate_and_expect_fail provenance-review-changed 'rejects a changed provenance review'
+mutate_and_expect_fail provenance-review-wrong-head 'rejects provenance approval for the merge commit instead of reviewed head'
+mutate_and_expect_fail equal-time-review-ambiguity 'rejects equal-timestamp conflicting candidate reviews'
 
 for mismatch in candidate workflow-ref workflow-sha run-id run-attempt; do
   args=(--receipt "$receipt" --candidate-sha "$CANDIDATE" --workflow-ref "$WORKFLOW_REF" --workflow-sha "$WORKFLOW_SHA" --run-id 714 --run-attempt 2)

@@ -170,6 +170,40 @@ path.write_text(text.replace(needle, '    runs-on: ubuntu-latest\n', 1))
 PY
 expect_fail "$FIXTURE" 'rejects a CUDA preflight moved onto ordinary CI'
 
+for least_privilege_mutation in candidate-write candidate-credentials publishing-reach; do
+  make_fixture "$FIXTURE"
+  python3 - "$FIXTURE/.github/workflows/release.yml" "$least_privilege_mutation" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+mutation = sys.argv[2]
+text = path.read_text()
+if mutation == "candidate-write":
+    needle = "  verify-release:\n    needs: verify-cuda-trusted-route\n"
+    replacement = needle + "    permissions:\n      contents: write\n      id-token: write\n"
+elif mutation == "candidate-credentials":
+    start = text.index("  build-python:\n")
+    end = text.index("  build-napi:\n", start)
+    job = text[start:end]
+    needle = "          ref: ${{ env.RELEASE_CHECKOUT_REF }}\n"
+    replacement = needle + "          persist-credentials: true\n"
+    if job.count(needle) != 1:
+        raise SystemExit("fixture lacks the build-python candidate checkout")
+    path.write_text(text[:start] + job.replace(needle, replacement, 1) + text[end:])
+    raise SystemExit(0)
+elif mutation == "publishing-reach":
+    needle = "  publish-rust-t1-embedder-api:\n"
+    replacement = needle + "    if: ${{ true }}\n"
+else:
+    raise SystemExit("unknown least-privilege mutation")
+if text.count(needle) != 1:
+    raise SystemExit(f"fixture lacks {mutation} mutation target: {needle!r}")
+path.write_text(text.replace(needle, replacement, 1))
+PY
+  expect_fail "$FIXTURE" "rejects unmerged candidate least-privilege mutation: $least_privilege_mutation"
+done
+
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
 from pathlib import Path

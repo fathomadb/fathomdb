@@ -14,5 +14,6 @@ out="$tmp/0.8.23-scale-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-raw"
 AC013_V2_TEST_MODE=1 SCALE_OUTPUT_DIR="$out" AC013_RUNNER="$fake" bash "$root/scripts/perf-experiments/run-scale-ac013-matrix.sh"
 test -f "$out/provenance.json"
 test -f "$out/matrix-manifest.json"
-test "$(find "$out" -maxdepth 1 -type f | wc -l)" -eq 62
+find "$out" -maxdepth 1 -type f -printf '%f\n' >"$tmp/files"
+test "$(wc -l <"$tmp/files")" -eq 62
 find "$out" -maxdepth 1 -type l | grep -q . && exit 1 || true

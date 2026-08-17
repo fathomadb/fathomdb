@@ -75,6 +75,14 @@ are now the campaign control. Neither lane may acquire a corpus or run a
 smoke, grid, model, GPU, or external write until the coordinator releases the
 corresponding frozen execution step.
 
+The LOCOMO/PARENT preparation handoff `4e444d19` received an independent
+`REQUEST-CHANGES` verdict. The reviewer accepted its initial red-first history
+and immutable cell grid, but found four execution-contract gaps: fixed-subset
+dispatch order drift, receipts that could claim completion without bound cell
+coverage and required metrics, parent bundles without membership/ordinal proof,
+and a receipt-verdict correction without a red test. The worker is remediating
+these issues in its isolated worktree; no LOCOMO/PARENT execution is released.
+
 The next SCALE-01 lane is commissioned from campaign base `a79ab744` in
 `/tmp/fathomdb-perf-scale-live-executor-20260816` on
 `experiments/performance-scale-live-executor-20260816`. It owns only the
@@ -88,8 +96,8 @@ the authorized smoke or characterization is invoked.
 | --- | --- | --- | --- |
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
-| LOCOMO-01 | Active | Executable lane commissioned; no live execution yet | `seq-249` authorizes the fixed-subset dry run, Phase-B CPU/FTS grid, and GPU/CE cells. Next gate: independently accept and integrate the frozen executor, then release its fixed-subset dry run. |
-| PARENT-01 | Active | Frozen-v1 implementation joins the LOCOMO executor lane; no live execution yet | `seq-250` approves `parent_child_turn_session_v1`. Next gate: independently accept and integrate its implementation; empirical variants require a new amendment and review. |
+| LOCOMO-01 | Active | Executor remediation in progress after independent request-changes; no live execution | `seq-249` authorizes the fixed-subset dry run, Phase-B CPU/FTS grid, and GPU/CE cells. Next gate: accept the red-first coverage/order remediation, integrate the frozen executor, then release its fixed-subset dry run. |
+| PARENT-01 | Active | Frozen-v1 remediation in the LOCOMO executor lane; no live execution | `seq-250` approves `parent_child_turn_session_v1`. Next gate: accept proof-backed parent/session/neighbor enforcement and complete-receipt coverage, then integrate; empirical variants require a new amendment and review. |
 | SCALE-01 | Active | Live executor implementation commissioned; no live execution yet | `ec9978d5` integrates independently accepted `61142179` (20 focused tests and a worker full verifier pass). `seq-249` authorizes the TC-5 smoke and long CPU characterization; `seq-250` retains 0.90 as the goal and authorizes a separate remediation. Next gate: independently accept and integrate the released live executor, then run the frozen smoke. |
 | CORPUS-01 | Planned | Corpus and gold-work authorization recorded; not yet commissioned | `seq-249` authorizes corpus/license matrix and human-gold work. Next gate: commission the preparation lane with external-data and licensing boundaries. |
 | ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |

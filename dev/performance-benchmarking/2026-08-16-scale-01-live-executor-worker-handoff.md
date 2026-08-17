@@ -6,7 +6,7 @@
 
 **Base:** `a79ab744a585ece6103c16971cbe51902e516d4c`
 
-**Final implementation commit:** pending commit
+**Final implementation commit:** `0aa3d1730183b124eeb8f06cebcd64477c26957f`
 
 ## Scope delivered
 
@@ -24,9 +24,16 @@
 module and stopped at the intended
 `ModuleNotFoundError: experiments.tc5_live_executor` collection failure.
 
-## Verification to record at handoff close
+## Verification
 
-- Focused TC-5 tests, Ruff, Markdown lint, diff check, and full verifier.
+- `python3 -m pytest tests/experiments/test_tc5_live_executor.py
+  tests/experiments/test_tc5_characterization.py
+  tests/experiments/test_tc5_manifest.py -q` — 36 passed.
+- `python3 -m pytest tests/experiments -q` — 116 passed.
+- `python3 -m ruff check experiments/tc5_live_executor.py
+  tests/experiments/test_tc5_live_executor.py`, `./scripts/agent-lint-md.sh`,
+  and `git diff --check` — passed.
+- `./scripts/agent-verify.sh` — passed; no live command was invoked.
 
 ## No-live assertion
 

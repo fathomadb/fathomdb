@@ -10,6 +10,8 @@ from experiments.locomo_provenance import (
     ProvenanceEntry,
     ProvenanceMap,
     build_manifest_document,
+    canonical_session_id,
+    canonical_turn_id,
     payload_fingerprint,
     search_request_fingerprint,
 )
@@ -78,3 +80,21 @@ def test_search_request_fingerprint_normalizes_run_id_without_retaining_query_te
 
     assert first == second
     assert "sensitive question" not in first
+
+
+def test_canonical_turn_id_is_stable_unique_to_its_parent_scope_and_content_free():
+    first = canonical_turn_id("locomo-0", "session-1", "shared-turn")
+    second = canonical_turn_id("locomo-1", "session-1", "shared-turn")
+
+    assert first != second
+    assert first == canonical_turn_id("locomo-0", "session-1", "shared-turn")
+    assert "shared-turn" not in first
+
+
+def test_canonical_session_id_is_scoped_to_its_conversation_and_content_free():
+    first = canonical_session_id("locomo-0", "session-1")
+    second = canonical_session_id("locomo-1", "session-1")
+
+    assert first != second
+    assert first == canonical_session_id("locomo-0", "session-1")
+    assert "session-1" not in first

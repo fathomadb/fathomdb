@@ -21,6 +21,12 @@ import time
 from pathlib import Path
 from typing import Callable, Mapping
 
+from experiments.locomo_provenance import (
+    canonical_session_id,
+    canonical_turn_id,
+    phase_b_question_eligible,
+)
+
 
 REQUEST_SCHEMA = "locomo-live-executor.request.v1"
 RESULT_SCHEMA = "locomo-live-executor.cell-result.v1"
@@ -421,24 +427,43 @@ def relation_proof_document(
     turns: Mapping[str, object],
     sessions: Mapping[str, object],
     *,
+    conversation_id: str,
     child_id: str,
     session_id: str,
     source_id: str,
 ) -> dict[str, object]:
     """Create one synthetic parent proof from compatible manifest documents."""
-    turn_entry = next(
-        entry for entry in turns["entries"] if child_id in entry["turn_ids"]
-    )
-    session_entry = next(
-        entry for entry in sessions["entries"] if entry["session_id"] == session_id
-    )
+    turn_entries = [
+        entry
+        for entry in turns["entries"]
+        if entry["conversation_id"] == conversation_id
+        and entry["session_id"] == session_id
+        and child_id in entry["turn_ids"]
+    ]
+    session_entries = [
+        entry
+        for entry in sessions["entries"]
+        if entry["conversation_id"] == conversation_id and entry["session_id"] == session_id
+    ]
+    if len(turn_entries) != 1 or len(session_entries) != 1:
+        raise AdapterError("synthetic parent proof requires an exact scoped provenance entry")
+    turn_entry, session_entry = turn_entries[0], session_entries[0]
     members = [
-        {"id": item, "ordinal": index, "trace_source_id": source_id}
+        {
+            "id": canonical_turn_id(
+                session_entry["conversation_id"], session_id, item
+            ),
+            "ordinal": index,
+            "trace_source_id": source_id,
+        }
         for index, item in enumerate(session_entry["turn_ids"])
     ]
-    ordinal = next(item["ordinal"] for item in members if item["id"] == child_id)
+    ordinal = next(index for index, item in enumerate(session_entry["turn_ids"]) if item == child_id)
+    canonical_child_id = canonical_turn_id(
+        turn_entry["conversation_id"], session_id, child_id
+    )
     return {
-        "schema_version": "locomo-parent-relation-proof.v1",
+        "schema_version": "locomo-parent-relation-proof.v2",
         "turn_provenance_sha256": hashlib.sha256(
             json.dumps(turns).encode()
         ).hexdigest(),
@@ -447,8 +472,10 @@ def relation_proof_document(
         ).hexdigest(),
         "entries": [
             {
-                "child_id": child_id,
-                "parent_session_id": session_id,
+                "child_id": canonical_child_id,
+                "parent_session_id": canonical_session_id(
+                    session_entry["conversation_id"], session_id
+                ),
                 "ordinal": ordinal,
                 "trace_source_id": source_id,
                 "turn_provenance_fingerprint": turn_entry["fingerprint"],
@@ -545,7 +572,7 @@ def _relations(
     )
     if document[
         "schema_version"
-    ] != "locomo-parent-relation-proof.v1" or not isinstance(document["entries"], list):
+    ] != "locomo-parent-relation-proof.v2" or not isinstance(document["entries"], list):
         raise AdapterError("parent relation proof schema is unsafe")
     if (
         document["turn_provenance_sha256"] != turn_manifest_sha256
@@ -608,26 +635,47 @@ def _relations(
         )
         members = entry["session_members"]
         assert isinstance(members, list)
+        if turn_entry is None or session_entry is None:
+            raise AdapterError(
+                "parent relation proof does not bind canonical provenance manifests"
+            )
+        raw_turn_ids = turn_entry["turn_ids"]
+        raw_session_members = session_entry["turn_ids"]
+        assert isinstance(raw_turn_ids, list) and isinstance(raw_session_members, list)
+        if len(raw_turn_ids) != 1:
+            raise AdapterError(
+                "parent relation proof does not bind canonical provenance manifests"
+            )
+        expected_child_id = canonical_turn_id(
+            turn_entry["conversation_id"], turn_entry["session_id"], raw_turn_ids[0]
+        )
+        expected_members = [
+            canonical_turn_id(
+                session_entry["conversation_id"], session_entry["session_id"], member
+            )
+            for member in raw_session_members
+        ]
         child_ordinal = next(
-            (
-                member["ordinal"]
-                for member in members
-                if member["id"] == entry["child_id"]
-            ),
+            (ordinal for ordinal, member in enumerate(expected_members) if member == entry["child_id"]),
             None,
         )
         if (
-            turn_entry is None
-            or session_entry is None
-            or turn_entry["turn_ids"] != [entry["child_id"]]
-            or session_entry["session_id"] != entry["parent_session_id"]
-            or session_entry["turn_ids"] != [member["id"] for member in members]
+            entry["child_id"] != expected_child_id
+            or turn_entry["conversation_id"] != session_entry["conversation_id"]
+            or canonical_session_id(turn_entry["conversation_id"], turn_entry["session_id"])
+            != entry["parent_session_id"]
+            or canonical_session_id(session_entry["conversation_id"], session_entry["session_id"])
+            != entry["parent_session_id"]
+            or expected_members != [member["id"] for member in members]
             or entry["ordinal"] != child_ordinal
         ):
             raise AdapterError(
                 "parent relation proof does not bind canonical provenance manifests"
             )
-        result[str(entry["child_id"])] = entry
+        resolved = dict(entry)
+        resolved["_conversation_id"] = turn_entry["conversation_id"]
+        resolved["_raw_turn_id"] = raw_turn_ids[0]
+        result[str(entry["child_id"])] = resolved
     return result
 
 
@@ -648,6 +696,8 @@ def _questions(corpus: object) -> list[dict[str, object]]:
                 or not raw["question"]
             ):
                 raise AdapterError("LOCOMO question is unsafe")
+            if not phase_b_question_eligible(dict(raw)):
+                continue
             evidence, category = raw.get("evidence"), raw.get("category")
             if (
                 not isinstance(evidence, list)
@@ -656,16 +706,13 @@ def _questions(corpus: object) -> list[dict[str, object]]:
                 or isinstance(category, bool)
             ):
                 raise AdapterError("LOCOMO evidence-backed question is unsafe")
-            ids = {
-                str(value)
-                for value in evidence
-                if isinstance(value, str) and _SAFE_ID.fullmatch(value)
-            }
-            if len(ids) != len(evidence):
+            if not all(isinstance(value, str) and value for value in evidence):
                 raise AdapterError("LOCOMO evidence identifier is unsafe")
+            ids = set(evidence)
             result.append(
                 {
                     "id": f"locomo-{conversation_index}-q-{question_index}",
+                    "conversation_id": f"locomo-{conversation_index}",
                     "user_id": f"locomo_{conversation_index}_adapter",
                     "query": raw["question"],
                     "evidence": ids,
@@ -738,7 +785,9 @@ def _ingest_rows(
                     "external provenance manifest does not qualify corpus ingestion"
                 )
             logical_id = (
-                turn_ids[0]
+                canonical_turn_id(
+                    session["conversation_id"], session["session_id"], turn_ids[0]
+                )
                 if ingest_unit == "turn"
                 else f"{session['conversation_id']}:{session['session_id']}"
             )
@@ -979,9 +1028,10 @@ def _metrics(
             values["temporal"].append(r10)
         if parent:
             expected = {
-                str(relations[item]["parent_session_id"])
-                for item in evidence
-                if item in relations
+                str(relation["parent_session_id"])
+                for relation in relations.values()
+                if relation.get("_conversation_id") == question.get("conversation_id")
+                and relation.get("_raw_turn_id") in evidence
             }
             observed = {str(bundle["parent_session_id"]) for bundle in bundles}
             parent_session.append(float(bool(expected & observed)) if expected else 0.0)

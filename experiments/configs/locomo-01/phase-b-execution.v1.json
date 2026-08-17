@@ -28,8 +28,8 @@
       "storage": "external_only"
     },
     "dry_run_subset": {
-      "identifier": "locomo-01-fixed-subset.v1",
-      "sha256": "7d0840f9951dfb8ac04d8cd625c710408db1485eb5c054c1674ce45e9a99130a",
+      "identifier": "locomo-01-fixed-subset.v3",
+      "sha256": "88434dd0bfbbcae73117ebbfd493220885e38441e4377212eb125c8ebf897933",
       "question_count": 32,
       "storage": "external_only"
     }

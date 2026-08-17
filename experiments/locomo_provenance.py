@@ -61,6 +61,41 @@ def search_request_fingerprint(user_id: object, query: object) -> str:
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
+def canonical_turn_id(conversation_id: object, session_id: object, turn_id: object) -> str:
+    """Return a scoped, content-free identity for one externally supplied turn."""
+    values = (conversation_id, session_id, turn_id)
+    if not all(isinstance(value, str) and value for value in values):
+        raise ValueError("canonical turn identity requires non-empty stable identifiers")
+    encoded = json.dumps(values, separators=(",", ":"), ensure_ascii=True)
+    return f"locomo-turn-{hashlib.sha256(encoded.encode('utf-8')).hexdigest()}"
+
+
+def canonical_session_id(conversation_id: object, session_id: object) -> str:
+    """Return a scoped, content-free identity for one externally supplied session."""
+    values = (conversation_id, session_id)
+    if not all(isinstance(value, str) and value for value in values):
+        raise ValueError("canonical session identity requires non-empty stable identifiers")
+    encoded = json.dumps(values, separators=(",", ":"), ensure_ascii=True)
+    return f"locomo-session-{hashlib.sha256(encoded.encode('utf-8')).hexdigest()}"
+
+
+def phase_b_question_eligible(question: object) -> bool:
+    """Return whether one LOCOMO question belongs to the frozen Phase-B population."""
+    if not isinstance(question, dict):
+        return False
+    answer = question.get("answer")
+    return (
+        isinstance(question.get("question"), str)
+        and bool(question["question"])
+        and question.get("category") in (1, 2, 3, 4)
+        and not isinstance(answer, bool)
+        and isinstance(answer, (str, int))
+        and bool(answer)
+        and isinstance(question.get("evidence"), list)
+        and bool(question["evidence"])
+    )
+
+
 @dataclass(frozen=True)
 class ProvenanceEntry:
     """Stable, content-free location of one unique ingestion payload."""

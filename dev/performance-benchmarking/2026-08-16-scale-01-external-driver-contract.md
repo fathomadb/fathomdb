@@ -32,7 +32,7 @@ runtime.
 It accepts only:
 
 - actions `tc5-smoke` and `tc5-long-cpu-characterization`;
-- `bridge: 7,667` or `primary: 18,472` documents;
+- `bridge: 7,667` or `primary: 17,272` documents;
 - CPU, `fathomdb-bge-small-en-v1.5`, `K=192`, 100 queries, and 1,000
   bootstrap resamples under the frozen seeds; and
 - the pre-fusion 1-bit candidate plus f32-rerank vector-stage SUT against

@@ -4,11 +4,11 @@
   "program_tracks": ["LOCOMO-01", "PARENT-01"],
   "phase_b": {
     "path": "experiments/configs/locomo-01/phase-b-execution.v1.json",
-    "config_sha256": "9c3d05a91a60443c069150e8ec5cadd4100864eec63163fa01011859ed683ff8"
+    "config_sha256": "ce9577919cb6705eaf47c9e89df316a3820cac0a7b07d09949126f31b32e2dd3"
   },
   "runner": {
     "module": "experiments.locomo_live_executor",
-    "sha256": "c2197bc9e519ba6d1448f75c6cd473587c58563638a95ad042b0f04f5c8b4075"
+    "sha256": "f34b89586a9ab416db85e574c5850b4cd058f94bc495993f2cdbad773eb4514f"
   },
   "actions": [
     {

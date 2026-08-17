@@ -6,7 +6,7 @@
   "execution_enabled": false,
   "arms": [
     {"name": "bridge", "document_count": 7667},
-    {"name": "primary", "document_count": 18472}
+    {"name": "primary", "document_count": 17272}
   ],
   "frozen_configuration": {
     "embed_device": "cpu",

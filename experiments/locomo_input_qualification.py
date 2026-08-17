@@ -20,7 +20,7 @@ from eval.locomo_loader import corpus_hash, load_locomo
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 _REPORT_SCHEMA = "locomo-input-qualification-report.v1"
 _TRACE_NAME = "trace-projection.v1.json"
-_RELATION_NAME = "locomo-parent-relation-proof.v1.json"
+_RELATION_NAME = "locomo-parent-relation-proof.v2.json"
 _REPORT_NAME = "locomo-input-qualification-report.v1.json"
 
 
@@ -125,6 +125,7 @@ def _locomo_matrix_eligibility(matrix: object) -> dict[str, object]:
 
 
 def _question_ids(corpus: object) -> set[str]:
+    """Return the frozen Phase-B evidence-backed LOCOMO question population."""
     if not isinstance(corpus, list):
         raise QualificationError("corpus is not a LOCOMO list")
     result: set[str] = set()
@@ -137,7 +138,8 @@ def _question_ids(corpus: object) -> set[str]:
         for question_index, question in enumerate(questions):
             if not isinstance(question, Mapping) or not isinstance(question.get("question"), str) or not question["question"]:
                 raise QualificationError("corpus contains an invalid question")
-            result.add(f"locomo-{conversation_index}-q-{question_index}")
+            if locomo_provenance.phase_b_question_eligible(question):
+                result.add(f"locomo-{conversation_index}-q-{question_index}")
     return result
 
 
@@ -198,7 +200,9 @@ def _relation_document(
         turn_ids = raw["turn_ids"]
         if not isinstance(turn_ids, list) or len(turn_ids) != 1:
             raise QualificationError("turn provenance must contain one turn per entry")
-        child_id = str(turn_ids[0])
+        child_id = locomo_provenance.canonical_turn_id(
+            raw["conversation_id"], raw["session_id"], turn_ids[0]
+        )
         if child_id in seen_children:
             raise QualificationError("turn provenance has an ambiguous child identifier")
         seen_children.add(child_id)
@@ -207,26 +211,34 @@ def _relation_document(
         if session is None:
             raise QualificationError("turn provenance lacks an enclosing canonical session")
         members = session["turn_ids"]
-        if not isinstance(members, list) or child_id not in members:
+        if not isinstance(members, list) or str(turn_ids[0]) not in members:
             raise QualificationError("turn provenance child is absent from its canonical session")
         session_fingerprint = str(session["fingerprint"])
         source_id = f"locomo-session-source-{session_fingerprint}"
         relation_entries.append(
             {
                 "child_id": child_id,
-                "parent_session_id": session["session_id"],
-                "ordinal": members.index(child_id),
+                "parent_session_id": locomo_provenance.canonical_session_id(
+                    session["conversation_id"], session["session_id"]
+                ),
+                "ordinal": members.index(str(turn_ids[0])),
                 "trace_source_id": source_id,
                 "turn_provenance_fingerprint": raw["fingerprint"],
                 "session_provenance_fingerprint": session_fingerprint,
                 "session_members": [
-                    {"id": member, "ordinal": ordinal, "trace_source_id": source_id}
+                    {
+                        "id": locomo_provenance.canonical_turn_id(
+                            session["conversation_id"], session["session_id"], member
+                        ),
+                        "ordinal": ordinal,
+                        "trace_source_id": source_id,
+                    }
                     for ordinal, member in enumerate(members)
                 ],
             }
         )
     relation = {
-        "schema_version": "locomo-parent-relation-proof.v1",
+        "schema_version": "locomo-parent-relation-proof.v2",
         "turn_provenance_sha256": "",
         "session_provenance_sha256": "",
         "entries": sorted(relation_entries, key=lambda row: str(row["child_id"])),

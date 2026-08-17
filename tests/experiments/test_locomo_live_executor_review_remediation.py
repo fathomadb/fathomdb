@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 from experiments import locomo_live_executor, trace_projection
+from experiments.locomo_provenance import canonical_session_id, canonical_turn_id
 
 
 def _sha(value: bytes) -> str:
@@ -44,19 +45,27 @@ def _entry(*, fingerprint: str, session_id: str, turn_ids: list[str]) -> dict[st
     }
 
 
+def _canonical_turn(raw_turn_id: str) -> str:
+    return canonical_turn_id("locomo-1", "session-1", raw_turn_id)
+
+
+def _canonical_session() -> str:
+    return canonical_session_id("locomo-1", "session-1")
+
+
 def _relations(*, turn_sha: str, session_sha: str) -> dict[str, object]:
     return {
-        "schema_version": "locomo-parent-relation-proof.v1",
+        "schema_version": "locomo-parent-relation-proof.v2",
         "turn_provenance_sha256": turn_sha,
         "session_provenance_sha256": session_sha,
         "entries": [{
-            "child_id": "turn-2", "parent_session_id": "session-1", "ordinal": 1,
+            "child_id": _canonical_turn("turn-2"), "parent_session_id": _canonical_session(), "ordinal": 1,
             "trace_source_id": "source-current", "turn_provenance_fingerprint": "a" * 64,
             "session_provenance_fingerprint": "b" * 64,
             "session_members": [
-                {"id": "turn-1", "ordinal": 0, "trace_source_id": "source-current"},
-                {"id": "turn-2", "ordinal": 1, "trace_source_id": "source-current"},
-                {"id": "turn-3", "ordinal": 2, "trace_source_id": "source-current"},
+                {"id": _canonical_turn("turn-1"), "ordinal": 0, "trace_source_id": "source-current"},
+                {"id": _canonical_turn("turn-2"), "ordinal": 1, "trace_source_id": "source-current"},
+                {"id": _canonical_turn("turn-3"), "ordinal": 2, "trace_source_id": "source-current"},
             ],
         }],
     }
@@ -108,7 +117,11 @@ def test_parent_relations_are_cryptographically_and_structurally_bound_to_canoni
         relation_path, _sha(relation_path.read_bytes()), turn_path, _sha(turn_path.read_bytes()),
         session_path, _sha(session_path.read_bytes()), active_trace_source_ids={"source-current"},
     )
-    assert bindings["turn-2"]["member_ordinals"] == {0: "turn-1", 1: "turn-2", 2: "turn-3"}
+    assert bindings[_canonical_turn("turn-2")]["member_ordinals"] == {
+        0: _canonical_turn("turn-1"),
+        1: _canonical_turn("turn-2"),
+        2: _canonical_turn("turn-3"),
+    }
 
     relation["entries"][0]["parent_session_id"] = "invented-session"
     relation_path.write_text(json.dumps(relation), encoding="utf-8")

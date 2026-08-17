@@ -30,13 +30,13 @@ The manifest contains exactly these fields:
 | `program_track` | Exactly `SCALE-01`. |
 | `manifest_id` | Stable safe identifier. |
 | `source_artifact_sha256` | SHA-256 pin for the external source artifact. |
-| `documents` | Exactly 18,472 canonical-order rows; each has `document_id`, `content_sha256`, and `origin: real`. |
+| `documents` | Exactly 17,272 canonical-order rows; each has `document_id`, `content_sha256`, and `origin: real`. |
 | `bridge_document_ids` | Exactly the first 7,667 canonical primary IDs; no per-source truncation or unrelated historical subset. |
 | `provenance` | Complete source/build/environment/model/SUT metadata listed below. |
 
 Each document identity and content hash is validated, but its payload is never
 opened. Duplicate, missing, malformed, out-of-order, synthetic, or unknown
-rows fail closed. The primary arm is always 18,472 real documents and the
+rows fail closed. The primary arm is always 17,272 real documents and the
 supporting bridge is always 7,667 selected IDs from the same manifest.
 
 The required provenance includes source commit and Cargo-lock hashes, Rust,

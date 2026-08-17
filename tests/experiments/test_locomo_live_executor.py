@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from experiments import locomo_live_executor, trace_projection
+from experiments.locomo_provenance import canonical_session_id, canonical_turn_id
 
 
 CONFIG_PATH = Path("experiments/configs/locomo-01/live-executor.v1.json")
@@ -21,6 +22,14 @@ CONFIG_PATH = Path("experiments/configs/locomo-01/live-executor.v1.json")
 
 def _sha(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def _canonical_turn(raw_turn_id: str) -> str:
+    return canonical_turn_id("locomo-1", "session-1", raw_turn_id)
+
+
+def _canonical_session() -> str:
+    return canonical_session_id("locomo-1", "session-1")
 
 
 def _plan() -> locomo_live_executor.LiveExecutorPlan:
@@ -116,11 +125,11 @@ def test_parent_result_requires_trace_attributed_membership_ordinals_and_bounded
         "external_metrics_sha256": "a" * 64,
         "metric_summary": locomo_live_executor.synthetic_metric_summary(parent=True),
         "parent_hits": [{
-            "child_id": "turn-2", "rank": 1,
+                    "child_id": _canonical_turn("turn-2"), "rank": 1,
             "child_provenance": {"parent_session_ids": ["session-1"], "ordinal": 2, "trace_source_id": "source-1"},
             "neighbors": [
-                {"id": "turn-1", "parent_session_id": "session-1", "ordinal": 1, "trace_source_id": "source-1"},
-                {"id": "turn-3", "parent_session_id": "session-1", "ordinal": 3, "trace_source_id": "source-1"},
+                {"id": _canonical_turn("turn-1"), "parent_session_id": "session-1", "ordinal": 1, "trace_source_id": "source-1"},
+                {"id": _canonical_turn("turn-3"), "parent_session_id": "session-1", "ordinal": 3, "trace_source_id": "source-1"},
             ],
         }],
     }
@@ -128,15 +137,15 @@ def test_parent_result_requires_trace_attributed_membership_ordinals_and_bounded
     projection = locomo_live_executor.validate_cell_result(
         plan, parent_cell, result, active_trace_source_ids={"source-1"},
         parent_relations={
-            "turn-2": {
+            _canonical_turn("turn-2"): {
                 "parent_session_id": "session-1", "ordinal": 2, "trace_source_id": "source-1",
-                "member_ordinals": {1: "turn-1", 2: "turn-2", 3: "turn-3"},
+                "member_ordinals": {1: _canonical_turn("turn-1"), 2: _canonical_turn("turn-2"), 3: _canonical_turn("turn-3")},
             }
         },
     )
     assert projection.parent_context == ({
-        "parent_session_id": "session-1", "seed_child_id": "turn-2",
-        "ordered_neighbor_ids": ["turn-1", "turn-3"], "trace_source_id": "source-1",
+        "parent_session_id": "session-1", "seed_child_id": _canonical_turn("turn-2"),
+        "ordered_neighbor_ids": [_canonical_turn("turn-1"), _canonical_turn("turn-3")], "trace_source_id": "source-1",
     },)
 
     result["parent_hits"][0]["neighbors"][1]["ordinal"] = 4
@@ -144,9 +153,9 @@ def test_parent_result_requires_trace_attributed_membership_ordinals_and_bounded
         locomo_live_executor.validate_cell_result(
             plan, parent_cell, result, active_trace_source_ids={"source-1"},
             parent_relations={
-                "turn-2": {
+                _canonical_turn("turn-2"): {
                     "parent_session_id": "session-1", "ordinal": 2, "trace_source_id": "source-1",
-                    "member_ordinals": {1: "turn-1", 2: "turn-2", 3: "turn-3"},
+                    "member_ordinals": {1: _canonical_turn("turn-1"), 2: _canonical_turn("turn-2"), 3: _canonical_turn("turn-3")},
                 }
             },
         )
@@ -189,16 +198,16 @@ def test_fixed_subset_dispatch_writes_only_one_complete_content_free_projection(
     )), encoding="utf-8")
     parent_relations = tmp_path / "parent-relations.json"
     parent_relations.write_text(json.dumps({
-        "schema_version": "locomo-parent-relation-proof.v1",
+        "schema_version": "locomo-parent-relation-proof.v2",
         "turn_provenance_sha256": plan.external_input_sha256["turn_provenance"],
         "session_provenance_sha256": plan.external_input_sha256["session_provenance"],
         "entries": [{
-            "child_id": "turn-2", "parent_session_id": "session-1", "ordinal": 2, "trace_source_id": "source-1",
+                "child_id": _canonical_turn("turn-2"), "parent_session_id": _canonical_session(), "ordinal": 2, "trace_source_id": "source-1",
             "turn_provenance_fingerprint": "a" * 64, "session_provenance_fingerprint": "b" * 64,
             "session_members": [
-                {"id": "turn-1", "ordinal": 1, "trace_source_id": "source-1"},
-                {"id": "turn-2", "ordinal": 2, "trace_source_id": "source-1"},
-                {"id": "turn-3", "ordinal": 3, "trace_source_id": "source-1"},
+                {"id": _canonical_turn("turn-1"), "ordinal": 1, "trace_source_id": "source-1"},
+                {"id": _canonical_turn("turn-2"), "ordinal": 2, "trace_source_id": "source-1"},
+                {"id": _canonical_turn("turn-3"), "ordinal": 3, "trace_source_id": "source-1"},
             ],
         }],
     }), encoding="utf-8")
@@ -262,8 +271,8 @@ def test_fixed_subset_dispatch_writes_only_one_complete_content_free_projection(
         }
         if parent:
             result["parent_hits"] = [{
-                "child_id": "turn-2", "rank": 1,
-                "child_provenance": {"parent_session_ids": ["session-1"], "ordinal": 2, "trace_source_id": "source-1"},
+                "child_id": _canonical_turn("turn-2"), "rank": 1,
+                    "child_provenance": {"parent_session_ids": [_canonical_session()], "ordinal": 2, "trace_source_id": "source-1"},
                 "neighbors": [],
             }]
         return subprocess.CompletedProcess(command, 0, stdout=json.dumps(result), stderr="")

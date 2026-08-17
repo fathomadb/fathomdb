@@ -2,7 +2,7 @@
   "schema_version": "tc5-live-executor-config.v1",
   "program_track": "SCALE-01",
   "executor_id": "tc5-all-real-cpu-executor-v1",
-  "execution_config_sha256": "9d572a1f08a459476eadffea4a296d01a57ea41a243967e0acaf700164469569",
+  "execution_config_sha256": "56f10a8ddb72775b1f081f3497747c4b5276faae13590591f06f1071fef3a5bc",
   "arms": [
     {
       "name": "bridge",
@@ -10,7 +10,7 @@
     },
     {
       "name": "primary",
-      "document_count": 18472
+      "document_count": 17272
     }
   ],
   "approved_actions": [

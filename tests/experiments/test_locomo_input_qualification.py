@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from experiments import locomo_input_qualification
+from experiments import locomo_external_adapter
 from eval.locomo_loader import corpus_hash, load_locomo
 
 
@@ -72,7 +73,20 @@ def _inputs(tmp_path: Path) -> dict[str, Path]:
         [
             {
                 "conversation": {"session_1": []},
-                "qa": [{"question": "external only", "answer": "not emitted"}, {"question": "external only", "answer": "not emitted"}],
+                "qa": [
+                    {
+                        "question": "external only",
+                        "answer": "not emitted",
+                        "evidence": ["external only"],
+                        "category": 1,
+                    },
+                    {
+                        "question": "external only",
+                        "answer": "not emitted",
+                        "evidence": ["external only"],
+                        "category": 1,
+                    },
+                ],
             }
         ],
     )
@@ -147,6 +161,7 @@ def test_historical_raw_locomo_derives_the_frozen_normalized_phase_b_digest_with
     assert raw_sha256 == phase_a["corpus"]["raw_sha256"]
     assert raw_sha256 != normalized_sha256
     assert normalized_sha256 == phase_b["external_inputs"]["corpus"]["sha256"]
+    assert len(locomo_external_adapter._questions(json.loads(_HISTORICAL_RAW_LOCOMO.read_text(encoding="utf-8")))) == 1536
 
 
 def test_qualification_writes_hash_bound_content_free_trace_parent_and_blocker_report(tmp_path):
@@ -175,7 +190,7 @@ def test_qualification_writes_hash_bound_content_free_trace_parent_and_blocker_r
     assert report["qualification_status"] == "blocked"
     assert report["blockers"] == ["dry_run_subset_sha256_mismatch"]
     assert report["artifacts"] == {
-        "parent_relation_proof": {"sha256": _sha256(artifacts / "locomo-parent-relation-proof.v1.json"), "entry_count": 2},
+        "parent_relation_proof": {"sha256": _sha256(artifacts / "locomo-parent-relation-proof.v2.json"), "entry_count": 2},
         "trace_projection": {"sha256": _sha256(artifacts / "trace-projection.v1.json"), "source_count": 1},
     }
     assert "external only" not in json.dumps(report)
@@ -238,6 +253,51 @@ def test_qualification_records_ambiguous_parent_membership_without_emitting_a_re
     assert report["qualification_status"] == "blocked"
     assert report["blockers"] == ["parent_relation_proof_ambiguous_child_identifier"]
     assert set(report["artifacts"]) == {"trace_projection"}
+
+
+def test_relation_document_canonicalizes_repeated_raw_turn_ids_across_parent_scopes():
+    turns = [
+        {"fingerprint": "a" * 64, "conversation_id": "locomo-0", "session_id": "session-1", "turn_ids": ["shared-turn"]},
+        {"fingerprint": "b" * 64, "conversation_id": "locomo-1", "session_id": "session-1", "turn_ids": ["shared-turn"]},
+    ]
+    sessions = [
+        {"fingerprint": "c" * 64, "conversation_id": "locomo-0", "session_id": "session-1", "turn_ids": ["shared-turn"]},
+        {"fingerprint": "d" * 64, "conversation_id": "locomo-1", "session_id": "session-1", "turn_ids": ["shared-turn"]},
+    ]
+
+    relation = locomo_input_qualification._relation_document(turns, sessions)
+
+    assert relation["schema_version"] == "locomo-parent-relation-proof.v2"
+    assert len({row["child_id"] for row in relation["entries"]}) == 2
+    assert "shared-turn" not in json.dumps(relation)
+
+
+def test_question_ids_include_only_evidence_backed_categories_one_through_four():
+    corpus = [
+        {
+            "qa": [
+                {"question": "q", "answer": "a", "evidence": ["e"], "category": 1},
+                {"question": "q", "answer": "a", "evidence": ["e"], "category": 3},
+                {"question": "q", "answer": "a", "evidence": ["e"], "category": 4},
+                {"question": "q", "answer": "a", "evidence": ["e"], "category": 5},
+                {"question": "q", "answer": 2022, "evidence": ["e"], "category": 2},
+                {"question": "q", "answer": "a", "category": 2},
+            ]
+        }
+    ]
+
+    assert locomo_input_qualification._question_ids(corpus) == {
+        "locomo-0-q-0",
+        "locomo-0-q-1",
+        "locomo-0-q-2",
+        "locomo-0-q-4",
+    }
+    assert [row["id"] for row in locomo_external_adapter._questions(corpus)] == [
+        "locomo-0-q-0",
+        "locomo-0-q-1",
+        "locomo-0-q-2",
+        "locomo-0-q-4",
+    ]
 
 
 @pytest.mark.parametrize(

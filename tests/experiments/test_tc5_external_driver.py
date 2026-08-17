@@ -22,7 +22,7 @@ def _environment(tmp_path: Path, *, arm: str = "bridge") -> dict[str, str]:
     manifest.write_text("{}", encoding="utf-8")
     corpus = tmp_path / "corpus"
     corpus.mkdir()
-    count = "7667" if arm == "bridge" else "18472"
+    count = "7667" if arm == "bridge" else "17272"
     return {
         "TC5_ACTION": "tc5-smoke",
         "TC5_ARM": arm,
@@ -173,7 +173,7 @@ def test_driver_rejects_incomplete_queries_and_nonfinite_measurement_without_res
     with pytest.raises(driver.Tc5ExternalDriverError, match="query completion"):
         driver.run_driver(
             environment,
-            input_loader=lambda _request: _inputs(18472),
+            input_loader=lambda _request: _inputs(17272),
             runtime_factory=lambda _request: IncompleteRuntime(),
         )
     assert not Path(environment["TC5_ARM_RESULT_PATH"]).exists()

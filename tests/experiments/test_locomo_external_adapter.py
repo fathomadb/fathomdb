@@ -9,6 +9,11 @@ from pathlib import Path
 import pytest
 
 from experiments import locomo_external_adapter as adapter
+from experiments.locomo_provenance import canonical_turn_id
+
+
+def _canonical_turn(raw_turn_id: str) -> str:
+    return canonical_turn_id("locomo-0", "session_1", raw_turn_id)
 
 
 def _write_inputs(
@@ -22,6 +27,7 @@ def _write_inputs(
     questions = [
         {
             "question": f"question {index}",
+            "answer": "fixture answer",
             "evidence": [evidence_id],
             "category": (index % 3) + 1,
         }
@@ -69,6 +75,7 @@ def _write_inputs(
     relations = adapter.relation_proof_document(
         turns,
         sessions,
+        conversation_id="locomo-0",
         child_id=turn_ids[0],
         session_id="session_1",
         source_id="source-1",
@@ -78,6 +85,7 @@ def _write_inputs(
             adapter.relation_proof_document(
                 turns,
                 sessions,
+                conversation_id="locomo-0",
                 child_id=child_id,
                 session_id="session_1",
                 source_id="source-1",
@@ -129,7 +137,7 @@ class _Result:
 class _Engine:
     def __init__(self) -> None:
         self.calls: list[tuple[str, object]] = []
-        self.logical_ids = ["turn-1"]
+        self.logical_ids = [_canonical_turn("turn-1")]
 
     def write(self, rows):  # noqa: ANN001
         self.calls.append(("write", len(rows)))
@@ -175,6 +183,66 @@ def test_adapter_emits_complete_safe_cell_result_and_uses_the_fts_engine_path(tm
     assert "question 0" not in serialized
     assert "raw corpus text must not leak" not in metrics
     assert "question 0" not in metrics
+
+
+def test_turn_ingestion_uses_scoped_canonical_ids_for_repeated_raw_turn_ids():
+    corpus = [
+        {
+            "conversation": {
+                "speaker_a": "Ada",
+                "session_1": [{"speaker": "Ada", "text": "one", "dia_id": "shared-turn"}],
+            },
+            "qa": [],
+        },
+        {
+            "conversation": {
+                "speaker_a": "Bea",
+                "session_1": [{"speaker": "Bea", "text": "two", "dia_id": "shared-turn"}],
+            },
+            "qa": [],
+        },
+    ]
+    turns, _ = adapter.provenance_documents_for_corpus(corpus)
+    manifest = adapter._manifest(turns, "turn provenance")
+
+    rows, evidence = adapter._ingest_rows(corpus, ingest_unit="turn", manifest=manifest)
+
+    expected = {
+        canonical_turn_id("locomo-0", "session_1", "shared-turn"),
+        canonical_turn_id("locomo-1", "session_1", "shared-turn"),
+    }
+    assert {row["logical_id"] for row in rows} == expected
+    assert set(evidence) == expected
+
+
+def test_parent_metrics_resolve_raw_evidence_within_the_question_conversation_scope():
+    child_id = canonical_turn_id("locomo-0", "session_1", "shared-turn")
+    questions = [
+        {"category": category, "evidence": {"shared-turn"}, "conversation_id": "locomo-0"}
+        for category in (1, 2, 4)
+    ]
+    bundles = [
+        [{"parent_session_id": "scoped-session", "child_hit_count": 1, "ordered_neighbor_ids": []}]
+        for _ in questions
+    ]
+    metrics = adapter._metrics(
+        questions,
+        [["shared-turn"] for _ in questions],
+        ingest_ack_ms=1.0,
+        ready_ms=1.0,
+        query_ms=[1.0, 1.0, 1.0],
+        parent=True,
+        relations={
+            child_id: {
+                "parent_session_id": "scoped-session",
+                "_conversation_id": "locomo-0",
+                "_raw_turn_id": "shared-turn",
+            }
+        },
+        parent_bundles=bundles,
+    )
+
+    assert metrics["parent_metrics"]["parent_session_recall"] == 1.0
 
 
 def test_adapter_rejects_unknown_request_fields_before_loading_external_inputs(
@@ -242,7 +310,7 @@ def test_remediation_rejects_cells_outside_the_released_action_partition(tmp_pat
 
 def test_remediation_preserves_rank_for_metrics_and_parent_child_proof(tmp_path):
     engine = _Engine()
-    engine.logical_ids = ["turn-2", "turn-1"]
+    engine.logical_ids = [_canonical_turn("turn-2"), _canonical_turn("turn-1")]
     ranked_request = _request(tmp_path)
     ranked_request["external_inputs"] = _write_inputs(
         tmp_path, turn_ids=("turn-1", "turn-2"), evidence_id="turn-1"
@@ -257,7 +325,7 @@ def test_remediation_preserves_rank_for_metrics_and_parent_child_proof(tmp_path)
     }
 
     parent_engine = _Engine()
-    parent_engine.logical_ids = ["turn-1"]
+    parent_engine.logical_ids = [_canonical_turn("turn-1")]
     parent = adapter.execute_request(
         _parent_request(tmp_path / "parent"),
         engine_factory=lambda _path, _dense: parent_engine,
@@ -270,7 +338,7 @@ def test_remediation_derives_parent_duplicate_and_context_metrics_from_bundles(
     tmp_path,
 ):
     engine = _Engine()
-    engine.logical_ids = ["turn-2", "turn-1"]
+    engine.logical_ids = [_canonical_turn("turn-2"), _canonical_turn("turn-1")]
     request = _parent_request(
         tmp_path, turn_ids=("turn-1", "turn-2", "turn-3"), evidence_id="turn-2"
     )
@@ -280,7 +348,7 @@ def test_remediation_derives_parent_duplicate_and_context_metrics_from_bundles(
     )
 
     assert any(name == "hybrid" for name, _ in engine.calls)
-    assert result["parent_hits"][0]["child_id"] == "turn-2"
+    assert result["parent_hits"][0]["child_id"] == _canonical_turn("turn-2")
     assert result["parent_hits"][0]["rank"] == 1
     assert result["metric_summary"]["parent_metrics"]["duplicate_rate"] == 0.5
     assert result["metric_summary"]["parent_metrics"]["context_expansion_count"] == 2

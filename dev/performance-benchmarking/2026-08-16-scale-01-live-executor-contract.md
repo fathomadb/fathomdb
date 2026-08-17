@@ -18,7 +18,7 @@ coordinator-issued `tc5-execution-release.v1` sidecar qualify the exact
 invocation.
 
 The executor accepts only the bridge followed by primary arms from the
-qualified `tc5-manifest.v1`: 7,667 then 18,472 all-real documents. It passes
+qualified `tc5-manifest.v1`: 7,667 then 17,272 all-real documents. It passes
 the pinned CPU model, `K=192`, 100-query, and 1,000-bootstrap settings to the
 external driver through named environment variables. No GPU, padded or
 substituted corpus result can become eligible.

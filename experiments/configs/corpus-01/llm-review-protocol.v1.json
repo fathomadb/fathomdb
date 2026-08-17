@@ -1,0 +1,16 @@
+{
+  "schema_version": "corpus-01-llm-review-protocol.v1",
+  "program_track": "CORPUS-01",
+  "protocol_id": "corpus_01_llm_review_v1",
+  "matrix_sha256": "5381f7936913328414442c9eeaa9c0ef9b4674c5f7cf9233125c4c773bcf81b3",
+  "manifest_schema": "corpus-01-llm-review-manifest.v1",
+  "required_categories": ["knowledge_update", "supersession", "source_erasure", "time_scoped_validity"],
+  "required_reviewer_count": 2,
+  "reviewer_kind": "independent_llm",
+  "allowed_judgments": ["contradicted", "insufficient_evidence", "supported"],
+  "allowed_adjudications": ["adjudicated", "not_required"],
+  "prohibited_fields": ["answer", "answer_text", "evidence_text", "question", "raw_payload", "verbatim_quote"],
+  "external_artifact_rule": "external_only_content_free_manifest_in_repo",
+  "max_total_cost_usd": 20.0,
+  "workflow": ["factual_preflight", "sample_external_records", "blind_independent_llm_review", "adjudicate_disagreement", "export_opaque_manifest"]
+}

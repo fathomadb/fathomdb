@@ -384,6 +384,7 @@ def _canonical_provenance_entries(path: Path, expected_sha256: str, *, label: st
         if fingerprint in resolved:
             raise LiveExecutorError(f"{label} manifest has duplicate fingerprints")
         resolved[fingerprint] = {
+            "conversation_id": _identifier(raw["conversation_id"], f"{label} conversation_id"),
             "session_id": _identifier(raw["session_id"], f"{label} session_id"),
             "turn_ids": tuple(_identifier(item, f"{label} turn_id") for item in raw["turn_ids"]),
         }
@@ -401,7 +402,7 @@ def load_parent_relation_proof(
     if set(document) != {"schema_version", "turn_provenance_sha256", "session_provenance_sha256", "entries"}:
         raise LiveExecutorError("parent membership/ordinal proof fields are unsafe")
     if (
-        document["schema_version"] != "locomo-parent-relation-proof.v1" or not isinstance(document["entries"], list)
+        document["schema_version"] != "locomo-parent-relation-proof.v2" or not isinstance(document["entries"], list)
         or document["turn_provenance_sha256"] != turn_manifest_sha256
         or document["session_provenance_sha256"] != session_manifest_sha256
     ):
@@ -444,14 +445,36 @@ def load_parent_relation_proof(
             if member_ordinal in member_ordinals or member_id in member_ordinals.values():
                 raise LiveExecutorError("parent relation session members must be unique")
             member_ordinals[member_ordinal] = member_id
-        if member_ordinals.get(ordinal) != child_id or child_id in relations:
-            raise LiveExecutorError("parent relation must prove each child membership and ordinal exactly once")
         turn_entry = turn_entries.get(turn_fingerprint)
         session_entry = session_entries.get(session_fingerprint)
+        if turn_entry is None or session_entry is None:
+            raise LiveExecutorError("parent relation does not match canonical provenance membership/ordinal mapping")
+        raw_turn_ids = turn_entry["turn_ids"]
+        raw_session_members = session_entry["turn_ids"]
+        assert isinstance(raw_turn_ids, tuple) and isinstance(raw_session_members, tuple)
+        if len(raw_turn_ids) != 1:
+            raise LiveExecutorError("parent relation does not match canonical provenance membership/ordinal mapping")
+        expected_child_id = locomo_provenance.canonical_turn_id(
+            turn_entry["conversation_id"], turn_entry["session_id"], raw_turn_ids[0]
+        )
+        expected_members = tuple(
+            locomo_provenance.canonical_turn_id(
+                session_entry["conversation_id"], session_entry["session_id"], member
+            )
+            for member in raw_session_members
+        )
+        if member_ordinals.get(ordinal) != child_id or child_id in relations:
+            raise LiveExecutorError("parent relation must prove each child membership and ordinal exactly once")
         if (
-            turn_entry is None or session_entry is None or turn_entry["session_id"] != parent_session_id
-            or turn_entry["turn_ids"] != (child_id,) or session_entry["session_id"] != parent_session_id
-            or session_entry["turn_ids"] != tuple(member_ordinals[index] for index in sorted(member_ordinals))
+            child_id != expected_child_id
+            or turn_entry["conversation_id"] != session_entry["conversation_id"]
+            or locomo_provenance.canonical_session_id(
+                turn_entry["conversation_id"], turn_entry["session_id"]
+            ) != parent_session_id
+            or locomo_provenance.canonical_session_id(
+                session_entry["conversation_id"], session_entry["session_id"]
+            ) != parent_session_id
+            or expected_members != tuple(member_ordinals[index] for index in sorted(member_ordinals))
         ):
             raise LiveExecutorError("parent relation does not match canonical provenance membership/ordinal mapping")
         relations[child_id] = {

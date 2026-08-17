@@ -5,7 +5,7 @@ This is the coordinator-owned, live progress board for the
 coordination state, not measurements: receipts and the append-only experiment
 index remain the source of execution evidence.
 
-**Last reconciled:** 2026-08-16
+**Last reconciled:** 2026-08-17
 
 **Integration base:** `d8b2ac7d` on
 `experiments/performance-experiments-20260815`. This is the verified initial
@@ -302,16 +302,37 @@ parent-identity scheme, or release boundary. It supersedes the initial report's
 raw-versus-normalized corpus mismatch. The remaining factual blocks are the
 missing fixed subset and unambiguous canonical parent proof.
 
+The coordinator re-ran the accepted LOCOMO/PARENT factual qualifier on
+2026-08-17 into a fresh external preflight root. Its content-free report
+`e8b804a246502d5c8636b417967de11455b3181c05afd1e88eb7ebacc0a21d6b`
+confirms the frozen normalized corpus and both provenance pins, emits a valid
+TRACE projection, and remains `blocked` only on
+`dry_run_subset_input_unavailable` and
+`parent_relation_proof_ambiguous_child_identifier`. It invoked no adapter,
+database, model, device, or measurement and issued no release, result receipt,
+or experiment-index row.
+
+The coordinator then generated the HITL-authorized fixed-subset control through
+an explicit v3 amendment, corrected the qualifier's frozen 1,536
+evidence-backed question population, and replaced the ambiguous raw-turn
+representation with content-free scoped parent proof v2. Fresh factual
+qualification is `qualified` with report SHA-256
+`de7e968f78f4c46dc7e86c4e40e9687ae1f3b64b7d8d650cb1935c76fcc685d2`;
+it binds the v3 subset, all pinned external inputs, a 5,882-entry parent proof,
+and TRACE. No adapter, model, device, benchmark, release, receipt, or index
+action has been invoked. The required independent review accepted the corrected
+LOCOMO/PARENT controls; coordinator release remains the next gate.
+
 ## Track status
 
 | ID | Portfolio state | Runner state | Verified evidence / next gate |
 | --- | --- | --- | --- |
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
-| LOCOMO-01 | Active | Blocked prerequisite: fixed-subset and canonical-parent proof absent; no release | `d8b2ac7d` integrates the independently accepted normalized-corpus correction: the available historical raw corpus produces the frozen Phase-B digest. A frozen 32-question subset and unambiguous canonical parent provenance must still be qualified before a coordinator-bound CPU dry-run release. |
-| PARENT-01 | Active | Blocked prerequisite: no unambiguous canonical parent proof; no release | `db3a9363` records global child-ID ambiguity and no parent-relation proof. A qualified unambiguous identity/provenance source is required; GPU cells also wait for a working NVIDIA driver. |
-| SCALE-01 | Active | Blocked prerequisite: no exact all-real TC-5 source/runtime inventory; no release | `aa3ce63a` integrates independently accepted `b4189424`; safe evidence finds no 18,472/7,667 all-real manifest, ground truth, or runtime. A qualified source/manifest/output/CPU/model/ground-truth set is required before a smoke release. |
-| CORPUS-01 | Active | Matrix/protocol integrated; factual qualification and any approved human-gold batch pending | `c419399e` integrates independently accepted `c540a9d7`; 21 integrated focused tests pass. `seq-249` authorizes corpus/license matrix and human-gold work. Next gate: qualify existing external corpus facts and, only if required, create a coordinator-bound trusted amendment registry before a human-review batch. |
+| LOCOMO-01 | Active | Inputs qualified; independent review accepted; coordinator release pending | The v3 fixed subset and frozen 1,536 evidence-backed population qualify in report `de7e968f78f4c46dc7e86c4e40e9687ae1f3b64b7d8d650cb1935c76fcc685d2`. No dry-run action is released. |
+| PARENT-01 | Active | Inputs qualified; independent review accepted; coordinator release pending | Parent proof v2 resolves scoped raw-turn collisions without exposing raw identifiers. GPU cells require the released adapter and actual CUDA attestation. |
+| SCALE-01 | Active | Real-only source and fixed question set prepared; runtime qualification pending | The HITL-authorized amendment pins a 17,272-document primary, 7,667-document bridge, and 100-query external input set. Exact CPU/model/ground-truth/runtime qualification remains required before a smoke release. |
+| CORPUS-01 | Active | Independent LLM-review pilot completed; evidence limited | `seq-253` authorizes a distinct LLM route. Two reviewers completed a content-free 12-record LongMemEval pilot; it has no source-erasure record and therefore does not qualify a broad lifecycle claim. |
 | ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |
 | MEMORY-01 | Blocked | Waiting for ANSWER-01 | Require selected profile, native prerequisites, and declared spend ceiling. |
 | SCALE-02 | Blocked | Waiting for initial measures and selected profile | Claim policy remains open pending an HITL proposal. Freeze workload matrix and distinguish canonical from derived counts after the evidence exists. |

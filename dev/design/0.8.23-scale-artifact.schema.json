@@ -9,10 +9,6 @@
     "protocol",
     "status",
     "claim_scope",
-    "candidate",
-    "provenance",
-    "input_root",
-    "input_manifest_sha256",
     "matrix",
     "integrity",
     "summary",
@@ -57,7 +53,9 @@
     {
       "if": { "properties": { "status": { "const": "CHARACTERIZED" } } },
       "then": {
+        "required": ["candidate", "provenance", "input_root", "input_manifest_sha256"],
         "properties": {
+          "matrix": { "minItems": 6, "maxItems": 6 },
           "summary": { "$ref": "#/$defs/summary" }
         }
       },
@@ -271,7 +269,8 @@
         "query_errors",
         "query_timeouts",
         "query_skips",
-        "query_invariant_failures"
+        "query_invariant_failures",
+        "query_statistics"
       ],
       "properties": {
         "repetition": { "type": "integer", "minimum": 1, "maximum": 5 },
@@ -299,7 +298,8 @@
         "query_errors": { "const": 0 },
         "query_timeouts": { "const": 0 },
         "query_skips": { "const": 0 },
-        "query_invariant_failures": { "const": 0 }
+        "query_invariant_failures": { "const": 0 },
+        "query_statistics": { "type": "object" }
       }
     },
     "cell": {
@@ -314,6 +314,59 @@
           "items": { "$ref": "#/$defs/repetition" }
         }
       }
+      ,
+      "allOf": [
+        {
+          "if": { "properties": { "treatment": { "const": "process_cold" } } },
+          "then": { "properties": { "repetitions": { "items": { "$ref": "#/$defs/cold_repetition" } } } },
+          "else": { "properties": { "repetitions": { "items": { "$ref": "#/$defs/warm_repetition" } } } }
+        }
+      ]
+    },
+    "cold_repetition": {
+      "allOf": [
+        { "$ref": "#/$defs/repetition" },
+        {
+          "properties": {
+            "samples_us": { "minItems": 1, "maxItems": 1 },
+            "result_counts": { "minItems": 1, "maxItems": 1 },
+            "query_statistics": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["min_us", "max_us", "mean_us"],
+              "properties": {
+                "min_us": { "$ref": "#/$defs/nonnegative_integer" },
+                "max_us": { "$ref": "#/$defs/nonnegative_integer" },
+                "mean_us": { "type": "number", "minimum": 0 }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "warm_repetition": {
+      "allOf": [
+        { "$ref": "#/$defs/repetition" },
+        {
+          "properties": {
+            "samples_us": { "minItems": 1000, "maxItems": 1000 },
+            "result_counts": { "minItems": 1000, "maxItems": 1000 },
+            "query_statistics": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["min_us", "max_us", "mean_us", "p50_us", "p95_us", "p99_us"],
+              "properties": {
+                "min_us": { "$ref": "#/$defs/nonnegative_integer" },
+                "max_us": { "$ref": "#/$defs/nonnegative_integer" },
+                "mean_us": { "type": "number", "minimum": 0 },
+                "p50_us": { "$ref": "#/$defs/nonnegative_integer" },
+                "p95_us": { "$ref": "#/$defs/nonnegative_integer" },
+                "p99_us": { "$ref": "#/$defs/nonnegative_integer" }
+              }
+            }
+          }
+        }
+      ]
     },
     "integrity": {
       "type": "object",
@@ -333,7 +386,69 @@
       "additionalProperties": false,
       "required": ["cells"],
       "properties": {
-        "cells": { "type": "array" }
+        "cells": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": { "$ref": "#/$defs/summary_cell" }
+        }
+      }
+    },
+    "summary_cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows", "treatment", "repetition_count", "repetition_level"],
+      "properties": {
+        "rows": { "enum": [10000, 100000, 1000000] },
+        "treatment": { "enum": ["process_cold", "warm"] },
+        "repetition_count": { "const": 5 },
+        "repetition_level": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "treatment": { "const": "process_cold" } } },
+          "then": {
+            "properties": {
+              "repetition_level": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["min_us", "max_us", "mean_us"],
+                "properties": {
+                  "min_us": { "$ref": "#/$defs/repetition_range" },
+                  "max_us": { "$ref": "#/$defs/repetition_range" },
+                  "mean_us": { "$ref": "#/$defs/repetition_range" }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "repetition_level": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["min_us", "max_us", "mean_us", "p50_us", "p95_us", "p99_us"],
+                "properties": {
+                  "min_us": { "$ref": "#/$defs/repetition_range" },
+                  "max_us": { "$ref": "#/$defs/repetition_range" },
+                  "mean_us": { "$ref": "#/$defs/repetition_range" },
+                  "p50_us": { "$ref": "#/$defs/repetition_range" },
+                  "p95_us": { "$ref": "#/$defs/repetition_range" },
+                  "p99_us": { "$ref": "#/$defs/repetition_range" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "repetition_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["median", "min", "max"],
+      "properties": {
+        "median": { "type": "number", "minimum": 0 },
+        "min": { "type": "number", "minimum": 0 },
+        "max": { "type": "number", "minimum": 0 }
       }
     }
   }

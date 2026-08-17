@@ -122,8 +122,25 @@ def needs(job):
 
 # all-builds-passed must gate on every build lane.
 abp = set(needs("all-builds-passed"))
-gate_ok = {"verify-release", "build-python", "build-napi", "build-rust"} <= abp
+gate_ok = {
+    "verify-release", "build-python", "build-napi", "build-rust",
+    "cuda-package-rehearsal", "canonical-cuda-package-route-required",
+} <= abp
 print("GATE", gate_ok, sorted(abp))
+
+blocker = jobs.get("canonical-cuda-package-route-required", {})
+blocker_text = str(blocker)
+aggregate_text = str(jobs.get("all-builds-passed", {}))
+canonical_ok = (
+    blocker.get("if") == "${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}"
+    and blocker.get("permissions") == {"contents": "read"}
+    and not blocker.get("steps", [])[0].get("uses")
+    and "canonical CUDA package route required" in blocker_text
+    and "exit 1" in blocker_text
+    and "needs.cuda-package-rehearsal.result == 'success'" in aggregate_text
+    and "needs.canonical-cuda-package-route-required.result == 'success'" in aggregate_text
+)
+print("CANONICAL", canonical_ok)
 
 tiers = [f"publish-rust-t{i}-{s}" for i, s in enumerate(
     ["embedder-api", "schema", "query", "embedder", "engine", "facade", "cli"], start=1)]
@@ -139,6 +156,11 @@ if printf '%s\n' "$order_out" | grep -q '^GATE True'; then
   pass "all-builds-passed gates every build lane before any publish"
 else
   fail "all-builds-passed missing a build-lane dependency: $(printf '%s' "$order_out" | grep '^GATE')"
+fi
+if printf '%s\n' "$order_out" | grep -q '^CANONICAL True'; then
+  pass "canonical routes stop at the read-only CUDA package blocker before publishers"
+else
+  fail "canonical CUDA package blocker or route-conditional aggregate gate is missing"
 fi
 if printf '%s\n' "$order_out" | grep -q '^CHAIN True'; then
   pass "tiered publish chain t1<-...<-t7 rooted at all-builds-passed"

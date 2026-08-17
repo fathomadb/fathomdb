@@ -27,6 +27,17 @@ EXPECTED_READY_TRIPLES = {
     "win32-x64-msvc",
 }
 CUDA_LINUX_X64 = ("ubuntu-latest", "x86_64-unknown-linux-gnu", "linux-x64-gnu")
+CANONICAL_CUDA_ROUTE_IF = "${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}"
+PUBLISHING_JOBS = (
+    "publish-rust-t1-embedder-api", "publish-rust-t2-schema", "publish-rust-t3-query",
+    "publish-rust-t4-embedder", "publish-rust-t5-engine", "publish-rust-t6-facade",
+    "publish-rust-t7-cli", "publish-pypi", "publish-npm-platform-linux-x64-gnu",
+    "publish-npm-platform-linux-arm64-gnu", "publish-npm-platform-darwin-x64",
+    "publish-npm-platform-darwin-arm64", "publish-npm-platform-win32-x64-msvc", "publish-npm",
+    "post-publish-smoke", "post-publish-smoke-aarch64", "post-publish-smoke-darwin-x64",
+    "post-publish-smoke-darwin-arm64", "post-publish-smoke-win32-x64", "co-tagging-assert",
+    "promote-npm-latest", "github-release", "record-v0820-partial-registry-recovery",
+)
 JOB_HEADER = re.compile(r"^  ([A-Za-z][A-Za-z0-9_-]*):\s*$")
 MATRIX_RUNNER = re.compile(r"^          - runner: ([^\s#]+)\s*$")
 MATRIX_VALUE = re.compile(r"^            ([a-z_]+): ([^\s#]+)\s*$")
@@ -243,19 +254,55 @@ def require_trusted_linux_x64_cuda_producer(jobs: dict[str, str]) -> None:
         "ref: ${{ env.RELEASE_CHECKOUT_REF }}",
         "bash ../control-plane/scripts/release/cuda-package-rehearsal-smoke.sh",
         "bash control-plane/scripts/release/cuda-package-rehearsal.sh",
-        "name: python-dist-x86_64-unknown-linux-gnu",
-        "name: napi-linux-x64-gnu",
     )
     for fragment in required:
         if fragment not in block:
             fail(f"{job_name} is missing required trusted-producer fragment {fragment!r}")
     if "contents: write" in block or "id-token: write" in block or "registry-url:" in block:
         fail("trusted Linux x64 CUDA producer must not receive publishing capability")
+    for publisher_artifact in (
+        "name: python-dist-x86_64-unknown-linux-gnu",
+        "name: napi-linux-x64-gnu",
+    ):
+        if publisher_artifact in block:
+            fail("candidate CUDA rehearsal must not emit a canonical publisher-name artifact")
+
+    blocker = jobs.get("canonical-cuda-package-route-required")
+    if blocker is None:
+        fail("release workflow lacks the canonical CUDA package route blocker")
+    if f"if: {CANONICAL_CUDA_ROUTE_IF}" not in blocker:
+        fail("canonical CUDA package route blocker must run on every tag or non-dry-run route")
+    if "runs-on: ubuntu-latest" not in blocker or "permissions:\n      contents: read" not in blocker:
+        fail("canonical CUDA package route blocker must be GitHub-hosted and read-only")
+    for fragment in ("canonical CUDA package route required", "exit 1"):
+        if fragment not in blocker:
+            fail(f"canonical CUDA package route blocker is missing {fragment!r}")
+    for forbidden in (
+        "actions/checkout@", "actions/download-artifact@", "actions/upload-artifact@",
+        "environment:", "id-token:", "registry-url:", "${{ secrets.", "github.token",
+        "candidate_commit", "cuda-unmerged-route-receipt", "cuda-preflight-witness",
+    ):
+        if forbidden in blocker:
+            fail(f"canonical CUDA package route blocker must not receive candidate or publishing input: {forbidden!r}")
+
     all_builds = jobs.get("all-builds-passed")
     if all_builds is None or job_name not in needs("all-builds-passed", all_builds):
         fail("all-builds-passed must depend on the trusted Linux x64 CUDA producer")
-    if "needs.cuda-package-rehearsal.result == 'success'" not in all_builds:
-        fail("all-builds-passed must require the trusted Linux x64 CUDA producer success")
+    if "canonical-cuda-package-route-required" not in needs("all-builds-passed", all_builds):
+        fail("all-builds-passed must depend on the canonical CUDA route blocker")
+    for route_condition in (
+        "github.event_name == 'workflow_dispatch' && inputs.dry_run == true && needs.cuda-package-rehearsal.result == 'success'",
+        "(github.event_name != 'workflow_dispatch' || inputs.dry_run != true) && needs.canonical-cuda-package-route-required.result == 'success'",
+    ):
+        if route_condition not in all_builds:
+            fail("all-builds-passed must select the candidate rehearsal or canonical blocker by route")
+
+    for publisher in PUBLISHING_JOBS:
+        publisher_block = jobs.get(publisher)
+        if publisher_block is None:
+            fail(f"release workflow lacks {publisher}")
+        if "cuda-package-rehearsal" in publisher_block:
+            fail(f"{publisher} must not consume a candidate CUDA rehearsal artifact")
 
 
 def main() -> None:

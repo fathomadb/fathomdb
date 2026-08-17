@@ -30,6 +30,8 @@
 //!    that catch `EngineError` must not silently swallow it.
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
+#[cfg(feature = "test-hooks")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 #[cfg(feature = "test-hooks")]
 use std::sync::Barrier;
@@ -1375,6 +1377,7 @@ struct PyEngine {
 struct PyWalSnapshotPause {
     snapshot_ready: Arc<Barrier>,
     release: Arc<Barrier>,
+    reader_autocommit: Option<Arc<AtomicBool>>,
 }
 
 #[cfg(feature = "test-hooks")]
@@ -1388,6 +1391,10 @@ impl PyWalSnapshotPause {
     fn release(&self, py: Python<'_>) {
         let release = Arc::clone(&self.release);
         py.detach(move || release.wait());
+    }
+
+    fn reader_connection_autocommit_for_test(&self) -> bool {
+        self.reader_autocommit.as_ref().is_some_and(|value| value.load(Ordering::Acquire))
     }
 }
 
@@ -1653,13 +1660,14 @@ impl PyEngine {
     #[cfg(feature = "test-hooks")]
     fn _arm_next_reader_snapshot_pause_for_test(&self) -> PyWalSnapshotPause {
         let (snapshot_ready, release) = self.inner.arm_next_reader_snapshot_pause_for_test();
-        PyWalSnapshotPause { snapshot_ready, release }
+        PyWalSnapshotPause { snapshot_ready, release, reader_autocommit: None }
     }
 
     #[cfg(feature = "test-hooks")]
     fn _arm_next_reader_completion_pause_for_test(&self) -> PyWalSnapshotPause {
-        let (snapshot_ready, release) = self.inner.arm_next_reader_completion_pause_for_test();
-        PyWalSnapshotPause { snapshot_ready, release }
+        let (snapshot_ready, release, reader_autocommit) =
+            self.inner.arm_next_reader_completion_pause_for_test();
+        PyWalSnapshotPause { snapshot_ready, release, reader_autocommit: Some(reader_autocommit) }
     }
 
     #[cfg(feature = "test-hooks")]
@@ -2795,6 +2803,15 @@ fn force_panic_for_test() -> PyResult<()> {
     panic!("force_panic_for_test: AC-067 probe");
 }
 
+/// Take one private native/Rusqlite WAL checkpoint sample for Slice 65's
+/// disposable fresh-child diagnostic. This hook is absent from shipped wheels.
+#[cfg(feature = "test-hooks")]
+#[pyfunction(name = "_native_raw_wal_checkpoint_for_test")]
+fn native_raw_wal_checkpoint_for_test(py: Python<'_>, path: String) -> PyResult<(bool, u32, u32)> {
+    validate_ffi_string_py(&path)?;
+    call_engine(py, move || RustEngine::native_raw_wal_checkpoint_for_test(&path))
+}
+
 // ===== Module =========================================================
 
 // `gil_used = true` preserves current GIL semantics: pyo3 0.28 makes
@@ -2866,6 +2883,8 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
 
     #[cfg(any(test, feature = "test-hooks"))]
     m.add_function(wrap_pyfunction!(force_panic_for_test, &m)?)?;
+    #[cfg(feature = "test-hooks")]
+    m.add_function(wrap_pyfunction!(native_raw_wal_checkpoint_for_test, &m)?)?;
 
     m.add("EngineError", py.get_type::<EngineError>())?;
     m.add("StorageError", py.get_type::<StorageError>())?;

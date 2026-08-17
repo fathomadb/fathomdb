@@ -1503,7 +1503,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&wal_attribution, worker_idx);
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::Search {
@@ -1548,7 +1548,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&wal_attribution, worker_idx);
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 // Receiver may have been dropped if the caller went
                 // away; nothing to do in that case.
                 let _ = respond.send(result);
@@ -1561,7 +1561,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&wal_attribution, worker_idx);
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::ReadCollection { collection, after_id, limit, respond } => {
@@ -1573,7 +1573,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&wal_attribution, worker_idx);
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::ReadList { kind, predicates, limit, view, respond } => {
@@ -1586,7 +1586,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&wal_attribution, worker_idx);
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::GraphNeighbors { root_logical_id, depth, direction, view, respond } => {
@@ -1599,7 +1599,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&wal_attribution, worker_idx);
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::CrossedBoundarySince { since, view, respond } => {
@@ -1610,7 +1610,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&wal_attribution, worker_idx);
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::SearchExpand { search_hits, depth, respond } => {
@@ -1621,7 +1621,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&wal_attribution, worker_idx);
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::ExplainGraphNeighbors { root_logical_id, depth, direction, respond } => {
@@ -1633,7 +1633,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
-                finish_reader_request(&wal_attribution, worker_idx);
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             #[cfg(debug_assertions)]
@@ -1666,7 +1666,7 @@ fn reader_worker_loop(
                 snapshot_ready.wait();
                 release.wait();
                 connection.execute_batch("COMMIT").expect("release reader snapshot");
-                finish_reader_request(&wal_attribution, worker_idx);
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
             }
             #[cfg(test)]
             ReaderRequest::HoldWalSnapshotWithCommitAck { snapshot_ready, release, committed } => {
@@ -1683,7 +1683,7 @@ fn reader_worker_loop(
                 snapshot_ready.wait();
                 release.wait();
                 connection.execute_batch("COMMIT").expect("release reader snapshot");
-                finish_reader_request(&wal_attribution, worker_idx);
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 committed.wait();
             }
             #[cfg(any(test, feature = "test-hooks"))]
@@ -1706,13 +1706,17 @@ fn reader_worker_loop(
 /// the response. Keeping this at the response handoff, rather than at the
 /// worker-loop tail, makes the collector represent live SQLite state rather
 /// than channel scheduling.
-fn finish_reader_request(wal_attribution: &WalAttributionCollector, worker_idx: usize) {
+fn finish_reader_request(
+    connection: &Connection,
+    wal_attribution: &WalAttributionCollector,
+    worker_idx: usize,
+) {
     wal_attribution.set(WalAttributionRole::ReaderWorker, worker_idx, false, "completed");
     wal_attribution.set(WalAttributionRole::ReaderWorker, worker_idx, false, "idle");
     #[cfg(test)]
     reader_handoff_pause::fire();
     #[cfg(any(test, feature = "test-hooks"))]
-    reader_completion_pause::fire();
+    reader_completion_pause::fire(connection.is_autocommit());
 }
 
 /// 0.8.20 keystone closeout fix-3 — a test-only rendezvous hook fired at the TOP
@@ -5953,7 +5957,9 @@ impl Engine {
     /// and disposable `test-hooks` artifacts.
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
-    pub fn arm_next_reader_completion_pause_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
+    pub fn arm_next_reader_completion_pause_for_test(
+        &self,
+    ) -> (Arc<Barrier>, Arc<Barrier>, Arc<AtomicBool>) {
         reader_completion_pause::arm()
     }
 
@@ -6083,6 +6089,27 @@ impl Engine {
             }
         }
         Ok(reports)
+    }
+
+    /// Take one native Rusqlite checkpoint sample for the disposable Slice 65
+    /// child probe. This opens and drops exactly one independent connection;
+    /// it neither opens an Engine nor retries an erasure result.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn native_raw_wal_checkpoint_for_test(path: &str) -> Result<(bool, u32, u32), EngineError> {
+        let registry = Arc::new(ManagedConnectionRegistry::default());
+        let connection = open_managed_connection(
+            Path::new(path),
+            ManagedConnectionCategory::RuntimeProbe,
+            &registry,
+        )
+        .map_err(|_| EngineError::Storage)?;
+        connection.execute_batch("PRAGMA busy_timeout = 0").map_err(|_| EngineError::Storage)?;
+        connection
+            .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                Ok((row.get::<_, i32>(0)? != 0, row.get(1)?, row.get(2)?))
+            })
+            .map_err(|_| EngineError::Storage)
     }
 
     #[cfg(debug_assertions)]
@@ -12623,22 +12650,25 @@ mod reader_handoff_pause {
 /// the materialized response. It is absent from ordinary builds.
 #[cfg(any(test, feature = "test-hooks"))]
 mod reader_completion_pause {
-    use super::Barrier;
+    use super::{AtomicBool, Barrier, Ordering};
     use std::sync::{Arc, Mutex};
 
-    static PAUSE: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>> = Mutex::new(None);
+    static PAUSE: Mutex<Option<(Arc<Barrier>, Arc<Barrier>, Arc<AtomicBool>)>> = Mutex::new(None);
 
-    pub(crate) fn arm() -> (Arc<Barrier>, Arc<Barrier>) {
+    pub(crate) fn arm() -> (Arc<Barrier>, Arc<Barrier>, Arc<AtomicBool>) {
         let ready = Arc::new(Barrier::new(2));
         let release = Arc::new(Barrier::new(2));
+        let reader_autocommit = Arc::new(AtomicBool::new(false));
         *PAUSE.lock().expect("reader completion pause mutex") =
-            Some((Arc::clone(&ready), Arc::clone(&release)));
-        (ready, release)
+            Some((Arc::clone(&ready), Arc::clone(&release), Arc::clone(&reader_autocommit)));
+        (ready, release, reader_autocommit)
     }
 
-    pub(crate) fn fire() {
-        if let Some((ready, release)) = PAUSE.lock().expect("reader completion pause mutex").take()
+    pub(crate) fn fire(reader_autocommit: bool) {
+        if let Some((ready, release, observed_autocommit)) =
+            PAUSE.lock().expect("reader completion pause mutex").take()
         {
+            observed_autocommit.store(reader_autocommit, Ordering::Release);
             ready.wait();
             release.wait();
         }

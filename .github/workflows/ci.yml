@@ -621,8 +621,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control binding --wheel-version 0.8.22 --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $bindingLog
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_completion_ack collector=idle' -Quiet)) {
-            Write-Error "installed binding diagnostic did not acknowledge the actual completion boundary"
+          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_completion_ack reader_autocommit=1 collector=idle' -Quiet)) {
+            Write-Error "installed binding diagnostic did not acknowledge direct reader autocommit at completion"
             exit 1
           }
           if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=8-autocommit;dispatcher=autocommit;workers=2-autocommit;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:2' -Quiet)) {

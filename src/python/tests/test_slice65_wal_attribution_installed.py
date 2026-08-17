@@ -11,7 +11,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -19,6 +18,7 @@ import threading
 from pathlib import Path
 
 import fathomdb
+import fathomdb._fathomdb as native
 from fathomdb import Engine, graph, read
 from fathomdb.errors import ErasureIncompleteError
 
@@ -68,14 +68,8 @@ def _expected_wal_baseline(error: ErasureIncompleteError) -> str:
 
 
 def _raw_binding_checkpoint(path: str, case: str) -> tuple[int, int, int]:
-    """Take one redacted independent raw checkpoint sample."""
-    connection = sqlite3.connect(path, timeout=0, isolation_level=None)
-    try:
-        busy, log_frames, checkpointed_frames = connection.execute(
-            "PRAGMA wal_checkpoint(TRUNCATE)"
-        ).fetchone()
-    finally:
-        connection.close()
+    """Take one redacted independent native/Rusqlite checkpoint sample."""
+    busy, log_frames, checkpointed_frames = native._native_raw_wal_checkpoint_for_test(path)
     print(
         "slice65_wal python_binding_raw "
         f"case={case} raw_busy={busy} raw_log_frames={log_frames} "
@@ -194,8 +188,12 @@ def run_binding_reader_erase(expected_version: str) -> None:
                 raise AssertionError("paused reader snapshot must fail closed")
             snapshot_pause.release()
             completion_pause.wait_snapshot_ready()
+            assert completion_pause.reader_connection_autocommit_for_test() is True
             assert native._wal_attribution_snapshot_for_test()["no_owned_snapshot"] is True
-            print("slice65_wal python_binding_completion_ack collector=idle", flush=True)
+            print(
+                "slice65_wal python_binding_completion_ack reader_autocommit=1 collector=idle",
+                flush=True,
+            )
             completion_pause.release()
             reader.join(timeout=5)
             assert not reader.is_alive() and read_outcome and read_outcome[0] is not None
@@ -249,7 +247,7 @@ def run_binding_reader_erase(expected_version: str) -> None:
 def run_binding_child(expected_version: str, path: str) -> None:
     """Run the one conditional post-close raw probe in a fresh test-hook process."""
     _assert_installed_version(expected_version)
-    busy, log_frames, checkpointed_frames = _raw_binding_checkpoint(path, "child")
+    busy, log_frames, checkpointed_frames = native._native_raw_wal_checkpoint_for_test(path)
     print(
         "slice65_wal python_binding_child_raw case=after_close outcome=recorded "
         f"raw_busy={busy} raw_log_frames={log_frames} raw_checkpointed_frames={checkpointed_frames}",

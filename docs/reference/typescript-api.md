@@ -688,10 +688,10 @@ the catch-all root).
 ## Embedder device (GPU)
 
 There is **no TypeScript API** for selecting the embedder device — it is chosen
-by a build-time `embed-cuda` feature plus the `FATHOMDB_EMBED_DEVICE`
-environment variable (`auto` default · `cpu` · `cuda:N`), resolved when the
-engine opens. `auto` records a typed CPU result when CUDA is unavailable;
-forced `cuda:N` fails rather than falling back. See
+by artifact capability plus the `FATHOMDB_EMBED_DEVICE` environment variable
+(`auto` · `cpu` · `cuda:N`), resolved when the engine opens. Unset is `auto` only on a CUDA-capable artifact; a CPU-only artifact reports
+`cuda_not_compiled`. `auto` records a typed CPU result when CUDA is
+unavailable; forced `cuda:N` fails rather than falling back. End users of a CUDA-capable package do not rebuild to switch between CPU and GPU. See
 [Default Embedder → GPU acceleration](../embedder.md#gpu-acceleration-opt-in).
 
 ## See also

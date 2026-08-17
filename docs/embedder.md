@@ -144,7 +144,7 @@ policy without recompiling:
    it is resolved once, when the engine opens, and the result is exposed in `OpenReport`.
    `auto` probes CUDA and records a typed CPU result when CUDA is unavailable;
    a CPU-only artifact records `cuda_not_compiled`; `cpu` never probes CUDA; and
-   `cuda:N` is forced and fails open if it cannot be used. Bare `cuda`, `metal`,
+   `cuda:N` is forced and raises a typed open error if it cannot be used. Bare `cuda`, `metal`,
    whitespace/case variants, and other spellings are configuration errors —
    embedding never silently changes a forced GPU request into CPU execution.
 

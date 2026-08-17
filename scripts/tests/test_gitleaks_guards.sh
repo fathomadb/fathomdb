@@ -9,6 +9,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 STAGED_GUARD="$REPO_ROOT/scripts/security/gitleaks-staged.sh"
 HISTORY_GUARD="$REPO_ROOT/scripts/security/gitleaks-history.sh"
 CURRENT_GUARD="$REPO_ROOT/scripts/security/gitleaks-current.sh"
+CURRENT_CONFIG="$REPO_ROOT/scripts/security/gitleaks-current.toml"
+CURRENT_CONFIG_CHECK="$REPO_ROOT/scripts/security/check-gitleaks-current-config.py"
 PRE_COMMIT="$REPO_ROOT/scripts/hooks/pre-commit"
 CI="$REPO_ROOT/.github/workflows/ci.yml"
 INSTALLER="$REPO_ROOT/scripts/install-gitleaks.sh"
@@ -57,6 +59,12 @@ if ! command -v gitleaks >/dev/null 2>&1; then
 fi
 GITLEAKS_BIN="$(command -v gitleaks)"
 
+if "$CURRENT_CONFIG_CHECK" "$CURRENT_CONFIG" >/dev/null 2>&1; then
+  pass "current-tree policy admits only the reviewed exceptions"
+else
+  fail "current-tree policy admits only the reviewed exceptions"
+fi
+
 set +e
 current_out="$(GITLEAKS_BIN="$GITLEAKS_BIN" "$CURRENT_GUARD" "$REPO_ROOT" 2>&1)"
 current_rc=$?
@@ -75,6 +83,30 @@ mkdir -p "$FIXTURE"
 git -C "$FIXTURE" init -q
 git -C "$FIXTURE" config user.email gitleaks-test@example.invalid
 git -C "$FIXTURE" config user.name 'Gitleaks Test'
+
+cp "$CURRENT_CONFIG" "$TMPROOT/current-policy-loose.toml"
+sed -i '0,/condition = "AND"/d' "$TMPROOT/current-policy-loose.toml"
+set +e
+"$CURRENT_CONFIG_CHECK" "$TMPROOT/current-policy-loose.toml" >/dev/null 2>&1
+loose_condition_rc=$?
+set -e
+expect_nonzero "$loose_condition_rc" "current-tree policy rejects a deleted AND condition"
+
+cp "$CURRENT_CONFIG" "$TMPROOT/current-policy-path.toml"
+sed -i '0,/scripts\\/check-cuda-release-contract\\.py/s//.*/' "$TMPROOT/current-policy-path.toml"
+set +e
+"$CURRENT_CONFIG_CHECK" "$TMPROOT/current-policy-path.toml" >/dev/null 2>&1
+loose_path_rc=$?
+set -e
+expect_nonzero "$loose_path_rc" "current-tree policy rejects a broadened path"
+
+cp "$CURRENT_CONFIG" "$TMPROOT/current-policy-regex.toml"
+sed -i '0,/CUDA_DEFAULT_EMBEDDER_TOKENIZER_SHA256/s//.*/' "$TMPROOT/current-policy-regex.toml"
+set +e
+"$CURRENT_CONFIG_CHECK" "$TMPROOT/current-policy-regex.toml" >/dev/null 2>&1
+loose_regex_rc=$?
+set -e
+expect_nonzero "$loose_regex_rc" "current-tree policy rejects a loosened digest condition"
 
 # A temporary local rule makes the fixture deterministic without carrying a
 # real credential or depending on a particular upstream default-rule release.

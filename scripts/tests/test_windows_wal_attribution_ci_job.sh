@@ -52,6 +52,7 @@ for marker in \
   'wal_attribution_checkpoints_for_test' \
   'retained_record_contract=passed' \
   'active_roles == vec![(WalAttributionRole::ReaderWorker, 0)]' \
+  'SELECT COUNT(*) FROM canonical_nodes' \
   'owned_reader_snapshot' \
   'unclassified_external'; do
   assert_contains "$(<"$SOURCE_TEST") $(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs")" "$marker" "source retains $marker"
@@ -73,6 +74,20 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves attribution job assertion is load-bearing"
   else
     fail "mutation did not fail attribution job assertion: $out"
+  fi
+
+  EXECUTION_GUARD_MUTATED="$TMPROOT/ci-without-execution-guard.yml"
+  sed '/Select-String -Path/d;/managed-reader attribution command selected zero tests/d' "$CI" \
+    >"$EXECUTION_GUARD_MUTATED"
+  set +e
+  execution_guard_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$EXECUTION_GUARD_MUTATED" bash "$0" 2>&1)"
+  execution_guard_rc=$?
+  set -e
+  if [ "$execution_guard_rc" -ne 0 ] \
+    && grep -Fq 'job checks retained output for an executed test (missing: Select-String)' <<<"$execution_guard_out"; then
+    pass "mutation proves zero-test execution guard is load-bearing"
+  else
+    fail "mutation did not fail zero-test execution guard: $execution_guard_out"
   fi
 fi
 

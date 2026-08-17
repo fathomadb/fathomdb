@@ -12064,9 +12064,12 @@ fn edge_fts_hit_passes_non_attribute_filter(
 }
 
 /// Begin a reader transaction and, only while attribution is opted in, acquire
-/// its actual SQLite snapshot with a harmless read before recording it. This
-/// keeps the collector off normal paths and prevents a queued request from
-/// masquerading as a live snapshot.
+/// its actual SQLite snapshot with a harmless canonical-table read before
+/// recording it. `SELECT 1` is insufficient because SQLite can satisfy it
+/// without touching the database/WAL; this probe has the same table-backed
+/// snapshot semantics as the managed-reader witness. It keeps the collector
+/// off normal paths and prevents a queued request from masquerading as a live
+/// snapshot.
 fn begin_attributed_reader_tx<'a>(
     reader: &'a mut Connection,
     attribution: &Arc<WalAttributionCollector>,
@@ -12075,7 +12078,7 @@ fn begin_attributed_reader_tx<'a>(
     let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
     if attribution.enabled {
         attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "transaction_opened");
-        tx.query_row("SELECT 1", [], |row| row.get::<_, i64>(0))?;
+        tx.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))?;
         attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "snapshot_acquired");
     }
     Ok(tx)

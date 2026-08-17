@@ -117,6 +117,8 @@ assert_contains "$CODE" 'slice65_wal post_commit_raw case=pre_close' "job requir
 assert_contains "$CODE" 'slice65_wal post_commit_child_raw case=after_close' "job requires the redacted fresh-child probe outcome"
 assert_contains "$CODE" 'python_binding_completion_ack reader_autocommit=1 collector=idle' "job requires installed binding direct completion acknowledgement"
 assert_absent "$CODE" 'python_binding_completion_ack collector=idle' "job does not accept the collector-only binding completion marker"
+assert_contains "$CODE" "\$artifact -SimpleMatch 'slice65_wal python_binding_completion_ack reader_autocommit=1 collector=idle'" "job requires the binding completion acknowledgement in the retained artifact"
+assert_absent "$CODE" 'python_binding_snapshot_released' "job does not require the removed binding post-release marker"
 assert_contains "$CODE" 'python_binding_direct_inventory=' "job requires direct installed binding inventory"
 assert_contains "$CODE" 'python_binding_raw case=before_engine_sampler' "job requires the first installed binding raw sample"
 assert_contains "$CODE" 'python_binding_engine_sampler' "job requires exactly one installed binding Engine-path sampler"
@@ -564,6 +566,19 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves clean baseline exit pairing is load-bearing"
   else
     fail "mutation did not fail clean baseline exit-pair assertion: $baseline_clean_exit_out"
+  fi
+
+  ARTIFACT_BINDING_COMPLETION_MUTATED="$TMPROOT/ci-without-artifact-binding-completion.yml"
+  sed '/\$artifact -SimpleMatch .*python_binding_completion_ack reader_autocommit=1 collector=idle/d' "$CI" >"$ARTIFACT_BINDING_COMPLETION_MUTATED"
+  set +e
+  artifact_binding_completion_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$ARTIFACT_BINDING_COMPLETION_MUTATED" bash "$0" 2>&1)"
+  artifact_binding_completion_rc=$?
+  set -e
+  if [ "$artifact_binding_completion_rc" -ne 0 ] \
+    && grep -Fq "job requires the binding completion acknowledgement in the retained artifact (missing: \$artifact -SimpleMatch 'slice65_wal python_binding_completion_ack reader_autocommit=1 collector=idle')" <<<"$artifact_binding_completion_out"; then
+    pass "mutation proves retained artifact binding-completion assertion is load-bearing"
+  else
+    fail "mutation did not fail retained artifact binding-completion assertion: $artifact_binding_completion_out"
   fi
 
   FRESH_CONNECTION_MUTATED="$TMPROOT/lib-without-fresh-connection-marker.rs"

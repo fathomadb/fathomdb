@@ -9,7 +9,9 @@ job installs either the released 0.8.22 wheel or a current, disposable
 from __future__ import annotations
 
 import argparse
+import json
 import tempfile
+import threading
 from pathlib import Path
 
 import fathomdb
@@ -69,14 +71,18 @@ def run_serial_incident(expected_version: str, wheel_label: str, require_attribu
             assert first is not None and first.logical_id == "slice65-root"
             neighbors = graph.neighbors(fresh, "slice65-root", depth=1, direction="outgoing")
             assert [node.logical_id for node in neighbors] == ["slice65-nested"]
+            if require_attribution:
+                assert fresh._native._wal_attribution_snapshot_for_test()["no_owned_snapshot"] is True
             print("slice65_wal serial_recovery_reads=passed", flush=True)
 
+            before = len(fresh._native._wal_attribution_checkpoint_records_for_test()) if require_attribution else 0
             nested = fresh.erase_source("slice65-nested-source")
             assert nested.nodes_excised == 1
             fresh.transition("slice65-root", "deleted", "slice65 incident control")
             fresh.purge("slice65-root")
             if require_attribution:
-                # The collector itself emits redacted lifecycle/checkpoint records.
+                records = fresh._native._wal_attribution_checkpoint_records_for_test()[before:]
+                assert records and all(r[1:] == (False, "no_owned_snapshot", []) for r in records)
                 print("slice65_wal serial_current_attribution_expected=1", flush=True)
         finally:
             fresh.close()
@@ -94,7 +100,14 @@ def run_binding_reader_erase(expected_version: str) -> None:
         try:
             engine.write([_node("slice65-binding", "slice65-binding-source")])
             native = engine._native
-            pause = native._pause_reader_after_wal_snapshot_for_test()
+            pause = native._arm_next_reader_snapshot_pause_for_test()
+            read_outcome: list[object] = []
+
+            def governed_read() -> None:
+                read_outcome.append(read.get(engine, "slice65-binding"))
+
+            reader = threading.Thread(target=governed_read, name="slice65-python-read")
+            reader.start()
             pause.wait_snapshot_ready()
             print("slice65_wal python_binding_snapshot_ready", flush=True)
             try:
@@ -104,8 +117,37 @@ def run_binding_reader_erase(expected_version: str) -> None:
             else:
                 raise AssertionError("paused reader snapshot must fail closed")
             pause.release()
+            reader.join(timeout=5)
+            assert not reader.is_alive() and read_outcome and read_outcome[0] is not None
             engine.erase_source("slice65-binding-source")
+            records = native._wal_attribution_checkpoint_records_for_test()
+            busy = [r for r in records if r[1]]
+            assert len(busy) == 5 and all(
+                r[2] == "owned_reader_snapshot" and r[3] == ["reader_worker:0"] for r in busy
+            )
+            assert records[-1][1:] == (False, "no_owned_snapshot", [])
             print("slice65_wal python_binding_snapshot_released", flush=True)
+        finally:
+            engine.close()
+
+
+def run_retained_materialized(expected_version: str) -> None:
+    """Retain public read data and prove the live Engine is immediately idle."""
+    _assert_installed_version(expected_version)
+    with tempfile.TemporaryDirectory(prefix="slice65-retained-") as directory:
+        engine = Engine.open(str(Path(directory) / "retained.sqlite"), use_default_embedder=False)
+        try:
+            engine.write(
+                [{**_node("slice65-retained", "slice65-retained-source"), "body": json.dumps({"nested": {"value": "kept"}})}]
+            )
+            retained = read.get(engine, "slice65-retained")
+            assert retained is not None and json.loads(retained.body)["nested"]["value"] == "kept"
+            native = engine._native
+            assert native._wal_attribution_snapshot_for_test()["no_owned_snapshot"] is True
+            engine.erase_source("slice65-retained-source")
+            records = native._wal_attribution_checkpoint_records_for_test()
+            assert records[-1][1:] == (False, "no_owned_snapshot", [])
+            print("slice65_wal python_retained_materialized_idle=passed", flush=True)
         finally:
             engine.close()
 
@@ -114,7 +156,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--wheel-version", required=True)
     parser.add_argument("--wheel-label", required=True)
-    parser.add_argument("--control", choices=("serial", "binding"), required=True)
+    parser.add_argument("--control", choices=("serial", "binding", "retained"), required=True)
     parser.add_argument("--require-attribution", action="store_true")
     args = parser.parse_args()
     if args.control == "serial":
@@ -122,7 +164,10 @@ def main() -> None:
     else:
         if not args.require_attribution:
             raise SystemExit("binding control requires the current test-hooks attribution wheel")
-        run_binding_reader_erase(args.wheel_version)
+        if args.control == "binding":
+            run_binding_reader_erase(args.wheel_version)
+        else:
+            run_retained_materialized(args.wheel_version)
 
 
 if __name__ == "__main__":

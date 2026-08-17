@@ -37,6 +37,12 @@ accepted it and it is integrated here as `afbfeed2`. Its red-first, focused 10-t
 for that verifier is ignored local state, not a source change. No TC-5
 execution is authorized.
 
+The final cross-lane review accepted the integrated safety, configuration, and
+receipt boundaries but requested this documentation correction: active
+references to legacy `L0` and `T0` labels must use `LOCOMO-01` and `SCALE-01`.
+No implementation or execution evidence was challenged. The coordinator will
+obtain focused review of the correction before closing this preparation set.
+
 `PARENT-01` may consume the accepted trace contract in preparation but is not
 commissioned by this entry. The coordinator alone edits this board and PROGRAM
 state. This commission authorizes no corpus acquisition, live grid or smoke

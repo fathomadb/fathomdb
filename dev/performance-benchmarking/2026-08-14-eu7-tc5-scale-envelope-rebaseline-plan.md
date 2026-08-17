@@ -1,6 +1,6 @@
 # TC-5 — eu7 grown-corpus characterization and advisory envelope
 
-> **Program relationship.** This is track T0 in the
+> **Program relationship.** This is track SCALE-01 in the
 > [overall performance benchmarking and experiments program](PROGRAM.md). It
 > may inform F0's advisory scale envelope, but it is neither a competitor
 > comparison nor a latency claim.

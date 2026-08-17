@@ -271,29 +271,15 @@ else
   fail "arm 0 (real repo): rc=$REAL_RC out=$REAL_OUT"
 fi
 
-# --- Arm 1: THE TWO FROZEN EXEMPTIONS ARE LIVE ------------------------------
-# Measured at the base commit: exactly two ladder entries carry a token no design
-# doc mentions — Slice 20 / TC-45 and Slice 21 / ac_002. Both are LANDED, the
-# state file is the Steward's to edit and not this unit's, and adding a
-# "Requirement traceability" blockquote is the superseded anti-pattern. So both
-# are enumerated, and the check must SAY it is exempting them rather than pass
-# silently: a silent pass is indistinguishable from no coverage gap at all.
-if grep -q 'TC-45' <<<"$REAL_OUT" && grep -q 'ac_002' <<<"$REAL_OUT" \
-   && grep -qiE 'exempt' <<<"$REAL_OUT"; then
-  pass "the report NAMES both frozen exemptions (Slice 20 TC-45, Slice 21 ac_002)"
+# --- Arm 1: RESOLVED EXEMPTIONS ARE RETIRED ----------------------------------
+# Slice 20 / TC-45 and Slice 21 / ac_002 now have design coverage. Keeping
+# their rows would make the frozen table silently accrue stale escape hatches.
+if ! grep -q 'STALE EXEMPTION' <<<"$REAL_OUT" \
+   && ! grep -Fq '("0.8.20", 20, "TC-45")' "$GATE" \
+   && ! grep -Fq '("0.8.20", 21, "ac_002")' "$GATE"; then
+  pass "resolved Slice 20/21 design coverage retires both frozen exemptions"
 else
-  fail "arm 1 (exemptions reported): out=$REAL_OUT"
-fi
-
-# --- Arm 1b: each exemption carries a justification and a TC-92 pointer -----
-# An exemption with no reason recorded is indistinguishable from a bug, and the
-# next reader has no way to judge whether it may be removed.
-if grep -q 'TC-92' "$GATE" \
-   && awk '/TC-45/{found=1} END{exit !found}' "$GATE" \
-   && awk '/ac_002/{found=1} END{exit !found}' "$GATE"; then
-  pass "the exemption table lives in the check itself and points at TC-92"
-else
-  fail "arm 1b (exemption provenance): $GATE does not enumerate them with a TC-92 pointer"
+  fail "arm 1 (resolved exemptions retired): out=$REAL_OUT gate=$GATE"
 fi
 
 # --- Arm 2: NON-VACUITY — a fully covered slice passes ----------------------

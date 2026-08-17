@@ -24,6 +24,10 @@ make_fixture() {
   cp "$REPO_ROOT/scripts/release/verify-cuda-unmerged-candidate.py" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/verify-cuda-unmerged-receipt.py" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/cuda-unmerged-route-receipt.schema.json" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/release/cuda-package-rehearsal.schema.json" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/release/verify-cuda-package-rehearsal.py" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/release/cuda-package-rehearsal.sh" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/Dockerfile.cuda-manylinux" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/provision-cuda-manylinux.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/src/rust/crates/fathomdb-napi/Cargo.toml" "$root/src/rust/crates/fathomdb-napi/"
@@ -80,6 +84,101 @@ printf 'PASS  hosted CUDA verifier is main-owned and candidate-independent\n'
 FIXTURE="$TMPROOT/fixture"
 make_fixture "$FIXTURE"
 expect_pass "$FIXTURE" 'baseline CUDA contract agrees'
+
+for package_rehearsal_mutation in missing-gate source-smoke host-network; do
+  make_fixture "$FIXTURE"
+  python3 - "$FIXTURE/.github/workflows/release.yml" "$FIXTURE/scripts/release/cuda-package-rehearsal-smoke.sh" "$package_rehearsal_mutation" <<'PY'
+from pathlib import Path
+import sys
+
+workflow = Path(sys.argv[1])
+smoke = Path(sys.argv[2])
+mutation = sys.argv[3]
+if mutation == "missing-gate":
+    text = workflow.read_text()
+    needle = "      - cuda-package-rehearsal\n"
+    if text.count(needle) != 1:
+        raise SystemExit("fixture lacks the aggregate CUDA package rehearsal gate")
+    workflow.write_text(text.replace(needle, "", 1))
+elif mutation == "source-smoke":
+    text = smoke.read_text()
+    needle = "# never mounted; env -i"
+    if needle not in text:
+        raise SystemExit("fixture lacks source-isolation marker")
+    smoke.write_text(text.replace(needle, "--mount type=bind,src=$PWD,dst=/source ", 1))
+elif mutation == "host-network":
+    text = smoke.read_text()
+    needle = "docker run --rm --network none"
+    if text.count(needle) < 2:
+        raise SystemExit("fixture lacks isolated container smoke")
+    smoke.write_text(text.replace(needle, "docker run --rm --network host", 1))
+else:
+    raise SystemExit("unknown mutation")
+PY
+  expect_fail "$FIXTURE" "rejects CUDA package rehearsal mutation: $package_rehearsal_mutation"
+done
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/dev/release/cuda-unmerged-candidates.json" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+record = {
+    "schema_version": "fathomdb.cuda-unmerged-candidate/v1",
+    "candidate_sha": "0123456789abcdef0123456789abcdef01234567",
+    "candidate_pr": 228,
+    "candidate_pr_head_sha": "0123456789abcdef0123456789abcdef01234567",
+    "required_reviewers": ["independent-reviewer"],
+    "expires_at": "2999-01-01T00:00:00Z",
+    "purpose": "0.8.23 non-publishing CUDA preflight",
+    "provenance_pr": 229,
+    "provenance_head_sha": "2222222222222222222222222222222222222222",
+    "provenance_commit": "1111111111111111111111111111111111111111",
+    "provenance_required_reviewers": ["independent-provenance-reviewer"],
+}
+value = {"schema_version": "fathomdb.cuda-unmerged-candidates/v1", "candidates": [record]}
+open(path, "w", encoding="utf-8").write(json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n")
+PY
+expect_pass "$FIXTURE" 'accepts one canonical future unmerged candidate record without authorizing it'
+
+for manifest_mutation in multiple expired noncanonical; do
+  make_fixture "$FIXTURE"
+  python3 - "$FIXTURE/dev/release/cuda-unmerged-candidates.json" "$manifest_mutation" <<'PY'
+import json
+import sys
+
+path, mutation = sys.argv[1:]
+record = {
+    "schema_version": "fathomdb.cuda-unmerged-candidate/v1",
+    "candidate_sha": "0123456789abcdef0123456789abcdef01234567",
+    "candidate_pr": 228,
+    "candidate_pr_head_sha": "0123456789abcdef0123456789abcdef01234567",
+    "required_reviewers": ["independent-reviewer"],
+    "expires_at": "2999-01-01T00:00:00Z",
+    "purpose": "0.8.23 non-publishing CUDA preflight",
+    "provenance_pr": 229,
+    "provenance_head_sha": "2222222222222222222222222222222222222222",
+    "provenance_commit": "1111111111111111111111111111111111111111",
+    "provenance_required_reviewers": ["independent-provenance-reviewer"],
+}
+if mutation == "multiple":
+    candidates = [record, dict(record, candidate_sha="89abcdef0123456789abcdef0123456789abcdef", candidate_pr_head_sha="89abcdef0123456789abcdef0123456789abcdef")]
+elif mutation == "expired":
+    candidates = [dict(record, expires_at="2000-01-01T00:00:00Z")]
+elif mutation == "noncanonical":
+    candidates = [record]
+else:
+    raise SystemExit("unknown mutation")
+value = {"schema_version": "fathomdb.cuda-unmerged-candidates/v1", "candidates": candidates}
+if mutation == "noncanonical":
+    rendered = json.dumps(value, indent=2, sort_keys=True) + "\n"
+else:
+    rendered = json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n"
+open(path, "w", encoding="utf-8").write(rendered)
+PY
+  expect_fail "$FIXTURE" "rejects a $manifest_mutation unmerged candidate manifest"
+done
 
 make_fixture "$FIXTURE"
 printf 'exit 0\n' > "$FIXTURE/scripts/verify-release-gates.sh"
@@ -164,11 +263,45 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = '    runs-on: [self-hosted, Linux, X64, gpu, cuda-12]\n'
-if text.count(needle) != 1:
-    raise SystemExit("fixture no longer contains the restricted CUDA runner selection")
+if text.count(needle) != 2:
+    raise SystemExit("fixture no longer contains both restricted CUDA runner selections")
 path.write_text(text.replace(needle, '    runs-on: ubuntu-latest\n', 1))
 PY
 expect_fail "$FIXTURE" 'rejects a CUDA preflight moved onto ordinary CI'
+
+for least_privilege_mutation in candidate-write candidate-credentials publishing-reach; do
+  make_fixture "$FIXTURE"
+  python3 - "$FIXTURE/.github/workflows/release.yml" "$least_privilege_mutation" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+mutation = sys.argv[2]
+text = path.read_text()
+if mutation == "candidate-write":
+    needle = "  verify-release:\n    needs: verify-cuda-trusted-route\n"
+    replacement = needle + "    permissions:\n      contents: write\n      id-token: write\n"
+elif mutation == "candidate-credentials":
+    start = text.index("  build-python:\n")
+    end = text.index("  build-napi:\n", start)
+    job = text[start:end]
+    needle = "          ref: ${{ env.RELEASE_CHECKOUT_REF }}\n"
+    replacement = needle + "          persist-credentials: true\n"
+    if job.count(needle) != 1:
+        raise SystemExit("fixture lacks the build-python candidate checkout")
+    path.write_text(text[:start] + job.replace(needle, replacement, 1) + text[end:])
+    raise SystemExit(0)
+elif mutation == "publishing-reach":
+    needle = "  publish-rust-t1-embedder-api:\n"
+    replacement = needle + "    if: ${{ true }}\n"
+else:
+    raise SystemExit("unknown least-privilege mutation")
+if text.count(needle) != 1:
+    raise SystemExit(f"fixture lacks {mutation} mutation target: {needle!r}")
+path.write_text(text.replace(needle, replacement, 1))
+PY
+  expect_fail "$FIXTURE" "rejects unmerged candidate least-privilege mutation: $least_privilege_mutation"
+done
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
@@ -178,11 +311,67 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = '    environment: cuda-unmerged-preflight\n'
-if text.count(needle) != 1:
-    raise SystemExit("fixture no longer contains the exact protected CUDA environment")
+if text.count(needle) != 2:
+    raise SystemExit("fixture no longer contains both exact protected CUDA environments")
 path.write_text(text.replace(needle, "", 1))
 PY
 expect_fail "$FIXTURE" 'rejects removal of the protected unmerged-candidate environment'
+
+for environment_mutation in comment-only substituted mapping; do
+  make_fixture "$FIXTURE"
+  python3 - "$FIXTURE/.github/workflows/release.yml" "$environment_mutation" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+mutation = sys.argv[2]
+text = path.read_text()
+needle = "    environment: cuda-unmerged-preflight\n"
+if text.count(needle) != 2:
+    raise SystemExit("fixture no longer contains both exact protected CUDA environments")
+replacements = {
+    "comment-only": "    # environment: cuda-unmerged-preflight\n",
+    "substituted": "    environment: ${{ inputs.cuda_environment }} # environment: cuda-unmerged-preflight\n",
+    "mapping": "    environment:\n      name: cuda-unmerged-preflight # environment: cuda-unmerged-preflight\n",
+}
+path.write_text(text.replace(needle, replacements[mutation], 1))
+PY
+  expect_fail "$FIXTURE" "rejects a $environment_mutation protected environment lookalike"
+done
+
+for control_plane_mutation in remove reorder; do
+  make_fixture "$FIXTURE"
+  python3 - "$FIXTURE/.github/workflows/release.yml" "$control_plane_mutation" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+mutation = sys.argv[2]
+text = path.read_text()
+checkout_marker = (
+    "      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 "
+    "# v7.0.0, main-owned receipt verifier only\n"
+)
+receipt_marker = "      - name: Verify same-run unmerged route receipt before candidate checkout\n"
+candidate_marker = (
+    "      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 "
+    "# v7.0.0, hosted route and receipt verified\n"
+)
+checkout_start = text.index(checkout_marker)
+receipt_start = text.index(receipt_marker, checkout_start)
+candidate_start = text.index(candidate_marker, receipt_start)
+checkout = text[checkout_start:receipt_start]
+receipt = text[receipt_start:candidate_start]
+if mutation == "remove":
+    replacement = receipt
+elif mutation == "reorder":
+    replacement = receipt + checkout
+else:
+    raise SystemExit("unknown mutation")
+path.write_text(text[:checkout_start] + replacement + text[candidate_start:])
+PY
+  expect_fail "$FIXTURE" "rejects a $control_plane_mutation control-plane checkout before receipt verification"
+done
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
@@ -349,8 +538,8 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = '    runs-on: [self-hosted, Linux, X64, gpu, cuda-12]\n'
-if text.count(needle) != 1:
-    raise SystemExit("fixture no longer contains exactly one CUDA runner selection")
+if text.count(needle) != 2:
+    raise SystemExit("fixture no longer contains both CUDA runner selections")
 path.write_text(text.replace(needle, needle + '    permissions:\n      contents: write\n', 1))
 PY
 expect_fail "$FIXTURE" 'rejects CUDA preflight permissions broader than read-only'
@@ -363,8 +552,8 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a'
-if text.count(needle) != 4:
-    raise SystemExit("fixture CUDA witness upload must use the reviewed full artifact SHA")
+if text.count(needle) < 7:
+    raise SystemExit("fixture CUDA artifact uploads must use the reviewed full action SHA")
 path.write_text(text.replace(needle, needle[:-1], 1))
 PY
 expect_fail "$FIXTURE" 'rejects a CUDA witness uploader with a shortened action SHA'

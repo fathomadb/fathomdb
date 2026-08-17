@@ -1,7 +1,7 @@
 {
   "phase": "0.8.23-slice-65",
   "baseline_sha": "bf826c67",
-  "status": "DESIGNED",
+  "status": "IMPLEMENTED_PENDING_WINDOWS_EVIDENCE",
   "status_record": "dev/plans/runs/0.8.23-slice-65-wal-attribution.md",
   "design": "dev/design/0.8.23-wal-attribution-investigation.md",
   "draft_disposition": {
@@ -32,9 +32,27 @@
     "external child reader control"
   ],
   "implementation": {
+    "commit": "0583a323",
     "production_behavior_changed": false,
-    "windows_execution": "NOT_RUN: design-only slice",
-    "tdd_requirement": "Each future narrow experiment must have a committed or visibly staged RED predicate before its GREEN instrumentation/coordination implementation. The retained-result RED proves missing or misclassified required collector evidence; it does not expect a materialized result to cause BUSY."
+    "private_opt_in": "FATHOMDB_WAL_ATTRIBUTION=1; no public SDK/config/error field",
+    "implemented_controls": [
+      "managed Engine reader paused after a real SQLite WAL snapshot",
+      "Slice 60 external raw child reader comparison",
+      "Windows retained artifact plus load-bearing workflow mutation test"
+    ],
+    "windows_execution": "PENDING: hosted Windows x64 first-party run has not yet completed",
+    "tdd": {
+      "red_commit": "0b83d27c",
+      "green_commit": "0583a323",
+      "red_predicate": "all owned roles must be registered and idle before a no-owned classification",
+      "green_evidence": "managed reader control records owned_reader_snapshot through each busy checkpoint and remains fail-closed"
+    },
+    "remaining_controls": [
+      "Python SDK concurrent reader versus erase through installed native binding",
+      "completed retained Python result with idle Engine",
+      "Memex-shaped serial lifecycle",
+      "projection runtime active transaction discriminator"
+    ]
   },
   "fix_n": {
     "review_finding": "Projection dispatcher and worker SQLite connections were omitted from the owned-role model, and the retained-result RED wording encoded a false BUSY expectation.",

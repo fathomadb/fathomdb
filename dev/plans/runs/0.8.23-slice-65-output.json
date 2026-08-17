@@ -57,7 +57,7 @@
       "red_commit": "ce0e8a8e",
       "green_commit": "ae3b4b00",
       "red_predicate": "all owned roles must be registered and idle before a no-owned classification",
-      "green_evidence": "managed reader control parses retained records: every busy attempt is owned_reader_snapshot for reader_worker:0; post-release success is no_owned_snapshot",
+      "green_evidence": "managed reader control parses retained records: every busy attempt is owned_reader_snapshot for reader_worker:0; after its one typed refusal, owner-thread acknowledgement and exact idle inventory precede one bounded checkpoint-only sampler with a recorded busy-or-clean terminal, never a re-erase or retry",
       "close_boundary": {
         "red_commit": "5d2d3bd5",
         "green_commit": "baf8fb08",

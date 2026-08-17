@@ -152,10 +152,79 @@ expect_authorize_fail "$empty_manifest" "$facts" "$receipt" 'rejects an absent c
 manifest="$TMPROOT/authorized.json"
 expect_authorize_pass "$manifest" "$facts" "$receipt" 'accepts one exact, unexpired reviewed candidate record'
 
-python3 "$VERIFY_RECEIPT" \
-  --receipt "$receipt" --candidate-sha "$CANDIDATE" --workflow-ref "$WORKFLOW_REF" \
-  --workflow-sha "$WORKFLOW_SHA" --run-id 714 --run-attempt 2 >/dev/null
+trusted_manifest='control-plane/dev/release/cuda-unmerged-candidates.json'
+mkdir -p "$TMPROOT/$(dirname "$trusted_manifest")"
+cp "$manifest" "$TMPROOT/$trusted_manifest"
+
+verify_receipt() {
+  (
+    cd "$TMPROOT"
+    python3 "$VERIFY_RECEIPT" \
+      --receipt "$receipt" --manifest "$trusted_manifest" \
+      --candidate-sha "$CANDIDATE" --workflow-ref "$WORKFLOW_REF" \
+      --workflow-sha "$WORKFLOW_SHA" --run-id 714 --run-attempt 2
+  )
+}
+
+verify_receipt >/dev/null
 printf 'PASS  receipt binds the exact hosted run, workflow, and candidate\n'
+
+if (
+  cd "$TMPROOT"
+  python3 "$VERIFY_RECEIPT" \
+    --receipt "$receipt" --manifest "$manifest" \
+    --candidate-sha "$CANDIDATE" --workflow-ref "$WORKFLOW_REF" \
+    --workflow-sha "$WORKFLOW_SHA" --run-id 714 --run-attempt 2
+) >/dev/null 2>&1; then
+  printf 'FAIL  rejects a receipt manifest outside the main-owned control-plane path\n' >&2
+  exit 1
+fi
+printf 'PASS  rejects a receipt manifest outside the main-owned control-plane path\n'
+
+python3 - "$TMPROOT/$trusted_manifest" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+value = json.load(open(path, encoding="utf-8"))
+open(path, "w", encoding="utf-8").write(json.dumps(value, indent=2, sort_keys=True) + "\n")
+PY
+if verify_receipt >/dev/null 2>&1; then
+  printf 'FAIL  rejects equivalent but noncanonical receipt manifest bytes\n' >&2
+  exit 1
+fi
+printf 'PASS  rejects equivalent but noncanonical receipt manifest bytes\n'
+
+cp "$manifest" "$TMPROOT/$trusted_manifest"
+python3 - "$TMPROOT/$trusted_manifest" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+value = json.load(open(path, encoding="utf-8"))
+value["candidates"] = []
+open(path, "w", encoding="utf-8").write(
+    json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True) + "\n"
+)
+PY
+if verify_receipt >/dev/null 2>&1; then
+  printf 'FAIL  rejects a receipt manifest digest mismatch\n' >&2
+  exit 1
+fi
+printf 'PASS  rejects a receipt manifest digest mismatch\n'
+
+cp "$manifest" "$TMPROOT/$trusted_manifest"
+rm -f "$TMPROOT/manifest-target.json"
+cp "$manifest" "$TMPROOT/manifest-target.json"
+rm "$TMPROOT/$trusted_manifest"
+ln -s "$TMPROOT/manifest-target.json" "$TMPROOT/$trusted_manifest"
+if verify_receipt >/dev/null 2>&1; then
+  printf 'FAIL  rejects a symlinked receipt manifest\n' >&2
+  exit 1
+fi
+printf 'PASS  rejects a symlinked receipt manifest\n'
+rm "$TMPROOT/$trusted_manifest"
+cp "$manifest" "$TMPROOT/$trusted_manifest"
 
 mutate_and_expect_fail() {
   local mutation="$1" description="$2"
@@ -257,15 +326,18 @@ mutate_and_expect_fail provenance-review-wrong-head 'rejects provenance approval
 mutate_and_expect_fail equal-time-review-ambiguity 'rejects equal-timestamp conflicting candidate reviews'
 
 for mismatch in candidate workflow-ref workflow-sha run-id run-attempt; do
-  args=(--receipt "$receipt" --candidate-sha "$CANDIDATE" --workflow-ref "$WORKFLOW_REF" --workflow-sha "$WORKFLOW_SHA" --run-id 714 --run-attempt 2)
+  args=(--receipt "$receipt" --manifest "$trusted_manifest" --candidate-sha "$CANDIDATE" --workflow-ref "$WORKFLOW_REF" --workflow-sha "$WORKFLOW_SHA" --run-id 714 --run-attempt 2)
   case "$mismatch" in
-    candidate) args[3]="$OTHER_CANDIDATE" ;;
-    workflow-ref) args[5]='fathomadb/fathomdb/.github/workflows/release.yml@refs/heads/release/0.8.23' ;;
-    workflow-sha) args[7]="$OTHER_CANDIDATE" ;;
-    run-id) args[9]=715 ;;
-    run-attempt) args[11]=3 ;;
+    candidate) args[5]="$OTHER_CANDIDATE" ;;
+    workflow-ref) args[7]='fathomadb/fathomdb/.github/workflows/release.yml@refs/heads/release/0.8.23' ;;
+    workflow-sha) args[9]="$OTHER_CANDIDATE" ;;
+    run-id) args[11]=715 ;;
+    run-attempt) args[13]=3 ;;
   esac
-  if python3 "$VERIFY_RECEIPT" "${args[@]}" >/dev/null 2>&1; then
+  if (
+    cd "$TMPROOT"
+    python3 "$VERIFY_RECEIPT" "${args[@]}"
+  ) >/dev/null 2>&1; then
     printf 'FAIL  rejects receipt mismatch: %s\n' "$mismatch" >&2
     exit 1
   fi

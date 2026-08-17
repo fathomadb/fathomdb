@@ -82,6 +82,68 @@ make_fixture "$FIXTURE"
 expect_pass "$FIXTURE" 'baseline CUDA contract agrees'
 
 make_fixture "$FIXTURE"
+python3 - "$FIXTURE/dev/release/cuda-unmerged-candidates.json" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+record = {
+    "schema_version": "fathomdb.cuda-unmerged-candidate/v1",
+    "candidate_sha": "0123456789abcdef0123456789abcdef01234567",
+    "candidate_pr": 228,
+    "candidate_pr_head_sha": "0123456789abcdef0123456789abcdef01234567",
+    "required_reviewers": ["independent-reviewer"],
+    "expires_at": "2999-01-01T00:00:00Z",
+    "purpose": "0.8.23 non-publishing CUDA preflight",
+    "provenance_pr": 229,
+    "provenance_head_sha": "2222222222222222222222222222222222222222",
+    "provenance_commit": "1111111111111111111111111111111111111111",
+    "provenance_required_reviewers": ["independent-provenance-reviewer"],
+}
+value = {"schema_version": "fathomdb.cuda-unmerged-candidates/v1", "candidates": [record]}
+open(path, "w", encoding="utf-8").write(json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n")
+PY
+expect_pass "$FIXTURE" 'accepts one canonical future unmerged candidate record without authorizing it'
+
+for manifest_mutation in multiple expired noncanonical; do
+  make_fixture "$FIXTURE"
+  python3 - "$FIXTURE/dev/release/cuda-unmerged-candidates.json" "$manifest_mutation" <<'PY'
+import json
+import sys
+
+path, mutation = sys.argv[1:]
+record = {
+    "schema_version": "fathomdb.cuda-unmerged-candidate/v1",
+    "candidate_sha": "0123456789abcdef0123456789abcdef01234567",
+    "candidate_pr": 228,
+    "candidate_pr_head_sha": "0123456789abcdef0123456789abcdef01234567",
+    "required_reviewers": ["independent-reviewer"],
+    "expires_at": "2999-01-01T00:00:00Z",
+    "purpose": "0.8.23 non-publishing CUDA preflight",
+    "provenance_pr": 229,
+    "provenance_head_sha": "2222222222222222222222222222222222222222",
+    "provenance_commit": "1111111111111111111111111111111111111111",
+    "provenance_required_reviewers": ["independent-provenance-reviewer"],
+}
+if mutation == "multiple":
+    candidates = [record, dict(record, candidate_sha="89abcdef0123456789abcdef0123456789abcdef", candidate_pr_head_sha="89abcdef0123456789abcdef0123456789abcdef")]
+elif mutation == "expired":
+    candidates = [dict(record, expires_at="2000-01-01T00:00:00Z")]
+elif mutation == "noncanonical":
+    candidates = [record]
+else:
+    raise SystemExit("unknown mutation")
+value = {"schema_version": "fathomdb.cuda-unmerged-candidates/v1", "candidates": candidates}
+if mutation == "noncanonical":
+    rendered = json.dumps(value, indent=2, sort_keys=True) + "\n"
+else:
+    rendered = json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n"
+open(path, "w", encoding="utf-8").write(rendered)
+PY
+  expect_fail "$FIXTURE" "rejects a $manifest_mutation unmerged candidate manifest"
+done
+
+make_fixture "$FIXTURE"
 printf 'exit 0\n' > "$FIXTURE/scripts/verify-release-gates.sh"
 assert_unmerged_control_plane "$FIXTURE"
 printf 'PASS  candidate release-gate mutation cannot supply CUDA eligibility\n'
@@ -217,6 +279,28 @@ if text.count(needle) != 1:
 path.write_text(text.replace(needle, "", 1))
 PY
 expect_fail "$FIXTURE" 'rejects removal of the protected unmerged-candidate environment'
+
+for environment_mutation in comment-only substituted mapping; do
+  make_fixture "$FIXTURE"
+  python3 - "$FIXTURE/.github/workflows/release.yml" "$environment_mutation" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+mutation = sys.argv[2]
+text = path.read_text()
+needle = "    environment: cuda-unmerged-preflight\n"
+if text.count(needle) != 1:
+    raise SystemExit("fixture no longer contains the exact protected CUDA environment")
+replacements = {
+    "comment-only": "    # environment: cuda-unmerged-preflight\n",
+    "substituted": "    environment: ${{ inputs.cuda_environment }} # environment: cuda-unmerged-preflight\n",
+    "mapping": "    environment:\n      name: cuda-unmerged-preflight # environment: cuda-unmerged-preflight\n",
+}
+path.write_text(text.replace(needle, replacements[mutation], 1))
+PY
+  expect_fail "$FIXTURE" "rejects a $environment_mutation protected environment lookalike"
+done
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'

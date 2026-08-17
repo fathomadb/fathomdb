@@ -127,6 +127,12 @@ assert_contains "$CODE" 'slice65_wal incident_ladder stage=after_fresh_reads' "j
 assert_contains "$CODE" 'slice65_wal incident_ladder stage=after_fresh_reads old_engine_closed=0 fresh_engine_open=1' "job retains the live fresh-Engine ladder fact"
 assert_contains "$CODE" 'slice65_wal incident_ladder runtime_probe_drop_ack' "job requires the runtime-probe actual-drop acknowledgement"
 assert_contains "$CODE" 'slice65_wal incident_ladder erase_observation=' "job retains the direct-Rust incident erase observation"
+assert_contains "$CODE" 'tests::wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts' "job selects the exact direct-Rust actual-checkpoint control"
+assert_contains "$CODE" 'actual-checkpoint observation selected zero tests' "job rejects a zero-test direct-Rust actual-checkpoint invocation"
+assert_contains "$CODE" 'slice65_wal actual_checkpoint control=direct_rust phase=before' "job retains direct-Rust pre-attempt facts"
+assert_contains "$CODE" 'slice65_wal actual_checkpoint control=direct_rust phase=after' "job retains direct-Rust post-attempt facts"
+assert_contains "$CODE" 'slice65_wal actual_checkpoint control=python_serial phase=before' "job retains installed-Python pre-attempt facts"
+assert_contains "$CODE" 'slice65_wal actual_checkpoint control=python_serial phase=after' "job retains installed-Python post-attempt facts"
 assert_contains "$CODE" 'wal_attribution_projection_worker_transaction_is_owned_then_idle' "job runs projection transaction control"
 assert_contains "$CODE" 'tests::wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic' "job selects the exact post-commit diagnostic control"
 assert_contains "$CODE" 'post-commit diagnostic command selected zero tests' "job rejects a zero-test post-commit diagnostic invocation"
@@ -241,6 +247,10 @@ assert_contains "$(<"$PY_SOURCE")" \
   '_native_raw_wal_checkpoint_for_test' \
   'wrap_pyfunction!(native_raw_wal_checkpoint_for_test, &m)' \
   "installed binding exposes the native child raw-checkpoint hook only in its test-hooks build"
+assert_contains "$(<"$PY_SOURCE")" \
+  '_arm_actual_checkpoint_observation_for_test' \
+  '_drain_actual_checkpoint_observations_for_test' \
+  "installed serial exposes actual-checkpoint observation only in its test-hooks build"
 assert_contains "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/Cargo.toml")" \
   'test-hooks = []' \
   "engine reader rendezvous is a non-default test feature"
@@ -405,6 +415,36 @@ assert_before_in_text \
   'incident_ladder_runtime_probe_preflight(&path' \
   'fresh.engine.erase_source(' \
   "incident ladder acknowledges its runtime probe before destructive erasure"
+actual_checkpoint_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts")"
+assert_contains "$actual_checkpoint_body" \
+  'arm_actual_checkpoint_observation_for_test' \
+  "direct-Rust actual-checkpoint control arms the private observer"
+assert_contains "$actual_checkpoint_body" \
+  'fresh.engine.erase_source(' \
+  "direct-Rust actual-checkpoint control retains one original erase"
+assert_before_in_text \
+  "$actual_checkpoint_body" \
+  'arm_actual_checkpoint_observation_for_test' \
+  'fresh.engine.erase_source(' \
+  "direct-Rust observer arms immediately before the original erase"
+assert_absent "$actual_checkpoint_body" \
+  'incident_ladder_raw_checkpoint' \
+  "direct-Rust actual-checkpoint control has no raw TRUNCATE probe"
+assert_absent "$actual_checkpoint_body" \
+  'RuntimeProbe' \
+  "direct-Rust actual-checkpoint control has no RuntimeProbe"
+serial_incident_body="$(python_function_body "$PY_CONTROL" "run_serial_incident")"
+assert_contains "$serial_incident_body" \
+  'fresh._native._arm_actual_checkpoint_observation_for_test()' \
+  "installed Python serial arms the private observer immediately before erase"
+assert_contains "$serial_incident_body" \
+  'fresh._native._drain_actual_checkpoint_observations_for_test()' \
+  "installed Python serial drains real-attempt records after erase"
+assert_before_in_text \
+  "$serial_incident_body" \
+  'fresh._native._arm_actual_checkpoint_observation_for_test()' \
+  'nested = fresh.erase_source(' \
+  "installed Python observer arms immediately before its original erase"
 for control in \
   wal_attribution_close_boundary_fresh_open_is_clean \
   wal_attribution_close_boundary_read_get_is_clean \

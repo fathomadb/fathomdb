@@ -640,6 +640,17 @@ struct ProjectionRuntime {
 #[derive(Default)]
 struct ManagedConnectionRegistry {
     live: Mutex<BTreeSet<(WalAttributionRole, usize)>>,
+    opens: Mutex<BTreeMap<ManagedConnectionCategory, usize>>,
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum ManagedConnectionCategory {
+    Writer,
+    ReaderWorker,
+    ProjectionDispatcher,
+    ProjectionWorker,
+    RuntimeProbe,
 }
 
 #[cfg(test)]
@@ -677,6 +688,22 @@ impl ManagedConnectionRegistry {
             (WalAttributionRole::ReaderWorker, 7),
         ]);
         self.live.lock().map(|live| *live == expected).unwrap_or(false)
+    }
+
+    fn record_open(&self, category: ManagedConnectionCategory) {
+        let mut opens = self.opens.lock().expect("managed connection open audit");
+        *opens.entry(category).or_default() += 1;
+    }
+
+    fn creation_counts(&self) -> Option<(usize, usize, usize, usize, usize)> {
+        let opens = self.opens.lock().ok()?;
+        Some((
+            *opens.get(&ManagedConnectionCategory::Writer).unwrap_or(&0),
+            *opens.get(&ManagedConnectionCategory::ReaderWorker).unwrap_or(&0),
+            *opens.get(&ManagedConnectionCategory::ProjectionDispatcher).unwrap_or(&0),
+            *opens.get(&ManagedConnectionCategory::ProjectionWorker).unwrap_or(&0),
+            *opens.get(&ManagedConnectionCategory::RuntimeProbe).unwrap_or(&0),
+        ))
     }
 }
 
@@ -1880,7 +1907,13 @@ impl ProjectionRuntime {
         loop {
             if state.active_jobs == 0 && state.queued_jobs == 0 {
                 drop(state);
-                if !database_has_pending_projection_work(&self.shared.path).unwrap_or(true) {
+                if !database_has_pending_projection_work(
+                    &self.shared.path,
+                    #[cfg(test)]
+                    &self.shared.managed_connections,
+                )
+                .unwrap_or(true)
+                {
                     return true;
                 }
                 state = match self.shared.state.lock() {
@@ -5410,11 +5443,15 @@ impl Engine {
     ) -> Result<OpenedEngine, EngineOpenError> {
         let canonical_path = canonical_database_path(&path.into())?;
         let lock = acquire_lock(&canonical_path)?;
+        #[cfg(test)]
+        let managed_connections = Arc::new(ManagedConnectionRegistry::default());
         let open_result = Self::open_locked(
             canonical_path.clone(),
             migrations,
             &embedder_identity,
             emit_migration_event,
+            #[cfg(test)]
+            Arc::clone(&managed_connections),
         );
 
         match open_result {
@@ -5478,8 +5515,6 @@ impl Engine {
                 let slow_threshold_ms = Arc::new(AtomicU64::new(DEFAULT_SLOW_THRESHOLD_MS));
                 let wal_attribution = Arc::new(WalAttributionCollector::new());
                 wal_attribution.register(WalAttributionRole::Writer, 0);
-                #[cfg(test)]
-                let managed_connections = Arc::new(ManagedConnectionRegistry::default());
                 #[cfg(test)]
                 let writer_connection_registration =
                     managed_connections.register(WalAttributionRole::Writer, 0);
@@ -5559,7 +5594,12 @@ impl Engine {
                 }
                 if dense_runtime_usable
                     && (boot_graft_enqueued
-                        || database_has_pending_projection_work(&canonical_path).unwrap_or(false))
+                        || database_has_pending_projection_work(
+                            &canonical_path,
+                            #[cfg(test)]
+                            &opened.engine.managed_connections,
+                        )
+                        .unwrap_or(false))
                 {
                     opened.engine.projection_runtime.notify_new_work();
                 }
@@ -5580,11 +5620,18 @@ impl Engine {
         migrations: &'static [fathomdb_schema::Migration],
         embedder_identity: &EmbedderIdentity,
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
+        #[cfg(test)] managed_connections: Arc<ManagedConnectionRegistry>,
     ) -> Result<(Connection, Vec<Connection>, OpenReport, Vec<i32>), EngineOpenError> {
         init_perf_experiments_runtime();
         register_sqlite_vec_extension();
-        let mut connection = Connection::open(&path)
-            .map_err(|err| map_open_sqlite_error(err, OpenStage::HeaderProbe))?;
+        let mut connection = open_managed_connection(
+            &path,
+            #[cfg(test)]
+            ManagedConnectionCategory::Writer,
+            #[cfg(test)]
+            &managed_connections,
+        )
+        .map_err(|err| map_open_sqlite_error(err, OpenStage::HeaderProbe))?;
         // Order pinned by `dev/design/errors.md` § OpenStage matrix: each
         // step routes its own SQLite-level error to a distinct
         // `CorruptionKind` (Header → WalReplay → Schema → EmbedderIdentity).
@@ -5797,8 +5844,14 @@ impl Engine {
         let mut readers = Vec::with_capacity(READER_POOL_SIZE);
         let mut lookaside_rcs: Vec<i32> = Vec::with_capacity(READER_POOL_SIZE);
         for _ in 0..READER_POOL_SIZE {
-            let reader = Connection::open(&path)
-                .map_err(|err| map_open_sqlite_error(err, OpenStage::HeaderProbe))?;
+            let reader = open_managed_connection(
+                &path,
+                #[cfg(test)]
+                ManagedConnectionCategory::ReaderWorker,
+                #[cfg(test)]
+                &managed_connections,
+            )
+            .map_err(|err| map_open_sqlite_error(err, OpenStage::HeaderProbe))?;
             // Pack 6.G G.1: configure per-connection lookaside BEFORE
             // any PRAGMA / prepare runs on this reader. Reordering this
             // after the journal-mode / query_only PRAGMAs would let
@@ -8866,7 +8919,14 @@ impl Engine {
     #[doc(hidden)]
     pub fn runtime_secure_delete_enabled_for_test(&self) -> Result<bool, EngineError> {
         self.ensure_open()?;
-        let connection = open_runtime_connection(&self.path).map_err(|_| EngineError::Storage)?;
+        let connection = open_runtime_connection(
+            &self.path,
+            #[cfg(test)]
+            ManagedConnectionCategory::RuntimeProbe,
+            #[cfg(test)]
+            &self.managed_connections,
+        )
+        .map_err(|_| EngineError::Storage)?;
         let value: i64 = connection
             .query_row("PRAGMA secure_delete", [], |r| r.get(0))
             .map_err(|_| EngineError::Storage)?;
@@ -14283,7 +14343,13 @@ fn report_runtime_connection_inventory_for_test(
 }
 
 fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_idx: usize) {
-    let connection = match open_runtime_connection(&shared.path) {
+    let connection = match open_runtime_connection(
+        &shared.path,
+        #[cfg(test)]
+        ManagedConnectionCategory::ProjectionDispatcher,
+        #[cfg(test)]
+        &shared.managed_connections,
+    ) {
         Ok(connection) => connection,
         Err(_) => return,
     };
@@ -14392,7 +14458,13 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
 }
 
 fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usize) {
-    let mut connection = match open_runtime_connection(&shared.path) {
+    let mut connection = match open_runtime_connection(
+        &shared.path,
+        #[cfg(test)]
+        ManagedConnectionCategory::ProjectionWorker,
+        #[cfg(test)]
+        &shared.managed_connections,
+    ) {
         Ok(connection) => connection,
         Err(_) => return,
     };
@@ -15075,8 +15147,17 @@ fn next_pending_projection_jobs(
     Ok(jobs)
 }
 
-fn database_has_pending_projection_work(path: &Path) -> rusqlite::Result<bool> {
-    let connection = open_runtime_connection(path)?;
+fn database_has_pending_projection_work(
+    path: &Path,
+    #[cfg(test)] managed_connections: &Arc<ManagedConnectionRegistry>,
+) -> rusqlite::Result<bool> {
+    let connection = open_runtime_connection(
+        path,
+        #[cfg(test)]
+        ManagedConnectionCategory::RuntimeProbe,
+        #[cfg(test)]
+        managed_connections,
+    )?;
     connection_has_pending_projection_work(&connection)
 }
 
@@ -15602,8 +15683,28 @@ fn locator_from_rusqlite_error(err: &rusqlite::Error) -> CorruptionLocator {
     CorruptionLocator::OpaqueSqliteError { sqlite_extended_code: extended }
 }
 
-fn open_runtime_connection(path: &Path) -> rusqlite::Result<Connection> {
-    let connection = Connection::open(path)?;
+fn open_managed_connection(
+    path: &Path,
+    #[cfg(test)] category: ManagedConnectionCategory,
+    #[cfg(test)] managed_connections: &Arc<ManagedConnectionRegistry>,
+) -> rusqlite::Result<Connection> {
+    #[cfg(test)]
+    managed_connections.record_open(category);
+    Connection::open(path)
+}
+
+fn open_runtime_connection(
+    path: &Path,
+    #[cfg(test)] category: ManagedConnectionCategory,
+    #[cfg(test)] managed_connections: &Arc<ManagedConnectionRegistry>,
+) -> rusqlite::Result<Connection> {
+    let connection = open_managed_connection(
+        path,
+        #[cfg(test)]
+        category,
+        #[cfg(test)]
+        managed_connections,
+    )?;
     connection.pragma_update(None, "journal_mode", "WAL")?;
     // OPP-12 Phase-1 (0.8.19 Slice 10, design §3 gap-4) — `secure_delete=ON` at
     // EVERY open. The projection/vector-rewrite runtime connection performs
@@ -21818,6 +21919,15 @@ mod tests {
         {
             return Err("registry_mismatch");
         }
+        let creation =
+            opened.engine.managed_connections.creation_counts().ok_or("creation_audit_lock")?;
+        eprintln!(
+            "slice65_wal post_commit_creation expected=writer:1,readers:8,dispatcher:1,workers:2,probes:2 actual=writer:{},readers:{},dispatcher:{},workers:{},probes:{}",
+            creation.0, creation.1, creation.2, creation.3, creation.4,
+        );
+        if creation != (1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, 2) {
+            return Err("creation_counts_mismatch");
+        }
         if !snapshot.no_owned_snapshot
             || snapshot.roles.iter().any(|role| role.active || role.phase != "idle")
         {
@@ -21849,8 +21959,10 @@ mod tests {
         if actual != expected || runtime.iter().any(|(_, _, autocommit)| !autocommit) {
             return Err("runtime_not_autocommit");
         }
-        Ok("writer:autocommit;readers:8-autocommit;dispatcher:autocommit;workers:2-autocommit"
-            .to_string())
+        Ok(format!(
+            "writer:autocommit;readers:8-autocommit;dispatcher:autocommit;workers:2-autocommit;expected_creation=writer:1,readers:8,dispatcher:1,workers:2,probes:2;actual_creation=writer:{},readers:{},dispatcher:{},workers:{},probes:{}",
+            creation.0, creation.1, creation.2, creation.3, creation.4,
+        ))
     }
 
     fn raw_post_commit_checkpoint(

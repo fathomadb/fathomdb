@@ -6,6 +6,8 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from experiments import locomo_input_qualification
 
 
@@ -175,3 +177,58 @@ def test_qualification_records_ambiguous_parent_membership_without_emitting_a_re
     assert report["qualification_status"] == "blocked"
     assert report["blockers"] == ["parent_relation_proof_ambiguous_child_identifier"]
     assert set(report["artifacts"]) == {"trace_projection"}
+
+
+@pytest.mark.parametrize(
+    ("target", "contents", "blocker"),
+    [
+        ("corpus", "{not-json", "corpus_json_invalid"),
+        ("subset", "{not-json", "dry_run_subset_json_invalid"),
+        ("subset", "{}", "dry_run_subset_schema_invalid"),
+        ("corpus", "{}", "corpus_shape_invalid"),
+    ],
+)
+def test_external_corpus_and_subset_failures_write_signed_blocker_reports(
+    tmp_path, target, contents, blocker
+):
+    inputs = _inputs(tmp_path)
+    inputs[target].write_text(contents, encoding="utf-8")
+    phase_b = _phase_b(
+        tmp_path,
+        corpus_sha256=_sha256(inputs["corpus"]),
+        turn_sha256=_sha256(inputs["turn"]),
+        session_sha256=_sha256(inputs["session"]),
+        subset_sha256=_sha256(inputs["subset"]),
+    )
+
+    report_path = locomo_input_qualification.qualify(
+        phase_b_path=phase_b,
+        corpus_matrix_path=_matrix(tmp_path),
+        corpus_path=inputs["corpus"],
+        turn_provenance_path=inputs["turn"],
+        session_provenance_path=inputs["session"],
+        dry_run_subset_path=inputs["subset"],
+        artifact_root=tmp_path / "artifacts",
+    )
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["qualification_status"] == "blocked"
+    assert report["blockers"] == [blocker]
+    assert report["report_sha256"] == locomo_input_qualification.report_sha256(report)
+    assert set(report["artifacts"]) == {"trace_projection", "parent_relation_proof"}
+
+
+def test_unsafe_phase_b_control_document_still_hard_rejects(tmp_path):
+    inputs = _inputs(tmp_path)
+    phase_b = _write_json(tmp_path / "phase-b.json", {"external_inputs": {}})
+
+    with pytest.raises(locomo_input_qualification.QualificationError, match="Phase-B configuration"):
+        locomo_input_qualification.qualify(
+            phase_b_path=phase_b,
+            corpus_matrix_path=_matrix(tmp_path),
+            corpus_path=inputs["corpus"],
+            turn_provenance_path=inputs["turn"],
+            session_provenance_path=inputs["session"],
+            dry_run_subset_path=inputs["subset"],
+            artifact_root=tmp_path / "artifacts",
+        )

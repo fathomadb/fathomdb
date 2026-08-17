@@ -512,6 +512,10 @@ jobs:
             Write-Error "reader-handoff attribution command selected zero tests"
             exit 1
           }
+          if (-not (Select-String -Path $readerHandoffLog -SimpleMatch 'slice65_wal reader_handoff_idle_before_reply=passed' -Quiet)) {
+            Write-Error "reader-handoff attribution artifact is missing success marker"
+            exit 1
+          }
           cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_reopen_recovery_reads_then_nested_erasure_are_idle -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_projection_worker_transaction_is_owned_then_idle -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append

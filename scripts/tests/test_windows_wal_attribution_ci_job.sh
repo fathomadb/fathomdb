@@ -60,6 +60,9 @@ assert_contains "$CODE" 'FATHOMDB_WAL_ATTRIBUTION = "1"' "job opts into private 
 assert_contains "$CODE" 'wal_attribution_owned_reader_records_exact_busy_and_idle_success' "job runs retained managed-reader record contract"
 assert_contains "$CODE" 'tests::wal_attribution_owned_reader_records_exact_busy_and_idle_success' "job selects the full exact lib-test path"
 assert_contains "$CODE" 'wal_attribution_retained_materialized_result_is_idle_at_checkpoint' "job runs retained-result idle control"
+assert_contains "$CODE" 'tests::wal_attribution_reader_handoff_is_idle_before_materialized_reply' "job selects the exact reader-handoff control"
+assert_contains "$CODE" 'reader-handoff attribution command selected zero tests' "job rejects a zero-test reader-handoff invocation"
+assert_contains "$CODE" 'slice65_wal reader_handoff_idle_before_reply=passed' "job requires the reader-handoff artifact marker"
 assert_contains "$CODE" 'wal_attribution_reopen_recovery_reads_then_nested_erasure_are_idle' "job runs incident-shaped reopen control"
 assert_contains "$CODE" 'wal_attribution_projection_worker_transaction_is_owned_then_idle' "job runs projection transaction control"
 assert_contains "$CODE" 'wal_attribution_close_boundary_raw_checkpoint_is_clean' "job runs direct close-boundary control"
@@ -107,6 +110,7 @@ for marker in \
   'SELECT COUNT(*) FROM canonical_nodes' \
   'owned_reader_snapshot' \
   'owned_runtime_transaction' \
+  'reader_handoff_idle_before_reply=passed' \
   'reopen_nested_serial=passed' \
   'retained_materialized_idle=passed' \
   'projection_worker_transaction_ready' \
@@ -169,6 +173,46 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves zero-test execution guard is load-bearing"
   else
     fail "mutation did not fail zero-test execution guard: $execution_guard_out"
+  fi
+
+  HANDOFF_SELECTOR_MUTATED="$TMPROOT/ci-without-reader-handoff-selector.yml"
+  sed '/tests::wal_attribution_reader_handoff_is_idle_before_materialized_reply/d' "$CI" \
+    >"$HANDOFF_SELECTOR_MUTATED"
+  set +e
+  handoff_selector_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$HANDOFF_SELECTOR_MUTATED" bash "$0" 2>&1)"
+  handoff_selector_rc=$?
+  set -e
+  if [ "$handoff_selector_rc" -ne 0 ] \
+    && grep -Fq 'job selects the exact reader-handoff control (missing: tests::wal_attribution_reader_handoff_is_idle_before_materialized_reply)' <<<"$handoff_selector_out"; then
+    pass "mutation proves reader-handoff selector assertion is load-bearing"
+  else
+    fail "mutation did not fail reader-handoff selector assertion: $handoff_selector_out"
+  fi
+
+  HANDOFF_GUARD_MUTATED="$TMPROOT/ci-without-reader-handoff-guard.yml"
+  sed '/reader-handoff attribution command selected zero tests/d' "$CI" >"$HANDOFF_GUARD_MUTATED"
+  set +e
+  handoff_guard_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$HANDOFF_GUARD_MUTATED" bash "$0" 2>&1)"
+  handoff_guard_rc=$?
+  set -e
+  if [ "$handoff_guard_rc" -ne 0 ] \
+    && grep -Fq 'job rejects a zero-test reader-handoff invocation (missing: reader-handoff attribution command selected zero tests)' <<<"$handoff_guard_out"; then
+    pass "mutation proves reader-handoff zero-test guard assertion is load-bearing"
+  else
+    fail "mutation did not fail reader-handoff zero-test guard assertion: $handoff_guard_out"
+  fi
+
+  HANDOFF_MARKER_MUTATED="$TMPROOT/ci-without-reader-handoff-marker.yml"
+  sed '/slice65_wal reader_handoff_idle_before_reply=passed/d' "$CI" >"$HANDOFF_MARKER_MUTATED"
+  set +e
+  handoff_marker_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$HANDOFF_MARKER_MUTATED" bash "$0" 2>&1)"
+  handoff_marker_rc=$?
+  set -e
+  if [ "$handoff_marker_rc" -ne 0 ] \
+    && grep -Fq 'job requires the reader-handoff artifact marker (missing: slice65_wal reader_handoff_idle_before_reply=passed)' <<<"$handoff_marker_out"; then
+    pass "mutation proves reader-handoff artifact assertion is load-bearing"
+  else
+    fail "mutation did not fail reader-handoff artifact assertion: $handoff_marker_out"
   fi
 
   IDENTITY_MUTATED="$TMPROOT/ci-without-wheel-identity.yml"

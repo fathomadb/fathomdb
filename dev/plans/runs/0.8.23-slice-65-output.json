@@ -70,7 +70,8 @@
       "reader_handoff": {
         "red_commit": "190ab04b",
         "red_predicate": "a materialized read_get reply cannot be delivered while the collector still reports its dropped SQLite transaction as active",
-        "green_evidence": "local in-crate handoff control parks the worker before response send, observes no_owned_snapshot, completes a nonbusy erasure checkpoint, then releases the materialized record; hosted rerun pending"
+        "green_evidence": "local in-crate handoff control parks the worker before response send, observes no_owned_snapshot, completes a nonbusy erasure checkpoint, then releases the materialized record; hosted rerun pending",
+        "review_round_1": "RED f2990514 strengthens the private handoff witness with a nonblocking caller-result channel: while the pre-send barrier is held, try_recv must be Empty, so public read_get has not returned. Release must then deliver the materialized record. The Windows contract selects this exact test, rejects a zero-test command, requires its fixed redacted artifact marker, and mutation-tests all three assertions. No SDK or product behavior changed."
       }
     },
     "remaining_controls": [

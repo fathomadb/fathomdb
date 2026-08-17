@@ -478,6 +478,8 @@ struct ProjectionRuntimeShared {
     managed_connections: Arc<ManagedConnectionRegistry>,
     #[cfg(any(test, feature = "test-hooks"))]
     runtime_inventory_request: Mutex<Option<RuntimeConnectionInventoryRequest>>,
+    #[cfg(any(test, feature = "test-hooks"))]
+    runtime_native_state_request: Mutex<Option<RuntimeNativeStateRequest>>,
     state: Mutex<ProjectionRuntimeState>,
     state_cvar: Condvar,
     queue: Mutex<VecDeque<ProjectionJob>>,
@@ -810,6 +812,12 @@ impl RuntimeProbeConnection {
 
 #[cfg(any(test, feature = "test-hooks"))]
 struct RuntimeConnectionInventoryRequest {
+    pending: BTreeSet<(WalAttributionRole, usize)>,
+    respond: SyncSender<(WalAttributionRole, usize, bool)>,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+struct RuntimeNativeStateRequest {
     pending: BTreeSet<(WalAttributionRole, usize)>,
     respond: SyncSender<NativeConnectionStateFact>,
 }
@@ -2173,6 +2181,8 @@ impl ProjectionRuntime {
             managed_connections,
             #[cfg(any(test, feature = "test-hooks"))]
             runtime_inventory_request: Mutex::new(None),
+            #[cfg(any(test, feature = "test-hooks"))]
+            runtime_native_state_request: Mutex::new(None),
             state: Mutex::new(ProjectionRuntimeState::default()),
             state_cvar: Condvar::new(),
             queue: Mutex::new(VecDeque::new()),
@@ -2224,7 +2234,7 @@ impl ProjectionRuntime {
     #[cfg(any(test, feature = "test-hooks"))]
     fn report_runtime_connection_inventory_for_test(
         &self,
-    ) -> Result<Vec<NativeConnectionStateFact>, &'static str> {
+    ) -> Result<Vec<(WalAttributionRole, usize, bool)>, &'static str> {
         let pending = BTreeSet::from([
             (WalAttributionRole::ProjectionDispatcher, 0),
             (WalAttributionRole::ProjectionWorker, 0),
@@ -2241,19 +2251,50 @@ impl ProjectionRuntime {
         self.shared.state_cvar.notify_all();
         self.shared.queue_cvar.notify_all();
 
+        let mut facts = Vec::with_capacity(1 + PROJECTION_WORKERS);
+        for _ in 0..(1 + PROJECTION_WORKERS) {
+            facts.push(
+                received
+                    .recv_timeout(Duration::from_secs(2))
+                    .map_err(|_| "runtime_reply_timeout")?,
+            );
+        }
+        Ok(facts)
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn report_runtime_native_state_inventory_for_test(
+        &self,
+    ) -> Result<Vec<NativeConnectionStateFact>, &'static str> {
+        let pending = BTreeSet::from([
+            (WalAttributionRole::ProjectionDispatcher, 0),
+            (WalAttributionRole::ProjectionWorker, 0),
+            (WalAttributionRole::ProjectionWorker, 1),
+        ]);
+        let (respond, received) = mpsc::sync_channel(pending.len());
+        let mut request =
+            self.shared.runtime_native_state_request.lock().map_err(|_| "native_request_lock")?;
+        if request.is_some() {
+            return Err("native_request_already_active");
+        }
+        *request = Some(RuntimeNativeStateRequest { pending, respond });
+        drop(request);
+        self.shared.state_cvar.notify_all();
+        self.shared.queue_cvar.notify_all();
+
         let result = (|| {
             let mut facts = Vec::with_capacity(1 + PROJECTION_WORKERS);
             for _ in 0..(1 + PROJECTION_WORKERS) {
                 facts.push(
                     received
                         .recv_timeout(Duration::from_millis(250))
-                        .map_err(|_| "runtime_reply_timeout")?,
+                        .map_err(|_| "runtime_native_reply_timeout")?,
                 );
             }
             Ok(facts)
         })();
         if result.is_err() {
-            if let Ok(mut request) = self.shared.runtime_inventory_request.lock() {
+            if let Ok(mut request) = self.shared.runtime_native_state_request.lock() {
                 *request = None;
             }
         }
@@ -6440,28 +6481,28 @@ impl Engine {
                 (WalAttributionRole::ProjectionWorker, 0),
                 (WalAttributionRole::ProjectionWorker, 1),
             ]);
-            entries.iter().map(|entry| (entry.role, entry.index)).collect::<BTreeSet<_>>()
+            entries.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>()
                 == expected
-                && entries.iter().all(|entry| entry.autocommit == Some(true))
+                && entries.iter().all(|(_, _, autocommit)| *autocommit)
         });
         let dispatcher_autocommit = runtime.as_ref().is_ok_and(|entries| {
             entries
                 .iter()
-                .find(|entry| {
-                    entry.role == WalAttributionRole::ProjectionDispatcher && entry.index == 0
+                .find(|(role, index, _)| {
+                    *role == WalAttributionRole::ProjectionDispatcher && *index == 0
                 })
-                .is_some_and(|entry| entry.autocommit == Some(true))
+                .is_some_and(|(_, _, autocommit)| *autocommit)
         });
         let workers_autocommit = runtime.as_ref().is_ok_and(|entries| {
             entries
                 .iter()
-                .filter(|entry| entry.role == WalAttributionRole::ProjectionWorker)
+                .filter(|(role, _, _)| *role == WalAttributionRole::ProjectionWorker)
                 .count()
                 == PROJECTION_WORKERS
                 && entries
                     .iter()
-                    .filter(|entry| entry.role == WalAttributionRole::ProjectionWorker)
-                    .all(|entry| entry.autocommit == Some(true))
+                    .filter(|(role, _, _)| *role == WalAttributionRole::ProjectionWorker)
+                    .all(|(_, _, autocommit)| *autocommit)
         });
         let creation_text = creation.map_or_else(
             || "unknown".to_string(),
@@ -6609,7 +6650,7 @@ impl Engine {
         };
         facts.push(writer);
         facts.extend(self.reader_pool.wal_native_state_inventory_for_test());
-        match self.projection_runtime.report_runtime_connection_inventory_for_test() {
+        match self.projection_runtime.report_runtime_native_state_inventory_for_test() {
             Ok(runtime) => facts.extend(runtime),
             Err(reason) => {
                 facts.extend([
@@ -6708,8 +6749,9 @@ impl Engine {
             (WalAttributionRole::ProjectionWorker, 0),
             (WalAttributionRole::ProjectionWorker, 1),
         ]);
-        let actual = runtime.iter().map(|entry| (entry.role, entry.index)).collect::<BTreeSet<_>>();
-        if actual != expected || runtime.iter().any(|entry| entry.autocommit != Some(true)) {
+        let actual =
+            runtime.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>();
+        if actual != expected || runtime.iter().any(|(_, _, autocommit)| !autocommit) {
             return Err(EngineError::Storage);
         }
         let snapshot = self.wal_attribution_snapshot();
@@ -15211,6 +15253,32 @@ fn report_runtime_connection_inventory_for_test(
         }
         respond
     };
+    let _ = respond.send((role, index, connection.is_autocommit()));
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn report_runtime_native_state_inventory_for_test(
+    shared: &ProjectionRuntimeShared,
+    connection: &Connection,
+    role: WalAttributionRole,
+    index: usize,
+) {
+    let respond = {
+        let Ok(mut request_slot) = shared.runtime_native_state_request.lock() else {
+            return;
+        };
+        let Some(request) = request_slot.as_mut() else {
+            return;
+        };
+        if !request.pending.remove(&(role, index)) {
+            return;
+        }
+        let respond = request.respond.clone();
+        if request.pending.is_empty() {
+            *request_slot = None;
+        }
+        respond
+    };
     let _ = respond.send(native_connection_state_for_test(connection, role, index));
 }
 
@@ -15241,6 +15309,13 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
             WalAttributionRole::ProjectionDispatcher,
             dispatcher_idx,
         );
+        #[cfg(any(test, feature = "test-hooks"))]
+        report_runtime_native_state_inventory_for_test(
+            &shared,
+            &connection,
+            WalAttributionRole::ProjectionDispatcher,
+            dispatcher_idx,
+        );
         let in_flight = {
             let mut state = match shared.state.lock() {
                 Ok(state) => state,
@@ -15253,6 +15328,13 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
             {
                 #[cfg(any(test, feature = "test-hooks"))]
                 report_runtime_connection_inventory_for_test(
+                    &shared,
+                    &connection,
+                    WalAttributionRole::ProjectionDispatcher,
+                    dispatcher_idx,
+                );
+                #[cfg(any(test, feature = "test-hooks"))]
+                report_runtime_native_state_inventory_for_test(
                     &shared,
                     &connection,
                     WalAttributionRole::ProjectionDispatcher,
@@ -15355,6 +15437,13 @@ fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usiz
             WalAttributionRole::ProjectionWorker,
             worker_idx,
         );
+        #[cfg(any(test, feature = "test-hooks"))]
+        report_runtime_native_state_inventory_for_test(
+            &shared,
+            &connection,
+            WalAttributionRole::ProjectionWorker,
+            worker_idx,
+        );
         let jobs = {
             let mut queue = match shared.queue.lock() {
                 Ok(queue) => queue,
@@ -15382,6 +15471,13 @@ fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usiz
                 }
                 #[cfg(any(test, feature = "test-hooks"))]
                 report_runtime_connection_inventory_for_test(
+                    &shared,
+                    &connection,
+                    WalAttributionRole::ProjectionWorker,
+                    worker_idx,
+                );
+                #[cfg(any(test, feature = "test-hooks"))]
+                report_runtime_native_state_inventory_for_test(
                     &shared,
                     &connection,
                     WalAttributionRole::ProjectionWorker,
@@ -22903,8 +22999,9 @@ mod tests {
             (WalAttributionRole::ProjectionWorker, 0),
             (WalAttributionRole::ProjectionWorker, 1),
         ]);
-        let actual = runtime.iter().map(|entry| (entry.role, entry.index)).collect::<BTreeSet<_>>();
-        if actual != expected || runtime.iter().any(|entry| entry.autocommit != Some(true)) {
+        let actual =
+            runtime.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>();
+        if actual != expected || runtime.iter().any(|(_, _, autocommit)| !autocommit) {
             return Err("runtime_not_autocommit");
         }
         Ok(format!(
@@ -23518,8 +23615,9 @@ mod tests {
             (WalAttributionRole::ProjectionWorker, 0),
             (WalAttributionRole::ProjectionWorker, 1),
         ]);
-        let actual = runtime.iter().map(|entry| (entry.role, entry.index)).collect::<BTreeSet<_>>();
-        if actual != expected || runtime.iter().any(|entry| entry.autocommit != Some(true)) {
+        let actual =
+            runtime.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>();
+        if actual != expected || runtime.iter().any(|(_, _, autocommit)| !autocommit) {
             return Err("runtime_not_autocommit");
         }
         let creation =

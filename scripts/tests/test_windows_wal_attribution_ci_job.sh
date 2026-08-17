@@ -400,6 +400,12 @@ else
 fi
 binding_body="$(python_function_body "$PY_CONTROL" "run_binding_reader_erase")"
 assert_contains "$binding_body" \
+  'all(role_fact in before for role_fact in NATIVE_IDLE_ROLE_FACTS)' \
+  "every sampler before record carries all twelve native role facts"
+assert_contains "$binding_body" \
+  'all(role_fact in after for role_fact in NATIVE_IDLE_ROLE_FACTS)' \
+  "every sampler after record carries all twelve native role facts"
+assert_contains "$binding_body" \
   'if first_raw[0] != 0 or second_raw[0] != 0:' \
   "binding diagnostic runs the child only after a busy raw sample"
 assert_before_in_text \
@@ -450,7 +456,7 @@ assert_before_in_text \
   'checkpoint_result.as_ref().ok().cloned()' \
   "actual observer records immediately after the existing checkpoint call"
 normal_runtime_inventory_body="$(function_body "$ENGINE_SOURCE" "report_runtime_connection_inventory_for_test")"
-assert_contains "$ENGINE_SOURCE" \
+assert_contains "$(<"$ENGINE_SOURCE")" \
   'respond: SyncSender<(WalAttributionRole, usize, bool)>' \
   "normal actual/post-commit runtime inventory retains boolean replies"
 assert_contains "$normal_runtime_inventory_body" \
@@ -474,6 +480,9 @@ assert_contains "$native_state_inventory_body" \
   'report_runtime_native_state_inventory_for_test' \
   "binding native-state inventory alone requests runtime native facts"
 actual_direct_inventory_body="$(function_body "$ENGINE_SOURCE" "actual_checkpoint_direct_inventory_for_test")"
+assert_contains "$actual_direct_inventory_body" \
+  'report_runtime_connection_inventory_for_test' \
+  "normal actual observer retains its boolean runtime inventory request"
 assert_absent "$actual_direct_inventory_body" \
   'report_runtime_native_state_inventory_for_test' \
   "normal actual observer cannot request runtime native facts"
@@ -896,6 +905,34 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves normal-serial exclusion is load-bearing"
   else
     fail "mutation did not fail normal-serial exclusion assertion: $serial_native_state_out"
+  fi
+
+  ACTUAL_NATIVE_STATE_MUTATED="$TMPROOT/lib-with-native-runtime-request-in-actual-observer.rs"
+  sed 's/let runtime = self\.projection_runtime\.report_runtime_connection_inventory_for_test();/let runtime = self.projection_runtime.report_runtime_native_state_inventory_for_test();/' "$ENGINE_SOURCE" \
+    >"$ACTUAL_NATIVE_STATE_MUTATED"
+  set +e
+  actual_native_state_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$ACTUAL_NATIVE_STATE_MUTATED" bash "$0" 2>&1)"
+  actual_native_state_rc=$?
+  set -e
+  if [ "$actual_native_state_rc" -ne 0 ] \
+    && grep -Fq 'normal actual observer cannot request runtime native facts (unexpected: report_runtime_native_state_inventory_for_test)' <<<"$actual_native_state_out"; then
+    pass "mutation proves normal actual observer cannot reach native state"
+  else
+    fail "mutation did not fail normal actual/native-state isolation: $actual_native_state_out"
+  fi
+
+  RUNTIME_TIMEOUT_MUTATED="$TMPROOT/lib-with-short-normal-runtime-timeout.rs"
+  sed 's/recv_timeout(Duration::from_secs(2))/recv_timeout(Duration::from_millis(250))/' "$ENGINE_SOURCE" \
+    >"$RUNTIME_TIMEOUT_MUTATED"
+  set +e
+  runtime_timeout_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$RUNTIME_TIMEOUT_MUTATED" bash "$0" 2>&1)"
+  runtime_timeout_rc=$?
+  set -e
+  if [ "$runtime_timeout_rc" -ne 0 ] \
+    && grep -Fq 'normal actual/post-commit runtime inventory retains its two-second timeout (missing: Duration::from_secs(2))' <<<"$runtime_timeout_out"; then
+    pass "mutation proves normal runtime timeout is load-bearing"
+  else
+    fail "mutation did not fail normal runtime timeout assertion: $runtime_timeout_out"
   fi
 
   while IFS='|' read -r selector guard; do

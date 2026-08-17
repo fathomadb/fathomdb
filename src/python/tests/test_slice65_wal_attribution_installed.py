@@ -25,6 +25,13 @@ from fathomdb.errors import ErasureIncompleteError
 
 TYPED_BASELINE_OBSERVATION_EXIT = 65
 CLEAN_BASELINE_OBSERVATION_EXIT = 66
+NATIVE_IDLE_ROLE_FACTS = (
+    "writer:0(auto=1,txn=none,busy=0,received=1)",
+    *(f"readers:{index}(auto=1,txn=none,busy=0,received=1)" for index in range(8)),
+    "dispatcher:0(auto=1,txn=none,busy=0,received=1)",
+    "workers:0(auto=1,txn=none,busy=0,received=1)",
+    "workers:1(auto=1,txn=none,busy=0,received=1)",
+)
 
 
 def _node(logical_id: str, source_id: str) -> dict[str, str]:
@@ -236,6 +243,8 @@ def run_binding_reader_erase(expected_version: str) -> None:
             assert len(state_records) == len(samples) * 2
             for before, after in zip(state_records[::2], state_records[1::2], strict=True):
                 assert "state_inventory=complete" in before and "state_inventory=complete" in after
+                assert all(role_fact in before for role_fact in NATIVE_IDLE_ROLE_FACTS)
+                assert all(role_fact in after for role_fact in NATIVE_IDLE_ROLE_FACTS)
                 print(f"slice65_wal python_binding_native_state {before}", flush=True)
                 print(f"slice65_wal python_binding_native_state {after}", flush=True)
             print(

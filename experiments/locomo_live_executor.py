@@ -27,6 +27,7 @@ SCHEMA_VERSION = "locomo-live-executor.v1"
 RELEASE_SCHEMA_VERSION = "locomo-live-executor.release.v1"
 CELL_RESULT_SCHEMA_VERSION = "locomo-live-executor.cell-result.v1"
 PROJECTION_SCHEMA_VERSION = "locomo-live-execution-projection.v1"
+CELL_RECEIPT_SCHEMA_VERSION = "locomo-live-cell-receipt.v1"
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 _SAFE_IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -714,6 +715,106 @@ def _projection_path(artifact_root: Path, release_id: str, action: LiveAction) -
     return artifact_root / release_id / action.action_id / "locomo-live-execution-projection.v1.json"
 
 
+def _cell_receipt_path(artifact_root: Path, release_id: str, action: LiveAction, cell_id: str) -> Path:
+    return artifact_root / release_id / action.action_id / "cell-receipts" / f"{cell_id}.json"
+
+
+def _cell_receipt_sha256(document: Mapping[str, object]) -> str:
+    return _canonical_sha256({key: value for key, value in document.items() if key != "receipt_sha256"})
+
+
+def _cell_receipt_document(
+    plan: LiveExecutorPlan, action: LiveAction, release: Mapping[str, object], projection: CellProjection,
+) -> dict[str, object]:
+    """Build one self-hashed, content-free validated-cell receipt for resumable execution."""
+    document: dict[str, object] = {
+        "schema_version": CELL_RECEIPT_SCHEMA_VERSION,
+        "release_id": release["release_id"], "release_sha256": release["release_sha256"],
+        "phase_b_config_sha256": plan.phase_b_config_sha256, "executor_config_sha256": plan.config_sha256,
+        "runner_sha256": plan.runner_sha256, "action": action.action_id, "mode": action.mode,
+        "cell_id": projection.cell_id, "external_metrics_ref": projection.external_metrics_ref,
+        "external_metrics_sha256": projection.external_metrics_sha256, "metric_summary": projection.metric_summary,
+        "parent_context": list(projection.parent_context), "receipt_sha256": "",
+    }
+    document["receipt_sha256"] = _cell_receipt_sha256(document)
+    return document
+
+
+def _validate_cell_receipt(
+    plan: LiveExecutorPlan, action: LiveAction, release: Mapping[str, object], cell: locomo_phase_b.GridCell, document: object,
+) -> CellProjection:
+    """Load a prior validated-cell receipt without allowing it to become an action result alone."""
+    expected = {
+        "schema_version", "release_id", "release_sha256", "phase_b_config_sha256", "executor_config_sha256",
+        "runner_sha256", "action", "mode", "cell_id", "external_metrics_ref", "external_metrics_sha256",
+        "metric_summary", "parent_context", "receipt_sha256",
+    }
+    item = _exact(document, "cell receipt", expected)
+    if (
+        item["schema_version"] != CELL_RECEIPT_SCHEMA_VERSION or item["release_id"] != release["release_id"]
+        or item["release_sha256"] != release["release_sha256"] or item["phase_b_config_sha256"] != plan.phase_b_config_sha256
+        or item["executor_config_sha256"] != plan.config_sha256 or item["runner_sha256"] != plan.runner_sha256
+        or item["action"] != action.action_id or item["mode"] != action.mode or item["cell_id"] != cell.cell_id
+        or _sha256(item["receipt_sha256"], "cell receipt self hash") != _cell_receipt_sha256(item)
+    ):
+        raise LiveExecutorError("cell receipt does not bind the released action/configuration")
+    _identifier(item["external_metrics_ref"], "cell receipt external_metrics_ref")
+    _sha256(item["external_metrics_sha256"], "cell receipt external_metrics_sha256")
+    phase_result = locomo_phase_b.CellExecutionResult(
+        cell_id=cell.cell_id, mode=action.mode, external_metrics_ref=item["external_metrics_ref"],
+        external_metrics_sha256=item["external_metrics_sha256"], metric_summary=item["metric_summary"],
+    )
+    try:
+        locomo_phase_b._validate_result(phase_result)
+        locomo_phase_b._validate_complete_metric_summary(phase_result, cell)
+    except locomo_phase_b.LocomoPhaseBError as exc:
+        raise LiveExecutorError(f"cell receipt metric contract failed: {exc}") from exc
+    contexts = item["parent_context"]
+    if not isinstance(contexts, list):
+        raise LiveExecutorError("cell receipt parent context is unsafe")
+    if cell.program_track != "PARENT-01" and contexts:
+        raise LiveExecutorError("non-PARENT cell receipt cannot contain parent context")
+    for context in contexts:
+        entry = _exact(context, "cell receipt parent context", {
+            "parent_session_id", "seed_child_id", "ordered_neighbor_ids", "trace_source_id",
+        })
+        for key in ("parent_session_id", "seed_child_id", "trace_source_id"):
+            _identifier(entry[key], f"cell receipt parent context {key}")
+        if not isinstance(entry["ordered_neighbor_ids"], list):
+            raise LiveExecutorError("cell receipt parent context neighbors are unsafe")
+        for neighbor in entry["ordered_neighbor_ids"]:
+            _identifier(neighbor, "cell receipt parent context neighbor")
+    return CellProjection(
+        cell_id=cell.cell_id, mode=action.mode, external_metrics_ref=item["external_metrics_ref"],
+        external_metrics_sha256=item["external_metrics_sha256"], metric_summary=dict(item["metric_summary"]),
+        parent_context=tuple(dict(context) for context in contexts),
+    )
+
+
+def _write_cell_receipt(
+    artifact_root: Path, *, plan: LiveExecutorPlan, action: LiveAction, release: Mapping[str, object], projection: CellProjection,
+) -> Path:
+    """Persist one validated cell outside the repository before any resumable return."""
+    path = _cell_receipt_path(artifact_root, str(release["release_id"]), action, projection.cell_id)
+    if path.exists():
+        raise LiveExecutorError("duplicate cell receipt is forbidden")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(_cell_receipt_document(plan, action, release, projection), sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
+def _load_cell_receipts(
+    artifact_root: Path, *, plan: LiveExecutorPlan, action: LiveAction, release: Mapping[str, object], cells: Mapping[str, locomo_phase_b.GridCell],
+) -> dict[str, CellProjection]:
+    """Return only self-hashed receipts for cells frozen into this action."""
+    receipts: dict[str, CellProjection] = {}
+    for cell_id in action.cell_ids:
+        path = _cell_receipt_path(artifact_root, str(release["release_id"]), action, cell_id)
+        if path.is_file():
+            receipts[cell_id] = _validate_cell_receipt(plan, action, release, cells[cell_id], _load_json(path))
+    return receipts
+
+
 def action_projection_document(
     plan: LiveExecutorPlan, action: LiveAction, release: Mapping[str, object], results: Sequence[CellProjection],
 ) -> dict[str, object]:
@@ -828,12 +929,10 @@ def finalize_full_grid(plan: LiveExecutorPlan, release: object) -> Path:
     return output_path
 
 
-def run_action(plan: LiveExecutorPlan, release: object, *, action: str) -> Path:
-    """Invoke the released external adapter once per exact frozen cell.
-
-    This function is intentionally not used by tests with a valid release.  A
-    future coordinator invocation is the first permitted external execution.
-    """
+def run_action(plan: LiveExecutorPlan, release: object, *, action: str, max_cells: int | None = None) -> Path | None:
+    """Run a bounded, resumable subset and emit an action projection only at exact completion."""
+    if max_cells is not None and (isinstance(max_cells, bool) or not isinstance(max_cells, int) or max_cells < 1):
+        raise LiveExecutorError("max_cells must be a positive integer when provided")
     token, active_trace_sources, parent_relations = validate_release(plan, release, action=action)
     selected = plan.action(action)
     roots = token["external_roots"]
@@ -841,11 +940,16 @@ def run_action(plan: LiveExecutorPlan, release: object, *, action: str) -> Path:
     artifact_root = Path(roots["artifact_root"]["path"]).resolve()
     output_path = _projection_path(artifact_root, token["release_id"], selected)
     if output_path.exists():
-        raise LiveExecutorError("duplicate action projection is forbidden")
+        return output_path
     adapter = str(token["cell_adapter"]["path"])
     cells = {cell.cell_id: cell for cell in plan.cells}
-    results: list[CellProjection] = []
-    for cell_id in selected.cell_ids:
+    receipts = _load_cell_receipts(
+        artifact_root, plan=plan, action=selected, release=token, cells=cells,
+    )
+    pending = [cell_id for cell_id in selected.cell_ids if cell_id not in receipts]
+    if max_cells is not None:
+        pending = pending[:max_cells]
+    for cell_id in pending:
         cell = cells[cell_id]
         request = {
             "schema_version": "locomo-live-executor.request.v1", "release_id": token["release_id"],
@@ -873,10 +977,15 @@ def run_action(plan: LiveExecutorPlan, release: object, *, action: str) -> Path:
         )
         if projection.mode != selected.mode:
             raise LiveExecutorError("adapter result mode does not match its released action")
-        results.append(projection)
+        _write_cell_receipt(artifact_root, plan=plan, action=selected, release=token, projection=projection)
+    receipts = _load_cell_receipts(
+        artifact_root, plan=plan, action=selected, release=token, cells=cells,
+    )
+    if len(receipts) != len(selected.cell_ids):
+        return None
     return write_action_projection(
         artifact_root, release_id=token["release_id"], release_sha=token["release_sha256"], plan=plan,
-        action=selected, results=results,
+        action=selected, results=[receipts[cell_id] for cell_id in selected.cell_ids],
     )
 
 
@@ -891,6 +1000,7 @@ def main(argv: list[str] | None = None) -> int:
     execute.add_argument("config", type=Path)
     execute.add_argument("release", type=Path)
     execute.add_argument("--action", required=True)
+    execute.add_argument("--max-cells", type=int)
     finalize = sub.add_parser("finalize-full-grid")
     finalize.add_argument("config", type=Path)
     finalize.add_argument("release", type=Path)
@@ -909,7 +1019,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "finalize-full-grid":
             finalize_full_grid(plan, _load_json(args.release))
             return 0
-        run_action(plan, _load_json(args.release), action=args.action)
+        projection = run_action(plan, _load_json(args.release), action=args.action, max_cells=args.max_cells)
+        if projection is None:
+            print(json.dumps({"schema_version": "locomo-live-executor.progress.v1", "action": args.action, "status": "incomplete"}))
         return 0
     except (LiveExecutorError, OSError) as exc:
         print(f"locomo-live-executor: {exc}", file=sys.stderr)

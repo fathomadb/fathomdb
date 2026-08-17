@@ -21201,7 +21201,9 @@ mod tests {
         InitialState, PreparedWrite, SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS,
         KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
+    use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
     use rusqlite::Connection;
+    use std::sync::Arc;
     use std::thread;
     use std::time::{Duration, Instant};
     use tempfile::TempDir;
@@ -21284,6 +21286,197 @@ mod tests {
         assert!(!success.busy && success.classification == "no_owned_snapshot");
         assert!(success.active_roles.is_empty());
         eprintln!("slice65_wal retained_record_contract=passed");
+    }
+
+    #[derive(Clone, Debug)]
+    struct Slice65ProjectionEmbedder;
+
+    impl Embedder for Slice65ProjectionEmbedder {
+        fn identity(&self) -> EmbedderIdentity {
+            EmbedderIdentity::new("slice65", "wal-attribution", 8)
+        }
+
+        fn embed(&self, _text: &str) -> Result<Vector, EmbedderError> {
+            Ok(vec![1.0; 8])
+        }
+    }
+
+    /// Slice 65 RED: retaining a materialized result must not leave a reader
+    /// snapshot alive when the erasure checkpoint begins.
+    #[test]
+    fn wal_attribution_retained_materialized_result_is_idle_at_checkpoint() {
+        let dir = TempDir::new().expect("temp dir");
+        let opened =
+            Engine::open(dir.path().join("wal-attribution-retained.sqlite")).expect("open");
+        opened
+            .engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: "retained materialized result".to_string(),
+                source_id: SourceId::new("slice65-retained-source").expect("source"),
+                logical_id: Some("slice65-retained".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .expect("write");
+        let retained = opened
+            .engine
+            .read_get("slice65-retained", &Default::default())
+            .expect("read")
+            .expect("materialized node");
+        assert_eq!(retained.logical_id, "slice65-retained");
+        let idle = opened.engine.wal_attribution_snapshot();
+        assert!(
+            idle.no_owned_snapshot,
+            "retained result must not retain a SQLite snapshot: {idle:?}"
+        );
+        opened.engine.erase_source("slice65-retained-source").expect("erase");
+        let record = opened
+            .engine
+            .wal_attribution_checkpoints_for_test()
+            .last()
+            .cloned()
+            .expect("checkpoint record");
+        assert!(!record.busy && record.classification == "no_owned_snapshot");
+        assert!(record.active_roles.is_empty());
+        eprintln!("slice65_wal retained_materialized_idle=passed");
+    }
+
+    /// Slice 65 RED: model the audited Memex lifecycle precisely: close an old
+    /// store, recover through a fresh store's reads, then erase nested source
+    /// content and purge the deleted root without a retry loop.
+    #[test]
+    fn wal_attribution_reopen_recovery_reads_then_nested_erasure_are_idle() {
+        let dir = TempDir::new().expect("temp dir");
+        let path = dir.path().join("wal-attribution-reopen.sqlite");
+        let old = Engine::open(&path).expect("old open");
+        old.engine
+            .write(&[
+                PreparedWrite::Node {
+                    kind: "doc".to_string(),
+                    body: "root".to_string(),
+                    source_id: SourceId::new("slice65-root-source").expect("source"),
+                    logical_id: Some("slice65-root".to_string()),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                },
+                PreparedWrite::Node {
+                    kind: "doc".to_string(),
+                    body: "nested".to_string(),
+                    source_id: SourceId::new("slice65-nested-source").expect("source"),
+                    logical_id: Some("slice65-nested".to_string()),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                },
+                PreparedWrite::Edge {
+                    kind: "relates_to".to_string(),
+                    from: "slice65-root".to_string(),
+                    to: "slice65-nested".to_string(),
+                    source_id: SourceId::new("slice65-nested-source").expect("source"),
+                    logical_id: Some("slice65-incident-edge".to_string()),
+                    body: None,
+                    t_valid: None,
+                    t_invalid: None,
+                    confidence: None,
+                    extractor_model_id: None,
+                    temporal_fallback: None,
+                },
+            ])
+            .expect("old write");
+        old.engine.close().expect("old close");
+
+        let fresh = Engine::open(&path).expect("fresh open");
+        assert!(fresh
+            .engine
+            .read_get("slice65-root", &Default::default())
+            .expect("recovery read")
+            .is_some());
+        assert_eq!(
+            fresh
+                .engine
+                .graph_neighbors(
+                    "slice65-root",
+                    1,
+                    super::TraversalDirection::Outgoing,
+                    &Default::default(),
+                )
+                .expect("nested recovery read")
+                .len(),
+            1
+        );
+        assert!(fresh.engine.wal_attribution_snapshot().no_owned_snapshot);
+        fresh.engine.erase_source("slice65-nested-source").expect("nested erase");
+        fresh
+            .engine
+            .transition(
+                "slice65-root",
+                super::LifecycleState::Deleted,
+                Some("slice65 incident".to_string()),
+            )
+            .expect("delete root");
+        fresh.engine.purge("slice65-root").expect("purge root");
+        let records = fresh.engine.wal_attribution_checkpoints_for_test();
+        assert!(records
+            .iter()
+            .all(|record| !record.busy && record.classification == "no_owned_snapshot"));
+        eprintln!("slice65_wal reopen_nested_serial=passed");
+    }
+
+    /// Slice 65 RED: an active projection worker is attributed only after its
+    /// real immediate SQLite transaction begins; normal erasure waits for that
+    /// work rather than being mischaracterized as a checkpoint collision.
+    #[test]
+    fn wal_attribution_projection_worker_transaction_is_owned_then_idle() {
+        let dir = TempDir::new().expect("temp dir");
+        let opened = Engine::open_with_embedder_for_test(
+            dir.path().join("wal-attribution-projection.sqlite"),
+            Arc::new(Slice65ProjectionEmbedder),
+        )
+        .expect("open");
+        opened.engine.configure_vector_kind_for_test("doc").expect("vector kind");
+        let (ready, release) =
+            opened.engine.pause_projection_worker_after_wal_transaction_for_test();
+        opened
+            .engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: "projection transaction".to_string(),
+                source_id: SourceId::new("slice65-projection-source").expect("source"),
+                logical_id: Some("slice65-projection".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .expect("write");
+        ready.wait();
+        let active = opened.engine.wal_attribution_snapshot();
+        assert_eq!(
+            opened.engine.wal_attribution.classification(&active, false),
+            "owned_runtime_transaction"
+        );
+        assert!(active
+            .active_roles
+            .iter()
+            .any(|(role, _)| *role == WalAttributionRole::ProjectionWorker));
+        eprintln!("slice65_wal projection_worker_transaction_ready");
+        release.wait();
+        opened.engine.drain(5_000).expect("projection settles");
+        opened.engine.erase_source("slice65-projection-source").expect("erase after release");
+        let record = opened
+            .engine
+            .wal_attribution_checkpoints_for_test()
+            .last()
+            .cloned()
+            .expect("checkpoint record");
+        assert!(!record.busy && record.classification == "no_owned_snapshot");
+        eprintln!("slice65_wal projection_worker_transaction_released");
     }
 
     /// 0.8.20 Slice 5a (R-20-E1, work item 2) — the registry GUARD.

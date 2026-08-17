@@ -36,6 +36,13 @@ assert_contains "$CODE" 'runs-on: windows-latest' "job runs on hosted Windows x6
 assert_contains "$CODE" 'FATHOMDB_WAL_ATTRIBUTION = "1"' "job opts into private attribution"
 assert_contains "$CODE" 'wal_attribution_owned_reader_records_exact_busy_and_idle_success' "job runs retained managed-reader record contract"
 assert_contains "$CODE" 'tests::wal_attribution_owned_reader_records_exact_busy_and_idle_success' "job selects the full exact lib-test path"
+assert_contains "$CODE" 'wal_attribution_retained_materialized_result_is_idle_at_checkpoint' "job runs retained-result idle control"
+assert_contains "$CODE" 'wal_attribution_reopen_recovery_reads_then_nested_erasure_are_idle' "job runs incident-shaped reopen control"
+assert_contains "$CODE" 'wal_attribution_projection_worker_transaction_is_owned_then_idle' "job runs projection transaction control"
+assert_contains "$CODE" 'test_slice65_wal_attribution_installed.py' "job runs installed-wheel controls"
+assert_contains "$CODE" 'test-hooks' "job builds a non-shipping test-hooks wheel"
+assert_contains "$CODE" 'fathomdb==0.8.22' "job installs the released 0.8.22 comparison wheel"
+assert_contains "$CODE" 'serial_current_attribution_expected=1' "job validates current serial attribution marker"
 assert_contains "$CODE" 'erasure_busy_cross_process_windows_yields_typed_diagnostic' "job retains external-reader comparison"
 assert_contains "$CODE" 'running 1 test' "job rejects a zero-test managed-reader invocation"
 assert_contains "$CODE" 'Select-String' "job checks retained output for an executed test"
@@ -54,6 +61,11 @@ for marker in \
   'active_roles == vec![(WalAttributionRole::ReaderWorker, 0)]' \
   'SELECT COUNT(*) FROM canonical_nodes' \
   'owned_reader_snapshot' \
+  'owned_runtime_transaction' \
+  'reopen_nested_serial=passed' \
+  'retained_materialized_idle=passed' \
+  'projection_worker_transaction_ready' \
+  '_pause_reader_after_wal_snapshot_for_test' \
   'unclassified_external'; do
   assert_contains "$(<"$SOURCE_TEST") $(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs")" "$marker" "source retains $marker"
 done

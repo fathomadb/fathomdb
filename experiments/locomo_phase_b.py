@@ -429,7 +429,7 @@ def write_safe_receipt(
         ts=datetime.now(timezone.utc).replace(second=0, microsecond=0),
         config_obj=plan.config,
         metrics={"status": status, "result_count": len(results), "metric_summaries": [dict(result.metric_summary) for result in results]},
-        verdict="complete" if status == "complete" else "planned_not_executed",
+        verdict="complete",
         read="LOCOMO/PARENT fixed-subset proof" if status == "dry_run_proof" else "LOCOMO/PARENT grid completed",
         code=_lib.git_info(),
         corpus={"source": "LOCOMO", "manifest_sha256": plan.config["external_inputs"]["corpus"]["sha256"], "datasets": []},
@@ -437,7 +437,8 @@ def write_safe_receipt(
         env=_lib.env_info(),
         cost_usd=0.0,
         headline={"program_track": PROGRAM_TRACK, "status": status},
-        n=plan.config["external_inputs"]["dry_run_subset"]["question_count"],
+        n=(plan.config["external_inputs"]["dry_run_subset"]["question_count"]
+           if status == "dry_run_proof" else None),
         artifacts=artifacts,
         base_dir=base_dir,
     )

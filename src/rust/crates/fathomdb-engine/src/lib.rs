@@ -77,7 +77,9 @@ use fathomdb_schema::{
 #[cfg(feature = "operator")]
 use fathomdb_schema::CANONICAL_TABLES;
 use jsonschema::JSONSchema;
-use rusqlite::{params, Connection, OptionalExtension, TransactionState};
+#[cfg(any(test, feature = "test-hooks"))]
+use rusqlite::TransactionState;
+use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
 // `sha2::Digest` + `sha2::Sha256` — used by `safe_export` (operator-gated)
 // and unconditionally by `ingest_with_extractor` (G11 logical_id derivation).

@@ -280,6 +280,9 @@ def require_cuda_package_rehearsal() -> None:
         "package inventory must contain exactly three retained artifacts",
         "package digest mismatch",
         "route receipt does not bind the requested candidate",
+        "preflight witness digest mismatch",
+        "retained preflight witness fails Slice 10 validation",
+        "verify-cuda-preflight-witness.py",
         "CPU {consumer} smoke does not prove the driverless installed-artifact contract",
         "GPU {consumer} smoke lacks GPU UUID/PID correlation",
         'raw != canonical_json(value)',
@@ -343,9 +346,9 @@ def require_cuda_package_rehearsal() -> None:
         "control-plane/scripts/release/verify-cuda-unmerged-receipt.py",
         "control-plane/scripts/release/verify-cuda-preflight-witness.py",
         "ref: ${{ env.RELEASE_CHECKOUT_REF }}",
-        "bash scripts/release/cuda-package-rehearsal-smoke.sh",
+        "bash ../control-plane/scripts/release/cuda-package-rehearsal-smoke.sh",
         "--hf-home \"${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}\"",
-        "bash candidate/scripts/release/cuda-package-rehearsal.sh",
+        "bash control-plane/scripts/release/cuda-package-rehearsal.sh",
         "name: cuda-package-rehearsal",
         "name: python-dist-x86_64-unknown-linux-gnu",
         "name: napi-linux-x64-gnu",
@@ -785,6 +788,20 @@ def main() -> None:
         fail("cuda-contract-preflight receipt verifier must bind the exact main-owned manifest")
     candidate_checkout = job.index("ref: ${{ env.RELEASE_CHECKOUT_REF }}")
     receipt_check = job.index("control-plane/scripts/release/verify-cuda-unmerged-receipt.py")
+    control_plane_checkout = re.search(
+        r"^      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0(?: #.*)?\n"
+        r"        if: \$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.dry_run == true \}\}\n"
+        r"        with:\n"
+        r"          ref: \$\{\{ github\.workflow_sha \}\}\n"
+        r"          path: control-plane\n"
+        r"          persist-credentials: false\n",
+        job,
+        re.MULTILINE,
+    )
+    if control_plane_checkout is None:
+        fail("cuda-contract-preflight must check out the pinned main-owned control plane")
+    if control_plane_checkout.start() >= receipt_check:
+        fail("cuda-contract-preflight must check out the main-owned control plane before receipt verification")
     if receipt_check >= candidate_checkout:
         fail("cuda-contract-preflight must verify the hosted receipt before candidate checkout")
     if not re.search(

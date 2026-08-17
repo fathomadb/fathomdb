@@ -22,7 +22,7 @@ the runner refuses execution. A release must retain all of these pins:
 
 | Control | Frozen value |
 | --- | --- |
-| Arms | Canonical 7,667-document bridge and 18,472-document primary, both required |
+| Arms | Canonical 7,667-document bridge and 17,272-document real-only primary, both required |
 | Documents | Manifest-qualified real documents only; no padding or substitutions |
 | Backend | CPU same-backend fidelity characterization |
 | Model | `fathomdb-bge-small-en-v1.5`, with manifest asset hash |
@@ -39,6 +39,17 @@ complete safe results.
 
 TC-5 reports fidelity and uncertainty. It makes no SCALE-02 capacity,
 latency, SLO, release, or product-support claim.
+
+## Required runtime control surface
+
+The existing public Python search API is fused and cannot measure this SUT.
+GitHub issue [#228](https://github.com/fathomadb/fathomdb/issues/228) tracks
+the required supported benchmark control surface: vector-only retrieval with
+1-bit `K=192`, exact-f32 rerank, ordered top-10 results, bound model/index
+identity, stage timings, explicit CPU/device selection, and fail-closed
+behavior for unavailable stages or assets. It also requires the released TC-5
+executor to use that runtime rather than the current test-only seam or a
+fused-search substitute.
 
 ## Current-configuration ground-truth remediation
 

@@ -833,7 +833,8 @@ def _require_single_visible_cuda() -> str:
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise AdapterError("CUDA device is unavailable") from exc
-    if completed.returncode != 0 or completed.stdout.strip().splitlines() != ["0"]:
+    devices = [line.strip() for line in completed.stdout.splitlines() if line.strip()]
+    if completed.returncode != 0 or (devices != ["0"] if visible is None else "0" not in devices):
         raise AdapterError("CUDA device is unavailable")
     return "cuda:0"
 

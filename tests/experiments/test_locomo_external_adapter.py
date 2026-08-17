@@ -299,6 +299,20 @@ def test_gpu_cell_never_silently_uses_cpu_when_cuda_attestation_fails(
         adapter.execute_request(request, engine_factory=lambda _path, _dense: _Engine())
 
 
+def test_cuda_visible_device_zero_accepts_gpu_zero_on_a_multi_gpu_host(monkeypatch):
+    """A device mask, not physical GPU enumeration, determines CUDA visibility."""
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "0")
+    monkeypatch.setattr(
+        adapter.subprocess,
+        "run",
+        lambda *_args, **_kwargs: adapter.subprocess.CompletedProcess(
+            ["nvidia-smi"], 0, stdout="0\n1\n2\n", stderr=""
+        ),
+    )
+
+    assert adapter._require_single_visible_cuda() == "cuda:0"
+
+
 def _parent_request(tmp_path, *, turn_ids=("turn-1",), evidence_id="turn-1"):
     request = _request(tmp_path, treatment="parent_child_turn_session_v1")
     request["external_inputs"] = _write_inputs(

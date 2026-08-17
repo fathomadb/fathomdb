@@ -228,6 +228,12 @@ creating a corrective commit that restores the shared binding exactly to its
 campaign-base content and removes any dependency on that hook; no TC-5 action
 is released.
 
+The corrected TC-5 driver handoff `219de861` restored shared scope and passed
+its ABI review, but received one `REQUEST-CHANGES` for direct-invocation
+safety: it checked for an existing result sidecar only after corpus/runtime
+callbacks. The worker is adding a red-first early-destination rejection before
+those callbacks; no TC-5 action is released.
+
 The CORPUS-01 final handoff `c540a9d7` was independently accepted and is
 integrated here as `c419399e`. The matrix/protocol now fails closed on
 unsupported native claims, unqualified human-gold amendments, incomplete

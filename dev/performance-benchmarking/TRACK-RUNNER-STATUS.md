@@ -221,6 +221,13 @@ test the CPU driver ABI with synthetic fixtures only. It may not inspect an
 all-real payload, load the pinned model, run a smoke, or write a campaign
 artifact during preparation.
 
+The TC-5 driver worker committed an unintended shared
+`fathomdb-py` test-hook change in its first implementation. That commit is not
+eligible for review or integration. The worker is preserving history and
+creating a corrective commit that restores the shared binding exactly to its
+campaign-base content and removes any dependency on that hook; no TC-5 action
+is released.
+
 The CORPUS-01 final handoff `c540a9d7` was independently accepted and is
 integrated here as `c419399e`. The matrix/protocol now fails closed on
 unsupported native claims, unqualified human-gold amendments, incomplete

@@ -272,8 +272,8 @@ def require_trusted_linux_x64_cuda_producer(jobs: dict[str, str]) -> None:
         fail("release workflow lacks the canonical CUDA package route blocker")
     if f"if: {CANONICAL_CUDA_ROUTE_IF}" not in blocker:
         fail("canonical CUDA package route blocker must run on every tag or non-dry-run route")
-    if "runs-on: ubuntu-latest" not in blocker or "permissions:\n      contents: read" not in blocker:
-        fail("canonical CUDA package route blocker must be GitHub-hosted and read-only")
+    if "runs-on: ubuntu-latest" not in blocker or "permissions: {}" not in blocker:
+        fail("canonical CUDA package route blocker must be GitHub-hosted and credentialless")
     for fragment in ("canonical CUDA package route required", "exit 1"):
         if fragment not in blocker:
             fail(f"canonical CUDA package route blocker is missing {fragment!r}")

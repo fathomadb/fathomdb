@@ -133,7 +133,7 @@ blocker_text = str(blocker)
 aggregate_text = str(jobs.get("all-builds-passed", {}))
 canonical_ok = (
     blocker.get("if") == "${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}"
-    and blocker.get("permissions") == {"contents": "read"}
+    and blocker.get("permissions") == {}
     and not blocker.get("steps", [])[0].get("uses")
     and "canonical CUDA package route required" in blocker_text
     and "exit 1" in blocker_text
@@ -158,7 +158,7 @@ else
   fail "all-builds-passed missing a build-lane dependency: $(printf '%s' "$order_out" | grep '^GATE')"
 fi
 if printf '%s\n' "$order_out" | grep -q '^CANONICAL True'; then
-  pass "canonical routes stop at the read-only CUDA package blocker before publishers"
+  pass "canonical routes stop at the credentialless CUDA package blocker before publishers"
 else
   fail "canonical CUDA package blocker or route-conditional aggregate gate is missing"
 fi

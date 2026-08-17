@@ -382,8 +382,8 @@ def require_cuda_package_rehearsal() -> None:
         fail("canonical CUDA package blocker must run on every tag or non-dry-run route")
     if not re.search(r"^    runs-on: ubuntu-latest$", canonical_blocker, re.MULTILINE):
         fail("canonical CUDA package blocker must run read-only on GitHub-hosted Ubuntu")
-    if not re.search(r"^    permissions:\n      contents: read$", canonical_blocker, re.MULTILINE):
-        fail("canonical CUDA package blocker must have only read-only contents permission")
+    if not re.search(r"^    permissions: \{\}$", canonical_blocker, re.MULTILINE):
+        fail("canonical CUDA package blocker must have an explicit empty permission map")
     for fragment in ("canonical CUDA package route required", "exit 1"):
         require_fragment(canonical_blocker, fragment, "canonical CUDA package blocker")
     for forbidden in (

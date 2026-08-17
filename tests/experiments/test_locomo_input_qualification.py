@@ -9,6 +9,13 @@ from pathlib import Path
 import pytest
 
 from experiments import locomo_input_qualification
+from eval.locomo_loader import corpus_hash, load_locomo
+
+
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+_HISTORICAL_RAW_LOCOMO = _REPOSITORY_ROOT / "data/corpus-data/raw/locomo10.json"
+_PHASE_A_GRID = _REPOSITORY_ROOT / "experiments/configs/locomo-01/phase-a-grid.v1.json"
+_PHASE_B_EXECUTION = _REPOSITORY_ROOT / "experiments/configs/locomo-01/phase-b-execution.v1.json"
 
 
 def _sha256(path: Path) -> str:
@@ -86,6 +93,53 @@ def _inputs(tmp_path: Path) -> dict[str, Path]:
         {"schema_version": "locomo-fixed-subset.v1", "question_ids": ["locomo-0-q-0", "locomo-0-q-1"]},
     )
     return {"corpus": corpus, "turn": turns, "session": sessions, "subset": subset}
+
+
+def test_qualification_matches_the_derived_normalized_corpus_digest_not_raw_bytes(tmp_path):
+    inputs = _inputs(tmp_path)
+    raw_sha256 = _sha256(inputs["corpus"])
+    normalized_sha256 = corpus_hash(load_locomo(inputs["corpus"])[0])
+    assert raw_sha256 != normalized_sha256
+    phase_b = _phase_b(
+        tmp_path,
+        corpus_sha256=normalized_sha256,
+        turn_sha256=_sha256(inputs["turn"]),
+        session_sha256=_sha256(inputs["session"]),
+        subset_sha256=_sha256(inputs["subset"]),
+    )
+
+    report_path = locomo_input_qualification.qualify(
+        phase_b_path=phase_b,
+        corpus_matrix_path=_matrix(tmp_path),
+        corpus_path=inputs["corpus"],
+        turn_provenance_path=inputs["turn"],
+        session_provenance_path=inputs["session"],
+        dry_run_subset_path=inputs["subset"],
+        artifact_root=tmp_path / "artifacts",
+    )
+
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    assert report["qualification_status"] == "qualified"
+    assert report["blockers"] == []
+    assert report["input_status"]["corpus"] == {
+        "present": True,
+        "expected_sha256": normalized_sha256,
+        "actual_sha256": normalized_sha256,
+        "raw_sha256": raw_sha256,
+        "sha256_matches": True,
+    }
+
+
+@pytest.mark.skipif(not _HISTORICAL_RAW_LOCOMO.is_file(), reason="historical LOCOMO corpus is not reproduced")
+def test_historical_raw_locomo_derives_the_frozen_normalized_phase_b_digest_without_artifacts():
+    phase_a = json.loads(_PHASE_A_GRID.read_text(encoding="utf-8"))
+    phase_b = json.loads(_PHASE_B_EXECUTION.read_text(encoding="utf-8"))
+    raw_sha256 = _sha256(_HISTORICAL_RAW_LOCOMO)
+    normalized_sha256 = corpus_hash(load_locomo(_HISTORICAL_RAW_LOCOMO)[0])
+
+    assert raw_sha256 == phase_a["corpus"]["raw_sha256"]
+    assert raw_sha256 != normalized_sha256
+    assert normalized_sha256 == phase_b["external_inputs"]["corpus"]["sha256"]
 
 
 def test_qualification_writes_hash_bound_content_free_trace_parent_and_blocker_report(tmp_path):

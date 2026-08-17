@@ -570,8 +570,15 @@ jobs:
           & "$releasedEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control serial --wheel-version 0.8.22 --wheel-label released-0.8.22 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m venv $currentEnv
-          "slice65_wal current_wheel_sha256=$((Get-FileHash src/python/dist-slice65-test/*.whl -Algorithm SHA256).Hash)" | Tee-Object -FilePath $artifact -Append
-          & "$currentEnv\Scripts\python.exe" -m pip install --no-index --no-deps src/python/dist-slice65-test/*.whl 2>&1 | Tee-Object -FilePath $artifact -Append
+          $currentWheelCandidates = @(Get-ChildItem -Path "dist-slice65-test" -Filter "*.whl" -File)
+          if ($currentWheelCandidates.Count -ne 1) {
+            Write-Error "expected exactly one disposable current test-hooks wheel, found $($currentWheelCandidates.Count)"
+            exit 1
+          }
+          $currentWheel = (Resolve-Path -LiteralPath $currentWheelCandidates[0].FullName).Path
+          "slice65_wal current_wheel_path=$currentWheel" | Tee-Object -FilePath $artifact -Append
+          "slice65_wal current_wheel_sha256=$((Get-FileHash -LiteralPath $currentWheel -Algorithm SHA256).Hash)" | Tee-Object -FilePath $artifact -Append
+          & "$currentEnv\Scripts\python.exe" -m pip install --no-index --no-deps $currentWheel 2>&1 | Tee-Object -FilePath $artifact -Append
           & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control serial --wheel-version 0.8.22 --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control binding --wheel-version 0.8.22 --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $bindingLog

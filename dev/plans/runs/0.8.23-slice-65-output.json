@@ -48,7 +48,7 @@
       "released-0.8.22 versus current-source installed-wheel serial comparison",
       "explicit old-Engine close followed by an independently opened and closed raw SQLite truncating checkpoint, plus fresh-open, read.get, and graph.neighbors siblings whose raw checkpoints run while their fresh managed writer connection remains open and collector-idle"
     ],
-    "windows_execution": "PARTIALLY_VALIDATED: GitHub-hosted windows-latest job 95270599876 passed the focused managed-reader attribution control. Independent retained-log inspection confirmed five busy owned_reader_snapshot attempts for exact reader_worker:0, then a successful no_owned_snapshot after release. This validates the diagnostic and known overlap only, not the Memex root cause or any retry, pool, or binding remedy.",
+    "windows_execution": "PARTIALLY_VALIDATED: GitHub-hosted windows-latest job 95270599876 passed the focused managed-reader attribution control. Independent retained-log inspection confirmed five busy owned_reader_snapshot attempts for exact reader_worker:0, then a successful no_owned_snapshot after release. Run 31994135444, job 95282754203, additionally passed once the managed, retained, incident-shaped serial, projection, and four close-boundary Rust controls; direct, fresh-open, read_get, and neighbors raw checkpoints reported busy=0 and zero frame counters while the fresh Engine remained live where applicable. That job then failed only because maturin-action built the disposable test-hooks wheel at root dist-slice65-test while the install step searched src/python/dist-slice65-test/*.whl. The glob was absent, installation failed, and no current-wheel installed Python controls ran. The pre-install digest is not proof of a current installed wheel. This CI-path failure is not attribution evidence; the Memex root cause and every retry, pool, or binding remedy remain unapproved.",
     "local_windows_vm": "CHRONOLOGY 2026-08-16: the first guest-local C:\\ci staging attempt failed before the focused test because Cargo was absent; its temporary staging was removed. Under later explicit HITL authority, a read-only check found C:\\projects\\fathomdb absent, then reviewed source ed09e538 was copied there without guest Git operations. Rustup 1.29.0, the pinned Cargo/Rustc 1.95.0 toolchain, and Visual Studio 2022 Build Tools 17.14.37 C++ x64 were provisioned. The focused attribution-enabled managed-reader source test passed (1 passed; 0 failed); its nonsecret 24,632-byte guest log remains at C:\\ci\\fathomdb-slice65-wal-attribution-20260816.log. The transfer archive was removed. This is early local evidence only, not hosted Windows closure. FOLLOW-ON GAP: the current documented guest was found through system libvirt, but strict SSH host-key verification had no matching pinned key in this host trust store; connection stopped before copy or test, and no trust record was changed or bypassed.",
     "tdd": {
       "red_commit": "ce0e8a8e",
@@ -60,9 +60,15 @@
         "green_commit": "baf8fb08",
         "red_predicate": "the independent raw close-boundary checkpoint helper is absent",
         "local_source_result": "direct close was clean on Linux; Fix-N RED 8c1d1993 then required every fresh sibling's raw checkpoint before fresh close, and GREEN 4a63e561 proved only fresh closed=false, collector idle, and managed writer connection present at that point. direct close, fresh open, completed read.get, and completed graph.neighbors remained clean with redacted busy/frame counters. This is not Windows evidence or an attribution of recovery reads"
+      },
+      "wheel_ci_path": {
+        "red_commit": "2ab0dee0",
+        "red_predicate": "the installed-wheel job must discover exactly one root-level disposable test-hooks wheel, retain its resolved path and SHA-256, and install that exact path",
+        "green_evidence": "pending this branch's workflow repair and hosted rerun; job 95282754203 proved the old src/python/dist-slice65-test glob was absent after the wheel was built at root dist-slice65-test"
       }
     },
     "remaining_controls": [
+      "hosted Windows rerun that resolves and installs the single root-level current test-hooks wheel before the installed binding, retained-result, and current serial controls",
       "three fresh GitHub-hosted Windows repetitions of each applicable positive and negative control",
       "released-0.8.22 observational serial result and current-source attribution result retained from hosted Windows",
       "first-party Windows evidence for the installed binding, retained-result, incident-shaped serial, projection-runtime, and explicit close-boundary controls"

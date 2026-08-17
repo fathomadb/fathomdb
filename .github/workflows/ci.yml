@@ -515,6 +515,10 @@ jobs:
           }
           cargo test -p fathomdb-engine --features operator --test erasure_completeness erasure_busy_cross_process_windows_yields_typed_diagnostic -- --exact --nocapture 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log" -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (@(Select-String -Path $artifact -SimpleMatch 'running 1 test').Count -lt 5) {
+            Write-Error "external-reader attribution command selected zero tests"
+            exit 1
+          }
       - name: Build current disposable test-hooks wheel
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
@@ -557,6 +561,10 @@ jobs:
           }
           if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_current_attribution_expected=1' -Quiet)) {
             Write-Error "current serial wheel did not emit the attribution selector"
+            exit 1
+          }
+          if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_idle_after_read_get=passed' -Quiet) -or -not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_idle_after_neighbors=passed' -Quiet)) {
+            Write-Error "current serial wheel did not prove immediate idle state after both recovery reads"
             exit 1
           }
           if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_wheel_selector=released-0.8.22' -Quiet) -or -not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_wheel_selector=current-source-test-hooks' -Quiet)) {

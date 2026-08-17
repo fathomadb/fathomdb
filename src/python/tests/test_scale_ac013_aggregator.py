@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -93,8 +92,8 @@ def _provenance(head: str, *, clean: bool = True) -> dict[str, object]:
 
 def _root(*, clean: bool = True, partial: bool = False, malformed: bool = False) -> Path:
     head = _git("rev-parse", "HEAD")
-    directory = Path(tempfile.mkdtemp(prefix="0.8.23-scale-", dir=ROOT / "dev" / "plans" / "runs"))
-    root = directory / f"0.8.23-scale-{head}-raw"
+    root = ROOT / "dev" / "plans" / "runs" / f"0.8.23-scale-{head}-raw"
+    assert not root.exists(), f"test root already exists: {root}"
     root.mkdir()
     (root / "provenance.json").write_text(json.dumps(_provenance(head, clean=clean)), encoding="utf-8")
     entries: list[dict[str, object]] = []
@@ -123,6 +122,10 @@ def _root(*, clean: bool = True, partial: bool = False, malformed: bool = False)
     return root
 
 
+def _cleanup(root: Path) -> None:
+    subprocess.run(["rm", "-rf", str(root)], check=True)
+
+
 def _aggregate(root: Path) -> dict[str, object]:
     result = subprocess.run(["python3", str(AGGREGATOR), "--input-root", str(root.relative_to(ROOT))],
                             cwd=ROOT, check=False, capture_output=True, text=True)
@@ -135,7 +138,7 @@ def test_aggregator_derives_characterized_only_from_complete_valid_matrix() -> N
     try:
         artifact = _aggregate(root)
     finally:
-        subprocess.run(["rm", "-rf", str(root.parent)], check=True)
+        _cleanup(root)
     assert artifact["status"] == "CHARACTERIZED"
     assert len(artifact["matrix"]) == 6
     assert artifact["summary"] is not None
@@ -150,7 +153,7 @@ def test_aggregator_fail_closed_statuses(kind: str, expected: str) -> None:
     try:
         artifact = _aggregate(root)
     finally:
-        subprocess.run(["rm", "-rf", str(root.parent)], check=True)
+        _cleanup(root)
     assert artifact["status"] == expected
     assert artifact["summary"] is None
 
@@ -165,4 +168,4 @@ def test_aggregator_rejects_extra_file_and_corrupt_sidecar() -> None:
         sidecar.write_text("0" * 64 + "  wrong.log\n", encoding="utf-8")
         assert _aggregate(root)["status"] == "ENVIRONMENT_INVALID"
     finally:
-        subprocess.run(["rm", "-rf", str(root.parent)], check=True)
+        _cleanup(root)

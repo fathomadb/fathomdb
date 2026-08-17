@@ -9,6 +9,7 @@ CI="${CI_YML:-$REPO_ROOT/.github/workflows/ci.yml}"
 SOURCE_TEST="${SOURCE_TEST:-$REPO_ROOT/src/rust/crates/fathomdb-engine/tests/erasure_completeness.rs}"
 ENGINE_SOURCE="${ENGINE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs}"
 PY_SOURCE="$REPO_ROOT/src/rust/crates/fathomdb-py/src/lib.rs"
+PY_CONTROL="$REPO_ROOT/src/python/tests/test_slice65_wal_attribution_installed.py"
 PASSED=0
 FAILED=0
 
@@ -52,6 +53,18 @@ assert_before_in_function() {
   fi
 }
 
+assert_before_in_text() {
+  local text="$1" first="$2" second="$3" description="$4"
+  local first_line second_line
+  first_line="$(grep -nF -- "$first" <<<"$text" | head -n 1 | cut -d: -f1 || true)"
+  second_line="$(grep -nF -- "$second" <<<"$text" | head -n 1 | cut -d: -f1 || true)"
+  if [ -n "$first_line" ] && [ -n "$second_line" ] && [ "$first_line" -lt "$second_line" ]; then
+    pass "$description"
+  else
+    fail "$description (expected $first before $second)"
+  fi
+}
+
 JOB="$(job_block "$CI")"
 CODE="$(grep -v '^[[:space:]]*#' <<<"$JOB" || true)"
 if [ -n "$JOB" ]; then pass "ci.yml defines Windows WAL attribution"; else fail "ci.yml has no windows-wal-attribution job"; fi
@@ -87,6 +100,11 @@ assert_contains "$CODE" 'test-hooks' "job builds a non-shipping test-hooks wheel
 assert_contains "$CODE" 'fathomdb==0.8.22' "job installs the released 0.8.22 comparison wheel"
 assert_contains "$CODE" 'serial_wheel_selector=released-0.8.22' "job retains released-wheel selector"
 assert_contains "$CODE" 'serial_wheel_selector=current-source-test-hooks' "job retains current-wheel selector"
+assert_contains "$CODE" '--expect-erasure-incomplete' "job explicitly records the released serial failure baseline"
+assert_contains "$CODE" '$releasedSerialExit' "job retains the released serial process outcome"
+assert_contains "$CODE" 'OBSERVED_EXPECTED_ERASURE_INCOMPLETE' "job emits the expected released failure observation"
+assert_contains "$CODE" 'released serial baseline did not exit with the expected observation code' "job rejects a released baseline process outcome other than the typed observation"
+assert_contains "$CODE" 'released serial baseline did not retain typed WAL checkpoint evidence' "job rejects a released baseline without typed WAL checkpoint facts"
 assert_contains "$CODE" 'serial_current_attribution_expected=1' "job validates current serial attribution marker"
 assert_contains "$CODE" 'serial_idle_after_read_get=passed' "job retains immediate serial read.get idle marker"
 assert_contains "$CODE" 'serial_idle_after_neighbors=passed' "job retains immediate serial neighbors idle marker"
@@ -134,6 +152,23 @@ assert_contains "$(<"$ENGINE_SOURCE")" \
 assert_contains "$(<"$ENGINE_SOURCE")" \
   'fresh_writer_connection_open=' \
   "source records the live fresh writer connection fact"
+assert_contains "$(<"$PY_CONTROL")" \
+  '--expect-erasure-incomplete' \
+  "installed serial control can terminate only a typed released baseline observation"
+assert_contains "$(<"$PY_CONTROL")" \
+  'ErasureIncompleteError' \
+  "installed serial baseline accepts only the typed erasure error"
+assert_contains "$(<"$PY_CONTROL")" \
+  'stage != "wal_checkpoint"' \
+  "installed serial baseline rejects a non-WAL erasure stage"
+assert_contains "$(<"$PY_CONTROL")" \
+  'frames still in the log' \
+  "installed serial baseline records normalized WAL frame evidence"
+assert_before_in_text \
+  "$CODE" \
+  'OBSERVED_EXPECTED_ERASURE_INCOMPLETE' \
+  'serial_wheel_selector=current-source-test-hooks' \
+  "current instrumented serial control runs after the retained released baseline observation"
 for control in \
   wal_attribution_close_boundary_fresh_open_is_clean \
   wal_attribution_close_boundary_read_get_is_clean \
@@ -239,6 +274,32 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves current-wheel resolved-path assertion is load-bearing"
   else
     fail "mutation did not fail current-wheel resolved-path assertion: $wheel_path_out"
+  fi
+
+  BASELINE_OBSERVATION_MUTATED="$TMPROOT/ci-without-baseline-observation.yml"
+  sed '/OBSERVED_EXPECTED_ERASURE_INCOMPLETE/d' "$CI" >"$BASELINE_OBSERVATION_MUTATED"
+  set +e
+  baseline_observation_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$BASELINE_OBSERVATION_MUTATED" bash "$0" 2>&1)"
+  baseline_observation_rc=$?
+  set -e
+  if [ "$baseline_observation_rc" -ne 0 ] \
+    && grep -Fq 'job emits the expected released failure observation (missing: OBSERVED_EXPECTED_ERASURE_INCOMPLETE)' <<<"$baseline_observation_out"; then
+    pass "mutation proves released baseline observation is load-bearing"
+  else
+    fail "mutation did not fail released baseline observation assertion: $baseline_observation_out"
+  fi
+
+  BASELINE_CONTINUATION_MUTATED="$TMPROOT/ci-without-baseline-continuation.yml"
+  sed '/released serial baseline did not exit with the expected observation code/d' "$CI" >"$BASELINE_CONTINUATION_MUTATED"
+  set +e
+  baseline_continuation_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$BASELINE_CONTINUATION_MUTATED" bash "$0" 2>&1)"
+  baseline_continuation_rc=$?
+  set -e
+  if [ "$baseline_continuation_rc" -ne 0 ] \
+    && grep -Fq 'job rejects a released baseline process outcome other than the typed observation (missing: released serial baseline did not exit with the expected observation code)' <<<"$baseline_continuation_out"; then
+    pass "mutation proves released baseline continuation guard is load-bearing"
+  else
+    fail "mutation did not fail released baseline continuation assertion: $baseline_continuation_out"
   fi
 
   FRESH_CONNECTION_MUTATED="$TMPROOT/lib-without-fresh-connection-marker.rs"

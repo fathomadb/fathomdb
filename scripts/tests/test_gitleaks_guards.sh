@@ -65,6 +65,27 @@ else
   fail "current-tree policy admits only the reviewed exceptions"
 fi
 
+if python3 - "$CURRENT_GUARD" <<'PY'
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+required = (
+    '--config "$SCRIPT_DIR/gitleaks-current.toml"',
+    "--ignore-gitleaks-allow",
+    '--report-template "$SCRIPT_DIR/gitleaks-safe-report.tmpl"',
+    "git -C \"$repo\" ls-files -z",
+)
+forbidden = ("--baseline-path", "--gitleaks-ignore-path", "--exit-code 0")
+if any(token not in text for token in required) or any(token in text for token in forbidden):
+    raise SystemExit(1)
+PY
+then
+  pass "current-tree guard fixes scanner policy and safe output"
+else
+  fail "current-tree guard fixes scanner policy and safe output"
+fi
+
 set +e
 current_out="$(GITLEAKS_BIN="$GITLEAKS_BIN" "$CURRENT_GUARD" "$REPO_ROOT" 2>&1)"
 current_rc=$?
@@ -136,6 +157,40 @@ token="$(printf '%s%s%s%s%s%s%s' \
 printf 'credential=%s\n' "$token" >"$FIXTURE/credential.txt"
 git -C "$FIXTURE" add credential.txt
 
+CURRENT_FIXTURE="$TMPROOT/current-fixture"
+mkdir -p "$CURRENT_FIXTURE/scripts"
+git -C "$CURRENT_FIXTURE" init -q
+git -C "$CURRENT_FIXTURE" config user.email gitleaks-current-test@example.invalid
+git -C "$CURRENT_FIXTURE" config user.name 'Gitleaks Current Test'
+artifact_digest="$(printf '%s%s%s%s' \
+  '0123456789abcdef' '0123456789abcdef' '0123456789abcdef' '0123456789abcdef')"
+printf '    "tokenizer.json": "%s",\n' "$artifact_digest" >"$CURRENT_FIXTURE/scripts/check-cuda-release-contract.py"
+git -C "$CURRENT_FIXTURE" add scripts/check-cuda-release-contract.py
+
+set +e
+current_fixture_clean_out="$(GITLEAKS_BIN="$GITLEAKS_BIN" "$CURRENT_GUARD" "$CURRENT_FIXTURE" 2>&1)"
+current_fixture_clean_rc=$?
+set -e
+expect_zero "$current_fixture_clean_rc" "current-tree policy accepts its exact artifact-digest syntax"
+if [[ "$current_fixture_clean_out" == *"$artifact_digest"* ]]; then
+  fail "current-tree policy does not emit its reviewed artifact digest"
+else
+  pass "current-tree policy keeps reviewed artifact digest out of output"
+fi
+
+printf 'credential=%s\n' "$token" >>"$CURRENT_FIXTURE/scripts/check-cuda-release-contract.py"
+git -C "$CURRENT_FIXTURE" add scripts/check-cuda-release-contract.py
+set +e
+current_fixture_secret_out="$(GITLEAKS_BIN="$GITLEAKS_BIN" "$CURRENT_GUARD" "$CURRENT_FIXTURE" 2>&1)"
+current_fixture_secret_rc=$?
+set -e
+expect_nonzero "$current_fixture_secret_rc" "current-tree policy rejects a synthetic key in an allowed path"
+if [[ "$current_fixture_secret_out" == *"$token"* ]]; then
+  fail "current-tree policy redacts synthetic key in an allowed path"
+else
+  pass "current-tree policy redacts synthetic key in an allowed path"
+fi
+
 set +e
 staged_out="$(GITLEAKS_BIN="$GITLEAKS_BIN" "$STAGED_GUARD" "$FIXTURE" 2>&1)"
 staged_rc=$?
@@ -198,9 +253,9 @@ if re.search(r"^    needs:\s*changes\s*$", body, re.M) or re.search(r"^    if:",
     raise SystemExit(1)
 PY
 then
-  pass "always-on CI history guard has full history and no docs-only bypass"
+  pass "always-on CI current-tree and history guards have no docs-only bypass"
 else
-  fail "always-on CI history guard has full history and no docs-only bypass"
+  fail "always-on CI current-tree and history guards have no docs-only bypass"
 fi
 
 printf '%s passed, %s failed\n' "$PASS" "$FAIL"

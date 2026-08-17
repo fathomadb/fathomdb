@@ -37,6 +37,7 @@ from _test_hooks_gate import (
     missing_symbols_from_probe,
     partial_binding_note,
     probe_source,
+    test_hook_surface_drift,
     venv_belongs_to_source_tree,
 )
 
@@ -281,3 +282,25 @@ def test_probed_symbols_match_the_rust_cfg_gates() -> None:
             for i in declarations
             for line in lines[max(0, i - 4) : i]
         ), f"{attribute} is probed but no longer gated by the `test-hooks` feature"
+
+
+def test_cfg_gated_python_callable_missing_from_inventory_is_rejected() -> None:
+    """An unlisted cfg-gated `Engine` method must fail the inventory gate."""
+
+    lib_rs = (
+        Path(__file__).resolve().parents[2]
+        / "rust" / "crates" / "fathomdb-py" / "src" / "lib.rs"
+    )
+    source = lib_rs.read_text()
+    needle = """    #[cfg(feature = \"test-hooks\")]
+    fn _checkpoint_at_rest_for_test"""
+    mutation = """    #[cfg(feature = \"test-hooks\")]
+    fn _unlisted_cfg_test_hook_for_test(&self) {}
+
+"""
+    assert needle in source
+    mutated = source.replace(needle, mutation + needle, 1)
+
+    missing, unexpected = test_hook_surface_drift(mutated)
+    assert missing == (("Engine", "_unlisted_cfg_test_hook_for_test"),)
+    assert not unexpected

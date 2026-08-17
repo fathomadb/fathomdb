@@ -29,7 +29,19 @@ for rows in 10000 100000 1000000; do
         python3 "$helper" partial --root "$SCALE_OUTPUT_DIR" \
           --failed-rows "$rows" --failed-treatment "$treatment" \
           --failed-repetition "$repetition" --exit-status "$child_status"
+        python3 "$helper" emit-status --root "$SCALE_OUTPUT_DIR" \
+          --status ENVIRONMENT_INVALID --reason "child exited with status $child_status"
         exit "$child_status"
+      fi
+      if ! python3 "$helper" validate-record --root "$SCALE_OUTPUT_DIR" \
+        --rows "$rows" --treatment "$treatment" --log "$log" >/dev/null; then
+        record_status=65
+        python3 "$helper" partial --root "$SCALE_OUTPUT_DIR" \
+          --failed-rows "$rows" --failed-treatment "$treatment" \
+          --failed-repetition "$repetition" --exit-status "$record_status"
+        python3 "$helper" emit-status --root "$SCALE_OUTPUT_DIR" \
+          --status ENVIRONMENT_INVALID --reason "child treatment record failed V2 validation"
+        exit "$record_status"
       fi
       (
         cd "$SCALE_OUTPUT_DIR"
@@ -39,6 +51,8 @@ for rows in 10000 100000 1000000; do
       )
       if [ -n "$partial_retained_after" ] && [ "$attempt" -eq "$partial_retained_after" ]; then
         python3 "$helper" partial --root "$SCALE_OUTPUT_DIR"
+        python3 "$helper" emit-status --root "$SCALE_OUTPUT_DIR" \
+          --status INSUFFICIENT_SAMPLES --reason "explicit retained partial matrix after $attempt repetitions"
         printf 'retained %s V2 repetitions; refusing complete-matrix seal\n' "$attempt" >&2
         exit 0
       fi
@@ -46,5 +60,4 @@ for rows in 10000 100000 1000000; do
     done
   done
 done
-rm "$SCALE_OUTPUT_DIR/partial-manifest.json"
 python3 "$helper" seal --root "$SCALE_OUTPUT_DIR"

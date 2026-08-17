@@ -15,10 +15,10 @@ cat >"$fake" <<'EOF'
 set -euo pipefail
 printf '%s %s %s\n' "$AC013_CORPUS_N" "$AC013_SCALE_TREATMENT" "$LOG_PATH" >>"$CALLS"
 if [ "$AC013_SCALE_TREATMENT" = process_cold ]; then
-  printf 'AC013_TREATMENT_RECORD treatment=process_cold n=%s seed_write_ms=1 embedding_ms=0 projection_drain_ms=1 accepted_writes=%s vector_rows_after_drain=%s drain_outcome=ok samples_us=7 result_counts=1\n' "$AC013_CORPUS_N" "$AC013_CORPUS_N" "$AC013_CORPUS_N" >"$LOG_PATH"
+  printf 'AC013_TREATMENT_RECORD treatment=process_cold n=%s seed_write_ms=1 embedding_ms=0 projection_drain_ms=1 accepted_writes=%s vector_rows_after_drain=%s drain_outcome=ok samples_us=7 result_counts=1 query_errors=0 query_timeouts=0 query_skips=0 query_invariant_failures=0\n' "$AC013_CORPUS_N" "$AC013_CORPUS_N" "$AC013_CORPUS_N" >"$LOG_PATH"
 else
   samples="$(awk 'BEGIN { for (i = 1; i <= 1000; i++) printf "%s%s", (i == 1 ? "" : ","), 7 }')"
-  printf 'AC013_TREATMENT_RECORD treatment=warm n=%s seed_write_ms=1 embedding_ms=0 projection_drain_ms=1 accepted_writes=%s vector_rows_after_drain=%s drain_outcome=ok samples_us=%s result_counts=1\n' "$AC013_CORPUS_N" "$AC013_CORPUS_N" "$AC013_CORPUS_N" "$samples" >"$LOG_PATH"
+  printf 'AC013_TREATMENT_RECORD treatment=warm n=%s seed_write_ms=1 embedding_ms=0 projection_drain_ms=1 accepted_writes=%s vector_rows_after_drain=%s drain_outcome=ok samples_us=%s result_counts=%s query_errors=0 query_timeouts=0 query_skips=0 query_invariant_failures=0\n' "$AC013_CORPUS_N" "$AC013_CORPUS_N" "$AC013_CORPUS_N" "$samples" "$samples" >"$LOG_PATH"
 fi
 EOF
 chmod +x "$fake"

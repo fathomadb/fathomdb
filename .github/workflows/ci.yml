@@ -473,6 +473,36 @@ jobs:
           path: ${{ runner.temp }}/slice60-windows-wal-diagnostic.log
           if-no-files-found: error
 
+  # Slice 65 extends the Slice 60 external-holder witness with private,
+  # redacted ownership attribution. The managed-reader control is real SQLite
+  # on a reader-worker connection; the child control remains the external
+  # comparison. Its artifact contains role/index/phase and checkpoint counters
+  # only—never a database path, SQL, query text, source id, or result data.
+  windows-wal-attribution:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        with:
+          toolchain: "1.95.0"
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Run WAL ownership attribution controls
+        shell: pwsh
+        run: |
+          $env:FATHOMDB_WAL_ATTRIBUTION = "1"
+          cargo test -p fathomdb-engine --features operator --test erasure_completeness erasure_busy_ -- --nocapture 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload WAL ownership attribution diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: slice65-windows-wal-attribution-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/slice65-windows-wal-attribution.log
+          if-no-files-found: error
+
    # EU-6 FIX-1 / ADR-0.6.0-default-embedder.md EMB-3 — wheel-size gate.
   #
   # Per `dev/design/0.7.1-EU-6-FIX-1-design.md` D2:

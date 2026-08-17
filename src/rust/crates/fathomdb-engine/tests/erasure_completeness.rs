@@ -306,6 +306,34 @@ fn erasure_busy_cross_process_windows_yields_typed_diagnostic() {
     opened.engine.close().expect("close engine");
 }
 
+/// Slice 65 owned-reader control. Unlike the Slice 60 child witness, this
+/// pauses a real Engine reader-worker only after its SQLite transaction has
+/// acquired a snapshot. The diagnostic artifact must therefore attribute every
+/// busy checkpoint to `reader_worker`, not to an external holder.
+#[test]
+fn erasure_busy_owned_reader_snapshot_is_attributed() {
+    let dir = TempDir::new().expect("temp dir");
+    let path = db_path(&dir, "wal_busy_owned_reader");
+    let opened = Engine::open(&path).expect("open");
+    write_node(&opened.engine, "owned reader erasable body", "S1", Some("victim-1"));
+    write_node(&opened.engine, "owned reader retained body", "S2", Some("control-1"));
+
+    let (snapshot_ready, release) = opened.engine.pause_reader_after_wal_snapshot_for_test();
+    snapshot_ready.wait();
+    eprintln!("slice65_wal managed_reader_snapshot_ready");
+    let result = opened.engine.erase_source("S1");
+    release.wait();
+    eprintln!("slice65_wal managed_reader_snapshot_released");
+
+    let err = result.expect_err("erase must fail closed while an owned reader pins WAL");
+    assert!(
+        matches!(err, EngineError::ErasureIncomplete { ref stage, .. } if stage == "wal_checkpoint"),
+        "owned reader must preserve typed fail-closed checkpoint error: {err:?}"
+    );
+    opened.engine.erase_source("S1").expect("erase retries after reader release");
+    opened.engine.close().expect("close");
+}
+
 /// The process side of `erasure_busy_cross_process_windows_yields_typed_diagnostic`.
 /// It is invoked only by that parent test and holds a real SQLite read
 /// transaction until the parent records the checkpoint outcome.

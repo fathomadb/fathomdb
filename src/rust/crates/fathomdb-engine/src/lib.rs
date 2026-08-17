@@ -361,6 +361,9 @@ pub struct Engine {
     runtime_embedder: Option<Arc<dyn Embedder>>,
     runtime_embedder_identity: EmbedderIdentity,
     projection_runtime: ProjectionRuntime,
+    /// Slice 65 — private, opt-in owner attribution for WAL checkpoint
+    /// investigations. It never enters the SDK surface or `EngineError`.
+    wal_attribution: Arc<WalAttributionCollector>,
     provenance_row_cap: AtomicU64,
     /// Per-connection profile-callback contexts. Each box's pointer is
     /// installed into the connection's `sqlite3_profile` userdata; the
@@ -452,6 +455,7 @@ struct ProjectionRuntimeShared {
     /// Host-owned lifecycle diagnostics for worker failures, which occur on
     /// background connections rather than through an `Engine` method call.
     subscribers: Arc<lifecycle::SubscriberRegistry>,
+    wal_attribution: Arc<WalAttributionCollector>,
     state: Mutex<ProjectionRuntimeState>,
     state_cvar: Condvar,
     queue: Mutex<VecDeque<ProjectionJob>>,
@@ -636,6 +640,174 @@ struct ProfileContext {
     subscribers: Arc<lifecycle::SubscriberRegistry>,
     profiling_enabled: Arc<AtomicBool>,
     slow_threshold_ms: Arc<AtomicU64>,
+}
+
+/// Connection identities intentionally contain no path, SQL, request, or user
+/// data. They are used only in the opt-in WAL diagnostic stream.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum WalAttributionRole {
+    Writer,
+    ReaderWorker,
+    ProjectionDispatcher,
+    ProjectionWorker,
+}
+
+impl WalAttributionRole {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Writer => "writer",
+            Self::ReaderWorker => "reader_worker",
+            Self::ProjectionDispatcher => "projection_dispatcher",
+            Self::ProjectionWorker => "projection_worker",
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+#[allow(dead_code)]
+struct WalAttributionRoleSnapshot {
+    role: &'static str,
+    index: usize,
+    active: bool,
+    phase: &'static str,
+}
+
+#[derive(Clone, Debug)]
+#[allow(dead_code)]
+struct WalAttributionSnapshot {
+    roles: Vec<WalAttributionRoleSnapshot>,
+    no_owned_snapshot: bool,
+    local_checkpoint_overlap: bool,
+}
+
+#[derive(Clone, Copy)]
+struct WalAttributionRoleState {
+    active: bool,
+    phase: &'static str,
+}
+
+/// Private diagnostic state. It is off unless controlled CI/test config opts in
+/// via `FATHOMDB_WAL_ATTRIBUTION=1`; the off path is a single atomic read.
+struct WalAttributionCollector {
+    enabled: bool,
+    started: Instant,
+    roles: Mutex<BTreeMap<(WalAttributionRole, usize), WalAttributionRoleState>>,
+    checkpoint_active: AtomicBool,
+}
+
+impl WalAttributionCollector {
+    fn new() -> Self {
+        Self {
+            enabled: cfg!(test) || std::env::var_os("FATHOMDB_WAL_ATTRIBUTION").is_some(),
+            started: Instant::now(),
+            roles: Mutex::new(BTreeMap::new()),
+            checkpoint_active: AtomicBool::new(false),
+        }
+    }
+
+    fn register(&self, role: WalAttributionRole, index: usize) {
+        if !self.enabled {
+            return;
+        }
+        if let Ok(mut roles) = self.roles.lock() {
+            roles.insert((role, index), WalAttributionRoleState { active: false, phase: "idle" });
+        }
+        self.emit(role, index, "opened");
+    }
+
+    fn set(&self, role: WalAttributionRole, index: usize, active: bool, phase: &'static str) {
+        if !self.enabled {
+            return;
+        }
+        if let Ok(mut roles) = self.roles.lock() {
+            roles.insert((role, index), WalAttributionRoleState { active, phase });
+        }
+        self.emit(role, index, phase);
+    }
+
+    fn snapshot(&self) -> WalAttributionSnapshot {
+        let local_checkpoint_overlap = self.checkpoint_active.load(Ordering::SeqCst);
+        let roles: Vec<WalAttributionRoleSnapshot> = self
+            .roles
+            .lock()
+            .map(|roles| {
+                roles
+                    .iter()
+                    .map(|((role, index), state)| WalAttributionRoleSnapshot {
+                        role: role.name(),
+                        index: *index,
+                        active: state.active,
+                        phase: state.phase,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let no_owned_snapshot = roles.iter().all(|role| {
+            !role.active
+                || !matches!(
+                    role.role,
+                    "reader_worker" | "projection_dispatcher" | "projection_worker"
+                )
+        }) && !local_checkpoint_overlap;
+        WalAttributionSnapshot { roles, no_owned_snapshot, local_checkpoint_overlap }
+    }
+
+    fn checkpoint_begin(&self) -> bool {
+        if !self.enabled {
+            return false;
+        }
+        self.checkpoint_active.swap(true, Ordering::SeqCst)
+    }
+
+    fn checkpoint_end(&self) {
+        if self.enabled {
+            self.checkpoint_active.store(false, Ordering::SeqCst);
+        }
+    }
+
+    fn classification(&self, snapshot: &WalAttributionSnapshot, overlap: bool) -> &'static str {
+        if overlap {
+            "local_checkpoint_overlap"
+        } else if snapshot.roles.iter().any(|role| role.active && role.role == "reader_worker") {
+            "owned_reader_snapshot"
+        } else if snapshot.roles.iter().any(|role| {
+            role.active && matches!(role.role, "projection_dispatcher" | "projection_worker")
+        }) {
+            "owned_runtime_transaction"
+        } else {
+            "no_owned_snapshot"
+        }
+    }
+
+    fn checkpoint_event(
+        &self,
+        attempt: usize,
+        elapsed: Duration,
+        report: &TruncateWalReport,
+        classification: &'static str,
+    ) {
+        if self.enabled {
+            eprintln!(
+                "slice65_wal checkpoint_attempt={} elapsed_ms={} busy={} log_frames={} checkpointed_frames={} classification={}",
+                attempt,
+                elapsed.as_millis(),
+                report.busy,
+                report.log_frames,
+                report.checkpointed_frames,
+                classification,
+            );
+        }
+    }
+
+    fn emit(&self, role: WalAttributionRole, index: usize, phase: &'static str) {
+        eprintln!(
+            "slice65_wal role={} index={} phase={} elapsed_ms={}",
+            role.name(),
+            index,
+            phase,
+            self.started.elapsed().as_millis()
+        );
+    }
 }
 
 /// Thread-affine reader worker pool (Pack 6 F.0).
@@ -845,6 +1017,15 @@ enum ReaderRequest {
     SecureDeleteStatus {
         respond: SyncSender<i64>,
     },
+    /// Slice 65 test-only real SQLite control. The worker opens a deferred
+    /// transaction, executes a query to acquire its WAL snapshot, reports the
+    /// rendezvous, and holds the snapshot until released. It is never compiled
+    /// into a release SDK artifact.
+    #[cfg(debug_assertions)]
+    HoldWalSnapshot {
+        snapshot_ready: Arc<Barrier>,
+        release: Arc<Barrier>,
+    },
 }
 
 // G0 Phase-2: the Search response carries a 4th element — the graph-arm frontier
@@ -913,16 +1094,17 @@ pub struct CacheStatusReply {
 const READER_WORKER_CHANNEL_CAPACITY: usize = 4;
 
 impl ReaderWorkerPool {
-    fn new(connections: Vec<Connection>) -> Self {
+    fn new(connections: Vec<Connection>, wal_attribution: Arc<WalAttributionCollector>) -> Self {
         let live_workers = Arc::new(AtomicUsize::new(0));
         let mut senders = Vec::with_capacity(connections.len());
         let mut handles = Vec::with_capacity(connections.len());
         for (idx, connection) in connections.into_iter().enumerate() {
             let (tx, rx) = mpsc::sync_channel::<ReaderRequest>(READER_WORKER_CHANNEL_CAPACITY);
             let live = Arc::clone(&live_workers);
+            let attribution = Arc::clone(&wal_attribution);
             let handle = thread::Builder::new()
                 .name(format!("fathomdb-reader-{idx}"))
-                .spawn(move || reader_worker_loop(connection, rx, live))
+                .spawn(move || reader_worker_loop(connection, rx, live, idx, attribution))
                 .expect("spawn reader worker");
             senders.push(tx);
             handles.push(handle);
@@ -1069,7 +1251,10 @@ fn reader_worker_loop(
     mut connection: Connection,
     rx: Receiver<ReaderRequest>,
     live_workers: Arc<AtomicUsize>,
+    worker_idx: usize,
+    wal_attribution: Arc<WalAttributionCollector>,
 ) {
+    wal_attribution.register(WalAttributionRole::ReaderWorker, worker_idx);
     live_workers.fetch_add(1, Ordering::SeqCst);
     // Drop guard so the live counter decrements even on panic.
     struct LiveGuard(Arc<AtomicUsize>);
@@ -1081,6 +1266,24 @@ fn reader_worker_loop(
     let _guard = LiveGuard(live_workers);
 
     while let Ok(request) = rx.recv() {
+        let shutdown = matches!(request, ReaderRequest::Shutdown);
+        if !shutdown {
+            wal_attribution.set(
+                WalAttributionRole::ReaderWorker,
+                worker_idx,
+                true,
+                "transaction_opened",
+            );
+            // Every production read verb below is a `*_in_tx` routine.  The
+            // marker is deliberately before dispatch so a checkpoint records a
+            // conservative owned-reader attribution rather than a false idle.
+            wal_attribution.set(
+                WalAttributionRole::ReaderWorker,
+                worker_idx,
+                true,
+                "snapshot_acquired",
+            );
+        }
         match request {
             ReaderRequest::Shutdown => break,
             ReaderRequest::SearchProjectedText { query, name, filter, limit, view, respond } => {
@@ -1192,6 +1395,26 @@ fn reader_worker_loop(
                     connection.query_row("PRAGMA secure_delete", [], |r| r.get(0)).unwrap_or(-1);
                 let _ = respond.send(value);
             }
+            #[cfg(debug_assertions)]
+            ReaderRequest::HoldWalSnapshot { snapshot_ready, release } => {
+                connection.execute_batch("BEGIN DEFERRED").expect("begin reader transaction");
+                let _: i64 = connection
+                    .query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get(0))
+                    .expect("acquire real reader snapshot");
+                wal_attribution.set(
+                    WalAttributionRole::ReaderWorker,
+                    worker_idx,
+                    true,
+                    "snapshot_acquired",
+                );
+                snapshot_ready.wait();
+                release.wait();
+                connection.execute_batch("COMMIT").expect("release reader snapshot");
+            }
+        }
+        if !shutdown {
+            wal_attribution.set(WalAttributionRole::ReaderWorker, worker_idx, false, "completed");
+            wal_attribution.set(WalAttributionRole::ReaderWorker, worker_idx, false, "idle");
         }
     }
 
@@ -1272,6 +1495,7 @@ impl ProjectionRuntime {
         embedder_identity: EmbedderIdentity,
         mean_already_pinned: bool,
         subscribers: Arc<lifecycle::SubscriberRegistry>,
+        wal_attribution: Arc<WalAttributionCollector>,
     ) -> Self {
         // EU-5b/EU-5f — only allocate the streaming accumulator when the
         // workspace's identity is MC-required AND no mean has been pinned
@@ -1290,6 +1514,7 @@ impl ProjectionRuntime {
             embedder,
             embedder_identity,
             subscribers,
+            wal_attribution,
             state: Mutex::new(ProjectionRuntimeState::default()),
             state_cvar: Condvar::new(),
             queue: Mutex::new(VecDeque::new()),
@@ -1318,12 +1543,12 @@ impl ProjectionRuntime {
         });
 
         let dispatcher_shared = Arc::clone(&shared);
-        let dispatcher = thread::spawn(move || projection_dispatcher_loop(dispatcher_shared));
+        let dispatcher = thread::spawn(move || projection_dispatcher_loop(dispatcher_shared, 0));
 
         let mut workers = Vec::with_capacity(PROJECTION_WORKERS);
-        for _ in 0..PROJECTION_WORKERS {
+        for worker_idx in 0..PROJECTION_WORKERS {
             let worker_shared = Arc::clone(&shared);
-            workers.push(thread::spawn(move || projection_worker_loop(worker_shared)));
+            workers.push(thread::spawn(move || projection_worker_loop(worker_shared, worker_idx)));
         }
 
         Self { shared, dispatcher: Mutex::new(Some(dispatcher)), workers: Mutex::new(workers) }
@@ -4939,6 +5164,8 @@ impl Engine {
                 let subscribers = Arc::new(lifecycle::SubscriberRegistry::new());
                 let profiling_enabled = Arc::new(AtomicBool::new(false));
                 let slow_threshold_ms = Arc::new(AtomicU64::new(DEFAULT_SLOW_THRESHOLD_MS));
+                let wal_attribution = Arc::new(WalAttributionCollector::new());
+                wal_attribution.register(WalAttributionRole::Writer, 0);
                 let mut profile_contexts: Vec<Box<ProfileContext>> = Vec::new();
                 let scheduler_embedder =
                     if dense_runtime_usable { runtime_embedder.clone() } else { None };
@@ -4948,6 +5175,7 @@ impl Engine {
                     embedder_identity.clone(),
                     report.embedder_mean_vec_pinned,
                     Arc::clone(&subscribers),
+                    Arc::clone(&wal_attribution),
                 );
 
                 install_profile_callback(
@@ -4974,7 +5202,7 @@ impl Engine {
                         closed: AtomicBool::new(false),
                         lock: Mutex::new(Some(lock)),
                         connection: Mutex::new(Some(connection)),
-                        reader_pool: ReaderWorkerPool::new(readers),
+                        reader_pool: ReaderWorkerPool::new(readers, Arc::clone(&wal_attribution)),
                         counters: lifecycle::Counters::new(),
                         subscribers,
                         profiling_enabled,
@@ -4982,6 +5210,7 @@ impl Engine {
                         runtime_embedder,
                         runtime_embedder_identity: embedder_identity,
                         projection_runtime,
+                        wal_attribution,
                         provenance_row_cap: AtomicU64::new(DEFAULT_PROVENANCE_ROW_CAP),
                         profile_contexts: Mutex::new(profile_contexts),
                         reader_lookaside_rcs,
@@ -5277,6 +5506,31 @@ impl Engine {
     #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    /// Private Slice 65 test/CI diagnostic snapshot. This deliberately stays
+    /// inside the engine crate: callers receive no connection identity,
+    /// checkpoint, retry, or error-surface API.
+    #[allow(dead_code)]
+    fn wal_attribution_snapshot(&self) -> WalAttributionSnapshot {
+        self.wal_attribution.snapshot()
+    }
+
+    /// Starts the Slice 65 real-SQLite reader control after the selected worker
+    /// has acquired its own WAL snapshot. This debug-only hook is for the
+    /// first-party Windows witness; it is not a production SDK lifecycle API.
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    pub fn pause_reader_after_wal_snapshot_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
+        let snapshot_ready = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        self.reader_pool.senders[0]
+            .send(ReaderRequest::HoldWalSnapshot {
+                snapshot_ready: Arc::clone(&snapshot_ready),
+                release: Arc::clone(&release),
+            })
+            .expect("reader worker must be live for WAL attribution control");
+        (snapshot_ready, release)
     }
 
     pub fn write(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt, EngineError> {
@@ -9807,7 +10061,25 @@ impl Engine {
 
         let mut last: Option<TruncateWalReport> = None;
         for attempt in 0..ERASURE_WAL_TRUNCATE_ATTEMPTS {
-            let report = self.wal_checkpoint_truncate_once(false)?;
+            self.wal_attribution.set(WalAttributionRole::Writer, 0, true, "checkpoint_start");
+            let overlap = self.wal_attribution.checkpoint_begin();
+            let started = Instant::now();
+            let checkpoint_result = self.wal_checkpoint_truncate_once(false);
+            let elapsed = started.elapsed();
+            let snapshot = self.wal_attribution.snapshot();
+            self.wal_attribution.checkpoint_end();
+            self.wal_attribution.set(WalAttributionRole::Writer, 0, false, "idle");
+            let report = checkpoint_result?;
+            let mut classification = self.wal_attribution.classification(&snapshot, overlap);
+            if report.status == TruncateWalStatus::Busy && classification == "no_owned_snapshot" {
+                classification = "unclassified_external";
+            }
+            self.wal_attribution.checkpoint_event(
+                (attempt + 1) as usize,
+                elapsed,
+                &report,
+                classification,
+            );
             if report.status == TruncateWalStatus::Done {
                 return Ok(());
             }
@@ -13492,7 +13764,8 @@ fn explain_graph_neighbors_in_tx(
     Ok(out)
 }
 
-fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>) {
+fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_idx: usize) {
+    shared.wal_attribution.register(WalAttributionRole::ProjectionDispatcher, dispatcher_idx);
     let connection = match open_runtime_connection(&shared.path) {
         Ok(connection) => connection,
         Err(_) => return,
@@ -13539,8 +13812,26 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>) {
         // A session without a configured runtime dispatches no embedding jobs.
         // Its pending rows stay recoverable for a later configured session; see
         // `next_pending_projection_jobs` for the Slice-30 no-dispatch boundary.
+        shared.wal_attribution.set(
+            WalAttributionRole::ProjectionDispatcher,
+            dispatcher_idx,
+            true,
+            "transaction_opened",
+        );
         let fetched =
             next_pending_projection_jobs(&connection, &in_flight, fetch_cap, dense_arm_live);
+        shared.wal_attribution.set(
+            WalAttributionRole::ProjectionDispatcher,
+            dispatcher_idx,
+            false,
+            "completed",
+        );
+        shared.wal_attribution.set(
+            WalAttributionRole::ProjectionDispatcher,
+            dispatcher_idx,
+            false,
+            "idle",
+        );
         // Keep the no-runtime no-dispatch contract local to the dispatcher too:
         // a future scan change must not turn configuration absence into a worker
         // terminal behind the caller's back.
@@ -13576,7 +13867,8 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>) {
     }
 }
 
-fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>) {
+fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usize) {
+    shared.wal_attribution.register(WalAttributionRole::ProjectionWorker, worker_idx);
     let mut connection = match open_runtime_connection(&shared.path) {
         Ok(connection) => connection,
         Err(_) => return,
@@ -13623,12 +13915,25 @@ fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>) {
         // wedge into `EngineError::Scheduler` (Finding A). Mirrors the
         // reader pool's `LiveGuard` panic-safety. The local commit tx rolls
         // back on unwind, leaving the connection clean for reuse.
+        shared.wal_attribution.set(
+            WalAttributionRole::ProjectionWorker,
+            worker_idx,
+            true,
+            "transaction_opened",
+        );
         let commit_result = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             run_projection_jobs(&shared, &mut connection, &jobs)
         })) {
             Ok(result) => result,
             Err(_) => commit_projection_panic_failures(&shared, &mut connection, &jobs),
         };
+        shared.wal_attribution.set(
+            WalAttributionRole::ProjectionWorker,
+            worker_idx,
+            false,
+            "completed",
+        );
+        shared.wal_attribution.set(WalAttributionRole::ProjectionWorker, worker_idx, false, "idle");
         if let Err(err) = commit_result {
             // Host subscribers are arbitrary application code. Their panic must
             // not bypass the mandatory state cleanup below, or the durable
@@ -20767,6 +21072,8 @@ mod tests {
         KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
     use rusqlite::Connection;
+    use std::thread;
+    use std::time::{Duration, Instant};
     use tempfile::TempDir;
 
     /// Slice 65: the attribution collector starts with every Engine-owned
@@ -20778,8 +21085,17 @@ mod tests {
         let dir = TempDir::new().expect("temp dir");
         let opened = Engine::open(dir.path().join("wal-attribution.sqlite")).expect("open");
 
-        let snapshot = opened.engine.wal_attribution_snapshot();
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let mut snapshot = opened.engine.wal_attribution_snapshot();
+        while snapshot.roles.iter().filter(|role| role.role == "reader_worker").count()
+            < READER_POOL_SIZE
+            && Instant::now() < deadline
+        {
+            thread::sleep(Duration::from_millis(5));
+            snapshot = opened.engine.wal_attribution_snapshot();
+        }
         assert!(snapshot.no_owned_snapshot, "fresh engine must be idle: {snapshot:?}");
+        assert!(!snapshot.local_checkpoint_overlap, "open must not report a checkpoint overlap");
         assert!(snapshot.roles.iter().any(|role| role.role == "writer" && role.index == 0));
         assert_eq!(
             snapshot.roles.iter().filter(|role| role.role == "reader_worker").count(),
@@ -20787,6 +21103,7 @@ mod tests {
             "every reader worker must be explicitly registered"
         );
         assert!(snapshot.roles.iter().any(|role| role.role == "projection_dispatcher"));
+        assert!(snapshot.roles.iter().all(|role| role.phase == "idle"));
         assert_eq!(
             snapshot.roles.iter().filter(|role| role.role == "projection_worker").count(),
             PROJECTION_WORKERS,

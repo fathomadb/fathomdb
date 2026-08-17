@@ -306,6 +306,10 @@ run_tier_suite fast test-default-embedder-ci-contract bash scripts/tests/test_de
 # WAL diagnosis job, its fail-closed cargo result, and its diagnostic artifact.
 run_tier_suite fast test-windows-wal-diagnosis-ci-job bash scripts/tests/test_windows_wal_diagnosis_ci_job.sh
 
+# Slice 65: retain the hosted Windows real-SQLite owned-vs-external WAL
+# attribution controls and their redacted diagnostic artifact.
+run_tier_suite fast test-windows-wal-attribution-ci-job bash scripts/tests/test_windows_wal_attribution_ci_job.sh
+
 # Slice 15: each release-ready runner must consume its locally built wheel and
 # matching N-API platform package before the later registry smoke gate.
 run_tier_suite fast test-native-artifact-runtime-validation bash scripts/tests/test_native_artifact_runtime_validation.sh

@@ -522,7 +522,7 @@ jobs:
           npm_main="$(find ../preflight-witness/npm-artifacts/main -maxdepth 1 -type f -name 'fathomdb-*.tgz' -print -quit)"
           napi_platform="$(find ../preflight-witness/npm-artifacts/platforms/linux-x64-gnu -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
           test -n "$wheel" && test -n "$npm_main" && test -n "$napi_platform"
-          bash scripts/release/cuda-package-rehearsal-smoke.sh \
+          bash ../control-plane/scripts/release/cuda-package-rehearsal-smoke.sh \
             --python-wheel "$wheel" \
             --npm-main "$npm_main" \
             --napi-platform "$napi_platform" \
@@ -535,7 +535,7 @@ jobs:
           wheel="$(find preflight-witness/python-dist -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
           npm_main="$(find preflight-witness/npm-artifacts/main -maxdepth 1 -type f -name 'fathomdb-*.tgz' -print -quit)"
           napi_platform="$(find preflight-witness/npm-artifacts/platforms/linux-x64-gnu -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
-          bash candidate/scripts/release/cuda-package-rehearsal.sh \
+          bash control-plane/scripts/release/cuda-package-rehearsal.sh \
             --candidate-sha '${{ inputs.candidate_commit }}' \
             --route-receipt control-plane/receipt/cuda-unmerged-route-receipt.json \
             --route-manifest control-plane/dev/release/cuda-unmerged-candidates.json \

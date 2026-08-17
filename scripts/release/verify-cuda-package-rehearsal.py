@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any, NoReturn
@@ -19,7 +20,8 @@ COMMIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
 MANIFEST = "cuda-package-rehearsal.json"
 ROUTE_RECEIPT = "route-receipt.json"
 BUILD_INPUT = "build-input.json"
-PREFLIGHT_WITNESS = "preflight-witness.json"
+PREFLIGHT_WITNESS_DIR = "preflight-witness"
+PREFLIGHT_WITNESS = "cuda-preflight-witness.json"
 PACKAGE_DIR = "packages"
 SMOKE_DIR = "smoke"
 SMOKE_NAMES = frozenset({"cpu-python.json", "cpu-napi.json", "gpu-python.json", "gpu-napi.json"})
@@ -56,6 +58,22 @@ def load_object(path: Path, label: str) -> tuple[dict[str, Any], bytes]:
         fail(f"{label} must be a JSON object")
     if raw != canonical_json(value):
         fail(f"{label} is not canonical JSON")
+    return value, raw
+
+
+def load_preflight_witness(path: Path) -> tuple[dict[str, Any], bytes]:
+    if path.is_symlink():
+        fail("preflight witness must not be a symlink")
+    try:
+        raw = path.read_bytes()
+        value = json.loads(raw)
+    except (OSError, json.JSONDecodeError) as error:
+        fail(f"cannot read preflight witness: {error}")
+    if not isinstance(value, dict):
+        fail("preflight witness must be a JSON object")
+    canonical = (json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    if raw != canonical:
+        fail("preflight witness is not canonical JSON")
     return value, raw
 
 
@@ -171,7 +189,7 @@ def validate(root: Path, candidate_sha: str) -> None:
     if require_sha(candidate_sha, "requested candidate SHA", COMMIT_SHA) != candidate_sha:
         fail("unreachable")
     require_regular_directory(root, "rehearsal directory")
-    allowed_root = {MANIFEST, ROUTE_RECEIPT, PREFLIGHT_WITNESS, BUILD_INPUT, PACKAGE_DIR, SMOKE_DIR}
+    allowed_root = {MANIFEST, ROUTE_RECEIPT, PREFLIGHT_WITNESS_DIR, BUILD_INPUT, PACKAGE_DIR, SMOKE_DIR}
     if {path.name for path in root.iterdir()} != allowed_root:
         fail("rehearsal directory has missing or unknown members")
     manifest, _ = load_object(root / MANIFEST, "rehearsal manifest")
@@ -189,7 +207,11 @@ def validate(root: Path, candidate_sha: str) -> None:
         fail("route receipt does not bind the requested candidate")
     if require_sha(manifest["route_receipt_sha256"], "route receipt digest") != hashlib.sha256(route_bytes).hexdigest():
         fail("route receipt digest mismatch")
-    preflight_witness, preflight_witness_bytes = load_object(root / PREFLIGHT_WITNESS, "preflight witness")
+    preflight_witness_dir = root / PREFLIGHT_WITNESS_DIR
+    require_regular_directory(preflight_witness_dir, "preflight witness directory")
+    preflight_witness, preflight_witness_bytes = load_preflight_witness(
+        preflight_witness_dir / PREFLIGHT_WITNESS,
+    )
     if (
         preflight_witness.get("schema_version") != "fathomdb.cuda-preflight-witness/v1"
         or preflight_witness.get("candidate_sha") != candidate_sha
@@ -198,6 +220,16 @@ def validate(root: Path, candidate_sha: str) -> None:
         fail("preflight witness does not bind the requested candidate passed outcome")
     if require_sha(manifest["preflight_witness_sha256"], "preflight witness digest") != hashlib.sha256(preflight_witness_bytes).hexdigest():
         fail("preflight witness digest mismatch")
+    preflight_verifier = Path(__file__).with_name("verify-cuda-preflight-witness.py")
+    result = subprocess.run(
+        [sys.executable, str(preflight_verifier), "--witness-dir", str(preflight_witness_dir), "--candidate-sha", candidate_sha],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or "unknown failure"
+        fail(f"retained preflight witness fails Slice 10 validation: {detail}")
 
     build_input_path = root / BUILD_INPUT
     build_input, build_input_bytes = load_object(build_input_path, "build input")

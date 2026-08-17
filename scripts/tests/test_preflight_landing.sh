@@ -456,6 +456,63 @@ else
   fail "the naive trailing-class fix regressed a legitimate 'Slice 39.' witness; got rc=$RC, out: $OUT"
 fi
 
+# --- Arm 12: 0.8.23 release-branch completion is a fresh slice base ---------
+# Slices for 0.8.23 intentionally land on origin/release/0.8.23 before the
+# separately governed integration to origin/main. A worktree based on that
+# declared ref must therefore pass the stale-base guard even after main moves
+# independently. This fixture makes the two refs diverge; a main-only guard
+# rejects it, so this is a genuine RED regression rather than a prose check.
+RELEASE_STATE="$LINKED/dev/plans/release-state-0.8.23.json"
+mkdir -p "$(dirname "$RELEASE_STATE")"
+printf '%s\n' \
+  '{"release":"0.8.23","completion":{"ref":"origin/release/0.8.23","main_integration":"PENDING"}}' \
+  >"$RELEASE_STATE"
+git -C "$LINKED" add dev/plans/release-state-0.8.23.json
+git -C "$LINKED" commit -q -m 'fixture: declare 0.8.23 release completion ref'
+git -C "$LINKED" update-ref refs/remotes/origin/release/0.8.23 HEAD
+printf 'main advanced independently\n' >>"$PRIMARY/src/keep.txt"
+git -C "$PRIMARY" add src/keep.txt
+git -C "$PRIMARY" commit -q -m 'fixture: advance main independently'
+
+run_preflight "$LINKED" --worktree "$LINKED" --min-disk-gb 1
+if [ "$RC" -eq 0 ]; then
+  pass "current declared 0.8.23 release-ref worktree passes after main diverges"
+else
+  fail "current declared 0.8.23 release-ref worktree must pass; got rc=$RC, out: $OUT"
+fi
+if printf '%s' "$OUT" | grep -q 'declared completion ref origin/release/0.8.23'; then
+  pass "release-ref pass identifies the declared completion ref"
+else
+  fail "release-ref pass must identify origin/release/0.8.23; got: $OUT"
+fi
+
+# No 0.8.23 completion declaration exists in the primary checkout, so it keeps
+# the legacy main-only rule and rejects the divergent linked worktree.
+run_preflight "$PRIMARY" --worktree "$LINKED" --min-disk-gb 1
+if [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -q '^HARD .*STALE BASE:'; then
+  pass "legacy main-only stale-base rejection remains when no 0.8.23 declaration exists"
+else
+  fail "missing release declaration must retain legacy STALE BASE rejection; got rc=$RC, out: $OUT"
+fi
+
+# A present 0.8.23 state file is authoritative: malformed, incomplete, or
+# cross-release completion data must fail closed rather than silently falling
+# back to main or accepting an unrelated release ref.
+for invalid_case in \
+  'malformed:{not-json' \
+  'missing:{"release":"0.8.23"}' \
+  'mismatched:{"release":"0.8.23","completion":{"ref":"origin/release/0.8.22","main_integration":"PENDING"}}'; do
+  invalid_name="${invalid_case%%:*}"
+  invalid_payload="${invalid_case#*:}"
+  printf '%s\n' "$invalid_payload" >"$RELEASE_STATE"
+  run_preflight "$LINKED" --worktree "$LINKED" --min-disk-gb 1
+  if [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -q '^HARD .*release completion'; then
+    pass "invalid 0.8.23 completion state ($invalid_name) fails closed"
+  else
+    fail "invalid 0.8.23 completion state ($invalid_name) must hard-fail; got rc=$RC, out: $OUT"
+  fi
+done
+
 if [ "$FAILED" -gt 0 ]; then
   printf '\n%d test(s) failed\n' "$FAILED" >&2
   exit 1

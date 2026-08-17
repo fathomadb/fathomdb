@@ -251,6 +251,15 @@ the authorized external corpus roots and create only content-free external
 preflight manifests/proofs under declared external roots. They may not issue
 releases, load models, select GPU, run an adapter/driver, or measure a cell.
 
+The first TC-5 qualification handoff `175d9d7b` received an independent
+`REQUEST-CHANGES`: its current blocker report is safe, but its writer accepts
+arbitrary mappings and must enforce exact content-free report schemas. The
+first LOCOMO/PARENT qualification handoff `a0da3012` also received
+`REQUEST-CHANGES`: its current evidence is safe, but malformed external
+corpus/subset inputs raise before the contract-required signed blocked report.
+Both workers are applying red-first corrections; no release or measurement is
+authorized.
+
 The CORPUS-01 final handoff `c540a9d7` was independently accepted and is
 integrated here as `c419399e`. The matrix/protocol now fails closed on
 unsupported native claims, unqualified human-gold amendments, incomplete
@@ -264,9 +273,9 @@ human-gold batch needs it; no payload or human-review work has yet begun.
 | --- | --- | --- | --- |
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
-| LOCOMO-01 | Active | External adapter integrated; external-input qualification and release pending | `477ad51a` integrates independently accepted `e5b6f17d`; 25 integrated synthetic tests pass. `seq-249` authorizes the fixed-subset dry run, Phase-B CPU/FTS grid, and GPU/CE cells. Next gate: qualify external inputs, issue a coordinator-bound CPU fixed-subset release, then run it. |
-| PARENT-01 | Active | Matched external adapter integrated; external-input qualification and release pending | `477ad51a` enforces exact ordinal/rank and measured parent metrics. `seq-250` approves `parent_child_turn_session_v1`. Next gate: qualify the same external inputs and issue a matched CPU release; GPU cells additionally wait for a working NVIDIA driver. |
-| SCALE-01 | Active | Live executor and external driver integrated; all-real input preflight and release pending | `d1a6b1aa` integrates independently accepted `426be68e`; 54 integrated focused driver/executor tests pass. `seq-249` authorizes the TC-5 smoke and long CPU characterization; `seq-250` retains 0.90 as the goal and authorizes a separate remediation. Next gate: qualify manifest/corpus/output/CPU/model/ground-truth facts and issue a coordinator-bound smoke release. |
+| LOCOMO-01 | Active | Input-qualification report remediation in progress; no release | `477ad51a` integrates independently accepted `e5b6f17d`; 25 integrated synthetic tests pass. Current external evidence is blocked for pin/subset/proof facts; qualifier must first turn malformed inputs into signed fixed-code reports. Then integrate blocker evidence and qualify inputs before any coordinator-bound CPU release. |
+| PARENT-01 | Active | Matched input-qualification report remediation in progress; no release | `477ad51a` enforces exact ordinal/rank and measured parent metrics. Current external evidence is blocked for ambiguous child identity; qualifier must first satisfy its malformed-input reporting contract. GPU cells also wait for a working NVIDIA driver. |
+| SCALE-01 | Active | Input-qualification report remediation in progress; no release | `d1a6b1aa` integrates independently accepted `426be68e`; 54 integrated focused driver/executor tests pass. Current external evidence has no eligible all-real source, but report persistence must first enforce exact content-free schemas. Then integrate blocker evidence; manifest/corpus/output/CPU/model/ground-truth facts remain prerequisites. |
 | CORPUS-01 | Active | Matrix/protocol integrated; factual qualification and any approved human-gold batch pending | `c419399e` integrates independently accepted `c540a9d7`; 21 integrated focused tests pass. `seq-249` authorizes corpus/license matrix and human-gold work. Next gate: qualify existing external corpus facts and, only if required, create a coordinator-bound trusted amendment registry before a human-review batch. |
 | ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |
 | MEMORY-01 | Blocked | Waiting for ANSWER-01 | Require selected profile, native prerequisites, and declared spend ceiling. |

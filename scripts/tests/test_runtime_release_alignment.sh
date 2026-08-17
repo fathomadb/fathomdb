@@ -65,18 +65,56 @@ fi
 # release tag exists. A non-dry-run recovery dispatch must instead use the
 # canonical tag. Count every checkout so a new release job cannot escape either
 # side of that boundary.
-checkout_total="$(grep -c 'uses: actions/checkout@' "$release" || true)"
-release_checkout_ref='ref: ${{ env.RELEASE_CHECKOUT_REF }}'
-release_checkout_total="$(grep -Fc "$release_checkout_ref" "$release" || true)"
-if [ "$checkout_total" -gt 0 ] && [ "$checkout_total" -eq "$release_checkout_total" ] \
+checkout_policy="$(python3 - "$release" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+jobs = {}
+matches = list(re.finditer(r"^  ([A-Za-z][A-Za-z0-9_-]*):\n", text, re.MULTILINE))
+for index, match in enumerate(matches):
+    end = matches[index + 1].start() if index + 1 < len(matches) else len(text)
+    jobs[match.group(1)] = text[match.start():end]
+
+release_ref = "${{ env.RELEASE_CHECKOUT_REF }}"
+control_ref = "${{ github.workflow_sha }}"
+control_jobs = {"verify-cuda-trusted-route", "cuda-contract-preflight"}
+checkout_count = 0
+control_count = 0
+ok = True
+for job_name, block in jobs.items():
+    for checkout in re.finditer(r"uses: actions/checkout@.*?(?=\n      - |\Z)", block, re.DOTALL):
+        checkout_count += 1
+        step = checkout.group(0)
+        ref = re.search(r"^          ref: (.+)$", step, re.MULTILINE)
+        if ref is None:
+            ok = False
+            continue
+        if ref.group(1) == release_ref:
+            continue
+        if ref.group(1) != control_ref or job_name not in control_jobs:
+            ok = False
+            continue
+        if "persist-credentials: false" not in step:
+            ok = False
+            continue
+        if job_name == "cuda-contract-preflight" and "path: control-plane" not in step:
+            ok = False
+            continue
+        control_count += 1
+print(f"CHECKOUTS {ok and checkout_count > 0 and control_count == 2} total={checkout_count} control={control_count}")
+PY
+)"
+if printf '%s\n' "$checkout_policy" | grep -q '^CHECKOUTS True ' \
   && grep -A3 '^      candidate_commit:$' "$release" | grep -q 'type: string' \
   && grep -Fq "RELEASE_GATES_CANDIDATE_COMMIT: \${{ inputs.candidate_commit || '' }}" "$release" \
   && grep -Fq "RELEASE_CHECKOUT_REF: \${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true && inputs.candidate_commit || github.event_name == 'workflow_dispatch' && format('refs/tags/v{0}', inputs.release_version) || github.ref }}" "$release" \
   && grep -Fq 'RELEASE_GATES_CANDIDATE_COMMIT: ${{ env.RELEASE_GATES_CANDIDATE_COMMIT }}' "$release" \
   && grep -Fq "RELEASE_GATES_REQUIRE_TAG_CHECKOUT: \${{ (github.event_name != 'workflow_dispatch' || inputs.dry_run != true) && '1' || '0' }}" "$release"; then
-  pass "dry-run dispatch uses its explicit candidate SHA while publish/recovery dispatch verifies the canonical tag"
+  pass "release checkout permits only candidate/tag checkout plus the explicit main-owned control plane"
 else
-  fail "release checkout must use an explicit candidate SHA only for dry-runs and the canonical tag for publish/recovery"
+  fail "release checkout must permit only RELEASE_CHECKOUT_REF plus explicit github.workflow_sha control-plane checkouts: $checkout_policy"
 fi
 
 local_dry_run="$REPO_ROOT/scripts/release/local-dry-run.sh"
@@ -169,6 +207,7 @@ build_napi_block="$(job_block build-napi)"
 all_builds_block="$(job_block all-builds-passed)"
 t1_block="$(job_block publish-rust-t1-embedder-api)"
 recovery_dispatch_expr="github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20'"
+candidate_free_expr="inputs.candidate_commit == ''"
 if grep -Fq "if: \${{ !($recovery_dispatch_expr) }}" <<<"$build_napi_block" \
   && grep -Fq 'always()' <<<"$all_builds_block" \
   && grep -Fq "needs.verify-release.result == 'success'" <<<"$all_builds_block" \
@@ -184,9 +223,9 @@ fi
 npm_platform_block="$(job_block publish-npm-platform-linux-x64-gnu)"
 npm_platform_arm_block="$(job_block publish-npm-platform-linux-arm64-gnu)"
 npm_main_block="$(job_block publish-npm)"
-if grep -Fq "if: \${{ !($recovery_dispatch_expr) }}" <<<"$npm_platform_block" \
-  && grep -Fq "if: \${{ !($recovery_dispatch_expr) }}" <<<"$npm_platform_arm_block" \
-  && grep -Fq "if: \${{ !($recovery_dispatch_expr) }}" <<<"$npm_main_block"; then
+if grep -Fq "if: \${{ $candidate_free_expr && !($recovery_dispatch_expr) }}" <<<"$npm_platform_block" \
+  && grep -Fq "if: \${{ $candidate_free_expr && !($recovery_dispatch_expr) }}" <<<"$npm_platform_arm_block" \
+  && grep -Fq "if: \${{ $candidate_free_expr && !($recovery_dispatch_expr) }}" <<<"$npm_main_block"; then
   pass "recovery dispatch explicitly skips both platform and main npm publish jobs"
 else
   fail "recovery dispatch must skip both platform and main npm publish jobs"
@@ -205,8 +244,8 @@ fi
 co_tagging_block="$(job_block co-tagging-assert)"
 github_release_block="$(job_block github-release)"
 partial_record_block="$(job_block record-v0820-partial-registry-recovery)"
-if grep -Fq "if: \${{ inputs.dry_run != true && !($recovery_dispatch_expr) }}" <<<"$co_tagging_block" \
-  && grep -Fq "if: \${{ inputs.dry_run != true && !($recovery_dispatch_expr) }}" <<<"$github_release_block" \
+if grep -Fq "if: \${{ $candidate_free_expr && inputs.dry_run != true && !($recovery_dispatch_expr) }}" <<<"$co_tagging_block" \
+  && grep -Fq "if: \${{ $candidate_free_expr && inputs.dry_run != true && !($recovery_dispatch_expr) }}" <<<"$github_release_block" \
   && grep -Fq "$recovery_dispatch_expr" <<<"$partial_record_block" \
   && grep -Fq 'v0.8.20 partial registry recovery' <<<"$partial_record_block" \
   && grep -Fq 'GITHUB_STEP_SUMMARY' <<<"$partial_record_block"; then

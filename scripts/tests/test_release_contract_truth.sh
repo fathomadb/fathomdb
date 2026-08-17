@@ -52,7 +52,7 @@ text = path.read_text()
 needle = (
     "  github-release:\n"
     "    runs-on: ubuntu-latest\n"
-    "    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && "
+    "    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && "
     "inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}\n"
     "    needs:\n"
     "      - promote-npm-latest\n"
@@ -112,7 +112,7 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = "  promote-npm-latest:\n    runs-on: ubuntu-latest\n    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}\n"
+needle = "  promote-npm-latest:\n    runs-on: ubuntu-latest\n    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}\n"
 if text.count(needle) != 1:
     raise SystemExit("test fixture no longer contains the npm promotion guard")
 path.write_text(text.replace(needle, needle.replace("inputs.dry_run != true", "always() && inputs.dry_run != true"), 1))
@@ -126,7 +126,7 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = "  github-release:\n    runs-on: ubuntu-latest\n    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}\n"
+needle = "  github-release:\n    runs-on: ubuntu-latest\n    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}\n"
 if text.count(needle) != 1:
     raise SystemExit("test fixture no longer contains the GitHub Release guard")
 path.write_text(text.replace(needle, needle.replace("inputs.dry_run != true", "!cancelled() && inputs.dry_run != true"), 1))
@@ -140,7 +140,7 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = "  github-release:\n    runs-on: ubuntu-latest\n    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}\n"
+needle = "  github-release:\n    runs-on: ubuntu-latest\n    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}\n"
 if text.count(needle) != 1:
     raise SystemExit("test fixture no longer contains the GitHub Release guard")
 path.write_text(text.replace(needle, needle.replace("inputs.dry_run != true", "!(success()) && inputs.dry_run != true"), 1))
@@ -154,12 +154,26 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = "  github-release:\n    runs-on: ubuntu-latest\n    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}\n"
+needle = "  github-release:\n    runs-on: ubuntu-latest\n    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}\n"
 if text.count(needle) != 1:
     raise SystemExit("test fixture no longer contains the GitHub Release guard")
 path.write_text(text.replace(needle, needle.replace("inputs.dry_run != true", "! ( success() ) && inputs.dry_run != true"), 1))
 PY
 expect_fail "$FIXTURE" 'rejects a spaced parenthesized success-bypass condition'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = "  github-release:\n    runs-on: ubuntu-latest\n    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}\n"
+if text.count(needle) != 1:
+    raise SystemExit("test fixture no longer contains the candidate-free GitHub Release guard")
+path.write_text(text.replace(needle, needle.replace("inputs.candidate_commit == '' && ", ""), 1))
+PY
+expect_fail "$FIXTURE" 'rejects a GitHub Release reachable from an unmerged candidate dispatch'
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'

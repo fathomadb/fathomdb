@@ -414,6 +414,56 @@ def test_action_resume_persists_only_validated_content_free_cell_receipts(tmp_pa
     assert json.loads(projection_path.read_text(encoding="utf-8"))["result_count"] == 5
 
 
+def test_existing_action_projection_must_bind_the_exact_release_before_idempotent_return():
+    plan = _plan()
+    action = plan.action("fixed_subset_dry_run")
+    release = {"release_id": "release-1", "release_sha256": "a" * 64}
+    results = [
+        locomo_live_executor.CellProjection(
+            cell_id=cell_id,
+            mode=action.mode,
+            external_metrics_ref="fixture-metrics-v1",
+            external_metrics_sha256="b" * 64,
+            metric_summary=locomo_live_executor.synthetic_metric_summary(parent=cell_id.startswith("turn--parent")),
+            parent_context=(
+                {"parent_session_id": "session-1", "seed_child_id": "turn-1", "ordered_neighbor_ids": [], "trace_source_id": "source-1"},
+            ) if cell_id.startswith("turn--parent") else (),
+        )
+        for cell_id in action.cell_ids
+    ]
+    projection = locomo_live_executor.action_projection_document(plan, action, release, results)
+    projection["release_sha256"] = "c" * 64
+
+    with pytest.raises(locomo_live_executor.LiveExecutorError, match="action projection does not bind"):
+        locomo_live_executor._validate_existing_action_projection(plan, action, release, projection)
+
+
+def test_parent_cell_receipt_rechecks_context_bounds_before_resume():
+    plan = _plan()
+    action = plan.action("fixed_subset_dry_run")
+    cell = next(item for item in plan.cells if item.cell_id == "turn--parent_child_turn_session_v1--cpu--cold")
+    release = {"release_id": "release-1", "release_sha256": "a" * 64}
+    receipt = locomo_live_executor._cell_receipt_document(
+        plan,
+        action,
+        release,
+        locomo_live_executor.CellProjection(
+            cell_id=cell.cell_id,
+            mode=action.mode,
+            external_metrics_ref="fixture-metrics-v1",
+            external_metrics_sha256="b" * 64,
+            metric_summary=locomo_live_executor.synthetic_metric_summary(parent=True),
+            parent_context=tuple(
+                {"parent_session_id": f"session-{index}", "seed_child_id": f"turn-{index}", "ordered_neighbor_ids": [], "trace_source_id": "source-1"}
+                for index in range(6)
+            ),
+        ),
+    )
+
+    with pytest.raises(locomo_live_executor.LiveExecutorError, match="parent context"):
+        locomo_live_executor._validate_cell_receipt(plan, action, release, cell, receipt)
+
+
 def test_config_rejects_action_or_runner_digest_drift():
     document = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     document["runner"]["sha256"] = "0" * 64

@@ -740,6 +740,39 @@ def _cell_receipt_document(
     return document
 
 
+def _validate_parent_context(cell: locomo_phase_b.GridCell, contexts: object) -> tuple[dict[str, object], ...]:
+    """Revalidate the bounded PARENT context that a resumable receipt preserves."""
+    if not isinstance(contexts, list):
+        raise LiveExecutorError("cell receipt parent context is unsafe")
+    if cell.program_track != "PARENT-01":
+        if contexts:
+            raise LiveExecutorError("non-PARENT cell receipt cannot contain parent context")
+        return ()
+    if not contexts or len(contexts) > 5:
+        raise LiveExecutorError("PARENT cell receipt parent context exceeds the released bound")
+    parent_session_ids: set[str] = set()
+    validated: list[dict[str, object]] = []
+    for context in contexts:
+        entry = _exact(context, "cell receipt parent context", {
+            "parent_session_id", "seed_child_id", "ordered_neighbor_ids", "trace_source_id",
+        })
+        for key in ("parent_session_id", "seed_child_id", "trace_source_id"):
+            _identifier(entry[key], f"cell receipt parent context {key}")
+        parent_session_id = str(entry["parent_session_id"])
+        if parent_session_id in parent_session_ids:
+            raise LiveExecutorError("PARENT cell receipt parent context is ambiguous")
+        parent_session_ids.add(parent_session_id)
+        neighbors = entry["ordered_neighbor_ids"]
+        if not isinstance(neighbors, list) or len(neighbors) > 2:
+            raise LiveExecutorError("PARENT cell receipt parent context neighbors exceed the released bound")
+        if len(set(neighbors)) != len(neighbors):
+            raise LiveExecutorError("PARENT cell receipt parent context neighbors are ambiguous")
+        for neighbor in neighbors:
+            _identifier(neighbor, "cell receipt parent context neighbor")
+        validated.append(dict(entry))
+    return tuple(validated)
+
+
 def _validate_cell_receipt(
     plan: LiveExecutorPlan, action: LiveAction, release: Mapping[str, object], cell: locomo_phase_b.GridCell, document: object,
 ) -> CellProjection:
@@ -769,25 +802,11 @@ def _validate_cell_receipt(
         locomo_phase_b._validate_complete_metric_summary(phase_result, cell)
     except locomo_phase_b.LocomoPhaseBError as exc:
         raise LiveExecutorError(f"cell receipt metric contract failed: {exc}") from exc
-    contexts = item["parent_context"]
-    if not isinstance(contexts, list):
-        raise LiveExecutorError("cell receipt parent context is unsafe")
-    if cell.program_track != "PARENT-01" and contexts:
-        raise LiveExecutorError("non-PARENT cell receipt cannot contain parent context")
-    for context in contexts:
-        entry = _exact(context, "cell receipt parent context", {
-            "parent_session_id", "seed_child_id", "ordered_neighbor_ids", "trace_source_id",
-        })
-        for key in ("parent_session_id", "seed_child_id", "trace_source_id"):
-            _identifier(entry[key], f"cell receipt parent context {key}")
-        if not isinstance(entry["ordered_neighbor_ids"], list):
-            raise LiveExecutorError("cell receipt parent context neighbors are unsafe")
-        for neighbor in entry["ordered_neighbor_ids"]:
-            _identifier(neighbor, "cell receipt parent context neighbor")
+    contexts = _validate_parent_context(cell, item["parent_context"])
     return CellProjection(
         cell_id=cell.cell_id, mode=action.mode, external_metrics_ref=item["external_metrics_ref"],
         external_metrics_sha256=item["external_metrics_sha256"], metric_summary=dict(item["metric_summary"]),
-        parent_context=tuple(dict(context) for context in contexts),
+        parent_context=contexts,
     )
 
 
@@ -813,6 +832,48 @@ def _load_cell_receipts(
         if path.is_file():
             receipts[cell_id] = _validate_cell_receipt(plan, action, release, cells[cell_id], _load_json(path))
     return receipts
+
+
+def _validate_existing_action_projection(
+    plan: LiveExecutorPlan, action: LiveAction, release: Mapping[str, object], document: object,
+) -> list[CellProjection]:
+    """Validate a prior complete projection before a bounded rerun reports it as complete."""
+    expected = {
+        "schema_version", "release_id", "release_sha256", "phase_b_config_sha256", "executor_config_sha256",
+        "runner_sha256", "program_tracks", "action", "mode", "expected_question_count", "cell_ids", "result_count",
+        "receipt_status", "index_eligible", "results",
+    }
+    item = _exact(document, "action projection", expected)
+    expected_status = "dry_run_proof" if action.mode == "dry_run" else "not_eligible_until_cpu_and_gpu_actions_complete"
+    expected_eligible = action.mode == "dry_run"
+    if (
+        item["schema_version"] != PROJECTION_SCHEMA_VERSION or item["release_id"] != release["release_id"]
+        or item["release_sha256"] != release["release_sha256"] or item["phase_b_config_sha256"] != plan.phase_b_config_sha256
+        or item["executor_config_sha256"] != plan.config_sha256 or item["runner_sha256"] != plan.runner_sha256
+        or item["program_tracks"] != list(plan.program_tracks) or item["action"] != action.action_id or item["mode"] != action.mode
+        or item["expected_question_count"] != action.expected_question_count or item["cell_ids"] != list(action.cell_ids)
+        or item["result_count"] != len(action.cell_ids) or item["receipt_status"] != expected_status
+        or item["index_eligible"] is not expected_eligible or not isinstance(item["results"], list)
+    ):
+        raise LiveExecutorError("action projection does not bind the exact released action/configuration")
+    if [row.get("cell_id") if isinstance(row, Mapping) else None for row in item["results"]] != list(action.cell_ids):
+        raise LiveExecutorError("action projection has partial, duplicate, or reordered cells")
+    cells = {cell.cell_id: cell for cell in plan.cells}
+    results: list[CellProjection] = []
+    for raw in item["results"]:
+        row = _exact(raw, "action projection result", {
+            "cell_id", "mode", "external_metrics_ref", "external_metrics_sha256", "metric_summary", "parent_context",
+        })
+        cell = cells[str(row["cell_id"])]
+        receipt = {
+            "schema_version": CELL_RECEIPT_SCHEMA_VERSION, "release_id": release["release_id"],
+            "release_sha256": release["release_sha256"], "phase_b_config_sha256": plan.phase_b_config_sha256,
+            "executor_config_sha256": plan.config_sha256, "runner_sha256": plan.runner_sha256,
+            "action": action.action_id, "mode": action.mode, **row, "receipt_sha256": "",
+        }
+        receipt["receipt_sha256"] = _cell_receipt_sha256(receipt)
+        results.append(_validate_cell_receipt(plan, action, release, cell, receipt))
+    return results
 
 
 def action_projection_document(
@@ -868,6 +929,7 @@ def write_action_projection(
 def _validate_action_projection(
     plan: LiveExecutorPlan, action: LiveAction, release: Mapping[str, object], document: object,
 ) -> list[dict[str, object]]:
+    _validate_existing_action_projection(plan, action, release, document)
     expected = {
         "schema_version", "release_id", "release_sha256", "phase_b_config_sha256", "executor_config_sha256",
         "runner_sha256", "program_tracks", "action", "mode", "expected_question_count", "cell_ids", "result_count",
@@ -940,6 +1002,7 @@ def run_action(plan: LiveExecutorPlan, release: object, *, action: str, max_cell
     artifact_root = Path(roots["artifact_root"]["path"]).resolve()
     output_path = _projection_path(artifact_root, token["release_id"], selected)
     if output_path.exists():
+        _validate_existing_action_projection(plan, selected, token, _load_json(output_path))
         return output_path
     adapter = str(token["cell_adapter"]["path"])
     cells = {cell.cell_id: cell for cell in plan.cells}

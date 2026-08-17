@@ -47,9 +47,10 @@ def _assert_installed_version(expected: str) -> None:
     assert "site-packages" in package_file.parts, f"not an installed wheel: {package_file}"
 
 
-def run_serial_incident(expected_version: str, require_attribution: bool) -> None:
+def run_serial_incident(expected_version: str, wheel_label: str, require_attribution: bool) -> None:
     """Run the audited close/reopen/recovery-read/nested-erasure shape once."""
     _assert_installed_version(expected_version)
+    print(f"slice65_wal serial_wheel_selector={wheel_label}", flush=True)
     with tempfile.TemporaryDirectory(prefix="slice65-serial-") as directory:
         path = str(Path(directory) / "incident.sqlite")
         old = Engine.open(path, use_default_embedder=False)
@@ -66,7 +67,7 @@ def run_serial_incident(expected_version: str, require_attribution: bool) -> Non
         try:
             first = read.get(fresh, "slice65-root")
             assert first is not None and first.logical_id == "slice65-root"
-            neighbors = graph.neighbors(fresh, "slice65-root", depth=1, direction="out")
+            neighbors = graph.neighbors(fresh, "slice65-root", depth=1, direction="outgoing")
             assert [node.logical_id for node in neighbors] == ["slice65-nested"]
             print("slice65_wal serial_recovery_reads=passed", flush=True)
 
@@ -79,7 +80,10 @@ def run_serial_incident(expected_version: str, require_attribution: bool) -> Non
                 print("slice65_wal serial_current_attribution_expected=1", flush=True)
         finally:
             fresh.close()
-    print(f"slice65_wal serial_result=passed wheel_version={expected_version}", flush=True)
+    print(
+        f"slice65_wal serial_result=passed wheel_version={expected_version} wheel_selector={wheel_label}",
+        flush=True,
+    )
 
 
 def run_binding_reader_erase(expected_version: str) -> None:
@@ -109,11 +113,12 @@ def run_binding_reader_erase(expected_version: str) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--wheel-version", required=True)
+    parser.add_argument("--wheel-label", required=True)
     parser.add_argument("--control", choices=("serial", "binding"), required=True)
     parser.add_argument("--require-attribution", action="store_true")
     args = parser.parse_args()
     if args.control == "serial":
-        run_serial_incident(args.wheel_version, args.require_attribution)
+        run_serial_incident(args.wheel_version, args.wheel_label, args.require_attribution)
     else:
         if not args.require_attribution:
             raise SystemExit("binding control requires the current test-hooks attribution wheel")

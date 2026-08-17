@@ -52,6 +52,7 @@ from pathlib import Path
 TEST_HOOK_SYMBOLS: tuple[tuple[str | None, str], ...] = (
     ("Engine", "_configure_vector_kind_for_test"),
     ("Engine", "_write_vector_for_test"),
+    ("Engine", "_pause_reader_after_wal_snapshot_for_test"),
     (None, "force_panic_for_test"),
 )
 

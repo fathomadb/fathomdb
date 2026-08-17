@@ -482,9 +482,12 @@ jobs:
     needs: changes
     if: needs.changes.outputs.docs_only != 'true'
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
         with:
           toolchain: "1.95.0"
@@ -493,14 +496,67 @@ jobs:
         shell: pwsh
         run: |
           $env:FATHOMDB_WAL_ATTRIBUTION = "1"
+          $artifact = "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log"
           cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_owned_reader_records_exact_busy_and_idle_success -- --exact --nocapture 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Select-String -Path "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log" -SimpleMatch "running 1 test" -Quiet)) {
             Write-Error "managed-reader attribution command selected zero tests"
             exit 1
           }
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_retained_materialized_result_is_idle_at_checkpoint -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_reopen_recovery_reads_then_nested_erasure_are_idle -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_projection_worker_transaction_is_owned_then_idle -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo test -p fathomdb-engine --features operator --test erasure_completeness erasure_busy_cross_process_windows_yields_typed_diagnostic -- --exact --nocapture 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log" -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build current disposable test-hooks wheel
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          args: --release --out dist-slice65-test -i python3.11 --features pyo3/extension-module,test-hooks
+          working-directory: src/python
+      - name: Run installed-wheel attribution controls
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $env:FATHOMDB_WAL_ATTRIBUTION = "1"
+          $artifact = "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log"
+          $releasedEnv = "$env:RUNNER_TEMP\slice65-released-wheel"
+          $currentEnv = "$env:RUNNER_TEMP\slice65-current-wheel"
+          $bindingLog = "$env:RUNNER_TEMP\slice65-windows-python-binding.log"
+          python -m venv $releasedEnv
+          & "$releasedEnv\Scripts\python.exe" -m pip install --only-binary=:all: fathomdb==0.8.22 2>&1 | Tee-Object -FilePath $artifact -Append
+          & "$releasedEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control serial --wheel-version 0.8.22 --wheel-label released-0.8.22 2>&1 | Tee-Object -FilePath $artifact -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python -m venv $currentEnv
+          & "$currentEnv\Scripts\python.exe" -m pip install --no-index --no-deps src/python/dist-slice65-test/*.whl 2>&1 | Tee-Object -FilePath $artifact -Append
+          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control serial --wheel-version 0.8.22 --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control binding --wheel-version 0.8.22 --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $bindingLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $bindingBusy = @(Select-String -Path $bindingLog -Pattern 'slice65_wal checkpoint_attempt=.*busy=1.*classification=owned_reader_snapshot.*active_roles=reader_worker:0').Count
+          if ($bindingBusy -ne 5) {
+            Write-Error "expected five installed-binding owned reader busy records, got $bindingBusy"
+            exit 1
+          }
+          if (-not (Select-String -Path $bindingLog -Pattern 'slice65_wal checkpoint_attempt=.*busy=0.*classification=no_owned_snapshot.*active_roles=$' -Quiet)) {
+            Write-Error "installed binding control did not retain the post-release no-owned checkpoint"
+            exit 1
+          }
+          if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_current_attribution_expected=1' -Quiet)) {
+            Write-Error "current serial wheel did not emit the attribution selector"
+            exit 1
+          }
+          if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_wheel_selector=released-0.8.22' -Quiet) -or -not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_wheel_selector=current-source-test-hooks' -Quiet)) {
+            Write-Error "installed-wheel serial comparison did not retain both released and current selectors"
+            exit 1
+          }
+          if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal python_binding_snapshot_released' -Quiet)) {
+            Write-Error "installed binding control did not reach its post-release checkpoint"
+            exit 1
+          }
+          Write-Output "slice65_wal installed_wheel_controls=passed" | Tee-Object -FilePath $artifact -Append
       - name: Upload WAL ownership attribution diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a

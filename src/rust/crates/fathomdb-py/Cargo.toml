@@ -13,7 +13,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = []
-test-hooks = []
+test-hooks = ["fathomdb-engine/test-hooks"]
 # EU-6: forward the engine's default-embedder feature so the
 # `use_default_embedder=True` kwarg actually materializes a real
 # `CandleBgeEmbedder` rather than failing with a typed Embedder error.

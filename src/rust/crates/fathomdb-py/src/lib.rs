@@ -31,6 +31,8 @@
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Arc;
+#[cfg(any(test, feature = "test-hooks"))]
+use std::sync::Barrier;
 
 use fathomdb_embedder::EmbedderEvent as RustEmbedderEvent;
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
@@ -1366,6 +1368,29 @@ struct PyEngine {
     open_report: Arc<RustOpenReport>,
 }
 
+/// Opaque, dev-only reader-snapshot rendezvous for the Slice 65 installed
+/// binding control. It is compiled only with `test-hooks`, never shipped.
+#[cfg(any(test, feature = "test-hooks"))]
+#[pyclass(module = "fathomdb._fathomdb", name = "_WalSnapshotPause")]
+struct PyWalSnapshotPause {
+    snapshot_ready: Arc<Barrier>,
+    release: Arc<Barrier>,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+#[pymethods]
+impl PyWalSnapshotPause {
+    fn wait_snapshot_ready(&self, py: Python<'_>) {
+        let snapshot_ready = Arc::clone(&self.snapshot_ready);
+        py.detach(move || snapshot_ready.wait());
+    }
+
+    fn release(&self, py: Python<'_>) {
+        let release = Arc::clone(&self.release);
+        py.detach(move || release.wait());
+    }
+}
+
 #[pymethods]
 impl PyEngine {
     #[staticmethod]
@@ -1623,6 +1648,12 @@ impl PyEngine {
     fn close(&self, py: Python<'_>) -> PyResult<()> {
         let engine = Arc::clone(&self.inner);
         call_engine(py, move || engine.close())
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn _pause_reader_after_wal_snapshot_for_test(&self) -> PyWalSnapshotPause {
+        let (snapshot_ready, release) = self.inner.pause_reader_after_wal_snapshot_for_test();
+        PyWalSnapshotPause { snapshot_ready, release }
     }
 
     #[pyo3(signature = (timeout_s = 0.0))]
@@ -2739,6 +2770,8 @@ fn force_panic_for_test() -> PyResult<()> {
 #[pymodule(gil_used = true)]
 fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyEngine>()?;
+    #[cfg(any(test, feature = "test-hooks"))]
+    m.add_class::<PyWalSnapshotPause>()?;
     m.add_class::<PyWriteReceipt>()?;
     m.add_class::<PyEraseReport>()?;
     m.add_class::<PyIngestWithExtractorReceipt>()?;

@@ -7,6 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CI="${CI_YML:-$REPO_ROOT/.github/workflows/ci.yml}"
 SOURCE_TEST="${SOURCE_TEST:-$REPO_ROOT/src/rust/crates/fathomdb-engine/tests/erasure_completeness.rs}"
+PY_SOURCE="$REPO_ROOT/src/rust/crates/fathomdb-py/src/lib.rs"
 PASSED=0
 FAILED=0
 
@@ -42,6 +43,8 @@ assert_contains "$CODE" 'wal_attribution_projection_worker_transaction_is_owned_
 assert_contains "$CODE" 'test_slice65_wal_attribution_installed.py' "job runs installed-wheel controls"
 assert_contains "$CODE" 'test-hooks' "job builds a non-shipping test-hooks wheel"
 assert_contains "$CODE" 'fathomdb==0.8.22' "job installs the released 0.8.22 comparison wheel"
+assert_contains "$CODE" 'serial_wheel_selector=released-0.8.22' "job retains released-wheel selector"
+assert_contains "$CODE" 'serial_wheel_selector=current-source-test-hooks' "job retains current-wheel selector"
 assert_contains "$CODE" 'serial_current_attribution_expected=1' "job validates current serial attribution marker"
 assert_contains "$CODE" 'erasure_busy_cross_process_windows_yields_typed_diagnostic' "job retains external-reader comparison"
 assert_contains "$CODE" 'running 1 test' "job rejects a zero-test managed-reader invocation"
@@ -65,13 +68,18 @@ for marker in \
   'reopen_nested_serial=passed' \
   'retained_materialized_idle=passed' \
   'projection_worker_transaction_ready' \
-  '_pause_reader_after_wal_snapshot_for_test' \
   'unclassified_external'; do
   assert_contains "$(<"$SOURCE_TEST") $(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs")" "$marker" "source retains $marker"
 done
-assert_absent "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs")" \
-  'pub fn pause_reader_after_wal_snapshot_for_test' \
-  "managed-reader hook is not published"
+assert_contains "$(<"$PY_SOURCE")" \
+  '_pause_reader_after_wal_snapshot_for_test' \
+  "installed binding exposes the rendezvous only in its test-hooks build"
+assert_contains "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/Cargo.toml")" \
+  'test-hooks = []' \
+  "engine reader rendezvous is a non-default test feature"
+assert_contains "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs")" \
+  '#[cfg(any(debug_assertions, feature = "test-hooks"))]' \
+  "managed-reader hook is unavailable from shipped production builds"
 
 if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
   TMPROOT="$(mktemp -d)"

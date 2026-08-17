@@ -56,7 +56,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender};
-#[cfg(debug_assertions)]
+#[cfg(any(debug_assertions, feature = "test-hooks"))]
 use std::sync::Barrier;
 use std::sync::Once;
 use std::sync::{Arc, Condvar, Mutex};
@@ -595,6 +595,11 @@ struct ProjectionRuntimeShared {
     /// for the next open rather than relying on an in-memory retry queue.
     #[cfg(debug_assertions)]
     projection_commit_failure_pause: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
+    /// Slice 65: test-only rendezvous after a projection worker acquires its
+    /// real `BEGIN IMMEDIATE` transaction. It must not report queued work as a
+    /// live transaction.
+    #[cfg(debug_assertions)]
+    projection_worker_transaction_pause: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
     /// TC-91 test-only acknowledgement after `stopping` is set and before a
     /// close joins workers, used with `projection_commit_failure_pause`.
     #[cfg(debug_assertions)]
@@ -1087,7 +1092,7 @@ enum ReaderRequest {
     /// transaction, executes a query to acquire its WAL snapshot, reports the
     /// rendezvous, and holds the snapshot until released. It is never compiled
     /// into a release SDK artifact.
-    #[cfg(debug_assertions)]
+    #[cfg(any(debug_assertions, feature = "test-hooks"))]
     #[allow(dead_code)]
     HoldWalSnapshot {
         snapshot_ready: Arc<Barrier>,
@@ -1486,7 +1491,7 @@ fn reader_worker_loop(
                     connection.query_row("PRAGMA secure_delete", [], |r| r.get(0)).unwrap_or(-1);
                 let _ = respond.send(value);
             }
-            #[cfg(debug_assertions)]
+            #[cfg(any(debug_assertions, feature = "test-hooks"))]
             ReaderRequest::HoldWalSnapshot { snapshot_ready, release } => {
                 connection.execute_batch("BEGIN DEFERRED").expect("begin reader transaction");
                 let _: i64 = connection
@@ -1630,6 +1635,8 @@ impl ProjectionRuntime {
             #[cfg(debug_assertions)]
             projection_commit_failure_pause: Mutex::new(None),
             #[cfg(debug_assertions)]
+            projection_worker_transaction_pause: Mutex::new(None),
+            #[cfg(debug_assertions)]
             projection_stop_ack: Mutex::new(None),
         });
 
@@ -1749,6 +1756,22 @@ impl ProjectionRuntime {
             .projection_commit_failure_pause
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some((reported, release));
+    }
+
+    #[cfg(debug_assertions)]
+    #[allow(dead_code)]
+    fn pause_projection_worker_after_wal_transaction_for_test(
+        &self,
+    ) -> (Arc<Barrier>, Arc<Barrier>) {
+        let transaction_ready = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        *self
+            .shared
+            .projection_worker_transaction_pause
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) =
+            Some((Arc::clone(&transaction_ready), Arc::clone(&release)));
+        (transaction_ready, release)
     }
 
     #[cfg(debug_assertions)]
@@ -5609,9 +5632,10 @@ impl Engine {
         self.wal_attribution.checkpoints()
     }
 
-    #[cfg(debug_assertions)]
+    #[cfg(any(debug_assertions, feature = "test-hooks"))]
     #[allow(dead_code)]
-    fn pause_reader_after_wal_snapshot_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
+    #[doc(hidden)]
+    pub fn pause_reader_after_wal_snapshot_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
         let snapshot_ready = Arc::new(Barrier::new(2));
         let release = Arc::new(Barrier::new(2));
         self.reader_pool.senders[0]
@@ -5621,6 +5645,14 @@ impl Engine {
             })
             .expect("reader worker must be live for WAL attribution control");
         (snapshot_ready, release)
+    }
+
+    #[cfg(debug_assertions)]
+    #[allow(dead_code)]
+    fn pause_projection_worker_after_wal_transaction_for_test(
+        &self,
+    ) -> (Arc<Barrier>, Arc<Barrier>) {
+        self.projection_runtime.pause_projection_worker_after_wal_transaction_for_test()
     }
 
     pub fn write(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt, EngineError> {
@@ -15281,6 +15313,16 @@ fn commit_projection_outcomes(
             "transaction_opened",
         )
     });
+    #[cfg(debug_assertions)]
+    if let Some((transaction_ready, release)) = shared
+        .projection_worker_transaction_pause
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .take()
+    {
+        transaction_ready.wait();
+        release.wait();
+    }
     // The accumulator is mutable process state coupled to this transaction.
     // Keep the shared value untouched while building a candidate so rollback
     // cannot count a vector or consume the pin threshold prematurely.

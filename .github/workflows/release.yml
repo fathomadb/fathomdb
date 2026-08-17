@@ -528,24 +528,23 @@ jobs:
             --napi-platform "$napi_platform" \
             --smoke-dir cuda-package-smoke
       - name: Seal exact non-publishing CUDA package rehearsal bundle
-        working-directory: candidate
         shell: bash
         run: |
           set -euo pipefail
-          wheel="$(find ../preflight-witness/python-dist -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
-          npm_main="$(find ../preflight-witness/npm-artifacts/main -maxdepth 1 -type f -name 'fathomdb-*.tgz' -print -quit)"
-          napi_platform="$(find ../preflight-witness/npm-artifacts/platforms/linux-x64-gnu -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
-          bash scripts/release/cuda-package-rehearsal.sh \
+          wheel="$(find preflight-witness/python-dist -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
+          npm_main="$(find preflight-witness/npm-artifacts/main -maxdepth 1 -type f -name 'fathomdb-*.tgz' -print -quit)"
+          napi_platform="$(find preflight-witness/npm-artifacts/platforms/linux-x64-gnu -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
+          bash candidate/scripts/release/cuda-package-rehearsal.sh \
             --candidate-sha '${{ inputs.candidate_commit }}' \
-            --route-receipt ../control-plane/receipt/cuda-unmerged-route-receipt.json \
-            --route-manifest ../control-plane/dev/release/cuda-unmerged-candidates.json \
-            --preflight-witness-dir ../preflight-witness \
-            --build-input cuda-package-build-input.json \
+            --route-receipt control-plane/receipt/cuda-unmerged-route-receipt.json \
+            --route-manifest control-plane/dev/release/cuda-unmerged-candidates.json \
+            --preflight-witness-dir preflight-witness \
+            --build-input candidate/cuda-package-build-input.json \
             --python-wheel "$wheel" \
             --npm-main "$npm_main" \
             --napi-platform "$napi_platform" \
-            --smoke-dir cuda-package-smoke \
-            --output-dir cuda-package-rehearsal \
+            --smoke-dir candidate/cuda-package-smoke \
+            --output-dir candidate/cuda-package-rehearsal \
             --workflow-ref '${{ github.workflow_ref }}' \
             --workflow-sha '${{ github.workflow_sha }}' \
             --run-id '${{ github.run_id }}' \

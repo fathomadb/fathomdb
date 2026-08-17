@@ -342,7 +342,7 @@ def require_cuda_package_rehearsal() -> None:
         "control-plane/scripts/release/verify-cuda-preflight-witness.py",
         "ref: ${{ env.RELEASE_CHECKOUT_REF }}",
         "bash scripts/release/cuda-package-rehearsal-smoke.sh",
-        "bash scripts/release/cuda-package-rehearsal.sh",
+        "bash candidate/scripts/release/cuda-package-rehearsal.sh",
         "name: cuda-package-rehearsal",
         "name: python-dist-x86_64-unknown-linux-gnu",
         "name: napi-linux-x64-gnu",

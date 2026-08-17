@@ -34,10 +34,11 @@ from _test_hooks_gate import (
     REBUILD_OPT_IN,
     TEST_HOOK_SYMBOLS,
     decide,
+    hook_symbol_name,
     missing_symbols_from_probe,
     partial_binding_note,
     probe_source,
-    test_hook_surface_drift,
+    hook_surface_drift,
     venv_belongs_to_source_tree,
 )
 
@@ -176,8 +177,14 @@ def test_real_repo_layout_resolves() -> None:
 # --------------------------------------------------------------------------
 
 
-def _fake_binding(root: Path, *, engine_attrs: tuple[str, ...], module_attrs: tuple[str, ...],
-                  import_raises: bool = False) -> Path:
+def _fake_binding(
+    root: Path,
+    *,
+    engine_attrs: tuple[str, ...],
+    module_attrs: tuple[str, ...],
+    snapshot_pause_attrs: tuple[str, ...] = (),
+    import_raises: bool = False,
+) -> Path:
     """Materialize a stand-in `fathomdb._fathomdb` exposing exactly these names."""
 
     pkg = root / "fathomdb"
@@ -188,7 +195,16 @@ def _fake_binding(root: Path, *, engine_attrs: tuple[str, ...], module_attrs: tu
         return root
     body = ["class Engine:", "    pass"]
     body += [f"Engine.{name} = lambda self, *a, **k: None" for name in engine_attrs]
-    body += [f"def {name}():\n    return None" for name in module_attrs]
+    body += ["class _WalSnapshotPause:", "    pass"]
+    body += [
+        f"_WalSnapshotPause.{name} = lambda self, *a, **k: None"
+        for name in snapshot_pause_attrs
+    ]
+    body += [
+        f"def {name}():\n    return None"
+        for name in module_attrs
+        if name != "_WalSnapshotPause"
+    ]
     (pkg / "_fathomdb.py").write_text("\n".join(body) + "\n")
     return root
 
@@ -208,6 +224,9 @@ def test_probe_accepts_a_complete_binding(tmp_path: Path) -> None:
         tmp_path,
         engine_attrs=tuple(a for owner, a in TEST_HOOK_SYMBOLS if owner == "Engine"),
         module_attrs=tuple(a for owner, a in TEST_HOOK_SYMBOLS if owner is None),
+        snapshot_pause_attrs=tuple(
+            a for owner, a in TEST_HOOK_SYMBOLS if owner == "_WalSnapshotPause"
+        ),
     )
     assert _run_probe(root) == ()
 
@@ -216,12 +235,31 @@ def test_probe_detects_a_partial_binding(tmp_path: Path) -> None:
     """The observed failure mode: both `Engine` hooks present, module-level
     `force_panic_for_test` absent. Must NOT read as "hooks present"."""
 
-    root = _fake_binding(
-        tmp_path,
-        engine_attrs=("_configure_vector_kind_for_test", "_write_vector_for_test"),
-        module_attrs=(),
-    )
+    root = _complete_binding_without(tmp_path, (None, "force_panic_for_test"))
     assert _run_probe(root) == ("force_panic_for_test",)
+
+
+def _complete_binding_without(root: Path, missing: tuple[str | None, str]) -> Path:
+    """Materialize the complete synthetic surface except one requested symbol."""
+
+    return _fake_binding(
+        root,
+        engine_attrs=tuple(
+            attribute
+            for owner, attribute in TEST_HOOK_SYMBOLS
+            if owner == "Engine" and (owner, attribute) != missing
+        ),
+        module_attrs=tuple(
+            attribute
+            for owner, attribute in TEST_HOOK_SYMBOLS
+            if owner is None and (owner, attribute) != missing
+        ),
+        snapshot_pause_attrs=tuple(
+            attribute
+            for owner, attribute in TEST_HOOK_SYMBOLS
+            if owner == "_WalSnapshotPause" and (owner, attribute) != missing
+        ),
+    )
 
 
 def test_a_partial_binding_degrades_rather_than_proceeds(tmp_path: Path) -> None:
@@ -266,22 +304,18 @@ def test_partial_note_only_fires_for_a_genuinely_partial_surface() -> None:
 
 
 def test_probed_symbols_match_the_rust_cfg_gates() -> None:
-    """The probed set must not drift from the `#[cfg(any(test, feature =
-    "test-hooks"))]` surface in `fathomdb-py/src/lib.rs`."""
+    """The probe inventory must exactly match the exposed Rust cfg surface."""
 
     lib_rs = (
         Path(__file__).resolve().parents[2]
         / "rust" / "crates" / "fathomdb-py" / "src" / "lib.rs"
     )
-    lines = lib_rs.read_text().splitlines()
-    for _owner, attribute in TEST_HOOK_SYMBOLS:
-        declarations = [i for i, line in enumerate(lines) if f"fn {attribute}(" in line]
-        assert declarations, f"{attribute} is no longer declared in lib.rs"
-        assert any(
-            'feature = "test-hooks"' in line
-            for i in declarations
-            for line in lines[max(0, i - 4) : i]
-        ), f"{attribute} is probed but no longer gated by the `test-hooks` feature"
+    missing, unexpected = hook_surface_drift(lib_rs.read_text())
+    assert not missing, f"Rust cfg exposes unprobed hooks: {[hook_symbol_name(*symbol) for symbol in missing]}"
+    assert not unexpected, (
+        "probe inventory names hooks not exposed by Rust cfg: "
+        f"{[hook_symbol_name(*symbol) for symbol in unexpected]}"
+    )
 
 
 def test_cfg_gated_python_callable_missing_from_inventory_is_rejected() -> None:
@@ -301,6 +335,6 @@ def test_cfg_gated_python_callable_missing_from_inventory_is_rejected() -> None:
     assert needle in source
     mutated = source.replace(needle, mutation + needle, 1)
 
-    missing, unexpected = test_hook_surface_drift(mutated)
+    missing, unexpected = hook_surface_drift(mutated)
     assert missing == (("Engine", "_unlisted_cfg_test_hook_for_test"),)
     assert not unexpected

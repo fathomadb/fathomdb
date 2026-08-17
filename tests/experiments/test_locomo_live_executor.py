@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from experiments import locomo_live_executor
+from experiments import locomo_live_executor, trace_projection
 
 
 CONFIG_PATH = Path("experiments/configs/locomo-01/live-executor.v1.json")
@@ -39,8 +39,11 @@ def _release(plan: locomo_live_executor.LiveExecutorPlan, *, action: str) -> dic
         "runner_sha256": plan.runner_sha256,
         "independent_review_git_sha": "b" * 40,
         "authorizations": ["seq-249", "seq-250"],
-        "approved_actions": [action],
-        "gpu_policy": {"cuda_required": action == "gpu_ce_grid", "allow_cpu_fallback": False},
+        "approved_actions": ["fixed_subset_dry_run"] if action == "fixed_subset_dry_run" else ["cpu_grid", "gpu_ce_grid"],
+        "gpu_policy": {
+            "cuda_required": action != "fixed_subset_dry_run", "allow_cpu_fallback": False,
+            "selected_device": "cuda:0" if action != "fixed_subset_dry_run" else "cpu",
+        },
         "external_roots": {
             "artifact_root": {"path": "/external/artifacts", "binding_sha256": "c" * 64},
             "corpus": {"path": "/external/locomo.json", "sha256": plan.external_input_sha256["corpus"]},
@@ -51,6 +54,7 @@ def _release(plan: locomo_live_executor.LiveExecutorPlan, *, action: str) -> dic
             "parent_relation_proof": {"path": "/external/parent-relations.json", "sha256": "f" * 64},
         },
         "cell_adapter": {"path": "/external/locomo-cell-adapter", "sha256": "e" * 64},
+        "review_evidence": {"path": "/external/review-evidence.json", "sha256": "f" * 64},
     }
     token["release_sha256"] = locomo_live_executor.release_sha256(token)
     return token
@@ -78,9 +82,9 @@ def test_release_requires_an_exact_self_hash_and_one_separate_action_gate(action
     token = _release(plan, action=action)
 
     assert locomo_live_executor.release_sha256(token) == token["release_sha256"]
-    token["approved_actions"] = ["cpu_grid", "gpu_ce_grid"]
+    token["approved_actions"] = ["fixed_subset_dry_run", "cpu_grid"]
     token["release_sha256"] = locomo_live_executor.release_sha256(token)
-    with pytest.raises(locomo_live_executor.LiveExecutorError, match="one action"):
+    with pytest.raises(locomo_live_executor.LiveExecutorError, match="exact separately gated"):
         locomo_live_executor.validate_release_shape(plan, token, action=action)
 
 
@@ -168,18 +172,29 @@ def test_fixed_subset_dispatch_writes_only_one_complete_content_free_projection(
     artifact_root = tmp_path / "external-artifacts"
     artifact_root.mkdir()
     roots = {key: tmp_path / f"{key}.json" for key in plan.external_input_sha256}
-    for path in roots.values():
-        path.write_text("fixture-only", encoding="utf-8")
-    trace = tmp_path / "trace.json"
-    trace.write_text(json.dumps({
-        "schema_version": "trace-projection.v1",
-        "sources": [{"source_id": "source-1", "source_sha256": "f" * 64, "lifecycle": "active"}],
+    roots["corpus"].write_text("fixture-only", encoding="utf-8")
+    roots["dry_run_subset"].write_text("fixture-only", encoding="utf-8")
+    roots["turn_provenance"].write_text(json.dumps({
+        "schema_version": "locomo-provenance.v1",
+        "entries": [{"fingerprint": "a" * 64, "conversation_id": "locomo-1", "session_id": "session-1", "turn_ids": ["turn-2"]}],
     }), encoding="utf-8")
+    roots["session_provenance"].write_text(json.dumps({
+        "schema_version": "locomo-provenance.v1",
+        "entries": [{"fingerprint": "b" * 64, "conversation_id": "locomo-1", "session_id": "session-1", "turn_ids": ["turn-1", "turn-2", "turn-3"]}],
+    }), encoding="utf-8")
+    trace = tmp_path / "trace.json"
+    current = trace_projection.Source("source-1", "f" * 64)
+    trace.write_text(json.dumps(trace_projection.build_trace_projection(
+        (current,), (trace_projection.Projection("text-1", "source-1", "f" * 64, "text"),), {"warnings": []},
+    )), encoding="utf-8")
     parent_relations = tmp_path / "parent-relations.json"
     parent_relations.write_text(json.dumps({
         "schema_version": "locomo-parent-relation-proof.v1",
+        "turn_provenance_sha256": plan.external_input_sha256["turn_provenance"],
+        "session_provenance_sha256": plan.external_input_sha256["session_provenance"],
         "entries": [{
             "child_id": "turn-2", "parent_session_id": "session-1", "ordinal": 2, "trace_source_id": "source-1",
+            "turn_provenance_fingerprint": "a" * 64, "session_provenance_fingerprint": "b" * 64,
             "session_members": [
                 {"id": "turn-1", "ordinal": 1, "trace_source_id": "source-1"},
                 {"id": "turn-2", "ordinal": 2, "trace_source_id": "source-1"},
@@ -190,6 +205,7 @@ def test_fixed_subset_dispatch_writes_only_one_complete_content_free_projection(
     adapter = tmp_path / "locomo-cell-adapter"
     adapter.write_text("fixture-only", encoding="utf-8")
     adapter.chmod(0o700)
+    review = tmp_path / "review-evidence.json"
 
     token = _release(plan, action="fixed_subset_dry_run")
     token["integrated_git_sha"] = subprocess.check_output(
@@ -205,6 +221,15 @@ def test_fixed_subset_dispatch_writes_only_one_complete_content_free_projection(
         "parent_relation_proof": {"path": str(parent_relations), "sha256": "f" * 64},
     }
     token["cell_adapter"] = {"path": str(adapter), "sha256": "e" * 64}
+    token["review_evidence"] = {"path": str(review), "sha256": "0" * 64}
+    review.write_text(json.dumps({
+        "schema_version": "locomo-live-executor.review-evidence.v1", "verdict": "accepted",
+        "review_git_sha": token["independent_review_git_sha"], "release_id": token["release_id"],
+        "release_binding_sha256": locomo_live_executor.release_binding_sha256(token),
+        "integrated_git_sha": token["integrated_git_sha"], "phase_b_config_sha256": token["phase_b_config_sha256"],
+        "executor_config_sha256": token["executor_config_sha256"], "runner_sha256": token["runner_sha256"],
+    }), encoding="utf-8")
+    token["review_evidence"] = {"path": str(review), "sha256": "9" * 64}
     token["release_sha256"] = locomo_live_executor.release_sha256(token)
 
     def fixture_sha(path: Path) -> str:
@@ -214,6 +239,8 @@ def test_fixed_subset_dispatch_writes_only_one_complete_content_free_projection(
             return "d" * 64
         if path == parent_relations:
             return "f" * 64
+        if path == review:
+            return "9" * 64
         for key, root in roots.items():
             if path == root:
                 return plan.external_input_sha256[key]

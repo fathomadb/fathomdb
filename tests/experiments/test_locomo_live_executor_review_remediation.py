@@ -62,6 +62,23 @@ def _relations(*, turn_sha: str, session_sha: str) -> dict[str, object]:
     }
 
 
+def _action_projection(
+    plan: locomo_live_executor.LiveExecutorPlan, action_id: str, release: dict[str, object]
+) -> dict[str, object]:
+    action = plan.action(action_id)
+    results = [
+        locomo_live_executor.CellProjection(
+            cell_id=cell_id, mode=action.mode, external_metrics_ref=f"metrics-{index}",
+            external_metrics_sha256=f"{index:064x}",
+            metric_summary=locomo_live_executor.synthetic_metric_summary(
+                parent=next(cell for cell in plan.cells if cell.cell_id == cell_id).program_track == "PARENT-01"
+            ), parent_context=(),
+        )
+        for index, cell_id in enumerate(action.cell_ids)
+    ]
+    return locomo_live_executor.action_projection_document(plan, action, release, results)
+
+
 def test_trace_lifecycle_proof_requires_full_trace_01_schema_and_semantics(tmp_path):
     full = _sidecar()
     full_path = tmp_path / "trace.json"
@@ -105,8 +122,8 @@ def test_parent_relations_are_cryptographically_and_structurally_bound_to_canoni
 def test_full_grid_combiner_requires_same_release_config_and_exactly_52_unique_cells(tmp_path):
     plan = locomo_live_executor.load_config(json.loads(Path("experiments/configs/locomo-01/live-executor.v1.json").read_text()))
     release = {"release_id": "release-1", "release_sha256": "a" * 64, "executor_config_sha256": plan.config_sha256}
-    cpu = locomo_live_executor.synthetic_action_projection(plan, "cpu_grid", release)
-    gpu = locomo_live_executor.synthetic_action_projection(plan, "gpu_ce_grid", release)
+    cpu = _action_projection(plan, "cpu_grid", release)
+    gpu = _action_projection(plan, "gpu_ce_grid", release)
 
     combined = locomo_live_executor.combine_full_grid_projections(plan, release, cpu, gpu)
     assert combined["receipt_status"] == "complete"
@@ -114,7 +131,7 @@ def test_full_grid_combiner_requires_same_release_config_and_exactly_52_unique_c
     assert combined["result_count"] == 52
 
     gpu["release_sha256"] = "b" * 64
-    with pytest.raises(locomo_live_executor.LiveExecutorError, match="same release"):
+    with pytest.raises(locomo_live_executor.LiveExecutorError, match="same-release"):
         locomo_live_executor.combine_full_grid_projections(plan, release, cpu, gpu)
 
 

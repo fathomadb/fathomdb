@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from experiments import locomo_phase_b
+from experiments import locomo_phase_b, locomo_provenance, trace_projection
 
 
 SCHEMA_VERSION = "locomo-live-executor.v1"
@@ -37,7 +37,7 @@ _OUTPUT_KEYS = {"schema_version", "receipt_projection_schema", "repository_write
 _RELEASE_KEYS = {
     "schema_version", "release_id", "issued_by", "release_sha256", "integrated_git_sha",
     "phase_b_config_sha256", "executor_config_sha256", "runner_sha256", "independent_review_git_sha",
-    "authorizations", "approved_actions", "gpu_policy", "external_roots", "cell_adapter",
+    "authorizations", "approved_actions", "gpu_policy", "external_roots", "cell_adapter", "review_evidence",
 }
 _ROOT_KEYS = {
     "artifact_root", "corpus", "turn_provenance", "session_provenance", "dry_run_subset", "trace_projection",
@@ -46,7 +46,8 @@ _ROOT_KEYS = {
 _ARTIFACT_ROOT_KEYS = {"path", "binding_sha256"}
 _INPUT_ROOT_KEYS = {"path", "sha256"}
 _ADAPTER_KEYS = {"path", "sha256"}
-_GPU_POLICY_KEYS = {"cuda_required", "allow_cpu_fallback"}
+_GPU_POLICY_KEYS = {"cuda_required", "allow_cpu_fallback", "selected_device"}
+_REVIEW_EVIDENCE_KEYS = {"path", "sha256"}
 
 
 class LiveExecutorError(ValueError):
@@ -146,7 +147,8 @@ def _cell_ids_sha256(cell_ids: Sequence[str]) -> str:
     return _canonical_sha256(list(cell_ids))
 
 
-def _load_json(path: Path) -> object:
+def parse_adapter_json(value: str) -> dict[str, object]:
+    """Parse one adapter result with duplicate-key rejection before validation."""
     def reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
         document: dict[str, object] = {}
         for key, value in pairs:
@@ -156,8 +158,18 @@ def _load_json(path: Path) -> object:
         return document
 
     try:
-        return json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=reject_duplicate_keys)
-    except (OSError, json.JSONDecodeError) as exc:
+        document = json.loads(value, object_pairs_hook=reject_duplicate_keys)
+    except json.JSONDecodeError as exc:
+        raise LiveExecutorError("JSON input is invalid") from exc
+    if not isinstance(document, dict):
+        raise LiveExecutorError("JSON input must be an object")
+    return document
+
+
+def _load_json(path: Path) -> dict[str, object]:
+    try:
+        return parse_adapter_json(path.read_text(encoding="utf-8"))
+    except (OSError, LiveExecutorError) as exc:
         raise LiveExecutorError("required JSON document is unavailable or invalid") from exc
 
 
@@ -251,6 +263,17 @@ def release_sha256(release: object) -> str:
     return _canonical_sha256(unsigned)
 
 
+def release_binding_sha256(release: object) -> str:
+    """Hash the reviewed release binding without self-hash/evidence path cycles."""
+    if not isinstance(release, Mapping):
+        raise LiveExecutorError("release must be an object")
+    binding = {
+        key: value for key, value in release.items()
+        if key not in {"release_sha256", "review_evidence"}
+    }
+    return _canonical_sha256(binding)
+
+
 def validate_release_shape(plan: LiveExecutorPlan, release: object, *, action: str) -> dict[str, Any]:
     """Validate coordinator authority and immutable bindings before filesystem access."""
     token = _exact(release, "release", _RELEASE_KEYS)
@@ -272,9 +295,13 @@ def validate_release_shape(plan: LiveExecutorPlan, release: object, *, action: s
     _git_sha(token["independent_review_git_sha"], "release.independent_review_git_sha")
     if token["authorizations"] != ["seq-249", "seq-250"]:
         raise LiveExecutorError("release must retain both LOCOMO/PARENT authorizations")
-    if token["approved_actions"] != [action]:
-        raise LiveExecutorError("release must approve exactly one action gate")
-    expected_gpu_policy = {"cuda_required": action == "gpu_ce_grid", "allow_cpu_fallback": False}
+    expected_actions = ["fixed_subset_dry_run"] if action == "fixed_subset_dry_run" else ["cpu_grid", "gpu_ce_grid"]
+    if token["approved_actions"] != expected_actions:
+        raise LiveExecutorError("release must approve the exact separately gated action set")
+    expected_gpu_policy = {
+        "cuda_required": action != "fixed_subset_dry_run", "allow_cpu_fallback": False,
+        "selected_device": "cuda:0" if action != "fixed_subset_dry_run" else "cpu",
+    }
     if _exact(token["gpu_policy"], "release.gpu_policy", _GPU_POLICY_KEYS) != expected_gpu_policy:
         raise LiveExecutorError("GPU policy drifted from the frozen action gate")
     roots = _exact(token["external_roots"], "release.external_roots", _ROOT_KEYS)
@@ -294,6 +321,10 @@ def validate_release_shape(plan: LiveExecutorPlan, release: object, *, action: s
     if not isinstance(adapter["path"], str) or not Path(adapter["path"]).is_absolute():
         raise LiveExecutorError("cell adapter must be an absolute external path")
     _sha256(adapter["sha256"], "cell_adapter.sha256")
+    review_evidence = _exact(token["review_evidence"], "release.review_evidence", _REVIEW_EVIDENCE_KEYS)
+    if not isinstance(review_evidence["path"], str) or not Path(review_evidence["path"]).is_absolute():
+        raise LiveExecutorError("review evidence must be an absolute external path")
+    _sha256(review_evidence["sha256"], "review_evidence.sha256")
     return token
 
 
@@ -308,51 +339,90 @@ def _external_path(value: object, label: str, *, directory: bool) -> Path:
     return path
 
 
-def _active_trace_source_ids(path: Path, expected_sha256: str) -> set[str]:
+def load_trace_lifecycle_proof(path: Path, expected_sha256: str) -> set[str]:
+    """Validate the complete TRACE-01 schema before accepting active sources."""
     if _file_sha256(path) != expected_sha256:
         raise LiveExecutorError("TRACE lifecycle proof digest drifted")
     sidecar = _load_json(path)
-    if not isinstance(sidecar, Mapping) or sidecar.get("schema_version") != "trace-projection.v1":
-        raise LiveExecutorError("TRACE lifecycle proof is not a trace-projection.v1 sidecar")
-    sources = sidecar.get("sources")
-    if not isinstance(sources, list):
-        raise LiveExecutorError("TRACE lifecycle proof has no source inventory")
+    try:
+        trace_projection._validate_sidecar(sidecar)
+    except trace_projection.TraceProjectionError as exc:
+        raise LiveExecutorError(f"TRACE lifecycle proof is not a complete trace-projection.v1 sidecar: {exc}") from exc
+    sources = sidecar["sources"]
+    projections = sidecar["projections"]
+    assert isinstance(sources, list) and isinstance(projections, list)
     active: set[str] = set()
     for source in sources:
-        if not isinstance(source, Mapping) or set(source) != {"source_id", "source_sha256", "lifecycle"}:
-            raise LiveExecutorError("TRACE lifecycle source fields are unsafe")
-        source_id = _identifier(source["source_id"], "TRACE source_id")
-        _sha256(source["source_sha256"], "TRACE source_sha256")
+        assert isinstance(source, Mapping)
+        source_id = str(source["source_id"])
         if source["lifecycle"] == "active":
             active.add(source_id)
-        elif source["lifecycle"] not in {"superseded", "erased"}:
-            raise LiveExecutorError("TRACE lifecycle state is unsafe")
+    searchable_sources = {
+        str(projection["source_id"])
+        for projection in projections if isinstance(projection, Mapping) and projection["searchable"] is True
+    }
+    active &= searchable_sources
     if not active:
-        raise LiveExecutorError("TRACE lifecycle proof has no active sources")
+        raise LiveExecutorError("TRACE lifecycle proof has no active searchable sources")
     return active
 
 
-def _load_parent_relation_proof(
-    path: Path, expected_sha256: str, *, active_trace_source_ids: set[str]
+def _canonical_provenance_entries(path: Path, expected_sha256: str, *, label: str) -> dict[str, dict[str, object]]:
+    if _file_sha256(path) != expected_sha256:
+        raise LiveExecutorError(f"{label} manifest digest drifted")
+    document = _load_json(path)
+    try:
+        locomo_provenance.ProvenanceMap.from_document(document)
+    except ValueError as exc:
+        raise LiveExecutorError(f"{label} manifest is not canonical provenance") from exc
+    entries = document["entries"]
+    assert isinstance(entries, list)
+    resolved: dict[str, dict[str, object]] = {}
+    for raw in entries:
+        assert isinstance(raw, Mapping)
+        fingerprint = _sha256(raw["fingerprint"], f"{label} fingerprint")
+        if fingerprint in resolved:
+            raise LiveExecutorError(f"{label} manifest has duplicate fingerprints")
+        resolved[fingerprint] = {
+            "session_id": _identifier(raw["session_id"], f"{label} session_id"),
+            "turn_ids": tuple(_identifier(item, f"{label} turn_id") for item in raw["turn_ids"]),
+        }
+    return resolved
+
+
+def load_parent_relation_proof(
+    path: Path, expected_sha256: str, turn_manifest_path: Path, turn_manifest_sha256: str,
+    session_manifest_path: Path, session_manifest_sha256: str, *, active_trace_source_ids: set[str],
 ) -> dict[str, dict[str, object]]:
     """Load one hash-pinned, content-free parent/session membership inventory."""
     if _file_sha256(path) != expected_sha256:
         raise LiveExecutorError("parent membership/ordinal proof digest drifted")
     document = _load_json(path)
-    if not isinstance(document, Mapping) or set(document) != {"schema_version", "entries"}:
+    if set(document) != {"schema_version", "turn_provenance_sha256", "session_provenance_sha256", "entries"}:
         raise LiveExecutorError("parent membership/ordinal proof fields are unsafe")
-    if document["schema_version"] != "locomo-parent-relation-proof.v1" or not isinstance(document["entries"], list):
+    if (
+        document["schema_version"] != "locomo-parent-relation-proof.v1" or not isinstance(document["entries"], list)
+        or document["turn_provenance_sha256"] != turn_manifest_sha256
+        or document["session_provenance_sha256"] != session_manifest_sha256
+    ):
         raise LiveExecutorError("parent membership/ordinal proof schema is unsafe")
+    turn_entries = _canonical_provenance_entries(turn_manifest_path, turn_manifest_sha256, label="turn provenance")
+    session_entries = _canonical_provenance_entries(session_manifest_path, session_manifest_sha256, label="session provenance")
     relations: dict[str, dict[str, object]] = {}
     for raw in document["entries"]:
         entry = _exact(
             raw, "parent relation entry",
-            {"child_id", "parent_session_id", "ordinal", "trace_source_id", "session_members"},
+            {
+                "child_id", "parent_session_id", "ordinal", "trace_source_id", "turn_provenance_fingerprint",
+                "session_provenance_fingerprint", "session_members",
+            },
         )
         child_id = _identifier(entry["child_id"], "parent relation child_id")
         parent_session_id = _identifier(entry["parent_session_id"], "parent relation parent_session_id")
         ordinal = entry["ordinal"]
         trace_source_id = _identifier(entry["trace_source_id"], "parent relation trace_source_id")
+        turn_fingerprint = _sha256(entry["turn_provenance_fingerprint"], "parent relation turn provenance fingerprint")
+        session_fingerprint = _sha256(entry["session_provenance_fingerprint"], "parent relation session provenance fingerprint")
         if not isinstance(ordinal, int) or isinstance(ordinal, bool) or ordinal < 0:
             raise LiveExecutorError("parent relation ordinal is unsafe")
         if trace_source_id not in active_trace_source_ids:
@@ -376,6 +446,14 @@ def _load_parent_relation_proof(
             member_ordinals[member_ordinal] = member_id
         if member_ordinals.get(ordinal) != child_id or child_id in relations:
             raise LiveExecutorError("parent relation must prove each child membership and ordinal exactly once")
+        turn_entry = turn_entries.get(turn_fingerprint)
+        session_entry = session_entries.get(session_fingerprint)
+        if (
+            turn_entry is None or session_entry is None or turn_entry["session_id"] != parent_session_id
+            or turn_entry["turn_ids"] != (child_id,) or session_entry["session_id"] != parent_session_id
+            or session_entry["turn_ids"] != tuple(member_ordinals[index] for index in sorted(member_ordinals))
+        ):
+            raise LiveExecutorError("parent relation does not match canonical provenance membership/ordinal mapping")
         relations[child_id] = {
             "parent_session_id": parent_session_id, "ordinal": ordinal, "trace_source_id": trace_source_id,
             "member_ordinals": member_ordinals,
@@ -383,6 +461,60 @@ def _load_parent_relation_proof(
     if not relations:
         raise LiveExecutorError("parent membership/ordinal proof is empty")
     return relations
+
+
+def validate_review_evidence(
+    path: Path, expected_sha256: str, release: Mapping[str, object], *, release_binding_sha256: str,
+) -> None:
+    """Require an accepted review record bound to this exact release binding."""
+    if _file_sha256(path) != expected_sha256:
+        raise LiveExecutorError("review evidence digest drifted")
+    record = _load_json(path)
+    expected = {
+        "schema_version", "verdict", "review_git_sha", "release_id", "release_binding_sha256",
+        "integrated_git_sha", "phase_b_config_sha256", "executor_config_sha256", "runner_sha256",
+    }
+    if set(record) != expected or record["schema_version"] != "locomo-live-executor.review-evidence.v1":
+        raise LiveExecutorError("review evidence schema is unsafe")
+    if record["verdict"] != "accepted":
+        raise LiveExecutorError("review evidence verdict is not accepted")
+    for key in ("review_git_sha", "integrated_git_sha"):
+        _git_sha(record[key], f"review evidence {key}")
+    for key in ("release_binding_sha256", "phase_b_config_sha256", "executor_config_sha256", "runner_sha256"):
+        _sha256(record[key], f"review evidence {key}")
+    release_keys = {
+        "review_git_sha": "independent_review_git_sha", "release_id": "release_id",
+        "integrated_git_sha": "integrated_git_sha", "phase_b_config_sha256": "phase_b_config_sha256",
+        "executor_config_sha256": "executor_config_sha256", "runner_sha256": "runner_sha256",
+    }
+    for record_key, release_key in release_keys.items():
+        if record[record_key] != release[release_key]:
+            raise LiveExecutorError("review evidence does not bind the released review/configuration")
+    if record["release_binding_sha256"] != release_binding_sha256:
+        raise LiveExecutorError("review evidence does not bind the exact release")
+
+
+def require_cuda_device(selected_device: str) -> None:
+    """Check that the released CUDA device is actually enumerated on this host."""
+    if not isinstance(selected_device, str) or re.fullmatch(r"cuda:[0-9]+", selected_device) is None:
+        raise LiveExecutorError("selected CUDA device is unsafe")
+    try:
+        completed = subprocess.run(
+            ["nvidia-smi", "--query-gpu=index", "--format=csv,noheader"], check=False, text=True, capture_output=True,
+        )
+    except OSError as exc:
+        raise LiveExecutorError("selected CUDA device is unavailable") from exc
+    selected_index = selected_device.split(":", 1)[1]
+    devices = {line.strip() for line in completed.stdout.splitlines() if re.fullmatch(r"[0-9]+", line.strip())}
+    if completed.returncode != 0 or selected_index not in devices:
+        raise LiveExecutorError("selected CUDA device is unavailable")
+
+
+def validate_gpu_attestation(value: object, *, selected_device: str) -> None:
+    """Reject an adapter result that does not attest to the released CUDA device."""
+    attestation = _exact(value, "adapter GPU attestation", {"device", "cuda_available"})
+    if attestation != {"device": selected_device, "cuda_available": True}:
+        raise LiveExecutorError("adapter GPU attestation rejects CPU fallback or device drift")
 
 
 def validate_release(
@@ -409,14 +541,26 @@ def validate_release(
         if roots[key]["sha256"] != expected_sha or _file_sha256(path) != expected_sha:
             raise LiveExecutorError(f"{key} provenance or corpus digest drifted")
     trace_path = _external_path(roots["trace_projection"]["path"], "TRACE lifecycle proof", directory=False)
-    active_trace_sources = _active_trace_source_ids(trace_path, roots["trace_projection"]["sha256"])
+    active_trace_sources = load_trace_lifecycle_proof(trace_path, roots["trace_projection"]["sha256"])
     relation_path = _external_path(roots["parent_relation_proof"]["path"], "parent membership/ordinal proof", directory=False)
-    parent_relations = _load_parent_relation_proof(
-        relation_path, roots["parent_relation_proof"]["sha256"], active_trace_source_ids=active_trace_sources,
+    parent_relations = load_parent_relation_proof(
+        relation_path, roots["parent_relation_proof"]["sha256"],
+        _external_path(roots["turn_provenance"]["path"], "turn provenance", directory=False),
+        roots["turn_provenance"]["sha256"],
+        _external_path(roots["session_provenance"]["path"], "session provenance", directory=False),
+        roots["session_provenance"]["sha256"], active_trace_source_ids=active_trace_sources,
     )
     adapter = _external_path(token["cell_adapter"]["path"], "cell adapter", directory=False)
     if not os.access(adapter, os.X_OK) or _file_sha256(adapter) != token["cell_adapter"]["sha256"]:
         raise LiveExecutorError("cell adapter is unavailable or digest drifted")
+    review = token["review_evidence"]
+    assert isinstance(review, Mapping)
+    validate_review_evidence(
+        _external_path(review["path"], "review evidence", directory=False), review["sha256"], token,
+        release_binding_sha256=release_binding_sha256(token),
+    )
+    if action == "gpu_ce_grid":
+        require_cuda_device(str(token["gpu_policy"]["selected_device"]))
     return token, active_trace_sources, parent_relations
 
 
@@ -457,12 +601,14 @@ def _trace_ids_from_hits(hits: Sequence[object]) -> set[str]:
 
 def validate_cell_result(
     plan: LiveExecutorPlan, cell: locomo_phase_b.GridCell, result: object, *, active_trace_source_ids: set[str],
-    parent_relations: Mapping[str, Mapping[str, object]],
+    parent_relations: Mapping[str, Mapping[str, object]], selected_cuda_device: str | None = None,
 ) -> CellProjection:
     """Validate one adapter response and project only safe LOCOMO/PARENT evidence."""
     expected = {
         "schema_version", "cell_id", "mode", "external_metrics_ref", "external_metrics_sha256", "metric_summary",
     }
+    if cell.runtime["device"] == "gpu":
+        expected.add("device_attestation")
     if cell.program_track == "PARENT-01":
         expected.add("parent_hits")
     item = _exact(result, "cell result", expected)
@@ -472,6 +618,10 @@ def validate_cell_result(
         raise LiveExecutorError("adapter result mode is unsafe")
     _identifier(item["external_metrics_ref"], "external_metrics_ref")
     _sha256(item["external_metrics_sha256"], "external_metrics_sha256")
+    if cell.runtime["device"] == "gpu":
+        if selected_cuda_device is None:
+            raise LiveExecutorError("GPU result lacks a released selected CUDA device")
+        validate_gpu_attestation(item["device_attestation"], selected_device=selected_cuda_device)
     phase_result = locomo_phase_b.CellExecutionResult(
         cell_id=item["cell_id"], mode=item["mode"], external_metrics_ref=item["external_metrics_ref"],
         external_metrics_sha256=item["external_metrics_sha256"], metric_summary=item["metric_summary"],
@@ -525,25 +675,23 @@ def _projection_path(artifact_root: Path, release_id: str, action: LiveAction) -
     return artifact_root / release_id / action.action_id / "locomo-live-execution-projection.v1.json"
 
 
-def write_action_projection(
-    artifact_root: Path, *, release_id: str, release_sha: str, plan: LiveExecutorPlan, action: LiveAction,
-    results: Sequence[CellProjection],
-) -> Path:
-    """Write one external-only, content-free action projection after complete coverage."""
+def action_projection_document(
+    plan: LiveExecutorPlan, action: LiveAction, release: Mapping[str, object], results: Sequence[CellProjection],
+) -> dict[str, object]:
+    """Build one complete, content-free action document before any external write."""
     if len(results) != len(action.cell_ids):
         raise LiveExecutorError("action is not complete; it is not receipt/index eligible")
     if [result.cell_id for result in results] != list(action.cell_ids):
         raise LiveExecutorError("action results must be complete, ordered, and duplicate-free")
     if any(result.mode != action.mode for result in results):
         raise LiveExecutorError("action result modes drifted")
-    output_path = _projection_path(artifact_root, release_id, action)
-    if output_path.exists():
-        raise LiveExecutorError("duplicate action projection is forbidden")
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
+    return {
         "schema_version": PROJECTION_SCHEMA_VERSION,
-        "release_id": release_id,
-        "release_sha256": release_sha,
+        "release_id": release["release_id"],
+        "release_sha256": release["release_sha256"],
+        "phase_b_config_sha256": plan.phase_b_config_sha256,
+        "executor_config_sha256": plan.config_sha256,
+        "runner_sha256": plan.runner_sha256,
         "program_tracks": list(plan.program_tracks),
         "action": action.action_id,
         "mode": action.mode,
@@ -561,7 +709,83 @@ def write_action_projection(
             for result in results
         ],
     }
+
+
+def write_action_projection(
+    artifact_root: Path, *, release_id: str, release_sha: str, plan: LiveExecutorPlan, action: LiveAction,
+    results: Sequence[CellProjection],
+) -> Path:
+    """Write one external-only, content-free action projection after complete coverage."""
+    payload = action_projection_document(plan, action, {"release_id": release_id, "release_sha256": release_sha}, results)
+    output_path = _projection_path(artifact_root, release_id, action)
+    if output_path.exists():
+        raise LiveExecutorError("duplicate action projection is forbidden")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(payload, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    return output_path
+
+
+def _validate_action_projection(
+    plan: LiveExecutorPlan, action: LiveAction, release: Mapping[str, object], document: object,
+) -> list[dict[str, object]]:
+    expected = {
+        "schema_version", "release_id", "release_sha256", "phase_b_config_sha256", "executor_config_sha256",
+        "runner_sha256", "program_tracks", "action", "mode", "expected_question_count", "cell_ids", "result_count",
+        "receipt_status", "index_eligible", "results",
+    }
+    item = _exact(document, "action projection", expected)
+    if (
+        item["schema_version"] != PROJECTION_SCHEMA_VERSION or item["release_id"] != release["release_id"]
+        or item["release_sha256"] != release["release_sha256"] or item["phase_b_config_sha256"] != plan.phase_b_config_sha256
+        or item["executor_config_sha256"] != plan.config_sha256 or item["runner_sha256"] != plan.runner_sha256
+        or item["program_tracks"] != list(plan.program_tracks) or item["action"] != action.action_id or item["mode"] != action.mode
+        or item["expected_question_count"] != action.expected_question_count or item["cell_ids"] != list(action.cell_ids)
+        or item["result_count"] != len(action.cell_ids) or item["receipt_status"] != "not_eligible_until_cpu_and_gpu_actions_complete"
+        or item["index_eligible"] is not False or not isinstance(item["results"], list)
+    ):
+        raise LiveExecutorError("action projection is not a complete same-release/config full-grid component")
+    if [row.get("cell_id") if isinstance(row, Mapping) else None for row in item["results"]] != list(action.cell_ids):
+        raise LiveExecutorError("action projection has partial, duplicate, or reordered cells")
+    return [dict(row) for row in item["results"] if isinstance(row, Mapping)]
+
+
+def combine_full_grid_projections(
+    plan: LiveExecutorPlan, release: Mapping[str, object], cpu_projection: object, gpu_projection: object,
+) -> dict[str, object]:
+    """Close only one same-release, exact-52-cell full-grid evidence set."""
+    expected_actions = ["cpu_grid", "gpu_ce_grid"]
+    if release.get("approved_actions", expected_actions) != expected_actions:
+        raise LiveExecutorError("full-grid closure requires one release with both separate CPU/GPU gates")
+    cpu = _validate_action_projection(plan, plan.action("cpu_grid"), release, cpu_projection)
+    gpu = _validate_action_projection(plan, plan.action("gpu_ce_grid"), release, gpu_projection)
+    by_id = {row["cell_id"]: row for row in [*cpu, *gpu]}
+    if len(by_id) != 52 or set(by_id) != {cell.cell_id for cell in plan.cells}:
+        raise LiveExecutorError("full-grid closure requires exactly 52 unique complete result cells")
+    return {
+        "schema_version": "locomo-live-full-grid-projection.v1",
+        "release_id": release["release_id"], "release_sha256": release["release_sha256"],
+        "phase_b_config_sha256": plan.phase_b_config_sha256, "executor_config_sha256": plan.config_sha256,
+        "runner_sha256": plan.runner_sha256, "result_count": 52, "receipt_status": "complete",
+        "index_eligible": True, "results": [by_id[cell.cell_id] for cell in plan.cells],
+    }
+
+
+def finalize_full_grid(plan: LiveExecutorPlan, release: object) -> Path:
+    """Combine only the two same-release full-grid action projections externally."""
+    token, _, _ = validate_release(plan, release, action="gpu_ce_grid")
+    roots = token["external_roots"]
+    assert isinstance(roots, Mapping)
+    artifact_root = Path(roots["artifact_root"]["path"]).resolve()
+    cpu_path = _projection_path(artifact_root, str(token["release_id"]), plan.action("cpu_grid"))
+    gpu_path = _projection_path(artifact_root, str(token["release_id"]), plan.action("gpu_ce_grid"))
+    if not cpu_path.is_file() or not gpu_path.is_file():
+        raise LiveExecutorError("full-grid closure requires both complete same-release action projections")
+    output_path = artifact_root / str(token["release_id"]) / "full-grid" / "locomo-live-full-grid-projection.v1.json"
+    if output_path.exists():
+        raise LiveExecutorError("duplicate full-grid closure projection is forbidden")
+    combined = combine_full_grid_projections(plan, token, _load_json(cpu_path), _load_json(gpu_path))
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(combined, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     return output_path
 
 
@@ -603,12 +827,10 @@ def run_action(plan: LiveExecutorPlan, release: object, *, action: str) -> Path:
         )
         if completed.returncode != 0:
             raise LiveExecutorError("external cell adapter failed; no partial projection was written")
-        try:
-            result = json.loads(completed.stdout)
-        except json.JSONDecodeError as exc:
-            raise LiveExecutorError("external cell adapter did not return one safe JSON result") from exc
+        result = parse_adapter_json(completed.stdout)
         projection = validate_cell_result(
             plan, cell, result, active_trace_source_ids=active_trace_sources, parent_relations=parent_relations,
+            selected_cuda_device=str(token["gpu_policy"]["selected_device"]) if action == "gpu_ce_grid" else None,
         )
         if projection.mode != selected.mode:
             raise LiveExecutorError("adapter result mode does not match its released action")
@@ -630,6 +852,9 @@ def main(argv: list[str] | None = None) -> int:
     execute.add_argument("config", type=Path)
     execute.add_argument("release", type=Path)
     execute.add_argument("--action", required=True)
+    finalize = sub.add_parser("finalize-full-grid")
+    finalize.add_argument("config", type=Path)
+    finalize.add_argument("release", type=Path)
     args = parser.parse_args(argv)
     try:
         plan = load_config(_load_json(args.config))
@@ -641,6 +866,9 @@ def main(argv: list[str] | None = None) -> int:
                 "schema_version": "locomo-live-executor.preview.v1", "program_tracks": list(plan.program_tracks),
                 "actions": [{"id": item.action_id, "mode": item.mode, "cell_count": len(item.cell_ids)} for item in plan.actions],
             }, sort_keys=True))
+            return 0
+        if args.command == "finalize-full-grid":
+            finalize_full_grid(plan, _load_json(args.release))
             return 0
         run_action(plan, _load_json(args.release), action=args.action)
         return 0

@@ -45,10 +45,18 @@ the active-identifier correction from legacy `L0`/`T0` to
 expected environmental downgrade). No implementation or execution evidence was
 challenged.
 
-`PARENT-01` may consume the accepted trace contract in preparation but is not
-commissioned by this entry. The coordinator alone edits this board and PROGRAM
-state. This commission authorizes no corpus acquisition, live grid or smoke
-run, extractor, GPU/model, paid service, external write, or push.
+HITL authorization `seq-249` permits: the LOCOMO fixed-subset dry run and
+Phase-B CPU/FTS grid; LOCOMO GPU/CE cells; the SCALE TC-5 smoke and long CPU
+characterization; and CORPUS-01 corpus and human-gold work. These permissions
+do not commission a writer or replace the required frozen run configuration,
+worker handoff, review, safe receipt/index, or artifact boundaries. No paid
+service, extractor, push, or downstream ANSWER-01/MEMORY-01/SCALE-02 execution
+is authorized.
+
+`PARENT-01` may join the LOCOMO grid by HITL direction but is not commissioned:
+its exact child/parent relation, neighbor bound, fusion, and returned context
+remain a proposal for HITL approval. The coordinator alone edits this board and
+PROGRAM state.
 
 ## Track status
 
@@ -56,10 +64,10 @@ run, extractor, GPU/model, paid service, external write, or push.
 | --- | --- | --- | --- |
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
-| LOCOMO-01 | Active | Phase-A preparation integrated and cross-lane accepted | `4bbc1b4f` integrates accepted worker `65427d29`: six frozen treatment tuples, 48-cell plan-only catalog, and no live runner. Next gate: separately authorized fixed-subset dry run/execution preparation; no live grid is authorized here. |
-| PARENT-01 | Planned | Contract dependency satisfied; not commissioned | May consume the accepted trace contract in preparation; hold writer work behind the two-lane authorization. |
-| SCALE-01 | Planned | Manifest-runner preparation integrated and cross-lane accepted | `afbfeed2` integrates accepted worker `9997c2cd`: a pure TC-5 manifest validator and safe planning receipt. Next gate: separately authorized smoke/execution preparation; no live execution is authorized here. |
-| CORPUS-01 | Planned | Queued independent preparation | Create corpus/license matrix and human-gold readiness contract. |
+| LOCOMO-01 | Active | Execution authorization recorded; not yet commissioned | `seq-249` authorizes the fixed-subset dry run, Phase-B CPU/FTS grid, and GPU/CE cells. Next gate: commission a reviewed executable lane with frozen external inputs and receipts. |
+| PARENT-01 | Planned | Grid inclusion authorized; frozen treatment proposal pending | TRACE-01 dependency is satisfied and HITL directed that it join the LOCOMO grid. Next gate: approve the exact treatment, then commission preparation/implementation. |
+| SCALE-01 | Planned | Execution authorization recorded; not yet commissioned | `seq-249` authorizes the TC-5 smoke and long CPU characterization. Next gate: commission a reviewed executor with manifest, external-root, and host preflight evidence. |
+| CORPUS-01 | Planned | Corpus and gold-work authorization recorded; not yet commissioned | `seq-249` authorizes corpus/license matrix and human-gold work. Next gate: commission the preparation lane with external-data and licensing boundaries. |
 | ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |
 | MEMORY-01 | Blocked | Waiting for ANSWER-01 | Require selected profile, native prerequisites, and declared spend ceiling. |
 | SCALE-02 | Blocked | Waiting for SCALE-01 and selected profile | Freeze workload matrix and distinguish canonical from derived counts. |

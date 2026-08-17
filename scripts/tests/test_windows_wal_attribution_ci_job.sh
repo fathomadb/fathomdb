@@ -108,6 +108,12 @@ assert_contains "$CODE" 'tests::wal_attribution_reader_handoff_is_idle_before_ma
 assert_contains "$CODE" 'reader-handoff attribution command selected zero tests' "job rejects a zero-test reader-handoff invocation"
 assert_contains "$CODE" 'slice65_wal reader_handoff_idle_before_reply=passed' "job requires the reader-handoff artifact marker"
 assert_contains "$CODE" 'wal_attribution_reopen_recovery_reads_then_nested_erasure_are_idle' "job runs incident-shaped reopen control"
+assert_contains "$CODE" 'tests::wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation' "job selects the exact incident checkpoint ladder"
+assert_contains "$CODE" 'incident checkpoint ladder selected zero tests' "job rejects a zero-test incident checkpoint ladder invocation"
+assert_contains "$CODE" 'slice65_wal incident_ladder stage=old_close' "job requires the old-close incident ladder artifact"
+assert_contains "$CODE" 'slice65_wal incident_ladder stage=after_fresh_reads' "job requires the fresh-read incident ladder artifact"
+assert_contains "$CODE" 'slice65_wal incident_ladder runtime_probe_drop_ack' "job requires the runtime-probe actual-drop acknowledgement"
+assert_contains "$CODE" 'slice65_wal incident_ladder typed_erase_observation=wal_checkpoint' "job requires the typed incident erase observation"
 assert_contains "$CODE" 'wal_attribution_projection_worker_transaction_is_owned_then_idle' "job runs projection transaction control"
 assert_contains "$CODE" 'tests::wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic' "job selects the exact post-commit diagnostic control"
 assert_contains "$CODE" 'post-commit diagnostic command selected zero tests' "job rejects a zero-test post-commit diagnostic invocation"
@@ -185,6 +191,13 @@ for marker in \
   'owned_runtime_transaction' \
   'reader_handoff_idle_before_reply=passed' \
   'reopen_nested_serial=passed' \
+  'fn wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation' \
+  'incident_ladder stage=old_close' \
+  'incident_ladder stage=after_fresh_reads' \
+  'incident_ladder runtime_probe_drop_ack' \
+  'incident_ladder typed_erase_observation=wal_checkpoint' \
+  'RuntimeProbeRegistration' \
+  'runtime_probe_actual_drop' \
   'retained_materialized_idle=passed' \
   'projection_worker_transaction_ready' \
   'fn wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic' \
@@ -343,6 +356,28 @@ binding_child_body="$(python_function_body "$PY_CONTROL" "run_binding_child")"
 assert_contains "$binding_child_body" \
   'native._native_raw_wal_checkpoint_for_test(path)' \
   "fresh child calls the native FathomDB/Rusqlite checkpoint hook"
+incident_ladder_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation")"
+incident_erase_calls="$(grep -Fc 'fresh.engine.erase_source(' <<<"$incident_ladder_body" || true)"
+if [ "$incident_erase_calls" -eq 1 ]; then
+  pass "incident checkpoint ladder retains exactly one destructive erasure"
+else
+  fail "incident checkpoint ladder must retain exactly one destructive erasure; found $incident_erase_calls"
+fi
+assert_before_in_text \
+  "$incident_ladder_body" \
+  'incident_ladder_raw_checkpoint(&path, "old_close"' \
+  'let fresh = Engine::open(&path)' \
+  "incident ladder samples old-close before fresh open"
+assert_before_in_text \
+  "$incident_ladder_body" \
+  'incident_ladder_raw_checkpoint(&path, "after_fresh_reads"' \
+  'incident_ladder_runtime_probe_preflight(&path' \
+  "incident ladder samples fresh reads before runtime-probe preflight"
+assert_before_in_text \
+  "$incident_ladder_body" \
+  'incident_ladder_runtime_probe_preflight(&path' \
+  'fresh.engine.erase_source(' \
+  "incident ladder acknowledges its runtime probe before destructive erasure"
 for control in \
   wal_attribution_close_boundary_fresh_open_is_clean \
   wal_attribution_close_boundary_read_get_is_clean \

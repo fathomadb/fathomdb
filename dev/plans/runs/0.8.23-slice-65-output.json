@@ -76,6 +76,10 @@
         "review_round_1": "RED f2990514 strengthens the private handoff witness with a nonblocking caller-result channel: while the pre-send barrier is held, try_recv must be Empty, so public read_get has not returned. Release must then deliver the materialized record. The Windows contract selects this exact test, rejects a zero-test command, requires its fixed redacted artifact marker, and mutation-tests all three assertions. No SDK or product behavior changed."
       }
     },
+  "incident_ladder_follow_on": {
+    "commission": "Job 95323862568 observed the direct-Rust close-old/fresh-read_get/graph_neighbors nested-source erase fail closed with typed ErasureIncomplete at wal_checkpoint after five BUSY attempts and 25 frames. Replace the prior clean-erase expectation with one private test-only incident checkpoint ladder: independent raw samples after old close, after complete fresh-read direct inventory plus collector idle, and after an explicit RuntimeProbe actual-drop acknowledgement before the one destructive erase. Raw samples do not retry, relabel, or complete that erase. A BUSY pre-erasure raw sample requires fresh close/join, one same-process raw sample, and exactly one native FathomDB/Rusqlite fresh-child raw sample. RuntimeProbe lifecycle facts must be complete before any external classification. Installed-Python serial clean and direct-Rust typed incident facts are distinct; disposition remains UNATTRIBUTED and no remedy is selected.",
+    "status": "COMMISSIONED_NOT_YET_HOSTED"
+  },
   "remaining_controls": [
     "hosted Windows execution of the committed post-COMMIT acknowledgement diagnostic, exact inventory, bounded independent raw TRUNCATE samples, and conditional fresh-child probe after the existing held-reader fail-closed erase",
     "hosted Windows rerun that retains either released exact-first-erase observation as OBSERVED_EXPECTED_ERASURE_INCOMPLETE or OBSERVED_CLEAN_SERIAL_COMPLETION and then resolves and installs the single workspace-absolute current test-hooks wheel before the installed binding, retained-result, and current serial controls",

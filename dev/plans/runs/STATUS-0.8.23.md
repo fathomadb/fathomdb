@@ -33,6 +33,7 @@ candidate slices require explicit commission.
 | 40 | SCALE-CHARACTERIZATION — fixture-scoped scale characterization | SET_ASIDE by HITL — V2 runner work remains unintegrated; no measurements or characterization. Resume only after Slices 10, 20, and 70. |
 | 10 | CUDA-CONTRACT — CUDA environment, artifact contract, and protected runner gate | IN_PROGRESS — audited static contract; secure protected-route decision and trusted hardware witness remain open. |
 | 20 | CUDA-PACKAGE — CUDA package, rehearsal, and installed-artifact smokes | NOT_STARTED. |
+| 70 | TC5-VECTOR-STAGE — exact pre-fusion vector-stage controls for TC-5 | NOT_STARTED — reviewed design; begins after Slice 20 package/rehearsal evidence. |
 
 ## Immediate next action
 

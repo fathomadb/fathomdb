@@ -45,6 +45,45 @@ struct Manifest {
     index_digest: String,
     query_digest: String,
     seed_digest: String,
+    cuda_uuid: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct DeviceInfo {
+    uuid: String,
+    pci_bus_id: String,
+    name: String,
+    driver: String,
+    cuda_ordinal: u32,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum SelectedDevice {
+    Cpu,
+    Cuda(DeviceInfo),
+}
+
+impl SelectedDevice {
+    fn logical_label(&self) -> &'static str {
+        match self {
+            Self::Cpu => "cpu",
+            Self::Cuda(_) => "cuda:0",
+        }
+    }
+}
+
+/// Receives the preflight-selected device explicitly. It never consults an
+/// ambient device variable and must never call the ordinary downloading loader.
+trait CacheOnlyEmbedderFactory {
+    fn create(&self, device: &SelectedDevice, asset: &Path) -> Result<(), String>;
+}
+
+struct UnavailableCacheOnlyFactory;
+
+impl CacheOnlyEmbedderFactory for UnavailableCacheOnlyFactory {
+    fn create(&self, device: &SelectedDevice, _asset: &Path) -> Result<(), String> {
+        Err(format!("cache-only Candle factory is not linked for {}", device.logical_label()))
+    }
 }
 
 fn main() -> ExitCode {
@@ -73,11 +112,22 @@ fn run() -> Result<(), String> {
             &spec,
         );
     }
-    // A real selected-device cache-only Candle factory is intentionally required
-    // before any measurement. This executable never falls back to the ordinary
-    // loader, ambient device parsing, or a downloader.
-    Err("cache-only selected-device factory unavailable in this build; no measurement emitted"
-        .into())
+    let visible = discover_visible_cuda()?;
+    let selected = match select_device(&visible, manifest.cuda_uuid.as_deref()) {
+        Ok(selected) => selected,
+        Err(_) => {
+            return write_nonmeasurement(
+                &result_path,
+                "device_unavailable",
+                "device_preflight_failed",
+                &spec,
+            )
+        }
+    };
+    // This cannot fall through to an ordinary loader or a CPU fallback. A
+    // genuine selected-device cache-only factory is required before measuring.
+    UnavailableCacheOnlyFactory.create(&selected, Path::new(&manifest.model_asset))?;
+    Err("measurement executor unavailable in this build; no measurement emitted".into())
 }
 
 fn parse_args(args: impl Iterator<Item = String>) -> Result<(PathBuf, PathBuf), String> {
@@ -161,6 +211,55 @@ fn validate_manifest(manifest: &Manifest, spec: &Spec) -> Result<(), String> {
         return Err("qualified manifest pin or range mismatch".into());
     }
     Ok(())
+}
+
+fn select_device(
+    devices: &[DeviceInfo],
+    pinned_uuid: Option<&str>,
+) -> Result<SelectedDevice, String> {
+    if devices.is_empty() {
+        return Ok(SelectedDevice::Cpu);
+    }
+    let pinned_uuid = pinned_uuid.ok_or("visible CUDA requires a manifest UUID pin")?;
+    let matching: Vec<&DeviceInfo> =
+        devices.iter().filter(|device| device.uuid == pinned_uuid).collect();
+    if matching.len() != 1 {
+        return Err("visible CUDA mapping is ambiguous or does not match the pin".into());
+    }
+    Ok(SelectedDevice::Cuda(matching[0].clone()))
+}
+
+fn discover_visible_cuda() -> Result<Vec<DeviceInfo>, String> {
+    let output = match std::process::Command::new("nvidia-smi")
+        .args(["--query-gpu=uuid,pci.bus_id,name,driver_version", "--format=csv,noheader"])
+        .output()
+    {
+        Ok(output) if output.status.success() => output,
+        Ok(_) => return Err("nvidia-smi reported an unusable CUDA environment".into()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(_) => return Err("cannot preflight CUDA visibility".into()),
+    };
+    output
+        .stdout
+        .split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .enumerate()
+        .map(|(ordinal, line)| {
+            let text = std::str::from_utf8(line)
+                .map_err(|_| "invalid CUDA preflight output".to_string())?;
+            let fields: Vec<&str> = text.split(',').map(str::trim).collect();
+            if fields.len() != 4 || fields.iter().any(|field| field.is_empty()) {
+                return Err("ambiguous CUDA preflight output".to_string());
+            }
+            Ok(DeviceInfo {
+                uuid: fields[0].into(),
+                pci_bus_id: fields[1].into(),
+                name: fields[2].into(),
+                driver: fields[3].into(),
+                cuda_ordinal: ordinal as u32,
+            })
+        })
+        .collect()
 }
 
 fn is_digest(value: &str) -> bool {
@@ -269,6 +368,7 @@ mod tests {
             index_digest: "0".repeat(64),
             query_digest: "0".repeat(64),
             seed_digest: "invalid".into(),
+            cuda_uuid: None,
         };
         assert!(validate_manifest(&manifest, &spec).is_err());
     }

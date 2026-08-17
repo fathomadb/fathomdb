@@ -23,12 +23,13 @@ fi
 EOF
 chmod +x "$fake"
 
-AC013_V2_TEST_MODE=1 SCALE_OUTPUT_DIR="$tmp/out" AC013_RUNNER="$fake" CALLS="$calls" \
+out="$tmp/0.8.23-scale-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-raw"
+AC013_V2_TEST_MODE=1 SCALE_OUTPUT_DIR="$out" AC013_RUNNER="$fake" CALLS="$calls" \
   bash "$ROOT/scripts/perf-experiments/run-scale-ac013-matrix.sh"
 
 mapfile -t call_lines <"$calls"
-logs=("$tmp/out"/*.log)
-sidecars=("$tmp/out"/*.log.sha256)
+logs=("$out"/*.log)
+sidecars=("$out"/*.log.sha256)
 [ "${#call_lines[@]}" -eq 30 ]
 [ "${#logs[@]}" -eq 30 ]
 [ "${#sidecars[@]}" -eq 30 ]
@@ -37,7 +38,7 @@ for rows in 10000 100000 1000000; do
     awk -v r="$rows" -v t="$treatment" '$1 == r && $2 == t { count++ } END { exit count != 5 }' "$calls"
   done
 done
-for log in "$tmp/out"/*process_cold*.log; do
+for log in "$out"/*process_cold*.log; do
   grep -q 'treatment=process_cold' "$log"
   record="$(<"$log")"
   samples="${record#*samples_us=}"
@@ -45,7 +46,7 @@ for log in "$tmp/out"/*process_cold*.log; do
   IFS=, read -r -a values <<<"$samples"
   [ "${#values[@]}" -eq 1 ]
 done
-for log in "$tmp/out"/*warm*.log; do
+for log in "$out"/*warm*.log; do
   grep -q 'treatment=warm' "$log"
   record="$(<"$log")"
   samples="${record#*samples_us=}"

@@ -89,8 +89,12 @@ The matrix distinguishes the two evidence modes explicitly:
   example, `LOCOMO × knowledge_update` fails closed unless a v2 qualified
   manifest and a matching versioned `corpus-01-human-gold-amendment.v1` are
   both supplied. The amendment binds the matrix SHA, qualified-manifest SHA,
-  corpus/category pair, and an approval reference. It is a future
-  coordinator/HITL record, not created by this preparation lane.
+  corpus/category pair, and an approval reference. It also must have an exact,
+  matching entry in the content-free
+  `corpus-01-approved-amendment-registry.v1` supplied by the coordinator. A
+  `seq-N`-shaped string alone is never approval. The registry entry contains
+  only amendment SHA-256, corpus ID, category, and the same approval reference.
+  It is a future coordinator/HITL record, not created by this preparation lane.
 
 A broad agent-memory claim requires qualified evidence for every lifecycle
 category. Matrix intent, a registered recipe, or a pilot with a different
@@ -147,6 +151,10 @@ the specific source/split and qualify, outside this repository:
    human annotation metadata inherit a non-commercial restriction; and
 6. a versioned, review-accepted human-gold amendment if the selected category
    is unsupported natively by that corpus.
+7. a coordinator-supplied approved-amendment registry entry whose amendment
+   SHA-256, corpus/category pair, and steward `seq-N` reference exactly match
+   that amendment. The coordinator records any decision through `ledgerwrite`;
+   workers never hand-edit a ledger or invent a registry approval.
 
 These are factual gates, not permissions to acquire a new source or conduct a
 human review. New payloads, human work, or external artifacts still need the

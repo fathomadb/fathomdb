@@ -47,6 +47,19 @@ def _qualified_manifest(matrix: dict[str, object], protocol: dict[str, object]) 
     }
 
 
+def _approved_registry(amendment: dict[str, object]) -> dict[str, object]:
+    return {
+        "schema_version": "corpus-01-approved-amendment-registry.v1",
+        "registry_id": "corpus-01-approved-amendments",
+        "entries": [{
+            "amendment_sha256": corpus_matrix.canonical_sha256(amendment),
+            "corpus_id": amendment["corpus_id"],
+            "category": amendment["category"],
+            "approval_ref": amendment["approval_ref"],
+        }],
+    }
+
+
 def test_native_and_human_gold_eligibility_are_explicitly_distinct():
     matrix = _matrix()
 
@@ -88,14 +101,17 @@ def test_approved_amendment_is_the_only_route_that_qualifies_an_unsupported_pair
     qualified = corpus_matrix.validate_qualified_human_gold_manifest(
         manifest_document, matrix, protocol
     )
-    amendment = corpus_matrix.validate_human_gold_amendment({
+    amendment_document = {
         "schema_version": "corpus-01-human-gold-amendment.v1",
         "amendment_id": "corpus-01-locomo-knowledge-update-001",
         "matrix_sha256": corpus_matrix.canonical_sha256(matrix),
         "qualified_manifest_sha256": qualified.manifest_sha256,
         "corpus_id": "locomo", "category": "knowledge_update",
         "approval_ref": "seq-249", "eligibility": "approved_human_gold",
-    }, matrix, qualified)
+    }
+    amendment = corpus_matrix.validate_human_gold_amendment(
+        amendment_document, matrix, qualified, approved_registry=_approved_registry(amendment_document)
+    )
 
     eligibility = corpus_matrix.validate_evaluation_eligibility(
         matrix, corpus_id="locomo", category="knowledge_update", amendment=amendment

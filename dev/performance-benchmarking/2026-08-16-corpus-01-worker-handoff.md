@@ -40,9 +40,11 @@ Correction to the original handoff: its all-in-one commit did **not** contain a
 separately committed red checkpoint, so it must not be described as one. The
 review-remediation red checkpoint is committed at `572986b6`: its three tests
 failed with missing qualification APIs before this implementation. The focused
-suite now covers 16 cases. Re-run `./scripts/agent-lint-md.sh`, `git diff
---check`, and the full `./scripts/agent-verify.sh` after this remediation
-commit before integration.
+suite then covered 16 cases. The approval-registry red checkpoint is separately
+committed at `56fcc2ad`: a fabricated `seq-999999` amendment failed before the
+registry API existed. The focused suite now covers 17 cases. Re-run
+`./scripts/agent-lint-md.sh`, `git diff --check`, and the full
+`./scripts/agent-verify.sh` after this remediation commit before integration.
 
 ## Review focus
 
@@ -57,7 +59,11 @@ commit before integration.
 4. Check every selected corpus/category is bound to source-payload and license
    hashes, source/generator revision, class counts, exclusions, a permitted
    metric, paired-power artifact, and claim hash before human evidence counts.
-5. Check the strict schema choices against follow-on needs before allowing an
+5. Check a `seq-N` string cannot authorize an amendment by itself: the
+   coordinator-supplied registry must bind the exact amendment SHA-256 and
+   corpus/category pair. No worker should create a registry approval or
+   hand-edit the steward ledger.
+6. Check the strict schema choices against follow-on needs before allowing an
    external manifest writer. Any protocol revision must be versioned and
    review-gated, not silently relaxed.
 
@@ -67,4 +73,7 @@ The coordinator must select a source/split and establish its external license
 copy, upstream/generator pin, payload-root hash, selected-class counts,
 exclusions, metrics, paired power plan, and permitted redistribution posture.
 Only then can the authorized acquisition or human-review work receive its
-separate coordinator release. No integration was performed by this worker.
+separate coordinator release. For an unsupported pair, the coordinator must
+also record the relevant decision through `ledgerwrite` and supply the exact
+content-free approved-amendment registry entry. No integration was performed by
+this worker.

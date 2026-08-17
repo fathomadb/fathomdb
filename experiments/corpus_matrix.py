@@ -19,6 +19,7 @@ GOLD_MANIFEST_SCHEMA_VERSION = "corpus-01-human-gold-manifest.v1"
 QUALIFIED_PROTOCOL_SCHEMA_VERSION = "corpus-01-human-gold-protocol.v2"
 QUALIFIED_GOLD_MANIFEST_SCHEMA_VERSION = "corpus-01-human-gold-manifest.v2"
 HUMAN_GOLD_AMENDMENT_SCHEMA_VERSION = "corpus-01-human-gold-amendment.v1"
+APPROVED_AMENDMENT_REGISTRY_SCHEMA_VERSION = "corpus-01-approved-amendment-registry.v1"
 PROGRAM_TRACK = "CORPUS-01"
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -83,6 +84,8 @@ _AMENDMENT_KEYS = {
     "schema_version", "amendment_id", "matrix_sha256", "qualified_manifest_sha256", "corpus_id",
     "category", "approval_ref", "eligibility",
 }
+_APPROVED_REGISTRY_KEYS = {"schema_version", "registry_id", "entries"}
+_APPROVED_REGISTRY_ENTRY_KEYS = {"amendment_sha256", "corpus_id", "category", "approval_ref"}
 
 
 class CorpusMatrixError(ValueError):
@@ -152,6 +155,14 @@ class HumanGoldAmendment:
     corpus_id: str
     category: str
     qualified_manifest_sha256: str
+
+
+@dataclass(frozen=True)
+class ApprovedAmendmentRegistry:
+    """Content-free coordinator registry of exact approved amendment bindings."""
+
+    registry_sha256: str
+    entries: Mapping[str, tuple[str, str, str]]
 
 
 @dataclass(frozen=True)
@@ -535,7 +546,11 @@ def validate_qualified_human_gold_manifest(
 
 
 def validate_human_gold_amendment(
-    document: object, matrix_document: object, qualified_manifest: QualifiedHumanGoldManifest
+    document: object,
+    matrix_document: object,
+    qualified_manifest: QualifiedHumanGoldManifest,
+    *,
+    approved_registry: object,
 ) -> HumanGoldAmendment:
     """Validate the required versioned approval before human gold changes eligibility."""
     matrix = validate_matrix(matrix_document)
@@ -551,10 +566,42 @@ def validate_human_gold_amendment(
     entry, category = _matrix_entry(matrix, document["corpus_id"], document["category"])
     if (entry.corpus_id, category) not in qualified_manifest.corpus_categories:
         raise CorpusMatrixError("human-gold amendment pair lacks qualified evidence")
-    _require_approval_ref(document["approval_ref"])
+    approval_ref = _require_approval_ref(document["approval_ref"])
     if document["eligibility"] != "approved_human_gold":
         raise CorpusMatrixError("human-gold amendment eligibility must be approved_human_gold")
+    registry = validate_approved_amendment_registry(approved_registry)
+    amendment_sha = canonical_sha256(document)
+    approved = registry.entries.get(amendment_sha)
+    if approved is None:
+        raise CorpusMatrixError("human-gold amendment is absent from the approved-amendment registry")
+    if approved != (entry.corpus_id, category, approval_ref):
+        raise CorpusMatrixError("approved-amendment registry binding does not match the amendment")
     return HumanGoldAmendment(entry.corpus_id, category, qualified_manifest.manifest_sha256)
+
+
+def validate_approved_amendment_registry(document: object) -> ApprovedAmendmentRegistry:
+    """Validate exact, coordinator-supplied approvals without reading a ledger or payload."""
+    if not isinstance(document, dict) or set(document) != _APPROVED_REGISTRY_KEYS:
+        raise CorpusMatrixError("approved-amendment registry keys are invalid")
+    if document["schema_version"] != APPROVED_AMENDMENT_REGISTRY_SCHEMA_VERSION:
+        raise CorpusMatrixError("approved-amendment registry schema_version is invalid")
+    _require_identifier(document["registry_id"], "approved-amendment registry_id")
+    rows = document["entries"]
+    if not isinstance(rows, list):
+        raise CorpusMatrixError("approved-amendment registry entries must be a list")
+    entries: dict[str, tuple[str, str, str]] = {}
+    for row in rows:
+        if not isinstance(row, dict) or set(row) != _APPROVED_REGISTRY_ENTRY_KEYS:
+            raise CorpusMatrixError("approved-amendment registry entry keys are invalid")
+        amendment_sha = _require_sha(row["amendment_sha256"], "approved-amendment amendment_sha256")
+        if amendment_sha in entries:
+            raise CorpusMatrixError("approved-amendment registry amendment_sha256 must be unique")
+        corpus_id = _require_identifier(row["corpus_id"], "approved-amendment corpus_id")
+        category = _require_identifier(row["category"], "approved-amendment category")
+        if category not in _REQUIRED_CATEGORIES:
+            raise CorpusMatrixError("approved-amendment category is invalid")
+        entries[amendment_sha] = (corpus_id, category, _require_approval_ref(row["approval_ref"]))
+    return ApprovedAmendmentRegistry(canonical_sha256(document), entries)
 
 
 def validate_evaluation_eligibility(

@@ -656,8 +656,8 @@ jobs:
             Write-Error "installed-wheel serial comparison did not retain both released and current selectors"
             exit 1
           }
-          if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal python_binding_snapshot_released' -Quiet)) {
-            Write-Error "installed binding control did not reach its post-release checkpoint"
+          if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal python_binding_completion_ack reader_autocommit=1 collector=idle' -Quiet)) {
+            Write-Error "installed binding control did not retain direct reader completion acknowledgement"
             exit 1
           }
           if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal python_retained_materialized_idle=passed' -Quiet)) {

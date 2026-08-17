@@ -41,7 +41,7 @@
       "Windows retained artifact plus load-bearing workflow mutation test"
     ],
     "windows_execution": "PENDING: hosted Windows x64 first-party run has not yet completed",
-    "local_windows_vm": "NOT_RUN: dev/design/0.8.23-windows-local-environment.md documents manual guest-local NTFS staging over authenticated SSH/SCP and PowerShell/Git Bash. This checkout has no automation launcher and intentionally contains no guest credentials/address, so no guest run was attempted or claimed.",
+    "local_windows_vm": "ATTEMPTED 2026-08-16: committed source was staged in a unique guest-local C:\\ci directory. PowerShell failed before the focused cargo test because cargo was not recognized. Follow-up nonsecret checks found no PowerShell cargo command, no user Cargo binary, and no Git-Bash Cargo path; the guest's documented tools omit Rust/Cargo. Guest staging was removed. No local result/artifact is claimed.",
     "tdd": {
       "red_commit": "ce0e8a8e",
       "green_commit": "ae3b4b00",

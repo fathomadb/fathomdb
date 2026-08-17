@@ -42,6 +42,47 @@ FIXTURE="$TMPROOT/fixture"
 make_fixture "$FIXTURE"
 expect_pass "$FIXTURE" 'baseline release-ready contract agrees'
 
+# A canonical-route blocker has no reason to receive even a read-only
+# GITHUB_TOKEN: it performs no checkout or API call. The checker must accept
+# the explicit empty permission map and reject a mutation that mints a token.
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+start = text.index('  canonical-cuda-package-route-required:\n')
+end = text.index('  all-builds-passed:\n', start)
+block = text[start:end]
+needle = '    permissions:\n      contents: read\n'
+if block.count(needle) != 1:
+    raise SystemExit('fixture canonical CUDA blocker lacks its read-token permission')
+path.write_text(text[:start] + block.replace(needle, '    permissions: {}\n', 1) + text[end:])
+PY
+expect_pass "$FIXTURE" 'accepts a credentialless canonical CUDA route blocker'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+start = text.index('  canonical-cuda-package-route-required:\n')
+end = text.index('  all-builds-passed:\n', start)
+block = text[start:end]
+needle = '    permissions:\n      contents: read\n'
+if block.count(needle) != 1:
+    raise SystemExit('fixture canonical CUDA blocker lacks its read-token permission')
+credentialless = block.replace(needle, '    permissions: {}\n', 1)
+if credentialless.count('    permissions: {}\n') != 1:
+    raise SystemExit('fixture failed to create a credentialless canonical CUDA blocker')
+mutated = credentialless.replace('    permissions: {}\n', needle, 1)
+path.write_text(text[:start] + mutated + text[end:])
+PY
+expect_fail "$FIXTURE" 'rejects a canonical CUDA route blocker that mints a read token'
+
 # Slice 20: canonical/tag routes are deliberately blocked until a separately
 # owned canonical CUDA package route exists.  Build a compliant fixture first,
 # then prove mutations cannot remove, soften, or bypass that blocker.  The
@@ -59,8 +100,7 @@ text = path.read_text()
 blocker = '''  canonical-cuda-package-route-required:
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
-    permissions:
-      contents: read
+    permissions: {}
     steps:
       - name: Block uncommissioned canonical CUDA package route
         shell: bash

@@ -117,6 +117,12 @@
     "acceptance": "Held actual snapshot proves auto=0 and txn=read (busy may vary); stepped Rows/Statement proves busy 1 then reset/drop 0; post-release all twelve exact managed roles are received, auto=1, txn=none, busy=0. Missing, duplicate, wrong, unavailable, timeout, error, or lock failure emits state_inventory=incomplete, preserves sampler checkpoint outcome, and fails the diagnostic without classification upgrade.",
     "normal_serial_guard": "Only checkpoint_at_rest_for_test records ordered before/after state per sampler attempt. Direct-Rust and Python normal actual erasure serial observers remain untouched; static mutation tests reject any arm there. Fix-N restores their original boolean/autocommit runtime inventory and 2-second deadline; native state uses a separate 250-ms request slot created only by binding native_state_inventory_for_test.",
     "windows_execution": "PENDING: local source and disposable-wheel contract checks only; no hosted or guest Windows result for this enrichment. No production remedy is selected."
+  },
+  "managed_reader_fix_n": {
+    "hosted_job": "95358939125",
+    "truth": "The managed-reader positive retained the original typed ErasureIncomplete and five owned_reader_snapshot reader_worker:0 BUSY records, then the old test issued an invalid second erase after release and panicked on an unclassified 198/176 observation. This is test-design drift, not a native-state result, holder attribution, or remedy evidence.",
+    "series": "The enriched native-state series remains 0 / 3 fresh hosted-Windows measurements.",
+    "replacement": "Exactly one original erase; true post-finish owner-thread auto=1/collector-idle acknowledgement; exact complete twelve-role native inventory; and one bounded existing checkpoint_at_rest_for_test sampler with before/after full state per attempt and a recorded busy-or-clean terminal. Incomplete observation fails the diagnostic; busy never changes the original typed refusal."
   }
   },
   "fix_n": {

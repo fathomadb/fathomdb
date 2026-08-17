@@ -121,6 +121,8 @@ def main() -> int:
         '"$SCRIPT_DIR/gitleaks-current.sh"',
         "check-gitleaks-history.py",
         'git clone --mirror "$repo" "$history_repo"',
+        'empty_ignore="$scan_root/empty-ignore"',
+        ': >"$empty_ignore"',
         "--ignore-gitleaks-allow",
         '--gitleaks-ignore-path "$empty_ignore"',
         '--log-opts="--all"',
@@ -128,7 +130,15 @@ def main() -> int:
         "--report-template",
         "--report-path",
     )
-    forbidden = ("--baseline-path", "--exit-code 0", ".gitleaksignore")
+    forbidden = (
+        "--baseline-path",
+        "--exit-code 0",
+        ".gitleaksignore",
+        "--config",
+        "--enable-rule",
+        "--allowlist",
+        "global-allowlist",
+    )
     def guard_contract(text: str) -> bool:
         return all(token in text for token in required) and not any(
             token in text for token in forbidden
@@ -156,6 +166,20 @@ def main() -> int:
     failures += expect(
         not guard_contract(history_text.replace('git clone --mirror "$repo" "$history_repo"', "", 1)),
         "history guard contract rejects a deleted isolated-source boundary",
+    )
+    failures += expect(
+        not guard_contract(
+            history_text.replace(': >"$empty_ignore"', 'printf %s nonempty >"$empty_ignore"', 1)
+        ),
+        "history guard contract rejects a nonempty owned ignore initialization",
+    )
+    failures += expect(
+        not guard_contract(history_text + "\n--config unreviewed.toml\n"),
+        "history guard contract rejects an unreviewed scanner config input",
+    )
+    failures += expect(
+        not guard_contract(history_text + "\n--allowlist unreviewed.txt\n"),
+        "history guard contract rejects an unreviewed global allowlist input",
     )
 
     print(f"{len(records)} safe fixture records, {len(manifest['entries'])} fingerprints")

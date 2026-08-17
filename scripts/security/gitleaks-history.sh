@@ -16,7 +16,7 @@ trap 'rm -rf "$scan_root"' EXIT
 safe_report="$scan_root/safe-report"
 history_repo="$scan_root/history.git"
 empty_ignore="$scan_root/empty-ignore"
-: >"$empty_ignore"
+printf '%s' nonempty >"$empty_ignore"
 
 if ! git clone --mirror "$repo" "$history_repo" >"$scan_root/mirror-output" 2>&1; then
   printf '%s\n' 'gitleaks-history: could not create isolated history scan source' >&2

@@ -131,6 +131,62 @@ def _map_per_hit_explain(p: Any) -> PerHitExplain:
     )
 
 
+def _map_open_report(native: Any) -> OpenReport:
+    """Map one native open-time snapshot into the public Python contract."""
+
+    device_resolution = native.embedder_device_resolution
+    return OpenReport(
+        schema_version_before=native.schema_version_before,
+        schema_version_after=native.schema_version_after,
+        migration_steps=[
+            MigrationStepReport(
+                step_id=step.step_id,
+                duration_ms=step.duration_ms,
+                failed=step.failed,
+            )
+            for step in native.migration_steps
+        ],
+        embedder_warmup_ms=native.embedder_warmup_ms,
+        query_backend=native.query_backend,
+        default_embedder=EmbedderIdentity(
+            name=native.default_embedder.name,
+            revision=native.default_embedder.revision,
+            dimension=native.default_embedder.dimension,
+        ),
+        embedder_download_ms=native.embedder_download_ms,
+        embedder_events=list(native.embedder_events),
+        embedder_mean_centering_required=native.embedder_mean_centering_required,
+        embedder_mean_vec_pinned=native.embedder_mean_vec_pinned,
+        dense_disabled=native.dense_disabled,
+        dense_disabled_reason=native.dense_disabled_reason,
+        embedder_device_resolution=(
+            None
+            if device_resolution is None
+            else DeviceResolution(
+                requested_policy=device_resolution.requested_policy,
+                cuda_compiled=device_resolution.cuda_compiled,
+                effective_device=EffectiveEmbedDevice(
+                    kind=cast(Literal["cpu", "cuda"], device_resolution.effective_device.kind),
+                    cuda_device=(
+                        None
+                        if device_resolution.effective_device.cuda_device is None
+                        else CudaDeviceInfo(
+                            ordinal=device_resolution.effective_device.cuda_device.ordinal,
+                            name=device_resolution.effective_device.cuda_device.name,
+                            driver_version=device_resolution.effective_device.cuda_device.driver_version,
+                            compute_capability=device_resolution.effective_device.cuda_device.compute_capability,
+                            cuda_toolkit_version=(
+                                device_resolution.effective_device.cuda_device.cuda_toolkit_version
+                            ),
+                        )
+                    ),
+                ),
+                reason=device_resolution.reason,
+            )
+        ),
+    )
+
+
 class Engine:
     """Python handle that wraps the native PyO3 engine."""
 
@@ -727,65 +783,7 @@ class Engine:
         the report is a snapshot from open time, not live state.
         """
 
-        native = self._native.open_report()
-        device_resolution = native.embedder_device_resolution
-        return OpenReport(
-            schema_version_before=native.schema_version_before,
-            schema_version_after=native.schema_version_after,
-            migration_steps=[
-                MigrationStepReport(
-                    step_id=step.step_id,
-                    duration_ms=step.duration_ms,
-                    failed=step.failed,
-                )
-                for step in native.migration_steps
-            ],
-            embedder_warmup_ms=native.embedder_warmup_ms,
-            query_backend=native.query_backend,
-            default_embedder=EmbedderIdentity(
-                name=native.default_embedder.name,
-                revision=native.default_embedder.revision,
-                dimension=native.default_embedder.dimension,
-            ),
-            embedder_download_ms=native.embedder_download_ms,
-            embedder_events=list(native.embedder_events),
-            embedder_mean_centering_required=native.embedder_mean_centering_required,
-            embedder_mean_vec_pinned=native.embedder_mean_vec_pinned,
-            dense_disabled=native.dense_disabled,
-            dense_disabled_reason=native.dense_disabled_reason,
-            embedder_device_resolution=(
-                None
-                if device_resolution is None
-                else DeviceResolution(
-                    requested_policy=device_resolution.requested_policy,
-                    cuda_compiled=device_resolution.cuda_compiled,
-                    effective_device=EffectiveEmbedDevice(
-                        kind=cast(
-                            Literal["cpu", "cuda"],
-                            device_resolution.effective_device.kind,
-                        ),
-                        cuda_device=(
-                            None
-                            if device_resolution.effective_device.cuda_device is None
-                            else CudaDeviceInfo(
-                                ordinal=device_resolution.effective_device.cuda_device.ordinal,
-                                name=device_resolution.effective_device.cuda_device.name,
-                                driver_version=(
-                                    device_resolution.effective_device.cuda_device.driver_version
-                                ),
-                                compute_capability=(
-                                    device_resolution.effective_device.cuda_device.compute_capability
-                                ),
-                                cuda_toolkit_version=(
-                                    device_resolution.effective_device.cuda_device.cuda_toolkit_version
-                                ),
-                            )
-                        ),
-                    ),
-                    reason=device_resolution.reason,
-                )
-            ),
-        )
+        return _map_open_report(self._native.open_report())
 
     def counters(self) -> CounterSnapshot:
         snap = self._native.counters()

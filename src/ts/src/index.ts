@@ -15,6 +15,7 @@ import {
   type NativeEmbedderDeviceResolution,
   type NativeEmbedderEvent,
   type NativeEngine,
+  type NativeOpenReport,
   type NativePerHitExplain,
 } from "./binding.js";
 import { InvalidArgumentError, InvalidFilterError, rethrowTyped } from "./errors.js";
@@ -807,6 +808,30 @@ function mapDeviceResolution(
   };
 }
 
+/**
+ * @internal Map the native open-time snapshot into the public SDK shape.
+ * Kept separate so the binding contract is testable without a CUDA host.
+ */
+export function mapOpenReport(r: NativeOpenReport): OpenReport {
+  return {
+    schemaVersionBefore: r.schemaVersionBefore,
+    schemaVersionAfter: r.schemaVersionAfter,
+    migrationSteps: r.migrationSteps,
+    embedderWarmupMs: r.embedderWarmupMs,
+    queryBackend: r.queryBackend,
+    defaultEmbedder: r.defaultEmbedder,
+    embedderDownloadMs: r.embedderDownloadMs,
+    embedderEvents: r.embedderEvents.map(mapEmbedderEvent),
+    embedderMeanCenteringRequired: r.embedderMeanCenteringRequired,
+    embedderMeanVecPinned: r.embedderMeanVecPinned,
+    denseDisabled: r.denseDisabled,
+    denseDisabledReason: r.denseDisabledReason ?? null,
+    embedderDeviceResolution: r.embedderDeviceResolution
+      ? mapDeviceResolution(r.embedderDeviceResolution)
+      : null,
+  };
+}
+
 export interface CounterSnapshot {
   queries: number;
   writes: number;
@@ -1435,26 +1460,7 @@ export class Engine {
   }
 
   openReport(): OpenReport {
-    return interceptSync(() => {
-      const r = this.#native.openReport();
-      return {
-        schemaVersionBefore: r.schemaVersionBefore,
-        schemaVersionAfter: r.schemaVersionAfter,
-        migrationSteps: r.migrationSteps,
-        embedderWarmupMs: r.embedderWarmupMs,
-        queryBackend: r.queryBackend,
-        defaultEmbedder: r.defaultEmbedder,
-        embedderDownloadMs: r.embedderDownloadMs,
-        embedderEvents: r.embedderEvents.map(mapEmbedderEvent),
-        embedderMeanCenteringRequired: r.embedderMeanCenteringRequired,
-        embedderMeanVecPinned: r.embedderMeanVecPinned,
-        denseDisabled: r.denseDisabled,
-        denseDisabledReason: r.denseDisabledReason ?? null,
-        embedderDeviceResolution: r.embedderDeviceResolution
-          ? mapDeviceResolution(r.embedderDeviceResolution)
-          : null,
-      };
-    });
+    return interceptSync(() => mapOpenReport(this.#native.openReport()));
   }
 
   setProfiling(enabled: boolean): void {

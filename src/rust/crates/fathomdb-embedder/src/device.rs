@@ -1,17 +1,13 @@
-//! Shared device-request parsing for the Candle backends (embedder + reranker).
+//! Legacy device-request parsing for the Candle reranker only.
 //!
-//! Both the default embedder (`candle_bge`, `FATHOMDB_EMBED_DEVICE`) and the
-//! default reranker (`candle_reranker`, `FATHOMDB_RERANK_DEVICE`) accept the
-//! SAME device grammar (`cpu` | `cuda` | `cuda:N` | `metal`). Keeping ONE pure
-//! parser here — independent of which Candle features are compiled in — avoids
-//! the two paths drifting apart and lets the grammar be unit-tested without a
-//! GPU or a feature build. The (feature- and hardware-dependent) mapping from a
-//! request to an actual `candle_core::Device` stays in each backend's own
-//! `resolve_device`, because the embedder and reranker are gated on independent
-//! features (`embed-cuda` vs `rerank-cuda`).
+//! The default embedder and ONNX use `device_policy`'s strict
+//! `auto|cpu|cuda:N` grammar. This module deliberately retains the earlier
+//! `cpu|cuda|cuda:N|metal` parser only for `FATHOMDB_RERANK_DEVICE`, whose
+//! optional cross-encoder path still reports a loud CPU fallback. It must not
+//! be reused for embedding.
 //!
-//! Compiled whenever EITHER Candle path is on (`default-embedder` or
-//! `default-reranker`); the thin no-feature build pulls in none of this.
+//! Compiled only with `default-reranker`; the thin no-feature build pulls in
+//! none of this.
 
 /// A parsed device request, independent of which backends are compiled in.
 /// Keeping the env-grammar parse PURE (no `Device` construction, no `#[cfg]`
@@ -29,9 +25,8 @@ pub(crate) enum DeviceRequest {
     Unknown(String),
 }
 
-/// Parse a device env var (`FATHOMDB_EMBED_DEVICE` / `FATHOMDB_RERANK_DEVICE`)
-/// into a [`DeviceRequest`]. Pure + total: case-insensitive, trims surrounding
-/// whitespace, and never panics.
+/// Parse `FATHOMDB_RERANK_DEVICE` into a [`DeviceRequest`]. Pure + total:
+/// case-insensitive, trims surrounding whitespace, and never panics.
 pub(crate) fn parse_device_request(raw: &str) -> DeviceRequest {
     let requested = raw.trim().to_ascii_lowercase();
     if requested.is_empty() || requested == "cpu" {
@@ -51,8 +46,7 @@ pub(crate) fn parse_device_request(raw: &str) -> DeviceRequest {
 
 #[cfg(test)]
 mod device_request_tests {
-    //! R-GPU-1 — pin the device grammar shared by `FATHOMDB_EMBED_DEVICE` and
-    //! `FATHOMDB_RERANK_DEVICE`. These exercise the PURE parse
+    //! Pin the legacy reranker-only `FATHOMDB_RERANK_DEVICE` grammar. These exercise the PURE parse
     //! (`parse_device_request`), not either backend's `resolve_device`, so they
     //! run on the default (CPU) build with no GPU and no
     //! `embed-cuda`/`embed-metal`/`rerank-cuda`/`rerank-metal` feature. The
@@ -103,7 +97,7 @@ mod device_request_tests {
 
     #[test]
     fn unrecognized_is_a_named_unknown() {
-        // Honored as a loud CPU fallback in each `resolve_device`, never silent.
+        // The reranker resolves unknown values to a loud CPU fallback.
         assert_eq!(parse_device_request("rocm"), DeviceRequest::Unknown("rocm".to_string()));
         assert_eq!(parse_device_request("gpu"), DeviceRequest::Unknown("gpu".to_string()));
     }

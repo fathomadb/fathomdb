@@ -112,7 +112,8 @@ mod nomic;
 // 0.8.16 Slice 10 (ADR-0.8.16-onnx-embedder-backend) — cross-vendor ONNX
 // Runtime BGE-small embedder. Behind its own NON-default `onnx-embedder`
 // feature so the thin default build pulls in zero ONNX code/deps; injected
-// by the caller via `EmbedderChoice::Caller` (zero engine change).
+// by the caller via `EmbedderChoice::CallerWithDeviceResolution` so the
+// engine records the resolved ONNX session outcome.
 #[cfg(feature = "onnx-embedder")]
 mod ort_bge;
 

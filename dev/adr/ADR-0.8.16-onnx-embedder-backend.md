@@ -15,9 +15,9 @@ ONNX decision).
 ## 1. Context
 
 candle reaches only CPU / CUDA / Metal — **no ROCm / Vulkan / DirectML / OpenVINO** — so AMD and Intel
-GPUs are unreachable through it. `fathomdb-embedder/Cargo.toml:64-68` already anticipates the fix: the
-cross-vendor path is "a separate `impl Embedder` (ONNX-Runtime) via `EmbedderChoice::Caller`." This is
-was structurally out-of-band at its 0.8.16 landing (zero engine change), but is scheduled here — not early-OOB — because it is (a)
+GPUs are unreachable through it. `fathomdb-embedder/Cargo.toml` already anticipates the fix: the
+cross-vendor path is a separate `impl Embedder` (ONNX-Runtime). It was structurally out-of-band at its
+0.8.16 landing, but is scheduled here — not early-OOB — because it is (a)
 low-urgency reach-hardware and (b) it manufactures the cross-backend numeric-divergence hazard that
 0.8.18's #5 vector-equivalence guard exists to catch, so the two land back-to-back.
 
@@ -36,11 +36,12 @@ low-urgency reach-hardware and (b) it manufactures the cross-backend numeric-div
 - **Feature gating:** a new `onnx-embedder` Cargo feature pulling optional `ort` (+ tokenizer/loader deps),
   mirroring `default-embedder`'s `dep:` gating so the thin `default = []` build stays ML-free (EMB-3
   wheel-size gate). No new dep in the default build.
-- **Device selection (R-ONNX-2):** reuse the backend-agnostic `parse_device_request`
-  (`fathomdb-embedder/src/device.rs`) for `FATHOMDB_EMBED_DEVICE` grammar parity; add an ONNX-specific
-  `resolve_device()` sibling that maps `DeviceRequest → ORT execution provider` (CUDA / ROCm / DirectML /
-  OpenVINO / CPU), with a LOUD stderr fallback to CPU when a provider is unavailable (as candle's does).
-  Selection happens at `Engine::open` via config/env — not compile-only.
+- **Device selection (R-ONNX-2, amended by Slice 70):** ONNX uses the same strict
+  `FATHOMDB_EMBED_DEVICE` policy as the default embedder: exactly `auto`, `cpu`, or `cuda:N`.
+  `auto` may report a typed CPU outcome after CUDA is unavailable; `cpu` never probes CUDA; `cuda:N`
+  fails open rather than becoming a CPU session. The retired shared `DeviceRequest` parser and its
+  CPU/Metal/provider grammar apply only to the legacy reranker control, not embedding. Selection
+  happens at `Engine::open` via config/env — not compile-only.
 
 ## 3. Equivalence measurement & interim guard (R-ONNX-1, R-ONNX-3 → 0.8.18 #5)
 

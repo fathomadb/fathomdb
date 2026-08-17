@@ -34,16 +34,17 @@ network access. Everything below is opt-in at build time.
 | `default-embedder` | `CandleBgeEmbedder` — the pinned default (`fathomdb-bge-small-en-v1.5`, 384 dimensions) on the [candle](https://github.com/huggingface/candle) runtime — plus `NomicEmbedder` (768 dimensions) and the `loader` module. |
 | `onnx-embedder` | `OrtBgeEmbedder`, the same BGE model under ONNX Runtime, carrying its own distinct embedder identity (`fathomdb-bge-small-en-v1.5-onnx`). Useful where the candle stack is not viable. |
 | `default-reranker` | `CandleTinyBertReranker` (`fathomdb-ms-marco-TinyBERT-L2-v2`) — cross-encoder scoring of `(query, passage)` pairs. |
-| `embed-cuda` / `embed-metal` | GPU execution for the embedder. |
+| `embed-cuda` / `embed-metal` | Candle GPU build support. The public embedder policy currently selects CUDA only. |
 | `rerank-cuda` / `rerank-metal` | GPU execution for the reranker. |
 
 GPU features are build-time opt-ins. The embedder policy is selected at runtime
 only through `FATHOMDB_EMBED_DEVICE`: `auto` (the default), `cpu`, or
 `cuda:N`. On a CUDA-capable artifact, `auto` selects a compatible visible CUDA
-device or records a typed CPU fallback; `cpu` never initializes CUDA; and
+device or records a typed CPU outcome; `cpu` never initializes CUDA; and
 `cuda:N` fails rather than falling back. CPU-only artifacts report
-`cuda_not_compiled` for `auto`. `FATHOMDB_RERANK_DEVICE` is separate and does
-not select the embedder.
+`cuda_not_compiled` for `auto`. `FATHOMDB_RERANK_DEVICE` is separate: its
+legacy `cpu|cuda|cuda:N|metal` grammar and loud CPU fallback apply only to the
+reranker, never the embedder.
 
 ## Weight loading
 

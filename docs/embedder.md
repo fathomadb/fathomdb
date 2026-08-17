@@ -117,7 +117,8 @@ deterministic path — nothing below changes that. GPU acceleration is an opt-in
 **build-and-eval accelerator** whose largest win is bulk embedding (initial
 ingest, re-indexing, offline evaluation).
 
-Scope note: when you opt in (`FATHOMDB_EMBED_DEVICE=cuda|metal`), that device is
+Scope note: when you opt in (`FATHOMDB_EMBED_DEVICE=auto` or `cuda:N`), the
+resolved device is
 used for **all** embedding that engine instance performs — both ingest **and** the
 per-query embedding of the query string (the engine embeds the query on the same
 device the embedder was opened with). What stays **CPU-only / 1-bit (Hamming) /
@@ -131,19 +132,25 @@ Two things turn it on, both off by default:
 
 1. **A cargo feature** selects the backend at build time:
    - `embed-cuda` — NVIDIA CUDA (needs the CUDA toolkit, e.g. 12.6).
-   - `embed-metal` — Apple Metal.
+   - `embed-metal` — retained build support; the public Slice 70 selection
+     policy currently does not expose a Metal request.
    Build the Python extension on the **main checkout** (never a worktree):
    `maturin develop --features pyo3/extension-module,embed-cuda`.
 2. **The `FATHOMDB_EMBED_DEVICE` environment variable** selects the device at
-   runtime: `cpu` (default) · `cuda` · `cuda:N` (GPU N) · `metal`. The device is
-   resolved once, when the engine opens. If a GPU device is requested but the
-   build lacks the matching feature, or device init fails, the embedder falls
-   back to CPU and prints a **loud** stderr warning (it never silently runs 100×
-   slower).
+   runtime: `auto` (default) · `cpu` · `cuda:N` (GPU N). The device is resolved
+   once, when the engine opens and the result is exposed in `OpenReport`.
+   `auto` probes CUDA and records a typed CPU result when CUDA is unavailable;
+   `cpu` never probes CUDA; `cuda:N` is forced and fails open if it cannot be
+   used. Bare `cuda`, `metal`, whitespace/case variants, and other spellings are
+   configuration errors — embedding never silently changes a forced GPU request
+   into CPU execution.
 
-The device is **not** part of the embedder identity — there is no new API on
-either the Python or TypeScript binding; the surface is the feature flag plus the
-env var, and the default (CPU) behavior is identical across both bindings.
+The device is **not** part of the embedder identity. Python and TypeScript expose
+the resolved open-time evidence as `embedder_device_resolution` /
+`embedderDeviceResolution`; selection remains the environment variable rather
+than a new binding-specific setting. `FATHOMDB_RERANK_DEVICE` is separate:
+it retains its legacy `cpu|cuda|cuda:N|metal` grammar and loud CPU fallback for
+the optional cross-encoder reranker only.
 
 ### Measured speedup
 

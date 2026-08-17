@@ -687,10 +687,11 @@ The lifecycle / erasure verbs raise `IllegalTransitionError`,
 ## Embedder device (GPU)
 
 There is **no Python API** for selecting the embedder device — it is chosen by a
-build-time cargo feature (`embed-cuda` / `embed-metal`) plus the
-`FATHOMDB_EMBED_DEVICE` environment variable (`cpu` default · `cuda` · `cuda:N` ·
-`metal`), resolved when the engine opens. The default (CPU) behavior is
-unchanged. See [Default Embedder → GPU acceleration](../embedder.md#gpu-acceleration-opt-in).
+build-time `embed-cuda` feature plus the `FATHOMDB_EMBED_DEVICE` environment
+variable (`auto` default · `cpu` · `cuda:N`), resolved when the engine opens.
+`auto` records a typed CPU result when CUDA is unavailable; forced `cuda:N`
+fails rather than falling back. See
+[Default Embedder → GPU acceleration](../embedder.md#gpu-acceleration-opt-in).
 
 ## See also
 

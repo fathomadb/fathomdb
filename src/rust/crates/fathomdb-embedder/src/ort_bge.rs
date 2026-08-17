@@ -2,11 +2,10 @@
 //!
 //! A caller-supplied `impl fathomdb_embedder_api::Embedder`, sibling of
 //! `candle_bge` / `nomic`, that produces `BAAI/bge-small-en-v1.5` vectors
-//! (dim 384) through the `ort` ONNX-Runtime binding. Injected purely via
-//! `EmbedderChoice::Caller(Arc::new(OrtBgeEmbedder::…))` — the engine never
-//! names it, so there is ZERO engine change (ADR-0.8.16-onnx-embedder-backend
-//! §2). The `Default` variant stays candle-only, preserving the footprint
-//! invariant.
+//! (dim 384) through the `ort` ONNX-Runtime binding. A caller injects it via
+//! `EmbedderChoice::CallerWithDeviceResolution` so the engine records its final
+//! session/provider outcome without naming a concrete ONNX implementation. The
+//! `Default` variant stays candle-only, preserving the footprint invariant.
 //!
 //! ONNX Runtime is an opt-in backend behind the NON-default `onnx-embedder`
 //! Cargo feature, so the thin default build gains zero dependencies

@@ -315,7 +315,7 @@ export interface NativeEmbedderDeviceResolution {
   reason: string | null;
 }
 
-interface NativeOpenReport {
+export interface NativeOpenReport {
   schemaVersionBefore: number;
   schemaVersionAfter: number;
   migrationSteps: NativeMigrationStepReport[];

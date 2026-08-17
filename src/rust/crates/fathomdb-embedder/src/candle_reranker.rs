@@ -45,18 +45,18 @@ use sha2::{Digest, Sha256};
 use thiserror::Error;
 use tokenizers::{Tokenizer, TruncationParams};
 
-// 0.8.12 — the device grammar (`cpu`|`cuda`|`cuda:N`|`metal`) is shared with the
-// embedder via `crate::device`; the reranker reads its OWN env knob
+// The legacy reranker-only grammar (`cpu`|`cuda`|`cuda:N`|`metal`) comes from
+// `crate::device`. Embedding instead uses `device_policy`'s strict
+// `auto|cpu|cuda:N` grammar. The reranker reads its OWN env knob
 // (`FATHOMDB_RERANK_DEVICE`) and gates GPU on its OWN features
-// (`rerank-cuda`/`rerank-metal`), so embedder and reranker placement stay
-// independent. `DeviceRequest` is used by `resolve_device` only under a GPU
-// feature; allow it to be unused on the default CPU build.
+// (`rerank-cuda`/`rerank-metal`). `DeviceRequest` is used by `resolve_device`
+// only under a GPU feature; allow it to be unused on the default CPU build.
 #[cfg_attr(not(any(feature = "rerank-cuda", feature = "rerank-metal")), allow(unused_imports))]
 use crate::device::{parse_device_request, DeviceRequest};
 
-/// Env var selecting the reranker compute device (default CPU). Mirrors the
-/// embedder's `FATHOMDB_EMBED_DEVICE` but is a SEPARATE knob so the CE reranker
-/// and the embedder can target different devices independently.
+/// Env var selecting the legacy reranker compute device (default CPU). It is a
+/// SEPARATE knob from the embedder policy, so the CE reranker and the embedder
+/// can target different devices independently.
 pub(crate) const ENV_RERANK_DEVICE: &str = "FATHOMDB_RERANK_DEVICE";
 
 /// Resolve the candle device for the CE reranker from `FATHOMDB_RERANK_DEVICE`
@@ -64,8 +64,8 @@ pub(crate) const ENV_RERANK_DEVICE: &str = "FATHOMDB_RERANK_DEVICE";
 /// only honored when the corresponding feature (`rerank-cuda` / `rerank-metal`)
 /// is compiled in; otherwise (or on init failure) it falls back to CPU and emits
 /// a LOUD stderr warning rather than silently running on CPU when GPU was
-/// requested (the silent-slow-fallback trap). Mirrors the embedder's
-/// `resolve_device` exactly, differing only in the env var + feature gates.
+/// requested (the silent-slow-fallback trap). This legacy reranker policy is
+/// intentionally distinct from the embedder's strict resolver.
 ///
 /// When neither GPU feature is on, this compiles down to "always CPU" — so the
 /// default `default-reranker` build is byte-identical to the prior hard-coded

@@ -72,7 +72,10 @@ fn main() {
         std::env::var("GPU_SPEEDUP_DOCS").ok().and_then(|s| s.parse().ok()).unwrap_or(2000);
     let batch: usize =
         std::env::var("GPU_SPEEDUP_BATCH").ok().and_then(|s| s.parse().ok()).unwrap_or(64);
-    let device = std::env::var("FATHOMDB_EMBED_DEVICE").unwrap_or_else(|_| "cpu (default)".into());
+    let device = std::env::var("FATHOMDB_EMBED_DEVICE").unwrap_or_else(|_| {
+        "auto (unset; CPU-only artifacts report cuda_not_compiled; CUDA artifacts select GPU or typed CPU)"
+            .into()
+    });
 
     eprintln!("== gpu_speedup ==");
     eprintln!("FATHOMDB_EMBED_DEVICE = {device}");

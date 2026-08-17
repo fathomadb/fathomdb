@@ -13,6 +13,7 @@ import { Engine } from "../src/index.js";
 import {
   CorruptionError,
   DatabaseLockedError,
+  EmbedDevicePolicyError,
   EmbedderDimensionMismatchError,
   EmbedderError,
   EmbedderIdentityMismatchError,
@@ -21,6 +22,7 @@ import {
   FathomDbError,
   InvalidArgumentError,
   KindNotVectorIndexedError,
+  rethrowTyped,
   VectorError,
   WriteValidationError,
 } from "../src/errors.js";
@@ -114,6 +116,28 @@ test("EmbedderRequiredError initializes its typed configuration payload", () => 
   assert.deepEqual(err.remediations, remediations);
   assert.equal(err.documentationUrl, "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED");
   assert.ok(err instanceof EmbedderError);
+});
+
+test("EmbedDevicePolicyError rehydrates the native policy envelope", () => {
+  assert.throws(
+    () =>
+      rethrowTyped(
+        new Error(
+          JSON.stringify({
+            code: "FDB_EMBED_DEVICE_POLICY",
+            message: "CUDA support is not compiled into this executable",
+            payload: { kind: "cuda_not_compiled", ordinal: 2 },
+          }),
+        ),
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof EmbedDevicePolicyError);
+      assert.ok(error instanceof EmbedderError);
+      assert.equal(error.kind, "cuda_not_compiled");
+      assert.equal(error.ordinal, 2);
+      return true;
+    },
+  );
 });
 
 test("KindNotVectorIndexedError is a distinct leaf under VectorError", () => {

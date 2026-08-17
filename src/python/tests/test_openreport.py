@@ -16,7 +16,10 @@ Spec refs:
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from fathomdb import Engine
+from fathomdb.engine import _map_open_report
 
 
 def test_open_report_returns_native_fields(db_path: str) -> None:
@@ -62,6 +65,51 @@ def test_open_report_is_idempotent(db_path: str) -> None:
             assert a.failed == b.failed
     finally:
         engine.close()
+
+
+def test_open_report_exposes_absent_device_resolution_without_an_embedder(db_path: str) -> None:
+    """No configured embedder has no runtime-device selection to report."""
+
+    engine = Engine.open(db_path)
+    try:
+        report = engine.open_report()
+        assert report.embedder_device_resolution is None
+    finally:
+        engine.close()
+
+
+def test_open_report_maps_present_auto_cpu_device_resolution() -> None:
+    """A present native resolution retains requested, effective, and reason facts."""
+
+    native = SimpleNamespace(
+        schema_version_before=1,
+        schema_version_after=1,
+        migration_steps=[],
+        embedder_warmup_ms=0,
+        query_backend="sqlite",
+        default_embedder=SimpleNamespace(name="test", revision="test", dimension=384),
+        embedder_download_ms=None,
+        embedder_events=[],
+        embedder_mean_centering_required=False,
+        embedder_mean_vec_pinned=False,
+        dense_disabled=False,
+        dense_disabled_reason=None,
+        embedder_device_resolution=SimpleNamespace(
+            requested_policy="auto",
+            cuda_compiled=True,
+            effective_device=SimpleNamespace(kind="cpu", cuda_device=None),
+            reason="cuda_probe_failed",
+        ),
+    )
+
+    resolution = _map_open_report(native).embedder_device_resolution
+
+    assert resolution is not None
+    assert resolution.requested_policy == "auto"
+    assert resolution.cuda_compiled is True
+    assert resolution.effective_device.kind == "cpu"
+    assert resolution.effective_device.cuda_device is None
+    assert resolution.reason == "cuda_probe_failed"
 
 
 def test_open_signature_returns_engine_handle(db_path: str) -> None:

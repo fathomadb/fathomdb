@@ -14,6 +14,7 @@ from fathomdb import Engine
 from fathomdb.errors import (
     CorruptionError,
     DatabaseLockedError,
+    EmbedDevicePolicyError,
     EmbedderDimensionMismatchError,
     EmbedderError,
     EmbedderNotConfiguredError,
@@ -64,6 +65,13 @@ def test_embedder_not_configured_is_distinct_leaf_under_embedder_error() -> None
     assert isinstance(err, EmbedderError)
     assert isinstance(err, EngineError)
     assert EmbedderNotConfiguredError is not EmbedderError
+
+
+def test_embed_device_policy_error_has_typed_policy_fields() -> None:
+    err = EmbedDevicePolicyError(kind="cuda_not_compiled", ordinal=2)
+    assert err.kind == "cuda_not_compiled"
+    assert err.ordinal == 2
+    assert isinstance(err, EmbedderError)
 
 
 def test_kind_not_vector_indexed_is_distinct_leaf_under_vector_error() -> None:

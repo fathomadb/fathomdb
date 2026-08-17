@@ -35,7 +35,11 @@ use candle_transformers::models::bert::{BertModel, Config as BertConfig};
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use tokenizers::{Tokenizer, TruncationParams};
 
-use crate::loader::{load_pinned_default_embedder, EmbedderLoadError, LoadedWeights, HF_REVISION};
+use crate::{
+    loader::{load_pinned_default_embedder, EmbedderLoadError, LoadedWeights, HF_REVISION},
+    resolve_embed_device_policy_from_env, CudaDeviceInfo, CudaProbeError, CudaProvider,
+    DeviceResolution, EffectiveEmbedDevice, EmbedDevicePolicyError,
+};
 
 /// Engine-facing identity name (per
 /// `dev/plans/prompts/0.7.1-EMBEDDER-UNDEFER-HANDOFF.md` §0.5). EU-5 will
@@ -102,59 +106,57 @@ pub struct CandleBgeEmbedder {
     pooling: Pooling,
 }
 
-// 0.8.12 — the device-request grammar (`DeviceRequest` + `parse_device_request`)
-// moved to the shared `crate::device` module so the embedder and reranker resolve
-// `cpu`|`cuda`|`cuda:N`|`metal` through ONE pure parser. `resolve_device` below
-// (the feature- and hardware-dependent request→`Device` mapping) stays here.
-use crate::device::{parse_device_request, DeviceRequest};
-
-/// Resolve the candle device from `FATHOMDB_EMBED_DEVICE` (default CPU).
+/// Candle's concrete CUDA probe used by the default embedder.
 ///
-/// Accepts `cpu` | `cuda` | `cuda:N` | `metal`. GPU variants are only honored when
-/// the corresponding feature (`embed-cuda` / `embed-metal`) is compiled in; otherwise
-/// (or on init failure) it falls back to CPU and emits a LOUD stderr warning rather
-/// than silently running 100x slower on CPU when GPU was requested (the
-/// silent-slow-fallback trap). Device is NOT part of `EmbedderIdentity` — see
-/// `dev/design/0.8.1-embedder-gpu-and-portability.md` §3 on cross-backend vector
-/// equivalence (a 0.8.x guard).
-#[allow(clippy::print_stderr)] // construction-time error path only (not in `embed()`)
-fn resolve_device() -> Device {
-    match parse_device_request(&std::env::var("FATHOMDB_EMBED_DEVICE").unwrap_or_default()) {
-        DeviceRequest::Cpu => Device::Cpu,
-        DeviceRequest::Cuda(_idx) => {
-            #[cfg(feature = "embed-cuda")]
-            match Device::new_cuda(_idx) {
-                Ok(d) => return d,
-                Err(e) => eprintln!(
-                    "fathomdb-embedder: FATHOMDB_EMBED_DEVICE=cuda:{_idx} but CUDA init failed ({e}); using CPU"
-                ),
-            }
-            #[cfg(not(feature = "embed-cuda"))]
-            eprintln!(
-                "fathomdb-embedder: FATHOMDB_EMBED_DEVICE=cuda requested but this build lacks the `embed-cuda` feature; using CPU"
-            );
-            Device::Cpu
+/// A successful result means Candle initialized the requested ordinal and a
+/// one-element allocation on it succeeded. The returned report intentionally
+/// contains only metadata safe for product diagnostics.
+struct CandleCudaProvider;
+
+impl CudaProvider for CandleCudaProvider {
+    fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError> {
+        #[cfg(feature = "embed-cuda")]
+        {
+            let device = Device::new_cuda(ordinal)
+                .map_err(|error| CudaProbeError::ProbeFailed { message: error.to_string() })?;
+            Tensor::zeros(1, DType::F32, &device)
+                .map_err(|error| CudaProbeError::ProbeFailed { message: error.to_string() })?;
+            Ok(CudaDeviceInfo {
+                ordinal,
+                name: None,
+                driver_version: None,
+                compute_capability: None,
+                cuda_toolkit_version: None,
+            })
         }
-        DeviceRequest::Metal => {
-            #[cfg(feature = "embed-metal")]
-            match Device::new_metal(0) {
-                Ok(d) => return d,
-                Err(e) => eprintln!(
-                    "fathomdb-embedder: FATHOMDB_EMBED_DEVICE=metal but Metal init failed ({e}); using CPU"
-                ),
-            }
-            #[cfg(not(feature = "embed-metal"))]
-            eprintln!(
-                "fathomdb-embedder: FATHOMDB_EMBED_DEVICE=metal requested but this build lacks the `embed-metal` feature; using CPU"
-            );
-            Device::Cpu
+
+        #[cfg(not(feature = "embed-cuda"))]
+        {
+            let _ = ordinal;
+            Err(CudaProbeError::ProbeFailed {
+                message: "the default embedder was built without CUDA".to_string(),
+            })
         }
-        DeviceRequest::Unknown(req) => {
-            eprintln!(
-                "fathomdb-embedder: FATHOMDB_EMBED_DEVICE={req} not recognized (expected cpu|cuda|cuda:N|metal); using CPU"
-            );
-            Device::Cpu
-        }
+    }
+}
+
+/// Resolve the product `FATHOMDB_EMBED_DEVICE` policy for one default
+/// embedder construction.
+///
+/// This is the only ambient-policy read on the Candle default path. Callers
+/// receive a typed outcome; forced CUDA is never downgraded to CPU.
+pub fn resolve_default_embedder_device_from_env() -> Result<DeviceResolution, EmbedDevicePolicyError>
+{
+    let mut provider = CandleCudaProvider;
+    resolve_embed_device_policy_from_env(cfg!(feature = "embed-cuda"), &mut provider)
+}
+
+fn device_from_resolution(resolution: &DeviceResolution) -> Result<Device, EmbedderLoadError> {
+    match &resolution.effective_device {
+        EffectiveEmbedDevice::Cpu => Ok(Device::Cpu),
+        EffectiveEmbedDevice::Cuda(info) => Device::new_cuda(info.ordinal).map_err(|error| {
+            EmbedderLoadError::DeviceInitialization { message: error.to_string() }
+        }),
     }
 }
 
@@ -166,8 +168,11 @@ impl CandleBgeEmbedder {
     /// Per `dev/design/embedder.md` §8 this constructor asserts the host is
     /// little-endian (safetensors layout assumption).
     pub fn new() -> Result<Self, EmbedderLoadError> {
+        let resolution = resolve_default_embedder_device_from_env().map_err(|error| {
+            EmbedderLoadError::DeviceInitialization { message: error.to_string() }
+        })?;
         let weights = load_pinned_default_embedder()?;
-        Self::new_from_weights(weights)
+        Self::new_from_weights_with_device_resolution(weights, &resolution)
     }
 
     /// EU-5b — construct from already-fetched weights. The engine path
@@ -175,6 +180,19 @@ impl CandleBgeEmbedder {
     /// `bytes_downloaded` + `events` into `OpenReport`), then hands the
     /// `LoadedWeights` to this constructor.
     pub fn new_from_weights(weights: LoadedWeights) -> Result<Self, EmbedderLoadError> {
+        let resolution = resolve_default_embedder_device_from_env().map_err(|error| {
+            EmbedderLoadError::DeviceInitialization { message: error.to_string() }
+        })?;
+        Self::new_from_weights_with_device_resolution(weights, &resolution)
+    }
+
+    /// Construct from already-fetched weights and one prior strict device
+    /// resolution. Engine open uses this after resolving the ambient policy,
+    /// so the report and the constructed backend have one shared selection.
+    pub fn new_from_weights_with_device_resolution(
+        weights: LoadedWeights,
+        resolution: &DeviceResolution,
+    ) -> Result<Self, EmbedderLoadError> {
         // Design §8: safetensors are little-endian; we never run on BE.
         // Tightened in EU-5d follow-up from a debug_assert into a
         // compile-time error so BE builds fail at `cargo build` rather
@@ -220,11 +238,11 @@ impl CandleBgeEmbedder {
             }))
             .map_err(|e| EmbedderLoadError::TokenizerLoad { source: e })?;
 
-        // 3. mmap safetensors and build a BertModel via VarBuilder.
-        // Device is resolved from FATHOMDB_EMBED_DEVICE (default CPU); GPU backends
-        // are compiled in only under the `embed-cuda`/`embed-metal` features, so the
-        // default build is byte-identical CPU. `embed()` already runs on `self.device`.
-        let device = resolve_device();
+        // 3. mmap safetensors and build a BertModel on the previously resolved
+        // backend. This cannot perform an ambient fallback: `resolution` is the
+        // sole selection input and forced CUDA has already either succeeded or
+        // returned a typed policy error.
+        let device = device_from_resolution(resolution)?;
         let vb = unsafe {
             VarBuilder::from_mmaped_safetensors(
                 &[weights.model_safetensors_path.as_path() as &Path],
@@ -253,16 +271,11 @@ impl CandleBgeEmbedder {
         self
     }
 
-    /// The EFFECTIVE candle device this embedder resolved to at construction,
+    /// The EFFECTIVE candle device selected by the strict resolution at construction,
     /// as a stable label (`"cpu"` / `"cuda:N"` / `"metal:N"`).
     ///
-    /// Additive read-only accessor (0.8.18 U3 calibration): candle selects its
-    /// device from `FATHOMDB_EMBED_DEVICE` via [`resolve_device`], which falls
-    /// back to CPU (with a LOUD warning) when the requested GPU backend is not
-    /// compiled in (no `embed-cuda`/`embed-metal`) or fails to initialize. The
-    /// cross-backend calibration harness records this so a silent CPU fallback
-    /// of a `cuda:0`-requested leg is captured as DATA (effective ≠ requested ⇒
-    /// the leg is treated as skipped, never mislabeled GPU). Does not change the
+    /// A forced CUDA policy never produces this value as CPU: it returns a
+    /// typed error before model construction. This accessor does not change the
     /// embedder identity (device is not part of `EmbedderIdentity`).
     #[must_use]
     pub fn device_label(&self) -> String {
@@ -398,6 +411,6 @@ impl CandleBgeEmbedder {
     }
 }
 
-// 0.8.12 — the pure-parse R-GPU-1 grammar tests moved with the parser to the
-// shared `crate::device` module (`device_request_tests`); they now cover both
-// `FATHOMDB_EMBED_DEVICE` and `FATHOMDB_RERANK_DEVICE` from one place.
+// The legacy reranker-only parser tests remain in `crate::device`. Strict
+// embedder-policy tests live in `device_policy`; the two controls do not share
+// a grammar or fallback contract.

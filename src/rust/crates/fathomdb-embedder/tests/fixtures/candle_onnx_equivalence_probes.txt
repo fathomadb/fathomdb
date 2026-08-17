@@ -56,7 +56,7 @@ FathomDB stores un-centered L2-normalized embeddings and centers them in the eng
 The ONNX backend reaches AMD ROCm, Intel OpenVINO, and Windows DirectML that the candle default cannot.
 Same-backend build-and-read discipline is the interim guard until the vector-equivalence tolerance is enforced.
 The one-bit sign-quantization flip rate is the number that actually threatens retrieval fidelity in this library.
-A caller supplies an ONNX embedder purely through EmbedderChoice::Caller, so the engine never names it and there is zero engine change.
+A caller supplies an ONNX embedder through EmbedderChoice::CallerWithDeviceResolution, so OpenReport records its final device outcome without the engine naming the concrete ONNX implementation.
 Both backends load the same pinned bge-small-en-v1.5 weights, so a gross divergence signals an export or pooling bug rather than benign numeric noise.
 Cross-encoder reranking with pool_n=10 and alpha=1.0 lifted MRR from 0.347 to 0.587 on the memory-parity benchmark.
 

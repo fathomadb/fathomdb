@@ -295,7 +295,27 @@ export interface NativeEmbedderEvent {
   docCount?: number | null;
 }
 
-interface NativeOpenReport {
+export interface NativeCudaDeviceInfo {
+  ordinal: number;
+  name: string | null;
+  driverVersion: string | null;
+  computeCapability: string | null;
+  cudaToolkitVersion: string | null;
+}
+
+export interface NativeEffectiveEmbedDevice {
+  kind: string;
+  cudaDevice: NativeCudaDeviceInfo | null;
+}
+
+export interface NativeEmbedderDeviceResolution {
+  requestedPolicy: string;
+  cudaCompiled: boolean;
+  effectiveDevice: NativeEffectiveEmbedDevice;
+  reason: string | null;
+}
+
+export interface NativeOpenReport {
   schemaVersionBefore: number;
   schemaVersionAfter: number;
   migrationSteps: NativeMigrationStepReport[];
@@ -309,6 +329,7 @@ interface NativeOpenReport {
   // 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-6).
   denseDisabled: boolean;
   denseDisabledReason: string | null;
+  embedderDeviceResolution: NativeEmbedderDeviceResolution | null;
 }
 
 interface NativeCounterSnapshot {

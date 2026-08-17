@@ -133,6 +133,8 @@ run_tier_suite fast test-release-version-surfaces bash scripts/tests/test_releas
 run_tier_suite fast test-platform-capabilities bash scripts/tests/test_platform_capabilities.sh
 run_tier_suite fast test-sqlite-dependency-contract bash scripts/tests/test_sqlite_dependency_contract.sh
 run_tier_suite fast test-public-doc-truth bash scripts/tests/test_public_doc_truth.sh
+run_tier_suite fast test-slice70-embedding-docs-contract bash scripts/tests/test_slice70_embedding_docs_contract.sh
+run_tier_suite fast test-slice70-cli-artifact-design bash scripts/tests/test_slice70_cli_artifact_design.sh
 run_tier_suite fast test-ac036-ptrace-blocker bash scripts/tests/test_ac036_ptrace_blocker.sh
 
 # The partition gate itself is intentionally early: if a registration is

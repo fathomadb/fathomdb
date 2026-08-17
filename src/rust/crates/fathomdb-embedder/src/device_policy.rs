@@ -69,6 +69,26 @@ impl fmt::Display for EmbedDevicePolicyParseError {
 
 impl std::error::Error for EmbedDevicePolicyParseError {}
 
+/// A typed failure while resolving the public embedder-device setting.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EmbedDevicePolicyError {
+    /// `FATHOMDB_EMBED_DEVICE` is malformed or uses a retired spelling.
+    InvalidPolicy(EmbedDevicePolicyParseError),
+    /// A syntactically valid policy could not select its required device.
+    Resolution(DeviceResolutionError),
+}
+
+impl fmt::Display for EmbedDevicePolicyError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidPolicy(error) => error.fmt(formatter),
+            Self::Resolution(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for EmbedDevicePolicyError {}
+
 /// Safe metadata returned after a compatible CUDA device has been initialized
 /// and minimally probed.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -128,6 +148,19 @@ pub enum DeviceResolutionReason {
     CudaProbeFailed,
 }
 
+impl DeviceResolutionReason {
+    /// Stable lower-snake-case reason for bindings and diagnostics.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::CudaNotCompiled => "cuda_not_compiled",
+            Self::NoVisibleCudaDevice => "no_visible_cuda_device",
+            Self::CudaIncompatible => "cuda_incompatible",
+            Self::CudaProbeFailed => "cuda_probe_failed",
+        }
+    }
+}
+
 /// The immutable result of resolving one embedder device policy.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeviceResolution {
@@ -148,6 +181,32 @@ pub enum DeviceResolutionError {
     CudaNotCompiled { ordinal: usize },
     /// A forced CUDA policy could not initialize/probe the requested ordinal.
     ForcedCudaUnavailable { ordinal: usize, reason: DeviceResolutionReason },
+}
+
+impl EmbedDevicePolicyError {
+    /// Stable lower-snake-case error kind for bindings and diagnostics.
+    #[must_use]
+    pub const fn kind(&self) -> &'static str {
+        match self {
+            Self::InvalidPolicy(_) => "invalid_policy",
+            Self::Resolution(DeviceResolutionError::CudaNotCompiled { .. }) => "cuda_not_compiled",
+            Self::Resolution(DeviceResolutionError::ForcedCudaUnavailable { reason, .. }) => {
+                reason.as_str()
+            }
+        }
+    }
+
+    /// The forced CUDA ordinal when one was part of the failed policy.
+    #[must_use]
+    pub const fn ordinal(&self) -> Option<usize> {
+        match self {
+            Self::InvalidPolicy(_) => None,
+            Self::Resolution(DeviceResolutionError::CudaNotCompiled { ordinal })
+            | Self::Resolution(DeviceResolutionError::ForcedCudaUnavailable { ordinal, .. }) => {
+                Some(*ordinal)
+            }
+        }
+    }
 }
 
 impl fmt::Display for DeviceResolutionError {
@@ -220,6 +279,22 @@ pub fn resolve_embed_device_policy(
             Err(reason) => Err(DeviceResolutionError::ForcedCudaUnavailable { ordinal, reason }),
         },
     }
+}
+
+/// Parse and resolve `FATHOMDB_EMBED_DEVICE` exactly once for a default
+/// embedder construction.
+///
+/// An unset setting means [`EmbedDevicePolicy::Auto`]. The injected provider
+/// keeps the environment transport separate from actual CUDA initialization,
+/// so `cpu` and CPU-only `auto` still make no provider call.
+pub fn resolve_embed_device_policy_from_env(
+    cuda_compiled: bool,
+    provider: &mut dyn CudaProvider,
+) -> Result<DeviceResolution, EmbedDevicePolicyError> {
+    let raw = std::env::var("FATHOMDB_EMBED_DEVICE").unwrap_or_else(|_| "auto".to_string());
+    let policy = raw.parse::<EmbedDevicePolicy>().map_err(EmbedDevicePolicyError::InvalidPolicy)?;
+    resolve_embed_device_policy(policy, cuda_compiled, provider)
+        .map_err(EmbedDevicePolicyError::Resolution)
 }
 
 fn probe(

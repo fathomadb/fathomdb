@@ -10,8 +10,12 @@
 
 import {
   native,
+  type NativeCudaDeviceInfo,
+  type NativeEffectiveEmbedDevice,
+  type NativeEmbedderDeviceResolution,
   type NativeEmbedderEvent,
   type NativeEngine,
+  type NativeOpenReport,
   type NativePerHitExplain,
 } from "./binding.js";
 import { InvalidArgumentError, InvalidFilterError, rethrowTyped } from "./errors.js";
@@ -744,6 +748,88 @@ export interface OpenReport {
   readonly denseDisabled: boolean;
   /** R-VEQ-6 — reason for `denseDisabled`, or `null` when dense is healthy. */
   readonly denseDisabledReason: string | null;
+  /** Strict CPU/CUDA selection used to construct the embedder, or `null` when
+   *  no embedder was configured. */
+  readonly embedderDeviceResolution: DeviceResolution | null;
+}
+
+/** Safe CUDA provider facts associated with an effective CUDA selection. */
+export interface CudaDeviceInfo {
+  readonly ordinal: number;
+  readonly name: string | null;
+  readonly driverVersion: string | null;
+  readonly computeCapability: string | null;
+  readonly cudaToolkitVersion: string | null;
+}
+
+/** The CPU or CUDA backend selected for one embedder device policy. */
+export type EffectiveEmbedDevice =
+  | { readonly kind: "cpu"; readonly cudaDevice: null }
+  | { readonly kind: "cuda"; readonly cudaDevice: CudaDeviceInfo };
+
+/**
+ * Strict CPU/CUDA policy outcome captured when an embedder was constructed.
+ * `requestedPolicy` is exactly `auto`, `cpu`, or `cuda:N`; `reason` explains
+ * an automatic CPU fallback and is `null` for an explicitly selected device.
+ */
+export interface DeviceResolution {
+  readonly requestedPolicy: string;
+  readonly cudaCompiled: boolean;
+  readonly effectiveDevice: EffectiveEmbedDevice;
+  readonly reason: string | null;
+}
+
+function mapCudaDeviceInfo(info: NativeCudaDeviceInfo): CudaDeviceInfo {
+  return {
+    ordinal: info.ordinal,
+    name: info.name ?? null,
+    driverVersion: info.driverVersion ?? null,
+    computeCapability: info.computeCapability ?? null,
+    cudaToolkitVersion: info.cudaToolkitVersion ?? null,
+  };
+}
+
+function mapEffectiveEmbedDevice(device: NativeEffectiveEmbedDevice): EffectiveEmbedDevice {
+  if (device.kind === "cpu") return { kind: "cpu", cudaDevice: null };
+  if (device.kind === "cuda" && device.cudaDevice) {
+    return { kind: "cuda", cudaDevice: mapCudaDeviceInfo(device.cudaDevice) };
+  }
+  throw new Error(`invalid native embedder effective device: ${device.kind}`);
+}
+
+function mapDeviceResolution(
+  resolution: NativeEmbedderDeviceResolution,
+): DeviceResolution {
+  return {
+    requestedPolicy: resolution.requestedPolicy,
+    cudaCompiled: resolution.cudaCompiled,
+    effectiveDevice: mapEffectiveEmbedDevice(resolution.effectiveDevice),
+    reason: resolution.reason ?? null,
+  };
+}
+
+/**
+ * @internal Map the native open-time snapshot into the public SDK shape.
+ * Kept separate so the binding contract is testable without a CUDA host.
+ */
+export function mapOpenReport(r: NativeOpenReport): OpenReport {
+  return {
+    schemaVersionBefore: r.schemaVersionBefore,
+    schemaVersionAfter: r.schemaVersionAfter,
+    migrationSteps: r.migrationSteps,
+    embedderWarmupMs: r.embedderWarmupMs,
+    queryBackend: r.queryBackend,
+    defaultEmbedder: r.defaultEmbedder,
+    embedderDownloadMs: r.embedderDownloadMs,
+    embedderEvents: r.embedderEvents.map(mapEmbedderEvent),
+    embedderMeanCenteringRequired: r.embedderMeanCenteringRequired,
+    embedderMeanVecPinned: r.embedderMeanVecPinned,
+    denseDisabled: r.denseDisabled,
+    denseDisabledReason: r.denseDisabledReason ?? null,
+    embedderDeviceResolution: r.embedderDeviceResolution
+      ? mapDeviceResolution(r.embedderDeviceResolution)
+      : null,
+  };
 }
 
 export interface CounterSnapshot {
@@ -1374,23 +1460,7 @@ export class Engine {
   }
 
   openReport(): OpenReport {
-    return interceptSync(() => {
-      const r = this.#native.openReport();
-      return {
-        schemaVersionBefore: r.schemaVersionBefore,
-        schemaVersionAfter: r.schemaVersionAfter,
-        migrationSteps: r.migrationSteps,
-        embedderWarmupMs: r.embedderWarmupMs,
-        queryBackend: r.queryBackend,
-        defaultEmbedder: r.defaultEmbedder,
-        embedderDownloadMs: r.embedderDownloadMs,
-        embedderEvents: r.embedderEvents.map(mapEmbedderEvent),
-        embedderMeanCenteringRequired: r.embedderMeanCenteringRequired,
-        embedderMeanVecPinned: r.embedderMeanVecPinned,
-        denseDisabled: r.denseDisabled,
-        denseDisabledReason: r.denseDisabledReason ?? null,
-      };
-    });
+    return interceptSync(() => mapOpenReport(this.#native.openReport()));
   }
 
   setProfiling(enabled: boolean): void {

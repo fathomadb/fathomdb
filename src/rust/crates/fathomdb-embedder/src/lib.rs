@@ -23,9 +23,9 @@ use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 
 mod device_policy;
 pub use device_policy::{
-    resolve_embed_device_policy, CudaDeviceInfo, CudaProbeError, CudaProvider, DeviceResolution,
-    DeviceResolutionError, DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy,
-    EmbedDevicePolicyParseError,
+    resolve_embed_device_policy, resolve_embed_device_policy_from_env, CudaDeviceInfo,
+    CudaProbeError, CudaProvider, DeviceResolution, DeviceResolutionError, DeviceResolutionReason,
+    EffectiveEmbedDevice, EmbedDevicePolicy, EmbedDevicePolicyError, EmbedDevicePolicyParseError,
 };
 
 #[cfg(feature = "default-embedder")]
@@ -99,12 +99,9 @@ impl MeanRecomputeTrigger {
     }
 }
 
-// 0.8.12 — shared device-request parser for the Candle backends. Compiled
-// whenever EITHER the embedder or reranker Candle path is on, so the embedder's
-// `FATHOMDB_EMBED_DEVICE` and the reranker's `FATHOMDB_RERANK_DEVICE` resolve
-// through one grammar (no duplicate parse logic) even though they sit behind
-// independent features.
-#[cfg(any(feature = "default-embedder", feature = "default-reranker", feature = "onnx-embedder"))]
+// The legacy request parser remains only for the reranker. Both embedder
+// backends use the strict policy module above instead.
+#[cfg(feature = "default-reranker")]
 mod device;
 
 #[cfg(feature = "default-embedder")]
@@ -115,7 +112,8 @@ mod nomic;
 // 0.8.16 Slice 10 (ADR-0.8.16-onnx-embedder-backend) — cross-vendor ONNX
 // Runtime BGE-small embedder. Behind its own NON-default `onnx-embedder`
 // feature so the thin default build pulls in zero ONNX code/deps; injected
-// by the caller via `EmbedderChoice::Caller` (zero engine change).
+// by the caller via `EmbedderChoice::CallerWithDeviceResolution` so the
+// engine records the resolved ONNX session outcome.
 #[cfg(feature = "onnx-embedder")]
 mod ort_bge;
 
@@ -126,7 +124,10 @@ mod ort_bge;
 mod candle_reranker;
 
 #[cfg(feature = "default-embedder")]
-pub use candle_bge::{CandleBgeEmbedder, Pooling, DEFAULT_EMBEDDER_DIM, DEFAULT_EMBEDDER_NAME};
+pub use candle_bge::{
+    resolve_default_embedder_device_from_env, CandleBgeEmbedder, Pooling, DEFAULT_EMBEDDER_DIM,
+    DEFAULT_EMBEDDER_NAME,
+};
 #[cfg(feature = "default-embedder")]
 pub use nomic::{NomicEmbedder, NOMIC_DIM};
 

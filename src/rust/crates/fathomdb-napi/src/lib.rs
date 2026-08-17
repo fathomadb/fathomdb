@@ -28,7 +28,11 @@
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Arc;
 
-use fathomdb_embedder::EmbedderEvent as RustEmbedderEvent;
+use fathomdb_embedder::{
+    CudaDeviceInfo as RustCudaDeviceInfo, DeviceResolution as RustDeviceResolution,
+    EffectiveEmbedDevice as RustEffectiveEmbedDevice, EmbedDevicePolicy as RustEmbedDevicePolicy,
+    EmbedderEvent as RustEmbedderEvent,
+};
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
     BoundaryCrossing as RustBoundaryCrossing, ComparisonOp as RustComparisonOp,
@@ -68,6 +72,7 @@ const CODE_STORAGE: &str = "FDB_STORAGE";
 const CODE_PROJECTION: &str = "FDB_PROJECTION";
 const CODE_VECTOR: &str = "FDB_VECTOR";
 const CODE_EMBEDDER: &str = "FDB_EMBEDDER";
+const CODE_EMBED_DEVICE_POLICY: &str = "FDB_EMBED_DEVICE_POLICY";
 const CODE_EMBEDDER_NOT_CONFIGURED: &str = "FDB_EMBEDDER_NOT_CONFIGURED";
 const CODE_EMBEDDER_REQUIRED: &str = "FDB_EMBEDDER_REQUIRED";
 const CODE_KIND_NOT_VECTOR_INDEXED: &str = "FDB_KIND_NOT_VECTOR_INDEXED";
@@ -317,6 +322,15 @@ fn corruption_to_napi(detail: CorruptionDetail) -> Error {
     )
 }
 
+fn embed_device_policy_error_to_napi(error: fathomdb_embedder::EmbedDevicePolicyError) -> Error {
+    let mut payload = serde_json::Map::new();
+    payload.insert("kind".to_string(), json!(error.kind()));
+    if let Some(ordinal) = error.ordinal() {
+        payload.insert("ordinal".to_string(), json!(ordinal));
+    }
+    typed_error(CODE_EMBED_DEVICE_POLICY, error.to_string(), JsonValue::Object(payload))
+}
+
 fn engine_open_error_to_napi(err: EngineOpenError) -> Error {
     match err {
         EngineOpenError::DatabaseLocked { holder_pid } => typed_error(
@@ -375,6 +389,7 @@ fn engine_open_error_to_napi(err: EngineOpenError) -> Error {
             format!("embedder error during open: {err:?}"),
             JsonValue::Null,
         ),
+        EngineOpenError::EmbedDevicePolicy(error) => embed_device_policy_error_to_napi(error),
         EngineOpenError::Io { message } => typed_error(
             CODE_STORAGE,
             format!("database I/O error: {message}"),
@@ -1397,6 +1412,74 @@ impl EmbedderEvent {
     }
 }
 
+/// Safe CUDA provider facts associated with an effective CUDA selection.
+#[napi(object)]
+pub struct CudaDeviceInfo {
+    pub ordinal: i64,
+    pub name: Option<String>,
+    pub driver_version: Option<String>,
+    pub compute_capability: Option<String>,
+    pub cuda_toolkit_version: Option<String>,
+}
+
+impl CudaDeviceInfo {
+    fn from_rust(info: &RustCudaDeviceInfo) -> Self {
+        Self {
+            ordinal: info.ordinal as i64,
+            name: info.name.clone(),
+            driver_version: info.driver_version.clone(),
+            compute_capability: info.compute_capability.clone(),
+            cuda_toolkit_version: info.cuda_toolkit_version.clone(),
+        }
+    }
+}
+
+/// The CPU or CUDA backend selected for one embedder device policy.
+#[napi(object)]
+pub struct EffectiveEmbedDevice {
+    /// Either `"cpu"` or `"cuda"`.
+    pub kind: String,
+    /// Present exactly when `kind == "cuda"`.
+    pub cuda_device: Option<CudaDeviceInfo>,
+}
+
+impl EffectiveEmbedDevice {
+    fn from_rust(device: &RustEffectiveEmbedDevice) -> Self {
+        match device {
+            RustEffectiveEmbedDevice::Cpu => Self { kind: "cpu".to_string(), cuda_device: None },
+            RustEffectiveEmbedDevice::Cuda(info) => Self {
+                kind: "cuda".to_string(),
+                cuda_device: Some(CudaDeviceInfo::from_rust(info)),
+            },
+        }
+    }
+}
+
+/// The strict CPU/CUDA policy outcome captured when an embedder was constructed.
+#[napi(object)]
+pub struct EmbedderDeviceResolution {
+    pub requested_policy: String,
+    pub cuda_compiled: bool,
+    pub effective_device: EffectiveEmbedDevice,
+    pub reason: Option<String>,
+}
+
+impl EmbedderDeviceResolution {
+    fn from_rust(resolution: &RustDeviceResolution) -> Self {
+        let requested_policy = match resolution.requested_policy {
+            RustEmbedDevicePolicy::Auto => "auto".to_string(),
+            RustEmbedDevicePolicy::Cpu => "cpu".to_string(),
+            RustEmbedDevicePolicy::Cuda(ordinal) => format!("cuda:{ordinal}"),
+        };
+        Self {
+            requested_policy,
+            cuda_compiled: resolution.cuda_compiled,
+            effective_device: EffectiveEmbedDevice::from_rust(&resolution.effective_device),
+            reason: resolution.reason.map(|reason| reason.as_str().to_string()),
+        }
+    }
+}
+
 #[napi(object)]
 pub struct OpenReport {
     pub schema_version_before: u32,
@@ -1418,6 +1501,9 @@ pub struct OpenReport {
     pub dense_disabled: bool,
     /// R-VEQ-6 — human-readable reason for `denseDisabled`, or `null` when healthy.
     pub dense_disabled_reason: Option<String>,
+    /// Strict CPU/CUDA selection used to construct the embedder, or `null` when
+    /// no embedder was configured.
+    pub embedder_device_resolution: Option<EmbedderDeviceResolution>,
 }
 
 impl OpenReport {
@@ -1435,6 +1521,10 @@ impl OpenReport {
             embedder_mean_vec_pinned: r.embedder_mean_vec_pinned,
             dense_disabled: r.dense_disabled,
             dense_disabled_reason: r.dense_disabled_reason.clone(),
+            embedder_device_resolution: r
+                .embedder_device_resolution
+                .as_ref()
+                .map(EmbedderDeviceResolution::from_rust),
         }
     }
 }
@@ -2860,5 +2950,64 @@ mod tests {
         // guard is exercised when JS surrogates round-trip through
         // napi-rs string conversion (covered by ffi-safety.test.ts).
         assert!(validate_ffi_string("\u{FFFD}").is_ok());
+    }
+
+    #[test]
+    fn embed_device_policy_open_error_uses_a_typed_napi_envelope() {
+        let error = engine_open_error_to_napi(EngineOpenError::EmbedDevicePolicy(
+            fathomdb_embedder::EmbedDevicePolicyError::Resolution(
+                fathomdb_embedder::DeviceResolutionError::CudaNotCompiled { ordinal: 2 },
+            ),
+        ));
+        let envelope: JsonValue = serde_json::from_str(&error.reason).expect("typed envelope");
+
+        assert_eq!(envelope["code"], "FDB_EMBED_DEVICE_POLICY");
+        assert_eq!(envelope["payload"]["kind"], "cuda_not_compiled");
+        assert_eq!(envelope["payload"]["ordinal"], 2);
+    }
+
+    #[test]
+    fn open_report_preserves_caller_device_resolution() {
+        let directory = tempfile::tempdir().expect("temporary database directory");
+        let resolution = fathomdb_embedder::DeviceResolution {
+            requested_policy: fathomdb_embedder::EmbedDevicePolicy::Cuda(3),
+            cuda_compiled: true,
+            effective_device: fathomdb_embedder::EffectiveEmbedDevice::Cuda(
+                fathomdb_embedder::CudaDeviceInfo {
+                    ordinal: 3,
+                    name: Some("test CUDA".to_string()),
+                    driver_version: Some("555.42".to_string()),
+                    compute_capability: Some("8.6".to_string()),
+                    cuda_toolkit_version: Some("12.8".to_string()),
+                },
+            ),
+            reason: None,
+        };
+        let opened = RustEngine::open_with_choice(
+            directory.path().join("napi-device-resolution.sqlite"),
+            EmbedderChoice::CallerWithDeviceResolution {
+                embedder: Arc::new(fathomdb_embedder::NoopEmbedder::default()),
+                device_resolution: resolution,
+            },
+        )
+        .expect("caller resolution opens");
+
+        let report = OpenReport::from_rust(&opened.report);
+        let resolution = report
+            .embedder_device_resolution
+            .expect("caller resolution must reach the N-API open report");
+        assert_eq!(resolution.requested_policy, "cuda:3");
+        assert!(resolution.cuda_compiled);
+        assert_eq!(resolution.effective_device.kind, "cuda");
+        let cuda = resolution
+            .effective_device
+            .cuda_device
+            .expect("CUDA selection must retain its safe provider facts");
+        assert_eq!(cuda.ordinal, 3);
+        assert_eq!(cuda.name.as_deref(), Some("test CUDA"));
+        assert_eq!(cuda.driver_version.as_deref(), Some("555.42"));
+        assert_eq!(cuda.compute_capability.as_deref(), Some("8.6"));
+        assert_eq!(cuda.cuda_toolkit_version.as_deref(), Some("12.8"));
+        assert_eq!(resolution.reason, None);
     }
 }

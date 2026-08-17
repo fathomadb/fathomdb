@@ -227,6 +227,22 @@ See § "Projection registry" below.
 
 `report` is the `OpenReport` owned by `design/engine.md`.
 
+### `OpenReport::embedder_device_resolution` (0.8.23 Slice 70)
+
+`OpenReport::embedder_device_resolution` is the immutable strict CPU/CUDA
+selection consumed by the embedder constructor. It is present for the default
+embedder and for `EmbedderChoice::CallerWithDeviceResolution`; it is `None`
+when open receives no device-resolution report (for example, no embedder or
+the legacy `Caller` variant). It preserves the exact requested policy
+(`auto`, `cpu`, or `cuda:N`), artifact CUDA capability, effective CPU/CUDA
+backend, CUDA provider facts when CUDA was selected, and an automatic-fallback
+reason. A forced-CUDA failure remains `EngineOpenError::EmbedDevicePolicy`,
+not a fabricated CPU report.
+
+A report-bearing `OrtBgeEmbedder` caller uses `CallerWithDeviceResolution`,
+rather than the legacy `Caller` variant, so its final ONNX Runtime
+session/provider outcome reaches the same report once.
+
 ### `OpenReport::dense_disabled` and the cached equivalence verdict (0.8.20 Slice 22, TC-68)
 
 `OpenReport::dense_disabled` / `Engine::dense_disabled()` still mean "the dense arm

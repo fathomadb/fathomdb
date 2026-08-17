@@ -206,6 +206,11 @@ pub enum EmbedderLoadError {
         source: candle_core::Error,
     },
 
+    /// A previously selected CUDA device could not be constructed for the
+    /// model. This is never converted into a CPU fallback.
+    #[error("selected embedder device could not be initialized: {message}")]
+    DeviceInitialization { message: String },
+
     /// `tokenizer.json` parse failure (EU-4). Wraps the tokenizers error
     /// verbatim. Boxed because `tokenizers::Error` is a
     /// `Box<dyn Error + Send + Sync>` alias, and we need a sized type.

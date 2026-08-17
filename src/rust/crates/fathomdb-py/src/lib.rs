@@ -38,7 +38,11 @@ use std::sync::Barrier;
 #[cfg(feature = "test-hooks")]
 use std::sync::Mutex;
 
-use fathomdb_embedder::EmbedderEvent as RustEmbedderEvent;
+use fathomdb_embedder::{
+    CudaDeviceInfo as RustCudaDeviceInfo, DeviceResolution as RustDeviceResolution,
+    EffectiveEmbedDevice as RustEffectiveEmbedDevice, EmbedDevicePolicy as RustEmbedDevicePolicy,
+    EmbedderEvent as RustEmbedderEvent,
+};
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
     rerank_passages as rust_rerank_passages, BoundaryCrossing as RustBoundaryCrossing,
@@ -82,6 +86,7 @@ create_exception!(_fathomdb, ProjectionError, EngineError);
 create_exception!(_fathomdb, VectorError, EngineError);
 create_exception!(_fathomdb, KindNotVectorIndexedError, VectorError);
 create_exception!(_fathomdb, EmbedderError, EngineError);
+create_exception!(_fathomdb, EmbedDevicePolicyError, EmbedderError);
 create_exception!(_fathomdb, EmbedderNotConfiguredError, EmbedderError);
 create_exception!(_fathomdb, EmbedderRequiredError, EmbedderError);
 create_exception!(_fathomdb, SchedulerError, EngineError);
@@ -362,6 +367,15 @@ fn engine_open_error_to_py(err: EngineOpenError) -> PyErr {
             exc
         }
         EngineOpenError::Embedder(err) => EmbedderError::new_err(format!("{err:?}")),
+        EngineOpenError::EmbedDevicePolicy(error) => {
+            let exc = EmbedDevicePolicyError::new_err(error.to_string());
+            Python::attach(|py| {
+                let value = exc.value(py);
+                let _ = value.setattr("kind", error.kind());
+                let _ = value.setattr("ordinal", error.ordinal());
+            });
+            exc
+        }
         EngineOpenError::Io { message } => {
             StorageError::new_err(format!("database I/O error: {message}"))
         }
@@ -1258,6 +1272,90 @@ impl PyEmbedderIdentity {
     }
 }
 
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "CudaDeviceInfo",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyCudaDeviceInfo {
+    ordinal: usize,
+    name: Option<String>,
+    driver_version: Option<String>,
+    compute_capability: Option<String>,
+    cuda_toolkit_version: Option<String>,
+}
+
+impl PyCudaDeviceInfo {
+    fn from_rust(info: &RustCudaDeviceInfo) -> Self {
+        Self {
+            ordinal: info.ordinal,
+            name: info.name.clone(),
+            driver_version: info.driver_version.clone(),
+            compute_capability: info.compute_capability.clone(),
+            cuda_toolkit_version: info.cuda_toolkit_version.clone(),
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "EffectiveEmbedDevice",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyEffectiveEmbedDevice {
+    kind: String,
+    cuda_device: Option<PyCudaDeviceInfo>,
+}
+
+impl PyEffectiveEmbedDevice {
+    fn from_rust(device: &RustEffectiveEmbedDevice) -> Self {
+        match device {
+            RustEffectiveEmbedDevice::Cpu => Self { kind: "cpu".to_string(), cuda_device: None },
+            RustEffectiveEmbedDevice::Cuda(info) => Self {
+                kind: "cuda".to_string(),
+                cuda_device: Some(PyCudaDeviceInfo::from_rust(info)),
+            },
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "DeviceResolution",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyDeviceResolution {
+    requested_policy: String,
+    cuda_compiled: bool,
+    effective_device: PyEffectiveEmbedDevice,
+    reason: Option<String>,
+}
+
+impl PyDeviceResolution {
+    fn from_rust(resolution: &RustDeviceResolution) -> Self {
+        let requested_policy = match resolution.requested_policy {
+            RustEmbedDevicePolicy::Auto => "auto".to_string(),
+            RustEmbedDevicePolicy::Cpu => "cpu".to_string(),
+            RustEmbedDevicePolicy::Cuda(ordinal) => format!("cuda:{ordinal}"),
+        };
+        Self {
+            requested_policy,
+            cuda_compiled: resolution.cuda_compiled,
+            effective_device: PyEffectiveEmbedDevice::from_rust(&resolution.effective_device),
+            reason: resolution.reason.map(|reason| reason.as_str().to_string()),
+        }
+    }
+}
+
 #[pyclass(module = "fathomdb._fathomdb", name = "OpenReport", frozen, get_all)]
 struct PyOpenReport {
     schema_version_before: u32,
@@ -1291,6 +1389,9 @@ struct PyOpenReport {
     /// R-VEQ-6 — human-readable reason for `dense_disabled` (which representation
     /// tripped), or `None` when dense is healthy.
     dense_disabled_reason: Option<String>,
+    /// Strict CPU/CUDA selection used to construct the embedder, or `None` when
+    /// no embedder was configured.
+    embedder_device_resolution: Option<PyDeviceResolution>,
 }
 
 impl PyOpenReport {
@@ -1314,6 +1415,10 @@ impl PyOpenReport {
             embedder_mean_vec_pinned: r.embedder_mean_vec_pinned,
             dense_disabled: r.dense_disabled,
             dense_disabled_reason: r.dense_disabled_reason.clone(),
+            embedder_device_resolution: r
+                .embedder_device_resolution
+                .as_ref()
+                .map(PyDeviceResolution::from_rust),
         }
     }
 }
@@ -2749,8 +2854,8 @@ fn rerank(
 // routing that harness through `embed()` would silently switch Mean↔CLS and
 // break comparability to V-1. This binding loads the SAME pinned bge-small
 // weights the numpy path loads, pins `Pooling::Cls`, and honors
-// `FATHOMDB_EMBED_DEVICE` (CPU default; `cuda:N` under the `embed-cuda`
-// feature). One padded `(B, L)` forward → the same per-row vectors as B single
+// `FATHOMDB_EMBED_DEVICE` (unset means `auto`; `cuda:N` under the `embed-cuda`
+// feature is forced). One padded `(B, L)` forward → the same per-row vectors as B single
 // `embed()` calls (parity-locked in the embedder crate's tests). Additive: it
 // does NOT change `embed()`'s default pooling. This also closes the standing
 // "Python embed cannot select CLS pooling" exposure gap.
@@ -2894,6 +2999,9 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyCounterSnapshot>()?;
     m.add_class::<PyMigrationStepReport>()?;
     m.add_class::<PyEmbedderIdentity>()?;
+    m.add_class::<PyCudaDeviceInfo>()?;
+    m.add_class::<PyEffectiveEmbedDevice>()?;
+    m.add_class::<PyDeviceResolution>()?;
     m.add_class::<PyOpenReport>()?;
     m.add_class::<PyNodeRecord>()?;
     m.add_class::<PyOpStoreRow>()?;
@@ -2945,6 +3053,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("VectorError", py.get_type::<VectorError>())?;
     m.add("KindNotVectorIndexedError", py.get_type::<KindNotVectorIndexedError>())?;
     m.add("EmbedderError", py.get_type::<EmbedderError>())?;
+    m.add("EmbedDevicePolicyError", py.get_type::<EmbedDevicePolicyError>())?;
     m.add("EmbedderNotConfiguredError", py.get_type::<EmbedderNotConfiguredError>())?;
     m.add("EmbedderRequiredError", py.get_type::<EmbedderRequiredError>())?;
     m.add("SchedulerError", py.get_type::<SchedulerError>())?;
@@ -3003,6 +3112,74 @@ mod tests {
         // bytes-derived input.
         let valid_high_unicode = "\u{FFFD}";
         assert!(validate_ffi_string(valid_high_unicode).is_ok());
+    }
+
+    #[test]
+    fn embed_device_policy_open_error_uses_a_typed_python_exception() {
+        Python::initialize();
+        Python::attach(|py| {
+            let error = engine_open_error_to_py(EngineOpenError::EmbedDevicePolicy(
+                fathomdb_embedder::EmbedDevicePolicyError::Resolution(
+                    fathomdb_embedder::DeviceResolutionError::CudaNotCompiled { ordinal: 2 },
+                ),
+            ));
+
+            assert!(error.is_instance_of::<EmbedDevicePolicyError>(py));
+            let value = error.value(py);
+            assert_eq!(
+                value.getattr("kind").unwrap().extract::<String>().unwrap(),
+                "cuda_not_compiled"
+            );
+            assert_eq!(value.getattr("ordinal").unwrap().extract::<usize>().unwrap(), 2);
+        });
+    }
+
+    #[test]
+    fn open_report_preserves_caller_device_resolution() {
+        Python::initialize();
+        Python::attach(|py| {
+            let directory = tempfile::tempdir().expect("temporary database directory");
+            let resolution = fathomdb_embedder::DeviceResolution {
+                requested_policy: fathomdb_embedder::EmbedDevicePolicy::Cuda(3),
+                cuda_compiled: true,
+                effective_device: fathomdb_embedder::EffectiveEmbedDevice::Cuda(
+                    fathomdb_embedder::CudaDeviceInfo {
+                        ordinal: 3,
+                        name: Some("test CUDA".to_string()),
+                        driver_version: Some("555.42".to_string()),
+                        compute_capability: Some("8.6".to_string()),
+                        cuda_toolkit_version: Some("12.8".to_string()),
+                    },
+                ),
+                reason: None,
+            };
+            let opened = RustEngine::open_with_choice(
+                directory.path().join("python-device-resolution.sqlite"),
+                EmbedderChoice::CallerWithDeviceResolution {
+                    embedder: Arc::new(fathomdb_embedder::NoopEmbedder::default()),
+                    device_resolution: resolution,
+                },
+            )
+            .expect("caller resolution opens");
+
+            let report = PyOpenReport::from_rust(py, &opened.report);
+            let resolution = report
+                .embedder_device_resolution
+                .expect("caller resolution must reach the Python open report");
+            assert_eq!(resolution.requested_policy, "cuda:3");
+            assert!(resolution.cuda_compiled);
+            assert_eq!(resolution.effective_device.kind, "cuda");
+            let cuda = resolution
+                .effective_device
+                .cuda_device
+                .expect("CUDA selection must retain its safe provider facts");
+            assert_eq!(cuda.ordinal, 3);
+            assert_eq!(cuda.name.as_deref(), Some("test CUDA"));
+            assert_eq!(cuda.driver_version.as_deref(), Some("555.42"));
+            assert_eq!(cuda.compute_capability.as_deref(), Some("8.6"));
+            assert_eq!(cuda.cuda_toolkit_version.as_deref(), Some("12.8"));
+            assert_eq!(resolution.reason, None);
+        });
     }
 
     // fix-1 finding 2: the CLS-embedder singleton must NOT cache a failed load.

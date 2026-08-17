@@ -17,7 +17,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { Engine } from "../src/index.js";
+import { Engine, mapOpenReport } from "../src/index.js";
 import { freshDbPath } from "./helpers.js";
 
 test("openReport returns the spec-locked native fields", async () => {
@@ -71,6 +71,45 @@ test("openReport is idempotent — repeat calls return identical data", async ()
   } finally {
     await engine.close();
   }
+});
+
+test("openReport exposes absent device resolution without an embedder", async () => {
+  const engine = await Engine.open(freshDbPath());
+  try {
+    assert.equal(engine.openReport().embedderDeviceResolution, null);
+  } finally {
+    await engine.close();
+  }
+});
+
+test("openReport maps a present auto-to-CPU device resolution", () => {
+  const report = mapOpenReport({
+    schemaVersionBefore: 1,
+    schemaVersionAfter: 1,
+    migrationSteps: [],
+    embedderWarmupMs: 0,
+    queryBackend: "sqlite",
+    defaultEmbedder: { name: "test", revision: "test", dimension: 384 },
+    embedderDownloadMs: null,
+    embedderEvents: [],
+    embedderMeanCenteringRequired: false,
+    embedderMeanVecPinned: false,
+    denseDisabled: false,
+    denseDisabledReason: null,
+    embedderDeviceResolution: {
+      requestedPolicy: "auto",
+      cudaCompiled: true,
+      effectiveDevice: { kind: "cpu", cudaDevice: null },
+      reason: "cuda_probe_failed",
+    },
+  });
+
+  assert.deepEqual(report.embedderDeviceResolution, {
+    requestedPolicy: "auto",
+    cudaCompiled: true,
+    effectiveDevice: { kind: "cpu", cudaDevice: null },
+    reason: "cuda_probe_failed",
+  });
 });
 
 test("Engine.open Promise signature unchanged — resolves to just Engine", async () => {

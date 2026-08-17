@@ -26,9 +26,10 @@ default-embedder = ["fathomdb-engine/default-embedder"]
 # dev/test builds. The shipped wheel keeps `default-reranker` OFF (release.yml
 # and ci.yml pin their own explicit `--features` lists that omit it).
 default-reranker = ["fathomdb-engine/default-reranker"]
-# GPU acceleration (opt-in; forwards to the engine; default wheel stays CPU).
-# Build: `maturin develop --features pyo3/extension-module,embed-cuda`; activate via
-# FATHOMDB_EMBED_DEVICE=cuda. See dev/design/0.8.1-embedder-gpu-and-portability.md.
+# CUDA support is selected when an artifact is built and forwards to the engine.
+# A CUDA-capable artifact keeps both runtime paths: unset is `auto`, `cpu` is
+# explicit CPU, and GPU execution is forced with FATHOMDB_EMBED_DEVICE=cuda:N.
+# See dev/design/0.8.23-slice-70-dual-runtime-device-policy.md.
 embed-cuda = ["default-embedder", "fathomdb-engine/embed-cuda"]
 embed-metal = ["default-embedder", "fathomdb-engine/embed-metal"]
 # 0.8.12 — GPU acceleration for the CE reranker (opt-in; forwards to the engine;

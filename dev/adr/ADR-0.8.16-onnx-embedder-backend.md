@@ -2,8 +2,9 @@
 title: ADR-0.8.16-onnx-embedder-backend
 date: 2026-07-07
 target_release: 0.8.16
-desc: Adds a cross-vendor ONNX-Runtime BGE-small embedder (OrtBgeEmbedder) as a new impl Embedder in fathomdb-embedder, injected via EmbedderChoice::Caller with zero engine changes. Reaches AMD ROCm / Intel OpenVINO / DirectML that candle cannot. Behind a new onnx-embedder feature; the thin default build and the in-library 1-bit query path are unchanged. Includes the candle<->ONNX equivalence-measurement plan that feeds the 0.8.18 #5 vector-equivalence tolerance.
+desc: Adds a cross-vendor ONNX-Runtime BGE-small embedder (OrtBgeEmbedder) as a new impl Embedder in fathomdb-embedder. Slice 70 amends the report-bearing caller to EmbedderChoice::CallerWithDeviceResolution so OpenReport records the final ONNX session outcome. Reaches AMD ROCm / Intel OpenVINO / DirectML that candle cannot. Behind a new onnx-embedder feature; the thin default build and the in-library 1-bit query path are unchanged. Includes the candle<->ONNX equivalence-measurement plan that feeds the 0.8.18 #5 vector-equivalence tolerance.
 status: SIGNED (HITL coreyt, 2026-07-08 — Slice-0 gate)
+superseded_for_runtime_policy_by: ADR-0.8.23-dual-runtime-device-policy
 ---
 
 # ADR-0.8.16 — Cross-vendor ONNX embedder backend (OrtBgeEmbedder)
@@ -12,12 +13,20 @@ status: SIGNED (HITL coreyt, 2026-07-08 — Slice-0 gate)
 10→15 may proceed. Design context: `dev/design/0.8.16-slice-0-f9-onnx-design.md` (§5 equivalence plan, §6
 ONNX decision).
 
+> **Historical record — Slice 70 supersedes this ADR for current runtime device policy.**
+> This file preserves the 0.8.16 ONNX-backend decision and measurement history;
+> it is not a current configuration or execution-policy reference. The
+> authoritative current policy is
+> [`ADR-0.8.23-dual-runtime-device-policy.md`](ADR-0.8.23-dual-runtime-device-policy.md)
+> and its Slice 70 design. In particular, any older ambient-parser, default, or
+> provider-selection wording below is historical context only.
+
 ## 1. Context
 
 candle reaches only CPU / CUDA / Metal — **no ROCm / Vulkan / DirectML / OpenVINO** — so AMD and Intel
-GPUs are unreachable through it. `fathomdb-embedder/Cargo.toml:64-68` already anticipates the fix: the
-cross-vendor path is "a separate `impl Embedder` (ONNX-Runtime) via `EmbedderChoice::Caller`." This is
-structurally out-of-band (zero engine change) but is scheduled here — not early-OOB — because it is (a)
+GPUs are unreachable through it. `fathomdb-embedder/Cargo.toml` already anticipates the fix: the
+cross-vendor path is a separate `impl Embedder` (ONNX-Runtime). It was structurally out-of-band at its
+0.8.16 landing, but is scheduled here — not early-OOB — because it is (a)
 low-urgency reach-hardware and (b) it manufactures the cross-backend numeric-divergence hazard that
 0.8.18's #5 vector-equivalence guard exists to catch, so the two land back-to-back.
 
@@ -26,18 +35,22 @@ low-urgency reach-hardware and (b) it manufactures the cross-backend numeric-div
 - **`OrtBgeEmbedder` in `fathomdb-embedder`** (`mod ort_bge`, sibling of `candle_bge` / `nomic`), `impl
   Embedder` from `fathomdb-embedder-api` (`embed`/`embed_batch`/`identity`). Produces BGE-small vectors
   (BAAI/bge-small-en-v1.5, dim 384, CLS-corrected pooling to match the candle reference).
-- **Injection: `EmbedderChoice::Caller(Arc::new(OrtBgeEmbedder::…))`** via `Engine::open_with_choice`
-  (`fathomdb-engine/src/lib.rs:2449`). **Zero engine diff** — the engine never names a concrete embedder on
-  the `Caller` path. The `Default` variant stays candle-only (`open_default_embedder` unchanged), preserving
-  the footprint invariant.
+- **Injection:** a report-bearing `OrtBgeEmbedder` caller supplies it via
+  `EmbedderChoice::CallerWithDeviceResolution { embedder, device_resolution }`.
+  The original 0.8.16 `Caller` injection had zero engine diff; Slice 70 adds
+  the bounded engine report field so the resolved ONNX session/provider outcome
+  is recorded once on `OpenReport`. The engine still never names a concrete
+  ONNX embedder, and the `Default` variant stays candle-only
+  (`open_default_embedder` unchanged), preserving the footprint invariant.
 - **Feature gating:** a new `onnx-embedder` Cargo feature pulling optional `ort` (+ tokenizer/loader deps),
   mirroring `default-embedder`'s `dep:` gating so the thin `default = []` build stays ML-free (EMB-3
   wheel-size gate). No new dep in the default build.
-- **Device selection (R-ONNX-2):** reuse the backend-agnostic `parse_device_request`
-  (`fathomdb-embedder/src/device.rs`) for `FATHOMDB_EMBED_DEVICE` grammar parity; add an ONNX-specific
-  `resolve_device()` sibling that maps `DeviceRequest → ORT execution provider` (CUDA / ROCm / DirectML /
-  OpenVINO / CPU), with a LOUD stderr fallback to CPU when a provider is unavailable (as candle's does).
-  Selection happens at `Engine::open` via config/env — not compile-only.
+- **Device selection (R-ONNX-2, amended by Slice 70):** ONNX uses the same strict
+  `FATHOMDB_EMBED_DEVICE` policy as the default embedder: exactly `auto`, `cpu`, or `cuda:N`.
+  `auto` may report a typed CPU outcome after CUDA is unavailable; `cpu` never probes CUDA; `cuda:N`
+  fails open rather than becoming a CPU session. The retired shared `DeviceRequest` parser and its
+  CPU/Metal/provider grammar apply only to the legacy reranker control, not embedding. Selection
+  happens at `Engine::open` via config/env — not compile-only.
 
 ## 3. Equivalence measurement & interim guard (R-ONNX-1, R-ONNX-3 → 0.8.18 #5)
 

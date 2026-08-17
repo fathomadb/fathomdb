@@ -112,38 +112,48 @@ for a later release.
 
 ## GPU acceleration (opt-in)
 
-The default build runs the embedder on **CPU** and is byte-for-byte the shipped,
-deterministic path — nothing below changes that. GPU acceleration is an opt-in
-**build-and-eval accelerator** whose largest win is bulk embedding (initial
-ingest, re-indexing, offline evaluation).
+CUDA is an opt-in **artifact capability**, not an end-user rebuild step. A
+supported CUDA-capable artifact contains both CPU and CUDA paths; CPU-only
+artifacts remain usable without an NVIDIA driver. GPU acceleration is most
+valuable for bulk embedding (initial ingest, re-indexing, offline evaluation).
 
-Scope note: when you opt in (`FATHOMDB_EMBED_DEVICE=cuda|metal`), that device is
-used for **all** embedding that engine instance performs — both ingest **and** the
-per-query embedding of the query string (the engine embeds the query on the same
-device the embedder was opened with). What stays **CPU-only / 1-bit (Hamming) /
+Scope note: when an engine resolves `FATHOMDB_EMBED_DEVICE` to CUDA (whether
+`auto` on a CUDA-capable artifact or forced `cuda:N`), that device is used for
+**all** embedding the engine instance performs — both ingest **and** per-query
+embedding of the query string. What stays **CPU-only / 1-bit (Hamming) /
 deterministic regardless** is the *retrieval* machinery: the stored sign-bit
 vector index, the Hamming scan over it, and RRF fusion. Because query embedding
 follows the selected backend, you should query a workspace with the **same
 backend that built its index** (see the cross-backend discipline below) — that is
 the point of the env knob, not a footgun.
 
-Two things turn it on, both off by default:
+The artifact builder enables CUDA support once. Users then select its runtime
+policy without recompiling:
 
-1. **A cargo feature** selects the backend at build time:
+1. **Artifact build capability.** The release/package builder selects the
+   backend at build time:
    - `embed-cuda` — NVIDIA CUDA (needs the CUDA toolkit, e.g. 12.6).
-   - `embed-metal` — Apple Metal.
-   Build the Python extension on the **main checkout** (never a worktree):
+   - `embed-metal` — retained build support; the public Slice 70 selection
+     policy currently does not expose a Metal request.
+   Application users of a supported CUDA-capable package do **not** rebuild it.
+   For local package development, build the Python extension on the **main
+   checkout** (never a worktree):
    `maturin develop --features pyo3/extension-module,embed-cuda`.
 2. **The `FATHOMDB_EMBED_DEVICE` environment variable** selects the device at
-   runtime: `cpu` (default) · `cuda` · `cuda:N` (GPU N) · `metal`. The device is
-   resolved once, when the engine opens. If a GPU device is requested but the
-   build lacks the matching feature, or device init fails, the embedder falls
-   back to CPU and prints a **loud** stderr warning (it never silently runs 100×
-   slower).
+   runtime: `auto` · `cpu` · `cuda:N` (GPU N). The unset/default policy is `auto` only on a CUDA-capable artifact;
+   it is resolved once, when the engine opens, and the result is exposed in `OpenReport`.
+   `auto` probes CUDA and records a typed CPU result when CUDA is unavailable;
+   a CPU-only artifact records `cuda_not_compiled`; `cpu` never probes CUDA; and
+   `cuda:N` is forced and raises a typed open error if it cannot be used. Bare `cuda`, `metal`,
+   whitespace/case variants, and other spellings are configuration errors —
+   embedding never silently changes a forced GPU request into CPU execution.
 
-The device is **not** part of the embedder identity — there is no new API on
-either the Python or TypeScript binding; the surface is the feature flag plus the
-env var, and the default (CPU) behavior is identical across both bindings.
+The device is **not** part of the embedder identity. Python and TypeScript expose
+the resolved open-time evidence as `embedder_device_resolution` /
+`embedderDeviceResolution`; selection remains the environment variable rather
+than a new binding-specific setting. `FATHOMDB_RERANK_DEVICE` is separate:
+it retains its legacy `cpu|cuda|cuda:N|metal` grammar and loud CPU fallback for
+the optional cross-encoder reranker only.
 
 ### Measured speedup
 

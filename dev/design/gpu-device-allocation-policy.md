@@ -1,16 +1,28 @@
 ---
-status: UNREVIEWED
+status: SUPERSEDED
+superseded_by: ADR-0.8.23-dual-runtime-device-policy.md
 ---
 
 # GPU device-allocation policy — design-on-spec (embedder + CE reranker)
 
 > **DESIGN-ON-SPEC — NOT APPROVED. NO engine code changes.**
 >
+> **Historical design snapshot — not a current runtime contract.** Slice 70
+> supersedes this proposal's embedder configuration, parser, default, and
+> fallback descriptions. The authoritative current contract is
+> [`ADR-0.8.23-dual-runtime-device-policy.md`](../adr/ADR-0.8.23-dual-runtime-device-policy.md)
+> plus [`0.8.23-slice-70-dual-runtime-device-policy.md`](0.8.23-slice-70-dual-runtime-device-policy.md).
+> Everything below records a former proposal only; it authorizes no current
+> configuration, execution path, or allocation behavior.
+>
 > This document is a *contingent* design produced so that, **if** HITL elects to harden FathomDB's
 > GPU device handling beyond today's raw device-string knob, there is a grounded, source-anchored
 > plan ready. It is **not** a build order. The current device seam (`FATHOMDB_EMBED_DEVICE`,
 > `FATHOMDB_RERANK_DEVICE`, the `embed-cuda`/`rerank-cuda` features, the loud-CPU-fallback) ships as
-> designed; nothing here re-opens it. This proposes the *next* layer — a safe-by-default allocation
+> designed; nothing here re-opens it. **Slice 70 supersedes this document's
+> embedder-parser and loud-fallback descriptions:** those legacy sections now
+> describe only `FATHOMDB_RERANK_DEVICE`; embedding uses strict
+> `auto|cpu|cuda:N` resolution. This proposes the *next* layer — a safe-by-default allocation
 > policy so a user who flips on GPU CE-rerank cannot OOM a busy GPU, fight a co-resident LLM server,
 > or grab the display GPU and hang the desktop. The load-bearing sections are §0.5 (the **two-tier
 > scope**), §1 (what exists today), and §4 (the recommendation).

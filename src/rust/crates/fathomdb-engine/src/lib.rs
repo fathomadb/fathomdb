@@ -641,6 +641,7 @@ struct ProjectionRuntime {
 struct ManagedConnectionRegistry {
     live: Mutex<BTreeSet<(WalAttributionRole, usize)>>,
     opens: Mutex<BTreeMap<ManagedConnectionCategory, usize>>,
+    #[cfg(test)]
     runtime_probe_lifecycle: Mutex<RuntimeProbeLifecycle>,
 }
 
@@ -665,7 +666,7 @@ struct ManagedConnectionRegistration {
 /// useful only after its native SQLite connection has actually been dropped;
 /// an implicit drop is deliberately retained as incomplete rather than being
 /// mistaken for an external holder.
-#[cfg(any(test, feature = "test-hooks"))]
+#[cfg(test)]
 #[derive(Clone, Copy, Debug, Default)]
 struct RuntimeProbeLifecycle {
     live: usize,
@@ -673,13 +674,13 @@ struct RuntimeProbeLifecycle {
     incomplete_drops: usize,
 }
 
-#[cfg(any(test, feature = "test-hooks"))]
+#[cfg(test)]
 struct RuntimeProbeRegistration {
     registry: Arc<ManagedConnectionRegistry>,
     acknowledged: bool,
 }
 
-#[cfg(any(test, feature = "test-hooks"))]
+#[cfg(test)]
 struct RuntimeProbeConnection {
     connection: Option<Connection>,
     registration: RuntimeProbeRegistration,
@@ -731,6 +732,7 @@ impl ManagedConnectionRegistry {
         ))
     }
 
+    #[cfg(test)]
     fn register_runtime_probe(self: &Arc<Self>) -> RuntimeProbeRegistration {
         let mut lifecycle = self.runtime_probe_lifecycle.lock().expect("runtime probe lifecycle");
         lifecycle.live += 1;
@@ -747,7 +749,7 @@ impl Drop for ManagedConnectionRegistration {
     }
 }
 
-#[cfg(any(test, feature = "test-hooks"))]
+#[cfg(test)]
 impl RuntimeProbeRegistration {
     fn acknowledge_actual_drop(&mut self) -> RuntimeProbeLifecycle {
         let mut lifecycle =
@@ -760,7 +762,7 @@ impl RuntimeProbeRegistration {
     }
 }
 
-#[cfg(any(test, feature = "test-hooks"))]
+#[cfg(test)]
 impl Drop for RuntimeProbeRegistration {
     fn drop(&mut self) {
         if !self.acknowledged {
@@ -772,7 +774,7 @@ impl Drop for RuntimeProbeRegistration {
     }
 }
 
-#[cfg(any(test, feature = "test-hooks"))]
+#[cfg(test)]
 impl RuntimeProbeConnection {
     fn open(path: &Path, registry: &Arc<ManagedConnectionRegistry>) -> rusqlite::Result<Self> {
         let connection =

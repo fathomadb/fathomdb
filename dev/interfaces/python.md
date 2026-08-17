@@ -119,11 +119,20 @@ The helper maps engine events into Python `logging.LogRecord`s with the stable
 `DeviceResolution | None`. When present, it preserves `requested_policy`
 (`"auto"`, `"cpu"`, or `"cuda:N"`), `cuda_compiled`, the effective
 `EffectiveEmbedDevice` (`kind == "cpu" | "cuda"` and safe CUDA facts for a
-CUDA selection), and the optional automatic-fallback `reason`. It is present
+CUDA selection), the ordered process-visible CUDA device inventory
+(`visible_ordinal`, UUID, name, compute capability), optional selected UUID,
+and the optional automatic-fallback `reason`. Ordinals are
+`CUDA_VISIBLE_DEVICES`-relative, never inferred host ordinals. It is present
 for default-embedder opens and the internal
 `EmbedderChoice::CallerWithDeviceResolution` path; an ONNX caller uses that
 path when it needs its final session outcome reported. It is `None` when no
 resolution was supplied. Forced CUDA is an open error, never a CPU report.
+
+The frozen additive fields are `visible_cuda_devices: tuple[CudaVisibleDevice,
+...]` (each `visible_ordinal`, `uuid`, `name`, `compute_capability`) and
+`selected_cuda_uuid: str | None`; a present selected UUID names exactly one
+inventory member. CPU-effective automatic outcomes retain the observed
+inventory.
 
 This is open-time evidence only: it does not add a Python device-setting API.
 `FATHOMDB_EMBED_DEVICE` remains the single cross-surface policy transport.

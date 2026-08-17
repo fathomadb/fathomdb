@@ -62,6 +62,7 @@ see that ADR's 2026-06-06 amendment).
 | `dump-schema`     | `fathomdb doctor dump-schema`                                                  | `doctor-check-*`                    |
 | `dump-row-counts` | `fathomdb doctor dump-row-counts`                                              | `doctor-check-*`                    |
 | `dump-profile`    | `fathomdb doctor dump-profile`                                                 | `doctor-check-*`                    |
+| `gpu`             | `fathomdb doctor gpu [--json]`                                                 | `doctor-gpu` = 0 / 65 / 70          |
 | `recompute-mean`  | `fathomdb doctor recompute-mean <db_path> [--json]`                            | `doctor-check-*` = 0 / 70 / 71      |
 | `dump-mutations`  | `fathomdb doctor dump-mutations <collection> [--after-id <n>] [--limit <n>] [--json] <db_path>` | `0 / 70 / 71`      |
 | `warm-cache`      | `fathomdb doctor warm-cache ...` (EU-5b)                                       | `doctor-check-*`                    |
@@ -69,6 +70,26 @@ see that ADR's 2026-06-06 amendment).
 
 `doctor-check-*` means the verb may use the exit-code class set `{0, 65, 70,
 71}` depending on clean/findings/unrecoverable/lock-held outcome.
+
+`doctor-gpu` (0.8.23 Slice 70) emits one stdout JSON object with
+`schema_version: "fathomdb.doctor.gpu.v1"` when `--json` is selected. It reads
+`FATHOMDB_EMBED_DEVICE` but exposes no setter or configuration writer;
+it does not open a database, load or download a model, write configuration, or
+initialize an engine. Its ordered `devices` inventory contains process-visible
+CUDA UUIDs and their `CUDA_VISIBLE_DEVICES`-relative ordinals only; it neither
+reports nor infers physical host ordinals. A selected UUID must match one
+inventory member.
+
+The exact outcome matrix is: `cpu` -> `selected_cpu_no_cuda`, typed CPU, `0`;
+policy-satisfied automatic CPU fallback ->
+`selected_cpu_no_cuda` / `cuda_not_compiled` / `cuda_unavailable` /
+`cuda_incompatible`, typed CPU, `0`; auto driver/probe diagnostic failure ->
+`probe_failed` with a typed CPU `effective_device` and exits `70`; selected
+automatic CUDA -> `selected_cuda`, `cuda:N`, `0`; forced `cuda:N`
+not-compiled/unavailable/incompatible -> no effective device, `65`; forced
+driver/probe failure -> `probe_failed`, no effective device, `70`; invalid or
+legacy policy -> `invalid_policy`, no effective device, `70`. Forced CUDA
+never becomes a CPU report.
 
 `dump-mutations` (0.8.0; gap F4-READ / reserved-gap-34) is a read-only operator
 diagnostic that pages op-store (`operational_mutations`) rows for one

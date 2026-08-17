@@ -19,7 +19,12 @@ Supported CUDA-capable Linux x86_64 artifacts compile both CPU and CUDA support
 and use one typed policy: `auto`, `cpu`, or forced `cuda:N`. `auto` is default
 on CUDA-capable artifacts; `cpu` never initializes CUDA; forced CUDA fails
 typed rather than falling back. `fathomdb doctor gpu` reports the resolved
-capability without model download or database mutation. CPU-only artifacts are
+capability without database access, engine initialization, model activity, or
+configuration writes. It reports ordered process-visible UUID inventory rather
+than host ordinals. Policy-satisfied automatic CPU fallback exits `0`; a true
+auto driver/probe diagnostic failure reports `probe_failed` with a typed CPU
+effective device and exits `70`; forced not-compiled/unavailable/incompatible
+CUDA reports no effective device and exits `65`; invalid policy exits `70`. CPU-only artifacts are
 truthful about `cuda_not_compiled`.
 
 ## Consequences

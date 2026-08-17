@@ -235,8 +235,15 @@ embedder and for `EmbedderChoice::CallerWithDeviceResolution`; it is `None`
 when open receives no device-resolution report (for example, no embedder or
 the legacy `Caller` variant). It preserves the exact requested policy
 (`auto`, `cpu`, or `cuda:N`), artifact CUDA capability, effective CPU/CUDA
-backend, CUDA provider facts when CUDA was selected, and an automatic-fallback
-reason. A forced-CUDA failure remains `EngineOpenError::EmbedDevicePolicy`,
+backend, the ordered process-visible CUDA inventory (`visible_ordinal`, UUID,
+name, compute capability), optional selected UUID, and an automatic-fallback
+reason. Ordinals are `CUDA_VISIBLE_DEVICES`-relative; physical host ordinals
+are never inferred. CPU-effective automatic outcomes retain the observed
+inventory. The additive fields are
+`visible_cuda_devices: Vec<CudaVisibleDevice>` (each with `visible_ordinal`,
+`uuid`, `name`, and `compute_capability`) and
+`selected_cuda_uuid: Option<String>`; a present selected UUID names exactly one
+inventory member. A forced-CUDA failure remains `EngineOpenError::EmbedDevicePolicy`,
 not a fabricated CPU report.
 
 A report-bearing `OrtBgeEmbedder` caller uses `CallerWithDeviceResolution`,

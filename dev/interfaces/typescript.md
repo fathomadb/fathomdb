@@ -125,11 +125,20 @@ Subscriber attachment is provided by:
 `DeviceResolution | null`. When present, it preserves `requestedPolicy`
 (`"auto"`, `"cpu"`, or `"cuda:N"`), `cudaCompiled`, the effective
 `EffectiveEmbedDevice` (`kind === "cpu" | "cuda"` and safe CUDA facts for a
-CUDA selection), and the optional automatic-fallback `reason`. It is present
+CUDA selection), the ordered process-visible CUDA device inventory
+(`visibleOrdinal`, UUID, name, compute capability), optional selected UUID,
+and the optional automatic-fallback `reason`. Ordinals are
+`CUDA_VISIBLE_DEVICES`-relative, never inferred host ordinals. It is present
 for default-embedder opens and the internal
 `EmbedderChoice::CallerWithDeviceResolution` path; an ONNX caller uses that
 path when it needs its final session outcome reported. It is `null` when no
 resolution was supplied. Forced CUDA is an open rejection, never a CPU report.
+
+The readonly additive fields are `visibleCudaDevices: readonly CudaVisibleDevice[]`
+(each `visibleOrdinal`, `uuid`, `name`, `computeCapability`) and
+`selectedCudaUuid: string | null`; a present selected UUID names exactly one
+inventory member. CPU-effective automatic outcomes retain the observed
+inventory.
 
 This is open-time evidence only: it adds no TypeScript device-setting API.
 `FATHOMDB_EMBED_DEVICE` remains the single cross-surface policy transport.

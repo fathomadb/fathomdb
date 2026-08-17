@@ -7,10 +7,10 @@ index remain the source of execution evidence.
 
 **Last reconciled:** 2026-08-16
 
-**Integration base:** `4bbc1b4f` on
+**Integration base:** `afbfeed2` on
 `experiments/performance-experiments-20260815`. This integrates the accepted
-LOCOMO-01 Phase-A preparation history; replace it with the verified integration
-SHA at each accepted lane close.
+SCALE-01 manifest-runner preparation history; replace it with the verified
+integration SHA at each accepted lane close.
 
 ## Current lanes
 
@@ -31,7 +31,7 @@ authorized.
 `SCALE-01` handed off `9997c2cd` from
 `/tmp/fathomdb-scale-01-20260816` on
 `experiments/performance-scale-01-20260816`; independent read-only review
-accepted it for integration. Its red-first, focused 10-test, full
+accepted it and it is integrated here as `afbfeed2`. Its red-first, focused 10-test, full
 80-experiment-test, and full `./scripts/agent-verify.sh` evidence passed
 (`72/73` suites, one documented skip). The worktree-local native binding used
 for that verifier is ignored local state, not a source change. No TC-5
@@ -50,7 +50,7 @@ run, extractor, GPU/model, paid service, external write, or push.
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
 | LOCOMO-01 | Active | Phase-A preparation integrated | `4bbc1b4f` integrates accepted worker `65427d29`: six frozen treatment tuples, 48-cell plan-only catalog, and no live runner. Next gate: separately authorized fixed-subset dry run/execution preparation; no live grid is authorized here. |
 | PARENT-01 | Planned | Contract dependency satisfied; not commissioned | May consume the accepted trace contract in preparation; hold writer work behind the two-lane authorization. |
-| SCALE-01 | Planned | Review accepted; integration pending | Accepted worker SHA `9997c2cd`; pure TC-5 manifest validator/planning receipt passed focused and full local verification. Next gate: coordinator integration and final cross-lane review; no live execution. |
+| SCALE-01 | Planned | Manifest-runner preparation integrated | `afbfeed2` integrates accepted worker `9997c2cd`: a pure TC-5 manifest validator and safe planning receipt. Next gate: final cross-lane review, then separately authorized smoke/execution preparation; no live execution is authorized here. |
 | CORPUS-01 | Planned | Queued independent preparation | Create corpus/license matrix and human-gold readiness contract. |
 | ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |
 | MEMORY-01 | Blocked | Waiting for ANSWER-01 | Require selected profile, native prerequisites, and declared spend ceiling. |

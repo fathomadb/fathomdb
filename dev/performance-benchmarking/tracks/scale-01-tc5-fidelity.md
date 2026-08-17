@@ -1,6 +1,7 @@
 # SCALE-01 — TC-5 all-real fidelity characterization
 
-**Status:** planned; independent of LOCOMO work.
+**Status:** planned; manifest-runner preparation integrated and independent of
+LOCOMO work. Execution remains separately authorized.
 
 ## Decision
 

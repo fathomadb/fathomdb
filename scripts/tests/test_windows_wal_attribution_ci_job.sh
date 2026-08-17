@@ -62,8 +62,8 @@ assert_before_in_function() {
   local source="$1" function="$2" first="$3" second="$4" description="$5"
   local body first_line second_line
   body="$(function_body "$source" "$function")"
-  first_line="$(grep -nF -- "$first" <<<"$body" | head -n 1 | cut -d: -f1 || true)"
-  second_line="$(grep -nF -- "$second" <<<"$body" | head -n 1 | cut -d: -f1 || true)"
+  first_line="$(grep -nFm1 -- "$first" <<<"$body" | cut -d: -f1 || true)"
+  second_line="$(grep -nFm1 -- "$second" <<<"$body" | cut -d: -f1 || true)"
   if [ -n "$first_line" ] && [ -n "$second_line" ] && [ "$first_line" -lt "$second_line" ]; then
     pass "$description"
   else
@@ -75,8 +75,8 @@ assert_before_in_python_function() {
   local source="$1" function="$2" first="$3" second="$4" description="$5"
   local body first_line second_line
   body="$(python_function_body "$source" "$function")"
-  first_line="$(grep -nF -- "$first" <<<"$body" | head -n 1 | cut -d: -f1 || true)"
-  second_line="$(grep -nF -- "$second" <<<"$body" | head -n 1 | cut -d: -f1 || true)"
+  first_line="$(grep -nFm1 -- "$first" <<<"$body" | cut -d: -f1 || true)"
+  second_line="$(grep -nFm1 -- "$second" <<<"$body" | cut -d: -f1 || true)"
   if [ -n "$first_line" ] && [ -n "$second_line" ] && [ "$first_line" -lt "$second_line" ]; then
     pass "$description"
   else
@@ -87,8 +87,8 @@ assert_before_in_python_function() {
 assert_before_in_text() {
   local text="$1" first="$2" second="$3" description="$4"
   local first_line second_line
-  first_line="$(grep -nF -- "$first" <<<"$text" | head -n 1 | cut -d: -f1 || true)"
-  second_line="$(grep -nF -- "$second" <<<"$text" | head -n 1 | cut -d: -f1 || true)"
+  first_line="$(grep -nFm1 -- "$first" <<<"$text" | cut -d: -f1 || true)"
+  second_line="$(grep -nFm1 -- "$second" <<<"$text" | cut -d: -f1 || true)"
   if [ -n "$first_line" ] && [ -n "$second_line" ] && [ "$first_line" -lt "$second_line" ]; then
     pass "$description"
   else
@@ -250,8 +250,9 @@ assert_contains "$(<"$PY_CONTROL")" \
 assert_contains "$(<"$PY_CONTROL")" \
   'BASELINE_FIRST_ERASE outcome=clean_completion' \
   "installed serial baseline records clean first-erase completion separately"
+serial_incident_body="$(python_function_body "$PY_CONTROL" "run_serial_incident")"
 assert_before_in_text \
-  "$(python_function_body "$PY_CONTROL" "run_serial_incident")" \
+  "$serial_incident_body" \
   'if not observe_baseline_first_erase:' \
   'fresh.transition' \
   "baseline observation mode does not continue to the follow-on purge lifecycle"

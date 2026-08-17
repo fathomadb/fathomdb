@@ -32,6 +32,8 @@ jobs:
           fetch-depth: 0
       - name: Install pinned Gitleaks
         run: bash scripts/install-gitleaks.sh
+      - name: Scan current tracked tree
+        run: bash scripts/security/gitleaks-current.sh
       - name: Scan reachable Git history
         run: bash scripts/security/gitleaks-history.sh
 

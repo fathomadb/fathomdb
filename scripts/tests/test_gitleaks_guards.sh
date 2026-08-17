@@ -8,6 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 STAGED_GUARD="$REPO_ROOT/scripts/security/gitleaks-staged.sh"
 HISTORY_GUARD="$REPO_ROOT/scripts/security/gitleaks-history.sh"
+CURRENT_GUARD="$REPO_ROOT/scripts/security/gitleaks-current.sh"
 PRE_COMMIT="$REPO_ROOT/scripts/hooks/pre-commit"
 CI="$REPO_ROOT/.github/workflows/ci.yml"
 INSTALLER="$REPO_ROOT/scripts/install-gitleaks.sh"
@@ -46,6 +47,7 @@ expect_zero() {
 
 [ -x "$STAGED_GUARD" ] || fail "staged Gitleaks guard exists and is executable"
 [ -x "$HISTORY_GUARD" ] || fail "history Gitleaks guard exists and is executable"
+[ -x "$CURRENT_GUARD" ] || fail "current-tree Gitleaks guard exists and is executable"
 [ -x "$INSTALLER" ] || fail "pinned Gitleaks installer exists and is executable"
 
 if ! command -v gitleaks >/dev/null 2>&1; then
@@ -54,6 +56,17 @@ if ! command -v gitleaks >/dev/null 2>&1; then
   exit 1
 fi
 GITLEAKS_BIN="$(command -v gitleaks)"
+
+set +e
+current_out="$(GITLEAKS_BIN="$GITLEAKS_BIN" "$CURRENT_GUARD" "$REPO_ROOT" 2>&1)"
+current_rc=$?
+set -e
+expect_zero "$current_rc" "current-tree guard accepts the tracked repository"
+if [[ "$current_out" == *"synthetic_"* ]]; then
+  fail "current-tree guard emits only its fixed safe report"
+else
+  pass "current-tree guard emits only its fixed safe report"
+fi
 
 TMPROOT="$(mktemp -d)"
 trap 'rm -rf "$TMPROOT"' EXIT
@@ -144,8 +157,10 @@ for index, job in enumerate(jobs):
         break
 else:
     raise SystemExit(1)
-required = ("fetch-depth: 0", "install-gitleaks.sh", "gitleaks-history.sh")
+required = ("fetch-depth: 0", "install-gitleaks.sh", "gitleaks-current.sh", "gitleaks-history.sh")
 if any(item not in body for item in required):
+    raise SystemExit(1)
+if body.find("gitleaks-current.sh") > body.find("gitleaks-history.sh"):
     raise SystemExit(1)
 if re.search(r"^    needs:\s*changes\s*$", body, re.M) or re.search(r"^    if:", body, re.M):
     raise SystemExit(1)

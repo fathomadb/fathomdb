@@ -1,0 +1,4 @@
+title = "FathomDB current-tree Gitleaks policy"
+
+[extend]
+useDefault = true

@@ -179,3 +179,32 @@ def test_blocked_report_requires_known_missing_facts_and_cannot_imply_a_release(
             missing_prerequisites=["invented-prerequisite"],
             observed_inventory_ids=[],
         )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("document_ids", ["document-00000"]),
+        ("raw_path", "/external/private/corpus.jsonl"),
+        ("query", {"text": "forbidden"}),
+        ("prediction", {"answer": "forbidden"}),
+        ("metrics", {"recall_at_10": 0.9}),
+        ("fake_field", True),
+    ],
+)
+def test_report_writer_rejects_sensitive_or_unknown_blocked_report_fields(tmp_path, field, value):
+    report = qualification.blocked_input_report(
+        report_id="tc5-input-preflight-blocked-003",
+        missing_prerequisites=["all_real_manifest"],
+        observed_inventory_ids=[],
+    )
+    report[field] = value
+    output_root = tmp_path / "external-output"
+    output_root.mkdir()
+
+    with pytest.raises(qualification.Tc5InputQualificationError, match="report keys"):
+        qualification.write_qualification_report(
+            report, output_root=output_root, report_path=output_root / "blocked.json"
+        )
+
+    assert not (output_root / "blocked.json").exists()

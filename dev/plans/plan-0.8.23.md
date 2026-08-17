@@ -92,7 +92,7 @@ the next commissioned release slice.
 
 HITL commissioned Slices 10, 20, and 70 on 2026-08-17. Slice 10's local
 contract work is complete; its external provenance, runner-policy, and hardware
-witness condition is `PENDING_EXTERNAL`. Per HITL `seq:249`, that condition
+witness condition is `PENDING_EXTERNAL`. Per HITL seq:249, that condition
 blocks release completion and publication, not local Slice 20 or Slice 70 work.
 Slice 20 is next; Slice 70 remains sequenced after Slice 20. Their work remains
 subject to their reviewed designs, acceptance criteria, and non-publication

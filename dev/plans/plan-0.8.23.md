@@ -81,8 +81,11 @@ first-party Windows x64 evidence path before it can be commissioned. A local
 Windows development environment is available for controlled reproduction and
 development; it is not, by itself, an automated CI or release-evidence path.
 Slice 65 is expressly commissioned as a post-Slice-60 investigation. Its
-design is complete, but its RED-to-GREEN instrumentation and Windows execution
-remain a separate implementation phase on the release branch.
+design and RED-to-GREEN instrumentation are implemented on the release branch,
+and the focused hosted Windows managed-reader control has passed. The remaining
+Python, retained-result/idle-Engine, Memex-shaped serial-lifecycle, and
+projection-runtime controls still block completion, root-cause attribution, and
+any retry, binding, or reader-pool remedy.
 
 ## Cross-cutting DoD
 

@@ -20,7 +20,8 @@
           "expires_at",
           "purpose",
           "provenance_pr",
-          "provenance_commit"
+          "provenance_commit",
+          "provenance_required_reviewers"
         ],
         "properties": {
           "schema_version": {"const": "fathomdb.cuda-unmerged-candidate/v1"},
@@ -36,7 +37,13 @@
           "expires_at": {"pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$", "type": "string"},
           "purpose": {"const": "0.8.23 non-publishing CUDA preflight"},
           "provenance_pr": {"minimum": 1, "type": "integer"},
-          "provenance_commit": {"pattern": "^[0-9a-f]{40}$", "type": "string"}
+          "provenance_commit": {"pattern": "^[0-9a-f]{40}$", "type": "string"},
+          "provenance_required_reviewers": {
+            "minItems": 1,
+            "items": {"minLength": 1, "type": "string"},
+            "type": "array",
+            "uniqueItems": true
+          }
         }
       }
     }

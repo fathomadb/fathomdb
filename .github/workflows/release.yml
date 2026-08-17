@@ -170,18 +170,38 @@ jobs:
             --header "Authorization: Bearer $GH_TOKEN" \
             --header 'X-GitHub-Api-Version: 2022-11-28' \
             "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$candidate_pr/reviews?per_page=100" > reviews.json
-          python3 - "$CANDIDATE_SHA" pull-request.json reviews.json dev/release/cuda-protection-baseline.json route-facts.json <<'PY'
+          provenance_pr="$(python3 - "$CANDIDATE_SHA" dev/release/cuda-unmerged-candidates.json <<'PY'
+          import json
+          import sys
+          candidate_sha, manifest_path = sys.argv[1:]
+          manifest = json.load(open(manifest_path, encoding="utf-8"))
+          records = [item for item in manifest["candidates"] if item.get("candidate_sha") == candidate_sha]
+          assert len(records) == 1
+          print(records[0]["provenance_pr"])
+          PY
+          )"
+          curl --fail --silent --show-error --request GET \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$provenance_pr" > provenance-pull-request.json
+          curl --fail --silent --show-error --request GET \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$provenance_pr/reviews?per_page=100" > provenance-reviews.json
+          python3 - "$CANDIDATE_SHA" pull-request.json reviews.json provenance-pull-request.json provenance-reviews.json dev/release/cuda-protection-baseline.json route-facts.json <<'PY'
           import hashlib
           import json
           import sys
 
-          candidate_sha, pr_path, reviews_path, baseline_path, output_path = sys.argv[1:]
+          candidate_sha, pr_path, reviews_path, provenance_pr_path, provenance_reviews_path, baseline_path, output_path = sys.argv[1:]
           def canonical(value):
               return json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("ascii") + b"\n"
           def digest(value):
               return hashlib.sha256(canonical(value)).hexdigest()
           pr_raw = json.load(open(pr_path, encoding="utf-8"))
           reviews_raw = json.load(open(reviews_path, encoding="utf-8"))
+          provenance_pr_raw = json.load(open(provenance_pr_path, encoding="utf-8"))
+          provenance_reviews_raw = json.load(open(provenance_reviews_path, encoding="utf-8"))
           baseline = json.load(open(baseline_path, encoding="utf-8"))
           pr = {
               "number": pr_raw["number"], "state": pr_raw["state"], "draft": pr_raw["draft"],
@@ -193,14 +213,27 @@ jobs:
               "id": item["id"], "user": {"login": item["user"]["login"]},
               "state": item["state"], "commit_id": item["commit_id"], "submitted_at": item["submitted_at"],
           } for item in reviews_raw]
+          provenance_pr = {
+              "number": provenance_pr_raw["number"], "state": provenance_pr_raw["state"], "merged": provenance_pr_raw["merged"],
+              "base": {"ref": provenance_pr_raw["base"]["ref"], "repo_full_name": provenance_pr_raw["base"]["repo"]["full_name"]},
+              "merge_commit_sha": provenance_pr_raw["merge_commit_sha"], "user": {"login": provenance_pr_raw["user"]["login"]},
+          }
+          provenance_reviews = [{
+              "id": item["id"], "user": {"login": item["user"]["login"]},
+              "state": item["state"], "commit_id": item["commit_id"], "submitted_at": item["submitted_at"],
+          } for item in provenance_reviews_raw]
           facts = {
               "schema_version": "fathomdb.cuda-unmerged-candidate-facts/v1",
               "protection_baseline": baseline,
               "pull_request": pr,
               "reviews": reviews,
               "reviews_pagination_complete": len(reviews_raw) < 100,
+              "provenance_pull_request": provenance_pr,
+              "provenance_reviews": provenance_reviews,
+              "provenance_reviews_pagination_complete": len(provenance_reviews_raw) < 100,
               "api_response_sha256": {
                   "protection_baseline": digest(baseline), "pull_request": digest(pr), "reviews": digest(reviews),
+                  "provenance_pull_request": digest(provenance_pr), "provenance_reviews": digest(provenance_reviews),
               },
           }
           open(output_path, "wb").write(canonical(facts))

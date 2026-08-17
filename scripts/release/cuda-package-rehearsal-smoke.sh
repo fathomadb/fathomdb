@@ -31,6 +31,10 @@ for path in "$python_wheel" "$npm_main" "$napi_platform"; do
 done
 [ ! -e "$smoke_dir" ] || { printf 'cuda-package-smoke: smoke directory must be new: %s\n' "$smoke_dir" >&2; exit 1; }
 [ -d "$hf_home" ] && [ ! -L "$hf_home" ] || { printf 'cuda-package-smoke: pinned embedder cache must be a non-symlink directory\n' >&2; exit 1; }
+python_wheel_abs="$(realpath -- "$python_wheel")"
+npm_main_abs="$(realpath -- "$npm_main")"
+napi_platform_abs="$(realpath -- "$napi_platform")"
+hf_home_abs="$(realpath -- "$hf_home")"
 for command in docker nvidia-smi; do
   command -v "$command" >/dev/null || { printf 'cuda-package-smoke: missing %s\n' "$command" >&2; exit 1; }
 done
@@ -73,8 +77,8 @@ PY
 # never mounted; env -i and --network none prevent ambient package/download or
 # device-selector inputs from satisfying a CPU-default smoke.
 docker run --rm --network none \
-  --mount "type=bind,src=$(realpath "$python_wheel"),dst=/input/fathomdb.whl,readonly" \
-  --mount "type=bind,src=$(realpath "$hf_home"),dst=/fathomdb-hf,readonly" \
+  --mount "type=bind,src=$python_wheel_abs,dst=/input/fathomdb.whl,readonly" \
+  --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
   "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
   env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp HF_HOME=/fathomdb-hf sh -ceu '
     test ! -e /dev/nvidiactl
@@ -94,9 +98,9 @@ with tempfile.TemporaryDirectory() as d:
 write_cpu python
 
 docker run --rm --network none \
-  --mount "type=bind,src=$(realpath "$npm_main"),dst=/input/fathomdb.tgz,readonly" \
-  --mount "type=bind,src=$(realpath "$napi_platform"),dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
-  --mount "type=bind,src=$(realpath "$hf_home"),dst=/fathomdb-hf,readonly" \
+  --mount "type=bind,src=$npm_main_abs,dst=/input/fathomdb.tgz,readonly" \
+  --mount "type=bind,src=$napi_platform_abs,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
+  --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
   "$CUDA_DRIVERLESS_NODE_IMAGE" \
   env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp HF_HOME=/fathomdb-hf sh -ceu '
     test ! -e /dev/nvidiactl
@@ -134,8 +138,8 @@ wait_for_gpu() {
 }
 
 python_gpu="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
-  --mount "type=bind,src=$(realpath "$python_wheel"),dst=/input/fathomdb.whl,readonly" \
-  --mount "type=bind,src=$(realpath "$hf_home"),dst=/fathomdb-hf,readonly" \
+  --mount "type=bind,src=$python_wheel_abs,dst=/input/fathomdb.whl,readonly" \
+  --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
   "$CUDA_MANYLINUX_IMAGE" sh -ceu '
     env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp HF_HOME=/fathomdb-hf FATHOMDB_EMBED_DEVICE=cuda:0 /opt/python/cp311-cp311/bin/python -m pip install --no-deps /input/fathomdb.whl
     exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp HF_HOME=/fathomdb-hf FATHOMDB_EMBED_DEVICE=cuda:0 /opt/python/cp311-cp311/bin/python -c "from fathomdb import Engine; import tempfile; from pathlib import Path; d=tempfile.TemporaryDirectory(); e=Engine.open(str(Path(d.name)/\"gpu.fdb\"),use_default_embedder=True); e.embed(\"CUDA package rehearsal installed Python GPU smoke\"); e.close(); import time; time.sleep(20)"
@@ -143,9 +147,9 @@ python_gpu="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
 wait_for_gpu "$python_gpu" python
 
 napi_gpu="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
-  --mount "type=bind,src=$(realpath "$npm_main"),dst=/input/fathomdb.tgz,readonly" \
-  --mount "type=bind,src=$(realpath "$napi_platform"),dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
-  --mount "type=bind,src=$(realpath "$hf_home"),dst=/fathomdb-hf,readonly" \
+  --mount "type=bind,src=$npm_main_abs,dst=/input/fathomdb.tgz,readonly" \
+  --mount "type=bind,src=$napi_platform_abs,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
+  --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
   "$CUDA_DRIVERLESS_NODE_IMAGE" sh -ceu '
     mkdir /consumer && cd /consumer
     printf "%s\n" "{\"private\":true,\"type\":\"module\",\"dependencies\":{\"fathomdb\":\"file:/input/fathomdb.tgz\",\"fathomdb-linux-x64-gnu\":\"file:/input/fathomdb-linux-x64-gnu.tgz\"}}" > package.json

@@ -103,7 +103,7 @@ else
 fi
 
 python_cpu_smoke="$(sed -n '/docker run --rm --network none/,/write_cpu python/p' "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh")"
-if printf '%s\n' "$python_cpu_smoke" | grep -Fq 'test ! -e /dev/nvidiactl'; then
+if grep -Fq 'test ! -e /dev/nvidiactl' <<<"$python_cpu_smoke"; then
   printf 'PASS  Slice 20 Python CPU smoke proves driverless execution\n'
 else
   printf 'FAIL  Slice 20 Python CPU smoke must prove /dev/nvidiactl is absent\n' >&2

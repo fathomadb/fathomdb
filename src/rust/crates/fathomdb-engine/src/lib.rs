@@ -63,7 +63,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use fathomdb_embedder::EmbedderEvent;
+use fathomdb_embedder::{DeviceResolution, EmbedDevicePolicyError, EmbedderEvent};
 // `MeanRecomputeTrigger` is used only by the operator-gated `recompute_mean`.
 #[cfg(feature = "operator")]
 use fathomdb_embedder::MeanRecomputeTrigger;
@@ -2530,6 +2530,12 @@ pub struct OpenReport {
     /// R-VEQ-6 — human-readable reason for `dense_disabled` (which representation
     /// tripped: P1 flip count or P2 L2). `None` when `dense_disabled == false`.
     pub dense_disabled_reason: Option<String>,
+    /// Strict CPU/CUDA policy resolution used to construct the default
+    /// embedder. `None` when the caller supplied an embedder or selected none.
+    /// A present report is the one selection passed into default-embedder
+    /// construction; forced CUDA failures return
+    /// [`EngineOpenError::EmbedDevicePolicy`] rather than report CPU.
+    pub embedder_device_resolution: Option<DeviceResolution>,
 }
 
 #[derive(Debug)]
@@ -2544,6 +2550,7 @@ pub struct OpenedEngine {
 struct LoaderInfo {
     download_ms: Option<u64>,
     events: Vec<EmbedderEvent>,
+    device_resolution: DeviceResolution,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -4675,6 +4682,8 @@ pub enum EngineOpenError {
     },
     /// Embedder runtime returned a typed error during `Engine::open`.
     Embedder(RuntimeEmbedderError),
+    /// The default embedder's explicit CPU/CUDA policy could not be honored.
+    EmbedDevicePolicy(EmbedDevicePolicyError),
     Io {
         message: String,
     },
@@ -4743,6 +4752,7 @@ impl Display for EngineOpenError {
                     write!(f, "embedder failure during open: {message}")
                 }
             },
+            Self::EmbedDevicePolicy(error) => error.fmt(f),
             Self::Io { message } => write!(f, "database I/O error: {message}"),
         }
     }
@@ -5714,6 +5724,8 @@ impl Engine {
     #[cfg(feature = "default-embedder")]
     fn open_default_embedder(path: impl Into<PathBuf>) -> Result<OpenedEngine, EngineOpenError> {
         use std::time::Instant as DownloadInstant;
+        let device_resolution = fathomdb_embedder::resolve_default_embedder_device_from_env()
+            .map_err(EngineOpenError::EmbedDevicePolicy)?;
         let download_start = DownloadInstant::now();
         let weights = fathomdb_embedder::loader::load_pinned_default_embedder().map_err(|err| {
             EngineOpenError::Embedder(RuntimeEmbedderError::Failed {
@@ -5727,14 +5739,18 @@ impl Engine {
             None
         };
         let embedder =
-            fathomdb_embedder::CandleBgeEmbedder::new_from_weights(weights).map_err(|err| {
+            fathomdb_embedder::CandleBgeEmbedder::new_from_weights_with_device_resolution(
+                weights,
+                &device_resolution,
+            )
+            .map_err(|err| {
                 EngineOpenError::Embedder(RuntimeEmbedderError::Failed {
                     message: format!("default embedder construct: {err}"),
                 })
             })?;
         let embedder: Arc<dyn Embedder> = Arc::new(embedder);
         let identity = embedder.identity();
-        let loader_info = LoaderInfo { download_ms, events };
+        let loader_info = LoaderInfo { download_ms, events, device_resolution };
         Self::open_with_embedder_and_subscriber(
             path,
             identity,
@@ -5885,6 +5901,7 @@ impl Engine {
                     if !info.events.is_empty() {
                         report.embedder_events = info.events;
                     }
+                    report.embedder_device_resolution = Some(info.device_resolution);
                 }
 
                 // 0.8.18 Slice 5 (#5 vector-equivalence probe KEYSTONE) — run the
@@ -6262,6 +6279,7 @@ impl Engine {
             // non-degraded default; the probe runs after this returns.
             dense_disabled: false,
             dense_disabled_reason: None,
+            embedder_device_resolution: None,
         };
 
         let mut readers = Vec::with_capacity(READER_POOL_SIZE);
@@ -22698,11 +22716,14 @@ unsafe extern "C" fn profile_callback_trampoline(
 #[cfg(test)]
 mod tests {
     use super::{
-        derive_stable_id, native_connection_state_for_test, resolve_source_type, Engine,
-        EngineError, IdSpace, IdSpaceKind, InitialState, ManagedConnectionRegistry,
-        NativeTransactionState, PreparedWrite, RuntimeProbeConnection, SourceId,
-        WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL,
+        derive_stable_id, native_connection_state_for_test, resolve_source_type, DeviceResolution,
+        Engine, EngineError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
+        ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, RuntimeProbeConnection,
+        SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL,
         PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
+    };
+    use fathomdb_embedder::{
+        DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,
     };
     use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
     use rusqlite::Connection;
@@ -22713,6 +22734,34 @@ mod tests {
     use std::thread;
     use std::time::{Duration, Instant};
     use tempfile::TempDir;
+
+    #[test]
+    fn loader_device_resolution_reaches_open_report_once() {
+        let dir = TempDir::new().expect("temp dir");
+        let embedder: Arc<dyn Embedder> = Arc::new(NoopEmbedder::default());
+        let identity = embedder.identity();
+        let resolution = DeviceResolution {
+            requested_policy: EmbedDevicePolicy::Auto,
+            cuda_compiled: false,
+            effective_device: EffectiveEmbedDevice::Cpu,
+            reason: Some(DeviceResolutionReason::CudaNotCompiled),
+        };
+        let opened = Engine::open_with_embedder_and_subscriber(
+            dir.path().join("device-resolution.sqlite"),
+            identity,
+            Some(embedder),
+            Some(LoaderInfo {
+                download_ms: None,
+                events: Vec::new(),
+                device_resolution: resolution.clone(),
+            }),
+            None,
+            &mut |_| {},
+        )
+        .expect("open with the already-resolved default device");
+
+        assert_eq!(opened.report.embedder_device_resolution, Some(resolution));
+    }
 
     /// Slice 65: the attribution collector starts with every Engine-owned
     /// connection role registered and no active owned snapshot.  This is the

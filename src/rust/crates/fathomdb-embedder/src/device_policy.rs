@@ -69,6 +69,26 @@ impl fmt::Display for EmbedDevicePolicyParseError {
 
 impl std::error::Error for EmbedDevicePolicyParseError {}
 
+/// A typed failure while resolving the public embedder-device setting.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EmbedDevicePolicyError {
+    /// `FATHOMDB_EMBED_DEVICE` is malformed or uses a retired spelling.
+    InvalidPolicy(EmbedDevicePolicyParseError),
+    /// A syntactically valid policy could not select its required device.
+    Resolution(DeviceResolutionError),
+}
+
+impl fmt::Display for EmbedDevicePolicyError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidPolicy(error) => error.fmt(formatter),
+            Self::Resolution(error) => error.fmt(formatter),
+        }
+    }
+}
+
+impl std::error::Error for EmbedDevicePolicyError {}
+
 /// Safe metadata returned after a compatible CUDA device has been initialized
 /// and minimally probed.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -220,6 +240,22 @@ pub fn resolve_embed_device_policy(
             Err(reason) => Err(DeviceResolutionError::ForcedCudaUnavailable { ordinal, reason }),
         },
     }
+}
+
+/// Parse and resolve `FATHOMDB_EMBED_DEVICE` exactly once for a default
+/// embedder construction.
+///
+/// An unset setting means [`EmbedDevicePolicy::Auto`]. The injected provider
+/// keeps the environment transport separate from actual CUDA initialization,
+/// so `cpu` and CPU-only `auto` still make no provider call.
+pub fn resolve_embed_device_policy_from_env(
+    cuda_compiled: bool,
+    provider: &mut dyn CudaProvider,
+) -> Result<DeviceResolution, EmbedDevicePolicyError> {
+    let raw = std::env::var("FATHOMDB_EMBED_DEVICE").unwrap_or_else(|_| "auto".to_string());
+    let policy = raw.parse::<EmbedDevicePolicy>().map_err(EmbedDevicePolicyError::InvalidPolicy)?;
+    resolve_embed_device_policy(policy, cuda_compiled, provider)
+        .map_err(EmbedDevicePolicyError::Resolution)
 }
 
 fn probe(

@@ -1,0 +1,340 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fathomdb.dev/schema/0.8.23-scale-artifact-v1.json",
+  "title": "FathomDB 0.8.23 scale characterization artifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "protocol",
+    "status",
+    "claim_scope",
+    "candidate",
+    "provenance",
+    "input_root",
+    "input_manifest_sha256",
+    "matrix",
+    "integrity",
+    "summary",
+    "next_step"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "protocol": { "const": "0.8.23-scale-characterization-v1" },
+    "status": {
+      "enum": [
+        "DEFERRED",
+        "MISSING_PREREQUISITE",
+        "INSUFFICIENT_SAMPLES",
+        "ENVIRONMENT_INVALID",
+        "CHARACTERIZED"
+      ]
+    },
+    "claim_scope": {
+      "const": "fixture_scoped_non_ann_two_phase_vector_characterization"
+    },
+    "candidate": { "$ref": "#/$defs/candidate" },
+    "provenance": { "$ref": "#/$defs/provenance" },
+    "input_root": {
+      "type": "string",
+      "pattern": "^dev/plans/runs/0\\.8\\.23-scale-[0-9a-f]{40}-raw/$"
+    },
+    "input_manifest_sha256": { "$ref": "#/$defs/sha256" },
+    "matrix": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/cell" }
+    },
+    "integrity": { "$ref": "#/$defs/integrity" },
+    "summary": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/summary" }
+      ]
+    },
+    "next_step": { "type": "string", "minLength": 1 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "CHARACTERIZED" } } },
+      "then": {
+        "properties": {
+          "summary": { "$ref": "#/$defs/summary" }
+        }
+      },
+      "else": {
+        "properties": { "summary": { "type": "null" } }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "git_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "nonnegative_integer": { "type": "integer", "minimum": 0 },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["head_sha", "ref", "commit_timestamp", "git_status_porcelain", "worktree_clean", "schema_version"],
+      "properties": {
+        "head_sha": { "$ref": "#/$defs/git_sha" },
+        "ref": { "type": "string", "minLength": 1 },
+        "commit_timestamp": { "type": "string", "format": "date-time" },
+        "git_status_porcelain": { "const": "" },
+        "worktree_clean": { "const": true },
+        "schema_version": { "$ref": "#/$defs/nonnegative_integer" }
+      }
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "source", "checksum"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "checksum": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "slice5_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["release", "authoritative_release_state", "measured_lock_stack"],
+      "properties": {
+        "release": { "const": "0.8.22" },
+        "authoritative_release_state": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "git_blob", "sha256", "slice", "status", "landed_sha", "evidence_sha256"],
+          "properties": {
+            "path": { "const": "dev/plans/release-state-0.8.22.json" },
+            "git_blob": { "$ref": "#/$defs/git_sha" },
+            "sha256": { "$ref": "#/$defs/sha256" },
+            "slice": { "const": 5 },
+            "status": { "const": "LANDED" },
+            "landed_sha": { "$ref": "#/$defs/git_sha" },
+            "evidence_sha256": { "$ref": "#/$defs/sha256" }
+          }
+        },
+        "measured_lock_stack": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cargo_lock_sha256", "rusqlite", "sqlite_vec", "libsqlite3_sys"],
+          "properties": {
+            "cargo_lock_sha256": { "$ref": "#/$defs/sha256" },
+            "rusqlite": {
+              "allOf": [
+                { "$ref": "#/$defs/package" },
+                { "properties": { "name": { "const": "rusqlite" } } }
+              ]
+            },
+            "sqlite_vec": {
+              "allOf": [
+                { "$ref": "#/$defs/package" },
+                { "properties": { "name": { "const": "sqlite-vec" } } }
+              ]
+            },
+            "libsqlite3_sys": {
+              "allOf": [
+                { "$ref": "#/$defs/package" },
+                { "properties": { "name": { "const": "libsqlite3-sys" } } }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slice5_provenance", "lock_build", "fixture", "environment"],
+      "properties": {
+        "slice5_provenance": { "$ref": "#/$defs/slice5_provenance" },
+        "lock_build": { "$ref": "#/$defs/lock_build" },
+        "fixture": { "$ref": "#/$defs/fixture" },
+        "environment": { "$ref": "#/$defs/environment" }
+      }
+    },
+    "lock_build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cargo_lock_git_blob", "cargo_lock_sha256", "cargo_metadata_locked_sha256", "schema_version", "schema_source_git_blob", "rustc_vv", "cargo_v", "target", "profile", "enabled_features", "command", "built_process_sqlite_version"],
+      "properties": {
+        "cargo_lock_git_blob": { "$ref": "#/$defs/git_sha" },
+        "cargo_lock_sha256": { "$ref": "#/$defs/sha256" },
+        "cargo_metadata_locked_sha256": { "$ref": "#/$defs/sha256" },
+        "schema_version": { "$ref": "#/$defs/nonnegative_integer" },
+        "schema_source_git_blob": { "$ref": "#/$defs/git_sha" },
+        "rustc_vv": { "type": "string", "minLength": 1 },
+        "cargo_v": { "type": "string", "minLength": 1 },
+        "target": { "type": "string", "minLength": 1 },
+        "profile": { "const": "release" },
+        "enabled_features": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "command": { "type": "string", "minLength": 1 },
+        "built_process_sqlite_version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "generator", "corpus_seed", "query_generator", "query_seed", "source_identity", "vector_dimension", "query_count", "scale_points", "perf_gates_git_blob", "descriptor_sha256"],
+      "properties": {
+        "id": { "const": "ac013-deterministic-vector-v1" },
+        "generator": { "const": "seed_ac013_corpus" },
+        "corpus_seed": { "const": "0x0AC0_13D0_13D0" },
+        "query_generator": { "const": "ac013_query_bodies" },
+        "query_seed": { "const": "0x0AC0_130D_EC0D_E000" },
+        "source_identity": { "const": "test:fixture" },
+        "vector_dimension": { "const": 384 },
+        "query_count": { "const": 1000 },
+        "scale_points": { "const": [10000, 100000, 1000000] },
+        "perf_gates_git_blob": { "$ref": "#/$defs/git_sha" },
+        "descriptor_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host", "gpu", "isolation"],
+      "properties": {
+        "host": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["collect_host_spec_sha256", "total_ram_bytes", "available_ram_bytes", "database_filesystem", "database_free_bytes", "cpu_governor_frequency_policy"],
+          "properties": {
+            "collect_host_spec_sha256": { "$ref": "#/$defs/sha256" },
+            "total_ram_bytes": { "type": "integer", "minimum": 1 },
+            "available_ram_bytes": { "$ref": "#/$defs/nonnegative_integer" },
+            "database_filesystem": { "type": "string", "minLength": 1 },
+            "database_free_bytes": { "$ref": "#/$defs/nonnegative_integer" },
+            "cpu_governor_frequency_policy": { "type": "string", "minLength": 1 }
+          }
+        },
+        "gpu": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state"],
+          "properties": {
+            "state": { "enum": ["available", "not_present_or_unavailable"] },
+            "name": { "type": "string", "minLength": 1 },
+            "driver_version": { "type": "string", "minLength": 1 },
+            "memory_total_mb": { "type": "integer", "minimum": 1 }
+          },
+          "allOf": [
+            {
+              "if": { "properties": { "state": { "const": "available" } } },
+              "then": { "required": ["name", "driver_version", "memory_total_mb"] },
+              "else": { "not": { "anyOf": [{ "required": ["name"] }, { "required": ["driver_version"] }, { "required": ["memory_total_mb"] }] } }
+            }
+          ]
+        },
+        "isolation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["timestamp", "load_evidence_sha256", "process_inventory_sha256", "cpu_affinity", "governor_policy", "power_policy", "container_or_vm", "no_concurrent_benchmark"],
+          "properties": {
+            "timestamp": { "type": "string", "format": "date-time" },
+            "load_evidence_sha256": { "$ref": "#/$defs/sha256" },
+            "process_inventory_sha256": { "$ref": "#/$defs/sha256" },
+            "cpu_affinity": { "type": "string", "minLength": 1 },
+            "governor_policy": { "type": "string", "minLength": 1 },
+            "power_policy": { "type": "string", "minLength": 1 },
+            "container_or_vm": { "type": "string", "minLength": 1 },
+            "no_concurrent_benchmark": { "const": true }
+          }
+        }
+      }
+    },
+    "raw_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["log", "sidecar", "sha256"],
+      "properties": {
+        "log": { "type": "string", "pattern": "^ac013-(10000|100000|1000000)-(process_cold|warm)-rep[1-5]\\.log$" },
+        "sidecar": { "type": "string", "pattern": "^ac013-(10000|100000|1000000)-(process_cold|warm)-rep[1-5]\\.log\\.sha256$" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "repetition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repetition",
+        "raw",
+        "command_exit_status",
+        "seed_write_ms",
+        "embedding_ms",
+        "projection_drain_ms",
+        "accepted_writes",
+        "vector_rows_after_drain",
+        "drain_outcome",
+        "samples_us",
+        "result_counts",
+        "query_errors",
+        "query_timeouts",
+        "query_skips",
+        "query_invariant_failures"
+      ],
+      "properties": {
+        "repetition": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "raw": { "$ref": "#/$defs/raw_file" },
+        "command_exit_status": { "const": 0 },
+        "seed_write_ms": { "$ref": "#/$defs/nonnegative_integer" },
+        "embedding_ms": {
+          "oneOf": [
+            { "$ref": "#/$defs/nonnegative_integer" },
+            { "const": "not_separately_observable" }
+          ]
+        },
+        "projection_drain_ms": { "$ref": "#/$defs/nonnegative_integer" },
+        "accepted_writes": { "enum": [10000, 100000, 1000000] },
+        "vector_rows_after_drain": { "enum": [10000, 100000, 1000000] },
+        "drain_outcome": { "const": "ok" },
+        "samples_us": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonnegative_integer" }
+        },
+        "result_counts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonnegative_integer" }
+        },
+        "query_errors": { "const": 0 },
+        "query_timeouts": { "const": 0 },
+        "query_skips": { "const": 0 },
+        "query_invariant_failures": { "const": 0 }
+      }
+    },
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows", "treatment", "repetitions"],
+      "properties": {
+        "rows": { "enum": [10000, 100000, 1000000] },
+        "treatment": { "enum": ["process_cold", "warm"] },
+        "repetitions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/repetition" }
+        }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw_log_digests", "invalid_reasons", "missing_prerequisites"],
+      "properties": {
+        "raw_log_digests": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/raw_file" }
+        },
+        "invalid_reasons": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "missing_prerequisites": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cells"],
+      "properties": {
+        "cells": { "type": "array" }
+      }
+    }
+  }
+}

@@ -1,8 +1,8 @@
 # SCALE-01 TC-5 factual input qualification handoff
 
-**Track:** `SCALE-01`  
-**Worker branch:** `experiments/performance-tc5-input-qualification-20260816`  
-**Deliberate base:** `febd1155e61b2f8da3ed17870a8966d1034e16a7`  
+**Track:** `SCALE-01`
+**Worker branch:** `experiments/performance-tc5-input-qualification-20260816`
+**Deliberate base:** `febd1155e61b2f8da3ed17870a8966d1034e16a7`
 **Scope:** content-free factual preflight only.
 
 ## Delivered boundary

@@ -1,7 +1,7 @@
 # SCALE-01 TC-5 factual input qualification contract
 
-**Track:** `SCALE-01`  
-**Date:** 2026-08-16  
+**Track:** `SCALE-01`
+**Date:** 2026-08-16
 **Status:** read-only factual qualification; not a live-execution release.
 
 ## Purpose

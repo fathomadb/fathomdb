@@ -81,11 +81,13 @@ first-party Windows x64 evidence path before it can be commissioned. A local
 Windows development environment is available for controlled reproduction and
 development; it is not, by itself, an automated CI or release-evidence path.
 Slice 65 is expressly commissioned as a post-Slice-60 investigation. Its
-design and RED-to-GREEN instrumentation are implemented on the release branch,
-and the focused hosted Windows managed-reader control has passed. The remaining
-Python, retained-result/idle-Engine, Memex-shaped serial-lifecycle, and
-projection-runtime controls still block completion, root-cause attribution, and
-any retry, binding, or reader-pool remedy.
+design and RED-to-GREEN instrumentation completed on `origin/release/0.8.23`
+at `6b57557c`. Its three hosted enriched binding repetitions
+(`95369168206`, `95373316503`, and `95375745327`) completed the discriminator;
+independent evidence review closed the result **UNATTRIBUTED / NO REMEDY**.
+This authorizes no retry, binding, reader-pool, public API, or production
+behavior change. Optional diagnostic work is separate scope and does not block
+the next commissioned release slice.
 
 ## Cross-cutting DoD
 
@@ -100,9 +102,9 @@ any retry, binding, or reader-pool remedy.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-landed-roll-up -->
-**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`) · 60 (`423baf6a`). SCHEMA is 26; remaining ladder = 65 → 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
+**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`) · 60 (`423baf6a`) · 65 (`6b57557c`). SCHEMA is 26; remaining ladder = 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 65** (`WAL-ATTRIBUTION`) — Windows WAL checkpoint root-cause attribution
+**IMMEDIATE NEXT: Slice 40** (`SCALE-CHARACTERIZATION`) — fixture-scoped scale characterization
 
-**Remaining ladder:** 65 → 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->
+**Remaining ladder:** 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->

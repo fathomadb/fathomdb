@@ -34,6 +34,7 @@ _TOP_LEVEL = {
 _EXECUTION = {"default_mode", "release_required"}
 _PHASE_A_GRID = {"path", "sha256"}
 _EXTERNAL_INPUTS = {"corpus", "turn_provenance", "session_provenance", "dry_run_subset"}
+_CORPUS_REF = {"identifier", "sha256", "question_count", "storage"}
 _EXTERNAL_REF = {"identifier", "sha256", "storage"}
 _DRY_RUN_SUBSET = {"identifier", "sha256", "question_count", "storage"}
 _METRIC_FAMILIES = {"m1", "m2", "m4_proxy", "m6", "m7", "class_metrics"}
@@ -114,6 +115,8 @@ class CellExecutionRequest:
 class CellExecutionResult:
     """A safe reference to one external cell result, never raw output."""
 
+    cell_id: str
+    mode: str
     external_metrics_ref: str
     external_metrics_sha256: str
     metric_summary: Mapping[str, object]
@@ -153,8 +156,10 @@ def _canonical_sha256(document: object) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _validate_external_ref(value: object, label: str, *, subset: bool = False) -> dict[str, object]:
-    expected = _DRY_RUN_SUBSET if subset else _EXTERNAL_REF
+def _validate_external_ref(
+    value: object, label: str, *, subset: bool = False, corpus: bool = False
+) -> dict[str, object]:
+    expected = _DRY_RUN_SUBSET if subset else (_CORPUS_REF if corpus else _EXTERNAL_REF)
     ref = _exact(value, label, expected)
     _identifier(ref["identifier"], f"{label}.identifier")
     _sha256(ref["sha256"], f"{label}.sha256")
@@ -162,6 +167,8 @@ def _validate_external_ref(value: object, label: str, *, subset: bool = False) -
         raise LocomoPhaseBError(f"{label} must remain external_only")
     if subset and (not isinstance(ref["question_count"], int) or ref["question_count"] != 32):
         raise LocomoPhaseBError("dry-run subset must freeze exactly 32 questions")
+    if corpus and (not isinstance(ref["question_count"], int) or ref["question_count"] != 1536):
+        raise LocomoPhaseBError("LOCOMO corpus must freeze 1536 evidence-backed questions")
     return ref
 
 
@@ -243,7 +250,8 @@ def load_config(document: object) -> LocomoPhaseBPlan:
     if execution != {"default_mode": "preview_only", "release_required": True}:
         raise LocomoPhaseBError("Phase-B must remain preview-only until a coordinator release")
     external_inputs = _exact(root["external_inputs"], "external_inputs", _EXTERNAL_INPUTS)
-    for key in ("corpus", "turn_provenance", "session_provenance"):
+    _validate_external_ref(external_inputs["corpus"], "external_inputs.corpus", corpus=True)
+    for key in ("turn_provenance", "session_provenance"):
         _validate_external_ref(external_inputs[key], f"external_inputs.{key}")
     _validate_external_ref(external_inputs["dry_run_subset"], "external_inputs.dry_run_subset", subset=True)
     if root["metric_families"] != _METRICS:
@@ -315,6 +323,9 @@ def _validate_release(plan: LocomoPhaseBPlan, release: object) -> None:
 def _validate_result(result: object) -> CellExecutionResult:
     if not isinstance(result, CellExecutionResult):
         raise LocomoPhaseBError("cell executor must return CellExecutionResult")
+    _identifier(result.cell_id, "result cell_id")
+    if result.mode not in {"dry_run", "full_grid"}:
+        raise LocomoPhaseBError("result mode must be dry_run or full_grid")
     _identifier(result.external_metrics_ref, "external metrics reference")
     _sha256(result.external_metrics_sha256, "external metrics sha256")
     _safe_metric_mapping(result.metric_summary, "metric_summary")
@@ -348,12 +359,18 @@ def execute(
     root = _external_root(external_root)
     if mode not in {"dry_run", "full_grid"}:
         raise LocomoPhaseBError("execution mode must be dry_run or full_grid")
-    selected = set(plan.dry_run_cell_ids) if mode == "dry_run" else {cell.cell_id for cell in plan.cells}
-    results = [
-        _validate_result(executor(CellExecutionRequest(cell=cell, mode=mode, external_root=root)))
-        for cell in plan.cells if cell.cell_id in selected
-    ]
-    if len(results) != len(selected):
+    cells_by_id = {cell.cell_id: cell for cell in plan.cells}
+    selected_ids = plan.dry_run_cell_ids if mode == "dry_run" else tuple(cell.cell_id for cell in plan.cells)
+    results: list[CellExecutionResult] = []
+    for cell_id in selected_ids:
+        cell = cells_by_id[cell_id]
+        result = _validate_result(executor(CellExecutionRequest(cell=cell, mode=mode, external_root=root)))
+        if result.cell_id != cell_id:
+            raise LocomoPhaseBError("cell executor result cell_id does not match the dispatched cell")
+        if result.mode != mode:
+            raise LocomoPhaseBError("cell executor result mode does not match the dispatched mode")
+        results.append(result)
+    if len(results) != len(selected_ids):
         raise LocomoPhaseBError("cell executor did not cover every selected frozen cell")
     return tuple(results)
 
@@ -365,35 +382,56 @@ def parent_child_bundles(hits: Sequence[object]) -> list[dict[str, object]]:
     selected: dict[str, tuple[int, dict[str, object]]] = {}
     for raw in hits:
         if not isinstance(raw, Mapping) or set(raw) != {
-            "child_id", "parent_session_id", "rank", "neighbors", "trace_source_id",
+            "child_id", "rank", "child_provenance", "neighbors",
         }:
             raise LocomoPhaseBError("parent-child hit fields mismatch")
         child_id = _identifier(raw["child_id"], "child_id")
-        parent_session_id = _identifier(raw["parent_session_id"], "parent_session_id")
-        trace_source_id = _identifier(raw["trace_source_id"], "trace_source_id")
+        provenance = raw["child_provenance"]
+        if not isinstance(provenance, Mapping) or set(provenance) != {
+            "parent_session_ids", "ordinal", "trace_source_id",
+        }:
+            raise LocomoPhaseBError("child provenance fields mismatch")
+        parent_session_ids = provenance["parent_session_ids"]
+        if not isinstance(parent_session_ids, list) or len(parent_session_ids) != 1:
+            raise LocomoPhaseBError("child provenance must resolve exactly one parent session")
+        parent_session_id = _identifier(parent_session_ids[0], "parent_session_id")
+        ordinal = provenance["ordinal"]
+        if not isinstance(ordinal, int) or isinstance(ordinal, bool) or ordinal < 0:
+            raise LocomoPhaseBError("child provenance ordinal must be a non-negative integer")
+        trace_source_id = _identifier(provenance["trace_source_id"], "trace_source_id")
         rank = raw["rank"]
         if not isinstance(rank, int) or isinstance(rank, bool) or not 1 <= rank <= 10:
             raise LocomoPhaseBError("parent-child rank must preserve one hybrid top-10 child rank")
         neighbors = raw["neighbors"]
         if not isinstance(neighbors, list) or len(neighbors) > 2:
             raise LocomoPhaseBError("parent-child neighbors exceed the one-per-side bound")
-        neighbor_ids: list[str] = []
+        neighbor_entries: list[tuple[int, str]] = []
         for neighbor in neighbors:
             if isinstance(neighbor, str):
-                neighbor_id = _identifier(neighbor, "neighbor id")
-            elif isinstance(neighbor, Mapping) and set(neighbor) == {"id", "parent_session_id"}:
+                raise LocomoPhaseBError("compact neighbor identifiers are forbidden without provenance")
+            if isinstance(neighbor, Mapping) and set(neighbor) == {
+                "id", "parent_session_id", "ordinal", "trace_source_id",
+            }:
                 neighbor_id = _identifier(neighbor["id"], "neighbor id")
                 if neighbor["parent_session_id"] != parent_session_id:
                     raise LocomoPhaseBError("cross-session neighbor is forbidden")
+                neighbor_ordinal = neighbor["ordinal"]
+                if not isinstance(neighbor_ordinal, int) or isinstance(neighbor_ordinal, bool):
+                    raise LocomoPhaseBError("neighbor ordinal must be an integer")
+                if abs(neighbor_ordinal - ordinal) != 1:
+                    raise LocomoPhaseBError("neighbor must be immediately adjacent to the seed child")
+                _identifier(neighbor["trace_source_id"], "neighbor trace attribution")
             else:
-                raise LocomoPhaseBError("neighbor must preserve safe session attribution")
-            if neighbor_id == child_id or neighbor_id in neighbor_ids:
+                raise LocomoPhaseBError("neighbor must preserve safe session and TRACE attribution")
+            if neighbor_id == child_id or neighbor_id in {entry[1] for entry in neighbor_entries}:
                 raise LocomoPhaseBError("neighbor identity is ambiguous")
-            neighbor_ids.append(neighbor_id)
+            if any(entry[0] == neighbor_ordinal for entry in neighbor_entries):
+                raise LocomoPhaseBError("neighbor ordinal is ambiguous")
+            neighbor_entries.append((neighbor_ordinal, neighbor_id))
         bundle = {
             "parent_session_id": parent_session_id,
             "seed_child_id": child_id,
-            "ordered_neighbor_ids": neighbor_ids,
+            "ordered_neighbor_ids": [entry[1] for entry in sorted(neighbor_entries)],
             "trace_source_id": trace_source_id,
         }
         prior = selected.get(parent_session_id)
@@ -401,6 +439,67 @@ def parent_child_bundles(hits: Sequence[object]) -> list[dict[str, object]]:
             selected[parent_session_id] = (rank, bundle)
     ordered = sorted(selected.values(), key=lambda item: (item[0], item[1]["parent_session_id"]))[:5]
     return [bundle for _, bundle in ordered]
+
+
+def _require_metric_keys(value: object, label: str, expected: set[str]) -> Mapping[str, object]:
+    if not isinstance(value, Mapping) or set(value) != expected:
+        raise LocomoPhaseBError(f"{label} metrics are incomplete")
+    _safe_metric_mapping(value, label)
+    return value
+
+
+def _validate_complete_metric_summary(result: CellExecutionResult, cell: GridCell) -> None:
+    summary = result.metric_summary
+    expected = {"m1", "m2", "m4_proxy", "m6", "m7", "class_metrics"}
+    if cell.program_track == PARENT_TRACK:
+        expected.add("parent_metrics")
+        if not isinstance(summary, Mapping) or "parent_metrics" not in summary:
+            raise LocomoPhaseBError("parent metrics are incomplete")
+    _require_metric_keys(summary, "cell", expected)
+    _require_metric_keys(summary["m1"], "M1", {"r_at_10"})
+    _require_metric_keys(summary["m2"], "M2", {"mrr", "r_at_1", "ndcg_at_10"})
+    _require_metric_keys(summary["m4_proxy"], "M4 proxy", {"temporal_evidence_recall"})
+    _require_metric_keys(summary["m6"], "M6", {"facade_query_ms", "engine_query_ms"})
+    _require_metric_keys(summary["m7"], "M7", {"ingest_ack_ms", "ready_to_search_ms"})
+    class_metrics = _require_metric_keys(summary["class_metrics"], "class", {"factoid", "temporal", "multi_session"})
+    for metric_class, metrics in class_metrics.items():
+        _require_metric_keys(metrics, f"class {metric_class}", {"r_at_10"})
+    if cell.program_track == PARENT_TRACK:
+        parent = _require_metric_keys(
+            summary["parent_metrics"], "parent metrics",
+            {"child_evidence_recall", "parent_session_recall", "duplicate_rate", "context_expansion_count", "class_latency_ms"},
+        )
+        class_latency = _require_metric_keys(
+            parent["class_latency_ms"], "parent class latency", {"factoid", "temporal", "multi_session"},
+        )
+        _safe_metric_mapping(class_latency, "parent class latency")
+
+
+def _ordered_receipt_results(
+    plan: LocomoPhaseBPlan, *, status: str, result_refs: Sequence[object]
+) -> tuple[str, tuple[CellExecutionResult, ...]]:
+    if status == "dry_run_proof":
+        required_mode = "dry_run"
+        required_ids = plan.dry_run_cell_ids
+    elif status == "complete":
+        required_mode = "full_grid"
+        required_ids = tuple(cell.cell_id for cell in plan.cells)
+    else:
+        raise LocomoPhaseBError("receipt status must be dry_run_proof or complete")
+    results = tuple(_validate_result(result) for result in result_refs)
+    result_ids = [result.cell_id for result in results]
+    if len(set(result_ids)) != len(result_ids):
+        raise LocomoPhaseBError("receipt results must bind unique cell identities")
+    if any(result.mode != required_mode for result in results):
+        raise LocomoPhaseBError("receipt result mode does not match the declared execution")
+    if set(result_ids) != set(required_ids):
+        raise LocomoPhaseBError("receipt result coverage does not match the frozen execution cells")
+    cells_by_id = {cell.cell_id: cell for cell in plan.cells}
+    results_by_id = {result.cell_id: result for result in results}
+    ordered = tuple(results_by_id[cell_id] for cell_id in required_ids)
+    for result in ordered:
+        _validate_complete_metric_summary(result, cells_by_id[result.cell_id])
+    return required_mode, ordered
 
 
 def write_safe_receipt(
@@ -415,11 +514,7 @@ def write_safe_receipt(
     """Write one normal receipt/index row using content-free external references."""
     _validate_release(plan, release)
     _external_root(external_root)
-    if status not in {"dry_run_proof", "complete"}:
-        raise LocomoPhaseBError("receipt status must be dry_run_proof or complete")
-    results = [_validate_result(result) for result in result_refs]
-    if not results:
-        raise LocomoPhaseBError("safe receipt requires at least one external result reference")
+    mode, results = _ordered_receipt_results(plan, status=status, result_refs=result_refs)
     artifacts = [
         {"path": result.external_metrics_ref, "sha256": result.external_metrics_sha256}
         for result in results
@@ -428,7 +523,10 @@ def write_safe_receipt(
         "locomo-phase-b",
         ts=datetime.now(timezone.utc).replace(second=0, microsecond=0),
         config_obj=plan.config,
-        metrics={"status": status, "result_count": len(results), "metric_summaries": [dict(result.metric_summary) for result in results]},
+        metrics={
+            "status": status, "mode": mode, "result_count": len(results),
+            "metric_summaries": [dict(result.metric_summary) for result in results],
+        },
         verdict="complete",
         read="LOCOMO/PARENT fixed-subset proof" if status == "dry_run_proof" else "LOCOMO/PARENT grid completed",
         code=_lib.git_info(),
@@ -438,7 +536,7 @@ def write_safe_receipt(
         cost_usd=0.0,
         headline={"program_track": PROGRAM_TRACK, "status": status},
         n=(plan.config["external_inputs"]["dry_run_subset"]["question_count"]
-           if status == "dry_run_proof" else None),
+           if status == "dry_run_proof" else plan.config["external_inputs"]["corpus"]["question_count"]),
         artifacts=artifacts,
         base_dir=base_dir,
     )

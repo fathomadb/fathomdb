@@ -14,6 +14,7 @@
     "corpus": {
       "identifier": "locomo-normalized.v1",
       "sha256": "e9999b551ac67e899f0008c9ec446cecce937ce12f01f2f08cefa9f690fc4c7c",
+      "question_count": 1536,
       "storage": "external_only"
     },
     "turn_provenance": {

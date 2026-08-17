@@ -57,12 +57,16 @@ reported as an ordinary LOCOMO treatment.
 | Context | Seed child plus at most one predecessor and one successor from that same session; three turns per bundle and 15 total. |
 | Attribution | Parent-session ID, seed-child ID, ordered-neighbor IDs, and TRACE-compatible source ID only. |
 
-The adapter rejects missing or ambiguous hit fields, ranks outside the hybrid
-top-10, duplicate or seed-equal neighbors, more than two neighbors, and a
-neighbor attributed to another session. A later corpus-aware adapter must also
-prove adjacency from the pinned session provenance manifest before using its
-trusted compact neighbor-ID form. It must never infer a second supersession
-representation: TRACE-01 remains the lifecycle mapping authority.
+The adapter accepts a child only when provenance resolves exactly one parent
+session, gives the child a non-negative session ordinal, and carries a
+TRACE-compatible source ID. Each neighbor must separately carry its ID, parent
+session ID, ordinal, and TRACE attribution. It is accepted only at ordinal
+`child − 1` or `child + 1` in that same session; output is ordered by ordinal.
+Compact neighbor strings are rejected. The adapter also rejects missing or
+ambiguous hit fields, ranks outside the hybrid top-10, duplicate or seed-equal
+neighbors, more than two neighbors, and duplicate neighbor ordinals. It never
+infers a second supersession representation: TRACE-01 remains the lifecycle
+mapping authority.
 
 ## Metrics and safe evidence
 
@@ -72,12 +76,24 @@ child-evidence recall, parent/session recall, duplicate rate, context
 expansion, and class-level latency. M4 remains retrieval-only temporal evidence
 recall; no judge-scored answer-quality claim is produced here.
 
+Every cell result is bound to its exact frozen cell ID and execution mode. A
+receipt fails closed unless it has one unique result for every required cell:
+the five listed dry-run cells in their frozen order, or all 52 full-grid cells.
+It also requires M1, M2, M4-proxy, M6, M7, and all three class sections for
+every result. PARENT cells additionally require child-evidence recall,
+parent-session recall, duplicate rate, context-expansion count, and per-class
+latency. A complete result cannot be closed with a missing, duplicated,
+unknown, or wrong-mode cell.
+
 Cell results expose only a safe logical external metrics reference, its
 SHA-256, and aggregate scalar metric summaries. After a valid release, the
 adapter can write the unchanged `experiments.record.v1` receipt and one
-`experiments.index-row.v1` row through the shared helper. The receipt records
-logical artifact names and digests, never external paths, corpus text,
-questions, hits, model output, credentials, or historical receipt paths.
+`experiments.index-row.v1` row through the shared helper. Both dry-run proofs
+and full grids have verdict `complete` only after this validation; `n` is 32
+for the fixed subset and 1,536 for the full evidence-backed LOCOMO grid. The
+receipt records logical artifact names and digests, never external paths,
+corpus text, questions, hits, model output, credentials, or historical receipt
+paths.
 
 ## Release and execution boundary
 
@@ -93,9 +109,11 @@ requires a separate `locomo-phase-b.release.v1` token that contains:
 The runner also requires an already-existing external root outside the
 repository. It rejects in-repository and historical-output destinations before
 calling a cell executor. `dry_run` dispatches only the five fixed subset cells;
-`full_grid` dispatches all 52 frozen cells. The injected executor is the later
-reviewed integration seam; this preparation module has no direct corpus,
-model, CUDA, network, or paid-service implementation.
+`full_grid` dispatches all 52 frozen cells. The dry-run dispatcher uses the
+five frozen IDs in the stated list order, rather than incidental sort order.
+The injected executor is the later reviewed integration seam; this preparation
+module has no direct corpus, model, CUDA, network, or paid-service
+implementation.
 
 The release token is a coordinator-controlled integration record, not a claim
 that a result is valid. An execution is complete only after every selected cell

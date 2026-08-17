@@ -32,6 +32,36 @@ def _release(plan: locomo_phase_b.LocomoPhaseBPlan) -> dict[str, object]:
     }
 
 
+def _result(cell: locomo_phase_b.GridCell, *, mode: str) -> locomo_phase_b.CellExecutionResult:
+    metrics: dict[str, object] = {
+        "m1": {"r_at_10": 1.0},
+        "m2": {"mrr": 1.0, "r_at_1": 1.0, "ndcg_at_10": 1.0},
+        "m4_proxy": {"temporal_evidence_recall": 1.0},
+        "m6": {"facade_query_ms": 1.0, "engine_query_ms": 1.0},
+        "m7": {"ingest_ack_ms": 1.0, "ready_to_search_ms": 1.0},
+        "class_metrics": {
+            "factoid": {"r_at_10": 1.0},
+            "temporal": {"r_at_10": 1.0},
+            "multi_session": {"r_at_10": 1.0},
+        },
+    }
+    if cell.program_track == "PARENT-01":
+        metrics["parent_metrics"] = {
+            "child_evidence_recall": 1.0,
+            "parent_session_recall": 1.0,
+            "duplicate_rate": 0.0,
+            "context_expansion_count": 0,
+            "class_latency_ms": {"factoid": 1.0, "temporal": 1.0, "multi_session": 1.0},
+        }
+    return locomo_phase_b.CellExecutionResult(
+        cell_id=cell.cell_id,
+        mode=mode,
+        external_metrics_ref=f"locomo-phase-b-{cell.cell_id}.v1",
+        external_metrics_sha256="c" * 64,
+        metric_summary=metrics,
+    )
+
+
 def test_phase_b_freezes_authorized_grid_parent_treatment_and_metric_families():
     plan = _plan()
 
@@ -104,14 +134,10 @@ def test_preview_is_content_free_and_execution_requires_independent_coordinator_
 
     called = False
 
-    def executor(_request: locomo_phase_b.CellExecutionRequest) -> locomo_phase_b.CellExecutionResult:
+    def executor(request: locomo_phase_b.CellExecutionRequest) -> locomo_phase_b.CellExecutionResult:
         nonlocal called
         called = True
-        return locomo_phase_b.CellExecutionResult(
-            external_metrics_ref="locomo-phase-b-metrics.v1",
-            external_metrics_sha256="b" * 64,
-            metric_summary={"m1": {"r_at_10": 1.0}},
-        )
+        return _result(request.cell, mode=request.mode)
 
     with pytest.raises(locomo_phase_b.LocomoPhaseBError, match="release"):
         locomo_phase_b.execute(plan, release=None, external_root=tmp_path, executor=executor)
@@ -125,9 +151,9 @@ def test_preview_is_content_free_and_execution_requires_independent_coordinator_
 def test_parent_bundle_selection_is_rank_preserving_bounded_and_fails_closed():
     bundles = locomo_phase_b.parent_child_bundles(
         [
-            {"child_id": "turn-2", "parent_session_id": "session-b", "rank": 2, "neighbors": ["turn-1", "turn-3"], "trace_source_id": "source-b"},
-            {"child_id": "turn-4", "parent_session_id": "session-b", "rank": 3, "neighbors": ["turn-3", "turn-5"], "trace_source_id": "source-b"},
-            {"child_id": "turn-9", "parent_session_id": "session-a", "rank": 2, "neighbors": [], "trace_source_id": "source-a"},
+            {"child_id": "turn-2", "rank": 2, "child_provenance": {"parent_session_ids": ["session-b"], "ordinal": 2, "trace_source_id": "source-b"}, "neighbors": [{"id": "turn-1", "parent_session_id": "session-b", "ordinal": 1, "trace_source_id": "source-b"}, {"id": "turn-3", "parent_session_id": "session-b", "ordinal": 3, "trace_source_id": "source-b"}]},
+            {"child_id": "turn-4", "rank": 3, "child_provenance": {"parent_session_ids": ["session-b"], "ordinal": 4, "trace_source_id": "source-b"}, "neighbors": [{"id": "turn-3", "parent_session_id": "session-b", "ordinal": 3, "trace_source_id": "source-b"}, {"id": "turn-5", "parent_session_id": "session-b", "ordinal": 5, "trace_source_id": "source-b"}]},
+            {"child_id": "turn-9", "rank": 2, "child_provenance": {"parent_session_ids": ["session-a"], "ordinal": 9, "trace_source_id": "source-a"}, "neighbors": []},
         ]
     )
 
@@ -138,8 +164,9 @@ def test_parent_bundle_selection_is_rank_preserving_bounded_and_fails_closed():
 
     with pytest.raises(locomo_phase_b.LocomoPhaseBError, match="cross-session"):
         locomo_phase_b.parent_child_bundles([
-            {"child_id": "turn-2", "parent_session_id": "session-b", "rank": 1,
-             "neighbors": [{"id": "turn-x", "parent_session_id": "session-a"}], "trace_source_id": "source-b"},
+            {"child_id": "turn-2", "rank": 1,
+             "child_provenance": {"parent_session_ids": ["session-b"], "ordinal": 2, "trace_source_id": "source-b"},
+             "neighbors": [{"id": "turn-x", "parent_session_id": "session-a", "ordinal": 1, "trace_source_id": "source-b"}]},
         ])
 
 
@@ -154,11 +181,8 @@ def test_safe_receipt_uses_common_record_index_contract_and_never_exposes_extern
         external_root=external_root,
         status="dry_run_proof",
         result_refs=[
-            locomo_phase_b.CellExecutionResult(
-                external_metrics_ref="locomo-phase-b-metrics.v1",
-                external_metrics_sha256="c" * 64,
-                metric_summary={"m1": {"r_at_10": 1.0}},
-            ),
+            _result(next(cell for cell in plan.cells if cell.cell_id == cell_id), mode="dry_run")
+            for cell_id in plan.dry_run_cell_ids
         ],
     )
 
@@ -167,9 +191,8 @@ def test_safe_receipt_uses_common_record_index_contract_and_never_exposes_extern
     assert record["schema_version"] == "experiments.record.v1"
     assert index["schema_version"] == "experiments.index-row.v1"
     assert record["config"]["resolved"]["program_track"] == "LOCOMO-01"
-    assert record["artifacts"] == [
-        {"path": "locomo-phase-b-metrics.v1", "sha256": "c" * 64},
-    ]
+    assert len(record["artifacts"]) == 5
+    assert all(artifact["sha256"] == "c" * 64 for artifact in record["artifacts"])
     serialized = json.dumps(record)
     assert str(external_root) not in serialized
     assert "turn-2" not in serialized

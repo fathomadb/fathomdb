@@ -59,6 +59,7 @@
       {"id": "release-ladder-reorder", "title": "HITL set aside Slice 40 and ordered Slices 10, 20, and 70 ahead of it", "source": "HITL 2026-08-17"},
       {"id": "slice-10-20-70-commission", "title": "HITL commissioned completion of Slices 10, 20, and 70 in ladder order", "source": "HITL 2026-08-17"},
       {"id": "slice-10-external-gate-separation", "title": "Slice 10 external CUDA closure is PENDING_EXTERNAL: it blocks release completion and publication, not local Slice 20 or Slice 70 work", "source": "seq:249"},
+      {"id": "slice-70-dual-runtime-rescope", "title": "Slice 70 must deliver a released dual CPU/GPU runtime without end-user rebuild, configurable GPU on/off behavior, and a GPU availability diagnostic; the private TC-5 factory is not the product configuration path", "source": "seq:250"},
       {"id": "publication", "title": "Complete planning and any approved implementation/rehearsal without publishing 0.8.23", "halts_run": false, "source": "HITL 2026-08-10"}
     ]
   },

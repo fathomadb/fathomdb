@@ -1,0 +1,41 @@
+{
+  "schema_version": "locomo-live-executor.v1",
+  "campaign": "authorized_locomo_parent_execution",
+  "program_tracks": ["LOCOMO-01", "PARENT-01"],
+  "phase_b": {
+    "path": "experiments/configs/locomo-01/phase-b-execution.v1.json",
+    "config_sha256": "9c3d05a91a60443c069150e8ec5cadd4100864eec63163fa01011859ed683ff8"
+  },
+  "runner": {
+    "module": "experiments.locomo_live_executor",
+    "sha256": "4b081c6bd87ebdfb4466cacf89b7c26306452061842e0425423f8f5f33724c82"
+  },
+  "actions": [
+    {
+      "id": "fixed_subset_dry_run",
+      "mode": "dry_run",
+      "selector": "frozen_dry_run",
+      "expected_question_count": 32,
+      "cell_ids_sha256": "860a86ed5f5e26b8358ac97aa10d74b8bfae63db9f1a422a3019f4e24dcee8f8"
+    },
+    {
+      "id": "cpu_grid",
+      "mode": "full_grid",
+      "selector": "cpu_grid",
+      "expected_question_count": 1536,
+      "cell_ids_sha256": "09bde2823f50166a1aed2dfcb48ec8730ffa2af7b232b8599906900cad2c32f1"
+    },
+    {
+      "id": "gpu_ce_grid",
+      "mode": "full_grid",
+      "selector": "gpu_ce_grid",
+      "expected_question_count": 1536,
+      "cell_ids_sha256": "f51eb421fb76d958f71ce0952bae72e9f576ebdf2b2ff62ba1e5f5b4e74fc59d"
+    }
+  ],
+  "output": {
+    "schema_version": "locomo-live-execution-projection.v1",
+    "receipt_projection_schema": "locomo-phase-b.safe-receipt.v1",
+    "repository_writes": "forbidden"
+  }
+}

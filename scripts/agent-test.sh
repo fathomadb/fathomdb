@@ -294,6 +294,7 @@ run_tier_suite fast test-release-contract-truth bash scripts/tests/test_release_
 # Slice 0 (0.8.23): CPU CI checks the CUDA feature/build/preflight seam
 # statically; the real build and smoke remain restricted to the release runner.
 run_tier_suite fast test-cuda-release-contract bash scripts/tests/test_cuda_release_contract.sh
+run_tier_suite fast test-cuda-unmerged-candidate-provenance bash scripts/tests/test_cuda_unmerged_candidate_provenance.sh
 run_tier_suite fast test-cuda-preflight-witness bash scripts/tests/test_cuda_preflight_witness.sh
 
 # 0.8.23 Slice 50: Gitleaks staged-index and reachable-history guards must

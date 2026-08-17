@@ -123,6 +123,7 @@ def main() -> int:
         'git clone --mirror "$repo" "$history_repo"',
         'empty_ignore="$scan_root/empty-ignore"',
         ': >"$empty_ignore"',
+        'if [ -s "$empty_ignore" ]; then',
         "--ignore-gitleaks-allow",
         '--gitleaks-ignore-path "$empty_ignore"',
         '--log-opts="--all"',
@@ -135,6 +136,7 @@ def main() -> int:
         "--exit-code 0",
         ".gitleaksignore",
         "--config",
+        "GITLEAKS_CONFIG",
         "--enable-rule",
         "--allowlist",
         "global-allowlist",
@@ -145,7 +147,7 @@ def main() -> int:
         )
     failures += expect(
         guard_contract(history_text),
-        "history guard requires current zero and forbids baseline/ignore/zero-exit bypasses",
+        "history guard requires current zero and forbids unsafe scanner bypasses",
     )
     failures += expect(
         not guard_contract(history_text.replace('"$SCRIPT_DIR/gitleaks-current.sh"', "", 1)),
@@ -174,8 +176,16 @@ def main() -> int:
         "history guard contract rejects a nonempty owned ignore initialization",
     )
     failures += expect(
+        not guard_contract(history_text.replace('if [ -s "$empty_ignore" ]; then', "", 1)),
+        "history guard contract rejects a deleted owned-ignore size check",
+    )
+    failures += expect(
         not guard_contract(history_text + "\n--config unreviewed.toml\n"),
         "history guard contract rejects an unreviewed scanner config input",
+    )
+    failures += expect(
+        not guard_contract(history_text + "\nGITLEAKS_CONFIG=unreviewed.toml\n"),
+        "history guard contract rejects an unreviewed scanner config environment input",
     )
     failures += expect(
         not guard_contract(history_text + "\n--allowlist unreviewed.txt\n"),

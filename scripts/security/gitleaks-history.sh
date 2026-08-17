@@ -16,7 +16,11 @@ trap 'rm -rf "$scan_root"' EXIT
 safe_report="$scan_root/safe-report"
 history_repo="$scan_root/history.git"
 empty_ignore="$scan_root/empty-ignore"
-printf '%s' nonempty >"$empty_ignore"
+: >"$empty_ignore"
+if [ -s "$empty_ignore" ]; then
+  printf '%s\n' 'gitleaks-history: owned ignore input must be empty' >&2
+  exit 1
+fi
 
 if ! git clone --mirror "$repo" "$history_repo" >"$scan_root/mirror-output" 2>&1; then
   printf '%s\n' 'gitleaks-history: could not create isolated history scan source' >&2

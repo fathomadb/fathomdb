@@ -449,6 +449,34 @@ assert_before_in_text \
   'let checkpoint_result = self.wal_checkpoint_truncate_once(false);' \
   'checkpoint_result.as_ref().ok().cloned()' \
   "actual observer records immediately after the existing checkpoint call"
+normal_runtime_inventory_body="$(function_body "$ENGINE_SOURCE" "report_runtime_connection_inventory_for_test")"
+assert_contains "$ENGINE_SOURCE" \
+  'respond: SyncSender<(WalAttributionRole, usize, bool)>' \
+  "normal actual/post-commit runtime inventory retains boolean replies"
+assert_contains "$normal_runtime_inventory_body" \
+  'Duration::from_secs(2)' \
+  "normal actual/post-commit runtime inventory retains its two-second timeout"
+assert_absent "$normal_runtime_inventory_body" \
+  'native_connection_state_for_test' \
+  "normal actual/post-commit runtime inventory cannot sample native state"
+assert_absent "$normal_runtime_inventory_body" \
+  'NativeConnectionStateFact' \
+  "normal actual/post-commit runtime inventory cannot return native state facts"
+native_runtime_inventory_body="$(function_body "$ENGINE_SOURCE" "report_runtime_native_state_inventory_for_test")"
+assert_contains "$native_runtime_inventory_body" \
+  'Duration::from_millis(250)' \
+  "binding native-state runtime inventory has its own finite timeout"
+assert_contains "$native_runtime_inventory_body" \
+  'NativeConnectionStateFact' \
+  "binding native-state runtime inventory has a separate fact reply"
+native_state_inventory_body="$(function_body "$ENGINE_SOURCE" "native_state_inventory_for_test")"
+assert_contains "$native_state_inventory_body" \
+  'report_runtime_native_state_inventory_for_test' \
+  "binding native-state inventory alone requests runtime native facts"
+actual_direct_inventory_body="$(function_body "$ENGINE_SOURCE" "actual_checkpoint_direct_inventory_for_test")"
+assert_absent "$actual_direct_inventory_body" \
+  'report_runtime_native_state_inventory_for_test' \
+  "normal actual observer cannot request runtime native facts"
 serial_incident_body="$(python_function_body "$PY_CONTROL" "run_serial_incident")"
 assert_contains "$serial_incident_body" \
   'fresh._native._arm_actual_checkpoint_observation_for_test()' \

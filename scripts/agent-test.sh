@@ -156,6 +156,7 @@ run_tier_suite fast test-verify-release-gates bash scripts/tests/test_verify_rel
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.
 run_tier_suite fast test-runtime-release-alignment bash scripts/tests/test_runtime_release_alignment.sh
+run_tier_suite fast test-cuda-package-rehearsal bash scripts/tests/test_cuda_package_rehearsal.sh
 
 # Scripts (bash): offline fake-Cargo coverage for every release Rust tier. The
 # helper executes Cargo dry-runs for the three leaf crates and explicitly skips

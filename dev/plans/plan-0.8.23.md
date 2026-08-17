@@ -72,7 +72,7 @@ ladder or widen an in-flight feature slice.
 | 50 | Gitleaks staged pre-commit and always-on CI guards | 6 | `0.8.23-gitleaks-guards.md` |
 | 60 | Windows WAL checkpoint reader-conflict diagnosis | 6 | `0.8.23-windows-wal-checkpoint-reader-conflict.md`, `0.8.23-windows-local-environment.md` |
 | 65 | Windows WAL checkpoint root-cause attribution | 6, 60 | `0.8.23-wal-attribution-investigation.md` |
-| 70 | Exact pre-fusion vector-stage controls for TC-5 | 6 | `0.8.23-slice-70-tc5-vector-stage-hypothesis.md` |
+| 70 | Exact pre-fusion vector-stage controls for TC-5 | 6, 20 | `0.8.23-slice-70-tc5-vector-stage-hypothesis.md` |
 
 Each feature slice, if approved, must review its assigned candidate features,
 drafted needs/requirements/ACs, and design inputs; approve, reject, or adjust

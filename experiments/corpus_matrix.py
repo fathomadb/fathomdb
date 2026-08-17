@@ -550,7 +550,7 @@ def validate_human_gold_amendment(
     matrix_document: object,
     qualified_manifest: QualifiedHumanGoldManifest,
     *,
-    approved_registry: object,
+    approved_registry: object | None = None,
 ) -> HumanGoldAmendment:
     """Validate the required versioned approval before human gold changes eligibility."""
     matrix = validate_matrix(matrix_document)
@@ -569,6 +569,8 @@ def validate_human_gold_amendment(
     approval_ref = _require_approval_ref(document["approval_ref"])
     if document["eligibility"] != "approved_human_gold":
         raise CorpusMatrixError("human-gold amendment eligibility must be approved_human_gold")
+    if approved_registry is None:
+        raise CorpusMatrixError("human-gold amendment requires a coordinator-supplied registry")
     registry = validate_approved_amendment_registry(approved_registry)
     amendment_sha = canonical_sha256(document)
     approved = registry.entries.get(amendment_sha)

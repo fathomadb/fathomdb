@@ -46,6 +46,17 @@ registry API existed. The focused suite now covers 17 cases. Re-run
 `./scripts/agent-lint-md.sh`, `git diff --check`, and the full
 `./scripts/agent-verify.sh` after this remediation commit before integration.
 
+Correction to that approval-registry evidence: `56fcc2ad` initially exercised
+an unexpected keyword argument, not the vulnerable three-argument API. The
+replacement red checkpoint is committed at `6a52be4a`. Its direct three-
+argument call initially failed because the then-fixed API required a keyword;
+a read-only replay of the actual pre-registry source at `aa52220a` printed
+`pre_registry_three_argument_accepted=locomo:knowledge_update` for the same
+fabricated `seq-999999` amendment. The final API preserves the three-argument
+call and fails closed with `CorpusMatrixError` when no coordinator registry is
+supplied. It also tests exact amendment-SHA rows with mismatched corpus,
+category, and approval reference. The focused suite now covers 21 cases.
+
 ## Review focus
 
 1. Verify that every license and payload assertion is traceable to the cited
@@ -61,8 +72,8 @@ registry API existed. The focused suite now covers 17 cases. Re-run
    metric, paired-power artifact, and claim hash before human evidence counts.
 5. Check a `seq-N` string cannot authorize an amendment by itself: the
    coordinator-supplied registry must bind the exact amendment SHA-256 and
-   corpus/category pair. No worker should create a registry approval or
-   hand-edit the steward ledger.
+   corpus/category pair and approval reference; omission must fail closed. No
+   worker should create a registry approval or hand-edit the steward ledger.
 6. Check the strict schema choices against follow-on needs before allowing an
    external manifest writer. Any protocol revision must be versioned and
    review-gated, not silently relaxed.

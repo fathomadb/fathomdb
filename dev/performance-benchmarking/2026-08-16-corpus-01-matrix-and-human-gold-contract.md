@@ -95,6 +95,9 @@ The matrix distinguishes the two evidence modes explicitly:
   `seq-N`-shaped string alone is never approval. The registry entry contains
   only amendment SHA-256, corpus ID, category, and the same approval reference.
   It is a future coordinator/HITL record, not created by this preparation lane.
+  Omission of that registry fails closed; the existing three-argument amendment
+  validator call raises a domain error rather than treating an omitted registry
+  as approval.
 
 A broad agent-memory claim requires qualified evidence for every lifecycle
 category. Matrix intent, a registered recipe, or a pilot with a different

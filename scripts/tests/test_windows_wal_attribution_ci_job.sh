@@ -25,12 +25,17 @@ assert_contains() {
   if grep -Fq -- "$2" <<<"$1"; then pass "$3"; else fail "$3 (missing: $2)"; fi
 }
 
+assert_absent() {
+  if grep -Fq -- "$2" <<<"$1"; then fail "$3 (unexpected: $2)"; else pass "$3"; fi
+}
+
 JOB="$(job_block "$CI")"
 CODE="$(grep -v '^[[:space:]]*#' <<<"$JOB" || true)"
 if [ -n "$JOB" ]; then pass "ci.yml defines Windows WAL attribution"; else fail "ci.yml has no windows-wal-attribution job"; fi
 assert_contains "$CODE" 'runs-on: windows-latest' "job runs on hosted Windows x64"
 assert_contains "$CODE" 'FATHOMDB_WAL_ATTRIBUTION = "1"' "job opts into private attribution"
-assert_contains "$CODE" 'erasure_busy_' "job selects real SQLite busy controls"
+assert_contains "$CODE" 'wal_attribution_owned_reader_records_exact_busy_and_idle_success' "job runs retained managed-reader record contract"
+assert_contains "$CODE" 'erasure_busy_cross_process_windows_yields_typed_diagnostic' "job retains external-reader comparison"
 assert_contains "$CODE" '--nocapture' "job retains diagnostic lifecycle markers"
 assert_contains "$CODE" 'slice65-windows-wal-attribution.log' "job writes Slice 65 artifact"
 assert_contains "$CODE" 'slice65-windows-wal-attribution-${{ github.run_id }}-${{ github.run_attempt }}' "artifact name is unique"
@@ -41,10 +46,16 @@ for marker in \
   'slice65_wal managed_reader_snapshot_ready' \
   'slice65_wal managed_reader_snapshot_released' \
   'pause_reader_after_wal_snapshot_for_test' \
+  'wal_attribution_checkpoints_for_test' \
+  'retained_record_contract=passed' \
+  'active_roles == vec![(WalAttributionRole::ReaderWorker, 0)]' \
   'owned_reader_snapshot' \
   'unclassified_external'; do
   assert_contains "$(<"$SOURCE_TEST") $(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs")" "$marker" "source retains $marker"
 done
+assert_absent "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs")" \
+  'pub fn pause_reader_after_wal_snapshot_for_test' \
+  "managed-reader hook is not published"
 
 if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
   TMPROOT="$(mktemp -d)"

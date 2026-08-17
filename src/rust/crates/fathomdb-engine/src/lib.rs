@@ -676,8 +676,20 @@ struct WalAttributionRoleSnapshot {
 #[allow(dead_code)]
 struct WalAttributionSnapshot {
     roles: Vec<WalAttributionRoleSnapshot>,
+    active_roles: Vec<(WalAttributionRole, usize)>,
     no_owned_snapshot: bool,
     local_checkpoint_overlap: bool,
+}
+
+/// A retained, redacted record for one erasure checkpoint attempt. This is
+/// private to the engine and is read only by the in-crate Slice 65 witness.
+#[derive(Clone, Debug)]
+#[allow(dead_code)]
+struct WalCheckpointRecord {
+    attempt: usize,
+    busy: bool,
+    classification: &'static str,
+    active_roles: Vec<(WalAttributionRole, usize)>,
 }
 
 #[derive(Clone, Copy)]
@@ -692,7 +704,35 @@ struct WalAttributionCollector {
     enabled: bool,
     started: Instant,
     roles: Mutex<BTreeMap<(WalAttributionRole, usize), WalAttributionRoleState>>,
+    checkpoints: Mutex<Vec<WalCheckpointRecord>>,
     checkpoint_active: AtomicBool,
+}
+
+/// Marks a real SQLite transaction/snapshot interval and restores idle state on
+/// every return path, including `?` propagation and panic unwinding.
+struct WalAttributionActivity {
+    collector: Arc<WalAttributionCollector>,
+    role: WalAttributionRole,
+    index: usize,
+}
+
+impl WalAttributionActivity {
+    fn begin(
+        collector: Arc<WalAttributionCollector>,
+        role: WalAttributionRole,
+        index: usize,
+        phase: &'static str,
+    ) -> Self {
+        collector.set(role, index, true, phase);
+        Self { collector, role, index }
+    }
+}
+
+impl Drop for WalAttributionActivity {
+    fn drop(&mut self) {
+        self.collector.set(self.role, self.index, false, "completed");
+        self.collector.set(self.role, self.index, false, "idle");
+    }
 }
 
 impl WalAttributionCollector {
@@ -701,6 +741,7 @@ impl WalAttributionCollector {
             enabled: cfg!(test) || std::env::var_os("FATHOMDB_WAL_ATTRIBUTION").is_some(),
             started: Instant::now(),
             roles: Mutex::new(BTreeMap::new()),
+            checkpoints: Mutex::new(Vec::new()),
             checkpoint_active: AtomicBool::new(false),
         }
     }
@@ -727,29 +768,31 @@ impl WalAttributionCollector {
 
     fn snapshot(&self) -> WalAttributionSnapshot {
         let local_checkpoint_overlap = self.checkpoint_active.load(Ordering::SeqCst);
-        let roles: Vec<WalAttributionRoleSnapshot> = self
-            .roles
-            .lock()
-            .map(|roles| {
-                roles
-                    .iter()
-                    .map(|((role, index), state)| WalAttributionRoleSnapshot {
-                        role: role.name(),
-                        index: *index,
-                        active: state.active,
-                        phase: state.phase,
-                    })
-                    .collect()
+        let role_states = self.roles.lock().map(|roles| roles.clone()).unwrap_or_default();
+        let roles = role_states
+            .iter()
+            .map(|((role, index), state)| WalAttributionRoleSnapshot {
+                role: role.name(),
+                index: *index,
+                active: state.active,
+                phase: state.phase,
             })
-            .unwrap_or_default();
-        let no_owned_snapshot = roles.iter().all(|role| {
-            !role.active
-                || !matches!(
-                    role.role,
-                    "reader_worker" | "projection_dispatcher" | "projection_worker"
-                )
-        }) && !local_checkpoint_overlap;
-        WalAttributionSnapshot { roles, no_owned_snapshot, local_checkpoint_overlap }
+            .collect();
+        let active_roles: Vec<(WalAttributionRole, usize)> = role_states
+            .iter()
+            .filter_map(|((role, index), state)| {
+                (state.active
+                    && matches!(
+                        role,
+                        WalAttributionRole::ReaderWorker
+                            | WalAttributionRole::ProjectionDispatcher
+                            | WalAttributionRole::ProjectionWorker
+                    ))
+                .then_some((*role, *index))
+            })
+            .collect();
+        let no_owned_snapshot = active_roles.is_empty() && !local_checkpoint_overlap;
+        WalAttributionSnapshot { roles, active_roles, no_owned_snapshot, local_checkpoint_overlap }
     }
 
     fn checkpoint_begin(&self) -> bool {
@@ -785,18 +828,33 @@ impl WalAttributionCollector {
         elapsed: Duration,
         report: &TruncateWalReport,
         classification: &'static str,
+        active_roles: Vec<(WalAttributionRole, usize)>,
     ) {
         if self.enabled {
+            if let Ok(mut checkpoints) = self.checkpoints.lock() {
+                checkpoints.push(WalCheckpointRecord {
+                    attempt,
+                    busy: report.status == TruncateWalStatus::Busy,
+                    classification,
+                    active_roles: active_roles.clone(),
+                });
+            }
             eprintln!(
-                "slice65_wal checkpoint_attempt={} elapsed_ms={} busy={} log_frames={} checkpointed_frames={} classification={}",
+                "slice65_wal checkpoint_attempt={} elapsed_ms={} busy={} log_frames={} checkpointed_frames={} classification={} active_roles={}",
                 attempt,
                 elapsed.as_millis(),
                 report.busy,
                 report.log_frames,
                 report.checkpointed_frames,
                 classification,
+                format_active_wal_roles(&active_roles),
             );
         }
+    }
+
+    #[allow(dead_code)]
+    fn checkpoints(&self) -> Vec<WalCheckpointRecord> {
+        self.checkpoints.lock().map(|records| records.clone()).unwrap_or_default()
     }
 
     fn emit(&self, role: WalAttributionRole, index: usize, phase: &'static str) {
@@ -808,6 +866,14 @@ impl WalAttributionCollector {
             self.started.elapsed().as_millis()
         );
     }
+}
+
+fn format_active_wal_roles(roles: &[(WalAttributionRole, usize)]) -> String {
+    roles
+        .iter()
+        .map(|(role, index)| format!("{}:{index}", role.name()))
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 /// Thread-affine reader worker pool (Pack 6 F.0).
@@ -1022,6 +1088,7 @@ enum ReaderRequest {
     /// rendezvous, and holds the snapshot until released. It is never compiled
     /// into a release SDK artifact.
     #[cfg(debug_assertions)]
+    #[allow(dead_code)]
     HoldWalSnapshot {
         snapshot_ready: Arc<Barrier>,
         release: Arc<Barrier>,
@@ -1267,23 +1334,6 @@ fn reader_worker_loop(
 
     while let Ok(request) = rx.recv() {
         let shutdown = matches!(request, ReaderRequest::Shutdown);
-        if !shutdown {
-            wal_attribution.set(
-                WalAttributionRole::ReaderWorker,
-                worker_idx,
-                true,
-                "transaction_opened",
-            );
-            // Every production read verb below is a `*_in_tx` routine.  The
-            // marker is deliberately before dispatch so a checkpoint records a
-            // conservative owned-reader attribution rather than a false idle.
-            wal_attribution.set(
-                WalAttributionRole::ReaderWorker,
-                worker_idx,
-                true,
-                "snapshot_acquired",
-            );
-        }
         match request {
             ReaderRequest::Shutdown => break,
             ReaderRequest::SearchProjectedText { query, name, filter, limit, view, respond } => {
@@ -1294,6 +1344,8 @@ fn reader_worker_loop(
                     filter.as_deref(),
                     limit,
                     view,
+                    &wal_attribution,
+                    worker_idx,
                 );
                 let _ = respond.send(result);
             }
@@ -1336,21 +1388,44 @@ fn reader_worker_loop(
                     pool_n,
                     explain,
                     view,
+                    &wal_attribution,
+                    worker_idx,
                 );
                 // Receiver may have been dropped if the caller went
                 // away; nothing to do in that case.
                 let _ = respond.send(result);
             }
             ReaderRequest::GetById { logical_ids, view, respond } => {
-                let result = read_get_by_id_in_tx(&mut connection, &logical_ids, &view);
+                let result = read_get_by_id_in_tx(
+                    &mut connection,
+                    &logical_ids,
+                    &view,
+                    &wal_attribution,
+                    worker_idx,
+                );
                 let _ = respond.send(result);
             }
             ReaderRequest::ReadCollection { collection, after_id, limit, respond } => {
-                let result = read_collection_in_tx(&mut connection, &collection, after_id, limit);
+                let result = read_collection_in_tx(
+                    &mut connection,
+                    &collection,
+                    after_id,
+                    limit,
+                    &wal_attribution,
+                    worker_idx,
+                );
                 let _ = respond.send(result);
             }
             ReaderRequest::ReadList { kind, predicates, limit, view, respond } => {
-                let result = read_list_in_tx(&mut connection, &kind, &predicates, limit, &view);
+                let result = read_list_in_tx(
+                    &mut connection,
+                    &kind,
+                    &predicates,
+                    limit,
+                    &view,
+                    &wal_attribution,
+                    worker_idx,
+                );
                 let _ = respond.send(result);
             }
             ReaderRequest::GraphNeighbors { root_logical_id, depth, direction, view, respond } => {
@@ -1360,15 +1435,29 @@ fn reader_worker_loop(
                     depth,
                     direction,
                     &view,
+                    &wal_attribution,
+                    worker_idx,
                 );
                 let _ = respond.send(result);
             }
             ReaderRequest::CrossedBoundarySince { since, view, respond } => {
-                let result = crossed_boundary_since_in_tx(&mut connection, since, &view);
+                let result = crossed_boundary_since_in_tx(
+                    &mut connection,
+                    since,
+                    &view,
+                    &wal_attribution,
+                    worker_idx,
+                );
                 let _ = respond.send(result);
             }
             ReaderRequest::SearchExpand { search_hits, depth, respond } => {
-                let result = search_expand_in_tx(&mut connection, &search_hits, depth);
+                let result = search_expand_in_tx(
+                    &mut connection,
+                    &search_hits,
+                    depth,
+                    &wal_attribution,
+                    worker_idx,
+                );
                 let _ = respond.send(result);
             }
             ReaderRequest::ExplainGraphNeighbors { root_logical_id, depth, direction, respond } => {
@@ -1377,6 +1466,8 @@ fn reader_worker_loop(
                     &root_logical_id,
                     depth,
                     direction,
+                    &wal_attribution,
+                    worker_idx,
                 );
                 let _ = respond.send(result);
             }
@@ -5508,20 +5599,19 @@ impl Engine {
         &self.path
     }
 
-    /// Private Slice 65 test/CI diagnostic snapshot. This deliberately stays
-    /// inside the engine crate: callers receive no connection identity,
-    /// checkpoint, retry, or error-surface API.
     #[allow(dead_code)]
     fn wal_attribution_snapshot(&self) -> WalAttributionSnapshot {
         self.wal_attribution.snapshot()
     }
 
-    /// Starts the Slice 65 real-SQLite reader control after the selected worker
-    /// has acquired its own WAL snapshot. This debug-only hook is for the
-    /// first-party Windows witness; it is not a production SDK lifecycle API.
+    #[allow(dead_code)]
+    fn wal_attribution_checkpoints_for_test(&self) -> Vec<WalCheckpointRecord> {
+        self.wal_attribution.checkpoints()
+    }
+
     #[cfg(debug_assertions)]
-    #[doc(hidden)]
-    pub fn pause_reader_after_wal_snapshot_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
+    #[allow(dead_code)]
+    fn pause_reader_after_wal_snapshot_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
         let snapshot_ready = Arc::new(Barrier::new(2));
         let release = Arc::new(Barrier::new(2));
         self.reader_pool.senders[0]
@@ -10079,6 +10169,7 @@ impl Engine {
                 elapsed,
                 &report,
                 classification,
+                snapshot.active_roles,
             );
             if report.status == TruncateWalStatus::Done {
                 return Ok(());
@@ -11972,7 +12063,26 @@ fn edge_fts_hit_passes_non_attribute_filter(
     edge_fts_hit_passes_filter(tx, write_cursor, row_kind, Some(&non_attribute_filter))
 }
 
+/// Begin a reader transaction and, only while attribution is opted in, acquire
+/// its actual SQLite snapshot with a harmless read before recording it. This
+/// keeps the collector off normal paths and prevents a queued request from
+/// masquerading as a live snapshot.
+fn begin_attributed_reader_tx<'a>(
+    reader: &'a mut Connection,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
+) -> rusqlite::Result<rusqlite::Transaction<'a>> {
+    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    if attribution.enabled {
+        attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "transaction_opened");
+        tx.query_row("SELECT 1", [], |row| row.get::<_, i64>(0))?;
+        attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "snapshot_acquired");
+    }
+    Ok(tx)
+}
+
 /// Read projection cursor and matching body rows inside one read tx.
+#[allow(clippy::too_many_arguments)]
 fn read_projected_text_in_tx(
     reader: &mut Connection,
     query: &str,
@@ -11980,10 +12090,12 @@ fn read_projected_text_in_tx(
     filter: Option<&SearchFilter>,
     limit: usize,
     view: ReadView,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> ProjectedTextReaderResponse {
     let compiled = compile_text_query(query);
     let frozen = view.freeze();
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let registry = load_projection_registry(&tx)?;
     let declared = registry.get(name).ok_or_else(|| {
         SearchReaderError::InvalidFilter(format!("projected text field {name:?} is not declared"))
@@ -12070,6 +12182,8 @@ fn read_search_in_tx(
     pool_n: usize,
     explain: bool,
     view: ReadView,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> ReaderResponse {
     // 0.8.20 Slice 15b fix-2 (R-20-NV) — the `:now` instant is read HERE, in
     // Rust, ONCE per query, and bound positionally into every node-hydration
@@ -12090,7 +12204,7 @@ fn read_search_in_tx(
     // `configure_projections` DROP in the exact race window. Disarmed (no-op) in
     // production and on every non-race test.
     reader_search_hook::fire();
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let cursor = load_projection_cursor(&tx)?;
     // fix-3 (codex §9 [P2], TOCTOU) — validate every filter attribute name on THIS
     // reader transaction's snapshot, before `build_vector_phase1_sql` emits
@@ -13160,11 +13274,13 @@ fn read_get_by_id_in_tx(
     reader: &mut Connection,
     logical_ids: &[String],
     view: &ReadView,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> rusqlite::Result<Vec<Option<NodeRecord>>> {
     if logical_ids.is_empty() {
         return Ok(Vec::new());
     }
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     // De-duplicate the requested ids for the IN(...) probe, then re-expand into
     // request order (a repeated id echoes the same active row).
     let mut found: HashMap<String, NodeRecord> = HashMap::new();
@@ -13234,6 +13350,8 @@ fn read_collection_in_tx(
     collection: &str,
     after_id: Option<i64>,
     limit: usize,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> rusqlite::Result<Vec<OpStoreRow>> {
     if limit == 0 {
         return Ok(Vec::new());
@@ -13244,7 +13362,7 @@ fn read_collection_in_tx(
     // full log; clamping removes the "is a negative cursor a sentinel or a row
     // id?" ambiguity without changing happy-path semantics.
     let after = after_id.unwrap_or(0).max(0);
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let mut statement = tx.prepare(
         "SELECT id, collection_name, record_key, op_kind, payload_json, schema_id, write_cursor
          FROM operational_mutations
@@ -13286,6 +13404,8 @@ fn read_list_in_tx(
     predicates: &[Predicate],
     limit: usize,
     view: &ReadView,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> rusqlite::Result<Vec<NodeRecord>> {
     if limit == 0 {
         return Ok(Vec::new());
@@ -13322,7 +13442,7 @@ fn read_list_in_tx(
     }
     sql.push_str(&format!(" LIMIT {limit}"));
 
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let mut statement = tx.prepare(&sql)?;
 
     // Bind all parameters: [kind, predicate_values...]
@@ -13512,6 +13632,8 @@ fn crossed_boundary_since_in_tx(
     reader: &mut Connection,
     since: i64,
     view: &ReadView,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> rusqlite::Result<Vec<BoundaryCrossing>> {
     // `now_param()` is None exactly when the view relaxes validity, which here
     // means "no upper bound on the interval".
@@ -13528,7 +13650,7 @@ fn crossed_boundary_since_in_tx(
               OR (valid_until IS NOT NULL AND valid_until > ?1 AND valid_until <= ?2) ) \
          ORDER BY write_cursor"
     );
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let mut statement = tx.prepare(&sql)?;
     let rows = statement.query_map(params![since, upper], |row| {
         let valid_from: Option<i64> = row.get(4)?;
@@ -13559,9 +13681,11 @@ fn graph_neighbors_in_tx(
     depth: u32,
     direction: TraversalDirection,
     view: &ReadView,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> rusqlite::Result<Vec<NodeRecord>> {
     let sql = build_bfs_sql(direction, view);
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let depth_i64 = depth as i64;
     let mut statement = tx.prepare(&sql)?;
     // ?1 root, ?2 depth, ?3 = the NODE validity instant, ?4 = the EDGE validity
@@ -13601,8 +13725,10 @@ fn search_expand_in_tx(
     reader: &mut Connection,
     search_hits: &[SearchHit],
     depth: u32,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> rusqlite::Result<SearchExpandResult> {
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
 
     // Step 1: resolve write_cursor → logical_id for each search hit.
     // Possible outcomes per hit:
@@ -13739,12 +13865,14 @@ fn explain_graph_neighbors_in_tx(
     root_logical_id: &str,
     depth: u32,
     direction: TraversalDirection,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> rusqlite::Result<Vec<String>> {
     // The EXPLAIN index-usage gate measures the DEFAULT (strict) read path.
     let view = ReadView::default();
     let bfs_sql = build_bfs_sql(direction, &view);
     let explain_sql = format!("EXPLAIN QUERY PLAN {bfs_sql}");
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let depth_i64 = depth as i64;
     let mut statement = tx.prepare(&explain_sql)?;
     // EXPLAIN QUERY PLAN returns rows: (id, parent, notused, detail).
@@ -13812,25 +13940,13 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
         // A session without a configured runtime dispatches no embedding jobs.
         // Its pending rows stay recoverable for a later configured session; see
         // `next_pending_projection_jobs` for the Slice-30 no-dispatch boundary.
-        shared.wal_attribution.set(
-            WalAttributionRole::ProjectionDispatcher,
+        let fetched = next_pending_projection_jobs(
+            &connection,
+            &in_flight,
+            fetch_cap,
+            dense_arm_live,
+            &shared.wal_attribution,
             dispatcher_idx,
-            true,
-            "transaction_opened",
-        );
-        let fetched =
-            next_pending_projection_jobs(&connection, &in_flight, fetch_cap, dense_arm_live);
-        shared.wal_attribution.set(
-            WalAttributionRole::ProjectionDispatcher,
-            dispatcher_idx,
-            false,
-            "completed",
-        );
-        shared.wal_attribution.set(
-            WalAttributionRole::ProjectionDispatcher,
-            dispatcher_idx,
-            false,
-            "idle",
         );
         // Keep the no-runtime no-dispatch contract local to the dispatcher too:
         // a future scan change must not turn configuration absence into a worker
@@ -13915,25 +14031,12 @@ fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usiz
         // wedge into `EngineError::Scheduler` (Finding A). Mirrors the
         // reader pool's `LiveGuard` panic-safety. The local commit tx rolls
         // back on unwind, leaving the connection clean for reuse.
-        shared.wal_attribution.set(
-            WalAttributionRole::ProjectionWorker,
-            worker_idx,
-            true,
-            "transaction_opened",
-        );
         let commit_result = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            run_projection_jobs(&shared, &mut connection, &jobs)
+            run_projection_jobs(&shared, &mut connection, &jobs, worker_idx)
         })) {
             Ok(result) => result,
-            Err(_) => commit_projection_panic_failures(&shared, &mut connection, &jobs),
+            Err(_) => commit_projection_panic_failures(&shared, &mut connection, &jobs, worker_idx),
         };
-        shared.wal_attribution.set(
-            WalAttributionRole::ProjectionWorker,
-            worker_idx,
-            false,
-            "completed",
-        );
-        shared.wal_attribution.set(WalAttributionRole::ProjectionWorker, worker_idx, false, "idle");
         if let Err(err) = commit_result {
             // Host subscribers are arbitrary application code. Their panic must
             // not bypass the mandatory state cleanup below, or the durable
@@ -14005,9 +14108,10 @@ fn run_projection_jobs(
     shared: &ProjectionRuntimeShared,
     connection: &mut Connection,
     jobs: &[ProjectionJob],
+    worker_idx: usize,
 ) -> rusqlite::Result<()> {
     let outcomes = embed_projection_batch(shared, jobs);
-    commit_projection_outcomes(connection, &outcomes, shared)
+    commit_projection_outcomes(connection, &outcomes, shared, worker_idx)
 }
 
 /// Embed a whole commit-batch in ONE `embed_batch` call (amortizes per-call
@@ -14112,6 +14216,7 @@ fn commit_projection_panic_failures(
     shared: &ProjectionRuntimeShared,
     connection: &mut Connection,
     jobs: &[ProjectionJob],
+    worker_idx: usize,
 ) -> rusqlite::Result<()> {
     let outcomes: Vec<ProjectionOutcome> = jobs
         .iter()
@@ -14120,7 +14225,7 @@ fn commit_projection_panic_failures(
             failure_code: "ProjectionPanic",
         })
         .collect();
-    commit_projection_outcomes(connection, &outcomes, shared)
+    commit_projection_outcomes(connection, &outcomes, shared, worker_idx)
 }
 
 /// Route a background projection-commit failure through the engine's existing
@@ -14472,6 +14577,8 @@ fn next_pending_projection_jobs(
     in_flight: &BTreeSet<u64>,
     max_jobs: usize,
     dense_arm_live: bool,
+    attribution: &Arc<WalAttributionCollector>,
+    dispatcher_idx: usize,
 ) -> rusqlite::Result<Vec<ProjectionJob>> {
     if max_jobs == 0 || !dense_arm_live {
         return Ok(Vec::new());
@@ -14519,6 +14626,16 @@ fn next_pending_projection_jobs(
     let rows = statement.query_map(params![cursor, current_epoch_seconds()], |row| {
         Ok(ProjectionJob { cursor: row.get(0)?, kind: row.get(1)?, body: row.get(2)? })
     })?;
+    // SQLite starts the implicit read transaction at statement execution; do
+    // not call this a transaction before `query_map` succeeds.
+    let _activity = attribution.enabled.then(|| {
+        WalAttributionActivity::begin(
+            Arc::clone(attribution),
+            WalAttributionRole::ProjectionDispatcher,
+            dispatcher_idx,
+            "snapshot_acquired",
+        )
+    });
     let mut jobs = Vec::with_capacity(max_jobs);
     for row in rows {
         let job = row?;
@@ -15141,6 +15258,7 @@ fn commit_projection_outcomes(
     connection: &mut Connection,
     outcomes: &[ProjectionOutcome],
     shared: &ProjectionRuntimeShared,
+    worker_idx: usize,
 ) -> rusqlite::Result<()> {
     let embedder_identity = &shared.embedder_identity;
     let mc = identity_requires_mean_centering(embedder_identity);
@@ -15152,6 +15270,14 @@ fn commit_projection_outcomes(
     // holds its own immediate transaction, which SQLite rejects without
     // invoking the busy handler and forces the worker to recompute the batch.
     let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    let _activity = shared.wal_attribution.enabled.then(|| {
+        WalAttributionActivity::begin(
+            Arc::clone(&shared.wal_attribution),
+            WalAttributionRole::ProjectionWorker,
+            worker_idx,
+            "transaction_opened",
+        )
+    });
     // The accumulator is mutable process state coupled to this transaction.
     // Keep the shared value untouched while building a candidate so rollback
     // cannot count a vector or consume the pin threshold prematurely.
@@ -21135,22 +21261,26 @@ mod tests {
             .expect("write");
         let (snapshot_ready, release) = opened.engine.pause_reader_after_wal_snapshot_for_test();
         snapshot_ready.wait();
+        eprintln!("slice65_wal managed_reader_snapshot_ready");
         let blocked = opened.engine.erase_source("slice65-owned-reader");
         let busy = opened.engine.wal_attribution_checkpoints_for_test();
         assert_eq!(busy.len(), ERASURE_WAL_TRUNCATE_ATTEMPTS as usize);
-        assert!(busy.iter().all(|record| {
-            record.busy
+        assert!(busy.iter().enumerate().all(|(offset, record)| {
+            record.attempt == offset + 1
+                && record.busy
                 && record.classification == "owned_reader_snapshot"
                 && record.active_roles == vec![(WalAttributionRole::ReaderWorker, 0)]
         }));
         assert!(matches!(blocked, Err(EngineError::ErasureIncomplete { .. })));
 
         release.wait();
+        eprintln!("slice65_wal managed_reader_snapshot_released");
         opened.engine.erase_source("slice65-owned-reader").expect("retry after release");
         let records = opened.engine.wal_attribution_checkpoints_for_test();
         let success = records.last().expect("successful checkpoint record");
         assert!(!success.busy && success.classification == "no_owned_snapshot");
         assert!(success.active_roles.is_empty());
+        eprintln!("slice65_wal retained_record_contract=passed");
     }
 
     /// 0.8.20 Slice 5a (R-20-E1, work item 2) — the registry GUARD.

@@ -32,20 +32,21 @@
     "external child reader control"
   ],
   "implementation": {
-    "commit": "0583a323",
+    "commit": "a5254b83",
     "production_behavior_changed": false,
     "private_opt_in": "FATHOMDB_WAL_ATTRIBUTION=1; no public SDK/config/error field",
     "implemented_controls": [
-      "managed Engine reader paused after a real SQLite WAL snapshot",
+      "in-crate managed Engine reader paused after a real SQLite WAL snapshot, with retained-record assertions",
       "Slice 60 external raw child reader comparison",
       "Windows retained artifact plus load-bearing workflow mutation test"
     ],
     "windows_execution": "PENDING: hosted Windows x64 first-party run has not yet completed",
+    "local_windows_vm": "BLOCKED: dev/design/0.8.23-windows-local-environment.md requires scripts/ci/run-windows-vm.sh, which is absent from this checkout; guest credentials/addresses are intentionally not in-repo. No guest run was attempted or claimed.",
     "tdd": {
-      "red_commit": "0b83d27c",
-      "green_commit": "0583a323",
+      "red_commit": "f26686ee",
+      "green_commit": "a5254b83",
       "red_predicate": "all owned roles must be registered and idle before a no-owned classification",
-      "green_evidence": "managed reader control records owned_reader_snapshot through each busy checkpoint and remains fail-closed"
+      "green_evidence": "managed reader control parses retained records: every busy attempt is owned_reader_snapshot for reader_worker:0; post-release success is no_owned_snapshot"
     },
     "remaining_controls": [
       "Python SDK concurrent reader versus erase through installed native binding",
@@ -56,7 +57,8 @@
   },
   "fix_n": {
     "review_finding": "Projection dispatcher and worker SQLite connections were omitted from the owned-role model, and the retained-result RED wording encoded a false BUSY expectation.",
-    "resolution": "All Engine-owned roles carry indexed transaction/snapshot transitions; no-owned classification requires every reader and runtime role idle plus no local checkpoint overlap. The retained-result control expects zero owned transaction/snapshot with successful erasure, and RED is absence/misclassification of that diagnostic fact."
+    "resolution": "All Engine-owned roles carry indexed transaction/snapshot transitions; no-owned classification requires every reader and runtime role idle plus no local checkpoint overlap. The retained-result control expects zero owned transaction/snapshot with successful erasure, and RED is absence/misclassification of that diagnostic fact.",
+    "implementation_review_fix": "Fix-N `a5254b83` moves reader/runtime transitions from queued or whole-work phases to actual SQLite boundaries; the in-crate managed-reader witness parses buffered exact role/attempt records; and the pause hook is private rather than a shipped Rust API."
   },
   "completion": {
     "ref": "origin/release/0.8.23",

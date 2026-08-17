@@ -42,9 +42,7 @@ review-remediation red checkpoint is committed at `572986b6`: its three tests
 failed with missing qualification APIs before this implementation. The focused
 suite then covered 16 cases. The approval-registry red checkpoint is separately
 committed at `56fcc2ad`: a fabricated `seq-999999` amendment failed before the
-registry API existed. The focused suite now covers 17 cases. Re-run
-`./scripts/agent-lint-md.sh`, `git diff --check`, and the full
-`./scripts/agent-verify.sh` after this remediation commit before integration.
+registry API existed. The focused suite then covered 17 cases.
 
 Correction to that approval-registry evidence: `56fcc2ad` initially exercised
 an unexpected keyword argument, not the vulnerable three-argument API. The
@@ -55,7 +53,9 @@ a read-only replay of the actual pre-registry source at `aa52220a` printed
 fabricated `seq-999999` amendment. The final API preserves the three-argument
 call and fails closed with `CorpusMatrixError` when no coordinator registry is
 supplied. It also tests exact amendment-SHA rows with mismatched corpus,
-category, and approval reference. The focused suite now covers 21 cases.
+category, and approval reference. The focused suite now covers 21 cases. On
+the committed state at `cb920dd2`, the focused suite passed 21 tests,
+`./scripts/agent-verify.sh` exited 0, and `git diff --check` exited 0.
 
 ## Review focus
 

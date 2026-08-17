@@ -114,8 +114,8 @@ CODE="$(grep -v '^[[:space:]]*#' <<<"$JOB" || true)"
 if [ -n "$JOB" ]; then pass "ci.yml defines Windows WAL attribution"; else fail "ci.yml has no windows-wal-attribution job"; fi
 assert_contains "$CODE" 'runs-on: windows-latest' "job runs on hosted Windows x64"
 assert_contains "$CODE" 'FATHOMDB_WAL_ATTRIBUTION = "1"' "job opts into private attribution"
-assert_contains "$CODE" 'wal_attribution_owned_reader_records_exact_busy_and_idle_success' "job runs retained managed-reader record contract"
-assert_contains "$CODE" 'tests::wal_attribution_owned_reader_records_exact_busy_and_idle_success' "job selects the full exact lib-test path"
+assert_contains "$CODE" 'wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded' "job runs truthful managed-reader record contract"
+assert_contains "$CODE" 'tests::wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded' "job selects the truthful full exact lib-test path"
 assert_contains "$CODE" 'managed-reader attribution command selected zero tests' "job rejects a zero-test managed-reader invocation"
 assert_contains "$CODE" 'managed_reader_original_erase=typed_erasure_incomplete owned_busy_attempts=5' "job requires the original managed-reader typed busy marker"
 assert_contains "$CODE" 'managed_reader_completion_ack reader_autocommit=1 collector_roles=idle' "job requires post-finish managed-reader acknowledgement"
@@ -454,7 +454,7 @@ assert_absent "$actual_checkpoint_body" \
 assert_absent "$actual_checkpoint_body" \
   'wal_checkpoint_truncate_once' \
   "direct-Rust actual-checkpoint control has no extra checkpoint call"
-managed_reader_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_owned_reader_records_exact_busy_and_idle_success")"
+managed_reader_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded")"
 managed_reader_erase_calls="$(grep -Fc 'opened.engine.erase_source(' <<<"$managed_reader_body" || true)"
 if [ "$managed_reader_erase_calls" -eq 1 ]; then
   pass "managed-reader diagnostic retains exactly one original erase"
@@ -467,6 +467,9 @@ assert_contains "$managed_reader_body" \
 assert_contains "$managed_reader_body" \
   'native_state_inventory_for_test' \
   "managed-reader diagnostic requires complete native-state inventory"
+assert_contains "$managed_reader_body" \
+  'state_inventory=incomplete' \
+  "managed-reader diagnostic emits incomplete inventory before failure"
 assert_contains "$managed_reader_body" \
   'arm_binding_native_state_observation_for_test' \
   "managed-reader diagnostic arms the bounded sampler observer"

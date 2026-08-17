@@ -498,7 +498,7 @@ jobs:
           $env:FATHOMDB_WAL_ATTRIBUTION = "1"
           $artifact = "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log"
           $managedReaderLog = "$env:RUNNER_TEMP\slice65-windows-wal-managed-reader.log"
-          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_owned_reader_records_exact_busy_and_idle_success -- --exact --nocapture 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log" | Tee-Object -FilePath $managedReaderLog
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded -- --exact --nocapture 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log" | Tee-Object -FilePath $managedReaderLog
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Select-String -Path $managedReaderLog -SimpleMatch "running 1 test" -Quiet)) {
             Write-Error "managed-reader attribution command selected zero tests"

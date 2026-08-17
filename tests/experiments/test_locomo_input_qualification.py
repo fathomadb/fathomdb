@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -13,13 +14,19 @@ from eval.locomo_loader import corpus_hash, load_locomo
 
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-_HISTORICAL_RAW_LOCOMO = _REPOSITORY_ROOT / "data/corpus-data/raw/locomo10.json"
+_HISTORICAL_RAW_LOCOMO = Path(
+    os.environ.get("FATHOMDB_LOCOMO_RAW_PATH", str(_REPOSITORY_ROOT / "data/corpus-data/raw/locomo10.json"))
+)
 _PHASE_A_GRID = _REPOSITORY_ROOT / "experiments/configs/locomo-01/phase-a-grid.v1.json"
 _PHASE_B_EXECUTION = _REPOSITORY_ROOT / "experiments/configs/locomo-01/phase-b-execution.v1.json"
 
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _normalized_corpus_sha256(path: Path) -> str:
+    return corpus_hash(load_locomo(path)[0])
 
 
 def _write_json(path: Path, value: object) -> Path:
@@ -98,7 +105,7 @@ def _inputs(tmp_path: Path) -> dict[str, Path]:
 def test_qualification_matches_the_derived_normalized_corpus_digest_not_raw_bytes(tmp_path):
     inputs = _inputs(tmp_path)
     raw_sha256 = _sha256(inputs["corpus"])
-    normalized_sha256 = corpus_hash(load_locomo(inputs["corpus"])[0])
+    normalized_sha256 = _normalized_corpus_sha256(inputs["corpus"])
     assert raw_sha256 != normalized_sha256
     phase_b = _phase_b(
         tmp_path,
@@ -135,7 +142,7 @@ def test_historical_raw_locomo_derives_the_frozen_normalized_phase_b_digest_with
     phase_a = json.loads(_PHASE_A_GRID.read_text(encoding="utf-8"))
     phase_b = json.loads(_PHASE_B_EXECUTION.read_text(encoding="utf-8"))
     raw_sha256 = _sha256(_HISTORICAL_RAW_LOCOMO)
-    normalized_sha256 = corpus_hash(load_locomo(_HISTORICAL_RAW_LOCOMO)[0])
+    normalized_sha256 = _normalized_corpus_sha256(_HISTORICAL_RAW_LOCOMO)
 
     assert raw_sha256 == phase_a["corpus"]["raw_sha256"]
     assert raw_sha256 != normalized_sha256
@@ -146,7 +153,7 @@ def test_qualification_writes_hash_bound_content_free_trace_parent_and_blocker_r
     inputs = _inputs(tmp_path)
     phase_b = _phase_b(
         tmp_path,
-        corpus_sha256=_sha256(inputs["corpus"]),
+        corpus_sha256=_normalized_corpus_sha256(inputs["corpus"]),
         turn_sha256=_sha256(inputs["turn"]),
         session_sha256=_sha256(inputs["session"]),
         subset_sha256="0" * 64,
@@ -180,7 +187,7 @@ def test_qualification_fails_closed_with_a_signed_blocker_report_when_a_required
     inputs = _inputs(tmp_path)
     phase_b = _phase_b(
         tmp_path,
-        corpus_sha256=_sha256(inputs["corpus"]),
+        corpus_sha256=_normalized_corpus_sha256(inputs["corpus"]),
         turn_sha256=_sha256(inputs["turn"]),
         session_sha256=_sha256(inputs["session"]),
         subset_sha256=_sha256(inputs["subset"]),
@@ -210,7 +217,7 @@ def test_qualification_records_ambiguous_parent_membership_without_emitting_a_re
     _write_json(inputs["turn"], turns)
     phase_b = _phase_b(
         tmp_path,
-        corpus_sha256=_sha256(inputs["corpus"]),
+        corpus_sha256=_normalized_corpus_sha256(inputs["corpus"]),
         turn_sha256=_sha256(inputs["turn"]),
         session_sha256=_sha256(inputs["session"]),
         subset_sha256=_sha256(inputs["subset"]),
@@ -247,9 +254,10 @@ def test_external_corpus_and_subset_failures_write_signed_blocker_reports(
 ):
     inputs = _inputs(tmp_path)
     inputs[target].write_text(contents, encoding="utf-8")
+    corpus_sha256 = "0" * 64 if target == "corpus" else _normalized_corpus_sha256(inputs["corpus"])
     phase_b = _phase_b(
         tmp_path,
-        corpus_sha256=_sha256(inputs["corpus"]),
+        corpus_sha256=corpus_sha256,
         turn_sha256=_sha256(inputs["turn"]),
         session_sha256=_sha256(inputs["session"]),
         subset_sha256=_sha256(inputs["subset"]),

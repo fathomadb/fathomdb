@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Mapping
 
 from experiments import locomo_provenance, trace_projection
+from eval.locomo_loader import corpus_hash, load_locomo
 
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +50,15 @@ def _sha256(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _normalized_corpus_sha256(path: Path) -> str:
+    """Return the frozen LOCOMO document-corpus identity for raw external bytes."""
+    try:
+        documents, _ = load_locomo(path)
+    except (OSError, ValueError, TypeError, AttributeError) as exc:
+        raise QualificationError("corpus cannot be normalized") from exc
+    return corpus_hash(documents)
 
 
 def _canonical_sha256(value: Mapping[str, object]) -> str:
@@ -282,6 +292,13 @@ def qualify(
             input_status[name] = {"present": False, "expected_sha256": expected[name]["sha256"]}
             continue
         actual = _sha256(path)
+        if name == "corpus":
+            input_status[name] = {
+                "present": True,
+                "expected_sha256": expected[name]["sha256"],
+                "raw_sha256": actual,
+            }
+            continue
         input_status[name] = {
             "present": True,
             "expected_sha256": expected[name]["sha256"],
@@ -305,6 +322,19 @@ def qualify(
             except QualificationError:
                 blockers.append("corpus_shape_invalid")
             else:
+                try:
+                    normalized_sha256 = _normalized_corpus_sha256(files["corpus"])
+                except QualificationError:
+                    blockers.append("corpus_shape_invalid")
+                else:
+                    input_status["corpus"].update(
+                        {
+                            "actual_sha256": normalized_sha256,
+                            "sha256_matches": normalized_sha256 == expected["corpus"]["sha256"],
+                        }
+                    )
+                    if normalized_sha256 != expected["corpus"]["sha256"]:
+                        blockers.append("corpus_sha256_mismatch")
                 declared_full_count = expected["corpus"].get("question_count")
                 if len(question_ids) != declared_full_count:
                     blockers.append("corpus_question_count_mismatch")

@@ -20,10 +20,16 @@ unambiguous, a content-free `trace-projection.v1` and
 
 ## Inputs and eligibility
 
-The Phase-B configuration remains the pin authority for the corpus, turn
-provenance, session provenance, and 32-question fixed subset. Every present
-input records expected and actual SHA-256 values; a mismatch is a durable
-blocker, never a replacement pin.
+The Phase-B configuration remains the pin authority for the normalized corpus,
+turn provenance, session provenance, and 32-question fixed subset. Its corpus
+pin is the canonical digest produced by
+`eval.locomo_loader.corpus_hash(load_locomo(raw_locomo10)[0])`, not the SHA-256
+of raw `locomo10.json` bytes. The raw corpus remains byte-pinned by the frozen
+Phase-A grid. The qualifier records that raw digest, derives the canonical
+normalized digest from it, and compares only the derived digest with the
+Phase-B pin. It never compares raw bytes directly with the normalized pin.
+Every present control input records expected and actual SHA-256 values; a
+mismatch is a durable blocker, never a replacement pin.
 
 The qualifier also reads the integrated CORPUS-01 matrix. For LOCOMO it records
 the `CC-BY-NC-4.0`, external-evaluation-only posture and the matrix's permitted
@@ -71,8 +77,9 @@ raise a hard error before any report is written.
 ## 2026-08-16 factual result
 
 The existing turn and session provenance files match the frozen Phase-B pins.
-The available LOCOMO payload has a different corpus SHA-256, the frozen
-fixed-subset document is absent, and the pinned turn manifest has ambiguous
-child identifiers for the existing parent-relation ABI. The generated report
-therefore remains blocked; it emits the valid TRACE sidecar but no parent proof.
-No live action was performed.
+The available raw LOCOMO payload matches the frozen Phase-A byte pin, and its
+loader-derived normalized corpus digest matches the frozen Phase-B pin. The
+frozen fixed-subset document is absent, and the pinned turn manifest has
+ambiguous child identifiers for the existing parent-relation ABI. The generated
+report therefore remains blocked; it emits the valid TRACE sidecar but no parent
+proof. No live action was performed.

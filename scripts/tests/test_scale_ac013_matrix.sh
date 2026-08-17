@@ -26,20 +26,31 @@ chmod +x "$fake"
 SCALE_OUTPUT_DIR="$tmp/out" AC013_RUNNER="$fake" CALLS="$calls" \
   bash "$ROOT/scripts/perf-experiments/run-scale-ac013-matrix.sh"
 
-[ "$(wc -l <"$calls")" -eq 30 ]
-[ "$(find "$tmp/out" -name '*.log' | wc -l)" -eq 30 ]
-[ "$(find "$tmp/out" -name '*.log.sha256' | wc -l)" -eq 30 ]
+mapfile -t call_lines <"$calls"
+logs=("$tmp/out"/*.log)
+sidecars=("$tmp/out"/*.log.sha256)
+[ "${#call_lines[@]}" -eq 30 ]
+[ "${#logs[@]}" -eq 30 ]
+[ "${#sidecars[@]}" -eq 30 ]
 for rows in 10000 100000 1000000; do
   for treatment in process_cold warm; do
-    [ "$(awk -v r="$rows" -v t="$treatment" '$1 == r && $2 == t { count++ } END { print count + 0 }' "$calls")" -eq 5 ]
+    awk -v r="$rows" -v t="$treatment" '$1 == r && $2 == t { count++ } END { exit count != 5 }' "$calls"
   done
 done
 for log in "$tmp/out"/*process_cold*.log; do
   grep -q 'treatment=process_cold' "$log"
-  [ "$(sed -n 's/.*samples_us=\([^ ]*\).*/\1/p' "$log" | tr ',' '\n' | wc -l)" -eq 1 ]
+  record="$(<"$log")"
+  samples="${record#*samples_us=}"
+  samples="${samples%% *}"
+  IFS=, read -r -a values <<<"$samples"
+  [ "${#values[@]}" -eq 1 ]
 done
 for log in "$tmp/out"/*warm*.log; do
   grep -q 'treatment=warm' "$log"
-  [ "$(sed -n 's/.*samples_us=\([^ ]*\).*/\1/p' "$log" | tr ',' '\n' | wc -l)" -eq 1000 ]
+  record="$(<"$log")"
+  samples="${record#*samples_us=}"
+  samples="${samples%% *}"
+  IFS=, read -r -a values <<<"$samples"
+  [ "${#values[@]}" -eq 1000 ]
 done
 grep -q 'opened.engine.search' "$ROOT/src/rust/crates/fathomdb-engine/tests/perf_gates.rs"

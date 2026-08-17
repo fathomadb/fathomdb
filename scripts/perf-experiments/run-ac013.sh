@@ -25,12 +25,18 @@ set -e
 
 grep -E '^AC013_NUMBERS ' "$LOG_PATH" || true
 if [ -n "${AC013_SCALE_TREATMENT:-}" ]; then
-  matches="$(awk -v treatment="$AC013_SCALE_TREATMENT" '$1 == "AC013_TREATMENT_RECORD" && $2 == "treatment=" treatment { count++ } END { print count + 0 }' "$LOG_PATH")"
-  if [ "$matches" -ne 1 ]; then
-    printf 'AC-013 treatment record mismatch: requested=%s matching_records=%s\n' "$AC013_SCALE_TREATMENT" "$matches" >&2
+  treatment_records_file="$(mktemp)"
+  if ! awk '$1 == "AC013_TREATMENT_RECORD" { print }' "$LOG_PATH" >"$treatment_records_file"; then
+    rm -f "$treatment_records_file"
     exit 1
   fi
-  grep -E "^AC013_TREATMENT_RECORD treatment=${AC013_SCALE_TREATMENT} " "$LOG_PATH"
+  mapfile -t treatment_records <"$treatment_records_file"
+  rm -f "$treatment_records_file"
+  if [ "${#treatment_records[@]}" -ne 1 ] || [[ "${treatment_records[0]:-}" != "AC013_TREATMENT_RECORD treatment=${AC013_SCALE_TREATMENT} "* ]]; then
+    printf 'AC-013 treatment record mismatch: requested=%s total_records=%s\n' "$AC013_SCALE_TREATMENT" "${#treatment_records[@]}" >&2
+    exit 1
+  fi
+  printf '%s\n' "${treatment_records[0]}"
 fi
 
 exit "$status"

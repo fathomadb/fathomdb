@@ -4,6 +4,7 @@ date: 2026-07-07
 target_release: 0.8.16
 desc: Adds a cross-vendor ONNX-Runtime BGE-small embedder (OrtBgeEmbedder) as a new impl Embedder in fathomdb-embedder. Slice 70 amends the report-bearing caller to EmbedderChoice::CallerWithDeviceResolution so OpenReport records the final ONNX session outcome. Reaches AMD ROCm / Intel OpenVINO / DirectML that candle cannot. Behind a new onnx-embedder feature; the thin default build and the in-library 1-bit query path are unchanged. Includes the candle<->ONNX equivalence-measurement plan that feeds the 0.8.18 #5 vector-equivalence tolerance.
 status: SIGNED (HITL coreyt, 2026-07-08 — Slice-0 gate)
+superseded_for_runtime_policy_by: ADR-0.8.23-dual-runtime-device-policy
 ---
 
 # ADR-0.8.16 — Cross-vendor ONNX embedder backend (OrtBgeEmbedder)
@@ -11,6 +12,14 @@ status: SIGNED (HITL coreyt, 2026-07-08 — Slice-0 gate)
 **Status: SIGNED** (HITL coreyt, 2026-07-08 — Slice-0 gate). ONNX-equivalence measurement AC minted; Slices
 10→15 may proceed. Design context: `dev/design/0.8.16-slice-0-f9-onnx-design.md` (§5 equivalence plan, §6
 ONNX decision).
+
+> **Historical record — Slice 70 supersedes this ADR for current runtime device policy.**
+> This file preserves the 0.8.16 ONNX-backend decision and measurement history;
+> it is not a current configuration or execution-policy reference. The
+> authoritative current policy is
+> [`ADR-0.8.23-dual-runtime-device-policy.md`](ADR-0.8.23-dual-runtime-device-policy.md)
+> and its Slice 70 design. In particular, any older ambient-parser, default, or
+> provider-selection wording below is historical context only.
 
 ## 1. Context
 

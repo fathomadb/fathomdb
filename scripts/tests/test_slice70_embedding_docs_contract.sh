@@ -30,7 +30,7 @@ require docs/embedder.md 'unset/default policy is `auto` only on a CUDA-capable 
 require docs/reference/python-api.md 'Unset is `auto` only on a CUDA-capable artifact'
 require src/rust/crates/fathomdb-py/Cargo.toml 'FATHOMDB_EMBED_DEVICE=cuda:N'
 require src/python/eval/p0a_batch_e2e.py 'FATHOMDB_EMBED_DEVICE=cuda:0'
-require src/rust/crates/fathomdb-embedder/examples/gpu_speedup.rs 'auto (unset; CPU only on CPU-only artifacts)'
+require src/rust/crates/fathomdb-embedder/examples/gpu_speedup.rs 'auto (unset; CPU-only artifacts report cuda_not_compiled'
 require src/rust/crates/fathomdb-py/src/lib.rs 'unset means `auto`'
 
 reject src/rust/crates/fathomdb-py/Cargo.toml 'FATHOMDB_EMBED_DEVICE=cuda.'

@@ -86,8 +86,10 @@ default-reranker = [
     "dep:candle-transformers",
     "dep:tokenizers",
 ]
-# GPU acceleration (opt-in; default build stays CPU so tests + byte-stability are
-# unaffected). Embedding accepts strict FATHOMDB_EMBED_DEVICE=auto|cpu|cuda:N.
+# CUDA is an artifact-build capability. A CUDA-capable artifact contains both
+# CPU and CUDA runtime paths and accepts strict
+# FATHOMDB_EMBED_DEVICE=auto|cpu|cuda:N (unset is `auto` there). The thin
+# feature-off build stays ML-free, so its tests and byte-stability are unaffected.
 # Cross-vendor (AMD ROCm / Intel) is NOT a candle backend — that path is a separate
 # `impl Embedder` (ONNX-Runtime) reported via CallerWithDeviceResolution; see
 # dev/design/0.8.1-embedder-gpu-and-portability.md.

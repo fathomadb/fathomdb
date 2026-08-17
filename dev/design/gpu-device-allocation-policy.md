@@ -1,10 +1,19 @@
 ---
-status: UNREVIEWED
+status: SUPERSEDED
+superseded_by: ADR-0.8.23-dual-runtime-device-policy.md
 ---
 
 # GPU device-allocation policy — design-on-spec (embedder + CE reranker)
 
 > **DESIGN-ON-SPEC — NOT APPROVED. NO engine code changes.**
+>
+> **Historical design snapshot — not a current runtime contract.** Slice 70
+> supersedes this proposal's embedder configuration, parser, default, and
+> fallback descriptions. The authoritative current contract is
+> [`ADR-0.8.23-dual-runtime-device-policy.md`](../adr/ADR-0.8.23-dual-runtime-device-policy.md)
+> plus [`0.8.23-slice-70-dual-runtime-device-policy.md`](0.8.23-slice-70-dual-runtime-device-policy.md).
+> Everything below records a former proposal only; it authorizes no current
+> configuration, execution path, or allocation behavior.
 >
 > This document is a *contingent* design produced so that, **if** HITL elects to harden FathomDB's
 > GPU device handling beyond today's raw device-string knob, there is a grounded, source-anchored

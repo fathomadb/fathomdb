@@ -2854,8 +2854,8 @@ fn rerank(
 // routing that harness through `embed()` would silently switch Mean↔CLS and
 // break comparability to V-1. This binding loads the SAME pinned bge-small
 // weights the numpy path loads, pins `Pooling::Cls`, and honors
-// `FATHOMDB_EMBED_DEVICE` (CPU default; `cuda:N` under the `embed-cuda`
-// feature). One padded `(B, L)` forward → the same per-row vectors as B single
+// `FATHOMDB_EMBED_DEVICE` (unset means `auto`; `cuda:N` under the `embed-cuda`
+// feature is forced). One padded `(B, L)` forward → the same per-row vectors as B single
 // `embed()` calls (parity-locked in the embedder crate's tests). Additive: it
 // does NOT change `embed()`'s default pooling. This also closes the standing
 // "Python embed cannot select CLS pooling" exposure gap.

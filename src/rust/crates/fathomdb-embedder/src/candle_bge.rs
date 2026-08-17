@@ -411,6 +411,6 @@ impl CandleBgeEmbedder {
     }
 }
 
-// 0.8.12 — the pure-parse R-GPU-1 grammar tests moved with the parser to the
-// shared `crate::device` module (`device_request_tests`); they now cover both
-// `FATHOMDB_EMBED_DEVICE` and `FATHOMDB_RERANK_DEVICE` from one place.
+// The legacy reranker-only parser tests remain in `crate::device`. Strict
+// embedder-policy tests live in `device_policy`; the two controls do not share
+// a grammar or fallback contract.

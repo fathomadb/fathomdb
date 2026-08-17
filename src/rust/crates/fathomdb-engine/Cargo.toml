@@ -40,8 +40,9 @@ operator = []
 # rather than attempting a network fetch (preserves the no-network build
 # closure per ADR-0.7.1-default-embedder-weight-fetch).
 default-embedder = ["fathomdb-embedder/default-embedder"]
-# GPU acceleration (opt-in; forwards to the embedder; default stays CPU).
-# Activate at runtime under strict FATHOMDB_EMBED_DEVICE=auto|cpu|cuda:N.
+# CUDA is an artifact-build capability forwarded to the embedder. A
+# CUDA-capable artifact selects at runtime under strict
+# FATHOMDB_EMBED_DEVICE=auto|cpu|cuda:N; unset is `auto` on that artifact.
 embed-cuda = ["default-embedder", "fathomdb-embedder/embed-cuda"]
 embed-metal = ["default-embedder", "fathomdb-embedder/embed-metal"]
 # 0.8.1 Slice 10 (R1): enabling this feature gates the CPU cross-encoder CE

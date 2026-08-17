@@ -22717,7 +22717,7 @@ unsafe extern "C" fn profile_callback_trampoline(
 mod tests {
     use super::{
         derive_stable_id, native_connection_state_for_test, resolve_source_type, DeviceResolution,
-        Engine, EngineError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
+        EmbedderChoice, Engine, EngineError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
         ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, RuntimeProbeConnection,
         SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL,
         PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
@@ -22759,6 +22759,27 @@ mod tests {
             &mut |_| {},
         )
         .expect("open with the already-resolved default device");
+
+        assert_eq!(opened.report.embedder_device_resolution, Some(resolution));
+    }
+
+    #[test]
+    fn caller_device_resolution_reaches_open_report_once() {
+        let dir = TempDir::new().expect("temp dir");
+        let resolution = DeviceResolution {
+            requested_policy: EmbedDevicePolicy::Auto,
+            cuda_compiled: true,
+            effective_device: EffectiveEmbedDevice::Cpu,
+            reason: Some(DeviceResolutionReason::CudaProbeFailed),
+        };
+        let opened = Engine::open_with_choice(
+            dir.path().join("caller-device-resolution.sqlite"),
+            EmbedderChoice::CallerWithDeviceResolution {
+                embedder: Arc::new(NoopEmbedder::default()),
+                device_resolution: resolution.clone(),
+            },
+        )
+        .expect("caller-supplied resolution opens");
 
         assert_eq!(opened.report.embedder_device_resolution, Some(resolution));
     }

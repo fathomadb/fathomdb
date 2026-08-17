@@ -21,6 +21,13 @@ use std::path::PathBuf;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 
+mod device_policy;
+pub use device_policy::{
+    resolve_embed_device_policy, CudaDeviceInfo, CudaProbeError, CudaProvider, DeviceResolution,
+    DeviceResolutionError, DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy,
+    EmbedDevicePolicyParseError,
+};
+
 #[cfg(feature = "default-embedder")]
 pub mod loader;
 

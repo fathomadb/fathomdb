@@ -1,0 +1,237 @@
+//! Strict, typed runtime policy for the default embedder's CPU/CUDA device.
+//!
+//! This module deliberately does not construct a Candle device.  The resolver
+//! accepts an injected provider so parsing and selection can be tested without
+//! CUDA hardware, a driver, or model assets.  A later construction seam uses
+//! the resulting [`DeviceResolution`] exactly once to create the actual
+//! embedder backend.
+
+use std::{fmt, str::FromStr};
+
+/// The supported value of `FATHOMDB_EMBED_DEVICE`.
+///
+/// `auto` permits CPU fallback only after a CUDA probe reports no usable
+/// device. `cpu` is an explicit off switch and never initializes CUDA.
+/// `cuda:N` is an explicit request that fails rather than falling back.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EmbedDevicePolicy {
+    /// Probe CUDA ordinal zero and otherwise use CPU.
+    Auto,
+    /// Use CPU without initializing or probing CUDA.
+    Cpu,
+    /// Require the specified CUDA ordinal.
+    Cuda(usize),
+}
+
+impl FromStr for EmbedDevicePolicy {
+    type Err = EmbedDevicePolicyParseError;
+
+    /// Parse the exact public `FATHOMDB_EMBED_DEVICE` grammar.
+    ///
+    /// Accepted values are exactly `auto`, `cpu`, and `cuda:N`, where `N` is
+    /// a non-negative base-10 ordinal. In particular, legacy bare `cuda`,
+    /// other providers, whitespace, and case variants are configuration
+    /// errors rather than implicit fallbacks.
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
+        match raw {
+            "auto" => Ok(Self::Auto),
+            "cpu" => Ok(Self::Cpu),
+            _ => raw
+                .strip_prefix("cuda:")
+                .and_then(|ordinal| {
+                    (!ordinal.is_empty() && ordinal.bytes().all(|byte| byte.is_ascii_digit()))
+                        .then_some(ordinal)
+                })
+                .and_then(|ordinal| ordinal.parse::<usize>().ok())
+                .map(Self::Cuda)
+                .ok_or_else(|| EmbedDevicePolicyParseError::InvalidPolicy { raw: raw.to_owned() }),
+        }
+    }
+}
+
+/// A malformed `FATHOMDB_EMBED_DEVICE` setting.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EmbedDevicePolicyParseError {
+    /// The raw setting is not one of the supported policy values.
+    InvalidPolicy { raw: String },
+}
+
+impl fmt::Display for EmbedDevicePolicyParseError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidPolicy { raw } => write!(
+                formatter,
+                "invalid FATHOMDB_EMBED_DEVICE={raw:?}; expected auto, cpu, or cuda:N"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for EmbedDevicePolicyParseError {}
+
+/// Safe metadata returned after a compatible CUDA device has been initialized
+/// and minimally probed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CudaDeviceInfo {
+    /// CUDA ordinal used to initialize the provider.
+    pub ordinal: usize,
+    /// Provider-reported device name, when available.
+    pub name: Option<String>,
+    /// Provider-reported NVIDIA driver version, when available.
+    pub driver_version: Option<String>,
+    /// Provider-reported device compute capability, when available.
+    pub compute_capability: Option<String>,
+    /// CUDA toolkit version used by the loaded provider, when available.
+    pub cuda_toolkit_version: Option<String>,
+}
+
+/// The injected CUDA probe boundary.
+///
+/// A production implementation initializes the chosen CUDA ordinal and runs a
+/// minimal provider probe. Implementations must not report success until that
+/// work has completed.
+pub trait CudaProvider {
+    /// Initialize and minimally probe `ordinal`, returning safe identity facts.
+    fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError>;
+}
+
+/// A classified failure while initializing or minimally probing CUDA.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CudaProbeError {
+    /// No CUDA device is visible to this process.
+    NoVisibleDevice,
+    /// The visible device or driver cannot satisfy the loaded CUDA provider.
+    Incompatible { message: String },
+    /// Provider initialization or the minimal probe failed for another reason.
+    ProbeFailed { message: String },
+}
+
+/// The device ultimately selected by a successful policy resolution.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EffectiveEmbedDevice {
+    /// The default embedder must construct its CPU backend.
+    Cpu,
+    /// The default embedder must construct its CUDA backend using this probe.
+    Cuda(CudaDeviceInfo),
+}
+
+/// A machine-readable reason associated with CPU fallback or CUDA failure.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DeviceResolutionReason {
+    /// The artifact was built without CUDA support.
+    CudaNotCompiled,
+    /// CUDA support is compiled in but no device is visible.
+    NoVisibleCudaDevice,
+    /// A visible device cannot run the loaded CUDA provider.
+    CudaIncompatible,
+    /// CUDA initialization/probing failed before compatibility was known.
+    CudaProbeFailed,
+}
+
+/// The immutable result of resolving one embedder device policy.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DeviceResolution {
+    /// The policy requested by the caller or environment.
+    pub requested_policy: EmbedDevicePolicy,
+    /// Whether this artifact includes the CUDA embedder provider.
+    pub cuda_compiled: bool,
+    /// The backend the default embedder must construct.
+    pub effective_device: EffectiveEmbedDevice,
+    /// Why CUDA was unavailable when CPU was selected automatically.
+    pub reason: Option<DeviceResolutionReason>,
+}
+
+/// A policy that required CUDA could not be satisfied.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum DeviceResolutionError {
+    /// A forced CUDA policy was requested from a CPU-only artifact.
+    CudaNotCompiled { ordinal: usize },
+    /// A forced CUDA policy could not initialize/probe the requested ordinal.
+    ForcedCudaUnavailable { ordinal: usize, reason: DeviceResolutionReason },
+}
+
+impl fmt::Display for DeviceResolutionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::CudaNotCompiled { ordinal } => {
+                write!(
+                    formatter,
+                    "cuda:{ordinal} requested but this artifact was built without CUDA"
+                )
+            }
+            Self::ForcedCudaUnavailable { ordinal, reason } => {
+                write!(formatter, "cuda:{ordinal} requested but unavailable: {reason:?}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for DeviceResolutionError {}
+
+/// Resolve one policy with a provider whose initialization/probe is injectable.
+///
+/// This function never parses ambient environment state. The caller parses
+/// `FATHOMDB_EMBED_DEVICE` once, then passes its explicit policy here. `cpu`
+/// and CPU-only `auto` do not call `provider`. `auto` can select CPU only for
+/// an unavailable/unusable CUDA provider; forced `cuda:N` returns a typed error
+/// for the same conditions and never resolves to CPU.
+pub fn resolve_embed_device_policy(
+    requested_policy: EmbedDevicePolicy,
+    cuda_compiled: bool,
+    provider: &mut dyn CudaProvider,
+) -> Result<DeviceResolution, DeviceResolutionError> {
+    match requested_policy {
+        EmbedDevicePolicy::Cpu => Ok(DeviceResolution {
+            requested_policy,
+            cuda_compiled,
+            effective_device: EffectiveEmbedDevice::Cpu,
+            reason: None,
+        }),
+        EmbedDevicePolicy::Auto if !cuda_compiled => Ok(DeviceResolution {
+            requested_policy,
+            cuda_compiled,
+            effective_device: EffectiveEmbedDevice::Cpu,
+            reason: Some(DeviceResolutionReason::CudaNotCompiled),
+        }),
+        EmbedDevicePolicy::Cuda(ordinal) if !cuda_compiled => {
+            Err(DeviceResolutionError::CudaNotCompiled { ordinal })
+        }
+        EmbedDevicePolicy::Auto => match probe(provider, 0) {
+            Ok(info) => Ok(DeviceResolution {
+                requested_policy,
+                cuda_compiled,
+                effective_device: EffectiveEmbedDevice::Cuda(info),
+                reason: None,
+            }),
+            Err(reason) => Ok(DeviceResolution {
+                requested_policy,
+                cuda_compiled,
+                effective_device: EffectiveEmbedDevice::Cpu,
+                reason: Some(reason),
+            }),
+        },
+        EmbedDevicePolicy::Cuda(ordinal) => match probe(provider, ordinal) {
+            Ok(info) => Ok(DeviceResolution {
+                requested_policy,
+                cuda_compiled,
+                effective_device: EffectiveEmbedDevice::Cuda(info),
+                reason: None,
+            }),
+            Err(reason) => Err(DeviceResolutionError::ForcedCudaUnavailable { ordinal, reason }),
+        },
+    }
+}
+
+fn probe(
+    provider: &mut dyn CudaProvider,
+    ordinal: usize,
+) -> Result<CudaDeviceInfo, DeviceResolutionReason> {
+    match provider.probe_cuda(ordinal) {
+        Ok(info) if info.ordinal == ordinal => Ok(info),
+        Ok(_) | Err(CudaProbeError::ProbeFailed { .. }) => {
+            Err(DeviceResolutionReason::CudaProbeFailed)
+        }
+        Err(CudaProbeError::NoVisibleDevice) => Err(DeviceResolutionReason::NoVisibleCudaDevice),
+        Err(CudaProbeError::Incompatible { .. }) => Err(DeviceResolutionReason::CudaIncompatible),
+    }
+}

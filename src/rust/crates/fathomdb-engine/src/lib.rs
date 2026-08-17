@@ -20764,10 +20764,35 @@ unsafe extern "C" fn profile_callback_trampoline(
 mod tests {
     use super::{
         derive_stable_id, resolve_source_type, Engine, IdSpace, IdSpaceKind, PreparedWrite,
-        KIND_TO_SOURCE_TYPE_CASE_SQL, ROW_OWNED_PROJECTIONS,
+        KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
     use rusqlite::Connection;
     use tempfile::TempDir;
+
+    /// Slice 65: the attribution collector starts with every Engine-owned
+    /// connection role registered and no active owned snapshot.  This is the
+    /// negative control that prevents a later busy checkpoint from being
+    /// labelled "external" merely because an idle runtime role was omitted.
+    #[test]
+    fn wal_attribution_registers_all_owned_roles_idle_at_open() {
+        let dir = TempDir::new().expect("temp dir");
+        let opened = Engine::open(dir.path().join("wal-attribution.sqlite")).expect("open");
+
+        let snapshot = opened.engine.wal_attribution_snapshot();
+        assert!(snapshot.no_owned_snapshot, "fresh engine must be idle: {snapshot:?}");
+        assert!(snapshot.roles.iter().any(|role| role.role == "writer" && role.index == 0));
+        assert_eq!(
+            snapshot.roles.iter().filter(|role| role.role == "reader_worker").count(),
+            READER_POOL_SIZE,
+            "every reader worker must be explicitly registered"
+        );
+        assert!(snapshot.roles.iter().any(|role| role.role == "projection_dispatcher"));
+        assert_eq!(
+            snapshot.roles.iter().filter(|role| role.role == "projection_worker").count(),
+            PROJECTION_WORKERS,
+            "every projection worker must be explicitly registered"
+        );
+    }
 
     /// 0.8.20 Slice 5a (R-20-E1, work item 2) — the registry GUARD.
     ///

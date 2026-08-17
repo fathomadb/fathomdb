@@ -104,6 +104,32 @@ def test_approved_amendment_is_the_only_route_that_qualifies_an_unsupported_pair
     assert eligibility.evidence_mode == "qualified_human_gold"
 
 
+def test_fabricated_ledger_sequence_cannot_approve_an_unsupported_pair():
+    matrix = _matrix()
+    protocol = _protocol()
+    qualified = corpus_matrix.validate_qualified_human_gold_manifest(
+        _qualified_manifest(matrix, protocol), matrix, protocol
+    )
+    fabricated_amendment = {
+        "schema_version": "corpus-01-human-gold-amendment.v1",
+        "amendment_id": "corpus-01-locomo-knowledge-update-fabricated",
+        "matrix_sha256": corpus_matrix.canonical_sha256(matrix),
+        "qualified_manifest_sha256": qualified.manifest_sha256,
+        "corpus_id": "locomo", "category": "knowledge_update",
+        "approval_ref": "seq-999999", "eligibility": "approved_human_gold",
+    }
+    empty_registry = {
+        "schema_version": "corpus-01-approved-amendment-registry.v1",
+        "registry_id": "corpus-01-approved-amendments",
+        "entries": [],
+    }
+
+    with pytest.raises(corpus_matrix.CorpusMatrixError, match="approved-amendment registry"):
+        corpus_matrix.validate_human_gold_amendment(
+            fabricated_amendment, matrix, qualified, approved_registry=empty_registry
+        )
+
+
 def test_preflight_rejects_an_undeclared_class_or_metric_before_human_evidence_counts():
     matrix = _matrix()
     protocol = _protocol()

@@ -42,6 +42,7 @@ record = {
     "purpose": "0.8.23 non-publishing CUDA preflight",
     "provenance_pr": 229,
     "provenance_commit": "1111111111111111111111111111111111111111",
+    "provenance_required_reviewers": ["independent-provenance-reviewer"],
 }
 manifest = {
     "schema_version": "fathomdb.cuda-unmerged-candidates/v1",
@@ -69,16 +70,36 @@ reviews = [{
     "commit_id": candidate,
     "submitted_at": "2026-08-17T17:00:00Z",
 }]
+provenance_pr = {
+    "number": 229,
+    "state": "closed",
+    "merged": True,
+    "base": {"ref": "main", "repo_full_name": "fathomadb/fathomdb"},
+    "merge_commit_sha": "1111111111111111111111111111111111111111",
+    "user": {"login": "provenance-author"},
+}
+provenance_reviews = [{
+    "id": 322,
+    "user": {"login": "independent-provenance-reviewer"},
+    "state": "APPROVED",
+    "commit_id": "1111111111111111111111111111111111111111",
+    "submitted_at": "2026-08-17T16:00:00Z",
+}]
 facts = {
     "schema_version": "fathomdb.cuda-unmerged-candidate-facts/v1",
     "protection_baseline": baseline,
     "pull_request": pr,
     "reviews": reviews,
     "reviews_pagination_complete": True,
+    "provenance_pull_request": provenance_pr,
+    "provenance_reviews": provenance_reviews,
+    "provenance_reviews_pagination_complete": True,
     "api_response_sha256": {
         "protection_baseline": digest(baseline),
         "pull_request": digest(pr),
         "reviews": digest(reviews),
+        "provenance_pull_request": digest(provenance_pr),
+        "provenance_reviews": digest(provenance_reviews),
     },
 }
 open(manifest_path, "wb").write(canonical(manifest))
@@ -172,6 +193,14 @@ elif mutation == "pagination":
     facts["reviews_pagination_complete"] = False
 elif mutation == "api-digest":
     facts["api_response_sha256"]["reviews"] = "0" * 64
+elif mutation == "provenance-unmerged":
+    facts["provenance_pull_request"]["merged"] = False
+elif mutation == "provenance-wrong-commit":
+    facts["provenance_pull_request"]["merge_commit_sha"] = "f" * 40
+elif mutation == "provenance-self-approved":
+    facts["provenance_pull_request"]["user"]["login"] = "independent-provenance-reviewer"
+elif mutation == "provenance-review-changed":
+    facts["provenance_reviews"][0]["state"] = "CHANGES_REQUESTED"
 else:
     raise SystemExit("unknown mutation: " + mutation)
 for path, value in ((manifest_path, manifest), (facts_path, facts)):
@@ -193,6 +222,10 @@ mutate_and_expect_fail stale-approval 'rejects approval for a different commit'
 mutate_and_expect_fail change-request 'rejects non-approved latest reviewer state'
 mutate_and_expect_fail pagination 'rejects incomplete review pagination'
 mutate_and_expect_fail api-digest 'rejects API response digest mismatch'
+mutate_and_expect_fail provenance-unmerged 'rejects an unmerged provenance PR'
+mutate_and_expect_fail provenance-wrong-commit 'rejects a provenance PR with a different merge commit'
+mutate_and_expect_fail provenance-self-approved 'rejects provenance self-approval'
+mutate_and_expect_fail provenance-review-changed 'rejects a changed provenance review'
 
 for mismatch in candidate workflow-ref workflow-sha run-id run-attempt; do
   args=(--receipt "$receipt" --candidate-sha "$CANDIDATE" --workflow-ref "$WORKFLOW_REF" --workflow-sha "$WORKFLOW_SHA" --run-id 714 --run-attempt 2)

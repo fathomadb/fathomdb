@@ -208,10 +208,13 @@ assert_contains "$CODE" 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a87
 
 for marker in \
   'slice65_wal managed_reader_snapshot_ready' \
-  'slice65_wal managed_reader_snapshot_released' \
   'pause_reader_after_wal_snapshot_for_test' \
   'wal_attribution_checkpoints_for_test' \
-  'retained_record_contract=passed' \
+  'managed_reader_original_erase=typed_erasure_incomplete owned_busy_attempts=' \
+  'managed_reader_completion_ack reader_autocommit=1 collector_roles=idle' \
+  'managed_reader_native_state_inventory=' \
+  'managed_reader_sampler_native_state' \
+  'managed_reader_sampler_terminal outcome=' \
   'active_roles == vec![(WalAttributionRole::ReaderWorker, 0)]' \
   'SELECT COUNT(*) FROM canonical_nodes' \
   'owned_reader_snapshot' \
@@ -462,7 +465,7 @@ assert_contains "$managed_reader_body" \
   'arm_next_reader_completion_pause_for_test' \
   "managed-reader diagnostic waits for post-finish owner-thread acknowledgement"
 assert_contains "$managed_reader_body" \
-  'binding_native_state_inventory_for_test' \
+  'native_state_inventory_for_test' \
   "managed-reader diagnostic requires complete native-state inventory"
 assert_contains "$managed_reader_body" \
   'arm_binding_native_state_observation_for_test' \
@@ -554,6 +557,35 @@ done
 if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
   TMPROOT="$(mktemp -d)"
   trap 'rm -rf "$TMPROOT"' EXIT
+
+  MANAGED_READER_REERASE_MUTATED="$TMPROOT/lib-with-managed-reader-second-erase.rs"
+  sed 's/let samples = opened/let _second = opened.engine.erase_source("slice65-owned-reader");\n        let samples = opened/' "$ENGINE_SOURCE" \
+    >"$MANAGED_READER_REERASE_MUTATED"
+  set +e
+  managed_reader_reerase_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$MANAGED_READER_REERASE_MUTATED" bash "$0" 2>&1)"
+  managed_reader_reerase_rc=$?
+  set -e
+  if [ "$managed_reader_reerase_rc" -ne 0 ] \
+    && grep -Fq 'managed-reader diagnostic must retain exactly one original erase; found 2' <<<"$managed_reader_reerase_out"; then
+    pass "mutation proves managed-reader single-erase guard is load-bearing"
+  else
+    fail "mutation did not fail managed-reader single-erase guard: $managed_reader_reerase_out"
+  fi
+
+  MANAGED_READER_RETRY_MUTATED="$TMPROOT/lib-with-managed-reader-retry-marker.rs"
+  sed 's/let samples = opened/\/\/ retry after release\n        let samples = opened/' "$ENGINE_SOURCE" \
+    >"$MANAGED_READER_RETRY_MUTATED"
+  set +e
+  managed_reader_retry_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$MANAGED_READER_RETRY_MUTATED" bash "$0" 2>&1)"
+  managed_reader_retry_rc=$?
+  set -e
+  if [ "$managed_reader_retry_rc" -ne 0 ] \
+    && grep -Fq 'managed-reader diagnostic does not retry the original erase (unexpected: retry after release)' <<<"$managed_reader_retry_out"; then
+    pass "mutation proves managed-reader no-retry guard is load-bearing"
+  else
+    fail "mutation did not fail managed-reader no-retry guard: $managed_reader_retry_out"
+  fi
+
   MUTATED="$TMPROOT/ci.yml"
   sed '/^  windows-wal-attribution:/,/^  wheel-size-gate:/d' "$CI" >"$MUTATED"
   set +e

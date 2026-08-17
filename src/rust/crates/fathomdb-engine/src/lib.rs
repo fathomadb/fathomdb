@@ -6583,7 +6583,7 @@ impl Engine {
     /// Arm direct native-state observation around the existing Slice 65
     /// test-hook sampler. It is deliberately separate from the real-erasure
     /// observer so the normal serial path gains no connection inspection.
-    #[cfg(feature = "test-hooks")]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn arm_binding_native_state_observation_for_test(&self) {
         *self.binding_native_state_observations.lock().expect("binding native state observation") =
@@ -6606,7 +6606,7 @@ impl Engine {
         });
     }
 
-    #[cfg(feature = "test-hooks")]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn drain_binding_native_state_observations_for_test(&self) -> Vec<String> {
         self.binding_native_state_observations
@@ -6769,7 +6769,7 @@ impl Engine {
     /// Run one bounded, test-only checkpoint sampler without performing any
     /// erasure work. The returned records are private diagnostic observations,
     /// not a retry or reclassification of an erasure outcome.
-    #[cfg(feature = "test-hooks")]
+    #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn checkpoint_at_rest_for_test(&self) -> Result<Vec<(bool, u32, u32)>, EngineError> {
         self.ensure_open()?;
@@ -22749,10 +22749,8 @@ mod tests {
         );
     }
 
-    /// Slice 65 Fix-N RED: the real managed-reader witness must inspect the
-    /// collector's retained checkpoint records, not infer attribution from
-    /// stdout. Every busy attempt belongs to the exact paused reader; after
-    /// release the succeeding attempt proves no owned snapshot remains.
+    /// Slice 65 managed-reader witness: preserve the original typed refusal,
+    /// then observe post-finish connection state without retrying that erase.
     #[test]
     fn wal_attribution_owned_reader_records_exact_busy_and_idle_success() {
         let dir = TempDir::new().expect("temp dir");
@@ -22770,6 +22768,8 @@ mod tests {
                 valid_until: None,
             }])
             .expect("write");
+        let (completion_ready, completion_release, reader_autocommit) =
+            opened.engine.arm_next_reader_completion_pause_for_test();
         let (snapshot_ready, release) = opened.engine.pause_reader_after_wal_snapshot_for_test();
         snapshot_ready.wait();
         eprintln!("slice65_wal managed_reader_snapshot_ready");
@@ -22783,15 +22783,51 @@ mod tests {
                 && record.active_roles == vec![(WalAttributionRole::ReaderWorker, 0)]
         }));
         assert!(matches!(blocked, Err(EngineError::ErasureIncomplete { .. })));
+        eprintln!(
+            "slice65_wal managed_reader_original_erase=typed_erasure_incomplete owned_busy_attempts={}",
+            busy.len()
+        );
 
         release.wait();
-        eprintln!("slice65_wal managed_reader_snapshot_released");
-        opened.engine.erase_source("slice65-owned-reader").expect("retry after release");
-        let records = opened.engine.wal_attribution_checkpoints_for_test();
-        let success = records.last().expect("successful checkpoint record");
-        assert!(!success.busy && success.classification == "no_owned_snapshot");
-        assert!(success.active_roles.is_empty());
-        eprintln!("slice65_wal retained_record_contract=passed");
+        completion_ready.wait();
+        assert!(
+            reader_autocommit.load(std::sync::atomic::Ordering::Acquire),
+            "post-finish reader connection must be autocommit"
+        );
+        let completion = opened.engine.wal_attribution_snapshot();
+        assert!(completion.no_owned_snapshot, "collector must be idle after reader finish");
+        eprintln!(
+            "slice65_wal managed_reader_completion_ack reader_autocommit=1 collector_roles=idle"
+        );
+        completion_release.wait();
+
+        let inventory = opened.engine.native_state_inventory_for_test();
+        assert!(inventory.complete, "post-finish native inventory: {inventory:?}");
+        let inventory_text = super::native_state_inventory_text(&inventory);
+        eprintln!("slice65_wal managed_reader_native_state_inventory={inventory_text}");
+
+        opened.engine.arm_binding_native_state_observation_for_test();
+        let samples = opened
+            .engine
+            .checkpoint_at_rest_for_test()
+            .expect("run bounded post-finish checkpoint sampler");
+        assert!(!samples.is_empty() && samples.len() <= ERASURE_WAL_TRUNCATE_ATTEMPTS as usize);
+        let state_records = opened.engine.drain_binding_native_state_observations_for_test();
+        assert_eq!(state_records.len(), samples.len() * 2);
+        for state in &state_records {
+            assert!(state.contains("state_inventory=complete reason=complete"));
+            eprintln!("slice65_wal managed_reader_sampler_native_state {state}");
+        }
+        let (busy, log_frames, checkpointed_frames) =
+            samples.last().copied().expect("sampler result");
+        eprintln!(
+            "slice65_wal managed_reader_sampler_terminal outcome={} attempts={} busy={} log_frames={} checkpointed_frames={}",
+            if busy { "busy" } else { "clean" },
+            samples.len(),
+            u8::from(busy),
+            log_frames,
+            checkpointed_frames,
+        );
     }
 
     /// Slice 65 N23-WAL-BINDING-NATIVE-STATE RED: an autocommit connection

@@ -162,3 +162,20 @@ def test_report_writer_keeps_the_qualification_projection_external_and_content_f
     text = report_path.read_text(encoding="utf-8")
     assert str(output_root) not in text
     assert "document-00000" not in text
+
+
+def test_blocked_report_requires_known_missing_facts_and_cannot_imply_a_release():
+    report = qualification.blocked_input_report(
+        report_id="tc5-input-preflight-blocked-001",
+        missing_prerequisites=["all_real_manifest", "pinned_model_asset"],
+        observed_inventory_ids=["locomo-capability-20260814"],
+    )
+
+    assert report["state"] == "blocked_prerequisite"
+    assert report["eligible_for_coordinator_release"] is False
+    with pytest.raises(qualification.Tc5InputQualificationError, match="prerequisites"):
+        qualification.blocked_input_report(
+            report_id="tc5-input-preflight-blocked-002",
+            missing_prerequisites=["invented-prerequisite"],
+            observed_inventory_ids=[],
+        )

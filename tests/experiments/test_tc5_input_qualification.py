@@ -208,3 +208,22 @@ def test_report_writer_rejects_sensitive_or_unknown_blocked_report_fields(tmp_pa
         )
 
     assert not (output_root / "blocked.json").exists()
+
+
+def test_report_writer_rejects_unknown_nested_qualified_report_fields(tmp_path):
+    matrix = _matrix()
+    manifest = _manifest()
+    result = qualification.qualify_input_inventory(
+        _inventory(manifest, matrix), manifest, matrix, qualification.load_policy(POLICY_PATH)
+    )
+    report = result.safe_report()
+    report["input_attestations"]["raw_path"] = "/external/private/model"
+    output_root = tmp_path / "external-output"
+    output_root.mkdir()
+
+    with pytest.raises(qualification.Tc5InputQualificationError, match="input attestation keys"):
+        qualification.write_qualification_report(
+            report, output_root=output_root, report_path=output_root / "qualified.json"
+        )
+
+    assert not (output_root / "qualified.json").exists()

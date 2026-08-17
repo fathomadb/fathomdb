@@ -49,3 +49,17 @@ All reports are new files below the declared external preflight root. The
 writer rejects a repository destination, an escaped path, symlink destination,
 or existing file. A blocked report is evidence that no live action was taken;
 it is not a failed measurement.
+
+## Safe report schemas
+
+The writer validates the complete report shape before it resolves or creates a
+destination. A `blocked_prerequisite` report may contain only its identity,
+state, release/no-live booleans, claim boundary, observed logical inventory
+IDs, and fixed missing-prerequisite codes. A `factual_inputs_qualified` report
+may additionally contain only its inventory/matrix/manifest identities and
+hashes, fixed arm counts, seven hash attestations, fixed measurement labels,
+and the coordinator-release next gate.
+
+Unknown root or nested keys fail closed. Consequently, document IDs, raw
+paths, corpus/query/prediction payloads, metrics, fake fields, and future
+unreviewed extensions cannot be written by this preflight artifact path.

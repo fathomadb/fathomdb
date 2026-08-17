@@ -79,6 +79,47 @@ _BLOCKER_CODES = {
     "exact_f32_ground_truth",
     "vector_stage_runtime",
 }
+_REPORT_COMMON_KEYS = {
+    "schema_version",
+    "program_track",
+    "report_id",
+    "state",
+    "eligible_for_coordinator_release",
+    "claim_boundary",
+    "no_live_execution",
+}
+_QUALIFIED_REPORT_KEYS = _REPORT_COMMON_KEYS | {
+    "inventory_id",
+    "corpus_id",
+    "corpus_matrix_sha256",
+    "manifest_id",
+    "manifest_sha256",
+    "arms",
+    "input_attestations",
+    "frozen_measurement",
+    "next_gate",
+}
+_BLOCKED_REPORT_KEYS = _REPORT_COMMON_KEYS | {
+    "observed_inventory_ids",
+    "missing_prerequisites",
+}
+_INPUT_ATTESTATION_KEYS = {
+    "license_copy_sha256",
+    "source_artifact_sha256",
+    "model_asset_sha256",
+    "cpu_host_attestation_sha256",
+    "ground_truth_artifact_sha256",
+    "vector_stage_runtime_sha256",
+    "output_root_attestation_sha256",
+}
+_FROZEN_MEASUREMENT_KEYS = {
+    "embed_device",
+    "candidate_breadth",
+    "query_count",
+    "bootstrap_resamples",
+    "ground_truth",
+    "sut",
+}
 
 
 class Tc5InputQualificationError(ValueError):
@@ -313,12 +354,82 @@ def write_qualification_report(
     qualification: Tc5InputQualification | Mapping[str, object], *, output_root: str | Path, report_path: str | Path
 ) -> Path:
     """Write one new content-free qualification or blocked report outside Git."""
+    if not isinstance(qualification, (Tc5InputQualification, Mapping)):
+        raise Tc5InputQualificationError("qualification report must be a mapping")
     report = qualification.safe_report() if isinstance(qualification, Tc5InputQualification) else dict(qualification)
-    if report.get("schema_version") != TC5_INPUT_REPORT_V1 or report.get("program_track") != PROGRAM_TRACK:
-        raise Tc5InputQualificationError("qualification report identity is invalid")
-    if report.get("no_live_execution") is not True or report.get("eligible_for_coordinator_release") is not False:
-        raise Tc5InputQualificationError("qualification report execution boundary is invalid")
+    _validate_report(report)
     destination = _external_output_path(output_root, report_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_bytes(_canonical_json(report) + b"\n")
     return destination
+
+
+def _validate_report(report: Mapping[str, object]) -> None:
+    """Reject every report field not explicitly allowed by the safe projection."""
+    state = report.get("state")
+    expected_keys = _QUALIFIED_REPORT_KEYS if state == "factual_inputs_qualified" else _BLOCKED_REPORT_KEYS
+    if set(report) != expected_keys:
+        raise Tc5InputQualificationError("qualification report keys do not match the declared state")
+    if report["schema_version"] != TC5_INPUT_REPORT_V1 or report["program_track"] != PROGRAM_TRACK:
+        raise Tc5InputQualificationError("qualification report identity is invalid")
+    _identifier(report["report_id"], "qualification report_id")
+    if report["eligible_for_coordinator_release"] is not False or report["no_live_execution"] is not True:
+        raise Tc5InputQualificationError("qualification report execution boundary is invalid")
+    if report["claim_boundary"] != "fidelity_only_no_scale02_or_product_claim":
+        raise Tc5InputQualificationError("qualification report claim boundary is invalid")
+    if state == "blocked_prerequisite":
+        _validate_blocked_report(report)
+        return
+    if state == "factual_inputs_qualified":
+        _validate_qualified_report(report)
+        return
+    raise Tc5InputQualificationError("qualification report state is invalid")
+
+
+def _validate_blocked_report(report: Mapping[str, object]) -> None:
+    missing = report["missing_prerequisites"]
+    observed = report["observed_inventory_ids"]
+    if not isinstance(missing, list) or not isinstance(observed, list):
+        raise Tc5InputQualificationError("blocked report list fields are invalid")
+    normalized_missing = tuple(_identifier(value, "missing prerequisite") for value in missing)
+    normalized_observed = tuple(_identifier(value, "observed inventory") for value in observed)
+    if not normalized_missing or len(set(normalized_missing)) != len(normalized_missing):
+        raise Tc5InputQualificationError("blocked report prerequisites are invalid")
+    if not set(normalized_missing).issubset(_BLOCKER_CODES):
+        raise Tc5InputQualificationError("blocked report prerequisites are invalid")
+    if len(set(normalized_observed)) != len(normalized_observed):
+        raise Tc5InputQualificationError("blocked report observed inventories are invalid")
+
+
+def _validate_qualified_report(report: Mapping[str, object]) -> None:
+    for field in ("inventory_id", "corpus_id", "manifest_id"):
+        _identifier(report[field], f"qualified report {field}")
+    for field in ("corpus_matrix_sha256", "manifest_sha256"):
+        _sha256(report[field], f"qualified report {field}")
+    arms = report["arms"]
+    expected_arms = [
+        {"name": "bridge", "document_count": BRIDGE_DOCUMENT_COUNT},
+        {"name": "primary", "document_count": PRIMARY_DOCUMENT_COUNT},
+    ]
+    if arms != expected_arms:
+        raise Tc5InputQualificationError("qualified report arms are invalid")
+    attestations = report["input_attestations"]
+    if not isinstance(attestations, dict) or set(attestations) != _INPUT_ATTESTATION_KEYS:
+        raise Tc5InputQualificationError("qualified report input attestation keys are invalid")
+    for field in _INPUT_ATTESTATION_KEYS:
+        _sha256(attestations[field], f"qualified report {field}")
+    frozen = report["frozen_measurement"]
+    if not isinstance(frozen, dict) or set(frozen) != _FROZEN_MEASUREMENT_KEYS:
+        raise Tc5InputQualificationError("qualified report frozen measurement keys are invalid")
+    expected_measurement = {
+        "embed_device": "cpu",
+        "candidate_breadth": CANDIDATE_BREADTH,
+        "query_count": QUERY_COUNT,
+        "bootstrap_resamples": BOOTSTRAP_RESAMPLES,
+        "ground_truth": "exact-f32-same-model-top-10",
+        "sut": "pre-fusion-1bit-k192-f32-rerank-vector-stage",
+    }
+    if frozen != expected_measurement:
+        raise Tc5InputQualificationError("qualified report frozen measurement is invalid")
+    if report["next_gate"] != "factual_inputs_qualified_pending_coordinator_release":
+        raise Tc5InputQualificationError("qualified report next gate is invalid")

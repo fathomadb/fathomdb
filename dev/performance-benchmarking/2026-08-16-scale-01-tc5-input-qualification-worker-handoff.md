@@ -19,6 +19,10 @@
   `15307538` (the module did not exist), then covers exact manifest binding,
   matrix claim limitation, missing host/model/ground-truth/runtime facts, and
   content-free report writing.
+- Review-remediation red commit `c5b2c1a2` proves the original writer accepted
+  injected document IDs, raw paths, query/prediction/metric payloads, and fake
+  fields. The corrected writer now validates exact qualified and blocked
+  report schemas, including nested attestation keys, before any write.
 
 ## Factual result
 
@@ -45,7 +49,7 @@ receipt, index row, or release record.
 
 ```text
 PYTHONPATH=src/python python -m pytest tests/experiments/test_tc5_input_qualification.py -q
-# 6 passed
+# 13 passed
 
 PYTHONPATH=src/python python -m pytest tests/experiments/test_tc5_manifest.py \
   tests/experiments/test_tc5_characterization.py \
@@ -71,3 +75,6 @@ action occurred.
    identity, query, prediction, or metric.
 4. Confirm the actual artifact hash/path above and no-live boundary before
    integration.
+5. Confirm report validation rejects unknown root/nested keys and sensitive
+   document/path/query/prediction/metric fields before resolving the external
+   destination.

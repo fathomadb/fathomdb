@@ -115,7 +115,8 @@ assert_contains "$CODE" 'slice65_wal post_commit_ack direct_inventory=' "job req
 assert_contains "$CODE" 'collector_roles=idle' "job retains collector state separately from direct transaction facts"
 assert_contains "$CODE" 'slice65_wal post_commit_raw case=pre_close' "job requires redacted pre-close raw checkpoint samples"
 assert_contains "$CODE" 'slice65_wal post_commit_child_raw case=after_close' "job requires the redacted fresh-child probe outcome"
-assert_contains "$CODE" 'python_binding_completion_ack' "job requires installed binding completion acknowledgement"
+assert_contains "$CODE" 'python_binding_completion_ack reader_autocommit=1 collector=idle' "job requires installed binding direct completion acknowledgement"
+assert_absent "$CODE" 'python_binding_completion_ack collector=idle' "job does not accept the collector-only binding completion marker"
 assert_contains "$CODE" 'python_binding_direct_inventory=' "job requires direct installed binding inventory"
 assert_contains "$CODE" 'python_binding_raw case=before_engine_sampler' "job requires the first installed binding raw sample"
 assert_contains "$CODE" 'python_binding_engine_sampler' "job requires exactly one installed binding Engine-path sampler"
@@ -208,6 +209,10 @@ assert_contains "$(<"$PY_SOURCE")" \
   '_arm_next_reader_completion_pause_for_test' \
   '_wal_attribution_binding_inventory_for_test' \
   "installed binding exposes completion and direct-inventory hooks only in its test-hooks build"
+assert_contains "$(<"$PY_SOURCE")" \
+  '_native_raw_wal_checkpoint_for_test' \
+  'wrap_pyfunction!(native_raw_wal_checkpoint_for_test, &m)' \
+  "installed binding exposes the native child raw-checkpoint hook only in its test-hooks build"
 assert_contains "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/Cargo.toml")" \
   'test-hooks = []' \
   "engine reader rendezvous is a non-default test feature"
@@ -215,10 +220,14 @@ assert_contains "$(<"$ENGINE_SOURCE")" \
   '#[cfg(any(debug_assertions, feature = "test-hooks"))]' \
   "managed-reader hook is unavailable from shipped production builds"
 assert_contains "$(<"$ENGINE_SOURCE")" \
-  'reader_completion_pause::fire()' \
+  'reader_completion_pause::fire(connection.is_autocommit())' \
   'binding_connection_inventory_for_test' \
   'checkpoint_at_rest_for_test' \
   "engine retains private completion, inventory, and checkpoint sampler seams"
+assert_contains "$(<"$ENGINE_SOURCE")" \
+  'native_raw_wal_checkpoint_for_test' \
+  'open_managed_connection' \
+  "engine retains the native fresh-child raw-checkpoint seam behind the audited opener"
 assert_contains "$(<"$ENGINE_SOURCE")" \
   'fresh_writer_connection_open=' \
   "source records the live fresh writer connection fact"
@@ -250,6 +259,12 @@ assert_contains "$(<"$PY_CONTROL")" \
 assert_contains "$(<"$PY_CONTROL")" \
   'BASELINE_FIRST_ERASE outcome=clean_completion' \
   "installed serial baseline records clean first-erase completion separately"
+assert_absent "$(<"$PY_CONTROL")" \
+  'import sqlite3' \
+  "installed binding diagnostic never imports Python stdlib sqlite3"
+assert_absent "$(<"$PY_CONTROL")" \
+  'sqlite3.connect' \
+  "installed binding diagnostic never opens a stdlib raw checkpoint connection"
 serial_incident_body="$(python_function_body "$PY_CONTROL" "run_serial_incident")"
 assert_before_in_text \
   "$serial_incident_body" \
@@ -274,7 +289,13 @@ assert_before_in_text \
 assert_before_in_python_function \
   "$PY_CONTROL" \
   "run_binding_reader_erase" \
-  'python_binding_completion_ack' \
+  'completion_pause.reader_connection_autocommit_for_test()' \
+  'python_binding_completion_ack reader_autocommit=1 collector=idle' \
+  "binding diagnostic verifies actual reader autocommit before completion acknowledgement"
+assert_before_in_python_function \
+  "$PY_CONTROL" \
+  "run_binding_reader_erase" \
+  'python_binding_completion_ack reader_autocommit=1 collector=idle' \
   'python_binding_direct_inventory=' \
   "binding diagnostic emits completion acknowledgement before direct inventory"
 assert_before_in_python_function \
@@ -301,6 +322,25 @@ if [ "$binding_erase_calls" -eq 1 ]; then
 else
   fail "binding diagnostic must retain exactly one original erasure; found $binding_erase_calls"
 fi
+binding_body="$(python_function_body "$PY_CONTROL" "run_binding_reader_erase")"
+assert_contains "$binding_body" \
+  'if first_raw[0] != 0 or second_raw[0] != 0:' \
+  "binding diagnostic runs the child only after a busy raw sample"
+assert_before_in_text \
+  "$binding_body" \
+  'engine.close()' \
+  'subprocess.run(' \
+  "binding diagnostic closes and joins its Engine before the conditional child"
+binding_child_calls="$(grep -Fc 'subprocess.run(' <<<"$binding_body" || true)"
+if [ "$binding_child_calls" -eq 1 ]; then
+  pass "binding diagnostic retains exactly one conditional fresh child"
+else
+  fail "binding diagnostic must retain exactly one conditional fresh child; found $binding_child_calls"
+fi
+binding_child_body="$(python_function_body "$PY_CONTROL" "run_binding_child")"
+assert_contains "$binding_child_body" \
+  'native._native_raw_wal_checkpoint_for_test(path)' \
+  "fresh child calls the native FathomDB/Rusqlite checkpoint hook"
 for control in \
   wal_attribution_close_boundary_fresh_open_is_clean \
   wal_attribution_close_boundary_read_get_is_clean \
@@ -550,6 +590,19 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves installed serial-to-binding ordering is load-bearing"
   else
     fail "mutation did not fail installed serial-to-binding ordering assertion: $binding_order_out"
+  fi
+
+  RETAINED_ORDER_MUTATED="$TMPROOT/ci-without-retained-command.yml"
+  sed '/--control retained --wheel-version/d' "$CI" >"$RETAINED_ORDER_MUTATED"
+  set +e
+  retained_order_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$RETAINED_ORDER_MUTATED" bash "$0" 2>&1)"
+  retained_order_rc=$?
+  set -e
+  if [ "$retained_order_rc" -ne 0 ] \
+    && grep -Fq 'installed binding diagnostic runs before retained-result control (expected --control binding before --control retained)' <<<"$retained_order_out"; then
+    pass "mutation proves installed binding-to-retained ordering is load-bearing"
+  else
+    fail "mutation did not fail installed binding-to-retained ordering assertion: $retained_order_out"
   fi
 
   while IFS='|' read -r selector guard; do

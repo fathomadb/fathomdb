@@ -21304,6 +21304,7 @@ mod tests {
     };
     use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
     use rusqlite::Connection;
+    use std::path::Path;
     use std::sync::Arc;
     use std::thread;
     use std::time::{Duration, Instant};
@@ -21443,6 +21444,149 @@ mod tests {
         assert!(!record.busy && record.classification == "no_owned_snapshot");
         assert!(record.active_roles.is_empty());
         eprintln!("slice65_wal retained_materialized_idle=passed");
+    }
+
+    /// Slice 65 RED: a fully closed Engine is not itself a reader-holder. The
+    /// raw checkpoint is deliberately independent so this distinguishes the
+    /// close boundary from the incident-shaped recovery reads below.
+    #[test]
+    fn wal_attribution_close_boundary_raw_checkpoint_is_clean() {
+        let dir = TempDir::new().expect("temp dir");
+        let path = dir.path().join("wal-attribution-close-boundary.sqlite");
+        let old = seed_close_boundary_database(&path);
+        old.engine.close().expect("old close");
+        assert_closed_engine_is_idle(&old);
+
+        let report = raw_close_boundary_checkpoint(&path);
+        assert_eq!(report.busy, 0, "a closed Engine must not hold the raw checkpoint");
+    }
+
+    /// Slice 65 RED: a fresh open/close adds no holder beyond the close
+    /// boundary control.
+    #[test]
+    fn wal_attribution_close_boundary_fresh_open_is_clean() {
+        let dir = TempDir::new().expect("temp dir");
+        let path = dir.path().join("wal-attribution-close-fresh.sqlite");
+        let old = seed_close_boundary_database(&path);
+        old.engine.close().expect("old close");
+        assert_closed_engine_is_idle(&old);
+
+        let fresh = Engine::open(&path).expect("fresh open");
+        assert!(fresh.engine.wal_attribution_snapshot().no_owned_snapshot);
+        fresh.engine.close().expect("fresh close");
+        assert_closed_engine_is_idle(&fresh);
+
+        let report = raw_close_boundary_checkpoint(&path);
+        assert_eq!(report.busy, 0, "a fresh open/close must not hold the raw checkpoint");
+    }
+
+    /// Slice 65 RED: a completed read-get followed by explicit close leaves no
+    /// checkpoint holder. This is intentionally separate from the incident
+    /// recovery sequence.
+    #[test]
+    fn wal_attribution_close_boundary_read_get_is_clean() {
+        let dir = TempDir::new().expect("temp dir");
+        let path = dir.path().join("wal-attribution-close-read-get.sqlite");
+        let old = seed_close_boundary_database(&path);
+        old.engine.close().expect("old close");
+        assert_closed_engine_is_idle(&old);
+
+        let fresh = Engine::open(&path).expect("fresh open");
+        assert!(fresh
+            .engine
+            .read_get("slice65-close-root", &Default::default())
+            .expect("read get")
+            .is_some());
+        assert!(fresh.engine.wal_attribution_snapshot().no_owned_snapshot);
+        fresh.engine.close().expect("fresh close");
+        assert_closed_engine_is_idle(&fresh);
+
+        let report = raw_close_boundary_checkpoint(&path);
+        assert_eq!(report.busy, 0, "a closed read-get Engine must not hold the raw checkpoint");
+    }
+
+    /// Slice 65 RED: completed graph-neighbor traversal followed by explicit
+    /// close leaves no checkpoint holder. This is the final staged sibling,
+    /// not a replacement for the primary incident-shaped control.
+    #[test]
+    fn wal_attribution_close_boundary_neighbors_is_clean() {
+        let dir = TempDir::new().expect("temp dir");
+        let path = dir.path().join("wal-attribution-close-neighbors.sqlite");
+        let old = seed_close_boundary_database(&path);
+        old.engine.close().expect("old close");
+        assert_closed_engine_is_idle(&old);
+
+        let fresh = Engine::open(&path).expect("fresh open");
+        assert_eq!(
+            fresh
+                .engine
+                .graph_neighbors(
+                    "slice65-close-root",
+                    1,
+                    super::TraversalDirection::Outgoing,
+                    &Default::default(),
+                )
+                .expect("neighbors")
+                .len(),
+            1
+        );
+        assert!(fresh.engine.wal_attribution_snapshot().no_owned_snapshot);
+        fresh.engine.close().expect("fresh close");
+        assert_closed_engine_is_idle(&fresh);
+
+        let report = raw_close_boundary_checkpoint(&path);
+        assert_eq!(report.busy, 0, "a closed neighbors Engine must not hold the raw checkpoint");
+    }
+
+    fn seed_close_boundary_database(path: &Path) -> super::OpenedEngine {
+        let old = Engine::open(path).expect("old open");
+        old.engine
+            .write(&[
+                PreparedWrite::Node {
+                    kind: "doc".to_string(),
+                    body: "close boundary root".to_string(),
+                    source_id: SourceId::new("slice65-close-root-source").expect("source"),
+                    logical_id: Some("slice65-close-root".to_string()),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                },
+                PreparedWrite::Node {
+                    kind: "doc".to_string(),
+                    body: "close boundary nested".to_string(),
+                    source_id: SourceId::new("slice65-close-nested-source").expect("source"),
+                    logical_id: Some("slice65-close-nested".to_string()),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                },
+                PreparedWrite::Edge {
+                    kind: "relates_to".to_string(),
+                    from: "slice65-close-root".to_string(),
+                    to: "slice65-close-nested".to_string(),
+                    source_id: SourceId::new("slice65-close-nested-source").expect("source"),
+                    logical_id: Some("slice65-close-edge".to_string()),
+                    body: None,
+                    t_valid: None,
+                    t_invalid: None,
+                    confidence: None,
+                    extractor_model_id: None,
+                    temporal_fallback: None,
+                },
+            ])
+            .expect("old write");
+        old
+    }
+
+    fn assert_closed_engine_is_idle(opened: &super::OpenedEngine) {
+        assert!(opened.engine.closed.load(std::sync::atomic::Ordering::SeqCst));
+        assert!(matches!(
+            opened.engine.read_get("slice65-close-root", &Default::default()),
+            Err(EngineError::Closing)
+        ));
+        assert!(opened.engine.wal_attribution_snapshot().no_owned_snapshot);
     }
 
     /// Slice 65 RED: model the audited Memex lifecycle precisely: close an old

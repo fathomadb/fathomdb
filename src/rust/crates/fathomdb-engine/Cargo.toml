@@ -157,6 +157,12 @@ required-features = ["default-reranker"]
 [[test]]
 name = "pr_e2_rerank_nonfinite"
 
+# Slice 70: the strict default-embedder CPU/CUDA policy is exercised against
+# a default-embedder build, but its forced-CUDA case fails before weight loading.
+[[test]]
+name = "slice70_runtime_policy"
+required-features = ["default-embedder"]
+
 [dev-dependencies]
 libc = "0.2"
 proptest = "1"

@@ -73,6 +73,7 @@ ladder or widen an in-flight feature slice.
 | 60 | Windows WAL checkpoint reader-conflict diagnosis | 6 | `0.8.23-windows-wal-checkpoint-reader-conflict.md`, `0.8.23-windows-local-environment.md` |
 | 65 | Windows WAL checkpoint root-cause attribution | 6, 60 | `0.8.23-wal-attribution-investigation.md` |
 | 70 | Supported dual CPU/GPU runtime policy, diagnostics, artifacts, and exact pre-fusion TC-5 controls | 6, 20 | `0.8.23-slice-70-dual-runtime-device-policy.md`, `0.8.23-slice-70-tc5-vector-stage-hypothesis.md` |
+| 71 | Draft cross-encoder reranker CPU/GPU runtime policy, diagnostics, and artifact parity | 70, 20 | `runs/0.8.23-slice-71-draft-plan.md` |
 
 Each feature slice, if approved, must review its assigned candidate features,
 drafted needs/requirements/ACs, and design inputs; approve, reject, or adjust
@@ -102,6 +103,12 @@ producer: canonical Linux x64 publication remains hard-blocked before all
 publishers, with no candidate artifact or credential hand-off, until a separate
 owned canonical-route design, provenance, and evidence package pass review.
 
+HITL subsequently requested a **draft** Slice 71 plan for the cross-encoder
+reranker. It follows Slice 70 rather than widening its embedding scope. Slice
+71 is not implementation authority until its assigned providers, bindings,
+configuration/diagnostic behavior, and package path have been audited and its
+design passes independent review.
+
 ## Cross-cutting DoD
 
 - Every planning slice writes its required durable record and takes no product
@@ -115,9 +122,9 @@ owned canonical-route design, provenance, and evidence package pass review.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-landed-roll-up -->
-**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`) · 60 (`423baf6a`) · 65 (`6b57557c`). SCHEMA is 26; remaining ladder = 70 → 40.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
+**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`) · 60 (`423baf6a`) · 65 (`6b57557c`). SCHEMA is 26; remaining ladder = 70 → 71 → 40.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-immediate-next -->
 **IMMEDIATE NEXT: Slice 70** (`DUAL-RUNTIME-TC5`) — supported dual CPU/GPU runtime policy, diagnostics, artifacts, and exact pre-fusion TC-5 controls
 
-**Remaining ladder:** 70 → 40.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->
+**Remaining ladder:** 70 → 71 → 40.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->

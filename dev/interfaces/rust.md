@@ -12,6 +12,19 @@ status: locked
 This file owns Rust-visible symbol spelling and result shape. Cross-binding
 parity rules remain owned by `design/bindings.md`.
 
+## TC-5 benchmark-only boundary (Slice 70)
+
+`fathomdb-tc5-benchmark` is a non-published workspace executable, available
+only with its `tc5-benchmark` Cargo feature. It is not re-exported by the
+`fathomdb` facade and adds no Python, TypeScript, or ordinary CLI option. With
+that feature, `fathomdb-engine::tc5_benchmark` exposes the documented narrow
+internal ABI `VectorStageScope`, `VectorStageRequest`, `VectorStageResult`,
+`VectorStageError`, and `RouteAttestation`, plus `Engine::tc5_vector_stage`.
+The ABI accepts an already-created query vector and immutable manifest-derived
+scope; it cannot carry compiled text, FTS, fusion, graph, CE, or ambient device
+settings. Its row keys are internal executable input and must be digested before
+an external result artifact is written.
+
 ## Support posture
 
 The Rust facade is the stable public Rust contract and is the

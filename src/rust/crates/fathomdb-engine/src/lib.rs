@@ -46,6 +46,8 @@
 
 pub mod lifecycle;
 mod pcache2;
+#[cfg(feature = "tc5-benchmark")]
+pub mod tc5_benchmark;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::error::Error;
@@ -1295,6 +1297,14 @@ impl std::fmt::Debug for ReaderWorkerPool {
 /// returned through a fresh oneshot channel so requests cannot be
 /// routed to or duplicated across workers.
 enum ReaderRequest {
+    #[cfg(feature = "tc5-benchmark")]
+    /// Benchmark-only direct vector pipeline. This is intentionally separate
+    /// from `Search`: it has no text, fusion, graph, or CE fields.
+    VectorStage {
+        request: tc5_benchmark::VectorStageRequest,
+        respond:
+            SyncSender<Result<tc5_benchmark::VectorStageResult, tc5_benchmark::VectorStageError>>,
+    },
     /// Slice 60 — property-FTS search stays on a reader-owned connection, never
     /// the writer connection. It shares the snapshot-local filter validation of
     /// the hybrid search path.
@@ -1848,6 +1858,12 @@ fn reader_worker_loop(
     while let Ok(request) = rx.recv() {
         match request {
             ReaderRequest::Shutdown => break,
+            #[cfg(feature = "tc5-benchmark")]
+            ReaderRequest::VectorStage { request, respond } => {
+                let result = tc5_benchmark::read_vector_stage_in_tx(&mut connection, request);
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                let _ = respond.send(result);
+            }
             ReaderRequest::SearchProjectedText { query, name, filter, limit, view, respond } => {
                 let result = read_projected_text_in_tx(
                     &mut connection,
@@ -5674,6 +5690,22 @@ impl Drop for Engine {
 }
 
 impl Engine {
+    /// Executes the TC-5 benchmark-only direct vector stage on one reader-worker
+    /// snapshot. This symbol exists only with the `tc5-benchmark` feature and is
+    /// deliberately not re-exported by the facade crate.
+    #[cfg(feature = "tc5-benchmark")]
+    pub fn tc5_vector_stage(
+        &self,
+        request: tc5_benchmark::VectorStageRequest,
+    ) -> Result<tc5_benchmark::VectorStageResult, tc5_benchmark::VectorStageError> {
+        self.ensure_open().map_err(|_| tc5_benchmark::VectorStageError::Closing)?;
+        let (respond, received) = mpsc::sync_channel(1);
+        self.reader_pool
+            .dispatch(ReaderRequest::VectorStage { request, respond })
+            .map_err(|_| tc5_benchmark::VectorStageError::Closing)?;
+        received.recv().map_err(|_| tc5_benchmark::VectorStageError::Closing)?
+    }
+
     fn usable_dense_runtime(&self) -> bool {
         usable_dense_runtime(
             self.runtime_embedder.as_deref(),

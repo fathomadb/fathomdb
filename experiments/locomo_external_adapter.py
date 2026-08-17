@@ -25,6 +25,7 @@ from experiments.locomo_provenance import (
     canonical_session_id,
     canonical_turn_id,
     phase_b_question_eligible,
+    payload_fingerprint,
 )
 
 
@@ -274,7 +275,7 @@ def validate_config(value: object) -> dict[str, object]:
     return config
 
 
-def _message_text(turn: Mapping[str, object], speaker_a: str) -> tuple[str, str]:
+def _message_text(turn: Mapping[str, object], speaker_a: str) -> tuple[dict[str, str], str]:
     speaker, text, turn_id = turn.get("speaker"), turn.get("text"), turn.get("dia_id")
     if (
         not isinstance(speaker, str)
@@ -295,22 +296,12 @@ def _message_text(turn: Mapping[str, object], speaker_a: str) -> tuple[str, str]
             else (f" [Sharing image that shows: {caption}]" if caption else "")
         )
     )
-    return (
-        f"{'user' if speaker == speaker_a else 'assistant'}: {speaker}: {text}{suffix}",
-        turn_id,
-    )
+    return ({"role": "user" if speaker == speaker_a else "assistant", "content": f"{speaker}: {text}{suffix}"}, turn_id)
 
 
-def _payload_fingerprint(user_id: str, messages: list[str]) -> str:
-    payload = {
-        "user_id": user_id,
-        "messages": [{"content": message} for message in messages],
-    }
-    return hashlib.sha256(
-        json.dumps(
-            payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
-        ).encode()
-    ).hexdigest()
+def _payload_fingerprint(user_id: str, messages: list[dict[str, str]]) -> str:
+    """Return the canonical preflight identity for one adapter ingestion payload."""
+    return payload_fingerprint({"user_id": user_id, "messages": messages})
 
 
 def _sessions(corpus: object) -> list[dict[str, object]]:
@@ -365,18 +356,18 @@ def provenance_documents_for_corpus(
         session_entries.append(
             {
                 "fingerprint": _payload_fingerprint(
-                    str(session["user_id"]), [text for text, _ in messages]
+                    str(session["user_id"]), [message for message, _ in messages]
                 ),
                 "conversation_id": session["conversation_id"],
                 "session_id": session["session_id"],
                 "turn_ids": turn_ids,
             }
         )
-        for text, turn_id in messages:
+        for message, turn_id in messages:
             turn_entries.append(
                 {
                     "fingerprint": _payload_fingerprint(
-                        str(session["user_id"]), [text]
+                        str(session["user_id"]), [message]
                     ),
                     "conversation_id": session["conversation_id"],
                     "session_id": session["session_id"],
@@ -771,9 +762,9 @@ def _ingest_rows(
             [messages] if ingest_unit == "session" else [[item] for item in messages]
         )
         for group in groups:
-            text = [item[0] for item in group]
+            messages = [item[0] for item in group]
             turn_ids = [item[1] for item in group]
-            fingerprint = _payload_fingerprint(str(session["user_id"]), text)
+            fingerprint = _payload_fingerprint(str(session["user_id"]), messages)
             entry = manifest.get(fingerprint)
             if (
                 entry is None
@@ -798,7 +789,7 @@ def _ingest_rows(
             rows.append(
                 {
                     "kind": "locomo_message_chunk",
-                    "body": "\n".join(text),
+                    "body": "\n".join(message["content"] for message in messages),
                     "source_id": str(session["conversation_id"]),
                     "logical_id": logical_id,
                 }

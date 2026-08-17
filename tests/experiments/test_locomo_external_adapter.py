@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from experiments import locomo_external_adapter as adapter
-from experiments.locomo_provenance import canonical_turn_id
+from experiments.locomo_provenance import build_manifest_document, canonical_turn_id
 
 
 def _canonical_turn(raw_turn_id: str) -> str:
@@ -213,6 +213,30 @@ def test_turn_ingestion_uses_scoped_canonical_ids_for_repeated_raw_turn_ids():
     }
     assert {row["logical_id"] for row in rows} == expected
     assert set(evidence) == expected
+
+
+def test_adapter_ingestion_accepts_the_canonical_external_provenance_manifest():
+    """The deployed adapter and preflight provenance derivation share one payload identity."""
+    corpus = [
+        {
+            "conversation": {
+                "speaker_a": "Ada",
+                "session_1": [
+                    {"speaker": "Ada", "text": "one", "dia_id": "turn-1"},
+                    {"speaker": "Bea", "text": "two", "dia_id": "turn-2"},
+                ],
+            },
+            "qa": [],
+        }
+    ]
+    manifest = adapter._manifest(
+        build_manifest_document(corpus, ingest_unit="turn"), "turn provenance"
+    )
+
+    rows, evidence = adapter._ingest_rows(corpus, ingest_unit="turn", manifest=manifest)
+
+    assert len(rows) == 2
+    assert len(evidence) == 2
 
 
 def test_parent_metrics_resolve_raw_evidence_within_the_question_conversation_scope():

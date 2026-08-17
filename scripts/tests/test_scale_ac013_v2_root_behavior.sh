@@ -32,6 +32,7 @@ assert artifact["summary"] is not None, artifact
 assert len(artifact["matrix"]) == 6, artifact
 assert all(len(cell["repetitions"]) == 5 for cell in artifact["matrix"]), artifact
 PY
+python3 "$root/scripts/perf-experiments/ac013-v2.py" validate-status --test-fixture --root "$out"
 find "$out" -maxdepth 1 -type f -printf '%f\n' >"$tmp/files"
 file_count=0
 while IFS= read -r _; do

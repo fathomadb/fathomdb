@@ -18,6 +18,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from eval.locomo_loader import corpus_hash, load_locomo
+
 from experiments import locomo_phase_b, locomo_provenance, trace_projection
 
 
@@ -137,6 +139,20 @@ def _file_sha256(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _normalized_corpus_sha256(path: Path) -> str:
+    """Return the frozen LOCOMO corpus identity for an externally held raw file."""
+    try:
+        documents, _ = load_locomo(path)
+    except (OSError, ValueError, TypeError, AttributeError) as exc:
+        raise LiveExecutorError("corpus cannot be normalized") from exc
+    return corpus_hash(documents)
+
+
+def _external_input_sha256(name: str, path: Path) -> str:
+    """Return the release-pinned identity for one external Phase-B input."""
+    return _normalized_corpus_sha256(path) if name == "corpus" else _file_sha256(path)
 
 
 def _module_sha256() -> str:
@@ -561,7 +577,7 @@ def validate_release(
         raise LiveExecutorError("artifact root is unavailable")
     for key, expected_sha in plan.external_input_sha256.items():
         path = _external_path(roots[key]["path"], key, directory=False)
-        if roots[key]["sha256"] != expected_sha or _file_sha256(path) != expected_sha:
+        if roots[key]["sha256"] != expected_sha or _external_input_sha256(key, path) != expected_sha:
             raise LiveExecutorError(f"{key} provenance or corpus digest drifted")
     trace_path = _external_path(roots["trace_projection"]["path"], "TRACE lifecycle proof", directory=False)
     active_trace_sources = load_trace_lifecycle_proof(trace_path, roots["trace_projection"]["sha256"])

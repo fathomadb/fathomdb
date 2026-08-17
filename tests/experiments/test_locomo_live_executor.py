@@ -85,6 +85,17 @@ def test_live_executor_freezes_phase_b_and_action_partitions():
     assert set(plan.action("cpu_grid").cell_ids).isdisjoint(plan.action("gpu_ce_grid").cell_ids)
 
 
+def test_live_executor_pins_raw_locomo_against_its_normalized_corpus_identity(monkeypatch, tmp_path):
+    """The released raw file is compared using the Phase-B canonical corpus identity."""
+    raw_corpus = tmp_path / "locomo.json"
+    raw_corpus.write_text('{"payload":"raw-bytes-differ"}', encoding="utf-8")
+    monkeypatch.setattr(
+        locomo_live_executor, "_normalized_corpus_sha256", lambda path: "a" * 64
+    )
+
+    assert locomo_live_executor._external_input_sha256("corpus", raw_corpus) == "a" * 64
+
+
 @pytest.mark.parametrize("action", ["fixed_subset_dry_run", "cpu_grid", "gpu_ce_grid"])
 def test_release_requires_an_exact_self_hash_and_one_separate_action_gate(action):
     plan = _plan()
@@ -278,6 +289,11 @@ def test_fixed_subset_dispatch_writes_only_one_complete_content_free_projection(
         return subprocess.CompletedProcess(command, 0, stdout=json.dumps(result), stderr="")
 
     monkeypatch.setattr(locomo_live_executor, "_file_sha256", fixture_sha)
+    monkeypatch.setattr(
+        locomo_live_executor,
+        "_normalized_corpus_sha256",
+        lambda path: plan.external_input_sha256["corpus"],
+    )
     monkeypatch.setattr(locomo_live_executor.subprocess, "run", fixture_run)
     projection_path = locomo_live_executor.run_action(plan, token, action="fixed_subset_dry_run")
 

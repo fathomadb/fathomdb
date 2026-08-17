@@ -8,7 +8,7 @@
   },
   "runner": {
     "module": "experiments.locomo_live_executor",
-    "sha256": "f34b89586a9ab416db85e574c5850b4cd058f94bc495993f2cdbad773eb4514f"
+    "sha256": "e5f6df95d21e2d123e82eccce9463cf7d47c6d7980f098d5ff20731ed3d25bad"
   },
   "actions": [
     {

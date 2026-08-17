@@ -35,6 +35,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 #[cfg(feature = "test-hooks")]
 use std::sync::Barrier;
+#[cfg(feature = "test-hooks")]
+use std::sync::Mutex;
 
 use fathomdb_embedder::EmbedderEvent as RustEmbedderEvent;
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
@@ -1378,6 +1380,7 @@ struct PyWalSnapshotPause {
     snapshot_ready: Arc<Barrier>,
     release: Arc<Barrier>,
     reader_autocommit: Option<Arc<AtomicBool>>,
+    reader_native_state: Option<Arc<Mutex<Option<String>>>>,
 }
 
 #[cfg(feature = "test-hooks")]
@@ -1395,6 +1398,16 @@ impl PyWalSnapshotPause {
 
     fn reader_connection_autocommit_for_test(&self) -> bool {
         self.reader_autocommit.as_ref().is_some_and(|value| value.load(Ordering::Acquire))
+    }
+
+    fn reader_native_state_for_test(&self) -> PyResult<String> {
+        self.reader_native_state
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("snapshot pause has no native state recorder"))?
+            .lock()
+            .map_err(|_| PyValueError::new_err("snapshot native state recorder is unavailable"))?
+            .clone()
+            .ok_or_else(|| PyValueError::new_err("snapshot native state was not recorded"))
     }
 }
 
@@ -1659,15 +1672,26 @@ impl PyEngine {
 
     #[cfg(feature = "test-hooks")]
     fn _arm_next_reader_snapshot_pause_for_test(&self) -> PyWalSnapshotPause {
-        let (snapshot_ready, release) = self.inner.arm_next_reader_snapshot_pause_for_test();
-        PyWalSnapshotPause { snapshot_ready, release, reader_autocommit: None }
+        let (snapshot_ready, release, reader_native_state) =
+            self.inner.arm_next_reader_snapshot_pause_for_test();
+        PyWalSnapshotPause {
+            snapshot_ready,
+            release,
+            reader_autocommit: None,
+            reader_native_state: Some(reader_native_state),
+        }
     }
 
     #[cfg(feature = "test-hooks")]
     fn _arm_next_reader_completion_pause_for_test(&self) -> PyWalSnapshotPause {
         let (snapshot_ready, release, reader_autocommit) =
             self.inner.arm_next_reader_completion_pause_for_test();
-        PyWalSnapshotPause { snapshot_ready, release, reader_autocommit: Some(reader_autocommit) }
+        PyWalSnapshotPause {
+            snapshot_ready,
+            release,
+            reader_autocommit: Some(reader_autocommit),
+            reader_native_state: None,
+        }
     }
 
     #[cfg(feature = "test-hooks")]
@@ -1701,6 +1725,25 @@ impl PyEngine {
     fn _wal_attribution_binding_inventory_for_test(&self, py: Python<'_>) -> PyResult<String> {
         let engine = Arc::clone(&self.inner);
         call_engine(py, move || engine.binding_connection_inventory_for_test())
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _wal_attribution_binding_native_state_inventory_for_test(
+        &self,
+        py: Python<'_>,
+    ) -> PyResult<String> {
+        let engine = Arc::clone(&self.inner);
+        call_engine(py, move || engine.binding_native_state_inventory_for_test())
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _arm_binding_native_state_observation_for_test(&self) {
+        self.inner.arm_binding_native_state_observation_for_test();
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _drain_binding_native_state_observations_for_test(&self) -> Vec<String> {
+        self.inner.drain_binding_native_state_observations_for_test()
     }
 
     #[cfg(feature = "test-hooks")]

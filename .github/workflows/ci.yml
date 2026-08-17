@@ -638,8 +638,26 @@ jobs:
             Write-Error "installed binding diagnostic did not retain the exact direct inventory"
             exit 1
           }
+          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_held_reader_native_state=readers:0(auto=0,txn=read,' -Quiet)) {
+            Write-Error "installed binding diagnostic did not retain the owned reader native-state positive control"
+            exit 1
+          }
+          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_native_state_inventory=state_inventory=complete reason=complete' -Quiet)) {
+            Write-Error "installed binding diagnostic did not retain a complete native-state inventory"
+            exit 1
+          }
+          foreach ($roleFact in @('writer:0(auto=1,txn=none,busy=0,received=1)', 'readers:0(auto=1,txn=none,busy=0,received=1)', 'readers:1(auto=1,txn=none,busy=0,received=1)', 'readers:2(auto=1,txn=none,busy=0,received=1)', 'readers:3(auto=1,txn=none,busy=0,received=1)', 'readers:4(auto=1,txn=none,busy=0,received=1)', 'readers:5(auto=1,txn=none,busy=0,received=1)', 'readers:6(auto=1,txn=none,busy=0,received=1)', 'readers:7(auto=1,txn=none,busy=0,received=1)', 'dispatcher:0(auto=1,txn=none,busy=0,received=1)', 'workers:0(auto=1,txn=none,busy=0,received=1)', 'workers:1(auto=1,txn=none,busy=0,received=1)')) {
+            if (-not (Select-String -Path $bindingLog -SimpleMatch $roleFact -Quiet)) {
+              Write-Error "installed binding native-state inventory omitted required role fact: $roleFact"
+              exit 1
+            }
+          }
           if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_raw case=before_engine_sampler' -Quiet) -or -not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_engine_sampler' -Quiet) -or -not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_raw case=after_engine_sampler' -Quiet)) {
             Write-Error "installed binding diagnostic did not retain its ordered bounded samples"
+            exit 1
+          }
+          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_native_state control=binding_sampler phase=before' -Quiet) -or -not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_native_state control=binding_sampler phase=after' -Quiet) -or -not (Select-String -Path $bindingLog -SimpleMatch 'state_inventory=complete reason=complete' -Quiet)) {
+            Write-Error "installed binding sampler did not retain complete before/after native-state facts"
             exit 1
           }
           if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_child_raw case=after_close' -Quiet)) {

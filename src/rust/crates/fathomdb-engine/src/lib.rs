@@ -77,7 +77,7 @@ use fathomdb_schema::{
 #[cfg(feature = "operator")]
 use fathomdb_schema::CANONICAL_TABLES;
 use jsonschema::JSONSchema;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection, OptionalExtension, TransactionState};
 use serde_json::Value;
 // `sha2::Digest` + `sha2::Sha256` — used by `safe_export` (operator-gated)
 // and unconditionally by `ingest_with_extractor` (G11 logical_id derivation).
@@ -375,6 +375,11 @@ pub struct Engine {
     /// changes an erasure outcome or retry policy.
     #[cfg(any(test, feature = "test-hooks"))]
     actual_checkpoint_observations: Mutex<Option<ActualCheckpointObserver>>,
+    /// Slice 65 N23-WAL-BINDING-NATIVE-STATE: private observations around the
+    /// existing test-hook sampler only. This never arms the normal erasure
+    /// observer and never changes a checkpoint result.
+    #[cfg(any(test, feature = "test-hooks"))]
+    binding_native_state_observations: Mutex<Option<BindingNativeStateObserver>>,
     provenance_row_cap: AtomicU64,
     /// Per-connection profile-callback contexts. Each box's pointer is
     /// installed into the connection's `sqlite3_profile` userdata; the
@@ -804,7 +809,7 @@ impl RuntimeProbeConnection {
 #[cfg(any(test, feature = "test-hooks"))]
 struct RuntimeConnectionInventoryRequest {
     pending: BTreeSet<(WalAttributionRole, usize)>,
-    respond: SyncSender<(WalAttributionRole, usize, bool)>,
+    respond: SyncSender<NativeConnectionStateFact>,
 }
 
 impl std::fmt::Debug for Engine {
@@ -851,6 +856,113 @@ impl WalAttributionRole {
             Self::ProjectionWorker => "projection_worker",
         }
     }
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn native_connection_state_for_test(
+    connection: &Connection,
+    role: WalAttributionRole,
+    index: usize,
+) -> NativeConnectionStateFact {
+    let transaction = match connection.transaction_state(Some("main")) {
+        Ok(TransactionState::None) => NativeTransactionState::None,
+        Ok(TransactionState::Read) => NativeTransactionState::Read,
+        Ok(TransactionState::Write) => NativeTransactionState::Write,
+        Ok(_) => NativeTransactionState::Unavailable,
+        Err(_) => NativeTransactionState::Unavailable,
+    };
+    NativeConnectionStateFact {
+        role,
+        index,
+        autocommit: Some(connection.is_autocommit()),
+        transaction,
+        busy_statement: Some(connection.is_busy()),
+        reply: if transaction == NativeTransactionState::Unavailable {
+            NativeStateReply::Error("transaction_state")
+        } else {
+            NativeStateReply::Received
+        },
+    }
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn unavailable_native_connection_state_for_test(
+    role: WalAttributionRole,
+    index: usize,
+    reply: NativeStateReply,
+) -> NativeConnectionStateFact {
+    NativeConnectionStateFact {
+        role,
+        index,
+        autocommit: None,
+        transaction: NativeTransactionState::Unavailable,
+        busy_statement: None,
+        reply,
+    }
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn native_state_role_name(role: WalAttributionRole) -> &'static str {
+    match role {
+        WalAttributionRole::Writer => "writer",
+        WalAttributionRole::ReaderWorker => "readers",
+        WalAttributionRole::ProjectionDispatcher => "dispatcher",
+        WalAttributionRole::ProjectionWorker => "workers",
+    }
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn native_state_fact_text(fact: &NativeConnectionStateFact) -> String {
+    let autocommit = fact
+        .autocommit
+        .map_or_else(|| "unavailable".to_string(), |value| u8::from(value).to_string());
+    let transaction = match fact.transaction {
+        NativeTransactionState::None => "none",
+        NativeTransactionState::Read => "read",
+        NativeTransactionState::Write => "write",
+        NativeTransactionState::Unavailable => "unavailable",
+    };
+    let busy = fact
+        .busy_statement
+        .map_or_else(|| "unavailable".to_string(), |value| u8::from(value).to_string());
+    let delivery = match fact.reply {
+        NativeStateReply::Received => "received=1".to_string(),
+        NativeStateReply::Timeout => "timeout=1".to_string(),
+        NativeStateReply::Error(reason) => format!("error={reason}"),
+    };
+    format!(
+        "{}:{}(auto={autocommit},txn={transaction},busy={busy},{delivery})",
+        native_state_role_name(fact.role),
+        fact.index,
+    )
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn native_state_expected_roles() -> BTreeSet<(WalAttributionRole, usize)> {
+    BTreeSet::from([
+        (WalAttributionRole::Writer, 0),
+        (WalAttributionRole::ReaderWorker, 0),
+        (WalAttributionRole::ReaderWorker, 1),
+        (WalAttributionRole::ReaderWorker, 2),
+        (WalAttributionRole::ReaderWorker, 3),
+        (WalAttributionRole::ReaderWorker, 4),
+        (WalAttributionRole::ReaderWorker, 5),
+        (WalAttributionRole::ReaderWorker, 6),
+        (WalAttributionRole::ReaderWorker, 7),
+        (WalAttributionRole::ProjectionDispatcher, 0),
+        (WalAttributionRole::ProjectionWorker, 0),
+        (WalAttributionRole::ProjectionWorker, 1),
+    ])
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn native_state_inventory_text(inventory: &NativeStateInventory) -> String {
+    let facts = inventory.facts.iter().map(native_state_fact_text).collect::<Vec<_>>().join(",");
+    format!(
+        "state_inventory={} reason={} roles={facts}",
+        if inventory.complete { "complete" } else { "incomplete" },
+        inventory.reason,
+    )
 }
 
 #[derive(Clone, Debug)]
@@ -903,6 +1015,60 @@ struct ActualCheckpointObservation {
 struct ActualCheckpointObserver {
     control: &'static str,
     records: Vec<ActualCheckpointObservation>,
+}
+
+/// Test-only direct SQLite transaction and prepared-statement state captured
+/// on the connection's owning thread. This intentionally avoids SQL and FFI:
+/// rusqlite exposes the SQLite transaction and statement-busy facts directly.
+#[cfg(any(test, feature = "test-hooks"))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum NativeTransactionState {
+    None,
+    Read,
+    Write,
+    Unavailable,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+#[derive(Clone, Debug)]
+struct NativeConnectionStateFact {
+    role: WalAttributionRole,
+    index: usize,
+    autocommit: Option<bool>,
+    transaction: NativeTransactionState,
+    busy_statement: Option<bool>,
+    reply: NativeStateReply,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+#[derive(Clone, Debug)]
+enum NativeStateReply {
+    Received,
+    Timeout,
+    Error(&'static str),
+}
+
+/// Complete only when every managed role replied on its owning thread and was
+/// idle. An incomplete inventory is diagnostic evidence, never a reason to
+/// modify or reinterpret a checkpoint outcome.
+#[cfg(any(test, feature = "test-hooks"))]
+#[derive(Clone, Debug)]
+struct NativeStateInventory {
+    facts: Vec<NativeConnectionStateFact>,
+    complete: bool,
+    reason: &'static str,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+struct BindingNativeStateObservation {
+    phase: &'static str,
+    ordinal: usize,
+    inventory: NativeStateInventory,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+struct BindingNativeStateObserver {
+    records: Vec<BindingNativeStateObservation>,
 }
 
 #[derive(Clone, Copy)]
@@ -1322,6 +1488,13 @@ enum ReaderRequest {
     WalConnectionInventory {
         respond: SyncSender<bool>,
     },
+    /// Slice 65 N23-WAL-BINDING-NATIVE-STATE: report direct SQLite state
+    /// from the thread that owns this reader connection. The reply carries no
+    /// SQL, path, request, or user data.
+    #[cfg(any(test, feature = "test-hooks"))]
+    WalNativeStateInventory {
+        respond: SyncSender<NativeConnectionStateFact>,
+    },
 }
 
 // G0 Phase-2: the Search response carries a 4th element — the graph-arm frontier
@@ -1450,6 +1623,71 @@ impl ReaderWorkerPool {
                     .send(ReaderRequest::WalConnectionInventory { respond })
                     .expect("reader worker must remain live for WAL inventory");
                 received.recv().expect("reader worker must report WAL inventory")
+            })
+            .collect()
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn wal_native_state_inventory_for_test(&self) -> Vec<NativeConnectionStateFact> {
+        const REPLY_TIMEOUT: Duration = Duration::from_millis(250);
+        self.senders
+            .iter()
+            .enumerate()
+            .map(|(index, sender)| {
+                let deadline = Instant::now() + REPLY_TIMEOUT;
+                let (respond, received) = mpsc::sync_channel(1);
+                let request = ReaderRequest::WalNativeStateInventory { respond };
+                let mut request = Some(request);
+                loop {
+                    let Some(pending) = request.take() else { break };
+                    match sender.try_send(pending) {
+                        Ok(()) => break,
+                        Err(mpsc::TrySendError::Full(pending)) if Instant::now() < deadline => {
+                            request = Some(pending);
+                            thread::sleep(Duration::from_millis(1));
+                        }
+                        Err(mpsc::TrySendError::Full(_)) => {
+                            return unavailable_native_connection_state_for_test(
+                                WalAttributionRole::ReaderWorker,
+                                index,
+                                NativeStateReply::Timeout,
+                            );
+                        }
+                        Err(mpsc::TrySendError::Disconnected(_)) => {
+                            return unavailable_native_connection_state_for_test(
+                                WalAttributionRole::ReaderWorker,
+                                index,
+                                NativeStateReply::Error("reader_disconnected"),
+                            );
+                        }
+                    }
+                }
+                match received.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+                    Ok(fact)
+                        if fact.role == WalAttributionRole::ReaderWorker && fact.index == index =>
+                    {
+                        fact
+                    }
+                    Ok(_) => unavailable_native_connection_state_for_test(
+                        WalAttributionRole::ReaderWorker,
+                        index,
+                        NativeStateReply::Error("reader_wrong_role"),
+                    ),
+                    Err(mpsc::RecvTimeoutError::Timeout) => {
+                        unavailable_native_connection_state_for_test(
+                            WalAttributionRole::ReaderWorker,
+                            index,
+                            NativeStateReply::Timeout,
+                        )
+                    }
+                    Err(mpsc::RecvTimeoutError::Disconnected) => {
+                        unavailable_native_connection_state_for_test(
+                            WalAttributionRole::ReaderWorker,
+                            index,
+                            NativeStateReply::Error("reader_reply_disconnected"),
+                        )
+                    }
+                }
             })
             .collect()
     }
@@ -1798,6 +2036,14 @@ fn reader_worker_loop(
             ReaderRequest::WalConnectionInventory { respond } => {
                 let _ = respond.send(connection.is_autocommit());
             }
+            #[cfg(any(test, feature = "test-hooks"))]
+            ReaderRequest::WalNativeStateInventory { respond } => {
+                let _ = respond.send(native_connection_state_for_test(
+                    &connection,
+                    WalAttributionRole::ReaderWorker,
+                    worker_idx,
+                ));
+            }
         }
     }
 
@@ -1976,7 +2222,7 @@ impl ProjectionRuntime {
     #[cfg(any(test, feature = "test-hooks"))]
     fn report_runtime_connection_inventory_for_test(
         &self,
-    ) -> Result<Vec<(WalAttributionRole, usize, bool)>, &'static str> {
+    ) -> Result<Vec<NativeConnectionStateFact>, &'static str> {
         let pending = BTreeSet::from([
             (WalAttributionRole::ProjectionDispatcher, 0),
             (WalAttributionRole::ProjectionWorker, 0),
@@ -1993,15 +2239,23 @@ impl ProjectionRuntime {
         self.shared.state_cvar.notify_all();
         self.shared.queue_cvar.notify_all();
 
-        let mut facts = Vec::with_capacity(1 + PROJECTION_WORKERS);
-        for _ in 0..(1 + PROJECTION_WORKERS) {
-            facts.push(
-                received
-                    .recv_timeout(Duration::from_secs(2))
-                    .map_err(|_| "runtime_reply_timeout")?,
-            );
+        let result = (|| {
+            let mut facts = Vec::with_capacity(1 + PROJECTION_WORKERS);
+            for _ in 0..(1 + PROJECTION_WORKERS) {
+                facts.push(
+                    received
+                        .recv_timeout(Duration::from_millis(250))
+                        .map_err(|_| "runtime_reply_timeout")?,
+                );
+            }
+            Ok(facts)
+        })();
+        if result.is_err() {
+            if let Ok(mut request) = self.shared.runtime_inventory_request.lock() {
+                *request = None;
+            }
         }
-        Ok(facts)
+        result
     }
 
     fn set_frozen(&self, frozen: bool) {
@@ -5698,6 +5952,8 @@ impl Engine {
                         )),
                         #[cfg(any(test, feature = "test-hooks"))]
                         actual_checkpoint_observations: Mutex::new(None),
+                        #[cfg(any(test, feature = "test-hooks"))]
+                        binding_native_state_observations: Mutex::new(None),
                         provenance_row_cap: AtomicU64::new(DEFAULT_PROVENANCE_ROW_CAP),
                         profile_contexts: Mutex::new(profile_contexts),
                         reader_lookaside_rcs,
@@ -6057,7 +6313,9 @@ impl Engine {
 
     #[cfg(any(test, feature = "test-hooks"))]
     #[doc(hidden)]
-    pub fn arm_next_reader_snapshot_pause_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
+    pub fn arm_next_reader_snapshot_pause_for_test(
+        &self,
+    ) -> (Arc<Barrier>, Arc<Barrier>, Arc<Mutex<Option<String>>>) {
         reader_snapshot_pause::arm()
     }
 
@@ -6180,28 +6438,28 @@ impl Engine {
                 (WalAttributionRole::ProjectionWorker, 0),
                 (WalAttributionRole::ProjectionWorker, 1),
             ]);
-            entries.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>()
+            entries.iter().map(|entry| (entry.role, entry.index)).collect::<BTreeSet<_>>()
                 == expected
-                && entries.iter().all(|(_, _, autocommit)| *autocommit)
+                && entries.iter().all(|entry| entry.autocommit == Some(true))
         });
         let dispatcher_autocommit = runtime.as_ref().is_ok_and(|entries| {
             entries
                 .iter()
-                .find(|(role, index, _)| {
-                    *role == WalAttributionRole::ProjectionDispatcher && *index == 0
+                .find(|entry| {
+                    entry.role == WalAttributionRole::ProjectionDispatcher && entry.index == 0
                 })
-                .is_some_and(|(_, _, autocommit)| *autocommit)
+                .is_some_and(|entry| entry.autocommit == Some(true))
         });
         let workers_autocommit = runtime.as_ref().is_ok_and(|entries| {
             entries
                 .iter()
-                .filter(|(role, _, _)| *role == WalAttributionRole::ProjectionWorker)
+                .filter(|entry| entry.role == WalAttributionRole::ProjectionWorker)
                 .count()
                 == PROJECTION_WORKERS
                 && entries
                     .iter()
-                    .filter(|(role, _, _)| *role == WalAttributionRole::ProjectionWorker)
-                    .all(|(_, _, autocommit)| *autocommit)
+                    .filter(|entry| entry.role == WalAttributionRole::ProjectionWorker)
+                    .all(|entry| entry.autocommit == Some(true))
         });
         let creation_text = creation.map_or_else(
             || "unknown".to_string(),
@@ -6279,6 +6537,135 @@ impl Engine {
         self.take_actual_checkpoint_observations_for_test()
     }
 
+    /// Arm direct native-state observation around the existing Slice 65
+    /// test-hook sampler. It is deliberately separate from the real-erasure
+    /// observer so the normal serial path gains no connection inspection.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn arm_binding_native_state_observation_for_test(&self) {
+        *self.binding_native_state_observations.lock().expect("binding native state observation") =
+            Some(BindingNativeStateObserver { records: Vec::new() });
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn binding_native_state_observation_for_test(&self, phase: &'static str, ordinal: usize) {
+        let mut observations = self
+            .binding_native_state_observations
+            .lock()
+            .expect("binding native state observation");
+        let Some(observer) = observations.as_mut() else {
+            return;
+        };
+        observer.records.push(BindingNativeStateObservation {
+            phase,
+            ordinal,
+            inventory: self.native_state_inventory_for_test(),
+        });
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn drain_binding_native_state_observations_for_test(&self) -> Vec<String> {
+        self.binding_native_state_observations
+            .lock()
+            .expect("binding native state observation")
+            .take()
+            .map_or_else(Vec::new, |observer| observer.records)
+            .into_iter()
+            .map(|record| {
+                format!(
+                    "control=binding_sampler phase={} ordinal={} {}",
+                    record.phase,
+                    record.ordinal,
+                    native_state_inventory_text(&record.inventory),
+                )
+            })
+            .collect()
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn native_state_inventory_for_test(&self) -> NativeStateInventory {
+        let mut facts = Vec::with_capacity(1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS);
+        let writer = match self.connection.lock() {
+            Ok(connection) => connection.as_ref().map_or_else(
+                || {
+                    unavailable_native_connection_state_for_test(
+                        WalAttributionRole::Writer,
+                        0,
+                        NativeStateReply::Error("writer_unavailable"),
+                    )
+                },
+                |connection| {
+                    native_connection_state_for_test(connection, WalAttributionRole::Writer, 0)
+                },
+            ),
+            Err(_) => unavailable_native_connection_state_for_test(
+                WalAttributionRole::Writer,
+                0,
+                NativeStateReply::Error("writer_lock"),
+            ),
+        };
+        facts.push(writer);
+        facts.extend(self.reader_pool.wal_native_state_inventory_for_test());
+        match self.projection_runtime.report_runtime_connection_inventory_for_test() {
+            Ok(runtime) => facts.extend(runtime),
+            Err(reason) => {
+                facts.extend([
+                    unavailable_native_connection_state_for_test(
+                        WalAttributionRole::ProjectionDispatcher,
+                        0,
+                        NativeStateReply::Error(reason),
+                    ),
+                    unavailable_native_connection_state_for_test(
+                        WalAttributionRole::ProjectionWorker,
+                        0,
+                        NativeStateReply::Error(reason),
+                    ),
+                    unavailable_native_connection_state_for_test(
+                        WalAttributionRole::ProjectionWorker,
+                        1,
+                        NativeStateReply::Error(reason),
+                    ),
+                ]);
+            }
+        }
+        facts.sort_by_key(|fact| (fact.role, fact.index));
+        let expected = native_state_expected_roles();
+        let actual = facts.iter().map(|fact| (fact.role, fact.index)).collect::<BTreeSet<_>>();
+        let unique = facts.len() == actual.len();
+        let managed = self.managed_connections.exact_live();
+        let received_and_idle = facts.iter().all(|fact| {
+            matches!(fact.reply, NativeStateReply::Received)
+                && fact.autocommit == Some(true)
+                && fact.transaction == NativeTransactionState::None
+                && fact.busy_statement == Some(false)
+        });
+        let (complete, reason) = if !managed {
+            (false, "registry_mismatch")
+        } else if actual != expected || !unique {
+            (false, "role_mismatch")
+        } else if !received_and_idle {
+            (false, "native_state_not_idle")
+        } else {
+            (true, "complete")
+        };
+        NativeStateInventory { facts, complete, reason }
+    }
+
+    /// Return exact direct native state for the private installed-binding
+    /// diagnostic. Any missing, duplicate, timed-out, errored, or non-idle
+    /// role fails closed; callers cannot upgrade a checkpoint classification.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn binding_native_state_inventory_for_test(&self) -> Result<String, EngineError> {
+        self.ensure_open()?;
+        let inventory = self.native_state_inventory_for_test();
+        if !inventory.complete {
+            return Err(EngineError::Storage);
+        }
+        Ok(native_state_inventory_text(&inventory))
+    }
+
     /// Return direct, complete managed-connection facts for the private Slice
     /// 65 installed-binding diagnostic. This is intentionally unavailable from
     /// ordinary builds and never enters an SDK error or diagnostic surface.
@@ -6319,9 +6706,8 @@ impl Engine {
             (WalAttributionRole::ProjectionWorker, 0),
             (WalAttributionRole::ProjectionWorker, 1),
         ]);
-        let actual =
-            runtime.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>();
-        if actual != expected || runtime.iter().any(|(_, _, autocommit)| !autocommit) {
+        let actual = runtime.iter().map(|entry| (entry.role, entry.index)).collect::<BTreeSet<_>>();
+        if actual != expected || runtime.iter().any(|entry| entry.autocommit != Some(true)) {
             return Err(EngineError::Storage);
         }
         let snapshot = self.wal_attribution_snapshot();
@@ -6347,8 +6733,10 @@ impl Engine {
         for attempt in 0..ERASURE_WAL_TRUNCATE_ATTEMPTS {
             self.wal_attribution.set(WalAttributionRole::Writer, 0, true, "checkpoint_start");
             let overlap = self.wal_attribution.checkpoint_begin();
+            self.binding_native_state_observation_for_test("before", (attempt + 1) as usize);
             let started = Instant::now();
             let report = self.wal_checkpoint_truncate_once(false)?;
+            self.binding_native_state_observation_for_test("after", (attempt + 1) as usize);
             self.wal_attribution.checkpoint_end();
             self.wal_attribution.set(WalAttributionRole::Writer, 0, false, "idle");
             let snapshot = self.wal_attribution_snapshot();
@@ -12885,28 +13273,42 @@ fn begin_attributed_reader_tx<'a>(
         tx.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))?;
         attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "snapshot_acquired");
         #[cfg(any(test, feature = "test-hooks"))]
-        reader_snapshot_pause::fire();
+        reader_snapshot_pause::fire(&tx, worker_idx);
     }
     Ok(tx)
 }
 
 #[cfg(any(test, feature = "test-hooks"))]
 mod reader_snapshot_pause {
-    use super::Barrier;
-    use std::sync::{Arc, Mutex};
+    use super::{
+        native_connection_state_for_test, native_state_fact_text, Barrier, Connection, Mutex,
+        WalAttributionRole,
+    };
+    use std::sync::Arc;
 
-    static PAUSE: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>> = Mutex::new(None);
+    type Pause = (Arc<Barrier>, Arc<Barrier>, Arc<Mutex<Option<String>>>);
 
-    pub(crate) fn arm() -> (Arc<Barrier>, Arc<Barrier>) {
+    static PAUSE: Mutex<Option<Pause>> = Mutex::new(None);
+
+    pub(crate) fn arm() -> (Arc<Barrier>, Arc<Barrier>, Arc<Mutex<Option<String>>>) {
         let ready = Arc::new(Barrier::new(2));
         let release = Arc::new(Barrier::new(2));
+        let native_state = Arc::new(Mutex::new(None));
         *PAUSE.lock().expect("reader snapshot pause mutex") =
-            Some((Arc::clone(&ready), Arc::clone(&release)));
-        (ready, release)
+            Some((Arc::clone(&ready), Arc::clone(&release), Arc::clone(&native_state)));
+        (ready, release, native_state)
     }
 
-    pub(crate) fn fire() {
-        if let Some((ready, release)) = PAUSE.lock().expect("reader snapshot pause mutex").take() {
+    pub(crate) fn fire(connection: &Connection, worker_idx: usize) {
+        if let Some((ready, release, native_state)) =
+            PAUSE.lock().expect("reader snapshot pause mutex").take()
+        {
+            *native_state.lock().expect("reader snapshot native state") =
+                Some(native_state_fact_text(&native_connection_state_for_test(
+                    connection,
+                    WalAttributionRole::ReaderWorker,
+                    worker_idx,
+                )));
             ready.wait();
             release.wait();
         }
@@ -14807,7 +15209,7 @@ fn report_runtime_connection_inventory_for_test(
         }
         respond
     };
-    let _ = respond.send((role, index, connection.is_autocommit()));
+    let _ = respond.send(native_connection_state_for_test(connection, role, index));
 }
 
 fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_idx: usize) {
@@ -22198,8 +22600,9 @@ unsafe extern "C" fn profile_callback_trampoline(
 #[cfg(test)]
 mod tests {
     use super::{
-        derive_stable_id, resolve_source_type, Engine, EngineError, IdSpace, IdSpaceKind,
-        InitialState, ManagedConnectionRegistry, PreparedWrite, RuntimeProbeConnection, SourceId,
+        derive_stable_id, native_connection_state_for_test, resolve_source_type, Engine,
+        EngineError, IdSpace, IdSpaceKind, InitialState, ManagedConnectionRegistry,
+        NativeTransactionState, PreparedWrite, RuntimeProbeConnection, SourceId,
         WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL,
         PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
@@ -22311,19 +22714,61 @@ mod tests {
 
         let stepped =
             native_connection_state_for_test(&connection, WalAttributionRole::ReaderWorker, 0);
-        assert!(stepped.autocommit, "implicit stepped reads remain autocommit");
+        assert_eq!(stepped.autocommit, Some(true), "implicit stepped reads remain autocommit");
         assert_eq!(stepped.transaction, NativeTransactionState::Read);
-        assert!(stepped.busy_statement, "stepped rows keep their statement busy");
+        assert_eq!(stepped.busy_statement, Some(true), "stepped rows keep their statement busy");
 
         drop(rows);
         let reset =
             native_connection_state_for_test(&connection, WalAttributionRole::ReaderWorker, 0);
-        assert!(!reset.busy_statement, "dropping Rows resets the statement");
+        assert_eq!(reset.busy_statement, Some(false), "dropping Rows resets the statement");
         drop(statement);
         let dropped =
             native_connection_state_for_test(&connection, WalAttributionRole::ReaderWorker, 0);
         assert_eq!(dropped.transaction, NativeTransactionState::None);
-        assert!(!dropped.busy_statement, "dropping Statement leaves no busy statement");
+        assert_eq!(
+            dropped.busy_statement,
+            Some(false),
+            "dropping Statement leaves no busy statement"
+        );
+    }
+
+    #[test]
+    fn wal_attribution_native_state_inventory_requires_all_managed_roles_idle() {
+        let dir = TempDir::new().expect("temp dir");
+        let opened =
+            Engine::open(dir.path().join("wal-attribution-native-state.sqlite")).expect("open");
+        let inventory = opened.engine.native_state_inventory_for_test();
+        assert!(inventory.complete, "idle engine inventory: {inventory:?}");
+        assert_eq!(inventory.facts.len(), 1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS);
+        assert!(inventory.facts.iter().all(|fact| {
+            fact.autocommit == Some(true)
+                && fact.transaction == NativeTransactionState::None
+                && fact.busy_statement == Some(false)
+                && matches!(fact.reply, super::NativeStateReply::Received)
+        }));
+
+        *opened
+            .engine
+            .binding_native_state_observations
+            .lock()
+            .expect("binding native state observation") =
+            Some(super::BindingNativeStateObserver { records: Vec::new() });
+        opened.engine.binding_native_state_observation_for_test("before", 1);
+        let records = opened
+            .engine
+            .binding_native_state_observations
+            .lock()
+            .expect("binding native state observation")
+            .take()
+            .expect("armed observer")
+            .records;
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].phase, "before");
+        assert_eq!(records[0].ordinal, 1);
+        assert!(records[0].inventory.complete);
+        assert!(super::native_state_inventory_text(&records[0].inventory)
+            .contains("state_inventory=complete"));
     }
 
     /// Slice 65 follow-on: establish whether the observed post-release busy
@@ -22456,9 +22901,8 @@ mod tests {
             (WalAttributionRole::ProjectionWorker, 0),
             (WalAttributionRole::ProjectionWorker, 1),
         ]);
-        let actual =
-            runtime.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>();
-        if actual != expected || runtime.iter().any(|(_, _, autocommit)| !autocommit) {
+        let actual = runtime.iter().map(|entry| (entry.role, entry.index)).collect::<BTreeSet<_>>();
+        if actual != expected || runtime.iter().any(|entry| entry.autocommit != Some(true)) {
             return Err("runtime_not_autocommit");
         }
         Ok(format!(
@@ -23072,9 +23516,8 @@ mod tests {
             (WalAttributionRole::ProjectionWorker, 0),
             (WalAttributionRole::ProjectionWorker, 1),
         ]);
-        let actual =
-            runtime.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>();
-        if actual != expected || runtime.iter().any(|(_, _, autocommit)| !autocommit) {
+        let actual = runtime.iter().map(|entry| (entry.role, entry.index)).collect::<BTreeSet<_>>();
+        if actual != expected || runtime.iter().any(|entry| entry.autocommit != Some(true)) {
             return Err("runtime_not_autocommit");
         }
         let creation =

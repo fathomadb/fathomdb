@@ -8,8 +8,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CI="${CI_YML:-$REPO_ROOT/.github/workflows/ci.yml}"
 SOURCE_TEST="${SOURCE_TEST:-$REPO_ROOT/src/rust/crates/fathomdb-engine/tests/erasure_completeness.rs}"
 ENGINE_SOURCE="${ENGINE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs}"
-PY_SOURCE="$REPO_ROOT/src/rust/crates/fathomdb-py/src/lib.rs"
-PY_CONTROL="$REPO_ROOT/src/python/tests/test_slice65_wal_attribution_installed.py"
+PY_SOURCE="${PY_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-py/src/lib.rs}"
+PY_CONTROL="${PY_CONTROL:-$REPO_ROOT/src/python/tests/test_slice65_wal_attribution_installed.py}"
 PASSED=0
 FAILED=0
 
@@ -140,8 +140,12 @@ assert_contains "$CODE" "\$artifact -SimpleMatch 'slice65_wal python_binding_com
 assert_absent "$CODE" 'python_binding_snapshot_released' "job does not require the removed binding post-release marker"
 assert_contains "$CODE" 'python_binding_direct_inventory=' "job requires direct installed binding inventory"
 assert_contains "$CODE" 'python_binding_held_reader_native_state=' "job requires the held reader native-state positive control"
+assert_contains "$CODE" 'readers:0(auto=0,txn=read,' "job requires held reader autocommit-off/read-state evidence"
+assert_contains "$CODE" 'python_binding_native_state_inventory=state_inventory=complete reason=complete' "job requires post-release complete native-state inventory"
+assert_contains "$CODE" 'workers:1(auto=1,txn=none,busy=0,received=1)' "job requires every managed role to be direct-native idle"
 assert_contains "$CODE" 'python_binding_native_state control=binding_sampler phase=before' "job requires binding sampler native state before each checkpoint"
 assert_contains "$CODE" 'python_binding_native_state control=binding_sampler phase=after' "job requires binding sampler native state after each checkpoint"
+assert_contains "$CODE" 'installed binding sampler did not retain complete before/after native-state facts' "job fails closed on incomplete sampler native state"
 assert_contains "$CODE" 'python_binding_raw case=before_engine_sampler' "job requires the first installed binding raw sample"
 assert_contains "$CODE" 'python_binding_engine_sampler' "job requires exactly one installed binding Engine-path sampler"
 assert_contains "$CODE" 'python_binding_raw case=after_engine_sampler' "job requires the second installed binding raw sample"
@@ -245,6 +249,10 @@ assert_contains "$(<"$PY_SOURCE")" \
   '_drain_binding_native_state_observations_for_test' \
   "installed binding exposes the private binding native-state observer only in its test-hooks build"
 assert_contains "$(<"$PY_SOURCE")" \
+  '_wal_attribution_binding_native_state_inventory_for_test' \
+  'reader_native_state_for_test()' \
+  "installed binding exposes complete native-state inventory and held-reader positive evidence"
+assert_contains "$(<"$PY_SOURCE")" \
   '_native_raw_wal_checkpoint_for_test' \
   'wrap_pyfunction!(native_raw_wal_checkpoint_for_test, &m)' \
   "installed binding exposes the native child raw-checkpoint hook only in its test-hooks build"
@@ -268,6 +276,11 @@ assert_contains "$(<"$ENGINE_SOURCE")" \
   'native_connection_state_for_test' \
   'binding_native_state_observations' \
   "engine retains private native SQLite transaction and statement-state observation"
+assert_contains "$(<"$ENGINE_SOURCE")" \
+  'connection.transaction_state(Some("main"))' \
+  'connection.is_busy()' \
+  'WalNativeStateInventory' \
+  "engine uses rusqlite state APIs on owning connections without custom SQLite FFI"
 assert_contains "$(<"$ENGINE_SOURCE")" \
   '#[cfg(any(test, feature = "test-hooks"))]' \
   'actual_checkpoint_observations: Mutex<Option<ActualCheckpointObserver>>' \
@@ -454,6 +467,12 @@ assert_absent "$serial_incident_body" \
 assert_absent "$serial_incident_body" \
   '_checkpoint_at_rest_for_test' \
   "installed Python serial has no extra Engine checkpoint sampler"
+assert_absent "$serial_incident_body" \
+  '_arm_binding_native_state_observation_for_test' \
+  "installed Python serial never arms the binding-only native-state observer"
+assert_absent "$actual_checkpoint_engine_body" \
+  'binding_native_state_observation_for_test' \
+  "real erasure checkpoint path is untouched by the binding sampler observer"
 for control in \
   wal_attribution_close_boundary_fresh_open_is_clean \
   wal_attribution_close_boundary_read_get_is_clean \
@@ -808,6 +827,47 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves installed binding-to-retained ordering is load-bearing"
   else
     fail "mutation did not fail installed binding-to-retained ordering assertion: $retained_order_out"
+  fi
+
+  NATIVE_STATE_ROLE_MUTATED="$TMPROOT/ci-without-native-state-worker-role.yml"
+  sed 's/workers:1(auto=1,txn=none,busy=0,received=1)/workers:1(native-state-role-removed)/' "$CI" \
+    >"$NATIVE_STATE_ROLE_MUTATED"
+  set +e
+  native_state_role_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$NATIVE_STATE_ROLE_MUTATED" bash "$0" 2>&1)"
+  native_state_role_rc=$?
+  set -e
+  if [ "$native_state_role_rc" -ne 0 ] \
+    && grep -Fq 'job requires every managed role to be direct-native idle (missing: workers:1(auto=1,txn=none,busy=0,received=1))' <<<"$native_state_role_out"; then
+    pass "mutation proves native-state role fact is load-bearing"
+  else
+    fail "mutation did not fail native-state role fact assertion: $native_state_role_out"
+  fi
+
+  NATIVE_STATE_MARKER_MUTATED="$TMPROOT/ci-without-native-state-before-marker.yml"
+  sed '/python_binding_native_state control=binding_sampler phase=before/d' "$CI" >"$NATIVE_STATE_MARKER_MUTATED"
+  set +e
+  native_state_marker_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$NATIVE_STATE_MARKER_MUTATED" bash "$0" 2>&1)"
+  native_state_marker_rc=$?
+  set -e
+  if [ "$native_state_marker_rc" -ne 0 ] \
+    && grep -Fq 'job requires binding sampler native state before each checkpoint (missing: python_binding_native_state control=binding_sampler phase=before)' <<<"$native_state_marker_out"; then
+    pass "mutation proves native-state before marker is load-bearing"
+  else
+    fail "mutation did not fail native-state before marker assertion: $native_state_marker_out"
+  fi
+
+  SERIAL_NATIVE_STATE_MUTATED="$TMPROOT/installed-control-with-binding-observer-in-serial.py"
+  sed 's/fresh\._native\._arm_actual_checkpoint_observation_for_test()/fresh._native._arm_binding_native_state_observation_for_test()\n                fresh._native._arm_actual_checkpoint_observation_for_test()/' "$PY_CONTROL" \
+    >"$SERIAL_NATIVE_STATE_MUTATED"
+  set +e
+  serial_native_state_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 PY_CONTROL="$SERIAL_NATIVE_STATE_MUTATED" bash "$0" 2>&1)"
+  serial_native_state_rc=$?
+  set -e
+  if [ "$serial_native_state_rc" -ne 0 ] \
+    && grep -Fq 'installed Python serial never arms the binding-only native-state observer (unexpected: _arm_binding_native_state_observation_for_test)' <<<"$serial_native_state_out"; then
+    pass "mutation proves normal-serial exclusion is load-bearing"
+  else
+    fail "mutation did not fail normal-serial exclusion assertion: $serial_native_state_out"
   fi
 
   while IFS='|' read -r selector guard; do

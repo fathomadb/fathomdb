@@ -223,8 +223,11 @@ def run_binding_reader_erase(expected_version: str) -> None:
             assert len(busy) == 5 and all(
                 r[2] == "owned_reader_snapshot" and r[3] == ["reader_worker:0"] for r in busy
             )
-            inventory = native._wal_attribution_binding_inventory_for_test()
-            print(f"slice65_wal python_binding_direct_inventory={inventory}", flush=True)
+            legacy_inventory = native._wal_attribution_binding_inventory_for_test()
+            print(f"slice65_wal python_binding_direct_inventory={legacy_inventory}", flush=True)
+            inventory = native._wal_attribution_binding_native_state_inventory_for_test()
+            assert "state_inventory=complete" in inventory
+            print(f"slice65_wal python_binding_native_state_inventory={inventory}", flush=True)
             first_raw = _raw_binding_checkpoint(path, "before_engine_sampler")
             native._arm_binding_native_state_observation_for_test()
             samples = native._checkpoint_at_rest_for_test()

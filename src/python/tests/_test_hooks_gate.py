@@ -38,8 +38,8 @@ from pathlib import Path
 
 #: Every symbol the dev-only `test-hooks` Cargo feature adds to the binding, as
 #: ``(owner, attribute)``; ``owner=None`` means module level. Mirrors
-#: `src/rust/crates/fathomdb-py/src/lib.rs` — the two `Engine` methods and the
-#: module-level AC-067 panic probe, each behind
+#: `src/rust/crates/fathomdb-py/src/lib.rs` — every private `Engine` method and
+#: the module-level AC-067 panic probe, each behind
 #: ``#[cfg(any(test, feature = "test-hooks"))]``.
 #:
 #: The probe checks ALL of these. An earlier version checked only
@@ -55,6 +55,9 @@ TEST_HOOK_SYMBOLS: tuple[tuple[str | None, str], ...] = (
     ("Engine", "_arm_next_reader_snapshot_pause_for_test"),
     ("Engine", "_wal_attribution_checkpoint_records_for_test"),
     ("Engine", "_wal_attribution_snapshot_for_test"),
+    ("Engine", "_arm_binding_native_state_observation_for_test"),
+    ("Engine", "_drain_binding_native_state_observations_for_test"),
+    ("Engine", "_wal_attribution_binding_native_state_inventory_for_test"),
     (None, "force_panic_for_test"),
 )
 

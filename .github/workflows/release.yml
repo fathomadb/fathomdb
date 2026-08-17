@@ -55,6 +55,8 @@ jobs:
   #   - actionlint on all workflow files (per feedback_workflow_validation —
   #     yaml.safe_load passes schema-invalid syntax GitHub silently rejects).
   verify-release:
+    needs: verify-cuda-trusted-route
+    if: ${{ always() && needs.verify-cuda-trusted-route.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -108,42 +110,125 @@ jobs:
   # candidate script. It is intentionally hosted; the self-hosted preflight
   # below may start only after this default-branch-owned check passes.
   verify-cuda-trusted-route:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
+    outputs:
+      candidate_authorized: ${{ steps.route.outputs.authorized || steps.canonical.outputs.authorized }}
+      manifest_sha256: ${{ steps.route.outputs.manifest_sha256 || steps.canonical.outputs.manifest_sha256 }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, inspect only the immutable candidate
+      # `github.workflow_sha` is the reviewed, main-owned control plane. Never
+      # check out candidate-owned code in this job.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, main-owned control plane only
         with:
-          ref: ${{ inputs.candidate_commit }}
-          fetch-depth: 0
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 1
           persist-credentials: false
-      - name: Verify default-branch-owned CUDA route
+      - name: Verify canonical tag or non-dry-run route
+        id: canonical
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
         shell: bash
-        env:
-          WORKFLOW_REF: ${{ github.workflow_ref }}
-          CANDIDATE_SHA: ${{ inputs.candidate_commit }}
         run: |
           set -euo pipefail
-          if [ "$WORKFLOW_REF" != 'fathomadb/fathomdb/.github/workflows/release.yml@refs/heads/main' ]; then
-            echo "CUDA trusted route must run from the default-branch release workflow" >&2
+          if [ "${{ inputs.candidate_commit || '' }}" != '' ]; then
+            echo "candidate_commit is forbidden outside a dry-run dispatch" >&2
             exit 1
           fi
-          if ! [[ "$CANDIDATE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
-            echo "CUDA trusted route requires a full immutable candidate SHA" >&2
+          echo 'authorized=true' >> "$GITHUB_OUTPUT"
+          echo 'manifest_sha256=canonical-route' >> "$GITHUB_OUTPUT"
+      - name: Fetch and normalize read-only candidate review facts
+        id: facts
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_commit }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.workflow_ref }}" != 'fathomadb/fathomdb/.github/workflows/release.yml@refs/heads/main' ]; then
+            echo 'unmerged CUDA candidate route must run from the main release workflow' >&2
             exit 1
           fi
-          RESOLVED_CANDIDATE="$(git rev-parse --verify "${CANDIDATE_SHA}^{commit}")"
-          if [ "$(git rev-parse HEAD)" != "$RESOLVED_CANDIDATE" ]; then
-            echo "CUDA trusted route checkout does not match the requested candidate" >&2
+          if ! [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo 'unmerged CUDA candidate route requires a lowercase 40-hex SHA' >&2
             exit 1
           fi
-          git rev-parse --verify refs/remotes/origin/main
-          if ! git merge-base --is-ancestor "$RESOLVED_CANDIDATE" refs/remotes/origin/main; then
-            echo "CUDA trusted route candidate is not reachable from default branch" >&2
-            exit 1
-          fi
+          # The protection-baseline attestation is an external prerequisite. A
+          # missing, malformed, or expired file is deliberately a hard failure.
+          test -f dev/release/cuda-protection-baseline.json
+          candidate_pr="$(curl --fail --silent --show-error --request GET \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/commits/$CANDIDATE_SHA/pulls" \
+            | python3 -c 'import json, sys; rows=json.load(sys.stdin); assert isinstance(rows, list) and len(rows) == 1; print(rows[0]["number"])')"
+          curl --fail --silent --show-error --request GET \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$candidate_pr" > pull-request.json
+          curl --fail --silent --show-error --request GET \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$candidate_pr/reviews?per_page=100" > reviews.json
+          python3 - "$CANDIDATE_SHA" pull-request.json reviews.json dev/release/cuda-protection-baseline.json route-facts.json <<'PY'
+          import hashlib
+          import json
+          import sys
+
+          candidate_sha, pr_path, reviews_path, baseline_path, output_path = sys.argv[1:]
+          def canonical(value):
+              return json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("ascii") + b"\n"
+          def digest(value):
+              return hashlib.sha256(canonical(value)).hexdigest()
+          pr_raw = json.load(open(pr_path, encoding="utf-8"))
+          reviews_raw = json.load(open(reviews_path, encoding="utf-8"))
+          baseline = json.load(open(baseline_path, encoding="utf-8"))
+          pr = {
+              "number": pr_raw["number"], "state": pr_raw["state"], "draft": pr_raw["draft"],
+              "base": {"ref": pr_raw["base"]["ref"], "repo_full_name": pr_raw["base"]["repo"]["full_name"]},
+              "head": {"sha": pr_raw["head"]["sha"], "repo_full_name": pr_raw["head"]["repo"]["full_name"]},
+              "user": {"login": pr_raw["user"]["login"]},
+          }
+          reviews = [{
+              "id": item["id"], "user": {"login": item["user"]["login"]},
+              "state": item["state"], "commit_id": item["commit_id"], "submitted_at": item["submitted_at"],
+          } for item in reviews_raw]
+          facts = {
+              "schema_version": "fathomdb.cuda-unmerged-candidate-facts/v1",
+              "protection_baseline": baseline,
+              "pull_request": pr,
+              "reviews": reviews,
+              "reviews_pagination_complete": len(reviews_raw) < 100,
+              "api_response_sha256": {
+                  "protection_baseline": digest(baseline), "pull_request": digest(pr), "reviews": digest(reviews),
+              },
+          }
+          open(output_path, "wb").write(canonical(facts))
+          PY
+      - name: Authorize one exact unmerged candidate
+        id: route
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/release/verify-cuda-unmerged-candidate.py authorize \
+            --manifest dev/release/cuda-unmerged-candidates.json \
+            --facts route-facts.json \
+            --candidate-sha '${{ inputs.candidate_commit }}' \
+            --workflow-ref '${{ github.workflow_ref }}' \
+            --workflow-sha '${{ github.workflow_sha }}' \
+            --run-id '${{ github.run_id }}' \
+            --run-attempt '${{ github.run_attempt }}' \
+            --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --receipt cuda-unmerged-route-receipt.json \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Upload unmerged-candidate route receipt
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true && success() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: cuda-unmerged-route-receipt.json
+          if-no-files-found: error
 
   # Slice 0: a dry-run release dispatch from the trusted main workflow is the
   # only non-publishing route to the restricted CUDA runner group.
@@ -151,13 +236,40 @@ jobs:
     needs: [verify-release, verify-cuda-trusted-route]
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
     runs-on: [self-hosted, Linux, X64, gpu, cuda-12]
+    environment: cuda-unmerged-preflight
     timeout-minutes: 45
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, verified main-reachable candidate
+      - name: Download same-run unmerged route receipt
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8.0.1
+        with:
+          name: cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: control-plane/receipt
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, main-owned receipt verifier only
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control-plane
+          persist-credentials: false
+      - name: Verify same-run unmerged route receipt before candidate checkout
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 control-plane/scripts/release/verify-cuda-unmerged-receipt.py \
+            --receipt control-plane/receipt/cuda-unmerged-route-receipt.json \
+            --candidate-sha '${{ inputs.candidate_commit }}' \
+            --workflow-ref '${{ github.workflow_ref }}' \
+            --workflow-sha '${{ github.workflow_sha }}' \
+            --run-id '${{ github.run_id }}' \
+            --run-attempt '${{ github.run_attempt }}'
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, hosted route and receipt verified
         with:
           ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          path: candidate
+          persist-credentials: false
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.11"
@@ -168,9 +280,10 @@ jobs:
         with:
           toolchain: "1.95.0"
       - name: Install N-API build dependencies
-        working-directory: src/ts
+        working-directory: candidate/src/ts
         run: npm ci
       - name: Capture CUDA artifact preflight witness
+        working-directory: candidate
         run: bash scripts/release/cuda-preflight.sh "${{ github.workspace }}/cuda-preflight-witness"
       - name: Upload CUDA preflight witness
         if: ${{ always() }}
@@ -186,7 +299,7 @@ jobs:
   # 0.8.22's stable native-artifact matrix is Linux glibc x64/ARM64, macOS
   # x64/ARM64, and Windows x64. Musl and other targets remain unsupported.
   build-python:
-    needs: verify-release
+    needs: [verify-release, verify-cuda-trusted-route]
     strategy:
       fail-fast: false
       matrix:
@@ -251,7 +364,7 @@ jobs:
   # Keep this identical to the Python stable matrix so the npm package
   # topology and actual native build coverage cannot drift apart.
   build-napi:
-    needs: verify-release
+    needs: [verify-release, verify-cuda-trusted-route]
     if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     strategy:
       fail-fast: false
@@ -316,7 +429,7 @@ jobs:
   # at CI cost.
   build-rust:
     runs-on: ubuntu-latest
-    needs: verify-release
+    needs: [verify-release, verify-cuda-trusted-route]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, canonical release tag
         with:

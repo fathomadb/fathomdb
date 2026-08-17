@@ -157,6 +157,23 @@ class EmbedderIdentity:
     revision: str
     dimension: int
 
+class CudaDeviceInfo:
+    ordinal: int
+    name: str | None
+    driver_version: str | None
+    compute_capability: str | None
+    cuda_toolkit_version: str | None
+
+class EffectiveEmbedDevice:
+    kind: str
+    cuda_device: CudaDeviceInfo | None
+
+class DeviceResolution:
+    requested_policy: str
+    cuda_compiled: bool
+    effective_device: EffectiveEmbedDevice
+    reason: str | None
+
 class OpenReport:
     schema_version_before: int
     schema_version_after: int
@@ -171,6 +188,7 @@ class OpenReport:
     embedder_mean_vec_pinned: bool
     dense_disabled: bool
     dense_disabled_reason: str | None
+    embedder_device_resolution: DeviceResolution | None
 
 class Engine:
     @staticmethod

@@ -17,6 +17,7 @@ def test_native_stub_exposes_runtime_members() -> None:
     def verify(engine: Engine, report: OpenReport) -> None:
         dense_disabled: bool = report.dense_disabled
         dense_disabled_reason: str | None = report.dense_disabled_reason
+        device_resolution = report.embedder_device_resolution
         engine_dense_disabled: bool = engine.dense_disabled()
         engine_dense_disabled_reason: str | None = engine.dense_disabled_reason()
         refusal_count: int = engine.vector_equivalence_refusal_count()
@@ -42,6 +43,7 @@ def test_native_stub_exposes_runtime_members() -> None:
         _ = (
             dense_disabled,
             dense_disabled_reason,
+            device_resolution,
             engine_dense_disabled,
             engine_dense_disabled_reason,
             refusal_count,

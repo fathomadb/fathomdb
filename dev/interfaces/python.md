@@ -113,6 +113,21 @@ The helper maps engine events into Python `logging.LogRecord`s with the stable
 
 `soft_fallback.branch` uses the typed values owned by `design/retrieval.md`.
 
+### `OpenReport.embedder_device_resolution` (0.8.23 Slice 70)
+
+`engine.open_report().embedder_device_resolution` is a frozen-dataclass
+`DeviceResolution | None`. When present, it preserves `requested_policy`
+(`"auto"`, `"cpu"`, or `"cuda:N"`), `cuda_compiled`, the effective
+`EffectiveEmbedDevice` (`kind == "cpu" | "cuda"` and safe CUDA facts for a
+CUDA selection), and the optional automatic-fallback `reason`. It is present
+for default-embedder opens and the internal
+`EmbedderChoice::CallerWithDeviceResolution` path; an ONNX caller uses that
+path when it needs its final session outcome reported. It is `None` when no
+resolution was supplied. Forced CUDA is an open error, never a CPU report.
+
+This is open-time evidence only: it does not add a Python device-setting API.
+`FATHOMDB_EMBED_DEVICE` remains the single cross-surface policy transport.
+
 ### `SearchHit.id` is `IdSpace` (C-2, 0.8.19 / TC-8)
 
 `SearchHit.id` is **`fathomdb.IdSpace`**, not the pre-0.8.19 `int`

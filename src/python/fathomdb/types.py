@@ -560,6 +560,35 @@ class EmbedderIdentity:
 
 
 @dataclass(frozen=True)
+class CudaDeviceInfo:
+    """Safe CUDA provider facts associated with an effective CUDA selection."""
+
+    ordinal: int
+    name: str | None
+    driver_version: str | None
+    compute_capability: str | None
+    cuda_toolkit_version: str | None
+
+
+@dataclass(frozen=True)
+class EffectiveEmbedDevice:
+    """The CPU or CUDA backend selected for one embedder device policy."""
+
+    kind: Literal["cpu", "cuda"]
+    cuda_device: CudaDeviceInfo | None
+
+
+@dataclass(frozen=True)
+class DeviceResolution:
+    """Strict CPU/CUDA policy outcome captured when an embedder was constructed."""
+
+    requested_policy: str
+    cuda_compiled: bool
+    effective_device: EffectiveEmbedDevice
+    reason: str | None
+
+
+@dataclass(frozen=True)
 class OpenReport:
     """Structured open-time report owned by `dev/design/engine.md`.
 
@@ -601,6 +630,7 @@ class OpenReport:
     # (``None`` when healthy).
     dense_disabled: bool = False
     dense_disabled_reason: str | None = None
+    embedder_device_resolution: DeviceResolution | None = None
 
 
 @dataclass(frozen=True)
@@ -653,10 +683,13 @@ __all__ = [
     "ReadView",
     "BoundaryCrossing",
     "CounterSnapshot",
+    "CudaDeviceInfo",
     "DefaultEmbedderCacheHitEvent",
     "DefaultEmbedderDownloadEvent",
+    "DeviceResolution",
     "EmbedderEvent",
     "EmbedderIdentity",
+    "EffectiveEmbedDevice",
     "ExpandedNode",
     "Explanation",
     "MeanVecPinnedEvent",

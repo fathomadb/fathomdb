@@ -28,7 +28,11 @@
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Arc;
 
-use fathomdb_embedder::EmbedderEvent as RustEmbedderEvent;
+use fathomdb_embedder::{
+    CudaDeviceInfo as RustCudaDeviceInfo, DeviceResolution as RustDeviceResolution,
+    EffectiveEmbedDevice as RustEffectiveEmbedDevice, EmbedDevicePolicy as RustEmbedDevicePolicy,
+    EmbedderEvent as RustEmbedderEvent,
+};
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
     BoundaryCrossing as RustBoundaryCrossing, ComparisonOp as RustComparisonOp,
@@ -1408,6 +1412,74 @@ impl EmbedderEvent {
     }
 }
 
+/// Safe CUDA provider facts associated with an effective CUDA selection.
+#[napi(object)]
+pub struct CudaDeviceInfo {
+    pub ordinal: i64,
+    pub name: Option<String>,
+    pub driver_version: Option<String>,
+    pub compute_capability: Option<String>,
+    pub cuda_toolkit_version: Option<String>,
+}
+
+impl CudaDeviceInfo {
+    fn from_rust(info: &RustCudaDeviceInfo) -> Self {
+        Self {
+            ordinal: info.ordinal as i64,
+            name: info.name.clone(),
+            driver_version: info.driver_version.clone(),
+            compute_capability: info.compute_capability.clone(),
+            cuda_toolkit_version: info.cuda_toolkit_version.clone(),
+        }
+    }
+}
+
+/// The CPU or CUDA backend selected for one embedder device policy.
+#[napi(object)]
+pub struct EffectiveEmbedDevice {
+    /// Either `"cpu"` or `"cuda"`.
+    pub kind: String,
+    /// Present exactly when `kind == "cuda"`.
+    pub cuda_device: Option<CudaDeviceInfo>,
+}
+
+impl EffectiveEmbedDevice {
+    fn from_rust(device: &RustEffectiveEmbedDevice) -> Self {
+        match device {
+            RustEffectiveEmbedDevice::Cpu => Self { kind: "cpu".to_string(), cuda_device: None },
+            RustEffectiveEmbedDevice::Cuda(info) => Self {
+                kind: "cuda".to_string(),
+                cuda_device: Some(CudaDeviceInfo::from_rust(info)),
+            },
+        }
+    }
+}
+
+/// The strict CPU/CUDA policy outcome captured when an embedder was constructed.
+#[napi(object)]
+pub struct EmbedderDeviceResolution {
+    pub requested_policy: String,
+    pub cuda_compiled: bool,
+    pub effective_device: EffectiveEmbedDevice,
+    pub reason: Option<String>,
+}
+
+impl EmbedderDeviceResolution {
+    fn from_rust(resolution: &RustDeviceResolution) -> Self {
+        let requested_policy = match resolution.requested_policy {
+            RustEmbedDevicePolicy::Auto => "auto".to_string(),
+            RustEmbedDevicePolicy::Cpu => "cpu".to_string(),
+            RustEmbedDevicePolicy::Cuda(ordinal) => format!("cuda:{ordinal}"),
+        };
+        Self {
+            requested_policy,
+            cuda_compiled: resolution.cuda_compiled,
+            effective_device: EffectiveEmbedDevice::from_rust(&resolution.effective_device),
+            reason: resolution.reason.map(|reason| reason.as_str().to_string()),
+        }
+    }
+}
+
 #[napi(object)]
 pub struct OpenReport {
     pub schema_version_before: u32,
@@ -1429,6 +1501,9 @@ pub struct OpenReport {
     pub dense_disabled: bool,
     /// R-VEQ-6 — human-readable reason for `denseDisabled`, or `null` when healthy.
     pub dense_disabled_reason: Option<String>,
+    /// Strict CPU/CUDA selection used to construct the embedder, or `null` when
+    /// no embedder was configured.
+    pub embedder_device_resolution: Option<EmbedderDeviceResolution>,
 }
 
 impl OpenReport {
@@ -1446,6 +1521,10 @@ impl OpenReport {
             embedder_mean_vec_pinned: r.embedder_mean_vec_pinned,
             dense_disabled: r.dense_disabled,
             dense_disabled_reason: r.dense_disabled_reason.clone(),
+            embedder_device_resolution: r
+                .embedder_device_resolution
+                .as_ref()
+                .map(EmbedderDeviceResolution::from_rust),
         }
     }
 }

@@ -37,8 +37,13 @@ network access. Everything below is opt-in at build time.
 | `embed-cuda` / `embed-metal` | GPU execution for the embedder. |
 | `rerank-cuda` / `rerank-metal` | GPU execution for the reranker. |
 
-GPU features are build-time opt-ins; the device is then selected at runtime via
-`FATHOMDB_EMBED_DEVICE` / `FATHOMDB_RERANK_DEVICE`. The default is always CPU.
+GPU features are build-time opt-ins. The embedder policy is selected at runtime
+only through `FATHOMDB_EMBED_DEVICE`: `auto` (the default), `cpu`, or
+`cuda:N`. On a CUDA-capable artifact, `auto` selects a compatible visible CUDA
+device or records a typed CPU fallback; `cpu` never initializes CUDA; and
+`cuda:N` fails rather than falling back. CPU-only artifacts report
+`cuda_not_compiled` for `auto`. `FATHOMDB_RERANK_DEVICE` is separate and does
+not select the embedder.
 
 ## Weight loading
 

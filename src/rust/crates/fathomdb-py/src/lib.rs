@@ -38,7 +38,11 @@ use std::sync::Barrier;
 #[cfg(feature = "test-hooks")]
 use std::sync::Mutex;
 
-use fathomdb_embedder::EmbedderEvent as RustEmbedderEvent;
+use fathomdb_embedder::{
+    CudaDeviceInfo as RustCudaDeviceInfo, DeviceResolution as RustDeviceResolution,
+    EffectiveEmbedDevice as RustEffectiveEmbedDevice, EmbedDevicePolicy as RustEmbedDevicePolicy,
+    EmbedderEvent as RustEmbedderEvent,
+};
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
     rerank_passages as rust_rerank_passages, BoundaryCrossing as RustBoundaryCrossing,
@@ -1268,6 +1272,90 @@ impl PyEmbedderIdentity {
     }
 }
 
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "CudaDeviceInfo",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyCudaDeviceInfo {
+    ordinal: usize,
+    name: Option<String>,
+    driver_version: Option<String>,
+    compute_capability: Option<String>,
+    cuda_toolkit_version: Option<String>,
+}
+
+impl PyCudaDeviceInfo {
+    fn from_rust(info: &RustCudaDeviceInfo) -> Self {
+        Self {
+            ordinal: info.ordinal,
+            name: info.name.clone(),
+            driver_version: info.driver_version.clone(),
+            compute_capability: info.compute_capability.clone(),
+            cuda_toolkit_version: info.cuda_toolkit_version.clone(),
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "EffectiveEmbedDevice",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyEffectiveEmbedDevice {
+    kind: String,
+    cuda_device: Option<PyCudaDeviceInfo>,
+}
+
+impl PyEffectiveEmbedDevice {
+    fn from_rust(device: &RustEffectiveEmbedDevice) -> Self {
+        match device {
+            RustEffectiveEmbedDevice::Cpu => Self { kind: "cpu".to_string(), cuda_device: None },
+            RustEffectiveEmbedDevice::Cuda(info) => Self {
+                kind: "cuda".to_string(),
+                cuda_device: Some(PyCudaDeviceInfo::from_rust(info)),
+            },
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "DeviceResolution",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyDeviceResolution {
+    requested_policy: String,
+    cuda_compiled: bool,
+    effective_device: PyEffectiveEmbedDevice,
+    reason: Option<String>,
+}
+
+impl PyDeviceResolution {
+    fn from_rust(resolution: &RustDeviceResolution) -> Self {
+        let requested_policy = match resolution.requested_policy {
+            RustEmbedDevicePolicy::Auto => "auto".to_string(),
+            RustEmbedDevicePolicy::Cpu => "cpu".to_string(),
+            RustEmbedDevicePolicy::Cuda(ordinal) => format!("cuda:{ordinal}"),
+        };
+        Self {
+            requested_policy,
+            cuda_compiled: resolution.cuda_compiled,
+            effective_device: PyEffectiveEmbedDevice::from_rust(&resolution.effective_device),
+            reason: resolution.reason.map(|reason| reason.as_str().to_string()),
+        }
+    }
+}
+
 #[pyclass(module = "fathomdb._fathomdb", name = "OpenReport", frozen, get_all)]
 struct PyOpenReport {
     schema_version_before: u32,
@@ -1301,6 +1389,9 @@ struct PyOpenReport {
     /// R-VEQ-6 — human-readable reason for `dense_disabled` (which representation
     /// tripped), or `None` when dense is healthy.
     dense_disabled_reason: Option<String>,
+    /// Strict CPU/CUDA selection used to construct the embedder, or `None` when
+    /// no embedder was configured.
+    embedder_device_resolution: Option<PyDeviceResolution>,
 }
 
 impl PyOpenReport {
@@ -1324,6 +1415,10 @@ impl PyOpenReport {
             embedder_mean_vec_pinned: r.embedder_mean_vec_pinned,
             dense_disabled: r.dense_disabled,
             dense_disabled_reason: r.dense_disabled_reason.clone(),
+            embedder_device_resolution: r
+                .embedder_device_resolution
+                .as_ref()
+                .map(PyDeviceResolution::from_rust),
         }
     }
 }
@@ -2904,6 +2999,9 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyCounterSnapshot>()?;
     m.add_class::<PyMigrationStepReport>()?;
     m.add_class::<PyEmbedderIdentity>()?;
+    m.add_class::<PyCudaDeviceInfo>()?;
+    m.add_class::<PyEffectiveEmbedDevice>()?;
+    m.add_class::<PyDeviceResolution>()?;
     m.add_class::<PyOpenReport>()?;
     m.add_class::<PyNodeRecord>()?;
     m.add_class::<PyOpStoreRow>()?;

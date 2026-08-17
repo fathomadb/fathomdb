@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Sequence
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from fathomdb._fathomdb import ConsolidateReceipt
 from fathomdb._fathomdb import Engine as _NativeEngine
@@ -27,7 +27,10 @@ from fathomdb._fathomdb import transition as _native_transition
 from fathomdb.config import EngineConfig
 from fathomdb.types import (
     CounterSnapshot,
+    CudaDeviceInfo,
+    DeviceResolution,
     EmbedderIdentity,
+    EffectiveEmbedDevice,
     Explanation,
     IdSpace,
     MigrationStepReport,
@@ -725,6 +728,7 @@ class Engine:
         """
 
         native = self._native.open_report()
+        device_resolution = native.embedder_device_resolution
         return OpenReport(
             schema_version_before=native.schema_version_before,
             schema_version_after=native.schema_version_after,
@@ -749,6 +753,38 @@ class Engine:
             embedder_mean_vec_pinned=native.embedder_mean_vec_pinned,
             dense_disabled=native.dense_disabled,
             dense_disabled_reason=native.dense_disabled_reason,
+            embedder_device_resolution=(
+                None
+                if device_resolution is None
+                else DeviceResolution(
+                    requested_policy=device_resolution.requested_policy,
+                    cuda_compiled=device_resolution.cuda_compiled,
+                    effective_device=EffectiveEmbedDevice(
+                        kind=cast(
+                            Literal["cpu", "cuda"],
+                            device_resolution.effective_device.kind,
+                        ),
+                        cuda_device=(
+                            None
+                            if device_resolution.effective_device.cuda_device is None
+                            else CudaDeviceInfo(
+                                ordinal=device_resolution.effective_device.cuda_device.ordinal,
+                                name=device_resolution.effective_device.cuda_device.name,
+                                driver_version=(
+                                    device_resolution.effective_device.cuda_device.driver_version
+                                ),
+                                compute_capability=(
+                                    device_resolution.effective_device.cuda_device.compute_capability
+                                ),
+                                cuda_toolkit_version=(
+                                    device_resolution.effective_device.cuda_device.cuda_toolkit_version
+                                ),
+                            )
+                        ),
+                    ),
+                    reason=device_resolution.reason,
+                )
+            ),
         )
 
     def counters(self) -> CounterSnapshot:

@@ -119,6 +119,21 @@ Subscriber attachment is provided by:
 
 `softFallback.branch` uses the typed values owned by `design/retrieval.md`.
 
+### `OpenReport.embedderDeviceResolution` (0.8.23 Slice 70)
+
+`engine.openReport().embedderDeviceResolution` is a readonly
+`DeviceResolution | null`. When present, it preserves `requestedPolicy`
+(`"auto"`, `"cpu"`, or `"cuda:N"`), `cudaCompiled`, the effective
+`EffectiveEmbedDevice` (`kind === "cpu" | "cuda"` and safe CUDA facts for a
+CUDA selection), and the optional automatic-fallback `reason`. It is present
+for default-embedder opens and the internal
+`EmbedderChoice::CallerWithDeviceResolution` path; an ONNX caller uses that
+path when it needs its final session outcome reported. It is `null` when no
+resolution was supplied. Forced CUDA is an open rejection, never a CPU report.
+
+This is open-time evidence only: it adds no TypeScript device-setting API.
+`FATHOMDB_EMBED_DEVICE` remains the single cross-surface policy transport.
+
 ### `SearchHit.id` is `IdSpace` (C-2, 0.8.19 / TC-8)
 
 `SearchHit.id` is the exported **`IdSpace`** interface, not the pre-0.8.19

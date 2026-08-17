@@ -19,10 +19,13 @@ from fathomdb.engine import Engine
 from fathomdb.filter import Filter
 from fathomdb.types import (
     CounterSnapshot,
+    CudaDeviceInfo,
     DenseReadiness,
+    DeviceResolution,
     EmbeddingOperation,
     EmbeddingReadiness,
     EmbeddingReadinessState,
+    EffectiveEmbedDevice,
     ExpandedNode,
     Explanation,
     IdSpace,
@@ -49,10 +52,13 @@ from fathomdb.types import (
 __all__ = [
     "ConsolidateReceipt",
     "CounterSnapshot",
+    "CudaDeviceInfo",
     "DenseReadiness",
+    "DeviceResolution",
     "EmbeddingOperation",
     "EmbeddingReadiness",
     "EmbeddingReadinessState",
+    "EffectiveEmbedDevice",
     "Engine",
     "EngineConfig",
     "Filter",

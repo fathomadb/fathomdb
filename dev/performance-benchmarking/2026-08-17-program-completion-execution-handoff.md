@@ -141,7 +141,7 @@ and one action. Use the release-gated `experiments.tc5_live_executor`.
    as the remediation contract defines. Never relax the floor automatically or
    make a SCALE-02/product claim.
 
-## 5. Complete CORPUS-01 with real human-gold evidence
+## 5. Complete CORPUS-01 lifecycle evidence
 
 Select actual authorized corpus/category pairs and create content-free factual
 preflight bindings outside Git: source payload and license-copy hashes,
@@ -151,11 +151,12 @@ human-gold amendment and matching coordinator-approved registry entry before
 the category can count.
 
 For `knowledge_update`, `supersession`, `source_erasure`, and
-`time_scoped_validity`, conduct two independent blinded human reviews of the
-external source material. An agent is not a human reviewer and must not
-manufacture labels, answer oracles, or adjudication. Retain worksheets and
-source text only externally. Record only the validated, content-free manifest,
-agreement/exclusion/count summaries, paired-power evidence, and claim scope.
+`time_scoped_validity`, use the qualified evidence route named by the governing
+amendment. The direct HITL ruling `seq-253` authorizes the separate two-model
+LLM route; it remains external-only, content-free, cost-capped, and explicitly
+not human gold. Retain worksheets and source text only externally. Record only
+the validated, content-free manifest, agreement/exclusion/count summaries,
+paired-power evidence, and claim scope.
 
 ## Closeout and acceptance
 
@@ -169,5 +170,5 @@ integration.
 The goal is complete only when all four authorized tracks have their required
 qualified external evidence and reviewed safe receipts: LOCOMO/PARENT has the
 full 52-cell closure, SCALE-01 has reviewed smoke and long CPU evidence,
-CORPUS-01 covers all four lifecycle categories with valid human-gold evidence,
+CORPUS-01 covers all four lifecycle categories with valid qualified evidence,
 and no claimed result exceeds its receipt and contract scope.

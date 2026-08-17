@@ -297,6 +297,7 @@ jobs:
           set -euo pipefail
           python3 control-plane/scripts/release/verify-cuda-unmerged-receipt.py \
             --receipt control-plane/receipt/cuda-unmerged-route-receipt.json \
+            --manifest control-plane/dev/release/cuda-unmerged-candidates.json \
             --candidate-sha '${{ inputs.candidate_commit }}' \
             --workflow-ref '${{ github.workflow_ref }}' \
             --workflow-sha '${{ github.workflow_sha }}' \

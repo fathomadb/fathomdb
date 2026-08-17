@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -14,6 +15,7 @@ COMMIT_SHA = re.compile(r"[0-9a-f]{40}")
 SHA256 = re.compile(r"[0-9a-f]{64}")
 WORKFLOW_REF = "fathomadb/fathomdb/.github/workflows/release.yml@refs/heads/main"
 SCHEMA = "fathomdb.cuda-unmerged-route-receipt/v1"
+MAIN_OWNED_MANIFEST = Path("control-plane/dev/release/cuda-unmerged-candidates.json")
 
 
 def fail(message: str) -> NoReturn:
@@ -36,9 +38,28 @@ def require_positive_int(value: object, label: str) -> int:
     return value
 
 
+def load_main_owned_manifest(path: Path) -> bytes:
+    if path != MAIN_OWNED_MANIFEST:
+        fail("manifest must use the exact main-owned control-plane path")
+    current = Path(".")
+    for component in path.parts:
+        current /= component
+        if current.is_symlink():
+            fail("manifest path must not traverse a symlink")
+    try:
+        raw = path.read_bytes()
+        manifest: Any = json.loads(raw)
+    except (OSError, json.JSONDecodeError) as error:
+        fail(f"cannot read manifest: {error}")
+    if not isinstance(manifest, dict) or raw != canonical_json(manifest):
+        fail("manifest must be a canonical JSON object")
+    return raw
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--receipt", required=True, type=Path)
+    parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--candidate-sha", required=True)
     parser.add_argument("--workflow-ref", required=True)
     parser.add_argument("--workflow-sha", required=True)
@@ -49,6 +70,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    raw_manifest = load_main_owned_manifest(args.manifest)
     if args.receipt.is_symlink():
         fail("receipt must not be a symlink")
     try:
@@ -76,7 +98,8 @@ def main() -> None:
     if require_positive_int(args.run_attempt, "requested run attempt") != receipt["run_attempt"]:
         fail("receipt run attempt does not match this consumer")
     require_sha(receipt["workflow_sha"], "receipt workflow SHA", COMMIT_SHA)
-    require_sha(receipt["manifest_sha256"], "receipt manifest SHA", SHA256)
+    if require_sha(receipt["manifest_sha256"], "receipt manifest SHA", SHA256) != hashlib.sha256(raw_manifest).hexdigest():
+        fail("receipt manifest SHA does not match the main-owned manifest")
     require_sha(receipt["candidate_sha"], "receipt candidate SHA", COMMIT_SHA)
     require_positive_int(receipt["candidate_pr"], "receipt candidate PR")
     approval_ids = receipt["approval_review_ids"]

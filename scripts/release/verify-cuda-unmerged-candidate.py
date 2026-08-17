@@ -86,11 +86,13 @@ def digest(value: object) -> str:
     return hashlib.sha256(canonical_json(value)).hexdigest()
 
 
-def validate_manifest(manifest: dict[str, Any], candidate_sha: str, now: datetime) -> dict[str, Any]:
+def validate_manifest_entries(manifest: dict[str, Any], now: datetime) -> list[dict[str, Any]]:
     require_exact_keys(manifest, {"schema_version", "candidates"}, "manifest")
     if manifest["schema_version"] != MANIFEST_SCHEMA or not isinstance(manifest["candidates"], list):
         fail("manifest schema is unsupported")
-    matches: list[dict[str, Any]] = []
+    if len(manifest["candidates"]) > 1:
+        fail("manifest must contain zero or one candidate record")
+    records: list[dict[str, Any]] = []
     seen: set[str] = set()
     for index, record in enumerate(manifest["candidates"]):
         if not isinstance(record, dict):
@@ -133,11 +135,15 @@ def validate_manifest(manifest: dict[str, Any], candidate_sha: str, now: datetim
             fail("manifest candidate purpose is not authorized")
         if parse_timestamp(record["expires_at"], "manifest candidate expiry") <= now:
             fail("manifest candidate authorization has expired")
-        if record_sha == candidate_sha:
-            matches.append(record)
-    if len(matches) != 1:
+        records.append(record)
+    return records
+
+
+def validate_manifest(manifest: dict[str, Any], candidate_sha: str, now: datetime) -> dict[str, Any]:
+    records = validate_manifest_entries(manifest, now)
+    if len(records) != 1 or records[0]["candidate_sha"] != candidate_sha:
         fail("manifest does not authorize exactly one requested candidate SHA")
-    return matches[0]
+    return records[0]
 
 
 def validate_facts(facts: dict[str, Any], record: dict[str, Any], candidate_sha: str, now: datetime) -> tuple[list[int], list[int]]:
@@ -362,6 +368,13 @@ def authorize(args: argparse.Namespace) -> None:
     print("cuda-unmerged-candidate: authorized")
 
 
+def validate_manifest_command(args: argparse.Namespace) -> None:
+    now = parse_timestamp(args.now, "current time")
+    manifest, _ = load_canonical_object(args.manifest, "manifest")
+    validate_manifest_entries(manifest, now)
+    print("cuda-unmerged-candidate: manifest valid")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -376,6 +389,9 @@ def parse_args() -> argparse.Namespace:
     authorize_parser.add_argument("--now", required=True)
     authorize_parser.add_argument("--receipt", type=Path, required=True)
     authorize_parser.add_argument("--github-output", type=Path)
+    validate_manifest_parser = commands.add_parser("validate-manifest")
+    validate_manifest_parser.add_argument("--manifest", type=Path, required=True)
+    validate_manifest_parser.add_argument("--now", required=True)
     return parser.parse_args()
 
 
@@ -383,6 +399,8 @@ def main() -> None:
     args = parse_args()
     if args.command == "authorize":
         authorize(args)
+    elif args.command == "validate-manifest":
+        validate_manifest_command(args)
     else:  # pragma: no cover - argparse makes this unreachable
         fail("unknown command")
 

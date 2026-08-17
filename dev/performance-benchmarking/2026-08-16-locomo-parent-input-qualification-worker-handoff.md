@@ -19,6 +19,10 @@ file was changed.
 missing-input, and ambiguous-parent-membership behavior before the qualifier
 implementation was committed. The module was absent from that commit.
 
+`831d5624` is the separate red checkpoint for malformed corpus JSON, malformed
+or invalid fixed-subset JSON, and invalid corpus shape. It also preserves the
+hard-rejection control-plane boundary for malformed Phase-B configuration.
+
 ## Green verification
 
 Run from this worktree:
@@ -34,7 +38,7 @@ python -m ruff check \
   tests/experiments/test_locomo_input_qualification.py
 ```
 
-Expected focused result after implementation: 32 passing tests. The broader
+Expected focused result after implementation: 37 passing tests. The broader
 agent verifier remains a coordinator/reviewer gate.
 
 ## External artifact evidence

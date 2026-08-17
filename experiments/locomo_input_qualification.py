@@ -228,6 +228,15 @@ def _write_json(path: Path, value: Mapping[str, object]) -> None:
     path.write_text(json.dumps(value, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 
 
+def _external_json_or_blocker(path: Path, *, blocker: str, blockers: list[str]) -> object | None:
+    """Read one data-plane JSON document or retain its fixed blocker code."""
+    try:
+        return _load_json(path)
+    except QualificationError:
+        blockers.append(blocker)
+        return None
+
+
 def _derivation_blocker(error: QualificationError) -> str:
     """Map a safe structural failure to one durable, payload-free blocker code."""
     codes = {
@@ -285,19 +294,30 @@ def qualify(
     all_inputs_present = all(path is not None for path in files.values())
     if all_inputs_present:
         assert all(path is not None for path in files.values())
-        corpus = _load_json(files["corpus"])
-        question_ids = _question_ids(corpus)
-        declared_full_count = expected["corpus"].get("question_count")
-        if len(question_ids) != declared_full_count:
-            blockers.append("corpus_question_count_mismatch")
-        subset = _load_json(files["dry_run_subset"])
-        expected_subset_count = expected["dry_run_subset"].get("question_count")
-        if not isinstance(expected_subset_count, int):
-            raise QualificationError("Phase-B configuration lacks dry-run question count")
-        valid_subset, subset_blocker = _fixed_subset(subset, expected_count=expected_subset_count, question_ids=question_ids)
-        if not valid_subset:
-            assert subset_blocker is not None
-            blockers.append(subset_blocker)
+        corpus = _external_json_or_blocker(files["corpus"], blocker="corpus_json_invalid", blockers=blockers)
+        subset = _external_json_or_blocker(
+            files["dry_run_subset"], blocker="dry_run_subset_json_invalid", blockers=blockers
+        )
+        question_ids: set[str] | None = None
+        if corpus is not None:
+            try:
+                question_ids = _question_ids(corpus)
+            except QualificationError:
+                blockers.append("corpus_shape_invalid")
+            else:
+                declared_full_count = expected["corpus"].get("question_count")
+                if len(question_ids) != declared_full_count:
+                    blockers.append("corpus_question_count_mismatch")
+        if subset is not None and question_ids is not None:
+            expected_subset_count = expected["dry_run_subset"].get("question_count")
+            if not isinstance(expected_subset_count, int):
+                raise QualificationError("Phase-B configuration lacks dry-run question count")
+            valid_subset, subset_blocker = _fixed_subset(
+                subset, expected_count=expected_subset_count, question_ids=question_ids
+            )
+            if not valid_subset:
+                assert subset_blocker is not None
+                blockers.append(subset_blocker)
     turn_and_session_pinned = all(
         files[name] is not None and input_status[name].get("sha256_matches") is True
         for name in ("turn_provenance", "session_provenance")

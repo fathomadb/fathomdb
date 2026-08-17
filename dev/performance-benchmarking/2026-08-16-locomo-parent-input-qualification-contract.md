@@ -61,6 +61,13 @@ and unconstructable parent membership produce `qualification_status: blocked`.
 A blocked report is useful coordinator evidence, but it cannot be used as a
 release record or to invoke the fixed-subset dry run.
 
+Malformed corpus JSON, malformed fixed-subset JSON, invalid fixed-subset
+shape, and invalid corpus shape are also external data-plane failures. They map
+to fixed content-free blocker codes in a signed blocked report. This narrow
+reporting rule does not weaken the control plane: malformed Phase-B or
+CORPUS-01 matrix documents, unsafe input paths, and unsafe artifact roots still
+raise a hard error before any report is written.
+
 ## 2026-08-16 factual result
 
 The existing turn and session provenance files match the frozen Phase-B pins.

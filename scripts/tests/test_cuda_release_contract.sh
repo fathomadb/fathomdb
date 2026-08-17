@@ -85,6 +85,31 @@ FIXTURE="$TMPROOT/fixture"
 make_fixture "$FIXTURE"
 expect_pass "$FIXTURE" 'baseline CUDA contract agrees'
 
+if grep -Fq 'bash candidate/scripts/release/cuda-package-rehearsal' "$REPO_ROOT/.github/workflows/release.yml" \
+  || grep -Fq 'bash scripts/release/cuda-package-rehearsal-smoke.sh' "$REPO_ROOT/.github/workflows/release.yml"; then
+  printf 'FAIL  Slice 20 self-hosted rehearsal must execute only trusted control-plane helpers\n' >&2
+  exit 1
+fi
+printf 'PASS  Slice 20 self-hosted rehearsal executes only trusted control-plane helpers\n'
+
+if grep -Fq 'exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp HF_HOME=/fathomdb-hf FATHOMDB_EMBED_DEVICE=cuda:0' \
+  "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh" \
+  && grep -Fq 'exec env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp HF_HOME=/fathomdb-hf FATHOMDB_EMBED_DEVICE=cuda:0 node' \
+  "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh"; then
+  printf 'PASS  Slice 20 GPU PID attestations exec the actual Python and Node runtimes\n'
+else
+  printf 'FAIL  Slice 20 GPU PID attestations must exec the actual Python and Node runtimes\n' >&2
+  exit 1
+fi
+
+python_cpu_smoke="$(sed -n '/docker run --rm --network none/,/write_cpu python/p' "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh")"
+if printf '%s\n' "$python_cpu_smoke" | grep -Fq 'test ! -e /dev/nvidiactl'; then
+  printf 'PASS  Slice 20 Python CPU smoke proves driverless execution\n'
+else
+  printf 'FAIL  Slice 20 Python CPU smoke must prove /dev/nvidiactl is absent\n' >&2
+  exit 1
+fi
+
 for package_rehearsal_mutation in missing-gate source-smoke host-network; do
   make_fixture "$FIXTURE"
   python3 - "$FIXTURE/.github/workflows/release.yml" "$FIXTURE/scripts/release/cuda-package-rehearsal-smoke.sh" "$package_rehearsal_mutation" <<'PY'

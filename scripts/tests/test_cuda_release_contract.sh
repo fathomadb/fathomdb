@@ -302,6 +302,40 @@ PY
   expect_fail "$FIXTURE" "rejects a $environment_mutation protected environment lookalike"
 done
 
+for control_plane_mutation in remove reorder; do
+  make_fixture "$FIXTURE"
+  python3 - "$FIXTURE/.github/workflows/release.yml" "$control_plane_mutation" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+mutation = sys.argv[2]
+text = path.read_text()
+checkout_marker = (
+    "      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 "
+    "# v7.0.0, main-owned receipt verifier only\n"
+)
+receipt_marker = "      - name: Verify same-run unmerged route receipt before candidate checkout\n"
+candidate_marker = (
+    "      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 "
+    "# v7.0.0, hosted route and receipt verified\n"
+)
+checkout_start = text.index(checkout_marker)
+receipt_start = text.index(receipt_marker, checkout_start)
+candidate_start = text.index(candidate_marker, receipt_start)
+checkout = text[checkout_start:receipt_start]
+receipt = text[receipt_start:candidate_start]
+if mutation == "remove":
+    replacement = receipt
+elif mutation == "reorder":
+    replacement = receipt + checkout
+else:
+    raise SystemExit("unknown mutation")
+path.write_text(text[:checkout_start] + replacement + text[candidate_start:])
+PY
+  expect_fail "$FIXTURE" "rejects a $control_plane_mutation control-plane checkout before receipt verification"
+done
+
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
 from pathlib import Path

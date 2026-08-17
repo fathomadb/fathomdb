@@ -344,9 +344,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            manylinux: "2_28"
           - runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             manylinux: "2_28"
@@ -413,9 +410,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            label: linux-x64-gnu
           - runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             label: linux-arm64-gnu
@@ -454,6 +448,126 @@ jobs:
         with:
           name: napi-${{ matrix.label }}
           path: src/ts/fathomdb.${{ matrix.label }}.node
+
+  # Slice 20: retain and smoke the sole Linux x64 CUDA package bytes. This is
+  # a dry-run-only candidate route. It cannot grant a tag or a publication
+  # path the unmerged-candidate exception; a later canonical tag route needs
+  # separately reviewed provenance and must independently consume this format.
+  cuda-package-rehearsal:
+    needs: [verify-release, verify-cuda-trusted-route, cuda-contract-preflight]
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+    runs-on: [self-hosted, Linux, X64, gpu, cuda-12]
+    environment: cuda-unmerged-preflight
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Download same-run unmerged route receipt
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8.0.1
+        with:
+          name: cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: control-plane/receipt
+      - name: Download same-run CUDA preflight witness and package bytes
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8.0.1
+        with:
+          name: cuda-preflight-witness
+          path: preflight-witness
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, main-owned control plane only
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control-plane
+          persist-credentials: false
+      - name: Verify same-run receipt and preflight witness before candidate checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 control-plane/scripts/release/verify-cuda-unmerged-receipt.py \
+            --receipt control-plane/receipt/cuda-unmerged-route-receipt.json \
+            --manifest control-plane/dev/release/cuda-unmerged-candidates.json \
+            --candidate-sha '${{ inputs.candidate_commit }}' \
+            --workflow-ref '${{ github.workflow_ref }}' \
+            --workflow-sha '${{ github.workflow_sha }}' \
+            --run-id '${{ github.run_id }}' \
+            --run-attempt '${{ github.run_attempt }}'
+          python3 control-plane/scripts/release/verify-cuda-preflight-witness.py \
+            --witness-dir preflight-witness \
+            --candidate-sha '${{ inputs.candidate_commit }}'
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, receipt and witness verified
+        with:
+          ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          path: candidate
+          persist-credentials: false
+      - name: Build canonical CUDA package input identity
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - '${{ inputs.candidate_commit }}' > cuda-package-build-input.json <<'PY'
+          import json
+          import sys
+          print(json.dumps({
+              "schema_version": "fathomdb.cuda-package-build-input/v1",
+              "candidate_sha": sys.argv[1],
+              "python_features": ["embed-cuda", "pyo3/extension-module"],
+              "napi_features": ["default-embedder", "embed-cuda"],
+              "rerank_cuda": False,
+          }, ensure_ascii=True, separators=(",", ":"), sort_keys=True))
+          PY
+      - name: Smoke installed retained package bytes in isolated containers
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheel="$(find ../preflight-witness/python-dist -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
+          npm_main="$(find ../preflight-witness/npm-artifacts/main -maxdepth 1 -type f -name 'fathomdb-*.tgz' -print -quit)"
+          napi_platform="$(find ../preflight-witness/npm-artifacts/platforms/linux-x64-gnu -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
+          test -n "$wheel" && test -n "$npm_main" && test -n "$napi_platform"
+          bash scripts/release/cuda-package-rehearsal-smoke.sh \
+            --python-wheel "$wheel" \
+            --npm-main "$npm_main" \
+            --napi-platform "$napi_platform" \
+            --smoke-dir cuda-package-smoke
+      - name: Seal exact non-publishing CUDA package rehearsal bundle
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheel="$(find ../preflight-witness/python-dist -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
+          npm_main="$(find ../preflight-witness/npm-artifacts/main -maxdepth 1 -type f -name 'fathomdb-*.tgz' -print -quit)"
+          napi_platform="$(find ../preflight-witness/npm-artifacts/platforms/linux-x64-gnu -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
+          bash scripts/release/cuda-package-rehearsal.sh \
+            --candidate-sha '${{ inputs.candidate_commit }}' \
+            --route-receipt ../control-plane/receipt/cuda-unmerged-route-receipt.json \
+            --route-manifest ../control-plane/dev/release/cuda-unmerged-candidates.json \
+            --preflight-witness-dir ../preflight-witness \
+            --build-input cuda-package-build-input.json \
+            --python-wheel "$wheel" \
+            --npm-main "$npm_main" \
+            --napi-platform "$napi_platform" \
+            --smoke-dir cuda-package-smoke \
+            --output-dir cuda-package-rehearsal \
+            --workflow-ref '${{ github.workflow_ref }}' \
+            --workflow-sha '${{ github.workflow_sha }}' \
+            --run-id '${{ github.run_id }}' \
+            --run-attempt '${{ github.run_attempt }}'
+      - name: Upload verified package rehearsal bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cuda-package-rehearsal
+          path: candidate/cuda-package-rehearsal
+          if-no-files-found: error
+      - name: Upload retained Linux x64 Python wheel under publisher name
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: python-dist-x86_64-unknown-linux-gnu
+          path: candidate/cuda-package-rehearsal/packages/*.whl
+          if-no-files-found: error
+      - name: Upload retained Linux x64 N-API package under publisher name
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: napi-linux-x64-gnu
+          path: candidate/cuda-package-rehearsal/packages/fathomdb-linux-x64-gnu-*.tgz
+          if-no-files-found: error
 
   # Pre-publish packaging verification for Rust crates:
   #   1. cargo build --release --workspace — compile check of every crate
@@ -503,12 +617,13 @@ jobs:
     # Normal releases require every artifact build. The explicit v0.8.20
     # recovery dispatch omits only N-API, whose npm artifact is intentionally
     # not being recovered; verify, Python, and Rust remain hard gates.
-    if: ${{ always() && needs.verify-release.result == 'success' && needs.build-python.result == 'success' && needs.build-rust.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.build-napi.result == 'success') }}
+    if: ${{ always() && needs.verify-release.result == 'success' && needs.build-python.result == 'success' && needs.build-rust.result == 'success' && needs.cuda-package-rehearsal.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.build-napi.result == 'success') }}
     needs:
       - verify-release
       - build-python
       - build-napi
       - build-rust
+      - cuda-package-rehearsal
     steps:
       - run: echo "all release build gates passed"
 

@@ -24,6 +24,10 @@ make_fixture() {
   cp "$REPO_ROOT/scripts/release/verify-cuda-unmerged-candidate.py" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/verify-cuda-unmerged-receipt.py" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/cuda-unmerged-route-receipt.schema.json" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/release/cuda-package-rehearsal.schema.json" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/release/verify-cuda-package-rehearsal.py" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/release/cuda-package-rehearsal.sh" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/Dockerfile.cuda-manylinux" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/provision-cuda-manylinux.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/src/rust/crates/fathomdb-napi/Cargo.toml" "$root/src/rust/crates/fathomdb-napi/"
@@ -80,6 +84,39 @@ printf 'PASS  hosted CUDA verifier is main-owned and candidate-independent\n'
 FIXTURE="$TMPROOT/fixture"
 make_fixture "$FIXTURE"
 expect_pass "$FIXTURE" 'baseline CUDA contract agrees'
+
+for package_rehearsal_mutation in missing-gate source-smoke host-network; do
+  make_fixture "$FIXTURE"
+  python3 - "$FIXTURE/.github/workflows/release.yml" "$FIXTURE/scripts/release/cuda-package-rehearsal-smoke.sh" "$package_rehearsal_mutation" <<'PY'
+from pathlib import Path
+import sys
+
+workflow = Path(sys.argv[1])
+smoke = Path(sys.argv[2])
+mutation = sys.argv[3]
+if mutation == "missing-gate":
+    text = workflow.read_text()
+    needle = "      - cuda-package-rehearsal\n"
+    if text.count(needle) != 1:
+        raise SystemExit("fixture lacks the aggregate CUDA package rehearsal gate")
+    workflow.write_text(text.replace(needle, "", 1))
+elif mutation == "source-smoke":
+    text = smoke.read_text()
+    needle = "# never mounted; env -i"
+    if needle not in text:
+        raise SystemExit("fixture lacks source-isolation marker")
+    smoke.write_text(text.replace(needle, "--mount type=bind,src=$PWD,dst=/source ", 1))
+elif mutation == "host-network":
+    text = smoke.read_text()
+    needle = "docker run --rm --network none"
+    if text.count(needle) < 2:
+        raise SystemExit("fixture lacks isolated container smoke")
+    smoke.write_text(text.replace(needle, "docker run --rm --network host", 1))
+else:
+    raise SystemExit("unknown mutation")
+PY
+  expect_fail "$FIXTURE" "rejects CUDA package rehearsal mutation: $package_rehearsal_mutation"
+done
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/dev/release/cuda-unmerged-candidates.json" <<'PY'
@@ -226,8 +263,8 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = '    runs-on: [self-hosted, Linux, X64, gpu, cuda-12]\n'
-if text.count(needle) != 1:
-    raise SystemExit("fixture no longer contains the restricted CUDA runner selection")
+if text.count(needle) != 2:
+    raise SystemExit("fixture no longer contains both restricted CUDA runner selections")
 path.write_text(text.replace(needle, '    runs-on: ubuntu-latest\n', 1))
 PY
 expect_fail "$FIXTURE" 'rejects a CUDA preflight moved onto ordinary CI'
@@ -274,8 +311,8 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = '    environment: cuda-unmerged-preflight\n'
-if text.count(needle) != 1:
-    raise SystemExit("fixture no longer contains the exact protected CUDA environment")
+if text.count(needle) != 2:
+    raise SystemExit("fixture no longer contains both exact protected CUDA environments")
 path.write_text(text.replace(needle, "", 1))
 PY
 expect_fail "$FIXTURE" 'rejects removal of the protected unmerged-candidate environment'
@@ -290,8 +327,8 @@ path = Path(sys.argv[1])
 mutation = sys.argv[2]
 text = path.read_text()
 needle = "    environment: cuda-unmerged-preflight\n"
-if text.count(needle) != 1:
-    raise SystemExit("fixture no longer contains the exact protected CUDA environment")
+if text.count(needle) != 2:
+    raise SystemExit("fixture no longer contains both exact protected CUDA environments")
 replacements = {
     "comment-only": "    # environment: cuda-unmerged-preflight\n",
     "substituted": "    environment: ${{ inputs.cuda_environment }} # environment: cuda-unmerged-preflight\n",
@@ -501,8 +538,8 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = '    runs-on: [self-hosted, Linux, X64, gpu, cuda-12]\n'
-if text.count(needle) != 1:
-    raise SystemExit("fixture no longer contains exactly one CUDA runner selection")
+if text.count(needle) != 2:
+    raise SystemExit("fixture no longer contains both CUDA runner selections")
 path.write_text(text.replace(needle, needle + '    permissions:\n      contents: write\n', 1))
 PY
 expect_fail "$FIXTURE" 'rejects CUDA preflight permissions broader than read-only'
@@ -515,8 +552,8 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a'
-if text.count(needle) != 4:
-    raise SystemExit("fixture CUDA witness upload must use the reviewed full artifact SHA")
+if text.count(needle) < 7:
+    raise SystemExit("fixture CUDA artifact uploads must use the reviewed full action SHA")
 path.write_text(text.replace(needle, needle[:-1], 1))
 PY
 expect_fail "$FIXTURE" 'rejects a CUDA witness uploader with a shortened action SHA'

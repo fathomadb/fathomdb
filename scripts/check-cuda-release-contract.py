@@ -43,6 +43,10 @@ UNMERGED_PROTECTION_BASELINE = ROOT / "dev/release/cuda-protection-baseline.json
 UNMERGED_RECEIPT_SCHEMA = ROOT / "scripts/release/cuda-unmerged-route-receipt.schema.json"
 UNMERGED_CANDIDATE_VERIFIER = ROOT / "scripts/release/verify-cuda-unmerged-candidate.py"
 UNMERGED_RECEIPT_VERIFIER = ROOT / "scripts/release/verify-cuda-unmerged-receipt.py"
+PACKAGE_REHEARSAL_SCHEMA = ROOT / "scripts/release/cuda-package-rehearsal.schema.json"
+PACKAGE_REHEARSAL_VERIFIER = ROOT / "scripts/release/verify-cuda-package-rehearsal.py"
+PACKAGE_REHEARSAL_HELPER = ROOT / "scripts/release/cuda-package-rehearsal.sh"
+PACKAGE_REHEARSAL_SMOKE = ROOT / "scripts/release/cuda-package-rehearsal-smoke.sh"
 
 NAPI_CUDA_FEATURE = ["default-embedder", "fathomdb-engine/embed-cuda"]
 NAPI_CUDA_BUILD = "bash ../../scripts/release/build-napi-cuda.sh"
@@ -262,6 +266,102 @@ def require_driverless_device_absence(preflight: str) -> None:
             docker_env = re.compile(rf"(?:^|\s)-e\s+{variable}(?:=|\s|$)", re.MULTILINE)
             if assignment.search(section) or docker_env.search(section):
                 fail(f"CUDA preflight driverless smoke injects device-selection variable {variable}")
+
+
+def require_cuda_package_rehearsal() -> None:
+    schema = load_json(PACKAGE_REHEARSAL_SCHEMA)
+    if schema.get("$id") != "https://fathomdb.dev/schemas/cuda-package-rehearsal/v1":
+        fail("CUDA package rehearsal schema must declare its versioned schema ID")
+    schema_version = schema.get("properties", {}).get("schema_version")
+    if not isinstance(schema_version, dict) or schema_version.get("const") != "fathomdb.cuda-package-rehearsal/v1":
+        fail("CUDA package rehearsal schema must pin its schema version")
+    verifier = read_text(PACKAGE_REHEARSAL_VERIFIER)
+    for fragment in (
+        "package inventory must contain exactly three retained artifacts",
+        "package digest mismatch",
+        "route receipt does not bind the requested candidate",
+        "CPU {consumer} smoke does not prove the driverless installed-artifact contract",
+        "GPU {consumer} smoke lacks GPU UUID/PID correlation",
+        'raw != canonical_json(value)',
+    ):
+        require_fragment(verifier, fragment, "CUDA package rehearsal verifier")
+    helper = read_text(PACKAGE_REHEARSAL_HELPER)
+    for fragment in (
+        'verify-cuda-unmerged-receipt.py',
+        'verify-cuda-preflight-witness.py',
+        '--candidate-sha "$candidate_sha"',
+        'output directory must be new',
+        'verify-cuda-package-rehearsal.py',
+    ):
+        require_fragment(helper, fragment, "CUDA package rehearsal helper")
+    smoke = read_text(PACKAGE_REHEARSAL_SMOKE)
+    for fragment in (
+        'docker run --rm --network none',
+        'env -i PATH=',
+        'test ! -e /dev/nvidiactl',
+        "--gpus ",
+        "device=0",
+        '--query-compute-apps=pid',
+        'source_imported',
+        'gpu_uuid',
+        'nvidia_smi_uuid',
+    ):
+        require_fragment(smoke, fragment, "CUDA package rehearsal installed-artifact smoke")
+    for forbidden in (
+        "--network host", "npm publish", "twine upload", "git tag", "CARGO_REGISTRY_TOKEN",
+        "src=$PWD", "dst=/source", "src=$REPO_ROOT",
+    ):
+        if forbidden in helper or forbidden in smoke:
+            fail(f"CUDA package rehearsal must not contain publication or broad-network escape: {forbidden!r}")
+
+    job = workflow_job("cuda-package-rehearsal")
+    if not re.search(
+        r"^    if: \$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.dry_run == true \}\}$",
+        job,
+        re.MULTILINE,
+    ):
+        fail("cuda-package-rehearsal must be dry-run-only at job scope")
+    require_fragment(
+        job,
+        "needs: [verify-release, verify-cuda-trusted-route, cuda-contract-preflight]",
+        "cuda-package-rehearsal",
+    )
+    require_fragment(job, "runs-on: [self-hosted, Linux, X64, gpu, cuda-12]", "cuda-package-rehearsal")
+    if not re.search(r"^    environment: cuda-unmerged-preflight$", job, re.MULTILINE):
+        fail("cuda-package-rehearsal must use the exact direct protected environment scalar")
+    if not re.search(r"^    permissions:\n      contents: read\n", job, re.MULTILINE):
+        fail("cuda-package-rehearsal must declare job-level read-only contents permission")
+    if "contents: write" in job or "id-token: write" in job or "registry-url:" in job:
+        fail("cuda-package-rehearsal must not receive publishing capabilities")
+    for fragment in (
+        "cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}",
+        "name: cuda-preflight-witness",
+        "ref: ${{ github.workflow_sha }}",
+        "persist-credentials: false",
+        "control-plane/scripts/release/verify-cuda-unmerged-receipt.py",
+        "control-plane/scripts/release/verify-cuda-preflight-witness.py",
+        "ref: ${{ env.RELEASE_CHECKOUT_REF }}",
+        "bash scripts/release/cuda-package-rehearsal-smoke.sh",
+        "bash scripts/release/cuda-package-rehearsal.sh",
+        "name: cuda-package-rehearsal",
+        "name: python-dist-x86_64-unknown-linux-gnu",
+        "name: napi-linux-x64-gnu",
+    ):
+        require_fragment(job, fragment, "cuda-package-rehearsal")
+    candidate_checkout = job.index("ref: ${{ env.RELEASE_CHECKOUT_REF }}")
+    receipt_check = job.index("control-plane/scripts/release/verify-cuda-unmerged-receipt.py")
+    witness_check = job.index("control-plane/scripts/release/verify-cuda-preflight-witness.py")
+    control_checkout = job.index("ref: ${{ github.workflow_sha }}")
+    if not control_checkout < receipt_check < witness_check < candidate_checkout:
+        fail("cuda-package-rehearsal must verify main-owned receipt and preflight witness before candidate checkout")
+
+    python_build = workflow_job("build-python")
+    napi_build = workflow_job("build-napi")
+    if "x86_64-unknown-linux-gnu" in python_build or "linux-x64-gnu" in napi_build:
+        fail("ordinary CPU build matrices must not duplicate the final Linux x64 CUDA producers")
+    all_builds = workflow_job("all-builds-passed")
+    require_fragment(all_builds, "- cuda-package-rehearsal", "all-builds-passed")
+    require_fragment(all_builds, "needs.cuda-package-rehearsal.result == 'success'", "all-builds-passed")
 
 
 def main() -> None:
@@ -721,6 +821,8 @@ def main() -> None:
     require_fragment(ordinary_napi_build, "run: npm run build:native", "ordinary build-napi")
     if "build:native:cuda" in ordinary_napi_build:
         fail("ordinary cross-platform build-napi must stay CPU-only; CUDA belongs to the restricted preflight")
+
+    require_cuda_package_rehearsal()
 
     print("cuda-release-contract: pass")
 

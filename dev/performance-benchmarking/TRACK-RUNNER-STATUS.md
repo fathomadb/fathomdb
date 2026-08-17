@@ -7,10 +7,10 @@ index remain the source of execution evidence.
 
 **Last reconciled:** 2026-08-16
 
-**Integration base:** `afbfeed2` on
-`experiments/performance-experiments-20260815`. This integrates the accepted
-SCALE-01 manifest-runner preparation history; replace it with the verified
-integration SHA at each accepted lane close.
+**Integration base:** `acc5fa9a` on
+`experiments/performance-experiments-20260815`. This is the verified integrated
+LOCOMO-01/SCALE-01 preparation set and its accepted cross-lane correction;
+replace it with the verified integration SHA at each accepted lane close.
 
 ## Current lanes
 
@@ -37,11 +37,13 @@ accepted it and it is integrated here as `afbfeed2`. Its red-first, focused 10-t
 for that verifier is ignored local state, not a source change. No TC-5
 execution is authorized.
 
-The final cross-lane review accepted the integrated safety, configuration, and
-receipt boundaries but requested this documentation correction: active
-references to legacy `L0` and `T0` labels must use `LOCOMO-01` and `SCALE-01`.
-No implementation or execution evidence was challenged. The coordinator will
-obtain focused review of the correction before closing this preparation set.
+The final cross-lane review accepted the integrated safety, configuration,
+receipt, and no-live boundaries at `acc5fa9a`, after focused review accepted
+the active-identifier correction from legacy `L0`/`T0` to
+`LOCOMO-01`/`SCALE-01`. The unchanged combined full verifier passed
+(`agent-test.sh: 72/73 suites passed`, one documented skip; AC-037 had its
+expected environmental downgrade). No implementation or execution evidence was
+challenged.
 
 `PARENT-01` may consume the accepted trace contract in preparation but is not
 commissioned by this entry. The coordinator alone edits this board and PROGRAM
@@ -54,9 +56,9 @@ run, extractor, GPU/model, paid service, external write, or push.
 | --- | --- | --- | --- |
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
-| LOCOMO-01 | Active | Phase-A preparation integrated | `4bbc1b4f` integrates accepted worker `65427d29`: six frozen treatment tuples, 48-cell plan-only catalog, and no live runner. Next gate: separately authorized fixed-subset dry run/execution preparation; no live grid is authorized here. |
+| LOCOMO-01 | Active | Phase-A preparation integrated and cross-lane accepted | `4bbc1b4f` integrates accepted worker `65427d29`: six frozen treatment tuples, 48-cell plan-only catalog, and no live runner. Next gate: separately authorized fixed-subset dry run/execution preparation; no live grid is authorized here. |
 | PARENT-01 | Planned | Contract dependency satisfied; not commissioned | May consume the accepted trace contract in preparation; hold writer work behind the two-lane authorization. |
-| SCALE-01 | Planned | Manifest-runner preparation integrated | `afbfeed2` integrates accepted worker `9997c2cd`: a pure TC-5 manifest validator and safe planning receipt. Next gate: final cross-lane review, then separately authorized smoke/execution preparation; no live execution is authorized here. |
+| SCALE-01 | Planned | Manifest-runner preparation integrated and cross-lane accepted | `afbfeed2` integrates accepted worker `9997c2cd`: a pure TC-5 manifest validator and safe planning receipt. Next gate: separately authorized smoke/execution preparation; no live execution is authorized here. |
 | CORPUS-01 | Planned | Queued independent preparation | Create corpus/license matrix and human-gold readiness contract. |
 | ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |
 | MEMORY-01 | Blocked | Waiting for ANSWER-01 | Require selected profile, native prerequisites, and declared spend ceiling. |

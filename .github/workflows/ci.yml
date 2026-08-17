@@ -532,7 +532,27 @@ jobs:
             Write-Error "actual-checkpoint observation artifact is incomplete"
             exit 1
           }
-          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_projection_worker_transaction_is_owned_then_idle -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append
+          $projectionWorkerLog = "$env:RUNNER_TEMP\slice65-windows-wal-projection-worker.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $projectionWorkerLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $projectionWorkerLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "projection-worker attribution command selected zero tests"
+            exit 1
+          }
+          $projectionRequiredMarkers = @(
+            'slice65_wal projection_worker_original_erase=typed_erasure_incomplete owned_busy_attempts=5',
+            'slice65_wal projection_worker_completion_ack worker_autocommit=1 collector_roles=idle',
+            'slice65_wal projection_worker_native_state_inventory=state_inventory=complete reason=complete',
+            'slice65_wal projection_worker_sampler_native_state control=binding_sampler phase=before',
+            'slice65_wal projection_worker_sampler_native_state control=binding_sampler phase=after',
+            'slice65_wal projection_worker_sampler_terminal outcome='
+          )
+          foreach ($marker in $projectionRequiredMarkers) {
+            if (-not (Select-String -Path $projectionWorkerLog -SimpleMatch $marker -Quiet)) {
+              Write-Error "projection-worker attribution artifact is incomplete: $marker"
+              exit 1
+            }
+          }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $postCommitLog = "$env:RUNNER_TEMP\slice65-windows-wal-post-commit.log"
           cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $postCommitLog

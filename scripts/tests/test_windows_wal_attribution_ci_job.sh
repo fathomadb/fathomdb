@@ -134,7 +134,15 @@ assert_contains "$CODE" 'slice65_wal actual_checkpoint control=direct_rust phase
 assert_contains "$CODE" 'slice65_wal actual_checkpoint control=direct_rust phase=after' "job retains direct-Rust post-attempt facts"
 assert_contains "$CODE" 'slice65_wal actual_checkpoint control=python_serial phase=before' "job retains installed-Python pre-attempt facts"
 assert_contains "$CODE" 'slice65_wal actual_checkpoint control=python_serial phase=after' "job retains installed-Python post-attempt facts"
-assert_contains "$CODE" 'wal_attribution_projection_worker_transaction_is_owned_then_idle' "job runs projection transaction control"
+assert_contains "$CODE" 'wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded' "job runs truthful projection-worker record contract"
+assert_contains "$CODE" 'tests::wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded' "job selects the truthful full projection-worker lib-test path"
+assert_contains "$CODE" 'projection-worker attribution command selected zero tests' "job rejects a zero-test projection-worker invocation"
+assert_contains "$CODE" 'projection_worker_original_erase=typed_erasure_incomplete owned_busy_attempts=5' "job requires the original projection-worker typed busy marker"
+assert_contains "$CODE" 'projection_worker_completion_ack worker_autocommit=1 collector_roles=idle' "job requires post-finish projection-worker acknowledgement"
+assert_contains "$CODE" 'projection_worker_native_state_inventory=state_inventory=complete reason=complete' "job requires complete projection-worker native-state inventory"
+assert_contains "$CODE" 'projection_worker_sampler_native_state control=binding_sampler phase=before' "job requires projection-worker sampler before facts"
+assert_contains "$CODE" 'projection_worker_sampler_native_state control=binding_sampler phase=after' "job requires projection-worker sampler after facts"
+assert_contains "$CODE" 'projection_worker_sampler_terminal outcome=' "job requires projection-worker sampler terminal outcome"
 assert_contains "$CODE" 'tests::wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic' "job selects the exact post-commit diagnostic control"
 assert_contains "$CODE" 'post-commit diagnostic command selected zero tests' "job rejects a zero-test post-commit diagnostic invocation"
 assert_contains "$CODE" 'slice65_wal post_commit_ack direct_inventory=' "job requires direct post-commit transaction facts"
@@ -479,6 +487,31 @@ assert_contains "$managed_reader_body" \
 assert_absent "$managed_reader_body" \
   'retry after release' \
   "managed-reader diagnostic does not retry the original erase"
+projection_worker_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded")"
+projection_worker_erase_calls="$(grep -Fc 'opened.engine.complete_erasure_at_rest(' <<<"$projection_worker_body" || true)"
+if [ "$projection_worker_erase_calls" -eq 1 ]; then
+  pass "projection-worker diagnostic retains exactly one original erase"
+else
+  fail "projection-worker diagnostic must retain exactly one original erase; found $projection_worker_erase_calls"
+fi
+assert_contains "$projection_worker_body" \
+  'report_runtime_connection_inventory_for_test' \
+  "projection-worker diagnostic waits for post-finish owner-thread acknowledgement"
+assert_contains "$projection_worker_body" \
+  'native_state_inventory_for_test' \
+  "projection-worker diagnostic requires complete native-state inventory"
+assert_contains "$projection_worker_body" \
+  'state_inventory=incomplete' \
+  "projection-worker diagnostic emits incomplete inventory before failure"
+assert_contains "$projection_worker_body" \
+  'arm_binding_native_state_observation_for_test' \
+  "projection-worker diagnostic arms the bounded sampler observer"
+assert_contains "$projection_worker_body" \
+  'checkpoint_at_rest_for_test' \
+  "projection-worker diagnostic runs exactly one bounded sampler"
+assert_absent "$projection_worker_body" \
+  'retry after release' \
+  "projection-worker diagnostic does not retry the original erase"
 actual_checkpoint_engine_body="$(function_body "$ENGINE_SOURCE" "complete_erasure_at_rest")"
 assert_before_in_text \
   "$actual_checkpoint_engine_body" \

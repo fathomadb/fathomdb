@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fathomdb.dev/schemas/cuda-preflight-witness/v1",
+  "title": "FathomDB CUDA preflight witness",
+  "description": "A non-publishing, SHA-bound inventory of retained CUDA preflight evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidate_sha",
+    "evidence_sha256",
+    "outcome",
+    "schema_version"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "fathomdb.cuda-preflight-witness/v1"
+    },
+    "candidate_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "outcome": {
+      "const": "passed"
+    },
+    "evidence_sha256": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "driverless-napi-cpu-smoke.txt",
+        "driverless-python-cpu-smoke.txt",
+        "dynamic-dependencies.txt",
+        "environment.txt",
+        "gpu-node-cuda-smoke.txt",
+        "gpu-node-cuda-witness.txt",
+        "gpu-python-cuda-witness.txt",
+        "manylinux-build.txt",
+        "python-auditwheel.txt"
+      ],
+      "properties": {
+        "driverless-napi-cpu-smoke.txt": { "$ref": "#/$defs/sha256" },
+        "driverless-python-cpu-smoke.txt": { "$ref": "#/$defs/sha256" },
+        "dynamic-dependencies.txt": { "$ref": "#/$defs/sha256" },
+        "environment.txt": { "$ref": "#/$defs/sha256" },
+        "gpu-node-cuda-smoke.txt": { "$ref": "#/$defs/sha256" },
+        "gpu-node-cuda-witness.txt": { "$ref": "#/$defs/sha256" },
+        "gpu-python-cuda-witness.txt": { "$ref": "#/$defs/sha256" },
+        "manylinux-build.txt": { "$ref": "#/$defs/sha256" },
+        "python-auditwheel.txt": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

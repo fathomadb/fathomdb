@@ -53,7 +53,11 @@
         "properties": {
           "input": { "$ref": "#/$defs/complete_input" },
           "provenance": { "$ref": "#/$defs/complete_provenance" },
-          "matrix": { "minItems": 6, "maxItems": 6 },
+          "matrix": {
+            "minItems": 6,
+            "maxItems": 6,
+            "items": { "$ref": "#/$defs/complete_cell" }
+          },
           "integrity": { "$ref": "#/$defs/clean_integrity" },
           "summary": { "$ref": "#/$defs/summary" }
         }
@@ -73,7 +77,8 @@
       "then": {
         "properties": {
           "summary": { "type": "null" },
-          "input": { "$ref": "#/$defs/partial_retained_input" }
+          "input": { "$ref": "#/$defs/partial_retained_input" },
+          "matrix": { "$ref": "#/$defs/partial_matrix" }
         }
       }
     },
@@ -544,12 +549,46 @@
         "command_exit_status": { "const": 0 },
         "record": { "$ref": "#/$defs/record" },
         "query_statistics": { "$ref": "#/$defs/query_statistics" }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "record": { "properties": { "treatment": { "const": "warm" } } }
+            }
+          },
+          "then": { "properties": { "query_statistics": { "$ref": "#/$defs/warm_statistics" } } },
+          "else": { "properties": { "query_statistics": { "$ref": "#/$defs/cold_statistics" } } }
+        }
+      ]
     },
     "query_statistics": {
       "type": "object",
       "additionalProperties": false,
       "required": ["min_us", "max_us", "mean_us"],
+      "properties": {
+        "min_us": { "$ref": "#/$defs/nonnegative_integer" },
+        "max_us": { "$ref": "#/$defs/nonnegative_integer" },
+        "mean_us": { "type": "number", "minimum": 0 },
+        "p50_us": { "$ref": "#/$defs/nonnegative_integer" },
+        "p95_us": { "$ref": "#/$defs/nonnegative_integer" },
+        "p99_us": { "$ref": "#/$defs/nonnegative_integer" }
+      }
+    },
+    "cold_statistics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_us", "max_us", "mean_us"],
+      "properties": {
+        "min_us": { "$ref": "#/$defs/nonnegative_integer" },
+        "max_us": { "$ref": "#/$defs/nonnegative_integer" },
+        "mean_us": { "type": "number", "minimum": 0 }
+      }
+    },
+    "warm_statistics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_us", "max_us", "mean_us", "p50_us", "p95_us", "p99_us"],
       "properties": {
         "min_us": { "$ref": "#/$defs/nonnegative_integer" },
         "max_us": { "$ref": "#/$defs/nonnegative_integer" },
@@ -566,8 +605,47 @@
       "properties": {
         "rows": { "enum": [10000, 100000, 1000000] },
         "treatment": { "enum": ["process_cold", "warm"] },
-        "repetitions": { "type": "array", "minItems": 5, "maxItems": 5, "items": { "$ref": "#/$defs/repetition" } }
-      }
+        "repetitions": { "type": "array", "minItems": 1, "maxItems": 5, "items": { "$ref": "#/$defs/repetition" } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "treatment": { "const": "warm" } } },
+          "then": {
+            "properties": {
+              "repetitions": { "items": { "$ref": "#/$defs/warm_repetition" } }
+            }
+          },
+          "else": {
+            "properties": {
+              "repetitions": { "items": { "$ref": "#/$defs/cold_repetition" } }
+            }
+          }
+        }
+      ]
+    },
+    "cold_repetition": {
+      "allOf": [
+        { "$ref": "#/$defs/repetition" },
+        { "properties": { "record": { "properties": { "treatment": { "const": "process_cold" } } } } }
+      ]
+    },
+    "warm_repetition": {
+      "allOf": [
+        { "$ref": "#/$defs/repetition" },
+        { "properties": { "record": { "properties": { "treatment": { "const": "warm" } } } } }
+      ]
+    },
+    "complete_cell": {
+      "allOf": [
+        { "$ref": "#/$defs/cell" },
+        { "properties": { "repetitions": { "minItems": 5, "maxItems": 5 } } }
+      ]
+    },
+    "partial_matrix": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 6,
+      "items": { "$ref": "#/$defs/cell" }
     },
     "integrity": {
       "type": "object",
@@ -599,7 +677,37 @@
         "rows": { "enum": [10000, 100000, 1000000] },
         "treatment": { "enum": ["process_cold", "warm"] },
         "repetition_count": { "const": 5 },
-        "repetition_level": { "type": "object", "additionalProperties": { "$ref": "#/$defs/repetition_range" }, "minProperties": 3 }
+        "repetition_level": { "type": "object" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "treatment": { "const": "warm" } } },
+          "then": { "properties": { "repetition_level": { "$ref": "#/$defs/warm_summary_metrics" } } },
+          "else": { "properties": { "repetition_level": { "$ref": "#/$defs/cold_summary_metrics" } } }
+        }
+      ]
+    },
+    "cold_summary_metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_us", "max_us", "mean_us"],
+      "properties": {
+        "min_us": { "$ref": "#/$defs/repetition_range" },
+        "max_us": { "$ref": "#/$defs/repetition_range" },
+        "mean_us": { "$ref": "#/$defs/repetition_range" }
+      }
+    },
+    "warm_summary_metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_us", "max_us", "mean_us", "p50_us", "p95_us", "p99_us"],
+      "properties": {
+        "min_us": { "$ref": "#/$defs/repetition_range" },
+        "max_us": { "$ref": "#/$defs/repetition_range" },
+        "mean_us": { "$ref": "#/$defs/repetition_range" },
+        "p50_us": { "$ref": "#/$defs/repetition_range" },
+        "p95_us": { "$ref": "#/$defs/repetition_range" },
+        "p99_us": { "$ref": "#/$defs/repetition_range" }
       }
     },
     "repetition_range": {

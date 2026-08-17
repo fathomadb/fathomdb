@@ -4,8 +4,8 @@
 # Codifies the checks whose absence has cost real slices:
 #   * agent-worktree-stale-base-trap — a worktree cut from a stale base (main had
 #     advanced ~206 commits) silently lost two slices. The --worktree check below
-#     fails loudly when a worktree's HEAD is neither current main nor a descendant
-#     of it.
+#     fails loudly when a worktree's HEAD is neither its declared 0.8.23 release
+#     completion ref nor current main (or a descendant of the applicable ref).
 #   * dependency-not-actually-CLOSED — spawning a slice whose declared dependency
 #     never closed. The --expect-closed check greps the plan for the CLOSED block.
 #   * landing-in-the-primary-checkout — TC-RUBRIC-5 requires release orchestration
@@ -74,6 +74,48 @@ abs_dir() { ( cd "$1" 2>/dev/null && pwd -P ); }
 
 MAIN_SHA="$(git rev-parse main)"
 
+# 0.8.23 is explicitly completed on a release branch before its separately
+# governed integration to main. That declaration is an authority for fresh
+# slice worktrees, but only after the same narrow validation used by the
+# release-state view checker: an absent file keeps the legacy main-only rule;
+# a present but malformed, incomplete, or cross-release declaration fails
+# closed. Never infer a release ref from the branch name.
+RELEASE_COMPLETION_STATE="absent"
+RELEASE_COMPLETION_REF=""
+RELEASE_STATE_FILE="dev/plans/release-state-0.8.23.json"
+if [ -e "$RELEASE_STATE_FILE" ]; then
+  if RELEASE_COMPLETION_REF="$(python3 - "$RELEASE_STATE_FILE" <<'PY'
+import json
+import sys
+
+state_file = sys.argv[1]
+expected_ref = "origin/release/0.8.23"
+try:
+    with open(state_file, encoding="utf-8") as source:
+        state = json.load(source)
+except (OSError, json.JSONDecodeError) as exc:
+    raise SystemExit("cannot parse %s: %s" % (state_file, exc))
+
+if not isinstance(state, dict) or state.get("release") != "0.8.23":
+    raise SystemExit("release must be the exact string 0.8.23")
+completion = state.get("completion")
+if not isinstance(completion, dict) or set(completion) != {"ref", "main_integration"}:
+    raise SystemExit("completion must contain exactly ref and main_integration")
+if completion["ref"] != expected_ref:
+    raise SystemExit("completion.ref must be %s" % expected_ref)
+if completion["main_integration"] not in {"PENDING", "COMPLETE"}:
+    raise SystemExit("completion.main_integration must be PENDING or COMPLETE")
+print(expected_ref)
+PY
+  )"; then
+    RELEASE_COMPLETION_STATE="valid"
+  else
+    RELEASE_COMPLETION_STATE="invalid"
+    hard "release completion state is invalid in $RELEASE_STATE_FILE: $RELEASE_COMPLETION_REF"
+    RELEASE_COMPLETION_REF=""
+  fi
+fi
+
 # --- 1. Canonical repo is not mid-operation -------------------------------------
 GITDIR="$(git rev-parse --git-dir)"
 if [ -d "$GITDIR/rebase-merge" ] || [ -d "$GITDIR/rebase-apply" ]; then
@@ -112,14 +154,33 @@ if [ -n "$WT" ]; then
     hard "not a git worktree rooted at: $WT"
   else
     WT_HEAD="$(git -C "$WT" rev-parse HEAD)"
-    if [ "$WT_HEAD" = "$MAIN_SHA" ]; then
-      ok "worktree HEAD == current main ($MAIN_SHA) — freshly cut, no stale base"
-    elif [ "$(git merge-base "$MAIN_SHA" "$WT_HEAD")" = "$MAIN_SHA" ]; then
-      warn "worktree has advanced past main (main is an ancestor) — OK if it carries this slice's commits"
-    else
-      hard "STALE BASE: worktree HEAD ($WT_HEAD) is not current main and main is not its ancestor."
-      hard "  -> re-create the worktree off \$(git rev-parse main). See agent-worktree-stale-base-trap."
-    fi
+    case "$RELEASE_COMPLETION_STATE" in
+      valid)
+        if ! RELEASE_COMPLETION_SHA="$(git rev-parse --verify --quiet "${RELEASE_COMPLETION_REF}^{commit}")"; then
+          hard "release completion ref $RELEASE_COMPLETION_REF is not a locally verifiable commit — fetch it or correct $RELEASE_STATE_FILE"
+        elif [ "$WT_HEAD" = "$RELEASE_COMPLETION_SHA" ]; then
+          ok "worktree HEAD == declared completion ref $RELEASE_COMPLETION_REF ($RELEASE_COMPLETION_SHA) — freshly cut, no stale base"
+        elif [ "$(git merge-base "$RELEASE_COMPLETION_SHA" "$WT_HEAD")" = "$RELEASE_COMPLETION_SHA" ]; then
+          warn "worktree has advanced past declared completion ref $RELEASE_COMPLETION_REF — OK if it carries this slice's commits"
+        else
+          hard "STALE RELEASE BASE: worktree HEAD ($WT_HEAD) is not declared completion ref $RELEASE_COMPLETION_REF and that ref is not its ancestor."
+          hard "  -> re-create the worktree off \$(git rev-parse $RELEASE_COMPLETION_REF). See agent-worktree-stale-base-trap."
+        fi
+        ;;
+      invalid)
+        info "release completion state is invalid; stale-base acceptance is refused rather than falling back to main"
+        ;;
+      absent)
+        if [ "$WT_HEAD" = "$MAIN_SHA" ]; then
+          ok "worktree HEAD == current main ($MAIN_SHA) — freshly cut, no stale base"
+        elif [ "$(git merge-base "$MAIN_SHA" "$WT_HEAD")" = "$MAIN_SHA" ]; then
+          warn "worktree has advanced past main (main is an ancestor) — OK if it carries this slice's commits"
+        else
+          hard "STALE BASE: worktree HEAD ($WT_HEAD) is not current main and main is not its ancestor."
+          hard "  -> re-create the worktree off \$(git rev-parse main). See agent-worktree-stale-base-trap."
+        fi
+        ;;
+    esac
     # maturin/pip -e from a worktree rebinds the shared .venv to the worktree tree.
     info "reminder: do NOT 'maturin develop' / 'pip install -e' from a worktree — build on the MAIN tree only."
   fi

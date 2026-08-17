@@ -16,6 +16,7 @@ for rows in 10000 100000 1000000; do
         AC013_SCALE_TREATMENT="$treatment" LOG_PATH="$log" \
         bash "$runner"
       sha256sum "$log" >"$log.sha256"
+      sha256sum -c "$log.sha256"
     done
   done
 done

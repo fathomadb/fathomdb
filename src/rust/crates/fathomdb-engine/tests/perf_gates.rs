@@ -640,6 +640,12 @@ fn ac_013_vector_retrieval_latency() {
     let embedder = Arc::new(VaryingEmbedder::new(retrieval_vector_dim()));
     let opened = Engine::open_with_embedder_for_test(&path, embedder).expect("open");
     let seed_elapsed = seed_ac013_corpus(&opened.engine, n);
+    let vector_rows_after_drain =
+        opened.engine.vector_row_count_for_test().expect("vector rows after drain");
+    assert_eq!(
+        vector_rows_after_drain, n as u64,
+        "drain must materialize every accepted vector row"
+    );
 
     let queries = ac013_query_bodies(PERF_SAMPLES);
     let treatment_env = std::env::var("AC013_SCALE_TREATMENT").ok();
@@ -648,7 +654,7 @@ fn ac_013_vector_retrieval_latency() {
         let started = Instant::now();
         let result = opened.engine.search(&queries[0]).expect("cold first search");
         eprintln!(
-            "AC013_TREATMENT_RECORD treatment=process_cold n={n} seed_write_ms={} embedding_ms=not_separately_observable projection_drain_ms={} accepted_writes={n} vector_rows_after_drain={n} drain_outcome=ok samples_us={} result_counts={}",
+            "AC013_TREATMENT_RECORD treatment=process_cold n={n} seed_write_ms={} embedding_ms=not_separately_observable projection_drain_ms={} accepted_writes={n} vector_rows_after_drain={vector_rows_after_drain} drain_outcome=ok samples_us={} result_counts={}",
             seed_elapsed.seed_write.as_millis(),
             seed_elapsed.projection_drain.as_millis(),
             started.elapsed().as_micros(), result.results.len(),
@@ -683,7 +689,7 @@ fn ac_013_vector_retrieval_latency() {
             .collect::<Vec<_>>()
             .join(",");
         eprintln!(
-            "AC013_TREATMENT_RECORD treatment=warm n={n} seed_write_ms={} embedding_ms=not_separately_observable projection_drain_ms={} accepted_writes={n} vector_rows_after_drain={n} drain_outcome=ok samples_us={raw_samples} result_counts=not_retained_per_query",
+            "AC013_TREATMENT_RECORD treatment=warm n={n} seed_write_ms={} embedding_ms=not_separately_observable projection_drain_ms={} accepted_writes={n} vector_rows_after_drain={vector_rows_after_drain} drain_outcome=ok samples_us={raw_samples} result_counts=not_retained_per_query",
             seed_elapsed.seed_write.as_millis(), seed_elapsed.projection_drain.as_millis(),
         );
     }

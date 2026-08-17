@@ -24,6 +24,13 @@ status=${PIPESTATUS[0]}
 set -e
 
 grep -E '^AC013_NUMBERS ' "$LOG_PATH" || true
-grep -E '^AC013_TREATMENT_RECORD ' "$LOG_PATH" || true
+if [ -n "${AC013_SCALE_TREATMENT:-}" ]; then
+  matches="$(awk -v treatment="$AC013_SCALE_TREATMENT" '$1 == "AC013_TREATMENT_RECORD" && $2 == "treatment=" treatment { count++ } END { print count + 0 }' "$LOG_PATH")"
+  if [ "$matches" -ne 1 ]; then
+    printf 'AC-013 treatment record mismatch: requested=%s matching_records=%s\n' "$AC013_SCALE_TREATMENT" "$matches" >&2
+    exit 1
+  fi
+  grep -E "^AC013_TREATMENT_RECORD treatment=${AC013_SCALE_TREATMENT} " "$LOG_PATH"
+fi
 
 exit "$status"

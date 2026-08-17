@@ -7,10 +7,11 @@ index remain the source of execution evidence.
 
 **Last reconciled:** 2026-08-16
 
-**Integration base:** `2598aad5` on
+**Integration base:** `d8b2ac7d` on
 `experiments/performance-experiments-20260815`. This is the verified initial
-executor, qualification, and coordinator-state set; replace it with the
-verified integration SHA at each accepted lane close.
+executor, qualification, and coordinator-state set plus the accepted LOCOMO
+normalized-corpus correction; replace it with the verified integration SHA at
+each accepted lane close.
 
 ## Current lanes
 
@@ -264,12 +265,14 @@ The final TC-5 qualification remediation `b4189424` and LOCOMO/PARENT
 qualification remediation `86f63dfd` were independently accepted and are
 integrated here as `aa3ce63a` and `db3a9363`, respectively. Their safe external
 reports establish hard factual blockers: TC-5 has no exact eligible all-real
-18,472/7,667 source, manifest, ground truth, or runtime inventory; LOCOMO has
-a frozen corpus-pin mismatch, no fixed subset, and globally ambiguous child
-IDs for the parent proof. Both reports are `blocked_prerequisite`, no-live, and
-release-ineligible. GPU/CE also remains blocked because the NVIDIA driver is
-not usable. No substitute corpus, synthetic padding, historical EU7 output,
-or cross-release evidence may clear these gates.
+18,472/7,667 source, manifest, ground truth, or runtime inventory. LOCOMO's
+initial report also listed a corpus mismatch, later shown to be a raw-versus-
+normalized validation defect; its remaining blockers are the missing fixed
+subset and globally ambiguous child IDs for the parent proof. Both reports are
+`blocked_prerequisite`, no-live, and release-ineligible. GPU/CE also remains
+blocked because the NVIDIA driver is not usable. No substitute corpus,
+synthetic padding, historical EU7 output, or cross-release evidence may clear
+these gates.
 
 The CORPUS-01 final handoff `c540a9d7` was independently accepted and is
 integrated here as `c419399e`. The matrix/protocol now fails closed on
@@ -285,17 +288,14 @@ integrated, but all authorized measurements remain blocked on their factual
 external prerequisites and a coordinator release. No action, result, receipt,
 or experiment-index row has been issued after HITL authorization.
 
-A follow-up LOCOMO/PARENT qualification correction is commissioned from
-`2d8fff80` on a dedicated worktree. A current factual audit verified that the
-available raw LOCOMO corpus has the historical raw SHA-256 and produces the
-frozen normalized corpus SHA-256 through `eval.locomo_loader`. The integrated
-qualifier instead compares raw file bytes directly with the normalized pin and
-therefore reports a spurious corpus mismatch. The worker may add only
-red-first, no-live validation that derives the canonical normalized hash from
-the external raw corpus; it may not alter frozen pins, fabricate the absent
-32-question subset, rewrite the ambiguous parent identity scheme, or release
-an action. The remaining factual blocks are still the missing fixed subset and
-unambiguous canonical parent proof.
+The follow-up LOCOMO/PARENT qualification correction was independently accepted
+and integrated here as `d8b2ac7d`. It derives the canonical normalized corpus
+hash through `eval.locomo_loader` from the available historical raw corpus,
+which has the expected raw SHA-256 and produces the frozen Phase-B digest. The
+correction is red-first and no-live; it changes no frozen pin, subset,
+parent-identity scheme, or release boundary. It supersedes the initial report's
+raw-versus-normalized corpus mismatch. The remaining factual blocks are the
+missing fixed subset and unambiguous canonical parent proof.
 
 ## Track status
 
@@ -303,7 +303,7 @@ unambiguous canonical parent proof.
 | --- | --- | --- | --- |
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
-| LOCOMO-01 | Active | Blocked prerequisite: frozen corpus/subset proof absent; no release | `db3a9363` integrates independently accepted `86f63dfd`; safe evidence reports frozen corpus-pin drift and missing fixed-subset metadata. A byte-matching corpus and subset must be qualified before a coordinator-bound CPU dry-run release. |
+| LOCOMO-01 | Active | Blocked prerequisite: fixed-subset and canonical-parent proof absent; no release | `d8b2ac7d` integrates the independently accepted normalized-corpus correction: the available historical raw corpus produces the frozen Phase-B digest. A frozen 32-question subset and unambiguous canonical parent provenance must still be qualified before a coordinator-bound CPU dry-run release. |
 | PARENT-01 | Active | Blocked prerequisite: no unambiguous canonical parent proof; no release | `db3a9363` records global child-ID ambiguity and no parent-relation proof. A qualified unambiguous identity/provenance source is required; GPU cells also wait for a working NVIDIA driver. |
 | SCALE-01 | Active | Blocked prerequisite: no exact all-real TC-5 source/runtime inventory; no release | `aa3ce63a` integrates independently accepted `b4189424`; safe evidence finds no 18,472/7,667 all-real manifest, ground truth, or runtime. A qualified source/manifest/output/CPU/model/ground-truth set is required before a smoke release. |
 | CORPUS-01 | Active | Matrix/protocol integrated; factual qualification and any approved human-gold batch pending | `c419399e` integrates independently accepted `c540a9d7`; 21 integrated focused tests pass. `seq-249` authorizes corpus/license matrix and human-gold work. Next gate: qualify existing external corpus facts and, only if required, create a coordinator-bound trusted amendment registry before a human-review batch. |

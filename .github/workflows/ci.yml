@@ -572,7 +572,7 @@ jobs:
       - name: Build current disposable test-hooks wheel
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
-          args: --release --out dist-slice65-test -i python3.11 --features pyo3/extension-module,test-hooks
+          args: --release --out ${{ github.workspace }}/dist-slice65-test -i python3.11 --features pyo3/extension-module,test-hooks
           working-directory: src/python
       - name: Run installed-wheel attribution controls
         shell: pwsh
@@ -603,7 +603,12 @@ jobs:
             exit 1
           }
           python -m venv $currentEnv
-          $currentWheelCandidates = @(Get-ChildItem -Path "dist-slice65-test" -Filter "*.whl" -File)
+          $currentWheelDir = Join-Path $env:GITHUB_WORKSPACE "dist-slice65-test"
+          if (-not (Test-Path -LiteralPath $currentWheelDir -PathType Container)) {
+            Write-Error "disposable current test-hooks wheel directory is missing: $currentWheelDir"
+            exit 1
+          }
+          $currentWheelCandidates = @(Get-ChildItem -LiteralPath $currentWheelDir -Filter "*.whl" -File)
           if ($currentWheelCandidates.Count -ne 1) {
             Write-Error "expected exactly one disposable current test-hooks wheel, found $($currentWheelCandidates.Count)"
             exit 1

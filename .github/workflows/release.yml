@@ -526,6 +526,7 @@ jobs:
             --python-wheel "$wheel" \
             --npm-main "$npm_main" \
             --napi-platform "$napi_platform" \
+            --hf-home "${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}" \
             --smoke-dir cuda-package-smoke
       - name: Seal exact non-publishing CUDA package rehearsal bundle
         shell: bash

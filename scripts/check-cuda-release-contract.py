@@ -298,6 +298,8 @@ def require_cuda_package_rehearsal() -> None:
     for fragment in (
         'docker run --rm --network none',
         'env -i PATH=',
+        'HF_HOME=/fathomdb-hf',
+        'dst=/fathomdb-hf,readonly',
         'test ! -e /dev/nvidiactl',
         "--gpus ",
         "device=0",
@@ -342,6 +344,7 @@ def require_cuda_package_rehearsal() -> None:
         "control-plane/scripts/release/verify-cuda-preflight-witness.py",
         "ref: ${{ env.RELEASE_CHECKOUT_REF }}",
         "bash scripts/release/cuda-package-rehearsal-smoke.sh",
+        "--hf-home \"${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}\"",
         "bash candidate/scripts/release/cuda-package-rehearsal.sh",
         "name: cuda-package-rehearsal",
         "name: python-dist-x86_64-unknown-linux-gnu",

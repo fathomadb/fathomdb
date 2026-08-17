@@ -61,3 +61,4 @@ for rows in 10000 100000 1000000; do
   done
 done
 python3 "$helper" seal --root "$SCALE_OUTPUT_DIR"
+python3 "$helper" emit-complete --root "$SCALE_OUTPUT_DIR"

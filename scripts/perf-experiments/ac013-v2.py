@@ -9,6 +9,7 @@ import os
 import re
 import subprocess
 from pathlib import Path
+from statistics import median
 from typing import Any
 
 PROTOCOL = "0.8.23-scale-characterization-v2"
@@ -334,6 +335,27 @@ def cells(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
+def summarize(matrix: list[dict[str, Any]]) -> dict[str, Any]:
+    summary = []
+    for cell in matrix:
+        treatment = cell["treatment"]
+        keys = ("min_us", "max_us", "mean_us")
+        if treatment == "warm":
+            keys += ("p50_us", "p95_us", "p99_us")
+        repetitions = cell["repetitions"]
+        level = {}
+        for key in keys:
+            values = [repetition["query_statistics"][key] for repetition in repetitions]
+            level[key] = {"median": median(values), "min": min(values), "max": max(values)}
+        summary.append({
+            "rows": cell["rows"],
+            "treatment": treatment,
+            "repetition_count": len(repetitions),
+            "repetition_level": level,
+        })
+    return {"cells": summary}
+
+
 def validate_artifact(artifact: dict[str, Any]) -> None:
     try:
         import jsonschema
@@ -379,6 +401,11 @@ def validate_root(root: Path, allow_test_fixture: bool) -> None:
     match = ROOT_NAME.fullmatch(root.name)
     if match is None or (not allow_test_fixture and match.group(1) != candidate):
         raise SystemExit("V2 root candidate SHA does not agree with root name")
+    try:
+        provenance = json.loads((root / "provenance.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise SystemExit(f"cannot read V2 root provenance: {error}") from error
+    validate_provenance(provenance, candidate)
     logs = [log_name(*item) for item in matrix_tuples()]
     required = {"provenance.json", "matrix-manifest.json", *logs, *(f"{log}.sha256" for log in logs)}
     found = {path.name for path in root.iterdir()}
@@ -402,9 +429,42 @@ def validate_root(root: Path, allow_test_fixture: bool) -> None:
             raise SystemExit(f"V2 record or sidecar invalid: {log}")
 
 
+def emit_complete(root: Path) -> None:
+    validate_root(root, is_test())
+    candidate = candidate_from(root)
+    try:
+        provenance = json.loads((root / "provenance.json").read_text(encoding="utf-8"))
+        manifest = json.loads((root / "matrix-manifest.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise SystemExit(f"cannot read V2 complete root: {error}") from error
+    entries = manifest["entries"]
+    matrix = cells(entries)
+    artifact = {
+        "schema_version": 2,
+        "protocol": PROTOCOL,
+        "status": "CHARACTERIZED",
+        "claim_scope": "fixture_scoped_non_ann_two_phase_vector_characterization",
+        "input": {
+            "kind": "complete",
+            "root": root_reference(root),
+            "manifest": manifest,
+            "regular_file_count": 62,
+        },
+        "provenance": provenance,
+        "matrix": matrix,
+        "integrity": {"raw_log_digests": entries, "invalid_reasons": [], "missing_prerequisites": []},
+        "summary": summarize(matrix),
+        "next_step": "review fixture-scoped characterization; do not infer a supported-scale claim",
+    }
+    if artifact["input"]["manifest"]["candidate_head_sha"] != candidate:
+        raise SystemExit("V2 complete manifest candidate disagrees with root")
+    validate_artifact(artifact)
+    write_json(status_path(root), artifact)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("begin", "partial", "seal", "validate-record", "emit-status", "validate-root"))
+    parser.add_argument("command", choices=("begin", "partial", "seal", "validate-record", "emit-status", "validate-root", "emit-complete"))
     parser.add_argument("--root", required=True, type=Path)
     parser.add_argument("--failed-rows", type=int)
     parser.add_argument("--failed-treatment", choices=TREATMENTS)
@@ -432,6 +492,8 @@ def main() -> int:
         emit_status(root, args.status, args.reason)
     elif args.command == "validate-root":
         validate_root(root, args.test_fixture)
+    elif args.command == "emit-complete":
+        emit_complete(root)
     else:
         values = (args.failed_rows, args.failed_treatment, args.failed_repetition)
         if any(value is not None for value in values) and any(value is None for value in values):

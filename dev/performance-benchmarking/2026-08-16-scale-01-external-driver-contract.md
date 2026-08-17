@@ -54,15 +54,15 @@ files. Its 100 canonical query rows bind their content hashes and the fixed
 query-selection seed. Payload text, document IDs, query text, and paths stay
 inside that runtime.
 
-The external runtime needs the reviewed FathomDB CPU wheel built with the
-dev-only `test-hooks` feature. The added private
-`_set_vector_stage_only_for_test` seam selects the exact pre-fusion vector
-stage; absence of that seam fails closed instead of measuring fused search. The
-driver opens a fresh external database, ingests only the selected all-real
-documents, embeds queries/documents with the pinned model, computes the exact
-f32 top-10 ranks, and compares them to the engine vector-stage top-10 ranks.
-It emits only their digests, aggregate recall/CI/sigma, completion counts, and
-manifest-derived provenance.
+The current public FathomDB binding deliberately does not expose a
+vector-stage selector. Therefore the driver has a sealed runtime protocol and
+fails closed by default: it cannot call public `Engine.search()` as a fused
+search substitute. A later, separately reviewed external CPU runtime must
+implement that protocol against the exact pre-fusion vector-stage seam, ingest
+only the selected all-real documents, compute same-model exact-f32 top-10
+ranks, and compare them to the engine vector-stage top-10 ranks. It returns
+only digests and per-query recall to this driver; the driver projects aggregate
+recall/CI/sigma, completion counts, and manifest-derived provenance.
 
 No GPU fallback, synthetic padding, partial query/bootstrap completion,
 non-finite statistic, raw input field, SCALE-02 claim, receipt, or index append
@@ -72,15 +72,15 @@ is representable in the driver output.
 
 Before an authorized smoke, the coordinator must verify all of the following:
 
-1. An accepted integrated SHA containing this driver and the private
-   test-hook seam; the external executable copy's SHA-256 is named in the
-   release sidecar.
+1. An accepted integrated SHA containing this driver; the external executable
+   copy's SHA-256 is named in the release sidecar.
 2. A CORPUS-01-qualified external manifest, corpus-input file, payload root,
    and 100-query input set whose hashes/identity match the manifest and
    license/provenance record.
-3. A CPU host with no GPU selected, a cached pinned model asset, and a reviewed
-   CPU test-hook wheel. The release must bind the host/model facts and external
-   output root through the existing live-executor contract.
+3. A CPU host with no GPU selected, a cached pinned model asset, and a
+   separately reviewed exact vector-stage runtime package. The release must
+   bind the host/model/runtime facts and external output root through the
+   existing live-executor contract.
 4. An external output root with the executor-created arm directory/result
    destination. Historical EU7 outputs and repository paths remain forbidden.
 

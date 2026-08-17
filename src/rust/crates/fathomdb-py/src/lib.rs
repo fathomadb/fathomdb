@@ -1747,14 +1747,6 @@ impl PyEngine {
         Ok(())
     }
 
-    /// TC-5 external-driver-only test seam for measuring the engine's exact
-    /// pre-fusion vector-stage SUT. This is compiled only with `test-hooks`;
-    /// it is intentionally absent from production wheels and the public stub.
-    #[cfg(any(test, feature = "test-hooks"))]
-    fn _set_vector_stage_only_for_test(&self, enabled: bool) {
-        self.inner.set_vector_stage_only_for_test(enabled);
-    }
-
     #[pyo3(signature = (logger, heartbeat_interval_ms = None))]
     fn attach_logging_subscriber(
         &self,

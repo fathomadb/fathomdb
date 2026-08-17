@@ -190,3 +190,11 @@ def test_driver_rejects_result_path_escape_before_loading_external_inputs(tmp_pa
             input_loader=lambda _request: pytest.fail("must not load external inputs"),
             runtime_factory=lambda _request: pytest.fail("must not load runtime"),
         )
+
+
+def test_default_driver_runtime_refuses_to_substitute_fused_search(tmp_path):
+    environment = _environment(tmp_path)
+
+    with pytest.raises(driver.Tc5ExternalDriverError, match="exact vector-stage runtime"):
+        driver.run_driver(environment, input_loader=lambda _request: _inputs(7667))
+    assert not Path(environment["TC5_ARM_RESULT_PATH"]).exists()

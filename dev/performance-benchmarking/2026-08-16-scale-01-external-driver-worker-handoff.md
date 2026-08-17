@@ -13,12 +13,11 @@ operation was run.
 
 - `experiments/tc5_external_driver.py`
 - `tests/experiments/test_tc5_external_driver.py`
-- `src/rust/crates/fathomdb-py/src/lib.rs` only for the dev-only,
-  `test-hooks`-gated vector-stage measurement seam
 - this contract and handoff
 
 The worker did not change the TC-5 manifest/live executor, historical EU7
-test/output, shared receipt/index helper, PROGRAM, or Track Runner state.
+test/output, shared receipt/index helper, Rust/Python binding source, PROGRAM,
+or Track Runner state.
 
 ## Red/green evidence
 
@@ -28,8 +27,8 @@ test/output, shared receipt/index helper, PROGRAM, or Track Runner state.
    exist.
 2. The implementation adds strict environment parsing, external-root
    containment, manifest/corpus-input binding, deterministic bootstrap
-   projection, exact test-hooked vector-stage runtime, and a content-free
-   `tc5-arm-result.v1` writer.
+   projection, a sealed exact-runtime protocol that refuses fused-search
+   substitution, and a content-free `tc5-arm-result.v1` writer.
 3. Focused verification after implementation:
 
    ```text
@@ -52,8 +51,8 @@ test/output, shared receipt/index helper, PROGRAM, or Track Runner state.
 2. Confirm `tc5-corpus-input.v1` binds the selected canonical manifest rows,
    contained payload paths, hashes, and all 100 fixed queries without leaking
    them into the arm-result sidecar.
-3. Confirm the new PyO3 method is `test-hooks`-only and that the driver fails
-   when the exact pre-fusion vector-stage seam is unavailable; it must never
+3. Confirm the default runtime fails when no separately reviewed exact
+   pre-fusion vector-stage implementation is supplied; it must never
    substitute fused search.
 4. Confirm historical EU7 and all coordinator-owned files remain untouched.
 

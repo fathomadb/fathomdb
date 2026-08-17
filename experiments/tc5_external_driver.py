@@ -39,7 +39,6 @@ TC5_ARM_RESULT_V1 = "tc5-arm-result.v1"
 TC5_CORPUS_INPUT_V1 = "tc5-corpus-input.v1"
 _SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
-_REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 _ARM_COUNTS = {"bridge": BRIDGE_DOCUMENT_COUNT, "primary": PRIMARY_DOCUMENT_COUNT}
 _ACTIONS = {"tc5-smoke", "tc5-long-cpu-characterization"}
 _REQUIRED_ENV = {
@@ -169,6 +168,19 @@ def _canonical(value: object) -> bytes:
     )
 
 
+def _repository_root() -> Path | None:
+    """Find a checkout only when this source is executing from one."""
+    for candidate in Path(__file__).resolve().parents:
+        if (candidate / ".git").exists():
+            return candidate
+    return None
+
+
+def _is_repository_path(path: Path) -> bool:
+    root = _repository_root()
+    return root is not None and path.is_relative_to(root)
+
+
 def _no_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
     result: dict[str, object] = {}
     for key, value in pairs:
@@ -192,14 +204,14 @@ def _sha256(value: object, label: str) -> str:
 
 def _external_file(value: str, label: str) -> Path:
     path = Path(value).resolve()
-    if path.is_relative_to(_REPOSITORY_ROOT) or not path.is_file():
+    if _is_repository_path(path) or not path.is_file():
         raise Tc5ExternalDriverError(f"{label} must be an existing external file")
     return path
 
 
 def _external_directory(value: str, label: str) -> Path:
     path = Path(value).resolve()
-    if path.is_relative_to(_REPOSITORY_ROOT) or not path.is_dir():
+    if _is_repository_path(path) or not path.is_dir():
         raise Tc5ExternalDriverError(f"{label} must be an existing external directory")
     return path
 
@@ -209,7 +221,7 @@ def _safe_result_path(output_root: Path, value: str) -> Path:
     if not candidate.is_absolute():
         raise Tc5ExternalDriverError("arm result path must be absolute")
     resolved = candidate.resolve(strict=False)
-    if not resolved.is_relative_to(output_root) or resolved.is_relative_to(_REPOSITORY_ROOT):
+    if not resolved.is_relative_to(output_root) or _is_repository_path(resolved):
         raise Tc5ExternalDriverError("arm result path must remain under the external output root")
     return resolved
 
@@ -379,76 +391,24 @@ def _recall_at_10(ranked: Sequence[str], ground_truth: Sequence[str]) -> float:
 
 
 class FathomDBTc5Runtime:
-    """Exact test-hooked CPU FathomDB vector-stage runtime for one external arm."""
+    """Fail closed until a separately reviewed exact vector-stage runtime is supplied.
 
-    def measure(self, request: Tc5RuntimeRequest) -> Tc5Measurement:
-        """Run the frozen 1-bit K=192 stage against same-model exact-f32 ranks."""
-        try:
-            from fathomdb import Engine
-        except ImportError as exc:
-            raise Tc5ExternalDriverError("external runtime lacks the reviewed FathomDB CPU wheel") from exc
-        database = request.output_root / ".tc5-runtime" / f"{request.action}-{request.arm}.sqlite"
-        database.parent.mkdir(parents=True, exist_ok=True)
-        engine = Engine.open(str(database), use_default_embedder=True)
-        try:
-            native = getattr(engine, "_native", None)
-            configure = getattr(native, "_configure_vector_kind_for_test", None)
-            vector_stage = getattr(native, "_set_vector_stage_only_for_test", None)
-            if not callable(configure) or not callable(vector_stage):
-                raise Tc5ExternalDriverError(
-                    "external runtime lacks the reviewed TC-5 test-hooked vector-stage seam"
-                )
-            configure("tc5_document")
-            engine.write(
-                [
-                    {
-                        "kind": "tc5_document",
-                        "body": document.text,
-                        "logical_id": document.document_id,
-                        "source_id": "scale-01-tc5-external",
-                    }
-                    for document in request.inputs.documents
-                ]
-            )
-            engine.drain(timeout_s=3_600)
-            vector_stage(True)
-            document_vectors = {
-                document.document_id: tuple(engine.embed(document.text)) for document in request.inputs.documents
-            }
-            ground_truth_rows: list[tuple[str, tuple[str, ...]]] = []
-            sut_rows: list[tuple[str, tuple[str, ...]]] = []
-            recalls: list[float] = []
-            for query in request.inputs.queries:
-                query_vector = tuple(engine.embed(query.text))
-                exact = tuple(
-                    document_id
-                    for document_id, _ in sorted(
-                        (
-                            (document_id, _squared_l2(query_vector, vector))
-                            for document_id, vector in document_vectors.items()
-                            if document_id != query.exclude_document_id
-                        ),
-                        key=lambda item: (item[1], item[0]),
-                    )[:10]
-                )
-                result = engine.search(query.text, limit=10)
-                ranked = tuple(str(hit.id.value) for hit in result.results)
-                recalls.append(_recall_at_10(ranked, exact))
-                ground_truth_rows.append((query.query_id, exact))
-                sut_rows.append((query.query_id, ranked))
-            return Tc5Measurement(
-                ground_truth_sha256=hashlib.sha256(_canonical(ground_truth_rows)).hexdigest(),
-                sut_result_sha256=hashlib.sha256(_canonical(sut_rows)).hexdigest(),
-                per_query_recall=tuple(recalls),
-            )
-        finally:
-            engine.close()
+    The supported Python binding deliberately has no vector-stage selector. A
+    public ``Engine.search`` call would measure fused retrieval instead, so the
+    driver never treats it as a substitute. An external operational deployment
+    supplies a reviewed :class:`Tc5Runtime` implementation directly to this
+    module's sealed runner package; the repository-side executable remains
+    synthetic-fixture-testable without expanding a shared binding surface.
+    """
 
+    def __init__(self, _request: _DriverRequest) -> None:
+        """Retain the factory shape without accepting a runtime control input."""
 
-def _squared_l2(left: Sequence[float], right: Sequence[float]) -> float:
-    if len(left) != len(right):
-        raise Tc5ExternalDriverError("same-model exact-f32 vector dimensions drifted")
-    return sum((float(a) - float(b)) ** 2 for a, b in zip(left, right, strict=True))
+    def measure(self, _request: Tc5RuntimeRequest) -> Tc5Measurement:
+        """Refuse a fused-search fallback when the exact runtime is absent."""
+        raise Tc5ExternalDriverError(
+            "external TC-5 deployment lacks a separately reviewed exact vector-stage runtime"
+        )
 
 
 def _bootstrap(values: tuple[float, ...]) -> tuple[float, float, float]:

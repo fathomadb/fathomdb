@@ -26,6 +26,7 @@ EXPECTED_READY_TRIPLES = {
     "darwin-arm64",
     "win32-x64-msvc",
 }
+CUDA_LINUX_X64 = ("ubuntu-latest", "x86_64-unknown-linux-gnu", "linux-x64-gnu")
 JOB_HEADER = re.compile(r"^  ([A-Za-z][A-Za-z0-9_-]*):\s*$")
 MATRIX_RUNNER = re.compile(r"^          - runner: ([^\s#]+)\s*$")
 MATRIX_VALUE = re.compile(r"^            ([a-z_]+): ([^\s#]+)\s*$")
@@ -224,6 +225,39 @@ def require_candidate_free(job_name: str, block: str) -> None:
         fail(f"{job_name} must be unreachable from an unmerged candidate dispatch")
 
 
+def require_trusted_linux_x64_cuda_producer(jobs: dict[str, str]) -> None:
+    job_name = "cuda-package-rehearsal"
+    block = jobs.get(job_name)
+    if block is None:
+        fail("release workflow lacks the sole trusted Linux x64 CUDA package producer")
+    required = (
+        "needs: [verify-release, verify-cuda-trusted-route, cuda-contract-preflight]",
+        "if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}",
+        "runs-on: [self-hosted, Linux, X64, gpu, cuda-12]",
+        "environment: cuda-unmerged-preflight",
+        "permissions:\n      contents: read",
+        "ref: ${{ github.workflow_sha }}",
+        "persist-credentials: false",
+        "control-plane/scripts/release/verify-cuda-unmerged-receipt.py",
+        "control-plane/scripts/release/verify-cuda-preflight-witness.py",
+        "ref: ${{ env.RELEASE_CHECKOUT_REF }}",
+        "bash ../control-plane/scripts/release/cuda-package-rehearsal-smoke.sh",
+        "bash control-plane/scripts/release/cuda-package-rehearsal.sh",
+        "name: python-dist-x86_64-unknown-linux-gnu",
+        "name: napi-linux-x64-gnu",
+    )
+    for fragment in required:
+        if fragment not in block:
+            fail(f"{job_name} is missing required trusted-producer fragment {fragment!r}")
+    if "contents: write" in block or "id-token: write" in block or "registry-url:" in block:
+        fail("trusted Linux x64 CUDA producer must not receive publishing capability")
+    all_builds = jobs.get("all-builds-passed")
+    if all_builds is None or job_name not in needs("all-builds-passed", all_builds):
+        fail("all-builds-passed must depend on the trusted Linux x64 CUDA producer")
+    if "needs.cuda-package-rehearsal.result == 'success'" not in all_builds:
+        fail("all-builds-passed must require the trusted Linux x64 CUDA producer success")
+
+
 def main() -> None:
     repo = root()
     manifest = read_json(repo / "dev/platform-capabilities.json")
@@ -260,6 +294,10 @@ def main() -> None:
 
     jobs = workflow_jobs(repo / ".github/workflows/release.yml")
     expected_build = {(entry["runner"], entry["rust_target"]) for entry in ready}
+    cuda_build = CUDA_LINUX_X64[:2]
+    if cuda_build not in expected_build:
+        fail("platform manifest lacks the Linux x64 native triple routed through trusted CUDA rehearsal")
+    expected_ordinary_build = expected_build - {cuda_build}
     for job_name, label_required in (("build-python", False), ("build-napi", True)):
         block = jobs.get(job_name)
         if block is None:
@@ -269,13 +307,22 @@ def main() -> None:
         actual = {(runner, target) for runner, target, _ in rows}
         if len(rows) != len(actual):
             fail(f"{job_name} matrix repeats a runner/target row")
-        if actual != expected_build:
-            fail(f"{job_name} runner/target coverage is {sorted(actual)}, expected {sorted(expected_build)}")
+        if actual != expected_ordinary_build:
+            fail(
+                f"{job_name} ordinary runner/target coverage is {sorted(actual)}, "
+                f"expected {sorted(expected_ordinary_build)}"
+            )
         if label_required:
-            expected_napi = {(entry["runner"], entry["rust_target"], entry["triple"]) for entry in ready}
+            expected_napi = {
+                (entry["runner"], entry["rust_target"], entry["triple"])
+                for entry in ready
+                if entry["triple"] != CUDA_LINUX_X64[2]
+            }
             actual_napi = set(rows)
             if len(rows) != len(actual_napi) or actual_napi != expected_napi:
                 fail(f"build-napi runner/target/label coverage is {sorted(actual_napi)}, expected {sorted(expected_napi)}")
+
+    require_trusted_linux_x64_cuda_producer(jobs)
 
     publish_jobs: list[str] = []
     smoke_jobs: list[str] = []

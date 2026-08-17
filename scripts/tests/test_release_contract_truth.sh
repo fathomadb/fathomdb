@@ -71,9 +71,12 @@ replacement = (
     "            manylinux: \"2_28\"\n"
     "          - runner: ubuntu-24.04-arm\n"
 )
-if text.count(needle) != 1:
+start = text.index("  build-python:\n")
+end = text.index("  build-napi:\n", start)
+build_python = text[start:end]
+if build_python.count(needle) != 1:
     raise SystemExit("test fixture lacks the build-python matrix insertion point")
-path.write_text(text.replace(needle, replacement, 1))
+path.write_text(text[:start] + build_python.replace(needle, replacement, 1) + text[end:])
 PY
 expect_fail "$FIXTURE" 'rejects restoration of the ordinary CPU Linux x64 wheel producer'
 

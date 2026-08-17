@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Callable, Mapping
 
 from experiments.locomo_provenance import (
+    _locomo_epoch,
     canonical_session_id,
     canonical_turn_id,
     phase_b_question_eligible,
@@ -299,9 +300,12 @@ def _message_text(turn: Mapping[str, object], speaker_a: str) -> tuple[dict[str,
     return ({"role": "user" if speaker == speaker_a else "assistant", "content": f"{speaker}: {text}{suffix}"}, turn_id)
 
 
-def _payload_fingerprint(user_id: str, messages: list[dict[str, str]]) -> str:
+def _payload_fingerprint(user_id: str, messages: list[dict[str, str]], *, timestamp: int | None) -> str:
     """Return the canonical preflight identity for one adapter ingestion payload."""
-    return payload_fingerprint({"user_id": user_id, "messages": messages})
+    payload: dict[str, object] = {"user_id": user_id, "messages": messages}
+    if timestamp is not None:
+        payload["timestamp"] = timestamp
+    return payload_fingerprint(payload)
 
 
 def _sessions(corpus: object) -> list[dict[str, object]]:
@@ -336,6 +340,7 @@ def _sessions(corpus: object) -> list[dict[str, object]]:
                     "session_id": session_id,
                     "user_id": f"locomo_{conversation_index}_adapter",
                     "messages": rendered,
+                    "timestamp": _locomo_epoch(conversation.get(f"{session_id}_date_time", "")),
                 }
             )
     if not output:
@@ -356,7 +361,7 @@ def provenance_documents_for_corpus(
         session_entries.append(
             {
                 "fingerprint": _payload_fingerprint(
-                    str(session["user_id"]), [message for message, _ in messages]
+                    str(session["user_id"]), [message for message, _ in messages], timestamp=session["timestamp"]
                 ),
                 "conversation_id": session["conversation_id"],
                 "session_id": session["session_id"],
@@ -367,7 +372,7 @@ def provenance_documents_for_corpus(
             turn_entries.append(
                 {
                     "fingerprint": _payload_fingerprint(
-                        str(session["user_id"]), [message]
+                        str(session["user_id"]), [message], timestamp=session["timestamp"]
                     ),
                     "conversation_id": session["conversation_id"],
                     "session_id": session["session_id"],
@@ -764,7 +769,10 @@ def _ingest_rows(
         for group in groups:
             messages = [item[0] for item in group]
             turn_ids = [item[1] for item in group]
-            fingerprint = _payload_fingerprint(str(session["user_id"]), messages)
+            timestamp = session["timestamp"]
+            if timestamp is not None and (isinstance(timestamp, bool) or not isinstance(timestamp, int)):
+                raise AdapterError("LOCOMO session timestamp is unsafe")
+            fingerprint = _payload_fingerprint(str(session["user_id"]), messages, timestamp=timestamp)
             entry = manifest.get(fingerprint)
             if (
                 entry is None

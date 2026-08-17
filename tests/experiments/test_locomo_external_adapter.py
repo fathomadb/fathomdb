@@ -37,6 +37,7 @@ def _write_inputs(
         {
             "conversation": {
                 "speaker_a": "Ada",
+                "session_1_date_time": "01:00 PM on 15 January, 2024",
                 "session_1": [
                     {
                         "speaker": "Ada",
@@ -221,6 +222,7 @@ def test_adapter_ingestion_accepts_the_canonical_external_provenance_manifest():
         {
             "conversation": {
                 "speaker_a": "Ada",
+                "session_1_date_time": "01:00 PM on 15 January, 2024",
                 "session_1": [
                     {"speaker": "Ada", "text": "one", "dia_id": "turn-1"},
                     {"speaker": "Bea", "text": "two", "dia_id": "turn-2"},

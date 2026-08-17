@@ -144,3 +144,7 @@ sha2 = "0.11"
 [[example]]
 name = "gpu_speedup"
 required-features = ["default-embedder"]
+
+[[test]]
+name = "tc5_cache_only_factory"
+required-features = ["default-embedder"]

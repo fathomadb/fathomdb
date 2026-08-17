@@ -60,7 +60,8 @@ def main() -> None:
         fail("receipt must be a canonical JSON object")
     expected_fields = {
         "schema_version", "workflow_ref", "workflow_sha", "run_id", "run_attempt",
-        "manifest_sha256", "candidate_sha", "candidate_pr", "approval_review_ids", "api_response_sha256",
+        "manifest_sha256", "candidate_sha", "candidate_pr", "approval_review_ids", "provenance_pr",
+        "provenance_approval_review_ids", "api_response_sha256",
     }
     if set(receipt) != expected_fields or receipt["schema_version"] != SCHEMA:
         fail("receipt schema is unsupported")
@@ -83,8 +84,20 @@ def main() -> None:
         fail("receipt approval review IDs are invalid")
     for review_id in approval_ids:
         require_positive_int(review_id, "receipt approval review ID")
+    require_positive_int(receipt["provenance_pr"], "receipt provenance PR")
+    provenance_approval_ids = receipt["provenance_approval_review_ids"]
+    if (
+        not isinstance(provenance_approval_ids, list)
+        or not provenance_approval_ids
+        or len(set(provenance_approval_ids)) != len(provenance_approval_ids)
+    ):
+        fail("receipt provenance approval review IDs are invalid")
+    for review_id in provenance_approval_ids:
+        require_positive_int(review_id, "receipt provenance approval review ID")
     response_digests = receipt["api_response_sha256"]
-    if not isinstance(response_digests, dict) or set(response_digests) != {"protection_baseline", "pull_request", "reviews"}:
+    if not isinstance(response_digests, dict) or set(response_digests) != {
+        "protection_baseline", "pull_request", "reviews", "provenance_pull_request", "provenance_reviews"
+    }:
         fail("receipt API response digest inventory is invalid")
     for name, value in response_digests.items():
         require_sha(value, f"receipt API response digest {name}", SHA256)

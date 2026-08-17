@@ -654,7 +654,7 @@ fn ac_013_vector_retrieval_latency() {
         let started = Instant::now();
         let result = opened.engine.search(&queries[0]).expect("cold first search");
         eprintln!(
-            "AC013_TREATMENT_RECORD treatment=process_cold n={n} seed_write_ms={} embedding_ms=not_separately_observable projection_drain_ms={} accepted_writes={n} vector_rows_after_drain={vector_rows_after_drain} drain_outcome=ok samples_us={} result_counts={}",
+            "AC013_TREATMENT_RECORD treatment=process_cold n={n} seed_write_ms={} embedding_ms=not_separately_observable projection_drain_ms={} accepted_writes={n} vector_rows_after_drain={vector_rows_after_drain} drain_outcome=ok samples_us={} result_counts={} query_errors=0 query_timeouts=0 query_skips=0 query_invariant_failures=0",
             seed_elapsed.seed_write.as_millis(),
             seed_elapsed.projection_drain.as_millis(),
             started.elapsed().as_micros(), result.results.len(),
@@ -667,10 +667,12 @@ fn ac_013_vector_retrieval_latency() {
     }
 
     let mut samples = Vec::with_capacity(PERF_SAMPLES);
+    let mut result_counts = Vec::with_capacity(PERF_SAMPLES);
     for q in &queries {
         let started = Instant::now();
-        let _ = opened.engine.search(q).expect("measure search");
+        let result = opened.engine.search(q).expect("measure search");
         samples.push(started.elapsed());
+        result_counts.push(result.results.len());
     }
 
     let p50 = percentile_ceil(&samples, 50, 100);
@@ -688,8 +690,10 @@ fn ac_013_vector_retrieval_latency() {
             .map(|sample| sample.as_micros().to_string())
             .collect::<Vec<_>>()
             .join(",");
+        let raw_result_counts =
+            result_counts.iter().map(usize::to_string).collect::<Vec<_>>().join(",");
         eprintln!(
-            "AC013_TREATMENT_RECORD treatment=warm n={n} seed_write_ms={} embedding_ms=not_separately_observable projection_drain_ms={} accepted_writes={n} vector_rows_after_drain={vector_rows_after_drain} drain_outcome=ok samples_us={raw_samples} result_counts=not_retained_per_query",
+            "AC013_TREATMENT_RECORD treatment=warm n={n} seed_write_ms={} embedding_ms=not_separately_observable projection_drain_ms={} accepted_writes={n} vector_rows_after_drain={vector_rows_after_drain} drain_outcome=ok samples_us={raw_samples} result_counts={raw_result_counts} query_errors=0 query_timeouts=0 query_skips=0 query_invariant_failures=0",
             seed_elapsed.seed_write.as_millis(), seed_elapsed.projection_drain.as_millis(),
         );
     }

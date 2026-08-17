@@ -21,6 +21,17 @@ AC013_V2_TEST_MODE=1 SCALE_OUTPUT_DIR="$out" AC013_RUNNER="$fake" bash "$root/sc
 test -f "$out/provenance.json"
 test -f "$out/matrix-manifest.json"
 python3 "$root/scripts/perf-experiments/ac013-v2.py" validate-root --test-fixture --root "$out"
+python3 - "$out.status.json" <<'PY'
+import json
+import pathlib
+import sys
+
+artifact = json.loads(pathlib.Path(sys.argv[1]).read_text())
+assert artifact["status"] == "CHARACTERIZED", artifact
+assert artifact["summary"] is not None, artifact
+assert len(artifact["matrix"]) == 6, artifact
+assert all(len(cell["repetitions"]) == 5 for cell in artifact["matrix"]), artifact
+PY
 find "$out" -maxdepth 1 -type f -printf '%f\n' >"$tmp/files"
 file_count=0
 while IFS= read -r _; do

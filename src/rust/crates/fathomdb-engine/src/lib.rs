@@ -21068,7 +21068,8 @@ unsafe extern "C" fn profile_callback_trampoline(
 #[cfg(test)]
 mod tests {
     use super::{
-        derive_stable_id, resolve_source_type, Engine, IdSpace, IdSpaceKind, PreparedWrite,
+        derive_stable_id, resolve_source_type, Engine, EngineError, IdSpace, IdSpaceKind,
+        InitialState, PreparedWrite, SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS,
         KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
     use rusqlite::Connection;
@@ -21109,6 +21110,47 @@ mod tests {
             PROJECTION_WORKERS,
             "every projection worker must be explicitly registered"
         );
+    }
+
+    /// Slice 65 Fix-N RED: the real managed-reader witness must inspect the
+    /// collector's retained checkpoint records, not infer attribution from
+    /// stdout. Every busy attempt belongs to the exact paused reader; after
+    /// release the succeeding attempt proves no owned snapshot remains.
+    #[test]
+    fn wal_attribution_owned_reader_records_exact_busy_and_idle_success() {
+        let dir = TempDir::new().expect("temp dir");
+        let opened = Engine::open(dir.path().join("wal-attribution-owned.sqlite")).expect("open");
+        opened
+            .engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: "owned reader erasable body".to_string(),
+                source_id: SourceId::new("slice65-owned-reader").expect("source"),
+                logical_id: Some("slice65-owned-reader".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .expect("write");
+        let (snapshot_ready, release) = opened.engine.pause_reader_after_wal_snapshot_for_test();
+        snapshot_ready.wait();
+        let blocked = opened.engine.erase_source("slice65-owned-reader");
+        let busy = opened.engine.wal_attribution_checkpoints_for_test();
+        assert_eq!(busy.len(), ERASURE_WAL_TRUNCATE_ATTEMPTS as usize);
+        assert!(busy.iter().all(|record| {
+            record.busy
+                && record.classification == "owned_reader_snapshot"
+                && record.active_roles == vec![(WalAttributionRole::ReaderWorker, 0)]
+        }));
+        assert!(matches!(blocked, Err(EngineError::ErasureIncomplete { .. })));
+
+        release.wait();
+        opened.engine.erase_source("slice65-owned-reader").expect("retry after release");
+        let records = opened.engine.wal_attribution_checkpoints_for_test();
+        let success = records.last().expect("successful checkpoint record");
+        assert!(!success.busy && success.classification == "no_owned_snapshot");
+        assert!(success.active_roles.is_empty());
     }
 
     /// 0.8.20 Slice 5a (R-20-E1, work item 2) — the registry GUARD.

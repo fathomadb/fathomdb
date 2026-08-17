@@ -30,6 +30,27 @@ assert_absent() {
   if grep -Fq -- "$2" <<<"$1"; then fail "$3 (unexpected: $2)"; else pass "$3"; fi
 }
 
+function_body() {
+  awk -v name="$2" '
+    $0 ~ "^    fn " name "\\(" { inside = 1 }
+    inside && $0 ~ "^    fn " && $0 !~ "^    fn " name "\\(" { exit }
+    inside { print }
+  ' "$1"
+}
+
+assert_before_in_function() {
+  local source="$1" function="$2" first="$3" second="$4" description="$5"
+  local body first_line second_line
+  body="$(function_body "$source" "$function")"
+  first_line="$(grep -nF -- "$first" <<<"$body" | head -n 1 | cut -d: -f1 || true)"
+  second_line="$(grep -nF -- "$second" <<<"$body" | head -n 1 | cut -d: -f1 || true)"
+  if [ -n "$first_line" ] && [ -n "$second_line" ] && [ "$first_line" -lt "$second_line" ]; then
+    pass "$description"
+  else
+    fail "$description (expected $first before $second)"
+  fi
+}
+
 JOB="$(job_block "$CI")"
 CODE="$(grep -v '^[[:space:]]*#' <<<"$JOB" || true)"
 if [ -n "$JOB" ]; then pass "ci.yml defines Windows WAL attribution"; else fail "ci.yml has no windows-wal-attribution job"; fi
@@ -100,6 +121,17 @@ assert_contains "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/Cargo.toml")" \
 assert_contains "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs")" \
   '#[cfg(any(debug_assertions, feature = "test-hooks"))]' \
   "managed-reader hook is unavailable from shipped production builds"
+for control in \
+  wal_attribution_close_boundary_fresh_open_is_clean \
+  wal_attribution_close_boundary_read_get_is_clean \
+  wal_attribution_close_boundary_neighbors_is_clean; do
+  assert_before_in_function \
+    "$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" \
+    "$control" \
+    'raw_close_boundary_checkpoint' \
+    'fresh.engine.close().expect("fresh close")' \
+    "$control probes while the fresh Engine remains open"
+done
 
 if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
   TMPROOT="$(mktemp -d)"

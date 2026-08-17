@@ -61,7 +61,7 @@ Unplanned reliability findings receive a numbered feature slice only after the
 Slice 6 report and an explicit commission. They do not bypass the planning
 ladder or widen an in-flight feature slice.
 
-## Feature/function candidates — not commissioned
+## Feature/function candidates and commissions
 
 | Slice | Candidate | Depends on | Design inputs |
 | ---: | --- | --- | --- |
@@ -72,6 +72,7 @@ ladder or widen an in-flight feature slice.
 | 50 | Gitleaks staged pre-commit and always-on CI guards | 6 | `0.8.23-gitleaks-guards.md` |
 | 60 | Windows WAL checkpoint reader-conflict diagnosis | 6 | `0.8.23-windows-wal-checkpoint-reader-conflict.md`, `0.8.23-windows-local-environment.md` |
 | 65 | Windows WAL checkpoint root-cause attribution | 6, 60 | `0.8.23-wal-attribution-investigation.md` |
+| 70 | Exact pre-fusion vector-stage controls for TC-5 | 6 | `0.8.23-slice-70-tc5-vector-stage-hypothesis.md` |
 
 Each feature slice, if approved, must review its assigned candidate features,
 drafted needs/requirements/ACs, and design inputs; approve, reject, or adjust
@@ -89,6 +90,11 @@ This authorizes no retry, binding, reader-pool, public API, or production
 behavior change. Optional diagnostic work is separate scope and does not block
 the next commissioned release slice.
 
+HITL commissioned Slices 10, 20, and 70 on 2026-08-17, in the release-state
+order. Slice 10 is active. Slice 20 remains dependent on Slice 10; Slice 70
+remains sequenced after Slice 20. Their work remains subject to their reviewed
+designs, acceptance criteria, and non-publication boundary.
+
 ## Cross-cutting DoD
 
 - Every planning slice writes its required durable record and takes no product
@@ -102,9 +108,9 @@ the next commissioned release slice.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-landed-roll-up -->
-**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`) · 60 (`423baf6a`) · 65 (`6b57557c`). SCHEMA is 26; remaining ladder = 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
+**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`) · 60 (`423baf6a`) · 65 (`6b57557c`). SCHEMA is 26; remaining ladder = 10 → 20 → 70 → 40.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 40** (`SCALE-CHARACTERIZATION`) — fixture-scoped scale characterization
+**IMMEDIATE NEXT: Slice 10** (`CUDA-CONTRACT`) — CUDA environment, artifact contract, and protected runner gate
 
-**Remaining ladder:** 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->
+**Remaining ladder:** 10 → 20 → 70 → 40.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->

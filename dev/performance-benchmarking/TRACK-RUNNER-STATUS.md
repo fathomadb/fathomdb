@@ -200,6 +200,14 @@ contiguous canonical ordinals, and output containment. The CPU fixed-subset
 still needs qualified external corpus/provenance/TRACE/parent inputs and a
 coordinator release; GPU cells additionally need a working NVIDIA driver.
 
+The CORPUS-01 trusted-amendment handoff `1ca17718` received a third
+`REQUEST-CHANGES` verdict on proof and verification evidence. Its registry
+comparison is sound, but its red test used a new API keyword instead of
+demonstrating legacy forged-sequence acceptance, did not cover mismatched
+registry rows, and omitted recorded post-fix full-verifier evidence. The
+worker is correcting those narrow gaps; no corpus or human-gold work is
+released.
+
 ## Track status
 
 | ID | Portfolio state | Runner state | Verified evidence / next gate |
@@ -209,7 +217,7 @@ coordinator release; GPU cells additionally need a working NVIDIA driver.
 | LOCOMO-01 | Active | External adapter integrated; external-input qualification and release pending | `477ad51a` integrates independently accepted `e5b6f17d`; 25 integrated synthetic tests pass. `seq-249` authorizes the fixed-subset dry run, Phase-B CPU/FTS grid, and GPU/CE cells. Next gate: qualify external inputs, issue a coordinator-bound CPU fixed-subset release, then run it. |
 | PARENT-01 | Active | Matched external adapter integrated; external-input qualification and release pending | `477ad51a` enforces exact ordinal/rank and measured parent metrics. `seq-250` approves `parent_child_turn_session_v1`. Next gate: qualify the same external inputs and issue a matched CPU release; GPU cells additionally wait for a working NVIDIA driver. |
 | SCALE-01 | Active | Live executor integrated; external driver and all-real input preflight pending | `e87be86d` integrates independently accepted `4c30072f`; 44 integrated focused tests pass. `seq-249` authorizes the TC-5 smoke and long CPU characterization; `seq-250` retains 0.90 as the goal and authorizes a separate remediation. Next gate: accept an external driver and qualify the manifest/corpus/output root before issuing a coordinator-bound smoke release. |
-| CORPUS-01 | Active | Trusted-amendment remediation in progress after second independent request-changes; no payload acquisition | `seq-249` authorizes corpus/license matrix and human-gold work. Eligibility/preflight/red-first remediation is in place, but human-gold amendments must next bind to trusted exact approval. Then integrate the bounded matrix/protocol and qualify any external acquisition or human-review batch. |
+| CORPUS-01 | Active | Trusted-amendment evidence remediation in progress after third independent request-changes; no payload acquisition | `seq-249` authorizes corpus/license matrix and human-gold work. Registry comparison is implemented, but legacy-forgery proof, mismatch coverage, and post-fix verifier evidence must next be accepted. Then integrate the bounded matrix/protocol and qualify any external acquisition or human-review batch. |
 | ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |
 | MEMORY-01 | Blocked | Waiting for ANSWER-01 | Require selected profile, native prerequisites, and declared spend ceiling. |
 | SCALE-02 | Blocked | Waiting for initial measures and selected profile | Claim policy remains open pending an HITL proposal. Freeze workload matrix and distinguish canonical from derived counts after the evidence exists. |

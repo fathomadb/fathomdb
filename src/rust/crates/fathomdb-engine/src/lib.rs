@@ -1338,7 +1338,6 @@ fn reader_worker_loop(
     let _guard = LiveGuard(live_workers);
 
     while let Ok(request) = rx.recv() {
-        let shutdown = matches!(request, ReaderRequest::Shutdown);
         match request {
             ReaderRequest::Shutdown => break,
             ReaderRequest::SearchProjectedText { query, name, filter, limit, view, respond } => {
@@ -1352,6 +1351,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
+                finish_reader_request(&wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::Search {
@@ -1396,6 +1396,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
+                finish_reader_request(&wal_attribution, worker_idx);
                 // Receiver may have been dropped if the caller went
                 // away; nothing to do in that case.
                 let _ = respond.send(result);
@@ -1408,6 +1409,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
+                finish_reader_request(&wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::ReadCollection { collection, after_id, limit, respond } => {
@@ -1419,6 +1421,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
+                finish_reader_request(&wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::ReadList { kind, predicates, limit, view, respond } => {
@@ -1431,6 +1434,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
+                finish_reader_request(&wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::GraphNeighbors { root_logical_id, depth, direction, view, respond } => {
@@ -1443,6 +1447,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
+                finish_reader_request(&wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::CrossedBoundarySince { since, view, respond } => {
@@ -1453,6 +1458,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
+                finish_reader_request(&wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::SearchExpand { search_hits, depth, respond } => {
@@ -1463,6 +1469,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
+                finish_reader_request(&wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::ExplainGraphNeighbors { root_logical_id, depth, direction, respond } => {
@@ -1474,6 +1481,7 @@ fn reader_worker_loop(
                     &wal_attribution,
                     worker_idx,
                 );
+                finish_reader_request(&wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             #[cfg(debug_assertions)]
@@ -1506,11 +1514,8 @@ fn reader_worker_loop(
                 snapshot_ready.wait();
                 release.wait();
                 connection.execute_batch("COMMIT").expect("release reader snapshot");
+                finish_reader_request(&wal_attribution, worker_idx);
             }
-        }
-        if !shutdown {
-            wal_attribution.set(WalAttributionRole::ReaderWorker, worker_idx, false, "completed");
-            wal_attribution.set(WalAttributionRole::ReaderWorker, worker_idx, false, "idle");
         }
     }
 
@@ -1520,6 +1525,18 @@ fn reader_worker_loop(
     // to free.
     uninstall_profile_callback(&connection);
     drop(connection);
+}
+
+/// Finish an attributed reader request after every helper-local SQLite value
+/// (including its transaction) has dropped and before its caller can observe
+/// the response. Keeping this at the response handoff, rather than at the
+/// worker-loop tail, makes the collector represent live SQLite state rather
+/// than channel scheduling.
+fn finish_reader_request(wal_attribution: &WalAttributionCollector, worker_idx: usize) {
+    wal_attribution.set(WalAttributionRole::ReaderWorker, worker_idx, false, "completed");
+    wal_attribution.set(WalAttributionRole::ReaderWorker, worker_idx, false, "idle");
+    #[cfg(test)]
+    reader_handoff_pause::fire();
 }
 
 /// 0.8.20 keystone closeout fix-3 — a test-only rendezvous hook fired at the TOP
@@ -5651,6 +5668,14 @@ impl Engine {
     #[doc(hidden)]
     pub fn arm_next_reader_snapshot_pause_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
         reader_snapshot_pause::arm()
+    }
+
+    /// Private Slice 65 test rendezvous. Unlike the snapshot hook this is
+    /// deliberately unavailable to test-hook artifacts: it verifies only the
+    /// collector's internal response-handoff boundary.
+    #[cfg(test)]
+    fn pause_next_reader_handoff_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
+        reader_handoff_pause::arm()
     }
 
     #[cfg(feature = "test-hooks")]
@@ -12169,6 +12194,33 @@ mod reader_snapshot_pause {
 
     pub(crate) fn fire() {
         if let Some((ready, release)) = PAUSE.lock().expect("reader snapshot pause mutex").take() {
+            ready.wait();
+            release.wait();
+        }
+    }
+}
+
+/// Slice 65 Fix-N — test-only rendezvous after a reader helper has returned
+/// (therefore dropped its SQLite transaction) and after the collector has
+/// become idle, but before the materialized response is sent to the caller.
+/// This has no production or test-hook artifact surface.
+#[cfg(test)]
+mod reader_handoff_pause {
+    use super::Barrier;
+    use std::sync::{Arc, Mutex};
+
+    static PAUSE: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>> = Mutex::new(None);
+
+    pub(crate) fn arm() -> (Arc<Barrier>, Arc<Barrier>) {
+        let ready = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        *PAUSE.lock().expect("reader handoff pause mutex") =
+            Some((Arc::clone(&ready), Arc::clone(&release)));
+        (ready, release)
+    }
+
+    pub(crate) fn fire() {
+        if let Some((ready, release)) = PAUSE.lock().expect("reader handoff pause mutex").take() {
             ready.wait();
             release.wait();
         }
@@ -21446,34 +21498,64 @@ mod tests {
         eprintln!("slice65_wal retained_materialized_idle=passed");
     }
 
+    /// Slice 65 reader-handoff RED: a materialized `read_get` result must be
+    /// handed back only after its collector state is already idle. This parks
+    /// the worker after the helper has dropped its SQLite transaction and
+    /// before its response send, then proves an erasure checkpoint is clean
+    /// while the caller still cannot receive that materialized record.
     #[test]
     fn wal_attribution_reader_handoff_is_idle_before_materialized_reply() {
         let dir = TempDir::new().expect("temp dir");
-        let opened = Arc::new(Engine::open(dir.path().join("wal-attribution-reader-handoff.sqlite")).expect("open"));
-        opened.engine.write(&[PreparedWrite::Node {
-            kind: "doc".to_string(),
-            body: "reader handoff materialized body".to_string(),
-            source_id: SourceId::new("slice65-reader-handoff-source").expect("source"),
-            logical_id: Some("slice65-reader-handoff".to_string()),
-            state: InitialState::Active,
-            reason: None,
-            valid_from: None,
-            valid_until: None,
-        }]).expect("write");
+        let opened = Arc::new(
+            Engine::open(dir.path().join("wal-attribution-reader-handoff.sqlite")).expect("open"),
+        );
+        opened
+            .engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: "reader handoff materialized body".to_string(),
+                source_id: SourceId::new("slice65-reader-handoff-source").expect("source"),
+                logical_id: Some("slice65-reader-handoff".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .expect("write");
+
         let (handoff_ready, release) = opened.engine.pause_next_reader_handoff_for_test();
         let reader = {
             let engine = Arc::clone(&opened);
-            thread::spawn(move || engine.engine.read_get("slice65-reader-handoff", &Default::default()))
+            thread::spawn(move || {
+                engine.engine.read_get("slice65-reader-handoff", &Default::default())
+            })
         };
         handoff_ready.wait();
+
         let idle = opened.engine.wal_attribution_snapshot();
-        assert!(idle.no_owned_snapshot, "the collector must be idle before the materialized response send: {idle:?}");
-        opened.engine.erase_source("slice65-reader-handoff-source").expect("checkpoint while materialized reply is parked");
-        let record = opened.engine.wal_attribution_checkpoints_for_test().last().cloned().expect("checkpoint record");
+        assert!(
+            idle.no_owned_snapshot,
+            "the collector must be idle before the materialized response send: {idle:?}"
+        );
+        opened
+            .engine
+            .erase_source("slice65-reader-handoff-source")
+            .expect("checkpoint while materialized reply is parked");
+        let record = opened
+            .engine
+            .wal_attribution_checkpoints_for_test()
+            .last()
+            .cloned()
+            .expect("checkpoint record");
         assert!(!record.busy && record.classification == "no_owned_snapshot");
         assert!(record.active_roles.is_empty());
+
         release.wait();
-        let materialized = reader.join().expect("reader thread").expect("read result").expect("materialized record");
+        let materialized = reader
+            .join()
+            .expect("reader thread")
+            .expect("read result")
+            .expect("materialized record");
         assert_eq!(materialized.logical_id, "slice65-reader-handoff");
         eprintln!("slice65_wal reader_handoff_idle_before_reply=passed");
     }

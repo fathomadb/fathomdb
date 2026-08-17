@@ -505,6 +505,13 @@ jobs:
           }
           cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_retained_materialized_result_is_idle_at_checkpoint -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $readerHandoffLog = "$env:RUNNER_TEMP\slice65-windows-wal-reader-handoff.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_reader_handoff_is_idle_before_materialized_reply -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $readerHandoffLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $readerHandoffLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "reader-handoff attribution command selected zero tests"
+            exit 1
+          }
           cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_reopen_recovery_reads_then_nested_erasure_are_idle -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_projection_worker_transaction_is_owned_then_idle -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append
@@ -537,7 +544,7 @@ jobs:
             Write-Error "close-boundary neighbors control selected zero tests"
             exit 1
           }
-          if (@(Select-String -Path $artifact -SimpleMatch 'running 1 test').Count -lt 8) {
+          if (@(Select-String -Path $artifact -SimpleMatch 'running 1 test').Count -lt 9) {
             Write-Error "one or more Slice 65 engine selectors selected zero tests"
             exit 1
           }

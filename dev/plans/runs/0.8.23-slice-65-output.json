@@ -90,19 +90,26 @@
       "hosted CI exact-selects both controls, rejects zero selection, and static/mutation checks prove attachment to the real attempt and absence of the perturbing primary path"
     ],
     "status": "IMPLEMENTED_HOSTED_TWO_CLEAN_REPETITIONS",
-    "green_evidence": "The exact direct-Rust control passed locally with paired before/after records attached to its one real erase attempt. A disposable test-hooks wheel installed into an isolated local environment passed the exact current Python serial control, retaining paired actual-attempt records and a clean observation. GitHub-hosted Windows runs 32014441608/job 95340828268 and 32015551136/job 95344203972 then each retained a clean unperturbed paired real-attempt observation for direct Rust and current installed Python: writer_autocommit=1, complete 12-role direct autocommit inventory, collector_roles=idle, checkpoint_begin_overlap=0, busy=0, log_frames=0, and checkpointed_frames=0 before clean completion. Job 95332307148 remains contrary variable evidence: current installed Python had five unperturbed BUSY attempts with 25 frames after idle recovery reads. Two clean repetitions are not Windows attribution or a remedy decision; exactly one fresh hosted Windows repetition remains."
+    "green_evidence": "The exact direct-Rust control passed locally with paired before/after records attached to its one real erase attempt. A disposable test-hooks wheel installed into an isolated local environment passed the exact current Python serial control, retaining paired actual-attempt records and a clean observation. GitHub-hosted Windows runs 32014441608/job 95340828268 and 32015551136/job 95344203972 then each retained a clean unperturbed paired real-attempt observation for direct Rust and current installed Python: writer_autocommit=1, complete 12-role direct autocommit inventory, collector_roles=idle, checkpoint_begin_overlap=0, busy=0, log_frames=0, and checkpointed_frames=0 before clean completion. Job 95332307148 remains contrary variable evidence: current installed Python had five unperturbed BUSY attempts with 25 frames after idle recovery reads. The normal serial is therefore two clean versus one busy, with one fresh serial measurement remaining; neither result class yet has a three-run same-class series. This is not Windows attribution or a remedy decision."
   },
   "hosted_windows_actual_checkpoint_observation": {
     "runs": ["32014441608", "32015551136"],
     "jobs": ["95340828268", "95344203972"],
     "classification": "UNATTRIBUTED",
-    "evidence": "Each run retained a paired clean unperturbed actual checkpoint for direct Rust and current installed Python: writer autocommit, complete 12-role direct autocommit inventory, idle collector, no local overlap, busy=0, and zero frame counters. The installed binding held-snapshot positive remains an owned-reader control and the retained materialized result passed. Job 95332307148 remains contrary variable evidence: current installed Python had five unperturbed BUSY attempts with 25 frames after idle recovery reads, whereas its raw ladder was perturbing. Neither clean repeat nor the contrary record identifies the busy holder.",
-    "remaining": "Exactly one independently fresh hosted Windows repetition of the relevant positive and negative controls is required before any remedy proposal."
+    "evidence": "Each run retained a paired clean unperturbed actual checkpoint for direct Rust and current installed Python: writer autocommit, complete 12-role direct autocommit inventory, idle collector, no local overlap, busy=0, and zero frame counters. Job 95332307148 remains contrary variable evidence: current installed Python had five unperturbed BUSY attempts with 25 frames after idle recovery reads, whereas its raw ladder was perturbing. The normal serial is two clean versus one busy, not a three-run same-class result. Neither record identifies the busy holder.",
+    "remaining": "One independently fresh hosted Windows normal-serial measurement remains in this series; it cannot by itself authorize a remedy. The distinct binding post-release observation has its own three-measurement gate."
+  },
+  "hosted_windows_binding_post_release_observation": {
+    "run": "32015551136",
+    "job": "95344203972",
+    "classification": "UNATTRIBUTED",
+    "evidence": "The intentional held reader produced five owned_reader_snapshot reader_worker:0 BUSY attempts. After release, the direct completion acknowledgement retained reader_autocommit=1, collector=idle, and complete inventory. The following raw sample and same-Engine bounded sampler were BUSY; the sampler recorded five no_owned_snapshot attempts with 195 log frames and 176 checkpointed frames, and the second raw sample retained those values. A native FathomDB child raw probe was clean only after Engine.close. This is one variable live-Engine/process-lifetime-associated observation, not a Python binding result-lifetime conclusion or root-cause attribution.",
+    "measurement_rule": "Before any inference, three independently fresh hosted Windows binding-boundary measurements must preserve the held-reader, post-release acknowledgement/inventory, same-Engine raw and bounded-sampler, and post-close native-child facts. This is measurement one of that separate series."
   },
   "remaining_controls": [
-    "exactly one independently fresh GitHub-hosted Windows repetition of each applicable positive and negative control",
-    "released-0.8.22 observational serial result and current-source attribution result retained from hosted Windows for the remaining repetition",
-    "first-party Windows evidence, across all three repetitions, for the installed binding, retained-result, incident-shaped serial, projection-runtime, and explicit close-boundary controls"
+    "one independently fresh GitHub-hosted Windows normal-serial measurement, retaining released-0.8.22 observation and current-source attribution without inferring a remedy",
+    "two additional independently fresh GitHub-hosted Windows binding-boundary measurements under its separate three-measurement rule",
+    "first-party Windows evidence across the applicable repetitions for the installed binding, retained-result, incident-shaped serial, projection-runtime, and explicit close-boundary controls"
   ]
   },
   "fix_n": {

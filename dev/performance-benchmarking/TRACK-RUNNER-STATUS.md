@@ -241,6 +241,16 @@ gate is factual qualification of the all-real manifest, corpus/output roots,
 CPU host/model/ground truth, and a coordinator release before the authorized
 smoke.
 
+Two factual-input qualification lanes are commissioned from campaign base
+`febd1155`: LOCOMO/PARENT in
+`/tmp/fathomdb-perf-locomo-input-qualification-20260816` on
+`experiments/performance-locomo-input-qualification-20260816`, and TC-5 in
+`/tmp/fathomdb-perf-tc5-input-qualification-20260816` on
+`experiments/performance-tc5-input-qualification-20260816`. They may inspect
+the authorized external corpus roots and create only content-free external
+preflight manifests/proofs under declared external roots. They may not issue
+releases, load models, select GPU, run an adapter/driver, or measure a cell.
+
 The CORPUS-01 final handoff `c540a9d7` was independently accepted and is
 integrated here as `c419399e`. The matrix/protocol now fails closed on
 unsupported native claims, unqualified human-gold amendments, incomplete

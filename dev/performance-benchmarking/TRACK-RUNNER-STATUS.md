@@ -172,6 +172,13 @@ and test the released adapter ABI against synthetic fixtures only. It may not
 read the corpus payload, invoke a model/device, generate a release, or run an
 authorized measurement.
 
+The CORPUS-01 handoff `13d63a97` received an independent `REQUEST-CHANGES`
+verdict. Its portfolio coverage and no-payload boundary were sound, but it did
+not fail closed on unsupported corpus/category claims, lacked machine-traceable
+license/preflight/claim/power provenance, and did not provide committed
+red-first topology. The worker is remediating these issues; no corpus or human
+gold work is released.
+
 ## Track status
 
 | ID | Portfolio state | Runner state | Verified evidence / next gate |
@@ -181,7 +188,7 @@ authorized measurement.
 | LOCOMO-01 | Active | Live executor integrated; adapter and external-input qualification pending | `655ec77c` integrates independently accepted `2520bd48`; 35 integrated focused tests pass. `seq-249` authorizes the fixed-subset dry run, Phase-B CPU/FTS grid, and GPU/CE cells. Next gate: accept a released adapter and qualify external inputs before issuing a coordinator-bound CPU fixed-subset release. |
 | PARENT-01 | Active | Frozen-v1 live executor integrated; matched adapter and external preflight pending | `655ec77c` enforces complete TRACE and canonical parent/session/neighbor proof at external-runner scope. `seq-250` approves `parent_child_turn_session_v1`. Next gate: qualify the same external inputs and adapter before including it in the fixed-subset dry run; GPU cells also wait for a working NVIDIA driver. |
 | SCALE-01 | Active | Live executor integrated; external driver and all-real input preflight pending | `e87be86d` integrates independently accepted `4c30072f`; 44 integrated focused tests pass. `seq-249` authorizes the TC-5 smoke and long CPU characterization; `seq-250` retains 0.90 as the goal and authorizes a separate remediation. Next gate: accept an external driver and qualify the manifest/corpus/output root before issuing a coordinator-bound smoke release. |
-| CORPUS-01 | Active | Matrix and human-gold protocol lane commissioned; no payload acquisition yet | `seq-249` authorizes corpus/license matrix and human-gold work. Next gate: independently accept and integrate the bounded matrix/protocol, then qualify any external acquisition or human-review batch. |
+| CORPUS-01 | Active | Matrix/protocol remediation in progress after independent request-changes; no payload acquisition | `seq-249` authorizes corpus/license matrix and human-gold work. Next gate: accept eligibility/preflight/red-first remediation, integrate the bounded matrix/protocol, then qualify any external acquisition or human-review batch. |
 | ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |
 | MEMORY-01 | Blocked | Waiting for ANSWER-01 | Require selected profile, native prerequisites, and declared spend ceiling. |
 | SCALE-02 | Blocked | Waiting for initial measures and selected profile | Claim policy remains open pending an HITL proposal. Freeze workload matrix and distinguish canonical from derived counts after the evidence exists. |

@@ -556,6 +556,21 @@ else
   fail "COMPLETE integration must accept current origin/main; got rc=$RC, out: $OUT"
 fi
 
+# COMPLETE is a positive reachability assertion, not merely a request to use
+# origin/main as a freshness baseline. Point the declared release ref at a
+# locally present child that was never integrated; the guard must reject the
+# contradictory declaration before it can certify any worktree. If the
+# merge-base check in preflight.sh is removed, this arm passes incorrectly.
+git -C "$LINKED" commit --allow-empty -q -m 'fixture: unintegrated release child'
+git -C "$PRIMARY" update-ref refs/remotes/origin/release/0.8.23 "$(git -C "$LINKED" rev-parse HEAD)"
+run_preflight "$PRIMARY" --worktree "$PRIMARY" --min-disk-gb 1
+if [ "$RC" -ne 0 ] \
+  && printf '%s' "$OUT" | grep -q '^HARD .*release completion marks main integration COMPLETE, but origin/release/0.8.23 is not reachable from origin/main'; then
+  pass "COMPLETE integration rejects a declared release ref unreachable from origin/main"
+else
+  fail "COMPLETE integration must reject an unreachable declared release ref; got rc=$RC, out: $OUT"
+fi
+
 if [ "$FAILED" -gt 0 ]; then
   printf '\n%d test(s) failed\n' "$FAILED" >&2
   exit 1

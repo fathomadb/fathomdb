@@ -49,6 +49,41 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
+needle = "  cuda-package-rehearsal:\n"
+if text.count(needle) != 1:
+    raise SystemExit("test fixture lacks the sole trusted Linux x64 CUDA package producer")
+path.write_text(text.replace(needle, "  cuda-package-rehearsal-removed:\n", 1))
+PY
+expect_fail "$FIXTURE" 'rejects removal of the sole trusted Linux x64 CUDA package producer'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = "        include:\n          - runner: ubuntu-24.04-arm\n"
+replacement = (
+    "        include:\n"
+    "          - runner: ubuntu-latest\n"
+    "            target: x86_64-unknown-linux-gnu\n"
+    "            manylinux: \"2_28\"\n"
+    "          - runner: ubuntu-24.04-arm\n"
+)
+if text.count(needle) != 1:
+    raise SystemExit("test fixture lacks the build-python matrix insertion point")
+path.write_text(text.replace(needle, replacement, 1))
+PY
+expect_fail "$FIXTURE" 'rejects restoration of the ordinary CPU Linux x64 wheel producer'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
 needle = (
     "  github-release:\n"
     "    runs-on: ubuntu-latest\n"

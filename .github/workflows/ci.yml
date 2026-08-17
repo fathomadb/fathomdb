@@ -509,6 +509,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_projection_worker_transaction_is_owned_then_idle -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (@(Select-String -Path $artifact -SimpleMatch 'running 1 test').Count -lt 4) {
+            Write-Error "one or more Slice 65 engine selectors selected zero tests"
+            exit 1
+          }
           cargo test -p fathomdb-engine --features operator --test erasure_completeness erasure_busy_cross_process_windows_yields_typed_diagnostic -- --exact --nocapture 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log" -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build current disposable test-hooks wheel
@@ -525,15 +529,22 @@ jobs:
           $releasedEnv = "$env:RUNNER_TEMP\slice65-released-wheel"
           $currentEnv = "$env:RUNNER_TEMP\slice65-current-wheel"
           $bindingLog = "$env:RUNNER_TEMP\slice65-windows-python-binding.log"
+          "slice65_wal current_head=$(git rev-parse HEAD)" | Tee-Object -FilePath $artifact -Append
           python -m venv $releasedEnv
           & "$releasedEnv\Scripts\python.exe" -m pip install --only-binary=:all: fathomdb==0.8.22 2>&1 | Tee-Object -FilePath $artifact -Append
+          & "$releasedEnv\Scripts\python.exe" -m pip show fathomdb 2>&1 | Tee-Object -FilePath $artifact -Append
+          $releasedNative = (Get-ChildItem "$releasedEnv\Lib\site-packages\fathomdb\_fathomdb*.pyd" | Select-Object -First 1).FullName
+          "slice65_wal released_native_sha256=$((Get-FileHash $releasedNative -Algorithm SHA256).Hash)" | Tee-Object -FilePath $artifact -Append
           & "$releasedEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control serial --wheel-version 0.8.22 --wheel-label released-0.8.22 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python -m venv $currentEnv
+          "slice65_wal current_wheel_sha256=$((Get-FileHash src/python/dist-slice65-test/*.whl -Algorithm SHA256).Hash)" | Tee-Object -FilePath $artifact -Append
           & "$currentEnv\Scripts\python.exe" -m pip install --no-index --no-deps src/python/dist-slice65-test/*.whl 2>&1 | Tee-Object -FilePath $artifact -Append
           & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control serial --wheel-version 0.8.22 --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control binding --wheel-version 0.8.22 --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $bindingLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control retained --wheel-version 0.8.22 --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $bindingBusy = @(Select-String -Path $bindingLog -Pattern 'slice65_wal checkpoint_attempt=.*busy=1.*classification=owned_reader_snapshot.*active_roles=reader_worker:0').Count
           if ($bindingBusy -ne 5) {
@@ -554,6 +565,10 @@ jobs:
           }
           if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal python_binding_snapshot_released' -Quiet)) {
             Write-Error "installed binding control did not reach its post-release checkpoint"
+            exit 1
+          }
+          if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal python_retained_materialized_idle=passed' -Quiet)) {
+            Write-Error "installed retained-result control did not execute"
             exit 1
           }
           Write-Output "slice65_wal installed_wheel_controls=passed" | Tee-Object -FilePath $artifact -Append

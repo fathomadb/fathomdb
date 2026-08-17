@@ -41,6 +41,10 @@ assert_contains "$CODE" 'wal_attribution_retained_materialized_result_is_idle_at
 assert_contains "$CODE" 'wal_attribution_reopen_recovery_reads_then_nested_erasure_are_idle' "job runs incident-shaped reopen control"
 assert_contains "$CODE" 'wal_attribution_projection_worker_transaction_is_owned_then_idle' "job runs projection transaction control"
 assert_contains "$CODE" 'test_slice65_wal_attribution_installed.py' "job runs installed-wheel controls"
+assert_contains "$CODE" '--control retained' "job runs installed retained-result control"
+assert_contains "$CODE" 'current_head=$(git rev-parse HEAD)' "job records current source identity"
+assert_contains "$CODE" 'current_wheel_sha256=' "job records current wheel digest"
+assert_contains "$CODE" 'released_native_sha256=' "job records released native input identity"
 assert_contains "$CODE" 'test-hooks' "job builds a non-shipping test-hooks wheel"
 assert_contains "$CODE" 'fathomdb==0.8.22' "job installs the released 0.8.22 comparison wheel"
 assert_contains "$CODE" 'serial_wheel_selector=released-0.8.22' "job retains released-wheel selector"
@@ -72,7 +76,8 @@ for marker in \
   assert_contains "$(<"$SOURCE_TEST") $(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs")" "$marker" "source retains $marker"
 done
 assert_contains "$(<"$PY_SOURCE")" \
-  '_pause_reader_after_wal_snapshot_for_test' \
+  '_arm_next_reader_snapshot_pause_for_test' \
+  'wal_attribution_checkpoint_records_for_test' \
   "installed binding exposes the rendezvous only in its test-hooks build"
 assert_contains "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/Cargo.toml")" \
   'test-hooks = []' \
@@ -108,6 +113,19 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves zero-test execution guard is load-bearing"
   else
     fail "mutation did not fail zero-test execution guard: $execution_guard_out"
+  fi
+
+  IDENTITY_MUTATED="$TMPROOT/ci-without-wheel-identity.yml"
+  sed '/current_wheel_sha256=/d' "$CI" >"$IDENTITY_MUTATED"
+  set +e
+  identity_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$IDENTITY_MUTATED" bash "$0" 2>&1)"
+  identity_rc=$?
+  set -e
+  if [ "$identity_rc" -ne 0 ] \
+    && grep -Fq 'job records current wheel digest (missing: current_wheel_sha256=)' <<<"$identity_out"; then
+    pass "mutation proves current-wheel identity assertion is load-bearing"
+  else
+    fail "mutation did not fail current-wheel identity assertion: $identity_out"
   fi
 fi
 

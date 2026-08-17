@@ -5647,6 +5647,40 @@ impl Engine {
         (snapshot_ready, release)
     }
 
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn arm_next_reader_snapshot_pause_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
+        reader_snapshot_pause::arm()
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn wal_attribution_checkpoint_records_for_test(
+        &self,
+    ) -> Vec<(usize, bool, String, Vec<String>)> {
+        self.wal_attribution_checkpoints_for_test()
+            .into_iter()
+            .map(|record| {
+                (
+                    record.attempt,
+                    record.busy,
+                    record.classification.to_string(),
+                    record
+                        .active_roles
+                        .iter()
+                        .map(|(role, index)| format!("{}:{index}", role.name()))
+                        .collect(),
+                )
+            })
+            .collect()
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn wal_attribution_idle_for_test(&self) -> bool {
+        self.wal_attribution_snapshot().no_owned_snapshot
+    }
+
     #[cfg(debug_assertions)]
     #[allow(dead_code)]
     fn pause_projection_worker_after_wal_transaction_for_test(
@@ -12112,8 +12146,33 @@ fn begin_attributed_reader_tx<'a>(
         attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "transaction_opened");
         tx.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))?;
         attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "snapshot_acquired");
+        #[cfg(any(test, feature = "test-hooks"))]
+        reader_snapshot_pause::fire();
     }
     Ok(tx)
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+mod reader_snapshot_pause {
+    use super::Barrier;
+    use std::sync::{Arc, Mutex};
+
+    static PAUSE: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>> = Mutex::new(None);
+
+    pub(crate) fn arm() -> (Arc<Barrier>, Arc<Barrier>) {
+        let ready = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        *PAUSE.lock().expect("reader snapshot pause mutex") =
+            Some((Arc::clone(&ready), Arc::clone(&release)));
+        (ready, release)
+    }
+
+    pub(crate) fn fire() {
+        if let Some((ready, release)) = PAUSE.lock().expect("reader snapshot pause mutex").take() {
+            ready.wait();
+            release.wait();
+        }
+    }
 }
 
 /// Read projection cursor and matching body rows inside one read tx.
@@ -21503,14 +21562,25 @@ mod tests {
             opened.engine.wal_attribution.classification(&active, false),
             "owned_runtime_transaction"
         );
-        assert!(active
-            .active_roles
-            .iter()
-            .any(|(role, _)| *role == WalAttributionRole::ProjectionWorker));
+        assert_eq!(active.active_roles.len(), 1);
+        assert_eq!(active.active_roles[0].0, WalAttributionRole::ProjectionWorker);
+        let exact_active_role = active.active_roles.clone();
         eprintln!("slice65_wal projection_worker_transaction_ready");
+        let blocked = opened.engine.complete_erasure_at_rest("slice65-projection-checkpoint");
+        let busy = opened.engine.wal_attribution_checkpoints_for_test();
+        assert!(matches!(blocked, Err(EngineError::ErasureIncomplete { .. })));
+        assert_eq!(busy.len(), ERASURE_WAL_TRUNCATE_ATTEMPTS as usize);
+        assert!(busy.iter().all(|record| {
+            record.busy
+                && record.classification == "owned_runtime_transaction"
+                && record.active_roles == exact_active_role
+        }));
         release.wait();
         opened.engine.drain(5_000).expect("projection settles");
-        opened.engine.erase_source("slice65-projection-source").expect("erase after release");
+        opened
+            .engine
+            .complete_erasure_at_rest("slice65-projection-checkpoint")
+            .expect("direct checkpoint after release");
         let record = opened
             .engine
             .wal_attribution_checkpoints_for_test()

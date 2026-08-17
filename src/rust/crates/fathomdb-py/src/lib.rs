@@ -31,7 +31,7 @@
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Arc;
-#[cfg(any(test, feature = "test-hooks"))]
+#[cfg(feature = "test-hooks")]
 use std::sync::Barrier;
 
 use fathomdb_embedder::EmbedderEvent as RustEmbedderEvent;
@@ -1370,14 +1370,14 @@ struct PyEngine {
 
 /// Opaque, dev-only reader-snapshot rendezvous for the Slice 65 installed
 /// binding control. It is compiled only with `test-hooks`, never shipped.
-#[cfg(any(test, feature = "test-hooks"))]
+#[cfg(feature = "test-hooks")]
 #[pyclass(module = "fathomdb._fathomdb", name = "_WalSnapshotPause")]
 struct PyWalSnapshotPause {
     snapshot_ready: Arc<Barrier>,
     release: Arc<Barrier>,
 }
 
-#[cfg(any(test, feature = "test-hooks"))]
+#[cfg(feature = "test-hooks")]
 #[pymethods]
 impl PyWalSnapshotPause {
     fn wait_snapshot_ready(&self, py: Python<'_>) {
@@ -1650,10 +1650,27 @@ impl PyEngine {
         call_engine(py, move || engine.close())
     }
 
-    #[cfg(any(test, feature = "test-hooks"))]
-    fn _pause_reader_after_wal_snapshot_for_test(&self) -> PyWalSnapshotPause {
-        let (snapshot_ready, release) = self.inner.pause_reader_after_wal_snapshot_for_test();
+    #[cfg(feature = "test-hooks")]
+    fn _arm_next_reader_snapshot_pause_for_test(&self) -> PyWalSnapshotPause {
+        let (snapshot_ready, release) = self.inner.arm_next_reader_snapshot_pause_for_test();
         PyWalSnapshotPause { snapshot_ready, release }
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _wal_attribution_checkpoint_records_for_test(
+        &self,
+    ) -> Vec<(usize, bool, String, Vec<String>)> {
+        self.inner.wal_attribution_checkpoint_records_for_test()
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _wal_attribution_snapshot_for_test<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        let record = PyDict::new(py);
+        record.set_item("no_owned_snapshot", self.inner.wal_attribution_idle_for_test())?;
+        Ok(record)
     }
 
     #[pyo3(signature = (timeout_s = 0.0))]
@@ -2770,7 +2787,7 @@ fn force_panic_for_test() -> PyResult<()> {
 #[pymodule(gil_used = true)]
 fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyEngine>()?;
-    #[cfg(any(test, feature = "test-hooks"))]
+    #[cfg(feature = "test-hooks")]
     m.add_class::<PyWalSnapshotPause>()?;
     m.add_class::<PyWriteReceipt>()?;
     m.add_class::<PyEraseReport>()?;

@@ -138,15 +138,21 @@ def run_retained_materialized(expected_version: str) -> None:
         engine = Engine.open(str(Path(directory) / "retained.sqlite"), use_default_embedder=False)
         try:
             engine.write(
-                [{**_node("slice65-retained", "slice65-retained-source"), "body": json.dumps({"nested": {"value": "kept"}})}]
+                [
+                    {**_node("slice65-retained", "slice65-retained-source"), "body": json.dumps({"nested": {"value": "kept"}})},
+                    _node("slice65-retained-root", "slice65-retained-root-source"),
+                ]
             )
             retained = read.get(engine, "slice65-retained")
             assert retained is not None and json.loads(retained.body)["nested"]["value"] == "kept"
             native = engine._native
             assert native._wal_attribution_snapshot_for_test()["no_owned_snapshot"] is True
+            before = len(native._wal_attribution_checkpoint_records_for_test())
             engine.erase_source("slice65-retained-source")
-            records = native._wal_attribution_checkpoint_records_for_test()
-            assert records[-1][1:] == (False, "no_owned_snapshot", [])
+            engine.transition("slice65-retained-root", "deleted", "slice65 retained idle control")
+            engine.purge("slice65-retained-root")
+            records = native._wal_attribution_checkpoint_records_for_test()[before:]
+            assert records and all(r[1:] == (False, "no_owned_snapshot", []) for r in records)
             print("slice65_wal python_retained_materialized_idle=passed", flush=True)
         finally:
             engine.close()

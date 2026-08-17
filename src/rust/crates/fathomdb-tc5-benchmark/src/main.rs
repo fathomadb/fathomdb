@@ -272,4 +272,20 @@ mod tests {
         };
         assert!(validate_manifest(&manifest, &spec).is_err());
     }
+
+    #[test]
+    fn visible_cuda_requires_the_manifest_pinned_uuid_and_never_falls_back() {
+        let devices = vec![DeviceInfo {
+            uuid: "GPU-pinned".into(),
+            pci_bus_id: "0000:01:00.0".into(),
+            name: "test GPU".into(),
+            driver: "test-driver".into(),
+            cuda_ordinal: 0,
+        }];
+        let selected = select_device(&devices, Some("GPU-pinned")).unwrap();
+        assert_eq!(selected.logical_label(), "cuda:0");
+        assert!(select_device(&devices, Some("GPU-other")).is_err());
+        assert!(select_device(&devices, None).is_err());
+        assert_eq!(select_device(&[], Some("GPU-pinned")).unwrap().logical_label(), "cpu");
+    }
 }

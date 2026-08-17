@@ -32,7 +32,8 @@ use tokenizers::{Tokenizer, TruncationParams};
 
 use crate::{
     resolve_embed_device_policy_from_env, CudaDeviceInfo, CudaProbeError, CudaProvider,
-    DeviceResolution, EffectiveEmbedDevice, EmbedDevicePolicy, EmbedDevicePolicyError,
+    DeviceResolution, DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy,
+    EmbedDevicePolicyError,
 };
 
 #[cfg(test)]
@@ -92,11 +93,23 @@ impl OrtProvider {
 
 /// ONNX Runtime's CUDA availability probe expressed through the shared
 /// default-embedder policy boundary.
+///
+/// ORT validates the configured device ordinal when it builds a session, not
+/// when it answers `is_available`. The selected ordinal is carried through
+/// both stages: this probe verifies the CUDA EP can load, and session
+/// construction records a later ordinal/runtime failure in the resolution.
 struct OrtCudaProvider;
 
 impl CudaProvider for OrtCudaProvider {
     fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError> {
-        if CUDAExecutionProvider::default().is_available().unwrap_or(false) {
+        let device_id = i32::try_from(ordinal).map_err(|_| CudaProbeError::ProbeFailed {
+            message: format!("CUDA ordinal {ordinal} cannot be represented by ONNX Runtime"),
+        })?;
+        if CUDAExecutionProvider::default()
+            .with_device_id(device_id)
+            .is_available()
+            .unwrap_or(false)
+        {
             Ok(CudaDeviceInfo {
                 ordinal,
                 name: None,
@@ -147,26 +160,30 @@ fn provider_dispatch(provider: OrtProvider) -> ExecutionProviderDispatch {
     }
 }
 
-/// Build an ORT session under the same policy as the default Candle embedder.
-/// `auto` may retry CPU after a CUDA build failure; forced CUDA returns that
-/// failure untouched.
-fn build_session_with_policy<S, E, F>(
-    policy: EmbedDevicePolicy,
-    effective: OrtProvider,
+/// Build an ORT session under the supplied device resolution.
+///
+/// `auto` may retry CPU after a CUDA session-initialization failure. The
+/// returned resolution records that fallback; a forced CUDA request returns
+/// the session error without building CPU.
+fn build_session_with_device_resolution<S, E, F>(
+    mut resolution: DeviceResolution,
     build: F,
-) -> Result<(S, Option<String>), E>
+) -> Result<(S, DeviceResolution), E>
 where
     F: Fn(OrtProvider) -> Result<S, E>,
     E: std::fmt::Display,
 {
+    let effective = ort_provider_from_resolution(&resolution);
     match build(effective) {
-        Ok(session) => Ok((session, None)),
+        Ok(session) => Ok((session, resolution)),
         // A CPU build failure is a genuine error — there is nothing to fall
         // back to, so do not retry.
         Err(e) if matches!(effective, OrtProvider::Cpu) => Err(e),
-        Err(e) if matches!(policy, EmbedDevicePolicy::Auto) => {
+        Err(_) if matches!(resolution.requested_policy, EmbedDevicePolicy::Auto) => {
             let session = build(OrtProvider::Cpu)?;
-            Ok((session, Some(format!("auto CUDA ONNX session build failed ({e}); selected CPU"))))
+            resolution.effective_device = EffectiveEmbedDevice::Cpu;
+            resolution.reason = Some(DeviceResolutionReason::CudaProbeFailed);
+            Ok((session, resolution))
         }
         Err(e) => Err(e),
     }
@@ -247,6 +264,9 @@ pub struct OrtBgeEmbedder {
     /// Captured at construction and exposed via
     /// [`OrtBgeEmbedder::effective_provider`].
     effective_provider: OrtProvider,
+    /// The final resolution after ONNX Runtime constructed its session. This
+    /// can differ from the pre-build CUDA probe only for an `auto` fallback.
+    device_resolution: DeviceResolution,
 }
 
 fn err(context: &str, e: impl std::fmt::Display) -> EmbedderError {
@@ -259,14 +279,9 @@ impl OrtBgeEmbedder {
     /// Paths are caller-supplied (no hardcoded absolute path) so the model is an
     /// offline-build/eval asset the caller provisions.
     pub fn from_files(model_path: &Path, tokenizer_path: &Path) -> Result<Self, EmbedderError> {
-        let (policy, resolution) =
+        let (_, resolution) =
             resolve_ort_device_policy_from_env().map_err(|error| err("device policy", error))?;
-        Self::from_files_with_policy(
-            model_path,
-            tokenizer_path,
-            policy,
-            ort_provider_from_resolution(&resolution),
-        )
+        Self::from_files_with_device_resolution(model_path, tokenizer_path, resolution)
     }
 
     /// Construct from `FATHOMDB_ONNX_MODEL_PATH` + `FATHOMDB_ONNX_TOKENIZER_PATH`
@@ -286,14 +301,31 @@ impl OrtBgeEmbedder {
         tokenizer_path: &Path,
         provider: OrtProvider,
     ) -> Result<Self, EmbedderError> {
-        Self::from_files_with_policy(model_path, tokenizer_path, EmbedDevicePolicy::Cpu, provider)
+        Self::from_files_with_device_resolution(
+            model_path,
+            tokenizer_path,
+            DeviceResolution {
+                requested_policy: EmbedDevicePolicy::Cpu,
+                cuda_compiled: true,
+                effective_device: match provider {
+                    OrtProvider::Cpu => EffectiveEmbedDevice::Cpu,
+                    OrtProvider::Cuda(ordinal) => EffectiveEmbedDevice::Cuda(CudaDeviceInfo {
+                        ordinal: ordinal as usize,
+                        name: None,
+                        driver_version: None,
+                        compute_capability: None,
+                        cuda_toolkit_version: None,
+                    }),
+                },
+                reason: None,
+            },
+        )
     }
 
-    fn from_files_with_policy(
+    fn from_files_with_device_resolution(
         model_path: &Path,
         tokenizer_path: &Path,
-        policy: EmbedDevicePolicy,
-        provider: OrtProvider,
+        resolution: DeviceResolution,
     ) -> Result<Self, EmbedderError> {
         let mut tokenizer =
             Tokenizer::from_file(tokenizer_path).map_err(|e| err("tokenizer load", e))?;
@@ -304,13 +336,13 @@ impl OrtBgeEmbedder {
             }))
             .map_err(|e| err("tokenizer truncation", e))?;
 
-        let (session, build_warn) = build_session_with_policy(policy, provider, |p| {
+        let (session, device_resolution) = build_session_with_device_resolution(resolution, |p| {
             Session::builder()?
                 .with_execution_providers([provider_dispatch(p)])?
                 .commit_from_file(model_path)
         })
         .map_err(|e| err("session build", e))?;
-        let effective_provider = if build_warn.is_some() { OrtProvider::Cpu } else { provider };
+        let effective_provider = ort_provider_from_resolution(&device_resolution);
 
         // Self-describing identity (codex §9 fix-5): derive the revision from a
         // content digest of the ACTUALLY-loaded model + tokenizer assets rather
@@ -327,6 +359,7 @@ impl OrtBgeEmbedder {
             session: Mutex::new(session),
             pooling: OrtPooling::Cls,
             effective_provider,
+            device_resolution,
         })
     }
 
@@ -344,6 +377,18 @@ impl OrtBgeEmbedder {
     #[must_use]
     pub fn effective_provider(&self) -> &'static str {
         self.effective_provider.label()
+    }
+
+    /// The final CPU/CUDA resolution after ONNX Runtime constructed its session.
+    ///
+    /// A caller using `auto` can inspect this to distinguish a selected CUDA
+    /// session from a recorded CPU fallback. Forced CUDA never constructs an
+    /// embedder with a CPU resolution. Pass a clone to
+    /// `EmbedderChoice::CallerWithDeviceResolution` when the engine's
+    /// `OpenReport` must record the same outcome.
+    #[must_use]
+    pub fn device_resolution(&self) -> &DeviceResolution {
+        &self.device_resolution
     }
 }
 
@@ -462,9 +507,8 @@ mod tests {
         use std::cell::RefCell;
 
         let attempts = RefCell::new(Vec::new());
-        let result = super::build_session_with_policy(
-            EmbedDevicePolicy::Cuda(2),
-            OrtProvider::Cuda(2),
+        let result = super::build_session_with_device_resolution(
+            cuda_resolution(EmbedDevicePolicy::Cuda(2), 2),
             |provider| -> Result<&'static str, &'static str> {
                 attempts.borrow_mut().push(provider);
                 Err("CUDA session unavailable")
@@ -480,9 +524,8 @@ mod tests {
         use std::cell::RefCell;
 
         let attempts = RefCell::new(Vec::new());
-        let (session, warning) = super::build_session_with_policy(
-            EmbedDevicePolicy::Auto,
-            OrtProvider::Cuda(0),
+        let (session, resolution) = super::build_session_with_device_resolution(
+            cuda_resolution(EmbedDevicePolicy::Auto, 0),
             |provider| -> Result<&'static str, &'static str> {
                 attempts.borrow_mut().push(provider);
                 match provider {
@@ -494,24 +537,13 @@ mod tests {
         .expect("auto may retry CPU after a CUDA session failure");
 
         assert_eq!(session, "cpu session");
-        assert!(warning.is_some());
+        assert_eq!(resolution.effective_device, crate::EffectiveEmbedDevice::Cpu);
         assert_eq!(*attempts.borrow(), vec![OrtProvider::Cuda(0), OrtProvider::Cpu]);
     }
 
     #[test]
     fn auto_cuda_session_build_fallback_is_recorded_in_device_resolution() {
-        let resolution = crate::DeviceResolution {
-            requested_policy: EmbedDevicePolicy::Auto,
-            cuda_compiled: true,
-            effective_device: crate::EffectiveEmbedDevice::Cuda(crate::CudaDeviceInfo {
-                ordinal: 0,
-                name: None,
-                driver_version: None,
-                compute_capability: None,
-                cuda_toolkit_version: None,
-            }),
-            reason: None,
-        };
+        let resolution = cuda_resolution(EmbedDevicePolicy::Auto, 0);
 
         let (session, resolution) = super::build_session_with_device_resolution(
             resolution,
@@ -527,6 +559,21 @@ mod tests {
         assert_eq!(session, "cpu session");
         assert_eq!(resolution.effective_device, crate::EffectiveEmbedDevice::Cpu);
         assert_eq!(resolution.reason, Some(crate::DeviceResolutionReason::CudaProbeFailed),);
+    }
+
+    fn cuda_resolution(policy: EmbedDevicePolicy, ordinal: usize) -> crate::DeviceResolution {
+        crate::DeviceResolution {
+            requested_policy: policy,
+            cuda_compiled: true,
+            effective_device: crate::EffectiveEmbedDevice::Cuda(crate::CudaDeviceInfo {
+                ordinal,
+                name: None,
+                driver_version: None,
+                compute_capability: None,
+                cuda_toolkit_version: None,
+            }),
+            reason: None,
+        }
     }
 
     /// codex §9 fix-5 — the identity revision self-describes the loaded assets.

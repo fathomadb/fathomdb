@@ -4705,6 +4705,17 @@ pub enum EmbedderChoice {
     /// Caller supplies the embedder instance. The supplied embedder's
     /// `identity()` becomes the workspace's default-profile identity.
     Caller(Arc<dyn Embedder>),
+    /// Caller supplies an embedder plus its already-resolved device outcome.
+    ///
+    /// The resolution is recorded in [`OpenReport::embedder_device_resolution`]
+    /// exactly once. This is for opt-in embedders, such as ONNX Runtime, whose
+    /// final CUDA/CPU outcome is known only after their own construction.
+    CallerWithDeviceResolution {
+        /// The caller-supplied runtime embedder.
+        embedder: Arc<dyn Embedder>,
+        /// The embedder's final CPU/CUDA resolution.
+        device_resolution: DeviceResolution,
+    },
     /// No embedder configured. Engine opens; subsequent vector writes
     /// fail with `EngineError::EmbedderNotConfigured`. Useful for
     /// read-only or canonical-only flows.
@@ -5702,6 +5713,17 @@ impl Engine {
                     identity,
                     Some(embedder),
                     None,
+                    None,
+                    &mut |_| {},
+                )
+            }
+            EmbedderChoice::CallerWithDeviceResolution { embedder, device_resolution } => {
+                let identity = embedder.identity();
+                Self::open_with_embedder_and_subscriber(
+                    path,
+                    identity,
+                    Some(embedder),
+                    Some(LoaderInfo { download_ms: None, events: Vec::new(), device_resolution }),
                     None,
                     &mut |_| {},
                 )

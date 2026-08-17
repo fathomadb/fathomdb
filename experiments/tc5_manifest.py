@@ -72,6 +72,7 @@ class Tc5Manifest:
     manifest_id: str
     manifest_sha256: str
     source_artifact_sha256: str
+    documents: tuple[Mapping[str, str], ...]
     document_count: int
     bridge_document_ids: tuple[str, ...]
     provenance: Mapping[str, object]
@@ -185,6 +186,7 @@ def validate_manifest(document: object) -> Tc5Manifest:
         manifest_id=manifest_id,
         manifest_sha256=hashlib.sha256(_canonical_json(document)).hexdigest(),
         source_artifact_sha256=source_artifact_sha256,
+        documents=tuple(dict(row) for row in documents),
         document_count=len(selected_ids),
         bridge_document_ids=bridge_ids,
         provenance=provenance,

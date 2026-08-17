@@ -85,6 +85,12 @@ def test_manifest_loader_freezes_two_all_real_arms_and_content_free_receipt(tmp_
     )
 
     assert manifest.document_count == PRIMARY_DOCUMENT_COUNT
+    assert manifest.documents[0] == {
+        "document_id": "document-00000",
+        "content_sha256": _sha(0),
+        "origin": "real",
+    }
+    assert manifest.documents[-1]["document_id"] == "document-17271"
     assert manifest.bridge_document_ids == tuple(
         f"document-{number:05d}" for number in range(BRIDGE_DOCUMENT_COUNT)
     )

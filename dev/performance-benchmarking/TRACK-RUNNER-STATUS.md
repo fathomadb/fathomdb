@@ -141,14 +141,22 @@ unmasked historical defect replays, and accurate negative-infinity regression
 coverage. The next gate is a coordinator-issued release record plus factual
 external manifest/corpus/output preflight before the authorized smoke.
 
+The LOCOMO/PARENT live-executor remediation `2520bd48` was independently
+accepted and is integrated here as `655ec77c`. It enforces full TRACE
+validation, canonical parent-manifest binding, exact same-release 52-cell
+closure, actual CUDA/adapter attestation, duplicate-key-safe adapter parsing,
+and review-evidence binding. The next gate is factual external provenance and
+environment preflight plus a coordinator-issued release before the authorized
+fixed-subset dry run.
+
 ## Track status
 
 | ID | Portfolio state | Runner state | Verified evidence / next gate |
 | --- | --- | --- | --- |
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
-| LOCOMO-01 | Active | Live-executor remediation in progress after independent request-changes; no live execution | `d0a88779` integrates independently accepted `77a0c700`: ordered cells and complete bound evidence are enforced. `seq-249` authorizes the fixed-subset dry run, Phase-B CPU/FTS grid, and GPU/CE cells. Next gate: accept full lifecycle/provenance/grid/GPU/review hardening, integrate its live executor, then release its fixed-subset dry run. |
-| PARENT-01 | Active | Frozen-v1 live-executor remediation in progress; no live execution | `d0a88779` enforces TRACE-attributed, exact parent/session/neighbor bounds at adapter scope. `seq-250` approves `parent_child_turn_session_v1`. Next gate: accept canonical-manifest and full-TRACE proof hardening, then integrate the external runner; empirical variants require a new amendment and review. |
+| LOCOMO-01 | Active | Live executor integrated; release record and external preflight pending | `655ec77c` integrates independently accepted `2520bd48`; 35 integrated focused tests pass. `seq-249` authorizes the fixed-subset dry run, Phase-B CPU/FTS grid, and GPU/CE cells. Next gate: qualify factual external inputs, issue a coordinator-bound fixed-subset release, then run it. |
+| PARENT-01 | Active | Frozen-v1 live executor integrated; matched release and external preflight pending | `655ec77c` enforces complete TRACE and canonical parent/session/neighbor proof at external-runner scope. `seq-250` approves `parent_child_turn_session_v1`. Next gate: qualify the same external inputs and issue the matched release before including it in the fixed-subset dry run; empirical variants require a new amendment and review. |
 | SCALE-01 | Active | Live executor integrated; release record and external preflight pending | `e87be86d` integrates independently accepted `4c30072f`; 44 integrated focused tests pass. `seq-249` authorizes the TC-5 smoke and long CPU characterization; `seq-250` retains 0.90 as the goal and authorizes a separate remediation. Next gate: qualify factual external inputs, issue a coordinator-bound release, then run the frozen smoke. |
 | CORPUS-01 | Planned | Corpus and gold-work authorization recorded; not yet commissioned | `seq-249` authorizes corpus/license matrix and human-gold work. Next gate: commission the preparation lane with external-data and licensing boundaries. |
 | ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |

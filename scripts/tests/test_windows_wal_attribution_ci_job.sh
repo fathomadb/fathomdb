@@ -103,12 +103,17 @@ assert_contains "$CODE" 'close-boundary neighbors control selected zero tests' "
 assert_contains "$CODE" 'test_slice65_wal_attribution_installed.py' "job runs installed-wheel controls"
 assert_contains "$CODE" '--control retained' "job runs installed retained-result control"
 assert_contains "$CODE" 'current_head=$(git rev-parse HEAD)' "job records current source identity"
-assert_contains "$CODE" '$currentWheelCandidates = @(Get-ChildItem -Path "dist-slice65-test" -Filter "*.whl" -File)' "job discovers the actual root-level disposable current wheel"
+assert_contains "$CODE" 'args: --release --out ${{ github.workspace }}/dist-slice65-test -i python3.11 --features pyo3/extension-module,test-hooks' "job builds the disposable wheel at an explicit workspace-absolute path"
+assert_contains "$CODE" '$currentWheelDir = Join-Path $env:GITHUB_WORKSPACE "dist-slice65-test"' "job derives the current wheel directory from the workspace"
+assert_contains "$CODE" 'Test-Path -LiteralPath $currentWheelDir -PathType Container' "job fails closed when the current wheel directory is missing"
+assert_contains "$CODE" '$currentWheelCandidates = @(Get-ChildItem -LiteralPath $currentWheelDir -Filter "*.whl" -File)' "job discovers the disposable current wheel only beneath the resolved workspace directory"
 assert_contains "$CODE" 'expected exactly one disposable current test-hooks wheel' "job rejects an ambiguous disposable current wheel output"
 assert_contains "$CODE" 'current_wheel_path=' "job records the resolved current wheel path"
 assert_contains "$CODE" 'current_wheel_sha256=' "job records current wheel digest"
 assert_contains "$CODE" '& "$currentEnv\Scripts\python.exe" -m pip install --no-index --no-deps $currentWheel' "job installs exactly the resolved current wheel"
 assert_absent "$CODE" 'src/python/dist-slice65-test' "job does not look for the disposable wheel beneath the Python source directory"
+assert_absent "$CODE" 'Get-ChildItem -Path "dist-slice65-test"' "job has no naked relative current-wheel lookup"
+assert_absent "$CODE" '-Recurse' "job does not recursively discover a current wheel"
 assert_contains "$CODE" 'released_native_sha256=' "job records released native input identity"
 assert_contains "$CODE" 'test-hooks' "job builds a non-shipping test-hooks wheel"
 assert_contains "$CODE" 'fathomdb==0.8.22' "job installs the released 0.8.22 comparison wheel"
@@ -362,6 +367,45 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves current-wheel resolved-path assertion is load-bearing"
   else
     fail "mutation did not fail current-wheel resolved-path assertion: $wheel_path_out"
+  fi
+
+  WHEEL_BUILD_OUT_MUTATED="$TMPROOT/ci-with-relative-wheel-out.yml"
+  sed 's#${{ github.workspace }}/dist-slice65-test#dist-slice65-test#' "$CI" >"$WHEEL_BUILD_OUT_MUTATED"
+  set +e
+  wheel_build_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$WHEEL_BUILD_OUT_MUTATED" bash "$0" 2>&1)"
+  wheel_build_out_rc=$?
+  set -e
+  if [ "$wheel_build_out_rc" -ne 0 ] \
+    && grep -Fq 'job builds the disposable wheel at an explicit workspace-absolute path (missing: args: --release --out ${{ github.workspace }}/dist-slice65-test -i python3.11 --features pyo3/extension-module,test-hooks)' <<<"$wheel_build_out"; then
+    pass "mutation proves workspace-absolute wheel build path is load-bearing"
+  else
+    fail "mutation did not fail workspace-absolute wheel build path assertion: $wheel_build_out"
+  fi
+
+  WHEEL_DIRECTORY_MUTATED="$TMPROOT/ci-without-wheel-directory.yml"
+  sed '/\$currentWheelDir = Join-Path \$env:GITHUB_WORKSPACE "dist-slice65-test"/d' "$CI" >"$WHEEL_DIRECTORY_MUTATED"
+  set +e
+  wheel_directory_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$WHEEL_DIRECTORY_MUTATED" bash "$0" 2>&1)"
+  wheel_directory_rc=$?
+  set -e
+  if [ "$wheel_directory_rc" -ne 0 ] \
+    && grep -Fq 'job derives the current wheel directory from the workspace (missing: $currentWheelDir = Join-Path $env:GITHUB_WORKSPACE "dist-slice65-test")' <<<"$wheel_directory_out"; then
+    pass "mutation proves workspace-derived wheel directory is load-bearing"
+  else
+    fail "mutation did not fail workspace-derived wheel directory assertion: $wheel_directory_out"
+  fi
+
+  WHEEL_LITERAL_LOOKUP_MUTATED="$TMPROOT/ci-without-wheel-literal-lookup.yml"
+  sed 's/Get-ChildItem -LiteralPath \$currentWheelDir/Get-ChildItem -Path \$currentWheelDir/' "$CI" >"$WHEEL_LITERAL_LOOKUP_MUTATED"
+  set +e
+  wheel_literal_lookup_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$WHEEL_LITERAL_LOOKUP_MUTATED" bash "$0" 2>&1)"
+  wheel_literal_lookup_rc=$?
+  set -e
+  if [ "$wheel_literal_lookup_rc" -ne 0 ] \
+    && grep -Fq 'job discovers the disposable current wheel only beneath the resolved workspace directory (missing: $currentWheelCandidates = @(Get-ChildItem -LiteralPath $currentWheelDir -Filter "*.whl" -File))' <<<"$wheel_literal_lookup_out"; then
+    pass "mutation proves literal current-wheel lookup is load-bearing"
+  else
+    fail "mutation did not fail literal current-wheel lookup assertion: $wheel_literal_lookup_out"
   fi
 
   BASELINE_TYPED_OBSERVATION_MUTATED="$TMPROOT/ci-without-typed-baseline-observation.yml"

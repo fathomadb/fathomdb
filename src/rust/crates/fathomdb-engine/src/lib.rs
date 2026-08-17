@@ -1717,6 +1717,8 @@ fn finish_reader_request(
     reader_handoff_pause::fire();
     #[cfg(any(test, feature = "test-hooks"))]
     reader_completion_pause::fire(connection.is_autocommit());
+    #[cfg(not(any(test, feature = "test-hooks")))]
+    let _ = connection;
 }
 
 /// 0.8.20 keystone closeout fix-3 — a test-only rendezvous hook fired at the TOP
@@ -12653,7 +12655,9 @@ mod reader_completion_pause {
     use super::{AtomicBool, Barrier, Ordering};
     use std::sync::{Arc, Mutex};
 
-    static PAUSE: Mutex<Option<(Arc<Barrier>, Arc<Barrier>, Arc<AtomicBool>)>> = Mutex::new(None);
+    type Pause = (Arc<Barrier>, Arc<Barrier>, Arc<AtomicBool>);
+
+    static PAUSE: Mutex<Option<Pause>> = Mutex::new(None);
 
     pub(crate) fn arm() -> (Arc<Barrier>, Arc<Barrier>, Arc<AtomicBool>) {
         let ready = Arc::new(Barrier::new(2));

@@ -73,7 +73,12 @@ assert_contains "$CODE" 'close-boundary neighbors control selected zero tests' "
 assert_contains "$CODE" 'test_slice65_wal_attribution_installed.py' "job runs installed-wheel controls"
 assert_contains "$CODE" '--control retained' "job runs installed retained-result control"
 assert_contains "$CODE" 'current_head=$(git rev-parse HEAD)' "job records current source identity"
+assert_contains "$CODE" '$currentWheelCandidates = @(Get-ChildItem -Path "dist-slice65-test" -Filter "*.whl" -File)' "job discovers the actual root-level disposable current wheel"
+assert_contains "$CODE" 'expected exactly one disposable current test-hooks wheel' "job rejects an ambiguous disposable current wheel output"
+assert_contains "$CODE" 'current_wheel_path=' "job records the resolved current wheel path"
 assert_contains "$CODE" 'current_wheel_sha256=' "job records current wheel digest"
+assert_contains "$CODE" '& "$currentEnv\Scripts\python.exe" -m pip install --no-index --no-deps $currentWheel' "job installs exactly the resolved current wheel"
+assert_absent "$CODE" 'src/python/dist-slice65-test' "job does not look for the disposable wheel beneath the Python source directory"
 assert_contains "$CODE" 'released_native_sha256=' "job records released native input identity"
 assert_contains "$CODE" 'test-hooks' "job builds a non-shipping test-hooks wheel"
 assert_contains "$CODE" 'fathomdb==0.8.22' "job installs the released 0.8.22 comparison wheel"
@@ -177,6 +182,19 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves current-wheel identity assertion is load-bearing"
   else
     fail "mutation did not fail current-wheel identity assertion: $identity_out"
+  fi
+
+  WHEEL_PATH_MUTATED="$TMPROOT/ci-without-wheel-path.yml"
+  sed '/current_wheel_path=/d' "$CI" >"$WHEEL_PATH_MUTATED"
+  set +e
+  wheel_path_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$WHEEL_PATH_MUTATED" bash "$0" 2>&1)"
+  wheel_path_rc=$?
+  set -e
+  if [ "$wheel_path_rc" -ne 0 ] \
+    && grep -Fq 'job records the resolved current wheel path (missing: current_wheel_path=)' <<<"$wheel_path_out"; then
+    pass "mutation proves current-wheel resolved-path assertion is load-bearing"
+  else
+    fail "mutation did not fail current-wheel resolved-path assertion: $wheel_path_out"
   fi
 
   FRESH_CONNECTION_MUTATED="$TMPROOT/lib-without-fresh-connection-marker.rs"

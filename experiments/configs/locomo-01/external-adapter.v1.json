@@ -1,0 +1,8 @@
+{
+  "schema_version": "locomo-external-adapter.v1",
+  "program_tracks": ["LOCOMO-01", "PARENT-01"],
+  "request_schema": "locomo-live-executor.request.v1",
+  "result_schema": "locomo-live-executor.cell-result.v1",
+  "metrics_schema": "locomo-external-adapter-metrics.v1",
+  "repository_writes": "forbidden"
+}

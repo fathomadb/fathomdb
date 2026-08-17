@@ -33,10 +33,16 @@ not cited as red evidence for the hardening correction.
 `0aa3d173`. It first proved a fully valid legacy baseline, then independently
 mutated arm and receipt symlink containment, receipt digest projection,
 `NaN`/positive-infinite/negative-infinite sigma, Rust version, and sorted
-engine features. It produced eight intended behavioral failures (no generic
-provenance-key drift). The intentionally failing replay file is removed by this
-handoff correction so the shipped suite stays executable; the corrected,
-passing regression assertions remain in `test_tc5_live_executor.py`.
+engine features. It produced **seven** genuine behavioral failures: both
+containment escapes, the missing digest projection, `NaN`, positive infinity,
+Rust-version drift, and engine-feature drift (no generic provenance-key
+failure). The legacy executor already rejected negative infinity as
+non-negative; its failure against a new `finite` wording expectation was not a
+behavioral defect and is not counted. Negative infinity remains explicit
+regression coverage for the hardened finite-only rule. The intentionally
+failing replay file is removed by this handoff correction so the shipped suite
+stays executable; the corrected, passing regression assertions remain in
+`test_tc5_live_executor.py`.
 
 This replay establishes the missing historical red evidence. It does **not**
 claim that the already-landed `2ed76050` implementation chronologically
@@ -47,8 +53,8 @@ is regression coverage rather than new red evidence.
 
 - `python3 -m pytest tests/experiments/test_tc5_live_executor.py
   tests/experiments/test_tc5_characterization.py
-  tests/experiments/test_tc5_manifest.py -q` — 43 passed.
-- `python3 -m pytest tests/experiments -q` — 123 passed.
+  tests/experiments/test_tc5_manifest.py -q` — 44 passed.
+- `python3 -m pytest tests/experiments -q` — 124 passed.
 - `python3 -m ruff check experiments/tc5_live_executor.py
   tests/experiments/test_tc5_live_executor.py`, `./scripts/agent-lint-md.sh`,
   and `git diff --check` — passed.

@@ -399,6 +399,7 @@ def test_release_fails_closed_on_stale_or_mismatched_authority(tmp_path, mutate,
         ("engine-features", "engine_features"),
         ("nan-sigma", "bootstrap_sigma"),
         ("infinite-sigma", "bootstrap_sigma"),
+        ("negative-infinite-sigma", "bootstrap_sigma"),
         ("claim", "SCALE-02"),
     ],
 )
@@ -422,6 +423,7 @@ def test_executor_rejects_unqualified_arm_result_without_index_eligibility(tmp_p
             "engine-features": "result['provenance']['engine_features'] = ['operator', 'default-embedder']",
             "nan-sigma": "result['metrics']['bootstrap_sigma'] = float('nan')",
             "infinite-sigma": "result['metrics']['bootstrap_sigma'] = float('inf')",
+            "negative-infinite-sigma": "result['metrics']['bootstrap_sigma'] = float('-inf')",
             "claim": "result['scale_02_claim'] = 'supported through 50k'",
         }[mutation]
         + "\njson.dump(result, open(result_path, 'w', encoding='utf-8'), sort_keys=True)\n",

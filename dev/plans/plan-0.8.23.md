@@ -96,7 +96,10 @@ witness condition is `PENDING_EXTERNAL`. Per HITL `seq:249`, that condition
 blocks release completion and publication, not local Slice 20 or Slice 70 work.
 Slice 20 is next; Slice 70 remains sequenced after Slice 20. Their work remains
 subject to their reviewed designs, acceptance criteria, and non-publication
-boundary.
+boundary. Slice 20's candidate dry-run CUDA rehearsal is never a canonical tag
+producer: canonical Linux x64 publication remains hard-blocked before all
+publishers, with no candidate artifact or credential hand-off, until a separate
+owned canonical-route design, provenance, and evidence package pass review.
 
 ## Cross-cutting DoD
 

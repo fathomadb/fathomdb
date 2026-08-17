@@ -154,6 +154,10 @@ for marker in \
   'post_commit_raw case={case}' \
   'post_commit_child_raw case=after_close' \
   'WalConnectionInventory' \
+  'RuntimeConnectionInventoryRequest' \
+  'report_runtime_connection_inventory_for_test' \
+  'ManagedConnectionRegistry' \
+  'post_commit_inventory=incomplete' \
   'fn wal_attribution_close_boundary_raw_checkpoint_is_clean' \
   'fn wal_attribution_close_boundary_fresh_open_is_clean' \
   'fn wal_attribution_close_boundary_read_get_is_clean' \

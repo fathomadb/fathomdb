@@ -498,6 +498,37 @@ mod tests {
         assert_eq!(*attempts.borrow(), vec![OrtProvider::Cuda(0), OrtProvider::Cpu]);
     }
 
+    #[test]
+    fn auto_cuda_session_build_fallback_is_recorded_in_device_resolution() {
+        let resolution = crate::DeviceResolution {
+            requested_policy: EmbedDevicePolicy::Auto,
+            cuda_compiled: true,
+            effective_device: crate::EffectiveEmbedDevice::Cuda(crate::CudaDeviceInfo {
+                ordinal: 0,
+                name: None,
+                driver_version: None,
+                compute_capability: None,
+                cuda_toolkit_version: None,
+            }),
+            reason: None,
+        };
+
+        let (session, resolution) = super::build_session_with_device_resolution(
+            resolution,
+            |provider| -> Result<&'static str, &'static str> {
+                match provider {
+                    OrtProvider::Cuda(_) => Err("CUDA session unavailable"),
+                    OrtProvider::Cpu => Ok("cpu session"),
+                }
+            },
+        )
+        .expect("auto may retry CPU after a CUDA session failure");
+
+        assert_eq!(session, "cpu session");
+        assert_eq!(resolution.effective_device, crate::EffectiveEmbedDevice::Cpu);
+        assert_eq!(resolution.reason, Some(crate::DeviceResolutionReason::CudaProbeFailed),);
+    }
+
     /// codex §9 fix-5 — the identity revision self-describes the loaded assets.
     /// Written a set of arbitrary temp "model"/"tokenizer" byte contents and
     /// assert the derived revision distinguishes distinct assets, is stable for

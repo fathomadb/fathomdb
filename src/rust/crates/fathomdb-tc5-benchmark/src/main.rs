@@ -316,7 +316,82 @@ fn canonical_digest(fields: &[(&str, &str)]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::RefCell;
     use tempfile::tempdir;
+
+    #[derive(Clone)]
+    struct FakeEmbedder {
+        effective_device: String,
+        probe_result: Result<(), String>,
+        calls: std::rc::Rc<RefCell<Vec<&'static str>>>,
+    }
+
+    impl CacheOnlyQueryEmbedder for FakeEmbedder {
+        fn device_label(&self) -> String {
+            self.effective_device.clone()
+        }
+
+        fn embed_query(&self, _query: &str) -> Result<(), String> {
+            self.calls.borrow_mut().push("embed");
+            self.probe_result.clone()
+        }
+    }
+
+    struct FakeFactory {
+        identity: Result<String, FactoryFailure>,
+        created: Result<FakeEmbedder, FactoryFailure>,
+        calls: std::rc::Rc<RefCell<Vec<&'static str>>>,
+    }
+
+    impl CacheOnlyEmbedderFactory for FakeFactory {
+        fn local_asset_identity(&self, _asset_dir: &Path) -> Result<String, FactoryFailure> {
+            self.calls.borrow_mut().push("asset");
+            self.identity.clone()
+        }
+
+        fn create(
+            &self,
+            _device: &SelectedDevice,
+            _asset_dir: &Path,
+        ) -> Result<Box<dyn CacheOnlyQueryEmbedder>, FactoryFailure> {
+            self.calls.borrow_mut().push("create");
+            self.created
+                .clone()
+                .map(|embedder| Box::new(embedder) as Box<dyn CacheOnlyQueryEmbedder>)
+        }
+    }
+
+    fn valid_spec() -> Spec {
+        Spec {
+            version: 1,
+            workload: WORKLOAD.into(),
+            algorithm: ALGORITHM.into(),
+            rerank: RERANK.into(),
+            candidate_k: 192,
+            top_k: 10,
+            warmups: 0,
+            repetitions: 1,
+            single_process: true,
+            manifest: "unused".into(),
+            settings_digest: "a".repeat(64),
+        }
+    }
+
+    fn valid_manifest(asset_directory: &str, asset_digest: &str) -> Manifest {
+        Manifest {
+            version: 1,
+            model_asset_directory: asset_directory.into(),
+            model_asset_digest: asset_digest.into(),
+            expected_vector_rows: 192,
+            allowed_candidate_k: vec![192],
+            allowed_top_k: vec![10],
+            fixture_digest: "0".repeat(64),
+            index_digest: "1".repeat(64),
+            query_digest: "2".repeat(64),
+            seed_digest: "3".repeat(64),
+            cuda_uuid: None,
+        }
+    }
 
     #[test]
     fn canonical_digest_is_length_prefixed() {
@@ -387,5 +462,90 @@ mod tests {
         assert!(select_device(&devices, Some("GPU-other")).is_err());
         assert!(select_device(&devices, None).is_err());
         assert_eq!(select_device(&[], Some("GPU-pinned")).unwrap().logical_label(), "cpu");
+    }
+
+    #[test]
+    fn verified_directory_identity_and_real_embed_probe_precede_measurement() {
+        let calls = std::rc::Rc::new(RefCell::new(Vec::new()));
+        let factory = FakeFactory {
+            identity: Ok("a".repeat(64)),
+            created: Ok(FakeEmbedder {
+                effective_device: "cpu".into(),
+                probe_result: Ok(()),
+                calls: calls.clone(),
+            }),
+            calls: calls.clone(),
+        };
+        let dir = tempdir().unwrap();
+        let result = dir.path().join("result.json");
+        let outcome = execute_with_factory(
+            &result,
+            &valid_spec(),
+            &valid_manifest("/private/model-cache", &"a".repeat(64)),
+            &[],
+            &factory,
+        );
+
+        assert_eq!(outcome.unwrap_err(), "measurement executor unavailable in this build");
+        assert_eq!(&*calls.borrow(), &["asset", "create", "embed"]);
+        assert!(!result.exists(), "a failed measurement must not create a result");
+    }
+
+    #[test]
+    fn effective_device_drift_is_a_typed_nonmeasurement_before_embedding() {
+        let calls = std::rc::Rc::new(RefCell::new(Vec::new()));
+        let factory = FakeFactory {
+            identity: Ok("a".repeat(64)),
+            created: Ok(FakeEmbedder {
+                effective_device: "cpu".into(),
+                probe_result: Ok(()),
+                calls: calls.clone(),
+            }),
+            calls: calls.clone(),
+        };
+        let dir = tempdir().unwrap();
+        let result = dir.path().join("result.json");
+        let visible = vec![DeviceInfo {
+            uuid: "GPU-pinned".into(),
+            pci_bus_id: "0000:01:00.0".into(),
+            name: "test GPU".into(),
+            driver: "test-driver".into(),
+            cuda_ordinal: 0,
+        }];
+        let mut manifest = valid_manifest("/private/model-cache", &"a".repeat(64));
+        manifest.cuda_uuid = Some("GPU-pinned".into());
+
+        execute_with_factory(&result, &valid_spec(), &manifest, &visible, &factory).unwrap();
+
+        assert_eq!(&*calls.borrow(), &["asset", "create"]);
+        let output = std::fs::read_to_string(result).unwrap();
+        assert!(output.contains("device_unavailable"));
+        assert!(!output.contains("/private/model-cache"));
+    }
+
+    #[test]
+    fn asset_failure_is_typed_and_never_leaks_the_local_directory() {
+        let calls = std::rc::Rc::new(RefCell::new(Vec::new()));
+        let factory = FakeFactory {
+            identity: Err(FactoryFailure::AssetUnavailable),
+            created: Err(FactoryFailure::AssetUnavailable),
+            calls: calls.clone(),
+        };
+        let dir = tempdir().unwrap();
+        let result = dir.path().join("result.json");
+
+        execute_with_factory(
+            &result,
+            &valid_spec(),
+            &valid_manifest("/private/model-cache", &"a".repeat(64)),
+            &[],
+            &factory,
+        )
+        .unwrap();
+
+        assert_eq!(&*calls.borrow(), &["asset"]);
+        let output = std::fs::read_to_string(result).unwrap();
+        assert!(output.contains("asset_unavailable"));
+        assert!(!output.contains("/private/model-cache"));
     }
 }

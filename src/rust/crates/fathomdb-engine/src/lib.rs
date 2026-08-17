@@ -21457,7 +21457,7 @@ mod tests {
         old.engine.close().expect("old close");
         assert_closed_engine_is_idle(&old);
 
-        let report = raw_close_boundary_checkpoint(&path, "direct_close");
+        let report = raw_close_boundary_checkpoint(&path, "direct_close", None);
         assert_eq!(report.busy, 0, "a closed Engine must not hold the raw checkpoint");
     }
 
@@ -21473,11 +21473,10 @@ mod tests {
 
         let fresh = Engine::open(&path).expect("fresh open");
         assert!(fresh.engine.wal_attribution_snapshot().no_owned_snapshot);
+        let report = raw_close_boundary_checkpoint(&path, "fresh_open", Some(&fresh));
+        assert_eq!(report.busy, 0, "an idle fresh Engine must not hold the raw checkpoint");
         fresh.engine.close().expect("fresh close");
         assert_closed_engine_is_idle(&fresh);
-
-        let report = raw_close_boundary_checkpoint(&path, "fresh_open");
-        assert_eq!(report.busy, 0, "a fresh open/close must not hold the raw checkpoint");
     }
 
     /// Slice 65 RED: a completed read-get followed by explicit close leaves no
@@ -21498,11 +21497,10 @@ mod tests {
             .expect("read get")
             .is_some());
         assert!(fresh.engine.wal_attribution_snapshot().no_owned_snapshot);
+        let report = raw_close_boundary_checkpoint(&path, "read_get", Some(&fresh));
+        assert_eq!(report.busy, 0, "an idle read-get Engine must not hold the raw checkpoint");
         fresh.engine.close().expect("fresh close");
         assert_closed_engine_is_idle(&fresh);
-
-        let report = raw_close_boundary_checkpoint(&path, "read_get");
-        assert_eq!(report.busy, 0, "a closed read-get Engine must not hold the raw checkpoint");
     }
 
     /// Slice 65 RED: completed graph-neighbor traversal followed by explicit
@@ -21531,11 +21529,10 @@ mod tests {
             1
         );
         assert!(fresh.engine.wal_attribution_snapshot().no_owned_snapshot);
+        let report = raw_close_boundary_checkpoint(&path, "graph_neighbors", Some(&fresh));
+        assert_eq!(report.busy, 0, "an idle neighbors Engine must not hold the raw checkpoint");
         fresh.engine.close().expect("fresh close");
         assert_closed_engine_is_idle(&fresh);
-
-        let report = raw_close_boundary_checkpoint(&path, "graph_neighbors");
-        assert_eq!(report.busy, 0, "a closed neighbors Engine must not hold the raw checkpoint");
     }
 
     fn seed_close_boundary_database(path: &Path) -> super::OpenedEngine {
@@ -21589,10 +21586,32 @@ mod tests {
         assert!(opened.engine.wal_attribution_snapshot().no_owned_snapshot);
     }
 
-    /// Issue one intentionally independent SQLite checkpoint after an Engine
-    /// close. The emitted fields are limited to a fixed case label and SQLite's
+    /// Issue one intentionally independent SQLite checkpoint. The optional
+    /// fresh Engine stays live only for the staged siblings, where this helper
+    /// proves its managed writer connection exists while its collector is idle.
+    /// The emitted fields are limited to fixed state labels and SQLite's
     /// busy/frame counters; it deliberately emits no database or request data.
-    fn raw_close_boundary_checkpoint(path: &Path, case: &str) -> super::TruncateWalReport {
+    fn raw_close_boundary_checkpoint(
+        path: &Path,
+        case: &str,
+        fresh: Option<&super::OpenedEngine>,
+    ) -> super::TruncateWalReport {
+        let (fresh_engine_open, fresh_writer_connection_open) = if let Some(opened) = fresh {
+            assert!(
+                !opened.engine.closed.load(std::sync::atomic::Ordering::SeqCst),
+                "fresh Engine must remain open during the raw checkpoint"
+            );
+            assert!(
+                opened.engine.wal_attribution_snapshot().no_owned_snapshot,
+                "fresh Engine must be collector-idle during the raw checkpoint"
+            );
+            let writer_open =
+                opened.engine.connection.lock().expect("fresh writer connection mutex").is_some();
+            assert!(writer_open, "fresh Engine writer connection must remain open");
+            (true, true)
+        } else {
+            (false, false)
+        };
         let connection = Connection::open(path).expect("independent raw sqlite open");
         connection.busy_timeout(Duration::ZERO).expect("raw checkpoint no wait");
         let (busy, log_frames, checkpointed_frames): (i64, i64, i64) = connection
@@ -21613,8 +21632,8 @@ mod tests {
             checkpointed_frames: checkpointed_frames.max(0) as u32,
         };
         eprintln!(
-            "slice65_wal close_boundary case={case} old_engine_closed=1 engine_liveness_complete=1 raw_busy={} raw_log_frames={} raw_checkpointed_frames={}",
-            report.busy, report.log_frames, report.checkpointed_frames
+            "slice65_wal close_boundary case={case} old_engine_closed=1 fresh_engine_open={fresh_engine_open} fresh_writer_connection_open={fresh_writer_connection_open} raw_busy={} raw_log_frames={} raw_checkpointed_frames={}",
+            report.busy, report.log_frames, report.checkpointed_frames,
         );
         report
     }

@@ -7,6 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CI="${CI_YML:-$REPO_ROOT/.github/workflows/ci.yml}"
 SOURCE_TEST="${SOURCE_TEST:-$REPO_ROOT/src/rust/crates/fathomdb-engine/tests/erasure_completeness.rs}"
+ENGINE_SOURCE="${ENGINE_SOURCE:-$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs}"
 PY_SOURCE="$REPO_ROOT/src/rust/crates/fathomdb-py/src/lib.rs"
 PASSED=0
 FAILED=0
@@ -104,12 +105,12 @@ for marker in \
   'reopen_nested_serial=passed' \
   'retained_materialized_idle=passed' \
   'projection_worker_transaction_ready' \
-  'raw_close_boundary_checkpoint(&path, "direct_close")' \
-  'raw_close_boundary_checkpoint(&path, "fresh_open")' \
-  'raw_close_boundary_checkpoint(&path, "read_get")' \
-  'raw_close_boundary_checkpoint(&path, "graph_neighbors")' \
+  'fn wal_attribution_close_boundary_raw_checkpoint_is_clean' \
+  'fn wal_attribution_close_boundary_fresh_open_is_clean' \
+  'fn wal_attribution_close_boundary_read_get_is_clean' \
+  'fn wal_attribution_close_boundary_neighbors_is_clean' \
   'unclassified_external'; do
-  assert_contains "$(<"$SOURCE_TEST") $(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs")" "$marker" "source retains $marker"
+  assert_contains "$(<"$SOURCE_TEST") $(<"$ENGINE_SOURCE")" "$marker" "source retains $marker"
 done
 assert_contains "$(<"$PY_SOURCE")" \
   '_arm_next_reader_snapshot_pause_for_test' \
@@ -118,15 +119,18 @@ assert_contains "$(<"$PY_SOURCE")" \
 assert_contains "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/Cargo.toml")" \
   'test-hooks = []' \
   "engine reader rendezvous is a non-default test feature"
-assert_contains "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs")" \
+assert_contains "$(<"$ENGINE_SOURCE")" \
   '#[cfg(any(debug_assertions, feature = "test-hooks"))]' \
   "managed-reader hook is unavailable from shipped production builds"
+assert_contains "$(<"$ENGINE_SOURCE")" \
+  'fresh_writer_connection_open=' \
+  "source records the live fresh writer connection fact"
 for control in \
   wal_attribution_close_boundary_fresh_open_is_clean \
   wal_attribution_close_boundary_read_get_is_clean \
   wal_attribution_close_boundary_neighbors_is_clean; do
   assert_before_in_function \
-    "$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs" \
+    "$ENGINE_SOURCE" \
     "$control" \
     'raw_close_boundary_checkpoint' \
     'fresh.engine.close().expect("fresh close")' \
@@ -173,6 +177,19 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves current-wheel identity assertion is load-bearing"
   else
     fail "mutation did not fail current-wheel identity assertion: $identity_out"
+  fi
+
+  FRESH_CONNECTION_MUTATED="$TMPROOT/lib-without-fresh-connection-marker.rs"
+  sed '/fresh_writer_connection_open=/d' "$ENGINE_SOURCE" >"$FRESH_CONNECTION_MUTATED"
+  set +e
+  fresh_connection_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$FRESH_CONNECTION_MUTATED" bash "$0" 2>&1)"
+  fresh_connection_rc=$?
+  set -e
+  if [ "$fresh_connection_rc" -ne 0 ] \
+    && grep -Fq 'source records the live fresh writer connection fact (missing: fresh_writer_connection_open=)' <<<"$fresh_connection_out"; then
+    pass "mutation proves live fresh writer fact is load-bearing"
+  else
+    fail "mutation did not fail live fresh writer fact assertion: $fresh_connection_out"
   fi
 
   while IFS='|' read -r selector guard; do

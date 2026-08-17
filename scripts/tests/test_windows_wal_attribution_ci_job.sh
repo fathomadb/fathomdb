@@ -179,6 +179,19 @@ assert_contains "$(<"$ENGINE_SOURCE")" \
 assert_contains "$(<"$ENGINE_SOURCE")" \
   'fresh_writer_connection_open=' \
   "source records the live fresh writer connection fact"
+assert_contains "$(<"$ENGINE_SOURCE")" \
+  'ManagedConnectionCategory' \
+  "source classifies every Engine-managed SQLite open"
+assert_contains "$(<"$ENGINE_SOURCE")" \
+  'fn open_managed_connection' \
+  "source centralizes Engine-managed SQLite opens through the audited factory"
+PRODUCTION_ENGINE_SOURCE="$(sed '/^mod tests {$/,$d' "$ENGINE_SOURCE")"
+FACTORY_DIRECT_OPENS="$(grep -Fc 'Connection::open(' <<<"$PRODUCTION_ENGINE_SOURCE" || true)"
+if [ "$FACTORY_DIRECT_OPENS" -eq 1 ]; then
+  pass "only the audited factory directly opens Engine SQLite connections"
+else
+  fail "Engine production source has $FACTORY_DIRECT_OPENS direct SQLite opens; expected the one audited factory"
+fi
 assert_contains "$(<"$PY_CONTROL")" \
   '--observe-baseline-first-erase' \
   "installed serial control has an explicit first-erase baseline observation mode"

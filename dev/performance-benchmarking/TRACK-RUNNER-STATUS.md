@@ -285,6 +285,18 @@ integrated, but all authorized measurements remain blocked on their factual
 external prerequisites and a coordinator release. No action, result, receipt,
 or experiment-index row has been issued after HITL authorization.
 
+A follow-up LOCOMO/PARENT qualification correction is commissioned from
+`2d8fff80` on a dedicated worktree. A current factual audit verified that the
+available raw LOCOMO corpus has the historical raw SHA-256 and produces the
+frozen normalized corpus SHA-256 through `eval.locomo_loader`. The integrated
+qualifier instead compares raw file bytes directly with the normalized pin and
+therefore reports a spurious corpus mismatch. The worker may add only
+red-first, no-live validation that derives the canonical normalized hash from
+the external raw corpus; it may not alter frozen pins, fabricate the absent
+32-question subset, rewrite the ambiguous parent identity scheme, or release
+an action. The remaining factual blocks are still the missing fixed subset and
+unambiguous canonical parent proof.
+
 ## Track status
 
 | ID | Portfolio state | Runner state | Verified evidence / next gate |

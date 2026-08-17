@@ -208,6 +208,13 @@ registry rows, and omitted recorded post-fix full-verifier evidence. The
 worker is correcting those narrow gaps; no corpus or human-gold work is
 released.
 
+The TC-5 external-driver preparation lane is commissioned from campaign base
+`8101f1db` in `/tmp/fathomdb-perf-tc5-external-driver-20260816` on
+`experiments/performance-tc5-external-driver-20260816`. It may implement and
+test the CPU driver ABI with synthetic fixtures only. It may not inspect an
+all-real payload, load the pinned model, run a smoke, or write a campaign
+artifact during preparation.
+
 ## Track status
 
 | ID | Portfolio state | Runner state | Verified evidence / next gate |

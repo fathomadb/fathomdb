@@ -88,7 +88,8 @@ assert_contains "$CODE" 'wal_attribution_reopen_recovery_reads_then_nested_erasu
 assert_contains "$CODE" 'wal_attribution_projection_worker_transaction_is_owned_then_idle' "job runs projection transaction control"
 assert_contains "$CODE" 'tests::wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic' "job selects the exact post-commit diagnostic control"
 assert_contains "$CODE" 'post-commit diagnostic command selected zero tests' "job rejects a zero-test post-commit diagnostic invocation"
-assert_contains "$CODE" 'slice65_wal post_commit_ack inventory=' "job requires the post-commit acknowledgement inventory artifact"
+assert_contains "$CODE" 'slice65_wal post_commit_ack direct_inventory=' "job requires direct post-commit transaction facts"
+assert_contains "$CODE" 'collector_roles=idle' "job retains collector state separately from direct transaction facts"
 assert_contains "$CODE" 'slice65_wal post_commit_raw case=pre_close' "job requires redacted pre-close raw checkpoint samples"
 assert_contains "$CODE" 'slice65_wal post_commit_child_raw case=after_close' "job requires the redacted fresh-child probe outcome"
 assert_contains "$CODE" 'wal_attribution_close_boundary_raw_checkpoint_is_clean' "job runs direct close-boundary control"
@@ -312,13 +313,13 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
   fi
 
   POST_COMMIT_ARTIFACT_MUTATED="$TMPROOT/ci-without-post-commit-artifact.yml"
-  sed '/slice65_wal post_commit_ack inventory=/d' "$CI" >"$POST_COMMIT_ARTIFACT_MUTATED"
+  sed '/slice65_wal post_commit_ack direct_inventory=/d' "$CI" >"$POST_COMMIT_ARTIFACT_MUTATED"
   set +e
   post_commit_artifact_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$POST_COMMIT_ARTIFACT_MUTATED" bash "$0" 2>&1)"
   post_commit_artifact_rc=$?
   set -e
   if [ "$post_commit_artifact_rc" -ne 0 ] \
-    && grep -Fq 'job requires the post-commit acknowledgement inventory artifact (missing: slice65_wal post_commit_ack inventory=)' <<<"$post_commit_artifact_out"; then
+    && grep -Fq 'job requires direct post-commit transaction facts (missing: slice65_wal post_commit_ack direct_inventory=)' <<<"$post_commit_artifact_out"; then
     pass "mutation proves post-commit artifact assertion is load-bearing"
   else
     fail "mutation did not fail post-commit artifact assertion: $post_commit_artifact_out"

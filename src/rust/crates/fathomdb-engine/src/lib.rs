@@ -364,6 +364,12 @@ pub struct Engine {
     /// Slice 65 — private, opt-in owner attribution for WAL checkpoint
     /// investigations. It never enters the SDK surface or `EngineError`.
     wal_attribution: Arc<WalAttributionCollector>,
+    /// Slice 65 Fix-N: test-only audited inventory of every live Engine-owned
+    /// SQLite connection. It is absent from production and binding builds.
+    #[cfg(test)]
+    managed_connections: Arc<ManagedConnectionRegistry>,
+    #[cfg(test)]
+    writer_connection_registration: Mutex<Option<ManagedConnectionRegistration>>,
     provenance_row_cap: AtomicU64,
     /// Per-connection profile-callback contexts. Each box's pointer is
     /// installed into the connection's `sqlite3_profile` userdata; the
@@ -456,6 +462,10 @@ struct ProjectionRuntimeShared {
     /// background connections rather than through an `Engine` method call.
     subscribers: Arc<lifecycle::SubscriberRegistry>,
     wal_attribution: Arc<WalAttributionCollector>,
+    #[cfg(test)]
+    managed_connections: Arc<ManagedConnectionRegistry>,
+    #[cfg(test)]
+    runtime_inventory_request: Mutex<Option<RuntimeConnectionInventoryRequest>>,
     state: Mutex<ProjectionRuntimeState>,
     state_cvar: Condvar,
     queue: Mutex<VecDeque<ProjectionJob>>,
@@ -620,6 +630,69 @@ struct ProjectionRuntime {
     shared: Arc<ProjectionRuntimeShared>,
     dispatcher: Mutex<Option<JoinHandle<()>>>,
     workers: Mutex<Vec<JoinHandle<()>>>,
+}
+
+/// Test-only live-connection audit. Each long-lived Engine connection acquires
+/// one registration after its actual SQLite handle exists and drops it when the
+/// handle leaves service; an incomplete registry is a diagnostic failure, never
+/// evidence of an external WAL holder.
+#[cfg(test)]
+#[derive(Default)]
+struct ManagedConnectionRegistry {
+    live: Mutex<BTreeSet<(WalAttributionRole, usize)>>,
+}
+
+#[cfg(test)]
+struct ManagedConnectionRegistration {
+    registry: Arc<ManagedConnectionRegistry>,
+    role: WalAttributionRole,
+    index: usize,
+}
+
+#[cfg(test)]
+impl ManagedConnectionRegistry {
+    fn register(
+        self: &Arc<Self>,
+        role: WalAttributionRole,
+        index: usize,
+    ) -> ManagedConnectionRegistration {
+        let inserted = self.live.lock().expect("managed connection registry").insert((role, index));
+        assert!(inserted, "duplicate managed connection registration for {}:{index}", role.name());
+        ManagedConnectionRegistration { registry: Arc::clone(self), role, index }
+    }
+
+    fn exact_live(&self) -> bool {
+        let expected = BTreeSet::from([
+            (WalAttributionRole::Writer, 0),
+            (WalAttributionRole::ProjectionDispatcher, 0),
+            (WalAttributionRole::ProjectionWorker, 0),
+            (WalAttributionRole::ProjectionWorker, 1),
+            (WalAttributionRole::ReaderWorker, 0),
+            (WalAttributionRole::ReaderWorker, 1),
+            (WalAttributionRole::ReaderWorker, 2),
+            (WalAttributionRole::ReaderWorker, 3),
+            (WalAttributionRole::ReaderWorker, 4),
+            (WalAttributionRole::ReaderWorker, 5),
+            (WalAttributionRole::ReaderWorker, 6),
+            (WalAttributionRole::ReaderWorker, 7),
+        ]);
+        self.live.lock().map(|live| *live == expected).unwrap_or(false)
+    }
+}
+
+#[cfg(test)]
+impl Drop for ManagedConnectionRegistration {
+    fn drop(&mut self) {
+        if let Ok(mut live) = self.registry.live.lock() {
+            live.remove(&(self.role, self.index));
+        }
+    }
+}
+
+#[cfg(test)]
+struct RuntimeConnectionInventoryRequest {
+    pending: BTreeSet<(WalAttributionRole, usize)>,
+    respond: SyncSender<(WalAttributionRole, usize, bool)>,
 }
 
 impl std::fmt::Debug for Engine {
@@ -1182,7 +1255,11 @@ pub struct CacheStatusReply {
 const READER_WORKER_CHANNEL_CAPACITY: usize = 4;
 
 impl ReaderWorkerPool {
-    fn new(connections: Vec<Connection>, wal_attribution: Arc<WalAttributionCollector>) -> Self {
+    fn new(
+        connections: Vec<Connection>,
+        wal_attribution: Arc<WalAttributionCollector>,
+        #[cfg(test)] managed_connections: Arc<ManagedConnectionRegistry>,
+    ) -> Self {
         let live_workers = Arc::new(AtomicUsize::new(0));
         let mut senders = Vec::with_capacity(connections.len());
         let mut handles = Vec::with_capacity(connections.len());
@@ -1190,9 +1267,21 @@ impl ReaderWorkerPool {
             let (tx, rx) = mpsc::sync_channel::<ReaderRequest>(READER_WORKER_CHANNEL_CAPACITY);
             let live = Arc::clone(&live_workers);
             let attribution = Arc::clone(&wal_attribution);
+            #[cfg(test)]
+            let worker_connections = Arc::clone(&managed_connections);
             let handle = thread::Builder::new()
                 .name(format!("fathomdb-reader-{idx}"))
-                .spawn(move || reader_worker_loop(connection, rx, live, idx, attribution))
+                .spawn(move || {
+                    reader_worker_loop(
+                        connection,
+                        rx,
+                        live,
+                        idx,
+                        attribution,
+                        #[cfg(test)]
+                        worker_connections,
+                    )
+                })
                 .expect("spawn reader worker");
             senders.push(tx);
             handles.push(handle);
@@ -1355,7 +1444,11 @@ fn reader_worker_loop(
     live_workers: Arc<AtomicUsize>,
     worker_idx: usize,
     wal_attribution: Arc<WalAttributionCollector>,
+    #[cfg(test)] managed_connections: Arc<ManagedConnectionRegistry>,
 ) {
+    #[cfg(test)]
+    let _connection_registration =
+        managed_connections.register(WalAttributionRole::ReaderWorker, worker_idx);
     wal_attribution.register(WalAttributionRole::ReaderWorker, worker_idx);
     live_workers.fetch_add(1, Ordering::SeqCst);
     // Drop guard so the live counter decrements even on panic.
@@ -1661,6 +1754,7 @@ impl ProjectionRuntime {
         mean_already_pinned: bool,
         subscribers: Arc<lifecycle::SubscriberRegistry>,
         wal_attribution: Arc<WalAttributionCollector>,
+        #[cfg(test)] managed_connections: Arc<ManagedConnectionRegistry>,
     ) -> Self {
         // EU-5b/EU-5f — only allocate the streaming accumulator when the
         // workspace's identity is MC-required AND no mean has been pinned
@@ -1680,6 +1774,10 @@ impl ProjectionRuntime {
             embedder_identity,
             subscribers,
             wal_attribution,
+            #[cfg(test)]
+            managed_connections,
+            #[cfg(test)]
+            runtime_inventory_request: Mutex::new(None),
             state: Mutex::new(ProjectionRuntimeState::default()),
             state_cvar: Condvar::new(),
             queue: Mutex::new(VecDeque::new()),
@@ -1726,6 +1824,37 @@ impl ProjectionRuntime {
             state.pending_scan = true;
             self.shared.state_cvar.notify_all();
         }
+    }
+
+    #[cfg(test)]
+    fn report_runtime_connection_inventory_for_test(
+        &self,
+    ) -> Result<Vec<(WalAttributionRole, usize, bool)>, &'static str> {
+        let pending = BTreeSet::from([
+            (WalAttributionRole::ProjectionDispatcher, 0),
+            (WalAttributionRole::ProjectionWorker, 0),
+            (WalAttributionRole::ProjectionWorker, 1),
+        ]);
+        let (respond, received) = mpsc::sync_channel(pending.len());
+        let mut request =
+            self.shared.runtime_inventory_request.lock().map_err(|_| "request_lock")?;
+        if request.is_some() {
+            return Err("request_already_active");
+        }
+        *request = Some(RuntimeConnectionInventoryRequest { pending, respond });
+        drop(request);
+        self.shared.state_cvar.notify_all();
+        self.shared.queue_cvar.notify_all();
+
+        let mut facts = Vec::with_capacity(1 + PROJECTION_WORKERS);
+        for _ in 0..(1 + PROJECTION_WORKERS) {
+            facts.push(
+                received
+                    .recv_timeout(Duration::from_secs(2))
+                    .map_err(|_| "runtime_reply_timeout")?,
+            );
+        }
+        Ok(facts)
     }
 
     fn set_frozen(&self, frozen: bool) {
@@ -5349,6 +5478,11 @@ impl Engine {
                 let slow_threshold_ms = Arc::new(AtomicU64::new(DEFAULT_SLOW_THRESHOLD_MS));
                 let wal_attribution = Arc::new(WalAttributionCollector::new());
                 wal_attribution.register(WalAttributionRole::Writer, 0);
+                #[cfg(test)]
+                let managed_connections = Arc::new(ManagedConnectionRegistry::default());
+                #[cfg(test)]
+                let writer_connection_registration =
+                    managed_connections.register(WalAttributionRole::Writer, 0);
                 let mut profile_contexts: Vec<Box<ProfileContext>> = Vec::new();
                 let scheduler_embedder =
                     if dense_runtime_usable { runtime_embedder.clone() } else { None };
@@ -5359,6 +5493,8 @@ impl Engine {
                     report.embedder_mean_vec_pinned,
                     Arc::clone(&subscribers),
                     Arc::clone(&wal_attribution),
+                    #[cfg(test)]
+                    Arc::clone(&managed_connections),
                 );
 
                 install_profile_callback(
@@ -5385,7 +5521,12 @@ impl Engine {
                         closed: AtomicBool::new(false),
                         lock: Mutex::new(Some(lock)),
                         connection: Mutex::new(Some(connection)),
-                        reader_pool: ReaderWorkerPool::new(readers, Arc::clone(&wal_attribution)),
+                        reader_pool: ReaderWorkerPool::new(
+                            readers,
+                            Arc::clone(&wal_attribution),
+                            #[cfg(test)]
+                            Arc::clone(&managed_connections),
+                        ),
                         counters: lifecycle::Counters::new(),
                         subscribers,
                         profiling_enabled,
@@ -5394,6 +5535,12 @@ impl Engine {
                         runtime_embedder_identity: embedder_identity,
                         projection_runtime,
                         wal_attribution,
+                        #[cfg(test)]
+                        managed_connections,
+                        #[cfg(test)]
+                        writer_connection_registration: Mutex::new(Some(
+                            writer_connection_registration,
+                        )),
                         provenance_row_cap: AtomicU64::new(DEFAULT_PROVENANCE_ROW_CAP),
                         profile_contexts: Mutex::new(profile_contexts),
                         reader_lookaside_rcs,
@@ -8238,6 +8385,10 @@ impl Engine {
                 uninstall_profile_callback(conn);
             }
             connection.take();
+        }
+        #[cfg(test)]
+        if let Ok(mut registration) = self.writer_connection_registration.lock() {
+            registration.take();
         }
         if let Ok(mut contexts) = self.profile_contexts.lock() {
             contexts.clear();
@@ -14105,16 +14256,53 @@ fn explain_graph_neighbors_in_tx(
     Ok(out)
 }
 
+#[cfg(test)]
+fn report_runtime_connection_inventory_for_test(
+    shared: &ProjectionRuntimeShared,
+    connection: &Connection,
+    role: WalAttributionRole,
+    index: usize,
+) {
+    let respond = {
+        let Ok(mut request_slot) = shared.runtime_inventory_request.lock() else {
+            return;
+        };
+        let Some(request) = request_slot.as_mut() else {
+            return;
+        };
+        if !request.pending.remove(&(role, index)) {
+            return;
+        }
+        let respond = request.respond.clone();
+        if request.pending.is_empty() {
+            *request_slot = None;
+        }
+        respond
+    };
+    let _ = respond.send((role, index, connection.is_autocommit()));
+}
+
 fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_idx: usize) {
-    shared.wal_attribution.register(WalAttributionRole::ProjectionDispatcher, dispatcher_idx);
     let connection = match open_runtime_connection(&shared.path) {
         Ok(connection) => connection,
         Err(_) => return,
     };
+    #[cfg(test)]
+    let _connection_registration = shared
+        .managed_connections
+        .register(WalAttributionRole::ProjectionDispatcher, dispatcher_idx);
+    shared.wal_attribution.register(WalAttributionRole::ProjectionDispatcher, dispatcher_idx);
     // 0.8.20 Slice 20c fix-4 (codex §9 round 3 [P1]) — read ONCE:
     // `ProjectionRuntimeShared::embedder` is fixed for the session's lifetime.
     let dense_arm_live = shared.embedder.is_some();
     loop {
+        #[cfg(test)]
+        report_runtime_connection_inventory_for_test(
+            &shared,
+            &connection,
+            WalAttributionRole::ProjectionDispatcher,
+            dispatcher_idx,
+        );
         let in_flight = {
             let mut state = match shared.state.lock() {
                 Ok(state) => state,
@@ -14125,6 +14313,13 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
                     || state.frozen
                     || state.active_jobs + state.queued_jobs >= PROJECTION_INFLIGHT_LIMIT)
             {
+                #[cfg(test)]
+                report_runtime_connection_inventory_for_test(
+                    &shared,
+                    &connection,
+                    WalAttributionRole::ProjectionDispatcher,
+                    dispatcher_idx,
+                );
                 state = match shared.state_cvar.wait(state) {
                     Ok(state) => state,
                     Err(_) => return,
@@ -14197,7 +14392,6 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
 }
 
 fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usize) {
-    shared.wal_attribution.register(WalAttributionRole::ProjectionWorker, worker_idx);
     let mut connection = match open_runtime_connection(&shared.path) {
         Ok(connection) => connection,
         Err(_) => return,
@@ -14205,7 +14399,18 @@ fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usiz
     if ensure_vector_partition(&mut connection, shared.embedder_identity.dimension).is_err() {
         return;
     }
+    #[cfg(test)]
+    let _connection_registration =
+        shared.managed_connections.register(WalAttributionRole::ProjectionWorker, worker_idx);
+    shared.wal_attribution.register(WalAttributionRole::ProjectionWorker, worker_idx);
     loop {
+        #[cfg(test)]
+        report_runtime_connection_inventory_for_test(
+            &shared,
+            &connection,
+            WalAttributionRole::ProjectionWorker,
+            worker_idx,
+        );
         let jobs = {
             let mut queue = match shared.queue.lock() {
                 Ok(queue) => queue,
@@ -14231,6 +14436,13 @@ fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usiz
                     }
                     break jobs;
                 }
+                #[cfg(test)]
+                report_runtime_connection_inventory_for_test(
+                    &shared,
+                    &connection,
+                    WalAttributionRole::ProjectionWorker,
+                    worker_idx,
+                );
                 queue = match shared.queue_cvar.wait(queue) {
                     Ok(queue) => queue,
                     Err(_) => return,
@@ -21423,6 +21635,7 @@ mod tests {
     };
     use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
     use rusqlite::Connection;
+    use std::collections::BTreeSet;
     use std::path::Path;
     use std::process::Command;
     use std::sync::{mpsc, Arc};
@@ -21555,8 +21768,14 @@ mod tests {
         release.wait();
         committed.wait();
 
-        let inventory = post_commit_connection_inventory(&opened);
-        eprintln!("slice65_wal post_commit_ack inventory={inventory}");
+        let inventory = match post_commit_connection_inventory(&opened) {
+            Ok(inventory) => inventory,
+            Err(reason) => {
+                eprintln!("slice65_wal post_commit_inventory=incomplete reason={reason}");
+                panic!("post-COMMIT inventory is incomplete: {reason}");
+            }
+        };
+        eprintln!("slice65_wal post_commit_ack direct_inventory={inventory} collector_roles=idle");
         let reports = [
             raw_post_commit_checkpoint(&path, 1, Some(&opened), "pre_close"),
             raw_post_commit_checkpoint(&path, 2, Some(&opened), "pre_close"),
@@ -21583,7 +21802,9 @@ mod tests {
         eprintln!("slice65_wal post_commit_diagnostic=recorded");
     }
 
-    fn post_commit_connection_inventory(opened: &super::OpenedEngine) -> String {
+    fn post_commit_connection_inventory(
+        opened: &super::OpenedEngine,
+    ) -> Result<String, &'static str> {
         let deadline = Instant::now() + Duration::from_secs(2);
         let mut snapshot = opened.engine.wal_attribution_snapshot();
         while snapshot.roles.len() < 1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS
@@ -21592,46 +21813,44 @@ mod tests {
             thread::sleep(Duration::from_millis(5));
             snapshot = opened.engine.wal_attribution_snapshot();
         }
-        assert_eq!(snapshot.roles.len(), 1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS);
-        assert_eq!(
-            snapshot.roles.iter().filter(|role| role.role == "writer").count(),
-            1,
-            "inventory must contain exactly one writer connection"
-        );
-        assert_eq!(
-            snapshot.roles.iter().filter(|role| role.role == "reader_worker").count(),
-            READER_POOL_SIZE,
-            "inventory must contain every reader connection"
-        );
-        assert_eq!(
-            snapshot.roles.iter().filter(|role| role.role == "projection_dispatcher").count(),
-            1,
-            "inventory must contain the dispatcher connection"
-        );
-        assert_eq!(
-            snapshot.roles.iter().filter(|role| role.role == "projection_worker").count(),
-            PROJECTION_WORKERS,
-            "inventory must contain every projection worker connection"
-        );
-        assert!(snapshot.no_owned_snapshot, "post-COMMIT collector must be idle: {snapshot:?}");
-        assert!(
-            opened
-                .engine
-                .connection
-                .lock()
-                .expect("writer connection mutex")
-                .as_ref()
-                .is_some_and(Connection::is_autocommit),
-            "post-COMMIT writer must be connected and autocommit"
-        );
-        let readers = opened.engine.reader_pool.wal_connection_inventory_for_test();
-        assert_eq!(readers.len(), READER_POOL_SIZE);
-        assert!(readers.into_iter().all(|autocommit| autocommit));
-        for role in &snapshot.roles {
-            assert!(!role.active, "inventory role must not retain a transaction: {role:?}");
-            assert_eq!(role.phase, "idle", "inventory role must be idle: {role:?}");
+        if snapshot.roles.len() != 1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS
+            || !opened.engine.managed_connections.exact_live()
+        {
+            return Err("registry_mismatch");
         }
-        "writer:open-autocommit;readers:8-autocommit;dispatcher:1-idle;workers:2-idle".to_string()
+        if !snapshot.no_owned_snapshot
+            || snapshot.roles.iter().any(|role| role.active || role.phase != "idle")
+        {
+            return Err("collector_not_idle");
+        }
+        let writer_autocommit = opened
+            .engine
+            .connection
+            .lock()
+            .map_err(|_| "writer_lock")?
+            .as_ref()
+            .is_some_and(Connection::is_autocommit);
+        if !writer_autocommit {
+            return Err("writer_not_autocommit");
+        }
+        let readers = opened.engine.reader_pool.wal_connection_inventory_for_test();
+        if readers.len() != READER_POOL_SIZE || readers.into_iter().any(|autocommit| !autocommit) {
+            return Err("reader_not_autocommit");
+        }
+        let runtime =
+            opened.engine.projection_runtime.report_runtime_connection_inventory_for_test()?;
+        let expected = BTreeSet::from([
+            (WalAttributionRole::ProjectionDispatcher, 0),
+            (WalAttributionRole::ProjectionWorker, 0),
+            (WalAttributionRole::ProjectionWorker, 1),
+        ]);
+        let actual =
+            runtime.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>();
+        if actual != expected || runtime.iter().any(|(_, _, autocommit)| !autocommit) {
+            return Err("runtime_not_autocommit");
+        }
+        Ok("writer:autocommit;readers:8-autocommit;dispatcher:autocommit;workers:2-autocommit"
+            .to_string())
     }
 
     fn raw_post_commit_checkpoint(
@@ -21671,6 +21890,8 @@ mod tests {
         };
         let inventory = opened
             .map(post_commit_connection_inventory)
+            .transpose()
+            .unwrap_or_else(|reason| panic!("post-COMMIT inventory is incomplete: {reason}"))
             .unwrap_or_else(|| "engine:closed".to_string());
         eprintln!(
             "slice65_wal post_commit_raw case={case} sample={sample} elapsed_ms={} raw_busy={} raw_log_frames={} raw_checkpointed_frames={} inventory={inventory}",

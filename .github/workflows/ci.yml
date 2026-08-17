@@ -527,7 +527,7 @@ jobs:
             Write-Error "post-commit diagnostic command selected zero tests"
             exit 1
           }
-          if (-not (Select-String -Path $postCommitLog -SimpleMatch 'slice65_wal post_commit_ack inventory=' -Quiet) -or -not (Select-String -Path $postCommitLog -SimpleMatch 'slice65_wal post_commit_raw case=pre_close' -Quiet) -or -not (Select-String -Path $postCommitLog -SimpleMatch 'slice65_wal post_commit_child_raw case=after_close' -Quiet) -or -not (Select-String -Path $postCommitLog -SimpleMatch 'slice65_wal post_commit_diagnostic=recorded' -Quiet)) {
+          if (-not (Select-String -Path $postCommitLog -SimpleMatch 'slice65_wal post_commit_ack direct_inventory=' -Quiet) -or -not (Select-String -Path $postCommitLog -SimpleMatch 'collector_roles=idle' -Quiet) -or -not (Select-String -Path $postCommitLog -SimpleMatch 'slice65_wal post_commit_raw case=pre_close' -Quiet) -or -not (Select-String -Path $postCommitLog -SimpleMatch 'slice65_wal post_commit_child_raw case=after_close' -Quiet) -or -not (Select-String -Path $postCommitLog -SimpleMatch 'slice65_wal post_commit_diagnostic=recorded' -Quiet)) {
             Write-Error "post-commit diagnostic artifact is incomplete"
             exit 1
           }

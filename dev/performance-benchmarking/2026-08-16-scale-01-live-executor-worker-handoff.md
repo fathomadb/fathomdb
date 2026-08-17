@@ -25,10 +25,23 @@
 module and stopped at the intended
 `ModuleNotFoundError: experiments.tc5_live_executor` collection failure.
 
-`e7226124` (`test(perf): cover tc5 executor review findings`) preceded the
-hardening correction. It failed on the intended containment, receipt-digest,
-finite-sigma, and Rust/engine-feature provenance assertions before
-`2ed76050` fixed them.
+`e7226124` initially added the review cases, but its fixture was not compatible
+with the pre-hardening arm-result schema; it is retained as regression coverage,
+not cited as red evidence for the hardening correction.
+
+`4b414d65` is the unmasked historical red replay against pre-hardening
+`0aa3d173`. It first proved a fully valid legacy baseline, then independently
+mutated arm and receipt symlink containment, receipt digest projection,
+`NaN`/positive-infinite/negative-infinite sigma, Rust version, and sorted
+engine features. It produced eight intended behavioral failures (no generic
+provenance-key drift). The intentionally failing replay file is removed by this
+handoff correction so the shipped suite stays executable; the corrected,
+passing regression assertions remain in `test_tc5_live_executor.py`.
+
+This replay establishes the missing historical red evidence. It does **not**
+claim that the already-landed `2ed76050` implementation chronologically
+followed this later replay, and the existing release/live-config binding test
+is regression coverage rather than new red evidence.
 
 ## Verification
 

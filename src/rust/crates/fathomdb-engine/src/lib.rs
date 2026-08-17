@@ -21357,7 +21357,7 @@ mod tests {
     use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
     use rusqlite::Connection;
     use std::path::Path;
-    use std::sync::Arc;
+    use std::sync::{mpsc, Arc};
     use std::thread;
     use std::time::{Duration, Instant};
     use tempfile::TempDir;
@@ -21524,13 +21524,20 @@ mod tests {
             .expect("write");
 
         let (handoff_ready, release) = opened.engine.pause_next_reader_handoff_for_test();
-        let reader = {
+        let (caller_result_tx, caller_result_rx) = mpsc::sync_channel(1);
+        let caller = {
             let engine = Arc::clone(&opened);
             thread::spawn(move || {
-                engine.engine.read_get("slice65-reader-handoff", &Default::default())
+                let result = engine.engine.read_get("slice65-reader-handoff", &Default::default());
+                caller_result_tx.send(result).expect("caller result receiver remains live");
             })
         };
         handoff_ready.wait();
+
+        assert!(
+            matches!(caller_result_rx.try_recv(), Err(mpsc::TryRecvError::Empty)),
+            "public read_get must not return while the pre-send handoff barrier is held"
+        );
 
         let idle = opened.engine.wal_attribution_snapshot();
         assert!(
@@ -21551,11 +21558,12 @@ mod tests {
         assert!(record.active_roles.is_empty());
 
         release.wait();
-        let materialized = reader
-            .join()
-            .expect("reader thread")
+        let materialized = caller_result_rx
+            .recv()
+            .expect("caller result after handoff release")
             .expect("read result")
             .expect("materialized record");
+        caller.join().expect("reader thread");
         assert_eq!(materialized.logical_id, "slice65-reader-handoff");
         eprintln!("slice65_wal reader_handoff_idle_before_reply=passed");
     }

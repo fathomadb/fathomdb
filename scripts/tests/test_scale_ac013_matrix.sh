@@ -23,7 +23,7 @@ fi
 EOF
 chmod +x "$fake"
 
-SCALE_OUTPUT_DIR="$tmp/out" AC013_RUNNER="$fake" CALLS="$calls" \
+AC013_V2_TEST_MODE=1 SCALE_OUTPUT_DIR="$tmp/out" AC013_RUNNER="$fake" CALLS="$calls" \
   bash "$ROOT/scripts/perf-experiments/run-scale-ac013-matrix.sh"
 
 mapfile -t call_lines <"$calls"

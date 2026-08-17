@@ -31,14 +31,7 @@ def head() -> str:
 
 
 def is_test() -> bool:
-    if os.environ.get("AC013_V2_TEST_MODE") == "1":
-        return True
-    # The pre-V2 shell harness injects an absolute executable in a temporary
-    # directory.  It produces no release artifact, but retaining this narrow
-    # seam keeps its fake-runner coverage while production still requires the
-    # canonical candidate root and explicit provenance capture.
-    injected = os.environ.get("AC013_RUNNER", "")
-    return injected.startswith("/tmp/")
+    return os.environ.get("AC013_V2_TEST_MODE") == "1"
 
 
 def matrix_tuples() -> list[tuple[int, str, int]]:

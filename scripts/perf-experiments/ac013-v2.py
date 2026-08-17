@@ -293,8 +293,8 @@ def seal(root: Path) -> None:
         raise SystemExit("V2 root did not achieve exact 62-file closure")
 
 
-def root_reference(root: Path) -> str:
-    if not is_test():
+def root_reference(root: Path, allow_test_fixture: bool = False) -> str:
+    if not allow_test_fixture and not is_test():
         return root.relative_to(repository()).as_posix() + "/"
     return f"dev/plans/runs/{root.name}/"
 
@@ -429,8 +429,8 @@ def validate_root(root: Path, allow_test_fixture: bool) -> None:
             raise SystemExit(f"V2 record or sidecar invalid: {log}")
 
 
-def emit_complete(root: Path) -> None:
-    validate_root(root, is_test())
+def complete_artifact(root: Path, allow_test_fixture: bool = False) -> dict[str, Any]:
+    validate_root(root, allow_test_fixture)
     candidate = candidate_from(root)
     try:
         provenance = json.loads((root / "provenance.json").read_text(encoding="utf-8"))
@@ -446,7 +446,7 @@ def emit_complete(root: Path) -> None:
         "claim_scope": "fixture_scoped_non_ann_two_phase_vector_characterization",
         "input": {
             "kind": "complete",
-            "root": root_reference(root),
+            "root": root_reference(root, allow_test_fixture),
             "manifest": manifest,
             "regular_file_count": 62,
         },
@@ -459,12 +459,29 @@ def emit_complete(root: Path) -> None:
     if artifact["input"]["manifest"]["candidate_head_sha"] != candidate:
         raise SystemExit("V2 complete manifest candidate disagrees with root")
     validate_artifact(artifact)
-    write_json(status_path(root), artifact)
+    return artifact
+
+
+def emit_complete(root: Path) -> None:
+    write_json(status_path(root), complete_artifact(root, is_test()))
+
+
+def validate_status(root: Path, allow_test_fixture: bool) -> None:
+    expected = complete_artifact(root, allow_test_fixture)
+    try:
+        actual = json.loads(status_path(root).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise SystemExit(f"cannot read V2 status artifact: {error}") from error
+    if not isinstance(actual, dict):
+        raise SystemExit("V2 status artifact must be a JSON object")
+    validate_artifact(actual)
+    if actual != expected:
+        raise SystemExit("V2 status artifact does not match the derived complete artifact")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("begin", "partial", "seal", "validate-record", "emit-status", "validate-root", "emit-complete"))
+    parser.add_argument("command", choices=("begin", "partial", "seal", "validate-record", "emit-status", "validate-root", "emit-complete", "validate-status"))
     parser.add_argument("--root", required=True, type=Path)
     parser.add_argument("--failed-rows", type=int)
     parser.add_argument("--failed-treatment", choices=TREATMENTS)
@@ -494,6 +511,8 @@ def main() -> int:
         validate_root(root, args.test_fixture)
     elif args.command == "emit-complete":
         emit_complete(root)
+    elif args.command == "validate-status":
+        validate_status(root, args.test_fixture)
     else:
         values = (args.failed_rows, args.failed_treatment, args.failed_repetition)
         if any(value is not None for value in values) and any(value is None for value in values):

@@ -100,7 +100,7 @@ def validate_manifest(manifest: dict[str, Any], candidate_sha: str, now: datetim
             {
                 "schema_version", "candidate_sha", "candidate_pr", "candidate_pr_head_sha",
                 "required_reviewers", "expires_at", "purpose", "provenance_pr", "provenance_commit",
-                "provenance_required_reviewers",
+                "provenance_head_sha", "provenance_required_reviewers",
             },
             f"manifest candidate {index}",
         )
@@ -114,6 +114,7 @@ def validate_manifest(manifest: dict[str, Any], candidate_sha: str, now: datetim
             fail("manifest candidate head SHA must equal candidate SHA")
         require_positive_int(record["candidate_pr"], f"manifest candidate {index} PR")
         require_positive_int(record["provenance_pr"], f"manifest candidate {index} provenance PR")
+        require_sha(record["provenance_head_sha"], f"manifest candidate {index} provenance head")
         require_sha(record["provenance_commit"], f"manifest candidate {index} provenance commit")
         reviewers = record["required_reviewers"]
         if not isinstance(reviewers, list) or not reviewers or any(not isinstance(item, str) or not item for item in reviewers):
@@ -208,6 +209,8 @@ def validate_facts(facts: dict[str, Any], record: dict[str, Any], candidate_sha:
         require_sha(review["commit_id"], f"facts review {index} commit")
         parse_timestamp(review["submitted_at"], f"facts review {index} time")
         previous = latest.get(login)
+        if previous is not None and review["submitted_at"] == previous["submitted_at"]:
+            fail("facts reviewer has ambiguous equal-timestamp reviews")
         if previous is None or review["submitted_at"] > previous["submitted_at"]:
             latest[login] = review
         _ = review_id
@@ -227,7 +230,7 @@ def validate_facts(facts: dict[str, Any], record: dict[str, Any], candidate_sha:
         fail("facts provenance pull request is not an object")
     require_exact_keys(
         provenance_pr,
-        {"number", "state", "merged", "base", "merge_commit_sha", "user"},
+        {"number", "state", "merged", "base", "head", "merge_commit_sha", "user"},
         "facts provenance pull request",
     )
     if require_positive_int(provenance_pr["number"], "facts provenance pull request number") != record["provenance_pr"]:
@@ -240,6 +243,14 @@ def validate_facts(facts: dict[str, Any], record: dict[str, Any], candidate_sha:
     require_exact_keys(base, {"ref", "repo_full_name"}, "facts provenance pull request base")
     if base != {"ref": "main", "repo_full_name": "fathomadb/fathomdb"}:
         fail("facts provenance pull request must be merged to main in fathomadb/fathomdb")
+    provenance_head = provenance_pr["head"]
+    if not isinstance(provenance_head, dict):
+        fail("facts provenance pull request head is not an object")
+    require_exact_keys(provenance_head, {"sha", "repo_full_name"}, "facts provenance pull request head")
+    if provenance_head["repo_full_name"] != "fathomadb/fathomdb":
+        fail("facts provenance pull request head repository is not fathomadb/fathomdb")
+    if require_sha(provenance_head["sha"], "facts provenance pull request head SHA") != record["provenance_head_sha"]:
+        fail("facts provenance pull request head does not match the authorization")
     if require_sha(provenance_pr["merge_commit_sha"], "facts provenance merge commit") != record["provenance_commit"]:
         fail("facts provenance pull request merge commit does not match the authorization")
     provenance_author = provenance_pr["user"]
@@ -267,6 +278,8 @@ def validate_facts(facts: dict[str, Any], record: dict[str, Any], candidate_sha:
         require_sha(review["commit_id"], f"facts provenance review {index} commit")
         parse_timestamp(review["submitted_at"], f"facts provenance review {index} time")
         previous = latest_provenance.get(login)
+        if previous is not None and review["submitted_at"] == previous["submitted_at"]:
+            fail("facts provenance reviewer has ambiguous equal-timestamp reviews")
         if previous is None or review["submitted_at"] > previous["submitted_at"]:
             latest_provenance[login] = review
     provenance_approval_ids: list[int] = []
@@ -274,8 +287,8 @@ def validate_facts(facts: dict[str, Any], record: dict[str, Any], candidate_sha:
         review = latest_provenance.get(reviewer)
         if reviewer == provenance_author["login"] or review is None:
             fail("facts lack an independent required provenance reviewer approval")
-        if review["state"] != "APPROVED" or review["commit_id"] != record["provenance_commit"]:
-            fail("facts required provenance reviewer lacks an approval for the merge commit")
+        if review["state"] != "APPROVED" or review["commit_id"] != record["provenance_head_sha"]:
+            fail("facts required provenance reviewer lacks an approval for the reviewed provenance head")
         provenance_approval_ids.append(review["id"])
     if len(set(provenance_approval_ids)) != len(provenance_approval_ids):
         fail("facts required provenance approvals must have distinct review IDs")

@@ -7,10 +7,10 @@ index remain the source of execution evidence.
 
 **Last reconciled:** 2026-08-16
 
-**Integration base:** `acc5fa9a` on
+**Integration base:** `db3a9363` on
 `experiments/performance-experiments-20260815`. This is the verified integrated
-LOCOMO-01/SCALE-01 preparation set and its accepted cross-lane correction;
-replace it with the verified integration SHA at each accepted lane close.
+LOCOMO/PARENT and TC-5 factual-input qualification set; replace it with the
+verified integration SHA at each accepted lane close.
 
 ## Current lanes
 
@@ -257,8 +257,19 @@ arbitrary mappings and must enforce exact content-free report schemas. The
 first LOCOMO/PARENT qualification handoff `a0da3012` also received
 `REQUEST-CHANGES`: its current evidence is safe, but malformed external
 corpus/subset inputs raise before the contract-required signed blocked report.
-Both workers are applying red-first corrections; no release or measurement is
-authorized.
+Both workers supplied and independently cleared red-first corrections; no
+release or measurement is authorized.
+
+The final TC-5 qualification remediation `b4189424` and LOCOMO/PARENT
+qualification remediation `86f63dfd` were independently accepted and are
+integrated here as `aa3ce63a` and `db3a9363`, respectively. Their safe external
+reports establish hard factual blockers: TC-5 has no exact eligible all-real
+18,472/7,667 source, manifest, ground truth, or runtime inventory; LOCOMO has
+a frozen corpus-pin mismatch, no fixed subset, and globally ambiguous child
+IDs for the parent proof. Both reports are `blocked_prerequisite`, no-live, and
+release-ineligible. GPU/CE also remains blocked because the NVIDIA driver is
+not usable. No substitute corpus, synthetic padding, historical EU7 output,
+or cross-release evidence may clear these gates.
 
 The CORPUS-01 final handoff `c540a9d7` was independently accepted and is
 integrated here as `c419399e`. The matrix/protocol now fails closed on
@@ -273,9 +284,9 @@ human-gold batch needs it; no payload or human-review work has yet begun.
 | --- | --- | --- | --- |
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
-| LOCOMO-01 | Active | Input-qualification report remediation in progress; no release | `477ad51a` integrates independently accepted `e5b6f17d`; 25 integrated synthetic tests pass. Current external evidence is blocked for pin/subset/proof facts; qualifier must first turn malformed inputs into signed fixed-code reports. Then integrate blocker evidence and qualify inputs before any coordinator-bound CPU release. |
-| PARENT-01 | Active | Matched input-qualification report remediation in progress; no release | `477ad51a` enforces exact ordinal/rank and measured parent metrics. Current external evidence is blocked for ambiguous child identity; qualifier must first satisfy its malformed-input reporting contract. GPU cells also wait for a working NVIDIA driver. |
-| SCALE-01 | Active | Input-qualification report remediation in progress; no release | `d1a6b1aa` integrates independently accepted `426be68e`; 54 integrated focused driver/executor tests pass. Current external evidence has no eligible all-real source, but report persistence must first enforce exact content-free schemas. Then integrate blocker evidence; manifest/corpus/output/CPU/model/ground-truth facts remain prerequisites. |
+| LOCOMO-01 | Active | Blocked prerequisite: frozen corpus/subset proof absent; no release | `db3a9363` integrates independently accepted `86f63dfd`; safe evidence reports frozen corpus-pin drift and missing fixed-subset metadata. A byte-matching corpus and subset must be qualified before a coordinator-bound CPU dry-run release. |
+| PARENT-01 | Active | Blocked prerequisite: no unambiguous canonical parent proof; no release | `db3a9363` records global child-ID ambiguity and no parent-relation proof. A qualified unambiguous identity/provenance source is required; GPU cells also wait for a working NVIDIA driver. |
+| SCALE-01 | Active | Blocked prerequisite: no exact all-real TC-5 source/runtime inventory; no release | `aa3ce63a` integrates independently accepted `b4189424`; safe evidence finds no 18,472/7,667 all-real manifest, ground truth, or runtime. A qualified source/manifest/output/CPU/model/ground-truth set is required before a smoke release. |
 | CORPUS-01 | Active | Matrix/protocol integrated; factual qualification and any approved human-gold batch pending | `c419399e` integrates independently accepted `c540a9d7`; 21 integrated focused tests pass. `seq-249` authorizes corpus/license matrix and human-gold work. Next gate: qualify existing external corpus facts and, only if required, create a coordinator-bound trusted amendment registry before a human-review batch. |
 | ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |
 | MEMORY-01 | Blocked | Waiting for ANSWER-01 | Require selected profile, native prerequisites, and declared spend ceiling. |

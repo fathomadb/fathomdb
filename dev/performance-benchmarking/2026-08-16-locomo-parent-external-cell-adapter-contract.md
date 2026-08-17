@@ -1,7 +1,7 @@
 # LOCOMO/PARENT external cell-adapter contract
 
-**Tracks:** `LOCOMO-01`, `PARENT-01`  
-**Date:** 2026-08-16  
+**Tracks:** `LOCOMO-01`, `PARENT-01`
+**Date:** 2026-08-16
 **Status:** synthetic implementation preparation only; not a release or run
 
 ## Purpose

@@ -1,7 +1,7 @@
 # LOCOMO/PARENT external cell-adapter worker handoff
 
-**Worker branch:** `experiments/performance-locomo-external-adapter-20260816`  
-**Deliberate campaign base:** `efc215585839bfad05d43986960c765959457785`  
+**Worker branch:** `experiments/performance-locomo-external-adapter-20260816`
+**Deliberate campaign base:** `efc215585839bfad05d43986960c765959457785`
 **Scope:** synthetic-only external cell-adapter implementation
 
 ## Owned paths

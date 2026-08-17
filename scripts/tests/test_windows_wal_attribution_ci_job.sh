@@ -40,6 +40,14 @@ assert_contains "$CODE" 'tests::wal_attribution_owned_reader_records_exact_busy_
 assert_contains "$CODE" 'wal_attribution_retained_materialized_result_is_idle_at_checkpoint' "job runs retained-result idle control"
 assert_contains "$CODE" 'wal_attribution_reopen_recovery_reads_then_nested_erasure_are_idle' "job runs incident-shaped reopen control"
 assert_contains "$CODE" 'wal_attribution_projection_worker_transaction_is_owned_then_idle' "job runs projection transaction control"
+assert_contains "$CODE" 'wal_attribution_close_boundary_raw_checkpoint_is_clean' "job runs direct close-boundary control"
+assert_contains "$CODE" 'wal_attribution_close_boundary_fresh_open_is_clean' "job runs fresh-open close-boundary control"
+assert_contains "$CODE" 'wal_attribution_close_boundary_read_get_is_clean' "job runs read-get close-boundary control"
+assert_contains "$CODE" 'wal_attribution_close_boundary_neighbors_is_clean' "job runs neighbors close-boundary control"
+assert_contains "$CODE" 'close-boundary direct checkpoint control selected zero tests' "job rejects zero selected direct close-boundary tests"
+assert_contains "$CODE" 'close-boundary fresh-open control selected zero tests' "job rejects zero selected fresh-open close-boundary tests"
+assert_contains "$CODE" 'close-boundary read-get control selected zero tests' "job rejects zero selected read-get close-boundary tests"
+assert_contains "$CODE" 'close-boundary neighbors control selected zero tests' "job rejects zero selected neighbors close-boundary tests"
 assert_contains "$CODE" 'test_slice65_wal_attribution_installed.py' "job runs installed-wheel controls"
 assert_contains "$CODE" '--control retained' "job runs installed retained-result control"
 assert_contains "$CODE" 'current_head=$(git rev-parse HEAD)' "job records current source identity"
@@ -75,6 +83,10 @@ for marker in \
   'reopen_nested_serial=passed' \
   'retained_materialized_idle=passed' \
   'projection_worker_transaction_ready' \
+  'raw_close_boundary_checkpoint(&path, "direct_close")' \
+  'raw_close_boundary_checkpoint(&path, "fresh_open")' \
+  'raw_close_boundary_checkpoint(&path, "read_get")' \
+  'raw_close_boundary_checkpoint(&path, "graph_neighbors")' \
   'unclassified_external'; do
   assert_contains "$(<"$SOURCE_TEST") $(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/src/lib.rs")" "$marker" "source retains $marker"
 done
@@ -130,6 +142,26 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
   else
     fail "mutation did not fail current-wheel identity assertion: $identity_out"
   fi
+
+  while IFS='|' read -r selector guard; do
+    CLOSE_BOUNDARY_GUARD_MUTATED="$TMPROOT/ci-without-${selector}.yml"
+    sed "/${guard}/d" "$CI" >"$CLOSE_BOUNDARY_GUARD_MUTATED"
+    set +e
+    close_boundary_guard_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$CLOSE_BOUNDARY_GUARD_MUTATED" bash "$0" 2>&1)"
+    close_boundary_guard_rc=$?
+    set -e
+    if [ "$close_boundary_guard_rc" -ne 0 ] \
+      && grep -Fq "job rejects zero selected ${selector} close-boundary tests" <<<"$close_boundary_guard_out"; then
+      pass "mutation proves ${selector} close-boundary zero-test guard is load-bearing"
+    else
+      fail "mutation did not fail ${selector} close-boundary zero-test guard: $close_boundary_guard_out"
+    fi
+  done <<'EOF'
+direct|close-boundary direct checkpoint control selected zero tests
+fresh-open|close-boundary fresh-open control selected zero tests
+read-get|close-boundary read-get control selected zero tests
+neighbors|close-boundary neighbors control selected zero tests
+EOF
 fi
 
 printf '%s passed, %s failed\n' "$PASSED" "$FAILED"

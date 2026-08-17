@@ -21457,7 +21457,7 @@ mod tests {
         old.engine.close().expect("old close");
         assert_closed_engine_is_idle(&old);
 
-        let report = raw_close_boundary_checkpoint(&path);
+        let report = raw_close_boundary_checkpoint(&path, "direct_close");
         assert_eq!(report.busy, 0, "a closed Engine must not hold the raw checkpoint");
     }
 
@@ -21476,7 +21476,7 @@ mod tests {
         fresh.engine.close().expect("fresh close");
         assert_closed_engine_is_idle(&fresh);
 
-        let report = raw_close_boundary_checkpoint(&path);
+        let report = raw_close_boundary_checkpoint(&path, "fresh_open");
         assert_eq!(report.busy, 0, "a fresh open/close must not hold the raw checkpoint");
     }
 
@@ -21501,7 +21501,7 @@ mod tests {
         fresh.engine.close().expect("fresh close");
         assert_closed_engine_is_idle(&fresh);
 
-        let report = raw_close_boundary_checkpoint(&path);
+        let report = raw_close_boundary_checkpoint(&path, "read_get");
         assert_eq!(report.busy, 0, "a closed read-get Engine must not hold the raw checkpoint");
     }
 
@@ -21534,7 +21534,7 @@ mod tests {
         fresh.engine.close().expect("fresh close");
         assert_closed_engine_is_idle(&fresh);
 
-        let report = raw_close_boundary_checkpoint(&path);
+        let report = raw_close_boundary_checkpoint(&path, "graph_neighbors");
         assert_eq!(report.busy, 0, "a closed neighbors Engine must not hold the raw checkpoint");
     }
 
@@ -21587,6 +21587,36 @@ mod tests {
             Err(EngineError::Closing)
         ));
         assert!(opened.engine.wal_attribution_snapshot().no_owned_snapshot);
+    }
+
+    /// Issue one intentionally independent SQLite checkpoint after an Engine
+    /// close. The emitted fields are limited to a fixed case label and SQLite's
+    /// busy/frame counters; it deliberately emits no database or request data.
+    fn raw_close_boundary_checkpoint(path: &Path, case: &str) -> super::TruncateWalReport {
+        let connection = Connection::open(path).expect("independent raw sqlite open");
+        connection.busy_timeout(Duration::ZERO).expect("raw checkpoint no wait");
+        let (busy, log_frames, checkpointed_frames): (i64, i64, i64) = connection
+            .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
+            .expect("independent raw checkpoint");
+        connection.close().expect("independent raw sqlite close");
+
+        let report = super::TruncateWalReport {
+            status: if busy == 0 {
+                super::TruncateWalStatus::Done
+            } else {
+                super::TruncateWalStatus::Busy
+            },
+            busy: busy.max(0) as u32,
+            log_frames: log_frames.max(0) as u32,
+            checkpointed_frames: checkpointed_frames.max(0) as u32,
+        };
+        eprintln!(
+            "slice65_wal close_boundary case={case} old_engine_closed=1 engine_liveness_complete=1 raw_busy={} raw_log_frames={} raw_checkpointed_frames={}",
+            report.busy, report.log_frames, report.checkpointed_frames
+        );
+        report
     }
 
     /// Slice 65 RED: model the audited Memex lifecycle precisely: close an old

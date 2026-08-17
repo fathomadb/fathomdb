@@ -509,7 +509,35 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_projection_worker_transaction_is_owned_then_idle -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (@(Select-String -Path $artifact -SimpleMatch 'running 1 test').Count -lt 4) {
+          $closeBoundaryDirectLog = "$env:RUNNER_TEMP\slice65-windows-wal-close-boundary-direct.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_close_boundary_raw_checkpoint_is_clean -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $closeBoundaryDirectLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $closeBoundaryDirectLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "close-boundary direct checkpoint control selected zero tests"
+            exit 1
+          }
+          $closeBoundaryFreshLog = "$env:RUNNER_TEMP\slice65-windows-wal-close-boundary-fresh.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_close_boundary_fresh_open_is_clean -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $closeBoundaryFreshLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $closeBoundaryFreshLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "close-boundary fresh-open control selected zero tests"
+            exit 1
+          }
+          $closeBoundaryReadGetLog = "$env:RUNNER_TEMP\slice65-windows-wal-close-boundary-read-get.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_close_boundary_read_get_is_clean -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $closeBoundaryReadGetLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $closeBoundaryReadGetLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "close-boundary read-get control selected zero tests"
+            exit 1
+          }
+          $closeBoundaryNeighborsLog = "$env:RUNNER_TEMP\slice65-windows-wal-close-boundary-neighbors.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_close_boundary_neighbors_is_clean -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $closeBoundaryNeighborsLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $closeBoundaryNeighborsLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "close-boundary neighbors control selected zero tests"
+            exit 1
+          }
+          if (@(Select-String -Path $artifact -SimpleMatch 'running 1 test').Count -lt 8) {
             Write-Error "one or more Slice 65 engine selectors selected zero tests"
             exit 1
           }

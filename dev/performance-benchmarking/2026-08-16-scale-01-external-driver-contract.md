@@ -40,9 +40,10 @@ It accepts only:
 
 CUDA/NVIDIA visibility or a non-CPU FathomDB embed-device request fails
 closed. The result path must be pre-created by the live executor, resolved
-under the declared external output root, and outside the repository. Existing
-sidecars fail rather than being overwritten; executor-level resume validates an
-existing qualified result before choosing not to start the driver.
+under the declared external output root, and outside the repository. An
+existing non-symlink sidecar fails before the driver loads an external input or
+constructs a runtime; it is never overwritten. Executor-level resume validates
+an existing qualified result before choosing not to start the driver.
 
 ## External inputs and exact measurement
 

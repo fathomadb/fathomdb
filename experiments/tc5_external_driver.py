@@ -498,6 +498,10 @@ def run_driver(
 ) -> Path:
     """Validate one released arm environment, run it, and emit its safe sidecar."""
     request = _parse_environment(dict(os.environ) if environment is None else environment)
+    if request.result_path.exists():
+        raise Tc5ExternalDriverError(
+            "arm result destination already exists; resume belongs to tc5_live_executor"
+        )
     inputs = input_loader(request)
     runtime = runtime_factory(request)
     result = _result(
@@ -505,8 +509,6 @@ def run_driver(
         inputs,
         runtime.measure(Tc5RuntimeRequest(request.action, request.arm, request.output_root, inputs)),
     )
-    if request.result_path.exists():
-        raise Tc5ExternalDriverError("arm result destination already exists; resume belongs to tc5_live_executor")
     request.result_path.write_bytes(_canonical(result) + b"\n")
     return request.result_path
 

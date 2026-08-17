@@ -49,6 +49,12 @@ or Track Runner state.
    runtime protocol and refuses fused-search substitution while a separately
    reviewed exact runtime is unavailable. The full
    `./scripts/agent-verify.sh` passed after that correction.
+5. Independent review requested the explicit result-collision proof. Red
+   checkpoint `8e9fbe77` proves that an existing valid non-symlink result was
+   previously able to reach the input loader. The follow-up moves collision
+   rejection immediately after ABI/output-path validation, before either input
+   loader or runtime factory is called, and asserts that the sidecar bytes are
+   unchanged.
 
 ## Review focus
 

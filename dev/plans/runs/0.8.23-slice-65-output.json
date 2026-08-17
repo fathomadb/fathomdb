@@ -89,7 +89,8 @@
       "hooks are absent from shipping builds; incomplete evidence remains UNATTRIBUTED",
       "hosted CI exact-selects both controls, rejects zero selection, and static/mutation checks prove attachment to the real attempt and absence of the perturbing primary path"
     ],
-    "status": "COMMISSIONED_NOT_IMPLEMENTED"
+    "status": "IMPLEMENTED_LOCAL_VALIDATED_HOSTED_PENDING",
+    "green_evidence": "The exact direct-Rust control passed locally with paired before/after records attached to its one real erase attempt. A disposable test-hooks wheel installed into an isolated local environment passed the exact current Python serial control, retaining paired actual-attempt records and a clean observation. Neither local result is Windows attribution or a remedy decision."
   },
   "remaining_controls": [
     "hosted Windows execution of the committed post-COMMIT acknowledgement diagnostic, exact inventory, bounded independent raw TRUNCATE samples, and conditional fresh-child probe after the existing held-reader fail-closed erase",

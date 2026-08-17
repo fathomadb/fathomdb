@@ -1688,6 +1688,16 @@ impl PyEngine {
     }
 
     #[cfg(feature = "test-hooks")]
+    fn _arm_actual_checkpoint_observation_for_test(&self) {
+        self.inner.arm_python_serial_actual_checkpoint_observation_for_test();
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _drain_actual_checkpoint_observations_for_test(&self) -> Vec<String> {
+        self.inner.drain_actual_checkpoint_observations_for_test()
+    }
+
+    #[cfg(feature = "test-hooks")]
     fn _wal_attribution_binding_inventory_for_test(&self, py: Python<'_>) -> PyResult<String> {
         let engine = Arc::clone(&self.inner);
         call_engine(py, move || engine.binding_connection_inventory_for_test())

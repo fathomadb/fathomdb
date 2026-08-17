@@ -370,6 +370,11 @@ pub struct Engine {
     managed_connections: Arc<ManagedConnectionRegistry>,
     #[cfg(any(test, feature = "test-hooks"))]
     writer_connection_registration: Mutex<Option<ManagedConnectionRegistration>>,
+    /// Slice 65 follow-on: private observations attached to actual erasure
+    /// checkpoint attempts. This is absent from shipping builds and never
+    /// changes an erasure outcome or retry policy.
+    #[cfg(any(test, feature = "test-hooks"))]
+    actual_checkpoint_observations: Mutex<Option<ActualCheckpointObserver>>,
     provenance_row_cap: AtomicU64,
     /// Per-connection profile-callback contexts. Each box's pointer is
     /// installed into the connection's `sqlite3_profile` userdata; the
@@ -875,6 +880,29 @@ struct WalCheckpointRecord {
     busy: bool,
     classification: &'static str,
     active_roles: Vec<(WalAttributionRole, usize)>,
+}
+
+/// A private before/after record for the *existing* checkpoint invocation in
+/// an erasure attempt. It intentionally contains no database path, SQL, or
+/// caller data.
+#[cfg(any(test, feature = "test-hooks"))]
+#[derive(Clone, Debug)]
+struct ActualCheckpointObservation {
+    control: &'static str,
+    phase: &'static str,
+    ordinal: usize,
+    writer_autocommit: bool,
+    direct_inventory: String,
+    collector_roles: Vec<String>,
+    checkpoint_begin_overlap: bool,
+    elapsed: Option<Duration>,
+    report: Option<TruncateWalReport>,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+struct ActualCheckpointObserver {
+    control: &'static str,
+    records: Vec<ActualCheckpointObservation>,
 }
 
 #[derive(Clone, Copy)]
@@ -5668,6 +5696,8 @@ impl Engine {
                         writer_connection_registration: Mutex::new(Some(
                             writer_connection_registration,
                         )),
+                        #[cfg(any(test, feature = "test-hooks"))]
+                        actual_checkpoint_observations: Mutex::new(None),
                         provenance_row_cap: AtomicU64::new(DEFAULT_PROVENANCE_ROW_CAP),
                         profile_contexts: Mutex::new(profile_contexts),
                         reader_lookaside_rcs,
@@ -6079,6 +6109,174 @@ impl Engine {
     #[doc(hidden)]
     pub fn wal_attribution_idle_for_test(&self) -> bool {
         self.wal_attribution_snapshot().no_owned_snapshot
+    }
+
+    /// Arm private observation for the next erasure checkpoint sequence. The
+    /// observer only reads connection state around the already-required
+    /// checkpoint call; it never issues a diagnostic SQLite statement.
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn arm_actual_checkpoint_observation_for_test(&self, control: &'static str) {
+        *self.actual_checkpoint_observations.lock().expect("actual checkpoint observation") =
+            Some(ActualCheckpointObserver { control, records: Vec::new() });
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn actual_checkpoint_observation_for_test(
+        &self,
+        phase: &'static str,
+        ordinal: usize,
+        checkpoint_begin_overlap: bool,
+        elapsed: Option<Duration>,
+        report: Option<TruncateWalReport>,
+    ) {
+        let mut observations =
+            self.actual_checkpoint_observations.lock().expect("actual checkpoint observation");
+        let Some(observer) = observations.as_mut() else {
+            return;
+        };
+        let writer_autocommit = self
+            .connection
+            .lock()
+            .ok()
+            .and_then(|connection| connection.as_ref().map(Connection::is_autocommit))
+            .unwrap_or(false);
+        let direct_inventory = self.actual_checkpoint_direct_inventory_for_test();
+        let collector_roles = self
+            .wal_attribution_snapshot()
+            .active_roles
+            .into_iter()
+            .map(|(role, index)| format!("{}:{index}", role.name()))
+            .collect();
+        observer.records.push(ActualCheckpointObservation {
+            control: observer.control,
+            phase,
+            ordinal,
+            writer_autocommit,
+            direct_inventory,
+            collector_roles,
+            checkpoint_begin_overlap,
+            elapsed,
+            report,
+        });
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn actual_checkpoint_direct_inventory_for_test(&self) -> String {
+        let registry_complete = self.managed_connections.exact_live();
+        let creation = self.managed_connections.creation_counts();
+        let writer_autocommit = self
+            .connection
+            .lock()
+            .ok()
+            .and_then(|connection| connection.as_ref().map(Connection::is_autocommit))
+            .unwrap_or(false);
+        let readers = self.reader_pool.wal_connection_inventory_for_test();
+        let runtime = self.projection_runtime.report_runtime_connection_inventory_for_test();
+        let reader_autocommit =
+            readers.len() == READER_POOL_SIZE && readers.iter().all(|value| *value);
+        let runtime_autocommit = runtime.as_ref().is_ok_and(|entries| {
+            let expected = BTreeSet::from([
+                (WalAttributionRole::ProjectionDispatcher, 0),
+                (WalAttributionRole::ProjectionWorker, 0),
+                (WalAttributionRole::ProjectionWorker, 1),
+            ]);
+            entries.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>()
+                == expected
+                && entries.iter().all(|(_, _, autocommit)| *autocommit)
+        });
+        let dispatcher_autocommit = runtime.as_ref().is_ok_and(|entries| {
+            entries
+                .iter()
+                .find(|(role, index, _)| {
+                    *role == WalAttributionRole::ProjectionDispatcher && *index == 0
+                })
+                .is_some_and(|(_, _, autocommit)| *autocommit)
+        });
+        let workers_autocommit = runtime.as_ref().is_ok_and(|entries| {
+            entries
+                .iter()
+                .filter(|(role, _, _)| *role == WalAttributionRole::ProjectionWorker)
+                .count()
+                == PROJECTION_WORKERS
+                && entries
+                    .iter()
+                    .filter(|(role, _, _)| *role == WalAttributionRole::ProjectionWorker)
+                    .all(|(_, _, autocommit)| *autocommit)
+        });
+        let creation_text = creation.map_or_else(
+            || "unknown".to_string(),
+            |(writer, readers, dispatcher, workers, probes)| {
+                format!("writer:{writer},readers:{readers},dispatcher:{dispatcher},workers:{workers},probes:{probes}")
+            },
+        );
+        let complete = registry_complete
+            && creation == Some((1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, 2))
+            && writer_autocommit
+            && reader_autocommit
+            && runtime_autocommit;
+        format!(
+            "roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer={};readers={};dispatcher={};workers={};registry={};creation={};complete={}",
+            if writer_autocommit { "autocommit" } else { "not_autocommit" },
+            if reader_autocommit { "autocommit" } else { "not_autocommit" },
+            if dispatcher_autocommit { "autocommit" } else { "not_autocommit" },
+            if workers_autocommit { "2-autocommit" } else { "not_autocommit" },
+            if registry_complete { "complete" } else { "incomplete" },
+            creation_text,
+            u8::from(complete),
+        )
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn take_actual_checkpoint_observations_for_test(&self) -> Vec<String> {
+        let records = self
+            .actual_checkpoint_observations
+            .lock()
+            .expect("actual checkpoint observation")
+            .take()
+            .map_or_else(Vec::new, |observer| observer.records);
+        records
+            .into_iter()
+            .map(|record| {
+                let collector_roles = if record.collector_roles.is_empty() {
+                    "idle".to_string()
+                } else {
+                    record.collector_roles.join(",")
+                };
+                let timing = record.elapsed.map_or_else(String::new, |elapsed| {
+                    format!(" elapsed_ms={}", elapsed.as_millis())
+                });
+                let outcome = record.report.map_or_else(String::new, |report| {
+                    format!(
+                        " busy={} log_frames={} checkpointed_frames={}",
+                        u8::from(report.busy != 0), report.log_frames, report.checkpointed_frames,
+                    )
+                });
+                format!(
+                    "control={} phase={} ordinal={} writer_autocommit={} direct_inventory={} collector_roles={} checkpoint_begin_overlap={}{}{}",
+                    record.control,
+                    record.phase,
+                    record.ordinal,
+                    u8::from(record.writer_autocommit),
+                    record.direct_inventory,
+                    collector_roles,
+                    u8::from(record.checkpoint_begin_overlap),
+                    timing,
+                    outcome,
+                )
+            })
+            .collect()
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn arm_python_serial_actual_checkpoint_observation_for_test(&self) {
+        self.arm_actual_checkpoint_observation_for_test("python_serial");
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn drain_actual_checkpoint_observations_for_test(&self) -> Vec<String> {
+        self.take_actual_checkpoint_observations_for_test()
     }
 
     /// Return direct, complete managed-connection facts for the private Slice
@@ -10743,9 +10941,25 @@ impl Engine {
         for attempt in 0..ERASURE_WAL_TRUNCATE_ATTEMPTS {
             self.wal_attribution.set(WalAttributionRole::Writer, 0, true, "checkpoint_start");
             let overlap = self.wal_attribution.checkpoint_begin();
+            #[cfg(any(test, feature = "test-hooks"))]
+            self.actual_checkpoint_observation_for_test(
+                "before",
+                (attempt + 1) as usize,
+                overlap,
+                None,
+                None,
+            );
             let started = Instant::now();
             let checkpoint_result = self.wal_checkpoint_truncate_once(false);
             let elapsed = started.elapsed();
+            #[cfg(any(test, feature = "test-hooks"))]
+            self.actual_checkpoint_observation_for_test(
+                "after",
+                (attempt + 1) as usize,
+                overlap,
+                Some(elapsed),
+                checkpoint_result.as_ref().ok().cloned(),
+            );
             let snapshot = self.wal_attribution.snapshot();
             self.wal_attribution.checkpoint_end();
             self.wal_attribution.set(WalAttributionRole::Writer, 0, false, "idle");
@@ -22715,6 +22929,72 @@ mod tests {
             );
         }
         eprintln!("slice65_wal incident_ladder=recorded");
+    }
+
+    /// Slice 65 follow-on: observe the real checkpoint calls in the exact
+    /// close/reopen/recovery-read incident path. No raw checkpoint or runtime
+    /// probe is permitted between the recovery reads and the one original
+    /// erasure.
+    #[test]
+    fn wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts() {
+        let dir = TempDir::new().expect("temp dir");
+        let path = dir.path().join("wal-attribution-actual-checkpoint.sqlite");
+        let old = seed_close_boundary_database(&path);
+        old.engine.close().expect("old close");
+        assert_closed_engine_is_idle(&old);
+
+        let fresh = Engine::open(&path).expect("fresh open");
+        assert!(fresh
+            .engine
+            .read_get("slice65-close-root", &Default::default())
+            .expect("fresh recovery read")
+            .is_some());
+        assert_eq!(
+            fresh
+                .engine
+                .graph_neighbors(
+                    "slice65-close-root",
+                    1,
+                    super::TraversalDirection::Outgoing,
+                    &Default::default(),
+                )
+                .expect("fresh recovery neighbors")
+                .len(),
+            1
+        );
+
+        fresh.engine.arm_actual_checkpoint_observation_for_test("direct_rust");
+        let observed = fresh.engine.erase_source("slice65-close-nested-source");
+        let records = fresh.engine.take_actual_checkpoint_observations_for_test();
+        assert!(!records.is_empty(), "real erase must retain checkpoint observations");
+        assert_eq!(records.len() % 2, 0, "every real attempt has before/after facts");
+        for pair in records.chunks_exact(2) {
+            assert!(pair[0].contains("control=direct_rust phase=before"));
+            assert!(pair[1].contains("control=direct_rust phase=after"));
+            assert!(pair[0].contains("writer_autocommit=1"));
+            assert!(pair[1].contains("writer_autocommit=1"));
+            assert!(
+                pair[0].contains("direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=autocommit;dispatcher=autocommit;workers=2-autocommit;registry=complete;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:2;complete=1"),
+                "unexpected direct inventory: {}",
+                pair[0]
+            );
+            assert!(pair[1].contains("collector_roles=idle"));
+            assert!(pair[1].contains("elapsed_ms="));
+            assert!(pair[1].contains("busy="));
+            eprintln!("slice65_wal actual_checkpoint {}", pair[0]);
+            eprintln!("slice65_wal actual_checkpoint {}", pair[1]);
+        }
+        match observed {
+            Err(EngineError::ErasureIncomplete { stage, .. }) if stage == "wal_checkpoint" => {
+                eprintln!("slice65_wal actual_checkpoint control=direct_rust erase_observation=typed_erasure_incomplete");
+            }
+            Ok(report) => {
+                assert_eq!(report.nodes_excised, 1, "clean observation must excise nested node");
+                eprintln!("slice65_wal actual_checkpoint control=direct_rust erase_observation=clean_completion");
+            }
+            other => panic!("actual checkpoint erase produced an unrecognized outcome: {other:?}"),
+        }
+        eprintln!("slice65_wal actual_checkpoint control=direct_rust recorded");
     }
 
     fn incident_ladder_long_lived_inventory(

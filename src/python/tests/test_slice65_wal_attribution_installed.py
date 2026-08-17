@@ -115,23 +115,41 @@ def run_serial_incident(
                 print("slice65_wal serial_idle_after_neighbors=passed", flush=True)
             print("slice65_wal serial_recovery_reads=passed", flush=True)
 
-            before = len(fresh._native._wal_attribution_checkpoint_records_for_test()) if require_attribution else 0
+            if require_attribution:
+                fresh._native._arm_actual_checkpoint_observation_for_test()
             try:
                 nested = fresh.erase_source("slice65-nested-source")
             except ErasureIncompleteError as error:
-                if not observe_baseline_first_erase:
+                if observe_baseline_first_erase:
+                    baseline_observation = ("typed_erasure_incomplete", _expected_wal_baseline(error))
+                elif require_attribution:
+                    assert error.stage == "wal_checkpoint"
+                    print(
+                        "slice65_wal serial_current_erase_observation=typed_erasure_incomplete",
+                        flush=True,
+                    )
+                else:
                     raise
-                baseline_observation = ("typed_erasure_incomplete", _expected_wal_baseline(error))
             else:
                 assert nested.nodes_excised == 1
                 if observe_baseline_first_erase:
                     baseline_observation = ("clean_completion", None)
+                elif require_attribution:
+                    print("slice65_wal serial_current_erase_observation=clean_completion", flush=True)
             if not observe_baseline_first_erase:
-                fresh.transition("slice65-root", "deleted", "slice65 incident control")
-                fresh.purge("slice65-root")
                 if require_attribution:
-                    records = fresh._native._wal_attribution_checkpoint_records_for_test()[before:]
-                    assert records and all(r[1:] == (False, "no_owned_snapshot", []) for r in records)
+                    records = fresh._native._drain_actual_checkpoint_observations_for_test()
+                    assert records and len(records) % 2 == 0
+                    for before, after in zip(records[::2], records[1::2], strict=True):
+                        assert "control=python_serial phase=before" in before
+                        assert "control=python_serial phase=after" in after
+                        assert "writer_autocommit=1" in before
+                        assert "writer_autocommit=1" in after
+                        assert "direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=autocommit;dispatcher=autocommit;workers=2-autocommit;registry=complete;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:2;complete=1" in before
+                        assert "collector_roles=idle" in after
+                        assert "elapsed_ms=" in after and "busy=" in after
+                        print(f"slice65_wal actual_checkpoint {before}", flush=True)
+                        print(f"slice65_wal actual_checkpoint {after}", flush=True)
                     print("slice65_wal serial_current_attribution_expected=1", flush=True)
         finally:
             fresh.close()

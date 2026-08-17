@@ -516,15 +516,15 @@ jobs:
             Write-Error "reader-handoff attribution artifact is missing success marker"
             exit 1
           }
-          $incidentLadderLog = "$env:RUNNER_TEMP\slice65-windows-wal-incident-ladder.log"
-          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $incidentLadderLog
+          $actualCheckpointLog = "$env:RUNNER_TEMP\slice65-windows-wal-actual-checkpoint.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $actualCheckpointLog
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if (-not (Select-String -Path $incidentLadderLog -SimpleMatch 'running 1 test' -Quiet)) {
-            Write-Error "incident checkpoint ladder selected zero tests"
+          if (-not (Select-String -Path $actualCheckpointLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "actual-checkpoint observation selected zero tests"
             exit 1
           }
-          if (-not (Select-String -Path $incidentLadderLog -SimpleMatch 'slice65_wal incident_ladder stage=old_close old_engine_closed=1 fresh_engine_open=0' -Quiet) -or -not (Select-String -Path $incidentLadderLog -SimpleMatch 'slice65_wal incident_ladder stage=after_fresh_reads direct_inventory=' -Quiet) -or -not (Select-String -Path $incidentLadderLog -SimpleMatch 'slice65_wal incident_ladder stage=after_fresh_reads old_engine_closed=0 fresh_engine_open=1' -Quiet) -or -not (Select-String -Path $incidentLadderLog -SimpleMatch 'collector_roles=idle' -Quiet) -or -not (Select-String -Path $incidentLadderLog -SimpleMatch 'slice65_wal incident_ladder runtime_probe_drop_ack stage=erasure_preflight' -Quiet) -or -not (Select-String -Path $incidentLadderLog -SimpleMatch 'slice65_wal incident_ladder stage=after_erasure_preflight' -Quiet) -or -not (Select-String -Path $incidentLadderLog -SimpleMatch 'slice65_wal incident_ladder erase_observation=' -Quiet) -or -not (Select-String -Path $incidentLadderLog -SimpleMatch 'slice65_wal incident_ladder child_raw stage=fresh_child' -Quiet) -or -not (Select-String -Path $incidentLadderLog -SimpleMatch 'slice65_wal incident_ladder=recorded' -Quiet)) {
-            Write-Error "incident checkpoint ladder artifact is incomplete"
+          if (-not (Select-String -Path $actualCheckpointLog -SimpleMatch 'slice65_wal actual_checkpoint control=direct_rust phase=before' -Quiet) -or -not (Select-String -Path $actualCheckpointLog -SimpleMatch 'slice65_wal actual_checkpoint control=direct_rust phase=after' -Quiet) -or -not (Select-String -Path $actualCheckpointLog -SimpleMatch 'direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=autocommit;dispatcher=autocommit;workers=2-autocommit;registry=complete;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:2;complete=1' -Quiet) -or -not (Select-String -Path $actualCheckpointLog -SimpleMatch 'slice65_wal actual_checkpoint control=direct_rust erase_observation=' -Quiet) -or -not (Select-String -Path $actualCheckpointLog -SimpleMatch 'slice65_wal actual_checkpoint control=direct_rust recorded' -Quiet)) {
+            Write-Error "actual-checkpoint observation artifact is incomplete"
             exit 1
           }
           cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_projection_worker_transaction_is_owned_then_idle -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append
@@ -659,6 +659,10 @@ jobs:
           }
           if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_idle_after_read_get=passed' -Quiet) -or -not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_idle_after_neighbors=passed' -Quiet)) {
             Write-Error "current serial wheel did not prove immediate idle state after both recovery reads"
+            exit 1
+          }
+          if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal actual_checkpoint control=python_serial phase=before' -Quiet) -or -not (Select-String -Path $artifact -SimpleMatch 'slice65_wal actual_checkpoint control=python_serial phase=after' -Quiet) -or -not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_current_erase_observation=' -Quiet)) {
+            Write-Error "current serial wheel did not retain actual checkpoint observation facts"
             exit 1
           }
           if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_wheel_selector=released-0.8.22' -Quiet) -or -not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_wheel_selector=current-source-test-hooks' -Quiet)) {

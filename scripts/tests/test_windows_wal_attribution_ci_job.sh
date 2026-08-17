@@ -120,13 +120,7 @@ assert_contains "$CODE" 'wal_attribution_retained_materialized_result_is_idle_at
 assert_contains "$CODE" 'tests::wal_attribution_reader_handoff_is_idle_before_materialized_reply' "job selects the exact reader-handoff control"
 assert_contains "$CODE" 'reader-handoff attribution command selected zero tests' "job rejects a zero-test reader-handoff invocation"
 assert_contains "$CODE" 'slice65_wal reader_handoff_idle_before_reply=passed' "job requires the reader-handoff artifact marker"
-assert_contains "$CODE" 'tests::wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation' "job selects the exact incident checkpoint ladder"
-assert_contains "$CODE" 'incident checkpoint ladder selected zero tests' "job rejects a zero-test incident checkpoint ladder invocation"
-assert_contains "$CODE" 'slice65_wal incident_ladder stage=old_close old_engine_closed=1 fresh_engine_open=0' "job requires the old-close incident ladder artifact"
-assert_contains "$CODE" 'slice65_wal incident_ladder stage=after_fresh_reads' "job requires the fresh-read incident ladder artifact"
-assert_contains "$CODE" 'slice65_wal incident_ladder stage=after_fresh_reads old_engine_closed=0 fresh_engine_open=1' "job retains the live fresh-Engine ladder fact"
-assert_contains "$CODE" 'slice65_wal incident_ladder runtime_probe_drop_ack' "job requires the runtime-probe actual-drop acknowledgement"
-assert_contains "$CODE" 'slice65_wal incident_ladder erase_observation=' "job retains the direct-Rust incident erase observation"
+assert_absent "$CODE" 'tests::wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation' "job does not select the perturbing pre-erase raw ladder as primary evidence"
 assert_contains "$CODE" 'tests::wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts' "job selects the exact direct-Rust actual-checkpoint control"
 assert_contains "$CODE" 'actual-checkpoint observation selected zero tests' "job rejects a zero-test direct-Rust actual-checkpoint invocation"
 assert_contains "$CODE" 'slice65_wal actual_checkpoint control=direct_rust phase=before' "job retains direct-Rust pre-attempt facts"
@@ -263,6 +257,10 @@ assert_contains "$(<"$ENGINE_SOURCE")" \
   'checkpoint_at_rest_for_test' \
   "engine retains private completion, inventory, and checkpoint sampler seams"
 assert_contains "$(<"$ENGINE_SOURCE")" \
+  '#[cfg(any(test, feature = "test-hooks"))]' \
+  'actual_checkpoint_observations: Mutex<Option<ActualCheckpointObserver>>' \
+  "actual checkpoint observation is test/test-hooks-only"
+assert_contains "$(<"$ENGINE_SOURCE")" \
   'native_raw_wal_checkpoint_for_test' \
   'open_managed_connection' \
   "engine retains the native fresh-child raw-checkpoint seam behind the audited opener"
@@ -318,11 +316,12 @@ assert_absent "$(<"$PY_CONTROL")" \
   'sqlite3.connect' \
   "installed binding diagnostic never opens a stdlib raw checkpoint connection"
 serial_incident_body="$(python_function_body "$PY_CONTROL" "run_serial_incident")"
-assert_before_in_text \
-  "$serial_incident_body" \
-  'if not observe_baseline_first_erase:' \
+assert_absent "$serial_incident_body" \
   'fresh.transition' \
-  "baseline observation mode does not continue to the follow-on purge lifecycle"
+  "installed serial has no deletion transition after its one original erase"
+assert_absent "$serial_incident_body" \
+  'fresh.purge' \
+  "installed serial has no purge after its one original erase"
 assert_before_in_text \
   "$CODE" \
   '--control serial' \
@@ -393,28 +392,6 @@ binding_child_body="$(python_function_body "$PY_CONTROL" "run_binding_child")"
 assert_contains "$binding_child_body" \
   'native._native_raw_wal_checkpoint_for_test(path)' \
   "fresh child calls the native FathomDB/Rusqlite checkpoint hook"
-incident_ladder_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation")"
-incident_erase_calls="$(grep -Fc 'fresh.engine.erase_source(' <<<"$incident_ladder_body" || true)"
-if [ "$incident_erase_calls" -eq 1 ]; then
-  pass "incident checkpoint ladder retains exactly one destructive erasure"
-else
-  fail "incident checkpoint ladder must retain exactly one destructive erasure; found $incident_erase_calls"
-fi
-assert_before_in_text \
-  "$incident_ladder_body" \
-  'let old_report = incident_ladder_raw_checkpoint(' \
-  'let fresh = Engine::open(&path)' \
-  "incident ladder samples old-close before fresh open"
-assert_before_in_text \
-  "$incident_ladder_body" \
-  'let fresh_reads_report = incident_ladder_raw_checkpoint(' \
-  'incident_ladder_runtime_probe_preflight(&path' \
-  "incident ladder samples fresh reads before runtime-probe preflight"
-assert_before_in_text \
-  "$incident_ladder_body" \
-  'incident_ladder_runtime_probe_preflight(&path' \
-  'fresh.engine.erase_source(' \
-  "incident ladder acknowledges its runtime probe before destructive erasure"
 actual_checkpoint_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts")"
 assert_contains "$actual_checkpoint_body" \
   'arm_actual_checkpoint_observation_for_test' \
@@ -433,6 +410,20 @@ assert_absent "$actual_checkpoint_body" \
 assert_absent "$actual_checkpoint_body" \
   'RuntimeProbe' \
   "direct-Rust actual-checkpoint control has no RuntimeProbe"
+assert_absent "$actual_checkpoint_body" \
+  'wal_checkpoint_truncate_once' \
+  "direct-Rust actual-checkpoint control has no extra checkpoint call"
+actual_checkpoint_engine_body="$(function_body "$ENGINE_SOURCE" "complete_erasure_at_rest")"
+assert_before_in_text \
+  "$actual_checkpoint_engine_body" \
+  'self.actual_checkpoint_observation_for_test(' \
+  'let checkpoint_result = self.wal_checkpoint_truncate_once(false);' \
+  "actual observer records immediately before the existing checkpoint call"
+assert_before_in_text \
+  "$actual_checkpoint_engine_body" \
+  'let checkpoint_result = self.wal_checkpoint_truncate_once(false);' \
+  'checkpoint_result.as_ref().ok().cloned()' \
+  "actual observer records immediately after the existing checkpoint call"
 serial_incident_body="$(python_function_body "$PY_CONTROL" "run_serial_incident")"
 assert_contains "$serial_incident_body" \
   'fresh._native._arm_actual_checkpoint_observation_for_test()' \
@@ -445,6 +436,12 @@ assert_before_in_text \
   'fresh._native._arm_actual_checkpoint_observation_for_test()' \
   'nested = fresh.erase_source(' \
   "installed Python observer arms immediately before its original erase"
+assert_absent "$serial_incident_body" \
+  '_native_raw_wal_checkpoint_for_test' \
+  "installed Python serial has no raw TRUNCATE probe"
+assert_absent "$serial_incident_body" \
+  '_checkpoint_at_rest_for_test' \
+  "installed Python serial has no extra Engine checkpoint sampler"
 for control in \
   wal_attribution_close_boundary_fresh_open_is_clean \
   wal_attribution_close_boundary_read_get_is_clean \
@@ -566,44 +563,70 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     fail "mutation did not fail post-commit artifact assertion: $post_commit_artifact_out"
   fi
 
-  INCIDENT_LADDER_SELECTOR_MUTATED="$TMPROOT/ci-without-incident-ladder-selector.yml"
-  sed '/tests::wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation/d' "$CI" \
-    >"$INCIDENT_LADDER_SELECTOR_MUTATED"
+  ACTUAL_CHECKPOINT_SELECTOR_MUTATED="$TMPROOT/ci-without-actual-checkpoint-selector.yml"
+  sed '/tests::wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts/d' "$CI" \
+    >"$ACTUAL_CHECKPOINT_SELECTOR_MUTATED"
   set +e
-  incident_ladder_selector_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$INCIDENT_LADDER_SELECTOR_MUTATED" bash "$0" 2>&1)"
-  incident_ladder_selector_rc=$?
+  actual_checkpoint_selector_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$ACTUAL_CHECKPOINT_SELECTOR_MUTATED" bash "$0" 2>&1)"
+  actual_checkpoint_selector_rc=$?
   set -e
-  if [ "$incident_ladder_selector_rc" -ne 0 ] \
-    && grep -Fq 'job selects the exact incident checkpoint ladder (missing: tests::wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation)' <<<"$incident_ladder_selector_out"; then
-    pass "mutation proves incident ladder selector assertion is load-bearing"
+  if [ "$actual_checkpoint_selector_rc" -ne 0 ] \
+    && grep -Fq 'job selects the exact direct-Rust actual-checkpoint control (missing: tests::wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts)' <<<"$actual_checkpoint_selector_out"; then
+    pass "mutation proves actual-checkpoint selector assertion is load-bearing"
   else
-    fail "mutation did not fail incident ladder selector assertion: $incident_ladder_selector_out"
+    fail "mutation did not fail actual-checkpoint selector assertion: $actual_checkpoint_selector_out"
   fi
 
-  INCIDENT_LADDER_GUARD_MUTATED="$TMPROOT/ci-without-incident-ladder-guard.yml"
-  sed '/incident checkpoint ladder selected zero tests/d' "$CI" >"$INCIDENT_LADDER_GUARD_MUTATED"
+  ACTUAL_CHECKPOINT_GUARD_MUTATED="$TMPROOT/ci-without-actual-checkpoint-guard.yml"
+  sed '/actual-checkpoint observation selected zero tests/d' "$CI" >"$ACTUAL_CHECKPOINT_GUARD_MUTATED"
   set +e
-  incident_ladder_guard_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$INCIDENT_LADDER_GUARD_MUTATED" bash "$0" 2>&1)"
-  incident_ladder_guard_rc=$?
+  actual_checkpoint_guard_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$ACTUAL_CHECKPOINT_GUARD_MUTATED" bash "$0" 2>&1)"
+  actual_checkpoint_guard_rc=$?
   set -e
-  if [ "$incident_ladder_guard_rc" -ne 0 ] \
-    && grep -Fq 'job rejects a zero-test incident checkpoint ladder invocation (missing: incident checkpoint ladder selected zero tests)' <<<"$incident_ladder_guard_out"; then
-    pass "mutation proves incident ladder zero-test guard is load-bearing"
+  if [ "$actual_checkpoint_guard_rc" -ne 0 ] \
+    && grep -Fq 'job rejects a zero-test direct-Rust actual-checkpoint invocation (missing: actual-checkpoint observation selected zero tests)' <<<"$actual_checkpoint_guard_out"; then
+    pass "mutation proves actual-checkpoint zero-test guard is load-bearing"
   else
-    fail "mutation did not fail incident ladder zero-test guard: $incident_ladder_guard_out"
+    fail "mutation did not fail actual-checkpoint zero-test guard: $actual_checkpoint_guard_out"
   fi
 
-  INCIDENT_LADDER_ARTIFACT_MUTATED="$TMPROOT/ci-without-incident-ladder-artifact.yml"
-  sed '/slice65_wal incident_ladder stage=old_close old_engine_closed=1 fresh_engine_open=0/d' "$CI" >"$INCIDENT_LADDER_ARTIFACT_MUTATED"
+  ACTUAL_CHECKPOINT_ARTIFACT_MUTATED="$TMPROOT/ci-without-actual-checkpoint-artifact.yml"
+  sed '/slice65_wal actual_checkpoint control=direct_rust phase=before/d' "$CI" >"$ACTUAL_CHECKPOINT_ARTIFACT_MUTATED"
   set +e
-  incident_ladder_artifact_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$INCIDENT_LADDER_ARTIFACT_MUTATED" bash "$0" 2>&1)"
-  incident_ladder_artifact_rc=$?
+  actual_checkpoint_artifact_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$ACTUAL_CHECKPOINT_ARTIFACT_MUTATED" bash "$0" 2>&1)"
+  actual_checkpoint_artifact_rc=$?
   set -e
-  if [ "$incident_ladder_artifact_rc" -ne 0 ] \
-    && grep -Fq 'job requires the old-close incident ladder artifact (missing: slice65_wal incident_ladder stage=old_close old_engine_closed=1 fresh_engine_open=0)' <<<"$incident_ladder_artifact_out"; then
-    pass "mutation proves incident ladder artifact assertion is load-bearing"
+  if [ "$actual_checkpoint_artifact_rc" -ne 0 ] \
+    && grep -Fq 'job retains direct-Rust pre-attempt facts (missing: slice65_wal actual_checkpoint control=direct_rust phase=before)' <<<"$actual_checkpoint_artifact_out"; then
+    pass "mutation proves actual-checkpoint artifact assertion is load-bearing"
   else
-    fail "mutation did not fail incident ladder artifact assertion: $incident_ladder_artifact_out"
+    fail "mutation did not fail actual-checkpoint artifact assertion: $actual_checkpoint_artifact_out"
+  fi
+
+  ACTUAL_CHECKPOINT_RAW_MUTATED="$TMPROOT/lib-with-raw-primary-probe.rs"
+  sed 's/let observed = fresh.engine.erase_source(/let _raw_probe = incident_ladder_raw_checkpoint;\n        let observed = fresh.engine.erase_source(/' "$ENGINE_SOURCE" >"$ACTUAL_CHECKPOINT_RAW_MUTATED"
+  set +e
+  actual_checkpoint_raw_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$ACTUAL_CHECKPOINT_RAW_MUTATED" bash "$0" 2>&1)"
+  actual_checkpoint_raw_rc=$?
+  set -e
+  if [ "$actual_checkpoint_raw_rc" -ne 0 ] \
+    && grep -Fq 'direct-Rust actual-checkpoint control has no raw TRUNCATE probe (unexpected: incident_ladder_raw_checkpoint)' <<<"$actual_checkpoint_raw_out"; then
+    pass "mutation proves raw-probe exclusion is load-bearing"
+  else
+    fail "mutation did not fail raw-probe exclusion: $actual_checkpoint_raw_out"
+  fi
+
+  ACTUAL_CHECKPOINT_RUNTIME_MUTATED="$TMPROOT/lib-with-runtime-primary-probe.rs"
+  sed 's/let observed = fresh.engine.erase_source(/let _runtime_probe = RuntimeProbeConnection;\n        let observed = fresh.engine.erase_source(/' "$ENGINE_SOURCE" >"$ACTUAL_CHECKPOINT_RUNTIME_MUTATED"
+  set +e
+  actual_checkpoint_runtime_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$ACTUAL_CHECKPOINT_RUNTIME_MUTATED" bash "$0" 2>&1)"
+  actual_checkpoint_runtime_rc=$?
+  set -e
+  if [ "$actual_checkpoint_runtime_rc" -ne 0 ] \
+    && grep -Fq 'direct-Rust actual-checkpoint control has no RuntimeProbe (unexpected: RuntimeProbe)' <<<"$actual_checkpoint_runtime_out"; then
+    pass "mutation proves RuntimeProbe exclusion is load-bearing"
+  else
+    fail "mutation did not fail RuntimeProbe exclusion: $actual_checkpoint_runtime_out"
   fi
 
   RUNTIME_PROBE_LIFECYCLE_MUTATED="$TMPROOT/lib-without-runtime-probe-registration.rs"

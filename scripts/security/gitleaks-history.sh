@@ -14,9 +14,19 @@ gitleaks_bin="$(require_gitleaks_bin gitleaks-history)" || exit 1
 scan_root="$(mktemp -d)"
 trap 'rm -rf "$scan_root"' EXIT
 safe_report="$scan_root/safe-report"
+history_repo="$scan_root/history.git"
+empty_ignore="$scan_root/empty-ignore"
+: >"$empty_ignore"
+
+if ! git clone --mirror "$repo" "$history_repo" >"$scan_root/mirror-output" 2>&1; then
+  printf '%s\n' 'gitleaks-history: could not create isolated history scan source' >&2
+  exit 1
+fi
 
 set +e
 "$gitleaks_bin" git \
+  --ignore-gitleaks-allow \
+  --gitleaks-ignore-path "$empty_ignore" \
   --log-opts="--all" \
   --redact=100 \
   --no-banner \
@@ -25,7 +35,7 @@ set +e
   --report-format template \
   --report-template "$SCRIPT_DIR/gitleaks-history-safe-report.tmpl" \
   --report-path "$safe_report" \
-  "$repo" >"$scan_root/scanner-output" 2>&1
+  "$history_repo" >"$scan_root/scanner-output" 2>&1
 scan_rc=$?
 set -e
 

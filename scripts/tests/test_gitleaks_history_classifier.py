@@ -120,12 +120,15 @@ def main() -> int:
     required = (
         '"$SCRIPT_DIR/gitleaks-current.sh"',
         "check-gitleaks-history.py",
+        'git clone --mirror "$repo" "$history_repo"',
+        "--ignore-gitleaks-allow",
+        '--gitleaks-ignore-path "$empty_ignore"',
         '--log-opts="--all"',
         "--report-format template",
         "--report-template",
         "--report-path",
     )
-    forbidden = ("--baseline-path", "--gitleaks-ignore-path", "--exit-code 0", ".gitleaksignore")
+    forbidden = ("--baseline-path", "--exit-code 0", ".gitleaksignore")
     def guard_contract(text: str) -> bool:
         return all(token in text for token in required) and not any(
             token in text for token in forbidden
@@ -141,6 +144,18 @@ def main() -> int:
     failures += expect(
         not guard_contract(history_text + "\n--baseline-path ignored.json\n"),
         "history guard contract rejects a baseline mutation",
+    )
+    failures += expect(
+        not guard_contract(history_text.replace("--ignore-gitleaks-allow", "", 1)),
+        "history guard contract rejects a deleted inline-allow protection",
+    )
+    failures += expect(
+        not guard_contract(history_text.replace('--gitleaks-ignore-path "$empty_ignore"', "", 1)),
+        "history guard contract rejects a deleted controlled-ignore path",
+    )
+    failures += expect(
+        not guard_contract(history_text.replace('git clone --mirror "$repo" "$history_repo"', "", 1)),
+        "history guard contract rejects a deleted isolated-source boundary",
     )
 
     print(f"{len(records)} safe fixture records, {len(manifest['entries'])} fingerprints")

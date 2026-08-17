@@ -164,6 +164,15 @@ def _fake_runner(path: Path) -> Path:
     path.write_text(
         "#!/usr/bin/env python3\n"
         "import hashlib, json, os\n"
+        "expected = {\n"
+        "  'TC5_EMBED_DEVICE': 'cpu', 'TC5_MODEL_IDENTITY': 'fathomdb-bge-small-en-v1.5',\n"
+        "  'TC5_CANDIDATE_BREADTH': '192', 'TC5_QUERY_COUNT': '100',\n"
+        "  'TC5_QUERY_SELECT_SEED': '0x0E77C0125E1EC7', 'TC5_BOOTSTRAP_RESAMPLES': '1000',\n"
+        "  'TC5_BOOTSTRAP_SEED': '0x0E77B007574A9',\n"
+        "  'TC5_GROUND_TRUTH': 'exact-f32-same-model-top-10',\n"
+        "  'TC5_SUT': 'pre-fusion-1bit-k192-f32-rerank-vector-stage'\n"
+        "}\n"
+        "if any(os.environ.get(key) != value for key, value in expected.items()): raise RuntimeError('pin drift')\n"
         "arm = os.environ['TC5_ARM']\n"
         "result = {\n"
         "  'schema_version': 'tc5-arm-result.v1',\n"
@@ -176,8 +185,14 @@ def _fake_runner(path: Path) -> Path:
         "  'sut_result_sha256': hashlib.sha256((arm + '-sut').encode()).hexdigest(),\n"
         "  'query_completion_count': 100,\n"
         "  'bootstrap_resamples': 1000,\n"
+        "  'synthetic_document_count': 0,\n"
         "  'metrics': {'recall_at_10': 0.91, 'ci_95': [0.90, 0.92], 'bootstrap_sigma': 0.01},\n"
         "  'provenance': {\n"
+        "    'source_artifact_sha256': '" + "a" * 64 + "',\n"
+        "    'source_commit': '" + "b" * 40 + "',\n"
+        "    'cargo_lock_sha256': '" + "c" * 64 + "',\n"
+        "    'model_asset_sha256': '" + "d" * 64 + "',\n"
+        "    'cpu_identity': 'cpu-identity', 'os_identity': 'os-identity',\n"
         "    'embed_device': 'cpu', 'model_identity': 'fathomdb-bge-small-en-v1.5',\n"
         "    'candidate_breadth': 192, 'query_count': 100,\n"
         "    'query_select_seed': '0x0E77C0125E1EC7', 'bootstrap_seed': '0x0E77B007574A9',\n"
@@ -214,6 +229,17 @@ def test_live_config_binds_the_disabled_execution_config_and_exact_two_arm_order
     assert config.arms == (("bridge", BRIDGE_DOCUMENT_COUNT), ("primary", PRIMARY_DOCUMENT_COUNT))
 
 
+def test_committed_live_config_binds_the_committed_disabled_execution_contract():
+    repository = Path(__file__).resolve().parents[2]
+
+    config = load_live_executor_config(
+        repository / "experiments/configs/scale-01/tc5-live-executor.v1.json",
+        base_execution_config_path=repository / "experiments/configs/scale-01/tc5-execution.v1.json",
+    )
+
+    assert config.executor_id == "tc5-all-real-cpu-executor-v1"
+
+
 def test_executor_requires_a_current_integrity_checked_coordinator_release(tmp_path):
     base_config, live_config_path, manifest_path, corpus_root, output_root, runner = _paths(tmp_path)
 
@@ -238,6 +264,24 @@ def test_executor_requires_a_current_integrity_checked_coordinator_release(tmp_p
             corpus_root=corpus_root, output_root=output_root,
         )
     assert list(output_root.iterdir()) == []
+
+
+def test_executor_rejects_repository_and_historical_eu7_output_roots_before_runner_start(tmp_path):
+    base_config, live_config_path, manifest_path, corpus_root, _, runner = _paths(tmp_path)
+    release_path = _write_json(
+        tmp_path / "release.json",
+        _release(live_config=_live_config(_base_config()), manifest=_manifest(), executable=runner),
+    )
+    repository = Path(__file__).resolve().parents[2]
+
+    with pytest.raises(Tc5LiveExecutorError, match="output root must remain outside the repository"):
+        execute_tc5(
+            action="tc5-smoke", release_path=release_path, live_config_path=live_config_path,
+            base_execution_config_path=base_config, manifest_path=manifest_path,
+            corpus_root=corpus_root, output_root=repository / "dev/plans/runs",
+        )
+
+    assert not (repository / "dev/plans/runs/eu7-latest-measurements.json").is_dir()
 
 
 def test_executor_runs_only_bridge_then_primary_and_emits_a_safe_complete_receipt(tmp_path):
@@ -302,6 +346,7 @@ def test_release_fails_closed_on_stale_or_mismatched_authority(tmp_path, mutate,
         ("missing-ground-truth", "ground_truth_sha256"),
         ("partial", "query_completion_count"),
         ("substitution", "document_count"),
+        ("provenance", "source_artifact_sha256"),
         ("claim", "SCALE-02"),
     ],
 )
@@ -320,6 +365,7 @@ def test_executor_rejects_unqualified_arm_result_without_index_eligibility(tmp_p
             "missing-ground-truth": "result.pop('ground_truth_sha256')",
             "partial": "result['query_completion_count'] = 99",
             "substitution": "result['document_count'] = 1",
+            "provenance": "result['provenance']['source_artifact_sha256'] = 'e' * 64",
             "claim": "result['scale_02_claim'] = 'supported through 50k'",
         }[mutation]
         + "\njson.dump(result, open(result_path, 'w', encoding='utf-8'), sort_keys=True)\n",
@@ -335,7 +381,7 @@ def test_executor_rejects_unqualified_arm_result_without_index_eligibility(tmp_p
             base_execution_config_path=base_config, manifest_path=manifest_path,
             corpus_root=corpus_root, output_root=output_root,
         )
-    assert not (output_root / "tc5-live-receipt.json").exists()
+    assert not (output_root / "tc5-tc5-smoke-receipt.json").exists()
 
 
 def test_resume_does_not_rerun_a_completed_qualified_arm(tmp_path):

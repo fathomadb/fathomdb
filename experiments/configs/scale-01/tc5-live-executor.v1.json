@@ -1,0 +1,27 @@
+{
+  "schema_version": "tc5-live-executor-config.v1",
+  "program_track": "SCALE-01",
+  "executor_id": "tc5-all-real-cpu-executor-v1",
+  "execution_config_sha256": "9d572a1f08a459476eadffea4a296d01a57ea41a243967e0acaf700164469569",
+  "arms": [
+    {
+      "name": "bridge",
+      "document_count": 7667
+    },
+    {
+      "name": "primary",
+      "document_count": 18472
+    }
+  ],
+  "approved_actions": [
+    "tc5-smoke",
+    "tc5-long-cpu-characterization"
+  ],
+  "result_contract": {
+    "schema_version": "tc5-arm-result.v1",
+    "required_ground_truth": "exact-f32-same-model-top-10",
+    "required_embed_device": "cpu",
+    "prohibit_payloads_and_raw_paths": true,
+    "prohibit_scale_02_claims": true
+  }
+}

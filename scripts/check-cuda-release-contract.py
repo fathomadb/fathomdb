@@ -98,6 +98,16 @@ DRIVERLESS_DEVICE_SELECTION_VARIABLES = (
     "HIP_VISIBLE_DEVICES",
     "ROCR_VISIBLE_DEVICES",
 )
+PUBLISHING_JOBS = (
+    "publish-rust-t1-embedder-api", "publish-rust-t2-schema", "publish-rust-t3-query",
+    "publish-rust-t4-embedder", "publish-rust-t5-engine", "publish-rust-t6-facade",
+    "publish-rust-t7-cli", "publish-pypi", "publish-npm-platform-linux-x64-gnu",
+    "publish-npm-platform-linux-arm64-gnu", "publish-npm-platform-darwin-x64",
+    "publish-npm-platform-darwin-arm64", "publish-npm-platform-win32-x64-msvc", "publish-npm",
+    "post-publish-smoke", "post-publish-smoke-aarch64", "post-publish-smoke-darwin-x64",
+    "post-publish-smoke-darwin-arm64", "post-publish-smoke-win32-x64", "co-tagging-assert",
+    "promote-npm-latest", "github-release", "record-v0820-partial-registry-recovery",
+)
 def fail(message: str) -> None:
     print(f"cuda-release-contract: {message}", file=sys.stderr)
     raise SystemExit(1)
@@ -223,17 +233,7 @@ def require_unmerged_workflow_route() -> None:
         if "persist-credentials: true" in job:
             fail(f"{name} candidate checkout must not persist credentials")
 
-    publishing_jobs = (
-        "publish-rust-t1-embedder-api", "publish-rust-t2-schema", "publish-rust-t3-query",
-        "publish-rust-t4-embedder", "publish-rust-t5-engine", "publish-rust-t6-facade",
-        "publish-rust-t7-cli", "publish-pypi", "publish-npm-platform-linux-x64-gnu",
-        "publish-npm-platform-linux-arm64-gnu", "publish-npm-platform-darwin-x64",
-        "publish-npm-platform-darwin-arm64", "publish-npm-platform-win32-x64-msvc", "publish-npm",
-        "post-publish-smoke", "post-publish-smoke-aarch64", "post-publish-smoke-darwin-x64",
-        "post-publish-smoke-darwin-arm64", "post-publish-smoke-win32-x64", "co-tagging-assert",
-        "promote-npm-latest", "github-release", "record-v0820-partial-registry-recovery",
-    )
-    for name in publishing_jobs:
+    for name in PUBLISHING_JOBS:
         job = workflow_job(name)
         if job.count("\n    if:") != 1 or "inputs.candidate_commit == ''" not in job:
             fail(f"{name} must be unreachable from an unmerged candidate dispatch")
@@ -350,8 +350,6 @@ def require_cuda_package_rehearsal() -> None:
         "--hf-home \"${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}\"",
         "bash control-plane/scripts/release/cuda-package-rehearsal.sh",
         "name: cuda-package-rehearsal",
-        "name: python-dist-x86_64-unknown-linux-gnu",
-        "name: napi-linux-x64-gnu",
     ):
         require_fragment(job, fragment, "cuda-package-rehearsal")
     candidate_checkout = job.index("ref: ${{ env.RELEASE_CHECKOUT_REF }}")
@@ -365,9 +363,49 @@ def require_cuda_package_rehearsal() -> None:
     napi_build = workflow_job("build-napi")
     if "x86_64-unknown-linux-gnu" in python_build or "linux-x64-gnu" in napi_build:
         fail("ordinary CPU build matrices must not duplicate the final Linux x64 CUDA producers")
+    for publisher_artifact in (
+        "name: python-dist-x86_64-unknown-linux-gnu",
+        "name: napi-linux-x64-gnu",
+    ):
+        if publisher_artifact in job:
+            fail("candidate CUDA rehearsal must not emit a canonical publisher-name artifact")
+    for name in PUBLISHING_JOBS:
+        if "cuda-package-rehearsal" in workflow_job(name):
+            fail(f"{name} must not consume a candidate CUDA rehearsal artifact")
+
+    canonical_blocker = workflow_job("canonical-cuda-package-route-required")
+    if not re.search(
+        r"^    if: \$\{\{ github\.event_name != 'workflow_dispatch' \|\| inputs\.dry_run != true \}\}$",
+        canonical_blocker,
+        re.MULTILINE,
+    ):
+        fail("canonical CUDA package blocker must run on every tag or non-dry-run route")
+    if not re.search(r"^    runs-on: ubuntu-latest$", canonical_blocker, re.MULTILINE):
+        fail("canonical CUDA package blocker must run read-only on GitHub-hosted Ubuntu")
+    if not re.search(r"^    permissions:\n      contents: read$", canonical_blocker, re.MULTILINE):
+        fail("canonical CUDA package blocker must have only read-only contents permission")
+    for fragment in ("canonical CUDA package route required", "exit 1"):
+        require_fragment(canonical_blocker, fragment, "canonical CUDA package blocker")
+    for forbidden in (
+        "actions/checkout@", "actions/download-artifact@", "actions/upload-artifact@",
+        "environment:", "id-token:", "registry-url:", "${{ secrets.", "github.token",
+        "candidate_commit", "cuda-unmerged-route-receipt", "cuda-preflight-witness",
+    ):
+        if forbidden in canonical_blocker:
+            fail(f"canonical CUDA package blocker must not receive candidate or publishing input: {forbidden!r}")
     all_builds = workflow_job("all-builds-passed")
     require_fragment(all_builds, "- cuda-package-rehearsal", "all-builds-passed")
-    require_fragment(all_builds, "needs.cuda-package-rehearsal.result == 'success'", "all-builds-passed")
+    require_fragment(all_builds, "- canonical-cuda-package-route-required", "all-builds-passed")
+    require_fragment(
+        all_builds,
+        "github.event_name == 'workflow_dispatch' && inputs.dry_run == true && needs.cuda-package-rehearsal.result == 'success'",
+        "all-builds-passed dry-run CUDA route",
+    )
+    require_fragment(
+        all_builds,
+        "(github.event_name != 'workflow_dispatch' || inputs.dry_run != true) && needs.canonical-cuda-package-route-required.result == 'success'",
+        "all-builds-passed canonical CUDA blocker route",
+    )
 
 
 def main() -> None:

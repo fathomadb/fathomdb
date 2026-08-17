@@ -552,7 +552,7 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a'
-if text.count(needle) < 7:
+if text.count(needle) != 5:
     raise SystemExit("fixture CUDA artifact uploads must use the reviewed full action SHA")
 path.write_text(text.replace(needle, needle[:-1], 1))
 PY

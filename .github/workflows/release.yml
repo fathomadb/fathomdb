@@ -556,18 +556,6 @@ jobs:
           name: cuda-package-rehearsal
           path: candidate/cuda-package-rehearsal
           if-no-files-found: error
-      - name: Upload retained Linux x64 Python wheel under publisher name
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: python-dist-x86_64-unknown-linux-gnu
-          path: candidate/cuda-package-rehearsal/packages/*.whl
-          if-no-files-found: error
-      - name: Upload retained Linux x64 N-API package under publisher name
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: napi-linux-x64-gnu
-          path: candidate/cuda-package-rehearsal/packages/fathomdb-linux-x64-gnu-*.tgz
-          if-no-files-found: error
 
   # Pre-publish packaging verification for Rust crates:
   #   1. cargo build --release --workspace — compile check of every crate
@@ -608,6 +596,24 @@ jobs:
       - name: Package fathomdb-query (leaf, no in-workspace deps)
         run: cargo package --no-verify -p fathomdb-query
 
+  # Slice 20 deliberately has no canonical Linux x64 CUDA package route yet.
+  # Tag and non-dry-run dispatches therefore stop here, before the aggregate
+  # gate makes any publisher reachable. This job is intentionally data-free:
+  # no checkout, candidate artifact, receipt/witness, environment, OIDC, or
+  # registry/release credential can turn this blocker into a publisher route.
+  canonical-cuda-package-route-required:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
+    permissions:
+      contents: read
+    steps:
+      - name: Block uncommissioned canonical CUDA package route
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "canonical CUDA package route required" >&2
+          exit 1
+
   # Cross-ecosystem gate: every build must succeed before ANY publish runs.
   # Without this, a partial release (e.g. crates.io 0.6.0 published but
   # pypi 0.6.0 blocked on a build failure) leaves downstream versioning
@@ -617,13 +623,14 @@ jobs:
     # Normal releases require every artifact build. The explicit v0.8.20
     # recovery dispatch omits only N-API, whose npm artifact is intentionally
     # not being recovered; verify, Python, and Rust remain hard gates.
-    if: ${{ always() && needs.verify-release.result == 'success' && needs.build-python.result == 'success' && needs.build-rust.result == 'success' && needs.cuda-package-rehearsal.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.build-napi.result == 'success') }}
+    if: ${{ always() && needs.verify-release.result == 'success' && needs.build-python.result == 'success' && needs.build-rust.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.dry_run == true && needs.cuda-package-rehearsal.result == 'success') || ((github.event_name != 'workflow_dispatch' || inputs.dry_run != true) && needs.canonical-cuda-package-route-required.result == 'success')) && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.build-napi.result == 'success') }}
     needs:
       - verify-release
       - build-python
       - build-napi
       - build-rust
       - cuda-package-rehearsal
+      - canonical-cuda-package-route-required
     steps:
       - run: echo "all release build gates passed"
 

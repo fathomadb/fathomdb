@@ -85,6 +85,14 @@ def test_live_executor_freezes_phase_b_and_action_partitions():
     assert set(plan.action("cpu_grid").cell_ids).isdisjoint(plan.action("gpu_ce_grid").cell_ids)
 
 
+def test_gpu_adapter_environment_exposes_only_the_released_cuda_index(monkeypatch):
+    monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "0,1,2")
+
+    environment = locomo_live_executor.adapter_environment("gpu_ce_grid", "cuda:0")
+
+    assert environment["CUDA_VISIBLE_DEVICES"] == "0"
+
+
 def test_live_executor_pins_raw_locomo_against_its_normalized_corpus_identity(monkeypatch, tmp_path):
     """The released raw file is compared using the Phase-B canonical corpus identity."""
     raw_corpus = tmp_path / "locomo.json"

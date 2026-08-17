@@ -723,6 +723,16 @@ def _cell_receipt_sha256(document: Mapping[str, object]) -> str:
     return _canonical_sha256({key: value for key, value in document.items() if key != "receipt_sha256"})
 
 
+def adapter_environment(action: str, selected_device: str) -> dict[str, str]:
+    """Return the child environment bound to a released GPU action."""
+    environment = dict(os.environ)
+    if action == "gpu_ce_grid":
+        if selected_device != "cuda:0":
+            raise LiveExecutorError("GPU action has no safe CUDA device binding")
+        environment["CUDA_VISIBLE_DEVICES"] = "0"
+    return environment
+
+
 def _cell_receipt_document(
     plan: LiveExecutorPlan, action: LiveAction, release: Mapping[str, object], projection: CellProjection,
 ) -> dict[str, object]:
@@ -1030,6 +1040,7 @@ def run_action(plan: LiveExecutorPlan, release: object, *, action: str, max_cell
         }
         completed = subprocess.run(
             [adapter], input=json.dumps(request, sort_keys=True), text=True, stdout=subprocess.PIPE, check=False,
+            env=adapter_environment(action, str(token["gpu_policy"]["selected_device"])),
         )
         if completed.returncode != 0:
             raise LiveExecutorError("external cell adapter failed; no partial projection was written")

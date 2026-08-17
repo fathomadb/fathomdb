@@ -92,6 +92,12 @@ assert_contains "$CODE" 'slice65_wal post_commit_ack direct_inventory=' "job req
 assert_contains "$CODE" 'collector_roles=idle' "job retains collector state separately from direct transaction facts"
 assert_contains "$CODE" 'slice65_wal post_commit_raw case=pre_close' "job requires redacted pre-close raw checkpoint samples"
 assert_contains "$CODE" 'slice65_wal post_commit_child_raw case=after_close' "job requires the redacted fresh-child probe outcome"
+assert_contains "$CODE" 'python_binding_completion_ack' "job requires installed binding completion acknowledgement"
+assert_contains "$CODE" 'python_binding_direct_inventory=' "job requires direct installed binding inventory"
+assert_contains "$CODE" 'python_binding_raw case=before_engine_sampler' "job requires the first installed binding raw sample"
+assert_contains "$CODE" 'python_binding_engine_sampler' "job requires exactly one installed binding Engine-path sampler"
+assert_contains "$CODE" 'python_binding_raw case=after_engine_sampler' "job requires the second installed binding raw sample"
+assert_contains "$CODE" 'python_binding_child_raw case=after_close' "job requires the conditional installed binding child probe outcome"
 assert_contains "$CODE" 'wal_attribution_close_boundary_raw_checkpoint_is_clean' "job runs direct close-boundary control"
 assert_contains "$CODE" 'wal_attribution_close_boundary_fresh_open_is_clean' "job runs fresh-open close-boundary control"
 assert_contains "$CODE" 'wal_attribution_close_boundary_read_get_is_clean' "job runs read-get close-boundary control"
@@ -175,12 +181,21 @@ assert_contains "$(<"$PY_SOURCE")" \
   '_arm_next_reader_snapshot_pause_for_test' \
   'wal_attribution_checkpoint_records_for_test' \
   "installed binding exposes the rendezvous only in its test-hooks build"
+assert_contains "$(<"$PY_SOURCE")" \
+  '_arm_next_reader_completion_pause_for_test' \
+  '_wal_attribution_binding_inventory_for_test' \
+  "installed binding exposes completion and direct-inventory hooks only in its test-hooks build"
 assert_contains "$(<"$REPO_ROOT/src/rust/crates/fathomdb-engine/Cargo.toml")" \
   'test-hooks = []' \
   "engine reader rendezvous is a non-default test feature"
 assert_contains "$(<"$ENGINE_SOURCE")" \
   '#[cfg(any(debug_assertions, feature = "test-hooks"))]' \
   "managed-reader hook is unavailable from shipped production builds"
+assert_contains "$(<"$ENGINE_SOURCE")" \
+  'reader_completion_pause::fire()' \
+  'binding_connection_inventory_for_test' \
+  'checkpoint_at_rest_for_test' \
+  "engine retains private completion, inventory, and checkpoint sampler seams"
 assert_contains "$(<"$ENGINE_SOURCE")" \
   'fresh_writer_connection_open=' \
   "source records the live fresh writer connection fact"
@@ -219,9 +234,49 @@ assert_before_in_text \
   "baseline observation mode does not continue to the follow-on purge lifecycle"
 assert_before_in_text \
   "$CODE" \
+  '--control serial' \
+  '--control binding' \
+  "installed serial control runs before the binding diagnostic"
+assert_before_in_text \
+  "$CODE" \
+  '--control binding' \
+  '--control retained' \
+  "installed binding diagnostic runs before retained-result control"
+assert_before_in_text \
+  "$CODE" \
   'post-commit diagnostic command selected zero tests' \
   'serial_wheel_selector=current-source-test-hooks' \
   "current instrumented serial control runs after post-commit diagnostic artifact"
+assert_before_in_function \
+  "$PY_CONTROL" \
+  "run_binding_reader_erase" \
+  'python_binding_completion_ack' \
+  'python_binding_direct_inventory=' \
+  "binding diagnostic emits completion acknowledgement before direct inventory"
+assert_before_in_function \
+  "$PY_CONTROL" \
+  "run_binding_reader_erase" \
+  'python_binding_direct_inventory=' \
+  'python_binding_raw case=before_engine_sampler' \
+  "binding diagnostic completes direct inventory before raw samples"
+assert_before_in_function \
+  "$PY_CONTROL" \
+  "run_binding_reader_erase" \
+  'python_binding_raw case=before_engine_sampler' \
+  'python_binding_engine_sampler' \
+  "binding diagnostic places the Engine sampler after raw sample one"
+assert_before_in_function \
+  "$PY_CONTROL" \
+  "run_binding_reader_erase" \
+  'python_binding_engine_sampler' \
+  'python_binding_raw case=after_engine_sampler' \
+  "binding diagnostic places raw sample two after the Engine sampler"
+binding_erase_calls="$(python_function_body "$PY_CONTROL" "run_binding_reader_erase" | grep -Fc 'engine.erase_source(' || true)"
+if [ "$binding_erase_calls" -eq 1 ]; then
+  pass "binding diagnostic retains exactly one original erasure"
+else
+  fail "binding diagnostic must retain exactly one original erasure; found $binding_erase_calls"
+fi
 for control in \
   wal_attribution_close_boundary_fresh_open_is_clean \
   wal_attribution_close_boundary_read_get_is_clean \

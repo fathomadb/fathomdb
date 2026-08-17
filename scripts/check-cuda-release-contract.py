@@ -189,8 +189,33 @@ def require_unmerged_workflow_route() -> None:
     ):
         if forbidden in trusted_route:
             fail(f"GitHub-hosted unmerged CUDA route must not execute candidate code: {forbidden!r}")
-    for name in ("verify-release", "build-python", "build-napi", "build-rust"):
-        require_fragment(workflow_job(name), "verify-cuda-trusted-route", f"{name} candidate route dependency")
+    candidate_jobs = ("verify-release", "build-python", "build-napi", "build-rust")
+    for name in candidate_jobs:
+        job = workflow_job(name)
+        require_fragment(job, "verify-cuda-trusted-route", f"{name} candidate route dependency")
+        if not re.search(r"^    permissions:\n      contents: read$", job, re.MULTILINE):
+            fail(f"{name} candidate execution must have read-only contents permission")
+        if "contents: write" in job or "id-token: write" in job:
+            fail(f"{name} candidate execution must not receive write or OIDC permission")
+        require_fragment(job, "ref: ${{ env.RELEASE_CHECKOUT_REF }}", f"{name} candidate checkout")
+        require_fragment(job, "persist-credentials: false", f"{name} candidate checkout")
+        if "persist-credentials: true" in job:
+            fail(f"{name} candidate checkout must not persist credentials")
+
+    publishing_jobs = (
+        "publish-rust-t1-embedder-api", "publish-rust-t2-schema", "publish-rust-t3-query",
+        "publish-rust-t4-embedder", "publish-rust-t5-engine", "publish-rust-t6-facade",
+        "publish-rust-t7-cli", "publish-pypi", "publish-npm-platform-linux-x64-gnu",
+        "publish-npm-platform-linux-arm64-gnu", "publish-npm-platform-darwin-x64",
+        "publish-npm-platform-darwin-arm64", "publish-npm-platform-win32-x64-msvc", "publish-npm",
+        "post-publish-smoke", "post-publish-smoke-aarch64", "post-publish-smoke-darwin-x64",
+        "post-publish-smoke-darwin-arm64", "post-publish-smoke-win32-x64", "co-tagging-assert",
+        "promote-npm-latest", "github-release", "record-v0820-partial-registry-recovery",
+    )
+    for name in publishing_jobs:
+        job = workflow_job(name)
+        if job.count("\n    if:") != 1 or "inputs.candidate_commit == ''" not in job:
+            fail(f"{name} must be unreachable from an unmerged candidate dispatch")
 
 
 def driverless_smoke_sections(preflight: str) -> tuple[str, str]:

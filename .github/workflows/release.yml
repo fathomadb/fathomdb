@@ -59,11 +59,14 @@ jobs:
     if: ${{ always() && needs.verify-cuda-trusted-route.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, candidate SHA or canonical release tag
         with:
           ref: ${{ env.RELEASE_CHECKOUT_REF }}
           fetch-depth: 0  # need refs/heads/main for HEAD-reach check
+          persist-credentials: false
       - name: Print resolved dry-run mode
         run: echo "DRY_RUN=${DRY_RUN}"
       - name: Validate v0.8.20 recovery scope
@@ -216,6 +219,7 @@ jobs:
           provenance_pr = {
               "number": provenance_pr_raw["number"], "state": provenance_pr_raw["state"], "merged": provenance_pr_raw["merged"],
               "base": {"ref": provenance_pr_raw["base"]["ref"], "repo_full_name": provenance_pr_raw["base"]["repo"]["full_name"]},
+              "head": {"sha": provenance_pr_raw["head"]["sha"], "repo_full_name": provenance_pr_raw["head"]["repo"]["full_name"]},
               "merge_commit_sha": provenance_pr_raw["merge_commit_sha"], "user": {"login": provenance_pr_raw["user"]["login"]},
           }
           provenance_reviews = [{
@@ -333,6 +337,8 @@ jobs:
   # x64/ARM64, and Windows x64. Musl and other targets remain unsupported.
   build-python:
     needs: [verify-release, verify-cuda-trusted-route]
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -361,6 +367,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, canonical release tag
         with:
           ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          persist-credentials: false
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.11"
@@ -398,6 +405,8 @@ jobs:
   # topology and actual native build coverage cannot drift apart.
   build-napi:
     needs: [verify-release, verify-cuda-trusted-route]
+    permissions:
+      contents: read
     if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     strategy:
       fail-fast: false
@@ -423,6 +432,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, canonical release tag
         with:
           ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          persist-credentials: false
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "25.9.0"
@@ -463,10 +473,13 @@ jobs:
   build-rust:
     runs-on: ubuntu-latest
     needs: [verify-release, verify-cuda-trusted-route]
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, canonical release tag
         with:
           ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
         with:
           toolchain: "1.95.0"
@@ -513,6 +526,7 @@ jobs:
 
   publish-rust-t1-embedder-api:
     runs-on: ubuntu-latest
+    if: ${{ inputs.candidate_commit == '' }}
     needs: all-builds-passed
     permissions:
       contents: read
@@ -543,6 +557,7 @@ jobs:
 
   publish-rust-t2-schema:
     runs-on: ubuntu-latest
+    if: ${{ inputs.candidate_commit == '' }}
     needs: publish-rust-t1-embedder-api
     permissions:
       contents: read
@@ -573,6 +588,7 @@ jobs:
 
   publish-rust-t3-query:
     runs-on: ubuntu-latest
+    if: ${{ inputs.candidate_commit == '' }}
     needs: publish-rust-t2-schema
     permissions:
       contents: read
@@ -609,6 +625,7 @@ jobs:
   # embedder (T4) + query (T3) + schema (T2) + embedder-api (T1).
   publish-rust-t4-embedder:
     runs-on: ubuntu-latest
+    if: ${{ inputs.candidate_commit == '' }}
     needs: publish-rust-t3-query
     permissions:
       contents: read
@@ -639,6 +656,7 @@ jobs:
 
   publish-rust-t5-engine:
     runs-on: ubuntu-latest
+    if: ${{ inputs.candidate_commit == '' }}
     needs: publish-rust-t4-embedder
     permissions:
       contents: read
@@ -669,6 +687,7 @@ jobs:
 
   publish-rust-t6-facade:
     runs-on: ubuntu-latest
+    if: ${{ inputs.candidate_commit == '' }}
     needs: publish-rust-t5-engine
     permissions:
       contents: read
@@ -700,6 +719,7 @@ jobs:
 
   publish-rust-t7-cli:
     runs-on: ubuntu-latest
+    if: ${{ inputs.candidate_commit == '' }}
     needs: publish-rust-t6-facade
     permissions:
       contents: read
@@ -739,7 +759,7 @@ jobs:
     # consume the next-release version slot. Skip the publish step entirely
     # on dispatch; the build-python matrix still runs on dry-run so wheel
     # buildability stays exercised across platforms.
-    if: ${{ inputs.dry_run != true }}
+    if: ${{ inputs.dry_run != true && inputs.candidate_commit == '' }}
     needs: publish-rust-t5-engine
     environment:
       name: pypi
@@ -768,7 +788,7 @@ jobs:
   # Published BEFORE the main package so the optionalDependency resolves.
   publish-npm-platform-linux-x64-gnu:
     runs-on: ubuntu-latest
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs: all-builds-passed
     permissions:
       contents: read
@@ -813,7 +833,7 @@ jobs:
   # the matching binary available to Linux ARM64 npm installs.
   publish-npm-platform-linux-arm64-gnu:
     runs-on: ubuntu-24.04-arm
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs: all-builds-passed
     permissions:
       contents: read
@@ -851,7 +871,7 @@ jobs:
   # manually in npm for each new package; these jobs use GitHub OIDC only.
   publish-npm-platform-darwin-x64:
     runs-on: macos-15-intel
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs: all-builds-passed
     permissions:
       contents: read
@@ -881,7 +901,7 @@ jobs:
 
   publish-npm-platform-darwin-arm64:
     runs-on: macos-14
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs: all-builds-passed
     permissions:
       contents: read
@@ -911,7 +931,7 @@ jobs:
 
   publish-npm-platform-win32-x64-msvc:
     runs-on: windows-latest
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs: all-builds-passed
     permissions:
       contents: read
@@ -946,7 +966,7 @@ jobs:
   # main package's promotion to `latest`.
   publish-npm:
     runs-on: ubuntu-latest
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs:
       - publish-rust-t5-engine
       - publish-npm-platform-linux-x64-gnu
@@ -998,7 +1018,7 @@ jobs:
   # enough to make the smoke meaningful, and npm has no comparable staging.
   post-publish-smoke:
     runs-on: ubuntu-latest
-    if: ${{ inputs.dry_run != true && always() && needs.publish-rust-t7-cli.result == 'success' && needs.publish-pypi.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.publish-npm.result == 'success') }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && always() && needs.publish-rust-t7-cli.result == 'success' && needs.publish-pypi.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.publish-npm.result == 'success') }}
     needs:
       - publish-rust-t7-cli
       - publish-pypi
@@ -1035,7 +1055,7 @@ jobs:
   # published wheel and optional npm platform package, not only on x86_64.
   post-publish-smoke-aarch64:
     runs-on: ubuntu-24.04-arm
-    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs:
       - publish-rust-t7-cli
       - publish-pypi
@@ -1062,7 +1082,7 @@ jobs:
 
   post-publish-smoke-darwin-x64:
     runs-on: macos-15-intel
-    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs: [publish-rust-t7-cli, publish-pypi, publish-npm]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, candidate SHA or canonical release tag
@@ -1081,7 +1101,7 @@ jobs:
 
   post-publish-smoke-darwin-arm64:
     runs-on: macos-14
-    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs: [publish-rust-t7-cli, publish-pypi, publish-npm]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, candidate SHA or canonical release tag
@@ -1100,7 +1120,7 @@ jobs:
 
   post-publish-smoke-win32-x64:
     runs-on: windows-latest
-    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs: [publish-rust-t7-cli, publish-pypi, publish-npm]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, candidate SHA or canonical release tag
@@ -1126,7 +1146,7 @@ jobs:
   # happened.
   co-tagging-assert:
     runs-on: ubuntu-latest
-    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs:
       - publish-rust-t7-cli
       - publish-pypi
@@ -1148,7 +1168,7 @@ jobs:
   # resolve them through the version-pinned optionalDependencies of fathomdb.
   promote-npm-latest:
     runs-on: ubuntu-latest
-    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs:
       - post-publish-smoke
       - post-publish-smoke-aarch64
@@ -1172,7 +1192,7 @@ jobs:
   # run, so the release is never marked done. Skipped on dry-run.
   github-release:
     runs-on: ubuntu-latest
-    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs:
       - promote-npm-latest
     steps:
@@ -1192,7 +1212,7 @@ jobs:
   # from the immutable tag while npm and release finalization remain pending.
   record-v0820-partial-registry-recovery:
     runs-on: ubuntu-latest
-    if: ${{ inputs.dry_run != true && github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20' && always() && needs.publish-rust-t7-cli.result == 'success' && needs.publish-pypi.result == 'success' && needs.post-publish-smoke.result == 'success' }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20' && always() && needs.publish-rust-t7-cli.result == 'success' && needs.publish-pypi.result == 'success' && needs.post-publish-smoke.result == 'success' }}
     needs:
       - publish-rust-t7-cli
       - publish-pypi

@@ -6,7 +6,7 @@
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.23:status-current-state -->**Next is Slice 40 (SCALE-CHARACTERIZATION), NOT_STARTED.** Completed on `origin/release/0.8.23`; `origin/main` integration is PENDING: 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 30 (`776d2c20`) · 50 (`ae7cef0e`) · 60 (`423baf6a`) · 65 (`6b57557c`) — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.23:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.23:status-current-state -->**Next is Slice 40 (SCALE-CHARACTERIZATION), IN_PROGRESS.** Completed on `origin/release/0.8.23`; `origin/main` integration is PENDING: 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 30 (`776d2c20`) · 50 (`ae7cef0e`) · 60 (`423baf6a`) · 65 (`6b57557c`) — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.23:status-current-state -->
 
 0.8.23 remains planning-first and publication-held. Slices 30, 50, 60, and 65
 are completed on `origin/release/0.8.23`; integration to `origin/main` remains
@@ -38,11 +38,12 @@ candidate slices require explicit commission.
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Commission Slice 40 (SCALE-CHARACTERIZATION)** — fixture-scoped scale characterization. **Remaining ladder:** 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Continue Slice 40 (SCALE-CHARACTERIZATION)** — fixture-scoped scale characterization. **Remaining ladder:** 40 → 10 → 20.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
 
 ## Stop gate
 
-Slice 65 is closed **UNATTRIBUTED / NO REMEDY**. Do not reopen it to infer a
+Slice 65 is closed **UNATTRIBUTED / NO REMEDY**. Slice 40 is in progress; no
+measurement runner capability is a characterization result. Do not reopen it to infer a
 Memex root cause or retry, binding, or reader-pool remedy; any optional
 diagnostic requires separate scope. Do not start Slices 40, 10, or 20 without
 the applicable explicit instruction. Slice work remains on the release branch;

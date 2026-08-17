@@ -126,6 +126,7 @@ run_tier_maybe_suite() {
 
 # Scripts (bash): set-version.sh two-axis enforcement.
 run_tier_suite fast test-set-version bash scripts/tests/test_set_version.sh
+run_tier_suite fast test-scale-ac013-matrix bash scripts/tests/test_scale_ac013_matrix.sh
 
 # Scripts (bash): release-cut fields deliberately outside set-version.sh.
 run_tier_suite fast test-release-version-surfaces bash scripts/tests/test_release_version_surfaces.sh

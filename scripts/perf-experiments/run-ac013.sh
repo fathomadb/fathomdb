@@ -4,6 +4,7 @@
 #   AC013_CORPUS_N  — corpus row count (default 10000; 1000000 for canonical)
 #   AC_FULL_SCALE   — set to "1" to honor ADR canonical scale
 #   AGENT_LONG      — must be set to "1" or the test early-returns
+#   AC013_SCALE_TREATMENT — process_cold or warm; invalid values fail closed
 #   LOG_PATH        — log file to tee output to (default ./ac013.log)
 set -euo pipefail
 
@@ -23,5 +24,6 @@ status=${PIPESTATUS[0]}
 set -e
 
 grep -E '^AC013_NUMBERS ' "$LOG_PATH" || true
+grep -E '^AC013_TREATMENT_RECORD ' "$LOG_PATH" || true
 
 exit "$status"

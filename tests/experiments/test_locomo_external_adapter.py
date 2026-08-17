@@ -191,6 +191,8 @@ def test_gpu_cell_never_silently_uses_cpu_when_cuda_attestation_fails(
     tmp_path, monkeypatch
 ):
     request = _request(tmp_path, device="gpu", treatment="hybrid")
+    request["action"] = "gpu_ce_grid"
+    request["mode"] = "full_grid"
     monkeypatch.setattr(
         adapter,
         "_require_single_visible_cuda",
@@ -240,9 +242,13 @@ def test_remediation_rejects_cells_outside_the_released_action_partition(tmp_pat
 
 def test_remediation_preserves_rank_for_metrics_and_parent_child_proof(tmp_path):
     engine = _Engine()
-    engine.logical_ids = ["turn-miss", "turn-1"]
+    engine.logical_ids = ["turn-2", "turn-1"]
+    ranked_request = _request(tmp_path)
+    ranked_request["external_inputs"] = _write_inputs(
+        tmp_path, turn_ids=("turn-1", "turn-2"), evidence_id="turn-1"
+    )
     locomo_result = adapter.execute_request(
-        _request(tmp_path), engine_factory=lambda _path, _dense: engine
+        ranked_request, engine_factory=lambda _path, _dense: engine
     )
     assert locomo_result["metric_summary"]["m2"] == {
         "mrr": 0.5,

@@ -24,6 +24,16 @@ tests/experiments/test_locomo_external_adapter.py -q` failed during collection
 because `experiments.locomo_external_adapter` did not exist. The implemented
 adapter now satisfies the same human-intended synthetic tests.
 
+`95be52c7` is the independent-review remediation red checkpoint. It reached
+each reported defect directly: arbitrary cell/treatment and wrong action
+partition acceptance; rank loss that inflated R@1/MRR/nDCG; ranked PARENT proof
+loss; constant duplicate/context metrics; forged session ordinals; and a
+repository/historical-output escape. The remediation binds the adapter to all
+52 frozen Phase-B cells and their action partitions, preserves ranked child
+evidence, derives PARENT metrics from actual bounded bundles, binds ordinals to
+canonical member position, and rejects repository destinations at its ABI
+boundary.
+
 ## Focused verification
 
 ```bash
@@ -36,8 +46,10 @@ PYTHONPATH=src/python python -m pytest \
 The focused tests prove strict ABI parsing, duplicate-key rejection, exact safe
 result shape and required metric families, FTS versus hybrid FathomDB call
 selection through an injected engine, no raw corpus/question leakage to stdout
-or metrics, GPU no-fallback behavior, and PARENT relation-proof rejection and
-safe hit shape. They use synthetic temporary files only.
+or metrics, GPU no-fallback behavior, exact frozen cell/action closure,
+rank-preserving R@1/MRR/nDCG, PARENT top-10 proof order, bundle-derived parent
+metrics, canonical ordinals, and repository-output rejection. They use
+synthetic temporary files only.
 
 ## Reviewer focus
 

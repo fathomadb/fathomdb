@@ -29,8 +29,11 @@ only:
 
 - the released action/mode pairing (`fixed_subset_dry_run`/`dry_run`, or a
   full-grid action/`full_grid`);
-- a frozen `LOCOMO-01` cell or the exact approved
-  `parent_child_turn_session_v1` PARENT cell; and
+- one exact frozen Phase-B cell, including every treatment parameter,
+  ingestion unit, CPU/GPU device, cache state, program track, and the exact
+  approved `parent_child_turn_session_v1` mapping;
+- an action partition containing that exact cell: the five listed dry-run
+  cells, all 26 CPU cells, or all 26 GPU cells; and
 - external corpus, turn/session manifests, fixed subset, TRACE sidecar, and
   parent-relation proof paths supplied by the released runner.
 
@@ -49,6 +52,8 @@ surface:
 The relation proof is additionally bound to the byte hashes of the supplied
 turn and session provenance files. Every relation fingerprint, exact parent
 session, ordered member list, and child ordinal must agree with those manifests.
+Member ordinals must equal their zero-based position in the canonical ordered
+session list; a forged non-adjacent ordinal is rejected.
 This is a second fail-closed check; it does not replace the full lifecycle and
 relation validation already performed by the released live executor.
 
@@ -81,12 +86,32 @@ model output, credential, receipt, or index row is emitted. The external
 database is raw runtime state and remains in the access-controlled output root;
 it is never copied into the repository or a campaign receipt.
 
+The adapter independently rejects an output root in the repository, including
+the historical `experiments/runs/` tree, before loading a corpus or creating a
+directory. This repeats, rather than relies upon, the live executor's external
+root boundary.
+
 For the fixed dry subset, the adapter requires exactly 32 unique external
 question IDs. A full-grid cell requires exactly 1,536 evidence-backed
 questions. It rejects incomplete class coverage rather than inventing a class
 metric. It cannot make an action complete: only the live executor's exact
 action closure and the coordinator's ordinary receipt/index operation may do
 that.
+
+Rank is retained end-to-end. A retrieved logical hit is expanded in its original
+FathomDB rank order; each turn keeps its first position after expansion and
+deduplication. Unknown hit provenance is an error, not an omitted rank. M1/M2
+therefore score R@1, MRR, and nDCG against the actual child ranking rather than
+a set.
+
+For PARENT cells, `parent_hits` is the content-free proof of the first selected
+query's actual hybrid child top-10 ordering. It is not an aggregate or a second
+retrieval result. Each listed child retains its original rank and yields the
+frozen deduplicated, at-most-five session bundles. The parent metrics aggregate
+those real per-question bundles: `duplicate_rate` is the share of child hits
+removed by session deduplication, and `context_expansion_count` is the mean
+number of bounded neighbor turns added per query. Neither field may be a
+constant or a completion claim.
 
 ## Deployment prerequisites
 

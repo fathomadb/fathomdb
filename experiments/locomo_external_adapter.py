@@ -73,6 +73,61 @@ PARENT_CHILD_FROZEN: dict[str, object] = {
         "trace_source_id",
     ],
 }
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+_FROZEN_TREATMENTS = {
+    "fts_only": "fts",
+    "hybrid": "hybrid",
+    "hybrid_ce_alpha_03_pool_10": "hybrid",
+    "hybrid_ce_alpha_10_pool_10": "hybrid",
+    "hybrid_ce_alpha_10_pool_20": "hybrid",
+    "fts_bounded_neighbor": "fts",
+}
+_FROZEN_CELL_IDS: dict[str, dict[str, object]] = {}
+for _ingest_unit in ("turn", "session"):
+    for _treatment, _retrieval in _FROZEN_TREATMENTS.items():
+        for _device in ("cpu", "gpu"):
+            for _cache_state in ("cold", "steady"):
+                _cell_id = f"{_ingest_unit}--{_treatment}--{_device}--{_cache_state}"
+                _FROZEN_CELL_IDS[_cell_id] = {
+                    "cell_id": _cell_id,
+                    "program_track": "LOCOMO-01",
+                    "ingest_unit": _ingest_unit,
+                    "treatment": _treatment,
+                    "retrieval": _retrieval,
+                    "runtime": {"device": _device, "cache_state": _cache_state},
+                    "parent_child": None,
+                }
+for _device in ("cpu", "gpu"):
+    for _cache_state in ("cold", "steady"):
+        _cell_id = f"turn--parent_child_turn_session_v1--{_device}--{_cache_state}"
+        _FROZEN_CELL_IDS[_cell_id] = {
+            "cell_id": _cell_id,
+            "program_track": "PARENT-01",
+            "ingest_unit": "turn",
+            "treatment": "parent_child_turn_session_v1",
+            "retrieval": "hybrid",
+            "runtime": {"device": _device, "cache_state": _cache_state},
+            "parent_child": PARENT_CHILD_FROZEN,
+        }
+_FROZEN_ACTION_CELLS = {
+    "fixed_subset_dry_run": (
+        "turn--fts_only--cpu--cold",
+        "turn--hybrid--cpu--steady",
+        "session--fts_only--cpu--cold",
+        "session--hybrid--cpu--steady",
+        "turn--parent_child_turn_session_v1--cpu--cold",
+    ),
+    "cpu_grid": tuple(
+        cell_id
+        for cell_id, cell in _FROZEN_CELL_IDS.items()
+        if cell["runtime"]["device"] == "cpu"
+    ),
+    "gpu_ce_grid": tuple(
+        cell_id
+        for cell_id, cell in _FROZEN_CELL_IDS.items()
+        if cell["runtime"]["device"] == "gpu"
+    ),
+}
 
 
 class AdapterError(ValueError):
@@ -171,20 +226,19 @@ def _validate_request(value: object) -> dict[str, object]:
         "steady",
     }:
         raise AdapterError("cell runtime is unsafe")
-    if cell["program_track"] == "PARENT-01":
-        if (
-            cell["ingest_unit"] != "turn"
-            or cell["treatment"] != "parent_child_turn_session_v1"
-            or cell["retrieval"] != "hybrid"
-            or cell["parent_child"] != PARENT_CHILD_FROZEN
-        ):
-            raise AdapterError("PARENT cell semantics drifted")
-    elif cell["parent_child"] is not None:
-        raise AdapterError("LOCOMO cell must not carry parent-child semantics")
+    expected_cell = _FROZEN_CELL_IDS.get(str(cell["cell_id"]))
+    if expected_cell is None or cell != expected_cell:
+        raise AdapterError("cell does not match one exact frozen Phase-B treatment")
+    if str(cell["cell_id"]) not in _FROZEN_ACTION_CELLS[str(request["action"])]:
+        raise AdapterError("cell is outside the released action partition")
     inputs = _exact(request["external_inputs"], "external inputs", _INPUT_KEYS)
     for key in _INPUT_KEYS:
         _external_path(inputs[key], key)
-    _external_path(request["output_root"], "output root", directory=True)
+    output_root = _external_path(request["output_root"], "output root", directory=True)
+    if output_root.is_relative_to(_REPOSITORY_ROOT):
+        raise AdapterError(
+            "output root must remain outside the repository and historical outputs"
+        )
     return request
 
 
@@ -531,18 +585,20 @@ def _relations(
         ):
             raise AdapterError("parent relation members are unsafe")
         ordinals: set[int] = set()
-        for member in entry["session_members"]:
+        for expected_ordinal, member in enumerate(entry["session_members"]):
             row = _exact(
                 member, "parent session member", {"id", "ordinal", "trace_source_id"}
             )
             _identifier(row["id"], "parent member id")
             if (
                 not isinstance(row["ordinal"], int)
-                or row["ordinal"] < 0
+                or row["ordinal"] != expected_ordinal
                 or row["ordinal"] in ordinals
                 or row["trace_source_id"] != entry["trace_source_id"]
             ):
-                raise AdapterError("parent relation member is unsafe")
+                raise AdapterError(
+                    "parent relation proof does not bind canonical provenance manifests"
+                )
             ordinals.add(row["ordinal"])
         if entry["child_id"] in result:
             raise AdapterError("parent relation child is ambiguous")
@@ -658,9 +714,9 @@ def _select_questions(
 
 def _ingest_rows(
     corpus: object, *, ingest_unit: str, manifest: Mapping[str, Mapping[str, object]]
-) -> tuple[list[dict[str, str]], dict[str, set[str]]]:
+) -> tuple[list[dict[str, str]], dict[str, tuple[str, ...]]]:
     rows: list[dict[str, str]] = []
-    evidence_by_logical: dict[str, set[str]] = {}
+    evidence_by_logical: dict[str, tuple[str, ...]] = {}
     for session in _sessions(corpus):
         messages = session["messages"]
         assert isinstance(messages, list)
@@ -689,7 +745,7 @@ def _ingest_rows(
             _identifier(logical_id, "logical id")
             if logical_id in evidence_by_logical:
                 raise AdapterError("external corpus logical identity is ambiguous")
-            evidence_by_logical[logical_id] = set(turn_ids)
+            evidence_by_logical[logical_id] = tuple(turn_ids)
             rows.append(
                 {
                     "kind": "locomo_message_chunk",
@@ -773,7 +829,13 @@ def _parent_hits(
     logical_ids: list[str], relations: Mapping[str, Mapping[str, object]]
 ) -> list[dict[str, object]]:
     hits: list[dict[str, object]] = []
+    seen_children: set[str] = set()
     for rank, child_id in enumerate(logical_ids[:10], start=1):
+        if child_id in seen_children:
+            raise AdapterError(
+                "PARENT child ranking contains a duplicate logical identity"
+            )
+        seen_children.add(child_id)
         relation = relations.get(child_id)
         if relation is None:
             raise AdapterError("PARENT child hit lacks canonical relation proof")
@@ -805,6 +867,56 @@ def _parent_hits(
     return hits
 
 
+def _parent_bundles(hits: list[dict[str, object]]) -> list[dict[str, object]]:
+    """Deduplicate ranked child hits into the frozen bounded parent contexts."""
+    selected: dict[str, dict[str, object]] = {}
+    for hit in hits:
+        provenance = hit["child_provenance"]
+        assert isinstance(provenance, Mapping)
+        parent_session_id = provenance["parent_session_ids"][0]
+        _identifier(parent_session_id, "PARENT parent session id")
+        existing = selected.get(parent_session_id)
+        if existing is None or hit["rank"] < existing["rank"]:
+            selected[parent_session_id] = hit
+    bundles: list[dict[str, object]] = []
+    for hit in sorted(
+        selected.values(),
+        key=lambda item: (
+            item["rank"],
+            item["child_provenance"]["parent_session_ids"][0],
+        ),
+    )[:5]:
+        provenance = hit["child_provenance"]
+        assert isinstance(provenance, Mapping)
+        neighbors = hit["neighbors"]
+        assert isinstance(neighbors, list)
+        bundles.append(
+            {
+                "parent_session_id": provenance["parent_session_ids"][0],
+                "seed_child_id": hit["child_id"],
+                "ordered_neighbor_ids": [neighbor["id"] for neighbor in neighbors],
+                "trace_source_id": provenance["trace_source_id"],
+                "rank": hit["rank"],
+                "child_hit_count": len(hits),
+            }
+        )
+    return bundles
+
+
+def _ordered_evidence(
+    logical_ids: list[str], evidence_by_logical: Mapping[str, tuple[str, ...]]
+) -> list[str]:
+    """Expand hits in rank order while retaining the first appearance of every turn."""
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for logical_id in logical_ids:
+        for evidence_id in evidence_by_logical.get(logical_id, ()):
+            if evidence_id not in seen:
+                seen.add(evidence_id)
+                ordered.append(evidence_id)
+    return ordered
+
+
 def _metrics(
     questions: list[dict[str, object]],
     retrieved: list[list[str]],
@@ -814,6 +926,7 @@ def _metrics(
     query_ms: list[float],
     parent: bool,
     relations: Mapping[str, Mapping[str, object]],
+    parent_bundles: list[list[dict[str, object]]] | None,
 ) -> dict[str, object]:
     values: dict[str, list[float]] = {
         "r10": [],
@@ -828,7 +941,12 @@ def _metrics(
         "multi_session": [],
     }
     parent_session: list[float] = []
-    for question, hits in zip(questions, retrieved, strict=True):
+    parent_duplicate_rates: list[float] = []
+    parent_context_expansions: list[float] = []
+    bundles_by_question = parent_bundles or [[] for _ in questions]
+    for question, hits, bundles in zip(
+        questions, retrieved, bundles_by_question, strict=True
+    ):
         evidence = question["evidence"]
         assert isinstance(evidence, set)
         relevance = [hit in evidence for hit in hits[:10]]
@@ -865,12 +983,17 @@ def _metrics(
                 for item in evidence
                 if item in relations
             }
-            observed = {
-                str(relations[item]["parent_session_id"])
-                for item in hits
-                if item in relations
-            }
+            observed = {str(bundle["parent_session_id"]) for bundle in bundles}
             parent_session.append(float(bool(expected & observed)) if expected else 0.0)
+            child_hit_count = bundles[0]["child_hit_count"] if bundles else 0
+            parent_duplicate_rates.append(
+                (child_hit_count - len(bundles)) / child_hit_count
+                if child_hit_count
+                else 0.0
+            )
+            parent_context_expansions.append(
+                sum(len(bundle["ordered_neighbor_ids"]) for bundle in bundles)
+            )
     if any(not rows for rows in classes.values()) or not values["temporal"]:
         raise AdapterError("selected questions do not cover required LOCOMO classes")
 
@@ -895,8 +1018,8 @@ def _metrics(
         summary["parent_metrics"] = {
             "child_evidence_recall": mean(values["r10"]),
             "parent_session_recall": mean(parent_session),
-            "duplicate_rate": 0.0,
-            "context_expansion_count": 0,
+            "duplicate_rate": mean(parent_duplicate_rates),
+            "context_expansion_count": mean(parent_context_expansions),
             "class_latency_ms": {name: _p95(query_ms) for name in classes},
         }
     return summary
@@ -940,6 +1063,9 @@ def execute_request(
     )
     cell = request["cell"]
     assert isinstance(cell, Mapping)
+    selected_cuda = (
+        _require_single_visible_cuda() if cell["runtime"]["device"] == "gpu" else None
+    )
     selected_questions = _select_questions(request, corpus)
     rows, evidence_by_logical = _ingest_rows(
         corpus,
@@ -952,9 +1078,6 @@ def execute_request(
             raise AdapterError("output root must be empty for one cell")
     else:
         output_root.mkdir(parents=True, exist_ok=False)
-    selected_cuda = (
-        _require_single_visible_cuda() if cell["runtime"]["device"] == "gpu" else None
-    )
     factory = engine_factory or _default_engine_factory
     engine = factory(
         str(output_root / "fathomdb.sqlite"), cell["retrieval"] == "hybrid"
@@ -968,17 +1091,21 @@ def execute_request(
         if cell["runtime"]["cache_state"] == "steady" and selected_questions:
             _engine_search(engine, str(selected_questions[0]["query"]), cell)
         retrieved: list[list[str]] = []
+        parent_bundles: list[list[dict[str, object]]] = []
+        proof_parent_hits: list[dict[str, object]] | None = None
         elapsed: list[float] = []
         for question in selected_questions:
             began = time.monotonic()
             logical_ids = _engine_search(engine, str(question["query"]), cell)
             elapsed.append((time.monotonic() - began) * 1000)
-            expanded: set[str] = set()
-            for logical_id in logical_ids:
-                expanded.update(evidence_by_logical.get(logical_id, set()))
+            if any(logical_id not in evidence_by_logical for logical_id in logical_ids):
+                raise AdapterError("FathomDB hit lacks canonical external provenance")
             if cell["program_track"] == "PARENT-01":
-                _parent_hits(logical_ids, relations)
-            retrieved.append(list(expanded)[:10])
+                child_hits = _parent_hits(logical_ids, relations)
+                if proof_parent_hits is None:
+                    proof_parent_hits = child_hits
+                parent_bundles.append(_parent_bundles(child_hits))
+            retrieved.append(_ordered_evidence(logical_ids, evidence_by_logical)[:10])
         summary = _metrics(
             selected_questions,
             retrieved,
@@ -987,6 +1114,9 @@ def execute_request(
             query_ms=elapsed,
             parent=cell["program_track"] == "PARENT-01",
             relations=relations,
+            parent_bundles=parent_bundles
+            if cell["program_track"] == "PARENT-01"
+            else None,
         )
     finally:
         close = getattr(engine, "close", None)
@@ -1017,8 +1147,9 @@ def execute_request(
         "metric_summary": summary,
     }
     if cell["program_track"] == "PARENT-01":
-        last = retrieved[0] if retrieved else []
-        result["parent_hits"] = _parent_hits(last, relations)
+        if proof_parent_hits is None:
+            raise AdapterError("PARENT cell did not produce a top-10 child proof")
+        result["parent_hits"] = proof_parent_hits
     if selected_cuda is not None:
         result["device_attestation"] = {"device": selected_cuda, "cuda_available": True}
     return result

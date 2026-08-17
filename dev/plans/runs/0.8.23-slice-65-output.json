@@ -123,6 +123,12 @@
     "truth": "The managed-reader positive retained the original typed ErasureIncomplete and five owned_reader_snapshot reader_worker:0 BUSY records, then the old test issued an invalid second erase after release and panicked on an unclassified 198/176 observation. This is test-design drift, not a native-state result, holder attribution, or remedy evidence.",
     "series": "The enriched native-state series remains 0 / 3 fresh hosted-Windows measurements.",
     "replacement": "Exactly one original erase; true post-finish owner-thread auto=1/collector-idle acknowledgement; exact complete twelve-role native inventory; and one bounded existing checkpoint_at_rest_for_test sampler with before/after full state per attempt and a recorded busy-or-clean terminal. Incomplete observation fails the diagnostic; busy never changes the original typed refusal."
+  },
+  "projection_worker_fix_n": {
+    "hosted_job": "95364111593",
+    "truth": "The projection-worker positive retained one typed ErasureIncomplete and five owned_runtime_transaction projection_worker:0 BUSY records (179 log / 158 checkpointed frames), then the old test issued an invalid second erasure after release, retained five new unclassified BUSY records (217 / 158), and panicked. This is test-design drift, not a native-state result, holder attribution, or remedy evidence.",
+    "series": "The enriched native-state series remains 0 / 3 fresh hosted-Windows measurements.",
+    "replacement": "Exactly one original erasure; owner-thread projection-worker autocommit=1/collector-idle acknowledgement; exact complete twelve-role native inventory; and one bounded existing checkpoint_at_rest_for_test sampler with before/after full state per attempt and a recorded busy-or-clean terminal. Incomplete observation fails the diagnostic; sampler BUSY never changes the original typed refusal. No production retry, binding, reader-pool, public behavior, or erasure behavior changes."
   }
   },
   "fix_n": {

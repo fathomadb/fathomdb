@@ -13,6 +13,10 @@
 - Red checkpoint: `f2b652c20e5a888780951211f3f9f7f507c2a5b0`.
 - Implementation commits: `e6ad61bd97a54ea58675973ae2d374c1bf2166d5` and
   `57c19876419564668983d703bfadfca9141d9fa5`.
+- Independent-review remediation red checkpoint:
+  `170c6d0d8394547fd36babae4ccd5665c1dba833`.
+- Independent-review remediation implementation:
+  `c872b6aad5fd96ac51395942db8023fade70d463`.
 
 The worker owned only the new Phase-B adapter, its typed configuration, its
 human-intended tests, and these dated contract/handoff documents. It did not
@@ -40,6 +44,23 @@ historical configurations or receipts, the index, or external artifacts.
   historical-output destinations, and an executed dry-run proof is recorded
   honestly as a complete receipt rather than as a planned run.
 
+## Independent-review remediation
+
+The first independent review requested four corrections. The red checkpoint
+added a separate regression suite, which failed before implementation on all
+four findings. The remediation now enforces:
+
+1. The five fixed dry-run cells dispatch in their declared list order.
+2. Results bind a cell ID and mode; receipts require complete, unique selected
+   coverage and all LOCOMO metric sections, plus PARENT metrics for each
+   PARENT cell, before a complete receipt is written.
+3. Parent-child context requires child provenance with exactly one parent,
+   ordinal, and TRACE source ID. Neighbors carry same-session ordinal and TRACE
+   evidence proving immediate `-1` or `+1`; compact strings are rejected.
+4. Receipt verdict and `n` are coherent: dry proof is complete with 32
+   questions, and the full grid is complete with 1,536 evidence-backed
+   questions.
+
 ## TDD and verification evidence
 
 The red test commit intentionally failed before implementation with:
@@ -52,8 +73,8 @@ After implementation, these commands passed:
 
 ```text
 python -m ruff check experiments/locomo_phase_b.py tests/experiments/test_locomo_phase_b.py
-python -m pytest tests/experiments/test_locomo_phase_a.py tests/experiments/test_locomo_phase_b.py tests/experiments/test_locomo_provenance.py tests/experiments/test_locomo_metrics.py -q
-# 26 passed
+python -m pytest tests/experiments/test_locomo_phase_a.py tests/experiments/test_locomo_phase_b.py tests/experiments/test_locomo_phase_b_review_remediation.py tests/experiments/test_locomo_provenance.py tests/experiments/test_locomo_metrics.py -q
+# 30 passed
 python -m experiments.locomo_phase_b validate experiments/configs/locomo-01/phase-b-execution.v1.json
 python -m experiments.locomo_phase_b preview experiments/configs/locomo-01/phase-b-execution.v1.json
 ./scripts/agent-lint-md.sh

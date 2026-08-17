@@ -17,6 +17,7 @@ import os
 import re
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Callable, Mapping
@@ -839,6 +840,30 @@ def _require_single_visible_cuda() -> str:
     return "cuda:0"
 
 
+def _emit_progress(cell_id: str, phase: str) -> None:
+    """Emit one content-free external-runtime heartbeat on standard error."""
+    _identifier(cell_id, "progress cell id")
+    if phase not in {"running"}:
+        raise AdapterError("adapter progress phase is unsafe")
+    print(f"locomo-external-adapter: cell={cell_id} phase={phase}", file=sys.stderr, flush=True)
+
+
+def _start_full_grid_heartbeat(cell_id: str, *, enabled: bool) -> tuple[threading.Event | None, threading.Thread | None]:
+    """Return a stoppable safe heartbeat for one potentially long full-grid cell."""
+    if not enabled:
+        return None, None
+    stop = threading.Event()
+
+    def heartbeat() -> None:
+        _emit_progress(cell_id, "running")
+        while not stop.wait(5):
+            _emit_progress(cell_id, "running")
+
+    thread = threading.Thread(target=heartbeat, name=f"locomo-heartbeat-{cell_id}", daemon=True)
+    thread.start()
+    return stop, thread
+
+
 def _default_engine_factory(path: str, dense: bool):
     from fathomdb import Engine
 
@@ -1132,6 +1157,9 @@ def execute_request(
     engine = factory(
         str(output_root / "fathomdb.sqlite"), cell["retrieval"] == "hybrid"
     )
+    heartbeat_stop, heartbeat_thread = _start_full_grid_heartbeat(
+        str(cell["cell_id"]), enabled=request["mode"] == "full_grid"
+    )
     try:
         started = time.monotonic()
         engine.write(rows)
@@ -1169,6 +1197,10 @@ def execute_request(
             else None,
         )
     finally:
+        if heartbeat_stop is not None:
+            heartbeat_stop.set()
+        if heartbeat_thread is not None:
+            heartbeat_thread.join(timeout=1)
         close = getattr(engine, "close", None)
         if callable(close):
             close()

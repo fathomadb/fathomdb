@@ -862,7 +862,7 @@ def run_action(plan: LiveExecutorPlan, release: object, *, action: str) -> Path:
             "output_root": str(artifact_root / token["release_id"] / action / "raw" / cell.cell_id),
         }
         completed = subprocess.run(
-            [adapter], input=json.dumps(request, sort_keys=True), text=True, capture_output=True, check=False,
+            [adapter], input=json.dumps(request, sort_keys=True), text=True, stdout=subprocess.PIPE, check=False,
         )
         if completed.returncode != 0:
             raise LiveExecutorError("external cell adapter failed; no partial projection was written")

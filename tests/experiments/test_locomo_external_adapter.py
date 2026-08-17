@@ -313,6 +313,15 @@ def test_cuda_visible_device_zero_accepts_gpu_zero_on_a_multi_gpu_host(monkeypat
     assert adapter._require_single_visible_cuda() == "cuda:0"
 
 
+def test_full_grid_progress_heartbeat_is_content_free(capsys):
+    """Long-running adapter progress identifies only its released cell and phase."""
+    adapter._emit_progress("turn--hybrid--cpu--cold", "running")
+
+    assert capsys.readouterr().err == (
+        "locomo-external-adapter: cell=turn--hybrid--cpu--cold phase=running\n"
+    )
+
+
 def _parent_request(tmp_path, *, turn_ids=("turn-1",), evidence_id="turn-1"):
     request = _request(tmp_path, treatment="parent_child_turn_session_v1")
     request["external_inputs"] = _write_inputs(

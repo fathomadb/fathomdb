@@ -192,6 +192,21 @@ def test_driver_rejects_result_path_escape_before_loading_external_inputs(tmp_pa
         )
 
 
+def test_driver_rejects_existing_result_before_loading_inputs_or_runtime(tmp_path):
+    environment = _environment(tmp_path)
+    result_path = Path(environment["TC5_ARM_RESULT_PATH"])
+    original = b'{"already":"qualified-or-reviewable"}\n'
+    result_path.write_bytes(original)
+
+    with pytest.raises(driver.Tc5ExternalDriverError, match="destination already exists"):
+        driver.run_driver(
+            environment,
+            input_loader=lambda _request: pytest.fail("must not load external inputs"),
+            runtime_factory=lambda _request: pytest.fail("must not load runtime"),
+        )
+    assert result_path.read_bytes() == original
+
+
 def test_default_driver_runtime_refuses_to_substitute_fused_search(tmp_path):
     environment = _environment(tmp_path)
 

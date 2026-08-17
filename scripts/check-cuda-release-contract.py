@@ -12,7 +12,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import subprocess
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 try:
@@ -143,18 +145,33 @@ def require_fragment(block: str, fragment: str, label: str) -> None:
 
 
 def require_unmerged_candidate_control_plane() -> None:
-    manifest = load_json(UNMERGED_CANDIDATE_MANIFEST)
-    if manifest != {"schema_version": "fathomdb.cuda-unmerged-candidates/v1", "candidates": []}:
-        fail("local unmerged candidate manifest must be a canonical empty control-plane manifest")
-    if read_text(UNMERGED_CANDIDATE_MANIFEST).encode("utf-8") != (
-        b'{"candidates":[],"schema_version":"fathomdb.cuda-unmerged-candidates/v1"}\n'
-    ):
-        fail("local unmerged candidate manifest must use the reviewed canonical bytes")
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(UNMERGED_CANDIDATE_VERIFIER),
+            "validate-manifest",
+            "--manifest",
+            str(UNMERGED_CANDIDATE_MANIFEST),
+            "--now",
+            now,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or "unknown failure"
+        fail(f"unmerged CUDA candidate manifest must be canonical and contain zero or one valid record: {detail}")
+    candidate_schema = load_json(UNMERGED_CANDIDATE_SCHEMA)
+    candidates = candidate_schema.get("properties", {}).get("candidates")
+    if not isinstance(candidates, dict) or candidates.get("maxItems") != 1:
+        fail("unmerged CUDA candidate schema must permit at most one candidate record")
     for path, marker in (
         (UNMERGED_CANDIDATE_SCHEMA, "fathomdb.cuda-unmerged-candidate/v1"),
         (UNMERGED_RECEIPT_SCHEMA, "fathomdb.cuda-unmerged-route-receipt/v1"),
-        (UNMERGED_CANDIDATE_VERIFIER, "def validate_manifest"),
-        (UNMERGED_RECEIPT_VERIFIER, "receipt workflow SHA does not match this consumer"),
+        (UNMERGED_CANDIDATE_VERIFIER, "def validate_manifest_entries"),
+        (UNMERGED_RECEIPT_VERIFIER, "receipt manifest SHA does not match the main-owned manifest"),
     ):
         require_fragment(read_text(path), marker, str(path))
     baseline = load_json(UNMERGED_PROTECTION_BASELINE)
@@ -653,9 +670,16 @@ def main() -> None:
         "needs: [verify-release, verify-cuda-trusted-route]",
         "cuda-contract-preflight",
     )
-    require_fragment(job, "environment: cuda-unmerged-preflight", "cuda-contract-preflight")
+    if not re.search(r"^    environment: cuda-unmerged-preflight$", job, re.MULTILINE):
+        fail("cuda-contract-preflight must use the exact direct protected environment scalar")
     require_fragment(job, "actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093", "cuda-contract-preflight")
-    require_fragment(job, "control-plane/scripts/release/verify-cuda-unmerged-receipt.py", "cuda-contract-preflight")
+    if not re.search(
+        r"python3 control-plane/scripts/release/verify-cuda-unmerged-receipt\.py \\\n"
+        r"\s+--receipt control-plane/receipt/cuda-unmerged-route-receipt\.json \\\n"
+        r"\s+--manifest control-plane/dev/release/cuda-unmerged-candidates\.json \\\n",
+        job,
+    ):
+        fail("cuda-contract-preflight receipt verifier must bind the exact main-owned manifest")
     candidate_checkout = job.index("ref: ${{ env.RELEASE_CHECKOUT_REF }}")
     receipt_check = job.index("control-plane/scripts/release/verify-cuda-unmerged-receipt.py")
     if receipt_check >= candidate_checkout:

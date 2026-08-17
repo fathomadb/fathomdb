@@ -75,16 +75,18 @@ abs_dir() { ( cd "$1" 2>/dev/null && pwd -P ); }
 MAIN_SHA="$(git rev-parse main)"
 
 # 0.8.23 is explicitly completed on a release branch before its separately
-# governed integration to main. That declaration is an authority for fresh
-# slice worktrees, but only after the same narrow validation used by the
-# release-state view checker: an absent file keeps the legacy main-only rule;
-# a present but malformed, incomplete, or cross-release declaration fails
-# closed. Never infer a release ref from the branch name.
+# governed integration to main. PENDING makes its release ref authoritative;
+# COMPLETE returns freshness to origin/main, which is also the release-state
+# view checker's completion claim. Both modes require the same narrow state
+# validation: an absent file keeps the legacy main-only rule; a present but
+# malformed, incomplete, or cross-release declaration fails closed. Never
+# infer a release ref from the branch name.
 RELEASE_COMPLETION_STATE="absent"
 RELEASE_COMPLETION_REF=""
+RELEASE_COMPLETION_INTEGRATION=""
 RELEASE_STATE_FILE="dev/plans/release-state-0.8.23.json"
 if [ -e "$RELEASE_STATE_FILE" ]; then
-  if RELEASE_COMPLETION_REF="$(python3 - "$RELEASE_STATE_FILE" <<'PY'
+  if RELEASE_COMPLETION_FACTS="$(python3 - "$RELEASE_STATE_FILE" <<'PY'
 import json
 import sys
 
@@ -105,14 +107,23 @@ if completion["ref"] != expected_ref:
     raise SystemExit("completion.ref must be %s" % expected_ref)
 if completion["main_integration"] not in {"PENDING", "COMPLETE"}:
     raise SystemExit("completion.main_integration must be PENDING or COMPLETE")
-print(expected_ref)
+print("%s\t%s" % (expected_ref, completion["main_integration"]))
 PY
   )"; then
-    RELEASE_COMPLETION_STATE="valid"
+    IFS=$'\t' read -r RELEASE_COMPLETION_REF RELEASE_COMPLETION_INTEGRATION <<<"$RELEASE_COMPLETION_FACTS"
+    if [ -n "$RELEASE_COMPLETION_REF" ] && [ -n "$RELEASE_COMPLETION_INTEGRATION" ]; then
+      RELEASE_COMPLETION_STATE="valid"
+    else
+      RELEASE_COMPLETION_STATE="invalid"
+      hard "release completion state is invalid in $RELEASE_STATE_FILE: completion facts are incomplete"
+      RELEASE_COMPLETION_REF=""
+      RELEASE_COMPLETION_INTEGRATION=""
+    fi
   else
     RELEASE_COMPLETION_STATE="invalid"
-    hard "release completion state is invalid in $RELEASE_STATE_FILE: $RELEASE_COMPLETION_REF"
+    hard "release completion state is invalid in $RELEASE_STATE_FILE: $RELEASE_COMPLETION_FACTS"
     RELEASE_COMPLETION_REF=""
+    RELEASE_COMPLETION_INTEGRATION=""
   fi
 fi
 
@@ -158,13 +169,40 @@ if [ -n "$WT" ]; then
       valid)
         if ! RELEASE_COMPLETION_SHA="$(git rev-parse --verify --quiet "${RELEASE_COMPLETION_REF}^{commit}")"; then
           hard "release completion ref $RELEASE_COMPLETION_REF is not a locally verifiable commit — fetch it or correct $RELEASE_STATE_FILE"
-        elif [ "$WT_HEAD" = "$RELEASE_COMPLETION_SHA" ]; then
-          ok "worktree HEAD == declared completion ref $RELEASE_COMPLETION_REF ($RELEASE_COMPLETION_SHA) — freshly cut, no stale base"
-        elif [ "$(git merge-base "$RELEASE_COMPLETION_SHA" "$WT_HEAD")" = "$RELEASE_COMPLETION_SHA" ]; then
-          warn "worktree has advanced past declared completion ref $RELEASE_COMPLETION_REF — OK if it carries this slice's commits"
         else
-          hard "STALE RELEASE BASE: worktree HEAD ($WT_HEAD) is not declared completion ref $RELEASE_COMPLETION_REF and that ref is not its ancestor."
-          hard "  -> re-create the worktree off \$(git rev-parse $RELEASE_COMPLETION_REF). See agent-worktree-stale-base-trap."
+          case "$RELEASE_COMPLETION_INTEGRATION" in
+            PENDING)
+              RELEASE_BASELINE_REF="$RELEASE_COMPLETION_REF"
+              RELEASE_BASELINE_SHA="$RELEASE_COMPLETION_SHA"
+              RELEASE_BASELINE_LABEL="declared completion ref"
+              RELEASE_STALE_LABEL="STALE RELEASE BASE"
+              ;;
+            COMPLETE)
+              if ! ORIGIN_MAIN_SHA="$(git rev-parse --verify --quiet 'origin/main^{commit}')"; then
+                hard "release completion marks main integration COMPLETE, but origin/main is not a locally verifiable commit — fetch it or correct $RELEASE_STATE_FILE"
+                RELEASE_BASELINE_REF=""
+              elif ! git merge-base --is-ancestor "$RELEASE_COMPLETION_SHA" "$ORIGIN_MAIN_SHA"; then
+                hard "release completion marks main integration COMPLETE, but $RELEASE_COMPLETION_REF is not reachable from origin/main — fetch it or correct $RELEASE_STATE_FILE"
+                RELEASE_BASELINE_REF=""
+              else
+                RELEASE_BASELINE_REF="origin/main"
+                RELEASE_BASELINE_SHA="$ORIGIN_MAIN_SHA"
+                RELEASE_BASELINE_LABEL="declared main integration ref"
+                RELEASE_STALE_LABEL="STALE MAIN BASE"
+              fi
+              ;;
+          esac
+
+          if [ -n "${RELEASE_BASELINE_REF:-}" ]; then
+            if [ "$WT_HEAD" = "$RELEASE_BASELINE_SHA" ]; then
+              ok "worktree HEAD == $RELEASE_BASELINE_LABEL $RELEASE_BASELINE_REF ($RELEASE_BASELINE_SHA) — freshly cut, no stale base"
+            elif [ "$(git merge-base "$RELEASE_BASELINE_SHA" "$WT_HEAD")" = "$RELEASE_BASELINE_SHA" ]; then
+              warn "worktree has advanced past $RELEASE_BASELINE_LABEL $RELEASE_BASELINE_REF — OK if it carries this slice's commits"
+            else
+              hard "$RELEASE_STALE_LABEL: worktree HEAD ($WT_HEAD) is not $RELEASE_BASELINE_LABEL $RELEASE_BASELINE_REF and that ref is not its ancestor."
+              hard "  -> re-create the worktree off \$(git rev-parse $RELEASE_BASELINE_REF). See agent-worktree-stale-base-trap."
+            fi
+          fi
         fi
         ;;
       invalid)

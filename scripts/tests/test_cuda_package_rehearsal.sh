@@ -36,6 +36,9 @@ EOF
   cat > "$root/route-receipt.json" <<EOF
 {"candidate_sha":"$CANDIDATE","schema_version":"fathomdb.cuda-unmerged-route-receipt/v1"}
 EOF
+  cat > "$root/preflight-witness.json" <<EOF
+{"candidate_sha":"$CANDIDATE","evidence_sha256":{},"outcome":"passed","schema_version":"fathomdb.cuda-preflight-witness/v1"}
+EOF
   for consumer in python napi; do
     cat > "$root/smoke/cpu-$consumer.json" <<EOF
 {"consumer":"$consumer","environment":"env -i","gpu_nodes_visible":false,"network":"none","outcome":"passed","schema_version":"fathomdb.cuda-package-cpu-smoke/v1","source_imported":false}
@@ -57,7 +60,7 @@ manifest = {
     "schema_version": "fathomdb.cuda-package-rehearsal/v1",
     "candidate_sha": candidate,
     "route_receipt_sha256": digest(root / "route-receipt.json"),
-    "preflight_witness_sha256": "a" * 64,
+    "preflight_witness_sha256": digest(root / "preflight-witness.json"),
     "build_input": json.loads((root / "build-input.json").read_text()),
     "packages": {
         name: digest(root / "packages" / name)
@@ -137,6 +140,10 @@ value["candidate_sha"] = sys.argv[2]
 path.write_text(json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
 PY
 expect_reject "$TMPROOT/cross-candidate" 'cross-candidate manifest is rejected'
+
+cp -a "$VALID" "$TMPROOT/preflight-substituted"
+printf '\n' >> "$TMPROOT/preflight-substituted/preflight-witness.json"
+expect_reject "$TMPROOT/preflight-substituted" 'preflight witness byte substitution is rejected'
 
 cp -a "$VALID" "$TMPROOT/symlink"
 mv "$TMPROOT/symlink/packages/fathomdb-0.8.23.tgz" "$TMPROOT/symlink/packages/real.tgz"

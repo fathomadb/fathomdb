@@ -25,6 +25,7 @@
   },
   "planned_experiments": [
     "managed reader paused after snapshot",
+    "projection dispatcher/worker role completeness",
     "Python SDK concurrent reader versus erase",
     "completed retained Python result control",
     "Memex-shaped serial lifecycle control",
@@ -33,7 +34,11 @@
   "implementation": {
     "production_behavior_changed": false,
     "windows_execution": "NOT_RUN: design-only slice",
-    "tdd_requirement": "Each future narrow experiment must have a committed or visibly staged RED predicate before its GREEN instrumentation/coordination implementation."
+    "tdd_requirement": "Each future narrow experiment must have a committed or visibly staged RED predicate before its GREEN instrumentation/coordination implementation. The retained-result RED proves missing or misclassified required collector evidence; it does not expect a materialized result to cause BUSY."
+  },
+  "fix_n": {
+    "review_finding": "Projection dispatcher and worker SQLite connections were omitted from the owned-role model, and the retained-result RED wording encoded a false BUSY expectation.",
+    "resolution": "All Engine-owned roles carry indexed transaction/snapshot transitions; no-owned classification requires every reader and runtime role idle plus no local checkpoint overlap. The retained-result control expects zero owned transaction/snapshot with successful erasure, and RED is absence/misclassification of that diagnostic fact."
   },
   "completion": {
     "ref": "origin/release/0.8.23",

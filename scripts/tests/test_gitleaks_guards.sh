@@ -248,6 +248,43 @@ else
   pass "history guard redacts the synthetic credential from output"
 fi
 
+# The history guard must make its own configuration decision.  A repository
+# configuration detects this temporary historic marker; each inherited config
+# input below would suppress it if the guard passed it to Gitleaks unchanged.
+ENV_FIXTURE="$TMPROOT/history-environment-fixture"
+mkdir -p "$ENV_FIXTURE"
+git -C "$ENV_FIXTURE" init -q
+git -C "$ENV_FIXTURE" config user.email gitleaks-history-environment@example.invalid
+git -C "$ENV_FIXTURE" config user.name 'Gitleaks History Environment Test'
+printf '%s\n' \
+  '[[rules]]' \
+  'id = "fixture-environment-history-rule"' \
+  "regex = '''marker_[A-Z0-9]{24}'''" >"$ENV_FIXTURE/.gitleaks.toml"
+environment_token="$(printf '%s%s%s%s%s%s%s' \
+  'marker_' 'ABCD' 'EF12' '3456' '7890' 'ABCD' 'EF12')"
+printf 'credential=%s\n' "$environment_token" >"$ENV_FIXTURE/history.txt"
+git -C "$ENV_FIXTURE" add .gitleaks.toml history.txt
+git -C "$ENV_FIXTURE" commit -qm 'fixture environment history'
+printf '%s\n' '[allowlist]' "paths = ['.*']" >"$TMPROOT/suppress-history.toml"
+
+set +e
+path_config_out="$(env -u GITLEAKS_CONFIG_TOML \
+  GITLEAKS_CONFIG="$TMPROOT/suppress-history.toml" \
+  GITLEAKS_BIN="$GITLEAKS_BIN" "$HISTORY_GUARD" "$ENV_FIXTURE" 2>&1)"
+path_config_rc=$?
+toml_config_out="$(env -u GITLEAKS_CONFIG \
+  GITLEAKS_CONFIG_TOML=$'[allowlist]\npaths = [\'.*\']' \
+  GITLEAKS_BIN="$GITLEAKS_BIN" "$HISTORY_GUARD" "$ENV_FIXTURE" 2>&1)"
+toml_config_rc=$?
+set -e
+expect_nonzero "$path_config_rc" "history guard ignores inherited GITLEAKS_CONFIG"
+expect_nonzero "$toml_config_rc" "history guard ignores inherited GITLEAKS_CONFIG_TOML"
+if [[ "$path_config_out" == *"$environment_token"* || "$toml_config_out" == *"$environment_token"* ]]; then
+  fail "history guard redacts inherited-config fixture credentials from output"
+else
+  pass "history guard redacts inherited-config fixture credentials from output"
+fi
+
 if grep -Fq 'gitleaks-staged.sh' "$PRE_COMMIT"; then
   pass "tracked pre-commit hook invokes the staged guard"
 else

@@ -486,6 +486,18 @@ else
   fail "release-ref pass must identify origin/release/0.8.23; got: $OUT"
 fi
 
+# A PENDING declaration is usable only when its remote-tracking completion ref
+# is locally present. Do not bless the worktree from an uncheckable claim.
+git -C "$LINKED" update-ref -d refs/remotes/origin/release/0.8.23
+run_preflight "$LINKED" --worktree "$LINKED" --min-disk-gb 1
+if [ "$RC" -ne 0 ] \
+  && printf '%s' "$OUT" | grep -q '^HARD .*release completion ref origin/release/0.8.23 is not a locally verifiable commit'; then
+  pass "absent local PENDING completion ref fails closed"
+else
+  fail "absent local PENDING completion ref must hard-fail; got rc=$RC, out: $OUT"
+fi
+git -C "$LINKED" update-ref refs/remotes/origin/release/0.8.23 HEAD
+
 # No 0.8.23 completion declaration exists in the primary checkout, so it keeps
 # the legacy main-only rule and rejects the divergent linked worktree.
 run_preflight "$PRIMARY" --worktree "$LINKED" --min-disk-gb 1
@@ -512,6 +524,37 @@ for invalid_case in \
     fail "invalid 0.8.23 completion state ($invalid_name) must hard-fail; got rc=$RC, out: $OUT"
   fi
 done
+
+# A COMPLETE declaration is different from PENDING: the state checker renders
+# its completion claim against origin/main, so preflight must use that same
+# ref. First integrate the release ref into main, commit COMPLETE state, then
+# move main independently. The old release-only worktree must now be stale;
+# a worktree at current main must pass.
+git -C "$PRIMARY" merge --no-ff -q -m 'fixture: integrate release completion' landing-fixture
+printf '%s\n' \
+  '{"release":"0.8.23","completion":{"ref":"origin/release/0.8.23","main_integration":"COMPLETE"}}' \
+  >"$PRIMARY/dev/plans/release-state-0.8.23.json"
+git -C "$PRIMARY" add dev/plans/release-state-0.8.23.json
+git -C "$PRIMARY" commit -q -m 'fixture: declare main integration complete'
+git -C "$PRIMARY" update-ref refs/remotes/origin/main HEAD
+printf 'main advances after integration\n' >>"$PRIMARY/src/keep.txt"
+git -C "$PRIMARY" add src/keep.txt
+git -C "$PRIMARY" commit -q -m 'fixture: advance integrated main'
+git -C "$PRIMARY" update-ref refs/remotes/origin/main HEAD
+
+run_preflight "$PRIMARY" --worktree "$LINKED" --min-disk-gb 1
+if [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -q '^HARD .*STALE MAIN BASE:'; then
+  pass "COMPLETE integration rejects a release-only worktree stale against origin/main"
+else
+  fail "COMPLETE integration must reject a release-only stale worktree; got rc=$RC, out: $OUT"
+fi
+
+run_preflight "$PRIMARY" --worktree "$PRIMARY" --min-disk-gb 1
+if [ "$RC" -eq 0 ] && printf '%s' "$OUT" | grep -q 'declared main integration ref origin/main'; then
+  pass "COMPLETE integration accepts a worktree at current origin/main"
+else
+  fail "COMPLETE integration must accept current origin/main; got rc=$RC, out: $OUT"
+fi
 
 if [ "$FAILED" -gt 0 ]; then
   printf '\n%d test(s) failed\n' "$FAILED" >&2

@@ -15,5 +15,9 @@ AC013_V2_TEST_MODE=1 SCALE_OUTPUT_DIR="$out" AC013_RUNNER="$fake" bash "$root/sc
 test -f "$out/provenance.json"
 test -f "$out/matrix-manifest.json"
 find "$out" -maxdepth 1 -type f -printf '%f\n' >"$tmp/files"
-test "$(wc -l <"$tmp/files")" -eq 62
+file_count=0
+while IFS= read -r _; do
+  file_count=$((file_count + 1))
+done <"$tmp/files"
+test "$file_count" -eq 62
 find "$out" -maxdepth 1 -type l | grep -q . && exit 1 || true

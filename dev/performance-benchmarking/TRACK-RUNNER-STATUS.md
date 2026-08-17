@@ -62,15 +62,18 @@ policy remains open pending an HITL proposal; no product policy is authorized
 before initial measures. The coordinator alone edits this board and PROGRAM
 state.
 
-Two preparation-to-execution implementation lanes are now commissioned from
+Two preparation-to-execution implementation lanes were commissioned from
 campaign base `378a8214`: `LOCOMO-01` plus approved `PARENT-01` in
 `/tmp/fathomdb-perf-locomo-parent-exec-20260816` on
 `experiments/performance-locomo-parent-exec-20260816`, and `SCALE-01` in
 `/tmp/fathomdb-perf-scale-exec-20260816` on
-`experiments/performance-scale-exec-20260816`. They may implement and test
-their frozen executable contracts only. Neither lane may acquire a corpus or
-run a smoke, grid, model, GPU, or external write before its independent review
-and coordinator integration release the corresponding frozen execution step.
+`experiments/performance-scale-exec-20260816`. The SCALE preparation lane was
+independently accepted at worker SHA `61142179` and integrated here as
+`ec9978d5`: its red-first TC-5 execution boundary, safe configuration,
+content-free receipt projection, and dated ground-truth remediation contract
+are now the campaign control. Neither lane may acquire a corpus or run a
+smoke, grid, model, GPU, or external write until the coordinator releases the
+corresponding frozen execution step.
 
 ## Track status
 
@@ -80,7 +83,7 @@ and coordinator integration release the corresponding frozen execution step.
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
 | LOCOMO-01 | Active | Executable lane commissioned; no live execution yet | `seq-249` authorizes the fixed-subset dry run, Phase-B CPU/FTS grid, and GPU/CE cells. Next gate: independently accept and integrate the frozen executor, then release its fixed-subset dry run. |
 | PARENT-01 | Active | Frozen-v1 implementation joins the LOCOMO executor lane; no live execution yet | `seq-250` approves `parent_child_turn_session_v1`. Next gate: independently accept and integrate its implementation; empirical variants require a new amendment and review. |
-| SCALE-01 | Active | Executor and remediation-contract lane commissioned; no live execution yet | `seq-249` authorizes the TC-5 smoke and long CPU characterization; `seq-250` retains 0.90 as the goal and authorizes a separate remediation. Next gate: independently accept and integrate the executor plus dated remediation contract, then release the smoke. |
+| SCALE-01 | Active | Safe execution boundary and remediation contract integrated; live executor not yet commissioned | `ec9978d5` integrates independently accepted `61142179` (20 focused tests and a worker full verifier pass). `seq-249` authorizes the TC-5 smoke and long CPU characterization; `seq-250` retains 0.90 as the goal and authorizes a separate remediation. Next gate: commission and independently accept a released live executor, then run the frozen smoke. |
 | CORPUS-01 | Planned | Corpus and gold-work authorization recorded; not yet commissioned | `seq-249` authorizes corpus/license matrix and human-gold work. Next gate: commission the preparation lane with external-data and licensing boundaries. |
 | ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |
 | MEMORY-01 | Blocked | Waiting for ANSWER-01 | Require selected profile, native prerequisites, and declared spend ceiling. |

@@ -908,6 +908,36 @@ else
   fail "arm 10d2 (ordinary commission action): rc=$RC out=$OUT"
 fi
 
+# --- Arm 10d2a: an active slice continues; it is not re-commissioned -------
+# `IN_PROGRESS` is the checker-supported active state. Rendering a new
+# commission after implementation/evidence have begun directs the orchestrator
+# to repeat the lifecycle rather than continue its remaining controls.
+setup_fixture
+python3 - "$FIX/dev/plans/release-state-9.9.9.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+s = json.load(open(p))
+for entry in s["ladder"]:
+    if entry["slice"] == 10:
+        entry["title"] = "the active fixture investigation"
+        entry["status"] = "IN_PROGRESS"
+s["generated_views"].append({"id": "status-next-action",
+                             "file": "dev/plans/runs/board.md"})
+json.dump(s, open(p, "w"), indent=2)
+PY
+cat >>"$FIX/dev/plans/runs/board.md" <<'EOF'
+
+## Immediate next action
+
+<!-- BEGIN GENERATED release-state:9.9.9:status-next-action -->**Continue Slice 10 (R-B)** — the active fixture investigation. **Remaining ladder:** 10 → 20 → 30 → 40.<!-- END GENERATED release-state:9.9.9:status-next-action -->
+EOF
+run_gate
+if [ "$RC" -eq 0 ]; then
+  pass "status-next-action — an active slice continues rather than re-commissioning"
+else
+  fail "arm 10d2a (active continuation action): rc=$RC out=$OUT"
+fi
+
 # --- Arm 10d3: prepared publication waits for explicit authority ---------
 # Local preparation is not an authorization to tag or publish. A held
 # publication slice therefore must not be re-commissioned, and must not be

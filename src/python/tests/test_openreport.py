@@ -64,6 +64,17 @@ def test_open_report_is_idempotent(db_path: str) -> None:
         engine.close()
 
 
+def test_open_report_exposes_absent_device_resolution_without_an_embedder(db_path: str) -> None:
+    """No configured embedder has no runtime-device selection to report."""
+
+    engine = Engine.open(db_path)
+    try:
+        report = engine.open_report()
+        assert report.embedder_device_resolution is None
+    finally:
+        engine.close()
+
+
 def test_open_signature_returns_engine_handle(db_path: str) -> None:
     """Shape D guarantee — `Engine.open` still returns just the engine."""
 

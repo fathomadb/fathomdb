@@ -3036,6 +3036,54 @@ mod tests {
         });
     }
 
+    #[test]
+    fn open_report_preserves_caller_device_resolution() {
+        Python::initialize();
+        Python::attach(|py| {
+            let directory = tempfile::tempdir().expect("temporary database directory");
+            let resolution = fathomdb_embedder::DeviceResolution {
+                requested_policy: fathomdb_embedder::EmbedDevicePolicy::Cuda(3),
+                cuda_compiled: true,
+                effective_device: fathomdb_embedder::EffectiveEmbedDevice::Cuda(
+                    fathomdb_embedder::CudaDeviceInfo {
+                        ordinal: 3,
+                        name: Some("test CUDA".to_string()),
+                        driver_version: Some("555.42".to_string()),
+                        compute_capability: Some("8.6".to_string()),
+                        cuda_toolkit_version: Some("12.8".to_string()),
+                    },
+                ),
+                reason: None,
+            };
+            let opened = RustEngine::open_with_choice(
+                directory.path().join("python-device-resolution.sqlite"),
+                EmbedderChoice::CallerWithDeviceResolution {
+                    embedder: Arc::new(fathomdb_embedder::NoopEmbedder::default()),
+                    device_resolution: resolution,
+                },
+            )
+            .expect("caller resolution opens");
+
+            let report = PyOpenReport::from_rust(py, &opened.report);
+            let resolution = report
+                .embedder_device_resolution
+                .expect("caller resolution must reach the Python open report");
+            assert_eq!(resolution.requested_policy, "cuda:3");
+            assert!(resolution.cuda_compiled);
+            assert_eq!(resolution.effective_device.kind, "cuda");
+            let cuda = resolution
+                .effective_device
+                .cuda_device
+                .expect("CUDA selection must retain its safe provider facts");
+            assert_eq!(cuda.ordinal, 3);
+            assert_eq!(cuda.name.as_deref(), Some("test CUDA"));
+            assert_eq!(cuda.driver_version.as_deref(), Some("555.42"));
+            assert_eq!(cuda.compute_capability.as_deref(), Some("8.6"));
+            assert_eq!(cuda.cuda_toolkit_version.as_deref(), Some("12.8"));
+            assert_eq!(resolution.reason, None);
+        });
+    }
+
     // fix-1 finding 2: the CLS-embedder singleton must NOT cache a failed load.
     // `cls_embedder_singleton` itself is `#[cfg(feature = "default-embedder")]`
     // and drives a real model load, so we test the caching contract through the

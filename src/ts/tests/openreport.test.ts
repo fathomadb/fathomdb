@@ -73,6 +73,15 @@ test("openReport is idempotent — repeat calls return identical data", async ()
   }
 });
 
+test("openReport exposes absent device resolution without an embedder", async () => {
+  const engine = await Engine.open(freshDbPath());
+  try {
+    assert.equal(engine.openReport().embedderDeviceResolution, null);
+  } finally {
+    await engine.close();
+  }
+});
+
 test("Engine.open Promise signature unchanged — resolves to just Engine", async () => {
   const engine = await Engine.open(freshDbPath());
   try {

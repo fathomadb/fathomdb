@@ -6,7 +6,7 @@
 
 **Base:** `a79ab744a585ece6103c16971cbe51902e516d4c`
 
-**Final implementation commit:** `0aa3d1730183b124eeb8f06cebcd64477c26957f`
+**Final implementation commit:** `2ed76050bd670524a73c2c8b850b2703d59b8e5f`
 
 ## Scope delivered
 
@@ -25,12 +25,17 @@
 module and stopped at the intended
 `ModuleNotFoundError: experiments.tc5_live_executor` collection failure.
 
+`e7226124` (`test(perf): cover tc5 executor review findings`) preceded the
+hardening correction. It failed on the intended containment, receipt-digest,
+finite-sigma, and Rust/engine-feature provenance assertions before
+`2ed76050` fixed them.
+
 ## Verification
 
 - `python3 -m pytest tests/experiments/test_tc5_live_executor.py
   tests/experiments/test_tc5_characterization.py
-  tests/experiments/test_tc5_manifest.py -q` — 36 passed.
-- `python3 -m pytest tests/experiments -q` — 116 passed.
+  tests/experiments/test_tc5_manifest.py -q` — 43 passed.
+- `python3 -m pytest tests/experiments -q` — 123 passed.
 - `python3 -m ruff check experiments/tc5_live_executor.py
   tests/experiments/test_tc5_live_executor.py`, `./scripts/agent-lint-md.sh`,
   and `git diff --check` — passed.

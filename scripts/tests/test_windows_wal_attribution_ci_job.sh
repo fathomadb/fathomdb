@@ -151,7 +151,7 @@ for marker in \
   'projection_worker_transaction_ready' \
   'fn wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic' \
   'post_commit_ack_for_test' \
-  'post_commit_raw case=pre_close' \
+  'post_commit_raw case={case}' \
   'post_commit_child_raw case=after_close' \
   'WalConnectionInventory' \
   'fn wal_attribution_close_boundary_raw_checkpoint_is_clean' \

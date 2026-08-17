@@ -520,6 +520,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_projection_worker_transaction_is_owned_then_idle -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $postCommitLog = "$env:RUNNER_TEMP\slice65-windows-wal-post-commit.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $postCommitLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $postCommitLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "post-commit diagnostic command selected zero tests"
+            exit 1
+          }
+          if (-not (Select-String -Path $postCommitLog -SimpleMatch 'slice65_wal post_commit_ack inventory=' -Quiet) -or -not (Select-String -Path $postCommitLog -SimpleMatch 'slice65_wal post_commit_raw case=pre_close' -Quiet) -or -not (Select-String -Path $postCommitLog -SimpleMatch 'slice65_wal post_commit_child_raw case=after_close' -Quiet) -or -not (Select-String -Path $postCommitLog -SimpleMatch 'slice65_wal post_commit_diagnostic=recorded' -Quiet)) {
+            Write-Error "post-commit diagnostic artifact is incomplete"
+            exit 1
+          }
           $closeBoundaryDirectLog = "$env:RUNNER_TEMP\slice65-windows-wal-close-boundary-direct.log"
           cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_close_boundary_raw_checkpoint_is_clean -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $closeBoundaryDirectLog
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -548,7 +559,7 @@ jobs:
             Write-Error "close-boundary neighbors control selected zero tests"
             exit 1
           }
-          if (@(Select-String -Path $artifact -SimpleMatch 'running 1 test').Count -lt 9) {
+          if (@(Select-String -Path $artifact -SimpleMatch 'running 1 test').Count -lt 10) {
             Write-Error "one or more Slice 65 engine selectors selected zero tests"
             exit 1
           }

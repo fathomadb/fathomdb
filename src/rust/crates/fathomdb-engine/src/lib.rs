@@ -1098,6 +1098,22 @@ enum ReaderRequest {
         snapshot_ready: Arc<Barrier>,
         release: Arc<Barrier>,
     },
+    /// Slice 65 follow-on: the acknowledgement fires only after SQLite has
+    /// completed `COMMIT` and the collector has returned to idle. This is a
+    /// private test diagnostic, not a release signal or SDK synchronization
+    /// surface.
+    #[cfg(test)]
+    HoldWalSnapshotWithCommitAck {
+        snapshot_ready: Arc<Barrier>,
+        release: Arc<Barrier>,
+        committed: Arc<Barrier>,
+    },
+    /// Slice 65 follow-on: reports this reader's direct SQLite transaction
+    /// state for the private complete-connection inventory.
+    #[cfg(test)]
+    WalConnectionInventory {
+        respond: SyncSender<bool>,
+    },
 }
 
 // G0 Phase-2: the Search response carries a 4th element — the graph-arm frontier
@@ -1196,6 +1212,20 @@ impl ReaderWorkerPool {
 
     fn live_count(&self) -> usize {
         self.live_workers.load(Ordering::SeqCst)
+    }
+
+    #[cfg(test)]
+    fn wal_connection_inventory_for_test(&self) -> Vec<bool> {
+        self.senders
+            .iter()
+            .map(|sender| {
+                let (respond, received) = mpsc::sync_channel(1);
+                sender
+                    .send(ReaderRequest::WalConnectionInventory { respond })
+                    .expect("reader worker must remain live for WAL inventory");
+                received.recv().expect("reader worker must report WAL inventory")
+            })
+            .collect()
     }
 
     /// Pack 6.G G.1 — broadcast a `LookasideStatus` request to every
@@ -1515,6 +1545,28 @@ fn reader_worker_loop(
                 release.wait();
                 connection.execute_batch("COMMIT").expect("release reader snapshot");
                 finish_reader_request(&wal_attribution, worker_idx);
+            }
+            #[cfg(test)]
+            ReaderRequest::HoldWalSnapshotWithCommitAck { snapshot_ready, release, committed } => {
+                connection.execute_batch("BEGIN DEFERRED").expect("begin reader transaction");
+                let _: i64 = connection
+                    .query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get(0))
+                    .expect("acquire real reader snapshot");
+                wal_attribution.set(
+                    WalAttributionRole::ReaderWorker,
+                    worker_idx,
+                    true,
+                    "snapshot_acquired",
+                );
+                snapshot_ready.wait();
+                release.wait();
+                connection.execute_batch("COMMIT").expect("release reader snapshot");
+                finish_reader_request(&wal_attribution, worker_idx);
+                committed.wait();
+            }
+            #[cfg(test)]
+            ReaderRequest::WalConnectionInventory { respond } => {
+                let _ = respond.send(connection.is_autocommit());
             }
         }
     }
@@ -5662,6 +5714,21 @@ impl Engine {
             })
             .expect("reader worker must be live for WAL attribution control");
         (snapshot_ready, release)
+    }
+
+    #[cfg(test)]
+    fn post_commit_ack_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>, Arc<Barrier>) {
+        let snapshot_ready = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        let committed = Arc::new(Barrier::new(2));
+        self.reader_pool.senders[0]
+            .send(ReaderRequest::HoldWalSnapshotWithCommitAck {
+                snapshot_ready: Arc::clone(&snapshot_ready),
+                release: Arc::clone(&release),
+                committed: Arc::clone(&committed),
+            })
+            .expect("reader worker must be live for post-COMMIT WAL acknowledgement");
+        (snapshot_ready, release, committed)
     }
 
     #[cfg(any(test, feature = "test-hooks"))]
@@ -21357,6 +21424,7 @@ mod tests {
     use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
     use rusqlite::Connection;
     use std::path::Path;
+    use std::process::Command;
     use std::sync::{mpsc, Arc};
     use std::thread;
     use std::time::{Duration, Instant};
@@ -21440,6 +21508,175 @@ mod tests {
         assert!(!success.busy && success.classification == "no_owned_snapshot");
         assert!(success.active_roles.is_empty());
         eprintln!("slice65_wal retained_record_contract=passed");
+    }
+
+    /// Slice 65 follow-on: establish whether the observed post-release busy
+    /// checkpoint occurs before or after SQLite has actually committed the held
+    /// reader. This is a diagnostic only: it deliberately runs exactly one
+    /// existing fail-closed erase, then records independent raw checkpoints.
+    /// It never retries, relabels, or completes that original erasure.
+    #[test]
+    fn wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic() {
+        const CHILD_PATH: &str = "FATHOMDB_SLICE65_POST_COMMIT_CHILD_PATH";
+
+        if let Some(path) = std::env::var_os(CHILD_PATH) {
+            let report = raw_post_commit_checkpoint(Path::new(&path), 0, None, "after_close");
+            eprintln!(
+                "slice65_wal post_commit_child_raw case=after_close outcome=recorded raw_busy={} raw_log_frames={} raw_checkpointed_frames={}",
+                report.busy, report.log_frames, report.checkpointed_frames,
+            );
+            return;
+        }
+
+        let dir = TempDir::new().expect("temp dir");
+        let path = dir.path().join("wal-attribution-post-commit.sqlite");
+        let opened = Engine::open(&path).expect("open");
+        opened
+            .engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: "post commit diagnostic".to_string(),
+                source_id: SourceId::new("slice65-post-commit-source").expect("source"),
+                logical_id: Some("slice65-post-commit".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .expect("write");
+
+        let (snapshot_ready, release, committed) = opened.engine.post_commit_ack_for_test();
+        snapshot_ready.wait();
+        let blocked = opened.engine.erase_source("slice65-post-commit-source");
+        assert!(
+            matches!(blocked, Err(EngineError::ErasureIncomplete { .. })),
+            "the diagnostic must retain the single existing fail-closed erase"
+        );
+        release.wait();
+        committed.wait();
+
+        let inventory = post_commit_connection_inventory(&opened);
+        eprintln!("slice65_wal post_commit_ack inventory={inventory}");
+        let reports = [
+            raw_post_commit_checkpoint(&path, 1, Some(&opened), "pre_close"),
+            raw_post_commit_checkpoint(&path, 2, Some(&opened), "pre_close"),
+        ];
+        let pre_close_busy = reports.iter().any(|report| report.busy != 0);
+        if pre_close_busy {
+            opened.engine.close().expect("close Engine before child probe");
+            let output = Command::new(std::env::current_exe().expect("current test executable"))
+                .arg("--exact")
+                .arg("tests::wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic")
+                .arg("--nocapture")
+                .env(CHILD_PATH, &path)
+                .output()
+                .expect("run fresh-child raw checkpoint probe");
+            assert!(
+                output.status.success(),
+                "fresh-child raw checkpoint probe failed with status {:?}",
+                output.status
+            );
+            eprint!("{}", String::from_utf8_lossy(&output.stderr));
+        } else {
+            eprintln!("slice65_wal post_commit_child_raw case=after_close outcome=not_required");
+        }
+        eprintln!("slice65_wal post_commit_diagnostic=recorded");
+    }
+
+    fn post_commit_connection_inventory(opened: &super::OpenedEngine) -> String {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let mut snapshot = opened.engine.wal_attribution_snapshot();
+        while snapshot.roles.len() < 1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS
+            && Instant::now() < deadline
+        {
+            thread::sleep(Duration::from_millis(5));
+            snapshot = opened.engine.wal_attribution_snapshot();
+        }
+        assert_eq!(snapshot.roles.len(), 1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS);
+        assert_eq!(
+            snapshot.roles.iter().filter(|role| role.role == "writer").count(),
+            1,
+            "inventory must contain exactly one writer connection"
+        );
+        assert_eq!(
+            snapshot.roles.iter().filter(|role| role.role == "reader_worker").count(),
+            READER_POOL_SIZE,
+            "inventory must contain every reader connection"
+        );
+        assert_eq!(
+            snapshot.roles.iter().filter(|role| role.role == "projection_dispatcher").count(),
+            1,
+            "inventory must contain the dispatcher connection"
+        );
+        assert_eq!(
+            snapshot.roles.iter().filter(|role| role.role == "projection_worker").count(),
+            PROJECTION_WORKERS,
+            "inventory must contain every projection worker connection"
+        );
+        assert!(snapshot.no_owned_snapshot, "post-COMMIT collector must be idle: {snapshot:?}");
+        assert!(
+            opened
+                .engine
+                .connection
+                .lock()
+                .expect("writer connection mutex")
+                .as_ref()
+                .is_some_and(Connection::is_autocommit),
+            "post-COMMIT writer must be connected and autocommit"
+        );
+        let readers = opened.engine.reader_pool.wal_connection_inventory_for_test();
+        assert_eq!(readers.len(), READER_POOL_SIZE);
+        assert!(readers.into_iter().all(|autocommit| autocommit));
+        for role in &snapshot.roles {
+            assert!(!role.active, "inventory role must not retain a transaction: {role:?}");
+            assert_eq!(role.phase, "idle", "inventory role must be idle: {role:?}");
+        }
+        "writer:open-autocommit;readers:8-autocommit;dispatcher:1-idle;workers:2-idle".to_string()
+    }
+
+    fn raw_post_commit_checkpoint(
+        path: &Path,
+        sample: usize,
+        opened: Option<&super::OpenedEngine>,
+        case: &str,
+    ) -> super::TruncateWalReport {
+        let started = Instant::now();
+        if let Some(opened) = opened {
+            assert!(
+                !opened.engine.closed.load(std::sync::atomic::Ordering::SeqCst),
+                "Engine must remain open for pre-close raw diagnostic samples"
+            );
+            assert!(
+                opened.engine.wal_attribution_snapshot().no_owned_snapshot,
+                "collector must be idle for pre-close raw diagnostic samples"
+            );
+        }
+        let connection = Connection::open(path).expect("independent raw sqlite open");
+        connection.busy_timeout(Duration::ZERO).expect("raw checkpoint no wait");
+        let (busy, log_frames, checkpointed_frames): (i64, i64, i64) = connection
+            .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
+            .expect("independent raw checkpoint");
+        connection.close().expect("independent raw sqlite close");
+        let report = super::TruncateWalReport {
+            status: if busy == 0 {
+                super::TruncateWalStatus::Done
+            } else {
+                super::TruncateWalStatus::Busy
+            },
+            busy: busy.max(0) as u32,
+            log_frames: log_frames.max(0) as u32,
+            checkpointed_frames: checkpointed_frames.max(0) as u32,
+        };
+        let inventory = opened
+            .map(post_commit_connection_inventory)
+            .unwrap_or_else(|| "engine:closed".to_string());
+        eprintln!(
+            "slice65_wal post_commit_raw case={case} sample={sample} elapsed_ms={} raw_busy={} raw_log_frames={} raw_checkpointed_frames={} inventory={inventory}",
+            started.elapsed().as_millis(), report.busy, report.log_frames, report.checkpointed_frames,
+        );
+        report
     }
 
     #[derive(Clone, Debug)]

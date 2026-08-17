@@ -562,7 +562,8 @@ fi
 # contradictory declaration before it can certify any worktree. If the
 # merge-base check in preflight.sh is removed, this arm passes incorrectly.
 git -C "$LINKED" commit --allow-empty -q -m 'fixture: unintegrated release child'
-git -C "$PRIMARY" update-ref refs/remotes/origin/release/0.8.23 "$(git -C "$LINKED" rev-parse HEAD)"
+UNREACHABLE_RELEASE_SHA="$(git -C "$LINKED" rev-parse HEAD)"
+git -C "$PRIMARY" update-ref refs/remotes/origin/release/0.8.23 "$UNREACHABLE_RELEASE_SHA"
 run_preflight "$PRIMARY" --worktree "$PRIMARY" --min-disk-gb 1
 if [ "$RC" -ne 0 ] \
   && printf '%s' "$OUT" | grep -q '^HARD .*release completion marks main integration COMPLETE, but origin/release/0.8.23 is not reachable from origin/main'; then

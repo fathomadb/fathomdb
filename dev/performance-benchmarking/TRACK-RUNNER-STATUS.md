@@ -75,6 +75,13 @@ are now the campaign control. Neither lane may acquire a corpus or run a
 smoke, grid, model, GPU, or external write until the coordinator releases the
 corresponding frozen execution step.
 
+The next SCALE-01 lane is commissioned from campaign base `a79ab744` in
+`/tmp/fathomdb-perf-scale-live-executor-20260816` on
+`experiments/performance-scale-live-executor-20260816`. It owns only the
+external-only live-executor implementation and tests. The executor remains
+disabled and must receive independent review and coordinator integration before
+the authorized smoke or characterization is invoked.
+
 ## Track status
 
 | ID | Portfolio state | Runner state | Verified evidence / next gate |
@@ -83,7 +90,7 @@ corresponding frozen execution step.
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
 | LOCOMO-01 | Active | Executable lane commissioned; no live execution yet | `seq-249` authorizes the fixed-subset dry run, Phase-B CPU/FTS grid, and GPU/CE cells. Next gate: independently accept and integrate the frozen executor, then release its fixed-subset dry run. |
 | PARENT-01 | Active | Frozen-v1 implementation joins the LOCOMO executor lane; no live execution yet | `seq-250` approves `parent_child_turn_session_v1`. Next gate: independently accept and integrate its implementation; empirical variants require a new amendment and review. |
-| SCALE-01 | Active | Safe execution boundary and remediation contract integrated; live executor not yet commissioned | `ec9978d5` integrates independently accepted `61142179` (20 focused tests and a worker full verifier pass). `seq-249` authorizes the TC-5 smoke and long CPU characterization; `seq-250` retains 0.90 as the goal and authorizes a separate remediation. Next gate: commission and independently accept a released live executor, then run the frozen smoke. |
+| SCALE-01 | Active | Live executor implementation commissioned; no live execution yet | `ec9978d5` integrates independently accepted `61142179` (20 focused tests and a worker full verifier pass). `seq-249` authorizes the TC-5 smoke and long CPU characterization; `seq-250` retains 0.90 as the goal and authorizes a separate remediation. Next gate: independently accept and integrate the released live executor, then run the frozen smoke. |
 | CORPUS-01 | Planned | Corpus and gold-work authorization recorded; not yet commissioned | `seq-249` authorizes corpus/license matrix and human-gold work. Next gate: commission the preparation lane with external-data and licensing boundaries. |
 | ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |
 | MEMORY-01 | Blocked | Waiting for ANSWER-01 | Require selected profile, native prerequisites, and declared spend ceiling. |

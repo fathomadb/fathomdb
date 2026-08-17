@@ -29,6 +29,23 @@ export class OverloadedError extends FathomDbError {}
 export class ClosingError extends FathomDbError {}
 
 export class EmbedderNotConfiguredError extends EmbedderError {}
+export interface EmbedDevicePolicyErrorPayload {
+  kind: string;
+  ordinal?: number;
+}
+
+export class EmbedDevicePolicyError extends EmbedderError {
+  readonly code = "FDB_EMBED_DEVICE_POLICY";
+  readonly kind: string;
+  readonly ordinal?: number;
+
+  constructor(message: string, payload: EmbedDevicePolicyErrorPayload) {
+    super(message);
+    this.kind = payload.kind;
+    this.ordinal = payload.ordinal;
+  }
+}
+
 export interface EmbedderRequiredErrorPayload {
   operation: string;
   state: string;
@@ -231,6 +248,7 @@ type ErrorCode =
   | "FDB_PROJECTION"
   | "FDB_VECTOR"
   | "FDB_EMBEDDER"
+  | "FDB_EMBED_DEVICE_POLICY"
   | "FDB_EMBEDDER_NOT_CONFIGURED"
   | "FDB_EMBEDDER_REQUIRED"
   | "FDB_KIND_NOT_VECTOR_INDEXED"
@@ -306,6 +324,11 @@ function build(envelope: Envelope): Error {
       return new VectorError(envelope.message);
     case "FDB_EMBEDDER":
       return new EmbedderError(envelope.message);
+    case "FDB_EMBED_DEVICE_POLICY":
+      return new EmbedDevicePolicyError(envelope.message, {
+        kind: String(p.kind ?? ""),
+        ordinal: typeof p.ordinal === "number" ? p.ordinal : undefined,
+      });
     case "FDB_EMBEDDER_NOT_CONFIGURED":
       return new EmbedderNotConfiguredError(envelope.message);
     case "FDB_EMBEDDER_REQUIRED":

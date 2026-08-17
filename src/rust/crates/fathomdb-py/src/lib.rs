@@ -82,6 +82,7 @@ create_exception!(_fathomdb, ProjectionError, EngineError);
 create_exception!(_fathomdb, VectorError, EngineError);
 create_exception!(_fathomdb, KindNotVectorIndexedError, VectorError);
 create_exception!(_fathomdb, EmbedderError, EngineError);
+create_exception!(_fathomdb, EmbedDevicePolicyError, EmbedderError);
 create_exception!(_fathomdb, EmbedderNotConfiguredError, EmbedderError);
 create_exception!(_fathomdb, EmbedderRequiredError, EmbedderError);
 create_exception!(_fathomdb, SchedulerError, EngineError);
@@ -362,6 +363,15 @@ fn engine_open_error_to_py(err: EngineOpenError) -> PyErr {
             exc
         }
         EngineOpenError::Embedder(err) => EmbedderError::new_err(format!("{err:?}")),
+        EngineOpenError::EmbedDevicePolicy(error) => {
+            let exc = EmbedDevicePolicyError::new_err(error.to_string());
+            Python::attach(|py| {
+                let value = exc.value(py);
+                let _ = value.setattr("kind", error.kind());
+                let _ = value.setattr("ordinal", error.ordinal());
+            });
+            exc
+        }
         EngineOpenError::Io { message } => {
             StorageError::new_err(format!("database I/O error: {message}"))
         }
@@ -2945,6 +2955,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("VectorError", py.get_type::<VectorError>())?;
     m.add("KindNotVectorIndexedError", py.get_type::<KindNotVectorIndexedError>())?;
     m.add("EmbedderError", py.get_type::<EmbedderError>())?;
+    m.add("EmbedDevicePolicyError", py.get_type::<EmbedDevicePolicyError>())?;
     m.add("EmbedderNotConfiguredError", py.get_type::<EmbedderNotConfiguredError>())?;
     m.add("EmbedderRequiredError", py.get_type::<EmbedderRequiredError>())?;
     m.add("SchedulerError", py.get_type::<SchedulerError>())?;
@@ -3007,6 +3018,7 @@ mod tests {
 
     #[test]
     fn embed_device_policy_open_error_uses_a_typed_python_exception() {
+        Python::initialize();
         Python::attach(|py| {
             let error = engine_open_error_to_py(EngineOpenError::EmbedDevicePolicy(
                 fathomdb_embedder::EmbedDevicePolicyError::Resolution(

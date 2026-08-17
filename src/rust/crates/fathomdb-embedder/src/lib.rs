@@ -99,10 +99,9 @@ impl MeanRecomputeTrigger {
     }
 }
 
-// The legacy request parser remains only for the reranker and the separate
-// ONNX caller-supplied backend. The default Candle embedder uses the strict
-// policy module above instead.
-#[cfg(any(feature = "default-reranker", feature = "onnx-embedder"))]
+// The legacy request parser remains only for the reranker. Both embedder
+// backends use the strict policy module above instead.
+#[cfg(feature = "default-reranker")]
 mod device;
 
 #[cfg(feature = "default-embedder")]

@@ -148,6 +148,19 @@ pub enum DeviceResolutionReason {
     CudaProbeFailed,
 }
 
+impl DeviceResolutionReason {
+    /// Stable lower-snake-case reason for bindings and diagnostics.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::CudaNotCompiled => "cuda_not_compiled",
+            Self::NoVisibleCudaDevice => "no_visible_cuda_device",
+            Self::CudaIncompatible => "cuda_incompatible",
+            Self::CudaProbeFailed => "cuda_probe_failed",
+        }
+    }
+}
+
 /// The immutable result of resolving one embedder device policy.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DeviceResolution {
@@ -168,6 +181,32 @@ pub enum DeviceResolutionError {
     CudaNotCompiled { ordinal: usize },
     /// A forced CUDA policy could not initialize/probe the requested ordinal.
     ForcedCudaUnavailable { ordinal: usize, reason: DeviceResolutionReason },
+}
+
+impl EmbedDevicePolicyError {
+    /// Stable lower-snake-case error kind for bindings and diagnostics.
+    #[must_use]
+    pub const fn kind(&self) -> &'static str {
+        match self {
+            Self::InvalidPolicy(_) => "invalid_policy",
+            Self::Resolution(DeviceResolutionError::CudaNotCompiled { .. }) => "cuda_not_compiled",
+            Self::Resolution(DeviceResolutionError::ForcedCudaUnavailable { reason, .. }) => {
+                reason.as_str()
+            }
+        }
+    }
+
+    /// The forced CUDA ordinal when one was part of the failed policy.
+    #[must_use]
+    pub const fn ordinal(&self) -> Option<usize> {
+        match self {
+            Self::InvalidPolicy(_) => None,
+            Self::Resolution(DeviceResolutionError::CudaNotCompiled { ordinal })
+            | Self::Resolution(DeviceResolutionError::ForcedCudaUnavailable { ordinal, .. }) => {
+                Some(*ordinal)
+            }
+        }
+    }
 }
 
 impl fmt::Display for DeviceResolutionError {

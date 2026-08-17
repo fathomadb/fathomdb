@@ -68,6 +68,7 @@ const CODE_STORAGE: &str = "FDB_STORAGE";
 const CODE_PROJECTION: &str = "FDB_PROJECTION";
 const CODE_VECTOR: &str = "FDB_VECTOR";
 const CODE_EMBEDDER: &str = "FDB_EMBEDDER";
+const CODE_EMBED_DEVICE_POLICY: &str = "FDB_EMBED_DEVICE_POLICY";
 const CODE_EMBEDDER_NOT_CONFIGURED: &str = "FDB_EMBEDDER_NOT_CONFIGURED";
 const CODE_EMBEDDER_REQUIRED: &str = "FDB_EMBEDDER_REQUIRED";
 const CODE_KIND_NOT_VECTOR_INDEXED: &str = "FDB_KIND_NOT_VECTOR_INDEXED";
@@ -317,6 +318,15 @@ fn corruption_to_napi(detail: CorruptionDetail) -> Error {
     )
 }
 
+fn embed_device_policy_error_to_napi(error: fathomdb_embedder::EmbedDevicePolicyError) -> Error {
+    let mut payload = serde_json::Map::new();
+    payload.insert("kind".to_string(), json!(error.kind()));
+    if let Some(ordinal) = error.ordinal() {
+        payload.insert("ordinal".to_string(), json!(ordinal));
+    }
+    typed_error(CODE_EMBED_DEVICE_POLICY, error.to_string(), JsonValue::Object(payload))
+}
+
 fn engine_open_error_to_napi(err: EngineOpenError) -> Error {
     match err {
         EngineOpenError::DatabaseLocked { holder_pid } => typed_error(
@@ -375,6 +385,7 @@ fn engine_open_error_to_napi(err: EngineOpenError) -> Error {
             format!("embedder error during open: {err:?}"),
             JsonValue::Null,
         ),
+        EngineOpenError::EmbedDevicePolicy(error) => embed_device_policy_error_to_napi(error),
         EngineOpenError::Io { message } => typed_error(
             CODE_STORAGE,
             format!("database I/O error: {message}"),

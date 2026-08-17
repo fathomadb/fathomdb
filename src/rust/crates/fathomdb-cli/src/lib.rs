@@ -837,6 +837,7 @@ fn engine_open_error_code(err: &EngineOpenError) -> &'static str {
         EngineOpenError::EmbedderIdentityMismatch { .. } => "EmbedderIdentityMismatchError",
         EngineOpenError::EmbedderDimensionMismatch { .. } => "EmbedderDimensionMismatchError",
         EngineOpenError::Embedder(_) => "EmbedderError",
+        EngineOpenError::EmbedDevicePolicy(_) => "EmbedDevicePolicyError",
         EngineOpenError::Io { .. } => "IoError",
     }
 }

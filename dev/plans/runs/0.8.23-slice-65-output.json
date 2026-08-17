@@ -26,9 +26,9 @@
   "planned_experiments": [
     "managed reader paused after snapshot",
     "projection dispatcher/worker role completeness",
-    "Python SDK concurrent reader versus erase",
+    "installed Python SDK concurrent reader versus erase",
     "completed retained Python result control",
-    "Memex-shaped serial lifecycle control",
+    "incident-shaped recovery/reopen/nested-erasure control",
     "external child reader control"
   ],
   "implementation": {
@@ -49,10 +49,11 @@
       "green_evidence": "managed reader control parses retained records: every busy attempt is owned_reader_snapshot for reader_worker:0; post-release success is no_owned_snapshot"
     },
     "remaining_controls": [
-      "Python SDK concurrent reader versus erase through installed native binding",
+      "installed Python SDK concurrent reader versus erase",
       "completed retained Python result with idle Engine",
-      "Memex-shaped serial lifecycle",
-      "projection runtime active transaction discriminator"
+      "incident-shaped recovery/reopen/nested erasure",
+      "projection runtime active transaction discriminator",
+      "Windows comparison of released 0.8.22 wheel and current source/wheel for every applicable control"
     ]
   },
   "fix_n": {

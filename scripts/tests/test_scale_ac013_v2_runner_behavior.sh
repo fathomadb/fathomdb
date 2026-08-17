@@ -34,8 +34,10 @@ partial = json.loads(pathlib.Path(sys.argv[2]).read_text())
 assert artifact['status'] == 'ENVIRONMENT_INVALID', artifact
 assert artifact['summary'] is None, artifact
 assert artifact['matrix'] == [], artifact
+assert partial['execution_mode'] == 'validation_failed', partial
+assert partial['validation_failure'] == 'child treatment record failed V2 validation', partial
 final = partial['attempted_entries'][-1]
-assert final['command_exit_status'] != 0, final
+assert final['command_exit_status'] == 0, final
 assert final['raw_sha256'] == hashlib.sha256((pathlib.Path(sys.argv[2]).parent / final['log']).read_bytes()).hexdigest(), final
 PY
 test ! -e "$failed/matrix-manifest.json"

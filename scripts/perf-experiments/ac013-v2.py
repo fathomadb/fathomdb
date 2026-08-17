@@ -97,23 +97,55 @@ def fixture_provenance(candidate: str) -> dict[str, Any]:
     }
 
 
-def validate_provenance(provenance: object, candidate: str) -> dict[str, Any]:
-    if not isinstance(provenance, dict):
-        raise SystemExit("V2 provenance must be a JSON object")
+def schema_validator(definition: str | None):
     try:
         import jsonschema
     except ImportError as error:
-        raise SystemExit(f"jsonschema is required for complete V2 provenance: {error}") from error
+        raise SystemExit(f"jsonschema==4.25.1 is required for V2 artifacts: {error}") from error
     schema = json.loads((repository() / "dev/design/0.8.23-scale-artifact-v2.schema.json").read_text(encoding="utf-8"))
-    sub_schema = {"$schema": schema["$schema"], "$defs": schema["$defs"], "$ref": "#/$defs/complete_provenance"}
+    sub_schema = schema if definition is None else {
+        "$schema": schema["$schema"], "$defs": schema["$defs"], "$ref": f"#/$defs/{definition}"
+    }
     try:
-        jsonschema.Draft202012Validator(sub_schema).validate(provenance)
+        jsonschema.Draft202012Validator.check_schema(sub_schema)
+    except jsonschema.SchemaError as error:
+        raise SystemExit(f"invalid V2 schema: {error.message}") from error
+    return jsonschema.Draft202012Validator(sub_schema)
+
+
+def validate_definition(value: object, definition: str | None, label: str) -> None:
+    try:
+        import jsonschema
+    except ImportError as error:
+        raise SystemExit(f"jsonschema==4.25.1 is required for V2 artifacts: {error}") from error
+    try:
+        schema_validator(definition).validate(value)
     except jsonschema.ValidationError as error:
-        raise SystemExit(f"invalid complete V2 provenance: {error.message}") from error
+        raise SystemExit(f"invalid {label}: {error.message}") from error
+
+
+def validate_provenance(provenance: object, candidate: str) -> dict[str, Any]:
+    if not isinstance(provenance, dict):
+        raise SystemExit("V2 provenance must be a JSON object")
+    validate_definition(provenance, "complete_provenance", "complete V2 provenance")
     captured = provenance["candidate"]
     if captured["head_sha"] != candidate or captured["git_status_porcelain"] != "" or captured["worktree_clean"] is not True:
         raise SystemExit("V2 provenance does not attest this clean candidate")
     return provenance
+
+
+def validate_manifest(manifest: object) -> dict[str, Any]:
+    if not isinstance(manifest, dict):
+        raise SystemExit("V2 matrix manifest must be an object")
+    validate_definition(manifest, "manifest", "V2 matrix manifest")
+    return manifest
+
+
+def validate_partial_manifest(manifest: object) -> dict[str, Any]:
+    if not isinstance(manifest, dict):
+        raise SystemExit("V2 partial manifest must be an object")
+    validate_definition(manifest, "partial_manifest", "V2 partial manifest")
+    return manifest
 
 
 def begin(root: Path) -> None:
@@ -221,17 +253,27 @@ def statistics(samples: list[int], treatment: str) -> dict[str, Any]:
     return values
 
 
-def manifest_entry(root: Path, item: tuple[int, str, int], command_exit_status: int = 0) -> dict[str, Any]:
+def manifest_entry(
+    root: Path,
+    item: tuple[int, str, int],
+    command_exit_status: int = 0,
+    validated_record: bool = True,
+) -> dict[str, Any]:
     rows, treatment, repetition = item
     log = log_name(*item)
     entry: dict[str, Any] = {"rows": rows, "treatment": treatment, "repetition": repetition, "log": log, "raw_sha256": digest(root / log), "command_exit_status": command_exit_status}
-    if command_exit_status == 0:
+    if validated_record:
         entry["sidecar"] = f"{log}.sha256"
         entry["record"] = parse_record(root / log, rows, treatment)
     return entry
 
 
-def write_partial(root: Path, failed: tuple[int, str, int] | None, status: int) -> None:
+def write_partial(
+    root: Path,
+    failed: tuple[int, str, int] | None,
+    status: int,
+    validation_failure: str | None = None,
+) -> None:
     candidate = candidate_from(root)
     all_tuples = matrix_tuples()
     attempted: list[dict[str, Any]] = []
@@ -243,12 +285,14 @@ def write_partial(root: Path, failed: tuple[int, str, int] | None, status: int) 
             break
         if not raw.is_file() or raw.is_symlink():
             raise SystemExit(f"partial V2 root has nonregular log: {log}")
-        child_status = status if item == failed else 0
-        if child_status == 0 and not valid_sidecar(root, log):
+        is_failed = item == failed
+        is_validation_failure = is_failed and validation_failure is not None
+        child_status = status if is_failed else 0
+        if not is_validation_failure and child_status == 0 and not valid_sidecar(root, log):
             raise SystemExit(f"successful child lacks a valid basename sidecar: {log}")
-        entry = manifest_entry(root, item, child_status)
+        entry = manifest_entry(root, item, child_status, validated_record=not is_failed)
         attempted.append(entry)
-        if child_status != 0:
+        if child_status != 0 or is_validation_failure:
             if any((root / log_name(*later)).exists() for later in all_tuples[index + 1 :]):
                 raise SystemExit("a V2 child ran after a failed child")
             break
@@ -262,7 +306,18 @@ def write_partial(root: Path, failed: tuple[int, str, int] | None, status: int) 
         raise SystemExit("failed V2 child did not leave its expected raw log")
     seen = {(entry["rows"], entry["treatment"], entry["repetition"]) for entry in attempted}
     omitted = [{"rows": r, "treatment": t, "repetition": n} for r, t, n in all_tuples if (r, t, n) not in seen]
-    write_json(root / "partial-manifest.json", {"schema_version": 2, "protocol": PROTOCOL, "candidate_head_sha": candidate, "execution_mode": "failed_child" if failed else "partial_retained", "attempted_entries": attempted, "unrun_repetitions": omitted})
+    manifest: dict[str, Any] = {
+        "schema_version": 2,
+        "protocol": PROTOCOL,
+        "candidate_head_sha": candidate,
+        "execution_mode": "validation_failed" if validation_failure else "failed_child" if failed else "partial_retained",
+        "attempted_entries": attempted,
+        "unrun_repetitions": omitted,
+    }
+    if validation_failure:
+        manifest["validation_failure"] = validation_failure
+    validate_partial_manifest(manifest)
+    write_json(root / "partial-manifest.json", manifest)
 
 
 def seal(root: Path) -> None:
@@ -286,7 +341,9 @@ def seal(root: Path) -> None:
         if not valid_sidecar(root, log):
             raise SystemExit(f"invalid basename-only sidecar: {log}.sha256")
         entries.append(manifest_entry(root, (rows, treatment, repetition)))
-    write_json(root / "matrix-manifest.json", {"schema_version": 2, "protocol": PROTOCOL, "candidate_head_sha": candidate, "entries": entries})
+    manifest = {"schema_version": 2, "protocol": PROTOCOL, "candidate_head_sha": candidate, "entries": entries}
+    validate_manifest(manifest)
+    write_json(root / "matrix-manifest.json", manifest)
     closed = {path.name for path in root.iterdir()}
     if len(closed) != 62 or closed != required | {"matrix-manifest.json"}:
         raise SystemExit("V2 root did not achieve exact 62-file closure")
@@ -307,9 +364,7 @@ def partial_manifest(root: Path) -> dict[str, Any]:
         value = json.loads((root / "partial-manifest.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise SystemExit(f"cannot read V2 partial manifest: {error}") from error
-    if not isinstance(value, dict):
-        raise SystemExit("V2 partial manifest must be an object")
-    return value
+    return validate_partial_manifest(value)
 
 
 def cells(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -335,25 +390,21 @@ def cells(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def validate_artifact(artifact: dict[str, Any]) -> None:
-    try:
-        import jsonschema
-    except ImportError as error:
-        raise SystemExit(f"jsonschema is required for V2 status artifacts: {error}") from error
-    schema = json.loads((repository() / "dev/design/0.8.23-scale-artifact-v2.schema.json").read_text(encoding="utf-8"))
-    try:
-        jsonschema.Draft202012Validator(schema).validate(artifact)
-    except jsonschema.ValidationError as error:
-        raise SystemExit(f"invalid V2 status artifact: {error.message}") from error
+    validate_definition(artifact, None, "V2 status artifact")
 
 
 def emit_status(root: Path, status: str, reason: str) -> None:
     manifest = partial_manifest(root)
     mode = manifest.get("execution_mode")
-    if status == "ENVIRONMENT_INVALID" and mode != "failed_child":
-        raise SystemExit("ENVIRONMENT_INVALID status requires a failed-child partial root")
+    if status == "ENVIRONMENT_INVALID" and mode not in ("failed_child", "validation_failed"):
+        raise SystemExit("ENVIRONMENT_INVALID status requires an invalid partial root")
     if status == "INSUFFICIENT_SAMPLES" and mode != "partial_retained":
         raise SystemExit("INSUFFICIENT_SAMPLES status requires a retained partial root")
-    successful = [entry for entry in manifest["attempted_entries"] if entry["command_exit_status"] == 0]
+    successful = [
+        entry
+        for entry in manifest["attempted_entries"]
+        if entry["command_exit_status"] == 0 and "record" in entry and "sidecar" in entry
+    ]
     try:
         provenance = json.loads((root / "provenance.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
@@ -385,9 +436,12 @@ def validate_root(root: Path, allow_test_fixture: bool) -> None:
     if len(found) != 62 or found != required or any(not path.is_file() or path.is_symlink() for path in root.iterdir()):
         raise SystemExit("V2 root is not the exact 62-file regular closure")
     try:
+        provenance = json.loads((root / "provenance.json").read_text(encoding="utf-8"))
         manifest = json.loads((root / "matrix-manifest.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
-        raise SystemExit(f"cannot read V2 matrix manifest: {error}") from error
+        raise SystemExit(f"cannot read V2 root JSON: {error}") from error
+    validate_provenance(provenance, candidate)
+    manifest = validate_manifest(manifest)
     if manifest.get("candidate_head_sha") != candidate or manifest.get("protocol") != PROTOCOL or manifest.get("schema_version") != 2:
         raise SystemExit("V2 manifest provenance disagrees with root")
     entries = manifest.get("entries")
@@ -410,6 +464,7 @@ def main() -> int:
     parser.add_argument("--failed-treatment", choices=TREATMENTS)
     parser.add_argument("--failed-repetition", type=int, choices=REPETITIONS)
     parser.add_argument("--exit-status", type=int, default=0)
+    parser.add_argument("--validation-failure")
     parser.add_argument("--rows", type=int, choices=ROWS)
     parser.add_argument("--treatment", choices=TREATMENTS)
     parser.add_argument("--log", type=Path)
@@ -437,9 +492,11 @@ def main() -> int:
         if any(value is not None for value in values) and any(value is None for value in values):
             raise SystemExit("failed child tuple must be complete")
         failed = None if all(value is None for value in values) else values
-        if failed and args.exit_status == 0:
+        if args.validation_failure and not failed:
+            raise SystemExit("validation failure requires a complete failed child tuple")
+        if failed and args.exit_status == 0 and not args.validation_failure:
             raise SystemExit("failed child must have a nonzero exit status")
-        write_partial(root, failed, args.exit_status)
+        write_partial(root, failed, args.exit_status, args.validation_failure)
     return 0
 
 

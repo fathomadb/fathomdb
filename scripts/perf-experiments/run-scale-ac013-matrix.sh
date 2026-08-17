@@ -5,7 +5,11 @@ set -euo pipefail
 root="$(git rev-parse --show-toplevel)"
 runner="${AC013_RUNNER:-$root/scripts/perf-experiments/run-ac013.sh}"
 helper="$root/scripts/perf-experiments/ac013-v2.py"
-python3 "$helper" begin --root "$SCALE_OUTPUT_DIR"
+python_bin="${AC013_V2_PYTHON:-$root/.venv/bin/python}"
+if [ ! -x "$python_bin" ]; then
+  python_bin="$(command -v python3)"
+fi
+"$python_bin" "$helper" begin --root "$SCALE_OUTPUT_DIR"
 
 partial_retained_after="${AC013_V2_PARTIAL_RETAINED_AFTER:-}"
 if [ -n "$partial_retained_after" ] && ! [[ "$partial_retained_after" =~ ^([1-9]|[12][0-9])$ ]]; then
@@ -26,22 +30,22 @@ for rows in 10000 100000 1000000; do
       set -e
       attempt=$((attempt + 1))
       if [ "$child_status" -ne 0 ]; then
-        python3 "$helper" partial --root "$SCALE_OUTPUT_DIR" \
+        "$python_bin" "$helper" partial --root "$SCALE_OUTPUT_DIR" \
           --failed-rows "$rows" --failed-treatment "$treatment" \
           --failed-repetition "$repetition" --exit-status "$child_status"
-        python3 "$helper" emit-status --root "$SCALE_OUTPUT_DIR" \
+        "$python_bin" "$helper" emit-status --root "$SCALE_OUTPUT_DIR" \
           --status ENVIRONMENT_INVALID --reason "child exited with status $child_status"
         exit "$child_status"
       fi
-      if ! python3 "$helper" validate-record --root "$SCALE_OUTPUT_DIR" \
+      if ! "$python_bin" "$helper" validate-record --root "$SCALE_OUTPUT_DIR" \
         --rows "$rows" --treatment "$treatment" --log "$log" >/dev/null; then
-        record_status=65
-        python3 "$helper" partial --root "$SCALE_OUTPUT_DIR" \
+        "$python_bin" "$helper" partial --root "$SCALE_OUTPUT_DIR" \
           --failed-rows "$rows" --failed-treatment "$treatment" \
-          --failed-repetition "$repetition" --exit-status "$record_status"
-        python3 "$helper" emit-status --root "$SCALE_OUTPUT_DIR" \
+          --failed-repetition "$repetition" --exit-status "$child_status" \
+          --validation-failure "child treatment record failed V2 validation"
+        "$python_bin" "$helper" emit-status --root "$SCALE_OUTPUT_DIR" \
           --status ENVIRONMENT_INVALID --reason "child treatment record failed V2 validation"
-        exit "$record_status"
+        exit 65
       fi
       (
         cd "$SCALE_OUTPUT_DIR"
@@ -50,14 +54,16 @@ for rows in 10000 100000 1000000; do
         sha256sum -c "$log_base.sha256"
       )
       if [ -n "$partial_retained_after" ] && [ "$attempt" -eq "$partial_retained_after" ]; then
-        python3 "$helper" partial --root "$SCALE_OUTPUT_DIR"
-        python3 "$helper" emit-status --root "$SCALE_OUTPUT_DIR" \
+        "$python_bin" "$helper" partial --root "$SCALE_OUTPUT_DIR"
+        "$python_bin" "$helper" emit-status --root "$SCALE_OUTPUT_DIR" \
           --status INSUFFICIENT_SAMPLES --reason "explicit retained partial matrix after $attempt repetitions"
         printf 'retained %s V2 repetitions; refusing complete-matrix seal\n' "$attempt" >&2
         exit 0
       fi
-      python3 "$helper" partial --root "$SCALE_OUTPUT_DIR"
+      if [ "$attempt" -lt 30 ]; then
+        "$python_bin" "$helper" partial --root "$SCALE_OUTPUT_DIR"
+      fi
     done
   done
 done
-python3 "$helper" seal --root "$SCALE_OUTPUT_DIR"
+"$python_bin" "$helper" seal --root "$SCALE_OUTPUT_DIR"

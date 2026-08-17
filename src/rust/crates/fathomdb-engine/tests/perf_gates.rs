@@ -3,7 +3,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{Engine, PreparedWrite};
+use fathomdb_engine::{Engine, EngineError, PreparedWrite};
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
 
@@ -104,6 +104,47 @@ fn ac013_scale_treatment(value: Option<&str>) -> Option<&str> {
             panic!("invalid AC013_SCALE_TREATMENT={other}; expected process_cold or warm")
         }
     }
+}
+
+#[derive(Default)]
+struct Ac013QueryCounters {
+    errors: usize,
+    timeouts: usize,
+    skips: usize,
+    invariant_failures: usize,
+}
+
+fn ac013_measured_search(
+    engine: &Engine,
+    query: &str,
+    counters: &mut Ac013QueryCounters,
+) -> (Duration, usize) {
+    let started = Instant::now();
+    let result = engine.search(query);
+    let elapsed = started.elapsed();
+    match result {
+        Ok(result) => {
+            let count = result.results.len();
+            if count == 0 {
+                counters.invariant_failures += 1;
+            }
+            (elapsed, count)
+        }
+        Err(error) => {
+            counters.errors += 1;
+            if matches!(error, EngineError::Scheduler) {
+                counters.timeouts += 1;
+            }
+            (elapsed, 0)
+        }
+    }
+}
+
+fn assert_ac013_query_counters(counters: &Ac013QueryCounters) {
+    assert_eq!(counters.errors, 0, "AC-013 measurement search errors");
+    assert_eq!(counters.timeouts, 0, "AC-013 measurement search timeouts");
+    assert_eq!(counters.skips, 0, "AC-013 measurement query skips");
+    assert_eq!(counters.invariant_failures, 0, "AC-013 measurement query-result invariants");
 }
 
 #[test]
@@ -651,26 +692,31 @@ fn ac_013_vector_retrieval_latency() {
     let treatment_env = std::env::var("AC013_SCALE_TREATMENT").ok();
     let treatment = ac013_scale_treatment(treatment_env.as_deref());
     if treatment == Some("process_cold") {
-        let started = Instant::now();
-        let result = opened.engine.search(&queries[0]).expect("cold first search");
+        let mut counters = Ac013QueryCounters::default();
+        let (sample, result_count) =
+            ac013_measured_search(&opened.engine, &queries[0], &mut counters);
         eprintln!(
-            "AC013_TREATMENT_RECORD treatment=process_cold n={n} seed_write_ms={} embedding_ms=not_separately_observable projection_drain_ms={} accepted_writes={n} vector_rows_after_drain={vector_rows_after_drain} drain_outcome=ok samples_us={} result_counts={}",
+            "AC013_TREATMENT_RECORD treatment=process_cold n={n} seed_write_ms={} embedding_ms=not_separately_observable projection_drain_ms={} accepted_writes={n} vector_rows_after_drain={vector_rows_after_drain} drain_outcome=ok samples_us={} result_counts={} query_errors={} query_timeouts={} query_skips={} query_invariant_failures={}",
             seed_elapsed.seed_write.as_millis(),
             seed_elapsed.projection_drain.as_millis(),
-            started.elapsed().as_micros(), result.results.len(),
+            sample.as_micros(), result_count, counters.errors, counters.timeouts, counters.skips,
+            counters.invariant_failures,
         );
+        assert_ac013_query_counters(&counters);
         return;
     }
 
+    let mut counters = Ac013QueryCounters::default();
     for q in &queries {
-        let _ = opened.engine.search(q).expect("warmup search");
+        let _ = ac013_measured_search(&opened.engine, q, &mut counters);
     }
 
     let mut samples = Vec::with_capacity(PERF_SAMPLES);
+    let mut result_counts = Vec::with_capacity(PERF_SAMPLES);
     for q in &queries {
-        let started = Instant::now();
-        let _ = opened.engine.search(q).expect("measure search");
-        samples.push(started.elapsed());
+        let (sample, result_count) = ac013_measured_search(&opened.engine, q, &mut counters);
+        samples.push(sample);
+        result_counts.push(result_count);
     }
 
     let p50 = percentile_ceil(&samples, 50, 100);
@@ -688,11 +734,15 @@ fn ac_013_vector_retrieval_latency() {
             .map(|sample| sample.as_micros().to_string())
             .collect::<Vec<_>>()
             .join(",");
+        let raw_result_counts =
+            result_counts.iter().map(usize::to_string).collect::<Vec<_>>().join(",");
         eprintln!(
-            "AC013_TREATMENT_RECORD treatment=warm n={n} seed_write_ms={} embedding_ms=not_separately_observable projection_drain_ms={} accepted_writes={n} vector_rows_after_drain={vector_rows_after_drain} drain_outcome=ok samples_us={raw_samples} result_counts=not_retained_per_query",
-            seed_elapsed.seed_write.as_millis(), seed_elapsed.projection_drain.as_millis(),
+            "AC013_TREATMENT_RECORD treatment=warm n={n} seed_write_ms={} embedding_ms=not_separately_observable projection_drain_ms={} accepted_writes={n} vector_rows_after_drain={vector_rows_after_drain} drain_outcome=ok samples_us={raw_samples} result_counts={raw_result_counts} query_errors={} query_timeouts={} query_skips={} query_invariant_failures={}",
+            seed_elapsed.seed_write.as_millis(), seed_elapsed.projection_drain.as_millis(), counters.errors,
+            counters.timeouts, counters.skips, counters.invariant_failures,
         );
     }
+    assert_ac013_query_counters(&counters);
 
     // Tiered budget: binding gate only at the 10k tier (0.x/1.x); 100k and 1M
     // are tracked post-1.0 targets (O(N) bit-KNN scan; ANN-index work). See

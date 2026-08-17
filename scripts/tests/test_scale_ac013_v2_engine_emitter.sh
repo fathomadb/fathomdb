@@ -2,7 +2,6 @@
 # Exercise the real Engine::search AC-013 emitter, never the synthetic matrix runner.
 set -euo pipefail
 
-root="$(git rev-parse --show-toplevel)"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 

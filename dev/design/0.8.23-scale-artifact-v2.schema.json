@@ -155,10 +155,26 @@
         }
       }
     },
+    "validation_failed_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "root", "partial_manifest"],
+      "properties": {
+        "kind": { "const": "partial" },
+        "root": { "$ref": "#/$defs/root" },
+        "partial_manifest": {
+          "allOf": [
+            { "$ref": "#/$defs/partial_manifest" },
+            { "properties": { "execution_mode": { "const": "validation_failed" } } }
+          ]
+        }
+      }
+    },
     "invalid_input": {
       "oneOf": [
         { "$ref": "#/$defs/complete_input" },
-        { "$ref": "#/$defs/failed_child_input" }
+        { "$ref": "#/$defs/failed_child_input" },
+        { "$ref": "#/$defs/validation_failed_input" }
       ]
     },
     "partial_retained_input": {
@@ -186,6 +202,7 @@
       "oneOf": [
         { "$ref": "#/$defs/complete_input" },
         { "$ref": "#/$defs/failed_child_input" },
+        { "$ref": "#/$defs/validation_failed_input" },
         { "$ref": "#/$defs/partial_retained_input" },
         { "$ref": "#/$defs/no_root_input" }
       ]
@@ -309,7 +326,8 @@
         "schema_version": { "const": 2 },
         "protocol": { "const": "0.8.23-scale-characterization-v2" },
         "candidate_head_sha": { "$ref": "#/$defs/git_sha" },
-        "execution_mode": { "enum": ["failed_child", "partial_retained"] },
+        "execution_mode": { "enum": ["failed_child", "validation_failed", "partial_retained"] },
+        "validation_failure": { "$ref": "#/$defs/nonempty_string" },
         "attempted_entries": {
           "type": "array",
           "minItems": 1,
@@ -322,7 +340,14 @@
           "maxItems": 30,
           "items": { "$ref": "#/$defs/repetition_locator" }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "execution_mode": { "const": "validation_failed" } } },
+          "then": { "required": ["validation_failure"] },
+          "else": { "not": { "required": ["validation_failure"] } }
+        }
+      ]
     },
     "partial_entry": {
       "type": "object",

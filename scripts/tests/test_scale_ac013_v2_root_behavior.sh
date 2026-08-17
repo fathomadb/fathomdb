@@ -18,9 +18,13 @@ EOF
 chmod +x "$fake"
 out="$tmp/0.8.23-scale-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-raw"
 AC013_V2_TEST_MODE=1 SCALE_OUTPUT_DIR="$out" AC013_RUNNER="$fake" bash "$root/scripts/perf-experiments/run-scale-ac013-matrix.sh"
+python_bin="${AC013_V2_PYTHON:-$root/.venv/bin/python}"
+if [ ! -x "$python_bin" ]; then
+  python_bin="$(command -v python3)"
+fi
 test -f "$out/provenance.json"
 test -f "$out/matrix-manifest.json"
-python3 "$root/scripts/perf-experiments/ac013-v2.py" validate-root --test-fixture --root "$out"
+"$python_bin" "$root/scripts/perf-experiments/ac013-v2.py" validate-root --test-fixture --root "$out"
 find "$out" -maxdepth 1 -type f -printf '%f\n' >"$tmp/files"
 file_count=0
 while IFS= read -r _; do
@@ -28,3 +32,14 @@ while IFS= read -r _; do
 done <"$tmp/files"
 test "$file_count" -eq 62
 find "$out" -maxdepth 1 -type l | grep -q . && exit 1 || true
+python3 - "$out/matrix-manifest.json" <<'PY'
+import json, pathlib, sys
+path = pathlib.Path(sys.argv[1])
+manifest = json.loads(path.read_text())
+manifest['unexpected'] = True
+path.write_text(json.dumps(manifest), encoding='utf-8')
+PY
+if "$python_bin" "$root/scripts/perf-experiments/ac013-v2.py" validate-root --test-fixture --root "$out"; then
+  echo 'manifest additional property reached a validated V2 root' >&2
+  exit 1
+fi

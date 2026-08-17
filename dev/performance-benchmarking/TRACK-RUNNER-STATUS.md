@@ -165,6 +165,13 @@ but cannot communicate with the NVIDIA driver, so GPU/CE cells remain an
 environmental blocker despite the installed CUDA compiler. These are factual
 prerequisites, not a new authorization decision.
 
+The LOCOMO external-adapter preparation lane is commissioned from campaign
+base `efc21558` in `/tmp/fathomdb-perf-locomo-external-adapter-20260816` on
+`experiments/performance-locomo-external-adapter-20260816`. It may implement
+and test the released adapter ABI against synthetic fixtures only. It may not
+read the corpus payload, invoke a model/device, generate a release, or run an
+authorized measurement.
+
 ## Track status
 
 | ID | Portfolio state | Runner state | Verified evidence / next gate |

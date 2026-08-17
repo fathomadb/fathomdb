@@ -68,7 +68,7 @@ ladder or widen an in-flight feature slice.
 | 10 | CUDA environment/artifact contract and protected runner gate | 6 | `0.8.23-gpu-artifacts.md` |
 | 20 | CUDA package, release rehearsal, driverless CPU, and GPU smokes | 6, 10 | `0.8.23-gpu-artifacts.md` |
 | 30 | Memex embedding-readiness and graph-integration contract | 6 | `0.8.23-embedding-configuration-feedback.md`, `0.8.23-memex-integration.md` |
-| 40 | Fixture-scoped scale characterization | 6 | `0.8.23-scale-characterization-protocol.md` |
+| 40 | Fixture-scoped scale characterization | 6 | v1 historical: `0.8.23-scale-characterization-protocol.md`; v2 authority: `0.8.23-scale-characterization-v2.md`, `0.8.23-scale-artifact-v2.schema.json` |
 | 50 | Gitleaks staged pre-commit and always-on CI guards | 6 | `0.8.23-gitleaks-guards.md` |
 | 60 | Windows WAL checkpoint reader-conflict diagnosis | 6 | `0.8.23-windows-wal-checkpoint-reader-conflict.md`, `0.8.23-windows-local-environment.md` |
 | 65 | Windows WAL checkpoint root-cause attribution | 6, 60 | `0.8.23-wal-attribution-investigation.md` |

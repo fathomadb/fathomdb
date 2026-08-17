@@ -1,0 +1,616 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fathomdb.dev/schema/0.8.23-scale-artifact-v2.json",
+  "title": "FathomDB 0.8.23 AC-013 scale characterization v2 artifact",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "protocol",
+    "status",
+    "claim_scope",
+    "input",
+    "provenance",
+    "matrix",
+    "integrity",
+    "summary",
+    "next_step"
+  ],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "protocol": { "const": "0.8.23-scale-characterization-v2" },
+    "status": {
+      "enum": [
+        "DEFERRED",
+        "MISSING_PREREQUISITE",
+        "INSUFFICIENT_SAMPLES",
+        "ENVIRONMENT_INVALID",
+        "CHARACTERIZED"
+      ]
+    },
+    "claim_scope": {
+      "const": "fixture_scoped_non_ann_two_phase_vector_characterization"
+    },
+    "input": { "$ref": "#/$defs/input" },
+    "provenance": { "$ref": "#/$defs/provenance_capture" },
+    "matrix": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/cell" }
+    },
+    "integrity": { "$ref": "#/$defs/integrity" },
+    "summary": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/summary" }
+      ]
+    },
+    "next_step": { "type": "string", "minLength": 1 }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "CHARACTERIZED" } } },
+      "then": {
+        "properties": {
+          "input": { "$ref": "#/$defs/complete_input" },
+          "provenance": { "$ref": "#/$defs/complete_provenance" },
+          "matrix": { "minItems": 6, "maxItems": 6 },
+          "integrity": { "$ref": "#/$defs/clean_integrity" },
+          "summary": { "$ref": "#/$defs/summary" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "ENVIRONMENT_INVALID" } } },
+      "then": {
+        "properties": {
+          "summary": { "type": "null" },
+          "input": { "$ref": "#/$defs/invalid_input" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "INSUFFICIENT_SAMPLES" } } },
+      "then": {
+        "properties": {
+          "summary": { "type": "null" },
+          "input": { "$ref": "#/$defs/partial_retained_input" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "MISSING_PREREQUISITE" } } },
+      "then": {
+        "properties": {
+          "summary": { "type": "null" },
+          "input": { "$ref": "#/$defs/no_root_input" },
+          "provenance": { "$ref": "#/$defs/incomplete_provenance" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "DEFERRED" } } },
+      "then": {
+        "properties": {
+          "summary": { "type": "null" },
+          "input": { "$ref": "#/$defs/no_root_input" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "git_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "nonnegative_integer": { "type": "integer", "minimum": 0 },
+    "nonempty_string": { "type": "string", "minLength": 1 },
+    "root": {
+      "type": "string",
+      "pattern": "^dev/plans/runs/0\\.8\\.23-scale-[0-9a-f]{40}-raw/$"
+    },
+    "raw_log": {
+      "type": "string",
+      "pattern": "^ac013-(10000|100000|1000000)-(process_cold|warm)-rep[1-5]\\.log$"
+    },
+    "raw_sidecar": {
+      "type": "string",
+      "pattern": "^ac013-(10000|100000|1000000)-(process_cold|warm)-rep[1-5]\\.log\\.sha256$"
+    },
+    "raw_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["log", "sidecar", "sha256"],
+      "properties": {
+        "log": { "$ref": "#/$defs/raw_log" },
+        "sidecar": { "$ref": "#/$defs/raw_sidecar" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "complete_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "root", "manifest", "regular_file_count"],
+      "properties": {
+        "kind": { "const": "complete" },
+        "root": { "$ref": "#/$defs/root" },
+        "manifest": { "$ref": "#/$defs/manifest" },
+        "regular_file_count": { "const": 62 }
+      }
+    },
+    "failed_child_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "root", "partial_manifest"],
+      "properties": {
+        "kind": { "const": "partial" },
+        "root": { "$ref": "#/$defs/root" },
+        "partial_manifest": {
+          "allOf": [
+            { "$ref": "#/$defs/partial_manifest" },
+            { "properties": { "execution_mode": { "const": "failed_child" } } }
+          ]
+        }
+      }
+    },
+    "invalid_input": {
+      "oneOf": [
+        { "$ref": "#/$defs/complete_input" },
+        { "$ref": "#/$defs/failed_child_input" }
+      ]
+    },
+    "partial_retained_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "root", "partial_manifest"],
+      "properties": {
+        "kind": { "const": "partial" },
+        "root": { "$ref": "#/$defs/root" },
+        "partial_manifest": {
+          "allOf": [
+            { "$ref": "#/$defs/partial_manifest" },
+            { "properties": { "execution_mode": { "const": "partial_retained" } } }
+          ]
+        }
+      }
+    },
+    "no_root_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": { "kind": { "const": "no_root" } }
+    },
+    "input": {
+      "oneOf": [
+        { "$ref": "#/$defs/complete_input" },
+        { "$ref": "#/$defs/failed_child_input" },
+        { "$ref": "#/$defs/partial_retained_input" },
+        { "$ref": "#/$defs/no_root_input" }
+      ]
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "treatment",
+        "n",
+        "seed_write_ms",
+        "embedding_ms",
+        "projection_drain_ms",
+        "accepted_writes",
+        "vector_rows_after_drain",
+        "drain_outcome",
+        "samples_us",
+        "result_counts",
+        "query_errors",
+        "query_timeouts",
+        "query_skips",
+        "query_invariant_failures"
+      ],
+      "properties": {
+        "treatment": { "enum": ["process_cold", "warm"] },
+        "n": { "enum": [10000, 100000, 1000000] },
+        "seed_write_ms": { "$ref": "#/$defs/nonnegative_integer" },
+        "embedding_ms": {
+          "oneOf": [
+            { "$ref": "#/$defs/nonnegative_integer" },
+            { "const": "not_separately_observable" }
+          ]
+        },
+        "projection_drain_ms": { "$ref": "#/$defs/nonnegative_integer" },
+        "accepted_writes": { "enum": [10000, 100000, 1000000] },
+        "vector_rows_after_drain": { "enum": [10000, 100000, 1000000] },
+        "drain_outcome": { "const": "ok" },
+        "samples_us": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonnegative_integer" }
+        },
+        "result_counts": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonnegative_integer" }
+        },
+        "query_errors": { "const": 0 },
+        "query_timeouts": { "const": 0 },
+        "query_skips": { "const": 0 },
+        "query_invariant_failures": { "const": 0 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "treatment": { "const": "process_cold" } } },
+          "then": {
+            "properties": {
+              "samples_us": { "minItems": 1, "maxItems": 1 },
+              "result_counts": { "minItems": 1, "maxItems": 1 }
+            }
+          },
+          "else": {
+            "properties": {
+              "samples_us": { "minItems": 1000, "maxItems": 1000 },
+              "result_counts": { "minItems": 1000, "maxItems": 1000 }
+            }
+          }
+        }
+      ]
+    },
+    "manifest_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rows",
+        "treatment",
+        "repetition",
+        "log",
+        "sidecar",
+        "raw_sha256",
+        "command_exit_status",
+        "record"
+      ],
+      "properties": {
+        "rows": { "enum": [10000, 100000, 1000000] },
+        "treatment": { "enum": ["process_cold", "warm"] },
+        "repetition": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "log": { "$ref": "#/$defs/raw_log" },
+        "sidecar": { "$ref": "#/$defs/raw_sidecar" },
+        "raw_sha256": { "$ref": "#/$defs/sha256" },
+        "command_exit_status": { "const": 0 },
+        "record": { "$ref": "#/$defs/record" }
+      }
+    },
+    "manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "protocol", "candidate_head_sha", "entries"],
+      "properties": {
+        "schema_version": { "const": 2 },
+        "protocol": { "const": "0.8.23-scale-characterization-v2" },
+        "candidate_head_sha": { "$ref": "#/$defs/git_sha" },
+        "entries": {
+          "type": "array",
+          "minItems": 30,
+          "maxItems": 30,
+          "items": { "$ref": "#/$defs/manifest_entry" }
+        }
+      }
+    },
+    "partial_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "protocol",
+        "candidate_head_sha",
+        "execution_mode",
+        "attempted_entries",
+        "unrun_repetitions"
+      ],
+      "properties": {
+        "schema_version": { "const": 2 },
+        "protocol": { "const": "0.8.23-scale-characterization-v2" },
+        "candidate_head_sha": { "$ref": "#/$defs/git_sha" },
+        "execution_mode": { "enum": ["failed_child", "partial_retained"] },
+        "attempted_entries": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 30,
+          "items": { "$ref": "#/$defs/partial_entry" }
+        },
+        "unrun_repetitions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 30,
+          "items": { "$ref": "#/$defs/repetition_locator" }
+        }
+      }
+    },
+    "partial_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows", "treatment", "repetition", "log", "raw_sha256", "command_exit_status"],
+      "properties": {
+        "rows": { "enum": [10000, 100000, 1000000] },
+        "treatment": { "enum": ["process_cold", "warm"] },
+        "repetition": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "log": { "$ref": "#/$defs/raw_log" },
+        "raw_sha256": { "$ref": "#/$defs/sha256" },
+        "sidecar": { "$ref": "#/$defs/raw_sidecar" },
+        "command_exit_status": { "type": "integer" },
+        "record": { "$ref": "#/$defs/record" }
+      }
+    },
+    "repetition_locator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows", "treatment", "repetition"],
+      "properties": {
+        "rows": { "enum": [10000, 100000, 1000000] },
+        "treatment": { "enum": ["process_cold", "warm"] },
+        "repetition": { "type": "integer", "minimum": 1, "maximum": 5 }
+      }
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "source", "checksum"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonempty_string" },
+        "version": { "$ref": "#/$defs/nonempty_string" },
+        "source": { "$ref": "#/$defs/nonempty_string" },
+        "checksum": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "complete_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["availability", "candidate", "slice5_provenance", "lock_build", "fixture", "environment"],
+      "properties": {
+        "availability": { "const": "complete" },
+        "candidate": { "$ref": "#/$defs/candidate" },
+        "slice5_provenance": { "$ref": "#/$defs/slice5_provenance" },
+        "lock_build": { "$ref": "#/$defs/lock_build" },
+        "fixture": { "$ref": "#/$defs/fixture" },
+        "environment": { "$ref": "#/$defs/environment" }
+      }
+    },
+    "incomplete_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["availability", "unavailable_fields", "reason"],
+      "properties": {
+        "availability": { "const": "incomplete" },
+        "unavailable_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "candidate",
+              "slice5_provenance.authoritative_release_state",
+              "slice5_provenance.measured_lock_stack",
+              "lock_build",
+              "fixture",
+              "environment.host",
+              "environment.gpu",
+              "environment.isolation"
+            ]
+          }
+        },
+        "reason": { "$ref": "#/$defs/nonempty_string" }
+      }
+    },
+    "provenance_capture": {
+      "oneOf": [
+        { "$ref": "#/$defs/complete_provenance" },
+        { "$ref": "#/$defs/incomplete_provenance" }
+      ]
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["head_sha", "ref", "commit_timestamp", "git_status_porcelain", "worktree_clean", "schema_version"],
+      "properties": {
+        "head_sha": { "$ref": "#/$defs/git_sha" },
+        "ref": { "$ref": "#/$defs/nonempty_string" },
+        "commit_timestamp": { "type": "string", "format": "date-time" },
+        "git_status_porcelain": { "const": "" },
+        "worktree_clean": { "const": true },
+        "schema_version": { "$ref": "#/$defs/nonnegative_integer" }
+      }
+    },
+    "slice5_provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["release", "authoritative_release_state", "measured_lock_stack"],
+      "properties": {
+        "release": { "const": "0.8.22" },
+        "authoritative_release_state": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "git_blob", "sha256", "slice", "status", "landed_sha", "evidence_sha256"],
+          "properties": {
+            "path": { "const": "dev/plans/release-state-0.8.22.json" },
+            "git_blob": { "$ref": "#/$defs/git_sha" },
+            "sha256": { "$ref": "#/$defs/sha256" },
+            "slice": { "const": 5 },
+            "status": { "const": "LANDED" },
+            "landed_sha": { "$ref": "#/$defs/git_sha" },
+            "evidence_sha256": { "$ref": "#/$defs/sha256" }
+          }
+        },
+        "measured_lock_stack": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cargo_lock_sha256", "rusqlite", "sqlite_vec", "libsqlite3_sys"],
+          "properties": {
+            "cargo_lock_sha256": { "$ref": "#/$defs/sha256" },
+            "rusqlite": { "allOf": [{ "$ref": "#/$defs/package" }, { "properties": { "name": { "const": "rusqlite" } } }] },
+            "sqlite_vec": { "allOf": [{ "$ref": "#/$defs/package" }, { "properties": { "name": { "const": "sqlite-vec" } } }] },
+            "libsqlite3_sys": { "allOf": [{ "$ref": "#/$defs/package" }, { "properties": { "name": { "const": "libsqlite3-sys" } } }] }
+          }
+        }
+      }
+    },
+    "lock_build": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cargo_lock_git_blob", "cargo_lock_sha256", "cargo_metadata_locked_sha256", "schema_version", "schema_source_git_blob", "rustc_vv", "cargo_v", "target", "profile", "enabled_features", "command", "built_process_sqlite_version"],
+      "properties": {
+        "cargo_lock_git_blob": { "$ref": "#/$defs/git_sha" },
+        "cargo_lock_sha256": { "$ref": "#/$defs/sha256" },
+        "cargo_metadata_locked_sha256": { "$ref": "#/$defs/sha256" },
+        "schema_version": { "$ref": "#/$defs/nonnegative_integer" },
+        "schema_source_git_blob": { "$ref": "#/$defs/git_sha" },
+        "rustc_vv": { "$ref": "#/$defs/nonempty_string" },
+        "cargo_v": { "$ref": "#/$defs/nonempty_string" },
+        "target": { "$ref": "#/$defs/nonempty_string" },
+        "profile": { "const": "release" },
+        "enabled_features": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/nonempty_string" } },
+        "command": { "$ref": "#/$defs/nonempty_string" },
+        "built_process_sqlite_version": { "$ref": "#/$defs/nonempty_string" }
+      }
+    },
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "generator", "corpus_seed", "query_generator", "query_seed", "source_identity", "vector_dimension", "query_count", "scale_points", "perf_gates_git_blob", "descriptor_sha256"],
+      "properties": {
+        "id": { "const": "ac013-deterministic-vector-v1" },
+        "generator": { "const": "seed_ac013_corpus" },
+        "corpus_seed": { "const": "0x0AC0_13D0_13D0" },
+        "query_generator": { "const": "ac013_query_bodies" },
+        "query_seed": { "const": "0x0AC0_130D_EC0D_E000" },
+        "source_identity": { "const": "test:fixture" },
+        "vector_dimension": { "const": 384 },
+        "query_count": { "const": 1000 },
+        "scale_points": { "const": [10000, 100000, 1000000] },
+        "perf_gates_git_blob": { "$ref": "#/$defs/git_sha" },
+        "descriptor_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host", "gpu", "isolation"],
+      "properties": {
+        "host": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["collect_host_spec_sha256", "total_ram_bytes", "available_ram_bytes", "database_filesystem", "database_free_bytes", "cpu_governor_frequency_policy"],
+          "properties": {
+            "collect_host_spec_sha256": { "$ref": "#/$defs/sha256" },
+            "total_ram_bytes": { "type": "integer", "minimum": 1 },
+            "available_ram_bytes": { "$ref": "#/$defs/nonnegative_integer" },
+            "database_filesystem": { "$ref": "#/$defs/nonempty_string" },
+            "database_free_bytes": { "$ref": "#/$defs/nonnegative_integer" },
+            "cpu_governor_frequency_policy": { "$ref": "#/$defs/nonempty_string" }
+          }
+        },
+        "gpu": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state"],
+          "properties": {
+            "state": { "enum": ["available", "not_present_or_unavailable"] },
+            "name": { "$ref": "#/$defs/nonempty_string" },
+            "driver_version": { "$ref": "#/$defs/nonempty_string" },
+            "memory_total_mb": { "type": "integer", "minimum": 1 }
+          },
+          "allOf": [{
+            "if": { "properties": { "state": { "const": "available" } } },
+            "then": { "required": ["name", "driver_version", "memory_total_mb"] },
+            "else": { "not": { "anyOf": [{ "required": ["name"] }, { "required": ["driver_version"] }, { "required": ["memory_total_mb"] }] } }
+          }]
+        },
+        "isolation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["timestamp", "load_evidence_sha256", "process_inventory_sha256", "cpu_affinity", "governor_policy", "power_policy", "container_or_vm", "no_concurrent_benchmark"],
+          "properties": {
+            "timestamp": { "type": "string", "format": "date-time" },
+            "load_evidence_sha256": { "$ref": "#/$defs/sha256" },
+            "process_inventory_sha256": { "$ref": "#/$defs/sha256" },
+            "cpu_affinity": { "$ref": "#/$defs/nonempty_string" },
+            "governor_policy": { "$ref": "#/$defs/nonempty_string" },
+            "power_policy": { "$ref": "#/$defs/nonempty_string" },
+            "container_or_vm": { "$ref": "#/$defs/nonempty_string" },
+            "no_concurrent_benchmark": { "const": true }
+          }
+        }
+      }
+    },
+    "repetition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repetition", "raw", "command_exit_status", "record", "query_statistics"],
+      "properties": {
+        "repetition": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "raw": { "$ref": "#/$defs/raw_file" },
+        "command_exit_status": { "const": 0 },
+        "record": { "$ref": "#/$defs/record" },
+        "query_statistics": { "$ref": "#/$defs/query_statistics" }
+      }
+    },
+    "query_statistics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min_us", "max_us", "mean_us"],
+      "properties": {
+        "min_us": { "$ref": "#/$defs/nonnegative_integer" },
+        "max_us": { "$ref": "#/$defs/nonnegative_integer" },
+        "mean_us": { "type": "number", "minimum": 0 },
+        "p50_us": { "$ref": "#/$defs/nonnegative_integer" },
+        "p95_us": { "$ref": "#/$defs/nonnegative_integer" },
+        "p99_us": { "$ref": "#/$defs/nonnegative_integer" }
+      }
+    },
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows", "treatment", "repetitions"],
+      "properties": {
+        "rows": { "enum": [10000, 100000, 1000000] },
+        "treatment": { "enum": ["process_cold", "warm"] },
+        "repetitions": { "type": "array", "minItems": 5, "maxItems": 5, "items": { "$ref": "#/$defs/repetition" } }
+      }
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw_log_digests", "invalid_reasons", "missing_prerequisites"],
+      "properties": {
+        "raw_log_digests": { "type": "array", "items": { "$ref": "#/$defs/manifest_entry" } },
+        "invalid_reasons": { "type": "array", "items": { "$ref": "#/$defs/nonempty_string" } },
+        "missing_prerequisites": { "type": "array", "items": { "$ref": "#/$defs/nonempty_string" } }
+      }
+    },
+    "clean_integrity": {
+      "allOf": [
+        { "$ref": "#/$defs/integrity" },
+        { "properties": { "raw_log_digests": { "minItems": 30, "maxItems": 30 }, "invalid_reasons": { "maxItems": 0 }, "missing_prerequisites": { "maxItems": 0 } } }
+      ]
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cells"],
+      "properties": { "cells": { "type": "array", "minItems": 6, "maxItems": 6, "items": { "$ref": "#/$defs/summary_cell" } } }
+    },
+    "summary_cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rows", "treatment", "repetition_count", "repetition_level"],
+      "properties": {
+        "rows": { "enum": [10000, 100000, 1000000] },
+        "treatment": { "enum": ["process_cold", "warm"] },
+        "repetition_count": { "const": 5 },
+        "repetition_level": { "type": "object", "additionalProperties": { "$ref": "#/$defs/repetition_range" }, "minProperties": 3 }
+      }
+    },
+    "repetition_range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["median", "min", "max"],
+      "properties": {
+        "median": { "type": "number", "minimum": 0 },
+        "min": { "type": "number", "minimum": 0 },
+        "max": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

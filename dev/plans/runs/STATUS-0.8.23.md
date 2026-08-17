@@ -27,7 +27,7 @@ Windows evidence; the remaining candidate slices require explicit commission.
 | 30 | MEMEX-INTEGRATION — Memex readiness and graph-integration contract | COMPLETED on `origin/release/0.8.23` (`776d2c20`); `origin/main` integration is PENDING. |
 | 50 | GITLEAKS-GUARDS — staged pre-commit and always-on CI secret scanning | LANDED (`ae7cef0e`). |
 | 60 | WINDOWS-WAL — Windows WAL checkpoint reader-conflict diagnosis | COMPLETED on `origin/release/0.8.23` (`423baf6a`); `origin/main` integration is PENDING. |
-| 65 | WAL-ATTRIBUTION — Windows WAL checkpoint root-cause attribution | IN_PROGRESS — implementation and GitHub-hosted job `95270599876` validate the known Engine-reader diagnostic; Python, retained-result/idle-Engine, serial-lifecycle, and projection-runtime controls still block completion, landing, root-cause attribution, and remedies. |
+| 65 | WAL-ATTRIBUTION — Windows WAL checkpoint root-cause attribution | IN_PROGRESS / UNATTRIBUTED — run `32014441608`, job `95340828268`, adds one clean hosted unperturbed actual-checkpoint repetition for direct Rust and current installed Python; the held binding snapshot remains the owned-reader positive and the retained-result control passed. Job `95332307148` had instead reproduced five unattributed BUSY/25-frame current-Python attempts after idle recovery reads; its earlier raw ladder was perturbing. Two additional fresh Windows repetitions still block completion, landing, attribution, and remedies. |
 | 40 | SCALE-CHARACTERIZATION — fixture-scoped scale characterization | NOT_STARTED. |
 | 10 | CUDA-CONTRACT — CUDA environment, artifact contract, and protected runner gate | NOT_STARTED. |
 | 20 | CUDA-PACKAGE — CUDA package, rehearsal, and installed-artifact smokes | NOT_STARTED. |

@@ -89,16 +89,21 @@
       "hooks are absent from shipping builds; incomplete evidence remains UNATTRIBUTED",
       "hosted CI exact-selects both controls, rejects zero selection, and static/mutation checks prove attachment to the real attempt and absence of the perturbing primary path"
     ],
-    "status": "IMPLEMENTED_LOCAL_VALIDATED_HOSTED_PENDING",
-    "green_evidence": "The exact direct-Rust control passed locally with paired before/after records attached to its one real erase attempt. A disposable test-hooks wheel installed into an isolated local environment passed the exact current Python serial control, retaining paired actual-attempt records and a clean observation. Neither local result is Windows attribution or a remedy decision."
+    "status": "IMPLEMENTED_HOSTED_ONE_CLEAN_REPETITION",
+    "green_evidence": "The exact direct-Rust control passed locally with paired before/after records attached to its one real erase attempt. A disposable test-hooks wheel installed into an isolated local environment passed the exact current Python serial control, retaining paired actual-attempt records and a clean observation. GitHub-hosted Windows run 32014441608, job 95340828268, then retained one clean unperturbed real-attempt observation for each direct Rust and current installed Python: writer_autocommit=1, complete 12-role direct autocommit inventory, collector_roles=idle, checkpoint_begin_overlap=0, busy=0, log_frames=0, and checkpointed_frames=0 before clean completion. This is one repetition, not Windows attribution or a remedy decision."
+  },
+  "hosted_windows_actual_checkpoint_observation": {
+    "run": "32014441608",
+    "job": "95340828268",
+    "classification": "UNATTRIBUTED",
+    "evidence": "Direct Rust and current installed Python each completed one unperturbed actual checkpoint with writer autocommit, complete 12-role direct autocommit inventory, idle collector, no local overlap, busy=0, and zero frame counters. The installed binding held-snapshot positive retained five owned_reader_snapshot reader_worker:0 busy attempts and, after release, reader_autocommit=1 plus collector=idle; retained materialized result passed. Job 95332307148 remains the contrast: current installed Python had five unperturbed BUSY attempts with 25 frames after idle recovery reads, whereas its raw ladder was perturbing. Neither record identifies the busy holder.",
+    "remaining": "Two additional independently fresh hosted Windows repetitions of the relevant positive and negative controls are required before any remedy proposal."
   },
   "remaining_controls": [
-    "hosted Windows execution of the committed post-COMMIT acknowledgement diagnostic, exact inventory, bounded independent raw TRUNCATE samples, and conditional fresh-child probe after the existing held-reader fail-closed erase",
-    "hosted Windows rerun that retains either released exact-first-erase observation as OBSERVED_EXPECTED_ERASURE_INCOMPLETE or OBSERVED_CLEAN_SERIAL_COMPLETION and then resolves and installs the single workspace-absolute current test-hooks wheel before the installed binding, retained-result, and current serial controls",
-      "three fresh GitHub-hosted Windows repetitions of each applicable positive and negative control",
-      "released-0.8.22 observational serial result and current-source attribution result retained from hosted Windows",
-      "first-party Windows evidence for the installed binding, retained-result, incident-shaped serial, projection-runtime, and explicit close-boundary controls"
-    ]
+    "two additional independently fresh GitHub-hosted Windows repetitions of each applicable positive and negative control",
+    "released-0.8.22 observational serial result and current-source attribution result retained from hosted Windows for the remaining repetitions",
+    "first-party Windows evidence, across all three repetitions, for the installed binding, retained-result, incident-shaped serial, projection-runtime, and explicit close-boundary controls"
+  ]
   },
   "fix_n": {
     "review_finding": "Projection dispatcher and worker SQLite connections were omitted from the owned-role model, and the retained-result RED wording encoded a false BUSY expectation.",

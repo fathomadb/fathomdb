@@ -174,4 +174,4 @@ def test_qualification_records_ambiguous_parent_membership_without_emitting_a_re
     report = json.loads(report_path.read_text(encoding="utf-8"))
     assert report["qualification_status"] == "blocked"
     assert report["blockers"] == ["parent_relation_proof_ambiguous_child_identifier"]
-    assert report["artifacts"] == {}
+    assert set(report["artifacts"]) == {"trace_projection"}

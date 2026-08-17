@@ -41,17 +41,40 @@ function_body() {
 }
 
 python_function_body() {
-  awk -v name="$2" '
-    $0 ~ "^def " name "\\(" { inside = 1 }
-    inside && $0 ~ "^def " && $0 !~ "^def " name "\\(" { exit }
-    inside { print }
-  ' "$1"
+  python3 - "$1" "$2" <<'PY'
+import ast
+import sys
+
+source_path, function_name = sys.argv[1:]
+source = open(source_path, encoding="utf-8").read()
+module = ast.parse(source, filename=source_path)
+for node in module.body:
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function_name:
+        lines = source.splitlines()
+        print("\n".join(lines[node.lineno - 1 : node.end_lineno]))
+        break
+else:
+    raise SystemExit(f"top-level Python function not found: {function_name}")
+PY
 }
 
 assert_before_in_function() {
   local source="$1" function="$2" first="$3" second="$4" description="$5"
   local body first_line second_line
   body="$(function_body "$source" "$function")"
+  first_line="$(grep -nF -- "$first" <<<"$body" | head -n 1 | cut -d: -f1 || true)"
+  second_line="$(grep -nF -- "$second" <<<"$body" | head -n 1 | cut -d: -f1 || true)"
+  if [ -n "$first_line" ] && [ -n "$second_line" ] && [ "$first_line" -lt "$second_line" ]; then
+    pass "$description"
+  else
+    fail "$description (expected $first before $second)"
+  fi
+}
+
+assert_before_in_python_function() {
+  local source="$1" function="$2" first="$3" second="$4" description="$5"
+  local body first_line second_line
+  body="$(python_function_body "$source" "$function")"
   first_line="$(grep -nF -- "$first" <<<"$body" | head -n 1 | cut -d: -f1 || true)"
   second_line="$(grep -nF -- "$second" <<<"$body" | head -n 1 | cut -d: -f1 || true)"
   if [ -n "$first_line" ] && [ -n "$second_line" ] && [ "$first_line" -lt "$second_line" ]; then
@@ -247,29 +270,29 @@ assert_before_in_text \
   'post-commit diagnostic command selected zero tests' \
   'serial_wheel_selector=current-source-test-hooks' \
   "current instrumented serial control runs after post-commit diagnostic artifact"
-assert_before_in_function \
+assert_before_in_python_function \
   "$PY_CONTROL" \
   "run_binding_reader_erase" \
   'python_binding_completion_ack' \
   'python_binding_direct_inventory=' \
   "binding diagnostic emits completion acknowledgement before direct inventory"
-assert_before_in_function \
+assert_before_in_python_function \
   "$PY_CONTROL" \
   "run_binding_reader_erase" \
   'python_binding_direct_inventory=' \
-  'python_binding_raw case=before_engine_sampler' \
+  '_raw_binding_checkpoint(path, "before_engine_sampler")' \
   "binding diagnostic completes direct inventory before raw samples"
-assert_before_in_function \
+assert_before_in_python_function \
   "$PY_CONTROL" \
   "run_binding_reader_erase" \
-  'python_binding_raw case=before_engine_sampler' \
-  'python_binding_engine_sampler' \
+  '_raw_binding_checkpoint(path, "before_engine_sampler")' \
+  'samples = native._checkpoint_at_rest_for_test()' \
   "binding diagnostic places the Engine sampler after raw sample one"
-assert_before_in_function \
+assert_before_in_python_function \
   "$PY_CONTROL" \
   "run_binding_reader_erase" \
-  'python_binding_engine_sampler' \
-  'python_binding_raw case=after_engine_sampler' \
+  'samples = native._checkpoint_at_rest_for_test()' \
+  '_raw_binding_checkpoint(path, "after_engine_sampler")' \
   "binding diagnostic places raw sample two after the Engine sampler"
 binding_erase_calls="$(python_function_body "$PY_CONTROL" "run_binding_reader_erase" | grep -Fc 'engine.erase_source(' || true)"
 if [ "$binding_erase_calls" -eq 1 ]; then
@@ -513,6 +536,19 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves live fresh writer fact is load-bearing"
   else
     fail "mutation did not fail live fresh writer fact assertion: $fresh_connection_out"
+  fi
+
+  BINDING_ORDER_MUTATED="$TMPROOT/ci-without-binding-command.yml"
+  sed '/--control binding --wheel-version/d' "$CI" >"$BINDING_ORDER_MUTATED"
+  set +e
+  binding_order_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$BINDING_ORDER_MUTATED" bash "$0" 2>&1)"
+  binding_order_rc=$?
+  set -e
+  if [ "$binding_order_rc" -ne 0 ] \
+    && grep -Fq 'installed serial control runs before the binding diagnostic (expected --control serial before --control binding)' <<<"$binding_order_out"; then
+    pass "mutation proves installed serial-to-binding ordering is load-bearing"
+  else
+    fail "mutation did not fail installed serial-to-binding ordering assertion: $binding_order_out"
   fi
 
   while IFS='|' read -r selector guard; do

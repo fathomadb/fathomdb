@@ -28,10 +28,13 @@ binding; that environmental limitation is recorded in its handoff, not treated
 as a green gate. The integrated catalog is plan-only; no LOCOMO execution is
 authorized.
 
-`SCALE-01` remains the sole active writer in
+`SCALE-01` handed off `9997c2cd` from
 `/tmp/fathomdb-scale-01-20260816` on
-`experiments/performance-scale-01-20260816`. Its worker must provide the same
-red-first, verification, and independent-review evidence before integration.
+`experiments/performance-scale-01-20260816`; it is awaiting independent
+read-only review. Its red-first, focused 10-test, full 80-experiment-test, and
+full `./scripts/agent-verify.sh` evidence passed (`72/73` suites, one documented
+skip). The worktree-local native binding used for that verifier is ignored local
+state, not a source change. No TC-5 execution is authorized.
 
 `PARENT-01` may consume the accepted trace contract in preparation but is not
 commissioned by this entry. The coordinator alone edits this board and PROGRAM
@@ -46,7 +49,7 @@ run, extractor, GPU/model, paid service, external write, or push.
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
 | LOCOMO-01 | Active | Phase-A preparation integrated | `4bbc1b4f` integrates accepted worker `65427d29`: six frozen treatment tuples, 48-cell plan-only catalog, and no live runner. Next gate: separately authorized fixed-subset dry run/execution preparation; no live grid is authorized here. |
 | PARENT-01 | Planned | Contract dependency satisfied; not commissioned | May consume the accepted trace contract in preparation; hold writer work behind the two-lane authorization. |
-| SCALE-01 | Planned | Commissioned: isolated manifest-runner preparation | Base `d599d4a5`; worker owns TC-5 runner/tests and dated handoff only. Next gate: worker handoff, then independent read-only review; no live execution. |
+| SCALE-01 | Planned | Handoff pending independent review | Worker SHA `9997c2cd`; pure TC-5 manifest validator/planning receipt passed focused and full local verification. Next gate: independent read-only review; no live execution. |
 | CORPUS-01 | Planned | Queued independent preparation | Create corpus/license matrix and human-gold readiness contract. |
 | ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |
 | MEMORY-01 | Blocked | Waiting for ANSWER-01 | Require selected profile, native prerequisites, and declared spend ceiling. |

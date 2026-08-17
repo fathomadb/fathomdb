@@ -9,10 +9,11 @@ not replace factual preflight for a particular external payload or license.
 ## Purpose and boundary
 
 `experiments/configs/corpus-01/corpus-matrix.v1.json` is the versioned
-portfolio record. `experiments/configs/corpus-01/human-gold-protocol.v1.json`
-binds an external-only review protocol to its canonical SHA-256. The validator
-in `experiments.corpus_matrix` validates only committed metadata and a future
-content-free manifest. It does not acquire, open, or write a corpus payload.
+portfolio record. `experiments/configs/corpus-01/human-gold-protocol.v2.json`
+binds an external-only qualification protocol to its canonical SHA-256. The
+validator in `experiments.corpus_matrix` validates only committed metadata and
+a future content-free manifest. It does not acquire, open, or write a corpus
+payload.
 
 Every payload, upstream license copy, question, answer, evidence excerpt, and
 human-review worksheet remains outside the repository. A future external
@@ -26,6 +27,11 @@ script, or historical register describes a source but this campaign worktree
 has not established the selected external payload's presence or hash. It is
 not evidence that the payload currently exists. `not_acquired` means no
 payload or registry pin is claimed here.
+
+`human-gold-protocol.v1.json` is retained only as the initial planning
+prototype. It cannot qualify a corpus/category pair or support a product
+claim. Qualification uses v2 and the amendment route below; no compatibility
+path upgrades a v1 planning manifest into evidence.
 
 ## Corpus portfolio
 
@@ -71,15 +77,37 @@ Counts are denominators, not automatic power: every measured class needs its
 own paired analysis, confidence interval, exclusions, and corpus-specific
 result. Do not pool unrelated corpora, class types, or sparse-qrel datasets.
 
+## Native and qualified-human-gold eligibility
+
+The matrix distinguishes the two evidence modes explicitly:
+
+- A `native_corpus` mode is available only for a category named in that
+  corpus's `supported_categories`. This says the corpus has the appropriate
+  question shape; it does not waive payload, license, metric, or power
+  preflight.
+- A `qualified_human_gold` mode is the only path for an unsupported pair. For
+  example, `LOCOMO × knowledge_update` fails closed unless a v2 qualified
+  manifest and a matching versioned `corpus-01-human-gold-amendment.v1` are
+  both supplied. The amendment binds the matrix SHA, qualified-manifest SHA,
+  corpus/category pair, and an approval reference. It is a future
+  coordinator/HITL record, not created by this preparation lane.
+
+A broad agent-memory claim requires qualified evidence for every lifecycle
+category. Matrix intent, a registered recipe, or a pilot with a different
+category is insufficient portfolio/category evidence.
+
 ## Human-review protocol
 
-The `corpus-01-human-gold-protocol.v1` contract covers four categories:
+The `corpus-01-human-gold-protocol.v2` contract covers four categories:
 `knowledge_update`, `supersession`, `source_erasure`, and
 `time_scoped_validity`.
 
-1. A coordinator first records an external payload-root SHA-256, source pin,
-   license copy/hash, corpus ID, and selected-class counts. Any missing or
-   conflicting fact fails closed as a factual prerequisite.
+1. A coordinator first creates one content-free factual-preflight binding per
+   selected corpus/category. It records the source-payload SHA-256, license
+   copy SHA-256, source or generator revision, selected class counts,
+   exclusions SHA-256, corpus-supported metric, paired-power SHA-256, claim
+   ID, and claim SHA-256. Any missing, undeclared, over-large, or conflicting
+   value fails closed before a human record can count.
 2. Sampling happens against that external material. A reviewer receives the
    original source material outside the repo and determines whether the
    proposed lifecycle relation is `supported`, `contradicted`, or
@@ -88,9 +116,10 @@ The `corpus-01-human-gold-protocol.v1` contract covers four categories:
    detailed worksheets and any original text remain external. Disagreement is
    adjudicated externally; the final manifest says only `adjudicated` or
    `not_required`.
-4. The resulting external manifest binds the matrix SHA, protocol SHA, payload
-   root SHA, opaque source/evidence locators, and hashed reviewer IDs. It has
-   no raw question, answer, evidence text, payload, or quote.
+4. The resulting external manifest binds the matrix SHA, v2 protocol SHA, the
+   factual-preflight entries, opaque source/evidence locators, and hashed
+   reviewer IDs. It has no raw question, answer, evidence text, payload, or
+   quote.
    A `pilot` manifest can cover one category; a `portfolio_complete` manifest
    must cover all four categories and may name only a corpus in the frozen
    matrix.
@@ -110,12 +139,14 @@ Before any authorized acquisition or human review, the coordinator must choose
 the specific source/split and qualify, outside this repository:
 
 1. upstream revision or generator pin and license copy;
-2. external payload-root path and SHA-256 (including selected questions/qrels
-   where applicable);
+2. external payload-root hash (including selected questions/qrels where
+   applicable);
 3. actual selected-class counts and exclusion rules;
-4. source-specific redistribution posture, including whether derivatives or
+4. corpus-supported metric, paired-power artifact, claim ID, and claim hash;
+5. source-specific redistribution posture, including whether derivatives or
    human annotation metadata inherit a non-commercial restriction; and
-5. the intended metric, paired comparison, power calculation, and claim text.
+6. a versioned, review-accepted human-gold amendment if the selected category
+   is unsupported natively by that corpus.
 
 These are factual gates, not permissions to acquire a new source or conduct a
 human review. New payloads, human work, or external artifacts still need the

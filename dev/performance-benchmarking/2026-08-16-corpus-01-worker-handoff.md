@@ -10,14 +10,19 @@
   portfolio, factual-status distinction, payload/redistribution rules,
   category coverage, corpus-specific metrics, known class counts, and claim
   limits.
-- `experiments/configs/corpus-01/human-gold-protocol.v1.json` binds the matrix
+- `experiments/configs/corpus-01/human-gold-protocol.v2.json` binds the matrix
   and forbids raw answers, questions, evidence text, payloads, and quotes from
-  repository manifests.
-- `experiments/corpus_matrix.py` is a fail-closed validator for the two
-  committed contracts and a future external content-free human-gold manifest.
-- `tests/experiments/test_corpus_matrix.py` was written first. It exercises the
-  full portfolio, exact matrix binding, lifecycle coverage, two-reviewer rule,
-  and rejection of raw fields.
+  repository manifests. Its v2 manifest requires source-payload and license
+  hashes, source/generator revision, selected class counts, exclusions, metric,
+  paired-power, and claim bindings for every selected corpus/category pair.
+- `experiments/corpus_matrix.py` is a fail-closed validator for matrix-native
+  eligibility, qualified human-gold manifests, approved amendments, and
+  complete lifecycle portfolio coverage.
+- `tests/experiments/test_corpus_matrix.py` exercises the full portfolio,
+  exact matrix binding, lifecycle coverage, two-reviewer rule, and rejection of
+  raw fields. `tests/experiments/test_corpus_matrix_review_remediation.py`
+  adds the review-required native-vs-qualified eligibility, preflight,
+  amendment, and portfolio-coverage cases.
 - `2026-08-16-corpus-01-matrix-and-human-gold-contract.md` explains the
   factual boundaries, allowed claims, and review workflow for humans and
   agents.
@@ -31,11 +36,13 @@ change any coordinator-owned file.
 
 ## Verification
 
-The red checkpoint was `PYTHONPATH=. python3 -m pytest
-tests/experiments/test_corpus_matrix.py -q` before `experiments.corpus_matrix`
-existed: collection failed with `ImportError`. The green focused result is ten
-tests passing. `./scripts/agent-lint-md.sh`, `git diff --check`, and the full
-`./scripts/agent-verify.sh` pass in this worktree.
+Correction to the original handoff: its all-in-one commit did **not** contain a
+separately committed red checkpoint, so it must not be described as one. The
+review-remediation red checkpoint is committed at `572986b6`: its three tests
+failed with missing qualification APIs before this implementation. The focused
+suite now covers 16 cases. Re-run `./scripts/agent-lint-md.sh`, `git diff
+--check`, and the full `./scripts/agent-verify.sh` after this remediation
+commit before integration.
 
 ## Review focus
 
@@ -45,10 +52,12 @@ tests passing. `./scripts/agent-lint-md.sh`, `git diff --check`, and the full
    presence.
 2. Confirm no generated or static artifact contains raw or verbatim
    non-redistributable material, a question, or an answer oracle.
-3. Check that the protocol does not convert the authorized human-gold work
-   into a license-free claim: actual source/split, hash, class count, paired
-   power, and claim still need factual preflight.
-4. Check the strict schema choices against follow-on needs before allowing an
+3. Check that unsupported pairs cannot obtain eligibility except through a
+   qualified v2 manifest plus a matching, approved amendment.
+4. Check every selected corpus/category is bound to source-payload and license
+   hashes, source/generator revision, class counts, exclusions, a permitted
+   metric, paired-power artifact, and claim hash before human evidence counts.
+5. Check the strict schema choices against follow-on needs before allowing an
    external manifest writer. Any protocol revision must be versioned and
    review-gated, not silently relaxed.
 

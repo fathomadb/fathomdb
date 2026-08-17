@@ -33,6 +33,8 @@ CUDA_PREFLIGHT = ROOT / "scripts/release/cuda-preflight.sh"
 CUDA_MANYLINUX_DOCKERFILE = ROOT / "scripts/release/Dockerfile.cuda-manylinux"
 CUDA_MANYLINUX_PROVISIONER = ROOT / "scripts/release/provision-cuda-manylinux.sh"
 CUDA_IMAGE_ATTESTATION = ROOT / "scripts/release/cuda-image-attestation.sh"
+CUDA_PREFLIGHT_WITNESS_SCHEMA = ROOT / "scripts/release/cuda-preflight-witness.schema.json"
+CUDA_PREFLIGHT_WITNESS_VERIFIER = ROOT / "scripts/release/verify-cuda-preflight-witness.py"
 
 NAPI_CUDA_FEATURE = ["default-embedder", "fathomdb-engine/embed-cuda"]
 NAPI_CUDA_BUILD = "bash ../../scripts/release/build-napi-cuda.sh"
@@ -76,6 +78,52 @@ CANDLE_PACKAGES = (
     "candle-nn-fathomdb",
     "candle-transformers-fathomdb",
 )
+DRIVERLESS_DEVICE_SELECTION_VARIABLES = (
+    "FATHOMDB_EMBED_DEVICE",
+    "FATHOMDB_RERANK_DEVICE",
+    "CUDA_VISIBLE_DEVICES",
+    "NVIDIA_VISIBLE_DEVICES",
+    "HIP_VISIBLE_DEVICES",
+    "ROCR_VISIBLE_DEVICES",
+)
+EXPECTED_CUDA_TRUSTED_ROUTE_JOB = """\
+  verify-cuda-trusted-route:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, inspect only the immutable candidate
+        with:
+          ref: ${{ inputs.candidate_commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify default-branch-owned CUDA route
+        shell: bash
+        env:
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          CANDIDATE_SHA: ${{ inputs.candidate_commit }}
+        run: |
+          set -euo pipefail
+          if [ "$WORKFLOW_REF" != 'fathomadb/fathomdb/.github/workflows/release.yml@refs/heads/main' ]; then
+            echo "CUDA trusted route must run from the default-branch release workflow" >&2
+            exit 1
+          fi
+          if ! [[ "$CANDIDATE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "CUDA trusted route requires a full immutable candidate SHA" >&2
+            exit 1
+          fi
+          RESOLVED_CANDIDATE="$(git rev-parse --verify "${CANDIDATE_SHA}^{commit}")"
+          if [ "$(git rev-parse HEAD)" != "$RESOLVED_CANDIDATE" ]; then
+            echo "CUDA trusted route checkout does not match the requested candidate" >&2
+            exit 1
+          fi
+          git rev-parse --verify refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$RESOLVED_CANDIDATE" refs/remotes/origin/main; then
+            echo "CUDA trusted route candidate is not reachable from default branch" >&2
+            exit 1
+          fi"""
 
 
 def fail(message: str) -> None:
@@ -126,6 +174,35 @@ def workflow_job(name: str) -> str:
 def require_fragment(block: str, fragment: str, label: str) -> None:
     if fragment not in block:
         fail(f"{label} is missing {fragment!r}")
+
+
+def driverless_smoke_sections(preflight: str) -> tuple[str, str]:
+    python_marker = "printf 'cuda-preflight: prove the installed Python wheel defaults to CPU in a driverless container\\n'"
+    napi_marker = "printf 'cuda-preflight: prove the installed N-API package defaults to CPU in a driverless container\\n'"
+    gpu_marker = "wait_for_cuda_zero_container_pid()"
+    try:
+        _, after_python = preflight.split(python_marker, 1)
+        python_smoke, after_napi = after_python.split(napi_marker, 1)
+        napi_smoke, _ = after_napi.split(gpu_marker, 1)
+    except ValueError:
+        fail("CUDA preflight must contain both delimited driverless smoke sections")
+    return python_smoke, napi_smoke
+
+
+def require_driverless_device_absence(preflight: str) -> None:
+    scrub = (
+        "env -u FATHOMDB_EMBED_DEVICE -u FATHOMDB_RERANK_DEVICE -u CUDA_VISIBLE_DEVICES "
+        "-u NVIDIA_VISIBLE_DEVICES -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES"
+    )
+    sections = driverless_smoke_sections(preflight)
+    if any(section.count(scrub) != 1 for section in sections):
+        fail("CUDA preflight must scrub device-selection variables in each driverless CPU-default smoke")
+    for section in sections:
+        for variable in DRIVERLESS_DEVICE_SELECTION_VARIABLES:
+            assignment = re.compile(rf"(?:^|[;\s])(?:export\s+)?{variable}=", re.MULTILINE)
+            docker_env = re.compile(rf"(?:^|\s)-e\s+{variable}(?:=|\s|$)", re.MULTILINE)
+            if assignment.search(section) or docker_env.search(section):
+                fail(f"CUDA preflight driverless smoke injects device-selection variable {variable}")
 
 
 def main() -> None:
@@ -371,6 +448,20 @@ def main() -> None:
     require_fragment(napi_build, 'export PATH="$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin:$PATH"', "CUDA N-API build wrapper")
     require_fragment(napi_build, 'grep -F "$CUDA_NAPI_HOST_NVCC_VERSION"', "CUDA N-API build wrapper")
     preflight = read_text(CUDA_PREFLIGHT)
+    witness_schema = load_json(CUDA_PREFLIGHT_WITNESS_SCHEMA)
+    if witness_schema.get("$id") != "https://fathomdb.dev/schemas/cuda-preflight-witness/v1":
+        fail("CUDA preflight witness schema must declare its versioned schema ID")
+    schema_version = witness_schema.get("properties", {}).get("schema_version")
+    if not isinstance(schema_version, dict) or schema_version.get("const") != "fathomdb.cuda-preflight-witness/v1":
+        fail("CUDA preflight witness schema must pin its schema version")
+    verifier = read_text(CUDA_PREFLIGHT_WITNESS_VERIFIER)
+    for fragment in (
+        "REQUIRED_EVIDENCE",
+        "candidate SHA does not match the requested candidate",
+        "evidence digest mismatch",
+        "witness JSON is not canonical",
+    ):
+        require_fragment(verifier, fragment, "CUDA preflight witness verifier")
     for fragment in (
         'CONTAINER_UID="$(id -u)"',
         'CONTAINER_GID="$(id -g)"',
@@ -435,6 +526,10 @@ def main() -> None:
         "installed N-API CUDA artifact GPU proof",
         "gpu-python-cuda-witness.txt",
         "gpu-node-cuda-witness.txt",
+        "gpu-node-cuda-smoke.txt",
+        "cuda-preflight-witness.json",
+        'python3 "$SCRIPT_DIR/verify-cuda-preflight-witness.py"',
+        '--candidate-sha "$CANDIDATE_SHA"',
     ):
         require_fragment(preflight, fragment, "CUDA preflight")
     for forbidden in (
@@ -496,6 +591,12 @@ def main() -> None:
         fail("CUDA preflight must verify the complete pinned default-embedder cache manifest")
     if preflight.count("--query-compute-apps=pid --format=csv,noheader") != 2:
         fail("CUDA preflight must observe the spawned Python and N-API GPU smoke PIDs on CUDA:0")
+    require_driverless_device_absence(preflight)
+
+    trusted_route = workflow_job("verify-cuda-trusted-route")
+    trusted_route = trusted_route.split("\n\n  # Slice 0:", 1)[0].rstrip()
+    if trusted_route != EXPECTED_CUDA_TRUSTED_ROUTE_JOB:
+        fail("GitHub-hosted CUDA trusted-route verifier differs from the exact approved allowlist")
 
     job = workflow_job("cuda-contract-preflight")
     require_fragment(
@@ -506,7 +607,11 @@ def main() -> None:
     require_fragment(job, "runs-on: [self-hosted, Linux, X64, gpu, cuda-12]", "cuda-contract-preflight")
     for label in RUNNER_LABELS:
         require_fragment(job, label, "cuda-contract-preflight runner labels")
-    require_fragment(job, "needs: verify-release", "cuda-contract-preflight")
+    require_fragment(
+        job,
+        "needs: [verify-release, verify-cuda-trusted-route]",
+        "cuda-contract-preflight",
+    )
     if not re.search(
         r"^    permissions:\n      contents: read\n",
         job,

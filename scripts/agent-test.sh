@@ -293,6 +293,7 @@ run_tier_suite fast test-release-contract-truth bash scripts/tests/test_release_
 # Slice 0 (0.8.23): CPU CI checks the CUDA feature/build/preflight seam
 # statically; the real build and smoke remain restricted to the release runner.
 run_tier_suite fast test-cuda-release-contract bash scripts/tests/test_cuda_release_contract.sh
+run_tier_suite fast test-cuda-preflight-witness bash scripts/tests/test_cuda_preflight_witness.sh
 
 # 0.8.23 Slice 80: the real Tegra CUDA proof is a manual-only self-hosted
 # runner route. This static mutation suite retains its exact runner identity,

@@ -104,12 +104,51 @@ jobs:
         # Queries crates.io directly (read-only, fail-closed on any error).
         run: bash scripts/release/verify-embedder-api-no-drift.sh
 
+  # Slice 10: this job decides CUDA runner eligibility without executing any
+  # candidate script. It is intentionally hosted; the self-hosted preflight
+  # below may start only after this default-branch-owned check passes.
+  verify-cuda-trusted-route:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, inspect only the immutable candidate
+        with:
+          ref: ${{ inputs.candidate_commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify default-branch-owned CUDA route
+        shell: bash
+        env:
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          CANDIDATE_SHA: ${{ inputs.candidate_commit }}
+        run: |
+          set -euo pipefail
+          if [ "$WORKFLOW_REF" != 'fathomadb/fathomdb/.github/workflows/release.yml@refs/heads/main' ]; then
+            echo "CUDA trusted route must run from the default-branch release workflow" >&2
+            exit 1
+          fi
+          if ! [[ "$CANDIDATE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "CUDA trusted route requires a full immutable candidate SHA" >&2
+            exit 1
+          fi
+          RESOLVED_CANDIDATE="$(git rev-parse --verify "${CANDIDATE_SHA}^{commit}")"
+          if [ "$(git rev-parse HEAD)" != "$RESOLVED_CANDIDATE" ]; then
+            echo "CUDA trusted route checkout does not match the requested candidate" >&2
+            exit 1
+          fi
+          git rev-parse --verify refs/remotes/origin/main
+          if ! git merge-base --is-ancestor "$RESOLVED_CANDIDATE" refs/remotes/origin/main; then
+            echo "CUDA trusted route candidate is not reachable from default branch" >&2
+            exit 1
+          fi
+
   # Slice 0: a dry-run release dispatch from the trusted main workflow is the
-  # only non-publishing route to the restricted CUDA runner group. The release
-  # gate validates the immutable candidate is reachable from main before this
-  # job is eligible; a pull-request workflow ref cannot select this group.
+  # only non-publishing route to the restricted CUDA runner group.
   cuda-contract-preflight:
-    needs: verify-release
+    needs: [verify-release, verify-cuda-trusted-route]
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
     runs-on: [self-hosted, Linux, X64, gpu, cuda-12]
     timeout-minutes: 45

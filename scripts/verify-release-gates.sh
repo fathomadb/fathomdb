@@ -144,12 +144,12 @@ fi
 # split by checking for `-` in the Axis-W version string read above.
 
 if [ "${RELEASE_GATES_SKIP_GIT_REACH:-0}" != "1" ]; then
+  main_ref="${RELEASE_GATES_HEAD_REF:-refs/heads/main}"
   case "$WS_VERSION" in
     *-*)
       printf 'release-gate: NOTE — %s is a release candidate (RC); HEAD-on-main check skipped per HITL 2026-05-17. GA tags still enforce.\n' "$WS_VERSION" >&2
       ;;
     *)
-      main_ref="${RELEASE_GATES_HEAD_REF:-refs/heads/main}"
       if ! git -C "$REPO_ROOT" rev-parse --verify "$main_ref" >/dev/null 2>&1; then
         die "cannot resolve $main_ref; release tags must be cut from a commit on main"
       fi

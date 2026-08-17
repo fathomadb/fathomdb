@@ -77,8 +77,6 @@ mkdir -p "$WITNESS_DIR/python-dist" "$WITNESS_DIR/python-unpacked"
   printf 'cuda_manylinux_python=%s\n' "$CUDA_MANYLINUX_PYTHON"
   printf 'driverless_python_image=%s\n' "$CUDA_DRIVERLESS_PYTHON_IMAGE"
   printf 'driverless_node_image=%s\n' "$CUDA_DRIVERLESS_NODE_IMAGE"
-  printf 'default_embedder_hf_home=%s\n' "$DEFAULT_EMBEDDER_HF_HOME"
-  printf 'default_embedder_snapshot=%s\n' "$DEFAULT_EMBEDDER_SNAPSHOT"
   printf '\n[nvidia-smi]\n'; nvidia-smi --query-gpu=index,name,driver_version --format=csv,noheader
   printf '\n[napi host nvcc]\n'; "$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin/nvcc" --version
   printf '\n[docker]\n'; docker version --format '{{.Server.Version}}'
@@ -201,9 +199,8 @@ docker run --rm --network none \
   --mount "type=bind,src=$WHEEL,dst=/input/fathomdb.whl,readonly" \
   --mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly" \
   -e HF_HOME=/fathomdb-hf \
-  -e FATHOMDB_EMBED_DEVICE=cpu \
   "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
-  sh -ceu '
+  env -u FATHOMDB_EMBED_DEVICE -u FATHOMDB_RERANK_DEVICE -u CUDA_VISIBLE_DEVICES -u NVIDIA_VISIBLE_DEVICES -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES sh -ceu '
     test ! -e /dev/nvidiactl
     python -m pip install --no-deps /input/fathomdb.whl
     python - <<"PY"
@@ -230,9 +227,8 @@ docker run --rm --network none \
   --mount "type=bind,src=$NPM_PLATFORM/$NPM_PLATFORM_TARBALL,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
   --mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly" \
   -e HF_HOME=/fathomdb-hf \
-  -e FATHOMDB_EMBED_DEVICE=cpu \
   "$CUDA_DRIVERLESS_NODE_IMAGE" \
-  sh -ceu '
+  env -u FATHOMDB_EMBED_DEVICE -u FATHOMDB_RERANK_DEVICE -u CUDA_VISIBLE_DEVICES -u NVIDIA_VISIBLE_DEVICES -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES sh -ceu '
     test ! -e /dev/nvidiactl
     mkdir /consumer
     cd /consumer
@@ -387,5 +383,46 @@ EOF
 ) > "$WITNESS_DIR/gpu-node-cuda-smoke.txt" 2>&1 &
 NODE_GPU_PID="$!"
 wait_for_cuda_zero_host_pid "$NODE_GPU_PID" 'installed N-API package' "$WITNESS_DIR/gpu-node-cuda-witness.txt"
+
+CANDIDATE_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+export WITNESS_DIR CANDIDATE_SHA
+python3 - <<'PY'
+import hashlib
+import json
+import os
+from pathlib import Path
+
+witness_dir = Path(os.environ["WITNESS_DIR"])
+evidence_names = (
+    "environment.txt",
+    "manylinux-build.txt",
+    "dynamic-dependencies.txt",
+    "python-auditwheel.txt",
+    "driverless-python-cpu-smoke.txt",
+    "driverless-napi-cpu-smoke.txt",
+    "gpu-python-cuda-witness.txt",
+    "gpu-node-cuda-witness.txt",
+    "gpu-node-cuda-smoke.txt",
+)
+evidence = {}
+for name in evidence_names:
+    path = witness_dir / name
+    if not path.is_file():
+        raise SystemExit(f"cuda-preflight: required witness evidence is absent: {name}")
+    evidence[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+payload = {
+    "schema_version": "fathomdb.cuda-preflight-witness/v1",
+    "candidate_sha": os.environ["CANDIDATE_SHA"],
+    "outcome": "passed",
+    "evidence_sha256": evidence,
+}
+(witness_dir / "cuda-preflight-witness.json").write_text(
+    json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n",
+    encoding="utf-8",
+)
+PY
+python3 "$SCRIPT_DIR/verify-cuda-preflight-witness.py" \
+  --witness-dir "$WITNESS_DIR" \
+  --candidate-sha "$CANDIDATE_SHA"
 
 printf 'cuda-preflight: pass; witness at %s\n' "$WITNESS_DIR"

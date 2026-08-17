@@ -1090,7 +1090,7 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
   fi
 
   SERIAL_NATIVE_STATE_MUTATED="$TMPROOT/installed-control-with-binding-observer-in-serial.py"
-  sed 's/fresh\._native\._arm_actual_checkpoint_observation_for_test()/fresh._native._arm_binding_native_state_observation_for_test()\n                fresh._native._arm_actual_checkpoint_observation_for_test()/' "$PY_CONTROL" \
+  sed 's/test_hooks\._arm_actual_checkpoint_observation_for_test()/test_hooks._arm_binding_native_state_observation_for_test()\n                test_hooks._arm_actual_checkpoint_observation_for_test()/' "$PY_CONTROL" \
     >"$SERIAL_NATIVE_STATE_MUTATED"
   set +e
   serial_native_state_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 PY_CONTROL="$SERIAL_NATIVE_STATE_MUTATED" bash "$0" 2>&1)"

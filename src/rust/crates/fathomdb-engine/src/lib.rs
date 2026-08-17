@@ -23744,11 +23744,11 @@ mod tests {
         report
     }
 
-    /// Slice 65 RED: an active projection worker is attributed only after its
-    /// real immediate SQLite transaction begins; normal erasure waits for that
-    /// work rather than being mischaracterized as a checkpoint collision.
+    /// Slice 65 projection-worker witness: preserve the original typed
+    /// refusal, then observe post-finish connection state without retrying
+    /// that erasure.
     #[test]
-    fn wal_attribution_projection_worker_transaction_is_owned_then_idle() {
+    fn wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded() {
         let dir = TempDir::new().expect("temp dir");
         let opened = Engine::open_with_embedder_for_test(
             dir.path().join("wal-attribution-projection.sqlite"),
@@ -23790,20 +23790,71 @@ mod tests {
                 && record.classification == "owned_runtime_transaction"
                 && record.active_roles == exact_active_role
         }));
+        eprintln!(
+            "slice65_wal projection_worker_original_erase=typed_erasure_incomplete owned_busy_attempts={}",
+            busy.len()
+        );
+
         release.wait();
         opened.engine.drain(5_000).expect("projection settles");
-        opened
+        let runtime = opened
             .engine
-            .complete_erasure_at_rest("slice65-projection-checkpoint")
-            .expect("direct checkpoint after release");
-        let record = opened
+            .projection_runtime
+            .report_runtime_connection_inventory_for_test()
+            .expect("post-finish runtime inventory");
+        assert_eq!(
+            runtime
+                .iter()
+                .find(|(role, index, _)| {
+                    *role == WalAttributionRole::ProjectionWorker && *index == 0
+                })
+                .map(|(_, _, autocommit)| *autocommit),
+            Some(true),
+            "projection worker owner thread must be autocommit after finishing"
+        );
+        let completion = opened.engine.wal_attribution_snapshot();
+        assert!(completion.no_owned_snapshot, "collector must be idle after projection finish");
+        eprintln!(
+            "slice65_wal projection_worker_completion_ack worker_autocommit=1 collector_roles=idle"
+        );
+
+        let inventory = opened.engine.native_state_inventory_for_test();
+        let inventory_text = super::native_state_inventory_text(&inventory);
+        eprintln!("slice65_wal projection_worker_native_state_inventory={inventory_text}");
+        if !inventory.complete {
+            eprintln!(
+                "slice65_wal projection_worker_native_state_inventory=state_inventory=incomplete"
+            );
+        }
+        assert!(inventory.complete, "post-finish native inventory: {inventory:?}");
+
+        opened.engine.arm_binding_native_state_observation_for_test();
+        let samples = opened
             .engine
-            .wal_attribution_checkpoints_for_test()
-            .last()
-            .cloned()
-            .expect("checkpoint record");
-        assert!(!record.busy && record.classification == "no_owned_snapshot");
-        eprintln!("slice65_wal projection_worker_transaction_released");
+            .checkpoint_at_rest_for_test()
+            .expect("run bounded post-finish checkpoint sampler");
+        assert!(!samples.is_empty() && samples.len() <= ERASURE_WAL_TRUNCATE_ATTEMPTS as usize);
+        let state_records = opened.engine.drain_binding_native_state_observations_for_test();
+        assert_eq!(state_records.len(), samples.len() * 2);
+        for state in &state_records {
+            eprintln!("slice65_wal projection_worker_sampler_native_state {state}");
+            if !state.contains("state_inventory=complete reason=complete") {
+                eprintln!(
+                    "slice65_wal projection_worker_sampler_native_state state_inventory=incomplete"
+                );
+            }
+            assert!(state.contains("state_inventory=complete reason=complete"));
+        }
+        let (busy, log_frames, checkpointed_frames) =
+            samples.last().copied().expect("sampler result");
+        eprintln!(
+            "slice65_wal projection_worker_sampler_terminal outcome={} attempts={} busy={} log_frames={} checkpointed_frames={}",
+            if busy { "busy" } else { "clean" },
+            samples.len(),
+            u8::from(busy),
+            log_frames,
+            checkpointed_frames,
+        );
     }
 
     /// 0.8.20 Slice 5a (R-20-E1, work item 2) — the registry GUARD.

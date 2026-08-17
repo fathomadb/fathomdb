@@ -238,6 +238,12 @@ for marker in \
   'runtime_probe_actual_drop' \
   'retained_materialized_idle=passed' \
   'projection_worker_transaction_ready' \
+  'fn wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded' \
+  'projection_worker_original_erase=typed_erasure_incomplete owned_busy_attempts=' \
+  'projection_worker_completion_ack worker_autocommit=1 collector_roles=idle' \
+  'projection_worker_native_state_inventory=' \
+  'projection_worker_sampler_native_state' \
+  'projection_worker_sampler_terminal outcome=' \
   'fn wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic' \
   'post_commit_ack_for_test' \
   'post_commit_raw case={case}' \
@@ -639,6 +645,80 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves managed-reader no-retry guard is load-bearing"
   else
     fail "mutation did not fail managed-reader no-retry guard: $managed_reader_retry_out"
+  fi
+
+  for marker in \
+    'projection_worker_original_erase=typed_erasure_incomplete owned_busy_attempts=5' \
+    'projection_worker_completion_ack worker_autocommit=1 collector_roles=idle' \
+    'projection_worker_native_state_inventory=state_inventory=complete reason=complete' \
+    'projection_worker_sampler_native_state control=binding_sampler phase=before' \
+    'projection_worker_sampler_native_state control=binding_sampler phase=after' \
+    'projection_worker_sampler_terminal outcome='; do
+    PROJECTION_MARKER_MUTATED="$TMPROOT/ci-without-projection-marker.yml"
+    sed "s|$marker|projection-marker-removed|" "$CI" >"$PROJECTION_MARKER_MUTATED"
+    set +e
+    projection_marker_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$PROJECTION_MARKER_MUTATED" bash "$0" 2>&1)"
+    projection_marker_rc=$?
+    set -e
+    if [ "$projection_marker_rc" -ne 0 ] && grep -Fq "missing: $marker" <<<"$projection_marker_out"; then
+      pass "mutation proves projection-worker artifact marker is load-bearing: $marker"
+    else
+      fail "mutation did not fail projection-worker artifact marker: $marker: $projection_marker_out"
+    fi
+  done
+
+  PROJECTION_SELECTOR_MUTATED="$TMPROOT/ci-without-projection-selector.yml"
+  sed 's/tests::wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded/tests::projection-worker-selector-removed/' "$CI" >"$PROJECTION_SELECTOR_MUTATED"
+  set +e
+  projection_selector_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$PROJECTION_SELECTOR_MUTATED" bash "$0" 2>&1)"
+  projection_selector_rc=$?
+  set -e
+  if [ "$projection_selector_rc" -ne 0 ] \
+    && grep -Fq 'job selects the truthful full projection-worker lib-test path (missing: tests::wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded)' <<<"$projection_selector_out"; then
+    pass "mutation proves projection-worker exact selector is load-bearing"
+  else
+    fail "mutation did not fail projection-worker selector assertion: $projection_selector_out"
+  fi
+
+  PROJECTION_ZERO_TEST_MUTATED="$TMPROOT/ci-without-projection-zero-test-guard.yml"
+  sed 's/projection-worker attribution command selected zero tests/projection-worker-zero-test-guard-removed/' "$CI" >"$PROJECTION_ZERO_TEST_MUTATED"
+  set +e
+  projection_zero_test_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$PROJECTION_ZERO_TEST_MUTATED" bash "$0" 2>&1)"
+  projection_zero_test_rc=$?
+  set -e
+  if [ "$projection_zero_test_rc" -ne 0 ] \
+    && grep -Fq 'job rejects a zero-test projection-worker invocation (missing: projection-worker attribution command selected zero tests)' <<<"$projection_zero_test_out"; then
+    pass "mutation proves projection-worker zero-test guard is load-bearing"
+  else
+    fail "mutation did not fail projection-worker zero-test guard: $projection_zero_test_out"
+  fi
+
+  PROJECTION_REERASE_MUTATED="$TMPROOT/lib-with-projection-second-erase.rs"
+  sed 's/let samples = opened/let _second = opened.engine.complete_erasure_at_rest("slice65-projection-checkpoint");\n        let samples = opened/' "$ENGINE_SOURCE" \
+    >"$PROJECTION_REERASE_MUTATED"
+  set +e
+  projection_reerase_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$PROJECTION_REERASE_MUTATED" bash "$0" 2>&1)"
+  projection_reerase_rc=$?
+  set -e
+  if [ "$projection_reerase_rc" -ne 0 ] \
+    && grep -Fq 'projection-worker diagnostic must retain exactly one original erase; found 2' <<<"$projection_reerase_out"; then
+    pass "mutation proves projection-worker single-erase guard is load-bearing"
+  else
+    fail "mutation did not fail projection-worker single-erase guard: $projection_reerase_out"
+  fi
+
+  PROJECTION_RETRY_MUTATED="$TMPROOT/lib-with-projection-retry-marker.rs"
+  sed 's/let samples = opened/\/\/ retry after release\n        let samples = opened/' "$ENGINE_SOURCE" \
+    >"$PROJECTION_RETRY_MUTATED"
+  set +e
+  projection_retry_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$PROJECTION_RETRY_MUTATED" bash "$0" 2>&1)"
+  projection_retry_rc=$?
+  set -e
+  if [ "$projection_retry_rc" -ne 0 ] \
+    && grep -Fq 'projection-worker diagnostic does not retry the original erase (unexpected: retry after release)' <<<"$projection_retry_out"; then
+    pass "mutation proves projection-worker no-retry guard is load-bearing"
+  else
+    fail "mutation did not fail projection-worker no-retry guard: $projection_retry_out"
   fi
 
   MUTATED="$TMPROOT/ci.yml"

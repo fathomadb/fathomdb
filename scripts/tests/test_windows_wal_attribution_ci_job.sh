@@ -40,6 +40,14 @@ function_body() {
   ' "$1"
 }
 
+python_function_body() {
+  awk -v name="$2" '
+    $0 ~ "^def " name "\\(" { inside = 1 }
+    inside && $0 ~ "^def " && $0 !~ "^def " name "\\(" { exit }
+    inside { print }
+  ' "$1"
+}
+
 assert_before_in_function() {
   local source="$1" function="$2" first="$3" second="$4" description="$5"
   local body first_line second_line
@@ -172,7 +180,7 @@ assert_contains "$(<"$PY_CONTROL")" \
   'BASELINE_FIRST_ERASE outcome=clean_completion' \
   "installed serial baseline records clean first-erase completion separately"
 assert_before_in_text \
-  "$(function_body "$PY_CONTROL" "run_serial_incident")" \
+  "$(python_function_body "$PY_CONTROL" "run_serial_incident")" \
   'if not observe_baseline_first_erase:' \
   'fresh.transition' \
   "baseline observation mode does not continue to the follow-on purge lifecycle"
@@ -312,6 +320,19 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves clean released baseline observation is load-bearing"
   else
     fail "mutation did not fail clean released baseline observation assertion: $baseline_clean_observation_out"
+  fi
+
+  BASELINE_CLEAN_EXIT_MUTATED="$TMPROOT/ci-without-clean-baseline-exit.yml"
+  sed '/\$releasedSerialExit -eq 66/d' "$CI" >"$BASELINE_CLEAN_EXIT_MUTATED"
+  set +e
+  baseline_clean_exit_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$BASELINE_CLEAN_EXIT_MUTATED" bash "$0" 2>&1)"
+  baseline_clean_exit_rc=$?
+  set -e
+  if [ "$baseline_clean_exit_rc" -ne 0 ] \
+    && grep -Fq 'job accepts only the clean baseline observation exit (missing: $releasedSerialExit -eq 66)' <<<"$baseline_clean_exit_out"; then
+    pass "mutation proves clean baseline exit pairing is load-bearing"
+  else
+    fail "mutation did not fail clean baseline exit-pair assertion: $baseline_clean_exit_out"
   fi
 
   FRESH_CONNECTION_MUTATED="$TMPROOT/lib-without-fresh-connection-marker.rs"

@@ -20,7 +20,8 @@ from fathomdb import Engine, graph, read
 from fathomdb.errors import ErasureIncompleteError
 
 
-EXPECTED_BASELINE_OBSERVATION_EXIT = 65
+TYPED_BASELINE_OBSERVATION_EXIT = 65
+CLEAN_BASELINE_OBSERVATION_EXIT = 66
 
 
 def _node(logical_id: str, source_id: str) -> dict[str, str]:
@@ -67,7 +68,7 @@ def run_serial_incident(
     expected_version: str,
     wheel_label: str,
     require_attribution: bool,
-    expect_erasure_incomplete: bool,
+    observe_baseline_first_erase: bool,
 ) -> None:
     """Run the audited close/reopen/recovery-read/nested-erasure shape once."""
     _assert_installed_version(expected_version)
@@ -85,7 +86,7 @@ def run_serial_incident(
         old.close()
 
         fresh = Engine.open(path, use_default_embedder=False)
-        expected_baseline_frames: str | None = None
+        baseline_observation: tuple[str, str | None] | None = None
         try:
             first = read.get(fresh, "slice65-root")
             assert first is not None and first.logical_id == "slice65-root"
@@ -103,11 +104,14 @@ def run_serial_incident(
             try:
                 nested = fresh.erase_source("slice65-nested-source")
             except ErasureIncompleteError as error:
-                if not expect_erasure_incomplete:
+                if not observe_baseline_first_erase:
                     raise
-                expected_baseline_frames = _expected_wal_baseline(error)
-            if expected_baseline_frames is None:
+                baseline_observation = ("typed_erasure_incomplete", _expected_wal_baseline(error))
+            else:
                 assert nested.nodes_excised == 1
+                if observe_baseline_first_erase:
+                    baseline_observation = ("clean_completion", None)
+            if not observe_baseline_first_erase:
                 fresh.transition("slice65-root", "deleted", "slice65 incident control")
                 fresh.purge("slice65-root")
                 if require_attribution:
@@ -116,15 +120,24 @@ def run_serial_incident(
                     print("slice65_wal serial_current_attribution_expected=1", flush=True)
         finally:
             fresh.close()
-    if expect_erasure_incomplete:
-        if expected_baseline_frames is None:
-            raise AssertionError("released serial baseline unexpectedly completed instead of refusing WAL erasure")
+    if observe_baseline_first_erase:
+        assert baseline_observation is not None, "first erase must produce one baseline observation"
+        outcome, frames = baseline_observation
+        if outcome == "typed_erasure_incomplete":
+            assert frames is not None
+            print(
+                "slice65_wal BASELINE_FIRST_ERASE outcome=typed_erasure_incomplete "
+                f"type=ErasureIncompleteError stage=wal_checkpoint wal_frames={frames}",
+                flush=True,
+            )
+            raise SystemExit(TYPED_BASELINE_OBSERVATION_EXIT)
+        assert outcome == "clean_completion"
         print(
-            "slice65_wal serial_expected_erasure "
-            f"type=ErasureIncompleteError stage=wal_checkpoint wal_frames={expected_baseline_frames}",
+            "slice65_wal BASELINE_FIRST_ERASE outcome=clean_completion "
+            "type=none stage=none wal_frames=0",
             flush=True,
         )
-        raise SystemExit(EXPECTED_BASELINE_OBSERVATION_EXIT)
+        raise SystemExit(CLEAN_BASELINE_OBSERVATION_EXIT)
     print(
         f"slice65_wal serial_result=passed wheel_version={expected_version} wheel_selector={wheel_label}",
         flush=True,
@@ -203,14 +216,14 @@ def main() -> None:
     parser.add_argument("--wheel-label", required=True)
     parser.add_argument("--control", choices=("serial", "binding", "retained"), required=True)
     parser.add_argument("--require-attribution", action="store_true")
-    parser.add_argument("--expect-erasure-incomplete", action="store_true")
+    parser.add_argument("--observe-baseline-first-erase", action="store_true")
     args = parser.parse_args()
     if args.control == "serial":
         run_serial_incident(
             args.wheel_version,
             args.wheel_label,
             args.require_attribution,
-            args.expect_erasure_incomplete,
+            args.observe_baseline_first_erase,
         )
     else:
         if not args.require_attribution:

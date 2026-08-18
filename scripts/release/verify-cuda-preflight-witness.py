@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed verifier for a retained CUDA preflight-v2 witness."""
+"""Fail-closed verifier for retained CUDA embedding v2 and reranker v3 witnesses."""
 
 from __future__ import annotations
 
@@ -12,7 +12,8 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 
-SCHEMA_VERSION = "fathomdb.cuda-preflight-witness/v2"
+SCHEMA_VERSION_V2 = "fathomdb.cuda-preflight-witness/v2"
+SCHEMA_VERSION_V3 = "fathomdb.cuda-preflight-witness/v3"
 WITNESS_NAME = "cuda-preflight-witness.json"
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 COMMIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
@@ -53,6 +54,25 @@ EVIDENCE_NAMES = frozenset({
     "forced-cuda-unavailable-napi-stdout.txt",
     "forced-cuda-unavailable-napi-stderr.txt",
 })
+RERANK_V3_EVIDENCE_NAMES = frozenset({
+    "reranker-cache-manifest.json",
+    "reranker-python-cpu-smoke.json",
+    "reranker-napi-cpu-smoke.json",
+    "reranker-cli-doctor.json",
+    "forced-reranker-python.json",
+    "forced-reranker-napi.json",
+})
+RERANKER_MANIFEST = {
+    "schema_version": "fathomdb.reranker-cache/v1",
+    "repository": "cross-encoder/ms-marco-TinyBERT-L2-v2",
+    "revision": "81d1926f67cb8eee2c2be17ca9f793c7c3bd20cc",
+    "snapshot_relpath": "hub/models--cross-encoder--ms-marco-TinyBERT-L2-v2/snapshots/81d1926f67cb8eee2c2be17ca9f793c7c3bd20cc",
+    "files": {
+        "config.json": "2144195e107cd7ea61556478e7add12986ebfbc30" "85f924fc0b90c2410604879",
+        "tokenizer.json": "d241a60d5e8f04cc" "1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+        "model.safetensors": "a0e7364ddf91ff7028e1102e1b91ac7a72e3db4061241bd" "84efe45c72c9af03a",
+    },
+}
 
 
 def fail(message: str) -> NoReturn:
@@ -258,7 +278,7 @@ def validate_model_manifest(path: Path) -> tuple[dict[str, Any], bytes]:
     return value, raw
 
 
-def validate_build_input(path: Path, candidate_sha: str, model_digest: str) -> bytes:
+def validate_build_input(path: Path, candidate_sha: str, model_digest: str) -> str:
     value, raw = load_canonical_object(path, "preflight build input")
     expected = {
         "schema_version": "fathomdb.cuda-preflight-build-input/v2",
@@ -270,9 +290,16 @@ def validate_build_input(path: Path, candidate_sha: str, model_digest: str) -> b
         "model_cache_manifest_sha256": model_digest,
     }
     require_exact_keys(value, set(expected), "preflight build input")
+    if value["schema_version"] == "fathomdb.cuda-preflight-build-input/v3":
+        expected.update({
+            "schema_version": "fathomdb.cuda-preflight-build-input/v3",
+            "python_features": ["embed-cuda", "rerank-cuda", "pyo3/extension-module"],
+            "napi_features": ["default-embedder", "embed-cuda", "rerank-cuda"],
+            "rerank_cuda": True,
+        })
     if value != expected:
         fail("preflight build input differs from the fixed build contract")
-    return raw
+    return "v3" if value["rerank_cuda"] else "v2"
 
 
 def validate_cache_topology(path: Path, manifest: dict[str, Any]) -> None:
@@ -311,24 +338,24 @@ def validate(witness_dir: Path, candidate_sha: str) -> None:
         fail("requested candidate SHA must be a lowercase 40-hex commit")
     if witness_dir.is_symlink() or not witness_dir.is_dir():
         fail("witness directory must be a regular non-symlink directory")
-    actual_names = {path.name for path in witness_dir.iterdir()}
-    if actual_names != EVIDENCE_NAMES | {WITNESS_NAME}:
-        fail("witness root inventory is incomplete or contains unknown members")
     witness, _ = load_canonical_object(witness_dir / WITNESS_NAME, "witness")
     require_exact_keys(witness, {
         "schema_version", "candidate_sha", "outcome", "build_input_sha256",
         "model_cache_manifest_sha256", "evidence_sha256",
     }, "witness")
-    if witness["schema_version"] != SCHEMA_VERSION:
-        fail("witness schema version is unsupported")
+    is_v3 = witness["schema_version"] == SCHEMA_VERSION_V3
+    required_evidence = EVIDENCE_NAMES | (RERANK_V3_EVIDENCE_NAMES if is_v3 else frozenset())
+    actual_names = {path.name for path in witness_dir.iterdir()}
+    if actual_names != required_evidence | {WITNESS_NAME}:
+        fail("witness root inventory is incomplete or contains unknown members")
     if witness["candidate_sha"] != candidate_sha:
         fail("witness candidate SHA does not match the requested candidate")
     if witness["outcome"] != "passed":
         fail("witness outcome is not passed")
     evidence = witness["evidence_sha256"]
-    if not isinstance(evidence, dict) or set(evidence) != EVIDENCE_NAMES:
+    if not isinstance(evidence, dict) or set(evidence) != required_evidence:
         fail("witness evidence inventory is incomplete or contains unknown evidence")
-    for name in sorted(EVIDENCE_NAMES):
+    for name in sorted(required_evidence):
         path = witness_dir / name
         if path.is_symlink() or not path.is_file():
             fail(f"required evidence must be a regular non-symlink file: {name}")
@@ -341,7 +368,21 @@ def validate(witness_dir: Path, candidate_sha: str) -> None:
     model_digest = sha256_bytes(model_raw)
     if require_digest(witness["model_cache_manifest_sha256"], "root model-cache digest") != model_digest:
         fail("root model-cache digest differs from retained manifest")
-    build_raw = validate_build_input(witness_dir / "build-input.json", candidate_sha, model_digest)
+    build_kind = validate_build_input(witness_dir / "build-input.json", candidate_sha, model_digest)
+    expected_schema = SCHEMA_VERSION_V3 if build_kind == "v3" else SCHEMA_VERSION_V2
+    if witness["schema_version"] != expected_schema:
+        fail("witness schema version does not match the retained build input")
+    if is_v3:
+        reranker_manifest, _ = load_canonical_object(
+            witness_dir / "reranker-cache-manifest.json", "reranker cache manifest"
+        )
+        if reranker_manifest != RERANKER_MANIFEST:
+            fail("reranker cache manifest differs from the pinned TinyBERT identity")
+        for name in RERANK_V3_EVIDENCE_NAMES - {"reranker-cache-manifest.json"}:
+            value, _ = load_canonical_object(witness_dir / name, f"reranker evidence {name}")
+            if value.get("subsystem") != "reranker" or value.get("source_imported") is not False:
+                fail(f"reranker evidence {name} is not an installed-artifact record")
+    build_raw = (witness_dir / "build-input.json").read_bytes()
     if require_digest(witness["build_input_sha256"], "root build-input digest") != sha256_bytes(build_raw):
         fail("root build-input digest differs from retained input")
     validate_cache_topology(witness_dir / "smoke-cache-topology.json", model_manifest)

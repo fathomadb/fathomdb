@@ -121,7 +121,7 @@ mod nomic;
 #[cfg(feature = "onnx-embedder")]
 mod ort_bge;
 
-// 0.8.2 Slice E1: the default CPU cross-encoder reranker (TinyBERT-L-2).
+// 0.8.2 Slice E1: the default cross-encoder reranker (TinyBERT-L-2).
 // Lives behind its own `default-reranker` feature so the default build pulls
 // in zero ML code. The engine's `default-reranker` feature forwards to this.
 #[cfg(feature = "default-reranker")]

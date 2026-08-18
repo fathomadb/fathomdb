@@ -1,4 +1,4 @@
-//! `CandleTinyBertReranker` — the default CPU cross-encoder (CE) reranker.
+//! `CandleTinyBertReranker` — the default cross-encoder (CE) reranker.
 //!
 //! Wraps `candle_transformers::models::bert::BertModel` loaded with the pinned
 //! `cross-encoder/ms-marco-TinyBERT-L2-v2` weights (2-layer BERT,
@@ -329,7 +329,7 @@ pub enum RerankerLoadError {
 
 // ----- Loaded model ---------------------------------------------------------
 
-/// Default CPU cross-encoder reranker. `Send + Sync` (candle tensors are
+/// Default cross-encoder reranker. `Send + Sync` (candle tensors are
 /// `Arc`-backed), so the engine can hold one in a process-wide `OnceLock`.
 pub struct CandleTinyBertReranker {
     tokenizer: Tokenizer,

@@ -86,6 +86,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/design/steward-cold-start-budget.md` | Steward cold-start token budget — RATIFIED plan (ledger `seq-226`); §3 liveness filter, `steward_cold_start_set` ratchet, repo-prune merge verdict | — (program hygiene; Phase 3 gated on 0.8.20 publish) | 2026-07-31 |
 | `dev/design/gpu-eval-activities-policy.md` | Policy — repo MUST use the 3090s for eval/embed activities when there is room | 0.8.14 Slice 20 (eu7 policy) | 2026-07-05 |
 | `dev/design/0.8.23-gpu-artifacts.md` | Design for Linux CUDA release artifacts and trusted GPU proof | 0.8.23 Slices 0/5 | 2026-08-10 |
+| `dev/design/0.8.23-slice-72-concurrent-gpu-characterization.md` | Test-only shared-GPU BGE and CE characterization design; no TC-5 GPU path | 0.8.23 Slice 72 | 2026-08-18 |
 | `dev/design/0.8.23-embedding-configuration-feedback.md` | Design for typed SDK feedback when an embedding-dependent graph write lacks an embedder | 0.8.23 Slice 10 | 2026-08-10 |
 | `dev/design/0.8.23-memex-integration.md` | Design for Memex feedback, readiness, lifecycle, and graph-on/vector-off query policy | 0.8.23 Slice 10 | 2026-08-10 |
 | `dev/design/free-threaded-python-value-lift-and-experiments.md` | Free-threaded Python (PEP 703) for FathomDB — value, lift, experiment plan | 0.8.15 ladder (pyo3 dep @ 0.8.8) | 2026-06-27 |

@@ -70,8 +70,8 @@ default-embedder = [
     "dep:candle-transformers",
     "dep:tokenizers",
 ]
-# 0.8.2 Slice E1 — the default CPU cross-encoder reranker (TinyBERT-L-2). Pulls
-# the SAME Candle + tokenizers + loader stack as `default-embedder` (CPU only),
+# 0.8.2 Slice E1 — the default cross-encoder reranker (TinyBERT-L-2). Pulls
+# the SAME Candle + tokenizers + loader stack as `default-embedder`,
 # but is a distinct opt-in so the engine can enable reranking without forcing the
 # default embedder on, and the feature-off build stays ML-free + no-network.
 default-reranker = [
@@ -98,8 +98,8 @@ embed-metal = ["default-embedder", "candle-core/metal", "candle-nn/metal", "cand
 # 0.8.12 — GPU acceleration for the CE reranker (opt-in; default build stays CPU
 # so Decision 2 / byte-stability are unaffected). Mirrors `embed-cuda` exactly
 # but pulls in `default-reranker` (not `default-embedder`) and is activated at
-# runtime via the SEPARATE legacy knob FATHOMDB_RERANK_DEVICE=cpu|cuda|cuda:N|metal.
-# Its loud CPU fallback policy is reranker-only; it does not describe embedding. The CE
+# runtime via FATHOMDB_RERANK_DEVICE=auto|cpu|cuda:N. Its strict forced-CUDA
+# policy is reranker-only; it does not describe embedding. The CE
 # stack is the same Candle bert path, so enabling the cuda backend on the shared
 # candle crates is the only build-side change. Cross-vendor (AMD/Intel) is not a
 # candle backend — out of scope, same as the embedder.

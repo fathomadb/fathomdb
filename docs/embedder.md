@@ -151,9 +151,20 @@ policy without recompiling:
 The device is **not** part of the embedder identity. Python and TypeScript expose
 the resolved open-time evidence as `embedder_device_resolution` /
 `embedderDeviceResolution`; selection remains the environment variable rather
-than a new binding-specific setting. `FATHOMDB_RERANK_DEVICE` is separate:
-it retains its legacy `cpu|cuda|cuda:N|metal` grammar and loud CPU fallback for
-the optional cross-encoder reranker only.
+than a new binding-specific setting. `FATHOMDB_RERANK_DEVICE` independently
+selects the optional cross-encoder with the same exact `auto` · `cpu` ·
+`cuda:N` grammar. A forced `cuda:N` reranker request fails typed rather than
+running CE on CPU.
+
+### Embedding and cross-encoder on one GPU
+
+`FATHOMDB_EMBED_DEVICE=cuda:0` and `FATHOMDB_RERANK_DEVICE=cuda:0` may select
+the same GPU in one process. They create independent Candle model instances;
+there is no resource manager, device reservation, or hard Candle memory cap.
+GPU utilization and memory observations are sampled device-wide values, not a
+per-request allocation or performance guarantee. The vector index, bit-KNN,
+exact-f32 database rerank, FTS, RRF fusion, graph, and storage remain CPU-only
+regardless of where embedding or CE runs.
 
 ### Measured speedup
 

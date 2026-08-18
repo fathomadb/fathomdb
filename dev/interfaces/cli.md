@@ -71,8 +71,13 @@ see that ADR's 2026-06-06 amendment).
 `doctor-check-*` means the verb may use the exit-code class set `{0, 65, 70,
 71}` depending on clean/findings/unrecoverable/lock-held outcome.
 
-`doctor-gpu` (0.8.23 Slice 70) emits one stdout JSON object with
-`schema_version: "fathomdb.doctor.gpu.v1"` when `--json` is selected. It reads
+`doctor-gpu` (0.8.23 Slice 70) emits one canonical compact stdout JSON object
+with keys in exact order: `schema_version`, `policy`, `cuda_compiled`, `status`,
+`effective_device`, `devices`, `reason`, `selected_uuid`. Device-object keys
+are exactly `visible_ordinal`, `uuid`, `name`, `compute_capability` in that
+order. `schema_version` is `"fathomdb.doctor.gpu.v1"`.
+`reason` and `selected_uuid` are always present and are JSON `null` when absent. The object
+has exactly one trailing newline. The command reads
 `FATHOMDB_EMBED_DEVICE` but exposes no setter or configuration writer;
 it does not open a database, load or download a model, write configuration, or
 initialize an engine. Its ordered `devices` inventory contains process-visible
@@ -120,6 +125,22 @@ twelve-row semantic outcome matrix is:
 
 Forced CUDA never becomes a CPU report. Invalid policy invokes no CUDA provider
 code.
+
+The normative text output is exactly this newline-terminated sequence; the
+`device=` line repeats once per ordered inventory member and contains the same
+canonical compact device JSON used by JSON mode:
+
+```text
+doctor gpu
+policy=<JSON string>
+cuda_compiled=<true|false>
+status=<status>
+effective_device=<cpu|cuda:N|null>
+reason=<reason|null>
+devices=<decimal count>
+device={"visible_ordinal":N,"uuid":"...","name":"...","compute_capability":"..."|null}
+selected_uuid=<UUID|null>
+```
 
 `dump-mutations` (0.8.0; gap F4-READ / reserved-gap-34) is a read-only operator
 diagnostic that pages op-store (`operational_mutations`) rows for one

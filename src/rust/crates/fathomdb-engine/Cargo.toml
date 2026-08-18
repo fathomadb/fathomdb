@@ -175,6 +175,10 @@ name = "pr_e2_rerank_nonfinite"
 name = "slice70_runtime_policy"
 required-features = ["default-embedder"]
 
+[[test]]
+name = "tc5_vector_stage"
+required-features = ["tc5-benchmark"]
+
 [dev-dependencies]
 libc = "0.2"
 proptest = "1"

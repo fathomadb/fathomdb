@@ -7,22 +7,33 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 import sys
+import tarfile
 from pathlib import Path
 from typing import Any, NoReturn
 
 
-SCHEMA_VERSION = "fathomdb.cuda-package-rehearsal/v1"
-BUILD_INPUT_SCHEMA = "fathomdb.cuda-package-build-input/v1"
+SCHEMA_VERSION_V2 = "fathomdb.cuda-package-rehearsal/v2"
+SCHEMA_VERSION_V3 = "fathomdb.cuda-package-rehearsal/v3"
+BUILD_INPUT_SCHEMA_V2 = "fathomdb.cuda-package-build-input/v2"
+BUILD_INPUT_SCHEMA_V3 = "fathomdb.cuda-package-build-input/v3"
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 COMMIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
 MANIFEST = "cuda-package-rehearsal.json"
 ROUTE_RECEIPT = "route-receipt.json"
 BUILD_INPUT = "build-input.json"
-PREFLIGHT_WITNESS = "preflight-witness.json"
+PREFLIGHT_WITNESS_DIR = "preflight-witness"
+PREFLIGHT_WITNESS = "cuda-preflight-witness.json"
 PACKAGE_DIR = "packages"
 SMOKE_DIR = "smoke"
-SMOKE_NAMES = frozenset({"cpu-python.json", "cpu-napi.json", "gpu-python.json", "gpu-napi.json"})
+SMOKE_NAMES = frozenset({
+    "cpu-python.json", "cpu-napi.json", "gpu-python.json", "gpu-napi.json",
+    "cpu-cli.json", "cpu-cli-stdout.json",
+    "forced-cuda-unavailable-cli.json", "forced-cuda-unavailable-cli-stdout.json",
+})
+PACKAGE_KINDS = frozenset({"python_wheel", "npm_main", "napi_platform", "cli_archive"})
+TARGET = "x86_64-unknown-linux-gnu"
 
 
 def fail(message: str) -> NoReturn:
@@ -59,6 +70,22 @@ def load_object(path: Path, label: str) -> tuple[dict[str, Any], bytes]:
     return value, raw
 
 
+def load_preflight_witness(path: Path) -> tuple[dict[str, Any], bytes]:
+    if path.is_symlink():
+        fail("preflight witness must not be a symlink")
+    try:
+        raw = path.read_bytes()
+        value = json.loads(raw)
+    except (OSError, json.JSONDecodeError) as error:
+        fail(f"cannot read preflight witness: {error}")
+    if not isinstance(value, dict):
+        fail("preflight witness must be a JSON object")
+    canonical = canonical_json(value)
+    if raw != canonical:
+        fail("preflight witness is not canonical JSON")
+    return value, raw
+
+
 def require_exact_keys(value: dict[str, Any], expected: set[str], label: str) -> None:
     if set(value) != expected:
         fail(f"{label} has missing or unknown fields")
@@ -69,36 +96,34 @@ def require_regular_directory(path: Path, label: str) -> None:
         fail(f"{label} must be a non-symlink directory")
 
 
-def package_kind(name: str) -> str:
-    if "/" in name or name in {"", ".", ".."}:
-        fail("package filename is not a plain filename")
-    if name.startswith("fathomdb-linux-x64-gnu-") and name.endswith(".tgz"):
-        return "napi"
-    if name.startswith("fathomdb-") and name.endswith(".whl"):
-        return "python"
-    if name.startswith("fathomdb-") and name.endswith(".tgz"):
-        return "npm"
-    fail(f"package filename is not an allowed retained artifact: {name}")
-
-
-def validate_build_input(value: object, candidate_sha: str) -> None:
+def validate_build_input(value: object, candidate_sha: str, version: str) -> str:
     if not isinstance(value, dict):
         fail("build input is not an object")
     require_exact_keys(
         value,
-        {"schema_version", "candidate_sha", "python_features", "napi_features", "rerank_cuda"},
+        {"schema_version", "candidate_sha", "version", "target", "python_features", "napi_features", "cli_features", "rerank_cuda", "model_cache_manifest_sha256", "archive_filename"},
         "build input",
     )
-    if value["schema_version"] != BUILD_INPUT_SCHEMA:
+    schema = value["schema_version"]
+    if schema not in {BUILD_INPUT_SCHEMA_V2, BUILD_INPUT_SCHEMA_V3}:
         fail("build input schema is unsupported")
     if require_sha(value["candidate_sha"], "build input candidate SHA", COMMIT_SHA) != candidate_sha:
         fail("build input candidate SHA does not bind the rehearsal candidate")
-    if value["python_features"] != ["embed-cuda", "pyo3/extension-module"]:
+    if value["version"] != version or value["target"] != TARGET:
+        fail("build input version or target differs from the candidate package identity")
+    rerank = schema == BUILD_INPUT_SCHEMA_V3
+    if value["python_features"] != (["embed-cuda", "rerank-cuda", "pyo3/extension-module"] if rerank else ["embed-cuda", "pyo3/extension-module"]):
         fail("Python package was not built with the exact embed-cuda feature set")
-    if value["napi_features"] != ["default-embedder", "embed-cuda"]:
+    if value["napi_features"] != (["default-embedder", "embed-cuda", "rerank-cuda"] if rerank else ["default-embedder", "embed-cuda"]):
         fail("N-API package was not built with the exact embed-cuda feature set")
-    if value["rerank_cuda"] is not False:
-        fail("CUDA reranker must not be included in package rehearsal")
+    if value["cli_features"] != (["embed-cuda", "rerank-cuda"] if rerank else ["embed-cuda"]):
+        fail("CLI package was not built with the exact embed-cuda feature set")
+    if value["rerank_cuda"] is not rerank:
+        fail("build input rerank CUDA flag does not match its schema")
+    if value["archive_filename"] != f"fathomdb-{version}-{TARGET}.tar.gz":
+        fail("build input CLI archive coordinate differs from the candidate version")
+    require_sha(value["model_cache_manifest_sha256"], "model cache manifest digest")
+    return schema
 
 
 def validate_cpu_smoke(value: dict[str, Any], consumer: str) -> None:
@@ -145,7 +170,116 @@ def validate_gpu_smoke(value: dict[str, Any], consumer: str) -> None:
         fail(f"GPU {consumer} smoke lacks GPU UUID/PID correlation")
 
 
-def validate_smokes(root: Path, expected: object) -> None:
+def validate_cli_archive(path: Path, version: str) -> None:
+    expected_root = f"fathomdb-{version}-{TARGET}"
+    try:
+        raw = path.read_bytes()
+        if len(raw) < 10 or raw[:2] != b"\x1f\x8b" or raw[4:8] != b"\0\0\0\0":
+            fail("CLI archive is not deterministic gzip -n output")
+        with tarfile.open(path, mode="r:gz", format=tarfile.PAX_FORMAT) as archive:
+            members = archive.getmembers()
+    except (OSError, tarfile.TarError) as error:
+        fail(f"cannot inspect CLI archive: {error}")
+    if [member.name.rstrip("/") for member in members] != [expected_root, f"{expected_root}/fathomdb"]:
+        fail("CLI archive must contain exactly its versioned root and fathomdb leaf")
+    directory, binary = members
+    if not directory.isdir() or not binary.isfile() or binary.islnk() or binary.issym():
+        fail("CLI archive contains a non-regular entry")
+    for member in members:
+        if member.uid != 0 or member.gid != 0 or member.uname or member.gname or member.mtime != 0:
+            fail("CLI archive owner or timestamp metadata is not deterministic")
+        if member.pax_headers.get("atime") or member.pax_headers.get("ctime"):
+            fail("CLI archive retains variable pax timestamps")
+    if directory.mode != 0o755 or binary.mode != 0o755:
+        fail("CLI archive entries must have mode 0755")
+
+
+def validate_package_coordinate(kind: str, value: object, version: str, package_dir: Path) -> str:
+    if not isinstance(value, dict):
+        fail(f"package coordinate {kind} must be an object")
+    require_exact_keys(value, {"contains_cuda", "filename", "sha256", "target", "version"}, f"package coordinate {kind}")
+    expected_names = {
+        "python_wheel": re.compile(rf"fathomdb-{re.escape(version)}-.+\.whl\Z"),
+        "npm_main": re.compile(rf"fathomdb-{re.escape(version)}\.tgz\Z"),
+        "napi_platform": re.compile(rf"fathomdb-linux-x64-gnu-{re.escape(version)}\.tgz\Z"),
+        "cli_archive": re.compile(rf"fathomdb-{re.escape(version)}-{TARGET}\.tar\.gz\Z"),
+    }
+    filename = value["filename"]
+    if not isinstance(filename, str) or "/" in filename or expected_names[kind].fullmatch(filename) is None:
+        fail(f"package coordinate {kind} has invalid filename")
+    if value["version"] != version or value["target"] != TARGET:
+        fail(f"package coordinate {kind} version or target differs")
+    if value["contains_cuda"] is not (kind != "npm_main"):
+        fail(f"package coordinate {kind} has false CUDA-content metadata")
+    path = package_dir / filename
+    if path.is_symlink() or not path.is_file():
+        fail(f"package must be a regular non-symlink file: {filename}")
+    if require_sha(value["sha256"], f"package digest {kind}") != sha256(path):
+        fail(f"package digest mismatch: {kind}")
+    if kind == "cli_archive":
+        validate_cli_archive(path, version)
+    return filename
+
+
+def validate_doctor_output(value: dict[str, Any], raw: bytes, policy: str, status: str, effective: object, reason: object) -> None:
+    require_exact_keys(value, {"schema_version", "policy", "cuda_compiled", "status", "effective_device", "devices", "reason", "selected_uuid"}, "raw doctor output")
+    expected = {
+        "schema_version": "fathomdb.doctor.gpu/v1", "policy": policy, "cuda_compiled": True,
+        "status": status, "effective_device": effective, "devices": [], "reason": reason,
+        "selected_uuid": None,
+    }
+    if value != expected:
+        fail("raw doctor output differs from the requested policy result")
+    ordered = json.dumps(expected, ensure_ascii=True, separators=(",", ":")).encode("ascii") + b"\n"
+    if raw != ordered:
+        fail("raw doctor output does not use the product's canonical field order")
+
+
+def validate_cli_smoke(root: Path, name: str, value: dict[str, Any], version: str, archive_name: str, archive_sha: str) -> None:
+    unavailable = name.startswith("forced-cuda-unavailable")
+    policy = "cuda:0" if unavailable else "auto"
+    status = "cuda_unavailable"
+    effective: object = None if unavailable else "cpu"
+    reason: object = "no_visible_cuda_device"
+    exit_code = 65 if unavailable else 0
+    stdout_name = name.removesuffix(".json") + "-stdout.json"
+    require_exact_keys(value, {
+        "schema_version", "consumer", "archive_filename", "archive_sha256", "target", "argv",
+        "exit_code", "doctor_output_filename", "doctor_output_sha256", "status", "effective_device",
+        "reason", "requested_policy", "requested_ordinal", "environment", "isolation", "evidence_provenance",
+    }, f"CLI smoke {name}")
+    expected_argv = [f"/fathomdb-cli/fathomdb-{version}-{TARGET}/fathomdb", "doctor", "gpu", "--json"]
+    if value["schema_version"] != "fathomdb.cuda-package-cli-smoke/v2" or value["consumer"] != "cli":
+        fail(f"CLI smoke {name} schema or consumer differs")
+    if value["archive_filename"] != archive_name or value["archive_sha256"] != archive_sha or value["target"] != TARGET:
+        fail(f"CLI smoke {name} does not bind the retained archive")
+    if value["argv"] != expected_argv or value["requested_policy"] != policy or value["requested_ordinal"] != (0 if unavailable else None):
+        fail(f"CLI smoke {name} request does not bind policy and ordinal")
+    expected_environment = {"FATHOMDB_EMBED_DEVICE": policy} if unavailable else {}
+    if value["environment"] != expected_environment:
+        fail(f"CLI smoke {name} environment is not exact")
+    if value["isolation"] != {"database_opened": False, "model_loaded": False, "network": "none", "source_checkout_mounted": False}:
+        fail(f"CLI smoke {name} isolation is not diagnostic-only")
+    if value["evidence_provenance"] != "installed_candidate" or value["exit_code"] != exit_code or value["status"] != status or value["effective_device"] != effective or value["reason"] != reason:
+        fail(f"CLI smoke {name} outcome is not truthful")
+    if value["doctor_output_filename"] != stdout_name:
+        fail(f"CLI smoke {name} names the wrong raw output")
+    output_path = root / SMOKE_DIR / stdout_name
+    if output_path.is_symlink():
+        fail(f"CLI raw output {stdout_name} must not be a symlink")
+    try:
+        raw = output_path.read_bytes()
+        output = json.loads(raw)
+    except (OSError, json.JSONDecodeError) as error:
+        fail(f"cannot read CLI raw output {stdout_name}: {error}")
+    if not isinstance(output, dict):
+        fail(f"CLI raw output {stdout_name} must be an object")
+    if require_sha(value["doctor_output_sha256"], f"CLI output digest {name}") != hashlib.sha256(raw).hexdigest():
+        fail(f"CLI smoke {name} raw output digest differs")
+    validate_doctor_output(output, raw, policy, status, effective, reason)
+
+
+def validate_smokes(root: Path, expected: object, version: str, archive_name: str, archive_sha: str) -> None:
     if not isinstance(expected, dict) or set(expected) != SMOKE_NAMES:
         fail("smoke evidence inventory is incomplete or contains unknown evidence")
     smoke_dir = root / SMOKE_DIR
@@ -159,11 +293,16 @@ def validate_smokes(root: Path, expected: object) -> None:
             fail(f"smoke evidence must be a regular file: {name}")
         if require_sha(expected[name], f"smoke evidence digest {name}") != sha256(path):
             fail(f"smoke evidence digest mismatch: {name}")
+        if name.endswith("-stdout.json"):
+            continue
         value, _ = load_object(path, f"smoke evidence {name}")
+        if name in {"cpu-cli.json", "forced-cuda-unavailable-cli.json"}:
+            validate_cli_smoke(root, name, value, version, archive_name, archive_sha)
+            continue
         kind, consumer = name.removesuffix(".json").split("-", 1)
         if kind == "cpu":
             validate_cpu_smoke(value, consumer)
-        else:
+        elif kind == "gpu":
             validate_gpu_smoke(value, consumer)
 
 
@@ -171,61 +310,82 @@ def validate(root: Path, candidate_sha: str) -> None:
     if require_sha(candidate_sha, "requested candidate SHA", COMMIT_SHA) != candidate_sha:
         fail("unreachable")
     require_regular_directory(root, "rehearsal directory")
-    allowed_root = {MANIFEST, ROUTE_RECEIPT, PREFLIGHT_WITNESS, BUILD_INPUT, PACKAGE_DIR, SMOKE_DIR}
+    allowed_root = {MANIFEST, ROUTE_RECEIPT, PREFLIGHT_WITNESS_DIR, BUILD_INPUT, PACKAGE_DIR, SMOKE_DIR}
     if {path.name for path in root.iterdir()} != allowed_root:
         fail("rehearsal directory has missing or unknown members")
     manifest, _ = load_object(root / MANIFEST, "rehearsal manifest")
     require_exact_keys(
         manifest,
-        {"schema_version", "candidate_sha", "route_receipt_sha256", "preflight_witness_sha256", "build_input", "packages", "smoke_evidence_sha256"},
+        {"schema_version", "candidate_sha", "version", "target", "route_receipt_sha256", "preflight_witness_sha256", "build_input", "packages", "smoke_evidence_sha256", "pending_external"},
         "rehearsal manifest",
     )
-    if manifest["schema_version"] != SCHEMA_VERSION:
-        fail("rehearsal manifest schema is unsupported")
     if require_sha(manifest["candidate_sha"], "rehearsal candidate SHA", COMMIT_SHA) != candidate_sha:
         fail("rehearsal manifest candidate SHA does not match the requested candidate")
+    version = manifest["version"]
+    if not isinstance(version, str) or re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version) is None or manifest["target"] != TARGET:
+        fail("rehearsal version or target is invalid")
     route, route_bytes = load_object(root / ROUTE_RECEIPT, "route receipt")
     if route.get("schema_version") != "fathomdb.cuda-unmerged-route-receipt/v1" or route.get("candidate_sha") != candidate_sha:
         fail("route receipt does not bind the requested candidate")
     if require_sha(manifest["route_receipt_sha256"], "route receipt digest") != hashlib.sha256(route_bytes).hexdigest():
         fail("route receipt digest mismatch")
-    preflight_witness, preflight_witness_bytes = load_object(root / PREFLIGHT_WITNESS, "preflight witness")
+    preflight_witness_dir = root / PREFLIGHT_WITNESS_DIR
+    require_regular_directory(preflight_witness_dir, "preflight witness directory")
+    preflight_witness, preflight_witness_bytes = load_preflight_witness(
+        preflight_witness_dir / PREFLIGHT_WITNESS,
+    )
     if (
-        preflight_witness.get("schema_version") != "fathomdb.cuda-preflight-witness/v1"
+        preflight_witness.get("schema_version") != "fathomdb.cuda-preflight-witness/v2"
         or preflight_witness.get("candidate_sha") != candidate_sha
         or preflight_witness.get("outcome") != "passed"
     ):
         fail("preflight witness does not bind the requested candidate passed outcome")
     if require_sha(manifest["preflight_witness_sha256"], "preflight witness digest") != hashlib.sha256(preflight_witness_bytes).hexdigest():
         fail("preflight witness digest mismatch")
+    preflight_verifier = Path(__file__).with_name("verify-cuda-preflight-witness.py")
+    result = subprocess.run(
+        [sys.executable, str(preflight_verifier), "--witness-dir", str(preflight_witness_dir), "--candidate-sha", candidate_sha],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or "unknown failure"
+        fail(f"retained preflight witness fails Slice 10 validation: {detail}")
 
     build_input_path = root / BUILD_INPUT
     build_input, build_input_bytes = load_object(build_input_path, "build input")
     if manifest["build_input"] != build_input:
         fail("manifest build input differs from the retained build input")
-    validate_build_input(build_input, candidate_sha)
+    build_schema = validate_build_input(build_input, candidate_sha, version)
+    expected_manifest_schema = SCHEMA_VERSION_V3 if build_schema == BUILD_INPUT_SCHEMA_V3 else SCHEMA_VERSION_V2
+    if manifest["schema_version"] != expected_manifest_schema:
+        fail("rehearsal manifest schema does not match the retained build input")
+    expected_pending = (
+        ["compatible_gpu_cli", "incompatible_classifier_observation"]
+        if build_schema == BUILD_INPUT_SCHEMA_V2
+        else ["compatible_gpu_reranker_cli", "incompatible_reranker_classifier_observation"]
+    )
+    if manifest["pending_external"] != expected_pending:
+        fail("unavailable real CUDA hardware evidence must remain PENDING_EXTERNAL")
+    model_manifest = preflight_witness_dir / "model-cache-manifest.json"
+    if build_input["model_cache_manifest_sha256"] != sha256(model_manifest):
+        fail("build input does not bind the retained Slice 10 model cache manifest")
     _ = build_input_bytes
 
     packages = manifest["packages"]
-    if not isinstance(packages, dict) or len(packages) != 3:
-        fail("package inventory must contain exactly three retained artifacts")
+    if not isinstance(packages, dict) or set(packages) != PACKAGE_KINDS:
+        fail("package inventory must contain exactly four typed retained artifacts")
     package_dir = root / PACKAGE_DIR
     require_regular_directory(package_dir, "package directory")
-    if {path.name for path in package_dir.iterdir()} != set(packages):
+    filenames = {
+        validate_package_coordinate(kind, packages[kind], version, package_dir)
+        for kind in sorted(PACKAGE_KINDS)
+    }
+    if {path.name for path in package_dir.iterdir()} != filenames:
         fail("package directory does not exactly match manifest inventory")
-    kinds: set[str] = set()
-    for name, expected_digest in packages.items():
-        if not isinstance(name, str):
-            fail("package filename is invalid")
-        kinds.add(package_kind(name))
-        path = package_dir / name
-        if path.is_symlink() or not path.is_file():
-            fail(f"package must be a regular non-symlink file: {name}")
-        if require_sha(expected_digest, f"package digest {name}") != sha256(path):
-            fail(f"package digest mismatch: {name}")
-    if kinds != {"python", "npm", "napi"}:
-        fail("package inventory must contain exactly Python, thin npm, and Linux-x64 N-API artifacts")
-    validate_smokes(root, manifest["smoke_evidence_sha256"])
+    archive = packages["cli_archive"]
+    validate_smokes(root, manifest["smoke_evidence_sha256"], version, archive["filename"], archive["sha256"])
 
 
 def parse_args() -> argparse.Namespace:

@@ -48,7 +48,7 @@ default-embedder = ["fathomdb-embedder/default-embedder"]
 # FATHOMDB_EMBED_DEVICE=auto|cpu|cuda:N; unset is `auto` on that artifact.
 embed-cuda = ["default-embedder", "fathomdb-embedder/embed-cuda"]
 embed-metal = ["default-embedder", "fathomdb-embedder/embed-metal"]
-# 0.8.1 Slice 10 (R1): enabling this feature gates the CPU cross-encoder CE
+# 0.8.1 Slice 10 (R1): enabling this feature gates the cross-encoder CE
 # inference path (TinyBERT-L-2 via Candle) in `rerank_fused`. Without this
 # feature, `rerank_fused` is always the identity (soft-fallback) path — no
 # network call, no ML dependency. With the feature ON and weights cached
@@ -60,7 +60,7 @@ embed-metal = ["default-embedder", "fathomdb-embedder/embed-metal"]
 default-reranker = ["fathomdb-embedder/default-reranker"]
 # 0.8.12 — GPU acceleration for the CE reranker (opt-in; forwards to the
 # embedder; default stays CPU). Activate at runtime via the separate knob
-# FATHOMDB_RERANK_DEVICE=cuda|metal. Mirrors the embed-cuda passthrough.
+# FATHOMDB_RERANK_DEVICE=auto|cpu|cuda:N. Mirrors the embed-cuda passthrough.
 rerank-cuda = ["default-reranker", "fathomdb-embedder/rerank-cuda"]
 rerank-metal = ["default-reranker", "fathomdb-embedder/rerank-metal"]
 # Slice 72: this private aggregate exists only to compile the trusted-runner
@@ -172,6 +172,10 @@ required-features = ["default-reranker"]
 [[test]]
 name = "slice72_concurrent_gpu"
 required-features = ["slice72-gpu-tests"]
+
+[[test]]
+name = "slice72_telemetry_contract"
+required-features = ["default-embedder", "default-reranker", "slice72-test-hooks"]
 
 # 0.8.2 Slice E2 fix-1 [P2]: is_finite guard tests — no feature gate because the
 # guard fires before the CE model path (depth/feature state irrelevant).

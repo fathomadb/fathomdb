@@ -885,6 +885,11 @@ reason; forced cuda:N never retries on CPU. RerankerDeviceResolution is
 intentionally distinct from OpenReport.embedder_device_resolution: CUDA
 embedding is not evidence of CUDA reranking.
 
+Both independent policies may resolve to the same CUDA UUID in one process.
+That selects two Candle model instances; it is not a device reservation,
+resource manager, allocator cap, or evidence that CPU-only retrieval stages
+used CUDA.
+
 Rust exposes typed open/runtime errors without message parsing:
 
 - `EngineOpenError`

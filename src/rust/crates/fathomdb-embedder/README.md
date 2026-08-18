@@ -43,7 +43,7 @@ only through `FATHOMDB_EMBED_DEVICE`: `auto` (the default), `cpu`, or
 device or records a typed CPU outcome; `cpu` never initializes CUDA; and
 `cuda:N` fails rather than falling back. CPU-only artifacts report
 `cuda_not_compiled` for `auto`. `FATHOMDB_RERANK_DEVICE` is separate: its
-legacy `cpu|cuda|cuda:N|metal` grammar and loud CPU fallback apply only to the
+strict `auto|cpu|cuda:N` grammar and forced-CUDA error behavior apply only to the
 reranker, never the embedder.
 
 ## Weight loading

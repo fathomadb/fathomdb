@@ -18,7 +18,7 @@
 //!
 //! - **Hybrid retrieval.** A vector branch and an FTS5 branch, fused by
 //!   Reciprocal Rank Fusion on ordinal *rank* (never on raw, non-comparable
-//!   scores), with an optional CPU cross-encoder rerank and an optional
+//!   scores), with an optional cross-encoder rerank and an optional
 //!   graph-BFS third arm over temporal fact edges.
 //! - **Canonical rows + projections.** Writes land as durable canonical rows;
 //!   FTS, vector and attribute indexes are engine-maintained projections
@@ -48,6 +48,195 @@ pub mod lifecycle;
 mod pcache2;
 #[cfg(feature = "tc5-benchmark")]
 pub mod tc5_benchmark;
+
+/// Slice 72's private trusted-runner rendezvous. This is compiled only by the
+/// non-shipped characterization feature and exists solely to delimit real CE
+/// forwards against a test wrapper around the real BGE embedder.
+#[cfg(feature = "slice72-test-hooks")]
+#[doc(hidden)]
+pub mod slice72_test_hooks {
+    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+    use std::sync::{Arc, Condvar, Mutex};
+    use std::thread;
+    use std::time::{Duration, Instant};
+
+    const RENDEZVOUS_TIMEOUT: Duration = Duration::from_secs(15);
+    static CE_RENDEZVOUS: Mutex<Option<Arc<ForwardRendezvous>>> = Mutex::new(None);
+
+    #[derive(Default)]
+    struct Arrival {
+        bge_ready: bool,
+        ce_ready: bool,
+    }
+
+    /// Actual-forward timestamps captured by a Slice 72 rendezvous.
+    #[derive(Clone, Copy, Debug)]
+    pub struct ForwardIntervals {
+        bge_start_ns: u64,
+        bge_end_ns: u64,
+        ce_start_ns: u64,
+        ce_end_ns: u64,
+        timed_out: bool,
+    }
+
+    impl ForwardIntervals {
+        /// True only when the actual BGE and CE forward intervals overlap.
+        #[must_use]
+        pub fn overlaps(self) -> bool {
+            !self.timed_out
+                && self.bge_start_ns < self.ce_end_ns
+                && self.ce_start_ns < self.bge_end_ns
+        }
+    }
+
+    /// One bounded, single-use rendezvous between a test BGE wrapper and the
+    /// CE `score_batch` forward boundary.
+    pub struct ForwardRendezvous {
+        started: Instant,
+        arrival: Mutex<Arrival>,
+        arrived: Condvar,
+        timed_out: AtomicBool,
+        bge_start_ns: AtomicU64,
+        bge_end_ns: AtomicU64,
+        ce_start_ns: AtomicU64,
+        ce_end_ns: AtomicU64,
+    }
+
+    impl ForwardRendezvous {
+        /// Creates an unarmed rendezvous. It becomes visible to CE only through
+        /// [`install_ce_forward_rendezvous`].
+        #[must_use]
+        pub fn new() -> Arc<Self> {
+            Arc::new(Self {
+                started: Instant::now(),
+                arrival: Mutex::new(Arrival::default()),
+                arrived: Condvar::new(),
+                timed_out: AtomicBool::new(false),
+                bge_start_ns: AtomicU64::new(0),
+                bge_end_ns: AtomicU64::new(0),
+                ce_start_ns: AtomicU64::new(0),
+                ce_end_ns: AtomicU64::new(0),
+            })
+        }
+
+        fn stamp_ns(&self) -> u64 {
+            u64::try_from(self.started.elapsed().as_nanos()).unwrap_or(u64::MAX)
+        }
+
+        fn meet(&self, bge: bool) {
+            let mut arrival = self.arrival.lock().expect("Slice 72 rendezvous lock");
+            if bge {
+                arrival.bge_ready = true;
+            } else {
+                arrival.ce_ready = true;
+            }
+            self.arrived.notify_all();
+            let wait = self.arrived.wait_timeout_while(arrival, RENDEZVOUS_TIMEOUT, |state| {
+                !(state.bge_ready && state.ce_ready)
+            });
+            match wait {
+                Ok((_, timeout)) if timeout.timed_out() => {
+                    self.timed_out.store(true, Ordering::Release);
+                }
+                Err(_) => self.timed_out.store(true, Ordering::Release),
+                _ => {}
+            }
+        }
+
+        /// Runs an actual BGE forward immediately after the two-party
+        /// rendezvous and records only the actual-forward interval.
+        pub fn run_bge_forward<T>(&self, operation: impl FnOnce() -> T) -> T {
+            self.meet(true);
+            self.bge_start_ns.store(self.stamp_ns(), Ordering::Release);
+            let result = operation();
+            self.bge_end_ns.store(self.stamp_ns(), Ordering::Release);
+            result
+        }
+
+        fn run_ce_forward<T>(&self, operation: impl FnOnce() -> T) -> T {
+            self.meet(false);
+            self.ce_start_ns.store(self.stamp_ns(), Ordering::Release);
+            let result = operation();
+            self.ce_end_ns.store(self.stamp_ns(), Ordering::Release);
+            result
+        }
+
+        /// Returns the actual-forward timestamps; callers must require
+        /// [`ForwardIntervals::overlaps`] before claiming concurrent execution.
+        #[must_use]
+        pub fn intervals(&self) -> ForwardIntervals {
+            ForwardIntervals {
+                bge_start_ns: self.bge_start_ns.load(Ordering::Acquire),
+                bge_end_ns: self.bge_end_ns.load(Ordering::Acquire),
+                ce_start_ns: self.ce_start_ns.load(Ordering::Acquire),
+                ce_end_ns: self.ce_end_ns.load(Ordering::Acquire),
+                timed_out: self.timed_out.load(Ordering::Acquire),
+            }
+        }
+
+        /// Deterministic mechanism fixture for the test contract. Real
+        /// characterization uses [`run_bge_forward`](Self::run_bge_forward) and
+        /// the CE boundary, not this fixture.
+        #[must_use]
+        pub fn run_contract_fixture(self: &Arc<Self>) -> ForwardIntervals {
+            let bge = Arc::clone(self);
+            let ce = Arc::clone(self);
+            let bge_thread = thread::spawn(move || {
+                bge.run_bge_forward(|| thread::sleep(Duration::from_millis(1)))
+            });
+            let ce_thread = thread::spawn(move || {
+                ce.run_ce_forward(|| thread::sleep(Duration::from_millis(1)))
+            });
+            bge_thread.join().expect("BGE contract fixture joins");
+            ce_thread.join().expect("CE contract fixture joins");
+            self.intervals()
+        }
+    }
+
+    /// Installs a rendezvous for one concurrent operation and removes it when
+    /// the returned guard drops. Warm-up must happen before installation.
+    pub fn install_ce_forward_rendezvous(
+        rendezvous: Arc<ForwardRendezvous>,
+    ) -> Result<InstalledForwardRendezvous, &'static str> {
+        let mut active = CE_RENDEZVOUS.lock().map_err(|_| "Slice 72 hook lock poisoned")?;
+        if active.is_some() {
+            return Err("Slice 72 CE forward hook is already installed");
+        }
+        *active = Some(rendezvous.clone());
+        Ok(InstalledForwardRendezvous { rendezvous })
+    }
+
+    /// RAII guard for one installed CE-forward rendezvous.
+    pub struct InstalledForwardRendezvous {
+        rendezvous: Arc<ForwardRendezvous>,
+    }
+
+    impl Drop for InstalledForwardRendezvous {
+        fn drop(&mut self) {
+            if let Ok(mut active) = CE_RENDEZVOUS.lock() {
+                if active.as_ref().is_some_and(|current| Arc::ptr_eq(current, &self.rendezvous)) {
+                    *active = None;
+                }
+            }
+        }
+    }
+
+    /// Wraps the real CE forward only while a trusted-runner test has armed its
+    /// rendezvous. Normal builds compile this module out entirely.
+    pub fn with_ce_forward<T>(operation: impl FnOnce() -> T) -> T {
+        let rendezvous = CE_RENDEZVOUS.lock().ok().and_then(|active| active.clone());
+        match rendezvous {
+            Some(rendezvous) => rendezvous.run_ce_forward(operation),
+            None => operation(),
+        }
+    }
+
+    #[cfg(test)]
+    #[test]
+    fn contract_fixture_records_actual_forward_overlap() {
+        assert!(ForwardRendezvous::new().run_contract_fixture().overlaps());
+    }
+}
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::error::Error;
@@ -12946,6 +13135,9 @@ fn ce_rerank(
     // per-pair forwards. The ranking math below (RRF min-max norm, sigmoid,
     // ALPHA blend, sort) is byte-unchanged — only the scoring is batched.
     let bodies: Vec<&str> = top.iter().map(|h| h.body.as_str()).collect();
+    #[cfg(feature = "slice72-test-hooks")]
+    let raw_logits = slice72_test_hooks::with_ce_forward(|| model.score_batch(_query, &bodies))?;
+    #[cfg(not(feature = "slice72-test-hooks"))]
     let raw_logits = model.score_batch(_query, &bodies)?;
 
     let mut scored: Vec<(f64, SearchHit)> = top

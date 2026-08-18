@@ -41,10 +41,14 @@ require "$SLICE70" 'inventory/probe fixtures'
 require "$SLICE10" 'fathomdb.cuda-preflight-witness/v2'
 require "$SLICE10" 'fathomdb.cuda-preflight-build-input/v2'
 require "$SLICE10" 'forced-cuda-unavailable-python.json'
-require "$SLICE10" 'forced-cuda-incompatible-napi.json'
 require "$SLICE10" 'fathomdb.cuda-forced-device-failure/v1'
+require "$SLICE10" 'fathomdb.cuda-forced-device-capture/v1'
+require "$SLICE10" 'Real sealed witnesses contain only outcomes the installed candidate actually produced'
+require "$SLICE10" 'incompatible records are committed verifier fixtures, not trusted-runner observations'
 require "$SLICE10" 'model-cache-manifest.json'
 require "$SLICE10" 'fathomdb.cuda-model-cache/v1'
+require "$SLICE10" 'smoke-cache-topology.json'
+require "$SLICE10" 'fathomdb.cuda-smoke-cache-topology/v1'
 require "$SLICE10" 'read-only `HF_HOME=/fathomdb-hf` bind mount'
 require "$SLICE10" 'separate fresh'
 require "$SLICE10" 'writable `XDG_CACHE_HOME=/fathomdb-product-cache`'
@@ -60,6 +64,9 @@ require "$SLICE10" 'nonempty, non-symlink file'
 require "$SLICE10" '`stdout_filename`'
 require "$SLICE10" '`stderr_filename`'
 require "$SLICE10" '`evidence_sha256` map binds each named capture with the same digest'
+require "$SLICE10" '`visible_ordinal`, `uuid`, `name`, and `compute_capability`'
+require "$SLICE10" 'ordinal is exactly `0`'
+require "$SLICE10" 'selected UUID equals the UUID reported by `nvidia-smi --query-gpu=uuid`'
 require "$SLICE10" '`HUGGINGFACE_HUB_CACHE`'
 require "$SLICE10" 'deterministic, committed fixtures'
 
@@ -110,6 +117,10 @@ if [[ "${SLICE70_SKIP_MUTATIONS:-0}" != 1 ]]; then
     's/diagnostic-only: it never opens a database/model-operation: it opens a database/'
   assert_mutation_rejected forced-capture-inventory 0.8.23-slice-10-cuda-contract.md \
     's/forced-cuda-unavailable-python-stdout.txt/removed-forced-capture.txt/'
+  assert_mutation_rejected real-vs-fixture-provenance 0.8.23-slice-10-cuda-contract.md \
+    's/incompatible records are committed verifier fixtures, not trusted-runner observations/incompatible records are trusted-runner observations/'
+  assert_mutation_rejected cache-topology-record 0.8.23-slice-10-cuda-contract.md \
+    's/fathomdb.cuda-smoke-cache-topology\/v1/fathomdb.cuda-smoke-cache-topology\/removed/'
   assert_mutation_rejected provider-enumeration 0.8.23-slice-70-dual-runtime-device-policy.md \
     's/CudaProvider::enumerate_visible_cuda_devices/CudaProvider::probe_cuda/'
   assert_mutation_rejected cache-topology 0.8.23-slice-20-cuda-package-rehearsal.md \

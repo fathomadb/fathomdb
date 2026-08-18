@@ -24,6 +24,9 @@ sqlite-vec = "=0.1.9"
 
 [features]
 default = []
+# Private TC-5 reader-worker route. This is intentionally not forwarded by the
+# facade or any language binding.
+tc5-benchmark = []
 # Slice 65: test-only rendezvous used by the disposable Python control wheel.
 # This feature is intentionally absent from every shipped-wheel feature list.
 test-hooks = []

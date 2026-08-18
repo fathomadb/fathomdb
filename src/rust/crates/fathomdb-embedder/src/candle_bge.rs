@@ -80,18 +80,6 @@ pub enum Pooling {
     Cls,
 }
 
-/// Concrete device selected by the private TC-5 preflight.
-///
-/// This value never parses ambient configuration and cannot fall back from a
-/// CUDA request to CPU.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ExplicitCandleDevice {
-    /// Use Candle's CPU backend.
-    Cpu,
-    /// Use the exact CUDA ordinal selected by TC-5 preflight.
-    Cuda(usize),
-}
-
 /// Concrete device selected by the TC-5 benchmark preflight.
 ///
 /// Unlike the ordinary constructors, this enum is never derived from an

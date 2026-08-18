@@ -1244,6 +1244,8 @@ dependencies = [
 name = "fathomdb-tc5-benchmark"
 version = "0.8.22"
 dependencies = [
+ "fathomdb-embedder",
+ "fathomdb-embedder-api",
  "fathomdb-engine",
  "serde",
  "serde_json",

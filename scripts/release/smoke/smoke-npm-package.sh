@@ -21,12 +21,33 @@ if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)
   exit 2
 fi
 
+# Resolved before the cd below: ${BASH_SOURCE[0]} is whatever relative or
+# absolute path this script was invoked with, and dirname of a relative path
+# only resolves correctly against the caller's original cwd.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 cd "$WORK"
 npm init -y >/dev/null
 npm install --silent "fathomdb@${VERSION}"
+
+# AC80-1/R80-2: the floor gate must bind the published bytes, not only a
+# local build. Only Linux carries a glibc floor — `.node` is napi-rs's
+# binary extension on every platform, so this is gated on the host OS, not
+# merely on whether that file was found.
+HOST_OS="$(uname -s)"
+if [ "$HOST_OS" = "Linux" ]; then
+  NATIVE_BINARY="$(find "$WORK/node_modules" -maxdepth 2 -type f -name 'fathomdb.*.node' -print -quit)"
+  if [ -z "$NATIVE_BINARY" ]; then
+    printf 'smoke-npm-package: no native .node binary found under node_modules on Linux — glibc-floor gate did not run\n' >&2
+    exit 1
+  fi
+  # shellcheck source=/dev/null
+  . "$REPO_ROOT/scripts/release/glibc-floor-contract.sh"
+  bash "$REPO_ROOT/scripts/check-glibc-floor.sh" --floor "$GLIBC_FLOOR" "$NATIVE_BINARY"
+fi
 
 DB="$WORK/smoke.fdb"
 cat > smoke.mjs <<'JS'

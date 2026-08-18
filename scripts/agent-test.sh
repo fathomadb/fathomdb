@@ -237,6 +237,17 @@ run_tier_suite fast test-check-governed-surface-pin bash scripts/tests/test_chec
 # js-yaml@4.2.0 regression and malformed-input fail-closed arms.
 run_tier_suite fast test-check-pinned-override-rot bash scripts/tests/test_check_pinned_override_rot.sh
 
+# 0.8.23 Slice 80.1 (AC80-1/AC80-2/R80-2): glibc-floor gate for the native
+# .node/.abi3.so artifacts. objdump/readelf are stubbed in fixtures so the
+# suite runs identically regardless of host architecture; fails closed when
+# neither inspection tool is present.
+run_tier_suite fast test-check-glibc-floor bash scripts/tests/test_check_glibc_floor.sh
+
+# 0.8.23 Slice 80.1 (AC80-9): docs/compatibility/index.md's glibc-floor claim
+# must match scripts/release/glibc-floor-contract.sh, so the two cannot
+# drift apart the way the pre-80.1 npm claim did.
+run_tier_suite fast test-check-glibc-floor-doc-truth bash scripts/tests/test_check_glibc_floor_doc_truth.sh
+
 # Scripts (bash): R-20-H7 — the shared scripts/check-c1-conformance.sh predicate
 # (contract content pin + clause-registry bijection + pinned counts + the 26
 # CHECKABLE clause assertions against as-built code), its --landing wiring in

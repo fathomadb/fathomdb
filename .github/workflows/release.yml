@@ -445,22 +445,67 @@ jobs:
         with:
           ref: ${{ env.RELEASE_CHECKOUT_REF }}
           persist-credentials: false
+      # Slice 80.1 (AC80-1/R80-2): linux-arm64-gnu is the one glibc-relevant
+      # row here (macOS/Windows carry no glibc floor). It builds inside the
+      # digest-pinned manylinux_2_28 container below instead of on the bare
+      # runner, so the shipped .node artifact shares the same declared
+      # glibc 2.28 floor as the Python wheel rather than whatever glibc
+      # ubuntu-24.04-arm happens to carry. The steps in this block are
+      # skipped for that row; its own containerized steps follow.
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        if: ${{ matrix.label != 'linux-arm64-gnu' }}
         with:
           node-version: "25.9.0"
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        if: ${{ matrix.label != 'linux-arm64-gnu' }}
         with:
           toolchain: "1.95.0"
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        if: ${{ matrix.label != 'linux-arm64-gnu' }}
       - name: Install ts deps
+        if: ${{ matrix.label != 'linux-arm64-gnu' }}
         working-directory: src/ts
         run: npm ci
       - name: Build napi binding
+        if: ${{ matrix.label != 'linux-arm64-gnu' }}
         working-directory: src/ts
         env:
           CARGO_BUILD_TARGET: ${{ matrix.target }}
         run: npm run build:native
+      - name: Provision napi manylinux image
+        if: ${{ matrix.label == 'linux-arm64-gnu' }}
+        run: bash scripts/release/provision-napi-manylinux.sh
+      - name: Build napi binding (containerized manylinux_2_28)
+        if: ${{ matrix.label == 'linux-arm64-gnu' }}
+        # Workspace is mounted read-write (unlike cuda-preflight.sh's
+        # read-only wheel-build mount): napi build writes fathomdb.<label>.node
+        # directly into the mounted src/ts tree, with no maturin-style --out
+        # redirect to a separate witness dir. --user maps container output to
+        # the host uid/gid, so this is not a root-write escalation.
+        run: |
+          . scripts/release/napi-artifact-contract.sh
+          docker run --rm --platform "$NAPI_MANYLINUX_PLATFORM" \
+            --user "$(id -u):$(id -g)" \
+            -v "$PWD:/workspace" -w /workspace/src/ts \
+            -e CARGO_BUILD_TARGET=${{ matrix.target }} \
+            -e HOME=/tmp -e npm_config_cache=/tmp/npm-cache \
+            -e CARGO_HOME=/tmp/fathomdb-cargo -e CARGO_TARGET_DIR=/tmp/fathomdb-cargo-target \
+            -e NAPI_RUST_VERSION -e NAPI_NODE_VERSION -e NAPI_RUSTUP_TOOLCHAIN \
+            -e "RUSTUP_TOOLCHAIN=$NAPI_RUSTUP_TOOLCHAIN" \
+            "$NAPI_MANYLINUX_IMAGE" \
+            sh -ceu '
+              node --version | grep -F "v$NAPI_NODE_VERSION"
+              rustc --version | grep -F "rustc $NAPI_RUST_VERSION"
+              test "$RUSTUP_TOOLCHAIN" = "$NAPI_RUSTUP_TOOLCHAIN"
+              test ! -w /opt/fathomdb/rustup
+              npm ci && npm run build:native
+            '
+      - name: Assert glibc floor (AC80-1)
+        if: ${{ matrix.label == 'linux-arm64-gnu' }}
+        run: |
+          . scripts/release/glibc-floor-contract.sh
+          bash scripts/check-glibc-floor.sh --floor "$GLIBC_FLOOR" "src/ts/fathomdb.${{ matrix.label }}.node"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: napi-${{ matrix.label }}

@@ -127,9 +127,9 @@ design passes independent review.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-landed-roll-up -->
-**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`) · 60 (`423baf6a`) · 65 (`6b57557c`). SCHEMA is 26; remaining ladder = 70 → 71 → 40.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
+**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`) · 60 (`423baf6a`) · 65 (`6b57557c`). SCHEMA is 26; remaining ladder = 70 → 71 → 72 → 40.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-immediate-next -->
 **IMMEDIATE NEXT: Slice 70** (`DUAL-RUNTIME-TC5`) — supported dual CPU/GPU runtime policy, diagnostics, artifacts, and exact pre-fusion TC-5 controls
 
-**Remaining ladder:** 70 → 71 → 40.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->
+**Remaining ladder:** 70 → 71 → 72 → 40.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->

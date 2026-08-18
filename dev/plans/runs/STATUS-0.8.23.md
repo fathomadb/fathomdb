@@ -33,14 +33,15 @@ candidate slices require explicit commission.
 | 40 | SCALE-CHARACTERIZATION — fixture-scoped scale characterization | SET_ASIDE by HITL — V2 runner work remains unintegrated; no measurements or characterization. Resume only after Slices 10, 20, and 70. |
 | 10 | CUDA-CONTRACT — CUDA environment, artifact contract, and protected runner gate | PENDING_EXTERNAL — local controls complete through `ecafa0d8`; separate main provenance, runner-policy/environment attestation, and retained trusted hardware witness block release completion and publication only (HITL `seq:249`). |
 | 20 | CUDA-PACKAGE — CUDA package, rehearsal, and installed-artifact smokes | PENDING_EXTERNAL — local reviewed control plane landed at `91a5ddd8`; retained Slice 10 receipt/witness plus one real nonpublishing package-rehearsal bundle and independent evidence review block release completion and publication only. |
-| 70 | DUAL-RUNTIME-TC5 — supported dual CPU/GPU runtime policy, diagnostics, artifacts, and exact pre-fusion TC-5 controls | IN_PROGRESS — local strict embedding policy, engine, and SDK-report work is under review; next are `doctor gpu`/configuration diagnostics, the Linux x86_64 CLI artifact/rehearsal contract, then the isolated TC-5 controls. No real CUDA/artifact/TC-5 result is claimed. |
-| 71 | RERANK-DUAL-RUNTIME — cross-encoder reranker CPU/GPU runtime parity | NOT_STARTED — draft plan only; audit/design work begins after Slice 70. Forced GPU reranking must never silently execute inference on CPU. |
+| 70 | DUAL-RUNTIME-TC5 — supported dual CPU/GPU runtime policy, diagnostics, artifacts, and exact pre-fusion TC-5 controls | REVIEWED_PENDING_INTEGRATION — local release implementation through `aa29152b`; real CUDA/trusted-runner/rehearsal and TC-5 characterization evidence remains `PENDING_EXTERNAL`. |
+| 71 | RERANK-DUAL-RUNTIME — cross-encoder reranker CPU/GPU runtime parity | REVIEWED_PENDING_INTEGRATION — local release implementation through `a49ac989`; compatible-GPU and visible-incompatible installed-artifact receipts remain `PENDING_EXTERNAL`. |
+| 72 | CONCURRENT-DUAL-RUNTIME — concurrent embedding and cross-encoder GPU coexistence characterization | NOT_STARTED — commissioned draft plan; independent design review precedes three real-runtime test tiers, documentation review, and the TC-5 GPU-path decision. |
 
 ## Immediate next action
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Land reviewed Slice 70 (DUAL-RUNTIME-TC5)** — supported dual CPU/GPU runtime policy, diagnostics, artifacts, and exact pre-fusion TC-5 controls. **Remaining ladder:** 70 → 71 → 40.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Land reviewed Slice 70 (DUAL-RUNTIME-TC5)** — supported dual CPU/GPU runtime policy, diagnostics, artifacts, and exact pre-fusion TC-5 controls. **Remaining ladder:** 70 → 71 → 72 → 40.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
 
 ## Stop gate
 

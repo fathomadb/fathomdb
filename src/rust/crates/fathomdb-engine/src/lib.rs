@@ -139,8 +139,18 @@ pub mod slice72_test_hooks {
         /// [`install_ce_forward_rendezvous`].
         #[must_use]
         pub fn new() -> Arc<Self> {
+            Self::new_for_run(Instant::now())
+        }
+
+        /// Creates an unarmed rendezvous on a trusted runner's receipt clock.
+        ///
+        /// The hardware harness samples before model warm-up, so its later
+        /// real-forward timestamps must retain that same origin rather than
+        /// restarting at rendezvous construction.
+        #[must_use]
+        pub fn new_for_run(started: Instant) -> Arc<Self> {
             Arc::new(Self {
-                started: Instant::now(),
+                started,
                 arrival: Mutex::new(Arrival::default()),
                 arrived: Condvar::new(),
                 timed_out: AtomicBool::new(false),

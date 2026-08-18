@@ -568,6 +568,11 @@ forced CUDA failure is not represented as a successful CPU rerank. Reranker
 device evidence is separate from OpenReport.embedder_device_resolution and
 never describes database retrieval.
 
+The embedder and reranker may select the same process-visible CUDA UUID in one
+Python process. That creates independent model instances, not a GPU reservation,
+memory quota, scheduler, or evidence that retrieval/FTS/fusion/graph work used
+the GPU.
+
 Python exposes one catch-all base class, `EngineError`, plus one concrete
 subclass per canonical row in `design/errors.md` — **28** of them as of 0.8.23,
 1:1 with the TypeScript set below `FathomDbError`.

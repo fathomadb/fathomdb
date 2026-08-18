@@ -25,8 +25,12 @@ fn selected_uuid_is_filtered_from_multi_gpu_rows_and_receipt_requires_all_phases
     receipt.push_phase("before_warm", before.clone()).expect("before warm");
     let directory = tempfile::tempdir().expect("receipt directory");
     assert!(receipt.write_success(directory.path()).is_err(), "overlap phase is mandatory");
-    receipt.push_phase("warmed", before.clone()).expect("warmed");
-    receipt.push_phase("overlap", before.clone()).expect("overlap");
+    let mut warmed = before.clone();
+    warmed.monotonic_ns = 11;
+    receipt.push_phase("warmed", warmed).expect("warmed");
+    let mut overlap = before.clone();
+    overlap.monotonic_ns = 12;
+    receipt.push_phase("overlap", overlap).expect("overlap");
     receipt.write_success(directory.path()).expect("complete receipt");
 
     let mut non_monotonic = Receipt::for_test("monotonic", "GPU-selected", 4243);

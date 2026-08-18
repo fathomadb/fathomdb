@@ -596,6 +596,11 @@ fail rather than execute cross-encoder inference on CPU. Reranker evidence is
 separate from OpenReport.embedderDeviceResolution; it does not claim GPU
 candidate retrieval or SQLite work.
 
+The embedder and reranker may select the same process-visible CUDA UUID in one
+TypeScript process. That creates independent model instances, not a GPU
+reservation, memory quota, scheduler, or evidence that retrieval/FTS/fusion/
+graph work used the GPU.
+
 TypeScript exposes one concrete class per canonical row in
 `design/errors.md` — **28** of them as of 0.8.23, 1:1 with the Python set
 below `EngineError`.

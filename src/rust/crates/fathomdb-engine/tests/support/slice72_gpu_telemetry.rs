@@ -27,6 +27,11 @@ pub use fathomdb_engine::slice72_test_hooks::ForwardRendezvous;
 
 static SLICE72_TEST_LOCK: Mutex<()> = Mutex::new(());
 
+#[must_use]
+pub fn has_exactly_one_visible_cuda_device(device_count: usize) -> bool {
+    device_count == 1
+}
+
 const RUNNER_SENTINEL: &str = "approved-nvidia";
 const STRESS_WATCHDOG_CEILING: std::time::Duration = std::time::Duration::from_secs(120);
 const STRESS_WATCHDOG_CHILD_TEST: &str = "slice72_private_stress_watchdog_child_entrypoint";
@@ -187,6 +192,13 @@ impl Receipt {
         if self.phases.last().is_some_and(|(previous, _)| phase_order(previous) >= order) {
             return Err("receipt phases are not strictly monotonic".to_owned());
         }
+        if self
+            .phases
+            .last()
+            .is_some_and(|(_, previous)| snapshot.monotonic_ns <= previous.monotonic_ns)
+        {
+            return Err("receipt timestamps are not strictly increasing".to_owned());
+        }
         if snapshot.gpu_uuid != self.selected_uuid {
             return Err("receipt phase UUID differs from selected UUID".to_owned());
         }
@@ -255,6 +267,8 @@ impl Receipt {
             "selected_visible_ordinal": 0,
             "selected_uuid": &self.selected_uuid,
             "cache_identities": { "bge": BGE_FILES, "reranker": RERANKER_FILES },
+            "provenance": receipt_provenance(),
+            "sensor": sensor_provenance(),
             "configuration": self.stress_configuration.map(|configuration| json!({
                 "stress_duration_seconds": configuration.duration_seconds,
                 "fixed_concurrency": configuration.fixed_concurrency,
@@ -298,8 +312,17 @@ impl Receipt {
                 "schema_version": "fathomdb.slice72.concurrent_gpu.v1",
                 "test_name": &self.test_name,
                 "outcome": "failure",
+                "host": std::env::consts::OS,
                 "pid": self.pid,
+                "build_features": ["slice72-gpu-tests"],
                 "selected_uuid": &self.selected_uuid,
+                "selected_visible_ordinal": 0,
+                "driver_version": nvidia_driver_version().ok(),
+                "cache_identities": { "bge": BGE_FILES, "reranker": RERANKER_FILES },
+                "provenance": receipt_provenance(),
+                "sensor": sensor_provenance(),
+                "phases": serde_json::Value::Null,
+                "summary": serde_json::Value::Null,
                 "failure": { "kind": failure_kind, "message": message },
             }),
         )
@@ -343,6 +366,19 @@ fn phase_order(name: &str) -> u8 {
         "stress" => 3,
         _ => u8::MAX,
     }
+}
+
+fn receipt_provenance() -> serde_json::Value {
+    json!({
+        "runner_sentinel": std::env::var("FATHOMDB_SLICE72_RUNNER").ok(),
+        "cuda_visible_devices": std::env::var("CUDA_VISIBLE_DEVICES").ok(),
+        "asset_root": std::env::var("FATHOMDB_SLICE72_ASSET_ROOT").ok(),
+        "test_binary": std::env::current_exe().ok().map(|path| path.display().to_string()),
+    })
+}
+
+fn sensor_provenance() -> serde_json::Value {
+    json!({ "source": "nvidia-smi", "version": nvidia_smi_version().ok() })
 }
 
 /// Runs this test binary's ignored stress test in a child process. The parent
@@ -569,26 +605,24 @@ fn write_watchdog_timeout_receipt(
         .write(true)
         .open(&path)
         .map_err(|error| format!("create watchdog receipt {}: {error}", path.display()))?;
-    let provenance = json!({
-        "runner_sentinel": std::env::var("FATHOMDB_SLICE72_RUNNER").ok(),
-        "cuda_visible_devices": std::env::var("CUDA_VISIBLE_DEVICES").ok(),
-        "asset_root": std::env::var("FATHOMDB_SLICE72_ASSET_ROOT").ok(),
-        "parent_test_binary": std::env::current_exe().ok().map(|path| path.display().to_string()),
-    });
     serde_json::to_writer_pretty(
         &mut file,
         &json!({
             "schema_version": "fathomdb.slice72.concurrent_gpu.v1",
             "test_name": test_name,
             "outcome": "failure",
+            "host": std::env::consts::OS,
             "pid": std::process::id(),
             "child_pid": child_pid,
+            "build_features": ["slice72-gpu-tests"],
             "selected_uuid": serde_json::Value::Null,
             "selected_visible_ordinal": serde_json::Value::Null,
             "driver_version": serde_json::Value::Null,
+            "cache_identities": serde_json::Value::Null,
             "phases": serde_json::Value::Null,
             "summary": serde_json::Value::Null,
-            "provenance": provenance,
+            "provenance": receipt_provenance(),
+            "sensor": sensor_provenance(),
             "failure": {
                 "kind": "watchdog_timeout",
                 "timeout_seconds": timeout.as_secs_f64(),
@@ -671,6 +705,12 @@ impl Slice72Run {
                 return None;
             }
         };
+        if !has_exactly_one_visible_cuda_device(embed_resolution.visible_cuda_devices.len())
+            || !has_exactly_one_visible_cuda_device(rerank_resolution.visible_cuda_devices.len())
+        {
+            eprintln!("PENDING_EXTERNAL Slice 72 requires exactly one process-visible CUDA device");
+            return None;
+        }
         let uuid = match embed_resolution.selected_cuda_uuid {
             Some(uuid)
                 if rerank_resolution.selected_cuda_uuid.as_deref() == Some(uuid.as_str()) =>
@@ -1057,6 +1097,23 @@ fn nvidia_driver_version() -> Result<String, String> {
         .filter(|line| !line.is_empty())
         .map(str::to_owned)
         .ok_or_else(|| "nvidia-smi did not report a driver version".to_owned())
+}
+
+fn nvidia_smi_version() -> Result<String, String> {
+    let output = Command::new("nvidia-smi")
+        .arg("--version")
+        .output()
+        .map_err(|error| format!("nvidia-smi version query: {error}"))?;
+    if !output.status.success() {
+        return Err("nvidia-smi version query failed".to_owned());
+    }
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .next()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .map(str::to_owned)
+        .ok_or_else(|| "nvidia-smi version output was empty".to_owned())
 }
 
 fn sample_nvidia_smi(

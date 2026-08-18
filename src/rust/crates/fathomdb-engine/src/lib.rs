@@ -13298,7 +13298,8 @@ fn ce_rerank(
     Ok(Some(result))
 }
 
-/// 0.8.1 Slice 10 (R1) / 0.8.2 Slice E1 — CPU TinyBERT-L-2 cross-encoder.
+/// 0.8.1 Slice 10 (R1) / 0.8.2 Slice E1 — TinyBERT-L-2 cross-encoder;
+/// its CPU or CUDA backend is selected by the reranker device policy.
 ///
 /// Thin engine-side handle over the embedder crate's `CandleTinyBertReranker`
 /// (Candle BERT stack + `tokenizers`, pinned `cross-encoder/ms-marco-TinyBERT-

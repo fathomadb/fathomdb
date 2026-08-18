@@ -154,7 +154,8 @@ cross-encoder reranking (0.8.1 R1) and optional graph-BFS third arm (0.8.1 R3).
 - `rerankDepth` (`number`, optional, default `undefined`/`0`) — 0.8.1 R1 opt-in.
   `0` or omitted uses the identity / soft-fallback path: byte-identical to the
   pre-0.8.1 fused order. `N > 0` applies a cross-encoder (TinyBERT-L-2,
-  ≈4 MB, p50 ≈ 1.5 ms/pair) over the top-N fused hits with score-blend
+  ≈4 MB; latency depends on the selected CPU/CUDA runtime and workload) over
+  the top-N fused hits with score-blend
   (α=0.3 × CE + 0.7 × RRF-norm). Must be a non-negative integer; negative
   values throw `RangeError`, non-integer values throw `TypeError`. In the
   default build (no `default-reranker` feature), depth > 0 returns the identity

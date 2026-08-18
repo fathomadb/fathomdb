@@ -270,14 +270,14 @@ def require_driverless_device_absence(preflight: str) -> None:
 
 def require_cuda_package_rehearsal() -> None:
     schema = load_json(PACKAGE_REHEARSAL_SCHEMA)
-    if schema.get("$id") != "https://fathomdb.dev/schemas/cuda-package-rehearsal/v1":
+    if schema.get("$id") != "https://fathomdb.dev/schemas/cuda-package-rehearsal/v2":
         fail("CUDA package rehearsal schema must declare its versioned schema ID")
     schema_version = schema.get("properties", {}).get("schema_version")
-    if not isinstance(schema_version, dict) or schema_version.get("const") != "fathomdb.cuda-package-rehearsal/v1":
+    if not isinstance(schema_version, dict) or schema_version.get("const") != "fathomdb.cuda-package-rehearsal/v2":
         fail("CUDA package rehearsal schema must pin its schema version")
     verifier = read_text(PACKAGE_REHEARSAL_VERIFIER)
     for fragment in (
-        "package inventory must contain exactly three retained artifacts",
+        "package inventory must contain exactly four typed retained artifacts",
         "package digest mismatch",
         "route receipt does not bind the requested candidate",
         "preflight witness digest mismatch",
@@ -286,6 +286,8 @@ def require_cuda_package_rehearsal() -> None:
         "CPU {consumer} smoke does not prove the driverless installed-artifact contract",
         "GPU {consumer} smoke lacks GPU UUID/PID correlation",
         'raw != canonical_json(value)',
+        "CLI archive is not deterministic gzip -n output",
+        "unavailable real CLI hardware evidence must remain PENDING_EXTERNAL",
     ):
         require_fragment(verifier, fragment, "CUDA package rehearsal verifier")
     helper = read_text(PACKAGE_REHEARSAL_HELPER)
@@ -295,6 +297,7 @@ def require_cuda_package_rehearsal() -> None:
         '--candidate-sha "$candidate_sha"',
         'output directory must be new',
         'verify-cuda-package-rehearsal.py',
+        '--cli-archive',
     ):
         require_fragment(helper, fragment, "CUDA package rehearsal helper")
     smoke = read_text(PACKAGE_REHEARSAL_SMOKE)
@@ -310,6 +313,9 @@ def require_cuda_package_rehearsal() -> None:
         'source_imported',
         'gpu_uuid',
         'nvidia_smi_uuid',
+        'XDG_CACHE_HOME=/fathomdb-product-cache',
+        'model_cache_manifest',
+        'doctor gpu --json',
     ):
         require_fragment(smoke, fragment, "CUDA package rehearsal installed-artifact smoke")
     for forbidden in (

@@ -1,55 +1,75 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://fathomdb.dev/schemas/cuda-package-rehearsal/v1",
-  "title": "FathomDB CUDA package rehearsal",
-  "description": "A SHA-bound, non-publishing inventory of exact CUDA package bytes and installed-artifact smoke evidence.",
+  "$id": "https://fathomdb.dev/schemas/cuda-package-rehearsal/v2",
+  "title": "FathomDB CUDA package rehearsal v2",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "build_input",
-    "candidate_sha",
-    "packages",
-    "preflight_witness_sha256",
-    "route_receipt_sha256",
-    "schema_version",
-    "smoke_evidence_sha256"
-  ],
+  "required": ["build_input", "candidate_sha", "packages", "pending_external", "preflight_witness_sha256", "route_receipt_sha256", "schema_version", "smoke_evidence_sha256", "target", "version"],
   "properties": {
-    "schema_version": {"const": "fathomdb.cuda-package-rehearsal/v1"},
+    "schema_version": {"const": "fathomdb.cuda-package-rehearsal/v2"},
     "candidate_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "target": {"const": "x86_64-unknown-linux-gnu"},
     "route_receipt_sha256": {"$ref": "#/$defs/sha256"},
     "preflight_witness_sha256": {"$ref": "#/$defs/sha256"},
+    "pending_external": {"const": ["compatible_gpu_cli", "incompatible_classifier_observation"]},
     "build_input": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["candidate_sha", "napi_features", "python_features", "rerank_cuda", "schema_version"],
+      "required": ["archive_filename", "candidate_sha", "cli_features", "model_cache_manifest_sha256", "napi_features", "python_features", "rerank_cuda", "schema_version", "target", "version"],
       "properties": {
-        "schema_version": {"const": "fathomdb.cuda-package-build-input/v1"},
+        "schema_version": {"const": "fathomdb.cuda-package-build-input/v2"},
         "candidate_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "version": {"type": "string"},
+        "target": {"const": "x86_64-unknown-linux-gnu"},
         "python_features": {"const": ["embed-cuda", "pyo3/extension-module"]},
         "napi_features": {"const": ["default-embedder", "embed-cuda"]},
-        "rerank_cuda": {"const": false}
+        "cli_features": {"const": ["embed-cuda"]},
+        "rerank_cuda": {"const": false},
+        "model_cache_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "archive_filename": {"type": "string"}
       }
     },
     "packages": {
       "type": "object",
-      "minProperties": 3,
-      "maxProperties": 3,
-      "additionalProperties": {"$ref": "#/$defs/sha256"}
+      "additionalProperties": false,
+      "required": ["cli_archive", "napi_platform", "npm_main", "python_wheel"],
+      "properties": {
+        "cli_archive": {"$ref": "#/$defs/package"},
+        "napi_platform": {"$ref": "#/$defs/package"},
+        "npm_main": {"$ref": "#/$defs/package"},
+        "python_wheel": {"$ref": "#/$defs/package"}
+      }
     },
     "smoke_evidence_sha256": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["cpu-napi.json", "cpu-python.json", "gpu-napi.json", "gpu-python.json"],
+      "required": ["cpu-cli-stdout.json", "cpu-cli.json", "cpu-napi.json", "cpu-python.json", "forced-cuda-unavailable-cli-stdout.json", "forced-cuda-unavailable-cli.json", "gpu-napi.json", "gpu-python.json"],
       "properties": {
+        "cpu-cli-stdout.json": {"$ref": "#/$defs/sha256"},
+        "cpu-cli.json": {"$ref": "#/$defs/sha256"},
         "cpu-napi.json": {"$ref": "#/$defs/sha256"},
         "cpu-python.json": {"$ref": "#/$defs/sha256"},
+        "forced-cuda-unavailable-cli-stdout.json": {"$ref": "#/$defs/sha256"},
+        "forced-cuda-unavailable-cli.json": {"$ref": "#/$defs/sha256"},
         "gpu-napi.json": {"$ref": "#/$defs/sha256"},
         "gpu-python.json": {"$ref": "#/$defs/sha256"}
       }
     }
   },
   "$defs": {
-    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contains_cuda", "filename", "sha256", "target", "version"],
+      "properties": {
+        "contains_cuda": {"type": "boolean"},
+        "filename": {"type": "string"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "target": {"const": "x86_64-unknown-linux-gnu"},
+        "version": {"type": "string"}
+      }
+    }
   }
 }

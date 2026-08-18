@@ -497,20 +497,41 @@ jobs:
           ref: ${{ env.RELEASE_CHECKOUT_REF }}
           path: candidate
           persist-credentials: false
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        with:
+          toolchain: "1.95.0"
+          targets: x86_64-unknown-linux-gnu
       - name: Build canonical CUDA package input identity
         working-directory: candidate
         shell: bash
         run: |
           set -euo pipefail
-          python3 - '${{ inputs.candidate_commit }}' > cuda-package-build-input.json <<'PY'
+          cargo_versions="$(cargo metadata --locked --no-deps --format-version 1 | python3 -c 'import json,sys; p=json.load(sys.stdin)["packages"]; print(" ".join(x["version"] for x in p if x["name"] in {"fathomdb-py","fathomdb-cli"}))')"
+          npm_version="$(python3 -c 'import json; print(json.load(open("src/ts/package.json"))["version"])')"
+          napi_version="$(python3 -c 'import json; print(json.load(open("src/ts/npm/linux-x64-gnu/package.json"))["version"])')"
+          version="$npm_version"
+          test "$cargo_versions" = "$version $version" && test "$version" = "$npm_version" && test "$version" = "$napi_version"
+          cargo build --locked --release -p fathomdb-cli --features embed-cuda --target x86_64-unknown-linux-gnu
+          archive="fathomdb-$version-x86_64-unknown-linux-gnu.tar.gz"
+          bash ../control-plane/scripts/release/seal-cuda-cli-archive.sh \
+            --binary target/x86_64-unknown-linux-gnu/release/fathomdb \
+            --version "$version" --output "$archive"
+          python3 - '${{ inputs.candidate_commit }}' "$version" "$archive" '../preflight-witness/model-cache-manifest.json' > cuda-package-build-input.json <<'PY'
+          import hashlib
           import json
           import sys
+          candidate, version, archive, model_manifest = sys.argv[1:]
           print(json.dumps({
-              "schema_version": "fathomdb.cuda-package-build-input/v1",
-              "candidate_sha": sys.argv[1],
+              "schema_version": "fathomdb.cuda-package-build-input/v2",
+              "candidate_sha": candidate,
+              "version": version,
+              "target": "x86_64-unknown-linux-gnu",
               "python_features": ["embed-cuda", "pyo3/extension-module"],
               "napi_features": ["default-embedder", "embed-cuda"],
+              "cli_features": ["embed-cuda"],
               "rerank_cuda": False,
+              "model_cache_manifest_sha256": hashlib.sha256(open(model_manifest, "rb").read()).hexdigest(),
+              "archive_filename": archive,
           }, ensure_ascii=True, separators=(",", ":"), sort_keys=True))
           PY
       - name: Smoke installed retained package bytes in isolated containers
@@ -521,11 +542,14 @@ jobs:
           wheel="$(find ../preflight-witness/python-dist -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
           npm_main="$(find ../preflight-witness/npm-artifacts/main -maxdepth 1 -type f -name 'fathomdb-*.tgz' -print -quit)"
           napi_platform="$(find ../preflight-witness/npm-artifacts/platforms/linux-x64-gnu -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
-          test -n "$wheel" && test -n "$npm_main" && test -n "$napi_platform"
+          cli_archive="$(find . -maxdepth 1 -type f -name 'fathomdb-*-x86_64-unknown-linux-gnu.tar.gz' -print -quit)"
+          test -n "$wheel" && test -n "$npm_main" && test -n "$napi_platform" && test -n "$cli_archive"
           bash ../control-plane/scripts/release/cuda-package-rehearsal-smoke.sh \
             --python-wheel "$wheel" \
             --npm-main "$npm_main" \
             --napi-platform "$napi_platform" \
+            --cli-archive "$cli_archive" \
+            --model-cache-manifest ../preflight-witness/model-cache-manifest.json \
             --hf-home "${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}" \
             --smoke-dir cuda-package-smoke
       - name: Seal exact non-publishing CUDA package rehearsal bundle
@@ -535,6 +559,7 @@ jobs:
           wheel="$(find preflight-witness/python-dist -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
           npm_main="$(find preflight-witness/npm-artifacts/main -maxdepth 1 -type f -name 'fathomdb-*.tgz' -print -quit)"
           napi_platform="$(find preflight-witness/npm-artifacts/platforms/linux-x64-gnu -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
+          cli_archive="$(find candidate -maxdepth 1 -type f -name 'fathomdb-*-x86_64-unknown-linux-gnu.tar.gz' -print -quit)"
           bash control-plane/scripts/release/cuda-package-rehearsal.sh \
             --candidate-sha '${{ inputs.candidate_commit }}' \
             --route-receipt control-plane/receipt/cuda-unmerged-route-receipt.json \
@@ -544,6 +569,7 @@ jobs:
             --python-wheel "$wheel" \
             --npm-main "$npm_main" \
             --napi-platform "$napi_platform" \
+            --cli-archive "$cli_archive" \
             --smoke-dir candidate/cuda-package-smoke \
             --output-dir candidate/cuda-package-rehearsal \
             --workflow-ref '${{ github.workflow_ref }}' \

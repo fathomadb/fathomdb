@@ -28,6 +28,7 @@ make_fixture() {
   cp "$REPO_ROOT/scripts/release/verify-cuda-package-rehearsal.py" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/cuda-package-rehearsal.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/release/seal-cuda-cli-archive.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/Dockerfile.cuda-manylinux" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/provision-cuda-manylinux.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/src/rust/crates/fathomdb-napi/Cargo.toml" "$root/src/rust/crates/fathomdb-napi/"
@@ -84,6 +85,31 @@ printf 'PASS  hosted CUDA verifier is main-owned and candidate-independent\n'
 FIXTURE="$TMPROOT/fixture"
 make_fixture "$FIXTURE"
 expect_pass "$FIXTURE" 'baseline CUDA contract agrees'
+
+if grep -Fq 'bash candidate/scripts/release/cuda-package-rehearsal' "$REPO_ROOT/.github/workflows/release.yml" \
+  || grep -Fq 'bash scripts/release/cuda-package-rehearsal-smoke.sh' "$REPO_ROOT/.github/workflows/release.yml"; then
+  printf 'FAIL  Slice 20 self-hosted rehearsal must execute only trusted control-plane helpers\n' >&2
+  exit 1
+fi
+printf 'PASS  Slice 20 self-hosted rehearsal executes only trusted control-plane helpers\n'
+
+if grep -Fq 'exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0' \
+  "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh" \
+  && grep -Fq 'exec env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 node' \
+  "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh"; then
+  printf 'PASS  Slice 20 GPU PID attestations exec the actual Python and Node runtimes\n'
+else
+  printf 'FAIL  Slice 20 GPU PID attestations must exec the actual Python and Node runtimes\n' >&2
+  exit 1
+fi
+
+python_cpu_smoke="$(sed -n '/docker run --rm --network none/,/write_cpu python/p' "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh")"
+if grep -Fq 'test ! -e /dev/nvidiactl' <<<"$python_cpu_smoke"; then
+  printf 'PASS  Slice 20 Python CPU smoke proves driverless execution\n'
+else
+  printf 'FAIL  Slice 20 Python CPU smoke must prove /dev/nvidiactl is absent\n' >&2
+  exit 1
+fi
 
 for package_rehearsal_mutation in missing-gate source-smoke host-network; do
   make_fixture "$FIXTURE"
@@ -463,7 +489,8 @@ variable = sys.argv[2]
 text = path.read_text()
 needle = (
     "env -u FATHOMDB_EMBED_DEVICE -u FATHOMDB_RERANK_DEVICE -u CUDA_VISIBLE_DEVICES "
-    "-u NVIDIA_VISIBLE_DEVICES -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES sh -ceu '"
+    "-u NVIDIA_VISIBLE_DEVICES -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES "
+    "-u HUGGINGFACE_HUB_CACHE -u TRANSFORMERS_CACHE -u FATHOMDB_EMBEDDER_CACHE_DIR sh -ceu '"
 )
 if text.count(needle) != 2:
     raise SystemExit("fixture no longer contains exactly two driverless device scrubs")
@@ -493,12 +520,10 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = 'Engine.open(str(db_path), use_default_embedder=True)'
-if needle not in text:
-    needle = 'Engine.open(str(db_path))'
+needle = 'Engine.open(str(pathlib.Path(directory) / "driverless.fdb"), use_default_embedder=True)'
 if text.count(needle) != 1:
     raise SystemExit("fixture no longer contains exactly one driverless Python open")
-path.write_text(text.replace(needle, 'Engine.open(str(db_path), use_default_embedder=False)', 1))
+path.write_text(text.replace(needle, 'Engine.open(str(pathlib.Path(directory) / "driverless.fdb"), use_default_embedder=False)', 1))
 PY
 expect_fail "$FIXTURE" 'rejects a driverless Python smoke that skips the default embedder'
 
@@ -509,10 +534,10 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = '{ useDefaultEmbedder: true }'
+needle = 'Engine.open("/fathomdb-tmp/driverless-node.fdb", { useDefaultEmbedder: true })'
 if text.count(needle) != 1:
     raise SystemExit("fixture no longer contains exactly one driverless N-API default-embedder open")
-path.write_text(text.replace(needle, '{ useDefaultEmbedder: false }', 1))
+path.write_text(text.replace(needle, 'Engine.open("/fathomdb-tmp/driverless-node.fdb", { useDefaultEmbedder: false })', 1))
 PY
 expect_fail "$FIXTURE" 'rejects a driverless installed N-API smoke that skips the default embedder'
 

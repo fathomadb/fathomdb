@@ -7,26 +7,28 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/cuda-artifact-contract.sh"
 
 usage() {
-  printf 'usage: %s --python-wheel FILE --npm-main FILE --napi-platform FILE --hf-home DIR --smoke-dir DIR\n' "$0" >&2
+  printf 'usage: %s --python-wheel FILE --npm-main FILE --napi-platform FILE --cli-archive FILE --model-cache-manifest FILE --hf-home DIR --smoke-dir DIR\n' "$0" >&2
 }
 
-python_wheel='' npm_main='' napi_platform='' hf_home='' smoke_dir=''
+python_wheel='' npm_main='' napi_platform='' cli_archive='' model_cache_manifest='' hf_home='' smoke_dir=''
 while [ "$#" -gt 0 ]; do
   [ "$#" -ge 2 ] || { usage; exit 2; }
   case "$1" in
     --python-wheel) python_wheel="$2" ;;
     --npm-main) npm_main="$2" ;;
     --napi-platform) napi_platform="$2" ;;
+    --cli-archive) cli_archive="$2" ;;
+    --model-cache-manifest) model_cache_manifest="$2" ;;
     --hf-home) hf_home="$2" ;;
     --smoke-dir) smoke_dir="$2" ;;
     *) usage; exit 2 ;;
   esac
   shift 2
 done
-for value in python_wheel npm_main napi_platform hf_home smoke_dir; do
+for value in python_wheel npm_main napi_platform cli_archive model_cache_manifest hf_home smoke_dir; do
   [ -n "${!value}" ] || { usage; exit 2; }
 done
-for path in "$python_wheel" "$npm_main" "$napi_platform"; do
+for path in "$python_wheel" "$npm_main" "$napi_platform" "$cli_archive" "$model_cache_manifest"; do
   [ -f "$path" ] && [ ! -L "$path" ] || { printf 'cuda-package-smoke: package input is absent or symlinked: %s\n' "$path" >&2; exit 1; }
 done
 [ ! -e "$smoke_dir" ] || { printf 'cuda-package-smoke: smoke directory must be new: %s\n' "$smoke_dir" >&2; exit 1; }
@@ -34,7 +36,25 @@ done
 python_wheel_abs="$(realpath -- "$python_wheel")"
 npm_main_abs="$(realpath -- "$npm_main")"
 napi_platform_abs="$(realpath -- "$napi_platform")"
+cli_archive_abs="$(realpath -- "$cli_archive")"
+model_cache_manifest_abs="$(realpath -- "$model_cache_manifest")"
 hf_home_abs="$(realpath -- "$hf_home")"
+python3 - "$hf_home_abs" "$model_cache_manifest_abs" <<'PY'
+import hashlib, json, sys
+from pathlib import Path
+root, manifest_path = map(Path, sys.argv[1:])
+manifest = json.loads(manifest_path.read_text())
+if set(manifest) != {"schema_version", "repository", "revision", "snapshot_relpath", "files"} or manifest["schema_version"] != "fathomdb.cuda-model-cache/v1":
+    raise SystemExit("cuda-package-smoke: invalid retained model cache manifest")
+snapshot = root / manifest["snapshot_relpath"]
+actual = {str(path.relative_to(snapshot)): path for path in snapshot.rglob("*") if path.is_file()}
+if set(actual) != set(manifest["files"]):
+    raise SystemExit("cuda-package-smoke: HF seed inventory differs from retained manifest")
+for name, expected in manifest["files"].items():
+    path = actual[name]
+    if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
+        raise SystemExit(f"cuda-package-smoke: HF seed member differs: {name}")
+PY
 for command in docker nvidia-smi; do
   command -v "$command" >/dev/null || { printf 'cuda-package-smoke: missing %s\n' "$command" >&2; exit 1; }
 done
@@ -73,6 +93,39 @@ Path(sys.argv[1]).write_text(json.dumps({
 PY
 }
 
+write_cli_record() {
+  local mode="$1" policy="$2" ordinal="$3" exit_code="$4" env_present="$5"
+  python3 - "$smoke_dir" "$cli_archive_abs" "$mode" "$policy" "$ordinal" "$exit_code" "$env_present" <<'PY'
+import hashlib, json, re, sys
+from pathlib import Path
+root, archive = Path(sys.argv[1]), Path(sys.argv[2])
+mode, policy, ordinal, exit_code, env_present = sys.argv[3:]
+match = re.fullmatch(r"fathomdb-([0-9]+\.[0-9]+\.[0-9]+)-x86_64-unknown-linux-gnu\.tar\.gz", archive.name)
+if match is None:
+    raise SystemExit("cuda-package-smoke: invalid CLI archive coordinate")
+version = match.group(1)
+stdout_name = f"{mode}-cli-stdout.json"
+raw = (root / stdout_name).read_bytes()
+doctor = json.loads(raw)
+if raw != json.dumps(doctor, ensure_ascii=True, separators=(",", ":")).encode("ascii") + b"\n":
+    raise SystemExit("cuda-package-smoke: doctor output is not canonical JSON")
+archive_sha = hashlib.sha256(archive.read_bytes()).hexdigest()
+record = {
+    "schema_version": "fathomdb.cuda-package-cli-smoke/v2", "consumer": "cli",
+    "archive_filename": archive.name, "archive_sha256": archive_sha,
+    "target": "x86_64-unknown-linux-gnu",
+    "argv": [f"/fathomdb-cli/fathomdb-{version}-x86_64-unknown-linux-gnu/fathomdb", "doctor", "gpu", "--json"],
+    "requested_policy": policy, "requested_ordinal": None if ordinal == "null" else int(ordinal),
+    "environment": {"FATHOMDB_EMBED_DEVICE": policy} if env_present == "true" else {},
+    "isolation": {"database_opened": False, "model_loaded": False, "network": "none", "source_checkout_mounted": False},
+    "evidence_provenance": "installed_candidate", "exit_code": int(exit_code),
+    "doctor_output_filename": stdout_name, "doctor_output_sha256": hashlib.sha256(raw).hexdigest(),
+    "status": doctor["status"], "effective_device": doctor["effective_device"], "reason": doctor["reason"],
+}
+(root / f"{mode}-cli.json").write_text(json.dumps(record, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+PY
+}
+
 # These commands mount only retained artifact bytes. The host checkout is
 # never mounted; env -i and --network none prevent ambient package/download or
 # device-selector inputs from satisfying a CPU-default smoke.
@@ -80,7 +133,7 @@ docker run --rm --network none \
   --mount "type=bind,src=$python_wheel_abs,dst=/input/fathomdb.whl,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
   "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
-  env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp HF_HOME=/fathomdb-hf sh -ceu '
+  env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache sh -ceu '
     test ! -e /dev/nvidiactl
     exec python -c '"'"'
 import tempfile
@@ -102,7 +155,7 @@ docker run --rm --network none \
   --mount "type=bind,src=$napi_platform_abs,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
   "$CUDA_DRIVERLESS_NODE_IMAGE" \
-  env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp HF_HOME=/fathomdb-hf sh -ceu '
+  env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache sh -ceu '
     test ! -e /dev/nvidiactl
     mkdir /consumer && cd /consumer
     printf "%s\n" "{\"private\":true,\"type\":\"module\",\"dependencies\":{\"fathomdb\":\"file:/input/fathomdb.tgz\",\"fathomdb-linux-x64-gnu\":\"file:/input/fathomdb-linux-x64-gnu.tgz\"}}" > package.json
@@ -110,6 +163,35 @@ docker run --rm --network none \
     node --input-type=module -e "import { Engine } from \"fathomdb\"; const e=await Engine.open(\"/tmp/cpu.fdb\",{useDefaultEmbedder:true}); await e.embed(\"CUDA package rehearsal installed N-API CPU smoke\"); await e.write([{kind:\"doc\",body:\"{}\",sourceId:\"cuda-package-cpu\"}]); await e.search(\"smoke\"); await e.close();"
   '
 write_cpu napi
+
+# CLI proof is intentionally diagnostic-only. A short-lived doctor command
+# cannot truthfully supply a GPU PID observation, so compatible-GPU CLI and
+# deterministic incompatible-classifier evidence remain PENDING_EXTERNAL.
+smoke_dir_abs="$(realpath -- "$smoke_dir")"
+for mode in cpu forced-cuda-unavailable; do
+  policy=auto expected=0 ordinal=null env_present=false
+  doctor_env=()
+  if [ "$mode" != cpu ]; then
+    policy=cuda:0 expected=65 ordinal=0 env_present=true
+    doctor_env=(FATHOMDB_EMBED_DEVICE=cuda:0)
+  fi
+  set +e
+  docker run --rm --network none \
+    --mount "type=bind,src=$cli_archive_abs,dst=/input/fathomdb-cli.tar.gz,readonly" \
+    --mount "type=bind,src=$smoke_dir_abs,dst=/evidence" \
+    "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
+    env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable \
+      "${doctor_env[@]}" sh -ceu '
+        mkdir /fathomdb-cli
+        tar -xzf /input/fathomdb-cli.tar.gz -C /fathomdb-cli
+        binary="$(find /fathomdb-cli -mindepth 2 -maxdepth 2 -type f -name fathomdb -print -quit)"
+        exec "$binary" doctor gpu --json
+      ' > "$smoke_dir/$mode-cli-stdout.json"
+  observed=$?
+  set -e
+  [ "$observed" -eq "$expected" ] || { printf 'cuda-package-smoke: CLI %s exit %s, expected %s\n' "$mode" "$observed" "$expected" >&2; exit 1; }
+  write_cli_record "$mode" "$policy" "$ordinal" "$observed" "$env_present"
+done
 
 gpu_index=0
 gpu_csv="$(nvidia-smi --id="$gpu_index" --query-gpu=uuid,name,driver_version --format=csv,noheader)"
@@ -141,8 +223,8 @@ python_gpu="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
   --mount "type=bind,src=$python_wheel_abs,dst=/input/fathomdb.whl,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
   "$CUDA_MANYLINUX_IMAGE" sh -ceu '
-    env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp HF_HOME=/fathomdb-hf FATHOMDB_EMBED_DEVICE=cuda:0 /opt/python/cp311-cp311/bin/python -m pip install --no-deps /input/fathomdb.whl
-    exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp HF_HOME=/fathomdb-hf FATHOMDB_EMBED_DEVICE=cuda:0 /opt/python/cp311-cp311/bin/python -c "from fathomdb import Engine; import tempfile; from pathlib import Path; d=tempfile.TemporaryDirectory(); e=Engine.open(str(Path(d.name)/\"gpu.fdb\"),use_default_embedder=True); e.embed(\"CUDA package rehearsal installed Python GPU smoke\"); e.close(); import time; time.sleep(20)"
+    env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 /opt/python/cp311-cp311/bin/python -m pip install --no-deps /input/fathomdb.whl
+    exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 /opt/python/cp311-cp311/bin/python -c "from fathomdb import Engine; import tempfile; from pathlib import Path; d=tempfile.TemporaryDirectory(); e=Engine.open(str(Path(d.name)/\"gpu.fdb\"),use_default_embedder=True); e.embed(\"CUDA package rehearsal installed Python GPU smoke\"); e.close(); import time; time.sleep(20)"
   ')"
 wait_for_gpu "$python_gpu" python
 
@@ -153,7 +235,7 @@ napi_gpu="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
   "$CUDA_DRIVERLESS_NODE_IMAGE" sh -ceu '
     mkdir /consumer && cd /consumer
     printf "%s\n" "{\"private\":true,\"type\":\"module\",\"dependencies\":{\"fathomdb\":\"file:/input/fathomdb.tgz\",\"fathomdb-linux-x64-gnu\":\"file:/input/fathomdb-linux-x64-gnu.tgz\"}}" > package.json
-    env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp HF_HOME=/fathomdb-hf npm install --offline --ignore-scripts --no-audit --no-fund
-    exec env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp HF_HOME=/fathomdb-hf FATHOMDB_EMBED_DEVICE=cuda:0 node --input-type=module -e "import { Engine } from \"fathomdb\"; const e=await Engine.open(\"/tmp/gpu.fdb\",{useDefaultEmbedder:true}); await e.embed(\"CUDA package rehearsal installed N-API GPU smoke\"); await e.close(); await new Promise(resolve=>setTimeout(resolve,20000));"
+    env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache npm install --offline --ignore-scripts --no-audit --no-fund
+    exec env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 node --input-type=module -e "import { Engine } from \"fathomdb\"; const e=await Engine.open(\"/tmp/gpu.fdb\",{useDefaultEmbedder:true}); await e.embed(\"CUDA package rehearsal installed N-API GPU smoke\"); await e.close(); await new Promise(resolve=>setTimeout(resolve,20000));"
   ')"
 wait_for_gpu "$napi_gpu" napi

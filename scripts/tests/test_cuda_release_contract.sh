@@ -28,6 +28,7 @@ make_fixture() {
   cp "$REPO_ROOT/scripts/release/verify-cuda-package-rehearsal.py" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/cuda-package-rehearsal.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/release/seal-cuda-cli-archive.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/Dockerfile.cuda-manylinux" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/provision-cuda-manylinux.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/src/rust/crates/fathomdb-napi/Cargo.toml" "$root/src/rust/crates/fathomdb-napi/"
@@ -92,9 +93,9 @@ if grep -Fq 'bash candidate/scripts/release/cuda-package-rehearsal' "$REPO_ROOT/
 fi
 printf 'PASS  Slice 20 self-hosted rehearsal executes only trusted control-plane helpers\n'
 
-if grep -Fq 'exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp HF_HOME=/fathomdb-hf FATHOMDB_EMBED_DEVICE=cuda:0' \
+if grep -Fq 'exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0' \
   "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh" \
-  && grep -Fq 'exec env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp HF_HOME=/fathomdb-hf FATHOMDB_EMBED_DEVICE=cuda:0 node' \
+  && grep -Fq 'exec env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 node' \
   "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh"; then
   printf 'PASS  Slice 20 GPU PID attestations exec the actual Python and Node runtimes\n'
 else

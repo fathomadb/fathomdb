@@ -55,6 +55,18 @@ fn guarded_operation_retains_panics_and_overlap_timestamp_is_inside_the_window()
     assert!(result.is_err());
     assert!(directory.path().join("slice72-guarded-4242.json").is_file());
 
+    let panic_directory = tempfile::tempdir().expect("panic receipt directory");
+    let panic_receipt = Receipt::for_test("guarded-panic", "GPU-selected", 4242);
+    assert!(std::panic::catch_unwind(|| {
+        let _: Result<(), &'static str> = telemetry::run_with_failure_receipt(
+            &panic_receipt,
+            panic_directory.path(),
+            || -> Result<(), &'static str> { panic!("forced operation panic") },
+        );
+    })
+    .is_err());
+    assert!(panic_directory.path().join("slice72-guarded-panic-4242.json").is_file());
+
     let rendezvous = ForwardRendezvous::new();
     assert!(rendezvous.run_contract_fixture().overlaps());
     let timestamp = rendezvous.active_overlap_sample_timestamp().expect("overlap timestamp");

@@ -118,6 +118,8 @@ pub mod slice72_test_hooks {
         ce_end_ns: AtomicU64,
         bge_active: AtomicBool,
         ce_active: AtomicBool,
+        bge_claimed: AtomicBool,
+        ce_claimed: AtomicBool,
         capture_count: AtomicU64,
         fixture_claimed: AtomicBool,
     }
@@ -138,6 +140,8 @@ pub mod slice72_test_hooks {
                 ce_end_ns: AtomicU64::new(0),
                 bge_active: AtomicBool::new(false),
                 ce_active: AtomicBool::new(false),
+                bge_claimed: AtomicBool::new(false),
+                ce_claimed: AtomicBool::new(false),
                 capture_count: AtomicU64::new(0),
                 fixture_claimed: AtomicBool::new(false),
             })
@@ -170,7 +174,11 @@ pub mod slice72_test_hooks {
         /// Runs an actual BGE forward immediately after the two-party
         /// rendezvous and records only the actual-forward interval.
         pub fn run_bge_forward<T>(&self, operation: impl FnOnce() -> T) -> T {
-            if self.bge_start_ns.load(Ordering::Acquire) != 0 {
+            if self
+                .bge_claimed
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                .is_err()
+            {
                 return operation();
             }
             self.meet(true);
@@ -184,7 +192,11 @@ pub mod slice72_test_hooks {
         }
 
         fn run_ce_forward<T>(&self, operation: impl FnOnce() -> T) -> T {
-            if self.ce_start_ns.load(Ordering::Acquire) != 0 {
+            if self
+                .ce_claimed
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                .is_err()
+            {
                 return operation();
             }
             self.meet(false);
@@ -211,6 +223,34 @@ pub mod slice72_test_hooks {
         #[must_use]
         pub fn capture_count(&self) -> u64 {
             self.capture_count.load(Ordering::Acquire)
+        }
+
+        /// Captures a monotonic timestamp only after both claimed real forwards
+        /// are active. The returned value is inside both recorded intervals.
+        #[must_use]
+        pub fn active_overlap_sample_timestamp(&self) -> Option<u64> {
+            if self.bge_active.load(Ordering::Acquire) && self.ce_active.load(Ordering::Acquire) {
+                return Some(self.stamp_ns());
+            }
+            let bge_start = self.bge_start_ns.load(Ordering::Acquire);
+            let ce_start = self.ce_start_ns.load(Ordering::Acquire);
+            let bge_end = self.bge_end_ns.load(Ordering::Acquire);
+            let ce_end = self.ce_end_ns.load(Ordering::Acquire);
+            (bge_start > 0 && ce_start > 0 && bge_end > 0 && ce_end > 0)
+                .then_some(bge_start.max(ce_start))
+        }
+
+        /// Verifies that a telemetry timestamp belongs to the one actual
+        /// captured BGE/CE overlap interval.
+        #[must_use]
+        pub fn timestamp_is_within_captured_overlap(&self, timestamp_ns: u64) -> bool {
+            let intervals = self.intervals();
+            self.capture_count() == 1
+                && intervals.overlaps()
+                && timestamp_ns >= intervals.bge_start_ns
+                && timestamp_ns <= intervals.bge_end_ns
+                && timestamp_ns >= intervals.ce_start_ns
+                && timestamp_ns <= intervals.ce_end_ns
         }
 
         /// Waits until both real forward calls are active so a test-only sensor

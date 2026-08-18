@@ -3,7 +3,10 @@
 
 use std::fs::{self, OpenOptions};
 use std::io::Write;
+use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
+use std::path::Path;
 use std::process::Command;
+use std::sync::mpsc::{sync_channel, Receiver};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
 
@@ -136,6 +139,14 @@ pub struct Receipt {
     selected_uuid: String,
     pid: u32,
     phases: Vec<(String, TelemetrySnapshot)>,
+    stress_configuration: Option<StressConfiguration>,
+}
+
+#[derive(Clone, Copy)]
+struct StressConfiguration {
+    duration_seconds: u64,
+    fixed_concurrency: u64,
+    iterations: u64,
 }
 
 impl Receipt {
@@ -146,6 +157,18 @@ impl Receipt {
             selected_uuid: selected_uuid.to_owned(),
             pid,
             phases: vec![],
+            stress_configuration: None,
+        }
+    }
+
+    pub fn set_stress_configuration(&mut self, duration_seconds: u64, fixed_concurrency: u64) {
+        self.stress_configuration =
+            Some(StressConfiguration { duration_seconds, fixed_concurrency, iterations: 0 });
+    }
+
+    pub fn set_stress_iterations(&mut self, iterations: u64) {
+        if let Some(configuration) = &mut self.stress_configuration {
+            configuration.iterations = iterations;
         }
     }
 
@@ -228,6 +251,11 @@ impl Receipt {
             "selected_visible_ordinal": 0,
             "selected_uuid": &self.selected_uuid,
             "cache_identities": { "bge": BGE_FILES, "reranker": RERANKER_FILES },
+            "configuration": self.stress_configuration.map(|configuration| json!({
+                "stress_duration_seconds": configuration.duration_seconds,
+                "fixed_concurrency": configuration.fixed_concurrency,
+                "iterations": configuration.iterations,
+            })),
             "phases": phases,
             "summary": {
                 "cpu_delta_ns": cpu,
@@ -273,6 +301,33 @@ impl Receipt {
         )
         .map_err(|error| error.to_string())?;
         file.write_all(b"\n").map_err(|error| error.to_string())
+    }
+}
+
+/// Retains a best-effort typed failure or panic receipt after preflight, then
+/// preserves the original result or panic for the calling test.
+pub fn run_with_failure_receipt<T, E: std::fmt::Display>(
+    receipt: &Receipt,
+    directory: &Path,
+    operation: impl FnOnce() -> Result<T, E>,
+) -> Result<T, E> {
+    match catch_unwind(AssertUnwindSafe(operation)) {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(error)) => {
+            let _ = receipt.write_failure(directory, "typed_failure", &error.to_string());
+            Err(error)
+        }
+        Err(payload) => {
+            let message = if let Some(message) = payload.downcast_ref::<&str>() {
+                *message
+            } else if let Some(message) = payload.downcast_ref::<String>() {
+                message.as_str()
+            } else {
+                "non-string panic payload"
+            };
+            let _ = receipt.write_failure(directory, "panic", message);
+            resume_unwind(payload)
+        }
     }
 }
 
@@ -380,20 +435,57 @@ impl Slice72Run {
     }
 
     pub fn basic_shared_cuda_device_runs_real_bge_and_ce(self) {
+        let receipt = Receipt::for_test(&self.test_name, &self.selected_uuid, std::process::id());
+        let directory = self.receipt_dir.clone();
+        run_with_failure_receipt(&receipt, &directory, || -> Result<(), String> {
+            self.basic_shared_cuda_device_runs_real_bge_and_ce_impl();
+            Ok(())
+        })
+        .unwrap_or_else(|error| panic!("Slice 72 basic operation failed: {error}"));
+    }
+
+    fn basic_shared_cuda_device_runs_real_bge_and_ce_impl(&self) {
         let (engine, wrapper) = self.open_real_engine();
         let mut receipt = self.receipt("before_warm");
         assert_valid_embedding(&wrapper.embed("basic BGE warmup").expect("real BGE warmup"));
         let reranked = rerank_fixture();
         assert_real_ce(&reranked);
+        receipt.push_phase("warmed", self.sample()).expect("warm receipt sample");
+        let rendezvous = ForwardRendezvous::new();
+        wrapper.arm(Arc::clone(&rendezvous));
+        let _installed =
+            install_ce_forward_rendezvous(Arc::clone(&rendezvous)).expect("install CE hook");
         write_projection(&engine, "basic shared CUDA embedding");
+        let ce = std::thread::spawn(rerank_fixture);
+        assert!(
+            rendezvous.wait_for_active_overlap(std::time::Duration::from_secs(15)),
+            "basic telemetry sample begins during real BGE and CE forwards"
+        );
+        let overlap_timestamp =
+            rendezvous.active_overlap_sample_timestamp().expect("basic overlap timestamp");
+        receipt
+            .push_phase("overlap", self.sample_at(overlap_timestamp))
+            .expect("basic overlap receipt sample");
+        assert_real_ce(&ce.join().expect("basic CE overlap worker joins"));
+        drop(_installed);
         engine.drain(90_000).expect("real BGE projection completes");
         assert_eq!(wrapper.device_label(), "cuda:0");
-        receipt.push_phase("warmed", self.sample()).expect("warm receipt sample");
-        receipt.push_phase("overlap", self.sample()).expect("basic completion sample");
+        assert_eq!(rendezvous.capture_count(), 1, "one basic interval capture");
+        assert!(rendezvous.timestamp_is_within_captured_overlap(overlap_timestamp));
         receipt.write_success(&self.receipt_dir).expect("write receipt");
     }
 
     pub fn bounded_overlap_characterizes_shared_cuda_residency(self) {
+        let receipt = Receipt::for_test(&self.test_name, &self.selected_uuid, std::process::id());
+        let directory = self.receipt_dir.clone();
+        run_with_failure_receipt(&receipt, &directory, || -> Result<(), String> {
+            self.bounded_overlap_characterizes_shared_cuda_residency_impl();
+            Ok(())
+        })
+        .unwrap_or_else(|error| panic!("Slice 72 moderate operation failed: {error}"));
+    }
+
+    fn bounded_overlap_characterizes_shared_cuda_residency_impl(&self) {
         let (engine, wrapper) = self.open_real_engine();
         let mut receipt = self.receipt("before_warm");
         assert_valid_embedding(&wrapper.embed("moderate BGE warmup").expect("real BGE warmup"));
@@ -411,7 +503,12 @@ impl Slice72Run {
             rendezvous.wait_for_active_overlap(std::time::Duration::from_secs(15)),
             "telemetry sample must begin while real BGE and CE forwards remain active"
         );
-        receipt.push_phase("overlap", self.sample()).expect("overlap receipt sample");
+        let overlap_timestamp = rendezvous
+            .active_overlap_sample_timestamp()
+            .expect("overlap timestamp is captured while real forwards are active");
+        receipt
+            .push_phase("overlap", self.sample_at(overlap_timestamp))
+            .expect("overlap receipt sample");
         assert_real_ce(&ce.join().expect("CE overlap worker joins"));
         drop(_installed); // Only the first CE forward participates in the two-party rendezvous.
         for _ in 1..4 {
@@ -423,45 +520,89 @@ impl Slice72Run {
             intervals.overlaps(),
             "actual BGE and CE forward intervals must overlap: {intervals:?}"
         );
+        assert_eq!(rendezvous.capture_count(), 1, "one real interval capture");
+        assert!(
+            rendezvous.timestamp_is_within_captured_overlap(overlap_timestamp),
+            "overlap telemetry timestamp is inside the captured real-forward window"
+        );
         receipt.write_success(&self.receipt_dir).expect("write receipt");
     }
 
     pub fn stress_shared_cuda_device_is_bounded_and_records_outcome(self) {
+        let receipt = Receipt::for_test(&self.test_name, &self.selected_uuid, std::process::id());
+        let directory = self.receipt_dir.clone();
+        run_with_failure_receipt(&receipt, &directory, || -> Result<(), String> {
+            self.stress_shared_cuda_device_is_bounded_and_records_outcome_impl();
+            Ok(())
+        })
+        .unwrap_or_else(|error| panic!("Slice 72 stress operation failed: {error}"));
+    }
+
+    fn stress_shared_cuda_device_is_bounded_and_records_outcome_impl(&self) {
+        let ceiling = Instant::now() + std::time::Duration::from_secs(120);
+        assert_before_deadline(ceiling, "open stress engine");
         let (engine, wrapper) = self.open_real_engine();
         let mut receipt = self.receipt("before_warm");
+        assert_before_deadline(ceiling, "warm stress BGE");
         assert_valid_embedding(&wrapper.embed("stress BGE warmup").expect("real BGE warmup"));
+        assert_before_deadline(ceiling, "warm stress CE");
         assert_real_ce(&rerank_fixture());
         receipt.push_phase("warmed", self.sample()).expect("warm receipt sample");
-        let started = Instant::now();
-        let deadline = started + std::time::Duration::from_secs(60);
-        let ceiling = started + std::time::Duration::from_secs(120);
+        assert_before_deadline(ceiling, "start stress window");
+        let deadline = Instant::now() + std::time::Duration::from_secs(60);
+        receipt.set_stress_configuration(60, 3);
         let mut count = 0_u64;
+        let mut overlap_timestamp = None;
         while Instant::now() < deadline {
+            assert_before_deadline(ceiling, "start stress operation");
             let rendezvous = ForwardRendezvous::new();
             wrapper.arm(Arc::clone(&rendezvous));
             let _installed =
                 install_ce_forward_rendezvous(Arc::clone(&rendezvous)).expect("install CE hook");
+            assert_before_deadline(ceiling, "queue stress BGE projection");
             write_projection(&engine, "stress BGE");
-            let ce = std::thread::spawn(rerank_fixture);
-            assert!(rendezvous.wait_for_active_overlap(std::time::Duration::from_secs(15)));
-            assert_real_ce(&ce.join().expect("stress overlap CE joins"));
+            assert_before_deadline(ceiling, "start stress overlap CE");
+            let ce = spawn_rerank();
+            assert_before_deadline(ceiling, "wait for stress overlap");
+            let remaining = ceiling.saturating_duration_since(Instant::now());
+            assert!(
+                rendezvous
+                    .wait_for_active_overlap(remaining.min(std::time::Duration::from_secs(15))),
+                "stress telemetry begins during a bounded real-forward overlap"
+            );
+            let timestamp =
+                rendezvous.active_overlap_sample_timestamp().expect("stress overlap timestamp");
+            overlap_timestamp.get_or_insert(timestamp);
+            assert_real_ce(&ce.receive_until(ceiling, "stress overlap CE"));
             drop(_installed);
-            std::thread::scope(|scope| {
-                let first = scope.spawn(rerank_fixture);
-                let second = scope.spawn(rerank_fixture);
-                assert_real_ce(&first.join().expect("first CE stress worker joins"));
-                assert_real_ce(&second.join().expect("second CE stress worker joins"));
-            });
+            assert_before_deadline(ceiling, "start first CE stress worker");
+            let first = spawn_rerank();
+            assert_before_deadline(ceiling, "start second CE stress worker");
+            let second = spawn_rerank();
+            assert_real_ce(&first.receive_until(ceiling, "first CE stress worker"));
+            assert_real_ce(&second.receive_until(ceiling, "second CE stress worker"));
+            assert_before_deadline(ceiling, "drain stress projections");
             let remaining_ms = ceiling.saturating_duration_since(Instant::now()).as_millis() as u64;
             assert!(remaining_ms > 0, "stress whole-test ceiling expired before drain");
             engine.drain(remaining_ms).expect("stress projection completes");
             assert!(Instant::now() <= ceiling, "stress whole-test ceiling exceeded");
             assert!(rendezvous.intervals().overlaps(), "stress forwards overlap");
+            assert_eq!(rendezvous.capture_count(), 1, "one stress interval capture");
+            assert!(
+                rendezvous.timestamp_is_within_captured_overlap(timestamp),
+                "stress overlap telemetry timestamp is inside the real-forward window"
+            );
             count += 1;
         }
         assert!(count > 0, "stress executes at least one bounded operation");
-        receipt.push_phase("overlap", self.sample()).expect("overlap receipt sample");
+        receipt
+            .push_phase(
+                "overlap",
+                self.sample_at(overlap_timestamp.expect("stress overlap timestamp")),
+            )
+            .expect("overlap receipt sample");
         receipt.push_phase("stress", self.sample()).expect("stress receipt sample");
+        receipt.set_stress_iterations(count);
         receipt.write_success(&self.receipt_dir).expect("write receipt");
     }
 
@@ -473,7 +614,11 @@ impl Slice72Run {
     }
 
     fn sample(&self) -> TelemetrySnapshot {
-        sample_nvidia_smi(&self.selected_uuid, std::process::id(), elapsed_ns(self.started))
+        self.sample_at(elapsed_ns(self.started))
+    }
+
+    fn sample_at(&self, monotonic_ns: u64) -> TelemetrySnapshot {
+        sample_nvidia_smi(&self.selected_uuid, std::process::id(), monotonic_ns)
             .expect("required Slice 72 telemetry remains available")
     }
 
@@ -566,6 +711,32 @@ fn rerank_fixture() -> Vec<SearchHit> {
         3,
     )
     .expect("forced CUDA CE rerank")
+}
+
+struct RerankWorker {
+    result: Receiver<Vec<SearchHit>>,
+}
+
+fn spawn_rerank() -> RerankWorker {
+    let (sender, result) = sync_channel(1);
+    std::thread::spawn(move || {
+        let hits = rerank_fixture();
+        let _ = sender.send(hits);
+    });
+    RerankWorker { result }
+}
+
+impl RerankWorker {
+    fn receive_until(self, deadline: Instant, operation: &str) -> Vec<SearchHit> {
+        assert_before_deadline(deadline, operation);
+        self.result.recv_timeout(deadline.saturating_duration_since(Instant::now())).unwrap_or_else(
+            |error| panic!("{operation} exceeded stress whole-test ceiling: {error}"),
+        )
+    }
+}
+
+fn assert_before_deadline(deadline: Instant, operation: &str) {
+    assert!(Instant::now() < deadline, "stress whole-test ceiling expired before {operation}");
 }
 
 fn hit(id: u64, body: &str, score: f64) -> SearchHit {

@@ -76,7 +76,16 @@ cp -- "$python_wheel" "$output_dir/packages/$(basename "$python_wheel")"
 cp -- "$npm_main" "$output_dir/packages/$(basename "$npm_main")"
 cp -- "$napi_platform" "$output_dir/packages/$(basename "$napi_platform")"
 cp -- "$cli_archive" "$output_dir/packages/$(basename "$cli_archive")"
-for name in cpu-python.json cpu-napi.json gpu-python.json gpu-napi.json cpu-cli.json cpu-cli-stdout.json forced-cuda-unavailable-cli.json forced-cuda-unavailable-cli-stdout.json; do
+SMOKE_NAMES=(cpu-python.json cpu-napi.json gpu-python.json gpu-napi.json cpu-cli.json cpu-cli-stdout.json forced-cuda-unavailable-cli.json forced-cuda-unavailable-cli-stdout.json)
+if python3 - "$build_input" <<'PY'
+import json
+import sys
+raise SystemExit(0 if json.load(open(sys.argv[1]))["rerank_cuda"] is True else 1)
+PY
+then
+  SMOKE_NAMES+=(reranker-cli-doctor.json reranker-cli-doctor-stdout.json)
+fi
+for name in "${SMOKE_NAMES[@]}"; do
   [ -f "$smoke_dir/$name" ] && [ ! -L "$smoke_dir/$name" ] || { printf 'cuda-package-rehearsal: required smoke evidence absent or symlinked: %s\n' "$name" >&2; exit 1; }
   cp -- "$smoke_dir/$name" "$output_dir/smoke/$name"
 done

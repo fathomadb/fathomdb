@@ -113,7 +113,51 @@ def main() -> None:
             rerank_v3 / "cuda-preflight-witness.json",
             lambda value: value.__setitem__("schema_version", "fathomdb.cuda-preflight-witness/v3"),
         )
-        assert run(rerank_v3).returncode == 0, "v3 reranker feature witness must be accepted"
+        assert run(rerank_v3).returncode != 0, "v3 witness without reranker evidence must be rejected"
+        reranker_manifest = {
+            "schema_version": "fathomdb.reranker-cache/v1",
+            "repository": "cross-encoder/ms-marco-TinyBERT-L2-v2",
+            "revision": "81d1926f67cb8eee2c2be17ca9f793c7c3bd20cc",
+            "snapshot_relpath": "fathomdb/reranker/0290849b0459",
+            "files": {"config.json": "2144195e107cd7ea61556478e7add12986ebfbc3085f924fc0b90c2410604879", "tokenizer.json": "d241a60d5e8f04cc" + "1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66", "model.safetensors": "a0e7364ddf91ff7028f1102e1b91ac7a72e3db4061241bd84efe45c72c9af03a"},
+        }
+        (rerank_v3 / "reranker-cache-manifest.json").write_bytes(canonical(reranker_manifest))
+        reranker_digest = hashlib.sha256((rerank_v3 / "reranker-cache-manifest.json").read_bytes()).hexdigest()
+        for consumer in ("python", "napi"):
+            (rerank_v3 / f"reranker-{consumer}-cpu-smoke.json").write_bytes(canonical({
+                "schema_version": "fathomdb.cuda-reranker-cpu-smoke/v1", "consumer": consumer,
+                "requested_policy": "auto", "effective_device": "cpu", "reason": "no_visible_cuda_device",
+                "network": "none", "source_imported": False, "rerank_performed": True,
+                "reranker_cache_manifest_sha256": reranker_digest, "reranker_cache_read_only": True,
+                "reranker_device_environment": "unset",
+            }))
+            stdout = rerank_v3 / f"forced-reranker-{consumer}-stdout.txt"
+            stderr = rerank_v3 / f"forced-reranker-{consumer}-stderr.txt"
+            message = "cuda:0 requested for reranking but unavailable: NoVisibleCudaDevice"
+            argv = (["/opt/python/cp311-cp311/bin/python", "/fathomdb-harness/forced-reranker-python.py"] if consumer == "python" else ["node", "/fathomdb-harness/forced-reranker-napi.mjs"])
+            stdout.write_bytes(canonical({
+                "schema_version": "fathomdb.cuda-forced-reranker-capture/v1", "consumer": consumer,
+                "argv": argv, "requested_policy": "cuda:0", "status": "cuda_unavailable",
+                "effective_device": None, "reason": "no_visible_cuda_device",
+                "error": {"type": "RerankerDevicePolicyError", "kind": "no_visible_cuda_device", "ordinal": 0, "message": message},
+            }))
+            stderr.write_text(f"{message}\n", encoding="utf-8")
+            (rerank_v3 / f"forced-reranker-{consumer}.json").write_bytes(canonical({
+                "schema_version": "fathomdb.cuda-forced-reranker-failure/v1", "consumer": consumer,
+                "requested_policy": "cuda:0", "cuda_compiled": True, "visible_devices": [],
+                "status": "cuda_unavailable", "effective_device": None, "reason": "no_visible_cuda_device",
+                "provenance": "installed_candidate", "command": f"installed_{consumer}_engine_open", "exit_code": 1,
+                "stdout_filename": stdout.name, "stdout_sha256": hashlib.sha256(stdout.read_bytes()).hexdigest(),
+                "stderr_filename": stderr.name, "stderr_sha256": hashlib.sha256(stderr.read_bytes()).hexdigest(),
+            }))
+        for name in ("forced-reranker-python.py", "forced-reranker-napi.mjs"):
+            (rerank_v3 / name).write_bytes((REPO / "scripts/release" / name).read_bytes())
+        witness_path = rerank_v3 / "cuda-preflight-witness.json"
+        witness = json.loads(witness_path.read_bytes())
+        witness["evidence_sha256"] = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in rerank_v3.iterdir() if path.name != witness_path.name}
+        witness_path.write_bytes(canonical(witness))
+        result = run(rerank_v3)
+        assert result.returncode == 0, result.stderr
 
         arbitrary_unavailable = tmp / "arbitrary-unavailable-message"
         shutil.copytree(valid, arbitrary_unavailable)

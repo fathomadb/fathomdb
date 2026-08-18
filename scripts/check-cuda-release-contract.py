@@ -242,7 +242,7 @@ def require_unmerged_workflow_route() -> None:
 def driverless_smoke_sections(preflight: str) -> tuple[str, str]:
     python_marker = "printf 'cuda-preflight: prove the installed Python wheel defaults to CPU in a driverless container\\n'"
     napi_marker = "printf 'cuda-preflight: prove the installed N-API package defaults to CPU in a driverless container\\n'"
-    gpu_marker = "wait_for_cuda_zero_container_pid()"
+    gpu_marker = "run_forced_python()"
     try:
         _, after_python = preflight.split(python_marker, 1)
         python_smoke, after_napi = after_python.split(napi_marker, 1)
@@ -658,17 +658,21 @@ def main() -> None:
     require_fragment(napi_build, 'grep -F "$CUDA_NAPI_HOST_NVCC_VERSION"', "CUDA N-API build wrapper")
     preflight = read_text(CUDA_PREFLIGHT)
     witness_schema = load_json(CUDA_PREFLIGHT_WITNESS_SCHEMA)
-    if witness_schema.get("$id") != "https://fathomdb.dev/schemas/cuda-preflight-witness/v1":
+    if witness_schema.get("$id") != "https://fathomdb.dev/schemas/cuda-preflight-witness/v2":
         fail("CUDA preflight witness schema must declare its versioned schema ID")
     schema_version = witness_schema.get("properties", {}).get("schema_version")
-    if not isinstance(schema_version, dict) or schema_version.get("const") != "fathomdb.cuda-preflight-witness/v1":
+    if not isinstance(schema_version, dict) or schema_version.get("const") != "fathomdb.cuda-preflight-witness/v2":
         fail("CUDA preflight witness schema must pin its schema version")
     verifier = read_text(CUDA_PREFLIGHT_WITNESS_VERIFIER)
     for fragment in (
-        "REQUIRED_EVIDENCE",
+        "EVIDENCE_NAMES",
         "candidate SHA does not match the requested candidate",
         "evidence digest mismatch",
-        "witness JSON is not canonical",
+        "is not canonical JSON",
+        "witness root inventory is incomplete or contains unknown members",
+        "sealed forced-device record is not installed-candidate evidence",
+        "GPU {consumer} observation lacks PID correlation",
+        "does not prove isolated materialization",
     ):
         require_fragment(verifier, fragment, "CUDA preflight witness verifier")
     for fragment in (
@@ -717,10 +721,10 @@ def main() -> None:
         'CUDA_DRIVERLESS_PYTHON_IMAGE',
         'CUDA_DRIVERLESS_NODE_IMAGE',
         'DEFAULT_EMBEDDER_HF_HOME',
-        'Engine.open(str(db_path), use_default_embedder=True)',
-        'engine.embed("driverless Python CUDA-capable default-embedder proof")',
+        'Engine.open(str(pathlib.Path(directory) / "driverless.fdb"), use_default_embedder=True)',
+        'engine.embed("driverless Python CPU fallback proof")',
         '{ useDefaultEmbedder: true }',
-        'await engine.embed("driverless N-API CUDA-capable default-embedder proof")',
+        'await engine.embed("driverless N-API CPU fallback proof")',
         'npm install --offline --ignore-scripts --no-audit --no-fund',
         'test ! -e /dev/nvidiactl',
         'sha256sum --check --status',
@@ -728,14 +732,30 @@ def main() -> None:
         'assert_cuda_manylinux_image',
         'auditwheel show "/witness/python-dist/$WHEEL_BASENAME"',
         "manylinux_2_28",
-        "--query-compute-apps=pid --format=csv,noheader",
+        "--query-compute-apps=pid,process_name --format=csv,noheader",
         "--gpus ",
         "FATHOMDB_EMBED_DEVICE=cuda:0",
         "installed Python CUDA artifact GPU proof",
         "installed N-API CUDA artifact GPU proof",
-        "gpu-python-cuda-witness.txt",
-        "gpu-node-cuda-witness.txt",
-        "gpu-node-cuda-smoke.txt",
+        "gpu-python-cuda-witness.json",
+        "gpu-napi-cuda-witness.json",
+        "gpu-napi-cuda-smoke.txt",
+        "forced-cuda-unavailable-python.json",
+        "forced-cuda-unavailable-napi.json",
+        "smoke-cache-topology.json",
+        '/opt/python/cp311-cp311/bin/python /fathomdb-harness/forced-python-open.py',
+        'src=$FORCED_PYTHON_SITE,dst=/fathomdb-site,readonly',
+        'PYTHONPATH=/fathomdb-site',
+        'src=$WORK_DIR/forced-napi-open.mjs,dst=/fathomdb-harness/forced-napi-open.mjs,readonly',
+        'src=$FORCED_NAPI_INSTALL/node_modules,dst=/fathomdb-harness/node_modules,readonly',
+        'installed Python CUDA artifact GPU smoke: ok',
+        'installed N-API CUDA artifact GPU smoke: ok',
+        'product cache has unexpected files',
+        'dst=/fathomdb-hf,readonly',
+        'dst=/fathomdb-product-cache',
+        'HOME=/fathomdb-unavailable-home',
+        'XDG_CACHE_HOME=/fathomdb-product-cache',
+        '--network none',
         "cuda-preflight-witness.json",
         'python3 "$SCRIPT_DIR/verify-cuda-preflight-witness.py"',
         '--candidate-sha "$CANDIDATE_SHA"',
@@ -749,6 +769,7 @@ def main() -> None:
         'ldd "$PYTHON_EXTENSION" || true',
         'auditwheel show "$WHEEL"',
         '--mount "type=bind,src=$REPO_ROOT,dst=/workspace"',
+        "FORCED_NAPI_HARNESS",
     ):
         if forbidden in preflight:
             fail(f"CUDA preflight must not contain {forbidden!r}")
@@ -779,28 +800,47 @@ def main() -> None:
     ):
         if "--allow-unsupported-compiler" in read_text(path):
             fail(f"CUDA release tooling must not contain unsupported-compiler override: {path}")
-    if "Engine.open(str(db_path), use_default_embedder=False)" in preflight:
+    if "use_default_embedder=False" in preflight:
         fail("CUDA preflight must not use a no-embedder Python smoke")
     if "{ useDefaultEmbedder: false }" in preflight:
         fail("CUDA preflight must not use a no-embedder N-API smoke")
-    if preflight.count('docker run --rm --network none') != 3:
-        fail("CUDA preflight must isolate both installed-artifact CPU smokes and the image-owned auditwheel report from the network")
+    if preflight.count('--network none') != 10:
+        fail(
+            "CUDA preflight must isolate the install, auditwheel, driverless, "
+            "embedding/reranker forced-device, and GPU containers"
+        )
     if preflight.count(
         '--mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly"'
-    ) != 3:
-        fail("CUDA preflight must mount the pinned local default-embedder mirror into both Python smokes and the driverless N-API smoke")
-    if preflight.count("-e HF_HOME=/fathomdb-hf") != 3:
-        fail("CUDA preflight must make its containerized CPU and GPU smokes load only from the mounted local mirror")
-    require_fragment(
-        preflight,
-        'HF_HOME="$DEFAULT_EMBEDDER_HF_HOME" FATHOMDB_EMBED_DEVICE=cuda:0 exec node "$NODE_GPU_SMOKE"',
-        "CUDA preflight N-API GPU smoke",
-    )
-    if preflight.count("sha256sum --check --status") != 1:
-        fail("CUDA preflight must verify the complete pinned default-embedder cache manifest")
-    if preflight.count("--query-compute-apps=pid --format=csv,noheader") != 2:
-        fail("CUDA preflight must observe the spawned Python and N-API GPU smoke PIDs on CUDA:0")
+    ) != 4:
+        fail("CUDA preflight must mount the pinned read-only model seed into all four model-loading smokes")
+    if preflight.count('dst=/fathomdb-product-cache"') != 4:
+        fail("CUDA preflight must mount four distinct writable product caches")
+    if preflight.count("sha256sum --check --status") != 2:
+        fail("CUDA preflight must verify both pinned embedder and TinyBERT reranker cache manifests")
+    if preflight.count("--query-compute-apps=pid,process_name --format=csv,noheader") != 1:
+        fail("CUDA preflight must observe each spawned GPU runtime PID and process name")
     require_driverless_device_absence(preflight)
+    for fragment in (
+        "FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE",
+        "dst=/fathomdb-reranker-cache,readonly",
+        "FATHOMDB_RERANKER_CACHE=/fathomdb-reranker-cache",
+        "reranker-cache-manifest.json",
+        "reranker-python-cpu-smoke.json",
+        "reranker-napi-cpu-smoke.json",
+        "forced-reranker-python.json",
+        "forced-reranker-napi.json",
+        "forced-reranker-python.py",
+        "forced-reranker-napi.mjs",
+        "from fathomdb import rerank",
+    ):
+        require_fragment(preflight, fragment, "CUDA reranker v3 preflight")
+    for fragment in (
+        "--reranker-cache-manifest",
+        "reranker-cli-doctor.json",
+        "doctor reranker-gpu --json",
+        "FATHOMDB_RERANK_DEVICE",
+    ):
+        require_fragment(read_text(PACKAGE_REHEARSAL_SMOKE), fragment, "CUDA reranker v3 rehearsal smoke")
 
     require_unmerged_candidate_control_plane()
     require_unmerged_workflow_route()

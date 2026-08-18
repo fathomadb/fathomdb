@@ -27,11 +27,12 @@ PREFLIGHT_WITNESS_DIR = "preflight-witness"
 PREFLIGHT_WITNESS = "cuda-preflight-witness.json"
 PACKAGE_DIR = "packages"
 SMOKE_DIR = "smoke"
-SMOKE_NAMES = frozenset({
+BASE_SMOKE_NAMES = frozenset({
     "cpu-python.json", "cpu-napi.json", "gpu-python.json", "gpu-napi.json",
     "cpu-cli.json", "cpu-cli-stdout.json",
     "forced-cuda-unavailable-cli.json", "forced-cuda-unavailable-cli-stdout.json",
 })
+RERANK_V3_SMOKE_NAMES = frozenset({"reranker-cli-doctor.json", "reranker-cli-doctor-stdout.json"})
 PACKAGE_KINDS = frozenset({"python_wheel", "npm_main", "napi_platform", "cli_archive"})
 TARGET = "x86_64-unknown-linux-gnu"
 
@@ -279,15 +280,59 @@ def validate_cli_smoke(root: Path, name: str, value: dict[str, Any], version: st
     validate_doctor_output(output, raw, policy, status, effective, reason)
 
 
-def validate_smokes(root: Path, expected: object, version: str, archive_name: str, archive_sha: str) -> None:
-    if not isinstance(expected, dict) or set(expected) != SMOKE_NAMES:
+def validate_reranker_cli_doctor(root: Path, value: dict[str, Any], version: str, archive_name: str, archive_sha: str) -> None:
+    require_exact_keys(value, {
+        "schema_version", "consumer", "archive_filename", "archive_sha256", "target", "argv",
+        "requested_policy", "environment", "isolation", "evidence_provenance", "exit_code",
+        "doctor_output_filename", "doctor_output_sha256", "effective_device", "reason",
+    }, "reranker CLI doctor")
+    expected_argv = [f"/fathomdb-cli/fathomdb-{version}-{TARGET}/fathomdb", "doctor", "reranker-gpu", "--json"]
+    if (
+        value["schema_version"] != "fathomdb.cuda-reranker-cli-doctor/v1"
+        or value["consumer"] != "cli"
+        or value["archive_filename"] != archive_name
+        or value["archive_sha256"] != archive_sha
+        or value["target"] != TARGET
+        or value["argv"] != expected_argv
+        or value["requested_policy"] != "auto"
+        or value["environment"] != {}
+        or value["isolation"] != {"database_opened": False, "model_loaded": False, "network": "none", "source_checkout_mounted": False}
+        or value["evidence_provenance"] != "installed_candidate"
+        or value["exit_code"] != 0
+        or value["doctor_output_filename"] != "reranker-cli-doctor-stdout.json"
+        or value["effective_device"] != "cpu"
+        or value["reason"] != "no_visible_cuda_device"
+    ):
+        fail("reranker CLI doctor does not prove the isolated CPU diagnostic contract")
+    output_path = root / SMOKE_DIR / "reranker-cli-doctor-stdout.json"
+    if output_path.is_symlink() or not output_path.is_file():
+        fail("reranker CLI doctor raw output must be a regular non-symlink file")
+    raw = output_path.read_bytes()
+    if require_sha(value["doctor_output_sha256"], "reranker CLI doctor output digest") != hashlib.sha256(raw).hexdigest():
+        fail("reranker CLI doctor raw output digest differs")
+    try:
+        output = json.loads(raw)
+    except json.JSONDecodeError as error:
+        fail(f"cannot read reranker CLI doctor raw output: {error}")
+    expected = {
+        "schema_version": "fathomdb.doctor.reranker-gpu.v1", "subsystem": "reranker",
+        "policy": "auto", "cuda_compiled": True, "effective_device": "cpu", "devices": [],
+        "reason": "no_visible_cuda_device", "selected_uuid": None,
+    }
+    if raw != json.dumps(expected, ensure_ascii=True, separators=(",", ":")).encode("ascii") + b"\n" or output != expected:
+        fail("reranker CLI doctor raw output differs from the product CPU diagnostic")
+
+
+def validate_smokes(root: Path, expected: object, version: str, archive_name: str, archive_sha: str, rerank: bool) -> None:
+    smoke_names = BASE_SMOKE_NAMES | (RERANK_V3_SMOKE_NAMES if rerank else frozenset())
+    if not isinstance(expected, dict) or set(expected) != smoke_names:
         fail("smoke evidence inventory is incomplete or contains unknown evidence")
     smoke_dir = root / SMOKE_DIR
     require_regular_directory(smoke_dir, "smoke evidence directory")
     actual_names = {path.name for path in smoke_dir.iterdir()}
-    if actual_names != SMOKE_NAMES:
+    if actual_names != smoke_names:
         fail("smoke evidence directory does not exactly match manifest inventory")
-    for name in sorted(SMOKE_NAMES):
+    for name in sorted(smoke_names):
         path = smoke_dir / name
         if path.is_symlink() or not path.is_file():
             fail(f"smoke evidence must be a regular file: {name}")
@@ -299,11 +344,52 @@ def validate_smokes(root: Path, expected: object, version: str, archive_name: st
         if name in {"cpu-cli.json", "forced-cuda-unavailable-cli.json"}:
             validate_cli_smoke(root, name, value, version, archive_name, archive_sha)
             continue
+        if name == "reranker-cli-doctor.json":
+            validate_reranker_cli_doctor(root, value, version, archive_name, archive_sha)
+            continue
         kind, consumer = name.removesuffix(".json").split("-", 1)
         if kind == "cpu":
             validate_cpu_smoke(value, consumer)
         elif kind == "gpu":
             validate_gpu_smoke(value, consumer)
+
+
+def validate_future_reranker_gpu_receipt(path: Path, candidate_sha: str) -> None:
+    value, _ = load_object(path, "future reranker GPU inference receipt")
+    require_exact_keys(value, {
+        "schema_version", "candidate_sha", "consumer", "target", "requested_policy", "status",
+        "effective_device", "visible_devices", "selected_uuid", "nvidia_smi_uuid", "process_id",
+        "nvidia_smi_compute_process_id", "model_cache_manifest_sha256", "rerank_performed", "network",
+        "source_imported",
+    }, "future reranker GPU inference receipt")
+    if (
+        value["schema_version"] != "fathomdb.cuda-reranker-gpu-inference-receipt/v1"
+        or require_sha(value["candidate_sha"], "future reranker receipt candidate SHA", COMMIT_SHA) != candidate_sha
+        or value["consumer"] != "cli"
+        or value["target"] != TARGET
+        or value["requested_policy"] != "cuda:0"
+        or value["status"] != "selected_cuda"
+        or value["effective_device"] != "cuda:0"
+        or value["rerank_performed"] is not True
+        or value["network"] != "none"
+        or value["source_imported"] is not False
+    ):
+        fail("future reranker GPU receipt identity or inference outcome differs")
+    require_sha(value["model_cache_manifest_sha256"], "future reranker receipt cache manifest digest")
+    devices = value["visible_devices"]
+    if not isinstance(devices, list) or len(devices) != 1 or not isinstance(devices[0], dict):
+        fail("future reranker GPU receipt must retain exactly one selected visible device")
+    device = devices[0]
+    require_exact_keys(device, {"visible_ordinal", "uuid", "name", "compute_capability"}, "future reranker selected device")
+    if device["visible_ordinal"] != 0 or not all(isinstance(device[name], str) and device[name] for name in ("uuid", "name", "compute_capability")):
+        fail("future reranker selected device is malformed")
+    if value["selected_uuid"] != device["uuid"] or value["nvidia_smi_uuid"] != device["uuid"]:
+        fail("future reranker GPU receipt lacks UUID correlation")
+    if (
+        not isinstance(value["process_id"], int) or isinstance(value["process_id"], bool) or value["process_id"] < 1
+        or value["nvidia_smi_compute_process_id"] != value["process_id"]
+    ):
+        fail("future reranker GPU receipt lacks PID correlation")
 
 
 def validate(root: Path, candidate_sha: str) -> None:
@@ -376,7 +462,7 @@ def validate(root: Path, candidate_sha: str) -> None:
         else ["compatible_gpu_reranker_cli", "incompatible_reranker_classifier_observation"]
     )
     if manifest["pending_external"] != expected_pending:
-        fail("unavailable real CUDA hardware evidence must remain PENDING_EXTERNAL")
+        fail("unavailable real CLI hardware evidence must remain PENDING_EXTERNAL")
     model_manifest = preflight_witness_dir / "model-cache-manifest.json"
     if build_input["model_cache_manifest_sha256"] != sha256(model_manifest):
         fail("build input does not bind the retained Slice 10 model cache manifest")
@@ -394,19 +480,28 @@ def validate(root: Path, candidate_sha: str) -> None:
     if {path.name for path in package_dir.iterdir()} != filenames:
         fail("package directory does not exactly match manifest inventory")
     archive = packages["cli_archive"]
-    validate_smokes(root, manifest["smoke_evidence_sha256"], version, archive["filename"], archive["sha256"])
+    validate_smokes(
+        root, manifest["smoke_evidence_sha256"], version, archive["filename"], archive["sha256"],
+        build_schema == BUILD_INPUT_SCHEMA_V3,
+    )
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--rehearsal-dir", required=True, type=Path)
     parser.add_argument("--candidate-sha", required=True)
+    parser.add_argument(
+        "--future-reranker-gpu-receipt", type=Path,
+        help="validate one external installed-CLI CUDA reranker inference receipt without promoting it",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     validate(args.rehearsal_dir, args.candidate_sha)
+    if args.future_reranker_gpu_receipt is not None:
+        validate_future_reranker_gpu_receipt(args.future_reranker_gpu_receipt, args.candidate_sha)
     print("cuda-package-rehearsal: pass")
 
 

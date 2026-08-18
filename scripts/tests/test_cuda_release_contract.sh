@@ -289,8 +289,8 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = '    runs-on: [self-hosted, Linux, X64, gpu, cuda-12]\n'
-if text.count(needle) != 2:
-    raise SystemExit("fixture no longer contains both restricted CUDA runner selections")
+if text.count(needle) != 3:
+    raise SystemExit("fixture no longer contains all restricted CUDA runner selections")
 path.write_text(text.replace(needle, '    runs-on: ubuntu-latest\n', 1))
 PY
 expect_fail "$FIXTURE" 'rejects a CUDA preflight moved onto ordinary CI'
@@ -337,8 +337,8 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = '    environment: cuda-unmerged-preflight\n'
-if text.count(needle) != 2:
-    raise SystemExit("fixture no longer contains both exact protected CUDA environments")
+if text.count(needle) != 3:
+    raise SystemExit("fixture no longer contains all exact protected CUDA environments")
 path.write_text(text.replace(needle, "", 1))
 PY
 expect_fail "$FIXTURE" 'rejects removal of the protected unmerged-candidate environment'
@@ -353,8 +353,8 @@ path = Path(sys.argv[1])
 mutation = sys.argv[2]
 text = path.read_text()
 needle = "    environment: cuda-unmerged-preflight\n"
-if text.count(needle) != 2:
-    raise SystemExit("fixture no longer contains both exact protected CUDA environments")
+if text.count(needle) != 3:
+    raise SystemExit("fixture no longer contains all exact protected CUDA environments")
 replacements = {
     "comment-only": "    # environment: cuda-unmerged-preflight\n",
     "substituted": "    environment: ${{ inputs.cuda_environment }} # environment: cuda-unmerged-preflight\n",
@@ -563,8 +563,8 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = '    runs-on: [self-hosted, Linux, X64, gpu, cuda-12]\n'
-if text.count(needle) != 2:
-    raise SystemExit("fixture no longer contains both CUDA runner selections")
+if text.count(needle) != 3:
+    raise SystemExit("fixture no longer contains all CUDA runner selections")
 path.write_text(text.replace(needle, needle + '    permissions:\n      contents: write\n', 1))
 PY
 expect_fail "$FIXTURE" 'rejects CUDA preflight permissions broader than read-only'
@@ -577,7 +577,7 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a'
-if text.count(needle) != 5:
+if text.count(needle) != 8:
     raise SystemExit("fixture CUDA artifact uploads must use the reviewed full action SHA")
 path.write_text(text.replace(needle, needle[:-1], 1))
 PY
@@ -619,8 +619,8 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = 'sha256sum --check --status'
-if text.count(needle) != 1:
-    raise SystemExit("fixture preflight no longer verifies exactly one pinned cache manifest")
+if text.count(needle) != 2:
+    raise SystemExit("fixture preflight no longer verifies both pinned cache manifests")
 path.write_text(text.replace(needle, 'true', 1))
 PY
 expect_fail "$FIXTURE" 'rejects a CUDA preflight that accepts an unchecked model cache'

@@ -161,13 +161,13 @@ make_valid_bundle "$VALID"
 expect_accept "$VALID" 'exact complete package rehearsal bundle is accepted'
 
 cp -a "$VALID" "$TMPROOT/rerank-v3"
-python3 - "$TMPROOT/rerank-v3" <<'PY'
+python3 - "$TMPROOT/rerank-v3" "$REPO_ROOT" <<'PY'
 import hashlib
 import json
 from pathlib import Path
 import sys
 
-root = Path(sys.argv[1])
+root, repo = map(Path, sys.argv[1:])
 build_path = root / "build-input.json"
 build = json.loads(build_path.read_text())
 build.update({
@@ -190,9 +190,25 @@ preflight_build_path.write_text(json.dumps(preflight_build, ensure_ascii=True, s
 preflight_witness_path = root / "preflight-witness" / "cuda-preflight-witness.json"
 preflight_witness = json.loads(preflight_witness_path.read_text())
 preflight_witness["schema_version"] = "fathomdb.cuda-preflight-witness/v3"
+tokenizer_digest = "d241a60d5e8f04cc" + "1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+reranker_manifest = {"schema_version":"fathomdb.reranker-cache/v1","repository":"cross-encoder/ms-marco-TinyBERT-L2-v2","revision":"81d1926f67cb8eee2c2be17ca9f793c7c3bd20cc","snapshot_relpath":"fathomdb/reranker/0290849b0459","files":{"config.json":"2144195e107cd7ea61556478e7add12986ebfbc3085f924fc0b90c2410604879","tokenizer.json":tokenizer_digest,"model.safetensors":"a0e7364ddf91ff7028f1102e1b91ac7a72e3db4061241bd84efe45c72c9af03a"}}
+preflight_root = root / "preflight-witness"
+(preflight_root / "reranker-cache-manifest.json").write_text(json.dumps(reranker_manifest, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+reranker_digest = hashlib.sha256((preflight_root / "reranker-cache-manifest.json").read_bytes()).hexdigest()
+for consumer in ("python", "napi"):
+    (preflight_root / f"reranker-{consumer}-cpu-smoke.json").write_text(json.dumps({"schema_version":"fathomdb.cuda-reranker-cpu-smoke/v1","consumer":consumer,"requested_policy":"auto","effective_device":"cpu","reason":"no_visible_cuda_device","network":"none","source_imported":False,"rerank_performed":True,"reranker_cache_manifest_sha256":reranker_digest,"reranker_cache_read_only":True,"reranker_device_environment":"unset"}, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+    message = "cuda:0 requested for reranking but unavailable: NoVisibleCudaDevice"
+    stdout = preflight_root / f"forced-reranker-{consumer}-stdout.txt"
+    stderr = preflight_root / f"forced-reranker-{consumer}-stderr.txt"
+    argv = ["/opt/python/cp311-cp311/bin/python", "/fathomdb-harness/forced-reranker-python.py"] if consumer == "python" else ["node", "/fathomdb-harness/forced-reranker-napi.mjs"]
+    stdout.write_text(json.dumps({"schema_version":"fathomdb.cuda-forced-reranker-capture/v1","consumer":consumer,"argv":argv,"requested_policy":"cuda:0","status":"cuda_unavailable","effective_device":None,"reason":"no_visible_cuda_device","error":{"type":"RerankerDevicePolicyError","kind":"no_visible_cuda_device","ordinal":0,"message":message}}, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+    stderr.write_text(message + "\n")
+    (preflight_root / f"forced-reranker-{consumer}.json").write_text(json.dumps({"schema_version":"fathomdb.cuda-forced-reranker-failure/v1","consumer":consumer,"requested_policy":"cuda:0","cuda_compiled":True,"visible_devices":[],"status":"cuda_unavailable","effective_device":None,"reason":"no_visible_cuda_device","provenance":"installed_candidate","command":f"installed_{consumer}_engine_open","exit_code":1,"stdout_filename":stdout.name,"stdout_sha256":hashlib.sha256(stdout.read_bytes()).hexdigest(),"stderr_filename":stderr.name,"stderr_sha256":hashlib.sha256(stderr.read_bytes()).hexdigest()}, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+for name in ("forced-reranker-python.py", "forced-reranker-napi.mjs"):
+    (preflight_root / name).write_bytes((repo / "scripts/release" / name).read_bytes())
 preflight_build_digest = hashlib.sha256(preflight_build_path.read_bytes()).hexdigest()
 preflight_witness["build_input_sha256"] = preflight_build_digest
-preflight_witness["evidence_sha256"]["build-input.json"] = preflight_build_digest
+preflight_witness["evidence_sha256"] = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in preflight_root.iterdir() if path.name != preflight_witness_path.name}
 preflight_witness_path.write_text(json.dumps(preflight_witness, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
 manifest_path = root / "cuda-package-rehearsal.json"
 manifest = json.loads(manifest_path.read_text())
@@ -200,9 +216,38 @@ manifest["schema_version"] = "fathomdb.cuda-package-rehearsal/v3"
 manifest["pending_external"] = ["compatible_gpu_reranker_cli", "incompatible_reranker_classifier_observation"]
 manifest["build_input"] = build
 manifest["preflight_witness_sha256"] = hashlib.sha256(preflight_witness_path.read_bytes()).hexdigest()
+archive = manifest["packages"]["cli_archive"]
+raw = json.dumps({"schema_version":"fathomdb.doctor.reranker-gpu.v1","subsystem":"reranker","policy":"auto","cuda_compiled":True,"effective_device":"cpu","devices":[],"reason":"no_visible_cuda_device","selected_uuid":None}, ensure_ascii=True, separators=(",", ":")).encode("ascii") + b"\n"
+smoke = root / "smoke"
+(smoke / "reranker-cli-doctor-stdout.json").write_bytes(raw)
+version = manifest["version"]
+record = {"schema_version":"fathomdb.cuda-reranker-cli-doctor/v1","consumer":"cli","archive_filename":archive["filename"],"archive_sha256":archive["sha256"],"target":"x86_64-unknown-linux-gnu","argv":[f"/fathomdb-cli/fathomdb-{version}-x86_64-unknown-linux-gnu/fathomdb","doctor","reranker-gpu","--json"],"requested_policy":"auto","environment":{},"isolation":{"database_opened":False,"model_loaded":False,"network":"none","source_checkout_mounted":False},"evidence_provenance":"installed_candidate","exit_code":0,"doctor_output_filename":"reranker-cli-doctor-stdout.json","doctor_output_sha256":hashlib.sha256(raw).hexdigest(),"effective_device":"cpu","reason":"no_visible_cuda_device"}
+(smoke / "reranker-cli-doctor.json").write_text(json.dumps(record, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+manifest["smoke_evidence_sha256"] = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in smoke.iterdir()}
 manifest_path.write_text(json.dumps(manifest, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
 PY
 expect_accept "$TMPROOT/rerank-v3" 'v3 reranker feature tuple is accepted with GPU receipts PENDING_EXTERNAL'
+
+python3 - "$TMPROOT/future-reranker-gpu-receipt.json" "$CANDIDATE" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+candidate = sys.argv[2]
+path.write_text(json.dumps({
+    "schema_version": "fathomdb.cuda-reranker-gpu-inference-receipt/v1",
+    "candidate_sha": candidate, "consumer": "cli", "target": "x86_64-unknown-linux-gnu",
+    "requested_policy": "cuda:0", "status": "selected_cuda", "effective_device": "cuda:0",
+    "visible_devices": [{"visible_ordinal": 0, "uuid": "GPU-test", "name": "test GPU", "compute_capability": "8.0"}],
+    "selected_uuid": "GPU-test", "nvidia_smi_uuid": "GPU-test", "process_id": 42,
+    "nvidia_smi_compute_process_id": 42, "model_cache_manifest_sha256": "a" * 64,
+    "rerank_performed": True, "network": "none", "source_imported": False,
+}, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+PY
+python3 "$VERIFIER" --rehearsal-dir "$TMPROOT/rerank-v3" --candidate-sha "$CANDIDATE" \
+  --future-reranker-gpu-receipt "$TMPROOT/future-reranker-gpu-receipt.json" >/dev/null
+pass 'future reranker GPU receipt schema is independently verifiable without promotion'
 
 cp -a "$TMPROOT/rerank-v3" "$TMPROOT/rerank-v3-missing-feature"
 python3 - "$TMPROOT/rerank-v3-missing-feature/build-input.json" "$TMPROOT/rerank-v3-missing-feature/cuda-package-rehearsal.json" <<'PY'

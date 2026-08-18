@@ -11,14 +11,17 @@
 #   • npm  — REAL. A minimal but faithful npm registry (implements the publish
 #     PUT + packument GET + tarball GET HTTP protocol) is stood up in-process.
 #     `npm publish` really uploads the thin main `fathomdb` package AND the
-#     `fathomdb-linux-x64-gnu` platform package over HTTP through the
-#     real npm-publish-if-new.sh helper; the tarballs are really stored and
-#     served back with the integrity npm computed. A re-run NO-OPS via the
-#     helper's registry-query path (npm is NOT re-invoked — asserted by a
-#     server-side PUT counter, so the no-op is not vacuous). A real `npm install`
-#     then pulls the os/cpu-gated platform package, and the REAL loader from
-#     src/ts/src/platform.ts (loadPlatformBinding) resolves it on this
-#     linux-x64 host and throws UnsupportedPlatformError for a foreign host.
+#     platform package for THIS host's architecture (resolved via the real
+#     loader's tripleFor, e.g. `fathomdb-linux-arm64-gnu` on aarch64,
+#     `fathomdb-linux-x64-gnu` on x86_64 — 0.8.23 Slice 80.2, AC80-4) over
+#     HTTP through the real npm-publish-if-new.sh helper; the tarballs are
+#     really stored and served back with the integrity npm computed. A
+#     re-run NO-OPS via the helper's registry-query path (npm is NOT
+#     re-invoked — asserted by a server-side PUT counter, so the no-op is
+#     not vacuous). A real `npm install` then pulls the os/cpu-gated
+#     platform package, and the REAL loader from src/ts/src/platform.ts
+#     (loadPlatformBinding) resolves it on this host and throws
+#     UnsupportedPlatformError for a foreign host.
 #     Fix-1 safety (publish targets the queried registry, never prod) is
 #     structurally guaranteed here: the whole round-trip is confined to the
 #     local registry — a stray prod publish would escape it.
@@ -63,6 +66,51 @@ trap cleanup EXIT
 
 pass() { printf 'PASS  %s\n' "$1"; }
 fail() { printf 'FAIL  %s\n' "$1" >&2; FAILED=$((FAILED + 1)); }
+
+# This whole suite (crates.io leg included, for a consistent diagnostic) needs
+# node — both for the REAL npm round-trip below and for resolving the host
+# triple next.
+if ! command -v node >/dev/null 2>&1; then
+  fail "node is required for the REAL npm round-trip but is not on PATH"
+  exit 1
+fi
+
+# ==========================================================================
+# Host platform/arch (0.8.23 Slice 80.2, AC80-4): resolved through the REAL
+# loader (src/ts/src/platform.ts's tripleFor/platformPackageName), the same
+# single source of truth npm's optionalDependencies filtering and the loader
+# itself both use — not a second, hand-maintained os/cpu table in this test.
+# This makes the npm fixture's package name and os/cpu fields track whatever
+# host actually runs this suite (x86_64 or aarch64) instead of assuming x64.
+# ==========================================================================
+LOADER_DIR="$TMP/loader"; mkdir -p "$LOADER_DIR"
+TSC="$REPO_ROOT/src/ts/node_modules/.bin/tsc"
+LOADER=""
+if [ -x "$TSC" ]; then
+  if "$TSC" "$REPO_ROOT/src/ts/src/platform.ts" \
+        --types node --typeRoots "$REPO_ROOT/src/ts/node_modules/@types" \
+        --module nodenext --moduleResolution nodenext --target es2022 \
+        --outDir "$LOADER_DIR" >"$TMP/tsc.log" 2>&1; then
+    LOADER="$LOADER_DIR/platform.js"
+  fi
+fi
+if [ -z "$LOADER" ]; then
+  # Fallback: run platform.ts directly via Node's type stripping (>=22.18/23+).
+  cp "$REPO_ROOT/src/ts/src/platform.ts" "$LOADER_DIR/platform.ts"
+  LOADER="$LOADER_DIR/platform.ts"
+fi
+
+cat >"$TMP/host-info.mjs" <<JS
+import { tripleFor, platformPackageName } from ${LOADER@Q};
+const triple = tripleFor(process.platform, process.arch, false);
+if (!triple) {
+  console.error("host platform/arch not mapped: " + process.platform + "/" + process.arch);
+  process.exit(1);
+}
+console.log([process.platform, process.arch, triple, platformPackageName(triple)].join(" "));
+JS
+HOST_INFO="$(node "$TMP/host-info.mjs")" || { fail "could not resolve this host's triple via the real loader"; exit 1; }
+read -r HOST_PLATFORM HOST_ARCH HOST_TRIPLE HOST_PKG_NAME <<<"$HOST_INFO"
 
 # ==========================================================================
 # crates.io leg — SIMULATED (documented above): offline http-fixture QUERY +
@@ -133,10 +181,6 @@ fi
 # ==========================================================================
 # npm leg — REAL round-trip against a minimal in-process npm registry.
 # ==========================================================================
-if ! command -v node >/dev/null 2>&1; then
-  fail "node is required for the REAL npm round-trip but is not on PATH"
-  exit 1
-fi
 
 NPM_REG_JS="$TMP/npm-registry.js"
 cat >"$NPM_REG_JS" <<'JS'
@@ -219,9 +263,9 @@ NPM_REG="http://127.0.0.1:${NPM_PORT}"
 # resolves a loadable module (a real .node addon can't be dlopen'd in a script
 # test; the loader RESOLUTION logic is what R-REL-4f/the loader owns).
 PLAT_DIR="$WORK_DIR/plat"; mkdir -p "$PLAT_DIR"
-cat >"$PLAT_DIR/package.json" <<'PJ'
-{ "name": "fathomdb-linux-x64-gnu", "version": "9.9.9",
-  "os": ["linux"], "cpu": ["x64"], "main": "index.js", "files": ["index.js"] }
+cat >"$PLAT_DIR/package.json" <<PJ
+{ "name": "$HOST_PKG_NAME", "version": "9.9.9",
+  "os": ["$HOST_PLATFORM"], "cpu": ["$HOST_ARCH"], "main": "index.js", "files": ["index.js"] }
 PJ
 printf 'module.exports = { __fathomdb_native: "platform-pkg" };\n' >"$PLAT_DIR/index.js"
 cat >"$PLAT_DIR/.npmrc" <<NPMRC
@@ -230,10 +274,10 @@ registry=${NPM_REG}
 NPMRC
 
 MAIN_DIR="$WORK_DIR/main"; mkdir -p "$MAIN_DIR/dist"
-cat >"$MAIN_DIR/package.json" <<'PJ'
+cat >"$MAIN_DIR/package.json" <<PJ
 { "name": "fathomdb", "version": "9.9.9", "main": "dist/index.js",
   "files": ["dist"],
-  "optionalDependencies": { "fathomdb-linux-x64-gnu": "9.9.9" } }
+  "optionalDependencies": { "$HOST_PKG_NAME": "9.9.9" } }
 PJ
 printf 'module.exports = {};\n' >"$MAIN_DIR/dist/index.js"
 cat >"$MAIN_DIR/.npmrc" <<NPMRC
@@ -296,8 +340,8 @@ fi
 # --- REAL publish through the helper (absent -> publishes) -----------------
 if out="$(cd "$PLAT_DIR" && NPM_PUBLISH_IF_NEW_REGISTRY="$NPM_REG" NPM_BIN=npm \
           "$NPM_HELPER" --tag next -- --registry "$NPM_REG" 2>&1)"; then
-  if printf '%s' "$out" | grep -q 'linux-x64-gnu@9.9.9' \
-     && grep -q 'fathomdb-linux-x64-gnu' "$PUT_LOG"; then
+  if printf '%s' "$out" | grep -Fq "$HOST_TRIPLE@9.9.9" \
+     && grep -Fq "$HOST_PKG_NAME" "$PUT_LOG"; then
     pass "npm platform pkg REAL publish (real HTTP PUT landed)"
   else
     fail "npm platform publish: out='$out' put='$(cat "$PUT_LOG")'"
@@ -342,7 +386,7 @@ if out="$(cd "$PLAT_DIR" && NPM_PUBLISH_IF_NEW_REGISTRY="$NPM_REG" NPM_BIN=npm \
           "$NPM_HELPER" --dry-run --tag next -- --access public --provenance 2>&1)"; then
   PUTS_AFTER_DRY_RUN="$(wc -l <"$PUT_LOG")"
   if printf '%s' "$out" | grep -q 'already published; rehearsing with npm pack --dry-run' \
-     && printf '%s' "$out" | grep -q 'fathomdb-linux-x64-gnu-9.9.9.tgz' \
+     && printf '%s' "$out" | grep -Fq "$HOST_PKG_NAME-9.9.9.tgz" \
      && [ "$PUTS_AFTER_DRY_RUN" -eq "$PUTS_BEFORE_DRY_RUN" ]; then
     pass "npm dry-run for a published version packs locally (zero new PUTs)"
   else
@@ -383,7 +427,7 @@ registry=${NPM_REG}
 NPMRC
 printf '{ "name": "consumer", "version": "1.0.0", "private": true }\n' >"$CONSUMER/package.json"
 if ( cd "$CONSUMER" && npm install "fathomdb@9.9.9" --registry "$NPM_REG" >"$TMP/install.log" 2>&1 ); then
-  if [ -f "$CONSUMER/node_modules/fathomdb-linux-x64-gnu/index.js" ]; then
+  if [ -f "$CONSUMER/node_modules/$HOST_PKG_NAME/index.js" ]; then
     pass "npm install pulls the os/cpu-gated platform package (real extract)"
   else
     fail "npm install: platform package not present after install; log=$(cat "$TMP/install.log")"
@@ -392,44 +436,32 @@ else
   fail "npm install failed: $(cat "$TMP/install.log")"
 fi
 
-# Transpile the REAL loader (src/ts/src/platform.ts) and drive loadPlatformBinding
-# against the REAL installed node_modules.
-LOADER_DIR="$TMP/loader"; mkdir -p "$LOADER_DIR"
-TSC="$REPO_ROOT/src/ts/node_modules/.bin/tsc"
-LOADER=""
-if [ -x "$TSC" ]; then
-  if "$TSC" "$REPO_ROOT/src/ts/src/platform.ts" \
-        --types node --typeRoots "$REPO_ROOT/src/ts/node_modules/@types" \
-        --module nodenext --moduleResolution nodenext --target es2022 \
-        --outDir "$LOADER_DIR" >"$TMP/tsc.log" 2>&1; then
-    LOADER="$LOADER_DIR/platform.js"
-  fi
-fi
-if [ -z "$LOADER" ]; then
-  # Fallback: run platform.ts directly via Node's type stripping (>=22.18/23+).
-  cp "$REPO_ROOT/src/ts/src/platform.ts" "$LOADER_DIR/platform.ts"
-  LOADER="$LOADER_DIR/platform.ts"
-fi
-
+# Drive loadPlatformBinding (the same transpiled/type-stripped REAL loader
+# resolved as $LOADER near the top) against the REAL installed node_modules.
 cat >"$TMP/loader-harness.mjs" <<JS
 import { loadPlatformBinding, UnsupportedPlatformError } from ${LOADER@Q};
 import { createRequire } from "node:module";
 const require = createRequire(${CONSUMER@Q} + "/package.json");
 let failed = 0;
-// Host (linux/x64): loader resolves the REAL installed platform package.
+// Host: loader resolves the REAL installed platform package, using the
+// REAL process.platform/process.arch rather than a hardcoded pair, so this
+// arm passes on whichever architecture actually runs the suite.
 try {
   const mod = loadPlatformBinding({
-    platform: "linux", arch: "x64", isMusl: false,
+    platform: process.platform, arch: process.arch, isMusl: false,
     loadLocal: () => null, requirePackage: (p) => require(p),
   });
   if (mod && mod.__fathomdb_native === "platform-pkg") console.log("HOST_RESOLVES_OK");
   else { console.log("HOST_WRONG", JSON.stringify(mod)); failed = 1; }
 } catch (e) { console.log("HOST_THREW", String(e)); failed = 1; }
-// Foreign host (darwin/arm64): optional dep was never installed -> require
-// throws MODULE_NOT_FOUND -> loader throws UnsupportedPlatformError (no segfault).
+// Foreign host: aix/ppc64 is outside the ENTIRE supported matrix (linux-x64,
+// linux-arm64, darwin-x64, darwin-arm64, win32-x64) — unlike darwin/arm64,
+// this stays foreign even if this suite is ever run on a darwin/arm64 host.
+// The optional dep was never installed -> require throws MODULE_NOT_FOUND ->
+// loader throws UnsupportedPlatformError (no segfault).
 try {
   loadPlatformBinding({
-    platform: "darwin", arch: "arm64", isMusl: false,
+    platform: "aix", arch: "ppc64", isMusl: false,
     loadLocal: () => null, requirePackage: (p) => require(p),
   });
   console.log("FOREIGN_DID_NOT_THROW"); failed = 1;

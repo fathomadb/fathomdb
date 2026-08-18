@@ -190,9 +190,15 @@ preflight_build_path.write_text(json.dumps(preflight_build, ensure_ascii=True, s
 preflight_witness_path = root / "preflight-witness" / "cuda-preflight-witness.json"
 preflight_witness = json.loads(preflight_witness_path.read_text())
 preflight_witness["schema_version"] = "fathomdb.cuda-preflight-witness/v3"
+tokenizer_digest = "d241a60d5e8f04cc" + "1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+reranker_manifest = {"schema_version":"fathomdb.reranker-cache/v1","repository":"cross-encoder/ms-marco-TinyBERT-L2-v2","revision":"81d1926f67cb8eee2c2be17ca9f793c7c3bd20cc","snapshot_relpath":"hub/models--cross-encoder--ms-marco-TinyBERT-L2-v2/snapshots/81d1926f67cb8eee2c2be17ca9f793c7c3bd20cc","files":{"config.json":"2144195e107cd7ea61556478e7add12986ebfbc3085f924fc0b90c2410604879","tokenizer.json":tokenizer_digest,"model.safetensors":"a0e7364ddf91ff7028e1102e1b91ac7a72e3db4061241bd84efe45c72c9af03a"}}
+preflight_root = root / "preflight-witness"
+(preflight_root / "reranker-cache-manifest.json").write_text(json.dumps(reranker_manifest, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+for name in ("reranker-python-cpu-smoke.json", "reranker-napi-cpu-smoke.json", "reranker-cli-doctor.json", "forced-reranker-python.json", "forced-reranker-napi.json"):
+    (preflight_root / name).write_text(json.dumps({"subsystem":"reranker","source_imported":False}, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
 preflight_build_digest = hashlib.sha256(preflight_build_path.read_bytes()).hexdigest()
 preflight_witness["build_input_sha256"] = preflight_build_digest
-preflight_witness["evidence_sha256"]["build-input.json"] = preflight_build_digest
+preflight_witness["evidence_sha256"] = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in preflight_root.iterdir() if path.name != preflight_witness_path.name}
 preflight_witness_path.write_text(json.dumps(preflight_witness, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
 manifest_path = root / "cuda-package-rehearsal.json"
 manifest = json.loads(manifest_path.read_text())

@@ -114,6 +114,21 @@ def main() -> None:
             lambda value: value.__setitem__("schema_version", "fathomdb.cuda-preflight-witness/v3"),
         )
         assert run(rerank_v3).returncode != 0, "v3 witness without reranker evidence must be rejected"
+        reranker_manifest = {
+            "schema_version": "fathomdb.reranker-cache/v1",
+            "repository": "cross-encoder/ms-marco-TinyBERT-L2-v2",
+            "revision": "81d1926f67cb8eee2c2be17ca9f793c7c3bd20cc",
+            "snapshot_relpath": "hub/models--cross-encoder--ms-marco-TinyBERT-L2-v2/snapshots/81d1926f67cb8eee2c2be17ca9f793c7c3bd20cc",
+            "files": {"config.json": "2144195e107cd7ea61556478e7add12986ebfbc3085f924fc0b90c2410604879", "tokenizer.json": "d241a60d5e8f04cc" + "1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66", "model.safetensors": "a0e7364ddf91ff7028e1102e1b91ac7a72e3db4061241bd84efe45c72c9af03a"},
+        }
+        (rerank_v3 / "reranker-cache-manifest.json").write_bytes(canonical(reranker_manifest))
+        for name in ("reranker-python-cpu-smoke.json", "reranker-napi-cpu-smoke.json", "reranker-cli-doctor.json", "forced-reranker-python.json", "forced-reranker-napi.json"):
+            (rerank_v3 / name).write_bytes(canonical({"subsystem": "reranker", "source_imported": False}))
+        witness_path = rerank_v3 / "cuda-preflight-witness.json"
+        witness = json.loads(witness_path.read_bytes())
+        witness["evidence_sha256"] = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in rerank_v3.iterdir() if path.name != witness_path.name}
+        witness_path.write_bytes(canonical(witness))
+        assert run(rerank_v3).returncode == 0, "v3 reranker witness must bind installed-artifact evidence"
 
         arbitrary_unavailable = tmp / "arbitrary-unavailable-message"
         shutil.copytree(valid, arbitrary_unavailable)

@@ -177,6 +177,10 @@ required-features = ["slice72-gpu-tests"]
 name = "slice72_telemetry_contract"
 required-features = ["default-embedder", "default-reranker", "slice72-test-hooks"]
 
+[[test]]
+name = "slice72_review_contract"
+required-features = ["default-embedder", "default-reranker", "slice72-test-hooks"]
+
 # 0.8.2 Slice E2 fix-1 [P2]: is_finite guard tests — no feature gate because the
 # guard fires before the CE model path (depth/feature state irrelevant).
 [[test]]

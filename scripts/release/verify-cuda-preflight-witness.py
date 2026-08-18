@@ -58,19 +58,24 @@ RERANK_V3_EVIDENCE_NAMES = frozenset({
     "reranker-cache-manifest.json",
     "reranker-python-cpu-smoke.json",
     "reranker-napi-cpu-smoke.json",
-    "reranker-cli-doctor.json",
     "forced-reranker-python.json",
     "forced-reranker-napi.json",
+    "forced-reranker-python-stdout.txt",
+    "forced-reranker-python-stderr.txt",
+    "forced-reranker-napi-stdout.txt",
+    "forced-reranker-napi-stderr.txt",
+    "forced-reranker-python.py",
+    "forced-reranker-napi.mjs",
 })
 RERANKER_MANIFEST = {
     "schema_version": "fathomdb.reranker-cache/v1",
     "repository": "cross-encoder/ms-marco-TinyBERT-L2-v2",
     "revision": "81d1926f67cb8eee2c2be17ca9f793c7c3bd20cc",
-    "snapshot_relpath": "hub/models--cross-encoder--ms-marco-TinyBERT-L2-v2/snapshots/81d1926f67cb8eee2c2be17ca9f793c7c3bd20cc",
+    "snapshot_relpath": "fathomdb/reranker/0290849b0459",
     "files": {
         "config.json": "2144195e107cd7ea61556478e7add12986ebfbc30" "85f924fc0b90c2410604879",
         "tokenizer.json": "d241a60d5e8f04cc" "1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
-        "model.safetensors": "a0e7364ddf91ff7028e1102e1b91ac7a72e3db4061241bd" "84efe45c72c9af03a",
+        "model.safetensors": "a0e7364ddf91ff7028f1102e1b91ac7a72e3db4061241bd" "84efe45c72c9af03a",
     },
 }
 
@@ -231,6 +236,83 @@ def validate_forced_record(
     validate_capture(capture, consumer, status, reason, stderr_path.read_bytes())
 
 
+def validate_reranker_cpu_smoke(path: Path, consumer: str, manifest_digest: str) -> None:
+    value, _ = load_canonical_object(path, f"reranker {consumer} CPU smoke")
+    expected = {
+        "schema_version": "fathomdb.cuda-reranker-cpu-smoke/v1",
+        "consumer": consumer,
+        "requested_policy": "auto",
+        "effective_device": "cpu",
+        "reason": "no_visible_cuda_device",
+        "network": "none",
+        "source_imported": False,
+        "rerank_performed": True,
+        "reranker_cache_manifest_sha256": manifest_digest,
+        "reranker_cache_read_only": True,
+        "reranker_device_environment": "unset",
+    }
+    if value != expected:
+        fail(f"reranker {consumer} CPU smoke does not prove isolated installed inference")
+
+
+def validate_forced_reranker_capture(value: dict[str, Any], consumer: str, stderr: bytes) -> None:
+    message = "cuda:0 requested for reranking but unavailable: NoVisibleCudaDevice"
+    require_exact_keys(value, {
+        "schema_version", "consumer", "argv", "requested_policy", "status",
+        "effective_device", "reason", "error",
+    }, f"forced reranker {consumer} capture")
+    expected_argv = (
+        ["/opt/python/cp311-cp311/bin/python", "/fathomdb-harness/forced-reranker-python.py"]
+        if consumer == "python"
+        else ["node", "/fathomdb-harness/forced-reranker-napi.mjs"]
+    )
+    expected = {
+        "schema_version": "fathomdb.cuda-forced-reranker-capture/v1",
+        "consumer": consumer,
+        "argv": expected_argv,
+        "requested_policy": "cuda:0",
+        "status": "cuda_unavailable",
+        "effective_device": None,
+        "reason": "no_visible_cuda_device",
+        "error": {
+            "type": "RerankerDevicePolicyError", "kind": "no_visible_cuda_device",
+            "ordinal": 0, "message": message,
+        },
+    }
+    if value != expected or stderr != (message + "\n").encode("utf-8"):
+        fail(f"forced reranker {consumer} capture does not retain its exact typed refusal")
+
+
+def validate_forced_reranker_record(record_path: Path, stdout_path: Path, stderr_path: Path, consumer: str) -> None:
+    record, _ = load_canonical_object(record_path, f"forced reranker {consumer} record")
+    require_exact_keys(record, {
+        "schema_version", "consumer", "requested_policy", "cuda_compiled", "visible_devices",
+        "status", "effective_device", "reason", "provenance", "command", "exit_code",
+        "stdout_filename", "stdout_sha256", "stderr_filename", "stderr_sha256",
+    }, f"forced reranker {consumer} record")
+    expected = {
+        "schema_version": "fathomdb.cuda-forced-reranker-failure/v1",
+        "consumer": consumer,
+        "requested_policy": "cuda:0",
+        "cuda_compiled": True,
+        "visible_devices": [],
+        "status": "cuda_unavailable",
+        "effective_device": None,
+        "reason": "no_visible_cuda_device",
+        "provenance": "installed_candidate",
+        "command": f"installed_{consumer}_engine_open_without_default_embedder",
+        "exit_code": 1,
+        "stdout_filename": stdout_path.name,
+        "stdout_sha256": sha256_bytes(stdout_path.read_bytes()),
+        "stderr_filename": stderr_path.name,
+        "stderr_sha256": sha256_bytes(stderr_path.read_bytes()),
+    }
+    if record != expected:
+        fail(f"forced reranker {consumer} record differs from the installed-candidate refusal")
+    capture, _ = load_canonical_object(stdout_path, f"forced reranker {consumer} stdout capture")
+    validate_forced_reranker_capture(capture, consumer, stderr_path.read_bytes())
+
+
 def validate_gpu_observation(path: Path, consumer: str) -> None:
     value, _ = load_canonical_object(path, f"GPU {consumer} observation")
     require_exact_keys(value, {
@@ -378,10 +460,21 @@ def validate(witness_dir: Path, candidate_sha: str) -> None:
         )
         if reranker_manifest != RERANKER_MANIFEST:
             fail("reranker cache manifest differs from the pinned TinyBERT identity")
-        for name in RERANK_V3_EVIDENCE_NAMES - {"reranker-cache-manifest.json"}:
-            value, _ = load_canonical_object(witness_dir / name, f"reranker evidence {name}")
-            if value.get("subsystem") != "reranker" or value.get("source_imported") is not False:
-                fail(f"reranker evidence {name} is not an installed-artifact record")
+        reranker_manifest_digest = sha256_bytes((witness_dir / "reranker-cache-manifest.json").read_bytes())
+        for consumer in ("python", "napi"):
+            validate_reranker_cpu_smoke(
+                witness_dir / f"reranker-{consumer}-cpu-smoke.json", consumer, reranker_manifest_digest,
+            )
+            validate_forced_reranker_record(
+                witness_dir / f"forced-reranker-{consumer}.json",
+                witness_dir / f"forced-reranker-{consumer}-stdout.txt",
+                witness_dir / f"forced-reranker-{consumer}-stderr.txt",
+                consumer,
+            )
+        source_dir = Path(__file__).resolve().parent
+        for name in ("forced-reranker-python.py", "forced-reranker-napi.mjs"):
+            if (witness_dir / name).read_bytes() != (source_dir / name).read_bytes():
+                fail(f"retained reranker harness differs from the main-owned source: {name}")
     build_raw = (witness_dir / "build-input.json").read_bytes()
     if require_digest(witness["build_input_sha256"], "root build-input digest") != sha256_bytes(build_raw):
         fail("root build-input digest differs from retained input")

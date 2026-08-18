@@ -18,7 +18,7 @@ ARGV = ["/opt/python/cp311-cp311/bin/python", "/fathomdb-harness/forced-reranker
 def main() -> int:
     try:
         with tempfile.TemporaryDirectory() as directory:
-            Engine.open(str(Path(directory) / "forced-reranker-cuda.fdb"), use_default_embedder=True)
+            Engine.open(str(Path(directory) / "forced-reranker-cuda.fdb"), use_default_embedder=False)
     except RerankerDevicePolicyError as error:
         message = str(error)
         payload = {

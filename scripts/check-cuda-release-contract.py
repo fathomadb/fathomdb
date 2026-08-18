@@ -270,14 +270,14 @@ def require_driverless_device_absence(preflight: str) -> None:
 
 def require_cuda_package_rehearsal() -> None:
     schema = load_json(PACKAGE_REHEARSAL_SCHEMA)
-    if schema.get("$id") != "https://fathomdb.dev/schemas/cuda-package-rehearsal/v1":
+    if schema.get("$id") != "https://fathomdb.dev/schemas/cuda-package-rehearsal/v2":
         fail("CUDA package rehearsal schema must declare its versioned schema ID")
     schema_version = schema.get("properties", {}).get("schema_version")
-    if not isinstance(schema_version, dict) or schema_version.get("const") != "fathomdb.cuda-package-rehearsal/v1":
+    if not isinstance(schema_version, dict) or schema_version.get("const") != "fathomdb.cuda-package-rehearsal/v2":
         fail("CUDA package rehearsal schema must pin its schema version")
     verifier = read_text(PACKAGE_REHEARSAL_VERIFIER)
     for fragment in (
-        "package inventory must contain exactly three retained artifacts",
+        "package inventory must contain exactly four typed retained artifacts",
         "package digest mismatch",
         "route receipt does not bind the requested candidate",
         "preflight witness digest mismatch",
@@ -286,6 +286,8 @@ def require_cuda_package_rehearsal() -> None:
         "CPU {consumer} smoke does not prove the driverless installed-artifact contract",
         "GPU {consumer} smoke lacks GPU UUID/PID correlation",
         'raw != canonical_json(value)',
+        "CLI archive is not deterministic gzip -n output",
+        "unavailable real CLI hardware evidence must remain PENDING_EXTERNAL",
     ):
         require_fragment(verifier, fragment, "CUDA package rehearsal verifier")
     helper = read_text(PACKAGE_REHEARSAL_HELPER)
@@ -295,6 +297,7 @@ def require_cuda_package_rehearsal() -> None:
         '--candidate-sha "$candidate_sha"',
         'output directory must be new',
         'verify-cuda-package-rehearsal.py',
+        '--cli-archive',
     ):
         require_fragment(helper, fragment, "CUDA package rehearsal helper")
     smoke = read_text(PACKAGE_REHEARSAL_SMOKE)
@@ -310,6 +313,9 @@ def require_cuda_package_rehearsal() -> None:
         'source_imported',
         'gpu_uuid',
         'nvidia_smi_uuid',
+        'XDG_CACHE_HOME=/fathomdb-product-cache',
+        'model_cache_manifest',
+        'doctor gpu --json',
     ):
         require_fragment(smoke, fragment, "CUDA package rehearsal installed-artifact smoke")
     for forbidden in (
@@ -798,10 +804,10 @@ def main() -> None:
         fail("CUDA preflight must not use a no-embedder Python smoke")
     if "{ useDefaultEmbedder: false }" in preflight:
         fail("CUDA preflight must not use a no-embedder N-API smoke")
-    if preflight.count('--network none') != 8:
+    if preflight.count('--network none') != 10:
         fail(
             "CUDA preflight must isolate the install, auditwheel, driverless, "
-            "forced-device, and GPU containers"
+            "embedding/reranker forced-device, and GPU containers"
         )
     if preflight.count(
         '--mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly"'
@@ -809,11 +815,32 @@ def main() -> None:
         fail("CUDA preflight must mount the pinned read-only model seed into all four model-loading smokes")
     if preflight.count('dst=/fathomdb-product-cache"') != 4:
         fail("CUDA preflight must mount four distinct writable product caches")
-    if preflight.count("sha256sum --check --status") != 1:
-        fail("CUDA preflight must verify the complete pinned default-embedder cache manifest")
+    if preflight.count("sha256sum --check --status") != 2:
+        fail("CUDA preflight must verify both pinned embedder and TinyBERT reranker cache manifests")
     if preflight.count("--query-compute-apps=pid,process_name --format=csv,noheader") != 1:
         fail("CUDA preflight must observe each spawned GPU runtime PID and process name")
     require_driverless_device_absence(preflight)
+    for fragment in (
+        "FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE",
+        "dst=/fathomdb-reranker-cache-root,readonly",
+        "FATHOMDB_RERANKER_CACHE=/fathomdb-reranker-cache-root",
+        "reranker-cache-manifest.json",
+        "reranker-python-cpu-smoke.json",
+        "reranker-napi-cpu-smoke.json",
+        "forced-reranker-python.json",
+        "forced-reranker-napi.json",
+        "forced-reranker-python.py",
+        "forced-reranker-napi.mjs",
+        "from fathomdb import rerank",
+    ):
+        require_fragment(preflight, fragment, "CUDA reranker v3 preflight")
+    for fragment in (
+        "--reranker-cache-manifest",
+        "reranker-cli-doctor.json",
+        "doctor reranker-gpu --json",
+        "FATHOMDB_RERANK_DEVICE",
+    ):
+        require_fragment(read_text(PACKAGE_REHEARSAL_SMOKE), fragment, "CUDA reranker v3 rehearsal smoke")
 
     require_unmerged_candidate_control_plane()
     require_unmerged_workflow_route()

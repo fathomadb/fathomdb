@@ -5,7 +5,7 @@ import { Engine, RerankerDevicePolicyError } from "fathomdb";
 const argv = ["node", "/fathomdb-harness/forced-reranker-napi.mjs"];
 
 try {
-  await Engine.open("/tmp/forced-reranker-cuda-napi.fdb", { useDefaultEmbedder: true });
+  await Engine.open("/tmp/forced-reranker-cuda-napi.fdb", { useDefaultEmbedder: false });
   throw new Error("forced reranker cuda:0 unexpectedly opened successfully");
 } catch (error) {
   if (!(error instanceof RerankerDevicePolicyError)) throw error;

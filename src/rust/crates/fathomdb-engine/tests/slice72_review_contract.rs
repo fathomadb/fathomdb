@@ -82,7 +82,21 @@ fn guarded_operation_retains_panics_and_overlap_timestamp_is_inside_the_window()
 
 #[test]
 fn stress_watchdog_kills_a_hung_child_before_the_global_ceiling() {
+    let directory = tempfile::tempdir().expect("watchdog receipt directory");
     let child = Command::new("sleep").arg("1").spawn().expect("start controlled hung child");
-    let result = telemetry::wait_for_child_with_watchdog(child, Duration::from_millis(10));
+    let child_pid = child.id();
+    let result = telemetry::wait_for_child_with_watchdog_with_receipt(
+        child,
+        Duration::from_millis(10),
+        directory.path(),
+        "stress-contract",
+    );
     assert!(result.is_err(), "watchdog must terminate a child that exceeds its deadline");
+    let receipt = std::fs::read_to_string(
+        directory.path().join(format!("slice72-watchdog-stress-contract-{child_pid}.json")),
+    )
+    .expect("parent watchdog timeout receipt");
+    assert!(receipt.contains("watchdog_timeout"));
+    assert!(receipt.contains("\"selected_uuid\": null"));
+    assert!(receipt.contains(&child_pid.to_string()));
 }

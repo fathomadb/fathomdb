@@ -316,6 +316,7 @@ impl Receipt {
                 "pid": self.pid,
                 "build_features": ["slice72-gpu-tests"],
                 "selected_uuid": &self.selected_uuid,
+                "cuda_visible_devices": [&self.selected_uuid],
                 "selected_visible_ordinal": 0,
                 "driver_version": nvidia_driver_version().ok(),
                 "cache_identities": { "bge": BGE_FILES, "reranker": RERANKER_FILES },
@@ -616,6 +617,7 @@ fn write_watchdog_timeout_receipt(
             "child_pid": child_pid,
             "build_features": ["slice72-gpu-tests"],
             "selected_uuid": serde_json::Value::Null,
+            "cuda_visible_devices": serde_json::Value::Null,
             "selected_visible_ordinal": serde_json::Value::Null,
             "driver_version": serde_json::Value::Null,
             "cache_identities": serde_json::Value::Null,
@@ -851,7 +853,7 @@ impl Slice72Run {
         let deadline = Instant::now() + std::time::Duration::from_secs(60);
         receipt.set_stress_configuration(60, 3);
         let mut count = 0_u64;
-        let mut overlap_timestamp = None;
+        let mut overlap_snapshot = None;
         while Instant::now() < deadline {
             assert_before_deadline(ceiling, "start stress operation");
             let rendezvous = ForwardRendezvous::new();
@@ -871,7 +873,9 @@ impl Slice72Run {
             );
             let timestamp =
                 rendezvous.active_overlap_sample_timestamp().expect("stress overlap timestamp");
-            overlap_timestamp.get_or_insert(timestamp);
+            if overlap_snapshot.is_none() {
+                overlap_snapshot = Some(self.sample_at(timestamp));
+            }
             assert_real_ce(&ce.receive_until(ceiling, "stress overlap CE"));
             drop(_installed);
             assert_before_deadline(ceiling, "start first CE stress worker");
@@ -895,10 +899,7 @@ impl Slice72Run {
         }
         assert!(count > 0, "stress executes at least one bounded operation");
         receipt
-            .push_phase(
-                "overlap",
-                self.sample_at(overlap_timestamp.expect("stress overlap timestamp")),
-            )
+            .push_phase("overlap", overlap_snapshot.expect("stress overlap snapshot"))
             .expect("overlap receipt sample");
         receipt.push_phase("stress", self.sample()).expect("stress receipt sample");
         receipt.set_stress_iterations(count);

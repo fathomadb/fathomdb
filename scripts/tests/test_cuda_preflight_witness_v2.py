@@ -94,6 +94,26 @@ def main() -> None:
         result = run(valid)
         assert result.returncode == 0, result.stderr
 
+        rerank_v3 = tmp / "rerank-v3"
+        shutil.copytree(valid, rerank_v3)
+        rewrite(
+            rerank_v3 / "build-input.json",
+            lambda value: value.update(
+                {
+                    "schema_version": "fathomdb.cuda-preflight-build-input/v3",
+                    "python_features": ["embed-cuda", "rerank-cuda", "pyo3/extension-module"],
+                    "napi_features": ["default-embedder", "embed-cuda", "rerank-cuda"],
+                    "rerank_cuda": True,
+                }
+            ),
+        )
+        reseal(rerank_v3, "build-input.json")
+        rewrite(
+            rerank_v3 / "cuda-preflight-witness.json",
+            lambda value: value.__setitem__("schema_version", "fathomdb.cuda-preflight-witness/v3"),
+        )
+        assert run(rerank_v3).returncode == 0, "v3 reranker feature witness must be accepted"
+
         arbitrary_unavailable = tmp / "arbitrary-unavailable-message"
         shutil.copytree(valid, arbitrary_unavailable)
         rewrite_forced_message(

@@ -50,7 +50,8 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/plan-0.8.23.md` | Active hygiene, preparation, and feature-slice release plan | 0.8.23 release ladder | 2026-08-18 |
 | `dev/plans/release-state-0.8.23.json` | Single writer selecting the live 0.8.23 board, ladder, and next work | 0.8.23 release state | 2026-08-18 |
 | `dev/plans/runs/STATUS-0.8.23.md` | Live 0.8.23 state board; read via the release-state `board` key | 0.8.23 release state | 2026-08-18 |
-| `dev/plans/runs/0.8.23-slice-72-draft-plan.md` | Draft for concurrent embedding and CE GPU coexistence characterization | 0.8.23 Slice 72 | 2026-08-18 |
+| `dev/plans/runs/0.8.23-slice-72-draft-plan.md` | Approved plan for concurrent embedding and CE GPU coexistence characterization | 0.8.23 Slice 72 | 2026-08-18 |
+| `dev/plans/runs/0.8.23-slice-72-status.md` | Local completion and external-GPU-evidence boundary for concurrent BGE and CE characterization | 0.8.23 Slice 72 | 2026-08-18 |
 | `dev/requirements.md` | Numbered requirements (REQ-*); REQ-053 = governed SDK surface (allowlist + parity + recovery-denylist + typed boundary) | 25 amended REQ-053 (Q3) | 2026-06-04 |
 | `dev/acceptance.md` | Acceptance criteria (AC-*); AC-057a five-verb cap superseded by AC-074 (governed surface); AC-074 Rust-facade... | 25 (AC-057a→AC-074); 27 fills AC-074 Rust clause; 27 fix-1 method-level; 40/GA-2 mints AC-075/076 | 2026-06-08 |
 | `dev/interfaces/rust.md` | Rust public interface (owner of Rust-visible spelling + governed facade contract); Slice 21 records dense readiness and Slice 22 records the pure projection-status facade. | 27 (governed-surface contract); Slices 21/22 integrated in `main` | 2026-08-08 |

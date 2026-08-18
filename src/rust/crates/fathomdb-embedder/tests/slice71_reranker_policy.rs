@@ -13,6 +13,23 @@ struct Provider {
     probes: usize,
 }
 
+struct MultiDeviceProvider {
+    devices: Vec<CudaVisibleDevice>,
+    probes: Vec<Result<CudaDeviceInfo, CudaProbeError>>,
+    probed_ordinals: Vec<usize>,
+}
+
+impl CudaProvider for MultiDeviceProvider {
+    fn enumerate_visible_cuda_devices(&mut self) -> Result<Vec<CudaVisibleDevice>, CudaProbeError> {
+        Ok(self.devices.clone())
+    }
+
+    fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError> {
+        self.probed_ordinals.push(ordinal);
+        self.probes[ordinal].clone()
+    }
+}
+
 impl Default for Provider {
     fn default() -> Self {
         Self {
@@ -89,6 +106,28 @@ fn auto_selects_a_compatible_gpu_and_retains_its_identity() {
     assert!(matches!(result.effective_device, EffectiveRerankerDevice::Cuda(_)));
     assert_eq!(result.selected_cuda_uuid.as_deref(), Some("GPU-slice71"));
     assert_eq!(result.reason, None);
+}
+
+#[test]
+fn auto_probes_visible_devices_in_order_until_one_is_compatible() {
+    let mut provider = MultiDeviceProvider {
+        devices: vec![visible(), visible_at(1, "GPU-slice71-second")],
+        probes: vec![
+            Err(CudaProbeError::Incompatible { message: "old driver".to_owned() }),
+            Ok(cuda_info_at(1, "GPU-slice71-second")),
+        ],
+        probed_ordinals: vec![],
+    };
+
+    let result = resolve_reranker_device_policy(RerankerDevicePolicy::Auto, true, &mut provider)
+        .expect("auto must continue after an incompatible lower ordinal");
+
+    assert_eq!(provider.probed_ordinals, vec![0, 1]);
+    assert_eq!(result.selected_cuda_uuid.as_deref(), Some("GPU-slice71-second"));
+    assert!(matches!(
+        result.effective_device,
+        EffectiveRerankerDevice::Cuda(CudaDeviceInfo { ordinal: 1, .. })
+    ));
 }
 
 #[test]
@@ -174,10 +213,25 @@ fn public_error_preserves_kind_and_ordinal() {
 }
 
 fn visible() -> CudaVisibleDevice {
+    visible_at(0, "GPU-slice71")
+}
+
+fn visible_at(visible_ordinal: usize, uuid: &str) -> CudaVisibleDevice {
     CudaVisibleDevice {
-        visible_ordinal: 0,
-        uuid: "GPU-slice71".to_owned(),
+        visible_ordinal,
+        uuid: uuid.to_owned(),
         name: "slice71-test".to_owned(),
         compute_capability: Some("8.6".to_owned()),
+    }
+}
+
+fn cuda_info_at(ordinal: usize, uuid: &str) -> CudaDeviceInfo {
+    CudaDeviceInfo {
+        ordinal,
+        uuid: Some(uuid.to_owned()),
+        name: Some("slice71-test".to_owned()),
+        driver_version: None,
+        compute_capability: Some("8.6".to_owned()),
+        cuda_toolkit_version: None,
     }
 }

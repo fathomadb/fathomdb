@@ -24,6 +24,16 @@ EXPECTED_ALLOWLISTS = [
         "regexes": [r"^CUDA_DEFAULT_EMBEDDER_TOKENIZER_SHA256='[0-9a-f]{64}'$"],
     },
     {
+        "description": "CUDA preflight-v2 fixtures contain only artifact-integrity digests",
+        "condition": "AND",
+        "regexTarget": "secret",
+        "paths": [
+            r"^scripts/tests/fixtures/cuda-preflight-v2/valid/"
+            r"(?:cuda-preflight-witness|model-cache-manifest|smoke-cache-topology)\.json$"
+        ],
+        "regexes": [r"^[0-9a-f]{64}$"],
+    },
+    {
         "description": "code-marker drift evidence carries two reviewed marker identifiers",
         "condition": "AND",
         "regexTarget": "secret",

@@ -71,7 +71,7 @@ def load_preflight_witness(path: Path) -> tuple[dict[str, Any], bytes]:
         fail(f"cannot read preflight witness: {error}")
     if not isinstance(value, dict):
         fail("preflight witness must be a JSON object")
-    canonical = (json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    canonical = canonical_json(value)
     if raw != canonical:
         fail("preflight witness is not canonical JSON")
     return value, raw
@@ -213,7 +213,7 @@ def validate(root: Path, candidate_sha: str) -> None:
         preflight_witness_dir / PREFLIGHT_WITNESS,
     )
     if (
-        preflight_witness.get("schema_version") != "fathomdb.cuda-preflight-witness/v1"
+        preflight_witness.get("schema_version") != "fathomdb.cuda-preflight-witness/v2"
         or preflight_witness.get("candidate_sha") != candidate_sha
         or preflight_witness.get("outcome") != "passed"
     ):

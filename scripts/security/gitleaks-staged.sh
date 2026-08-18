@@ -14,4 +14,6 @@ if git -C "$repo" diff --cached --quiet; then
   exit 0
 fi
 
-exec "$gitleaks_bin" git --staged --redact=100 --no-banner --no-color --exit-code 1 "$repo"
+exec "$gitleaks_bin" git --staged \
+  --config "$SCRIPT_DIR/gitleaks-current.toml" \
+  --redact=100 --no-banner --no-color --exit-code 1 "$repo"

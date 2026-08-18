@@ -86,6 +86,12 @@ else
   fail "current-tree guard fixes scanner policy and safe output"
 fi
 
+if grep -Fq -- '--config "$SCRIPT_DIR/gitleaks-current.toml"' "$STAGED_GUARD"; then
+  pass "staged guard uses the machine-checked exact exception policy"
+else
+  fail "staged guard uses the machine-checked exact exception policy"
+fi
+
 set +e
 current_out="$(GITLEAKS_BIN="$GITLEAKS_BIN" "$CURRENT_GUARD" "$REPO_ROOT" 2>&1)"
 current_rc=$?

@@ -16,6 +16,7 @@ from cuda_preflight_v2_fixture import CANDIDATE, OTHER_CANDIDATE, canonical, mak
 
 REPO = Path(__file__).resolve().parents[2]
 VERIFIER = REPO / "scripts/release/verify-cuda-preflight-witness.py"
+FIXTURES = REPO / "scripts/tests/fixtures/cuda-preflight-v2"
 
 
 def run(root: Path, candidate: str = CANDIDATE, *extra: str) -> subprocess.CompletedProcess[str]:
@@ -54,7 +55,15 @@ def main() -> None:
     with tempfile.TemporaryDirectory() as directory:
         tmp = Path(directory)
         valid = tmp / "valid"
-        make_valid(valid, REPO)
+        shutil.copytree(FIXTURES / "valid", valid)
+        regenerated = tmp / "regenerated"
+        make_valid(regenerated, REPO)
+        assert {
+            path.relative_to(valid): path.read_bytes() for path in sorted(valid.rglob("*")) if path.is_file()
+        } == {
+            path.relative_to(regenerated): path.read_bytes()
+            for path in sorted(regenerated.rglob("*")) if path.is_file()
+        }, "committed valid fixture is not deterministic"
         result = run(valid)
         assert result.returncode == 0, result.stderr
 
@@ -93,10 +102,20 @@ def main() -> None:
         evidence.symlink_to("environment-real.txt")
         reject(evidence_link, "evidence symlink")
 
+        extra = tmp / "extra-root-member"
+        shutil.copytree(valid, extra)
+        (extra / "unexpected.txt").write_text("unexpected\n", encoding="utf-8")
+        reject(extra, "unknown root member")
+
         for name, file_name, mutate in (
             ("capture-mismatch", "forced-cuda-unavailable-python-stdout.txt", lambda path: path.write_bytes(path.read_bytes().replace(b'"reason":"no_visible_cuda_device"', b'"reason":"cuda_probe_failed"'))),
             ("uuid-mismatch", "gpu-python-cuda-witness.json", lambda path: rewrite(path, lambda value: value.__setitem__("nvidia_smi_uuid", "GPU-other"))),
+            ("pid-mismatch", "gpu-napi-cuda-witness.json", lambda path: rewrite(path, lambda value: value.__setitem__("nvidia_smi_compute_process_id", 4343))),
             ("cache-prefix", "smoke-cache-topology.json", lambda path: rewrite(path, lambda value: next(iter(value["smokes"].values()))["product_cache_files"].update({"fathomdb/embedders/deadbeefdead/config.json": next(iter(next(iter(value["smokes"].values()))["product_cache_files"].values()))}))),
+            ("model-manifest", "model-cache-manifest.json", lambda path: rewrite(path, lambda value: value.__setitem__("revision", OTHER_CANDIDATE))),
+            ("build-input", "build-input.json", lambda path: rewrite(path, lambda value: value.__setitem__("rerank_cuda", True))),
+            ("harness-substitution", "forced-python-open.py", lambda path: path.write_text("raise SystemExit(0)\n", encoding="utf-8")),
+            ("forced-unknown-field", "forced-cuda-unavailable-napi.json", lambda path: rewrite(path, lambda value: value.__setitem__("unknown", True))),
             ("substitution", "environment.txt", lambda path: path.write_text("substituted\n", encoding="utf-8")),
         ):
             target = tmp / name
@@ -111,9 +130,16 @@ def main() -> None:
         (incomplete / "gpu-napi-cuda-smoke.txt").unlink()
         reject(incomplete, "missing evidence")
 
-        fixtures = tmp / "incompatible"
+        fixtures = FIXTURES / "incompatible"
         for consumer in ("python", "napi"):
-            record, stdout, stderr = make_incompatible_fixture(fixtures, consumer)
+            regenerated_incompatible = tmp / f"regenerated-incompatible-{consumer}"
+            generated = make_incompatible_fixture(regenerated_incompatible, consumer)
+            names = tuple(path.name for path in generated)
+            assert all(
+                (fixtures / name).read_bytes() == (regenerated_incompatible / name).read_bytes()
+                for name in names
+            ), "committed incompatible fixture is not deterministic"
+            record, stdout, stderr = (fixtures / name for name in names)
             result = run(valid, CANDIDATE, "--fixture-forced-record", str(record), str(stdout), str(stderr))
             assert result.returncode == 0, result.stderr
 

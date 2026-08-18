@@ -21,6 +21,13 @@ paths = ['''^(?:.*/)?scripts/release/cuda-artifact-contract\.sh$''']
 regexes = ['''^CUDA_DEFAULT_EMBEDDER_TOKENIZER_SHA256='[0-9a-f]{64}'$''']
 
 [[rules.allowlists]]
+description = "CUDA preflight-v2 fixtures contain only artifact-integrity digests"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^scripts/tests/fixtures/cuda-preflight-v2/valid/(?:cuda-preflight-witness|model-cache-manifest|smoke-cache-topology)\.json$''']
+regexes = ['''^[0-9a-f]{64}$''']
+
+[[rules.allowlists]]
 description = "code-marker drift evidence carries two reviewed marker identifiers"
 condition = "AND"
 regexTarget = "secret"

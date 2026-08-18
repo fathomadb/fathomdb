@@ -77,10 +77,10 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = "--query-compute-apps=pid --format=csv,noheader"
-if text.count(needle) != 2:
-    raise SystemExit("fixture no longer contains both process-bound CUDA witness queries")
-path.write_text(text.replace(needle, "--query-gpu=name", 2))
+needle = "--query-compute-apps=pid,process_name --format=csv,noheader"
+if text.count(needle) != 1:
+    raise SystemExit("fixture no longer contains the shared process-bound CUDA witness query")
+path.write_text(text.replace(needle, "--query-gpu=name", 1))
 PY
 expect_fail "$FIXTURE" 'rejects GPU smokes without a process-bound CUDA witness'
 

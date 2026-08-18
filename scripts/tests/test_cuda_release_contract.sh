@@ -488,7 +488,8 @@ variable = sys.argv[2]
 text = path.read_text()
 needle = (
     "env -u FATHOMDB_EMBED_DEVICE -u FATHOMDB_RERANK_DEVICE -u CUDA_VISIBLE_DEVICES "
-    "-u NVIDIA_VISIBLE_DEVICES -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES sh -ceu '"
+    "-u NVIDIA_VISIBLE_DEVICES -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES "
+    "-u HUGGINGFACE_HUB_CACHE -u TRANSFORMERS_CACHE -u FATHOMDB_EMBEDDER_CACHE_DIR sh -ceu '"
 )
 if text.count(needle) != 2:
     raise SystemExit("fixture no longer contains exactly two driverless device scrubs")
@@ -518,12 +519,10 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = 'Engine.open(str(db_path), use_default_embedder=True)'
-if needle not in text:
-    needle = 'Engine.open(str(db_path))'
+needle = 'Engine.open(str(pathlib.Path(directory) / "driverless.fdb"), use_default_embedder=True)'
 if text.count(needle) != 1:
     raise SystemExit("fixture no longer contains exactly one driverless Python open")
-path.write_text(text.replace(needle, 'Engine.open(str(db_path), use_default_embedder=False)', 1))
+path.write_text(text.replace(needle, 'Engine.open(str(pathlib.Path(directory) / "driverless.fdb"), use_default_embedder=False)', 1))
 PY
 expect_fail "$FIXTURE" 'rejects a driverless Python smoke that skips the default embedder'
 
@@ -534,10 +533,10 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = '{ useDefaultEmbedder: true }'
+needle = 'Engine.open("/fathomdb-tmp/driverless-node.fdb", { useDefaultEmbedder: true })'
 if text.count(needle) != 1:
     raise SystemExit("fixture no longer contains exactly one driverless N-API default-embedder open")
-path.write_text(text.replace(needle, '{ useDefaultEmbedder: false }', 1))
+path.write_text(text.replace(needle, 'Engine.open("/fathomdb-tmp/driverless-node.fdb", { useDefaultEmbedder: false })', 1))
 PY
 expect_fail "$FIXTURE" 'rejects a driverless installed N-API smoke that skips the default embedder'
 

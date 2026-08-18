@@ -129,7 +129,7 @@ def gpu_observation(consumer: str) -> dict[str, object]:
 
 
 def make_valid(root: Path, repo_root: Path) -> None:
-    root.mkdir(parents=True)
+    root.mkdir(parents=True, exist_ok=True)
     for name in (
         "environment.txt", "manylinux-build.txt", "dynamic-dependencies.txt", "python-auditwheel.txt",
         "driverless-python-cpu-smoke.txt", "driverless-napi-cpu-smoke.txt",
@@ -194,7 +194,7 @@ def make_valid(root: Path, repo_root: Path) -> None:
 
 
 def make_incompatible_fixture(root: Path, consumer: str) -> tuple[Path, Path, Path]:
-    root.mkdir(parents=True)
+    root.mkdir(parents=True, exist_ok=True)
     stdout_name = f"forced-cuda-incompatible-{consumer}-stdout.txt"
     stderr_name = f"forced-cuda-incompatible-{consumer}-stderr.txt"
     value = capture(consumer, "cuda_incompatible", "cuda_incompatible")

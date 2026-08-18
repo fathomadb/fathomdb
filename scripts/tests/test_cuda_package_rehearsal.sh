@@ -37,28 +37,12 @@ EOF
 {"candidate_sha":"$CANDIDATE","schema_version":"fathomdb.cuda-unmerged-route-receipt/v1"}
 EOF
   mkdir -p "$root/preflight-witness"
-  python3 - "$root/preflight-witness" "$CANDIDATE" <<'PY'
-import hashlib
-import json
+  PYTHONPATH="$REPO_ROOT/scripts/tests" python3 - "$root/preflight-witness" "$REPO_ROOT" <<'PY'
 from pathlib import Path
 import sys
+from cuda_preflight_v2_fixture import make_valid
 
-root = Path(sys.argv[1])
-candidate = sys.argv[2]
-names = (
-    "environment.txt", "manylinux-build.txt", "dynamic-dependencies.txt", "python-auditwheel.txt",
-    "driverless-python-cpu-smoke.txt", "driverless-napi-cpu-smoke.txt", "gpu-python-cuda-witness.txt",
-    "gpu-node-cuda-witness.txt", "gpu-node-cuda-smoke.txt",
-)
-evidence = {}
-for name in names:
-    path = root / name
-    path.write_text(f"verified evidence: {name}\n", encoding="utf-8")
-    evidence[name] = hashlib.sha256(path.read_bytes()).hexdigest()
-(root / "cuda-preflight-witness.json").write_text(json.dumps({
-    "schema_version": "fathomdb.cuda-preflight-witness/v1", "candidate_sha": candidate,
-    "outcome": "passed", "evidence_sha256": evidence,
-}, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+make_valid(Path(sys.argv[1]), Path(sys.argv[2]))
 PY
   for consumer in python napi; do
     cat > "$root/smoke/cpu-$consumer.json" <<EOF

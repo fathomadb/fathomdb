@@ -1,58 +1,76 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://fathomdb.dev/schemas/cuda-preflight-witness/v1",
-  "title": "FathomDB CUDA preflight witness",
-  "description": "A non-publishing, SHA-bound inventory of retained CUDA preflight evidence.",
+  "$id": "https://fathomdb.dev/schemas/cuda-preflight-witness/v2",
+  "title": "FathomDB CUDA preflight witness v2",
+  "description": "A canonical, immutable-candidate-bound CUDA preflight evidence inventory.",
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "build_input_sha256",
     "candidate_sha",
     "evidence_sha256",
+    "model_cache_manifest_sha256",
     "outcome",
     "schema_version"
   ],
   "properties": {
-    "schema_version": {
-      "const": "fathomdb.cuda-preflight-witness/v1"
-    },
-    "candidate_sha": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{40}$"
-    },
-    "outcome": {
-      "const": "passed"
-    },
+    "schema_version": { "const": "fathomdb.cuda-preflight-witness/v2" },
+    "candidate_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "outcome": { "const": "passed" },
+    "build_input_sha256": { "$ref": "#/$defs/sha256" },
+    "model_cache_manifest_sha256": { "$ref": "#/$defs/sha256" },
     "evidence_sha256": {
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "build-input.json",
         "driverless-napi-cpu-smoke.txt",
         "driverless-python-cpu-smoke.txt",
         "dynamic-dependencies.txt",
         "environment.txt",
-        "gpu-node-cuda-smoke.txt",
-        "gpu-node-cuda-witness.txt",
-        "gpu-python-cuda-witness.txt",
+        "forced-cuda-unavailable-napi-stderr.txt",
+        "forced-cuda-unavailable-napi-stdout.txt",
+        "forced-cuda-unavailable-napi.json",
+        "forced-cuda-unavailable-python-stderr.txt",
+        "forced-cuda-unavailable-python-stdout.txt",
+        "forced-cuda-unavailable-python.json",
+        "forced-napi-open.mjs",
+        "forced-python-open.py",
+        "gpu-napi-cuda-smoke.txt",
+        "gpu-napi-cuda-witness.json",
+        "gpu-python-cuda-smoke.txt",
+        "gpu-python-cuda-witness.json",
         "manylinux-build.txt",
-        "python-auditwheel.txt"
+        "model-cache-manifest.json",
+        "python-auditwheel.txt",
+        "smoke-cache-topology.json"
       ],
       "properties": {
+        "build-input.json": { "$ref": "#/$defs/sha256" },
         "driverless-napi-cpu-smoke.txt": { "$ref": "#/$defs/sha256" },
         "driverless-python-cpu-smoke.txt": { "$ref": "#/$defs/sha256" },
         "dynamic-dependencies.txt": { "$ref": "#/$defs/sha256" },
         "environment.txt": { "$ref": "#/$defs/sha256" },
-        "gpu-node-cuda-smoke.txt": { "$ref": "#/$defs/sha256" },
-        "gpu-node-cuda-witness.txt": { "$ref": "#/$defs/sha256" },
-        "gpu-python-cuda-witness.txt": { "$ref": "#/$defs/sha256" },
+        "forced-cuda-unavailable-napi-stderr.txt": { "$ref": "#/$defs/sha256" },
+        "forced-cuda-unavailable-napi-stdout.txt": { "$ref": "#/$defs/sha256" },
+        "forced-cuda-unavailable-napi.json": { "$ref": "#/$defs/sha256" },
+        "forced-cuda-unavailable-python-stderr.txt": { "$ref": "#/$defs/sha256" },
+        "forced-cuda-unavailable-python-stdout.txt": { "$ref": "#/$defs/sha256" },
+        "forced-cuda-unavailable-python.json": { "$ref": "#/$defs/sha256" },
+        "forced-napi-open.mjs": { "$ref": "#/$defs/sha256" },
+        "forced-python-open.py": { "$ref": "#/$defs/sha256" },
+        "gpu-napi-cuda-smoke.txt": { "$ref": "#/$defs/sha256" },
+        "gpu-napi-cuda-witness.json": { "$ref": "#/$defs/sha256" },
+        "gpu-python-cuda-smoke.txt": { "$ref": "#/$defs/sha256" },
+        "gpu-python-cuda-witness.json": { "$ref": "#/$defs/sha256" },
         "manylinux-build.txt": { "$ref": "#/$defs/sha256" },
-        "python-auditwheel.txt": { "$ref": "#/$defs/sha256" }
+        "model-cache-manifest.json": { "$ref": "#/$defs/sha256" },
+        "python-auditwheel.txt": { "$ref": "#/$defs/sha256" },
+        "smoke-cache-topology.json": { "$ref": "#/$defs/sha256" }
       }
     }
   },
   "$defs": {
-    "sha256": {
-      "type": "string",
-      "pattern": "^[0-9a-f]{64}$"
-    }
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
   }
 }

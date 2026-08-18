@@ -121,31 +121,37 @@ impl CudaProvider for CandleCudaProvider {
         {
             use candle_core::cuda::cudarc::driver::{result, sys};
 
-            result::init().map_err(cuda_driver_error)?;
-            let count = result::device::get_count().map_err(cuda_driver_error)?;
+            let dynamic_driver_present = unsafe {
+                // SAFETY: this only attempts to locate the CUDA driver shared library;
+                // no CUDA driver symbol is invoked before the subsequent `result::init`.
+                sys::is_culib_present()
+            };
+            classify_cuda_driver_presence(dynamic_driver_present)?;
+            result::init().map_err(classify_cuda_driver_error)?;
+            let count = result::device::get_count().map_err(classify_cuda_driver_error)?;
             let count = usize::try_from(count).map_err(|_| CudaProbeError::ProbeFailed {
                 message: "CUDA driver returned a negative device count".to_owned(),
             })?;
             (0..count)
                 .map(|visible_ordinal| {
                     let device = result::device::get(visible_ordinal as i32)
-                        .map_err(cuda_driver_error)?;
-                    let name = result::device::get_name(device).map_err(cuda_driver_error)?;
-                    let uuid = result::device::get_uuid(device).map_err(cuda_driver_error)?;
+                        .map_err(classify_cuda_driver_error)?;
+                    let name = result::device::get_name(device).map_err(classify_cuda_driver_error)?;
+                    let uuid = result::device::get_uuid(device).map_err(classify_cuda_driver_error)?;
                     let major = unsafe {
                         result::device::get_attribute(
                             device,
                             sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR,
                         )
                     }
-                    .map_err(cuda_driver_error)?;
+                    .map_err(classify_cuda_driver_error)?;
                     let minor = unsafe {
                         result::device::get_attribute(
                             device,
                             sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR,
                         )
                     }
-                    .map_err(cuda_driver_error)?;
+                    .map_err(classify_cuda_driver_error)?;
                     Ok(CudaVisibleDevice {
                         visible_ordinal,
                         uuid: cuda_uuid_string(uuid.bytes),
@@ -167,10 +173,8 @@ impl CudaProvider for CandleCudaProvider {
     fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError> {
         #[cfg(feature = "embed-cuda")]
         {
-            let device = Device::new_cuda(ordinal)
-                .map_err(|error| CudaProbeError::ProbeFailed { message: error.to_string() })?;
-            Tensor::zeros(1, DType::F32, &device)
-                .map_err(|error| CudaProbeError::ProbeFailed { message: error.to_string() })?;
+            let device = Device::new_cuda(ordinal).map_err(classify_candle_cuda_error)?;
+            Tensor::zeros(1, DType::F32, &device).map_err(classify_candle_cuda_error)?;
             let visible = self
                 .enumerate_visible_cuda_devices()?
                 .into_iter()
@@ -197,10 +201,53 @@ impl CudaProvider for CandleCudaProvider {
 }
 
 #[cfg(feature = "embed-cuda")]
-fn cuda_driver_error(
+fn classify_cuda_driver_presence(driver_present: bool) -> Result<(), CudaProbeError> {
+    driver_present.then_some(()).ok_or(CudaProbeError::NoVisibleDevice)
+}
+
+#[cfg(feature = "embed-cuda")]
+fn classify_cuda_driver_error(
     error: candle_core::cuda::cudarc::driver::result::DriverError,
 ) -> CudaProbeError {
-    CudaProbeError::ProbeFailed { message: error.to_string() }
+    use candle_core::cuda::cudarc::driver::sys::CUresult;
+
+    let message = error.to_string();
+    match error.0 {
+        CUresult::CUDA_ERROR_NO_DEVICE | CUresult::CUDA_ERROR_STUB_LIBRARY => {
+            CudaProbeError::NoVisibleDevice
+        }
+        CUresult::CUDA_ERROR_SYSTEM_DRIVER_MISMATCH
+        | CUresult::CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE
+        | CUresult::CUDA_ERROR_NO_BINARY_FOR_GPU
+        | CUresult::CUDA_ERROR_UNSUPPORTED_PTX_VERSION => CudaProbeError::Incompatible { message },
+        _ => CudaProbeError::ProbeFailed { message },
+    }
+}
+
+#[cfg(feature = "embed-cuda")]
+fn classify_candle_cuda_error(error: candle_core::Error) -> CudaProbeError {
+    use candle_core::{
+        cuda::{cudarc::cublas::sys::cublasStatus_t, CudaError},
+        Error,
+    };
+
+    let message = error.to_string();
+    match error {
+        Error::Cuda(source) => match source.downcast_ref::<CudaError>() {
+            Some(CudaError::Cuda(error)) => classify_cuda_driver_error(*error),
+            Some(CudaError::Cublas(error))
+                if matches!(
+                    error.0,
+                    cublasStatus_t::CUBLAS_STATUS_ARCH_MISMATCH
+                        | cublasStatus_t::CUBLAS_STATUS_NOT_SUPPORTED
+                ) =>
+            {
+                CudaProbeError::Incompatible { message }
+            }
+            _ => CudaProbeError::ProbeFailed { message },
+        },
+        _ => CudaProbeError::ProbeFailed { message },
+    }
 }
 
 #[cfg(feature = "embed-cuda")]
@@ -559,6 +606,11 @@ mod cuda_probe_error_tests {
     fn candle_provider_compatibility_is_not_an_unknown_probe_failure() {
         let error = Error::Cuda(Box::new(CudaError::Cublas(CublasError(
             cublasStatus_t::CUBLAS_STATUS_ARCH_MISMATCH,
+        ))));
+        assert!(matches!(classify_candle_cuda_error(error), CudaProbeError::Incompatible { .. }));
+
+        let error = Error::Cuda(Box::new(CudaError::Cublas(CublasError(
+            cublasStatus_t::CUBLAS_STATUS_NOT_SUPPORTED,
         ))));
         assert!(matches!(classify_candle_cuda_error(error), CudaProbeError::Incompatible { .. }));
 

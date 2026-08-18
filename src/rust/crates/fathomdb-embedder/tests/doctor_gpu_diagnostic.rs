@@ -187,3 +187,48 @@ fn doctor_gpu_preserves_the_visible_inventory_and_binds_selected_uuid_to_ordinal
     assert_eq!(diagnostic.effective_device().as_deref(), Some("cuda:1"));
     assert_eq!(provider.probe_calls, vec![1]);
 }
+
+#[test]
+fn doctor_gpu_keeps_classified_enumeration_failures_out_of_probe_failed() {
+    let cases = [
+        (
+            EmbedDevicePolicy::Auto,
+            CudaProbeError::NoVisibleDevice,
+            DoctorGpuStatus::CudaUnavailable,
+            Some("cpu"),
+            0,
+        ),
+        (
+            EmbedDevicePolicy::Cuda(0),
+            CudaProbeError::NoVisibleDevice,
+            DoctorGpuStatus::CudaUnavailable,
+            None,
+            65,
+        ),
+        (
+            EmbedDevicePolicy::Auto,
+            CudaProbeError::Incompatible { message: "driver/provider mismatch".to_owned() },
+            DoctorGpuStatus::CudaIncompatible,
+            Some("cpu"),
+            0,
+        ),
+        (
+            EmbedDevicePolicy::Cuda(0),
+            CudaProbeError::Incompatible { message: "driver/provider mismatch".to_owned() },
+            DoctorGpuStatus::CudaIncompatible,
+            None,
+            65,
+        ),
+    ];
+
+    for (policy, error, status, effective_device, exit_code) in cases {
+        let mut provider = FixtureCudaProvider::new(Err(error), vec![]);
+        let diagnostic = diagnose_gpu(policy, true, &mut provider);
+
+        assert_eq!(diagnostic.status(), status);
+        assert_eq!(diagnostic.effective_device().as_deref(), effective_device);
+        assert_eq!(diagnostic.exit_code(), exit_code);
+        assert_eq!(provider.enumerate_calls, 1);
+        assert!(provider.probe_calls.is_empty());
+    }
+}

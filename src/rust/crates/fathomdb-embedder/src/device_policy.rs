@@ -501,9 +501,8 @@ fn enumerate(
     match provider.enumerate_visible_cuda_devices() {
         Ok(devices) => Ok(devices),
         Err(CudaProbeError::NoVisibleDevice) => Ok(Vec::new()),
-        Err(CudaProbeError::Incompatible { .. } | CudaProbeError::ProbeFailed { .. }) => {
-            Err(DeviceResolutionReason::CudaProbeFailed)
-        }
+        Err(CudaProbeError::Incompatible { .. }) => Err(DeviceResolutionReason::CudaIncompatible),
+        Err(CudaProbeError::ProbeFailed { .. }) => Err(DeviceResolutionReason::CudaProbeFailed),
     }
 }
 
@@ -573,7 +572,29 @@ pub fn diagnose_gpu(
             };
             let devices = match provider.enumerate_visible_cuda_devices() {
                 Ok(devices) => devices,
-                Err(_) => {
+                Err(CudaProbeError::NoVisibleDevice) => {
+                    return diagnostic(
+                        policy,
+                        cuda_compiled,
+                        DoctorGpuStatus::CudaUnavailable,
+                        forced_ordinal.is_none().then_some(EffectiveEmbedDevice::Cpu),
+                        Vec::new(),
+                        None,
+                        Some(DeviceResolutionReason::NoVisibleCudaDevice),
+                    );
+                }
+                Err(CudaProbeError::Incompatible { .. }) => {
+                    return diagnostic(
+                        policy,
+                        cuda_compiled,
+                        DoctorGpuStatus::CudaIncompatible,
+                        forced_ordinal.is_none().then_some(EffectiveEmbedDevice::Cpu),
+                        Vec::new(),
+                        None,
+                        Some(DeviceResolutionReason::CudaIncompatible),
+                    );
+                }
+                Err(CudaProbeError::ProbeFailed { .. }) => {
                     return diagnostic(
                         policy,
                         cuda_compiled,

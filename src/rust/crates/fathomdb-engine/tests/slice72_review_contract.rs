@@ -3,6 +3,8 @@
 #[path = "support/slice72_gpu_telemetry.rs"]
 mod telemetry;
 
+use std::process::Command;
+use std::time::Duration;
 use telemetry::{ForwardRendezvous, Receipt, TelemetrySnapshot};
 
 #[test]
@@ -68,7 +70,20 @@ fn guarded_operation_retains_panics_and_overlap_timestamp_is_inside_the_window()
     assert!(panic_directory.path().join("slice72-guarded-panic-4242.json").is_file());
 
     let rendezvous = ForwardRendezvous::new();
-    assert!(rendezvous.run_contract_fixture().overlaps());
-    let timestamp = rendezvous.active_overlap_sample_timestamp().expect("overlap timestamp");
+    let run = rendezvous.run_contract_fixture();
+    assert!(run.overlaps());
+    let timestamp = run.active_overlap_sample_timestamp().expect("active overlap timestamp");
     assert!(rendezvous.timestamp_is_within_captured_overlap(timestamp));
+    assert!(
+        rendezvous.active_overlap_sample_timestamp().is_none(),
+        "a completed interval cannot be presented as an active telemetry sample"
+    );
+}
+
+#[test]
+fn stress_watchdog_kills_a_hung_child_before_the_global_ceiling() {
+    let child =
+        Command::new("sh").args(["-c", "sleep 1"]).spawn().expect("start controlled hung child");
+    let result = telemetry::wait_for_child_with_watchdog(child, Duration::from_millis(10));
+    assert!(result.is_err(), "watchdog must terminate a child that exceeds its deadline");
 }

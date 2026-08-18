@@ -92,9 +92,10 @@ require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'ONNX uses its 
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'minimal CUDA'
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'allocation/provider probe.'
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'never performs a model load, download, or'
-require dev/design/0.8.23-slice-70-tdd-plan.md 'auto driver or allocation/provider probe failure ->'
+require dev/design/0.8.23-slice-70-tdd-plan.md 'auto unavailable evidence (missing driver library,'
+require dev/design/0.8.23-slice-70-tdd-plan.md 'unknown/OOM/allocation evidence -> `probe_failed`'
 require dev/design/0.8.23-slice-70-tdd-plan.md 'not-compiled/unavailable/incompatible -> no effective device, exit `65`'
-require dev/design/0.8.23-slice-70-tdd-plan.md 'forced driver or allocation/provider probe failure -> no effective device'
+require dev/design/0.8.23-slice-70-tdd-plan.md 'forced unknown/OOM/allocation failure -> no effective device'
 require dev/design/0.8.23-slice-70-tdd-plan.md '`DoctorGpuDiagnosticResult` maps raw probe evidence'
 require dev/interfaces/cli.md '`gpu`             | `fathomdb doctor gpu [--json]`'
 require dev/interfaces/cli.md '`selected_cpu_no_cuda`'
@@ -171,16 +172,16 @@ assert_doctor_matrix_mutation_rejected() {
 
 assert_doctor_matrix_mutation_rejected auto-no-visible-exit \
   dev/design/0.8.23-slice-70-dual-runtime-device-policy.md \
-  '| `auto`, successful empty enumeration | enumeration only | `cuda_unavailable` | `cpu` | `[]` | `null` | `0` |' \
-  '| `auto`, successful empty enumeration | enumeration only | `cuda_unavailable` | `cpu` | `[]` | `null` | `70` |'
+  '| `auto`, unavailable evidence | driver-presence, enumeration, or ordinal mapping | `cuda_unavailable` | `cpu` | `[]` before inventory; otherwise observed inventory | `null` | `0` |' \
+  '| `auto`, unavailable evidence | driver-presence, enumeration, or ordinal mapping | `cuda_unavailable` | `cpu` | `[]` before inventory; otherwise observed inventory | `null` | `70` |'
 assert_doctor_matrix_mutation_rejected auto-probe-failure-status \
   dev/interfaces/cli.md \
-  '| `auto`, mapped-device allocation/provider probe failure | enumeration + failed mapped-device probe | `probe_failed` | `cpu` | observed inventory | `null` | `70` |' \
-  '| `auto`, mapped-device allocation/provider probe failure | enumeration + failed mapped-device probe | `cuda_incompatible` | `cpu` | observed inventory | `null` | `0` |'
+  '| `auto`, unknown, OOM, or allocation/provider failure | enumeration or mapped-device probe | `probe_failed` | `cpu` | `[]` before inventory; otherwise observed inventory | `null` | `70` |' \
+  '| `auto`, unknown, OOM, or allocation/provider failure | enumeration or mapped-device probe | `cuda_incompatible` | `cpu` | `[]` before inventory; otherwise observed inventory | `null` | `0` |'
 assert_doctor_matrix_mutation_rejected forced-incompatible-cpu \
   dev/design/0.8.23-slice-70-dual-runtime-device-policy.md \
-  '| forced `cuda:N`, mapped visible device is incompatible | enumeration + mapped-device probe | `cuda_incompatible` | `null` | observed inventory | `null` | `65` |' \
-  '| forced `cuda:N`, mapped visible device is incompatible | enumeration + mapped-device probe | `cuda_incompatible` | `cpu` | observed inventory | `null` | `65` |'
+  '| forced `cuda:N`, listed compatibility/architecture evidence | enumeration or mapped-device probe | `cuda_incompatible` | `null` | `[]` before inventory; otherwise observed inventory | `null` | `65` |' \
+  '| forced `cuda:N`, listed compatibility/architecture evidence | enumeration or mapped-device probe | `cuda_incompatible` | `cpu` | `[]` before inventory; otherwise observed inventory | `null` | `65` |'
 assert_doctor_matrix_mutation_rejected invalid-policy-exit \
   dev/interfaces/cli.md \
   '| malformed, legacy, or otherwise invalid policy | none | `invalid_policy` | `null` | `[]` | `null` | `70` |' \

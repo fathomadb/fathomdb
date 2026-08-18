@@ -79,6 +79,22 @@ pub mod slice72_test_hooks {
         timed_out: bool,
     }
 
+    /// Result of a deterministic rendezvous fixture. It preserves the old
+    /// overlap predicate while making attempted reuse observable to tests.
+    pub struct ForwardRun(Result<ForwardIntervals, &'static str>);
+
+    impl ForwardRun {
+        #[must_use]
+        pub fn overlaps(&self) -> bool {
+            self.0.as_ref().is_ok_and(|intervals| intervals.overlaps())
+        }
+
+        #[must_use]
+        pub fn is_err(&self) -> bool {
+            self.0.is_err()
+        }
+    }
+
     impl ForwardIntervals {
         /// True only when the actual BGE and CE forward intervals overlap.
         #[must_use]
@@ -100,6 +116,10 @@ pub mod slice72_test_hooks {
         bge_end_ns: AtomicU64,
         ce_start_ns: AtomicU64,
         ce_end_ns: AtomicU64,
+        bge_active: AtomicBool,
+        ce_active: AtomicBool,
+        capture_count: AtomicU64,
+        fixture_claimed: AtomicBool,
     }
 
     impl ForwardRendezvous {
@@ -116,6 +136,10 @@ pub mod slice72_test_hooks {
                 bge_end_ns: AtomicU64::new(0),
                 ce_start_ns: AtomicU64::new(0),
                 ce_end_ns: AtomicU64::new(0),
+                bge_active: AtomicBool::new(false),
+                ce_active: AtomicBool::new(false),
+                capture_count: AtomicU64::new(0),
+                fixture_claimed: AtomicBool::new(false),
             })
         }
 
@@ -146,19 +170,61 @@ pub mod slice72_test_hooks {
         /// Runs an actual BGE forward immediately after the two-party
         /// rendezvous and records only the actual-forward interval.
         pub fn run_bge_forward<T>(&self, operation: impl FnOnce() -> T) -> T {
+            if self.bge_start_ns.load(Ordering::Acquire) != 0 {
+                return operation();
+            }
             self.meet(true);
             self.bge_start_ns.store(self.stamp_ns(), Ordering::Release);
+            self.bge_active.store(true, Ordering::Release);
             let result = operation();
+            self.bge_active.store(false, Ordering::Release);
             self.bge_end_ns.store(self.stamp_ns(), Ordering::Release);
+            self.finish_capture();
             result
         }
 
         fn run_ce_forward<T>(&self, operation: impl FnOnce() -> T) -> T {
+            if self.ce_start_ns.load(Ordering::Acquire) != 0 {
+                return operation();
+            }
             self.meet(false);
             self.ce_start_ns.store(self.stamp_ns(), Ordering::Release);
+            self.ce_active.store(true, Ordering::Release);
             let result = operation();
+            self.ce_active.store(false, Ordering::Release);
             self.ce_end_ns.store(self.stamp_ns(), Ordering::Release);
+            self.finish_capture();
             result
+        }
+
+        fn finish_capture(&self) {
+            if self.bge_end_ns.load(Ordering::Acquire) != 0
+                && self.ce_end_ns.load(Ordering::Acquire) != 0
+            {
+                let _ =
+                    self.capture_count.compare_exchange(0, 1, Ordering::AcqRel, Ordering::Acquire);
+            }
+        }
+
+        /// Number of complete BGE/CE forward interval captures. It can only be
+        /// zero or one for a rendezvous instance.
+        #[must_use]
+        pub fn capture_count(&self) -> u64 {
+            self.capture_count.load(Ordering::Acquire)
+        }
+
+        /// Waits until both real forward calls are active so a test-only sensor
+        /// sample can begin during their overlap window.
+        pub fn wait_for_active_overlap(&self, timeout: Duration) -> bool {
+            let deadline = Instant::now() + timeout;
+            while Instant::now() < deadline {
+                if self.bge_active.load(Ordering::Acquire) && self.ce_active.load(Ordering::Acquire)
+                {
+                    return true;
+                }
+                thread::yield_now();
+            }
+            false
         }
 
         /// Returns the actual-forward timestamps; callers must require
@@ -178,7 +244,14 @@ pub mod slice72_test_hooks {
         /// characterization uses [`run_bge_forward`](Self::run_bge_forward) and
         /// the CE boundary, not this fixture.
         #[must_use]
-        pub fn run_contract_fixture(self: &Arc<Self>) -> ForwardIntervals {
+        pub fn run_contract_fixture(self: &Arc<Self>) -> ForwardRun {
+            if self
+                .fixture_claimed
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                .is_err()
+            {
+                return ForwardRun(Err("Slice 72 rendezvous is single-use"));
+            }
             let bge = Arc::clone(self);
             let ce = Arc::clone(self);
             let bge_thread = thread::spawn(move || {
@@ -189,7 +262,7 @@ pub mod slice72_test_hooks {
             });
             bge_thread.join().expect("BGE contract fixture joins");
             ce_thread.join().expect("CE contract fixture joins");
-            self.intervals()
+            ForwardRun(Ok(self.intervals()))
         }
     }
 

@@ -50,6 +50,15 @@ fn parser_receipt_activation_and_docs_contract_hold_without_a_gpu() {
     before.process_cpu_time_ns = 10;
     retained.push_phase("before_warm", before).expect("before sample");
     retained.push_phase("warmed", warmed).expect("warm sample");
+    let overlap = TelemetrySnapshot::parse_gpu_csv(
+        "GPU-expected, 37, 12, 24576, 1200, 23376\n",
+        "GPU-expected, 4242, fathomdb, 840\n",
+        "GPU-expected",
+        4242,
+        30,
+    )
+    .expect("overlap sample");
+    retained.push_phase("overlap", overlap).expect("overlap phase");
     let directory = tempfile::tempdir().expect("receipt directory");
     retained.write_success(directory.path()).expect("write receipt");
     let receipt_json = std::fs::read_to_string(directory.path().join("slice72-retained-4242.json"))

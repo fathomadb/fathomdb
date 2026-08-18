@@ -52,7 +52,16 @@ pub struct TelemetrySnapshot {
     pub process_cpu_time_ns: u64,
     pub process_rss_bytes: u64,
     pub monotonic_ns: u64,
+    pub compute_app: Option<ComputeApp>,
     pub other_compute_pids: Vec<u32>,
+}
+
+/// Per-process compute-app evidence, deliberately distinct from system-wide GPU metrics.
+#[derive(Clone, Debug)]
+pub struct ComputeApp {
+    pub pid: u32,
+    pub process_name: String,
+    pub used_vram_bytes: u64,
 }
 
 impl TelemetrySnapshot {
@@ -65,9 +74,13 @@ impl TelemetrySnapshot {
         test_pid: u32,
         monotonic_ns: u64,
     ) -> Result<Self, String> {
-        let gpu_lines: Vec<_> = gpu_csv.lines().filter(|line| !line.trim().is_empty()).collect();
+        let gpu_lines: Vec<_> = gpu_csv
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .filter(|line| line.split(',').next().is_some_and(|uuid| uuid.trim() == selected_uuid))
+            .collect();
         if gpu_lines.len() != 1 {
-            return Err("expected exactly one process-visible GPU sample".to_owned());
+            return Err("expected exactly one selected-UUID GPU sample".to_owned());
         }
         let fields: Vec<_> = gpu_lines[0].split(',').map(str::trim).collect();
         if fields.len() != 6 || fields[0] != selected_uuid {
@@ -76,6 +89,7 @@ impl TelemetrySnapshot {
         let parse =
             |value: &str| value.parse::<u64>().map_err(|_| format!("invalid GPU value {value}"));
         let mut test_pid_present = false;
+        let mut compute_app = None;
         let mut other_compute_pids = Vec::new();
         for line in compute_csv.lines().filter(|line| !line.trim().is_empty()) {
             let app: Vec<_> = line.split(',').map(str::trim).collect();
@@ -88,6 +102,11 @@ impl TelemetrySnapshot {
             let pid = app[1].parse::<u32>().map_err(|_| "invalid compute-app PID".to_owned())?;
             if pid == test_pid {
                 test_pid_present = true;
+                compute_app = Some(ComputeApp {
+                    pid,
+                    process_name: app[2].to_owned(),
+                    used_vram_bytes: parse(app[3])?.saturating_mul(1024 * 1024),
+                });
             } else {
                 other_compute_pids.push(pid);
             }
@@ -105,6 +124,7 @@ impl TelemetrySnapshot {
             process_cpu_time_ns: process_cpu_time_ns()?,
             process_rss_bytes: process_rss_bytes()?,
             monotonic_ns,
+            compute_app,
             other_compute_pids,
         })
     }
@@ -148,6 +168,15 @@ impl Receipt {
     }
 
     pub fn write_success(&self, directory: &std::path::Path) -> Result<(), String> {
+        let phase_names: Vec<_> = self.phases.iter().map(|(name, _)| name.as_str()).collect();
+        if phase_names != ["before_warm", "warmed", "overlap"]
+            && phase_names != ["before_warm", "warmed", "overlap", "stress"]
+        {
+            return Err(
+                "success receipt requires before_warm, warmed, overlap (and optional stress)"
+                    .to_owned(),
+            );
+        }
         let phases: Vec<_> = self
             .phases
             .iter()
@@ -164,6 +193,12 @@ impl Receipt {
                     "used_vram_bytes": sample.used_vram_bytes,
                     "free_vram_bytes": sample.free_vram_bytes,
                     "other_compute_pids": sample.other_compute_pids,
+                    "compute_app": sample.compute_app.as_ref().map(|app| json!({
+                        "pid": app.pid,
+                        "process_name": app.process_name,
+                        "used_vram_bytes": app.used_vram_bytes,
+                        "pid_present": true,
+                    })),
                 })
             })
             .collect();
@@ -210,6 +245,33 @@ impl Receipt {
             .open(&path)
             .map_err(|error| format!("create receipt {}: {error}", path.display()))?;
         serde_json::to_writer_pretty(&mut file, &value).map_err(|error| error.to_string())?;
+        file.write_all(b"\n").map_err(|error| error.to_string())
+    }
+
+    pub fn write_failure(
+        &self,
+        directory: &std::path::Path,
+        failure_kind: &str,
+        message: &str,
+    ) -> Result<(), String> {
+        let path = directory.join(format!("slice72-{}-{}.json", self.test_name, self.pid));
+        let mut file = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(&path)
+            .map_err(|error| format!("create failure receipt {}: {error}", path.display()))?;
+        serde_json::to_writer_pretty(
+            &mut file,
+            &json!({
+                "schema_version": "fathomdb.slice72.concurrent_gpu.v1",
+                "test_name": &self.test_name,
+                "outcome": "failure",
+                "pid": self.pid,
+                "selected_uuid": &self.selected_uuid,
+                "failure": { "kind": failure_kind, "message": message },
+            }),
+        )
+        .map_err(|error| error.to_string())?;
         file.write_all(b"\n").map_err(|error| error.to_string())
     }
 }
@@ -269,13 +331,6 @@ impl Slice72Run {
             );
             return None;
         };
-        let uuid = match selected_uuid_from_nvidia_smi() {
-            Ok(uuid) => uuid,
-            Err(reason) => {
-                eprintln!("PENDING_EXTERNAL Slice 72 telemetry prerequisite: {reason}");
-                return None;
-            }
-        };
         let stage = match stage_cache_only_assets(std::path::Path::new(&asset_root)) {
             Ok(stage) => stage,
             Err(reason) => {
@@ -284,6 +339,35 @@ impl Slice72Run {
             }
         };
         let environment = EnvironmentRestore::set_cache_roots(stage.path());
+        unsafe {
+            std::env::set_var("FATHOMDB_EMBED_DEVICE", "cuda:0");
+            std::env::set_var("FATHOMDB_RERANK_DEVICE", "cuda:0");
+        }
+        let embed_resolution = match resolve_default_embedder_device_from_env() {
+            Ok(resolution) => resolution,
+            Err(error) => {
+                eprintln!("PENDING_EXTERNAL Slice 72 forced embed CUDA preflight: {error}");
+                return None;
+            }
+        };
+        let rerank_resolution = match resolve_default_reranker_device_from_env() {
+            Ok(resolution) => resolution,
+            Err(error) => {
+                eprintln!("PENDING_EXTERNAL Slice 72 forced rerank CUDA preflight: {error}");
+                return None;
+            }
+        };
+        let uuid = match embed_resolution.selected_cuda_uuid {
+            Some(uuid)
+                if rerank_resolution.selected_cuda_uuid.as_deref() == Some(uuid.as_str()) =>
+            {
+                uuid
+            }
+            _ => {
+                eprintln!("PENDING_EXTERNAL Slice 72 requires one matching forced CUDA UUID");
+                return None;
+            }
+        };
         Some(Self {
             test_name: test_name.to_owned(),
             selected_uuid: uuid,
@@ -298,18 +382,21 @@ impl Slice72Run {
     pub fn basic_shared_cuda_device_runs_real_bge_and_ce(self) {
         let (engine, wrapper) = self.open_real_engine();
         let mut receipt = self.receipt("before_warm");
+        assert_valid_embedding(&wrapper.embed("basic BGE warmup").expect("real BGE warmup"));
         let reranked = rerank_fixture();
         assert_real_ce(&reranked);
         write_projection(&engine, "basic shared CUDA embedding");
         engine.drain(90_000).expect("real BGE projection completes");
         assert_eq!(wrapper.device_label(), "cuda:0");
         receipt.push_phase("warmed", self.sample()).expect("warm receipt sample");
+        receipt.push_phase("overlap", self.sample()).expect("basic completion sample");
         receipt.write_success(&self.receipt_dir).expect("write receipt");
     }
 
     pub fn bounded_overlap_characterizes_shared_cuda_residency(self) {
         let (engine, wrapper) = self.open_real_engine();
         let mut receipt = self.receipt("before_warm");
+        assert_valid_embedding(&wrapper.embed("moderate BGE warmup").expect("real BGE warmup"));
         assert_real_ce(&rerank_fixture()); // warm-up deliberately has no hook installed.
         receipt.push_phase("warmed", self.sample()).expect("warm receipt sample");
         let rendezvous = ForwardRendezvous::new();
@@ -319,7 +406,13 @@ impl Slice72Run {
         for index in 0..4 {
             write_projection(&engine, &format!("overlap BGE {index}"));
         }
-        assert_real_ce(&rerank_fixture());
+        let ce = std::thread::spawn(rerank_fixture);
+        assert!(
+            rendezvous.wait_for_active_overlap(std::time::Duration::from_secs(15)),
+            "telemetry sample must begin while real BGE and CE forwards remain active"
+        );
+        receipt.push_phase("overlap", self.sample()).expect("overlap receipt sample");
+        assert_real_ce(&ce.join().expect("CE overlap worker joins"));
         drop(_installed); // Only the first CE forward participates in the two-party rendezvous.
         for _ in 1..4 {
             assert_real_ce(&rerank_fixture());
@@ -330,16 +423,18 @@ impl Slice72Run {
             intervals.overlaps(),
             "actual BGE and CE forward intervals must overlap: {intervals:?}"
         );
-        receipt.push_phase("overlap", self.sample()).expect("overlap receipt sample");
         receipt.write_success(&self.receipt_dir).expect("write receipt");
     }
 
     pub fn stress_shared_cuda_device_is_bounded_and_records_outcome(self) {
         let (engine, wrapper) = self.open_real_engine();
         let mut receipt = self.receipt("before_warm");
+        assert_valid_embedding(&wrapper.embed("stress BGE warmup").expect("real BGE warmup"));
         assert_real_ce(&rerank_fixture());
         receipt.push_phase("warmed", self.sample()).expect("warm receipt sample");
-        let deadline = Instant::now() + std::time::Duration::from_secs(60);
+        let started = Instant::now();
+        let deadline = started + std::time::Duration::from_secs(60);
+        let ceiling = started + std::time::Duration::from_secs(120);
         let mut count = 0_u64;
         while Instant::now() < deadline {
             let rendezvous = ForwardRendezvous::new();
@@ -347,7 +442,9 @@ impl Slice72Run {
             let _installed =
                 install_ce_forward_rendezvous(Arc::clone(&rendezvous)).expect("install CE hook");
             write_projection(&engine, "stress BGE");
-            assert_real_ce(&rerank_fixture());
+            let ce = std::thread::spawn(rerank_fixture);
+            assert!(rendezvous.wait_for_active_overlap(std::time::Duration::from_secs(15)));
+            assert_real_ce(&ce.join().expect("stress overlap CE joins"));
             drop(_installed);
             std::thread::scope(|scope| {
                 let first = scope.spawn(rerank_fixture);
@@ -355,11 +452,15 @@ impl Slice72Run {
                 assert_real_ce(&first.join().expect("first CE stress worker joins"));
                 assert_real_ce(&second.join().expect("second CE stress worker joins"));
             });
-            engine.drain(90_000).expect("stress projection completes");
+            let remaining_ms = ceiling.saturating_duration_since(Instant::now()).as_millis() as u64;
+            assert!(remaining_ms > 0, "stress whole-test ceiling expired before drain");
+            engine.drain(remaining_ms).expect("stress projection completes");
+            assert!(Instant::now() <= ceiling, "stress whole-test ceiling exceeded");
             assert!(rendezvous.intervals().overlaps(), "stress forwards overlap");
             count += 1;
         }
         assert!(count > 0, "stress executes at least one bounded operation");
+        receipt.push_phase("overlap", self.sample()).expect("overlap receipt sample");
         receipt.push_phase("stress", self.sample()).expect("stress receipt sample");
         receipt.write_success(&self.receipt_dir).expect("write receipt");
     }
@@ -487,6 +588,12 @@ fn assert_real_ce(hits: &[SearchHit]) {
         Some(2),
         "CE must reorder the Berlin fixture"
     );
+}
+
+fn assert_valid_embedding(vector: &[f32]) {
+    assert!(vector.iter().all(|value| value.is_finite()), "BGE vector is finite");
+    let norm = vector.iter().map(|value| value * value).sum::<f32>().sqrt();
+    assert!((norm - 1.0).abs() < 1e-3, "BGE vector is unit norm (got {norm})");
 }
 
 fn selected_uuid_from_nvidia_smi() -> Result<String, String> {

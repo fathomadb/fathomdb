@@ -28,8 +28,8 @@ pub use fathomdb_engine::slice72_test_hooks::ForwardRendezvous;
 static SLICE72_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 const RUNNER_SENTINEL: &str = "approved-nvidia";
-const STRESS_WATCHDOG_CHILD: &str = "FATHOMDB_SLICE72_STRESS_WATCHDOG_CHILD";
 const STRESS_WATCHDOG_CEILING: std::time::Duration = std::time::Duration::from_secs(120);
+const STRESS_WATCHDOG_CHILD_TEST: &str = "slice72_private_stress_watchdog_child_entrypoint";
 // Kept split solely so the secret scanner does not mistake the public pinned
 // tokenizer-content digest for an API credential.
 const TOKENIZER_SHA256: &str =
@@ -343,25 +343,23 @@ fn phase_order(name: &str) -> u8 {
     }
 }
 
-/// True only in the child process that performs the ignored stress run under
-/// its parent's external watchdog.
-#[must_use]
-pub fn is_stress_watchdog_child() -> bool {
-    std::env::var(STRESS_WATCHDOG_CHILD).as_deref() == Ok("1")
-}
-
 /// Runs this test binary's ignored stress test in a child process. The parent
 /// terminates that whole process if it outlives the non-negotiable 120-second
 /// ceiling, including setup, warm-up, and drain.
-pub fn run_stress_under_watchdog(test_name: &str) {
+pub fn run_stress_under_watchdog() {
     let current = std::env::current_exe().expect("resolve Slice 72 stress test binary");
     let receipt_directory = std::env::var_os("FATHOMDB_SLICE72_RECEIPT_DIR")
         .map(std::path::PathBuf::from)
         .expect("Slice 72 stress watchdog requires FATHOMDB_SLICE72_RECEIPT_DIR");
     let mut command = Command::new(current);
     command
-        .args(["--exact", test_name, "--ignored", "--nocapture", "--test-threads=1"])
-        .env(STRESS_WATCHDOG_CHILD, "1")
+        .args([
+            "--exact",
+            STRESS_WATCHDOG_CHILD_TEST,
+            "--ignored",
+            "--nocapture",
+            "--test-threads=1",
+        ])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
     #[cfg(unix)]
@@ -374,7 +372,7 @@ pub fn run_stress_under_watchdog(test_name: &str) {
         child,
         STRESS_WATCHDOG_CEILING,
         &receipt_directory,
-        test_name,
+        STRESS_WATCHDOG_CHILD_TEST,
     )
     .unwrap_or_else(|error| panic!("Slice 72 stress watchdog failure: {error}"));
 }
@@ -425,17 +423,32 @@ fn wait_for_child_with_watchdog_inner(
                 .ok_or_else(|| format!("stress watchdog child exited unsuccessfully: {status}"));
         }
         if Instant::now() >= deadline {
+            // Close the ordinary timeout-vs-exit race before signalling the
+            // process group: a completed child owns its one normal receipt.
+            if let Some(status) = child.try_wait().map_err(|error| error.to_string())? {
+                return status.success().then_some(()).ok_or_else(|| {
+                    format!("stress watchdog child exited unsuccessfully: {status}")
+                });
+            }
             let child_pid = child.id();
             if kill_process_group {
                 kill_watchdog_process_group(child_pid);
             }
             let _ = child.kill();
-            let _ = child.wait();
+            let status = child.wait().map_err(|error| error.to_string())?;
+            if status.success() {
+                return Ok(());
+            }
             let error = format!("stress watchdog exceeded {} seconds", timeout.as_secs());
             if let Some((directory, test_name)) = timeout_receipt {
-                write_watchdog_timeout_receipt(directory, test_name, child_pid, timeout).map_err(
-                    |receipt_error| format!("{error}; timeout receipt failed: {receipt_error}"),
-                )?;
+                let completed_child_receipt =
+                    directory.join(format!("slice72-stress-{child_pid}.json")).is_file();
+                if !completed_child_receipt {
+                    write_watchdog_timeout_receipt(directory, test_name, child_pid, timeout)
+                        .map_err(|receipt_error| {
+                            format!("{error}; timeout receipt failed: {receipt_error}")
+                        })?;
+                }
             }
             return Err(error);
         }

@@ -99,6 +99,21 @@ fn stress_watchdog_kills_a_hung_child_before_the_global_ceiling() {
     assert!(receipt.contains("watchdog_timeout"));
     assert!(receipt.contains("\"selected_uuid\": null"));
     assert!(receipt.contains(&child_pid.to_string()));
+
+    let completed_directory = tempfile::tempdir().expect("completed receipt directory");
+    let completed = Command::new("true").spawn().expect("start completed child");
+    telemetry::wait_for_child_with_watchdog_with_receipt(
+        completed,
+        Duration::from_secs(1),
+        completed_directory.path(),
+        "stress-contract",
+    )
+    .expect("completed child remains successful without a second timeout receipt");
+    assert_eq!(
+        std::fs::read_dir(completed_directory.path()).expect("completed receipt directory").count(),
+        0,
+        "a normally completed child does not create a watchdog receipt"
+    );
 }
 
 #[test]

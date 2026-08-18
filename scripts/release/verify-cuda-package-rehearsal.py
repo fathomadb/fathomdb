@@ -14,8 +14,10 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 
-SCHEMA_VERSION = "fathomdb.cuda-package-rehearsal/v2"
-BUILD_INPUT_SCHEMA = "fathomdb.cuda-package-build-input/v2"
+SCHEMA_VERSION_V2 = "fathomdb.cuda-package-rehearsal/v2"
+SCHEMA_VERSION_V3 = "fathomdb.cuda-package-rehearsal/v3"
+BUILD_INPUT_SCHEMA_V2 = "fathomdb.cuda-package-build-input/v2"
+BUILD_INPUT_SCHEMA_V3 = "fathomdb.cuda-package-build-input/v3"
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 COMMIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
 MANIFEST = "cuda-package-rehearsal.json"
@@ -78,7 +80,7 @@ def load_preflight_witness(path: Path) -> tuple[dict[str, Any], bytes]:
         fail(f"cannot read preflight witness: {error}")
     if not isinstance(value, dict):
         fail("preflight witness must be a JSON object")
-    canonical = (json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    canonical = canonical_json(value)
     if raw != canonical:
         fail("preflight witness is not canonical JSON")
     return value, raw
@@ -94,7 +96,7 @@ def require_regular_directory(path: Path, label: str) -> None:
         fail(f"{label} must be a non-symlink directory")
 
 
-def validate_build_input(value: object, candidate_sha: str, version: str) -> None:
+def validate_build_input(value: object, candidate_sha: str, version: str) -> str:
     if not isinstance(value, dict):
         fail("build input is not an object")
     require_exact_keys(
@@ -102,23 +104,26 @@ def validate_build_input(value: object, candidate_sha: str, version: str) -> Non
         {"schema_version", "candidate_sha", "version", "target", "python_features", "napi_features", "cli_features", "rerank_cuda", "model_cache_manifest_sha256", "archive_filename"},
         "build input",
     )
-    if value["schema_version"] != BUILD_INPUT_SCHEMA:
+    schema = value["schema_version"]
+    if schema not in {BUILD_INPUT_SCHEMA_V2, BUILD_INPUT_SCHEMA_V3}:
         fail("build input schema is unsupported")
     if require_sha(value["candidate_sha"], "build input candidate SHA", COMMIT_SHA) != candidate_sha:
         fail("build input candidate SHA does not bind the rehearsal candidate")
     if value["version"] != version or value["target"] != TARGET:
         fail("build input version or target differs from the candidate package identity")
-    if value["python_features"] != ["embed-cuda", "pyo3/extension-module"]:
+    rerank = schema == BUILD_INPUT_SCHEMA_V3
+    if value["python_features"] != (["embed-cuda", "rerank-cuda", "pyo3/extension-module"] if rerank else ["embed-cuda", "pyo3/extension-module"]):
         fail("Python package was not built with the exact embed-cuda feature set")
-    if value["napi_features"] != ["default-embedder", "embed-cuda"]:
+    if value["napi_features"] != (["default-embedder", "embed-cuda", "rerank-cuda"] if rerank else ["default-embedder", "embed-cuda"]):
         fail("N-API package was not built with the exact embed-cuda feature set")
-    if value["cli_features"] != ["embed-cuda"]:
+    if value["cli_features"] != (["embed-cuda", "rerank-cuda"] if rerank else ["embed-cuda"]):
         fail("CLI package was not built with the exact embed-cuda feature set")
-    if value["rerank_cuda"] is not False:
-        fail("CUDA reranker must not be included in package rehearsal")
+    if value["rerank_cuda"] is not rerank:
+        fail("build input rerank CUDA flag does not match its schema")
     if value["archive_filename"] != f"fathomdb-{version}-{TARGET}.tar.gz":
         fail("build input CLI archive coordinate differs from the candidate version")
     require_sha(value["model_cache_manifest_sha256"], "model cache manifest digest")
+    return schema
 
 
 def validate_cpu_smoke(value: dict[str, Any], consumer: str) -> None:
@@ -314,15 +319,11 @@ def validate(root: Path, candidate_sha: str) -> None:
         {"schema_version", "candidate_sha", "version", "target", "route_receipt_sha256", "preflight_witness_sha256", "build_input", "packages", "smoke_evidence_sha256", "pending_external"},
         "rehearsal manifest",
     )
-    if manifest["schema_version"] != SCHEMA_VERSION:
-        fail("rehearsal manifest schema is unsupported")
     if require_sha(manifest["candidate_sha"], "rehearsal candidate SHA", COMMIT_SHA) != candidate_sha:
         fail("rehearsal manifest candidate SHA does not match the requested candidate")
     version = manifest["version"]
     if not isinstance(version, str) or re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version) is None or manifest["target"] != TARGET:
         fail("rehearsal version or target is invalid")
-    if manifest["pending_external"] != ["compatible_gpu_cli", "incompatible_classifier_observation"]:
-        fail("unavailable real CLI hardware evidence must remain PENDING_EXTERNAL")
     route, route_bytes = load_object(root / ROUTE_RECEIPT, "route receipt")
     if route.get("schema_version") != "fathomdb.cuda-unmerged-route-receipt/v1" or route.get("candidate_sha") != candidate_sha:
         fail("route receipt does not bind the requested candidate")
@@ -334,7 +335,9 @@ def validate(root: Path, candidate_sha: str) -> None:
         preflight_witness_dir / PREFLIGHT_WITNESS,
     )
     if (
-        preflight_witness.get("schema_version") != "fathomdb.cuda-preflight-witness/v1"
+        preflight_witness.get("schema_version") not in {
+            "fathomdb.cuda-preflight-witness/v2", "fathomdb.cuda-preflight-witness/v3"
+        }
         or preflight_witness.get("candidate_sha") != candidate_sha
         or preflight_witness.get("outcome") != "passed"
     ):
@@ -356,7 +359,24 @@ def validate(root: Path, candidate_sha: str) -> None:
     build_input, build_input_bytes = load_object(build_input_path, "build input")
     if manifest["build_input"] != build_input:
         fail("manifest build input differs from the retained build input")
-    validate_build_input(build_input, candidate_sha, version)
+    build_schema = validate_build_input(build_input, candidate_sha, version)
+    expected_preflight_schema = (
+        "fathomdb.cuda-preflight-witness/v3"
+        if build_schema == BUILD_INPUT_SCHEMA_V3
+        else "fathomdb.cuda-preflight-witness/v2"
+    )
+    if preflight_witness["schema_version"] != expected_preflight_schema:
+        fail("preflight witness schema does not match the retained build input")
+    expected_manifest_schema = SCHEMA_VERSION_V3 if build_schema == BUILD_INPUT_SCHEMA_V3 else SCHEMA_VERSION_V2
+    if manifest["schema_version"] != expected_manifest_schema:
+        fail("rehearsal manifest schema does not match the retained build input")
+    expected_pending = (
+        ["compatible_gpu_cli", "incompatible_classifier_observation"]
+        if build_schema == BUILD_INPUT_SCHEMA_V2
+        else ["compatible_gpu_reranker_cli", "incompatible_reranker_classifier_observation"]
+    )
+    if manifest["pending_external"] != expected_pending:
+        fail("unavailable real CUDA hardware evidence must remain PENDING_EXTERNAL")
     model_manifest = preflight_witness_dir / "model-cache-manifest.json"
     if build_input["model_cache_manifest_sha256"] != sha256(model_manifest):
         fail("build input does not bind the retained Slice 10 model cache manifest")

@@ -323,12 +323,29 @@ jobs:
       - name: Capture CUDA artifact preflight witness
         working-directory: candidate
         run: bash scripts/release/cuda-preflight.sh "${{ github.workspace }}/cuda-preflight-witness"
+      - name: Capture candidate-only CUDA reranker v3 preflight witness
+        working-directory: candidate
+        run: bash scripts/release/cuda-preflight.sh "${{ github.workspace }}/cuda-rerank-preflight-witness" --rerank-cuda
       - name: Upload CUDA preflight witness
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cuda-preflight-witness
           path: ${{ github.workspace }}/cuda-preflight-witness
+          if-no-files-found: error
+      - name: Upload CUDA reranker v3 preflight witness
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cuda-rerank-preflight-witness
+          path: ${{ github.workspace }}/cuda-rerank-preflight-witness
+          if-no-files-found: error
+      - name: Upload CUDA reranker v3 package bytes
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cuda-rerank-preflight-packages
+          path: ${{ github.workspace }}/cuda-rerank-preflight-witness.packages
           if-no-files-found: error
 
   # Native Linux Python wheels via PyO3/maturin-action. The
@@ -581,6 +598,87 @@ jobs:
         with:
           name: cuda-package-rehearsal
           path: candidate/cuda-package-rehearsal
+          if-no-files-found: error
+
+  # Slice 71: candidate-only reranker CUDA v3 rehearsal. It consumes only the
+  # separately-built v3 Python/N-API bytes and emits no publication credentials.
+  cuda-reranker-package-rehearsal:
+    needs: [verify-release, verify-cuda-trusted-route, cuda-contract-preflight]
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+    runs-on: [self-hosted, Linux, X64, gpu, cuda-12]
+    environment: cuda-unmerged-preflight
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8.0.1
+        with:
+          name: cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: control-plane/receipt
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8.0.1
+        with:
+          name: cuda-rerank-preflight-witness
+          path: rerank-preflight-witness
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8.0.1
+        with:
+          name: cuda-rerank-preflight-packages
+          path: rerank-preflight-packages
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, control plane
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control-plane
+          persist-credentials: false
+      - name: Verify candidate binding and v3 witness
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 control-plane/scripts/release/verify-cuda-unmerged-receipt.py \
+            --receipt control-plane/receipt/cuda-unmerged-route-receipt.json \
+            --manifest control-plane/dev/release/cuda-unmerged-candidates.json \
+            --candidate-sha '${{ inputs.candidate_commit }}' \
+            --workflow-ref '${{ github.workflow_ref }}' --workflow-sha '${{ github.workflow_sha }}' \
+            --run-id '${{ github.run_id }}' --run-attempt '${{ github.run_attempt }}'
+          python3 control-plane/scripts/release/verify-cuda-preflight-witness.py \
+            --witness-dir rerank-preflight-witness --candidate-sha '${{ inputs.candidate_commit }}'
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, verified candidate
+        with:
+          ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          path: candidate
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        with:
+          toolchain: "1.95.0"
+          targets: x86_64-unknown-linux-gnu
+      - name: Build and seal reranker CUDA CLI candidate
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import json; print(json.load(open("src/ts/package.json"))["version"])')"
+          cargo build --locked --release -p fathomdb-cli --features embed-cuda,rerank-cuda --target x86_64-unknown-linux-gnu
+          bash ../control-plane/scripts/release/seal-cuda-cli-archive.sh \
+            --binary target/x86_64-unknown-linux-gnu/release/fathomdb --version "$version" \
+            --output "fathomdb-$version-x86_64-unknown-linux-gnu.tar.gz"
+          python3 - '${{ inputs.candidate_commit }}' "$version" '../rerank-preflight-witness/model-cache-manifest.json' > cuda-rerank-package-build-input.json <<'PY'
+          import hashlib, json, sys
+          candidate, version, manifest = sys.argv[1:]
+          print(json.dumps({"schema_version":"fathomdb.cuda-package-build-input/v3","candidate_sha":candidate,"version":version,"target":"x86_64-unknown-linux-gnu","python_features":["embed-cuda","rerank-cuda","pyo3/extension-module"],"napi_features":["default-embedder","embed-cuda","rerank-cuda"],"cli_features":["embed-cuda","rerank-cuda"],"rerank_cuda":True,"model_cache_manifest_sha256":hashlib.sha256(open(manifest,"rb").read()).hexdigest(),"archive_filename":f"fathomdb-{version}-x86_64-unknown-linux-gnu.tar.gz"}, ensure_ascii=True,separators=(",",":"),sort_keys=True))
+          PY
+      - name: Smoke and seal candidate-only reranker v3 rehearsal
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheel="$(find rerank-preflight-packages -name 'fathomdb-*.whl' -print -quit)"
+          npm_main="$(find rerank-preflight-packages -name 'fathomdb-*.tgz' ! -name '*linux-x64-gnu*' -print -quit)"
+          napi_platform="$(find rerank-preflight-packages -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
+          cli_archive="$(find candidate -maxdepth 1 -name 'fathomdb-*-x86_64-unknown-linux-gnu.tar.gz' -print -quit)"
+          test -n "$wheel" && test -n "$npm_main" && test -n "$napi_platform" && test -n "$cli_archive"
+          bash control-plane/scripts/release/cuda-package-rehearsal-smoke.sh --python-wheel "$wheel" --npm-main "$npm_main" --napi-platform "$napi_platform" --cli-archive "$cli_archive" --model-cache-manifest rerank-preflight-witness/model-cache-manifest.json --hf-home "${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}" --smoke-dir candidate/cuda-rerank-package-smoke
+          bash control-plane/scripts/release/cuda-package-rehearsal.sh --candidate-sha '${{ inputs.candidate_commit }}' --route-receipt control-plane/receipt/cuda-unmerged-route-receipt.json --route-manifest control-plane/dev/release/cuda-unmerged-candidates.json --preflight-witness-dir rerank-preflight-witness --build-input candidate/cuda-rerank-package-build-input.json --python-wheel "$wheel" --npm-main "$npm_main" --napi-platform "$napi_platform" --cli-archive "$cli_archive" --smoke-dir candidate/cuda-rerank-package-smoke --output-dir candidate/cuda-rerank-package-rehearsal --workflow-ref '${{ github.workflow_ref }}' --workflow-sha '${{ github.workflow_sha }}' --run-id '${{ github.run_id }}' --run-attempt '${{ github.run_attempt }}'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cuda-rerank-package-rehearsal
+          path: candidate/cuda-rerank-package-rehearsal
           if-no-files-found: error
 
   # Pre-publish packaging verification for Rust crates:

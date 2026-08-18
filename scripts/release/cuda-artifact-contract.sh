@@ -18,6 +18,10 @@ export CUDA_MANYLINUX='2_28'
 export CUDA_COMPUTE_CAP='75'
 export CUDA_NAPI_FEATURES='embed-cuda'
 export CUDA_PYTHON_FEATURES='pyo3/extension-module,embed-cuda'
+# Additive candidate-only Slice 71 tuple. The established v2 route continues
+# to use the two variables above; callers opt into this tuple explicitly.
+export CUDA_RERANK_NAPI_FEATURES='embed-cuda,rerank-cuda'
+export CUDA_RERANK_PYTHON_FEATURES='pyo3/extension-module,embed-cuda,rerank-cuda'
 # This designated-runner-only image is intentionally a local image tag, not a
 # host-toolchain proxy. It contains the CUDA 12.6 toolkit, Rust, maturin, and
 # the manylinux_2_28 Python ABI used by the release build. The preflight fails

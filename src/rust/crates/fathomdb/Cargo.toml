@@ -31,6 +31,10 @@ operator = ["fathomdb-engine/operator"]
 # contains the CPU path too; runtime selection remains `FATHOMDB_EMBED_DEVICE`.
 default-embedder = ["fathomdb-engine/default-embedder"]
 embed-cuda = ["default-embedder", "fathomdb-engine/embed-cuda"]
+# Supported CE reranker capability forwarding. The CUDA-capable artifact keeps
+# the CPU path and resolves `FATHOMDB_RERANK_DEVICE` at runtime.
+default-reranker = ["fathomdb-engine/default-reranker"]
+rerank-cuda = ["default-reranker", "fathomdb-engine/rerank-cuda"]
 
 [dev-dependencies]
 # 0.8.20 Slice 5c (R-20-E3) — compile-fail harness for

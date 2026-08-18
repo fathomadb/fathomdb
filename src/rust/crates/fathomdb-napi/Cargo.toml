@@ -22,6 +22,8 @@ default-embedder = ["fathomdb-engine/default-embedder"]
 # forwarding edge; the CUDA-capable artifact defaults its runtime policy to
 # `auto`, while explicit `cpu` remains available without rebuilding.
 embed-cuda = ["default-embedder", "fathomdb-engine/embed-cuda"]
+default-reranker = ["fathomdb-engine/default-reranker"]
+rerank-cuda = ["default-reranker", "fathomdb-engine/rerank-cuda"]
 
 [dependencies]
 fathomdb-embedder.workspace = true

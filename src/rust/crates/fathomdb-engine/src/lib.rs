@@ -12801,6 +12801,15 @@ pub fn rerank_passages(
             ));
         }
     }
+    // Slice 71: a forced CUDA policy is a request to run CE inference on that
+    // device, never permission to silently return CPU CE scores. Resolve before
+    // loading weights so malformed/forced policy errors are observable without
+    // a model download. Depth zero remains the no-model/no-device identity path.
+    #[cfg(feature = "default-reranker")]
+    if rerank_depth > 0 {
+        fathomdb_embedder::resolve_default_reranker_device_from_env()
+            .map_err(|error| format!("reranker device policy: {error}"))?;
+    }
     let hits: Vec<SearchHit> = passages
         .into_iter()
         .map(|(id, body, score)| SearchHit {

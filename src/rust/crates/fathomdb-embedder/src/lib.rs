@@ -29,6 +29,14 @@ pub use device_policy::{
     EffectiveEmbedDevice, EmbedDevicePolicy, EmbedDevicePolicyError, EmbedDevicePolicyParseError,
 };
 
+mod reranker_device_policy;
+pub use reranker_device_policy::{
+    resolve_reranker_device_policy, resolve_reranker_device_policy_from_env,
+    EffectiveRerankerDevice, RerankerDevicePolicy, RerankerDevicePolicyError,
+    RerankerDevicePolicyParseError, RerankerDeviceResolution, RerankerDeviceResolutionError,
+    RerankerDeviceResolutionReason, ENV_RERANK_DEVICE,
+};
+
 #[cfg(feature = "default-embedder")]
 pub mod loader;
 
@@ -100,11 +108,6 @@ impl MeanRecomputeTrigger {
     }
 }
 
-// The legacy request parser remains only for the reranker. Both embedder
-// backends use the strict policy module above instead.
-#[cfg(feature = "default-reranker")]
-mod device;
-
 #[cfg(feature = "default-embedder")]
 mod candle_bge;
 #[cfg(feature = "default-embedder")]
@@ -139,6 +142,8 @@ pub use nomic::{NomicEmbedder, NOMIC_DIM};
 #[cfg(feature = "onnx-embedder")]
 pub use ort_bge::{OrtBgeEmbedder, OrtPooling, ORT_BGE_EMBEDDER_DIM, ORT_BGE_EMBEDDER_NAME};
 
+#[cfg(feature = "default-reranker")]
+pub use candle_reranker::resolve_default_reranker_device_from_env;
 #[cfg(all(feature = "default-reranker", any(test, feature = "loader-test-hooks")))]
 pub use candle_reranker::RERANKER_REVISION;
 #[cfg(feature = "default-reranker")]

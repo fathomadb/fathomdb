@@ -45,70 +45,170 @@ use sha2::{Digest, Sha256};
 use thiserror::Error;
 use tokenizers::{Tokenizer, TruncationParams};
 
-// The legacy reranker-only grammar (`cpu`|`cuda`|`cuda:N`|`metal`) comes from
-// `crate::device`. Embedding instead uses `device_policy`'s strict
-// `auto|cpu|cuda:N` grammar. The reranker reads its OWN env knob
-// (`FATHOMDB_RERANK_DEVICE`) and gates GPU on its OWN features
-// (`rerank-cuda`/`rerank-metal`). `DeviceRequest` is used by `resolve_device`
-// only under a GPU feature; allow it to be unused on the default CPU build.
-#[cfg_attr(not(any(feature = "rerank-cuda", feature = "rerank-metal")), allow(unused_imports))]
-use crate::device::{parse_device_request, DeviceRequest};
+use crate::{
+    resolve_reranker_device_policy_from_env, CudaDeviceInfo, CudaProbeError, CudaProvider,
+    CudaVisibleDevice, EffectiveRerankerDevice, RerankerDevicePolicyError,
+    RerankerDeviceResolution,
+};
 
-/// Env var selecting the legacy reranker compute device (default CPU). It is a
-/// SEPARATE knob from the embedder policy, so the CE reranker and the embedder
-/// can target different devices independently.
-pub(crate) const ENV_RERANK_DEVICE: &str = "FATHOMDB_RERANK_DEVICE";
+struct RerankerCudaProvider;
 
-/// Resolve the candle device for the CE reranker from `FATHOMDB_RERANK_DEVICE`
-/// (default CPU). Accepts `cpu` | `cuda` | `cuda:N` | `metal`. GPU variants are
-/// only honored when the corresponding feature (`rerank-cuda` / `rerank-metal`)
-/// is compiled in; otherwise (or on init failure) it falls back to CPU and emits
-/// a LOUD stderr warning rather than silently running on CPU when GPU was
-/// requested (the silent-slow-fallback trap). This legacy reranker policy is
-/// intentionally distinct from the embedder's strict resolver.
-///
-/// When neither GPU feature is on, this compiles down to "always CPU" — so the
-/// default `default-reranker` build is byte-identical to the prior hard-coded
-/// `Device::Cpu` (Decision 2 default preserved).
-#[allow(clippy::print_stderr)] // construction-time error path only (not in `score()`)
-fn resolve_device() -> Device {
-    match parse_device_request(&std::env::var(ENV_RERANK_DEVICE).unwrap_or_default()) {
-        DeviceRequest::Cpu => Device::Cpu,
-        DeviceRequest::Cuda(_idx) => {
-            #[cfg(feature = "rerank-cuda")]
-            match Device::new_cuda(_idx) {
-                Ok(d) => return d,
-                Err(e) => eprintln!(
-                    "fathomdb-reranker: FATHOMDB_RERANK_DEVICE=cuda:{_idx} but CUDA init failed ({e}); using CPU"
-                ),
-            }
-            #[cfg(not(feature = "rerank-cuda"))]
-            eprintln!(
-                "fathomdb-reranker: FATHOMDB_RERANK_DEVICE=cuda requested but this build lacks the `rerank-cuda` feature; using CPU"
-            );
-            Device::Cpu
+impl CudaProvider for RerankerCudaProvider {
+    fn enumerate_visible_cuda_devices(&mut self) -> Result<Vec<CudaVisibleDevice>, CudaProbeError> {
+        #[cfg(feature = "rerank-cuda")]
+        {
+            use candle_core::cuda::cudarc::driver::{result, sys};
+
+            let driver_present = unsafe { sys::is_culib_present() };
+            driver_present.then_some(()).ok_or(CudaProbeError::NoVisibleDevice)?;
+            result::init().map_err(classify_cuda_driver_error)?;
+            let count = result::device::get_count().map_err(classify_cuda_driver_error)?;
+            let count = usize::try_from(count).map_err(|_| CudaProbeError::ProbeFailed {
+                message: "CUDA driver returned a negative device count".to_owned(),
+            })?;
+            (0..count)
+                .map(|visible_ordinal| {
+                    let device = result::device::get(visible_ordinal as i32)
+                        .map_err(classify_cuda_driver_error)?;
+                    let name = result::device::get_name(device).map_err(classify_cuda_driver_error)?;
+                    let uuid = result::device::get_uuid(device).map_err(classify_cuda_driver_error)?;
+                    let major = unsafe {
+                        result::device::get_attribute(
+                            device,
+                            sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR,
+                        )
+                    }
+                    .map_err(classify_cuda_driver_error)?;
+                    let minor = unsafe {
+                        result::device::get_attribute(
+                            device,
+                            sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR,
+                        )
+                    }
+                    .map_err(classify_cuda_driver_error)?;
+                    Ok(CudaVisibleDevice {
+                        visible_ordinal,
+                        uuid: cuda_uuid_string(uuid.bytes),
+                        name,
+                        compute_capability: Some(format!("{major}.{minor}")),
+                    })
+                })
+                .collect()
         }
-        DeviceRequest::Metal => {
-            #[cfg(feature = "rerank-metal")]
-            match Device::new_metal(0) {
-                Ok(d) => return d,
-                Err(e) => eprintln!(
-                    "fathomdb-reranker: FATHOMDB_RERANK_DEVICE=metal but Metal init failed ({e}); using CPU"
-                ),
-            }
-            #[cfg(not(feature = "rerank-metal"))]
-            eprintln!(
-                "fathomdb-reranker: FATHOMDB_RERANK_DEVICE=metal requested but this build lacks the `rerank-metal` feature; using CPU"
-            );
-            Device::Cpu
-        }
-        DeviceRequest::Unknown(req) => {
-            eprintln!(
-                "fathomdb-reranker: FATHOMDB_RERANK_DEVICE={req} not recognized (expected cpu|cuda|cuda:N|metal); using CPU"
-            );
-            Device::Cpu
+        #[cfg(not(feature = "rerank-cuda"))]
+        {
+            Err(CudaProbeError::ProbeFailed {
+                message: "the reranker was built without CUDA".to_owned(),
+            })
         }
     }
+
+    fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError> {
+        #[cfg(feature = "rerank-cuda")]
+        {
+            let device = Device::new_cuda(ordinal).map_err(classify_candle_cuda_error)?;
+            Tensor::zeros(1, DType::F32, &device).map_err(classify_candle_cuda_error)?;
+            let visible = self
+                .enumerate_visible_cuda_devices()?
+                .into_iter()
+                .find(|visible| visible.visible_ordinal == ordinal)
+                .ok_or(CudaProbeError::NoVisibleDevice)?;
+            Ok(CudaDeviceInfo {
+                ordinal,
+                uuid: Some(visible.uuid),
+                name: Some(visible.name),
+                driver_version: None,
+                compute_capability: visible.compute_capability,
+                cuda_toolkit_version: None,
+            })
+        }
+        #[cfg(not(feature = "rerank-cuda"))]
+        {
+            let _ = ordinal;
+            Err(CudaProbeError::ProbeFailed {
+                message: "the reranker was built without CUDA".to_owned(),
+            })
+        }
+    }
+}
+
+fn resolve_device_from_env() -> Result<RerankerDeviceResolution, RerankerDevicePolicyError> {
+    let mut provider = RerankerCudaProvider;
+    resolve_reranker_device_policy_from_env(cfg!(feature = "rerank-cuda"), &mut provider)
+}
+
+/// Resolve the independent cross-encoder policy without loading model files or
+/// opening an engine/database. This is the diagnostic/configuration seam; it
+/// does not imply that any embedding or SQLite operation used CUDA.
+pub fn resolve_default_reranker_device_from_env(
+) -> Result<RerankerDeviceResolution, RerankerDevicePolicyError> {
+    resolve_device_from_env()
+}
+
+fn device_from_resolution(
+    resolution: &RerankerDeviceResolution,
+) -> Result<Device, RerankerLoadError> {
+    match &resolution.effective_device {
+        EffectiveRerankerDevice::Cpu => Ok(Device::Cpu),
+        EffectiveRerankerDevice::Cuda(info) => {
+            Device::new_cuda(info.ordinal).map_err(RerankerLoadError::ModelDeserialize)
+        }
+    }
+}
+
+#[cfg(feature = "rerank-cuda")]
+fn classify_cuda_driver_error(
+    error: candle_core::cuda::cudarc::driver::result::DriverError,
+) -> CudaProbeError {
+    use candle_core::cuda::cudarc::driver::sys::CUresult;
+
+    let message = error.to_string();
+    match error.0 {
+        CUresult::CUDA_ERROR_NO_DEVICE | CUresult::CUDA_ERROR_STUB_LIBRARY => {
+            CudaProbeError::NoVisibleDevice
+        }
+        CUresult::CUDA_ERROR_SYSTEM_DRIVER_MISMATCH
+        | CUresult::CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE
+        | CUresult::CUDA_ERROR_NO_BINARY_FOR_GPU
+        | CUresult::CUDA_ERROR_UNSUPPORTED_PTX_VERSION => CudaProbeError::Incompatible { message },
+        _ => CudaProbeError::ProbeFailed { message },
+    }
+}
+
+#[cfg(feature = "rerank-cuda")]
+fn classify_candle_cuda_error(error: candle_core::Error) -> CudaProbeError {
+    use candle_core::{
+        cuda::{cudarc::cublas::sys::cublasStatus_t, CudaError},
+        Error,
+    };
+
+    let message = error.to_string();
+    match error {
+        Error::Cuda(source) => match source.downcast_ref::<CudaError>() {
+            Some(CudaError::Cuda(error)) => classify_cuda_driver_error(*error),
+            Some(CudaError::Cublas(error))
+                if matches!(
+                    error.0,
+                    cublasStatus_t::CUBLAS_STATUS_ARCH_MISMATCH
+                        | cublasStatus_t::CUBLAS_STATUS_NOT_SUPPORTED
+                ) =>
+            {
+                CudaProbeError::Incompatible { message }
+            }
+            _ => CudaProbeError::ProbeFailed { message },
+        },
+        _ => CudaProbeError::ProbeFailed { message },
+    }
+}
+
+#[cfg(feature = "rerank-cuda")]
+fn cuda_uuid_string(bytes: [std::os::raw::c_char; 16]) -> String {
+    let bytes = bytes.map(|byte| byte as u8);
+    format!(
+        "GPU-{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+        bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+        bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15],
+    )
 }
 
 // ----- Pinned identity (Decision 2 + 3) -------------------------------------
@@ -176,6 +276,8 @@ const MAX_ATTEMPTS: u32 = 3;
 /// embedder's `EmbedderLoadError` shape; never panics out of `try_load`.
 #[derive(Debug, Error)]
 pub enum RerankerLoadError {
+    #[error("reranker device policy: {0}")]
+    DevicePolicy(#[source] RerankerDevicePolicyError),
     #[error("reranker cache dir unavailable")]
     CacheRootUnavailable,
     #[error("reranker cache I/O error at {path:?}: {source}")]
@@ -222,11 +324,16 @@ impl CandleTinyBertReranker {
     /// pooler + classifier. Returns `Err` (never panics) on any failure so the
     /// engine can soft-fallback to RRF order.
     pub fn try_load() -> Result<Self, RerankerLoadError> {
+        let resolution =
+            resolve_default_reranker_device_from_env().map_err(RerankerLoadError::DevicePolicy)?;
         let weights = load_pinned_reranker_weights()?;
-        Self::from_weights(&weights)
+        Self::from_weights(&weights, &resolution)
     }
 
-    fn from_weights(w: &LoadedWeights) -> Result<Self, RerankerLoadError> {
+    fn from_weights(
+        w: &LoadedWeights,
+        resolution: &RerankerDeviceResolution,
+    ) -> Result<Self, RerankerLoadError> {
         // 1. config.json → bert Config.
         let config_bytes = fs::read(&w.config_json_path).map_err(|source| {
             RerankerLoadError::CacheIo { path: w.config_json_path.clone(), source }
@@ -253,15 +360,10 @@ impl CandleTinyBertReranker {
             }))
             .map_err(|e| RerankerLoadError::TokenizerLoad(e.to_string()))?;
 
-        // 3. mmap safetensors → BertModel (bert.* prefix via model_type
-        //    fallback) + pooler dense + classifier head. Default CPU — the
-        //    reranker is latency-budgeted for CPU per Decision 2, and that
-        //    stays the default. 0.8.12 makes GPU an ADDITIVE opt-in knob:
-        //    `FATHOMDB_RERANK_DEVICE=cuda|cuda:N|metal` is honored ONLY when the
-        //    matching `rerank-cuda`/`rerank-metal` feature is compiled in;
-        //    otherwise `resolve_device()` returns `Device::Cpu`, so the default
-        //    build is byte-identical to the prior hard-coded `Device::Cpu`.
-        let device = resolve_device();
+        // 3. Construct on exactly the resolved backend. A forced CUDA policy
+        // reaches this point only after its driver/allocation probe succeeded;
+        // there is deliberately no CPU retry on any subsequent CUDA failure.
+        let device = device_from_resolution(resolution)?;
         let vb = unsafe {
             VarBuilder::from_mmaped_safetensors(
                 &[w.model_safetensors_path.as_path() as &Path],
@@ -564,6 +666,7 @@ mod tests {
 #[cfg(all(test, feature = "rerank-cuda"))]
 mod gpu_tests {
     use super::*;
+    use crate::ENV_RERANK_DEVICE;
     use std::sync::Mutex;
 
     const Q: &str = "What is the capital of France?";

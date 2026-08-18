@@ -560,6 +560,14 @@ commands. The pinned invariant, tested in Rust, Python and TypeScript:
 
 ## Errors
 
+### Cross-encoder runtime policy (0.8.23 Slice 71)
+
+The optional cross-encoder reads FATHOMDB_RERANK_DEVICE independently of
+FATHOMDB_EMBED_DEVICE. Supported values are exactly auto, cpu, and cuda:N; a
+forced CUDA failure is not represented as a successful CPU rerank. Reranker
+device evidence is separate from OpenReport.embedder_device_resolution and
+never describes database retrieval.
+
 Python exposes one catch-all base class, `EngineError`, plus one concrete
 subclass per canonical row in `design/errors.md` — **28** of them as of 0.8.23,
 1:1 with the TypeScript set below `FathomDbError`.

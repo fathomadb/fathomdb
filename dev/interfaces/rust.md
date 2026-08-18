@@ -875,6 +875,16 @@ private test seam can only raise candidate fanout, never public result cardinali
 
 ## Errors
 
+### Cross-encoder device policy (0.8.23 Slice 71)
+
+The optional Candle cross-encoder uses the independent FATHOMDB_RERANK_DEVICE
+transport. Its grammar is exactly auto, cpu, or cuda:N; unset means auto.
+RerankerDevicePolicyError rejects malformed or retired values and forced CUDA
+failure. CPU never initializes CUDA; auto may select CPU only with a classified
+reason; forced cuda:N never retries on CPU. RerankerDeviceResolution is
+intentionally distinct from OpenReport.embedder_device_resolution: CUDA
+embedding is not evidence of CUDA reranking.
+
 Rust exposes typed open/runtime errors without message parsing:
 
 - `EngineOpenError`

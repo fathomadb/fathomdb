@@ -1522,6 +1522,7 @@ mod tests {
             ]
         });
 
+    #[allow(clippy::too_many_arguments)]
     fn doctor_case(
         name: &'static str,
         policy: &'static str,

@@ -182,11 +182,12 @@ def main() -> None:
             result = run(valid, CANDIDATE, "--fixture-forced-record", str(record), str(stdout), str(stderr))
             assert result.returncode == 0, result.stderr
 
+            mutated_record, mutated_stdout, mutated_stderr = generated
             rewrite_forced_message(
                 regenerated_incompatible,
-                record.name,
-                stdout.name,
-                stderr.name,
+                mutated_record.name,
+                mutated_stdout.name,
+                mutated_stderr.name,
                 "fabricated incompatible failure",
                 reseal_witness=False,
             )
@@ -194,9 +195,9 @@ def main() -> None:
                 valid,
                 CANDIDATE,
                 "--fixture-forced-record",
-                str(record),
-                str(stdout),
-                str(stderr),
+                str(mutated_record),
+                str(mutated_stdout),
+                str(mutated_stderr),
             )
             assert result.returncode != 0, f"accepted resealed arbitrary incompatible {consumer} message"
 

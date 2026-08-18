@@ -254,14 +254,26 @@ JS
 
 cp "$SCRIPT_DIR/forced-python-open.py" "$WORK_DIR/forced-python-open.py"
 cp "$SCRIPT_DIR/forced-napi-open.mjs" "$WORK_DIR/forced-napi-open.mjs"
-FORCED_NAPI_HARNESS="$WORK_DIR/forced-napi-harness"
-mkdir "$FORCED_NAPI_HARNESS"
-cp "$SCRIPT_DIR/forced-napi-open.mjs" "$FORCED_NAPI_HARNESS/"
-cat > "$FORCED_NAPI_HARNESS/package.json" <<EOF
+FORCED_PYTHON_SITE="$WORK_DIR/forced-python-site"
+mkdir "$FORCED_PYTHON_SITE"
+docker run --rm --network none \
+  --mount "type=bind,src=$WHEEL,dst=/input/fathomdb.whl,readonly" \
+  --mount "type=bind,src=$FORCED_PYTHON_SITE,dst=/fathomdb-site" \
+  -e HOME=/tmp -e TMPDIR=/tmp \
+  "$CUDA_MANYLINUX_IMAGE" sh -ceu '
+    /opt/python/cp311-cp311/bin/python -m pip install \
+      --no-deps --no-cache-dir --target /fathomdb-site /input/fathomdb.whl
+    chmod -R a+rwX /fathomdb-site
+  ' \
+  >"$WORK_DIR/forced-python-install.txt" 2>&1
+
+FORCED_NAPI_INSTALL="$WORK_DIR/forced-napi-install"
+mkdir "$FORCED_NAPI_INSTALL"
+cat > "$FORCED_NAPI_INSTALL/package.json" <<EOF
 {"private":true,"type":"module","dependencies":{"fathomdb":"file:$NPM_MAIN/$NPM_MAIN_TARBALL","fathomdb-linux-x64-gnu":"file:$NPM_PLATFORM/$NPM_PLATFORM_TARBALL"}}
 EOF
 (
-  cd "$FORCED_NAPI_HARNESS"
+  cd "$FORCED_NAPI_INSTALL"
   npm install --offline --ignore-scripts --no-audit --no-fund
 )
 
@@ -270,11 +282,10 @@ run_forced_python() {
   local stderr="$WORK_DIR/forced-cuda-unavailable-python-stderr.txt"
   set +e
   docker run --rm --network none \
-    --mount "type=bind,src=$WHEEL,dst=/input/fathomdb.whl,readonly" \
+    --mount "type=bind,src=$FORCED_PYTHON_SITE,dst=/fathomdb-site,readonly" \
     --mount "type=bind,src=$WORK_DIR/forced-python-open.py,dst=/fathomdb-harness/forced-python-open.py,readonly" \
-    -e HOME=/fathomdb-unavailable-home -e TMPDIR=/tmp -e FATHOMDB_EMBED_DEVICE=cuda:0 \
+    -e HOME=/fathomdb-unavailable-home -e TMPDIR=/tmp -e PYTHONPATH=/fathomdb-site -e FATHOMDB_EMBED_DEVICE=cuda:0 \
     "$CUDA_MANYLINUX_IMAGE" sh -ceu '
-      /opt/python/cp311-cp311/bin/python -m pip install --no-deps --no-cache-dir /input/fathomdb.whl
       exec /opt/python/cp311-cp311/bin/python /fathomdb-harness/forced-python-open.py
     ' >"$stdout" 2>"$stderr"
   local exit_code="$?"
@@ -290,9 +301,8 @@ run_forced_napi() {
   local stderr="$WORK_DIR/forced-cuda-unavailable-napi-stderr.txt"
   set +e
   docker run --rm --network none \
-    --mount "type=bind,src=$NPM_MAIN/$NPM_MAIN_TARBALL,dst=/input/fathomdb.tgz,readonly" \
-    --mount "type=bind,src=$NPM_PLATFORM/$NPM_PLATFORM_TARBALL,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
-    --mount "type=bind,src=$FORCED_NAPI_HARNESS,dst=/fathomdb-harness,readonly" \
+    --mount "type=bind,src=$WORK_DIR/forced-napi-open.mjs,dst=/fathomdb-harness/forced-napi-open.mjs,readonly" \
+    --mount "type=bind,src=$FORCED_NAPI_INSTALL/node_modules,dst=/fathomdb-harness/node_modules,readonly" \
     --mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64,dst=/opt/cuda/lib64,readonly" \
     -e HOME=/fathomdb-unavailable-home -e TMPDIR=/tmp -e FATHOMDB_EMBED_DEVICE=cuda:0 -e LD_LIBRARY_PATH=/opt/cuda/lib64 \
     "$CUDA_DRIVERLESS_NODE_IMAGE" sh -ceu '

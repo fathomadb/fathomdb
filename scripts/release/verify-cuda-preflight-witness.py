@@ -26,6 +26,10 @@ MODEL_DIGESTS = {
     )),
     "model.safetensors": "3c9f31665447c8911517620762200d2245a2518d6e7208acc78cd9db317e21ad",
 }
+EXPECTED_FORCED_MESSAGES = {
+    "no_visible_cuda_device": "cuda:0 requested but unavailable: NoVisibleCudaDevice",
+    "cuda_incompatible": "cuda:0 requested but unavailable: CudaIncompatible",
+}
 EVIDENCE_NAMES = frozenset({
     "environment.txt",
     "manylinux-build.txt",
@@ -137,12 +141,14 @@ def validate_capture(
     if not isinstance(error, dict):
         fail(f"forced {consumer} capture lacks a typed error")
     require_exact_keys(error, {"type", "kind", "ordinal", "message"}, f"forced {consumer} typed error")
-    message = require_string(error["message"], f"forced {consumer} error message")
+    expected_message = EXPECTED_FORCED_MESSAGES.get(reason)
+    if expected_message is None:
+        fail(f"forced {consumer} capture reason has no stable typed message")
     if error != {
-        "type": "EmbedDevicePolicyError", "kind": reason, "ordinal": 0, "message": message,
+        "type": "EmbedDevicePolicyError", "kind": reason, "ordinal": 0, "message": expected_message,
     }:
-        fail(f"forced {consumer} capture typed error does not match its reason")
-    if stderr != (message + "\n").encode("utf-8"):
+        fail(f"forced {consumer} capture typed error does not match its stable reason message")
+    if stderr != (expected_message + "\n").encode("utf-8"):
         fail(f"forced {consumer} stderr does not equal its exact typed error")
 
 

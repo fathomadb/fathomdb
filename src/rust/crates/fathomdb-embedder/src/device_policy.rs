@@ -647,18 +647,24 @@ pub fn diagnose_gpu(
                     None,
                     Some(DeviceResolutionReason::CudaIncompatible),
                 ),
-                Ok(_)
-                | Err(CudaProbeError::NoVisibleDevice | CudaProbeError::ProbeFailed { .. }) => {
-                    diagnostic(
-                        policy,
-                        cuda_compiled,
-                        DoctorGpuStatus::ProbeFailed,
-                        forced_ordinal.is_none().then_some(EffectiveEmbedDevice::Cpu),
-                        devices,
-                        None,
-                        Some(DeviceResolutionReason::CudaProbeFailed),
-                    )
-                }
+                Err(CudaProbeError::NoVisibleDevice) => diagnostic(
+                    policy,
+                    cuda_compiled,
+                    DoctorGpuStatus::CudaUnavailable,
+                    forced_ordinal.is_none().then_some(EffectiveEmbedDevice::Cpu),
+                    devices,
+                    None,
+                    Some(DeviceResolutionReason::NoVisibleCudaDevice),
+                ),
+                Ok(_) | Err(CudaProbeError::ProbeFailed { .. }) => diagnostic(
+                    policy,
+                    cuda_compiled,
+                    DoctorGpuStatus::ProbeFailed,
+                    forced_ordinal.is_none().then_some(EffectiveEmbedDevice::Cpu),
+                    devices,
+                    None,
+                    Some(DeviceResolutionReason::CudaProbeFailed),
+                ),
             }
         }
     }

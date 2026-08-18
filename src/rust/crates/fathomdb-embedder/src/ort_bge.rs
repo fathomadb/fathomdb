@@ -30,13 +30,12 @@ use ort::value::Tensor;
 use tokenizers::{Tokenizer, TruncationParams};
 
 use crate::{
-    resolve_embed_device_policy_from_env, CudaDeviceInfo, CudaProbeError, CudaProvider,
-    DeviceResolution, DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy,
-    EmbedDevicePolicyError,
+    CudaDeviceInfo, DeviceResolution, DeviceResolutionError, DeviceResolutionReason,
+    EffectiveEmbedDevice, EmbedDevicePolicy, EmbedDevicePolicyError,
 };
 
 #[cfg(test)]
-use crate::{resolve_embed_device_policy, DeviceResolutionError};
+use crate::{resolve_embed_device_policy, CudaProvider};
 
 /// Engine-facing identity name. Deliberately DISTINCT from the candle default
 /// (`fathomdb-bge-small-en-v1.5`) so the engine's identity check enforces the
@@ -97,40 +96,62 @@ impl OrtProvider {
 /// when it answers `is_available`. The selected ordinal is carried through
 /// both stages: this probe verifies the CUDA EP can load, and session
 /// construction records a later ordinal/runtime failure in the resolution.
+trait OrtCudaAvailability {
+    fn is_available(&mut self, ordinal: usize) -> Result<bool, String>;
+}
+
 struct OrtCudaProvider;
 
-impl CudaProvider for OrtCudaProvider {
-    fn enumerate_visible_cuda_devices(
-        &mut self,
-    ) -> Result<Vec<crate::CudaVisibleDevice>, CudaProbeError> {
-        // ORT's availability API has no CUDA-driver inventory/UUID binding.
-        // The supported `doctor gpu` path uses Candle's `embed-cuda` provider;
-        // an ORT caller carries its independently constructed resolution.
-        Err(CudaProbeError::ProbeFailed {
-            message: "ONNX Runtime does not expose CUDA visible-device UUID inventory".to_owned(),
-        })
-    }
-
-    fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError> {
-        let device_id = i32::try_from(ordinal).map_err(|_| CudaProbeError::ProbeFailed {
-            message: format!("CUDA ordinal {ordinal} cannot be represented by ONNX Runtime"),
-        })?;
-        if CUDAExecutionProvider::default()
+impl OrtCudaAvailability for OrtCudaProvider {
+    fn is_available(&mut self, ordinal: usize) -> Result<bool, String> {
+        let device_id = i32::try_from(ordinal)
+            .map_err(|_| format!("CUDA ordinal {ordinal} cannot be represented by ONNX Runtime"))?;
+        CUDAExecutionProvider::default()
             .with_device_id(device_id)
             .is_available()
-            .unwrap_or(false)
-        {
-            Ok(CudaDeviceInfo {
-                ordinal,
-                uuid: None,
-                name: None,
-                driver_version: None,
-                compute_capability: None,
-                cuda_toolkit_version: None,
-            })
-        } else {
-            Err(CudaProbeError::NoVisibleDevice)
+            .map_err(|error| error.to_string())
+    }
+}
+
+fn resolve_ort_device_policy_with_availability(
+    policy: EmbedDevicePolicy,
+    availability: &mut dyn OrtCudaAvailability,
+) -> Result<DeviceResolution, DeviceResolutionError> {
+    let ordinal = match policy {
+        EmbedDevicePolicy::Cpu => {
+            return Ok(ort_device_resolution(policy, EffectiveEmbedDevice::Cpu, None));
         }
+        EmbedDevicePolicy::Auto => 0,
+        EmbedDevicePolicy::Cuda(ordinal) => ordinal,
+    };
+
+    let reason = match availability.is_available(ordinal) {
+        Ok(true) => {
+            return Ok(ort_device_resolution(
+                policy,
+                EffectiveEmbedDevice::Cuda(CudaDeviceInfo {
+                    ordinal,
+                    uuid: None,
+                    name: None,
+                    driver_version: None,
+                    compute_capability: None,
+                    cuda_toolkit_version: None,
+                }),
+                None,
+            ));
+        }
+        Ok(false) => DeviceResolutionReason::NoVisibleCudaDevice,
+        Err(_) => DeviceResolutionReason::CudaProbeFailed,
+    };
+
+    match policy {
+        EmbedDevicePolicy::Auto => {
+            Ok(ort_device_resolution(policy, EffectiveEmbedDevice::Cpu, Some(reason)))
+        }
+        EmbedDevicePolicy::Cuda(ordinal) => {
+            Err(DeviceResolutionError::ForcedCudaUnavailable { ordinal, reason })
+        }
+        EmbedDevicePolicy::Cpu => unreachable!("explicit CPU returns before probing"),
     }
 }
 
@@ -142,6 +163,21 @@ fn resolve_ort_device_policy_with(
     resolve_embed_device_policy(policy, true, provider)
 }
 
+fn ort_device_resolution(
+    requested_policy: EmbedDevicePolicy,
+    effective_device: EffectiveEmbedDevice,
+    reason: Option<DeviceResolutionReason>,
+) -> DeviceResolution {
+    DeviceResolution {
+        requested_policy,
+        cuda_compiled: true,
+        effective_device,
+        visible_cuda_devices: Vec::new(),
+        selected_cuda_uuid: None,
+        reason,
+    }
+}
+
 fn ort_provider_from_resolution(resolution: &DeviceResolution) -> OrtProvider {
     match &resolution.effective_device {
         EffectiveEmbedDevice::Cpu => OrtProvider::Cpu,
@@ -151,8 +187,11 @@ fn ort_provider_from_resolution(resolution: &DeviceResolution) -> OrtProvider {
 
 fn resolve_ort_device_policy_from_env(
 ) -> Result<(EmbedDevicePolicy, DeviceResolution), EmbedDevicePolicyError> {
+    let raw = std::env::var("FATHOMDB_EMBED_DEVICE").unwrap_or_else(|_| "auto".to_owned());
+    let policy = raw.parse().map_err(EmbedDevicePolicyError::InvalidPolicy)?;
     let mut provider = OrtCudaProvider;
-    let resolution = resolve_embed_device_policy_from_env(true, &mut provider)?;
+    let resolution = resolve_ort_device_policy_with_availability(policy, &mut provider)
+        .map_err(EmbedDevicePolicyError::Resolution)?;
     Ok((resolution.requested_policy, resolution))
 }
 

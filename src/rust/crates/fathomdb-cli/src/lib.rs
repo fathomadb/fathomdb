@@ -606,8 +606,16 @@ fn run_doctor(cmd: DoctorCommand) -> i32 {
 /// Run the database-free CUDA inventory/allocation-probe diagnostic.
 fn run_doctor_gpu(args: GpuDoctorArgs) -> i32 {
     let report = product_gpu_diagnostic();
-    print!("{}", doctor_gpu_diagnostic_output(&report, args.json));
-    report.exit_code()
+    let (output, exit_code) = doctor_gpu_outcome(args, &report);
+    print!("{output}");
+    exit_code
+}
+
+fn doctor_gpu_outcome(
+    args: GpuDoctorArgs,
+    report: &fathomdb_embedder::DoctorGpuDiagnosticResult,
+) -> (String, i32) {
+    (doctor_gpu_diagnostic_output(report, args.json), report.exit_code())
 }
 
 fn product_gpu_diagnostic() -> fathomdb_embedder::DoctorGpuDiagnosticResult {

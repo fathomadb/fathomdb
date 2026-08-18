@@ -383,6 +383,13 @@ run_tier_suite fast test-agent-lint-shellcheck-version bash scripts/tests/test_a
 run_tier_suite fast test-agent-lint-shellcheck-gate bash scripts/tests/test_agent_lint_shellcheck_gate.sh
 run_tier_suite fast test-install-shellcheck bash scripts/tests/test_install_shellcheck.sh
 
+# 0.8.23 Slice 80.3: bootstrap.sh must create .venv with a real Python >=3.11
+# interpreter (stdlib tomllib, needed by several gates below), not whatever
+# too-old python3 the OS ships (3.10 on Ubuntu 22.04 / every Jetson).
+run_tier_suite fast test-select-python-for-venv bash scripts/tests/test_select_python_for_venv.sh
+run_tier_suite fast test-create-venv-with-selected-python bash scripts/tests/test_create_venv_with_selected_python.sh
+run_tier_suite fast test-dev-environment-tools bash scripts/tests/test_dev_environment_tools.sh
+
 # Shell lint in CI (0.8.21 Slice 35). Pins the `shell-lint` job's ALWAYS-ON shape
 # (no if:/needs:), its minimal setup, that it GATES rather than advises, and the
 # workflow concurrency group's `main` carve-out — plus the behavioural half: the

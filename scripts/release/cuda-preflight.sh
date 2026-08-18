@@ -29,6 +29,7 @@ if [ "$RERANK_CUDA" = true ]; then
 fi
 DEFAULT_EMBEDDER_HF_HOME="${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}"
 DEFAULT_EMBEDDER_SNAPSHOT="$DEFAULT_EMBEDDER_HF_HOME/hub/models--${CUDA_DEFAULT_EMBEDDER_HF_REPO//\//--}/snapshots/$CUDA_DEFAULT_EMBEDDER_HF_REVISION"
+DEFAULT_RERANKER_CACHE="${FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/fathomdb/reranker/0290849b0459}"
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -70,6 +71,27 @@ if ! {
     "$DEFAULT_EMBEDDER_SNAPSHOT" >&2
   exit 1
 fi
+if [ "$RERANK_CUDA" = true ] && ! {
+  printf '%s  %s/config.json\n' "$CUDA_RERANKER_CONFIG_SHA256" "$DEFAULT_RERANKER_CACHE"
+  printf '%s  %s/tokenizer.json\n' "$CUDA_RERANKER_TOKENIZER_SHA256" "$DEFAULT_RERANKER_CACHE"
+  printf '%s  %s/model.safetensors\n' "$CUDA_RERANKER_MODEL_SHA256" "$DEFAULT_RERANKER_CACHE"
+} | sha256sum --check --status; then
+  printf 'cuda-preflight: pinned TinyBERT reranker cache is absent or differs: %s\n' \
+    "$DEFAULT_RERANKER_CACHE" >&2
+  exit 1
+fi
+if [ "$RERANK_CUDA" = true ]; then
+  [ -d "$DEFAULT_RERANKER_CACHE" ] && [ ! -L "$DEFAULT_RERANKER_CACHE" ] || {
+    printf 'cuda-preflight: pinned TinyBERT reranker cache must be a non-symlink directory\n' >&2
+    exit 1
+  }
+  for name in config.json tokenizer.json model.safetensors; do
+    [ -f "$DEFAULT_RERANKER_CACHE/$name" ] && [ ! -L "$DEFAULT_RERANKER_CACHE/$name" ] || {
+      printf 'cuda-preflight: pinned TinyBERT reranker cache member is absent or symlinked: %s\n' "$name" >&2
+      exit 1
+    }
+  done
+fi
 
 WORK_ROOT="$(mktemp -d)"
 trap 'rm -rf "$WORK_ROOT"' EXIT
@@ -86,6 +108,10 @@ mkdir -p "$WORK_DIR/python-dist" "$WORK_DIR/python-unpacked" "$WORK_DIR/cache" "
   printf 'cuda_compute_cap=%s\n' "$CUDA_COMPUTE_CAP"
   printf 'cuda_napi_features=%s\n' "$CUDA_NAPI_FEATURES"
   printf 'cuda_python_features=%s\n' "$CUDA_PYTHON_FEATURES"
+  printf 'rerank_cuda=%s\n' "$RERANK_CUDA"
+  if [ "$RERANK_CUDA" = true ]; then
+    printf 'reranker_cache=%s\n' "$DEFAULT_RERANKER_CACHE"
+  fi
   printf 'cuda_manylinux_image=%s\n' "$CUDA_MANYLINUX_IMAGE"
   printf 'cuda_manylinux_python=%s\n' "$CUDA_MANYLINUX_PYTHON"
   printf '\n[nvidia-smi]\n'; nvidia-smi --query-gpu=index,uuid,name,driver_version --format=csv,noheader
@@ -212,6 +238,15 @@ MODEL_ENV=(
   -e HOME=/fathomdb-unavailable-home
   -e TMPDIR=/fathomdb-tmp
 )
+RERANKER_MOUNT=()
+RERANKER_ENV=()
+if [ "$RERANK_CUDA" = true ]; then
+  RERANKER_MOUNT=(--mount "type=bind,src=$DEFAULT_RERANKER_CACHE,dst=/fathomdb-reranker-cache,readonly")
+  RERANKER_ENV=(
+    -e FATHOMDB_RERANKER_CACHE=/fathomdb-reranker-cache
+    -e FATHOMDB_CUDA_REHEARSAL_RERANK=true
+  )
+fi
 printf 'cuda-preflight: prove the installed Python wheel defaults to CPU in a driverless container\n'
 docker run --rm --network none \
   --mount "type=bind,src=$WHEEL,dst=/input/fathomdb.whl,readonly" \
@@ -219,6 +254,7 @@ docker run --rm --network none \
   --mount "type=bind,src=$WORK_DIR/cache/driverless_python,dst=/fathomdb-product-cache" \
   --mount "type=bind,src=$WORK_DIR/tmp/driverless_python,dst=/fathomdb-tmp" \
   "${MODEL_ENV[@]}" \
+  "${RERANKER_MOUNT[@]}" "${RERANKER_ENV[@]}" \
   "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
   env -u FATHOMDB_EMBED_DEVICE -u FATHOMDB_RERANK_DEVICE -u CUDA_VISIBLE_DEVICES -u NVIDIA_VISIBLE_DEVICES -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES -u HUGGINGFACE_HUB_CACHE -u TRANSFORMERS_CACHE -u FATHOMDB_EMBEDDER_CACHE_DIR sh -ceu '
     test ! -e /dev/nvidiactl
@@ -232,6 +268,10 @@ with tempfile.TemporaryDirectory(dir="/fathomdb-tmp") as directory:
     assert engine.open_report().embedder_device_resolution.effective_device.kind == "cpu"
     assert len(engine.embed("driverless Python CPU fallback proof")) == 384
     engine.close()
+if __import__("os").environ.get("FATHOMDB_CUDA_REHEARSAL_RERANK") == "true":
+    from fathomdb import rerank
+    result = rerank("reranker CPU proof", [{"id": 1, "body": "TinyBERT CPU inference", "score": 1.0}], 1)
+    assert len(result) == 1 and result[0]["ce_score"] is not None
 print("driverless installed Python CUDA-capable default-embedder CPU smoke: ok")
 PY
   ' | tee "$WORK_DIR/driverless-python-cpu-smoke.txt"
@@ -245,6 +285,7 @@ docker run --rm --network none \
   --mount "type=bind,src=$WORK_DIR/tmp/driverless_napi,dst=/fathomdb-tmp" \
   --mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64,dst=/opt/cuda/lib64,readonly" \
   "${MODEL_ENV[@]}" \
+  "${RERANKER_MOUNT[@]}" "${RERANKER_ENV[@]}" \
   -e LD_LIBRARY_PATH=/opt/cuda/lib64 -e npm_config_cache=/fathomdb-tmp/npm-cache \
   "$CUDA_DRIVERLESS_NODE_IMAGE" \
   env -u FATHOMDB_EMBED_DEVICE -u FATHOMDB_RERANK_DEVICE -u CUDA_VISIBLE_DEVICES -u NVIDIA_VISIBLE_DEVICES -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES -u HUGGINGFACE_HUB_CACHE -u TRANSFORMERS_CACHE -u FATHOMDB_EMBEDDER_CACHE_DIR sh -ceu '
@@ -257,6 +298,11 @@ import { Engine } from "fathomdb";
 const engine = await Engine.open("/fathomdb-tmp/driverless-node.fdb", { useDefaultEmbedder: true });
 if (engine.openReport().embedderDeviceResolution.effectiveDevice.kind !== "cpu") throw new Error("expected CPU fallback");
 if ((await engine.embed("driverless N-API CPU fallback proof")).length !== 384) throw new Error("expected 384-vector");
+if (process.env.FATHOMDB_CUDA_REHEARSAL_RERANK === "true") {
+  await engine.write([{kind: "doc", body: "TinyBERT CPU inference", sourceId: "reranker-cpu-proof"}]);
+  const result = await engine.search("reranker CPU proof", undefined, 1);
+  if (result.results.length !== 1 || result.results[0].ceScore === null) throw new Error("expected installed N-API reranker inference");
+}
 await engine.close();
 console.log("driverless installed N-API CUDA-capable default-embedder CPU smoke: ok");
 JS
@@ -264,6 +310,10 @@ JS
 
 cp "$SCRIPT_DIR/forced-python-open.py" "$WORK_DIR/forced-python-open.py"
 cp "$SCRIPT_DIR/forced-napi-open.mjs" "$WORK_DIR/forced-napi-open.mjs"
+if [ "$RERANK_CUDA" = true ]; then
+  cp "$SCRIPT_DIR/forced-reranker-python.py" "$WORK_DIR/forced-reranker-python.py"
+  cp "$SCRIPT_DIR/forced-reranker-napi.mjs" "$WORK_DIR/forced-reranker-napi.mjs"
+fi
 FORCED_PYTHON_SITE="$WORK_DIR/forced-python-site"
 mkdir "$FORCED_PYTHON_SITE"
 docker run --rm --network none \
@@ -328,6 +378,50 @@ run_forced_napi() {
 
 run_forced_python
 run_forced_napi
+
+run_forced_reranker_python() {
+  local stdout="$WORK_DIR/forced-reranker-python-stdout.txt"
+  local stderr="$WORK_DIR/forced-reranker-python-stderr.txt"
+  set +e
+  docker run --rm --network none \
+    --mount "type=bind,src=$FORCED_PYTHON_SITE,dst=/fathomdb-site,readonly" \
+    --mount "type=bind,src=$WORK_DIR/forced-reranker-python.py,dst=/fathomdb-harness/forced-reranker-python.py,readonly" \
+    -e HOME=/fathomdb-unavailable-home -e TMPDIR=/tmp -e PYTHONPATH=/fathomdb-site -e FATHOMDB_RERANK_DEVICE=cuda:0 \
+    "$CUDA_MANYLINUX_IMAGE" sh -ceu '
+      exec /opt/python/cp311-cp311/bin/python /fathomdb-harness/forced-reranker-python.py
+    ' >"$stdout" 2>"$stderr"
+  local exit_code="$?"
+  set -e
+  [ "$exit_code" -eq 1 ] || {
+    printf 'cuda-preflight: forced Python reranker cuda:0 did not fail with exit 1\n' >&2
+    exit 1
+  }
+}
+
+run_forced_reranker_napi() {
+  local stdout="$WORK_DIR/forced-reranker-napi-stdout.txt"
+  local stderr="$WORK_DIR/forced-reranker-napi-stderr.txt"
+  set +e
+  docker run --rm --network none \
+    --mount "type=bind,src=$WORK_DIR/forced-reranker-napi.mjs,dst=/fathomdb-harness/forced-reranker-napi.mjs,readonly" \
+    --mount "type=bind,src=$FORCED_NAPI_INSTALL/node_modules,dst=/fathomdb-harness/node_modules,readonly" \
+    --mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64,dst=/opt/cuda/lib64,readonly" \
+    -e HOME=/fathomdb-unavailable-home -e TMPDIR=/tmp -e FATHOMDB_RERANK_DEVICE=cuda:0 -e LD_LIBRARY_PATH=/opt/cuda/lib64 \
+    "$CUDA_DRIVERLESS_NODE_IMAGE" sh -ceu '
+      exec node /fathomdb-harness/forced-reranker-napi.mjs
+    ' >"$stdout" 2>"$stderr"
+  local exit_code="$?"
+  set -e
+  [ "$exit_code" -eq 1 ] || {
+    printf 'cuda-preflight: forced N-API reranker cuda:0 did not fail with exit 1\n' >&2
+    exit 1
+  }
+}
+
+if [ "$RERANK_CUDA" = true ]; then
+  run_forced_reranker_python
+  run_forced_reranker_napi
+fi
 
 cat > "$WORK_DIR/gpu-python-smoke.py" <<'PY'
 import json
@@ -449,6 +543,7 @@ seal_gpu_observation "$NAPI_GPU_CONTAINER" napi "$WORK_DIR/gpu-napi-open-report.
 CANDIDATE_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD)"
 export WORK_DIR CANDIDATE_SHA CUDA_DEFAULT_EMBEDDER_HF_REPO CUDA_DEFAULT_EMBEDDER_HF_REVISION RERANK_CUDA
 export CUDA_DEFAULT_EMBEDDER_CONFIG_SHA256 CUDA_DEFAULT_EMBEDDER_TOKENIZER_SHA256 CUDA_DEFAULT_EMBEDDER_MODEL_SHA256
+export CUDA_RERANKER_CONFIG_SHA256 CUDA_RERANKER_TOKENIZER_SHA256 CUDA_RERANKER_MODEL_SHA256
 python3 - <<'PY'
 import hashlib
 import json
@@ -534,6 +629,58 @@ for name in ("driverless_python", "driverless_napi", "gpu_python", "gpu_napi"):
 (root / "smoke-cache-topology.json").write_text(canonical({
     "schema_version": "fathomdb.cuda-smoke-cache-topology/v1", "smokes": smokes,
 }))
+
+if rerank_cuda:
+    reranker_files = {
+        "config.json": os.environ["CUDA_RERANKER_CONFIG_SHA256"],
+        "tokenizer.json": os.environ["CUDA_RERANKER_TOKENIZER_SHA256"],
+        "model.safetensors": os.environ["CUDA_RERANKER_MODEL_SHA256"],
+    }
+    reranker_manifest = {
+        "schema_version": "fathomdb.reranker-cache/v1",
+        "repository": "cross-encoder/ms-marco-TinyBERT-L2-v2",
+        "revision": "81d1926f67cb8eee2c2be17ca9f793c7c3bd20cc",
+        "snapshot_relpath": "fathomdb/reranker/0290849b0459",
+        "files": reranker_files,
+    }
+    (root / "reranker-cache-manifest.json").write_text(canonical(reranker_manifest))
+    reranker_manifest_digest = digest(root / "reranker-cache-manifest.json")
+    for consumer in ("python", "napi"):
+        record = {
+            "schema_version": "fathomdb.cuda-reranker-cpu-smoke/v1",
+            "consumer": consumer,
+            "requested_policy": "auto",
+            "effective_device": "cpu",
+            "reason": "no_visible_cuda_device",
+            "network": "none",
+            "source_imported": False,
+            "rerank_performed": True,
+            "reranker_cache_manifest_sha256": reranker_manifest_digest,
+            "reranker_cache_read_only": True,
+            "reranker_device_environment": "unset",
+        }
+        (root / f"reranker-{consumer}-cpu-smoke.json").write_text(canonical(record))
+    for consumer in ("python", "napi"):
+        stdout = root / f"forced-reranker-{consumer}-stdout.txt"
+        stderr = root / f"forced-reranker-{consumer}-stderr.txt"
+        record = {
+            "schema_version": "fathomdb.cuda-forced-reranker-failure/v1",
+            "consumer": consumer,
+            "requested_policy": "cuda:0",
+            "cuda_compiled": True,
+            "visible_devices": [],
+            "status": "cuda_unavailable",
+            "effective_device": None,
+            "reason": "no_visible_cuda_device",
+            "provenance": "installed_candidate",
+            "command": f"installed_{consumer}_engine_open",
+            "exit_code": 1,
+            "stdout_filename": stdout.name,
+            "stdout_sha256": digest(stdout),
+            "stderr_filename": stderr.name,
+            "stderr_sha256": digest(stderr),
+        }
+        (root / f"forced-reranker-{consumer}.json").write_text(canonical(record))
 PY
 
 EVIDENCE_NAMES=(
@@ -547,6 +694,15 @@ EVIDENCE_NAMES=(
   forced-cuda-unavailable-python-stdout.txt forced-cuda-unavailable-python-stderr.txt
   forced-cuda-unavailable-napi-stdout.txt forced-cuda-unavailable-napi-stderr.txt
 )
+if [ "$RERANK_CUDA" = true ]; then
+  EVIDENCE_NAMES+=(
+    reranker-cache-manifest.json reranker-python-cpu-smoke.json reranker-napi-cpu-smoke.json
+    forced-reranker-python.json forced-reranker-napi.json
+    forced-reranker-python-stdout.txt forced-reranker-python-stderr.txt
+    forced-reranker-napi-stdout.txt forced-reranker-napi-stderr.txt
+    forced-reranker-python.py forced-reranker-napi.mjs
+  )
+fi
 mkdir "$OUTPUT_DIR"
 for name in "${EVIDENCE_NAMES[@]}"; do
   [ -f "$WORK_DIR/$name" ] && [ -s "$WORK_DIR/$name" ] || {

@@ -7,10 +7,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$SCRIPT_DIR/cuda-artifact-contract.sh"
 
 usage() {
-  printf 'usage: %s --python-wheel FILE --npm-main FILE --napi-platform FILE --cli-archive FILE --model-cache-manifest FILE --hf-home DIR --smoke-dir DIR\n' "$0" >&2
+  printf 'usage: %s --python-wheel FILE --npm-main FILE --napi-platform FILE --cli-archive FILE --model-cache-manifest FILE --hf-home DIR --smoke-dir DIR [--reranker-cache-manifest FILE]\n' "$0" >&2
 }
 
-python_wheel='' npm_main='' napi_platform='' cli_archive='' model_cache_manifest='' hf_home='' smoke_dir=''
+python_wheel='' npm_main='' napi_platform='' cli_archive='' model_cache_manifest='' hf_home='' smoke_dir='' reranker_cache_manifest=''
 while [ "$#" -gt 0 ]; do
   [ "$#" -ge 2 ] || { usage; exit 2; }
   case "$1" in
@@ -21,6 +21,7 @@ while [ "$#" -gt 0 ]; do
     --model-cache-manifest) model_cache_manifest="$2" ;;
     --hf-home) hf_home="$2" ;;
     --smoke-dir) smoke_dir="$2" ;;
+    --reranker-cache-manifest) reranker_cache_manifest="$2" ;;
     *) usage; exit 2 ;;
   esac
   shift 2
@@ -31,6 +32,9 @@ done
 for path in "$python_wheel" "$npm_main" "$napi_platform" "$cli_archive" "$model_cache_manifest"; do
   [ -f "$path" ] && [ ! -L "$path" ] || { printf 'cuda-package-smoke: package input is absent or symlinked: %s\n' "$path" >&2; exit 1; }
 done
+if [ -n "$reranker_cache_manifest" ]; then
+  [ -f "$reranker_cache_manifest" ] && [ ! -L "$reranker_cache_manifest" ] || { printf 'cuda-package-smoke: reranker cache manifest is absent or symlinked\n' >&2; exit 1; }
+fi
 [ ! -e "$smoke_dir" ] || { printf 'cuda-package-smoke: smoke directory must be new: %s\n' "$smoke_dir" >&2; exit 1; }
 [ -d "$hf_home" ] && [ ! -L "$hf_home" ] || { printf 'cuda-package-smoke: pinned embedder cache must be a non-symlink directory\n' >&2; exit 1; }
 python_wheel_abs="$(realpath -- "$python_wheel")"
@@ -38,6 +42,10 @@ npm_main_abs="$(realpath -- "$npm_main")"
 napi_platform_abs="$(realpath -- "$napi_platform")"
 cli_archive_abs="$(realpath -- "$cli_archive")"
 model_cache_manifest_abs="$(realpath -- "$model_cache_manifest")"
+reranker_cache_manifest_abs=''
+if [ -n "$reranker_cache_manifest" ]; then
+  reranker_cache_manifest_abs="$(realpath -- "$reranker_cache_manifest")"
+fi
 hf_home_abs="$(realpath -- "$hf_home")"
 python3 - "$hf_home_abs" "$model_cache_manifest_abs" <<'PY'
 import hashlib, json, sys
@@ -55,6 +63,30 @@ for name, expected in manifest["files"].items():
     if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
         raise SystemExit(f"cuda-package-smoke: HF seed member differs: {name}")
 PY
+if [ -n "$reranker_cache_manifest_abs" ]; then
+  python3 - "$reranker_cache_manifest_abs" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+value = json.loads(path.read_bytes())
+expected = {
+    "schema_version": "fathomdb.reranker-cache/v1",
+    "repository": "cross-encoder/ms-marco-TinyBERT-L2-v2",
+    "revision": "81d1926f67cb8eee2c2be17ca9f793c7c3bd20cc",
+    "snapshot_relpath": "fathomdb/reranker/0290849b0459",
+    "files": {
+        "config.json": "2144195e107cd7ea61556478e7add12986ebfbc3085f924fc0b90c2410604879",
+        "tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+        "model.safetensors": "a0e7364ddf91ff7028f1102e1b91ac7a72e3db4061241bd84efe45c72c9af03a",
+    },
+}
+canonical = json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("ascii") + b"\n"
+if path.read_bytes() != canonical or value != expected:
+    raise SystemExit("cuda-package-smoke: reranker cache manifest differs from the fixed TinyBERT seed")
+PY
+fi
 for command in docker nvidia-smi; do
   command -v "$command" >/dev/null || { printf 'cuda-package-smoke: missing %s\n' "$command" >&2; exit 1; }
 done
@@ -126,6 +158,41 @@ record = {
 PY
 }
 
+write_reranker_cli_doctor_record() {
+  python3 - "$smoke_dir" "$cli_archive_abs" <<'PY'
+import hashlib, json, re, sys
+from pathlib import Path
+
+root, archive = map(Path, sys.argv[1:])
+match = re.fullmatch(r"fathomdb-([0-9]+\.[0-9]+\.[0-9]+)-x86_64-unknown-linux-gnu\.tar\.gz", archive.name)
+if match is None:
+    raise SystemExit("cuda-package-smoke: invalid CLI archive coordinate")
+version = match.group(1)
+raw = (root / "reranker-cli-doctor-stdout.json").read_bytes()
+doctor = json.loads(raw)
+if raw != json.dumps(doctor, ensure_ascii=True, separators=(",", ":")).encode("ascii") + b"\n":
+    raise SystemExit("cuda-package-smoke: reranker doctor output is not canonical JSON")
+record = {
+    "schema_version": "fathomdb.cuda-reranker-cli-doctor/v1",
+    "consumer": "cli",
+    "archive_filename": archive.name,
+    "archive_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
+    "target": "x86_64-unknown-linux-gnu",
+    "argv": [f"/fathomdb-cli/fathomdb-{version}-x86_64-unknown-linux-gnu/fathomdb", "doctor", "reranker-gpu", "--json"],
+    "requested_policy": "auto",
+    "environment": {},
+    "isolation": {"database_opened": False, "model_loaded": False, "network": "none", "source_checkout_mounted": False},
+    "evidence_provenance": "installed_candidate",
+    "exit_code": 0,
+    "doctor_output_filename": "reranker-cli-doctor-stdout.json",
+    "doctor_output_sha256": hashlib.sha256(raw).hexdigest(),
+    "effective_device": doctor["effective_device"],
+    "reason": doctor["reason"],
+}
+(root / "reranker-cli-doctor.json").write_text(json.dumps(record, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+PY
+}
+
 # These commands mount only retained artifact bytes. The host checkout is
 # never mounted; env -i and --network none prevent ambient package/download or
 # device-selector inputs from satisfying a CPU-default smoke.
@@ -180,6 +247,7 @@ for mode in cpu forced-cuda-unavailable; do
     --mount "type=bind,src=$cli_archive_abs,dst=/input/fathomdb-cli.tar.gz,readonly" \
     --mount "type=bind,src=$smoke_dir_abs,dst=/evidence" \
     "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
+    # FATHOMDB_RERANK_DEVICE is absent under env -i: the product's unset=auto path is the evidence.
     env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable \
       "${doctor_env[@]}" sh -ceu '
         mkdir /fathomdb-cli
@@ -192,6 +260,24 @@ for mode in cpu forced-cuda-unavailable; do
   [ "$observed" -eq "$expected" ] || { printf 'cuda-package-smoke: CLI %s exit %s, expected %s\n' "$mode" "$observed" "$expected" >&2; exit 1; }
   write_cli_record "$mode" "$policy" "$ordinal" "$observed" "$env_present"
 done
+
+if [ -n "$reranker_cache_manifest_abs" ]; then
+  set +e
+  docker run --rm --network none \
+    --mount "type=bind,src=$cli_archive_abs,dst=/input/fathomdb-cli.tar.gz,readonly" \
+    "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
+    env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable \
+      sh -ceu '
+        mkdir /fathomdb-cli
+        tar -xzf /input/fathomdb-cli.tar.gz -C /fathomdb-cli
+        binary="$(find /fathomdb-cli -mindepth 2 -maxdepth 2 -type f -name fathomdb -print -quit)"
+        exec "$binary" doctor reranker-gpu --json
+      ' > "$smoke_dir/reranker-cli-doctor-stdout.json"
+  observed=$?
+  set -e
+  [ "$observed" -eq 0 ] || { printf 'cuda-package-smoke: reranker CLI doctor exit %s, expected 0\n' "$observed" >&2; exit 1; }
+  write_reranker_cli_doctor_record
+fi
 
 gpu_index=0
 gpu_csv="$(nvidia-smi --id="$gpu_index" --query-gpu=uuid,name,driver_version --format=csv,noheader)"

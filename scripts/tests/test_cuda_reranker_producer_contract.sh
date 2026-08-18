@@ -10,7 +10,7 @@ SMOKE="$ROOT/scripts/release/cuda-package-rehearsal-smoke.sh"
 need() {
   local file="$1" text="$2"
   grep -Fq -- "$text" "$file" || {
-    printf 'FAIL  %s must contain %s\n' "${file#$ROOT/}" "$text" >&2
+    printf 'FAIL  %s must contain %s\n' "${file#"$ROOT"/}" "$text" >&2
     exit 1
   }
 }

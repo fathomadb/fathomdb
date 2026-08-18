@@ -45,6 +45,7 @@ use fathomdb::{
     RebuildReport, SafeExportArtifact, SchemaObject, Section, TraceReport, TruncateWalReport,
     TruncateWalStatus, VerifyEmbedderReport, VerifyEmbedderStatus,
 };
+use serde::Serialize;
 use serde_json::{json, Value};
 
 /// Stable exit-code classes for the operator CLI.
@@ -605,18 +606,7 @@ fn run_doctor(cmd: DoctorCommand) -> i32 {
 /// Run the database-free CUDA inventory/allocation-probe diagnostic.
 fn run_doctor_gpu(args: GpuDoctorArgs) -> i32 {
     let report = product_gpu_diagnostic();
-    if args.json {
-        println!("{}", doctor_gpu_diagnostic_json(&report));
-    } else {
-        println!("doctor gpu: {}", report.status.as_str());
-        println!("  policy: {}", report.policy);
-        println!("  cuda compiled: {}", report.cuda_compiled);
-        println!("  effective device: {}", report.effective_device().as_deref().unwrap_or("none"));
-        println!("  visible devices: {}", report.devices.len());
-        if let Some(reason) = report.reason {
-            println!("  reason: {}", reason.as_str());
-        }
-    }
+    print!("{}", doctor_gpu_diagnostic_output(&report, args.json));
     report.exit_code()
 }
 
@@ -657,21 +647,86 @@ fn product_gpu_diagnostic() -> fathomdb_embedder::DoctorGpuDiagnosticResult {
 /// Serialize the stable `doctor gpu --json` result.
 #[must_use]
 pub fn doctor_gpu_diagnostic_json(report: &fathomdb_embedder::DoctorGpuDiagnosticResult) -> Value {
-    json!({
-        "schema_version": "fathomdb.doctor.gpu.v1",
-        "policy": report.policy,
-        "cuda_compiled": report.cuda_compiled,
-        "status": report.status.as_str(),
-        "effective_device": report.effective_device(),
-        "devices": report.devices.iter().map(|device| json!({
-            "visible_ordinal": device.visible_ordinal,
-            "uuid": device.uuid,
-            "name": device.name,
-            "compute_capability": device.compute_capability,
-        })).collect::<Vec<_>>(),
-        "reason": report.reason.map(|reason| reason.as_str()),
-        "selected_uuid": report.selected_uuid,
-    })
+    serde_json::to_value(doctor_gpu_json(report)).expect("doctor gpu fields are serializable")
+}
+
+#[derive(Serialize)]
+struct DoctorGpuJson<'a> {
+    schema_version: &'static str,
+    policy: &'a str,
+    cuda_compiled: bool,
+    status: &'static str,
+    effective_device: Option<String>,
+    devices: Vec<DoctorGpuDeviceJson<'a>>,
+    reason: Option<&'static str>,
+    selected_uuid: Option<&'a str>,
+}
+
+#[derive(Serialize)]
+struct DoctorGpuDeviceJson<'a> {
+    visible_ordinal: usize,
+    uuid: &'a str,
+    name: &'a str,
+    compute_capability: Option<&'a str>,
+}
+
+fn doctor_gpu_json(report: &fathomdb_embedder::DoctorGpuDiagnosticResult) -> DoctorGpuJson<'_> {
+    DoctorGpuJson {
+        schema_version: "fathomdb.doctor.gpu.v1",
+        policy: &report.policy,
+        cuda_compiled: report.cuda_compiled,
+        status: report.status.as_str(),
+        effective_device: report.effective_device(),
+        devices: report
+            .devices
+            .iter()
+            .map(|device| DoctorGpuDeviceJson {
+                visible_ordinal: device.visible_ordinal,
+                uuid: &device.uuid,
+                name: &device.name,
+                compute_capability: device.compute_capability.as_deref(),
+            })
+            .collect(),
+        reason: report.reason.map(|reason| reason.as_str()),
+        selected_uuid: report.selected_uuid.as_deref(),
+    }
+}
+
+fn doctor_gpu_diagnostic_output(
+    report: &fathomdb_embedder::DoctorGpuDiagnosticResult,
+    json_mode: bool,
+) -> String {
+    if json_mode {
+        let mut output =
+            serde_json::to_string(&doctor_gpu_json(report)).expect("doctor gpu fields serialize");
+        output.push('\n');
+        return output;
+    }
+
+    let mut output = format!(
+        "doctor gpu\npolicy={}\ncuda_compiled={}\nstatus={}\neffective_device={}\nreason={}\ndevices={}\n",
+        serde_json::to_string(&report.policy).expect("policy string serializes"),
+        report.cuda_compiled,
+        report.status.as_str(),
+        report.effective_device().as_deref().unwrap_or("null"),
+        report.reason.map_or("null", |reason| reason.as_str()),
+        report.devices.len(),
+    );
+    for device in &report.devices {
+        let device = DoctorGpuDeviceJson {
+            visible_ordinal: device.visible_ordinal,
+            uuid: &device.uuid,
+            name: &device.name,
+            compute_capability: device.compute_capability.as_deref(),
+        };
+        output.push_str("device=");
+        output.push_str(&serde_json::to_string(&device).expect("doctor gpu device serializes"));
+        output.push('\n');
+    }
+    output.push_str("selected_uuid=");
+    output.push_str(report.selected_uuid.as_deref().unwrap_or("null"));
+    output.push('\n');
+    output
 }
 
 /// EU-5b — invoke the default-embedder loader directly (no engine open)
@@ -1646,6 +1701,7 @@ mod tests {
                     .env("HF_HOME", &hf)
                     .env("HF_HUB_CACHE", &hf)
                     .env("FATHOMDB_MODEL_CACHE", &model)
+                    .env("TERMINFO", "/usr/share/terminfo")
                     .env("FATHOMDB_INTERNAL_TEST_DOCTOR_CASE", case.name)
                     .env("FATHOMDB_INTERNAL_TEST_DOCTOR_CAPTURE", &capture);
                 if json_mode {

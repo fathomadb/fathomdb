@@ -65,6 +65,8 @@ fn preflight_visibility_and_failure_receipt_contracts_are_strict() {
         "driver_version",
         "cache_identities",
         "cuda_visible_devices",
+        "started_monotonic_ns",
+        "finished_monotonic_ns",
     ] {
         assert!(retained.contains(field), "failure receipt retains {field}");
     }
@@ -139,6 +141,8 @@ fn stress_watchdog_kills_a_hung_child_before_the_global_ceiling() {
     assert!(receipt.contains("watchdog_timeout"));
     assert!(receipt.contains("\"selected_uuid\": null"));
     assert!(receipt.contains(&child_pid.to_string()));
+    assert!(receipt.contains("\"started_monotonic_ns\": null"));
+    assert!(receipt.contains("\"finished_monotonic_ns\": null"));
 
     let completed_directory = tempfile::tempdir().expect("completed receipt directory");
     let completed = Command::new("true").spawn().expect("start completed child");

@@ -2,7 +2,7 @@
 #![allow(dead_code)] // The deterministic target intentionally exercises only parser/receipt seams.
 
 use std::fs::{self, OpenOptions};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
@@ -30,6 +30,8 @@ static SLICE72_TEST_LOCK: Mutex<()> = Mutex::new(());
 const RUNNER_SENTINEL: &str = "approved-nvidia";
 const STRESS_WATCHDOG_CEILING: std::time::Duration = std::time::Duration::from_secs(120);
 const STRESS_WATCHDOG_CHILD_TEST: &str = "slice72_private_stress_watchdog_child_entrypoint";
+const STRESS_WATCHDOG_CAPABILITY_FD: &str = "FATHOMDB_SLICE72_STRESS_WATCHDOG_FD";
+const STRESS_WATCHDOG_CAPABILITY_BYTES: usize = 32;
 // Kept split solely so the secret scanner does not mistake the public pinned
 // tokenizer-content digest for an API credential.
 const TOKENIZER_SHA256: &str =
@@ -347,10 +349,18 @@ fn phase_order(name: &str) -> u8 {
 /// terminates that whole process if it outlives the non-negotiable 120-second
 /// ceiling, including setup, warm-up, and drain.
 pub fn run_stress_under_watchdog() {
+    #[cfg(unix)]
+    use std::os::fd::AsRawFd;
+
     let current = std::env::current_exe().expect("resolve Slice 72 stress test binary");
     let receipt_directory = std::env::var_os("FATHOMDB_SLICE72_RECEIPT_DIR")
         .map(std::path::PathBuf::from)
         .expect("Slice 72 stress watchdog requires FATHOMDB_SLICE72_RECEIPT_DIR");
+    let (mut parent_capability, child_capability, capability) =
+        stress_watchdog_capability().expect("create Slice 72 watchdog capability");
+    let child_capability_fd = child_capability.as_raw_fd();
+    make_fd_inheritable(child_capability_fd)
+        .expect("make Slice 72 watchdog capability inheritable");
     let mut command = Command::new(current);
     command
         .args([
@@ -360,6 +370,7 @@ pub fn run_stress_under_watchdog() {
             "--nocapture",
             "--test-threads=1",
         ])
+        .env(STRESS_WATCHDOG_CAPABILITY_FD, child_capability_fd.to_string())
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit());
     #[cfg(unix)]
@@ -368,6 +379,8 @@ pub fn run_stress_under_watchdog() {
         command.process_group(0);
     }
     let child = command.spawn().expect("start Slice 72 stress watchdog child");
+    drop(child_capability);
+    parent_capability.write_all(&capability).expect("send Slice 72 watchdog capability to child");
     wait_for_child_with_watchdog_in_process_group(
         child,
         STRESS_WATCHDOG_CEILING,
@@ -375,6 +388,79 @@ pub fn run_stress_under_watchdog() {
         STRESS_WATCHDOG_CHILD_TEST,
     )
     .unwrap_or_else(|error| panic!("Slice 72 stress watchdog failure: {error}"));
+}
+
+/// Consumes the parent-only inherited socket capability. A manually selected
+/// ignored child test has no inherited descriptor and returns before preflight
+/// or GPU work; the token itself is never present in the environment.
+#[must_use]
+pub fn require_stress_watchdog_capability() -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::fd::FromRawFd;
+        use std::os::unix::net::UnixStream;
+
+        let Ok(raw_fd) = std::env::var(STRESS_WATCHDOG_CAPABILITY_FD)
+            .ok()
+            .and_then(|value| value.parse::<std::os::fd::RawFd>().ok())
+            .ok_or(())
+        else {
+            return false;
+        };
+        if raw_fd < 3 {
+            return false;
+        }
+        let mut capability = unsafe { UnixStream::from_raw_fd(raw_fd) };
+        if capability.set_read_timeout(Some(std::time::Duration::from_secs(1))).is_err() {
+            return false;
+        }
+        let mut token = [0_u8; STRESS_WATCHDOG_CAPABILITY_BYTES];
+        capability.read_exact(&mut token).is_ok() && token.iter().any(|byte| *byte != 0)
+    }
+    #[cfg(not(unix))]
+    {
+        false
+    }
+}
+
+#[cfg(unix)]
+fn stress_watchdog_capability() -> Result<
+    (
+        std::os::unix::net::UnixStream,
+        std::os::unix::net::UnixStream,
+        [u8; STRESS_WATCHDOG_CAPABILITY_BYTES],
+    ),
+    String,
+> {
+    let (parent, child) =
+        std::os::unix::net::UnixStream::pair().map_err(|error| error.to_string())?;
+    let mut token = [0_u8; STRESS_WATCHDOG_CAPABILITY_BYTES];
+    std::fs::File::open("/dev/urandom")
+        .and_then(|mut random| random.read_exact(&mut token))
+        .map_err(|error| format!("read watchdog capability entropy: {error}"))?;
+    Ok((parent, child, token))
+}
+
+#[cfg(not(unix))]
+fn stress_watchdog_capability() -> Result<(), String> {
+    Err("Slice 72 stress watchdog requires Unix inherited-FD capability".to_owned())
+}
+
+#[cfg(unix)]
+fn make_fd_inheritable(fd: std::os::fd::RawFd) -> Result<(), String> {
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFD) };
+    if flags < 0 {
+        return Err("read watchdog capability FD flags failed".to_owned());
+    }
+    if unsafe { libc::fcntl(fd, libc::F_SETFD, flags & !libc::FD_CLOEXEC) } < 0 {
+        return Err("make watchdog capability FD inheritable failed".to_owned());
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn make_fd_inheritable(_fd: i32) -> Result<(), String> {
+    Err("Slice 72 stress watchdog requires Unix inherited-FD capability".to_owned())
 }
 
 /// Waits for a child only until the supplied deadline. On expiry it kills and

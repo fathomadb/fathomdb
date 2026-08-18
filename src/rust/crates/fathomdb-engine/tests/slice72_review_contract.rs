@@ -132,3 +132,11 @@ fn direct_stress_entrypoint_has_no_public_watchdog_bypass() {
         "the private child entrypoint must reject direct or broad ignored invocation"
     );
 }
+
+#[test]
+fn private_stress_child_rejects_a_missing_parent_capability() {
+    assert!(
+        !telemetry::require_stress_watchdog_capability(),
+        "broad ignored selection must stop before preflight when the parent socket is absent"
+    );
+}

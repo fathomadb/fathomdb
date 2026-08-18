@@ -77,6 +77,12 @@ fn stress_shared_cuda_device_is_bounded_and_records_outcome() {
 #[test]
 #[ignore = "private Slice 72 stress watchdog child entrypoint"]
 fn slice72_private_stress_watchdog_child_entrypoint() {
+    if !telemetry::require_stress_watchdog_capability() {
+        eprintln!(
+            "PENDING_EXTERNAL Slice 72 private stress child requires parent watchdog capability"
+        );
+        return;
+    }
     let Some(run) = Slice72Run::preflight("stress") else {
         return;
     };

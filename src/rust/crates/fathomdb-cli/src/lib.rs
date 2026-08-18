@@ -1567,36 +1567,83 @@ mod tests {
     }
 
     fn process_report(case: DoctorProcessCase) -> fathomdb_embedder::DoctorGpuDiagnosticResult {
-        let devices = case.inventory.then(|| fathomdb_embedder::CudaVisibleDevice {
+        let visible = fathomdb_embedder::CudaVisibleDevice {
             visible_ordinal: 0,
             uuid: "GPU-a".to_owned(),
             name: "GPU 0".to_owned(),
             compute_capability: Some("8.6".to_owned()),
-        });
-        let effective_device = match case.effective {
-            Some("cpu") => Some(fathomdb_embedder::EffectiveEmbedDevice::Cpu),
-            Some("cuda:0") => Some(fathomdb_embedder::EffectiveEmbedDevice::Cuda(
-                fathomdb_embedder::CudaDeviceInfo {
-                    ordinal: 0,
-                    uuid: Some("GPU-a".to_owned()),
-                    name: Some("GPU 0".to_owned()),
-                    driver_version: None,
-                    compute_capability: Some("8.6".to_owned()),
-                    cuda_toolkit_version: None,
-                },
-            )),
-            None => None,
-            Some(value) => panic!("unexpected effective device {value}"),
         };
-        fathomdb_embedder::DoctorGpuDiagnosticResult {
-            policy: case.policy.to_owned(),
-            cuda_compiled: case.cuda_compiled,
-            status: case.status,
-            effective_device,
-            devices: devices.into_iter().collect(),
-            selected_uuid: case.selected.then(|| "GPU-a".to_owned()),
-            reason: case.reason,
+
+        struct FixtureProvider {
+            inventory: Result<
+                Vec<fathomdb_embedder::CudaVisibleDevice>,
+                fathomdb_embedder::CudaProbeError,
+            >,
+            probe: Result<fathomdb_embedder::CudaDeviceInfo, fathomdb_embedder::CudaProbeError>,
         }
+
+        impl fathomdb_embedder::CudaProvider for FixtureProvider {
+            fn enumerate_visible_cuda_devices(
+                &mut self,
+            ) -> Result<Vec<fathomdb_embedder::CudaVisibleDevice>, fathomdb_embedder::CudaProbeError>
+            {
+                self.inventory.clone()
+            }
+
+            fn probe_cuda(
+                &mut self,
+                _ordinal: usize,
+            ) -> Result<fathomdb_embedder::CudaDeviceInfo, fathomdb_embedder::CudaProbeError>
+            {
+                self.probe.clone()
+            }
+        }
+
+        if case.status == fathomdb_embedder::DoctorGpuStatus::InvalidPolicy {
+            return fathomdb_embedder::DoctorGpuDiagnosticResult::from_invalid_policy(
+                case.policy,
+                case.cuda_compiled,
+            );
+        }
+
+        let classified_error = match case.status {
+            fathomdb_embedder::DoctorGpuStatus::CudaUnavailable => {
+                fathomdb_embedder::CudaProbeError::NoVisibleDevice
+            }
+            fathomdb_embedder::DoctorGpuStatus::CudaIncompatible => {
+                fathomdb_embedder::CudaProbeError::Incompatible {
+                    message: "fixture incompatible".to_owned(),
+                }
+            }
+            _ => fathomdb_embedder::CudaProbeError::ProbeFailed {
+                message: "fixture probe failed".to_owned(),
+            },
+        };
+        let inventory = if case.name.ends_with("-pre") {
+            Err(classified_error.clone())
+        } else if case.inventory {
+            Ok(vec![visible])
+        } else {
+            Ok(Vec::new())
+        };
+        let probe = if case.selected {
+            Ok(fathomdb_embedder::CudaDeviceInfo {
+                ordinal: 0,
+                uuid: Some("GPU-a".to_owned()),
+                name: Some("GPU 0".to_owned()),
+                driver_version: None,
+                compute_capability: Some("8.6".to_owned()),
+                cuda_toolkit_version: None,
+            })
+        } else {
+            Err(classified_error)
+        };
+        let mut provider = FixtureProvider { inventory, probe };
+        fathomdb_embedder::diagnose_gpu(
+            case.policy.parse().expect("valid fixture policy"),
+            case.cuda_compiled,
+            &mut provider,
+        )
     }
 
     fn expected_doctor_json(case: DoctorProcessCase) -> String {
@@ -1658,13 +1705,13 @@ mod tests {
         };
         let case = process_case(&case_name);
         let report = process_report(case);
-        let output = doctor_gpu_diagnostic_output(&report, args.json);
+        let (output, exit_code) = doctor_gpu_outcome(args, &report);
         std::fs::write(
             std::env::var("FATHOMDB_INTERNAL_TEST_DOCTOR_CAPTURE").expect("capture path"),
             output,
         )
         .expect("write isolated process capture");
-        std::process::exit(report.exit_code());
+        std::process::exit(exit_code);
     }
 
     #[test]
@@ -1730,6 +1777,33 @@ mod tests {
                     "{} attempted a network connection",
                     case.name
                 );
+                let capture_path = capture.to_string_lossy();
+                for syscall in syscalls.lines() {
+                    let opens_for_mutation = (syscall.contains("open(")
+                        || syscall.contains("openat("))
+                        && ["O_WRONLY", "O_RDWR", "O_CREAT", "O_TRUNC"]
+                            .iter()
+                            .any(|flag| syscall.contains(flag));
+                    let mutates_path = [
+                        "creat(",
+                        "unlink(",
+                        "unlinkat(",
+                        "rename(",
+                        "renameat(",
+                        "renameat2(",
+                        "mkdir(",
+                        "mkdirat(",
+                        "rmdir(",
+                    ]
+                    .iter()
+                    .any(|name| syscall.contains(name));
+                    assert!(
+                        !(opens_for_mutation || mutates_path)
+                            || syscall.contains(capture_path.as_ref()),
+                        "{} mutated the filesystem outside its capture: {syscall}",
+                        case.name,
+                    );
+                }
                 for forbidden in [&home, &xdg, &hf, &model, &database] {
                     assert!(
                         !syscalls.contains(&forbidden.to_string_lossy().into_owned()),

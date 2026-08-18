@@ -1020,6 +1020,7 @@ fn engine_error_code(err: &EngineError) -> &'static str {
         EngineError::Projection => "ProjectionError",
         EngineError::Vector => "VectorError",
         EngineError::Embedder => "EmbedderError",
+        EngineError::RerankerDevicePolicy(_) => "RerankerDevicePolicyError",
         EngineError::EmbedderNotConfigured => "EmbedderNotConfiguredError",
         EngineError::EmbedderRequired(_) => "EmbedderRequiredError",
         EngineError::KindNotVectorIndexed => "KindNotVectorIndexedError",

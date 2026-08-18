@@ -1558,6 +1558,7 @@ type ProjectedTextReaderResponse = Result<SearchResult, SearchReaderError>;
 enum SearchReaderError {
     Sqlite(rusqlite::Error),
     InvalidFilter(String),
+    RerankerDevicePolicy(RerankerDevicePolicyError),
 }
 
 impl From<rusqlite::Error> for SearchReaderError {
@@ -4806,6 +4807,9 @@ pub enum EngineError {
     Vector,
     Embedder,
     EmbedderNotConfigured,
+    /// A forced cross-encoder CUDA policy could not be honored while loading or
+    /// running the reranker. CPU fallback is forbidden for this request.
+    RerankerDevicePolicy(RerankerDevicePolicyError),
     /// Pending projection work requires an embedder that this session did not
     /// configure. Unlike [`Self::EmbedderNotConfigured`], this is a drain-time
     /// configuration outcome: the accepted write remains durable and can be
@@ -4925,6 +4929,7 @@ impl Display for EngineError {
             Self::Vector => write!(f, "vector error"),
             Self::Embedder => write!(f, "embedder error"),
             Self::EmbedderNotConfigured => write!(f, "embedder is not configured"),
+            Self::RerankerDevicePolicy(error) => error.fmt(f),
             Self::EmbedderRequired(required) => write!(
                 f,
                 "{} requires a configured embedder; see {}",
@@ -4991,6 +4996,7 @@ impl EngineError {
             Self::Vector => "VectorError",
             Self::Embedder => "EmbedderError",
             Self::EmbedderNotConfigured => "EmbedderNotConfiguredError",
+            Self::RerankerDevicePolicy(_) => "RerankerDevicePolicyError",
             Self::EmbedderRequired(_) => "EmbedderRequiredError",
             Self::KindNotVectorIndexed => "KindNotVectorIndexedError",
             Self::EmbedderDimensionMismatch { .. } => "EmbedderDimensionMismatchError",
@@ -8457,6 +8463,9 @@ impl Engine {
             Err(SearchReaderError::InvalidFilter(reason)) => {
                 return Err(EngineError::InvalidFilter { reason });
             }
+            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                return Err(EngineError::RerankerDevicePolicy(error));
+            }
             Err(SearchReaderError::Sqlite(err)) => {
                 self.emit_sqlite_internal_error(&err);
                 return Err(EngineError::Storage);
@@ -8517,6 +8526,9 @@ impl Engine {
             Ok(result) => Ok(result),
             Err(SearchReaderError::InvalidFilter(reason)) => {
                 Err(EngineError::InvalidFilter { reason })
+            }
+            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                Err(EngineError::RerankerDevicePolicy(error))
             }
             Err(SearchReaderError::Sqlite(err)) => {
                 self.emit_sqlite_internal_error(&err);
@@ -8963,6 +8975,9 @@ impl Engine {
             // the opaque `no such column` `Storage` error the TOCTOU race produced.
             Err(SearchReaderError::InvalidFilter(reason)) => {
                 return Err(EngineError::InvalidFilter { reason });
+            }
+            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                return Err(EngineError::RerankerDevicePolicy(error));
             }
             Err(SearchReaderError::Sqlite(err)) => {
                 self.emit_sqlite_internal_error(&err);
@@ -12755,11 +12770,27 @@ pub fn rerank_fused(
     alpha: f64,
     pool_n: usize,
 ) -> Vec<SearchHit> {
+    try_rerank_fused(_query, hits.clone(), rerank_depth, alpha, pool_n).unwrap_or(hits)
+}
+
+/// Fallible form of [`rerank_fused`] used by normal engine requests.
+///
+/// The legacy helper keeps the historic soft-fallback signature for pure ranking
+/// callers. Production search and standalone rerank use this path so a forced
+/// CUDA runtime failure remains observable instead of becoming an RRF result.
+#[doc(hidden)]
+pub fn try_rerank_fused(
+    _query: &str,
+    hits: Vec<SearchHit>,
+    rerank_depth: usize,
+    alpha: f64,
+    pool_n: usize,
+) -> Result<Vec<SearchHit>, RerankerDevicePolicyError> {
     // Soft-fallback: depth=0 → identity (byte-identical to old stub). NOTE this
     // early gate is independent of `pool_n`: `rerank_depth == 0, pool_n = 10`
     // does NOT rerank (0.8.5 D4).
     if rerank_depth == 0 {
-        return hits;
+        return Ok(hits);
     }
 
     // Feature-gated CE inference. In the default build (no feature) this block
@@ -12767,8 +12798,8 @@ pub fn rerank_fused(
     // FIX-1: pass `&hits` (borrow) so `hits` remains owned for the soft-fallback path.
     #[cfg(feature = "default-reranker")]
     {
-        if let Some(reranked) = ce_rerank(_query, &hits, rerank_depth, alpha, pool_n) {
-            return reranked;
+        if let Some(reranked) = ce_rerank(_query, &hits, rerank_depth, alpha, pool_n)? {
+            return Ok(reranked);
         }
     }
 
@@ -12779,7 +12810,7 @@ pub fn rerank_fused(
 
     // Model absent (feature off, weights not loaded, or CE returned None) →
     // soft-fallback: return input unchanged.
-    hits
+    Ok(hits)
 }
 
 /// 0.8.2 Slice E2 — standalone CE rerank of a caller-supplied passage list.
@@ -12852,7 +12883,8 @@ pub fn rerank_passages(
     // 0.8.5 — project `(id, score, ce_score)` so the binding can surface the CE
     // score per candidate; `ce_score` is `None` for the identity / out-of-pool path.
     // The projected id is the caller's ordinal (the engine-internal `write_cursor`).
-    Ok(rerank_fused(query, hits, rerank_depth, alpha, pool_n)
+    Ok(try_rerank_fused(query, hits, rerank_depth, alpha, pool_n)
+        .map_err(|error| format!("reranker device policy: {error}"))?
         .into_iter()
         .map(|h| (h.write_cursor, h.score, h.ce_score))
         .collect())
@@ -12875,7 +12907,7 @@ fn ce_rerank(
     _rerank_depth: usize, // 0.8.5: pool sizing moved to `pool_n`; depth gate stays in `rerank_fused`.
     alpha: f64,
     pool_n: usize,
-) -> Option<Vec<SearchHit>> {
+) -> Result<Option<Vec<SearchHit>>, RerankerDevicePolicyError> {
     #[cfg(feature = "tc5-benchmark")]
     tc5_benchmark::record_cross_encoder_route();
     // 0.8.5 (D3) — clamp α to [0,1] silently here so EVERY path (engine search,
@@ -12891,11 +12923,13 @@ fn ce_rerank(
     // nothing to rerank — avoids loading/downloading the ~17 MB model for an
     // empty result set and prevents memoizing a transient load failure.
     if hits.is_empty() {
-        return Some(vec![]);
+        return Ok(Some(vec![]));
     }
 
     // Try to get the loaded model. Returns None when weights are absent.
-    let model = CandleCrossEncoder::try_get_loaded()?;
+    let Some(model) = CandleCrossEncoder::try_get_loaded()? else {
+        return Ok(None);
+    };
 
     // 0.8.5 (D4) — the reranked pool is the top `pool_n` (caller resolves the
     // `unwrap_or(rerank_depth)` default at the binding), clamped to the hit count.
@@ -12912,7 +12946,7 @@ fn ce_rerank(
     // per-pair forwards. The ranking math below (RRF min-max norm, sigmoid,
     // ALPHA blend, sort) is byte-unchanged — only the scoring is batched.
     let bodies: Vec<&str> = top.iter().map(|h| h.body.as_str()).collect();
-    let raw_logits = model.score_batch(_query, &bodies);
+    let raw_logits = model.score_batch(_query, &bodies)?;
 
     let mut scored: Vec<(f64, SearchHit)> = top
         .iter()
@@ -12944,7 +12978,7 @@ fn ce_rerank(
 
     // Append hits beyond rerank_depth in their original RRF order.
     result.extend_from_slice(rest);
-    Some(result)
+    Ok(Some(result))
 }
 
 /// 0.8.1 Slice 10 (R1) / 0.8.2 Slice E1 — CPU TinyBERT-L-2 cross-encoder.
@@ -12973,10 +13007,25 @@ struct CandleCrossEncoder {
 /// been attempted and failed (no weights + no network) — memoized so a failed
 /// load is not retried on every query.
 #[cfg(feature = "default-reranker")]
-fn reranker_singleton() -> Option<&'static fathomdb_embedder::CandleTinyBertReranker> {
-    static CELL: std::sync::OnceLock<Option<fathomdb_embedder::CandleTinyBertReranker>> =
-        std::sync::OnceLock::new();
-    CELL.get_or_init(|| fathomdb_embedder::CandleTinyBertReranker::try_load().ok()).as_ref()
+fn reranker_singleton(
+) -> Result<Option<&'static fathomdb_embedder::CandleTinyBertReranker>, RerankerDevicePolicyError> {
+    enum Singleton {
+        Loaded(fathomdb_embedder::CandleTinyBertReranker),
+        Unavailable,
+        DevicePolicy(RerankerDevicePolicyError),
+    }
+    static CELL: std::sync::OnceLock<Singleton> = std::sync::OnceLock::new();
+    match CELL.get_or_init(|| match fathomdb_embedder::CandleTinyBertReranker::try_load() {
+        Ok(model) => Singleton::Loaded(model),
+        Err(fathomdb_embedder::RerankerLoadError::DevicePolicy(error)) => {
+            Singleton::DevicePolicy(error)
+        }
+        Err(_) => Singleton::Unavailable,
+    }) {
+        Singleton::Loaded(model) => Ok(Some(model)),
+        Singleton::Unavailable => Ok(None),
+        Singleton::DevicePolicy(error) => Err(error.clone()),
+    }
 }
 
 #[cfg(feature = "default-reranker")]
@@ -12984,8 +13033,8 @@ impl CandleCrossEncoder {
     /// Returns a model handle if the reranker is (or can be) loaded, `None`
     /// otherwise. The first call drives the lazy load (cache probe → gated
     /// download); subsequent calls reuse the memoized result.
-    fn try_get_loaded() -> Option<Self> {
-        Some(Self { inner: reranker_singleton()? })
+    fn try_get_loaded() -> Result<Option<Self>, RerankerDevicePolicyError> {
+        Ok(reranker_singleton()?.map(|inner| Self { inner }))
     }
 
     /// Score a (query, passage) pair. Returns the raw cross-encoder logit, or
@@ -13005,10 +13054,17 @@ impl CandleCrossEncoder {
     /// neutralize the entire pool — we fall back to per-pair [`score`](Self::score),
     /// so a single bad pair degrades only its own element to a neutral logit while
     /// the rest keep their real scores. Empty input → empty output (no forward).
-    fn score_batch(&self, query: &str, passages: &[&str]) -> Vec<f64> {
+    fn score_batch(
+        &self,
+        query: &str,
+        passages: &[&str],
+    ) -> Result<Vec<f64>, RerankerDevicePolicyError> {
         match self.inner.score_batch(query, passages) {
-            Ok(logits) => logits.into_iter().map(f64::from).collect(),
-            Err(_) => passages.iter().map(|p| self.score(query, p)).collect(),
+            Ok(logits) => Ok(logits.into_iter().map(f64::from).collect()),
+            Err(_) if self.inner.forced_cuda_runtime_error().is_some() => {
+                Err(self.inner.forced_cuda_runtime_error().expect("checked above"))
+            }
+            Err(_) => Ok(passages.iter().map(|p| self.score(query, p)).collect()),
         }
     }
 }
@@ -14272,7 +14328,8 @@ fn read_search_in_tx(
             exp_confidence = Some(conf_map);
             exp_fused_scores = Some(body_score_map(&fused));
         }
-        rerank_fused(raw_query, fused, rerank_depth, alpha, pool_n)
+        try_rerank_fused(raw_query, fused, rerank_depth, alpha, pool_n)
+            .map_err(SearchReaderError::RerankerDevicePolicy)?
     } else {
         // G9 + G12: RRF-fuse the two ranked branches (keyed on body, vector-first
         // tiebreak) into the unconditional new ranking, recency-reweight (gated,
@@ -14293,7 +14350,8 @@ fn read_search_in_tx(
             exp_confidence = Some(conf_map);
             exp_fused_scores = Some(body_score_map(&fused));
         }
-        rerank_fused(raw_query, fused, rerank_depth, alpha, pool_n)
+        try_rerank_fused(raw_query, fused, rerank_depth, alpha, pool_n)
+            .map_err(SearchReaderError::RerankerDevicePolicy)?
     };
 
     results.truncate(final_limit);

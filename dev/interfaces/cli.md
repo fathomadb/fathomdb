@@ -63,7 +63,7 @@ see that ADR's 2026-06-06 amendment).
 | `dump-row-counts` | `fathomdb doctor dump-row-counts`                                              | `doctor-check-*`                    |
 | `dump-profile`    | `fathomdb doctor dump-profile`                                                 | `doctor-check-*`                    |
 | `gpu`             | `fathomdb doctor gpu [--json]`                                                 | `doctor-gpu` = 0 / 65 / 70          |
-| `reranker-gpu`    | `fathomdb doctor reranker-gpu [--json]`                                        | `0 / 70`                            |
+| `reranker-gpu`    | `fathomdb doctor reranker-gpu [--json]`                                        | `0 / 65 / 70`                       |
 | `recompute-mean`  | `fathomdb doctor recompute-mean <db_path> [--json]`                            | `doctor-check-*` = 0 / 70 / 71      |
 | `dump-mutations`  | `fathomdb doctor dump-mutations <collection> [--after-id <n>] [--limit <n>] [--json] <db_path>` | `0 / 70 / 71`      |
 | `warm-cache`      | `fathomdb doctor warm-cache ...` (EU-5b)                                       | `doctor-check-*`                    |
@@ -93,6 +93,12 @@ record names only cross-encoder policy/device evidence; it never attests
 embedding, SQLite candidate retrieval, exact database scoring, or inference
 over a real model. A typed error object reports malformed/forced policy
 failure. This separation preserves the Slice 70 doctor v1 schema.
+
+With `FATHOMDB_RERANK_DEVICE=cpu`, both text and `--json` exit `0` and emit
+only the reranker v1 record (`effective_device: "cpu"`, empty inventory,
+`reason: null`). Forced-policy/device refusals exit `65`; malformed policy or
+an artifact without the default reranker exits `70`. This command never opens a
+database, loads/downloads a model, or writes its current directory/cache.
 
 Normal `Engine::open` resolution and `doctor gpu` have distinct result mappings.
 Open uses `DeviceResolution`, which may describe automatic CPU selection with a

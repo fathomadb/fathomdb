@@ -195,6 +195,7 @@ fn engine_error_to_napi(err: RustEngineError) -> Error {
         }
         RustEngineError::Vector => typed_error(CODE_VECTOR, "vector error", JsonValue::Null),
         RustEngineError::Embedder => typed_error(CODE_EMBEDDER, "embedder error", JsonValue::Null),
+        RustEngineError::RerankerDevicePolicy(error) => reranker_device_policy_error_to_napi(error),
         RustEngineError::EmbedderNotConfigured => {
             typed_error(CODE_EMBEDDER_NOT_CONFIGURED, "embedder is not configured", JsonValue::Null)
         }
@@ -3056,6 +3057,21 @@ mod tests {
         let envelope: JsonValue = serde_json::from_str(&error.reason).expect("typed envelope");
         assert_eq!(envelope["code"], "FDB_RERANKER_DEVICE_POLICY");
         assert_eq!(envelope["payload"]["kind"], "cuda_not_compiled");
+    }
+
+    #[test]
+    fn reranker_device_policy_query_error_uses_the_same_typed_napi_envelope() {
+        let error = engine_error_to_napi(RustEngineError::RerankerDevicePolicy(
+            fathomdb_embedder::RerankerDevicePolicyError::Resolution(
+                fathomdb_embedder::RerankerDeviceResolutionError::ForcedCudaUnavailable {
+                    ordinal: 1,
+                    reason: fathomdb_embedder::RerankerDeviceResolutionReason::CudaProbeFailed,
+                },
+            ),
+        ));
+        let envelope: JsonValue = serde_json::from_str(&error.reason).expect("typed envelope");
+        assert_eq!(envelope["code"], "FDB_RERANKER_DEVICE_POLICY");
+        assert_eq!(envelope["payload"]["ordinal"], 1);
     }
 
     #[test]

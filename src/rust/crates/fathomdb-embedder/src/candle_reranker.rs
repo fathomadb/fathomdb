@@ -47,8 +47,8 @@ use tokenizers::{Tokenizer, TruncationParams};
 
 use crate::{
     resolve_reranker_device_policy_from_env, CudaDeviceInfo, CudaProbeError, CudaProvider,
-    CudaVisibleDevice, EffectiveRerankerDevice, RerankerDevicePolicyError,
-    RerankerDeviceResolution,
+    CudaVisibleDevice, EffectiveRerankerDevice, RerankerDevicePolicy, RerankerDevicePolicyError,
+    RerankerDeviceResolution, RerankerDeviceResolutionError, RerankerDeviceResolutionReason,
 };
 
 struct RerankerCudaProvider;
@@ -154,6 +154,29 @@ fn device_from_resolution(
             Device::new_cuda(info.ordinal).map_err(RerankerLoadError::ModelDeserialize)
         }
     }
+}
+
+fn forced_cuda_runtime_error(
+    resolution: &RerankerDeviceResolution,
+) -> Option<RerankerDevicePolicyError> {
+    match resolution.requested_policy {
+        RerankerDevicePolicy::Cuda(ordinal) => Some(RerankerDevicePolicyError::Resolution(
+            RerankerDeviceResolutionError::ForcedCudaUnavailable {
+                ordinal,
+                reason: RerankerDeviceResolutionReason::CudaProbeFailed,
+            },
+        )),
+        RerankerDevicePolicy::Auto | RerankerDevicePolicy::Cpu => None,
+    }
+}
+
+fn model_deserialize_error(
+    resolution: &RerankerDeviceResolution,
+    error: candle_core::Error,
+) -> RerankerLoadError {
+    forced_cuda_runtime_error(resolution)
+        .map(RerankerLoadError::DevicePolicy)
+        .unwrap_or(RerankerLoadError::ModelDeserialize(error))
 }
 
 #[cfg(feature = "rerank-cuda")]
@@ -316,6 +339,7 @@ pub struct CandleTinyBertReranker {
     /// `classifier` (128→1) — the relevance logit head.
     classifier: Linear,
     device: Device,
+    resolution: RerankerDeviceResolution,
 }
 
 impl CandleTinyBertReranker {
@@ -371,20 +395,26 @@ impl CandleTinyBertReranker {
                 &device,
             )
         }
-        .map_err(RerankerLoadError::ModelDeserialize)?;
+        .map_err(|error| model_deserialize_error(resolution, error))?;
 
-        let model =
-            BertModel::load(vb.clone(), &config).map_err(RerankerLoadError::ModelDeserialize)?;
+        let model = BertModel::load(vb.clone(), &config)
+            .map_err(|error| model_deserialize_error(resolution, error))?;
         let pooler = linear(
             RERANKER_HIDDEN_SIZE,
             RERANKER_HIDDEN_SIZE,
             vb.pp("bert").pp("pooler").pp("dense"),
         )
-        .map_err(RerankerLoadError::ModelDeserialize)?;
+        .map_err(|error| model_deserialize_error(resolution, error))?;
         let classifier = linear(RERANKER_HIDDEN_SIZE, 1, vb.pp("classifier"))
-            .map_err(RerankerLoadError::ModelDeserialize)?;
+            .map_err(|error| model_deserialize_error(resolution, error))?;
 
-        Ok(Self { tokenizer, model, pooler, classifier, device })
+        Ok(Self { tokenizer, model, pooler, classifier, device, resolution: resolution.clone() })
+    }
+
+    /// The typed forced-CUDA refusal to return if CUDA model execution fails.
+    #[must_use]
+    pub fn forced_cuda_runtime_error(&self) -> Option<RerankerDevicePolicyError> {
+        forced_cuda_runtime_error(&self.resolution)
     }
 
     /// Score a `(query, passage)` pair → the raw cross-encoder relevance logit.

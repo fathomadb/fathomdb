@@ -196,6 +196,15 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
         RustEngineError::Projection => ProjectionError::new_err("projection error"),
         RustEngineError::Vector => VectorError::new_err("vector error"),
         RustEngineError::Embedder => EmbedderError::new_err("embedder error"),
+        RustEngineError::RerankerDevicePolicy(error) => {
+            let exc = RerankerDevicePolicyError::new_err(error.to_string());
+            Python::attach(|py| {
+                let value = exc.value(py);
+                let _ = value.setattr("kind", error.kind());
+                let _ = value.setattr("ordinal", error.ordinal());
+            });
+            exc
+        }
         RustEngineError::EmbedderNotConfigured => {
             EmbedderNotConfiguredError::new_err("embedder is not configured")
         }
@@ -3235,6 +3244,23 @@ mod tests {
                 error.value(py).getattr("kind").unwrap().extract::<String>().unwrap(),
                 "cuda_not_compiled"
             );
+        });
+    }
+
+    #[test]
+    fn reranker_device_policy_query_error_uses_the_same_typed_python_exception() {
+        Python::initialize();
+        Python::attach(|py| {
+            let error = engine_error_to_py(RustEngineError::RerankerDevicePolicy(
+                fathomdb_embedder::RerankerDevicePolicyError::Resolution(
+                    fathomdb_embedder::RerankerDeviceResolutionError::ForcedCudaUnavailable {
+                        ordinal: 1,
+                        reason: fathomdb_embedder::RerankerDeviceResolutionReason::CudaProbeFailed,
+                    },
+                ),
+            ));
+            assert!(error.is_instance_of::<RerankerDevicePolicyError>(py));
+            assert_eq!(error.value(py).getattr("ordinal").unwrap().extract::<usize>().unwrap(), 1);
         });
     }
 

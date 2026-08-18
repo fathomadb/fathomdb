@@ -14,6 +14,7 @@ import {
   CorruptionError,
   DatabaseLockedError,
   EmbedDevicePolicyError,
+  RerankerDevicePolicyError,
   EmbedderDimensionMismatchError,
   EmbedderError,
   EmbedderIdentityMismatchError,
@@ -135,6 +136,28 @@ test("EmbedDevicePolicyError rehydrates the native policy envelope", () => {
       assert.ok(error instanceof EmbedderError);
       assert.equal(error.kind, "cuda_not_compiled");
       assert.equal(error.ordinal, 2);
+      return true;
+    },
+  );
+});
+
+test("RerankerDevicePolicyError rehydrates a forced runtime failure envelope", () => {
+  assert.throws(
+    () =>
+      rethrowTyped(
+        new Error(
+          JSON.stringify({
+            code: "FDB_RERANKER_DEVICE_POLICY",
+            message: "forced CUDA device 1 became unavailable during reranking",
+            payload: { kind: "cuda_probe_failed", ordinal: 1 },
+          }),
+        ),
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof RerankerDevicePolicyError);
+      assert.ok(error instanceof EmbedderError);
+      assert.equal(error.kind, "cuda_probe_failed");
+      assert.equal(error.ordinal, 1);
       return true;
     },
   );

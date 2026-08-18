@@ -214,22 +214,31 @@ pub fn resolve_reranker_device_policy(
             Err(RerankerDeviceResolutionError::CudaNotCompiled { ordinal })
         }
         RerankerDevicePolicy::Auto => match enumerate(provider) {
-            Ok(devices) => match devices.iter().min_by_key(|device| device.visible_ordinal) {
-                Some(device) => match probe(provider, device) {
-                    Ok(info) => {
-                        Ok(selected_resolution(requested_policy, cuda_compiled, devices, info))
+            Ok(devices) if devices.is_empty() => Ok(cpu_resolution(
+                requested_policy,
+                cuda_compiled,
+                devices,
+                Some(RerankerDeviceResolutionReason::NoVisibleCudaDevice),
+            )),
+            Ok(devices) => {
+                let mut ordered = devices.iter().collect::<Vec<_>>();
+                ordered.sort_by_key(|device| device.visible_ordinal);
+                let mut last_reason = RerankerDeviceResolutionReason::NoVisibleCudaDevice;
+                for device in ordered {
+                    match probe(provider, device) {
+                        Ok(info) => {
+                            return Ok(selected_resolution(
+                                requested_policy,
+                                cuda_compiled,
+                                devices,
+                                info,
+                            ));
+                        }
+                        Err(reason) => last_reason = reason,
                     }
-                    Err(reason) => {
-                        Ok(cpu_resolution(requested_policy, cuda_compiled, devices, Some(reason)))
-                    }
-                },
-                None => Ok(cpu_resolution(
-                    requested_policy,
-                    cuda_compiled,
-                    devices,
-                    Some(RerankerDeviceResolutionReason::NoVisibleCudaDevice),
-                )),
-            },
+                }
+                Ok(cpu_resolution(requested_policy, cuda_compiled, devices, Some(last_reason)))
+            }
             Err(reason) => {
                 Ok(cpu_resolution(requested_policy, cuda_compiled, vec![], Some(reason)))
             }

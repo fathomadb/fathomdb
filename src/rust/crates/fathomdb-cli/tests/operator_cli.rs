@@ -96,6 +96,41 @@ fn doctor_gpu_is_database_free_and_emits_one_schema_object() {
     assert!(matches!(output.status.code(), Some(0) | Some(65) | Some(70)));
 }
 
+#[cfg(feature = "default-reranker")]
+#[test]
+fn doctor_reranker_gpu_cpu_subprocess_has_exact_database_free_contract() {
+    let root = tempfile::tempdir().expect("temporary canary root");
+    let json = fathomdb()
+        .args(["doctor", "reranker-gpu", "--json"])
+        .current_dir(root.path())
+        .env("FATHOMDB_RERANK_DEVICE", "cpu")
+        .env("HOME", root.path())
+        .env("XDG_CACHE_HOME", root.path())
+        .output()
+        .expect("spawn reranker doctor JSON");
+    assert_eq!(json.status.code(), Some(0));
+    assert!(json.stderr.is_empty());
+    assert_eq!(
+        String::from_utf8(json.stdout).expect("UTF-8 output"),
+        "{\"cuda_compiled\":false,\"devices\":[],\"effective_device\":\"cpu\",\"policy\":\"cpu\",\"reason\":null,\"schema_version\":\"fathomdb.doctor.reranker-gpu.v1\",\"selected_uuid\":null,\"subsystem\":\"reranker\"}\n"
+    );
+    let text = fathomdb()
+        .args(["doctor", "reranker-gpu"])
+        .current_dir(root.path())
+        .env("FATHOMDB_RERANK_DEVICE", "cpu")
+        .env("HOME", root.path())
+        .env("XDG_CACHE_HOME", root.path())
+        .output()
+        .expect("spawn reranker doctor text");
+    assert_eq!(text.status.code(), Some(0));
+    assert!(text.stderr.is_empty());
+    assert_eq!(
+        String::from_utf8(text.stdout).expect("UTF-8 output"),
+        "{\n  \"cuda_compiled\": false,\n  \"devices\": [],\n  \"effective_device\": \"cpu\",\n  \"policy\": \"cpu\",\n  \"reason\": null,\n  \"schema_version\": \"fathomdb.doctor.reranker-gpu.v1\",\n  \"selected_uuid\": null,\n  \"subsystem\": \"reranker\"\n}\n"
+    );
+    assert!(std::fs::read_dir(root.path()).expect("read canary").next().is_none());
+}
+
 #[test]
 fn t_035d_recover_help_exits_zero() {
     let output = fathomdb().args(["recover", "--help"]).output().expect("spawn");

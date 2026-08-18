@@ -42,3 +42,21 @@ fn rendezvous_is_single_use_and_failure_receipt_is_retained() {
         .expect("failure receipt retained");
     assert!(directory.path().join("slice72-failure-4242.json").is_file());
 }
+
+#[test]
+fn guarded_operation_retains_panics_and_overlap_timestamp_is_inside_the_window() {
+    let directory = tempfile::tempdir().expect("receipt directory");
+    let receipt = Receipt::for_test("guarded", "GPU-selected", 4242);
+    let result = telemetry::run_with_failure_receipt(
+        &receipt,
+        directory.path(),
+        || -> Result<(), &'static str> { Err("typed runtime failure") },
+    );
+    assert!(result.is_err());
+    assert!(directory.path().join("slice72-guarded-4242.json").is_file());
+
+    let rendezvous = ForwardRendezvous::new();
+    assert!(rendezvous.run_contract_fixture().overlaps());
+    let timestamp = rendezvous.active_overlap_sample_timestamp().expect("overlap timestamp");
+    assert!(rendezvous.timestamp_is_within_captured_overlap(timestamp));
+}

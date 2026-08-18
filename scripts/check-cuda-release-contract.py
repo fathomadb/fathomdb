@@ -737,6 +737,14 @@ def main() -> None:
         "forced-cuda-unavailable-python.json",
         "forced-cuda-unavailable-napi.json",
         "smoke-cache-topology.json",
+        '/opt/python/cp311-cp311/bin/python /fathomdb-harness/forced-python-open.py',
+        'src=$FORCED_PYTHON_SITE,dst=/fathomdb-site,readonly',
+        'PYTHONPATH=/fathomdb-site',
+        'src=$WORK_DIR/forced-napi-open.mjs,dst=/fathomdb-harness/forced-napi-open.mjs,readonly',
+        'src=$FORCED_NAPI_INSTALL/node_modules,dst=/fathomdb-harness/node_modules,readonly',
+        'installed Python CUDA artifact GPU smoke: ok',
+        'installed N-API CUDA artifact GPU smoke: ok',
+        'product cache has unexpected files',
         'dst=/fathomdb-hf,readonly',
         'dst=/fathomdb-product-cache',
         'HOME=/fathomdb-unavailable-home',
@@ -755,6 +763,7 @@ def main() -> None:
         'ldd "$PYTHON_EXTENSION" || true',
         'auditwheel show "$WHEEL"',
         '--mount "type=bind,src=$REPO_ROOT,dst=/workspace"',
+        "FORCED_NAPI_HARNESS",
     ):
         if forbidden in preflight:
             fail(f"CUDA preflight must not contain {forbidden!r}")
@@ -789,8 +798,11 @@ def main() -> None:
         fail("CUDA preflight must not use a no-embedder Python smoke")
     if "{ useDefaultEmbedder: false }" in preflight:
         fail("CUDA preflight must not use a no-embedder N-API smoke")
-    if preflight.count('--network none') < 7:
-        fail("CUDA preflight must isolate every auditwheel, driverless, forced-device, and GPU container")
+    if preflight.count('--network none') != 8:
+        fail(
+            "CUDA preflight must isolate the install, auditwheel, driverless, "
+            "forced-device, and GPU containers"
+        )
     if preflight.count(
         '--mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly"'
     ) != 4:

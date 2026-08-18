@@ -10,10 +10,12 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 
-use fathomdb_embedder::{CandleBgeEmbedder, ExplicitCandleDevice};
+use fathomdb_embedder::{
+    tc5_local_asset_directory_identity, CandleBgeEmbedder, ExplicitCandleDevice,
+};
 use fathomdb_embedder_api::{Embedder, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    tc5_benchmark::{VectorStageRequest, VectorStageScope},
+    tc5_benchmark::{RouteObserver, VectorStageRequest, VectorStageScope},
     EmbedderChoice, Engine,
 };
 use serde::{Deserialize, Serialize};
@@ -55,8 +57,11 @@ struct Manifest {
     allowed_top_k: Vec<usize>,
     fixture_digest: String,
     index_digest: String,
+    index_construction_device: String,
     query_digest: String,
     seed_digest: String,
+    runtime_identity: String,
+    build_identity: String,
     cuda_uuid: Option<String>,
 }
 
@@ -92,13 +97,18 @@ trait CacheOnlyEmbedderFactory {
         &self,
         device: &SelectedDevice,
         asset_dir: &Path,
-    ) -> Result<Box<dyn CacheOnlyQueryEmbedder>, FactoryFailure>;
+    ) -> Result<CreatedEmbedder, FactoryFailure>;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum FactoryFailure {
     AssetUnavailable,
     DeviceUnavailable,
+}
+
+struct CreatedEmbedder {
+    embedder: Box<dyn CacheOnlyQueryEmbedder>,
+    observed_cuda_uuid: Option<String>,
 }
 
 trait CacheOnlyQueryEmbedder: Send + Sync {
@@ -125,26 +135,34 @@ impl CacheOnlyQueryEmbedder for CandleBgeEmbedder {
 
 impl CacheOnlyEmbedderFactory for CandleCacheOnlyFactory {
     fn local_asset_identity(&self, asset_dir: &Path) -> Result<String, FactoryFailure> {
-        asset_directory_identity(asset_dir).map_err(|_| FactoryFailure::AssetUnavailable)
+        tc5_local_asset_directory_identity(asset_dir).map_err(|_| FactoryFailure::AssetUnavailable)
     }
 
     fn create(
         &self,
         device: &SelectedDevice,
         asset_dir: &Path,
-    ) -> Result<Box<dyn CacheOnlyQueryEmbedder>, FactoryFailure> {
+    ) -> Result<CreatedEmbedder, FactoryFailure> {
         let device = match device {
             SelectedDevice::Cpu => ExplicitCandleDevice::Cpu,
             SelectedDevice::Cuda(info) => ExplicitCandleDevice::Cuda(info.cuda_ordinal as usize),
         };
-        CandleBgeEmbedder::new_from_local_asset_on_device(asset_dir, device)
-            .map(|embedder| Box::new(embedder) as Box<dyn CacheOnlyQueryEmbedder>)
-            .map_err(|error| match error {
-                fathomdb_embedder::loader::EmbedderLoadError::DeviceUnavailable { .. } => {
-                    FactoryFailure::DeviceUnavailable
-                }
-                _ => FactoryFailure::AssetUnavailable,
-            })
+        let embedder = CandleBgeEmbedder::new_from_local_asset_on_device(asset_dir, device)
+            .map_err(|_| match device {
+                ExplicitCandleDevice::Cuda(_) => FactoryFailure::DeviceUnavailable,
+                ExplicitCandleDevice::Cpu => FactoryFailure::AssetUnavailable,
+            })?;
+        let observed_cuda_uuid = match device {
+            ExplicitCandleDevice::Cpu => None,
+            ExplicitCandleDevice::Cuda(ordinal) => discover_visible_cuda()
+                .map_err(|_| FactoryFailure::DeviceUnavailable)?
+                .into_iter()
+                .find(|visible| visible.cuda_ordinal == ordinal as u32)
+                .map(|visible| visible.uuid)
+                .ok_or(FactoryFailure::DeviceUnavailable)
+                .map(Some)?,
+        };
+        Ok(CreatedEmbedder { embedder: Box::new(embedder), observed_cuda_uuid })
     }
 }
 
@@ -168,6 +186,7 @@ impl Embedder for BoxedEmbedder {
 struct MeasurementResult<'a> {
     version: u32,
     status: &'static str,
+    workload: &'static str,
     resolved_settings_digest: &'a str,
     algorithm: &'static str,
     rerank: &'static str,
@@ -175,11 +194,19 @@ struct MeasurementResult<'a> {
     top_k: usize,
     fixture_digest: &'a str,
     index_digest: &'a str,
+    index_construction_device: &'a str,
     query_digest: &'a str,
     seed_digest: &'a str,
     model_asset_digest: &'a str,
+    runtime_identity: &'a str,
+    build_identity: &'a str,
     selection_digest: &'a str,
     embedding_device: &'a str,
+    cuda_uuid: Option<&'a str>,
+    cuda_pci_bus_id: Option<&'a str>,
+    cuda_name: Option<&'a str>,
+    cuda_driver: Option<&'a str>,
+    cuda_logical_ordinal: Option<u32>,
     candidate_execution: &'a str,
     rerank_execution: &'a str,
     selected_vector_rows: usize,
@@ -198,6 +225,15 @@ struct MeasurementResult<'a> {
     fusion_route_count: u8,
     graph_route_count: u8,
     cross_encoder_route_count: u8,
+}
+
+#[derive(Serialize)]
+struct NonMeasurementResult<'a> {
+    version: u32,
+    status: &'a str,
+    workload: &'static str,
+    error_code: &'a str,
+    resolved_settings_digest: &'a str,
 }
 
 fn main() -> ExitCode {
@@ -282,8 +318,8 @@ fn execute_with_factory(
             spec,
         );
     }
-    let embedder = match factory.create(&selected, asset_dir) {
-        Ok(embedder) => embedder,
+    let created = match factory.create(&selected, asset_dir) {
+        Ok(created) => created,
         Err(FactoryFailure::AssetUnavailable) => {
             return write_nonmeasurement(
                 result_path,
@@ -301,6 +337,15 @@ fn execute_with_factory(
             )
         }
     };
+    if !selected_device_identity_matches(&selected, created.observed_cuda_uuid.as_deref()) {
+        return write_nonmeasurement(
+            result_path,
+            "device_unavailable",
+            "effective_device_identity_mismatch",
+            spec,
+        );
+    }
+    let embedder = created.embedder;
     if embedder.device_label() != selected.logical_label() {
         return write_nonmeasurement(
             result_path,
@@ -343,9 +388,20 @@ fn execute_with_factory(
             top_k: spec.top_k,
             scope: selected_scope,
             expected_vector_rows: manifest.expected_vector_rows,
+            route_observer: RouteObserver::new(),
         })
         .map_err(|_| "benchmark vector-stage execution failed".to_string())?;
-    write_measurement(result_path, spec, manifest, &embedding_device, &stage)
+    write_measurement(result_path, spec, manifest, &selected, &embedding_device, &stage)
+}
+
+fn selected_device_identity_matches(
+    selected: &SelectedDevice,
+    observed_cuda_uuid: Option<&str>,
+) -> bool {
+    match selected {
+        SelectedDevice::Cpu => observed_cuda_uuid.is_none(),
+        SelectedDevice::Cuda(device) => observed_cuda_uuid == Some(device.uuid.as_str()),
+    }
 }
 
 fn parse_args(args: impl Iterator<Item = String>) -> Result<(PathBuf, PathBuf), String> {
@@ -405,8 +461,11 @@ fn validate_resolved_settings_digest(spec: &Spec, manifest: &Manifest) -> Result
         ("allowed_top_k", &canonical_usize_list(&manifest.allowed_top_k)),
         ("fixture_digest", &manifest.fixture_digest),
         ("index_digest", &manifest.index_digest),
+        ("index_construction_device", &manifest.index_construction_device),
         ("query_digest", &manifest.query_digest),
         ("seed_digest", &manifest.seed_digest),
+        ("runtime_identity", &manifest.runtime_identity),
+        ("build_identity", &manifest.build_identity),
         ("scope_kind", &manifest.scope_kind),
         ("selection_digest", &manifest.selection_digest),
         ("cuda_uuid", manifest.cuda_uuid.as_deref().unwrap_or("")),
@@ -444,6 +503,9 @@ fn validate_manifest(manifest: &Manifest, spec: &Spec) -> Result<(), String> {
         ]
         .iter()
         .any(|pin| !is_digest(pin))
+        || manifest.index_construction_device.is_empty()
+        || manifest.runtime_identity.is_empty()
+        || manifest.build_identity.is_empty()
     {
         return Err("qualified manifest pin or range mismatch".into());
     }
@@ -460,7 +522,7 @@ fn select_device(
     let pinned_uuid = pinned_uuid.ok_or("visible CUDA requires a manifest UUID pin")?;
     let matching: Vec<&DeviceInfo> =
         devices.iter().filter(|device| device.uuid == pinned_uuid).collect();
-    if matching.len() != 1 || matching[0].cuda_ordinal != 0 {
+    if devices.len() != 1 || matching.len() != 1 || matching[0].cuda_ordinal != 0 {
         return Err("visible CUDA mapping is ambiguous or does not match the pin".into());
     }
     Ok(SelectedDevice::Cuda(matching[0].clone()))
@@ -480,7 +542,7 @@ fn discover_visible_cuda() -> Result<Vec<DeviceInfo>, String> {
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
         Err(_) => return Err("cannot preflight CUDA visibility".into()),
     };
-    output
+    let physical = output
         .stdout
         .split(|byte| *byte == b'\n')
         .filter(|line| !line.is_empty())
@@ -500,7 +562,47 @@ fn discover_visible_cuda() -> Result<Vec<DeviceInfo>, String> {
                 cuda_ordinal: ordinal as u32,
             })
         })
-        .collect()
+        .collect::<Result<Vec<_>, _>>()?;
+    apply_cuda_visible_devices(&physical, env::var("CUDA_VISIBLE_DEVICES").ok().as_deref())
+}
+
+fn apply_cuda_visible_devices(
+    physical: &[DeviceInfo],
+    visible_mask: Option<&str>,
+) -> Result<Vec<DeviceInfo>, String> {
+    let Some(visible_mask) = visible_mask else {
+        return Ok(physical
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(ordinal, mut device)| {
+                device.cuda_ordinal = ordinal as u32;
+                device
+            })
+            .collect());
+    };
+    if visible_mask.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut visible = Vec::new();
+    for selector in visible_mask.split(',') {
+        if selector.is_empty() {
+            return Err("ambiguous CUDA_VISIBLE_DEVICES mapping".into());
+        }
+        let matched = selector
+            .parse::<usize>()
+            .ok()
+            .and_then(|ordinal| physical.get(ordinal))
+            .or_else(|| physical.iter().find(|device| device.uuid == selector))
+            .ok_or_else(|| "CUDA_VISIBLE_DEVICES does not identify a visible GPU".to_string())?;
+        if visible.iter().any(|device: &DeviceInfo| device.uuid == matched.uuid) {
+            return Err("CUDA_VISIBLE_DEVICES mapping repeats a GPU".into());
+        }
+        let mut device = matched.clone();
+        device.cuda_ordinal = visible.len() as u32;
+        visible.push(device);
+    }
+    Ok(visible)
 }
 
 fn is_digest(value: &str) -> bool {
@@ -513,14 +615,22 @@ fn write_nonmeasurement(
     code: &str,
     spec: &Spec,
 ) -> Result<(), String> {
-    let body = format!("{{\"version\":{RESULT_VERSION},\"status\":\"{status}\",\"error_code\":\"{code}\",\"resolved_settings_digest\":\"{}\"}}", spec.settings_digest);
-    install_new(result, body.as_bytes())
+    let body = serde_json::to_vec(&NonMeasurementResult {
+        version: RESULT_VERSION,
+        status,
+        workload: WORKLOAD,
+        error_code: code,
+        resolved_settings_digest: &spec.settings_digest,
+    })
+    .map_err(|_| "cannot serialize nonmeasurement result".to_string())?;
+    install_new(result, &body)
 }
 
 fn write_measurement(
     result: &Path,
     spec: &Spec,
     manifest: &Manifest,
+    selected: &SelectedDevice,
     embedding_device: &str,
     stage: &fathomdb_engine::tc5_benchmark::VectorStageResult,
 ) -> Result<(), String> {
@@ -533,9 +643,21 @@ fn write_measurement(
     {
         return Err("prohibited route observation".into());
     }
+    let (cuda_uuid, cuda_pci_bus_id, cuda_name, cuda_driver, cuda_logical_ordinal) = match selected
+    {
+        SelectedDevice::Cpu => (None, None, None, None, None),
+        SelectedDevice::Cuda(device) => (
+            Some(device.uuid.as_str()),
+            Some(device.pci_bus_id.as_str()),
+            Some(device.name.as_str()),
+            Some(device.driver.as_str()),
+            Some(device.cuda_ordinal),
+        ),
+    };
     let body = serde_json::to_vec(&MeasurementResult {
         version: RESULT_VERSION,
         status: "measurement_complete",
+        workload: WORKLOAD,
         resolved_settings_digest: &spec.settings_digest,
         algorithm: ALGORITHM,
         rerank: RERANK,
@@ -543,11 +665,19 @@ fn write_measurement(
         top_k: spec.top_k,
         fixture_digest: &manifest.fixture_digest,
         index_digest: &manifest.index_digest,
+        index_construction_device: &manifest.index_construction_device,
         query_digest: &manifest.query_digest,
         seed_digest: &manifest.seed_digest,
         model_asset_digest: &manifest.model_asset_digest,
+        runtime_identity: &manifest.runtime_identity,
+        build_identity: &manifest.build_identity,
         selection_digest: &stage.selection_digest,
         embedding_device,
+        cuda_uuid,
+        cuda_pci_bus_id,
+        cuda_name,
+        cuda_driver,
+        cuda_logical_ordinal,
         candidate_execution: stage.candidate_execution,
         rerank_execution: stage.rerank_execution,
         selected_vector_rows: stage.selected_vector_rows,
@@ -569,19 +699,6 @@ fn write_measurement(
     })
     .map_err(|_| "cannot serialize measurement result".to_string())?;
     install_new(result, &body)
-}
-
-fn asset_directory_identity(asset_dir: &Path) -> Result<String, String> {
-    let fields = ["config.json", "tokenizer.json", "model.safetensors"]
-        .into_iter()
-        .map(|name| {
-            let hash = sha256_file(&asset_dir.join(name))?;
-            Ok((name, hash))
-        })
-        .collect::<Result<Vec<_>, String>>()?;
-    Ok(canonical_digest(
-        &fields.iter().map(|(name, hash)| (*name, hash.as_str())).collect::<Vec<_>>(),
-    ))
 }
 
 fn sha256_file(path: &Path) -> Result<String, String> {
@@ -680,6 +797,7 @@ mod tests {
     struct FakeFactory {
         identity: Result<String, FactoryFailure>,
         created: Result<FakeEmbedder, FactoryFailure>,
+        observed_cuda_uuid: Option<String>,
         calls: Arc<Mutex<Vec<&'static str>>>,
     }
 
@@ -693,11 +811,12 @@ mod tests {
             &self,
             _device: &SelectedDevice,
             _asset_dir: &Path,
-        ) -> Result<Box<dyn CacheOnlyQueryEmbedder>, FactoryFailure> {
+        ) -> Result<CreatedEmbedder, FactoryFailure> {
             self.calls.lock().unwrap().push("create");
-            self.created
-                .clone()
-                .map(|embedder| Box::new(embedder) as Box<dyn CacheOnlyQueryEmbedder>)
+            self.created.clone().map(|embedder| CreatedEmbedder {
+                embedder: Box::new(embedder),
+                observed_cuda_uuid: self.observed_cuda_uuid.clone(),
+            })
         }
     }
 
@@ -731,8 +850,11 @@ mod tests {
             allowed_top_k: vec![10],
             fixture_digest: "0".repeat(64),
             index_digest: "1".repeat(64),
+            index_construction_device: "cpu/sqlite-vec".into(),
             query_digest: digest_text("qualified query"),
             seed_digest: "3".repeat(64),
+            runtime_identity: "tc5-runtime-v1".into(),
+            build_identity: "tc5-build-v1".into(),
             cuda_uuid: None,
         }
     }
@@ -790,8 +912,11 @@ mod tests {
             allowed_top_k: vec![10],
             fixture_digest: "0".repeat(64),
             index_digest: "0".repeat(64),
+            index_construction_device: "cpu/sqlite-vec".into(),
             query_digest: "0".repeat(64),
             seed_digest: "invalid".into(),
+            runtime_identity: "tc5-runtime-v1".into(),
+            build_identity: "tc5-build-v1".into(),
             cuda_uuid: None,
         };
         assert!(validate_manifest(&manifest, &spec).is_err());
@@ -814,6 +939,35 @@ mod tests {
     }
 
     #[test]
+    fn cuda_visible_devices_binds_logical_cuda_zero_to_the_pinned_uuid() {
+        let physical = vec![
+            DeviceInfo {
+                uuid: "GPU-first".into(),
+                pci_bus_id: "0000:01:00.0".into(),
+                name: "first".into(),
+                driver: "driver".into(),
+                cuda_ordinal: 0,
+            },
+            DeviceInfo {
+                uuid: "GPU-pinned".into(),
+                pci_bus_id: "0000:02:00.0".into(),
+                name: "pinned".into(),
+                driver: "driver".into(),
+                cuda_ordinal: 1,
+            },
+        ];
+        let visible = apply_cuda_visible_devices(&physical, Some("GPU-pinned")).unwrap();
+        assert_eq!(visible.len(), 1);
+        assert_eq!(visible[0].cuda_ordinal, 0);
+        assert_eq!(select_device(&visible, Some("GPU-pinned")).unwrap().logical_label(), "cuda:0");
+        assert!(select_device(&physical, Some("GPU-pinned")).is_err());
+        assert!(!selected_device_identity_matches(
+            &SelectedDevice::Cuda(visible[0].clone()),
+            Some("GPU-other")
+        ));
+    }
+
+    #[test]
     fn verified_directory_identity_and_real_embed_probe_precede_measurement() {
         let calls = Arc::new(Mutex::new(Vec::new()));
         let factory = FakeFactory {
@@ -823,6 +977,7 @@ mod tests {
                 probe_result: Ok(vec![0.0; 384]),
                 calls: calls.clone(),
             }),
+            observed_cuda_uuid: None,
             calls: calls.clone(),
         };
         let dir = tempdir().unwrap();
@@ -850,6 +1005,7 @@ mod tests {
                 probe_result: Ok(vec![0.0; 384]),
                 calls: calls.clone(),
             }),
+            observed_cuda_uuid: None,
             calls: calls.clone(),
         };
         let dir = tempdir().unwrap();
@@ -871,6 +1027,7 @@ mod tests {
         let factory = FakeFactory {
             identity: Err(FactoryFailure::AssetUnavailable),
             created: Err(FactoryFailure::AssetUnavailable),
+            observed_cuda_uuid: None,
             calls: calls.clone(),
         };
         let dir = tempdir().unwrap();
@@ -916,13 +1073,17 @@ mod tests {
             },
         };
 
-        write_measurement(&result, &spec, &manifest, "cpu", &stage).unwrap();
+        write_measurement(&result, &spec, &manifest, &SelectedDevice::Cpu, "cpu", &stage).unwrap();
         let output = fs::read_to_string(result).unwrap();
         assert!(output.contains("measurement_complete"));
         assert!(output.contains("\"workload\":\"vector_stage_v1\""));
         assert!(output.contains("index_construction_device"));
         assert!(output.contains("runtime_identity"));
         assert!(output.contains("build_identity"));
+        assert!(output.contains("\"index_construction_device\":\"cpu/sqlite-vec\""));
+        assert!(output.contains("\"runtime_identity\":\"tc5-runtime-v1\""));
+        assert!(output.contains("\"build_identity\":\"tc5-build-v1\""));
+        assert!(output.contains("\"cuda_uuid\":null"));
         assert!(output.contains("candidate_ids_digest"));
         assert!(!output.contains("[101"));
         assert!(!output.contains(",202"));

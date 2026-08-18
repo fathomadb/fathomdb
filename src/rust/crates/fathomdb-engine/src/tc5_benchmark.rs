@@ -4,6 +4,7 @@
 //! result to the companion executable, which hashes it before producing any
 //! external result artifact. It does not call the ordinary search pipeline.
 
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
 use rusqlite::{params, Connection, TransactionBehavior};
@@ -33,7 +34,7 @@ impl VectorStageScope {
 }
 
 /// Immutable request carried only to the dedicated reader-worker route.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct VectorStageRequest {
     /// Query vector created once by the benchmark-selected embedder.
     pub query_vector: Vec<f32>,
@@ -45,6 +46,8 @@ pub struct VectorStageRequest {
     pub scope: VectorStageScope,
     /// Manifest-pinned number of vectors in that selection.
     pub expected_vector_rows: usize,
+    /// Per-request observer proving the dedicated reader-worker route was used.
+    pub route_observer: RouteObserver,
 }
 
 /// Stable rejection reasons for benchmark execution.
@@ -60,6 +63,43 @@ pub enum VectorStageError {
     Storage,
     /// Candidate or top-k cardinality was incomplete.
     IncompleteResults,
+    /// The request-scoped observer did not observe exactly the direct route.
+    ProhibitedRoute,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ObservedRoute {
+    VectorStage,
+}
+
+/// Request-scoped, trap-backed route observer for the TC-5 direct path.
+#[derive(Clone, Debug, Default)]
+pub struct RouteObserver {
+    observed: Arc<Mutex<Vec<ObservedRoute>>>,
+}
+
+impl RouteObserver {
+    /// Creates an empty observer for one vector-stage request.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    fn observe_vector_stage(&self) -> Result<(), VectorStageError> {
+        self.observed
+            .lock()
+            .map_err(|_| VectorStageError::ProhibitedRoute)?
+            .push(ObservedRoute::VectorStage);
+        Ok(())
+    }
+
+    fn attestation(&self) -> Result<RouteAttestation, VectorStageError> {
+        let observed = self.observed.lock().map_err(|_| VectorStageError::ProhibitedRoute)?;
+        if observed.as_slice() != [ObservedRoute::VectorStage] {
+            return Err(VectorStageError::ProhibitedRoute);
+        }
+        Ok(RouteAttestation { vector_stage: 1, ..RouteAttestation::default() })
+    }
 }
 
 /// Route counters make the direct-path boundary inspectable in tests.
@@ -77,6 +117,14 @@ pub struct RouteAttestation {
     pub graph: u8,
     /// Cross-encoder reranking is structurally unreachable from this request.
     pub cross_encoder: u8,
+}
+
+impl RouteAttestation {
+    /// Identifies the request-scoped trap-backed observer that produced this evidence.
+    #[must_use]
+    pub fn observation_source(&self) -> &'static str {
+        "request_scoped_trap"
+    }
 }
 
 /// Materialized, internal vector-stage data for the benchmark executable.
@@ -119,6 +167,7 @@ pub(crate) fn read_vector_stage_in_tx(
     {
         return Err(VectorStageError::InvalidRequest);
     }
+    request.route_observer.observe_vector_stage()?;
     let query = serde_json::to_string(&request.query_vector)
         .map_err(|_| VectorStageError::InvalidRequest)?;
     let tx = reader
@@ -211,7 +260,7 @@ pub(crate) fn read_vector_stage_in_tx(
         ground_truth_elapsed_ns,
         candidate_execution: "cpu/sqlite-vec",
         rerank_execution: "cpu/sqlite-vec",
-        routes: RouteAttestation { vector_stage: 1, ..RouteAttestation::default() },
+        routes: request.route_observer.attestation()?,
     })
 }
 

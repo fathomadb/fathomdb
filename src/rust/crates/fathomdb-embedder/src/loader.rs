@@ -462,6 +462,28 @@ pub fn load_pinned_default_embedder() -> Result<LoadedWeights, EmbedderLoadError
     load_with_config_internal(LoaderConfig::production()?)
 }
 
+/// Verifies a complete local TC-5 asset directory and returns its path-free
+/// content identity without invoking the downloader or reading ambient config.
+#[cfg(feature = "tc5-benchmark")]
+pub fn tc5_local_asset_directory_identity(asset_dir: &Path) -> Result<String, EmbedderLoadError> {
+    let weights = load_pinned_default_embedder_from_local_asset(asset_dir)?;
+    let fields = [
+        ("config.json", weights.config_json_path),
+        ("tokenizer.json", weights.tokenizer_json_path),
+        ("model.safetensors", weights.model_safetensors_path),
+    ];
+    let mut hasher = Sha256::new();
+    for (name, path) in fields {
+        let checksum = sha256_file(&path)
+            .map_err(|source| EmbedderLoadError::CacheIoError { path, source })?;
+        for value in [name, checksum.as_str()] {
+            hasher.update((value.len() as u64).to_be_bytes());
+            hasher.update(value.as_bytes());
+        }
+    }
+    Ok(hasher.finalize().iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
 /// Opens the three pinned default-embedder files from an already-populated
 /// local asset directory.
 ///

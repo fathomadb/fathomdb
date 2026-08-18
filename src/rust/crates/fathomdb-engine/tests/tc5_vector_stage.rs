@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    tc5_benchmark::{VectorStageError, VectorStageRequest, VectorStageScope},
+    tc5_benchmark::{RouteObserver, VectorStageError, VectorStageRequest, VectorStageScope},
     Engine, PreparedWrite, SourceId,
 };
 use tempfile::tempdir;
@@ -45,6 +45,7 @@ fn direct_vector_stage_refuses_manifest_population_drift() {
             top_k: 1,
             scope: VectorStageScope::kind("doc"),
             expected_vector_rows: 3,
+            route_observer: RouteObserver::new(),
         })
         .unwrap_err();
     assert_eq!(error, VectorStageError::SelectionDrift { expected: 3, observed: 2 });
@@ -96,6 +97,7 @@ fn direct_vector_stage_uses_one_scope_and_distinct_truth_route() {
         top_k: 1,
         scope: VectorStageScope::kind("doc"),
         expected_vector_rows: 3,
+        route_observer: RouteObserver::new(),
     };
     let result = engine.tc5_vector_stage(request).unwrap();
     assert_eq!(result.candidate_count, 2);

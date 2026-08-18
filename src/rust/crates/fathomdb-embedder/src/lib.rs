@@ -131,6 +131,8 @@ pub use candle_bge::{
     diagnose_default_embedder_gpu_from_env, resolve_default_embedder_device_from_env,
     CandleBgeEmbedder, Pooling, DEFAULT_EMBEDDER_DIM, DEFAULT_EMBEDDER_NAME,
 };
+#[cfg(feature = "tc5-benchmark")]
+pub use loader::tc5_local_asset_directory_identity;
 #[cfg(feature = "default-embedder")]
 pub use nomic::{NomicEmbedder, NOMIC_DIM};
 

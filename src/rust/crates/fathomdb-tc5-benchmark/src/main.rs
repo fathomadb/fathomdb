@@ -219,7 +219,17 @@ fn run() -> Result<(), String> {
     let manifest = parse_json::<Manifest>(Path::new(&spec.manifest))?;
     validate_manifest(&manifest, &spec)?;
     validate_resolved_settings_digest(&spec, &manifest)?;
-    let visible = discover_visible_cuda()?;
+    let visible = match discover_visible_cuda() {
+        Ok(visible) => visible,
+        Err(_) => {
+            return write_nonmeasurement(
+                &result_path,
+                "device_unavailable",
+                "device_preflight_failed",
+                &spec,
+            )
+        }
+    };
     execute_with_factory(&result_path, &spec, &manifest, &visible, &CandleCacheOnlyFactory)
 }
 

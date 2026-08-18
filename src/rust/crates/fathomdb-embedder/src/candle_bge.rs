@@ -505,3 +505,66 @@ impl CandleBgeEmbedder {
 // The legacy reranker-only parser tests remain in `crate::device`. Strict
 // embedder-policy tests live in `device_policy`; the two controls do not share
 // a grammar or fallback contract.
+
+#[cfg(all(test, feature = "embed-cuda"))]
+mod cuda_probe_error_tests {
+    use super::*;
+    use candle_core::{
+        cuda::{
+            cudarc::{
+                cublas::{result::CublasError, sys::cublasStatus_t},
+                driver::{result::DriverError, sys::CUresult},
+            },
+            CudaError,
+        },
+        Error,
+    };
+
+    #[test]
+    fn driverless_and_known_driver_results_have_stable_classifications() {
+        assert_eq!(classify_cuda_driver_presence(false), Err(CudaProbeError::NoVisibleDevice));
+        assert_eq!(
+            classify_cuda_driver_error(DriverError(CUresult::CUDA_ERROR_NO_DEVICE)),
+            CudaProbeError::NoVisibleDevice
+        );
+        assert_eq!(
+            classify_cuda_driver_error(DriverError(CUresult::CUDA_ERROR_STUB_LIBRARY)),
+            CudaProbeError::NoVisibleDevice
+        );
+        assert!(matches!(
+            classify_cuda_driver_error(DriverError(CUresult::CUDA_ERROR_SYSTEM_DRIVER_MISMATCH)),
+            CudaProbeError::Incompatible { .. }
+        ));
+        assert!(matches!(
+            classify_cuda_driver_error(DriverError(
+                CUresult::CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE
+            )),
+            CudaProbeError::Incompatible { .. }
+        ));
+        assert!(matches!(
+            classify_cuda_driver_error(DriverError(CUresult::CUDA_ERROR_NO_BINARY_FOR_GPU)),
+            CudaProbeError::Incompatible { .. }
+        ));
+        assert!(matches!(
+            classify_cuda_driver_error(DriverError(CUresult::CUDA_ERROR_UNSUPPORTED_PTX_VERSION)),
+            CudaProbeError::Incompatible { .. }
+        ));
+        assert!(matches!(
+            classify_cuda_driver_error(DriverError(CUresult::CUDA_ERROR_OUT_OF_MEMORY)),
+            CudaProbeError::ProbeFailed { .. }
+        ));
+    }
+
+    #[test]
+    fn candle_provider_compatibility_is_not_an_unknown_probe_failure() {
+        let error = Error::Cuda(Box::new(CudaError::Cublas(CublasError(
+            cublasStatus_t::CUBLAS_STATUS_ARCH_MISMATCH,
+        ))));
+        assert!(matches!(classify_candle_cuda_error(error), CudaProbeError::Incompatible { .. }));
+
+        let error = Error::Cuda(Box::new(CudaError::Cublas(CublasError(
+            cublasStatus_t::CUBLAS_STATUS_ALLOC_FAILED,
+        ))));
+        assert!(matches!(classify_candle_cuda_error(error), CudaProbeError::ProbeFailed { .. }));
+    }
+}

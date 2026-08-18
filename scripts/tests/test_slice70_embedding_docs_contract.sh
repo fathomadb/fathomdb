@@ -44,16 +44,19 @@ doctor_matrix_rows=(
 )
 
 require_doctor_matrix() {
-  local file="$1" row index=0
+  local file="$1" row index=0 matrix_output
   local -a actual_rows=()
-  mapfile -t actual_rows < <(
+  matrix_output="$(
     awk '
       /^\| Requested policy \/ observation / { in_matrix = 1; next }
       in_matrix && /^\| --- / { next }
       in_matrix && /^\|/ { print; next }
       in_matrix { exit }
     ' "$file"
-  )
+  )"
+  if [[ -n "$matrix_output" ]]; then
+    mapfile -t actual_rows <<<"$matrix_output"
+  fi
   if [[ "${#actual_rows[@]}" -ne "${#doctor_matrix_rows[@]}" ]]; then
     printf 'Slice 70 doctor matrix in %s has %d rows; expected exactly %d\n' \
       "$file" "${#actual_rows[@]}" "${#doctor_matrix_rows[@]}" >&2

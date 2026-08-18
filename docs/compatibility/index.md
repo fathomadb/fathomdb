@@ -31,6 +31,16 @@ and release jobs.
 aarch64 is published for Python and npm. Do not expect the published npm
 package to install on macOS, Windows, or Linux musl.
 
+**Measured glibc floor: 2.28**, for both the Python wheel and the npm
+platform binary, on both architectures. As of Slice 80.1 the
+`linux-arm64-gnu` npm binding is built inside the same digest-pinned
+`manylinux_2_28` container as the Python wheel (`scripts/release/
+Dockerfile.napi-manylinux`), rather than on the bare CI runner, so this
+number is enforced by `scripts/check-glibc-floor.sh` against the artifact
+actually published — not merely asserted here. This does not cover the
+Jetson/Tegra CUDA artifact (Slice 80.6), which is built host-bound against
+JetPack's own glibc and carries a separately-documented floor.
+
 | OS      | Architecture                | Published prebuilt? |
 | ------- | --------------------------- | ------------------- |
 | Linux   | `x86_64-unknown-linux-gnu`  | **yes** (manylinux 2_28) |

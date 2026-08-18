@@ -21,6 +21,8 @@ platform-tagged `.node` binary at load time.
 - The published `0.8.21` npm package supports Linux
   `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`. Other hosts
   must build from source.
+- Linux glibc floor: **2.28** (both architectures — see
+  [compatibility](../compatibility/index.md)).
 - SQLite + `sqlite-vec` (statically linked into the platform binary).
 
 ## Install the published package

@@ -44,9 +44,28 @@ doctor_matrix_rows=(
 )
 
 require_doctor_matrix() {
-  local file="$1" row
+  local file="$1" row index=0
+  local -a actual_rows=()
+  mapfile -t actual_rows < <(
+    awk '
+      /^\| Requested policy \/ observation / { in_matrix = 1; next }
+      in_matrix && /^\| --- / { next }
+      in_matrix && /^\|/ { print; next }
+      in_matrix { exit }
+    ' "$file"
+  )
+  if [[ "${#actual_rows[@]}" -ne "${#doctor_matrix_rows[@]}" ]]; then
+    printf 'Slice 70 doctor matrix in %s has %d rows; expected exactly %d\n' \
+      "$file" "${#actual_rows[@]}" "${#doctor_matrix_rows[@]}" >&2
+    exit 1
+  fi
   for row in "${doctor_matrix_rows[@]}"; do
-    require "$file" "$row"
+    if [[ "${actual_rows[$index]}" != "$row" ]]; then
+      printf 'Slice 70 doctor matrix row %d differs in %s\nexpected: %s\nactual:   %s\n' \
+        "$((index + 1))" "$file" "$row" "${actual_rows[$index]}" >&2
+      exit 1
+    fi
+    index=$((index + 1))
   done
 }
 
@@ -89,6 +108,13 @@ require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'The semantic m
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'AC70-D3 runs eighteen deterministic process cases'
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'Build target, CUDA toolkit, and driver-version provenance remain Slice 10/20 artifact-witness facts'
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'ONNX uses its dedicated strict provider resolver'
+require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'non-shipping subprocess fixture dispatcher'
+require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'No product binary argument or environment variable selects a fixture.'
+require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '`strace -f` records file and network syscalls'
+require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '`reason` and `selected_uuid` are always present'
+require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'The normative text output is exactly'
+require dev/interfaces/cli.md '`reason` and `selected_uuid` are always present'
+require dev/interfaces/cli.md 'The normative text output is exactly'
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'minimal CUDA'
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'allocation/provider probe.'
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'never performs a model load, download, or'

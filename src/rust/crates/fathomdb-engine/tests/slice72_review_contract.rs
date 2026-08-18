@@ -57,8 +57,15 @@ fn preflight_visibility_and_failure_receipt_contracts_are_strict() {
         .expect("failure receipt");
     let retained = std::fs::read_to_string(directory.path().join("slice72-provenance-4244.json"))
         .expect("failure receipt contents");
-    for field in ["provenance", "sensor", "phases", "summary", "driver_version", "cache_identities"]
-    {
+    for field in [
+        "provenance",
+        "sensor",
+        "phases",
+        "summary",
+        "driver_version",
+        "cache_identities",
+        "cuda_visible_devices",
+    ] {
         assert!(retained.contains(field), "failure receipt retains {field}");
     }
 }
@@ -163,6 +170,15 @@ fn direct_stress_entrypoint_has_no_public_watchdog_bypass() {
     assert!(
         target.contains("require_stress_watchdog_capability"),
         "the private child entrypoint must reject direct or broad ignored invocation"
+    );
+}
+
+#[test]
+fn stress_receipt_captures_the_first_active_overlap_without_backdating() {
+    let support = include_str!("support/slice72_gpu_telemetry.rs");
+    assert!(
+        support.contains("let mut overlap_snapshot = None"),
+        "stress retains a real first-overlap snapshot rather than sampling after the loop"
     );
 }
 

@@ -24,7 +24,7 @@ const WORKLOAD: &str = "vector_stage_v1";
 const ALGORITHM: &str = "bit_knn_f32_rerank_v1";
 const RERANK: &str = "exact_f32";
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 struct Spec {
     version: u32,
@@ -40,7 +40,7 @@ struct Spec {
     settings_digest: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 struct Manifest {
     version: u32,
@@ -641,6 +641,7 @@ fn canonical_digest(fields: &[(&str, &str)]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
     use std::sync::{Arc, Mutex};
     use tempfile::tempdir;
 
@@ -878,5 +879,66 @@ mod tests {
         let output = std::fs::read_to_string(result).unwrap();
         assert!(output.contains("asset_unavailable"));
         assert!(!output.contains("/private/model-cache"));
+    }
+
+    #[test]
+    fn measurement_result_contains_digests_not_internal_row_keys_or_paths() {
+        let dir = tempdir().unwrap();
+        let result = dir.path().join("result.json");
+        let spec = valid_spec();
+        let manifest = valid_manifest("/private/model-cache", &"a".repeat(64));
+        let stage = fathomdb_engine::tc5_benchmark::VectorStageResult {
+            candidates: vec![101, 202],
+            rerank: vec![202],
+            ground_truth: vec![101],
+            candidate_count: 2,
+            selected_vector_rows: 2,
+            selection_digest: manifest.selection_digest.clone(),
+            candidate_elapsed_ns: 0,
+            rerank_elapsed_ns: 0,
+            ground_truth_elapsed_ns: 0,
+            candidate_execution: "cpu/sqlite-vec",
+            rerank_execution: "cpu/sqlite-vec",
+            routes: fathomdb_engine::tc5_benchmark::RouteAttestation {
+                vector_stage: 1,
+                ..Default::default()
+            },
+        };
+
+        write_measurement(&result, &spec, &manifest, "cpu", &stage).unwrap();
+        let output = fs::read_to_string(result).unwrap();
+        assert!(output.contains("measurement_complete"));
+        assert!(output.contains("candidate_ids_digest"));
+        assert!(!output.contains("[101"));
+        assert!(!output.contains(",202"));
+        assert!(!output.contains("/private/model-cache"));
+    }
+
+    proptest! {
+        #[test]
+        fn strict_spec_codec_round_trips_allowlisted_controls(
+            candidate_k in 1_usize..=192,
+            top_k in 1_usize..=192,
+            warmups in 0_u32..=100,
+            repetitions in 1_u32..=1_000,
+        ) {
+            prop_assume!(top_k <= candidate_k);
+            let spec = Spec {
+                version: 1,
+                workload: WORKLOAD.into(),
+                algorithm: ALGORITHM.into(),
+                rerank: RERANK.into(),
+                candidate_k,
+                top_k,
+                warmups,
+                repetitions,
+                single_process: true,
+                manifest: "qualified-manifest.json".into(),
+                settings_digest: "0".repeat(64),
+            };
+            let encoded = serde_json::to_vec(&spec).unwrap();
+            let decoded: Spec = serde_json::from_slice(&encoded).unwrap();
+            prop_assert_eq!(decoded, spec);
+        }
     }
 }

@@ -1247,6 +1247,7 @@ dependencies = [
  "fathomdb-embedder",
  "fathomdb-embedder-api",
  "fathomdb-engine",
+ "proptest",
  "serde",
  "serde_json",
  "sha2 0.11.0",

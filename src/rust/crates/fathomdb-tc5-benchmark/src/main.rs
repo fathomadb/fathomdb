@@ -147,21 +147,20 @@ impl CacheOnlyEmbedderFactory for CandleCacheOnlyFactory {
             SelectedDevice::Cpu => ExplicitCandleDevice::Cpu,
             SelectedDevice::Cuda(info) => ExplicitCandleDevice::Cuda(info.cuda_ordinal as usize),
         };
-        let embedder = CandleBgeEmbedder::new_from_local_asset_on_device(asset_dir, device)
-            .map_err(|_| match device {
-                ExplicitCandleDevice::Cuda(_) => FactoryFailure::DeviceUnavailable,
-                ExplicitCandleDevice::Cpu => FactoryFailure::AssetUnavailable,
-            })?;
-        let observed_cuda_uuid = match device {
-            ExplicitCandleDevice::Cpu => None,
-            ExplicitCandleDevice::Cuda(ordinal) => discover_visible_cuda()
-                .map_err(|_| FactoryFailure::DeviceUnavailable)?
-                .into_iter()
-                .find(|visible| visible.cuda_ordinal == ordinal as u32)
-                .map(|visible| visible.uuid)
-                .ok_or(FactoryFailure::DeviceUnavailable)
-                .map(Some)?,
-        };
+        let construction = CandleBgeEmbedder::new_from_local_asset_on_device_attested(
+            asset_dir, device,
+        )
+        .map_err(|_| match device {
+            ExplicitCandleDevice::Cuda(_) => FactoryFailure::DeviceUnavailable,
+            ExplicitCandleDevice::Cpu => FactoryFailure::AssetUnavailable,
+        })?;
+        let observed_cuda_uuid = construction.cuda_uuid().map(str::to_owned);
+        if matches!(device, ExplicitCandleDevice::Cuda(_))
+            && (construction.cuda_ordinal() != Some(0) || observed_cuda_uuid.is_none())
+        {
+            return Err(FactoryFailure::DeviceUnavailable);
+        }
+        let embedder = construction.into_embedder();
         Ok(CreatedEmbedder { embedder: Box::new(embedder), observed_cuda_uuid })
     }
 }

@@ -1898,6 +1898,8 @@ fn reader_worker_loop(
                 view,
                 respond,
             } => {
+                #[cfg(feature = "tc5-benchmark")]
+                tc5_benchmark::record_search_route();
                 let result = read_search_in_tx(
                     &mut connection,
                     &compiled,
@@ -12542,6 +12544,8 @@ pub fn fuse_three_arms(
     text_hits: Vec<SearchHit>,
     graph_hits: Vec<SearchHit>,
 ) -> Vec<SearchHit> {
+    #[cfg(feature = "tc5-benchmark")]
+    tc5_benchmark::record_fusion_route();
     struct Entry {
         hit: SearchHit,
         score: f64,
@@ -12841,6 +12845,8 @@ fn ce_rerank(
     alpha: f64,
     pool_n: usize,
 ) -> Option<Vec<SearchHit>> {
+    #[cfg(feature = "tc5-benchmark")]
+    tc5_benchmark::record_cross_encoder_route();
     // 0.8.5 (D3) — clamp α to [0,1] silently here so EVERY path (engine search,
     // `rerank_passages`, the bindings) is covered by one clamp, matching the
     // existing `pool_n.min(len)` clamp idiom.
@@ -13851,6 +13857,8 @@ fn read_search_in_tx(
     // in SQL (the vector branch is filtered in phase 1; the text branch has no
     // metadata columns of its own).
     let text_candidates: Vec<SearchHit> = {
+        #[cfg(feature = "tc5-benchmark")]
+        tc5_benchmark::record_fts_route();
         // 0.7.0 perf-experiments: optional FTS5 LIMIT cap. Gated on
         // FATHOMDB_PERF_EXPERIMENTS=1; opt-in via
         // FATHOMDB_PERF_SEARCH_LIMIT=<k>. No-op by default — preserves
@@ -15094,6 +15102,8 @@ fn graph_neighbors_in_tx(
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> rusqlite::Result<Vec<NodeRecord>> {
+    #[cfg(feature = "tc5-benchmark")]
+    tc5_benchmark::record_graph_route();
     let sql = build_bfs_sql(direction, view);
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let depth_i64 = depth as i64;

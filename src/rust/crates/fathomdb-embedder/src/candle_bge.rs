@@ -93,6 +93,57 @@ pub enum ExplicitCandleDevice {
     Cuda(usize),
 }
 
+/// Device proof returned with a TC-5 cache-only Candle construction.
+///
+/// For CUDA this is obtained after Candle initialized and allocated on the same
+/// logical ordinal, using the CUDA driver's UUID query rather than a separate
+/// process or an environment-derived device map.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Tc5DeviceAttestation {
+    cuda_ordinal: Option<usize>,
+    cuda_uuid: Option<String>,
+}
+
+impl Tc5DeviceAttestation {
+    /// CUDA UUID observed from the initialized provider, if the construction used CUDA.
+    #[must_use]
+    pub fn cuda_uuid(&self) -> Option<&str> {
+        self.cuda_uuid.as_deref()
+    }
+
+    /// Logical ordinal Candle initialized for this construction, if any.
+    #[must_use]
+    pub fn cuda_ordinal(&self) -> Option<usize> {
+        self.cuda_ordinal
+    }
+}
+
+/// Cache-only TC-5 Candle construction plus its initialized-device proof.
+pub struct Tc5CandleConstruction {
+    embedder: CandleBgeEmbedder,
+    device_attestation: Tc5DeviceAttestation,
+}
+
+impl Tc5CandleConstruction {
+    /// Returns the UUID measured from the initialized CUDA provider.
+    #[must_use]
+    pub fn cuda_uuid(&self) -> Option<&str> {
+        self.device_attestation.cuda_uuid()
+    }
+
+    /// Returns the logical CUDA ordinal that Candle initialized, if any.
+    #[must_use]
+    pub fn cuda_ordinal(&self) -> Option<usize> {
+        self.device_attestation.cuda_ordinal()
+    }
+
+    /// Consumes the construction and returns the cache-only embedder.
+    #[must_use]
+    pub fn into_embedder(self) -> CandleBgeEmbedder {
+        self.embedder
+    }
+}
+
 /// L2-normalize a `(1, D)` pooled tensor.
 fn l2_normalize(pooled: &Tensor) -> candle_core::Result<Tensor> {
     let norm = pooled.sqr()?.sum_keepdim(1)?.sqrt()?;
@@ -276,6 +327,21 @@ fn cuda_uuid_string(bytes: [std::os::raw::c_char; 16]) -> String {
     )
 }
 
+/// Reads the CUDA driver's UUID for the ordinal Candle has already initialized.
+///
+/// This deliberately uses cudarc's direct driver API, never `nvidia-smi`; the
+/// ordinal is checked against the concrete Candle [`Device`] immediately before
+/// this call by the TC-5 constructor.
+#[cfg(feature = "embed-cuda")]
+fn tc5_cuda_uuid_for_initialized_ordinal(ordinal: usize) -> Result<String, CudaProbeError> {
+    use candle_core::cuda::cudarc::driver::result;
+
+    result::init().map_err(classify_cuda_driver_error)?;
+    let device = result::device::get(ordinal as i32).map_err(classify_cuda_driver_error)?;
+    let uuid = result::device::get_uuid(device).map_err(classify_cuda_driver_error)?;
+    Ok(cuda_uuid_string(uuid.bytes))
+}
+
 /// Resolve the product `FATHOMDB_EMBED_DEVICE` policy for one default
 /// embedder construction.
 ///
@@ -354,18 +420,67 @@ impl CandleBgeEmbedder {
         asset_dir: &Path,
         requested_device: ExplicitCandleDevice,
     ) -> Result<Self, EmbedderLoadError> {
+        Self::new_from_local_asset_on_device_attested(asset_dir, requested_device)
+            .map(Tc5CandleConstruction::into_embedder)
+    }
+
+    /// Constructs a cache-only TC-5 embedder and returns a proof bound to its
+    /// initialized Candle device. This does not read ambient device policy,
+    /// invoke a downloader, or shell out to an external GPU utility.
+    #[cfg(feature = "tc5-benchmark")]
+    pub fn new_from_local_asset_on_device_attested(
+        asset_dir: &Path,
+        requested_device: ExplicitCandleDevice,
+    ) -> Result<Tc5CandleConstruction, EmbedderLoadError> {
         let weights = load_pinned_default_embedder_from_local_asset(asset_dir)?;
-        let device = match requested_device {
-            ExplicitCandleDevice::Cpu => Device::Cpu,
+        let (device, device_attestation) = match requested_device {
+            ExplicitCandleDevice::Cpu => {
+                (Device::Cpu, Tc5DeviceAttestation { cuda_ordinal: None, cuda_uuid: None })
+            }
             ExplicitCandleDevice::Cuda(ordinal) => {
                 #[cfg(feature = "embed-cuda")]
                 {
-                    Device::new_cuda(ordinal).map_err(|error| {
+                    let device = Device::new_cuda(ordinal).map_err(|error| {
                         EmbedderLoadError::DeviceUnavailable {
                             device: format!("cuda:{ordinal}"),
                             reason: error.to_string(),
                         }
-                    })?
+                    })?;
+                    let actual_ordinal = match device.location() {
+                        candle_core::DeviceLocation::Cuda { gpu_id } => gpu_id,
+                        _ => {
+                            return Err(EmbedderLoadError::DeviceUnavailable {
+                                device: format!("cuda:{ordinal}"),
+                                reason: "Candle did not retain the requested CUDA device".into(),
+                            });
+                        }
+                    };
+                    if actual_ordinal != ordinal {
+                        return Err(EmbedderLoadError::DeviceUnavailable {
+                            device: format!("cuda:{ordinal}"),
+                            reason: format!("Candle initialized cuda:{actual_ordinal} instead"),
+                        });
+                    }
+                    Tensor::zeros(1, DType::F32, &device).map_err(|error| {
+                        EmbedderLoadError::DeviceUnavailable {
+                            device: format!("cuda:{ordinal}"),
+                            reason: error.to_string(),
+                        }
+                    })?;
+                    let uuid =
+                        tc5_cuda_uuid_for_initialized_ordinal(actual_ordinal).map_err(|error| {
+                            EmbedderLoadError::DeviceUnavailable {
+                                device: format!("cuda:{ordinal}"),
+                                reason: error.to_string(),
+                            }
+                        })?;
+                    (
+                        device,
+                        Tc5DeviceAttestation {
+                            cuda_ordinal: Some(actual_ordinal),
+                            cuda_uuid: Some(uuid),
+                        },
+                    )
                 }
                 #[cfg(not(feature = "embed-cuda"))]
                 {
@@ -376,7 +491,8 @@ impl CandleBgeEmbedder {
                 }
             }
         };
-        Self::new_from_weights_on_device(weights, device)
+        let embedder = Self::new_from_weights_on_device(weights, device)?;
+        Ok(Tc5CandleConstruction { embedder, device_attestation })
     }
 
     fn new_from_weights_on_device(

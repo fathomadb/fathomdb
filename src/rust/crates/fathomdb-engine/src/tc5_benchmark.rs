@@ -4,6 +4,7 @@
 //! result to the companion executable, which hashes it before producing any
 //! external result artifact. It does not call the ordinary search pipeline.
 
+use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -70,6 +71,16 @@ pub enum VectorStageError {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ObservedRoute {
     VectorStage,
+    Search,
+    Fts,
+    Fusion,
+    Graph,
+    #[cfg_attr(not(feature = "default-reranker"), allow(dead_code))]
+    CrossEncoder,
+}
+
+thread_local! {
+    static ACTIVE_ROUTE_TRAPS: RefCell<Option<RouteObserver>> = const { RefCell::new(None) };
 }
 
 /// Request-scoped, trap-backed route observer for the TC-5 direct path.
@@ -86,20 +97,92 @@ impl RouteObserver {
     }
 
     fn observe_vector_stage(&self) -> Result<(), VectorStageError> {
-        self.observed
-            .lock()
-            .map_err(|_| VectorStageError::ProhibitedRoute)?
-            .push(ObservedRoute::VectorStage);
+        self.observe(ObservedRoute::VectorStage)
+    }
+
+    fn observe(&self, route: ObservedRoute) -> Result<(), VectorStageError> {
+        self.observed.lock().map_err(|_| VectorStageError::ProhibitedRoute)?.push(route);
         Ok(())
+    }
+
+    /// Activates the process-local forbidden-route traps for this reader request.
+    fn activate_for_request(&self) -> Result<RouteTrapGuard, VectorStageError> {
+        ACTIVE_ROUTE_TRAPS.with(|active| {
+            let mut active = active.borrow_mut();
+            if active.is_some() {
+                return Err(VectorStageError::ProhibitedRoute);
+            }
+            *active = Some(self.clone());
+            Ok(RouteTrapGuard)
+        })
     }
 
     fn attestation(&self) -> Result<RouteAttestation, VectorStageError> {
         let observed = self.observed.lock().map_err(|_| VectorStageError::ProhibitedRoute)?;
-        if observed.as_slice() != [ObservedRoute::VectorStage] {
+        let mut routes = RouteAttestation::default();
+        for route in observed.iter().copied() {
+            match route {
+                ObservedRoute::VectorStage => routes.vector_stage += 1,
+                ObservedRoute::Search => routes.search += 1,
+                ObservedRoute::Fts => routes.fts += 1,
+                ObservedRoute::Fusion => routes.fusion += 1,
+                ObservedRoute::Graph => routes.graph += 1,
+                ObservedRoute::CrossEncoder => routes.cross_encoder += 1,
+            }
+        }
+        if routes.vector_stage != 1
+            || routes.search != 0
+            || routes.fts != 0
+            || routes.fusion != 0
+            || routes.graph != 0
+            || routes.cross_encoder != 0
+        {
             return Err(VectorStageError::ProhibitedRoute);
         }
-        Ok(RouteAttestation { vector_stage: 1, ..RouteAttestation::default() })
+        Ok(routes)
     }
+}
+
+struct RouteTrapGuard;
+
+impl Drop for RouteTrapGuard {
+    fn drop(&mut self) {
+        ACTIVE_ROUTE_TRAPS.with(|active| *active.borrow_mut() = None);
+    }
+}
+
+fn record_forbidden_route(route: ObservedRoute) {
+    ACTIVE_ROUTE_TRAPS.with(|active| {
+        if let Some(observer) = active.borrow().as_ref() {
+            let _ = observer.observe(route);
+        }
+    });
+}
+
+/// Records the actual ordinary-search seam if a TC-5 request is active.
+pub(crate) fn record_search_route() {
+    record_forbidden_route(ObservedRoute::Search);
+}
+
+/// Records the actual FTS seam if a TC-5 request is active.
+pub(crate) fn record_fts_route() {
+    record_forbidden_route(ObservedRoute::Fts);
+}
+
+/// Records the actual fusion seam if a TC-5 request is active.
+pub(crate) fn record_fusion_route() {
+    record_forbidden_route(ObservedRoute::Fusion);
+}
+
+/// Records the actual graph seam if a TC-5 request is active.
+pub(crate) fn record_graph_route() {
+    record_forbidden_route(ObservedRoute::Graph);
+}
+
+/// Records the actual cross-encoder seam if a TC-5 request is active.
+#[cfg_attr(not(feature = "default-reranker"), allow(dead_code))]
+pub(crate) fn record_cross_encoder_route() {
+    record_forbidden_route(ObservedRoute::CrossEncoder);
 }
 
 /// Route counters make the direct-path boundary inspectable in tests.
@@ -167,6 +250,7 @@ pub(crate) fn read_vector_stage_in_tx(
     {
         return Err(VectorStageError::InvalidRequest);
     }
+    let _route_traps = request.route_observer.activate_for_request()?;
     request.route_observer.observe_vector_stage()?;
     let query = serde_json::to_string(&request.query_vector)
         .map_err(|_| VectorStageError::InvalidRequest)?;

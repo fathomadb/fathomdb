@@ -100,3 +100,16 @@ fn stress_watchdog_kills_a_hung_child_before_the_global_ceiling() {
     assert!(receipt.contains("\"selected_uuid\": null"));
     assert!(receipt.contains(&child_pid.to_string()));
 }
+
+#[test]
+fn direct_stress_entrypoint_has_no_public_watchdog_bypass() {
+    let target = include_str!("slice72_concurrent_gpu.rs");
+    assert!(
+        !target.contains("is_stress_watchdog_child"),
+        "a public environment variable must not bypass the parent watchdog"
+    );
+    assert!(
+        target.contains("slice72_private_stress_watchdog_child_entrypoint"),
+        "the real stress work must have a distinct private child entrypoint"
+    );
+}

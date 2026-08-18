@@ -98,6 +98,15 @@ def test_open_report_maps_present_auto_cpu_device_resolution() -> None:
             requested_policy="auto",
             cuda_compiled=True,
             effective_device=SimpleNamespace(kind="cpu", cuda_device=None),
+            visible_cuda_devices=(
+                SimpleNamespace(
+                    visible_ordinal=0,
+                    uuid="GPU-first",
+                    name="RTX 3090",
+                    compute_capability="8.6",
+                ),
+            ),
+            selected_cuda_uuid=None,
             reason="cuda_probe_failed",
         ),
     )
@@ -109,6 +118,8 @@ def test_open_report_maps_present_auto_cpu_device_resolution() -> None:
     assert resolution.cuda_compiled is True
     assert resolution.effective_device.kind == "cpu"
     assert resolution.effective_device.cuda_device is None
+    assert resolution.visible_cuda_devices[0].uuid == "GPU-first"
+    assert resolution.selected_cuda_uuid is None
     assert resolution.reason == "cuda_probe_failed"
 
 

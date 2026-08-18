@@ -39,9 +39,9 @@ use std::sync::Barrier;
 use std::sync::Mutex;
 
 use fathomdb_embedder::{
-    CudaDeviceInfo as RustCudaDeviceInfo, DeviceResolution as RustDeviceResolution,
-    EffectiveEmbedDevice as RustEffectiveEmbedDevice, EmbedDevicePolicy as RustEmbedDevicePolicy,
-    EmbedderEvent as RustEmbedderEvent,
+    CudaDeviceInfo as RustCudaDeviceInfo, CudaVisibleDevice as RustCudaVisibleDevice,
+    DeviceResolution as RustDeviceResolution, EffectiveEmbedDevice as RustEffectiveEmbedDevice,
+    EmbedDevicePolicy as RustEmbedDevicePolicy, EmbedderEvent as RustEmbedderEvent,
 };
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
@@ -1282,6 +1282,7 @@ impl PyEmbedderIdentity {
 #[derive(Clone)]
 struct PyCudaDeviceInfo {
     ordinal: usize,
+    uuid: Option<String>,
     name: Option<String>,
     driver_version: Option<String>,
     compute_capability: Option<String>,
@@ -1292,10 +1293,37 @@ impl PyCudaDeviceInfo {
     fn from_rust(info: &RustCudaDeviceInfo) -> Self {
         Self {
             ordinal: info.ordinal,
+            uuid: info.uuid.clone(),
             name: info.name.clone(),
             driver_version: info.driver_version.clone(),
             compute_capability: info.compute_capability.clone(),
             cuda_toolkit_version: info.cuda_toolkit_version.clone(),
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "CudaVisibleDevice",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyCudaVisibleDevice {
+    visible_ordinal: usize,
+    uuid: String,
+    name: String,
+    compute_capability: Option<String>,
+}
+
+impl PyCudaVisibleDevice {
+    fn from_rust(device: &RustCudaVisibleDevice) -> Self {
+        Self {
+            visible_ordinal: device.visible_ordinal,
+            uuid: device.uuid.clone(),
+            name: device.name.clone(),
+            compute_capability: device.compute_capability.clone(),
         }
     }
 }
@@ -1337,6 +1365,8 @@ struct PyDeviceResolution {
     requested_policy: String,
     cuda_compiled: bool,
     effective_device: PyEffectiveEmbedDevice,
+    visible_cuda_devices: Vec<PyCudaVisibleDevice>,
+    selected_cuda_uuid: Option<String>,
     reason: Option<String>,
 }
 
@@ -1351,6 +1381,12 @@ impl PyDeviceResolution {
             requested_policy,
             cuda_compiled: resolution.cuda_compiled,
             effective_device: PyEffectiveEmbedDevice::from_rust(&resolution.effective_device),
+            visible_cuda_devices: resolution
+                .visible_cuda_devices
+                .iter()
+                .map(PyCudaVisibleDevice::from_rust)
+                .collect(),
+            selected_cuda_uuid: resolution.selected_cuda_uuid.clone(),
             reason: resolution.reason.map(|reason| reason.as_str().to_string()),
         }
     }
@@ -3000,6 +3036,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyMigrationStepReport>()?;
     m.add_class::<PyEmbedderIdentity>()?;
     m.add_class::<PyCudaDeviceInfo>()?;
+    m.add_class::<PyCudaVisibleDevice>()?;
     m.add_class::<PyEffectiveEmbedDevice>()?;
     m.add_class::<PyDeviceResolution>()?;
     m.add_class::<PyOpenReport>()?;
@@ -3145,12 +3182,20 @@ mod tests {
                 effective_device: fathomdb_embedder::EffectiveEmbedDevice::Cuda(
                     fathomdb_embedder::CudaDeviceInfo {
                         ordinal: 3,
+                        uuid: Some("GPU-test".to_string()),
                         name: Some("test CUDA".to_string()),
                         driver_version: Some("555.42".to_string()),
                         compute_capability: Some("8.6".to_string()),
                         cuda_toolkit_version: Some("12.8".to_string()),
                     },
                 ),
+                visible_cuda_devices: vec![fathomdb_embedder::CudaVisibleDevice {
+                    visible_ordinal: 3,
+                    uuid: "GPU-test".to_string(),
+                    name: "test CUDA".to_string(),
+                    compute_capability: Some("8.6".to_string()),
+                }],
+                selected_cuda_uuid: Some("GPU-test".to_string()),
                 reason: None,
             };
             let opened = RustEngine::open_with_choice(
@@ -3174,10 +3219,14 @@ mod tests {
                 .cuda_device
                 .expect("CUDA selection must retain its safe provider facts");
             assert_eq!(cuda.ordinal, 3);
+            assert_eq!(cuda.uuid.as_deref(), Some("GPU-test"));
             assert_eq!(cuda.name.as_deref(), Some("test CUDA"));
             assert_eq!(cuda.driver_version.as_deref(), Some("555.42"));
             assert_eq!(cuda.compute_capability.as_deref(), Some("8.6"));
             assert_eq!(cuda.cuda_toolkit_version.as_deref(), Some("12.8"));
+            assert_eq!(resolution.visible_cuda_devices.len(), 1);
+            assert_eq!(resolution.visible_cuda_devices[0].visible_ordinal, 3);
+            assert_eq!(resolution.selected_cuda_uuid.as_deref(), Some("GPU-test"));
             assert_eq!(resolution.reason, None);
         });
     }

@@ -146,6 +146,8 @@ pub struct RecoverArgs {
 /// Doctor verb table per `dev/interfaces/cli.md` § Doctor verbs.
 #[derive(Debug, Subcommand)]
 pub enum DoctorCommand {
+    /// Inspect the isolated embedder CUDA provider without opening an engine.
+    Gpu(GpuDoctorArgs),
     /// Run a structural integrity check against the database.
     CheckIntegrity(CheckIntegrityArgs),
     /// Materialize a safe export of the database.
@@ -182,6 +184,14 @@ pub enum DoctorCommand {
     /// non-zero un-erasable count exits `DOCTOR_FOUND_ISSUES` (65).
     /// CLI-only; no SDK parity.
     OrphanProvenance(SimpleDoctorArgs),
+}
+
+/// Argument set for the database-free `doctor gpu` diagnostic.
+#[derive(Debug, Args)]
+pub struct GpuDoctorArgs {
+    /// Emit the normative machine-readable diagnostic object.
+    #[arg(long)]
+    pub json: bool,
 }
 
 /// EU-5b — `fathomdb doctor warm-cache` argument set.
@@ -474,6 +484,7 @@ fn run_recover(args: RecoverArgs) -> i32 {
 
 fn run_doctor(cmd: DoctorCommand) -> i32 {
     match cmd {
+        DoctorCommand::Gpu(args) => run_doctor_gpu(args),
         DoctorCommand::CheckIntegrity(args) => {
             let opts = CheckIntegrityOpts {
                 quick: args.quick,
@@ -589,6 +600,78 @@ fn run_doctor(cmd: DoctorCommand) -> i32 {
             })
         }
     }
+}
+
+/// Run the database-free CUDA inventory/allocation-probe diagnostic.
+fn run_doctor_gpu(args: GpuDoctorArgs) -> i32 {
+    let report = product_gpu_diagnostic();
+    if args.json {
+        println!("{}", doctor_gpu_diagnostic_json(&report));
+    } else {
+        println!("doctor gpu: {}", report.status.as_str());
+        println!("  policy: {}", report.policy);
+        println!("  cuda compiled: {}", report.cuda_compiled);
+        println!("  effective device: {}", report.effective_device().as_deref().unwrap_or("none"));
+        println!("  visible devices: {}", report.devices.len());
+        if let Some(reason) = report.reason {
+            println!("  reason: {}", reason.as_str());
+        }
+    }
+    report.exit_code()
+}
+
+fn product_gpu_diagnostic() -> fathomdb_embedder::DoctorGpuDiagnosticResult {
+    #[cfg(feature = "default-embedder")]
+    {
+        fathomdb_embedder::diagnose_default_embedder_gpu_from_env()
+    }
+    #[cfg(not(feature = "default-embedder"))]
+    {
+        struct CpuOnlyProvider;
+
+        impl fathomdb_embedder::CudaProvider for CpuOnlyProvider {
+            fn enumerate_visible_cuda_devices(
+                &mut self,
+            ) -> Result<Vec<fathomdb_embedder::CudaVisibleDevice>, fathomdb_embedder::CudaProbeError>
+            {
+                unreachable!("CPU-only diagnostic never calls the CUDA provider")
+            }
+
+            fn probe_cuda(
+                &mut self,
+                _ordinal: usize,
+            ) -> Result<fathomdb_embedder::CudaDeviceInfo, fathomdb_embedder::CudaProbeError>
+            {
+                unreachable!("CPU-only diagnostic never calls the CUDA provider")
+            }
+        }
+
+        let raw = std::env::var("FATHOMDB_EMBED_DEVICE").unwrap_or_else(|_| "auto".to_owned());
+        match raw.parse() {
+            Ok(policy) => fathomdb_embedder::diagnose_gpu(policy, false, &mut CpuOnlyProvider),
+            Err(_) => fathomdb_embedder::DoctorGpuDiagnosticResult::from_invalid_policy(raw, false),
+        }
+    }
+}
+
+/// Serialize the stable `doctor gpu --json` result.
+#[must_use]
+pub fn doctor_gpu_diagnostic_json(report: &fathomdb_embedder::DoctorGpuDiagnosticResult) -> Value {
+    json!({
+        "schema_version": "fathomdb.doctor.gpu.v1",
+        "policy": report.policy,
+        "cuda_compiled": report.cuda_compiled,
+        "status": report.status.as_str(),
+        "effective_device": report.effective_device(),
+        "devices": report.devices.iter().map(|device| json!({
+            "visible_ordinal": device.visible_ordinal,
+            "uuid": device.uuid,
+            "name": device.name,
+            "compute_capability": device.compute_capability,
+        })).collect::<Vec<_>>(),
+        "reason": report.reason.map(|reason| reason.as_str()),
+        "selected_uuid": report.selected_uuid,
+    })
 }
 
 /// EU-5b — invoke the default-embedder loader directly (no engine open)
@@ -1100,5 +1183,62 @@ mod tests {
 
         assert_eq!(engine_open_error_code(&err), "EmbedDevicePolicyError");
         assert_eq!(engine_open_error_to_outcome(&err), CliOutcome::Unrecoverable);
+    }
+
+    #[test]
+    fn doctor_gpu_json_is_database_free_and_binds_selected_uuid_to_inventory() {
+        let report = fathomdb_embedder::DoctorGpuDiagnosticResult {
+            policy: "cuda:1".to_owned(),
+            cuda_compiled: true,
+            status: fathomdb_embedder::DoctorGpuStatus::SelectedCuda,
+            effective_device: Some(fathomdb_embedder::EffectiveEmbedDevice::Cuda(
+                fathomdb_embedder::CudaDeviceInfo {
+                    ordinal: 1,
+                    uuid: Some("GPU-second".to_owned()),
+                    name: Some("RTX 3090".to_owned()),
+                    driver_version: None,
+                    compute_capability: Some("8.6".to_owned()),
+                    cuda_toolkit_version: None,
+                },
+            )),
+            devices: vec![
+                fathomdb_embedder::CudaVisibleDevice {
+                    visible_ordinal: 0,
+                    uuid: "GPU-first".to_owned(),
+                    name: "RTX 3090".to_owned(),
+                    compute_capability: Some("8.6".to_owned()),
+                },
+                fathomdb_embedder::CudaVisibleDevice {
+                    visible_ordinal: 1,
+                    uuid: "GPU-second".to_owned(),
+                    name: "RTX 3090".to_owned(),
+                    compute_capability: Some("8.6".to_owned()),
+                },
+            ],
+            selected_uuid: Some("GPU-second".to_owned()),
+            reason: None,
+        };
+
+        assert_eq!(
+            doctor_gpu_diagnostic_json(&report),
+            json!({
+                "schema_version": "fathomdb.doctor.gpu.v1",
+                "policy": "cuda:1",
+                "cuda_compiled": true,
+                "status": "selected_cuda",
+                "effective_device": "cuda:1",
+                "devices": [
+                    {"visible_ordinal": 0, "uuid": "GPU-first", "name": "RTX 3090", "compute_capability": "8.6"},
+                    {"visible_ordinal": 1, "uuid": "GPU-second", "name": "RTX 3090", "compute_capability": "8.6"},
+                ],
+                "reason": null,
+                "selected_uuid": "GPU-second",
+            })
+        );
+        let parsed = Cli::try_parse_from(["fathomdb", "doctor", "gpu", "--json"]);
+        assert!(matches!(
+            parsed,
+            Ok(Cli { command: Command::Doctor(DoctorArgs { command: DoctorCommand::Gpu(_) }) })
+        ));
     }
 }

@@ -22766,6 +22766,8 @@ mod tests {
             requested_policy: EmbedDevicePolicy::Auto,
             cuda_compiled: false,
             effective_device: EffectiveEmbedDevice::Cpu,
+            visible_cuda_devices: Vec::new(),
+            selected_cuda_uuid: None,
             reason: Some(DeviceResolutionReason::CudaNotCompiled),
         };
         let opened = Engine::open_with_embedder_and_subscriber(
@@ -22792,6 +22794,8 @@ mod tests {
             requested_policy: EmbedDevicePolicy::Auto,
             cuda_compiled: true,
             effective_device: EffectiveEmbedDevice::Cpu,
+            visible_cuda_devices: Vec::new(),
+            selected_cuda_uuid: None,
             reason: Some(DeviceResolutionReason::CudaProbeFailed),
         };
         let opened = Engine::open_with_choice(

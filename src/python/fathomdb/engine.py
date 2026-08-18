@@ -28,6 +28,7 @@ from fathomdb.config import EngineConfig
 from fathomdb.types import (
     CounterSnapshot,
     CudaDeviceInfo,
+    CudaVisibleDevice,
     DeviceResolution,
     EmbedderIdentity,
     EffectiveEmbedDevice,
@@ -172,6 +173,7 @@ def _map_open_report(native: Any) -> OpenReport:
                         if device_resolution.effective_device.cuda_device is None
                         else CudaDeviceInfo(
                             ordinal=device_resolution.effective_device.cuda_device.ordinal,
+                            uuid=device_resolution.effective_device.cuda_device.uuid,
                             name=device_resolution.effective_device.cuda_device.name,
                             driver_version=device_resolution.effective_device.cuda_device.driver_version,
                             compute_capability=device_resolution.effective_device.cuda_device.compute_capability,
@@ -181,6 +183,16 @@ def _map_open_report(native: Any) -> OpenReport:
                         )
                     ),
                 ),
+                visible_cuda_devices=tuple(
+                    CudaVisibleDevice(
+                        visible_ordinal=device.visible_ordinal,
+                        uuid=device.uuid,
+                        name=device.name,
+                        compute_capability=device.compute_capability,
+                    )
+                    for device in device_resolution.visible_cuda_devices
+                ),
+                selected_cuda_uuid=device_resolution.selected_cuda_uuid,
                 reason=device_resolution.reason,
             )
         ),

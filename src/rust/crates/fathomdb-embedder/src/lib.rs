@@ -23,8 +23,9 @@ use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 
 mod device_policy;
 pub use device_policy::{
-    resolve_embed_device_policy, resolve_embed_device_policy_from_env, CudaDeviceInfo,
-    CudaProbeError, CudaProvider, DeviceResolution, DeviceResolutionError, DeviceResolutionReason,
+    diagnose_gpu, resolve_embed_device_policy, resolve_embed_device_policy_from_env,
+    CudaDeviceInfo, CudaProbeError, CudaProvider, CudaVisibleDevice, DeviceResolution,
+    DeviceResolutionError, DeviceResolutionReason, DoctorGpuDiagnosticResult, DoctorGpuStatus,
     EffectiveEmbedDevice, EmbedDevicePolicy, EmbedDevicePolicyError, EmbedDevicePolicyParseError,
 };
 
@@ -125,8 +126,8 @@ mod candle_reranker;
 
 #[cfg(feature = "default-embedder")]
 pub use candle_bge::{
-    resolve_default_embedder_device_from_env, CandleBgeEmbedder, Pooling, DEFAULT_EMBEDDER_DIM,
-    DEFAULT_EMBEDDER_NAME,
+    diagnose_default_embedder_gpu_from_env, resolve_default_embedder_device_from_env,
+    CandleBgeEmbedder, Pooling, DEFAULT_EMBEDDER_DIM, DEFAULT_EMBEDDER_NAME,
 };
 #[cfg(feature = "default-embedder")]
 pub use nomic::{NomicEmbedder, NOMIC_DIM};

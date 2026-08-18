@@ -159,10 +159,17 @@ class EmbedderIdentity:
 
 class CudaDeviceInfo:
     ordinal: int
+    uuid: str | None
     name: str | None
     driver_version: str | None
     compute_capability: str | None
     cuda_toolkit_version: str | None
+
+class CudaVisibleDevice:
+    visible_ordinal: int
+    uuid: str
+    name: str
+    compute_capability: str | None
 
 class EffectiveEmbedDevice:
     kind: str
@@ -172,6 +179,8 @@ class DeviceResolution:
     requested_policy: str
     cuda_compiled: bool
     effective_device: EffectiveEmbedDevice
+    visible_cuda_devices: list[CudaVisibleDevice]
+    selected_cuda_uuid: str | None
     reason: str | None
 
 class OpenReport:

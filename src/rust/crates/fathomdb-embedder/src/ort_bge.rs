@@ -100,6 +100,17 @@ impl OrtProvider {
 struct OrtCudaProvider;
 
 impl CudaProvider for OrtCudaProvider {
+    fn enumerate_visible_cuda_devices(
+        &mut self,
+    ) -> Result<Vec<crate::CudaVisibleDevice>, CudaProbeError> {
+        // ORT's availability API has no CUDA-driver inventory/UUID binding.
+        // The supported `doctor gpu` path uses Candle's `embed-cuda` provider;
+        // an ORT caller carries its independently constructed resolution.
+        Err(CudaProbeError::ProbeFailed {
+            message: "ONNX Runtime does not expose CUDA visible-device UUID inventory".to_owned(),
+        })
+    }
+
     fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError> {
         let device_id = i32::try_from(ordinal).map_err(|_| CudaProbeError::ProbeFailed {
             message: format!("CUDA ordinal {ordinal} cannot be represented by ONNX Runtime"),
@@ -111,6 +122,7 @@ impl CudaProvider for OrtCudaProvider {
         {
             Ok(CudaDeviceInfo {
                 ordinal,
+                uuid: None,
                 name: None,
                 driver_version: None,
                 compute_capability: None,
@@ -310,12 +322,15 @@ impl OrtBgeEmbedder {
                     OrtProvider::Cpu => EffectiveEmbedDevice::Cpu,
                     OrtProvider::Cuda(ordinal) => EffectiveEmbedDevice::Cuda(CudaDeviceInfo {
                         ordinal: ordinal as usize,
+                        uuid: None,
                         name: None,
                         driver_version: None,
                         compute_capability: None,
                         cuda_toolkit_version: None,
                     }),
                 },
+                visible_cuda_devices: Vec::new(),
+                selected_cuda_uuid: None,
                 reason: None,
             },
         )
@@ -478,6 +493,12 @@ mod tests {
         struct UnavailableCudaProvider;
 
         impl CudaProvider for UnavailableCudaProvider {
+            fn enumerate_visible_cuda_devices(
+                &mut self,
+            ) -> Result<Vec<crate::CudaVisibleDevice>, CudaProbeError> {
+                Ok(Vec::new())
+            }
+
             fn probe_cuda(
                 &mut self,
                 _ordinal: usize,
@@ -566,11 +587,14 @@ mod tests {
             cuda_compiled: true,
             effective_device: crate::EffectiveEmbedDevice::Cuda(crate::CudaDeviceInfo {
                 ordinal,
+                uuid: None,
                 name: None,
                 driver_version: None,
                 compute_capability: None,
                 cuda_toolkit_version: None,
             }),
+            visible_cuda_devices: Vec::new(),
+            selected_cuda_uuid: None,
             reason: None,
         }
     }

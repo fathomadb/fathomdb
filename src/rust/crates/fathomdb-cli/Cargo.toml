@@ -42,6 +42,9 @@ default = []
 # still parses but reports that the binary was built without
 # `default-embedder` support.
 default-embedder = ["fathomdb-embedder/default-embedder"]
+# The CLI forwards the same product CUDA capability to both the facade's
+# `Engine::open` path and the direct `doctor gpu` provider diagnostic.
+embed-cuda = ["default-embedder", "fathomdb/embed-cuda", "fathomdb-embedder/embed-cuda"]
 
 [dev-dependencies]
 # `doctor_orphan_provenance` must fabricate the legacy/corrupt canonical row

@@ -83,6 +83,20 @@ fn t_040b_every_doctor_verb_help_has_usage_section() {
 }
 
 #[test]
+fn doctor_gpu_is_database_free_and_emits_one_schema_object() {
+    let output = fathomdb().args(["doctor", "gpu", "--json"]).output().expect("spawn doctor gpu");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let payload: Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|error| panic!("doctor gpu must emit one JSON object: {error}; {stdout}"));
+    assert_eq!(
+        payload.get("schema_version").and_then(Value::as_str),
+        Some("fathomdb.doctor.gpu.v1"),
+    );
+    assert!(payload.get("devices").and_then(Value::as_array).is_some());
+    assert!(matches!(output.status.code(), Some(0) | Some(65) | Some(70)));
+}
+
+#[test]
 fn t_035d_recover_help_exits_zero() {
     let output = fathomdb().args(["recover", "--help"]).output().expect("spawn");
     assert!(

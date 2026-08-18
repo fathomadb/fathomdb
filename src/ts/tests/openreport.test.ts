@@ -100,6 +100,10 @@ test("openReport maps a present auto-to-CPU device resolution", () => {
       requestedPolicy: "auto",
       cudaCompiled: true,
       effectiveDevice: { kind: "cpu", cudaDevice: null },
+      visibleCudaDevices: [
+        { visibleOrdinal: 0, uuid: "GPU-first", name: "RTX 3090", computeCapability: "8.6" },
+      ],
+      selectedCudaUuid: null,
       reason: "cuda_probe_failed",
     },
   });
@@ -108,6 +112,10 @@ test("openReport maps a present auto-to-CPU device resolution", () => {
     requestedPolicy: "auto",
     cudaCompiled: true,
     effectiveDevice: { kind: "cpu", cudaDevice: null },
+    visibleCudaDevices: [
+      { visibleOrdinal: 0, uuid: "GPU-first", name: "RTX 3090", computeCapability: "8.6" },
+    ],
+    selectedCudaUuid: null,
     reason: "cuda_probe_failed",
   });
 });

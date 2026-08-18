@@ -20,6 +20,7 @@ from fathomdb.filter import Filter
 from fathomdb.types import (
     CounterSnapshot,
     CudaDeviceInfo,
+    CudaVisibleDevice,
     DenseReadiness,
     DeviceResolution,
     EmbeddingOperation,
@@ -53,6 +54,7 @@ __all__ = [
     "ConsolidateReceipt",
     "CounterSnapshot",
     "CudaDeviceInfo",
+    "CudaVisibleDevice",
     "DenseReadiness",
     "DeviceResolution",
     "EmbeddingOperation",

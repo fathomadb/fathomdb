@@ -37,7 +37,7 @@ impl CudaProvider for FixtureCudaProvider {
 
     fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError> {
         self.probe_calls.push(ordinal);
-        self.probes.get(ordinal).cloned().unwrap_or_else(|| Err(CudaProbeError::NoVisibleDevice))
+        self.probes.get(ordinal).cloned().unwrap_or(Err(CudaProbeError::NoVisibleDevice))
     }
 }
 
@@ -149,7 +149,7 @@ fn doctor_gpu_has_the_exact_thirteen_row_matrix_and_never_uses_open_resolution()
         let diagnostic = diagnose_gpu(policy, cuda_compiled, &mut provider);
 
         assert_eq!(diagnostic.status(), status, "{raw}");
-        assert_eq!(diagnostic.effective_device(), effective_device, "{raw}");
+        assert_eq!(diagnostic.effective_device().as_deref(), effective_device, "{raw}");
         assert_eq!(diagnostic.exit_code(), exit_code, "{raw}");
         if status == DoctorGpuStatus::SelectedCuda {
             assert_eq!(diagnostic.selected_uuid(), Some("GPU-a"), "{raw}");
@@ -162,8 +162,8 @@ fn doctor_gpu_has_the_exact_thirteen_row_matrix_and_never_uses_open_resolution()
         }
     }
 
-    let mut provider = FixtureCudaProvider::new(Ok(vec![]), vec![]);
-    let invalid = DoctorGpuDiagnosticResult::from_invalid_policy(&mut provider);
+    let provider = FixtureCudaProvider::new(Ok(vec![]), vec![]);
+    let invalid = DoctorGpuDiagnosticResult::from_invalid_policy("cuda", true);
     assert_eq!(invalid.status(), DoctorGpuStatus::InvalidPolicy);
     assert_eq!(invalid.effective_device(), None);
     assert_eq!(invalid.exit_code(), 70);
@@ -184,6 +184,6 @@ fn doctor_gpu_preserves_the_visible_inventory_and_binds_selected_uuid_to_ordinal
     assert_eq!(diagnostic.status(), DoctorGpuStatus::SelectedCuda);
     assert_eq!(diagnostic.devices(), devices.as_slice());
     assert_eq!(diagnostic.selected_uuid(), Some("GPU-second"));
-    assert_eq!(diagnostic.effective_device(), Some("cuda:1"));
+    assert_eq!(diagnostic.effective_device().as_deref(), Some("cuda:1"));
     assert_eq!(provider.probe_calls, vec![1]);
 }

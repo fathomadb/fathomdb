@@ -29,9 +29,9 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Arc;
 
 use fathomdb_embedder::{
-    CudaDeviceInfo as RustCudaDeviceInfo, DeviceResolution as RustDeviceResolution,
-    EffectiveEmbedDevice as RustEffectiveEmbedDevice, EmbedDevicePolicy as RustEmbedDevicePolicy,
-    EmbedderEvent as RustEmbedderEvent,
+    CudaDeviceInfo as RustCudaDeviceInfo, CudaVisibleDevice as RustCudaVisibleDevice,
+    DeviceResolution as RustDeviceResolution, EffectiveEmbedDevice as RustEffectiveEmbedDevice,
+    EmbedDevicePolicy as RustEmbedDevicePolicy, EmbedderEvent as RustEmbedderEvent,
 };
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
@@ -1416,6 +1416,7 @@ impl EmbedderEvent {
 #[napi(object)]
 pub struct CudaDeviceInfo {
     pub ordinal: i64,
+    pub uuid: Option<String>,
     pub name: Option<String>,
     pub driver_version: Option<String>,
     pub compute_capability: Option<String>,
@@ -1426,10 +1427,31 @@ impl CudaDeviceInfo {
     fn from_rust(info: &RustCudaDeviceInfo) -> Self {
         Self {
             ordinal: info.ordinal as i64,
+            uuid: info.uuid.clone(),
             name: info.name.clone(),
             driver_version: info.driver_version.clone(),
             compute_capability: info.compute_capability.clone(),
             cuda_toolkit_version: info.cuda_toolkit_version.clone(),
+        }
+    }
+}
+
+/// Process-visible CUDA identity facts preserved in an open report.
+#[napi(object)]
+pub struct CudaVisibleDevice {
+    pub visible_ordinal: i64,
+    pub uuid: String,
+    pub name: String,
+    pub compute_capability: Option<String>,
+}
+
+impl CudaVisibleDevice {
+    fn from_rust(device: &RustCudaVisibleDevice) -> Self {
+        Self {
+            visible_ordinal: device.visible_ordinal as i64,
+            uuid: device.uuid.clone(),
+            name: device.name.clone(),
+            compute_capability: device.compute_capability.clone(),
         }
     }
 }
@@ -1461,6 +1483,8 @@ pub struct EmbedderDeviceResolution {
     pub requested_policy: String,
     pub cuda_compiled: bool,
     pub effective_device: EffectiveEmbedDevice,
+    pub visible_cuda_devices: Vec<CudaVisibleDevice>,
+    pub selected_cuda_uuid: Option<String>,
     pub reason: Option<String>,
 }
 
@@ -1475,6 +1499,12 @@ impl EmbedderDeviceResolution {
             requested_policy,
             cuda_compiled: resolution.cuda_compiled,
             effective_device: EffectiveEmbedDevice::from_rust(&resolution.effective_device),
+            visible_cuda_devices: resolution
+                .visible_cuda_devices
+                .iter()
+                .map(CudaVisibleDevice::from_rust)
+                .collect(),
+            selected_cuda_uuid: resolution.selected_cuda_uuid.clone(),
             reason: resolution.reason.map(|reason| reason.as_str().to_string()),
         }
     }
@@ -2975,12 +3005,20 @@ mod tests {
             effective_device: fathomdb_embedder::EffectiveEmbedDevice::Cuda(
                 fathomdb_embedder::CudaDeviceInfo {
                     ordinal: 3,
+                    uuid: Some("GPU-test".to_string()),
                     name: Some("test CUDA".to_string()),
                     driver_version: Some("555.42".to_string()),
                     compute_capability: Some("8.6".to_string()),
                     cuda_toolkit_version: Some("12.8".to_string()),
                 },
             ),
+            visible_cuda_devices: vec![fathomdb_embedder::CudaVisibleDevice {
+                visible_ordinal: 3,
+                uuid: "GPU-test".to_string(),
+                name: "test CUDA".to_string(),
+                compute_capability: Some("8.6".to_string()),
+            }],
+            selected_cuda_uuid: Some("GPU-test".to_string()),
             reason: None,
         };
         let opened = RustEngine::open_with_choice(
@@ -3004,10 +3042,14 @@ mod tests {
             .cuda_device
             .expect("CUDA selection must retain its safe provider facts");
         assert_eq!(cuda.ordinal, 3);
+        assert_eq!(cuda.uuid.as_deref(), Some("GPU-test"));
         assert_eq!(cuda.name.as_deref(), Some("test CUDA"));
         assert_eq!(cuda.driver_version.as_deref(), Some("555.42"));
         assert_eq!(cuda.compute_capability.as_deref(), Some("8.6"));
         assert_eq!(cuda.cuda_toolkit_version.as_deref(), Some("12.8"));
+        assert_eq!(resolution.visible_cuda_devices.len(), 1);
+        assert_eq!(resolution.visible_cuda_devices[0].visible_ordinal, 3);
+        assert_eq!(resolution.selected_cuda_uuid.as_deref(), Some("GPU-test"));
         assert_eq!(resolution.reason, None);
     }
 }

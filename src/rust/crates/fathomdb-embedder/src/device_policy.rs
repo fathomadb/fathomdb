@@ -95,6 +95,8 @@ impl std::error::Error for EmbedDevicePolicyError {}
 pub struct CudaDeviceInfo {
     /// CUDA ordinal used to initialize the provider.
     pub ordinal: usize,
+    /// UUID returned by the CUDA driver for the process-visible ordinal.
+    pub uuid: Option<String>,
     /// Provider-reported device name, when available.
     pub name: Option<String>,
     /// Provider-reported NVIDIA driver version, when available.
@@ -105,12 +107,34 @@ pub struct CudaDeviceInfo {
     pub cuda_toolkit_version: Option<String>,
 }
 
+/// One CUDA device visible to this process.
+///
+/// `visible_ordinal` is relative to `CUDA_VISIBLE_DEVICES`; it is never an
+/// inferred host or PCI ordinal.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CudaVisibleDevice {
+    /// Process-visible CUDA ordinal.
+    pub visible_ordinal: usize,
+    /// CUDA driver UUID for this process-visible device.
+    pub uuid: String,
+    /// Driver-reported device name.
+    pub name: String,
+    /// Driver-reported CUDA compute capability, if available.
+    pub compute_capability: Option<String>,
+}
+
 /// The injected CUDA probe boundary.
 ///
 /// A production implementation initializes the chosen CUDA ordinal and runs a
 /// minimal provider probe. Implementations must not report success until that
 /// work has completed.
 pub trait CudaProvider {
+    /// Enumerate all CUDA devices visible to this process before selection.
+    ///
+    /// A successful empty vector means the driver initialized but no device is
+    /// visible. An error means visibility itself could not be established.
+    fn enumerate_visible_cuda_devices(&mut self) -> Result<Vec<CudaVisibleDevice>, CudaProbeError>;
+
     /// Initialize and minimally probe `ordinal`, returning safe identity facts.
     fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError>;
 }
@@ -170,8 +194,132 @@ pub struct DeviceResolution {
     pub cuda_compiled: bool,
     /// The backend the default embedder must construct.
     pub effective_device: EffectiveEmbedDevice,
+    /// Ordered process-visible CUDA inventory observed while resolving.
+    pub visible_cuda_devices: Vec<CudaVisibleDevice>,
+    /// UUID of the effective CUDA selection, when CUDA was selected.
+    pub selected_cuda_uuid: Option<String>,
     /// Why CUDA was unavailable when CPU was selected automatically.
     pub reason: Option<DeviceResolutionReason>,
+}
+
+/// Stable status emitted by the CLI-only `doctor gpu` diagnostic.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DoctorGpuStatus {
+    /// CUDA was selected and its minimal allocation/provider probe succeeded.
+    SelectedCuda,
+    /// Explicit CPU was selected without CUDA activity.
+    SelectedCpuNoCuda,
+    /// The artifact has no CUDA provider.
+    CudaNotCompiled,
+    /// No requested CUDA device was visible.
+    CudaUnavailable,
+    /// A visible CUDA device could not satisfy the provider.
+    CudaIncompatible,
+    /// The ambient policy was not part of the supported grammar.
+    InvalidPolicy,
+    /// Driver enumeration or a minimal provider probe failed unexpectedly.
+    ProbeFailed,
+}
+
+impl DoctorGpuStatus {
+    /// Stable lower-snake-case diagnostic status.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::SelectedCuda => "selected_cuda",
+            Self::SelectedCpuNoCuda => "selected_cpu_no_cuda",
+            Self::CudaNotCompiled => "cuda_not_compiled",
+            Self::CudaUnavailable => "cuda_unavailable",
+            Self::CudaIncompatible => "cuda_incompatible",
+            Self::InvalidPolicy => "invalid_policy",
+            Self::ProbeFailed => "probe_failed",
+        }
+    }
+}
+
+/// Isolated CUDA diagnostic result for `fathomdb doctor gpu`.
+///
+/// This deliberately differs from [`DeviceResolution`]: an automatic CUDA
+/// probe failure is an error in the diagnostic (exit 70), even though normal
+/// open may use CPU and retain `CudaProbeFailed` as its fallback reason.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DoctorGpuDiagnosticResult {
+    /// Raw policy string read by the diagnostic.
+    pub policy: String,
+    /// Whether this artifact includes the CUDA embedder provider.
+    pub cuda_compiled: bool,
+    /// Classified diagnostic outcome.
+    pub status: DoctorGpuStatus,
+    /// Effective CPU/CUDA device, if policy resolution selected one.
+    pub effective_device: Option<EffectiveEmbedDevice>,
+    /// Ordered process-visible CUDA inventory.
+    pub devices: Vec<CudaVisibleDevice>,
+    /// UUID of the selected device, when CUDA was selected.
+    pub selected_uuid: Option<String>,
+    /// Optional compatibility/fallback reason.
+    pub reason: Option<DeviceResolutionReason>,
+}
+
+impl DoctorGpuDiagnosticResult {
+    /// Construct the no-provider invalid-policy result.
+    #[must_use]
+    pub fn from_invalid_policy(policy: impl Into<String>, cuda_compiled: bool) -> Self {
+        Self {
+            policy: policy.into(),
+            cuda_compiled,
+            status: DoctorGpuStatus::InvalidPolicy,
+            effective_device: None,
+            devices: Vec::new(),
+            selected_uuid: None,
+            reason: None,
+        }
+    }
+
+    /// Stable status accessor for bindings and the CLI serializer.
+    #[must_use]
+    pub const fn status(&self) -> DoctorGpuStatus {
+        self.status
+    }
+
+    /// The literal selected device (`cpu` or `cuda:N`), if any.
+    #[must_use]
+    pub fn effective_device(&self) -> Option<String> {
+        match &self.effective_device {
+            Some(EffectiveEmbedDevice::Cpu) => Some("cpu".to_owned()),
+            Some(EffectiveEmbedDevice::Cuda(info)) => Some(format!("cuda:{}", info.ordinal)),
+            None => None,
+        }
+    }
+
+    /// Ordered process-visible inventory.
+    #[must_use]
+    pub fn devices(&self) -> &[CudaVisibleDevice] {
+        &self.devices
+    }
+
+    /// UUID of the selected CUDA device, if any.
+    #[must_use]
+    pub fn selected_uuid(&self) -> Option<&str> {
+        self.selected_uuid.as_deref()
+    }
+
+    /// CLI process exit code required by the diagnostic contract.
+    #[must_use]
+    pub const fn exit_code(&self) -> i32 {
+        match self.status {
+            DoctorGpuStatus::SelectedCuda | DoctorGpuStatus::SelectedCpuNoCuda => 0,
+            DoctorGpuStatus::CudaNotCompiled
+            | DoctorGpuStatus::CudaUnavailable
+            | DoctorGpuStatus::CudaIncompatible => {
+                if matches!(&self.effective_device, Some(EffectiveEmbedDevice::Cpu)) {
+                    0
+                } else {
+                    65
+                }
+            }
+            DoctorGpuStatus::InvalidPolicy | DoctorGpuStatus::ProbeFailed => 70,
+        }
+    }
 }
 
 /// A policy that required CUDA could not be satisfied.
@@ -244,40 +392,90 @@ pub fn resolve_embed_device_policy(
             requested_policy,
             cuda_compiled,
             effective_device: EffectiveEmbedDevice::Cpu,
+            visible_cuda_devices: Vec::new(),
+            selected_cuda_uuid: None,
             reason: None,
         }),
         EmbedDevicePolicy::Auto if !cuda_compiled => Ok(DeviceResolution {
             requested_policy,
             cuda_compiled,
             effective_device: EffectiveEmbedDevice::Cpu,
+            visible_cuda_devices: Vec::new(),
+            selected_cuda_uuid: None,
             reason: Some(DeviceResolutionReason::CudaNotCompiled),
         }),
         EmbedDevicePolicy::Cuda(ordinal) if !cuda_compiled => {
             Err(DeviceResolutionError::CudaNotCompiled { ordinal })
         }
-        EmbedDevicePolicy::Auto => match probe(provider, 0) {
-            Ok(info) => Ok(DeviceResolution {
-                requested_policy,
-                cuda_compiled,
-                effective_device: EffectiveEmbedDevice::Cuda(info),
-                reason: None,
-            }),
-            Err(reason) => Ok(DeviceResolution {
-                requested_policy,
-                cuda_compiled,
-                effective_device: EffectiveEmbedDevice::Cpu,
-                reason: Some(reason),
-            }),
+        EmbedDevicePolicy::Auto => match enumerate(provider) {
+            Ok(devices) => match devices.iter().min_by_key(|device| device.visible_ordinal) {
+                Some(device) => match probe(provider, device) {
+                    Ok(info) => {
+                        Ok(selected_resolution(requested_policy, cuda_compiled, devices, info))
+                    }
+                    Err(reason) => {
+                        Ok(cpu_resolution(requested_policy, cuda_compiled, devices, reason))
+                    }
+                },
+                None => Ok(cpu_resolution(
+                    requested_policy,
+                    cuda_compiled,
+                    devices,
+                    DeviceResolutionReason::NoVisibleCudaDevice,
+                )),
+            },
+            Err(reason) => Ok(cpu_resolution(requested_policy, cuda_compiled, Vec::new(), reason)),
         },
-        EmbedDevicePolicy::Cuda(ordinal) => match probe(provider, ordinal) {
-            Ok(info) => Ok(DeviceResolution {
-                requested_policy,
-                cuda_compiled,
-                effective_device: EffectiveEmbedDevice::Cuda(info),
-                reason: None,
-            }),
+        EmbedDevicePolicy::Cuda(ordinal) => match enumerate(provider) {
+            Ok(devices) => match devices.iter().find(|device| device.visible_ordinal == ordinal) {
+                Some(device) => match probe(provider, device) {
+                    Ok(info) => {
+                        Ok(selected_resolution(requested_policy, cuda_compiled, devices, info))
+                    }
+                    Err(reason) => {
+                        Err(DeviceResolutionError::ForcedCudaUnavailable { ordinal, reason })
+                    }
+                },
+                None => Err(DeviceResolutionError::ForcedCudaUnavailable {
+                    ordinal,
+                    reason: DeviceResolutionReason::NoVisibleCudaDevice,
+                }),
+            },
             Err(reason) => Err(DeviceResolutionError::ForcedCudaUnavailable { ordinal, reason }),
         },
+    }
+}
+
+fn cpu_resolution(
+    requested_policy: EmbedDevicePolicy,
+    cuda_compiled: bool,
+    visible_cuda_devices: Vec<CudaVisibleDevice>,
+    reason: DeviceResolutionReason,
+) -> DeviceResolution {
+    DeviceResolution {
+        requested_policy,
+        cuda_compiled,
+        effective_device: EffectiveEmbedDevice::Cpu,
+        visible_cuda_devices,
+        selected_cuda_uuid: None,
+        reason: Some(reason),
+    }
+}
+
+fn selected_resolution(
+    requested_policy: EmbedDevicePolicy,
+    cuda_compiled: bool,
+    visible_cuda_devices: Vec<CudaVisibleDevice>,
+    info: CudaDeviceInfo,
+) -> DeviceResolution {
+    let selected_cuda_uuid = info.uuid.clone();
+    DeviceResolution {
+        requested_policy,
+        cuda_compiled,
+        effective_device: EffectiveEmbedDevice::Cuda(info),
+        visible_cuda_devices,
+        selected_cuda_uuid,
+        reason: None,
     }
 }
 
@@ -297,16 +495,178 @@ pub fn resolve_embed_device_policy_from_env(
         .map_err(EmbedDevicePolicyError::Resolution)
 }
 
+fn enumerate(
+    provider: &mut dyn CudaProvider,
+) -> Result<Vec<CudaVisibleDevice>, DeviceResolutionReason> {
+    match provider.enumerate_visible_cuda_devices() {
+        Ok(devices) => Ok(devices),
+        Err(CudaProbeError::NoVisibleDevice) => Ok(Vec::new()),
+        Err(CudaProbeError::Incompatible { .. } | CudaProbeError::ProbeFailed { .. }) => {
+            Err(DeviceResolutionReason::CudaProbeFailed)
+        }
+    }
+}
+
 fn probe(
     provider: &mut dyn CudaProvider,
-    ordinal: usize,
+    selected: &CudaVisibleDevice,
 ) -> Result<CudaDeviceInfo, DeviceResolutionReason> {
-    match provider.probe_cuda(ordinal) {
-        Ok(info) if info.ordinal == ordinal => Ok(info),
+    match provider.probe_cuda(selected.visible_ordinal) {
+        Ok(info)
+            if info.ordinal == selected.visible_ordinal
+                && info.uuid.as_deref() == Some(selected.uuid.as_str()) =>
+        {
+            Ok(info)
+        }
         Ok(_) | Err(CudaProbeError::ProbeFailed { .. }) => {
             Err(DeviceResolutionReason::CudaProbeFailed)
         }
         Err(CudaProbeError::NoVisibleDevice) => Err(DeviceResolutionReason::NoVisibleCudaDevice),
         Err(CudaProbeError::Incompatible { .. }) => Err(DeviceResolutionReason::CudaIncompatible),
+    }
+}
+
+/// Diagnose one parsed policy from raw CUDA inventory/probe evidence.
+///
+/// Unlike normal open resolution, an automatic provider failure remains a
+/// `probe_failed` diagnostic with exit 70. This function does not construct an
+/// engine, open a database, load a model, or write configuration.
+#[must_use]
+pub fn diagnose_gpu(
+    requested_policy: EmbedDevicePolicy,
+    cuda_compiled: bool,
+    provider: &mut dyn CudaProvider,
+) -> DoctorGpuDiagnosticResult {
+    let policy = policy_string(requested_policy);
+    match requested_policy {
+        EmbedDevicePolicy::Cpu => diagnostic(
+            policy,
+            cuda_compiled,
+            DoctorGpuStatus::SelectedCpuNoCuda,
+            Some(EffectiveEmbedDevice::Cpu),
+            Vec::new(),
+            None,
+            None,
+        ),
+        EmbedDevicePolicy::Auto if !cuda_compiled => diagnostic(
+            policy,
+            cuda_compiled,
+            DoctorGpuStatus::CudaNotCompiled,
+            Some(EffectiveEmbedDevice::Cpu),
+            Vec::new(),
+            None,
+            Some(DeviceResolutionReason::CudaNotCompiled),
+        ),
+        EmbedDevicePolicy::Cuda(_) if !cuda_compiled => diagnostic(
+            policy,
+            cuda_compiled,
+            DoctorGpuStatus::CudaNotCompiled,
+            None,
+            Vec::new(),
+            None,
+            Some(DeviceResolutionReason::CudaNotCompiled),
+        ),
+        EmbedDevicePolicy::Auto | EmbedDevicePolicy::Cuda(_) => {
+            let forced_ordinal = match requested_policy {
+                EmbedDevicePolicy::Cuda(ordinal) => Some(ordinal),
+                _ => None,
+            };
+            let devices = match provider.enumerate_visible_cuda_devices() {
+                Ok(devices) => devices,
+                Err(_) => {
+                    return diagnostic(
+                        policy,
+                        cuda_compiled,
+                        DoctorGpuStatus::ProbeFailed,
+                        forced_ordinal.is_none().then_some(EffectiveEmbedDevice::Cpu),
+                        Vec::new(),
+                        None,
+                        Some(DeviceResolutionReason::CudaProbeFailed),
+                    );
+                }
+            };
+            let selected = match forced_ordinal {
+                Some(ordinal) => {
+                    devices.iter().find(|device| device.visible_ordinal == ordinal).cloned()
+                }
+                None => devices.iter().min_by_key(|device| device.visible_ordinal).cloned(),
+            };
+            let Some(selected) = selected else {
+                return diagnostic(
+                    policy,
+                    cuda_compiled,
+                    DoctorGpuStatus::CudaUnavailable,
+                    forced_ordinal.is_none().then_some(EffectiveEmbedDevice::Cpu),
+                    devices,
+                    None,
+                    Some(DeviceResolutionReason::NoVisibleCudaDevice),
+                );
+            };
+            match provider.probe_cuda(selected.visible_ordinal) {
+                Ok(info)
+                    if info.ordinal == selected.visible_ordinal
+                        && info.uuid.as_deref() == Some(selected.uuid.as_str()) =>
+                {
+                    diagnostic(
+                        policy,
+                        cuda_compiled,
+                        DoctorGpuStatus::SelectedCuda,
+                        Some(EffectiveEmbedDevice::Cuda(info)),
+                        devices,
+                        Some(selected.uuid.clone()),
+                        None,
+                    )
+                }
+                Err(CudaProbeError::Incompatible { .. }) => diagnostic(
+                    policy,
+                    cuda_compiled,
+                    DoctorGpuStatus::CudaIncompatible,
+                    forced_ordinal.is_none().then_some(EffectiveEmbedDevice::Cpu),
+                    devices,
+                    None,
+                    Some(DeviceResolutionReason::CudaIncompatible),
+                ),
+                Ok(_)
+                | Err(CudaProbeError::NoVisibleDevice | CudaProbeError::ProbeFailed { .. }) => {
+                    diagnostic(
+                        policy,
+                        cuda_compiled,
+                        DoctorGpuStatus::ProbeFailed,
+                        forced_ordinal.is_none().then_some(EffectiveEmbedDevice::Cpu),
+                        devices,
+                        None,
+                        Some(DeviceResolutionReason::CudaProbeFailed),
+                    )
+                }
+            }
+        }
+    }
+}
+
+fn policy_string(policy: EmbedDevicePolicy) -> String {
+    match policy {
+        EmbedDevicePolicy::Auto => "auto".to_owned(),
+        EmbedDevicePolicy::Cpu => "cpu".to_owned(),
+        EmbedDevicePolicy::Cuda(ordinal) => format!("cuda:{ordinal}"),
+    }
+}
+
+fn diagnostic(
+    policy: String,
+    cuda_compiled: bool,
+    status: DoctorGpuStatus,
+    effective_device: Option<EffectiveEmbedDevice>,
+    devices: Vec<CudaVisibleDevice>,
+    selected_uuid: Option<String>,
+    reason: Option<DeviceResolutionReason>,
+) -> DoctorGpuDiagnosticResult {
+    DoctorGpuDiagnosticResult {
+        policy,
+        cuda_compiled,
+        status,
+        effective_device,
+        devices,
+        selected_uuid,
+        reason,
     }
 }

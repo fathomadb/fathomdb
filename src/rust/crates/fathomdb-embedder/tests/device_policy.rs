@@ -8,13 +8,14 @@
 use std::str::FromStr;
 
 use fathomdb_embedder::{
-    resolve_embed_device_policy, CudaDeviceInfo, CudaProbeError, CudaProvider,
+    resolve_embed_device_policy, CudaDeviceInfo, CudaProbeError, CudaProvider, CudaVisibleDevice,
     DeviceResolutionError, DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy,
 };
 
 #[derive(Debug)]
 struct RecordingProvider {
     calls: Vec<usize>,
+    enumerate_calls: usize,
     response: Result<CudaDeviceInfo, CudaProbeError>,
 }
 
@@ -22,8 +23,10 @@ impl RecordingProvider {
     fn compatible(ordinal: usize) -> Self {
         Self {
             calls: Vec::new(),
+            enumerate_calls: 0,
             response: Ok(CudaDeviceInfo {
                 ordinal,
+                uuid: Some(format!("GPU-{ordinal}")),
                 name: Some("RTX 3090".to_owned()),
                 driver_version: Some("555.42".to_owned()),
                 compute_capability: Some("8.6".to_owned()),
@@ -33,11 +36,32 @@ impl RecordingProvider {
     }
 
     fn unavailable(error: CudaProbeError) -> Self {
-        Self { calls: Vec::new(), response: Err(error) }
+        Self { calls: Vec::new(), enumerate_calls: 0, response: Err(error) }
     }
 }
 
 impl CudaProvider for RecordingProvider {
+    fn enumerate_visible_cuda_devices(&mut self) -> Result<Vec<CudaVisibleDevice>, CudaProbeError> {
+        self.enumerate_calls += 1;
+        match &self.response {
+            Ok(info) => Ok(vec![CudaVisibleDevice {
+                visible_ordinal: info.ordinal,
+                uuid: info.uuid.clone().expect("fixture UUID"),
+                name: info.name.clone().unwrap_or_else(|| "fixture GPU".to_owned()),
+                compute_capability: info.compute_capability.clone(),
+            }]),
+            Err(CudaProbeError::NoVisibleDevice) => Ok(Vec::new()),
+            Err(CudaProbeError::Incompatible { .. } | CudaProbeError::ProbeFailed { .. }) => {
+                Ok(vec![CudaVisibleDevice {
+                    visible_ordinal: 0,
+                    uuid: "GPU-0".to_owned(),
+                    name: "fixture GPU".to_owned(),
+                    compute_capability: Some("8.6".to_owned()),
+                }])
+            }
+        }
+    }
+
     fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError> {
         self.calls.push(ordinal);
         self.response.clone()
@@ -87,7 +111,8 @@ fn auto_without_visible_gpu_falls_back_to_cpu_with_a_report() {
 
     assert_eq!(report.effective_device, EffectiveEmbedDevice::Cpu);
     assert_eq!(report.reason, Some(DeviceResolutionReason::NoVisibleCudaDevice));
-    assert_eq!(provider.calls, vec![0]);
+    assert_eq!(provider.enumerate_calls, 1);
+    assert!(provider.calls.is_empty());
 }
 
 #[test]
@@ -113,6 +138,7 @@ fn auto_with_compatible_gpu_selects_cuda_and_preserves_safe_metadata() {
         report.effective_device,
         EffectiveEmbedDevice::Cuda(CudaDeviceInfo {
             ordinal: 0,
+            uuid: Some("GPU-0".to_owned()),
             name: Some("RTX 3090".to_owned()),
             driver_version: Some("555.42".to_owned()),
             compute_capability: Some("8.6".to_owned()),
@@ -137,5 +163,6 @@ fn forced_cuda_never_falls_back_to_cpu() {
             reason: DeviceResolutionReason::NoVisibleCudaDevice,
         }
     );
-    assert_eq!(provider.calls, vec![3]);
+    assert_eq!(provider.enumerate_calls, 1);
+    assert!(provider.calls.is_empty());
 }

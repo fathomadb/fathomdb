@@ -11,6 +11,7 @@
 import {
   native,
   type NativeCudaDeviceInfo,
+  type NativeCudaVisibleDevice,
   type NativeEffectiveEmbedDevice,
   type NativeEmbedderDeviceResolution,
   type NativeEmbedderEvent,
@@ -756,10 +757,19 @@ export interface OpenReport {
 /** Safe CUDA provider facts associated with an effective CUDA selection. */
 export interface CudaDeviceInfo {
   readonly ordinal: number;
+  readonly uuid: string | null;
   readonly name: string | null;
   readonly driverVersion: string | null;
   readonly computeCapability: string | null;
   readonly cudaToolkitVersion: string | null;
+}
+
+/** One CUDA device visible to the process after `CUDA_VISIBLE_DEVICES`. */
+export interface CudaVisibleDevice {
+  readonly visibleOrdinal: number;
+  readonly uuid: string;
+  readonly name: string;
+  readonly computeCapability: string | null;
 }
 
 /** The CPU or CUDA backend selected for one embedder device policy. */
@@ -776,16 +786,28 @@ export interface DeviceResolution {
   readonly requestedPolicy: string;
   readonly cudaCompiled: boolean;
   readonly effectiveDevice: EffectiveEmbedDevice;
+  readonly visibleCudaDevices: readonly CudaVisibleDevice[];
+  readonly selectedCudaUuid: string | null;
   readonly reason: string | null;
 }
 
 function mapCudaDeviceInfo(info: NativeCudaDeviceInfo): CudaDeviceInfo {
   return {
     ordinal: info.ordinal,
+    uuid: info.uuid ?? null,
     name: info.name ?? null,
     driverVersion: info.driverVersion ?? null,
     computeCapability: info.computeCapability ?? null,
     cudaToolkitVersion: info.cudaToolkitVersion ?? null,
+  };
+}
+
+function mapCudaVisibleDevice(device: NativeCudaVisibleDevice): CudaVisibleDevice {
+  return {
+    visibleOrdinal: device.visibleOrdinal,
+    uuid: device.uuid,
+    name: device.name,
+    computeCapability: device.computeCapability ?? null,
   };
 }
 
@@ -804,6 +826,8 @@ function mapDeviceResolution(
     requestedPolicy: resolution.requestedPolicy,
     cudaCompiled: resolution.cudaCompiled,
     effectiveDevice: mapEffectiveEmbedDevice(resolution.effectiveDevice),
+    visibleCudaDevices: resolution.visibleCudaDevices.map(mapCudaVisibleDevice),
+    selectedCudaUuid: resolution.selectedCudaUuid ?? null,
     reason: resolution.reason ?? null,
   };
 }

@@ -297,10 +297,18 @@ export interface NativeEmbedderEvent {
 
 export interface NativeCudaDeviceInfo {
   ordinal: number;
+  uuid: string | null;
   name: string | null;
   driverVersion: string | null;
   computeCapability: string | null;
   cudaToolkitVersion: string | null;
+}
+
+export interface NativeCudaVisibleDevice {
+  visibleOrdinal: number;
+  uuid: string;
+  name: string;
+  computeCapability: string | null;
 }
 
 export interface NativeEffectiveEmbedDevice {
@@ -312,6 +320,8 @@ export interface NativeEmbedderDeviceResolution {
   requestedPolicy: string;
   cudaCompiled: boolean;
   effectiveDevice: NativeEffectiveEmbedDevice;
+  visibleCudaDevices: NativeCudaVisibleDevice[];
+  selectedCudaUuid: string | null;
   reason: string | null;
 }
 

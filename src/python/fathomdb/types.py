@@ -564,10 +564,21 @@ class CudaDeviceInfo:
     """Safe CUDA provider facts associated with an effective CUDA selection."""
 
     ordinal: int
+    uuid: str | None
     name: str | None
     driver_version: str | None
     compute_capability: str | None
     cuda_toolkit_version: str | None
+
+
+@dataclass(frozen=True)
+class CudaVisibleDevice:
+    """One CUDA device visible to this process, indexed after `CUDA_VISIBLE_DEVICES`."""
+
+    visible_ordinal: int
+    uuid: str
+    name: str
+    compute_capability: str | None
 
 
 @dataclass(frozen=True)
@@ -586,6 +597,8 @@ class DeviceResolution:
     cuda_compiled: bool
     effective_device: EffectiveEmbedDevice
     reason: str | None
+    visible_cuda_devices: tuple[CudaVisibleDevice, ...] = ()
+    selected_cuda_uuid: str | None = None
 
 
 @dataclass(frozen=True)
@@ -684,6 +697,7 @@ __all__ = [
     "BoundaryCrossing",
     "CounterSnapshot",
     "CudaDeviceInfo",
+    "CudaVisibleDevice",
     "DefaultEmbedderCacheHitEvent",
     "DefaultEmbedderDownloadEvent",
     "DeviceResolution",

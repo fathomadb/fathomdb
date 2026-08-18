@@ -36,9 +36,11 @@ use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use tokenizers::{Tokenizer, TruncationParams};
 
 use crate::{
+    diagnose_gpu,
     loader::{load_pinned_default_embedder, EmbedderLoadError, LoadedWeights, HF_REVISION},
     resolve_embed_device_policy_from_env, CudaDeviceInfo, CudaProbeError, CudaProvider,
-    DeviceResolution, EffectiveEmbedDevice, EmbedDevicePolicyError,
+    CudaVisibleDevice, DeviceResolution, DoctorGpuDiagnosticResult, EffectiveEmbedDevice,
+    EmbedDevicePolicyError,
 };
 
 /// Engine-facing identity name (per
@@ -114,6 +116,54 @@ pub struct CandleBgeEmbedder {
 struct CandleCudaProvider;
 
 impl CudaProvider for CandleCudaProvider {
+    fn enumerate_visible_cuda_devices(&mut self) -> Result<Vec<CudaVisibleDevice>, CudaProbeError> {
+        #[cfg(feature = "embed-cuda")]
+        {
+            use candle_core::cuda::cudarc::driver::{result, sys};
+
+            result::init().map_err(cuda_driver_error)?;
+            let count = result::device::get_count().map_err(cuda_driver_error)?;
+            let count = usize::try_from(count).map_err(|_| CudaProbeError::ProbeFailed {
+                message: "CUDA driver returned a negative device count".to_owned(),
+            })?;
+            (0..count)
+                .map(|visible_ordinal| {
+                    let device = result::device::get(visible_ordinal as i32)
+                        .map_err(cuda_driver_error)?;
+                    let name = result::device::get_name(device).map_err(cuda_driver_error)?;
+                    let uuid = result::device::get_uuid(device).map_err(cuda_driver_error)?;
+                    let major = unsafe {
+                        result::device::get_attribute(
+                            device,
+                            sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR,
+                        )
+                    }
+                    .map_err(cuda_driver_error)?;
+                    let minor = unsafe {
+                        result::device::get_attribute(
+                            device,
+                            sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR,
+                        )
+                    }
+                    .map_err(cuda_driver_error)?;
+                    Ok(CudaVisibleDevice {
+                        visible_ordinal,
+                        uuid: cuda_uuid_string(uuid.bytes),
+                        name,
+                        compute_capability: Some(format!("{major}.{minor}")),
+                    })
+                })
+                .collect()
+        }
+
+        #[cfg(not(feature = "embed-cuda"))]
+        {
+            Err(CudaProbeError::ProbeFailed {
+                message: "the default embedder was built without CUDA".to_owned(),
+            })
+        }
+    }
+
     fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError> {
         #[cfg(feature = "embed-cuda")]
         {
@@ -121,11 +171,17 @@ impl CudaProvider for CandleCudaProvider {
                 .map_err(|error| CudaProbeError::ProbeFailed { message: error.to_string() })?;
             Tensor::zeros(1, DType::F32, &device)
                 .map_err(|error| CudaProbeError::ProbeFailed { message: error.to_string() })?;
+            let visible = self
+                .enumerate_visible_cuda_devices()?
+                .into_iter()
+                .find(|visible| visible.visible_ordinal == ordinal)
+                .ok_or(CudaProbeError::NoVisibleDevice)?;
             Ok(CudaDeviceInfo {
                 ordinal,
-                name: None,
+                uuid: Some(visible.uuid),
+                name: Some(visible.name),
                 driver_version: None,
-                compute_capability: None,
+                compute_capability: visible.compute_capability,
                 cuda_toolkit_version: None,
             })
         }
@@ -140,6 +196,23 @@ impl CudaProvider for CandleCudaProvider {
     }
 }
 
+#[cfg(feature = "embed-cuda")]
+fn cuda_driver_error(
+    error: candle_core::cuda::cudarc::driver::result::DriverError,
+) -> CudaProbeError {
+    CudaProbeError::ProbeFailed { message: error.to_string() }
+}
+
+#[cfg(feature = "embed-cuda")]
+fn cuda_uuid_string(bytes: [std::os::raw::c_char; 16]) -> String {
+    let bytes = bytes.map(|byte| byte as u8);
+    format!(
+        "GPU-{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+        bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+        bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15],
+    )
+}
+
 /// Resolve the product `FATHOMDB_EMBED_DEVICE` policy for one default
 /// embedder construction.
 ///
@@ -149,6 +222,24 @@ pub fn resolve_default_embedder_device_from_env() -> Result<DeviceResolution, Em
 {
     let mut provider = CandleCudaProvider;
     resolve_embed_device_policy_from_env(cfg!(feature = "embed-cuda"), &mut provider)
+}
+
+/// Run the isolated default-embedder CUDA diagnostic from the ambient policy.
+///
+/// This creates no engine, database, loader, or model. It only performs the
+/// CUDA driver inventory and minimal allocation/provider probe required by
+/// `fathomdb doctor gpu`.
+#[must_use]
+pub fn diagnose_default_embedder_gpu_from_env() -> DoctorGpuDiagnosticResult {
+    let raw = std::env::var("FATHOMDB_EMBED_DEVICE").unwrap_or_else(|_| "auto".to_owned());
+    let cuda_compiled = cfg!(feature = "embed-cuda");
+    match raw.parse() {
+        Ok(policy) => {
+            let mut provider = CandleCudaProvider;
+            diagnose_gpu(policy, cuda_compiled, &mut provider)
+        }
+        Err(_) => DoctorGpuDiagnosticResult::from_invalid_policy(raw, cuda_compiled),
+    }
 }
 
 fn device_from_resolution(resolution: &DeviceResolution) -> Result<Device, EmbedderLoadError> {

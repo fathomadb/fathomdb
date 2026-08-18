@@ -659,7 +659,9 @@ impl Slice72Run {
     }
 
     pub fn preflight(test_name: &str) -> Option<Self> {
-        let guard = SLICE72_TEST_LOCK.lock().expect("Slice 72 process guard");
+        // A failed hardware attempt retains a failure receipt by panicking.
+        // Its guard must not prevent the next isolated attempt from preflighting.
+        let guard = SLICE72_TEST_LOCK.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         let runner = std::env::var("FATHOMDB_SLICE72_RUNNER").unwrap_or_default();
         let visible = std::env::var("CUDA_VISIBLE_DEVICES").unwrap_or_default();
         if Self::activation_from(&runner, &visible).is_none() {
@@ -756,7 +758,7 @@ impl Slice72Run {
         let reranked = rerank_fixture();
         assert_real_ce(&reranked);
         receipt.push_phase("warmed", self.sample()).expect("warm receipt sample");
-        let rendezvous = ForwardRendezvous::new();
+        let rendezvous = ForwardRendezvous::new_for_run(self.started);
         wrapper.arm(Arc::clone(&rendezvous));
         let _installed =
             install_ce_forward_rendezvous(Arc::clone(&rendezvous)).expect("install CE hook");
@@ -796,7 +798,7 @@ impl Slice72Run {
         assert_valid_embedding(&wrapper.embed("moderate BGE warmup").expect("real BGE warmup"));
         assert_real_ce(&rerank_fixture()); // warm-up deliberately has no hook installed.
         receipt.push_phase("warmed", self.sample()).expect("warm receipt sample");
-        let rendezvous = ForwardRendezvous::new();
+        let rendezvous = ForwardRendezvous::new_for_run(self.started);
         wrapper.arm(Arc::clone(&rendezvous));
         let _installed =
             install_ce_forward_rendezvous(Arc::clone(&rendezvous)).expect("install CE hook");
@@ -860,7 +862,7 @@ impl Slice72Run {
         let mut overlap_snapshot = None;
         while Instant::now() < deadline {
             assert_before_deadline(ceiling, "start stress operation");
-            let rendezvous = ForwardRendezvous::new();
+            let rendezvous = ForwardRendezvous::new_for_run(self.started);
             wrapper.arm(Arc::clone(&rendezvous));
             let _installed =
                 install_ce_forward_rendezvous(Arc::clone(&rendezvous)).expect("install CE hook");

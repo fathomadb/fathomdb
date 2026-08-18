@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+"""Assert forced-device captures contain only root-bound harness execution."""
+
+from pathlib import Path
+
+
+REPO = Path(__file__).resolve().parents[2]
+PREFLIGHT = (REPO / "scripts/release/cuda-preflight.sh").read_text(encoding="utf-8")
+
+
+def section(start: str, end: str) -> str:
+    return PREFLIGHT.split(start, 1)[1].split(end, 1)[0]
+
+
+forced_python = section("run_forced_python() {", "run_forced_napi() {")
+failures = []
+if "pip install" in forced_python:
+    failures.append("wheel installation output can pollute the Python capture")
+if "src=$FORCED_PYTHON_SITE,dst=/fathomdb-site,readonly" not in forced_python:
+    failures.append("forced Python does not execute from a separately installed read-only site")
+if "PYTHONPATH=/fathomdb-site" not in forced_python:
+    failures.append("forced Python does not bind execution to the separately installed site")
+
+forced_napi = section("run_forced_napi() {", "run_forced_python\n")
+if (
+    "src=$WORK_DIR/forced-napi-open.mjs,dst=/fathomdb-harness/forced-napi-open.mjs,readonly"
+    not in forced_napi
+):
+    failures.append("executed N-API harness is not the exact retained root-bound file")
+if "FORCED_NAPI_HARNESS" in PREFLIGHT:
+    failures.append("a second N-API harness copy can substitute execution bytes")
+
+assert not failures, "\n".join(failures)
+
+print("CUDA preflight capture boundary tests passed")

@@ -3,8 +3,8 @@
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import shutil
 import subprocess
 import sys
@@ -51,6 +51,33 @@ def reseal(root: Path, name: str) -> None:
     witness_path.write_bytes(canonical(witness))
 
 
+def rewrite_forced_message(
+    root: Path,
+    record_name: str,
+    stdout_name: str,
+    stderr_name: str,
+    message: str,
+    *,
+    reseal_witness: bool,
+) -> None:
+    stdout_path = root / stdout_name
+    stderr_path = root / stderr_name
+    rewrite(stdout_path, lambda value: value["error"].__setitem__("message", message))
+    stderr_path.write_text(f"{message}\n", encoding="utf-8")
+    rewrite(
+        root / record_name,
+        lambda value: value.update(
+            {
+                "stdout_sha256": hashlib.sha256(stdout_path.read_bytes()).hexdigest(),
+                "stderr_sha256": hashlib.sha256(stderr_path.read_bytes()).hexdigest(),
+            }
+        ),
+    )
+    if reseal_witness:
+        for name in (record_name, stdout_name, stderr_name):
+            reseal(root, name)
+
+
 def main() -> None:
     with tempfile.TemporaryDirectory() as directory:
         tmp = Path(directory)
@@ -66,6 +93,18 @@ def main() -> None:
         }, "committed valid fixture is not deterministic"
         result = run(valid)
         assert result.returncode == 0, result.stderr
+
+        arbitrary_unavailable = tmp / "arbitrary-unavailable-message"
+        shutil.copytree(valid, arbitrary_unavailable)
+        rewrite_forced_message(
+            arbitrary_unavailable,
+            "forced-cuda-unavailable-python.json",
+            "forced-cuda-unavailable-python-stdout.txt",
+            "forced-cuda-unavailable-python-stderr.txt",
+            "fabricated unavailable failure",
+            reseal_witness=True,
+        )
+        reject(arbitrary_unavailable, "resealed arbitrary unavailable message")
 
         reject(valid, "candidate substitution", OTHER_CANDIDATE)
 
@@ -142,6 +181,24 @@ def main() -> None:
             record, stdout, stderr = (fixtures / name for name in names)
             result = run(valid, CANDIDATE, "--fixture-forced-record", str(record), str(stdout), str(stderr))
             assert result.returncode == 0, result.stderr
+
+            rewrite_forced_message(
+                regenerated_incompatible,
+                record.name,
+                stdout.name,
+                stderr.name,
+                "fabricated incompatible failure",
+                reseal_witness=False,
+            )
+            result = run(
+                valid,
+                CANDIDATE,
+                "--fixture-forced-record",
+                str(record),
+                str(stdout),
+                str(stderr),
+            )
+            assert result.returncode != 0, f"accepted resealed arbitrary incompatible {consumer} message"
 
     print("CUDA preflight witness v2 behavioral tests passed")
 

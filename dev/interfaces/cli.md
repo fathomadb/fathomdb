@@ -89,24 +89,33 @@ must not serialize `DeviceResolution` as the diagnostic. Thus
 automatic result, even though the automatic diagnostic reports typed CPU as its
 effective device.
 
+The production Candle classifier is closed and code-based. Missing dynamic
+driver, `CUDA_ERROR_NO_DEVICE`, and `CUDA_ERROR_STUB_LIBRARY` are unavailable.
+Exactly `CUDA_ERROR_SYSTEM_DRIVER_MISMATCH`,
+`CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE`, `CUDA_ERROR_NO_BINARY_FOR_GPU`,
+`CUDA_ERROR_UNSUPPORTED_PTX_VERSION`, `CUBLAS_STATUS_ARCH_MISMATCH`, and
+`CUBLAS_STATUS_NOT_SUPPORTED` are incompatible. Unknown errors,
+`CUDA_ERROR_OUT_OF_MEMORY`, and `CUBLAS_STATUS_ALLOC_FAILED` are
+`probe_failed`. Build target, CUDA toolkit, and driver-version provenance are
+artifact-witness facts and are not fields in the doctor v1 schema.
+
 `devices` is `[]` if enumeration did not succeed; otherwise it is the observed
-ordered inventory. `selected_uuid` is `null` unless CUDA was selected. The exact
-outcome matrix is:
+ordered inventory. `selected_uuid` is `null` unless CUDA was selected. The
+twelve-row semantic outcome matrix is:
 
 | Requested policy / observation | CUDA activity | Status | Effective device | Devices | Selected UUID | Exit |
 | --- | --- | --- | --- | --- | --- | --- |
 | `cpu` (any artifact) | none | `selected_cpu_no_cuda` | `cpu` | `[]` | `null` | `0` |
 | `auto`, CPU-only artifact | none | `cuda_not_compiled` | `cpu` | `[]` | `null` | `0` |
-| `auto`, successful empty enumeration | enumeration only | `cuda_unavailable` | `cpu` | `[]` | `null` | `0` |
-| `auto`, mapped visible device is incompatible | enumeration + mapped-device probe | `cuda_incompatible` | `cpu` | observed inventory | `null` | `0` |
-| `auto`, driver initialization/enumeration failure | failed driver/enumeration | `probe_failed` | `cpu` | `[]` | `null` | `70` |
-| `auto`, mapped-device allocation/provider probe failure | enumeration + failed mapped-device probe | `probe_failed` | `cpu` | observed inventory | `null` | `70` |
+| `auto`, unavailable evidence | driver-presence, enumeration, or ordinal mapping | `cuda_unavailable` | `cpu` | `[]` before inventory; otherwise observed inventory | `null` | `0` |
+| `auto`, listed compatibility/architecture evidence | enumeration or mapped-device probe | `cuda_incompatible` | `cpu` | `[]` before inventory; otherwise observed inventory | `null` | `0` |
+| `auto`, unknown, OOM, or allocation/provider failure | enumeration or mapped-device probe | `probe_failed` | `cpu` | `[]` before inventory; otherwise observed inventory | `null` | `70` |
 | `auto`, selected device allocation/provider probe succeeds | enumeration + mapped-device probe | `selected_cuda` | selected `cuda:N` | observed inventory | matching UUID | `0` |
 | forced `cuda:N`, CUDA not compiled | none | `cuda_not_compiled` | `null` | `[]` | `null` | `65` |
-| forced `cuda:N`, requested ordinal not visible or no visible device | enumeration only | `cuda_unavailable` | `null` | observed inventory | `null` | `65` |
-| forced `cuda:N`, mapped visible device is incompatible | enumeration + mapped-device probe | `cuda_incompatible` | `null` | observed inventory | `null` | `65` |
-| forced `cuda:N`, driver initialization/enumeration failure | failed driver/enumeration | `probe_failed` | `null` | `[]` | `null` | `70` |
-| forced `cuda:N`, mapped-device allocation/provider probe failure | enumeration + failed mapped-device probe | `probe_failed` | `null` | observed inventory | `null` | `70` |
+| forced `cuda:N`, unavailable evidence | driver-presence, enumeration, or ordinal mapping | `cuda_unavailable` | `null` | `[]` before inventory; otherwise observed inventory | `null` | `65` |
+| forced `cuda:N`, listed compatibility/architecture evidence | enumeration or mapped-device probe | `cuda_incompatible` | `null` | `[]` before inventory; otherwise observed inventory | `null` | `65` |
+| forced `cuda:N`, unknown, OOM, or allocation/provider failure | enumeration or mapped-device probe | `probe_failed` | `null` | `[]` before inventory; otherwise observed inventory | `null` | `70` |
+| forced `cuda:N`, selected device allocation/provider probe succeeds | enumeration + mapped-device probe | `selected_cuda` | selected `cuda:N` | observed inventory | matching UUID | `0` |
 | malformed, legacy, or otherwise invalid policy | none | `invalid_policy` | `null` | `[]` | `null` | `70` |
 
 Forced CUDA never becomes a CPU report. Invalid policy invokes no CUDA provider

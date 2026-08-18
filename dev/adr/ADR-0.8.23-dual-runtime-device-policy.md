@@ -22,10 +22,24 @@ typed rather than falling back. `fathomdb doctor gpu` reports the resolved
 capability without database access, engine initialization, model activity, or
 configuration writes. It reports ordered process-visible UUID inventory rather
 than host ordinals. Policy-satisfied automatic CPU fallback exits `0`; a true
-auto driver/probe diagnostic failure reports `probe_failed` with a typed CPU
-effective device and exits `70`; forced not-compiled/unavailable/incompatible
+auto unknown/OOM/allocation diagnostic failure reports `probe_failed` with a
+typed CPU effective device and exits `70`; listed compatibility/architecture
+evidence reports `cuda_incompatible` with typed CPU and exits `0`; forced
+not-compiled/unavailable/incompatible
 CUDA reports no effective device and exits `65`; invalid policy exits `70`. CPU-only artifacts are
 truthful about `cuda_not_compiled`.
+
+The Candle classifier is closed and code-based: missing dynamic driver,
+`CUDA_ERROR_NO_DEVICE`, and `CUDA_ERROR_STUB_LIBRARY` are unavailable; exactly
+`CUDA_ERROR_SYSTEM_DRIVER_MISMATCH`,
+`CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE`, `CUDA_ERROR_NO_BINARY_FOR_GPU`,
+`CUDA_ERROR_UNSUPPORTED_PTX_VERSION`, `CUBLAS_STATUS_ARCH_MISMATCH`, and
+`CUBLAS_STATUS_NOT_SUPPORTED` are incompatible; unknown errors,
+`CUDA_ERROR_OUT_OF_MEMORY`, and `CUBLAS_STATUS_ALLOC_FAILED` are probe failures.
+ONNX retains a dedicated strict resolver because it cannot expose Candle's UUID
+inventory; forced ONNX CUDA never builds a CPU session. Doctor v1 does not
+fabricate build-target, toolkit, or driver-version metadata; those are retained
+by the Slice 10/20 artifact witnesses.
 
 ## Consequences
 

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fathomdb.dev/schemas/cuda-rerank-preflight-witness/v3",
+  "title": "FathomDB CUDA reranker preflight witness v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "candidate_sha", "outcome", "build_input_sha256", "model_cache_manifest_sha256", "evidence_sha256"],
+  "properties": {
+    "schema_version": {"const": "fathomdb.cuda-preflight-witness/v3"},
+    "candidate_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "outcome": {"const": "passed"},
+    "build_input_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "model_cache_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "evidence_sha256": {"type": "object"}
+  }
+}

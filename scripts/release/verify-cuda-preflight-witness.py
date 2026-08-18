@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed verifier for a retained CUDA preflight-v2 witness."""
+"""Fail-closed verifier for retained CUDA embedding v2 and reranker v3 witnesses."""
 
 from __future__ import annotations
 
@@ -12,7 +12,8 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 
-SCHEMA_VERSION = "fathomdb.cuda-preflight-witness/v2"
+SCHEMA_VERSION_V2 = "fathomdb.cuda-preflight-witness/v2"
+SCHEMA_VERSION_V3 = "fathomdb.cuda-preflight-witness/v3"
 WITNESS_NAME = "cuda-preflight-witness.json"
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 COMMIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
@@ -258,7 +259,7 @@ def validate_model_manifest(path: Path) -> tuple[dict[str, Any], bytes]:
     return value, raw
 
 
-def validate_build_input(path: Path, candidate_sha: str, model_digest: str) -> bytes:
+def validate_build_input(path: Path, candidate_sha: str, model_digest: str) -> str:
     value, raw = load_canonical_object(path, "preflight build input")
     expected = {
         "schema_version": "fathomdb.cuda-preflight-build-input/v2",
@@ -270,9 +271,16 @@ def validate_build_input(path: Path, candidate_sha: str, model_digest: str) -> b
         "model_cache_manifest_sha256": model_digest,
     }
     require_exact_keys(value, set(expected), "preflight build input")
+    if value["schema_version"] == "fathomdb.cuda-preflight-build-input/v3":
+        expected.update({
+            "schema_version": "fathomdb.cuda-preflight-build-input/v3",
+            "python_features": ["embed-cuda", "rerank-cuda", "pyo3/extension-module"],
+            "napi_features": ["default-embedder", "embed-cuda", "rerank-cuda"],
+            "rerank_cuda": True,
+        })
     if value != expected:
         fail("preflight build input differs from the fixed build contract")
-    return raw
+    return "v3" if value["rerank_cuda"] else "v2"
 
 
 def validate_cache_topology(path: Path, manifest: dict[str, Any]) -> None:
@@ -319,8 +327,6 @@ def validate(witness_dir: Path, candidate_sha: str) -> None:
         "schema_version", "candidate_sha", "outcome", "build_input_sha256",
         "model_cache_manifest_sha256", "evidence_sha256",
     }, "witness")
-    if witness["schema_version"] != SCHEMA_VERSION:
-        fail("witness schema version is unsupported")
     if witness["candidate_sha"] != candidate_sha:
         fail("witness candidate SHA does not match the requested candidate")
     if witness["outcome"] != "passed":
@@ -341,7 +347,11 @@ def validate(witness_dir: Path, candidate_sha: str) -> None:
     model_digest = sha256_bytes(model_raw)
     if require_digest(witness["model_cache_manifest_sha256"], "root model-cache digest") != model_digest:
         fail("root model-cache digest differs from retained manifest")
-    build_raw = validate_build_input(witness_dir / "build-input.json", candidate_sha, model_digest)
+    build_kind = validate_build_input(witness_dir / "build-input.json", candidate_sha, model_digest)
+    expected_schema = SCHEMA_VERSION_V3 if build_kind == "v3" else SCHEMA_VERSION_V2
+    if witness["schema_version"] != expected_schema:
+        fail("witness schema version does not match the retained build input")
+    build_raw = (witness_dir / "build-input.json").read_bytes()
     if require_digest(witness["build_input_sha256"], "root build-input digest") != sha256_bytes(build_raw):
         fail("root build-input digest differs from retained input")
     validate_cache_topology(witness_dir / "smoke-cache-topology.json", model_manifest)

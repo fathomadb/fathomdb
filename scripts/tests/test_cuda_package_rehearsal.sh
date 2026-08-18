@@ -178,11 +178,28 @@ build.update({
     "rerank_cuda": True,
 })
 build_path.write_text(json.dumps(build, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+preflight_build_path = root / "preflight-witness" / "build-input.json"
+preflight_build = json.loads(preflight_build_path.read_text())
+preflight_build.update({
+    "schema_version": "fathomdb.cuda-preflight-build-input/v3",
+    "python_features": ["embed-cuda", "rerank-cuda", "pyo3/extension-module"],
+    "napi_features": ["default-embedder", "embed-cuda", "rerank-cuda"],
+    "rerank_cuda": True,
+})
+preflight_build_path.write_text(json.dumps(preflight_build, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+preflight_witness_path = root / "preflight-witness" / "cuda-preflight-witness.json"
+preflight_witness = json.loads(preflight_witness_path.read_text())
+preflight_witness["schema_version"] = "fathomdb.cuda-preflight-witness/v3"
+preflight_build_digest = hashlib.sha256(preflight_build_path.read_bytes()).hexdigest()
+preflight_witness["build_input_sha256"] = preflight_build_digest
+preflight_witness["evidence_sha256"]["build-input.json"] = preflight_build_digest
+preflight_witness_path.write_text(json.dumps(preflight_witness, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
 manifest_path = root / "cuda-package-rehearsal.json"
 manifest = json.loads(manifest_path.read_text())
 manifest["schema_version"] = "fathomdb.cuda-package-rehearsal/v3"
 manifest["pending_external"] = ["compatible_gpu_reranker_cli", "incompatible_reranker_classifier_observation"]
 manifest["build_input"] = build
+manifest["preflight_witness_sha256"] = hashlib.sha256(preflight_witness_path.read_bytes()).hexdigest()
 manifest_path.write_text(json.dumps(manifest, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
 PY
 expect_accept "$TMPROOT/rerank-v3" 'v3 reranker feature tuple is accepted with GPU receipts PENDING_EXTERNAL'

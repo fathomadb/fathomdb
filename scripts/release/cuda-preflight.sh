@@ -2,21 +2,31 @@
 # Collect fail-closed CUDA build/link/device evidence without publishing.
 set -euo pipefail
 
-if [ "$#" -ne 1 ]; then
-  printf 'usage: %s <witness-directory>\n' "$0" >&2
+if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
+  printf 'usage: %s <witness-directory> [--rerank-cuda]\n' "$0" >&2
   exit 2
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 OUTPUT_DIR="$1"
+RERANK_CUDA=false
+if [ "${2:-}" = '--rerank-cuda' ]; then
+  RERANK_CUDA=true
+elif [ "$#" -eq 2 ]; then
+  printf 'cuda-preflight: unknown mode: %s\n' "$2" >&2
+  exit 2
+fi
 CONTAINER_UID="$(id -u)"
 CONTAINER_GID="$(id -g)"
 CONTAINER_USER="$CONTAINER_UID:$CONTAINER_GID"
 # shellcheck source=cuda-artifact-contract.sh
 . "$SCRIPT_DIR/cuda-artifact-contract.sh"
-# shellcheck source=cuda-image-attestation.sh
 . "$SCRIPT_DIR/cuda-image-attestation.sh"
+if [ "$RERANK_CUDA" = true ]; then
+  CUDA_NAPI_FEATURES="$CUDA_RERANK_NAPI_FEATURES"
+  CUDA_PYTHON_FEATURES="$CUDA_RERANK_PYTHON_FEATURES"
+fi
 DEFAULT_EMBEDDER_HF_HOME="${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}"
 DEFAULT_EMBEDDER_SNAPSHOT="$DEFAULT_EMBEDDER_HF_HOME/hub/models--${CUDA_DEFAULT_EMBEDDER_HF_REPO//\//--}/snapshots/$CUDA_DEFAULT_EMBEDDER_HF_REVISION"
 
@@ -437,7 +447,7 @@ NAPI_GPU_CONTAINER="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
 seal_gpu_observation "$NAPI_GPU_CONTAINER" napi "$WORK_DIR/gpu-napi-open-report.json" "$WORK_DIR/gpu-napi-cuda-smoke.txt"
 
 CANDIDATE_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD)"
-export WORK_DIR CANDIDATE_SHA CUDA_DEFAULT_EMBEDDER_HF_REPO CUDA_DEFAULT_EMBEDDER_HF_REVISION
+export WORK_DIR CANDIDATE_SHA CUDA_DEFAULT_EMBEDDER_HF_REPO CUDA_DEFAULT_EMBEDDER_HF_REVISION RERANK_CUDA
 export CUDA_DEFAULT_EMBEDDER_CONFIG_SHA256 CUDA_DEFAULT_EMBEDDER_TOKENIZER_SHA256 CUDA_DEFAULT_EMBEDDER_MODEL_SHA256
 python3 - <<'PY'
 import hashlib
@@ -464,13 +474,14 @@ manifest = {
 }
 (root / "model-cache-manifest.json").write_text(canonical(manifest))
 model_digest = digest(root / "model-cache-manifest.json")
+rerank_cuda = os.environ["RERANK_CUDA"] == "true"
 build = {
-    "schema_version": "fathomdb.cuda-preflight-build-input/v2",
+    "schema_version": "fathomdb.cuda-preflight-build-input/v3" if rerank_cuda else "fathomdb.cuda-preflight-build-input/v2",
     "candidate_sha": os.environ["CANDIDATE_SHA"],
     "target": "x86_64-unknown-linux-gnu",
-    "python_features": ["embed-cuda", "pyo3/extension-module"],
-    "napi_features": ["default-embedder", "embed-cuda"],
-    "rerank_cuda": False,
+    "python_features": ["embed-cuda", "rerank-cuda", "pyo3/extension-module"] if rerank_cuda else ["embed-cuda", "pyo3/extension-module"],
+    "napi_features": ["default-embedder", "embed-cuda", "rerank-cuda"] if rerank_cuda else ["default-embedder", "embed-cuda"],
+    "rerank_cuda": rerank_cuda,
     "model_cache_manifest_sha256": model_digest,
 }
 (root / "build-input.json").write_text(canonical(build))
@@ -553,7 +564,7 @@ from pathlib import Path
 root = Path(os.environ["OUTPUT_DIR"])
 evidence = {path.name: hashlib.sha256(path.read_bytes()).hexdigest() for path in sorted(root.iterdir())}
 payload = {
-    "schema_version": "fathomdb.cuda-preflight-witness/v2",
+    "schema_version": "fathomdb.cuda-preflight-witness/v3" if os.environ["RERANK_CUDA"] == "true" else "fathomdb.cuda-preflight-witness/v2",
     "candidate_sha": os.environ["CANDIDATE_SHA"],
     "outcome": "passed",
     "build_input_sha256": evidence["build-input.json"],
@@ -567,4 +578,11 @@ PY
 python3 "$SCRIPT_DIR/verify-cuda-preflight-witness.py" \
   --witness-dir "$OUTPUT_DIR" \
   --candidate-sha "$CANDIDATE_SHA"
+if [ "$RERANK_CUDA" = true ]; then
+  PACKAGE_DIR="${OUTPUT_DIR}.packages"
+  mkdir "$PACKAGE_DIR"
+  cp "$WHEEL" "$PACKAGE_DIR/"
+  cp "$NPM_MAIN/$NPM_MAIN_TARBALL" "$PACKAGE_DIR/"
+  cp "$NPM_PLATFORM/$NPM_PLATFORM_TARBALL" "$PACKAGE_DIR/"
+fi
 printf 'cuda-preflight: pass; witness at %s\n' "$OUTPUT_DIR"

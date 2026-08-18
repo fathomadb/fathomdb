@@ -79,6 +79,7 @@ def rewrite_forced_message(
 
 
 def main() -> None:
+    assert (REPO / "scripts/release/cuda-rerank-preflight-witness.schema.json").is_file()
     with tempfile.TemporaryDirectory() as directory:
         tmp = Path(directory)
         valid = tmp / "valid"

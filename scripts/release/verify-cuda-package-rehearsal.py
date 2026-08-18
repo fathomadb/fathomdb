@@ -335,7 +335,9 @@ def validate(root: Path, candidate_sha: str) -> None:
         preflight_witness_dir / PREFLIGHT_WITNESS,
     )
     if (
-        preflight_witness.get("schema_version") != "fathomdb.cuda-preflight-witness/v2"
+        preflight_witness.get("schema_version") not in {
+            "fathomdb.cuda-preflight-witness/v2", "fathomdb.cuda-preflight-witness/v3"
+        }
         or preflight_witness.get("candidate_sha") != candidate_sha
         or preflight_witness.get("outcome") != "passed"
     ):
@@ -358,6 +360,13 @@ def validate(root: Path, candidate_sha: str) -> None:
     if manifest["build_input"] != build_input:
         fail("manifest build input differs from the retained build input")
     build_schema = validate_build_input(build_input, candidate_sha, version)
+    expected_preflight_schema = (
+        "fathomdb.cuda-preflight-witness/v3"
+        if build_schema == BUILD_INPUT_SCHEMA_V3
+        else "fathomdb.cuda-preflight-witness/v2"
+    )
+    if preflight_witness["schema_version"] != expected_preflight_schema:
+        fail("preflight witness schema does not match the retained build input")
     expected_manifest_schema = SCHEMA_VERSION_V3 if build_schema == BUILD_INPUT_SCHEMA_V3 else SCHEMA_VERSION_V2
     if manifest["schema_version"] != expected_manifest_schema:
         fail("rehearsal manifest schema does not match the retained build input")

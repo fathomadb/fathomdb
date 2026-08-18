@@ -26,8 +26,37 @@ fn selected_uuid_is_filtered_from_multi_gpu_rows_and_receipt_requires_all_phases
     let directory = tempfile::tempdir().expect("receipt directory");
     assert!(receipt.write_success(directory.path()).is_err(), "overlap phase is mandatory");
     receipt.push_phase("warmed", before.clone()).expect("warmed");
-    receipt.push_phase("overlap", before).expect("overlap");
+    receipt.push_phase("overlap", before.clone()).expect("overlap");
     receipt.write_success(directory.path()).expect("complete receipt");
+
+    let mut non_monotonic = Receipt::for_test("monotonic", "GPU-selected", 4243);
+    non_monotonic.push_phase("before_warm", before.clone()).expect("first phase");
+    assert!(non_monotonic.push_phase("warmed", before.clone()).is_err(), "equal timestamps reject");
+    let mut decreasing = before;
+    decreasing.monotonic_ns = 9;
+    assert!(
+        non_monotonic.push_phase("warmed", decreasing).is_err(),
+        "decreasing timestamps reject"
+    );
+}
+
+#[test]
+fn preflight_visibility_and_failure_receipt_contracts_are_strict() {
+    assert!(!telemetry::has_exactly_one_visible_cuda_device(0));
+    assert!(telemetry::has_exactly_one_visible_cuda_device(1));
+    assert!(!telemetry::has_exactly_one_visible_cuda_device(2));
+
+    let directory = tempfile::tempdir().expect("failure receipt directory");
+    let receipt = Receipt::for_test("provenance", "GPU-selected", 4244);
+    receipt
+        .write_failure(directory.path(), "typed_failure", "forced failure")
+        .expect("failure receipt");
+    let retained = std::fs::read_to_string(directory.path().join("slice72-provenance-4244.json"))
+        .expect("failure receipt contents");
+    for field in ["provenance", "sensor", "phases", "summary", "driver_version", "cache_identities"]
+    {
+        assert!(retained.contains(field), "failure receipt retains {field}");
+    }
 }
 
 #[test]

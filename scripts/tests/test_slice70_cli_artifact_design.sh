@@ -43,6 +43,7 @@ require "$SLICE10" 'fathomdb.cuda-preflight-build-input/v2'
 require "$SLICE10" 'forced-cuda-unavailable-python.json'
 require "$SLICE10" 'fathomdb.cuda-forced-device-failure/v1'
 require "$SLICE10" 'fathomdb.cuda-forced-device-capture/v1'
+require "$SLICE10" '`provenance` is `installed_candidate` for a real record and `deterministic_fixture_provider` for a fixture'
 require "$SLICE10" 'Real sealed witnesses contain only outcomes the installed candidate actually produced'
 require "$SLICE10" 'incompatible records are committed verifier fixtures, not trusted-runner observations'
 require "$SLICE10" 'model-cache-manifest.json'
@@ -67,6 +68,10 @@ require "$SLICE10" '`evidence_sha256` map binds each named capture with the same
 require "$SLICE10" '`visible_ordinal`, `uuid`, `name`, and `compute_capability`'
 require "$SLICE10" 'ordinal is exactly `0`'
 require "$SLICE10" 'selected UUID equals the UUID reported by `nvidia-smi --query-gpu=uuid`'
+require "$SLICE10" '`process_id` equals `nvidia_smi_compute_process_id`'
+require "$SLICE10" '`["/opt/python/cp311-cp311/bin/python", "/fathomdb-harness/forced-python-open.py"]`'
+require "$SLICE10" '`["node", "/fathomdb-harness/forced-napi-open.mjs"]`'
+require "$SLICE10" '`sha256("<repository>@<revision>")[..12]`'
 require "$SLICE10" '`HUGGINGFACE_HUB_CACHE`'
 require "$SLICE10" 'deterministic, committed fixtures'
 
@@ -121,6 +126,10 @@ if [[ "${SLICE70_SKIP_MUTATIONS:-0}" != 1 ]]; then
     's/incompatible records are committed verifier fixtures, not trusted-runner observations/incompatible records are trusted-runner observations/'
   assert_mutation_rejected cache-topology-record 0.8.23-slice-10-cuda-contract.md \
     's/fathomdb.cuda-smoke-cache-topology\/v1/fathomdb.cuda-smoke-cache-topology\/removed/'
+  assert_mutation_rejected pid-device-binding 0.8.23-slice-10-cuda-contract.md \
+    's/process_id` equals `nvidia_smi_compute_process_id/process_id` differs from `nvidia_smi_compute_process_id/'
+  assert_mutation_rejected cache-prefix-algorithm 0.8.23-slice-10-cuda-contract.md \
+    's/sha256("<repository>@<revision>")\[\.\.12\]/sha256("<revision>@<repository>")[..12]/'
   assert_mutation_rejected provider-enumeration 0.8.23-slice-70-dual-runtime-device-policy.md \
     's/CudaProvider::enumerate_visible_cuda_devices/CudaProvider::probe_cuda/'
   assert_mutation_rejected cache-topology 0.8.23-slice-20-cuda-package-rehearsal.md \

@@ -113,7 +113,7 @@ def main() -> None:
             rerank_v3 / "cuda-preflight-witness.json",
             lambda value: value.__setitem__("schema_version", "fathomdb.cuda-preflight-witness/v3"),
         )
-        assert run(rerank_v3).returncode == 0, "v3 reranker feature witness must be accepted"
+        assert run(rerank_v3).returncode != 0, "v3 witness without reranker evidence must be rejected"
 
         arbitrary_unavailable = tmp / "arbitrary-unavailable-message"
         shutil.copytree(valid, arbitrary_unavailable)

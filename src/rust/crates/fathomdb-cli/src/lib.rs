@@ -1241,4 +1241,449 @@ mod tests {
             Ok(Cli { command: Command::Doctor(DoctorArgs { command: DoctorCommand::Gpu(_) }) })
         ));
     }
+
+    #[derive(Clone, Copy)]
+    struct DoctorProcessCase {
+        name: &'static str,
+        policy: &'static str,
+        cuda_compiled: bool,
+        status: fathomdb_embedder::DoctorGpuStatus,
+        effective: Option<&'static str>,
+        reason: Option<fathomdb_embedder::DeviceResolutionReason>,
+        inventory: bool,
+        selected: bool,
+        exit: i32,
+    }
+
+    static DOCTOR_PROCESS_CASES: std::sync::LazyLock<Vec<DoctorProcessCase>> =
+        std::sync::LazyLock::new(|| {
+            vec![
+                doctor_case(
+                    "cpu",
+                    "cpu",
+                    false,
+                    "selected_cpu_no_cuda",
+                    Some("cpu"),
+                    None,
+                    false,
+                    false,
+                    0,
+                ),
+                doctor_case(
+                    "auto-not-compiled",
+                    "auto",
+                    false,
+                    "cuda_not_compiled",
+                    Some("cpu"),
+                    Some("cuda_not_compiled"),
+                    false,
+                    false,
+                    0,
+                ),
+                doctor_case(
+                    "auto-unavailable-pre",
+                    "auto",
+                    true,
+                    "cuda_unavailable",
+                    Some("cpu"),
+                    Some("no_visible_cuda_device"),
+                    false,
+                    false,
+                    0,
+                ),
+                doctor_case(
+                    "auto-unavailable-post",
+                    "auto",
+                    true,
+                    "cuda_unavailable",
+                    Some("cpu"),
+                    Some("no_visible_cuda_device"),
+                    true,
+                    false,
+                    0,
+                ),
+                doctor_case(
+                    "auto-incompatible-pre",
+                    "auto",
+                    true,
+                    "cuda_incompatible",
+                    Some("cpu"),
+                    Some("cuda_incompatible"),
+                    false,
+                    false,
+                    0,
+                ),
+                doctor_case(
+                    "auto-incompatible-post",
+                    "auto",
+                    true,
+                    "cuda_incompatible",
+                    Some("cpu"),
+                    Some("cuda_incompatible"),
+                    true,
+                    false,
+                    0,
+                ),
+                doctor_case(
+                    "auto-probe-failed-pre",
+                    "auto",
+                    true,
+                    "probe_failed",
+                    Some("cpu"),
+                    Some("cuda_probe_failed"),
+                    false,
+                    false,
+                    70,
+                ),
+                doctor_case(
+                    "auto-probe-failed-post",
+                    "auto",
+                    true,
+                    "probe_failed",
+                    Some("cpu"),
+                    Some("cuda_probe_failed"),
+                    true,
+                    false,
+                    70,
+                ),
+                doctor_case(
+                    "auto-selected",
+                    "auto",
+                    true,
+                    "selected_cuda",
+                    Some("cuda:0"),
+                    None,
+                    true,
+                    true,
+                    0,
+                ),
+                doctor_case(
+                    "forced-not-compiled",
+                    "cuda:0",
+                    false,
+                    "cuda_not_compiled",
+                    None,
+                    Some("cuda_not_compiled"),
+                    false,
+                    false,
+                    65,
+                ),
+                doctor_case(
+                    "forced-unavailable-pre",
+                    "cuda:0",
+                    true,
+                    "cuda_unavailable",
+                    None,
+                    Some("no_visible_cuda_device"),
+                    false,
+                    false,
+                    65,
+                ),
+                doctor_case(
+                    "forced-unavailable-post",
+                    "cuda:0",
+                    true,
+                    "cuda_unavailable",
+                    None,
+                    Some("no_visible_cuda_device"),
+                    true,
+                    false,
+                    65,
+                ),
+                doctor_case(
+                    "forced-incompatible-pre",
+                    "cuda:0",
+                    true,
+                    "cuda_incompatible",
+                    None,
+                    Some("cuda_incompatible"),
+                    false,
+                    false,
+                    65,
+                ),
+                doctor_case(
+                    "forced-incompatible-post",
+                    "cuda:0",
+                    true,
+                    "cuda_incompatible",
+                    None,
+                    Some("cuda_incompatible"),
+                    true,
+                    false,
+                    65,
+                ),
+                doctor_case(
+                    "forced-probe-failed-pre",
+                    "cuda:0",
+                    true,
+                    "probe_failed",
+                    None,
+                    Some("cuda_probe_failed"),
+                    false,
+                    false,
+                    70,
+                ),
+                doctor_case(
+                    "forced-probe-failed-post",
+                    "cuda:0",
+                    true,
+                    "probe_failed",
+                    None,
+                    Some("cuda_probe_failed"),
+                    true,
+                    false,
+                    70,
+                ),
+                doctor_case(
+                    "forced-selected",
+                    "cuda:0",
+                    true,
+                    "selected_cuda",
+                    Some("cuda:0"),
+                    None,
+                    true,
+                    true,
+                    0,
+                ),
+                doctor_case(
+                    "invalid",
+                    "cuda",
+                    true,
+                    "invalid_policy",
+                    None,
+                    None,
+                    false,
+                    false,
+                    70,
+                ),
+            ]
+        });
+
+    fn doctor_case(
+        name: &'static str,
+        policy: &'static str,
+        cuda_compiled: bool,
+        status: &'static str,
+        effective: Option<&'static str>,
+        reason: Option<&'static str>,
+        inventory: bool,
+        selected: bool,
+        exit: i32,
+    ) -> DoctorProcessCase {
+        DoctorProcessCase {
+            name,
+            policy,
+            cuda_compiled,
+            status: match status {
+                "selected_cuda" => fathomdb_embedder::DoctorGpuStatus::SelectedCuda,
+                "selected_cpu_no_cuda" => fathomdb_embedder::DoctorGpuStatus::SelectedCpuNoCuda,
+                "cuda_not_compiled" => fathomdb_embedder::DoctorGpuStatus::CudaNotCompiled,
+                "cuda_unavailable" => fathomdb_embedder::DoctorGpuStatus::CudaUnavailable,
+                "cuda_incompatible" => fathomdb_embedder::DoctorGpuStatus::CudaIncompatible,
+                "invalid_policy" => fathomdb_embedder::DoctorGpuStatus::InvalidPolicy,
+                "probe_failed" => fathomdb_embedder::DoctorGpuStatus::ProbeFailed,
+                _ => panic!("unknown status"),
+            },
+            effective,
+            reason: match reason {
+                None => None,
+                Some("cuda_not_compiled") => {
+                    Some(fathomdb_embedder::DeviceResolutionReason::CudaNotCompiled)
+                }
+                Some("no_visible_cuda_device") => {
+                    Some(fathomdb_embedder::DeviceResolutionReason::NoVisibleCudaDevice)
+                }
+                Some("cuda_incompatible") => {
+                    Some(fathomdb_embedder::DeviceResolutionReason::CudaIncompatible)
+                }
+                Some("cuda_probe_failed") => {
+                    Some(fathomdb_embedder::DeviceResolutionReason::CudaProbeFailed)
+                }
+                Some(_) => panic!("unknown reason"),
+            },
+            inventory,
+            selected,
+            exit,
+        }
+    }
+
+    fn process_case(name: &str) -> DoctorProcessCase {
+        *DOCTOR_PROCESS_CASES.iter().find(|case| case.name == name).expect("known process case")
+    }
+
+    fn process_report(case: DoctorProcessCase) -> fathomdb_embedder::DoctorGpuDiagnosticResult {
+        let devices = case.inventory.then(|| fathomdb_embedder::CudaVisibleDevice {
+            visible_ordinal: 0,
+            uuid: "GPU-a".to_owned(),
+            name: "GPU 0".to_owned(),
+            compute_capability: Some("8.6".to_owned()),
+        });
+        let effective_device = match case.effective {
+            Some("cpu") => Some(fathomdb_embedder::EffectiveEmbedDevice::Cpu),
+            Some("cuda:0") => Some(fathomdb_embedder::EffectiveEmbedDevice::Cuda(
+                fathomdb_embedder::CudaDeviceInfo {
+                    ordinal: 0,
+                    uuid: Some("GPU-a".to_owned()),
+                    name: Some("GPU 0".to_owned()),
+                    driver_version: None,
+                    compute_capability: Some("8.6".to_owned()),
+                    cuda_toolkit_version: None,
+                },
+            )),
+            None => None,
+            Some(value) => panic!("unexpected effective device {value}"),
+        };
+        fathomdb_embedder::DoctorGpuDiagnosticResult {
+            policy: case.policy.to_owned(),
+            cuda_compiled: case.cuda_compiled,
+            status: case.status,
+            effective_device,
+            devices: devices.into_iter().collect(),
+            selected_uuid: case.selected.then(|| "GPU-a".to_owned()),
+            reason: case.reason,
+        }
+    }
+
+    fn expected_doctor_json(case: DoctorProcessCase) -> String {
+        let devices = if case.inventory {
+            r#"[{"visible_ordinal":0,"uuid":"GPU-a","name":"GPU 0","compute_capability":"8.6"}]"#
+        } else {
+            "[]"
+        };
+        format!(
+            "{{\"schema_version\":\"fathomdb.doctor.gpu.v1\",\"policy\":{},\"cuda_compiled\":{},\"status\":\"{}\",\"effective_device\":{},\"devices\":{},\"reason\":{},\"selected_uuid\":{}}}\n",
+            serde_json::to_string(case.policy).unwrap(),
+            case.cuda_compiled,
+            case.status.as_str(),
+            serde_json::to_string(&case.effective).unwrap(),
+            devices,
+            serde_json::to_string(&case.reason.map(|reason| reason.as_str())).unwrap(),
+            serde_json::to_string(&case.selected.then_some("GPU-a")).unwrap(),
+        )
+    }
+
+    fn expected_doctor_text(case: DoctorProcessCase) -> String {
+        let mut output = format!(
+            "doctor gpu\npolicy={}\ncuda_compiled={}\nstatus={}\neffective_device={}\nreason={}\ndevices={}\n",
+            serde_json::to_string(case.policy).unwrap(),
+            case.cuda_compiled,
+            case.status.as_str(),
+            case.effective.unwrap_or("null"),
+            case.reason.map_or("null", |reason| reason.as_str()),
+            usize::from(case.inventory),
+        );
+        if case.inventory {
+            output.push_str(
+                r#"device={"visible_ordinal":0,"uuid":"GPU-a","name":"GPU 0","compute_capability":"8.6"}"#,
+            );
+            output.push('\n');
+        }
+        output
+            .push_str(&format!("selected_uuid={}\n", if case.selected { "GPU-a" } else { "null" }));
+        output
+    }
+
+    #[test]
+    fn doctor_gpu_process_fixture_child() {
+        let Ok(case_name) = std::env::var("FATHOMDB_INTERNAL_TEST_DOCTOR_CASE") else {
+            return;
+        };
+        let json_mode = std::env::var_os("FATHOMDB_INTERNAL_TEST_DOCTOR_JSON").is_some();
+        let argv = if json_mode {
+            vec!["fathomdb", "doctor", "gpu", "--json"]
+        } else {
+            vec!["fathomdb", "doctor", "gpu"]
+        };
+        let cli = Cli::try_parse_from(argv).expect("real doctor gpu argv parses");
+        let args = match cli {
+            Cli { command: Command::Doctor(DoctorArgs { command: DoctorCommand::Gpu(args) }) } => {
+                args
+            }
+            _ => panic!("fixture argv must route only to doctor gpu"),
+        };
+        let case = process_case(&case_name);
+        let report = process_report(case);
+        let output = doctor_gpu_diagnostic_output(&report, args.json);
+        std::fs::write(
+            std::env::var("FATHOMDB_INTERNAL_TEST_DOCTOR_CAPTURE").expect("capture path"),
+            output,
+        )
+        .expect("write isolated process capture");
+        std::process::exit(report.exit_code());
+    }
+
+    #[test]
+    fn doctor_gpu_process_matrix_has_exact_outputs_and_no_side_effects() {
+        if std::env::var_os("FATHOMDB_INTERNAL_TEST_DOCTOR_CASE").is_some() {
+            return;
+        }
+        let executable = std::env::current_exe().expect("current test executable");
+        for case in DOCTOR_PROCESS_CASES.iter() {
+            for json_mode in [false, true] {
+                let root = tempfile::tempdir().expect("isolated doctor process root");
+                let capture = root.path().join("capture");
+                let trace = root.path().join("trace");
+                let cwd = root.path().join("cwd");
+                let home = root.path().join("home-canary");
+                let xdg = root.path().join("xdg-canary");
+                let hf = root.path().join("hf-canary");
+                let model = root.path().join("model-canary");
+                let database = root.path().join("database-canary");
+                for directory in [&cwd, &home, &xdg, &hf, &model, &database] {
+                    std::fs::create_dir(directory).expect("create canary root");
+                }
+
+                let mut command = std::process::Command::new("strace");
+                command
+                    .args(["-f", "-qq", "-e", "trace=%file,%network", "-o"])
+                    .arg(&trace)
+                    .arg(&executable)
+                    .args(["--exact", "tests::doctor_gpu_process_fixture_child", "--nocapture"])
+                    .current_dir(&cwd)
+                    .env("HOME", &home)
+                    .env("XDG_CACHE_HOME", &xdg)
+                    .env("XDG_CONFIG_HOME", &xdg)
+                    .env("HF_HOME", &hf)
+                    .env("HF_HUB_CACHE", &hf)
+                    .env("FATHOMDB_MODEL_CACHE", &model)
+                    .env("FATHOMDB_INTERNAL_TEST_DOCTOR_CASE", case.name)
+                    .env("FATHOMDB_INTERNAL_TEST_DOCTOR_CAPTURE", &capture);
+                if json_mode {
+                    command.env("FATHOMDB_INTERNAL_TEST_DOCTOR_JSON", "1");
+                }
+                let output = command.output().expect("run straced doctor fixture child");
+                assert_eq!(output.status.code(), Some(case.exit), "{} json={json_mode}", case.name);
+                assert!(
+                    output.stderr.is_empty(),
+                    "{} json={json_mode}: {}",
+                    case.name,
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                let captured = std::fs::read_to_string(&capture).expect("read child output");
+                let expected = if json_mode {
+                    expected_doctor_json(*case)
+                } else {
+                    expected_doctor_text(*case)
+                };
+                assert_eq!(captured, expected, "{} json={json_mode}", case.name);
+
+                let syscalls = std::fs::read_to_string(&trace).expect("read syscall evidence");
+                assert!(!syscalls.contains("socket("), "{} opened a network socket", case.name);
+                assert!(
+                    !syscalls.contains("connect("),
+                    "{} attempted a network connection",
+                    case.name
+                );
+                for forbidden in [&home, &xdg, &hf, &model, &database] {
+                    assert!(
+                        !syscalls.contains(&forbidden.to_string_lossy().into_owned()),
+                        "{} accessed forbidden root {}",
+                        case.name,
+                        forbidden.display(),
+                    );
+                    assert_eq!(std::fs::read_dir(forbidden).unwrap().count(), 0);
+                }
+            }
+        }
+    }
 }

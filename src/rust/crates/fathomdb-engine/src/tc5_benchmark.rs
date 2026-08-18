@@ -269,3 +269,26 @@ fn digest_text(text: &str) -> String {
     digest.update(text.as_bytes());
     digest.finalize().iter().map(|byte| format!("{byte:02x}")).collect()
 }
+
+#[cfg(test)]
+mod route_trap_tests {
+    use super::*;
+
+    #[test]
+    fn every_forbidden_route_trap_invalidates_a_tc5_attestation() {
+        let traps = [
+            record_search_route,
+            record_fts_route,
+            record_fusion_route,
+            record_graph_route,
+            record_cross_encoder_route,
+        ];
+        for trap in traps {
+            let observer = RouteObserver::new();
+            let _request = observer.activate_for_request().unwrap();
+            observer.observe_vector_stage().unwrap();
+            trap();
+            assert_eq!(observer.attestation(), Err(VectorStageError::ProhibitedRoute));
+        }
+    }
+}

@@ -355,23 +355,66 @@ pub fn is_stress_watchdog_child() -> bool {
 /// ceiling, including setup, warm-up, and drain.
 pub fn run_stress_under_watchdog(test_name: &str) {
     let current = std::env::current_exe().expect("resolve Slice 72 stress test binary");
-    let child = Command::new(current)
+    let receipt_directory = std::env::var_os("FATHOMDB_SLICE72_RECEIPT_DIR")
+        .map(std::path::PathBuf::from)
+        .expect("Slice 72 stress watchdog requires FATHOMDB_SLICE72_RECEIPT_DIR");
+    let mut command = Command::new(current);
+    command
         .args(["--exact", test_name, "--ignored", "--nocapture", "--test-threads=1"])
         .env(STRESS_WATCHDOG_CHILD, "1")
         .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .expect("start Slice 72 stress watchdog child");
-    wait_for_child_with_watchdog(child, STRESS_WATCHDOG_CEILING)
-        .unwrap_or_else(|error| panic!("Slice 72 stress watchdog failure: {error}"));
+        .stderr(Stdio::inherit());
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        command.process_group(0);
+    }
+    let child = command.spawn().expect("start Slice 72 stress watchdog child");
+    wait_for_child_with_watchdog_in_process_group(
+        child,
+        STRESS_WATCHDOG_CEILING,
+        &receipt_directory,
+        test_name,
+    )
+    .unwrap_or_else(|error| panic!("Slice 72 stress watchdog failure: {error}"));
 }
 
 /// Waits for a child only until the supplied deadline. On expiry it kills and
 /// reaps the process, so a blocked CUDA/engine call cannot keep the stress
 /// test process alive past the global ceiling.
 pub fn wait_for_child_with_watchdog(
+    child: Child,
+    timeout: std::time::Duration,
+) -> Result<(), String> {
+    wait_for_child_with_watchdog_inner(child, timeout, None, false)
+}
+
+/// Variant used by the stress supervisor. A timeout produces a retained,
+/// create-new parent receipt even when the killed child never reached
+/// preflight far enough to discover its selected CUDA UUID.
+pub fn wait_for_child_with_watchdog_with_receipt(
+    child: Child,
+    timeout: std::time::Duration,
+    receipt_directory: &Path,
+    test_name: &str,
+) -> Result<(), String> {
+    wait_for_child_with_watchdog_inner(child, timeout, Some((receipt_directory, test_name)), false)
+}
+
+fn wait_for_child_with_watchdog_in_process_group(
+    child: Child,
+    timeout: std::time::Duration,
+    receipt_directory: &Path,
+    test_name: &str,
+) -> Result<(), String> {
+    wait_for_child_with_watchdog_inner(child, timeout, Some((receipt_directory, test_name)), true)
+}
+
+fn wait_for_child_with_watchdog_inner(
     mut child: Child,
     timeout: std::time::Duration,
+    timeout_receipt: Option<(&Path, &str)>,
+    kill_process_group: bool,
 ) -> Result<(), String> {
     let deadline = Instant::now() + timeout;
     loop {
@@ -382,12 +425,80 @@ pub fn wait_for_child_with_watchdog(
                 .ok_or_else(|| format!("stress watchdog child exited unsuccessfully: {status}"));
         }
         if Instant::now() >= deadline {
+            let child_pid = child.id();
+            if kill_process_group {
+                kill_watchdog_process_group(child_pid);
+            }
             let _ = child.kill();
             let _ = child.wait();
-            return Err(format!("stress watchdog exceeded {} seconds", timeout.as_secs()));
+            let error = format!("stress watchdog exceeded {} seconds", timeout.as_secs());
+            if let Some((directory, test_name)) = timeout_receipt {
+                write_watchdog_timeout_receipt(directory, test_name, child_pid, timeout).map_err(
+                    |receipt_error| format!("{error}; timeout receipt failed: {receipt_error}"),
+                )?;
+            }
+            return Err(error);
         }
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
+}
+
+#[cfg(unix)]
+fn kill_watchdog_process_group(child_pid: u32) {
+    let Ok(pid) = i32::try_from(child_pid) else {
+        return;
+    };
+    // The supervisor gives its child its own process group before spawn, so
+    // this also terminates `nvidia-smi` or other subprocesses it may be waiting on.
+    unsafe {
+        let _ = libc::kill(-pid, libc::SIGKILL);
+    }
+}
+
+#[cfg(not(unix))]
+fn kill_watchdog_process_group(_child_pid: u32) {}
+
+fn write_watchdog_timeout_receipt(
+    directory: &Path,
+    test_name: &str,
+    child_pid: u32,
+    timeout: std::time::Duration,
+) -> Result<(), String> {
+    let path = directory.join(format!("slice72-watchdog-{test_name}-{child_pid}.json"));
+    let mut file = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&path)
+        .map_err(|error| format!("create watchdog receipt {}: {error}", path.display()))?;
+    let provenance = json!({
+        "runner_sentinel": std::env::var("FATHOMDB_SLICE72_RUNNER").ok(),
+        "cuda_visible_devices": std::env::var("CUDA_VISIBLE_DEVICES").ok(),
+        "asset_root": std::env::var("FATHOMDB_SLICE72_ASSET_ROOT").ok(),
+        "parent_test_binary": std::env::current_exe().ok().map(|path| path.display().to_string()),
+    });
+    serde_json::to_writer_pretty(
+        &mut file,
+        &json!({
+            "schema_version": "fathomdb.slice72.concurrent_gpu.v1",
+            "test_name": test_name,
+            "outcome": "failure",
+            "pid": std::process::id(),
+            "child_pid": child_pid,
+            "selected_uuid": serde_json::Value::Null,
+            "selected_visible_ordinal": serde_json::Value::Null,
+            "driver_version": serde_json::Value::Null,
+            "phases": serde_json::Value::Null,
+            "summary": serde_json::Value::Null,
+            "provenance": provenance,
+            "failure": {
+                "kind": "watchdog_timeout",
+                "timeout_seconds": timeout.as_secs_f64(),
+                "message": "parent watchdog killed and reaped the stress child before it returned",
+            },
+        }),
+    )
+    .map_err(|error| error.to_string())?;
+    file.write_all(b"\n").map_err(|error| error.to_string())
 }
 
 /// A fully preflighted trusted-runner attempt. Its guard owns all process-wide

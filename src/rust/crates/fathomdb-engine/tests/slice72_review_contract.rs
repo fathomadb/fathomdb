@@ -4,7 +4,7 @@
 mod telemetry;
 
 use std::process::Command;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use telemetry::{ForwardRendezvous, Receipt, TelemetrySnapshot};
 
 #[test]
@@ -120,6 +120,45 @@ fn guarded_operation_retains_panics_and_overlap_timestamp_is_inside_the_window()
         rendezvous.active_overlap_sample_timestamp().is_none(),
         "a completed interval cannot be presented as an active telemetry sample"
     );
+}
+
+/// A runner receipt is clocked from its preflight, while the rendezvous begins
+/// after model warm-up. The overlap sample must still sort after the warm-up
+/// sample: it cannot use a fresh rendezvous-relative epoch.
+#[test]
+fn rendezvous_overlap_timestamp_shares_the_run_receipt_clock() {
+    let run_started = Instant::now();
+    std::thread::sleep(Duration::from_millis(2));
+    let mut receipt = Receipt::for_test("shared-clock", "GPU-selected", 4242);
+    let before_timestamp = u64::try_from(run_started.elapsed().as_nanos()).expect("nanoseconds");
+    let before = TelemetrySnapshot::parse_gpu_csv(
+        "GPU-selected, 3, 1, 8192, 400, 7792\n",
+        "GPU-selected, 4242, fathomdb, 840\n",
+        "GPU-selected",
+        4242,
+        before_timestamp,
+    )
+    .expect("before-warm snapshot");
+    receipt.push_phase("before_warm", before.clone()).expect("before warm");
+    let mut warmed = before;
+    warmed.monotonic_ns = before_timestamp.saturating_add(1);
+    receipt.push_phase("warmed", warmed).expect("warmed");
+
+    let rendezvous = ForwardRendezvous::new_for_run(run_started);
+    let run = rendezvous.run_contract_fixture();
+    assert!(run.overlaps());
+    let overlap_timestamp = run.active_overlap_sample_timestamp().expect("overlap timestamp");
+    let overlap = TelemetrySnapshot::parse_gpu_csv(
+        "GPU-selected, 3, 1, 8192, 400, 7792\n",
+        "GPU-selected, 4242, fathomdb, 840\n",
+        "GPU-selected",
+        4242,
+        overlap_timestamp,
+    )
+    .expect("overlap snapshot");
+    receipt
+        .push_phase("overlap", overlap)
+        .expect("a rendezvous sample must sort after runner warm-up phases");
 }
 
 #[test]

@@ -888,6 +888,7 @@ mod tests {
         assert_eq!(&*calls.lock().unwrap(), &["asset"]);
         let output = std::fs::read_to_string(result).unwrap();
         assert!(output.contains("asset_unavailable"));
+        assert!(output.contains("\"workload\":\"vector_stage_v1\""));
         assert!(!output.contains("/private/model-cache"));
     }
 
@@ -918,6 +919,10 @@ mod tests {
         write_measurement(&result, &spec, &manifest, "cpu", &stage).unwrap();
         let output = fs::read_to_string(result).unwrap();
         assert!(output.contains("measurement_complete"));
+        assert!(output.contains("\"workload\":\"vector_stage_v1\""));
+        assert!(output.contains("index_construction_device"));
+        assert!(output.contains("runtime_identity"));
+        assert!(output.contains("build_identity"));
         assert!(output.contains("candidate_ids_digest"));
         assert!(!output.contains("[101"));
         assert!(!output.contains(",202"));

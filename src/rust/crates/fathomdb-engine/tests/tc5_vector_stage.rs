@@ -107,6 +107,7 @@ fn direct_vector_stage_uses_one_scope_and_distinct_truth_route() {
     assert_eq!(result.routes.fusion, 0);
     assert_eq!(result.routes.graph, 0);
     assert_eq!(result.routes.cross_encoder, 0);
+    assert_eq!(result.routes.observation_source(), "request_scoped_trap");
     assert_ne!(result.rerank, result.ground_truth);
     assert_eq!(result.candidate_execution, "cpu/sqlite-vec");
     assert_eq!(result.rerank_execution, "cpu/sqlite-vec");

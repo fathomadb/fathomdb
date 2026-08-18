@@ -146,7 +146,7 @@ def main() -> None:
                 "schema_version": "fathomdb.cuda-forced-reranker-failure/v1", "consumer": consumer,
                 "requested_policy": "cuda:0", "cuda_compiled": True, "visible_devices": [],
                 "status": "cuda_unavailable", "effective_device": None, "reason": "no_visible_cuda_device",
-                "provenance": "installed_candidate", "command": f"installed_{consumer}_engine_open", "exit_code": 1,
+                "provenance": "installed_candidate", "command": f"installed_{consumer}_engine_open_without_default_embedder", "exit_code": 1,
                 "stdout_filename": stdout.name, "stdout_sha256": hashlib.sha256(stdout.read_bytes()).hexdigest(),
                 "stderr_filename": stderr.name, "stderr_sha256": hashlib.sha256(stderr.read_bytes()).hexdigest(),
             }))

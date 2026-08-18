@@ -43,7 +43,7 @@ def run_python(root: Path) -> None:
     assert log.read_text() == "False", "forced reranker Python harness loaded the default embedder"
     payload = json.loads(result.stdout)
     assert payload["error"]["type"] == "RerankerDevicePolicyError"
-    assert result.stderr == f"{MESSAGE}\n"
+    assert result.stderr == f"{MESSAGE}\n", result.stderr
 
 
 def run_napi(root: Path) -> None:
@@ -51,7 +51,7 @@ def run_napi(root: Path) -> None:
         return
     package = root / "node/node_modules/fathomdb"
     package.mkdir(parents=True)
-    (package / "package.json").write_text('{"type":"module"}\n')
+    (package / "package.json").write_text('{"type":"module","exports":"./index.js"}\n')
     (package / "index.js").write_text(
         "import fs from 'node:fs';\n"
         "export class RerankerDevicePolicyError extends Error {\n"
@@ -63,16 +63,18 @@ def run_napi(root: Path) -> None:
         "} }\n"
     )
     log = root / "napi-call.txt"
+    harness = root / "node/forced-reranker-napi.mjs"
+    harness.write_bytes(NAPI_HARNESS.read_bytes())
     result = subprocess.run(
-        ["node", str(NAPI_HARNESS)], text=True, capture_output=True,
-        env=os.environ | {"NODE_PATH": str(root / "node/node_modules"), "HARNESS_CALL_LOG": str(log)},
+        ["node", str(harness)], text=True, capture_output=True,
+        env=os.environ | {"HARNESS_CALL_LOG": str(log)},
         check=False,
     )
     assert result.returncode == 1, result
     assert log.read_text() == "false", "forced reranker N-API harness loaded the default embedder"
     payload = json.loads(result.stdout)
     assert payload["error"]["type"] == "RerankerDevicePolicyError"
-    assert result.stderr == f"{MESSAGE}\n"
+    assert result.stderr == f"{MESSAGE}\n", result.stderr
 
 
 def main() -> None:

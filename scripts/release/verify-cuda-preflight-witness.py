@@ -300,7 +300,7 @@ def validate_forced_reranker_record(record_path: Path, stdout_path: Path, stderr
         "effective_device": None,
         "reason": "no_visible_cuda_device",
         "provenance": "installed_candidate",
-        "command": f"installed_{consumer}_engine_open",
+        "command": f"installed_{consumer}_engine_open_without_default_embedder",
         "exit_code": 1,
         "stdout_filename": stdout_path.name,
         "stdout_sha256": sha256_bytes(stdout_path.read_bytes()),

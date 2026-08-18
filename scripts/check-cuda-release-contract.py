@@ -822,8 +822,8 @@ def main() -> None:
     require_driverless_device_absence(preflight)
     for fragment in (
         "FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE",
-        "dst=/fathomdb-reranker-cache,readonly",
-        "FATHOMDB_RERANKER_CACHE=/fathomdb-reranker-cache",
+        "dst=/fathomdb-reranker-cache-root,readonly",
+        "FATHOMDB_RERANKER_CACHE=/fathomdb-reranker-cache-root",
         "reranker-cache-manifest.json",
         "reranker-python-cpu-smoke.json",
         "reranker-napi-cpu-smoke.json",

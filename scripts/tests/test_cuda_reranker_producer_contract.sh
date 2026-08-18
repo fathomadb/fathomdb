@@ -16,6 +16,9 @@ need() {
 }
 
 need "$PREFLIGHT" 'FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE'
+need "$PREFLIGHT" 'DEFAULT_RERANKER_CACHE_ROOT='
+need "$PREFLIGHT" 'dst=/fathomdb-reranker-cache-root,readonly'
+need "$PREFLIGHT" 'FATHOMDB_RERANKER_CACHE=/fathomdb-reranker-cache-root'
 need "$PREFLIGHT" 'reranker-cache-manifest.json'
 need "$PREFLIGHT" 'reranker-python-cpu-smoke.json'
 need "$PREFLIGHT" 'reranker-napi-cpu-smoke.json'

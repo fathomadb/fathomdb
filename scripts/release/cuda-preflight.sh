@@ -29,7 +29,8 @@ if [ "$RERANK_CUDA" = true ]; then
 fi
 DEFAULT_EMBEDDER_HF_HOME="${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}"
 DEFAULT_EMBEDDER_SNAPSHOT="$DEFAULT_EMBEDDER_HF_HOME/hub/models--${CUDA_DEFAULT_EMBEDDER_HF_REPO//\//--}/snapshots/$CUDA_DEFAULT_EMBEDDER_HF_REVISION"
-DEFAULT_RERANKER_CACHE="${FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/fathomdb/reranker/0290849b0459}"
+DEFAULT_RERANKER_CACHE_ROOT="${FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}}"
+DEFAULT_RERANKER_CACHE="$DEFAULT_RERANKER_CACHE_ROOT/fathomdb/reranker/0290849b0459"
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -110,7 +111,7 @@ mkdir -p "$WORK_DIR/python-dist" "$WORK_DIR/python-unpacked" "$WORK_DIR/cache" "
   printf 'cuda_python_features=%s\n' "$CUDA_PYTHON_FEATURES"
   printf 'rerank_cuda=%s\n' "$RERANK_CUDA"
   if [ "$RERANK_CUDA" = true ]; then
-    printf 'reranker_cache=%s\n' "$DEFAULT_RERANKER_CACHE"
+    printf 'reranker_cache_root=%s\n' "$DEFAULT_RERANKER_CACHE_ROOT"
   fi
   printf 'cuda_manylinux_image=%s\n' "$CUDA_MANYLINUX_IMAGE"
   printf 'cuda_manylinux_python=%s\n' "$CUDA_MANYLINUX_PYTHON"
@@ -241,9 +242,9 @@ MODEL_ENV=(
 RERANKER_MOUNT=()
 RERANKER_ENV=()
 if [ "$RERANK_CUDA" = true ]; then
-  RERANKER_MOUNT=(--mount "type=bind,src=$DEFAULT_RERANKER_CACHE,dst=/fathomdb-reranker-cache,readonly")
+  RERANKER_MOUNT=(--mount "type=bind,src=$DEFAULT_RERANKER_CACHE_ROOT,dst=/fathomdb-reranker-cache-root,readonly")
   RERANKER_ENV=(
-    -e FATHOMDB_RERANKER_CACHE=/fathomdb-reranker-cache
+    -e FATHOMDB_RERANKER_CACHE=/fathomdb-reranker-cache-root
     -e FATHOMDB_CUDA_REHEARSAL_RERANK=true
   )
 fi
@@ -594,7 +595,7 @@ for consumer in ("python", "napi"):
         "effective_device": None,
         "reason": "no_visible_cuda_device",
         "provenance": "installed_candidate",
-        "command": f"installed_{consumer}_engine_open",
+        "command": f"installed_{consumer}_engine_open_without_default_embedder",
         "exit_code": 1,
         "stdout_filename": stdout.name,
         "stdout_sha256": digest(stdout),

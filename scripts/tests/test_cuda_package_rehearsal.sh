@@ -143,6 +143,7 @@ expect_reject() {
 }
 
 [ -f "$SCHEMA" ] || fail 'versioned package rehearsal schema exists'
+[ -f "$REPO_ROOT/scripts/release/cuda-rerank-package-rehearsal.schema.json" ] || fail 'v3 reranker package rehearsal schema exists'
 [ -f "$VERIFIER" ] || fail 'fail-closed package rehearsal verifier exists'
 [ -x "$REHEARSE" ] || fail 'package rehearsal helper exists'
 [ -x "$SEAL_CLI" ] || fail 'deterministic CLI archive sealer exists'
@@ -158,6 +159,46 @@ pass 'CLI archive sealer is byte deterministic'
 VALID="$TMPROOT/valid"
 make_valid_bundle "$VALID"
 expect_accept "$VALID" 'exact complete package rehearsal bundle is accepted'
+
+cp -a "$VALID" "$TMPROOT/rerank-v3"
+python3 - "$TMPROOT/rerank-v3" <<'PY'
+import hashlib
+import json
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+build_path = root / "build-input.json"
+build = json.loads(build_path.read_text())
+build.update({
+    "schema_version": "fathomdb.cuda-package-build-input/v3",
+    "python_features": ["embed-cuda", "rerank-cuda", "pyo3/extension-module"],
+    "napi_features": ["default-embedder", "embed-cuda", "rerank-cuda"],
+    "cli_features": ["embed-cuda", "rerank-cuda"],
+    "rerank_cuda": True,
+})
+build_path.write_text(json.dumps(build, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+manifest_path = root / "cuda-package-rehearsal.json"
+manifest = json.loads(manifest_path.read_text())
+manifest["schema_version"] = "fathomdb.cuda-package-rehearsal/v3"
+manifest["pending_external"] = ["compatible_gpu_reranker_cli", "incompatible_reranker_classifier_observation"]
+manifest["build_input"] = build
+manifest_path.write_text(json.dumps(manifest, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+PY
+expect_accept "$TMPROOT/rerank-v3" 'v3 reranker feature tuple is accepted with GPU receipts PENDING_EXTERNAL'
+
+cp -a "$TMPROOT/rerank-v3" "$TMPROOT/rerank-v3-missing-feature"
+python3 - "$TMPROOT/rerank-v3-missing-feature/build-input.json" "$TMPROOT/rerank-v3-missing-feature/cuda-package-rehearsal.json" <<'PY'
+import json
+from pathlib import Path
+import sys
+build_path, manifest_path = map(Path, sys.argv[1:])
+build = json.loads(build_path.read_text()); build["cli_features"] = ["embed-cuda"]
+build_path.write_text(json.dumps(build, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+manifest = json.loads(manifest_path.read_text()); manifest["build_input"] = build
+manifest_path.write_text(json.dumps(manifest, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+PY
+expect_reject "$TMPROOT/rerank-v3-missing-feature" 'v3 reranker route rejects a missing CLI rerank-cuda feature'
 
 cp -a "$VALID" "$TMPROOT/v1"
 sed -i 's#fathomdb.cuda-package-rehearsal/v2#fathomdb.cuda-package-rehearsal/v1#' "$TMPROOT/v1/cuda-package-rehearsal.json"

@@ -93,6 +93,7 @@ if witness.is_symlink() or not witness.is_file():
     raise SystemExit("cuda-package-rehearsal: preflight witness is absent or symlinked")
 digest = lambda path: hashlib.sha256(path.read_bytes()).hexdigest()
 build_input = json.loads((root / "build-input.json").read_bytes())
+rerank_cuda = build_input["rerank_cuda"]
 version = build_input["version"]
 target = build_input["target"]
 names = {
@@ -102,11 +103,14 @@ names = {
     "cli_archive": build_input["archive_filename"],
 }
 manifest = {
-    "schema_version": "fathomdb.cuda-package-rehearsal/v2",
+    "schema_version": "fathomdb.cuda-package-rehearsal/v3" if rerank_cuda else "fathomdb.cuda-package-rehearsal/v2",
     "candidate_sha": candidate,
     "version": version,
     "target": target,
-    "pending_external": ["compatible_gpu_cli", "incompatible_classifier_observation"],
+    "pending_external": (
+        ["compatible_gpu_reranker_cli", "incompatible_reranker_classifier_observation"]
+        if rerank_cuda else ["compatible_gpu_cli", "incompatible_classifier_observation"]
+    ),
     "route_receipt_sha256": digest(root / "route-receipt.json"),
     "preflight_witness_sha256": digest(witness),
     "build_input": build_input,

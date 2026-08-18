@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fathomdb.dev/schemas/cuda-rerank-package-rehearsal/v3",
+  "title": "FathomDB CUDA reranker package rehearsal v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "candidate_sha", "version", "target", "build_input", "pending_external"],
+  "properties": {
+    "schema_version": {"const": "fathomdb.cuda-package-rehearsal/v3"},
+    "candidate_sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "target": {"const": "x86_64-unknown-linux-gnu"},
+    "pending_external": {"const": ["compatible_gpu_reranker_cli", "incompatible_reranker_classifier_observation"]},
+    "build_input": {
+      "type": "object",
+      "required": ["schema_version", "python_features", "napi_features", "cli_features", "rerank_cuda"],
+      "properties": {
+        "schema_version": {"const": "fathomdb.cuda-package-build-input/v3"},
+        "python_features": {"const": ["embed-cuda", "rerank-cuda", "pyo3/extension-module"]},
+        "napi_features": {"const": ["default-embedder", "embed-cuda", "rerank-cuda"]},
+        "cli_features": {"const": ["embed-cuda", "rerank-cuda"]},
+        "rerank_cuda": {"const": true}
+      }
+    }
+  }
+}

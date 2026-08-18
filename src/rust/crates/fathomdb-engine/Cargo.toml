@@ -63,6 +63,11 @@ default-reranker = ["fathomdb-embedder/default-reranker"]
 # FATHOMDB_RERANK_DEVICE=cuda|metal. Mirrors the embed-cuda passthrough.
 rerank-cuda = ["default-reranker", "fathomdb-embedder/rerank-cuda"]
 rerank-metal = ["default-reranker", "fathomdb-embedder/rerank-metal"]
+# Slice 72: this private aggregate exists only to compile the trusted-runner
+# characterization target and its bounded CE-forward rendezvous. It is not
+# forwarded by any shipped facade or binding.
+slice72-test-hooks = []
+slice72-gpu-tests = ["embed-cuda", "rerank-cuda", "slice72-test-hooks"]
 
 # The corpus-ingest example calls the operator-seam `trace_source_ref`, so it
 # only builds when the `operator` feature is enabled (skipped on default builds).
@@ -163,6 +168,10 @@ required-features = ["default-reranker"]
 [[test]]
 name = "slice71_open_report"
 required-features = ["default-reranker"]
+
+[[test]]
+name = "slice72_concurrent_gpu"
+required-features = ["slice72-gpu-tests"]
 
 # 0.8.2 Slice E2 fix-1 [P2]: is_finite guard tests — no feature gate because the
 # guard fires before the CE model path (depth/feature state irrelevant).

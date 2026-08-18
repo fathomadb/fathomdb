@@ -233,7 +233,9 @@ docker run --rm --network none \
   --mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly" \
   --mount "type=bind,src=$WORK_DIR/cache/driverless_napi,dst=/fathomdb-product-cache" \
   --mount "type=bind,src=$WORK_DIR/tmp/driverless_napi,dst=/fathomdb-tmp" \
+  --mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64,dst=/opt/cuda/lib64,readonly" \
   "${MODEL_ENV[@]}" \
+  -e LD_LIBRARY_PATH=/opt/cuda/lib64 -e npm_config_cache=/fathomdb-tmp/npm-cache \
   "$CUDA_DRIVERLESS_NODE_IMAGE" \
   env -u FATHOMDB_EMBED_DEVICE -u FATHOMDB_RERANK_DEVICE -u CUDA_VISIBLE_DEVICES -u NVIDIA_VISIBLE_DEVICES -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES -u HUGGINGFACE_HUB_CACHE -u TRANSFORMERS_CACHE -u FATHOMDB_EMBEDDER_CACHE_DIR sh -ceu '
     test ! -e /dev/nvidiactl
@@ -271,8 +273,8 @@ run_forced_python() {
     --mount "type=bind,src=$WHEEL,dst=/input/fathomdb.whl,readonly" \
     --mount "type=bind,src=$WORK_DIR/forced-python-open.py,dst=/fathomdb-harness/forced-python-open.py,readonly" \
     -e HOME=/fathomdb-unavailable-home -e TMPDIR=/tmp -e FATHOMDB_EMBED_DEVICE=cuda:0 \
-    "$CUDA_DRIVERLESS_PYTHON_IMAGE" sh -ceu '
-      python -m pip install --no-deps --no-cache-dir /input/fathomdb.whl
+    "$CUDA_MANYLINUX_IMAGE" sh -ceu '
+      /opt/python/cp311-cp311/bin/python -m pip install --no-deps --no-cache-dir /input/fathomdb.whl
       exec /opt/python/cp311-cp311/bin/python /fathomdb-harness/forced-python-open.py
     ' >"$stdout" 2>"$stderr"
   local exit_code="$?"
@@ -291,7 +293,8 @@ run_forced_napi() {
     --mount "type=bind,src=$NPM_MAIN/$NPM_MAIN_TARBALL,dst=/input/fathomdb.tgz,readonly" \
     --mount "type=bind,src=$NPM_PLATFORM/$NPM_PLATFORM_TARBALL,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
     --mount "type=bind,src=$FORCED_NAPI_HARNESS,dst=/fathomdb-harness,readonly" \
-    -e HOME=/fathomdb-unavailable-home -e TMPDIR=/tmp -e FATHOMDB_EMBED_DEVICE=cuda:0 \
+    --mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64,dst=/opt/cuda/lib64,readonly" \
+    -e HOME=/fathomdb-unavailable-home -e TMPDIR=/tmp -e FATHOMDB_EMBED_DEVICE=cuda:0 -e LD_LIBRARY_PATH=/opt/cuda/lib64 \
     "$CUDA_DRIVERLESS_NODE_IMAGE" sh -ceu '
       exec node /fathomdb-harness/forced-napi-open.mjs
     ' >"$stdout" 2>"$stderr"
@@ -320,6 +323,7 @@ pathlib.Path("/evidence/gpu-python-open-report.json").write_text(json.dumps({
     "selected_uuid": resolution.selected_cuda_uuid,
 }, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
 assert len(engine.embed("installed Python CUDA artifact GPU proof")) == 384
+print("installed Python CUDA artifact GPU smoke: ok", flush=True)
 time.sleep(20)
 engine.close()
 PY
@@ -336,6 +340,7 @@ fs.writeFileSync("/evidence/gpu-napi-open-report.json", JSON.stringify({
   selected_uuid: resolution.selectedCudaUuid,
 }) + "\n");
 if ((await engine.embed("installed N-API CUDA artifact GPU proof")).length !== 384) throw new Error("expected 384-vector");
+console.log("installed N-API CUDA artifact GPU smoke: ok");
 await new Promise((resolve) => setTimeout(resolve, 20_000));
 await engine.close();
 JS
@@ -411,7 +416,7 @@ NAPI_GPU_CONTAINER="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
   --mount "type=bind,src=$WORK_DIR/tmp/gpu_napi,dst=/fathomdb-tmp" \
   --mount "type=bind,src=$WORK_DIR,dst=/evidence" \
   --mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64,dst=/opt/cuda/lib64,readonly" \
-  "${MODEL_ENV[@]}" -e FATHOMDB_EMBED_DEVICE=cuda:0 -e LD_LIBRARY_PATH=/opt/cuda/lib64 \
+  "${MODEL_ENV[@]}" -e FATHOMDB_EMBED_DEVICE=cuda:0 -e LD_LIBRARY_PATH=/opt/cuda/lib64 -e npm_config_cache=/fathomdb-tmp/npm-cache \
   "$CUDA_DRIVERLESS_NODE_IMAGE" sh -ceu '
     mkdir /fathomdb-tmp/consumer && cd /fathomdb-tmp/consumer
     printf "{\"private\":true,\"type\":\"module\",\"dependencies\":{\"fathomdb\":\"file:/input/fathomdb.tgz\",\"fathomdb-linux-x64-gnu\":\"file:/input/fathomdb-linux-x64-gnu.tgz\"}}\n" > package.json
@@ -487,10 +492,14 @@ expected_files = {f"fathomdb/embedders/{prefix}/{name}": value for name, value i
 smokes = {}
 for name in ("driverless_python", "driverless_napi", "gpu_python", "gpu_napi"):
     cache_root = root / "cache" / name
-    actual = {
+    all_files = {
         path.relative_to(cache_root).as_posix(): digest(path)
         for path in sorted(cache_root.rglob("*")) if path.is_file() and not path.is_symlink()
     }
+    lock_name = f"fathomdb/embedders/{prefix}/.lock"
+    if set(all_files) - ({lock_name} | set(expected_files)):
+        raise SystemExit(f"cuda-preflight: {name} product cache has unexpected files: {all_files}")
+    actual = {path: all_files[path] for path in expected_files if path in all_files}
     if actual != expected_files:
         raise SystemExit(f"cuda-preflight: {name} product-cache materialization differs: {actual}")
     smokes[name] = {

@@ -41,7 +41,10 @@ use std::sync::Mutex;
 use fathomdb_embedder::{
     CudaDeviceInfo as RustCudaDeviceInfo, CudaVisibleDevice as RustCudaVisibleDevice,
     DeviceResolution as RustDeviceResolution, EffectiveEmbedDevice as RustEffectiveEmbedDevice,
+    EffectiveRerankerDevice as RustEffectiveRerankerDevice,
     EmbedDevicePolicy as RustEmbedDevicePolicy, EmbedderEvent as RustEmbedderEvent,
+    RerankerDevicePolicy as RustRerankerDevicePolicy,
+    RerankerDeviceResolution as RustRerankerDeviceResolution,
 };
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
@@ -87,6 +90,7 @@ create_exception!(_fathomdb, VectorError, EngineError);
 create_exception!(_fathomdb, KindNotVectorIndexedError, VectorError);
 create_exception!(_fathomdb, EmbedderError, EngineError);
 create_exception!(_fathomdb, EmbedDevicePolicyError, EmbedderError);
+create_exception!(_fathomdb, RerankerDevicePolicyError, EmbedderError);
 create_exception!(_fathomdb, EmbedderNotConfiguredError, EmbedderError);
 create_exception!(_fathomdb, EmbedderRequiredError, EmbedderError);
 create_exception!(_fathomdb, SchedulerError, EngineError);
@@ -369,6 +373,15 @@ fn engine_open_error_to_py(err: EngineOpenError) -> PyErr {
         EngineOpenError::Embedder(err) => EmbedderError::new_err(format!("{err:?}")),
         EngineOpenError::EmbedDevicePolicy(error) => {
             let exc = EmbedDevicePolicyError::new_err(error.to_string());
+            Python::attach(|py| {
+                let value = exc.value(py);
+                let _ = value.setattr("kind", error.kind());
+                let _ = value.setattr("ordinal", error.ordinal());
+            });
+            exc
+        }
+        EngineOpenError::RerankerDevicePolicy(error) => {
+            let exc = RerankerDevicePolicyError::new_err(error.to_string());
             Python::attach(|py| {
                 let value = exc.value(py);
                 let _ = value.setattr("kind", error.kind());
@@ -1390,6 +1403,35 @@ impl PyDeviceResolution {
             reason: resolution.reason.map(|reason| reason.as_str().to_string()),
         }
     }
+
+    fn from_reranker(resolution: &RustRerankerDeviceResolution) -> Self {
+        let requested_policy = match resolution.requested_policy {
+            RustRerankerDevicePolicy::Auto => "auto".to_string(),
+            RustRerankerDevicePolicy::Cpu => "cpu".to_string(),
+            RustRerankerDevicePolicy::Cuda(ordinal) => format!("cuda:{ordinal}"),
+        };
+        let effective_device = match &resolution.effective_device {
+            RustEffectiveRerankerDevice::Cpu => {
+                PyEffectiveEmbedDevice { kind: "cpu".to_string(), cuda_device: None }
+            }
+            RustEffectiveRerankerDevice::Cuda(info) => PyEffectiveEmbedDevice {
+                kind: "cuda".to_string(),
+                cuda_device: Some(PyCudaDeviceInfo::from_rust(info)),
+            },
+        };
+        Self {
+            requested_policy,
+            cuda_compiled: resolution.cuda_compiled,
+            effective_device,
+            visible_cuda_devices: resolution
+                .visible_cuda_devices
+                .iter()
+                .map(PyCudaVisibleDevice::from_rust)
+                .collect(),
+            selected_cuda_uuid: resolution.selected_cuda_uuid.clone(),
+            reason: resolution.reason.map(|reason| reason.as_str().to_string()),
+        }
+    }
 }
 
 #[pyclass(module = "fathomdb._fathomdb", name = "OpenReport", frozen, get_all)]
@@ -1428,6 +1470,7 @@ struct PyOpenReport {
     /// Strict CPU/CUDA selection used to construct the embedder, or `None` when
     /// no embedder was configured.
     embedder_device_resolution: Option<PyDeviceResolution>,
+    reranker_device_resolution: Option<PyDeviceResolution>,
 }
 
 impl PyOpenReport {
@@ -1455,6 +1498,10 @@ impl PyOpenReport {
                 .embedder_device_resolution
                 .as_ref()
                 .map(PyDeviceResolution::from_rust),
+            reranker_device_resolution: r
+                .reranker_device_resolution
+                .as_ref()
+                .map(PyDeviceResolution::from_reranker),
         }
     }
 }
@@ -3091,6 +3138,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("KindNotVectorIndexedError", py.get_type::<KindNotVectorIndexedError>())?;
     m.add("EmbedderError", py.get_type::<EmbedderError>())?;
     m.add("EmbedDevicePolicyError", py.get_type::<EmbedDevicePolicyError>())?;
+    m.add("RerankerDevicePolicyError", py.get_type::<RerankerDevicePolicyError>())?;
     m.add("EmbedderNotConfiguredError", py.get_type::<EmbedderNotConfiguredError>())?;
     m.add("EmbedderRequiredError", py.get_type::<EmbedderRequiredError>())?;
     m.add("SchedulerError", py.get_type::<SchedulerError>())?;
@@ -3168,6 +3216,25 @@ mod tests {
                 "cuda_not_compiled"
             );
             assert_eq!(value.getattr("ordinal").unwrap().extract::<usize>().unwrap(), 2);
+        });
+    }
+
+    #[test]
+    fn reranker_device_policy_open_error_uses_a_typed_python_exception() {
+        Python::initialize();
+        Python::attach(|py| {
+            let error = engine_open_error_to_py(EngineOpenError::RerankerDevicePolicy(
+                fathomdb_embedder::RerankerDevicePolicyError::Resolution(
+                    fathomdb_embedder::RerankerDeviceResolutionError::CudaNotCompiled {
+                        ordinal: 2,
+                    },
+                ),
+            ));
+            assert!(error.is_instance_of::<RerankerDevicePolicyError>(py));
+            assert_eq!(
+                error.value(py).getattr("kind").unwrap().extract::<String>().unwrap(),
+                "cuda_not_compiled"
+            );
         });
     }
 

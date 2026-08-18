@@ -31,7 +31,10 @@ use std::sync::Arc;
 use fathomdb_embedder::{
     CudaDeviceInfo as RustCudaDeviceInfo, CudaVisibleDevice as RustCudaVisibleDevice,
     DeviceResolution as RustDeviceResolution, EffectiveEmbedDevice as RustEffectiveEmbedDevice,
+    EffectiveRerankerDevice as RustEffectiveRerankerDevice,
     EmbedDevicePolicy as RustEmbedDevicePolicy, EmbedderEvent as RustEmbedderEvent,
+    RerankerDevicePolicy as RustRerankerDevicePolicy,
+    RerankerDeviceResolution as RustRerankerDeviceResolution,
 };
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
@@ -73,6 +76,7 @@ const CODE_PROJECTION: &str = "FDB_PROJECTION";
 const CODE_VECTOR: &str = "FDB_VECTOR";
 const CODE_EMBEDDER: &str = "FDB_EMBEDDER";
 const CODE_EMBED_DEVICE_POLICY: &str = "FDB_EMBED_DEVICE_POLICY";
+const CODE_RERANKER_DEVICE_POLICY: &str = "FDB_RERANKER_DEVICE_POLICY";
 const CODE_EMBEDDER_NOT_CONFIGURED: &str = "FDB_EMBEDDER_NOT_CONFIGURED";
 const CODE_EMBEDDER_REQUIRED: &str = "FDB_EMBEDDER_REQUIRED";
 const CODE_KIND_NOT_VECTOR_INDEXED: &str = "FDB_KIND_NOT_VECTOR_INDEXED";
@@ -331,6 +335,17 @@ fn embed_device_policy_error_to_napi(error: fathomdb_embedder::EmbedDevicePolicy
     typed_error(CODE_EMBED_DEVICE_POLICY, error.to_string(), JsonValue::Object(payload))
 }
 
+fn reranker_device_policy_error_to_napi(
+    error: fathomdb_embedder::RerankerDevicePolicyError,
+) -> Error {
+    let mut payload = serde_json::Map::new();
+    payload.insert("kind".to_string(), json!(error.kind()));
+    if let Some(ordinal) = error.ordinal() {
+        payload.insert("ordinal".to_string(), json!(ordinal));
+    }
+    typed_error(CODE_RERANKER_DEVICE_POLICY, error.to_string(), JsonValue::Object(payload))
+}
+
 fn engine_open_error_to_napi(err: EngineOpenError) -> Error {
     match err {
         EngineOpenError::DatabaseLocked { holder_pid } => typed_error(
@@ -390,6 +405,7 @@ fn engine_open_error_to_napi(err: EngineOpenError) -> Error {
             JsonValue::Null,
         ),
         EngineOpenError::EmbedDevicePolicy(error) => embed_device_policy_error_to_napi(error),
+        EngineOpenError::RerankerDevicePolicy(error) => reranker_device_policy_error_to_napi(error),
         EngineOpenError::Io { message } => typed_error(
             CODE_STORAGE,
             format!("database I/O error: {message}"),
@@ -1508,6 +1524,35 @@ impl EmbedderDeviceResolution {
             reason: resolution.reason.map(|reason| reason.as_str().to_string()),
         }
     }
+
+    fn from_reranker(resolution: &RustRerankerDeviceResolution) -> Self {
+        let requested_policy = match resolution.requested_policy {
+            RustRerankerDevicePolicy::Auto => "auto".to_string(),
+            RustRerankerDevicePolicy::Cpu => "cpu".to_string(),
+            RustRerankerDevicePolicy::Cuda(ordinal) => format!("cuda:{ordinal}"),
+        };
+        let effective_device = match &resolution.effective_device {
+            RustEffectiveRerankerDevice::Cpu => {
+                EffectiveEmbedDevice { kind: "cpu".to_string(), cuda_device: None }
+            }
+            RustEffectiveRerankerDevice::Cuda(info) => EffectiveEmbedDevice {
+                kind: "cuda".to_string(),
+                cuda_device: Some(CudaDeviceInfo::from_rust(info)),
+            },
+        };
+        Self {
+            requested_policy,
+            cuda_compiled: resolution.cuda_compiled,
+            effective_device,
+            visible_cuda_devices: resolution
+                .visible_cuda_devices
+                .iter()
+                .map(CudaVisibleDevice::from_rust)
+                .collect(),
+            selected_cuda_uuid: resolution.selected_cuda_uuid.clone(),
+            reason: resolution.reason.map(|reason| reason.as_str().to_string()),
+        }
+    }
 }
 
 #[napi(object)]
@@ -1534,6 +1579,7 @@ pub struct OpenReport {
     /// Strict CPU/CUDA selection used to construct the embedder, or `null` when
     /// no embedder was configured.
     pub embedder_device_resolution: Option<EmbedderDeviceResolution>,
+    pub reranker_device_resolution: Option<EmbedderDeviceResolution>,
 }
 
 impl OpenReport {
@@ -1555,6 +1601,10 @@ impl OpenReport {
                 .embedder_device_resolution
                 .as_ref()
                 .map(EmbedderDeviceResolution::from_rust),
+            reranker_device_resolution: r
+                .reranker_device_resolution
+                .as_ref()
+                .map(EmbedderDeviceResolution::from_reranker),
         }
     }
 }
@@ -2994,6 +3044,18 @@ mod tests {
         assert_eq!(envelope["code"], "FDB_EMBED_DEVICE_POLICY");
         assert_eq!(envelope["payload"]["kind"], "cuda_not_compiled");
         assert_eq!(envelope["payload"]["ordinal"], 2);
+    }
+
+    #[test]
+    fn reranker_device_policy_open_error_uses_a_typed_napi_envelope() {
+        let error = engine_open_error_to_napi(EngineOpenError::RerankerDevicePolicy(
+            fathomdb_embedder::RerankerDevicePolicyError::Resolution(
+                fathomdb_embedder::RerankerDeviceResolutionError::CudaNotCompiled { ordinal: 2 },
+            ),
+        ));
+        let envelope: JsonValue = serde_json::from_str(&error.reason).expect("typed envelope");
+        assert_eq!(envelope["code"], "FDB_RERANKER_DEVICE_POLICY");
+        assert_eq!(envelope["payload"]["kind"], "cuda_not_compiled");
     }
 
     #[test]

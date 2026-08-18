@@ -752,6 +752,9 @@ export interface OpenReport {
   /** Strict CPU/CUDA selection used to construct the embedder, or `null` when
    *  no embedder was configured. */
   readonly embedderDeviceResolution: DeviceResolution | null;
+  /** Independent cross-encoder CPU/CUDA selection. It never attests SQLite or
+   * embedding work and is `null` when this artifact lacks the reranker. */
+  readonly rerankerDeviceResolution: DeviceResolution | null;
 }
 
 /** Safe CUDA provider facts associated with an effective CUDA selection. */
@@ -852,6 +855,9 @@ export function mapOpenReport(r: NativeOpenReport): OpenReport {
     denseDisabledReason: r.denseDisabledReason ?? null,
     embedderDeviceResolution: r.embedderDeviceResolution
       ? mapDeviceResolution(r.embedderDeviceResolution)
+      : null,
+    rerankerDeviceResolution: r.rerankerDeviceResolution
+      ? mapDeviceResolution(r.rerankerDeviceResolution)
       : null,
   };
 }

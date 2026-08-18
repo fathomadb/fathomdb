@@ -63,6 +63,7 @@ see that ADR's 2026-06-06 amendment).
 | `dump-row-counts` | `fathomdb doctor dump-row-counts`                                              | `doctor-check-*`                    |
 | `dump-profile`    | `fathomdb doctor dump-profile`                                                 | `doctor-check-*`                    |
 | `gpu`             | `fathomdb doctor gpu [--json]`                                                 | `doctor-gpu` = 0 / 65 / 70          |
+| `reranker-gpu`    | `fathomdb doctor reranker-gpu [--json]`                                        | `0 / 70`                            |
 | `recompute-mean`  | `fathomdb doctor recompute-mean <db_path> [--json]`                            | `doctor-check-*` = 0 / 70 / 71      |
 | `dump-mutations`  | `fathomdb doctor dump-mutations <collection> [--after-id <n>] [--limit <n>] [--json] <db_path>` | `0 / 70 / 71`      |
 | `warm-cache`      | `fathomdb doctor warm-cache ...` (EU-5b)                                       | `doctor-check-*`                    |
@@ -84,6 +85,14 @@ initialize an engine. Its ordered `devices` inventory contains process-visible
 CUDA UUIDs and their `CUDA_VISIBLE_DEVICES`-relative ordinals only; it neither
 reports nor infers physical host ordinals. A selected UUID must match one
 inventory member.
+
+`doctor reranker-gpu` (0.8.23 Slice 71) is a separate database-free,
+model-loader-free policy/provider diagnostic. Its JSON `subsystem` is always
+`"reranker"`; its schema is `fathomdb.doctor.reranker-gpu.v1`. A successful
+record names only cross-encoder policy/device evidence; it never attests
+embedding, SQLite candidate retrieval, exact database scoring, or inference
+over a real model. A typed error object reports malformed/forced policy
+failure. This separation preserves the Slice 70 doctor v1 schema.
 
 Normal `Engine::open` resolution and `doctor gpu` have distinct result mappings.
 Open uses `DeviceResolution`, which may describe automatic CPU selection with a

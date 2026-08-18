@@ -65,7 +65,10 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use fathomdb_embedder::{DeviceResolution, EmbedDevicePolicyError, EmbedderEvent};
+use fathomdb_embedder::{
+    DeviceResolution, EmbedDevicePolicyError, EmbedderEvent, RerankerDevicePolicyError,
+    RerankerDeviceResolution,
+};
 // `MeanRecomputeTrigger` is used only by the operator-gated `recompute_mean`.
 #[cfg(feature = "operator")]
 use fathomdb_embedder::MeanRecomputeTrigger;
@@ -2554,6 +2557,10 @@ pub struct OpenReport {
     /// construction; forced CUDA failures return
     /// [`EngineOpenError::EmbedDevicePolicy`] rather than report CPU.
     pub embedder_device_resolution: Option<DeviceResolution>,
+    /// Independent CPU/CUDA selection for the optional cross-encoder. This is
+    /// never inferred from embedding-device state and makes no claim about
+    /// database candidate retrieval or scoring.
+    pub reranker_device_resolution: Option<RerankerDeviceResolution>,
 }
 
 #[derive(Debug)]
@@ -4702,6 +4709,8 @@ pub enum EngineOpenError {
     Embedder(RuntimeEmbedderError),
     /// The default embedder's explicit CPU/CUDA policy could not be honored.
     EmbedDevicePolicy(EmbedDevicePolicyError),
+    /// The cross-encoder's independent CPU/CUDA policy could not be honored.
+    RerankerDevicePolicy(RerankerDevicePolicyError),
     Io {
         message: String,
     },
@@ -4782,6 +4791,7 @@ impl Display for EngineOpenError {
                 }
             },
             Self::EmbedDevicePolicy(error) => error.fmt(f),
+            Self::RerankerDevicePolicy(error) => error.fmt(f),
             Self::Io { message } => write!(f, "database I/O error: {message}"),
         }
     }
@@ -5930,6 +5940,16 @@ impl Engine {
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
         initial_subscriber: Option<Arc<dyn lifecycle::Subscriber>>,
     ) -> Result<OpenedEngine, EngineOpenError> {
+        // Resolve at open rather than piggybacking on embedding selection. This
+        // probes no model/cache/database and makes an invalid or forced CUDA
+        // policy visible to every SDK before a query could silently fall back.
+        #[cfg(feature = "default-reranker")]
+        let reranker_device_resolution = Some(
+            fathomdb_embedder::resolve_default_reranker_device_from_env()
+                .map_err(EngineOpenError::RerankerDevicePolicy)?,
+        );
+        #[cfg(not(feature = "default-reranker"))]
+        let reranker_device_resolution = None;
         let canonical_path = canonical_database_path(&path.into())?;
         let lock = acquire_lock(&canonical_path)?;
         #[cfg(any(test, feature = "test-hooks"))]
@@ -5959,6 +5979,7 @@ impl Engine {
                     }
                     report.embedder_device_resolution = Some(info.device_resolution);
                 }
+                report.reranker_device_resolution = reranker_device_resolution;
 
                 // 0.8.18 Slice 5 (#5 vector-equivalence probe KEYSTONE) — run the
                 // open-time self-check on the FINAL post-recovery connection (the
@@ -6336,6 +6357,7 @@ impl Engine {
             dense_disabled: false,
             dense_disabled_reason: None,
             embedder_device_resolution: None,
+            reranker_device_resolution: None,
         };
 
         let mut readers = Vec::with_capacity(READER_POOL_SIZE);

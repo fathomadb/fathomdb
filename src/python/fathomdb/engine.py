@@ -136,6 +136,7 @@ def _map_open_report(native: Any) -> OpenReport:
     """Map one native open-time snapshot into the public Python contract."""
 
     device_resolution = native.embedder_device_resolution
+    reranker_device_resolution = native.reranker_device_resolution
     return OpenReport(
         schema_version_before=native.schema_version_before,
         schema_version_after=native.schema_version_after,
@@ -194,6 +195,43 @@ def _map_open_report(native: Any) -> OpenReport:
                 ),
                 selected_cuda_uuid=device_resolution.selected_cuda_uuid,
                 reason=device_resolution.reason,
+            )
+        ),
+        reranker_device_resolution=(
+            None
+            if reranker_device_resolution is None
+            else DeviceResolution(
+                requested_policy=reranker_device_resolution.requested_policy,
+                cuda_compiled=reranker_device_resolution.cuda_compiled,
+                effective_device=EffectiveEmbedDevice(
+                    kind=cast(
+                        Literal["cpu", "cuda"],
+                        reranker_device_resolution.effective_device.kind,
+                    ),
+                    cuda_device=(
+                        None
+                        if reranker_device_resolution.effective_device.cuda_device is None
+                        else CudaDeviceInfo(
+                            ordinal=reranker_device_resolution.effective_device.cuda_device.ordinal,
+                            uuid=reranker_device_resolution.effective_device.cuda_device.uuid,
+                            name=reranker_device_resolution.effective_device.cuda_device.name,
+                            driver_version=reranker_device_resolution.effective_device.cuda_device.driver_version,
+                            compute_capability=reranker_device_resolution.effective_device.cuda_device.compute_capability,
+                            cuda_toolkit_version=reranker_device_resolution.effective_device.cuda_device.cuda_toolkit_version,
+                        )
+                    ),
+                ),
+                visible_cuda_devices=tuple(
+                    CudaVisibleDevice(
+                        visible_ordinal=device.visible_ordinal,
+                        uuid=device.uuid,
+                        name=device.name,
+                        compute_capability=device.compute_capability,
+                    )
+                    for device in reranker_device_resolution.visible_cuda_devices
+                ),
+                selected_cuda_uuid=reranker_device_resolution.selected_cuda_uuid,
+                reason=reranker_device_resolution.reason,
             )
         ),
     )

@@ -644,6 +644,7 @@ class OpenReport:
     dense_disabled: bool = False
     dense_disabled_reason: str | None = None
     embedder_device_resolution: DeviceResolution | None = None
+    reranker_device_resolution: DeviceResolution | None = None
 
 
 @dataclass(frozen=True)

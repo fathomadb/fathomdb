@@ -340,6 +340,7 @@ export interface NativeOpenReport {
   denseDisabled: boolean;
   denseDisabledReason: string | null;
   embedderDeviceResolution: NativeEmbedderDeviceResolution | null;
+  rerankerDeviceResolution?: NativeEmbedderDeviceResolution | null;
 }
 
 interface NativeCounterSnapshot {

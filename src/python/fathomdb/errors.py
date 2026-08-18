@@ -36,6 +36,9 @@ from fathomdb._fathomdb import (
     EmbedDevicePolicyError as _EmbedDevicePolicyError,
 )
 from fathomdb._fathomdb import (
+    RerankerDevicePolicyError as _RerankerDevicePolicyError,
+)
+from fathomdb._fathomdb import (
     EmbedderNotConfiguredError as _EmbedderNotConfiguredError,
 )
 from fathomdb._fathomdb import EmbedderRequiredError as _EmbedderRequiredError
@@ -112,6 +115,7 @@ ProjectionError = _ProjectionError
 VectorError = _VectorError
 EmbedderError = _EmbedderError
 EmbedDevicePolicyError = _EmbedDevicePolicyError
+RerankerDevicePolicyError = _RerankerDevicePolicyError
 EmbedderNotConfiguredError = _EmbedderNotConfiguredError
 EmbedderRequiredError = _EmbedderRequiredError
 KindNotVectorIndexedError = _KindNotVectorIndexedError
@@ -174,6 +178,7 @@ _install_typed_init(
 )
 _install_typed_init(EmbedderDimensionMismatchError, ("stored", "supplied"))
 _install_typed_init(EmbedDevicePolicyError, ("kind", "ordinal"))
+_install_typed_init(RerankerDevicePolicyError, ("kind", "ordinal"))
 _install_typed_init(EmbedderRequiredError, ("code", "operation", "state", "remediations", "documentation_url"))
 # 0.8.18 Slice 5 — the query-time refusal carries the divergence `reason`.
 _install_typed_init(VectorEquivalenceMismatchError, ("reason",))
@@ -192,6 +197,7 @@ __all__ = [
     "DatabaseLockedError",
     "EmbedderDimensionMismatchError",
     "EmbedDevicePolicyError",
+    "RerankerDevicePolicyError",
     "EmbedderError",
     "EmbedderIdentityMismatchError",
     "EmbedderNotConfiguredError",

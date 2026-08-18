@@ -149,6 +149,8 @@ pub struct RecoverArgs {
 pub enum DoctorCommand {
     /// Inspect the isolated embedder CUDA provider without opening an engine.
     Gpu(GpuDoctorArgs),
+    /// Inspect the isolated cross-encoder CUDA provider without loading a model.
+    RerankerGpu(GpuDoctorArgs),
     /// Run a structural integrity check against the database.
     CheckIntegrity(CheckIntegrityArgs),
     /// Materialize a safe export of the database.
@@ -486,6 +488,7 @@ fn run_recover(args: RecoverArgs) -> i32 {
 fn run_doctor(cmd: DoctorCommand) -> i32 {
     match cmd {
         DoctorCommand::Gpu(args) => run_doctor_gpu(args),
+        DoctorCommand::RerankerGpu(args) => run_doctor_reranker_gpu(args),
         DoctorCommand::CheckIntegrity(args) => {
             let opts = CheckIntegrityOpts {
                 quick: args.quick,
@@ -609,6 +612,75 @@ fn run_doctor_gpu(args: GpuDoctorArgs) -> i32 {
     let (output, exit_code) = doctor_gpu_outcome(args, &report);
     print!("{output}");
     exit_code
+}
+
+/// Run the cross-encoder-only diagnostic. It is deliberately a separate verb:
+/// CUDA embedding evidence does not attest cross-encoder or SQLite execution.
+fn run_doctor_reranker_gpu(args: GpuDoctorArgs) -> i32 {
+    #[cfg(feature = "default-reranker")]
+    let (outcome, exit) = match fathomdb_embedder::resolve_default_reranker_device_from_env() {
+        Ok(resolution) => {
+            let effective_device = match &resolution.effective_device {
+                fathomdb_embedder::EffectiveRerankerDevice::Cpu => "cpu".to_owned(),
+                fathomdb_embedder::EffectiveRerankerDevice::Cuda(info) => {
+                    format!("cuda:{}", info.ordinal)
+                }
+            };
+            (
+                json!({
+                    "schema_version": "fathomdb.doctor.reranker-gpu.v1",
+                    "subsystem": "reranker",
+                    "policy": policy_name(resolution.requested_policy),
+                    "cuda_compiled": resolution.cuda_compiled,
+                    "effective_device": effective_device,
+                    "devices": resolution.visible_cuda_devices.iter().map(|device| json!({
+                        "visible_ordinal": device.visible_ordinal,
+                        "uuid": device.uuid,
+                        "name": device.name,
+                        "compute_capability": device.compute_capability,
+                    })).collect::<Vec<_>>(),
+                    "reason": resolution.reason.map(|reason| reason.as_str()),
+                    "selected_uuid": resolution.selected_cuda_uuid,
+                }),
+                0,
+            )
+        }
+        Err(error) => (
+            json!({
+                "schema_version": "fathomdb.doctor.reranker-gpu.v1",
+                "subsystem": "reranker",
+                "error": {"kind": error.kind(), "ordinal": error.ordinal(), "message": error.to_string()},
+            }),
+            if error.ordinal().is_some() {
+                exit_code::DOCTOR_FOUND_ISSUES
+            } else {
+                exit_code::UNRECOVERABLE
+            },
+        ),
+    };
+    #[cfg(not(feature = "default-reranker"))]
+    let (outcome, exit) = (
+        json!({
+            "schema_version": "fathomdb.doctor.reranker-gpu.v1",
+            "subsystem": "reranker",
+            "error": {"kind": "reranker_not_compiled", "ordinal": null, "message": "this artifact was built without the default-reranker feature"},
+        }),
+        exit_code::UNRECOVERABLE,
+    );
+    if args.json {
+        println!("{}", serde_json::to_string(&outcome).expect("diagnostic serializes"));
+    } else {
+        println!("{}", serde_json::to_string_pretty(&outcome).expect("diagnostic serializes"));
+    }
+    exit
+}
+
+fn policy_name(policy: fathomdb_embedder::RerankerDevicePolicy) -> String {
+    match policy {
+        fathomdb_embedder::RerankerDevicePolicy::Auto => "auto".to_owned(),
+        fathomdb_embedder::RerankerDevicePolicy::Cpu => "cpu".to_owned(),
+        fathomdb_embedder::RerankerDevicePolicy::Cuda(ordinal) => format!("cuda:{ordinal}"),
+    }
 }
 
 fn doctor_gpu_outcome(
@@ -984,6 +1056,7 @@ fn engine_open_error_code(err: &EngineOpenError) -> &'static str {
         EngineOpenError::EmbedderDimensionMismatch { .. } => "EmbedderDimensionMismatchError",
         EngineOpenError::Embedder(_) => "EmbedderError",
         EngineOpenError::EmbedDevicePolicy(_) => "EmbedDevicePolicyError",
+        EngineOpenError::RerankerDevicePolicy(_) => "RerankerDevicePolicyError",
         EngineOpenError::Io { .. } => "IoError",
     }
 }
@@ -1302,6 +1375,13 @@ mod tests {
         assert!(matches!(
             parsed,
             Ok(Cli { command: Command::Doctor(DoctorArgs { command: DoctorCommand::Gpu(_) }) })
+        ));
+        let parsed = Cli::try_parse_from(["fathomdb", "doctor", "reranker-gpu", "--json"]);
+        assert!(matches!(
+            parsed,
+            Ok(Cli {
+                command: Command::Doctor(DoctorArgs { command: DoctorCommand::RerankerGpu(_) })
+            })
         ));
     }
 

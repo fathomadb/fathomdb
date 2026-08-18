@@ -106,6 +106,14 @@ test("openReport maps a present auto-to-CPU device resolution", () => {
       selectedCudaUuid: null,
       reason: "cuda_probe_failed",
     },
+    rerankerDeviceResolution: {
+      requestedPolicy: "cpu",
+      cudaCompiled: true,
+      effectiveDevice: { kind: "cpu", cudaDevice: null },
+      visibleCudaDevices: [],
+      selectedCudaUuid: null,
+      reason: null,
+    },
   });
 
   assert.deepEqual(report.embedderDeviceResolution, {
@@ -117,6 +125,14 @@ test("openReport maps a present auto-to-CPU device resolution", () => {
     ],
     selectedCudaUuid: null,
     reason: "cuda_probe_failed",
+  });
+  assert.deepEqual(report.rerankerDeviceResolution, {
+    requestedPolicy: "cpu",
+    cudaCompiled: true,
+    effectiveDevice: { kind: "cpu", cudaDevice: null },
+    visibleCudaDevices: [],
+    selectedCudaUuid: null,
+    reason: null,
   });
 });
 

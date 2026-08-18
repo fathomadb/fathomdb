@@ -160,6 +160,10 @@ required-features = ["default-reranker"]
 name = "slice71_rerank_policy"
 required-features = ["default-reranker"]
 
+[[test]]
+name = "slice71_open_report"
+required-features = ["default-reranker"]
+
 # 0.8.2 Slice E2 fix-1 [P2]: is_finite guard tests — no feature gate because the
 # guard fires before the CE model path (depth/feature state irrelevant).
 [[test]]

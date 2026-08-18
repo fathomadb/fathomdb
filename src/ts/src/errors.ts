@@ -46,6 +46,18 @@ export class EmbedDevicePolicyError extends EmbedderError {
   }
 }
 
+export class RerankerDevicePolicyError extends EmbedderError {
+  readonly code = "FDB_RERANKER_DEVICE_POLICY";
+  readonly kind: string;
+  readonly ordinal?: number;
+
+  constructor(message: string, payload: EmbedDevicePolicyErrorPayload) {
+    super(message);
+    this.kind = payload.kind;
+    this.ordinal = payload.ordinal;
+  }
+}
+
 export interface EmbedderRequiredErrorPayload {
   operation: string;
   state: string;
@@ -249,6 +261,7 @@ type ErrorCode =
   | "FDB_VECTOR"
   | "FDB_EMBEDDER"
   | "FDB_EMBED_DEVICE_POLICY"
+  | "FDB_RERANKER_DEVICE_POLICY"
   | "FDB_EMBEDDER_NOT_CONFIGURED"
   | "FDB_EMBEDDER_REQUIRED"
   | "FDB_KIND_NOT_VECTOR_INDEXED"
@@ -326,6 +339,11 @@ function build(envelope: Envelope): Error {
       return new EmbedderError(envelope.message);
     case "FDB_EMBED_DEVICE_POLICY":
       return new EmbedDevicePolicyError(envelope.message, {
+        kind: String(p.kind ?? ""),
+        ordinal: typeof p.ordinal === "number" ? p.ordinal : undefined,
+      });
+    case "FDB_RERANKER_DEVICE_POLICY":
+      return new RerankerDevicePolicyError(envelope.message, {
         kind: String(p.kind ?? ""),
         ordinal: typeof p.ordinal === "number" ? p.ordinal : undefined,
       });

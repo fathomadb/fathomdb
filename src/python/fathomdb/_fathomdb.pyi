@@ -198,6 +198,7 @@ class OpenReport:
     dense_disabled: bool
     dense_disabled_reason: str | None
     embedder_device_resolution: DeviceResolution | None
+    reranker_device_resolution: DeviceResolution | None
 
 class Engine:
     @staticmethod
@@ -607,6 +608,11 @@ class EmbedderDimensionMismatchError(EngineError):
     stored: int
     supplied: int
     def __init__(self, *args: Any, stored: int = ..., supplied: int = ...) -> None: ...
+
+class RerankerDevicePolicyError(EmbedderError):
+    kind: str
+    ordinal: int | None
+    def __init__(self, *args: Any, kind: str = ..., ordinal: int | None = ...) -> None: ...
 
 # G11 (Slice 15) — BYO-LLM extraction harness protocol error.
 class ExtractorError(EngineError): ...

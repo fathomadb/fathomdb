@@ -81,17 +81,27 @@ pub mod slice72_test_hooks {
 
     /// Result of a deterministic rendezvous fixture. It preserves the old
     /// overlap predicate while making attempted reuse observable to tests.
-    pub struct ForwardRun(Result<ForwardIntervals, &'static str>);
+    pub struct ForwardRun {
+        result: Result<ForwardIntervals, &'static str>,
+        active_overlap_sample_timestamp: Option<u64>,
+    }
 
     impl ForwardRun {
         #[must_use]
         pub fn overlaps(&self) -> bool {
-            self.0.as_ref().is_ok_and(|intervals| intervals.overlaps())
+            self.result.as_ref().is_ok_and(|intervals| intervals.overlaps())
         }
 
         #[must_use]
         pub fn is_err(&self) -> bool {
-            self.0.is_err()
+            self.result.is_err()
+        }
+
+        /// The host timestamp captured while both deterministic fixture
+        /// forwards remained active.
+        #[must_use]
+        pub fn active_overlap_sample_timestamp(&self) -> Option<u64> {
+            self.active_overlap_sample_timestamp
         }
     }
 
@@ -232,12 +242,7 @@ pub mod slice72_test_hooks {
             if self.bge_active.load(Ordering::Acquire) && self.ce_active.load(Ordering::Acquire) {
                 return Some(self.stamp_ns());
             }
-            let bge_start = self.bge_start_ns.load(Ordering::Acquire);
-            let ce_start = self.ce_start_ns.load(Ordering::Acquire);
-            let bge_end = self.bge_end_ns.load(Ordering::Acquire);
-            let ce_end = self.ce_end_ns.load(Ordering::Acquire);
-            (bge_start > 0 && ce_start > 0 && bge_end > 0 && ce_end > 0)
-                .then_some(bge_start.max(ce_start))
+            None
         }
 
         /// Verifies that a telemetry timestamp belongs to the one actual
@@ -290,7 +295,10 @@ pub mod slice72_test_hooks {
                 .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
                 .is_err()
             {
-                return ForwardRun(Err("Slice 72 rendezvous is single-use"));
+                return ForwardRun {
+                    result: Err("Slice 72 rendezvous is single-use"),
+                    active_overlap_sample_timestamp: None,
+                };
             }
             let bge = Arc::clone(self);
             let ce = Arc::clone(self);
@@ -300,9 +308,13 @@ pub mod slice72_test_hooks {
             let ce_thread = thread::spawn(move || {
                 ce.run_ce_forward(|| thread::sleep(Duration::from_millis(1)))
             });
+            let active_overlap_sample_timestamp = self
+                .wait_for_active_overlap(RENDEZVOUS_TIMEOUT)
+                .then(|| self.active_overlap_sample_timestamp())
+                .flatten();
             bge_thread.join().expect("BGE contract fixture joins");
             ce_thread.join().expect("CE contract fixture joins");
-            ForwardRun(Ok(self.intervals()))
+            ForwardRun { result: Ok(self.intervals()), active_overlap_sample_timestamp }
         }
     }
 

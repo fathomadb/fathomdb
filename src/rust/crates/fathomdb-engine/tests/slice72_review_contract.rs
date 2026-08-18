@@ -82,8 +82,7 @@ fn guarded_operation_retains_panics_and_overlap_timestamp_is_inside_the_window()
 
 #[test]
 fn stress_watchdog_kills_a_hung_child_before_the_global_ceiling() {
-    let child =
-        Command::new("sh").args(["-c", "sleep 1"]).spawn().expect("start controlled hung child");
+    let child = Command::new("sleep").arg("1").spawn().expect("start controlled hung child");
     let result = telemetry::wait_for_child_with_watchdog(child, Duration::from_millis(10));
     assert!(result.is_err(), "watchdog must terminate a child that exceeds its deadline");
 }

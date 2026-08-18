@@ -5,7 +5,7 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::panic::{catch_unwind, resume_unwind, AssertUnwindSafe};
 use std::path::Path;
-use std::process::Command;
+use std::process::{Child, Command, Stdio};
 use std::sync::mpsc::{sync_channel, Receiver};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
@@ -28,6 +28,8 @@ pub use fathomdb_engine::slice72_test_hooks::ForwardRendezvous;
 static SLICE72_TEST_LOCK: Mutex<()> = Mutex::new(());
 
 const RUNNER_SENTINEL: &str = "approved-nvidia";
+const STRESS_WATCHDOG_CHILD: &str = "FATHOMDB_SLICE72_STRESS_WATCHDOG_CHILD";
+const STRESS_WATCHDOG_CEILING: std::time::Duration = std::time::Duration::from_secs(120);
 // Kept split solely so the secret scanner does not mistake the public pinned
 // tokenizer-content digest for an API credential.
 const TOKENIZER_SHA256: &str =
@@ -338,6 +340,53 @@ fn phase_order(name: &str) -> u8 {
         "overlap" => 2,
         "stress" => 3,
         _ => u8::MAX,
+    }
+}
+
+/// True only in the child process that performs the ignored stress run under
+/// its parent's external watchdog.
+#[must_use]
+pub fn is_stress_watchdog_child() -> bool {
+    std::env::var(STRESS_WATCHDOG_CHILD).as_deref() == Ok("1")
+}
+
+/// Runs this test binary's ignored stress test in a child process. The parent
+/// terminates that whole process if it outlives the non-negotiable 120-second
+/// ceiling, including setup, warm-up, and drain.
+pub fn run_stress_under_watchdog(test_name: &str) {
+    let current = std::env::current_exe().expect("resolve Slice 72 stress test binary");
+    let child = Command::new(current)
+        .args(["--exact", test_name, "--ignored", "--nocapture", "--test-threads=1"])
+        .env(STRESS_WATCHDOG_CHILD, "1")
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .expect("start Slice 72 stress watchdog child");
+    wait_for_child_with_watchdog(child, STRESS_WATCHDOG_CEILING)
+        .unwrap_or_else(|error| panic!("Slice 72 stress watchdog failure: {error}"));
+}
+
+/// Waits for a child only until the supplied deadline. On expiry it kills and
+/// reaps the process, so a blocked CUDA/engine call cannot keep the stress
+/// test process alive past the global ceiling.
+pub fn wait_for_child_with_watchdog(
+    mut child: Child,
+    timeout: std::time::Duration,
+) -> Result<(), String> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        if let Some(status) = child.try_wait().map_err(|error| error.to_string())? {
+            return status
+                .success()
+                .then_some(())
+                .ok_or_else(|| format!("stress watchdog child exited unsuccessfully: {status}"));
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(format!("stress watchdog exceeded {} seconds", timeout.as_secs()));
+        }
+        std::thread::sleep(std::time::Duration::from_millis(5));
     }
 }
 

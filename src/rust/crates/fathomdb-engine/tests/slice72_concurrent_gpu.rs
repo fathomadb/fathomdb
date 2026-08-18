@@ -71,6 +71,12 @@ fn bounded_overlap_characterizes_shared_cuda_residency() {
 #[test]
 #[ignore = "requires FATHOMDB_SLICE72_STRESS=1 and an approved NVIDIA runner"]
 fn stress_shared_cuda_device_is_bounded_and_records_outcome() {
+    if !telemetry::is_stress_watchdog_child() {
+        telemetry::run_stress_under_watchdog(
+            "stress_shared_cuda_device_is_bounded_and_records_outcome",
+        );
+        return;
+    }
     let Some(run) = Slice72Run::preflight("stress") else {
         return;
     };

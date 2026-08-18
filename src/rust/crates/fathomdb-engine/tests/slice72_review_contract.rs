@@ -127,4 +127,8 @@ fn direct_stress_entrypoint_has_no_public_watchdog_bypass() {
         target.contains("slice72_private_stress_watchdog_child_entrypoint"),
         "the real stress work must have a distinct private child entrypoint"
     );
+    assert!(
+        target.contains("require_stress_watchdog_capability"),
+        "the private child entrypoint must reject direct or broad ignored invocation"
+    );
 }

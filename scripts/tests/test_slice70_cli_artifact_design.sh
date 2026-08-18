@@ -32,7 +32,7 @@ require "$SLICE70" '`["/fathomdb-cli/fathomdb-${version}-x86_64-unknown-linux-gn
 require "$SLICE70" '`doctor_output_sha256`'
 require "$SLICE70" '`effective_device`'
 require "$SLICE70" '`reason`'
-require "$SLICE70" 'Current state does not yet enumerate visible CUDA devices'
+require "$SLICE70" 'Current state enumerates visible CUDA devices'
 require "$SLICE70" '`CudaProvider::enumerate_visible_cuda_devices`'
 require "$SLICE70" '`cuDeviceGetUuid`'
 require "$SLICE70" 'deterministic `FixtureCudaProvider`'

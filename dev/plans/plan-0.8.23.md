@@ -103,6 +103,11 @@ producer: canonical Linux x64 publication remains hard-blocked before all
 publishers, with no candidate artifact or credential hand-off, until a separate
 owned canonical-route design, provenance, and evidence package pass review.
 
+Per HITL seq:252, which supersedes seq:251, Slice 70 still requires its private
+TC-5 benchmark work. That work remains isolated from the supported product
+device-policy surface and must satisfy its fail-closed vector-stage contract;
+the dual-runtime product work does not substitute for it.
+
 HITL subsequently requested a **draft** Slice 71 plan for the cross-encoder
 reranker. It follows Slice 70 rather than widening its embedding scope. Slice
 71 is not implementation authority until its assigned providers, bindings,

@@ -26,6 +26,31 @@ reject() {
   fi
 }
 
+# These rows are the public doctor-gpu contract. Keep both documents' matrix
+# rows byte-for-byte aligned so a prose summary cannot soften one outcome.
+doctor_matrix_rows=(
+  '| `cpu` (any artifact) | none | `selected_cpu_no_cuda` | `cpu` | `[]` | `null` | `0` |'
+  '| `auto`, CPU-only artifact | none | `cuda_not_compiled` | `cpu` | `[]` | `null` | `0` |'
+  '| `auto`, successful empty enumeration | enumeration only | `cuda_unavailable` | `cpu` | `[]` | `null` | `0` |'
+  '| `auto`, mapped visible device is incompatible | enumeration + mapped-device probe | `cuda_incompatible` | `cpu` | observed inventory | `null` | `0` |'
+  '| `auto`, driver initialization/enumeration failure | failed driver/enumeration | `probe_failed` | `cpu` | `[]` | `null` | `70` |'
+  '| `auto`, mapped-device allocation/provider probe failure | enumeration + failed mapped-device probe | `probe_failed` | `cpu` | observed inventory | `null` | `70` |'
+  '| `auto`, selected device allocation/provider probe succeeds | enumeration + mapped-device probe | `selected_cuda` | selected `cuda:N` | observed inventory | matching UUID | `0` |'
+  '| forced `cuda:N`, CUDA not compiled | none | `cuda_not_compiled` | `null` | `[]` | `null` | `65` |'
+  '| forced `cuda:N`, requested ordinal not visible or no visible device | enumeration only | `cuda_unavailable` | `null` | observed inventory | `null` | `65` |'
+  '| forced `cuda:N`, mapped visible device is incompatible | enumeration + mapped-device probe | `cuda_incompatible` | `null` | observed inventory | `null` | `65` |'
+  '| forced `cuda:N`, driver initialization/enumeration failure | failed driver/enumeration | `probe_failed` | `null` | `[]` | `null` | `70` |'
+  '| forced `cuda:N`, mapped-device allocation/provider probe failure | enumeration + failed mapped-device probe | `probe_failed` | `null` | observed inventory | `null` | `70` |'
+  '| malformed, legacy, or otherwise invalid policy | none | `invalid_policy` | `null` | `[]` | `null` | `70` |'
+)
+
+require_doctor_matrix() {
+  local file="$1" row
+  for row in "${doctor_matrix_rows[@]}"; do
+    require "$file" "$row"
+  done
+}
+
 require docs/embedder.md 'unset/default policy is `auto` only on a CUDA-capable artifact'
 require docs/reference/python-api.md 'Unset is `auto` only on a CUDA-capable artifact'
 require docs/reference/typescript-api.md 'Unset is `auto` only on a CUDA-capable artifact'
@@ -48,41 +73,30 @@ require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'requires force
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'Doctor exit matrix'
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '`probe_failed`'
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'typed CPU `effective_device`'
-require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'forced `cuda:N` reports no `effective_device`'
+require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'Thus forced `cuda:N` reports no'
+require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '`effective_device` for not-compiled/unavailable/incompatible outcomes'
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'does not create `init`'
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'no SDK device setter'
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '`visible_ordinal`'
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '`selected_uuid`'
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'schema_version: "fathomdb.doctor.gpu.v1"'
-require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '| `cpu` (any artifact) | none | `selected_cpu_no_cuda` | `cpu` | `[]` | `null` | `0` |'
-require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '| `auto`, CPU-only artifact | none | `cuda_not_compiled` | `cpu` | `[]` | `null` | `0` |'
-require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '| `auto`, successful empty enumeration | enumeration only | `cuda_unavailable` | `cpu` | `[]` | `null` | `0` |'
-require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '| `auto`, driver initialization/enumeration failure | failed driver/enumeration | `probe_failed` | `cpu` | `[]` | `null` | `70` |'
-require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '| forced `cuda:N`, CUDA not compiled | none | `cuda_not_compiled` | `null` | `[]` | `null` | `65` |'
-require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '| forced `cuda:N`, requested ordinal not visible or no visible device | enumeration only | `cuda_unavailable` | `null` | `[]` | `null` | `65` |'
-require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '| forced `cuda:N`, mapped visible device is incompatible | enumeration + mapped-device probe | `cuda_incompatible` | `null` | observed inventory | `null` | `65` |'
-require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '| forced `cuda:N`, driver/enumeration/allocation-provider diagnostic failure | failed driver/enumeration or mapped-device probe | `probe_failed` | `null` | empty if enumeration failed; otherwise observed inventory | `null` | `70` |'
-require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '| malformed, legacy, or otherwise invalid policy | none | `invalid_policy` | `null` | `[]` | `null` | `70` |'
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '`DoctorGpuDiagnosticResult`, distinct from `DeviceResolution`'
 require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md '`CudaProbeError::ProbeFailed` maps to `probe_failed`'
-require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'minimal CUDA allocation/provider probe, never a model load, download, or inference'
-require dev/design/0.8.23-slice-70-tdd-plan.md 'auto probe/driver failure -> `probe_failed`, typed CPU effective device, exit 70'
-require dev/design/0.8.23-slice-70-tdd-plan.md 'forced `cuda:N` not-compiled/unavailable/incompatible -> no effective device, exit 65'
+require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'minimal CUDA'
+require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'allocation/provider probe.'
+require dev/design/0.8.23-slice-70-dual-runtime-device-policy.md 'never performs a model load, download, or'
+require dev/design/0.8.23-slice-70-tdd-plan.md 'auto driver or allocation/provider probe failure ->'
+require dev/design/0.8.23-slice-70-tdd-plan.md 'not-compiled/unavailable/incompatible -> no effective device, exit `65`'
+require dev/design/0.8.23-slice-70-tdd-plan.md 'forced driver or allocation/provider probe failure -> no effective device'
+require dev/design/0.8.23-slice-70-tdd-plan.md '`DoctorGpuDiagnosticResult` maps raw probe evidence'
 require dev/interfaces/cli.md '`gpu`             | `fathomdb doctor gpu [--json]`'
 require dev/interfaces/cli.md '`selected_cpu_no_cuda`'
 require dev/interfaces/cli.md '`cuda_not_compiled`'
 require dev/interfaces/cli.md '`cuda_unavailable`'
 require dev/interfaces/cli.md '`cuda_incompatible`'
-require dev/interfaces/cli.md '`probe_failed` with a typed CPU `effective_device` and exits `70`'
-require dev/interfaces/cli.md '| `cpu` (any artifact) | none | `selected_cpu_no_cuda` | `cpu` | `[]` | `null` | `0` |'
-require dev/interfaces/cli.md '| `auto`, CPU-only artifact | none | `cuda_not_compiled` | `cpu` | `[]` | `null` | `0` |'
-require dev/interfaces/cli.md '| `auto`, driver initialization/enumeration failure | failed driver/enumeration | `probe_failed` | `cpu` | `[]` | `null` | `70` |'
-require dev/interfaces/cli.md '| forced `cuda:N`, CUDA not compiled | none | `cuda_not_compiled` | `null` | `[]` | `null` | `65` |'
-require dev/interfaces/cli.md '| forced `cuda:N`, requested ordinal not visible or no visible device | enumeration only | `cuda_unavailable` | `null` | `[]` | `null` | `65` |'
-require dev/interfaces/cli.md '| forced `cuda:N`, mapped visible device is incompatible | enumeration + mapped-device probe | `cuda_incompatible` | `null` | observed inventory | `null` | `65` |'
-require dev/interfaces/cli.md '| forced `cuda:N`, driver/enumeration/allocation-provider diagnostic failure | failed driver/enumeration or mapped-device probe | `probe_failed` | `null` | empty if enumeration failed; otherwise observed inventory | `null` | `70` |'
-require dev/interfaces/cli.md '| malformed, legacy, or otherwise invalid policy | none | `invalid_policy` | `null` | `[]` | `null` | `70` |'
-require dev/interfaces/cli.md '`DoctorGpuDiagnosticResult` is distinct from `DeviceResolution`'
+require dev/interfaces/cli.md '`CudaProbeError::ProbeFailed` maps to `probe_failed`'
+require dev/interfaces/cli.md 'The CLI produces `DoctorGpuDiagnosticResult` instead;'
+require dev/interfaces/cli.md 'must not serialize `DeviceResolution` as the diagnostic.'
 require dev/interfaces/cli.md 'does not open a database'
 require dev/interfaces/cli.md 'load or download a model'
 require dev/interfaces/cli.md 'write configuration'
@@ -119,5 +133,49 @@ reject dev/design/0.8.23-slice-10-cuda-contract.md 'FATHOMDB_EMBED_DEVICE=cpu'
 reject dev/design/0.8.23-slice-20-cuda-package-rehearsal.md 'CPU-default'
 reject dev/design/0.8.23-slice-20-cuda-package-rehearsal.md 'FATHOMDB_EMBED_DEVICE=cpu'
 reject dev/design/0.8.23-slice-20-cuda-package-rehearsal.md 'three Linux x64 consumer artifacts'
+
+require_doctor_matrix dev/design/0.8.23-slice-70-dual-runtime-device-policy.md
+require_doctor_matrix dev/interfaces/cli.md
+
+mutation_root="$(mktemp -d)"
+trap 'rm -rf "$mutation_root"' EXIT
+mkdir -p "$mutation_root/dev/design" "$mutation_root/dev/interfaces"
+cp dev/design/0.8.23-slice-70-dual-runtime-device-policy.md "$mutation_root/dev/design/"
+cp dev/interfaces/cli.md "$mutation_root/dev/interfaces/"
+
+assert_doctor_matrix_mutation_rejected() {
+  local label="$1" file="$2" from="$3" to="$4" case_root
+  case_root="$(mktemp -d "$mutation_root/case.XXXXXX")"
+  cp -R "$mutation_root/dev" "$case_root/"
+  local content
+  content="$(<"$case_root/$file")"
+  if [[ "$content" != *"$from"* ]]; then
+    printf 'Slice 70 doctor-matrix fixture lacks mutation source: %s\n' "$label" >&2
+    exit 1
+  fi
+  printf '%s\n' "${content/"$from"/"$to"}" > "$case_root/$file"
+  if (require_doctor_matrix "$case_root/dev/design/0.8.23-slice-70-dual-runtime-device-policy.md" \
+      && require_doctor_matrix "$case_root/dev/interfaces/cli.md") >/dev/null 2>&1; then
+    printf 'Slice 70 doctor-matrix guard accepted mutation: %s\n' "$label" >&2
+    exit 1
+  fi
+}
+
+assert_doctor_matrix_mutation_rejected auto-no-visible-exit \
+  dev/design/0.8.23-slice-70-dual-runtime-device-policy.md \
+  '| `auto`, successful empty enumeration | enumeration only | `cuda_unavailable` | `cpu` | `[]` | `null` | `0` |' \
+  '| `auto`, successful empty enumeration | enumeration only | `cuda_unavailable` | `cpu` | `[]` | `null` | `70` |'
+assert_doctor_matrix_mutation_rejected auto-probe-failure-status \
+  dev/interfaces/cli.md \
+  '| `auto`, mapped-device allocation/provider probe failure | enumeration + failed mapped-device probe | `probe_failed` | `cpu` | observed inventory | `null` | `70` |' \
+  '| `auto`, mapped-device allocation/provider probe failure | enumeration + failed mapped-device probe | `cuda_incompatible` | `cpu` | observed inventory | `null` | `0` |'
+assert_doctor_matrix_mutation_rejected forced-incompatible-cpu \
+  dev/design/0.8.23-slice-70-dual-runtime-device-policy.md \
+  '| forced `cuda:N`, mapped visible device is incompatible | enumeration + mapped-device probe | `cuda_incompatible` | `null` | observed inventory | `null` | `65` |' \
+  '| forced `cuda:N`, mapped visible device is incompatible | enumeration + mapped-device probe | `cuda_incompatible` | `cpu` | observed inventory | `null` | `65` |'
+assert_doctor_matrix_mutation_rejected invalid-policy-exit \
+  dev/interfaces/cli.md \
+  '| malformed, legacy, or otherwise invalid policy | none | `invalid_policy` | `null` | `[]` | `null` | `70` |' \
+  '| malformed, legacy, or otherwise invalid policy | none | `invalid_policy` | `null` | `[]` | `null` | `0` |'
 
 printf 'PASS  Slice 70 embedding documentation contract\n'

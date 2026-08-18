@@ -140,6 +140,12 @@ The readonly additive fields are `visibleCudaDevices: readonly CudaVisibleDevice
 inventory member. CPU-effective automatic outcomes retain the observed
 inventory.
 
+This `DeviceResolution` is normal open-time evidence only. The CLI-only
+`DoctorGpuDiagnosticResult` is intentionally distinct: a
+`CudaProbeError::ProbeFailed` may be recorded as automatic CPU open evidence,
+whereas `doctor gpu` maps it to `probe_failed` and exit `70`. TypeScript exposes
+neither a doctor method nor a device-setting API.
+
 This is open-time evidence only: it adds no TypeScript device-setting API.
 `FATHOMDB_EMBED_DEVICE` remains the single cross-surface policy transport.
 

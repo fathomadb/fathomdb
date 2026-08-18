@@ -246,6 +246,12 @@ inventory. The additive fields are
 inventory member. A forced-CUDA failure remains `EngineOpenError::EmbedDevicePolicy`,
 not a fabricated CPU report.
 
+`DeviceResolution` is the normal open-time result. `DoctorGpuDiagnosticResult`
+is a CLI-only result and is deliberately distinct: a
+`CudaProbeError::ProbeFailed` can be represented as automatic CPU open evidence,
+but `doctor gpu` maps it to `probe_failed` and exit `70`. Rust SDK consumers do
+not receive a doctor API or configuration setter.
+
 A report-bearing `OrtBgeEmbedder` caller uses `CallerWithDeviceResolution`,
 rather than the legacy `Caller` variant, so its final ONNX Runtime
 session/provider outcome reaches the same report once.

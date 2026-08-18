@@ -80,16 +80,37 @@ CUDA UUIDs and their `CUDA_VISIBLE_DEVICES`-relative ordinals only; it neither
 reports nor infers physical host ordinals. A selected UUID must match one
 inventory member.
 
-The exact outcome matrix is: `cpu` -> `selected_cpu_no_cuda`, typed CPU, `0`;
-policy-satisfied automatic CPU fallback ->
-`selected_cpu_no_cuda` / `cuda_not_compiled` / `cuda_unavailable` /
-`cuda_incompatible`, typed CPU, `0`; auto driver/probe diagnostic failure ->
-`probe_failed` with a typed CPU `effective_device` and exits `70`; selected
-automatic CUDA -> `selected_cuda`, `cuda:N`, `0`; forced `cuda:N`
-not-compiled/unavailable/incompatible -> no effective device, `65`; forced
-driver/probe failure -> `probe_failed`, no effective device, `70`; invalid or
-legacy policy -> `invalid_policy`, no effective device, `70`. Forced CUDA
-never becomes a CPU report.
+Normal `Engine::open` resolution and `doctor gpu` have distinct result mappings.
+Open uses `DeviceResolution`, which may describe automatic CPU selection with a
+`cuda_probe_failed` reason. The CLI produces `DoctorGpuDiagnosticResult` instead;
+it consumes raw driver, inventory, and allocation/provider-probe evidence and
+must not serialize `DeviceResolution` as the diagnostic. Thus
+`CudaProbeError::ProbeFailed` maps to `probe_failed`, not a policy-satisfied
+automatic result, even though the automatic diagnostic reports typed CPU as its
+effective device.
+
+`devices` is `[]` if enumeration did not succeed; otherwise it is the observed
+ordered inventory. `selected_uuid` is `null` unless CUDA was selected. The exact
+outcome matrix is:
+
+| Requested policy / observation | CUDA activity | Status | Effective device | Devices | Selected UUID | Exit |
+| --- | --- | --- | --- | --- | --- | --- |
+| `cpu` (any artifact) | none | `selected_cpu_no_cuda` | `cpu` | `[]` | `null` | `0` |
+| `auto`, CPU-only artifact | none | `cuda_not_compiled` | `cpu` | `[]` | `null` | `0` |
+| `auto`, successful empty enumeration | enumeration only | `cuda_unavailable` | `cpu` | `[]` | `null` | `0` |
+| `auto`, mapped visible device is incompatible | enumeration + mapped-device probe | `cuda_incompatible` | `cpu` | observed inventory | `null` | `0` |
+| `auto`, driver initialization/enumeration failure | failed driver/enumeration | `probe_failed` | `cpu` | `[]` | `null` | `70` |
+| `auto`, mapped-device allocation/provider probe failure | enumeration + failed mapped-device probe | `probe_failed` | `cpu` | observed inventory | `null` | `70` |
+| `auto`, selected device allocation/provider probe succeeds | enumeration + mapped-device probe | `selected_cuda` | selected `cuda:N` | observed inventory | matching UUID | `0` |
+| forced `cuda:N`, CUDA not compiled | none | `cuda_not_compiled` | `null` | `[]` | `null` | `65` |
+| forced `cuda:N`, requested ordinal not visible or no visible device | enumeration only | `cuda_unavailable` | `null` | observed inventory | `null` | `65` |
+| forced `cuda:N`, mapped visible device is incompatible | enumeration + mapped-device probe | `cuda_incompatible` | `null` | observed inventory | `null` | `65` |
+| forced `cuda:N`, driver initialization/enumeration failure | failed driver/enumeration | `probe_failed` | `null` | `[]` | `null` | `70` |
+| forced `cuda:N`, mapped-device allocation/provider probe failure | enumeration + failed mapped-device probe | `probe_failed` | `null` | observed inventory | `null` | `70` |
+| malformed, legacy, or otherwise invalid policy | none | `invalid_policy` | `null` | `[]` | `null` | `70` |
+
+Forced CUDA never becomes a CPU report. Invalid policy invokes no CUDA provider
+code.
 
 `dump-mutations` (0.8.0; gap F4-READ / reserved-gap-34) is a read-only operator
 diagnostic that pages op-store (`operational_mutations`) rows for one

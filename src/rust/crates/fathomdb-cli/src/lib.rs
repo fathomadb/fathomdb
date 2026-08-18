@@ -675,6 +675,7 @@ fn run_doctor_reranker_gpu(args: GpuDoctorArgs) -> i32 {
     exit
 }
 
+#[cfg(feature = "default-reranker")]
 fn policy_name(policy: fathomdb_embedder::RerankerDevicePolicy) -> String {
     match policy {
         fathomdb_embedder::RerankerDevicePolicy::Auto => "auto".to_owned(),

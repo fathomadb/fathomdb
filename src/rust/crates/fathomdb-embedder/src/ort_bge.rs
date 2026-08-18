@@ -483,6 +483,117 @@ mod tests {
     use super::OrtProvider;
     use crate::EmbedDevicePolicy;
 
+    #[derive(Default)]
+    struct FixtureOrtAvailability {
+        outcomes: Vec<Result<bool, &'static str>>,
+        ordinals: Vec<usize>,
+    }
+
+    impl super::OrtCudaAvailability for FixtureOrtAvailability {
+        fn is_available(&mut self, ordinal: usize) -> Result<bool, String> {
+            self.ordinals.push(ordinal);
+            self.outcomes.remove(0).map_err(str::to_owned)
+        }
+    }
+
+    #[test]
+    fn dedicated_onnx_resolver_preserves_strict_policy_without_uuid_inventory() {
+        use crate::{DeviceResolutionError, DeviceResolutionReason, EffectiveEmbedDevice};
+
+        let mut cpu_probe = FixtureOrtAvailability::default();
+        let cpu = super::resolve_ort_device_policy_with_availability(
+            EmbedDevicePolicy::Cpu,
+            &mut cpu_probe,
+        )
+        .expect("explicit CPU resolves without touching ORT CUDA");
+        assert_eq!(cpu.effective_device, EffectiveEmbedDevice::Cpu);
+        assert!(cpu_probe.ordinals.is_empty());
+
+        let mut auto_cuda = FixtureOrtAvailability {
+            outcomes: vec![Ok(true)],
+            ..FixtureOrtAvailability::default()
+        };
+        let selected = super::resolve_ort_device_policy_with_availability(
+            EmbedDevicePolicy::Auto,
+            &mut auto_cuda,
+        )
+        .expect("available ONNX CUDA must remain reachable under auto");
+        assert!(
+            matches!(selected.effective_device, EffectiveEmbedDevice::Cuda(ref info) if info.ordinal == 0 && info.uuid.is_none())
+        );
+        assert!(selected.visible_cuda_devices.is_empty());
+        assert_eq!(selected.selected_cuda_uuid, None);
+        assert_eq!(auto_cuda.ordinals, vec![0]);
+
+        let mut auto_unavailable = FixtureOrtAvailability {
+            outcomes: vec![Ok(false)],
+            ..FixtureOrtAvailability::default()
+        };
+        let fallback = super::resolve_ort_device_policy_with_availability(
+            EmbedDevicePolicy::Auto,
+            &mut auto_unavailable,
+        )
+        .expect("auto may select CPU only after typed unavailability");
+        assert_eq!(fallback.effective_device, EffectiveEmbedDevice::Cpu);
+        assert_eq!(fallback.reason, Some(DeviceResolutionReason::NoVisibleCudaDevice));
+
+        let mut auto_error = FixtureOrtAvailability {
+            outcomes: vec![Err("ORT availability query failed")],
+            ..FixtureOrtAvailability::default()
+        };
+        let fallback = super::resolve_ort_device_policy_with_availability(
+            EmbedDevicePolicy::Auto,
+            &mut auto_error,
+        )
+        .expect("auto reports a typed probe failure while selecting CPU");
+        assert_eq!(fallback.effective_device, EffectiveEmbedDevice::Cpu);
+        assert_eq!(fallback.reason, Some(DeviceResolutionReason::CudaProbeFailed));
+
+        let mut forced_cuda = FixtureOrtAvailability {
+            outcomes: vec![Ok(true)],
+            ..FixtureOrtAvailability::default()
+        };
+        let selected = super::resolve_ort_device_policy_with_availability(
+            EmbedDevicePolicy::Cuda(2),
+            &mut forced_cuda,
+        )
+        .expect("forced CUDA reaches the requested ONNX provider");
+        assert!(
+            matches!(selected.effective_device, EffectiveEmbedDevice::Cuda(ref info) if info.ordinal == 2)
+        );
+        assert_eq!(forced_cuda.ordinals, vec![2]);
+
+        let mut forced_unavailable = FixtureOrtAvailability {
+            outcomes: vec![Ok(false)],
+            ..FixtureOrtAvailability::default()
+        };
+        assert_eq!(
+            super::resolve_ort_device_policy_with_availability(
+                EmbedDevicePolicy::Cuda(2),
+                &mut forced_unavailable,
+            ),
+            Err(DeviceResolutionError::ForcedCudaUnavailable {
+                ordinal: 2,
+                reason: DeviceResolutionReason::NoVisibleCudaDevice,
+            }),
+        );
+
+        let mut forced_error = FixtureOrtAvailability {
+            outcomes: vec![Err("ORT availability query failed")],
+            ..FixtureOrtAvailability::default()
+        };
+        assert_eq!(
+            super::resolve_ort_device_policy_with_availability(
+                EmbedDevicePolicy::Cuda(2),
+                &mut forced_error,
+            ),
+            Err(DeviceResolutionError::ForcedCudaUnavailable {
+                ordinal: 2,
+                reason: DeviceResolutionReason::CudaProbeFailed,
+            }),
+        );
+    }
+
     #[test]
     fn strict_onnx_forced_cuda_never_resolves_to_cpu() {
         use crate::{

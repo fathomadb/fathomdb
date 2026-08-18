@@ -62,7 +62,7 @@ fn compatible(ordinal: usize, uuid: &str) -> Result<CudaDeviceInfo, CudaProbeErr
 }
 
 #[test]
-fn doctor_gpu_has_the_exact_thirteen_row_matrix_and_never_uses_open_resolution() {
+fn doctor_gpu_covers_the_semantic_matrix_and_phase_shapes_without_open_resolution() {
     let cases = [
         ("cpu", false, Ok(vec![]), vec![], DoctorGpuStatus::SelectedCpuNoCuda, Some("cpu"), 0),
         ("auto", false, Ok(vec![]), vec![], DoctorGpuStatus::CudaNotCompiled, Some("cpu"), 0),
@@ -139,6 +139,15 @@ fn doctor_gpu_has_the_exact_thirteen_row_matrix_and_never_uses_open_resolution()
             DoctorGpuStatus::ProbeFailed,
             None,
             70,
+        ),
+        (
+            "cuda:0",
+            true,
+            Ok(vec![visible(0, "GPU-a")]),
+            vec![compatible(0, "GPU-a")],
+            DoctorGpuStatus::SelectedCuda,
+            Some("cuda:0"),
+            0,
         ),
     ];
 
@@ -230,5 +239,25 @@ fn doctor_gpu_keeps_classified_enumeration_failures_out_of_probe_failed() {
         assert_eq!(diagnostic.exit_code(), exit_code);
         assert_eq!(provider.enumerate_calls, 1);
         assert!(provider.probe_calls.is_empty());
+    }
+}
+
+#[test]
+fn mapped_probe_no_visible_device_remains_unavailable() {
+    let cases = [(EmbedDevicePolicy::Auto, Some("cpu"), 0), (EmbedDevicePolicy::Cuda(0), None, 65)];
+
+    for (policy, effective_device, exit_code) in cases {
+        let mut provider = FixtureCudaProvider::new(
+            Ok(vec![visible(0, "GPU-a")]),
+            vec![Err(CudaProbeError::NoVisibleDevice)],
+        );
+
+        let diagnostic = diagnose_gpu(policy, true, &mut provider);
+
+        assert_eq!(diagnostic.status(), DoctorGpuStatus::CudaUnavailable);
+        assert_eq!(diagnostic.effective_device().as_deref(), effective_device);
+        assert_eq!(diagnostic.exit_code(), exit_code);
+        assert_eq!(diagnostic.devices(), &[visible(0, "GPU-a")]);
+        assert_eq!(diagnostic.selected_uuid(), None);
     }
 }

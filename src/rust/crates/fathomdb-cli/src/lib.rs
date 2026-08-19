@@ -756,18 +756,18 @@ impl PlatformClass {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum PlatformProbeReason {
-    NvidiaSmiMissing,
-    NvidiaSmiTimeout,
-    NvidiaSmiNonzero,
+enum NvidiaSmiProbeReason {
+    Missing,
+    Timeout,
+    Nonzero,
 }
 
-impl PlatformProbeReason {
+impl NvidiaSmiProbeReason {
     const fn as_str(self) -> &'static str {
         match self {
-            Self::NvidiaSmiMissing => "nvidia_smi_missing",
-            Self::NvidiaSmiTimeout => "nvidia_smi_timeout",
-            Self::NvidiaSmiNonzero => "nvidia_smi_nonzero",
+            Self::Missing => "nvidia_smi_missing",
+            Self::Timeout => "nvidia_smi_timeout",
+            Self::Nonzero => "nvidia_smi_nonzero",
         }
     }
 }
@@ -778,7 +778,7 @@ struct PlatformReport {
     tegra_family: bool,
     sbsa_capable: Option<bool>,
     l4t_release: Option<String>,
-    reason: Option<PlatformProbeReason>,
+    reason: Option<NvidiaSmiProbeReason>,
 }
 
 impl PlatformReport {
@@ -843,9 +843,9 @@ fn classify_platform(probe: &dyn PlatformProbe) -> PlatformReport {
                 sbsa_capable: None,
                 l4t_release,
                 reason: Some(match outcome {
-                    NvidiaSmiProbe::Missing => PlatformProbeReason::NvidiaSmiMissing,
-                    NvidiaSmiProbe::Timeout => PlatformProbeReason::NvidiaSmiTimeout,
-                    NvidiaSmiProbe::Nonzero => PlatformProbeReason::NvidiaSmiNonzero,
+                    NvidiaSmiProbe::Missing => NvidiaSmiProbeReason::Missing,
+                    NvidiaSmiProbe::Timeout => NvidiaSmiProbeReason::Timeout,
+                    NvidiaSmiProbe::Nonzero => NvidiaSmiProbeReason::Nonzero,
                     NvidiaSmiProbe::Output => unreachable!(),
                 }),
             }
@@ -880,7 +880,7 @@ fn platform_json(report: &PlatformReport) -> DoctorPlatformJson<'_> {
         tegra_family: report.tegra_family,
         sbsa_capable: report.sbsa_capable,
         l4t_release: report.l4t_release.as_deref(),
-        reason: report.reason.map(PlatformProbeReason::as_str),
+        reason: report.reason.map(NvidiaSmiProbeReason::as_str),
     }
 }
 
@@ -898,7 +898,7 @@ fn platform_diagnostic_output(report: &PlatformReport, json_mode: bool) -> Strin
         report.tegra_family,
         report.sbsa_capable.map_or("null".to_owned(), |value| value.to_string()),
         report.l4t_release.as_deref().unwrap_or("null"),
-        report.reason.map_or("null", PlatformProbeReason::as_str),
+        report.reason.map_or("null", NvidiaSmiProbeReason::as_str),
     )
 }
 

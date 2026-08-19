@@ -183,7 +183,7 @@
         "dev/design/0.8.23-unmerged-candidate-provenance.md",
         "dev/plans/runs/0.8.23-slice-10-status.md"
       ],
-      "evidence": "8a9e05b5, 8814b374, and ecafa0d8 landed independently reviewed local RED-to-GREEN hardening. A release-closeout audit found a P1 contradiction: a GA dry-run candidate must be both the head of an open PR and already reachable from main. RED-to-GREEN correction is required before reviewed main provenance, protected-runner, and retained-witness evidence can be requested. The empty manifest and expired baseline authorize no candidate or dispatch."
+      "evidence": "8a9e05b5, 8814b374, and ecafa0d8 landed independently reviewed local RED-to-GREEN hardening. Release-closeout commits 833ba258 and 4ff8d146 resolve the dry-run provenance P1: only an explicit workflow_dispatch dry-run may use an exact reviewed unmerged candidate; tags and non-dry GA still require main reachability. 68b696a3 also lands the approved 80.6.5 shared allocation-witness/UUID-normalization contract. A reviewed main control-plane PR, refreshed protected-runner policy/environment attestation, exact approved candidate/provenance PRs, and retained trusted x64 hardware evidence remain required. The empty manifest and expired baseline authorize no candidate or dispatch."
     },
     {
       "slice": 20,
@@ -328,8 +328,8 @@
         "dev/design/0.8.23-aarch64-tegra.md",
         "dev/plans/runs/0.8.23-slice-80-status.md"
       ],
-      "sha": "59c1033e",
-      "evidence": "Slice 80.1–80.7 are landed. HITL seq:253 now approves 80.6.5 x86_64 work: shared-observation schema merge, UUID normalization, tracked transfer scripts, and real pinned RTX 3090 preflight evidence. 32a70edb integrated 80.7, 68f588e3 corrected its internal clippy regression, and 59c1033e hardens the manual Jetson route after its retained first failure. GitHub run 32296395639 passed on the dedicated Orin at exact 59c1033e229838632b5d0fe1ecd48845f3007fa0, retaining artifact 9381465909 for 30 days. This is nonpublishing functionality evidence; no performance or publication claim."
+      "sha": "68b696a3",
+      "evidence": "Slice 80.1–80.7 are landed. HITL seq:253 approves 80.6.5. 68b696a3 completes its local shared-observation schema merge and optional GPU- UUID normalization, including re-derivable Python/N-API allocation witness validation. The referenced transfer scripts are not tracked in this repository and were not invented. The remaining approved 80.6.5 work is to promote supplied reviewed transfer scripts and run real CUDA preflight on windchill3 pinned to the intended RTX 3090 UUID, subject to separate environment authorization. 32a70edb integrated 80.7, 68f588e3 corrected its internal clippy regression, and 59c1033e hardens the manual Jetson route after its retained first failure. GitHub run 32296395639 passed on the dedicated Orin at exact 59c1033e229838632b5d0fe1ecd48845f3007fa0, retaining artifact 9381465909 for 30 days. This is nonpublishing functionality evidence; no performance or publication claim."
     }
   ],
   "landed": [

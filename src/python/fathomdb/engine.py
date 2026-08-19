@@ -33,6 +33,7 @@ from fathomdb.types import (
     EmbedderIdentity,
     EffectiveEmbedDevice,
     Explanation,
+    GpuAllocationWitness,
     IdSpace,
     MigrationStepReport,
     OpenReport,
@@ -132,11 +133,41 @@ def _map_per_hit_explain(p: Any) -> PerHitExplain:
     )
 
 
+def _map_gpu_allocation_witness(native: Any) -> GpuAllocationWitness:
+    """Map the native GPU allocation witness field-for-field.
+
+    Deliberately exhaustive: R80-13 requires the record stay re-derivable, so
+    nothing here summarizes, rounds, or drops a number.
+    """
+
+    return GpuAllocationWitness(
+        schema=native.schema,
+        sole_gpu_consumer_precondition=native.sole_gpu_consumer_precondition,
+        device_ordinal_requested=native.device_ordinal_requested,
+        device_ordinal_actual=native.device_ordinal_actual,
+        device_uuid=native.device_uuid,
+        device_name=native.device_name,
+        compute_capability=native.compute_capability,
+        free_before_bytes=native.free_before_bytes,
+        free_after_bytes=native.free_after_bytes,
+        total_bytes=native.total_bytes,
+        delta_bytes=native.delta_bytes,
+        delta_floor_bytes=native.delta_floor_bytes,
+        control_allocation_request_bytes=native.control_allocation_request_bytes,
+        control_block_count=native.control_block_count,
+        control_free_before_bytes=native.control_free_before_bytes,
+        control_free_after_bytes=native.control_free_after_bytes,
+        control_delta_bytes=native.control_delta_bytes,
+        embedded_vector_dim=native.embedded_vector_dim,
+    )
+
+
 def _map_open_report(native: Any) -> OpenReport:
     """Map one native open-time snapshot into the public Python contract."""
 
     device_resolution = native.embedder_device_resolution
     reranker_device_resolution = native.reranker_device_resolution
+    gpu_allocation_witness = native.embedder_gpu_allocation_witness
     return OpenReport(
         schema_version_before=native.schema_version_before,
         schema_version_after=native.schema_version_after,
@@ -233,6 +264,11 @@ def _map_open_report(native: Any) -> OpenReport:
                 selected_cuda_uuid=reranker_device_resolution.selected_cuda_uuid,
                 reason=reranker_device_resolution.reason,
             )
+        ),
+        embedder_gpu_allocation_witness=(
+            None
+            if gpu_allocation_witness is None
+            else _map_gpu_allocation_witness(gpu_allocation_witness)
         ),
     )
 

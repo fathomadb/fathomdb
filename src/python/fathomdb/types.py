@@ -602,6 +602,44 @@ class DeviceResolution:
 
 
 @dataclass(frozen=True)
+class GpuAllocationWitness:
+    """0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the retained
+    ``fathomdb.tegra-gpu-allocation-witness/v1`` record, measured in this
+    process by the artifact under test.
+
+    Every number the verdict used is carried, so a reader **re-derives** the
+    verdict instead of trusting it:
+
+    * ``free_before_bytes - free_after_bytes == delta_bytes``,
+    * ``delta_bytes >= delta_floor_bytes``, and
+    * the deliberate control allocation moved the shared counter by at least
+      ``control_allocation_request_bytes``, which is what shows the counter was
+      live and attributable at the time rather than merely nonzero.
+
+    Byte counts are exact Python ints.
+    """
+
+    schema: str
+    sole_gpu_consumer_precondition: str
+    device_ordinal_requested: int
+    device_ordinal_actual: int
+    device_uuid: str
+    device_name: str
+    compute_capability: str
+    free_before_bytes: int
+    free_after_bytes: int
+    total_bytes: int
+    delta_bytes: int
+    delta_floor_bytes: int
+    control_allocation_request_bytes: int
+    control_block_count: int
+    control_free_before_bytes: int
+    control_free_after_bytes: int
+    control_delta_bytes: int
+    embedded_vector_dim: int
+
+
+@dataclass(frozen=True)
 class OpenReport:
     """Structured open-time report owned by `dev/design/engine.md`.
 
@@ -645,6 +683,13 @@ class OpenReport:
     dense_disabled_reason: str | None = None
     embedder_device_resolution: DeviceResolution | None = None
     reranker_device_resolution: DeviceResolution | None = None
+    # 0.8.23 Slice 80.6 (D-80.6-6, AC80-6) — the in-process GPU allocation
+    # witness measured during this open, or ``None`` when none was measured.
+    # ``None`` means *no witness was taken*, never "a witness measured
+    # nothing": a zero, negative, or below-floor allocation delta is a typed
+    # failure inside the witness and fails the open, so a zero-valued record is
+    # not reachable through this attribute.
+    embedder_gpu_allocation_witness: GpuAllocationWitness | None = None
 
 
 @dataclass(frozen=True)
@@ -707,6 +752,7 @@ __all__ = [
     "EffectiveEmbedDevice",
     "ExpandedNode",
     "Explanation",
+    "GpuAllocationWitness",
     "MeanVecPinnedEvent",
     "MigrationStepReport",
     "NodeRecord",

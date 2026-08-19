@@ -119,6 +119,34 @@ Subscriber attachment is provided by:
 
 `softFallback.branch` uses the typed values owned by `design/retrieval.md`.
 
+### `OpenReport.embedderGpuAllocationWitness` (0.8.23 Slice 80.6)
+
+`engine.openReport().embedderGpuAllocationWitness` is a readonly
+`GpuAllocationWitness | null`: the retained
+`fathomdb.tegra-gpu-allocation-witness/v1` record measured **in this process**
+during the open (`design/0.8.23-aarch64-tegra.md` D-80.6-6, AC80-6, R80-13).
+
+`null` means **no witness was taken**, never "a witness measured nothing". A
+zero, negative, or below-floor allocation delta is a typed failure inside the
+witness and fails the open, so a zero-valued record is unreachable here.
+
+It is populated only when `FATHOMDB_GPU_ALLOCATION_WITNESS=1` (or `true`) is
+set, the artifact has CUDA compiled in, and the device policy actually selected
+CUDA for the default embedder. It is opt-in because producing it costs a second
+model load plus a multi-gigabyte deliberate control allocation. A requested
+witness that cannot be produced rejects the open naming the witness's own
+failure tag; it never degrades to `null`.
+
+The readonly fields are `schema`, `soleGpuConsumerPrecondition`,
+`deviceOrdinalRequested`, `deviceOrdinalActual`, `deviceUuid`, `deviceName`,
+`computeCapability`, `freeBeforeBytes`, `freeAfterBytes`, `totalBytes`,
+`deltaBytes`, `deltaFloorBytes`, `controlAllocationRequestBytes`,
+`controlBlockCount`, `controlFreeBeforeBytes`, `controlFreeAfterBytes`,
+`controlDeltaBytes`, and `embeddedVectorDim` — every number the verdict used,
+so a reader re-derives the verdict rather than trusting it (R80-13). Byte
+counts are JavaScript numbers, exact for every physically reachable
+device-memory value.
+
 ### `OpenReport.embedderDeviceResolution` (0.8.23 Slice 70)
 
 `engine.openReport().embedderDeviceResolution` is a readonly

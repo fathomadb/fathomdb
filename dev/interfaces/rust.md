@@ -240,6 +240,40 @@ See § "Projection registry" below.
 
 `report` is the `OpenReport` owned by `design/engine.md`.
 
+### `OpenReport::embedder_gpu_allocation_witness` (0.8.23 Slice 80.6)
+
+`OpenReport::embedder_gpu_allocation_witness` is
+`Option<fathomdb_embedder::GpuAllocationWitness>`: the retained
+`fathomdb.tegra-gpu-allocation-witness/v1` record measured **in this process**
+during the open (`design/0.8.23-aarch64-tegra.md` D-80.6-6, AC80-6, R80-13). It
+exists so the installed artifact's own process carries the GPU evidence rather
+than a sibling process.
+
+`None` means **no witness was taken**, never "a witness measured nothing". A
+zero, negative, or below-floor allocation delta is a typed failure inside the
+witness (R80-12) and fails the open, so a zero-valued record is unreachable
+through this field.
+
+It is populated only when `FATHOMDB_GPU_ALLOCATION_WITNESS=1` (or `true`) is
+set, the artifact has CUDA compiled in, and the device policy actually selected
+CUDA for the default embedder. It is opt-in because producing it costs a second
+model load plus the multi-gigabyte deliberate control allocation D-80.5-3
+requires; that is evidence-run behavior, not the runtime contract. When the
+witness is requested and cannot be produced, `Engine::open` fails with
+`EngineOpenError::Embedder` naming the witness's own failure tag
+(`cpu_fallback`, `cuda_not_compiled`, `insufficient_delta`, …) — it never
+degrades to `None`. An unrecognized value of the variable is rejected at open
+time rather than read as "off".
+
+The record carries `device_ordinal_requested`, `device_ordinal_actual`,
+`device_uuid`, `device_name`, `compute_capability`, `free_before_bytes`,
+`free_after_bytes`, `total_bytes`, `delta_bytes`, `delta_floor_bytes`,
+`control_allocation_request_bytes`, `control_block_count`,
+`control_free_before_bytes`, `control_free_after_bytes`,
+`control_delta_bytes`, and `embedded_vector_dim`, so the verdict is
+re-derivable from the record alone (R80-13). Device identity is not part of
+`EmbedderIdentity` and this field makes no claim about it.
+
 ### `OpenReport::embedder_device_resolution` (0.8.23 Slice 70)
 
 `OpenReport::embedder_device_resolution` is the immutable strict CPU/CUDA

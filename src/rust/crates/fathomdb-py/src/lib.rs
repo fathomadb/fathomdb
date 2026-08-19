@@ -43,8 +43,10 @@ use fathomdb_embedder::{
     DeviceResolution as RustDeviceResolution, EffectiveEmbedDevice as RustEffectiveEmbedDevice,
     EffectiveRerankerDevice as RustEffectiveRerankerDevice,
     EmbedDevicePolicy as RustEmbedDevicePolicy, EmbedderEvent as RustEmbedderEvent,
+    GpuAllocationWitness as RustGpuAllocationWitness,
     RerankerDevicePolicy as RustRerankerDevicePolicy,
-    RerankerDeviceResolution as RustRerankerDeviceResolution,
+    RerankerDeviceResolution as RustRerankerDeviceResolution, SOLE_GPU_CONSUMER_PRECONDITION,
+    TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA,
 };
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
@@ -1443,6 +1445,72 @@ impl PyDeviceResolution {
     }
 }
 
+/// 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the retained
+/// `fathomdb.tegra-gpu-allocation-witness/v1` record, measured in this
+/// process by the artifact under test.
+///
+/// Every number the verdict used is carried, so a reader re-derives the
+/// verdict instead of trusting it: the raw free-memory samples bracketing the
+/// model load, the declared floor they were judged against, and the deliberate
+/// control allocation that proves the shared iGPU counter was live and
+/// attributable at the time. Byte counts are exact Python ints — the deltas
+/// are `i128` in the core and are not narrowed here.
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "GpuAllocationWitness",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyGpuAllocationWitness {
+    /// Schema string of the retained record.
+    schema: String,
+    /// The precondition the witness run states rather than assumes.
+    sole_gpu_consumer_precondition: String,
+    device_ordinal_requested: usize,
+    device_ordinal_actual: usize,
+    device_uuid: String,
+    device_name: String,
+    compute_capability: String,
+    free_before_bytes: u64,
+    free_after_bytes: u64,
+    total_bytes: u64,
+    delta_bytes: i128,
+    delta_floor_bytes: u64,
+    control_allocation_request_bytes: u64,
+    control_block_count: usize,
+    control_free_before_bytes: u64,
+    control_free_after_bytes: u64,
+    control_delta_bytes: i128,
+    embedded_vector_dim: usize,
+}
+
+impl PyGpuAllocationWitness {
+    fn from_rust(witness: &RustGpuAllocationWitness) -> Self {
+        Self {
+            schema: TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA.to_string(),
+            sole_gpu_consumer_precondition: SOLE_GPU_CONSUMER_PRECONDITION.to_string(),
+            device_ordinal_requested: witness.device_ordinal_requested,
+            device_ordinal_actual: witness.device_ordinal_actual,
+            device_uuid: witness.device_uuid.clone(),
+            device_name: witness.device_name.clone(),
+            compute_capability: witness.compute_capability.clone(),
+            free_before_bytes: witness.free_before_bytes,
+            free_after_bytes: witness.free_after_bytes,
+            total_bytes: witness.total_bytes,
+            delta_bytes: witness.delta_bytes,
+            delta_floor_bytes: witness.delta_floor_bytes,
+            control_allocation_request_bytes: witness.control_allocation_request_bytes,
+            control_block_count: witness.control_block_count,
+            control_free_before_bytes: witness.control_free_before_bytes,
+            control_free_after_bytes: witness.control_free_after_bytes,
+            control_delta_bytes: witness.control_delta_bytes,
+            embedded_vector_dim: witness.embedded_vector_dim,
+        }
+    }
+}
+
 #[pyclass(module = "fathomdb._fathomdb", name = "OpenReport", frozen, get_all)]
 struct PyOpenReport {
     schema_version_before: u32,
@@ -1480,6 +1548,14 @@ struct PyOpenReport {
     /// no embedder was configured.
     embedder_device_resolution: Option<PyDeviceResolution>,
     reranker_device_resolution: Option<PyDeviceResolution>,
+    /// 0.8.23 Slice 80.6 (D-80.6-6, AC80-6) — the in-process GPU allocation
+    /// witness, or `None` when this open measured none.
+    ///
+    /// `None` means **no witness was taken**, never "a witness measured
+    /// nothing": a zero, negative, or below-floor allocation delta is a typed
+    /// failure inside the witness and fails the open, so a zero-valued record
+    /// is not reachable here.
+    embedder_gpu_allocation_witness: Option<PyGpuAllocationWitness>,
 }
 
 impl PyOpenReport {
@@ -1511,6 +1587,10 @@ impl PyOpenReport {
                 .reranker_device_resolution
                 .as_ref()
                 .map(PyDeviceResolution::from_reranker),
+            embedder_gpu_allocation_witness: r
+                .embedder_gpu_allocation_witness
+                .as_ref()
+                .map(PyGpuAllocationWitness::from_rust),
         }
     }
 }
@@ -3095,6 +3175,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyCudaVisibleDevice>()?;
     m.add_class::<PyEffectiveEmbedDevice>()?;
     m.add_class::<PyDeviceResolution>()?;
+    m.add_class::<PyGpuAllocationWitness>()?;
     m.add_class::<PyOpenReport>()?;
     m.add_class::<PyNodeRecord>()?;
     m.add_class::<PyOpStoreRow>()?;
@@ -3321,7 +3402,67 @@ mod tests {
             assert_eq!(resolution.visible_cuda_devices[0].visible_ordinal, 3);
             assert_eq!(resolution.selected_cuda_uuid.as_deref(), Some("GPU-test"));
             assert_eq!(resolution.reason, None);
+            // D-80.6-6 — a CUDA *policy outcome* is not a measurement. The
+            // witness stays absent unless one was actually taken.
+            assert!(report.embedder_gpu_allocation_witness.is_none());
         });
+    }
+
+    /// 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the witness crosses the PyO3
+    /// boundary with every number the verdict used still present, so a Python
+    /// consumer can re-derive the verdict instead of trusting it.
+    #[test]
+    fn gpu_allocation_witness_crosses_the_pyo3_boundary_intact() {
+        let witness = RustGpuAllocationWitness {
+            device_ordinal_requested: 0,
+            device_ordinal_actual: 0,
+            device_uuid: "GPU-11111111-2222-3333-4444-555555555555".to_string(),
+            device_name: "Orin".to_string(),
+            compute_capability: "8.7".to_string(),
+            free_before_bytes: 40_000_000_000,
+            free_after_bytes: 39_856_635_904,
+            total_bytes: 65_000_000_000,
+            delta_bytes: 143_364_096,
+            delta_floor_bytes: 67_108_864,
+            control_allocation_request_bytes: 1_073_741_824,
+            control_block_count: 8,
+            control_free_before_bytes: 42_000_000_000,
+            control_free_after_bytes: 40_800_000_000,
+            control_delta_bytes: 1_200_000_000,
+            embedded_vector_dim: 384,
+        };
+
+        let mapped = PyGpuAllocationWitness::from_rust(&witness);
+
+        assert_eq!(mapped.schema, "fathomdb.tegra-gpu-allocation-witness/v1");
+        assert!(mapped.sole_gpu_consumer_precondition.contains("sole GPU consumer"));
+        assert_eq!(mapped.device_ordinal_requested, 0);
+        assert_eq!(mapped.device_ordinal_actual, 0);
+        assert_eq!(mapped.device_uuid, "GPU-11111111-2222-3333-4444-555555555555");
+        assert_eq!(mapped.device_name, "Orin");
+        assert_eq!(mapped.compute_capability, "8.7");
+        assert_eq!(mapped.free_before_bytes, 40_000_000_000);
+        assert_eq!(mapped.free_after_bytes, 39_856_635_904);
+        assert_eq!(mapped.total_bytes, 65_000_000_000);
+        assert_eq!(mapped.delta_bytes, 143_364_096);
+        assert_eq!(mapped.delta_floor_bytes, 67_108_864);
+        assert_eq!(mapped.control_allocation_request_bytes, 1_073_741_824);
+        assert_eq!(mapped.control_block_count, 8);
+        assert_eq!(mapped.control_free_before_bytes, 42_000_000_000);
+        assert_eq!(mapped.control_free_after_bytes, 40_800_000_000);
+        assert_eq!(mapped.control_delta_bytes, 1_200_000_000);
+        assert_eq!(mapped.embedded_vector_dim, 384);
+        // The verdict is re-derivable from the mapped record alone (R80-13).
+        assert_eq!(
+            i128::from(mapped.free_before_bytes) - i128::from(mapped.free_after_bytes),
+            mapped.delta_bytes
+        );
+        assert!(mapped.delta_bytes >= i128::from(mapped.delta_floor_bytes));
+        assert!(
+            i128::from(mapped.control_free_before_bytes)
+                - i128::from(mapped.control_free_after_bytes)
+                >= i128::from(mapped.control_allocation_request_bytes)
+        );
     }
 
     // fix-1 finding 2: the CLS-embedder singleton must NOT cache a failed load.

@@ -325,6 +325,29 @@ export interface NativeEmbedderDeviceResolution {
   reason: string | null;
 }
 
+// 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the retained
+// `fathomdb.tegra-gpu-allocation-witness/v1` record, measured in this process.
+export interface NativeGpuAllocationWitness {
+  schema: string;
+  soleGpuConsumerPrecondition: string;
+  deviceOrdinalRequested: number;
+  deviceOrdinalActual: number;
+  deviceUuid: string;
+  deviceName: string;
+  computeCapability: string;
+  freeBeforeBytes: number;
+  freeAfterBytes: number;
+  totalBytes: number;
+  deltaBytes: number;
+  deltaFloorBytes: number;
+  controlAllocationRequestBytes: number;
+  controlBlockCount: number;
+  controlFreeBeforeBytes: number;
+  controlFreeAfterBytes: number;
+  controlDeltaBytes: number;
+  embeddedVectorDim: number;
+}
+
 export interface NativeOpenReport {
   schemaVersionBefore: number;
   schemaVersionAfter: number;
@@ -341,6 +364,9 @@ export interface NativeOpenReport {
   denseDisabledReason: string | null;
   embedderDeviceResolution: NativeEmbedderDeviceResolution | null;
   rerankerDeviceResolution?: NativeEmbedderDeviceResolution | null;
+  // 0.8.23 Slice 80.6 (D-80.6-6) — `null` means no witness was taken, never
+  // "a witness measured nothing".
+  embedderGpuAllocationWitness?: NativeGpuAllocationWitness | null;
 }
 
 interface NativeCounterSnapshot {

@@ -16,6 +16,7 @@ import {
   type NativeEmbedderDeviceResolution,
   type NativeEmbedderEvent,
   type NativeEngine,
+  type NativeGpuAllocationWitness,
   type NativeOpenReport,
   type NativePerHitExplain,
 } from "./binding.js";
@@ -755,6 +756,49 @@ export interface OpenReport {
   /** Independent cross-encoder CPU/CUDA selection. It never attests SQLite or
    * embedding work and is `null` when this artifact lacks the reranker. */
   readonly rerankerDeviceResolution: DeviceResolution | null;
+  /** 0.8.23 Slice 80.6 (D-80.6-6, AC80-6) — the in-process GPU allocation
+   *  witness measured during this open, or `null` when none was measured.
+   *
+   *  `null` means **no witness was taken**, never "a witness measured
+   *  nothing": a zero, negative, or below-floor allocation delta is a typed
+   *  failure inside the witness and fails the open, so a zero-valued record is
+   *  not reachable here. */
+  readonly embedderGpuAllocationWitness: GpuAllocationWitness | null;
+}
+
+/**
+ * 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the retained
+ * `fathomdb.tegra-gpu-allocation-witness/v1` record, measured in the
+ * artifact's own process.
+ *
+ * Every number the verdict used is present, so a reader re-derives the verdict
+ * instead of trusting it: `freeBeforeBytes - freeAfterBytes` is `deltaBytes`,
+ * which must be at least `deltaFloorBytes`, and the deliberate control
+ * allocation shows the shared iGPU memory counter was live and attributable at
+ * the time. Byte counts are JavaScript numbers, which are exact for every
+ * physically reachable device-memory value.
+ */
+export interface GpuAllocationWitness {
+  /** Schema string of the retained record. */
+  readonly schema: string;
+  /** The precondition the witness run states rather than assumes. */
+  readonly soleGpuConsumerPrecondition: string;
+  readonly deviceOrdinalRequested: number;
+  readonly deviceOrdinalActual: number;
+  readonly deviceUuid: string;
+  readonly deviceName: string;
+  readonly computeCapability: string;
+  readonly freeBeforeBytes: number;
+  readonly freeAfterBytes: number;
+  readonly totalBytes: number;
+  readonly deltaBytes: number;
+  readonly deltaFloorBytes: number;
+  readonly controlAllocationRequestBytes: number;
+  readonly controlBlockCount: number;
+  readonly controlFreeBeforeBytes: number;
+  readonly controlFreeAfterBytes: number;
+  readonly controlDeltaBytes: number;
+  readonly embeddedVectorDim: number;
 }
 
 /** Safe CUDA provider facts associated with an effective CUDA selection. */
@@ -835,6 +879,33 @@ function mapDeviceResolution(
   };
 }
 
+function mapGpuAllocationWitness(
+  witness: NativeGpuAllocationWitness,
+): GpuAllocationWitness {
+  // Field-for-field, deliberately: R80-13 requires the record stay
+  // re-derivable, so nothing here summarizes or drops a number.
+  return {
+    schema: witness.schema,
+    soleGpuConsumerPrecondition: witness.soleGpuConsumerPrecondition,
+    deviceOrdinalRequested: witness.deviceOrdinalRequested,
+    deviceOrdinalActual: witness.deviceOrdinalActual,
+    deviceUuid: witness.deviceUuid,
+    deviceName: witness.deviceName,
+    computeCapability: witness.computeCapability,
+    freeBeforeBytes: witness.freeBeforeBytes,
+    freeAfterBytes: witness.freeAfterBytes,
+    totalBytes: witness.totalBytes,
+    deltaBytes: witness.deltaBytes,
+    deltaFloorBytes: witness.deltaFloorBytes,
+    controlAllocationRequestBytes: witness.controlAllocationRequestBytes,
+    controlBlockCount: witness.controlBlockCount,
+    controlFreeBeforeBytes: witness.controlFreeBeforeBytes,
+    controlFreeAfterBytes: witness.controlFreeAfterBytes,
+    controlDeltaBytes: witness.controlDeltaBytes,
+    embeddedVectorDim: witness.embeddedVectorDim,
+  };
+}
+
 /**
  * @internal Map the native open-time snapshot into the public SDK shape.
  * Kept separate so the binding contract is testable without a CUDA host.
@@ -858,6 +929,9 @@ export function mapOpenReport(r: NativeOpenReport): OpenReport {
       : null,
     rerankerDeviceResolution: r.rerankerDeviceResolution
       ? mapDeviceResolution(r.rerankerDeviceResolution)
+      : null,
+    embedderGpuAllocationWitness: r.embedderGpuAllocationWitness
+      ? mapGpuAllocationWitness(r.embedderGpuAllocationWitness)
       : null,
   };
 }

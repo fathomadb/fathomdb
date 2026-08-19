@@ -113,6 +113,33 @@ The helper maps engine events into Python `logging.LogRecord`s with the stable
 
 `soft_fallback.branch` uses the typed values owned by `design/retrieval.md`.
 
+### `OpenReport.embedder_gpu_allocation_witness` (0.8.23 Slice 80.6)
+
+`engine.open_report().embedder_gpu_allocation_witness` is a frozen-dataclass
+`GpuAllocationWitness | None`: the retained
+`fathomdb.tegra-gpu-allocation-witness/v1` record measured **in this process**
+during the open (`design/0.8.23-aarch64-tegra.md` D-80.6-6, AC80-6, R80-13).
+
+`None` means **no witness was taken**, never "a witness measured nothing". A
+zero, negative, or below-floor allocation delta is a typed failure inside the
+witness and fails the open, so a zero-valued record is unreachable here.
+
+It is populated only when `FATHOMDB_GPU_ALLOCATION_WITNESS=1` (or `true`) is
+set, the wheel has CUDA compiled in, and the device policy actually selected
+CUDA for the default embedder. It is opt-in because producing it costs a second
+model load plus a multi-gigabyte deliberate control allocation. A requested
+witness that cannot be produced raises at open time naming the witness's own
+failure tag; it never degrades to `None`.
+
+The frozen fields are `schema`, `sole_gpu_consumer_precondition`,
+`device_ordinal_requested`, `device_ordinal_actual`, `device_uuid`,
+`device_name`, `compute_capability`, `free_before_bytes`, `free_after_bytes`,
+`total_bytes`, `delta_bytes`, `delta_floor_bytes`,
+`control_allocation_request_bytes`, `control_block_count`,
+`control_free_before_bytes`, `control_free_after_bytes`,
+`control_delta_bytes`, and `embedded_vector_dim` — every number the verdict
+used, so a reader re-derives the verdict rather than trusting it (R80-13).
+
 ### `OpenReport.embedder_device_resolution` (0.8.23 Slice 70)
 
 `engine.open_report().embedder_device_resolution` is a frozen-dataclass

@@ -183,6 +183,29 @@ class DeviceResolution:
     selected_cuda_uuid: str | None
     reason: str | None
 
+class GpuAllocationWitness:
+    # 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the retained
+    # `fathomdb.tegra-gpu-allocation-witness/v1` record. Every number the
+    # verdict used is present so a reader re-derives it rather than trusting it.
+    schema: str
+    sole_gpu_consumer_precondition: str
+    device_ordinal_requested: int
+    device_ordinal_actual: int
+    device_uuid: str
+    device_name: str
+    compute_capability: str
+    free_before_bytes: int
+    free_after_bytes: int
+    total_bytes: int
+    delta_bytes: int
+    delta_floor_bytes: int
+    control_allocation_request_bytes: int
+    control_block_count: int
+    control_free_before_bytes: int
+    control_free_after_bytes: int
+    control_delta_bytes: int
+    embedded_vector_dim: int
+
 class OpenReport:
     schema_version_before: int
     schema_version_after: int
@@ -199,6 +222,8 @@ class OpenReport:
     dense_disabled_reason: str | None
     embedder_device_resolution: DeviceResolution | None
     reranker_device_resolution: DeviceResolution | None
+    # `None` means no witness was taken, never "a witness measured nothing".
+    embedder_gpu_allocation_witness: GpuAllocationWitness | None
 
 class Engine:
     @staticmethod

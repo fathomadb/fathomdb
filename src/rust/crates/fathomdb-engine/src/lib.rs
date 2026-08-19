@@ -390,8 +390,8 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use fathomdb_embedder::{
-    DeviceResolution, EmbedDevicePolicyError, EmbedderEvent, RerankerDevicePolicyError,
-    RerankerDeviceResolution,
+    DeviceResolution, EmbedDevicePolicyError, EmbedderEvent, GpuAllocationWitness,
+    RerankerDevicePolicyError, RerankerDeviceResolution,
 };
 // `MeanRecomputeTrigger` is used only by the operator-gated `recompute_mean`.
 #[cfg(feature = "operator")]
@@ -2886,6 +2886,31 @@ pub struct OpenReport {
     /// never inferred from embedding-device state and makes no claim about
     /// database candidate retrieval or scoring.
     pub reranker_device_resolution: Option<RerankerDeviceResolution>,
+    /// 0.8.23 Slice 80.6 (D-80.6-6, AC80-6, R80-13) — the in-process GPU
+    /// allocation witness, when one was measured during this open.
+    ///
+    /// This carries the *retained record* of `fathomdb-embedder`'s
+    /// `fathomdb.tegra-gpu-allocation-witness/v1`: the ordinal Candle actually
+    /// retained, the driver-API UUID, and every raw number the verdict used
+    /// (`free_before_bytes`, `free_after_bytes`, `total_bytes`, `delta_bytes`,
+    /// `delta_floor_bytes`, plus the deliberate control allocation), so a
+    /// reader re-derives the verdict rather than trusting it (R80-13). Its
+    /// point is that the *installed artifact's own process* holds the
+    /// evidence, rather than a sibling Rust process — which is what makes
+    /// AC80-6's "in-process" clause as strong on Tegra as on x86_64.
+    ///
+    /// `None` is the normal case and means **no witness was measured** — never
+    /// "a witness measured nothing". A zero, negative, or below-floor delta is
+    /// a typed failure inside the witness (R80-12) and fails the open, so a
+    /// zero-valued record is not reachable through this field.
+    ///
+    /// Populated only by an opted-in default-embedder open
+    /// ([`ENV_GPU_ALLOCATION_WITNESS`]) on a CUDA-capable artifact whose
+    /// device policy actually selected CUDA. It is deliberately opt-in: the
+    /// witness holds a multi-gigabyte deliberate control allocation and loads
+    /// the model a second time, which is evidence-run behavior and must not be
+    /// imposed on ordinary opens (§ 12 non-goals).
+    pub embedder_gpu_allocation_witness: Option<GpuAllocationWitness>,
 }
 
 #[derive(Debug)]
@@ -2901,6 +2926,139 @@ struct LoaderInfo {
     download_ms: Option<u64>,
     events: Vec<EmbedderEvent>,
     device_resolution: DeviceResolution,
+    /// 0.8.23 Slice 80.6 (D-80.6-6) — the opted-in in-process GPU allocation
+    /// witness. `None` for every path that measured none.
+    gpu_allocation_witness: Option<GpuAllocationWitness>,
+}
+
+/// 0.8.23 Slice 80.6 (D-80.6-6) — opt-in switch for the in-process GPU
+/// allocation witness carried on [`OpenReport::embedder_gpu_allocation_witness`].
+///
+/// Opt-in rather than automatic, and deliberately so. Producing the witness
+/// costs a second load of the pinned model plus the multi-gigabyte deliberate
+/// control allocation D-80.5-3 requires in order to prove the shared iGPU
+/// memory counter is live and attributable. That is evidence-run behavior;
+/// imposing it on every CUDA open would be exactly the runtime-contract change
+/// § 12 of `dev/design/0.8.23-aarch64-tegra.md` rules out.
+///
+/// `1`/`true` enable it; unset, empty, `0`/`false` disable it. Any other value
+/// is **rejected at open time** rather than read as "off", so a typo cannot
+/// silently turn the evidence off — the same fail-closed posture R80-12 puts
+/// on the witness itself.
+pub const ENV_GPU_ALLOCATION_WITNESS: &str = "FATHOMDB_GPU_ALLOCATION_WITNESS";
+
+/// Parse [`ENV_GPU_ALLOCATION_WITNESS`]. Pure, so every arm is testable on a
+/// host with no GPU and on a build with no CUDA.
+#[cfg(any(feature = "default-embedder", test))]
+fn parse_gpu_allocation_witness_opt_in(raw: Option<&str>) -> Result<bool, String> {
+    match raw.map(str::trim) {
+        None | Some("") => Ok(false),
+        Some(value) => match value.to_ascii_lowercase().as_str() {
+            "1" | "true" => Ok(true),
+            "0" | "false" => Ok(false),
+            other => Err(format!(
+                "{ENV_GPU_ALLOCATION_WITNESS} must be 1/true or 0/false, got {other:?}"
+            )),
+        },
+    }
+}
+
+/// Measure the in-process GPU allocation witness when the operator asked for
+/// one, and only then.
+///
+/// The contract is deliberately binary: opted in means this open carries a
+/// witness or it fails, and not opted in means `None`. There is no third
+/// outcome where the field is `None` while the operator believes a witness was
+/// taken, because that is how a missing measurement becomes indistinguishable
+/// from a measurement of zero (R80-12).
+#[cfg(feature = "default-embedder")]
+fn witness_gpu_allocation_if_requested(
+    device_resolution: &DeviceResolution,
+) -> Result<Option<GpuAllocationWitness>, EngineOpenError> {
+    let raw = std::env::var(ENV_GPU_ALLOCATION_WITNESS).ok();
+    let requested = parse_gpu_allocation_witness_opt_in(raw.as_deref())
+        .map_err(|message| EngineOpenError::Embedder(RuntimeEmbedderError::Failed { message }))?;
+    if !requested {
+        return Ok(None);
+    }
+    run_requested_gpu_allocation_witness(device_resolution).map(Some)
+}
+
+/// Name a refusal rather than degrading to `None`, carrying the witness's own
+/// stable failure tag so the caller reads the same vocabulary the retained
+/// record uses.
+#[cfg(feature = "default-embedder")]
+fn gpu_allocation_witness_refusal(tag: &str, detail: &str) -> EngineOpenError {
+    EngineOpenError::Embedder(RuntimeEmbedderError::Failed {
+        message: format!(
+            "{ENV_GPU_ALLOCATION_WITNESS} was requested but no GPU allocation witness \
+             could be produced ({tag}): {detail}"
+        ),
+    })
+}
+
+#[cfg(all(feature = "default-embedder", feature = "embed-cuda"))]
+fn run_requested_gpu_allocation_witness(
+    device_resolution: &DeviceResolution,
+) -> Result<GpuAllocationWitness, EngineOpenError> {
+    use fathomdb_embedder::{AllocationWitnessConfig, EffectiveEmbedDevice};
+
+    let ordinal = match &device_resolution.effective_device {
+        EffectiveEmbedDevice::Cuda(info) => info.ordinal,
+        EffectiveEmbedDevice::Cpu => {
+            return Err(gpu_allocation_witness_refusal(
+                "cpu_fallback",
+                "the embedder device policy resolved to CPU, so there is no GPU \
+                 allocation to witness",
+            ));
+        }
+    };
+    fathomdb_embedder::run_default_embedder_allocation_witness(AllocationWitnessConfig {
+        ordinal,
+        ..AllocationWitnessConfig::default()
+    })
+    .map_err(|error| gpu_allocation_witness_refusal(error.as_str(), &error.to_string()))
+}
+
+#[cfg(all(feature = "default-embedder", not(feature = "embed-cuda")))]
+fn run_requested_gpu_allocation_witness(
+    _device_resolution: &DeviceResolution,
+) -> Result<GpuAllocationWitness, EngineOpenError> {
+    Err(gpu_allocation_witness_refusal(
+        "cuda_not_compiled",
+        "this artifact has no CUDA provider compiled in",
+    ))
+}
+
+#[cfg(test)]
+mod gpu_allocation_witness_opt_in_tests {
+    use super::{parse_gpu_allocation_witness_opt_in, ENV_GPU_ALLOCATION_WITNESS};
+
+    #[test]
+    fn absent_and_empty_are_off() {
+        assert_eq!(parse_gpu_allocation_witness_opt_in(None), Ok(false));
+        assert_eq!(parse_gpu_allocation_witness_opt_in(Some("")), Ok(false));
+        assert_eq!(parse_gpu_allocation_witness_opt_in(Some("   ")), Ok(false));
+    }
+
+    #[test]
+    fn explicit_on_and_off_are_accepted_case_insensitively() {
+        for on in ["1", "true", "TRUE", " True "] {
+            assert_eq!(parse_gpu_allocation_witness_opt_in(Some(on)), Ok(true), "{on:?}");
+        }
+        for off in ["0", "false", "FALSE", " False "] {
+            assert_eq!(parse_gpu_allocation_witness_opt_in(Some(off)), Ok(false), "{off:?}");
+        }
+    }
+
+    #[test]
+    fn an_unrecognized_value_is_rejected_rather_than_read_as_off() {
+        // The fail-closed arm: `ture` must not quietly disable the evidence.
+        let error = parse_gpu_allocation_witness_opt_in(Some("ture"))
+            .expect_err("an unrecognized value is not a silent off");
+        assert!(error.contains(ENV_GPU_ALLOCATION_WITNESS), "{error}");
+        assert!(error.contains("ture"), "{error}");
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -6097,7 +6255,14 @@ impl Engine {
                     path,
                     identity,
                     Some(embedder),
-                    Some(LoaderInfo { download_ms: None, events: Vec::new(), device_resolution }),
+                    Some(LoaderInfo {
+                        download_ms: None,
+                        events: Vec::new(),
+                        device_resolution,
+                        // A caller-supplied embedder was not constructed here,
+                        // so nothing in this process measured an allocation.
+                        gpu_allocation_witness: None,
+                    }),
                     None,
                     &mut |_| {},
                 )
@@ -6122,6 +6287,11 @@ impl Engine {
         use std::time::Instant as DownloadInstant;
         let device_resolution = fathomdb_embedder::resolve_default_embedder_device_from_env()
             .map_err(EngineOpenError::EmbedDevicePolicy)?;
+        // 0.8.23 Slice 80.6 (D-80.6-6) — the witness runs BEFORE this open's
+        // own model reaches the device, so its `free_before`/`free_after`
+        // bracket surrounds nothing but the load it is measuring. Opted in
+        // only; see `ENV_GPU_ALLOCATION_WITNESS`.
+        let gpu_allocation_witness = witness_gpu_allocation_if_requested(&device_resolution)?;
         let download_start = DownloadInstant::now();
         let weights = fathomdb_embedder::loader::load_pinned_default_embedder().map_err(|err| {
             EngineOpenError::Embedder(RuntimeEmbedderError::Failed {
@@ -6146,7 +6316,8 @@ impl Engine {
             })?;
         let embedder: Arc<dyn Embedder> = Arc::new(embedder);
         let identity = embedder.identity();
-        let loader_info = LoaderInfo { download_ms, events, device_resolution };
+        let loader_info =
+            LoaderInfo { download_ms, events, device_resolution, gpu_allocation_witness };
         Self::open_with_embedder_and_subscriber(
             path,
             identity,
@@ -6308,6 +6479,10 @@ impl Engine {
                         report.embedder_events = info.events;
                     }
                     report.embedder_device_resolution = Some(info.device_resolution);
+                    // D-80.6-6 — assigned, not merged: `None` here means this
+                    // open measured no witness, and there is no earlier value
+                    // that a `None` could be hiding.
+                    report.embedder_gpu_allocation_witness = info.gpu_allocation_witness;
                 }
                 report.reranker_device_resolution = reranker_device_resolution;
 
@@ -6688,6 +6863,9 @@ impl Engine {
             dense_disabled_reason: None,
             embedder_device_resolution: None,
             reranker_device_resolution: None,
+            // 0.8.23 Slice 80.6 (D-80.6-6) — set by `open_with_migrations`
+            // only when an opted-in CUDA default-embedder open measured one.
+            embedder_gpu_allocation_witness: None,
         };
 
         let mut readers = Vec::with_capacity(READER_POOL_SIZE);
@@ -23237,6 +23415,7 @@ mod tests {
                 download_ms: None,
                 events: Vec::new(),
                 device_resolution: resolution.clone(),
+                gpu_allocation_witness: None,
             }),
             None,
             &mut |_| {},
@@ -23244,6 +23423,9 @@ mod tests {
         .expect("open with the already-resolved default device");
 
         assert_eq!(opened.report.embedder_device_resolution, Some(resolution));
+        // D-80.6-6 — the loader path carries a witness only when it measured
+        // one; a resolution alone never synthesizes a record.
+        assert_eq!(opened.report.embedder_gpu_allocation_witness, None);
     }
 
     #[test]

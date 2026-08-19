@@ -36,6 +36,8 @@ recovery semantics owned by `dev/design/recovery.md`.
 | `dump-schema`     | `fathomdb doctor dump-schema`                                                  | `0` / `65` / `70` / `71` |
 | `dump-row-counts` | `fathomdb doctor dump-row-counts`                                              | `0` / `65` / `70` / `71` |
 | `dump-profile`    | `fathomdb doctor dump-profile`                                                 | `0` / `65` / `70` / `71` |
+| `gpu`             | `fathomdb doctor gpu [--json]`                                                 | `0` / `65` / `70`        |
+| `platform`        | `fathomdb doctor platform [--json]`                                            | `0` / `70`               |
 | `dump-mutations`  | `fathomdb doctor dump-mutations <collection> [--after-id <n>] [--limit <n>] [--json] <db_path>` | `0` / `70` / `71` |
 | `orphan-provenance` | `fathomdb doctor orphan-provenance [--json] <db_path>`                        | `0` / `65` / `70` / `71` |
 | `warm-cache`      | `fathomdb doctor warm-cache ...` — pre-fetch + verify the pinned default-embedder weights so the next open runs offline | see [exit-code classes](#exit-code-classes) |
@@ -43,6 +45,29 @@ recovery semantics owned by `dev/design/recovery.md`.
 
 `check-integrity --full` may emit doctor-only finding codes such as
 `E_CORRUPT_INTEGRITY_CHECK`.
+
+### GPU and platform diagnostics
+
+`fathomdb doctor gpu [--json]` reports the existing
+`fathomdb.doctor.gpu.v1` record. Its schema is unchanged. On confirmed ARM64
+SBSA hardware, automatic policy reports `cuda_incompatible` with
+`arm64_sbsa_unsupported` and continues on CPU; forced `cuda:N` exits `65`.
+Explicit `cpu` never probes CUDA or the platform subprocess. An indeterminate
+`nvidia-smi` platform probe does not make `doctor gpu` fail; it uses the normal
+CUDA-provider diagnostic instead.
+
+`fathomdb doctor platform [--json]` is the companion database-free classifier.
+Its JSON record is `fathomdb.doctor.platform.v1` with ordered fields
+`schema_version`, `platform_class`, `tegra_family`, `sbsa_capable`,
+`l4t_release`, and `reason`. `platform_class` is one of `tegra`,
+`arm64_sbsa`, `generic_aarch64`, `non_aarch64`, or `unknown`. The classifier
+uses filesystem Tier 1 plus an ordered absolute `nvidia-smi` Tier 2 probe; an
+unavailable, timed-out, or nonzero Tier 2 result is `unknown` and exits `70`.
+
+For Jetson/Tegra CUDA, 0.8.23 has no published artifact. The exact source-build
+procedure is available in `fathomdb doctor gpu --help`; run the final
+`python -m pip install <built-wheel>` line printed by the wrapper after it
+proves the generated wheel.
 
 ### `dump-mutations` — op-store read-back
 

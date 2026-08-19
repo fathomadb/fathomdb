@@ -41,7 +41,7 @@ candidate slices require explicit commission.
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Land reviewed Slice 70 (DUAL-RUNTIME-TC5)** — supported dual CPU/GPU runtime policy, diagnostics, artifacts, and exact pre-fusion TC-5 controls. **Remaining ladder:** 70 → 71 → 72 → 40.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Land reviewed Slice 70 (DUAL-RUNTIME-TC5)** — supported dual CPU/GPU runtime policy, diagnostics, artifacts, and exact pre-fusion TC-5 controls. **Remaining ladder:** 70 → 71 → 72 → 40 → 80.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
 
 ## Stop gate
 

@@ -171,12 +171,15 @@ ROOT, ONLY, SKIP_PACKAGING, WITH_WHEEL = sys.argv[1], sys.argv[2], sys.argv[3] =
 
 try:
     import tomllib
-except ModuleNotFoundError:  # pragma: no cover - environment guard
-    print(
-        "check-license-consistency: python3 has no tomllib (needs >= 3.11) — "
-        "refusing to report a pass it did not verify"
-    )
-    sys.exit(2)
+except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
+    try:
+        import tomli as tomllib  # type: ignore[import-not-found,no-redef]
+    except ModuleNotFoundError:
+        print(
+            "check-license-consistency: python3 has no tomllib (needs >= 3.11) and no "
+            "tomli fallback is installed — refusing to report a pass it did not verify"
+        )
+        sys.exit(2)
 
 legs = [x.strip() for x in ONLY.split(",") if x.strip()]
 known_legs = {"cargo", "python", "npm"}

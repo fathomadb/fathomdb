@@ -1,0 +1,61 @@
+{
+  "phase": "0.8.23-slice-80.6.5-cuda-candidate-sha",
+  "baseline_sha": "f89ee4747d2c9802f74fd65292eaf5224566f834",
+  "branch": "0.8.23-tegra",
+  "head_sha": "f89ee4747d2c9802f74fd65292eaf5224566f834",
+  "commits": [],
+  "note_on_commits": "Task explicitly said 'Do NOT commit. The orchestrator commits.' All changes below are uncommitted working-tree edits (some staged, some not -- staging state is not meaningful, only file contents). head_sha is therefore unchanged from baseline.",
+  "files_changed": [
+    "scripts/release/cuda-preflight.sh (modified)",
+    "scripts/lib/cuda-candidate-sha.sh (new)",
+    "scripts/tests/test_cuda_candidate_sha.sh (new)",
+    "scripts/agent-test.sh (modified: registered test-cuda-candidate-sha in the fast tier)"
+  ],
+  "summary": "Added FATHOMDB_CANDIDATE_SHA env-var override (fail-closed 40-hex validation, git fallback when unset) so scripts/release/cuda-preflight.sh can run on a remote with no .git directory, per dev/design/0.8.23-aarch64-tegra.md § 7 '80.6.5'. Logic lives in new scripts/lib/cuda-candidate-sha.sh:resolve_cuda_candidate_sha(), sourced by cuda-preflight.sh and called once, early (before any Docker/model-cache work). Both git call sites (the old :104 repository_commit= line and the old :544 CANDIDATE_SHA= line) now resolve from the single early call; repository_commit= in environment.txt and candidate_sha in the witness/build-input.json are guaranteed to agree.",
+  "tdd_evidence": {
+    "red_command": "bash scripts/tests/test_cuda_candidate_sha.sh (run against a deliberately naive pre-fix scripts/lib/cuda-candidate-sha.sh that ignored FATHOMDB_CANDIDATE_SHA and always shelled out to git, matching cuda-preflight.sh's pre-Slice-80.6.5 behavior)",
+    "red_output_verbatim": "PASS  unset FATHOMDB_CANDIDATE_SHA falls back to git rev-parse HEAD\nfatal: cannot change to '/nonexistent-repo-root-proving-git-is-unused': No such file or directory\nEXIT_CODE=128",
+    "red_explanation": "The naive implementation passed the first behavior (unset -> git fallback, since that's literally the old behavior) but failed the second (a valid 40-hex FATHOMDB_CANDIDATE_SHA must be used verbatim without consulting git) -- it shelled out to a deliberately-nonexistent repo root to prove git was never invoked, and git failed loudly instead of being bypassed. Script aborted via set -e before reaching the fail-closed-validation arms.",
+    "green_command": "bash scripts/tests/test_cuda_candidate_sha.sh (run against the real scripts/lib/cuda-candidate-sha.sh)",
+    "green_output_verbatim": "PASS  unset FATHOMDB_CANDIDATE_SHA falls back to git rev-parse HEAD\nPASS  a valid 40-hex FATHOMDB_CANDIDATE_SHA is used verbatim without consulting git\nPASS  an empty FATHOMDB_CANDIDATE_SHA aborts instead of falling through to git\nPASS  a 39-character (too-short) FATHOMDB_CANDIDATE_SHA aborts\nPASS  a non-hex FATHOMDB_CANDIDATE_SHA aborts\nPASS  an uppercase-hex FATHOMDB_CANDIDATE_SHA aborts\nPASS  an over-long FATHOMDB_CANDIDATE_SHA aborts\n\nCUDA candidate-SHA resolution tests passed"
+  },
+  "contract_gate_result": {
+    "before_command": "git stash push -- scripts/release/cuda-preflight.sh && PATH=\"$PWD/.venv/bin:$PATH\" python3 scripts/check-cuda-release-contract.py; git stash pop",
+    "before_result": "cuda-release-contract: pass  (exit 0, pre-fix source)",
+    "after_command": "PATH=\"$PWD/.venv/bin:$PATH\" python3 scripts/check-cuda-release-contract.py",
+    "after_result": "cuda-release-contract: pass  (exit 0, post-fix source)",
+    "conclusion": "Verified directly, not taken on faith: scripts/check-cuda-release-contract.py has no fragment/line pin on 'repository_commit=' or on the 'CANDIDATE_SHA=$(git ...)' assignment -- only on the literal fragment '--candidate-sha \"$CANDIDATE_SHA\"' (line ~882), which is untouched. Also re-ran bash scripts/tests/test_cuda_release_contract.sh (all PASS) and bash scripts/tests/test_cuda_preflight_hardening.sh (all PASS) and bash scripts/tests/test_cuda_preflight_witness.sh (all PASS) after the change."
+  },
+  "repository_commit_line_104_finding": {
+    "needed_the_same_treatment": true,
+    "reasoning": "cuda-preflight.sh:104 (the 'repository_commit=' line inside the environment.txt heredoc block) runs unconditionally, well before the old :544 CANDIDATE_SHA= line. On a no-.git remote, the script would have died there regardless of any fix at :544 -- the design doc itself says this explicitly ('the script dies at its first call there', i.e. :104 first). Fixing only :544 would have been necessary but not sufficient for AC80-22's real-run requirement. I resolved CANDIDATE_SHA once, early (right after sourcing the new lib, before any other preflight work), and changed the :104 line to print that already-resolved value (printf 'repository_commit=%s\\n' \"$CANDIDATE_SHA\") instead of shelling out to git a second time. This is stricter than doing two independent resolutions: it guarantees repository_commit= in the evidence and candidate_sha in the witness can never disagree, and it fails fast (before touching Docker/model-cache/GPU) on an invalid FATHOMDB_CANDIDATE_SHA rather than failing deep into the run. Byte-identical output preserved for the git-present/unset-var path since 'git rev-parse HEAD' via command substitution strips the trailing newline the same way either call site would."
+  },
+  "shellcheck_finding_and_fix": {
+    "what_happened": "scripts/agent-lint-shell.sh's shell-early-consumer guard (scripts/lib/shell-early-consumer.sh) flagged my first draft of resolve_cuda_candidate_sha: `printf '%s' \"$FATHOMDB_CANDIDATE_SHA\" | grep -Eq '^[0-9a-f]{40}$'` is exactly the producer-piped-into-early-exiting-consumer-under-pipefail hazard the guard exists to catch.",
+    "fix": "Replaced the printf|grep pipeline with bash's own regex match: `[[ \"$FATHOMDB_CANDIDATE_SHA\" =~ ^[0-9a-f]{40}$ ]]`, matching existing house precedent for exactly this kind of 40-hex-SHA check (scripts/verify-release-gates.sh:82: `[[ \"$candidate\" =~ ^[0-9A-Fa-f]{40}$ ]]`). No pipe, no subshell, no SIGPIPE hazard.",
+    "verification": "Re-ran the full bash scripts/agent-lint-shell.sh (background job bysrgijjk) after the fix: it now reports only the three pre-existing, explicitly-exempted bootstrap-file findings (test_create_venv_with_selected_python.sh, test_dev_environment_tools.sh, test_select_python_for_venv.sh) named in the task brief -- scripts/lib/cuda-candidate-sha.sh and scripts/tests/test_cuda_candidate_sha.sh no longer appear in its output. The script's overall exit code is still 1 solely because of those three pre-existing, out-of-scope failures -- unchanged from before my change (verified by an earlier stale concurrent run, job b5jy6nja7, which failed identically on those same three files and nothing else)."
+  },
+  "shellcheck_direct_result": "shellcheck --severity=warning scripts/release/cuda-preflight.sh scripts/lib/cuda-candidate-sha.sh scripts/tests/test_cuda_candidate_sha.sh scripts/agent-test.sh -> clean (no output, exit 0)",
+  "test_registration": "run_tier_suite fast test-cuda-candidate-sha bash scripts/tests/test_cuda_candidate_sha.sh, added to scripts/agent-test.sh directly after test-cuda-preflight-witness. Confirmed via bash scripts/tests/test_agent_test_tiers.sh (all PASS, 90 labels: 87 fast + 3 heavy, exact partition).",
+  "additional_regressions_checked": [
+    "bash scripts/tests/test_cuda_release_contract.sh -- all PASS",
+    "bash scripts/tests/test_cuda_preflight_hardening.sh -- all PASS",
+    "bash scripts/tests/test_cuda_preflight_witness.sh -- all PASS",
+    "bash scripts/tests/test_agent_test_tiers.sh -- all PASS",
+    "grep across scripts/tests/*.sh for any assertion on the exact 'repository_commit=' text or the old 'git -C \"$REPO_ROOT\" rev-parse HEAD' fragment inside cuda-preflight.sh -- none found, so no other suite pins the removed line"
+  ],
+  "noticed_but_not_fixed": [
+    "The worktree has pre-existing, uncommitted, untracked-by-me changes unrelated to this task: dev/DOC-INDEX.md, dev/design/0.8.23-aarch64-tegra.md (a 'Platform reference' pointer paragraph), dev/doc-index/dev.md (all modified), and dev/tegra-platform-reference.md (new, untracked). These were present before I started (confirmed via `git stash`/`git stash pop` isolating only scripts/release/cuda-preflight.sh) and are out of my task's scope -- I did not touch, stage, or revert them. Flagging so the orchestrator doesn't attribute them to this slice.",
+    "dev/design/0.8.23-aarch64-tegra.md § 7 80.6.5 still says 'Status: not yet applied' for the CANDIDATE_SHA fix -- that sentence is now stale (the fix is applied) but updating design-doc prose is outside this task's explicit scope (I was told to change the git-backed source, not asked to edit the design doc), and the file already carries unrelated uncommitted edits from someone else that I did not want to interfere with. Orchestrator/reviewer may want to update that status line in a follow-up docs commit.",
+    "CANDIDATE_SHA is deliberately not exported inside resolve_cuda_candidate_sha() itself -- cuda-preflight.sh still does the `export WORK_DIR CANDIDATE_SHA ...` grouped export later (unchanged), which is what actually makes it visible to the python3 heredoc subprocess. This is correct as-is but worth noting for a reviewer skimming the lib file in isolation."
+  ],
+  "out_of_scope_untouched": [
+    "src/ -- untouched",
+    "scripts/release/verify-cuda-preflight-witness.py -- untouched",
+    "scripts/tests/fixtures/cuda-preflight-v2/valid/ -- untouched",
+    "fathomdb.cuda-device-observation/v1 schema -- untouched",
+    "transfer/ffj scripts -- untouched",
+    "No commits made; no full scripts/agent-test.sh run driven to completion by me"
+  ],
+  "next_step_for_orchestrator": "Review and commit scripts/release/cuda-preflight.sh, scripts/lib/cuda-candidate-sha.sh, scripts/tests/test_cuda_candidate_sha.sh, and scripts/agent-test.sh on the 0.8.23-tegra branch. All are currently uncommitted working-tree changes (mixed staged/unstaged -- content is correct regardless of staging). No blockers encountered."
+}

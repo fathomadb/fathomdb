@@ -33,8 +33,10 @@ use fathomdb_embedder::{
     DeviceResolution as RustDeviceResolution, EffectiveEmbedDevice as RustEffectiveEmbedDevice,
     EffectiveRerankerDevice as RustEffectiveRerankerDevice,
     EmbedDevicePolicy as RustEmbedDevicePolicy, EmbedderEvent as RustEmbedderEvent,
+    GpuAllocationWitness as RustGpuAllocationWitness,
     RerankerDevicePolicy as RustRerankerDevicePolicy,
-    RerankerDeviceResolution as RustRerankerDeviceResolution,
+    RerankerDeviceResolution as RustRerankerDeviceResolution, SOLE_GPU_CONSUMER_PRECONDITION,
+    TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA,
 };
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
@@ -1556,6 +1558,80 @@ impl EmbedderDeviceResolution {
     }
 }
 
+/// 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the retained
+/// `fathomdb.tegra-gpu-allocation-witness/v1` record, measured in the
+/// artifact's own process.
+///
+/// Every number the verdict used is carried, so a reader re-derives the
+/// verdict instead of trusting it: the raw free-memory samples that bracket
+/// the model load, the declared floor they were judged against, and the
+/// deliberate control allocation that proves the shared iGPU counter was live
+/// and attributable at the time. Dropping any of them would leave a consumer
+/// able to report a pass it cannot check.
+#[napi(object)]
+pub struct GpuAllocationWitness {
+    /// Schema string of the retained record.
+    pub schema: String,
+    /// The precondition the witness run states rather than assumes.
+    pub sole_gpu_consumer_precondition: String,
+    pub device_ordinal_requested: u32,
+    pub device_ordinal_actual: u32,
+    pub device_uuid: String,
+    pub device_name: String,
+    pub compute_capability: String,
+    pub free_before_bytes: i64,
+    pub free_after_bytes: i64,
+    pub total_bytes: i64,
+    pub delta_bytes: i64,
+    pub delta_floor_bytes: i64,
+    pub control_allocation_request_bytes: i64,
+    pub control_block_count: u32,
+    pub control_free_before_bytes: i64,
+    pub control_free_after_bytes: i64,
+    pub control_delta_bytes: i64,
+    pub embedded_vector_dim: u32,
+}
+
+impl GpuAllocationWitness {
+    fn from_rust(witness: &RustGpuAllocationWitness) -> Self {
+        Self {
+            schema: TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA.to_string(),
+            sole_gpu_consumer_precondition: SOLE_GPU_CONSUMER_PRECONDITION.to_string(),
+            device_ordinal_requested: witness.device_ordinal_requested as u32,
+            device_ordinal_actual: witness.device_ordinal_actual as u32,
+            device_uuid: witness.device_uuid.clone(),
+            device_name: witness.device_name.clone(),
+            compute_capability: witness.compute_capability.clone(),
+            free_before_bytes: clamp_witness_bytes(i128::from(witness.free_before_bytes)),
+            free_after_bytes: clamp_witness_bytes(i128::from(witness.free_after_bytes)),
+            total_bytes: clamp_witness_bytes(i128::from(witness.total_bytes)),
+            delta_bytes: clamp_witness_bytes(witness.delta_bytes),
+            delta_floor_bytes: clamp_witness_bytes(i128::from(witness.delta_floor_bytes)),
+            control_allocation_request_bytes: clamp_witness_bytes(i128::from(
+                witness.control_allocation_request_bytes,
+            )),
+            control_block_count: witness.control_block_count as u32,
+            control_free_before_bytes: clamp_witness_bytes(i128::from(
+                witness.control_free_before_bytes,
+            )),
+            control_free_after_bytes: clamp_witness_bytes(i128::from(
+                witness.control_free_after_bytes,
+            )),
+            control_delta_bytes: clamp_witness_bytes(witness.control_delta_bytes),
+            embedded_vector_dim: witness.embedded_vector_dim as u32,
+        }
+    }
+}
+
+/// JavaScript carries these as numbers, so the widest exact type available is
+/// `i64`. Every witness quantity is a device-memory byte count bounded by
+/// installed RAM, so the saturation below is unreachable in practice; it exists
+/// so an impossible value clamps to an obviously-wrong extreme rather than
+/// wrapping into a plausible-looking one.
+fn clamp_witness_bytes(value: i128) -> i64 {
+    i64::try_from(value).unwrap_or(if value.is_negative() { i64::MIN } else { i64::MAX })
+}
+
 #[napi(object)]
 pub struct OpenReport {
     pub schema_version_before: u32,
@@ -1581,6 +1657,14 @@ pub struct OpenReport {
     /// no embedder was configured.
     pub embedder_device_resolution: Option<EmbedderDeviceResolution>,
     pub reranker_device_resolution: Option<EmbedderDeviceResolution>,
+    /// 0.8.23 Slice 80.6 (D-80.6-6, AC80-6) — the in-process GPU allocation
+    /// witness, or `null` when this open measured none.
+    ///
+    /// `null` means **no witness was taken**, never "a witness measured
+    /// nothing": a zero, negative, or below-floor allocation delta is a typed
+    /// failure inside the witness and fails the open, so a zero-valued record
+    /// is not reachable here.
+    pub embedder_gpu_allocation_witness: Option<GpuAllocationWitness>,
 }
 
 impl OpenReport {
@@ -1606,6 +1690,10 @@ impl OpenReport {
                 .reranker_device_resolution
                 .as_ref()
                 .map(EmbedderDeviceResolution::from_reranker),
+            embedder_gpu_allocation_witness: r
+                .embedder_gpu_allocation_witness
+                .as_ref()
+                .map(GpuAllocationWitness::from_rust),
         }
     }
 }
@@ -3129,5 +3217,61 @@ mod tests {
         assert_eq!(resolution.visible_cuda_devices[0].visible_ordinal, 3);
         assert_eq!(resolution.selected_cuda_uuid.as_deref(), Some("GPU-test"));
         assert_eq!(resolution.reason, None);
+        // D-80.6-6 — a CUDA *policy outcome* is not a measurement. The witness
+        // stays absent unless one was actually taken.
+        assert!(report.embedder_gpu_allocation_witness.is_none());
+    }
+
+    /// 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the witness crosses the N-API
+    /// boundary with every number the verdict used still present, so a JS
+    /// consumer can re-derive the verdict instead of trusting it.
+    #[test]
+    fn gpu_allocation_witness_crosses_the_napi_boundary_intact() {
+        let witness = RustGpuAllocationWitness {
+            device_ordinal_requested: 0,
+            device_ordinal_actual: 0,
+            device_uuid: "GPU-11111111-2222-3333-4444-555555555555".to_string(),
+            device_name: "Orin".to_string(),
+            compute_capability: "8.7".to_string(),
+            free_before_bytes: 40_000_000_000,
+            free_after_bytes: 39_856_635_904,
+            total_bytes: 65_000_000_000,
+            delta_bytes: 143_364_096,
+            delta_floor_bytes: 67_108_864,
+            control_allocation_request_bytes: 1_073_741_824,
+            control_block_count: 8,
+            control_free_before_bytes: 42_000_000_000,
+            control_free_after_bytes: 40_800_000_000,
+            control_delta_bytes: 1_200_000_000,
+            embedded_vector_dim: 384,
+        };
+
+        let mapped = GpuAllocationWitness::from_rust(&witness);
+
+        assert_eq!(mapped.schema, "fathomdb.tegra-gpu-allocation-witness/v1");
+        assert!(mapped.sole_gpu_consumer_precondition.contains("sole GPU consumer"));
+        assert_eq!(mapped.device_ordinal_requested, 0);
+        assert_eq!(mapped.device_ordinal_actual, 0);
+        assert_eq!(mapped.device_uuid, "GPU-11111111-2222-3333-4444-555555555555");
+        assert_eq!(mapped.device_name, "Orin");
+        assert_eq!(mapped.compute_capability, "8.7");
+        assert_eq!(mapped.free_before_bytes, 40_000_000_000);
+        assert_eq!(mapped.free_after_bytes, 39_856_635_904);
+        assert_eq!(mapped.total_bytes, 65_000_000_000);
+        assert_eq!(mapped.delta_bytes, 143_364_096);
+        assert_eq!(mapped.delta_floor_bytes, 67_108_864);
+        assert_eq!(mapped.control_allocation_request_bytes, 1_073_741_824);
+        assert_eq!(mapped.control_block_count, 8);
+        assert_eq!(mapped.control_free_before_bytes, 42_000_000_000);
+        assert_eq!(mapped.control_free_after_bytes, 40_800_000_000);
+        assert_eq!(mapped.control_delta_bytes, 1_200_000_000);
+        assert_eq!(mapped.embedded_vector_dim, 384);
+        // The verdict is re-derivable from the mapped record alone (R80-13).
+        assert_eq!(mapped.free_before_bytes - mapped.free_after_bytes, mapped.delta_bytes);
+        assert!(mapped.delta_bytes >= mapped.delta_floor_bytes);
+        assert!(
+            mapped.control_free_before_bytes - mapped.control_free_after_bytes
+                >= mapped.control_allocation_request_bytes
+        );
     }
 }

@@ -35,7 +35,13 @@
 //! [`fathomdb::Engine`] method and serializes the typed report under a per-verb
 //! JSON discriminator.
 
-use std::path::PathBuf;
+use std::{
+    io::Read,
+    path::{Path, PathBuf},
+    process::{Command as ProcessCommand, Stdio},
+    thread,
+    time::{Duration, Instant},
+};
 
 use clap::{Args, Parser, Subcommand};
 use fathomdb::{
@@ -148,7 +154,12 @@ pub struct RecoverArgs {
 #[derive(Debug, Subcommand)]
 pub enum DoctorCommand {
     /// Inspect the isolated embedder CUDA provider without opening an engine.
+    #[command(
+        long_about = "Inspect the isolated embedder CUDA provider without opening an engine.\n\nFor a Jetson/Tegra CUDA build, no published artifact exists in 0.8.23. Build it locally:\n\npython3 -m venv .venv\n. .venv/bin/activate\npython -m pip install --upgrade pip 'maturin==1.14.1'\n./scripts/release/build-python-cuda-tegra.sh --interpreter python\n\nAfter the wrapper's assertions pass, run the exact final `python -m pip install <built-wheel>` line it prints."
+    )]
     Gpu(GpuDoctorArgs),
+    /// Classify Tegra, ARM64 SBSA, and generic AArch64 platforms without opening an engine.
+    Platform(PlatformDoctorArgs),
     /// Inspect the isolated cross-encoder CUDA provider without loading a model.
     RerankerGpu(GpuDoctorArgs),
     /// Run a structural integrity check against the database.
@@ -193,6 +204,14 @@ pub enum DoctorCommand {
 #[derive(Debug, Args)]
 pub struct GpuDoctorArgs {
     /// Emit the normative machine-readable diagnostic object.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// Argument set for the database-free `doctor platform` diagnostic.
+#[derive(Debug, Args)]
+pub struct PlatformDoctorArgs {
+    /// Emit the normative machine-readable platform record.
     #[arg(long)]
     pub json: bool,
 }
@@ -488,6 +507,7 @@ fn run_recover(args: RecoverArgs) -> i32 {
 fn run_doctor(cmd: DoctorCommand) -> i32 {
     match cmd {
         DoctorCommand::Gpu(args) => run_doctor_gpu(args),
+        DoctorCommand::Platform(args) => run_doctor_platform(args),
         DoctorCommand::RerankerGpu(args) => run_doctor_reranker_gpu(args),
         DoctorCommand::CheckIntegrity(args) => {
             let opts = CheckIntegrityOpts {
@@ -614,6 +634,274 @@ fn run_doctor_gpu(args: GpuDoctorArgs) -> i32 {
     exit_code
 }
 
+/// Run the database-free Tegra/SBSA platform classifier.
+fn run_doctor_platform(args: PlatformDoctorArgs) -> i32 {
+    let report = classify_platform(&SystemPlatformProbe);
+    print!("{}", platform_diagnostic_output(&report, args.json));
+    report.exit_code()
+}
+
+const NVIDIA_SMI_CANDIDATES: [&str; 3] =
+    ["/usr/bin/nvidia-smi", "/usr/sbin/nvidia-smi", "/usr/local/bin/nvidia-smi"];
+const NVIDIA_SMI_TIMEOUT: Duration = Duration::from_millis(2_000);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NvidiaSmiProbe {
+    Output,
+    Missing,
+    Timeout,
+    Nonzero,
+}
+
+trait PlatformProbe {
+    fn is_aarch64(&self) -> bool;
+    fn read_file(&self, path: &Path) -> Option<String>;
+    fn acpi_tables_present(&self) -> bool;
+    fn nvidia_smi(&self) -> (NvidiaSmiProbe, Option<String>);
+}
+
+struct SystemPlatformProbe;
+
+impl PlatformProbe for SystemPlatformProbe {
+    fn is_aarch64(&self) -> bool {
+        std::env::consts::ARCH == "aarch64"
+    }
+
+    fn read_file(&self, path: &Path) -> Option<String> {
+        std::fs::read_to_string(path).ok()
+    }
+
+    fn acpi_tables_present(&self) -> bool {
+        Path::new("/sys/firmware/acpi/tables").is_dir()
+    }
+
+    fn nvidia_smi(&self) -> (NvidiaSmiProbe, Option<String>) {
+        let Some(path) = first_executable_candidate(&NVIDIA_SMI_CANDIDATES, executable) else {
+            return (NvidiaSmiProbe::Missing, None);
+        };
+        let mut child = match ProcessCommand::new(path)
+            .args(["--query-gpu=name", "--format=csv,noheader"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+        {
+            Ok(child) => child,
+            Err(_) => return (NvidiaSmiProbe::Nonzero, None),
+        };
+        let deadline = Instant::now() + NVIDIA_SMI_TIMEOUT;
+        let status = loop {
+            match child.try_wait() {
+                Ok(Some(status)) => break status,
+                Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(10)),
+                Ok(None) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return (NvidiaSmiProbe::Timeout, None);
+                }
+                Err(_) => return (NvidiaSmiProbe::Nonzero, None),
+            }
+        };
+        // The status is deliberately inspected before stdout. A failing probe
+        // must never be inferred to be Thor/SBSA from empty output.
+        if !status.success() {
+            return (NvidiaSmiProbe::Nonzero, None);
+        }
+        let mut stdout = String::new();
+        match child.stdout.take().and_then(|mut pipe| pipe.read_to_string(&mut stdout).ok()) {
+            Some(_) => (NvidiaSmiProbe::Output, Some(stdout)),
+            None => (NvidiaSmiProbe::Nonzero, None),
+        }
+    }
+}
+
+fn first_executable_candidate<'a>(
+    candidates: &'a [&str],
+    is_executable: impl Fn(&Path) -> bool,
+) -> Option<&'a Path> {
+    candidates.iter().map(Path::new).find(|path| is_executable(path))
+}
+
+#[cfg(unix)]
+fn executable(path: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+
+    path.metadata()
+        .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+}
+
+#[cfg(not(unix))]
+fn executable(path: &Path) -> bool {
+    path.is_file()
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PlatformClass {
+    Tegra,
+    Arm64Sbsa,
+    GenericAarch64,
+    NonAarch64,
+    Unknown,
+}
+
+impl PlatformClass {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Tegra => "tegra",
+            Self::Arm64Sbsa => "arm64_sbsa",
+            Self::GenericAarch64 => "generic_aarch64",
+            Self::NonAarch64 => "non_aarch64",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PlatformProbeReason {
+    NvidiaSmiMissing,
+    NvidiaSmiTimeout,
+    NvidiaSmiNonzero,
+}
+
+impl PlatformProbeReason {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::NvidiaSmiMissing => "nvidia_smi_missing",
+            Self::NvidiaSmiTimeout => "nvidia_smi_timeout",
+            Self::NvidiaSmiNonzero => "nvidia_smi_nonzero",
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct PlatformReport {
+    platform_class: PlatformClass,
+    tegra_family: bool,
+    sbsa_capable: Option<bool>,
+    l4t_release: Option<String>,
+    reason: Option<PlatformProbeReason>,
+}
+
+impl PlatformReport {
+    const fn exit_code(&self) -> i32 {
+        if matches!(self.platform_class, PlatformClass::Unknown) {
+            exit_code::UNRECOVERABLE
+        } else {
+            exit_code::OK
+        }
+    }
+
+    const fn is_affirmed_sbsa(&self) -> bool {
+        matches!(self.sbsa_capable, Some(true))
+    }
+}
+
+fn classify_platform(probe: &dyn PlatformProbe) -> PlatformReport {
+    if !probe.is_aarch64() {
+        return PlatformReport {
+            platform_class: PlatformClass::NonAarch64,
+            tegra_family: false,
+            sbsa_capable: Some(false),
+            l4t_release: None,
+            reason: None,
+        };
+    }
+    let compatible = probe.read_file(Path::new("/proc/device-tree/compatible"));
+    let l4t = probe.read_file(Path::new("/etc/nv_tegra_release"));
+    let tegra_family =
+        compatible.as_deref().is_some_and(|value| value.contains("nvidia,tegra")) || l4t.is_some();
+    let l4t_release = l4t.as_deref().and_then(parse_l4t_release);
+    if !tegra_family {
+        return PlatformReport {
+            platform_class: if probe.acpi_tables_present() {
+                PlatformClass::Arm64Sbsa
+            } else {
+                PlatformClass::GenericAarch64
+            },
+            tegra_family: false,
+            sbsa_capable: Some(probe.acpi_tables_present()),
+            l4t_release: None,
+            reason: None,
+        };
+    }
+    let (outcome, stdout) = probe.nvidia_smi();
+    match outcome {
+        NvidiaSmiProbe::Output => PlatformReport {
+            platform_class: if stdout.as_deref().is_some_and(|value| value.contains("nvgpu")) {
+                PlatformClass::Tegra
+            } else {
+                PlatformClass::Arm64Sbsa
+            },
+            tegra_family: true,
+            sbsa_capable: Some(!stdout.as_deref().is_some_and(|value| value.contains("nvgpu"))),
+            l4t_release,
+            reason: None,
+        },
+        NvidiaSmiProbe::Missing | NvidiaSmiProbe::Timeout | NvidiaSmiProbe::Nonzero => {
+            PlatformReport {
+                platform_class: PlatformClass::Unknown,
+                tegra_family: true,
+                sbsa_capable: None,
+                l4t_release,
+                reason: Some(match outcome {
+                    NvidiaSmiProbe::Missing => PlatformProbeReason::NvidiaSmiMissing,
+                    NvidiaSmiProbe::Timeout => PlatformProbeReason::NvidiaSmiTimeout,
+                    NvidiaSmiProbe::Nonzero => PlatformProbeReason::NvidiaSmiNonzero,
+                    NvidiaSmiProbe::Output => unreachable!(),
+                }),
+            }
+        }
+    }
+}
+
+fn parse_l4t_release(contents: &str) -> Option<String> {
+    let release = contents.split("R").nth(1)?.split_whitespace().next()?;
+    let revision = contents.split("REVISION:").nth(1)?.trim().split(',').next()?.trim();
+    (release.bytes().all(|byte| byte.is_ascii_digit())
+        && !release.is_empty()
+        && !revision.is_empty()
+        && revision.bytes().all(|byte| byte.is_ascii_digit() || byte == b'.'))
+    .then(|| format!("R{release}.{revision}"))
+}
+
+#[derive(Serialize)]
+struct DoctorPlatformJson<'a> {
+    schema_version: &'static str,
+    platform_class: &'static str,
+    tegra_family: bool,
+    sbsa_capable: Option<bool>,
+    l4t_release: Option<&'a str>,
+    reason: Option<&'static str>,
+}
+
+fn platform_json(report: &PlatformReport) -> DoctorPlatformJson<'_> {
+    DoctorPlatformJson {
+        schema_version: "fathomdb.doctor.platform.v1",
+        platform_class: report.platform_class.as_str(),
+        tegra_family: report.tegra_family,
+        sbsa_capable: report.sbsa_capable,
+        l4t_release: report.l4t_release.as_deref(),
+        reason: report.reason.map(PlatformProbeReason::as_str),
+    }
+}
+
+fn platform_diagnostic_output(report: &PlatformReport, json_mode: bool) -> String {
+    if json_mode {
+        let mut output =
+            serde_json::to_string(&platform_json(report)).expect("platform fields serialize");
+        output.push('\n');
+        return output;
+    }
+    format!(
+        "doctor platform\nschema_version={}\nplatform_class={}\ntegra_family={}\nsbsa_capable={}\nl4t_release={}\nreason={}\n",
+        "fathomdb.doctor.platform.v1",
+        report.platform_class.as_str(),
+        report.tegra_family,
+        report.sbsa_capable.map_or("null".to_owned(), |value| value.to_string()),
+        report.l4t_release.as_deref().unwrap_or("null"),
+        report.reason.map_or("null", PlatformProbeReason::as_str),
+    )
+}
+
 /// Run the cross-encoder-only diagnostic. It is deliberately a separate verb:
 /// CUDA embedding evidence does not attest cross-encoder or SQLite execution.
 fn run_doctor_reranker_gpu(args: GpuDoctorArgs) -> i32 {
@@ -692,6 +980,19 @@ fn doctor_gpu_outcome(
 }
 
 fn product_gpu_diagnostic() -> fathomdb_embedder::DoctorGpuDiagnosticResult {
+    let raw = std::env::var("FATHOMDB_EMBED_DEVICE").unwrap_or_else(|_| "auto".to_owned());
+    if let Ok(policy) = raw.parse::<fathomdb_embedder::EmbedDevicePolicy>() {
+        // Explicit CPU's defining property is that no CUDA or Tier-2 platform
+        // activity occurs, so retain the existing direct diagnostic path.
+        if !matches!(policy, fathomdb_embedder::EmbedDevicePolicy::Cpu) {
+            let platform = classify_platform(&SystemPlatformProbe);
+            if let Some(report) =
+                platform_gpu_override(&raw, cfg!(feature = "embed-cuda"), &platform)
+            {
+                return report;
+            }
+        }
+    }
     #[cfg(feature = "default-embedder")]
     {
         fathomdb_embedder::diagnose_default_embedder_gpu_from_env()
@@ -717,12 +1018,38 @@ fn product_gpu_diagnostic() -> fathomdb_embedder::DoctorGpuDiagnosticResult {
             }
         }
 
-        let raw = std::env::var("FATHOMDB_EMBED_DEVICE").unwrap_or_else(|_| "auto".to_owned());
         match raw.parse() {
             Ok(policy) => fathomdb_embedder::diagnose_gpu(policy, false, &mut CpuOnlyProvider),
             Err(_) => fathomdb_embedder::DoctorGpuDiagnosticResult::from_invalid_policy(raw, false),
         }
     }
+}
+
+fn platform_gpu_override(
+    raw_policy: &str,
+    cuda_compiled: bool,
+    platform: &PlatformReport,
+) -> Option<fathomdb_embedder::DoctorGpuDiagnosticResult> {
+    if !platform.is_affirmed_sbsa() {
+        return None;
+    }
+    let policy = raw_policy.parse::<fathomdb_embedder::EmbedDevicePolicy>().ok()?;
+    let effective_device = match policy {
+        fathomdb_embedder::EmbedDevicePolicy::Auto => {
+            Some(fathomdb_embedder::EffectiveEmbedDevice::Cpu)
+        }
+        fathomdb_embedder::EmbedDevicePolicy::Cuda(_) => None,
+        fathomdb_embedder::EmbedDevicePolicy::Cpu => return None,
+    };
+    Some(fathomdb_embedder::DoctorGpuDiagnosticResult {
+        policy: raw_policy.to_owned(),
+        cuda_compiled,
+        status: fathomdb_embedder::DoctorGpuStatus::CudaIncompatible,
+        effective_device,
+        devices: Vec::new(),
+        selected_uuid: None,
+        reason: Some(fathomdb_embedder::DeviceResolutionReason::Arm64SbsaUnsupported),
+    })
 }
 
 /// Serialize the stable `doctor gpu --json` result.
@@ -1277,6 +1604,141 @@ fn truncate_wal_report_json(r: &TruncateWalReport) -> Value {
 mod tests {
     use super::*;
 
+    #[derive(Clone)]
+    struct PlatformFixture {
+        aarch64: bool,
+        compatible: Option<String>,
+        l4t: Option<String>,
+        acpi: bool,
+        smi: NvidiaSmiProbe,
+        stdout: Option<String>,
+    }
+
+    impl PlatformFixture {
+        fn non_aarch64() -> Self {
+            Self {
+                aarch64: false,
+                compatible: None,
+                l4t: None,
+                acpi: false,
+                smi: NvidiaSmiProbe::Missing,
+                stdout: None,
+            }
+        }
+
+        fn arm64_sbsa() -> Self {
+            Self {
+                aarch64: true,
+                compatible: None,
+                l4t: None,
+                acpi: true,
+                smi: NvidiaSmiProbe::Missing,
+                stdout: None,
+            }
+        }
+
+        fn generic_aarch64() -> Self {
+            Self {
+                aarch64: true,
+                compatible: None,
+                l4t: None,
+                acpi: false,
+                smi: NvidiaSmiProbe::Missing,
+                stdout: None,
+            }
+        }
+
+        fn classic_tegra() -> Self {
+            Self {
+                aarch64: true,
+                compatible: Some("nvidia,tegra234\0".to_owned()),
+                l4t: Some("# R36 (release), REVISION: 5.2, GCID: test".to_owned()),
+                acpi: false,
+                smi: NvidiaSmiProbe::Output,
+                stdout: Some("Orin (nvgpu)\n".to_owned()),
+            }
+        }
+
+        fn thor() -> Self {
+            Self { stdout: Some("NVIDIA Thor\n".to_owned()), ..Self::classic_tegra() }
+        }
+
+        fn missing_smi() -> Self {
+            Self { smi: NvidiaSmiProbe::Missing, stdout: None, ..Self::classic_tegra() }
+        }
+
+        fn timeout_smi() -> Self {
+            Self { smi: NvidiaSmiProbe::Timeout, stdout: None, ..Self::classic_tegra() }
+        }
+
+        fn nonzero_smi() -> Self {
+            Self { smi: NvidiaSmiProbe::Nonzero, stdout: None, ..Self::classic_tegra() }
+        }
+    }
+
+    impl PlatformProbe for PlatformFixture {
+        fn is_aarch64(&self) -> bool {
+            self.aarch64
+        }
+
+        fn read_file(&self, path: &Path) -> Option<String> {
+            match path.to_str() {
+                Some("/proc/device-tree/compatible") => self.compatible.clone(),
+                Some("/etc/nv_tegra_release") => self.l4t.clone(),
+                _ => None,
+            }
+        }
+
+        fn acpi_tables_present(&self) -> bool {
+            self.acpi
+        }
+
+        fn nvidia_smi(&self) -> (NvidiaSmiProbe, Option<String>) {
+            (self.smi, self.stdout.clone())
+        }
+    }
+
+    struct PlatformGpuFixtureOutcome {
+        status: fathomdb_embedder::DoctorGpuStatus,
+        reason: Option<&'static str>,
+        effective_device: Option<String>,
+        exit_code: i32,
+        provider_marker: String,
+    }
+
+    fn doctor_gpu_for_platform(
+        raw_policy: &str,
+        cuda_compiled: bool,
+        platform: &PlatformReport,
+        provider: impl FnOnce() -> &'static str,
+    ) -> PlatformGpuFixtureOutcome {
+        if raw_policy == "cpu" {
+            return PlatformGpuFixtureOutcome {
+                status: fathomdb_embedder::DoctorGpuStatus::SelectedCpuNoCuda,
+                reason: None,
+                effective_device: Some("cpu".to_owned()),
+                exit_code: 0,
+                provider_marker: "provider-not-called".to_owned(),
+            };
+        }
+        match platform_gpu_override(raw_policy, cuda_compiled, platform) {
+            Some(report) => PlatformGpuFixtureOutcome {
+                status: report.status,
+                reason: report.reason.map(fathomdb_embedder::DeviceResolutionReason::as_str),
+                effective_device: report.effective_device(),
+                exit_code: report.exit_code(),
+                provider_marker: "provider-not-called".to_owned(),
+            },
+            None => PlatformGpuFixtureOutcome {
+                status: fathomdb_embedder::DoctorGpuStatus::SelectedCpuNoCuda,
+                reason: None,
+                effective_device: Some("cpu".to_owned()),
+                exit_code: 0,
+                provider_marker: provider().to_owned(),
+            },
+        }
+    }
+
     #[test]
     fn outcome_mapping_covers_cli_md_exit_classes() {
         assert_eq!(outcome_to_exit_code(CliOutcome::Clean), 0);
@@ -1385,6 +1847,98 @@ mod tests {
                 command: Command::Doctor(DoctorArgs { command: DoctorCommand::RerankerGpu(_) })
             })
         ));
+    }
+
+    #[test]
+    fn platform_classifier_covers_all_two_tier_outcomes_and_json_contract() {
+        let cases = [
+            (
+                PlatformFixture::non_aarch64(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"non_aarch64\",\"tegra_family\":false,\"sbsa_capable\":false,\"l4t_release\":null,\"reason\":null}\n",
+                0,
+            ),
+            (
+                PlatformFixture::arm64_sbsa(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"arm64_sbsa\",\"tegra_family\":false,\"sbsa_capable\":true,\"l4t_release\":null,\"reason\":null}\n",
+                0,
+            ),
+            (
+                PlatformFixture::generic_aarch64(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"generic_aarch64\",\"tegra_family\":false,\"sbsa_capable\":false,\"l4t_release\":null,\"reason\":null}\n",
+                0,
+            ),
+            (
+                PlatformFixture::classic_tegra(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"tegra\",\"tegra_family\":true,\"sbsa_capable\":false,\"l4t_release\":\"R36.5.2\",\"reason\":null}\n",
+                0,
+            ),
+            (
+                PlatformFixture::thor(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"arm64_sbsa\",\"tegra_family\":true,\"sbsa_capable\":true,\"l4t_release\":\"R36.5.2\",\"reason\":null}\n",
+                0,
+            ),
+            (
+                PlatformFixture::missing_smi(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"unknown\",\"tegra_family\":true,\"sbsa_capable\":null,\"l4t_release\":\"R36.5.2\",\"reason\":\"nvidia_smi_missing\"}\n",
+                exit_code::UNRECOVERABLE,
+            ),
+            (
+                PlatformFixture::timeout_smi(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"unknown\",\"tegra_family\":true,\"sbsa_capable\":null,\"l4t_release\":\"R36.5.2\",\"reason\":\"nvidia_smi_timeout\"}\n",
+                exit_code::UNRECOVERABLE,
+            ),
+            (
+                PlatformFixture::nonzero_smi(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"unknown\",\"tegra_family\":true,\"sbsa_capable\":null,\"l4t_release\":\"R36.5.2\",\"reason\":\"nvidia_smi_nonzero\"}\n",
+                exit_code::UNRECOVERABLE,
+            ),
+        ];
+        for (fixture, expected_json, expected_exit) in cases {
+            let report = classify_platform(&fixture);
+            assert_eq!(platform_diagnostic_output(&report, true), expected_json);
+            assert_eq!(report.exit_code(), expected_exit);
+        }
+    }
+
+    #[test]
+    fn platform_probe_uses_the_first_executable_absolute_candidate() {
+        let candidates =
+            ["/usr/bin/nvidia-smi", "/usr/sbin/nvidia-smi", "/usr/local/bin/nvidia-smi"];
+        let selected = first_executable_candidate(&candidates, |path| {
+            path == Path::new("/usr/sbin/nvidia-smi")
+        });
+        assert_eq!(selected, Some(Path::new("/usr/sbin/nvidia-smi")));
+        assert_eq!(first_executable_candidate(&candidates, |_| false), None);
+    }
+
+    #[test]
+    fn sbsa_platform_preempts_cuda_only_for_auto_and_forced_policies() {
+        let platform = classify_platform(&PlatformFixture::arm64_sbsa());
+        let auto = doctor_gpu_for_platform("auto", true, &platform, || panic!("provider called"));
+        assert_eq!(auto.status.as_str(), "cuda_incompatible");
+        assert_eq!(auto.reason, Some("arm64_sbsa_unsupported"));
+        assert_eq!(auto.effective_device.as_deref(), Some("cpu"));
+        assert_eq!(auto.exit_code, 0);
+
+        let forced =
+            doctor_gpu_for_platform("cuda:0", true, &platform, || panic!("provider called"));
+        assert_eq!(forced.status.as_str(), "cuda_incompatible");
+        assert_eq!(forced.reason, Some("arm64_sbsa_unsupported"));
+        assert_eq!(forced.effective_device.as_deref(), None);
+        assert_eq!(forced.exit_code, exit_code::DOCTOR_FOUND_ISSUES);
+
+        let cpu = doctor_gpu_for_platform("cpu", true, &platform, || panic!("provider called"));
+        assert_eq!(cpu.status.as_str(), "selected_cpu_no_cuda");
+        assert_eq!(cpu.reason, None);
+        assert_eq!(cpu.effective_device.as_deref(), Some("cpu"));
+    }
+
+    #[test]
+    fn indeterminate_tier_two_never_refuses_doctor_gpu() {
+        let platform = classify_platform(&PlatformFixture::missing_smi());
+        let report = doctor_gpu_for_platform("auto", true, &platform, || "provider-ran");
+        assert_eq!(report.provider_marker, "provider-ran");
+        assert_ne!(report.reason, Some("arm64_sbsa_unsupported"));
     }
 
     #[derive(Clone, Copy)]

@@ -170,6 +170,9 @@ pub enum DeviceResolutionReason {
     CudaIncompatible,
     /// CUDA initialization/probing failed before compatibility was known.
     CudaProbeFailed,
+    /// The platform is ARM64 SBSA, whose CUDA userspace is incompatible with
+    /// the Tegra-linked artifact before any CUDA provider is loaded.
+    Arm64SbsaUnsupported,
 }
 
 impl DeviceResolutionReason {
@@ -181,6 +184,7 @@ impl DeviceResolutionReason {
             Self::NoVisibleCudaDevice => "no_visible_cuda_device",
             Self::CudaIncompatible => "cuda_incompatible",
             Self::CudaProbeFailed => "cuda_probe_failed",
+            Self::Arm64SbsaUnsupported => "arm64_sbsa_unsupported",
         }
     }
 }

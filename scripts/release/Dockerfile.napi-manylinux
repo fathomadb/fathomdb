@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1
+# The pinned manylinux_2_28 aarch64 base gives the containerized napi build
+# the same glibc floor as the Python wheel build (AC80-1, R80-2), so the
+# linux-arm64-gnu .node binding stops inheriting whatever glibc happens to
+# ship on the bare ubuntu-24.04-arm GitHub-hosted runner. Node is installed
+# from the pinned upstream tarball; gcc/rustc come from the base image and
+# rustup respectively, mirroring Dockerfile.cuda-manylinux's structure.
+FROM quay.io/pypa/manylinux_2_28_aarch64@sha256:5bf033a700fd265da5cca83c0fa379810b8a4b516a2ec432f1a2b51dca4346cf
+
+ARG RUST_VERSION=1.95.0
+ARG NODE_VERSION=25.9.0
+ARG NODE_SHA256=bf007bf0dcc2fddd90888fde374a1ad33c1ab2ca2ad324c645dd7aed0f9f1460
+ARG RUSTUP_INIT_URL=https://static.rust-lang.org/rustup/archive/1.29.0/aarch64-unknown-linux-gnu/rustup-init
+ARG RUSTUP_INIT_SHA256=9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792
+
+LABEL io.fathomdb.napi.manylinux-base=quay.io/pypa/manylinux_2_28_aarch64@sha256:5bf033a700fd265da5cca83c0fa379810b8a4b516a2ec432f1a2b51dca4346cf \
+      io.fathomdb.napi.manylinux=2_28 \
+      io.fathomdb.napi.node=$NODE_VERSION \
+      io.fathomdb.napi.node-sha256=$NODE_SHA256 \
+      io.fathomdb.napi.rust=$RUST_VERSION \
+      io.fathomdb.napi.rustup-init-sha256=$RUSTUP_INIT_SHA256
+
+ENV CARGO_HOME=/opt/fathomdb/cargo \
+    RUSTUP_HOME=/opt/fathomdb/rustup \
+    PATH=/opt/fathomdb/cargo/bin:/opt/fathomdb/node/bin:$PATH
+
+RUN install -d -m 0755 "$CARGO_HOME" "$RUSTUP_HOME" /opt/fathomdb/node \
+    && curl --proto '=https' --tlsv1.2 --fail --silent --show-error --output /tmp/node.tar.xz \
+       "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-arm64.tar.xz" \
+    && printf '%s  /tmp/node.tar.xz\n' "$NODE_SHA256" | sha256sum --check --status \
+    && tar -xJf /tmp/node.tar.xz -C /opt/fathomdb/node --strip-components=1 \
+    && rm /tmp/node.tar.xz \
+    && curl --proto '=https' --tlsv1.2 --fail --silent --show-error --output /tmp/rustup-init "$RUSTUP_INIT_URL" \
+    && printf '%s  /tmp/rustup-init\n' "$RUSTUP_INIT_SHA256" | sha256sum --check --status \
+    && chmod 0755 /tmp/rustup-init \
+    && /tmp/rustup-init -y --profile minimal --default-toolchain "$RUST_VERSION" \
+    && rm /tmp/rustup-init \
+    && chmod -R a+rX "$CARGO_HOME" "$RUSTUP_HOME" \
+    && node --version | grep -F "v$NODE_VERSION" \
+    && rustc --version | grep -F "rustc $RUST_VERSION"

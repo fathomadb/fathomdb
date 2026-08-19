@@ -63,6 +63,7 @@ see that ADR's 2026-06-06 amendment).
 | `dump-row-counts` | `fathomdb doctor dump-row-counts`                                              | `doctor-check-*`                    |
 | `dump-profile`    | `fathomdb doctor dump-profile`                                                 | `doctor-check-*`                    |
 | `gpu`             | `fathomdb doctor gpu [--json]`                                                 | `doctor-gpu` = 0 / 65 / 70          |
+| `platform`        | `fathomdb doctor platform [--json]`                                            | `0 / 70`                            |
 | `reranker-gpu`    | `fathomdb doctor reranker-gpu [--json]`                                        | `0 / 65 / 70`                       |
 | `recompute-mean`  | `fathomdb doctor recompute-mean <db_path> [--json]`                            | `doctor-check-*` = 0 / 70 / 71      |
 | `dump-mutations`  | `fathomdb doctor dump-mutations <collection> [--after-id <n>] [--limit <n>] [--json] <db_path>` | `0 / 70 / 71`      |
@@ -85,6 +86,54 @@ initialize an engine. Its ordered `devices` inventory contains process-visible
 CUDA UUIDs and their `CUDA_VISIBLE_DEVICES`-relative ordinals only; it neither
 reports nor infers physical host ordinals. A selected UUID must match one
 inventory member.
+
+Explicit `cpu` returns its frozen no-CUDA result **before any platform Tier-2
+`nvidia-smi` probe or CUDA-provider invocation**. For other policies, `doctor
+gpu` applies the platform diagnostic before invoking a CUDA provider. On
+affirmed `arm64_sbsa`, `auto`/unset emits
+`cuda_incompatible`, `effective_device: "cpu"`, and
+`reason: "arm64_sbsa_unsupported"` with exit 0; forced `cuda:N` keeps
+`cuda_incompatible`, a null effective device, and exit 65. Explicit `cpu`
+remains `selected_cpu_no_cuda` with a null reason and no CUDA activity. A
+Tier-2 platform probe failure does **not** make `doctor gpu` fail: it performs
+no SBSA/Tegra refusal and proceeds to normal CUDA-provider diagnosis. Thus a
+healthy CUDA-capable container without `nvidia-smi` retains its normal result;
+an actual provider failure still uses the existing `probe_failed` outcome and
+exit 70. Only `doctor platform` reports that indeterminacy as `unknown`/70.
+
+`doctor gpu --help` also contains the 80.7 source-build-only procedure below;
+this is the CLI guidance transport. It is deliberately help text rather than a
+diagnostic field or line, preserving the frozen normal and JSON v1 output:
+
+```console
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip 'maturin==1.14.1'
+./scripts/release/build-python-cuda-tegra.sh --interpreter python
+```
+
+It then directs the user to run the exact final `python -m pip install
+<built-wheel>` line printed by the wrapper. Help, the AC80-27 warning, and
+public documentation use this wording verbatim; none executes it.
+
+`doctor platform` (0.8.23 Slice 80.7) is a separate database-free platform
+diagnostic; it emits exactly one compact JSON object with keys in this exact
+order: `schema_version`, `platform_class`, `tegra_family`, `sbsa_capable`,
+`l4t_release`, `reason`. `schema_version` is
+`"fathomdb.doctor.platform.v1"`; `platform_class` is exactly `tegra`,
+`arm64_sbsa`, `generic_aarch64`, `non_aarch64`, or `unknown`.
+`tegra_family` is a boolean. `sbsa_capable` is a boolean for a completed
+classification and `null` for an indeterminate Tier-2 probe; it never guesses
+SBSA. `l4t_release` is either `null` or `R<release>.<revision>` parsed from
+`/etc/nv_tegra_release`; `reason` is either `null`, `nvidia_smi_missing`,
+`nvidia_smi_timeout`, or
+`nvidia_smi_nonzero`. The record has exactly one trailing newline. Text output
+is a `doctor platform` header followed by the same fields as `key=value` lines
+in that order. Successful `tegra`, `arm64_sbsa`, `generic_aarch64`, and
+`non_aarch64` classifications exit 0. `unknown` is reserved for a missing,
+timed-out, or non-zero Tier-2 query and exits 70. This command never exits 65,
+opens a database, initializes an engine, loads a model, downloads data, or
+writes configuration.
 
 `doctor reranker-gpu` (0.8.23 Slice 71) is a separate database-free,
 model-loader-free policy/provider diagnostic. Its JSON `subsystem` is always
@@ -109,15 +158,21 @@ must not serialize `DeviceResolution` as the diagnostic. Thus
 automatic result, even though the automatic diagnostic reports typed CPU as its
 effective device.
 
-The production Candle classifier is closed and code-based. Missing dynamic
-driver, `CUDA_ERROR_NO_DEVICE`, and `CUDA_ERROR_STUB_LIBRARY` are unavailable.
-Exactly `CUDA_ERROR_SYSTEM_DRIVER_MISMATCH`,
+The production Candle **driver/cuBLAS-error** classifier is closed and
+code-based. Missing dynamic driver, `CUDA_ERROR_NO_DEVICE`, and
+`CUDA_ERROR_STUB_LIBRARY` are unavailable. Exactly
+`CUDA_ERROR_SYSTEM_DRIVER_MISMATCH`,
 `CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE`, `CUDA_ERROR_NO_BINARY_FOR_GPU`,
 `CUDA_ERROR_UNSUPPORTED_PTX_VERSION`, `CUBLAS_STATUS_ARCH_MISMATCH`, and
 `CUBLAS_STATUS_NOT_SUPPORTED` are incompatible. Unknown errors,
 `CUDA_ERROR_OUT_OF_MEMORY`, and `CUBLAS_STATUS_ALLOC_FAILED` are
 `probe_failed`. Build target, CUDA toolkit, and driver-version provenance are
 artifact-witness facts and are not fields in the doctor v1 schema.
+
+The platform-level `arm64_sbsa_unsupported` reason is a separate,
+non-error-derived source of the same `cuda_incompatible` status. It is decided
+before the CUDA provider is invoked and is not constrained by the closed Candle
+driver/cuBLAS-error enumeration.
 
 `devices` is `[]` if enumeration did not succeed; otherwise it is the observed
 ordered inventory. `selected_uuid` is `null` unless CUDA was selected. The

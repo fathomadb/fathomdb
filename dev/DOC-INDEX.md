@@ -63,6 +63,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/traceability.md` | REQ ↔ AC ↔ test trace matrix | 25 re-points REQ-053↔new AC; 30 adds read ACs | 2026-05-28 |
 | `dev/security-review.md` | Security review (SR-*) | — (SR-005/SR-011 candidate reserved-gap) | 2026-05-02 |
 | `dev/learnings.md` | Cross-phase engineering learnings | per-slice as discovered | 2026-05-31 |
+| `dev/tegra-platform-reference.md` | Tegra/L4T platform reference: build, packaging, CI, detection, GPU-evidence facts and traps | 0.8.23 Slice 80 (80.5/80.6) | 2026-08-19 |
 | `dev/experiments-ledger.md` | Distilled results of record for EVERY FathomDB experiment | ledger-prune (`scripts/repo-prune/prompts/prune-docs.md`) | 2026-06-26 |
 | `scripts/repo-prune/README.md` | repo-prune mini-project | repo-prune (tooling) | 2026-06-26 |
 | `dev/tools/onnx/README.md` · `dev/tools/onnx/export_bge_small_onnx.py` | ONNX embedder export tooling (0.8.16 Slice 10) | 0.8.16 Slice 10 (tooling) | 2026-07-08 |

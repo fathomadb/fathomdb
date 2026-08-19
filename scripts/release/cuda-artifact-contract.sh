@@ -7,15 +7,73 @@
 # N-API is intentionally the one host-toolchain exception: its native build
 # runs on the trusted runner, not inside the manylinux image. Keep that host
 # compiler identity separate from the image-owned Python wheel toolchain.
+#
+# 0.8.23 Slice 80.6 (D-80.6-4): the Jetson/Tegra host-native wheel build is the
+# second host-toolchain consumer. The toolkit root and the nvcc version pin are
+# MEASURED IDENTICAL on the Jetson Orin AGX (design § 2.7), so both targets
+# share these two literals by reference below rather than declaring a second
+# copy that could drift.
 export CUDA_NAPI_HOST_TOOLKIT_ROOT='/usr/local/cuda-12.6'
 export CUDA_NAPI_HOST_NVCC_VERSION='Cuda compilation tools, release 12.6, V12.6.68'
-export CUDA_NAPI_HOST_GCC_VERSION='13.3.0'
-export CUDA_NAPI_HOST_CC='/usr/bin/gcc-13'
-export CUDA_NAPI_HOST_CXX='/usr/bin/g++-13'
+# Host compiler as a per-target axis, exactly as 80.4 did for
+# CUDA_COMPUTE_CAP: sibling per-target constants plus a selector, with the
+# x86_64 literals byte-identical to what this contract has always pinned
+# (AC80-8). This is the one genuine per-target toolchain split — the Jetson
+# carries stock Ubuntu 22.04 gcc 11.4.0 and has no gcc-13, and CUDA 12.6
+# supports gcc 11 (measured: `cargo build -p fathomdb-embedder --features
+# embed-cuda` succeeds on this Orin with it, design § 2.7).
+export CUDA_HOST_GCC_VERSION_X86_64='13.3.0'
+export CUDA_HOST_CC_X86_64='/usr/bin/gcc-13'
+export CUDA_HOST_CXX_X86_64='/usr/bin/g++-13'
+export CUDA_HOST_GCC_VERSION_TEGRA_ORIN='11.4.0'
+export CUDA_HOST_CC_TEGRA_ORIN='/usr/bin/gcc'
+export CUDA_HOST_CXX_TEGRA_ORIN='/usr/bin/g++'
+# The N-API host-toolchain names keep their meaning and their values; they now
+# select the x86_64 axis, because that is the only target build-napi-cuda.sh
+# and cuda-preflight.sh build for (D-80.6-2 scopes Tegra to the Python wheel).
+export CUDA_NAPI_HOST_GCC_VERSION="$CUDA_HOST_GCC_VERSION_X86_64"
+export CUDA_NAPI_HOST_CC="$CUDA_HOST_CC_X86_64"
+export CUDA_NAPI_HOST_CXX="$CUDA_HOST_CXX_X86_64"
+# Tegra host-native build inputs (Slice 80.6, D-80.6-4), all measured on this
+# Jetson Orin AGX rather than assumed:
+#   - the toolkit root and nvcc pin are SHARED with x86_64, by reference;
+#   - the CUDA runtime libraries live under targets/aarch64-linux/lib, with
+#     lib64 a symlink to it. Without LIBRARY_PATH naming this, linking fails
+#     `cannot find -lcudart` (measured, § 2.7);
+#   - the NVIDIA driver library lives in an L4T-specific `nvidia/`
+#     subdirectory, not at the bare aarch64 multiarch path, which carries only
+#     a `.so` and no `.so.1`.
+export CUDA_TEGRA_HOST_TOOLKIT_ROOT="$CUDA_NAPI_HOST_TOOLKIT_ROOT"
+export CUDA_TEGRA_HOST_NVCC_VERSION="$CUDA_NAPI_HOST_NVCC_VERSION"
+export CUDA_TEGRA_HOST_CUDART_LIB='/usr/local/cuda-12.6/targets/aarch64-linux/lib'
+export CUDA_TEGRA_HOST_DRIVER_LIB='/usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1'
+export CUDA_TEGRA_HOST_ARCH='aarch64'
+# The Tegra wheel is host-bound against JetPack's own glibc (2.35, see
+# scripts/release/glibc-floor-contract.sh), so it deliberately carries the
+# native `linux` platform tag rather than a manylinux one. § 3 / D-80.6-1 keep
+# it out of any registry, which is what makes an unauditable tag acceptable
+# here; auditwheel is skipped for the same reason rather than silently failed.
+export CUDA_TEGRA_WHEEL_COMPATIBILITY='linux'
 export CUDA_MANYLINUX='2_28'
-# CUDA 7.5 is the lowest device in the restricted runner group (the hosted
-# T4). The self-hosted RTX 3090 is forward-compatible with this build target.
-export CUDA_COMPUTE_CAP='75'
+# 0.8.23 Slice 80.4 (R80-5): compute capability as a per-target axis rather
+# than a single literal, so a Tegra target can declare its own pin without
+# touching x86_64's. CUDA 7.5 is the lowest device in the restricted x86_64
+# runner group (the hosted T4); the self-hosted RTX 3090 is forward-compatible
+# with this build target. CUDA_COMPUTE_CAP_TEGRA_ORIN='87' matches the Jetson
+# Orin AGX's SM_87 — Tegra is NOT forward-compatible the way discrete GPUs
+# are, so unlike x86_64 this is a single pin, not a list (§ 7 80.4). Neither
+# value is consumed by a real build yet: x86_64's compiled kernels don't
+# depend on it (candle-flash-attn-v3, which reads it, isn't in this crate
+# graph), and Tegra's own host-native build script doesn't exist until
+# Slice 80.6.
+export CUDA_COMPUTE_CAP_X86_64='75'
+export CUDA_COMPUTE_CAP_TEGRA_ORIN='87'
+# CUDA_COMPUTE_CAP is the literal env var name candle-flash-attn-v3's
+# build.rs (in the pinned Candle fork) reads — not ours to rename. It selects
+# the x86_64 value because that is the only target build-napi-cuda.sh and
+# cuda-preflight.sh build for today; Tegra's future host-native build script
+# will source CUDA_COMPUTE_CAP_TEGRA_ORIN directly instead.
+export CUDA_COMPUTE_CAP="$CUDA_COMPUTE_CAP_X86_64"
 export CUDA_NAPI_FEATURES='embed-cuda'
 export CUDA_PYTHON_FEATURES='pyo3/extension-module,embed-cuda'
 # Additive candidate-only Slice 71 tuple. The established v2 route continues

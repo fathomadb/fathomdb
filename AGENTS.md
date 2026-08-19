@@ -56,6 +56,15 @@ The broader CI gate is `./scripts/check.sh` (adds mkdocs build); the agent-loop 
 - Python dev tooling: `pip install -e 'src/python[dev]'` — installs `pytest`, `hypothesis`, `ruff`, `pyright`. Without the selected Ruff 0.15.17, Python lint fails loudly; Python typecheck/test steps still emit a skip notice and pass without exercising.
 - TypeScript: `cd src/ts && npm install` if you intend to touch TS. Without this, TS verbs skip.
 - Markdown tooling: `npm install` at repo root — installs `markdownlint-cli2`, and `prettier` which is retained as a devDep for non-markdown use only (§ 3 bans it on `.md`). `cargo install --locked lychee` for link checking (one-time). All wired up by `./scripts/bootstrap.sh`.
+- **AArch64 / Jetson (Ubuntu 22.04, L4T R36):** the OS-shipped `python3` is 3.10,
+  which lacks stdlib `tomllib` — several release/CI gates (license consistency,
+  pinned-override-rot) require Python ≥3.11. `scripts/bootstrap.sh` selects a
+  ≥3.11 interpreter automatically for `.venv` (bare `python3.13`/`3.12`/`3.11`
+  on PATH, or `uv python find` if [uv](https://docs.astral.sh/uv/) is
+  installed — sudo-free: `uv python install 3.12`); it fails closed with an
+  actionable message if neither exists. It does *not* install `uv` itself.
+  Those two gates additionally carry a `tomli` fallback (`[dev]` extra) for
+  contexts that invoke bare `python3` directly, outside `.venv`.
 
 ## 4. Verification ordering
 

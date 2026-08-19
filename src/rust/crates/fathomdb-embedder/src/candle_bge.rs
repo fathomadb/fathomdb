@@ -319,6 +319,11 @@ fn classify_candle_cuda_error(error: candle_core::Error) -> CudaProbeError {
 
 #[cfg(feature = "embed-cuda")]
 fn cuda_uuid_string(bytes: [std::os::raw::c_char; 16]) -> String {
+    // `c_char` is `i8` on x86_64 and `u8` on AArch64 Linux, so this cast is
+    // load-bearing on one platform and a no-op on the other. Clippy sees only
+    // the host it runs on; on the Jetson (0.8.23 Slice 80) it would otherwise
+    // fail `-D warnings` for a cast x86_64 cannot do without.
+    #[allow(clippy::unnecessary_cast)]
     let bytes = bytes.map(|byte| byte as u8);
     format!(
         "GPU-{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
@@ -340,6 +345,39 @@ fn tc5_cuda_uuid_for_initialized_ordinal(ordinal: usize) -> Result<String, CudaP
     let device = result::device::get(ordinal as i32).map_err(classify_cuda_driver_error)?;
     let uuid = result::device::get_uuid(device).map_err(classify_cuda_driver_error)?;
     Ok(cuda_uuid_string(uuid.bytes))
+}
+
+/// Construct `cuda:ordinal` and prove Candle retained exactly that ordinal.
+///
+/// This is the crate's ONLY `device.location()` ordinal check: the TC-5
+/// attested constructor and the 0.8.23 Slice 80.5 allocation witness
+/// (`gpu_witness.rs`, D-80.5-1 step 2) both call it rather than each writing
+/// their own. The returned UUID comes from the CUDA driver for the ordinal
+/// Candle actually initialized, never from `nvidia-smi` (R80-13).
+#[cfg(feature = "embed-cuda")]
+pub(crate) fn attest_retained_cuda_device(
+    ordinal: usize,
+) -> Result<(Device, usize, String), EmbedderLoadError> {
+    let unavailable = |reason: String| EmbedderLoadError::DeviceUnavailable {
+        device: format!("cuda:{ordinal}"),
+        reason,
+    };
+    let device = Device::new_cuda(ordinal).map_err(|error| unavailable(error.to_string()))?;
+    let actual_ordinal = match device.location() {
+        candle_core::DeviceLocation::Cuda { gpu_id } => gpu_id,
+        _ => {
+            return Err(unavailable("Candle did not retain the requested CUDA device".to_owned()));
+        }
+    };
+    if actual_ordinal != ordinal {
+        return Err(unavailable(format!("Candle initialized cuda:{actual_ordinal} instead")));
+    }
+    Tensor::zeros(1, DType::F32, &device).map_err(|error| unavailable(error.to_string()))?;
+    // `CudaProbeError` is a typed classification without a `Display` impl, so
+    // its debug rendering is what carries the classification into the reason.
+    let uuid = tc5_cuda_uuid_for_initialized_ordinal(actual_ordinal)
+        .map_err(|error| unavailable(format!("{error:?}")))?;
+    Ok((device, actual_ordinal, uuid))
 }
 
 /// Resolve the product `FATHOMDB_EMBED_DEVICE` policy for one default
@@ -440,40 +478,7 @@ impl CandleBgeEmbedder {
             ExplicitCandleDevice::Cuda(ordinal) => {
                 #[cfg(feature = "embed-cuda")]
                 {
-                    let device = Device::new_cuda(ordinal).map_err(|error| {
-                        EmbedderLoadError::DeviceUnavailable {
-                            device: format!("cuda:{ordinal}"),
-                            reason: error.to_string(),
-                        }
-                    })?;
-                    let actual_ordinal = match device.location() {
-                        candle_core::DeviceLocation::Cuda { gpu_id } => gpu_id,
-                        _ => {
-                            return Err(EmbedderLoadError::DeviceUnavailable {
-                                device: format!("cuda:{ordinal}"),
-                                reason: "Candle did not retain the requested CUDA device".into(),
-                            });
-                        }
-                    };
-                    if actual_ordinal != ordinal {
-                        return Err(EmbedderLoadError::DeviceUnavailable {
-                            device: format!("cuda:{ordinal}"),
-                            reason: format!("Candle initialized cuda:{actual_ordinal} instead"),
-                        });
-                    }
-                    Tensor::zeros(1, DType::F32, &device).map_err(|error| {
-                        EmbedderLoadError::DeviceUnavailable {
-                            device: format!("cuda:{ordinal}"),
-                            reason: error.to_string(),
-                        }
-                    })?;
-                    let uuid =
-                        tc5_cuda_uuid_for_initialized_ordinal(actual_ordinal).map_err(|error| {
-                            EmbedderLoadError::DeviceUnavailable {
-                                device: format!("cuda:{ordinal}"),
-                                reason: error.to_string(),
-                            }
-                        })?;
+                    let (device, actual_ordinal, uuid) = attest_retained_cuda_device(ordinal)?;
                     (
                         device,
                         Tc5DeviceAttestation {
@@ -495,7 +500,11 @@ impl CandleBgeEmbedder {
         Ok(Tc5CandleConstruction { embedder, device_attestation })
     }
 
-    fn new_from_weights_on_device(
+    // `pub(crate)` so 0.8.23 Slice 80.5's allocation witness can load onto a
+    // device it constructed and sampled itself (D-80.5-1 steps 3-4); the
+    // public constructors above remain the only externally reachable entry
+    // points.
+    pub(crate) fn new_from_weights_on_device(
         weights: LoadedWeights,
         device: Device,
     ) -> Result<Self, EmbedderLoadError> {

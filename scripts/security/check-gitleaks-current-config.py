@@ -4,8 +4,13 @@
 from __future__ import annotations
 
 import sys
-import tomllib
 from pathlib import Path
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # 0.8.23 Slice 80.3: Python 3.10 fallback (Ubuntu
+    # 22.04 / every Jetson ship 3.10, which lacks stdlib tomllib).
+    import tomli as tomllib  # type: ignore[import-not-found,no-redef]
 
 
 EXPECTED_ALLOWLISTS = [

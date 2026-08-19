@@ -243,6 +243,27 @@ run_tier_suite fast test-check-governed-surface-pin bash scripts/tests/test_chec
 # js-yaml@4.2.0 regression and malformed-input fail-closed arms.
 run_tier_suite fast test-check-pinned-override-rot bash scripts/tests/test_check_pinned_override_rot.sh
 
+# 0.8.23 Slice 80.1 (AC80-1/AC80-2/R80-2): glibc-floor gate for the native
+# .node/.abi3.so artifacts. objdump/readelf are stubbed in fixtures so the
+# suite runs identically regardless of host architecture; fails closed when
+# neither inspection tool is present.
+# Slice 80.6 (D-80.6-5, AC80-26) adds the per-artifact-family contract arms:
+# manylinux 2.28 (unchanged), tegra 2.35, the bare GLIBC_FLOOR still 2.28 for
+# every pre-80.6 call site, and an undeclared family failing closed rather
+# than resolving to an empty --floor. check-glibc-floor.sh itself is
+# deliberately unchanged — it already takes an arbitrary --floor X.Y.
+run_tier_suite fast test-check-glibc-floor bash scripts/tests/test_check_glibc_floor.sh
+
+# 0.8.23 Slice 80.1 (AC80-9): docs/compatibility/index.md's glibc-floor claim
+# must match scripts/release/glibc-floor-contract.sh, so the two cannot
+# drift apart the way the pre-80.1 npm claim did.
+# Slice 80.6 (AC80-26) restructures this gate: the doc now carries two
+# per-family markered claims, and the pre-80.6 `grep -m1` shape would have
+# checked only the first — letting a wrong Tegra floor pass silently. The
+# suite's load-bearing case is a doc whose first claim is right and whose
+# second is wrong; it passed the old gate with exit 0.
+run_tier_suite fast test-check-glibc-floor-doc-truth bash scripts/tests/test_check_glibc_floor_doc_truth.sh
+
 # Scripts (bash): R-20-H7 — the shared scripts/check-c1-conformance.sh predicate
 # (contract content pin + clause-registry bijection + pinned counts + the 26
 # CHECKABLE clause assertions against as-built code), its --landing wiring in
@@ -298,9 +319,29 @@ run_tier_suite fast test-release-contract-truth bash scripts/tests/test_release_
 
 # Slice 0 (0.8.23): CPU CI checks the CUDA feature/build/preflight seam
 # statically; the real build and smoke remain restricted to the release runner.
+# Slice 80.4 added the compute-capability axis and Slice 80.6 (D-80.6-4,
+# AC80-8) the rest of the per-target toolchain axis plus the host-native Tegra
+# wheel wrapper. The x86_64 arms are unchanged in strength; the new arms reject
+# a Tegra build that drops the measured cudart link path, selects the x86_64
+# compute capability, hard-codes its glibc floor, or publishes anything
+# (D-80.6-1), and reject a contract that splits the shared nvcc pin or
+# re-points an x86_64 selector at the Tegra axis.
 run_tier_suite fast test-cuda-release-contract bash scripts/tests/test_cuda_release_contract.sh
 run_tier_suite fast test-cuda-unmerged-candidate-provenance bash scripts/tests/test_cuda_unmerged_candidate_provenance.sh
 run_tier_suite fast test-cuda-preflight-witness bash scripts/tests/test_cuda_preflight_witness.sh
+
+# 0.8.23 Slice 80.6.5: FATHOMDB_CANDIDATE_SHA lets cuda-preflight.sh resolve
+# its candidate SHA without git, for the no-.git x86_64 CUDA transfer target
+# (dev/design/0.8.23-aarch64-tegra.md § 7 "80.6.5"). Proves unset->git
+# fallback, a valid 40-hex value used verbatim, and fail-closed rejection of
+# empty/short/non-hex/uppercase/over-long values -- never a silent fallback.
+run_tier_suite fast test-cuda-candidate-sha bash scripts/tests/test_cuda_candidate_sha.sh
+
+# 0.8.23 Slice 80.5 (AC80-18): the Tegra GPU allocation witness verifier is
+# fixture-driven, so its fail-closed arms — zero/negative/below-floor delta,
+# ordinal and UUID correlation, every missing field — run on GPU-less CI
+# against a record a real Jetson Orin produced.
+run_tier_suite fast test-tegra-gpu-witness python3 scripts/tests/test_tegra_gpu_witness.py
 
 # 0.8.23 Slice 50: Gitleaks staged-index and reachable-history guards must
 # reject synthetic credentials without exposing them in diagnostics.
@@ -382,6 +423,13 @@ run_tier_suite fast test-ci-run-hygiene-ci-env bash scripts/tests/test_ci_run_hy
 run_tier_suite fast test-agent-lint-shellcheck-version bash scripts/tests/test_agent_lint_shellcheck_version.sh
 run_tier_suite fast test-agent-lint-shellcheck-gate bash scripts/tests/test_agent_lint_shellcheck_gate.sh
 run_tier_suite fast test-install-shellcheck bash scripts/tests/test_install_shellcheck.sh
+
+# 0.8.23 Slice 80.3: bootstrap.sh must create .venv with a real Python >=3.11
+# interpreter (stdlib tomllib, needed by several gates below), not whatever
+# too-old python3 the OS ships (3.10 on Ubuntu 22.04 / every Jetson).
+run_tier_suite fast test-select-python-for-venv bash scripts/tests/test_select_python_for_venv.sh
+run_tier_suite fast test-create-venv-with-selected-python bash scripts/tests/test_create_venv_with_selected_python.sh
+run_tier_suite fast test-dev-environment-tools bash scripts/tests/test_dev_environment_tools.sh
 
 # Shell lint in CI (0.8.21 Slice 35). Pins the `shell-lint` job's ALWAYS-ON shape
 # (no if:/needs:), its minimal setup, that it GATES rather than advises, and the

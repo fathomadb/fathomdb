@@ -456,6 +456,325 @@ fn hf_hub_compat_probe_reads_from_hub_layout() {
     assert_eq!(on_disk, fix.config_bytes);
 }
 
+// ----- R80-14 / AC80-23: HF-hub materialization -----------------------------
+//
+// The Hugging Face hub stores `snapshots/<rev>/<file>` as a **relative**
+// symlink into a sibling `blobs/` directory, and Linux `link(2)` does not
+// dereference symlinks. Hard-linking the snapshot entry into the FathomDB
+// cache therefore linked the *link*, whose `../../blobs/<hash>` then resolved
+// under the FathomDB cache root where no `blobs/` exists — a dangling symlink
+// that `file_matches_sha` reports as "absent" forever, so the cache never
+// self-heals and the load fails `CacheIoError … NotFound`.
+//
+// These fixtures deliberately place the fake hub tree and the cache root under
+// **one** `TempDir`, so both live on one filesystem and `fs::hard_link`
+// actually succeeds. On two filesystems `hard_link` fails `EXDEV`, the
+// `fs::copy` fallback dereferences correctly, and the defect is masked — that
+// asymmetry (read-only bind mount in the containerized preflight) is exactly
+// why CI never caught this.
+
+/// Builds `<hf_home>/hub/models--BAAI--bge-small-en-v1.5/` with `file_name`
+/// staged the way the real hub stages it: bytes in `blobs/<hash>`, and
+/// `snapshots/<rev>/<file_name>` a **relative** symlink `../../blobs/<hash>`.
+/// Returns the snapshot-side symlink path.
+#[cfg(unix)]
+fn stage_hf_hub_file(hf_home: &Path, file_name: &str, blob_name: &str, bytes: &[u8]) -> PathBuf {
+    let repo_dir = hf_home.join("hub").join("models--BAAI--bge-small-en-v1.5");
+    let blobs_dir = repo_dir.join("blobs");
+    let snapshot_dir = repo_dir.join("snapshots").join(HF_REVISION);
+    fs::create_dir_all(&blobs_dir).unwrap();
+    fs::create_dir_all(&snapshot_dir).unwrap();
+
+    let blob_path = blobs_dir.join(blob_name);
+    fs::write(&blob_path, bytes).unwrap();
+
+    let link_path = snapshot_dir.join(file_name);
+    // Relative, exactly as `huggingface_hub` writes it.
+    std::os::unix::fs::symlink(Path::new("../../blobs").join(blob_name), &link_path).unwrap();
+
+    let staged = fs::symlink_metadata(&link_path).unwrap();
+    assert!(staged.file_type().is_symlink(), "fixture must stage a symlink, not a copy");
+    link_path
+}
+
+/// `stage_hf_hub_file` for the `config.json` case the R80-14 arms use.
+#[cfg(unix)]
+fn stage_hf_hub_relative_symlink(hf_home: &Path, blob_name: &str, bytes: &[u8]) -> PathBuf {
+    stage_hf_hub_file(hf_home, "config.json", blob_name, bytes)
+}
+
+/// Device id of `path`, so a test can prove the hub tree and the cache really
+/// do share a filesystem (otherwise `fs::hard_link` never runs and the test
+/// would be a false GREEN).
+#[cfg(unix)]
+fn device_of(path: &Path) -> u64 {
+    use std::os::unix::fs::MetadataExt;
+    fs::metadata(path).unwrap().dev()
+}
+
+#[cfg(unix)]
+#[test]
+fn hf_hub_relative_symlink_materializes_readable_regular_file() {
+    // AC80-23: materializing a pinned asset out of the hub yields a readable
+    // regular file whose sha matches the pin — never a dangling symlink.
+    let fix = Fixture::new();
+    let server = MockServer::start();
+    let tmp = TempDir::new().unwrap();
+
+    let cache = tmp.path().join("cache");
+    fs::create_dir_all(&cache).unwrap();
+    let hf_home = tmp.path().join("hf_home");
+    let hub_link = stage_hf_hub_relative_symlink(&hf_home, &fix.config_sha(), &fix.config_bytes);
+
+    assert_eq!(
+        device_of(&cache),
+        device_of(&hub_link),
+        "fixture invalid: hub tree and cache must share a filesystem or fs::hard_link \
+         never runs and the copy fallback masks the defect"
+    );
+
+    let m_cfg_must_not_hit = server.mock(|when, then| {
+        when.method(GET).path(resolve_path("config.json"));
+        then.status(200).body(&fix.config_bytes);
+    });
+    let m_tok = server.mock(|when, then| {
+        when.method(GET).path(resolve_path("tokenizer.json"));
+        then.status(200).body(&fix.tokenizer_bytes);
+    });
+    let m_mdl = server.mock(|when, then| {
+        when.method(GET).path(resolve_path("model.safetensors"));
+        then.status(200).body(&fix.model_bytes);
+    });
+
+    let cfg = test_config(&server.base_url(), &cache, &fix).with_hf_hub_root(Some(hf_home.clone()));
+    let loaded = load_with_config(cfg).expect("loader ok with hub-probe hit");
+
+    m_cfg_must_not_hit.assert_hits(0);
+    m_tok.assert();
+    m_mdl.assert();
+
+    let dst = &loaded.config_json_path;
+
+    // 1. A readable regular file, NOT a link of any kind.
+    let dst_meta = fs::symlink_metadata(dst).unwrap_or_else(|e| {
+        panic!("materialized {dst:?} is not even stat-able: {e}");
+    });
+    assert!(
+        !dst_meta.file_type().is_symlink(),
+        "materialized {dst:?} is a symlink (-> {:?}); link(2) linked the hub's relative \
+         symlink instead of its target",
+        fs::read_link(dst).ok()
+    );
+    assert!(dst_meta.file_type().is_file(), "materialized {dst:?} is not a regular file");
+
+    // 2. Its bytes read back.
+    let on_disk = fs::read(dst).unwrap_or_else(|e| panic!("materialized {dst:?} unreadable: {e}"));
+    assert_eq!(on_disk, fix.config_bytes);
+
+    // 3. Its sha256 equals the pin.
+    assert_eq!(Fixture::sha_hex(&on_disk), fix.config_sha());
+
+    // The loader recorded the cache hit it is now entitled to.
+    assert!(
+        loaded.events.iter().any(|e| matches!(
+            e,
+            EmbedderEvent::DefaultEmbedderCacheHit { file, .. } if file == "config.json"
+        )),
+        "expected DefaultEmbedderCacheHit for config.json, got {:?}",
+        loaded.events
+    );
+
+    // The hub remains a read-only source: still a symlink, target untouched.
+    let hub_meta = fs::symlink_metadata(&hub_link).unwrap();
+    assert!(hub_meta.file_type().is_symlink(), "hub entry must stay a symlink");
+    assert_eq!(fs::read(&hub_link).unwrap(), fix.config_bytes, "hub source must not be modified");
+}
+
+#[cfg(unix)]
+#[test]
+fn hf_hub_poisoned_cache_entry_self_heals() {
+    // A cache poisoned by the pre-fix loader holds a dangling relative
+    // symlink. `file_matches_sha` reports it absent, so the hub probe runs
+    // again on every load; the entry must be repaired, not re-poisoned.
+    let fix = Fixture::new();
+    let server = MockServer::start();
+    let tmp = TempDir::new().unwrap();
+
+    let cache = tmp.path().join("cache");
+    fs::create_dir_all(&cache).unwrap();
+    let hf_home = tmp.path().join("hf_home");
+    stage_hf_hub_relative_symlink(&hf_home, &fix.config_sha(), &fix.config_bytes);
+
+    let cfg = test_config(&server.base_url(), &cache, &fix).with_hf_hub_root(Some(hf_home.clone()));
+    let cache_dir = cfg.expected_cache_dir();
+    fs::create_dir_all(&cache_dir).unwrap();
+    let poisoned = cache_dir.join("config.json");
+    std::os::unix::fs::symlink(Path::new("../../blobs").join(fix.config_sha()), &poisoned).unwrap();
+    assert!(!poisoned.is_file(), "fixture invalid: poisoned entry must be dangling");
+
+    let m_cfg_must_not_hit = server.mock(|when, then| {
+        when.method(GET).path(resolve_path("config.json"));
+        then.status(200).body(&fix.config_bytes);
+    });
+    let m_tok = server.mock(|when, then| {
+        when.method(GET).path(resolve_path("tokenizer.json"));
+        then.status(200).body(&fix.tokenizer_bytes);
+    });
+    let m_mdl = server.mock(|when, then| {
+        when.method(GET).path(resolve_path("model.safetensors"));
+        then.status(200).body(&fix.model_bytes);
+    });
+
+    let loaded = load_with_config(cfg).expect("loader must repair a poisoned cache entry");
+    m_cfg_must_not_hit.assert_hits(0);
+    m_tok.assert();
+    m_mdl.assert();
+
+    let dst = &loaded.config_json_path;
+    assert!(
+        !fs::symlink_metadata(dst).unwrap().file_type().is_symlink(),
+        "poisoned entry was not repaired: {dst:?} is still a symlink"
+    );
+    assert_eq!(fs::read(dst).unwrap(), fix.config_bytes);
+
+    // The loader never wrote through the dangling link into the cache root.
+    assert!(
+        !cache.join("fathomdb").join("blobs").exists(),
+        "loader must not materialize through the dangling link's target path"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn hf_hub_materialization_failure_leaves_no_cache_hit() {
+    // R80-14 fail-closed arm: when the asset cannot be materialized, the
+    // loader returns a typed error and records NO cache hit — it never
+    // reports success for something it cannot subsequently read, and it
+    // leaves no half-written or dangling destination behind.
+    //
+    // The destination is occupied by a directory, so neither `hard_link`
+    // (EEXIST) nor `fs::copy` (EISDIR) can succeed. This is deterministic and
+    // does not depend on file permissions (which a root test runner ignores).
+    let fix = Fixture::new();
+    let server = MockServer::start();
+    let tmp = TempDir::new().unwrap();
+
+    let cache = tmp.path().join("cache");
+    fs::create_dir_all(&cache).unwrap();
+    let hf_home = tmp.path().join("hf_home");
+    stage_hf_hub_relative_symlink(&hf_home, &fix.config_sha(), &fix.config_bytes);
+
+    let cfg = test_config(&server.base_url(), &cache, &fix).with_hf_hub_root(Some(hf_home.clone()));
+    let cache_dir = cfg.expected_cache_dir();
+    fs::create_dir_all(cache_dir.join("config.json")).unwrap();
+
+    let m_cfg = server.mock(|when, then| {
+        when.method(GET).path(resolve_path("config.json"));
+        then.status(200).body(&fix.config_bytes);
+    });
+
+    let err = load_with_config(cfg).expect_err("materialization failure must fail closed");
+    match &err {
+        EmbedderLoadError::CacheIoError { path, .. } => {
+            assert_eq!(path, &cache_dir.join("config.json"), "error must name the destination");
+        }
+        other => panic!("expected CacheIoError, got {other:?}"),
+    }
+
+    // Fail-closed: no silent network fallback, and nothing left in the cache
+    // dir but the (pre-existing) directory we planted — no `.partial`, no
+    // dangling link.
+    m_cfg.assert_hits(0);
+    for entry in walkdir(&cache_dir) {
+        let name = entry.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
+        assert!(!name.ends_with(".partial"), "left a half-written {entry:?}");
+        assert!(
+            !fs::symlink_metadata(&entry).unwrap().file_type().is_symlink(),
+            "left a dangling link at {entry:?}"
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn concurrent_cold_starts_over_the_hub_all_succeed() {
+    // R80-15 / AC80-24 end-to-end: the hub probe runs at step 2 of the loader
+    // loop, OUTSIDE the `<cache_dir>/.lock` that step 3 takes, so concurrent
+    // cold starts publish to the same final paths simultaneously. Before the
+    // atomic-publish fix, the second racer's `fs::copy` (reached via EEXIST)
+    // truncated the entry the first racer was hashing, so the first failed
+    // verification on data that was never wrong AND deleted the entry the
+    // second was writing — both processes failing over a byte-identical,
+    // pin-addressed asset.
+    //
+    // The model fixture is deliberately large (8 MiB) to widen the
+    // truncate-vs-hash window; with an 8 KiB file the race is real but rarely
+    // observed within a single run.
+    const LOADERS: usize = 8;
+    let big_model: Vec<u8> = (0u32..2_097_152).flat_map(|n| n.to_le_bytes()).collect();
+    let fix = Fixture { model_bytes: big_model, ..Fixture::new() };
+
+    let tmp = TempDir::new().unwrap();
+    let cache = tmp.path().join("cache");
+    fs::create_dir_all(&cache).unwrap();
+    let hf_home = tmp.path().join("hf_home");
+
+    // All three pinned files come from the hub, so no thread needs the
+    // network and every thread takes the materialization path.
+    stage_hf_hub_file(&hf_home, "config.json", &fix.config_sha(), &fix.config_bytes);
+    stage_hf_hub_file(&hf_home, "tokenizer.json", &fix.tokenizer_sha(), &fix.tokenizer_bytes);
+    stage_hf_hub_file(&hf_home, "model.safetensors", &fix.model_sha(), &fix.model_bytes);
+
+    // Unreachable base URL: any thread that falls through to the network
+    // fails loudly instead of quietly papering over a materialization bug.
+    let cfg = LoaderConfig::for_tests()
+        .with_base_url("http://127.0.0.1:1".to_string())
+        .with_cache_root(cache.clone())
+        .with_test_pins(fix.config_sha(), fix.tokenizer_sha(), fix.model_sha())
+        .with_hf_hub_root(Some(hf_home.clone()));
+
+    let barrier = Arc::new(std::sync::Barrier::new(LOADERS));
+    let handles: Vec<_> = (0..LOADERS)
+        .map(|_| {
+            let cfg = cfg.clone();
+            let barrier = Arc::clone(&barrier);
+            thread::spawn(move || {
+                barrier.wait();
+                load_with_config(cfg)
+            })
+        })
+        .collect();
+
+    let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+    let failures: Vec<String> =
+        results.iter().filter_map(|r| r.as_ref().err().map(|e| format!("{e:?}"))).collect();
+    assert!(
+        failures.is_empty(),
+        "{}/{LOADERS} concurrent cold starts failed over pin-addressed content: {failures:#?}",
+        failures.len()
+    );
+
+    // Every loader saw complete, pin-matching content.
+    for loaded in results.into_iter().map(|r| r.unwrap()) {
+        assert_eq!(fs::read(&loaded.config_json_path).unwrap(), fix.config_bytes);
+        assert_eq!(fs::read(&loaded.tokenizer_json_path).unwrap(), fix.tokenizer_bytes);
+        assert_eq!(
+            Fixture::sha_hex(&fs::read(&loaded.model_safetensors_path).unwrap()),
+            fix.model_sha()
+        );
+        assert_eq!(loaded.bytes_downloaded, 0, "nothing may be downloaded; the hub had everything");
+    }
+
+    // No temporaries survive the storm — only the three published entries.
+    let mut leftovers: Vec<String> = fs::read_dir(cfg.expected_cache_dir())
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|n| !matches!(n.as_str(), "config.json" | "tokenizer.json" | "model.safetensors"))
+        .collect();
+    leftovers.sort();
+    assert!(leftovers.is_empty(), "temporaries left behind: {leftovers:?}");
+}
+
 /// Serializes tests that mutate the process env so set/restore cycles
 /// don't race with each other.
 static ENV_GUARD: std::sync::Mutex<()> = std::sync::Mutex::new(());

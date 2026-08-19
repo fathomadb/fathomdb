@@ -11,6 +11,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FIXTURE="$SCRIPT_DIR/../fixtures/pip-skew"
+# shellcheck source=../../../scripts/lib/agent-python-env.sh
+. "$SCRIPT_DIR/../../../scripts/lib/agent-python-env.sh"
 
 if ! command -v python3 >/dev/null 2>&1; then
   echo "skip: python3 not on PATH" >&2
@@ -48,8 +50,25 @@ for pkg in api-v1 api-v2 probe-a probe-b; do
     --wheel-dir "$WHEELS" "$SRC/$pkg" >/dev/null
 done
 
+# 0.8.23 Slice 80.3: `--dry-run` needs pip >=22.2. The venv above deliberately
+# keeps the OLD system-bundled pip (its ensurepip-vendored version, e.g. 22.0.2
+# on Ubuntu 22.04/every Jetson) to inherit system-site-packages setuptools/wheel
+# for the offline wheel BUILD step above — upgrading pip in that venv would
+# need network access, breaking this test's whole offline invariant. The
+# RESOLVE step below needs no setuptools/wheel (it installs already-built
+# wheel files, it builds nothing), so it can use a different, modern
+# interpreter's pip instead — no new venv needed, `--dry-run` never installs.
+RESOLVE_PYTHON="$(select_python_for_venv)" || {
+  echo "skip: no Python 3.11+ available to run the modern pip --dry-run check (system pip is too old for --dry-run)" >&2
+  exit 0
+}
+if ! "$RESOLVE_PYTHON" -m pip --version >/dev/null 2>&1; then
+  echo "skip: $RESOLVE_PYTHON has no importable pip module (ensurepip never ran there)" >&2
+  exit 0
+fi
+
 # Resolve both probes against the local index only. Expect failure.
-if out="$("$PIP" install --dry-run --no-index \
+if out="$("$RESOLVE_PYTHON" -m pip install --dry-run --no-index \
   --find-links "$WHEELS" \
   mock-fathomdb==0.6.0 mock-fathomdb-embedder==0.6.0 2>&1)"; then
   printf 'FAIL: pip resolved unexpectedly; expected conflict\n%s\n' "$out" >&2

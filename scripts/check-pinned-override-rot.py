@@ -17,6 +17,27 @@ class Unverified(Exception):
     """The checked-in evidence cannot support a trustworthy verdict."""
 
 
+def _import_tomllib(context: str):
+    """Import a TOML parser, preferring stdlib tomllib (3.11+) with a tomli
+    fallback for older interpreters (0.8.23 Slice 80.3 — Ubuntu 22.04 and
+    every Jetson ship Python 3.10). Raises Unverified, never silently
+    degrading, when neither is available."""
+    try:
+        import tomllib
+
+        return tomllib
+    except ImportError:
+        pass
+    try:
+        import tomli
+
+        return tomli
+    except ImportError as exc:
+        raise Unverified(
+            f"python3.11+ tomllib (or a tomli fallback) is required to {context}"
+        ) from exc
+
+
 VERSION = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 PRERELEASE_VERSION = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-[0-9A-Za-z.-]+$")
 COMPARATOR = re.compile(r"^(<=|>=|<|>|=)?\s*(\d+\.\d+\.\d+)$")
@@ -274,10 +295,7 @@ def advisory_index(advisories: list[dict[str, Any]]) -> dict[str, list[dict[str,
 
 def cargo_config_failures(root: Path) -> list[str]:
     """Reject repository Cargo config patches without claiming to model their keys."""
-    try:
-        import tomllib
-    except ImportError as exc:  # pragma: no cover - supported CI Python has it
-        raise Unverified("python3.11+ tomllib is required to inspect Cargo config") from exc
+    tomllib = _import_tomllib("inspect Cargo config")
     failures: list[str] = []
     for relative in (Path(".cargo/config.toml"), Path(".cargo/config")):
         path = root / relative
@@ -295,10 +313,7 @@ def cargo_config_failures(root: Path) -> list[str]:
 
 def cargo_governed_pins(root: Path) -> list[dict[str, str | None]]:
     """Identify every Cargo override source so unsupported forms cannot hide."""
-    try:
-        import tomllib
-    except ImportError as exc:  # pragma: no cover - supported CI Python has it
-        raise Unverified("python3.11+ tomllib is required to inspect Cargo override scope") from exc
+    tomllib = _import_tomllib("inspect Cargo override scope")
     found: list[dict[str, str | None]] = []
     for manifest in sorted(root.glob("**/Cargo.toml")):
         if any(part in {"target", ".git"} for part in manifest.parts):
@@ -367,10 +382,7 @@ def cargo_pin_label(pin: dict[str, str | None]) -> str:
 
 def cargo_lock_sources(lockfile_path: Path) -> dict[tuple[str, str], set[str]]:
     """Read Cargo's checked-in package-source provenance without resolving."""
-    try:
-        import tomllib
-    except ImportError as exc:  # pragma: no cover - supported CI Python has it
-        raise Unverified("python3.11+ tomllib is required to inspect Cargo.lock") from exc
+    tomllib = _import_tomllib("inspect Cargo.lock")
     try:
         parsed = tomllib.loads(lockfile_path.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError) as exc:

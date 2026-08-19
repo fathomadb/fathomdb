@@ -76,7 +76,6 @@ assert_matrix_runner_route() {
   fi
 }
 
-five_python_rows=$'ubuntu-latest|x86_64-unknown-linux-gnu\nubuntu-24.04-arm|aarch64-unknown-linux-gnu\nmacos-15-intel|x86_64-apple-darwin\nmacos-14|aarch64-apple-darwin\nwindows-latest|x86_64-pc-windows-msvc'
 release_python_rows=$'ubuntu-24.04-arm|aarch64-unknown-linux-gnu\nmacos-15-intel|x86_64-apple-darwin\nmacos-14|aarch64-apple-darwin\nwindows-latest|x86_64-pc-windows-msvc'
 ci_wheel_rows=$'ubuntu-latest|x86_64-unknown-linux-gnu|linux-x64\nubuntu-24.04-arm|aarch64-unknown-linux-gnu|linux-arm64\nmacos-15-intel|x86_64-apple-darwin|darwin-x64\nmacos-14|aarch64-apple-darwin|darwin-arm64\nwindows-latest|x86_64-pc-windows-msvc|win32-x64'
 release_napi_rows=$'ubuntu-24.04-arm|aarch64-unknown-linux-gnu|linux-arm64-gnu\nmacos-15-intel|x86_64-apple-darwin|darwin-x64\nmacos-14|aarch64-apple-darwin|darwin-arm64\nwindows-latest|x86_64-pc-windows-msvc|win32-x64-msvc'

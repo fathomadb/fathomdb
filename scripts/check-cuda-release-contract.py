@@ -48,11 +48,13 @@ PACKAGE_REHEARSAL_SCHEMA = ROOT / "scripts/release/cuda-package-rehearsal.schema
 PACKAGE_REHEARSAL_VERIFIER = ROOT / "scripts/release/verify-cuda-package-rehearsal.py"
 PACKAGE_REHEARSAL_HELPER = ROOT / "scripts/release/cuda-package-rehearsal.sh"
 PACKAGE_REHEARSAL_SMOKE = ROOT / "scripts/release/cuda-package-rehearsal-smoke.sh"
+CUDA_GPU_SELECTION = ROOT / "scripts/lib/cuda-gpu-selection.sh"
 
 NAPI_CUDA_FEATURE = ["default-embedder", "fathomdb-engine/embed-cuda"]
 NAPI_CUDA_BUILD = "bash ../../scripts/release/build-napi-cuda.sh"
 PYTHON_CUDA_FEATURES = "pyo3/extension-module,embed-cuda"
 RUNNER_LABELS = ("self-hosted", "Linux", "X64", "gpu", "cuda-12")
+CUDA_GPU_UUID_ENV = "env:\n      FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}"
 CUDA_MANYLINUX_BASE_IMAGE = (
     "quay.io/pypa/manylinux_2_28_x86_64@sha256:"
     "aba9efd7dec389abd76506219e461014015b1c1cb95f2a36f27946128910dd07"
@@ -325,7 +327,9 @@ def require_cuda_package_rehearsal() -> None:
         'dst=/fathomdb-hf,readonly',
         'test ! -e /dev/nvidiactl',
         "--gpus ",
-        "device=0",
+        "FATHOMDB_CUDA_GPU_UUID",
+        'CUDA_GPU_DOCKER_SELECTOR="device=$CUDA_GPU_UUID"',
+        '--gpus "$CUDA_GPU_DOCKER_SELECTOR"',
         '--query-compute-apps=pid',
         'source_imported',
         'gpu_uuid',
@@ -335,6 +339,8 @@ def require_cuda_package_rehearsal() -> None:
         'doctor gpu --json',
     ):
         require_fragment(smoke, fragment, "CUDA package rehearsal installed-artifact smoke")
+    if "device=0" in smoke:
+        fail("CUDA package rehearsal must not pin evidence to mutable host index zero")
     for forbidden in (
         "--network host", "npm publish", "twine upload", "git tag", "CARGO_REGISTRY_TOKEN",
         "src=$PWD", "dst=/source", "src=$REPO_ROOT",
@@ -355,6 +361,7 @@ def require_cuda_package_rehearsal() -> None:
         "cuda-package-rehearsal",
     )
     require_fragment(job, "runs-on: [self-hosted, Linux, X64, gpu, cuda-12]", "cuda-package-rehearsal")
+    require_fragment(job, CUDA_GPU_UUID_ENV, "cuda-package-rehearsal GPU UUID binding")
     if not re.search(r"^    environment: cuda-unmerged-preflight$", job, re.MULTILINE):
         fail("cuda-package-rehearsal must use the exact direct protected environment scalar")
     if not re.search(r"^    permissions:\n      contents: read\n", job, re.MULTILINE):
@@ -778,6 +785,13 @@ def main() -> None:
             "Slice 80.6 builds and proves the Tegra artifact but publishes nothing (D-80.6-1)",
         )
     preflight = read_text(CUDA_PREFLIGHT)
+    selection = read_text(CUDA_GPU_SELECTION)
+    for fragment in (
+        "FATHOMDB_CUDA_GPU_UUID must be a canonical GPU UUID",
+        "requested GPU UUID must resolve exactly once on this host",
+        "nvidia-smi --query-gpu=index,uuid --format=csv,noheader",
+    ):
+        require_fragment(selection, fragment, "CUDA GPU UUID selection")
     witness_schema = load_json(CUDA_PREFLIGHT_WITNESS_SCHEMA)
     if witness_schema.get("$id") != "https://fathomdb.dev/schemas/cuda-preflight-witness/v2":
         fail("CUDA preflight witness schema must declare its versioned schema ID")
@@ -883,10 +897,17 @@ def main() -> None:
         "cuda-preflight-witness.json",
         'python3 "$SCRIPT_DIR/verify-cuda-preflight-witness.py"',
         '--candidate-sha "$CANDIDATE_SHA"',
+        "FATHOMDB_CUDA_GPU_UUID",
+        'CUDA_GPU_DOCKER_SELECTOR="device=$CUDA_GPU_UUID"',
+        '--gpus "$CUDA_GPU_DOCKER_SELECTOR"',
+        "requested_host_gpu_uuid",
+        "resolved_host_gpu_index",
     ):
         require_fragment(preflight, fragment, "CUDA preflight")
     if preflight.count("FATHOMDB_GPU_ALLOCATION_WITNESS=1") != 2:
         fail("CUDA preflight must request one in-process allocation witness for each GPU consumer")
+    if "device=0" in preflight:
+        fail("CUDA preflight must not pin evidence to mutable host index zero")
     for forbidden in (
         '--mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT,dst=/opt/cuda,readonly"',
         '--mount "type=bind,src=$CUDA_TOOLKIT_ROOT,dst=/opt/cuda,readonly"',
@@ -979,6 +1000,7 @@ def main() -> None:
     ):
         fail("cuda-contract-preflight must be dry-run-only at job scope")
     require_fragment(job, "runs-on: [self-hosted, Linux, X64, gpu, cuda-12]", "cuda-contract-preflight")
+    require_fragment(job, CUDA_GPU_UUID_ENV, "cuda-contract-preflight GPU UUID binding")
     for label in RUNNER_LABELS:
         require_fragment(job, label, "cuda-contract-preflight runner labels")
     require_fragment(
@@ -1039,6 +1061,13 @@ def main() -> None:
         fail("ordinary cross-platform build-napi must stay CPU-only; CUDA belongs to the restricted preflight")
 
     require_cuda_package_rehearsal()
+
+    reranker_job = workflow_job("cuda-reranker-package-rehearsal")
+    require_fragment(
+        reranker_job,
+        CUDA_GPU_UUID_ENV,
+        "cuda-reranker-package-rehearsal GPU UUID binding",
+    )
 
     print("cuda-release-contract: pass")
 

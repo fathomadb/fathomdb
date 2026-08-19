@@ -25,6 +25,8 @@ CONTAINER_USER="$CONTAINER_UID:$CONTAINER_GID"
 . "$SCRIPT_DIR/cuda-image-attestation.sh"
 # shellcheck source=../lib/cuda-candidate-sha.sh
 . "$SCRIPT_DIR/../lib/cuda-candidate-sha.sh"
+# shellcheck source=../lib/cuda-gpu-selection.sh
+. "$SCRIPT_DIR/../lib/cuda-gpu-selection.sh"
 if [ "$RERANK_CUDA" = true ]; then
   CUDA_NAPI_FEATURES="$CUDA_RERANK_NAPI_FEATURES"
   CUDA_PYTHON_FEATURES="$CUDA_RERANK_PYTHON_FEATURES"
@@ -34,6 +36,10 @@ fi
 # before any Docker/model-cache preflight work, and so repository_commit=
 # below and the witness's candidate_sha agree on one resolution.
 resolve_cuda_candidate_sha "$REPO_ROOT"
+: "${FATHOMDB_CUDA_GPU_UUID:?cuda-preflight: FATHOMDB_CUDA_GPU_UUID is required}"
+CUDA_GPU_UUID="$FATHOMDB_CUDA_GPU_UUID"
+resolve_cuda_gpu_index "$CUDA_GPU_UUID"
+CUDA_GPU_DOCKER_SELECTOR="device=$CUDA_GPU_UUID"
 DEFAULT_EMBEDDER_HF_HOME="${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}"
 DEFAULT_EMBEDDER_SNAPSHOT="$DEFAULT_EMBEDDER_HF_HOME/hub/models--${CUDA_DEFAULT_EMBEDDER_HF_REPO//\//--}/snapshots/$CUDA_DEFAULT_EMBEDDER_HF_REVISION"
 DEFAULT_RERANKER_CACHE_ROOT="${FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}}"
@@ -109,6 +115,8 @@ mkdir -p "$WORK_DIR/python-dist" "$WORK_DIR/python-unpacked" "$WORK_DIR/cache" "
 {
   printf 'generated_at_utc='; date --utc --iso-8601=seconds
   printf 'repository_commit=%s\n' "$CANDIDATE_SHA"
+  printf 'requested_host_gpu_uuid=%s\n' "$CUDA_GPU_UUID"
+  printf 'resolved_host_gpu_index=%s\n' "$CUDA_GPU_INDEX"
   printf 'target=x86_64-unknown-linux-gnu\n'
   printf 'napi_host_cuda_toolkit_root=%s\n' "$CUDA_NAPI_HOST_TOOLKIT_ROOT"
   printf 'napi_host_nvcc_version=%s\n' "$CUDA_NAPI_HOST_NVCC_VERSION"
@@ -506,10 +514,14 @@ seal_gpu_observation() {
       exit 1
     }
     host_pid="$(docker inspect --format '{{.State.Pid}}' "$container")"
-    compute_line="$(nvidia-smi --id=0 --query-compute-apps=pid,process_name --format=csv,noheader | awk -F ', ' -v pid="$host_pid" '$1 == pid {print; exit}')"
+    compute_line="$(nvidia-smi --id="$CUDA_GPU_INDEX" --query-compute-apps=pid,process_name --format=csv,noheader | awk -F ', ' -v pid="$host_pid" '$1 == pid {print; exit}')"
     if [ -n "$compute_line" ] && [ -s "$report" ]; then
       process_name="${compute_line#*, }"
-      host_uuid="$(nvidia-smi --id=0 --query-gpu=uuid --format=csv,noheader)"
+      host_uuid="$(nvidia-smi --id="$CUDA_GPU_INDEX" --query-gpu=uuid --format=csv,noheader)"
+      [ "$host_uuid" = "$CUDA_GPU_UUID" ] || {
+        printf 'cuda-preflight: observed GPU UUID differs from the requested host UUID\n' >&2
+        exit 1
+      }
       python3 - "$report" "$WORK_DIR/gpu-$consumer-cuda-witness.json" "$host_uuid" "$host_pid" "$process_name" <<'PY'
 import json
 import sys
@@ -543,7 +555,7 @@ PY
 }
 
 printf 'cuda-preflight: prove the installed Python wheel uses cuda:0\n'
-PYTHON_GPU_CONTAINER="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
+PYTHON_GPU_CONTAINER="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
   --mount "type=bind,src=$WHEEL,dst=/input/fathomdb.whl,readonly" \
   --mount "type=bind,src=$WORK_DIR/gpu-python-smoke.py,dst=/input/gpu-python-smoke.py,readonly" \
   --mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly" \
@@ -558,7 +570,7 @@ PYTHON_GPU_CONTAINER="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
 seal_gpu_observation "$PYTHON_GPU_CONTAINER" python "$WORK_DIR/gpu-python-open-report.json" "$WORK_DIR/gpu-python-cuda-smoke.txt"
 
 printf 'cuda-preflight: prove the installed N-API package uses cuda:0\n'
-NAPI_GPU_CONTAINER="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
+NAPI_GPU_CONTAINER="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
   --mount "type=bind,src=$NPM_MAIN/$NPM_MAIN_TARBALL,dst=/input/fathomdb.tgz,readonly" \
   --mount "type=bind,src=$NPM_PLATFORM/$NPM_PLATFORM_TARBALL,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
   --mount "type=bind,src=$WORK_DIR/gpu-napi-smoke.mjs,dst=/input/gpu-napi-smoke.mjs,readonly" \

@@ -122,7 +122,10 @@ export CUDA_RUSTUP_INIT_SHA256='4acc9acc76d5079515b46346a485974457b5a79893cfb011
 # Separate minimal images keep the CPU fallback proof honest: neither image
 # receives a GPU device and both execute with `--network none`.
 export CUDA_DRIVERLESS_PYTHON_IMAGE='python:3.11-slim'
-export CUDA_DRIVERLESS_NODE_IMAGE='node:25-bookworm-slim'
+# The host-native N-API binary is built on the restricted Ubuntu 24.04 runner
+# (glibc 2.39). The isolated Node smoke must therefore provide a compatible
+# newer glibc while still receiving no GPU and no network.
+export CUDA_DRIVERLESS_NODE_IMAGE='node:25-trixie-slim'
 export CUDA_DEFAULT_EMBEDDER_HF_REPO='BAAI/bge-small-en-v1.5'
 export CUDA_DEFAULT_EMBEDDER_HF_REVISION='5c38ec7c405ec4b44b94cc5a9bb96e735b38267a'
 export CUDA_DEFAULT_EMBEDDER_CONFIG_SHA256='094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750'

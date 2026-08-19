@@ -1,11 +1,11 @@
-"""AC80-25 / D-80.6-3 — refuse to run with two FathomDB distributions installed.
+"""AC80-25 / D-80.6-3 — refuse a locally hand-built sibling distribution.
 
-FathomDB publishes more than one *distribution* that ships the same top-level
-``fathomdb`` **import package** (``src/python/pyproject.toml`` pins
-``module-name = "fathomdb._fathomdb"`` and ``python-source = "."``).  The
-Tegra artifact is one such distribution: a distinct distribution name so a
-Jetson user installs one obvious thing, but the same import package so user
-code is unchanged.
+The shipped Tegra build keeps the plain ``fathomdb`` distribution name and uses
+a ``+tegra`` local version, so it is not a second distribution. This guard
+retains the only remaining collision case: a locally hand-built sibling that
+ships the same top-level ``fathomdb`` **import package**
+(``src/python/pyproject.toml`` pins ``module-name = "fathomdb._fathomdb"`` and
+``python-source = "."``).
 
 Two distributions providing one import package are **not co-installable**.
 pip does not detect the overlap; the second install simply overwrites the
@@ -33,7 +33,7 @@ import sys
 #: The top-level import package every FathomDB distribution ships.
 IMPORT_PACKAGE = "fathomdb"
 
-#: Every distribution name FathomDB publishes that ships ``IMPORT_PACKAGE``.
+#: Known distribution names that may ship ``IMPORT_PACKAGE``.
 #:
 #: A declared list, not a scan of every installed distribution's file manifest.
 #: A file-manifest scan is both slower and *less* accurate here: an editable

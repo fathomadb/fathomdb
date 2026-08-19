@@ -83,7 +83,12 @@ for job_name, job in wf["jobs"].items():
         if not isinstance(step, dict) or not str(step.get("uses", "")).startswith("actions/checkout@"):
             continue
         checkouts.append((job_name, step.get("with", {}).get("ref"), step.get("with", {})))
-control_jobs = {"verify-cuda-trusted-route", "cuda-contract-preflight", "cuda-package-rehearsal"}
+control_jobs = {
+    "verify-cuda-trusted-route",
+    "cuda-contract-preflight",
+    "cuda-package-rehearsal",
+    "cuda-reranker-package-rehearsal",
+}
 control = [entry for entry in checkouts if entry[1] == "${{ github.workflow_sha }}"]
 ordinary = [entry for entry in checkouts if entry[1] == "${{ env.RELEASE_CHECKOUT_REF }}"]
 ok = (
@@ -93,11 +98,15 @@ ok = (
     and env.get("RELEASE_GATES_CANDIDATE_COMMIT") == "${{ inputs.candidate_commit || '' }}"
     and checkouts
     and len(checkouts) == len(ordinary) + len(control)
-    and len(control) == 3
+    and len(control) == 4
     and {job for job, _, _ in control} == control_jobs
     and all(with_.get("persist-credentials") is False for _, _, with_ in control)
     and all(
-        job not in {"cuda-contract-preflight", "cuda-package-rehearsal"} or with_.get("path") == "control-plane"
+        job not in {
+            "cuda-contract-preflight",
+            "cuda-package-rehearsal",
+            "cuda-reranker-package-rehearsal",
+        } or with_.get("path") == "control-plane"
         for job, _, with_ in control
     )
 )
@@ -105,7 +114,7 @@ print("CANDIDATE", ok, len(checkouts), len(control))
 PY
 )"
 if printf '%s\n' "$candidate_out" | grep -q '^CANDIDATE True'; then
-  pass "dry-run dispatch allows only the three reviewed main-owned control-plane checkout exceptions"
+  pass "dry-run dispatch allows only the four reviewed main-owned control-plane checkout exceptions"
 else
   fail "release checkout may escape the candidate/tag ref only through the reviewed main-owned control plane: $candidate_out"
 fi

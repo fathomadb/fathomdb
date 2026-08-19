@@ -1,0 +1,241 @@
+name: Jetson Tegra CUDA evidence
+
+# Slice 80's real-hardware evidence route. It is deliberately independent of
+# release.yml: it builds and validates a host-native, nonpublishable Tegra
+# wheel on the dedicated Jetson runner and retains the resulting evidence.
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: "Exact lowercase 40-hex commit to validate (must equal the dispatched workflow commit)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# One integrated GPU cannot give attributable allocation evidence to concurrent
+# runs. Never cancel a run that may be holding witness control allocations.
+concurrency:
+  group: ${{ format('jetson-tegra-cuda-evidence-{0}', github.repository) }}
+  cancel-in-progress: false
+
+jobs:
+  validate-candidate:
+    name: Validate immutable evidence candidate
+    if: github.ref == 'refs/heads/release/0.8.23'
+    runs-on: [self-hosted, Linux, ARM64, jetson, aarch64]
+    timeout-minutes: 5
+    outputs:
+      candidate_sha: ${{ steps.candidate.outputs.candidate_sha }}
+    steps:
+      - id: candidate
+        name: Require the dispatch commit as the candidate
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          if ! [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            printf 'candidate SHA must be exactly 40 lowercase hexadecimal characters\n' >&2
+            exit 1
+          fi
+          if [ "$CANDIDATE_SHA" != "$GITHUB_SHA" ]; then
+            printf 'candidate SHA must equal the dispatched workflow commit\n' >&2
+            exit 1
+          fi
+          printf 'candidate_sha=%s\n' "$CANDIDATE_SHA" >> "$GITHUB_OUTPUT"
+
+  tegra-cuda-evidence:
+    name: Build and witness the Tegra CUDA wheel
+    needs: validate-candidate
+    if: github.ref == 'refs/heads/release/0.8.23'
+    runs-on: [self-hosted, Linux, ARM64, jetson, aarch64]
+    timeout-minutes: 90
+    env:
+      CANDIDATE_SHA: ${{ needs.validate-candidate.outputs.candidate_sha }}
+    steps:
+      - name: Allocate retained evidence directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE_DIR="$RUNNER_TEMP/fathomdb-jetson-tegra-evidence-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          BUILD_VENV="$RUNNER_TEMP/fathomdb-jetson-build-venv-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir -p "$EVIDENCE_DIR"
+          printf 'EVIDENCE_DIR=%s\n' "$EVIDENCE_DIR" >> "$GITHUB_ENV"
+          printf 'BUILD_VENV=%s\n' "$BUILD_VENV" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Retain checked-out source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          [ "$actual_sha" = "$CANDIDATE_SHA" ] || {
+            printf 'checkout identity mismatch: expected %s, got %s\n' "$CANDIDATE_SHA" "$actual_sha" >&2
+            exit 1
+          }
+          checkout_status="$(git status --porcelain=v1)"
+          if [ -n "$checkout_status" ]; then
+            printf '%s\n' "$checkout_status" > "$EVIDENCE_DIR/checkout-status.txt"
+            printf 'checkout must be clean after checkout; found:\n%s\n' "$checkout_status" >&2
+            exit 1
+          fi
+          printf 'clean\n' > "$EVIDENCE_DIR/checkout-status.txt"
+          printf 'candidate_sha=%s\ncheckout_sha=%s\nworkflow_ref=%s\nworkflow_sha=%s\n' \
+            "$CANDIDATE_SHA" "$actual_sha" "$GITHUB_WORKFLOW_REF" "$GITHUB_WORKFLOW_SHA" \
+            > "$EVIDENCE_DIR/source-identity.txt"
+
+      - name: Fail closed unless this is a classic Tegra CUDA host
+        shell: bash
+        run: |
+          set -euo pipefail
+          [ "$(uname -s)" = Linux ] || { printf 'expected Linux runner\n' >&2; exit 1; }
+          [ "$(uname -m)" = aarch64 ] || { printf 'expected aarch64 runner\n' >&2; exit 1; }
+          if ! grep -aq 'nvidia,tegra' /proc/device-tree/compatible \
+            && [ ! -e /etc/nv_tegra_release ]; then
+            printf 'Tegra-family signal is absent\n' >&2
+            exit 1
+          fi
+          NVIDIA_SMI=''
+          for candidate in /usr/bin/nvidia-smi /usr/sbin/nvidia-smi /usr/local/bin/nvidia-smi; do
+            if [ -x "$candidate" ]; then
+              NVIDIA_SMI="$candidate"
+              break
+            fi
+          done
+          [ -n "$NVIDIA_SMI" ] || { printf 'no approved absolute nvidia-smi candidate is executable\n' >&2; exit 1; }
+          gpu_name="$(timeout 2s "$NVIDIA_SMI" --query-gpu=name --format=csv,noheader)"
+          case "$gpu_name" in
+            *nvgpu*) ;;
+            *) printf 'host is not a confirmed classic Tegra CUDA device: %s\n' "$gpu_name" >&2; exit 1 ;;
+          esac
+          {
+            printf 'uname='
+            uname -srm
+            printf 'nvidia_smi=%s\n' "$NVIDIA_SMI"
+            "$NVIDIA_SMI" --query-gpu=uuid,name,driver_version --format=csv,noheader
+            cat /etc/nv_tegra_release 2>/dev/null || true
+          } > "$EVIDENCE_DIR/host-preflight.txt"
+
+      - name: Assert the measured Tegra build contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m venv "$BUILD_VENV"
+          "$BUILD_VENV/bin/python" -m pip install --disable-pip-version-check --upgrade pip 'maturin==1.14.1'
+          PATH="$BUILD_VENV/bin:$PATH" \
+            bash scripts/release/build-python-cuda-tegra.sh --assert-only \
+            2>&1 | tee "$EVIDENCE_DIR/build-contract.log"
+
+      - name: Build the nonpublishing Tegra CUDA wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          PATH="$BUILD_VENV/bin:$PATH" \
+            bash scripts/release/build-python-cuda-tegra.sh \
+              --out "$EVIDENCE_DIR/wheel" \
+              --interpreter python \
+            2>&1 | tee "$EVIDENCE_DIR/build-wheel.log"
+          mapfile -t wheels < <(find "$EVIDENCE_DIR/wheel" -maxdepth 1 -type f -name 'fathomdb-*-aarch64.whl' -print)
+          [ "${#wheels[@]}" -eq 1 ] || {
+            printf 'expected exactly one Tegra wheel, found %s\n' "${#wheels[@]}" >&2
+            exit 1
+          }
+          sha256sum "${wheels[0]}" > "$EVIDENCE_DIR/wheel.sha256"
+
+      - name: Smoke all three policies from the installed wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t wheels < <(find "$EVIDENCE_DIR/wheel" -maxdepth 1 -type f -name 'fathomdb-*-aarch64.whl' -print)
+          [ "${#wheels[@]}" -eq 1 ] || { printf 'installed-wheel smoke has no unique wheel\n' >&2; exit 1; }
+          runtime_venv="$RUNNER_TEMP/fathomdb-jetson-runtime-venv-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          python3 -m venv "$runtime_venv"
+          runtime_python="$runtime_venv/bin/python"
+          "$runtime_python" -m pip install --no-index --no-deps "${wheels[0]}"
+          cache_root="${FATHOMDB_TEGRA_HF_HOME:-$HOME/.cache/huggingface}"
+          [ -d "$cache_root" ] || { printf 'offline model cache is absent: %s\n' "$cache_root" >&2; exit 1; }
+          smoke_root="$RUNNER_TEMP/fathomdb-jetson-wheel-smoke-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          mkdir -p "$smoke_root"
+          export EVIDENCE_DIR
+          cd "$smoke_root"
+          run_smoke() {
+            local mode="$1"
+            "$runtime_python" - "$mode" <<'PY'
+          import json
+          import os
+          import sys
+          from dataclasses import asdict
+          from pathlib import Path
+
+          from fathomdb import Engine
+
+          mode = sys.argv[1]
+          evidence = Path(os.environ["EVIDENCE_DIR"])
+          engine = Engine.open(str(evidence / f"{mode}.sqlite"), use_default_embedder=True)
+          try:
+              report = engine.open_report()
+              resolution = report.embedder_device_resolution
+              if resolution is None:
+                  raise SystemExit(f"{mode}: default embedder reported no device resolution")
+              observed = {
+                  "requested_policy": resolution.requested_policy,
+                  "effective_device": resolution.effective_device.kind,
+                  "selected_cuda_uuid": resolution.selected_cuda_uuid,
+                  "reason": resolution.reason,
+                  "witness_present": report.embedder_gpu_allocation_witness is not None,
+              }
+              if mode == "cpu":
+                  if resolution.effective_device.kind != "cpu" or report.embedder_gpu_allocation_witness is not None:
+                      raise SystemExit(f"cpu policy did not remain an unwitnessed CPU path: {observed}")
+              elif mode == "auto":
+                  if resolution.effective_device.kind != "cuda" or report.embedder_gpu_allocation_witness is not None:
+                      raise SystemExit(f"auto policy did not select CUDA without a witness request: {observed}")
+              elif mode == "cuda":
+                  witness = report.embedder_gpu_allocation_witness
+                  if resolution.effective_device.kind != "cuda" or witness is None:
+                      raise SystemExit(f"forced CUDA policy did not produce an in-process witness: {observed}")
+                  (evidence / "tegra-gpu-allocation-witness.json").write_text(
+                      json.dumps(asdict(witness), ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n",
+                      encoding="ascii",
+                  )
+              else:
+                  raise SystemExit(f"unknown smoke mode: {mode}")
+              (evidence / f"{mode}-open-report.json").write_text(
+                  json.dumps(observed, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n",
+                  encoding="ascii",
+              )
+          finally:
+              engine.close()
+          PY
+          }
+          unset PYTHONPATH FATHOMDB_GPU_ALLOCATION_WITNESS
+          export HF_HOME="$cache_root" HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
+          FATHOMDB_EMBED_DEVICE=cpu run_smoke cpu 2>&1 | tee "$EVIDENCE_DIR/cpu-smoke.log"
+          FATHOMDB_EMBED_DEVICE=auto run_smoke auto 2>&1 | tee "$EVIDENCE_DIR/auto-smoke.log"
+          FATHOMDB_EMBED_DEVICE=cuda:0 FATHOMDB_GPU_ALLOCATION_WITNESS=1 \
+            run_smoke cuda 2>&1 | tee "$EVIDENCE_DIR/cuda-smoke.log"
+
+      - name: Validate and retain the in-process CUDA witness
+        shell: bash
+        run: |
+          set -euo pipefail
+          PATH="/usr/sbin:$PATH" python3 scripts/release/verify-tegra-gpu-witness.py \
+            --witness "$EVIDENCE_DIR/tegra-gpu-allocation-witness.json" \
+            --nvidia-smi \
+            2>&1 | tee "$EVIDENCE_DIR/witness-verification.log"
+
+      - name: Upload Jetson Tegra CUDA evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: jetson-tegra-cuda-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/fathomdb-jetson-tegra-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 30
+          if-no-files-found: warn

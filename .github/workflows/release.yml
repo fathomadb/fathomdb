@@ -82,7 +82,7 @@ jobs:
             | bash -s -- 1.7.12
           sudo mv actionlint /usr/local/bin/actionlint
       - name: Validate workflow YAML
-        run: actionlint .github/workflows/*.yml
+        run: actionlint -config-file .github/actionlint.yaml .github/workflows/*.yml
       - name: Run release gates
         # Runs on push (tag-format + version-axis enforced) and dispatch.
         # Dry runs require and verify the selected full candidate SHA; non-dry

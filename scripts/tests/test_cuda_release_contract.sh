@@ -315,6 +315,22 @@ PY
 expect_fail "$FIXTURE" 'rejects a CUDA job without its environment-owned GPU UUID binding'
 
 make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" "$FIXTURE/scripts/release/cuda-package-rehearsal-smoke.sh" <<'PY'
+from pathlib import Path
+import sys
+
+preflight, rehearsal = map(Path, sys.argv[1:])
+for path in (preflight, rehearsal):
+    text = path.read_text()
+    if "WHEEL_FILENAME" not in text:
+        raise SystemExit(f"{path.name} does not preserve the valid wheel filename")
+    if "/input/fathomdb.whl" in text:
+        raise SystemExit(f"{path.name} renames an installed wheel to an invalid filename")
+preflight.write_text(preflight.read_text().replace('dst=/input/$WHEEL_FILENAME', 'dst=/input/fathomdb.whl', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA preflight that renames an installed wheel to an invalid filename'
+
+make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/build-napi-cuda.sh" <<'PY'
 from pathlib import Path
 import sys

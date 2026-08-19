@@ -134,4 +134,61 @@ else
   fail "no files given: expected exit 2, got rc=$RC5 out=$OUT5"
 fi
 
+# --- 0.8.23 Slice 80.6 (D-80.6-5, AC80-26): the floor is declared PER
+# ARTIFACT FAMILY. check-glibc-floor.sh itself is unchanged — it already takes
+# an arbitrary --floor X.Y — so what needs covering is the contract that
+# chooses the floor, and the guarantee that every pre-80.6 call site keeps the
+# floor it had. CONTRACT_UNDER_TEST lets these arms be pointed at an older
+# contract to prove they are RED against it.
+CONTRACT="${CONTRACT_UNDER_TEST:-$REPO_ROOT/scripts/release/glibc-floor-contract.sh}"
+
+read_contract() {
+  # shellcheck disable=SC1090
+  ( set -euo pipefail
+    . "$CONTRACT"
+    printf '%s|%s|%s|%s\n' \
+      "${GLIBC_FLOOR:-<unset>}" \
+      "${GLIBC_FLOOR_FAMILIES:-<unset>}" \
+      "${GLIBC_FLOOR_MANYLINUX:-<unset>}" \
+      "${GLIBC_FLOOR_TEGRA:-<unset>}" )
+}
+
+CONTRACT_VALUES="$(read_contract)"
+if [ "$CONTRACT_VALUES" = '2.28|manylinux tegra|2.28|2.35' ]; then
+  pass "contract declares 2.28 for manylinux and 2.35 for tegra, GLIBC_FLOOR unchanged at 2.28"
+else
+  fail "contract values: expected '2.28|manylinux tegra|2.28|2.35', got '$CONTRACT_VALUES'"
+fi
+
+resolve_family() {
+  # shellcheck disable=SC1090
+  ( set -euo pipefail
+    . "$CONTRACT"
+    glibc_floor_for_family "$1" )
+}
+
+for pair in 'manylinux:2.28' 'tegra:2.35'; do
+  FAMILY="${pair%%:*}"
+  EXPECTED_FLOOR="${pair##*:}"
+  set +e
+  RESOLVED="$(resolve_family "$FAMILY" 2>/dev/null)"
+  RC_RESOLVE=$?
+  set -e
+  if [ "$RC_RESOLVE" -eq 0 ] && [ "$RESOLVED" = "$EXPECTED_FLOOR" ]; then
+    pass "family $FAMILY resolves to floor $EXPECTED_FLOOR"
+  else
+    fail "family $FAMILY: expected floor $EXPECTED_FLOOR at rc=0, got rc=$RC_RESOLVE '$RESOLVED'"
+  fi
+done
+
+set +e
+UNKNOWN_OUT="$(resolve_family sbsa 2>&1)"
+RC_UNKNOWN=$?
+set -e
+if [ "$RC_UNKNOWN" -ne 0 ] && [[ "$UNKNOWN_OUT" == *"sbsa"* ]]; then
+  pass "an undeclared artifact family fails closed rather than yielding an empty floor"
+else
+  fail "unknown family: expected non-zero naming sbsa, got rc=$RC_UNKNOWN out=$UNKNOWN_OUT"
+fi
+
 printf 'test_check_glibc_floor: all cases passed\n'

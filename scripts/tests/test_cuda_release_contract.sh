@@ -346,6 +346,20 @@ PY
 expect_fail "$FIXTURE" 'rejects a CUDA preflight that forwards an unexported wheel filename'
 
 make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-artifact-contract.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = "export CUDA_DRIVERLESS_NODE_IMAGE='node:25-trixie-slim'"
+if needle not in text:
+    raise SystemExit("CUDA driverless Node image does not provide the required glibc baseline")
+path.write_text(text.replace(needle, "export CUDA_DRIVERLESS_NODE_IMAGE='node:25-bookworm-slim'", 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA driverless N-API smoke image below the host artifact glibc baseline'
+
+make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/build-napi-cuda.sh" <<'PY'
 from pathlib import Path
 import sys

@@ -58,8 +58,10 @@ jobs:
         run: |
           set -euo pipefail
           EVIDENCE_DIR="$RUNNER_TEMP/fathomdb-jetson-tegra-evidence-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          BUILD_VENV="$RUNNER_TEMP/fathomdb-jetson-build-venv-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           mkdir -p "$EVIDENCE_DIR"
           printf 'EVIDENCE_DIR=%s\n' "$EVIDENCE_DIR" >> "$GITHUB_ENV"
+          printf 'BUILD_VENV=%s\n' "$BUILD_VENV" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -117,10 +119,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m venv .venv
-          . .venv/bin/activate
-          python -m pip install --disable-pip-version-check --upgrade pip 'maturin==1.14.1'
-          PATH="$GITHUB_WORKSPACE/.venv/bin:$PATH" \
+          python3 -m venv "$BUILD_VENV"
+          "$BUILD_VENV/bin/python" -m pip install --disable-pip-version-check --upgrade pip 'maturin==1.14.1'
+          PATH="$BUILD_VENV/bin:$PATH" \
             bash scripts/release/build-python-cuda-tegra.sh --assert-only \
             2>&1 | tee "$EVIDENCE_DIR/build-contract.log"
 
@@ -128,7 +129,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          PATH="$GITHUB_WORKSPACE/.venv/bin:$PATH" \
+          PATH="$BUILD_VENV/bin:$PATH" \
             bash scripts/release/build-python-cuda-tegra.sh \
               --out "$EVIDENCE_DIR/wheel" \
               --interpreter python \

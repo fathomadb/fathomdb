@@ -17,6 +17,7 @@ make_fixture() {
   cp "$REPO_ROOT/scripts/verify-release-gates.sh" "$root/scripts/"
   cp "$REPO_ROOT/scripts/release/cuda-artifact-contract.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/build-napi-cuda.sh" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/release/build-python-cuda-tegra.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/cuda-preflight.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/cuda-image-attestation.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/cuda-preflight-witness.schema.json" "$root/scripts/release/"
@@ -624,5 +625,107 @@ if text.count(needle) != 2:
 path.write_text(text.replace(needle, 'true', 1))
 PY
 expect_fail "$FIXTURE" 'rejects a CUDA preflight that accepts an unchecked model cache'
+
+# --- 0.8.23 Slice 80.6 (D-80.6-1/2/4, AC80-8): Tegra toolchain axis ---------
+# The x86_64 arms above are unchanged; these add the Tegra target's own.
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/build-python-cuda-tegra.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = 'export LIBRARY_PATH="$CUDA_TEGRA_HOST_CUDART_LIB${LIBRARY_PATH:+:$LIBRARY_PATH}"\n'
+if text.count(needle) != 1:
+    raise SystemExit("fixture no longer contains exactly one Tegra cudart link search path")
+path.write_text(text.replace(needle, "", 1))
+PY
+expect_fail "$FIXTURE" 'rejects a Tegra CUDA build without the measured cudart link search path'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/build-python-cuda-tegra.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = 'export CUDA_COMPUTE_CAP="$CUDA_COMPUTE_CAP_TEGRA_ORIN"\n'
+if text.count(needle) != 1:
+    raise SystemExit("fixture no longer selects the Tegra compute capability exactly once")
+path.write_text(text.replace(needle, 'export CUDA_COMPUTE_CAP="$CUDA_COMPUTE_CAP_X86_64"\n', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a Tegra CUDA build that selects the x86_64 compute capability'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/build-python-cuda-tegra.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+path.write_text(text + 'twine upload "$OUT_DIR"/*.whl\n')
+PY
+expect_fail "$FIXTURE" 'rejects a Tegra CUDA build wrapper that publishes (D-80.6-1)'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/build-python-cuda-tegra.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = 'TEGRA_FLOOR="$(glibc_floor_for_family tegra)"\n'
+if text.count(needle) != 1:
+    raise SystemExit("fixture no longer resolves the Tegra glibc floor exactly once")
+path.write_text(text.replace(needle, 'TEGRA_FLOOR="2.28"\n', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a Tegra CUDA build that hard-codes its glibc floor instead of declaring it (D-80.6-5)'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-artifact-contract.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = "export CUDA_HOST_GCC_VERSION_TEGRA_ORIN='11.4.0'\n"
+if text.count(needle) != 1:
+    raise SystemExit("fixture contract no longer pins the Tegra host gcc exactly once")
+path.write_text(text.replace(needle, "export CUDA_HOST_GCC_VERSION_TEGRA_ORIN='13.3.0'\n", 1))
+PY
+expect_fail "$FIXTURE" 'rejects a contract that re-points the Tegra host gcc at the x86_64 pin'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-artifact-contract.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = 'export CUDA_TEGRA_HOST_NVCC_VERSION="$CUDA_NAPI_HOST_NVCC_VERSION"\n'
+if text.count(needle) != 1:
+    raise SystemExit("fixture contract no longer shares the nvcc pin by reference")
+replacement = (
+    "export CUDA_TEGRA_HOST_NVCC_VERSION="
+    "'Cuda compilation tools, release 12.6, V12.6.68'\n"
+)
+path.write_text(text.replace(needle, replacement, 1))
+PY
+expect_fail "$FIXTURE" 'rejects a second nvcc literal split off from the shared x86_64 pin'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-artifact-contract.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = 'export CUDA_NAPI_HOST_CC="$CUDA_HOST_CC_X86_64"\n'
+if text.count(needle) != 1:
+    raise SystemExit("fixture contract no longer selects the N-API host CC from the x86_64 axis")
+path.write_text(text.replace(needle, 'export CUDA_NAPI_HOST_CC="$CUDA_HOST_CC_TEGRA_ORIN"\n', 1))
+PY
+expect_fail "$FIXTURE" 'rejects an N-API host CC silently re-pointed at the Tegra axis'
 
 printf '\nCUDA release-contract tests passed\n'

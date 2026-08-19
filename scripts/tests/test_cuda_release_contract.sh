@@ -106,6 +106,7 @@ required = (
     'mktemp -d',
     'Version: ${TEGRA_LOCAL_VERSION}',
     'python -m pip install $WHEEL',
+    "printf '%q' \"$WHEEL\"",
 )
 missing = [needle for needle in required if needle not in text]
 if missing:

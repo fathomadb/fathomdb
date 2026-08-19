@@ -134,15 +134,25 @@ def test_two_providers_raise_import_error_with_a_remedy() -> None:
 
 
 def test_generic_build_on_confirmed_classic_tegra_warns_under_default_filters() -> None:
-    """AC80-27: only a confirmed classic Tegra generic build is warned about."""
+    """AC80-27: a default-filtered child visibly emits the named warning."""
 
-    from fathomdb import _coinstall
+    coinstall_path = Path(__file__).parents[1] / "fathomdb" / "_coinstall.py"
+    child = "\n".join(
+        [
+            "import importlib.util",
+            f"spec = importlib.util.spec_from_file_location('coinstall_child', {str(coinstall_path)!r})",
+            "module = importlib.util.module_from_spec(spec)",
+            "spec.loader.exec_module(module)",
+            "module.warn_if_generic_build_on_classic_tegra(",
+            "    version='0.8.22', platform=module.PlatformProbeResult.classic_tegra()",
+            ")",
+        ]
+    )
+    result = subprocess.run([sys.executable, "-c", child], capture_output=True, text=True, check=False)
 
-    with pytest.warns(_coinstall.FathomDbPlatformWarning, match="Tegra"):
-        _coinstall.warn_if_generic_build_on_classic_tegra(
-            version="0.8.22",
-            platform=_coinstall.PlatformProbeResult.classic_tegra(),
-        )
+    assert result.returncode == 0, result.stderr
+    assert "FathomDbPlatformWarning" in result.stderr
+    assert "Generic FathomDB build detected on confirmed classic Tegra" in result.stderr
 
 
 @pytest.mark.parametrize(
@@ -152,14 +162,22 @@ def test_generic_build_on_confirmed_classic_tegra_warns_under_default_filters() 
 def test_only_confirmed_classic_tegra_warns(platform: str) -> None:
     """Thor and indeterminate hosts fail closed toward silence."""
 
-    from fathomdb import _coinstall
+    coinstall_path = Path(__file__).parents[1] / "fathomdb" / "_coinstall.py"
+    child = "\n".join(
+        [
+            "import importlib.util",
+            f"spec = importlib.util.spec_from_file_location('coinstall_child', {str(coinstall_path)!r})",
+            "module = importlib.util.module_from_spec(spec)",
+            "spec.loader.exec_module(module)",
+            "module.warn_if_generic_build_on_classic_tegra(",
+            f"    version='0.8.22', platform=module.PlatformProbeResult.named({platform!r})",
+            ")",
+        ]
+    )
+    result = subprocess.run([sys.executable, "-c", child], capture_output=True, text=True, check=False)
 
-    with pytest.warns(None) as captured:
-        _coinstall.warn_if_generic_build_on_classic_tegra(
-            version="0.8.22",
-            platform=_coinstall.PlatformProbeResult.named(platform),
-        )
-    assert not captured
+    assert result.returncode == 0, result.stderr
+    assert result.stderr == ""
 
 
 def test_tegra_local_version_is_not_warned() -> None:
@@ -167,9 +185,36 @@ def test_tegra_local_version_is_not_warned() -> None:
 
     from fathomdb import _coinstall
 
-    with pytest.warns(None) as captured:
+    import warnings
+
+    with warnings.catch_warnings(record=True) as captured:
+        warnings.simplefilter("default")
         _coinstall.warn_if_generic_build_on_classic_tegra(
             version="0.8.22+tegra",
             platform=_coinstall.PlatformProbeResult.classic_tegra(),
         )
     assert not captured
+
+
+def test_editable_maturin_metadata_is_found_on_the_active_sys_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """PEP 660's source .pth and site-packages metadata identify this build."""
+
+    from fathomdb import _coinstall
+
+    source_root = tmp_path / "source"
+    package_root = source_root / "fathomdb"
+    package_root.mkdir(parents=True)
+    (package_root / "_coinstall.py").write_text("# editable source marker\n", encoding="utf-8")
+    site_packages = tmp_path / "site-packages"
+    metadata = _write_dist_info(site_packages, "fathomdb")
+    (metadata / "METADATA").write_text(
+        "Metadata-Version: 2.1\nName: fathomdb\nVersion: 0.8.22+tegra\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(_coinstall, "__file__", str(package_root / "_coinstall.py"))
+    monkeypatch.setattr(_coinstall.sys, "path", [str(source_root), str(site_packages)])
+
+    assert _coinstall.installed_fathomdb_version() == "0.8.22+tegra"

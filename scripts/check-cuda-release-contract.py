@@ -499,6 +499,11 @@ def main() -> None:
     contract = read_text(CUDA_CONTRACT)
     require_fragment(
         contract,
+        "export CUDA_DRIVERLESS_NODE_IMAGE='node:25-trixie-slim'",
+        "CUDA driverless N-API smoke glibc baseline",
+    )
+    require_fragment(
+        contract,
         "CUDA_NAPI_FEATURES='embed-cuda'",
         "CUDA artifact contract",
     )

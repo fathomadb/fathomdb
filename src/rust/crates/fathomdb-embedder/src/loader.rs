@@ -37,6 +37,7 @@
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
@@ -562,6 +563,15 @@ fn load_with_config_internal(cfg: LoaderConfig) -> Result<LoadedWeights, Embedde
         let final_path = cache_dir.join(file_name);
 
         // Fast path: cache already valid; no lock needed (design §10).
+        //
+        // `file_matches_sha` uses `Path::is_file()`, which FOLLOWS symlinks,
+        // so a symlink here whose target hashes to the pin is accepted. That
+        // is deliberately more permissive than `verify_materialized`, which
+        // rejects a symlink outright: the loader is strict about what it
+        // PUBLISHES and permissive about what it READS. Users legitimately
+        // symlink a large model cache onto another disk, and rejecting that
+        // would be a real regression; R80-14 is still satisfied because the
+        // bytes hash to the pin, i.e. the entry is readable and correct.
         if file_matches_sha(&final_path, expected_sha)? {
             events.push(EmbedderEvent::DefaultEmbedderCacheHit {
                 file: (*file_name).to_string(),
@@ -578,7 +588,10 @@ fn load_with_config_internal(cfg: LoaderConfig) -> Result<LoadedWeights, Embedde
         // network. The HF-hub layout is NEVER written to.
         if let Some(hub_path) = hf_hub_candidate_path(&cfg, file_name) {
             if file_matches_sha(&hub_path, expected_sha)? {
-                materialize_from_hf_hub(&hub_path, &final_path)?;
+                // Records the cache hit only once the destination is proven
+                // readable and pin-matching (R80-14): nothing downstream
+                // re-hashes these paths.
+                materialize_from_hf_hub(&hub_path, &final_path, expected_sha)?;
                 events.push(EmbedderEvent::DefaultEmbedderCacheHit {
                     file: (*file_name).to_string(),
                     sha256: expected_sha.clone(),
@@ -728,24 +741,293 @@ fn hf_hub_candidate_path(cfg: &LoaderConfig, file_name: &str) -> Option<PathBuf>
     Some(hf_home.join("hub").join(repo_encoded).join("snapshots").join(HF_REVISION).join(file_name))
 }
 
-/// Copy `src` into `dst`, preferring a POSIX hard-link when possible
-/// (same filesystem; saves disk + lets the kernel share inodes). Falls
-/// back to a byte copy on any error from `hard_link` (different
-/// filesystem, permission, Windows, etc.). The HF-hub source is never
-/// modified. Surfaces failures as `CacheIoError`.
-fn materialize_from_hf_hub(src: &Path, dst: &Path) -> Result<(), EmbedderLoadError> {
-    // Hardlink first; copy as fallback. `fs::hard_link` errors on
-    // cross-filesystem and on Windows for non-NTFS volumes; either way the
-    // byte copy is correct.
+/// Publish the HF-hub asset at `src` into the cache entry `dst`, preferring a
+/// POSIX hard-link when possible (same filesystem; saves disk + lets the
+/// kernel share inodes) and falling back to a byte copy when `hard_link`
+/// cannot be used (different filesystem, permission, Windows, ...). The HF-hub
+/// source is never modified. Surfaces failures as `CacheIoError`.
+///
+/// Four defects are closed here relative to a bare `fs::hard_link(src, dst)`:
+///
+/// 1. **The link must be taken on the target, not the link** (R80-14). Linux
+///    `link(2)` does not dereference symlinks, and the Hugging Face hub
+///    stores `snapshots/<rev>/<file>` as a *relative* symlink
+///    `../../blobs/<hash>` that resolves only inside the hub tree.
+///    Hard-linking it into `<cache>/fathomdb/embedders/<id>/` produced an
+///    entry whose `../../blobs/` now resolved under the FathomDB cache
+///    root, where no `blobs/` exists — a dangling symlink. So we resolve
+///    `src` first and link its target. (`fs::copy` already dereferences,
+///    which is why the defect fired only when the two caches shared a
+///    filesystem and the hard-link path was actually taken.)
+/// 2. **Success is declared on read-verified content, not on link
+///    creation** (R80-14). The caller records a `DefaultEmbedderCacheHit` on
+///    `Ok` and nothing downstream re-hashes the result, so this is the one
+///    place the "never record a cache hit for an asset we cannot
+///    subsequently read" invariant can be enforced.
+/// 3. **The published name is written atomically, and cleanup is
+///    owner-scoped** (R80-15). This function runs at step 2 of the loader
+///    loop, *outside* the `<cache_dir>/.lock` that `fetch_under_lock` takes
+///    at step 3, so concurrent cold starts publish to the same path at the
+///    same time. Writing `dst` in place let one racer's `fs::copy` (reached
+///    via `EEXIST`) truncate the entry another racer was hashing for (2),
+///    which then failed verification on data that was never wrong and
+///    deleted an entry it did not own. We therefore use the module's own
+///    established pattern from `fetch_under_lock`: materialize into a
+///    privately-named temporary beside `dst`, verify *that*, then
+///    `fs::rename` it into place and fsync the parent (design §5/§6). A
+///    concurrent reader sees the complete old entry or the complete new one.
+///    No lock is needed: the content is pin-addressed, so a last-writer-wins
+///    rename replaces a byte-identical file.
+/// 4. **The temporary is created exclusively, not merely named unlikely**
+///    (R80-15). See the claim loop below: a PID-plus-counter name collides
+///    between containers sharing a bind-mounted cache, so the claim rests on
+///    `link(2)`/`O_CREAT|O_EXCL` instead, and the byte-copy branch is fsynced
+///    because `std` promises no durability for a copy.
+fn materialize_from_hf_hub(
+    src: &Path,
+    dst: &Path,
+    expected_sha: &str,
+) -> Result<(), EmbedderLoadError> {
+    materialize_from_hf_hub_named(src, dst, expected_sha, &mut || hub_temp_path(dst))
+}
+
+/// `materialize_from_hf_hub` with the temporary-name source injected, so tests
+/// can drive a name collision deterministically instead of hoping for one.
+fn materialize_from_hf_hub_named(
+    src: &Path,
+    dst: &Path,
+    expected_sha: &str,
+    next_temp_name: &mut dyn FnMut() -> PathBuf,
+) -> Result<(), EmbedderLoadError> {
+    // Resolve the hub's relative symlink to its target once, before any
+    // temporary exists (R80-14 defect 1).
     #[cfg(unix)]
-    {
-        if fs::hard_link(src, dst).is_ok() {
-            return Ok(());
+    let resolved = fs::canonicalize(src).ok();
+
+    // Claim a temporary by CREATING it exclusively, never by assuming a name
+    // is ours. A name built from PID + counter is not unique across processes
+    // that share a cache directory — containers on a bind-mounted
+    // `XDG_CACHE_HOME` (which `scripts/release/cuda-preflight.sh` sets up) are
+    // all PID 1, an NFS-mounted home is shared across machines, and PIDs are
+    // reused after a crash. A collision there would reproduce the R80-15 bug
+    // one level down: our write would truncate the temporary another process
+    // was still filling, and our cleanup would delete it. Name quality now
+    // only affects how many attempts we make; correctness rests on the
+    // atomic create-exclusive primitives below.
+    let mut claimed: Option<(PathBuf, TempReservation)> = None;
+    let mut last_candidate = PathBuf::new();
+    for _ in 0..MAX_TEMP_NAME_ATTEMPTS {
+        let candidate = next_temp_name();
+        last_candidate = candidate.clone();
+
+        // `link(2)` is itself create-exclusive — it fails `EEXIST` if the new
+        // name exists — so its SUCCESS is proof that we created that name and
+        // nobody else owns it. Linking (rather than copying) into the
+        // temporary is also what keeps the 133 MB model free of extra disk.
+        #[cfg(unix)]
+        if let Some(resolved) = resolved.as_deref() {
+            match fs::hard_link(resolved, &candidate) {
+                Ok(()) => {
+                    claimed = Some((candidate, TempReservation::Linked));
+                    break;
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                // EXDEV (hub on another filesystem), EPERM, Windows, ... —
+                // not a collision, so try to reserve this same name for the
+                // byte-copy fallback instead.
+                Err(_) => {}
+            }
+        }
+
+        // Copy fallback: reserve with `O_CREAT|O_EXCL` and keep the handle.
+        match File::create_new(&candidate) {
+            Ok(file) => {
+                claimed = Some((candidate, TempReservation::Created(file)));
+                break;
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(source) => return Err(EmbedderLoadError::CacheIoError { path: candidate, source }),
         }
     }
-    fs::copy(src, dst)
-        .map(|_| ())
-        .map_err(|source| EmbedderLoadError::CacheIoError { path: dst.to_path_buf(), source })
+
+    let (tmp, reservation) = claimed.ok_or_else(|| EmbedderLoadError::CacheIoError {
+        path: last_candidate,
+        source: std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            "no unused temporary name available for the cache entry",
+        ),
+    })?;
+    let _guard = TempEntryGuard(tmp.clone());
+
+    if let TempReservation::Created(mut file) = reservation {
+        // We hold the only handle to the name we reserved, so we fill it
+        // directly rather than re-opening by path. `std::io::copy`
+        // specializes to the same in-kernel `copy_file_range`/`sendfile` path
+        // `fs::copy` uses for file-to-file on Linux, so nothing is lost.
+        // Opening `src` follows the hub's symlink, which is what makes this
+        // fallback dereference correctly.
+        let mut source = File::open(src).map_err(|source| EmbedderLoadError::CacheIoError {
+            path: src.to_path_buf(),
+            source,
+        })?;
+        std::io::copy(&mut source, &mut file)
+            .map_err(|source| EmbedderLoadError::CacheIoError { path: tmp.clone(), source })?;
+        // Durability: `std` makes no durability claim for a byte copy, and
+        // `verify_materialized` reading the bytes back proves CONTENT, not
+        // writeback — it reads through the page cache. Without this fsync a
+        // crash after the rename below could leave a durable directory entry
+        // pointing at unallocated data blocks (ext4 delayed allocation;
+        // `auto_da_alloc` mitigates but is an ext4-specific default, not a
+        // guarantee, and does not cover xfs/btrfs/APFS). This mirrors
+        // `download_once`, which already `sync_all`s its `.partial`.
+        //
+        // The `Linked` arm needs no file fsync: it writes no file data, only
+        // a directory entry, which `fsync_parent_dir` below covers.
+        file.sync_all()
+            .map_err(|source| EmbedderLoadError::CacheIoError { path: tmp.clone(), source })?;
+    }
+
+    verify_materialized(&tmp, expected_sha)?;
+
+    // Atomic publish. `rename(2)` replaces whatever is at `dst` — including a
+    // dangling symlink left by a pre-fix run, which is how a poisoned cache
+    // self-heals (AC80-23) without this process ever unlinking an entry it
+    // does not own. When `dst` already shares our inode (a racer published the
+    // same hub blob first) this is a documented no-op; `_guard` cleans up the
+    // temporary either way.
+    //
+    // Renaming over `dst` also closes a sharper hazard than the dangling link
+    // itself: the pre-fix `fs::copy(src, dst)` opened the destination
+    // `O_WRONLY|O_CREAT|O_TRUNC`, which FOLLOWS a symlink. Against the shipped
+    // bug's `../../blobs/<hash>` entry it would therefore create or truncate a
+    // file at the link's resolution target — writing OUTSIDE the cache entry
+    // it believed it owned. `rename` replaces the link itself and never
+    // follows it.
+    //
+    // On NFS, `rename(2)` NOTES warns that a retransmitted RPC after a server
+    // crash can report failure for a rename that actually succeeded. That
+    // fails safe here: the guard removes an already-gone temporary
+    // (`ENOENT`, ignored), `dst` holds correct content, and step 1's
+    // `file_matches_sha` finds it on the next call.
+    fs::rename(&tmp, dst)
+        .map_err(|source| EmbedderLoadError::CacheIoError { path: dst.to_path_buf(), source })?;
+
+    // Make the directory entry durable, exactly as the download path does
+    // after its own rename (design §5 step 6).
+    #[cfg(unix)]
+    fsync_parent_dir(dst)?;
+
+    Ok(())
+}
+
+/// Upper bound on candidate temporary names tried before failing closed. A
+/// collision is already improbable; needing 16 in a row means something is
+/// systematically wrong with the cache directory, and forcing our way onto an
+/// occupied name would be worse than a typed error.
+const MAX_TEMP_NAME_ATTEMPTS: u32 = 16;
+
+/// How a temporary was claimed. Both variants are produced by an **atomic
+/// create-exclusive** primitive, which is what makes the claim a fact rather
+/// than an assumption (R80-15).
+enum TempReservation {
+    /// `link(2)` created the name and it already holds the hub blob's inode:
+    /// no bytes need copying, and no file fsync is required because no file
+    /// data was written.
+    Linked,
+    /// `O_CREAT|O_EXCL` created the name. The handle is the only one open on
+    /// it and the bytes still have to be copied in.
+    Created(File),
+}
+
+/// A candidate temporary name for a hub materialization, in the **same
+/// directory** as `dst` so the publishing `fs::rename` stays inside one
+/// filesystem (R80-15).
+///
+/// The download path can use a single fixed `<file>.partial` because it only
+/// ever runs under `<cache_dir>/.lock`. The hub probe runs outside that lock,
+/// so concurrent materializations must not pick the same temporary. This name
+/// is only a *candidate*: exclusivity is established by the atomic creation in
+/// `materialize_from_hf_hub_named`, not by the name, because no name scheme is
+/// unique across containers sharing a bind-mounted cache (all PID 1), an
+/// NFS-shared home, or PID reuse. The PID, a process-global counter and the
+/// wall-clock nanoseconds are mixed in purely to keep the retry count at one —
+/// `huggingface_hub` uses a truncated uuid4 for the same reason.
+fn hub_temp_path(dst: &Path) -> PathBuf {
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let seq = SEQ.fetch_add(1, AtomicOrdering::Relaxed);
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos())
+        .unwrap_or(0);
+    let stem = dst.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let pid = std::process::id();
+    let dir = dst.parent().unwrap_or_else(|| Path::new("."));
+    dir.join(format!(".{stem}.hub-{pid}-{seq}-{nanos:08x}.tmp"))
+}
+
+/// Removes the temporary this process created, on every exit path including
+/// panics. Owner-scoped by construction: it only ever holds a path this
+/// process picked via `hub_temp_path`, never the published cache entry
+/// (R80-15).
+///
+/// It stays armed even after a successful publish, because a successful
+/// `rename` does not always consume the source: POSIX specifies that if
+/// `oldpath` and `newpath` are hard links to the **same inode**, `rename`
+/// does nothing and returns success. That is the common case here — every
+/// racer hard-links the same hub blob, so once one has published, the others'
+/// renames are no-ops that would otherwise leave their temporaries behind.
+/// Removing unconditionally is safe: the name is never reused, so the removal
+/// is either a no-op `ENOENT` (the rename did move it) or drops the redundant
+/// extra link (the rename was a no-op, and `dst` already shares the inode we
+/// verified). Either way it can never delete the published entry.
+///
+/// The same-inode case cannot arise on Windows at all: the hard-link claim is
+/// `#[cfg(unix)]`-gated, so a Windows temporary is always a freshly created
+/// file with its own identity and the rename always genuinely moves it. That
+/// makes Windows' (undocumented) same-inode rename behavior moot here rather
+/// than an open question.
+struct TempEntryGuard(PathBuf);
+
+impl Drop for TempEntryGuard {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.0);
+    }
+}
+
+/// Prove a materialized entry is a readable regular file whose bytes hash to
+/// the pin, before it is published and the caller records a cache hit for it
+/// (R80-14).
+///
+/// Pure: it never removes anything. It is called on a temporary whose lifetime
+/// `TempEntryGuard` owns, which is what keeps failure cleanup owner-scoped
+/// (R80-15) — an earlier revision deleted the path it verified, which on the
+/// unlocked hub path meant deleting an entry another process had published.
+fn verify_materialized(path: &Path, expected_sha: &str) -> Result<(), EmbedderLoadError> {
+    let meta = fs::symlink_metadata(path)
+        .map_err(|source| EmbedderLoadError::CacheIoError { path: path.to_path_buf(), source })?;
+    // Deliberately `symlink_metadata`: a link here — even one that happens to
+    // resolve — is exactly the failure mode R80-14 forbids, because it can
+    // resolve outside the destination cache.
+    if !meta.file_type().is_file() {
+        return Err(EmbedderLoadError::CacheIoError {
+            path: path.to_path_buf(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "materialized cache entry is not a regular file",
+            ),
+        });
+    }
+
+    let observed = sha256_file(path)
+        .map_err(|source| EmbedderLoadError::CacheIoError { path: path.to_path_buf(), source })?;
+    if observed != expected_sha {
+        return Err(EmbedderLoadError::ChecksumMismatch {
+            file: path.to_path_buf(),
+            expected: expected_sha.to_string(),
+            actual: observed,
+        });
+    }
+    Ok(())
 }
 
 fn acquire_exclusive_with_timeout(
@@ -955,4 +1237,284 @@ fn sha256_file(path: &Path) -> std::io::Result<String> {
     }
     // digest 0.11 `Array` output: format to identical lowercase, zero-padded hex.
     Ok(hasher.finalize().iter().map(|b| format!("{b:02x}")).collect())
+}
+
+// ----- R80-15 / AC80-24: atomic publish + owner-scoped cleanup --------------
+//
+// These are unit tests rather than integration tests on purpose. Both arms
+// require the loader to materialize a file whose **final cache path already
+// holds an entry**, and `load_with_config_internal`'s step-1 fast path
+// short-circuits on any final entry that matches the pin — so a "pre-existing
+// valid entry" is unreachable through `load_with_config`. The property under
+// test belongs to `materialize_from_hf_hub` itself, so it is asserted here,
+// where the pre-condition can actually be established. The concurrency arm
+// that DOES go through the public entry point lives in `tests/loader.rs`.
+#[cfg(all(test, unix))]
+mod hub_publish_tests {
+    use super::*;
+
+    use std::os::unix::fs::MetadataExt;
+
+    use tempfile::TempDir;
+
+    const PINNED: &[u8] = br#"{"model_type":"bert","hidden_size":384}"#;
+    const STALE: &[u8] = b"stale bytes from an earlier revision";
+
+    fn sha_of(bytes: &[u8]) -> String {
+        let mut h = Sha256::new();
+        h.update(bytes);
+        h.finalize().iter().map(|b| format!("{b:02x}")).collect()
+    }
+
+    /// Stages the real hub shape under `root`: bytes in `blobs/<sha>`, and
+    /// `snapshots/<rev>/config.json` a **relative** symlink to it. Returns
+    /// `(snapshot symlink, blob path)`.
+    fn stage_hub(root: &Path) -> (PathBuf, PathBuf) {
+        let repo = root.join("hub").join("models--BAAI--bge-small-en-v1.5");
+        let blobs = repo.join("blobs");
+        let snapshot = repo.join("snapshots").join(HF_REVISION);
+        fs::create_dir_all(&blobs).unwrap();
+        fs::create_dir_all(&snapshot).unwrap();
+        let blob = blobs.join(sha_of(PINNED));
+        fs::write(&blob, PINNED).unwrap();
+        let link = snapshot.join("config.json");
+        std::os::unix::fs::symlink(Path::new("../../blobs").join(sha_of(PINNED)), &link).unwrap();
+        (link, blob)
+    }
+
+    fn file_names(dir: &Path) -> Vec<String> {
+        let mut names: Vec<String> = fs::read_dir(dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        names.sort();
+        names
+    }
+
+    #[test]
+    fn publishes_by_rename_and_never_writes_the_published_name_in_place() {
+        // AC80-24 arm 1. One TempDir so hub and cache share a filesystem:
+        // `hard_link` must really succeed, and `rename` must stay intra-fs.
+        let tmp = TempDir::new().unwrap();
+        let (hub_link, blob) = stage_hub(tmp.path());
+        let cache_dir = tmp.path().join("cache");
+        fs::create_dir_all(&cache_dir).unwrap();
+
+        // A stale entry is already published at the final name — exactly the
+        // state that lets the loader reach the hub probe at all.
+        let final_path = cache_dir.join("config.json");
+        fs::write(&final_path, STALE).unwrap();
+        let before_ino = fs::metadata(&final_path).unwrap().ino();
+
+        // A concurrent reader that opened the published entry before we start.
+        let mut reader = File::open(&final_path).unwrap();
+
+        materialize_from_hf_hub(&hub_link, &final_path, &sha_of(PINNED)).expect("materialize ok");
+
+        // The new entry is published, complete.
+        assert_eq!(fs::read(&final_path).unwrap(), PINNED);
+
+        // ... at a NEW inode. An in-place `fs::copy` would have reused the
+        // published inode, i.e. written the final name in situ.
+        let after = fs::metadata(&final_path).unwrap();
+        assert_ne!(
+            after.ino(),
+            before_ino,
+            "final name was written in place (same inode); R80-15 requires publish-by-rename"
+        );
+
+        // The inode is the hub blob's, so hard-linking (and its zero extra
+        // disk cost for the 133 MB model) survived the rename.
+        assert_eq!(
+            after.ino(),
+            fs::metadata(&blob).unwrap().ino(),
+            "publish must still hard-link the hub blob, not copy it"
+        );
+
+        // The concurrent reader still sees the COMPLETE previous entry, never
+        // a truncated one. `fs::copy` opens `O_TRUNC` on the shared inode, so
+        // an in-place publish makes this read return the new bytes.
+        let mut seen = Vec::new();
+        reader.read_to_end(&mut seen).unwrap();
+        assert_eq!(
+            seen, STALE,
+            "a reader holding the previous entry observed the publish in progress"
+        );
+
+        // No temporary left behind.
+        assert_eq!(file_names(&cache_dir), vec!["config.json".to_string()]);
+    }
+
+    #[test]
+    fn failed_verification_removes_only_our_temporary_never_the_published_entry() {
+        // AC80-24 arm 2 — the destructive regression this criterion exists to
+        // prevent. A valid entry is already published (as if by a racing
+        // process that just won); our materialization then fails verification.
+        // It must clean up after itself and leave the published entry alone.
+        let tmp = TempDir::new().unwrap();
+        let (hub_link, _blob) = stage_hub(tmp.path());
+        let cache_dir = tmp.path().join("cache");
+        fs::create_dir_all(&cache_dir).unwrap();
+
+        let final_path = cache_dir.join("config.json");
+        fs::write(&final_path, PINNED).unwrap();
+        let published_ino = fs::metadata(&final_path).unwrap().ino();
+
+        let wrong_pin = sha_of(b"a different asset entirely");
+        let err = materialize_from_hf_hub(&hub_link, &final_path, &wrong_pin)
+            .expect_err("verification must fail against a pin the bytes do not match");
+        assert!(
+            matches!(err, EmbedderLoadError::ChecksumMismatch { .. }),
+            "expected ChecksumMismatch, got {err:?}"
+        );
+
+        // The published entry we do NOT own is untouched: still there, same
+        // inode, same bytes.
+        assert!(final_path.is_file(), "failed materialization deleted the published entry");
+        assert_eq!(fs::read(&final_path).unwrap(), PINNED);
+        assert_eq!(
+            fs::metadata(&final_path).unwrap().ino(),
+            published_ino,
+            "published entry was replaced by a failed materialization"
+        );
+
+        // And our own temporary is gone.
+        assert_eq!(file_names(&cache_dir), vec!["config.json".to_string()]);
+    }
+
+    /// A temporary "another process" is in the middle of writing. If our
+    /// materialization ever touches one of these, we have reproduced the very
+    /// bug R80-15 closed, one level down: their next read is torn.
+    fn plant_foreign_temp(path: &Path, marker: &[u8]) {
+        fs::write(path, marker).unwrap();
+    }
+
+    fn assert_foreign_temp_intact(path: &Path, marker: &[u8], ino: u64) {
+        assert!(path.is_file(), "another process's temporary {path:?} was deleted");
+        assert_eq!(fs::read(path).unwrap(), marker, "another process's temporary was overwritten");
+        assert_eq!(
+            fs::metadata(path).unwrap().ino(),
+            ino,
+            "another process's temporary was replaced ({path:?})"
+        );
+    }
+
+    #[test]
+    fn a_colliding_temp_name_is_never_clobbered_and_materialization_retries() {
+        // A shared cache directory (containers on a bind-mounted
+        // XDG_CACHE_HOME are both pid 1; NFS-shared homes; PID reuse) makes
+        // two processes pick the same temporary name. Creation must be
+        // EXCLUSIVE, so a collision costs another name, never another
+        // process's bytes.
+        let tmp = TempDir::new().unwrap();
+        let (hub_link, _blob) = stage_hub(tmp.path());
+        let cache_dir = tmp.path().join("cache");
+        fs::create_dir_all(&cache_dir).unwrap();
+        let dst = cache_dir.join("config.json");
+
+        // The first two names we will be handed are already taken.
+        let taken_a = cache_dir.join(".config.json.hub-1-0.tmp");
+        let taken_b = cache_dir.join(".config.json.hub-1-1.tmp");
+        let free = cache_dir.join(".config.json.hub-1-2.tmp");
+        plant_foreign_temp(&taken_a, b"process A's half-written temporary");
+        plant_foreign_temp(&taken_b, b"process B's half-written temporary");
+        let ino_a = fs::metadata(&taken_a).unwrap().ino();
+        let ino_b = fs::metadata(&taken_b).unwrap().ino();
+
+        let mut names = vec![free.clone(), taken_b.clone(), taken_a.clone()];
+        materialize_from_hf_hub_named(&hub_link, &dst, &sha_of(PINNED), &mut || {
+            names.pop().expect("more temp names requested than scripted")
+        })
+        .expect("materialization must skip the taken names and publish");
+
+        // We published, using neither foreign temporary.
+        assert_eq!(fs::read(&dst).unwrap(), PINNED);
+        assert_foreign_temp_intact(&taken_a, b"process A's half-written temporary", ino_a);
+        assert_foreign_temp_intact(&taken_b, b"process B's half-written temporary", ino_b);
+        assert!(!free.exists(), "our own temporary must be cleaned up");
+    }
+
+    #[test]
+    fn exhausting_temp_names_fails_closed_without_touching_the_collided_name() {
+        // If every candidate collides, fail closed with a typed error rather
+        // than forcing our way onto a name another process owns.
+        let tmp = TempDir::new().unwrap();
+        let (hub_link, _blob) = stage_hub(tmp.path());
+        let cache_dir = tmp.path().join("cache");
+        fs::create_dir_all(&cache_dir).unwrap();
+        let dst = cache_dir.join("config.json");
+
+        let taken = cache_dir.join(".config.json.hub-1-0.tmp");
+        plant_foreign_temp(&taken, b"someone else's temporary, forever");
+        let ino = fs::metadata(&taken).unwrap().ino();
+
+        let err =
+            materialize_from_hf_hub_named(&hub_link, &dst, &sha_of(PINNED), &mut || taken.clone())
+                .expect_err("must fail closed when no temporary name can be obtained");
+        assert!(
+            matches!(err, EmbedderLoadError::CacheIoError { .. }),
+            "expected a typed CacheIoError, got {err:?}"
+        );
+
+        assert_foreign_temp_intact(&taken, b"someone else's temporary, forever", ino);
+        assert!(!dst.exists(), "nothing may be published when materialization failed");
+    }
+
+    #[test]
+    fn copy_fallback_also_reserves_its_temporary_exclusively() {
+        // Covers the non-hard-link branch's reservation. A hub source that
+        // resolves to a directory makes `link(2)` fail EPERM (Linux forbids
+        // directory hard links outright), which is the same fall-through the
+        // real EXDEV/Windows cases take — so the copy branch runs, must skip
+        // the taken name, and must still fail closed on the unusable source.
+        let tmp = TempDir::new().unwrap();
+        let cache_dir = tmp.path().join("cache");
+        fs::create_dir_all(&cache_dir).unwrap();
+        let a_directory = tmp.path().join("not-a-blob");
+        fs::create_dir_all(&a_directory).unwrap();
+        let hub_link = tmp.path().join("snapshot-entry");
+        std::os::unix::fs::symlink(&a_directory, &hub_link).unwrap();
+
+        let dst = cache_dir.join("config.json");
+        let taken = cache_dir.join(".config.json.hub-1-0.tmp");
+        let next = cache_dir.join(".config.json.hub-1-1.tmp");
+        plant_foreign_temp(&taken, b"not ours");
+        let ino = fs::metadata(&taken).unwrap().ino();
+
+        let mut names = vec![next.clone(), taken.clone()];
+        let err = materialize_from_hf_hub_named(&hub_link, &dst, &sha_of(PINNED), &mut || {
+            names.pop().expect("more temp names requested than scripted")
+        })
+        .expect_err("an unusable hub source must fail closed");
+        assert!(
+            matches!(err, EmbedderLoadError::CacheIoError { .. }),
+            "expected a typed CacheIoError, got {err:?}"
+        );
+
+        assert_foreign_temp_intact(&taken, b"not ours", ino);
+        assert!(!next.exists(), "our own reserved temporary must be cleaned up");
+        assert!(!dst.exists(), "nothing may be published when materialization failed");
+    }
+
+    #[test]
+    fn temporaries_are_unique_per_call_so_racers_cannot_clobber_each_other() {
+        // A single fixed temp name (`config.json.partial`) would let two
+        // concurrent materializations write the same temporary.
+        let tmp = TempDir::new().unwrap();
+        let dst = tmp.path().join("config.json");
+        let a = hub_temp_path(&dst);
+        let b = hub_temp_path(&dst);
+        assert_ne!(a, b, "temporary names must differ between calls");
+        assert_eq!(
+            a.parent(),
+            dst.parent(),
+            "temporary must sit beside dst so rename stays intra-fs"
+        );
+        assert_ne!(a, dst);
+        let name = a.file_name().unwrap().to_string_lossy().into_owned();
+        assert!(
+            name.contains(&std::process::id().to_string()),
+            "temporary name must be process-unique, got {name:?}"
+        );
+    }
 }

@@ -37,6 +37,27 @@ pub use reranker_device_policy::{
     RerankerDeviceResolutionReason, ENV_RERANK_DEVICE,
 };
 
+// 0.8.23 Slice 80.5 (D-80.5-4) — the Tegra-portable GPU allocation witness.
+// Compiled UNCONDITIONALLY: only its driver sampler/allocator and end-to-end
+// runner are `embed-cuda`-gated, so the verdict, the typed failures, the floor
+// comparison, the UUID normalization and the serialization stay testable on a
+// host with no GPU (AC80-18, AC80-20). This is not a public SDK surface; the
+// consumer is the release evidence lane.
+mod gpu_witness;
+pub use gpu_witness::{
+    evaluate_allocation_witness, normalize_cuda_uuid, observe_control_allocation,
+    AllocationWitnessInputs, ControlAllocationObservation, GpuAllocationWitness,
+    GpuControlAllocator, GpuMemorySample, GpuMemorySampler, GpuWitnessError, GpuWitnessSkip,
+    WitnessStage, CUDA_ERROR_INVALID_CONTEXT, DEFAULT_CONTROL_ALLOCATION_BYTES,
+    DEFAULT_DELTA_FLOOR_BYTES, MAX_CONTROL_BLOCKS, SOLE_GPU_CONSUMER_PRECONDITION,
+    TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA, WITNESS_VECTOR_DIM,
+};
+#[cfg(feature = "embed-cuda")]
+pub use gpu_witness::{
+    run_default_embedder_allocation_witness, sample_with_driver_initialized_only,
+    AllocationWitnessConfig, CudaDriverControlAllocator, CudaDriverMemorySampler,
+};
+
 #[cfg(feature = "default-embedder")]
 pub mod loader;
 

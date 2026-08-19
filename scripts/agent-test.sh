@@ -313,6 +313,12 @@ run_tier_suite fast test-cuda-release-contract bash scripts/tests/test_cuda_rele
 run_tier_suite fast test-cuda-unmerged-candidate-provenance bash scripts/tests/test_cuda_unmerged_candidate_provenance.sh
 run_tier_suite fast test-cuda-preflight-witness bash scripts/tests/test_cuda_preflight_witness.sh
 
+# 0.8.23 Slice 80.5 (AC80-18): the Tegra GPU allocation witness verifier is
+# fixture-driven, so its fail-closed arms — zero/negative/below-floor delta,
+# ordinal and UUID correlation, every missing field — run on GPU-less CI
+# against a record a real Jetson Orin produced.
+run_tier_suite fast test-tegra-gpu-witness python3 scripts/tests/test_tegra_gpu_witness.py
+
 # 0.8.23 Slice 50: Gitleaks staged-index and reachable-history guards must
 # reject synthetic credentials without exposing them in diagnostics.
 run_tier_suite fast test-gitleaks-guards bash scripts/tests/test_gitleaks_guards.sh

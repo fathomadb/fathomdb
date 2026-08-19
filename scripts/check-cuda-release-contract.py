@@ -14,7 +14,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 try:
@@ -31,6 +31,7 @@ TS_PACKAGE = ROOT / "src/ts/package.json"
 WORKFLOW = ROOT / ".github/workflows/release.yml"
 CUDA_CONTRACT = ROOT / "scripts/release/cuda-artifact-contract.sh"
 CUDA_NAPI_BUILD = ROOT / "scripts/release/build-napi-cuda.sh"
+CUDA_TEGRA_PYTHON_BUILD = ROOT / "scripts/release/build-python-cuda-tegra.sh"
 CUDA_PREFLIGHT = ROOT / "scripts/release/cuda-preflight.sh"
 CUDA_MANYLINUX_DOCKERFILE = ROOT / "scripts/release/Dockerfile.cuda-manylinux"
 CUDA_MANYLINUX_PROVISIONER = ROOT / "scripts/release/provision-cuda-manylinux.sh"
@@ -47,11 +48,13 @@ PACKAGE_REHEARSAL_SCHEMA = ROOT / "scripts/release/cuda-package-rehearsal.schema
 PACKAGE_REHEARSAL_VERIFIER = ROOT / "scripts/release/verify-cuda-package-rehearsal.py"
 PACKAGE_REHEARSAL_HELPER = ROOT / "scripts/release/cuda-package-rehearsal.sh"
 PACKAGE_REHEARSAL_SMOKE = ROOT / "scripts/release/cuda-package-rehearsal-smoke.sh"
+CUDA_GPU_SELECTION = ROOT / "scripts/lib/cuda-gpu-selection.sh"
 
 NAPI_CUDA_FEATURE = ["default-embedder", "fathomdb-engine/embed-cuda"]
 NAPI_CUDA_BUILD = "bash ../../scripts/release/build-napi-cuda.sh"
 PYTHON_CUDA_FEATURES = "pyo3/extension-module,embed-cuda"
 RUNNER_LABELS = ("self-hosted", "Linux", "X64", "gpu", "cuda-12")
+CUDA_GPU_UUID_ENV = "env:\n      FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}"
 CUDA_MANYLINUX_BASE_IMAGE = (
     "quay.io/pypa/manylinux_2_28_x86_64@sha256:"
     "aba9efd7dec389abd76506219e461014015b1c1cb95f2a36f27946128910dd07"
@@ -82,6 +85,17 @@ CUDA_MANYLINUX_GXX_RPM = "gcc-toolset-13-gcc-c++-13.3.1-2.2.el8_10.x86_64"
 CUDA_NAPI_HOST_GCC_VERSION = "13.3.0"
 CUDA_NAPI_HOST_CC = "/usr/bin/gcc-13"
 CUDA_NAPI_HOST_CXX = "/usr/bin/g++-13"
+# 0.8.23 Slice 80.6 (D-80.6-4, AC80-8): host compiler is a per-target axis.
+# The x86_64 literals above are unchanged; the Jetson Orin carries stock
+# Ubuntu 22.04 gcc 11.4.0 and has no gcc-13, which CUDA 12.6 supports.
+CUDA_HOST_GCC_VERSION_TEGRA_ORIN = "11.4.0"
+CUDA_HOST_CC_TEGRA_ORIN = "/usr/bin/gcc"
+CUDA_HOST_CXX_TEGRA_ORIN = "/usr/bin/g++"
+# Measured on the Jetson Orin AGX (design § 2.7): lib64 is a symlink to the
+# aarch64-linux target lib dir, and the driver library lives in an
+# L4T-specific `nvidia/` subdirectory rather than at the bare multiarch path.
+CUDA_TEGRA_HOST_CUDART_LIB = "/usr/local/cuda-12.6/targets/aarch64-linux/lib"
+CUDA_TEGRA_HOST_DRIVER_LIB = "/usr/lib/aarch64-linux-gnu/nvidia/libcuda.so.1"
 UPLOAD_ARTIFACT_ACTION = "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"
 CANDLE_GIT_URL = "https://github.com/coreyt/candle-fathomdb.git"
 CANDLE_GIT_REV = "5719d90e60edd14c4c1a3bf87952648131b2153a"
@@ -158,8 +172,13 @@ def require_fragment(block: str, fragment: str, label: str) -> None:
         fail(f"{label} is missing {fragment!r}")
 
 
+def forbid_fragment(block: str, fragment: str, label: str, why: str) -> None:
+    if fragment in block:
+        fail(f"{label} must not contain {fragment!r}: {why}")
+
+
 def require_unmerged_candidate_control_plane() -> None:
-    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     result = subprocess.run(
         [
             sys.executable,
@@ -308,7 +327,9 @@ def require_cuda_package_rehearsal() -> None:
         'dst=/fathomdb-hf,readonly',
         'test ! -e /dev/nvidiactl',
         "--gpus ",
-        "device=0",
+        "FATHOMDB_CUDA_GPU_UUID",
+        'CUDA_GPU_DOCKER_SELECTOR="device=$CUDA_GPU_UUID"',
+        '--gpus "$CUDA_GPU_DOCKER_SELECTOR"',
         '--query-compute-apps=pid',
         'source_imported',
         'gpu_uuid',
@@ -318,6 +339,8 @@ def require_cuda_package_rehearsal() -> None:
         'doctor gpu --json',
     ):
         require_fragment(smoke, fragment, "CUDA package rehearsal installed-artifact smoke")
+    if "device=0" in smoke:
+        fail("CUDA package rehearsal must not pin evidence to mutable host index zero")
     for forbidden in (
         "--network host", "npm publish", "twine upload", "git tag", "CARGO_REGISTRY_TOKEN",
         "src=$PWD", "dst=/source", "src=$REPO_ROOT",
@@ -338,6 +361,7 @@ def require_cuda_package_rehearsal() -> None:
         "cuda-package-rehearsal",
     )
     require_fragment(job, "runs-on: [self-hosted, Linux, X64, gpu, cuda-12]", "cuda-package-rehearsal")
+    require_fragment(job, CUDA_GPU_UUID_ENV, "cuda-package-rehearsal GPU UUID binding")
     if not re.search(r"^    environment: cuda-unmerged-preflight$", job, re.MULTILINE):
         fail("cuda-package-rehearsal must use the exact direct protected environment scalar")
     if not re.search(r"^    permissions:\n      contents: read\n", job, re.MULTILINE):
@@ -484,7 +508,18 @@ def main() -> None:
         "CUDA artifact contract",
     )
     require_fragment(contract, "CUDA_MANYLINUX='2_28'", "CUDA artifact contract")
-    require_fragment(contract, "CUDA_COMPUTE_CAP='75'", "CUDA artifact contract")
+    # 0.8.23 Slice 80.4 (R80-5, AC80-8): compute capability is a per-target
+    # axis — x86_64's value stays the literal '75' this checker has always
+    # pinned, Tegra Orin's '87' is new, and CUDA_COMPUTE_CAP itself (the
+    # literal env var name candle-flash-attn-v3's build.rs in the pinned
+    # Candle fork reads — not ours to rename) must still resolve to the
+    # x86_64 value, since that is the only target build-napi-cuda.sh and
+    # cuda-preflight.sh build for today.
+    require_fragment(contract, "CUDA_COMPUTE_CAP_X86_64='75'", "CUDA artifact contract")
+    require_fragment(contract, "CUDA_COMPUTE_CAP_TEGRA_ORIN='87'", "CUDA artifact contract")
+    require_fragment(
+        contract, 'CUDA_COMPUTE_CAP="$CUDA_COMPUTE_CAP_X86_64"', "CUDA artifact contract"
+    )
     require_fragment(
         contract,
         "CUDA_NAPI_HOST_TOOLKIT_ROOT='/usr/local/cuda-12.6'",
@@ -495,12 +530,57 @@ def main() -> None:
         "CUDA_NAPI_HOST_NVCC_VERSION='Cuda compilation tools, release 12.6, V12.6.68'",
         "CUDA artifact contract",
     )
+    # 0.8.23 Slice 80.6 (D-80.6-4, AC80-8): host compiler becomes a per-target
+    # axis, exactly as 80.4 did for compute capability. Each single x86_64
+    # literal assertion becomes two — the literal itself, now on the x86_64
+    # axis variable, plus the selector linkage proving the N-API host names
+    # still resolve to that same literal. Strictly stronger than before: the
+    # old assertion could not have caught a silent re-point of
+    # CUDA_NAPI_HOST_CC at some other axis value.
+    for axis_fragment, selector_fragment in (
+        (
+            f"CUDA_HOST_GCC_VERSION_X86_64='{CUDA_NAPI_HOST_GCC_VERSION}'",
+            'CUDA_NAPI_HOST_GCC_VERSION="$CUDA_HOST_GCC_VERSION_X86_64"',
+        ),
+        (
+            f"CUDA_HOST_CC_X86_64='{CUDA_NAPI_HOST_CC}'",
+            'CUDA_NAPI_HOST_CC="$CUDA_HOST_CC_X86_64"',
+        ),
+        (
+            f"CUDA_HOST_CXX_X86_64='{CUDA_NAPI_HOST_CXX}'",
+            'CUDA_NAPI_HOST_CXX="$CUDA_HOST_CXX_X86_64"',
+        ),
+    ):
+        require_fragment(contract, axis_fragment, "CUDA artifact contract")
+        require_fragment(contract, selector_fragment, "CUDA artifact contract")
     for fragment in (
-        f"CUDA_NAPI_HOST_GCC_VERSION='{CUDA_NAPI_HOST_GCC_VERSION}'",
-        f"CUDA_NAPI_HOST_CC='{CUDA_NAPI_HOST_CC}'",
-        f"CUDA_NAPI_HOST_CXX='{CUDA_NAPI_HOST_CXX}'",
+        f"CUDA_HOST_GCC_VERSION_TEGRA_ORIN='{CUDA_HOST_GCC_VERSION_TEGRA_ORIN}'",
+        f"CUDA_HOST_CC_TEGRA_ORIN='{CUDA_HOST_CC_TEGRA_ORIN}'",
+        f"CUDA_HOST_CXX_TEGRA_ORIN='{CUDA_HOST_CXX_TEGRA_ORIN}'",
+        f"CUDA_TEGRA_HOST_CUDART_LIB='{CUDA_TEGRA_HOST_CUDART_LIB}'",
+        f"CUDA_TEGRA_HOST_DRIVER_LIB='{CUDA_TEGRA_HOST_DRIVER_LIB}'",
     ):
         require_fragment(contract, fragment, "CUDA artifact contract")
+    # The toolkit root and the nvcc version pin are measured IDENTICAL on the
+    # Jetson (design § 2.7 / D-80.6-4), so they are shared by reference rather
+    # than split into a second literal. Assert the linkage, and forbid the
+    # second literal that would let the two targets drift apart silently.
+    for fragment in (
+        'CUDA_TEGRA_HOST_TOOLKIT_ROOT="$CUDA_NAPI_HOST_TOOLKIT_ROOT"',
+        'CUDA_TEGRA_HOST_NVCC_VERSION="$CUDA_NAPI_HOST_NVCC_VERSION"',
+    ):
+        require_fragment(contract, fragment, "CUDA artifact contract")
+    for fragment in (
+        "CUDA_TEGRA_HOST_TOOLKIT_ROOT='",
+        "CUDA_TEGRA_HOST_NVCC_VERSION='",
+    ):
+        forbid_fragment(
+            contract,
+            fragment,
+            "CUDA artifact contract",
+            "the Tegra toolkit root and nvcc pin are shared with x86_64 by "
+            "reference (D-80.6-4), never re-declared as a second literal",
+        )
     rustup_init_download = (
         'curl --proto \'=https\' --tlsv1.2 --fail --silent --show-error '
         '--output /tmp/rustup-init "$RUSTUP_INIT_URL"'
@@ -656,7 +736,62 @@ def main() -> None:
     require_fragment(napi_build, "export CUDA_COMPUTE_CAP", "CUDA N-API build wrapper")
     require_fragment(napi_build, 'export PATH="$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin:$PATH"', "CUDA N-API build wrapper")
     require_fragment(napi_build, 'grep -F "$CUDA_NAPI_HOST_NVCC_VERSION"', "CUDA N-API build wrapper")
+    # 0.8.23 Slice 80.6 (D-80.6-1/2/4): the Tegra wheel is built host-natively
+    # on the Jetson, so its build wrapper is the only place the per-target
+    # toolchain axis is consumed. Every input comes from the contract, the
+    # toolchain identity is self-asserted before the build the way
+    # build-napi-cuda.sh does, and the wrapper publishes nothing.
+    tegra_build = read_text(CUDA_TEGRA_PYTHON_BUILD)
+    for fragment in (
+        'export CUDA_PATH="$CUDA_TEGRA_HOST_TOOLKIT_ROOT"',
+        'export CUDACXX="$CUDA_TEGRA_HOST_TOOLKIT_ROOT/bin/nvcc"',
+        'export CC="$CUDA_HOST_CC_TEGRA_ORIN"',
+        'export CXX="$CUDA_HOST_CXX_TEGRA_ORIN"',
+        'export CUDAHOSTCXX="$CUDA_HOST_CXX_TEGRA_ORIN"',
+        'export NVCC_CCBIN="$CUDA_HOST_CXX_TEGRA_ORIN"',
+        'export CUDA_COMPUTE_CAP="$CUDA_COMPUTE_CAP_TEGRA_ORIN"',
+        'export PATH="$CUDA_TEGRA_HOST_TOOLKIT_ROOT/bin:$PATH"',
+        # Measured: without LIBRARY_PATH naming the aarch64-linux target lib
+        # dir the link fails `cannot find -lcudart` (design § 2.7).
+        'export LIBRARY_PATH="$CUDA_TEGRA_HOST_CUDART_LIB${LIBRARY_PATH:+:$LIBRARY_PATH}"',
+        'export LD_LIBRARY_PATH="$CUDA_TEGRA_HOST_CUDART_LIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"',
+        '"$CUDA_TEGRA_HOST_TOOLKIT_ROOT/bin/nvcc" --version',
+        'grep -F "$CUDA_TEGRA_HOST_NVCC_VERSION"',
+        '"$CUDA_HOST_CC_TEGRA_ORIN" --version | grep -F "$CUDA_HOST_GCC_VERSION_TEGRA_ORIN"',
+        '"$CUDA_HOST_CXX_TEGRA_ORIN" --version | grep -F "$CUDA_HOST_GCC_VERSION_TEGRA_ORIN"',
+        '"$CUDA_TEGRA_HOST_DRIVER_LIB"',
+        '"$CUDA_TEGRA_HOST_ARCH"',
+        '--features "$CUDA_PYTHON_FEATURES"',
+        '--compatibility "$CUDA_TEGRA_WHEEL_COMPATIBILITY"',
+        'grep -F "maturin $CUDA_MATURIN_VERSION"',
+        # D-80.6-5: the Tegra floor is higher than the manylinux families'
+        # BECAUSE the artifact is host-bound — it is declared in the contract
+        # and asserted against the built artifact, never exempted from the
+        # gate. Asserting it here is what makes that true of the wheel this
+        # wrapper produces rather than only of the doc page.
+        "glibc-floor-contract.sh",
+        'glibc_floor_for_family tegra',
+        "check-glibc-floor.sh",
+    ):
+        require_fragment(tegra_build, fragment, "Tegra CUDA Python build wrapper")
+    # D-80.6-1: this wrapper BUILDS and PROVES; it never publishes. § 3 rules
+    # publishing a Tegra artifact under the existing names out of scope, and
+    # § 11 item 8 holds registry publication behind the staged gate.
+    for forbidden in ("twine", "npm publish", "maturin publish", "maturin upload", "cargo publish"):
+        forbid_fragment(
+            tegra_build,
+            forbidden,
+            "Tegra CUDA Python build wrapper",
+            "Slice 80.6 builds and proves the Tegra artifact but publishes nothing (D-80.6-1)",
+        )
     preflight = read_text(CUDA_PREFLIGHT)
+    selection = read_text(CUDA_GPU_SELECTION)
+    for fragment in (
+        "FATHOMDB_CUDA_GPU_UUID must be a canonical GPU UUID",
+        "requested GPU UUID must resolve exactly once on this host",
+        "nvidia-smi --query-gpu=index,uuid --format=csv,noheader",
+    ):
+        require_fragment(selection, fragment, "CUDA GPU UUID selection")
     witness_schema = load_json(CUDA_PREFLIGHT_WITNESS_SCHEMA)
     if witness_schema.get("$id") != "https://fathomdb.dev/schemas/cuda-preflight-witness/v2":
         fail("CUDA preflight witness schema must declare its versioned schema ID")
@@ -672,6 +807,8 @@ def main() -> None:
         "witness root inventory is incomplete or contains unknown members",
         "sealed forced-device record is not installed-candidate evidence",
         "GPU {consumer} observation lacks PID correlation",
+        "GPU {consumer} observation lacks an allocation witness",
+        "ALLOCATION_WITNESS_KEYS",
         "does not prove isolated materialization",
     ):
         require_fragment(verifier, fragment, "CUDA preflight witness verifier")
@@ -735,6 +872,7 @@ def main() -> None:
         "--query-compute-apps=pid,process_name --format=csv,noheader",
         "--gpus ",
         "FATHOMDB_EMBED_DEVICE=cuda:0",
+        "FATHOMDB_GPU_ALLOCATION_WITNESS=1",
         "installed Python CUDA artifact GPU proof",
         "installed N-API CUDA artifact GPU proof",
         "gpu-python-cuda-witness.json",
@@ -759,8 +897,17 @@ def main() -> None:
         "cuda-preflight-witness.json",
         'python3 "$SCRIPT_DIR/verify-cuda-preflight-witness.py"',
         '--candidate-sha "$CANDIDATE_SHA"',
+        "FATHOMDB_CUDA_GPU_UUID",
+        'CUDA_GPU_DOCKER_SELECTOR="device=$CUDA_GPU_UUID"',
+        '--gpus "$CUDA_GPU_DOCKER_SELECTOR"',
+        "requested_host_gpu_uuid",
+        "resolved_host_gpu_index",
     ):
         require_fragment(preflight, fragment, "CUDA preflight")
+    if preflight.count("FATHOMDB_GPU_ALLOCATION_WITNESS=1") != 2:
+        fail("CUDA preflight must request one in-process allocation witness for each GPU consumer")
+    if "device=0" in preflight:
+        fail("CUDA preflight must not pin evidence to mutable host index zero")
     for forbidden in (
         '--mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT,dst=/opt/cuda,readonly"',
         '--mount "type=bind,src=$CUDA_TOOLKIT_ROOT,dst=/opt/cuda,readonly"',
@@ -822,8 +969,8 @@ def main() -> None:
     require_driverless_device_absence(preflight)
     for fragment in (
         "FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE",
-        "dst=/fathomdb-reranker-cache,readonly",
-        "FATHOMDB_RERANKER_CACHE=/fathomdb-reranker-cache",
+        "dst=/fathomdb-reranker-cache-root,readonly",
+        "FATHOMDB_RERANKER_CACHE=/fathomdb-reranker-cache-root",
         "reranker-cache-manifest.json",
         "reranker-python-cpu-smoke.json",
         "reranker-napi-cpu-smoke.json",
@@ -853,6 +1000,7 @@ def main() -> None:
     ):
         fail("cuda-contract-preflight must be dry-run-only at job scope")
     require_fragment(job, "runs-on: [self-hosted, Linux, X64, gpu, cuda-12]", "cuda-contract-preflight")
+    require_fragment(job, CUDA_GPU_UUID_ENV, "cuda-contract-preflight GPU UUID binding")
     for label in RUNNER_LABELS:
         require_fragment(job, label, "cuda-contract-preflight runner labels")
     require_fragment(
@@ -913,6 +1061,13 @@ def main() -> None:
         fail("ordinary cross-platform build-napi must stay CPU-only; CUDA belongs to the restricted preflight")
 
     require_cuda_package_rehearsal()
+
+    reranker_job = workflow_job("cuda-reranker-package-rehearsal")
+    require_fragment(
+        reranker_job,
+        CUDA_GPU_UUID_ENV,
+        "cuda-reranker-package-rehearsal GPU UUID binding",
+    )
 
     print("cuda-release-contract: pass")
 

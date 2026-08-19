@@ -5,6 +5,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=cuda-artifact-contract.sh
 . "$SCRIPT_DIR/cuda-artifact-contract.sh"
+# shellcheck source=../lib/cuda-gpu-selection.sh
+. "$SCRIPT_DIR/../lib/cuda-gpu-selection.sh"
+
+: "${FATHOMDB_CUDA_GPU_UUID:?cuda-package-smoke: FATHOMDB_CUDA_GPU_UUID is required}"
+CUDA_GPU_UUID="$FATHOMDB_CUDA_GPU_UUID"
+resolve_cuda_gpu_index "$CUDA_GPU_UUID"
+CUDA_GPU_DOCKER_SELECTOR="device=$CUDA_GPU_UUID"
 
 usage() {
   printf 'usage: %s --python-wheel FILE --npm-main FILE --napi-platform FILE --cli-archive FILE --model-cache-manifest FILE --hf-home DIR --smoke-dir DIR [--reranker-cache-manifest FILE]\n' "$0" >&2
@@ -279,11 +286,12 @@ if [ -n "$reranker_cache_manifest_abs" ]; then
   write_reranker_cli_doctor_record
 fi
 
-gpu_index=0
+gpu_index="$CUDA_GPU_INDEX"
 gpu_csv="$(nvidia-smi --id="$gpu_index" --query-gpu=uuid,name,driver_version --format=csv,noheader)"
 IFS=',' read -r gpu_uuid gpu_name gpu_driver <<<"$gpu_csv"
 gpu_uuid="${gpu_uuid# }"; gpu_name="${gpu_name# }"; gpu_driver="${gpu_driver# }"
 [ -n "$gpu_uuid" ] && [ -n "$gpu_name" ] && [ -n "$gpu_driver" ] || { printf 'cuda-package-smoke: GPU %s has incomplete identity\n' "$gpu_index" >&2; exit 1; }
+[ "$gpu_uuid" = "$CUDA_GPU_UUID" ] || { printf 'cuda-package-smoke: observed GPU UUID differs from the requested host UUID\n' >&2; exit 1; }
 
 wait_for_gpu() {
   local container="$1" consumer="$2" host_pid='' observed=''
@@ -305,7 +313,7 @@ wait_for_gpu() {
   exit 1
 }
 
-python_gpu="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
+python_gpu="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
   --mount "type=bind,src=$python_wheel_abs,dst=/input/fathomdb.whl,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
   "$CUDA_MANYLINUX_IMAGE" sh -ceu '
@@ -314,7 +322,7 @@ python_gpu="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
   ')"
 wait_for_gpu "$python_gpu" python
 
-napi_gpu="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
+napi_gpu="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
   --mount "type=bind,src=$npm_main_abs,dst=/input/fathomdb.tgz,readonly" \
   --mount "type=bind,src=$napi_platform_abs,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \

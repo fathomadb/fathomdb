@@ -23,13 +23,27 @@ CONTAINER_USER="$CONTAINER_UID:$CONTAINER_GID"
 # shellcheck source=cuda-artifact-contract.sh
 . "$SCRIPT_DIR/cuda-artifact-contract.sh"
 . "$SCRIPT_DIR/cuda-image-attestation.sh"
+# shellcheck source=../lib/cuda-candidate-sha.sh
+. "$SCRIPT_DIR/../lib/cuda-candidate-sha.sh"
+# shellcheck source=../lib/cuda-gpu-selection.sh
+. "$SCRIPT_DIR/../lib/cuda-gpu-selection.sh"
 if [ "$RERANK_CUDA" = true ]; then
   CUDA_NAPI_FEATURES="$CUDA_RERANK_NAPI_FEATURES"
   CUDA_PYTHON_FEATURES="$CUDA_RERANK_PYTHON_FEATURES"
 fi
+# Resolved early so an invalid FATHOMDB_CANDIDATE_SHA (the no-git-remote
+# override; see dev/design/0.8.23-aarch64-tegra.md § 7 "80.6.5") aborts
+# before any Docker/model-cache preflight work, and so repository_commit=
+# below and the witness's candidate_sha agree on one resolution.
+resolve_cuda_candidate_sha "$REPO_ROOT"
+: "${FATHOMDB_CUDA_GPU_UUID:?cuda-preflight: FATHOMDB_CUDA_GPU_UUID is required}"
+CUDA_GPU_UUID="$FATHOMDB_CUDA_GPU_UUID"
+resolve_cuda_gpu_index "$CUDA_GPU_UUID"
+CUDA_GPU_DOCKER_SELECTOR="device=$CUDA_GPU_UUID"
 DEFAULT_EMBEDDER_HF_HOME="${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}"
 DEFAULT_EMBEDDER_SNAPSHOT="$DEFAULT_EMBEDDER_HF_HOME/hub/models--${CUDA_DEFAULT_EMBEDDER_HF_REPO//\//--}/snapshots/$CUDA_DEFAULT_EMBEDDER_HF_REVISION"
-DEFAULT_RERANKER_CACHE="${FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/fathomdb/reranker/0290849b0459}"
+DEFAULT_RERANKER_CACHE_ROOT="${FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}}"
+DEFAULT_RERANKER_CACHE="$DEFAULT_RERANKER_CACHE_ROOT/fathomdb/reranker/0290849b0459"
 
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -100,7 +114,9 @@ mkdir -p "$WORK_DIR/python-dist" "$WORK_DIR/python-unpacked" "$WORK_DIR/cache" "
 
 {
   printf 'generated_at_utc='; date --utc --iso-8601=seconds
-  printf 'repository_commit='; git -C "$REPO_ROOT" rev-parse HEAD
+  printf 'repository_commit=%s\n' "$CANDIDATE_SHA"
+  printf 'requested_host_gpu_uuid=%s\n' "$CUDA_GPU_UUID"
+  printf 'resolved_host_gpu_index=%s\n' "$CUDA_GPU_INDEX"
   printf 'target=x86_64-unknown-linux-gnu\n'
   printf 'napi_host_cuda_toolkit_root=%s\n' "$CUDA_NAPI_HOST_TOOLKIT_ROOT"
   printf 'napi_host_nvcc_version=%s\n' "$CUDA_NAPI_HOST_NVCC_VERSION"
@@ -110,7 +126,7 @@ mkdir -p "$WORK_DIR/python-dist" "$WORK_DIR/python-unpacked" "$WORK_DIR/cache" "
   printf 'cuda_python_features=%s\n' "$CUDA_PYTHON_FEATURES"
   printf 'rerank_cuda=%s\n' "$RERANK_CUDA"
   if [ "$RERANK_CUDA" = true ]; then
-    printf 'reranker_cache=%s\n' "$DEFAULT_RERANKER_CACHE"
+    printf 'reranker_cache_root=%s\n' "$DEFAULT_RERANKER_CACHE_ROOT"
   fi
   printf 'cuda_manylinux_image=%s\n' "$CUDA_MANYLINUX_IMAGE"
   printf 'cuda_manylinux_python=%s\n' "$CUDA_MANYLINUX_PYTHON"
@@ -241,9 +257,9 @@ MODEL_ENV=(
 RERANKER_MOUNT=()
 RERANKER_ENV=()
 if [ "$RERANK_CUDA" = true ]; then
-  RERANKER_MOUNT=(--mount "type=bind,src=$DEFAULT_RERANKER_CACHE,dst=/fathomdb-reranker-cache,readonly")
+  RERANKER_MOUNT=(--mount "type=bind,src=$DEFAULT_RERANKER_CACHE_ROOT,dst=/fathomdb-reranker-cache-root,readonly")
   RERANKER_ENV=(
-    -e FATHOMDB_RERANKER_CACHE=/fathomdb-reranker-cache
+    -e FATHOMDB_RERANKER_CACHE=/fathomdb-reranker-cache-root
     -e FATHOMDB_CUDA_REHEARSAL_RERANK=true
   )
 fi
@@ -424,17 +440,23 @@ if [ "$RERANK_CUDA" = true ]; then
 fi
 
 cat > "$WORK_DIR/gpu-python-smoke.py" <<'PY'
+from dataclasses import asdict
 import json
 import pathlib
 import time
 from fathomdb import Engine
 engine = Engine.open("/fathomdb-tmp/cuda-python.fdb", use_default_embedder=True)
-resolution = engine.open_report().embedder_device_resolution
+report = engine.open_report()
+resolution = report.embedder_device_resolution
+allocation_witness = report.embedder_gpu_allocation_witness
+if allocation_witness is None:
+    raise RuntimeError("installed Python CUDA artifact did not retain an allocation witness")
 pathlib.Path("/evidence/gpu-python-open-report.json").write_text(json.dumps({
     "consumer": "python", "requested_policy": resolution.requested_policy,
     "status": "selected_cuda", "effective_device": "cuda:0",
     "visible_devices": [{"visible_ordinal": d.visible_ordinal, "uuid": d.uuid, "name": d.name, "compute_capability": d.compute_capability} for d in resolution.visible_cuda_devices],
     "selected_uuid": resolution.selected_cuda_uuid,
+    "allocation_witness": asdict(allocation_witness),
 }, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
 assert len(engine.embed("installed Python CUDA artifact GPU proof")) == 384
 print("installed Python CUDA artifact GPU smoke: ok", flush=True)
@@ -446,12 +468,35 @@ cat > "$WORK_DIR/gpu-napi-smoke.mjs" <<'JS'
 import fs from "node:fs";
 import { Engine } from "fathomdb";
 const engine = await Engine.open("/fathomdb-tmp/cuda-napi.fdb", { useDefaultEmbedder: true });
-const resolution = engine.openReport().embedderDeviceResolution;
+const report = engine.openReport();
+const resolution = report.embedderDeviceResolution;
+const allocationWitness = report.embedderGpuAllocationWitness;
+if (allocationWitness === null) throw new Error("installed N-API CUDA artifact did not retain an allocation witness");
 fs.writeFileSync("/evidence/gpu-napi-open-report.json", JSON.stringify({
   consumer: "napi", requested_policy: resolution.requestedPolicy,
   status: "selected_cuda", effective_device: "cuda:0",
   visible_devices: resolution.visibleCudaDevices.map((d) => ({ visible_ordinal: d.visibleOrdinal, uuid: d.uuid, name: d.name, compute_capability: d.computeCapability })),
   selected_uuid: resolution.selectedCudaUuid,
+  allocation_witness: {
+    schema: allocationWitness.schema,
+    sole_gpu_consumer_precondition: allocationWitness.soleGpuConsumerPrecondition,
+    device_ordinal_requested: allocationWitness.deviceOrdinalRequested,
+    device_ordinal_actual: allocationWitness.deviceOrdinalActual,
+    device_uuid: allocationWitness.deviceUuid,
+    device_name: allocationWitness.deviceName,
+    compute_capability: allocationWitness.computeCapability,
+    free_before_bytes: allocationWitness.freeBeforeBytes,
+    free_after_bytes: allocationWitness.freeAfterBytes,
+    total_bytes: allocationWitness.totalBytes,
+    delta_bytes: allocationWitness.deltaBytes,
+    delta_floor_bytes: allocationWitness.deltaFloorBytes,
+    control_allocation_request_bytes: allocationWitness.controlAllocationRequestBytes,
+    control_block_count: allocationWitness.controlBlockCount,
+    control_free_before_bytes: allocationWitness.controlFreeBeforeBytes,
+    control_free_after_bytes: allocationWitness.controlFreeAfterBytes,
+    control_delta_bytes: allocationWitness.controlDeltaBytes,
+    embedded_vector_dim: allocationWitness.embeddedVectorDim,
+  },
 }) + "\n");
 if ((await engine.embed("installed N-API CUDA artifact GPU proof")).length !== 384) throw new Error("expected 384-vector");
 console.log("installed N-API CUDA artifact GPU smoke: ok");
@@ -469,10 +514,14 @@ seal_gpu_observation() {
       exit 1
     }
     host_pid="$(docker inspect --format '{{.State.Pid}}' "$container")"
-    compute_line="$(nvidia-smi --id=0 --query-compute-apps=pid,process_name --format=csv,noheader | awk -F ', ' -v pid="$host_pid" '$1 == pid {print; exit}')"
+    compute_line="$(nvidia-smi --id="$CUDA_GPU_INDEX" --query-compute-apps=pid,process_name --format=csv,noheader | awk -F ', ' -v pid="$host_pid" '$1 == pid {print; exit}')"
     if [ -n "$compute_line" ] && [ -s "$report" ]; then
       process_name="${compute_line#*, }"
-      host_uuid="$(nvidia-smi --id=0 --query-gpu=uuid --format=csv,noheader)"
+      host_uuid="$(nvidia-smi --id="$CUDA_GPU_INDEX" --query-gpu=uuid --format=csv,noheader)"
+      [ "$host_uuid" = "$CUDA_GPU_UUID" ] || {
+        printf 'cuda-preflight: observed GPU UUID differs from the requested host UUID\n' >&2
+        exit 1
+      }
       python3 - "$report" "$WORK_DIR/gpu-$consumer-cuda-witness.json" "$host_uuid" "$host_pid" "$process_name" <<'PY'
 import json
 import sys
@@ -506,14 +555,14 @@ PY
 }
 
 printf 'cuda-preflight: prove the installed Python wheel uses cuda:0\n'
-PYTHON_GPU_CONTAINER="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
+PYTHON_GPU_CONTAINER="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
   --mount "type=bind,src=$WHEEL,dst=/input/fathomdb.whl,readonly" \
   --mount "type=bind,src=$WORK_DIR/gpu-python-smoke.py,dst=/input/gpu-python-smoke.py,readonly" \
   --mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly" \
   --mount "type=bind,src=$WORK_DIR/cache/gpu_python,dst=/fathomdb-product-cache" \
   --mount "type=bind,src=$WORK_DIR/tmp/gpu_python,dst=/fathomdb-tmp" \
   --mount "type=bind,src=$WORK_DIR,dst=/evidence" \
-  "${MODEL_ENV[@]}" -e FATHOMDB_EMBED_DEVICE=cuda:0 \
+  "${MODEL_ENV[@]}" -e FATHOMDB_EMBED_DEVICE=cuda:0 -e FATHOMDB_GPU_ALLOCATION_WITNESS=1 \
   "$CUDA_MANYLINUX_IMAGE" sh -ceu '
     '"$CUDA_MANYLINUX_PYTHON"' -m pip install --no-deps --no-cache-dir /input/fathomdb.whl
     exec '"$CUDA_MANYLINUX_PYTHON"' /input/gpu-python-smoke.py
@@ -521,7 +570,7 @@ PYTHON_GPU_CONTAINER="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
 seal_gpu_observation "$PYTHON_GPU_CONTAINER" python "$WORK_DIR/gpu-python-open-report.json" "$WORK_DIR/gpu-python-cuda-smoke.txt"
 
 printf 'cuda-preflight: prove the installed N-API package uses cuda:0\n'
-NAPI_GPU_CONTAINER="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
+NAPI_GPU_CONTAINER="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
   --mount "type=bind,src=$NPM_MAIN/$NPM_MAIN_TARBALL,dst=/input/fathomdb.tgz,readonly" \
   --mount "type=bind,src=$NPM_PLATFORM/$NPM_PLATFORM_TARBALL,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
   --mount "type=bind,src=$WORK_DIR/gpu-napi-smoke.mjs,dst=/input/gpu-napi-smoke.mjs,readonly" \
@@ -530,7 +579,7 @@ NAPI_GPU_CONTAINER="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
   --mount "type=bind,src=$WORK_DIR/tmp/gpu_napi,dst=/fathomdb-tmp" \
   --mount "type=bind,src=$WORK_DIR,dst=/evidence" \
   --mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64,dst=/opt/cuda/lib64,readonly" \
-  "${MODEL_ENV[@]}" -e FATHOMDB_EMBED_DEVICE=cuda:0 -e LD_LIBRARY_PATH=/opt/cuda/lib64 -e npm_config_cache=/fathomdb-tmp/npm-cache \
+  "${MODEL_ENV[@]}" -e FATHOMDB_EMBED_DEVICE=cuda:0 -e FATHOMDB_GPU_ALLOCATION_WITNESS=1 -e LD_LIBRARY_PATH=/opt/cuda/lib64 -e npm_config_cache=/fathomdb-tmp/npm-cache \
   "$CUDA_DRIVERLESS_NODE_IMAGE" sh -ceu '
     mkdir /fathomdb-tmp/consumer && cd /fathomdb-tmp/consumer
     printf "{\"private\":true,\"type\":\"module\",\"dependencies\":{\"fathomdb\":\"file:/input/fathomdb.tgz\",\"fathomdb-linux-x64-gnu\":\"file:/input/fathomdb-linux-x64-gnu.tgz\"}}\n" > package.json
@@ -540,7 +589,6 @@ NAPI_GPU_CONTAINER="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
   ')"
 seal_gpu_observation "$NAPI_GPU_CONTAINER" napi "$WORK_DIR/gpu-napi-open-report.json" "$WORK_DIR/gpu-napi-cuda-smoke.txt"
 
-CANDIDATE_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD)"
 export WORK_DIR CANDIDATE_SHA CUDA_DEFAULT_EMBEDDER_HF_REPO CUDA_DEFAULT_EMBEDDER_HF_REVISION RERANK_CUDA
 export CUDA_DEFAULT_EMBEDDER_CONFIG_SHA256 CUDA_DEFAULT_EMBEDDER_TOKENIZER_SHA256 CUDA_DEFAULT_EMBEDDER_MODEL_SHA256
 export CUDA_RERANKER_CONFIG_SHA256 CUDA_RERANKER_TOKENIZER_SHA256 CUDA_RERANKER_MODEL_SHA256
@@ -594,7 +642,7 @@ for consumer in ("python", "napi"):
         "effective_device": None,
         "reason": "no_visible_cuda_device",
         "provenance": "installed_candidate",
-        "command": f"installed_{consumer}_engine_open",
+        "command": f"installed_{consumer}_engine_open_without_default_embedder",
         "exit_code": 1,
         "stdout_filename": stdout.name,
         "stdout_sha256": digest(stdout),

@@ -902,10 +902,13 @@ def main() -> None:
         '--gpus "$CUDA_GPU_DOCKER_SELECTOR"',
         "requested_host_gpu_uuid",
         "resolved_host_gpu_index",
+        "WHEEL_FILENAME",
     ):
         require_fragment(preflight, fragment, "CUDA preflight")
     if preflight.count("FATHOMDB_GPU_ALLOCATION_WITNESS=1") != 2:
         fail("CUDA preflight must request one in-process allocation witness for each GPU consumer")
+    if "/input/fathomdb.whl" in preflight or "/input/fathomdb.whl" in read_text(PACKAGE_REHEARSAL_SMOKE):
+        fail("CUDA installed-wheel smokes must retain a valid wheel filename")
     if "device=0" in preflight:
         fail("CUDA preflight must not pin evidence to mutable host index zero")
     for forbidden in (

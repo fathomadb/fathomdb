@@ -38,7 +38,7 @@ fi
 resolve_cuda_candidate_sha "$REPO_ROOT"
 : "${FATHOMDB_CUDA_GPU_UUID:?cuda-preflight: FATHOMDB_CUDA_GPU_UUID is required}"
 CUDA_GPU_UUID="$FATHOMDB_CUDA_GPU_UUID"
-resolve_cuda_gpu_index "$CUDA_GPU_UUID"
+CUDA_GPU_INDEX="$(resolve_cuda_gpu_index "$CUDA_GPU_UUID")"
 CUDA_GPU_DOCKER_SELECTOR="device=$CUDA_GPU_UUID"
 DEFAULT_EMBEDDER_HF_HOME="${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}"
 DEFAULT_EMBEDDER_SNAPSHOT="$DEFAULT_EMBEDDER_HF_HOME/hub/models--${CUDA_DEFAULT_EMBEDDER_HF_REPO//\//--}/snapshots/$CUDA_DEFAULT_EMBEDDER_HF_REVISION"
@@ -197,6 +197,7 @@ WHEEL="$(find "$WORK_DIR/python-dist" -maxdepth 1 -type f -name '*.whl' -print -
   exit 1
 }
 WHEEL_BASENAME="$(basename "$WHEEL")"
+WHEEL_FILENAME="$WHEEL_BASENAME"
 docker run --rm --network none \
   --mount "type=bind,src=$WORK_DIR,dst=/witness,readonly" \
   -e "WHEEL_BASENAME=$WHEEL_BASENAME" \
@@ -265,16 +266,16 @@ if [ "$RERANK_CUDA" = true ]; then
 fi
 printf 'cuda-preflight: prove the installed Python wheel defaults to CPU in a driverless container\n'
 docker run --rm --network none \
-  --mount "type=bind,src=$WHEEL,dst=/input/fathomdb.whl,readonly" \
+  --mount "type=bind,src=$WHEEL,dst=/input/$WHEEL_FILENAME,readonly" \
   --mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly" \
   --mount "type=bind,src=$WORK_DIR/cache/driverless_python,dst=/fathomdb-product-cache" \
   --mount "type=bind,src=$WORK_DIR/tmp/driverless_python,dst=/fathomdb-tmp" \
-  "${MODEL_ENV[@]}" \
+  "${MODEL_ENV[@]}" -e WHEEL_FILENAME \
   "${RERANKER_MOUNT[@]}" "${RERANKER_ENV[@]}" \
   "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
   env -u FATHOMDB_EMBED_DEVICE -u FATHOMDB_RERANK_DEVICE -u CUDA_VISIBLE_DEVICES -u NVIDIA_VISIBLE_DEVICES -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES -u HUGGINGFACE_HUB_CACHE -u TRANSFORMERS_CACHE -u FATHOMDB_EMBEDDER_CACHE_DIR sh -ceu '
     test ! -e /dev/nvidiactl
-    python -m pip install --no-deps --no-cache-dir /input/fathomdb.whl
+    python -m pip install --no-deps --no-cache-dir "/input/$WHEEL_FILENAME"
     python - <<"PY"
 import pathlib
 import tempfile
@@ -333,12 +334,12 @@ fi
 FORCED_PYTHON_SITE="$WORK_DIR/forced-python-site"
 mkdir "$FORCED_PYTHON_SITE"
 docker run --rm --network none \
-  --mount "type=bind,src=$WHEEL,dst=/input/fathomdb.whl,readonly" \
+  --mount "type=bind,src=$WHEEL,dst=/input/$WHEEL_FILENAME,readonly" \
   --mount "type=bind,src=$FORCED_PYTHON_SITE,dst=/fathomdb-site" \
-  -e HOME=/tmp -e TMPDIR=/tmp \
+  -e HOME=/tmp -e TMPDIR=/tmp -e WHEEL_FILENAME \
   "$CUDA_MANYLINUX_IMAGE" sh -ceu '
     /opt/python/cp311-cp311/bin/python -m pip install \
-      --no-deps --no-cache-dir --target /fathomdb-site /input/fathomdb.whl
+      --no-deps --no-cache-dir --target /fathomdb-site "/input/$WHEEL_FILENAME"
     chmod -R a+rwX /fathomdb-site
   ' \
   >"$WORK_DIR/forced-python-install.txt" 2>&1
@@ -556,15 +557,15 @@ PY
 
 printf 'cuda-preflight: prove the installed Python wheel uses cuda:0\n'
 PYTHON_GPU_CONTAINER="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
-  --mount "type=bind,src=$WHEEL,dst=/input/fathomdb.whl,readonly" \
+  --mount "type=bind,src=$WHEEL,dst=/input/$WHEEL_FILENAME,readonly" \
   --mount "type=bind,src=$WORK_DIR/gpu-python-smoke.py,dst=/input/gpu-python-smoke.py,readonly" \
   --mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly" \
   --mount "type=bind,src=$WORK_DIR/cache/gpu_python,dst=/fathomdb-product-cache" \
   --mount "type=bind,src=$WORK_DIR/tmp/gpu_python,dst=/fathomdb-tmp" \
   --mount "type=bind,src=$WORK_DIR,dst=/evidence" \
-  "${MODEL_ENV[@]}" -e FATHOMDB_EMBED_DEVICE=cuda:0 -e FATHOMDB_GPU_ALLOCATION_WITNESS=1 \
+  "${MODEL_ENV[@]}" -e WHEEL_FILENAME -e FATHOMDB_EMBED_DEVICE=cuda:0 -e FATHOMDB_GPU_ALLOCATION_WITNESS=1 \
   "$CUDA_MANYLINUX_IMAGE" sh -ceu '
-    '"$CUDA_MANYLINUX_PYTHON"' -m pip install --no-deps --no-cache-dir /input/fathomdb.whl
+    '"$CUDA_MANYLINUX_PYTHON"' -m pip install --no-deps --no-cache-dir "/input/$WHEEL_FILENAME"
     exec '"$CUDA_MANYLINUX_PYTHON"' /input/gpu-python-smoke.py
   ')"
 seal_gpu_observation "$PYTHON_GPU_CONTAINER" python "$WORK_DIR/gpu-python-open-report.json" "$WORK_DIR/gpu-python-cuda-smoke.txt"

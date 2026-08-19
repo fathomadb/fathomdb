@@ -484,7 +484,18 @@ def main() -> None:
         "CUDA artifact contract",
     )
     require_fragment(contract, "CUDA_MANYLINUX='2_28'", "CUDA artifact contract")
-    require_fragment(contract, "CUDA_COMPUTE_CAP='75'", "CUDA artifact contract")
+    # 0.8.23 Slice 80.4 (R80-5, AC80-8): compute capability is a per-target
+    # axis — x86_64's value stays the literal '75' this checker has always
+    # pinned, Tegra Orin's '87' is new, and CUDA_COMPUTE_CAP itself (the
+    # literal env var name candle-flash-attn-v3's build.rs in the pinned
+    # Candle fork reads — not ours to rename) must still resolve to the
+    # x86_64 value, since that is the only target build-napi-cuda.sh and
+    # cuda-preflight.sh build for today.
+    require_fragment(contract, "CUDA_COMPUTE_CAP_X86_64='75'", "CUDA artifact contract")
+    require_fragment(contract, "CUDA_COMPUTE_CAP_TEGRA_ORIN='87'", "CUDA artifact contract")
+    require_fragment(
+        contract, 'CUDA_COMPUTE_CAP="$CUDA_COMPUTE_CAP_X86_64"', "CUDA artifact contract"
+    )
     require_fragment(
         contract,
         "CUDA_NAPI_HOST_TOOLKIT_ROOT='/usr/local/cuda-12.6'",

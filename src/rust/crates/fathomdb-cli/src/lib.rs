@@ -1387,6 +1387,77 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn platform_classifier_covers_all_two_tier_outcomes_and_json_contract() {
+        let cases = [
+            (
+                PlatformFixture::non_aarch64(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"non_aarch64\",\"tegra_family\":false,\"sbsa_capable\":false,\"l4t_release\":null,\"reason\":null}\n",
+                0,
+            ),
+            (
+                PlatformFixture::arm64_sbsa(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"arm64_sbsa\",\"tegra_family\":false,\"sbsa_capable\":true,\"l4t_release\":null,\"reason\":null}\n",
+                0,
+            ),
+            (
+                PlatformFixture::generic_aarch64(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"generic_aarch64\",\"tegra_family\":false,\"sbsa_capable\":false,\"l4t_release\":null,\"reason\":null}\n",
+                0,
+            ),
+            (
+                PlatformFixture::classic_tegra(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"tegra\",\"tegra_family\":true,\"sbsa_capable\":false,\"l4t_release\":\"R36.5.2\",\"reason\":null}\n",
+                0,
+            ),
+            (
+                PlatformFixture::thor(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"arm64_sbsa\",\"tegra_family\":true,\"sbsa_capable\":true,\"l4t_release\":\"R36.5.2\",\"reason\":null}\n",
+                0,
+            ),
+            (
+                PlatformFixture::missing_smi(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"unknown\",\"tegra_family\":true,\"sbsa_capable\":null,\"l4t_release\":\"R36.5.2\",\"reason\":\"nvidia_smi_missing\"}\n",
+                exit_code::UNRECOVERABLE,
+            ),
+        ];
+        for (fixture, expected_json, expected_exit) in cases {
+            let report = classify_platform(&fixture);
+            assert_eq!(platform_diagnostic_output(&report, true), expected_json);
+            assert_eq!(report.exit_code(), expected_exit);
+        }
+    }
+
+    #[test]
+    fn sbsa_platform_preempts_cuda_only_for_auto_and_forced_policies() {
+        let platform = classify_platform(&PlatformFixture::arm64_sbsa());
+        let auto = doctor_gpu_for_platform("auto", true, &platform, || panic!("provider called"));
+        assert_eq!(auto.status.as_str(), "cuda_incompatible");
+        assert_eq!(auto.reason, Some("arm64_sbsa_unsupported"));
+        assert_eq!(auto.effective_device.as_deref(), Some("cpu"));
+        assert_eq!(auto.exit_code, 0);
+
+        let forced =
+            doctor_gpu_for_platform("cuda:0", true, &platform, || panic!("provider called"));
+        assert_eq!(forced.status.as_str(), "cuda_incompatible");
+        assert_eq!(forced.reason, Some("arm64_sbsa_unsupported"));
+        assert_eq!(forced.effective_device.as_deref(), None);
+        assert_eq!(forced.exit_code, exit_code::DOCTOR_FOUND_ISSUES);
+
+        let cpu = doctor_gpu_for_platform("cpu", true, &platform, || panic!("provider called"));
+        assert_eq!(cpu.status.as_str(), "selected_cpu_no_cuda");
+        assert_eq!(cpu.reason, None);
+        assert_eq!(cpu.effective_device.as_deref(), Some("cpu"));
+    }
+
+    #[test]
+    fn indeterminate_tier_two_never_refuses_doctor_gpu() {
+        let platform = classify_platform(&PlatformFixture::missing_smi());
+        let report = doctor_gpu_for_platform("auto", true, &platform, || "provider-ran");
+        assert_eq!(report.provider_marker, "provider-ran");
+        assert_ne!(report.reason, Some("arm64_sbsa_unsupported"));
+    }
+
     #[derive(Clone, Copy)]
     struct DoctorProcessCase {
         name: &'static str,

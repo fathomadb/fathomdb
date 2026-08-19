@@ -94,6 +94,25 @@ if grep -Fq 'bash candidate/scripts/release/cuda-package-rehearsal' "$REPO_ROOT/
 fi
 printf 'PASS  Slice 20 self-hosted rehearsal executes only trusted control-plane helpers\n'
 
+# Slice 80.7: the Tegra wrapper stages only metadata, stamps +tegra, proves
+# both wheel surfaces, and prints the concrete install command after success.
+python3 - "$REPO_ROOT/scripts/release/build-python-cuda-tegra.sh" <<'PY'
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text()
+required = (
+    'TEGRA_LOCAL_VERSION="${BASE_VERSION}+tegra"',
+    'mktemp -d',
+    'Version: ${TEGRA_LOCAL_VERSION}',
+    'python -m pip install $WHEEL',
+)
+missing = [needle for needle in required if needle not in text]
+if missing:
+    raise SystemExit(f"Slice 80.7 Tegra metadata/install contract missing: {missing}")
+PY
+printf 'PASS  Slice 80.7 Tegra wrapper stamps and proves local-version metadata\n'
+
 if grep -Fq 'exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0' \
   "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh" \
   && grep -Fq 'exec env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 node' \

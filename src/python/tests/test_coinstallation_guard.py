@@ -131,3 +131,45 @@ def test_two_providers_raise_import_error_with_a_remedy() -> None:
     assert "fathomdb" in message
     assert "fathomdb-tegra" in message
     assert "pip uninstall" in message
+
+
+def test_generic_build_on_confirmed_classic_tegra_warns_under_default_filters() -> None:
+    """AC80-27: only a confirmed classic Tegra generic build is warned about."""
+
+    from fathomdb import _coinstall
+
+    with pytest.warns(_coinstall.FathomDbPlatformWarning, match="Tegra"):
+        _coinstall.warn_if_generic_build_on_classic_tegra(
+            version="0.8.22",
+            platform=_coinstall.PlatformProbeResult.classic_tegra(),
+        )
+
+
+@pytest.mark.parametrize(
+    "platform",
+    ["thor", "tier_two_missing", "generic_aarch64", "non_aarch64"],
+)
+def test_only_confirmed_classic_tegra_warns(platform: str) -> None:
+    """Thor and indeterminate hosts fail closed toward silence."""
+
+    from fathomdb import _coinstall
+
+    with pytest.warns(None) as captured:
+        _coinstall.warn_if_generic_build_on_classic_tegra(
+            version="0.8.22",
+            platform=_coinstall.PlatformProbeResult.named(platform),
+        )
+    assert not captured
+
+
+def test_tegra_local_version_is_not_warned() -> None:
+    """The temporary +tegra metadata stamp is the only accepted build identity."""
+
+    from fathomdb import _coinstall
+
+    with pytest.warns(None) as captured:
+        _coinstall.warn_if_generic_build_on_classic_tegra(
+            version="0.8.22+tegra",
+            platform=_coinstall.PlatformProbeResult.classic_tegra(),
+        )
+    assert not captured

@@ -29,6 +29,9 @@ use serde_json::Value;
 use tempfile::TempDir;
 
 const DOCTOR_VERBS: &[&str] = &[
+    "gpu",
+    "platform",
+    "reranker-gpu",
     "check-integrity",
     "safe-export",
     "verify-embedder",
@@ -94,6 +97,37 @@ fn doctor_gpu_is_database_free_and_emits_one_schema_object() {
     );
     assert!(payload.get("devices").and_then(Value::as_array).is_some());
     assert!(matches!(output.status.code(), Some(0) | Some(65) | Some(70)));
+}
+
+#[test]
+fn doctor_platform_is_database_free_and_emits_the_v1_record() {
+    let root = tempfile::tempdir().expect("temporary canary root");
+    let output = fathomdb()
+        .args(["doctor", "platform", "--json"])
+        .current_dir(root.path())
+        .env("HOME", root.path())
+        .env("XDG_CACHE_HOME", root.path())
+        .output()
+        .expect("spawn doctor platform");
+    let stdout = String::from_utf8(output.stdout).expect("UTF-8 output");
+    let payload: Value = serde_json::from_str(stdout.trim()).unwrap_or_else(|error| {
+        panic!("doctor platform must emit one JSON object: {error}; {stdout}")
+    });
+    assert_eq!(
+        payload.get("schema_version").and_then(Value::as_str),
+        Some("fathomdb.doctor.platform.v1"),
+    );
+    assert!(matches!(output.status.code(), Some(0) | Some(exit_code::UNRECOVERABLE)));
+    assert!(std::fs::read_dir(root.path()).expect("read canary").next().is_none());
+}
+
+#[test]
+fn doctor_gpu_help_contains_the_exact_tegra_source_build_procedure() {
+    let output = fathomdb().args(["doctor", "gpu", "--help"]).output().expect("spawn");
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("UTF-8 help");
+    assert!(stdout.contains("python3 -m venv .venv\n. .venv/bin/activate\npython -m pip install --upgrade pip 'maturin==1.14.1'\n./scripts/release/build-python-cuda-tegra.sh --interpreter python"));
+    assert!(stdout.contains("python -m pip install <built-wheel>"));
 }
 
 #[cfg(feature = "default-reranker")]

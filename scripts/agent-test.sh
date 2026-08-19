@@ -330,6 +330,13 @@ run_tier_suite fast test-cuda-release-contract bash scripts/tests/test_cuda_rele
 run_tier_suite fast test-cuda-unmerged-candidate-provenance bash scripts/tests/test_cuda_unmerged_candidate_provenance.sh
 run_tier_suite fast test-cuda-preflight-witness bash scripts/tests/test_cuda_preflight_witness.sh
 
+# 0.8.23 Slice 80.6.5: FATHOMDB_CANDIDATE_SHA lets cuda-preflight.sh resolve
+# its candidate SHA without git, for the no-.git x86_64 CUDA transfer target
+# (dev/design/0.8.23-aarch64-tegra.md § 7 "80.6.5"). Proves unset->git
+# fallback, a valid 40-hex value used verbatim, and fail-closed rejection of
+# empty/short/non-hex/uppercase/over-long values -- never a silent fallback.
+run_tier_suite fast test-cuda-candidate-sha bash scripts/tests/test_cuda_candidate_sha.sh
+
 # 0.8.23 Slice 80.5 (AC80-18): the Tegra GPU allocation witness verifier is
 # fixture-driven, so its fail-closed arms — zero/negative/below-floor delta,
 # ordinal and UUID correlation, every missing field — run on GPU-less CI

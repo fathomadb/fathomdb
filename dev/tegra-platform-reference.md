@@ -548,15 +548,32 @@ the NVIDIA container runtime through host NVML) nor host-side
 `nvidia-smi --id=0` — and those are the two selectors `cuda-preflight.sh`
 actually uses.
 
-### 8.3 `cuda-preflight.sh` requires git
+### 8.3 `cuda-preflight.sh` required git — resolved
 
-It calls `git -C "$REPO_ROOT" rev-parse HEAD` at `:104` and `:544`, and
-`CANDIDATE_SHA` feeds `build-input.json`, the witness payload, and
-`verify-cuda-preflight-witness.py --candidate-sha` at `:737`. A transfer workflow
-that deliberately ships **no `.git`** dies at the first call. The fix belongs in
-the git-backed source — accept the SHA from an environment variable, falling back
-to `git rev-parse`, with strict 40-hex validation so a bogus SHA cannot forge
-provenance — not in a shim that fabricates git state on the remote.
+**Historic, kept because the shape recurs.** The script called
+`git -C "$REPO_ROOT" rev-parse HEAD` at two sites, and `CANDIDATE_SHA` feeds
+`build-input.json`, the witness payload, and
+`verify-cuda-preflight-witness.py --candidate-sha`. A transfer workflow that
+deliberately ships **no `.git`** died at the first call.
+
+Resolved by `scripts/lib/cuda-candidate-sha.sh` (`resolve_cuda_candidate_sha`),
+sourced and called once, early — before any Docker or model-cache work — so an
+invalid override aborts before side effects. The script now contains **no `git`
+invocation at all**. Three properties worth preserving in any future edit:
+
+- **Both** sites needed it. The `repository_commit=` call ran unconditionally
+  *before* the `CANDIDATE_SHA=` one, so fixing only the latter would still have
+  died on a no-git remote.
+- **One resolution, two consumers**, so `repository_commit=` and the witness's
+  `candidate_sha` cannot disagree.
+- **`FATHOMDB_CANDIDATE_SHA` fails closed** — validated as 40-character
+  lowercase hex; set-but-invalid is an error, never a silent fall-through to
+  `git`. The value is stamped into a witness as a **provenance claim**, so a
+  bogus SHA silently accepted would forge provenance. Unset falls back to
+  `git rev-parse`, unchanged.
+
+The generalizable rule: **an environment override for a provenance value must
+validate and abort, never degrade.**
 
 ### 8.4 Open gaps — do not describe these as green
 

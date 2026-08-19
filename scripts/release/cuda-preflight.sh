@@ -23,10 +23,17 @@ CONTAINER_USER="$CONTAINER_UID:$CONTAINER_GID"
 # shellcheck source=cuda-artifact-contract.sh
 . "$SCRIPT_DIR/cuda-artifact-contract.sh"
 . "$SCRIPT_DIR/cuda-image-attestation.sh"
+# shellcheck source=../lib/cuda-candidate-sha.sh
+. "$SCRIPT_DIR/../lib/cuda-candidate-sha.sh"
 if [ "$RERANK_CUDA" = true ]; then
   CUDA_NAPI_FEATURES="$CUDA_RERANK_NAPI_FEATURES"
   CUDA_PYTHON_FEATURES="$CUDA_RERANK_PYTHON_FEATURES"
 fi
+# Resolved early so an invalid FATHOMDB_CANDIDATE_SHA (the no-git-remote
+# override; see dev/design/0.8.23-aarch64-tegra.md § 7 "80.6.5") aborts
+# before any Docker/model-cache preflight work, and so repository_commit=
+# below and the witness's candidate_sha agree on one resolution.
+resolve_cuda_candidate_sha "$REPO_ROOT"
 DEFAULT_EMBEDDER_HF_HOME="${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}"
 DEFAULT_EMBEDDER_SNAPSHOT="$DEFAULT_EMBEDDER_HF_HOME/hub/models--${CUDA_DEFAULT_EMBEDDER_HF_REPO//\//--}/snapshots/$CUDA_DEFAULT_EMBEDDER_HF_REVISION"
 DEFAULT_RERANKER_CACHE_ROOT="${FATHOMDB_CUDA_PREFLIGHT_RERANKER_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}}"
@@ -101,7 +108,7 @@ mkdir -p "$WORK_DIR/python-dist" "$WORK_DIR/python-unpacked" "$WORK_DIR/cache" "
 
 {
   printf 'generated_at_utc='; date --utc --iso-8601=seconds
-  printf 'repository_commit='; git -C "$REPO_ROOT" rev-parse HEAD
+  printf 'repository_commit=%s\n' "$CANDIDATE_SHA"
   printf 'target=x86_64-unknown-linux-gnu\n'
   printf 'napi_host_cuda_toolkit_root=%s\n' "$CUDA_NAPI_HOST_TOOLKIT_ROOT"
   printf 'napi_host_nvcc_version=%s\n' "$CUDA_NAPI_HOST_NVCC_VERSION"
@@ -541,7 +548,6 @@ NAPI_GPU_CONTAINER="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
   ')"
 seal_gpu_observation "$NAPI_GPU_CONTAINER" napi "$WORK_DIR/gpu-napi-open-report.json" "$WORK_DIR/gpu-napi-cuda-smoke.txt"
 
-CANDIDATE_SHA="$(git -C "$REPO_ROOT" rev-parse HEAD)"
 export WORK_DIR CANDIDATE_SHA CUDA_DEFAULT_EMBEDDER_HF_REPO CUDA_DEFAULT_EMBEDDER_HF_REVISION RERANK_CUDA
 export CUDA_DEFAULT_EMBEDDER_CONFIG_SHA256 CUDA_DEFAULT_EMBEDDER_TOKENIZER_SHA256 CUDA_DEFAULT_EMBEDDER_MODEL_SHA256
 export CUDA_RERANKER_CONFIG_SHA256 CUDA_RERANKER_TOKENIZER_SHA256 CUDA_RERANKER_MODEL_SHA256

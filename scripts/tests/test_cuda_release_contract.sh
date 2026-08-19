@@ -282,6 +282,24 @@ PY
 expect_fail "$FIXTURE" 'rejects CUDA preflight without both in-process allocation witnesses'
 
 make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" "$FIXTURE/scripts/release/cuda-package-rehearsal-smoke.sh" <<'PY'
+from pathlib import Path
+import sys
+
+preflight, rehearsal = map(Path, sys.argv[1:])
+for path in (preflight, rehearsal):
+    text = path.read_text()
+    if "FATHOMDB_CUDA_GPU_UUID" not in text:
+        raise SystemExit(f"{path.name} does not require an environment-owned GPU UUID")
+    if 'device=$CUDA_GPU_UUID' not in text:
+        raise SystemExit(f"{path.name} does not pass the exact GPU UUID to Docker")
+    if "device=0" in text:
+        raise SystemExit(f"{path.name} still pins CUDA evidence to a mutable host index")
+preflight.write_text(preflight.read_text().replace('device=$CUDA_GPU_UUID', 'device=0', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA preflight whose Docker GPU selector is downgraded to host index zero'
+
+make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/build-napi-cuda.sh" <<'PY'
 from pathlib import Path
 import sys

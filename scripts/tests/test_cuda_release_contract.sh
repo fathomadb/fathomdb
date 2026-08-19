@@ -11,7 +11,7 @@ trap 'rm -rf "$TMPROOT"' EXIT
 
 make_fixture() {
   local root="$1"
-  mkdir -p "$root/.github/workflows" "$root/scripts/release" "$root/src/rust/crates/fathomdb-napi" "$root/src/ts" "$root/dev/release"
+  mkdir -p "$root/.github/workflows" "$root/scripts/lib" "$root/scripts/release" "$root/src/rust/crates/fathomdb-napi" "$root/src/ts" "$root/dev/release"
   cp "$REPO_ROOT/Cargo.toml" "$REPO_ROOT/Cargo.lock" "$root/"
   cp "$REPO_ROOT/.github/workflows/release.yml" "$root/.github/workflows/"
   cp "$REPO_ROOT/scripts/verify-release-gates.sh" "$root/scripts/"
@@ -19,6 +19,7 @@ make_fixture() {
   cp "$REPO_ROOT/scripts/release/build-napi-cuda.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/build-python-cuda-tegra.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/cuda-preflight.sh" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/lib/cuda-gpu-selection.sh" "$root/scripts/lib/"
   cp "$REPO_ROOT/scripts/release/cuda-image-attestation.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/cuda-preflight-witness.schema.json" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/verify-cuda-preflight-witness.py" "$root/scripts/release/"
@@ -298,6 +299,20 @@ for path in (preflight, rehearsal):
 preflight.write_text(preflight.read_text().replace('device=$CUDA_GPU_UUID', 'device=0', 1))
 PY
 expect_fail "$FIXTURE" 'rejects a CUDA preflight whose Docker GPU selector is downgraded to host index zero'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = '    env:\n      FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}\n'
+if text.count(needle) != 3:
+    raise SystemExit("fixture no longer contains the three environment-owned CUDA GPU UUID bindings")
+path.write_text(text.replace(needle, '', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA job without its environment-owned GPU UUID binding'
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/build-napi-cuda.sh" <<'PY'

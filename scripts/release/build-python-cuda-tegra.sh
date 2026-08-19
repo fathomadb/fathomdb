@@ -224,5 +224,9 @@ fi
 bash "$REPO_ROOT/scripts/check-glibc-floor.sh" --floor "$TEGRA_FLOOR" "$EXTENSION"
 printf 'build-python-cuda-tegra: %s is within the declared tegra glibc floor %s\n' \
   "$(basename "$EXTENSION")" "$TEGRA_FLOOR"
-INSTALL_COMMAND="python -m pip install $WHEEL"
-printf '%s\n' "$INSTALL_COMMAND"
+# The abstract form is `python -m pip install $WHEEL`; render the concrete
+# wheel argument with Bash's reversible shell quoting for `--out` paths that
+# contain spaces or shell metacharacters.
+printf '%s' 'python -m pip install '
+printf '%q' "$WHEEL"
+printf '\n'

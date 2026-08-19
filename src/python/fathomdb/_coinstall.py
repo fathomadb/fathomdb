@@ -154,23 +154,41 @@ def detect_platform() -> PlatformProbeResult:
 
 
 def installed_fathomdb_version() -> str | None:
-    """Read this environment's own installed FathomDB metadata version."""
+    """Read this environment's own FathomDB metadata version.
 
-    prefix = _escape("fathomdb")
-    site_packages = os.path.dirname(os.path.dirname(__file__))
-    try:
-        names = os.listdir(site_packages)
-    except OSError:
-        return None
-    for name in names:
-        if not name.endswith(".dist-info") or _escape(name[: -len(".dist-info")].split("-", 1)[0]) != prefix:
+    A wheel keeps ``fathomdb/`` and its ``.dist-info`` sibling in one
+    site-packages directory. A PEP 660 maturin editable install instead puts
+    the source directory on ``sys.path`` through a ``.pth`` while retaining
+    its metadata in site-packages; legacy editable installs may use adjacent
+    ``.egg-info`` / ``PKG-INFO`` metadata. Search the active package parent
+    first, then the relevant ``sys.path`` entries in import order.
+    """
+
+    package_parent = os.path.dirname(os.path.dirname(__file__))
+    entries = (package_parent, *sys.path)
+    seen: set[str] = set()
+    for entry in entries:
+        if not entry or entry in seen:
             continue
-        metadata = _read_text(os.path.join(site_packages, name, "METADATA"))
-        if metadata is None:
+        seen.add(entry)
+        try:
+            names = os.listdir(entry)
+        except OSError:
             continue
-        for line in metadata.splitlines():
-            if line.startswith("Version: "):
-                return line.removeprefix("Version: ").strip()
+        for name in names:
+            metadata_filename = None
+            for suffix, candidate in ((".dist-info", "METADATA"), (".egg-info", "PKG-INFO")):
+                if name.endswith(suffix) and _escape(name[: -len(suffix)].split("-", 1)[0]) == _escape("fathomdb"):
+                    metadata_filename = candidate
+                    break
+            if metadata_filename is None:
+                continue
+            metadata = _read_text(os.path.join(entry, name, metadata_filename))
+            if metadata is None:
+                continue
+            for line in metadata.splitlines():
+                if line.startswith("Version: "):
+                    return line.removeprefix("Version: ").strip()
     return None
 
 

@@ -114,6 +114,16 @@ if missing:
 PY
 printf 'PASS  Slice 80.7 Tegra wrapper stamps and proves local-version metadata\n'
 
+SPACE_WHEEL='/tmp/fathomdb wheel;literal.whl'
+QUOTED_WHEEL="$(printf '%q' "$SPACE_WHEEL")"
+ROUND_TRIP="$(bash -c "set -- python -m pip install $QUOTED_WHEEL; printf '%s' \"\$5\"")"
+if [ "$ROUND_TRIP" = "$SPACE_WHEEL" ]; then
+  printf 'PASS  Slice 80.7 final wheel-install command preserves a space/metacharacter path\n'
+else
+  printf 'FAIL  Slice 80.7 final wheel-install command did not preserve a quoted wheel path\n' >&2
+  exit 1
+fi
+
 if grep -Fq 'exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0' \
   "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh" \
   && grep -Fq 'exec env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 node' \

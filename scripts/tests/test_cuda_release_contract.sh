@@ -77,6 +77,17 @@ assert_unmerged_control_plane() {
 
 require_provisioning_assets
 
+# The CUDA contract checker is part of the Python 3.10 release-tooling
+# envelope. `datetime.UTC` was introduced in Python 3.11, so use the
+# long-standing `timezone.utc` spelling instead.
+if grep -Fq 'from datetime import UTC, datetime' "$CHECKER" \
+  || ! grep -Fq 'from datetime import datetime, timezone' "$CHECKER" \
+  || ! grep -Fq 'datetime.now(timezone.utc)' "$CHECKER"; then
+  printf 'FAIL  CUDA release-contract checker must remain compatible with Python 3.10\n' >&2
+  exit 1
+fi
+printf 'PASS  CUDA release-contract checker remains Python 3.10 compatible\n'
+
 # The verifier's eligibility decision is inline in the trusted workflow. A
 # candidate can alter its ordinary release-gate script without making the
 # self-hosted job eligible.

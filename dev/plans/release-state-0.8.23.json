@@ -15,81 +15,455 @@
     {
       "id": "slice-10-external-cuda-evidence",
       "status": "PENDING_EXTERNAL",
-      "blocks": ["release_completion", "publication"],
-      "does_not_block": ["slice-20-local", "slice-70-local"],
+      "blocks": [
+        "release_completion",
+        "publication"
+      ],
+      "does_not_block": [
+        "slice-20-local",
+        "slice-70-local"
+      ],
       "source": "seq:249",
       "evidence_required": "Separate reviewed main control-plane and provenance record; independently reviewed GitHub runner/protection/environment attestation; one retained, valid non-publishing CUDA preflight route receipt and witness."
     },
     {
       "id": "slice-20-external-cuda-package-rehearsal",
       "status": "PENDING_EXTERNAL",
-      "blocks": ["release_completion", "publication"],
-      "does_not_block": ["slice-70-local"],
+      "blocks": [
+        "release_completion",
+        "publication"
+      ],
+      "does_not_block": [
+        "slice-70-local"
+      ],
       "source": "Slice 20 reviewed local closure",
       "evidence_required": "A candidate-bound, schema-valid Slice 10 route receipt and preflight witness; one retained, valid non-publishing CUDA package rehearsal bundle that binds the exact wheel and npm package bytes and installed CPU/GPU smokes; independent evidence review. Canonical tag CUDA delivery remains separately commissioned and hard-blocked."
     },
     {
       "id": "slice-70-external-cuda-evidence",
       "status": "PENDING_EXTERNAL",
-      "blocks": ["release_completion", "publication"],
-      "does_not_block": ["slice-71-local"],
+      "blocks": [
+        "release_completion",
+        "publication"
+      ],
+      "does_not_block": [
+        "slice-71-local"
+      ],
       "source": "Slice 70 reviewed local closure",
       "evidence_required": "Retained trusted-runner CUDA witness and installed-artifact rehearsal evidence for the reviewed dual-runtime diagnostic and package contracts; any real TC-5 characterization remains separately commissioned."
     },
     {
       "id": "slice-71-external-reranker-cuda-evidence",
       "status": "PENDING_EXTERNAL",
-      "blocks": ["release_completion", "publication"],
+      "blocks": [
+        "release_completion",
+        "publication"
+      ],
       "does_not_block": [],
       "source": "Slice 71 reviewed local closure",
       "evidence_required": "Retained trusted-runner installed-artifact receipts for compatible-GPU reranking and visible-but-incompatible CUDA classification, independently reviewed against the v3 cache and evidence contract."
     }
   ],
   "ladder": [
-    {"slice": 0, "short": "ENVIRONMENT", "title": "identify environment setup and change preconditions", "depends_on": [], "status": "LANDED", "design_refs": ["dev/design/0.8.23-planning-foundation.md", "dev/design/0.8.23-windows-local-environment.md"], "sha": "916023fe", "merge_subject": "docs(0.8.23): establish planning-first release ladder", "evidence": "Planning-only environment inventory landed at this commit. It separates available local development tools from CUDA, Docker, and system-libvirt evidence that only an authorized later execution may certify; no runner, guest, artifact, dependency, or publication change occurred."},
-    {"slice": 1, "short": "DEPENDENCIES", "title": "Dependabot needs and library-sweep disposition", "depends_on": [0], "status": "LANDED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"], "sha": "2167a0cd", "merge_subject": "docs(0.8.23): record Slice 1 dependency disposition", "evidence": "Retains the explicit Dependabot pause. An online SBOM survey read 780 locked components but registry DNS made every version comparison unknown; the GitHub integration returned no open Dependabot PRs and lacked advisory-read permission. No version, lockfile, or configuration change is proposed."},
-    {"slice": 2, "short": "CRUFT-REVIEW", "title": "repository and documentation cruft proposal", "depends_on": [1], "status": "LANDED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"], "sha": "b363af85", "merge_subject": "docs(0.8.23): record Slice 2 cruft disposition", "evidence": "Classifies current authority, historical records, and future bounded maintenance proposals across program, developer, public, source, and test documentation. It authorizes no cleanup and proposes no deletion without the existing two-phase prune method and HITL approval."},
-    {"slice": 3, "short": "DRAFT-CONTRACTS", "title": "draft needs, requirements, and acceptance-criteria CRUD allocation", "depends_on": [2], "status": "LANDED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"], "sha": "91e162c2", "merge_subject": "docs(0.8.23): record Slice 3 draft allocation", "evidence": "Temporary N23/R23/AC23 drafts allocate every feature candidate to Slices 10, 20, 30, 40, 50, or 60 without minting authoritative requirement or acceptance identifiers before an owning feature is expressly commissioned."},
-    {"slice": 4, "short": "ARCHITECTURE", "title": "architecture and high-level code-alignment review", "depends_on": [3], "status": "LANDED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"], "sha": "a7df1590", "merge_subject": "docs(0.8.23): record Slice 4 architecture review", "evidence": "Candidate designs align to existing embedding, binding, release, experiment, hook/CI, and fail-closed erasure seams. The record preserves public-surface, CPU-default, provenance, and Windows-evidence boundaries without authorizing implementation."},
-    {"slice": 5, "short": "VERIFICATION", "title": "verification-adequacy review", "depends_on": [4], "status": "LANDED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"], "sha": "00f865f3", "merge_subject": "docs(0.8.23): record Slice 5 verification review", "evidence": "Maps every temporary R23/AC23 candidate to existing verification seams and the missing real-environment, artifact, cross-SDK, provenance, scanning, or Windows evidence. It credits no candidate as complete and feeds the Slice 6 preparation report."},
-    {"slice": 6, "short": "PREPARATION-WORKPLAN", "title": "hygiene and in-flight release preparation workplan", "depends_on": [5], "status": "LANDED", "design_refs": ["dev/design/0.8.23-planning-foundation.md"], "sha": "e98f727d", "merge_subject": "docs(0.8.23): add Slice 6 preparation workplan", "evidence": "The workplan consolidates the hygiene and in-flight-release preparation identified by Slices 0–5, assigns relative value, and supplies a dependency-first execution sequence. The HITL then commissioned completion of that workplan locally without a branch, PR, push, or publication."},
-    {"slice": 10, "short": "CUDA-CONTRACT", "title": "CUDA environment, artifact contract, and protected runner gate", "depends_on": [6], "status": "PENDING_EXTERNAL", "design_refs": ["dev/design/0.8.23-gpu-artifacts.md", "dev/design/0.8.23-slice-10-cuda-contract.md", "dev/design/0.8.23-unmerged-candidate-provenance.md", "dev/plans/runs/0.8.23-slice-10-status.md"], "evidence": "8a9e05b5, 8814b374, and ecafa0d8 landed independently reviewed local RED-to-GREEN hardening: driverless device-selection variables are absent; witness/receipt verifiers bind canonical manifests; the one-record provenance policy, protected environment, and ordered main-owned control-plane checkout are fail closed; candidate jobs are credentialless/read-only and finalizers candidate-free. Focused provenance/CUDA/release-contract suites, actionlint, full workspace clippy/check, and agent-verify passed. The empty manifest and expired baseline authorize no candidate or dispatch. Per HITL seq:249, remaining main/provenance/runner/witness evidence blocks release completion and publication only, not local Slices 20 or 70."},
-    {"slice": 20, "short": "CUDA-PACKAGE", "title": "CUDA package, rehearsal, and installed-artifact smokes", "depends_on": [6], "status": "PENDING_EXTERNAL", "design_refs": ["dev/design/0.8.23-gpu-artifacts.md", "dev/design/0.8.23-slice-20-cuda-package-rehearsal.md", "dev/plans/runs/0.8.23-slice-20-status.md"], "evidence": "91a5ddd8 landed the independently reviewed local RED-to-GREEN package-rehearsal control plane: exactly one candidate wheel, thin npm tarball, and Linux x64 platform tarball are sealed with strict provenance, retained candidate-bound Slice 10 witness, and installed CPU/GPU smoke evidence; trusted control-plane helpers, network-isolated driverless containers, GPU UUID/PID attestation, and package-byte/symlink/substitution rejection are mutation-tested. The only Linux x64 candidate producer is the combined preflight/rehearsal route; ordinary CPU substitution is rejected. Canonical tag/non-dry routes fail loudly and credentiallessly before publishers until separately commissioned tag-bound CUDA delivery exists. Full agent verification, workspace clippy/check, Actionlint, focused contract suites, and independent design/code/verification review passed locally. A real rehearsal remains pending a valid Slice 10 receipt/witness and independent evidence review; no registry, tag, or publication occurred. Local Slice 70 may proceed."},
-    {"slice": 30, "short": "MEMEX-INTEGRATION", "title": "Memex readiness and graph-integration contract", "depends_on": [6], "status": "LANDED", "design_refs": ["dev/design/0.8.23-embedding-configuration-feedback.md", "dev/design/0.8.23-memex-integration.md"], "sha": "776d2c20", "merge_subject": "docs(0.8.23): clarify Python no-embedder drain", "evidence": "Slice 30 is complete on `origin/release/0.8.23` through this commit, with main integration explicitly pending. It adds typed cross-SDK embedding readiness and the immediate `FDB_EMBEDDER_REQUIRED` no-embedder outcome; preserves operational worker/equivalence outcomes; documents the bounded Memex graph contract; and records RED→GREEN, independent review, real-engine Python, and native TypeScript verification. The completion ref, not `origin/main`, is the authoritative reachability target until release integration occurs."},
-    {"slice": 40, "short": "SCALE-CHARACTERIZATION", "title": "fixture-scoped scale characterization", "depends_on": [6], "status": "SET_ASIDE", "design_refs": ["dev/design/0.8.23-scale-characterization-protocol.md", "dev/design/0.8.23-scale-aggregator-contract.md", "dev/design/0.8.23-scale-characterization-v2.md", "dev/design/0.8.23-scale-artifact-v2.schema.json"], "evidence": "V1 protocol/contract remain historical pre-registration only. V2 runner/validator design is under review; no matrix execution, artifact, or scale characterization has been claimed. HITL set this work aside on 2026-08-17; retain the unintegrated candidate and resume only after Slices 10, 20, and 70."},
-    {"slice": 50, "short": "GITLEAKS-GUARDS", "title": "staged pre-commit and always-on CI secret scanning", "depends_on": [6], "status": "LANDED", "design_refs": ["dev/design/0.8.23-gitleaks-guards.md"], "sha": "ae7cef0e", "merge_subject": "feat(0.8.23): add Gitleaks security guards", "evidence": "A Go-module-pinned Gitleaks v8.30.1 installer now provisions the tracked staged-index hook and an unconditional, full-history CI job. Regression coverage proves unavailable-scanner failure, clean-index acceptance, synthetic-credential rejection, redaction, and CI/hook wiring; the focused guard test, shell lint, and a real local reachable-history scan passed."},
-    {"slice": 60, "short": "WINDOWS-WAL", "title": "Windows WAL checkpoint reader-conflict diagnosis", "depends_on": [6], "status": "LANDED", "design_refs": ["dev/design/0.8.23-windows-wal-checkpoint-reader-conflict.md", "dev/design/0.8.23-windows-local-environment.md"], "sha": "423baf6a", "merge_subject": "test(0.8.23): retain child WAL diagnostics", "evidence": "GitHub-hosted windows-latest job 95236592394 passed the real-SQLite cross-process source test and retained the complete lifecycle sequence: child_started, child_ready, parent_ready_observed, checkpoint_start/result (116 ms), typed ErasureIncomplete at wal_checkpoint with BUSY on all 5 attempts and 212 frames, release_signaled, child_release_observed, and successful child_reaped. Job 95235671915 had passed the parent assertion but was correctly rejected as insufficient because the child lifecycle lines were captured; 423baf6a added child --nocapture before the repaired rerun. The reviewed Memex Windows-x64 note supports the existing fail-closed/no-tuning boundary and makes no root-cause claim."},
-    {"slice": 65, "short": "WAL-ATTRIBUTION", "title": "Windows WAL checkpoint root-cause attribution", "depends_on": [6, 60], "status": "LANDED", "design_refs": ["dev/design/0.8.23-wal-attribution-investigation.md", "dev/design/0.8.23-windows-wal-checkpoint-reader-conflict.md"], "sha": "6b57557c", "merge_subject": "docs: record completed hosted WAL evidence", "evidence": "CLOSED_UNATTRIBUTED_NO_REMEDY by the independently approved Slice 65 closure. Hosted Windows enriched binding jobs 95369168206, 95373316503, and 95375745327 complete the 3/3 discriminator: each retained completion acknowledgement, an exact idle twelve-role inventory, and complete sampler state. The normal actual series is 4 clean / 1 BUSY; the broad binding process-lifetime series is 3 busy-child-clean / 2 clean. These observations do not identify a SQLite holder or establish a Windows, Python-SDK, retry, binding-lifetime, or reader-pool cause. The no-remedy ruling makes no production, public-surface, retry, pool, or binding behavior change; any optional future diagnostic is separate scope."},
-    {"slice": 70, "short": "DUAL-RUNTIME-TC5", "title": "supported dual CPU/GPU runtime policy, diagnostics, artifacts, and exact pre-fusion TC-5 controls", "depends_on": [6, 20], "status": "REVIEWED_PENDING_INTEGRATION", "sha": "aa29152b", "design_refs": ["dev/design/0.8.23-slice-70-dual-runtime-device-policy.md", "dev/design/0.8.23-slice-70-tc5-vector-stage-hypothesis.md", "dev/adr/ADR-0.8.23-dual-runtime-device-policy.md", "dev/plans/runs/0.8.23-slice-70-status.md"], "evidence": "Reviewed local RED-to-GREEN implementation is integrated on `origin/release/0.8.23` through aa29152b: strict embedding policy, doctor/process matrix, witness v2, rehearsal v2, and private TC-5 route/device/result controls. `origin/main` integration remains separately PENDING (see `completion`); real CUDA/trusted-runner/rehearsal and characterization evidence is explicitly PENDING_EXTERNAL."},
-    {"slice": 71, "short": "RERANK-DUAL-RUNTIME", "title": "cross-encoder CPU/GPU runtime policy and diagnostics", "depends_on": [70, 20], "status": "REVIEWED_PENDING_INTEGRATION", "sha": "a49ac989", "design_refs": ["dev/design/0.8.23-slice-71-reranker-dual-runtime.md", "dev/plans/runs/0.8.23-slice-71-draft-plan.md", "dev/plans/runs/0.8.23-slice-71-status.md"], "evidence": "Reviewed local RED-to-GREEN implementation is integrated on `origin/release/0.8.23` through a49ac989: strict reranker policy and propagation, separate SDK reports and diagnostic, and v3 candidate-only installed-artifact evidence route. `origin/main` integration remains separately PENDING (see `completion`); real compatible-GPU and incompatible-classifier receipts are explicitly PENDING_EXTERNAL."},
-    {"slice": 72, "short": "CONCURRENT-DUAL-RUNTIME", "title": "concurrent embedding and cross-encoder GPU coexistence characterization", "depends_on": [70, 71], "status": "REVIEWED_PENDING_INTEGRATION", "sha": "824b1d4b", "design_refs": ["dev/plans/runs/0.8.23-slice-72-draft-plan.md", "dev/design/0.8.23-slice-72-concurrent-gpu-characterization.md", "dev/plans/runs/0.8.23-slice-72-status.md"], "evidence": "824b1d4b integrates the independently reviewed hardware correction on the local release branch after an initial retained receipt caught a mismatched timestamp epoch. On the authorized Linux CUDA 12.6.68 / driver 580.173.02 host, process-visible cuda:0 selected RTX 3090 UUID GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b. Candidate and independent cache-only basic, bounded low/moderate, and authenticated 60-second stress runs passed with UUID/PID-bound device-wide telemetry and retained receipt hashes in the Slice 72 status. The verifier's stress receipt records 3,234 iterations and an unrelated compute PID confounder; no performance threshold or allocation conclusion is claimed. TC-5 remains no new GPU path. This work is integrated on `origin/release/0.8.23`; `origin/main` integration remains separately PENDING (see `completion`), and no dispatch, tag, push, registry operation, or publication occurred."},
-    {"slice": 80, "short": "AARCH64-TEGRA", "title": "AArch64 correctness and Jetson Orin CUDA", "depends_on": [6], "status": "IN_PROGRESS", "design_refs": ["dev/design/0.8.23-aarch64-tegra.md", "dev/plans/runs/0.8.23-slice-80-status.md"], "sha": "1f7ac1a8", "evidence": "Plan reviewed/approved and design review resolved (f56d39f5). Sub-slice 80.3 (AArch64 developer environment: Python >=3.11 venv selection, tomli fallback at 3 call sites, pip_skew.sh modern-interpreter resolve step, dev-environment-tools gate) landed at 60f62f14 with independent code review (PASS_WITH_NOTES, 3 nits resolved) and real-hardware verification (agent-test.sh --tier=fast run 3x on this Jetson Orin AGX; all 3 targeted failures green; 71/83 passed, remaining 12 failures all confirmed out of scope — see status record). Sub-slice 80.1 (glibc floor: build-napi's linux-arm64-gnu row now builds inside a digest-pinned manylinux_2_28_aarch64 container; scripts/check-glibc-floor.sh + scripts/check-glibc-floor-doc-truth.sh gates; smoke scripts assert the floor on the registry-installed artifact) landed at 52ac698f with independent code review (NEEDS_FIXES on first pass — a real smoke-npm-package.sh REPO_ROOT ordering bug, fixed and re-verified; plus self-verification and fail-closed-on-Linux hardening) and real-hardware verification (provision-napi-manylinux.sh built the real image on this Jetson Orin AGX; a real containerized napi build produced a real linux-arm64-gnu .node binary that passed the floor gate; agent-test.sh --tier=fast: registered=85 ran=85 passed=73 failed=12, identical 12-failure set to the pre-80.1 baseline). Sub-slice 80.2 (de-x86_64-bias test_install_shellcheck.sh and test_idempotent_republish.sh, both previously hardcoded to a Linux/x86_64 host and red on this aarch64 box: install-shellcheck.sh gained a --print-target mode as single source of truth for the platform table; the npm idempotent-republish fixture now resolves its host triple/package name through the real loader instead of a hardcoded linux-x64-gnu; foreign-host negative arm moved from darwin/arm64 to aix/ppc64, outside the entire supported matrix) landed at a179e03a with independent code review (PASS, 2 non-blocking nits resolved) and real-hardware verification (agent-test.sh --tier=fast: registered=85 ran=85 passed=75 failed=10, both 80.2 targets green, remaining 10 failures are the pre-existing 80.1-baseline set minus these two). Sub-slice 80.4 (parameterize the CUDA compute-capability axis: CUDA_COMPUTE_CAP_X86_64='75' byte-identical to the prior literal, new CUDA_COMPUTE_CAP_TEGRA_ORIN='87'; check-cuda-release-contract.py's single assertion split into three, equal-or-stronger per AC80-8; a pre-implementation design review resolved a design-doc inconsistency by ruling that Tegra's container-shaped per-target values from § 7 80.4's prose cannot be established by measurement since § 7 80.6 rules the Tegra build host-native, never containerized — deferred to 80.6, design doc updated with a landed-scope note) landed at 1f7ac1a8 with independent code review (PASS, 1 non-blocking nit addressed) and real-hardware verification (test_cuda_release_contract.sh RED then GREEN; agent-test.sh --tier=fast: registered=85 ran=85 passed=75 failed=10, identical pre-existing failure set, no regressions). 80.5-80.7 not yet started. 80.6's self-hosted runner provisioning (a second instance alongside the existing memex runner on this host) is HITL-approved; hand-off recorded in dev/plans/prompts/0.8.23-slice-80-handoff.md."}
+    {
+      "slice": 0,
+      "short": "ENVIRONMENT",
+      "title": "identify environment setup and change preconditions",
+      "depends_on": [],
+      "status": "LANDED",
+      "design_refs": [
+        "dev/design/0.8.23-planning-foundation.md",
+        "dev/design/0.8.23-windows-local-environment.md"
+      ],
+      "sha": "916023fe",
+      "merge_subject": "docs(0.8.23): establish planning-first release ladder",
+      "evidence": "Planning-only environment inventory landed at this commit. It separates available local development tools from CUDA, Docker, and system-libvirt evidence that only an authorized later execution may certify; no runner, guest, artifact, dependency, or publication change occurred."
+    },
+    {
+      "slice": 1,
+      "short": "DEPENDENCIES",
+      "title": "Dependabot needs and library-sweep disposition",
+      "depends_on": [
+        0
+      ],
+      "status": "LANDED",
+      "design_refs": [
+        "dev/design/0.8.23-planning-foundation.md"
+      ],
+      "sha": "2167a0cd",
+      "merge_subject": "docs(0.8.23): record Slice 1 dependency disposition",
+      "evidence": "Retains the explicit Dependabot pause. An online SBOM survey read 780 locked components but registry DNS made every version comparison unknown; the GitHub integration returned no open Dependabot PRs and lacked advisory-read permission. No version, lockfile, or configuration change is proposed."
+    },
+    {
+      "slice": 2,
+      "short": "CRUFT-REVIEW",
+      "title": "repository and documentation cruft proposal",
+      "depends_on": [
+        1
+      ],
+      "status": "LANDED",
+      "design_refs": [
+        "dev/design/0.8.23-planning-foundation.md"
+      ],
+      "sha": "b363af85",
+      "merge_subject": "docs(0.8.23): record Slice 2 cruft disposition",
+      "evidence": "Classifies current authority, historical records, and future bounded maintenance proposals across program, developer, public, source, and test documentation. It authorizes no cleanup and proposes no deletion without the existing two-phase prune method and HITL approval."
+    },
+    {
+      "slice": 3,
+      "short": "DRAFT-CONTRACTS",
+      "title": "draft needs, requirements, and acceptance-criteria CRUD allocation",
+      "depends_on": [
+        2
+      ],
+      "status": "LANDED",
+      "design_refs": [
+        "dev/design/0.8.23-planning-foundation.md"
+      ],
+      "sha": "91e162c2",
+      "merge_subject": "docs(0.8.23): record Slice 3 draft allocation",
+      "evidence": "Temporary N23/R23/AC23 drafts allocate every feature candidate to Slices 10, 20, 30, 40, 50, or 60 without minting authoritative requirement or acceptance identifiers before an owning feature is expressly commissioned."
+    },
+    {
+      "slice": 4,
+      "short": "ARCHITECTURE",
+      "title": "architecture and high-level code-alignment review",
+      "depends_on": [
+        3
+      ],
+      "status": "LANDED",
+      "design_refs": [
+        "dev/design/0.8.23-planning-foundation.md"
+      ],
+      "sha": "a7df1590",
+      "merge_subject": "docs(0.8.23): record Slice 4 architecture review",
+      "evidence": "Candidate designs align to existing embedding, binding, release, experiment, hook/CI, and fail-closed erasure seams. The record preserves public-surface, CPU-default, provenance, and Windows-evidence boundaries without authorizing implementation."
+    },
+    {
+      "slice": 5,
+      "short": "VERIFICATION",
+      "title": "verification-adequacy review",
+      "depends_on": [
+        4
+      ],
+      "status": "LANDED",
+      "design_refs": [
+        "dev/design/0.8.23-planning-foundation.md"
+      ],
+      "sha": "00f865f3",
+      "merge_subject": "docs(0.8.23): record Slice 5 verification review",
+      "evidence": "Maps every temporary R23/AC23 candidate to existing verification seams and the missing real-environment, artifact, cross-SDK, provenance, scanning, or Windows evidence. It credits no candidate as complete and feeds the Slice 6 preparation report."
+    },
+    {
+      "slice": 6,
+      "short": "PREPARATION-WORKPLAN",
+      "title": "hygiene and in-flight release preparation workplan",
+      "depends_on": [
+        5
+      ],
+      "status": "LANDED",
+      "design_refs": [
+        "dev/design/0.8.23-planning-foundation.md"
+      ],
+      "sha": "e98f727d",
+      "merge_subject": "docs(0.8.23): add Slice 6 preparation workplan",
+      "evidence": "The workplan consolidates the hygiene and in-flight-release preparation identified by Slices 0\u20135, assigns relative value, and supplies a dependency-first execution sequence. The HITL then commissioned completion of that workplan locally without a branch, PR, push, or publication."
+    },
+    {
+      "slice": 10,
+      "short": "CUDA-CONTRACT",
+      "title": "CUDA environment, artifact contract, and protected runner gate",
+      "depends_on": [
+        6
+      ],
+      "status": "PENDING_EXTERNAL",
+      "design_refs": [
+        "dev/design/0.8.23-gpu-artifacts.md",
+        "dev/design/0.8.23-slice-10-cuda-contract.md",
+        "dev/design/0.8.23-unmerged-candidate-provenance.md",
+        "dev/plans/runs/0.8.23-slice-10-status.md"
+      ],
+      "evidence": "8a9e05b5, 8814b374, and ecafa0d8 landed independently reviewed local RED-to-GREEN hardening: driverless device-selection variables are absent; witness/receipt verifiers bind canonical manifests; the one-record provenance policy, protected environment, and ordered main-owned control-plane checkout are fail closed; candidate jobs are credentialless/read-only and finalizers candidate-free. Focused provenance/CUDA/release-contract suites, actionlint, full workspace clippy/check, and agent-verify passed. The empty manifest and expired baseline authorize no candidate or dispatch. Per HITL seq:249, remaining main/provenance/runner/witness evidence blocks release completion and publication only, not local Slices 20 or 70."
+    },
+    {
+      "slice": 20,
+      "short": "CUDA-PACKAGE",
+      "title": "CUDA package, rehearsal, and installed-artifact smokes",
+      "depends_on": [
+        6
+      ],
+      "status": "PENDING_EXTERNAL",
+      "design_refs": [
+        "dev/design/0.8.23-gpu-artifacts.md",
+        "dev/design/0.8.23-slice-20-cuda-package-rehearsal.md",
+        "dev/plans/runs/0.8.23-slice-20-status.md"
+      ],
+      "evidence": "91a5ddd8 landed the independently reviewed local RED-to-GREEN package-rehearsal control plane: exactly one candidate wheel, thin npm tarball, and Linux x64 platform tarball are sealed with strict provenance, retained candidate-bound Slice 10 witness, and installed CPU/GPU smoke evidence; trusted control-plane helpers, network-isolated driverless containers, GPU UUID/PID attestation, and package-byte/symlink/substitution rejection are mutation-tested. The only Linux x64 candidate producer is the combined preflight/rehearsal route; ordinary CPU substitution is rejected. Canonical tag/non-dry routes fail loudly and credentiallessly before publishers until separately commissioned tag-bound CUDA delivery exists. Full agent verification, workspace clippy/check, Actionlint, focused contract suites, and independent design/code/verification review passed locally. A real rehearsal remains pending a valid Slice 10 receipt/witness and independent evidence review; no registry, tag, or publication occurred. Local Slice 70 may proceed."
+    },
+    {
+      "slice": 30,
+      "short": "MEMEX-INTEGRATION",
+      "title": "Memex readiness and graph-integration contract",
+      "depends_on": [
+        6
+      ],
+      "status": "LANDED",
+      "design_refs": [
+        "dev/design/0.8.23-embedding-configuration-feedback.md",
+        "dev/design/0.8.23-memex-integration.md"
+      ],
+      "sha": "776d2c20",
+      "merge_subject": "docs(0.8.23): clarify Python no-embedder drain",
+      "evidence": "Slice 30 is complete on `origin/release/0.8.23` through this commit, with main integration explicitly pending. It adds typed cross-SDK embedding readiness and the immediate `FDB_EMBEDDER_REQUIRED` no-embedder outcome; preserves operational worker/equivalence outcomes; documents the bounded Memex graph contract; and records RED\u2192GREEN, independent review, real-engine Python, and native TypeScript verification. The completion ref, not `origin/main`, is the authoritative reachability target until release integration occurs."
+    },
+    {
+      "slice": 40,
+      "short": "SCALE-CHARACTERIZATION",
+      "title": "fixture-scoped scale characterization",
+      "depends_on": [
+        6
+      ],
+      "status": "SET_ASIDE",
+      "design_refs": [
+        "dev/design/0.8.23-scale-characterization-protocol.md",
+        "dev/design/0.8.23-scale-aggregator-contract.md",
+        "dev/design/0.8.23-scale-characterization-v2.md",
+        "dev/design/0.8.23-scale-artifact-v2.schema.json"
+      ],
+      "evidence": "V1 protocol/contract remain historical pre-registration only. V2 runner/validator design is under review; no matrix execution, artifact, or scale characterization has been claimed. HITL set this work aside on 2026-08-17; retain the unintegrated candidate and resume only after Slices 10, 20, and 70."
+    },
+    {
+      "slice": 50,
+      "short": "GITLEAKS-GUARDS",
+      "title": "staged pre-commit and always-on CI secret scanning",
+      "depends_on": [
+        6
+      ],
+      "status": "LANDED",
+      "design_refs": [
+        "dev/design/0.8.23-gitleaks-guards.md"
+      ],
+      "sha": "ae7cef0e",
+      "merge_subject": "feat(0.8.23): add Gitleaks security guards",
+      "evidence": "A Go-module-pinned Gitleaks v8.30.1 installer now provisions the tracked staged-index hook and an unconditional, full-history CI job. Regression coverage proves unavailable-scanner failure, clean-index acceptance, synthetic-credential rejection, redaction, and CI/hook wiring; the focused guard test, shell lint, and a real local reachable-history scan passed."
+    },
+    {
+      "slice": 60,
+      "short": "WINDOWS-WAL",
+      "title": "Windows WAL checkpoint reader-conflict diagnosis",
+      "depends_on": [
+        6
+      ],
+      "status": "LANDED",
+      "design_refs": [
+        "dev/design/0.8.23-windows-wal-checkpoint-reader-conflict.md",
+        "dev/design/0.8.23-windows-local-environment.md"
+      ],
+      "sha": "423baf6a",
+      "merge_subject": "test(0.8.23): retain child WAL diagnostics",
+      "evidence": "GitHub-hosted windows-latest job 95236592394 passed the real-SQLite cross-process source test and retained the complete lifecycle sequence: child_started, child_ready, parent_ready_observed, checkpoint_start/result (116 ms), typed ErasureIncomplete at wal_checkpoint with BUSY on all 5 attempts and 212 frames, release_signaled, child_release_observed, and successful child_reaped. Job 95235671915 had passed the parent assertion but was correctly rejected as insufficient because the child lifecycle lines were captured; 423baf6a added child --nocapture before the repaired rerun. The reviewed Memex Windows-x64 note supports the existing fail-closed/no-tuning boundary and makes no root-cause claim."
+    },
+    {
+      "slice": 65,
+      "short": "WAL-ATTRIBUTION",
+      "title": "Windows WAL checkpoint root-cause attribution",
+      "depends_on": [
+        6,
+        60
+      ],
+      "status": "LANDED",
+      "design_refs": [
+        "dev/design/0.8.23-wal-attribution-investigation.md",
+        "dev/design/0.8.23-windows-wal-checkpoint-reader-conflict.md"
+      ],
+      "sha": "6b57557c",
+      "merge_subject": "docs: record completed hosted WAL evidence",
+      "evidence": "CLOSED_UNATTRIBUTED_NO_REMEDY by the independently approved Slice 65 closure. Hosted Windows enriched binding jobs 95369168206, 95373316503, and 95375745327 complete the 3/3 discriminator: each retained completion acknowledgement, an exact idle twelve-role inventory, and complete sampler state. The normal actual series is 4 clean / 1 BUSY; the broad binding process-lifetime series is 3 busy-child-clean / 2 clean. These observations do not identify a SQLite holder or establish a Windows, Python-SDK, retry, binding-lifetime, or reader-pool cause. The no-remedy ruling makes no production, public-surface, retry, pool, or binding behavior change; any optional future diagnostic is separate scope."
+    },
+    {
+      "slice": 70,
+      "short": "DUAL-RUNTIME-TC5",
+      "title": "supported dual CPU/GPU runtime policy, diagnostics, artifacts, and exact pre-fusion TC-5 controls",
+      "depends_on": [
+        6,
+        20
+      ],
+      "status": "REVIEWED_PENDING_INTEGRATION",
+      "sha": "aa29152b",
+      "design_refs": [
+        "dev/design/0.8.23-slice-70-dual-runtime-device-policy.md",
+        "dev/design/0.8.23-slice-70-tc5-vector-stage-hypothesis.md",
+        "dev/adr/ADR-0.8.23-dual-runtime-device-policy.md",
+        "dev/plans/runs/0.8.23-slice-70-status.md"
+      ],
+      "evidence": "Reviewed local RED-to-GREEN implementation is integrated on `origin/release/0.8.23` through aa29152b: strict embedding policy, doctor/process matrix, witness v2, rehearsal v2, and private TC-5 route/device/result controls. `origin/main` integration remains separately PENDING (see `completion`); real CUDA/trusted-runner/rehearsal and characterization evidence is explicitly PENDING_EXTERNAL."
+    },
+    {
+      "slice": 71,
+      "short": "RERANK-DUAL-RUNTIME",
+      "title": "cross-encoder CPU/GPU runtime policy and diagnostics",
+      "depends_on": [
+        70,
+        20
+      ],
+      "status": "REVIEWED_PENDING_INTEGRATION",
+      "sha": "a49ac989",
+      "design_refs": [
+        "dev/design/0.8.23-slice-71-reranker-dual-runtime.md",
+        "dev/plans/runs/0.8.23-slice-71-draft-plan.md",
+        "dev/plans/runs/0.8.23-slice-71-status.md"
+      ],
+      "evidence": "Reviewed local RED-to-GREEN implementation is integrated on `origin/release/0.8.23` through a49ac989: strict reranker policy and propagation, separate SDK reports and diagnostic, and v3 candidate-only installed-artifact evidence route. `origin/main` integration remains separately PENDING (see `completion`); real compatible-GPU and incompatible-classifier receipts are explicitly PENDING_EXTERNAL."
+    },
+    {
+      "slice": 72,
+      "short": "CONCURRENT-DUAL-RUNTIME",
+      "title": "concurrent embedding and cross-encoder GPU coexistence characterization",
+      "depends_on": [
+        70,
+        71
+      ],
+      "status": "REVIEWED_PENDING_INTEGRATION",
+      "sha": "824b1d4b",
+      "design_refs": [
+        "dev/plans/runs/0.8.23-slice-72-draft-plan.md",
+        "dev/design/0.8.23-slice-72-concurrent-gpu-characterization.md",
+        "dev/plans/runs/0.8.23-slice-72-status.md"
+      ],
+      "evidence": "824b1d4b integrates the independently reviewed hardware correction on the local release branch after an initial retained receipt caught a mismatched timestamp epoch. On the authorized Linux CUDA 12.6.68 / driver 580.173.02 host, process-visible cuda:0 selected RTX 3090 UUID GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b. Candidate and independent cache-only basic, bounded low/moderate, and authenticated 60-second stress runs passed with UUID/PID-bound device-wide telemetry and retained receipt hashes in the Slice 72 status. The verifier's stress receipt records 3,234 iterations and an unrelated compute PID confounder; no performance threshold or allocation conclusion is claimed. TC-5 remains no new GPU path. This work is integrated on `origin/release/0.8.23`; `origin/main` integration remains separately PENDING (see `completion`), and no dispatch, tag, push, registry operation, or publication occurred."
+    },
+    {
+      "slice": 80,
+      "short": "AARCH64-TEGRA",
+      "title": "AArch64 correctness and Jetson Orin CUDA",
+      "depends_on": [
+        6
+      ],
+      "status": "IN_PROGRESS",
+      "design_refs": [
+        "dev/design/0.8.23-aarch64-tegra.md",
+        "dev/plans/runs/0.8.23-slice-80-status.md"
+      ],
+      "sha": "55c152fe",
+      "evidence": "Plan reviewed/approved and design review resolved (f56d39f5). Sub-slice 80.3 (AArch64 developer environment: Python >=3.11 venv selection, tomli fallback at 3 call sites, pip_skew.sh modern-interpreter resolve step, dev-environment-tools gate) landed at 60f62f14 with independent code review (PASS_WITH_NOTES, 3 nits resolved) and real-hardware verification (agent-test.sh --tier=fast run 3x on this Jetson Orin AGX; all 3 targeted failures green; 71/83 passed, remaining 12 failures all confirmed out of scope \u2014 see status record). Sub-slice 80.1 (glibc floor: build-napi's linux-arm64-gnu row now builds inside a digest-pinned manylinux_2_28_aarch64 container; scripts/check-glibc-floor.sh + scripts/check-glibc-floor-doc-truth.sh gates; smoke scripts assert the floor on the registry-installed artifact) landed at 52ac698f with independent code review (NEEDS_FIXES on first pass \u2014 a real smoke-npm-package.sh REPO_ROOT ordering bug, fixed and re-verified; plus self-verification and fail-closed-on-Linux hardening) and real-hardware verification (provision-napi-manylinux.sh built the real image on this Jetson Orin AGX; a real containerized napi build produced a real linux-arm64-gnu .node binary that passed the floor gate; agent-test.sh --tier=fast: registered=85 ran=85 passed=73 failed=12, identical 12-failure set to the pre-80.1 baseline). Sub-slice 80.2 (de-x86_64-bias test_install_shellcheck.sh and test_idempotent_republish.sh, both previously hardcoded to a Linux/x86_64 host and red on this aarch64 box: install-shellcheck.sh gained a --print-target mode as single source of truth for the platform table; the npm idempotent-republish fixture now resolves its host triple/package name through the real loader instead of a hardcoded linux-x64-gnu; foreign-host negative arm moved from darwin/arm64 to aix/ppc64, outside the entire supported matrix) landed at a179e03a with independent code review (PASS, 2 non-blocking nits resolved) and real-hardware verification (agent-test.sh --tier=fast: registered=85 ran=85 passed=75 failed=10, both 80.2 targets green, remaining 10 failures are the pre-existing 80.1-baseline set minus these two). Sub-slice 80.4 (parameterize the CUDA compute-capability axis: CUDA_COMPUTE_CAP_X86_64='75' byte-identical to the prior literal, new CUDA_COMPUTE_CAP_TEGRA_ORIN='87'; check-cuda-release-contract.py's single assertion split into three, equal-or-stronger per AC80-8; a pre-implementation design review resolved a design-doc inconsistency by ruling that Tegra's container-shaped per-target values from \u00a7 7 80.4's prose cannot be established by measurement since \u00a7 7 80.6 rules the Tegra build host-native, never containerized \u2014 deferred to 80.6, design doc updated with a landed-scope note) landed at 1f7ac1a8 with independent code review (PASS, 1 non-blocking nit addressed) and real-hardware verification (test_cuda_release_contract.sh RED then GREEN; agent-test.sh --tier=fast: registered=85 ran=85 passed=75 failed=10, identical pre-existing failure set, no regressions). Sub-slice 80.5 (Tegra-portable GPU witness) landed at 55c152fe. Design was revised and independently design-reviewed twice before implementation: the review returned NEEDS_FIXES on three findings, all resolved pre-code \u2014 (1) CRITICAL, R80-11/AC80-7 grouped `auto` with `cpu` as never-touching-CUDA, false against resolve_embed_device_policy's Auto arm and the dual-runtime ADR, making AC80-7 unsatisfiable on the very Tegra artifact 80.6 builds; fixed, with new AC80-21 asserting unset/auto -> cuda:0 positively so it cannot be regressed away; (2) MAJOR, the x86_64 witness strengthening could not happen in 80.5 at all (that record is produced inside the installed wheel/npm process, which can only call the public SDK, and D-80.5-4 rules no new SDK surface) \u2014 the shared-schema /v2 bump was withdrawn in favour of a separate fathomdb.tegra-gpu-allocation-witness/v1 record, and the merge plus strengthening became AC80-22 in a NEW sub-slice 80.6.5; (3) MAJOR, four hidden schema consumers enumerated and left byte-untouched, including a mutation-tested substring guard. A measured correction reshaped the witness itself: the design's original 274MB allocation-delta figure does not reproduce \u2014 Tegra's nvgpu/nvmap page pool absorbs allocations, so on any host that has run a GPU workload since boot a 133,466,304-byte allocation moves cuMemGetInfo's free by 0 bytes, and the naive design would have failed closed on every run (6,189,056 bytes observed for a 133MB model). D-80.5-3 was revised to make the control allocation a precondition that DRAINS the pool before the load. Two loader defects found while producing the evidence were folded in by HITL direction (R80-14/R80-15, AC80-23/AC80-24): materialize_from_hf_hub hard-linked the HF hub's relative symlink instead of its target (Linux link(2) does not dereference), permanently poisoning the cache on any host where the two caches share a filesystem \u2014 invisible to CI, where the cross-device fallback dereferences; and the read-verification that fixed it turned a harmless torn read into a destructive delete outside the loader lock, reproduced deterministically as 7/8 concurrent cold starts hashing the SHA-256 of zero bytes. Both closed by temp-then-atomic-rename with exclusively-created temp names (a PID-derived name collides across PID namespaces \u2014 exactly the topology cuda-preflight.sh creates by bind-mounting caches into containers). Three load-bearing claims were verified against normative POSIX/man7/Rust/Microsoft sources rather than assumption: rename replaces a dangling destination symlink rather than following it (so the explicit unlink was correctly removed), a same-inode rename is a documented no-op (the common case here, hence unconditional temp cleanup), and temp-then-rename is the consensus pattern huggingface_hub itself independently adopted. Independent code review PASS (2 MINOR, both disclosed). Independent verification subagent: agent-test.sh --tier=fast registered=86 ran=86 passed=76 failed=10, same 10 pre-existing names as the 85/85/75/10 baseline, no new failures; the real-hardware witness reproduced TWICE from scratch (delta_bytes 143,290,368 and 143,876,096 vs a 67,108,864 floor, 0.4% spread, within 1.9% of the committed fixture) and both verified by verify-tegra-gpu-witness.py --nvidia-smi, exercising the measured Tegra UUID normalization (this host's nvidia-smi omits the GPU- prefix). Verification also CAUGHT A FALSE CLAIM: the implementer reported `cargo clippy --features embed-cuda --all-targets -- -D warnings` clean; it is not (7 errors), but it is pre-existing \u2014 proven by running the identical command against a scratch export of 2dbe7c63, which fails with 9 \u2014 so 80.5 takes it 9 -> 7. That gate must not be described as green until the remaining 7 tc5-benchmark-only dead items are addressed. AC80-19 holds: the x86_64 lane is byte-unchanged. 80.6, 80.6.5, and 80.7 remain. 80.6's self-hosted runner provisioning (a second instance alongside the existing memex runner on this host) is HITL-approved; hand-off recorded in dev/plans/prompts/0.8.23-slice-80-handoff.md."
+    }
   ],
-  "landed": [0, 1, 2, 3, 4, 5, 6, 50, 30, 60, 65],
+  "landed": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    50,
+    30,
+    60,
+    65
+  ],
   "next_slice": 70,
-  "remaining_ladder": [70, 71, 72, 40, 80],
+  "remaining_ladder": [
+    70,
+    71,
+    72,
+    40,
+    80
+  ],
   "decisions": {
     "unruled": [],
     "ruled": [
-      {"id": "feature-commission", "title": "HITL commissioned Slice 30 completion and Slice 60 execution on the 0.8.23 release branch", "source": "HITL 2026-08-16"},
-      {"id": "windows-wal-evidence", "title": "Slice 60 selected and completed the durable first-party Windows x64 evidence path", "source": "GitHub-hosted repaired job 95236592394 (2026-08-16): full first-party Windows witness retained"},
-      {"id": "windows-wal-root-cause-follow-on", "title": "HITL commissioned Slice 65 to attribute Memex-like Windows WAL failures before any retry, binding, or reader-pool remedy", "source": "HITL 2026-08-16"},
-      {"id": "windows-wal-root-cause-closure", "title": "Independent evidence review closes Slice 65 UNATTRIBUTED with no remedy; optional diagnostics are separate scope", "source": "Independent Slice 65 evidence review / approved closure 2026-08-17"},
-      {"id": "release-ladder-reorder", "title": "HITL set aside Slice 40 and ordered Slices 10, 20, and 70 ahead of it", "source": "HITL 2026-08-17"},
-      {"id": "slice-10-20-70-commission", "title": "HITL commissioned completion of Slices 10, 20, and 70 in ladder order", "source": "HITL 2026-08-17"},
-      {"id": "slice-10-external-gate-separation", "title": "Slice 10 external CUDA closure is PENDING_EXTERNAL: it blocks release completion and publication, not local Slice 20 or Slice 70 work", "source": "seq:249"},
-      {"id": "slice-70-dual-runtime-rescope", "title": "Slice 70 must deliver a released dual CPU/GPU runtime without end-user rebuild, configurable GPU on/off behavior, and a GPU availability diagnostic; the private TC-5 factory is not the product configuration path", "source": "seq:250"},
-      {"id": "slice-70-tc5-scope-removal-superseded", "title": "The Slice 70 TC-5 scope removal ruling was superseded after HITL review and is not operative", "source": "seq:251, superseded by seq:252"},
-      {"id": "slice-70-tc5-scope-confirmation", "title": "Slice 70 requires the isolated, fail-closed private TC-5 benchmark work in addition to its supported dual-runtime product and artifact work", "source": "seq:252"},
-      {"id": "slice-71-rerank-dual-runtime-draft", "title": "Draft Slice 71 for equivalent CPU/GPU cross-encoder reranker controls, diagnostics, SDK reports, and no-rebuild artifact behavior; forced GPU reranking must not silently execute on CPU", "source": "HITL 2026-08-17"},
-      {"id": "slice-72-concurrent-dual-runtime", "title": "Slice 72 is commissioned to plan and, after independent design review, characterize concurrent embedding and CE reranking GPU coexistence, documentation truth, and the TC-5 GPU-path decision", "source": "HITL 2026-08-18"},
-      {"id": "publication", "title": "Complete planning and any approved implementation/rehearsal without publishing 0.8.23", "halts_run": false, "source": "HITL 2026-08-10"}
+      {
+        "id": "feature-commission",
+        "title": "HITL commissioned Slice 30 completion and Slice 60 execution on the 0.8.23 release branch",
+        "source": "HITL 2026-08-16"
+      },
+      {
+        "id": "windows-wal-evidence",
+        "title": "Slice 60 selected and completed the durable first-party Windows x64 evidence path",
+        "source": "GitHub-hosted repaired job 95236592394 (2026-08-16): full first-party Windows witness retained"
+      },
+      {
+        "id": "windows-wal-root-cause-follow-on",
+        "title": "HITL commissioned Slice 65 to attribute Memex-like Windows WAL failures before any retry, binding, or reader-pool remedy",
+        "source": "HITL 2026-08-16"
+      },
+      {
+        "id": "windows-wal-root-cause-closure",
+        "title": "Independent evidence review closes Slice 65 UNATTRIBUTED with no remedy; optional diagnostics are separate scope",
+        "source": "Independent Slice 65 evidence review / approved closure 2026-08-17"
+      },
+      {
+        "id": "release-ladder-reorder",
+        "title": "HITL set aside Slice 40 and ordered Slices 10, 20, and 70 ahead of it",
+        "source": "HITL 2026-08-17"
+      },
+      {
+        "id": "slice-10-20-70-commission",
+        "title": "HITL commissioned completion of Slices 10, 20, and 70 in ladder order",
+        "source": "HITL 2026-08-17"
+      },
+      {
+        "id": "slice-10-external-gate-separation",
+        "title": "Slice 10 external CUDA closure is PENDING_EXTERNAL: it blocks release completion and publication, not local Slice 20 or Slice 70 work",
+        "source": "seq:249"
+      },
+      {
+        "id": "slice-70-dual-runtime-rescope",
+        "title": "Slice 70 must deliver a released dual CPU/GPU runtime without end-user rebuild, configurable GPU on/off behavior, and a GPU availability diagnostic; the private TC-5 factory is not the product configuration path",
+        "source": "seq:250"
+      },
+      {
+        "id": "slice-70-tc5-scope-removal-superseded",
+        "title": "The Slice 70 TC-5 scope removal ruling was superseded after HITL review and is not operative",
+        "source": "seq:251, superseded by seq:252"
+      },
+      {
+        "id": "slice-70-tc5-scope-confirmation",
+        "title": "Slice 70 requires the isolated, fail-closed private TC-5 benchmark work in addition to its supported dual-runtime product and artifact work",
+        "source": "seq:252"
+      },
+      {
+        "id": "slice-71-rerank-dual-runtime-draft",
+        "title": "Draft Slice 71 for equivalent CPU/GPU cross-encoder reranker controls, diagnostics, SDK reports, and no-rebuild artifact behavior; forced GPU reranking must not silently execute on CPU",
+        "source": "HITL 2026-08-17"
+      },
+      {
+        "id": "slice-72-concurrent-dual-runtime",
+        "title": "Slice 72 is commissioned to plan and, after independent design review, characterize concurrent embedding and CE reranking GPU coexistence, documentation truth, and the TC-5 GPU-path decision",
+        "source": "HITL 2026-08-18"
+      },
+      {
+        "id": "publication",
+        "title": "Complete planning and any approved implementation/rehearsal without publishing 0.8.23",
+        "halts_run": false,
+        "source": "HITL 2026-08-10"
+      }
     ]
   },
   "generated_views": [
-    {"id": "plan-landed-roll-up", "file": "dev/plans/plan-0.8.23.md", "location": "Immediate next slice", "renders": "the completion-ref-aware landed roll-up used by dependency preflight"},
-    {"id": "plan-immediate-next", "file": "dev/plans/plan-0.8.23.md", "location": "Immediate next slice", "renders": "the state-owned next slice and remaining ladder"},
-    {"id": "status-current-state", "file": "dev/plans/runs/STATUS-0.8.23.md", "location": "Current state", "renders": "the state-owned next-slice and landed evidence summary"},
-    {"id": "status-next-action", "file": "dev/plans/runs/STATUS-0.8.23.md", "location": "Immediate next action", "renders": "the lifecycle-aware next action and remaining ladder"}
+    {
+      "id": "plan-landed-roll-up",
+      "file": "dev/plans/plan-0.8.23.md",
+      "location": "Immediate next slice",
+      "renders": "the completion-ref-aware landed roll-up used by dependency preflight"
+    },
+    {
+      "id": "plan-immediate-next",
+      "file": "dev/plans/plan-0.8.23.md",
+      "location": "Immediate next slice",
+      "renders": "the state-owned next slice and remaining ladder"
+    },
+    {
+      "id": "status-current-state",
+      "file": "dev/plans/runs/STATUS-0.8.23.md",
+      "location": "Current state",
+      "renders": "the state-owned next-slice and landed evidence summary"
+    },
+    {
+      "id": "status-next-action",
+      "file": "dev/plans/runs/STATUS-0.8.23.md",
+      "location": "Immediate next action",
+      "renders": "the lifecycle-aware next action and remaining ladder"
+    }
   ]
 }

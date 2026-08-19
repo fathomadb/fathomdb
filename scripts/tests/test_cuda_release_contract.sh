@@ -331,6 +331,21 @@ PY
 expect_fail "$FIXTURE" 'rejects a CUDA preflight that renames an installed wheel to an invalid filename'
 
 make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" "$FIXTURE/scripts/release/cuda-package-rehearsal-smoke.sh" <<'PY'
+from pathlib import Path
+import sys
+
+preflight, rehearsal = map(Path, sys.argv[1:])
+needle = '-e "WHEEL_FILENAME=$WHEEL_FILENAME"'
+for path, expected_count in ((preflight, 3), (rehearsal, 2)):
+    actual_count = path.read_text().count(needle)
+    if actual_count != expected_count:
+        raise SystemExit(f"{path.name} must pass its local wheel filename explicitly to every wheel container; got {actual_count}")
+preflight.write_text(preflight.read_text().replace(needle, '-e WHEEL_FILENAME', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA preflight that forwards an unexported wheel filename'
+
+make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/build-napi-cuda.sh" <<'PY'
 from pathlib import Path
 import sys

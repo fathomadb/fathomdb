@@ -13,9 +13,25 @@ export CUDA_NAPI_HOST_GCC_VERSION='13.3.0'
 export CUDA_NAPI_HOST_CC='/usr/bin/gcc-13'
 export CUDA_NAPI_HOST_CXX='/usr/bin/g++-13'
 export CUDA_MANYLINUX='2_28'
-# CUDA 7.5 is the lowest device in the restricted runner group (the hosted
-# T4). The self-hosted RTX 3090 is forward-compatible with this build target.
-export CUDA_COMPUTE_CAP='75'
+# 0.8.23 Slice 80.4 (R80-5): compute capability as a per-target axis rather
+# than a single literal, so a Tegra target can declare its own pin without
+# touching x86_64's. CUDA 7.5 is the lowest device in the restricted x86_64
+# runner group (the hosted T4); the self-hosted RTX 3090 is forward-compatible
+# with this build target. CUDA_COMPUTE_CAP_TEGRA_ORIN='87' matches the Jetson
+# Orin AGX's SM_87 — Tegra is NOT forward-compatible the way discrete GPUs
+# are, so unlike x86_64 this is a single pin, not a list (§ 7 80.4). Neither
+# value is consumed by a real build yet: x86_64's compiled kernels don't
+# depend on it (candle-flash-attn-v3, which reads it, isn't in this crate
+# graph), and Tegra's own host-native build script doesn't exist until
+# Slice 80.6.
+export CUDA_COMPUTE_CAP_X86_64='75'
+export CUDA_COMPUTE_CAP_TEGRA_ORIN='87'
+# CUDA_COMPUTE_CAP is the literal env var name candle-flash-attn-v3's
+# build.rs (in the pinned Candle fork) reads — not ours to rename. It selects
+# the x86_64 value because that is the only target build-napi-cuda.sh and
+# cuda-preflight.sh build for today; Tegra's future host-native build script
+# will source CUDA_COMPUTE_CAP_TEGRA_ORIN directly instead.
+export CUDA_COMPUTE_CAP="$CUDA_COMPUTE_CAP_X86_64"
 export CUDA_NAPI_FEATURES='embed-cuda'
 export CUDA_PYTHON_FEATURES='pyo3/extension-module,embed-cuda'
 # Additive candidate-only Slice 71 tuple. The established v2 route continues

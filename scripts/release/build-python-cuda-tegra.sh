@@ -197,7 +197,12 @@ maturin build --release --out "$OUT_DIR" \
   --auditwheel skip \
   --interpreter "$INTERPRETER"
 
-mapfile -t WHEELS < <(find "$OUT_DIR" -maxdepth 1 -type f -name "fathomdb-${TEGRA_LOCAL_VERSION}-*.whl" -print)
+# Use shell globbing rather than a process substitution: a failed external
+# discovery command would otherwise be masked by mapfile, exactly the
+# SC2312 return-status loss this release gate prevents.
+shopt -s nullglob
+WHEELS=("$OUT_DIR"/fathomdb-"${TEGRA_LOCAL_VERSION}"-*.whl)
+shopt -u nullglob
 if [ "${#WHEELS[@]}" -ne 1 ]; then
   fail "the Tegra CUDA build must produce exactly one fathomdb-${TEGRA_LOCAL_VERSION}-*.whl in $OUT_DIR"
 fi

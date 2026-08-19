@@ -79,7 +79,12 @@ for index, match in enumerate(matches):
 
 release_ref = "${{ env.RELEASE_CHECKOUT_REF }}"
 control_ref = "${{ github.workflow_sha }}"
-control_jobs = {"verify-cuda-trusted-route", "cuda-contract-preflight"}
+control_jobs = {
+    "verify-cuda-trusted-route",
+    "cuda-contract-preflight",
+    "cuda-package-rehearsal",
+    "cuda-reranker-package-rehearsal",
+}
 checkout_count = 0
 control_count = 0
 ok = True
@@ -99,11 +104,11 @@ for job_name, block in jobs.items():
         if "persist-credentials: false" not in step:
             ok = False
             continue
-        if job_name == "cuda-contract-preflight" and "path: control-plane" not in step:
+        if job_name in {"cuda-contract-preflight", "cuda-package-rehearsal", "cuda-reranker-package-rehearsal"} and "path: control-plane" not in step:
             ok = False
             continue
         control_count += 1
-print(f"CHECKOUTS {ok and checkout_count > 0 and control_count == 2} total={checkout_count} control={control_count}")
+print(f"CHECKOUTS {ok and checkout_count > 0 and control_count == 4} total={checkout_count} control={control_count}")
 PY
 )"
 if printf '%s\n' "$checkout_policy" | grep -q '^CHECKOUTS True ' \

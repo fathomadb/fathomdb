@@ -270,7 +270,7 @@ docker run --rm --network none \
   --mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly" \
   --mount "type=bind,src=$WORK_DIR/cache/driverless_python,dst=/fathomdb-product-cache" \
   --mount "type=bind,src=$WORK_DIR/tmp/driverless_python,dst=/fathomdb-tmp" \
-  "${MODEL_ENV[@]}" -e WHEEL_FILENAME \
+  "${MODEL_ENV[@]}" -e "WHEEL_FILENAME=$WHEEL_FILENAME" \
   "${RERANKER_MOUNT[@]}" "${RERANKER_ENV[@]}" \
   "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
   env -u FATHOMDB_EMBED_DEVICE -u FATHOMDB_RERANK_DEVICE -u CUDA_VISIBLE_DEVICES -u NVIDIA_VISIBLE_DEVICES -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES -u HUGGINGFACE_HUB_CACHE -u TRANSFORMERS_CACHE -u FATHOMDB_EMBEDDER_CACHE_DIR sh -ceu '
@@ -336,7 +336,7 @@ mkdir "$FORCED_PYTHON_SITE"
 docker run --rm --network none \
   --mount "type=bind,src=$WHEEL,dst=/input/$WHEEL_FILENAME,readonly" \
   --mount "type=bind,src=$FORCED_PYTHON_SITE,dst=/fathomdb-site" \
-  -e HOME=/tmp -e TMPDIR=/tmp -e WHEEL_FILENAME \
+  -e HOME=/tmp -e TMPDIR=/tmp -e "WHEEL_FILENAME=$WHEEL_FILENAME" \
   "$CUDA_MANYLINUX_IMAGE" sh -ceu '
     /opt/python/cp311-cp311/bin/python -m pip install \
       --no-deps --no-cache-dir --target /fathomdb-site "/input/$WHEEL_FILENAME"
@@ -563,7 +563,7 @@ PYTHON_GPU_CONTAINER="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --netwo
   --mount "type=bind,src=$WORK_DIR/cache/gpu_python,dst=/fathomdb-product-cache" \
   --mount "type=bind,src=$WORK_DIR/tmp/gpu_python,dst=/fathomdb-tmp" \
   --mount "type=bind,src=$WORK_DIR,dst=/evidence" \
-  "${MODEL_ENV[@]}" -e WHEEL_FILENAME -e FATHOMDB_EMBED_DEVICE=cuda:0 -e FATHOMDB_GPU_ALLOCATION_WITNESS=1 \
+  "${MODEL_ENV[@]}" -e "WHEEL_FILENAME=$WHEEL_FILENAME" -e FATHOMDB_EMBED_DEVICE=cuda:0 -e FATHOMDB_GPU_ALLOCATION_WITNESS=1 \
   "$CUDA_MANYLINUX_IMAGE" sh -ceu '
     '"$CUDA_MANYLINUX_PYTHON"' -m pip install --no-deps --no-cache-dir "/input/$WHEEL_FILENAME"
     exec '"$CUDA_MANYLINUX_PYTHON"' /input/gpu-python-smoke.py

@@ -46,7 +46,7 @@ if [ -e "$VENV_B" ]; then
   VENV_B_LISTING="$(ls -la "$VENV_B" 2>&1)"
   fail "arm B: a partial .venv was left behind after a failed selection: $VENV_B_LISTING"
 fi
-printf '%s' "$OUT_B" | grep -Fq '3.11' || fail "arm B: failure output did not name the minimum version: $OUT_B"
+grep -Fq '3.11' <<<"$OUT_B" || fail "arm B: failure output did not name the minimum version: $OUT_B"
 pass "arm B: fails closed with no partial venv when no interpreter qualifies"
 
 # --- Arm C: bootstrap.sh actually wires the venv creation through this

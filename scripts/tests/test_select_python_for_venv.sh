@@ -4,12 +4,10 @@
 # 0.8.23 Slice 80.3: bootstrap.sh must pick a real Python >=3.11 to create
 # .venv, rather than bare `python3` (which is 3.10 on Ubuntu 22.04/L4T R36 —
 # too old for stdlib `tomllib`, which several release/CI gates require). This
-# host has no bare python3.11/3.12/3.13 command on PATH at all: modern
-# interpreters exist only via `uv python install`, discoverable through
-# `uv python find`, not through a plain command name. A selection function
-# that only probes bare PATH commands silently fails on exactly the host this
-# fix targets — these fixtures encode that as a first-class case, not an
-# afterthought.
+# test fixtures isolate PATH so their result never depends on which Python
+# versions happen to be installed on the host. A selection function that only
+# probes bare PATH commands silently fails on hosts whose modern interpreter is
+# available only through `uv python find`; the fixtures encode that case.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,7 +27,7 @@ mkshim() {
   local dir="$1" ver="$2"
   mkdir -p "$dir"
   cat >"$dir/python$ver" <<SHIM
-#!/usr/bin/env bash
+#!/bin/bash
 if [ "\$1" = "--version" ]; then
   echo "Python $ver.4"
   exit 0
@@ -46,7 +44,7 @@ mkuv() {
   shift
   mkdir -p "$dir"
   {
-    echo '#!/usr/bin/env bash'
+    echo '#!/bin/bash'
     # shellcheck disable=SC2016  # $1/$2/$3 must stay unexpanded — they're the
     # generated shim's OWN parameters, resolved when it runs later, not here.
     echo 'if [ "$1" = "python" ] && [ "$2" = "find" ]; then'
@@ -71,9 +69,13 @@ mkuv() {
   chmod +x "$dir/uv"
 }
 
+# Keep the fixture PATH free of the host's `/usr/bin/python3.12` (or any
+# future Python): every candidate must be supplied deliberately by the arm.
+NO_SYSTEM_PATH="$FIX/no-system-path"; mkdir -p "$NO_SYSTEM_PATH"
+
 # --- Arm A: a single bare python3.11 on PATH is selected -------------------
 DIR_A="$FIX/a"; mkshim "$DIR_A" 3.11
-OUT_A="$(PATH="$DIR_A:/usr/bin:/bin" select_python_for_venv)"
+OUT_A="$(PATH="$DIR_A:$NO_SYSTEM_PATH" select_python_for_venv)"
 RC_A=$?
 [ "$RC_A" -eq 0 ] || fail "arm A: expected success, got rc=$RC_A"
 [ "$OUT_A" = "$DIR_A/python3.11" ] || fail "arm A: expected $DIR_A/python3.11, got $OUT_A"
@@ -81,7 +83,7 @@ pass "arm A: a single bare python3.11 on PATH is selected"
 
 # --- Arm B: bare 3.11 and 3.12 both on PATH -> the higher version wins -----
 DIR_B="$FIX/b"; mkshim "$DIR_B" 3.11; mkshim "$DIR_B" 3.12
-OUT_B="$(PATH="$DIR_B:/usr/bin:/bin" select_python_for_venv)"
+OUT_B="$(PATH="$DIR_B:$NO_SYSTEM_PATH" select_python_for_venv)"
 [ "$OUT_B" = "$DIR_B/python3.12" ] || fail "arm B: expected python3.12 preferred over 3.11, got $OUT_B"
 pass "arm B: the highest available bare version wins (3.12 over 3.11)"
 
@@ -92,7 +94,7 @@ DIR_C="$FIX/c"; mkdir -p "$DIR_C"
 UV_TARGET_C="$FIX/uv-managed/python3.12"
 mkdir -p "$(dirname "$UV_TARGET_C")"; : >"$UV_TARGET_C"; chmod +x "$UV_TARGET_C"
 mkuv "$DIR_C" "3.13:" "3.12:$UV_TARGET_C" "3.11:"
-OUT_C="$(PATH="$DIR_C:/usr/bin:/bin" select_python_for_venv)"
+OUT_C="$(PATH="$DIR_C:$NO_SYSTEM_PATH" select_python_for_venv)"
 [ "$OUT_C" = "$UV_TARGET_C" ] || fail "arm C: expected uv-resolved $UV_TARGET_C, got $OUT_C"
 pass "arm C: falls back to 'uv python find' when no bare command exists (the real host case)"
 
@@ -101,21 +103,21 @@ DIR_D="$FIX/d"; mkshim "$DIR_D" 3.11
 UV_TARGET_D="$FIX/uv-managed-d/python3.13"
 mkdir -p "$(dirname "$UV_TARGET_D")"; : >"$UV_TARGET_D"; chmod +x "$UV_TARGET_D"
 mkuv "$DIR_D" "3.13:$UV_TARGET_D" "3.12:" "3.11:"
-OUT_D="$(PATH="$DIR_D:/usr/bin:/bin" select_python_for_venv)"
+OUT_D="$(PATH="$DIR_D:$NO_SYSTEM_PATH" select_python_for_venv)"
 [ "$OUT_D" = "$UV_TARGET_D" ] || fail "arm D: expected the higher uv-resolved 3.13 ($UV_TARGET_D) to beat bare 3.11, got $OUT_D"
 pass "arm D: preference is by version across mechanisms, not bare-PATH-first"
 
 # --- Arm E: nothing available anywhere -> fails closed with actionable message
 DIR_E="$FIX/e"; mkdir -p "$DIR_E"
 set +e
-OUT_E="$(PATH="$DIR_E:/usr/bin:/bin" select_python_for_venv 2>"$FIX/err-e")"
+OUT_E="$(PATH="$DIR_E:$NO_SYSTEM_PATH" select_python_for_venv 2>"$FIX/err-e")"
 RC_E=$?
 set -e
 ERR_E="$(cat "$FIX/err-e")"
 [ "$RC_E" -ne 0 ] || fail "arm E: expected failure when nothing is available, got success ($OUT_E)"
 [ -z "$OUT_E" ] || fail "arm E: expected no stdout on failure, got $OUT_E"
-printf '%s' "$ERR_E" | grep -Fq '3.11' || fail "arm E: failure message did not name the minimum version (3.11): $ERR_E"
-printf '%s' "$ERR_E" | grep -Fqi 'uv python install' || fail "arm E: failure message did not mention 'uv python install' as an install path: $ERR_E"
+grep -Fq '3.11' <<<"$ERR_E" || fail "arm E: failure message did not name the minimum version (3.11): $ERR_E"
+grep -Fqi 'uv python install' <<<"$ERR_E" || fail "arm E: failure message did not mention 'uv python install' as an install path: $ERR_E"
 pass "arm E: fails closed with an actionable message when no 3.11+ interpreter exists anywhere"
 
 # --- Arm F: a stale/broken uv on PATH (uv present, resolves nothing, no bare
@@ -123,7 +125,7 @@ pass "arm E: fails closed with an actionable message when no 3.11+ interpreter e
 DIR_F="$FIX/f"; mkdir -p "$DIR_F"
 mkuv "$DIR_F" "3.13:" "3.12:" "3.11:"
 set +e
-OUT_F="$(PATH="$DIR_F:/usr/bin:/bin" select_python_for_venv 2>"$FIX/err-f")"
+OUT_F="$(PATH="$DIR_F:$NO_SYSTEM_PATH" select_python_for_venv 2>"$FIX/err-f")"
 RC_F=$?
 set -e
 [ "$RC_F" -ne 0 ] || fail "arm F: expected failure when uv resolves nothing, got success ($OUT_F)"

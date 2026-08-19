@@ -34,8 +34,8 @@ cargo clippy --workspace --all-targets -- -D warnings -A missing-docs
 # actionlint v1.7.12 via `go install`. Soft-skip with a hint if missing rather
 # than blocking — same posture as agent-lint.sh.
 if command -v actionlint >/dev/null 2>&1; then
-  echo "[pre-push] actionlint .github/workflows/*.yml"
-  actionlint .github/workflows/*.yml
+  echo "[pre-push] actionlint -config-file .github/actionlint.yaml .github/workflows/*.yml"
+  actionlint -config-file .github/actionlint.yaml .github/workflows/*.yml
 else
   echo "[pre-push] actionlint not on PATH — skipping. Run scripts/bootstrap.sh and ensure \$(go env GOPATH)/bin is on PATH." >&2
 fi

@@ -7,6 +7,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 WORKFLOW="${JETSON_TEGRA_CI_YML:-$REPO_ROOT/.github/workflows/jetson-tegra-cuda-evidence.yml}"
+ACTIONLINT_CONFIG="${ACTIONLINT_CONFIG:-$REPO_ROOT/.github/actionlint.yaml}"
 PASSED=0
 FAILED=0
 
@@ -31,6 +32,15 @@ assert_absent() {
   fi
 }
 
+assert_config_contains() {
+  local needle="$1" description="$2"
+  if grep -Fq -- "$needle" "$ACTIONLINT_CONFIG"; then
+    pass "$description"
+  else
+    fail "$description (missing: $needle)"
+  fi
+}
+
 if [ -f "$WORKFLOW" ]; then
   pass "Jetson CUDA evidence workflow exists"
 else
@@ -47,9 +57,10 @@ assert_absent '  schedule:' "workflow is not schedule-triggered"
 assert_contains '  contents: read' "workflow grants only read-only repository contents"
 assert_contains '  cancel-in-progress: false' "Jetson evidence lock never cancels an in-flight run"
 assert_contains 'runs-on: [self-hosted, Linux, ARM64, jetson, aarch64]' "job routes to the registered Jetson labels exactly"
+assert_config_contains 'labels: [gpu, cuda-12, jetson, aarch64]' "actionlint knows the registered custom Jetson labels"
 assert_contains 'timeout-minutes: 90' "evidence job has a bounded timeout"
 assert_contains 'persist-credentials: false' "checkout leaves no GitHub credential in git config"
-assert_contains 'ref: ${{ needs.validate-candidate.outputs.candidate_sha }}' "checkout uses the validated immutable candidate SHA"
+assert_contains "ref: \${{ needs.validate-candidate.outputs.candidate_sha }}" "checkout uses the validated immutable candidate SHA"
 assert_contains 'fetch-depth: 1' "checkout needs no mutable branch history"
 assert_contains 'candidate SHA must equal the dispatched workflow commit' "candidate identity fails closed before checkout"
 assert_contains 'git rev-parse HEAD' "checked-out source identity is retained"

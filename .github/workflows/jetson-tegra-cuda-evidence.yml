@@ -142,7 +142,7 @@ jobs:
               --out "$EVIDENCE_DIR/wheel" \
               --interpreter python \
             2>&1 | tee "$EVIDENCE_DIR/build-wheel.log"
-          mapfile -t wheels < <(find "$EVIDENCE_DIR/wheel" -maxdepth 1 -type f -name 'fathomdb-*-aarch64.whl' -print)
+          mapfile -t wheels < <(find "$EVIDENCE_DIR/wheel" -maxdepth 1 -type f -name 'fathomdb-*-linux_aarch64.whl' -print)
           [ "${#wheels[@]}" -eq 1 ] || {
             printf 'expected exactly one Tegra wheel, found %s\n' "${#wheels[@]}" >&2
             exit 1
@@ -153,7 +153,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t wheels < <(find "$EVIDENCE_DIR/wheel" -maxdepth 1 -type f -name 'fathomdb-*-aarch64.whl' -print)
+          mapfile -t wheels < <(find "$EVIDENCE_DIR/wheel" -maxdepth 1 -type f -name 'fathomdb-*-linux_aarch64.whl' -print)
           [ "${#wheels[@]}" -eq 1 ] || { printf 'installed-wheel smoke has no unique wheel\n' >&2; exit 1; }
           runtime_venv="$RUNNER_TEMP/fathomdb-jetson-runtime-venv-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
           python3 -m venv "$runtime_venv"

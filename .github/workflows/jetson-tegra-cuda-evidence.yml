@@ -23,6 +23,7 @@ concurrency:
 jobs:
   validate-candidate:
     name: Validate immutable evidence candidate
+    if: github.ref == 'refs/heads/release/0.8.23'
     runs-on: [self-hosted, Linux, ARM64, jetson, aarch64]
     timeout-minutes: 5
     outputs:
@@ -48,6 +49,7 @@ jobs:
   tegra-cuda-evidence:
     name: Build and witness the Tegra CUDA wheel
     needs: validate-candidate
+    if: github.ref == 'refs/heads/release/0.8.23'
     runs-on: [self-hosted, Linux, ARM64, jetson, aarch64]
     timeout-minutes: 90
     env:
@@ -65,7 +67,7 @@ jobs:
 
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ needs.validate-candidate.outputs.candidate_sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
 

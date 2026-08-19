@@ -268,6 +268,20 @@ PY
 expect_fail "$FIXTURE" 'rejects a CUDA build without image-owned runtime link search paths'
 
 make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = " -e FATHOMDB_GPU_ALLOCATION_WITNESS=1"
+if text.count(needle) != 2:
+    raise SystemExit("fixture no longer contains both CUDA allocation-witness opt-ins")
+path.write_text(text.replace(needle, "", 1))
+PY
+expect_fail "$FIXTURE" 'rejects CUDA preflight without both in-process allocation witnesses'
+
+make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/build-napi-cuda.sh" <<'PY'
 from pathlib import Path
 import sys

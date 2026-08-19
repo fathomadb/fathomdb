@@ -793,6 +793,8 @@ def main() -> None:
         "witness root inventory is incomplete or contains unknown members",
         "sealed forced-device record is not installed-candidate evidence",
         "GPU {consumer} observation lacks PID correlation",
+        "GPU {consumer} observation lacks an allocation witness",
+        "ALLOCATION_WITNESS_KEYS",
         "does not prove isolated materialization",
     ):
         require_fragment(verifier, fragment, "CUDA preflight witness verifier")
@@ -856,6 +858,7 @@ def main() -> None:
         "--query-compute-apps=pid,process_name --format=csv,noheader",
         "--gpus ",
         "FATHOMDB_EMBED_DEVICE=cuda:0",
+        "FATHOMDB_GPU_ALLOCATION_WITNESS=1",
         "installed Python CUDA artifact GPU proof",
         "installed N-API CUDA artifact GPU proof",
         "gpu-python-cuda-witness.json",
@@ -882,6 +885,8 @@ def main() -> None:
         '--candidate-sha "$CANDIDATE_SHA"',
     ):
         require_fragment(preflight, fragment, "CUDA preflight")
+    if preflight.count("FATHOMDB_GPU_ALLOCATION_WITNESS=1") != 2:
+        fail("CUDA preflight must request one in-process allocation witness for each GPU consumer")
     for forbidden in (
         '--mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT,dst=/opt/cuda,readonly"',
         '--mount "type=bind,src=$CUDA_TOOLKIT_ROOT,dst=/opt/cuda,readonly"',

@@ -46,6 +46,19 @@ IMPORT_PACKAGE = "fathomdb"
 #:
 #: A distribution outside this list is not the hazard D-80.6-3 names; adding a
 #: new FathomDB distribution means adding its name here.
+#:
+#: ``fathomdb-tegra`` is NOT a distribution this project ships, and under the
+#: revised D-80.6-3 it never will be: the Tegra build carries the plain
+#: ``fathomdb`` name and is distinguished by a ``+tegra`` PEP 440 local version.
+#: It stays listed as a **tripwire for a locally hand-built sibling** — the one
+#: way D-1's source-build path can still put two distributions over the same
+#: ``fathomdb/`` import package. That residual case is the sole remaining reason
+#: this guard exists, so removing the entry would empty it of purpose.
+#:
+#: Do not read this entry as evidence that a ``fathomdb-tegra`` release exists,
+#: and do not cite this guard as what makes the naming decision safe — that role
+#: belongs to the displaced-build check (AC80-27), which detects a
+#: wrong-but-intact environment rather than a corrupted one.
 PROVIDER_DISTRIBUTIONS: tuple[str, ...] = (
     "fathomdb",
     "fathomdb-tegra",

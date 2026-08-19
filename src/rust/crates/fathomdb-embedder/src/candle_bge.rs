@@ -37,14 +37,14 @@ use tokenizers::{Tokenizer, TruncationParams};
 
 use crate::{
     diagnose_gpu,
-    loader::{
-        load_pinned_default_embedder, load_pinned_default_embedder_from_local_asset,
-        EmbedderLoadError, LoadedWeights, HF_REVISION,
-    },
+    loader::{load_pinned_default_embedder, EmbedderLoadError, LoadedWeights, HF_REVISION},
     resolve_embed_device_policy_from_env, CudaDeviceInfo, CudaProbeError, CudaProvider,
     CudaVisibleDevice, DeviceResolution, DoctorGpuDiagnosticResult, EffectiveEmbedDevice,
     EmbedDevicePolicyError,
 };
+
+#[cfg(feature = "tc5-benchmark")]
+use crate::loader::load_pinned_default_embedder_from_local_asset;
 
 /// Engine-facing identity name (per
 /// `dev/plans/prompts/0.7.1-EMBEDDER-UNDEFER-HANDOFF.md` §0.5). EU-5 will
@@ -86,6 +86,7 @@ pub enum Pooling {
 /// environment variable and never permits a CPU fallback for a CUDA request.
 /// It is available only with the `tc5-benchmark` feature.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg(feature = "tc5-benchmark")]
 pub enum ExplicitCandleDevice {
     /// Use Candle's CPU backend.
     Cpu,
@@ -99,11 +100,13 @@ pub enum ExplicitCandleDevice {
 /// logical ordinal, using the CUDA driver's UUID query rather than a separate
 /// process or an environment-derived device map.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg(feature = "tc5-benchmark")]
 pub struct Tc5DeviceAttestation {
     cuda_ordinal: Option<usize>,
     cuda_uuid: Option<String>,
 }
 
+#[cfg(feature = "tc5-benchmark")]
 impl Tc5DeviceAttestation {
     /// CUDA UUID observed from the initialized provider, if the construction used CUDA.
     #[must_use]
@@ -119,11 +122,13 @@ impl Tc5DeviceAttestation {
 }
 
 /// Cache-only TC-5 Candle construction plus its initialized-device proof.
+#[cfg(feature = "tc5-benchmark")]
 pub struct Tc5CandleConstruction {
     embedder: CandleBgeEmbedder,
     device_attestation: Tc5DeviceAttestation,
 }
 
+#[cfg(feature = "tc5-benchmark")]
 impl Tc5CandleConstruction {
     /// Returns the UUID measured from the initialized CUDA provider.
     #[must_use]

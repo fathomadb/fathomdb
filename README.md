@@ -40,7 +40,7 @@ Repository layout:
 
 Implementation roots:
 
-- Nine Rust workspace members live under `src/rust/crates/`
+- Ten Rust workspace members live under `src/rust/crates/`
 - Python package root lives under `src/python/`
 - TypeScript package root lives under `src/ts/`
 

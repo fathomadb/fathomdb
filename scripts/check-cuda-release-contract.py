@@ -14,7 +14,7 @@ import os
 import re
 import subprocess
 import sys
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 try:
@@ -176,7 +176,7 @@ def forbid_fragment(block: str, fragment: str, label: str, why: str) -> None:
 
 
 def require_unmerged_candidate_control_plane() -> None:
-    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     result = subprocess.run(
         [
             sys.executable,

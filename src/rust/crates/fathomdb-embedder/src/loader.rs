@@ -493,6 +493,7 @@ pub fn tc5_local_asset_directory_identity(asset_dir: &Path) -> Result<String, Em
 /// loader lock, inspect environment variables, or invoke the downloader. Every
 /// required file is present and checksum-verified before a caller can create a
 /// device-backed model.
+#[cfg(feature = "tc5-benchmark")]
 pub(crate) fn load_pinned_default_embedder_from_local_asset(
     asset_dir: &Path,
 ) -> Result<LoadedWeights, EmbedderLoadError> {

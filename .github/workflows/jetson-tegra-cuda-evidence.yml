@@ -78,7 +78,13 @@ jobs:
             printf 'checkout identity mismatch: expected %s, got %s\n' "$CANDIDATE_SHA" "$actual_sha" >&2
             exit 1
           }
-          git status --porcelain=v1 | tee "$EVIDENCE_DIR/checkout-status.txt"
+          checkout_status="$(git status --porcelain=v1)"
+          if [ -n "$checkout_status" ]; then
+            printf '%s\n' "$checkout_status" > "$EVIDENCE_DIR/checkout-status.txt"
+            printf 'checkout must be clean after checkout; found:\n%s\n' "$checkout_status" >&2
+            exit 1
+          fi
+          printf 'clean\n' > "$EVIDENCE_DIR/checkout-status.txt"
           printf 'candidate_sha=%s\ncheckout_sha=%s\nworkflow_ref=%s\nworkflow_sha=%s\n' \
             "$CANDIDATE_SHA" "$actual_sha" "$GITHUB_WORKFLOW_REF" "$GITHUB_WORKFLOW_SHA" \
             > "$EVIDENCE_DIR/source-identity.txt"

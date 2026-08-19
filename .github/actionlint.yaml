@@ -1,2 +1,2 @@
 self-hosted-runner:
-  labels: [gpu, cuda-12]
+  labels: [gpu, cuda-12, jetson, aarch64]

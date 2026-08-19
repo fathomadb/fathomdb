@@ -87,7 +87,7 @@ run_capped lint-python "$ruff_bin" check src/python
 skip_notice lint-ts "ESLint not configured"
 
 # Workflows: the exact version was checked before Rust/Python lint.
-run_capped lint-actions "$actionlint_bin" .github/workflows/*.yml
+run_capped lint-actions "$actionlint_bin" -config-file .github/actionlint.yaml .github/workflows/*.yml
 
 # Markdown: structural + format + link integrity
 "$SCRIPT_DIR/agent-lint-md.sh"

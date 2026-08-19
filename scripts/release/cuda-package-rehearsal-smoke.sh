@@ -207,7 +207,7 @@ PY
 docker run --rm --network none \
   --mount "type=bind,src=$python_wheel_abs,dst=/input/$WHEEL_FILENAME,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
-  -e WHEEL_FILENAME \
+  -e "WHEEL_FILENAME=$WHEEL_FILENAME" \
   "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
   env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache WHEEL_FILENAME="$WHEEL_FILENAME" sh -ceu '
     test ! -e /dev/nvidiactl
@@ -319,7 +319,7 @@ wait_for_gpu() {
 python_gpu="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
   --mount "type=bind,src=$python_wheel_abs,dst=/input/$WHEEL_FILENAME,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
-  -e WHEEL_FILENAME \
+  -e "WHEEL_FILENAME=$WHEEL_FILENAME" \
   "$CUDA_MANYLINUX_IMAGE" sh -ceu '
     env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 WHEEL_FILENAME="$WHEEL_FILENAME" /opt/python/cp311-cp311/bin/python -m pip install --no-deps "/input/$WHEEL_FILENAME"
     exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 /opt/python/cp311-cp311/bin/python -c "from fathomdb import Engine; import tempfile; from pathlib import Path; d=tempfile.TemporaryDirectory(); e=Engine.open(str(Path(d.name)/\"gpu.fdb\"),use_default_embedder=True); e.embed(\"CUDA package rehearsal installed Python GPU smoke\"); e.close(); import time; time.sleep(20)"

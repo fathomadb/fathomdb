@@ -909,6 +909,10 @@ def main() -> None:
         fail("CUDA preflight must request one in-process allocation witness for each GPU consumer")
     if "/input/fathomdb.whl" in preflight or "/input/fathomdb.whl" in read_text(PACKAGE_REHEARSAL_SMOKE):
         fail("CUDA installed-wheel smokes must retain a valid wheel filename")
+    if preflight.count('-e "WHEEL_FILENAME=$WHEEL_FILENAME"') != 3:
+        fail("CUDA preflight must pass its local wheel filename explicitly to every wheel container")
+    if read_text(PACKAGE_REHEARSAL_SMOKE).count('-e "WHEEL_FILENAME=$WHEEL_FILENAME"') != 2:
+        fail("CUDA package rehearsal must pass its local wheel filename explicitly to every wheel container")
     if "device=0" in preflight:
         fail("CUDA preflight must not pin evidence to mutable host index zero")
     for forbidden in (

@@ -64,6 +64,9 @@ assert_contains "ref: \${{ needs.validate-candidate.outputs.candidate_sha }}" "c
 assert_contains 'fetch-depth: 1' "checkout needs no mutable branch history"
 assert_contains 'candidate SHA must equal the dispatched workflow commit' "candidate identity fails closed before checkout"
 assert_contains 'git rev-parse HEAD' "checked-out source identity is retained"
+assert_contains 'checkout must be clean after checkout' "dirty checkout fails before any evidence build"
+assert_contains 'if [ -n "$checkout_status" ]; then' "checkout status is enforced before evidence"
+assert_contains 'printf '\''clean\n'\'' > "$EVIDENCE_DIR/checkout-status.txt"' "clean checkout status is retained as evidence"
 assert_contains 'uname -s' "host preflight checks Linux explicitly"
 assert_contains 'uname -m' "host preflight checks AArch64 explicitly"
 assert_contains 'nvidia,tegra' "host preflight requires the Tegra-family signal"
@@ -114,6 +117,17 @@ if [ "${JETSON_TEGRA_CI_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves witness opt-in is load-bearing"
   else
     fail "witness mutation did not fail its assertion: $mutation_out"
+  fi
+
+  sed 's/if \[ -n "\$checkout_status" \]; then/if false; then/' "$WORKFLOW" >"$MUTATED"
+  set +e
+  mutation_out="$(JETSON_TEGRA_CI_FIXTURE=1 JETSON_TEGRA_CI_YML="$MUTATED" bash "$0" 2>&1)"
+  mutation_rc=$?
+  set -e
+  if [ "$mutation_rc" -ne 0 ] && grep -Fq 'checkout status is enforced before evidence' <<<"$mutation_out"; then
+    pass "mutation proves the clean-checkout guard is load-bearing"
+  else
+    fail "clean-checkout mutation did not fail its assertion: $mutation_out"
   fi
 fi
 

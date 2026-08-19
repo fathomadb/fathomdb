@@ -359,6 +359,11 @@ run_tier_suite fast test-windows-wal-diagnosis-ci-job bash scripts/tests/test_wi
 # attribution controls and their redacted diagnostic artifact.
 run_tier_suite fast test-windows-wal-attribution-ci-job bash scripts/tests/test_windows_wal_attribution_ci_job.sh
 
+# 0.8.23 Slice 80: the real Tegra CUDA proof is a manual-only self-hosted
+# runner route. This static mutation suite retains its exact runner identity,
+# immutable candidate checkout, nonpublishing boundary, and artifact evidence.
+run_tier_suite fast test-jetson-tegra-cuda-evidence-ci-job bash scripts/tests/test_jetson_tegra_cuda_evidence_ci_job.sh
+
 # Slice 15: each release-ready runner must consume its locally built wheel and
 # matching N-API platform package before the later registry smoke gate.
 run_tier_suite fast test-native-artifact-runtime-validation bash scripts/tests/test_native_artifact_runtime_validation.sh

@@ -51,6 +51,12 @@ same gate, not exempted from it: both numbers come from
 `scripts/check-glibc-floor-doc-truth.sh` fails if either claim on this page
 drifts from it.
 
+0.8.23 does not publish a Tegra artifact or index. Build it on the Jetson with
+`scripts/release/build-python-cuda-tegra.sh`; the wrapper prints the concrete
+wheel-install command only after asserting its `+tegra` metadata identity.
+Use `fathomdb doctor platform --json` to distinguish classic Tegra from ARM64
+SBSA before diagnosing an incompatible CUDA provider.
+
 | OS      | Architecture                | Published prebuilt? |
 | ------- | --------------------------- | ------------------- |
 | Linux   | `x86_64-unknown-linux-gnu`  | **yes** (manylinux 2_28) |

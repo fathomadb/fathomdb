@@ -28,7 +28,9 @@ collision; ``fathomdb/__init__.py`` imports it before anything else.
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
+import warnings
 
 #: The top-level import package every FathomDB distribution ships.
 IMPORT_PACKAGE = "fathomdb"
@@ -65,6 +67,131 @@ PROVIDER_DISTRIBUTIONS: tuple[str, ...] = (
 )
 
 _METADATA_SUFFIXES = (".dist-info", ".egg-info")
+
+# D-80.7-6: no publication is authorized in 0.8.23, so this remains unset.
+# When one is authorized, this single constant is the only index transport.
+FUTURE_TEGRA_INDEX_URL: str | None = None
+_NVIDIA_SMI_CANDIDATES = (
+    "/usr/bin/nvidia-smi",
+    "/usr/sbin/nvidia-smi",
+    "/usr/local/bin/nvidia-smi",
+)
+_NVIDIA_SMI_TIMEOUT_SECONDS = 2.0
+
+
+class FathomDbPlatformWarning(UserWarning):
+    """A generic FathomDB build was imported on confirmed classic Tegra."""
+
+
+class PlatformProbeResult:
+    """Private two-tier platform result used only by the import-time guard."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    @classmethod
+    def classic_tegra(cls) -> "PlatformProbeResult":
+        """Return the confirmed classic Tegra classification for a fixture."""
+
+        return cls("classic_tegra")
+
+    @classmethod
+    def named(cls, name: str) -> "PlatformProbeResult":
+        """Return a named non-classic classification for a fixture."""
+
+        return cls(name)
+
+    @property
+    def is_classic_tegra(self) -> bool:
+        """Whether both tiers confirmed a classic (non-Thor) Tegra iGPU."""
+
+        return self.name == "classic_tegra"
+
+
+def _read_text(path: str) -> str | None:
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return handle.read()
+    except OSError:
+        return None
+
+
+def detect_platform() -> PlatformProbeResult:
+    """Classify the host with the full Tier-1/Tier-2 Tegra probe.
+
+    This fails closed toward silence: Thor and every Tier-2 failure are not a
+    classic Tegra confirmation and therefore cannot cause a warning.
+    """
+
+    if os.uname().machine != "aarch64":
+        return PlatformProbeResult.named("non_aarch64")
+    compatible = _read_text("/proc/device-tree/compatible")
+    l4t = _read_text("/etc/nv_tegra_release")
+    if not ((compatible and "nvidia,tegra" in compatible) or l4t is not None):
+        return PlatformProbeResult.named(
+            "arm64_sbsa" if os.path.isdir("/sys/firmware/acpi/tables") else "generic_aarch64"
+        )
+    candidate = next((path for path in _NVIDIA_SMI_CANDIDATES if os.access(path, os.X_OK)), None)
+    if candidate is None:
+        return PlatformProbeResult.named("tier_two_missing")
+    try:
+        completed = subprocess.run(
+            [candidate, "--query-gpu=name", "--format=csv,noheader"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=_NVIDIA_SMI_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        return PlatformProbeResult.named("tier_two_timeout")
+    except OSError:
+        return PlatformProbeResult.named("tier_two_nonzero")
+    # Inspect the return code before interpreting stdout; empty output from a
+    # failing subprocess is never affirmative SBSA/Thor evidence.
+    if completed.returncode != 0:
+        return PlatformProbeResult.named("tier_two_nonzero")
+    return PlatformProbeResult.classic_tegra() if "nvgpu" in completed.stdout else PlatformProbeResult.named("thor")
+
+
+def installed_fathomdb_version() -> str | None:
+    """Read this environment's own installed FathomDB metadata version."""
+
+    prefix = _escape("fathomdb")
+    site_packages = os.path.dirname(os.path.dirname(__file__))
+    try:
+        names = os.listdir(site_packages)
+    except OSError:
+        return None
+    for name in names:
+        if not name.endswith(".dist-info") or _escape(name[: -len(".dist-info")].split("-", 1)[0]) != prefix:
+            continue
+        metadata = _read_text(os.path.join(site_packages, name, "METADATA"))
+        if metadata is None:
+            continue
+        for line in metadata.splitlines():
+            if line.startswith("Version: "):
+                return line.removeprefix("Version: ").strip()
+    return None
+
+
+def warn_if_generic_build_on_classic_tegra(
+    *, version: str | None, platform: PlatformProbeResult
+) -> None:
+    """Warn, under default filters, only for a generic build on classic Tegra."""
+
+    if not platform.is_classic_tegra or version is None or version.endswith("+tegra"):
+        return
+    warnings.warn(
+        "Generic FathomDB build detected on confirmed classic Tegra hardware. "
+        "No published Tegra artifact exists in 0.8.23; build it locally:\n"
+        "python3 -m venv .venv\n"
+        ". .venv/bin/activate\n"
+        "python -m pip install --upgrade pip 'maturin==1.14.1'\n"
+        "./scripts/release/build-python-cuda-tegra.sh --interpreter python\n"
+        "Then run the exact final `python -m pip install <built-wheel>` line printed by the wrapper.",
+        FathomDbPlatformWarning,
+        stacklevel=2,
+    )
 
 
 def _escape(name: str) -> str:
@@ -171,3 +298,7 @@ def reject_co_installed_distributions(providers: tuple[str, ...] | None = None) 
 
 
 reject_co_installed_distributions()
+warn_if_generic_build_on_classic_tegra(
+    version=installed_fathomdb_version(),
+    platform=detect_platform(),
+)

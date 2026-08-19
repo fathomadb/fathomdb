@@ -29,9 +29,6 @@ use serde_json::Value;
 use tempfile::TempDir;
 
 const DOCTOR_VERBS: &[&str] = &[
-    "gpu",
-    "platform",
-    "reranker-gpu",
     "check-integrity",
     "safe-export",
     "verify-embedder",

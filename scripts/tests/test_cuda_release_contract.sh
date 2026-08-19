@@ -670,6 +670,16 @@ expect_fail "$FIXTURE" 'rejects a CUDA preflight that accepts an unchecked model
 # --- 0.8.23 Slice 80.6 (D-80.6-1/2/4, AC80-8): Tegra toolchain axis ---------
 # The x86_64 arms above are unchanged; these add the Tegra target's own.
 
+# The Tegra wrapper is covered by the SC2312 ratchet.  Keep the wheel
+# discovery path free of process-substitution return masking: a failed
+# discovery must not be converted into an empty wheel list.
+if ! shellcheck --severity=style --include=SC2312 \
+  "$REPO_ROOT/scripts/release/build-python-cuda-tegra.sh" >/dev/null; then
+  printf '%s\n' 'FAIL  rejects a Tegra CUDA build wrapper with an SC2312 masked-return finding' >&2
+  exit 1
+fi
+printf '%s\n' 'PASS  accepts a Tegra CUDA build wrapper without SC2312 masked-return findings'
+
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/build-python-cuda-tegra.sh" <<'PY'
 from pathlib import Path

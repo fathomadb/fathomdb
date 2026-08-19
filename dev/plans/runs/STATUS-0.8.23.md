@@ -35,7 +35,7 @@ candidate slices require explicit commission.
 | 70 | DUAL-RUNTIME-TC5 — supported dual CPU/GPU runtime policy, diagnostics, artifacts, and exact pre-fusion TC-5 controls | PENDING_EXTERNAL — local release implementation through `aa29152b`; real CUDA/trusted-runner/rehearsal and TC-5 characterization evidence remains required. |
 | 71 | RERANK-DUAL-RUNTIME — cross-encoder reranker CPU/GPU runtime parity | PENDING_EXTERNAL — local release implementation through `a49ac989`; compatible-GPU and visible-incompatible installed-artifact receipts remain required. |
 | 72 | CONCURRENT-DUAL-RUNTIME — concurrent embedding and cross-encoder GPU coexistence characterization | LANDED on `origin/release/0.8.23` (`824b1d4b`) with independently verified local CUDA basic/moderate/stress receipts; no performance threshold claim. |
-| 80 | AARCH64-TEGRA — AArch64 correctness and Jetson Orin CUDA | IN PROGRESS — 80.1–80.7 landed; `68b696a3` completes approved 80.6.5 schema/UUID work. Supplied transfer scripts and pinned windchill3 RTX 3090 preflight evidence remain. |
+| 80 | AARCH64-TEGRA — AArch64 correctness and Jetson Orin CUDA | IN PROGRESS — 80.1–80.7 landed; `68b696a3` completes approved 80.6.5 schema/UUID work. HITL ruled the former transfer scripts unnecessary; only pinned windchill3 RTX 3090 preflight evidence remains. |
 
 ## Immediate next action
 

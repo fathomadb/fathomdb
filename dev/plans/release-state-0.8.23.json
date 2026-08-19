@@ -329,7 +329,7 @@
         "dev/plans/runs/0.8.23-slice-80-status.md"
       ],
       "sha": "68b696a3",
-      "evidence": "Slice 80.1–80.7 are landed. HITL seq:253 approves 80.6.5. 68b696a3 completes its local shared-observation schema merge and optional GPU- UUID normalization, including re-derivable Python/N-API allocation witness validation. The referenced transfer scripts are not tracked in this repository and were not invented. The remaining approved 80.6.5 work is to promote supplied reviewed transfer scripts and run real CUDA preflight on windchill3 pinned to the intended RTX 3090 UUID, subject to separate environment authorization. 32a70edb integrated 80.7, 68f588e3 corrected its internal clippy regression, and 59c1033e hardens the manual Jetson route after its retained first failure. GitHub run 32296395639 passed on the dedicated Orin at exact 59c1033e229838632b5d0fe1ecd48845f3007fa0, retaining artifact 9381465909 for 30 days. This is nonpublishing functionality evidence; no performance or publication claim."
+      "evidence": "Slice 80.1–80.7 are landed. HITL seq:253 approves 80.6.5. 68b696a3 completes its local shared-observation schema merge and optional GPU- UUID normalization, including re-derivable Python/N-API allocation witness validation. HITL has ruled the former orchestrator-to-windchill3 transfer scripts unnecessary because this session runs locally on windchill3; they are neither a repository deliverable nor a release prerequisite. The remaining approved 80.6.5 work is a real CUDA preflight on windchill3 pinned to the intended RTX 3090 UUID, under the authorized local environment. 32a70edb integrated 80.7, 68f588e3 corrected its internal clippy regression, and 59c1033e hardens the manual Jetson route after its retained first failure. GitHub run 32296395639 passed on the dedicated Orin at exact 59c1033e229838632b5d0fe1ecd48845f3007fa0, retaining artifact 9381465909 for 30 days. This is nonpublishing functionality evidence; no performance or publication claim."
     }
   ],
   "landed": [
@@ -412,13 +412,18 @@
         "title": "Draft Slice 71 for equivalent CPU/GPU cross-encoder reranker controls, diagnostics, SDK reports, and no-rebuild artifact behavior; forced GPU reranking must not silently execute on CPU",
         "source": "HITL 2026-08-17"
       },
-      {
-        "id": "slice-80-6-5-approval",
-        "title": "HITL approved and unblocked Slice 80.6.5 x86_64-lane work",
-        "source": "seq:253"
-      },
-      {
-        "id": "slice-40-move-to-backlog",
+    {
+      "id": "slice-80-6-5-approval",
+      "title": "HITL approved and unblocked Slice 80.6.5 x86_64-lane work",
+      "source": "seq:253"
+    },
+    {
+      "id": "slice-80-6-5-transfer-scripts-not-required",
+      "title": "Slice 80.6.5 transfer scripts are unnecessary on the local windchill3 session and are not a release prerequisite",
+      "source": "seq:255"
+    },
+    {
+      "id": "slice-40-move-to-backlog",
         "title": "HITL moved Slice 40 scale characterization out of 0.8.23 and into the repository backlog",
         "source": "seq:254, backlog:TC-8ccd1cf1-8e7d-4b7c-8efa-176663aed553"
       },

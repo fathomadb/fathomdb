@@ -23982,6 +23982,154 @@ mod tests {
         eprintln!("slice65_wal reader_handoff_idle_before_reply=passed");
     }
 
+    #[test]
+    fn wal_attribution_reader_handoff_pause_is_scoped_to_its_engine() {
+        let first_dir = TempDir::new().expect("first temp dir");
+        let second_dir = TempDir::new().expect("second temp dir");
+        let first = Arc::new(
+            Engine::open(first_dir.path().join("wal-attribution-first.sqlite"))
+                .expect("first open"),
+        );
+        let second = Arc::new(
+            Engine::open(second_dir.path().join("wal-attribution-second.sqlite"))
+                .expect("second open"),
+        );
+
+        let (first_ready, first_release) = first.engine.pause_next_reader_handoff_for_test();
+        let (second_result_tx, second_result_rx) = mpsc::sync_channel(1);
+        let second_reader = {
+            let engine = Arc::clone(&second);
+            thread::spawn(move || {
+                second_result_tx
+                    .send(engine.engine.read_get("missing", &Default::default()))
+                    .expect("second result receiver remains live");
+            })
+        };
+
+        if second_result_rx.recv_timeout(Duration::from_secs(1)).is_err() {
+            first_ready.wait();
+            first_release.wait();
+            second_reader.join().expect("second reader join");
+            panic!("a first-engine handoff pause blocked a second-engine reader");
+        }
+        second_reader.join().expect("second reader join");
+
+        let (first_result_tx, first_result_rx) = mpsc::sync_channel(1);
+        let first_reader = {
+            let engine = Arc::clone(&first);
+            thread::spawn(move || {
+                first_result_tx
+                    .send(engine.engine.read_get("missing", &Default::default()))
+                    .expect("first result receiver remains live");
+            })
+        };
+        first_ready.wait();
+        assert!(matches!(first_result_rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
+        first_release.wait();
+        first_result_rx.recv().expect("first result after release").expect("first read");
+        first_reader.join().expect("first reader join");
+    }
+
+    #[test]
+    fn wal_attribution_reader_snapshot_pause_is_scoped_to_its_engine() {
+        let first_dir = TempDir::new().expect("first temp dir");
+        let second_dir = TempDir::new().expect("second temp dir");
+        let first = Arc::new(
+            Engine::open(first_dir.path().join("wal-attribution-first.sqlite"))
+                .expect("first open"),
+        );
+        let second = Arc::new(
+            Engine::open(second_dir.path().join("wal-attribution-second.sqlite"))
+                .expect("second open"),
+        );
+
+        let (first_ready, first_release, native_state) =
+            first.engine.arm_next_reader_snapshot_pause_for_test();
+        let (second_result_tx, second_result_rx) = mpsc::sync_channel(1);
+        let second_reader = {
+            let engine = Arc::clone(&second);
+            thread::spawn(move || {
+                second_result_tx
+                    .send(engine.engine.read_get("missing", &Default::default()))
+                    .expect("second result receiver remains live");
+            })
+        };
+
+        if second_result_rx.recv_timeout(Duration::from_secs(1)).is_err() {
+            first_ready.wait();
+            first_release.wait();
+            second_reader.join().expect("second reader join");
+            panic!("a first-engine snapshot pause blocked a second-engine reader");
+        }
+        second_reader.join().expect("second reader join");
+
+        let (first_result_tx, first_result_rx) = mpsc::sync_channel(1);
+        let first_reader = {
+            let engine = Arc::clone(&first);
+            thread::spawn(move || {
+                first_result_tx
+                    .send(engine.engine.read_get("missing", &Default::default()))
+                    .expect("first result receiver remains live");
+            })
+        };
+        first_ready.wait();
+        assert!(matches!(first_result_rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
+        assert!(native_state.lock().expect("native state").is_some());
+        first_release.wait();
+        first_result_rx.recv().expect("first result after release").expect("first read");
+        first_reader.join().expect("first reader join");
+    }
+
+    #[test]
+    fn wal_attribution_reader_completion_pause_is_scoped_to_its_engine() {
+        let first_dir = TempDir::new().expect("first temp dir");
+        let second_dir = TempDir::new().expect("second temp dir");
+        let first = Arc::new(
+            Engine::open(first_dir.path().join("wal-attribution-first.sqlite"))
+                .expect("first open"),
+        );
+        let second = Arc::new(
+            Engine::open(second_dir.path().join("wal-attribution-second.sqlite"))
+                .expect("second open"),
+        );
+
+        let (first_ready, first_release, reader_autocommit) =
+            first.engine.arm_next_reader_completion_pause_for_test();
+        let (second_result_tx, second_result_rx) = mpsc::sync_channel(1);
+        let second_reader = {
+            let engine = Arc::clone(&second);
+            thread::spawn(move || {
+                second_result_tx
+                    .send(engine.engine.read_get("missing", &Default::default()))
+                    .expect("second result receiver remains live");
+            })
+        };
+
+        if second_result_rx.recv_timeout(Duration::from_secs(1)).is_err() {
+            first_ready.wait();
+            first_release.wait();
+            second_reader.join().expect("second reader join");
+            panic!("a first-engine completion pause blocked a second-engine reader");
+        }
+        second_reader.join().expect("second reader join");
+
+        let (first_result_tx, first_result_rx) = mpsc::sync_channel(1);
+        let first_reader = {
+            let engine = Arc::clone(&first);
+            thread::spawn(move || {
+                first_result_tx
+                    .send(engine.engine.read_get("missing", &Default::default()))
+                    .expect("first result receiver remains live");
+            })
+        };
+        first_ready.wait();
+        assert!(matches!(first_result_rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
+        assert!(reader_autocommit.load(std::sync::atomic::Ordering::Acquire));
+        first_release.wait();
+        first_result_rx.recv().expect("first result after release").expect("first read");
+        first_reader.join().expect("first reader join");
+    }
+
     /// Slice 65 RED: a fully closed Engine is not itself a reader-holder. The
     /// raw checkpoint is deliberately independent so this distinguishes the
     /// close boundary from the incident-shaped recovery reads below.

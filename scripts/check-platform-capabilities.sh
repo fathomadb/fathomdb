@@ -45,7 +45,7 @@ expected_ready = [
     'win32-x64-msvc',
 ]
 if [entry['triple'] for entry in release_ready] != expected_ready:
-    raise SystemExit('FAIL platform-capabilities: 0.8.22 release-ready matrix is incomplete or reordered')
+    raise SystemExit('FAIL platform-capabilities: 0.8.23 release-ready matrix is incomplete or reordered')
 
 published = [entry for entry in platforms if entry['status'] == 'published']
 if [entry['triple'] for entry in published] != expected_ready[:2]:

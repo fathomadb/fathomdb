@@ -42,50 +42,7 @@ FIXTURE="$TMPROOT/fixture"
 make_fixture "$FIXTURE"
 expect_pass "$FIXTURE" 'baseline release-ready contract agrees'
 
-# A canonical-route blocker has no reason to receive even a read-only
-# GITHUB_TOKEN: it performs no checkout or API call. The checker must accept
-# the explicit empty permission map and reject a mutation that mints a token.
-make_fixture "$FIXTURE"
-python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-text = path.read_text()
-start = text.index('  canonical-cuda-package-route-required:\n')
-end = text.index('  all-builds-passed:\n', start)
-block = text[start:end]
-needle = '    permissions: {}\n'
-if block.count(needle) != 1:
-    raise SystemExit('fixture canonical CUDA blocker lacks its empty permission map')
-path.write_text(text)
-PY
-expect_pass "$FIXTURE" 'accepts a credentialless canonical CUDA route blocker'
-
-make_fixture "$FIXTURE"
-python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
-from pathlib import Path
-import sys
-
-path = Path(sys.argv[1])
-text = path.read_text()
-start = text.index('  canonical-cuda-package-route-required:\n')
-end = text.index('  all-builds-passed:\n', start)
-block = text[start:end]
-needle = '    permissions: {}\n'
-if block.count(needle) != 1:
-    raise SystemExit('fixture canonical CUDA blocker lacks its empty permission map')
-mutated = block.replace(needle, '    permissions:\n      contents: read\n', 1)
-path.write_text(text[:start] + mutated + text[end:])
-PY
-expect_fail "$FIXTURE" 'rejects a canonical CUDA route blocker that mints a read token'
-
-# Slice 20: canonical/tag routes are deliberately blocked until a separately
-# owned canonical CUDA package route exists.  Build a compliant fixture first,
-# then prove mutations cannot remove, soften, or bypass that blocker.  The
-# current implementation is intentionally RED until the truth checker owns
-# this topology.
-for canonical_cuda_mutation in missing softened skipped aggregate-bypass candidate-bundle candidate-publisher-name; do
+for canonical_cuda_mutation in missing skipped aggregate-bypass candidate-bundle; do
   make_fixture "$FIXTURE"
   python3 - "$FIXTURE/.github/workflows/release.yml" "$canonical_cuda_mutation" <<'PY'
 from pathlib import Path
@@ -94,51 +51,25 @@ import sys
 path = Path(sys.argv[1])
 mutation = sys.argv[2]
 text = path.read_text()
-blocker = '''  canonical-cuda-package-route-required:
-    runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
-    permissions: {}
-    steps:
-      - name: Block uncommissioned canonical CUDA package route
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo 'canonical CUDA package route required' >&2
-          exit 1
-
-'''
-marker = '  cuda-package-rehearsal:\n'
-if text.count(marker) != 1:
-    raise SystemExit('fixture lacks CUDA candidate rehearsal job')
-text = text.replace(marker, blocker + marker, 1)
-
-needs_marker = '      - cuda-package-rehearsal\n'
-if text.count(needs_marker) != 1:
-    raise SystemExit('fixture lacks candidate rehearsal aggregate dependency')
-text = text.replace(needs_marker, needs_marker + '      - canonical-cuda-package-route-required\n', 1)
-candidate_success = "needs.cuda-package-rehearsal.result == 'success'"
-route_success = (
-    "((github.event_name == 'workflow_dispatch' && inputs.dry_run == true "
-    f"&& {candidate_success}) || "
-    "((github.event_name != 'workflow_dispatch' || inputs.dry_run != true) "
-    "&& needs.canonical-cuda-package-route-required.result == 'success'))"
-)
-if text.count(candidate_success) != 1:
-    raise SystemExit('fixture lacks candidate rehearsal success condition')
-text = text.replace(candidate_success, route_success, 1)
 
 if mutation == 'missing':
-    text = text.replace('  canonical-cuda-package-route-required:\n', '  canonical-cuda-package-route-removed:\n', 1)
-elif mutation == 'softened':
-    text = text.replace("          exit 1\n", "          exit 0\n", 1)
+    text = text.replace('  build-cuda-linux-x64-gnu:\n', '  build-cuda-linux-x64-gnu-removed:\n', 1)
 elif mutation == 'skipped':
-    text = text.replace(
+    start = text.index('  build-cuda-linux-x64-gnu:\n')
+    end = text.index('  all-builds-passed:\n', start)
+    block = text[start:end]
+    block = block.replace(
         "    if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}\n",
         "    if: ${{ false }}\n",
         1,
     )
+    text = text[:start] + block + text[end:]
 elif mutation == 'aggregate-bypass':
-    text = text.replace(route_success, candidate_success, 1)
+    text = text.replace(
+        "needs.build-cuda-linux-x64-gnu.result == 'success'",
+        "needs.cuda-package-rehearsal.result == 'success'",
+        1,
+    )
 elif mutation == 'candidate-bundle':
     insertion = '''      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -146,19 +77,12 @@ elif mutation == 'candidate-bundle':
           path: candidate-rehearsal
 '''
     text = text.replace('  publish-pypi:\n', '  publish-pypi:\n' + insertion, 1)
-elif mutation == 'candidate-publisher-name':
-    insertion = '''      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: python-dist-x86_64-unknown-linux-gnu
-          path: candidate/cuda-package-rehearsal/packages/*.whl
-'''
-    text = text.replace('  # Pre-publish packaging verification', insertion + '\n  # Pre-publish packaging verification', 1)
 else:
     raise SystemExit(f'unknown mutation: {mutation}')
 
 path.write_text(text)
 PY
-  expect_fail "$FIXTURE" "rejects canonical CUDA topology mutation: $canonical_cuda_mutation"
+  expect_fail "$FIXTURE" "rejects canonical CUDA producer mutation: $canonical_cuda_mutation"
 done
 
 make_fixture "$FIXTURE"

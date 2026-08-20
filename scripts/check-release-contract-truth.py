@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail closed when the 0.8.22 release-ready native contract drifts.
+"""Fail closed when the 0.8.23 release-ready native contract drifts.
 
 Usage: ``python3 scripts/check-release-contract-truth.py``.
 
@@ -267,35 +267,44 @@ def require_trusted_linux_x64_cuda_producer(jobs: dict[str, str]) -> None:
         if publisher_artifact in block:
             fail("candidate CUDA rehearsal must not emit a canonical publisher-name artifact")
 
-    blocker = jobs.get("canonical-cuda-package-route-required")
-    if blocker is None:
-        fail("release workflow lacks the canonical CUDA package route blocker")
-    if f"if: {CANONICAL_CUDA_ROUTE_IF}" not in blocker:
-        fail("canonical CUDA package route blocker must run on every tag or non-dry-run route")
-    if "runs-on: ubuntu-latest" not in blocker or "permissions: {}" not in blocker:
-        fail("canonical CUDA package route blocker must be GitHub-hosted and credentialless")
-    for fragment in ("canonical CUDA package route required", "exit 1"):
-        if fragment not in blocker:
-            fail(f"canonical CUDA package route blocker is missing {fragment!r}")
+    canonical_name = "build-cuda-linux-x64-gnu"
+    canonical = jobs.get(canonical_name)
+    if canonical is None:
+        fail("release workflow lacks the canonical Linux x64 CUDA package producer")
+    if f"if: {CANONICAL_CUDA_ROUTE_IF}" not in canonical:
+        fail("canonical CUDA package producer must run on every tag or non-dry-run route")
+    required = (
+        "needs: [verify-release, verify-cuda-trusted-route]",
+        "runs-on: [self-hosted, Linux, X64, gpu, cuda-12]",
+        "environment: cuda-unmerged-preflight",
+        "permissions:\n      contents: read",
+        "ref: ${{ env.RELEASE_CHECKOUT_REF }}",
+        "persist-credentials: false",
+        'bash scripts/release/cuda-preflight.sh "${{ github.workspace }}/cuda-canonical-preflight-witness" --rerank-cuda',
+        "name: python-dist-x86_64-unknown-linux-gnu",
+        "name: napi-linux-x64-gnu",
+    )
+    for fragment in required:
+        if fragment not in canonical:
+            fail(f"canonical CUDA package producer is missing {fragment!r}")
     for forbidden in (
-        "actions/checkout@", "actions/download-artifact@", "actions/upload-artifact@",
-        "environment:", "id-token:", "registry-url:", "${{ secrets.", "github.token",
-        "candidate_commit", "cuda-unmerged-route-receipt", "cuda-preflight-witness",
+        "contents: write", "id-token: write", "registry-url:", "candidate_commit",
+        "cuda-unmerged-route-receipt", "cuda-package-rehearsal", "npm publish", "twine upload", "cargo publish",
     ):
-        if forbidden in blocker:
-            fail(f"canonical CUDA package route blocker must not receive candidate or publishing input: {forbidden!r}")
+        if forbidden in canonical:
+            fail(f"canonical CUDA package producer must not publish or consume a candidate route: {forbidden!r}")
 
     all_builds = jobs.get("all-builds-passed")
     if all_builds is None or job_name not in needs("all-builds-passed", all_builds):
         fail("all-builds-passed must depend on the trusted Linux x64 CUDA producer")
-    if "canonical-cuda-package-route-required" not in needs("all-builds-passed", all_builds):
-        fail("all-builds-passed must depend on the canonical CUDA route blocker")
+    if canonical_name not in needs("all-builds-passed", all_builds):
+        fail("all-builds-passed must depend on the canonical CUDA package producer")
     for route_condition in (
         "github.event_name == 'workflow_dispatch' && inputs.dry_run == true && needs.cuda-package-rehearsal.result == 'success'",
-        "(github.event_name != 'workflow_dispatch' || inputs.dry_run != true) && needs.canonical-cuda-package-route-required.result == 'success'",
+        "(github.event_name != 'workflow_dispatch' || inputs.dry_run != true) && needs.build-cuda-linux-x64-gnu.result == 'success'",
     ):
         if route_condition not in all_builds:
-            fail("all-builds-passed must select the candidate rehearsal or canonical blocker by route")
+            fail("all-builds-passed must select the candidate rehearsal or canonical producer by route")
 
     for publisher in PUBLISHING_JOBS:
         publisher_block = jobs.get(publisher)

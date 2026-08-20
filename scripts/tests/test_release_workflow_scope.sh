@@ -133,21 +133,18 @@ def needs(job):
 abp = set(needs("all-builds-passed"))
 gate_ok = {
     "verify-release", "build-python", "build-napi", "build-rust",
-    "cuda-package-rehearsal", "canonical-cuda-package-route-required",
+    "cuda-package-rehearsal", "build-cuda-linux-x64-gnu",
 } <= abp
 print("GATE", gate_ok, sorted(abp))
 
-blocker = jobs.get("canonical-cuda-package-route-required", {})
-blocker_text = str(blocker)
+canonical = jobs.get("build-cuda-linux-x64-gnu", {})
 aggregate_text = str(jobs.get("all-builds-passed", {}))
 canonical_ok = (
-    blocker.get("if") == "${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}"
-    and blocker.get("permissions") == {}
-    and not blocker.get("steps", [])[0].get("uses")
-    and "canonical CUDA package route required" in blocker_text
-    and "exit 1" in blocker_text
+    canonical.get("if") == "${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}"
+    and canonical.get("environment") == "cuda-unmerged-preflight"
+    and {"verify-release", "verify-cuda-trusted-route"} <= set(needs("build-cuda-linux-x64-gnu"))
     and "needs.cuda-package-rehearsal.result == 'success'" in aggregate_text
-    and "needs.canonical-cuda-package-route-required.result == 'success'" in aggregate_text
+    and "needs.build-cuda-linux-x64-gnu.result == 'success'" in aggregate_text
 )
 print("CANONICAL", canonical_ok)
 
@@ -167,9 +164,9 @@ else
   fail "all-builds-passed missing a build-lane dependency: $(printf '%s' "$order_out" | grep '^GATE')"
 fi
 if printf '%s\n' "$order_out" | grep -q '^CANONICAL True'; then
-  pass "canonical routes stop at the credentialless CUDA package blocker before publishers"
+  pass "canonical routes require the normal-name CUDA package build before publishers"
 else
-  fail "canonical CUDA package blocker or route-conditional aggregate gate is missing"
+  fail "canonical CUDA package route or route-conditional aggregate gate is missing"
 fi
 if printf '%s\n' "$order_out" | grep -q '^CHAIN True'; then
   pass "tiered publish chain t1<-...<-t7 rooted at all-builds-passed"

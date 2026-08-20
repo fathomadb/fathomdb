@@ -256,12 +256,12 @@ fi
 NODE_PIN_FAILED=0
 setup_node_total=0
 # Slice 0's CUDA preflight is a sixth release consumer of Node: its pinned
-# setup action makes the checked release count fourteen and the cross-workflow
-# total nineteen. The wrong-order control below re-enters this same assertion,
+# setup action makes the checked release count fifteen and the cross-workflow
+# total twenty. The wrong-order control below re-enters this same assertion,
 # so these constants deliberately govern both its primary and fixture paths.
 EXPECTED_CI_SETUP_NODE_COUNT=5
-EXPECTED_RELEASE_SETUP_NODE_COUNT=14
-EXPECTED_SETUP_NODE_TOTAL=19
+EXPECTED_RELEASE_SETUP_NODE_COUNT=15
+EXPECTED_SETUP_NODE_TOTAL=20
 for workflow in "$CI_YML" "$RELEASE_YML"; do
   setup_node_count="$(grep -c 'uses: actions/setup-node@' "$workflow" || true)"
   node_pin_count="$(grep -c 'node-version: "25.9.0"' "$workflow" || true)"
@@ -281,7 +281,7 @@ for workflow in "$CI_YML" "$RELEASE_YML"; do
   fi
 done
 if [ "$setup_node_total" -ne "$EXPECTED_SETUP_NODE_TOTAL" ]; then
-  printf 'FAIL  ci.yml and release.yml must contain exactly nineteen setup-node steps total (got %s)\n' \
+  printf 'FAIL  ci.yml and release.yml must contain exactly twenty setup-node steps total (got %s)\n' \
     "$setup_node_total" >&2
   NODE_PIN_FAILED=$((NODE_PIN_FAILED + 1))
 fi

@@ -31,7 +31,6 @@
           "candidate_pr": {"minimum": 1, "type": "integer"},
           "candidate_pr_head_sha": {"pattern": "^[0-9a-f]{40}$", "type": "string"},
           "required_reviewers": {
-            "minItems": 1,
             "items": {"minLength": 1, "type": "string"},
             "type": "array",
             "uniqueItems": true
@@ -42,7 +41,6 @@
           "provenance_head_sha": {"pattern": "^[0-9a-f]{40}$", "type": "string"},
           "provenance_commit": {"pattern": "^[0-9a-f]{40}$", "type": "string"},
           "provenance_required_reviewers": {
-            "minItems": 1,
             "items": {"minLength": 1, "type": "string"},
             "type": "array",
             "uniqueItems": true

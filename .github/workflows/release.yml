@@ -771,22 +771,63 @@ jobs:
       - name: Package fathomdb-query (leaf, no in-workspace deps)
         run: cargo package --no-verify -p fathomdb-query
 
-  # Slice 20 deliberately has no canonical Linux x64 CUDA package route yet.
-  # Tag and non-dry-run dispatches therefore stop here, before the aggregate
-  # gate makes any publisher reachable. This job is intentionally data-free:
-  # no checkout, candidate artifact, receipt/witness, environment, OIDC, or
-  # registry/release credential can turn this blocker into a publisher route.
-  canonical-cuda-package-route-required:
-    runs-on: ubuntu-latest
+  # The normal Linux x64 Python wheel and npm platform package are built with
+  # CUDA. Their package names stay unchanged; the existing publishers consume
+  # these artifact names alongside the CPU-only platform artifacts.
+  build-cuda-linux-x64-gnu:
+    needs: [verify-release, verify-cuda-trusted-route]
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
-    permissions: {}
+    runs-on: [self-hosted, Linux, X64, gpu, cuda-12]
+    environment: cuda-unmerged-preflight
+    env:
+      FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
     steps:
-      - name: Block uncommissioned canonical CUDA package route
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, canonical release tag
+        with:
+          ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "25.9.0"
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        with:
+          toolchain: "1.95.0"
+      - name: Install N-API build dependencies
+        working-directory: src/ts
+        run: npm ci
+      - name: Build and prove canonical CUDA package bytes
+        run: bash scripts/release/cuda-preflight.sh "${{ github.workspace }}/cuda-canonical-preflight-witness" --rerank-cuda
+      - name: Stage normal-name publisher artifacts
         shell: bash
         run: |
           set -euo pipefail
-          echo "canonical CUDA package route required" >&2
-          exit 1
+          package_dir="${{ github.workspace }}/cuda-canonical-preflight-witness.packages"
+          wheel=("$package_dir"/fathomdb-*.whl)
+          napi=("$package_dir"/fathomdb-linux-x64-gnu-*.tgz)
+          test "${#wheel[@]}" = 1
+          test "${#napi[@]}" = 1
+          mkdir -p cuda-canonical-artifacts/python cuda-canonical-artifacts/napi
+          cp "${wheel[0]}" cuda-canonical-artifacts/python/
+          tar -xzf "${napi[0]}" --strip-components=1 -C cuda-canonical-artifacts/napi
+          node_binary=(cuda-canonical-artifacts/napi/fathomdb.linux-x64-gnu.node)
+          test "${#node_binary[@]}" = 1
+          test -s "${node_binary[0]}"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: python-dist-x86_64-unknown-linux-gnu
+          path: cuda-canonical-artifacts/python/*.whl
+          if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: napi-linux-x64-gnu
+          path: cuda-canonical-artifacts/napi/fathomdb.linux-x64-gnu.node
+          if-no-files-found: error
 
   # Cross-ecosystem gate: every build must succeed before ANY publish runs.
   # Without this, a partial release (e.g. crates.io 0.6.0 published but
@@ -797,14 +838,14 @@ jobs:
     # Normal releases require every artifact build. The explicit v0.8.20
     # recovery dispatch omits only N-API, whose npm artifact is intentionally
     # not being recovered; verify, Python, and Rust remain hard gates.
-    if: ${{ always() && needs.verify-release.result == 'success' && needs.build-python.result == 'success' && needs.build-rust.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.dry_run == true && needs.cuda-package-rehearsal.result == 'success') || ((github.event_name != 'workflow_dispatch' || inputs.dry_run != true) && needs.canonical-cuda-package-route-required.result == 'success')) && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.build-napi.result == 'success') }}
+    if: ${{ always() && needs.verify-release.result == 'success' && needs.build-python.result == 'success' && needs.build-rust.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.dry_run == true && needs.cuda-package-rehearsal.result == 'success') || ((github.event_name != 'workflow_dispatch' || inputs.dry_run != true) && needs.build-cuda-linux-x64-gnu.result == 'success')) && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.build-napi.result == 'success') }}
     needs:
       - verify-release
       - build-python
       - build-napi
       - build-rust
       - cuda-package-rehearsal
-      - canonical-cuda-package-route-required
+      - build-cuda-linux-x64-gnu
     steps:
       - run: echo "all release build gates passed"
 

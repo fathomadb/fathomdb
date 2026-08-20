@@ -10,6 +10,25 @@ AC-050c) gates merges against this invariant.
 
 ## [Unreleased]
 
+## 0.8.23 — 2026-08-20
+
+**Publication status: pending.** This version is not yet tagged.
+
+### Added
+
+- CUDA-capable Linux x64 Python and npm native binaries under the standard
+  `fathomdb` package names, with the existing Linux aarch64/Tegra CUDA path
+  retained.
+
+### Changed
+
+- The release workflow builds the normal Linux x64 package artifacts with CUDA
+  before the existing PyPI and npm publishers run.
+
+### Removed
+
+None.
+
 ## 0.8.22 — 2026-08-08
 
 **Publication status: pending.** This version is not yet tagged. Its package

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "release": "0.8.22",
+  "release": "0.8.23",
   "source_of_truth": "This manifest defines native-package capability, not a promise that an unbuilt artifact is published.",
   "platforms": [
     {"triple": "linux-x64-gnu", "rust_target": "x86_64-unknown-linux-gnu", "runner": "ubuntu-latest", "smoke_job": "post-publish-smoke", "status": "published", "npm_package": "fathomdb-linux-x64-gnu", "package_dir": "src/ts/npm/linux-x64-gnu", "python_wheel": "manylinux_2_28_x86_64"},

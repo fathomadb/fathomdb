@@ -403,29 +403,38 @@ def require_cuda_package_rehearsal() -> None:
         if "cuda-package-rehearsal" in workflow_job(name):
             fail(f"{name} must not consume a candidate CUDA rehearsal artifact")
 
-    canonical_blocker = workflow_job("canonical-cuda-package-route-required")
+    canonical = workflow_job("build-cuda-linux-x64-gnu")
     if not re.search(
         r"^    if: \$\{\{ github\.event_name != 'workflow_dispatch' \|\| inputs\.dry_run != true \}\}$",
-        canonical_blocker,
+        canonical,
         re.MULTILINE,
     ):
-        fail("canonical CUDA package blocker must run on every tag or non-dry-run route")
-    if not re.search(r"^    runs-on: ubuntu-latest$", canonical_blocker, re.MULTILINE):
-        fail("canonical CUDA package blocker must run read-only on GitHub-hosted Ubuntu")
-    if not re.search(r"^    permissions: \{\}$", canonical_blocker, re.MULTILINE):
-        fail("canonical CUDA package blocker must have an explicit empty permission map")
-    for fragment in ("canonical CUDA package route required", "exit 1"):
-        require_fragment(canonical_blocker, fragment, "canonical CUDA package blocker")
-    for forbidden in (
-        "actions/checkout@", "actions/download-artifact@", "actions/upload-artifact@",
-        "environment:", "id-token:", "registry-url:", "${{ secrets.", "github.token",
-        "candidate_commit", "cuda-unmerged-route-receipt", "cuda-preflight-witness",
+        fail("canonical CUDA builder must run on every tag or non-dry-run route")
+    require_fragment(canonical, "needs: [verify-release, verify-cuda-trusted-route]", "canonical CUDA builder")
+    require_fragment(canonical, "runs-on: [self-hosted, Linux, X64, gpu, cuda-12]", "canonical CUDA builder")
+    require_fragment(canonical, "environment: cuda-unmerged-preflight", "canonical CUDA builder")
+    require_fragment(canonical, CUDA_GPU_UUID_ENV, "canonical CUDA builder GPU UUID binding")
+    if not re.search(r"^    permissions:\n      contents: read$", canonical, re.MULTILINE):
+        fail("canonical CUDA builder must declare read-only contents permission")
+    if "id-token: write" in canonical or "registry-url:" in canonical:
+        fail("canonical CUDA builder must not receive publishing capabilities")
+    for fragment in (
+        "ref: ${{ env.RELEASE_CHECKOUT_REF }}",
+        "persist-credentials: false",
+        "bash scripts/release/cuda-preflight.sh \"${{ github.workspace }}/cuda-canonical-preflight-witness\" --rerank-cuda",
+        "name: python-dist-x86_64-unknown-linux-gnu",
+        "name: napi-linux-x64-gnu",
     ):
-        if forbidden in canonical_blocker:
-            fail(f"canonical CUDA package blocker must not receive candidate or publishing input: {forbidden!r}")
+        require_fragment(canonical, fragment, "canonical CUDA builder")
+    for forbidden in (
+        "candidate_commit", "cuda-unmerged-route-receipt", "cuda-package-rehearsal",
+        "npm publish", "twine upload", "cargo publish", "id-token: write", "registry-url:",
+    ):
+        if forbidden in canonical:
+            fail(f"canonical CUDA builder must not publish or consume a candidate route: {forbidden!r}")
     all_builds = workflow_job("all-builds-passed")
     require_fragment(all_builds, "- cuda-package-rehearsal", "all-builds-passed")
-    require_fragment(all_builds, "- canonical-cuda-package-route-required", "all-builds-passed")
+    require_fragment(all_builds, "- build-cuda-linux-x64-gnu", "all-builds-passed")
     require_fragment(
         all_builds,
         "github.event_name == 'workflow_dispatch' && inputs.dry_run == true && needs.cuda-package-rehearsal.result == 'success'",
@@ -433,8 +442,8 @@ def require_cuda_package_rehearsal() -> None:
     )
     require_fragment(
         all_builds,
-        "(github.event_name != 'workflow_dispatch' || inputs.dry_run != true) && needs.canonical-cuda-package-route-required.result == 'success'",
-        "all-builds-passed canonical CUDA blocker route",
+        "(github.event_name != 'workflow_dispatch' || inputs.dry_run != true) && needs.build-cuda-linux-x64-gnu.result == 'success'",
+        "all-builds-passed canonical CUDA route",
     )
 
 

@@ -438,6 +438,11 @@
         "source": "seq:256"
       },
       {
+        "id": "gitleaks-history-triage-no-revocation",
+        "title": "HITL authorized history-match triage and confirmed-false-positive manifest updates only; potentially valid credentials require a separate enumerated revocation ruling",
+        "source": "seq:257"
+      },
+      {
         "id": "publication",
         "title": "Complete planning and any approved implementation/rehearsal without publishing 0.8.23",
         "halts_run": false,

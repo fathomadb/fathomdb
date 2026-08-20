@@ -2,8 +2,8 @@
   "schema": 1,
   "scanner_version": "8.30.1",
   "tuple_encoding": "fathomdb-gitleaks-history-v1 NUL commit NUL rule NUL path NUL start_line",
-  "expected_records": 57,
-  "expected_unique_fingerprints": 41,
+  "expected_records": 64,
+  "expected_unique_fingerprints": 42,
   "entries": [
     {"fingerprint": "079831d2248fdf653368fdf7f58be586.6e7f03b08ebec26350ce8d4e9274032b", "count": 1},
     {"fingerprint": "0c4216c79855d04c87cbef6684ef0f51.9acf0b84fe4da23d8584904bedff31a5", "count": 1},
@@ -16,6 +16,7 @@
     {"fingerprint": "2b785be2b60a30b6e72f714899f08148.bc3eb5b36233b29c5ec5aefd9ae52d5a", "count": 1},
     {"fingerprint": "2c605b0b161e474d1b2ea11d974ee176.787e222592927a7ad569dc4480f7f2eb", "count": 1},
     {"fingerprint": "3c3b77a90288c57ccaf917df90b47fb6.4574a1b56ac60e75752800d2809e7d6a", "count": 4},
+    {"fingerprint": "3cf3fa69f5f29452a3e28732c872c5e4.5ef9acb73ce1500d73135bab0cb7465f", "count": 7},
     {"fingerprint": "3ef207ae6e8f67c4f9c4d60dfa8c59a5.e302d3280270efdba4a294b2ea37c3bd", "count": 2},
     {"fingerprint": "4351b311d33a5d762ae104644406866d.d27918abdff1e48e932bdd1a28584ef7", "count": 1},
     {"fingerprint": "481b1f5559f58537079391878dd44784.882aefc9148d1c660d90dd7b7a304762", "count": 1},

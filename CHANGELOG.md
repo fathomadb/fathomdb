@@ -10,6 +10,34 @@ AC-050c) gates merges against this invariant.
 
 ## [Unreleased]
 
+## 0.8.23 — 2026-08-20
+
+**Publication status: pending.** This is a release candidate only. It is not
+tagged or published: integration to `main`, the candidate-bound non-publishing
+CUDA dry-run, and independent review of the retained Slice 10/20/70/71 CUDA
+evidence remain required before any separate publication decision.
+
+### Added
+
+- Strict, independently configurable CPU/CUDA runtime policy for embeddings and
+  cross-encoder reranking, including typed forced-device failures and resolver
+  diagnostics.
+- CUDA preflight, installed-artifact rehearsal, and candidate-provenance
+  controls for the non-publishing protected-runner dry-run route.
+- Jetson Orin and Linux x64 CUDA witness support, including allocation/device
+  identity records and cache-bound driverless CPU smokes.
+
+### Changed
+
+- Embedding and reranking may independently resolve CPU or CUDA at runtime;
+  they can share a selected GPU and no device-reservation scheduler is implied.
+- Windows WAL attribution and reader-pool readiness diagnostics gained
+  deterministic isolation controls without changing the public data model.
+
+### Removed
+
+None.
+
 ## 0.8.22 — 2026-08-08
 
 **Publication status: pending.** This version is not yet tagged. Its package

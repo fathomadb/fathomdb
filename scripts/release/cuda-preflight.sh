@@ -736,7 +736,7 @@ if rerank_cuda:
             "effective_device": None,
             "reason": "no_visible_cuda_device",
             "provenance": "installed_candidate",
-            "command": f"installed_{consumer}_engine_open",
+            "command": f"installed_{consumer}_engine_open_without_default_embedder",
             "exit_code": 1,
             "stdout_filename": stdout.name,
             "stdout_sha256": digest(stdout),

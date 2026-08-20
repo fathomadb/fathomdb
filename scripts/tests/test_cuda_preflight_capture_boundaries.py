@@ -30,6 +30,12 @@ if (
 if "FORCED_NAPI_HARNESS" in PREFLIGHT:
     failures.append("a second N-API harness copy can substitute execution bytes")
 
+forced_embedder_records = section('for consumer in ("python", "napi"):', "prefix = hashlib")
+if '"command": f"installed_{consumer}_engine_open",' not in forced_embedder_records:
+    failures.append("forced embedder records do not describe their default-embedder harness")
+if "engine_open_without_default_embedder" in forced_embedder_records:
+    failures.append("forced embedder records mislabel the default-embedder harness")
+
 assert not failures, "\n".join(failures)
 
 print("CUDA preflight capture boundary tests passed")

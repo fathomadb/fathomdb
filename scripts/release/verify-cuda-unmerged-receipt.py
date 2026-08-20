@@ -103,7 +103,7 @@ def main() -> None:
     require_sha(receipt["candidate_sha"], "receipt candidate SHA", COMMIT_SHA)
     require_positive_int(receipt["candidate_pr"], "receipt candidate PR")
     approval_ids = receipt["approval_review_ids"]
-    if not isinstance(approval_ids, list) or not approval_ids or len(set(approval_ids)) != len(approval_ids):
+    if not isinstance(approval_ids, list) or len(set(approval_ids)) != len(approval_ids):
         fail("receipt approval review IDs are invalid")
     for review_id in approval_ids:
         require_positive_int(review_id, "receipt approval review ID")
@@ -111,7 +111,6 @@ def main() -> None:
     provenance_approval_ids = receipt["provenance_approval_review_ids"]
     if (
         not isinstance(provenance_approval_ids, list)
-        or not provenance_approval_ids
         or len(set(provenance_approval_ids)) != len(provenance_approval_ids)
     ):
         fail("receipt provenance approval review IDs are invalid")

@@ -343,4 +343,42 @@ for mismatch in candidate workflow-ref workflow-sha run-id run-attempt; do
   printf 'PASS  rejects receipt mismatch: %s\n' "$mismatch"
 done
 
+solo_manifest="$TMPROOT/solo-authorized.json"
+solo_facts="$TMPROOT/solo-facts.json"
+python3 - "$manifest" "$facts" "$solo_manifest" "$solo_facts" <<'PY'
+import json
+import sys
+
+manifest_path, facts_path, solo_manifest_path, solo_facts_path = sys.argv[1:]
+manifest = json.load(open(manifest_path, encoding="utf-8"))
+facts = json.load(open(facts_path, encoding="utf-8"))
+record = manifest["candidates"][0]
+record["required_reviewers"] = []
+record["provenance_required_reviewers"] = []
+facts["reviews"] = []
+facts["provenance_reviews"] = []
+
+def canonical(value):
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode() + b"\n"
+
+def digest(value):
+    return __import__("hashlib").sha256(canonical(value)).hexdigest()
+
+for name, value in (("reviews", facts["reviews"]), ("provenance_reviews", facts["provenance_reviews"])):
+    facts["api_response_sha256"][name] = digest(value)
+
+open(solo_manifest_path, "wb").write(canonical(manifest))
+open(solo_facts_path, "wb").write(canonical(facts))
+PY
+expect_authorize_pass "$solo_manifest" "$solo_facts" "$TMPROOT/solo-receipt.json" 'accepts an exact solo-maintainer route without impossible reviews'
+cp "$solo_manifest" "$TMPROOT/$trusted_manifest"
+(
+  cd "$TMPROOT"
+  python3 "$VERIFY_RECEIPT" \
+    --receipt solo-receipt.json --manifest "$trusted_manifest" \
+    --candidate-sha "$CANDIDATE" --workflow-ref "$WORKFLOW_REF" \
+    --workflow-sha "$WORKFLOW_SHA" --run-id 714 --run-attempt 2
+) >/dev/null
+printf 'PASS  verifies a solo-maintainer route receipt with no review IDs\n'
+
 printf '\nCUDA unmerged-candidate provenance tests passed\n'

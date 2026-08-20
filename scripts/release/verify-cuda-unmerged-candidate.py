@@ -119,18 +119,17 @@ def validate_manifest_entries(manifest: dict[str, Any], now: datetime) -> list[d
         require_sha(record["provenance_head_sha"], f"manifest candidate {index} provenance head")
         require_sha(record["provenance_commit"], f"manifest candidate {index} provenance commit")
         reviewers = record["required_reviewers"]
-        if not isinstance(reviewers, list) or not reviewers or any(not isinstance(item, str) or not item for item in reviewers):
-            fail("manifest required reviewers must be a nonempty list of logins")
+        if not isinstance(reviewers, list) or any(not isinstance(item, str) or not item for item in reviewers):
+            fail("manifest required reviewers must be a list of nonempty unique logins")
         if len(set(reviewers)) != len(reviewers):
             fail("manifest required reviewers must be unique")
         provenance_reviewers = record["provenance_required_reviewers"]
         if (
             not isinstance(provenance_reviewers, list)
-            or not provenance_reviewers
             or any(not isinstance(item, str) or not item for item in provenance_reviewers)
             or len(set(provenance_reviewers)) != len(provenance_reviewers)
         ):
-            fail("manifest provenance required reviewers must be unique nonempty logins")
+            fail("manifest provenance required reviewers must be unique nonempty logins when present")
         if record["purpose"] != PURPOSE:
             fail("manifest candidate purpose is not authorized")
         if parse_timestamp(record["expires_at"], "manifest candidate expiry") <= now:

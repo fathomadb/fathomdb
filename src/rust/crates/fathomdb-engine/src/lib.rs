@@ -1416,6 +1416,15 @@ struct WalAttributionRoleState {
     phase: &'static str,
 }
 
+#[cfg(any(test, feature = "test-hooks"))]
+type ReaderSnapshotPause = (Arc<Barrier>, Arc<Barrier>, Arc<Mutex<Option<String>>>);
+
+#[cfg(test)]
+type ReaderHandoffPause = (Arc<Barrier>, Arc<Barrier>);
+
+#[cfg(any(test, feature = "test-hooks"))]
+type ReaderCompletionPause = (Arc<Barrier>, Arc<Barrier>, Arc<AtomicBool>);
+
 /// Private diagnostic state. It is off unless controlled CI/test config opts in
 /// via `FATHOMDB_WAL_ATTRIBUTION=1`; the off path is a single atomic read.
 struct WalAttributionCollector {
@@ -1424,6 +1433,14 @@ struct WalAttributionCollector {
     roles: Mutex<BTreeMap<(WalAttributionRole, usize), WalAttributionRoleState>>,
     checkpoints: Mutex<Vec<WalCheckpointRecord>>,
     checkpoint_active: AtomicBool,
+    #[cfg(debug_assertions)]
+    role_changed: Condvar,
+    #[cfg(any(test, feature = "test-hooks"))]
+    reader_snapshot_pause: Mutex<Option<ReaderSnapshotPause>>,
+    #[cfg(test)]
+    reader_handoff_pause: Mutex<Option<ReaderHandoffPause>>,
+    #[cfg(any(test, feature = "test-hooks"))]
+    reader_completion_pause: Mutex<Option<ReaderCompletionPause>>,
 }
 
 /// Marks a real SQLite transaction/snapshot interval and restores idle state on
@@ -1461,6 +1478,82 @@ impl WalAttributionCollector {
             roles: Mutex::new(BTreeMap::new()),
             checkpoints: Mutex::new(Vec::new()),
             checkpoint_active: AtomicBool::new(false),
+            #[cfg(debug_assertions)]
+            role_changed: Condvar::new(),
+            #[cfg(any(test, feature = "test-hooks"))]
+            reader_snapshot_pause: Mutex::new(None),
+            #[cfg(test)]
+            reader_handoff_pause: Mutex::new(None),
+            #[cfg(any(test, feature = "test-hooks"))]
+            reader_completion_pause: Mutex::new(None),
+        }
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn arm_reader_snapshot_pause(
+        &self,
+    ) -> (Arc<Barrier>, Arc<Barrier>, Arc<Mutex<Option<String>>>) {
+        let ready = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        let native_state = Arc::new(Mutex::new(None));
+        *self.reader_snapshot_pause.lock().expect("reader snapshot pause mutex") =
+            Some((Arc::clone(&ready), Arc::clone(&release), Arc::clone(&native_state)));
+        (ready, release, native_state)
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn fire_reader_snapshot_pause(&self, connection: &Connection, worker_idx: usize) {
+        if let Some((ready, release, native_state)) =
+            self.reader_snapshot_pause.lock().expect("reader snapshot pause mutex").take()
+        {
+            *native_state.lock().expect("reader snapshot native state") =
+                Some(native_state_fact_text(&native_connection_state_for_test(
+                    connection,
+                    WalAttributionRole::ReaderWorker,
+                    worker_idx,
+                )));
+            ready.wait();
+            release.wait();
+        }
+    }
+
+    #[cfg(test)]
+    fn arm_reader_handoff_pause(&self) -> (Arc<Barrier>, Arc<Barrier>) {
+        let ready = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        *self.reader_handoff_pause.lock().expect("reader handoff pause mutex") =
+            Some((Arc::clone(&ready), Arc::clone(&release)));
+        (ready, release)
+    }
+
+    #[cfg(test)]
+    fn fire_reader_handoff_pause(&self) {
+        if let Some((ready, release)) =
+            self.reader_handoff_pause.lock().expect("reader handoff pause mutex").take()
+        {
+            ready.wait();
+            release.wait();
+        }
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn arm_reader_completion_pause(&self) -> (Arc<Barrier>, Arc<Barrier>, Arc<AtomicBool>) {
+        let ready = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        let reader_autocommit = Arc::new(AtomicBool::new(false));
+        *self.reader_completion_pause.lock().expect("reader completion pause mutex") =
+            Some((Arc::clone(&ready), Arc::clone(&release), Arc::clone(&reader_autocommit)));
+        (ready, release, reader_autocommit)
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn fire_reader_completion_pause(&self, reader_autocommit: bool) {
+        if let Some((ready, release, observed_autocommit)) =
+            self.reader_completion_pause.lock().expect("reader completion pause mutex").take()
+        {
+            observed_autocommit.store(reader_autocommit, Ordering::Release);
+            ready.wait();
+            release.wait();
         }
     }
 
@@ -1480,8 +1573,42 @@ impl WalAttributionCollector {
         }
         if let Ok(mut roles) = self.roles.lock() {
             roles.insert((role, index), WalAttributionRoleState { active, phase });
+            #[cfg(debug_assertions)]
+            self.role_changed.notify_all();
         }
         self.emit(role, index, phase);
+    }
+
+    #[cfg(debug_assertions)]
+    fn wait_until_exclusively_active(
+        &self,
+        role: WalAttributionRole,
+        index: usize,
+        timeout: Duration,
+    ) -> bool {
+        let deadline = Instant::now() + timeout;
+        let Ok(mut roles) = self.roles.lock() else {
+            return false;
+        };
+        loop {
+            let mut active = roles.iter().filter_map(|((active_role, active_index), state)| {
+                state.active.then_some((*active_role, *active_index))
+            });
+            if active.next() == Some((role, index)) && active.next().is_none() {
+                return true;
+            }
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return false;
+            }
+            let Ok((next_roles, wait)) = self.role_changed.wait_timeout(roles, remaining) else {
+                return false;
+            };
+            roles = next_roles;
+            if wait.timed_out() {
+                return false;
+            }
+        }
     }
 
     fn snapshot(&self) -> WalAttributionSnapshot {
@@ -2433,9 +2560,9 @@ fn finish_reader_request(
     wal_attribution.set(WalAttributionRole::ReaderWorker, worker_idx, false, "completed");
     wal_attribution.set(WalAttributionRole::ReaderWorker, worker_idx, false, "idle");
     #[cfg(test)]
-    reader_handoff_pause::fire();
+    wal_attribution.fire_reader_handoff_pause();
     #[cfg(any(test, feature = "test-hooks"))]
-    reader_completion_pause::fire(connection.is_autocommit());
+    wal_attribution.fire_reader_completion_pause(connection.is_autocommit());
     #[cfg(not(any(test, feature = "test-hooks")))]
     let _ = connection;
 }
@@ -6972,7 +7099,7 @@ impl Engine {
     pub fn arm_next_reader_snapshot_pause_for_test(
         &self,
     ) -> (Arc<Barrier>, Arc<Barrier>, Arc<Mutex<Option<String>>>) {
-        reader_snapshot_pause::arm()
+        self.wal_attribution.arm_reader_snapshot_pause()
     }
 
     /// Arm a private completion rendezvous for the next public reader request.
@@ -6986,7 +7113,7 @@ impl Engine {
     pub fn arm_next_reader_completion_pause_for_test(
         &self,
     ) -> (Arc<Barrier>, Arc<Barrier>, Arc<AtomicBool>) {
-        reader_completion_pause::arm()
+        self.wal_attribution.arm_reader_completion_pause()
     }
 
     /// Private Slice 65 test rendezvous. Unlike the snapshot hook this is
@@ -6994,7 +7121,7 @@ impl Engine {
     /// collector's internal response-handoff boundary.
     #[cfg(test)]
     fn pause_next_reader_handoff_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
-        reader_handoff_pause::arm()
+        self.wal_attribution.arm_reader_handoff_pause()
     }
 
     #[cfg(feature = "test-hooks")]
@@ -13997,106 +14124,9 @@ fn begin_attributed_reader_tx<'a>(
         tx.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))?;
         attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "snapshot_acquired");
         #[cfg(any(test, feature = "test-hooks"))]
-        reader_snapshot_pause::fire(&tx, worker_idx);
+        attribution.fire_reader_snapshot_pause(&tx, worker_idx);
     }
     Ok(tx)
-}
-
-#[cfg(any(test, feature = "test-hooks"))]
-mod reader_snapshot_pause {
-    use super::{
-        native_connection_state_for_test, native_state_fact_text, Barrier, Connection, Mutex,
-        WalAttributionRole,
-    };
-    use std::sync::Arc;
-
-    type Pause = (Arc<Barrier>, Arc<Barrier>, Arc<Mutex<Option<String>>>);
-
-    static PAUSE: Mutex<Option<Pause>> = Mutex::new(None);
-
-    pub(crate) fn arm() -> (Arc<Barrier>, Arc<Barrier>, Arc<Mutex<Option<String>>>) {
-        let ready = Arc::new(Barrier::new(2));
-        let release = Arc::new(Barrier::new(2));
-        let native_state = Arc::new(Mutex::new(None));
-        *PAUSE.lock().expect("reader snapshot pause mutex") =
-            Some((Arc::clone(&ready), Arc::clone(&release), Arc::clone(&native_state)));
-        (ready, release, native_state)
-    }
-
-    pub(crate) fn fire(connection: &Connection, worker_idx: usize) {
-        if let Some((ready, release, native_state)) =
-            PAUSE.lock().expect("reader snapshot pause mutex").take()
-        {
-            *native_state.lock().expect("reader snapshot native state") =
-                Some(native_state_fact_text(&native_connection_state_for_test(
-                    connection,
-                    WalAttributionRole::ReaderWorker,
-                    worker_idx,
-                )));
-            ready.wait();
-            release.wait();
-        }
-    }
-}
-
-/// Slice 65 Fix-N — test-only rendezvous after a reader helper has returned
-/// (therefore dropped its SQLite transaction) and after the collector has
-/// become idle, but before the materialized response is sent to the caller.
-/// This has no production or test-hook artifact surface.
-#[cfg(test)]
-mod reader_handoff_pause {
-    use super::Barrier;
-    use std::sync::{Arc, Mutex};
-
-    static PAUSE: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>> = Mutex::new(None);
-
-    pub(crate) fn arm() -> (Arc<Barrier>, Arc<Barrier>) {
-        let ready = Arc::new(Barrier::new(2));
-        let release = Arc::new(Barrier::new(2));
-        *PAUSE.lock().expect("reader handoff pause mutex") =
-            Some((Arc::clone(&ready), Arc::clone(&release)));
-        (ready, release)
-    }
-
-    pub(crate) fn fire() {
-        if let Some((ready, release)) = PAUSE.lock().expect("reader handoff pause mutex").take() {
-            ready.wait();
-            release.wait();
-        }
-    }
-}
-
-/// Slice 65 private test-hook rendezvous at the real reader completion
-/// boundary. It fires after helper-local statements and the read transaction
-/// have dropped and after the collector is idle, but before the worker sends
-/// the materialized response. It is absent from ordinary builds.
-#[cfg(any(test, feature = "test-hooks"))]
-mod reader_completion_pause {
-    use super::{AtomicBool, Barrier, Ordering};
-    use std::sync::{Arc, Mutex};
-
-    type Pause = (Arc<Barrier>, Arc<Barrier>, Arc<AtomicBool>);
-
-    static PAUSE: Mutex<Option<Pause>> = Mutex::new(None);
-
-    pub(crate) fn arm() -> (Arc<Barrier>, Arc<Barrier>, Arc<AtomicBool>) {
-        let ready = Arc::new(Barrier::new(2));
-        let release = Arc::new(Barrier::new(2));
-        let reader_autocommit = Arc::new(AtomicBool::new(false));
-        *PAUSE.lock().expect("reader completion pause mutex") =
-            Some((Arc::clone(&ready), Arc::clone(&release), Arc::clone(&reader_autocommit)));
-        (ready, release, reader_autocommit)
-    }
-
-    pub(crate) fn fire(reader_autocommit: bool) {
-        if let Some((ready, release, observed_autocommit)) =
-            PAUSE.lock().expect("reader completion pause mutex").take()
-        {
-            observed_autocommit.store(reader_autocommit, Ordering::Release);
-            ready.wait();
-            release.wait();
-        }
-    }
 }
 
 /// Read projection cursor and matching body rows inside one read tx.
@@ -17465,6 +17495,15 @@ fn commit_projection_outcomes(
         .unwrap_or_else(|poisoned| poisoned.into_inner())
         .take()
     {
+        if !shared.wal_attribution.wait_until_exclusively_active(
+            WalAttributionRole::ProjectionWorker,
+            worker_idx,
+            Duration::from_secs(2),
+        ) {
+            eprintln!(
+                "slice65_wal projection_worker exclusive_activity_wait=timeout worker={worker_idx}"
+            );
+        }
         transaction_ready.wait();
         release.wait();
     }

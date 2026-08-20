@@ -8,8 +8,6 @@ _repo_toplevel="$(git rev-parse --show-toplevel)" || exit 1
 cd "$_repo_toplevel" || exit 1
 # shellcheck source=lib/actionlint-version.sh
 . "$SCRIPT_DIR/lib/actionlint-version.sh"
-# shellcheck source=lib/agent-python-env.sh
-. "$SCRIPT_DIR/lib/agent-python-env.sh"
 
 echo "FathomDB scaffold bootstrap"
 echo "Public docs live in docs/ and build with MkDocs."
@@ -30,12 +28,7 @@ scripts/install-hooks.sh
 # Python dev tooling — pytest, hypothesis, ruff, pyright.
 if [ -f src/python/pyproject.toml ]; then
   echo "Installing Python dev tooling into .venv (pytest + hypothesis + ruff + pyright)..."
-  # 0.8.23 Slice 80.3: bare `python3` is whatever the OS ships (3.10 on
-  # Ubuntu 22.04 / L4T R36 — every Jetson), too old for stdlib `tomllib`
-  # several release/CI gates require. select the newest available >=3.11
-  # interpreter instead, failing closed with an actionable message rather
-  # than silently creating a too-old venv.
-  create_venv_with_selected_python .venv
+  python3 -m venv .venv
   # 0.8.9 Slice 1 (R-BOOT-2): no output masking — a future dev-tooling failure
   # (pip resolution, an unguarded import that fails pyright) must be VISIBLE in
   # the CI log, not swallowed. Dropping `--quiet`/`>/dev/null` is what surfaced

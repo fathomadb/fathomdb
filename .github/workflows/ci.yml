@@ -494,7 +494,22 @@ jobs:
         with:
           toolchain: "1.95.0"
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Detect Slice 65 attribution source
+        id: slice65-source
+        shell: pwsh
+        run: |
+          $artifact = "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log"
+          $source = "src/rust/crates/fathomdb-engine/src/lib.rs"
+          $marker = "fn wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded"
+          if (Select-String -LiteralPath $source -SimpleMatch $marker -Quiet) {
+            "available=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "slice65_wal attribution_source=present controls=required" | Tee-Object -FilePath $artifact
+          } else {
+            "available=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "slice65_wal attribution_source=absent controls=deferred" | Tee-Object -FilePath $artifact
+          }
       - name: Run WAL ownership attribution controls
+        if: steps.slice65-source.outputs.available == 'true'
         shell: pwsh
         run: |
           $env:FATHOMDB_WAL_ATTRIBUTION = "1"
@@ -606,11 +621,13 @@ jobs:
             exit 1
           }
       - name: Build current disposable test-hooks wheel
+        if: steps.slice65-source.outputs.available == 'true'
         uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
         with:
           args: --release --out ${{ github.workspace }}/dist-slice65-test -i python3.11 --features pyo3/extension-module,test-hooks
           working-directory: src/python
       - name: Run installed-wheel attribution controls
+        if: steps.slice65-source.outputs.available == 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"

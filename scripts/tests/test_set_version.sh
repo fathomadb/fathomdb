@@ -166,7 +166,7 @@ surface_bad=0
 for observed in "$(python_runtime_version)" "$(npm_lock_top_version)" "$(npm_lock_root_version)"; do
   [ "$observed" = "9.9.8" ] || surface_bad=1
 done
-for package in fathomdb fathomdb-cli fathomdb-embedder fathomdb-engine fathomdb-napi fathomdb-py fathomdb-query fathomdb-schema; do
+for package in fathomdb fathomdb-cli fathomdb-embedder fathomdb-engine fathomdb-napi fathomdb-py fathomdb-query fathomdb-schema fathomdb-tc5-benchmark; do
   [ "$(cargo_lock_package_version "$package")" = "9.9.8" ] || surface_bad=1
 done
 if [ "$surface_bad" -eq 0 ]; then

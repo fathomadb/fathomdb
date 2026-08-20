@@ -23954,8 +23954,10 @@ mod tests {
     /// Slice 65 reader-handoff RED: a materialized `read_get` result must be
     /// handed back only after its collector state is already idle. This parks
     /// the worker after the helper has dropped its SQLite transaction and
-    /// before its response send, then proves an erasure checkpoint is clean
-    /// while the caller still cannot receive that materialized record.
+    /// before its response send, then proves no managed reader owns the
+    /// checkpoint while the caller still cannot receive that materialized
+    /// record. A typed busy result remains possible when Windows has an
+    /// unrelated WAL holder.
     #[test]
     fn wal_attribution_reader_handoff_is_idle_before_materialized_reply() {
         let dir = TempDir::new().expect("temp dir");
@@ -23997,18 +23999,27 @@ mod tests {
             idle.no_owned_snapshot,
             "the collector must be idle before the materialized response send: {idle:?}"
         );
-        opened
-            .engine
-            .erase_source("slice65-reader-handoff-source")
-            .expect("checkpoint while materialized reply is parked");
+        let checkpoint = opened.engine.erase_source("slice65-reader-handoff-source");
         let record = opened
             .engine
             .wal_attribution_checkpoints_for_test()
             .last()
             .cloned()
             .expect("checkpoint record");
-        assert!(!record.busy && record.classification == "no_owned_snapshot");
         assert!(record.active_roles.is_empty());
+        let outcome = match checkpoint {
+            Ok(_) => {
+                assert!(!record.busy && record.classification == "no_owned_snapshot");
+                "clean"
+            }
+            Err(EngineError::ErasureIncomplete { stage, .. }) if stage == "wal_checkpoint" => {
+                assert!(record.busy && record.classification == "unclassified_external");
+                "unclassified_external"
+            }
+            Err(error) => {
+                panic!("unexpected checkpoint result while materialized reply is parked: {error}")
+            }
+        };
 
         release.wait();
         let materialized = caller_result_rx
@@ -24018,7 +24029,7 @@ mod tests {
             .expect("materialized record");
         caller.join().expect("reader thread");
         assert_eq!(materialized.logical_id, "slice65-reader-handoff");
-        eprintln!("slice65_wal reader_handoff_idle_before_reply=passed");
+        eprintln!("slice65_wal reader_handoff_idle_before_reply=passed outcome={outcome}");
     }
 
     #[test]

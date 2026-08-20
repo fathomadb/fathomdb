@@ -322,11 +322,11 @@ if (process.env.FATHOMDB_CUDA_REHEARSAL_RERANK === "true") {
   await engine.write([{kind: "doc", body: "TinyBERT CPU inference", sourceId: "reranker-cpu-proof"}]);
   await engine.drain(30_000);
   const deadline = Date.now() + 10_000;
-  let result = await engine.search("reranker CPU proof", undefined, 1);
+  let result = await engine.search("TinyBERT CPU inference", undefined, 1);
   while (Date.now() < deadline) {
     if (result.results.length === 1 && result.results[0].ceScore !== null) break;
     await new Promise((resolve) => setTimeout(resolve, 20));
-    result = await engine.search("reranker CPU proof", undefined, 1);
+    result = await engine.search("TinyBERT CPU inference", undefined, 1);
   }
   if (result.results.length !== 1 || result.results[0].ceScore === null) throw new Error("expected installed N-API reranker inference");
 }

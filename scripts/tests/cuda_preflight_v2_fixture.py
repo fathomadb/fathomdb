@@ -108,6 +108,27 @@ def forced_record(
 
 
 def gpu_observation(consumer: str) -> dict[str, object]:
+    uuid = "GPU-11111111-2222-3333-4444-555555555555"
+    allocation_witness = {
+        "schema": "fathomdb.tegra-gpu-allocation-witness/v1",
+        "sole_gpu_consumer_precondition": "the witness run must be the sole GPU consumer: cuMemGetInfo reports a shared, system-wide counter on an integrated GPU",
+        "device_ordinal_requested": 0,
+        "device_ordinal_actual": 0,
+        "device_uuid": uuid,
+        "device_name": "NVIDIA fixture GPU",
+        "compute_capability": "8.6",
+        "free_before_bytes": 40_000_000_000,
+        "free_after_bytes": 39_800_000_000,
+        "total_bytes": 48_000_000_000,
+        "delta_bytes": 200_000_000,
+        "delta_floor_bytes": 67_108_864,
+        "control_allocation_request_bytes": 268_435_456,
+        "control_block_count": 1,
+        "control_free_before_bytes": 42_000_000_000,
+        "control_free_after_bytes": 41_700_000_000,
+        "control_delta_bytes": 300_000_000,
+        "embedded_vector_dim": 384,
+    }
     return {
         "schema_version": "fathomdb.cuda-device-observation/v1",
         "consumer": consumer,
@@ -116,15 +137,16 @@ def gpu_observation(consumer: str) -> dict[str, object]:
         "effective_device": "cuda:0",
         "visible_devices": [{
             "visible_ordinal": 0,
-            "uuid": "GPU-11111111-2222-3333-4444-555555555555",
+            "uuid": uuid,
             "name": "NVIDIA fixture GPU",
             "compute_capability": "8.6",
         }],
-        "selected_uuid": "GPU-11111111-2222-3333-4444-555555555555",
-        "nvidia_smi_uuid": "GPU-11111111-2222-3333-4444-555555555555",
+        "selected_uuid": uuid,
+        "nvidia_smi_uuid": uuid,
         "process_id": 4242,
         "nvidia_smi_compute_process_id": 4242,
         "process_name": "fixture-runtime",
+        "allocation_witness": allocation_witness,
     }
 
 

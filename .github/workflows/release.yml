@@ -274,6 +274,8 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
     runs-on: [self-hosted, Linux, X64, gpu, cuda-12]
     environment: cuda-unmerged-preflight
+    env:
+      FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
     timeout-minutes: 45
     permissions:
       contents: read
@@ -520,6 +522,8 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
     runs-on: [self-hosted, Linux, X64, gpu, cuda-12]
     environment: cuda-unmerged-preflight
+    env:
+      FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
     timeout-minutes: 45
     permissions:
       contents: read
@@ -652,6 +656,8 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
     runs-on: [self-hosted, Linux, X64, gpu, cuda-12]
     environment: cuda-unmerged-preflight
+    env:
+      FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
     timeout-minutes: 45
     permissions:
       contents: read

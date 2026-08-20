@@ -5,6 +5,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=cuda-artifact-contract.sh
 . "$SCRIPT_DIR/cuda-artifact-contract.sh"
+# shellcheck source=../lib/cuda-gpu-selection.sh
+. "$SCRIPT_DIR/../lib/cuda-gpu-selection.sh"
+
+: "${FATHOMDB_CUDA_GPU_UUID:?cuda-package-smoke: FATHOMDB_CUDA_GPU_UUID is required}"
+CUDA_GPU_UUID="$FATHOMDB_CUDA_GPU_UUID"
+CUDA_GPU_INDEX="$(resolve_cuda_gpu_index "$CUDA_GPU_UUID")"
+CUDA_GPU_DOCKER_SELECTOR="device=$CUDA_GPU_UUID"
 
 usage() {
   printf 'usage: %s --python-wheel FILE --npm-main FILE --napi-platform FILE --cli-archive FILE --model-cache-manifest FILE --hf-home DIR --smoke-dir DIR [--reranker-cache-manifest FILE]\n' "$0" >&2
@@ -38,6 +45,7 @@ fi
 [ ! -e "$smoke_dir" ] || { printf 'cuda-package-smoke: smoke directory must be new: %s\n' "$smoke_dir" >&2; exit 1; }
 [ -d "$hf_home" ] && [ ! -L "$hf_home" ] || { printf 'cuda-package-smoke: pinned embedder cache must be a non-symlink directory\n' >&2; exit 1; }
 python_wheel_abs="$(realpath -- "$python_wheel")"
+WHEEL_FILENAME="$(basename "$python_wheel_abs")"
 npm_main_abs="$(realpath -- "$npm_main")"
 napi_platform_abs="$(realpath -- "$napi_platform")"
 cli_archive_abs="$(realpath -- "$cli_archive")"
@@ -197,16 +205,18 @@ PY
 # never mounted; env -i and --network none prevent ambient package/download or
 # device-selector inputs from satisfying a CPU-default smoke.
 docker run --rm --network none \
-  --mount "type=bind,src=$python_wheel_abs,dst=/input/fathomdb.whl,readonly" \
+  --mount "type=bind,src=$python_wheel_abs,dst=/input/$WHEEL_FILENAME,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
+  -e "WHEEL_FILENAME=$WHEEL_FILENAME" \
   "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
-  env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache sh -ceu '
+  env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache WHEEL_FILENAME="$WHEEL_FILENAME" sh -ceu '
     test ! -e /dev/nvidiactl
     exec python -c '"'"'
 import tempfile
+import os
 from pathlib import Path
 import subprocess
-subprocess.run(["python", "-m", "pip", "install", "--no-deps", "/input/fathomdb.whl"], check=True)
+subprocess.run(["python", "-m", "pip", "install", "--no-deps", f"/input/{os.environ['WHEEL_FILENAME']}"], check=True)
 from fathomdb import Engine
 with tempfile.TemporaryDirectory() as d:
     engine=Engine.open(str(Path(d) / "cpu.fdb"), use_default_embedder=True)
@@ -279,11 +289,12 @@ if [ -n "$reranker_cache_manifest_abs" ]; then
   write_reranker_cli_doctor_record
 fi
 
-gpu_index=0
+gpu_index="$CUDA_GPU_INDEX"
 gpu_csv="$(nvidia-smi --id="$gpu_index" --query-gpu=uuid,name,driver_version --format=csv,noheader)"
 IFS=',' read -r gpu_uuid gpu_name gpu_driver <<<"$gpu_csv"
 gpu_uuid="${gpu_uuid# }"; gpu_name="${gpu_name# }"; gpu_driver="${gpu_driver# }"
 [ -n "$gpu_uuid" ] && [ -n "$gpu_name" ] && [ -n "$gpu_driver" ] || { printf 'cuda-package-smoke: GPU %s has incomplete identity\n' "$gpu_index" >&2; exit 1; }
+[ "$gpu_uuid" = "$CUDA_GPU_UUID" ] || { printf 'cuda-package-smoke: observed GPU UUID differs from the requested host UUID\n' >&2; exit 1; }
 
 wait_for_gpu() {
   local container="$1" consumer="$2" host_pid='' observed=''
@@ -305,16 +316,17 @@ wait_for_gpu() {
   exit 1
 }
 
-python_gpu="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
-  --mount "type=bind,src=$python_wheel_abs,dst=/input/fathomdb.whl,readonly" \
+python_gpu="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
+  --mount "type=bind,src=$python_wheel_abs,dst=/input/$WHEEL_FILENAME,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
+  -e "WHEEL_FILENAME=$WHEEL_FILENAME" \
   "$CUDA_MANYLINUX_IMAGE" sh -ceu '
-    env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 /opt/python/cp311-cp311/bin/python -m pip install --no-deps /input/fathomdb.whl
+    env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 WHEEL_FILENAME="$WHEEL_FILENAME" /opt/python/cp311-cp311/bin/python -m pip install --no-deps "/input/$WHEEL_FILENAME"
     exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 /opt/python/cp311-cp311/bin/python -c "from fathomdb import Engine; import tempfile; from pathlib import Path; d=tempfile.TemporaryDirectory(); e=Engine.open(str(Path(d.name)/\"gpu.fdb\"),use_default_embedder=True); e.embed(\"CUDA package rehearsal installed Python GPU smoke\"); e.close(); import time; time.sleep(20)"
   ')"
 wait_for_gpu "$python_gpu" python
 
-napi_gpu="$(docker run -d --gpus '"'"'device=0'"'"' --network none \
+napi_gpu="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
   --mount "type=bind,src=$npm_main_abs,dst=/input/fathomdb.tgz,readonly" \
   --mount "type=bind,src=$napi_platform_abs,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \

@@ -30,6 +30,17 @@ if (
 if "FORCED_NAPI_HARNESS" in PREFLIGHT:
     failures.append("a second N-API harness copy can substitute execution bytes")
 
+forced_embedder_records = section('for consumer in ("python", "napi"):', "prefix = hashlib")
+if '"command": f"installed_{consumer}_engine_open",' not in forced_embedder_records:
+    failures.append("forced embedder records do not describe their default-embedder harness")
+if "engine_open_without_default_embedder" in forced_embedder_records:
+    failures.append("forced embedder records mislabel the default-embedder harness")
+
+for harness_name in ("forced-napi-open.mjs", "forced-reranker-napi.mjs"):
+    harness = (REPO / "scripts/release" / harness_name).read_text(encoding="utf-8")
+    if "JSON.stringify(payload, CANONICAL_JSON_KEYS)" not in harness:
+        failures.append(f"{harness_name} does not emit canonical forced-policy JSON")
+
 assert not failures, "\n".join(failures)
 
 print("CUDA preflight capture boundary tests passed")

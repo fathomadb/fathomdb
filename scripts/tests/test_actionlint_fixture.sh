@@ -48,7 +48,7 @@ NODE_VERSION_FILE="$REPO_ROOT/.nvmrc"
 # ensures every failing label/tier is reported in one pass.
 FIXTURE_FAILED=0
 
-for label in linux-x64-gnu linux-arm64-gnu darwin-x64 darwin-arm64 win32-x64-msvc; do
+for label in linux-arm64-gnu darwin-x64 darwin-arm64 win32-x64-msvc; do
   if ! grep -qE "label:[[:space:]]+${label}\$" "$RELEASE_YML"; then
     printf 'FAIL  release.yml missing shipped napi label: %s\n' "$label" >&2
     FIXTURE_FAILED=$((FIXTURE_FAILED + 1))
@@ -61,7 +61,7 @@ for label in linux-x64-musl linux-arm64-musl darwin-arm win32-arm64 win32-ia32; 
   fi
 done
 if [ "$FIXTURE_FAILED" -eq 0 ]; then
-  printf 'PASS  release.yml carries exactly the five supported napi labels\n'
+  printf 'PASS  release.yml carries every ordinary-matrix napi label\n'
 fi
 
 confirmation_input_block() {

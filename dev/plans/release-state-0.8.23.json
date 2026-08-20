@@ -24,7 +24,7 @@
         "slice-70-local"
       ],
       "source": "seq:249",
-      "evidence_required": "Separate reviewed main control-plane and provenance record; independently reviewed GitHub runner/protection/environment attestation; one retained, valid non-publishing CUDA preflight route receipt and witness."
+      "evidence_required": "Separate reviewed main control-plane and provenance record; independently reviewed GitHub runner/protection/environment attestation; and a GitHub dry-run receipt. The local pinned RTX 3090 preflight witness is retained at /tmp/fathomdb-0.8.23-cuda-preflight-final-20260820T0110Z for candidate 623bbba617c5eed524b0b1a9f8b7cdef8002983c (witness SHA-256 b0f22225307d8aad0317bf7eb6449a51672506faa52b06463e90869f9df5f88c)."
     },
     {
       "id": "slice-20-external-cuda-package-rehearsal",
@@ -176,14 +176,14 @@
       "depends_on": [
         6
       ],
-      "status": "PENDING_EXTERNAL",
+      "status": "IN_PROGRESS",
       "design_refs": [
         "dev/design/0.8.23-gpu-artifacts.md",
         "dev/design/0.8.23-slice-10-cuda-contract.md",
         "dev/design/0.8.23-unmerged-candidate-provenance.md",
         "dev/plans/runs/0.8.23-slice-10-status.md"
       ],
-      "evidence": "8a9e05b5, 8814b374, and ecafa0d8 landed independently reviewed local RED-to-GREEN hardening: driverless device-selection variables are absent; witness/receipt verifiers bind canonical manifests; the one-record provenance policy, protected environment, and ordered main-owned control-plane checkout are fail closed; candidate jobs are credentialless/read-only and finalizers candidate-free. Focused provenance/CUDA/release-contract suites, actionlint, full workspace clippy/check, and agent-verify passed. The empty manifest and expired baseline authorize no candidate or dispatch. Per HITL seq:249, remaining main/provenance/runner/witness evidence blocks release completion and publication only, not local Slices 20 or 70."
+      "evidence": "8a9e05b5, 8814b374, and ecafa0d8 landed independently reviewed local RED-to-GREEN hardening. Release-closeout commits 833ba258 and 4ff8d146 resolve the dry-run provenance P1: only an explicit workflow_dispatch dry-run may use an exact reviewed unmerged candidate; tags and non-dry GA still require main reachability. 68b696a3 also lands the approved 80.6.5 shared allocation-witness/UUID-normalization contract. On the authorized local RTX 3090, candidate 623bbba617c5eed524b0b1a9f8b7cdef8002983c sealed and independently re-verified `/tmp/fathomdb-0.8.23-cuda-preflight-final-20260820T0110Z/cuda-preflight-witness.json` (SHA-256 b0f22225307d8aad0317bf7eb6449a51672506faa52b06463e90869f9df5f88c): driverless Python/N-API CPU defaults plus real pinned `cuda:0` Python/N-API smokes passed. A reviewed main control-plane PR, exact approved candidate/provenance PRs, GitHub dry-run receipt, package rehearsal, and evidence review remain required. No registry, tag, or publication occurred."
     },
     {
       "slice": 20,
@@ -215,22 +215,6 @@
       "sha": "776d2c20",
       "merge_subject": "docs(0.8.23): clarify Python no-embedder drain",
       "evidence": "Slice 30 is complete on `origin/release/0.8.23` through this commit, with main integration explicitly pending. It adds typed cross-SDK embedding readiness and the immediate `FDB_EMBEDDER_REQUIRED` no-embedder outcome; preserves operational worker/equivalence outcomes; documents the bounded Memex graph contract; and records RED\u2192GREEN, independent review, real-engine Python, and native TypeScript verification. The completion ref, not `origin/main`, is the authoritative reachability target until release integration occurs."
-    },
-    {
-      "slice": 40,
-      "short": "SCALE-CHARACTERIZATION",
-      "title": "fixture-scoped scale characterization",
-      "depends_on": [
-        6
-      ],
-      "status": "SET_ASIDE",
-      "design_refs": [
-        "dev/design/0.8.23-scale-characterization-protocol.md",
-        "dev/design/0.8.23-scale-aggregator-contract.md",
-        "dev/design/0.8.23-scale-characterization-v2.md",
-        "dev/design/0.8.23-scale-artifact-v2.schema.json"
-      ],
-      "evidence": "V1 protocol/contract remain historical pre-registration only. V2 runner/validator design is under review; no matrix execution, artifact, or scale characterization has been claimed. HITL set this work aside on 2026-08-17; retain the unintegrated candidate and resume only after Slices 10, 20, and 70."
     },
     {
       "slice": 50,
@@ -288,7 +272,7 @@
         6,
         20
       ],
-      "status": "REVIEWED_PENDING_INTEGRATION",
+      "status": "PENDING_EXTERNAL",
       "sha": "aa29152b",
       "design_refs": [
         "dev/design/0.8.23-slice-70-dual-runtime-device-policy.md",
@@ -296,7 +280,7 @@
         "dev/adr/ADR-0.8.23-dual-runtime-device-policy.md",
         "dev/plans/runs/0.8.23-slice-70-status.md"
       ],
-      "evidence": "Reviewed local RED-to-GREEN implementation is integrated on `origin/release/0.8.23` through aa29152b: strict embedding policy, doctor/process matrix, witness v2, rehearsal v2, and private TC-5 route/device/result controls. `origin/main` integration remains separately PENDING (see `completion`); real CUDA/trusted-runner/rehearsal and characterization evidence is explicitly PENDING_EXTERNAL."
+      "evidence": "Local RED-to-GREEN implementation is integrated on `origin/release/0.8.23` through aa29152b: strict embedding policy, doctor/process matrix, witness v2, rehearsal v2, and private TC-5 route/device/result controls. Real CUDA/trusted-runner/rehearsal and characterization evidence remains PENDING_EXTERNAL."
     },
     {
       "slice": 71,
@@ -306,14 +290,14 @@
         70,
         20
       ],
-      "status": "REVIEWED_PENDING_INTEGRATION",
+      "status": "PENDING_EXTERNAL",
       "sha": "a49ac989",
       "design_refs": [
         "dev/design/0.8.23-slice-71-reranker-dual-runtime.md",
         "dev/plans/runs/0.8.23-slice-71-draft-plan.md",
         "dev/plans/runs/0.8.23-slice-71-status.md"
       ],
-      "evidence": "Reviewed local RED-to-GREEN implementation is integrated on `origin/release/0.8.23` through a49ac989: strict reranker policy and propagation, separate SDK reports and diagnostic, and v3 candidate-only installed-artifact evidence route. `origin/main` integration remains separately PENDING (see `completion`); real compatible-GPU and incompatible-classifier receipts are explicitly PENDING_EXTERNAL."
+      "evidence": "Local RED-to-GREEN implementation is integrated on `origin/release/0.8.23` through a49ac989: strict reranker policy and propagation, separate SDK reports and diagnostic, and v3 candidate-only installed-artifact evidence route. Real compatible-GPU and incompatible-classifier receipts remain PENDING_EXTERNAL."
     },
     {
       "slice": 72,
@@ -323,7 +307,7 @@
         70,
         71
       ],
-      "status": "REVIEWED_PENDING_INTEGRATION",
+      "status": "LANDED",
       "sha": "824b1d4b",
       "design_refs": [
         "dev/plans/runs/0.8.23-slice-72-draft-plan.md",
@@ -344,8 +328,8 @@
         "dev/design/0.8.23-aarch64-tegra.md",
         "dev/plans/runs/0.8.23-slice-80-status.md"
       ],
-      "sha": "59c1033e",
-      "evidence": "Slice 80.1–80.7 are landed; only HITL-gated 80.6.5 x86_64 work remains. 32a70edb integrated 80.7, 68f588e3 corrected its internal clippy regression, and 59c1033e hardens the manual Jetson route after its retained first failure. GitHub run 32296395639 passed on the dedicated Orin at exact 59c1033e229838632b5d0fe1ecd48845f3007fa0, retaining artifact 9381465909 for 30 days: clean source identity, Tegra/L4T host facts, real +tegra wheel hash, cpu/auto/forced policy evidence, and a verified witness. This is nonpublishing functionality evidence; no performance or publication claim. Known release-blocking embed-cuda clippy, ir_c_recall_run, and public-doc-truth debt remains outside Slice 80."
+      "sha": "68b696a3",
+      "evidence": "Slice 80.1–80.7 are landed. HITL seq:253 approves 80.6.5. 68b696a3 completes its local shared-observation schema merge and optional GPU- UUID normalization, including re-derivable Python/N-API allocation witness validation. HITL ruled the former orchestrator-to-windchill3 transfer scripts unnecessary because this session runs locally on windchill3; they are neither a repository deliverable nor a release prerequisite. The approved pinned windchill3 RTX 3090 preflight then passed at candidate 623bbba617c5eed524b0b1a9f8b7cdef8002983c, retaining witness SHA-256 b0f22225307d8aad0317bf7eb6449a51672506faa52b06463e90869f9df5f88c. 32a70edb integrated 80.7, 68f588e3 corrected its internal clippy regression, and 59c1033e hardens the manual Jetson route after its retained first failure. GitHub run 32296395639 passed on the dedicated Orin at exact 59c1033e229838632b5d0fe1ecd48845f3007fa0, retaining artifact 9381465909 for 30 days. This is nonpublishing functionality evidence; no performance or publication claim."
     }
   ],
   "landed": [
@@ -359,14 +343,15 @@
     50,
     30,
     60,
-    65
+    65,
+    72
   ],
-  "next_slice": 70,
+  "next_slice": 10,
   "remaining_ladder": [
+    10,
+    20,
     70,
     71,
-    72,
-    40,
     80
   ],
   "decisions": {
@@ -393,9 +378,9 @@
         "source": "Independent Slice 65 evidence review / approved closure 2026-08-17"
       },
       {
-        "id": "release-ladder-reorder",
-        "title": "HITL set aside Slice 40 and ordered Slices 10, 20, and 70 ahead of it",
-        "source": "HITL 2026-08-17"
+        "id": "release-ladder-reorder-superseded",
+        "title": "The earlier set-aside placement of Slice 40 is superseded by its move out of 0.8.23",
+        "source": "seq:254"
       },
       {
         "id": "slice-10-20-70-commission",
@@ -427,10 +412,35 @@
         "title": "Draft Slice 71 for equivalent CPU/GPU cross-encoder reranker controls, diagnostics, SDK reports, and no-rebuild artifact behavior; forced GPU reranking must not silently execute on CPU",
         "source": "HITL 2026-08-17"
       },
+    {
+      "id": "slice-80-6-5-approval",
+      "title": "HITL approved and unblocked Slice 80.6.5 x86_64-lane work",
+      "source": "seq:253"
+    },
+    {
+      "id": "slice-80-6-5-transfer-scripts-not-required",
+      "title": "Slice 80.6.5 transfer scripts are unnecessary on the local windchill3 session and are not a release prerequisite",
+      "source": "seq:255"
+    },
+    {
+      "id": "slice-40-move-to-backlog",
+        "title": "HITL moved Slice 40 scale characterization out of 0.8.23 and into the repository backlog",
+        "source": "seq:254, backlog:TC-8ccd1cf1-8e7d-4b7c-8efa-176663aed553"
+      },
       {
         "id": "slice-72-concurrent-dual-runtime",
         "title": "Slice 72 is commissioned to plan and, after independent design review, characterize concurrent embedding and CE reranking GPU coexistence, documentation truth, and the TC-5 GPU-path decision",
         "source": "HITL 2026-08-18"
+      },
+      {
+        "id": "cuda-unmerged-preflight-self-approval",
+        "title": "The sole maintainer may self-approve only the release/0.8.23 dry-run CUDA preflight environment; this does not authorize tags, publication, or broader review-policy changes",
+        "source": "seq:256"
+      },
+      {
+        "id": "gitleaks-history-triage-no-revocation",
+        "title": "HITL authorized history-match triage and confirmed-false-positive manifest updates only; potentially valid credentials require a separate enumerated revocation ruling",
+        "source": "seq:257"
       },
       {
         "id": "publication",

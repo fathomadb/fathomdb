@@ -26,7 +26,6 @@ disposition for every excluded candidate.
   driverless usability, trusted-runner evidence, and installed-artifact smokes.
 - Typed cross-SDK embedding-readiness feedback and a documented Memex graph
   integration contract.
-- Fixture-scoped scale characterization, not a supported-scale promise.
 - Staged pre-commit and always-on CI Gitleaks scanning.
 - Windows WAL checkpoint reader-conflict diagnosis, contingent on first-party
   Windows evidence.
@@ -68,7 +67,6 @@ ladder or widen an in-flight feature slice.
 | 10 | CUDA environment/artifact contract and protected runner gate | 6 | `0.8.23-gpu-artifacts.md` |
 | 20 | CUDA package, release rehearsal, driverless CPU, and GPU smokes | 6 | `0.8.23-gpu-artifacts.md` |
 | 30 | Memex embedding-readiness and graph-integration contract | 6 | `0.8.23-embedding-configuration-feedback.md`, `0.8.23-memex-integration.md` |
-| 40 | Fixture-scoped scale characterization | 6 | v1 historical: `0.8.23-scale-characterization-protocol.md`; v2 authority: `0.8.23-scale-characterization-v2.md`, `0.8.23-scale-artifact-v2.schema.json` |
 | 50 | Gitleaks staged pre-commit and always-on CI guards | 6 | `0.8.23-gitleaks-guards.md` |
 | 60 | Windows WAL checkpoint reader-conflict diagnosis | 6 | `0.8.23-windows-wal-checkpoint-reader-conflict.md`, `0.8.23-windows-local-environment.md` |
 | 65 | Windows WAL checkpoint root-cause attribution | 6, 60 | `0.8.23-wal-attribution-investigation.md` |
@@ -128,9 +126,9 @@ design passes independent review.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-landed-roll-up -->
-**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`) · 60 (`423baf6a`) · 65 (`6b57557c`). SCHEMA is 26; remaining ladder = 70 → 71 → 72 → 40 → 80.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
+**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 50 (`ae7cef0e`) · 30 (`776d2c20`) · 60 (`423baf6a`) · 65 (`6b57557c`) · 72 (`824b1d4b`). SCHEMA is 26; remaining ladder = 10 → 20 → 70 → 71 → 80.<!-- END GENERATED release-state:0.8.23:plan-landed-roll-up -->
 
 <!-- BEGIN GENERATED release-state:0.8.23:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 70** (`DUAL-RUNTIME-TC5`) — supported dual CPU/GPU runtime policy, diagnostics, artifacts, and exact pre-fusion TC-5 controls
+**IMMEDIATE NEXT: Slice 10** (`CUDA-CONTRACT`) — CUDA environment, artifact contract, and protected runner gate
 
-**Remaining ladder:** 70 → 71 → 72 → 40 → 80.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->
+**Remaining ladder:** 10 → 20 → 70 → 71 → 80.<!-- END GENERATED release-state:0.8.23:plan-immediate-next -->

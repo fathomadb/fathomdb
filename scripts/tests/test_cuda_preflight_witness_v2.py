@@ -92,7 +92,36 @@ def main() -> None:
             path.relative_to(regenerated): path.read_bytes()
             for path in sorted(regenerated.rglob("*")) if path.is_file()
         }, "committed valid fixture is not deterministic"
+
+        legacy = tmp / "legacy-no-allocation-witness"
+        shutil.copytree(valid, legacy)
+        for consumer in ("python", "napi"):
+            record_name = f"gpu-{consumer}-cuda-witness.json"
+            rewrite(legacy / record_name, lambda value: value.pop("allocation_witness"))
+            reseal(legacy, record_name)
+        legacy_result = run(legacy)
+        assert legacy_result.returncode != 0, (
+            "accepted GPU observations with no in-process allocation witness"
+        )
+        assert "allocation witness" in legacy_result.stderr, legacy_result.stderr
+
         result = run(valid)
+        assert result.returncode == 0, result.stderr
+
+        # Tegra's NVIDIA-SMI omits `GPU-`, though it identifies the same
+        # driver UUID as the in-process and selected-device records.
+        tegra_uuid = tmp / "tegra-bare-nvidia-smi-uuid"
+        shutil.copytree(valid, tegra_uuid)
+        for consumer in ("python", "napi"):
+            record_name = f"gpu-{consumer}-cuda-witness.json"
+            rewrite(
+                tegra_uuid / record_name,
+                lambda value: value.__setitem__(
+                    "nvidia_smi_uuid", value["nvidia_smi_uuid"].removeprefix("GPU-")
+                ),
+            )
+            reseal(tegra_uuid, record_name)
+        result = run(tegra_uuid)
         assert result.returncode == 0, result.stderr
 
         rerank_v3 = tmp / "rerank-v3"

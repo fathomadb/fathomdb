@@ -106,11 +106,42 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = '--user "$CONTAINER_USER"'
-if text.count(needle) != 1:
-    raise SystemExit("fixture must contain exactly one non-root CUDA wheel build user")
+if text.count(needle) != 6:
+    raise SystemExit("fixture must contain exactly six non-root writable CUDA containers")
 path.write_text(text.replace(needle, "", 1))
 PY
-expect_fail "$FIXTURE" 'rejects a CUDA wheel build that runs as Docker root'
+expect_fail "$FIXTURE" 'rejects a writable CUDA container that runs as Docker root'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = '--target /fathomdb-tmp/python-site'
+if text.count(needle) != 2:
+    raise SystemExit("fixture must contain exactly two explicit user-owned Python wheel targets")
+path.write_text(text.replace(needle, "", 1))
+PY
+expect_fail "$FIXTURE" 'rejects a non-root Python smoke without an explicit writable install target'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+start = text.index('PYTHON_GPU_CONTAINER=')
+end = text.index('seal_gpu_observation "$PYTHON_GPU_CONTAINER"', start)
+section = text[start:end]
+needle = '--mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64,dst=/opt/cuda/lib64,readonly"'
+if needle not in section:
+    raise SystemExit("fixture must bind host CUDA runtime libraries into the Python GPU smoke")
+path.write_text(text[:start] + section.replace(needle, '', 1) + text[end:])
+PY
+expect_fail "$FIXTURE" 'rejects a Python GPU smoke without host CUDA runtime libraries'
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'

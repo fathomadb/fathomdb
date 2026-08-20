@@ -18,6 +18,32 @@ WITNESS_NAME = "cuda-preflight-witness.json"
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 COMMIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
 COMPUTE_CAPABILITY = re.compile(r"[0-9]+\.[0-9]+\Z")
+CUDA_UUID = re.compile(r"(?:GPU-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\Z", re.IGNORECASE)
+ALLOCATION_WITNESS_SCHEMA = "fathomdb.tegra-gpu-allocation-witness/v1"
+ALLOCATION_WITNESS_PRECONDITION = (
+    "the witness run must be the sole GPU consumer: cuMemGetInfo reports a shared, "
+    "system-wide counter on an integrated GPU"
+)
+ALLOCATION_WITNESS_KEYS = frozenset({
+    "schema",
+    "sole_gpu_consumer_precondition",
+    "device_ordinal_requested",
+    "device_ordinal_actual",
+    "device_uuid",
+    "device_name",
+    "compute_capability",
+    "free_before_bytes",
+    "free_after_bytes",
+    "total_bytes",
+    "delta_bytes",
+    "delta_floor_bytes",
+    "control_allocation_request_bytes",
+    "control_block_count",
+    "control_free_before_bytes",
+    "control_free_after_bytes",
+    "control_delta_bytes",
+    "embedded_vector_dim",
+})
 REPOSITORY = "BAAI/bge-small-en-v1.5"
 REVISION = "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a"
 MODEL_DIGESTS = {
@@ -315,10 +341,12 @@ def validate_forced_reranker_record(record_path: Path, stdout_path: Path, stderr
 
 def validate_gpu_observation(path: Path, consumer: str) -> None:
     value, _ = load_canonical_object(path, f"GPU {consumer} observation")
+    if "allocation_witness" not in value:
+        fail(f"GPU {consumer} observation lacks an allocation witness")
     require_exact_keys(value, {
         "schema_version", "consumer", "requested_policy", "status", "effective_device",
         "visible_devices", "selected_uuid", "nvidia_smi_uuid", "process_id",
-        "nvidia_smi_compute_process_id", "process_name",
+        "nvidia_smi_compute_process_id", "process_name", "allocation_witness",
     }, f"GPU {consumer} observation")
     if (
         value["schema_version"] != "fathomdb.cuda-device-observation/v1"
@@ -332,7 +360,16 @@ def validate_gpu_observation(path: Path, consumer: str) -> None:
     if not isinstance(devices, list) or len(devices) != 1:
         fail(f"GPU {consumer} observation must contain exactly one visible device")
     device = validate_device(devices[0], f"GPU {consumer} selected device")
-    if value["selected_uuid"] != device["uuid"] or value["nvidia_smi_uuid"] != device["uuid"]:
+    selected_uuid = require_string(value["selected_uuid"], f"GPU {consumer} selected UUID")
+    smi_uuid = require_string(value["nvidia_smi_uuid"], f"GPU {consumer} NVIDIA-SMI UUID")
+    device_uuid = device["uuid"]
+    if (
+        CUDA_UUID.fullmatch(selected_uuid) is None
+        or CUDA_UUID.fullmatch(smi_uuid) is None
+        or CUDA_UUID.fullmatch(device_uuid) is None
+        or normalize_cuda_uuid(selected_uuid) != normalize_cuda_uuid(device_uuid)
+        or normalize_cuda_uuid(smi_uuid) != normalize_cuda_uuid(device_uuid)
+    ):
         fail(f"GPU {consumer} observation lacks UUID correlation")
     process_id = value["process_id"]
     smi_process_id = value["nvidia_smi_compute_process_id"]
@@ -343,6 +380,59 @@ def validate_gpu_observation(path: Path, consumer: str) -> None:
     ):
         fail(f"GPU {consumer} observation lacks PID correlation")
     require_string(value["process_name"], f"GPU {consumer} process name")
+    validate_allocation_witness(value["allocation_witness"], consumer, device)
+
+
+def normalize_cuda_uuid(value: str) -> str:
+    """Normalize the optional `GPU-` prefix NVIDIA-SMI omits on Tegra."""
+    lowered = value.strip().lower()
+    return lowered[4:] if lowered.startswith("gpu-") else lowered
+
+
+def require_positive_int(value: object, label: str) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+        fail(f"{label} must be a positive integer")
+    return value
+
+
+def validate_allocation_witness(value: object, consumer: str, device: dict[str, Any]) -> None:
+    """Validate the in-process allocation proof retained beside PID evidence."""
+    if not isinstance(value, dict):
+        fail(f"GPU {consumer} observation lacks an allocation witness")
+    require_exact_keys(value, ALLOCATION_WITNESS_KEYS, f"GPU {consumer} allocation witness")
+    if (
+        value["schema"] != ALLOCATION_WITNESS_SCHEMA
+        or value["sole_gpu_consumer_precondition"] != ALLOCATION_WITNESS_PRECONDITION
+        or value["device_ordinal_requested"] != 0
+        or value["device_ordinal_actual"] != 0
+        or value["device_name"] != device["name"]
+        or value["compute_capability"] != device["compute_capability"]
+        or value["embedded_vector_dim"] != 384
+    ):
+        fail(f"GPU {consumer} allocation witness identity differs")
+    witness_uuid = require_string(value["device_uuid"], f"GPU {consumer} allocation witness UUID")
+    if CUDA_UUID.fullmatch(witness_uuid) is None or normalize_cuda_uuid(witness_uuid) != normalize_cuda_uuid(device["uuid"]):
+        fail(f"GPU {consumer} allocation witness lacks device correlation")
+    free_before = require_positive_int(value["free_before_bytes"], f"GPU {consumer} allocation free-before")
+    free_after = require_positive_int(value["free_after_bytes"], f"GPU {consumer} allocation free-after")
+    total = require_positive_int(value["total_bytes"], f"GPU {consumer} allocation total")
+    delta_floor = require_positive_int(value["delta_floor_bytes"], f"GPU {consumer} allocation floor")
+    if total < free_before or total < free_after:
+        fail(f"GPU {consumer} allocation witness total is below a free-memory sample")
+    if value["delta_bytes"] != free_before - free_after or value["delta_bytes"] < delta_floor:
+        fail(f"GPU {consumer} allocation witness lacks the required allocation delta")
+    request = require_positive_int(
+        value["control_allocation_request_bytes"], f"GPU {consumer} allocation control request",
+    )
+    count = require_positive_int(value["control_block_count"], f"GPU {consumer} allocation control count")
+    control_before = require_positive_int(
+        value["control_free_before_bytes"], f"GPU {consumer} allocation control free-before",
+    )
+    control_after = require_positive_int(
+        value["control_free_after_bytes"], f"GPU {consumer} allocation control free-after",
+    )
+    if count > 16 or value["control_delta_bytes"] != control_before - control_after or value["control_delta_bytes"] < request:
+        fail(f"GPU {consumer} allocation witness lacks a live control allocation")
 
 
 def validate_model_manifest(path: Path) -> tuple[dict[str, Any], bytes]:

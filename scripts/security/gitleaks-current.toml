@@ -35,6 +35,13 @@ paths = ['''^(?:.*/)?scripts/release/cuda-package-rehearsal-smoke\.sh$''']
 regexes = ['''^tokenizer\.json": "[0-9a-f]{64}"$''']
 
 [[rules.allowlists]]
+description = "N-API rustup bootstrap digest is artifact-integrity metadata"
+condition = "AND"
+regexTarget = "match"
+paths = ['''^(?:.*/)?scripts/release/napi-artifact-contract\.sh$''']
+regexes = ['''^NAPI_RUSTUP_INIT_SHA256='[0-9a-f]{64}'$''']
+
+[[rules.allowlists]]
 description = "CUDA preflight-v2 fixtures contain only artifact-integrity digests"
 condition = "AND"
 regexTarget = "secret"

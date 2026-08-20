@@ -17,14 +17,27 @@ what a real interpreter does with real installed-distribution metadata.
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 _VERSION = "0.0.0"
+
+
+def _load_coinstall_module() -> Any:
+    """Load the import guard alone when a native extension is not present."""
+
+    source = Path(__file__).parents[1] / "fathomdb" / "_coinstall.py"
+    spec = importlib.util.spec_from_file_location("fathomdb_coinstall_probe", source)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def _write_dist_info(root: Path, distribution: str) -> Path:
@@ -101,13 +114,25 @@ def test_an_unrelated_distribution_is_not_a_collision(tmp_path: Path) -> None:
 def test_guard_reports_the_installed_providers_it_found() -> None:
     """The detector is inspectable, and this environment carries exactly one."""
 
-    from fathomdb import _coinstall
+    _coinstall = _load_coinstall_module()
 
     found = _coinstall.installed_provider_distributions()
 
     assert isinstance(found, tuple)
     assert len(found) <= 1, f"this test environment already collides: {found}"
     assert set(found) <= set(_coinstall.PROVIDER_DISTRIBUTIONS)
+
+
+def test_platform_probe_is_silent_when_windows_lacks_os_uname(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Windows has no ``os.uname`` and must never fail at package import time."""
+
+    _coinstall = _load_coinstall_module()
+
+    monkeypatch.delattr(_coinstall.os, "uname", raising=False)
+
+    assert _coinstall.detect_platform().name == "non_aarch64"
 
 
 @pytest.mark.parametrize("providers", [(), ("fathomdb",)])

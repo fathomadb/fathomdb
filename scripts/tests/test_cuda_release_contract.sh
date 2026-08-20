@@ -11,7 +11,7 @@ trap 'rm -rf "$TMPROOT"' EXIT
 
 make_fixture() {
   local root="$1"
-  mkdir -p "$root/.github/workflows" "$root/scripts/release" "$root/src/rust/crates/fathomdb-napi" "$root/src/ts" "$root/dev/release"
+  mkdir -p "$root/.github/workflows" "$root/scripts/lib" "$root/scripts/release" "$root/src/rust/crates/fathomdb-napi" "$root/src/ts" "$root/dev/release"
   cp "$REPO_ROOT/Cargo.toml" "$REPO_ROOT/Cargo.lock" "$root/"
   cp "$REPO_ROOT/.github/workflows/release.yml" "$root/.github/workflows/"
   cp "$REPO_ROOT/scripts/verify-release-gates.sh" "$root/scripts/"
@@ -19,6 +19,7 @@ make_fixture() {
   cp "$REPO_ROOT/scripts/release/build-napi-cuda.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/build-python-cuda-tegra.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/cuda-preflight.sh" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/lib/cuda-gpu-selection.sh" "$root/scripts/lib/"
   cp "$REPO_ROOT/scripts/release/cuda-image-attestation.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/cuda-preflight-witness.schema.json" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/verify-cuda-preflight-witness.py" "$root/scripts/release/"
@@ -76,6 +77,17 @@ assert_unmerged_control_plane() {
 }
 
 require_provisioning_assets
+
+# The CUDA contract checker is part of the Python 3.10 release-tooling
+# envelope. `datetime.UTC` was introduced in Python 3.11, so use the
+# long-standing `timezone.utc` spelling instead.
+if grep -Fq 'from datetime import UTC, datetime' "$CHECKER" \
+  || ! grep -Fq 'from datetime import datetime, timezone' "$CHECKER" \
+  || ! grep -Fq 'datetime.now(timezone.utc)' "$CHECKER"; then
+  printf 'FAIL  CUDA release-contract checker must remain compatible with Python 3.10\n' >&2
+  exit 1
+fi
+printf 'PASS  CUDA release-contract checker remains Python 3.10 compatible\n'
 
 # The verifier's eligibility decision is inline in the trusted workflow. A
 # candidate can alter its ordinary release-gate script without making the
@@ -255,6 +267,97 @@ if text.count(needle) != 1:
 path.write_text(text.replace(needle, "", 1))
 PY
 expect_fail "$FIXTURE" 'rejects a CUDA build without image-owned runtime link search paths'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = " -e FATHOMDB_GPU_ALLOCATION_WITNESS=1"
+if text.count(needle) != 2:
+    raise SystemExit("fixture no longer contains both CUDA allocation-witness opt-ins")
+path.write_text(text.replace(needle, "", 1))
+PY
+expect_fail "$FIXTURE" 'rejects CUDA preflight without both in-process allocation witnesses'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" "$FIXTURE/scripts/release/cuda-package-rehearsal-smoke.sh" <<'PY'
+from pathlib import Path
+import sys
+
+preflight, rehearsal = map(Path, sys.argv[1:])
+for path in (preflight, rehearsal):
+    text = path.read_text()
+    if "FATHOMDB_CUDA_GPU_UUID" not in text:
+        raise SystemExit(f"{path.name} does not require an environment-owned GPU UUID")
+    if 'device=$CUDA_GPU_UUID' not in text:
+        raise SystemExit(f"{path.name} does not pass the exact GPU UUID to Docker")
+    if "device=0" in text:
+        raise SystemExit(f"{path.name} still pins CUDA evidence to a mutable host index")
+preflight.write_text(preflight.read_text().replace('device=$CUDA_GPU_UUID', 'device=0', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA preflight whose Docker GPU selector is downgraded to host index zero'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = '    env:\n      FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}\n'
+if text.count(needle) != 3:
+    raise SystemExit("fixture no longer contains the three environment-owned CUDA GPU UUID bindings")
+path.write_text(text.replace(needle, '', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA job without its environment-owned GPU UUID binding'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" "$FIXTURE/scripts/release/cuda-package-rehearsal-smoke.sh" <<'PY'
+from pathlib import Path
+import sys
+
+preflight, rehearsal = map(Path, sys.argv[1:])
+for path in (preflight, rehearsal):
+    text = path.read_text()
+    if "WHEEL_FILENAME" not in text:
+        raise SystemExit(f"{path.name} does not preserve the valid wheel filename")
+    if "/input/fathomdb.whl" in text:
+        raise SystemExit(f"{path.name} renames an installed wheel to an invalid filename")
+preflight.write_text(preflight.read_text().replace('dst=/input/$WHEEL_FILENAME', 'dst=/input/fathomdb.whl', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA preflight that renames an installed wheel to an invalid filename'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" "$FIXTURE/scripts/release/cuda-package-rehearsal-smoke.sh" <<'PY'
+from pathlib import Path
+import sys
+
+preflight, rehearsal = map(Path, sys.argv[1:])
+needle = '-e "WHEEL_FILENAME=$WHEEL_FILENAME"'
+for path, expected_count in ((preflight, 3), (rehearsal, 2)):
+    actual_count = path.read_text().count(needle)
+    if actual_count != expected_count:
+        raise SystemExit(f"{path.name} must pass its local wheel filename explicitly to every wheel container; got {actual_count}")
+preflight.write_text(preflight.read_text().replace(needle, '-e WHEEL_FILENAME', 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA preflight that forwards an unexported wheel filename'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-artifact-contract.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+needle = "export CUDA_DRIVERLESS_NODE_IMAGE='node:25-trixie-slim'"
+if needle not in text:
+    raise SystemExit("CUDA driverless Node image does not provide the required glibc baseline")
+path.write_text(text.replace(needle, "export CUDA_DRIVERLESS_NODE_IMAGE='node:25-bookworm-slim'", 1))
+PY
+expect_fail "$FIXTURE" 'rejects a CUDA driverless N-API smoke image below the host artifact glibc baseline'
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/build-napi-cuda.sh" <<'PY'
@@ -658,6 +761,16 @@ expect_fail "$FIXTURE" 'rejects a CUDA preflight that accepts an unchecked model
 
 # --- 0.8.23 Slice 80.6 (D-80.6-1/2/4, AC80-8): Tegra toolchain axis ---------
 # The x86_64 arms above are unchanged; these add the Tegra target's own.
+
+# The Tegra wrapper is covered by the SC2312 ratchet.  Keep the wheel
+# discovery path free of process-substitution return masking: a failed
+# discovery must not be converted into an empty wheel list.
+if ! shellcheck --severity=style --include=SC2312 \
+  "$REPO_ROOT/scripts/release/build-python-cuda-tegra.sh" >/dev/null; then
+  printf '%s\n' 'FAIL  rejects a Tegra CUDA build wrapper with an SC2312 masked-return finding' >&2
+  exit 1
+fi
+printf '%s\n' 'PASS  accepts a Tegra CUDA build wrapper without SC2312 masked-return findings'
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/build-python-cuda-tegra.sh" <<'PY'

@@ -60,8 +60,8 @@ check actionlint "$al_version" "$ACTIONLINT_VERSION"
 
 # ruff / pyright — from the checkout-owned .venv, matching src/python/pyproject.toml's
 # [project.optional-dependencies] pins (the single source of truth for these two).
-RUFF_VERSION="$(sed -n 's/.*"ruff==\([0-9.]*\)".*/\1/p' src/python/pyproject.toml | head -1)"
-PYRIGHT_VERSION="$(sed -n 's/.*"pyright==\([0-9.]*\)".*/\1/p' src/python/pyproject.toml | head -1)"
+RUFF_VERSION="$(grep -m1 -E '"ruff==' src/python/pyproject.toml | sed -n 's/.*"ruff==\([0-9.]*\)".*/\1/p')"
+PYRIGHT_VERSION="$(grep -m1 -E '"pyright==' src/python/pyproject.toml | sed -n 's/.*"pyright==\([0-9.]*\)".*/\1/p')"
 ruff_version=""
 [ -x .venv/bin/ruff ] && ruff_version="$(.venv/bin/ruff --version 2>/dev/null | sed -n 's/^ruff //p')"
 check ruff "$ruff_version" "$RUFF_VERSION"

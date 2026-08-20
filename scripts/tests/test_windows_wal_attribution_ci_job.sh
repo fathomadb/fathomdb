@@ -291,7 +291,7 @@ assert_contains "$(<"$ENGINE_SOURCE")" \
   '#[cfg(any(debug_assertions, feature = "test-hooks"))]' \
   "managed-reader hook is unavailable from shipped production builds"
 assert_contains "$(<"$ENGINE_SOURCE")" \
-  'reader_completion_pause::fire(connection.is_autocommit())' \
+  'wal_attribution.fire_reader_completion_pause(connection.is_autocommit())' \
   'binding_connection_inventory_for_test' \
   'checkpoint_at_rest_for_test' \
   "engine retains private completion, inventory, and checkpoint sampler seams"

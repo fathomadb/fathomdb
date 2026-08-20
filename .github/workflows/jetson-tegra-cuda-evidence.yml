@@ -65,6 +65,17 @@ jobs:
           printf 'EVIDENCE_DIR=%s\n' "$EVIDENCE_DIR" >> "$GITHUB_ENV"
           printf 'BUILD_VENV=%s\n' "$BUILD_VENV" >> "$GITHUB_ENV"
 
+      - name: Require the runner Rust toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -x "$HOME/.cargo/bin/cargo" ]; then
+            printf 'runner Cargo toolchain is absent at %s\n' "$HOME/.cargo/bin/cargo" >&2
+            exit 1
+          fi
+          printf '%s\n' "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          "$HOME/.cargo/bin/cargo" --version
+
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           ref: ${{ github.sha }}

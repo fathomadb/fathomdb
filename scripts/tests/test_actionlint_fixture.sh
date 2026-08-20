@@ -61,7 +61,7 @@ for label in linux-x64-musl linux-arm64-musl darwin-arm win32-arm64 win32-ia32; 
   fi
 done
 if [ "$FIXTURE_FAILED" -eq 0 ]; then
-  printf 'PASS  release.yml carries every ordinary-matrix napi label\n'
+  printf 'PASS  release.yml carries four matrix napi labels plus the CUDA-rehearsal Linux x64 route\n'
 fi
 
 confirmation_input_block() {

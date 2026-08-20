@@ -969,6 +969,10 @@ def main() -> None:
         fail("CUDA preflight must mount the pinned read-only model seed into all four model-loading smokes")
     if preflight.count('dst=/fathomdb-product-cache"') != 4:
         fail("CUDA preflight must mount four distinct writable product caches")
+    if preflight.count("--target /fathomdb-tmp/python-site") != 2:
+        fail("CUDA preflight must install each non-root Python smoke into its writable isolated target")
+    if preflight.count("PYTHONPATH=/fathomdb-tmp/python-site") != 1:
+        fail("CUDA preflight must expose the isolated Python smoke target")
     if preflight.count("sha256sum --check --status") != 2:
         fail("CUDA preflight must verify both pinned embedder and TinyBERT reranker cache manifests")
     if preflight.count("--query-compute-apps=pid,process_name --format=csv,noheader") != 1:

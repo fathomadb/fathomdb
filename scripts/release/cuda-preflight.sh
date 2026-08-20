@@ -254,6 +254,7 @@ MODEL_ENV=(
   -e XDG_CACHE_HOME=/fathomdb-product-cache
   -e HOME=/fathomdb-unavailable-home
   -e TMPDIR=/fathomdb-tmp
+  -e PYTHONPATH=/fathomdb-tmp/python-site
 )
 RERANKER_MOUNT=()
 RERANKER_ENV=()
@@ -275,7 +276,7 @@ docker run --rm --network none \
   "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
   env -u FATHOMDB_EMBED_DEVICE -u FATHOMDB_RERANK_DEVICE -u CUDA_VISIBLE_DEVICES -u NVIDIA_VISIBLE_DEVICES -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES -u HUGGINGFACE_HUB_CACHE -u TRANSFORMERS_CACHE -u FATHOMDB_EMBEDDER_CACHE_DIR sh -ceu '
     test ! -e /dev/nvidiactl
-    python -m pip install --no-deps --no-cache-dir "/input/$WHEEL_FILENAME"
+    python -m pip install --no-deps --no-cache-dir --target /fathomdb-tmp/python-site "/input/$WHEEL_FILENAME"
     python - <<"PY"
 import pathlib
 import tempfile
@@ -565,7 +566,7 @@ PYTHON_GPU_CONTAINER="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --netwo
   --mount "type=bind,src=$WORK_DIR,dst=/evidence" \
   "${MODEL_ENV[@]}" -e "WHEEL_FILENAME=$WHEEL_FILENAME" -e FATHOMDB_EMBED_DEVICE=cuda:0 -e FATHOMDB_GPU_ALLOCATION_WITNESS=1 \
   "$CUDA_MANYLINUX_IMAGE" sh -ceu '
-    '"$CUDA_MANYLINUX_PYTHON"' -m pip install --no-deps --no-cache-dir "/input/$WHEEL_FILENAME"
+    '"$CUDA_MANYLINUX_PYTHON"' -m pip install --no-deps --no-cache-dir --target /fathomdb-tmp/python-site "/input/$WHEEL_FILENAME"
     exec '"$CUDA_MANYLINUX_PYTHON"' /input/gpu-python-smoke.py
   ')"
 seal_gpu_observation "$PYTHON_GPU_CONTAINER" python "$WORK_DIR/gpu-python-open-report.json" "$WORK_DIR/gpu-python-cuda-smoke.txt"

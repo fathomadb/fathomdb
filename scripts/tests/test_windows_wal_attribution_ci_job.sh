@@ -192,6 +192,20 @@ assert_contains "$CODE" 'test-hooks' "job builds a non-shipping test-hooks wheel
 assert_contains "$CODE" 'fathomdb==0.8.22' "job installs the released 0.8.22 comparison wheel"
 assert_contains "$CODE" 'serial_wheel_selector=released-0.8.22' "job retains released-wheel selector"
 assert_contains "$CODE" 'serial_wheel_selector=current-source-test-hooks' "job retains current-wheel selector"
+assert_contains "$CODE" 'src/python/pyproject.toml' "job derives the disposable current-wheel version from candidate source"
+assert_contains "$CODE" '$currentWheelVersion' "job binds every current-wheel control to the candidate version"
+current_wheel_version_controls="$(grep -Fc -- '--wheel-version $currentWheelVersion' <<<"$CODE" || true)"
+if [ "$current_wheel_version_controls" -eq 3 ]; then
+  pass "job checks all three current-wheel controls against the candidate version"
+else
+  fail "job has $current_wheel_version_controls current-wheel version controls; expected 3"
+fi
+released_wheel_version_controls="$(grep -Fc -- '--wheel-version 0.8.22' <<<"$CODE" || true)"
+if [ "$released_wheel_version_controls" -eq 1 ]; then
+  pass "job keeps the released baseline version separate from the candidate version"
+else
+  fail "job has $released_wheel_version_controls released-wheel version controls; expected 1"
+fi
 assert_contains "$CODE" '--observe-baseline-first-erase' "job explicitly observes exactly the released serial first erase"
 assert_contains "$CODE" '$releasedSerialExit' "job retains the released serial process outcome"
 assert_contains "$CODE" 'BASELINE_FIRST_ERASE outcome=typed_erasure_incomplete' "job parses the typed first-erase baseline observation"

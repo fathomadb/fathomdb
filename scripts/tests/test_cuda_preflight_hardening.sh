@@ -119,6 +119,20 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
+needle = '--target /fathomdb-tmp/python-site'
+if text.count(needle) != 2:
+    raise SystemExit("fixture must contain exactly two explicit user-owned Python wheel targets")
+path.write_text(text.replace(needle, "", 1))
+PY
+expect_fail "$FIXTURE" 'rejects a non-root Python smoke without an explicit writable install target'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
 needle = '--mount "type=bind,src=$REPO_ROOT,dst=/workspace,readonly"'
 if text.count(needle) != 1:
     raise SystemExit("fixture must contain exactly one read-only CUDA workspace mount")

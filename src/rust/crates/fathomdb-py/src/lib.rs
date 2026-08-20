@@ -30,15 +30,31 @@
 //!    that catch `EngineError` must not silently swallow it.
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
+#[cfg(feature = "test-hooks")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+#[cfg(feature = "test-hooks")]
+use std::sync::Barrier;
+#[cfg(feature = "test-hooks")]
+use std::sync::Mutex;
 
-use fathomdb_embedder::EmbedderEvent as RustEmbedderEvent;
+use fathomdb_embedder::{
+    CudaDeviceInfo as RustCudaDeviceInfo, CudaVisibleDevice as RustCudaVisibleDevice,
+    DeviceResolution as RustDeviceResolution, EffectiveEmbedDevice as RustEffectiveEmbedDevice,
+    EffectiveRerankerDevice as RustEffectiveRerankerDevice,
+    EmbedDevicePolicy as RustEmbedDevicePolicy, EmbedderEvent as RustEmbedderEvent,
+    GpuAllocationWitness as RustGpuAllocationWitness,
+    RerankerDevicePolicy as RustRerankerDevicePolicy,
+    RerankerDeviceResolution as RustRerankerDeviceResolution, SOLE_GPU_CONSUMER_PRECONDITION,
+    TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA,
+};
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
     rerank_passages as rust_rerank_passages, BoundaryCrossing as RustBoundaryCrossing,
     ComparisonOp as RustComparisonOp, ConsolidateAxis as RustConsolidateAxis,
     ConsolidateReceipt as RustConsolidateReceipt, CorruptionDetail, CorruptionKind,
-    DenseReadiness as RustDenseReadiness, EmbedderChoice, Engine as RustEngine,
+    DenseReadiness as RustDenseReadiness, EmbedderChoice,
+    EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
     EngineError as RustEngineError, EngineOpenError, ExciseReport as RustExciseReport,
     Explanation as RustExplanation, ExtractDocument as RustExtractDocument, Filter as RustFilter,
     FilterTerm as RustFilterTerm, IdSpace as RustIdSpace,
@@ -75,7 +91,10 @@ create_exception!(_fathomdb, ProjectionError, EngineError);
 create_exception!(_fathomdb, VectorError, EngineError);
 create_exception!(_fathomdb, KindNotVectorIndexedError, VectorError);
 create_exception!(_fathomdb, EmbedderError, EngineError);
+create_exception!(_fathomdb, EmbedDevicePolicyError, EmbedderError);
+create_exception!(_fathomdb, RerankerDevicePolicyError, EmbedderError);
 create_exception!(_fathomdb, EmbedderNotConfiguredError, EmbedderError);
+create_exception!(_fathomdb, EmbedderRequiredError, EmbedderError);
 create_exception!(_fathomdb, SchedulerError, EngineError);
 create_exception!(_fathomdb, OpStoreError, EngineError);
 create_exception!(_fathomdb, WriteValidationError, EngineError);
@@ -179,8 +198,30 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
         RustEngineError::Projection => ProjectionError::new_err("projection error"),
         RustEngineError::Vector => VectorError::new_err("vector error"),
         RustEngineError::Embedder => EmbedderError::new_err("embedder error"),
+        RustEngineError::RerankerDevicePolicy(error) => {
+            let exc = RerankerDevicePolicyError::new_err(error.to_string());
+            Python::attach(|py| {
+                let value = exc.value(py);
+                let _ = value.setattr("kind", error.kind());
+                let _ = value.setattr("ordinal", error.ordinal());
+            });
+            exc
+        }
         RustEngineError::EmbedderNotConfigured => {
             EmbedderNotConfiguredError::new_err("embedder is not configured")
+        }
+        RustEngineError::EmbedderRequired(required) => {
+            let exc =
+                EmbedderRequiredError::new_err("embedder is required for pending projection work");
+            Python::attach(|py| {
+                let v = exc.value(py);
+                let _ = v.setattr("code", required.code);
+                let _ = v.setattr("operation", required.operation.as_str());
+                let _ = v.setattr("state", required.state.as_str());
+                let _ = v.setattr("remediations", required.remediations);
+                let _ = v.setattr("documentation_url", required.documentation_url);
+            });
+            exc
         }
         RustEngineError::KindNotVectorIndexed => {
             KindNotVectorIndexedError::new_err("kind is not configured for vector indexing")
@@ -341,6 +382,24 @@ fn engine_open_error_to_py(err: EngineOpenError) -> PyErr {
             exc
         }
         EngineOpenError::Embedder(err) => EmbedderError::new_err(format!("{err:?}")),
+        EngineOpenError::EmbedDevicePolicy(error) => {
+            let exc = EmbedDevicePolicyError::new_err(error.to_string());
+            Python::attach(|py| {
+                let value = exc.value(py);
+                let _ = value.setattr("kind", error.kind());
+                let _ = value.setattr("ordinal", error.ordinal());
+            });
+            exc
+        }
+        EngineOpenError::RerankerDevicePolicy(error) => {
+            let exc = RerankerDevicePolicyError::new_err(error.to_string());
+            Python::attach(|py| {
+                let value = exc.value(py);
+                let _ = value.setattr("kind", error.kind());
+                let _ = value.setattr("ordinal", error.ordinal());
+            });
+            exc
+        }
         EngineOpenError::Io { message } => {
             StorageError::new_err(format!("database I/O error: {message}"))
         }
@@ -1117,6 +1176,43 @@ impl PyProjectionRuntimeStatus {
     }
 }
 
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "EmbeddingReadiness",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyEmbeddingReadiness {
+    state: String,
+    usable_embedder: bool,
+    pending_count: u64,
+    affected_kinds: Vec<String>,
+    code: Option<String>,
+    operation: Option<String>,
+    remediations: Vec<String>,
+    documentation_url: Option<String>,
+}
+
+impl PyEmbeddingReadiness {
+    fn from_rust(readiness: &RustEmbeddingReadiness) -> Self {
+        let blocked = readiness.blocked.as_ref();
+        Self {
+            state: readiness.state.as_str().to_string(),
+            usable_embedder: readiness.usable_embedder,
+            pending_count: readiness.pending_count,
+            affected_kinds: readiness.affected_kinds.clone(),
+            code: blocked.map(|b| b.code.to_string()),
+            operation: blocked.map(|b| b.operation.as_str().to_string()),
+            remediations: blocked
+                .map(|b| b.remediations.iter().map(|s| (*s).to_string()).collect())
+                .unwrap_or_default(),
+            documentation_url: blocked.map(|b| b.documentation_url.to_string()),
+        }
+    }
+}
+
 #[pyclass(module = "fathomdb._fathomdb", name = "OpStoreRow", frozen, get_all, skip_from_py_object)]
 #[derive(Clone)]
 struct PyOpStoreRow {
@@ -1200,6 +1296,221 @@ impl PyEmbedderIdentity {
     }
 }
 
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "CudaDeviceInfo",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyCudaDeviceInfo {
+    ordinal: usize,
+    uuid: Option<String>,
+    name: Option<String>,
+    driver_version: Option<String>,
+    compute_capability: Option<String>,
+    cuda_toolkit_version: Option<String>,
+}
+
+impl PyCudaDeviceInfo {
+    fn from_rust(info: &RustCudaDeviceInfo) -> Self {
+        Self {
+            ordinal: info.ordinal,
+            uuid: info.uuid.clone(),
+            name: info.name.clone(),
+            driver_version: info.driver_version.clone(),
+            compute_capability: info.compute_capability.clone(),
+            cuda_toolkit_version: info.cuda_toolkit_version.clone(),
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "CudaVisibleDevice",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyCudaVisibleDevice {
+    visible_ordinal: usize,
+    uuid: String,
+    name: String,
+    compute_capability: Option<String>,
+}
+
+impl PyCudaVisibleDevice {
+    fn from_rust(device: &RustCudaVisibleDevice) -> Self {
+        Self {
+            visible_ordinal: device.visible_ordinal,
+            uuid: device.uuid.clone(),
+            name: device.name.clone(),
+            compute_capability: device.compute_capability.clone(),
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "EffectiveEmbedDevice",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyEffectiveEmbedDevice {
+    kind: String,
+    cuda_device: Option<PyCudaDeviceInfo>,
+}
+
+impl PyEffectiveEmbedDevice {
+    fn from_rust(device: &RustEffectiveEmbedDevice) -> Self {
+        match device {
+            RustEffectiveEmbedDevice::Cpu => Self { kind: "cpu".to_string(), cuda_device: None },
+            RustEffectiveEmbedDevice::Cuda(info) => Self {
+                kind: "cuda".to_string(),
+                cuda_device: Some(PyCudaDeviceInfo::from_rust(info)),
+            },
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "DeviceResolution",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyDeviceResolution {
+    requested_policy: String,
+    cuda_compiled: bool,
+    effective_device: PyEffectiveEmbedDevice,
+    visible_cuda_devices: Vec<PyCudaVisibleDevice>,
+    selected_cuda_uuid: Option<String>,
+    reason: Option<String>,
+}
+
+impl PyDeviceResolution {
+    fn from_rust(resolution: &RustDeviceResolution) -> Self {
+        let requested_policy = match resolution.requested_policy {
+            RustEmbedDevicePolicy::Auto => "auto".to_string(),
+            RustEmbedDevicePolicy::Cpu => "cpu".to_string(),
+            RustEmbedDevicePolicy::Cuda(ordinal) => format!("cuda:{ordinal}"),
+        };
+        Self {
+            requested_policy,
+            cuda_compiled: resolution.cuda_compiled,
+            effective_device: PyEffectiveEmbedDevice::from_rust(&resolution.effective_device),
+            visible_cuda_devices: resolution
+                .visible_cuda_devices
+                .iter()
+                .map(PyCudaVisibleDevice::from_rust)
+                .collect(),
+            selected_cuda_uuid: resolution.selected_cuda_uuid.clone(),
+            reason: resolution.reason.map(|reason| reason.as_str().to_string()),
+        }
+    }
+
+    fn from_reranker(resolution: &RustRerankerDeviceResolution) -> Self {
+        let requested_policy = match resolution.requested_policy {
+            RustRerankerDevicePolicy::Auto => "auto".to_string(),
+            RustRerankerDevicePolicy::Cpu => "cpu".to_string(),
+            RustRerankerDevicePolicy::Cuda(ordinal) => format!("cuda:{ordinal}"),
+        };
+        let effective_device = match &resolution.effective_device {
+            RustEffectiveRerankerDevice::Cpu => {
+                PyEffectiveEmbedDevice { kind: "cpu".to_string(), cuda_device: None }
+            }
+            RustEffectiveRerankerDevice::Cuda(info) => PyEffectiveEmbedDevice {
+                kind: "cuda".to_string(),
+                cuda_device: Some(PyCudaDeviceInfo::from_rust(info)),
+            },
+        };
+        Self {
+            requested_policy,
+            cuda_compiled: resolution.cuda_compiled,
+            effective_device,
+            visible_cuda_devices: resolution
+                .visible_cuda_devices
+                .iter()
+                .map(PyCudaVisibleDevice::from_rust)
+                .collect(),
+            selected_cuda_uuid: resolution.selected_cuda_uuid.clone(),
+            reason: resolution.reason.map(|reason| reason.as_str().to_string()),
+        }
+    }
+}
+
+/// 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the retained
+/// `fathomdb.tegra-gpu-allocation-witness/v1` record, measured in this
+/// process by the artifact under test.
+///
+/// Every number the verdict used is carried, so a reader re-derives the
+/// verdict instead of trusting it: the raw free-memory samples bracketing the
+/// model load, the declared floor they were judged against, and the deliberate
+/// control allocation that proves the shared iGPU counter was live and
+/// attributable at the time. Byte counts are exact Python ints — the deltas
+/// are `i128` in the core and are not narrowed here.
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "GpuAllocationWitness",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyGpuAllocationWitness {
+    /// Schema string of the retained record.
+    schema: String,
+    /// The precondition the witness run states rather than assumes.
+    sole_gpu_consumer_precondition: String,
+    device_ordinal_requested: usize,
+    device_ordinal_actual: usize,
+    device_uuid: String,
+    device_name: String,
+    compute_capability: String,
+    free_before_bytes: u64,
+    free_after_bytes: u64,
+    total_bytes: u64,
+    delta_bytes: i128,
+    delta_floor_bytes: u64,
+    control_allocation_request_bytes: u64,
+    control_block_count: usize,
+    control_free_before_bytes: u64,
+    control_free_after_bytes: u64,
+    control_delta_bytes: i128,
+    embedded_vector_dim: usize,
+}
+
+impl PyGpuAllocationWitness {
+    fn from_rust(witness: &RustGpuAllocationWitness) -> Self {
+        Self {
+            schema: TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA.to_string(),
+            sole_gpu_consumer_precondition: SOLE_GPU_CONSUMER_PRECONDITION.to_string(),
+            device_ordinal_requested: witness.device_ordinal_requested,
+            device_ordinal_actual: witness.device_ordinal_actual,
+            device_uuid: witness.device_uuid.clone(),
+            device_name: witness.device_name.clone(),
+            compute_capability: witness.compute_capability.clone(),
+            free_before_bytes: witness.free_before_bytes,
+            free_after_bytes: witness.free_after_bytes,
+            total_bytes: witness.total_bytes,
+            delta_bytes: witness.delta_bytes,
+            delta_floor_bytes: witness.delta_floor_bytes,
+            control_allocation_request_bytes: witness.control_allocation_request_bytes,
+            control_block_count: witness.control_block_count,
+            control_free_before_bytes: witness.control_free_before_bytes,
+            control_free_after_bytes: witness.control_free_after_bytes,
+            control_delta_bytes: witness.control_delta_bytes,
+            embedded_vector_dim: witness.embedded_vector_dim,
+        }
+    }
+}
+
 #[pyclass(module = "fathomdb._fathomdb", name = "OpenReport", frozen, get_all)]
 struct PyOpenReport {
     schema_version_before: u32,
@@ -1233,6 +1544,18 @@ struct PyOpenReport {
     /// R-VEQ-6 — human-readable reason for `dense_disabled` (which representation
     /// tripped), or `None` when dense is healthy.
     dense_disabled_reason: Option<String>,
+    /// Strict CPU/CUDA selection used to construct the embedder, or `None` when
+    /// no embedder was configured.
+    embedder_device_resolution: Option<PyDeviceResolution>,
+    reranker_device_resolution: Option<PyDeviceResolution>,
+    /// 0.8.23 Slice 80.6 (D-80.6-6, AC80-6) — the in-process GPU allocation
+    /// witness, or `None` when this open measured none.
+    ///
+    /// `None` means **no witness was taken**, never "a witness measured
+    /// nothing": a zero, negative, or below-floor allocation delta is a typed
+    /// failure inside the witness and fails the open, so a zero-valued record
+    /// is not reachable here.
+    embedder_gpu_allocation_witness: Option<PyGpuAllocationWitness>,
 }
 
 impl PyOpenReport {
@@ -1256,6 +1579,18 @@ impl PyOpenReport {
             embedder_mean_vec_pinned: r.embedder_mean_vec_pinned,
             dense_disabled: r.dense_disabled,
             dense_disabled_reason: r.dense_disabled_reason.clone(),
+            embedder_device_resolution: r
+                .embedder_device_resolution
+                .as_ref()
+                .map(PyDeviceResolution::from_rust),
+            reranker_device_resolution: r
+                .reranker_device_resolution
+                .as_ref()
+                .map(PyDeviceResolution::from_reranker),
+            embedder_gpu_allocation_witness: r
+                .embedder_gpu_allocation_witness
+                .as_ref()
+                .map(PyGpuAllocationWitness::from_rust),
         }
     }
 }
@@ -1312,6 +1647,45 @@ fn embedder_event_to_py(py: Python<'_>, ev: &RustEmbedderEvent) -> Py<PyAny> {
 struct PyEngine {
     inner: Arc<RustEngine>,
     open_report: Arc<RustOpenReport>,
+}
+
+/// Opaque, dev-only reader-snapshot rendezvous for the Slice 65 installed
+/// binding control. It is compiled only with `test-hooks`, never shipped.
+#[cfg(feature = "test-hooks")]
+#[pyclass(module = "fathomdb._fathomdb", name = "_WalSnapshotPause")]
+struct PyWalSnapshotPause {
+    snapshot_ready: Arc<Barrier>,
+    release: Arc<Barrier>,
+    reader_autocommit: Option<Arc<AtomicBool>>,
+    reader_native_state: Option<Arc<Mutex<Option<String>>>>,
+}
+
+#[cfg(feature = "test-hooks")]
+#[pymethods]
+impl PyWalSnapshotPause {
+    fn wait_snapshot_ready(&self, py: Python<'_>) {
+        let snapshot_ready = Arc::clone(&self.snapshot_ready);
+        py.detach(move || snapshot_ready.wait());
+    }
+
+    fn release(&self, py: Python<'_>) {
+        let release = Arc::clone(&self.release);
+        py.detach(move || release.wait());
+    }
+
+    fn reader_connection_autocommit_for_test(&self) -> bool {
+        self.reader_autocommit.as_ref().is_some_and(|value| value.load(Ordering::Acquire))
+    }
+
+    fn reader_native_state_for_test(&self) -> PyResult<String> {
+        self.reader_native_state
+            .as_ref()
+            .ok_or_else(|| PyValueError::new_err("snapshot pause has no native state recorder"))?
+            .lock()
+            .map_err(|_| PyValueError::new_err("snapshot native state recorder is unavailable"))?
+            .clone()
+            .ok_or_else(|| PyValueError::new_err("snapshot native state was not recorded"))
+    }
 }
 
 #[pymethods]
@@ -1571,6 +1945,88 @@ impl PyEngine {
     fn close(&self, py: Python<'_>) -> PyResult<()> {
         let engine = Arc::clone(&self.inner);
         call_engine(py, move || engine.close())
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _arm_next_reader_snapshot_pause_for_test(&self) -> PyWalSnapshotPause {
+        let (snapshot_ready, release, reader_native_state) =
+            self.inner.arm_next_reader_snapshot_pause_for_test();
+        PyWalSnapshotPause {
+            snapshot_ready,
+            release,
+            reader_autocommit: None,
+            reader_native_state: Some(reader_native_state),
+        }
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _arm_next_reader_completion_pause_for_test(&self) -> PyWalSnapshotPause {
+        let (snapshot_ready, release, reader_autocommit) =
+            self.inner.arm_next_reader_completion_pause_for_test();
+        PyWalSnapshotPause {
+            snapshot_ready,
+            release,
+            reader_autocommit: Some(reader_autocommit),
+            reader_native_state: None,
+        }
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _wal_attribution_checkpoint_records_for_test(
+        &self,
+    ) -> Vec<(usize, bool, String, Vec<String>)> {
+        self.inner.wal_attribution_checkpoint_records_for_test()
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _wal_attribution_snapshot_for_test<'py>(
+        &self,
+        py: Python<'py>,
+    ) -> PyResult<Bound<'py, PyDict>> {
+        let record = PyDict::new(py);
+        record.set_item("no_owned_snapshot", self.inner.wal_attribution_idle_for_test())?;
+        Ok(record)
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _arm_actual_checkpoint_observation_for_test(&self) {
+        self.inner.arm_python_serial_actual_checkpoint_observation_for_test();
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _drain_actual_checkpoint_observations_for_test(&self) -> Vec<String> {
+        self.inner.drain_actual_checkpoint_observations_for_test()
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _wal_attribution_binding_inventory_for_test(&self, py: Python<'_>) -> PyResult<String> {
+        let engine = Arc::clone(&self.inner);
+        call_engine(py, move || engine.binding_connection_inventory_for_test())
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _wal_attribution_binding_native_state_inventory_for_test(
+        &self,
+        py: Python<'_>,
+    ) -> PyResult<String> {
+        let engine = Arc::clone(&self.inner);
+        call_engine(py, move || engine.binding_native_state_inventory_for_test())
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _arm_binding_native_state_observation_for_test(&self) {
+        self.inner.arm_binding_native_state_observation_for_test();
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _drain_binding_native_state_observations_for_test(&self) -> Vec<String> {
+        self.inner.drain_binding_native_state_observations_for_test()
+    }
+
+    #[cfg(feature = "test-hooks")]
+    fn _checkpoint_at_rest_for_test(&self, py: Python<'_>) -> PyResult<Vec<(bool, u32, u32)>> {
+        let engine = Arc::clone(&self.inner);
+        call_engine(py, move || engine.checkpoint_at_rest_for_test())
     }
 
     #[pyo3(signature = (timeout_s = 0.0))]
@@ -1920,6 +2376,14 @@ fn read_projection_status(
     let inner = Arc::clone(&engine.inner);
     let status = call_engine(py, move || inner.read_projection_status())?;
     Ok(PyProjectionRuntimeStatus::from_rust(&status))
+}
+
+#[pyfunction]
+#[pyo3(signature = (engine))]
+fn read_embedding_readiness(py: Python<'_>, engine: &PyEngine) -> PyResult<PyEmbeddingReadiness> {
+    let inner = Arc::clone(&engine.inner);
+    let readiness = call_engine(py, move || inner.read_embedding_readiness())?;
+    Ok(PyEmbeddingReadiness::from_rust(&readiness))
 }
 
 #[pyfunction]
@@ -2562,8 +3026,8 @@ fn rerank(
 // routing that harness through `embed()` would silently switch Mean↔CLS and
 // break comparability to V-1. This binding loads the SAME pinned bge-small
 // weights the numpy path loads, pins `Pooling::Cls`, and honors
-// `FATHOMDB_EMBED_DEVICE` (CPU default; `cuda:N` under the `embed-cuda`
-// feature). One padded `(B, L)` forward → the same per-row vectors as B single
+// `FATHOMDB_EMBED_DEVICE` (unset means `auto`; `cuda:N` under the `embed-cuda`
+// feature is forced). One padded `(B, L)` forward → the same per-row vectors as B single
 // `embed()` calls (parity-locked in the embedder crate's tests). Additive: it
 // does NOT change `embed()`'s default pooling. This also closes the standing
 // "Python embed cannot select CLS pooling" exposure gap.
@@ -2669,6 +3133,15 @@ fn force_panic_for_test() -> PyResult<()> {
     panic!("force_panic_for_test: AC-067 probe");
 }
 
+/// Take one private native/Rusqlite WAL checkpoint sample for Slice 65's
+/// disposable fresh-child diagnostic. This hook is absent from shipped wheels.
+#[cfg(feature = "test-hooks")]
+#[pyfunction(name = "_native_raw_wal_checkpoint_for_test")]
+fn native_raw_wal_checkpoint_for_test(py: Python<'_>, path: String) -> PyResult<(bool, u32, u32)> {
+    validate_ffi_string_py(&path)?;
+    call_engine(py, move || RustEngine::native_raw_wal_checkpoint_for_test(&path))
+}
+
 // ===== Module =========================================================
 
 // `gil_used = true` preserves current GIL semantics: pyo3 0.28 makes
@@ -2679,6 +3152,8 @@ fn force_panic_for_test() -> PyResult<()> {
 #[pymodule(gil_used = true)]
 fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyEngine>()?;
+    #[cfg(feature = "test-hooks")]
+    m.add_class::<PyWalSnapshotPause>()?;
     m.add_class::<PyWriteReceipt>()?;
     m.add_class::<PyEraseReport>()?;
     m.add_class::<PyIngestWithExtractorReceipt>()?;
@@ -2696,6 +3171,11 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyCounterSnapshot>()?;
     m.add_class::<PyMigrationStepReport>()?;
     m.add_class::<PyEmbedderIdentity>()?;
+    m.add_class::<PyCudaDeviceInfo>()?;
+    m.add_class::<PyCudaVisibleDevice>()?;
+    m.add_class::<PyEffectiveEmbedDevice>()?;
+    m.add_class::<PyDeviceResolution>()?;
+    m.add_class::<PyGpuAllocationWitness>()?;
     m.add_class::<PyOpenReport>()?;
     m.add_class::<PyNodeRecord>()?;
     m.add_class::<PyOpStoreRow>()?;
@@ -2711,10 +3191,12 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(configure_projections, &m)?)?;
     m.add_function(wrap_pyfunction!(read_projections, &m)?)?;
     m.add_function(wrap_pyfunction!(read_projection_status, &m)?)?;
+    m.add_function(wrap_pyfunction!(read_embedding_readiness, &m)?)?;
     m.add_class::<PyProjectionSpec>()?;
     m.add_class::<PyProjectionDelta>()?;
     m.add_class::<PyProjectionRuntimeStatusEntry>()?;
     m.add_class::<PyProjectionRuntimeStatus>()?;
+    m.add_class::<PyEmbeddingReadiness>()?;
     // Slice 30 — governed read.* native fns (G2/G3).
     m.add_function(wrap_pyfunction!(read_get, &m)?)?;
     m.add_function(wrap_pyfunction!(read_get_many, &m)?)?;
@@ -2736,6 +3218,8 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
 
     #[cfg(any(test, feature = "test-hooks"))]
     m.add_function(wrap_pyfunction!(force_panic_for_test, &m)?)?;
+    #[cfg(feature = "test-hooks")]
+    m.add_function(wrap_pyfunction!(native_raw_wal_checkpoint_for_test, &m)?)?;
 
     m.add("EngineError", py.get_type::<EngineError>())?;
     m.add("StorageError", py.get_type::<StorageError>())?;
@@ -2743,7 +3227,10 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("VectorError", py.get_type::<VectorError>())?;
     m.add("KindNotVectorIndexedError", py.get_type::<KindNotVectorIndexedError>())?;
     m.add("EmbedderError", py.get_type::<EmbedderError>())?;
+    m.add("EmbedDevicePolicyError", py.get_type::<EmbedDevicePolicyError>())?;
+    m.add("RerankerDevicePolicyError", py.get_type::<RerankerDevicePolicyError>())?;
     m.add("EmbedderNotConfiguredError", py.get_type::<EmbedderNotConfiguredError>())?;
+    m.add("EmbedderRequiredError", py.get_type::<EmbedderRequiredError>())?;
     m.add("SchedulerError", py.get_type::<SchedulerError>())?;
     m.add("OpStoreError", py.get_type::<OpStoreError>())?;
     m.add("WriteValidationError", py.get_type::<WriteValidationError>())?;
@@ -2800,6 +3287,182 @@ mod tests {
         // bytes-derived input.
         let valid_high_unicode = "\u{FFFD}";
         assert!(validate_ffi_string(valid_high_unicode).is_ok());
+    }
+
+    #[test]
+    fn embed_device_policy_open_error_uses_a_typed_python_exception() {
+        Python::initialize();
+        Python::attach(|py| {
+            let error = engine_open_error_to_py(EngineOpenError::EmbedDevicePolicy(
+                fathomdb_embedder::EmbedDevicePolicyError::Resolution(
+                    fathomdb_embedder::DeviceResolutionError::CudaNotCompiled { ordinal: 2 },
+                ),
+            ));
+
+            assert!(error.is_instance_of::<EmbedDevicePolicyError>(py));
+            let value = error.value(py);
+            assert_eq!(
+                value.getattr("kind").unwrap().extract::<String>().unwrap(),
+                "cuda_not_compiled"
+            );
+            assert_eq!(value.getattr("ordinal").unwrap().extract::<usize>().unwrap(), 2);
+        });
+    }
+
+    #[test]
+    fn reranker_device_policy_open_error_uses_a_typed_python_exception() {
+        Python::initialize();
+        Python::attach(|py| {
+            let error = engine_open_error_to_py(EngineOpenError::RerankerDevicePolicy(
+                fathomdb_embedder::RerankerDevicePolicyError::Resolution(
+                    fathomdb_embedder::RerankerDeviceResolutionError::CudaNotCompiled {
+                        ordinal: 2,
+                    },
+                ),
+            ));
+            assert!(error.is_instance_of::<RerankerDevicePolicyError>(py));
+            assert_eq!(
+                error.value(py).getattr("kind").unwrap().extract::<String>().unwrap(),
+                "cuda_not_compiled"
+            );
+        });
+    }
+
+    #[test]
+    fn reranker_device_policy_query_error_uses_the_same_typed_python_exception() {
+        Python::initialize();
+        Python::attach(|py| {
+            let error = engine_error_to_py(RustEngineError::RerankerDevicePolicy(
+                fathomdb_embedder::RerankerDevicePolicyError::Resolution(
+                    fathomdb_embedder::RerankerDeviceResolutionError::ForcedCudaUnavailable {
+                        ordinal: 1,
+                        reason: fathomdb_embedder::RerankerDeviceResolutionReason::CudaProbeFailed,
+                    },
+                ),
+            ));
+            assert!(error.is_instance_of::<RerankerDevicePolicyError>(py));
+            assert_eq!(error.value(py).getattr("ordinal").unwrap().extract::<usize>().unwrap(), 1);
+        });
+    }
+
+    #[test]
+    fn open_report_preserves_caller_device_resolution() {
+        Python::initialize();
+        Python::attach(|py| {
+            let directory = tempfile::tempdir().expect("temporary database directory");
+            let resolution = fathomdb_embedder::DeviceResolution {
+                requested_policy: fathomdb_embedder::EmbedDevicePolicy::Cuda(3),
+                cuda_compiled: true,
+                effective_device: fathomdb_embedder::EffectiveEmbedDevice::Cuda(
+                    fathomdb_embedder::CudaDeviceInfo {
+                        ordinal: 3,
+                        uuid: Some("GPU-test".to_string()),
+                        name: Some("test CUDA".to_string()),
+                        driver_version: Some("555.42".to_string()),
+                        compute_capability: Some("8.6".to_string()),
+                        cuda_toolkit_version: Some("12.8".to_string()),
+                    },
+                ),
+                visible_cuda_devices: vec![fathomdb_embedder::CudaVisibleDevice {
+                    visible_ordinal: 3,
+                    uuid: "GPU-test".to_string(),
+                    name: "test CUDA".to_string(),
+                    compute_capability: Some("8.6".to_string()),
+                }],
+                selected_cuda_uuid: Some("GPU-test".to_string()),
+                reason: None,
+            };
+            let opened = RustEngine::open_with_choice(
+                directory.path().join("python-device-resolution.sqlite"),
+                EmbedderChoice::CallerWithDeviceResolution {
+                    embedder: Arc::new(fathomdb_embedder::NoopEmbedder::default()),
+                    device_resolution: resolution,
+                },
+            )
+            .expect("caller resolution opens");
+
+            let report = PyOpenReport::from_rust(py, &opened.report);
+            let resolution = report
+                .embedder_device_resolution
+                .expect("caller resolution must reach the Python open report");
+            assert_eq!(resolution.requested_policy, "cuda:3");
+            assert!(resolution.cuda_compiled);
+            assert_eq!(resolution.effective_device.kind, "cuda");
+            let cuda = resolution
+                .effective_device
+                .cuda_device
+                .expect("CUDA selection must retain its safe provider facts");
+            assert_eq!(cuda.ordinal, 3);
+            assert_eq!(cuda.uuid.as_deref(), Some("GPU-test"));
+            assert_eq!(cuda.name.as_deref(), Some("test CUDA"));
+            assert_eq!(cuda.driver_version.as_deref(), Some("555.42"));
+            assert_eq!(cuda.compute_capability.as_deref(), Some("8.6"));
+            assert_eq!(cuda.cuda_toolkit_version.as_deref(), Some("12.8"));
+            assert_eq!(resolution.visible_cuda_devices.len(), 1);
+            assert_eq!(resolution.visible_cuda_devices[0].visible_ordinal, 3);
+            assert_eq!(resolution.selected_cuda_uuid.as_deref(), Some("GPU-test"));
+            assert_eq!(resolution.reason, None);
+            // D-80.6-6 — a CUDA *policy outcome* is not a measurement. The
+            // witness stays absent unless one was actually taken.
+            assert!(report.embedder_gpu_allocation_witness.is_none());
+        });
+    }
+
+    /// 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the witness crosses the PyO3
+    /// boundary with every number the verdict used still present, so a Python
+    /// consumer can re-derive the verdict instead of trusting it.
+    #[test]
+    fn gpu_allocation_witness_crosses_the_pyo3_boundary_intact() {
+        let witness = RustGpuAllocationWitness {
+            device_ordinal_requested: 0,
+            device_ordinal_actual: 0,
+            device_uuid: "GPU-11111111-2222-3333-4444-555555555555".to_string(),
+            device_name: "Orin".to_string(),
+            compute_capability: "8.7".to_string(),
+            free_before_bytes: 40_000_000_000,
+            free_after_bytes: 39_856_635_904,
+            total_bytes: 65_000_000_000,
+            delta_bytes: 143_364_096,
+            delta_floor_bytes: 67_108_864,
+            control_allocation_request_bytes: 1_073_741_824,
+            control_block_count: 8,
+            control_free_before_bytes: 42_000_000_000,
+            control_free_after_bytes: 40_800_000_000,
+            control_delta_bytes: 1_200_000_000,
+            embedded_vector_dim: 384,
+        };
+
+        let mapped = PyGpuAllocationWitness::from_rust(&witness);
+
+        assert_eq!(mapped.schema, "fathomdb.tegra-gpu-allocation-witness/v1");
+        assert!(mapped.sole_gpu_consumer_precondition.contains("sole GPU consumer"));
+        assert_eq!(mapped.device_ordinal_requested, 0);
+        assert_eq!(mapped.device_ordinal_actual, 0);
+        assert_eq!(mapped.device_uuid, "GPU-11111111-2222-3333-4444-555555555555");
+        assert_eq!(mapped.device_name, "Orin");
+        assert_eq!(mapped.compute_capability, "8.7");
+        assert_eq!(mapped.free_before_bytes, 40_000_000_000);
+        assert_eq!(mapped.free_after_bytes, 39_856_635_904);
+        assert_eq!(mapped.total_bytes, 65_000_000_000);
+        assert_eq!(mapped.delta_bytes, 143_364_096);
+        assert_eq!(mapped.delta_floor_bytes, 67_108_864);
+        assert_eq!(mapped.control_allocation_request_bytes, 1_073_741_824);
+        assert_eq!(mapped.control_block_count, 8);
+        assert_eq!(mapped.control_free_before_bytes, 42_000_000_000);
+        assert_eq!(mapped.control_free_after_bytes, 40_800_000_000);
+        assert_eq!(mapped.control_delta_bytes, 1_200_000_000);
+        assert_eq!(mapped.embedded_vector_dim, 384);
+        // The verdict is re-derivable from the mapped record alone (R80-13).
+        assert_eq!(
+            i128::from(mapped.free_before_bytes) - i128::from(mapped.free_after_bytes),
+            mapped.delta_bytes
+        );
+        assert!(mapped.delta_bytes >= i128::from(mapped.delta_floor_bytes));
+        assert!(
+            i128::from(mapped.control_free_before_bytes)
+                - i128::from(mapped.control_free_after_bytes)
+                >= i128::from(mapped.control_allocation_request_bytes)
+        );
     }
 
     // fix-1 finding 2: the CLS-embedder singleton must NOT cache a failed load.

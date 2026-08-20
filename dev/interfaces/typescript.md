@@ -26,7 +26,7 @@ The full governed set is pinned by
 `src/conformance/governed-surface-allowlist.json`, which `surface.test.ts`
 loads: the core five plus `engine.searchTextOnly`, `engine.embed`, `rerank`,
 the `read.*` namespace (`get`, `getMany`, `collection`, `mutations`, `list`,
-`crossedBoundarySince`, `projections`, `projectionStatus`), the `graph.*`
+`crossedBoundarySince`, `projections`, `projectionStatus`, `embeddingReadiness`), the `graph.*`
 namespace (`neighbors`, `searchExpand`), the BYO-LLM verbs
 (`engine.ingestWithExtractor`,
 `engine.consolidateWithProvider`), `engine.configureProjections`, and the
@@ -118,6 +118,64 @@ Subscriber attachment is provided by:
 - `SearchResult.softFallback.branch`
 
 `softFallback.branch` uses the typed values owned by `design/retrieval.md`.
+
+### `OpenReport.embedderGpuAllocationWitness` (0.8.23 Slice 80.6)
+
+`engine.openReport().embedderGpuAllocationWitness` is a readonly
+`GpuAllocationWitness | null`: the retained
+`fathomdb.tegra-gpu-allocation-witness/v1` record measured **in this process**
+during the open (`design/0.8.23-aarch64-tegra.md` D-80.6-6, AC80-6, R80-13).
+
+`null` means **no witness was taken**, never "a witness measured nothing". A
+zero, negative, or below-floor allocation delta is a typed failure inside the
+witness and fails the open, so a zero-valued record is unreachable here.
+
+It is populated only when `FATHOMDB_GPU_ALLOCATION_WITNESS=1` (or `true`) is
+set, the artifact has CUDA compiled in, and the device policy actually selected
+CUDA for the default embedder. It is opt-in because producing it costs a second
+model load plus a multi-gigabyte deliberate control allocation. A requested
+witness that cannot be produced rejects the open naming the witness's own
+failure tag; it never degrades to `null`.
+
+The readonly fields are `schema`, `soleGpuConsumerPrecondition`,
+`deviceOrdinalRequested`, `deviceOrdinalActual`, `deviceUuid`, `deviceName`,
+`computeCapability`, `freeBeforeBytes`, `freeAfterBytes`, `totalBytes`,
+`deltaBytes`, `deltaFloorBytes`, `controlAllocationRequestBytes`,
+`controlBlockCount`, `controlFreeBeforeBytes`, `controlFreeAfterBytes`,
+`controlDeltaBytes`, and `embeddedVectorDim` — every number the verdict used,
+so a reader re-derives the verdict rather than trusting it (R80-13). Byte
+counts are JavaScript numbers, exact for every physically reachable
+device-memory value.
+
+### `OpenReport.embedderDeviceResolution` (0.8.23 Slice 70)
+
+`engine.openReport().embedderDeviceResolution` is a readonly
+`DeviceResolution | null`. When present, it preserves `requestedPolicy`
+(`"auto"`, `"cpu"`, or `"cuda:N"`), `cudaCompiled`, the effective
+`EffectiveEmbedDevice` (`kind === "cpu" | "cuda"` and safe CUDA facts for a
+CUDA selection), the ordered process-visible CUDA device inventory
+(`visibleOrdinal`, UUID, name, compute capability), optional selected UUID,
+and the optional automatic-fallback `reason`. Ordinals are
+`CUDA_VISIBLE_DEVICES`-relative, never inferred host ordinals. It is present
+for default-embedder opens and the internal
+`EmbedderChoice::CallerWithDeviceResolution` path; an ONNX caller uses that
+path when it needs its final session outcome reported. It is `null` when no
+resolution was supplied. Forced CUDA is an open rejection, never a CPU report.
+
+The readonly additive fields are `visibleCudaDevices: readonly CudaVisibleDevice[]`
+(each `visibleOrdinal`, `uuid`, `name`, `computeCapability`) and
+`selectedCudaUuid: string | null`; a present selected UUID names exactly one
+inventory member. CPU-effective automatic outcomes retain the observed
+inventory.
+
+This `DeviceResolution` is normal open-time evidence only. The CLI-only
+`DoctorGpuDiagnosticResult` is intentionally distinct: a
+`CudaProbeError::ProbeFailed` may be recorded as automatic CPU open evidence,
+whereas `doctor gpu` maps it to `probe_failed` and exit `70`. TypeScript exposes
+neither a doctor method nor a device-setting API.
+
+This is open-time evidence only: it adds no TypeScript device-setting API.
+`FATHOMDB_EMBED_DEVICE` remains the single cross-surface policy transport.
 
 ### `SearchHit.id` is `IdSpace` (C-2, 0.8.19 / TC-8)
 
@@ -332,6 +390,31 @@ sub-target are persisted-but-deferred (reported in `ProjectionDelta.deferred`).
 `{ built, dropped, deferred, unchanged, vectorUnsupportedKinds }`. Field names
 are camelCase per this file's casing rule.
 
+### Embedding readiness (0.8.23 Slice 30)
+
+`read.embeddingReadiness(engine): Promise<EmbeddingReadiness>` is an additive,
+HITL-authorized governed read. It is a pure current view: it neither configures
+an embedder nor wakes, schedules, or drains work. `EmbeddingReadiness` is
+`{ state: "ready" | "processing" | "deferred" | "blocked",
+usableEmbedder: boolean, pendingCount: number, affectedKinds: string[],
+code: "FDB_EMBEDDER_REQUIRED" | null,
+operation: "graph_edge_body_projection" | "vector_projection" | null,
+remediations: string[], documentationUrl: string | null }`. `affectedKinds` is
+sorted and no pending body text is exposed.
+
+For `state === "blocked"`, `code` is `"FDB_EMBEDDER_REQUIRED"`, `operation` is
+non-null, and the other payload fields are populated. For every other state,
+the three nullable fields are `null` and `remediations` is empty. `"blocked"`
+occurs only when pending work exists and the engine was opened without a
+configured runtime. In that condition `engine.drain(...)` rejects immediately
+with `EmbedderRequiredError` carrying the same camelCase fields; callers must
+not parse the message. An attached runtime refused by identity/equivalence
+checks leaves outstanding work as operational `"deferred"` behavior and is
+never recast as this configuration error. A worker that exhausts its retries
+instead records a durable `failed` terminal; once the scheduler is idle,
+`engine.drain(...)` may resolve normally. Neither operational path is
+`EmbedderRequiredError`.
+
 ### `fts` / `vector` require the `searchable` role (0.8.20 Slice 23, R-20-SV)
 
 ⚠ **BREAKING.** `engine.configureProjections` REJECTS a `ProjectionSpec` with
@@ -518,18 +601,36 @@ Rust, Python and TypeScript:
   kind from a session opened with `useDefaultEmbedder: false` leaves real dense
   work outstanding, and this session cannot satisfy it. The write is **accepted**
   and stays lexically searchable, but `vectorDenseReadiness` reads
-  `"unavailable"` and `drain` rejects with `SchedulerError` for the rest of that
+  `"unavailable"` and `drain` rejects with typed `EmbedderRequiredError`
+  (`FDB_EMBEDDER_REQUIRED`) immediately when configuration is absent. An
+  attached-but-equivalence-refused runtime remains an operational unavailable
+  condition and is not relabelled as configuration feedback for the rest of that
   session, however long you wait. It is **not** lost: no failure is recorded and
   no terminal is written, so the next session opened WITH an approved runtime
   embeds it through the ordinary scheduler — no re-apply, no operator `rebuild`.
-  Expect the timeout there and do not read it as data loss.
-- **`drain` stays bounded** and rejects with the existing timeout error rather
-  than hanging; size `timeoutMs` for the backfill you just asked for.
+  The configuration outcome is immediate; it is not a timeout and does not
+  indicate data loss.
+- **`drain` stays bounded** for operational embedding work. Size `timeoutMs`
+  for an approved-runtime backfill; an absent runtime instead rejects
+  immediately with `EmbedderRequiredError`.
 
 ## Errors
 
+### Cross-encoder runtime policy (0.8.23 Slice 71)
+
+The optional cross-encoder reads FATHOMDB_RERANK_DEVICE independently of
+FATHOMDB_EMBED_DEVICE. It accepts only auto, cpu, and cuda:N. Forced CUDA must
+fail rather than execute cross-encoder inference on CPU. Reranker evidence is
+separate from OpenReport.embedderDeviceResolution; it does not claim GPU
+candidate retrieval or SQLite work.
+
+The embedder and reranker may select the same process-visible CUDA UUID in one
+TypeScript process. That creates independent model instances, not a GPU
+reservation, memory quota, scheduler, or evidence that retrieval/FTS/fusion/
+graph work used the GPU.
+
 TypeScript exposes one concrete class per canonical row in
-`design/errors.md` — **27** of them as of 0.8.20, 1:1 with the Python set
+`design/errors.md` — **28** of them as of 0.8.23, 1:1 with the Python set
 below `EngineError`.
 
 Class examples:

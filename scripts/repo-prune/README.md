@@ -6,9 +6,11 @@ experiment results with fidelity, archive or delete the rest, and **measure** th
 pipelines share one design; each is a two-phase, HITL-gated, snapshot/recover-safe prune with
 a machine-checked gate and before/after metrics.
 
-> Status: both prunes executed 2026-06-26. Doc-prune: runs/ 660→168 files, dev/ −53% bytes,
+> Status: both prunes executed 2026-06-26. Doc-prune: runs/ 670→168 files, dev/ −53% bytes,
 > live `.md` tokens −51%. Memory-prune: 45→35 files, MEMORY.md −18% tokens/session, 0 broken
-> links / 0 dead refs. See `measurements/*/DELTA-*.md`.
+> links / 0 dead refs. The machine-generated baseline and delta count 670 files; the historical
+> Phase-1 cleanup map's 660 is a narrower classification count, retained as history rather than
+> rewritten. See `measurements/*/DELTA-*.md`.
 
 ## Layout
 

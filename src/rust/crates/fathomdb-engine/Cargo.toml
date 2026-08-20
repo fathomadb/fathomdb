@@ -24,6 +24,12 @@ sqlite-vec = "=0.1.9"
 
 [features]
 default = []
+# Private TC-5 reader-worker route. This is intentionally not forwarded by the
+# facade or any language binding.
+tc5-benchmark = []
+# Slice 65: test-only rendezvous used by the disposable Python control wheel.
+# This feature is intentionally absent from every shipped-wheel feature list.
+test-hooks = []
 # Slice 27 fix-1 (Q5=BIND-RUST, AC-074): the operator/recovery seam
 # (rebuild_*, excise_source, dump_*, trace_source_ref, truncate_wal,
 # verify_embedder, check_integrity, safe_export, recompute_mean + their
@@ -37,11 +43,12 @@ operator = []
 # rather than attempting a network fetch (preserves the no-network build
 # closure per ADR-0.7.1-default-embedder-weight-fetch).
 default-embedder = ["fathomdb-embedder/default-embedder"]
-# GPU acceleration (opt-in; forwards to the embedder; default stays CPU).
-# Activate at runtime via FATHOMDB_EMBED_DEVICE=cuda|metal.
+# CUDA is an artifact-build capability forwarded to the embedder. A
+# CUDA-capable artifact selects at runtime under strict
+# FATHOMDB_EMBED_DEVICE=auto|cpu|cuda:N; unset is `auto` on that artifact.
 embed-cuda = ["default-embedder", "fathomdb-embedder/embed-cuda"]
 embed-metal = ["default-embedder", "fathomdb-embedder/embed-metal"]
-# 0.8.1 Slice 10 (R1): enabling this feature gates the CPU cross-encoder CE
+# 0.8.1 Slice 10 (R1): enabling this feature gates the cross-encoder CE
 # inference path (TinyBERT-L-2 via Candle) in `rerank_fused`. Without this
 # feature, `rerank_fused` is always the identity (soft-fallback) path — no
 # network call, no ML dependency. With the feature ON and weights cached
@@ -53,9 +60,14 @@ embed-metal = ["default-embedder", "fathomdb-embedder/embed-metal"]
 default-reranker = ["fathomdb-embedder/default-reranker"]
 # 0.8.12 — GPU acceleration for the CE reranker (opt-in; forwards to the
 # embedder; default stays CPU). Activate at runtime via the separate knob
-# FATHOMDB_RERANK_DEVICE=cuda|metal. Mirrors the embed-cuda passthrough.
+# FATHOMDB_RERANK_DEVICE=auto|cpu|cuda:N. Mirrors the embed-cuda passthrough.
 rerank-cuda = ["default-reranker", "fathomdb-embedder/rerank-cuda"]
 rerank-metal = ["default-reranker", "fathomdb-embedder/rerank-metal"]
+# Slice 72: this private aggregate exists only to compile the trusted-runner
+# characterization target and its bounded CE-forward rendezvous. It is not
+# forwarded by any shipped facade or binding.
+slice72-test-hooks = []
+slice72-gpu-tests = ["embed-cuda", "rerank-cuda", "slice72-test-hooks"]
 
 # The corpus-ingest example calls the operator-seam `trace_source_ref`, so it
 # only builds when the `operator` feature is enabled (skipped on default builds).
@@ -149,10 +161,40 @@ required-features = ["default-reranker"]
 name = "pr_e2_rerank_passages"
 required-features = ["default-reranker"]
 
+[[test]]
+name = "slice71_rerank_policy"
+required-features = ["default-reranker"]
+
+[[test]]
+name = "slice71_open_report"
+required-features = ["default-reranker"]
+
+[[test]]
+name = "slice72_concurrent_gpu"
+required-features = ["slice72-gpu-tests"]
+
+[[test]]
+name = "slice72_telemetry_contract"
+required-features = ["default-embedder", "default-reranker", "slice72-test-hooks"]
+
+[[test]]
+name = "slice72_review_contract"
+required-features = ["default-embedder", "default-reranker", "slice72-test-hooks"]
+
 # 0.8.2 Slice E2 fix-1 [P2]: is_finite guard tests — no feature gate because the
 # guard fires before the CE model path (depth/feature state irrelevant).
 [[test]]
 name = "pr_e2_rerank_nonfinite"
+
+# Slice 70: the strict default-embedder CPU/CUDA policy is exercised against
+# a default-embedder build, but its forced-CUDA case fails before weight loading.
+[[test]]
+name = "slice70_runtime_policy"
+required-features = ["default-embedder"]
+
+[[test]]
+name = "tc5_vector_stage"
+required-features = ["tc5-benchmark"]
 
 [dev-dependencies]
 libc = "0.2"

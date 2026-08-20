@@ -35,7 +35,16 @@ use candle_transformers::models::bert::{BertModel, Config as BertConfig};
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use tokenizers::{Tokenizer, TruncationParams};
 
-use crate::loader::{load_pinned_default_embedder, EmbedderLoadError, LoadedWeights, HF_REVISION};
+use crate::{
+    diagnose_gpu,
+    loader::{load_pinned_default_embedder, EmbedderLoadError, LoadedWeights, HF_REVISION},
+    resolve_embed_device_policy_from_env, CudaDeviceInfo, CudaProbeError, CudaProvider,
+    CudaVisibleDevice, DeviceResolution, DoctorGpuDiagnosticResult, EffectiveEmbedDevice,
+    EmbedDevicePolicyError,
+};
+
+#[cfg(feature = "tc5-benchmark")]
+use crate::loader::load_pinned_default_embedder_from_local_asset;
 
 /// Engine-facing identity name (per
 /// `dev/plans/prompts/0.7.1-EMBEDDER-UNDEFER-HANDOFF.md` §0.5). EU-5 will
@@ -71,6 +80,75 @@ pub enum Pooling {
     Cls,
 }
 
+/// Concrete device selected by the TC-5 benchmark preflight.
+///
+/// Unlike the ordinary constructors, this enum is never derived from an
+/// environment variable and never permits a CPU fallback for a CUDA request.
+/// It is available only with the `tc5-benchmark` feature.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg(feature = "tc5-benchmark")]
+pub enum ExplicitCandleDevice {
+    /// Use Candle's CPU backend.
+    Cpu,
+    /// Use the exact CUDA ordinal selected by benchmark preflight.
+    Cuda(usize),
+}
+
+/// Device proof returned with a TC-5 cache-only Candle construction.
+///
+/// For CUDA this is obtained after Candle initialized and allocated on the same
+/// logical ordinal, using the CUDA driver's UUID query rather than a separate
+/// process or an environment-derived device map.
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg(feature = "tc5-benchmark")]
+pub struct Tc5DeviceAttestation {
+    cuda_ordinal: Option<usize>,
+    cuda_uuid: Option<String>,
+}
+
+#[cfg(feature = "tc5-benchmark")]
+impl Tc5DeviceAttestation {
+    /// CUDA UUID observed from the initialized provider, if the construction used CUDA.
+    #[must_use]
+    pub fn cuda_uuid(&self) -> Option<&str> {
+        self.cuda_uuid.as_deref()
+    }
+
+    /// Logical ordinal Candle initialized for this construction, if any.
+    #[must_use]
+    pub fn cuda_ordinal(&self) -> Option<usize> {
+        self.cuda_ordinal
+    }
+}
+
+/// Cache-only TC-5 Candle construction plus its initialized-device proof.
+#[cfg(feature = "tc5-benchmark")]
+pub struct Tc5CandleConstruction {
+    embedder: CandleBgeEmbedder,
+    device_attestation: Tc5DeviceAttestation,
+}
+
+#[cfg(feature = "tc5-benchmark")]
+impl Tc5CandleConstruction {
+    /// Returns the UUID measured from the initialized CUDA provider.
+    #[must_use]
+    pub fn cuda_uuid(&self) -> Option<&str> {
+        self.device_attestation.cuda_uuid()
+    }
+
+    /// Returns the logical CUDA ordinal that Candle initialized, if any.
+    #[must_use]
+    pub fn cuda_ordinal(&self) -> Option<usize> {
+        self.device_attestation.cuda_ordinal()
+    }
+
+    /// Consumes the construction and returns the cache-only embedder.
+    #[must_use]
+    pub fn into_embedder(self) -> CandleBgeEmbedder {
+        self.embedder
+    }
+}
+
 /// L2-normalize a `(1, D)` pooled tensor.
 fn l2_normalize(pooled: &Tensor) -> candle_core::Result<Tensor> {
     let norm = pooled.sqr()?.sum_keepdim(1)?.sqrt()?;
@@ -102,59 +180,246 @@ pub struct CandleBgeEmbedder {
     pooling: Pooling,
 }
 
-// 0.8.12 — the device-request grammar (`DeviceRequest` + `parse_device_request`)
-// moved to the shared `crate::device` module so the embedder and reranker resolve
-// `cpu`|`cuda`|`cuda:N`|`metal` through ONE pure parser. `resolve_device` below
-// (the feature- and hardware-dependent request→`Device` mapping) stays here.
-use crate::device::{parse_device_request, DeviceRequest};
-
-/// Resolve the candle device from `FATHOMDB_EMBED_DEVICE` (default CPU).
+/// Candle's concrete CUDA probe used by the default embedder.
 ///
-/// Accepts `cpu` | `cuda` | `cuda:N` | `metal`. GPU variants are only honored when
-/// the corresponding feature (`embed-cuda` / `embed-metal`) is compiled in; otherwise
-/// (or on init failure) it falls back to CPU and emits a LOUD stderr warning rather
-/// than silently running 100x slower on CPU when GPU was requested (the
-/// silent-slow-fallback trap). Device is NOT part of `EmbedderIdentity` — see
-/// `dev/design/0.8.1-embedder-gpu-and-portability.md` §3 on cross-backend vector
-/// equivalence (a 0.8.x guard).
-#[allow(clippy::print_stderr)] // construction-time error path only (not in `embed()`)
-fn resolve_device() -> Device {
-    match parse_device_request(&std::env::var("FATHOMDB_EMBED_DEVICE").unwrap_or_default()) {
-        DeviceRequest::Cpu => Device::Cpu,
-        DeviceRequest::Cuda(_idx) => {
-            #[cfg(feature = "embed-cuda")]
-            match Device::new_cuda(_idx) {
-                Ok(d) => return d,
-                Err(e) => eprintln!(
-                    "fathomdb-embedder: FATHOMDB_EMBED_DEVICE=cuda:{_idx} but CUDA init failed ({e}); using CPU"
-                ),
+/// A successful result means Candle initialized the requested ordinal and a
+/// one-element allocation on it succeeded. The returned report intentionally
+/// contains only metadata safe for product diagnostics.
+struct CandleCudaProvider;
+
+impl CudaProvider for CandleCudaProvider {
+    fn enumerate_visible_cuda_devices(&mut self) -> Result<Vec<CudaVisibleDevice>, CudaProbeError> {
+        #[cfg(feature = "embed-cuda")]
+        {
+            use candle_core::cuda::cudarc::driver::{result, sys};
+
+            let dynamic_driver_present = unsafe {
+                // SAFETY: this only attempts to locate the CUDA driver shared library;
+                // no CUDA driver symbol is invoked before the subsequent `result::init`.
+                sys::is_culib_present()
+            };
+            classify_cuda_driver_presence(dynamic_driver_present)?;
+            result::init().map_err(classify_cuda_driver_error)?;
+            let count = result::device::get_count().map_err(classify_cuda_driver_error)?;
+            let count = usize::try_from(count).map_err(|_| CudaProbeError::ProbeFailed {
+                message: "CUDA driver returned a negative device count".to_owned(),
+            })?;
+            (0..count)
+                .map(|visible_ordinal| {
+                    let device = result::device::get(visible_ordinal as i32)
+                        .map_err(classify_cuda_driver_error)?;
+                    let name = result::device::get_name(device).map_err(classify_cuda_driver_error)?;
+                    let uuid = result::device::get_uuid(device).map_err(classify_cuda_driver_error)?;
+                    let major = unsafe {
+                        result::device::get_attribute(
+                            device,
+                            sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR,
+                        )
+                    }
+                    .map_err(classify_cuda_driver_error)?;
+                    let minor = unsafe {
+                        result::device::get_attribute(
+                            device,
+                            sys::CUdevice_attribute_enum::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR,
+                        )
+                    }
+                    .map_err(classify_cuda_driver_error)?;
+                    Ok(CudaVisibleDevice {
+                        visible_ordinal,
+                        uuid: cuda_uuid_string(uuid.bytes),
+                        name,
+                        compute_capability: Some(format!("{major}.{minor}")),
+                    })
+                })
+                .collect()
+        }
+
+        #[cfg(not(feature = "embed-cuda"))]
+        {
+            Err(CudaProbeError::ProbeFailed {
+                message: "the default embedder was built without CUDA".to_owned(),
+            })
+        }
+    }
+
+    fn probe_cuda(&mut self, ordinal: usize) -> Result<CudaDeviceInfo, CudaProbeError> {
+        #[cfg(feature = "embed-cuda")]
+        {
+            let device = Device::new_cuda(ordinal).map_err(classify_candle_cuda_error)?;
+            Tensor::zeros(1, DType::F32, &device).map_err(classify_candle_cuda_error)?;
+            let visible = self
+                .enumerate_visible_cuda_devices()?
+                .into_iter()
+                .find(|visible| visible.visible_ordinal == ordinal)
+                .ok_or(CudaProbeError::NoVisibleDevice)?;
+            Ok(CudaDeviceInfo {
+                ordinal,
+                uuid: Some(visible.uuid),
+                name: Some(visible.name),
+                driver_version: None,
+                compute_capability: visible.compute_capability,
+                cuda_toolkit_version: None,
+            })
+        }
+
+        #[cfg(not(feature = "embed-cuda"))]
+        {
+            let _ = ordinal;
+            Err(CudaProbeError::ProbeFailed {
+                message: "the default embedder was built without CUDA".to_string(),
+            })
+        }
+    }
+}
+
+#[cfg(feature = "embed-cuda")]
+fn classify_cuda_driver_presence(driver_present: bool) -> Result<(), CudaProbeError> {
+    driver_present.then_some(()).ok_or(CudaProbeError::NoVisibleDevice)
+}
+
+#[cfg(feature = "embed-cuda")]
+fn classify_cuda_driver_error(
+    error: candle_core::cuda::cudarc::driver::result::DriverError,
+) -> CudaProbeError {
+    use candle_core::cuda::cudarc::driver::sys::CUresult;
+
+    let message = error.to_string();
+    match error.0 {
+        CUresult::CUDA_ERROR_NO_DEVICE | CUresult::CUDA_ERROR_STUB_LIBRARY => {
+            CudaProbeError::NoVisibleDevice
+        }
+        CUresult::CUDA_ERROR_SYSTEM_DRIVER_MISMATCH
+        | CUresult::CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE
+        | CUresult::CUDA_ERROR_NO_BINARY_FOR_GPU
+        | CUresult::CUDA_ERROR_UNSUPPORTED_PTX_VERSION => CudaProbeError::Incompatible { message },
+        _ => CudaProbeError::ProbeFailed { message },
+    }
+}
+
+#[cfg(feature = "embed-cuda")]
+fn classify_candle_cuda_error(error: candle_core::Error) -> CudaProbeError {
+    use candle_core::{
+        cuda::{cudarc::cublas::sys::cublasStatus_t, CudaError},
+        Error,
+    };
+
+    let message = error.to_string();
+    match error {
+        Error::Cuda(source) => match source.downcast_ref::<CudaError>() {
+            Some(CudaError::Cuda(error)) => classify_cuda_driver_error(*error),
+            Some(CudaError::Cublas(error))
+                if matches!(
+                    error.0,
+                    cublasStatus_t::CUBLAS_STATUS_ARCH_MISMATCH
+                        | cublasStatus_t::CUBLAS_STATUS_NOT_SUPPORTED
+                ) =>
+            {
+                CudaProbeError::Incompatible { message }
             }
-            #[cfg(not(feature = "embed-cuda"))]
-            eprintln!(
-                "fathomdb-embedder: FATHOMDB_EMBED_DEVICE=cuda requested but this build lacks the `embed-cuda` feature; using CPU"
-            );
-            Device::Cpu
+            _ => CudaProbeError::ProbeFailed { message },
+        },
+        _ => CudaProbeError::ProbeFailed { message },
+    }
+}
+
+#[cfg(feature = "embed-cuda")]
+fn cuda_uuid_string(bytes: [std::os::raw::c_char; 16]) -> String {
+    // `c_char` is `i8` on x86_64 and `u8` on AArch64 Linux, so this cast is
+    // load-bearing on one platform and a no-op on the other. Clippy sees only
+    // the host it runs on; on the Jetson (0.8.23 Slice 80) it would otherwise
+    // fail `-D warnings` for a cast x86_64 cannot do without.
+    #[allow(clippy::unnecessary_cast)]
+    let bytes = bytes.map(|byte| byte as u8);
+    format!(
+        "GPU-{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+        bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+        bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15],
+    )
+}
+
+/// Reads the CUDA driver's UUID for the ordinal Candle has already initialized.
+///
+/// This deliberately uses cudarc's direct driver API, never `nvidia-smi`; the
+/// ordinal is checked against the concrete Candle [`Device`] immediately before
+/// this call by the TC-5 constructor.
+#[cfg(feature = "embed-cuda")]
+fn tc5_cuda_uuid_for_initialized_ordinal(ordinal: usize) -> Result<String, CudaProbeError> {
+    use candle_core::cuda::cudarc::driver::result;
+
+    result::init().map_err(classify_cuda_driver_error)?;
+    let device = result::device::get(ordinal as i32).map_err(classify_cuda_driver_error)?;
+    let uuid = result::device::get_uuid(device).map_err(classify_cuda_driver_error)?;
+    Ok(cuda_uuid_string(uuid.bytes))
+}
+
+/// Construct `cuda:ordinal` and prove Candle retained exactly that ordinal.
+///
+/// This is the crate's ONLY `device.location()` ordinal check: the TC-5
+/// attested constructor and the 0.8.23 Slice 80.5 allocation witness
+/// (`gpu_witness.rs`, D-80.5-1 step 2) both call it rather than each writing
+/// their own. The returned UUID comes from the CUDA driver for the ordinal
+/// Candle actually initialized, never from `nvidia-smi` (R80-13).
+#[cfg(feature = "embed-cuda")]
+pub(crate) fn attest_retained_cuda_device(
+    ordinal: usize,
+) -> Result<(Device, usize, String), EmbedderLoadError> {
+    let unavailable = |reason: String| EmbedderLoadError::DeviceUnavailable {
+        device: format!("cuda:{ordinal}"),
+        reason,
+    };
+    let device = Device::new_cuda(ordinal).map_err(|error| unavailable(error.to_string()))?;
+    let actual_ordinal = match device.location() {
+        candle_core::DeviceLocation::Cuda { gpu_id } => gpu_id,
+        _ => {
+            return Err(unavailable("Candle did not retain the requested CUDA device".to_owned()));
         }
-        DeviceRequest::Metal => {
-            #[cfg(feature = "embed-metal")]
-            match Device::new_metal(0) {
-                Ok(d) => return d,
-                Err(e) => eprintln!(
-                    "fathomdb-embedder: FATHOMDB_EMBED_DEVICE=metal but Metal init failed ({e}); using CPU"
-                ),
-            }
-            #[cfg(not(feature = "embed-metal"))]
-            eprintln!(
-                "fathomdb-embedder: FATHOMDB_EMBED_DEVICE=metal requested but this build lacks the `embed-metal` feature; using CPU"
-            );
-            Device::Cpu
+    };
+    if actual_ordinal != ordinal {
+        return Err(unavailable(format!("Candle initialized cuda:{actual_ordinal} instead")));
+    }
+    Tensor::zeros(1, DType::F32, &device).map_err(|error| unavailable(error.to_string()))?;
+    // `CudaProbeError` is a typed classification without a `Display` impl, so
+    // its debug rendering is what carries the classification into the reason.
+    let uuid = tc5_cuda_uuid_for_initialized_ordinal(actual_ordinal)
+        .map_err(|error| unavailable(format!("{error:?}")))?;
+    Ok((device, actual_ordinal, uuid))
+}
+
+/// Resolve the product `FATHOMDB_EMBED_DEVICE` policy for one default
+/// embedder construction.
+///
+/// This is the only ambient-policy read on the Candle default path. Callers
+/// receive a typed outcome; forced CUDA is never downgraded to CPU.
+pub fn resolve_default_embedder_device_from_env() -> Result<DeviceResolution, EmbedDevicePolicyError>
+{
+    let mut provider = CandleCudaProvider;
+    resolve_embed_device_policy_from_env(cfg!(feature = "embed-cuda"), &mut provider)
+}
+
+/// Run the isolated default-embedder CUDA diagnostic from the ambient policy.
+///
+/// This creates no engine, database, loader, or model. It only performs the
+/// CUDA driver inventory and minimal allocation/provider probe required by
+/// `fathomdb doctor gpu`.
+#[must_use]
+pub fn diagnose_default_embedder_gpu_from_env() -> DoctorGpuDiagnosticResult {
+    let raw = std::env::var("FATHOMDB_EMBED_DEVICE").unwrap_or_else(|_| "auto".to_owned());
+    let cuda_compiled = cfg!(feature = "embed-cuda");
+    match raw.parse() {
+        Ok(policy) => {
+            let mut provider = CandleCudaProvider;
+            diagnose_gpu(policy, cuda_compiled, &mut provider)
         }
-        DeviceRequest::Unknown(req) => {
-            eprintln!(
-                "fathomdb-embedder: FATHOMDB_EMBED_DEVICE={req} not recognized (expected cpu|cuda|cuda:N|metal); using CPU"
-            );
-            Device::Cpu
-        }
+        Err(_) => DoctorGpuDiagnosticResult::from_invalid_policy(raw, cuda_compiled),
+    }
+}
+
+fn device_from_resolution(resolution: &DeviceResolution) -> Result<Device, EmbedderLoadError> {
+    match &resolution.effective_device {
+        EffectiveEmbedDevice::Cpu => Ok(Device::Cpu),
+        EffectiveEmbedDevice::Cuda(info) => Device::new_cuda(info.ordinal).map_err(|error| {
+            EmbedderLoadError::DeviceInitialization { message: error.to_string() }
+        }),
     }
 }
 
@@ -166,8 +431,11 @@ impl CandleBgeEmbedder {
     /// Per `dev/design/embedder.md` §8 this constructor asserts the host is
     /// little-endian (safetensors layout assumption).
     pub fn new() -> Result<Self, EmbedderLoadError> {
+        let resolution = resolve_default_embedder_device_from_env().map_err(|error| {
+            EmbedderLoadError::DeviceInitialization { message: error.to_string() }
+        })?;
         let weights = load_pinned_default_embedder()?;
-        Self::new_from_weights(weights)
+        Self::new_from_weights_with_device_resolution(weights, &resolution)
     }
 
     /// EU-5b — construct from already-fetched weights. The engine path
@@ -175,6 +443,76 @@ impl CandleBgeEmbedder {
     /// `bytes_downloaded` + `events` into `OpenReport`), then hands the
     /// `LoadedWeights` to this constructor.
     pub fn new_from_weights(weights: LoadedWeights) -> Result<Self, EmbedderLoadError> {
+        let resolution = resolve_default_embedder_device_from_env().map_err(|error| {
+            EmbedderLoadError::DeviceInitialization { message: error.to_string() }
+        })?;
+        Self::new_from_weights_with_device_resolution(weights, &resolution)
+    }
+
+    /// Construct from already-fetched weights and one prior strict device resolution.
+    pub fn new_from_weights_with_device_resolution(
+        weights: LoadedWeights,
+        resolution: &DeviceResolution,
+    ) -> Result<Self, EmbedderLoadError> {
+        Self::new_from_weights_on_device(weights, device_from_resolution(resolution)?)
+    }
+
+    /// Constructs a cache-only TC-5 embedder using the explicitly preflighted device.
+    #[cfg(feature = "tc5-benchmark")]
+    pub fn new_from_local_asset_on_device(
+        asset_dir: &Path,
+        requested_device: ExplicitCandleDevice,
+    ) -> Result<Self, EmbedderLoadError> {
+        Self::new_from_local_asset_on_device_attested(asset_dir, requested_device)
+            .map(Tc5CandleConstruction::into_embedder)
+    }
+
+    /// Constructs a cache-only TC-5 embedder and returns a proof bound to its
+    /// initialized Candle device. This does not read ambient device policy,
+    /// invoke a downloader, or shell out to an external GPU utility.
+    #[cfg(feature = "tc5-benchmark")]
+    pub fn new_from_local_asset_on_device_attested(
+        asset_dir: &Path,
+        requested_device: ExplicitCandleDevice,
+    ) -> Result<Tc5CandleConstruction, EmbedderLoadError> {
+        let weights = load_pinned_default_embedder_from_local_asset(asset_dir)?;
+        let (device, device_attestation) = match requested_device {
+            ExplicitCandleDevice::Cpu => {
+                (Device::Cpu, Tc5DeviceAttestation { cuda_ordinal: None, cuda_uuid: None })
+            }
+            ExplicitCandleDevice::Cuda(ordinal) => {
+                #[cfg(feature = "embed-cuda")]
+                {
+                    let (device, actual_ordinal, uuid) = attest_retained_cuda_device(ordinal)?;
+                    (
+                        device,
+                        Tc5DeviceAttestation {
+                            cuda_ordinal: Some(actual_ordinal),
+                            cuda_uuid: Some(uuid),
+                        },
+                    )
+                }
+                #[cfg(not(feature = "embed-cuda"))]
+                {
+                    return Err(EmbedderLoadError::DeviceUnavailable {
+                        device: format!("cuda:{ordinal}"),
+                        reason: "the benchmark binary lacks the `embed-cuda` feature".to_string(),
+                    });
+                }
+            }
+        };
+        let embedder = Self::new_from_weights_on_device(weights, device)?;
+        Ok(Tc5CandleConstruction { embedder, device_attestation })
+    }
+
+    // `pub(crate)` so 0.8.23 Slice 80.5's allocation witness can load onto a
+    // device it constructed and sampled itself (D-80.5-1 steps 3-4); the
+    // public constructors above remain the only externally reachable entry
+    // points.
+    pub(crate) fn new_from_weights_on_device(
+        weights: LoadedWeights,
+        device: Device,
+    ) -> Result<Self, EmbedderLoadError> {
         // Design §8: safetensors are little-endian; we never run on BE.
         // Tightened in EU-5d follow-up from a debug_assert into a
         // compile-time error so BE builds fail at `cargo build` rather
@@ -220,11 +558,7 @@ impl CandleBgeEmbedder {
             }))
             .map_err(|e| EmbedderLoadError::TokenizerLoad { source: e })?;
 
-        // 3. mmap safetensors and build a BertModel via VarBuilder.
-        // Device is resolved from FATHOMDB_EMBED_DEVICE (default CPU); GPU backends
-        // are compiled in only under the `embed-cuda`/`embed-metal` features, so the
-        // default build is byte-identical CPU. `embed()` already runs on `self.device`.
-        let device = resolve_device();
+        // 3. mmap safetensors on the explicitly resolved device.
         let vb = unsafe {
             VarBuilder::from_mmaped_safetensors(
                 &[weights.model_safetensors_path.as_path() as &Path],
@@ -253,16 +587,11 @@ impl CandleBgeEmbedder {
         self
     }
 
-    /// The EFFECTIVE candle device this embedder resolved to at construction,
+    /// The EFFECTIVE candle device selected by the strict resolution at construction,
     /// as a stable label (`"cpu"` / `"cuda:N"` / `"metal:N"`).
     ///
-    /// Additive read-only accessor (0.8.18 U3 calibration): candle selects its
-    /// device from `FATHOMDB_EMBED_DEVICE` via [`resolve_device`], which falls
-    /// back to CPU (with a LOUD warning) when the requested GPU backend is not
-    /// compiled in (no `embed-cuda`/`embed-metal`) or fails to initialize. The
-    /// cross-backend calibration harness records this so a silent CPU fallback
-    /// of a `cuda:0`-requested leg is captured as DATA (effective ≠ requested ⇒
-    /// the leg is treated as skipped, never mislabeled GPU). Does not change the
+    /// A forced CUDA policy never produces this value as CPU: it returns a
+    /// typed error before model construction. This accessor does not change the
     /// embedder identity (device is not part of `EmbedderIdentity`).
     #[must_use]
     pub fn device_label(&self) -> String {
@@ -398,6 +727,74 @@ impl CandleBgeEmbedder {
     }
 }
 
-// 0.8.12 — the pure-parse R-GPU-1 grammar tests moved with the parser to the
-// shared `crate::device` module (`device_request_tests`); they now cover both
-// `FATHOMDB_EMBED_DEVICE` and `FATHOMDB_RERANK_DEVICE` from one place.
+// The legacy reranker-only parser tests remain in `crate::device`. Strict
+// embedder-policy tests live in `device_policy`; the two controls do not share
+// a grammar or fallback contract.
+
+#[cfg(all(test, feature = "embed-cuda"))]
+mod cuda_probe_error_tests {
+    use super::*;
+    use candle_core::{
+        cuda::{
+            cudarc::{
+                cublas::{result::CublasError, sys::cublasStatus_t},
+                driver::{result::DriverError, sys::CUresult},
+            },
+            CudaError,
+        },
+        Error,
+    };
+
+    #[test]
+    fn driverless_and_known_driver_results_have_stable_classifications() {
+        assert_eq!(classify_cuda_driver_presence(false), Err(CudaProbeError::NoVisibleDevice));
+        assert_eq!(
+            classify_cuda_driver_error(DriverError(CUresult::CUDA_ERROR_NO_DEVICE)),
+            CudaProbeError::NoVisibleDevice
+        );
+        assert_eq!(
+            classify_cuda_driver_error(DriverError(CUresult::CUDA_ERROR_STUB_LIBRARY)),
+            CudaProbeError::NoVisibleDevice
+        );
+        assert!(matches!(
+            classify_cuda_driver_error(DriverError(CUresult::CUDA_ERROR_SYSTEM_DRIVER_MISMATCH)),
+            CudaProbeError::Incompatible { .. }
+        ));
+        assert!(matches!(
+            classify_cuda_driver_error(DriverError(
+                CUresult::CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE
+            )),
+            CudaProbeError::Incompatible { .. }
+        ));
+        assert!(matches!(
+            classify_cuda_driver_error(DriverError(CUresult::CUDA_ERROR_NO_BINARY_FOR_GPU)),
+            CudaProbeError::Incompatible { .. }
+        ));
+        assert!(matches!(
+            classify_cuda_driver_error(DriverError(CUresult::CUDA_ERROR_UNSUPPORTED_PTX_VERSION)),
+            CudaProbeError::Incompatible { .. }
+        ));
+        assert!(matches!(
+            classify_cuda_driver_error(DriverError(CUresult::CUDA_ERROR_OUT_OF_MEMORY)),
+            CudaProbeError::ProbeFailed { .. }
+        ));
+    }
+
+    #[test]
+    fn candle_provider_compatibility_is_not_an_unknown_probe_failure() {
+        let error = Error::Cuda(Box::new(CudaError::Cublas(CublasError(
+            cublasStatus_t::CUBLAS_STATUS_ARCH_MISMATCH,
+        ))));
+        assert!(matches!(classify_candle_cuda_error(error), CudaProbeError::Incompatible { .. }));
+
+        let error = Error::Cuda(Box::new(CudaError::Cublas(CublasError(
+            cublasStatus_t::CUBLAS_STATUS_NOT_SUPPORTED,
+        ))));
+        assert!(matches!(classify_candle_cuda_error(error), CudaProbeError::Incompatible { .. }));
+
+        let error = Error::Cuda(Box::new(CudaError::Cublas(CublasError(
+            cublasStatus_t::CUBLAS_STATUS_ALLOC_FAILED,
+        ))));
+        assert!(matches!(classify_candle_cuda_error(error), CudaProbeError::ProbeFailed { .. }));
+    }
+}

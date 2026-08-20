@@ -5,10 +5,11 @@ Hand-maintained — keep in sync with the binding's `#[pyclass]` /
 `create_exception!` / `#[pyfunction]` exports.
 """
 
-from typing import Any, Iterable
+from typing import Any, Iterable, Literal
 
 from fathomdb.types import (
     DenseReadiness,
+    EmbeddingOperation,
     EmbedderEvent,
     ProjectionRuntimeUnavailabilityReason,
     ProjectionStatusDenseReadiness,
@@ -156,6 +157,55 @@ class EmbedderIdentity:
     revision: str
     dimension: int
 
+class CudaDeviceInfo:
+    ordinal: int
+    uuid: str | None
+    name: str | None
+    driver_version: str | None
+    compute_capability: str | None
+    cuda_toolkit_version: str | None
+
+class CudaVisibleDevice:
+    visible_ordinal: int
+    uuid: str
+    name: str
+    compute_capability: str | None
+
+class EffectiveEmbedDevice:
+    kind: str
+    cuda_device: CudaDeviceInfo | None
+
+class DeviceResolution:
+    requested_policy: str
+    cuda_compiled: bool
+    effective_device: EffectiveEmbedDevice
+    visible_cuda_devices: list[CudaVisibleDevice]
+    selected_cuda_uuid: str | None
+    reason: str | None
+
+class GpuAllocationWitness:
+    # 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the retained
+    # `fathomdb.tegra-gpu-allocation-witness/v1` record. Every number the
+    # verdict used is present so a reader re-derives it rather than trusting it.
+    schema: str
+    sole_gpu_consumer_precondition: str
+    device_ordinal_requested: int
+    device_ordinal_actual: int
+    device_uuid: str
+    device_name: str
+    compute_capability: str
+    free_before_bytes: int
+    free_after_bytes: int
+    total_bytes: int
+    delta_bytes: int
+    delta_floor_bytes: int
+    control_allocation_request_bytes: int
+    control_block_count: int
+    control_free_before_bytes: int
+    control_free_after_bytes: int
+    control_delta_bytes: int
+    embedded_vector_dim: int
+
 class OpenReport:
     schema_version_before: int
     schema_version_after: int
@@ -170,6 +220,10 @@ class OpenReport:
     embedder_mean_vec_pinned: bool
     dense_disabled: bool
     dense_disabled_reason: str | None
+    embedder_device_resolution: DeviceResolution | None
+    reranker_device_resolution: DeviceResolution | None
+    # `None` means no witness was taken, never "a witness measured nothing".
+    embedder_gpu_allocation_witness: GpuAllocationWitness | None
 
 class Engine:
     @staticmethod
@@ -373,11 +427,22 @@ class ProjectionRuntimeStatus:
     projections: list[ProjectionRuntimeStatusEntry]
     vector_unsupported_kinds: list[str]
 
+class EmbeddingReadiness:
+    state: str
+    usable_embedder: bool
+    pending_count: int
+    affected_kinds: list[str]
+    code: str | None
+    operation: str | None
+    remediations: list[str]
+    documentation_url: str | None
+
 def configure_projections(
     engine: Engine, specs: list[ProjectionSpec], drop: list[str] | None = ...
 ) -> ProjectionDelta: ...
 def read_projections(engine: Engine) -> list[ProjectionSpec]: ...
 def read_projection_status(engine: Engine) -> ProjectionRuntimeStatus: ...
+def read_embedding_readiness(engine: Engine) -> EmbeddingReadiness: ...
 def read_get(
     engine: Engine, logical_id: str, view: ReadView | None = None
 ) -> NodeRecord | None: ...
@@ -497,7 +562,31 @@ class ProjectionError(EngineError): ...
 class VectorError(EngineError): ...
 class KindNotVectorIndexedError(VectorError): ...
 class EmbedderError(EngineError): ...
+class EmbedDevicePolicyError(EmbedderError):
+    kind: str
+    ordinal: int | None
+    def __init__(
+        self,
+        *args: Any,
+        kind: str = ...,
+        ordinal: int | None = ...,
+    ) -> None: ...
 class EmbedderNotConfiguredError(EmbedderError): ...
+class EmbedderRequiredError(EmbedderError):
+    code: Literal["FDB_EMBEDDER_REQUIRED"]
+    operation: EmbeddingOperation
+    state: Literal["blocked"]
+    remediations: list[str]
+    documentation_url: str
+    def __init__(
+        self,
+        *args: Any,
+        code: Literal["FDB_EMBEDDER_REQUIRED"] = ...,
+        operation: EmbeddingOperation = ...,
+        state: Literal["blocked"] = ...,
+        remediations: list[str] = ...,
+        documentation_url: str = ...,
+    ) -> None: ...
 class SchedulerError(EngineError): ...
 class OpStoreError(EngineError): ...
 class WriteValidationError(EngineError): ...
@@ -544,6 +633,11 @@ class EmbedderDimensionMismatchError(EngineError):
     stored: int
     supplied: int
     def __init__(self, *args: Any, stored: int = ..., supplied: int = ...) -> None: ...
+
+class RerankerDevicePolicyError(EmbedderError):
+    kind: str
+    ordinal: int | None
+    def __init__(self, *args: Any, kind: str = ..., ordinal: int | None = ...) -> None: ...
 
 # G11 (Slice 15) — BYO-LLM extraction harness protocol error.
 class ExtractorError(EngineError): ...

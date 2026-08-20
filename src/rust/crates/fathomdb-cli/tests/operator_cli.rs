@@ -83,6 +83,86 @@ fn t_040b_every_doctor_verb_help_has_usage_section() {
 }
 
 #[test]
+fn doctor_gpu_is_database_free_and_emits_one_schema_object() {
+    let output = fathomdb().args(["doctor", "gpu", "--json"]).output().expect("spawn doctor gpu");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let payload: Value = serde_json::from_str(stdout.trim())
+        .unwrap_or_else(|error| panic!("doctor gpu must emit one JSON object: {error}; {stdout}"));
+    assert_eq!(
+        payload.get("schema_version").and_then(Value::as_str),
+        Some("fathomdb.doctor.gpu.v1"),
+    );
+    assert!(payload.get("devices").and_then(Value::as_array).is_some());
+    assert!(matches!(output.status.code(), Some(0) | Some(65) | Some(70)));
+}
+
+#[test]
+fn doctor_platform_is_database_free_and_emits_the_v1_record() {
+    let root = tempfile::tempdir().expect("temporary canary root");
+    let output = fathomdb()
+        .args(["doctor", "platform", "--json"])
+        .current_dir(root.path())
+        .env("HOME", root.path())
+        .env("XDG_CACHE_HOME", root.path())
+        .output()
+        .expect("spawn doctor platform");
+    let stdout = String::from_utf8(output.stdout).expect("UTF-8 output");
+    let payload: Value = serde_json::from_str(stdout.trim()).unwrap_or_else(|error| {
+        panic!("doctor platform must emit one JSON object: {error}; {stdout}")
+    });
+    assert_eq!(
+        payload.get("schema_version").and_then(Value::as_str),
+        Some("fathomdb.doctor.platform.v1"),
+    );
+    assert!(matches!(output.status.code(), Some(0) | Some(exit_code::UNRECOVERABLE)));
+    assert!(std::fs::read_dir(root.path()).expect("read canary").next().is_none());
+}
+
+#[test]
+fn doctor_gpu_help_contains_the_exact_tegra_source_build_procedure() {
+    let output = fathomdb().args(["doctor", "gpu", "--help"]).output().expect("spawn");
+    assert!(output.status.success());
+    let stdout = String::from_utf8(output.stdout).expect("UTF-8 help");
+    assert!(stdout.contains("python3 -m venv .venv\n. .venv/bin/activate\npython -m pip install --upgrade pip 'maturin==1.14.1'\n./scripts/release/build-python-cuda-tegra.sh --interpreter python"));
+    assert!(stdout.contains("python -m pip install <built-wheel>"));
+}
+
+#[cfg(feature = "default-reranker")]
+#[test]
+fn doctor_reranker_gpu_cpu_subprocess_has_exact_database_free_contract() {
+    let root = tempfile::tempdir().expect("temporary canary root");
+    let json = fathomdb()
+        .args(["doctor", "reranker-gpu", "--json"])
+        .current_dir(root.path())
+        .env("FATHOMDB_RERANK_DEVICE", "cpu")
+        .env("HOME", root.path())
+        .env("XDG_CACHE_HOME", root.path())
+        .output()
+        .expect("spawn reranker doctor JSON");
+    assert_eq!(json.status.code(), Some(0));
+    assert!(json.stderr.is_empty());
+    assert_eq!(
+        String::from_utf8(json.stdout).expect("UTF-8 output"),
+        "{\"cuda_compiled\":false,\"devices\":[],\"effective_device\":\"cpu\",\"policy\":\"cpu\",\"reason\":null,\"schema_version\":\"fathomdb.doctor.reranker-gpu.v1\",\"selected_uuid\":null,\"subsystem\":\"reranker\"}\n"
+    );
+    let text = fathomdb()
+        .args(["doctor", "reranker-gpu"])
+        .current_dir(root.path())
+        .env("FATHOMDB_RERANK_DEVICE", "cpu")
+        .env("HOME", root.path())
+        .env("XDG_CACHE_HOME", root.path())
+        .output()
+        .expect("spawn reranker doctor text");
+    assert_eq!(text.status.code(), Some(0));
+    assert!(text.stderr.is_empty());
+    assert_eq!(
+        String::from_utf8(text.stdout).expect("UTF-8 output"),
+        "{\n  \"cuda_compiled\": false,\n  \"devices\": [],\n  \"effective_device\": \"cpu\",\n  \"policy\": \"cpu\",\n  \"reason\": null,\n  \"schema_version\": \"fathomdb.doctor.reranker-gpu.v1\",\n  \"selected_uuid\": null,\n  \"subsystem\": \"reranker\"\n}\n"
+    );
+    assert!(std::fs::read_dir(root.path()).expect("read canary").next().is_none());
+}
+
+#[test]
 fn t_035d_recover_help_exits_zero() {
     let output = fathomdb().args(["recover", "--help"]).output().expect("spawn");
     assert!(

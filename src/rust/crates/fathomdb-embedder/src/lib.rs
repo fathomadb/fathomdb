@@ -21,6 +21,43 @@ use std::path::PathBuf;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 
+mod device_policy;
+pub use device_policy::{
+    diagnose_gpu, resolve_embed_device_policy, resolve_embed_device_policy_from_env,
+    CudaDeviceInfo, CudaProbeError, CudaProvider, CudaVisibleDevice, DeviceResolution,
+    DeviceResolutionError, DeviceResolutionReason, DoctorGpuDiagnosticResult, DoctorGpuStatus,
+    EffectiveEmbedDevice, EmbedDevicePolicy, EmbedDevicePolicyError, EmbedDevicePolicyParseError,
+};
+
+mod reranker_device_policy;
+pub use reranker_device_policy::{
+    resolve_reranker_device_policy, resolve_reranker_device_policy_from_env,
+    EffectiveRerankerDevice, RerankerDevicePolicy, RerankerDevicePolicyError,
+    RerankerDevicePolicyParseError, RerankerDeviceResolution, RerankerDeviceResolutionError,
+    RerankerDeviceResolutionReason, ENV_RERANK_DEVICE,
+};
+
+// 0.8.23 Slice 80.5 (D-80.5-4) — the Tegra-portable GPU allocation witness.
+// Compiled UNCONDITIONALLY: only its driver sampler/allocator and end-to-end
+// runner are `embed-cuda`-gated, so the verdict, the typed failures, the floor
+// comparison, the UUID normalization and the serialization stay testable on a
+// host with no GPU (AC80-18, AC80-20). This is not a public SDK surface; the
+// consumer is the release evidence lane.
+mod gpu_witness;
+pub use gpu_witness::{
+    evaluate_allocation_witness, normalize_cuda_uuid, observe_control_allocation,
+    AllocationWitnessInputs, ControlAllocationObservation, GpuAllocationWitness,
+    GpuControlAllocator, GpuMemorySample, GpuMemorySampler, GpuWitnessError, GpuWitnessSkip,
+    WitnessStage, CUDA_ERROR_INVALID_CONTEXT, DEFAULT_CONTROL_ALLOCATION_BYTES,
+    DEFAULT_DELTA_FLOOR_BYTES, MAX_CONTROL_BLOCKS, SOLE_GPU_CONSUMER_PRECONDITION,
+    TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA, WITNESS_VECTOR_DIM,
+};
+#[cfg(feature = "embed-cuda")]
+pub use gpu_witness::{
+    run_default_embedder_allocation_witness, sample_with_driver_initialized_only,
+    AllocationWitnessConfig, CudaDriverControlAllocator, CudaDriverMemorySampler,
+};
+
 #[cfg(feature = "default-embedder")]
 pub mod loader;
 
@@ -92,14 +129,6 @@ impl MeanRecomputeTrigger {
     }
 }
 
-// 0.8.12 — shared device-request parser for the Candle backends. Compiled
-// whenever EITHER the embedder or reranker Candle path is on, so the embedder's
-// `FATHOMDB_EMBED_DEVICE` and the reranker's `FATHOMDB_RERANK_DEVICE` resolve
-// through one grammar (no duplicate parse logic) even though they sit behind
-// independent features.
-#[cfg(any(feature = "default-embedder", feature = "default-reranker", feature = "onnx-embedder"))]
-mod device;
-
 #[cfg(feature = "default-embedder")]
 mod candle_bge;
 #[cfg(feature = "default-embedder")]
@@ -108,24 +137,34 @@ mod nomic;
 // 0.8.16 Slice 10 (ADR-0.8.16-onnx-embedder-backend) — cross-vendor ONNX
 // Runtime BGE-small embedder. Behind its own NON-default `onnx-embedder`
 // feature so the thin default build pulls in zero ONNX code/deps; injected
-// by the caller via `EmbedderChoice::Caller` (zero engine change).
+// by the caller via `EmbedderChoice::CallerWithDeviceResolution` so the
+// engine records the resolved ONNX session outcome.
 #[cfg(feature = "onnx-embedder")]
 mod ort_bge;
 
-// 0.8.2 Slice E1: the default CPU cross-encoder reranker (TinyBERT-L-2).
+// 0.8.2 Slice E1: the default cross-encoder reranker (TinyBERT-L-2).
 // Lives behind its own `default-reranker` feature so the default build pulls
 // in zero ML code. The engine's `default-reranker` feature forwards to this.
 #[cfg(feature = "default-reranker")]
 mod candle_reranker;
 
 #[cfg(feature = "default-embedder")]
-pub use candle_bge::{CandleBgeEmbedder, Pooling, DEFAULT_EMBEDDER_DIM, DEFAULT_EMBEDDER_NAME};
+pub use candle_bge::{
+    diagnose_default_embedder_gpu_from_env, resolve_default_embedder_device_from_env,
+    CandleBgeEmbedder, Pooling, DEFAULT_EMBEDDER_DIM, DEFAULT_EMBEDDER_NAME,
+};
+#[cfg(feature = "tc5-benchmark")]
+pub use candle_bge::{ExplicitCandleDevice, Tc5CandleConstruction, Tc5DeviceAttestation};
+#[cfg(feature = "tc5-benchmark")]
+pub use loader::tc5_local_asset_directory_identity;
 #[cfg(feature = "default-embedder")]
 pub use nomic::{NomicEmbedder, NOMIC_DIM};
 
 #[cfg(feature = "onnx-embedder")]
 pub use ort_bge::{OrtBgeEmbedder, OrtPooling, ORT_BGE_EMBEDDER_DIM, ORT_BGE_EMBEDDER_NAME};
 
+#[cfg(feature = "default-reranker")]
+pub use candle_reranker::resolve_default_reranker_device_from_env;
 #[cfg(all(feature = "default-reranker", any(test, feature = "loader-test-hooks")))]
 pub use candle_reranker::RERANKER_REVISION;
 #[cfg(feature = "default-reranker")]

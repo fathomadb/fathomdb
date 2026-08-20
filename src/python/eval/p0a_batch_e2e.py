@@ -421,7 +421,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument("--no-fused", action="store_true",
                     help="skip the dense+FTS fused variant (default: include it). "
                          "The fused build re-embeds from scratch — run with "
-                         "FATHOMDB_EMBED_DEVICE=cuda or it is CPU-bound (~hours).")
+                         "FATHOMDB_EMBED_DEVICE=cuda:0 on a CUDA-capable artifact "
+                         "or it is CPU-bound (~hours).")
     ap.add_argument("--variants", default=None,
                     help="comma-separated subset of built variants to SUBMIT to the "
                          "answerer/judge batch (e.g. 'fathomdb_fused'). All variants are "

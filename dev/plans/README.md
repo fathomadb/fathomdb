@@ -29,6 +29,14 @@ Directory split:
 - `dev/plans/` = release execution planning + run artifacts (all versions).
 - `dev/roadmap/` = forward-looking, not-yet-scheduled backlog and deferrals.
 
+## Current authority
+
+Do not infer the active release from this directory or the staleness table.
+The one live release is selected by `dev/plans/release-state-*.json`; read its
+`board` and `plan` keys, then use the named `STATUS-<version>.md` board. At
+present, the live records are `plan-0.8.23.md`,
+`release-state-0.8.23.json`, and `runs/STATUS-0.8.23.md`.
+
 ## Archive convention (in place — do NOT relocate)
 
 Completed-release prompts and run artifacts are **archived in place**, not moved
@@ -41,9 +49,8 @@ historical run logs. Instead:
 - A prompt/run artifact is "archived" when its release line has shipped; its
   status lives in that release's `STATUS-*.md` / `*-implementation.md` ledger,
   not in its filesystem location.
-- The active to-do surface is always the current campaign's `STATUS-*.md`
-  scoreboard (e.g. `runs/STATUS-release-hardening.md` for 0.7.2), not a scan of
-  `prompts/`.
+- The active to-do surface is the board named by the live release-state JSON,
+  not a scan of `prompts/`.
 - Do not delete or move shipped-release artifacts. If a path must change, update
   every inbound reference in the same change and leave a note in the ledger.
 
@@ -60,7 +67,8 @@ details may be STALE.** For distilled experiment results, read
 | 0.7.0, 0.7.1, 0.7.2 | shipped | **ARCHIVED in place — stale** |
 | 0.8.0, 0.8.1, 0.8.2, 0.8.3 | shipped/closed | **ARCHIVED in place — stale** |
 | 0.8.4 | closed (GraphRAG SPLIT; Fork E re-opened) | **ARCHIVED in place** — see `dev/experiments-ledger.md` |
-| 0.8.5 | **IN FLIGHT** | LIVE — `0.8.5-ce-rerank-alpha-expose-slice.md`, `plan-0.8.4.md`, `prompts/0.8.x-RELEASE-ORCHESTRATOR-HANDOFF.md` |
+| 0.8.5 | historical | Retained in place; consult the live release-state JSON for current work. |
+| 0.8.23 | **IN FLIGHT** | LIVE — `plan-0.8.23.md`, `release-state-0.8.23.json`, and `runs/STATUS-0.8.23.md`. |
 
 Transient per-run artifacts (raw `*-output.json`, codex `*-review-*` logs, `.log`,
 checkpoints) under `runs/` were pruned by the ledger-prune (`scripts/repo-prune/prompts/prune-docs.md`) and are

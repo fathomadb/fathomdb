@@ -28,6 +28,7 @@ import {
   type NativeOpStoreRow,
   type NativePredicateInput,
   type NativeProjectionRuntimeStatus,
+  type NativeEmbeddingReadiness,
 } from "./binding.js";
 import { InvalidArgumentError, rethrowTyped } from "./errors.js";
 import { validateFfiString } from "./validation.js";
@@ -38,6 +39,7 @@ import type {
   FilterTerm,
   ProjectionRole,
   ProjectionRuntimeStatus,
+  EmbeddingReadiness,
   ProjectionSpec,
 } from "./index.js";
 
@@ -165,6 +167,16 @@ function toProjectionRuntimeStatus(n: NativeProjectionRuntimeStatus): Projection
       denseReadiness: entry.denseReadiness as ProjectionRuntimeStatus["projections"][number]["denseReadiness"],
     })),
     vectorUnsupportedKinds: n.vectorUnsupportedKinds,
+  };
+}
+
+function toEmbeddingReadiness(n: NativeEmbeddingReadiness): EmbeddingReadiness {
+  return {
+    state: n.state as EmbeddingReadiness["state"], usableEmbedder: n.usableEmbedder,
+    pendingCount: n.pendingCount, affectedKinds: n.affectedKinds,
+    code: (n.code ?? null) as EmbeddingReadiness["code"],
+    operation: (n.operation ?? null) as EmbeddingReadiness["operation"],
+    remediations: n.remediations, documentationUrl: n.documentationUrl ?? null,
   };
 }
 
@@ -401,5 +413,8 @@ export const read = {
     return toProjectionRuntimeStatus(
       await intercept(() => engine._native.readProjectionStatus()),
     );
+  },
+  async embeddingReadiness(engine: Engine): Promise<EmbeddingReadiness> {
+    return toEmbeddingReadiness(await intercept(() => engine._native.readEmbeddingReadiness()));
   },
 };

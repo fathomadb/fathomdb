@@ -1,0 +1,155 @@
+{
+  "phase": "0.8.23-slice-65",
+  "baseline_sha": "bf826c67",
+  "status": "CLOSED_UNATTRIBUTED_NO_REMEDY",
+  "status_record": "dev/plans/runs/0.8.23-slice-65-wal-attribution.md",
+  "design": "dev/design/0.8.23-wal-attribution-investigation.md",
+  "closure": {
+    "integrated_evidence_tip": "6b57557c",
+    "ruling": "CLOSED_UNATTRIBUTED_NO_REMEDY",
+    "independent_review": "Three enriched hosted-Windows binding jobs (95369168206, 95373316503, 95375745327) complete the 3/3 discriminator without identifying a holder or a Windows, Python-SDK, retry, binding-lifetime, or reader-pool cause.",
+    "behavior_change": "None: no production, public-surface, retry, pool, binding-lifetime, or error-behavior change is selected.",
+    "separate_scope": "Any optional diagnostic follow-on is separate scope; Slice 65 closure advances the release ladder to Slice 40."
+  },
+  "draft_disposition": {
+    "adjusted": [
+      "N23-WINDOWS-WAL",
+      "R23-WINDOWS-WAL-DIAGNOSIS",
+      "AC23-WINDOWS-WAL-DIAGNOSIS"
+    ],
+    "added_temporary": [
+      "N23-WAL-ATTRIBUTION",
+      "R23-WAL-ATTRIBUTION",
+      "AC23-WAL-ATTRIBUTION"
+    ],
+    "rejected_pending_evidence": [
+      "retry tuning or parameterization",
+      "binding finalizer/context-manager change",
+      "reader-pool restructuring",
+      "public diagnostics or error-shape expansion",
+      "Windows or antivirus root-cause assertion"
+    ]
+  },
+  "planned_experiments": [
+    "managed reader paused after snapshot",
+    "projection dispatcher/worker role completeness",
+    "installed Python SDK concurrent reader versus erase",
+    "completed retained Python result control",
+    "incident-shaped recovery/reopen/nested-erasure control",
+    "explicit close-boundary raw-checkpoint control",
+    "external child reader control"
+  ],
+  "implementation": {
+    "commit": "2583b908",
+    "production_behavior_changed": false,
+    "private_opt_in": "FATHOMDB_WAL_ATTRIBUTION=1; no public SDK/config/error field",
+    "implemented_controls": [
+      "in-crate managed Engine reader paused after a real SQLite WAL snapshot, with retained-record assertions",
+      "Slice 60 external raw child reader comparison",
+      "Windows retained artifact plus load-bearing workflow mutation test",
+      "retained materialized-result/live-idle Engine negative control",
+      "incident-shaped close/reopen/recovery-read/nested source erase plus deleted-root purge control",
+      "projection worker pause only after real BEGIN IMMEDIATE",
+      "installed current test-hooks Python public read.get reader-snapshot/erase control with post-snapshot-only barrier and exact retained records",
+      "installed current test-hooks Python retained materialized result with source-erase and root-purge idle-record control",
+      "released-0.8.22 versus current-source installed-wheel serial comparison",
+      "explicit old-Engine close followed by an independently opened and closed raw SQLite truncating checkpoint, plus fresh-open, read.get, and graph.neighbors siblings whose raw checkpoints run while their fresh managed writer connection remains open and collector-idle",
+      "private in-crate materialized-reader response-handoff barrier proving collector idle and a no-owned checkpoint before response delivery"
+    ],
+    "post_commit_follow_on": "APPROVED_DIAGNOSTIC_ONLY after hosted job 95294107824: the held-reader positive erase classified owned_reader_snapshot, but the next erase after release exhausted five busy attempts as unclassified_external with 198 frames. Log order did not prove SQLite COMMIT, and the current role list did not prove complete connection inventory. Commits 4152b222, Fix-N a98474ef, and Fix-N 5387a75a add only a private/test post-COMMIT acknowledgement, direct is_autocommit facts for writer/eight readers/dispatcher/two workers, separately retained idle collector roles, a live registry, and a test-only factory that is the sole Engine-source SQLite open. The factory classifies/counts writer, reader, dispatcher, worker, and temporary runtime-probe categories; the artifact emits expected-versus-actual creation counts. Independent raw samples are explicitly outside Engine. Any missing reply, live-registry/factory-count mismatch, non-autocommit connection, or non-idle collector emits post_commit_inventory=incomplete and fails the diagnostic; it is never an external-holder conclusion. The single existing fail-closed erase remains unchanged; TRUNCATE may mutate the isolated test WAL but never retries, relabels, or completes that erasure, and a clean sample is not an erasure/release pass. Any busy fixed pre-close sample mandates close/join and one fresh-child raw probe with a redacted outcome. The exact focused local Linux test passed with two clean samples and child outcome=not_required; this is not Windows attribution or remedy evidence. No retry, pool, binding, public surface, error, or remedy change is approved; hosted Windows execution is pending.",
+    "windows_execution": "PARTIALLY_VALIDATED: GitHub-hosted windows-latest job 95270599876 passed the focused managed-reader attribution control. Independent retained-log inspection confirmed five busy owned_reader_snapshot attempts for exact reader_worker:0, then a successful no_owned_snapshot after release. Run 31994135444, job 95282754203, additionally passed once the managed, retained, incident-shaped serial, projection, and four close-boundary Rust controls; direct, fresh-open, read_get, and neighbors raw checkpoints reported busy=0 and zero frame counters while the fresh Engine remained live where applicable. Job 95301703507 then passed the committed post-COMMIT diagnostic with matched expected/actual creation counts, direct autocommit facts for writer/eight readers/dispatcher/two workers, idle collector, two clean bounded pre-close raw samples, and child outcome=not_required. That controlled artifact is diagnostic only. The same job did not execute any current installed-wheel Python control: maturin-action ran in src/python and placed its relative output there, while PowerShell resolved the relative lookup at the workspace root and failed before current-wheel resolution, hash, install, serial, binding, or retained control. Fix-N now uses one explicit workspace-absolute output and workspace-derived literal-path lookup; hosted rerun remains pending. Job 95285220515 later passed the held-snapshot positive control but failed the retained-result Rust assertion because the pre-fix collector became idle after rather than before response send; review established this as a collector-boundary failure, not normal SDK reader, binding, retry, pool, Windows, or Memex evidence. Job 95320283953 then passed the current serial, installed native binding, and retained-result controls: the binding artifact retained exact held-reader records, direct reader_autocommit=1/collector=idle acknowledgement, complete inventory, clean raw and Engine-sampler observations, and child outcome=not_required; retained materialized result passed. It failed only afterward on a stale CI assertion for removed python_binding_snapshot_released. Fix-N RED b821caa0 and GREEN replace that artifact check with the exact completion acknowledgement and mutation-prove it load-bearing. Runs 32014441608/job 95340828268 and 32015551136/job 95344203972 then each retained a clean paired real checkpoint for both direct Rust and current installed Python: writer_autocommit=1, complete 12-role direct autocommit inventory, collector_roles=idle, checkpoint_begin_overlap=0, busy=0, log_frames=0, and checkpointed_frames=0 before clean completion. Job 95332307148 remains contrary variable evidence: current installed Python reached five unperturbed BUSY attempts with 25 frames after idle recovery reads. Neither record identifies its holder. This evidence does not attribute the Memex root cause; every remedy remains unapproved.",
+    "baseline_harness": "GitHub-hosted Windows job 95289111224 passed the selected Rust controls and built the current disposable test-hooks wheel. Its released 0.8.22 installed serial baseline then raised typed ErasureIncompleteError at wal_checkpoint on first nested source erase: all five truncates were busy and the final report had 25 WAL frames. Job 95291674186 then completed that released first source erase cleanly after recovery reads; the pre-refinement harness entered follow-on lifecycle before rejecting the unexpected result, so it is not an exact-one witness. The released wheel has no collector, so neither outcome is attribution, remedy evidence, or an erase pass. Fix-N RED ec393a01 and GREEN 45e13f39 execute exactly one first nested source erase: only validated typed WAL refusal is normalized as BASELINE_FIRST_ERASE/exit 65, or nodes_excised==1 clean completion as BASELINE_FIRST_ERASE/exit 66. The workflow accepts only exact matching marker/exit pairs, records OBSERVED_EXPECTED_ERASURE_INCOMPLETE or OBSERVED_CLEAN_SERIAL_COMPLETION, then continues to current required test-hooks serial/binding/retained controls. No retry, pool, binding, or product behavior changed; hosted rerun pending.",
+    "local_windows_vm": "CHRONOLOGY 2026-08-16: the first guest-local C:\\ci staging attempt failed before the focused test because Cargo was absent; its temporary staging was removed. Under later explicit HITL authority, a read-only check found C:\\projects\\fathomdb absent, then reviewed source ed09e538 was copied there without guest Git operations. Rustup 1.29.0, the pinned Cargo/Rustc 1.95.0 toolchain, and Visual Studio 2022 Build Tools 17.14.37 C++ x64 were provisioned. The focused attribution-enabled managed-reader source test passed (1 passed; 0 failed); its nonsecret 24,632-byte guest log remains at C:\\ci\\fathomdb-slice65-wal-attribution-20260816.log. The transfer archive was removed. This is early local evidence only, not hosted Windows closure. FOLLOW-ON GAP: the current documented guest was found through system libvirt, but strict SSH host-key verification had no matching pinned key in this host trust store; connection stopped before copy or test, and no trust record was changed or bypassed.",
+    "tdd": {
+      "red_commit": "ce0e8a8e",
+      "green_commit": "ae3b4b00",
+      "red_predicate": "all owned roles must be registered and idle before a no-owned classification",
+      "green_evidence": "managed reader control parses retained records: every busy attempt is owned_reader_snapshot for reader_worker:0; after its one typed refusal, owner-thread acknowledgement and exact idle inventory precede one bounded checkpoint-only sampler with a recorded busy-or-clean terminal, never a re-erase or retry",
+      "close_boundary": {
+        "red_commit": "5d2d3bd5",
+        "green_commit": "baf8fb08",
+        "red_predicate": "the independent raw close-boundary checkpoint helper is absent",
+        "local_source_result": "direct close was clean on Linux; Fix-N RED 8c1d1993 then required every fresh sibling's raw checkpoint before fresh close, and GREEN 4a63e561 proved only fresh closed=false, collector idle, and managed writer connection present at that point. direct close, fresh open, completed read.get, and completed graph.neighbors remained clean with redacted busy/frame counters. This is not Windows evidence or an attribution of recovery reads"
+      },
+      "wheel_ci_path": {
+        "red_commit": "2ab0dee0",
+        "red_predicate": "the installed-wheel job must discover exactly one root-level disposable test-hooks wheel, retain its resolved path and SHA-256, and install that exact path",
+        "green_evidence": "Fix-N RED b5e3dce4 and GREEN 76be4a8a require one explicit ${{ github.workspace }}/dist-slice65-test build output, a Join-Path $env:GITHUB_WORKSPACE directory, a literal missing-directory guard, and literal-path exactly-one lookup while preserving Resolve-Path, path/SHA-256 evidence, and no-index/no-dependencies install. Static contract and mutations pass; hosted rerun remains pending. Job 95301703507 had no current installed-wheel evidence because maturin-action ran in src/python and its relative output diverged from the naked workspace-relative PowerShell lookup."
+      },
+      "reader_handoff": {
+        "red_commit": "190ab04b",
+        "red_predicate": "a materialized read_get reply cannot be delivered while the collector still reports its dropped SQLite transaction as active",
+        "green_evidence": "local in-crate handoff control parks the worker before response send, observes no_owned_snapshot, completes a nonbusy erasure checkpoint, then releases the materialized record; hosted rerun pending",
+        "review_round_1": "RED f2990514 strengthens the private handoff witness with a nonblocking caller-result channel: while the pre-send barrier is held, try_recv must be Empty, so public read_get has not returned. Release must then deliver the materialized record. The Windows contract selects this exact test, rejects a zero-test command, requires its fixed redacted artifact marker, and mutation-tests all three assertions. No SDK or product behavior changed."
+      }
+    },
+  "incident_ladder_follow_on": {
+    "commission": "Job 95323862568 observed the direct-Rust close-old/fresh-read_get/graph_neighbors nested-source erase fail closed with typed ErasureIncomplete at wal_checkpoint after five BUSY attempts and 25 frames. Replace the prior clean-erase expectation with one private test-only incident checkpoint ladder: independent raw samples after old close, after complete fresh-read direct inventory plus collector idle, and after an explicit RuntimeProbe actual-drop acknowledgement before the one destructive erase. Raw samples do not retry, relabel, or complete that erase. A BUSY pre-erasure raw sample requires fresh close/join, one same-process raw sample, and exactly one native FathomDB/Rusqlite fresh-child raw sample. RuntimeProbe lifecycle facts must be complete before any external classification. Installed-Python serial clean and direct-Rust typed incident facts are distinct; disposition remains UNATTRIBUTED and no remedy is selected.",
+    "status": "IMPLEMENTED_LOCAL_NOT_HOSTED",
+    "green_evidence": "The focused Linux direct-Rust ladder passed with clean old-close, after-fresh-reads, and after-erasure-preflight raw samples, complete direct long-lived autocommit inventory, collector idle, RuntimeProbe actual-drop acknowledgements, and clean erase observation. This is not Windows evidence and does not select a remedy. The hosted Windows artifact must retain the typed-or-clean observation without retrying the erase."
+  },
+  "actual_checkpoint_follow_on": {
+    "commission": "Hosted Windows job 95332307148 rejected the pre-erase raw TRUNCATE/RuntimeProbe ladder as a primary discriminator: direct Rust was clean only after perturbing the WAL, while the current installed Python serial completed idle recovery reads and then reproduced the real five-attempt BUSY/25-frame erase. Commission only test/test-hooks around-the-real-checkpoint observation in the exact direct-Rust and current installed-Python serial paths.",
+    "requirements": [
+      "no raw TRUNCATE, RuntimeProbe, extra SQLite query/checkpoint, retry, timeout/backoff change, deletion, re-erase, or purge between recovery reads and the one original erase_source",
+      "for every existing complete_erasure_at_rest wal_checkpoint_truncate_once(false) invocation retain ordered before/after ordinal, direct writer and complete long-lived autocommit inventory, collector roles, existing overlap, elapsed, and real busy/frame outcome",
+      "hooks are absent from shipping builds; incomplete evidence remains UNATTRIBUTED",
+      "hosted CI exact-selects both controls, rejects zero selection, and static/mutation checks prove attachment to the real attempt and absence of the perturbing primary path"
+    ],
+    "status": "IMPLEMENTED_HOSTED_NORMAL_THRESHOLD_MET",
+    "green_evidence": "The exact direct-Rust control passed locally with paired before/after records attached to its one real erase attempt. A disposable test-hooks wheel installed into an isolated local environment passed the exact current Python serial control, retaining paired actual-attempt records and a clean observation. GitHub-hosted Windows runs 32014441608/job 95340828268 and 32015551136/job 95344203972 each retained a clean unperturbed paired real-attempt observation for direct Rust and current installed Python: writer_autocommit=1, complete 12-role direct autocommit inventory, collector_roles=idle, checkpoint_begin_overlap=0, busy=0, log_frames=0, and checkpointed_frames=0 before clean completion. Run 32023885702/job 95369168206 later retained a current serial clean observation, and run 32026073889/job 95375745327 retained the complete current serial observer with one clean actual attempt (elapsed_ms=19, zero busy/frame counters). Job 95332307148 remains contrary variable evidence: current installed Python had five unperturbed BUSY attempts with 25 frames after idle recovery reads. The normal serial is now four clean / one BUSY; its threshold is met but does not attribute Windows behavior or select a remedy, pending independent evidence decision."
+  },
+  "hosted_windows_actual_checkpoint_observation": {
+    "runs": ["32014441608", "32015551136", "32023885702", "32026073889"],
+    "jobs": ["95340828268", "95344203972", "95369168206", "95375745327"],
+    "classification": "UNATTRIBUTED",
+    "evidence": "Runs 32014441608/job 95340828268 and 32015551136/job 95344203972 retained paired clean unperturbed actual checkpoints for direct Rust and current installed Python: writer autocommit, complete 12-role direct autocommit inventory, idle collector, no local overlap, busy=0, and zero frame counters. Run 32023885702/job 95369168206 added a current serial clean observation. Run 32026073889/job 95375745327 retained the complete current serial actual observer clean in one attempt (elapsed_ms=19, zero busy/frame counters). Job 95332307148 remains contrary variable evidence: current installed Python had five unperturbed BUSY attempts with 25 frames after idle recovery reads, whereas its raw ladder was perturbing. The normal serial is four clean / one BUSY. Neither record identifies the busy holder.",
+    "remaining": "The normal-series threshold and distinct binding three-measurement gate are complete. Independent review closed Slice 65 UNATTRIBUTED with no remedy; any optional diagnostic is separate scope."
+  },
+  "hosted_windows_binding_post_release_observation": {
+    "run": "32015551136",
+    "job": "95344203972",
+    "classification": "UNATTRIBUTED",
+    "evidence": "The intentional held reader produced five owned_reader_snapshot reader_worker:0 BUSY attempts. After release, the direct completion acknowledgement retained reader_autocommit=1, collector=idle, and complete inventory. The following raw sample and same-Engine bounded sampler were BUSY; the sampler recorded five no_owned_snapshot attempts with 195 log frames and 176 checkpointed frames, and the second raw sample retained those values. A native FathomDB child raw probe was clean only after Engine.close. This is one variable live-Engine/process-lifetime-associated observation, not a Python binding result-lifetime conclusion or root-cause attribution.",
+    "measurement_rule": "Before any inference, three independently fresh hosted Windows binding-boundary measurements must preserve the held-reader, post-release acknowledgement/inventory, same-Engine raw and bounded-sampler, and post-close native-child facts. This is measurement one of that separate series."
+  },
+  "remaining_controls": [
+    "no remaining Slice 65 control: independent review closed the completed evidence UNATTRIBUTED with no remedy",
+    "optional diagnostic follow-on only under a separate commission"
+  ],
+  "native_state_follow_on": {
+    "commission": "N23-WAL-BINDING-NATIVE-STATE adds only private cfg(test)/test-hooks owner-thread native state around the existing binding checkpoint sampler: public Rusqlite autocommit, transaction_state(Some(\"main\")), is_busy, and received/timeout/error for exact writer:0, readers:0-7, dispatcher:0, workers:0-1. It adds no FFI, SQL, connection, checkpoint, retry, timeout/backoff, public API, binding-lifetime, pool, or erasure behavior.",
+    "series": "Normal actual checkpoint: 4 clean / 1 BUSY. Broad binding process-lifetime: 3 busy observations with native child clean after parent close / 2 clean observations. Both remain UNATTRIBUTED; enriched native-state is 3 / 3 fresh hosted-Windows measurements. Independent review closed the evidence with no remedy or landing behavior change.",
+    "acceptance": "Held actual snapshot proves auto=0 and txn=read (busy may vary); stepped Rows/Statement proves busy 1 then reset/drop 0; post-release all twelve exact managed roles are received, auto=1, txn=none, busy=0. Missing, duplicate, wrong, unavailable, timeout, error, or lock failure emits state_inventory=incomplete, preserves sampler checkpoint outcome, and fails the diagnostic without classification upgrade.",
+    "normal_serial_guard": "Only checkpoint_at_rest_for_test records ordered before/after state per sampler attempt. Direct-Rust and Python normal actual erasure serial observers remain untouched; static mutation tests reject any arm there. Fix-N restores their original boolean/autocommit runtime inventory and 2-second deadline; native state uses a separate 250-ms request slot created only by binding native_state_inventory_for_test.",
+    "windows_execution": "CLOSED_UNATTRIBUTED_NO_REMEDY: GitHub-hosted Windows run 32023885702/job 95369168206 is the first valid enriched repetition: its installed binding diagnostic retained exact twelve-role auto=1/txn=none/busy=0 post-release and sampler before/after facts, plus a clean raw/sampler result and child=not_required. Run 32025254670/job 95373316503 is the second: its binding completion acknowledgement was reader_autocommit=1 collector=idle, exact twelve-role inventory was idle, raw before/after was BUSY 195/176, its sampler recorded five complete before/after state attempts and final_busy=1, and its fresh child after Engine.close was clean 0/0. Run 32026073889/job 95375745327 is the third: completion acknowledgement and exact twelve-role inventory were idle, raw before/after was clean 0/0, one complete-state sampler attempt recorded final_busy=0, and child=not_required. Independent review closed the 3/3 threshold without holder attribution or a production remedy; optional diagnostics are separate scope.",
+    "hosted_repetition_one": "Run 32023885702/job 95369168206: managed reader and projection worker each retained one typed five-attempt owned BUSY positive, then completion acknowledgement, complete exact twelve-role native state, and a clean one-attempt sampler. The installed binding diagnostic supplies the counted native-state schema facts; the serial actual observer's clean elapsed_ms=2144 result does not.",
+    "hosted_repetition_two": "Run 32025254670/job 95373316503: managed reader retained its original typed five-record owned BUSY positive, completion acknowledgement, complete exact twelve-role inventory, and clean one-attempt sampler; projection worker retained the analogous original typed five-record owned BUSY positive, acknowledgement and inventory, then five attempts with a BUSY terminal. The counted binding diagnostic acknowledged reader_autocommit=1 collector=idle, recorded all twelve roles auto=1/txn=none/busy=0, raw BUSY 195/176 before and after five complete-state sampler attempts with final_busy=1, and a fresh after-Engine.close native child clean 0/0.",
+    "hosted_repetition_three": "Run 32026073889/job 95375745327: the counted binding diagnostic acknowledged reader_autocommit=1 collector=idle, recorded all twelve roles auto=1/txn=none/busy=0, raw clean 0/0 before and after one complete-state sampler attempt with final_busy=0, and child=not_required. This completes the 3/3 enriched threshold but does not attribute a holder or select a remedy or landing."
+  },
+  "managed_reader_fix_n": {
+    "hosted_job": "95358939125",
+    "truth": "The managed-reader positive retained the original typed ErasureIncomplete and five owned_reader_snapshot reader_worker:0 BUSY records, then the old test issued an invalid second erase after release and panicked on an unclassified 198/176 observation. This is test-design drift, not a native-state result, holder attribution, or remedy evidence.",
+    "series": "This invalid second erase did not enter the enriched native-state series; the valid counter is the closed 3 / 3 fresh hosted-Windows measurements, with no remedy selected.",
+    "replacement": "Exactly one original erase; true post-finish owner-thread auto=1/collector-idle acknowledgement; exact complete twelve-role native inventory; and one bounded existing checkpoint_at_rest_for_test sampler with before/after full state per attempt and a recorded busy-or-clean terminal. Incomplete observation fails the diagnostic; busy never changes the original typed refusal."
+  },
+  "projection_worker_fix_n": {
+    "hosted_job": "95364111593",
+    "truth": "The projection-worker positive retained one typed ErasureIncomplete and five owned_runtime_transaction projection_worker:0 BUSY records (179 log / 158 checkpointed frames), then the old test issued an invalid second erasure after release, retained five new unclassified BUSY records (217 / 158), and panicked. This is test-design drift, not a native-state result, holder attribution, or remedy evidence.",
+    "series": "This invalid second erasure did not enter the enriched native-state series; the valid counter is the closed 3 / 3 fresh hosted-Windows measurements, with no remedy selected.",
+    "replacement": "Exactly one original erasure; owner-thread projection-worker autocommit=1/collector-idle acknowledgement; exact complete twelve-role native inventory; and one bounded existing checkpoint_at_rest_for_test sampler with before/after full state per attempt and a recorded busy-or-clean terminal. Incomplete observation fails the diagnostic; sampler BUSY never changes the original typed refusal. No production retry, binding, reader-pool, public behavior, or erasure behavior changes."
+  }
+  },
+  "fix_n": {
+    "review_finding": "Projection dispatcher and worker SQLite connections were omitted from the owned-role model, and the retained-result RED wording encoded a false BUSY expectation.",
+    "resolution": "All Engine-owned roles carry indexed transaction/snapshot transitions; no-owned classification requires every reader and runtime role idle plus no local checkpoint overlap. The retained-result control expects zero owned transaction/snapshot with successful erasure, and RED is absence/misclassification of that diagnostic fact.",
+    "implementation_review_fix": "Fix-N `a5254b83` moves reader/runtime transitions from queued or whole-work phases to actual SQLite boundaries; the in-crate managed-reader witness parses buffered exact role/attempt records; and the pause hook is private rather than a shipped Rust API.",
+    "execution_review_fix": "Fix-N `ae3b4b00` uses the fully qualified lib-test path, fails CI when retained output does not prove one selected managed-reader test, and replaces SELECT 1 with a canonical-table query before snapshot acquisition.",
+    "round_1": "RED `819a281e`, GREEN `5be0346f`: replaces the pseudo-binding call with a public Python read.get thread paused only after real BEGIN DEFERRED plus canonical_nodes snapshot acquisition; adds installed-wheel retained materialized-result idle source-erase/root-purge records; makes the direct projection checkpoint assert the exact captured projection worker; and makes the current incident-shaped serial helper consume its private collector. CI records current HEAD/current-wheel SHA-256/released native SHA-256 and mutation-tests the identity guard. Linux disposable-wheel evidence is green; this has no hosted result yet.",
+    "round_2": "RED `de3bcc41`, GREEN `e2557b54`: current installed serial control now collector-asserts idle immediately after public read.get and separately after graph.neighbors; Rust serial source-erase and root-purge records are independently required nonempty, nonbusy, no-owned, and empty-role. CI retains both immediate-idle markers and fails an external-child selector that selects zero tests. Linux focused evidence is green; this has no hosted result yet."
+  },
+  "completion": {
+    "ref": "origin/release/0.8.23",
+    "main_integration": "PENDING"
+  }
+}

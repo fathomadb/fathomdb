@@ -95,6 +95,23 @@ fn long_run_enabled() -> bool {
     std::env::var_os("AGENT_LONG").is_some()
 }
 
+fn ac013_scale_treatment(value: Option<&str>) -> Option<&str> {
+    match value {
+        Some("process_cold") => Some("process_cold"),
+        Some("warm") => Some("warm"),
+        None => None,
+        Some(other) => {
+            panic!("invalid AC013_SCALE_TREATMENT={other}; expected process_cold or warm")
+        }
+    }
+}
+
+#[test]
+#[should_panic(expected = "invalid AC013_SCALE_TREATMENT")]
+fn ac013_scale_treatment_rejects_invalid_value() {
+    let _ = ac013_scale_treatment(Some("legacy"));
+}
+
 fn ac020_queries() -> [&'static str; 4] {
     ["semantic-0", "hybrid-0", "semantic-1", "hybrid-1"]
 }
@@ -432,7 +449,12 @@ impl Embedder for VaryingEmbedder {
 /// Returns elapsed seed time. Bodies double as both FTS5 documents and
 /// the input to the embedder, so the same fixture supports AC-019's
 /// FTS+vector mixed workload.
-fn seed_ac013_corpus(engine: &Engine, n: usize) -> Duration {
+struct Ac013SeedMetrics {
+    seed_write: Duration,
+    projection_drain: Duration,
+}
+
+fn seed_ac013_corpus(engine: &Engine, n: usize) -> Ac013SeedMetrics {
     const BATCH: usize = 1024;
     let vocab = perf_vocab();
     let cumulative = zipf_cumulative(vocab.len());
@@ -464,12 +486,14 @@ fn seed_ac013_corpus(engine: &Engine, n: usize) -> Duration {
     // `Err(Scheduler)` = wait_for_idle timeout, NOT a wedge, at the 1.8M ms
     // default). Canonical CI keeps the default; a local maintainer running
     // N=1M sets AC013_DRAIN_TIMEOUT_MS to budget the longer drain.
+    let seed_write = started.elapsed();
     let drain_ms: u64 = std::env::var("AC013_DRAIN_TIMEOUT_MS")
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(1_800_000);
+    let drain_started = Instant::now();
     engine.drain(drain_ms).expect("ac-013 drain");
-    started.elapsed()
+    Ac013SeedMetrics { seed_write, projection_drain: drain_started.elapsed() }
 }
 
 /// Build a held-out reproducible query set drawn from the same
@@ -616,8 +640,27 @@ fn ac_013_vector_retrieval_latency() {
     let embedder = Arc::new(VaryingEmbedder::new(retrieval_vector_dim()));
     let opened = Engine::open_with_embedder_for_test(&path, embedder).expect("open");
     let seed_elapsed = seed_ac013_corpus(&opened.engine, n);
+    let vector_rows_after_drain =
+        opened.engine.vector_row_count_for_test().expect("vector rows after drain");
+    assert_eq!(
+        vector_rows_after_drain, n as u64,
+        "drain must materialize every accepted vector row"
+    );
 
     let queries = ac013_query_bodies(PERF_SAMPLES);
+    let treatment_env = std::env::var("AC013_SCALE_TREATMENT").ok();
+    let treatment = ac013_scale_treatment(treatment_env.as_deref());
+    if treatment == Some("process_cold") {
+        let started = Instant::now();
+        let result = opened.engine.search(&queries[0]).expect("cold first search");
+        eprintln!(
+            "AC013_TREATMENT_RECORD treatment=process_cold n={n} seed_write_ms={} embedding_ms=not_separately_observable projection_drain_ms={} accepted_writes={n} vector_rows_after_drain={vector_rows_after_drain} drain_outcome=ok samples_us={} result_counts={}",
+            seed_elapsed.seed_write.as_millis(),
+            seed_elapsed.projection_drain.as_millis(),
+            started.elapsed().as_micros(), result.results.len(),
+        );
+        return;
+    }
 
     for q in &queries {
         let _ = opened.engine.search(q).expect("warmup search");
@@ -635,10 +678,21 @@ fn ac_013_vector_retrieval_latency() {
     eprintln!(
         "AC013_NUMBERS n={n} samples={s} seed_ms={seed} p50_ms={p50} p99_ms={p99}",
         s = samples.len(),
-        seed = seed_elapsed.as_millis(),
+        seed = (seed_elapsed.seed_write + seed_elapsed.projection_drain).as_millis(),
         p50 = p50.as_millis(),
         p99 = p99.as_millis(),
     );
+    if treatment == Some("warm") {
+        let raw_samples = samples
+            .iter()
+            .map(|sample| sample.as_micros().to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        eprintln!(
+            "AC013_TREATMENT_RECORD treatment=warm n={n} seed_write_ms={} embedding_ms=not_separately_observable projection_drain_ms={} accepted_writes={n} vector_rows_after_drain={vector_rows_after_drain} drain_outcome=ok samples_us={raw_samples} result_counts=not_retained_per_query",
+            seed_elapsed.seed_write.as_millis(), seed_elapsed.projection_drain.as_millis(),
+        );
+    }
 
     // Tiered budget: binding gate only at the 10k tier (0.x/1.x); 100k and 1M
     // are tracked post-1.0 targets (O(N) bit-KNN scan; ANN-index work). See
@@ -1011,6 +1065,7 @@ fn ac_019_mixed_retrieval_stress_workload_tail() {
     // captured by re-running AC-013's protocol immediately preceding
     // this AC in the same CI job").
     let queries = ac013_query_bodies(PERF_SAMPLES);
+
     for q in &queries {
         let _ = opened.engine.search(q).expect("baseline warmup");
     }
@@ -1072,7 +1127,7 @@ fn ac_019_mixed_retrieval_stress_workload_tail() {
         t = AC019_THREADS,
         p = AC019_QUERIES_PER_THREAD,
         se = stress_elapsed.as_millis(),
-        seed = seed_elapsed.as_millis(),
+        seed = (seed_elapsed.seed_write + seed_elapsed.projection_drain).as_millis(),
         bp = baseline_p99.as_millis(),
         sp = stress_p99.as_millis(),
         bm = bound.as_millis(),

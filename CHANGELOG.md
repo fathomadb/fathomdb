@@ -16,12 +16,23 @@ AC-050c) gates merges against this invariant.
 
 ### Added
 
+- Strict, independently configurable CPU/CUDA runtime policy for embeddings and
+  cross-encoder reranking, including typed forced-device failures and resolver
+  diagnostics.
+- CUDA preflight, installed-artifact rehearsal, and candidate-provenance
+  controls for the non-publishing protected-runner dry-run route.
+- Jetson Orin and Linux x64 CUDA witness support, including allocation/device
+  identity records and cache-bound driverless CPU smokes.
 - CUDA-capable Linux x64 Python and npm native binaries under the standard
-  `fathomdb` package names, with the existing Linux aarch64/Tegra CUDA path
-  retained.
+  `fathomdb` package names, while retaining the existing Linux aarch64/Tegra
+  CUDA path.
 
 ### Changed
 
+- Embedding and reranking may independently resolve CPU or CUDA at runtime;
+  they can share a selected GPU and no device-reservation scheduler is implied.
+- Windows WAL attribution and reader-pool readiness diagnostics gained
+  deterministic isolation controls without changing the public data model.
 - The release workflow builds the normal Linux x64 package artifacts with CUDA
   before the existing PyPI and npm publishers run.
 

@@ -137,15 +137,16 @@ receipt = engine.write([
 ### `engine.search(query, filter=None, *, rerank_depth=0, use_graph_arm=False, alpha=None, pool_n=None, limit=10) -> SearchResult`
 
 Run hybrid retrieval (FTS5 + vector) for `query`, ranked by **G9 RRF fusion**,
-with optional CPU cross-encoder reranking (0.8.1 R1) and optional graph-BFS
-third arm (0.8.1 R3).
+with optional cross-encoder reranking (0.8.1 R1) and optional graph-BFS third
+arm (0.8.1 R3).
 
 - `query` (`str`).
 - `filter` ([`SearchFilter`](#searchfilter) | `None`) — optional closed metadata
   filter. `None` (or an all-`None` filter) is the unfiltered path.
 - `rerank_depth` (`int`, default `0`) — 0.8.1 R1 opt-in. `0` (default) uses the
   identity / soft-fallback path: byte-identical to the pre-0.8.1 fused order.
-  `N > 0` applies a CPU cross-encoder (TinyBERT-L-2, ≈4 MB, p50 ≈ 1.5 ms/pair)
+  `N > 0` applies a cross-encoder (TinyBERT-L-2, ≈4 MB; latency depends on
+  the selected CPU/CUDA runtime and workload)
   over the top-N fused hits using score-blend (α=0.3 × CE + 0.7 × RRF-norm).
   Must be a non-negative integer; negative values raise `ValueError`. In the
   default build (no `default-reranker` feature), depth > 0 returns the identity
@@ -687,10 +688,17 @@ The lifecycle / erasure verbs raise `IllegalTransitionError`,
 ## Embedder device (GPU)
 
 There is **no Python API** for selecting the embedder device — it is chosen by a
-build-time cargo feature (`embed-cuda` / `embed-metal`) plus the
-`FATHOMDB_EMBED_DEVICE` environment variable (`cpu` default · `cuda` · `cuda:N` ·
-`metal`), resolved when the engine opens. The default (CPU) behavior is
-unchanged. See [Default Embedder → GPU acceleration](../embedder.md#gpu-acceleration-opt-in).
+artifact capability plus the `FATHOMDB_EMBED_DEVICE` environment variable
+(`auto` · `cpu` · `cuda:N`), resolved when the engine opens. Unset is `auto` only on a CUDA-capable artifact; a CPU-only artifact reports
+`cuda_not_compiled`. `auto` records a typed CPU result when CUDA is
+unavailable; forced `cuda:N` fails rather than falling back. End users of a
+CUDA-capable package do not rebuild to switch between CPU and GPU. See
+[Default Embedder → GPU acceleration](../embedder.md#gpu-acceleration-opt-in).
+
+`FATHOMDB_RERANK_DEVICE` independently selects TinyBERT CE with the same
+`auto` · `cpu` · `cuda:N` grammar. Both model paths may select the same GPU;
+this does not make SQLite retrieval, FTS, fusion, graph, or storage GPU work,
+and FathomDB provides no GPU reservation or hard memory cap.
 
 ## See also
 

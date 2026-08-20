@@ -18,7 +18,7 @@
 //!
 //! - **Hybrid retrieval.** A vector branch and an FTS5 branch, fused by
 //!   Reciprocal Rank Fusion on ordinal *rank* (never on raw, non-comparable
-//!   scores), with an optional CPU cross-encoder rerank and an optional
+//!   scores), with an optional cross-encoder rerank and an optional
 //!   graph-BFS third arm over temporal fact edges.
 //! - **Canonical rows + projections.** Writes land as durable canonical rows;
 //!   FTS, vector and attribute indexes are engine-maintained projections
@@ -46,6 +46,332 @@
 
 pub mod lifecycle;
 mod pcache2;
+#[cfg(feature = "tc5-benchmark")]
+pub mod tc5_benchmark;
+
+/// Slice 72's private trusted-runner rendezvous. This is compiled only by the
+/// non-shipped characterization feature and exists solely to delimit real CE
+/// forwards against a test wrapper around the real BGE embedder.
+#[cfg(feature = "slice72-test-hooks")]
+#[doc(hidden)]
+pub mod slice72_test_hooks {
+    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+    use std::sync::{Arc, Condvar, Mutex};
+    use std::thread;
+    use std::time::{Duration, Instant};
+
+    const RENDEZVOUS_TIMEOUT: Duration = Duration::from_secs(15);
+    static CE_RENDEZVOUS: Mutex<Option<Arc<ForwardRendezvous>>> = Mutex::new(None);
+
+    #[derive(Default)]
+    struct Arrival {
+        bge_ready: bool,
+        ce_ready: bool,
+    }
+
+    /// Actual-forward timestamps captured by a Slice 72 rendezvous.
+    #[derive(Clone, Copy, Debug)]
+    pub struct ForwardIntervals {
+        bge_start_ns: u64,
+        bge_end_ns: u64,
+        ce_start_ns: u64,
+        ce_end_ns: u64,
+        timed_out: bool,
+    }
+
+    /// Result of a deterministic rendezvous fixture. It preserves the old
+    /// overlap predicate while making attempted reuse observable to tests.
+    pub struct ForwardRun {
+        result: Result<ForwardIntervals, &'static str>,
+        active_overlap_sample_timestamp: Option<u64>,
+    }
+
+    impl ForwardRun {
+        #[must_use]
+        pub fn overlaps(&self) -> bool {
+            self.result.as_ref().is_ok_and(|intervals| intervals.overlaps())
+        }
+
+        #[must_use]
+        pub fn is_err(&self) -> bool {
+            self.result.is_err()
+        }
+
+        /// The host timestamp captured while both deterministic fixture
+        /// forwards remained active.
+        #[must_use]
+        pub fn active_overlap_sample_timestamp(&self) -> Option<u64> {
+            self.active_overlap_sample_timestamp
+        }
+    }
+
+    impl ForwardIntervals {
+        /// True only when the actual BGE and CE forward intervals overlap.
+        #[must_use]
+        pub fn overlaps(self) -> bool {
+            !self.timed_out
+                && self.bge_start_ns < self.ce_end_ns
+                && self.ce_start_ns < self.bge_end_ns
+        }
+    }
+
+    /// One bounded, single-use rendezvous between a test BGE wrapper and the
+    /// CE `score_batch` forward boundary.
+    pub struct ForwardRendezvous {
+        started: Instant,
+        arrival: Mutex<Arrival>,
+        arrived: Condvar,
+        timed_out: AtomicBool,
+        bge_start_ns: AtomicU64,
+        bge_end_ns: AtomicU64,
+        ce_start_ns: AtomicU64,
+        ce_end_ns: AtomicU64,
+        bge_active: AtomicBool,
+        ce_active: AtomicBool,
+        bge_claimed: AtomicBool,
+        ce_claimed: AtomicBool,
+        capture_count: AtomicU64,
+        fixture_claimed: AtomicBool,
+    }
+
+    impl ForwardRendezvous {
+        /// Creates an unarmed rendezvous. It becomes visible to CE only through
+        /// [`install_ce_forward_rendezvous`].
+        #[must_use]
+        pub fn new() -> Arc<Self> {
+            Self::new_for_run(Instant::now())
+        }
+
+        /// Creates an unarmed rendezvous on a trusted runner's receipt clock.
+        ///
+        /// The hardware harness samples before model warm-up, so its later
+        /// real-forward timestamps must retain that same origin rather than
+        /// restarting at rendezvous construction.
+        #[must_use]
+        pub fn new_for_run(started: Instant) -> Arc<Self> {
+            Arc::new(Self {
+                started,
+                arrival: Mutex::new(Arrival::default()),
+                arrived: Condvar::new(),
+                timed_out: AtomicBool::new(false),
+                bge_start_ns: AtomicU64::new(0),
+                bge_end_ns: AtomicU64::new(0),
+                ce_start_ns: AtomicU64::new(0),
+                ce_end_ns: AtomicU64::new(0),
+                bge_active: AtomicBool::new(false),
+                ce_active: AtomicBool::new(false),
+                bge_claimed: AtomicBool::new(false),
+                ce_claimed: AtomicBool::new(false),
+                capture_count: AtomicU64::new(0),
+                fixture_claimed: AtomicBool::new(false),
+            })
+        }
+
+        fn stamp_ns(&self) -> u64 {
+            u64::try_from(self.started.elapsed().as_nanos()).unwrap_or(u64::MAX)
+        }
+
+        fn meet(&self, bge: bool) {
+            let mut arrival = self.arrival.lock().expect("Slice 72 rendezvous lock");
+            if bge {
+                arrival.bge_ready = true;
+            } else {
+                arrival.ce_ready = true;
+            }
+            self.arrived.notify_all();
+            let wait = self.arrived.wait_timeout_while(arrival, RENDEZVOUS_TIMEOUT, |state| {
+                !(state.bge_ready && state.ce_ready)
+            });
+            match wait {
+                Ok((_, timeout)) if timeout.timed_out() => {
+                    self.timed_out.store(true, Ordering::Release);
+                }
+                Err(_) => self.timed_out.store(true, Ordering::Release),
+                _ => {}
+            }
+        }
+
+        /// Runs an actual BGE forward immediately after the two-party
+        /// rendezvous and records only the actual-forward interval.
+        pub fn run_bge_forward<T>(&self, operation: impl FnOnce() -> T) -> T {
+            if self
+                .bge_claimed
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                .is_err()
+            {
+                return operation();
+            }
+            self.meet(true);
+            self.bge_start_ns.store(self.stamp_ns(), Ordering::Release);
+            self.bge_active.store(true, Ordering::Release);
+            let result = operation();
+            self.bge_active.store(false, Ordering::Release);
+            self.bge_end_ns.store(self.stamp_ns(), Ordering::Release);
+            self.finish_capture();
+            result
+        }
+
+        fn run_ce_forward<T>(&self, operation: impl FnOnce() -> T) -> T {
+            if self
+                .ce_claimed
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                .is_err()
+            {
+                return operation();
+            }
+            self.meet(false);
+            self.ce_start_ns.store(self.stamp_ns(), Ordering::Release);
+            self.ce_active.store(true, Ordering::Release);
+            let result = operation();
+            self.ce_active.store(false, Ordering::Release);
+            self.ce_end_ns.store(self.stamp_ns(), Ordering::Release);
+            self.finish_capture();
+            result
+        }
+
+        fn finish_capture(&self) {
+            if self.bge_end_ns.load(Ordering::Acquire) != 0
+                && self.ce_end_ns.load(Ordering::Acquire) != 0
+            {
+                let _ =
+                    self.capture_count.compare_exchange(0, 1, Ordering::AcqRel, Ordering::Acquire);
+            }
+        }
+
+        /// Number of complete BGE/CE forward interval captures. It can only be
+        /// zero or one for a rendezvous instance.
+        #[must_use]
+        pub fn capture_count(&self) -> u64 {
+            self.capture_count.load(Ordering::Acquire)
+        }
+
+        /// Captures a monotonic timestamp only after both claimed real forwards
+        /// are active. The returned value is inside both recorded intervals.
+        #[must_use]
+        pub fn active_overlap_sample_timestamp(&self) -> Option<u64> {
+            if self.bge_active.load(Ordering::Acquire) && self.ce_active.load(Ordering::Acquire) {
+                return Some(self.stamp_ns());
+            }
+            None
+        }
+
+        /// Verifies that a telemetry timestamp belongs to the one actual
+        /// captured BGE/CE overlap interval.
+        #[must_use]
+        pub fn timestamp_is_within_captured_overlap(&self, timestamp_ns: u64) -> bool {
+            let intervals = self.intervals();
+            self.capture_count() == 1
+                && intervals.overlaps()
+                && timestamp_ns >= intervals.bge_start_ns
+                && timestamp_ns <= intervals.bge_end_ns
+                && timestamp_ns >= intervals.ce_start_ns
+                && timestamp_ns <= intervals.ce_end_ns
+        }
+
+        /// Waits until both real forward calls are active so a test-only sensor
+        /// sample can begin during their overlap window.
+        pub fn wait_for_active_overlap(&self, timeout: Duration) -> bool {
+            let deadline = Instant::now() + timeout;
+            while Instant::now() < deadline {
+                if self.bge_active.load(Ordering::Acquire) && self.ce_active.load(Ordering::Acquire)
+                {
+                    return true;
+                }
+                thread::yield_now();
+            }
+            false
+        }
+
+        /// Returns the actual-forward timestamps; callers must require
+        /// [`ForwardIntervals::overlaps`] before claiming concurrent execution.
+        #[must_use]
+        pub fn intervals(&self) -> ForwardIntervals {
+            ForwardIntervals {
+                bge_start_ns: self.bge_start_ns.load(Ordering::Acquire),
+                bge_end_ns: self.bge_end_ns.load(Ordering::Acquire),
+                ce_start_ns: self.ce_start_ns.load(Ordering::Acquire),
+                ce_end_ns: self.ce_end_ns.load(Ordering::Acquire),
+                timed_out: self.timed_out.load(Ordering::Acquire),
+            }
+        }
+
+        /// Deterministic mechanism fixture for the test contract. Real
+        /// characterization uses [`run_bge_forward`](Self::run_bge_forward) and
+        /// the CE boundary, not this fixture.
+        #[must_use]
+        pub fn run_contract_fixture(self: &Arc<Self>) -> ForwardRun {
+            if self
+                .fixture_claimed
+                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+                .is_err()
+            {
+                return ForwardRun {
+                    result: Err("Slice 72 rendezvous is single-use"),
+                    active_overlap_sample_timestamp: None,
+                };
+            }
+            let bge = Arc::clone(self);
+            let ce = Arc::clone(self);
+            let bge_thread = thread::spawn(move || {
+                bge.run_bge_forward(|| thread::sleep(Duration::from_millis(1)))
+            });
+            let ce_thread = thread::spawn(move || {
+                ce.run_ce_forward(|| thread::sleep(Duration::from_millis(1)))
+            });
+            let active_overlap_sample_timestamp = self
+                .wait_for_active_overlap(RENDEZVOUS_TIMEOUT)
+                .then(|| self.active_overlap_sample_timestamp())
+                .flatten();
+            bge_thread.join().expect("BGE contract fixture joins");
+            ce_thread.join().expect("CE contract fixture joins");
+            ForwardRun { result: Ok(self.intervals()), active_overlap_sample_timestamp }
+        }
+    }
+
+    /// Installs a rendezvous for one concurrent operation and removes it when
+    /// the returned guard drops. Warm-up must happen before installation.
+    pub fn install_ce_forward_rendezvous(
+        rendezvous: Arc<ForwardRendezvous>,
+    ) -> Result<InstalledForwardRendezvous, &'static str> {
+        let mut active = CE_RENDEZVOUS.lock().map_err(|_| "Slice 72 hook lock poisoned")?;
+        if active.is_some() {
+            return Err("Slice 72 CE forward hook is already installed");
+        }
+        *active = Some(rendezvous.clone());
+        Ok(InstalledForwardRendezvous { rendezvous })
+    }
+
+    /// RAII guard for one installed CE-forward rendezvous.
+    pub struct InstalledForwardRendezvous {
+        rendezvous: Arc<ForwardRendezvous>,
+    }
+
+    impl Drop for InstalledForwardRendezvous {
+        fn drop(&mut self) {
+            if let Ok(mut active) = CE_RENDEZVOUS.lock() {
+                if active.as_ref().is_some_and(|current| Arc::ptr_eq(current, &self.rendezvous)) {
+                    *active = None;
+                }
+            }
+        }
+    }
+
+    /// Wraps the real CE forward only while a trusted-runner test has armed its
+    /// rendezvous. Normal builds compile this module out entirely.
+    pub fn with_ce_forward<T>(operation: impl FnOnce() -> T) -> T {
+        let rendezvous = CE_RENDEZVOUS.lock().ok().and_then(|active| active.clone());
+        match rendezvous {
+            Some(rendezvous) => rendezvous.run_ce_forward(operation),
+            None => operation(),
+        }
+    }
+
+    #[cfg(test)]
+    #[test]
+    fn contract_fixture_records_actual_forward_overlap() {
+        assert!(ForwardRendezvous::new().run_contract_fixture().overlaps());
+    }
+}
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::error::Error;
@@ -56,14 +382,17 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender};
-#[cfg(debug_assertions)]
+#[cfg(any(debug_assertions, feature = "test-hooks"))]
 use std::sync::Barrier;
 use std::sync::Once;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use fathomdb_embedder::EmbedderEvent;
+use fathomdb_embedder::{
+    DeviceResolution, EmbedDevicePolicyError, EmbedderEvent, GpuAllocationWitness,
+    RerankerDevicePolicyError, RerankerDeviceResolution,
+};
 // `MeanRecomputeTrigger` is used only by the operator-gated `recompute_mean`.
 #[cfg(feature = "operator")]
 use fathomdb_embedder::MeanRecomputeTrigger;
@@ -77,6 +406,8 @@ use fathomdb_schema::{
 #[cfg(feature = "operator")]
 use fathomdb_schema::CANONICAL_TABLES;
 use jsonschema::JSONSchema;
+#[cfg(any(test, feature = "test-hooks"))]
+use rusqlite::TransactionState;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde_json::Value;
 // `sha2::Digest` + `sha2::Sha256` — used by `safe_export` (operator-gated)
@@ -361,6 +692,25 @@ pub struct Engine {
     runtime_embedder: Option<Arc<dyn Embedder>>,
     runtime_embedder_identity: EmbedderIdentity,
     projection_runtime: ProjectionRuntime,
+    /// Slice 65 — private, opt-in owner attribution for WAL checkpoint
+    /// investigations. It never enters the SDK surface or `EngineError`.
+    wal_attribution: Arc<WalAttributionCollector>,
+    /// Slice 65 Fix-N: test-only audited inventory of every live Engine-owned
+    /// SQLite connection. It is absent from production and binding builds.
+    #[cfg(any(test, feature = "test-hooks"))]
+    managed_connections: Arc<ManagedConnectionRegistry>,
+    #[cfg(any(test, feature = "test-hooks"))]
+    writer_connection_registration: Mutex<Option<ManagedConnectionRegistration>>,
+    /// Slice 65 follow-on: private observations attached to actual erasure
+    /// checkpoint attempts. This is absent from shipping builds and never
+    /// changes an erasure outcome or retry policy.
+    #[cfg(any(test, feature = "test-hooks"))]
+    actual_checkpoint_observations: Mutex<Option<ActualCheckpointObserver>>,
+    /// Slice 65 N23-WAL-BINDING-NATIVE-STATE: private observations around the
+    /// existing test-hook sampler only. This never arms the normal erasure
+    /// observer and never changes a checkpoint result.
+    #[cfg(any(test, feature = "test-hooks"))]
+    binding_native_state_observations: Mutex<Option<BindingNativeStateObserver>>,
     provenance_row_cap: AtomicU64,
     /// Per-connection profile-callback contexts. Each box's pointer is
     /// installed into the connection's `sqlite3_profile` userdata; the
@@ -452,6 +802,13 @@ struct ProjectionRuntimeShared {
     /// Host-owned lifecycle diagnostics for worker failures, which occur on
     /// background connections rather than through an `Engine` method call.
     subscribers: Arc<lifecycle::SubscriberRegistry>,
+    wal_attribution: Arc<WalAttributionCollector>,
+    #[cfg(any(test, feature = "test-hooks"))]
+    managed_connections: Arc<ManagedConnectionRegistry>,
+    #[cfg(any(test, feature = "test-hooks"))]
+    runtime_inventory_request: Mutex<Option<RuntimeConnectionInventoryRequest>>,
+    #[cfg(any(test, feature = "test-hooks"))]
+    runtime_native_state_request: Mutex<Option<RuntimeNativeStateRequest>>,
     state: Mutex<ProjectionRuntimeState>,
     state_cvar: Condvar,
     queue: Mutex<VecDeque<ProjectionJob>>,
@@ -591,6 +948,11 @@ struct ProjectionRuntimeShared {
     /// for the next open rather than relying on an in-memory retry queue.
     #[cfg(debug_assertions)]
     projection_commit_failure_pause: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
+    /// Slice 65: test-only rendezvous after a projection worker acquires its
+    /// real `BEGIN IMMEDIATE` transaction. It must not report queued work as a
+    /// live transaction.
+    #[cfg(debug_assertions)]
+    projection_worker_transaction_pause: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
     /// TC-91 test-only acknowledgement after `stopping` is set and before a
     /// close joins workers, used with `projection_commit_failure_pause`.
     #[cfg(debug_assertions)]
@@ -611,6 +973,182 @@ struct ProjectionRuntime {
     shared: Arc<ProjectionRuntimeShared>,
     dispatcher: Mutex<Option<JoinHandle<()>>>,
     workers: Mutex<Vec<JoinHandle<()>>>,
+}
+
+/// Test-only live-connection audit. Each long-lived Engine connection acquires
+/// one registration after its actual SQLite handle exists and drops it when the
+/// handle leaves service; an incomplete registry is a diagnostic failure, never
+/// evidence of an external WAL holder.
+#[cfg(any(test, feature = "test-hooks"))]
+#[derive(Default)]
+struct ManagedConnectionRegistry {
+    live: Mutex<BTreeSet<(WalAttributionRole, usize)>>,
+    opens: Mutex<BTreeMap<ManagedConnectionCategory, usize>>,
+    #[cfg(test)]
+    runtime_probe_lifecycle: Mutex<RuntimeProbeLifecycle>,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum ManagedConnectionCategory {
+    Writer,
+    ReaderWorker,
+    ProjectionDispatcher,
+    ProjectionWorker,
+    RuntimeProbe,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+struct ManagedConnectionRegistration {
+    registry: Arc<ManagedConnectionRegistry>,
+    role: WalAttributionRole,
+    index: usize,
+}
+
+/// Private lifecycle facts for an independent diagnostic probe. A probe is
+/// useful only after its native SQLite connection has actually been dropped;
+/// an implicit drop is deliberately retained as incomplete rather than being
+/// mistaken for an external holder.
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Default)]
+struct RuntimeProbeLifecycle {
+    live: usize,
+    actual_drops: usize,
+    incomplete_drops: usize,
+}
+
+#[cfg(test)]
+struct RuntimeProbeRegistration {
+    registry: Arc<ManagedConnectionRegistry>,
+    acknowledged: bool,
+}
+
+#[cfg(test)]
+struct RuntimeProbeConnection {
+    connection: Option<Connection>,
+    registration: RuntimeProbeRegistration,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+impl ManagedConnectionRegistry {
+    fn register(
+        self: &Arc<Self>,
+        role: WalAttributionRole,
+        index: usize,
+    ) -> ManagedConnectionRegistration {
+        let inserted = self.live.lock().expect("managed connection registry").insert((role, index));
+        assert!(inserted, "duplicate managed connection registration for {}:{index}", role.name());
+        ManagedConnectionRegistration { registry: Arc::clone(self), role, index }
+    }
+
+    fn exact_live(&self) -> bool {
+        let expected = BTreeSet::from([
+            (WalAttributionRole::Writer, 0),
+            (WalAttributionRole::ProjectionDispatcher, 0),
+            (WalAttributionRole::ProjectionWorker, 0),
+            (WalAttributionRole::ProjectionWorker, 1),
+            (WalAttributionRole::ReaderWorker, 0),
+            (WalAttributionRole::ReaderWorker, 1),
+            (WalAttributionRole::ReaderWorker, 2),
+            (WalAttributionRole::ReaderWorker, 3),
+            (WalAttributionRole::ReaderWorker, 4),
+            (WalAttributionRole::ReaderWorker, 5),
+            (WalAttributionRole::ReaderWorker, 6),
+            (WalAttributionRole::ReaderWorker, 7),
+        ]);
+        self.live.lock().map(|live| *live == expected).unwrap_or(false)
+    }
+
+    fn record_open(&self, category: ManagedConnectionCategory) {
+        let mut opens = self.opens.lock().expect("managed connection open audit");
+        *opens.entry(category).or_default() += 1;
+    }
+
+    fn creation_counts(&self) -> Option<(usize, usize, usize, usize, usize)> {
+        let opens = self.opens.lock().ok()?;
+        Some((
+            *opens.get(&ManagedConnectionCategory::Writer).unwrap_or(&0),
+            *opens.get(&ManagedConnectionCategory::ReaderWorker).unwrap_or(&0),
+            *opens.get(&ManagedConnectionCategory::ProjectionDispatcher).unwrap_or(&0),
+            *opens.get(&ManagedConnectionCategory::ProjectionWorker).unwrap_or(&0),
+            *opens.get(&ManagedConnectionCategory::RuntimeProbe).unwrap_or(&0),
+        ))
+    }
+
+    #[cfg(test)]
+    fn register_runtime_probe(self: &Arc<Self>) -> RuntimeProbeRegistration {
+        let mut lifecycle = self.runtime_probe_lifecycle.lock().expect("runtime probe lifecycle");
+        lifecycle.live += 1;
+        RuntimeProbeRegistration { registry: Arc::clone(self), acknowledged: false }
+    }
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+impl Drop for ManagedConnectionRegistration {
+    fn drop(&mut self) {
+        if let Ok(mut live) = self.registry.live.lock() {
+            live.remove(&(self.role, self.index));
+        }
+    }
+}
+
+#[cfg(test)]
+impl RuntimeProbeRegistration {
+    fn acknowledge_actual_drop(&mut self) -> RuntimeProbeLifecycle {
+        let mut lifecycle =
+            self.registry.runtime_probe_lifecycle.lock().expect("runtime probe lifecycle");
+        assert!(lifecycle.live > 0, "runtime probe acknowledgement without a live probe");
+        lifecycle.live -= 1;
+        lifecycle.actual_drops += 1;
+        self.acknowledged = true;
+        *lifecycle
+    }
+}
+
+#[cfg(test)]
+impl Drop for RuntimeProbeRegistration {
+    fn drop(&mut self) {
+        if !self.acknowledged {
+            if let Ok(mut lifecycle) = self.registry.runtime_probe_lifecycle.lock() {
+                lifecycle.live = lifecycle.live.saturating_sub(1);
+                lifecycle.incomplete_drops += 1;
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+impl RuntimeProbeConnection {
+    fn open(path: &Path, registry: &Arc<ManagedConnectionRegistry>) -> rusqlite::Result<Self> {
+        let connection =
+            open_managed_connection(path, ManagedConnectionCategory::RuntimeProbe, registry)?;
+        Ok(Self { connection: Some(connection), registration: registry.register_runtime_probe() })
+    }
+
+    fn connection(&self) -> &Connection {
+        self.connection.as_ref().expect("runtime probe connection remains live")
+    }
+
+    fn close_and_acknowledge(mut self) -> rusqlite::Result<RuntimeProbeLifecycle> {
+        self.connection
+            .take()
+            .expect("runtime probe connection remains live")
+            .close()
+            .map_err(|(_, error)| error)?;
+        Ok(self.registration.acknowledge_actual_drop())
+    }
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+struct RuntimeConnectionInventoryRequest {
+    pending: BTreeSet<(WalAttributionRole, usize)>,
+    respond: SyncSender<(WalAttributionRole, usize, bool)>,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+struct RuntimeNativeStateRequest {
+    pending: BTreeSet<(WalAttributionRole, usize)>,
+    respond: SyncSender<NativeConnectionStateFact>,
 }
 
 impl std::fmt::Debug for Engine {
@@ -636,6 +1174,551 @@ struct ProfileContext {
     subscribers: Arc<lifecycle::SubscriberRegistry>,
     profiling_enabled: Arc<AtomicBool>,
     slow_threshold_ms: Arc<AtomicU64>,
+}
+
+/// Connection identities intentionally contain no path, SQL, request, or user
+/// data. They are used only in the opt-in WAL diagnostic stream.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum WalAttributionRole {
+    Writer,
+    ReaderWorker,
+    ProjectionDispatcher,
+    ProjectionWorker,
+}
+
+impl WalAttributionRole {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::Writer => "writer",
+            Self::ReaderWorker => "reader_worker",
+            Self::ProjectionDispatcher => "projection_dispatcher",
+            Self::ProjectionWorker => "projection_worker",
+        }
+    }
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn native_connection_state_for_test(
+    connection: &Connection,
+    role: WalAttributionRole,
+    index: usize,
+) -> NativeConnectionStateFact {
+    let transaction = match connection.transaction_state(Some("main")) {
+        Ok(TransactionState::None) => NativeTransactionState::None,
+        Ok(TransactionState::Read) => NativeTransactionState::Read,
+        Ok(TransactionState::Write) => NativeTransactionState::Write,
+        Ok(_) => NativeTransactionState::Unavailable,
+        Err(_) => NativeTransactionState::Unavailable,
+    };
+    NativeConnectionStateFact {
+        role,
+        index,
+        autocommit: Some(connection.is_autocommit()),
+        transaction,
+        busy_statement: Some(connection.is_busy()),
+        reply: if transaction == NativeTransactionState::Unavailable {
+            NativeStateReply::Error("transaction_state")
+        } else {
+            NativeStateReply::Received
+        },
+    }
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn unavailable_native_connection_state_for_test(
+    role: WalAttributionRole,
+    index: usize,
+    reply: NativeStateReply,
+) -> NativeConnectionStateFact {
+    NativeConnectionStateFact {
+        role,
+        index,
+        autocommit: None,
+        transaction: NativeTransactionState::Unavailable,
+        busy_statement: None,
+        reply,
+    }
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn native_state_role_name(role: WalAttributionRole) -> &'static str {
+    match role {
+        WalAttributionRole::Writer => "writer",
+        WalAttributionRole::ReaderWorker => "readers",
+        WalAttributionRole::ProjectionDispatcher => "dispatcher",
+        WalAttributionRole::ProjectionWorker => "workers",
+    }
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn native_state_fact_text(fact: &NativeConnectionStateFact) -> String {
+    let autocommit = fact
+        .autocommit
+        .map_or_else(|| "unavailable".to_string(), |value| u8::from(value).to_string());
+    let transaction = match fact.transaction {
+        NativeTransactionState::None => "none",
+        NativeTransactionState::Read => "read",
+        NativeTransactionState::Write => "write",
+        NativeTransactionState::Unavailable => "unavailable",
+    };
+    let busy = fact
+        .busy_statement
+        .map_or_else(|| "unavailable".to_string(), |value| u8::from(value).to_string());
+    let delivery = match fact.reply {
+        NativeStateReply::Received => "received=1".to_string(),
+        NativeStateReply::Timeout => "timeout=1".to_string(),
+        NativeStateReply::Error(reason) => format!("error={reason}"),
+    };
+    format!(
+        "{}:{}(auto={autocommit},txn={transaction},busy={busy},{delivery})",
+        native_state_role_name(fact.role),
+        fact.index,
+    )
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn native_state_expected_roles() -> BTreeSet<(WalAttributionRole, usize)> {
+    BTreeSet::from([
+        (WalAttributionRole::Writer, 0),
+        (WalAttributionRole::ReaderWorker, 0),
+        (WalAttributionRole::ReaderWorker, 1),
+        (WalAttributionRole::ReaderWorker, 2),
+        (WalAttributionRole::ReaderWorker, 3),
+        (WalAttributionRole::ReaderWorker, 4),
+        (WalAttributionRole::ReaderWorker, 5),
+        (WalAttributionRole::ReaderWorker, 6),
+        (WalAttributionRole::ReaderWorker, 7),
+        (WalAttributionRole::ProjectionDispatcher, 0),
+        (WalAttributionRole::ProjectionWorker, 0),
+        (WalAttributionRole::ProjectionWorker, 1),
+    ])
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn native_state_inventory_text(inventory: &NativeStateInventory) -> String {
+    let facts = inventory.facts.iter().map(native_state_fact_text).collect::<Vec<_>>().join(",");
+    format!(
+        "state_inventory={} reason={} roles={facts}",
+        if inventory.complete { "complete" } else { "incomplete" },
+        inventory.reason,
+    )
+}
+
+#[derive(Clone, Debug)]
+#[allow(dead_code)]
+struct WalAttributionRoleSnapshot {
+    role: &'static str,
+    index: usize,
+    active: bool,
+    phase: &'static str,
+}
+
+#[derive(Clone, Debug)]
+#[allow(dead_code)]
+struct WalAttributionSnapshot {
+    roles: Vec<WalAttributionRoleSnapshot>,
+    active_roles: Vec<(WalAttributionRole, usize)>,
+    no_owned_snapshot: bool,
+    local_checkpoint_overlap: bool,
+}
+
+/// A retained, redacted record for one erasure checkpoint attempt. This is
+/// private to the engine and is read only by the in-crate Slice 65 witness.
+#[derive(Clone, Debug)]
+#[allow(dead_code)]
+struct WalCheckpointRecord {
+    attempt: usize,
+    busy: bool,
+    classification: &'static str,
+    active_roles: Vec<(WalAttributionRole, usize)>,
+}
+
+/// A private before/after record for the *existing* checkpoint invocation in
+/// an erasure attempt. It intentionally contains no database path, SQL, or
+/// caller data.
+#[cfg(any(test, feature = "test-hooks"))]
+#[derive(Clone, Debug)]
+struct ActualCheckpointObservation {
+    control: &'static str,
+    phase: &'static str,
+    ordinal: usize,
+    writer_autocommit: bool,
+    direct_inventory: String,
+    collector_roles: Vec<String>,
+    checkpoint_begin_overlap: bool,
+    elapsed: Option<Duration>,
+    report: Option<TruncateWalReport>,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+struct ActualCheckpointObserver {
+    control: &'static str,
+    records: Vec<ActualCheckpointObservation>,
+}
+
+/// Test-only direct SQLite transaction and prepared-statement state captured
+/// on the connection's owning thread. This intentionally avoids SQL and FFI:
+/// rusqlite exposes the SQLite transaction and statement-busy facts directly.
+#[cfg(any(test, feature = "test-hooks"))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum NativeTransactionState {
+    None,
+    Read,
+    Write,
+    Unavailable,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+#[derive(Clone, Debug)]
+struct NativeConnectionStateFact {
+    role: WalAttributionRole,
+    index: usize,
+    autocommit: Option<bool>,
+    transaction: NativeTransactionState,
+    busy_statement: Option<bool>,
+    reply: NativeStateReply,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+#[derive(Clone, Debug)]
+enum NativeStateReply {
+    Received,
+    Timeout,
+    Error(&'static str),
+}
+
+/// Complete only when every managed role replied on its owning thread and was
+/// idle. An incomplete inventory is diagnostic evidence, never a reason to
+/// modify or reinterpret a checkpoint outcome.
+#[cfg(any(test, feature = "test-hooks"))]
+#[derive(Clone, Debug)]
+struct NativeStateInventory {
+    facts: Vec<NativeConnectionStateFact>,
+    complete: bool,
+    reason: &'static str,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+struct BindingNativeStateObservation {
+    phase: &'static str,
+    ordinal: usize,
+    inventory: NativeStateInventory,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+struct BindingNativeStateObserver {
+    records: Vec<BindingNativeStateObservation>,
+}
+
+#[derive(Clone, Copy)]
+struct WalAttributionRoleState {
+    active: bool,
+    phase: &'static str,
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+type ReaderSnapshotPause = (Arc<Barrier>, Arc<Barrier>, Arc<Mutex<Option<String>>>);
+
+#[cfg(test)]
+type ReaderHandoffPause = (Arc<Barrier>, Arc<Barrier>);
+
+#[cfg(any(test, feature = "test-hooks"))]
+type ReaderCompletionPause = (Arc<Barrier>, Arc<Barrier>, Arc<AtomicBool>);
+
+/// Private diagnostic state. It is off unless controlled CI/test config opts in
+/// via `FATHOMDB_WAL_ATTRIBUTION=1`; the off path is a single atomic read.
+struct WalAttributionCollector {
+    enabled: bool,
+    started: Instant,
+    roles: Mutex<BTreeMap<(WalAttributionRole, usize), WalAttributionRoleState>>,
+    checkpoints: Mutex<Vec<WalCheckpointRecord>>,
+    checkpoint_active: AtomicBool,
+    #[cfg(debug_assertions)]
+    role_changed: Condvar,
+    #[cfg(any(test, feature = "test-hooks"))]
+    reader_snapshot_pause: Mutex<Option<ReaderSnapshotPause>>,
+    #[cfg(test)]
+    reader_handoff_pause: Mutex<Option<ReaderHandoffPause>>,
+    #[cfg(any(test, feature = "test-hooks"))]
+    reader_completion_pause: Mutex<Option<ReaderCompletionPause>>,
+}
+
+/// Marks a real SQLite transaction/snapshot interval and restores idle state on
+/// every return path, including `?` propagation and panic unwinding.
+struct WalAttributionActivity {
+    collector: Arc<WalAttributionCollector>,
+    role: WalAttributionRole,
+    index: usize,
+}
+
+impl WalAttributionActivity {
+    fn begin(
+        collector: Arc<WalAttributionCollector>,
+        role: WalAttributionRole,
+        index: usize,
+        phase: &'static str,
+    ) -> Self {
+        collector.set(role, index, true, phase);
+        Self { collector, role, index }
+    }
+}
+
+impl Drop for WalAttributionActivity {
+    fn drop(&mut self) {
+        self.collector.set(self.role, self.index, false, "completed");
+        self.collector.set(self.role, self.index, false, "idle");
+    }
+}
+
+impl WalAttributionCollector {
+    fn new() -> Self {
+        Self {
+            enabled: cfg!(test) || std::env::var_os("FATHOMDB_WAL_ATTRIBUTION").is_some(),
+            started: Instant::now(),
+            roles: Mutex::new(BTreeMap::new()),
+            checkpoints: Mutex::new(Vec::new()),
+            checkpoint_active: AtomicBool::new(false),
+            #[cfg(debug_assertions)]
+            role_changed: Condvar::new(),
+            #[cfg(any(test, feature = "test-hooks"))]
+            reader_snapshot_pause: Mutex::new(None),
+            #[cfg(test)]
+            reader_handoff_pause: Mutex::new(None),
+            #[cfg(any(test, feature = "test-hooks"))]
+            reader_completion_pause: Mutex::new(None),
+        }
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn arm_reader_snapshot_pause(
+        &self,
+    ) -> (Arc<Barrier>, Arc<Barrier>, Arc<Mutex<Option<String>>>) {
+        let ready = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        let native_state = Arc::new(Mutex::new(None));
+        *self.reader_snapshot_pause.lock().expect("reader snapshot pause mutex") =
+            Some((Arc::clone(&ready), Arc::clone(&release), Arc::clone(&native_state)));
+        (ready, release, native_state)
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn fire_reader_snapshot_pause(&self, connection: &Connection, worker_idx: usize) {
+        if let Some((ready, release, native_state)) =
+            self.reader_snapshot_pause.lock().expect("reader snapshot pause mutex").take()
+        {
+            *native_state.lock().expect("reader snapshot native state") =
+                Some(native_state_fact_text(&native_connection_state_for_test(
+                    connection,
+                    WalAttributionRole::ReaderWorker,
+                    worker_idx,
+                )));
+            ready.wait();
+            release.wait();
+        }
+    }
+
+    #[cfg(test)]
+    fn arm_reader_handoff_pause(&self) -> (Arc<Barrier>, Arc<Barrier>) {
+        let ready = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        *self.reader_handoff_pause.lock().expect("reader handoff pause mutex") =
+            Some((Arc::clone(&ready), Arc::clone(&release)));
+        (ready, release)
+    }
+
+    #[cfg(test)]
+    fn fire_reader_handoff_pause(&self) {
+        if let Some((ready, release)) =
+            self.reader_handoff_pause.lock().expect("reader handoff pause mutex").take()
+        {
+            ready.wait();
+            release.wait();
+        }
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn arm_reader_completion_pause(&self) -> (Arc<Barrier>, Arc<Barrier>, Arc<AtomicBool>) {
+        let ready = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        let reader_autocommit = Arc::new(AtomicBool::new(false));
+        *self.reader_completion_pause.lock().expect("reader completion pause mutex") =
+            Some((Arc::clone(&ready), Arc::clone(&release), Arc::clone(&reader_autocommit)));
+        (ready, release, reader_autocommit)
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn fire_reader_completion_pause(&self, reader_autocommit: bool) {
+        if let Some((ready, release, observed_autocommit)) =
+            self.reader_completion_pause.lock().expect("reader completion pause mutex").take()
+        {
+            observed_autocommit.store(reader_autocommit, Ordering::Release);
+            ready.wait();
+            release.wait();
+        }
+    }
+
+    fn register(&self, role: WalAttributionRole, index: usize) {
+        if !self.enabled {
+            return;
+        }
+        if let Ok(mut roles) = self.roles.lock() {
+            roles.insert((role, index), WalAttributionRoleState { active: false, phase: "idle" });
+        }
+        self.emit(role, index, "opened");
+    }
+
+    fn set(&self, role: WalAttributionRole, index: usize, active: bool, phase: &'static str) {
+        if !self.enabled {
+            return;
+        }
+        if let Ok(mut roles) = self.roles.lock() {
+            roles.insert((role, index), WalAttributionRoleState { active, phase });
+            #[cfg(debug_assertions)]
+            self.role_changed.notify_all();
+        }
+        self.emit(role, index, phase);
+    }
+
+    #[cfg(debug_assertions)]
+    fn wait_until_exclusively_active(
+        &self,
+        role: WalAttributionRole,
+        index: usize,
+        timeout: Duration,
+    ) -> bool {
+        let deadline = Instant::now() + timeout;
+        let Ok(mut roles) = self.roles.lock() else {
+            return false;
+        };
+        loop {
+            let mut active = roles.iter().filter_map(|((active_role, active_index), state)| {
+                state.active.then_some((*active_role, *active_index))
+            });
+            if active.next() == Some((role, index)) && active.next().is_none() {
+                return true;
+            }
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                return false;
+            }
+            let Ok((next_roles, wait)) = self.role_changed.wait_timeout(roles, remaining) else {
+                return false;
+            };
+            roles = next_roles;
+            if wait.timed_out() {
+                return false;
+            }
+        }
+    }
+
+    fn snapshot(&self) -> WalAttributionSnapshot {
+        let local_checkpoint_overlap = self.checkpoint_active.load(Ordering::SeqCst);
+        let role_states = self.roles.lock().map(|roles| roles.clone()).unwrap_or_default();
+        let roles = role_states
+            .iter()
+            .map(|((role, index), state)| WalAttributionRoleSnapshot {
+                role: role.name(),
+                index: *index,
+                active: state.active,
+                phase: state.phase,
+            })
+            .collect();
+        let active_roles: Vec<(WalAttributionRole, usize)> = role_states
+            .iter()
+            .filter_map(|((role, index), state)| {
+                (state.active
+                    && matches!(
+                        role,
+                        WalAttributionRole::ReaderWorker
+                            | WalAttributionRole::ProjectionDispatcher
+                            | WalAttributionRole::ProjectionWorker
+                    ))
+                .then_some((*role, *index))
+            })
+            .collect();
+        let no_owned_snapshot = active_roles.is_empty() && !local_checkpoint_overlap;
+        WalAttributionSnapshot { roles, active_roles, no_owned_snapshot, local_checkpoint_overlap }
+    }
+
+    fn checkpoint_begin(&self) -> bool {
+        if !self.enabled {
+            return false;
+        }
+        self.checkpoint_active.swap(true, Ordering::SeqCst)
+    }
+
+    fn checkpoint_end(&self) {
+        if self.enabled {
+            self.checkpoint_active.store(false, Ordering::SeqCst);
+        }
+    }
+
+    fn classification(&self, snapshot: &WalAttributionSnapshot, overlap: bool) -> &'static str {
+        if overlap {
+            "local_checkpoint_overlap"
+        } else if snapshot.roles.iter().any(|role| role.active && role.role == "reader_worker") {
+            "owned_reader_snapshot"
+        } else if snapshot.roles.iter().any(|role| {
+            role.active && matches!(role.role, "projection_dispatcher" | "projection_worker")
+        }) {
+            "owned_runtime_transaction"
+        } else {
+            "no_owned_snapshot"
+        }
+    }
+
+    fn checkpoint_event(
+        &self,
+        attempt: usize,
+        elapsed: Duration,
+        report: &TruncateWalReport,
+        classification: &'static str,
+        active_roles: Vec<(WalAttributionRole, usize)>,
+    ) {
+        if self.enabled {
+            if let Ok(mut checkpoints) = self.checkpoints.lock() {
+                checkpoints.push(WalCheckpointRecord {
+                    attempt,
+                    busy: report.status == TruncateWalStatus::Busy,
+                    classification,
+                    active_roles: active_roles.clone(),
+                });
+            }
+            eprintln!(
+                "slice65_wal checkpoint_attempt={} elapsed_ms={} busy={} log_frames={} checkpointed_frames={} classification={} active_roles={}",
+                attempt,
+                elapsed.as_millis(),
+                report.busy,
+                report.log_frames,
+                report.checkpointed_frames,
+                classification,
+                format_active_wal_roles(&active_roles),
+            );
+        }
+    }
+
+    #[allow(dead_code)]
+    fn checkpoints(&self) -> Vec<WalCheckpointRecord> {
+        self.checkpoints.lock().map(|records| records.clone()).unwrap_or_default()
+    }
+
+    fn emit(&self, role: WalAttributionRole, index: usize, phase: &'static str) {
+        eprintln!(
+            "slice65_wal role={} index={} phase={} elapsed_ms={}",
+            role.name(),
+            index,
+            phase,
+            self.started.elapsed().as_millis()
+        );
+    }
+}
+
+fn format_active_wal_roles(roles: &[(WalAttributionRole, usize)]) -> String {
+    roles
+        .iter()
+        .map(|(role, index)| format!("{}:{index}", role.name()))
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 /// Thread-affine reader worker pool (Pack 6 F.0).
@@ -668,6 +1751,14 @@ impl std::fmt::Debug for ReaderWorkerPool {
 /// returned through a fresh oneshot channel so requests cannot be
 /// routed to or duplicated across workers.
 enum ReaderRequest {
+    #[cfg(feature = "tc5-benchmark")]
+    /// Benchmark-only direct vector pipeline. This is intentionally separate
+    /// from `Search`: it has no text, fusion, graph, or CE fields.
+    VectorStage {
+        request: tc5_benchmark::VectorStageRequest,
+        respond:
+            SyncSender<Result<tc5_benchmark::VectorStageResult, tc5_benchmark::VectorStageError>>,
+    },
     /// Slice 60 — property-FTS search stays on a reader-owned connection, never
     /// the writer connection. It shares the snapshot-local filter validation of
     /// the hybrid search path.
@@ -845,6 +1936,39 @@ enum ReaderRequest {
     SecureDeleteStatus {
         respond: SyncSender<i64>,
     },
+    /// Slice 65 test-only real SQLite control. The worker opens a deferred
+    /// transaction, executes a query to acquire its WAL snapshot, reports the
+    /// rendezvous, and holds the snapshot until released. It is never compiled
+    /// into a release SDK artifact.
+    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    #[allow(dead_code)]
+    HoldWalSnapshot {
+        snapshot_ready: Arc<Barrier>,
+        release: Arc<Barrier>,
+    },
+    /// Slice 65 follow-on: the acknowledgement fires only after SQLite has
+    /// completed `COMMIT` and the collector has returned to idle. This is a
+    /// private test diagnostic, not a release signal or SDK synchronization
+    /// surface.
+    #[cfg(test)]
+    HoldWalSnapshotWithCommitAck {
+        snapshot_ready: Arc<Barrier>,
+        release: Arc<Barrier>,
+        committed: Arc<Barrier>,
+    },
+    /// Slice 65 follow-on: reports this reader's direct SQLite transaction
+    /// state for the private complete-connection inventory.
+    #[cfg(any(test, feature = "test-hooks"))]
+    WalConnectionInventory {
+        respond: SyncSender<bool>,
+    },
+    /// Slice 65 N23-WAL-BINDING-NATIVE-STATE: report direct SQLite state
+    /// from the thread that owns this reader connection. The reply carries no
+    /// SQL, path, request, or user data.
+    #[cfg(any(test, feature = "test-hooks"))]
+    WalNativeStateInventory {
+        respond: SyncSender<NativeConnectionStateFact>,
+    },
 }
 
 // G0 Phase-2: the Search response carries a 4th element — the graph-arm frontier
@@ -885,6 +2009,7 @@ type ProjectedTextReaderResponse = Result<SearchResult, SearchReaderError>;
 enum SearchReaderError {
     Sqlite(rusqlite::Error),
     InvalidFilter(String),
+    RerankerDevicePolicy(RerankerDevicePolicyError),
 }
 
 impl From<rusqlite::Error> for SearchReaderError {
@@ -913,19 +2038,45 @@ pub struct CacheStatusReply {
 const READER_WORKER_CHANNEL_CAPACITY: usize = 4;
 
 impl ReaderWorkerPool {
-    fn new(connections: Vec<Connection>) -> Self {
+    fn new(
+        connections: Vec<Connection>,
+        wal_attribution: Arc<WalAttributionCollector>,
+        #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
+            ManagedConnectionRegistry,
+        >,
+    ) -> Self {
         let live_workers = Arc::new(AtomicUsize::new(0));
         let mut senders = Vec::with_capacity(connections.len());
         let mut handles = Vec::with_capacity(connections.len());
+        let (ready_tx, ready_rx) = mpsc::sync_channel(connections.len());
         for (idx, connection) in connections.into_iter().enumerate() {
             let (tx, rx) = mpsc::sync_channel::<ReaderRequest>(READER_WORKER_CHANNEL_CAPACITY);
             let live = Arc::clone(&live_workers);
+            let attribution = Arc::clone(&wal_attribution);
+            let ready = ready_tx.clone();
+            #[cfg(any(test, feature = "test-hooks"))]
+            let worker_connections = Arc::clone(&managed_connections);
             let handle = thread::Builder::new()
                 .name(format!("fathomdb-reader-{idx}"))
-                .spawn(move || reader_worker_loop(connection, rx, live))
+                .spawn(move || {
+                    reader_worker_loop(
+                        connection,
+                        rx,
+                        live,
+                        idx,
+                        attribution,
+                        ready,
+                        #[cfg(any(test, feature = "test-hooks"))]
+                        worker_connections,
+                    )
+                })
                 .expect("spawn reader worker");
             senders.push(tx);
             handles.push(handle);
+        }
+        drop(ready_tx);
+        for _ in 0..senders.len() {
+            ready_rx.recv().expect("reader worker must register before Engine::open returns");
         }
         Self {
             senders,
@@ -942,6 +2093,85 @@ impl ReaderWorkerPool {
 
     fn live_count(&self) -> usize {
         self.live_workers.load(Ordering::SeqCst)
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn wal_connection_inventory_for_test(&self) -> Vec<bool> {
+        self.senders
+            .iter()
+            .map(|sender| {
+                let (respond, received) = mpsc::sync_channel(1);
+                sender
+                    .send(ReaderRequest::WalConnectionInventory { respond })
+                    .expect("reader worker must remain live for WAL inventory");
+                received.recv().expect("reader worker must report WAL inventory")
+            })
+            .collect()
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn wal_native_state_inventory_for_test(&self) -> Vec<NativeConnectionStateFact> {
+        const REPLY_TIMEOUT: Duration = Duration::from_millis(250);
+        self.senders
+            .iter()
+            .enumerate()
+            .map(|(index, sender)| {
+                let deadline = Instant::now() + REPLY_TIMEOUT;
+                let (respond, received) = mpsc::sync_channel(1);
+                let request = ReaderRequest::WalNativeStateInventory { respond };
+                let mut request = Some(request);
+                loop {
+                    let Some(pending) = request.take() else { break };
+                    match sender.try_send(pending) {
+                        Ok(()) => break,
+                        Err(mpsc::TrySendError::Full(pending)) if Instant::now() < deadline => {
+                            request = Some(pending);
+                            thread::sleep(Duration::from_millis(1));
+                        }
+                        Err(mpsc::TrySendError::Full(_)) => {
+                            return unavailable_native_connection_state_for_test(
+                                WalAttributionRole::ReaderWorker,
+                                index,
+                                NativeStateReply::Timeout,
+                            );
+                        }
+                        Err(mpsc::TrySendError::Disconnected(_)) => {
+                            return unavailable_native_connection_state_for_test(
+                                WalAttributionRole::ReaderWorker,
+                                index,
+                                NativeStateReply::Error("reader_disconnected"),
+                            );
+                        }
+                    }
+                }
+                match received.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+                    Ok(fact)
+                        if fact.role == WalAttributionRole::ReaderWorker && fact.index == index =>
+                    {
+                        fact
+                    }
+                    Ok(_) => unavailable_native_connection_state_for_test(
+                        WalAttributionRole::ReaderWorker,
+                        index,
+                        NativeStateReply::Error("reader_wrong_role"),
+                    ),
+                    Err(mpsc::RecvTimeoutError::Timeout) => {
+                        unavailable_native_connection_state_for_test(
+                            WalAttributionRole::ReaderWorker,
+                            index,
+                            NativeStateReply::Timeout,
+                        )
+                    }
+                    Err(mpsc::RecvTimeoutError::Disconnected) => {
+                        unavailable_native_connection_state_for_test(
+                            WalAttributionRole::ReaderWorker,
+                            index,
+                            NativeStateReply::Error("reader_reply_disconnected"),
+                        )
+                    }
+                }
+            })
+            .collect()
     }
 
     /// Pack 6.G G.1 — broadcast a `LookasideStatus` request to every
@@ -1069,8 +2299,17 @@ fn reader_worker_loop(
     mut connection: Connection,
     rx: Receiver<ReaderRequest>,
     live_workers: Arc<AtomicUsize>,
+    worker_idx: usize,
+    wal_attribution: Arc<WalAttributionCollector>,
+    ready: SyncSender<()>,
+    #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<ManagedConnectionRegistry>,
 ) {
+    #[cfg(any(test, feature = "test-hooks"))]
+    let _connection_registration =
+        managed_connections.register(WalAttributionRole::ReaderWorker, worker_idx);
+    wal_attribution.register(WalAttributionRole::ReaderWorker, worker_idx);
     live_workers.fetch_add(1, Ordering::SeqCst);
+    ready.send(()).expect("reader worker startup receiver must remain live");
     // Drop guard so the live counter decrements even on panic.
     struct LiveGuard(Arc<AtomicUsize>);
     impl Drop for LiveGuard {
@@ -1083,6 +2322,12 @@ fn reader_worker_loop(
     while let Ok(request) = rx.recv() {
         match request {
             ReaderRequest::Shutdown => break,
+            #[cfg(feature = "tc5-benchmark")]
+            ReaderRequest::VectorStage { request, respond } => {
+                let result = tc5_benchmark::read_vector_stage_in_tx(&mut connection, request);
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                let _ = respond.send(result);
+            }
             ReaderRequest::SearchProjectedText { query, name, filter, limit, view, respond } => {
                 let result = read_projected_text_in_tx(
                     &mut connection,
@@ -1091,7 +2336,10 @@ fn reader_worker_loop(
                     filter.as_deref(),
                     limit,
                     view,
+                    &wal_attribution,
+                    worker_idx,
                 );
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::Search {
@@ -1114,6 +2362,8 @@ fn reader_worker_loop(
                 view,
                 respond,
             } => {
+                #[cfg(feature = "tc5-benchmark")]
+                tc5_benchmark::record_search_route();
                 let result = read_search_in_tx(
                     &mut connection,
                     &compiled,
@@ -1133,21 +2383,48 @@ fn reader_worker_loop(
                     pool_n,
                     explain,
                     view,
+                    &wal_attribution,
+                    worker_idx,
                 );
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 // Receiver may have been dropped if the caller went
                 // away; nothing to do in that case.
                 let _ = respond.send(result);
             }
             ReaderRequest::GetById { logical_ids, view, respond } => {
-                let result = read_get_by_id_in_tx(&mut connection, &logical_ids, &view);
+                let result = read_get_by_id_in_tx(
+                    &mut connection,
+                    &logical_ids,
+                    &view,
+                    &wal_attribution,
+                    worker_idx,
+                );
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::ReadCollection { collection, after_id, limit, respond } => {
-                let result = read_collection_in_tx(&mut connection, &collection, after_id, limit);
+                let result = read_collection_in_tx(
+                    &mut connection,
+                    &collection,
+                    after_id,
+                    limit,
+                    &wal_attribution,
+                    worker_idx,
+                );
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::ReadList { kind, predicates, limit, view, respond } => {
-                let result = read_list_in_tx(&mut connection, &kind, &predicates, limit, &view);
+                let result = read_list_in_tx(
+                    &mut connection,
+                    &kind,
+                    &predicates,
+                    limit,
+                    &view,
+                    &wal_attribution,
+                    worker_idx,
+                );
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::GraphNeighbors { root_logical_id, depth, direction, view, respond } => {
@@ -1157,15 +2434,32 @@ fn reader_worker_loop(
                     depth,
                     direction,
                     &view,
+                    &wal_attribution,
+                    worker_idx,
                 );
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::CrossedBoundarySince { since, view, respond } => {
-                let result = crossed_boundary_since_in_tx(&mut connection, since, &view);
+                let result = crossed_boundary_since_in_tx(
+                    &mut connection,
+                    since,
+                    &view,
+                    &wal_attribution,
+                    worker_idx,
+                );
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::SearchExpand { search_hits, depth, respond } => {
-                let result = search_expand_in_tx(&mut connection, &search_hits, depth);
+                let result = search_expand_in_tx(
+                    &mut connection,
+                    &search_hits,
+                    depth,
+                    &wal_attribution,
+                    worker_idx,
+                );
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::ExplainGraphNeighbors { root_logical_id, depth, direction, respond } => {
@@ -1174,7 +2468,10 @@ fn reader_worker_loop(
                     &root_logical_id,
                     depth,
                     direction,
+                    &wal_attribution,
+                    worker_idx,
                 );
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             #[cfg(debug_assertions)]
@@ -1192,6 +2489,53 @@ fn reader_worker_loop(
                     connection.query_row("PRAGMA secure_delete", [], |r| r.get(0)).unwrap_or(-1);
                 let _ = respond.send(value);
             }
+            #[cfg(any(debug_assertions, feature = "test-hooks"))]
+            ReaderRequest::HoldWalSnapshot { snapshot_ready, release } => {
+                connection.execute_batch("BEGIN DEFERRED").expect("begin reader transaction");
+                let _: i64 = connection
+                    .query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get(0))
+                    .expect("acquire real reader snapshot");
+                wal_attribution.set(
+                    WalAttributionRole::ReaderWorker,
+                    worker_idx,
+                    true,
+                    "snapshot_acquired",
+                );
+                snapshot_ready.wait();
+                release.wait();
+                connection.execute_batch("COMMIT").expect("release reader snapshot");
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
+            }
+            #[cfg(test)]
+            ReaderRequest::HoldWalSnapshotWithCommitAck { snapshot_ready, release, committed } => {
+                connection.execute_batch("BEGIN DEFERRED").expect("begin reader transaction");
+                let _: i64 = connection
+                    .query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get(0))
+                    .expect("acquire real reader snapshot");
+                wal_attribution.set(
+                    WalAttributionRole::ReaderWorker,
+                    worker_idx,
+                    true,
+                    "snapshot_acquired",
+                );
+                snapshot_ready.wait();
+                release.wait();
+                connection.execute_batch("COMMIT").expect("release reader snapshot");
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                committed.wait();
+            }
+            #[cfg(any(test, feature = "test-hooks"))]
+            ReaderRequest::WalConnectionInventory { respond } => {
+                let _ = respond.send(connection.is_autocommit());
+            }
+            #[cfg(any(test, feature = "test-hooks"))]
+            ReaderRequest::WalNativeStateInventory { respond } => {
+                let _ = respond.send(native_connection_state_for_test(
+                    &connection,
+                    WalAttributionRole::ReaderWorker,
+                    worker_idx,
+                ));
+            }
         }
     }
 
@@ -1201,6 +2545,26 @@ fn reader_worker_loop(
     // to free.
     uninstall_profile_callback(&connection);
     drop(connection);
+}
+
+/// Finish an attributed reader request after every helper-local SQLite value
+/// (including its transaction) has dropped and before its caller can observe
+/// the response. Keeping this at the response handoff, rather than at the
+/// worker-loop tail, makes the collector represent live SQLite state rather
+/// than channel scheduling.
+fn finish_reader_request(
+    connection: &Connection,
+    wal_attribution: &WalAttributionCollector,
+    worker_idx: usize,
+) {
+    wal_attribution.set(WalAttributionRole::ReaderWorker, worker_idx, false, "completed");
+    wal_attribution.set(WalAttributionRole::ReaderWorker, worker_idx, false, "idle");
+    #[cfg(test)]
+    wal_attribution.fire_reader_handoff_pause();
+    #[cfg(any(test, feature = "test-hooks"))]
+    wal_attribution.fire_reader_completion_pause(connection.is_autocommit());
+    #[cfg(not(any(test, feature = "test-hooks")))]
+    let _ = connection;
 }
 
 /// 0.8.20 keystone closeout fix-3 — a test-only rendezvous hook fired at the TOP
@@ -1272,6 +2636,10 @@ impl ProjectionRuntime {
         embedder_identity: EmbedderIdentity,
         mean_already_pinned: bool,
         subscribers: Arc<lifecycle::SubscriberRegistry>,
+        wal_attribution: Arc<WalAttributionCollector>,
+        #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
+            ManagedConnectionRegistry,
+        >,
     ) -> Self {
         // EU-5b/EU-5f — only allocate the streaming accumulator when the
         // workspace's identity is MC-required AND no mean has been pinned
@@ -1290,6 +2658,13 @@ impl ProjectionRuntime {
             embedder,
             embedder_identity,
             subscribers,
+            wal_attribution,
+            #[cfg(any(test, feature = "test-hooks"))]
+            managed_connections,
+            #[cfg(any(test, feature = "test-hooks"))]
+            runtime_inventory_request: Mutex::new(None),
+            #[cfg(any(test, feature = "test-hooks"))]
+            runtime_native_state_request: Mutex::new(None),
             state: Mutex::new(ProjectionRuntimeState::default()),
             state_cvar: Condvar::new(),
             queue: Mutex::new(VecDeque::new()),
@@ -1314,16 +2689,18 @@ impl ProjectionRuntime {
             #[cfg(debug_assertions)]
             projection_commit_failure_pause: Mutex::new(None),
             #[cfg(debug_assertions)]
+            projection_worker_transaction_pause: Mutex::new(None),
+            #[cfg(debug_assertions)]
             projection_stop_ack: Mutex::new(None),
         });
 
         let dispatcher_shared = Arc::clone(&shared);
-        let dispatcher = thread::spawn(move || projection_dispatcher_loop(dispatcher_shared));
+        let dispatcher = thread::spawn(move || projection_dispatcher_loop(dispatcher_shared, 0));
 
         let mut workers = Vec::with_capacity(PROJECTION_WORKERS);
-        for _ in 0..PROJECTION_WORKERS {
+        for worker_idx in 0..PROJECTION_WORKERS {
             let worker_shared = Arc::clone(&shared);
-            workers.push(thread::spawn(move || projection_worker_loop(worker_shared)));
+            workers.push(thread::spawn(move || projection_worker_loop(worker_shared, worker_idx)));
         }
 
         Self { shared, dispatcher: Mutex::new(Some(dispatcher)), workers: Mutex::new(workers) }
@@ -1334,6 +2711,76 @@ impl ProjectionRuntime {
             state.pending_scan = true;
             self.shared.state_cvar.notify_all();
         }
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn report_runtime_connection_inventory_for_test(
+        &self,
+    ) -> Result<Vec<(WalAttributionRole, usize, bool)>, &'static str> {
+        let pending = BTreeSet::from([
+            (WalAttributionRole::ProjectionDispatcher, 0),
+            (WalAttributionRole::ProjectionWorker, 0),
+            (WalAttributionRole::ProjectionWorker, 1),
+        ]);
+        let (respond, received) = mpsc::sync_channel(pending.len());
+        let mut request =
+            self.shared.runtime_inventory_request.lock().map_err(|_| "request_lock")?;
+        if request.is_some() {
+            return Err("request_already_active");
+        }
+        *request = Some(RuntimeConnectionInventoryRequest { pending, respond });
+        drop(request);
+        self.shared.state_cvar.notify_all();
+        self.shared.queue_cvar.notify_all();
+
+        let mut facts = Vec::with_capacity(1 + PROJECTION_WORKERS);
+        for _ in 0..(1 + PROJECTION_WORKERS) {
+            facts.push(
+                received
+                    .recv_timeout(Duration::from_secs(2))
+                    .map_err(|_| "runtime_reply_timeout")?,
+            );
+        }
+        Ok(facts)
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn report_runtime_native_state_inventory_for_test(
+        &self,
+    ) -> Result<Vec<NativeConnectionStateFact>, &'static str> {
+        let pending = BTreeSet::from([
+            (WalAttributionRole::ProjectionDispatcher, 0),
+            (WalAttributionRole::ProjectionWorker, 0),
+            (WalAttributionRole::ProjectionWorker, 1),
+        ]);
+        let (respond, received) = mpsc::sync_channel(pending.len());
+        let mut request =
+            self.shared.runtime_native_state_request.lock().map_err(|_| "native_request_lock")?;
+        if request.is_some() {
+            return Err("native_request_already_active");
+        }
+        *request = Some(RuntimeNativeStateRequest { pending, respond });
+        drop(request);
+        self.shared.state_cvar.notify_all();
+        self.shared.queue_cvar.notify_all();
+
+        let result = (|| {
+            let mut facts = Vec::with_capacity(1 + PROJECTION_WORKERS);
+            for _ in 0..(1 + PROJECTION_WORKERS) {
+                facts.push(
+                    received
+                        .recv_timeout(Duration::from_millis(250))
+                        .map_err(|_| "runtime_native_reply_timeout")?,
+                );
+            }
+            Ok(facts)
+        })();
+        if result.is_err() {
+            if let Ok(mut request) = self.shared.runtime_native_state_request.lock() {
+                *request = None;
+            }
+        }
+        result
     }
 
     fn set_frozen(&self, frozen: bool) {
@@ -1359,13 +2806,46 @@ impl ProjectionRuntime {
         loop {
             if state.active_jobs == 0 && state.queued_jobs == 0 {
                 drop(state);
-                if !database_has_pending_projection_work(&self.shared.path).unwrap_or(true) {
+                if !database_has_pending_projection_work(
+                    &self.shared.path,
+                    #[cfg(any(test, feature = "test-hooks"))]
+                    &self.shared.managed_connections,
+                )
+                .unwrap_or(true)
+                {
                     return true;
                 }
                 state = match self.shared.state.lock() {
                     Ok(state) => state,
                     Err(_) => return false,
                 };
+            }
+            let now = Instant::now();
+            if now >= deadline {
+                return false;
+            }
+            let wait = deadline.saturating_duration_since(now);
+            let Ok((next_state, _)) = self.shared.state_cvar.wait_timeout(state, wait) else {
+                return false;
+            };
+            state = next_state;
+        }
+    }
+
+    /// Wait until the runtime has no queued or active jobs, deliberately
+    /// without consulting durable pending work. Erasure uses this only after it
+    /// has frozen the dispatcher for a session with no configured embedder:
+    /// those pending rows cannot be projected in that session and will instead
+    /// be deleted by the erasure transaction.
+    fn wait_for_workers_idle(&self, timeout_ms: u64) -> bool {
+        let deadline = Instant::now() + Duration::from_millis(timeout_ms);
+        let mut state = match self.shared.state.lock() {
+            Ok(state) => state,
+            Err(_) => return false,
+        };
+        loop {
+            if state.active_jobs == 0 && state.queued_jobs == 0 {
+                return true;
             }
             let now = Instant::now();
             if now >= deadline {
@@ -1406,6 +2886,22 @@ impl ProjectionRuntime {
             .projection_commit_failure_pause
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some((reported, release));
+    }
+
+    #[cfg(debug_assertions)]
+    #[allow(dead_code)]
+    fn pause_projection_worker_after_wal_transaction_for_test(
+        &self,
+    ) -> (Arc<Barrier>, Arc<Barrier>) {
+        let transaction_ready = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        *self
+            .shared
+            .projection_worker_transaction_pause
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) =
+            Some((Arc::clone(&transaction_ready), Arc::clone(&release)));
+        (transaction_ready, release)
     }
 
     #[cfg(debug_assertions)]
@@ -1516,6 +3012,41 @@ pub struct OpenReport {
     /// R-VEQ-6 — human-readable reason for `dense_disabled` (which representation
     /// tripped: P1 flip count or P2 L2). `None` when `dense_disabled == false`.
     pub dense_disabled_reason: Option<String>,
+    /// Strict CPU/CUDA policy resolution used to construct the default
+    /// embedder. `None` when the caller supplied an embedder or selected none.
+    /// A present report is the one selection passed into default-embedder
+    /// construction; forced CUDA failures return
+    /// [`EngineOpenError::EmbedDevicePolicy`] rather than report CPU.
+    pub embedder_device_resolution: Option<DeviceResolution>,
+    /// Independent CPU/CUDA selection for the optional cross-encoder. This is
+    /// never inferred from embedding-device state and makes no claim about
+    /// database candidate retrieval or scoring.
+    pub reranker_device_resolution: Option<RerankerDeviceResolution>,
+    /// 0.8.23 Slice 80.6 (D-80.6-6, AC80-6, R80-13) — the in-process GPU
+    /// allocation witness, when one was measured during this open.
+    ///
+    /// This carries the *retained record* of `fathomdb-embedder`'s
+    /// `fathomdb.tegra-gpu-allocation-witness/v1`: the ordinal Candle actually
+    /// retained, the driver-API UUID, and every raw number the verdict used
+    /// (`free_before_bytes`, `free_after_bytes`, `total_bytes`, `delta_bytes`,
+    /// `delta_floor_bytes`, plus the deliberate control allocation), so a
+    /// reader re-derives the verdict rather than trusting it (R80-13). Its
+    /// point is that the *installed artifact's own process* holds the
+    /// evidence, rather than a sibling Rust process — which is what makes
+    /// AC80-6's "in-process" clause as strong on Tegra as on x86_64.
+    ///
+    /// `None` is the normal case and means **no witness was measured** — never
+    /// "a witness measured nothing". A zero, negative, or below-floor delta is
+    /// a typed failure inside the witness (R80-12) and fails the open, so a
+    /// zero-valued record is not reachable through this field.
+    ///
+    /// Populated only by an opted-in default-embedder open
+    /// ([`ENV_GPU_ALLOCATION_WITNESS`]) on a CUDA-capable artifact whose
+    /// device policy actually selected CUDA. It is deliberately opt-in: the
+    /// witness holds a multi-gigabyte deliberate control allocation and loads
+    /// the model a second time, which is evidence-run behavior and must not be
+    /// imposed on ordinary opens (§ 12 non-goals).
+    pub embedder_gpu_allocation_witness: Option<GpuAllocationWitness>,
 }
 
 #[derive(Debug)]
@@ -1530,6 +3061,140 @@ pub struct OpenedEngine {
 struct LoaderInfo {
     download_ms: Option<u64>,
     events: Vec<EmbedderEvent>,
+    device_resolution: DeviceResolution,
+    /// 0.8.23 Slice 80.6 (D-80.6-6) — the opted-in in-process GPU allocation
+    /// witness. `None` for every path that measured none.
+    gpu_allocation_witness: Option<GpuAllocationWitness>,
+}
+
+/// 0.8.23 Slice 80.6 (D-80.6-6) — opt-in switch for the in-process GPU
+/// allocation witness carried on [`OpenReport::embedder_gpu_allocation_witness`].
+///
+/// Opt-in rather than automatic, and deliberately so. Producing the witness
+/// costs a second load of the pinned model plus the multi-gigabyte deliberate
+/// control allocation D-80.5-3 requires in order to prove the shared iGPU
+/// memory counter is live and attributable. That is evidence-run behavior;
+/// imposing it on every CUDA open would be exactly the runtime-contract change
+/// § 12 of `dev/design/0.8.23-aarch64-tegra.md` rules out.
+///
+/// `1`/`true` enable it; unset, empty, `0`/`false` disable it. Any other value
+/// is **rejected at open time** rather than read as "off", so a typo cannot
+/// silently turn the evidence off — the same fail-closed posture R80-12 puts
+/// on the witness itself.
+pub const ENV_GPU_ALLOCATION_WITNESS: &str = "FATHOMDB_GPU_ALLOCATION_WITNESS";
+
+/// Parse [`ENV_GPU_ALLOCATION_WITNESS`]. Pure, so every arm is testable on a
+/// host with no GPU and on a build with no CUDA.
+#[cfg(any(feature = "default-embedder", test))]
+fn parse_gpu_allocation_witness_opt_in(raw: Option<&str>) -> Result<bool, String> {
+    match raw.map(str::trim) {
+        None | Some("") => Ok(false),
+        Some(value) => match value.to_ascii_lowercase().as_str() {
+            "1" | "true" => Ok(true),
+            "0" | "false" => Ok(false),
+            other => Err(format!(
+                "{ENV_GPU_ALLOCATION_WITNESS} must be 1/true or 0/false, got {other:?}"
+            )),
+        },
+    }
+}
+
+/// Measure the in-process GPU allocation witness when the operator asked for
+/// one, and only then.
+///
+/// The contract is deliberately binary: opted in means this open carries a
+/// witness or it fails, and not opted in means `None`. There is no third
+/// outcome where the field is `None` while the operator believes a witness was
+/// taken, because that is how a missing measurement becomes indistinguishable
+/// from a measurement of zero (R80-12).
+#[cfg(feature = "default-embedder")]
+fn witness_gpu_allocation_if_requested(
+    device_resolution: &DeviceResolution,
+) -> Result<Option<GpuAllocationWitness>, EngineOpenError> {
+    let raw = std::env::var(ENV_GPU_ALLOCATION_WITNESS).ok();
+    let requested = parse_gpu_allocation_witness_opt_in(raw.as_deref())
+        .map_err(|message| EngineOpenError::Embedder(RuntimeEmbedderError::Failed { message }))?;
+    if !requested {
+        return Ok(None);
+    }
+    run_requested_gpu_allocation_witness(device_resolution).map(Some)
+}
+
+/// Name a refusal rather than degrading to `None`, carrying the witness's own
+/// stable failure tag so the caller reads the same vocabulary the retained
+/// record uses.
+#[cfg(feature = "default-embedder")]
+fn gpu_allocation_witness_refusal(tag: &str, detail: &str) -> EngineOpenError {
+    EngineOpenError::Embedder(RuntimeEmbedderError::Failed {
+        message: format!(
+            "{ENV_GPU_ALLOCATION_WITNESS} was requested but no GPU allocation witness \
+             could be produced ({tag}): {detail}"
+        ),
+    })
+}
+
+#[cfg(all(feature = "default-embedder", feature = "embed-cuda"))]
+fn run_requested_gpu_allocation_witness(
+    device_resolution: &DeviceResolution,
+) -> Result<GpuAllocationWitness, EngineOpenError> {
+    use fathomdb_embedder::{AllocationWitnessConfig, EffectiveEmbedDevice};
+
+    let ordinal = match &device_resolution.effective_device {
+        EffectiveEmbedDevice::Cuda(info) => info.ordinal,
+        EffectiveEmbedDevice::Cpu => {
+            return Err(gpu_allocation_witness_refusal(
+                "cpu_fallback",
+                "the embedder device policy resolved to CPU, so there is no GPU \
+                 allocation to witness",
+            ));
+        }
+    };
+    fathomdb_embedder::run_default_embedder_allocation_witness(AllocationWitnessConfig {
+        ordinal,
+        ..AllocationWitnessConfig::default()
+    })
+    .map_err(|error| gpu_allocation_witness_refusal(error.as_str(), &error.to_string()))
+}
+
+#[cfg(all(feature = "default-embedder", not(feature = "embed-cuda")))]
+fn run_requested_gpu_allocation_witness(
+    _device_resolution: &DeviceResolution,
+) -> Result<GpuAllocationWitness, EngineOpenError> {
+    Err(gpu_allocation_witness_refusal(
+        "cuda_not_compiled",
+        "this artifact has no CUDA provider compiled in",
+    ))
+}
+
+#[cfg(test)]
+mod gpu_allocation_witness_opt_in_tests {
+    use super::{parse_gpu_allocation_witness_opt_in, ENV_GPU_ALLOCATION_WITNESS};
+
+    #[test]
+    fn absent_and_empty_are_off() {
+        assert_eq!(parse_gpu_allocation_witness_opt_in(None), Ok(false));
+        assert_eq!(parse_gpu_allocation_witness_opt_in(Some("")), Ok(false));
+        assert_eq!(parse_gpu_allocation_witness_opt_in(Some("   ")), Ok(false));
+    }
+
+    #[test]
+    fn explicit_on_and_off_are_accepted_case_insensitively() {
+        for on in ["1", "true", "TRUE", " True "] {
+            assert_eq!(parse_gpu_allocation_witness_opt_in(Some(on)), Ok(true), "{on:?}");
+        }
+        for off in ["0", "false", "FALSE", " False "] {
+            assert_eq!(parse_gpu_allocation_witness_opt_in(Some(off)), Ok(false), "{off:?}");
+        }
+    }
+
+    #[test]
+    fn an_unrecognized_value_is_rejected_rather_than_read_as_off() {
+        // The fail-closed arm: `ture` must not quietly disable the evidence.
+        let error = parse_gpu_allocation_witness_opt_in(Some("ture"))
+            .expect_err("an unrecognized value is not a silent off");
+        assert!(error.contains(ENV_GPU_ALLOCATION_WITNESS), "{error}");
+        assert!(error.contains("ture"), "{error}");
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -3661,6 +5326,10 @@ pub enum EngineOpenError {
     },
     /// Embedder runtime returned a typed error during `Engine::open`.
     Embedder(RuntimeEmbedderError),
+    /// The default embedder's explicit CPU/CUDA policy could not be honored.
+    EmbedDevicePolicy(EmbedDevicePolicyError),
+    /// The cross-encoder's independent CPU/CUDA policy could not be honored.
+    RerankerDevicePolicy(RerankerDevicePolicyError),
     Io {
         message: String,
     },
@@ -3682,6 +5351,17 @@ pub enum EmbedderChoice {
     /// Caller supplies the embedder instance. The supplied embedder's
     /// `identity()` becomes the workspace's default-profile identity.
     Caller(Arc<dyn Embedder>),
+    /// Caller supplies an embedder plus its already-resolved device outcome.
+    ///
+    /// The resolution is recorded in [`OpenReport::embedder_device_resolution`]
+    /// exactly once. This is for opt-in embedders, such as ONNX Runtime, whose
+    /// final CUDA/CPU outcome is known only after their own construction.
+    CallerWithDeviceResolution {
+        /// The caller-supplied runtime embedder.
+        embedder: Arc<dyn Embedder>,
+        /// The embedder's final CPU/CUDA resolution.
+        device_resolution: DeviceResolution,
+    },
     /// No embedder configured. Engine opens; subsequent vector writes
     /// fail with `EngineError::EmbedderNotConfigured`. Useful for
     /// read-only or canonical-only flows.
@@ -3729,6 +5409,8 @@ impl Display for EngineOpenError {
                     write!(f, "embedder failure during open: {message}")
                 }
             },
+            Self::EmbedDevicePolicy(error) => error.fmt(f),
+            Self::RerankerDevicePolicy(error) => error.fmt(f),
             Self::Io { message } => write!(f, "database I/O error: {message}"),
         }
     }
@@ -3743,6 +5425,14 @@ pub enum EngineError {
     Vector,
     Embedder,
     EmbedderNotConfigured,
+    /// A forced cross-encoder CUDA policy could not be honored while loading or
+    /// running the reranker. CPU fallback is forbidden for this request.
+    RerankerDevicePolicy(RerankerDevicePolicyError),
+    /// Pending projection work requires an embedder that this session did not
+    /// configure. Unlike [`Self::EmbedderNotConfigured`], this is a drain-time
+    /// configuration outcome: the accepted write remains durable and can be
+    /// completed by a later session with a usable embedder.
+    EmbedderRequired(EmbedderRequired),
     KindNotVectorIndexed,
     EmbedderDimensionMismatch {
         expected: u32,
@@ -3857,6 +5547,13 @@ impl Display for EngineError {
             Self::Vector => write!(f, "vector error"),
             Self::Embedder => write!(f, "embedder error"),
             Self::EmbedderNotConfigured => write!(f, "embedder is not configured"),
+            Self::RerankerDevicePolicy(error) => error.fmt(f),
+            Self::EmbedderRequired(required) => write!(
+                f,
+                "{} requires a configured embedder; see {}",
+                required.operation.as_str(),
+                required.documentation_url
+            ),
             Self::KindNotVectorIndexed => write!(f, "kind is not configured for vector indexing"),
             Self::EmbedderDimensionMismatch { expected, actual } => {
                 write!(f, "embedder dimension mismatch: expected {expected}, actual {actual}")
@@ -3917,6 +5614,8 @@ impl EngineError {
             Self::Vector => "VectorError",
             Self::Embedder => "EmbedderError",
             Self::EmbedderNotConfigured => "EmbedderNotConfiguredError",
+            Self::RerankerDevicePolicy(_) => "RerankerDevicePolicyError",
+            Self::EmbedderRequired(_) => "EmbedderRequiredError",
             Self::KindNotVectorIndexed => "KindNotVectorIndexedError",
             Self::EmbedderDimensionMismatch { .. } => "EmbedderDimensionMismatchError",
             Self::Scheduler => "SchedulerError",
@@ -4235,6 +5934,101 @@ pub struct ProjectionRuntimeStatus {
     pub vector_unsupported_kinds: Vec<String>,
 }
 
+/// The lifecycle state of outstanding embedding work for this open session.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EmbeddingReadinessState {
+    /// No eligible embedding work is outstanding.
+    Ready,
+    /// A usable embedder is processing eligible work.
+    Processing,
+    /// Work exists but the session is unavailable for a non-configuration reason.
+    Deferred,
+    /// Work exists and this session has no configured embedder.
+    Blocked,
+}
+
+impl EmbeddingReadinessState {
+    /// Stable lower-case wire spelling.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Ready => "ready",
+            Self::Processing => "processing",
+            Self::Deferred => "deferred",
+            Self::Blocked => "blocked",
+        }
+    }
+}
+
+/// The projection operation that needs an embedder.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EmbeddingOperation {
+    /// The body of a canonical graph edge projects as `edge_fact`.
+    GraphEdgeBodyProjection,
+    /// A caller-declared vector projection has outstanding work.
+    VectorProjection,
+}
+
+impl EmbeddingOperation {
+    /// Stable lower-case wire spelling.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::GraphEdgeBodyProjection => "graph_edge_body_projection",
+            Self::VectorProjection => "vector_projection",
+        }
+    }
+}
+
+/// A typed configuration outcome shared by drain errors and readiness reports.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmbedderRequired {
+    /// Stable error code for all bindings.
+    pub code: &'static str,
+    /// The blocked embedding operation.
+    pub operation: EmbeddingOperation,
+    /// Stable state spelling, always `blocked` for this payload.
+    pub state: EmbeddingReadinessState,
+    /// Ordered, machine-readable corrective actions.
+    pub remediations: Vec<&'static str>,
+    /// Stable documentation address for this outcome.
+    pub documentation_url: &'static str,
+}
+
+/// A Rust-owned, pure current report for embedding readiness.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmbeddingReadiness {
+    /// `ready`, `processing`, `deferred`, or `blocked`.
+    pub state: EmbeddingReadinessState,
+    /// Whether this session can use its dense runtime now.
+    pub usable_embedder: bool,
+    /// Number of eligible rows awaiting embedding.
+    pub pending_count: u64,
+    /// Sorted projection kinds represented by the pending rows.
+    pub affected_kinds: Vec<String>,
+    /// Present exactly when `state` is `blocked`.
+    pub blocked: Option<EmbedderRequired>,
+}
+
+fn embedder_required_for(affected_kinds: &[String]) -> EmbedderRequired {
+    let operation = if affected_kinds.iter().any(|kind| kind == EDGE_FACT_KIND) {
+        EmbeddingOperation::GraphEdgeBodyProjection
+    } else {
+        EmbeddingOperation::VectorProjection
+    };
+    EmbedderRequired {
+        code: "FDB_EMBEDDER_REQUIRED",
+        operation,
+        state: EmbeddingReadinessState::Blocked,
+        remediations: vec![
+            "configure_default_embedder",
+            "configure_caller_embedder",
+            "submit_non_embedding_input",
+        ],
+        documentation_url: "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED",
+    }
+}
+
 /// 0.8.20 Slice 15d (R-20-PR) — the `searchable→vector` sub-target selector.
 ///
 /// **Slice 20 (R-20-DR) attached `dense_readiness` HERE, additively:** this
@@ -4532,6 +6326,22 @@ impl Drop for Engine {
 }
 
 impl Engine {
+    /// Executes the TC-5 benchmark-only direct vector stage on one reader-worker
+    /// snapshot. This symbol exists only with the `tc5-benchmark` feature and is
+    /// deliberately not re-exported by the facade crate.
+    #[cfg(feature = "tc5-benchmark")]
+    pub fn tc5_vector_stage(
+        &self,
+        request: tc5_benchmark::VectorStageRequest,
+    ) -> Result<tc5_benchmark::VectorStageResult, tc5_benchmark::VectorStageError> {
+        self.ensure_open().map_err(|_| tc5_benchmark::VectorStageError::Closing)?;
+        let (respond, received) = mpsc::sync_channel(1);
+        self.reader_pool
+            .dispatch(ReaderRequest::VectorStage { request, respond })
+            .map_err(|_| tc5_benchmark::VectorStageError::Closing)?;
+        received.recv().map_err(|_| tc5_benchmark::VectorStageError::Closing)?
+    }
+
     fn usable_dense_runtime(&self) -> bool {
         usable_dense_runtime(
             self.runtime_embedder.as_deref(),
@@ -4575,6 +6385,24 @@ impl Engine {
                     &mut |_| {},
                 )
             }
+            EmbedderChoice::CallerWithDeviceResolution { embedder, device_resolution } => {
+                let identity = embedder.identity();
+                Self::open_with_embedder_and_subscriber(
+                    path,
+                    identity,
+                    Some(embedder),
+                    Some(LoaderInfo {
+                        download_ms: None,
+                        events: Vec::new(),
+                        device_resolution,
+                        // A caller-supplied embedder was not constructed here,
+                        // so nothing in this process measured an allocation.
+                        gpu_allocation_witness: None,
+                    }),
+                    None,
+                    &mut |_| {},
+                )
+            }
             EmbedderChoice::None => Self::open_with_embedder_and_subscriber(
                 path,
                 default_embedder_identity(),
@@ -4593,6 +6421,13 @@ impl Engine {
     #[cfg(feature = "default-embedder")]
     fn open_default_embedder(path: impl Into<PathBuf>) -> Result<OpenedEngine, EngineOpenError> {
         use std::time::Instant as DownloadInstant;
+        let device_resolution = fathomdb_embedder::resolve_default_embedder_device_from_env()
+            .map_err(EngineOpenError::EmbedDevicePolicy)?;
+        // 0.8.23 Slice 80.6 (D-80.6-6) — the witness runs BEFORE this open's
+        // own model reaches the device, so its `free_before`/`free_after`
+        // bracket surrounds nothing but the load it is measuring. Opted in
+        // only; see `ENV_GPU_ALLOCATION_WITNESS`.
+        let gpu_allocation_witness = witness_gpu_allocation_if_requested(&device_resolution)?;
         let download_start = DownloadInstant::now();
         let weights = fathomdb_embedder::loader::load_pinned_default_embedder().map_err(|err| {
             EngineOpenError::Embedder(RuntimeEmbedderError::Failed {
@@ -4606,14 +6441,19 @@ impl Engine {
             None
         };
         let embedder =
-            fathomdb_embedder::CandleBgeEmbedder::new_from_weights(weights).map_err(|err| {
+            fathomdb_embedder::CandleBgeEmbedder::new_from_weights_with_device_resolution(
+                weights,
+                &device_resolution,
+            )
+            .map_err(|err| {
                 EngineOpenError::Embedder(RuntimeEmbedderError::Failed {
                     message: format!("default embedder construct: {err}"),
                 })
             })?;
         let embedder: Arc<dyn Embedder> = Arc::new(embedder);
         let identity = embedder.identity();
-        let loader_info = LoaderInfo { download_ms, events };
+        let loader_info =
+            LoaderInfo { download_ms, events, device_resolution, gpu_allocation_witness };
         Self::open_with_embedder_and_subscriber(
             path,
             identity,
@@ -4737,13 +6577,27 @@ impl Engine {
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
         initial_subscriber: Option<Arc<dyn lifecycle::Subscriber>>,
     ) -> Result<OpenedEngine, EngineOpenError> {
+        // Resolve at open rather than piggybacking on embedding selection. This
+        // probes no model/cache/database and makes an invalid or forced CUDA
+        // policy visible to every SDK before a query could silently fall back.
+        #[cfg(feature = "default-reranker")]
+        let reranker_device_resolution = Some(
+            fathomdb_embedder::resolve_default_reranker_device_from_env()
+                .map_err(EngineOpenError::RerankerDevicePolicy)?,
+        );
+        #[cfg(not(feature = "default-reranker"))]
+        let reranker_device_resolution = None;
         let canonical_path = canonical_database_path(&path.into())?;
         let lock = acquire_lock(&canonical_path)?;
+        #[cfg(any(test, feature = "test-hooks"))]
+        let managed_connections = Arc::new(ManagedConnectionRegistry::default());
         let open_result = Self::open_locked(
             canonical_path.clone(),
             migrations,
             &embedder_identity,
             emit_migration_event,
+            #[cfg(any(test, feature = "test-hooks"))]
+            Arc::clone(&managed_connections),
         );
 
         match open_result {
@@ -4760,7 +6614,13 @@ impl Engine {
                     if !info.events.is_empty() {
                         report.embedder_events = info.events;
                     }
+                    report.embedder_device_resolution = Some(info.device_resolution);
+                    // D-80.6-6 — assigned, not merged: `None` here means this
+                    // open measured no witness, and there is no earlier value
+                    // that a `None` could be hiding.
+                    report.embedder_gpu_allocation_witness = info.gpu_allocation_witness;
                 }
+                report.reranker_device_resolution = reranker_device_resolution;
 
                 // 0.8.18 Slice 5 (#5 vector-equivalence probe KEYSTONE) — run the
                 // open-time self-check on the FINAL post-recovery connection (the
@@ -4805,6 +6665,11 @@ impl Engine {
                 let subscribers = Arc::new(lifecycle::SubscriberRegistry::new());
                 let profiling_enabled = Arc::new(AtomicBool::new(false));
                 let slow_threshold_ms = Arc::new(AtomicU64::new(DEFAULT_SLOW_THRESHOLD_MS));
+                let wal_attribution = Arc::new(WalAttributionCollector::new());
+                wal_attribution.register(WalAttributionRole::Writer, 0);
+                #[cfg(any(test, feature = "test-hooks"))]
+                let writer_connection_registration =
+                    managed_connections.register(WalAttributionRole::Writer, 0);
                 let mut profile_contexts: Vec<Box<ProfileContext>> = Vec::new();
                 let scheduler_embedder =
                     if dense_runtime_usable { runtime_embedder.clone() } else { None };
@@ -4814,6 +6679,9 @@ impl Engine {
                     embedder_identity.clone(),
                     report.embedder_mean_vec_pinned,
                     Arc::clone(&subscribers),
+                    Arc::clone(&wal_attribution),
+                    #[cfg(any(test, feature = "test-hooks"))]
+                    Arc::clone(&managed_connections),
                 );
 
                 install_profile_callback(
@@ -4840,7 +6708,12 @@ impl Engine {
                         closed: AtomicBool::new(false),
                         lock: Mutex::new(Some(lock)),
                         connection: Mutex::new(Some(connection)),
-                        reader_pool: ReaderWorkerPool::new(readers),
+                        reader_pool: ReaderWorkerPool::new(
+                            readers,
+                            Arc::clone(&wal_attribution),
+                            #[cfg(any(test, feature = "test-hooks"))]
+                            Arc::clone(&managed_connections),
+                        ),
                         counters: lifecycle::Counters::new(),
                         subscribers,
                         profiling_enabled,
@@ -4848,6 +6721,17 @@ impl Engine {
                         runtime_embedder,
                         runtime_embedder_identity: embedder_identity,
                         projection_runtime,
+                        wal_attribution,
+                        #[cfg(any(test, feature = "test-hooks"))]
+                        managed_connections,
+                        #[cfg(any(test, feature = "test-hooks"))]
+                        writer_connection_registration: Mutex::new(Some(
+                            writer_connection_registration,
+                        )),
+                        #[cfg(any(test, feature = "test-hooks"))]
+                        actual_checkpoint_observations: Mutex::new(None),
+                        #[cfg(any(test, feature = "test-hooks"))]
+                        binding_native_state_observations: Mutex::new(None),
                         provenance_row_cap: AtomicU64::new(DEFAULT_PROVENANCE_ROW_CAP),
                         profile_contexts: Mutex::new(profile_contexts),
                         reader_lookaside_rcs,
@@ -4866,7 +6750,12 @@ impl Engine {
                 }
                 if dense_runtime_usable
                     && (boot_graft_enqueued
-                        || database_has_pending_projection_work(&canonical_path).unwrap_or(false))
+                        || database_has_pending_projection_work(
+                            &canonical_path,
+                            #[cfg(any(test, feature = "test-hooks"))]
+                            &opened.engine.managed_connections,
+                        )
+                        .unwrap_or(false))
                 {
                     opened.engine.projection_runtime.notify_new_work();
                 }
@@ -4887,11 +6776,20 @@ impl Engine {
         migrations: &'static [fathomdb_schema::Migration],
         embedder_identity: &EmbedderIdentity,
         emit_migration_event: &mut impl FnMut(&MigrationStepReport),
+        #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<
+            ManagedConnectionRegistry,
+        >,
     ) -> Result<(Connection, Vec<Connection>, OpenReport, Vec<i32>), EngineOpenError> {
         init_perf_experiments_runtime();
         register_sqlite_vec_extension();
-        let mut connection = Connection::open(&path)
-            .map_err(|err| map_open_sqlite_error(err, OpenStage::HeaderProbe))?;
+        let mut connection = open_managed_connection(
+            &path,
+            #[cfg(any(test, feature = "test-hooks"))]
+            ManagedConnectionCategory::Writer,
+            #[cfg(any(test, feature = "test-hooks"))]
+            &managed_connections,
+        )
+        .map_err(|err| map_open_sqlite_error(err, OpenStage::HeaderProbe))?;
         // Order pinned by `dev/design/errors.md` § OpenStage matrix: each
         // step routes its own SQLite-level error to a distinct
         // `CorruptionKind` (Header → WalReplay → Schema → EmbedderIdentity).
@@ -5099,13 +6997,24 @@ impl Engine {
             // non-degraded default; the probe runs after this returns.
             dense_disabled: false,
             dense_disabled_reason: None,
+            embedder_device_resolution: None,
+            reranker_device_resolution: None,
+            // 0.8.23 Slice 80.6 (D-80.6-6) — set by `open_with_migrations`
+            // only when an opted-in CUDA default-embedder open measured one.
+            embedder_gpu_allocation_witness: None,
         };
 
         let mut readers = Vec::with_capacity(READER_POOL_SIZE);
         let mut lookaside_rcs: Vec<i32> = Vec::with_capacity(READER_POOL_SIZE);
         for _ in 0..READER_POOL_SIZE {
-            let reader = Connection::open(&path)
-                .map_err(|err| map_open_sqlite_error(err, OpenStage::HeaderProbe))?;
+            let reader = open_managed_connection(
+                &path,
+                #[cfg(any(test, feature = "test-hooks"))]
+                ManagedConnectionCategory::ReaderWorker,
+                #[cfg(any(test, feature = "test-hooks"))]
+                &managed_connections,
+            )
+            .map_err(|err| map_open_sqlite_error(err, OpenStage::HeaderProbe))?;
             // Pack 6.G G.1: configure per-connection lookaside BEFORE
             // any PRAGMA / prepare runs on this reader. Reordering this
             // after the journal-mode / query_only PRAGMAs would let
@@ -5143,6 +7052,524 @@ impl Engine {
     #[must_use]
     pub fn path(&self) -> &Path {
         &self.path
+    }
+
+    #[allow(dead_code)]
+    fn wal_attribution_snapshot(&self) -> WalAttributionSnapshot {
+        self.wal_attribution.snapshot()
+    }
+
+    #[allow(dead_code)]
+    fn wal_attribution_checkpoints_for_test(&self) -> Vec<WalCheckpointRecord> {
+        self.wal_attribution.checkpoints()
+    }
+
+    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    #[allow(dead_code)]
+    #[doc(hidden)]
+    pub fn pause_reader_after_wal_snapshot_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
+        let snapshot_ready = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        self.reader_pool.senders[0]
+            .send(ReaderRequest::HoldWalSnapshot {
+                snapshot_ready: Arc::clone(&snapshot_ready),
+                release: Arc::clone(&release),
+            })
+            .expect("reader worker must be live for WAL attribution control");
+        (snapshot_ready, release)
+    }
+
+    #[cfg(test)]
+    fn post_commit_ack_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>, Arc<Barrier>) {
+        let snapshot_ready = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        let committed = Arc::new(Barrier::new(2));
+        self.reader_pool.senders[0]
+            .send(ReaderRequest::HoldWalSnapshotWithCommitAck {
+                snapshot_ready: Arc::clone(&snapshot_ready),
+                release: Arc::clone(&release),
+                committed: Arc::clone(&committed),
+            })
+            .expect("reader worker must be live for post-COMMIT WAL acknowledgement");
+        (snapshot_ready, release, committed)
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn arm_next_reader_snapshot_pause_for_test(
+        &self,
+    ) -> (Arc<Barrier>, Arc<Barrier>, Arc<Mutex<Option<String>>>) {
+        self.wal_attribution.arm_reader_snapshot_pause()
+    }
+
+    /// Arm a private completion rendezvous for the next public reader request.
+    ///
+    /// The ready barrier fires only after the helper-local SQLite transaction
+    /// and statements have dropped, the attribution collector is idle, and
+    /// before the materialized response is delivered. Available only to tests
+    /// and disposable `test-hooks` artifacts.
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn arm_next_reader_completion_pause_for_test(
+        &self,
+    ) -> (Arc<Barrier>, Arc<Barrier>, Arc<AtomicBool>) {
+        self.wal_attribution.arm_reader_completion_pause()
+    }
+
+    /// Private Slice 65 test rendezvous. Unlike the snapshot hook this is
+    /// deliberately unavailable to test-hook artifacts: it verifies only the
+    /// collector's internal response-handoff boundary.
+    #[cfg(test)]
+    fn pause_next_reader_handoff_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
+        self.wal_attribution.arm_reader_handoff_pause()
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn wal_attribution_checkpoint_records_for_test(
+        &self,
+    ) -> Vec<(usize, bool, String, Vec<String>)> {
+        self.wal_attribution_checkpoints_for_test()
+            .into_iter()
+            .map(|record| {
+                (
+                    record.attempt,
+                    record.busy,
+                    record.classification.to_string(),
+                    record
+                        .active_roles
+                        .iter()
+                        .map(|(role, index)| format!("{}:{index}", role.name()))
+                        .collect(),
+                )
+            })
+            .collect()
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn wal_attribution_idle_for_test(&self) -> bool {
+        self.wal_attribution_snapshot().no_owned_snapshot
+    }
+
+    /// Arm private observation for the next erasure checkpoint sequence. The
+    /// observer only reads connection state around the already-required
+    /// checkpoint call; it never issues a diagnostic SQLite statement.
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn arm_actual_checkpoint_observation_for_test(&self, control: &'static str) {
+        *self.actual_checkpoint_observations.lock().expect("actual checkpoint observation") =
+            Some(ActualCheckpointObserver { control, records: Vec::new() });
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn actual_checkpoint_observation_for_test(
+        &self,
+        phase: &'static str,
+        ordinal: usize,
+        checkpoint_begin_overlap: bool,
+        elapsed: Option<Duration>,
+        report: Option<TruncateWalReport>,
+    ) {
+        let mut observations =
+            self.actual_checkpoint_observations.lock().expect("actual checkpoint observation");
+        let Some(observer) = observations.as_mut() else {
+            return;
+        };
+        let writer_autocommit = self
+            .connection
+            .lock()
+            .ok()
+            .and_then(|connection| connection.as_ref().map(Connection::is_autocommit))
+            .unwrap_or(false);
+        let direct_inventory = self.actual_checkpoint_direct_inventory_for_test();
+        let collector_roles = self
+            .wal_attribution_snapshot()
+            .active_roles
+            .into_iter()
+            .map(|(role, index)| format!("{}:{index}", role.name()))
+            .collect();
+        observer.records.push(ActualCheckpointObservation {
+            control: observer.control,
+            phase,
+            ordinal,
+            writer_autocommit,
+            direct_inventory,
+            collector_roles,
+            checkpoint_begin_overlap,
+            elapsed,
+            report,
+        });
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn actual_checkpoint_direct_inventory_for_test(&self) -> String {
+        let registry_complete = self.managed_connections.exact_live();
+        let creation = self.managed_connections.creation_counts();
+        let writer_autocommit = self
+            .connection
+            .lock()
+            .ok()
+            .and_then(|connection| connection.as_ref().map(Connection::is_autocommit))
+            .unwrap_or(false);
+        let readers = self.reader_pool.wal_connection_inventory_for_test();
+        let runtime = self.projection_runtime.report_runtime_connection_inventory_for_test();
+        let reader_autocommit =
+            readers.len() == READER_POOL_SIZE && readers.iter().all(|value| *value);
+        let runtime_autocommit = runtime.as_ref().is_ok_and(|entries| {
+            let expected = BTreeSet::from([
+                (WalAttributionRole::ProjectionDispatcher, 0),
+                (WalAttributionRole::ProjectionWorker, 0),
+                (WalAttributionRole::ProjectionWorker, 1),
+            ]);
+            entries.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>()
+                == expected
+                && entries.iter().all(|(_, _, autocommit)| *autocommit)
+        });
+        let dispatcher_autocommit = runtime.as_ref().is_ok_and(|entries| {
+            entries
+                .iter()
+                .find(|(role, index, _)| {
+                    *role == WalAttributionRole::ProjectionDispatcher && *index == 0
+                })
+                .is_some_and(|(_, _, autocommit)| *autocommit)
+        });
+        let workers_autocommit = runtime.as_ref().is_ok_and(|entries| {
+            entries
+                .iter()
+                .filter(|(role, _, _)| *role == WalAttributionRole::ProjectionWorker)
+                .count()
+                == PROJECTION_WORKERS
+                && entries
+                    .iter()
+                    .filter(|(role, _, _)| *role == WalAttributionRole::ProjectionWorker)
+                    .all(|(_, _, autocommit)| *autocommit)
+        });
+        let creation_text = creation.map_or_else(
+            || "unknown".to_string(),
+            |(writer, readers, dispatcher, workers, probes)| {
+                format!("writer:{writer},readers:{readers},dispatcher:{dispatcher},workers:{workers},probes:{probes}")
+            },
+        );
+        let complete = registry_complete
+            && creation == Some((1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, 2))
+            && writer_autocommit
+            && reader_autocommit
+            && runtime_autocommit;
+        format!(
+            "roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer={};readers={};dispatcher={};workers={};registry={};creation={};complete={}",
+            if writer_autocommit { "autocommit" } else { "not_autocommit" },
+            if reader_autocommit { "autocommit" } else { "not_autocommit" },
+            if dispatcher_autocommit { "autocommit" } else { "not_autocommit" },
+            if workers_autocommit { "2-autocommit" } else { "not_autocommit" },
+            if registry_complete { "complete" } else { "incomplete" },
+            creation_text,
+            u8::from(complete),
+        )
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn take_actual_checkpoint_observations_for_test(&self) -> Vec<String> {
+        let records = self
+            .actual_checkpoint_observations
+            .lock()
+            .expect("actual checkpoint observation")
+            .take()
+            .map_or_else(Vec::new, |observer| observer.records);
+        records
+            .into_iter()
+            .map(|record| {
+                let collector_roles = if record.collector_roles.is_empty() {
+                    "idle".to_string()
+                } else {
+                    record.collector_roles.join(",")
+                };
+                let timing = record.elapsed.map_or_else(String::new, |elapsed| {
+                    format!(" elapsed_ms={}", elapsed.as_millis())
+                });
+                let outcome = record.report.map_or_else(String::new, |report| {
+                    format!(
+                        " busy={} log_frames={} checkpointed_frames={}",
+                        u8::from(report.busy != 0), report.log_frames, report.checkpointed_frames,
+                    )
+                });
+                format!(
+                    "control={} phase={} ordinal={} writer_autocommit={} direct_inventory={} collector_roles={} checkpoint_begin_overlap={}{}{}",
+                    record.control,
+                    record.phase,
+                    record.ordinal,
+                    u8::from(record.writer_autocommit),
+                    record.direct_inventory,
+                    collector_roles,
+                    u8::from(record.checkpoint_begin_overlap),
+                    timing,
+                    outcome,
+                )
+            })
+            .collect()
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn arm_python_serial_actual_checkpoint_observation_for_test(&self) {
+        self.arm_actual_checkpoint_observation_for_test("python_serial");
+    }
+
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn drain_actual_checkpoint_observations_for_test(&self) -> Vec<String> {
+        self.take_actual_checkpoint_observations_for_test()
+    }
+
+    /// Arm direct native-state observation around the existing Slice 65
+    /// test-hook sampler. It is deliberately separate from the real-erasure
+    /// observer so the normal serial path gains no connection inspection.
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn arm_binding_native_state_observation_for_test(&self) {
+        *self.binding_native_state_observations.lock().expect("binding native state observation") =
+            Some(BindingNativeStateObserver { records: Vec::new() });
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn binding_native_state_observation_for_test(&self, phase: &'static str, ordinal: usize) {
+        let mut observations = self
+            .binding_native_state_observations
+            .lock()
+            .expect("binding native state observation");
+        let Some(observer) = observations.as_mut() else {
+            return;
+        };
+        observer.records.push(BindingNativeStateObservation {
+            phase,
+            ordinal,
+            inventory: self.native_state_inventory_for_test(),
+        });
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn drain_binding_native_state_observations_for_test(&self) -> Vec<String> {
+        self.binding_native_state_observations
+            .lock()
+            .expect("binding native state observation")
+            .take()
+            .map_or_else(Vec::new, |observer| observer.records)
+            .into_iter()
+            .map(|record| {
+                format!(
+                    "control=binding_sampler phase={} ordinal={} {}",
+                    record.phase,
+                    record.ordinal,
+                    native_state_inventory_text(&record.inventory),
+                )
+            })
+            .collect()
+    }
+
+    #[cfg(any(test, feature = "test-hooks"))]
+    fn native_state_inventory_for_test(&self) -> NativeStateInventory {
+        let mut facts = Vec::with_capacity(1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS);
+        let writer = match self.connection.lock() {
+            Ok(connection) => connection.as_ref().map_or_else(
+                || {
+                    unavailable_native_connection_state_for_test(
+                        WalAttributionRole::Writer,
+                        0,
+                        NativeStateReply::Error("writer_unavailable"),
+                    )
+                },
+                |connection| {
+                    native_connection_state_for_test(connection, WalAttributionRole::Writer, 0)
+                },
+            ),
+            Err(_) => unavailable_native_connection_state_for_test(
+                WalAttributionRole::Writer,
+                0,
+                NativeStateReply::Error("writer_lock"),
+            ),
+        };
+        facts.push(writer);
+        facts.extend(self.reader_pool.wal_native_state_inventory_for_test());
+        match self.projection_runtime.report_runtime_native_state_inventory_for_test() {
+            Ok(runtime) => facts.extend(runtime),
+            Err(reason) => {
+                facts.extend([
+                    unavailable_native_connection_state_for_test(
+                        WalAttributionRole::ProjectionDispatcher,
+                        0,
+                        NativeStateReply::Error(reason),
+                    ),
+                    unavailable_native_connection_state_for_test(
+                        WalAttributionRole::ProjectionWorker,
+                        0,
+                        NativeStateReply::Error(reason),
+                    ),
+                    unavailable_native_connection_state_for_test(
+                        WalAttributionRole::ProjectionWorker,
+                        1,
+                        NativeStateReply::Error(reason),
+                    ),
+                ]);
+            }
+        }
+        facts.sort_by_key(|fact| (fact.role, fact.index));
+        let expected = native_state_expected_roles();
+        let actual = facts.iter().map(|fact| (fact.role, fact.index)).collect::<BTreeSet<_>>();
+        let unique = facts.len() == actual.len();
+        let managed = self.managed_connections.exact_live();
+        let received_and_idle = facts.iter().all(|fact| {
+            matches!(fact.reply, NativeStateReply::Received)
+                && fact.autocommit == Some(true)
+                && fact.transaction == NativeTransactionState::None
+                && fact.busy_statement == Some(false)
+        });
+        let (complete, reason) = if !managed {
+            (false, "registry_mismatch")
+        } else if actual != expected || !unique {
+            (false, "role_mismatch")
+        } else if !received_and_idle {
+            (false, "native_state_not_idle")
+        } else {
+            (true, "complete")
+        };
+        NativeStateInventory { facts, complete, reason }
+    }
+
+    /// Return exact direct native state for the private installed-binding
+    /// diagnostic. Any missing, duplicate, timed-out, errored, or non-idle
+    /// role fails closed; callers cannot upgrade a checkpoint classification.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn binding_native_state_inventory_for_test(&self) -> Result<String, EngineError> {
+        self.ensure_open()?;
+        let inventory = self.native_state_inventory_for_test();
+        if !inventory.complete {
+            return Err(EngineError::Storage);
+        }
+        Ok(native_state_inventory_text(&inventory))
+    }
+
+    /// Return direct, complete managed-connection facts for the private Slice
+    /// 65 installed-binding diagnostic. This is intentionally unavailable from
+    /// ordinary builds and never enters an SDK error or diagnostic surface.
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn binding_connection_inventory_for_test(&self) -> Result<String, EngineError> {
+        self.ensure_open()?;
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while !self.managed_connections.exact_live() && Instant::now() < deadline {
+            thread::sleep(Duration::from_millis(5));
+        }
+        if !self.managed_connections.exact_live() {
+            return Err(EngineError::Storage);
+        }
+        let creation = self.managed_connections.creation_counts().ok_or(EngineError::Storage)?;
+        if creation != (1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, 2) {
+            return Err(EngineError::Storage);
+        }
+        let writer_autocommit = self
+            .connection
+            .lock()
+            .map_err(|_| EngineError::Storage)?
+            .as_ref()
+            .is_some_and(Connection::is_autocommit);
+        if !writer_autocommit {
+            return Err(EngineError::Storage);
+        }
+        let readers = self.reader_pool.wal_connection_inventory_for_test();
+        if readers.len() != READER_POOL_SIZE || readers.into_iter().any(|autocommit| !autocommit) {
+            return Err(EngineError::Storage);
+        }
+        let runtime = self
+            .projection_runtime
+            .report_runtime_connection_inventory_for_test()
+            .map_err(|_| EngineError::Storage)?;
+        let expected = BTreeSet::from([
+            (WalAttributionRole::ProjectionDispatcher, 0),
+            (WalAttributionRole::ProjectionWorker, 0),
+            (WalAttributionRole::ProjectionWorker, 1),
+        ]);
+        let actual =
+            runtime.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>();
+        if actual != expected || runtime.iter().any(|(_, _, autocommit)| !autocommit) {
+            return Err(EngineError::Storage);
+        }
+        let snapshot = self.wal_attribution_snapshot();
+        if !snapshot.no_owned_snapshot
+            || snapshot.roles.iter().any(|role| role.active || role.phase != "idle")
+        {
+            return Err(EngineError::Storage);
+        }
+        Ok(format!(
+            "roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=8-autocommit;dispatcher=autocommit;workers=2-autocommit;creation=writer:{},readers:{},dispatcher:{},workers:{},probes:{}",
+            creation.0, creation.1, creation.2, creation.3, creation.4,
+        ))
+    }
+
+    /// Run one bounded, test-only checkpoint sampler without performing any
+    /// erasure work. The returned records are private diagnostic observations,
+    /// not a retry or reclassification of an erasure outcome.
+    #[cfg(any(test, feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn checkpoint_at_rest_for_test(&self) -> Result<Vec<(bool, u32, u32)>, EngineError> {
+        self.ensure_open()?;
+        let mut reports = Vec::new();
+        for attempt in 0..ERASURE_WAL_TRUNCATE_ATTEMPTS {
+            self.wal_attribution.set(WalAttributionRole::Writer, 0, true, "checkpoint_start");
+            let overlap = self.wal_attribution.checkpoint_begin();
+            self.binding_native_state_observation_for_test("before", (attempt + 1) as usize);
+            let started = Instant::now();
+            let report = self.wal_checkpoint_truncate_once(false)?;
+            self.binding_native_state_observation_for_test("after", (attempt + 1) as usize);
+            self.wal_attribution.checkpoint_end();
+            self.wal_attribution.set(WalAttributionRole::Writer, 0, false, "idle");
+            let snapshot = self.wal_attribution_snapshot();
+            let classification = self.wal_attribution.classification(&snapshot, overlap);
+            self.wal_attribution.checkpoint_event(
+                (attempt + 1) as usize,
+                started.elapsed(),
+                &report,
+                classification,
+                snapshot.active_roles,
+            );
+            reports.push((report.busy != 0, report.log_frames, report.checkpointed_frames));
+            if report.busy == 0 {
+                break;
+            }
+            if attempt + 1 < ERASURE_WAL_TRUNCATE_ATTEMPTS {
+                thread::sleep(Duration::from_millis(ERASURE_WAL_TRUNCATE_BACKOFF_MS));
+            }
+        }
+        Ok(reports)
+    }
+
+    /// Take one native Rusqlite checkpoint sample for the disposable Slice 65
+    /// child probe. This opens and drops exactly one independent connection;
+    /// it neither opens an Engine nor retries an erasure result.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn native_raw_wal_checkpoint_for_test(path: &str) -> Result<(bool, u32, u32), EngineError> {
+        let registry = Arc::new(ManagedConnectionRegistry::default());
+        let connection = open_managed_connection(
+            Path::new(path),
+            ManagedConnectionCategory::RuntimeProbe,
+            &registry,
+        )
+        .map_err(|_| EngineError::Storage)?;
+        connection.execute_batch("PRAGMA busy_timeout = 0").map_err(|_| EngineError::Storage)?;
+        connection
+            .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                Ok((row.get::<_, i32>(0)? != 0, row.get(1)?, row.get(2)?))
+            })
+            .map_err(|_| EngineError::Storage)
+    }
+
+    #[cfg(debug_assertions)]
+    #[allow(dead_code)]
+    fn pause_projection_worker_after_wal_transaction_for_test(
+        &self,
+    ) -> (Arc<Barrier>, Arc<Barrier>) {
+        self.projection_runtime.pause_projection_worker_after_wal_transaction_for_test()
     }
 
     pub fn write(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt, EngineError> {
@@ -6674,6 +9101,9 @@ impl Engine {
             Err(SearchReaderError::InvalidFilter(reason)) => {
                 return Err(EngineError::InvalidFilter { reason });
             }
+            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                return Err(EngineError::RerankerDevicePolicy(error));
+            }
             Err(SearchReaderError::Sqlite(err)) => {
                 self.emit_sqlite_internal_error(&err);
                 return Err(EngineError::Storage);
@@ -6734,6 +9164,9 @@ impl Engine {
             Ok(result) => Ok(result),
             Err(SearchReaderError::InvalidFilter(reason)) => {
                 Err(EngineError::InvalidFilter { reason })
+            }
+            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                Err(EngineError::RerankerDevicePolicy(error))
             }
             Err(SearchReaderError::Sqlite(err)) => {
                 self.emit_sqlite_internal_error(&err);
@@ -7181,6 +9614,9 @@ impl Engine {
             Err(SearchReaderError::InvalidFilter(reason)) => {
                 return Err(EngineError::InvalidFilter { reason });
             }
+            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                return Err(EngineError::RerankerDevicePolicy(error));
+            }
             Err(SearchReaderError::Sqlite(err)) => {
                 self.emit_sqlite_internal_error(&err);
                 return Err(EngineError::Storage);
@@ -7603,6 +10039,10 @@ impl Engine {
             }
             connection.take();
         }
+        #[cfg(any(test, feature = "test-hooks"))]
+        if let Ok(mut registration) = self.writer_connection_registration.lock() {
+            registration.take();
+        }
         if let Ok(mut contexts) = self.profile_contexts.lock() {
             contexts.clear();
         }
@@ -7618,10 +10058,60 @@ impl Engine {
     /// instrumentation; semantics are owned by `dev/design/lifecycle.md`.
     pub fn drain(&self, timeout_ms: u64) -> Result<(), EngineError> {
         self.ensure_open()?;
+        if let Some(blocked) = self.read_embedding_readiness()?.blocked {
+            return Err(EngineError::EmbedderRequired(blocked));
+        }
         if self.projection_runtime.wait_for_idle(timeout_ms) {
             Ok(())
         } else {
             Err(EngineError::Scheduler)
+        }
+    }
+
+    /// Settle projection execution and freeze new scans for an erasure
+    /// transaction. A direct [`Self::drain`] keeps Slice 30's immediate typed
+    /// configuration feedback, but erasure must be able to remove pending work
+    /// from a no-embedder session rather than returning that feedback instead
+    /// of discharging the destructive request.
+    fn freeze_projection_for_erasure(&self) -> Result<(), EngineError> {
+        let no_configured_embedder = match self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS) {
+            Ok(()) => false,
+            Err(EngineError::EmbedderRequired(_)) => true,
+            Err(error) => return Err(error),
+        };
+
+        self.projection_runtime.set_frozen(true);
+        let settled = if no_configured_embedder {
+            // The dispatcher is frozen before the transaction. Existing jobs
+            // may still be completing their final batch, so wait for those
+            // workers only; durable rows that need an absent embedder are the
+            // rows the following erasure transaction removes.
+            if self.projection_runtime.wait_for_workers_idle(LIFECYCLE_DRAIN_TIMEOUT_MS) {
+                Ok(())
+            } else {
+                Err(EngineError::Scheduler)
+            }
+        } else {
+            // With a configured runtime, preserve the established two-drain
+            // ordering: all durable work settles unfrozen, then no worker is
+            // active once new scans are frozen.
+            self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS)
+        };
+        if settled.is_err() {
+            self.projection_runtime.set_frozen(false);
+        }
+        settled
+    }
+
+    /// Wait before a metadata-only mutation that must not turn an absent
+    /// embedder into an unrelated operation failure. Direct [`Self::drain`]
+    /// still reports the typed Slice-30 feedback; with no configured runtime
+    /// no embedding worker can be concurrently committing the durable pending
+    /// rows, so registry and lifecycle metadata may be updated safely.
+    fn drain_for_non_embedding_mutation(&self) -> Result<(), EngineError> {
+        match self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS) {
+            Ok(()) | Err(EngineError::EmbedderRequired(_)) => Ok(()),
+            Err(error) => Err(error),
         }
     }
 
@@ -8029,7 +10519,14 @@ impl Engine {
     #[doc(hidden)]
     pub fn runtime_secure_delete_enabled_for_test(&self) -> Result<bool, EngineError> {
         self.ensure_open()?;
-        let connection = open_runtime_connection(&self.path).map_err(|_| EngineError::Storage)?;
+        let connection = open_runtime_connection(
+            &self.path,
+            #[cfg(any(test, feature = "test-hooks"))]
+            ManagedConnectionCategory::RuntimeProbe,
+            #[cfg(any(test, feature = "test-hooks"))]
+            &self.managed_connections,
+        )
+        .map_err(|_| EngineError::Storage)?;
         let value: i64 = connection
             .query_row("PRAGMA secure_delete", [], |r| r.get(0))
             .map_err(|_| EngineError::Storage)?;
@@ -8802,7 +11299,7 @@ impl Engine {
         // This drain remains load-bearing because the worker owns a separate
         // connection while this state flip still reads before its own write; it
         // keeps that deferred transaction out of the worker's write window.
-        self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS)?;
+        self.drain_for_non_embedding_mutation()?;
 
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
@@ -8923,7 +11420,7 @@ impl Engine {
         // Settle in-flight async projection work first. The worker commits on its
         // own connection with `BEGIN IMMEDIATE`; a backfill issued in that write
         // window would SQLITE_BUSY.
-        self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS)?;
+        self.drain_for_non_embedding_mutation()?;
 
         // The backfill is gated on a usable dense runtime. Without one, the
         // declaration persists and defers rather than queueing unsafe work. A
@@ -9053,6 +11550,41 @@ impl Engine {
         })
     }
 
+    /// Report whether this session can complete outstanding embedding work.
+    ///
+    /// This is a pure read over the current session and durable projection
+    /// state. It neither configures an embedder nor wakes, schedules, or drains
+    /// work. A `Blocked` report carries the exact payload that [`Self::drain`]
+    /// returns immediately as [`EngineError::EmbedderRequired`].
+    pub fn read_embedding_readiness(&self) -> Result<EmbeddingReadiness, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let pending = pending_embedding_work(connection).map_err(|_| EngineError::Storage)?;
+        let pending_count = pending.iter().map(|(_, count)| *count).sum();
+        let affected_kinds: Vec<String> = pending.iter().map(|(kind, _)| kind.clone()).collect();
+        let usable_embedder = self.usable_dense_runtime();
+        // The scheduler intentionally drops a runtime that equivalence refused,
+        // but it remains attached to this Engine. Only an actually absent
+        // configuration is the typed caller-remediable outcome; a refused or
+        // failed live runtime remains an operational deferred condition.
+        let blocked = if !pending.is_empty() && self.runtime_embedder.is_none() {
+            Some(embedder_required_for(&affected_kinds))
+        } else {
+            None
+        };
+        let state = if blocked.is_some() {
+            EmbeddingReadinessState::Blocked
+        } else if pending.is_empty() {
+            EmbeddingReadinessState::Ready
+        } else if usable_embedder {
+            EmbeddingReadinessState::Processing
+        } else {
+            EmbeddingReadinessState::Deferred
+        };
+        Ok(EmbeddingReadiness { state, usable_embedder, pending_count, affected_kinds, blocked })
+    }
+
     /// OPP-12 Phase-1 (0.8.19 Slice 10, R-PG-1/2) — irreversibly hard-erase a
     /// governed node. A SEPARATE verb from [`Engine::transition`] (NOT on the
     /// `recovery_denylist`). Precondition: DELETED-FIRST — legal only from
@@ -9084,16 +11616,11 @@ impl Engine {
         // already dequeued a job for a purged cursor commit its vec0 /
         // `_fathomdb_vector_rows` INSERT after our DELETE releases the writer
         // lock, leaving residue that defeats the erasure sweep.
-        // Settle every pending projection FIRST (unfrozen) so no unprojected row
-        // is left behind that a subsequent freeze would wedge `drain` on, and so
-        // the async worker is idle. THEN freeze the scanner (no new work is queued
-        // while we erase), confirm idle, and erase in one writer transaction.
-        // Freezing before the first drain would stall projection of any
-        // just-written row → `database_has_pending_projection_work` never clears →
-        // `drain` times out into `Scheduler`.
-        self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS)?;
-        self.projection_runtime.set_frozen(true);
-        let outcome = self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS).and_then(|()| self.purge_inner(&lid));
+        // With a configured runtime, settle every pending projection unfrozen
+        // before freezing the scanner; with no configured runtime, freeze after
+        // the immediate Slice-30 feedback and remove the pending row instead.
+        self.freeze_projection_for_erasure()?;
+        let outcome = self.purge_inner(&lid);
         self.projection_runtime.set_frozen(false);
         // 0.8.20 Slice 5b (R-20-E5/E6) — the rows are gone from the tables; now
         // finish the erasure AT REST (telemetry sink + `-wal` bytes) before
@@ -9286,20 +11813,11 @@ impl Engine {
         // lock, leaving residue and breaking AC-028b. Surface the
         // timeout instead of swallowing it (Pack A pattern).
         //
-        // ORDER IS LOAD-BEARING, exactly as in `purge`: settle every pending
-        // projection FIRST (UNFROZEN), and only THEN freeze the scanner and
-        // confirm idle. Freezing first parks the dispatcher, so a row written
-        // moments ago can never be scanned and enqueued — while `drain` ->
-        // `wait_for_idle` keeps seeing it via
-        // `database_has_pending_projection_work`, which reads the DATABASE and
-        // not the queue. The result is that the ordinary sequence "write a
-        // vector-indexed row, then erase it" stalls for the whole
-        // LIFECYCLE_DRAIN_TIMEOUT_MS and fails with `Scheduler`.
-        // (codex §9 [P2]; `erase_source_drains_before_freezing`.)
-        self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS)?;
-        self.projection_runtime.set_frozen(true);
-        let drain_result = self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS);
-        let outcome = drain_result.and_then(|()| self.excise_source_inner(verb, source_id));
+        // The helper preserves the configured-runtime drain-before-freeze
+        // ordering, while allowing this destructive operation to delete
+        // otherwise-unserviceable no-embedder rows.
+        self.freeze_projection_for_erasure()?;
+        let outcome = self.excise_source_inner(verb, source_id);
         self.projection_runtime.set_frozen(false);
         // 0.8.20 Slice 5b (R-20-E5/E6) — finish the erasure AT REST before
         // reporting success: redact the erased stable ids out of the telemetry
@@ -9602,7 +12120,42 @@ impl Engine {
 
         let mut last: Option<TruncateWalReport> = None;
         for attempt in 0..ERASURE_WAL_TRUNCATE_ATTEMPTS {
-            let report = self.wal_checkpoint_truncate_once(false)?;
+            self.wal_attribution.set(WalAttributionRole::Writer, 0, true, "checkpoint_start");
+            let overlap = self.wal_attribution.checkpoint_begin();
+            #[cfg(any(test, feature = "test-hooks"))]
+            self.actual_checkpoint_observation_for_test(
+                "before",
+                (attempt + 1) as usize,
+                overlap,
+                None,
+                None,
+            );
+            let started = Instant::now();
+            let checkpoint_result = self.wal_checkpoint_truncate_once(false);
+            let elapsed = started.elapsed();
+            #[cfg(any(test, feature = "test-hooks"))]
+            self.actual_checkpoint_observation_for_test(
+                "after",
+                (attempt + 1) as usize,
+                overlap,
+                Some(elapsed),
+                checkpoint_result.as_ref().ok().cloned(),
+            );
+            let snapshot = self.wal_attribution.snapshot();
+            self.wal_attribution.checkpoint_end();
+            self.wal_attribution.set(WalAttributionRole::Writer, 0, false, "idle");
+            let report = checkpoint_result?;
+            let mut classification = self.wal_attribution.classification(&snapshot, overlap);
+            if report.status == TruncateWalStatus::Busy && classification == "no_owned_snapshot" {
+                classification = "unclassified_external";
+            }
+            self.wal_attribution.checkpoint_event(
+                (attempt + 1) as usize,
+                elapsed,
+                &report,
+                classification,
+                snapshot.active_roles,
+            );
             if report.status == TruncateWalStatus::Done {
                 return Ok(());
             }
@@ -10666,6 +13219,8 @@ pub fn fuse_three_arms(
     text_hits: Vec<SearchHit>,
     graph_hits: Vec<SearchHit>,
 ) -> Vec<SearchHit> {
+    #[cfg(feature = "tc5-benchmark")]
+    tc5_benchmark::record_fusion_route();
     struct Entry {
         hit: SearchHit,
         score: f64,
@@ -10853,11 +13408,27 @@ pub fn rerank_fused(
     alpha: f64,
     pool_n: usize,
 ) -> Vec<SearchHit> {
+    try_rerank_fused(_query, hits.clone(), rerank_depth, alpha, pool_n).unwrap_or(hits)
+}
+
+/// Fallible form of [`rerank_fused`] used by normal engine requests.
+///
+/// The legacy helper keeps the historic soft-fallback signature for pure ranking
+/// callers. Production search and standalone rerank use this path so a forced
+/// CUDA runtime failure remains observable instead of becoming an RRF result.
+#[doc(hidden)]
+pub fn try_rerank_fused(
+    _query: &str,
+    hits: Vec<SearchHit>,
+    rerank_depth: usize,
+    alpha: f64,
+    pool_n: usize,
+) -> Result<Vec<SearchHit>, RerankerDevicePolicyError> {
     // Soft-fallback: depth=0 → identity (byte-identical to old stub). NOTE this
     // early gate is independent of `pool_n`: `rerank_depth == 0, pool_n = 10`
     // does NOT rerank (0.8.5 D4).
     if rerank_depth == 0 {
-        return hits;
+        return Ok(hits);
     }
 
     // Feature-gated CE inference. In the default build (no feature) this block
@@ -10865,8 +13436,8 @@ pub fn rerank_fused(
     // FIX-1: pass `&hits` (borrow) so `hits` remains owned for the soft-fallback path.
     #[cfg(feature = "default-reranker")]
     {
-        if let Some(reranked) = ce_rerank(_query, &hits, rerank_depth, alpha, pool_n) {
-            return reranked;
+        if let Some(reranked) = ce_rerank(_query, &hits, rerank_depth, alpha, pool_n)? {
+            return Ok(reranked);
         }
     }
 
@@ -10877,7 +13448,7 @@ pub fn rerank_fused(
 
     // Model absent (feature off, weights not loaded, or CE returned None) →
     // soft-fallback: return input unchanged.
-    hits
+    Ok(hits)
 }
 
 /// 0.8.2 Slice E2 — standalone CE rerank of a caller-supplied passage list.
@@ -10921,6 +13492,15 @@ pub fn rerank_passages(
             ));
         }
     }
+    // Slice 71: a forced CUDA policy is a request to run CE inference on that
+    // device, never permission to silently return CPU CE scores. Resolve before
+    // loading weights so malformed/forced policy errors are observable without
+    // a model download. Depth zero remains the no-model/no-device identity path.
+    #[cfg(feature = "default-reranker")]
+    if rerank_depth > 0 {
+        fathomdb_embedder::resolve_default_reranker_device_from_env()
+            .map_err(|error| format!("reranker device policy: {error}"))?;
+    }
     let hits: Vec<SearchHit> = passages
         .into_iter()
         .map(|(id, body, score)| SearchHit {
@@ -10941,7 +13521,8 @@ pub fn rerank_passages(
     // 0.8.5 — project `(id, score, ce_score)` so the binding can surface the CE
     // score per candidate; `ce_score` is `None` for the identity / out-of-pool path.
     // The projected id is the caller's ordinal (the engine-internal `write_cursor`).
-    Ok(rerank_fused(query, hits, rerank_depth, alpha, pool_n)
+    Ok(try_rerank_fused(query, hits, rerank_depth, alpha, pool_n)
+        .map_err(|error| format!("reranker device policy: {error}"))?
         .into_iter()
         .map(|h| (h.write_cursor, h.score, h.ce_score))
         .collect())
@@ -10964,7 +13545,9 @@ fn ce_rerank(
     _rerank_depth: usize, // 0.8.5: pool sizing moved to `pool_n`; depth gate stays in `rerank_fused`.
     alpha: f64,
     pool_n: usize,
-) -> Option<Vec<SearchHit>> {
+) -> Result<Option<Vec<SearchHit>>, RerankerDevicePolicyError> {
+    #[cfg(feature = "tc5-benchmark")]
+    tc5_benchmark::record_cross_encoder_route();
     // 0.8.5 (D3) — clamp α to [0,1] silently here so EVERY path (engine search,
     // `rerank_passages`, the bindings) is covered by one clamp, matching the
     // existing `pool_n.min(len)` clamp idiom.
@@ -10978,11 +13561,13 @@ fn ce_rerank(
     // nothing to rerank — avoids loading/downloading the ~17 MB model for an
     // empty result set and prevents memoizing a transient load failure.
     if hits.is_empty() {
-        return Some(vec![]);
+        return Ok(Some(vec![]));
     }
 
     // Try to get the loaded model. Returns None when weights are absent.
-    let model = CandleCrossEncoder::try_get_loaded()?;
+    let Some(model) = CandleCrossEncoder::try_get_loaded()? else {
+        return Ok(None);
+    };
 
     // 0.8.5 (D4) — the reranked pool is the top `pool_n` (caller resolves the
     // `unwrap_or(rerank_depth)` default at the binding), clamped to the hit count.
@@ -10999,7 +13584,10 @@ fn ce_rerank(
     // per-pair forwards. The ranking math below (RRF min-max norm, sigmoid,
     // ALPHA blend, sort) is byte-unchanged — only the scoring is batched.
     let bodies: Vec<&str> = top.iter().map(|h| h.body.as_str()).collect();
-    let raw_logits = model.score_batch(_query, &bodies);
+    #[cfg(feature = "slice72-test-hooks")]
+    let raw_logits = slice72_test_hooks::with_ce_forward(|| model.score_batch(_query, &bodies))?;
+    #[cfg(not(feature = "slice72-test-hooks"))]
+    let raw_logits = model.score_batch(_query, &bodies)?;
 
     let mut scored: Vec<(f64, SearchHit)> = top
         .iter()
@@ -11031,10 +13619,11 @@ fn ce_rerank(
 
     // Append hits beyond rerank_depth in their original RRF order.
     result.extend_from_slice(rest);
-    Some(result)
+    Ok(Some(result))
 }
 
-/// 0.8.1 Slice 10 (R1) / 0.8.2 Slice E1 — CPU TinyBERT-L-2 cross-encoder.
+/// 0.8.1 Slice 10 (R1) / 0.8.2 Slice E1 — TinyBERT-L-2 cross-encoder;
+/// its CPU or CUDA backend is selected by the reranker device policy.
 ///
 /// Thin engine-side handle over the embedder crate's `CandleTinyBertReranker`
 /// (Candle BERT stack + `tokenizers`, pinned `cross-encoder/ms-marco-TinyBERT-
@@ -11060,10 +13649,25 @@ struct CandleCrossEncoder {
 /// been attempted and failed (no weights + no network) — memoized so a failed
 /// load is not retried on every query.
 #[cfg(feature = "default-reranker")]
-fn reranker_singleton() -> Option<&'static fathomdb_embedder::CandleTinyBertReranker> {
-    static CELL: std::sync::OnceLock<Option<fathomdb_embedder::CandleTinyBertReranker>> =
-        std::sync::OnceLock::new();
-    CELL.get_or_init(|| fathomdb_embedder::CandleTinyBertReranker::try_load().ok()).as_ref()
+fn reranker_singleton(
+) -> Result<Option<&'static fathomdb_embedder::CandleTinyBertReranker>, RerankerDevicePolicyError> {
+    enum Singleton {
+        Loaded(fathomdb_embedder::CandleTinyBertReranker),
+        Unavailable,
+        DevicePolicy(RerankerDevicePolicyError),
+    }
+    static CELL: std::sync::OnceLock<Singleton> = std::sync::OnceLock::new();
+    match CELL.get_or_init(|| match fathomdb_embedder::CandleTinyBertReranker::try_load() {
+        Ok(model) => Singleton::Loaded(model),
+        Err(fathomdb_embedder::RerankerLoadError::DevicePolicy(error)) => {
+            Singleton::DevicePolicy(error)
+        }
+        Err(_) => Singleton::Unavailable,
+    }) {
+        Singleton::Loaded(model) => Ok(Some(model)),
+        Singleton::Unavailable => Ok(None),
+        Singleton::DevicePolicy(error) => Err(error.clone()),
+    }
 }
 
 #[cfg(feature = "default-reranker")]
@@ -11071,8 +13675,8 @@ impl CandleCrossEncoder {
     /// Returns a model handle if the reranker is (or can be) loaded, `None`
     /// otherwise. The first call drives the lazy load (cache probe → gated
     /// download); subsequent calls reuse the memoized result.
-    fn try_get_loaded() -> Option<Self> {
-        Some(Self { inner: reranker_singleton()? })
+    fn try_get_loaded() -> Result<Option<Self>, RerankerDevicePolicyError> {
+        Ok(reranker_singleton()?.map(|inner| Self { inner }))
     }
 
     /// Score a (query, passage) pair. Returns the raw cross-encoder logit, or
@@ -11092,10 +13696,17 @@ impl CandleCrossEncoder {
     /// neutralize the entire pool — we fall back to per-pair [`score`](Self::score),
     /// so a single bad pair degrades only its own element to a neutral logit while
     /// the rest keep their real scores. Empty input → empty output (no forward).
-    fn score_batch(&self, query: &str, passages: &[&str]) -> Vec<f64> {
+    fn score_batch(
+        &self,
+        query: &str,
+        passages: &[&str],
+    ) -> Result<Vec<f64>, RerankerDevicePolicyError> {
         match self.inner.score_batch(query, passages) {
-            Ok(logits) => logits.into_iter().map(f64::from).collect(),
-            Err(_) => passages.iter().map(|p| self.score(query, p)).collect(),
+            Ok(logits) => Ok(logits.into_iter().map(f64::from).collect()),
+            Err(_) if self.inner.forced_cuda_runtime_error().is_some() => {
+                Err(self.inner.forced_cuda_runtime_error().expect("checked above"))
+            }
+            Err(_) => Ok(passages.iter().map(|p| self.score(query, p)).collect()),
         }
     }
 }
@@ -11495,7 +14106,31 @@ fn edge_fts_hit_passes_non_attribute_filter(
     edge_fts_hit_passes_filter(tx, write_cursor, row_kind, Some(&non_attribute_filter))
 }
 
+/// Begin a reader transaction and, only while attribution is opted in, acquire
+/// its actual SQLite snapshot with a harmless canonical-table read before
+/// recording it. `SELECT 1` is insufficient because SQLite can satisfy it
+/// without touching the database/WAL; this probe has the same table-backed
+/// snapshot semantics as the managed-reader witness. It keeps the collector
+/// off normal paths and prevents a queued request from masquerading as a live
+/// snapshot.
+fn begin_attributed_reader_tx<'a>(
+    reader: &'a mut Connection,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
+) -> rusqlite::Result<rusqlite::Transaction<'a>> {
+    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    if attribution.enabled {
+        attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "transaction_opened");
+        tx.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))?;
+        attribution.set(WalAttributionRole::ReaderWorker, worker_idx, true, "snapshot_acquired");
+        #[cfg(any(test, feature = "test-hooks"))]
+        attribution.fire_reader_snapshot_pause(&tx, worker_idx);
+    }
+    Ok(tx)
+}
+
 /// Read projection cursor and matching body rows inside one read tx.
+#[allow(clippy::too_many_arguments)]
 fn read_projected_text_in_tx(
     reader: &mut Connection,
     query: &str,
@@ -11503,10 +14138,12 @@ fn read_projected_text_in_tx(
     filter: Option<&SearchFilter>,
     limit: usize,
     view: ReadView,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> ProjectedTextReaderResponse {
     let compiled = compile_text_query(query);
     let frozen = view.freeze();
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let registry = load_projection_registry(&tx)?;
     let declared = registry.get(name).ok_or_else(|| {
         SearchReaderError::InvalidFilter(format!("projected text field {name:?} is not declared"))
@@ -11593,6 +14230,8 @@ fn read_search_in_tx(
     pool_n: usize,
     explain: bool,
     view: ReadView,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> ReaderResponse {
     // 0.8.20 Slice 15b fix-2 (R-20-NV) — the `:now` instant is read HERE, in
     // Rust, ONCE per query, and bound positionally into every node-hydration
@@ -11613,7 +14252,7 @@ fn read_search_in_tx(
     // `configure_projections` DROP in the exact race window. Disarmed (no-op) in
     // production and on every non-race test.
     reader_search_hook::fire();
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let cursor = load_projection_cursor(&tx)?;
     // fix-3 (codex §9 [P2], TOCTOU) — validate every filter attribute name on THIS
     // reader transaction's snapshot, before `build_vector_phase1_sql` emits
@@ -11850,6 +14489,8 @@ fn read_search_in_tx(
     // in SQL (the vector branch is filtered in phase 1; the text branch has no
     // metadata columns of its own).
     let text_candidates: Vec<SearchHit> = {
+        #[cfg(feature = "tc5-benchmark")]
+        tc5_benchmark::record_fts_route();
         // 0.7.0 perf-experiments: optional FTS5 LIMIT cap. Gated on
         // FATHOMDB_PERF_EXPERIMENTS=1; opt-in via
         // FATHOMDB_PERF_SEARCH_LIMIT=<k>. No-op by default — preserves
@@ -12232,7 +14873,8 @@ fn read_search_in_tx(
             exp_confidence = Some(conf_map);
             exp_fused_scores = Some(body_score_map(&fused));
         }
-        rerank_fused(raw_query, fused, rerank_depth, alpha, pool_n)
+        try_rerank_fused(raw_query, fused, rerank_depth, alpha, pool_n)
+            .map_err(SearchReaderError::RerankerDevicePolicy)?
     } else {
         // G9 + G12: RRF-fuse the two ranked branches (keyed on body, vector-first
         // tiebreak) into the unconditional new ranking, recency-reweight (gated,
@@ -12253,7 +14895,8 @@ fn read_search_in_tx(
             exp_confidence = Some(conf_map);
             exp_fused_scores = Some(body_score_map(&fused));
         }
-        rerank_fused(raw_query, fused, rerank_depth, alpha, pool_n)
+        try_rerank_fused(raw_query, fused, rerank_depth, alpha, pool_n)
+            .map_err(SearchReaderError::RerankerDevicePolicy)?
     };
 
     results.truncate(final_limit);
@@ -12683,11 +15326,13 @@ fn read_get_by_id_in_tx(
     reader: &mut Connection,
     logical_ids: &[String],
     view: &ReadView,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> rusqlite::Result<Vec<Option<NodeRecord>>> {
     if logical_ids.is_empty() {
         return Ok(Vec::new());
     }
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     // De-duplicate the requested ids for the IN(...) probe, then re-expand into
     // request order (a repeated id echoes the same active row).
     let mut found: HashMap<String, NodeRecord> = HashMap::new();
@@ -12757,6 +15402,8 @@ fn read_collection_in_tx(
     collection: &str,
     after_id: Option<i64>,
     limit: usize,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> rusqlite::Result<Vec<OpStoreRow>> {
     if limit == 0 {
         return Ok(Vec::new());
@@ -12767,7 +15414,7 @@ fn read_collection_in_tx(
     // full log; clamping removes the "is a negative cursor a sentinel or a row
     // id?" ambiguity without changing happy-path semantics.
     let after = after_id.unwrap_or(0).max(0);
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let mut statement = tx.prepare(
         "SELECT id, collection_name, record_key, op_kind, payload_json, schema_id, write_cursor
          FROM operational_mutations
@@ -12809,6 +15456,8 @@ fn read_list_in_tx(
     predicates: &[Predicate],
     limit: usize,
     view: &ReadView,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> rusqlite::Result<Vec<NodeRecord>> {
     if limit == 0 {
         return Ok(Vec::new());
@@ -12845,7 +15494,7 @@ fn read_list_in_tx(
     }
     sql.push_str(&format!(" LIMIT {limit}"));
 
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let mut statement = tx.prepare(&sql)?;
 
     // Bind all parameters: [kind, predicate_values...]
@@ -13035,6 +15684,8 @@ fn crossed_boundary_since_in_tx(
     reader: &mut Connection,
     since: i64,
     view: &ReadView,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> rusqlite::Result<Vec<BoundaryCrossing>> {
     // `now_param()` is None exactly when the view relaxes validity, which here
     // means "no upper bound on the interval".
@@ -13051,7 +15702,7 @@ fn crossed_boundary_since_in_tx(
               OR (valid_until IS NOT NULL AND valid_until > ?1 AND valid_until <= ?2) ) \
          ORDER BY write_cursor"
     );
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let mut statement = tx.prepare(&sql)?;
     let rows = statement.query_map(params![since, upper], |row| {
         let valid_from: Option<i64> = row.get(4)?;
@@ -13082,9 +15733,13 @@ fn graph_neighbors_in_tx(
     depth: u32,
     direction: TraversalDirection,
     view: &ReadView,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> rusqlite::Result<Vec<NodeRecord>> {
+    #[cfg(feature = "tc5-benchmark")]
+    tc5_benchmark::record_graph_route();
     let sql = build_bfs_sql(direction, view);
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let depth_i64 = depth as i64;
     let mut statement = tx.prepare(&sql)?;
     // ?1 root, ?2 depth, ?3 = the NODE validity instant, ?4 = the EDGE validity
@@ -13124,8 +15779,10 @@ fn search_expand_in_tx(
     reader: &mut Connection,
     search_hits: &[SearchHit],
     depth: u32,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> rusqlite::Result<SearchExpandResult> {
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
 
     // Step 1: resolve write_cursor → logical_id for each search hit.
     // Possible outcomes per hit:
@@ -13262,12 +15919,14 @@ fn explain_graph_neighbors_in_tx(
     root_logical_id: &str,
     depth: u32,
     direction: TraversalDirection,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
 ) -> rusqlite::Result<Vec<String>> {
     // The EXPLAIN index-usage gate measures the DEFAULT (strict) read path.
     let view = ReadView::default();
     let bfs_sql = build_bfs_sql(direction, &view);
     let explain_sql = format!("EXPLAIN QUERY PLAN {bfs_sql}");
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     let depth_i64 = depth as i64;
     let mut statement = tx.prepare(&explain_sql)?;
     // EXPLAIN QUERY PLAN returns rows: (id, parent, notused, detail).
@@ -13287,15 +15946,92 @@ fn explain_graph_neighbors_in_tx(
     Ok(out)
 }
 
-fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>) {
-    let connection = match open_runtime_connection(&shared.path) {
+#[cfg(any(test, feature = "test-hooks"))]
+fn report_runtime_connection_inventory_for_test(
+    shared: &ProjectionRuntimeShared,
+    connection: &Connection,
+    role: WalAttributionRole,
+    index: usize,
+) {
+    let respond = {
+        let Ok(mut request_slot) = shared.runtime_inventory_request.lock() else {
+            return;
+        };
+        let Some(request) = request_slot.as_mut() else {
+            return;
+        };
+        if !request.pending.remove(&(role, index)) {
+            return;
+        }
+        let respond = request.respond.clone();
+        if request.pending.is_empty() {
+            *request_slot = None;
+        }
+        respond
+    };
+    let _ = respond.send((role, index, connection.is_autocommit()));
+}
+
+#[cfg(any(test, feature = "test-hooks"))]
+fn report_runtime_native_state_inventory_for_test(
+    shared: &ProjectionRuntimeShared,
+    connection: &Connection,
+    role: WalAttributionRole,
+    index: usize,
+) {
+    let respond = {
+        let Ok(mut request_slot) = shared.runtime_native_state_request.lock() else {
+            return;
+        };
+        let Some(request) = request_slot.as_mut() else {
+            return;
+        };
+        if !request.pending.remove(&(role, index)) {
+            return;
+        }
+        let respond = request.respond.clone();
+        if request.pending.is_empty() {
+            *request_slot = None;
+        }
+        respond
+    };
+    let _ = respond.send(native_connection_state_for_test(connection, role, index));
+}
+
+fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_idx: usize) {
+    let connection = match open_runtime_connection(
+        &shared.path,
+        #[cfg(any(test, feature = "test-hooks"))]
+        ManagedConnectionCategory::ProjectionDispatcher,
+        #[cfg(any(test, feature = "test-hooks"))]
+        &shared.managed_connections,
+    ) {
         Ok(connection) => connection,
         Err(_) => return,
     };
+    #[cfg(any(test, feature = "test-hooks"))]
+    let _connection_registration = shared
+        .managed_connections
+        .register(WalAttributionRole::ProjectionDispatcher, dispatcher_idx);
+    shared.wal_attribution.register(WalAttributionRole::ProjectionDispatcher, dispatcher_idx);
     // 0.8.20 Slice 20c fix-4 (codex §9 round 3 [P1]) — read ONCE:
     // `ProjectionRuntimeShared::embedder` is fixed for the session's lifetime.
     let dense_arm_live = shared.embedder.is_some();
     loop {
+        #[cfg(any(test, feature = "test-hooks"))]
+        report_runtime_connection_inventory_for_test(
+            &shared,
+            &connection,
+            WalAttributionRole::ProjectionDispatcher,
+            dispatcher_idx,
+        );
+        #[cfg(any(test, feature = "test-hooks"))]
+        report_runtime_native_state_inventory_for_test(
+            &shared,
+            &connection,
+            WalAttributionRole::ProjectionDispatcher,
+            dispatcher_idx,
+        );
         let in_flight = {
             let mut state = match shared.state.lock() {
                 Ok(state) => state,
@@ -13306,6 +16042,20 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>) {
                     || state.frozen
                     || state.active_jobs + state.queued_jobs >= PROJECTION_INFLIGHT_LIMIT)
             {
+                #[cfg(any(test, feature = "test-hooks"))]
+                report_runtime_connection_inventory_for_test(
+                    &shared,
+                    &connection,
+                    WalAttributionRole::ProjectionDispatcher,
+                    dispatcher_idx,
+                );
+                #[cfg(any(test, feature = "test-hooks"))]
+                report_runtime_native_state_inventory_for_test(
+                    &shared,
+                    &connection,
+                    WalAttributionRole::ProjectionDispatcher,
+                    dispatcher_idx,
+                );
                 state = match shared.state_cvar.wait(state) {
                     Ok(state) => state,
                     Err(_) => return,
@@ -13331,23 +16081,23 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>) {
             PROJECTION_INFLIGHT_LIMIT.saturating_sub(state.active_jobs + state.queued_jobs)
         };
         let fetch_cap = budget.clamp(1, PROJECTION_SCAN_FETCH);
-        // With no usable dense runtime a NODE job can only come back DEFERRED
-        // (`ProjectionOutcome::Deferred`),
-        // which by design records no terminal, so dispatching one would re-fetch
-        // the SAME cursor forever. fix-5 (codex §9 round 4 [P1]) moved that
-        // exclusion INSIDE the scan, so the `LIMIT` applies to the already-filtered
-        // set and a pending EDGE body behind a full window of node rows is still
-        // reachable. See `next_pending_projection_jobs`.
-        let fetched =
-            next_pending_projection_jobs(&connection, &in_flight, fetch_cap, dense_arm_live);
-        // Cheap assertion only — it can never DROP a job, which is precisely what
-        // the fix-4 shape did.
+        // A session without a configured runtime dispatches no embedding jobs.
+        // Its pending rows stay recoverable for a later configured session; see
+        // `next_pending_projection_jobs` for the Slice-30 no-dispatch boundary.
+        let fetched = next_pending_projection_jobs(
+            &connection,
+            &in_flight,
+            fetch_cap,
+            dense_arm_live,
+            &shared.wal_attribution,
+            dispatcher_idx,
+        );
+        // Keep the no-runtime no-dispatch contract local to the dispatcher too:
+        // a future scan change must not turn configuration absence into a worker
+        // terminal behind the caller's back.
         debug_assert!(
-            fetched
-                .as_ref()
-                .map(|jobs| dense_arm_live || jobs.iter().all(|job| job.kind == EDGE_FACT_KIND))
-                .unwrap_or(true),
-            "no-embedder scan returned a NODE job: the exclusion must be in the scan's SQL"
+            fetched.as_ref().map(|jobs| dense_arm_live || jobs.is_empty()).unwrap_or(true),
+            "no-runtime scan returned embedding jobs despite the no-dispatch contract"
         );
         match fetched {
             Ok(jobs) if !jobs.is_empty() => {
@@ -13377,15 +16127,39 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>) {
     }
 }
 
-fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>) {
-    let mut connection = match open_runtime_connection(&shared.path) {
+fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usize) {
+    let mut connection = match open_runtime_connection(
+        &shared.path,
+        #[cfg(any(test, feature = "test-hooks"))]
+        ManagedConnectionCategory::ProjectionWorker,
+        #[cfg(any(test, feature = "test-hooks"))]
+        &shared.managed_connections,
+    ) {
         Ok(connection) => connection,
         Err(_) => return,
     };
     if ensure_vector_partition(&mut connection, shared.embedder_identity.dimension).is_err() {
         return;
     }
+    #[cfg(any(test, feature = "test-hooks"))]
+    let _connection_registration =
+        shared.managed_connections.register(WalAttributionRole::ProjectionWorker, worker_idx);
+    shared.wal_attribution.register(WalAttributionRole::ProjectionWorker, worker_idx);
     loop {
+        #[cfg(any(test, feature = "test-hooks"))]
+        report_runtime_connection_inventory_for_test(
+            &shared,
+            &connection,
+            WalAttributionRole::ProjectionWorker,
+            worker_idx,
+        );
+        #[cfg(any(test, feature = "test-hooks"))]
+        report_runtime_native_state_inventory_for_test(
+            &shared,
+            &connection,
+            WalAttributionRole::ProjectionWorker,
+            worker_idx,
+        );
         let jobs = {
             let mut queue = match shared.queue.lock() {
                 Ok(queue) => queue,
@@ -13411,6 +16185,20 @@ fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>) {
                     }
                     break jobs;
                 }
+                #[cfg(any(test, feature = "test-hooks"))]
+                report_runtime_connection_inventory_for_test(
+                    &shared,
+                    &connection,
+                    WalAttributionRole::ProjectionWorker,
+                    worker_idx,
+                );
+                #[cfg(any(test, feature = "test-hooks"))]
+                report_runtime_native_state_inventory_for_test(
+                    &shared,
+                    &connection,
+                    WalAttributionRole::ProjectionWorker,
+                    worker_idx,
+                );
                 queue = match shared.queue_cvar.wait(queue) {
                     Ok(queue) => queue,
                     Err(_) => return,
@@ -13425,10 +16213,10 @@ fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>) {
         // reader pool's `LiveGuard` panic-safety. The local commit tx rolls
         // back on unwind, leaving the connection clean for reuse.
         let commit_result = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            run_projection_jobs(&shared, &mut connection, &jobs)
+            run_projection_jobs(&shared, &mut connection, &jobs, worker_idx)
         })) {
             Ok(result) => result,
-            Err(_) => commit_projection_panic_failures(&shared, &mut connection, &jobs),
+            Err(_) => commit_projection_panic_failures(&shared, &mut connection, &jobs, worker_idx),
         };
         if let Err(err) = commit_result {
             // Host subscribers are arbitrary application code. Their panic must
@@ -13501,9 +16289,10 @@ fn run_projection_jobs(
     shared: &ProjectionRuntimeShared,
     connection: &mut Connection,
     jobs: &[ProjectionJob],
+    worker_idx: usize,
 ) -> rusqlite::Result<()> {
     let outcomes = embed_projection_batch(shared, jobs);
-    commit_projection_outcomes(connection, &outcomes, shared)
+    commit_projection_outcomes(connection, &outcomes, shared, worker_idx)
 }
 
 /// Embed a whole commit-batch in ONE `embed_batch` call (amortizes per-call
@@ -13608,6 +16397,7 @@ fn commit_projection_panic_failures(
     shared: &ProjectionRuntimeShared,
     connection: &mut Connection,
     jobs: &[ProjectionJob],
+    worker_idx: usize,
 ) -> rusqlite::Result<()> {
     let outcomes: Vec<ProjectionOutcome> = jobs
         .iter()
@@ -13616,7 +16406,7 @@ fn commit_projection_panic_failures(
             failure_code: "ProjectionPanic",
         })
         .collect();
-    commit_projection_outcomes(connection, &outcomes, shared)
+    commit_projection_outcomes(connection, &outcomes, shared, worker_idx)
 }
 
 /// Route a background projection-commit failure through the engine's existing
@@ -13955,33 +16745,23 @@ fn pending_edge_projection_from_where(now_idx: usize) -> String {
 /// `dense_arm_live` is `ProjectionRuntimeShared::embedder.is_some()`, read once
 /// per dispatcher because it is fixed for the session's lifetime.
 ///
-/// # fix-5 (codex §9 round 4 [P1]) — why the node exclusion is IN the SQL
+/// # No configured embedder
 ///
-/// With no usable dense runtime a NODE job can only come back
-/// [`ProjectionOutcome::Deferred`], which by design records no terminal (fix-4),
-/// so dispatching one would re-fetch the SAME cursor forever: a hot loop for the
-/// whole life of the session. fix-4 suppressed that by filtering the vector this
-/// function RETURNS — i.e. after the `ORDER BY … LIMIT`, so the `LIMIT` still
-/// applied to the UNFILTERED set. More than `PROJECTION_SCAN_FETCH` pending node
-/// rows ordered before a pending EDGE body therefore filled the entire window
-/// with jobs that were then all dropped, the dispatcher went back to sleep with
-/// `pending_scan` already consumed, and the edge body was never scheduled at all
-/// — permanently, since those node rows stay pending for the session's life. The
-/// exclusion belongs here, where the `LIMIT` applies to the ALREADY-FILTERED set
-/// and a later edge job is always reachable.
-///
-/// Edges are NOT excluded: `'edge_fact'` is auto-registered by the edge write
-/// itself, un-gated on the embedder (`project_canonical_edge_row`, G11, and the
-/// note in [`Engine::enrol_batch_vector_kinds`]), so an edge body still
-/// TERMINATES on an absent embedder exactly as it has shipped since G11. Making
-/// edges recoverable too needs that enrolment gated first (OOS-13).
+/// A session with no configured runtime does not dispatch either node or edge
+/// embedding jobs. Dispatching an edge into the retry ladder used to record a
+/// durable `failed` terminal, contradicting Slice 30's immediate
+/// `FDB_EMBEDDER_REQUIRED` configuration feedback and losing work that a later
+/// configured session must be able to complete. The durable rows stay pending;
+/// `drain` names the configuration error and an erasure verb can remove them.
 fn next_pending_projection_jobs(
     connection: &Connection,
     in_flight: &BTreeSet<u64>,
     max_jobs: usize,
     dense_arm_live: bool,
+    attribution: &Arc<WalAttributionCollector>,
+    dispatcher_idx: usize,
 ) -> rusqlite::Result<Vec<ProjectionJob>> {
-    if max_jobs == 0 {
+    if max_jobs == 0 || !dense_arm_live {
         return Ok(Vec::new());
     }
     let cursor = load_projection_cursor(connection)?;
@@ -13994,12 +16774,9 @@ fn next_pending_projection_jobs(
     // The UNION is ordered by write_cursor so projection proceeds in
     // insertion order across nodes and edges.
     //
-    // fix-5 [P1]: with no dense arm the NODE arm is omitted outright rather than
-    // predicated false, so the planner never walks it. The edge arm keeps both
-    // binds (`?1` the cursor, `?2` the `:now` seam), so the bound parameter set
-    // is identical either way.
-    let node_arm = if dense_arm_live {
-        "SELECT canonical_nodes.write_cursor AS write_cursor,
+    let sql = format!(
+        "SELECT write_cursor, kind, body FROM (
+             SELECT canonical_nodes.write_cursor AS write_cursor,
                     canonical_nodes.kind AS kind,
                     canonical_nodes.body AS body
              FROM canonical_nodes
@@ -14012,13 +16789,7 @@ fn next_pending_projection_jobs(
 
              UNION ALL
 
-             "
-    } else {
-        ""
-    };
-    let sql = format!(
-        "SELECT write_cursor, kind, body FROM (
-             {node_arm}SELECT ce.write_cursor AS write_cursor,
+             SELECT ce.write_cursor AS write_cursor,
                     'edge_fact' AS kind,
                     ce.body AS body
              {edge_arm}
@@ -14030,12 +16801,22 @@ fn next_pending_projection_jobs(
         // cannot disagree about what is outstanding. The `write_cursor > ?1`
         // watermark is appended here and ONLY here — see the fragment's doc.
         // TC-33: `?1` is the projection cursor ⇒ the edge `:now` binds at `?2`.
-        edge_arm = pending_edge_projection_from_where(2)
+        edge_arm = pending_edge_projection_from_where(2),
     );
     let mut statement = connection.prepare_cached(&sql)?;
     let rows = statement.query_map(params![cursor, current_epoch_seconds()], |row| {
         Ok(ProjectionJob { cursor: row.get(0)?, kind: row.get(1)?, body: row.get(2)? })
     })?;
+    // SQLite starts the implicit read transaction at statement execution; do
+    // not call this a transaction before `query_map` succeeds.
+    let _activity = attribution.enabled.then(|| {
+        WalAttributionActivity::begin(
+            Arc::clone(attribution),
+            WalAttributionRole::ProjectionDispatcher,
+            dispatcher_idx,
+            "snapshot_acquired",
+        )
+    });
     let mut jobs = Vec::with_capacity(max_jobs);
     for row in rows {
         let job = row?;
@@ -14050,8 +16831,17 @@ fn next_pending_projection_jobs(
     Ok(jobs)
 }
 
-fn database_has_pending_projection_work(path: &Path) -> rusqlite::Result<bool> {
-    let connection = open_runtime_connection(path)?;
+fn database_has_pending_projection_work(
+    path: &Path,
+    #[cfg(any(test, feature = "test-hooks"))] managed_connections: &Arc<ManagedConnectionRegistry>,
+) -> rusqlite::Result<bool> {
+    let connection = open_runtime_connection(
+        path,
+        #[cfg(any(test, feature = "test-hooks"))]
+        ManagedConnectionCategory::RuntimeProbe,
+        #[cfg(any(test, feature = "test-hooks"))]
+        managed_connections,
+    )?;
     connection_has_pending_projection_work(&connection)
 }
 
@@ -14123,6 +16913,36 @@ fn connection_has_pending_projection_work(connection: &Connection) -> rusqlite::
             rusqlite::Error::QueryReturnedNoRows => Ok(false),
             _ => Err(err),
         })
+}
+
+/// One pure, count-preserving view of the projection rows that are presently
+/// eligible for embedding. It shares the scheduler and drain predicates, so a
+/// readiness report never names work that `drain` does not wait for.
+fn pending_embedding_work(connection: &Connection) -> rusqlite::Result<Vec<(String, u64)>> {
+    let cursor = load_projection_cursor(connection)?;
+    let sql = format!(
+        "SELECT kind, COUNT(*) FROM (
+             SELECT canonical_nodes.kind AS kind
+             FROM canonical_nodes
+             JOIN _fathomdb_vector_kinds
+               ON _fathomdb_vector_kinds.kind = canonical_nodes.kind
+             LEFT JOIN _fathomdb_projection_terminal
+               ON _fathomdb_projection_terminal.write_cursor = canonical_nodes.write_cursor
+             WHERE canonical_nodes.write_cursor > ?1
+               AND _fathomdb_projection_terminal.write_cursor IS NULL
+             UNION ALL
+             SELECT 'edge_fact' AS kind
+             {}
+         ) GROUP BY kind ORDER BY kind",
+        pending_edge_projection_from_where(2)
+    );
+    let mut statement = connection.prepare_cached(&sql)?;
+    let rows = statement
+        .query_map(params![cursor, current_epoch_seconds()], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, u64>(1)?))
+        })?
+        .collect();
+    rows
 }
 
 /// 0.8.20 Slice 20 (R-20-DR) — the `dense_readiness` of the `searchable→vector`
@@ -14547,8 +17367,28 @@ fn locator_from_rusqlite_error(err: &rusqlite::Error) -> CorruptionLocator {
     CorruptionLocator::OpaqueSqliteError { sqlite_extended_code: extended }
 }
 
-fn open_runtime_connection(path: &Path) -> rusqlite::Result<Connection> {
-    let connection = Connection::open(path)?;
+fn open_managed_connection(
+    path: &Path,
+    #[cfg(any(test, feature = "test-hooks"))] category: ManagedConnectionCategory,
+    #[cfg(any(test, feature = "test-hooks"))] managed_connections: &Arc<ManagedConnectionRegistry>,
+) -> rusqlite::Result<Connection> {
+    #[cfg(any(test, feature = "test-hooks"))]
+    managed_connections.record_open(category);
+    Connection::open(path)
+}
+
+fn open_runtime_connection(
+    path: &Path,
+    #[cfg(any(test, feature = "test-hooks"))] category: ManagedConnectionCategory,
+    #[cfg(any(test, feature = "test-hooks"))] managed_connections: &Arc<ManagedConnectionRegistry>,
+) -> rusqlite::Result<Connection> {
+    let connection = open_managed_connection(
+        path,
+        #[cfg(any(test, feature = "test-hooks"))]
+        category,
+        #[cfg(any(test, feature = "test-hooks"))]
+        managed_connections,
+    )?;
     connection.pragma_update(None, "journal_mode", "WAL")?;
     // OPP-12 Phase-1 (0.8.19 Slice 10, design §3 gap-4) — `secure_delete=ON` at
     // EVERY open. The projection/vector-rewrite runtime connection performs
@@ -14628,6 +17468,7 @@ fn commit_projection_outcomes(
     connection: &mut Connection,
     outcomes: &[ProjectionOutcome],
     shared: &ProjectionRuntimeShared,
+    worker_idx: usize,
 ) -> rusqlite::Result<()> {
     let embedder_identity = &shared.embedder_identity;
     let mc = identity_requires_mean_centering(embedder_identity);
@@ -14639,6 +17480,33 @@ fn commit_projection_outcomes(
     // holds its own immediate transaction, which SQLite rejects without
     // invoking the busy handler and forces the worker to recompute the batch.
     let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    let _activity = shared.wal_attribution.enabled.then(|| {
+        WalAttributionActivity::begin(
+            Arc::clone(&shared.wal_attribution),
+            WalAttributionRole::ProjectionWorker,
+            worker_idx,
+            "transaction_opened",
+        )
+    });
+    #[cfg(debug_assertions)]
+    if let Some((transaction_ready, release)) = shared
+        .projection_worker_transaction_pause
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .take()
+    {
+        if !shared.wal_attribution.wait_until_exclusively_active(
+            WalAttributionRole::ProjectionWorker,
+            worker_idx,
+            Duration::from_secs(2),
+        ) {
+            eprintln!(
+                "slice65_wal projection_worker exclusive_activity_wait=timeout worker={worker_idx}"
+            );
+        }
+        transaction_ready.wait();
+        release.wait();
+    }
     // The accumulator is mutable process state coupled to this transaction.
     // Keep the shared value untouched while building a candidate so rollback
     // cannot count a vector or consume the pin threshold prematurely.
@@ -20555,11 +23423,1390 @@ unsafe extern "C" fn profile_callback_trampoline(
 #[cfg(test)]
 mod tests {
     use super::{
-        derive_stable_id, resolve_source_type, Engine, IdSpace, IdSpaceKind, PreparedWrite,
-        KIND_TO_SOURCE_TYPE_CASE_SQL, ROW_OWNED_PROJECTIONS,
+        derive_stable_id, native_connection_state_for_test, resolve_source_type, DeviceResolution,
+        EmbedderChoice, Engine, EngineError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
+        ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, RuntimeProbeConnection,
+        SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL,
+        PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
+    use fathomdb_embedder::{
+        DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,
+    };
+    use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
     use rusqlite::Connection;
+    use std::collections::BTreeSet;
+    use std::path::Path;
+    use std::process::Command;
+    use std::sync::{mpsc, Arc};
+    use std::thread;
+    use std::time::{Duration, Instant};
     use tempfile::TempDir;
+
+    #[test]
+    fn loader_device_resolution_reaches_open_report_once() {
+        let dir = TempDir::new().expect("temp dir");
+        let embedder: Arc<dyn Embedder> = Arc::new(NoopEmbedder::default());
+        let identity = embedder.identity();
+        let resolution = DeviceResolution {
+            requested_policy: EmbedDevicePolicy::Auto,
+            cuda_compiled: false,
+            effective_device: EffectiveEmbedDevice::Cpu,
+            visible_cuda_devices: Vec::new(),
+            selected_cuda_uuid: None,
+            reason: Some(DeviceResolutionReason::CudaNotCompiled),
+        };
+        let opened = Engine::open_with_embedder_and_subscriber(
+            dir.path().join("device-resolution.sqlite"),
+            identity,
+            Some(embedder),
+            Some(LoaderInfo {
+                download_ms: None,
+                events: Vec::new(),
+                device_resolution: resolution.clone(),
+                gpu_allocation_witness: None,
+            }),
+            None,
+            &mut |_| {},
+        )
+        .expect("open with the already-resolved default device");
+
+        assert_eq!(opened.report.embedder_device_resolution, Some(resolution));
+        // D-80.6-6 — the loader path carries a witness only when it measured
+        // one; a resolution alone never synthesizes a record.
+        assert_eq!(opened.report.embedder_gpu_allocation_witness, None);
+    }
+
+    #[test]
+    fn caller_device_resolution_reaches_open_report_once() {
+        let dir = TempDir::new().expect("temp dir");
+        let resolution = DeviceResolution {
+            requested_policy: EmbedDevicePolicy::Auto,
+            cuda_compiled: true,
+            effective_device: EffectiveEmbedDevice::Cpu,
+            visible_cuda_devices: Vec::new(),
+            selected_cuda_uuid: None,
+            reason: Some(DeviceResolutionReason::CudaProbeFailed),
+        };
+        let opened = Engine::open_with_choice(
+            dir.path().join("caller-device-resolution.sqlite"),
+            EmbedderChoice::CallerWithDeviceResolution {
+                embedder: Arc::new(NoopEmbedder::default()),
+                device_resolution: resolution.clone(),
+            },
+        )
+        .expect("caller-supplied resolution opens");
+
+        assert_eq!(opened.report.embedder_device_resolution, Some(resolution));
+    }
+
+    /// Slice 65: the attribution collector starts with every Engine-owned
+    /// connection role registered and no active owned snapshot.  This is the
+    /// negative control that prevents a later busy checkpoint from being
+    /// labelled "external" merely because an idle runtime role was omitted.
+    #[test]
+    fn wal_attribution_registers_all_owned_roles_idle_at_open() {
+        let dir = TempDir::new().expect("temp dir");
+        let opened = Engine::open(dir.path().join("wal-attribution.sqlite")).expect("open");
+
+        let mut snapshot = opened.engine.wal_attribution_snapshot();
+        assert_eq!(
+            snapshot.roles.iter().filter(|role| role.role == "reader_worker").count(),
+            READER_POOL_SIZE,
+            "every reader worker must be registered before Engine::open returns"
+        );
+
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while (!snapshot.roles.iter().any(|role| role.role == "projection_dispatcher")
+            || snapshot.roles.iter().filter(|role| role.role == "projection_worker").count()
+                < PROJECTION_WORKERS)
+            && Instant::now() < deadline
+        {
+            thread::sleep(Duration::from_millis(5));
+            snapshot = opened.engine.wal_attribution_snapshot();
+        }
+        assert!(snapshot.no_owned_snapshot, "fresh engine must be idle: {snapshot:?}");
+        assert!(!snapshot.local_checkpoint_overlap, "open must not report a checkpoint overlap");
+        assert!(snapshot.roles.iter().any(|role| role.role == "writer" && role.index == 0));
+        assert_eq!(
+            snapshot.roles.iter().filter(|role| role.role == "reader_worker").count(),
+            READER_POOL_SIZE,
+            "every reader worker must be explicitly registered"
+        );
+        assert!(snapshot.roles.iter().any(|role| role.role == "projection_dispatcher"));
+        assert!(snapshot.roles.iter().all(|role| role.phase == "idle"));
+        assert_eq!(
+            snapshot.roles.iter().filter(|role| role.role == "projection_worker").count(),
+            PROJECTION_WORKERS,
+            "every projection worker must be explicitly registered"
+        );
+    }
+
+    /// Slice 65 managed-reader witness: preserve the original typed refusal,
+    /// then observe post-finish connection state without retrying that erase.
+    #[test]
+    fn wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded() {
+        let dir = TempDir::new().expect("temp dir");
+        let opened = Engine::open(dir.path().join("wal-attribution-owned.sqlite")).expect("open");
+        opened
+            .engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: "owned reader erasable body".to_string(),
+                source_id: SourceId::new("slice65-owned-reader").expect("source"),
+                logical_id: Some("slice65-owned-reader".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .expect("write");
+        let (completion_ready, completion_release, reader_autocommit) =
+            opened.engine.arm_next_reader_completion_pause_for_test();
+        let (snapshot_ready, release) = opened.engine.pause_reader_after_wal_snapshot_for_test();
+        snapshot_ready.wait();
+        eprintln!("slice65_wal managed_reader_snapshot_ready");
+        let blocked = opened.engine.erase_source("slice65-owned-reader");
+        let busy = opened.engine.wal_attribution_checkpoints_for_test();
+        assert_eq!(busy.len(), ERASURE_WAL_TRUNCATE_ATTEMPTS as usize);
+        assert!(busy.iter().enumerate().all(|(offset, record)| {
+            record.attempt == offset + 1
+                && record.busy
+                && record.classification == "owned_reader_snapshot"
+                && record.active_roles == vec![(WalAttributionRole::ReaderWorker, 0)]
+        }));
+        assert!(matches!(blocked, Err(EngineError::ErasureIncomplete { .. })));
+        eprintln!(
+            "slice65_wal managed_reader_original_erase=typed_erasure_incomplete owned_busy_attempts={}",
+            busy.len()
+        );
+
+        release.wait();
+        completion_ready.wait();
+        assert!(
+            reader_autocommit.load(std::sync::atomic::Ordering::Acquire),
+            "post-finish reader connection must be autocommit"
+        );
+        let completion = opened.engine.wal_attribution_snapshot();
+        assert!(completion.no_owned_snapshot, "collector must be idle after reader finish");
+        eprintln!(
+            "slice65_wal managed_reader_completion_ack reader_autocommit=1 collector_roles=idle"
+        );
+        completion_release.wait();
+
+        let inventory = opened.engine.native_state_inventory_for_test();
+        let inventory_text = super::native_state_inventory_text(&inventory);
+        eprintln!("slice65_wal managed_reader_native_state_inventory={inventory_text}");
+        if !inventory.complete {
+            eprintln!(
+                "slice65_wal managed_reader_native_state_inventory=state_inventory=incomplete"
+            );
+        }
+        assert!(inventory.complete, "post-finish native inventory: {inventory:?}");
+
+        opened.engine.arm_binding_native_state_observation_for_test();
+        let samples = opened
+            .engine
+            .checkpoint_at_rest_for_test()
+            .expect("run bounded post-finish checkpoint sampler");
+        assert!(!samples.is_empty() && samples.len() <= ERASURE_WAL_TRUNCATE_ATTEMPTS as usize);
+        let state_records = opened.engine.drain_binding_native_state_observations_for_test();
+        assert_eq!(state_records.len(), samples.len() * 2);
+        for state in &state_records {
+            eprintln!("slice65_wal managed_reader_sampler_native_state {state}");
+            if !state.contains("state_inventory=complete reason=complete") {
+                eprintln!(
+                    "slice65_wal managed_reader_sampler_native_state state_inventory=incomplete"
+                );
+            }
+            assert!(state.contains("state_inventory=complete reason=complete"));
+        }
+        let (busy, log_frames, checkpointed_frames) =
+            samples.last().copied().expect("sampler result");
+        eprintln!(
+            "slice65_wal managed_reader_sampler_terminal outcome={} attempts={} busy={} log_frames={} checkpointed_frames={}",
+            if busy { "busy" } else { "clean" },
+            samples.len(),
+            u8::from(busy),
+            log_frames,
+            checkpointed_frames,
+        );
+    }
+
+    /// Slice 65 N23-WAL-BINDING-NATIVE-STATE RED: an autocommit connection
+    /// may still own a stepped SQLite statement.  The diagnostic must retain
+    /// the direct owning-connection state, then observe it reset after the
+    /// rows/statement values are dropped.
+    #[test]
+    fn wal_attribution_native_state_observes_busy_statement_then_reset() {
+        let connection = Connection::open_in_memory().expect("open");
+        connection
+            .execute_batch(
+                "CREATE TABLE state_probe(value INTEGER); INSERT INTO state_probe VALUES (1);",
+            )
+            .expect("seed");
+        let mut statement = connection.prepare("SELECT value FROM state_probe").expect("prepare");
+        let mut rows = statement.query([]).expect("query");
+        assert!(rows.next().expect("step").is_some(), "step one real row");
+
+        let stepped =
+            native_connection_state_for_test(&connection, WalAttributionRole::ReaderWorker, 0);
+        assert_eq!(stepped.autocommit, Some(true), "implicit stepped reads remain autocommit");
+        assert_eq!(stepped.transaction, NativeTransactionState::Read);
+        assert_eq!(stepped.busy_statement, Some(true), "stepped rows keep their statement busy");
+
+        drop(rows);
+        let reset =
+            native_connection_state_for_test(&connection, WalAttributionRole::ReaderWorker, 0);
+        assert_eq!(reset.busy_statement, Some(false), "dropping Rows resets the statement");
+        drop(statement);
+        let dropped =
+            native_connection_state_for_test(&connection, WalAttributionRole::ReaderWorker, 0);
+        assert_eq!(dropped.transaction, NativeTransactionState::None);
+        assert_eq!(
+            dropped.busy_statement,
+            Some(false),
+            "dropping Statement leaves no busy statement"
+        );
+    }
+
+    #[test]
+    fn wal_attribution_native_state_inventory_requires_all_managed_roles_idle() {
+        let dir = TempDir::new().expect("temp dir");
+        let opened =
+            Engine::open(dir.path().join("wal-attribution-native-state.sqlite")).expect("open");
+        let inventory = opened.engine.native_state_inventory_for_test();
+        assert!(inventory.complete, "idle engine inventory: {inventory:?}");
+        assert_eq!(inventory.facts.len(), 1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS);
+        assert!(inventory.facts.iter().all(|fact| {
+            fact.autocommit == Some(true)
+                && fact.transaction == NativeTransactionState::None
+                && fact.busy_statement == Some(false)
+                && matches!(fact.reply, super::NativeStateReply::Received)
+        }));
+
+        *opened
+            .engine
+            .binding_native_state_observations
+            .lock()
+            .expect("binding native state observation") =
+            Some(super::BindingNativeStateObserver { records: Vec::new() });
+        opened.engine.binding_native_state_observation_for_test("before", 1);
+        let records = opened
+            .engine
+            .binding_native_state_observations
+            .lock()
+            .expect("binding native state observation")
+            .take()
+            .expect("armed observer")
+            .records;
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].phase, "before");
+        assert_eq!(records[0].ordinal, 1);
+        assert!(records[0].inventory.complete);
+        assert!(super::native_state_inventory_text(&records[0].inventory)
+            .contains("state_inventory=complete"));
+    }
+
+    /// Slice 65 follow-on: establish whether the observed post-release busy
+    /// checkpoint occurs before or after SQLite has actually committed the held
+    /// reader. This is a diagnostic only: it deliberately runs exactly one
+    /// existing fail-closed erase, then records independent raw checkpoints.
+    /// It never retries, relabels, or completes that original erasure.
+    #[test]
+    fn wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic() {
+        const CHILD_PATH: &str = "FATHOMDB_SLICE65_POST_COMMIT_CHILD_PATH";
+
+        if let Some(path) = std::env::var_os(CHILD_PATH) {
+            let report = raw_post_commit_checkpoint(Path::new(&path), 0, None, "after_close");
+            eprintln!(
+                "slice65_wal post_commit_child_raw case=after_close outcome=recorded raw_busy={} raw_log_frames={} raw_checkpointed_frames={}",
+                report.busy, report.log_frames, report.checkpointed_frames,
+            );
+            return;
+        }
+
+        let dir = TempDir::new().expect("temp dir");
+        let path = dir.path().join("wal-attribution-post-commit.sqlite");
+        let opened = Engine::open(&path).expect("open");
+        opened
+            .engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: "post commit diagnostic".to_string(),
+                source_id: SourceId::new("slice65-post-commit-source").expect("source"),
+                logical_id: Some("slice65-post-commit".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .expect("write");
+
+        let (snapshot_ready, release, committed) = opened.engine.post_commit_ack_for_test();
+        snapshot_ready.wait();
+        let blocked = opened.engine.erase_source("slice65-post-commit-source");
+        assert!(
+            matches!(blocked, Err(EngineError::ErasureIncomplete { .. })),
+            "the diagnostic must retain the single existing fail-closed erase"
+        );
+        release.wait();
+        committed.wait();
+
+        let inventory = match post_commit_connection_inventory(&opened) {
+            Ok(inventory) => inventory,
+            Err(reason) => {
+                eprintln!("slice65_wal post_commit_inventory=incomplete reason={reason}");
+                panic!("post-COMMIT inventory is incomplete: {reason}");
+            }
+        };
+        eprintln!("slice65_wal post_commit_ack direct_inventory={inventory} collector_roles=idle");
+        let reports = [
+            raw_post_commit_checkpoint(&path, 1, Some(&opened), "pre_close"),
+            raw_post_commit_checkpoint(&path, 2, Some(&opened), "pre_close"),
+        ];
+        let pre_close_busy = reports.iter().any(|report| report.busy != 0);
+        if pre_close_busy {
+            opened.engine.close().expect("close Engine before child probe");
+            let output = Command::new(std::env::current_exe().expect("current test executable"))
+                .arg("--exact")
+                .arg("tests::wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic")
+                .arg("--nocapture")
+                .env(CHILD_PATH, &path)
+                .output()
+                .expect("run fresh-child raw checkpoint probe");
+            assert!(
+                output.status.success(),
+                "fresh-child raw checkpoint probe failed with status {:?}",
+                output.status
+            );
+            eprint!("{}", String::from_utf8_lossy(&output.stderr));
+        } else {
+            eprintln!("slice65_wal post_commit_child_raw case=after_close outcome=not_required");
+        }
+        eprintln!("slice65_wal post_commit_diagnostic=recorded");
+    }
+
+    fn post_commit_connection_inventory(
+        opened: &super::OpenedEngine,
+    ) -> Result<String, &'static str> {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let mut snapshot = opened.engine.wal_attribution_snapshot();
+        while snapshot.roles.len() < 1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS
+            && Instant::now() < deadline
+        {
+            thread::sleep(Duration::from_millis(5));
+            snapshot = opened.engine.wal_attribution_snapshot();
+        }
+        if snapshot.roles.len() != 1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS
+            || !opened.engine.managed_connections.exact_live()
+        {
+            return Err("registry_mismatch");
+        }
+        let creation =
+            opened.engine.managed_connections.creation_counts().ok_or("creation_audit_lock")?;
+        eprintln!(
+            "slice65_wal post_commit_creation expected=writer:1,readers:8,dispatcher:1,workers:2,probes:2 actual=writer:{},readers:{},dispatcher:{},workers:{},probes:{}",
+            creation.0, creation.1, creation.2, creation.3, creation.4,
+        );
+        if creation != (1, READER_POOL_SIZE, 1, PROJECTION_WORKERS, 2) {
+            return Err("creation_counts_mismatch");
+        }
+        if !snapshot.no_owned_snapshot
+            || snapshot.roles.iter().any(|role| role.active || role.phase != "idle")
+        {
+            return Err("collector_not_idle");
+        }
+        let writer_autocommit = opened
+            .engine
+            .connection
+            .lock()
+            .map_err(|_| "writer_lock")?
+            .as_ref()
+            .is_some_and(Connection::is_autocommit);
+        if !writer_autocommit {
+            return Err("writer_not_autocommit");
+        }
+        let readers = opened.engine.reader_pool.wal_connection_inventory_for_test();
+        if readers.len() != READER_POOL_SIZE || readers.into_iter().any(|autocommit| !autocommit) {
+            return Err("reader_not_autocommit");
+        }
+        let runtime =
+            opened.engine.projection_runtime.report_runtime_connection_inventory_for_test()?;
+        let expected = BTreeSet::from([
+            (WalAttributionRole::ProjectionDispatcher, 0),
+            (WalAttributionRole::ProjectionWorker, 0),
+            (WalAttributionRole::ProjectionWorker, 1),
+        ]);
+        let actual =
+            runtime.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>();
+        if actual != expected || runtime.iter().any(|(_, _, autocommit)| !autocommit) {
+            return Err("runtime_not_autocommit");
+        }
+        Ok(format!(
+            "writer:autocommit;readers:8-autocommit;dispatcher:autocommit;workers:2-autocommit;expected_creation=writer:1,readers:8,dispatcher:1,workers:2,probes:2;actual_creation=writer:{},readers:{},dispatcher:{},workers:{},probes:{}",
+            creation.0, creation.1, creation.2, creation.3, creation.4,
+        ))
+    }
+
+    fn raw_post_commit_checkpoint(
+        path: &Path,
+        sample: usize,
+        opened: Option<&super::OpenedEngine>,
+        case: &str,
+    ) -> super::TruncateWalReport {
+        let started = Instant::now();
+        if let Some(opened) = opened {
+            assert!(
+                !opened.engine.closed.load(std::sync::atomic::Ordering::SeqCst),
+                "Engine must remain open for pre-close raw diagnostic samples"
+            );
+            assert!(
+                opened.engine.wal_attribution_snapshot().no_owned_snapshot,
+                "collector must be idle for pre-close raw diagnostic samples"
+            );
+        }
+        let connection = Connection::open(path).expect("independent raw sqlite open");
+        connection.busy_timeout(Duration::ZERO).expect("raw checkpoint no wait");
+        let (busy, log_frames, checkpointed_frames): (i64, i64, i64) = connection
+            .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
+            .expect("independent raw checkpoint");
+        connection.close().expect("independent raw sqlite close");
+        let report = super::TruncateWalReport {
+            status: if busy == 0 {
+                super::TruncateWalStatus::Done
+            } else {
+                super::TruncateWalStatus::Busy
+            },
+            busy: busy.max(0) as u32,
+            log_frames: log_frames.max(0) as u32,
+            checkpointed_frames: checkpointed_frames.max(0) as u32,
+        };
+        let inventory = opened
+            .map(post_commit_connection_inventory)
+            .transpose()
+            .unwrap_or_else(|reason| panic!("post-COMMIT inventory is incomplete: {reason}"))
+            .unwrap_or_else(|| "engine:closed".to_string());
+        eprintln!(
+            "slice65_wal post_commit_raw case={case} sample={sample} elapsed_ms={} raw_busy={} raw_log_frames={} raw_checkpointed_frames={} inventory={inventory}",
+            started.elapsed().as_millis(), report.busy, report.log_frames, report.checkpointed_frames,
+        );
+        report
+    }
+
+    #[derive(Clone, Debug)]
+    struct Slice65ProjectionEmbedder;
+
+    impl Embedder for Slice65ProjectionEmbedder {
+        fn identity(&self) -> EmbedderIdentity {
+            EmbedderIdentity::new("slice65", "wal-attribution", 8)
+        }
+
+        fn embed(&self, _text: &str) -> Result<Vector, EmbedderError> {
+            Ok(vec![1.0; 8])
+        }
+    }
+
+    /// Slice 65 RED: retaining a materialized result must not leave a reader
+    /// snapshot alive when the erasure checkpoint begins.
+    #[test]
+    fn wal_attribution_retained_materialized_result_is_idle_at_checkpoint() {
+        let dir = TempDir::new().expect("temp dir");
+        let opened =
+            Engine::open(dir.path().join("wal-attribution-retained.sqlite")).expect("open");
+        opened
+            .engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: "retained materialized result".to_string(),
+                source_id: SourceId::new("slice65-retained-source").expect("source"),
+                logical_id: Some("slice65-retained".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .expect("write");
+        let retained = opened
+            .engine
+            .read_get("slice65-retained", &Default::default())
+            .expect("read")
+            .expect("materialized node");
+        assert_eq!(retained.logical_id, "slice65-retained");
+        let idle = opened.engine.wal_attribution_snapshot();
+        assert!(
+            idle.no_owned_snapshot,
+            "retained result must not retain a SQLite snapshot: {idle:?}"
+        );
+        opened.engine.erase_source("slice65-retained-source").expect("erase");
+        let record = opened
+            .engine
+            .wal_attribution_checkpoints_for_test()
+            .last()
+            .cloned()
+            .expect("checkpoint record");
+        assert!(!record.busy && record.classification == "no_owned_snapshot");
+        assert!(record.active_roles.is_empty());
+        eprintln!("slice65_wal retained_materialized_idle=passed");
+    }
+
+    /// Slice 65 reader-handoff RED: a materialized `read_get` result must be
+    /// handed back only after its collector state is already idle. This parks
+    /// the worker after the helper has dropped its SQLite transaction and
+    /// before its response send, then proves no managed reader owns the
+    /// checkpoint while the caller still cannot receive that materialized
+    /// record. A typed busy result remains possible when Windows has an
+    /// unrelated WAL holder.
+    #[test]
+    fn wal_attribution_reader_handoff_is_idle_before_materialized_reply() {
+        let dir = TempDir::new().expect("temp dir");
+        let opened = Arc::new(
+            Engine::open(dir.path().join("wal-attribution-reader-handoff.sqlite")).expect("open"),
+        );
+        opened
+            .engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: "reader handoff materialized body".to_string(),
+                source_id: SourceId::new("slice65-reader-handoff-source").expect("source"),
+                logical_id: Some("slice65-reader-handoff".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .expect("write");
+
+        let (handoff_ready, release) = opened.engine.pause_next_reader_handoff_for_test();
+        let (caller_result_tx, caller_result_rx) = mpsc::sync_channel(1);
+        let caller = {
+            let engine = Arc::clone(&opened);
+            thread::spawn(move || {
+                let result = engine.engine.read_get("slice65-reader-handoff", &Default::default());
+                caller_result_tx.send(result).expect("caller result receiver remains live");
+            })
+        };
+        handoff_ready.wait();
+
+        assert!(
+            matches!(caller_result_rx.try_recv(), Err(mpsc::TryRecvError::Empty)),
+            "public read_get must not return while the pre-send handoff barrier is held"
+        );
+
+        let idle = opened.engine.wal_attribution_snapshot();
+        assert!(
+            idle.no_owned_snapshot,
+            "the collector must be idle before the materialized response send: {idle:?}"
+        );
+        let checkpoint = opened.engine.erase_source("slice65-reader-handoff-source");
+        let record = opened
+            .engine
+            .wal_attribution_checkpoints_for_test()
+            .last()
+            .cloned()
+            .expect("checkpoint record");
+        assert!(record.active_roles.is_empty());
+        let outcome = match checkpoint {
+            Ok(_) => {
+                assert!(!record.busy && record.classification == "no_owned_snapshot");
+                "clean"
+            }
+            Err(EngineError::ErasureIncomplete { stage, .. }) if stage == "wal_checkpoint" => {
+                assert!(record.busy && record.classification == "unclassified_external");
+                "unclassified_external"
+            }
+            Err(error) => {
+                panic!("unexpected checkpoint result while materialized reply is parked: {error}")
+            }
+        };
+
+        release.wait();
+        let materialized = caller_result_rx
+            .recv()
+            .expect("caller result after handoff release")
+            .expect("read result")
+            .expect("materialized record");
+        caller.join().expect("reader thread");
+        assert_eq!(materialized.logical_id, "slice65-reader-handoff");
+        eprintln!("slice65_wal reader_handoff_idle_before_reply=passed outcome={outcome}");
+    }
+
+    #[test]
+    fn wal_attribution_reader_handoff_pause_is_scoped_to_its_engine() {
+        let first_dir = TempDir::new().expect("first temp dir");
+        let second_dir = TempDir::new().expect("second temp dir");
+        let first = Arc::new(
+            Engine::open(first_dir.path().join("wal-attribution-first.sqlite"))
+                .expect("first open"),
+        );
+        let second = Arc::new(
+            Engine::open(second_dir.path().join("wal-attribution-second.sqlite"))
+                .expect("second open"),
+        );
+
+        let (first_ready, first_release) = first.engine.pause_next_reader_handoff_for_test();
+        let (second_result_tx, second_result_rx) = mpsc::sync_channel(1);
+        let second_reader = {
+            let engine = Arc::clone(&second);
+            thread::spawn(move || {
+                second_result_tx
+                    .send(engine.engine.read_get("missing", &Default::default()))
+                    .expect("second result receiver remains live");
+            })
+        };
+
+        if second_result_rx.recv_timeout(Duration::from_secs(1)).is_err() {
+            first_ready.wait();
+            first_release.wait();
+            second_reader.join().expect("second reader join");
+            panic!("a first-engine handoff pause blocked a second-engine reader");
+        }
+        second_reader.join().expect("second reader join");
+
+        let (first_result_tx, first_result_rx) = mpsc::sync_channel(1);
+        let first_reader = {
+            let engine = Arc::clone(&first);
+            thread::spawn(move || {
+                first_result_tx
+                    .send(engine.engine.read_get("missing", &Default::default()))
+                    .expect("first result receiver remains live");
+            })
+        };
+        first_ready.wait();
+        assert!(matches!(first_result_rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
+        first_release.wait();
+        first_result_rx.recv().expect("first result after release").expect("first read");
+        first_reader.join().expect("first reader join");
+    }
+
+    #[test]
+    fn wal_attribution_reader_snapshot_pause_is_scoped_to_its_engine() {
+        let first_dir = TempDir::new().expect("first temp dir");
+        let second_dir = TempDir::new().expect("second temp dir");
+        let first = Arc::new(
+            Engine::open(first_dir.path().join("wal-attribution-first.sqlite"))
+                .expect("first open"),
+        );
+        let second = Arc::new(
+            Engine::open(second_dir.path().join("wal-attribution-second.sqlite"))
+                .expect("second open"),
+        );
+
+        let (first_ready, first_release, native_state) =
+            first.engine.arm_next_reader_snapshot_pause_for_test();
+        let (second_result_tx, second_result_rx) = mpsc::sync_channel(1);
+        let second_reader = {
+            let engine = Arc::clone(&second);
+            thread::spawn(move || {
+                second_result_tx
+                    .send(engine.engine.read_get("missing", &Default::default()))
+                    .expect("second result receiver remains live");
+            })
+        };
+
+        if second_result_rx.recv_timeout(Duration::from_secs(1)).is_err() {
+            first_ready.wait();
+            first_release.wait();
+            second_reader.join().expect("second reader join");
+            panic!("a first-engine snapshot pause blocked a second-engine reader");
+        }
+        second_reader.join().expect("second reader join");
+
+        let (first_result_tx, first_result_rx) = mpsc::sync_channel(1);
+        let first_reader = {
+            let engine = Arc::clone(&first);
+            thread::spawn(move || {
+                first_result_tx
+                    .send(engine.engine.read_get("missing", &Default::default()))
+                    .expect("first result receiver remains live");
+            })
+        };
+        first_ready.wait();
+        assert!(matches!(first_result_rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
+        assert!(native_state.lock().expect("native state").is_some());
+        first_release.wait();
+        first_result_rx.recv().expect("first result after release").expect("first read");
+        first_reader.join().expect("first reader join");
+    }
+
+    #[test]
+    fn wal_attribution_reader_completion_pause_is_scoped_to_its_engine() {
+        let first_dir = TempDir::new().expect("first temp dir");
+        let second_dir = TempDir::new().expect("second temp dir");
+        let first = Arc::new(
+            Engine::open(first_dir.path().join("wal-attribution-first.sqlite"))
+                .expect("first open"),
+        );
+        let second = Arc::new(
+            Engine::open(second_dir.path().join("wal-attribution-second.sqlite"))
+                .expect("second open"),
+        );
+
+        let (first_ready, first_release, reader_autocommit) =
+            first.engine.arm_next_reader_completion_pause_for_test();
+        let (second_result_tx, second_result_rx) = mpsc::sync_channel(1);
+        let second_reader = {
+            let engine = Arc::clone(&second);
+            thread::spawn(move || {
+                second_result_tx
+                    .send(engine.engine.read_get("missing", &Default::default()))
+                    .expect("second result receiver remains live");
+            })
+        };
+
+        if second_result_rx.recv_timeout(Duration::from_secs(1)).is_err() {
+            first_ready.wait();
+            first_release.wait();
+            second_reader.join().expect("second reader join");
+            panic!("a first-engine completion pause blocked a second-engine reader");
+        }
+        second_reader.join().expect("second reader join");
+
+        let (first_result_tx, first_result_rx) = mpsc::sync_channel(1);
+        let first_reader = {
+            let engine = Arc::clone(&first);
+            thread::spawn(move || {
+                first_result_tx
+                    .send(engine.engine.read_get("missing", &Default::default()))
+                    .expect("first result receiver remains live");
+            })
+        };
+        first_ready.wait();
+        assert!(matches!(first_result_rx.try_recv(), Err(mpsc::TryRecvError::Empty)));
+        assert!(reader_autocommit.load(std::sync::atomic::Ordering::Acquire));
+        first_release.wait();
+        first_result_rx.recv().expect("first result after release").expect("first read");
+        first_reader.join().expect("first reader join");
+    }
+
+    /// Slice 65 RED: a fully closed Engine is not itself a reader-holder. The
+    /// raw checkpoint is deliberately independent so this distinguishes the
+    /// close boundary from the incident-shaped recovery reads below.
+    #[test]
+    fn wal_attribution_close_boundary_raw_checkpoint_is_clean() {
+        let dir = TempDir::new().expect("temp dir");
+        let path = dir.path().join("wal-attribution-close-boundary.sqlite");
+        let old = seed_close_boundary_database(&path);
+        old.engine.close().expect("old close");
+        assert_closed_engine_is_idle(&old);
+
+        let report = raw_close_boundary_checkpoint(&path, "direct_close", None);
+        assert_eq!(report.busy, 0, "a closed Engine must not hold the raw checkpoint");
+    }
+
+    /// Slice 65 RED: a fresh open/close adds no holder beyond the close
+    /// boundary control.
+    #[test]
+    fn wal_attribution_close_boundary_fresh_open_is_clean() {
+        let dir = TempDir::new().expect("temp dir");
+        let path = dir.path().join("wal-attribution-close-fresh.sqlite");
+        let old = seed_close_boundary_database(&path);
+        old.engine.close().expect("old close");
+        assert_closed_engine_is_idle(&old);
+
+        let fresh = Engine::open(&path).expect("fresh open");
+        assert!(fresh.engine.wal_attribution_snapshot().no_owned_snapshot);
+        let report = raw_close_boundary_checkpoint(&path, "fresh_open", Some(&fresh));
+        assert_eq!(report.busy, 0, "an idle fresh Engine must not hold the raw checkpoint");
+        fresh.engine.close().expect("fresh close");
+        assert_closed_engine_is_idle(&fresh);
+    }
+
+    /// Slice 65 RED: a completed read-get followed by explicit close leaves no
+    /// checkpoint holder. This is intentionally separate from the incident
+    /// recovery sequence.
+    #[test]
+    fn wal_attribution_close_boundary_read_get_is_clean() {
+        let dir = TempDir::new().expect("temp dir");
+        let path = dir.path().join("wal-attribution-close-read-get.sqlite");
+        let old = seed_close_boundary_database(&path);
+        old.engine.close().expect("old close");
+        assert_closed_engine_is_idle(&old);
+
+        let fresh = Engine::open(&path).expect("fresh open");
+        assert!(fresh
+            .engine
+            .read_get("slice65-close-root", &Default::default())
+            .expect("read get")
+            .is_some());
+        assert!(fresh.engine.wal_attribution_snapshot().no_owned_snapshot);
+        let report = raw_close_boundary_checkpoint(&path, "read_get", Some(&fresh));
+        assert_eq!(report.busy, 0, "an idle read-get Engine must not hold the raw checkpoint");
+        fresh.engine.close().expect("fresh close");
+        assert_closed_engine_is_idle(&fresh);
+    }
+
+    /// Slice 65 RED: completed graph-neighbor traversal followed by explicit
+    /// close leaves no checkpoint holder. This is the final staged sibling,
+    /// not a replacement for the primary incident-shaped control.
+    #[test]
+    fn wal_attribution_close_boundary_neighbors_is_clean() {
+        let dir = TempDir::new().expect("temp dir");
+        let path = dir.path().join("wal-attribution-close-neighbors.sqlite");
+        let old = seed_close_boundary_database(&path);
+        old.engine.close().expect("old close");
+        assert_closed_engine_is_idle(&old);
+
+        let fresh = Engine::open(&path).expect("fresh open");
+        assert_eq!(
+            fresh
+                .engine
+                .graph_neighbors(
+                    "slice65-close-root",
+                    1,
+                    super::TraversalDirection::Outgoing,
+                    &Default::default(),
+                )
+                .expect("neighbors")
+                .len(),
+            1
+        );
+        assert!(fresh.engine.wal_attribution_snapshot().no_owned_snapshot);
+        let report = raw_close_boundary_checkpoint(&path, "graph_neighbors", Some(&fresh));
+        assert_eq!(report.busy, 0, "an idle neighbors Engine must not hold the raw checkpoint");
+        fresh.engine.close().expect("fresh close");
+        assert_closed_engine_is_idle(&fresh);
+    }
+
+    fn seed_close_boundary_database(path: &Path) -> super::OpenedEngine {
+        let old = Engine::open(path).expect("old open");
+        old.engine
+            .write(&[
+                PreparedWrite::Node {
+                    kind: "doc".to_string(),
+                    body: "close boundary root".to_string(),
+                    source_id: SourceId::new("slice65-close-root-source").expect("source"),
+                    logical_id: Some("slice65-close-root".to_string()),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                },
+                PreparedWrite::Node {
+                    kind: "doc".to_string(),
+                    body: "close boundary nested".to_string(),
+                    source_id: SourceId::new("slice65-close-nested-source").expect("source"),
+                    logical_id: Some("slice65-close-nested".to_string()),
+                    state: InitialState::Active,
+                    reason: None,
+                    valid_from: None,
+                    valid_until: None,
+                },
+                PreparedWrite::Edge {
+                    kind: "relates_to".to_string(),
+                    from: "slice65-close-root".to_string(),
+                    to: "slice65-close-nested".to_string(),
+                    source_id: SourceId::new("slice65-close-nested-source").expect("source"),
+                    logical_id: Some("slice65-close-edge".to_string()),
+                    body: None,
+                    t_valid: None,
+                    t_invalid: None,
+                    confidence: None,
+                    extractor_model_id: None,
+                    temporal_fallback: None,
+                },
+            ])
+            .expect("old write");
+        old
+    }
+
+    fn assert_closed_engine_is_idle(opened: &super::OpenedEngine) {
+        assert!(opened.engine.closed.load(std::sync::atomic::Ordering::SeqCst));
+        assert!(matches!(
+            opened.engine.read_get("slice65-close-root", &Default::default()),
+            Err(EngineError::Closing)
+        ));
+        assert!(opened.engine.wal_attribution_snapshot().no_owned_snapshot);
+    }
+
+    /// Issue one intentionally independent SQLite checkpoint. The optional
+    /// fresh Engine stays live only for the staged siblings, where this helper
+    /// proves its managed writer connection exists while its collector is idle.
+    /// The emitted fields are limited to fixed state labels and SQLite's
+    /// busy/frame counters; it deliberately emits no database or request data.
+    fn raw_close_boundary_checkpoint(
+        path: &Path,
+        case: &str,
+        fresh: Option<&super::OpenedEngine>,
+    ) -> super::TruncateWalReport {
+        let (fresh_engine_open, fresh_writer_connection_open) = if let Some(opened) = fresh {
+            assert!(
+                !opened.engine.closed.load(std::sync::atomic::Ordering::SeqCst),
+                "fresh Engine must remain open during the raw checkpoint"
+            );
+            assert!(
+                opened.engine.wal_attribution_snapshot().no_owned_snapshot,
+                "fresh Engine must be collector-idle during the raw checkpoint"
+            );
+            let writer_open =
+                opened.engine.connection.lock().expect("fresh writer connection mutex").is_some();
+            assert!(writer_open, "fresh Engine writer connection must remain open");
+            (true, true)
+        } else {
+            (false, false)
+        };
+        let connection = Connection::open(path).expect("independent raw sqlite open");
+        connection.busy_timeout(Duration::ZERO).expect("raw checkpoint no wait");
+        let (busy, log_frames, checkpointed_frames): (i64, i64, i64) = connection
+            .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
+            .expect("independent raw checkpoint");
+        connection.close().expect("independent raw sqlite close");
+
+        let report = super::TruncateWalReport {
+            status: if busy == 0 {
+                super::TruncateWalStatus::Done
+            } else {
+                super::TruncateWalStatus::Busy
+            },
+            busy: busy.max(0) as u32,
+            log_frames: log_frames.max(0) as u32,
+            checkpointed_frames: checkpointed_frames.max(0) as u32,
+        };
+        eprintln!(
+            "slice65_wal close_boundary case={case} old_engine_closed=1 fresh_engine_open={fresh_engine_open} fresh_writer_connection_open={fresh_writer_connection_open} raw_busy={} raw_log_frames={} raw_checkpointed_frames={}",
+            report.busy, report.log_frames, report.checkpointed_frames,
+        );
+        report
+    }
+
+    /// Slice 65 follow-on: retain the direct-Rust incident as one typed
+    /// fail-closed observation. Ordered native raw samples distinguish the old
+    /// close, completed fresh recovery reads, and pre-erasure probe lifecycle;
+    /// none retries or changes the original nested-source erase.
+    #[test]
+    fn wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation() {
+        const CHILD_PATH: &str = "FATHOMDB_SLICE65_INCIDENT_LADDER_CHILD_PATH";
+
+        if let Some(path) = std::env::var_os(CHILD_PATH) {
+            let registry = Arc::new(ManagedConnectionRegistry::default());
+            let report = incident_ladder_raw_checkpoint(
+                Path::new(&path),
+                "fresh_child",
+                &registry,
+                true,
+                false,
+            );
+            eprintln!(
+                "slice65_wal incident_ladder child_raw stage=fresh_child raw_busy={} raw_log_frames={} raw_checkpointed_frames={}",
+                report.busy, report.log_frames, report.checkpointed_frames,
+            );
+            return;
+        }
+
+        let dir = TempDir::new().expect("temp dir");
+        let path = dir.path().join("wal-attribution-incident-ladder.sqlite");
+        let old = seed_close_boundary_database(&path);
+        old.engine.close().expect("old close");
+        assert_closed_engine_is_idle(&old);
+        let old_report = incident_ladder_raw_checkpoint(
+            &path,
+            "old_close",
+            &old.engine.managed_connections,
+            true,
+            false,
+        );
+
+        let fresh = Engine::open(&path).expect("fresh open");
+        assert!(fresh
+            .engine
+            .read_get("slice65-close-root", &Default::default())
+            .expect("fresh recovery read")
+            .is_some());
+        assert_eq!(
+            fresh
+                .engine
+                .graph_neighbors(
+                    "slice65-close-root",
+                    1,
+                    super::TraversalDirection::Outgoing,
+                    &Default::default(),
+                )
+                .expect("fresh recovery neighbors")
+                .len(),
+            1
+        );
+        let inventory =
+            incident_ladder_long_lived_inventory(&fresh).expect("complete fresh inventory");
+        eprintln!(
+            "slice65_wal incident_ladder stage=after_fresh_reads direct_inventory={inventory} collector_roles=idle"
+        );
+        let fresh_reads_report = incident_ladder_raw_checkpoint(
+            &path,
+            "after_fresh_reads",
+            &fresh.engine.managed_connections,
+            false,
+            true,
+        );
+        incident_ladder_runtime_probe_preflight(&path, &fresh.engine.managed_connections);
+        let preflight_report = incident_ladder_raw_checkpoint(
+            &path,
+            "after_erasure_preflight",
+            &fresh.engine.managed_connections,
+            false,
+            true,
+        );
+
+        let observed = fresh.engine.erase_source("slice65-close-nested-source");
+        match observed {
+            Err(EngineError::ErasureIncomplete { stage, .. }) if stage == "wal_checkpoint" => {
+                eprintln!("slice65_wal incident_ladder typed_erase_observation=wal_checkpoint");
+                eprintln!("slice65_wal incident_ladder erase_observation=typed_erasure_incomplete");
+            }
+            Ok(report) => {
+                assert_eq!(
+                    report.nodes_excised, 1,
+                    "clean incident observation must excise nested node"
+                );
+                eprintln!("slice65_wal incident_ladder erase_observation=clean_completion");
+            }
+            other => panic!("incident erase produced an unrecognized outcome: {other:?}"),
+        }
+
+        let any_busy = [old_report, fresh_reads_report, preflight_report]
+            .into_iter()
+            .any(|report| report.busy != 0);
+        if any_busy {
+            fresh.engine.close().expect("close and join fresh Engine before follow-up samples");
+            assert_closed_engine_is_idle(&fresh);
+            let same_process = incident_ladder_raw_checkpoint(
+                &path,
+                "after_fresh_close",
+                &fresh.engine.managed_connections,
+                true,
+                false,
+            );
+            eprintln!(
+                "slice65_wal incident_ladder same_process_raw stage=after_fresh_close raw_busy={} raw_log_frames={} raw_checkpointed_frames={}",
+                same_process.busy, same_process.log_frames, same_process.checkpointed_frames,
+            );
+            let output = Command::new(std::env::current_exe().expect("current test executable"))
+                .arg("--exact")
+                .arg("tests::wal_attribution_incident_checkpoint_ladder_retains_typed_erase_observation")
+                .arg("--nocapture")
+                .env(CHILD_PATH, &path)
+                .output()
+                .expect("run native fresh-child incident probe");
+            assert!(
+                output.status.success(),
+                "native fresh-child incident probe failed with status {:?}",
+                output.status
+            );
+            eprint!("{}", String::from_utf8_lossy(&output.stderr));
+            eprintln!("slice65_wal incident_ladder child_raw stage=fresh_child outcome=recorded");
+        } else {
+            eprintln!(
+                "slice65_wal incident_ladder child_raw stage=fresh_child outcome=not_required"
+            );
+        }
+        eprintln!("slice65_wal incident_ladder=recorded");
+    }
+
+    /// Slice 65 follow-on: observe the real checkpoint calls in the exact
+    /// close/reopen/recovery-read incident path. No raw checkpoint or runtime
+    /// probe is permitted between the recovery reads and the one original
+    /// erasure.
+    #[test]
+    fn wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts() {
+        let dir = TempDir::new().expect("temp dir");
+        let path = dir.path().join("wal-attribution-actual-checkpoint.sqlite");
+        let old = seed_close_boundary_database(&path);
+        old.engine.close().expect("old close");
+        assert_closed_engine_is_idle(&old);
+
+        let fresh = Engine::open(&path).expect("fresh open");
+        assert!(fresh
+            .engine
+            .read_get("slice65-close-root", &Default::default())
+            .expect("fresh recovery read")
+            .is_some());
+        assert_eq!(
+            fresh
+                .engine
+                .graph_neighbors(
+                    "slice65-close-root",
+                    1,
+                    super::TraversalDirection::Outgoing,
+                    &Default::default(),
+                )
+                .expect("fresh recovery neighbors")
+                .len(),
+            1
+        );
+
+        fresh.engine.arm_actual_checkpoint_observation_for_test("direct_rust");
+        let observed = fresh.engine.erase_source("slice65-close-nested-source");
+        let records = fresh.engine.take_actual_checkpoint_observations_for_test();
+        assert!(!records.is_empty(), "real erase must retain checkpoint observations");
+        assert_eq!(records.len() % 2, 0, "every real attempt has before/after facts");
+        for pair in records.chunks_exact(2) {
+            assert!(pair[0].contains("control=direct_rust phase=before"));
+            assert!(pair[1].contains("control=direct_rust phase=after"));
+            assert!(pair[0].contains("writer_autocommit=1"));
+            assert!(pair[1].contains("writer_autocommit=1"));
+            assert!(
+                pair[0].contains("direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=autocommit;dispatcher=autocommit;workers=2-autocommit;registry=complete;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:2;complete=1"),
+                "unexpected direct inventory: {}",
+                pair[0]
+            );
+            assert!(pair[1].contains("collector_roles=idle"));
+            assert!(pair[1].contains("elapsed_ms="));
+            assert!(pair[1].contains("busy="));
+            eprintln!("slice65_wal actual_checkpoint {}", pair[0]);
+            eprintln!("slice65_wal actual_checkpoint {}", pair[1]);
+        }
+        match observed {
+            Err(EngineError::ErasureIncomplete { stage, .. }) if stage == "wal_checkpoint" => {
+                eprintln!("slice65_wal actual_checkpoint control=direct_rust erase_observation=typed_erasure_incomplete");
+            }
+            Ok(report) => {
+                assert_eq!(report.nodes_excised, 1, "clean observation must excise nested node");
+                eprintln!("slice65_wal actual_checkpoint control=direct_rust erase_observation=clean_completion");
+            }
+            other => panic!("actual checkpoint erase produced an unrecognized outcome: {other:?}"),
+        }
+        eprintln!("slice65_wal actual_checkpoint control=direct_rust recorded");
+    }
+
+    fn incident_ladder_long_lived_inventory(
+        opened: &super::OpenedEngine,
+    ) -> Result<String, &'static str> {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let mut snapshot = opened.engine.wal_attribution_snapshot();
+        while snapshot.roles.len() < 1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS
+            && Instant::now() < deadline
+        {
+            thread::sleep(Duration::from_millis(5));
+            snapshot = opened.engine.wal_attribution_snapshot();
+        }
+        if snapshot.roles.len() != 1 + READER_POOL_SIZE + 1 + PROJECTION_WORKERS
+            || !opened.engine.managed_connections.exact_live()
+        {
+            return Err("registry_mismatch");
+        }
+        if !snapshot.no_owned_snapshot
+            || snapshot.roles.iter().any(|role| role.active || role.phase != "idle")
+        {
+            return Err("collector_not_idle");
+        }
+        let writer_autocommit = opened
+            .engine
+            .connection
+            .lock()
+            .map_err(|_| "writer_lock")?
+            .as_ref()
+            .is_some_and(Connection::is_autocommit);
+        if !writer_autocommit {
+            return Err("writer_not_autocommit");
+        }
+        let readers = opened.engine.reader_pool.wal_connection_inventory_for_test();
+        if readers.len() != READER_POOL_SIZE || readers.into_iter().any(|autocommit| !autocommit) {
+            return Err("reader_not_autocommit");
+        }
+        let runtime =
+            opened.engine.projection_runtime.report_runtime_connection_inventory_for_test()?;
+        let expected = BTreeSet::from([
+            (WalAttributionRole::ProjectionDispatcher, 0),
+            (WalAttributionRole::ProjectionWorker, 0),
+            (WalAttributionRole::ProjectionWorker, 1),
+        ]);
+        let actual =
+            runtime.iter().map(|(role, index, _)| (*role, *index)).collect::<BTreeSet<_>>();
+        if actual != expected || runtime.iter().any(|(_, _, autocommit)| !autocommit) {
+            return Err("runtime_not_autocommit");
+        }
+        let creation =
+            opened.engine.managed_connections.creation_counts().ok_or("creation_audit_lock")?;
+        Ok(format!(
+            "writer:autocommit;readers:8-autocommit;dispatcher:autocommit;workers:2-autocommit;creation=writer:{},readers:{},dispatcher:{},workers:{},probes:{}",
+            creation.0, creation.1, creation.2, creation.3, creation.4,
+        ))
+    }
+
+    fn incident_ladder_runtime_probe_preflight(
+        path: &Path,
+        registry: &Arc<ManagedConnectionRegistry>,
+    ) {
+        let probe =
+            RuntimeProbeConnection::open(path, registry).expect("open runtime probe preflight");
+        let _: i64 = probe
+            .connection()
+            .query_row("PRAGMA user_version", [], |row| row.get(0))
+            .expect("query runtime probe preflight");
+        let lifecycle = probe.close_and_acknowledge().expect("close runtime probe preflight");
+        assert_eq!(lifecycle.live, 0, "runtime probe must not remain live at preflight");
+        assert_eq!(
+            lifecycle.incomplete_drops, 0,
+            "runtime probe preflight must retain an actual close acknowledgement"
+        );
+        eprintln!(
+            "slice65_wal incident_ladder runtime_probe_drop_ack stage=erasure_preflight live={} actual_drops={} incomplete_drops={}",
+            lifecycle.live, lifecycle.actual_drops, lifecycle.incomplete_drops,
+        );
+    }
+
+    fn incident_ladder_raw_checkpoint(
+        path: &Path,
+        stage: &str,
+        registry: &Arc<ManagedConnectionRegistry>,
+        old_engine_closed: bool,
+        fresh_engine_open: bool,
+    ) -> super::TruncateWalReport {
+        let started = Instant::now();
+        let probe =
+            RuntimeProbeConnection::open(path, registry).expect("open native runtime probe");
+        probe.connection().busy_timeout(Duration::ZERO).expect("raw probe no wait");
+        let (busy, log_frames, checkpointed_frames): (i64, i64, i64) = probe
+            .connection()
+            .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
+            .expect("native runtime probe checkpoint");
+        let lifecycle = probe.close_and_acknowledge().expect("close native runtime probe");
+        assert_eq!(lifecycle.live, 0, "runtime probe must be dropped before recording {stage}");
+        assert_eq!(
+            lifecycle.incomplete_drops, 0,
+            "runtime probe lifecycle is incomplete at {stage}"
+        );
+        let report = super::TruncateWalReport {
+            status: if busy == 0 {
+                super::TruncateWalStatus::Done
+            } else {
+                super::TruncateWalStatus::Busy
+            },
+            busy: busy.max(0) as u32,
+            log_frames: log_frames.max(0) as u32,
+            checkpointed_frames: checkpointed_frames.max(0) as u32,
+        };
+        eprintln!(
+            "slice65_wal incident_ladder stage={stage} old_engine_closed={} fresh_engine_open={} elapsed_ms={} raw_busy={} raw_log_frames={} raw_checkpointed_frames={} runtime_probe_live={} runtime_probe_actual_drop={} runtime_probe_incomplete_drops={}",
+            u8::from(old_engine_closed),
+            u8::from(fresh_engine_open),
+            started.elapsed().as_millis(),
+            report.busy,
+            report.log_frames,
+            report.checkpointed_frames,
+            lifecycle.live,
+            lifecycle.actual_drops,
+            lifecycle.incomplete_drops,
+        );
+        report
+    }
+
+    /// Slice 65 projection-worker witness: preserve the original typed
+    /// refusal, then observe post-finish connection state without retrying
+    /// that erasure.
+    #[test]
+    fn wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded() {
+        let dir = TempDir::new().expect("temp dir");
+        let opened = Engine::open_with_embedder_for_test(
+            dir.path().join("wal-attribution-projection.sqlite"),
+            Arc::new(Slice65ProjectionEmbedder),
+        )
+        .expect("open");
+        opened.engine.configure_vector_kind_for_test("doc").expect("vector kind");
+        let (ready, release) =
+            opened.engine.pause_projection_worker_after_wal_transaction_for_test();
+        opened
+            .engine
+            .write(&[PreparedWrite::Node {
+                kind: "doc".to_string(),
+                body: "projection transaction".to_string(),
+                source_id: SourceId::new("slice65-projection-source").expect("source"),
+                logical_id: Some("slice65-projection".to_string()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            }])
+            .expect("write");
+        ready.wait();
+        let active = opened.engine.wal_attribution_snapshot();
+        assert_eq!(
+            opened.engine.wal_attribution.classification(&active, false),
+            "owned_runtime_transaction"
+        );
+        assert_eq!(active.active_roles.len(), 1);
+        assert_eq!(active.active_roles[0].0, WalAttributionRole::ProjectionWorker);
+        let exact_active_role = active.active_roles.clone();
+        eprintln!("slice65_wal projection_worker_transaction_ready");
+        let blocked = opened.engine.complete_erasure_at_rest("slice65-projection-checkpoint");
+        let busy = opened.engine.wal_attribution_checkpoints_for_test();
+        assert!(matches!(blocked, Err(EngineError::ErasureIncomplete { .. })));
+        assert_eq!(busy.len(), ERASURE_WAL_TRUNCATE_ATTEMPTS as usize);
+        assert!(busy.iter().all(|record| {
+            record.busy
+                && record.classification == "owned_runtime_transaction"
+                && record.active_roles == exact_active_role
+        }));
+        eprintln!(
+            "slice65_wal projection_worker_original_erase=typed_erasure_incomplete owned_busy_attempts={}",
+            busy.len()
+        );
+
+        release.wait();
+        opened.engine.drain(5_000).expect("projection settles");
+        let runtime = opened
+            .engine
+            .projection_runtime
+            .report_runtime_connection_inventory_for_test()
+            .expect("post-finish runtime inventory");
+        assert_eq!(
+            runtime
+                .iter()
+                .find(|(role, index, _)| {
+                    *role == WalAttributionRole::ProjectionWorker && *index == 0
+                })
+                .map(|(_, _, autocommit)| *autocommit),
+            Some(true),
+            "projection worker owner thread must be autocommit after finishing"
+        );
+        let completion = opened.engine.wal_attribution_snapshot();
+        assert!(completion.no_owned_snapshot, "collector must be idle after projection finish");
+        eprintln!(
+            "slice65_wal projection_worker_completion_ack worker_autocommit=1 collector_roles=idle"
+        );
+
+        let inventory = opened.engine.native_state_inventory_for_test();
+        let inventory_text = super::native_state_inventory_text(&inventory);
+        eprintln!("slice65_wal projection_worker_native_state_inventory={inventory_text}");
+        if !inventory.complete {
+            eprintln!(
+                "slice65_wal projection_worker_native_state_inventory=state_inventory=incomplete"
+            );
+        }
+        assert!(inventory.complete, "post-finish native inventory: {inventory:?}");
+
+        opened.engine.arm_binding_native_state_observation_for_test();
+        let samples = opened
+            .engine
+            .checkpoint_at_rest_for_test()
+            .expect("run bounded post-finish checkpoint sampler");
+        assert!(!samples.is_empty() && samples.len() <= ERASURE_WAL_TRUNCATE_ATTEMPTS as usize);
+        let state_records = opened.engine.drain_binding_native_state_observations_for_test();
+        assert_eq!(state_records.len(), samples.len() * 2);
+        for state in &state_records {
+            eprintln!("slice65_wal projection_worker_sampler_native_state {state}");
+            if !state.contains("state_inventory=complete reason=complete") {
+                eprintln!(
+                    "slice65_wal projection_worker_sampler_native_state state_inventory=incomplete"
+                );
+            }
+            assert!(state.contains("state_inventory=complete reason=complete"));
+        }
+        let (busy, log_frames, checkpointed_frames) =
+            samples.last().copied().expect("sampler result");
+        eprintln!(
+            "slice65_wal projection_worker_sampler_terminal outcome={} attempts={} busy={} log_frames={} checkpointed_frames={}",
+            if busy { "busy" } else { "clean" },
+            samples.len(),
+            u8::from(busy),
+            log_frames,
+            checkpointed_frames,
+        );
+    }
 
     /// 0.8.20 Slice 5a (R-20-E1, work item 2) — the registry GUARD.
     ///

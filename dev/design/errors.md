@@ -67,6 +67,7 @@ different remediation or cross-doc ownership.
 | `ProjectionError`               | projection-row commit / terminal-state accounting  | `EngineError`     | `design/projections.md` | projection freshness and failure-state rules are distinct from canonical writes |
 | `VectorError`                   | `sqlite-vec` encode/load/query path                | `EngineError`     | `design/vector.md`      | vector capability / encoding failures have vector-specific recovery             |
 | `EmbedderError`                 | embedder dispatch, timeout, invalid vector return  | `EngineError`     | `design/embedder.md`    | caller remediation is "fix or replace embedder," not "retry generic write"      |
+| `EmbedderRequired`              | pending embedding work with no configured runtime  | `EngineError`     | `design/0.8.23-embedding-configuration-feedback.md` | immediate typed configuration feedback; equivalence refusal and worker failure remain operational outcomes |
 | `SchedulerError`                | scheduler startup/shutdown / queue orchestration   | `EngineError`     | `design/scheduler.md`   | queue and shutdown failures are not vector math or write-shape failures         |
 | `OpStoreError`                  | unknown collection, kind mismatch, registry misuse | `EngineError`     | `design/op-store.md`    | op-store contract failures are separate from primary graph writes               |
 | `WriteValidationError`          | malformed typed write shape                        | `EngineError`     | `design/engine.md`      | fix caller-submitted field shape / variant construction                         |
@@ -210,12 +211,23 @@ The matrix below is the canonical cross-binding class-stem table for 0.6.0.
 Per-language interface docs may apply idiomatic casing, but they must not
 rename the semantic class stems or collapse distinct rows.
 
+`EngineError::EmbedderRequired` maps to `EmbedderRequiredError` in both SDKs.
+Its stable `FDB_EMBEDDER_REQUIRED` payload has `operation`, `state`, ordered
+`remediations`, and the documentation URL; Python exposes
+`documentation_url`, TypeScript exposes `documentationUrl`. It applies only to
+an absent configured runtime. `SchedulerError` remains the bounded-drain result
+while outstanding operational work, such as equivalence-refused work, prevents
+idleness. A worker that exhausts retries instead records a durable `failed`
+terminal, after which `drain` may return `Ok` once idle. Neither is this
+configuration error.
+
 | Rust-side surface                    | Python class stem                | TypeScript class stem            | CLI dispatch class    |
 | ------------------------------------ | -------------------------------- | -------------------------------- | --------------------- |
 | `StorageError`                       | `StorageError`                   | `StorageError`                   | runtime failure       |
 | `ProjectionError`                    | `ProjectionError`                | `ProjectionError`                | runtime failure       |
 | `VectorError`                        | `VectorError`                    | `VectorError`                    | runtime failure       |
 | `EmbedderError`                      | `EmbedderError`                  | `EmbedderError`                  | runtime failure       |
+| `EngineError::EmbedderRequired`      | `EmbedderRequiredError`          | `EmbedderRequiredError`          | `EmbedderRequiredError` |
 | `SchedulerError`                     | `SchedulerError`                 | `SchedulerError`                 | runtime failure       |
 | `OpStoreError`                       | `OpStoreError`                   | `OpStoreError`                   | runtime failure       |
 | `WriteValidationError`               | `WriteValidationError`           | `WriteValidationError`           | runtime failure       |

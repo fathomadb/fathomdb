@@ -39,8 +39,9 @@ tokenizers          = { version = "0.20", optional = true, default-features = fa
 
 # 0.8.16 Slice 10 (ADR-0.8.16-onnx-embedder-backend §2) — cross-vendor ONNX
 # Runtime backend for `OrtBgeEmbedder` (mod ort_bge), a caller-supplied
-# `impl Embedder` injected via `EmbedderChoice::Caller` with ZERO engine
-# change. Optional + feature-gated behind `onnx-embedder` so the thin
+# `impl Embedder` injected via `EmbedderChoice::CallerWithDeviceResolution`
+# so `OpenReport` records its final session outcome. Optional + feature-gated
+# behind `onnx-embedder` so the thin
 # `default = []` build stays ML-free and gains ZERO new deps (EMB-3
 # wheel-size gate / footprint invariant). Pinned to `=2.0.0-rc.10`: the
 # `ort` 2.0 line is the maintained series (1.x is EOL) but is published
@@ -69,8 +70,8 @@ default-embedder = [
     "dep:candle-transformers",
     "dep:tokenizers",
 ]
-# 0.8.2 Slice E1 — the default CPU cross-encoder reranker (TinyBERT-L-2). Pulls
-# the SAME Candle + tokenizers + loader stack as `default-embedder` (CPU only),
+# 0.8.2 Slice E1 — the default cross-encoder reranker (TinyBERT-L-2). Pulls
+# the SAME Candle + tokenizers + loader stack as `default-embedder`,
 # but is a distinct opt-in so the engine can enable reranking without forcing the
 # default embedder on, and the feature-off build stays ML-free + no-network.
 default-reranker = [
@@ -85,17 +86,20 @@ default-reranker = [
     "dep:candle-transformers",
     "dep:tokenizers",
 ]
-# GPU acceleration (opt-in; default build stays CPU so tests + byte-stability are
-# unaffected). Activate the device at runtime with FATHOMDB_EMBED_DEVICE=cuda|metal.
+# CUDA is an artifact-build capability. A CUDA-capable artifact contains both
+# CPU and CUDA runtime paths and accepts strict
+# FATHOMDB_EMBED_DEVICE=auto|cpu|cuda:N (unset is `auto` there). The thin
+# feature-off build stays ML-free, so its tests and byte-stability are unaffected.
 # Cross-vendor (AMD ROCm / Intel) is NOT a candle backend — that path is a separate
-# `impl Embedder` (ONNX-Runtime) via EmbedderChoice::Caller; see
+# `impl Embedder` (ONNX-Runtime) reported via CallerWithDeviceResolution; see
 # dev/design/0.8.1-embedder-gpu-and-portability.md.
 embed-cuda = ["default-embedder", "candle-core/cuda", "candle-nn/cuda", "candle-transformers/cuda"]
 embed-metal = ["default-embedder", "candle-core/metal", "candle-nn/metal", "candle-transformers/metal"]
 # 0.8.12 — GPU acceleration for the CE reranker (opt-in; default build stays CPU
 # so Decision 2 / byte-stability are unaffected). Mirrors `embed-cuda` exactly
 # but pulls in `default-reranker` (not `default-embedder`) and is activated at
-# runtime via the SEPARATE knob FATHOMDB_RERANK_DEVICE=cuda|cuda:N|metal. The CE
+# runtime via FATHOMDB_RERANK_DEVICE=auto|cpu|cuda:N. Its strict forced-CUDA
+# policy is reranker-only; it does not describe embedding. The CE
 # stack is the same Candle bert path, so enabling the cuda backend on the shared
 # candle crates is the only build-side change. Cross-vendor (AMD/Intel) is not a
 # candle backend — out of scope, same as the embedder.
@@ -106,8 +110,9 @@ rerank-metal = ["default-reranker", "candle-core/metal", "candle-nn/metal", "can
 # tokenization parity with the candle reference). NON-default: the thin
 # `default = []` build gains ZERO new deps (footprint invariant / EMB-3).
 # The cross-vendor execution providers (ROCm / DirectML / OpenVINO / CUDA)
-# that candle cannot reach are selected at RUNTIME from `FATHOMDB_EMBED_DEVICE`
-# (R-ONNX-2); the ONNX Runtime native lib is dlopen'd at runtime (load-dynamic).
+# that candle cannot reach are selected at RUNTIME under the strict
+# `FATHOMDB_EMBED_DEVICE=auto|cpu|cuda:N` policy (R-ONNX-2); the ONNX Runtime
+# native lib is dlopen'd at runtime (load-dynamic).
 # `sha2` derives the self-describing identity revision from a content digest of
 # the ACTUALLY-loaded model + tokenizer assets (codex §9 fix-5): two different
 # assets → two different identities, so the engine rejects cross-asset vector
@@ -126,6 +131,10 @@ onnx-embedder = [
 # feature — `load_pinned_default_embedder()` is the only production-blessed
 # entry point per ADR-0.7.1 scope-guardrail #1.
 loader-test-hooks = ["default-embedder"]
+# TC-5's offline benchmark path. This is deliberately separate from the
+# ordinary default embedder: it accepts only a preflight-selected device and a
+# verified local asset directory, never `FATHOMDB_EMBED_DEVICE` or the loader.
+tc5-benchmark = ["default-embedder"]
 
 [dev-dependencies]
 httpmock = "0.7"
@@ -139,3 +148,7 @@ sha2 = "0.11"
 [[example]]
 name = "gpu_speedup"
 required-features = ["default-embedder"]
+
+[[test]]
+name = "tc5_cache_only_factory"
+required-features = ["tc5-benchmark"]

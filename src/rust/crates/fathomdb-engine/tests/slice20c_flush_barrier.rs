@@ -55,15 +55,15 @@
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    DenseReadiness, Engine, InitialState, PreparedWrite, ProjectionRole, ProjectionSpec,
-    ProjectionVector, SourceId,
+    DenseReadiness, EmbeddingOperation, Engine, EngineError, InitialState, PreparedWrite,
+    ProjectionRole, ProjectionSpec, ProjectionVector, SourceId,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tempfile::TempDir;
 
 // ---------------------------------------------------------------------------
@@ -1163,16 +1163,19 @@ fn a_no_embedder_session_leaves_an_enrolled_kinds_write_recoverable() {
             .expect("write N2");
 
         // THE CONSUMER-VISIBLE CONSEQUENCE, pinned. An enrolled row with no
-        // vector is outstanding, and this session has no way to satisfy it, so
-        // the barrier must NOT clear. Baseline clears it by recording a
-        // `'failed'` terminal — which is exactly how the write gets lost.
+        // vector is outstanding, and this session has no way to satisfy it.
+        // Slice 30 makes that absence immediate typed configuration feedback;
+        // it must not terminate the row or spend the scheduler timeout.
         let drained = engine.drain(3_000);
-        assert!(
-            matches!(drained, Err(fathomdb_engine::EngineError::Scheduler)),
-            "NO-EMBEDDER SESSION: an enrolled row with no vector is outstanding and this session \
-             cannot satisfy it, so `drain` must burn its timeout into `Scheduler` rather than \
-             clear the barrier by terminating the row. Got: {drained:?}"
-        );
+        match drained {
+            Err(EngineError::EmbedderRequired(required)) => {
+                assert_eq!(required.operation, EmbeddingOperation::VectorProjection);
+            }
+            other => panic!(
+                "NO-EMBEDDER SESSION: an enrolled row with no vector must return immediate \
+                 FDB_EMBEDDER_REQUIRED without terminating the row. Got: {other:?}"
+            ),
+        }
         assert_eq!(
             readiness(engine, "summary"),
             Some(DenseReadiness::Unavailable),
@@ -1293,45 +1296,12 @@ fn pending_node_rows_below(conn: &rusqlite::Connection, cursor: i64) -> i64 {
     .expect("pending node rows below cursor")
 }
 
-/// Poll `probe` until it reports true or `timeout` elapses. Returns whether it
-/// ever did. Used instead of `drain` because Leg G's session deliberately holds
-/// permanently-pending node rows (fix-4), so `drain` can only ever time out
-/// there — the question is whether the EDGE was scheduled, not whether the
-/// session reached idle.
-fn poll_until(timeout: Duration, mut probe: impl FnMut() -> bool) -> bool {
-    let deadline = Instant::now() + timeout;
-    loop {
-        if probe() {
-            return true;
-        }
-        if Instant::now() >= deadline {
-            return false;
-        }
-        std::thread::sleep(Duration::from_millis(25));
-    }
-}
-
-/// **A pending EDGE body must stay reachable behind a full scan window of
-/// no-embedder NODE rows.**
-///
-/// fix-4 excluded node jobs in a no-embedder session by filtering the vector
-/// [`next_pending_projection_jobs`] returned — i.e. AFTER its `ORDER BY
-/// write_cursor LIMIT PROJECTION_SCAN_FETCH`. The `LIMIT` therefore applied to
-/// the UNFILTERED set: with more than `PROJECTION_SCAN_FETCH` pending node rows
-/// ordered before a pending edge body, the one scan comes back entirely full of
-/// node jobs, the filter drops all of them, the dispatcher sees an empty batch
-/// and goes back to sleep with `pending_scan` already consumed — and the edge
-/// body is never scheduled at all. Nothing later re-widens the window, because
-/// the node rows are pending FOREVER in that session (that is fix-4's whole
-/// point), so the starvation is permanent, not a delay.
-///
-/// Edges keep their SHIPPED no-embedder behaviour (`'edge_fact'` is
-/// auto-registered by the edge write itself, un-gated on the embedder — G11,
-/// OOS-13), so "scheduled" is observable as the edge body reaching a TERMINAL.
-/// This test does NOT assert edges become recoverable; it asserts only that the
-/// scheduler still REACHES them.
+/// A no-embedder session leaves every embedding row recoverable, including a
+/// body-bearing edge behind more than one scanner window of vector-enrolled
+/// nodes. Slice 30 reports the absent configuration at `drain`; it must not
+/// dispatch the edge into a failed terminal behind the caller's back.
 #[test]
-fn a_pending_edge_body_survives_a_full_scan_window_of_no_embedder_node_rows() {
+fn no_embedder_body_edge_remains_pending_behind_many_enrolled_nodes() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "flush_barrier_scan_window_starvation");
 
@@ -1354,13 +1324,9 @@ fn a_pending_edge_body_survives_a_full_scan_window_of_no_embedder_node_rows() {
     }
 
     // ---- session 2: the SAME database with NO embedder. Every `doc` row it
-    // writes is pending forever (fix-4); the edge body written AFTER them is the
-    // row under test.
+    // writes is pending; the edge body written after them must stay pending too.
     let opened = Engine::open(path.clone()).expect("reopen without embedder");
     let engine = &opened.engine;
-    // Collapse the retry ladder: an edge body with no embedder takes the SHIPPED
-    // path (0 + 1 + 4 + 16 s, then a `'failed'` terminal). Without this the
-    // "was it scheduled?" probe would have to outwait 21 s.
     engine.set_projection_retry_delays_for_test(&[]);
 
     // MORE than one scan window of node rows, all ordered BEFORE the edge.
@@ -1377,7 +1343,7 @@ fn a_pending_edge_body_survives_a_full_scan_window_of_no_embedder_node_rows() {
     let edge_cursor = active_edge_cursor(&conn, "E1");
     assert!(
         vector_kind_registered(&conn, "edge_fact"),
-        "fixture: an edge body auto-registers `'edge_fact'` (G11), so it IS schedulable work"
+        "fixture: an edge body auto-registers `'edge_fact'` and is pending embedding work"
     );
     let pending_before = pending_node_rows_below(&conn, edge_cursor);
     assert!(
@@ -1387,26 +1353,20 @@ fn a_pending_edge_body_survives_a_full_scan_window_of_no_embedder_node_rows() {
          scan window: {PROJECTION_SCAN_FETCH}"
     );
 
-    // THE FINDING. The scheduler must still reach the edge body.
-    let scheduled =
-        poll_until(Duration::from_secs(20), || terminal_state(&ro(&path), edge_cursor).is_some());
+    let drain = engine.drain(3_000);
     assert!(
-        scheduled,
-        "SCAN-WINDOW STARVATION: with more than PROJECTION_SCAN_FETCH ({PROJECTION_SCAN_FETCH}) \
-         pending node rows ordered before it, the pending edge body at cursor {edge_cursor} was \
-         NEVER scheduled. The no-embedder node exclusion must happen INSIDE \
-         `next_pending_projection_jobs`' SQL so the `LIMIT` applies to the ALREADY-FILTERED set; \
-         filtering after the fetch lets one full window of node rows hide every later job, and \
-         `drain` then times out on that edge workload indefinitely"
+        matches!(
+            drain,
+            Err(EngineError::EmbedderRequired(ref required))
+                if required.operation == EmbeddingOperation::GraphEdgeBodyProjection
+        ),
+        "the pending edge must produce immediate typed configuration feedback, got {drain:?}"
     );
-
-    // …and it reached it on the SHIPPED edge path, unchanged by this slice.
+    std::thread::sleep(Duration::from_millis(100));
     assert_eq!(
         terminal_state(&ro(&path), edge_cursor),
-        Some("failed".to_string()),
-        "edges keep their shipped no-embedder behaviour (OOS-13): the retry ladder exhausts into \
-         a `'failed'` terminal. fix-5 changes WHICH rows the scan returns, not what happens to \
-         an edge once it is dispatched"
+        None,
+        "an absent embedder must leave the edge body pending and recoverable, not record failed"
     );
 
     // fix-4 is intact: the NODE rows are still pending, not terminated.

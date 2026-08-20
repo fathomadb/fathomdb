@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Sequence
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from fathomdb._fathomdb import ConsolidateReceipt
 from fathomdb._fathomdb import Engine as _NativeEngine
@@ -27,8 +27,13 @@ from fathomdb._fathomdb import transition as _native_transition
 from fathomdb.config import EngineConfig
 from fathomdb.types import (
     CounterSnapshot,
+    CudaDeviceInfo,
+    CudaVisibleDevice,
+    DeviceResolution,
     EmbedderIdentity,
+    EffectiveEmbedDevice,
     Explanation,
+    GpuAllocationWitness,
     IdSpace,
     MigrationStepReport,
     OpenReport,
@@ -125,6 +130,146 @@ def _map_per_hit_explain(p: Any) -> PerHitExplain:
         blended=p.blended,
         importance=p.importance,
         confidence=p.confidence,
+    )
+
+
+def _map_gpu_allocation_witness(native: Any) -> GpuAllocationWitness:
+    """Map the native GPU allocation witness field-for-field.
+
+    Deliberately exhaustive: R80-13 requires the record stay re-derivable, so
+    nothing here summarizes, rounds, or drops a number.
+    """
+
+    return GpuAllocationWitness(
+        schema=native.schema,
+        sole_gpu_consumer_precondition=native.sole_gpu_consumer_precondition,
+        device_ordinal_requested=native.device_ordinal_requested,
+        device_ordinal_actual=native.device_ordinal_actual,
+        device_uuid=native.device_uuid,
+        device_name=native.device_name,
+        compute_capability=native.compute_capability,
+        free_before_bytes=native.free_before_bytes,
+        free_after_bytes=native.free_after_bytes,
+        total_bytes=native.total_bytes,
+        delta_bytes=native.delta_bytes,
+        delta_floor_bytes=native.delta_floor_bytes,
+        control_allocation_request_bytes=native.control_allocation_request_bytes,
+        control_block_count=native.control_block_count,
+        control_free_before_bytes=native.control_free_before_bytes,
+        control_free_after_bytes=native.control_free_after_bytes,
+        control_delta_bytes=native.control_delta_bytes,
+        embedded_vector_dim=native.embedded_vector_dim,
+    )
+
+
+def _map_open_report(native: Any) -> OpenReport:
+    """Map one native open-time snapshot into the public Python contract."""
+
+    device_resolution = native.embedder_device_resolution
+    reranker_device_resolution = native.reranker_device_resolution
+    gpu_allocation_witness = native.embedder_gpu_allocation_witness
+    return OpenReport(
+        schema_version_before=native.schema_version_before,
+        schema_version_after=native.schema_version_after,
+        migration_steps=[
+            MigrationStepReport(
+                step_id=step.step_id,
+                duration_ms=step.duration_ms,
+                failed=step.failed,
+            )
+            for step in native.migration_steps
+        ],
+        embedder_warmup_ms=native.embedder_warmup_ms,
+        query_backend=native.query_backend,
+        default_embedder=EmbedderIdentity(
+            name=native.default_embedder.name,
+            revision=native.default_embedder.revision,
+            dimension=native.default_embedder.dimension,
+        ),
+        embedder_download_ms=native.embedder_download_ms,
+        embedder_events=list(native.embedder_events),
+        embedder_mean_centering_required=native.embedder_mean_centering_required,
+        embedder_mean_vec_pinned=native.embedder_mean_vec_pinned,
+        dense_disabled=native.dense_disabled,
+        dense_disabled_reason=native.dense_disabled_reason,
+        embedder_device_resolution=(
+            None
+            if device_resolution is None
+            else DeviceResolution(
+                requested_policy=device_resolution.requested_policy,
+                cuda_compiled=device_resolution.cuda_compiled,
+                effective_device=EffectiveEmbedDevice(
+                    kind=cast(Literal["cpu", "cuda"], device_resolution.effective_device.kind),
+                    cuda_device=(
+                        None
+                        if device_resolution.effective_device.cuda_device is None
+                        else CudaDeviceInfo(
+                            ordinal=device_resolution.effective_device.cuda_device.ordinal,
+                            uuid=device_resolution.effective_device.cuda_device.uuid,
+                            name=device_resolution.effective_device.cuda_device.name,
+                            driver_version=device_resolution.effective_device.cuda_device.driver_version,
+                            compute_capability=device_resolution.effective_device.cuda_device.compute_capability,
+                            cuda_toolkit_version=(
+                                device_resolution.effective_device.cuda_device.cuda_toolkit_version
+                            ),
+                        )
+                    ),
+                ),
+                visible_cuda_devices=tuple(
+                    CudaVisibleDevice(
+                        visible_ordinal=device.visible_ordinal,
+                        uuid=device.uuid,
+                        name=device.name,
+                        compute_capability=device.compute_capability,
+                    )
+                    for device in device_resolution.visible_cuda_devices
+                ),
+                selected_cuda_uuid=device_resolution.selected_cuda_uuid,
+                reason=device_resolution.reason,
+            )
+        ),
+        reranker_device_resolution=(
+            None
+            if reranker_device_resolution is None
+            else DeviceResolution(
+                requested_policy=reranker_device_resolution.requested_policy,
+                cuda_compiled=reranker_device_resolution.cuda_compiled,
+                effective_device=EffectiveEmbedDevice(
+                    kind=cast(
+                        Literal["cpu", "cuda"],
+                        reranker_device_resolution.effective_device.kind,
+                    ),
+                    cuda_device=(
+                        None
+                        if reranker_device_resolution.effective_device.cuda_device is None
+                        else CudaDeviceInfo(
+                            ordinal=reranker_device_resolution.effective_device.cuda_device.ordinal,
+                            uuid=reranker_device_resolution.effective_device.cuda_device.uuid,
+                            name=reranker_device_resolution.effective_device.cuda_device.name,
+                            driver_version=reranker_device_resolution.effective_device.cuda_device.driver_version,
+                            compute_capability=reranker_device_resolution.effective_device.cuda_device.compute_capability,
+                            cuda_toolkit_version=reranker_device_resolution.effective_device.cuda_device.cuda_toolkit_version,
+                        )
+                    ),
+                ),
+                visible_cuda_devices=tuple(
+                    CudaVisibleDevice(
+                        visible_ordinal=device.visible_ordinal,
+                        uuid=device.uuid,
+                        name=device.name,
+                        compute_capability=device.compute_capability,
+                    )
+                    for device in reranker_device_resolution.visible_cuda_devices
+                ),
+                selected_cuda_uuid=reranker_device_resolution.selected_cuda_uuid,
+                reason=reranker_device_resolution.reason,
+            )
+        ),
+        embedder_gpu_allocation_witness=(
+            None
+            if gpu_allocation_witness is None
+            else _map_gpu_allocation_witness(gpu_allocation_witness)
+        ),
     )
 
 
@@ -724,32 +869,7 @@ class Engine:
         the report is a snapshot from open time, not live state.
         """
 
-        native = self._native.open_report()
-        return OpenReport(
-            schema_version_before=native.schema_version_before,
-            schema_version_after=native.schema_version_after,
-            migration_steps=[
-                MigrationStepReport(
-                    step_id=step.step_id,
-                    duration_ms=step.duration_ms,
-                    failed=step.failed,
-                )
-                for step in native.migration_steps
-            ],
-            embedder_warmup_ms=native.embedder_warmup_ms,
-            query_backend=native.query_backend,
-            default_embedder=EmbedderIdentity(
-                name=native.default_embedder.name,
-                revision=native.default_embedder.revision,
-                dimension=native.default_embedder.dimension,
-            ),
-            embedder_download_ms=native.embedder_download_ms,
-            embedder_events=list(native.embedder_events),
-            embedder_mean_centering_required=native.embedder_mean_centering_required,
-            embedder_mean_vec_pinned=native.embedder_mean_vec_pinned,
-            dense_disabled=native.dense_disabled,
-            dense_disabled_reason=native.dense_disabled_reason,
-        )
+        return _map_open_report(self._native.open_report())
 
     def counters(self) -> CounterSnapshot:
         snap = self._native.counters()

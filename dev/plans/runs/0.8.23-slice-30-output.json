@@ -1,0 +1,54 @@
+{
+  "phase": "0.8.23-slice-30",
+  "baseline_sha": "f88dc65f7f6cffec4eefa6f3a010db7743d404b4",
+  "head_sha": "776d2c202e0d39ae549cda1add2793e338131afe",
+  "commits": [
+    "b797b922: feat(0.8.23): add embedding readiness feedback",
+    "dee1f61f: fix(0.8.23): map embedder required CLI error",
+    "5ffceab6: fix(0.8.23): preserve refused embedder semantics",
+    "78977d14: docs(0.8.23): correct readiness pin guidance",
+    "8af475da: docs(0.8.23): clarify worker terminal behavior",
+    "3285a44d: fix(0.8.23): initialize embedder error payload",
+    "0d0abff3: fix(ci): preserve URLs in C1 Rust reader",
+    "c353d745: fix(0.8.23): narrow Python readiness payload",
+    "0e6a8dbe: fix(0.8.23): validate readiness payload completeness",
+    "a7425155: test(0.8.23): assert typed no-embedder drain",
+    "1f567233: docs(0.8.23): clarify no-embedder drain behavior",
+    "776d2c20: docs(0.8.23): clarify Python no-embedder drain"
+  ],
+  "status_record": "dev/plans/runs/0.8.23-slice-30-memex-integration.md",
+  "review": {
+    "codex_review": "The mandated wrapper was invoked twice, but both executor transcripts ended without a terminal verdict; the independent adversarial fallback terminal record passed.",
+    "terminal_record": "dev/plans/runs/codex/0.8.23/slice-30-adversarial-rereview-20260816.md",
+    "verdict": "PASS"
+  },
+  "verification": {
+    "workspace_check": 0,
+    "workspace_clippy": 0,
+    "governed_surface_pin": 0,
+    "python_real_engine": 0,
+    "typescript_typecheck": 0,
+    "typescript_readiness_test": 0,
+    "typescript_typed_error_test": 0,
+    "release_state_views": 0
+  },
+  "status": "COMPLETE",
+  "release_completion": {
+    "ref": "origin/release/0.8.23",
+    "main_integration": "PENDING"
+  },
+  "regression_repair": {
+    "commit": "993036cc",
+    "disposition": "Direct drain retains immediate FDB_EMBEDDER_REQUIRED; no-runtime sessions dispatch neither node nor edge embedding jobs, pending rows remain recoverable, and governed/operator/deleted-first erasure removes them through the existing fail-closed at-rest path.",
+    "red": [
+      "pending body-edge erase_source and excise_source returned EmbedderRequired",
+      "collapsed-retry absent-embedder body edge recorded a failed terminal"
+    ],
+    "green": [
+      "targeted real-SQLite source/operator erasure, terminal-free pending edge, and deleted-first purge tests",
+      "focused Slice 30, erasure, provenance, registration, and TC-31 suites; default engine suite; workspace check and clippy"
+    ],
+    "integration": "Pending on origin/release/0.8.23; main integration remains PENDING."
+  },
+  "remaining_blocker": "None for Slice 30. `scripts/check-release-state-views.sh` verifies the recorded landed SHA set against origin/release/0.8.23; integration into origin/main remains PENDING and is recorded separately from release-branch completion."
+}

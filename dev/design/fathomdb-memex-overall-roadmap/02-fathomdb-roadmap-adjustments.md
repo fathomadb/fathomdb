@@ -42,10 +42,10 @@ generator: model-tiered dynamic workflow (Sonnet-5 collect · Fable-5 analyze/cr
 
 | Field | Detail |
 |---|---|
-| **CURRENT scope** | #15 F9 importance/confidence (KEYSTONE) + #4 cross-vendor `OrtBgeEmbedder` (ort: CUDA/ROCm/DirectML/OpenVINO/CPU) via `EmbedderChoice::Caller`, zero engine diff. Slice-15 candle↔ONNX Δ measurement feeds 0.8.18 #5 tolerance calibration. |
+| **CURRENT scope** | #15 F9 importance/confidence (KEYSTONE) + #4 cross-vendor `OrtBgeEmbedder` (ort: CUDA/ROCm/DirectML/OpenVINO/CPU) via `EmbedderChoice::CallerWithDeviceResolution`, which records the session outcome without the engine naming ONNX. Slice-15 candle↔ONNX Δ measurement feeds 0.8.18 #5 tolerance calibration. |
 | **PROPOSED change** | **KEEP** F9 + ONNX unchanged (the unified roadmap explicitly marks this release zero-divergence). **CONDITIONAL-INSERT (G-5):** if HITL re-homes the orphaned `0.8.14-gpu-rerank` branch (`ce_blend_enabled` flip, `embed_batch_cls`) here — this is the **recommended** home ("ranking signal & embedder reach" is the natural fit). **RECONCILE (docs-only, M18):** make edge **I-7** machine-visible in the master edge table: 0.8.16 Slice-15 Δ → 0.8.18 #5 calibration (physically hard). **NOTE:** F9 completes OPP-12's `rankable` signal algebra — a *contract input*, not a build trigger for OPP-12. |
 | **WHY** | M19/G-5: the gpu-rerank branch is rebased/green/unmerged with **no home in any plan** and Memex's retrieval-quality plan homes CE-blend at the string "0.8.14" — an unacknowledged F-1 collision. 0.8.16 is where embedder/ranking work legitimately lives. M18: the cross-release Δ→calibration coupling is real but absent from I-1..I-6. |
-| **GOVERNANCE** | Numbering OK (even). **F-16/F-17 OK.** ONNX deliberately scheduled non-early because it manufactures the cross-backend divergence hazard 0.8.18 #5 exists to catch. API-sprawl OK — ONNX is `EmbedderChoice::Caller`, zero engine diff; gpu-rerank flip is a config flag, not a verb. |
+| **GOVERNANCE** | Numbering OK (even). **F-16/F-17 OK.** ONNX deliberately scheduled non-early because it manufactures the cross-backend divergence hazard 0.8.18 #5 exists to catch. API-sprawl OK — ONNX is caller-supplied through `EmbedderChoice::CallerWithDeviceResolution`; gpu-rerank flip is a config flag, not a verb. |
 | **HITL SIGN-OFF** | **YES if G-5 lands here** (admit gpu-rerank as explicit 0.8.16 scope). Otherwise no new sign-off beyond the existing eu7 ≥0.90 embedder/index-touch gate. |
 
 ---

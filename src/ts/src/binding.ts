@@ -112,6 +112,17 @@ export interface NativeProjectionRuntimeStatus {
   vectorUnsupportedKinds: string[];
 }
 
+export interface NativeEmbeddingReadiness {
+  state: string;
+  usableEmbedder: boolean;
+  pendingCount: number;
+  affectedKinds: string[];
+  code?: string | null;
+  operation?: string | null;
+  remediations: string[];
+  documentationUrl?: string | null;
+}
+
 interface NativeSoftFallback {
   branch: string;
 }
@@ -284,7 +295,60 @@ export interface NativeEmbedderEvent {
   docCount?: number | null;
 }
 
-interface NativeOpenReport {
+export interface NativeCudaDeviceInfo {
+  ordinal: number;
+  uuid: string | null;
+  name: string | null;
+  driverVersion: string | null;
+  computeCapability: string | null;
+  cudaToolkitVersion: string | null;
+}
+
+export interface NativeCudaVisibleDevice {
+  visibleOrdinal: number;
+  uuid: string;
+  name: string;
+  computeCapability: string | null;
+}
+
+export interface NativeEffectiveEmbedDevice {
+  kind: string;
+  cudaDevice: NativeCudaDeviceInfo | null;
+}
+
+export interface NativeEmbedderDeviceResolution {
+  requestedPolicy: string;
+  cudaCompiled: boolean;
+  effectiveDevice: NativeEffectiveEmbedDevice;
+  visibleCudaDevices: NativeCudaVisibleDevice[];
+  selectedCudaUuid: string | null;
+  reason: string | null;
+}
+
+// 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the retained
+// `fathomdb.tegra-gpu-allocation-witness/v1` record, measured in this process.
+export interface NativeGpuAllocationWitness {
+  schema: string;
+  soleGpuConsumerPrecondition: string;
+  deviceOrdinalRequested: number;
+  deviceOrdinalActual: number;
+  deviceUuid: string;
+  deviceName: string;
+  computeCapability: string;
+  freeBeforeBytes: number;
+  freeAfterBytes: number;
+  totalBytes: number;
+  deltaBytes: number;
+  deltaFloorBytes: number;
+  controlAllocationRequestBytes: number;
+  controlBlockCount: number;
+  controlFreeBeforeBytes: number;
+  controlFreeAfterBytes: number;
+  controlDeltaBytes: number;
+  embeddedVectorDim: number;
+}
+
+export interface NativeOpenReport {
   schemaVersionBefore: number;
   schemaVersionAfter: number;
   migrationSteps: NativeMigrationStepReport[];
@@ -298,6 +362,11 @@ interface NativeOpenReport {
   // 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-6).
   denseDisabled: boolean;
   denseDisabledReason: string | null;
+  embedderDeviceResolution: NativeEmbedderDeviceResolution | null;
+  rerankerDeviceResolution?: NativeEmbedderDeviceResolution | null;
+  // 0.8.23 Slice 80.6 (D-80.6-6) — `null` means no witness was taken, never
+  // "a witness measured nothing".
+  embedderGpuAllocationWitness?: NativeGpuAllocationWitness | null;
 }
 
 interface NativeCounterSnapshot {
@@ -390,6 +459,7 @@ export interface NativeEngine {
   ): Promise<NativeProjectionDelta>;
   readProjections(): Promise<NativeProjectionSpec[]>;
   readProjectionStatus(): Promise<NativeProjectionRuntimeStatus>;
+  readEmbeddingReadiness(): Promise<NativeEmbeddingReadiness>;
   search(
     query: string,
     filter?: NativeSearchFilter,

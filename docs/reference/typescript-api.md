@@ -153,8 +153,9 @@ cross-encoder reranking (0.8.1 R1) and optional graph-BFS third arm (0.8.1 R3).
   omitted (or all-`undefined`) is the unfiltered path.
 - `rerankDepth` (`number`, optional, default `undefined`/`0`) — 0.8.1 R1 opt-in.
   `0` or omitted uses the identity / soft-fallback path: byte-identical to the
-  pre-0.8.1 fused order. `N > 0` applies a CPU cross-encoder (TinyBERT-L-2,
-  ≈4 MB, p50 ≈ 1.5 ms/pair) over the top-N fused hits with score-blend
+  pre-0.8.1 fused order. `N > 0` applies a cross-encoder (TinyBERT-L-2,
+  ≈4 MB; latency depends on the selected CPU/CUDA runtime and workload) over
+  the top-N fused hits with score-blend
   (α=0.3 × CE + 0.7 × RRF-norm). Must be a non-negative integer; negative
   values throw `RangeError`, non-integer values throw `TypeError`. In the
   default build (no `default-reranker` feature), depth > 0 returns the identity
@@ -688,10 +689,16 @@ the catch-all root).
 ## Embedder device (GPU)
 
 There is **no TypeScript API** for selecting the embedder device — it is chosen
-by a build-time cargo feature (`embed-cuda` / `embed-metal`) plus the
-`FATHOMDB_EMBED_DEVICE` environment variable (`cpu` default · `cuda` · `cuda:N` ·
-`metal`), resolved when the engine opens. The default (CPU) behavior is
-unchanged. See [Default Embedder → GPU acceleration](../embedder.md#gpu-acceleration-opt-in).
+by artifact capability plus the `FATHOMDB_EMBED_DEVICE` environment variable
+(`auto` · `cpu` · `cuda:N`), resolved when the engine opens. Unset is `auto` only on a CUDA-capable artifact; a CPU-only artifact reports
+`cuda_not_compiled`. `auto` records a typed CPU result when CUDA is
+unavailable; forced `cuda:N` fails rather than falling back. End users of a CUDA-capable package do not rebuild to switch between CPU and GPU. See
+[Default Embedder → GPU acceleration](../embedder.md#gpu-acceleration-opt-in).
+
+`FATHOMDB_RERANK_DEVICE` independently selects TinyBERT CE with the same
+`auto` · `cpu` · `cuda:N` grammar. Both model paths may select the same GPU;
+this does not make SQLite retrieval, FTS, fusion, graph, or storage GPU work,
+and FathomDB provides no GPU reservation or hard memory cap.
 
 ## See also
 

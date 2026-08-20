@@ -5,6 +5,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PREFLIGHT="$ROOT/scripts/release/cuda-preflight.sh"
+BUILD_NAPI="$ROOT/scripts/release/build-napi-cuda.sh"
 SMOKE="$ROOT/scripts/release/cuda-package-rehearsal-smoke.sh"
 
 need() {
@@ -24,8 +25,15 @@ need "$PREFLIGHT" 'reranker-python-cpu-smoke.json'
 need "$PREFLIGHT" 'reranker-napi-cpu-smoke.json'
 need "$PREFLIGHT" 'forced-reranker-python.json'
 need "$PREFLIGHT" 'forced-reranker-napi.json'
+need "$PREFLIGHT" 'f"installed_{consumer}_engine_open_without_default_embedder"'
 need "$PREFLIGHT" 'FATHOMDB_RERANK_DEVICE'
 need "$PREFLIGHT" 'from fathomdb import rerank'
+need "$PREFLIGHT" 'await engine.drain(30_000);'
+need "$PREFLIGHT" 'const deadline = Date.now() + 10_000;'
+need "$PREFLIGHT" 'while (Date.now() < deadline) {'
+need "$PREFLIGHT" 'engine.search("TinyBERT CPU inference", undefined, 1)'
+need "$BUILD_NAPI" 'REQUESTED_CUDA_NAPI_FEATURES="${CUDA_NAPI_FEATURES:-}"'
+need "$BUILD_NAPI" 'CUDA_NAPI_FEATURES="$REQUESTED_CUDA_NAPI_FEATURES"'
 need "$SMOKE" 'reranker-cli-doctor.json'
 need "$SMOKE" 'doctor reranker-gpu --json'
 need "$SMOKE" 'FATHOMDB_RERANK_DEVICE'

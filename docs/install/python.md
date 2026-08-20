@@ -39,6 +39,24 @@ produces the native PyO3 extension `fathomdb._fathomdb`. **Do not run
 `cargo build` and copy the `.so` manually.** Editable install is the
 only supported native-build path for development.
 
+## Jetson / Tegra CUDA
+
+There is no published Tegra CUDA artifact in 0.8.23. On a Jetson host, build
+the supported host-native wheel with the documented toolchain:
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip 'maturin==1.14.1'
+./scripts/release/build-python-cuda-tegra.sh --interpreter python
+```
+
+The wrapper validates its JetPack build contract, stamps and verifies the
+wheel's `+tegra` local version, then prints the exact
+`python -m pip install <built-wheel>` command for that concrete artifact. Run
+that final printed command. Do not use a generic AArch64 CUDA build on classic
+Tegra; the SDK emits a visible warning if it can confirm that mismatch.
+
 ## Default embedder
 
 The published wheel already includes the default embedder; there is no

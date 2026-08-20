@@ -6,8 +6,11 @@ ships one engine behind three SDKs — Python, TypeScript and Rust — plus an
 operator CLI.
 
 - Hybrid retrieval: a vector branch and an FTS5 branch fused by Reciprocal Rank
-  Fusion, with an optional CPU cross-encoder rerank and an optional graph-BFS
-  third arm.
+  Fusion, with an optional cross-encoder rerank and an optional graph-BFS third
+  arm. On a CUDA-capable artifact, BGE embedding and cross-encoder reranking
+  can independently select `FATHOMDB_EMBED_DEVICE` and
+  `FATHOMDB_RERANK_DEVICE` (`auto`, `cpu`, or `cuda:N`), including the same GPU.
+  Retrieval, FTS, fusion, graph, and SQLite vector stages remain CPU-only.
 - Governed, allowlisted command surface with a single typed error taxonomy
   shared 1:1 across the bindings.
 - Bitemporal-ish record model: transaction-time supersession, a world-time
@@ -37,7 +40,7 @@ Repository layout:
 
 Implementation roots:
 
-- Nine Rust workspace members live under `src/rust/crates/`
+- Ten Rust workspace members live under `src/rust/crates/`
 - Python package root lives under `src/python/`
 - TypeScript package root lives under `src/ts/`
 

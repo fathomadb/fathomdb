@@ -78,6 +78,7 @@ axis_w_packages=(
   fathomdb-py
   fathomdb-query
   fathomdb-schema
+  fathomdb-tc5-benchmark
 )
 
 for package in "${axis_w_packages[@]}"; do

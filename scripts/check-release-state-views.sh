@@ -155,13 +155,71 @@ def _git(*args):
     return r.returncode, r.stdout.decode("utf-8", "replace").strip()
 
 
-def check_remote_landing(release, st):
-    """Verify every `landed` SHA is reachable from `origin/main`."""
-    if _git("rev-parse", "--verify", "--quiet", "origin/main")[0] != 0:
-        return  # No remote-tracking ref (fresh or detached clone): unverifiable.
+def completion_facts(st):
+    """Return the optional 0.8.23 completion reference after strict validation.
+
+    The absence of this object is intentional legacy behavior: older state files
+    claim a main landing and must render byte-for-byte as they did before this
+    narrowly-scoped release-branch completion model existed.  Do not infer a
+    branch from the checkout or from a release name; an explicit, exact object
+    is the only authority to change what the generated views claim.
+    """
+    completion = st.get("completion")
+    if completion is None:
+        return None
+    if st.get("release") != "0.8.23":
+        raise ValueError(
+            "`completion` is only permitted for release 0.8.23. Older release "
+            "state files retain their byte-identical `origin/main` landing model.")
+    if not isinstance(completion, dict):
+        raise ValueError("`completion` must be an object with exactly `ref` and `main_integration`")
+    if set(completion) != {"ref", "main_integration"}:
+        raise ValueError(
+            "`completion` must contain exactly `ref` and `main_integration`; "
+            "unknown or missing fields cannot silently change the landing claim")
+    expected_ref = "origin/release/0.8.23"
+    if completion["ref"] != expected_ref:
+        raise ValueError(
+            "`completion.ref` is %r; 0.8.23 release-branch completion must name %r"
+            % (completion["ref"], expected_ref))
+    integration = completion["main_integration"]
+    if integration not in ("PENDING", "COMPLETE"):
+        raise ValueError(
+            "`completion.main_integration` is %r; it must be PENDING or COMPLETE"
+            % (integration,))
+    return completion
+
+
+def landing_claim(st, sentence=False):
+    """The prose and ref behind the rendered completion claim."""
+    completion = completion_facts(st)
+    if completion is None or completion["main_integration"] == "COMPLETE":
+        return (("Landed" if sentence else "LANDED") + " on `origin/main`", "origin/main")
+    ref = completion["ref"]
+    return (("Completed" if sentence else "COMPLETED")
+            + " on `%s`; `origin/main` integration is PENDING" % ref, ref)
+
+
+def check_remote_landing(release, st, completion):
+    """Verify landed SHAs against the claim's ref and its main-integration fact."""
+    target = completion["ref"] if completion is not None else "origin/main"
+    has_target = _git("rev-parse", "--verify", "--quiet", target)[0] == 0
+    has_main = _git("rev-parse", "--verify", "--quiet", "origin/main")[0] == 0
+    if not has_target:
+        if completion is None:
+            return  # Legacy fresh/detached clone: `origin/main` is unverifiable.
+        bad("FAIL check-release-state-views: %s completion claims `%s`, but that remote-tracking "
+            "ref is absent. A release-branch completion claim must be verifiable; fetch the ref "
+            "or correct `completion.ref`." % (release, target))
+        return
+    if completion is not None and not has_main:
+        bad("FAIL check-release-state-views: %s completion records main integration as %s, but "
+            "`origin/main` is absent. That integration fact cannot be verified."
+            % (release, completion["main_integration"]))
+        return
 
     # A SHALLOW clone cannot answer this question. `actions/checkout` defaults to
-    # `--depth=1`, so `origin/main` EXISTS but carries only the tip commit: every
+    # `--depth=1`, so a remote-tracking target carries only the tip commit: every
     # historical landed SHA is simply absent from the object store, and
     # `merge-base --is-ancestor` cannot resolve it.
     #
@@ -178,10 +236,11 @@ def check_remote_landing(release, st):
     # give its job `fetch-depth: 0` rather than weakening the assertion here.
     if _git("rev-parse", "--is-shallow-repository")[1] == "true":
         if not QUIET:
-            sys.stderr.write(
-                "note  check-release-state-views: shallow clone — the `origin/main`\n"
-                "  landing claim is UNVERIFIABLE here and was not checked. Give this\n"
+            sys.stderr.write((
+                "note  check-release-state-views: shallow clone — the `%s`\n"
+                "  completion claim is UNVERIFIABLE here and was not checked. Give this\n"
                 "  job `fetch-depth: 0` to verify it.\n")
+                % target)
         return
 
     by = _by_slice(st)
@@ -192,8 +251,18 @@ def check_remote_landing(release, st):
         if rc != 0:
             unpushed.append((n, sha, "not a commit in this repository"))
             continue
-        if _git("merge-base", "--is-ancestor", sha, "origin/main")[0] != 0:
-            unpushed.append((n, sha, "not reachable from origin/main"))
+        if _git("merge-base", "--is-ancestor", sha, target)[0] != 0:
+            unpushed.append((n, sha, "not reachable from %s" % target))
+
+    if completion is not None:
+        integrated = _git("merge-base", "--is-ancestor", target, "origin/main")[0] == 0
+        if completion["main_integration"] == "PENDING" and integrated:
+            bad("FAIL check-release-state-views: %s records `origin/main` integration as PENDING, "
+                "but `%s` is already reachable from `origin/main`. Mark it COMPLETE or remove "
+                "the completion object." % (release, target))
+        elif completion["main_integration"] == "COMPLETE" and not integrated:
+            bad("FAIL check-release-state-views: %s records `origin/main` integration as COMPLETE, "
+                "but `%s` is not reachable from `origin/main`." % (release, target))
 
     if not unpushed:
         return
@@ -204,14 +273,19 @@ def check_remote_landing(release, st):
     # views unregenerable precisely while a slice is unpushed — the state this
     # guard exists to surface — so the steward could not repair the document
     # without first defeating the check.
-    on_main = (_git("rev-parse", "--abbrev-ref", "HEAD")[1] == "main"
-               and MODE != "write")
+    # A completion reference is a positive release-branch assertion and is
+    # therefore hard on every branch. The legacy main claim retains its
+    # historical PR-branch advisory behavior byte-for-byte.
+    on_main = (completion is not None
+               or (_git("rev-parse", "--abbrev-ref", "HEAD")[1] == "main"
+                   and MODE != "write"))
+    claim, _ = landing_claim(st)
     headline = (
-        "check-release-state-views: %s claims %d slice(s) LANDED on `origin/main`\n"
+        "check-release-state-views: %s claims %d slice(s) %s\n"
         "  that the remote does not carry:\n%s\n"
-        "  The generated views state `origin/main` as a fact. Push the branch (or\n"
+        "  The generated views state this completion ref as a fact. Push the branch (or\n"
         "  merge its PR) so the claim becomes true, or correct `landed` in the\n"
-        "  state file." % (release, len(unpushed), detail))
+        "  state file." % (release, len(unpushed), claim, detail))
     if on_main:
         bad("FAIL " + headline)
     elif not QUIET:
@@ -310,11 +384,12 @@ def render_master_ladder_progress(st):
     # FIELD through the helper, so a bare `str` here put the same fact in two
     # documents in two shapes (`40.0` here, `40` there).
     ladder = _remaining_ladder(st)
+    claim, _ = landing_claim(st)
     if not landed:
-        return ("No slices are LANDED on `origin/main`; %s; "
-                "remaining ladder = %s." % (_schema_context(st), ladder))
-    return ("Slices %s are all LANDED on `origin/main`; %s; "
-            "remaining ladder = %s." % (landed, _schema_context(st), ladder))
+        return ("No slices are %s; %s; "
+                "remaining ladder = %s." % (claim, _schema_context(st), ladder))
+    return ("Slices %s are all %s; %s; "
+            "remaining ladder = %s." % (landed, claim, _schema_context(st), ladder))
 
 
 PRE_SIGN_STATES = ("PRE_SIGNED", "NOT_PRE_SIGNED")
@@ -561,9 +636,10 @@ def render_status_current_state(st):
     landed = " · ".join(
         "%s (`%s`)" % (_slice_str(item["slice"]), item["sha"])
         for item in st["ladder"] if item["slice"] in st["landed"])
-    return ("**Next is Slice %s (%s), %s.** Landed on `origin/main`: %s — "
+    claim, _ = landing_claim(st, sentence=True)
+    return ("**Next is Slice %s (%s), %s.** %s: %s — "
             "verified reachable, not asserted."
-            % (_slice_str(nxt), entry["short"], entry["status"], landed))
+            % (_slice_str(nxt), entry["short"], entry["status"], claim, landed))
 
 
 def render_status_next_action(st):
@@ -575,14 +651,16 @@ def render_status_next_action(st):
     orchestrator to commission it again is a false instruction. It must be
     landed through the repository's integration path instead. Likewise,
     `PREP_COMPLETE_PUBLISH_HELD` is not a commission: publication needs a new
-    explicit authorization. Other live states retain the ordinary commission
-    action.
+    explicit authorization. `IN_PROGRESS` is also not a commission: its
+    remaining controls must continue. Other live states retain the ordinary
+    commission action.
     """
     nxt = st["next_slice"]
     entry = _by_slice(st)[nxt]
     action = {
         "REVIEWED_PENDING_INTEGRATION": "Land reviewed Slice",
         "PREP_COMPLETE_PUBLISH_HELD": "Await explicit publication authorization for Slice",
+        "IN_PROGRESS": "Continue Slice",
     }.get(entry["status"], "Commission Slice")
     return ("**%s %s (%s)** — %s. **Remaining ladder:** %s."
             % (action, _slice_str(nxt), entry["short"], entry["title"],
@@ -617,12 +695,13 @@ def render_plan_landed_roll_up(st):
     """
     by = _by_slice(st)
     landed = " · ".join("%s (`%s`)" % (_slice_str(n), by[n]["sha"]) for n in st["landed"])
+    claim, _ = landing_claim(st)
     if not landed:
-        return ("\n**LANDED on `origin/main`, in full:** no slices. %s; "
+        return ("\n**%s, in full:** no slices. %s; "
                 "remaining ladder = %s."
-                % (_schema_context(st), _remaining_ladder(st)))
-    return ("\n**LANDED on `origin/main`, in full:** Slices %s. %s; remaining ladder = %s."
-            % (landed, _schema_context(st),
+                % (claim, _schema_context(st), _remaining_ladder(st)))
+    return ("\n**%s, in full:** Slices %s. %s; remaining ladder = %s."
+            % (claim, landed, _schema_context(st),
                _remaining_ladder(st)))
 
 
@@ -721,10 +800,16 @@ for sp in state_paths:
         bad("FAIL %s: invalid ladder progress — %s" % (sp, exc))
         continue
 
-    # The `origin/main` claim the views are about to render is a fact about the
-    # remote, not about this state file. Verify it before rendering it.
+    try:
+        completion = completion_facts(st)
+    except ValueError as exc:
+        bad("FAIL %s: invalid completion reference — %s" % (sp, exc))
+        continue
+
+    # The ref claim the views are about to render is a fact about the remote,
+    # not just this state file. Verify it before rendering it.
     if isinstance(st.get("landed"), list) and st.get("ladder"):
-        check_remote_landing(release, st)
+        check_remote_landing(release, st, completion)
 
     for view in views:
         vid  = view.get("id")

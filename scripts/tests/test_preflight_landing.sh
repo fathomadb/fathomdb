@@ -323,6 +323,11 @@ printf '# fixture plan\n\n**LANDED on main:** Slices 30 (`9b3ed0e3`)\n' \
 # need not be the first item in that canonical roll-up.
 printf '# fixture plan\n\n**LANDED on `origin/main`, in full:** Slices 0 (`2ea2c884`) · 5 (`a6cf2bbe`) · 10 (`f94275e1`) · 15 (`19d8f072`).\n' \
   >"$PLANS/landed-rollup-prior-items.md"
+# A release branch may truthfully complete a slice before integrating the
+# release line into main. Its generated roll-up is an equally affirmative,
+# exact-id dependency witness.
+printf '# fixture plan\n\n**COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING, in full:** Slices 0 (`2ea2c884`) · 6 (`e98f727d`) · 30 (`776d2c20`).\n' \
+  >"$PLANS/completed-release-rollup.md"
 # Status words must be affirmative closure witnesses, not merely substrings. A
 # negated or prefixed status must not authorize a dependent spawn.
 printf '# fixture plan\n\n- Slice 39 — NOT CLOSED\n' >"$PLANS/not-closed.md"
@@ -345,7 +350,7 @@ for alt in alt1 alt2; do
   else
     fail "site 4 RECURRENCE ($alt): Slice 39.5's CLOSED witness cleared --expect-closed 39; got rc=0, out: $OUT"
   fi
-  if printf '%s' "$OUT" | grep -q "^HARD .*Slice/Phase 39 has NO 'CLOSED' or 'LANDED' witness"; then
+  if printf '%s' "$OUT" | grep -q "^HARD .*Slice/Phase 39 has NO 'CLOSED', 'LANDED', or 'COMPLETED' witness"; then
     pass "site 4 ($alt): the refusal names the dependency that is not closed"
   else
     fail "expected a HARD line naming Slice/Phase 39 as not CLOSED; got: $OUT"
@@ -362,7 +367,7 @@ for landed in landed-frac-alt1 landed-frac-alt2 landed-frac-rollup; do
   else
     fail "LANDED boundary RECURRENCE ($landed): Slice 39.5 cleared --expect-closed 39; got rc=0, out: $OUT"
   fi
-  if printf '%s' "$OUT" | grep -q "^HARD .*Slice/Phase 39 has NO 'CLOSED' or 'LANDED' witness"; then
+  if printf '%s' "$OUT" | grep -q "^HARD .*Slice/Phase 39 has NO 'CLOSED', 'LANDED', or 'COMPLETED' witness"; then
     pass "LANDED boundary ($landed): the refusal names the dependency that is not closed"
   else
     fail "expected a HARD line naming Slice/Phase 39 as not closed or landed; got: $OUT"
@@ -379,7 +384,7 @@ for alt in alt1 alt2; do
   else
     fail "duty 1 RECURRENCE ($alt): the unescaped '.' matched 'x'; got rc=0, out: $OUT"
   fi
-  if printf '%s' "$OUT" | grep -q "^HARD .*Slice/Phase 39.5 has NO 'CLOSED' or 'LANDED' witness"; then
+  if printf '%s' "$OUT" | grep -q "^HARD .*Slice/Phase 39.5 has NO 'CLOSED', 'LANDED', or 'COMPLETED' witness"; then
     pass "duty 1 ($alt): the refusal names the dependency that is not closed"
   else
     fail "expected a HARD line naming Slice/Phase 39.5 as not CLOSED; got: $OUT"
@@ -398,7 +403,7 @@ for negated in 'not-closed:39:NOT CLOSED' 'unclosed:39.5:UNCLOSED' 'unlanded:39:
   else
     fail "negation recurrence ($phrase): a non-affirmative status cleared --expect-closed $expected; got rc=0, out: $OUT"
   fi
-  if printf '%s' "$OUT" | grep -q "^HARD .*Slice/Phase $expected has NO 'CLOSED' or 'LANDED' witness"; then
+  if printf '%s' "$OUT" | grep -q "^HARD .*Slice/Phase $expected has NO 'CLOSED', 'LANDED', or 'COMPLETED' witness"; then
     pass "negation guard ($phrase): the refusal names the dependency that is not closed"
   else
     fail "negation guard ($phrase): expected a HARD refusal for Slice/Phase $expected; got: $OUT"
@@ -438,11 +443,133 @@ if [ "$RC" -eq 0 ]; then
 else
   fail "a later entry in a generated LANDED roll-up must clear the gate; got rc=$RC, out: $OUT"
 fi
+run_preflight "$LINKED" --expect-closed 6 --plan "$PLANS/completed-release-rollup.md"
+if [ "$RC" -eq 0 ]; then
+  pass "release-branch completion roll-up satisfies --expect-closed without claiming origin/main integration"
+else
+  fail "a generated COMPLETED release-branch roll-up must clear the gate; got rc=$RC, out: $OUT"
+fi
 run_preflight "$LINKED" --expect-closed 39 --plan "$PLANS/int-trailing-period.md"
 if [ "$RC" -eq 0 ]; then
   pass "control: a sentence-final 'CLOSED — Slice 39.' still satisfies --expect-closed 39 (rules out the naive [^0-9.] fix)"
 else
   fail "the naive trailing-class fix regressed a legitimate 'Slice 39.' witness; got rc=$RC, out: $OUT"
+fi
+
+# --- Arm 12: 0.8.23 release-branch completion is a fresh slice base ---------
+# Slices for 0.8.23 intentionally land on origin/release/0.8.23 before the
+# separately governed integration to origin/main. A worktree based on that
+# declared ref must therefore pass the stale-base guard even after main moves
+# independently. This fixture makes the two refs diverge; a main-only guard
+# rejects it, so this is a genuine RED regression rather than a prose check.
+RELEASE_STATE="$LINKED/dev/plans/release-state-0.8.23.json"
+mkdir -p "$(dirname "$RELEASE_STATE")"
+printf '%s\n' \
+  '{"release":"0.8.23","completion":{"ref":"origin/release/0.8.23","main_integration":"PENDING"}}' \
+  >"$RELEASE_STATE"
+git -C "$LINKED" add dev/plans/release-state-0.8.23.json
+git -C "$LINKED" commit -q -m 'fixture: declare 0.8.23 release completion ref'
+git -C "$LINKED" update-ref refs/remotes/origin/release/0.8.23 HEAD
+printf 'main advanced independently\n' >>"$PRIMARY/src/keep.txt"
+git -C "$PRIMARY" add src/keep.txt
+git -C "$PRIMARY" commit -q -m 'fixture: advance main independently'
+
+run_preflight "$LINKED" --worktree "$LINKED" --min-disk-gb 1
+if [ "$RC" -eq 0 ]; then
+  pass "current declared 0.8.23 release-ref worktree passes after main diverges"
+else
+  fail "current declared 0.8.23 release-ref worktree must pass; got rc=$RC, out: $OUT"
+fi
+if printf '%s' "$OUT" | grep -q 'declared completion ref origin/release/0.8.23'; then
+  pass "release-ref pass identifies the declared completion ref"
+else
+  fail "release-ref pass must identify origin/release/0.8.23; got: $OUT"
+fi
+
+# A PENDING declaration is usable only when its remote-tracking completion ref
+# is locally present. Do not bless the worktree from an uncheckable claim.
+git -C "$LINKED" update-ref -d refs/remotes/origin/release/0.8.23
+run_preflight "$LINKED" --worktree "$LINKED" --min-disk-gb 1
+if [ "$RC" -ne 0 ] \
+  && printf '%s' "$OUT" | grep -q '^HARD .*release completion ref origin/release/0.8.23 is not a locally verifiable commit'; then
+  pass "absent local PENDING completion ref fails closed"
+else
+  fail "absent local PENDING completion ref must hard-fail; got rc=$RC, out: $OUT"
+fi
+git -C "$LINKED" update-ref refs/remotes/origin/release/0.8.23 HEAD
+
+# No 0.8.23 completion declaration exists in the primary checkout, so it keeps
+# the legacy main-only rule and rejects the divergent linked worktree.
+run_preflight "$PRIMARY" --worktree "$LINKED" --min-disk-gb 1
+if [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -q '^HARD .*STALE BASE:'; then
+  pass "legacy main-only stale-base rejection remains when no 0.8.23 declaration exists"
+else
+  fail "missing release declaration must retain legacy STALE BASE rejection; got rc=$RC, out: $OUT"
+fi
+
+# A present 0.8.23 state file is authoritative: malformed, incomplete, or
+# cross-release completion data must fail closed rather than silently falling
+# back to main or accepting an unrelated release ref.
+for invalid_case in \
+  'malformed:{not-json' \
+  'missing:{"release":"0.8.23"}' \
+  'mismatched:{"release":"0.8.23","completion":{"ref":"origin/release/0.8.22","main_integration":"PENDING"}}'; do
+  invalid_name="${invalid_case%%:*}"
+  invalid_payload="${invalid_case#*:}"
+  printf '%s\n' "$invalid_payload" >"$RELEASE_STATE"
+  run_preflight "$LINKED" --worktree "$LINKED" --min-disk-gb 1
+  if [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -q '^HARD .*release completion'; then
+    pass "invalid 0.8.23 completion state ($invalid_name) fails closed"
+  else
+    fail "invalid 0.8.23 completion state ($invalid_name) must hard-fail; got rc=$RC, out: $OUT"
+  fi
+done
+
+# A COMPLETE declaration is different from PENDING: the state checker renders
+# its completion claim against origin/main, so preflight must use that same
+# ref. First integrate the release ref into main, commit COMPLETE state, then
+# move main independently. The old release-only worktree must now be stale;
+# a worktree at current main must pass.
+git -C "$PRIMARY" merge --no-ff -q -m 'fixture: integrate release completion' landing-fixture
+printf '%s\n' \
+  '{"release":"0.8.23","completion":{"ref":"origin/release/0.8.23","main_integration":"COMPLETE"}}' \
+  >"$PRIMARY/dev/plans/release-state-0.8.23.json"
+git -C "$PRIMARY" add dev/plans/release-state-0.8.23.json
+git -C "$PRIMARY" commit -q -m 'fixture: declare main integration complete'
+git -C "$PRIMARY" update-ref refs/remotes/origin/main HEAD
+printf 'main advances after integration\n' >>"$PRIMARY/src/keep.txt"
+git -C "$PRIMARY" add src/keep.txt
+git -C "$PRIMARY" commit -q -m 'fixture: advance integrated main'
+git -C "$PRIMARY" update-ref refs/remotes/origin/main HEAD
+
+run_preflight "$PRIMARY" --worktree "$LINKED" --min-disk-gb 1
+if [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -q '^HARD .*STALE MAIN BASE:'; then
+  pass "COMPLETE integration rejects a release-only worktree stale against origin/main"
+else
+  fail "COMPLETE integration must reject a release-only stale worktree; got rc=$RC, out: $OUT"
+fi
+
+run_preflight "$PRIMARY" --worktree "$PRIMARY" --min-disk-gb 1
+if [ "$RC" -eq 0 ] && printf '%s' "$OUT" | grep -q 'declared main integration ref origin/main'; then
+  pass "COMPLETE integration accepts a worktree at current origin/main"
+else
+  fail "COMPLETE integration must accept current origin/main; got rc=$RC, out: $OUT"
+fi
+
+# COMPLETE is a positive reachability assertion, not merely a request to use
+# origin/main as a freshness baseline. Point the declared release ref at a
+# locally present child that was never integrated; the guard must reject the
+# contradictory declaration before it can certify any worktree. If the
+# merge-base check in preflight.sh is removed, this arm passes incorrectly.
+git -C "$LINKED" commit --allow-empty -q -m 'fixture: unintegrated release child'
+UNREACHABLE_RELEASE_SHA="$(git -C "$LINKED" rev-parse HEAD)"
+git -C "$PRIMARY" update-ref refs/remotes/origin/release/0.8.23 "$UNREACHABLE_RELEASE_SHA"
+run_preflight "$PRIMARY" --worktree "$PRIMARY" --min-disk-gb 1
+if [ "$RC" -ne 0 ] \
+  && printf '%s' "$OUT" | grep -q '^HARD .*release completion marks main integration COMPLETE, but origin/release/0.8.23 is not reachable from origin/main'; then
+  pass "COMPLETE integration rejects a declared release ref unreachable from origin/main"
+else
+  fail "COMPLETE integration must reject an unreachable declared release ref; got rc=$RC, out: $OUT"
 fi
 
 if [ "$FAILED" -gt 0 ]; then

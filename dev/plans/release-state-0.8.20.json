@@ -69,6 +69,9 @@
         15
       ],
       "status": "LANDED",
+      "design_refs": [
+        "dev/plans/plan-0.8.20.md"
+      ],
       "sha": "841c307b",
       "merge_subject": "merge(0.8.20): Slice 20c — R-20-DR flush-to-readiness barrier via the shipped `drain` (C4)"
     },
@@ -81,7 +84,8 @@
       ],
       "status": "LANDED",
       "design_refs": [
-        "dev/design/0.8.20-tc57-write-race-characterization.md"
+        "dev/design/0.8.20-tc57-write-race-characterization.md",
+        "dev/plans/plan-0.8.20.md"
       ],
       "sha": "77be504b",
       "reserved_gap": true,

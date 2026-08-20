@@ -2,17 +2,15 @@
 //!
 //! A caller-supplied `impl fathomdb_embedder_api::Embedder`, sibling of
 //! `candle_bge` / `nomic`, that produces `BAAI/bge-small-en-v1.5` vectors
-//! (dim 384) through the `ort` ONNX-Runtime binding. Injected purely via
-//! `EmbedderChoice::Caller(Arc::new(OrtBgeEmbedder::…))` — the engine never
-//! names it, so there is ZERO engine change (ADR-0.8.16-onnx-embedder-backend
-//! §2). The `Default` variant stays candle-only, preserving the footprint
-//! invariant.
+//! (dim 384) through the `ort` ONNX-Runtime binding. A caller injects it via
+//! `EmbedderChoice::CallerWithDeviceResolution` so the engine records its final
+//! session/provider outcome without naming a concrete ONNX implementation. The
+//! `Default` variant stays candle-only, preserving the footprint invariant.
 //!
-//! Why ONNX at all: candle reaches only CPU / CUDA / Metal — no AMD ROCm,
-//! Intel OpenVINO, or Windows DirectML. ONNX Runtime reaches all of those, so
-//! this backend is the cross-vendor reach-hardware path (ADR §1). It is behind
-//! the NON-default `onnx-embedder` Cargo feature so the thin default build
-//! gains zero deps (EMB-3 wheel-size gate).
+//! ONNX Runtime is an opt-in backend behind the NON-default `onnx-embedder`
+//! Cargo feature, so the thin default build gains zero dependencies
+//! (EMB-3 wheel-size gate). Its CPU/CUDA selection follows the same strict
+//! `FATHOMDB_EMBED_DEVICE` policy as the default embedder.
 //!
 //! Numeric equivalence to the candle reference is MEASURED (not enforced) at
 //! Slice 15 (ADR §3 / design §5); the interim guard is same-backend
@@ -25,14 +23,19 @@ use std::sync::Mutex;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use ort::execution_providers::{
-    CPUExecutionProvider, CUDAExecutionProvider, DirectMLExecutionProvider, ExecutionProvider,
-    ExecutionProviderDispatch, OpenVINOExecutionProvider, ROCmExecutionProvider,
+    CPUExecutionProvider, CUDAExecutionProvider, ExecutionProvider, ExecutionProviderDispatch,
 };
 use ort::session::Session;
 use ort::value::Tensor;
 use tokenizers::{Tokenizer, TruncationParams};
 
-use crate::device::{parse_device_request, DeviceRequest};
+use crate::{
+    CudaDeviceInfo, DeviceResolution, DeviceResolutionError, DeviceResolutionReason,
+    EffectiveEmbedDevice, EmbedDevicePolicy, EmbedDevicePolicyError,
+};
+
+#[cfg(test)]
+use crate::{resolve_embed_device_policy, CudaProvider};
 
 /// Engine-facing identity name. Deliberately DISTINCT from the candle default
 /// (`fathomdb-bge-small-en-v1.5`) so the engine's identity check enforces the
@@ -67,16 +70,11 @@ pub enum OrtPooling {
     Cls,
 }
 
-/// An ORT execution provider selection, resolved from the `FATHOMDB_EMBED_DEVICE`
-/// grammar. Kept as a plain enum (no `ort` types) so the request→provider
-/// mapping is pure + unit-testable without a model or a native runtime.
+/// An ORT execution provider selected by the shared strict device policy.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum OrtProvider {
     Cpu,
     Cuda(i32),
-    Rocm(i32),
-    DirectMl(i32),
-    OpenVino,
 }
 
 impl OrtProvider {
@@ -87,206 +85,157 @@ impl OrtProvider {
         match self {
             OrtProvider::Cpu => "cpu",
             OrtProvider::Cuda(_) => "cuda",
-            OrtProvider::Rocm(_) => "rocm",
-            OrtProvider::DirectMl(_) => "directml",
-            OrtProvider::OpenVino => "openvino",
         }
     }
 }
 
-/// PURE map from the backend-agnostic [`DeviceRequest`] (parsed by the shared
-/// `parse_device_request`, grammar parity with candle) to an [`OrtProvider`].
+/// ONNX Runtime's CUDA availability probe expressed through the shared
+/// default-embedder policy boundary.
 ///
-/// Returns the provider plus an optional LOUD-fallback message when the request
-/// could not be honored and CPU was substituted (mirrors candle's loud CPU
-/// fallback). The cross-vendor providers candle cannot reach — ROCm / DirectML
-/// / OpenVINO — are requested through the base grammar's `Unknown` arm
-/// (`FATHOMDB_EMBED_DEVICE=rocm|rocm:N|directml|openvino`), so the shared
-/// parser stays unchanged and ONNX only extends the interpretation.
-pub(crate) fn map_device_request(req: &DeviceRequest) -> (OrtProvider, Option<String>) {
-    match req {
-        DeviceRequest::Cpu => (OrtProvider::Cpu, None),
-        DeviceRequest::Cuda(idx) => (OrtProvider::Cuda(*idx as i32), None),
-        DeviceRequest::Metal => (
-            OrtProvider::Cpu,
-            Some(
-                "FATHOMDB_EMBED_DEVICE=metal is a candle backend; the ONNX path has no Metal \
-                 execution provider (use rocm|directml|openvino for cross-vendor GPUs, or \
-                 candle's embed-metal build); using CPU"
-                    .to_string(),
-            ),
-        ),
-        DeviceRequest::Unknown(name) => map_extended_provider(name),
+/// ORT validates the configured device ordinal when it builds a session, not
+/// when it answers `is_available`. The selected ordinal is carried through
+/// both stages: this probe verifies the CUDA EP can load, and session
+/// construction records a later ordinal/runtime failure in the resolution.
+trait OrtCudaAvailability {
+    fn is_available(&mut self, ordinal: usize) -> Result<bool, String>;
+}
+
+struct OrtCudaProvider;
+
+impl OrtCudaAvailability for OrtCudaProvider {
+    fn is_available(&mut self, ordinal: usize) -> Result<bool, String> {
+        let device_id = i32::try_from(ordinal)
+            .map_err(|_| format!("CUDA ordinal {ordinal} cannot be represented by ONNX Runtime"))?;
+        CUDAExecutionProvider::default()
+            .with_device_id(device_id)
+            .is_available()
+            .map_err(|error| error.to_string())
     }
 }
 
-/// Interpret an `Unknown` device token as a cross-vendor ORT provider.
-/// Accepts `rocm`|`rocm:N`, `directml`|`dml`|`directml:N`, `openvino`|`ovep`.
-/// Anything else is a LOUD CPU fallback.
-fn map_extended_provider(raw: &str) -> (OrtProvider, Option<String>) {
-    let (head, idx) = match raw.split_once(':') {
-        Some((h, i)) => (h, i.parse::<i32>().unwrap_or(0)),
-        None => (raw, 0),
+fn resolve_ort_device_policy_with_availability(
+    policy: EmbedDevicePolicy,
+    availability: &mut dyn OrtCudaAvailability,
+) -> Result<DeviceResolution, DeviceResolutionError> {
+    let ordinal = match policy {
+        EmbedDevicePolicy::Cpu => {
+            return Ok(ort_device_resolution(policy, EffectiveEmbedDevice::Cpu, None));
+        }
+        EmbedDevicePolicy::Auto => 0,
+        EmbedDevicePolicy::Cuda(ordinal) => ordinal,
     };
-    match head {
-        "rocm" => (OrtProvider::Rocm(idx), None),
-        "directml" | "dml" => (OrtProvider::DirectMl(idx), None),
-        "openvino" | "ovep" => (OrtProvider::OpenVino, None),
-        other => (
-            OrtProvider::Cpu,
-            Some(format!(
-                "FATHOMDB_EMBED_DEVICE={other} is not a recognized ONNX execution provider \
-                 (expected cpu|cuda|cuda:N|rocm|rocm:N|directml|openvino); using CPU"
-            )),
-        ),
-    }
-}
 
-/// Emit a LOUD construction-time fallback warning to stderr. Centralized so the
-/// `clippy::print_stderr` allow is scoped to construction (never `embed()`), and
-/// so the loud fallback is OUR OWN — `ort` is built `default-features = false`,
-/// which compiles out its warn/error macros, so we cannot rely on it to surface
-/// a silent CPU fallback (R-ONNX-2).
-#[allow(clippy::print_stderr)] // construction-time only (not in `embed()`)
-fn emit_onnx_warning(msg: &str) {
-    eprintln!("fathomdb-embedder(onnx): {msg}");
-}
-
-/// RUNTIME resolution of the ORT provider from `FATHOMDB_EMBED_DEVICE`
-/// (R-ONNX-2 — not a compile-time constant). Emits the LOUD stderr fallback
-/// message at construction time, never inside `embed()`.
-fn resolve_provider_from_env() -> OrtProvider {
-    let raw = std::env::var("FATHOMDB_EMBED_DEVICE").unwrap_or_default();
-    let (provider, warn) = map_device_request(&parse_device_request(&raw));
-    if let Some(msg) = warn {
-        emit_onnx_warning(&msg);
-    }
-    provider
-}
-
-/// PURE decision for the SESSION-BUILD stage of the loud fallback (R-ONNX-2):
-/// given a requested [`OrtProvider`] and an availability probe, return the
-/// EFFECTIVE provider plus an optional LOUD warning. A non-CPU provider the
-/// probe reports unavailable is downgraded to CPU and the warning names the
-/// requested provider; the caller emits it. This is distinct from the earlier
-/// grammar-mapping warning ([`map_device_request`]): a request like `rocm` maps
-/// cleanly to `Rocm`, but if this ONNX Runtime build lacks the ROCm EP, `ort`'s
-/// own dispatch would fall back to CPU SILENTLY (its log macros are compiled out
-/// under `default-features = false`), making a cross-vendor run look successful
-/// while secretly on CPU. Kept pure (probe injected) so it is unit-testable
-/// with no model and no ORT native lib.
-fn resolve_effective_provider_with(
-    requested: OrtProvider,
-    is_available: impl Fn(OrtProvider) -> bool,
-) -> (OrtProvider, Option<String>) {
-    if matches!(requested, OrtProvider::Cpu) {
-        return (OrtProvider::Cpu, None);
-    }
-    if is_available(requested) {
-        (requested, None)
-    } else {
-        (
-            OrtProvider::Cpu,
-            Some(format!(
-                "requested ONNX execution provider {requested:?} is unavailable in this ONNX \
-                 Runtime build/runtime (ort is built default-features=false, so its own fallback \
-                 log is compiled out); falling back to CPU"
-            )),
-        )
-    }
-}
-
-/// Thin LIVE wrapper over [`resolve_effective_provider_with`] using `ort`'s real
-/// `ExecutionProvider::is_available()` probe.
-fn resolve_effective_provider(requested: OrtProvider) -> (OrtProvider, Option<String>) {
-    resolve_effective_provider_with(requested, provider_is_available)
-}
-
-/// Probe whether this ONNX Runtime build was compiled with support for the
-/// requested non-CPU provider (`ort`'s `ExecutionProvider::is_available()`).
-/// Returns `false` when the probe errors — e.g. the ORT dylib is absent under
-/// `load-dynamic` — which is precisely an unavailable provider, the silent-CPU
-/// case we must surface.
-fn provider_is_available(provider: OrtProvider) -> bool {
-    match provider {
-        OrtProvider::Cpu => true,
-        OrtProvider::Cuda(_) => CUDAExecutionProvider::default().is_available().unwrap_or(false),
-        OrtProvider::Rocm(_) => ROCmExecutionProvider::default().is_available().unwrap_or(false),
-        OrtProvider::DirectMl(_) => {
-            DirectMLExecutionProvider::default().is_available().unwrap_or(false)
+    let reason = match availability.is_available(ordinal) {
+        Ok(true) => {
+            return Ok(ort_device_resolution(
+                policy,
+                EffectiveEmbedDevice::Cuda(CudaDeviceInfo {
+                    ordinal,
+                    uuid: None,
+                    name: None,
+                    driver_version: None,
+                    compute_capability: None,
+                    cuda_toolkit_version: None,
+                }),
+                None,
+            ));
         }
-        OrtProvider::OpenVino => {
-            OpenVINOExecutionProvider::default().is_available().unwrap_or(false)
+        Ok(false) => DeviceResolutionReason::NoVisibleCudaDevice,
+        Err(_) => DeviceResolutionReason::CudaProbeFailed,
+    };
+
+    match policy {
+        EmbedDevicePolicy::Auto => {
+            Ok(ort_device_resolution(policy, EffectiveEmbedDevice::Cpu, Some(reason)))
         }
+        EmbedDevicePolicy::Cuda(ordinal) => {
+            Err(DeviceResolutionError::ForcedCudaUnavailable { ordinal, reason })
+        }
+        EmbedDevicePolicy::Cpu => unreachable!("explicit CPU returns before probing"),
     }
+}
+
+#[cfg(test)]
+fn resolve_ort_device_policy_with(
+    policy: EmbedDevicePolicy,
+    provider: &mut dyn CudaProvider,
+) -> Result<DeviceResolution, DeviceResolutionError> {
+    resolve_embed_device_policy(policy, true, provider)
+}
+
+fn ort_device_resolution(
+    requested_policy: EmbedDevicePolicy,
+    effective_device: EffectiveEmbedDevice,
+    reason: Option<DeviceResolutionReason>,
+) -> DeviceResolution {
+    DeviceResolution {
+        requested_policy,
+        cuda_compiled: true,
+        effective_device,
+        visible_cuda_devices: Vec::new(),
+        selected_cuda_uuid: None,
+        reason,
+    }
+}
+
+fn ort_provider_from_resolution(resolution: &DeviceResolution) -> OrtProvider {
+    match &resolution.effective_device {
+        EffectiveEmbedDevice::Cpu => OrtProvider::Cpu,
+        EffectiveEmbedDevice::Cuda(info) => OrtProvider::Cuda(info.ordinal as i32),
+    }
+}
+
+fn resolve_ort_device_policy_from_env(
+) -> Result<(EmbedDevicePolicy, DeviceResolution), EmbedDevicePolicyError> {
+    let raw = std::env::var("FATHOMDB_EMBED_DEVICE").unwrap_or_else(|_| "auto".to_owned());
+    let policy = raw.parse().map_err(EmbedDevicePolicyError::InvalidPolicy)?;
+    let mut provider = OrtCudaProvider;
+    let resolution = resolve_ort_device_policy_with_availability(policy, &mut provider)
+        .map_err(EmbedDevicePolicyError::Resolution)?;
+    Ok((resolution.requested_policy, resolution))
 }
 
 /// Build the concrete `ort` execution-provider dispatch for a resolved
 /// [`OrtProvider`].
 ///
-/// ORT's DEFAULT dispatch (`fail_silently`) is non-fatal: if a compiled-in
-/// non-CPU provider cannot REGISTER at runtime (missing CUDA/cuDNN/ROCm libs,
-/// bad device id) ORT logs internally and silently falls back to CPU, so
-/// `with_execution_providers` returns `Ok` and our loud-fallback machinery
-/// never fires (codex §9 fix-3 root cause). To make a non-CPU registration
-/// failure SURFACE as an `Err` — which then flows into
-/// [`build_session_with_fallback`]'s CPU retry + LOUD warning — we mark every
-/// non-CPU dispatch `.error_on_failure()`. The CPU dispatch keeps the default
-/// (silent) behavior: it is the always-available floor and the retry target,
-/// so it must be allowed to succeed rather than error.
+/// ORT's default CUDA dispatch can fall back silently. Mark it
+/// `error_on_failure` so the product policy, not ORT, decides whether `auto`
+/// may use CPU. Forced CUDA therefore cannot become a CPU session.
 fn provider_dispatch(provider: OrtProvider) -> ExecutionProviderDispatch {
     match provider {
         OrtProvider::Cpu => CPUExecutionProvider::default().build(),
         OrtProvider::Cuda(idx) => {
             CUDAExecutionProvider::default().with_device_id(idx).build().error_on_failure()
         }
-        OrtProvider::Rocm(idx) => {
-            ROCmExecutionProvider::default().with_device_id(idx).build().error_on_failure()
-        }
-        OrtProvider::DirectMl(idx) => {
-            DirectMLExecutionProvider::default().with_device_id(idx).build().error_on_failure()
-        }
-        OrtProvider::OpenVino => OpenVINOExecutionProvider::default().build().error_on_failure(),
     }
 }
 
-/// SECOND, RUNTIME stage of the loud fallback (R-ONNX-2, codex §9 fix-2):
-/// even when the availability probe ([`resolve_effective_provider`]) reports a
-/// non-CPU EP as compiled-in, actually BUILDING/COMMITTING the session with it
-/// can still fail at runtime — missing CUDA/cuDNN/ROCm runtime libs, a bad
-/// device id, an incompatible driver. `ort`'s own dispatch would surface that
-/// as a hard `Err`, so a user with a CUDA-enabled ORT but absent runtime deps
-/// could not open the embedder AT ALL, violating the documented loud CPU
-/// fallback. This helper attempts the build with `effective`; on failure of a
-/// NON-CPU provider it produces a LOUD warning (naming the provider + the
-/// error) and RETRIES with CPU, returning the CPU session. A CPU failure is a
-/// real error (no retry). Generic over the session/error types with the build
-/// step injected as a closure, so the retry control flow is unit-testable with
-/// NO model and NO ORT native lib.
-fn build_session_with_fallback<S, E, F>(
-    effective: OrtProvider,
+/// Build an ORT session under the supplied device resolution.
+///
+/// `auto` may retry CPU after a CUDA session-initialization failure. The
+/// returned resolution records that fallback; a forced CUDA request returns
+/// the session error without building CPU.
+fn build_session_with_device_resolution<S, E, F>(
+    mut resolution: DeviceResolution,
     build: F,
-) -> Result<(S, Option<String>), E>
+) -> Result<(S, DeviceResolution), E>
 where
     F: Fn(OrtProvider) -> Result<S, E>,
     E: std::fmt::Display,
 {
+    let effective = ort_provider_from_resolution(&resolution);
     match build(effective) {
-        Ok(session) => Ok((session, None)),
+        Ok(session) => Ok((session, resolution)),
         // A CPU build failure is a genuine error — there is nothing to fall
         // back to, so do not retry.
         Err(e) if matches!(effective, OrtProvider::Cpu) => Err(e),
-        // The requested non-CPU EP was reported available but failed to build
-        // at runtime: warn LOUDLY and retry on CPU. Only a CPU failure here is
-        // fatal.
-        Err(e) => {
-            let warn = format!(
-                "requested ONNX execution provider {effective:?} was reported available but \
-                 FAILED during ONNX Runtime session creation ({e}); falling back to CPU"
-            );
+        Err(_) if matches!(resolution.requested_policy, EmbedDevicePolicy::Auto) => {
             let session = build(OrtProvider::Cpu)?;
-            Ok((session, Some(warn)))
+            resolution.effective_device = EffectiveEmbedDevice::Cpu;
+            resolution.reason = Some(DeviceResolutionReason::CudaProbeFailed);
+            Ok((session, resolution))
         }
+        Err(e) => Err(e),
     }
 }
 
@@ -361,12 +310,13 @@ pub struct OrtBgeEmbedder {
     tokenizer: Tokenizer,
     session: Mutex<Session>,
     pooling: OrtPooling,
-    /// The EFFECTIVE ORT execution provider this session was built with, AFTER
-    /// any availability-probe downgrade and any session-build CPU retry (R-D3-2
-    /// / 0.8.18 U3). Captured at construction so a silent CPU fallback of a
-    /// non-CPU request is recorded as durable calibration DATA, not merely a
-    /// transient stderr warning. Exposed via [`OrtBgeEmbedder::effective_provider`].
+    /// The effective ORT execution provider this session was built with.
+    /// Captured at construction and exposed via
+    /// [`OrtBgeEmbedder::effective_provider`].
     effective_provider: OrtProvider,
+    /// The final resolution after ONNX Runtime constructed its session. This
+    /// can differ from the pre-build CUDA probe only for an `auto` fallback.
+    device_resolution: DeviceResolution,
 }
 
 fn err(context: &str, e: impl std::fmt::Display) -> EmbedderError {
@@ -375,11 +325,13 @@ fn err(context: &str, e: impl std::fmt::Display) -> EmbedderError {
 
 impl OrtBgeEmbedder {
     /// Construct from an on-disk `.onnx` model + `tokenizer.json`, selecting the
-    /// ORT execution provider at RUNTIME from `FATHOMDB_EMBED_DEVICE` (R-ONNX-2).
+    /// ORT execution provider at runtime from `FATHOMDB_EMBED_DEVICE`.
     /// Paths are caller-supplied (no hardcoded absolute path) so the model is an
     /// offline-build/eval asset the caller provisions.
     pub fn from_files(model_path: &Path, tokenizer_path: &Path) -> Result<Self, EmbedderError> {
-        Self::from_files_with_provider(model_path, tokenizer_path, resolve_provider_from_env())
+        let (_, resolution) =
+            resolve_ort_device_policy_from_env().map_err(|error| err("device policy", error))?;
+        Self::from_files_with_device_resolution(model_path, tokenizer_path, resolution)
     }
 
     /// Construct from `FATHOMDB_ONNX_MODEL_PATH` + `FATHOMDB_ONNX_TOKENIZER_PATH`
@@ -393,10 +345,40 @@ impl OrtBgeEmbedder {
         Self::from_files(Path::new(&model), Path::new(&tok))
     }
 
+    #[cfg(test)]
     fn from_files_with_provider(
         model_path: &Path,
         tokenizer_path: &Path,
         provider: OrtProvider,
+    ) -> Result<Self, EmbedderError> {
+        Self::from_files_with_device_resolution(
+            model_path,
+            tokenizer_path,
+            DeviceResolution {
+                requested_policy: EmbedDevicePolicy::Cpu,
+                cuda_compiled: true,
+                effective_device: match provider {
+                    OrtProvider::Cpu => EffectiveEmbedDevice::Cpu,
+                    OrtProvider::Cuda(ordinal) => EffectiveEmbedDevice::Cuda(CudaDeviceInfo {
+                        ordinal: ordinal as usize,
+                        uuid: None,
+                        name: None,
+                        driver_version: None,
+                        compute_capability: None,
+                        cuda_toolkit_version: None,
+                    }),
+                },
+                visible_cuda_devices: Vec::new(),
+                selected_cuda_uuid: None,
+                reason: None,
+            },
+        )
+    }
+
+    fn from_files_with_device_resolution(
+        model_path: &Path,
+        tokenizer_path: &Path,
+        resolution: DeviceResolution,
     ) -> Result<Self, EmbedderError> {
         let mut tokenizer =
             Tokenizer::from_file(tokenizer_path).map_err(|e| err("tokenizer load", e))?;
@@ -407,33 +389,13 @@ impl OrtBgeEmbedder {
             }))
             .map_err(|e| err("tokenizer truncation", e))?;
 
-        // SESSION-BUILD stage of the loud fallback (R-ONNX-2): if the requested
-        // non-CPU provider is unavailable in this ORT build, downgrade to CPU
-        // and warn LOUDLY ourselves rather than letting `ort`'s compiled-out
-        // dispatch fall back silently. CPU functionality is preserved.
-        let (effective, avail_warn) = resolve_effective_provider(provider);
-        if let Some(msg) = avail_warn {
-            emit_onnx_warning(&msg);
-        }
-
-        // SESSION-BUILD RUNTIME stage (codex §9 fix-2): the availability probe
-        // above can pass yet the concrete build still fail (missing runtime
-        // libs, bad device id). `build_session_with_fallback` warns LOUDLY and
-        // retries on CPU for a non-CPU EP so an unavailable-at-runtime GPU never
-        // blocks opening the embedder; a CPU failure stays a hard error.
-        let (session, build_warn) = build_session_with_fallback(effective, |p| {
+        let (session, device_resolution) = build_session_with_device_resolution(resolution, |p| {
             Session::builder()?
                 .with_execution_providers([provider_dispatch(p)])?
                 .commit_from_file(model_path)
         })
         .map_err(|e| err("session build", e))?;
-        // The session-build retry (`build_session_with_fallback`) downgrades a
-        // non-CPU EP that was reported available but FAILED to build to CPU; a
-        // `Some(build_warn)` therefore means the final session runs on CPU.
-        let effective_provider = if build_warn.is_some() { OrtProvider::Cpu } else { effective };
-        if let Some(msg) = build_warn {
-            emit_onnx_warning(&msg);
-        }
+        let effective_provider = ort_provider_from_resolution(&device_resolution);
 
         // Self-describing identity (codex §9 fix-5): derive the revision from a
         // content digest of the ACTUALLY-loaded model + tokenizer assets rather
@@ -450,6 +412,7 @@ impl OrtBgeEmbedder {
             session: Mutex::new(session),
             pooling: OrtPooling::Cls,
             effective_provider,
+            device_resolution,
         })
     }
 
@@ -461,18 +424,24 @@ impl OrtBgeEmbedder {
         self
     }
 
-    /// The EFFECTIVE ORT execution provider label (`"cpu"` / `"cuda"` / `"rocm"`
-    /// / `"directml"` / `"openvino"`) this session was built with, AFTER any
-    /// availability-probe downgrade and session-build CPU retry (R-D3-2).
-    ///
-    /// Additive read-only accessor (0.8.18 U3 calibration). A request for a
-    /// non-CPU EP that is unavailable in this ONNX Runtime build/runtime is
-    /// downgraded to CPU at construction; this returns the provider actually in
-    /// force, so the calibration harness records a silent CPU fallback as DATA
-    /// (never a `cuda`-requested leg mislabeled as GPU). Does not change identity.
+    /// The effective ORT execution provider label (`"cpu"` / `"cuda"`) this
+    /// session was built with. A forced CUDA request never becomes CPU; `auto`
+    /// may select CPU when CUDA cannot be used. Does not change identity.
     #[must_use]
     pub fn effective_provider(&self) -> &'static str {
         self.effective_provider.label()
+    }
+
+    /// The final CPU/CUDA resolution after ONNX Runtime constructed its session.
+    ///
+    /// A caller using `auto` can inspect this to distinguish a selected CUDA
+    /// session from a recorded CPU fallback. Forced CUDA never constructs an
+    /// embedder with a CPU resolution. Pass a clone to
+    /// `EmbedderChoice::CallerWithDeviceResolution` when the engine's
+    /// `OpenReport` must record the same outcome.
+    #[must_use]
+    pub fn device_resolution(&self) -> &DeviceResolution {
+        &self.device_resolution
     }
 }
 
@@ -550,225 +519,234 @@ impl Embedder for OrtBgeEmbedder {
 
 #[cfg(test)]
 mod tests {
-    //! R-ONNX-2 device-mapping unit tests: the `FATHOMDB_EMBED_DEVICE` grammar
-    //! (parsed by the shared `parse_device_request`) → the correct ORT execution
-    //! provider. Pure — no model, no ONNX Runtime native lib, no GPU required.
-    use super::{map_device_request, OrtProvider};
-    use crate::device::parse_device_request;
+    use super::OrtProvider;
+    use crate::EmbedDevicePolicy;
 
-    fn resolve(raw: &str) -> (OrtProvider, Option<String>) {
-        map_device_request(&parse_device_request(raw))
+    #[derive(Default)]
+    struct FixtureOrtAvailability {
+        outcomes: Vec<Result<bool, &'static str>>,
+        ordinals: Vec<usize>,
     }
 
-    #[test]
-    fn cpu_and_unset_map_to_cpu_no_warning() {
-        for raw in ["", "cpu", "  CPU  "] {
-            let (p, warn) = resolve(raw);
-            assert_eq!(p, OrtProvider::Cpu, "{raw:?}");
-            assert!(warn.is_none(), "{raw:?} should not warn");
+    impl super::OrtCudaAvailability for FixtureOrtAvailability {
+        fn is_available(&mut self, ordinal: usize) -> Result<bool, String> {
+            self.ordinals.push(ordinal);
+            self.outcomes.remove(0).map_err(str::to_owned)
         }
     }
 
     #[test]
-    fn cuda_maps_to_cuda_provider_with_index() {
-        assert_eq!(resolve("cuda").0, OrtProvider::Cuda(0));
-        assert_eq!(resolve("cuda:1").0, OrtProvider::Cuda(1));
-        assert_eq!(resolve("cuda:2").0, OrtProvider::Cuda(2));
-        assert!(resolve("cuda:1").1.is_none());
-    }
+    fn dedicated_onnx_resolver_preserves_strict_policy_without_uuid_inventory() {
+        use crate::{DeviceResolutionError, DeviceResolutionReason, EffectiveEmbedDevice};
 
-    #[test]
-    fn rocm_maps_to_rocm_provider() {
-        // ROCm is unreachable through candle — the cross-vendor payoff.
-        assert_eq!(resolve("rocm").0, OrtProvider::Rocm(0));
-        assert_eq!(resolve("rocm:1").0, OrtProvider::Rocm(1));
-        assert!(resolve("rocm").1.is_none());
-        assert!(resolve("ROCm").1.is_none()); // grammar lower-cases
-    }
+        let mut cpu_probe = FixtureOrtAvailability::default();
+        let cpu = super::resolve_ort_device_policy_with_availability(
+            EmbedDevicePolicy::Cpu,
+            &mut cpu_probe,
+        )
+        .expect("explicit CPU resolves without touching ORT CUDA");
+        assert_eq!(cpu.effective_device, EffectiveEmbedDevice::Cpu);
+        assert!(cpu_probe.ordinals.is_empty());
 
-    #[test]
-    fn directml_maps_to_directml_provider() {
-        assert_eq!(resolve("directml").0, OrtProvider::DirectMl(0));
-        assert_eq!(resolve("dml").0, OrtProvider::DirectMl(0));
-        assert_eq!(resolve("directml:1").0, OrtProvider::DirectMl(1));
-        assert!(resolve("directml").1.is_none());
-    }
-
-    #[test]
-    fn openvino_maps_to_openvino_provider() {
-        assert_eq!(resolve("openvino").0, OrtProvider::OpenVino);
-        assert_eq!(resolve("ovep").0, OrtProvider::OpenVino);
-        assert!(resolve("openvino").1.is_none());
-    }
-
-    #[test]
-    fn metal_falls_back_to_cpu_loudly() {
-        // ORT has no Metal EP; candle owns that lane. Loud, never silent.
-        let (p, warn) = resolve("metal");
-        assert_eq!(p, OrtProvider::Cpu);
-        assert!(warn.is_some(), "metal must warn on CPU fallback");
-    }
-
-    #[test]
-    fn unrecognized_device_falls_back_to_cpu_loudly() {
-        for raw in ["vulkan", "tpu", "gpu"] {
-            let (p, warn) = resolve(raw);
-            assert_eq!(p, OrtProvider::Cpu, "{raw:?}");
-            assert!(warn.is_some(), "{raw:?} must warn on CPU fallback");
-        }
-    }
-
-    /// SESSION-BUILD loud fallback (codex §9 fix-1): a requested GPU provider
-    /// that the ORT build does not support must downgrade to CPU with a LOUD
-    /// warning that names the requested provider — never a silent CPU fallback.
-    /// Probe is injected (`|_| false`), so this runs with no ORT lib / no GPU.
-    #[test]
-    fn requested_gpu_unavailable_falls_back_to_cpu_loudly() {
-        for requested in [
-            OrtProvider::Cuda(0),
-            OrtProvider::Rocm(1),
-            OrtProvider::DirectMl(0),
-            OrtProvider::OpenVino,
-        ] {
-            let (eff, warn) = super::resolve_effective_provider_with(requested, |_| false);
-            assert_eq!(eff, OrtProvider::Cpu, "{requested:?} must downgrade to CPU");
-            let msg = warn.expect("unavailable GPU provider must emit a warning");
-            assert!(
-                msg.contains(&format!("{requested:?}")),
-                "warning must name the requested provider {requested:?}, got {msg:?}"
-            );
-            assert!(
-                msg.to_lowercase().contains("cpu"),
-                "warning must state the CPU fallback, got {msg:?}"
-            );
-        }
-    }
-
-    /// When the probe reports the requested provider available, it is honored
-    /// and there is NO warning (no spurious loud fallback).
-    #[test]
-    fn requested_available_provider_is_honored_without_warning() {
-        let (eff, warn) = super::resolve_effective_provider_with(OrtProvider::Cuda(2), |_| true);
-        assert_eq!(eff, OrtProvider::Cuda(2));
-        assert!(warn.is_none(), "an available provider must not warn");
-    }
-
-    /// A CPU request is always honored, never warns, and never probes (CPU is
-    /// unconditionally available) — the probe closure must not run.
-    #[test]
-    fn cpu_request_never_probes_and_never_warns() {
-        let (eff, warn) = super::resolve_effective_provider_with(OrtProvider::Cpu, |_| {
-            panic!("CPU request must not probe provider availability")
-        });
-        assert_eq!(eff, OrtProvider::Cpu);
-        assert!(warn.is_none());
-    }
-
-    /// SESSION-BUILD RUNTIME loud fallback (codex §9 fix-2): a NON-CPU provider
-    /// that the availability probe reports as compiled-in can STILL fail when
-    /// the session is actually built (missing runtime libs / bad device id).
-    /// The helper must warn LOUDLY (naming the provider) and RETRY on CPU,
-    /// returning the CPU session. Build step injected, so no model / ORT lib.
-    #[test]
-    fn session_build_gpu_fails_retries_cpu_with_warning() {
-        use std::cell::RefCell;
-        for requested in [OrtProvider::Cuda(0), OrtProvider::Rocm(1), OrtProvider::OpenVino] {
-            let attempts = RefCell::new(Vec::new());
-            let build = |p: OrtProvider| -> Result<&'static str, String> {
-                attempts.borrow_mut().push(p);
-                match p {
-                    OrtProvider::Cpu => Ok("cpu-session"),
-                    other => Err(format!("no runtime lib for {other:?}")),
-                }
-            };
-            let (session, warn) = super::build_session_with_fallback(requested, build)
-                .expect("must retry CPU and succeed");
-            assert_eq!(session, "cpu-session", "{requested:?} must yield the CPU session");
-            let msg = warn.expect("a runtime GPU-build failure must emit a warning");
-            assert!(
-                msg.contains(&format!("{requested:?}")),
-                "warning must name the requested provider {requested:?}, got {msg:?}"
-            );
-            assert!(
-                msg.to_lowercase().contains("cpu"),
-                "warning must state the CPU fallback, got {msg:?}"
-            );
-            assert_eq!(
-                *attempts.borrow(),
-                vec![requested, OrtProvider::Cpu],
-                "must attempt the GPU provider first, then CPU"
-            );
-        }
-    }
-
-    /// When BOTH the requested non-CPU build and the CPU retry fail, the helper
-    /// must surface an `Err` (no session can be opened).
-    #[test]
-    fn session_build_gpu_and_cpu_both_fail_errors() {
-        let build =
-            |p: OrtProvider| -> Result<&'static str, String> { Err(format!("hard fail {p:?}")) };
-        let res = super::build_session_with_fallback(OrtProvider::Cuda(0), build);
-        assert!(res.is_err(), "both GPU and CPU failing must be an error");
-    }
-
-    /// A CPU-effective build failure is a genuine error — there is nothing to
-    /// fall back to, so the build closure must run EXACTLY once (no retry).
-    #[test]
-    fn session_build_cpu_failure_is_error_without_retry() {
-        use std::cell::Cell;
-        let calls = Cell::new(0);
-        let build = |_p: OrtProvider| -> Result<&'static str, String> {
-            calls.set(calls.get() + 1);
-            Err("cpu build failed".to_string())
+        let mut auto_cuda = FixtureOrtAvailability {
+            outcomes: vec![Ok(true)],
+            ..FixtureOrtAvailability::default()
         };
-        let res = super::build_session_with_fallback(OrtProvider::Cpu, build);
-        assert!(res.is_err(), "a CPU build failure must be an error");
-        assert_eq!(calls.get(), 1, "a CPU failure must NOT retry");
-    }
-
-    /// The happy path: an effective provider whose build succeeds returns the
-    /// session with NO warning and attempts the build exactly once.
-    #[test]
-    fn session_build_success_no_warning_single_attempt() {
-        use std::cell::Cell;
-        let calls = Cell::new(0);
-        let build = |_p: OrtProvider| -> Result<&'static str, String> {
-            calls.set(calls.get() + 1);
-            Ok("session")
-        };
-        let (session, warn) = super::build_session_with_fallback(OrtProvider::Cuda(2), build)
-            .expect("build succeeds");
-        assert_eq!(session, "session");
-        assert!(warn.is_none(), "a successful build must not warn");
-        assert_eq!(calls.get(), 1, "a successful build must attempt exactly once");
-    }
-
-    /// codex §9 fix-3 ROOT: a non-CPU dispatch must be built with
-    /// `error_on_failure` so a runtime EP-registration failure surfaces as an
-    /// `Err` from `with_execution_providers` (feeding the CPU-retry + loud
-    /// warning). The CPU dispatch keeps the default silent behavior so the
-    /// retry target can succeed. Inspected via the dispatch `Debug` output,
-    /// which renders the private `error_on_failure` flag. No native ORT lib is
-    /// loaded — `.build()` only constructs the dispatch config struct.
-    #[test]
-    fn non_cpu_dispatch_errors_on_failure_cpu_does_not() {
-        for p in [
-            OrtProvider::Cuda(0),
-            OrtProvider::Rocm(1),
-            OrtProvider::DirectMl(0),
-            OrtProvider::OpenVino,
-        ] {
-            let dbg = format!("{:?}", super::provider_dispatch(p));
-            assert!(
-                dbg.contains("error_on_failure: true"),
-                "non-CPU provider {p:?} must set error_on_failure, got {dbg:?}"
-            );
-        }
-        let cpu = format!("{:?}", super::provider_dispatch(OrtProvider::Cpu));
+        let selected = super::resolve_ort_device_policy_with_availability(
+            EmbedDevicePolicy::Auto,
+            &mut auto_cuda,
+        )
+        .expect("available ONNX CUDA must remain reachable under auto");
         assert!(
-            cpu.contains("error_on_failure: false"),
-            "CPU provider must keep the silent (fallback-target) default, got {cpu:?}"
+            matches!(selected.effective_device, EffectiveEmbedDevice::Cuda(ref info) if info.ordinal == 0 && info.uuid.is_none())
         );
+        assert!(selected.visible_cuda_devices.is_empty());
+        assert_eq!(selected.selected_cuda_uuid, None);
+        assert_eq!(auto_cuda.ordinals, vec![0]);
+
+        let mut auto_unavailable = FixtureOrtAvailability {
+            outcomes: vec![Ok(false)],
+            ..FixtureOrtAvailability::default()
+        };
+        let fallback = super::resolve_ort_device_policy_with_availability(
+            EmbedDevicePolicy::Auto,
+            &mut auto_unavailable,
+        )
+        .expect("auto may select CPU only after typed unavailability");
+        assert_eq!(fallback.effective_device, EffectiveEmbedDevice::Cpu);
+        assert_eq!(fallback.reason, Some(DeviceResolutionReason::NoVisibleCudaDevice));
+
+        let mut auto_error = FixtureOrtAvailability {
+            outcomes: vec![Err("ORT availability query failed")],
+            ..FixtureOrtAvailability::default()
+        };
+        let fallback = super::resolve_ort_device_policy_with_availability(
+            EmbedDevicePolicy::Auto,
+            &mut auto_error,
+        )
+        .expect("auto reports a typed probe failure while selecting CPU");
+        assert_eq!(fallback.effective_device, EffectiveEmbedDevice::Cpu);
+        assert_eq!(fallback.reason, Some(DeviceResolutionReason::CudaProbeFailed));
+
+        let mut forced_cuda = FixtureOrtAvailability {
+            outcomes: vec![Ok(true)],
+            ..FixtureOrtAvailability::default()
+        };
+        let selected = super::resolve_ort_device_policy_with_availability(
+            EmbedDevicePolicy::Cuda(2),
+            &mut forced_cuda,
+        )
+        .expect("forced CUDA reaches the requested ONNX provider");
+        assert!(
+            matches!(selected.effective_device, EffectiveEmbedDevice::Cuda(ref info) if info.ordinal == 2)
+        );
+        assert_eq!(forced_cuda.ordinals, vec![2]);
+
+        let mut forced_unavailable = FixtureOrtAvailability {
+            outcomes: vec![Ok(false)],
+            ..FixtureOrtAvailability::default()
+        };
+        assert_eq!(
+            super::resolve_ort_device_policy_with_availability(
+                EmbedDevicePolicy::Cuda(2),
+                &mut forced_unavailable,
+            ),
+            Err(DeviceResolutionError::ForcedCudaUnavailable {
+                ordinal: 2,
+                reason: DeviceResolutionReason::NoVisibleCudaDevice,
+            }),
+        );
+
+        let mut forced_error = FixtureOrtAvailability {
+            outcomes: vec![Err("ORT availability query failed")],
+            ..FixtureOrtAvailability::default()
+        };
+        assert_eq!(
+            super::resolve_ort_device_policy_with_availability(
+                EmbedDevicePolicy::Cuda(2),
+                &mut forced_error,
+            ),
+            Err(DeviceResolutionError::ForcedCudaUnavailable {
+                ordinal: 2,
+                reason: DeviceResolutionReason::CudaProbeFailed,
+            }),
+        );
+    }
+
+    #[test]
+    fn strict_onnx_forced_cuda_never_resolves_to_cpu() {
+        use crate::{
+            CudaProbeError, CudaProvider, DeviceResolutionError, DeviceResolutionReason,
+            EmbedDevicePolicy,
+        };
+
+        struct UnavailableCudaProvider;
+
+        impl CudaProvider for UnavailableCudaProvider {
+            fn enumerate_visible_cuda_devices(
+                &mut self,
+            ) -> Result<Vec<crate::CudaVisibleDevice>, CudaProbeError> {
+                Ok(Vec::new())
+            }
+
+            fn probe_cuda(
+                &mut self,
+                _ordinal: usize,
+            ) -> Result<crate::CudaDeviceInfo, CudaProbeError> {
+                Err(CudaProbeError::NoVisibleDevice)
+            }
+        }
+
+        let error = super::resolve_ort_device_policy_with(
+            EmbedDevicePolicy::Cuda(2),
+            &mut UnavailableCudaProvider,
+        )
+        .expect_err("forced CUDA must fail rather than become an ONNX CPU session");
+
+        assert_eq!(
+            error,
+            DeviceResolutionError::ForcedCudaUnavailable {
+                ordinal: 2,
+                reason: DeviceResolutionReason::NoVisibleCudaDevice,
+            },
+        );
+    }
+
+    #[test]
+    fn forced_cuda_session_build_never_retries_cpu() {
+        use std::cell::RefCell;
+
+        let attempts = RefCell::new(Vec::new());
+        let result = super::build_session_with_device_resolution(
+            cuda_resolution(EmbedDevicePolicy::Cuda(2), 2),
+            |provider| -> Result<&'static str, &'static str> {
+                attempts.borrow_mut().push(provider);
+                Err("CUDA session unavailable")
+            },
+        );
+
+        assert_eq!(result, Err("CUDA session unavailable"));
+        assert_eq!(*attempts.borrow(), vec![OrtProvider::Cuda(2)]);
+    }
+
+    #[test]
+    fn auto_cuda_session_build_may_retry_cpu() {
+        use std::cell::RefCell;
+
+        let attempts = RefCell::new(Vec::new());
+        let (session, resolution) = super::build_session_with_device_resolution(
+            cuda_resolution(EmbedDevicePolicy::Auto, 0),
+            |provider| -> Result<&'static str, &'static str> {
+                attempts.borrow_mut().push(provider);
+                match provider {
+                    OrtProvider::Cuda(_) => Err("CUDA session unavailable"),
+                    OrtProvider::Cpu => Ok("cpu session"),
+                }
+            },
+        )
+        .expect("auto may retry CPU after a CUDA session failure");
+
+        assert_eq!(session, "cpu session");
+        assert_eq!(resolution.effective_device, crate::EffectiveEmbedDevice::Cpu);
+        assert_eq!(*attempts.borrow(), vec![OrtProvider::Cuda(0), OrtProvider::Cpu]);
+    }
+
+    #[test]
+    fn auto_cuda_session_build_fallback_is_recorded_in_device_resolution() {
+        let resolution = cuda_resolution(EmbedDevicePolicy::Auto, 0);
+
+        let (session, resolution) = super::build_session_with_device_resolution(
+            resolution,
+            |provider| -> Result<&'static str, &'static str> {
+                match provider {
+                    OrtProvider::Cuda(_) => Err("CUDA session unavailable"),
+                    OrtProvider::Cpu => Ok("cpu session"),
+                }
+            },
+        )
+        .expect("auto may retry CPU after a CUDA session failure");
+
+        assert_eq!(session, "cpu session");
+        assert_eq!(resolution.effective_device, crate::EffectiveEmbedDevice::Cpu);
+        assert_eq!(resolution.reason, Some(crate::DeviceResolutionReason::CudaProbeFailed),);
+    }
+
+    fn cuda_resolution(policy: EmbedDevicePolicy, ordinal: usize) -> crate::DeviceResolution {
+        crate::DeviceResolution {
+            requested_policy: policy,
+            cuda_compiled: true,
+            effective_device: crate::EffectiveEmbedDevice::Cuda(crate::CudaDeviceInfo {
+                ordinal,
+                uuid: None,
+                name: None,
+                driver_version: None,
+                compute_capability: None,
+                cuda_toolkit_version: None,
+            }),
+            visible_cuda_devices: Vec::new(),
+            selected_cuda_uuid: None,
+            reason: None,
+        }
     }
 
     /// codex §9 fix-5 — the identity revision self-describes the loaded assets.

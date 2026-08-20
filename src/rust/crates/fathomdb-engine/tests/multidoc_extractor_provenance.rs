@@ -241,11 +241,17 @@ fn multidoc_batch_with_valid_echo_stores_caller_copy() {
         }
     }
 
-    // The consequence that matters: erasing ONE document removes only its rows.
-    // Let the embed/projection work for the ingested rows settle first, as
-    // `erasure_completeness` does: `erase_source` drains internally on a short
-    // budget and reports `EngineError::Scheduler` if in-flight work outlasts it.
-    opened.engine.drain(120_000).expect("drain");
+    // A direct drain reports Slice 30's immediate configuration feedback for
+    // the body-bearing extractor edge. That feedback does not make a document
+    // impossible to erase: the destructive path must remove its pending work
+    // rather than returning `EmbedderRequired` before the at-rest erasure.
+    assert!(
+        matches!(
+            opened.engine.drain(120_000),
+            Err(fathomdb_engine::EngineError::EmbedderRequired(_))
+        ),
+        "a no-embedder direct drain must explain the pending body-edge projection"
+    );
 
     // `erase_source` (the governed SDK spelling) — not the operator-gated
     // `excise_source`: a caller document id is exactly what the governed verb

@@ -28,17 +28,27 @@
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::Arc;
 
-use fathomdb_embedder::EmbedderEvent as RustEmbedderEvent;
+use fathomdb_embedder::{
+    CudaDeviceInfo as RustCudaDeviceInfo, CudaVisibleDevice as RustCudaVisibleDevice,
+    DeviceResolution as RustDeviceResolution, EffectiveEmbedDevice as RustEffectiveEmbedDevice,
+    EffectiveRerankerDevice as RustEffectiveRerankerDevice,
+    EmbedDevicePolicy as RustEmbedDevicePolicy, EmbedderEvent as RustEmbedderEvent,
+    GpuAllocationWitness as RustGpuAllocationWitness,
+    RerankerDevicePolicy as RustRerankerDevicePolicy,
+    RerankerDeviceResolution as RustRerankerDeviceResolution, SOLE_GPU_CONSUMER_PRECONDITION,
+    TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA,
+};
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
     BoundaryCrossing as RustBoundaryCrossing, ComparisonOp as RustComparisonOp,
     ConsolidateAxis as RustConsolidateAxis, ConsolidateReceipt as RustConsolidateReceipt,
     CorruptionDetail, CorruptionKind, DenseReadiness as RustDenseReadiness, EmbedderChoice,
-    Engine as RustEngine, EngineError as RustEngineError, EngineOpenError,
-    ExciseReport as RustExciseReport, Explanation as RustExplanation,
-    ExtractDocument as RustExtractDocument, Filter as RustFilter, FilterTerm as RustFilterTerm,
-    IdSpace as RustIdSpace, IngestWithExtractorReceipt as RustIngestWithExtractorReceipt,
-    InitialState, LifecycleState as RustLifecycleState, NodeRecord as RustNodeRecord,
+    EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
+    EngineError as RustEngineError, EngineOpenError, ExciseReport as RustExciseReport,
+    Explanation as RustExplanation, ExtractDocument as RustExtractDocument, Filter as RustFilter,
+    FilterTerm as RustFilterTerm, IdSpace as RustIdSpace,
+    IngestWithExtractorReceipt as RustIngestWithExtractorReceipt, InitialState,
+    LifecycleState as RustLifecycleState, NodeRecord as RustNodeRecord,
     OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
     PerHitExplain as RustPerHitExplain, Predicate as RustPredicate, PreparedWrite,
     ProjectionDelta as RustProjectionDelta, ProjectionFts as RustProjectionFts,
@@ -67,7 +77,10 @@ const CODE_STORAGE: &str = "FDB_STORAGE";
 const CODE_PROJECTION: &str = "FDB_PROJECTION";
 const CODE_VECTOR: &str = "FDB_VECTOR";
 const CODE_EMBEDDER: &str = "FDB_EMBEDDER";
+const CODE_EMBED_DEVICE_POLICY: &str = "FDB_EMBED_DEVICE_POLICY";
+const CODE_RERANKER_DEVICE_POLICY: &str = "FDB_RERANKER_DEVICE_POLICY";
 const CODE_EMBEDDER_NOT_CONFIGURED: &str = "FDB_EMBEDDER_NOT_CONFIGURED";
+const CODE_EMBEDDER_REQUIRED: &str = "FDB_EMBEDDER_REQUIRED";
 const CODE_KIND_NOT_VECTOR_INDEXED: &str = "FDB_KIND_NOT_VECTOR_INDEXED";
 const CODE_EMBEDDER_DIMENSION_MISMATCH: &str = "FDB_EMBEDDER_DIMENSION_MISMATCH";
 const CODE_SCHEDULER: &str = "FDB_SCHEDULER";
@@ -184,9 +197,20 @@ fn engine_error_to_napi(err: RustEngineError) -> Error {
         }
         RustEngineError::Vector => typed_error(CODE_VECTOR, "vector error", JsonValue::Null),
         RustEngineError::Embedder => typed_error(CODE_EMBEDDER, "embedder error", JsonValue::Null),
+        RustEngineError::RerankerDevicePolicy(error) => reranker_device_policy_error_to_napi(error),
         RustEngineError::EmbedderNotConfigured => {
             typed_error(CODE_EMBEDDER_NOT_CONFIGURED, "embedder is not configured", JsonValue::Null)
         }
+        RustEngineError::EmbedderRequired(required) => typed_error(
+            CODE_EMBEDDER_REQUIRED,
+            "embedder is required for pending projection work",
+            json!({
+                "operation": required.operation.as_str(),
+                "state": required.state.as_str(),
+                "remediations": required.remediations,
+                "documentationUrl": required.documentation_url,
+            }),
+        ),
         RustEngineError::KindNotVectorIndexed => typed_error(
             CODE_KIND_NOT_VECTOR_INDEXED,
             "kind is not configured for vector indexing",
@@ -305,6 +329,26 @@ fn corruption_to_napi(detail: CorruptionDetail) -> Error {
     )
 }
 
+fn embed_device_policy_error_to_napi(error: fathomdb_embedder::EmbedDevicePolicyError) -> Error {
+    let mut payload = serde_json::Map::new();
+    payload.insert("kind".to_string(), json!(error.kind()));
+    if let Some(ordinal) = error.ordinal() {
+        payload.insert("ordinal".to_string(), json!(ordinal));
+    }
+    typed_error(CODE_EMBED_DEVICE_POLICY, error.to_string(), JsonValue::Object(payload))
+}
+
+fn reranker_device_policy_error_to_napi(
+    error: fathomdb_embedder::RerankerDevicePolicyError,
+) -> Error {
+    let mut payload = serde_json::Map::new();
+    payload.insert("kind".to_string(), json!(error.kind()));
+    if let Some(ordinal) = error.ordinal() {
+        payload.insert("ordinal".to_string(), json!(ordinal));
+    }
+    typed_error(CODE_RERANKER_DEVICE_POLICY, error.to_string(), JsonValue::Object(payload))
+}
+
 fn engine_open_error_to_napi(err: EngineOpenError) -> Error {
     match err {
         EngineOpenError::DatabaseLocked { holder_pid } => typed_error(
@@ -363,6 +407,8 @@ fn engine_open_error_to_napi(err: EngineOpenError) -> Error {
             format!("embedder error during open: {err:?}"),
             JsonValue::Null,
         ),
+        EngineOpenError::EmbedDevicePolicy(error) => embed_device_policy_error_to_napi(error),
+        EngineOpenError::RerankerDevicePolicy(error) => reranker_device_policy_error_to_napi(error),
         EngineOpenError::Io { message } => typed_error(
             CODE_STORAGE,
             format!("database I/O error: {message}"),
@@ -798,6 +844,36 @@ impl ProjectionRuntimeStatus {
                 .map(ProjectionRuntimeStatusEntry::from_rust)
                 .collect(),
             vector_unsupported_kinds: status.vector_unsupported_kinds.clone(),
+        }
+    }
+}
+
+#[napi(object)]
+pub struct EmbeddingReadiness {
+    pub state: String,
+    pub usable_embedder: bool,
+    pub pending_count: i64,
+    pub affected_kinds: Vec<String>,
+    pub code: Option<String>,
+    pub operation: Option<String>,
+    pub remediations: Vec<String>,
+    pub documentation_url: Option<String>,
+}
+
+impl EmbeddingReadiness {
+    fn from_rust(readiness: &RustEmbeddingReadiness) -> Self {
+        let blocked = readiness.blocked.as_ref();
+        Self {
+            state: readiness.state.as_str().to_string(),
+            usable_embedder: readiness.usable_embedder,
+            pending_count: readiness.pending_count as i64,
+            affected_kinds: readiness.affected_kinds.clone(),
+            code: blocked.map(|b| b.code.to_string()),
+            operation: blocked.map(|b| b.operation.as_str().to_string()),
+            remediations: blocked
+                .map(|b| b.remediations.iter().map(|s| (*s).to_string()).collect())
+                .unwrap_or_default(),
+            documentation_url: blocked.map(|b| b.documentation_url.to_string()),
         }
     }
 }
@@ -1355,6 +1431,207 @@ impl EmbedderEvent {
     }
 }
 
+/// Safe CUDA provider facts associated with an effective CUDA selection.
+#[napi(object)]
+pub struct CudaDeviceInfo {
+    pub ordinal: i64,
+    pub uuid: Option<String>,
+    pub name: Option<String>,
+    pub driver_version: Option<String>,
+    pub compute_capability: Option<String>,
+    pub cuda_toolkit_version: Option<String>,
+}
+
+impl CudaDeviceInfo {
+    fn from_rust(info: &RustCudaDeviceInfo) -> Self {
+        Self {
+            ordinal: info.ordinal as i64,
+            uuid: info.uuid.clone(),
+            name: info.name.clone(),
+            driver_version: info.driver_version.clone(),
+            compute_capability: info.compute_capability.clone(),
+            cuda_toolkit_version: info.cuda_toolkit_version.clone(),
+        }
+    }
+}
+
+/// Process-visible CUDA identity facts preserved in an open report.
+#[napi(object)]
+pub struct CudaVisibleDevice {
+    pub visible_ordinal: i64,
+    pub uuid: String,
+    pub name: String,
+    pub compute_capability: Option<String>,
+}
+
+impl CudaVisibleDevice {
+    fn from_rust(device: &RustCudaVisibleDevice) -> Self {
+        Self {
+            visible_ordinal: device.visible_ordinal as i64,
+            uuid: device.uuid.clone(),
+            name: device.name.clone(),
+            compute_capability: device.compute_capability.clone(),
+        }
+    }
+}
+
+/// The CPU or CUDA backend selected for one embedder device policy.
+#[napi(object)]
+pub struct EffectiveEmbedDevice {
+    /// Either `"cpu"` or `"cuda"`.
+    pub kind: String,
+    /// Present exactly when `kind == "cuda"`.
+    pub cuda_device: Option<CudaDeviceInfo>,
+}
+
+impl EffectiveEmbedDevice {
+    fn from_rust(device: &RustEffectiveEmbedDevice) -> Self {
+        match device {
+            RustEffectiveEmbedDevice::Cpu => Self { kind: "cpu".to_string(), cuda_device: None },
+            RustEffectiveEmbedDevice::Cuda(info) => Self {
+                kind: "cuda".to_string(),
+                cuda_device: Some(CudaDeviceInfo::from_rust(info)),
+            },
+        }
+    }
+}
+
+/// The strict CPU/CUDA policy outcome captured when an embedder was constructed.
+#[napi(object)]
+pub struct EmbedderDeviceResolution {
+    pub requested_policy: String,
+    pub cuda_compiled: bool,
+    pub effective_device: EffectiveEmbedDevice,
+    pub visible_cuda_devices: Vec<CudaVisibleDevice>,
+    pub selected_cuda_uuid: Option<String>,
+    pub reason: Option<String>,
+}
+
+impl EmbedderDeviceResolution {
+    fn from_rust(resolution: &RustDeviceResolution) -> Self {
+        let requested_policy = match resolution.requested_policy {
+            RustEmbedDevicePolicy::Auto => "auto".to_string(),
+            RustEmbedDevicePolicy::Cpu => "cpu".to_string(),
+            RustEmbedDevicePolicy::Cuda(ordinal) => format!("cuda:{ordinal}"),
+        };
+        Self {
+            requested_policy,
+            cuda_compiled: resolution.cuda_compiled,
+            effective_device: EffectiveEmbedDevice::from_rust(&resolution.effective_device),
+            visible_cuda_devices: resolution
+                .visible_cuda_devices
+                .iter()
+                .map(CudaVisibleDevice::from_rust)
+                .collect(),
+            selected_cuda_uuid: resolution.selected_cuda_uuid.clone(),
+            reason: resolution.reason.map(|reason| reason.as_str().to_string()),
+        }
+    }
+
+    fn from_reranker(resolution: &RustRerankerDeviceResolution) -> Self {
+        let requested_policy = match resolution.requested_policy {
+            RustRerankerDevicePolicy::Auto => "auto".to_string(),
+            RustRerankerDevicePolicy::Cpu => "cpu".to_string(),
+            RustRerankerDevicePolicy::Cuda(ordinal) => format!("cuda:{ordinal}"),
+        };
+        let effective_device = match &resolution.effective_device {
+            RustEffectiveRerankerDevice::Cpu => {
+                EffectiveEmbedDevice { kind: "cpu".to_string(), cuda_device: None }
+            }
+            RustEffectiveRerankerDevice::Cuda(info) => EffectiveEmbedDevice {
+                kind: "cuda".to_string(),
+                cuda_device: Some(CudaDeviceInfo::from_rust(info)),
+            },
+        };
+        Self {
+            requested_policy,
+            cuda_compiled: resolution.cuda_compiled,
+            effective_device,
+            visible_cuda_devices: resolution
+                .visible_cuda_devices
+                .iter()
+                .map(CudaVisibleDevice::from_rust)
+                .collect(),
+            selected_cuda_uuid: resolution.selected_cuda_uuid.clone(),
+            reason: resolution.reason.map(|reason| reason.as_str().to_string()),
+        }
+    }
+}
+
+/// 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the retained
+/// `fathomdb.tegra-gpu-allocation-witness/v1` record, measured in the
+/// artifact's own process.
+///
+/// Every number the verdict used is carried, so a reader re-derives the
+/// verdict instead of trusting it: the raw free-memory samples that bracket
+/// the model load, the declared floor they were judged against, and the
+/// deliberate control allocation that proves the shared iGPU counter was live
+/// and attributable at the time. Dropping any of them would leave a consumer
+/// able to report a pass it cannot check.
+#[napi(object)]
+pub struct GpuAllocationWitness {
+    /// Schema string of the retained record.
+    pub schema: String,
+    /// The precondition the witness run states rather than assumes.
+    pub sole_gpu_consumer_precondition: String,
+    pub device_ordinal_requested: u32,
+    pub device_ordinal_actual: u32,
+    pub device_uuid: String,
+    pub device_name: String,
+    pub compute_capability: String,
+    pub free_before_bytes: i64,
+    pub free_after_bytes: i64,
+    pub total_bytes: i64,
+    pub delta_bytes: i64,
+    pub delta_floor_bytes: i64,
+    pub control_allocation_request_bytes: i64,
+    pub control_block_count: u32,
+    pub control_free_before_bytes: i64,
+    pub control_free_after_bytes: i64,
+    pub control_delta_bytes: i64,
+    pub embedded_vector_dim: u32,
+}
+
+impl GpuAllocationWitness {
+    fn from_rust(witness: &RustGpuAllocationWitness) -> Self {
+        Self {
+            schema: TEGRA_GPU_ALLOCATION_WITNESS_SCHEMA.to_string(),
+            sole_gpu_consumer_precondition: SOLE_GPU_CONSUMER_PRECONDITION.to_string(),
+            device_ordinal_requested: witness.device_ordinal_requested as u32,
+            device_ordinal_actual: witness.device_ordinal_actual as u32,
+            device_uuid: witness.device_uuid.clone(),
+            device_name: witness.device_name.clone(),
+            compute_capability: witness.compute_capability.clone(),
+            free_before_bytes: clamp_witness_bytes(i128::from(witness.free_before_bytes)),
+            free_after_bytes: clamp_witness_bytes(i128::from(witness.free_after_bytes)),
+            total_bytes: clamp_witness_bytes(i128::from(witness.total_bytes)),
+            delta_bytes: clamp_witness_bytes(witness.delta_bytes),
+            delta_floor_bytes: clamp_witness_bytes(i128::from(witness.delta_floor_bytes)),
+            control_allocation_request_bytes: clamp_witness_bytes(i128::from(
+                witness.control_allocation_request_bytes,
+            )),
+            control_block_count: witness.control_block_count as u32,
+            control_free_before_bytes: clamp_witness_bytes(i128::from(
+                witness.control_free_before_bytes,
+            )),
+            control_free_after_bytes: clamp_witness_bytes(i128::from(
+                witness.control_free_after_bytes,
+            )),
+            control_delta_bytes: clamp_witness_bytes(witness.control_delta_bytes),
+            embedded_vector_dim: witness.embedded_vector_dim as u32,
+        }
+    }
+}
+
+/// JavaScript carries these as numbers, so the widest exact type available is
+/// `i64`. Every witness quantity is a device-memory byte count bounded by
+/// installed RAM, so the saturation below is unreachable in practice; it exists
+/// so an impossible value clamps to an obviously-wrong extreme rather than
+/// wrapping into a plausible-looking one.
+fn clamp_witness_bytes(value: i128) -> i64 {
+    i64::try_from(value).unwrap_or(if value.is_negative() { i64::MIN } else { i64::MAX })
+}
+
 #[napi(object)]
 pub struct OpenReport {
     pub schema_version_before: u32,
@@ -1376,6 +1653,18 @@ pub struct OpenReport {
     pub dense_disabled: bool,
     /// R-VEQ-6 — human-readable reason for `denseDisabled`, or `null` when healthy.
     pub dense_disabled_reason: Option<String>,
+    /// Strict CPU/CUDA selection used to construct the embedder, or `null` when
+    /// no embedder was configured.
+    pub embedder_device_resolution: Option<EmbedderDeviceResolution>,
+    pub reranker_device_resolution: Option<EmbedderDeviceResolution>,
+    /// 0.8.23 Slice 80.6 (D-80.6-6, AC80-6) — the in-process GPU allocation
+    /// witness, or `null` when this open measured none.
+    ///
+    /// `null` means **no witness was taken**, never "a witness measured
+    /// nothing": a zero, negative, or below-floor allocation delta is a typed
+    /// failure inside the witness and fails the open, so a zero-valued record
+    /// is not reachable here.
+    pub embedder_gpu_allocation_witness: Option<GpuAllocationWitness>,
 }
 
 impl OpenReport {
@@ -1393,6 +1682,18 @@ impl OpenReport {
             embedder_mean_vec_pinned: r.embedder_mean_vec_pinned,
             dense_disabled: r.dense_disabled,
             dense_disabled_reason: r.dense_disabled_reason.clone(),
+            embedder_device_resolution: r
+                .embedder_device_resolution
+                .as_ref()
+                .map(EmbedderDeviceResolution::from_rust),
+            reranker_device_resolution: r
+                .reranker_device_resolution
+                .as_ref()
+                .map(EmbedderDeviceResolution::from_reranker),
+            embedder_gpu_allocation_witness: r
+                .embedder_gpu_allocation_witness
+                .as_ref()
+                .map(GpuAllocationWitness::from_rust),
         }
     }
 }
@@ -1614,6 +1915,13 @@ impl Engine {
         let engine = Arc::clone(&self.inner);
         let status = call_engine(move || engine.read_projection_status()).await?;
         Ok(ProjectionRuntimeStatus::from_rust(&status))
+    }
+
+    #[napi]
+    pub async fn read_embedding_readiness(&self) -> Result<EmbeddingReadiness> {
+        let engine = Arc::clone(&self.inner);
+        let readiness = call_engine(move || engine.read_embedding_readiness()).await?;
+        Ok(EmbeddingReadiness::from_rust(&readiness))
     }
 
     #[napi]
@@ -2811,5 +3119,159 @@ mod tests {
         // guard is exercised when JS surrogates round-trip through
         // napi-rs string conversion (covered by ffi-safety.test.ts).
         assert!(validate_ffi_string("\u{FFFD}").is_ok());
+    }
+
+    #[test]
+    fn embed_device_policy_open_error_uses_a_typed_napi_envelope() {
+        let error = engine_open_error_to_napi(EngineOpenError::EmbedDevicePolicy(
+            fathomdb_embedder::EmbedDevicePolicyError::Resolution(
+                fathomdb_embedder::DeviceResolutionError::CudaNotCompiled { ordinal: 2 },
+            ),
+        ));
+        let envelope: JsonValue = serde_json::from_str(&error.reason).expect("typed envelope");
+
+        assert_eq!(envelope["code"], "FDB_EMBED_DEVICE_POLICY");
+        assert_eq!(envelope["payload"]["kind"], "cuda_not_compiled");
+        assert_eq!(envelope["payload"]["ordinal"], 2);
+    }
+
+    #[test]
+    fn reranker_device_policy_open_error_uses_a_typed_napi_envelope() {
+        let error = engine_open_error_to_napi(EngineOpenError::RerankerDevicePolicy(
+            fathomdb_embedder::RerankerDevicePolicyError::Resolution(
+                fathomdb_embedder::RerankerDeviceResolutionError::CudaNotCompiled { ordinal: 2 },
+            ),
+        ));
+        let envelope: JsonValue = serde_json::from_str(&error.reason).expect("typed envelope");
+        assert_eq!(envelope["code"], "FDB_RERANKER_DEVICE_POLICY");
+        assert_eq!(envelope["payload"]["kind"], "cuda_not_compiled");
+    }
+
+    #[test]
+    fn reranker_device_policy_query_error_uses_the_same_typed_napi_envelope() {
+        let error = engine_error_to_napi(RustEngineError::RerankerDevicePolicy(
+            fathomdb_embedder::RerankerDevicePolicyError::Resolution(
+                fathomdb_embedder::RerankerDeviceResolutionError::ForcedCudaUnavailable {
+                    ordinal: 1,
+                    reason: fathomdb_embedder::RerankerDeviceResolutionReason::CudaProbeFailed,
+                },
+            ),
+        ));
+        let envelope: JsonValue = serde_json::from_str(&error.reason).expect("typed envelope");
+        assert_eq!(envelope["code"], "FDB_RERANKER_DEVICE_POLICY");
+        assert_eq!(envelope["payload"]["ordinal"], 1);
+    }
+
+    #[test]
+    fn open_report_preserves_caller_device_resolution() {
+        let directory = tempfile::tempdir().expect("temporary database directory");
+        let resolution = fathomdb_embedder::DeviceResolution {
+            requested_policy: fathomdb_embedder::EmbedDevicePolicy::Cuda(3),
+            cuda_compiled: true,
+            effective_device: fathomdb_embedder::EffectiveEmbedDevice::Cuda(
+                fathomdb_embedder::CudaDeviceInfo {
+                    ordinal: 3,
+                    uuid: Some("GPU-test".to_string()),
+                    name: Some("test CUDA".to_string()),
+                    driver_version: Some("555.42".to_string()),
+                    compute_capability: Some("8.6".to_string()),
+                    cuda_toolkit_version: Some("12.8".to_string()),
+                },
+            ),
+            visible_cuda_devices: vec![fathomdb_embedder::CudaVisibleDevice {
+                visible_ordinal: 3,
+                uuid: "GPU-test".to_string(),
+                name: "test CUDA".to_string(),
+                compute_capability: Some("8.6".to_string()),
+            }],
+            selected_cuda_uuid: Some("GPU-test".to_string()),
+            reason: None,
+        };
+        let opened = RustEngine::open_with_choice(
+            directory.path().join("napi-device-resolution.sqlite"),
+            EmbedderChoice::CallerWithDeviceResolution {
+                embedder: Arc::new(fathomdb_embedder::NoopEmbedder::default()),
+                device_resolution: resolution,
+            },
+        )
+        .expect("caller resolution opens");
+
+        let report = OpenReport::from_rust(&opened.report);
+        let resolution = report
+            .embedder_device_resolution
+            .expect("caller resolution must reach the N-API open report");
+        assert_eq!(resolution.requested_policy, "cuda:3");
+        assert!(resolution.cuda_compiled);
+        assert_eq!(resolution.effective_device.kind, "cuda");
+        let cuda = resolution
+            .effective_device
+            .cuda_device
+            .expect("CUDA selection must retain its safe provider facts");
+        assert_eq!(cuda.ordinal, 3);
+        assert_eq!(cuda.uuid.as_deref(), Some("GPU-test"));
+        assert_eq!(cuda.name.as_deref(), Some("test CUDA"));
+        assert_eq!(cuda.driver_version.as_deref(), Some("555.42"));
+        assert_eq!(cuda.compute_capability.as_deref(), Some("8.6"));
+        assert_eq!(cuda.cuda_toolkit_version.as_deref(), Some("12.8"));
+        assert_eq!(resolution.visible_cuda_devices.len(), 1);
+        assert_eq!(resolution.visible_cuda_devices[0].visible_ordinal, 3);
+        assert_eq!(resolution.selected_cuda_uuid.as_deref(), Some("GPU-test"));
+        assert_eq!(resolution.reason, None);
+        // D-80.6-6 — a CUDA *policy outcome* is not a measurement. The witness
+        // stays absent unless one was actually taken.
+        assert!(report.embedder_gpu_allocation_witness.is_none());
+    }
+
+    /// 0.8.23 Slice 80.6 (D-80.6-6, R80-13) — the witness crosses the N-API
+    /// boundary with every number the verdict used still present, so a JS
+    /// consumer can re-derive the verdict instead of trusting it.
+    #[test]
+    fn gpu_allocation_witness_crosses_the_napi_boundary_intact() {
+        let witness = RustGpuAllocationWitness {
+            device_ordinal_requested: 0,
+            device_ordinal_actual: 0,
+            device_uuid: "GPU-11111111-2222-3333-4444-555555555555".to_string(),
+            device_name: "Orin".to_string(),
+            compute_capability: "8.7".to_string(),
+            free_before_bytes: 40_000_000_000,
+            free_after_bytes: 39_856_635_904,
+            total_bytes: 65_000_000_000,
+            delta_bytes: 143_364_096,
+            delta_floor_bytes: 67_108_864,
+            control_allocation_request_bytes: 1_073_741_824,
+            control_block_count: 8,
+            control_free_before_bytes: 42_000_000_000,
+            control_free_after_bytes: 40_800_000_000,
+            control_delta_bytes: 1_200_000_000,
+            embedded_vector_dim: 384,
+        };
+
+        let mapped = GpuAllocationWitness::from_rust(&witness);
+
+        assert_eq!(mapped.schema, "fathomdb.tegra-gpu-allocation-witness/v1");
+        assert!(mapped.sole_gpu_consumer_precondition.contains("sole GPU consumer"));
+        assert_eq!(mapped.device_ordinal_requested, 0);
+        assert_eq!(mapped.device_ordinal_actual, 0);
+        assert_eq!(mapped.device_uuid, "GPU-11111111-2222-3333-4444-555555555555");
+        assert_eq!(mapped.device_name, "Orin");
+        assert_eq!(mapped.compute_capability, "8.7");
+        assert_eq!(mapped.free_before_bytes, 40_000_000_000);
+        assert_eq!(mapped.free_after_bytes, 39_856_635_904);
+        assert_eq!(mapped.total_bytes, 65_000_000_000);
+        assert_eq!(mapped.delta_bytes, 143_364_096);
+        assert_eq!(mapped.delta_floor_bytes, 67_108_864);
+        assert_eq!(mapped.control_allocation_request_bytes, 1_073_741_824);
+        assert_eq!(mapped.control_block_count, 8);
+        assert_eq!(mapped.control_free_before_bytes, 42_000_000_000);
+        assert_eq!(mapped.control_free_after_bytes, 40_800_000_000);
+        assert_eq!(mapped.control_delta_bytes, 1_200_000_000);
+        assert_eq!(mapped.embedded_vector_dim, 384);
+        // The verdict is re-derivable from the mapped record alone (R80-13).
+        assert_eq!(mapped.free_before_bytes - mapped.free_after_bytes, mapped.delta_bytes);
+        assert!(mapped.delta_bytes >= mapped.delta_floor_bytes);
+        assert!(
+            mapped.control_free_before_bytes - mapped.control_free_after_bytes
+                >= mapped.control_allocation_request_bytes
+        );
     }
 }

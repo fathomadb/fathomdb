@@ -11,9 +11,10 @@
 //!     per-leg device switching is forbidden. Each `(vendor, device)` leg runs
 //!     in its OWN subprocess (the test binary re-invokes itself, running only
 //!     `calibration_leg_worker`, with `FATHOMDB_EMBED_DEVICE` set ONCE at child
-//!     start). An unavailable backend/device SKIPS CLEANLY: it never fails the
-//!     test, and a silent CPU fallback of a `cuda`-requested leg is recorded as
-//!     DATA (effective ≠ requested ⇒ the leg is a skip, never mislabeled GPU).
+//!     start). GPU calibration uses the strict `auto` policy: it records the
+//!     effective CPU/CUDA outcome and measures GPU only when CUDA was selected.
+//!     A forced `cuda:N` request instead fails when unavailable and is never
+//!     converted into a CPU leg.
 //!   * **R-CAL-2 — reproduce the 0.8.16 CPU baseline.** `Cls` pooling pinned on
 //!     BOTH candle + ONNX; candle-CPU↔ONNX-CPU over the 45 probes **hard-asserts
 //!     0 sign flips + cosine ≥ 0.99** (a real `assert!`, not printed output).
@@ -27,7 +28,7 @@
 //! **Build/run discipline (worktree):** ONLY the CPU legs run here (pure
 //! `cargo test` on CPU). The candle-CUDA leg + the ONNX-GPU-EP leg are gated to
 //! SKIP cleanly and are selectable by env so the orchestrator can run just that
-//! leg on the MAIN tree (`--features …,embed-cuda`, `FATHOMDB_EMBED_DEVICE=cuda:0`).
+//! leg on the MAIN tree (`--features …,embed-cuda`, `FATHOMDB_EMBED_DEVICE=auto`).
 //! This harness NEVER builds or runs `embed-cuda`.
 //!
 //! ENV-GATED like the baseline: set `ORT_DYLIB_PATH`, `FATHOMDB_ONNX_MODEL_PATH`,
@@ -116,8 +117,7 @@ fn backend_of(label: &str) -> &str {
     }
 }
 
-/// Did the leg actually run on the requested backend? (A `cuda`-requested leg
-/// that fell back to CPU did NOT — it is an unavailable-backend SKIP.)
+/// Did a fixed-device leg actually run on its requested backend?
 fn ran_on_requested(requested: &str, effective: &str) -> bool {
     backend_of(requested) == backend_of(effective)
 }
@@ -141,10 +141,9 @@ fn calibration_leg_worker() {
     let set = probes();
     match vendor.as_str() {
         "candle" => {
-            // candle reads FATHOMDB_EMBED_DEVICE at construction (process-global,
-            // already set by the parent); falls back to CPU + LOUD warn when the
-            // requested GPU backend is not compiled in — which we record via
-            // `device_label()` (effective ≠ requested ⇒ the orchestrator skips it).
+            // Candle reads the strict embedding policy at construction
+            // (process-global, already set by the parent). `auto` may select
+            // CPU; forced CUDA is an open error rather than a CPU fallback.
             let emb = CandleBgeEmbedder::new()
                 .expect("open CandleBgeEmbedder from the warm HF cache")
                 .with_pooling(Pooling::Cls);
@@ -167,9 +166,9 @@ fn calibration_leg_worker() {
                 );
                 return;
             };
-            // ONNX resolves its EP at construction from FATHOMDB_EMBED_DEVICE; a
-            // non-CPU EP unavailable in this build downgrades to CPU. The
-            // effective provider is captured via `effective_provider()`.
+            // ONNX resolves its strict policy at construction. `auto` may
+            // select CPU; forced CUDA is an open error. The effective provider
+            // is captured via `effective_provider()`.
             match OrtBgeEmbedder::from_files(Path::new(&model), Path::new(&tok)) {
                 Ok(emb) => {
                     let emb = emb.with_pooling(OrtPooling::Cls);
@@ -211,23 +210,21 @@ struct LegOut<'a> {
 
 const NO_VECTORS: &[Vec<f32>] = &[];
 
-/// Human-readable fallback classification note (used only when effective ≠
-/// requested). Names both the requested and the effective backend so the durable
-/// leg payload is self-describing.
+/// Human-readable note for a fixed-device leg whose effective backend differs
+/// from its request. Strict embedding no longer creates this case for forced
+/// CUDA; `auto` is a valid policy outcome and is not classified as a fallback.
 fn fallback_note(vendor: &str, requested: &str, effective: &str) -> String {
     format!(
-        "{vendor} leg: requested backend `{requested}` unavailable in this build/runtime; \
-         silently downgraded to effective `{effective}` — classified a SKIP/fallback \
-         (silent-GPU guard), NOT a measured run on the requested device"
+        "{vendor} leg: fixed request `{requested}` did not select `{effective}`; \
+         classified as a SKIP rather than a measured run on the requested device"
     )
 }
 
 impl<'a> LegOut<'a> {
     /// Classify a leg that PRODUCED vectors on `effective`. A genuine measured RUN
-    /// requires the effective backend to match the requested one; otherwise the
-    /// requested backend was unavailable and we fell back — which is a SKIP/fallback
-    /// (`effective ≠ requested`), never a clean `ran` and never mislabeled as the
-    /// requested device, even though the produced vectors are retained as DATA.
+    /// requires the effective backend to match a fixed request. `auto` is always
+    /// a valid construction outcome; its effective device tells the calibration
+    /// whether a GPU measurement occurred.
     fn classify(
         vendor: &'a str,
         requested: &'a str,
@@ -235,7 +232,7 @@ impl<'a> LegOut<'a> {
         vectors: &'a [Vec<f32>],
         fallback_reason: &'a str,
     ) -> Self {
-        if ran_on_requested(requested, effective) {
+        if requested == "auto" || ran_on_requested(requested, effective) {
             LegOut {
                 skipped: false,
                 fallback: false,
@@ -525,71 +522,62 @@ fn harness_skips_unavailable_backends_cleanly() {
     assert_eq!(cpu.vectors.len(), 45, "CPU leg must produce 45 probe vectors");
     assert!(ran_on_requested("cpu", &cpu.effective_device));
 
-    // candle-CUDA leg. The harness must pass in BOTH valid outcomes and fail only
-    // on a genuinely broken classification (a leg claiming it ran on the requested
-    // device when effective ≠ requested):
-    //   * effective backend ≠ requested (cuda fell back to cpu — the no-CUDA-runtime
-    //     case, e.g. this CPU-only worktree build) ⇒ the leg MUST be classified a
-    //     clean SKIP/fallback, never a test failure and never mislabeled GPU;
-    //   * a VALID cuda runtime is present and effective == cuda (e.g. the MAIN-tree
-    //     `embed-cuda` leg or a CUDA host) ⇒ that is a VALID RUN, not a failure.
-    let gpu = run_leg("candle", "cuda:0");
+    // Candle GPU leg. `auto` has two valid strict-policy outcomes: CPU when CUDA
+    // is unavailable and CUDA when it is compatible. A forced `cuda:N` probe
+    // would instead return an open error on the CPU-only worktree.
+    let gpu = run_leg("candle", "auto");
     let gpu_backend = backend_of(&gpu.effective_device);
     assert!(
         gpu_backend == "cpu" || gpu_backend == "cuda",
         "candle cuda leg reported an incoherent effective backend: {}",
         gpu.effective_device
     );
-    if ran_on_requested("cuda:0", &gpu.effective_device) {
+    if gpu_backend == "cuda" {
         // Valid CUDA runtime: a measured RUN — never a failure, never a skip.
-        assert_eq!(gpu_backend, "cuda", "ran_on_requested(cuda) but effective backend != cuda");
         assert!(
             !gpu.skipped && !gpu.fallback,
-            "a candle cuda leg that ran on cuda must NOT be classified skip/fallback (effective={})",
+            "a candle auto leg that selected cuda must NOT be classified skip/fallback (effective={})",
             gpu.effective_device
         );
         assert_eq!(gpu.vectors.len(), 45, "a measured candle cuda leg must produce 45 vectors");
     } else {
-        // No CUDA runtime: candle fell back to CPU ⇒ a clean SKIP/fallback (never a
-        // test failure and never mislabeled GPU — the silent-GPU guard).
+        // No CUDA runtime: `auto` selected CPU. That is a valid measured CPU
+        // outcome, not a silent fallback and not a GPU measurement.
         assert_eq!(
             gpu_backend, "cpu",
-            "candle cuda leg without a cuda runtime must report effective cpu, got {}",
+            "candle auto leg without a cuda runtime must report effective cpu, got {}",
             gpu.effective_device
         );
         assert!(
-            gpu.skipped && gpu.fallback,
-            "a candle cuda leg that fell back to CPU (effective != requested) must be classified a \
-             SKIP/fallback, not a clean run"
+            !gpu.skipped && !gpu.fallback,
+            "a candle auto CPU outcome must be a successful strict-policy result"
         );
     }
 
-    // ONNX-GPU-EP leg: only when the ONNX asset env is present. Same both-cases
-    // rule: a CUDA EP present + engaged ⇒ a VALID RUN; a CUDA EP absent from this
-    // ONNX Runtime build downgrades to CPU at construction ⇒ a clean SKIP/fallback.
-    // `effective_provider()` reports the truth, so we fail only on a broken
-    // classification.
+    // ONNX-GPU-EP leg: only when the ONNX asset env is present. `auto` records
+    // a CPU outcome when CUDA is unavailable; a CUDA provider that engages is a
+    // valid GPU measurement. `effective_provider()` reports the truth.
     if onnx_env().is_some() {
-        let ogpu = run_leg("onnx", "cuda");
-        if ran_on_requested("cuda", &ogpu.effective_device) {
+        let ogpu = run_leg("onnx", "auto");
+        if backend_of(&ogpu.effective_device) == "cuda" {
             // A CUDA EP genuinely engaged: a VALID RUN, not a failure.
             assert_eq!(
                 backend_of(&ogpu.effective_device),
                 "cuda",
-                "ran_on_requested(cuda) but ONNX effective provider != cuda"
+                "ONNX auto leg selected CUDA but effective provider != cuda"
             );
             assert!(
                 !ogpu.skipped && !ogpu.fallback,
-                "an ONNX cuda leg whose CUDA EP engaged must NOT be classified skip/fallback \
+                "an ONNX auto leg whose CUDA EP engaged must NOT be classified skip/fallback \
                  (effective={})",
                 ogpu.effective_device
             );
         } else {
-            // Downgraded to CPU (no CUDA EP) or construction failed ⇒ a clean skip.
+            // CPU is the valid `auto` outcome; construction errors remain skips.
             assert!(
-                ogpu.skipped,
-                "an ONNX cuda leg that downgraded to CPU (or failed to construct) must be \
-                 classified a SKIP/fallback, effective={}",
+                !ogpu.skipped || ogpu.effective_device == "n/a",
+                "an ONNX auto CPU outcome must be a successful policy result; only construction \
+                 failure is a skip, effective={}",
                 ogpu.effective_device
             );
         }
@@ -646,17 +634,13 @@ fn calibration_reports_p1_flips_and_p2_l2() {
     assert_eq!(m.mean_centered_flips_total, 0, "CPU baseline mean-centered flips must be 0");
     assert!(m.p2_l2_max < 1e-4, "CPU baseline P2 L2 max {:.3e} unexpectedly large", m.p2_l2_max);
 
-    // R-CAL-4 candle-CUDA refresh: attempt the CUDA leg through the SAME harness.
-    // In the worktree (no `embed-cuda`) it falls back to CPU and is recorded as
-    // pending/skip (never a failure); on the MAIN tree (`embed-cuda`) it runs on
-    // the GPU and BOTH candle-CUDA leg-pairs are measured + written into the doc
-    // with NO orchestrator glue — the orchestrator just re-runs this test on MAIN
-    // with the `embed-cuda` feature + `FATHOMDB_EMBED_DEVICE` inherited by the
-    // parent (the leg child re-binds cuda:0). This is a CALIBRATION read, never a
-    // gate: no assertion is placed on the GPU deltas.
-    let candle_cuda = run_leg("candle", "cuda:0");
-    let cuda_ran =
-        !candle_cuda.skipped && ran_on_requested("cuda:0", &candle_cuda.effective_device);
+    // R-CAL-4 candle-CUDA refresh: attempt the auto policy through the SAME
+    // harness. In the worktree it resolves to CPU; on MAIN with `embed-cuda` it
+    // may select GPU and BOTH candle-CUDA leg-pairs are measured + written into
+    // the doc. This is a CALIBRATION read, never a gate: no assertion is placed
+    // on the GPU deltas.
+    let candle_cuda = run_leg("candle", "auto");
+    let cuda_ran = !candle_cuda.skipped && backend_of(&candle_cuda.effective_device) == "cuda";
     let gpu = if cuda_ran {
         let cpu_vs_cuda = compare_pair(&candle_cpu.vectors, &candle_cuda.vectors, &mean);
         let cuda_vs_onnx = compare_pair(&candle_cuda.vectors, &onnx_cpu.vectors, &mean);
@@ -705,7 +689,7 @@ fn write_durable_doc(
         ),
         None => (
             "| candle-CPU ↔ candle-CUDA | — | pending (MAIN tree; `embed-cuda`, \
-             `FATHOMDB_EMBED_DEVICE=cuda:0`) | | | | | | |"
+             `FATHOMDB_EMBED_DEVICE=auto`) | | | | | | |"
                 .to_string(),
             "| candle-CUDA ↔ ONNX-CPU | — | pending (MAIN tree) | | | | | | |".to_string(),
             "PENDING (worktree runs CPU legs only; run on MAIN with `embed-cuda`)".to_string(),
@@ -729,10 +713,11 @@ candle selects its device process-globally from `FATHOMDB_EMBED_DEVICE`, so
 in-process per-leg device switching is forbidden. Each `(vendor, device)` leg
 runs in its OWN subprocess (the test binary re-invokes itself running only
 `calibration_leg_worker`, `FATHOMDB_EMBED_DEVICE` set ONCE at child start). A
-leg records its REQUESTED and EFFECTIVE device; a `cuda`-requested leg that fell
-back to CPU (no `embed-cuda` build / no CUDA lib) has effective ≠ requested and
-is a **clean SKIP**, never mislabeled GPU (candle via `device_label()`, ONNX via
-the additive `effective_provider()` accessor).
+leg records its REQUESTED and EFFECTIVE device. GPU calibration requests `auto`:
+CPU is then a valid typed outcome when CUDA is unavailable, while a CUDA effective
+device is the measured GPU leg (candle via `device_label()`, ONNX via the additive
+`effective_provider()` accessor). A forced `cuda:N` request fails rather than
+becoming a CPU leg.
 
 ## Backend matrix
 
@@ -791,13 +776,13 @@ SAME harness:
 
 ```sh
 # candle-CUDA leg (MAIN tree; nvcc on PATH, CUDA_HOME set):
-FATHOMDB_EMBED_DEVICE=cuda:0 cargo test -p fathomdb-embedder \
+FATHOMDB_EMBED_DEVICE=auto cargo test -p fathomdb-embedder \
     --features default-embedder,onnx-embedder,embed-cuda \
     --test cross_backend_calibration -- --nocapture
 
 # ONNX-GPU-EP leg (U4/L3, OOB): point ORT_DYLIB_PATH at a CUDA-enabled
-# libonnxruntime.so and set FATHOMDB_EMBED_DEVICE=cuda:0 — effective_provider()
-# records whether the CUDA EP actually engaged (guards silent CPU fallback).
+# libonnxruntime.so and set FATHOMDB_EMBED_DEVICE=auto — effective_provider()
+# records whether the CUDA EP actually engaged; CPU is the typed `auto` outcome.
 ```
 "#,
         c_req = candle.requested_device,

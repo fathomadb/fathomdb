@@ -35,7 +35,13 @@
 //! [`fathomdb::Engine`] method and serializes the typed report under a per-verb
 //! JSON discriminator.
 
-use std::path::PathBuf;
+use std::{
+    io::Read,
+    path::{Path, PathBuf},
+    process::{Command as ProcessCommand, Stdio},
+    thread,
+    time::{Duration, Instant},
+};
 
 use clap::{Args, Parser, Subcommand};
 use fathomdb::{
@@ -45,6 +51,7 @@ use fathomdb::{
     RebuildReport, SafeExportArtifact, SchemaObject, Section, TraceReport, TruncateWalReport,
     TruncateWalStatus, VerifyEmbedderReport, VerifyEmbedderStatus,
 };
+use serde::Serialize;
 use serde_json::{json, Value};
 
 /// Stable exit-code classes for the operator CLI.
@@ -146,6 +153,15 @@ pub struct RecoverArgs {
 /// Doctor verb table per `dev/interfaces/cli.md` § Doctor verbs.
 #[derive(Debug, Subcommand)]
 pub enum DoctorCommand {
+    /// Inspect the isolated embedder CUDA provider without opening an engine.
+    #[command(
+        long_about = "Inspect the isolated embedder CUDA provider without opening an engine.\n\nFor a Jetson/Tegra CUDA build, no published artifact exists in 0.8.23. Build it locally:\n\npython3 -m venv .venv\n. .venv/bin/activate\npython -m pip install --upgrade pip 'maturin==1.14.1'\n./scripts/release/build-python-cuda-tegra.sh --interpreter python\n\nAfter the wrapper's assertions pass, run the exact final `python -m pip install <built-wheel>` line it prints."
+    )]
+    Gpu(GpuDoctorArgs),
+    /// Classify Tegra, ARM64 SBSA, and generic AArch64 platforms without opening an engine.
+    Platform(PlatformDoctorArgs),
+    /// Inspect the isolated cross-encoder CUDA provider without loading a model.
+    RerankerGpu(GpuDoctorArgs),
     /// Run a structural integrity check against the database.
     CheckIntegrity(CheckIntegrityArgs),
     /// Materialize a safe export of the database.
@@ -182,6 +198,22 @@ pub enum DoctorCommand {
     /// non-zero un-erasable count exits `DOCTOR_FOUND_ISSUES` (65).
     /// CLI-only; no SDK parity.
     OrphanProvenance(SimpleDoctorArgs),
+}
+
+/// Argument set for the database-free `doctor gpu` diagnostic.
+#[derive(Debug, Args)]
+pub struct GpuDoctorArgs {
+    /// Emit the normative machine-readable diagnostic object.
+    #[arg(long)]
+    pub json: bool,
+}
+
+/// Argument set for the database-free `doctor platform` diagnostic.
+#[derive(Debug, Args)]
+pub struct PlatformDoctorArgs {
+    /// Emit the normative machine-readable platform record.
+    #[arg(long)]
+    pub json: bool,
 }
 
 /// EU-5b — `fathomdb doctor warm-cache` argument set.
@@ -474,6 +506,9 @@ fn run_recover(args: RecoverArgs) -> i32 {
 
 fn run_doctor(cmd: DoctorCommand) -> i32 {
     match cmd {
+        DoctorCommand::Gpu(args) => run_doctor_gpu(args),
+        DoctorCommand::Platform(args) => run_doctor_platform(args),
+        DoctorCommand::RerankerGpu(args) => run_doctor_reranker_gpu(args),
         DoctorCommand::CheckIntegrity(args) => {
             let opts = CheckIntegrityOpts {
                 quick: args.quick,
@@ -589,6 +624,517 @@ fn run_doctor(cmd: DoctorCommand) -> i32 {
             })
         }
     }
+}
+
+/// Run the database-free CUDA inventory/allocation-probe diagnostic.
+fn run_doctor_gpu(args: GpuDoctorArgs) -> i32 {
+    let report = product_gpu_diagnostic();
+    let (output, exit_code) = doctor_gpu_outcome(args, &report);
+    print!("{output}");
+    exit_code
+}
+
+/// Run the database-free Tegra/SBSA platform classifier.
+fn run_doctor_platform(args: PlatformDoctorArgs) -> i32 {
+    let report = classify_platform(&SystemPlatformProbe);
+    print!("{}", platform_diagnostic_output(&report, args.json));
+    report.exit_code()
+}
+
+const NVIDIA_SMI_CANDIDATES: [&str; 3] =
+    ["/usr/bin/nvidia-smi", "/usr/sbin/nvidia-smi", "/usr/local/bin/nvidia-smi"];
+const NVIDIA_SMI_TIMEOUT: Duration = Duration::from_millis(2_000);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NvidiaSmiProbe {
+    Output,
+    Missing,
+    Timeout,
+    Nonzero,
+}
+
+trait PlatformProbe {
+    fn is_aarch64(&self) -> bool;
+    fn read_file(&self, path: &Path) -> Option<String>;
+    fn acpi_tables_present(&self) -> bool;
+    fn nvidia_smi(&self) -> (NvidiaSmiProbe, Option<String>);
+}
+
+struct SystemPlatformProbe;
+
+impl PlatformProbe for SystemPlatformProbe {
+    fn is_aarch64(&self) -> bool {
+        std::env::consts::ARCH == "aarch64"
+    }
+
+    fn read_file(&self, path: &Path) -> Option<String> {
+        std::fs::read_to_string(path).ok()
+    }
+
+    fn acpi_tables_present(&self) -> bool {
+        Path::new("/sys/firmware/acpi/tables").is_dir()
+    }
+
+    fn nvidia_smi(&self) -> (NvidiaSmiProbe, Option<String>) {
+        let Some(path) = first_executable_candidate(&NVIDIA_SMI_CANDIDATES, executable) else {
+            return (NvidiaSmiProbe::Missing, None);
+        };
+        let mut child = match ProcessCommand::new(path)
+            .args(["--query-gpu=name", "--format=csv,noheader"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+        {
+            Ok(child) => child,
+            Err(_) => return (NvidiaSmiProbe::Nonzero, None),
+        };
+        let deadline = Instant::now() + NVIDIA_SMI_TIMEOUT;
+        let status = loop {
+            match child.try_wait() {
+                Ok(Some(status)) => break status,
+                Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(10)),
+                Ok(None) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return (NvidiaSmiProbe::Timeout, None);
+                }
+                Err(_) => return (NvidiaSmiProbe::Nonzero, None),
+            }
+        };
+        // The status is deliberately inspected before stdout. A failing probe
+        // must never be inferred to be Thor/SBSA from empty output.
+        if !status.success() {
+            return (NvidiaSmiProbe::Nonzero, None);
+        }
+        let mut stdout = String::new();
+        match child.stdout.take().and_then(|mut pipe| pipe.read_to_string(&mut stdout).ok()) {
+            Some(_) => (NvidiaSmiProbe::Output, Some(stdout)),
+            None => (NvidiaSmiProbe::Nonzero, None),
+        }
+    }
+}
+
+fn first_executable_candidate<'a>(
+    candidates: &'a [&str],
+    is_executable: impl Fn(&Path) -> bool,
+) -> Option<&'a Path> {
+    candidates.iter().map(Path::new).find(|path| is_executable(path))
+}
+
+#[cfg(unix)]
+fn executable(path: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+
+    path.metadata()
+        .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+}
+
+#[cfg(not(unix))]
+fn executable(path: &Path) -> bool {
+    path.is_file()
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PlatformClass {
+    Tegra,
+    Arm64Sbsa,
+    GenericAarch64,
+    NonAarch64,
+    Unknown,
+}
+
+impl PlatformClass {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Tegra => "tegra",
+            Self::Arm64Sbsa => "arm64_sbsa",
+            Self::GenericAarch64 => "generic_aarch64",
+            Self::NonAarch64 => "non_aarch64",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NvidiaSmiProbeReason {
+    Missing,
+    Timeout,
+    Nonzero,
+}
+
+impl NvidiaSmiProbeReason {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::Missing => "nvidia_smi_missing",
+            Self::Timeout => "nvidia_smi_timeout",
+            Self::Nonzero => "nvidia_smi_nonzero",
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct PlatformReport {
+    platform_class: PlatformClass,
+    tegra_family: bool,
+    sbsa_capable: Option<bool>,
+    l4t_release: Option<String>,
+    reason: Option<NvidiaSmiProbeReason>,
+}
+
+impl PlatformReport {
+    const fn exit_code(&self) -> i32 {
+        if matches!(self.platform_class, PlatformClass::Unknown) {
+            exit_code::UNRECOVERABLE
+        } else {
+            exit_code::OK
+        }
+    }
+
+    const fn is_affirmed_sbsa(&self) -> bool {
+        matches!(self.sbsa_capable, Some(true))
+    }
+}
+
+fn classify_platform(probe: &dyn PlatformProbe) -> PlatformReport {
+    if !probe.is_aarch64() {
+        return PlatformReport {
+            platform_class: PlatformClass::NonAarch64,
+            tegra_family: false,
+            sbsa_capable: Some(false),
+            l4t_release: None,
+            reason: None,
+        };
+    }
+    let compatible = probe.read_file(Path::new("/proc/device-tree/compatible"));
+    let l4t = probe.read_file(Path::new("/etc/nv_tegra_release"));
+    let tegra_family =
+        compatible.as_deref().is_some_and(|value| value.contains("nvidia,tegra")) || l4t.is_some();
+    let l4t_release = l4t.as_deref().and_then(parse_l4t_release);
+    if !tegra_family {
+        return PlatformReport {
+            platform_class: if probe.acpi_tables_present() {
+                PlatformClass::Arm64Sbsa
+            } else {
+                PlatformClass::GenericAarch64
+            },
+            tegra_family: false,
+            sbsa_capable: Some(probe.acpi_tables_present()),
+            l4t_release: None,
+            reason: None,
+        };
+    }
+    let (outcome, stdout) = probe.nvidia_smi();
+    match outcome {
+        NvidiaSmiProbe::Output => PlatformReport {
+            platform_class: if stdout.as_deref().is_some_and(|value| value.contains("nvgpu")) {
+                PlatformClass::Tegra
+            } else {
+                PlatformClass::Arm64Sbsa
+            },
+            tegra_family: true,
+            sbsa_capable: Some(!stdout.as_deref().is_some_and(|value| value.contains("nvgpu"))),
+            l4t_release,
+            reason: None,
+        },
+        NvidiaSmiProbe::Missing | NvidiaSmiProbe::Timeout | NvidiaSmiProbe::Nonzero => {
+            PlatformReport {
+                platform_class: PlatformClass::Unknown,
+                tegra_family: true,
+                sbsa_capable: None,
+                l4t_release,
+                reason: Some(match outcome {
+                    NvidiaSmiProbe::Missing => NvidiaSmiProbeReason::Missing,
+                    NvidiaSmiProbe::Timeout => NvidiaSmiProbeReason::Timeout,
+                    NvidiaSmiProbe::Nonzero => NvidiaSmiProbeReason::Nonzero,
+                    NvidiaSmiProbe::Output => unreachable!(),
+                }),
+            }
+        }
+    }
+}
+
+fn parse_l4t_release(contents: &str) -> Option<String> {
+    let release = contents.split("R").nth(1)?.split_whitespace().next()?;
+    let revision = contents.split("REVISION:").nth(1)?.trim().split(',').next()?.trim();
+    (release.bytes().all(|byte| byte.is_ascii_digit())
+        && !release.is_empty()
+        && !revision.is_empty()
+        && revision.bytes().all(|byte| byte.is_ascii_digit() || byte == b'.'))
+    .then(|| format!("R{release}.{revision}"))
+}
+
+#[derive(Serialize)]
+struct DoctorPlatformJson<'a> {
+    schema_version: &'static str,
+    platform_class: &'static str,
+    tegra_family: bool,
+    sbsa_capable: Option<bool>,
+    l4t_release: Option<&'a str>,
+    reason: Option<&'static str>,
+}
+
+fn platform_json(report: &PlatformReport) -> DoctorPlatformJson<'_> {
+    DoctorPlatformJson {
+        schema_version: "fathomdb.doctor.platform.v1",
+        platform_class: report.platform_class.as_str(),
+        tegra_family: report.tegra_family,
+        sbsa_capable: report.sbsa_capable,
+        l4t_release: report.l4t_release.as_deref(),
+        reason: report.reason.map(NvidiaSmiProbeReason::as_str),
+    }
+}
+
+fn platform_diagnostic_output(report: &PlatformReport, json_mode: bool) -> String {
+    if json_mode {
+        let mut output =
+            serde_json::to_string(&platform_json(report)).expect("platform fields serialize");
+        output.push('\n');
+        return output;
+    }
+    format!(
+        "doctor platform\nschema_version={}\nplatform_class={}\ntegra_family={}\nsbsa_capable={}\nl4t_release={}\nreason={}\n",
+        "fathomdb.doctor.platform.v1",
+        report.platform_class.as_str(),
+        report.tegra_family,
+        report.sbsa_capable.map_or("null".to_owned(), |value| value.to_string()),
+        report.l4t_release.as_deref().unwrap_or("null"),
+        report.reason.map_or("null", NvidiaSmiProbeReason::as_str),
+    )
+}
+
+/// Run the cross-encoder-only diagnostic. It is deliberately a separate verb:
+/// CUDA embedding evidence does not attest cross-encoder or SQLite execution.
+fn run_doctor_reranker_gpu(args: GpuDoctorArgs) -> i32 {
+    #[cfg(feature = "default-reranker")]
+    let (outcome, exit) = match fathomdb_embedder::resolve_default_reranker_device_from_env() {
+        Ok(resolution) => {
+            let effective_device = match &resolution.effective_device {
+                fathomdb_embedder::EffectiveRerankerDevice::Cpu => "cpu".to_owned(),
+                fathomdb_embedder::EffectiveRerankerDevice::Cuda(info) => {
+                    format!("cuda:{}", info.ordinal)
+                }
+            };
+            (
+                json!({
+                    "schema_version": "fathomdb.doctor.reranker-gpu.v1",
+                    "subsystem": "reranker",
+                    "policy": policy_name(resolution.requested_policy),
+                    "cuda_compiled": resolution.cuda_compiled,
+                    "effective_device": effective_device,
+                    "devices": resolution.visible_cuda_devices.iter().map(|device| json!({
+                        "visible_ordinal": device.visible_ordinal,
+                        "uuid": device.uuid,
+                        "name": device.name,
+                        "compute_capability": device.compute_capability,
+                    })).collect::<Vec<_>>(),
+                    "reason": resolution.reason.map(|reason| reason.as_str()),
+                    "selected_uuid": resolution.selected_cuda_uuid,
+                }),
+                0,
+            )
+        }
+        Err(error) => (
+            json!({
+                "schema_version": "fathomdb.doctor.reranker-gpu.v1",
+                "subsystem": "reranker",
+                "error": {"kind": error.kind(), "ordinal": error.ordinal(), "message": error.to_string()},
+            }),
+            if error.ordinal().is_some() {
+                exit_code::DOCTOR_FOUND_ISSUES
+            } else {
+                exit_code::UNRECOVERABLE
+            },
+        ),
+    };
+    #[cfg(not(feature = "default-reranker"))]
+    let (outcome, exit) = (
+        json!({
+            "schema_version": "fathomdb.doctor.reranker-gpu.v1",
+            "subsystem": "reranker",
+            "error": {"kind": "reranker_not_compiled", "ordinal": null, "message": "this artifact was built without the default-reranker feature"},
+        }),
+        exit_code::UNRECOVERABLE,
+    );
+    if args.json {
+        println!("{}", serde_json::to_string(&outcome).expect("diagnostic serializes"));
+    } else {
+        println!("{}", serde_json::to_string_pretty(&outcome).expect("diagnostic serializes"));
+    }
+    exit
+}
+
+#[cfg(feature = "default-reranker")]
+fn policy_name(policy: fathomdb_embedder::RerankerDevicePolicy) -> String {
+    match policy {
+        fathomdb_embedder::RerankerDevicePolicy::Auto => "auto".to_owned(),
+        fathomdb_embedder::RerankerDevicePolicy::Cpu => "cpu".to_owned(),
+        fathomdb_embedder::RerankerDevicePolicy::Cuda(ordinal) => format!("cuda:{ordinal}"),
+    }
+}
+
+fn doctor_gpu_outcome(
+    args: GpuDoctorArgs,
+    report: &fathomdb_embedder::DoctorGpuDiagnosticResult,
+) -> (String, i32) {
+    (doctor_gpu_diagnostic_output(report, args.json), report.exit_code())
+}
+
+fn product_gpu_diagnostic() -> fathomdb_embedder::DoctorGpuDiagnosticResult {
+    let raw = std::env::var("FATHOMDB_EMBED_DEVICE").unwrap_or_else(|_| "auto".to_owned());
+    if let Ok(policy) = raw.parse::<fathomdb_embedder::EmbedDevicePolicy>() {
+        // Explicit CPU's defining property is that no CUDA or Tier-2 platform
+        // activity occurs, so retain the existing direct diagnostic path.
+        if !matches!(policy, fathomdb_embedder::EmbedDevicePolicy::Cpu) {
+            let platform = classify_platform(&SystemPlatformProbe);
+            if let Some(report) =
+                platform_gpu_override(&raw, cfg!(feature = "embed-cuda"), &platform)
+            {
+                return report;
+            }
+        }
+    }
+    #[cfg(feature = "default-embedder")]
+    {
+        fathomdb_embedder::diagnose_default_embedder_gpu_from_env()
+    }
+    #[cfg(not(feature = "default-embedder"))]
+    {
+        struct CpuOnlyProvider;
+
+        impl fathomdb_embedder::CudaProvider for CpuOnlyProvider {
+            fn enumerate_visible_cuda_devices(
+                &mut self,
+            ) -> Result<Vec<fathomdb_embedder::CudaVisibleDevice>, fathomdb_embedder::CudaProbeError>
+            {
+                unreachable!("CPU-only diagnostic never calls the CUDA provider")
+            }
+
+            fn probe_cuda(
+                &mut self,
+                _ordinal: usize,
+            ) -> Result<fathomdb_embedder::CudaDeviceInfo, fathomdb_embedder::CudaProbeError>
+            {
+                unreachable!("CPU-only diagnostic never calls the CUDA provider")
+            }
+        }
+
+        match raw.parse() {
+            Ok(policy) => fathomdb_embedder::diagnose_gpu(policy, false, &mut CpuOnlyProvider),
+            Err(_) => fathomdb_embedder::DoctorGpuDiagnosticResult::from_invalid_policy(raw, false),
+        }
+    }
+}
+
+fn platform_gpu_override(
+    raw_policy: &str,
+    cuda_compiled: bool,
+    platform: &PlatformReport,
+) -> Option<fathomdb_embedder::DoctorGpuDiagnosticResult> {
+    if !platform.is_affirmed_sbsa() {
+        return None;
+    }
+    let policy = raw_policy.parse::<fathomdb_embedder::EmbedDevicePolicy>().ok()?;
+    let effective_device = match policy {
+        fathomdb_embedder::EmbedDevicePolicy::Auto => {
+            Some(fathomdb_embedder::EffectiveEmbedDevice::Cpu)
+        }
+        fathomdb_embedder::EmbedDevicePolicy::Cuda(_) => None,
+        fathomdb_embedder::EmbedDevicePolicy::Cpu => return None,
+    };
+    Some(fathomdb_embedder::DoctorGpuDiagnosticResult {
+        policy: raw_policy.to_owned(),
+        cuda_compiled,
+        status: fathomdb_embedder::DoctorGpuStatus::CudaIncompatible,
+        effective_device,
+        devices: Vec::new(),
+        selected_uuid: None,
+        reason: Some(fathomdb_embedder::DeviceResolutionReason::Arm64SbsaUnsupported),
+    })
+}
+
+/// Serialize the stable `doctor gpu --json` result.
+#[must_use]
+pub fn doctor_gpu_diagnostic_json(report: &fathomdb_embedder::DoctorGpuDiagnosticResult) -> Value {
+    serde_json::to_value(doctor_gpu_json(report)).expect("doctor gpu fields are serializable")
+}
+
+#[derive(Serialize)]
+struct DoctorGpuJson<'a> {
+    schema_version: &'static str,
+    policy: &'a str,
+    cuda_compiled: bool,
+    status: &'static str,
+    effective_device: Option<String>,
+    devices: Vec<DoctorGpuDeviceJson<'a>>,
+    reason: Option<&'static str>,
+    selected_uuid: Option<&'a str>,
+}
+
+#[derive(Serialize)]
+struct DoctorGpuDeviceJson<'a> {
+    visible_ordinal: usize,
+    uuid: &'a str,
+    name: &'a str,
+    compute_capability: Option<&'a str>,
+}
+
+fn doctor_gpu_json(report: &fathomdb_embedder::DoctorGpuDiagnosticResult) -> DoctorGpuJson<'_> {
+    DoctorGpuJson {
+        schema_version: "fathomdb.doctor.gpu.v1",
+        policy: &report.policy,
+        cuda_compiled: report.cuda_compiled,
+        status: report.status.as_str(),
+        effective_device: report.effective_device(),
+        devices: report
+            .devices
+            .iter()
+            .map(|device| DoctorGpuDeviceJson {
+                visible_ordinal: device.visible_ordinal,
+                uuid: &device.uuid,
+                name: &device.name,
+                compute_capability: device.compute_capability.as_deref(),
+            })
+            .collect(),
+        reason: report.reason.map(|reason| reason.as_str()),
+        selected_uuid: report.selected_uuid.as_deref(),
+    }
+}
+
+fn doctor_gpu_diagnostic_output(
+    report: &fathomdb_embedder::DoctorGpuDiagnosticResult,
+    json_mode: bool,
+) -> String {
+    if json_mode {
+        let mut output =
+            serde_json::to_string(&doctor_gpu_json(report)).expect("doctor gpu fields serialize");
+        output.push('\n');
+        return output;
+    }
+
+    let mut output = format!(
+        "doctor gpu\npolicy={}\ncuda_compiled={}\nstatus={}\neffective_device={}\nreason={}\ndevices={}\n",
+        serde_json::to_string(&report.policy).expect("policy string serializes"),
+        report.cuda_compiled,
+        report.status.as_str(),
+        report.effective_device().as_deref().unwrap_or("null"),
+        report.reason.map_or("null", |reason| reason.as_str()),
+        report.devices.len(),
+    );
+    for device in &report.devices {
+        let device = DoctorGpuDeviceJson {
+            visible_ordinal: device.visible_ordinal,
+            uuid: &device.uuid,
+            name: &device.name,
+            compute_capability: device.compute_capability.as_deref(),
+        };
+        output.push_str("device=");
+        output.push_str(&serde_json::to_string(&device).expect("doctor gpu device serializes"));
+        output.push('\n');
+    }
+    output.push_str("selected_uuid=");
+    output.push_str(report.selected_uuid.as_deref().unwrap_or("null"));
+    output.push('\n');
+    output
 }
 
 /// EU-5b — invoke the default-embedder loader directly (no engine open)
@@ -801,7 +1347,9 @@ fn engine_error_code(err: &EngineError) -> &'static str {
         EngineError::Projection => "ProjectionError",
         EngineError::Vector => "VectorError",
         EngineError::Embedder => "EmbedderError",
+        EngineError::RerankerDevicePolicy(_) => "RerankerDevicePolicyError",
         EngineError::EmbedderNotConfigured => "EmbedderNotConfiguredError",
+        EngineError::EmbedderRequired(_) => "EmbedderRequiredError",
         EngineError::KindNotVectorIndexed => "KindNotVectorIndexedError",
         EngineError::EmbedderDimensionMismatch { .. } => "EmbedderDimensionMismatchError",
         EngineError::Scheduler => "SchedulerError",
@@ -836,6 +1384,8 @@ fn engine_open_error_code(err: &EngineOpenError) -> &'static str {
         EngineOpenError::EmbedderIdentityMismatch { .. } => "EmbedderIdentityMismatchError",
         EngineOpenError::EmbedderDimensionMismatch { .. } => "EmbedderDimensionMismatchError",
         EngineOpenError::Embedder(_) => "EmbedderError",
+        EngineOpenError::EmbedDevicePolicy(_) => "EmbedDevicePolicyError",
+        EngineOpenError::RerankerDevicePolicy(_) => "RerankerDevicePolicyError",
         EngineOpenError::Io { .. } => "IoError",
     }
 }
@@ -1054,6 +1604,141 @@ fn truncate_wal_report_json(r: &TruncateWalReport) -> Value {
 mod tests {
     use super::*;
 
+    #[derive(Clone)]
+    struct PlatformFixture {
+        aarch64: bool,
+        compatible: Option<String>,
+        l4t: Option<String>,
+        acpi: bool,
+        smi: NvidiaSmiProbe,
+        stdout: Option<String>,
+    }
+
+    impl PlatformFixture {
+        fn non_aarch64() -> Self {
+            Self {
+                aarch64: false,
+                compatible: None,
+                l4t: None,
+                acpi: false,
+                smi: NvidiaSmiProbe::Missing,
+                stdout: None,
+            }
+        }
+
+        fn arm64_sbsa() -> Self {
+            Self {
+                aarch64: true,
+                compatible: None,
+                l4t: None,
+                acpi: true,
+                smi: NvidiaSmiProbe::Missing,
+                stdout: None,
+            }
+        }
+
+        fn generic_aarch64() -> Self {
+            Self {
+                aarch64: true,
+                compatible: None,
+                l4t: None,
+                acpi: false,
+                smi: NvidiaSmiProbe::Missing,
+                stdout: None,
+            }
+        }
+
+        fn classic_tegra() -> Self {
+            Self {
+                aarch64: true,
+                compatible: Some("nvidia,tegra234\0".to_owned()),
+                l4t: Some("# R36 (release), REVISION: 5.2, GCID: test".to_owned()),
+                acpi: false,
+                smi: NvidiaSmiProbe::Output,
+                stdout: Some("Orin (nvgpu)\n".to_owned()),
+            }
+        }
+
+        fn thor() -> Self {
+            Self { stdout: Some("NVIDIA Thor\n".to_owned()), ..Self::classic_tegra() }
+        }
+
+        fn missing_smi() -> Self {
+            Self { smi: NvidiaSmiProbe::Missing, stdout: None, ..Self::classic_tegra() }
+        }
+
+        fn timeout_smi() -> Self {
+            Self { smi: NvidiaSmiProbe::Timeout, stdout: None, ..Self::classic_tegra() }
+        }
+
+        fn nonzero_smi() -> Self {
+            Self { smi: NvidiaSmiProbe::Nonzero, stdout: None, ..Self::classic_tegra() }
+        }
+    }
+
+    impl PlatformProbe for PlatformFixture {
+        fn is_aarch64(&self) -> bool {
+            self.aarch64
+        }
+
+        fn read_file(&self, path: &Path) -> Option<String> {
+            match path.to_str() {
+                Some("/proc/device-tree/compatible") => self.compatible.clone(),
+                Some("/etc/nv_tegra_release") => self.l4t.clone(),
+                _ => None,
+            }
+        }
+
+        fn acpi_tables_present(&self) -> bool {
+            self.acpi
+        }
+
+        fn nvidia_smi(&self) -> (NvidiaSmiProbe, Option<String>) {
+            (self.smi, self.stdout.clone())
+        }
+    }
+
+    struct PlatformGpuFixtureOutcome {
+        status: fathomdb_embedder::DoctorGpuStatus,
+        reason: Option<&'static str>,
+        effective_device: Option<String>,
+        exit_code: i32,
+        provider_marker: String,
+    }
+
+    fn doctor_gpu_for_platform(
+        raw_policy: &str,
+        cuda_compiled: bool,
+        platform: &PlatformReport,
+        provider: impl FnOnce() -> &'static str,
+    ) -> PlatformGpuFixtureOutcome {
+        if raw_policy == "cpu" {
+            return PlatformGpuFixtureOutcome {
+                status: fathomdb_embedder::DoctorGpuStatus::SelectedCpuNoCuda,
+                reason: None,
+                effective_device: Some("cpu".to_owned()),
+                exit_code: 0,
+                provider_marker: "provider-not-called".to_owned(),
+            };
+        }
+        match platform_gpu_override(raw_policy, cuda_compiled, platform) {
+            Some(report) => PlatformGpuFixtureOutcome {
+                status: report.status,
+                reason: report.reason.map(fathomdb_embedder::DeviceResolutionReason::as_str),
+                effective_device: report.effective_device(),
+                exit_code: report.exit_code(),
+                provider_marker: "provider-not-called".to_owned(),
+            },
+            None => PlatformGpuFixtureOutcome {
+                status: fathomdb_embedder::DoctorGpuStatus::SelectedCpuNoCuda,
+                reason: None,
+                effective_device: Some("cpu".to_owned()),
+                exit_code: 0,
+                provider_marker: provider().to_owned(),
+            },
+        }
+    }
+
     #[test]
     fn outcome_mapping_covers_cli_md_exit_classes() {
         assert_eq!(outcome_to_exit_code(CliOutcome::Clean), 0);
@@ -1071,8 +1756,709 @@ mod tests {
     }
 
     #[test]
+    fn embedder_required_uses_the_stable_cli_error_code() {
+        let error = EngineError::EmbedderRequired(fathomdb::EmbedderRequired {
+            code: "FDB_EMBEDDER_REQUIRED",
+            operation: fathomdb::EmbeddingOperation::GraphEdgeBodyProjection,
+            state: fathomdb::EmbeddingReadinessState::Blocked,
+            remediations: vec!["configure_default_embedder"],
+            documentation_url: "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED",
+        });
+        assert_eq!(engine_error_code(&error), "EmbedderRequiredError");
+    }
+
+    #[test]
     fn engine_open_database_locked_maps_to_lock_held() {
         let err = EngineOpenError::DatabaseLocked { holder_pid: Some(1234) };
         assert_eq!(engine_open_error_to_outcome(&err), CliOutcome::LockHeld);
+    }
+
+    #[test]
+    fn embed_device_policy_open_error_has_a_stable_cli_code_and_failure_class() {
+        let err = EngineOpenError::EmbedDevicePolicy(
+            fathomdb_embedder::EmbedDevicePolicyError::Resolution(
+                fathomdb_embedder::DeviceResolutionError::CudaNotCompiled { ordinal: 2 },
+            ),
+        );
+
+        assert_eq!(engine_open_error_code(&err), "EmbedDevicePolicyError");
+        assert_eq!(engine_open_error_to_outcome(&err), CliOutcome::Unrecoverable);
+    }
+
+    #[test]
+    fn doctor_gpu_json_is_database_free_and_binds_selected_uuid_to_inventory() {
+        let report = fathomdb_embedder::DoctorGpuDiagnosticResult {
+            policy: "cuda:1".to_owned(),
+            cuda_compiled: true,
+            status: fathomdb_embedder::DoctorGpuStatus::SelectedCuda,
+            effective_device: Some(fathomdb_embedder::EffectiveEmbedDevice::Cuda(
+                fathomdb_embedder::CudaDeviceInfo {
+                    ordinal: 1,
+                    uuid: Some("GPU-second".to_owned()),
+                    name: Some("RTX 3090".to_owned()),
+                    driver_version: None,
+                    compute_capability: Some("8.6".to_owned()),
+                    cuda_toolkit_version: None,
+                },
+            )),
+            devices: vec![
+                fathomdb_embedder::CudaVisibleDevice {
+                    visible_ordinal: 0,
+                    uuid: "GPU-first".to_owned(),
+                    name: "RTX 3090".to_owned(),
+                    compute_capability: Some("8.6".to_owned()),
+                },
+                fathomdb_embedder::CudaVisibleDevice {
+                    visible_ordinal: 1,
+                    uuid: "GPU-second".to_owned(),
+                    name: "RTX 3090".to_owned(),
+                    compute_capability: Some("8.6".to_owned()),
+                },
+            ],
+            selected_uuid: Some("GPU-second".to_owned()),
+            reason: None,
+        };
+
+        assert_eq!(
+            doctor_gpu_diagnostic_json(&report),
+            json!({
+                "schema_version": "fathomdb.doctor.gpu.v1",
+                "policy": "cuda:1",
+                "cuda_compiled": true,
+                "status": "selected_cuda",
+                "effective_device": "cuda:1",
+                "devices": [
+                    {"visible_ordinal": 0, "uuid": "GPU-first", "name": "RTX 3090", "compute_capability": "8.6"},
+                    {"visible_ordinal": 1, "uuid": "GPU-second", "name": "RTX 3090", "compute_capability": "8.6"},
+                ],
+                "reason": null,
+                "selected_uuid": "GPU-second",
+            })
+        );
+        let parsed = Cli::try_parse_from(["fathomdb", "doctor", "gpu", "--json"]);
+        assert!(matches!(
+            parsed,
+            Ok(Cli { command: Command::Doctor(DoctorArgs { command: DoctorCommand::Gpu(_) }) })
+        ));
+        let parsed = Cli::try_parse_from(["fathomdb", "doctor", "reranker-gpu", "--json"]);
+        assert!(matches!(
+            parsed,
+            Ok(Cli {
+                command: Command::Doctor(DoctorArgs { command: DoctorCommand::RerankerGpu(_) })
+            })
+        ));
+    }
+
+    #[test]
+    fn platform_classifier_covers_all_two_tier_outcomes_and_json_contract() {
+        let cases = [
+            (
+                PlatformFixture::non_aarch64(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"non_aarch64\",\"tegra_family\":false,\"sbsa_capable\":false,\"l4t_release\":null,\"reason\":null}\n",
+                0,
+            ),
+            (
+                PlatformFixture::arm64_sbsa(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"arm64_sbsa\",\"tegra_family\":false,\"sbsa_capable\":true,\"l4t_release\":null,\"reason\":null}\n",
+                0,
+            ),
+            (
+                PlatformFixture::generic_aarch64(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"generic_aarch64\",\"tegra_family\":false,\"sbsa_capable\":false,\"l4t_release\":null,\"reason\":null}\n",
+                0,
+            ),
+            (
+                PlatformFixture::classic_tegra(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"tegra\",\"tegra_family\":true,\"sbsa_capable\":false,\"l4t_release\":\"R36.5.2\",\"reason\":null}\n",
+                0,
+            ),
+            (
+                PlatformFixture::thor(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"arm64_sbsa\",\"tegra_family\":true,\"sbsa_capable\":true,\"l4t_release\":\"R36.5.2\",\"reason\":null}\n",
+                0,
+            ),
+            (
+                PlatformFixture::missing_smi(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"unknown\",\"tegra_family\":true,\"sbsa_capable\":null,\"l4t_release\":\"R36.5.2\",\"reason\":\"nvidia_smi_missing\"}\n",
+                exit_code::UNRECOVERABLE,
+            ),
+            (
+                PlatformFixture::timeout_smi(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"unknown\",\"tegra_family\":true,\"sbsa_capable\":null,\"l4t_release\":\"R36.5.2\",\"reason\":\"nvidia_smi_timeout\"}\n",
+                exit_code::UNRECOVERABLE,
+            ),
+            (
+                PlatformFixture::nonzero_smi(),
+                "{\"schema_version\":\"fathomdb.doctor.platform.v1\",\"platform_class\":\"unknown\",\"tegra_family\":true,\"sbsa_capable\":null,\"l4t_release\":\"R36.5.2\",\"reason\":\"nvidia_smi_nonzero\"}\n",
+                exit_code::UNRECOVERABLE,
+            ),
+        ];
+        for (fixture, expected_json, expected_exit) in cases {
+            let report = classify_platform(&fixture);
+            assert_eq!(platform_diagnostic_output(&report, true), expected_json);
+            assert_eq!(report.exit_code(), expected_exit);
+        }
+    }
+
+    #[test]
+    fn platform_probe_uses_the_first_executable_absolute_candidate() {
+        let candidates =
+            ["/usr/bin/nvidia-smi", "/usr/sbin/nvidia-smi", "/usr/local/bin/nvidia-smi"];
+        let selected = first_executable_candidate(&candidates, |path| {
+            path == Path::new("/usr/sbin/nvidia-smi")
+        });
+        assert_eq!(selected, Some(Path::new("/usr/sbin/nvidia-smi")));
+        assert_eq!(first_executable_candidate(&candidates, |_| false), None);
+    }
+
+    #[test]
+    fn sbsa_platform_preempts_cuda_only_for_auto_and_forced_policies() {
+        let platform = classify_platform(&PlatformFixture::arm64_sbsa());
+        let auto = doctor_gpu_for_platform("auto", true, &platform, || panic!("provider called"));
+        assert_eq!(auto.status.as_str(), "cuda_incompatible");
+        assert_eq!(auto.reason, Some("arm64_sbsa_unsupported"));
+        assert_eq!(auto.effective_device.as_deref(), Some("cpu"));
+        assert_eq!(auto.exit_code, 0);
+
+        let forced =
+            doctor_gpu_for_platform("cuda:0", true, &platform, || panic!("provider called"));
+        assert_eq!(forced.status.as_str(), "cuda_incompatible");
+        assert_eq!(forced.reason, Some("arm64_sbsa_unsupported"));
+        assert_eq!(forced.effective_device.as_deref(), None);
+        assert_eq!(forced.exit_code, exit_code::DOCTOR_FOUND_ISSUES);
+
+        let cpu = doctor_gpu_for_platform("cpu", true, &platform, || panic!("provider called"));
+        assert_eq!(cpu.status.as_str(), "selected_cpu_no_cuda");
+        assert_eq!(cpu.reason, None);
+        assert_eq!(cpu.effective_device.as_deref(), Some("cpu"));
+    }
+
+    #[test]
+    fn indeterminate_tier_two_never_refuses_doctor_gpu() {
+        let platform = classify_platform(&PlatformFixture::missing_smi());
+        let report = doctor_gpu_for_platform("auto", true, &platform, || "provider-ran");
+        assert_eq!(report.provider_marker, "provider-ran");
+        assert_ne!(report.reason, Some("arm64_sbsa_unsupported"));
+    }
+
+    #[derive(Clone, Copy)]
+    struct DoctorProcessCase {
+        name: &'static str,
+        policy: &'static str,
+        cuda_compiled: bool,
+        status: fathomdb_embedder::DoctorGpuStatus,
+        effective: Option<&'static str>,
+        reason: Option<fathomdb_embedder::DeviceResolutionReason>,
+        inventory: bool,
+        selected: bool,
+        exit: i32,
+    }
+
+    static DOCTOR_PROCESS_CASES: std::sync::LazyLock<Vec<DoctorProcessCase>> =
+        std::sync::LazyLock::new(|| {
+            vec![
+                doctor_case(
+                    "cpu",
+                    "cpu",
+                    false,
+                    "selected_cpu_no_cuda",
+                    Some("cpu"),
+                    None,
+                    false,
+                    false,
+                    0,
+                ),
+                doctor_case(
+                    "auto-not-compiled",
+                    "auto",
+                    false,
+                    "cuda_not_compiled",
+                    Some("cpu"),
+                    Some("cuda_not_compiled"),
+                    false,
+                    false,
+                    0,
+                ),
+                doctor_case(
+                    "auto-unavailable-pre",
+                    "auto",
+                    true,
+                    "cuda_unavailable",
+                    Some("cpu"),
+                    Some("no_visible_cuda_device"),
+                    false,
+                    false,
+                    0,
+                ),
+                doctor_case(
+                    "auto-unavailable-post",
+                    "auto",
+                    true,
+                    "cuda_unavailable",
+                    Some("cpu"),
+                    Some("no_visible_cuda_device"),
+                    true,
+                    false,
+                    0,
+                ),
+                doctor_case(
+                    "auto-incompatible-pre",
+                    "auto",
+                    true,
+                    "cuda_incompatible",
+                    Some("cpu"),
+                    Some("cuda_incompatible"),
+                    false,
+                    false,
+                    0,
+                ),
+                doctor_case(
+                    "auto-incompatible-post",
+                    "auto",
+                    true,
+                    "cuda_incompatible",
+                    Some("cpu"),
+                    Some("cuda_incompatible"),
+                    true,
+                    false,
+                    0,
+                ),
+                doctor_case(
+                    "auto-probe-failed-pre",
+                    "auto",
+                    true,
+                    "probe_failed",
+                    Some("cpu"),
+                    Some("cuda_probe_failed"),
+                    false,
+                    false,
+                    70,
+                ),
+                doctor_case(
+                    "auto-probe-failed-post",
+                    "auto",
+                    true,
+                    "probe_failed",
+                    Some("cpu"),
+                    Some("cuda_probe_failed"),
+                    true,
+                    false,
+                    70,
+                ),
+                doctor_case(
+                    "auto-selected",
+                    "auto",
+                    true,
+                    "selected_cuda",
+                    Some("cuda:0"),
+                    None,
+                    true,
+                    true,
+                    0,
+                ),
+                doctor_case(
+                    "forced-not-compiled",
+                    "cuda:0",
+                    false,
+                    "cuda_not_compiled",
+                    None,
+                    Some("cuda_not_compiled"),
+                    false,
+                    false,
+                    65,
+                ),
+                doctor_case(
+                    "forced-unavailable-pre",
+                    "cuda:0",
+                    true,
+                    "cuda_unavailable",
+                    None,
+                    Some("no_visible_cuda_device"),
+                    false,
+                    false,
+                    65,
+                ),
+                doctor_case(
+                    "forced-unavailable-post",
+                    "cuda:0",
+                    true,
+                    "cuda_unavailable",
+                    None,
+                    Some("no_visible_cuda_device"),
+                    true,
+                    false,
+                    65,
+                ),
+                doctor_case(
+                    "forced-incompatible-pre",
+                    "cuda:0",
+                    true,
+                    "cuda_incompatible",
+                    None,
+                    Some("cuda_incompatible"),
+                    false,
+                    false,
+                    65,
+                ),
+                doctor_case(
+                    "forced-incompatible-post",
+                    "cuda:0",
+                    true,
+                    "cuda_incompatible",
+                    None,
+                    Some("cuda_incompatible"),
+                    true,
+                    false,
+                    65,
+                ),
+                doctor_case(
+                    "forced-probe-failed-pre",
+                    "cuda:0",
+                    true,
+                    "probe_failed",
+                    None,
+                    Some("cuda_probe_failed"),
+                    false,
+                    false,
+                    70,
+                ),
+                doctor_case(
+                    "forced-probe-failed-post",
+                    "cuda:0",
+                    true,
+                    "probe_failed",
+                    None,
+                    Some("cuda_probe_failed"),
+                    true,
+                    false,
+                    70,
+                ),
+                doctor_case(
+                    "forced-selected",
+                    "cuda:0",
+                    true,
+                    "selected_cuda",
+                    Some("cuda:0"),
+                    None,
+                    true,
+                    true,
+                    0,
+                ),
+                doctor_case(
+                    "invalid",
+                    "cuda",
+                    true,
+                    "invalid_policy",
+                    None,
+                    None,
+                    false,
+                    false,
+                    70,
+                ),
+            ]
+        });
+
+    #[allow(clippy::too_many_arguments)]
+    fn doctor_case(
+        name: &'static str,
+        policy: &'static str,
+        cuda_compiled: bool,
+        status: &'static str,
+        effective: Option<&'static str>,
+        reason: Option<&'static str>,
+        inventory: bool,
+        selected: bool,
+        exit: i32,
+    ) -> DoctorProcessCase {
+        DoctorProcessCase {
+            name,
+            policy,
+            cuda_compiled,
+            status: match status {
+                "selected_cuda" => fathomdb_embedder::DoctorGpuStatus::SelectedCuda,
+                "selected_cpu_no_cuda" => fathomdb_embedder::DoctorGpuStatus::SelectedCpuNoCuda,
+                "cuda_not_compiled" => fathomdb_embedder::DoctorGpuStatus::CudaNotCompiled,
+                "cuda_unavailable" => fathomdb_embedder::DoctorGpuStatus::CudaUnavailable,
+                "cuda_incompatible" => fathomdb_embedder::DoctorGpuStatus::CudaIncompatible,
+                "invalid_policy" => fathomdb_embedder::DoctorGpuStatus::InvalidPolicy,
+                "probe_failed" => fathomdb_embedder::DoctorGpuStatus::ProbeFailed,
+                _ => panic!("unknown status"),
+            },
+            effective,
+            reason: match reason {
+                None => None,
+                Some("cuda_not_compiled") => {
+                    Some(fathomdb_embedder::DeviceResolutionReason::CudaNotCompiled)
+                }
+                Some("no_visible_cuda_device") => {
+                    Some(fathomdb_embedder::DeviceResolutionReason::NoVisibleCudaDevice)
+                }
+                Some("cuda_incompatible") => {
+                    Some(fathomdb_embedder::DeviceResolutionReason::CudaIncompatible)
+                }
+                Some("cuda_probe_failed") => {
+                    Some(fathomdb_embedder::DeviceResolutionReason::CudaProbeFailed)
+                }
+                Some(_) => panic!("unknown reason"),
+            },
+            inventory,
+            selected,
+            exit,
+        }
+    }
+
+    fn process_case(name: &str) -> DoctorProcessCase {
+        *DOCTOR_PROCESS_CASES.iter().find(|case| case.name == name).expect("known process case")
+    }
+
+    fn process_report(case: DoctorProcessCase) -> fathomdb_embedder::DoctorGpuDiagnosticResult {
+        let visible = fathomdb_embedder::CudaVisibleDevice {
+            visible_ordinal: 0,
+            uuid: "GPU-a".to_owned(),
+            name: "GPU 0".to_owned(),
+            compute_capability: Some("8.6".to_owned()),
+        };
+
+        struct FixtureProvider {
+            inventory: Result<
+                Vec<fathomdb_embedder::CudaVisibleDevice>,
+                fathomdb_embedder::CudaProbeError,
+            >,
+            probe: Result<fathomdb_embedder::CudaDeviceInfo, fathomdb_embedder::CudaProbeError>,
+        }
+
+        impl fathomdb_embedder::CudaProvider for FixtureProvider {
+            fn enumerate_visible_cuda_devices(
+                &mut self,
+            ) -> Result<Vec<fathomdb_embedder::CudaVisibleDevice>, fathomdb_embedder::CudaProbeError>
+            {
+                self.inventory.clone()
+            }
+
+            fn probe_cuda(
+                &mut self,
+                _ordinal: usize,
+            ) -> Result<fathomdb_embedder::CudaDeviceInfo, fathomdb_embedder::CudaProbeError>
+            {
+                self.probe.clone()
+            }
+        }
+
+        if case.status == fathomdb_embedder::DoctorGpuStatus::InvalidPolicy {
+            return fathomdb_embedder::DoctorGpuDiagnosticResult::from_invalid_policy(
+                case.policy,
+                case.cuda_compiled,
+            );
+        }
+
+        let classified_error = match case.status {
+            fathomdb_embedder::DoctorGpuStatus::CudaUnavailable => {
+                fathomdb_embedder::CudaProbeError::NoVisibleDevice
+            }
+            fathomdb_embedder::DoctorGpuStatus::CudaIncompatible => {
+                fathomdb_embedder::CudaProbeError::Incompatible {
+                    message: "fixture incompatible".to_owned(),
+                }
+            }
+            _ => fathomdb_embedder::CudaProbeError::ProbeFailed {
+                message: "fixture probe failed".to_owned(),
+            },
+        };
+        let inventory = if case.name.ends_with("-pre") {
+            Err(classified_error.clone())
+        } else if case.inventory {
+            Ok(vec![visible])
+        } else {
+            Ok(Vec::new())
+        };
+        let probe = if case.selected {
+            Ok(fathomdb_embedder::CudaDeviceInfo {
+                ordinal: 0,
+                uuid: Some("GPU-a".to_owned()),
+                name: Some("GPU 0".to_owned()),
+                driver_version: None,
+                compute_capability: Some("8.6".to_owned()),
+                cuda_toolkit_version: None,
+            })
+        } else {
+            Err(classified_error)
+        };
+        let mut provider = FixtureProvider { inventory, probe };
+        fathomdb_embedder::diagnose_gpu(
+            case.policy.parse().expect("valid fixture policy"),
+            case.cuda_compiled,
+            &mut provider,
+        )
+    }
+
+    fn expected_doctor_json(case: DoctorProcessCase) -> String {
+        let devices = if case.inventory {
+            r#"[{"visible_ordinal":0,"uuid":"GPU-a","name":"GPU 0","compute_capability":"8.6"}]"#
+        } else {
+            "[]"
+        };
+        format!(
+            "{{\"schema_version\":\"fathomdb.doctor.gpu.v1\",\"policy\":{},\"cuda_compiled\":{},\"status\":\"{}\",\"effective_device\":{},\"devices\":{},\"reason\":{},\"selected_uuid\":{}}}\n",
+            serde_json::to_string(case.policy).unwrap(),
+            case.cuda_compiled,
+            case.status.as_str(),
+            serde_json::to_string(&case.effective).unwrap(),
+            devices,
+            serde_json::to_string(&case.reason.map(|reason| reason.as_str())).unwrap(),
+            serde_json::to_string(&case.selected.then_some("GPU-a")).unwrap(),
+        )
+    }
+
+    fn expected_doctor_text(case: DoctorProcessCase) -> String {
+        let mut output = format!(
+            "doctor gpu\npolicy={}\ncuda_compiled={}\nstatus={}\neffective_device={}\nreason={}\ndevices={}\n",
+            serde_json::to_string(case.policy).unwrap(),
+            case.cuda_compiled,
+            case.status.as_str(),
+            case.effective.unwrap_or("null"),
+            case.reason.map_or("null", |reason| reason.as_str()),
+            usize::from(case.inventory),
+        );
+        if case.inventory {
+            output.push_str(
+                r#"device={"visible_ordinal":0,"uuid":"GPU-a","name":"GPU 0","compute_capability":"8.6"}"#,
+            );
+            output.push('\n');
+        }
+        output
+            .push_str(&format!("selected_uuid={}\n", if case.selected { "GPU-a" } else { "null" }));
+        output
+    }
+
+    #[test]
+    fn doctor_gpu_process_fixture_child() {
+        let Ok(case_name) = std::env::var("FATHOMDB_INTERNAL_TEST_DOCTOR_CASE") else {
+            return;
+        };
+        let json_mode = std::env::var_os("FATHOMDB_INTERNAL_TEST_DOCTOR_JSON").is_some();
+        let argv = if json_mode {
+            vec!["fathomdb", "doctor", "gpu", "--json"]
+        } else {
+            vec!["fathomdb", "doctor", "gpu"]
+        };
+        let cli = Cli::try_parse_from(argv).expect("real doctor gpu argv parses");
+        let args = match cli {
+            Cli { command: Command::Doctor(DoctorArgs { command: DoctorCommand::Gpu(args) }) } => {
+                args
+            }
+            _ => panic!("fixture argv must route only to doctor gpu"),
+        };
+        let case = process_case(&case_name);
+        let report = process_report(case);
+        let (output, exit_code) = doctor_gpu_outcome(args, &report);
+        std::fs::write(
+            std::env::var("FATHOMDB_INTERNAL_TEST_DOCTOR_CAPTURE").expect("capture path"),
+            output,
+        )
+        .expect("write isolated process capture");
+        std::process::exit(exit_code);
+    }
+
+    #[test]
+    fn doctor_gpu_process_matrix_has_exact_outputs_and_no_side_effects() {
+        if std::env::var_os("FATHOMDB_INTERNAL_TEST_DOCTOR_CASE").is_some() {
+            return;
+        }
+        let executable = std::env::current_exe().expect("current test executable");
+        for case in DOCTOR_PROCESS_CASES.iter() {
+            for json_mode in [false, true] {
+                let root = tempfile::tempdir().expect("isolated doctor process root");
+                let capture = root.path().join("capture");
+                let trace = root.path().join("trace");
+                let cwd = root.path().join("cwd");
+                let home = root.path().join("home-canary");
+                let xdg = root.path().join("xdg-canary");
+                let hf = root.path().join("hf-canary");
+                let model = root.path().join("model-canary");
+                let database = root.path().join("database-canary");
+                for directory in [&cwd, &home, &xdg, &hf, &model, &database] {
+                    std::fs::create_dir(directory).expect("create canary root");
+                }
+
+                let mut command = std::process::Command::new("strace");
+                command
+                    .args(["-f", "-qq", "-e", "trace=%file,%network", "-o"])
+                    .arg(&trace)
+                    .arg(&executable)
+                    .args(["--exact", "tests::doctor_gpu_process_fixture_child", "--nocapture"])
+                    .current_dir(&cwd)
+                    .env("HOME", &home)
+                    .env("XDG_CACHE_HOME", &xdg)
+                    .env("XDG_CONFIG_HOME", &xdg)
+                    .env("HF_HOME", &hf)
+                    .env("HF_HUB_CACHE", &hf)
+                    .env("FATHOMDB_MODEL_CACHE", &model)
+                    .env("TERMINFO", "/usr/share/terminfo")
+                    .env("FATHOMDB_INTERNAL_TEST_DOCTOR_CASE", case.name)
+                    .env("FATHOMDB_INTERNAL_TEST_DOCTOR_CAPTURE", &capture);
+                if json_mode {
+                    command.env("FATHOMDB_INTERNAL_TEST_DOCTOR_JSON", "1");
+                }
+                let output = command.output().expect("run straced doctor fixture child");
+                assert_eq!(output.status.code(), Some(case.exit), "{} json={json_mode}", case.name);
+                assert!(
+                    output.stderr.is_empty(),
+                    "{} json={json_mode}: {}",
+                    case.name,
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                let captured = std::fs::read_to_string(&capture).expect("read child output");
+                let expected = if json_mode {
+                    expected_doctor_json(*case)
+                } else {
+                    expected_doctor_text(*case)
+                };
+                assert_eq!(captured, expected, "{} json={json_mode}", case.name);
+
+                let syscalls = std::fs::read_to_string(&trace).expect("read syscall evidence");
+                assert!(!syscalls.contains("socket("), "{} opened a network socket", case.name);
+                assert!(
+                    !syscalls.contains("connect("),
+                    "{} attempted a network connection",
+                    case.name
+                );
+                let capture_path = capture.to_string_lossy();
+                for syscall in syscalls.lines() {
+                    let opens_for_mutation = (syscall.contains("open(")
+                        || syscall.contains("openat("))
+                        && ["O_WRONLY", "O_RDWR", "O_CREAT", "O_TRUNC"]
+                            .iter()
+                            .any(|flag| syscall.contains(flag));
+                    let mutates_path = [
+                        "creat(",
+                        "unlink(",
+                        "unlinkat(",
+                        "rename(",
+                        "renameat(",
+                        "renameat2(",
+                        "mkdir(",
+                        "mkdirat(",
+                        "rmdir(",
+                    ]
+                    .iter()
+                    .any(|name| syscall.contains(name));
+                    assert!(
+                        !(opens_for_mutation || mutates_path)
+                            || syscall.contains(capture_path.as_ref()),
+                        "{} mutated the filesystem outside its capture: {syscall}",
+                        case.name,
+                    );
+                }
+                for forbidden in [&home, &xdg, &hf, &model, &database] {
+                    assert!(
+                        !syscalls.contains(&forbidden.to_string_lossy().into_owned()),
+                        "{} accessed forbidden root {}",
+                        case.name,
+                        forbidden.display(),
+                    );
+                    assert_eq!(std::fs::read_dir(forbidden).unwrap().count(), 0);
+                }
+            }
+        }
     }
 }

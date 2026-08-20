@@ -5,6 +5,12 @@ status: UNREVIEWED
 # Policy — the repo MUST use the 3090 GPUs for eval/embed activities when there is room
 
 > **Standing HITL mandate (2026-07-05). This is a repo MUST, not a suggestion.**
+>
+> **Historical runtime-policy wording below is superseded by Slice 70.** This
+> document remains the internal eval-allocation policy only. Current product
+> embedding configuration, initialization, fallback, diagnostics, and artifact
+> semantics are owned by
+> [`0.8.23-slice-70-dual-runtime-device-policy.md`](0.8.23-slice-70-dual-runtime-device-policy.md).
 
 ## Rule
 
@@ -41,11 +47,13 @@ permitted case-(2) repeatability check, **not** a mandate violation. GPU acceler
   crawled on the CPU embedder (~0.43 docs/sec, seed-timeout-prone) with **both 3090s at 0% idle** — pure
   waste, and the direct cause of the eu7 seed-drain timeout.
 - **Throughput, not fidelity-measurement.** GPU embedding is for eval *throughput* (corpus prep, re-embeds,
-  sweeps). CPU↔CUDA embeddings are *near*-identical (0.8.7: 1-bit-identical on a 6144-bit probe, max |Δ|
-  1.6e-7) — close enough for throughput work, but at large N the near-threshold quant flips **do** shift a
-  sensitive recall-fidelity measurement. So GPU-accelerate the embedding *work*, but run recall-**fidelity
-  gates** (eu7) on CPU, same-backend as their baseline (see above). **Correction (2026-07-05):** an earlier
-  version of this doc claimed GPU "does not change the eu7 fidelity result" — that was too strong; a GPU eu7
+  sweeps). CPU↔CUDA embeddings are numerically equivalent within tolerance; the
+  earlier 0.8.7 1-bit-identity observation is superseded. At large N,
+  near-threshold quantization flips **do** shift a sensitive recall-fidelity
+  measurement. So GPU-accelerate the embedding *work*, but run
+  recall-**fidelity gates** (eu7) on CPU, same-backend as their baseline (see
+  above). **Correction (2026-07-05):** an earlier version of this doc claimed
+  GPU "does not change the eu7 fidelity result" — that was too strong; a GPU eu7
   run read 0.833 vs the CPU 0.896 baseline.
 
 ## How
@@ -62,8 +70,9 @@ permitted case-(2) repeatability check, **not** a mandate violation. GPU acceler
 ## Scope
 
 This governs the **repo's internal eval / dev / CI activities**. It is DISTINCT from — and does not change —
-the **shipped library's** default device stance (default CPU, GPU opt-in, per the footprint invariant) or
-the shipped GPU device-allocation design (`gpu-device-allocation-policy.md`). Those are separate.
+the **shipped library's** runtime device policy or artifact contract; Slice 70
+owns those. The historical GPU device-allocation design
+(`gpu-device-allocation-policy.md`) is separate.
 
 ## Enforcement (fix the tooling, not per-run reminders)
 

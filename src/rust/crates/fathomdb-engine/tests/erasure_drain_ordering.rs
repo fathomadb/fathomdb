@@ -31,8 +31,9 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
-use fathomdb_engine::{Engine, EngineError, PreparedWrite};
+use fathomdb_engine::{Engine, EngineError, InitialState, LifecycleState, PreparedWrite};
 use fathomdb_schema::SQLITE_SUFFIX;
+use rusqlite::Connection;
 use tempfile::TempDir;
 
 /// More than `PROJECTION_INFLIGHT_LIMIT` (32) so the dispatcher cannot have
@@ -117,6 +118,123 @@ fn seed_rows(engine: &Engine, source_id: &str) {
         })
         .collect();
     engine.write(&writes).expect("write");
+}
+
+fn body_bearing_edge(source_id: &str) -> PreparedWrite {
+    PreparedWrite::Edge {
+        kind: "link".to_string(),
+        from: "source".to_string(),
+        to: "target".to_string(),
+        source_id: fathomdb_engine::SourceId::new(source_id).expect("test source id"),
+        logical_id: Some("source-target".to_string()),
+        body: Some("erase this pending edge body".to_string()),
+        t_valid: None,
+        t_invalid: None,
+        confidence: None,
+        extractor_model_id: None,
+        temporal_fallback: None,
+    }
+}
+
+/// Slice 30 makes a direct `drain` immediately report an absent embedder, but
+/// it must not make the governed erasure verb unable to remove the very pending
+/// work that caused that report. The erasure still has to run its complete
+/// at-rest path; an incomplete WAL checkpoint remains `ErasureIncomplete`.
+#[test]
+fn erase_source_removes_no_embedder_pending_edge_work() {
+    let dir = TempDir::new().expect("tempdir");
+    let path = dir.path().join(format!("erase_no_embedder{SQLITE_SUFFIX}"));
+    let opened = Engine::open_without_embedder_for_test(&path).expect("open without embedder");
+
+    opened.engine.write(&[body_bearing_edge("S1")]).expect("write pending edge");
+    assert!(
+        matches!(opened.engine.drain(1_000), Err(EngineError::EmbedderRequired(_))),
+        "Slice 30 direct drain must retain its immediate typed configuration feedback"
+    );
+
+    let report = opened
+        .engine
+        .erase_source("S1")
+        .expect("erasure must remove pending no-embedder work rather than return EmbedderRequired");
+    assert_eq!(report.edges_excised, 1, "the pending edge must be erased");
+    opened.engine.close().expect("close");
+
+    let connection = Connection::open(&path).expect("open raw sqlite");
+    let remaining: u64 = connection
+        .query_row("SELECT COUNT(*) FROM canonical_edges WHERE source_id = 'S1'", [], |row| {
+            row.get(0)
+        })
+        .expect("count remaining edges");
+    assert_eq!(remaining, 0, "the pending edge must be absent at rest after success");
+}
+
+/// `excise_source` is the operator spelling of the same destructive operation;
+/// keep it independently pinned so an implementation split cannot reintroduce
+/// the no-embedder refusal on only one entry point.
+#[cfg(feature = "operator")]
+#[test]
+fn excise_source_removes_no_embedder_pending_edge_work() {
+    let dir = TempDir::new().expect("tempdir");
+    let path = dir.path().join(format!("excise_no_embedder{SQLITE_SUFFIX}"));
+    let opened = Engine::open_without_embedder_for_test(&path).expect("open without embedder");
+
+    opened.engine.write(&[body_bearing_edge("S1")]).expect("write pending edge");
+    let report = opened
+        .engine
+        .excise_source("S1")
+        .expect("operator erasure must remove pending no-embedder work");
+    assert_eq!(report.edges_excised, 1, "the pending edge must be excised");
+    opened.engine.close().expect("close");
+
+    let connection = Connection::open(&path).expect("open raw sqlite");
+    let remaining: u64 = connection
+        .query_row("SELECT COUNT(*) FROM canonical_edges WHERE source_id = 'S1'", [], |row| {
+            row.get(0)
+        })
+        .expect("count remaining edges");
+    assert_eq!(remaining, 0, "the pending edge must be absent at rest after success");
+}
+
+/// The deleted-first lifecycle path is another destructive erasure route. A
+/// configured vector kind must not make an otherwise valid delete-then-purge
+/// impossible solely because this session has no embedder to process the row.
+#[test]
+fn purge_removes_no_embedder_pending_vector_work_after_soft_delete() {
+    let dir = TempDir::new().expect("tempdir");
+    let path = dir.path().join(format!("purge_no_embedder{SQLITE_SUFFIX}"));
+    let opened = Engine::open_without_embedder_for_test(&path).expect("open without embedder");
+    opened.engine.configure_vector_kind_for_test("doc").expect("register vector kind");
+    opened
+        .engine
+        .write(&[PreparedWrite::Node {
+            kind: "doc".to_string(),
+            body: "erase this pending vector body".to_string(),
+            source_id: fathomdb_engine::SourceId::new("S1").expect("test source id"),
+            logical_id: Some("pending-vector".to_string()),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        }])
+        .expect("write pending vector");
+    assert!(matches!(opened.engine.drain(1_000), Err(EngineError::EmbedderRequired(_))));
+
+    opened
+        .engine
+        .transition("pending-vector", LifecycleState::Deleted, Some("erasure request".to_string()))
+        .expect("soft delete pending vector");
+    opened.engine.purge("pending-vector").expect("purge pending vector");
+    opened.engine.close().expect("close");
+
+    let connection = Connection::open(&path).expect("open raw sqlite");
+    let remaining: u64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM canonical_nodes WHERE logical_id = 'pending-vector'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("count remaining nodes");
+    assert_eq!(remaining, 0, "the pending vector row must be absent at rest after purge");
 }
 
 /// codex §9 [P2] — `erase_source` immediately after writing vector-indexed rows

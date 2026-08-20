@@ -908,6 +908,36 @@ else
   fail "arm 10d2 (ordinary commission action): rc=$RC out=$OUT"
 fi
 
+# --- Arm 10d2a: an active slice continues; it is not re-commissioned -------
+# `IN_PROGRESS` is the checker-supported active state. Rendering a new
+# commission after implementation/evidence have begun directs the orchestrator
+# to repeat the lifecycle rather than continue its remaining controls.
+setup_fixture
+python3 - "$FIX/dev/plans/release-state-9.9.9.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+s = json.load(open(p))
+for entry in s["ladder"]:
+    if entry["slice"] == 10:
+        entry["title"] = "the active fixture investigation"
+        entry["status"] = "IN_PROGRESS"
+s["generated_views"].append({"id": "status-next-action",
+                             "file": "dev/plans/runs/board.md"})
+json.dump(s, open(p, "w"), indent=2)
+PY
+cat >>"$FIX/dev/plans/runs/board.md" <<'EOF'
+
+## Immediate next action
+
+<!-- BEGIN GENERATED release-state:9.9.9:status-next-action -->**Continue Slice 10 (R-B)** — the active fixture investigation. **Remaining ladder:** 10 → 20 → 30 → 40.<!-- END GENERATED release-state:9.9.9:status-next-action -->
+EOF
+run_gate
+if [ "$RC" -eq 0 ]; then
+  pass "status-next-action — an active slice continues rather than re-commissioning"
+else
+  fail "arm 10d2a (active continuation action): rc=$RC out=$OUT"
+fi
+
 # --- Arm 10d3: prepared publication waits for explicit authority ---------
 # Local preparation is not an authorization to tag or publish. A held
 # publication slice therefore must not be re-commissioned, and must not be
@@ -1450,6 +1480,11 @@ if printf '%s\n' "$CI_JOB_BLOCK" | grep -qE '^[[:space:]]+fetch-depth:[[:space:]
 else
   fail "the release-state-views job must set checkout fetch-depth: 0; block: $CI_JOB_BLOCK"
 fi
+if printf '%s\n' "$CI_JOB_BLOCK" | grep -qF 'refs/heads/release/0.8.23'; then
+  pass "the release-state-views job fetches the scoped 0.8.23 completion ref"
+else
+  fail "the release-state-views job must fetch origin/release/0.8.23 for completion-ref verification; block: $CI_JOB_BLOCK"
+fi
 
 # --- Arm R (remote-landing guard) ------------------------------------------
 # THE DEFECT THIS PINS. Both `render_master_ladder_progress` and
@@ -1567,6 +1602,150 @@ else
   fail "arm R4 (guard must not be vacuous): out=$OUT"
 fi
 
+# --- Arm R4b: 0.8.23 may close on its release branch ----------------------
+#
+# A release branch is an integration line, not a claim that its completed work
+# has already reached `origin/main`. 0.8.23 records that distinction in the
+# optional `completion` object. The object is deliberately unavailable to the
+# legacy fixture releases: adding it must not silently retarget their landing
+# claims, and omitting it must preserve their bytes exactly.
+completion_ref_fixture() {
+  setup_fixture
+  (
+    cd "$FIX"
+    git branch -M main
+    rm -rf "$TMPROOT/remote.git"
+    git init -q --bare "$TMPROOT/remote.git"
+    git remote add origin "$TMPROOT/remote.git"
+    git push -q origin main
+    main_head="$(git rev-parse --short HEAD)"
+
+    git checkout -q -b release/0.8.23
+    echo "release-only change" >release-only.txt
+    git add release-only.txt && git commit -qm 'release: Slice 30 complete'
+    release_head="$(git rev-parse --short HEAD)"
+    git push -q origin release/0.8.23
+
+    python3 - "$main_head" "$release_head" <<'PY'
+import json, sys
+p = "dev/plans/release-state-9.9.9.json"
+st = json.load(open(p))
+st["release"] = "0.8.23"
+st["completion"] = {
+    "ref": "origin/release/0.8.23",
+    "main_integration": "PENDING",
+}
+for e in st["ladder"]:
+    if e["slice"] == 0: e["sha"] = sys.argv[1]
+    if e["slice"] == 5: e["sha"] = sys.argv[2]
+json.dump(st, open(p, "w"), indent=2)
+PY
+    mv dev/plans/release-state-9.9.9.json dev/plans/release-state-0.8.23.json
+    perl -pi -e 's/release-state:9\.9\.9:/release-state:0.8.23:/g; s/The 9\.9\.9 ladder/The 0.8.23 ladder/g' \
+      dev/plans/master.md dev/plans/runs/board.md dev/plans/runs/handoff.md
+    python3 - <<'PY'
+import json
+p = "dev/plans/release-state-0.8.23.json"
+st = json.load(open(p))
+st["generated_views"].append({
+    "id": "status-current-state",
+    "file": "dev/plans/runs/board.md",
+})
+json.dump(st, open(p, "w"), indent=2)
+PY
+    cat >>dev/plans/runs/board.md <<'EOF'
+
+## Completion status
+
+<!-- BEGIN GENERATED release-state:0.8.23:status-current-state --><!-- END GENERATED release-state:0.8.23:status-current-state -->
+EOF
+    # Discovery is deliberately over tracked inputs. Stage the rename before
+    # invoking the fixture gate so it sees the new single writer, not the now
+    # missing legacy pathname.
+    git add -A
+    ./scripts/check-release-state-views.sh --write >/dev/null 2>&1
+    git add -A && git commit -qm 'fixture: 0.8.23 release completion reference'
+  )
+}
+
+completion_ref_fixture
+run_gate
+if [ "$RC" -eq 0 ] \
+   && grep -qF 'COMPLETED on `origin/release/0.8.23`; `origin/main` integration is PENDING' "$FIX/dev/plans/master.md" \
+   && grep -qF 'Completed on `origin/release/0.8.23`; `origin/main` integration is PENDING' "$FIX/dev/plans/runs/board.md" \
+   && ! grep -qF 'are all LANDED on `origin/main`' "$FIX/dev/plans/master.md"; then
+  pass "arm R4b: 0.8.23 PENDING completion renders its release ref, never an origin/main landing claim"
+else
+  fail "arm R4b (release-branch completion render): rc=$RC out=$OUT"
+fi
+
+# A completion object is a narrowly approved 0.8.23 migration. Another
+# release must not be able to reinterpret its existing `landed` array by
+# copying this object, and an unrecognised integration state must not become a
+# truthy/falsey branch by accident.
+setup_fixture
+python3 - "$FIX/dev/plans/release-state-9.9.9.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+st = json.load(open(p))
+st["completion"] = {
+    "ref": "origin/release/9.9.9",
+    "main_integration": "PENDING",
+}
+json.dump(st, open(p, "w"), indent=2)
+PY
+run_gate
+if [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -qF 'only permitted for release 0.8.23'; then
+  pass "arm R4b: completion is rejected outside 0.8.23"
+else
+  fail "arm R4b (completion scope): rc=$RC out=$OUT"
+fi
+
+completion_ref_fixture
+python3 - "$FIX/dev/plans/release-state-0.8.23.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+st = json.load(open(p))
+st["completion"]["main_integration"] = "MAYBE"
+json.dump(st, open(p, "w"), indent=2)
+PY
+run_gate
+if [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -qF 'must be PENDING or COMPLETE'; then
+  pass "arm R4b: completion rejects an unrecognised main-integration state"
+else
+  fail "arm R4b (integration enum): rc=$RC out=$OUT"
+fi
+
+completion_ref_fixture
+python3 - "$FIX/dev/plans/release-state-0.8.23.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+st = json.load(open(p))
+st["completion"]["ref"] = "origin/release/0.8.24"
+json.dump(st, open(p, "w"), indent=2)
+PY
+run_gate
+if [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -qF 'must name' \
+   && printf '%s' "$OUT" | grep -qF 'origin/release/0.8.23'; then
+  pass "arm R4b: completion rejects a ref other than the named 0.8.23 release branch"
+else
+  fail "arm R4b (completion ref): rc=$RC out=$OUT"
+fi
+
+completion_ref_fixture
+(
+  cd "$FIX"
+  git push -q origin release/0.8.23:main
+  git fetch -q origin main
+)
+run_gate
+if [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -qF 'integration as PENDING' \
+   && printf '%s' "$OUT" | grep -qF 'already reachable from `origin/main`'; then
+  pass "arm R4b: PENDING main integration HARD-fails once the completion ref reaches origin/main"
+else
+  fail "arm R4b (pending integration truth): rc=$RC out=$OUT"
+fi
+
 # --- Arm R5: a SHALLOW clone is UNVERIFIABLE, never FALSE ---------------------
 # THE DEFECT THIS PINS. `actions/checkout` defaults to `--depth=1`. In that clone
 # `origin/main` EXISTS but holds only the tip commit, so every historical landed
@@ -1578,10 +1757,12 @@ fi
 #
 # A permanently-red gate is worse than no gate — it trains readers to discount
 # red, which is how a real failure survives. Absent history means UNVERIFIABLE.
-# Reuse the remote arms R–R3 already built and pushed, rather than rebuilding the
-# fixture. A second `remote_fixture` call is avoidable state: in CI it aborted the
-# whole suite under `set -e` before arm R5 printed anything, and a fixture that
-# can kill the run is a worse hazard than the one being tested.
+# Arm R4b deliberately replaced the fixture remote with a 0.8.23 release ref.
+# Restore the legacy remote before this legacy shallow-clone arm: its state file
+# asserts `origin/main`, and the point under test is that its historical landing
+# guard remains unchanged when no completion object is present.
+remote_fixture
+(cd "$FIX" && git push -q origin main)
 if ! git -C "$TMPROOT/remote.git" rev-parse --verify --quiet main >/dev/null 2>&1; then
   fail "arm R5 setup: the shared fixture remote has no main; arms R-R3 must run first"
 fi

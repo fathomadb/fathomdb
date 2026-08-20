@@ -36,7 +36,7 @@ import { spawnSync } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 
 import { Engine, read } from "../src/index.js";
-import { SchedulerError } from "../src/errors.js";
+import { EmbedderRequiredError } from "../src/errors.js";
 import type { ProjectionSpec } from "../src/index.js";
 import { freshDbPath } from "./helpers.js";
 
@@ -46,10 +46,6 @@ const DRAIN_TIMEOUT_MS = 120_000;
 // barrier — an assertion that "`drain` did not hang" should not cost two minutes
 // per arm when it is red.
 const WEDGE_TIMEOUT_MS = 30_000;
-// fix-4: the engine's projection retry ladder is 0 + 1 + 4 + 16 s. The
-// no-embedder arm waits it out so its terminal/audit probes are FALSIFYING at
-// baseline rather than merely early.
-const LADDER_SETTLE_MS = 24_000;
 
 const READ_ONLY_SQL_CHILD = `
 import { DatabaseSync } from "node:sqlite";
@@ -560,7 +556,9 @@ test("a no-embedder session leaves an enrolled kind's write recoverable", async 
   // The CONSUMER-VISIBLE consequence is asserted on purpose, so it cannot change
   // back silently: with no usable dense runtime, readiness reads `"unavailable"`
   // regardless of outstanding work. The pending row remains recoverable and
-  // `drain` rejects with `SchedulerError`, rather than recording a failed terminal.
+  // Slice 30 ratified this configuration boundary: `drain` immediately reports
+  // the typed remediation-bearing EmbedderRequiredError, rather than retrying
+  // into a scheduler timeout or recording a failed terminal.
   if (skipNetwork()) return;
   const path = freshDbPath();
 
@@ -592,17 +590,38 @@ test("a no-embedder session leaves an enrolled kind's write recoverable", async 
 
     // THE CONSUMER-VISIBLE CONSEQUENCE. An enrolled row with no vector is
     // outstanding and this session cannot satisfy it, so the barrier must NOT
-    // clear. At baseline it cleared by recording a `'failed'` terminal — which
-    // is exactly how the write got lost.
-    await assert.rejects(() => cold.drain(3_000), SchedulerError);
-
-    // Give the BASELINE its full retry ladder (0 + 1 + 4 + 16 s) before the
-    // probes below. Without this wait they all read a merely-unterminated row
-    // and pass VACUOUSLY on the broken code — the SDKs expose no equivalent of
-    // the Rust suite's `set_projection_retry_delays_for_test` seam, so waiting
-    // is the only way to make them falsifying. Under the fix the row is never
-    // dispatched, so this is dead time and nothing changes across it.
-    await new Promise((resolve) => setTimeout(resolve, LADDER_SETTLE_MS));
+    // clear. Slice 30 ratified an immediate configuration outcome here; it must
+    // preserve the exact public payload rather than looking like the old generic
+    // scheduler timeout. The accepted write stays recoverable below.
+    const blocked = await read.embeddingReadiness(cold);
+    assert.deepEqual(blocked, {
+      state: "blocked",
+      usableEmbedder: false,
+      pendingCount: 1,
+      affectedKinds: ["doc"],
+      code: "FDB_EMBEDDER_REQUIRED",
+      operation: "vector_projection",
+      remediations: [
+        "configure_default_embedder",
+        "configure_caller_embedder",
+        "submit_non_embedding_input",
+      ],
+      documentationUrl: "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED",
+    });
+    const started = Date.now();
+    await assert.rejects(
+      () => cold.drain(3_000),
+      (error: unknown) => {
+        assert.ok(error instanceof EmbedderRequiredError);
+        assert.equal(error.code, blocked.code);
+        assert.equal(error.operation, blocked.operation);
+        assert.equal(error.state, blocked.state);
+        assert.deepEqual(error.remediations, blocked.remediations);
+        assert.equal(error.documentationUrl, blocked.documentationUrl);
+        return true;
+      },
+    );
+    assert.ok(Date.now() - started < 1_000, "configuration feedback must not wait for retry backoff");
 
     assert.equal(
       await readiness(cold),
@@ -691,35 +710,16 @@ function pendingNodeRowsBelow(path: string, cursor: number): number {
   );
 }
 
-async function pollUntil(timeoutMs: number, probe: () => boolean): Promise<boolean> {
-  const deadline = Date.now() + timeoutMs;
-  for (;;) {
-    if (probe()) return true;
-    if (Date.now() >= deadline) return false;
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  }
-}
-
-// fix-5 [P1] — a pending EDGE body must stay reachable behind a full scan window
-// of no-embedder NODE rows.
-//
-// fix-4 excluded no-embedder node jobs by filtering what the scheduler's scan
-// RETURNED — i.e. after its `ORDER BY write_cursor LIMIT PROJECTION_SCAN_FETCH`.
-// The `LIMIT` therefore applied to the UNFILTERED set: with more than one window
-// of pending node rows ordered before a pending edge body, the scan came back
-// entirely full of node jobs, the filter dropped all of them, the dispatcher
-// went back to sleep with its wake already consumed — and the edge body was
-// NEVER scheduled. Permanently, because those node rows stay pending for the
-// life of a no-embedder session, so `drain` could time out indefinitely on that
-// edge workload.
+// Slice 30 — an absent runtime dispatches no embedding work. A pending EDGE
+// body behind a full no-embedder NODE scan window must receive immediate typed
+// feedback from `drain`, then remain pending and recoverable rather than enter
+// the retry ladder and record a failed terminal.
 //
 // Fully OFFLINE: the kind is enrolled through the `test-hooks`-gated
 // `configureVectorKindForTest` seam (the same one the shipped
 // `slice20-dense-readiness.test.ts` fixture uses), so no embedder is ever
-// downloaded. Edges keep their SHIPPED no-embedder behaviour, so "scheduled" is
-// observable as the edge body reaching a TERMINAL; this test asserts only that
-// the scheduler REACHES it.
-test("a pending edge body survives a full scan window of node rows (offline)", async () => {
+// downloaded.
+test("a no-embedder pending edge stays recoverable behind a full node scan window", async () => {
   const path = freshDbPath();
   const engine = await Engine.open(path);
   try {
@@ -749,28 +749,40 @@ test("a pending edge body survives a full scan window of node rows (offline)", a
         `body. Pending: ${pendingBefore}, window: ${PROJECTION_SCAN_FETCH}`,
     );
 
-    // The shipped edge path with no embedder is the 0 + 1 + 4 + 16 s retry ladder
-    // into a `'failed'` terminal; the SDKs expose no equivalent of the Rust
-    // `set_projection_retry_delays_for_test` seam, so this waits it out.
-    const scheduled = await pollUntil(
-      LADDER_SETTLE_MS + 16_000,
-      () => terminalState(path, edgeCursor) !== null,
+    const blocked = await read.embeddingReadiness(engine);
+    assert.deepEqual(blocked, {
+      state: "blocked",
+      usableEmbedder: false,
+      pendingCount: nodeRows + 1,
+      affectedKinds: ["doc", "edge_fact"],
+      code: "FDB_EMBEDDER_REQUIRED",
+      operation: "graph_edge_body_projection",
+      remediations: [
+        "configure_default_embedder",
+        "configure_caller_embedder",
+        "submit_non_embedding_input",
+      ],
+      documentationUrl: "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED",
+    });
+    const started = Date.now();
+    await assert.rejects(
+      () => engine.drain(3_000),
+      (error: unknown) => {
+        assert.ok(error instanceof EmbedderRequiredError);
+        assert.equal(error.code, blocked.code);
+        assert.equal(error.operation, blocked.operation);
+        assert.equal(error.state, blocked.state);
+        assert.deepEqual(error.remediations, blocked.remediations);
+        assert.equal(error.documentationUrl, blocked.documentationUrl);
+        return true;
+      },
     );
-    assert.ok(
-      scheduled,
-      `SCAN-WINDOW STARVATION: with more than PROJECTION_SCAN_FETCH (${PROJECTION_SCAN_FETCH}) ` +
-        `pending node rows ordered before it, the pending edge body at cursor ${edgeCursor} was ` +
-        "NEVER scheduled. The no-embedder node exclusion must happen INSIDE the scheduler's SQL " +
-        "so the LIMIT applies to the ALREADY-FILTERED set; filtering after the fetch lets one " +
-        "full window of node rows hide every later job, and `drain` then times out on that edge " +
-        "workload indefinitely",
-    );
+    assert.ok(Date.now() - started < 1_000, "configuration feedback must not wait for retry backoff");
+    await new Promise((resolve) => setTimeout(resolve, 100));
     assert.equal(
       terminalState(path, edgeCursor),
-      "failed",
-      "edges keep their shipped no-embedder behaviour: the retry ladder exhausts into a " +
-        "`'failed'` terminal. fix-5 changes WHICH rows the scan returns, not what happens to an " +
-        "edge once it is dispatched",
+      null,
+      "an absent embedder must leave the edge body pending and recoverable, not record failed",
     );
     assert.equal(
       pendingNodeRowsBelow(path, edgeCursor),

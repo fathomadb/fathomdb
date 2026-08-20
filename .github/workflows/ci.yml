@@ -641,7 +641,14 @@ jobs:
           $releasedEnv = "$env:RUNNER_TEMP\slice65-released-wheel"
           $currentEnv = "$env:RUNNER_TEMP\slice65-current-wheel"
           $bindingLog = "$env:RUNNER_TEMP\slice65-windows-python-binding.log"
+          $currentVersionMatches = @(Select-String -LiteralPath "src/python/pyproject.toml" -Pattern '^version = "([^"]+)"$')
+          if ($currentVersionMatches.Count -ne 1) {
+            Write-Error "expected exactly one candidate Python wheel version, found $($currentVersionMatches.Count)"
+            exit 1
+          }
+          $currentWheelVersion = $currentVersionMatches[0].Matches[0].Groups[1].Value
           "slice65_wal current_head=$(git rev-parse HEAD)" | Tee-Object -FilePath $artifact -Append
+          "slice65_wal current_wheel_version=$currentWheelVersion" | Tee-Object -FilePath $artifact -Append
           python -m venv $releasedEnv
           & "$releasedEnv\Scripts\python.exe" -m pip install --only-binary=:all: fathomdb==0.8.22 2>&1 | Tee-Object -FilePath $artifact -Append
           & "$releasedEnv\Scripts\python.exe" -m pip show fathomdb 2>&1 | Tee-Object -FilePath $artifact -Append
@@ -675,9 +682,9 @@ jobs:
           "slice65_wal current_wheel_path=$currentWheel" | Tee-Object -FilePath $artifact -Append
           "slice65_wal current_wheel_sha256=$((Get-FileHash -LiteralPath $currentWheel -Algorithm SHA256).Hash)" | Tee-Object -FilePath $artifact -Append
           & "$currentEnv\Scripts\python.exe" -m pip install --no-index --no-deps $currentWheel 2>&1 | Tee-Object -FilePath $artifact -Append
-          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control serial --wheel-version 0.8.22 --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append
+          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control serial --wheel-version $currentWheelVersion --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control binding --wheel-version 0.8.22 --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $bindingLog
+          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control binding --wheel-version $currentWheelVersion --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $bindingLog
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_completion_ack reader_autocommit=1 collector=idle' -Quiet)) {
             Write-Error "installed binding diagnostic did not acknowledge direct reader autocommit at completion"
@@ -713,7 +720,7 @@ jobs:
             Write-Error "installed binding diagnostic did not retain its conditional child outcome"
             exit 1
           }
-          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control retained --wheel-version 0.8.22 --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append
+          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control retained --wheel-version $currentWheelVersion --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $bindingBusy = @(Select-String -Path $bindingLog -Pattern 'slice65_wal checkpoint_attempt=.*busy=1.*classification=owned_reader_snapshot.*active_roles=reader_worker:0').Count
           if ($bindingBusy -ne 5) {

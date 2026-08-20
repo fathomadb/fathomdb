@@ -320,7 +320,14 @@ if (engine.openReport().embedderDeviceResolution.effectiveDevice.kind !== "cpu")
 if ((await engine.embed("driverless N-API CPU fallback proof")).length !== 384) throw new Error("expected 384-vector");
 if (process.env.FATHOMDB_CUDA_REHEARSAL_RERANK === "true") {
   await engine.write([{kind: "doc", body: "TinyBERT CPU inference", sourceId: "reranker-cpu-proof"}]);
-  const result = await engine.search("reranker CPU proof", undefined, 1);
+  await engine.drain(30_000);
+  const deadline = Date.now() + 10_000;
+  let result = await engine.search("TinyBERT CPU inference", undefined, 1);
+  while (Date.now() < deadline) {
+    if (result.results.length === 1 && result.results[0].ceScore !== null) break;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    result = await engine.search("TinyBERT CPU inference", undefined, 1);
+  }
   if (result.results.length !== 1 || result.results[0].ceScore === null) throw new Error("expected installed N-API reranker inference");
 }
 await engine.close();
@@ -729,7 +736,7 @@ if rerank_cuda:
             "effective_device": None,
             "reason": "no_visible_cuda_device",
             "provenance": "installed_candidate",
-            "command": f"installed_{consumer}_engine_open",
+            "command": f"installed_{consumer}_engine_open_without_default_embedder",
             "exit_code": 1,
             "stdout_filename": stdout.name,
             "stdout_sha256": digest(stdout),

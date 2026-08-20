@@ -28,7 +28,7 @@ public dataclasses in ``fathomdb.types``.
 from __future__ import annotations
 
 import builtins
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from fathomdb._fathomdb import NodeRecord as _NativeNodeRecord
 from fathomdb._fathomdb import OpStoreRow as _NativeOpStoreRow
@@ -41,13 +41,17 @@ from fathomdb._fathomdb import read_mutations as _native_mutations
 from fathomdb._fathomdb import crossed_boundary_since as _native_crossed_boundary_since
 from fathomdb._fathomdb import read_projections as _native_read_projections
 from fathomdb._fathomdb import read_projection_status as _native_read_projection_status
+from fathomdb._fathomdb import read_embedding_readiness as _native_read_embedding_readiness
 from fathomdb._fathomdb import ReadView as _NativeReadView
 from fathomdb._fathomdb import BoundaryCrossing as _NativeBoundaryCrossing
 from fathomdb.types import (
     BoundaryCrossing,
+    EmbeddingOperation,
     NodeRecord,
     OpStoreRow,
     ProjectionRuntimeStatus,
+    EmbeddingReadiness,
+    EmbeddingReadinessState,
     ProjectionRuntimeStatusEntry,
     ProjectionSpec,
     ReadView,
@@ -294,6 +298,63 @@ def projection_status(engine: "Engine") -> ProjectionRuntimeStatus:
     )
 
 
+def _embedding_readiness_state(value: str) -> EmbeddingReadinessState:
+    if value == "ready":
+        return "ready"
+    if value == "processing":
+        return "processing"
+    if value == "deferred":
+        return "deferred"
+    if value == "blocked":
+        return "blocked"
+    raise RuntimeError(f"native embedding readiness returned unknown state {value!r}")
+
+
+def _embedding_required_code(value: str | None) -> Literal["FDB_EMBEDDER_REQUIRED"] | None:
+    if value is None or value == "FDB_EMBEDDER_REQUIRED":
+        return value
+    raise RuntimeError(f"native embedding readiness returned unknown code {value!r}")
+
+
+def _embedding_operation(value: str | None) -> EmbeddingOperation | None:
+    if value is None:
+        return None
+    if value == "graph_edge_body_projection":
+        return value
+    if value == "vector_projection":
+        return value
+    raise RuntimeError(f"native embedding readiness returned unknown operation {value!r}")
+
+
+def embedding_readiness(engine: "Engine") -> EmbeddingReadiness:
+    """Return pure typed readiness for pending embedding projection work."""
+    status = _native_read_embedding_readiness(engine._native)
+    state = _embedding_readiness_state(status.state)
+    code = _embedding_required_code(status.code)
+    operation = _embedding_operation(status.operation)
+    if state == "blocked":
+        if (
+            code is None
+            or operation is None
+            or not status.remediations
+            or not status.documentation_url
+        ):
+            raise RuntimeError("native blocked embedding readiness omitted its required payload")
+    elif (
+        code is not None
+        or operation is not None
+        or status.remediations
+        or status.documentation_url is not None
+    ):
+        raise RuntimeError("native non-blocked embedding readiness included a blocked payload")
+    return EmbeddingReadiness(
+        state=state, usable_embedder=status.usable_embedder,
+        pending_count=status.pending_count, affected_kinds=tuple(status.affected_kinds),
+        code=code, operation=operation, remediations=tuple(status.remediations),
+        documentation_url=status.documentation_url,
+    )
+
+
 def _validate_limit(limit: int) -> None:
     if not isinstance(limit, int) or isinstance(limit, bool):
         raise ValueError("read.collection/read.mutations require an integer limit")
@@ -310,4 +371,5 @@ __all__ = [
     "crossed_boundary_since",
     "projections",
     "projection_status",
+    "embedding_readiness",
 ]

@@ -36,6 +36,7 @@
     "configureProjections",
     "read.projections",
     "read.projection_status",
+    "read.embedding_readiness",
     "read.projectionStatus"
   ],
   "core": [

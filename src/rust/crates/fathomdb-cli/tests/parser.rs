@@ -160,6 +160,24 @@ fn every_doctor_verb_accepts_json_flag() {
 }
 
 #[test]
+fn doctor_gpu_accepts_json_without_a_database_argument() {
+    let cli = parse(&["doctor", "gpu", "--json"]);
+    let DoctorCommand::Gpu(args) = doctor(cli) else {
+        panic!("expected database-free doctor gpu");
+    };
+    assert!(args.json);
+}
+
+#[test]
+fn doctor_platform_accepts_json_without_a_database_argument() {
+    let cli = parse(&["doctor", "platform", "--json"]);
+    let DoctorCommand::Platform(args) = doctor(cli) else {
+        panic!("expected database-free doctor platform");
+    };
+    assert!(args.json);
+}
+
+#[test]
 fn doctor_rejects_accept_data_loss() {
     let res = Cli::try_parse_from(["fathomdb", "doctor", "check-integrity", "--accept-data-loss"]);
     assert!(res.is_err(), "doctor must reject --accept-data-loss");

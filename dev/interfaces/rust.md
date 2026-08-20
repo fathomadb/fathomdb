@@ -12,6 +12,19 @@ status: locked
 This file owns Rust-visible symbol spelling and result shape. Cross-binding
 parity rules remain owned by `design/bindings.md`.
 
+## TC-5 benchmark-only boundary (Slice 70)
+
+`fathomdb-tc5-benchmark` is a non-published workspace executable, available
+only with its `tc5-benchmark` Cargo feature. It is not re-exported by the
+`fathomdb` facade and adds no Python, TypeScript, or ordinary CLI option. With
+that feature, `fathomdb-engine::tc5_benchmark` exposes the documented narrow
+internal ABI `VectorStageScope`, `VectorStageRequest`, `VectorStageResult`,
+`VectorStageError`, and `RouteAttestation`, plus `Engine::tc5_vector_stage`.
+The ABI accepts an already-created query vector and immutable manifest-derived
+scope; it cannot carry compiled text, FTS, fusion, graph, CE, or ambient device
+settings. Its row keys are internal executable input and must be digested before
+an external result artifact is written.
+
 ## Support posture
 
 The Rust facade is the stable public Rust contract and is the
@@ -216,6 +229,7 @@ DEFAULT facade, not behind the `operator` feature.
 - `Engine::configure_projections(...) -> Result<ProjectionDelta, EngineError>`
 - `Engine::read_projections() -> Result<Vec<ProjectionSpec>, EngineError>`
 - `Engine::read_projection_status() -> Result<ProjectionRuntimeStatus, EngineError>`
+- `Engine::read_embedding_readiness() -> Result<EmbeddingReadiness, EngineError>`
 
 See § "Projection registry" below.
 
@@ -225,6 +239,69 @@ See § "Projection registry" below.
 - `report`
 
 `report` is the `OpenReport` owned by `design/engine.md`.
+
+### `OpenReport::embedder_gpu_allocation_witness` (0.8.23 Slice 80.6)
+
+`OpenReport::embedder_gpu_allocation_witness` is
+`Option<fathomdb_embedder::GpuAllocationWitness>`: the retained
+`fathomdb.tegra-gpu-allocation-witness/v1` record measured **in this process**
+during the open (`design/0.8.23-aarch64-tegra.md` D-80.6-6, AC80-6, R80-13). It
+exists so the installed artifact's own process carries the GPU evidence rather
+than a sibling process.
+
+`None` means **no witness was taken**, never "a witness measured nothing". A
+zero, negative, or below-floor allocation delta is a typed failure inside the
+witness (R80-12) and fails the open, so a zero-valued record is unreachable
+through this field.
+
+It is populated only when `FATHOMDB_GPU_ALLOCATION_WITNESS=1` (or `true`) is
+set, the artifact has CUDA compiled in, and the device policy actually selected
+CUDA for the default embedder. It is opt-in because producing it costs a second
+model load plus the multi-gigabyte deliberate control allocation D-80.5-3
+requires; that is evidence-run behavior, not the runtime contract. When the
+witness is requested and cannot be produced, `Engine::open` fails with
+`EngineOpenError::Embedder` naming the witness's own failure tag
+(`cpu_fallback`, `cuda_not_compiled`, `insufficient_delta`, …) — it never
+degrades to `None`. An unrecognized value of the variable is rejected at open
+time rather than read as "off".
+
+The record carries `device_ordinal_requested`, `device_ordinal_actual`,
+`device_uuid`, `device_name`, `compute_capability`, `free_before_bytes`,
+`free_after_bytes`, `total_bytes`, `delta_bytes`, `delta_floor_bytes`,
+`control_allocation_request_bytes`, `control_block_count`,
+`control_free_before_bytes`, `control_free_after_bytes`,
+`control_delta_bytes`, and `embedded_vector_dim`, so the verdict is
+re-derivable from the record alone (R80-13). Device identity is not part of
+`EmbedderIdentity` and this field makes no claim about it.
+
+### `OpenReport::embedder_device_resolution` (0.8.23 Slice 70)
+
+`OpenReport::embedder_device_resolution` is the immutable strict CPU/CUDA
+selection consumed by the embedder constructor. It is present for the default
+embedder and for `EmbedderChoice::CallerWithDeviceResolution`; it is `None`
+when open receives no device-resolution report (for example, no embedder or
+the legacy `Caller` variant). It preserves the exact requested policy
+(`auto`, `cpu`, or `cuda:N`), artifact CUDA capability, effective CPU/CUDA
+backend, the ordered process-visible CUDA inventory (`visible_ordinal`, UUID,
+name, compute capability), optional selected UUID, and an automatic-fallback
+reason. Ordinals are `CUDA_VISIBLE_DEVICES`-relative; physical host ordinals
+are never inferred. CPU-effective automatic outcomes retain the observed
+inventory. The additive fields are
+`visible_cuda_devices: Vec<CudaVisibleDevice>` (each with `visible_ordinal`,
+`uuid`, `name`, and `compute_capability`) and
+`selected_cuda_uuid: Option<String>`; a present selected UUID names exactly one
+inventory member. A forced-CUDA failure remains `EngineOpenError::EmbedDevicePolicy`,
+not a fabricated CPU report.
+
+`DeviceResolution` is the normal open-time result. `DoctorGpuDiagnosticResult`
+is a CLI-only result and is deliberately distinct: a
+`CudaProbeError::ProbeFailed` can be represented as automatic CPU open evidence,
+but `doctor gpu` maps it to `probe_failed` and exit `70`. Rust SDK consumers do
+not receive a doctor API or configuration setter.
+
+A report-bearing `OrtBgeEmbedder` caller uses `CallerWithDeviceResolution`,
+rather than the legacy `Caller` variant, so its final ONNX Runtime
+session/provider outcome reaches the same report once.
 
 ### `OpenReport::dense_disabled` and the cached equivalence verdict (0.8.20 Slice 22, TC-68)
 
@@ -532,6 +609,24 @@ The C5 facade types are also public Rust surface:
 `ProjectionStatusDenseReadiness`. They are deliberately distinct from the
 internal lifecycle `ProjectionStatus` enum.
 
+### Embedding readiness (0.8.23 Slice 30)
+
+`Engine::read_embedding_readiness() -> Result<EmbeddingReadiness, EngineError>`
+is an additive, pure current read. `EmbeddingReadiness` exposes
+`state: EmbeddingReadinessState`, `usable_embedder`, `pending_count`, sorted
+`affected_kinds`, and `blocked: Option<EmbedderRequired>`; it exposes no pending
+body text. `EmbeddingReadinessState` has the closed values `Ready`,
+`Processing`, `Deferred`, and `Blocked` (`as_str()` supplies the lower-case
+wire forms).
+
+`blocked` is present only for pending work with no configured runtime. Its
+`EmbedderRequired` payload has stable code `FDB_EMBEDDER_REQUIRED`, an
+`EmbeddingOperation`, state `Blocked`, ordered remediations, and a documentation
+URL. In the same condition `Engine::drain` returns
+`EngineError::EmbedderRequired` immediately. An attached runtime refused by the
+identity/equivalence guard, and a live worker failure, remain operational:
+readiness is `Deferred` and `drain` retains ordinary bounded behavior.
+
 Types:
 
 - `ProjectionSpec { name: String, roles: BTreeSet<ProjectionRole>, fts:
@@ -740,17 +835,18 @@ in Rust, Python and TypeScript:
   idempotent re-apply remains a repair door.
 - **…but graceful-absent stops at the enrolment boundary** (fix-4). Once a kind
   IS enrolled — i.e. some earlier session DID have an embedder — a write of that
-  kind is dense work the workspace has committed to, and a session with no usable
-  dense runtime cannot make it go away. Such a write is **accepted** and stays
-  lexically searchable, but it stays **outstanding**: `dense_readiness` reads
-  `Unavailable` and `drain` returns `EngineError::Scheduler` for the rest of that
-  session, however long you wait. It is **not** lost — no failure is recorded and
-  no terminal is written, so the next session opened WITH an approved runtime
-  embeds it through the ordinary scheduler, with no re-apply and no operator
-  `rebuild`. Callers who write to an enrolled corpus without a usable runtime
-  should therefore expect `drain` to time out and should not treat that as data
-  loss. (Reporting `Ready` there instead would be a torn `ready`-without-vector — the silent miss
-  this slice exists to eliminate.)
+  kind is dense work the workspace has committed to, and an absent runtime cannot
+  make it go away. Such a write is **accepted** and stays lexically searchable,
+  but it remains **outstanding**: `dense_readiness` reads `Unavailable` and
+  `drain` returns immediate `EngineError::EmbedderRequired`
+  (`FDB_EMBEDDER_REQUIRED`) rather than spending its scheduler timeout. It is
+  **not** lost — no failure is recorded and no terminal is written, so the next
+  session opened WITH an approved runtime embeds it through the ordinary
+  scheduler, with no re-apply and no operator `rebuild`. An attached runtime
+  refused by the equivalence guard is different operational deferral: it is not
+  `FDB_EMBEDDER_REQUIRED`, and a bounded `drain` may return
+  `EngineError::Scheduler`. (Reporting `Ready` here instead would be a torn
+  `ready`-without-vector — the silent miss this slice exists to eliminate.)
 - **`drain` remains bounded**, returning the typed timeout error rather than
   blocking; a caller sizes `timeout_ms` for the backfill it just asked for.
 
@@ -812,6 +908,21 @@ private test seam can only raise candidate fanout, never public result cardinali
 `graph_neighbors` remains separately capped at 50.
 
 ## Errors
+
+### Cross-encoder device policy (0.8.23 Slice 71)
+
+The optional Candle cross-encoder uses the independent FATHOMDB_RERANK_DEVICE
+transport. Its grammar is exactly auto, cpu, or cuda:N; unset means auto.
+RerankerDevicePolicyError rejects malformed or retired values and forced CUDA
+failure. CPU never initializes CUDA; auto may select CPU only with a classified
+reason; forced cuda:N never retries on CPU. RerankerDeviceResolution is
+intentionally distinct from OpenReport.embedder_device_resolution: CUDA
+embedding is not evidence of CUDA reranking.
+
+Both independent policies may resolve to the same CUDA UUID in one process.
+That selects two Candle model instances; it is not a device reservation,
+resource manager, allocator cap, or evidence that CPU-only retrieval stages
+used CUDA.
 
 Rust exposes typed open/runtime errors without message parsing:
 

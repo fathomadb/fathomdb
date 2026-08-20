@@ -32,28 +32,156 @@ report as real skips carrying `reason`.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-#: Every symbol the dev-only `test-hooks` Cargo feature adds to the binding, as
-#: ``(owner, attribute)``; ``owner=None`` means module level. Mirrors
-#: `src/rust/crates/fathomdb-py/src/lib.rs` — the two `Engine` methods and the
-#: module-level AC-067 panic probe, each behind
-#: ``#[cfg(any(test, feature = "test-hooks"))]``.
+#: Every callable the `test-hooks` cfg exposes through the Python binding, as
+#: ``(owner, attribute)``; ``owner=None`` means module level. This inventory is
+#: checked against `fathomdb-py/src/lib.rs`, including pyclass registrations and
+#: module-function Python names, so it cannot silently trail a new private hook.
 #:
-#: The probe checks ALL of these. An earlier version checked only
-#: `Engine._write_vector_for_test`, so a binding carrying the two `Engine`
-#: methods but NOT `force_panic_for_test` — reachable from a stale or
-#: interrupted build — reported "hooks present" and returned PROCEED. The
-#: `requires_test_hooks` skips then did not apply and
-#: `test_panic_surfaces_as_python_exception` failed on a missing import instead
-#: of skipping cleanly. The gate must be no weaker than the surface it gates.
+#: The probe checks ALL of these. A partial binding is reachable after a stale
+#: or interrupted build; it must report DEGRADED rather than PROCEED. The gate
+#: must be no weaker than the test-hook surface it gates.
 TEST_HOOK_SYMBOLS: tuple[tuple[str | None, str], ...] = (
     ("Engine", "_configure_vector_kind_for_test"),
     ("Engine", "_write_vector_for_test"),
+    ("Engine", "_arm_next_reader_snapshot_pause_for_test"),
+    ("Engine", "_arm_next_reader_completion_pause_for_test"),
+    ("Engine", "_wal_attribution_checkpoint_records_for_test"),
+    ("Engine", "_wal_attribution_snapshot_for_test"),
+    ("Engine", "_arm_actual_checkpoint_observation_for_test"),
+    ("Engine", "_drain_actual_checkpoint_observations_for_test"),
+    ("Engine", "_wal_attribution_binding_inventory_for_test"),
+    ("Engine", "_wal_attribution_binding_native_state_inventory_for_test"),
+    ("Engine", "_arm_binding_native_state_observation_for_test"),
+    ("Engine", "_drain_binding_native_state_observations_for_test"),
+    ("Engine", "_checkpoint_at_rest_for_test"),
+    (None, "_WalSnapshotPause"),
+    ("_WalSnapshotPause", "wait_snapshot_ready"),
+    ("_WalSnapshotPause", "release"),
+    ("_WalSnapshotPause", "reader_connection_autocommit_for_test"),
+    ("_WalSnapshotPause", "reader_native_state_for_test"),
     (None, "force_panic_for_test"),
+    (None, "_native_raw_wal_checkpoint_for_test"),
 )
+
+
+_ATTRIBUTE_FUNCTION = re.compile(
+    r"(?ms)^(?P<attributes>(?:[ \t]*#\[[^\n]*\]\n)*)"
+    r"[ \t]*fn\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)(?:<[^>]*>)?\s*\("
+)
+
+
+def _has_test_hooks_cfg(attributes: str) -> bool:
+    """Return whether a contiguous Rust attribute group gates `test-hooks`."""
+
+    return 'feature = "test-hooks"' in attributes
+
+
+def _python_name(attributes: str, rust_name: str) -> str:
+    """Resolve a PyO3 `name =` override, otherwise retain the Rust name."""
+
+    matched = re.search(r'\bname\s*=\s*"(?P<name>[^"]+)"', attributes)
+    return matched.group("name") if matched else rust_name
+
+
+def _cfg_registration_exists(source: str, registration: str) -> bool:
+    """Return whether a module registration is itself behind `test-hooks`."""
+
+    pattern = re.compile(
+        r'(?ms)^[ \t]*#\[cfg\([^\n]*feature = "test-hooks"[^\n]*\)\]\n'
+        + r"[ \t]*"
+        + re.escape(registration)
+    )
+    return bool(pattern.search(source))
+
+
+def _function_symbols(block: str, owner: str | None, *, require_cfg: bool) -> set[tuple[str | None, str]]:
+    """Derive exposed PyO3 function names from one Rust implementation block."""
+
+    symbols: set[tuple[str | None, str]] = set()
+    for matched in _ATTRIBUTE_FUNCTION.finditer(block):
+        attributes = matched.group("attributes")
+        if require_cfg and not _has_test_hooks_cfg(attributes):
+            continue
+        symbols.add((owner, _python_name(attributes, matched.group("name"))))
+    return symbols
+
+
+def _slice_between(source: str, start_marker: str, end_marker: str) -> str:
+    """Return a stable named source region, refusing ambiguous Rust layouts."""
+
+    start = source.find(start_marker)
+    if start < 0:
+        raise ValueError(f"missing Rust marker: {start_marker}")
+    end = source.find(end_marker, start)
+    if end < 0:
+        raise ValueError(f"missing Rust marker after {start_marker}: {end_marker}")
+    return source[start:end]
+
+
+def rust_test_hook_symbols(source: str) -> set[tuple[str | None, str]]:
+    """Derive the complete cfg-gated Python-callable test-hook surface.
+
+    The parser is deliberately narrow and fail-closed to this binding's PyO3
+    grammar: `Engine` methods require their own cfg attributes; a private
+    pyclass requires both a cfg class declaration and cfg module registration;
+    module functions require both cfg `#[pyfunction]` declaration and cfg
+    `wrap_pyfunction!` registration.  This distinguishes the Python-exposed
+    `_native_raw_wal_checkpoint_for_test` name from its Rust implementation.
+    """
+
+    symbols: set[tuple[str | None, str]] = set()
+    if "m.add_class::<PyEngine>()?;" in source:
+        engine = _slice_between(source, "#[pymethods]\nimpl PyEngine", "// ===== Test hooks")
+        symbols.update(_function_symbols(engine, "Engine", require_cfg=True))
+
+    pyclass = re.compile(
+        r'(?ms)^(?P<attributes>(?:[ \t]*#\[[^\n]*\]\n)*)'
+        r'[ \t]*struct\s+(?P<rust_name>[A-Za-z_][A-Za-z0-9_]*)'
+    )
+    for matched in pyclass.finditer(source):
+        attributes = matched.group("attributes")
+        if not _has_test_hooks_cfg(attributes) or "#[pyclass" not in attributes:
+            continue
+        rust_name = matched.group("rust_name")
+        python_name = _python_name(attributes, rust_name)
+        registration = f"m.add_class::<{rust_name}>()?;"
+        if not _cfg_registration_exists(source, registration):
+            continue
+        symbols.add((None, python_name))
+        methods = _slice_between(
+            source,
+            f"#[cfg(feature = \"test-hooks\")]\n#[pymethods]\nimpl {rust_name}",
+            "#[pymethods]\nimpl PyEngine",
+        )
+        symbols.update(_function_symbols(methods, python_name, require_cfg=False))
+
+    for matched in _ATTRIBUTE_FUNCTION.finditer(source):
+        attributes = matched.group("attributes")
+        if not _has_test_hooks_cfg(attributes) or "#[pyfunction" not in attributes:
+            continue
+        rust_name = matched.group("name")
+        registration = f"m.add_function(wrap_pyfunction!({rust_name}, &m)?)?;"
+        if _cfg_registration_exists(source, registration):
+            symbols.add((None, _python_name(attributes, rust_name)))
+    return symbols
+
+
+def hook_surface_drift(source: str) -> tuple[
+    tuple[tuple[str | None, str], ...], tuple[tuple[str | None, str], ...]
+]:
+    """Return `(missing_from_inventory, unexpected_in_inventory)` for Rust source."""
+
+    actual = rust_test_hook_symbols(source)
+    inventory = set(TEST_HOOK_SYMBOLS)
+    return (
+        tuple(sorted(actual - inventory, key=lambda symbol: hook_symbol_name(*symbol))),
+        tuple(sorted(inventory - actual, key=lambda symbol: hook_symbol_name(*symbol))),
+    )
 
 #: Opt in to letting conftest run `maturin develop` for you.
 REBUILD_OPT_IN = "FATHOMDB_TESTS_ALLOW_REBUILD"

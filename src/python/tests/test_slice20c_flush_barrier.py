@@ -39,7 +39,7 @@ import time
 import pytest
 
 from fathomdb import Engine, ProjectionRole, ProjectionSpec, read
-from fathomdb.errors import SchedulerError, StorageError
+from fathomdb.errors import EmbedderRequiredError, StorageError
 
 _SOURCE_ID = "py-test:slice20c"
 _DRAIN_TIMEOUT_S = 120.0
@@ -47,10 +47,6 @@ _DRAIN_TIMEOUT_S = 120.0
 # barrier — an assertion that "`drain` did not hang" should not cost two minutes
 # per arm when it is red.
 _WEDGE_TIMEOUT_S = 30.0
-# fix-4: the engine's projection retry ladder is 0 + 1 + 4 + 16 s. The
-# no-embedder arm waits it out so its terminal/audit probes are FALSIFYING at
-# baseline rather than merely early.
-_LADDER_SETTLE_S = 24.0
 _READ_ONLY_SQL_CHILD = """
 import json
 import sqlite3
@@ -542,8 +538,9 @@ def test_a_no_embedder_session_leaves_an_enrolled_kinds_write_recoverable(tmp_pa
     The CONSUMER-VISIBLE consequence is asserted here on purpose, so it cannot
     change back silently: with no usable dense runtime, readiness reads
     ``"unavailable"`` regardless of outstanding work. The pending row remains
-    recoverable and ``drain`` raises ``SchedulerError`` rather than recording a
-    failed terminal.
+    recoverable and ``drain`` returns immediate typed
+    ``EmbedderRequiredError`` rather than retrying into a scheduler timeout or
+    recording a failed terminal.
     """
 
     _skip_if_no_network()
@@ -574,18 +571,31 @@ def test_a_no_embedder_session_leaves_an_enrolled_kinds_write_recoverable(tmp_pa
 
         # THE CONSUMER-VISIBLE CONSEQUENCE. An enrolled row with no vector is
         # outstanding and this session cannot satisfy it, so the barrier must NOT
-        # clear. At baseline it cleared by recording a `'failed'` terminal —
-        # which is exactly how the write got lost.
-        with pytest.raises(SchedulerError):
+        # clear. Slice 30 returns the remediation-bearing configuration outcome
+        # immediately; the accepted write remains recoverable below.
+        blocked = read.embedding_readiness(engine)
+        assert blocked.state == "blocked"
+        assert blocked.usable_embedder is False
+        assert blocked.pending_count == 1
+        assert blocked.affected_kinds == ("doc",)
+        assert blocked.code == "FDB_EMBEDDER_REQUIRED"
+        assert blocked.operation == "vector_projection"
+        assert blocked.remediations == (
+            "configure_default_embedder",
+            "configure_caller_embedder",
+            "submit_non_embedding_input",
+        )
+        assert blocked.documentation_url == "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED"
+        started = time.monotonic()
+        with pytest.raises(EmbedderRequiredError) as raised:
             engine.drain(timeout_s=3.0)
-
-        # Give the BASELINE its full retry ladder (0 + 1 + 4 + 16 s) before the
-        # probes below. Without this wait they all read a merely-unterminated row
-        # and pass VACUOUSLY on the broken code — the SDKs expose no equivalent
-        # of the Rust suite's `set_projection_retry_delays_for_test` seam, so
-        # waiting is the only way to make them falsifying. Under the fix the row
-        # is never dispatched, so this is dead time and nothing changes across it.
-        time.sleep(_LADDER_SETTLE_S)
+        assert time.monotonic() - started < 1.0, "configuration feedback must not wait for retry backoff"
+        error = raised.value
+        assert error.code == blocked.code
+        assert error.operation == blocked.operation
+        assert error.state == blocked.state
+        assert error.remediations == list(blocked.remediations)
+        assert error.documentation_url == blocked.documentation_url
 
         assert _readiness(engine) == "unavailable", (
             "an absent runtime is unavailable even when an enrolled row remains recoverably "
@@ -679,36 +689,15 @@ def _pending_node_rows_below(path: str, cursor: int) -> int:
     )
 
 
-def _poll_until(timeout_s: float, probe) -> bool:
-    deadline = time.monotonic() + timeout_s
-    while True:
-        if probe():
-            return True
-        if time.monotonic() >= deadline:
-            return False
-        time.sleep(0.05)
-
-
 def test_a_pending_edge_body_survives_a_full_scan_window_of_node_rows(tmp_path) -> None:
-    """fix-5 (codex §9 round 4 [P1]) — a pending EDGE body must stay reachable
-    behind a full scan window of no-embedder NODE rows.
-
-    fix-4 excluded no-embedder node jobs by filtering what the scheduler's scan
-    RETURNED — i.e. after its ``ORDER BY write_cursor LIMIT
-    PROJECTION_SCAN_FETCH``. The ``LIMIT`` therefore applied to the UNFILTERED
-    set: with more than one window of pending node rows ordered before a pending
-    edge body, the scan came back entirely full of node jobs, the filter dropped
-    all of them, the dispatcher went back to sleep with its wake already
-    consumed — and the edge body was NEVER scheduled. Permanently, because those
-    node rows stay pending for the life of a no-embedder session, so ``drain``
-    could time out indefinitely on that edge workload.
+    """A no-runtime session dispatches no embedding work. A pending edge body
+    behind a full node scan window reports immediate typed feedback from
+    ``drain`` and remains terminal-free/recoverable.
 
     Fully OFFLINE and network-free: the kind is enrolled through the
     ``test-hooks``-gated ``_configure_vector_kind_for_test`` seam (the same one
-    the shipped ``test_slice20_dense_readiness.py`` fixture uses), so no embedder
-    is ever downloaded. Edges keep their SHIPPED no-embedder behaviour, so
-    "scheduled" is observable as the edge body reaching a TERMINAL; this test
-    asserts only that the scheduler REACHES it.
+    the shipped ``test_slice20_dense_readiness.py`` fixture uses), so no
+    embedder is ever downloaded.
     """
 
     path = str(tmp_path / "flush_scan_window_starvation.sqlite")
@@ -734,24 +723,32 @@ def test_a_pending_edge_body_survives_a_full_scan_window_of_node_rows(tmp_path) 
             f"edge body. Pending: {pending_before}, window: {_PROJECTION_SCAN_FETCH}"
         )
 
-        # The shipped edge path with no embedder is the 0 + 1 + 4 + 16 s retry
-        # ladder into a `'failed'` terminal; the SDKs expose no equivalent of the
-        # Rust `set_projection_retry_delays_for_test` seam, so this waits it out.
-        scheduled = _poll_until(
-            _LADDER_SETTLE_S + 16.0, lambda: _terminal_state(path, edge_cursor) is not None
+        blocked = read.embedding_readiness(engine)
+        assert blocked.state == "blocked"
+        assert blocked.usable_embedder is False
+        assert blocked.pending_count == node_rows + 1
+        assert blocked.affected_kinds == ("doc", "edge_fact")
+        assert blocked.code == "FDB_EMBEDDER_REQUIRED"
+        assert blocked.operation == "graph_edge_body_projection"
+        assert blocked.remediations == (
+            "configure_default_embedder",
+            "configure_caller_embedder",
+            "submit_non_embedding_input",
         )
-        assert scheduled, (
-            "SCAN-WINDOW STARVATION: with more than PROJECTION_SCAN_FETCH "
-            f"({_PROJECTION_SCAN_FETCH}) pending node rows ordered before it, the pending edge "
-            f"body at cursor {edge_cursor} was NEVER scheduled. The no-embedder node exclusion "
-            "must happen INSIDE the scheduler's SQL so the LIMIT applies to the ALREADY-FILTERED "
-            "set; filtering after the fetch lets one full window of node rows hide every later "
-            "job, and `drain` then times out on that edge workload indefinitely"
-        )
-        assert _terminal_state(path, edge_cursor) == "failed", (
-            "edges keep their shipped no-embedder behaviour: the retry ladder exhausts into a "
-            "`'failed'` terminal. fix-5 changes WHICH rows the scan returns, not what happens to "
-            "an edge once it is dispatched"
+        assert blocked.documentation_url == "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED"
+        started = time.monotonic()
+        with pytest.raises(EmbedderRequiredError) as raised:
+            engine.drain(timeout_s=3.0)
+        assert time.monotonic() - started < 1.0, "configuration feedback must not wait for retry backoff"
+        error = raised.value
+        assert error.code == blocked.code
+        assert error.operation == blocked.operation
+        assert error.state == blocked.state
+        assert error.remediations == list(blocked.remediations)
+        assert error.documentation_url == blocked.documentation_url
+        time.sleep(0.1)
+        assert _terminal_state(path, edge_cursor) is None, (
+            "an absent embedder must leave the edge body pending and recoverable, not record failed"
         )
         assert _pending_node_rows_below(path, edge_cursor) == pending_before, (
             "fix-4 stands: an absent embedder records NO terminal for a NODE row, so every one "

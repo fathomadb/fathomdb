@@ -62,6 +62,9 @@ see that ADR's 2026-06-06 amendment).
 | `dump-schema`     | `fathomdb doctor dump-schema`                                                  | `doctor-check-*`                    |
 | `dump-row-counts` | `fathomdb doctor dump-row-counts`                                              | `doctor-check-*`                    |
 | `dump-profile`    | `fathomdb doctor dump-profile`                                                 | `doctor-check-*`                    |
+| `gpu`             | `fathomdb doctor gpu [--json]`                                                 | `doctor-gpu` = 0 / 65 / 70          |
+| `platform`        | `fathomdb doctor platform [--json]`                                            | `0 / 70`                            |
+| `reranker-gpu`    | `fathomdb doctor reranker-gpu [--json]`                                        | `0 / 65 / 70`                       |
 | `recompute-mean`  | `fathomdb doctor recompute-mean <db_path> [--json]`                            | `doctor-check-*` = 0 / 70 / 71      |
 | `dump-mutations`  | `fathomdb doctor dump-mutations <collection> [--after-id <n>] [--limit <n>] [--json] <db_path>` | `0 / 70 / 71`      |
 | `warm-cache`      | `fathomdb doctor warm-cache ...` (EU-5b)                                       | `doctor-check-*`                    |
@@ -69,6 +72,145 @@ see that ADR's 2026-06-06 amendment).
 
 `doctor-check-*` means the verb may use the exit-code class set `{0, 65, 70,
 71}` depending on clean/findings/unrecoverable/lock-held outcome.
+
+`doctor-gpu` (0.8.23 Slice 70) emits one canonical compact stdout JSON object
+with keys in exact order: `schema_version`, `policy`, `cuda_compiled`, `status`,
+`effective_device`, `devices`, `reason`, `selected_uuid`. Device-object keys
+are exactly `visible_ordinal`, `uuid`, `name`, `compute_capability` in that
+order. `schema_version` is `"fathomdb.doctor.gpu.v1"`.
+`reason` and `selected_uuid` are always present and are JSON `null` when absent. The object
+has exactly one trailing newline. The command reads
+`FATHOMDB_EMBED_DEVICE` but exposes no setter or configuration writer;
+it does not open a database, load or download a model, write configuration, or
+initialize an engine. Its ordered `devices` inventory contains process-visible
+CUDA UUIDs and their `CUDA_VISIBLE_DEVICES`-relative ordinals only; it neither
+reports nor infers physical host ordinals. A selected UUID must match one
+inventory member.
+
+Explicit `cpu` returns its frozen no-CUDA result **before any platform Tier-2
+`nvidia-smi` probe or CUDA-provider invocation**. For other policies, `doctor
+gpu` applies the platform diagnostic before invoking a CUDA provider. On
+affirmed `arm64_sbsa`, `auto`/unset emits
+`cuda_incompatible`, `effective_device: "cpu"`, and
+`reason: "arm64_sbsa_unsupported"` with exit 0; forced `cuda:N` keeps
+`cuda_incompatible`, a null effective device, and exit 65. Explicit `cpu`
+remains `selected_cpu_no_cuda` with a null reason and no CUDA activity. A
+Tier-2 platform probe failure does **not** make `doctor gpu` fail: it performs
+no SBSA/Tegra refusal and proceeds to normal CUDA-provider diagnosis. Thus a
+healthy CUDA-capable container without `nvidia-smi` retains its normal result;
+an actual provider failure still uses the existing `probe_failed` outcome and
+exit 70. Only `doctor platform` reports that indeterminacy as `unknown`/70.
+
+`doctor gpu --help` also contains the 80.7 source-build-only procedure below;
+this is the CLI guidance transport. It is deliberately help text rather than a
+diagnostic field or line, preserving the frozen normal and JSON v1 output:
+
+```console
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip 'maturin==1.14.1'
+./scripts/release/build-python-cuda-tegra.sh --interpreter python
+```
+
+It then directs the user to run the exact final `python -m pip install
+<built-wheel>` line printed by the wrapper. Help, the AC80-27 warning, and
+public documentation use this wording verbatim; none executes it.
+
+`doctor platform` (0.8.23 Slice 80.7) is a separate database-free platform
+diagnostic; it emits exactly one compact JSON object with keys in this exact
+order: `schema_version`, `platform_class`, `tegra_family`, `sbsa_capable`,
+`l4t_release`, `reason`. `schema_version` is
+`"fathomdb.doctor.platform.v1"`; `platform_class` is exactly `tegra`,
+`arm64_sbsa`, `generic_aarch64`, `non_aarch64`, or `unknown`.
+`tegra_family` is a boolean. `sbsa_capable` is a boolean for a completed
+classification and `null` for an indeterminate Tier-2 probe; it never guesses
+SBSA. `l4t_release` is either `null` or `R<release>.<revision>` parsed from
+`/etc/nv_tegra_release`; `reason` is either `null`, `nvidia_smi_missing`,
+`nvidia_smi_timeout`, or
+`nvidia_smi_nonzero`. The record has exactly one trailing newline. Text output
+is a `doctor platform` header followed by the same fields as `key=value` lines
+in that order. Successful `tegra`, `arm64_sbsa`, `generic_aarch64`, and
+`non_aarch64` classifications exit 0. `unknown` is reserved for a missing,
+timed-out, or non-zero Tier-2 query and exits 70. This command never exits 65,
+opens a database, initializes an engine, loads a model, downloads data, or
+writes configuration.
+
+`doctor reranker-gpu` (0.8.23 Slice 71) is a separate database-free,
+model-loader-free policy/provider diagnostic. Its JSON `subsystem` is always
+`"reranker"`; its schema is `fathomdb.doctor.reranker-gpu.v1`. A successful
+record names only cross-encoder policy/device evidence; it never attests
+embedding, SQLite candidate retrieval, exact database scoring, or inference
+over a real model. A typed error object reports malformed/forced policy
+failure. This separation preserves the Slice 70 doctor v1 schema.
+
+With `FATHOMDB_RERANK_DEVICE=cpu`, both text and `--json` exit `0` and emit
+only the reranker v1 record (`effective_device: "cpu"`, empty inventory,
+`reason: null`). Forced-policy/device refusals exit `65`; malformed policy or
+an artifact without the default reranker exits `70`. This command never opens a
+database, loads/downloads a model, or writes its current directory/cache.
+
+Normal `Engine::open` resolution and `doctor gpu` have distinct result mappings.
+Open uses `DeviceResolution`, which may describe automatic CPU selection with a
+`cuda_probe_failed` reason. The CLI produces `DoctorGpuDiagnosticResult` instead;
+it consumes raw driver, inventory, and allocation/provider-probe evidence and
+must not serialize `DeviceResolution` as the diagnostic. Thus
+`CudaProbeError::ProbeFailed` maps to `probe_failed`, not a policy-satisfied
+automatic result, even though the automatic diagnostic reports typed CPU as its
+effective device.
+
+The production Candle **driver/cuBLAS-error** classifier is closed and
+code-based. Missing dynamic driver, `CUDA_ERROR_NO_DEVICE`, and
+`CUDA_ERROR_STUB_LIBRARY` are unavailable. Exactly
+`CUDA_ERROR_SYSTEM_DRIVER_MISMATCH`,
+`CUDA_ERROR_COMPAT_NOT_SUPPORTED_ON_DEVICE`, `CUDA_ERROR_NO_BINARY_FOR_GPU`,
+`CUDA_ERROR_UNSUPPORTED_PTX_VERSION`, `CUBLAS_STATUS_ARCH_MISMATCH`, and
+`CUBLAS_STATUS_NOT_SUPPORTED` are incompatible. Unknown errors,
+`CUDA_ERROR_OUT_OF_MEMORY`, and `CUBLAS_STATUS_ALLOC_FAILED` are
+`probe_failed`. Build target, CUDA toolkit, and driver-version provenance are
+artifact-witness facts and are not fields in the doctor v1 schema.
+
+The platform-level `arm64_sbsa_unsupported` reason is a separate,
+non-error-derived source of the same `cuda_incompatible` status. It is decided
+before the CUDA provider is invoked and is not constrained by the closed Candle
+driver/cuBLAS-error enumeration.
+
+`devices` is `[]` if enumeration did not succeed; otherwise it is the observed
+ordered inventory. `selected_uuid` is `null` unless CUDA was selected. The
+twelve-row semantic outcome matrix is:
+
+| Requested policy / observation | CUDA activity | Status | Effective device | Devices | Selected UUID | Exit |
+| --- | --- | --- | --- | --- | --- | --- |
+| `cpu` (any artifact) | none | `selected_cpu_no_cuda` | `cpu` | `[]` | `null` | `0` |
+| `auto`, CPU-only artifact | none | `cuda_not_compiled` | `cpu` | `[]` | `null` | `0` |
+| `auto`, unavailable evidence | driver-presence, enumeration, or ordinal mapping | `cuda_unavailable` | `cpu` | `[]` before inventory; otherwise observed inventory | `null` | `0` |
+| `auto`, listed compatibility/architecture evidence | enumeration or mapped-device probe | `cuda_incompatible` | `cpu` | `[]` before inventory; otherwise observed inventory | `null` | `0` |
+| `auto`, unknown, OOM, or allocation/provider failure | enumeration or mapped-device probe | `probe_failed` | `cpu` | `[]` before inventory; otherwise observed inventory | `null` | `70` |
+| `auto`, selected device allocation/provider probe succeeds | enumeration + mapped-device probe | `selected_cuda` | selected `cuda:N` | observed inventory | matching UUID | `0` |
+| forced `cuda:N`, CUDA not compiled | none | `cuda_not_compiled` | `null` | `[]` | `null` | `65` |
+| forced `cuda:N`, unavailable evidence | driver-presence, enumeration, or ordinal mapping | `cuda_unavailable` | `null` | `[]` before inventory; otherwise observed inventory | `null` | `65` |
+| forced `cuda:N`, listed compatibility/architecture evidence | enumeration or mapped-device probe | `cuda_incompatible` | `null` | `[]` before inventory; otherwise observed inventory | `null` | `65` |
+| forced `cuda:N`, unknown, OOM, or allocation/provider failure | enumeration or mapped-device probe | `probe_failed` | `null` | `[]` before inventory; otherwise observed inventory | `null` | `70` |
+| forced `cuda:N`, selected device allocation/provider probe succeeds | enumeration + mapped-device probe | `selected_cuda` | selected `cuda:N` | observed inventory | matching UUID | `0` |
+| malformed, legacy, or otherwise invalid policy | none | `invalid_policy` | `null` | `[]` | `null` | `70` |
+
+Forced CUDA never becomes a CPU report. Invalid policy invokes no CUDA provider
+code.
+
+The normative text output is exactly this newline-terminated sequence; the
+`device=` line repeats once per ordered inventory member and contains the same
+canonical compact device JSON used by JSON mode:
+
+```text
+doctor gpu
+policy=<JSON string>
+cuda_compiled=<true|false>
+status=<status>
+effective_device=<cpu|cuda:N|null>
+reason=<reason|null>
+devices=<decimal count>
+device={"visible_ordinal":N,"uuid":"...","name":"...","compute_capability":"..."|null}
+selected_uuid=<UUID|null>
+```
 
 `dump-mutations` (0.8.0; gap F4-READ / reserved-gap-34) is a read-only operator
 diagnostic that pages op-store (`operational_mutations`) rows for one

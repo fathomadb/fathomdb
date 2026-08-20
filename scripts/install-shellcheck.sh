@@ -36,6 +36,43 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/shellcheck-version.sh
 . "$SCRIPT_DIR/lib/shellcheck-version.sh"
 
+# The one table mapping (uname -s)/(uname -m) to a release slug + its pinned
+# SHA-256. Both the real install path below and `--print-target` (0.8.23
+# Slice 80.2, AC80-4) resolve through this single function, so a test never
+# has to duplicate this table to exercise a non-host architecture — it only
+# has to make `uname` (shimmable, like curl/tar/sha256sum already are in
+# scripts/tests/test_install_shellcheck.sh) report the target it wants.
+resolve_shellcheck_target() {
+  local os arch
+  os="$(uname -s)"
+  arch="$(uname -m)"
+  case "$os/$arch" in
+    Linux/x86_64)
+      printf 'linux.x86_64 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198\n'
+      ;;
+    Linux/aarch64 | Linux/arm64)
+      printf 'linux.aarch64 12b331c1d2db6b9eb13cfca64306b1b157a86eb69db83023e261eaa7e7c14588\n'
+      ;;
+    Darwin/x86_64)
+      printf 'darwin.x86_64 3c89db4edcab7cf1c27bff178882e0f6f27f7afdf54e859fa041fca10febe4c6\n'
+      ;;
+    Darwin/arm64)
+      printf 'darwin.aarch64 56affdd8de5527894dca6dc3d7e0a99a873b0f004d7aabc30ae407d3f48b0a79\n'
+      ;;
+    *)
+      echo "shellcheck $SHELLCHECK_VERSION is required but no release tarball is recorded for $os/$arch" >&2
+      echo "  install it manually from https://github.com/koalaman/shellcheck/releases (pin v$SHELLCHECK_VERSION)" >&2
+      echo "  and record its checksum in scripts/install-shellcheck.sh" >&2
+      return 1
+      ;;
+  esac
+}
+
+if [ "${1:-}" = "--print-target" ]; then
+  resolve_shellcheck_target || exit 1
+  exit 0
+fi
+
 # What is already on PATH — reported, never trusted. On a GitHub-hosted runner
 # this is the image's own copy.
 image_bin="$(command -v shellcheck 2>/dev/null || true)"
@@ -58,32 +95,9 @@ fi
 
 if [ "$shellcheck_found_version" != "$SHELLCHECK_VERSION" ]; then
   echo "Installing shellcheck v$SHELLCHECK_VERSION into $HOME/.local/bin ..."
-  shellcheck_os="$(uname -s)"
-  shellcheck_arch="$(uname -m)"
-  case "$shellcheck_os/$shellcheck_arch" in
-    Linux/x86_64)
-      shellcheck_slug="linux.x86_64"
-      shellcheck_sha256="8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198"
-      ;;
-    Linux/aarch64 | Linux/arm64)
-      shellcheck_slug="linux.aarch64"
-      shellcheck_sha256="12b331c1d2db6b9eb13cfca64306b1b157a86eb69db83023e261eaa7e7c14588"
-      ;;
-    Darwin/x86_64)
-      shellcheck_slug="darwin.x86_64"
-      shellcheck_sha256="3c89db4edcab7cf1c27bff178882e0f6f27f7afdf54e859fa041fca10febe4c6"
-      ;;
-    Darwin/arm64)
-      shellcheck_slug="darwin.aarch64"
-      shellcheck_sha256="56affdd8de5527894dca6dc3d7e0a99a873b0f004d7aabc30ae407d3f48b0a79"
-      ;;
-    *)
-      echo "shellcheck $SHELLCHECK_VERSION is required but no release tarball is recorded for $shellcheck_os/$shellcheck_arch" >&2
-      echo "  install it manually from https://github.com/koalaman/shellcheck/releases (pin v$SHELLCHECK_VERSION)" >&2
-      echo "  and record its checksum in scripts/install-shellcheck.sh" >&2
-      exit 1
-      ;;
-  esac
+  shellcheck_target="$(resolve_shellcheck_target)" || exit 1
+  shellcheck_slug="${shellcheck_target%% *}"
+  shellcheck_sha256="${shellcheck_target#* }"
 
   shellcheck_url="https://github.com/koalaman/shellcheck/releases/download/v$SHELLCHECK_VERSION/shellcheck-v$SHELLCHECK_VERSION.$shellcheck_slug.tar.xz"
   # The archive cache is keyed by BOTH the version and its published SHA-256.

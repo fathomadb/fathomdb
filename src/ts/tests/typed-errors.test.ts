@@ -13,13 +13,17 @@ import { Engine } from "../src/index.js";
 import {
   CorruptionError,
   DatabaseLockedError,
+  EmbedDevicePolicyError,
+  RerankerDevicePolicyError,
   EmbedderDimensionMismatchError,
   EmbedderError,
   EmbedderIdentityMismatchError,
   EmbedderNotConfiguredError,
+  EmbedderRequiredError,
   FathomDbError,
   InvalidArgumentError,
   KindNotVectorIndexedError,
+  rethrowTyped,
   VectorError,
   WriteValidationError,
 } from "../src/errors.js";
@@ -92,6 +96,71 @@ test("EmbedderNotConfiguredError is a distinct leaf under EmbedderError", () => 
   assert.ok(err instanceof EmbedderError);
   assert.ok(err instanceof FathomDbError);
   assert.notEqual(EmbedderNotConfiguredError, EmbedderError);
+});
+
+test("EmbedderRequiredError initializes its typed configuration payload", () => {
+  const remediations = [
+    "configure_default_embedder",
+    "configure_caller_embedder",
+    "submit_non_embedding_input",
+  ];
+  const err = new EmbedderRequiredError("embedder required", {
+    operation: "graph_edge_body_projection",
+    state: "blocked",
+    remediations,
+    documentationUrl: "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED",
+  });
+
+  assert.equal(err.code, "FDB_EMBEDDER_REQUIRED");
+  assert.equal(err.operation, "graph_edge_body_projection");
+  assert.equal(err.state, "blocked");
+  assert.deepEqual(err.remediations, remediations);
+  assert.equal(err.documentationUrl, "https://fathomdb.dev/errors/FDB_EMBEDDER_REQUIRED");
+  assert.ok(err instanceof EmbedderError);
+});
+
+test("EmbedDevicePolicyError rehydrates the native policy envelope", () => {
+  assert.throws(
+    () =>
+      rethrowTyped(
+        new Error(
+          JSON.stringify({
+            code: "FDB_EMBED_DEVICE_POLICY",
+            message: "CUDA support is not compiled into this executable",
+            payload: { kind: "cuda_not_compiled", ordinal: 2 },
+          }),
+        ),
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof EmbedDevicePolicyError);
+      assert.ok(error instanceof EmbedderError);
+      assert.equal(error.kind, "cuda_not_compiled");
+      assert.equal(error.ordinal, 2);
+      return true;
+    },
+  );
+});
+
+test("RerankerDevicePolicyError rehydrates a forced runtime failure envelope", () => {
+  assert.throws(
+    () =>
+      rethrowTyped(
+        new Error(
+          JSON.stringify({
+            code: "FDB_RERANKER_DEVICE_POLICY",
+            message: "forced CUDA device 1 became unavailable during reranking",
+            payload: { kind: "cuda_probe_failed", ordinal: 1 },
+          }),
+        ),
+      ),
+    (error: unknown) => {
+      assert.ok(error instanceof RerankerDevicePolicyError);
+      assert.ok(error instanceof EmbedderError);
+      assert.equal(error.kind, "cuda_probe_failed");
+      assert.equal(error.ordinal, 1);
+      return true;
+    },
+  );
 });
 
 test("KindNotVectorIndexedError is a distinct leaf under VectorError", () => {

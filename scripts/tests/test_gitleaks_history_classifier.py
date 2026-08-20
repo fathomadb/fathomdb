@@ -28,15 +28,20 @@ def fingerprint(record: str) -> str:
 def fixture_records() -> list[str]:
     records = [
         f"{index:040x}|generic-api-key|fixtures/record-{index}.txt|{index + 1}"
-        for index in range(42)
+        for index in range(51)
     ]
     return [
         *records,
         *([records[0]] * 6),
         *([records[1]] * 6),
         *([records[2]] * 6),
-        *([records[3]] * 3),
-        records[4],
+        *([records[3]] * 6),
+        *([records[4]] * 6),
+        *([records[5]] * 6),
+        *([records[6]] * 6),
+        *([records[7]] * 3),
+        *([records[8]] * 3),
+        records[9],
     ]
 
 
@@ -88,12 +93,12 @@ def main() -> int:
     tracked_counts = classifier.load_manifest(MANIFEST)
     failures += expect(
         tracked_counts is not None
-        and sum(tracked_counts.values()) == 64
-        and len(tracked_counts) == 42
-        and sorted(tracked_counts.values()).count(7) == 3
-        and sorted(tracked_counts.values()).count(4) == 1
+        and sum(tracked_counts.values()) == 100
+        and len(tracked_counts) == 51
+        and sorted(tracked_counts.values()).count(7) == 7
+        and sorted(tracked_counts.values()).count(4) == 2
         and sorted(tracked_counts.values()).count(2) == 1,
-        "tracked manifest is the exact 64-record / 42-fingerprint multiset",
+        "tracked manifest is the exact 100-record / 51-fingerprint multiset",
     )
     tracked_manifest["entries"].pop()
     with tempfile.TemporaryDirectory() as temporary:
@@ -105,7 +110,7 @@ def main() -> int:
         )
 
     exact = run_case(manifest, records)
-    failures += expect(exact.returncode == 0, "accepts exact 64-record / 42-fingerprint multiset")
+    failures += expect(exact.returncode == 0, "accepts exact 100-record / 51-fingerprint multiset")
 
     unknown = run_case(manifest, [*records, "f" * 40 + "|generic-api-key|fixtures/new.txt|1"])
     failures += expect(unknown.returncode != 0, "rejects an unknown safe tuple")
@@ -114,7 +119,7 @@ def main() -> int:
     missing = run_case(manifest, records[1:])
     failures += expect(missing.returncode != 0, "rejects a missing expected tuple")
 
-    duplicate = run_case(manifest, [records[0], *records])
+    duplicate = run_case(manifest, [records[9], *records])
     failures += expect(duplicate.returncode != 0, "rejects an extra count-two tuple occurrence")
 
     malformed = run_case(manifest, [*records[:-1], "not-a-safe-record"])

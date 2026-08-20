@@ -22,13 +22,14 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 _VERSION = "0.0.0"
 
 
-def _load_coinstall_module() -> object:
+def _load_coinstall_module() -> Any:
     """Load the import guard alone when a native extension is not present."""
 
     source = Path(__file__).parents[1] / "fathomdb" / "_coinstall.py"

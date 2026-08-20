@@ -320,6 +320,7 @@ if (engine.openReport().embedderDeviceResolution.effectiveDevice.kind !== "cpu")
 if ((await engine.embed("driverless N-API CPU fallback proof")).length !== 384) throw new Error("expected 384-vector");
 if (process.env.FATHOMDB_CUDA_REHEARSAL_RERANK === "true") {
   await engine.write([{kind: "doc", body: "TinyBERT CPU inference", sourceId: "reranker-cpu-proof"}]);
+  await engine.drain(30_000);
   const result = await engine.search("reranker CPU proof", undefined, 1);
   if (result.results.length !== 1 || result.results[0].ceScore === null) throw new Error("expected installed N-API reranker inference");
 }

@@ -1242,7 +1242,7 @@ dependencies = [
 
 [[package]]
 name = "fathomdb-tc5-benchmark"
-version = "0.8.22"
+version = "0.8.23"
 dependencies = [
  "fathomdb-embedder",
  "fathomdb-embedder-api",

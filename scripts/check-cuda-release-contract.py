@@ -978,6 +978,16 @@ def main() -> None:
         fail("CUDA preflight must install each non-root Python smoke into its writable isolated target")
     if preflight.count("PYTHONPATH=/fathomdb-tmp/python-site") != 1:
         fail("CUDA preflight must expose the isolated Python smoke target")
+    python_gpu_start = preflight.find('PYTHON_GPU_CONTAINER=')
+    python_gpu_end = preflight.find('seal_gpu_observation "$PYTHON_GPU_CONTAINER"', python_gpu_start)
+    if python_gpu_start < 0 or python_gpu_end < 0:
+        fail("CUDA preflight must retain the Python GPU smoke section")
+    python_gpu = preflight[python_gpu_start:python_gpu_end]
+    for fragment in (
+        '--mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64,dst=/opt/cuda/lib64,readonly"',
+        "-e LD_LIBRARY_PATH=/opt/cuda/lib64",
+    ):
+        require_fragment(python_gpu, fragment, "CUDA Python GPU smoke runtime")
     if preflight.count("sha256sum --check --status") != 2:
         fail("CUDA preflight must verify both pinned embedder and TinyBERT reranker cache manifests")
     if preflight.count("--query-compute-apps=pid,process_name --format=csv,noheader") != 1:

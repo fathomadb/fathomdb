@@ -568,7 +568,8 @@ PYTHON_GPU_CONTAINER="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --netwo
   --mount "type=bind,src=$WORK_DIR/cache/gpu_python,dst=/fathomdb-product-cache" \
   --mount "type=bind,src=$WORK_DIR/tmp/gpu_python,dst=/fathomdb-tmp" \
   --mount "type=bind,src=$WORK_DIR,dst=/evidence" \
-  "${MODEL_ENV[@]}" -e "WHEEL_FILENAME=$WHEEL_FILENAME" -e FATHOMDB_EMBED_DEVICE=cuda:0 -e FATHOMDB_GPU_ALLOCATION_WITNESS=1 \
+  --mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64,dst=/opt/cuda/lib64,readonly" \
+  "${MODEL_ENV[@]}" -e "WHEEL_FILENAME=$WHEEL_FILENAME" -e FATHOMDB_EMBED_DEVICE=cuda:0 -e FATHOMDB_GPU_ALLOCATION_WITNESS=1 -e LD_LIBRARY_PATH=/opt/cuda/lib64 \
   "$CUDA_MANYLINUX_IMAGE" sh -ceu '
     '"$CUDA_MANYLINUX_PYTHON"' -m pip install --no-deps --no-cache-dir --target /fathomdb-tmp/python-site "/input/$WHEEL_FILENAME"
     exec '"$CUDA_MANYLINUX_PYTHON"' /input/gpu-python-smoke.py

@@ -1921,10 +1921,12 @@ impl ReaderWorkerPool {
         let live_workers = Arc::new(AtomicUsize::new(0));
         let mut senders = Vec::with_capacity(connections.len());
         let mut handles = Vec::with_capacity(connections.len());
+        let (ready_tx, ready_rx) = mpsc::sync_channel(connections.len());
         for (idx, connection) in connections.into_iter().enumerate() {
             let (tx, rx) = mpsc::sync_channel::<ReaderRequest>(READER_WORKER_CHANNEL_CAPACITY);
             let live = Arc::clone(&live_workers);
             let attribution = Arc::clone(&wal_attribution);
+            let ready = ready_tx.clone();
             #[cfg(any(test, feature = "test-hooks"))]
             let worker_connections = Arc::clone(&managed_connections);
             let handle = thread::Builder::new()
@@ -1936,6 +1938,7 @@ impl ReaderWorkerPool {
                         live,
                         idx,
                         attribution,
+                        ready,
                         #[cfg(any(test, feature = "test-hooks"))]
                         worker_connections,
                     )
@@ -1943,6 +1946,10 @@ impl ReaderWorkerPool {
                 .expect("spawn reader worker");
             senders.push(tx);
             handles.push(handle);
+        }
+        drop(ready_tx);
+        for _ in 0..senders.len() {
+            ready_rx.recv().expect("reader worker must register before Engine::open returns");
         }
         Self {
             senders,
@@ -2167,6 +2174,7 @@ fn reader_worker_loop(
     live_workers: Arc<AtomicUsize>,
     worker_idx: usize,
     wal_attribution: Arc<WalAttributionCollector>,
+    ready: SyncSender<()>,
     #[cfg(any(test, feature = "test-hooks"))] managed_connections: Arc<ManagedConnectionRegistry>,
 ) {
     #[cfg(any(test, feature = "test-hooks"))]
@@ -2174,6 +2182,7 @@ fn reader_worker_loop(
         managed_connections.register(WalAttributionRole::ReaderWorker, worker_idx);
     wal_attribution.register(WalAttributionRole::ReaderWorker, worker_idx);
     live_workers.fetch_add(1, Ordering::SeqCst);
+    ready.send(()).expect("reader worker startup receiver must remain live");
     // Drop guard so the live counter decrements even on panic.
     struct LiveGuard(Arc<AtomicUsize>);
     impl Drop for LiveGuard {
@@ -23460,7 +23469,22 @@ mod tests {
         let dir = TempDir::new().expect("temp dir");
         let opened = Engine::open(dir.path().join("wal-attribution.sqlite")).expect("open");
 
-        let snapshot = opened.engine.wal_attribution_snapshot();
+        let mut snapshot = opened.engine.wal_attribution_snapshot();
+        assert_eq!(
+            snapshot.roles.iter().filter(|role| role.role == "reader_worker").count(),
+            READER_POOL_SIZE,
+            "every reader worker must be registered before Engine::open returns"
+        );
+
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while (!snapshot.roles.iter().any(|role| role.role == "projection_dispatcher")
+            || snapshot.roles.iter().filter(|role| role.role == "projection_worker").count()
+                < PROJECTION_WORKERS)
+            && Instant::now() < deadline
+        {
+            thread::sleep(Duration::from_millis(5));
+            snapshot = opened.engine.wal_attribution_snapshot();
+        }
         assert!(snapshot.no_owned_snapshot, "fresh engine must be idle: {snapshot:?}");
         assert!(!snapshot.local_checkpoint_overlap, "open must not report a checkpoint overlap");
         assert!(snapshot.roles.iter().any(|role| role.role == "writer" && role.index == 0));

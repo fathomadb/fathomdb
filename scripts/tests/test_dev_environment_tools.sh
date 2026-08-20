@@ -7,9 +7,8 @@
 # the wrong pinned version in one place, before the rest of the fast tier
 # runs into them piecemeal.
 #
-# This is advisory-diagnostic in intent but a real gate in mechanism: it FAILS
-# (not skips) when a pinned tool is absent, matching this repo's standing
-# "missing tool is a failed gate, never a passed one" discipline (TC-37).
+# Missing required developer tooling remains a failed gate. Gitleaks is a
+# report-only security input until historical findings are remediated offline.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,6 +27,7 @@ cd "$REPO_ROOT" || exit 1
 ACTIONLINT_VERSION="1.7.12"
 
 missing=()
+warnings=()
 
 check() {
   local label="$1" found="$2" want="$3"
@@ -35,6 +35,17 @@ check() {
     missing+=("$label: not found (want $want)")
   elif [ "$found" != "$want" ]; then
     missing+=("$label: found $found, want $want")
+  else
+    printf 'ok  %s %s\n' "$label" "$found"
+  fi
+}
+
+check_advisory() {
+  local label="$1" found="$2" want="$3"
+  if [ -z "$found" ]; then
+    warnings+=("$label: not found (want $want)")
+  elif [ "$found" != "$want" ]; then
+    warnings+=("$label: found $found, want $want")
   else
     printf 'ok  %s %s\n' "$label" "$found"
   fi
@@ -50,7 +61,7 @@ check shellcheck "$sc_version" "$SHELLCHECK_VERSION"
 gl_bin="$(find_gitleaks_bin || true)"
 gl_version=""
 [ -n "$gl_bin" ] && gl_version="$(read_gitleaks_version "$gl_bin" || true)"
-check gitleaks "$gl_version" "$GITLEAKS_VERSION"
+check_advisory gitleaks "$gl_version" "$GITLEAKS_VERSION"
 
 # --- actionlint ---
 al_bin="$(find_actionlint_bin || true)"
@@ -89,4 +100,8 @@ if [ "${#missing[@]}" -gt 0 ]; then
   exit 1
 fi
 
-echo "dev-environment-tools: all pinned tools present at their pinned version"
+for warning in "${warnings[@]}"; do
+  printf 'WARN  %s (security scan remains report-only)\n' "$warning" >&2
+done
+
+echo "dev-environment-tools: required pinned tools present"

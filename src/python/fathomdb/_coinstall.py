@@ -28,6 +28,7 @@ collision; ``fathomdb/__init__.py`` imports it before anything else.
 from __future__ import annotations
 
 import os
+import platform
 import subprocess
 import sys
 import warnings
@@ -123,7 +124,9 @@ def detect_platform() -> PlatformProbeResult:
     classic Tegra confirmation and therefore cannot cause a warning.
     """
 
-    if os.uname().machine != "aarch64":
+    uname = getattr(os, "uname", None)
+    machine = uname().machine if uname is not None else platform.machine()
+    if machine != "aarch64":
         return PlatformProbeResult.named("non_aarch64")
     compatible = _read_text("/proc/device-tree/compatible")
     l4t = _read_text("/etc/nv_tegra_release")

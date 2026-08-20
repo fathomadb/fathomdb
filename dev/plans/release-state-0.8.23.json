@@ -1,6 +1,6 @@
 {
   "release": "0.8.23",
-  "release_kind": "planning-first; publication held",
+  "release_kind": "integrated; publication pending",
   "board": "dev/plans/runs/STATUS-0.8.23.md",
   "plan": "dev/plans/plan-0.8.23.md",
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
@@ -9,61 +9,8 @@
   "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
   "completion": {
     "ref": "origin/release/0.8.23",
-    "main_integration": "PENDING"
+    "main_integration": "COMPLETE"
   },
-  "release_blockers": [
-    {
-      "id": "slice-10-external-cuda-evidence",
-      "status": "PENDING_EXTERNAL",
-      "blocks": [
-        "release_completion",
-        "publication"
-      ],
-      "does_not_block": [
-        "slice-20-local",
-        "slice-70-local"
-      ],
-      "source": "seq:249",
-      "evidence_required": "Separate reviewed main control-plane and provenance record; independently reviewed GitHub runner/protection/environment attestation; and a GitHub dry-run receipt. The local pinned RTX 3090 preflight witness is retained at /tmp/fathomdb-0.8.23-cuda-preflight-final-20260820T0110Z for candidate 623bbba617c5eed524b0b1a9f8b7cdef8002983c (witness SHA-256 b0f22225307d8aad0317bf7eb6449a51672506faa52b06463e90869f9df5f88c)."
-    },
-    {
-      "id": "slice-20-external-cuda-package-rehearsal",
-      "status": "PENDING_EXTERNAL",
-      "blocks": [
-        "release_completion",
-        "publication"
-      ],
-      "does_not_block": [
-        "slice-70-local"
-      ],
-      "source": "Slice 20 reviewed local closure",
-      "evidence_required": "A candidate-bound, schema-valid Slice 10 route receipt and preflight witness; one retained, valid non-publishing CUDA package rehearsal bundle that binds the exact wheel and npm package bytes and installed CPU/GPU smokes; independent evidence review. Canonical tag CUDA delivery remains separately commissioned and hard-blocked."
-    },
-    {
-      "id": "slice-70-external-cuda-evidence",
-      "status": "PENDING_EXTERNAL",
-      "blocks": [
-        "release_completion",
-        "publication"
-      ],
-      "does_not_block": [
-        "slice-71-local"
-      ],
-      "source": "Slice 70 reviewed local closure",
-      "evidence_required": "Retained trusted-runner CUDA witness and installed-artifact rehearsal evidence for the reviewed dual-runtime diagnostic and package contracts; any real TC-5 characterization remains separately commissioned."
-    },
-    {
-      "id": "slice-71-external-reranker-cuda-evidence",
-      "status": "PENDING_EXTERNAL",
-      "blocks": [
-        "release_completion",
-        "publication"
-      ],
-      "does_not_block": [],
-      "source": "Slice 71 reviewed local closure",
-      "evidence_required": "Retained trusted-runner installed-artifact receipts for compatible-GPU reranking and visible-but-incompatible CUDA classification, independently reviewed against the v3 cache and evidence contract."
-    }
-  ],
   "ladder": [
     {
       "slice": 0,
@@ -176,14 +123,15 @@
       "depends_on": [
         6
       ],
-      "status": "IN_PROGRESS",
+      "status": "LANDED",
+      "sha": "78fe1969",
       "design_refs": [
         "dev/design/0.8.23-gpu-artifacts.md",
         "dev/design/0.8.23-slice-10-cuda-contract.md",
         "dev/design/0.8.23-unmerged-candidate-provenance.md",
         "dev/plans/runs/0.8.23-slice-10-status.md"
       ],
-      "evidence": "8a9e05b5, 8814b374, and ecafa0d8 landed independently reviewed local RED-to-GREEN hardening. Release-closeout commits 833ba258 and 4ff8d146 resolve the dry-run provenance P1: only an explicit workflow_dispatch dry-run may use an exact reviewed unmerged candidate; tags and non-dry GA still require main reachability. 68b696a3 also lands the approved 80.6.5 shared allocation-witness/UUID-normalization contract. On the authorized local RTX 3090, candidate 623bbba617c5eed524b0b1a9f8b7cdef8002983c sealed and independently re-verified `/tmp/fathomdb-0.8.23-cuda-preflight-final-20260820T0110Z/cuda-preflight-witness.json` (SHA-256 b0f22225307d8aad0317bf7eb6449a51672506faa52b06463e90869f9df5f88c): driverless Python/N-API CPU defaults plus real pinned `cuda:0` Python/N-API smokes passed. A reviewed main control-plane PR, exact approved candidate/provenance PRs, GitHub dry-run receipt, package rehearsal, and evidence review remain required. No registry, tag, or publication occurred."
+      "evidence": "Integrated from release candidate 78fe1969 in main merge 346767b5. Historical local CUDA witnesses remain available, but the owner retired external CUDA evidence as a release or publication gate on 2026-08-20; no canceled GitHub dry-run receipt is claimed."
     },
     {
       "slice": 20,
@@ -192,13 +140,14 @@
       "depends_on": [
         6
       ],
-      "status": "PENDING_EXTERNAL",
+      "status": "LANDED",
+      "sha": "78fe1969",
       "design_refs": [
         "dev/design/0.8.23-gpu-artifacts.md",
         "dev/design/0.8.23-slice-20-cuda-package-rehearsal.md",
         "dev/plans/runs/0.8.23-slice-20-status.md"
       ],
-      "evidence": "91a5ddd8 landed the independently reviewed local RED-to-GREEN package-rehearsal control plane: exactly one candidate wheel, thin npm tarball, and Linux x64 platform tarball are sealed with strict provenance, retained candidate-bound Slice 10 witness, and installed CPU/GPU smoke evidence; trusted control-plane helpers, network-isolated driverless containers, GPU UUID/PID attestation, and package-byte/symlink/substitution rejection are mutation-tested. The only Linux x64 candidate producer is the combined preflight/rehearsal route; ordinary CPU substitution is rejected. Canonical tag/non-dry routes fail loudly and credentiallessly before publishers until separately commissioned tag-bound CUDA delivery exists. Full agent verification, workspace clippy/check, Actionlint, focused contract suites, and independent design/code/verification review passed locally. A real rehearsal remains pending a valid Slice 10 receipt/witness and independent evidence review; no registry, tag, or publication occurred. Local Slice 70 may proceed."
+      "evidence": "Integrated from release candidate 78fe1969 in main merge 346767b5. The package rehearsal controls remain in the product; external rehearsal evidence is historical/optional and no longer blocks release completion or publication."
     },
     {
       "slice": 30,
@@ -272,7 +221,7 @@
         6,
         20
       ],
-      "status": "PENDING_EXTERNAL",
+      "status": "LANDED",
       "sha": "aa29152b",
       "design_refs": [
         "dev/design/0.8.23-slice-70-dual-runtime-device-policy.md",
@@ -280,7 +229,7 @@
         "dev/adr/ADR-0.8.23-dual-runtime-device-policy.md",
         "dev/plans/runs/0.8.23-slice-70-status.md"
       ],
-      "evidence": "Local RED-to-GREEN implementation is integrated on `origin/release/0.8.23` through aa29152b: strict embedding policy, doctor/process matrix, witness v2, rehearsal v2, and private TC-5 route/device/result controls. Real CUDA/trusted-runner/rehearsal and characterization evidence remains PENDING_EXTERNAL."
+      "evidence": "Integrated with the release candidate through aa29152b and main merge 346767b5. External CUDA and TC-5 characterization evidence remains optional historical evidence, not a release or publication gate."
     },
     {
       "slice": 71,
@@ -290,14 +239,14 @@
         70,
         20
       ],
-      "status": "PENDING_EXTERNAL",
+      "status": "LANDED",
       "sha": "a49ac989",
       "design_refs": [
         "dev/design/0.8.23-slice-71-reranker-dual-runtime.md",
         "dev/plans/runs/0.8.23-slice-71-draft-plan.md",
         "dev/plans/runs/0.8.23-slice-71-status.md"
       ],
-      "evidence": "Local RED-to-GREEN implementation is integrated on `origin/release/0.8.23` through a49ac989: strict reranker policy and propagation, separate SDK reports and diagnostic, and v3 candidate-only installed-artifact evidence route. Real compatible-GPU and incompatible-classifier receipts remain PENDING_EXTERNAL."
+      "evidence": "Integrated with the release candidate through a49ac989 and main merge 346767b5. External installed-artifact receipts remain optional historical evidence, not a release or publication gate."
     },
     {
       "slice": 72,
@@ -345,15 +294,14 @@
     60,
     65,
     72,
-    80
-  ],
-  "next_slice": 10,
-  "remaining_ladder": [
+    80,
     10,
     20,
     70,
     71
   ],
+  "next_slice": null,
+  "remaining_ladder": [],
   "decisions": {
     "unruled": [],
     "ruled": [
@@ -389,8 +337,8 @@
       },
       {
         "id": "slice-10-external-gate-separation",
-        "title": "Slice 10 external CUDA closure is PENDING_EXTERNAL: it blocks release completion and publication, not local Slice 20 or Slice 70 work",
-        "source": "seq:249"
+        "title": "Owner retired the Slice 10/20/70/71 external CUDA evidence publication gate; retained evidence remains historical only",
+        "source": "repository owner 2026-08-20; supersedes seq:249 for release closure"
       },
       {
         "id": "slice-70-dual-runtime-rescope",
@@ -456,24 +404,6 @@
       "file": "dev/plans/plan-0.8.23.md",
       "location": "Immediate next slice",
       "renders": "the completion-ref-aware landed roll-up used by dependency preflight"
-    },
-    {
-      "id": "plan-immediate-next",
-      "file": "dev/plans/plan-0.8.23.md",
-      "location": "Immediate next slice",
-      "renders": "the state-owned next slice and remaining ladder"
-    },
-    {
-      "id": "status-current-state",
-      "file": "dev/plans/runs/STATUS-0.8.23.md",
-      "location": "Current state",
-      "renders": "the state-owned next-slice and landed evidence summary"
-    },
-    {
-      "id": "status-next-action",
-      "file": "dev/plans/runs/STATUS-0.8.23.md",
-      "location": "Immediate next action",
-      "renders": "the lifecycle-aware next action and remaining ladder"
     }
   ]
 }

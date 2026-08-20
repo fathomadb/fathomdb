@@ -23460,15 +23460,7 @@ mod tests {
         let dir = TempDir::new().expect("temp dir");
         let opened = Engine::open(dir.path().join("wal-attribution.sqlite")).expect("open");
 
-        let deadline = Instant::now() + Duration::from_secs(2);
-        let mut snapshot = opened.engine.wal_attribution_snapshot();
-        while snapshot.roles.iter().filter(|role| role.role == "reader_worker").count()
-            < READER_POOL_SIZE
-            && Instant::now() < deadline
-        {
-            thread::sleep(Duration::from_millis(5));
-            snapshot = opened.engine.wal_attribution_snapshot();
-        }
+        let snapshot = opened.engine.wal_attribution_snapshot();
         assert!(snapshot.no_owned_snapshot, "fresh engine must be idle: {snapshot:?}");
         assert!(!snapshot.local_checkpoint_overlap, "open must not report a checkpoint overlap");
         assert!(snapshot.roles.iter().any(|role| role.role == "writer" && role.index == 0));

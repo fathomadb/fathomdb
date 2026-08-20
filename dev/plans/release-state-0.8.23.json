@@ -433,6 +433,11 @@
         "source": "HITL 2026-08-18"
       },
       {
+        "id": "cuda-unmerged-preflight-self-approval",
+        "title": "The sole maintainer may self-approve only the release/0.8.23 dry-run CUDA preflight environment; this does not authorize tags, publication, or broader review-policy changes",
+        "source": "seq:256"
+      },
+      {
         "id": "publication",
         "title": "Complete planning and any approved implementation/rehearsal without publishing 0.8.23",
         "halts_run": false,

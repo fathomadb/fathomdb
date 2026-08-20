@@ -221,7 +221,7 @@ assert_contains "$CODE" 'serial_idle_after_neighbors=passed' "job retains immedi
 assert_contains "$CODE" 'erasure_busy_cross_process_windows_yields_typed_diagnostic' "job retains external-reader comparison"
 assert_contains "$CODE" 'external-reader attribution command selected zero tests' "job rejects a zero-test external-reader invocation"
 assert_contains "$CODE" 'running 1 test' "job rejects a zero-test managed-reader invocation"
-assert_contains "$CODE" 'Select-String' "job checks retained output for an executed test"
+assert_contains "$CODE" 'Select-String -Path $managedReaderLog -SimpleMatch "running 1 test" -Quiet' "job checks managed-reader output for an executed test"
 assert_contains "$CODE" '--nocapture' "job retains diagnostic lifecycle markers"
 assert_contains "$CODE" 'slice65-windows-wal-attribution.log' "job writes Slice 65 artifact"
 assert_contains "$CODE" 'slice65-windows-wal-attribution-${{ github.run_id }}-${{ github.run_attempt }}' "artifact name is unique"
@@ -748,14 +748,14 @@ if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
   fi
 
   EXECUTION_GUARD_MUTATED="$TMPROOT/ci-without-execution-guard.yml"
-  sed '/Select-String -Path/d;/managed-reader attribution command selected zero tests/d' "$CI" \
+  sed '/Select-String -Path \$managedReaderLog -SimpleMatch "running 1 test" -Quiet/d;/managed-reader attribution command selected zero tests/d' "$CI" \
     >"$EXECUTION_GUARD_MUTATED"
   set +e
   execution_guard_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 CI_YML="$EXECUTION_GUARD_MUTATED" bash "$0" 2>&1)"
   execution_guard_rc=$?
   set -e
   if [ "$execution_guard_rc" -ne 0 ] \
-    && grep -Fq 'job checks retained output for an executed test (missing: Select-String)' <<<"$execution_guard_out"; then
+    && grep -Fq 'job checks managed-reader output for an executed test (missing: Select-String -Path $managedReaderLog -SimpleMatch "running 1 test" -Quiet)' <<<"$execution_guard_out"; then
     pass "mutation proves zero-test execution guard is load-bearing"
   else
     fail "mutation did not fail zero-test execution guard: $execution_guard_out"

@@ -199,7 +199,45 @@ GITHUB_EVENT_NAME="workflow_dispatch" DRY_RUN="true" \
   && pass "dispatch+dry_run=true validates its immutable candidate and prospective tag" \
   || fail "dispatch+dry_run=true should pass with a matching candidate SHA"
 
-# 9a. A dry run must not silently fall back to a branch tip or an uncreated tag.
+# 9a. A non-publishing dry-run candidate is deliberately an open PR and is
+# therefore not yet reachable from main. Its exact checked-out SHA above is
+# still mandatory; the main-reach requirement applies to GA publication, not
+# to this candidate-only rehearsal. HEAD^ is a real, resolvable ref that HEAD
+# cannot be an ancestor of, so it models the unmerged candidate relation.
+restore
+printf '# Changelog\n\n## %s\n' "$WS" > "$CL_PATH"
+if out="$(RELEASE_GATES_SKIP_GIT_REACH=0 RELEASE_GATES_HEAD_REF="HEAD^" \
+    GITHUB_EVENT_NAME="workflow_dispatch" DRY_RUN="true" \
+    RELEASE_DISPATCH_VERSION="$WS" RELEASE_GATES_TAG="v${WS}" \
+    RELEASE_GATES_CANDIDATE_COMMIT="$CANDIDATE_SHA" \
+    GITHUB_REF_NAME="phase-11d-release-workflow" "$VRG" 2>&1)"; then
+  printf '%s' "$out" | grep -qi 'non-publishing.*dry-run\|candidate.*main' \
+    && pass "dry-run candidate does not require main reachability" \
+    || fail "dry-run candidate should report its non-publishing reachability exception; got: $out"
+else
+  fail "dry-run candidate must not require main reachability; got: $out"
+fi
+
+# 9b. This exception must not spill into a publish-capable GA dispatch. A
+# matching confirmation is necessary but cannot waive the main-reach check.
+restore
+GA_DISPATCH_VERSION="0.998.0"
+bash "$REPO_ROOT/scripts/set-version.sh" --workspace "$GA_DISPATCH_VERSION" >/dev/null
+printf '# Changelog\n\n## %s\n' "$GA_DISPATCH_VERSION" > "$CL_PATH"
+if out="$(RELEASE_GATES_SKIP_GIT_REACH=0 RELEASE_GATES_HEAD_REF="HEAD^" \
+    GITHUB_EVENT_NAME="workflow_dispatch" DRY_RUN="false" \
+    RELEASE_CONFIRM_VERSION="$GA_DISPATCH_VERSION" \
+    RELEASE_DISPATCH_VERSION="$GA_DISPATCH_VERSION" RELEASE_GATES_TAG="v${GA_DISPATCH_VERSION}" \
+    GITHUB_REF_NAME="main" "$VRG" 2>&1)"; then
+  fail "non-dry-run GA dispatch must require main reachability; got: $out"
+else
+  printf '%s' "$out" | grep -qiE 'main|reach' \
+    && pass "non-dry-run GA dispatch still requires main reachability" \
+    || fail "wrong diagnostic for non-dry-run GA main-reach failure; got: $out"
+fi
+restore
+
+# 9c. A dry run must not silently fall back to a branch tip or an uncreated tag.
 restore
 printf '# Changelog\n\n## %s\n' "$WS" > "$CL_PATH"
 if out="$(GITHUB_EVENT_NAME="workflow_dispatch" DRY_RUN="true" \

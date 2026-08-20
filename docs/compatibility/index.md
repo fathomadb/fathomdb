@@ -31,26 +31,6 @@ and release jobs.
 aarch64 is published for Python and npm. Do not expect the published npm
 package to install on macOS, Windows, or Linux musl.
 
-**Measured glibc floor (manylinux): 2.28**, for both the Python wheel and
-the npm platform binary, on both architectures. As of Slice 80.1 the
-`linux-arm64-gnu` npm binding is built inside the same digest-pinned
-`manylinux_2_28` container as the Python wheel (`scripts/release/
-Dockerfile.napi-manylinux`), rather than on the bare CI runner, so this
-number is enforced by `scripts/check-glibc-floor.sh` against the artifact
-actually published — not merely asserted here.
-
-**Measured glibc floor (tegra): 2.35**, for the Jetson/Tegra CUDA Python
-wheel only. That artifact is **not published to PyPI** and is not covered by
-the table below; it is built host-natively on a Jetson Orin against JetPack's
-CUDA 12.6 (`scripts/release/build-python-cuda-tegra.sh`), because the Tegra
-CUDA runtime is host-bound and no manylinux image carries it. It therefore
-inherits JetPack's own glibc — Ubuntu 22.04's 2.35 — rather than the
-`manylinux_2_28` floor. This higher floor is *declared and asserted* by the
-same gate, not exempted from it: both numbers come from
-`scripts/release/glibc-floor-contract.sh`, and
-`scripts/check-glibc-floor-doc-truth.sh` fails if either claim on this page
-drifts from it.
-
 | OS      | Architecture                | Published prebuilt? |
 | ------- | --------------------------- | ------------------- |
 | Linux   | `x86_64-unknown-linux-gnu`  | **yes** (manylinux 2_28) |

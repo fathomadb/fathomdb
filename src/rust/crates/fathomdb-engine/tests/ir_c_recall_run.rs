@@ -324,11 +324,8 @@ fn ir_c_recall_run() {
     for by_k in result.per_mode.values() {
         for &k in &K_LADDER {
             let r = &by_k[&k];
-            for v in [r.overall.strict(), r.overall.graded()] {
+            for v in [r.overall.strict(), r.overall.graded(), r.overall.supporting()] {
                 assert!((0.0..=1.0).contains(&v), "aggregate {v} out of [0,1] at K={k}");
-            }
-            if let Some(v) = r.overall.supporting() {
-                assert!((0.0..=1.0).contains(&v), "supporting aggregate {v} out of [0,1] at K={k}");
             }
         }
     }

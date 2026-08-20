@@ -148,7 +148,45 @@ if [ "$ASSERT_ONLY" -eq 1 ]; then
 fi
 
 mkdir -p "$OUT_DIR"
-cd "$REPO_ROOT/src/python"
+SOURCE_PYTHON="$REPO_ROOT/src/python"
+SOURCE_PYPROJECT="$SOURCE_PYTHON/pyproject.toml"
+BASE_VERSION="$($INTERPRETER - "$SOURCE_PYPROJECT" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+contents = Path(sys.argv[1]).read_text(encoding="utf-8")
+matches = re.findall(r'^version = "([^"]+)"$', contents, flags=re.MULTILINE)
+if len(matches) != 1 or not re.fullmatch(r'[0-9]+(?:\.[0-9]+)+(?:[A-Za-z0-9.\-]*)?', matches[0]):
+    raise SystemExit("pyproject.toml must contain exactly one validated PEP 440 base version")
+print(matches[0])
+PY
+)"
+TEGRA_LOCAL_VERSION="${BASE_VERSION}+tegra"
+STAGING_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/fathomdb-tegra-python.XXXXXX")"
+trap 'rm -rf "$STAGING_ROOT"' EXIT
+STAGED_PYTHON="$STAGING_ROOT/python"
+cp -a "$SOURCE_PYTHON" "$STAGED_PYTHON"
+"$INTERPRETER" - "$STAGED_PYTHON/pyproject.toml" "$REPO_ROOT/src/rust/crates/fathomdb-py/Cargo.toml" "$TEGRA_LOCAL_VERSION" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+pyproject = Path(sys.argv[1])
+manifest = Path(sys.argv[2])
+version = sys.argv[3]
+contents = pyproject.read_text(encoding="utf-8")
+contents, version_count = re.subn(
+    r'^version = "[^"]+"$', f'version = "{version}"', contents, count=1, flags=re.MULTILINE
+)
+contents, manifest_count = re.subn(
+    r'^manifest-path = "[^"]+"$', f'manifest-path = "{manifest}"', contents, count=1, flags=re.MULTILINE
+)
+if version_count != 1 or manifest_count != 1:
+    raise SystemExit("staged pyproject.toml is missing its version or maturin manifest path")
+pyproject.write_text(contents, encoding="utf-8")
+PY
+cd "$STAGED_PYTHON"
 # `--compatibility linux` and `--auditwheel skip` are the honest tags for a
 # host-bound artifact: it is NOT manylinux, and claiming otherwise would be the
 # exact drift AC80-9's doc-truth gate exists to stop. D-80.6-1 keeps this wheel
@@ -159,9 +197,18 @@ maturin build --release --out "$OUT_DIR" \
   --auditwheel skip \
   --interpreter "$INTERPRETER"
 
-WHEEL="$(find "$OUT_DIR" -maxdepth 1 -type f -name '*.whl' -print -quit)"
-if [ -z "$WHEEL" ]; then
-  fail "the Tegra CUDA build produced no wheel in $OUT_DIR"
+# Use shell globbing rather than a process substitution: a failed external
+# discovery command would otherwise be masked by mapfile, exactly the
+# SC2312 return-status loss this release gate prevents.
+shopt -s nullglob
+WHEELS=("$OUT_DIR"/fathomdb-"${TEGRA_LOCAL_VERSION}"-*.whl)
+shopt -u nullglob
+if [ "${#WHEELS[@]}" -ne 1 ]; then
+  fail "the Tegra CUDA build must produce exactly one fathomdb-${TEGRA_LOCAL_VERSION}-*.whl in $OUT_DIR"
+fi
+WHEEL="${WHEELS[0]}"
+if ! unzip -p "$WHEEL" '*/METADATA' | grep -Fx "Version: ${TEGRA_LOCAL_VERSION}" >/dev/null; then
+  fail "the Tegra CUDA wheel METADATA must contain Version: ${TEGRA_LOCAL_VERSION}"
 fi
 printf 'build-python-cuda-tegra: built %s\n' "$WHEEL"
 
@@ -182,3 +229,9 @@ fi
 bash "$REPO_ROOT/scripts/check-glibc-floor.sh" --floor "$TEGRA_FLOOR" "$EXTENSION"
 printf 'build-python-cuda-tegra: %s is within the declared tegra glibc floor %s\n' \
   "$(basename "$EXTENSION")" "$TEGRA_FLOOR"
+# The abstract form is `python -m pip install $WHEEL`; render the concrete
+# wheel argument with Bash's reversible shell quoting for `--out` paths that
+# contain spaces or shell metacharacters.
+printf '%s' 'python -m pip install '
+printf '%q' "$WHEEL"
+printf '\n'

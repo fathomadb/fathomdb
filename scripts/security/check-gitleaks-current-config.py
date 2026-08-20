@@ -4,8 +4,13 @@
 from __future__ import annotations
 
 import sys
-import tomllib
 from pathlib import Path
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # 0.8.23 Slice 80.3: Python 3.10 fallback (Ubuntu
+    # 22.04 / every Jetson ship 3.10, which lacks stdlib tomllib).
+    import tomli as tomllib  # type: ignore[import-not-found,no-redef]
 
 
 EXPECTED_ALLOWLISTS = [
@@ -22,6 +27,27 @@ EXPECTED_ALLOWLISTS = [
         "regexTarget": "match",
         "paths": [r"^(?:.*/)?scripts/release/cuda-artifact-contract\.sh$"],
         "regexes": [r"^CUDA_DEFAULT_EMBEDDER_TOKENIZER_SHA256='[0-9a-f]{64}'$"],
+    },
+    {
+        "description": "TinyBERT tokenizer digest export is artifact-integrity metadata",
+        "condition": "AND",
+        "regexTarget": "match",
+        "paths": [r"^(?:.*/)?scripts/release/cuda-artifact-contract\.sh$"],
+        "regexes": [r"^CUDA_RERANKER_TOKENIZER_SHA256='[0-9a-f]{64}'$"],
+    },
+    {
+        "description": "TinyBERT tokenizer digest is artifact-integrity metadata",
+        "condition": "AND",
+        "regexTarget": "match",
+        "paths": [r"^(?:.*/)?scripts/release/cuda-package-rehearsal-smoke\.sh$"],
+        "regexes": [r'^tokenizer\.json": "[0-9a-f]{64}"$'],
+    },
+    {
+        "description": "N-API rustup bootstrap digest is artifact-integrity metadata",
+        "condition": "AND",
+        "regexTarget": "match",
+        "paths": [r"^(?:.*/)?scripts/release/napi-artifact-contract\.sh$"],
+        "regexes": [r"^NAPI_RUSTUP_INIT_SHA256='[0-9a-f]{64}'$"],
     },
     {
         "description": "CUDA preflight-v2 fixtures contain only artifact-integrity digests",

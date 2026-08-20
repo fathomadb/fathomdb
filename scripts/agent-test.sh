@@ -126,12 +126,15 @@ run_tier_maybe_suite() {
 
 # Scripts (bash): set-version.sh two-axis enforcement.
 run_tier_suite fast test-set-version bash scripts/tests/test_set_version.sh
+run_tier_suite fast test-scale-ac013-matrix bash scripts/tests/test_scale_ac013_matrix.sh
 
 # Scripts (bash): release-cut fields deliberately outside set-version.sh.
 run_tier_suite fast test-release-version-surfaces bash scripts/tests/test_release_version_surfaces.sh
 run_tier_suite fast test-platform-capabilities bash scripts/tests/test_platform_capabilities.sh
 run_tier_suite fast test-sqlite-dependency-contract bash scripts/tests/test_sqlite_dependency_contract.sh
 run_tier_suite fast test-public-doc-truth bash scripts/tests/test_public_doc_truth.sh
+run_tier_suite fast test-slice70-embedding-docs-contract bash scripts/tests/test_slice70_embedding_docs_contract.sh
+run_tier_suite fast test-slice70-cli-artifact-design bash scripts/tests/test_slice70_cli_artifact_design.sh
 run_tier_suite fast test-ac036-ptrace-blocker bash scripts/tests/test_ac036_ptrace_blocker.sh
 
 # The partition gate itself is intentionally early: if a registration is
@@ -155,6 +158,9 @@ run_tier_suite fast test-verify-release-gates bash scripts/tests/test_verify_rel
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.
 run_tier_suite fast test-runtime-release-alignment bash scripts/tests/test_runtime_release_alignment.sh
+run_tier_suite fast test-cuda-package-rehearsal bash scripts/tests/test_cuda_package_rehearsal.sh
+run_tier_suite fast test-cuda-reranker-producer-contract bash scripts/tests/test_cuda_reranker_producer_contract.sh
+run_tier_suite fast test-cuda-reranker-forced-harness python3 scripts/tests/test_cuda_reranker_forced_harness.py
 
 # Scripts (bash): offline fake-Cargo coverage for every release Rust tier. The
 # helper executes Cargo dry-runs for the three leaf crates and explicitly skips
@@ -321,7 +327,39 @@ run_tier_suite fast test-release-contract-truth bash scripts/tests/test_release_
 # (D-80.6-1), and reject a contract that splits the shared nvcc pin or
 # re-points an x86_64 selector at the Tegra axis.
 run_tier_suite fast test-cuda-release-contract bash scripts/tests/test_cuda_release_contract.sh
+run_tier_suite fast test-cuda-unmerged-candidate-provenance bash scripts/tests/test_cuda_unmerged_candidate_provenance.sh
 run_tier_suite fast test-cuda-preflight-witness bash scripts/tests/test_cuda_preflight_witness.sh
+
+# 0.8.23 Slice 80.6.5: FATHOMDB_CANDIDATE_SHA lets cuda-preflight.sh resolve
+# its candidate SHA without git, for the no-.git x86_64 CUDA transfer target
+# (dev/design/0.8.23-aarch64-tegra.md § 7 "80.6.5"). Proves unset->git
+# fallback, a valid 40-hex value used verbatim, and fail-closed rejection of
+# empty/short/non-hex/uppercase/over-long values -- never a silent fallback.
+run_tier_suite fast test-cuda-candidate-sha bash scripts/tests/test_cuda_candidate_sha.sh
+
+# 0.8.23 Slice 80.5 (AC80-18): the Tegra GPU allocation witness verifier is
+# fixture-driven, so its fail-closed arms — zero/negative/below-floor delta,
+# ordinal and UUID correlation, every missing field — run on GPU-less CI
+# against a record a real Jetson Orin produced.
+run_tier_suite fast test-tegra-gpu-witness python3 scripts/tests/test_tegra_gpu_witness.py
+
+# 0.8.23 Slice 50: Gitleaks staged-index and reachable-history guards must
+# reject synthetic credentials without exposing them in diagnostics.
+run_tier_suite fast test-gitleaks-guards bash scripts/tests/test_gitleaks_guards.sh
+run_tier_suite fast test-gitleaks-history-classifier python3 scripts/tests/test_gitleaks_history_classifier.py
+run_tier_suite fast test-gitleaks-history-environment bash scripts/tests/test_gitleaks_history_environment.sh
+
+# 0.8.23 Slice 30 preparation: keep the warmed real-engine CI witness across
+# Rust, Python, and TypeScript bindings.
+run_tier_suite fast test-default-embedder-ci-contract bash scripts/tests/test_default_embedder_ci_contract.sh
+
+# 0.8.23 Slice 60: retain the first-party Windows x64 cross-process SQLite
+# WAL diagnosis job, its fail-closed cargo result, and its diagnostic artifact.
+run_tier_suite fast test-windows-wal-diagnosis-ci-job bash scripts/tests/test_windows_wal_diagnosis_ci_job.sh
+
+# Slice 65: retain the hosted Windows real-SQLite owned-vs-external WAL
+# attribution controls and their redacted diagnostic artifact.
+run_tier_suite fast test-windows-wal-attribution-ci-job bash scripts/tests/test_windows_wal_attribution_ci_job.sh
 
 # 0.8.23 Slice 80: the real Tegra CUDA proof is a manual-only self-hosted
 # runner route. This static mutation suite retains its exact runner identity,
@@ -392,6 +430,13 @@ run_tier_suite fast test-ci-run-hygiene-ci-env bash scripts/tests/test_ci_run_hy
 run_tier_suite fast test-agent-lint-shellcheck-version bash scripts/tests/test_agent_lint_shellcheck_version.sh
 run_tier_suite fast test-agent-lint-shellcheck-gate bash scripts/tests/test_agent_lint_shellcheck_gate.sh
 run_tier_suite fast test-install-shellcheck bash scripts/tests/test_install_shellcheck.sh
+
+# 0.8.23 Slice 80.3: bootstrap.sh must create .venv with a real Python >=3.11
+# interpreter (stdlib tomllib, needed by several gates below), not whatever
+# too-old python3 the OS ships (3.10 on Ubuntu 22.04 / every Jetson).
+run_tier_suite fast test-select-python-for-venv bash scripts/tests/test_select_python_for_venv.sh
+run_tier_suite fast test-create-venv-with-selected-python bash scripts/tests/test_create_venv_with_selected_python.sh
+run_tier_suite fast test-dev-environment-tools bash scripts/tests/test_dev_environment_tools.sh
 
 # Shell lint in CI (0.8.21 Slice 35). Pins the `shell-lint` job's ALWAYS-ON shape
 # (no if:/needs:), its minimal setup, that it GATES rather than advises, and the
@@ -498,11 +543,13 @@ if [ -n "$python_bin" ] && "$python_bin" -c 'import pytest' >/dev/null 2>&1 && [
   # `python3` — or to any environment that is not ours to rebind — we stay
   # silent and conftest degrades to visibly SKIPPING the hook-dependent tests
   # rather than repointing a shared venv. conftest re-checks venv ownership
-  # itself; this is the outer half of a belt-and-suspenders pair.
+  # itself; this is the outer half of a belt-and-suspenders pair. The generic
+  # loop also skips network-hitting Python model fixtures; the cache-owning
+  # default-embedder CI job runs those after warming the model cache.
   if [ "$python_bin" = ".venv/bin/python" ]; then
-    python_suite_command=(env FATHOMDB_TESTS_ALLOW_REBUILD=1 "$python_bin" -m pytest -q src/python/tests)
+    python_suite_command=(env FATHOMDB_SKIP_NETWORK_TESTS=1 FATHOMDB_TESTS_ALLOW_REBUILD=1 "$python_bin" -m pytest -q src/python/tests)
   else
-    python_suite_command=("$python_bin" -m pytest -q src/python/tests)
+    python_suite_command=(env FATHOMDB_SKIP_NETWORK_TESTS=1 "$python_bin" -m pytest -q src/python/tests)
   fi
 else
   python_suite_skip_reason="pytest not installed or no tests dir"

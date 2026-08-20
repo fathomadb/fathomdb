@@ -6,6 +6,10 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
+# 0.8.23 Slice 50: credentials must not enter history. This is intentionally
+# before formatters so the scanner sees exactly the index the commit records.
+scripts/security/gitleaks-staged.sh
+
 # TC-88 — a ledger and its `.seq` sidecar cannot be committed apart.
 #
 # FIRST, and deliberately not behind the `-z "$STAGED"` early exit below: this

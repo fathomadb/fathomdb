@@ -4,8 +4,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REQUESTED_CUDA_NAPI_FEATURES="${CUDA_NAPI_FEATURES:-}"
 # shellcheck source=cuda-artifact-contract.sh
 . "$SCRIPT_DIR/cuda-artifact-contract.sh"
+if [ -n "$REQUESTED_CUDA_NAPI_FEATURES" ]; then
+  CUDA_NAPI_FEATURES="$REQUESTED_CUDA_NAPI_FEATURES"
+fi
 
 if [ ! -x "$CUDA_NAPI_HOST_TOOLKIT_ROOT/bin/nvcc" ]; then
   printf 'build-napi-cuda: expected host CUDA compiler at %s/bin/nvcc\n' "$CUDA_NAPI_HOST_TOOLKIT_ROOT" >&2

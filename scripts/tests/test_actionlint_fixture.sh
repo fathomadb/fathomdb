@@ -31,7 +31,9 @@ printf 'PASS  actionlint rejects deliberately-broken fixture\n'
 # napi-rs only resolves prebuilt binaries by the exact platform-label triples
 # enumerated in src/ts/src/binding.ts; if release.yml uploads under a
 # non-canonical label, install-from-npm silently falls back to "no native
-# addon found" at runtime. 0.8.22 ships exactly five supported labels.
+# addon found" at runtime. Four supported labels are built by the ordinary
+# N-API matrix; the Linux x64 package is built and sealed by the CUDA
+# rehearsal route, so it intentionally is not a matrix row.
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 RELEASE_YML="${RELEASE_YML:-$REPO_ROOT/.github/workflows/release.yml}"
 CI_YML="${CI_YML:-$REPO_ROOT/.github/workflows/ci.yml}"
@@ -48,12 +50,16 @@ NODE_VERSION_FILE="$REPO_ROOT/.nvmrc"
 # ensures every failing label/tier is reported in one pass.
 FIXTURE_FAILED=0
 
-for label in linux-x64-gnu linux-arm64-gnu darwin-x64 darwin-arm64 win32-x64-msvc; do
+for label in linux-arm64-gnu darwin-x64 darwin-arm64 win32-x64-msvc; do
   if ! grep -qE "label:[[:space:]]+${label}\$" "$RELEASE_YML"; then
     printf 'FAIL  release.yml missing shipped napi label: %s\n' "$label" >&2
     FIXTURE_FAILED=$((FIXTURE_FAILED + 1))
   fi
 done
+if ! grep -Fq 'fathomdb-linux-x64-gnu-*.tgz' "$RELEASE_YML"; then
+  printf 'FAIL  release.yml missing the CUDA-rehearsal Linux x64 napi package route\n' >&2
+  FIXTURE_FAILED=$((FIXTURE_FAILED + 1))
+fi
 for label in linux-x64-musl linux-arm64-musl darwin-arm win32-arm64 win32-ia32; do
   if grep -qE "label:[[:space:]]+${label}\$" "$RELEASE_YML"; then
     printf 'FAIL  release.yml carries unsupported napi label: %s\n' "$label" >&2
@@ -61,7 +67,7 @@ for label in linux-x64-musl linux-arm64-musl darwin-arm win32-arm64 win32-ia32; 
   fi
 done
 if [ "$FIXTURE_FAILED" -eq 0 ]; then
-  printf 'PASS  release.yml carries exactly the five supported napi labels\n'
+  printf 'PASS  release.yml carries four matrix napi labels plus the CUDA-rehearsal Linux x64 route\n'
 fi
 
 confirmation_input_block() {
@@ -112,7 +118,7 @@ awk '
   END { exit !inserted }
 ' "$RELEASE_YML" > "$DEFAULTED_CONFIRMATION_FIXTURE"
 
-if "$CONFIRMATION_NO_DEFAULT_GUARD" "$DEFAULTED_CONFIRMATION_FIXTURE"; then
+if "$CONFIRMATION_NO_DEFAULT_GUARD" "$DEFAULTED_CONFIRMATION_FIXTURE" >/dev/null 2>&1; then
   printf 'FAIL  confirmation no-default guard accepted deliberately-defaulted fixture\n' >&2
   FIXTURE_FAILED=$((FIXTURE_FAILED + 1))
 else

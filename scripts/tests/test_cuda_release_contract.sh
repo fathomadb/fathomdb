@@ -308,8 +308,8 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = '    env:\n      FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}\n'
-if text.count(needle) != 3:
-    raise SystemExit("fixture no longer contains the three environment-owned CUDA GPU UUID bindings")
+if text.count(needle) != 4:
+    raise SystemExit("fixture no longer contains the four environment-owned CUDA GPU UUID bindings")
 path.write_text(text.replace(needle, '', 1))
 PY
 expect_fail "$FIXTURE" 'rejects a CUDA job without its environment-owned GPU UUID binding'
@@ -423,7 +423,7 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = '    runs-on: [self-hosted, Linux, X64, gpu, cuda-12]\n'
-if text.count(needle) != 3:
+if text.count(needle) != 4:
     raise SystemExit("fixture no longer contains all restricted CUDA runner selections")
 path.write_text(text.replace(needle, '    runs-on: ubuntu-latest\n', 1))
 PY
@@ -471,7 +471,7 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = '    environment: cuda-unmerged-preflight\n'
-if text.count(needle) != 3:
+if text.count(needle) != 4:
     raise SystemExit("fixture no longer contains all exact protected CUDA environments")
 path.write_text(text.replace(needle, "", 1))
 PY
@@ -487,7 +487,7 @@ path = Path(sys.argv[1])
 mutation = sys.argv[2]
 text = path.read_text()
 needle = "    environment: cuda-unmerged-preflight\n"
-if text.count(needle) != 3:
+if text.count(needle) != 4:
     raise SystemExit("fixture no longer contains all exact protected CUDA environments")
 replacements = {
     "comment-only": "    # environment: cuda-unmerged-preflight\n",
@@ -697,7 +697,7 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = '    runs-on: [self-hosted, Linux, X64, gpu, cuda-12]\n'
-if text.count(needle) != 3:
+if text.count(needle) != 4:
     raise SystemExit("fixture no longer contains all CUDA runner selections")
 path.write_text(text.replace(needle, needle + '    permissions:\n      contents: write\n', 1))
 PY
@@ -711,7 +711,7 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = 'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a'
-if text.count(needle) != 8:
+if text.count(needle) != 10:
     raise SystemExit("fixture CUDA artifact uploads must use the reviewed full action SHA")
 path.write_text(text.replace(needle, needle[:-1], 1))
 PY

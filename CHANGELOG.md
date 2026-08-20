@@ -13,9 +13,8 @@ AC-050c) gates merges against this invariant.
 ## 0.8.23 — 2026-08-20
 
 **Publication status: pending.** This is a release candidate only. It is not
-tagged or published: integration to `main`, the candidate-bound non-publishing
-CUDA dry-run, and independent review of the retained Slice 10/20/70/71 CUDA
-evidence remain required before any separate publication decision.
+tagged or published: integration to `main` and the candidate-bound
+non-publishing CUDA dry-run remain before a separate publication decision.
 
 ### Added
 
@@ -26,6 +25,9 @@ evidence remain required before any separate publication decision.
   controls for the non-publishing protected-runner dry-run route.
 - Jetson Orin and Linux x64 CUDA witness support, including allocation/device
   identity records and cache-bound driverless CPU smokes.
+- CUDA-capable Linux x64 Python and npm native binaries under the standard
+  `fathomdb` package names, while retaining the existing Linux aarch64/Tegra
+  CUDA path.
 
 ### Changed
 
@@ -33,6 +35,8 @@ evidence remain required before any separate publication decision.
   they can share a selected GPU and no device-reservation scheduler is implied.
 - Windows WAL attribution and reader-pool readiness diagnostics gained
   deterministic isolation controls without changing the public data model.
+- The release workflow builds the normal Linux x64 package artifacts with CUDA
+  before the existing PyPI and npm publishers run.
 
 ### Removed
 

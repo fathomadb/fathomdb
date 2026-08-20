@@ -283,13 +283,15 @@ if any(item not in body for item in required):
     raise SystemExit(1)
 if body.find("gitleaks-current.sh") > body.find("gitleaks-history.sh"):
     raise SystemExit(1)
+if not re.search(r"^    continue-on-error:\s*true\s*$", body, re.M):
+    raise SystemExit(1)
 if re.search(r"^    needs:\s*changes\s*$", body, re.M) or re.search(r"^    if:", body, re.M):
     raise SystemExit(1)
 PY
 then
-  pass "always-on CI current-tree and history guards have no docs-only bypass"
+  pass "always-on CI report-only current-tree and history guards have no docs-only bypass"
 else
-  fail "always-on CI current-tree and history guards have no docs-only bypass"
+  fail "always-on CI report-only current-tree and history guards have no docs-only bypass"
 fi
 
 printf '%s passed, %s failed\n' "$PASS" "$FAIL"

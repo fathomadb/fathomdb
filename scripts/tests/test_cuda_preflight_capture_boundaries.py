@@ -36,6 +36,11 @@ if '"command": f"installed_{consumer}_engine_open",' not in forced_embedder_reco
 if "engine_open_without_default_embedder" in forced_embedder_records:
     failures.append("forced embedder records mislabel the default-embedder harness")
 
+for harness_name in ("forced-napi-open.mjs", "forced-reranker-napi.mjs"):
+    harness = (REPO / "scripts/release" / harness_name).read_text(encoding="utf-8")
+    if "JSON.stringify(payload, CANONICAL_JSON_KEYS)" not in harness:
+        failures.append(f"{harness_name} does not emit canonical forced-policy JSON")
+
 assert not failures, "\n".join(failures)
 
 print("CUDA preflight capture boundary tests passed")

@@ -321,7 +321,13 @@ if ((await engine.embed("driverless N-API CPU fallback proof")).length !== 384) 
 if (process.env.FATHOMDB_CUDA_REHEARSAL_RERANK === "true") {
   await engine.write([{kind: "doc", body: "TinyBERT CPU inference", sourceId: "reranker-cpu-proof"}]);
   await engine.drain(30_000);
-  const result = await engine.search("reranker CPU proof", undefined, 1);
+  const deadline = Date.now() + 10_000;
+  let result = await engine.search("reranker CPU proof", undefined, 1);
+  while (Date.now() < deadline) {
+    if (result.results.length === 1 && result.results[0].ceScore !== null) break;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    result = await engine.search("reranker CPU proof", undefined, 1);
+  }
   if (result.results.length !== 1 || result.results[0].ceScore === null) throw new Error("expected installed N-API reranker inference");
 }
 await engine.close();

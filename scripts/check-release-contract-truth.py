@@ -26,6 +26,18 @@ EXPECTED_READY_TRIPLES = {
     "darwin-arm64",
     "win32-x64-msvc",
 }
+CUDA_LINUX_X64 = ("ubuntu-latest", "x86_64-unknown-linux-gnu", "linux-x64-gnu")
+CANONICAL_CUDA_ROUTE_IF = "${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}"
+PUBLISHING_JOBS = (
+    "publish-rust-t1-embedder-api", "publish-rust-t2-schema", "publish-rust-t3-query",
+    "publish-rust-t4-embedder", "publish-rust-t5-engine", "publish-rust-t6-facade",
+    "publish-rust-t7-cli", "publish-pypi", "publish-npm-platform-linux-x64-gnu",
+    "publish-npm-platform-linux-arm64-gnu", "publish-npm-platform-darwin-x64",
+    "publish-npm-platform-darwin-arm64", "publish-npm-platform-win32-x64-msvc", "publish-npm",
+    "post-publish-smoke", "post-publish-smoke-aarch64", "post-publish-smoke-darwin-x64",
+    "post-publish-smoke-darwin-arm64", "post-publish-smoke-win32-x64", "co-tagging-assert",
+    "promote-npm-latest", "github-release", "record-v0820-partial-registry-recovery",
+)
 JOB_HEADER = re.compile(r"^  ([A-Za-z][A-Za-z0-9_-]*):\s*$")
 MATRIX_RUNNER = re.compile(r"^          - runner: ([^\s#]+)\s*$")
 MATRIX_VALUE = re.compile(r"^            ([a-z_]+): ([^\s#]+)\s*$")
@@ -218,6 +230,81 @@ def require_implicit_success(job_name: str, block: str) -> None:
         fail(f"{job_name} must not bypass failed dependencies with a status condition")
 
 
+def require_candidate_free(job_name: str, block: str) -> None:
+    conditions = re.findall(r"^    if:\s*(.+)$", block, re.MULTILINE)
+    if len(conditions) != 1 or "inputs.candidate_commit == ''" not in conditions[0]:
+        fail(f"{job_name} must be unreachable from an unmerged candidate dispatch")
+
+
+def require_trusted_linux_x64_cuda_producer(jobs: dict[str, str]) -> None:
+    job_name = "cuda-package-rehearsal"
+    block = jobs.get(job_name)
+    if block is None:
+        fail("release workflow lacks the sole trusted Linux x64 CUDA package producer")
+    required = (
+        "needs: [verify-release, verify-cuda-trusted-route, cuda-contract-preflight]",
+        "if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}",
+        "runs-on: [self-hosted, Linux, X64, gpu, cuda-12]",
+        "environment: cuda-unmerged-preflight",
+        "permissions:\n      contents: read",
+        "ref: ${{ github.workflow_sha }}",
+        "persist-credentials: false",
+        "control-plane/scripts/release/verify-cuda-unmerged-receipt.py",
+        "control-plane/scripts/release/verify-cuda-preflight-witness.py",
+        "ref: ${{ env.RELEASE_CHECKOUT_REF }}",
+        "bash ../control-plane/scripts/release/cuda-package-rehearsal-smoke.sh",
+        "bash control-plane/scripts/release/cuda-package-rehearsal.sh",
+    )
+    for fragment in required:
+        if fragment not in block:
+            fail(f"{job_name} is missing required trusted-producer fragment {fragment!r}")
+    if "contents: write" in block or "id-token: write" in block or "registry-url:" in block:
+        fail("trusted Linux x64 CUDA producer must not receive publishing capability")
+    for publisher_artifact in (
+        "name: python-dist-x86_64-unknown-linux-gnu",
+        "name: napi-linux-x64-gnu",
+    ):
+        if publisher_artifact in block:
+            fail("candidate CUDA rehearsal must not emit a canonical publisher-name artifact")
+
+    blocker = jobs.get("canonical-cuda-package-route-required")
+    if blocker is None:
+        fail("release workflow lacks the canonical CUDA package route blocker")
+    if f"if: {CANONICAL_CUDA_ROUTE_IF}" not in blocker:
+        fail("canonical CUDA package route blocker must run on every tag or non-dry-run route")
+    if "runs-on: ubuntu-latest" not in blocker or "permissions: {}" not in blocker:
+        fail("canonical CUDA package route blocker must be GitHub-hosted and credentialless")
+    for fragment in ("canonical CUDA package route required", "exit 1"):
+        if fragment not in blocker:
+            fail(f"canonical CUDA package route blocker is missing {fragment!r}")
+    for forbidden in (
+        "actions/checkout@", "actions/download-artifact@", "actions/upload-artifact@",
+        "environment:", "id-token:", "registry-url:", "${{ secrets.", "github.token",
+        "candidate_commit", "cuda-unmerged-route-receipt", "cuda-preflight-witness",
+    ):
+        if forbidden in blocker:
+            fail(f"canonical CUDA package route blocker must not receive candidate or publishing input: {forbidden!r}")
+
+    all_builds = jobs.get("all-builds-passed")
+    if all_builds is None or job_name not in needs("all-builds-passed", all_builds):
+        fail("all-builds-passed must depend on the trusted Linux x64 CUDA producer")
+    if "canonical-cuda-package-route-required" not in needs("all-builds-passed", all_builds):
+        fail("all-builds-passed must depend on the canonical CUDA route blocker")
+    for route_condition in (
+        "github.event_name == 'workflow_dispatch' && inputs.dry_run == true && needs.cuda-package-rehearsal.result == 'success'",
+        "(github.event_name != 'workflow_dispatch' || inputs.dry_run != true) && needs.canonical-cuda-package-route-required.result == 'success'",
+    ):
+        if route_condition not in all_builds:
+            fail("all-builds-passed must select the candidate rehearsal or canonical blocker by route")
+
+    for publisher in PUBLISHING_JOBS:
+        publisher_block = jobs.get(publisher)
+        if publisher_block is None:
+            fail(f"release workflow lacks {publisher}")
+        if "cuda-package-rehearsal" in publisher_block:
+            fail(f"{publisher} must not consume a candidate CUDA rehearsal artifact")
+
+
 def main() -> None:
     repo = root()
     manifest = read_json(repo / "dev/platform-capabilities.json")
@@ -254,6 +341,10 @@ def main() -> None:
 
     jobs = workflow_jobs(repo / ".github/workflows/release.yml")
     expected_build = {(entry["runner"], entry["rust_target"]) for entry in ready}
+    cuda_build = CUDA_LINUX_X64[:2]
+    if cuda_build not in expected_build:
+        fail("platform manifest lacks the Linux x64 native triple routed through trusted CUDA rehearsal")
+    expected_ordinary_build = expected_build - {cuda_build}
     for job_name, label_required in (("build-python", False), ("build-napi", True)):
         block = jobs.get(job_name)
         if block is None:
@@ -263,13 +354,22 @@ def main() -> None:
         actual = {(runner, target) for runner, target, _ in rows}
         if len(rows) != len(actual):
             fail(f"{job_name} matrix repeats a runner/target row")
-        if actual != expected_build:
-            fail(f"{job_name} runner/target coverage is {sorted(actual)}, expected {sorted(expected_build)}")
+        if actual != expected_ordinary_build:
+            fail(
+                f"{job_name} ordinary runner/target coverage is {sorted(actual)}, "
+                f"expected {sorted(expected_ordinary_build)}"
+            )
         if label_required:
-            expected_napi = {(entry["runner"], entry["rust_target"], entry["triple"]) for entry in ready}
+            expected_napi = {
+                (entry["runner"], entry["rust_target"], entry["triple"])
+                for entry in ready
+                if entry["triple"] != CUDA_LINUX_X64[2]
+            }
             actual_napi = set(rows)
             if len(rows) != len(actual_napi) or actual_napi != expected_napi:
                 fail(f"build-napi runner/target/label coverage is {sorted(actual_napi)}, expected {sorted(expected_napi)}")
+
+    require_trusted_linux_x64_cuda_producer(jobs)
 
     publish_jobs: list[str] = []
     smoke_jobs: list[str] = []
@@ -338,6 +438,7 @@ def main() -> None:
     if "co-tagging-assert" not in promotion_needs:
         fail("promote-npm-latest must depend on co-tagging-assert")
     require_implicit_success("promote-npm-latest", promotion)
+    require_candidate_free("promote-npm-latest", promotion)
     promotion_command_count = promotion.count("npm dist-tag add")
     if promotion_command_count != 1 or not PROMOTION_COMMAND.search(promotion):
         fail("promote-npm-latest must promote only fathomdb@${RELEASE_TAG#v} to latest")
@@ -348,6 +449,7 @@ def main() -> None:
     if "promote-npm-latest" not in needs("github-release", github_release):
         fail("github-release must depend on promote-npm-latest")
     require_implicit_success("github-release", github_release)
+    require_candidate_free("github-release", github_release)
 
     print(f"ok    release-contract-truth: {release} has {len(ready)} release-ready native triples")
 

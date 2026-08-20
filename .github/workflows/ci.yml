@@ -21,6 +21,25 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # 0.8.23 Slice 50: reachable history is scanned independently of the
+  # docs-only detector, because a path filter cannot be a security boundary.
+  gitleaks:
+    runs-on: ubuntu-latest
+    # Security findings are retained for offline review; they do not block this
+    # release candidate's CI conclusion.
+    continue-on-error: true
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+      - name: Install pinned Gitleaks
+        run: bash scripts/install-gitleaks.sh
+      - name: Scan current tracked tree
+        run: bash scripts/security/gitleaks-current.sh
+      - name: Scan reachable Git history
+        run: bash scripts/security/gitleaks-history.sh
+
   # 0.8.21 Slice 35 (SHELL-LINT-CI) — the shell gate, EARLY and INDEPENDENT.
   # Design of record: dev/design/ci-verify-robustness-review.md R2.1.
   #
@@ -376,12 +395,18 @@ jobs:
           fi
           # Never fail the job on warm-cache failure — the env gate covers it.
           exit 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+      - name: Install the Python binding from this checkout
+        run: python -m pip install -e 'src/python[dev]'
       # The generic agent loop deliberately sets FATHOMDB_SKIP_NETWORK_TESTS=1
       # so developers can run its full prework without a live model download.
       # This cache-owning job runs the complementary live/release TypeScript
-      # coverage only. On a warm failure it inherits the conditional
+      # coverage and the one Python edge-body graph-arm fixture that requires a
+      # live embedder. On a warm failure they inherit the conditional
       # GITHUB_ENV skip gate above, while non-network and release-surface
-      # assertions in these seven files still run.
+      # assertions still run.
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "25.9.0"
@@ -413,10 +438,318 @@ jobs:
         run: |
           cargo test -p fathomdb-engine --features default-embedder \
             --test eu5b_lockflip
+      - name: Network-hitting Python SDK tests
+        run: |
+          python -m pytest \
+            src/python/tests/test_use_default_embedder.py \
+            src/python/tests/test_embed.py \
+            src/python/tests/test_functional_graph_arm.py::test_edge_body_enables_edge_fact_seeding \
+            src/python/tests/test_slice20c_flush_barrier.py::test_a_no_embedder_session_leaves_an_enrolled_kinds_write_recoverable
       - name: Network-hitting EU-5b tests (cli warm-cache)
         run: |
           cargo test -p fathomdb-cli --features default-embedder \
             --test cli_warm_cache
+
+  # 0.8.23 Slice 60: a separate OS process holds a real SQLite WAL read
+  # snapshot while `excise_source` attempts its truncating checkpoint. This is
+  # deliberately a focused Windows x64 source test, not artifact validation:
+  # its retained log records elapsed checkpoint time and the typed lock result.
+  windows-wal-checkpoint-diagnosis:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        with:
+          toolchain: "1.95.0"
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Run cross-process WAL checkpoint diagnosis
+        shell: pwsh
+        run: |
+          cargo test -p fathomdb-engine --features operator --test erasure_completeness erasure_busy_cross_process_windows_yields_typed_diagnostic -- --exact --nocapture 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\slice60-windows-wal-diagnostic.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Upload cross-process WAL checkpoint diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: slice60-windows-wal-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/slice60-windows-wal-diagnostic.log
+          if-no-files-found: error
+
+  # Slice 65 extends the Slice 60 external-holder witness with private,
+  # redacted ownership attribution. The managed-reader control is real SQLite
+  # on a reader-worker connection; the child control remains the external
+  # comparison. Its artifact contains role/index/phase and checkpoint counters
+  # only—never a database path, SQL, query text, source id, or result data.
+  windows-wal-attribution:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        with:
+          toolchain: "1.95.0"
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - name: Detect Slice 65 attribution source
+        id: slice65-source
+        shell: pwsh
+        run: |
+          $artifact = "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log"
+          $source = "src/rust/crates/fathomdb-engine/src/lib.rs"
+          $marker = "fn wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded"
+          if (Select-String -LiteralPath $source -SimpleMatch $marker -Quiet) {
+            "available=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "slice65_wal attribution_source=present controls=required" | Tee-Object -FilePath $artifact
+          } else {
+            "available=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "slice65_wal attribution_source=absent controls=deferred" | Tee-Object -FilePath $artifact
+          }
+      - name: Run WAL ownership attribution controls
+        if: steps.slice65-source.outputs.available == 'true'
+        shell: pwsh
+        run: |
+          $env:FATHOMDB_WAL_ATTRIBUTION = "1"
+          $artifact = "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log"
+          $managedReaderLog = "$env:RUNNER_TEMP\slice65-windows-wal-managed-reader.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_owned_reader_typed_refusal_then_post_release_sampler_is_recorded -- --exact --nocapture 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log" | Tee-Object -FilePath $managedReaderLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $managedReaderLog -SimpleMatch "running 1 test" -Quiet)) {
+            Write-Error "managed-reader attribution command selected zero tests"
+            exit 1
+          }
+          if (-not (Select-String -Path $managedReaderLog -SimpleMatch 'slice65_wal managed_reader_original_erase=typed_erasure_incomplete owned_busy_attempts=5' -Quiet) -or -not (Select-String -Path $managedReaderLog -SimpleMatch 'slice65_wal managed_reader_completion_ack reader_autocommit=1 collector_roles=idle' -Quiet) -or -not (Select-String -Path $managedReaderLog -SimpleMatch 'slice65_wal managed_reader_native_state_inventory=state_inventory=complete reason=complete' -Quiet) -or -not (Select-String -Path $managedReaderLog -SimpleMatch 'slice65_wal managed_reader_sampler_native_state control=binding_sampler phase=before' -Quiet) -or -not (Select-String -Path $managedReaderLog -SimpleMatch 'slice65_wal managed_reader_sampler_native_state control=binding_sampler phase=after' -Quiet) -or -not (Select-String -Path $managedReaderLog -SimpleMatch 'slice65_wal managed_reader_sampler_terminal outcome=' -Quiet)) {
+            Write-Error "managed-reader attribution artifact is incomplete"
+            exit 1
+          }
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_retained_materialized_result_is_idle_at_checkpoint -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $readerHandoffLog = "$env:RUNNER_TEMP\slice65-windows-wal-reader-handoff.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_reader_handoff_is_idle_before_materialized_reply -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $readerHandoffLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $readerHandoffLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "reader-handoff attribution command selected zero tests"
+            exit 1
+          }
+          if (-not (Select-String -Path $readerHandoffLog -SimpleMatch 'slice65_wal reader_handoff_idle_before_reply=passed' -Quiet)) {
+            Write-Error "reader-handoff attribution artifact is missing success marker"
+            exit 1
+          }
+          $actualCheckpointLog = "$env:RUNNER_TEMP\slice65-windows-wal-actual-checkpoint.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_actual_checkpoint_observation_retains_real_attempt_facts -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $actualCheckpointLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $actualCheckpointLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "actual-checkpoint observation selected zero tests"
+            exit 1
+          }
+          if (-not (Select-String -Path $actualCheckpointLog -SimpleMatch 'slice65_wal actual_checkpoint control=direct_rust phase=before' -Quiet) -or -not (Select-String -Path $actualCheckpointLog -SimpleMatch 'slice65_wal actual_checkpoint control=direct_rust phase=after' -Quiet) -or -not (Select-String -Path $actualCheckpointLog -SimpleMatch 'direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=autocommit;dispatcher=autocommit;workers=2-autocommit;registry=complete;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:2;complete=1' -Quiet) -or -not (Select-String -Path $actualCheckpointLog -SimpleMatch 'slice65_wal actual_checkpoint control=direct_rust erase_observation=' -Quiet) -or -not (Select-String -Path $actualCheckpointLog -SimpleMatch 'slice65_wal actual_checkpoint control=direct_rust recorded' -Quiet)) {
+            Write-Error "actual-checkpoint observation artifact is incomplete"
+            exit 1
+          }
+          $projectionWorkerLog = "$env:RUNNER_TEMP\slice65-windows-wal-projection-worker.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_projection_worker_typed_refusal_then_post_release_sampler_is_recorded -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $projectionWorkerLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $projectionWorkerLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "projection-worker attribution command selected zero tests"
+            exit 1
+          }
+          $projectionRequiredMarkers = @(
+            'slice65_wal projection_worker_original_erase=typed_erasure_incomplete owned_busy_attempts=5',
+            'slice65_wal projection_worker_completion_ack worker_autocommit=1 collector_roles=idle',
+            'slice65_wal projection_worker_native_state_inventory=state_inventory=complete reason=complete',
+            'slice65_wal projection_worker_sampler_native_state control=binding_sampler phase=before',
+            'slice65_wal projection_worker_sampler_native_state control=binding_sampler phase=after',
+            'slice65_wal projection_worker_sampler_terminal outcome='
+          )
+          foreach ($marker in $projectionRequiredMarkers) {
+            if (-not (Select-String -Path $projectionWorkerLog -SimpleMatch $marker -Quiet)) {
+              Write-Error "projection-worker attribution artifact is incomplete: $marker"
+              exit 1
+            }
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $postCommitLog = "$env:RUNNER_TEMP\slice65-windows-wal-post-commit.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_post_commit_acknowledges_and_records_raw_checkpoint_diagnostic -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $postCommitLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $postCommitLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "post-commit diagnostic command selected zero tests"
+            exit 1
+          }
+          if (-not (Select-String -Path $postCommitLog -SimpleMatch 'slice65_wal post_commit_ack direct_inventory=' -Quiet) -or -not (Select-String -Path $postCommitLog -SimpleMatch 'collector_roles=idle' -Quiet) -or -not (Select-String -Path $postCommitLog -SimpleMatch 'slice65_wal post_commit_raw case=pre_close' -Quiet) -or -not (Select-String -Path $postCommitLog -SimpleMatch 'slice65_wal post_commit_child_raw case=after_close' -Quiet) -or -not (Select-String -Path $postCommitLog -SimpleMatch 'slice65_wal post_commit_diagnostic=recorded' -Quiet)) {
+            Write-Error "post-commit diagnostic artifact is incomplete"
+            exit 1
+          }
+          $closeBoundaryDirectLog = "$env:RUNNER_TEMP\slice65-windows-wal-close-boundary-direct.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_close_boundary_raw_checkpoint_is_clean -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $closeBoundaryDirectLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $closeBoundaryDirectLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "close-boundary direct checkpoint control selected zero tests"
+            exit 1
+          }
+          $closeBoundaryFreshLog = "$env:RUNNER_TEMP\slice65-windows-wal-close-boundary-fresh.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_close_boundary_fresh_open_is_clean -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $closeBoundaryFreshLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $closeBoundaryFreshLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "close-boundary fresh-open control selected zero tests"
+            exit 1
+          }
+          $closeBoundaryReadGetLog = "$env:RUNNER_TEMP\slice65-windows-wal-close-boundary-read-get.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_close_boundary_read_get_is_clean -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $closeBoundaryReadGetLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $closeBoundaryReadGetLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "close-boundary read-get control selected zero tests"
+            exit 1
+          }
+          $closeBoundaryNeighborsLog = "$env:RUNNER_TEMP\slice65-windows-wal-close-boundary-neighbors.log"
+          cargo test -p fathomdb-engine --features operator --lib tests::wal_attribution_close_boundary_neighbors_is_clean -- --exact --nocapture 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $closeBoundaryNeighborsLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $closeBoundaryNeighborsLog -SimpleMatch 'running 1 test' -Quiet)) {
+            Write-Error "close-boundary neighbors control selected zero tests"
+            exit 1
+          }
+          if (@(Select-String -Path $artifact -SimpleMatch 'running 1 test').Count -lt 10) {
+            Write-Error "one or more Slice 65 engine selectors selected zero tests"
+            exit 1
+          }
+          cargo test -p fathomdb-engine --features operator --test erasure_completeness erasure_busy_cross_process_windows_yields_typed_diagnostic -- --exact --nocapture 2>&1 | Tee-Object -FilePath "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log" -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (@(Select-String -Path $artifact -SimpleMatch 'running 1 test').Count -lt 5) {
+            Write-Error "external-reader attribution command selected zero tests"
+            exit 1
+          }
+      - name: Build current disposable test-hooks wheel
+        if: steps.slice65-source.outputs.available == 'true'
+        uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1.51.0
+        with:
+          args: --release --out ${{ github.workspace }}/dist-slice65-test -i python3.11 --features pyo3/extension-module,test-hooks
+          working-directory: src/python
+      - name: Run installed-wheel attribution controls
+        if: steps.slice65-source.outputs.available == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $env:FATHOMDB_WAL_ATTRIBUTION = "1"
+          $artifact = "$env:RUNNER_TEMP\slice65-windows-wal-attribution.log"
+          $releasedEnv = "$env:RUNNER_TEMP\slice65-released-wheel"
+          $currentEnv = "$env:RUNNER_TEMP\slice65-current-wheel"
+          $bindingLog = "$env:RUNNER_TEMP\slice65-windows-python-binding.log"
+          "slice65_wal current_head=$(git rev-parse HEAD)" | Tee-Object -FilePath $artifact -Append
+          python -m venv $releasedEnv
+          & "$releasedEnv\Scripts\python.exe" -m pip install --only-binary=:all: fathomdb==0.8.22 2>&1 | Tee-Object -FilePath $artifact -Append
+          & "$releasedEnv\Scripts\python.exe" -m pip show fathomdb 2>&1 | Tee-Object -FilePath $artifact -Append
+          $releasedNative = (Get-ChildItem "$releasedEnv\Lib\site-packages\fathomdb\_fathomdb*.pyd" | Select-Object -First 1).FullName
+          "slice65_wal released_native_sha256=$((Get-FileHash $releasedNative -Algorithm SHA256).Hash)" | Tee-Object -FilePath $artifact -Append
+          & "$releasedEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control serial --wheel-version 0.8.22 --wheel-label released-0.8.22 --observe-baseline-first-erase 2>&1 | Tee-Object -FilePath $artifact -Append
+          $releasedSerialExit = $LASTEXITCODE
+          $releasedTypedObservations = @(Select-String -Path $artifact -Pattern 'slice65_wal BASELINE_FIRST_ERASE outcome=typed_erasure_incomplete type=ErasureIncompleteError stage=wal_checkpoint wal_frames=(?<frames>\d+)')
+          $releasedCleanObservations = @(Select-String -Path $artifact -SimpleMatch 'slice65_wal BASELINE_FIRST_ERASE outcome=clean_completion type=none stage=none wal_frames=0')
+          if ($releasedSerialExit -eq 65 -and $releasedTypedObservations.Count -eq 1 -and $releasedCleanObservations.Count -eq 0) {
+            $releasedFrames = $releasedTypedObservations[0].Matches[0].Groups['frames'].Value
+            "slice65_wal OBSERVED_EXPECTED_ERASURE_INCOMPLETE wheel_version=0.8.22 wheel_selector=released-0.8.22 exit=$releasedSerialExit type=ErasureIncompleteError stage=wal_checkpoint frames=$releasedFrames" | Tee-Object -FilePath $artifact -Append
+          } elseif ($releasedSerialExit -eq 66 -and $releasedCleanObservations.Count -eq 1 -and $releasedTypedObservations.Count -eq 0) {
+            "slice65_wal OBSERVED_CLEAN_SERIAL_COMPLETION wheel_version=0.8.22 wheel_selector=released-0.8.22 exit=$releasedSerialExit type=none stage=none frames=0" | Tee-Object -FilePath $artifact -Append
+          } else {
+            Write-Error "released serial baseline did not produce an accepted first-erase observation: exit=$releasedSerialExit typed=$($releasedTypedObservations.Count) clean=$($releasedCleanObservations.Count)"
+            exit 1
+          }
+          python -m venv $currentEnv
+          $currentWheelDir = Join-Path $env:GITHUB_WORKSPACE "dist-slice65-test"
+          if (-not (Test-Path -LiteralPath $currentWheelDir -PathType Container)) {
+            Write-Error "disposable current test-hooks wheel directory is missing: $currentWheelDir"
+            exit 1
+          }
+          $currentWheelCandidates = @(Get-ChildItem -LiteralPath $currentWheelDir -Filter "*.whl" -File)
+          if ($currentWheelCandidates.Count -ne 1) {
+            Write-Error "expected exactly one disposable current test-hooks wheel, found $($currentWheelCandidates.Count)"
+            exit 1
+          }
+          $currentWheel = (Resolve-Path -LiteralPath $currentWheelCandidates[0].FullName).Path
+          "slice65_wal current_wheel_path=$currentWheel" | Tee-Object -FilePath $artifact -Append
+          "slice65_wal current_wheel_sha256=$((Get-FileHash -LiteralPath $currentWheel -Algorithm SHA256).Hash)" | Tee-Object -FilePath $artifact -Append
+          & "$currentEnv\Scripts\python.exe" -m pip install --no-index --no-deps $currentWheel 2>&1 | Tee-Object -FilePath $artifact -Append
+          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control serial --wheel-version 0.8.22 --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control binding --wheel-version 0.8.22 --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append | Tee-Object -FilePath $bindingLog
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_completion_ack reader_autocommit=1 collector=idle' -Quiet)) {
+            Write-Error "installed binding diagnostic did not acknowledge direct reader autocommit at completion"
+            exit 1
+          }
+          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_direct_inventory=roles=writer:0,readers:0-7,dispatcher:0,workers:0-1;writer=autocommit;readers=8-autocommit;dispatcher=autocommit;workers=2-autocommit;creation=writer:1,readers:8,dispatcher:1,workers:2,probes:2' -Quiet)) {
+            Write-Error "installed binding diagnostic did not retain the exact direct inventory"
+            exit 1
+          }
+          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_held_reader_native_state=readers:0(auto=0,txn=read,' -Quiet)) {
+            Write-Error "installed binding diagnostic did not retain the owned reader native-state positive control"
+            exit 1
+          }
+          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_native_state_inventory=state_inventory=complete reason=complete' -Quiet)) {
+            Write-Error "installed binding diagnostic did not retain a complete native-state inventory"
+            exit 1
+          }
+          foreach ($roleFact in @('writer:0(auto=1,txn=none,busy=0,received=1)', 'readers:0(auto=1,txn=none,busy=0,received=1)', 'readers:1(auto=1,txn=none,busy=0,received=1)', 'readers:2(auto=1,txn=none,busy=0,received=1)', 'readers:3(auto=1,txn=none,busy=0,received=1)', 'readers:4(auto=1,txn=none,busy=0,received=1)', 'readers:5(auto=1,txn=none,busy=0,received=1)', 'readers:6(auto=1,txn=none,busy=0,received=1)', 'readers:7(auto=1,txn=none,busy=0,received=1)', 'dispatcher:0(auto=1,txn=none,busy=0,received=1)', 'workers:0(auto=1,txn=none,busy=0,received=1)', 'workers:1(auto=1,txn=none,busy=0,received=1)')) {
+            if (-not (Select-String -Path $bindingLog -SimpleMatch $roleFact -Quiet)) {
+              Write-Error "installed binding native-state inventory omitted required role fact: $roleFact"
+              exit 1
+            }
+          }
+          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_raw case=before_engine_sampler' -Quiet) -or -not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_engine_sampler' -Quiet) -or -not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_raw case=after_engine_sampler' -Quiet)) {
+            Write-Error "installed binding diagnostic did not retain its ordered bounded samples"
+            exit 1
+          }
+          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_native_state control=binding_sampler phase=before' -Quiet) -or -not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_native_state control=binding_sampler phase=after' -Quiet) -or -not (Select-String -Path $bindingLog -SimpleMatch 'state_inventory=complete reason=complete' -Quiet)) {
+            Write-Error "installed binding sampler did not retain complete before/after native-state facts"
+            exit 1
+          }
+          if (-not (Select-String -Path $bindingLog -SimpleMatch 'slice65_wal python_binding_child_raw case=after_close' -Quiet)) {
+            Write-Error "installed binding diagnostic did not retain its conditional child outcome"
+            exit 1
+          }
+          & "$currentEnv\Scripts\python.exe" src/python/tests/test_slice65_wal_attribution_installed.py --control retained --wheel-version 0.8.22 --wheel-label current-source-test-hooks --require-attribution 2>&1 | Tee-Object -FilePath $artifact -Append
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $bindingBusy = @(Select-String -Path $bindingLog -Pattern 'slice65_wal checkpoint_attempt=.*busy=1.*classification=owned_reader_snapshot.*active_roles=reader_worker:0').Count
+          if ($bindingBusy -ne 5) {
+            Write-Error "expected five installed-binding owned reader busy records, got $bindingBusy"
+            exit 1
+          }
+          if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_current_attribution_expected=1' -Quiet)) {
+            Write-Error "current serial wheel did not emit the attribution selector"
+            exit 1
+          }
+          if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_idle_after_read_get=passed' -Quiet) -or -not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_idle_after_neighbors=passed' -Quiet)) {
+            Write-Error "current serial wheel did not prove immediate idle state after both recovery reads"
+            exit 1
+          }
+          if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal actual_checkpoint control=python_serial phase=before' -Quiet) -or -not (Select-String -Path $artifact -SimpleMatch 'slice65_wal actual_checkpoint control=python_serial phase=after' -Quiet) -or -not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_current_erase_observation=' -Quiet)) {
+            Write-Error "current serial wheel did not retain actual checkpoint observation facts"
+            exit 1
+          }
+          if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_wheel_selector=released-0.8.22' -Quiet) -or -not (Select-String -Path $artifact -SimpleMatch 'slice65_wal serial_wheel_selector=current-source-test-hooks' -Quiet)) {
+            Write-Error "installed-wheel serial comparison did not retain both released and current selectors"
+            exit 1
+          }
+          if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal python_binding_completion_ack reader_autocommit=1 collector=idle' -Quiet)) {
+            Write-Error "installed binding control did not retain direct reader completion acknowledgement"
+            exit 1
+          }
+          if (-not (Select-String -Path $artifact -SimpleMatch 'slice65_wal python_retained_materialized_idle=passed' -Quiet)) {
+            Write-Error "installed retained-result control did not execute"
+            exit 1
+          }
+          Write-Output "slice65_wal installed_wheel_controls=passed" | Tee-Object -FilePath $artifact -Append
+      - name: Upload WAL ownership attribution diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: slice65-windows-wal-attribution-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/slice65-windows-wal-attribution.log
+          if-no-files-found: error
 
    # EU-6 FIX-1 / ADR-0.6.0-default-embedder.md EMB-3 — wheel-size gate.
   #
@@ -824,6 +1157,11 @@ jobs:
           # the gate then correctly declines to check it and this job would vouch
           # for nothing. Full history is what makes the assertion real here.
           fetch-depth: 0
+      - name: Fetch the scoped 0.8.23 release completion ref
+        # `completion.ref` is deliberately an exact, release-scoped remote ref.
+        # Checkout's refspec guarantees origin/main but does not guarantee this
+        # sibling branch exists as a remote-tracking ref in every event shape.
+        run: git fetch --no-tags origin +refs/heads/release/0.8.23:refs/remotes/origin/release/0.8.23
       - name: Release-state generated views are current (DOC-HYGIENE-2 T2a)
         run: bash scripts/check-release-state-views.sh
       - name: Recurrence guard for the gate itself (fixture arms)

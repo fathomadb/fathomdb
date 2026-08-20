@@ -1,0 +1,1 @@
+fixture evidence: gpu-python-cuda-smoke.txt

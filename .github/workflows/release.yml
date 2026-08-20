@@ -55,13 +55,18 @@ jobs:
   #   - actionlint on all workflow files (per feedback_workflow_validation —
   #     yaml.safe_load passes schema-invalid syntax GitHub silently rejects).
   verify-release:
+    needs: verify-cuda-trusted-route
+    if: ${{ always() && needs.verify-cuda-trusted-route.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, candidate SHA or canonical release tag
         with:
           ref: ${{ env.RELEASE_CHECKOUT_REF }}
           fetch-depth: 0  # need refs/heads/main for HEAD-reach check
+          persist-credentials: false
       - name: Print resolved dry-run mode
         run: echo "DRY_RUN=${DRY_RUN}"
       - name: Validate v0.8.20 recovery scope
@@ -104,21 +109,207 @@ jobs:
         # Queries crates.io directly (read-only, fail-closed on any error).
         run: bash scripts/release/verify-embedder-api-no-drift.sh
 
+  # Slice 10: this job decides CUDA runner eligibility without executing any
+  # candidate script. It is intentionally hosted; the self-hosted preflight
+  # below may start only after this default-branch-owned check passes.
+  verify-cuda-trusted-route:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      candidate_authorized: ${{ steps.route.outputs.authorized || steps.canonical.outputs.authorized }}
+      manifest_sha256: ${{ steps.route.outputs.manifest_sha256 || steps.canonical.outputs.manifest_sha256 }}
+    steps:
+      # `github.workflow_sha` is the reviewed, main-owned control plane. Never
+      # check out candidate-owned code in this job.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, main-owned control plane only
+        with:
+          ref: ${{ github.workflow_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify canonical tag or non-dry-run route
+        id: canonical
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.candidate_commit || '' }}" != '' ]; then
+            echo "candidate_commit is forbidden outside a dry-run dispatch" >&2
+            exit 1
+          fi
+          echo 'authorized=true' >> "$GITHUB_OUTPUT"
+          echo 'manifest_sha256=canonical-route' >> "$GITHUB_OUTPUT"
+      - name: Fetch and normalize read-only candidate review facts
+        id: facts
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_commit }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.workflow_ref }}" != 'fathomadb/fathomdb/.github/workflows/release.yml@refs/heads/main' ]; then
+            echo 'unmerged CUDA candidate route must run from the main release workflow' >&2
+            exit 1
+          fi
+          if ! [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo 'unmerged CUDA candidate route requires a lowercase 40-hex SHA' >&2
+            exit 1
+          fi
+          # The protection-baseline attestation is an external prerequisite. A
+          # missing, malformed, or expired file is deliberately a hard failure.
+          test -f dev/release/cuda-protection-baseline.json
+          candidate_pr="$(curl --fail --silent --show-error --request GET \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/commits/$CANDIDATE_SHA/pulls" \
+            | python3 -c 'import json, sys; rows=json.load(sys.stdin); assert isinstance(rows, list) and len(rows) == 1; print(rows[0]["number"])')"
+          curl --fail --silent --show-error --request GET \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$candidate_pr" > pull-request.json
+          curl --fail --silent --show-error --request GET \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$candidate_pr/reviews?per_page=100" > reviews.json
+          provenance_pr="$(python3 - "$CANDIDATE_SHA" dev/release/cuda-unmerged-candidates.json <<'PY'
+          import json
+          import sys
+          candidate_sha, manifest_path = sys.argv[1:]
+          manifest = json.load(open(manifest_path, encoding="utf-8"))
+          records = [item for item in manifest["candidates"] if item.get("candidate_sha") == candidate_sha]
+          assert len(records) == 1
+          print(records[0]["provenance_pr"])
+          PY
+          )"
+          curl --fail --silent --show-error --request GET \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$provenance_pr" > provenance-pull-request.json
+          curl --fail --silent --show-error --request GET \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/pulls/$provenance_pr/reviews?per_page=100" > provenance-reviews.json
+          python3 - "$CANDIDATE_SHA" pull-request.json reviews.json provenance-pull-request.json provenance-reviews.json dev/release/cuda-protection-baseline.json route-facts.json <<'PY'
+          import hashlib
+          import json
+          import sys
+
+          candidate_sha, pr_path, reviews_path, provenance_pr_path, provenance_reviews_path, baseline_path, output_path = sys.argv[1:]
+          def canonical(value):
+              return json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("ascii") + b"\n"
+          def digest(value):
+              return hashlib.sha256(canonical(value)).hexdigest()
+          pr_raw = json.load(open(pr_path, encoding="utf-8"))
+          reviews_raw = json.load(open(reviews_path, encoding="utf-8"))
+          provenance_pr_raw = json.load(open(provenance_pr_path, encoding="utf-8"))
+          provenance_reviews_raw = json.load(open(provenance_reviews_path, encoding="utf-8"))
+          baseline = json.load(open(baseline_path, encoding="utf-8"))
+          pr = {
+              "number": pr_raw["number"], "state": pr_raw["state"], "draft": pr_raw["draft"],
+              "base": {"ref": pr_raw["base"]["ref"], "repo_full_name": pr_raw["base"]["repo"]["full_name"]},
+              "head": {"sha": pr_raw["head"]["sha"], "repo_full_name": pr_raw["head"]["repo"]["full_name"]},
+              "user": {"login": pr_raw["user"]["login"]},
+          }
+          reviews = [{
+              "id": item["id"], "user": {"login": item["user"]["login"]},
+              "state": item["state"], "commit_id": item["commit_id"], "submitted_at": item["submitted_at"],
+          } for item in reviews_raw]
+          provenance_pr = {
+              "number": provenance_pr_raw["number"], "state": provenance_pr_raw["state"], "merged": provenance_pr_raw["merged"],
+              "base": {"ref": provenance_pr_raw["base"]["ref"], "repo_full_name": provenance_pr_raw["base"]["repo"]["full_name"]},
+              "head": {"sha": provenance_pr_raw["head"]["sha"], "repo_full_name": provenance_pr_raw["head"]["repo"]["full_name"]},
+              "merge_commit_sha": provenance_pr_raw["merge_commit_sha"], "user": {"login": provenance_pr_raw["user"]["login"]},
+          }
+          provenance_reviews = [{
+              "id": item["id"], "user": {"login": item["user"]["login"]},
+              "state": item["state"], "commit_id": item["commit_id"], "submitted_at": item["submitted_at"],
+          } for item in provenance_reviews_raw]
+          facts = {
+              "schema_version": "fathomdb.cuda-unmerged-candidate-facts/v1",
+              "protection_baseline": baseline,
+              "pull_request": pr,
+              "reviews": reviews,
+              "reviews_pagination_complete": len(reviews_raw) < 100,
+              "provenance_pull_request": provenance_pr,
+              "provenance_reviews": provenance_reviews,
+              "provenance_reviews_pagination_complete": len(provenance_reviews_raw) < 100,
+              "api_response_sha256": {
+                  "protection_baseline": digest(baseline), "pull_request": digest(pr), "reviews": digest(reviews),
+                  "provenance_pull_request": digest(provenance_pr), "provenance_reviews": digest(provenance_reviews),
+              },
+          }
+          open(output_path, "wb").write(canonical(facts))
+          PY
+      - name: Authorize one exact unmerged candidate
+        id: route
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/release/verify-cuda-unmerged-candidate.py authorize \
+            --manifest dev/release/cuda-unmerged-candidates.json \
+            --facts route-facts.json \
+            --candidate-sha '${{ inputs.candidate_commit }}' \
+            --workflow-ref '${{ github.workflow_ref }}' \
+            --workflow-sha '${{ github.workflow_sha }}' \
+            --run-id '${{ github.run_id }}' \
+            --run-attempt '${{ github.run_attempt }}' \
+            --now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --receipt cuda-unmerged-route-receipt.json \
+            --github-output "$GITHUB_OUTPUT"
+      - name: Upload unmerged-candidate route receipt
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true && success() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: cuda-unmerged-route-receipt.json
+          if-no-files-found: error
+
   # Slice 0: a dry-run release dispatch from the trusted main workflow is the
-  # only non-publishing route to the restricted CUDA runner group. The release
-  # gate validates the immutable candidate is reachable from main before this
-  # job is eligible; a pull-request workflow ref cannot select this group.
+  # only non-publishing route to the restricted CUDA runner group.
   cuda-contract-preflight:
-    needs: verify-release
+    needs: [verify-release, verify-cuda-trusted-route]
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
     runs-on: [self-hosted, Linux, X64, gpu, cuda-12]
+    environment: cuda-unmerged-preflight
+    env:
+      FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
     timeout-minutes: 45
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, verified main-reachable candidate
+      - name: Download same-run unmerged route receipt
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8.0.1
+        with:
+          name: cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: control-plane/receipt
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, main-owned receipt verifier only
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control-plane
+          persist-credentials: false
+      - name: Verify same-run unmerged route receipt before candidate checkout
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 control-plane/scripts/release/verify-cuda-unmerged-receipt.py \
+            --receipt control-plane/receipt/cuda-unmerged-route-receipt.json \
+            --manifest control-plane/dev/release/cuda-unmerged-candidates.json \
+            --candidate-sha '${{ inputs.candidate_commit }}' \
+            --workflow-ref '${{ github.workflow_ref }}' \
+            --workflow-sha '${{ github.workflow_sha }}' \
+            --run-id '${{ github.run_id }}' \
+            --run-attempt '${{ github.run_attempt }}'
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, hosted route and receipt verified
         with:
           ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          path: candidate
+          persist-credentials: false
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.11"
@@ -129,16 +320,34 @@ jobs:
         with:
           toolchain: "1.95.0"
       - name: Install N-API build dependencies
-        working-directory: src/ts
+        working-directory: candidate/src/ts
         run: npm ci
       - name: Capture CUDA artifact preflight witness
+        working-directory: candidate
         run: bash scripts/release/cuda-preflight.sh "${{ github.workspace }}/cuda-preflight-witness"
+      - name: Capture candidate-only CUDA reranker v3 preflight witness
+        working-directory: candidate
+        run: bash scripts/release/cuda-preflight.sh "${{ github.workspace }}/cuda-rerank-preflight-witness" --rerank-cuda
       - name: Upload CUDA preflight witness
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cuda-preflight-witness
           path: ${{ github.workspace }}/cuda-preflight-witness
+          if-no-files-found: error
+      - name: Upload CUDA reranker v3 preflight witness
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cuda-rerank-preflight-witness
+          path: ${{ github.workspace }}/cuda-rerank-preflight-witness
+          if-no-files-found: error
+      - name: Upload CUDA reranker v3 package bytes
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cuda-rerank-preflight-packages
+          path: ${{ github.workspace }}/cuda-rerank-preflight-witness.packages
           if-no-files-found: error
 
   # Native Linux Python wheels via PyO3/maturin-action. The
@@ -147,14 +356,13 @@ jobs:
   # 0.8.22's stable native-artifact matrix is Linux glibc x64/ARM64, macOS
   # x64/ARM64, and Windows x64. Musl and other targets remain unsupported.
   build-python:
-    needs: verify-release
+    needs: [verify-release, verify-cuda-trusted-route]
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            manylinux: "2_28"
           - runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             manylinux: "2_28"
@@ -176,6 +384,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, canonical release tag
         with:
           ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          persist-credentials: false
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.11"
@@ -212,15 +421,14 @@ jobs:
   # Keep this identical to the Python stable matrix so the npm package
   # topology and actual native build coverage cannot drift apart.
   build-napi:
-    needs: verify-release
+    needs: [verify-release, verify-cuda-trusted-route]
+    permissions:
+      contents: read
     if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - runner: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            label: linux-x64-gnu
           - runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
             label: linux-arm64-gnu
@@ -238,26 +446,291 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, canonical release tag
         with:
           ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          persist-credentials: false
+      # Slice 80.1 (AC80-1/R80-2): linux-arm64-gnu is the one glibc-relevant
+      # row here (macOS/Windows carry no glibc floor). It builds inside the
+      # digest-pinned manylinux_2_28 container below instead of on the bare
+      # runner, so the shipped .node artifact shares the same declared
+      # glibc 2.28 floor as the Python wheel rather than whatever glibc
+      # ubuntu-24.04-arm happens to carry. The steps in this block are
+      # skipped for that row; its own containerized steps follow.
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        if: ${{ matrix.label != 'linux-arm64-gnu' }}
         with:
           node-version: "25.9.0"
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        if: ${{ matrix.label != 'linux-arm64-gnu' }}
         with:
           toolchain: "1.95.0"
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        if: ${{ matrix.label != 'linux-arm64-gnu' }}
       - name: Install ts deps
+        if: ${{ matrix.label != 'linux-arm64-gnu' }}
         working-directory: src/ts
         run: npm ci
       - name: Build napi binding
+        if: ${{ matrix.label != 'linux-arm64-gnu' }}
         working-directory: src/ts
         env:
           CARGO_BUILD_TARGET: ${{ matrix.target }}
         run: npm run build:native
+      - name: Provision napi manylinux image
+        if: ${{ matrix.label == 'linux-arm64-gnu' }}
+        run: bash scripts/release/provision-napi-manylinux.sh
+      - name: Build napi binding (containerized manylinux_2_28)
+        if: ${{ matrix.label == 'linux-arm64-gnu' }}
+        # Workspace is mounted read-write (unlike cuda-preflight.sh's
+        # read-only wheel-build mount): napi build writes fathomdb.<label>.node
+        # directly into the mounted src/ts tree, with no maturin-style --out
+        # redirect to a separate witness dir. --user maps container output to
+        # the host uid/gid, so this is not a root-write escalation.
+        run: |
+          . scripts/release/napi-artifact-contract.sh
+          docker run --rm --platform "$NAPI_MANYLINUX_PLATFORM" \
+            --user "$(id -u):$(id -g)" \
+            -v "$PWD:/workspace" -w /workspace/src/ts \
+            -e CARGO_BUILD_TARGET=${{ matrix.target }} \
+            -e HOME=/tmp -e npm_config_cache=/tmp/npm-cache \
+            -e CARGO_HOME=/tmp/fathomdb-cargo -e CARGO_TARGET_DIR=/tmp/fathomdb-cargo-target \
+            -e NAPI_RUST_VERSION -e NAPI_NODE_VERSION -e NAPI_RUSTUP_TOOLCHAIN \
+            -e "RUSTUP_TOOLCHAIN=$NAPI_RUSTUP_TOOLCHAIN" \
+            "$NAPI_MANYLINUX_IMAGE" \
+            sh -ceu '
+              node --version | grep -F "v$NAPI_NODE_VERSION"
+              rustc --version | grep -F "rustc $NAPI_RUST_VERSION"
+              test "$RUSTUP_TOOLCHAIN" = "$NAPI_RUSTUP_TOOLCHAIN"
+              test ! -w /opt/fathomdb/rustup
+              npm ci && npm run build:native
+            '
+      - name: Assert glibc floor (AC80-1)
+        if: ${{ matrix.label == 'linux-arm64-gnu' }}
+        run: |
+          . scripts/release/glibc-floor-contract.sh
+          bash scripts/check-glibc-floor.sh --floor "$GLIBC_FLOOR" "src/ts/fathomdb.${{ matrix.label }}.node"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: napi-${{ matrix.label }}
           path: src/ts/fathomdb.${{ matrix.label }}.node
+
+  # Slice 20: retain and smoke the sole Linux x64 CUDA package bytes. This is
+  # a dry-run-only candidate route. It cannot grant a tag or a publication
+  # path the unmerged-candidate exception; a later canonical tag route needs
+  # separately reviewed provenance and must independently consume this format.
+  cuda-package-rehearsal:
+    needs: [verify-release, verify-cuda-trusted-route, cuda-contract-preflight]
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+    runs-on: [self-hosted, Linux, X64, gpu, cuda-12]
+    environment: cuda-unmerged-preflight
+    env:
+      FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Download same-run unmerged route receipt
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8.0.1
+        with:
+          name: cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: control-plane/receipt
+      - name: Download same-run CUDA preflight witness and package bytes
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8.0.1
+        with:
+          name: cuda-preflight-witness
+          path: preflight-witness
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, main-owned control plane only
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control-plane
+          persist-credentials: false
+      - name: Verify same-run receipt and preflight witness before candidate checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 control-plane/scripts/release/verify-cuda-unmerged-receipt.py \
+            --receipt control-plane/receipt/cuda-unmerged-route-receipt.json \
+            --manifest control-plane/dev/release/cuda-unmerged-candidates.json \
+            --candidate-sha '${{ inputs.candidate_commit }}' \
+            --workflow-ref '${{ github.workflow_ref }}' \
+            --workflow-sha '${{ github.workflow_sha }}' \
+            --run-id '${{ github.run_id }}' \
+            --run-attempt '${{ github.run_attempt }}'
+          python3 control-plane/scripts/release/verify-cuda-preflight-witness.py \
+            --witness-dir preflight-witness \
+            --candidate-sha '${{ inputs.candidate_commit }}'
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, receipt and witness verified
+        with:
+          ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          path: candidate
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        with:
+          toolchain: "1.95.0"
+          targets: x86_64-unknown-linux-gnu
+      - name: Build canonical CUDA package input identity
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo_versions="$(cargo metadata --locked --no-deps --format-version 1 | python3 -c 'import json,sys; p=json.load(sys.stdin)["packages"]; print(" ".join(x["version"] for x in p if x["name"] in {"fathomdb-py","fathomdb-cli"}))')"
+          npm_version="$(python3 -c 'import json; print(json.load(open("src/ts/package.json"))["version"])')"
+          napi_version="$(python3 -c 'import json; print(json.load(open("src/ts/npm/linux-x64-gnu/package.json"))["version"])')"
+          version="$npm_version"
+          test "$cargo_versions" = "$version $version" && test "$version" = "$npm_version" && test "$version" = "$napi_version"
+          cargo build --locked --release -p fathomdb-cli --features embed-cuda --target x86_64-unknown-linux-gnu
+          archive="fathomdb-$version-x86_64-unknown-linux-gnu.tar.gz"
+          bash ../control-plane/scripts/release/seal-cuda-cli-archive.sh \
+            --binary target/x86_64-unknown-linux-gnu/release/fathomdb \
+            --version "$version" --output "$archive"
+          python3 - '${{ inputs.candidate_commit }}' "$version" "$archive" '../preflight-witness/model-cache-manifest.json' > cuda-package-build-input.json <<'PY'
+          import hashlib
+          import json
+          import sys
+          candidate, version, archive, model_manifest = sys.argv[1:]
+          print(json.dumps({
+              "schema_version": "fathomdb.cuda-package-build-input/v2",
+              "candidate_sha": candidate,
+              "version": version,
+              "target": "x86_64-unknown-linux-gnu",
+              "python_features": ["embed-cuda", "pyo3/extension-module"],
+              "napi_features": ["default-embedder", "embed-cuda"],
+              "cli_features": ["embed-cuda"],
+              "rerank_cuda": False,
+              "model_cache_manifest_sha256": hashlib.sha256(open(model_manifest, "rb").read()).hexdigest(),
+              "archive_filename": archive,
+          }, ensure_ascii=True, separators=(",", ":"), sort_keys=True))
+          PY
+      - name: Smoke installed retained package bytes in isolated containers
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheel="$(find ../preflight-witness/python-dist -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
+          npm_main="$(find ../preflight-witness/npm-artifacts/main -maxdepth 1 -type f -name 'fathomdb-*.tgz' -print -quit)"
+          napi_platform="$(find ../preflight-witness/npm-artifacts/platforms/linux-x64-gnu -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
+          cli_archive="$(find . -maxdepth 1 -type f -name 'fathomdb-*-x86_64-unknown-linux-gnu.tar.gz' -print -quit)"
+          test -n "$wheel" && test -n "$npm_main" && test -n "$napi_platform" && test -n "$cli_archive"
+          bash ../control-plane/scripts/release/cuda-package-rehearsal-smoke.sh \
+            --python-wheel "$wheel" \
+            --npm-main "$npm_main" \
+            --napi-platform "$napi_platform" \
+            --cli-archive "$cli_archive" \
+            --model-cache-manifest ../preflight-witness/model-cache-manifest.json \
+            --hf-home "${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}" \
+            --smoke-dir cuda-package-smoke
+      - name: Seal exact non-publishing CUDA package rehearsal bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheel="$(find preflight-witness/python-dist -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
+          npm_main="$(find preflight-witness/npm-artifacts/main -maxdepth 1 -type f -name 'fathomdb-*.tgz' -print -quit)"
+          napi_platform="$(find preflight-witness/npm-artifacts/platforms/linux-x64-gnu -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
+          cli_archive="$(find candidate -maxdepth 1 -type f -name 'fathomdb-*-x86_64-unknown-linux-gnu.tar.gz' -print -quit)"
+          bash control-plane/scripts/release/cuda-package-rehearsal.sh \
+            --candidate-sha '${{ inputs.candidate_commit }}' \
+            --route-receipt control-plane/receipt/cuda-unmerged-route-receipt.json \
+            --route-manifest control-plane/dev/release/cuda-unmerged-candidates.json \
+            --preflight-witness-dir preflight-witness \
+            --build-input candidate/cuda-package-build-input.json \
+            --python-wheel "$wheel" \
+            --npm-main "$npm_main" \
+            --napi-platform "$napi_platform" \
+            --cli-archive "$cli_archive" \
+            --smoke-dir candidate/cuda-package-smoke \
+            --output-dir candidate/cuda-package-rehearsal \
+            --workflow-ref '${{ github.workflow_ref }}' \
+            --workflow-sha '${{ github.workflow_sha }}' \
+            --run-id '${{ github.run_id }}' \
+            --run-attempt '${{ github.run_attempt }}'
+      - name: Upload verified package rehearsal bundle
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cuda-package-rehearsal
+          path: candidate/cuda-package-rehearsal
+          if-no-files-found: error
+
+  # Slice 71: candidate-only reranker CUDA v3 rehearsal. It consumes only the
+  # separately-built v3 Python/N-API bytes and emits no publication credentials.
+  cuda-reranker-package-rehearsal:
+    needs: [verify-release, verify-cuda-trusted-route, cuda-contract-preflight]
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+    runs-on: [self-hosted, Linux, X64, gpu, cuda-12]
+    environment: cuda-unmerged-preflight
+    env:
+      FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8.0.1
+        with:
+          name: cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: control-plane/receipt
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8.0.1
+        with:
+          name: cuda-rerank-preflight-witness
+          path: rerank-preflight-witness
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8.0.1
+        with:
+          name: cuda-rerank-preflight-packages
+          path: rerank-preflight-packages
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, control plane
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control-plane
+          persist-credentials: false
+      - name: Verify candidate binding and v3 witness
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 control-plane/scripts/release/verify-cuda-unmerged-receipt.py \
+            --receipt control-plane/receipt/cuda-unmerged-route-receipt.json \
+            --manifest control-plane/dev/release/cuda-unmerged-candidates.json \
+            --candidate-sha '${{ inputs.candidate_commit }}' \
+            --workflow-ref '${{ github.workflow_ref }}' --workflow-sha '${{ github.workflow_sha }}' \
+            --run-id '${{ github.run_id }}' --run-attempt '${{ github.run_attempt }}'
+          python3 control-plane/scripts/release/verify-cuda-preflight-witness.py \
+            --witness-dir rerank-preflight-witness --candidate-sha '${{ inputs.candidate_commit }}'
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, verified candidate
+        with:
+          ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          path: candidate
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
+        with:
+          toolchain: "1.95.0"
+          targets: x86_64-unknown-linux-gnu
+      - name: Build and seal reranker CUDA CLI candidate
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(python3 -c 'import json; print(json.load(open("src/ts/package.json"))["version"])')"
+          cargo build --locked --release -p fathomdb-cli --features embed-cuda,rerank-cuda --target x86_64-unknown-linux-gnu
+          bash ../control-plane/scripts/release/seal-cuda-cli-archive.sh \
+            --binary target/x86_64-unknown-linux-gnu/release/fathomdb --version "$version" \
+            --output "fathomdb-$version-x86_64-unknown-linux-gnu.tar.gz"
+          python3 - '${{ inputs.candidate_commit }}' "$version" '../rerank-preflight-witness/model-cache-manifest.json' > cuda-rerank-package-build-input.json <<'PY'
+          import hashlib, json, sys
+          candidate, version, manifest = sys.argv[1:]
+          print(json.dumps({"schema_version":"fathomdb.cuda-package-build-input/v3","candidate_sha":candidate,"version":version,"target":"x86_64-unknown-linux-gnu","python_features":["embed-cuda","rerank-cuda","pyo3/extension-module"],"napi_features":["default-embedder","embed-cuda","rerank-cuda"],"cli_features":["embed-cuda","rerank-cuda"],"rerank_cuda":True,"model_cache_manifest_sha256":hashlib.sha256(open(manifest,"rb").read()).hexdigest(),"archive_filename":f"fathomdb-{version}-x86_64-unknown-linux-gnu.tar.gz"}, ensure_ascii=True,separators=(",",":"),sort_keys=True))
+          PY
+      - name: Smoke and seal candidate-only reranker v3 rehearsal
+        shell: bash
+        run: |
+          set -euo pipefail
+          wheel="$(find rerank-preflight-packages -name 'fathomdb-*.whl' -print -quit)"
+          npm_main="$(find rerank-preflight-packages -name 'fathomdb-*.tgz' ! -name '*linux-x64-gnu*' -print -quit)"
+          napi_platform="$(find rerank-preflight-packages -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
+          cli_archive="$(find candidate -maxdepth 1 -name 'fathomdb-*-x86_64-unknown-linux-gnu.tar.gz' -print -quit)"
+          test -n "$wheel" && test -n "$npm_main" && test -n "$napi_platform" && test -n "$cli_archive"
+          bash control-plane/scripts/release/cuda-package-rehearsal-smoke.sh --python-wheel "$wheel" --npm-main "$npm_main" --napi-platform "$napi_platform" --cli-archive "$cli_archive" --model-cache-manifest rerank-preflight-witness/model-cache-manifest.json --reranker-cache-manifest rerank-preflight-witness/reranker-cache-manifest.json --hf-home "${FATHOMDB_CUDA_PREFLIGHT_HF_HOME:-${HF_HOME:-$HOME/.cache/huggingface}}" --smoke-dir candidate/cuda-rerank-package-smoke
+          bash control-plane/scripts/release/cuda-package-rehearsal.sh --candidate-sha '${{ inputs.candidate_commit }}' --route-receipt control-plane/receipt/cuda-unmerged-route-receipt.json --route-manifest control-plane/dev/release/cuda-unmerged-candidates.json --preflight-witness-dir rerank-preflight-witness --build-input candidate/cuda-rerank-package-build-input.json --python-wheel "$wheel" --npm-main "$npm_main" --napi-platform "$napi_platform" --cli-archive "$cli_archive" --smoke-dir candidate/cuda-rerank-package-smoke --output-dir candidate/cuda-rerank-package-rehearsal --workflow-ref '${{ github.workflow_ref }}' --workflow-sha '${{ github.workflow_sha }}' --run-id '${{ github.run_id }}' --run-attempt '${{ github.run_attempt }}'
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cuda-rerank-package-rehearsal
+          path: candidate/cuda-rerank-package-rehearsal
+          if-no-files-found: error
 
   # Pre-publish packaging verification for Rust crates:
   #   1. cargo build --release --workspace — compile check of every crate
@@ -277,11 +750,14 @@ jobs:
   # at CI cost.
   build-rust:
     runs-on: ubuntu-latest
-    needs: verify-release
+    needs: [verify-release, verify-cuda-trusted-route]
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, canonical release tag
         with:
           ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
         with:
           toolchain: "1.95.0"
@@ -295,6 +771,23 @@ jobs:
       - name: Package fathomdb-query (leaf, no in-workspace deps)
         run: cargo package --no-verify -p fathomdb-query
 
+  # Slice 20 deliberately has no canonical Linux x64 CUDA package route yet.
+  # Tag and non-dry-run dispatches therefore stop here, before the aggregate
+  # gate makes any publisher reachable. This job is intentionally data-free:
+  # no checkout, candidate artifact, receipt/witness, environment, OIDC, or
+  # registry/release credential can turn this blocker into a publisher route.
+  canonical-cuda-package-route-required:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}
+    permissions: {}
+    steps:
+      - name: Block uncommissioned canonical CUDA package route
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "canonical CUDA package route required" >&2
+          exit 1
+
   # Cross-ecosystem gate: every build must succeed before ANY publish runs.
   # Without this, a partial release (e.g. crates.io 0.6.0 published but
   # pypi 0.6.0 blocked on a build failure) leaves downstream versioning
@@ -304,12 +797,14 @@ jobs:
     # Normal releases require every artifact build. The explicit v0.8.20
     # recovery dispatch omits only N-API, whose npm artifact is intentionally
     # not being recovered; verify, Python, and Rust remain hard gates.
-    if: ${{ always() && needs.verify-release.result == 'success' && needs.build-python.result == 'success' && needs.build-rust.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.build-napi.result == 'success') }}
+    if: ${{ always() && needs.verify-release.result == 'success' && needs.build-python.result == 'success' && needs.build-rust.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.dry_run == true && needs.cuda-package-rehearsal.result == 'success') || ((github.event_name != 'workflow_dispatch' || inputs.dry_run != true) && needs.canonical-cuda-package-route-required.result == 'success')) && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.build-napi.result == 'success') }}
     needs:
       - verify-release
       - build-python
       - build-napi
       - build-rust
+      - cuda-package-rehearsal
+      - canonical-cuda-package-route-required
     steps:
       - run: echo "all release build gates passed"
 
@@ -328,6 +823,7 @@ jobs:
 
   publish-rust-t1-embedder-api:
     runs-on: ubuntu-latest
+    if: ${{ inputs.candidate_commit == '' }}
     needs: all-builds-passed
     permissions:
       contents: read
@@ -358,6 +854,7 @@ jobs:
 
   publish-rust-t2-schema:
     runs-on: ubuntu-latest
+    if: ${{ inputs.candidate_commit == '' }}
     needs: publish-rust-t1-embedder-api
     permissions:
       contents: read
@@ -388,6 +885,7 @@ jobs:
 
   publish-rust-t3-query:
     runs-on: ubuntu-latest
+    if: ${{ inputs.candidate_commit == '' }}
     needs: publish-rust-t2-schema
     permissions:
       contents: read
@@ -424,6 +922,7 @@ jobs:
   # embedder (T4) + query (T3) + schema (T2) + embedder-api (T1).
   publish-rust-t4-embedder:
     runs-on: ubuntu-latest
+    if: ${{ inputs.candidate_commit == '' }}
     needs: publish-rust-t3-query
     permissions:
       contents: read
@@ -454,6 +953,7 @@ jobs:
 
   publish-rust-t5-engine:
     runs-on: ubuntu-latest
+    if: ${{ inputs.candidate_commit == '' }}
     needs: publish-rust-t4-embedder
     permissions:
       contents: read
@@ -484,6 +984,7 @@ jobs:
 
   publish-rust-t6-facade:
     runs-on: ubuntu-latest
+    if: ${{ inputs.candidate_commit == '' }}
     needs: publish-rust-t5-engine
     permissions:
       contents: read
@@ -515,6 +1016,7 @@ jobs:
 
   publish-rust-t7-cli:
     runs-on: ubuntu-latest
+    if: ${{ inputs.candidate_commit == '' }}
     needs: publish-rust-t6-facade
     permissions:
       contents: read
@@ -554,7 +1056,7 @@ jobs:
     # consume the next-release version slot. Skip the publish step entirely
     # on dispatch; the build-python matrix still runs on dry-run so wheel
     # buildability stays exercised across platforms.
-    if: ${{ inputs.dry_run != true }}
+    if: ${{ inputs.dry_run != true && inputs.candidate_commit == '' }}
     needs: publish-rust-t5-engine
     environment:
       name: pypi
@@ -583,7 +1085,7 @@ jobs:
   # Published BEFORE the main package so the optionalDependency resolves.
   publish-npm-platform-linux-x64-gnu:
     runs-on: ubuntu-latest
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs: all-builds-passed
     permissions:
       contents: read
@@ -628,7 +1130,7 @@ jobs:
   # the matching binary available to Linux ARM64 npm installs.
   publish-npm-platform-linux-arm64-gnu:
     runs-on: ubuntu-24.04-arm
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs: all-builds-passed
     permissions:
       contents: read
@@ -666,7 +1168,7 @@ jobs:
   # manually in npm for each new package; these jobs use GitHub OIDC only.
   publish-npm-platform-darwin-x64:
     runs-on: macos-15-intel
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs: all-builds-passed
     permissions:
       contents: read
@@ -696,7 +1198,7 @@ jobs:
 
   publish-npm-platform-darwin-arm64:
     runs-on: macos-14
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs: all-builds-passed
     permissions:
       contents: read
@@ -726,7 +1228,7 @@ jobs:
 
   publish-npm-platform-win32-x64-msvc:
     runs-on: windows-latest
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs: all-builds-passed
     permissions:
       contents: read
@@ -761,7 +1263,7 @@ jobs:
   # main package's promotion to `latest`.
   publish-npm:
     runs-on: ubuntu-latest
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs:
       - publish-rust-t5-engine
       - publish-npm-platform-linux-x64-gnu
@@ -813,7 +1315,7 @@ jobs:
   # enough to make the smoke meaningful, and npm has no comparable staging.
   post-publish-smoke:
     runs-on: ubuntu-latest
-    if: ${{ inputs.dry_run != true && always() && needs.publish-rust-t7-cli.result == 'success' && needs.publish-pypi.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.publish-npm.result == 'success') }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && always() && needs.publish-rust-t7-cli.result == 'success' && needs.publish-pypi.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') || needs.publish-npm.result == 'success') }}
     needs:
       - publish-rust-t7-cli
       - publish-pypi
@@ -850,7 +1352,7 @@ jobs:
   # published wheel and optional npm platform package, not only on x86_64.
   post-publish-smoke-aarch64:
     runs-on: ubuntu-24.04-arm
-    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs:
       - publish-rust-t7-cli
       - publish-pypi
@@ -877,7 +1379,7 @@ jobs:
 
   post-publish-smoke-darwin-x64:
     runs-on: macos-15-intel
-    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs: [publish-rust-t7-cli, publish-pypi, publish-npm]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, candidate SHA or canonical release tag
@@ -896,7 +1398,7 @@ jobs:
 
   post-publish-smoke-darwin-arm64:
     runs-on: macos-14
-    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs: [publish-rust-t7-cli, publish-pypi, publish-npm]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, candidate SHA or canonical release tag
@@ -915,7 +1417,7 @@ jobs:
 
   post-publish-smoke-win32-x64:
     runs-on: windows-latest
-    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs: [publish-rust-t7-cli, publish-pypi, publish-npm]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, candidate SHA or canonical release tag
@@ -941,7 +1443,7 @@ jobs:
   # happened.
   co-tagging-assert:
     runs-on: ubuntu-latest
-    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs:
       - publish-rust-t7-cli
       - publish-pypi
@@ -963,7 +1465,7 @@ jobs:
   # resolve them through the version-pinned optionalDependencies of fathomdb.
   promote-npm-latest:
     runs-on: ubuntu-latest
-    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs:
       - post-publish-smoke
       - post-publish-smoke-aarch64
@@ -987,7 +1489,7 @@ jobs:
   # run, so the release is never marked done. Skipped on dry-run.
   github-release:
     runs-on: ubuntu-latest
-    if: ${{ inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && !(github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20') }}
     needs:
       - promote-npm-latest
     steps:
@@ -1007,7 +1509,7 @@ jobs:
   # from the immutable tag while npm and release finalization remain pending.
   record-v0820-partial-registry-recovery:
     runs-on: ubuntu-latest
-    if: ${{ inputs.dry_run != true && github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20' && always() && needs.publish-rust-t7-cli.result == 'success' && needs.publish-pypi.result == 'success' && needs.post-publish-smoke.result == 'success' }}
+    if: ${{ inputs.candidate_commit == '' && inputs.dry_run != true && github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true && inputs.release_version == '0.8.20' && always() && needs.publish-rust-t7-cli.result == 'success' && needs.publish-pypi.result == 'success' && needs.post-publish-smoke.result == 'success' }}
     needs:
       - publish-rust-t7-cli
       - publish-pypi

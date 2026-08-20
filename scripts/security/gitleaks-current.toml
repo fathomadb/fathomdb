@@ -1,0 +1,63 @@
+title = "FathomDB current-tree Gitleaks policy"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "CUDA tokenizer digest map is artifact-integrity metadata"
+condition = "AND"
+regexTarget = "match"
+paths = ['''^(?:.*/)?scripts/check-cuda-release-contract\.py$''']
+regexes = ['''^tokenizer\.json": "[0-9a-f]{64}"$''']
+
+[[rules.allowlists]]
+description = "CUDA tokenizer digest export is artifact-integrity metadata"
+condition = "AND"
+regexTarget = "match"
+paths = ['''^(?:.*/)?scripts/release/cuda-artifact-contract\.sh$''']
+regexes = ['''^CUDA_DEFAULT_EMBEDDER_TOKENIZER_SHA256='[0-9a-f]{64}'$''']
+
+[[rules.allowlists]]
+description = "TinyBERT tokenizer digest export is artifact-integrity metadata"
+condition = "AND"
+regexTarget = "match"
+paths = ['''^(?:.*/)?scripts/release/cuda-artifact-contract\.sh$''']
+regexes = ['''^CUDA_RERANKER_TOKENIZER_SHA256='[0-9a-f]{64}'$''']
+
+[[rules.allowlists]]
+description = "TinyBERT tokenizer digest is artifact-integrity metadata"
+condition = "AND"
+regexTarget = "match"
+paths = ['''^(?:.*/)?scripts/release/cuda-package-rehearsal-smoke\.sh$''']
+regexes = ['''^tokenizer\.json": "[0-9a-f]{64}"$''']
+
+[[rules.allowlists]]
+description = "N-API rustup bootstrap digest is artifact-integrity metadata"
+condition = "AND"
+regexTarget = "match"
+paths = ['''^(?:.*/)?scripts/release/napi-artifact-contract\.sh$''']
+regexes = ['''^NAPI_RUSTUP_INIT_SHA256='[0-9a-f]{64}'$''']
+
+[[rules.allowlists]]
+description = "CUDA preflight-v2 fixtures contain only artifact-integrity digests"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^scripts/tests/fixtures/cuda-preflight-v2/valid/(?:cuda-preflight-witness|model-cache-manifest|smoke-cache-topology)\.json$''']
+regexes = ['''^[0-9a-f]{64}$''']
+
+[[rules.allowlists]]
+description = "code-marker drift evidence carries two reviewed marker identifiers"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^dev/experiments/code-markers-eval/out/drift\.jsonl$''']
+regexes = ['''^(?:ADR-0\.6\.0-retrieval-latency-gates|ADR-0\.8\.1-byo-llm)$''']
+
+[[rules.allowlists]]
+description = "code-marker inventory evidence carries two reviewed marker identifiers"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^dev/experiments/code-markers-eval/out/incode_markers\.jsonl$''']
+regexes = ['''^(?:ADR-0\.6\.0-retrieval-latency-gates|ADR-0\.8\.1-byo-llm)$''']

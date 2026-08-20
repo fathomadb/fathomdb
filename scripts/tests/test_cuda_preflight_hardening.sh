@@ -133,6 +133,23 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
+start = text.index('PYTHON_GPU_CONTAINER=')
+end = text.index('seal_gpu_observation "$PYTHON_GPU_CONTAINER"', start)
+section = text[start:end]
+needle = '--mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64,dst=/opt/cuda/lib64,readonly"'
+if needle not in section:
+    raise SystemExit("fixture must bind host CUDA runtime libraries into the Python GPU smoke")
+path.write_text(text[:start] + section.replace(needle, '', 1) + text[end:])
+PY
+expect_fail "$FIXTURE" 'rejects a Python GPU smoke without host CUDA runtime libraries'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
 needle = '--mount "type=bind,src=$REPO_ROOT,dst=/workspace,readonly"'
 if text.count(needle) != 1:
     raise SystemExit("fixture must contain exactly one read-only CUDA workspace mount")

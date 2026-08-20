@@ -6,14 +6,14 @@
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.23:status-current-state -->**Next is Slice 10 (CUDA-CONTRACT), IN_PROGRESS.** Completed on `origin/release/0.8.23`; `origin/main` integration is PENDING: 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 30 (`776d2c20`) · 50 (`ae7cef0e`) · 60 (`423baf6a`) · 65 (`6b57557c`) · 72 (`824b1d4b`) — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.23:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.23:status-current-state -->**Next is Slice 10 (CUDA-CONTRACT), IN_PROGRESS.** Completed on `origin/release/0.8.23`; `origin/main` integration is PENDING: 0 (`916023fe`) · 1 (`2167a0cd`) · 2 (`b363af85`) · 3 (`91e162c2`) · 4 (`a7df1590`) · 5 (`00f865f3`) · 6 (`e98f727d`) · 30 (`776d2c20`) · 50 (`ae7cef0e`) · 60 (`423baf6a`) · 65 (`6b57557c`) · 72 (`824b1d4b`) · 80 (`68b696a3`) — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.23:status-current-state -->
 
-0.8.23 remains planning-first and publication-held. Slices 30, 50, 60, and 65
-are completed on `origin/release/0.8.23`; integration to `origin/main` remains
-pending. Slice 65 closed **UNATTRIBUTED / NO REMEDY** after independent review
-of its three enriched hosted-Windows binding repetitions; it changed no
-production behavior. Optional diagnostics are separate scope. The remaining
-candidate slices require explicit commission.
+0.8.23 remains planning-first and publication-held. Slices 30, 50, 60, 65, 72,
+and 80 are completed on `origin/release/0.8.23`; integration to `origin/main`
+remains pending. Slice 65 closed **UNATTRIBUTED / NO REMEDY** after independent
+review of its three enriched hosted-Windows binding repetitions; it changed no
+production behavior. Slice 10/20/70/71 external evidence remains the release
+completion gate.
 
 ## Slice ladder
 
@@ -35,13 +35,13 @@ candidate slices require explicit commission.
 | 70 | DUAL-RUNTIME-TC5 — supported dual CPU/GPU runtime policy, diagnostics, artifacts, and exact pre-fusion TC-5 controls | PENDING_EXTERNAL — local release implementation through `aa29152b`; real CUDA/trusted-runner/rehearsal and TC-5 characterization evidence remains required. |
 | 71 | RERANK-DUAL-RUNTIME — cross-encoder reranker CPU/GPU runtime parity | PENDING_EXTERNAL — local release implementation through `a49ac989`; compatible-GPU and visible-incompatible installed-artifact receipts remain required. |
 | 72 | CONCURRENT-DUAL-RUNTIME — concurrent embedding and cross-encoder GPU coexistence characterization | LANDED on `origin/release/0.8.23` (`824b1d4b`) with independently verified local CUDA basic/moderate/stress receipts; no performance threshold claim. |
-| 80 | AARCH64-TEGRA — AArch64 correctness and Jetson Orin CUDA | IN PROGRESS — 80.1–80.7 landed in the release candidate; `68b696a3` completes approved 80.6.5 schema/UUID work. HITL ruled the former transfer scripts unnecessary; the pinned windchill3 RTX 3090 preflight passed for candidate `623bbba6`. Mark it LANDED after the candidate reaches `origin/release/0.8.23`. |
+| 80 | AARCH64-TEGRA — AArch64 correctness and Jetson Orin CUDA | LANDED on `origin/release/0.8.23` (`68b696a3`): 80.1–80.7 and approved 80.6.5 are complete, including the retained Jetson route and pinned windchill3 RTX 3090 preflight. This is nonpublishing functionality evidence only. |
 
 ## Immediate next action
 
 | | |
 | --- | --- |
-| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Continue Slice 10 (CUDA-CONTRACT)** — CUDA environment, artifact contract, and protected runner gate. **Remaining ladder:** 10 → 20 → 70 → 71 → 80.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
+| **Immediate next action** | <!-- BEGIN GENERATED release-state:0.8.23:status-next-action -->**Continue Slice 10 (CUDA-CONTRACT)** — CUDA environment, artifact contract, and protected runner gate. **Remaining ladder:** 10 → 20 → 70 → 71.<!-- END GENERATED release-state:0.8.23:status-next-action --> |
 
 ## Stop gate
 

@@ -106,11 +106,11 @@ import sys
 path = Path(sys.argv[1])
 text = path.read_text()
 needle = '--user "$CONTAINER_USER"'
-if text.count(needle) != 1:
-    raise SystemExit("fixture must contain exactly one non-root CUDA wheel build user")
+if text.count(needle) != 6:
+    raise SystemExit("fixture must contain exactly six non-root writable CUDA containers")
 path.write_text(text.replace(needle, "", 1))
 PY
-expect_fail "$FIXTURE" 'rejects a CUDA wheel build that runs as Docker root'
+expect_fail "$FIXTURE" 'rejects a writable CUDA container that runs as Docker root'
 
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" <<'PY'

@@ -437,6 +437,7 @@ run_tier_suite fast test-install-shellcheck bash scripts/tests/test_install_shel
 run_tier_suite fast test-select-python-for-venv bash scripts/tests/test_select_python_for_venv.sh
 run_tier_suite fast test-create-venv-with-selected-python bash scripts/tests/test_create_venv_with_selected_python.sh
 run_tier_suite fast test-dev-environment-tools bash scripts/tests/test_dev_environment_tools.sh
+run_tier_suite fast test-dev-environment-tools-contract bash scripts/tests/test_dev_environment_tools_contract.sh
 
 # Shell lint in CI (0.8.21 Slice 35). Pins the `shell-lint` job's ALWAYS-ON shape
 # (no if:/needs:), its minimal setup, that it GATES rather than advises, and the

@@ -266,6 +266,7 @@ if [ "$RERANK_CUDA" = true ]; then
 fi
 printf 'cuda-preflight: prove the installed Python wheel defaults to CPU in a driverless container\n'
 docker run --rm --network none \
+  --user "$CONTAINER_USER" \
   --mount "type=bind,src=$WHEEL,dst=/input/$WHEEL_FILENAME,readonly" \
   --mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly" \
   --mount "type=bind,src=$WORK_DIR/cache/driverless_python,dst=/fathomdb-product-cache" \
@@ -295,6 +296,7 @@ PY
 
 printf 'cuda-preflight: prove the installed N-API package defaults to CPU in a driverless container\n'
 docker run --rm --network none \
+  --user "$CONTAINER_USER" \
   --mount "type=bind,src=$NPM_MAIN/$NPM_MAIN_TARBALL,dst=/input/fathomdb.tgz,readonly" \
   --mount "type=bind,src=$NPM_PLATFORM/$NPM_PLATFORM_TARBALL,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
   --mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly" \
@@ -334,6 +336,7 @@ fi
 FORCED_PYTHON_SITE="$WORK_DIR/forced-python-site"
 mkdir "$FORCED_PYTHON_SITE"
 docker run --rm --network none \
+  --user "$CONTAINER_USER" \
   --mount "type=bind,src=$WHEEL,dst=/input/$WHEEL_FILENAME,readonly" \
   --mount "type=bind,src=$FORCED_PYTHON_SITE,dst=/fathomdb-site" \
   -e HOME=/tmp -e TMPDIR=/tmp -e "WHEEL_FILENAME=$WHEEL_FILENAME" \
@@ -557,6 +560,7 @@ PY
 
 printf 'cuda-preflight: prove the installed Python wheel uses cuda:0\n'
 PYTHON_GPU_CONTAINER="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
+  --user "$CONTAINER_USER" \
   --mount "type=bind,src=$WHEEL,dst=/input/$WHEEL_FILENAME,readonly" \
   --mount "type=bind,src=$WORK_DIR/gpu-python-smoke.py,dst=/input/gpu-python-smoke.py,readonly" \
   --mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly" \
@@ -572,6 +576,7 @@ seal_gpu_observation "$PYTHON_GPU_CONTAINER" python "$WORK_DIR/gpu-python-open-r
 
 printf 'cuda-preflight: prove the installed N-API package uses cuda:0\n'
 NAPI_GPU_CONTAINER="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
+  --user "$CONTAINER_USER" \
   --mount "type=bind,src=$NPM_MAIN/$NPM_MAIN_TARBALL,dst=/input/fathomdb.tgz,readonly" \
   --mount "type=bind,src=$NPM_PLATFORM/$NPM_PLATFORM_TARBALL,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
   --mount "type=bind,src=$WORK_DIR/gpu-napi-smoke.mjs,dst=/input/gpu-napi-smoke.mjs,readonly" \

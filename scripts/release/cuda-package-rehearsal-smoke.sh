@@ -262,6 +262,7 @@ for mode in cpu forced-cuda-unavailable; do
     --mount "type=bind,src=$cli_archive_abs,dst=/input/fathomdb-cli.tar.gz,readonly" \
     --mount "type=bind,src=$smoke_dir_abs,dst=/evidence" \
     --mount "type=bind,src=$smoke_dir_abs,dst=/fathomdb-cli" \
+    --mount "type=bind,src=$cuda_runtime_library_abs,dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly" \
     "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
     # FATHOMDB_RERANK_DEVICE is absent under env -i: the product's unset=auto path is the evidence.
     env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable \
@@ -282,6 +283,7 @@ if [ -n "$reranker_cache_manifest_abs" ]; then
   docker run --rm --network none \
     --mount "type=bind,src=$cli_archive_abs,dst=/input/fathomdb-cli.tar.gz,readonly" \
     --mount "type=bind,src=$smoke_dir_abs,dst=/fathomdb-cli" \
+    --mount "type=bind,src=$cuda_runtime_library_abs,dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly" \
     "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
     env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable \
       sh -ceu '

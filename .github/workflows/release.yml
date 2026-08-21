@@ -314,6 +314,8 @@ jobs:
     environment: cuda-unmerged-preflight
     env:
       FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
+      CUDA_PREFLIGHT_WITNESS_DIR: ${{ github.workspace }}/cuda-preflight-witness-${{ github.run_id }}-${{ github.run_attempt }}
+      CUDA_RERANK_PREFLIGHT_WITNESS_DIR: ${{ github.workspace }}/cuda-rerank-preflight-witness-${{ github.run_id }}-${{ github.run_attempt }}
     timeout-minutes: 45
     permissions:
       contents: read
@@ -362,30 +364,30 @@ jobs:
         run: npm ci
       - name: Capture CUDA artifact preflight witness
         working-directory: candidate
-        run: bash scripts/release/cuda-preflight.sh "${{ github.workspace }}/cuda-preflight-witness"
+        run: bash scripts/release/cuda-preflight.sh "$CUDA_PREFLIGHT_WITNESS_DIR"
       - name: Capture candidate-only CUDA reranker v3 preflight witness
         working-directory: candidate
-        run: bash scripts/release/cuda-preflight.sh "${{ github.workspace }}/cuda-rerank-preflight-witness" --rerank-cuda
+        run: bash scripts/release/cuda-preflight.sh "$CUDA_RERANK_PREFLIGHT_WITNESS_DIR" --rerank-cuda
       - name: Upload CUDA preflight witness
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cuda-preflight-witness
-          path: ${{ github.workspace }}/cuda-preflight-witness
+          path: ${{ env.CUDA_PREFLIGHT_WITNESS_DIR }}
           if-no-files-found: error
       - name: Upload CUDA reranker v3 preflight witness
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cuda-rerank-preflight-witness
-          path: ${{ github.workspace }}/cuda-rerank-preflight-witness
+          path: ${{ env.CUDA_RERANK_PREFLIGHT_WITNESS_DIR }}
           if-no-files-found: error
       - name: Upload CUDA reranker v3 package bytes
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cuda-rerank-preflight-packages
-          path: ${{ github.workspace }}/cuda-rerank-preflight-witness.packages
+          path: ${{ env.CUDA_RERANK_PREFLIGHT_WITNESS_DIR }}.packages
           if-no-files-found: error
 
   # Native Linux Python wheels via PyO3/maturin-action. The

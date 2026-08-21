@@ -146,18 +146,19 @@ read_contract() {
   # shellcheck disable=SC1090
   ( set -euo pipefail
     . "$CONTRACT"
-    printf '%s|%s|%s|%s\n' \
+    printf '%s|%s|%s|%s|%s\n' \
       "${GLIBC_FLOOR:-<unset>}" \
       "${GLIBC_FLOOR_FAMILIES:-<unset>}" \
       "${GLIBC_FLOOR_MANYLINUX:-<unset>}" \
-      "${GLIBC_FLOOR_TEGRA:-<unset>}" )
+      "${GLIBC_FLOOR_TEGRA:-<unset>}" \
+      "${GLIBC_FLOOR_CUDA_NAPI_HOST:-<unset>}" )
 }
 
 CONTRACT_VALUES="$(read_contract)"
-if [ "$CONTRACT_VALUES" = '2.28|manylinux tegra|2.28|2.35' ]; then
-  pass "contract declares 2.28 for manylinux and 2.35 for tegra, GLIBC_FLOOR unchanged at 2.28"
+if [ "$CONTRACT_VALUES" = '2.28|manylinux tegra cuda-napi-host|2.28|2.35|2.39' ]; then
+  pass "contract declares 2.28 for manylinux, 2.35 for tegra, and 2.39 for host-built CUDA N-API; GLIBC_FLOOR remains 2.28"
 else
-  fail "contract values: expected '2.28|manylinux tegra|2.28|2.35', got '$CONTRACT_VALUES'"
+  fail "contract values: expected '2.28|manylinux tegra cuda-napi-host|2.28|2.35|2.39', got '$CONTRACT_VALUES'"
 fi
 
 resolve_family() {
@@ -167,7 +168,7 @@ resolve_family() {
     glibc_floor_for_family "$1" )
 }
 
-for pair in 'manylinux:2.28' 'tegra:2.35'; do
+for pair in 'manylinux:2.28' 'tegra:2.35' 'cuda-napi-host:2.39'; do
   FAMILY="${pair%%:*}"
   EXPECTED_FLOOR="${pair##*:}"
   set +e

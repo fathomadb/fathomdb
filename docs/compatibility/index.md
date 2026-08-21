@@ -31,13 +31,19 @@ and release jobs.
 aarch64 is published for Python and npm. Do not expect the published npm
 package to install on macOS, Windows, or Linux musl.
 
-**Measured glibc floor (manylinux): 2.28**, for both the Python wheel and
-the npm platform binary, on both architectures. As of Slice 80.1 the
-`linux-arm64-gnu` npm binding is built inside the same digest-pinned
+**Measured glibc floor (manylinux): 2.28**, for the Python wheel on both
+architectures and the `linux-arm64-gnu` npm platform binary. As of Slice 80.1
+the `linux-arm64-gnu` npm binding is built inside the same digest-pinned
 `manylinux_2_28` container as the Python wheel (`scripts/release/
 Dockerfile.napi-manylinux`), rather than on the bare CI runner, so this
 number is enforced by `scripts/check-glibc-floor.sh` against the artifact
 actually published — not merely asserted here.
+
+**Measured glibc floor (cuda-napi-host): 2.39**, for the
+`linux-x64-gnu` CUDA npm platform binary. It is built host-natively with the
+CUDA toolchain on the release runner, rather than in the manylinux container,
+and its higher ABI floor is therefore a distinct, checked publication
+contract.
 
 **Measured glibc floor (tegra): 2.35**, for the Jetson/Tegra CUDA Python
 wheel only. That artifact is **not published to PyPI** and is not covered by
@@ -59,7 +65,7 @@ SBSA before diagnosing an incompatible CUDA provider.
 
 | OS      | Architecture                | Published prebuilt? |
 | ------- | --------------------------- | ------------------- |
-| Linux   | `x86_64-unknown-linux-gnu`  | **yes** (manylinux 2_28) |
+| Linux   | `x86_64-unknown-linux-gnu`  | **yes** (CUDA host glibc 2.39) |
 | Linux   | `aarch64-unknown-linux-gnu` | **yes** (manylinux 2_28) |
 | macOS   | `x86_64-apple-darwin`       | no — unsupported published artifact |
 | macOS   | `aarch64-apple-darwin`      | no — unsupported published artifact |

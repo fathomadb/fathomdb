@@ -46,6 +46,16 @@ if [ "$HOST_OS" = "Linux" ]; then
   fi
   # shellcheck source=/dev/null
   . "$REPO_ROOT/scripts/release/glibc-floor-contract.sh"
+  case "$(basename "$NATIVE_BINARY")" in
+    fathomdb.linux-x64-gnu.node) GLIBC_FAMILY='cuda-napi-host' ;;
+    fathomdb.linux-arm64-gnu.node) GLIBC_FAMILY='manylinux' ;;
+    *)
+      printf 'smoke-npm-package: unsupported Linux native artifact for glibc-floor gate: %s\n' \
+        "$NATIVE_BINARY" >&2
+      exit 1
+      ;;
+  esac
+  GLIBC_FLOOR="$(glibc_floor_for_family "$GLIBC_FAMILY")"
   bash "$REPO_ROOT/scripts/check-glibc-floor.sh" --floor "$GLIBC_FLOOR" "$NATIVE_BINARY"
 fi
 

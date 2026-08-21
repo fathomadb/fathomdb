@@ -16,7 +16,7 @@
 # GLIBC_FLOOR_FAMILIES is the checked list of families. The doc-truth gate
 # iterates it, so adding a family here without stating its floor in
 # docs/compatibility/index.md fails closed rather than going unchecked.
-export GLIBC_FLOOR_FAMILIES='manylinux tegra'
+export GLIBC_FLOOR_FAMILIES='manylinux tegra cuda-napi-host'
 
 # manylinux: every artifact built inside the manylinux_2_28 image — the Python
 # wheels (build-python) and, as of Slice 80.1, the containerized
@@ -27,6 +27,10 @@ export GLIBC_FLOOR_MANYLINUX='2.28'
 # (scripts/release/build-python-cuda-tegra.sh, D-80.6-2 — the wheel only).
 # Measured on the Jetson Orin AGX: Ubuntu GLIBC 2.35-0ubuntu3.14.
 export GLIBC_FLOOR_TEGRA='2.35'
+
+# cuda-napi-host: the Linux x64 CUDA N-API artifact built on the release host,
+# rather than in the manylinux container used by the Python and ARM64 builds.
+export GLIBC_FLOOR_CUDA_NAPI_HOST='2.39'
 
 # The bare GLIBC_FLOOR keeps its pre-80.6 meaning and its pre-80.6 value for
 # every existing call site (release.yml's napi gate, the two published-artifact
@@ -39,6 +43,7 @@ glibc_floor_for_family() {
   case "${1:-}" in
     manylinux) printf '%s\n' "$GLIBC_FLOOR_MANYLINUX" ;;
     tegra) printf '%s\n' "$GLIBC_FLOOR_TEGRA" ;;
+    cuda-napi-host) printf '%s\n' "$GLIBC_FLOOR_CUDA_NAPI_HOST" ;;
     *)
       printf 'glibc-floor-contract: unknown artifact family: %s\n' "${1:-}" >&2
       return 1

@@ -23,6 +23,7 @@ CONTAINER_USER="$CONTAINER_UID:$CONTAINER_GID"
 # shellcheck source=cuda-artifact-contract.sh
 . "$SCRIPT_DIR/cuda-artifact-contract.sh"
 . "$SCRIPT_DIR/cuda-image-attestation.sh"
+. "$SCRIPT_DIR/glibc-floor-contract.sh"
 # shellcheck source=../lib/cuda-candidate-sha.sh
 . "$SCRIPT_DIR/../lib/cuda-candidate-sha.sh"
 # shellcheck source=../lib/cuda-gpu-selection.sh
@@ -145,6 +146,8 @@ NAPI_BINARY="$(find "$REPO_ROOT/src/ts" -maxdepth 1 -type f -name 'fathomdb.linu
   printf 'cuda-preflight: N-API build produced no linux-x64-gnu artifact\n' >&2
   exit 1
 }
+CUDA_NAPI_GLIBC_FLOOR="$(glibc_floor_for_family cuda-napi-host)"
+bash "$REPO_ROOT/scripts/check-glibc-floor.sh" --floor "$CUDA_NAPI_GLIBC_FLOOR" "$NAPI_BINARY"
 
 printf 'cuda-preflight: build Linux CUDA Python wheel\n'
 docker run --rm \

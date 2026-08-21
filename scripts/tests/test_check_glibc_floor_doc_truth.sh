@@ -156,4 +156,25 @@ else
   fail "contradictory fixture: expected exit 1 naming 2.31, got rc=$RC7 out=$OUT7"
 fi
 
+# --- Case 8: the host-built CUDA N-API artifact has its own declared floor. ---
+WRONG_CUDA_NAPI_HOST_DOC="$WORK/wrong-cuda-napi-host.md"
+cat > "$WRONG_CUDA_NAPI_HOST_DOC" <<'EOF'
+# Compatibility
+
+**Measured glibc floor (manylinux): 2.28**.
+
+**Measured glibc floor (tegra): 2.35**.
+
+**Measured glibc floor (cuda-napi-host): 2.28**.
+EOF
+set +e
+OUT8="$("$CHECKER" --doc "$WRONG_CUDA_NAPI_HOST_DOC" 2>&1)"
+RC8=$?
+set -e
+if [ "$RC8" -eq 1 ] && [[ "$OUT8" == *"cuda-napi-host"* ]] && [[ "$OUT8" == *"2.28"* ]]; then
+  pass "wrong host-built CUDA N-API floor fails, naming the family and mismatch"
+else
+  fail "wrong-cuda-napi-host fixture: expected exit 1 naming cuda-napi-host and 2.28, got rc=$RC8 out=$OUT8"
+fi
+
 printf 'test_check_glibc_floor_doc_truth: all cases passed\n'

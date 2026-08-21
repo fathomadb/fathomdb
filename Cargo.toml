@@ -37,7 +37,7 @@ license = "MIT"
 # carry a byte-identical, regular LICENSE at their own package root. Cargo
 # includes that conventional file in each `.crate`; the consistency gate proves
 # both the source copies and real `cargo package --list` output.
-repository = "https://github.com/coreyt/fathomdb"
+repository = "https://github.com/fathomadb/fathomdb"
 rust-version = "1.95"
 
 [workspace.metadata.fathomdb]

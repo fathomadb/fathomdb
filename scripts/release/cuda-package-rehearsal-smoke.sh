@@ -257,13 +257,13 @@ for mode in cpu forced-cuda-unavailable; do
     policy=cuda:0 expected=65 ordinal=0 env_present=true
     doctor_env=(FATHOMDB_EMBED_DEVICE=cuda:0)
   fi
+  # FATHOMDB_RERANK_DEVICE is absent under env -i: the product's unset=auto path is the evidence.
   set +e
   docker run --rm --network none \
     --mount "type=bind,src=$cli_archive_abs,dst=/input/fathomdb-cli.tar.gz,readonly" \
     --mount "type=bind,src=$smoke_dir_abs,dst=/evidence" \
     --mount "type=bind,src=$cuda_runtime_library_abs,dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly" \
     "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
-    # FATHOMDB_RERANK_DEVICE is absent under env -i: the product's unset=auto path is the evidence.
     env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable \
       "${doctor_env[@]}" sh -ceu '
         mkdir -p /tmp/fathomdb-cli

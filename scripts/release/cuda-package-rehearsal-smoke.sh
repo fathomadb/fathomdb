@@ -12,6 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CUDA_GPU_UUID="$FATHOMDB_CUDA_GPU_UUID"
 CUDA_GPU_INDEX="$(resolve_cuda_gpu_index "$CUDA_GPU_UUID")"
 CUDA_GPU_DOCKER_SELECTOR="device=$CUDA_GPU_UUID"
+CUDA_RUNTIME_LIBRARY="${CUDA_HOME:?cuda-package-smoke: CUDA_HOME is required}/targets/x86_64-linux/lib/libcudart.so.12"
 
 usage() {
   printf 'usage: %s --python-wheel FILE --npm-main FILE --napi-platform FILE --cli-archive FILE --model-cache-manifest FILE --hf-home DIR --smoke-dir DIR [--reranker-cache-manifest FILE]\n' "$0" >&2
@@ -55,6 +56,11 @@ if [ -n "$reranker_cache_manifest" ]; then
   reranker_cache_manifest_abs="$(realpath -- "$reranker_cache_manifest")"
 fi
 hf_home_abs="$(realpath -- "$hf_home")"
+cuda_runtime_library_abs="$(realpath -- "$CUDA_RUNTIME_LIBRARY")"
+[ -f "$cuda_runtime_library_abs" ] || {
+  printf 'cuda-package-smoke: CUDA runtime library is absent: %s\n' "$CUDA_RUNTIME_LIBRARY" >&2
+  exit 1
+}
 python3 - "$hf_home_abs" "$model_cache_manifest_abs" <<'PY'
 import hashlib, json, sys
 from pathlib import Path
@@ -229,6 +235,7 @@ docker run --rm --network none \
   --mount "type=bind,src=$npm_main_abs,dst=/input/fathomdb.tgz,readonly" \
   --mount "type=bind,src=$napi_platform_abs,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
+  --mount "type=bind,src=$cuda_runtime_library_abs,dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly" \
   "$CUDA_DRIVERLESS_NODE_IMAGE" \
   env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache sh -ceu '
     test ! -e /dev/nvidiactl
@@ -328,6 +335,7 @@ napi_gpu="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
   --mount "type=bind,src=$npm_main_abs,dst=/input/fathomdb.tgz,readonly" \
   --mount "type=bind,src=$napi_platform_abs,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
+  --mount "type=bind,src=$cuda_runtime_library_abs,dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly" \
   "$CUDA_DRIVERLESS_NODE_IMAGE" sh -ceu '
     mkdir /consumer && cd /consumer
     printf "%s\n" "{\"private\":true,\"type\":\"module\",\"dependencies\":{\"fathomdb\":\"file:/input/fathomdb.tgz\",\"fathomdb-linux-x64-gnu\":\"file:/input/fathomdb-linux-x64-gnu.tgz\"}}" > package.json

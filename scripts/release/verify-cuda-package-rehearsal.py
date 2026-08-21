@@ -249,7 +249,7 @@ def validate_cli_smoke(root: Path, name: str, value: dict[str, Any], version: st
         "exit_code", "doctor_output_filename", "doctor_output_sha256", "status", "effective_device",
         "reason", "requested_policy", "requested_ordinal", "environment", "isolation", "evidence_provenance",
     }, f"CLI smoke {name}")
-    expected_argv = [f"/fathomdb-cli/fathomdb-{version}-{TARGET}/fathomdb", "doctor", "gpu", "--json"]
+    expected_argv = [f"/tmp/fathomdb-cli/fathomdb-{version}-{TARGET}/fathomdb", "doctor", "gpu", "--json"]
     if value["schema_version"] != "fathomdb.cuda-package-cli-smoke/v2" or value["consumer"] != "cli":
         fail(f"CLI smoke {name} schema or consumer differs")
     if value["archive_filename"] != archive_name or value["archive_sha256"] != archive_sha or value["target"] != TARGET:
@@ -286,7 +286,7 @@ def validate_reranker_cli_doctor(root: Path, value: dict[str, Any], version: str
         "requested_policy", "environment", "isolation", "evidence_provenance", "exit_code",
         "doctor_output_filename", "doctor_output_sha256", "effective_device", "reason",
     }, "reranker CLI doctor")
-    expected_argv = [f"/fathomdb-cli/fathomdb-{version}-{TARGET}/fathomdb", "doctor", "reranker-gpu", "--json"]
+    expected_argv = [f"/tmp/fathomdb-cli/fathomdb-{version}-{TARGET}/fathomdb", "doctor", "reranker-gpu", "--json"]
     if (
         value["schema_version"] != "fathomdb.cuda-reranker-cli-doctor/v1"
         or value["consumer"] != "cli"

@@ -160,7 +160,7 @@ record = {
     "schema_version": "fathomdb.cuda-package-cli-smoke/v2", "consumer": "cli",
     "archive_filename": archive.name, "archive_sha256": archive_sha,
     "target": "x86_64-unknown-linux-gnu",
-    "argv": [f"/fathomdb-cli/fathomdb-{version}-x86_64-unknown-linux-gnu/fathomdb", "doctor", "gpu", "--json"],
+    "argv": [f"/tmp/fathomdb-cli/fathomdb-{version}-x86_64-unknown-linux-gnu/fathomdb", "doctor", "gpu", "--json"],
     "requested_policy": policy, "requested_ordinal": None if ordinal == "null" else int(ordinal),
     "environment": {"FATHOMDB_EMBED_DEVICE": policy} if env_present == "true" else {},
     "isolation": {"database_opened": False, "model_loaded": False, "network": "none", "source_checkout_mounted": False},
@@ -192,7 +192,7 @@ record = {
     "archive_filename": archive.name,
     "archive_sha256": hashlib.sha256(archive.read_bytes()).hexdigest(),
     "target": "x86_64-unknown-linux-gnu",
-    "argv": [f"/fathomdb-cli/fathomdb-{version}-x86_64-unknown-linux-gnu/fathomdb", "doctor", "reranker-gpu", "--json"],
+    "argv": [f"/tmp/fathomdb-cli/fathomdb-{version}-x86_64-unknown-linux-gnu/fathomdb", "doctor", "reranker-gpu", "--json"],
     "requested_policy": "auto",
     "environment": {},
     "isolation": {"database_opened": False, "model_loaded": False, "network": "none", "source_checkout_mounted": False},
@@ -261,15 +261,14 @@ for mode in cpu forced-cuda-unavailable; do
   docker run --rm --network none \
     --mount "type=bind,src=$cli_archive_abs,dst=/input/fathomdb-cli.tar.gz,readonly" \
     --mount "type=bind,src=$smoke_dir_abs,dst=/evidence" \
-    --tmpfs /fathomdb-cli:rw,exec,mode=1777 \
     --mount "type=bind,src=$cuda_runtime_library_abs,dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly" \
     "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
     # FATHOMDB_RERANK_DEVICE is absent under env -i: the product's unset=auto path is the evidence.
     env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable \
       "${doctor_env[@]}" sh -ceu '
-        mkdir -p /fathomdb-cli
-        tar -xzf /input/fathomdb-cli.tar.gz -C /fathomdb-cli
-        binary="$(find /fathomdb-cli -mindepth 2 -maxdepth 2 -type f -name fathomdb -print -quit)"
+        mkdir -p /tmp/fathomdb-cli
+        tar -xzf /input/fathomdb-cli.tar.gz -C /tmp/fathomdb-cli
+        binary="$(find /tmp/fathomdb-cli -mindepth 2 -maxdepth 2 -type f -name fathomdb -print -quit)"
         exec "$binary" doctor gpu --json
       ' > "$smoke_dir/$mode-cli-stdout.json"
   observed=$?
@@ -282,14 +281,13 @@ if [ -n "$reranker_cache_manifest_abs" ]; then
   set +e
   docker run --rm --network none \
     --mount "type=bind,src=$cli_archive_abs,dst=/input/fathomdb-cli.tar.gz,readonly" \
-    --tmpfs /fathomdb-cli:rw,exec,mode=1777 \
     --mount "type=bind,src=$cuda_runtime_library_abs,dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly" \
     "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
     env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable \
       sh -ceu '
-        mkdir -p /fathomdb-cli
-        tar -xzf /input/fathomdb-cli.tar.gz -C /fathomdb-cli
-        binary="$(find /fathomdb-cli -mindepth 2 -maxdepth 2 -type f -name fathomdb -print -quit)"
+        mkdir -p /tmp/fathomdb-cli
+        tar -xzf /input/fathomdb-cli.tar.gz -C /tmp/fathomdb-cli
+        binary="$(find /tmp/fathomdb-cli -mindepth 2 -maxdepth 2 -type f -name fathomdb -print -quit)"
         exec "$binary" doctor reranker-gpu --json
       ' > "$smoke_dir/reranker-cli-doctor-stdout.json"
   observed=$?

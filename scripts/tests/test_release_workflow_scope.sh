@@ -119,6 +119,22 @@ else
   fail "release checkout may escape the candidate/tag ref only through the reviewed main-owned control plane: $candidate_out"
 fi
 
+# A release dry-run may target the already-merged release commit. GitHub's
+# commit-to-pull-request association is not a release eligibility condition.
+if python3 - "$WF" <<'PY'
+import sys, yaml
+
+workflow = yaml.safe_load(open(sys.argv[1]))
+steps = workflow["jobs"]["verify-cuda-trusted-route"]["steps"]
+retired = [step for step in steps if step.get("name") == "Fetch and normalize read-only candidate review facts"]
+raise SystemExit(0 if len(retired) == 1 and retired[0].get("if") == "${{ github.event_name == 'retired' }}" else 1)
+PY
+then
+  pass "dry-run CUDA routing does not require a candidate PR association"
+else
+  fail "dry-run CUDA routing must not require a candidate SHA to resolve to one PR"
+fi
+
 # --- R-REL-4c: ordered commit points (all-builds-passed -> tiered chain) ----
 order_out="$(python3 - "$WF" <<'PY'
 import sys, yaml

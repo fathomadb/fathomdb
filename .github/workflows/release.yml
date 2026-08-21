@@ -140,9 +140,40 @@ jobs:
           fi
           echo 'authorized=true' >> "$GITHUB_OUTPUT"
           echo 'manifest_sha256=canonical-route' >> "$GITHUB_OUTPUT"
+      - name: Bind selected main candidate to this dry run
+        id: main-route
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_commit }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.workflow_ref }}" != 'fathomadb/fathomdb/.github/workflows/release.yml@refs/heads/main' ]; then
+            echo 'CUDA dry runs must run from the main release workflow' >&2
+            exit 1
+          fi
+          if ! [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo 'CUDA dry runs require a lowercase 40-hex SHA' >&2
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$CANDIDATE_SHA" refs/remotes/origin/main
+          python3 - "$CANDIDATE_SHA" '${{ github.workflow_ref }}' '${{ github.workflow_sha }}' '${{ github.run_id }}' '${{ github.run_attempt }}' > cuda-unmerged-route-receipt.json <<'PY'
+          import json
+          import sys
+          candidate_sha, workflow_ref, workflow_sha, run_id, run_attempt = sys.argv[1:]
+          print(json.dumps({
+              "schema_version": "fathomdb.cuda-main-route-receipt/v2",
+              "candidate_sha": candidate_sha,
+              "workflow_ref": workflow_ref,
+              "workflow_sha": workflow_sha,
+              "run_id": int(run_id),
+              "run_attempt": int(run_attempt),
+          }, ensure_ascii=True, separators=(",", ":"), sort_keys=True))
+          PY
       - name: Fetch and normalize read-only candidate review facts
         id: facts
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+        if: ${{ github.event_name == 'retired' }}
         shell: bash
         env:
           CANDIDATE_SHA: ${{ inputs.candidate_commit }}
@@ -244,7 +275,7 @@ jobs:
           PY
       - name: Authorize one exact unmerged candidate
         id: route
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true }}
+        if: ${{ github.event_name == 'retired' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -260,6 +291,13 @@ jobs:
             --receipt cuda-unmerged-route-receipt.json \
             --github-output "$GITHUB_OUTPUT"
       - name: Upload unmerged-candidate route receipt
+        if: ${{ github.event_name == 'retired' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}
+          path: cuda-unmerged-route-receipt.json
+          if-no-files-found: error
+      - name: Upload main-candidate route receipt
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == true && success() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

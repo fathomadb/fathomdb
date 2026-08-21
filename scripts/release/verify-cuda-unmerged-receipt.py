@@ -14,7 +14,8 @@ from typing import Any, NoReturn
 COMMIT_SHA = re.compile(r"[0-9a-f]{40}")
 SHA256 = re.compile(r"[0-9a-f]{64}")
 WORKFLOW_REF = "fathomadb/fathomdb/.github/workflows/release.yml@refs/heads/main"
-SCHEMA = "fathomdb.cuda-unmerged-route-receipt/v1"
+UNMERGED_SCHEMA = "fathomdb.cuda-unmerged-route-receipt/v1"
+MAIN_SCHEMA = "fathomdb.cuda-main-route-receipt/v2"
 MAIN_OWNED_MANIFEST = Path("control-plane/dev/release/cuda-unmerged-candidates.json")
 
 
@@ -85,7 +86,25 @@ def main() -> None:
         "manifest_sha256", "candidate_sha", "candidate_pr", "approval_review_ids", "provenance_pr",
         "provenance_approval_review_ids", "api_response_sha256",
     }
-    if set(receipt) != expected_fields or receipt["schema_version"] != SCHEMA:
+    if receipt.get("schema_version") == MAIN_SCHEMA:
+        expected_main_fields = {
+            "schema_version", "workflow_ref", "workflow_sha", "run_id", "run_attempt", "candidate_sha",
+        }
+        if set(receipt) != expected_main_fields:
+            fail("main-route receipt schema is unsupported")
+        if args.workflow_ref != WORKFLOW_REF or receipt["workflow_ref"] != args.workflow_ref:
+            fail("receipt workflow ref differs from the exact trusted route")
+        if require_sha(args.candidate_sha, "requested candidate SHA", COMMIT_SHA) != receipt["candidate_sha"]:
+            fail("receipt candidate SHA does not match this consumer")
+        if require_sha(args.workflow_sha, "requested workflow SHA", COMMIT_SHA) != receipt["workflow_sha"]:
+            fail("receipt workflow SHA does not match this consumer")
+        if require_positive_int(args.run_id, "requested run ID") != receipt["run_id"]:
+            fail("receipt run ID does not match this consumer")
+        if require_positive_int(args.run_attempt, "requested run attempt") != receipt["run_attempt"]:
+            fail("receipt run attempt does not match this consumer")
+        print("cuda-unmerged-receipt: pass")
+        return
+    if set(receipt) != expected_fields or receipt["schema_version"] != UNMERGED_SCHEMA:
         fail("receipt schema is unsupported")
     if args.workflow_ref != WORKFLOW_REF or receipt["workflow_ref"] != args.workflow_ref:
         fail("receipt workflow ref differs from the exact trusted route")

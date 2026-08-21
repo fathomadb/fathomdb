@@ -1,0 +1,63 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "locomo-capability-gpu-wheel-20260814T2249Z-5b1adaf8",
+  "experiment": "locomo-capability-gpu-wheel",
+  "title": "locomo-capability-gpu-wheel",
+  "verdict": "blocked_prerequisite",
+  "read": "GPU wheel build from clean main stopped because nvcc is absent; no reusable local wheel was found.",
+  "code": {
+    "git_sha": "289cae55044eb8cdd0cc03d275dcf610a1771096",
+    "dirty": false,
+    "branch": "campaign/locomo-capability-20260814",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "5b1adaf8f37e52a917abef6fbc92b1cc679517facaf9275f16fe5b708e7fe286",
+    "path": null,
+    "resolved": {
+      "schema_version": "locomo-capability-gpu-wheel.v1",
+      "source_commit": "13c2767e9b79f275d59126b621749a33363c7d3d",
+      "features": [
+        "pyo3/extension-module",
+        "default-embedder",
+        "default-reranker",
+        "embed-cuda",
+        "rerank-cuda"
+      ],
+      "compatibility": "linux",
+      "wheelhouse": "/home/coreyt/.local/share/fathomdb-experiments/locomo-capability-20260814/wheelhouse",
+      "toolchain": {
+        "nvcc": "absent"
+      }
+    }
+  },
+  "corpus": {
+    "source": "LOCOMO",
+    "manifest_sha256": null,
+    "datasets": []
+  },
+  "seeds": {},
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {}
+  },
+  "metrics": {
+    "phase": "A",
+    "gpu_wheel": {
+      "status": "blocked_prerequisite",
+      "reason": "nvcc_not_found"
+    },
+    "reuse": "no_local_compatible_wheel"
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [],
+  "review": null,
+  "open_questions": [
+    "Install or expose a matching CUDA toolkit (nvcc), then rerun this exact clean-main build."
+  ]
+}

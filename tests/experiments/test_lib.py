@@ -130,6 +130,38 @@ def test_write_record_writes_the_three_files_and_appends_index(tmp_path):
     assert row["config_sha256"] == record["config"]["sha256"]
 
 
+def test_write_record_emits_versioned_record_and_index_row(tmp_path):
+    _, run_dir = _lib.write_record(
+        "demo",
+        ts=TS,
+        config_obj={"a": 1},
+        metrics={},
+        verdict="pass",
+        read="ok",
+        code={"git_sha": "abc", "dirty": False, "branch": "b", "baseline_commit": None},
+        corpus={"source": None, "manifest_sha256": None, "datasets": []},
+        seeds={},
+        env={"python": "3.12", "lockfile_sha256": None, "gpu": None, "key_deps": {}},
+        cost_usd=0.0,
+        base_dir=tmp_path,
+    )
+
+    record = json.loads((run_dir / "record.json").read_text())
+    row = json.loads((tmp_path / "index.jsonl").read_text())
+    assert record["schema_version"] == "experiments.record.v1"
+    assert row["schema_version"] == "experiments.index-row.v1"
+
+
+def test_record_and_index_normalizers_accept_legacy_versionless_data():
+    legacy_record = _valid_record_dict()
+    record = _lib.record_from_dict(legacy_record)
+    assert record.schema_version == "experiments.record.v0"
+
+    legacy_row = {"run_id": "legacy", "verdict": "complete"}
+    normalized_row = _lib.normalize_index_row(legacy_row)
+    assert normalized_row["schema_version"] == "experiments.index-row.v0"
+
+
 def test_write_record_run_id_stable_across_calls(tmp_path):
     kwargs = dict(
         ts=TS,

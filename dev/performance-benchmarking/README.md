@@ -6,6 +6,14 @@ dataset identity, measurement protocol, result status, and pointers to the
 authoritative artifacts. It is not a data lake or a second copy of an
 experiment.
 
+For priorities, dependencies, and execution sequence, use the
+[overall performance benchmarking and experiments program](PROGRAM.md).
+`experiments/` remains the append-only execution ledger and receipt store;
+this directory does not duplicate its run records or generated scoreboard.
+For the campaign's Codex-native coordinator/worker/reviewer operating control,
+use [Track Runner](TRACK-RUNNER.md) and its live
+[status board](TRACK-RUNNER-STATUS.md).
+
 ## Storage rule
 
 - Store short, reviewable result notes and this index here.

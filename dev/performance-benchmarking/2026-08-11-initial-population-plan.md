@@ -1,5 +1,10 @@
 # Initial performance-benchmark population plan — 2026-08-11
 
+> **Program relationship.** This is the completed I0 baseline in the
+> [overall performance benchmarking and experiments program](PROGRAM.md). It
+> remains FathomDB-only descriptive evidence, not a competitor or latency
+> claim.
+
 ## Status
 
 Self-reviewed on 2026-08-11. The corrections from that review are incorporated below.

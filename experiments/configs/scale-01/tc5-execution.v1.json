@@ -1,0 +1,35 @@
+{
+  "schema_version": "tc5-execution-config.v1",
+  "program_track": "SCALE-01",
+  "configuration_id": "tc5-cpu-all-real-v1",
+  "release_state": "awaiting_independent_review_and_coordinator_release",
+  "execution_enabled": false,
+  "arms": [
+    {"name": "bridge", "document_count": 7667},
+    {"name": "primary", "document_count": 17272}
+  ],
+  "frozen_configuration": {
+    "embed_device": "cpu",
+    "model_identity": "fathomdb-bge-small-en-v1.5",
+    "candidate_breadth": 192,
+    "query_count": 100,
+    "query_select_seed": "0x0E77C0125E1EC7",
+    "bootstrap_resamples": 1000,
+    "bootstrap_seed": "0x0E77B007574A9",
+    "ground_truth": "exact-f32-same-model-top-10",
+    "sut": "pre-fusion-1bit-k192-f32-rerank-vector-stage"
+  },
+  "artifact_contract": {
+    "external_manifest_required": true,
+    "external_corpus_root_required": true,
+    "external_output_root_required": true,
+    "historical_eu7_output_forbidden": true,
+    "repository_artifacts_forbidden": true,
+    "experiment_index_receipt_required_after_both_arms": true
+  },
+  "claim_boundary": {
+    "scale_02_capacity_claim": false,
+    "latency_or_slo_claim": false,
+    "only_fidelity_and_uncertainty_after_complete_arms": true
+  }
+}

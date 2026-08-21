@@ -1,0 +1,213 @@
+{
+  "schema_version": "corpus-01-matrix.v1",
+  "program_track": "CORPUS-01",
+  "matrix_id": "corpus_01_portfolio_v1",
+  "human_gold_categories": [
+    "knowledge_update",
+    "supersession",
+    "source_erasure",
+    "time_scoped_validity"
+  ],
+  "corpora": [
+    {
+      "corpus_id": "locomo",
+      "portfolio_family": "personal_conversation_memory",
+      "payload_state": "external_payload_not_verified",
+      "payload_rule": "external_eval_only_gitignored",
+      "license": "CC-BY-NC-4.0",
+      "license_basis": "acquire_script",
+      "redistribution_rule": "never_commit_or_ship_payload_or_verbatim_gold",
+      "factual_prerequisites": ["hash_payload_and_license_at_external_root", "verify_text_only_subset"],
+      "supported_categories": ["time_scoped_validity"],
+      "unsupported_categories": ["knowledge_update", "supersession", "source_erasure"],
+      "metrics": ["retrieval_recall_at_k", "answer_quality", "latency_cost"],
+      "power": {"rule": "paired_class_power_before_claim", "class_counts": [
+        {"class": "factoid", "count": 841, "count_status": "historical"},
+        {"class": "temporal", "count": 321, "count_status": "historical"},
+        {"class": "multi_session", "count": 281, "count_status": "historical"}
+      ]},
+      "supported_claims": ["conversation_retrieval", "temporal_recall", "multi_session_recall"],
+      "unsupported_claims": ["knowledge_update", "source_erasure", "commercial_payload_distribution"]
+    },
+    {
+      "corpus_id": "longmemeval",
+      "portfolio_family": "personal_conversation_memory",
+      "payload_state": "not_acquired",
+      "payload_rule": "eval_only_external_after_license_and_pin_verification",
+      "license": "MIT",
+      "license_basis": "research_note",
+      "redistribution_rule": "do_not_add_payload_or_verbatim_qa_without_factual_preflight",
+      "factual_prerequisites": ["verify_upstream_license", "pin_revision_and_payload_hash", "confirm_class_counts"],
+      "supported_categories": ["knowledge_update", "time_scoped_validity"],
+      "unsupported_categories": ["supersession", "source_erasure"],
+      "metrics": ["answer_quality", "abstention_accuracy", "paired_class_power"],
+      "power": {"rule": "paired_class_power_before_claim", "class_counts": [
+        {"class": "knowledge_update", "count": null, "count_status": "not_acquired"},
+        {"class": "temporal", "count": null, "count_status": "not_acquired"},
+        {"class": "multi_session", "count": null, "count_status": "not_acquired"}
+      ]},
+      "supported_claims": ["knowledge_update_after_power", "session_ordered_memory_after_power"],
+      "unsupported_claims": ["source_erasure", "supersession_without_human_gold", "payload_presence"]
+    },
+    {
+      "corpus_id": "timelineqa",
+      "portfolio_family": "personal_timeline",
+      "payload_state": "external_payload_not_verified",
+      "payload_rule": "external_eval_only_generated_payload",
+      "license": "CC-BY-NC-4.0",
+      "license_basis": "manifest_json",
+      "redistribution_rule": "never_commit_or_ship_generated_payload_or_verbatim_gold",
+      "factual_prerequisites": ["verify_generator_pin_and_license", "hash_generated_external_root"],
+      "supported_categories": ["time_scoped_validity"],
+      "unsupported_categories": ["knowledge_update", "supersession", "source_erasure"],
+      "metrics": ["temporal_accuracy", "evidence_recall_at_k"],
+      "power": {"rule": "stratify_by_density_then_paired_power", "class_counts": [
+        {"class": "sparse_atomic", "count": 282643, "count_status": "registered"},
+        {"class": "medium_atomic", "count": 640935, "count_status": "registered"},
+        {"class": "dense_atomic", "count": 1534761, "count_status": "registered"}
+      ]},
+      "supported_claims": ["daily_life_timeline_recall", "time_scoped_validity"],
+      "unsupported_claims": ["real_personal_data", "source_erasure", "commercial_distribution"]
+    },
+    {
+      "corpus_id": "timeqa",
+      "portfolio_family": "time_sensitive_reading_comprehension",
+      "payload_state": "external_payload_not_verified",
+      "payload_rule": "external_eval_only_gitignored",
+      "license": "BSD-3-Clause",
+      "license_basis": "manifest_json",
+      "redistribution_rule": "external_only_by_project_policy_with_attribution",
+      "factual_prerequisites": ["hash_all_selected_files", "preserve_unanswerable_class"],
+      "supported_categories": ["time_scoped_validity"],
+      "unsupported_categories": ["knowledge_update", "supersession", "source_erasure"],
+      "metrics": ["temporal_accuracy", "abstention_accuracy", "evidence_recall_at_k"],
+      "power": {"rule": "report_easy_hard_and_unanswerable_separately", "class_counts": [
+        {"class": "easy", "count": 6018, "count_status": "registered"},
+        {"class": "hard", "count": 6165, "count_status": "registered"}
+      ]},
+      "supported_claims": ["time_sensitive_fact_retrieval", "abstention_behavior"],
+      "unsupported_claims": ["personal_memory", "source_erasure", "lifecycle_update"]
+    },
+    {
+      "corpus_id": "test_of_time",
+      "portfolio_family": "synthetic_temporal_reasoning",
+      "payload_state": "external_payload_not_verified",
+      "payload_rule": "external_eval_only_gitignored",
+      "license": "CC-BY-4.0",
+      "license_basis": "manifest_json",
+      "redistribution_rule": "external_only_by_project_policy_with_attribution",
+      "factual_prerequisites": ["pin_dataset_revision", "hash_each_selected_config"],
+      "supported_categories": ["time_scoped_validity"],
+      "unsupported_categories": ["knowledge_update", "supersession", "source_erasure"],
+      "metrics": ["temporal_accuracy", "class_stratified_accuracy"],
+      "power": {"rule": "separate_semantic_and_arithmetic_classes", "class_counts": [
+        {"class": "semantic", "count": 2800, "count_status": "registered"},
+        {"class": "arithmetic", "count": 1850, "count_status": "registered"},
+        {"class": "semantic_large", "count": 46480, "count_status": "registered"}
+      ]},
+      "supported_claims": ["contamination_resistant_temporal_probe"],
+      "unsupported_claims": ["personal_memory", "source_erasure", "naturalistic_conversation"]
+    },
+    {
+      "corpus_id": "ir_c",
+      "portfolio_family": "fathomdb_retrieval_gold",
+      "payload_state": "external_payload_not_verified",
+      "payload_rule": "external_gold_and_payload_roots_only",
+      "license": "LicenseRef-Mixed-Upstream",
+      "license_basis": "research_note",
+      "redistribution_rule": "propagate_each_row_license_and_keep_cache_only_gold_external",
+      "factual_prerequisites": ["freeze_corpus_hash", "validate_goldset_schema", "verify_row_license_propagation"],
+      "supported_categories": [],
+      "unsupported_categories": ["knowledge_update", "supersession", "source_erasure", "time_scoped_validity"],
+      "metrics": ["evidence_recall_at_k", "mrr", "ndcg"],
+      "power": {"rule": "stratified_per_class_denominators", "class_counts": [
+        {"class": "reused_eval_rows", "count": null, "count_status": "not_verified"},
+        {"class": "negative", "count": null, "count_status": "not_verified"}
+      ]},
+      "supported_claims": ["retrieval_fidelity_only", "lexical_dense_comparison"],
+      "unsupported_claims": ["answer_correctness", "personal_memory_lifecycle", "unlicensed_gold_distribution"]
+    },
+    {
+      "corpus_id": "beir",
+      "portfolio_family": "public_information_retrieval",
+      "payload_state": "external_payload_not_verified",
+      "payload_rule": "external_eval_only_per_dataset_license",
+      "license": "LicenseRef-PerDataset",
+      "license_basis": "manifest_json",
+      "redistribution_rule": "respect_dataset_specific_license_and_project_external_only_policy",
+      "factual_prerequisites": ["select_named_dataset_and_split", "verify_license_for_selected_dataset", "hash_corpus_queries_and_qrels"],
+      "supported_categories": [],
+      "unsupported_categories": ["knowledge_update", "supersession", "source_erasure", "time_scoped_validity"],
+      "metrics": ["recall_at_k", "mrr", "ndcg"],
+      "power": {"rule": "never_pool_datasets_or_sparse_qrels", "class_counts": [
+        {"class": "arguana_queries", "count": 1406, "count_status": "registered"},
+        {"class": "fiqa_queries", "count": 6648, "count_status": "registered"},
+        {"class": "nfcorpus_queries", "count": 3237, "count_status": "registered"},
+        {"class": "touche2020_queries", "count": 49, "count_status": "registered"}
+      ]},
+      "supported_claims": ["retrieval_generalization", "lexical_dense_diagnostics"],
+      "unsupported_claims": ["answer_correctness", "personal_memory", "complete_relevance_judgments"]
+    },
+    {
+      "corpus_id": "musique",
+      "portfolio_family": "multi_hop_evidence",
+      "payload_state": "external_payload_not_verified",
+      "payload_rule": "external_eval_only_gitignored",
+      "license": "CC-BY-4.0",
+      "license_basis": "manifest_json",
+      "redistribution_rule": "external_only_by_project_policy_with_attribution",
+      "factual_prerequisites": ["verify_hosted_revision_and_payload_hash", "preserve_hop_strata"],
+      "supported_categories": [],
+      "unsupported_categories": ["knowledge_update", "supersession", "source_erasure", "time_scoped_validity"],
+      "metrics": ["supporting_evidence_recall_at_k", "answer_f1"],
+      "power": {"rule": "report_answerable_and_hop_strata_separately", "class_counts": [
+        {"class": "answerable", "count": 2417, "count_status": "registered"},
+        {"class": "unanswerable", "count": 2417, "count_status": "registered"},
+        {"class": "hop_2", "count": 2504, "count_status": "registered"},
+        {"class": "hop_3", "count": 1520, "count_status": "registered"},
+        {"class": "hop_4", "count": 810, "count_status": "registered"}
+      ]},
+      "supported_claims": ["bounded_multi_hop_supporting_evidence"],
+      "unsupported_claims": ["personal_memory_lifecycle", "source_erasure", "unbounded_graph_claim"]
+    },
+    {
+      "corpus_id": "summhay",
+      "portfolio_family": "global_sensemaking",
+      "payload_state": "external_payload_not_verified",
+      "payload_rule": "external_eval_only_gitignored",
+      "license": "Apache-2.0",
+      "license_basis": "manifest_json",
+      "redistribution_rule": "external_only_by_project_policy_with_attribution",
+      "factual_prerequisites": ["pin_dataset_revision", "hash_external_payload", "pre_register_coverage_metric"],
+      "supported_categories": [],
+      "unsupported_categories": ["knowledge_update", "supersession", "source_erasure", "time_scoped_validity"],
+      "metrics": ["coverage", "citation_quality", "summary_quality"],
+      "power": {"rule": "report_topics_and_subtopics_without_pooling", "class_counts": [
+        {"class": "topics", "count": 10, "count_status": "registered"},
+        {"class": "subtopics", "count": 92, "count_status": "registered"},
+        {"class": "documents", "count": 1000, "count_status": "registered"}
+      ]},
+      "supported_claims": ["global_coverage_and_citation_quality"],
+      "unsupported_claims": ["personal_memory", "source_erasure", "graph_product_default"]
+    },
+    {
+      "corpus_id": "apnews_benchmarkqed",
+      "portfolio_family": "global_sensemaking",
+      "payload_state": "external_payload_not_verified",
+      "payload_rule": "external_eval_only_nonredistributable",
+      "license": "LicenseRef-Microsoft-Research",
+      "license_basis": "historical_register",
+      "redistribution_rule": "never_commit_ship_or_quote_payload_or_gold",
+      "factual_prerequisites": ["verify_external_license_copy", "hash_external_payload", "confirm_question_set_and_permitted_use"],
+      "supported_categories": [],
+      "unsupported_categories": ["knowledge_update", "supersession", "source_erasure", "time_scoped_validity"],
+      "metrics": ["comprehensiveness", "diversity", "empowerment"],
+      "power": {"rule": "corpus_capped_report_only_until_new_licensed_gold", "class_counts": [
+        {"class": "articles", "count": 1397, "count_status": "historical"},
+        {"class": "global_questions", "count": null, "count_status": "not_verified"}
+      ]},
+      "supported_claims": ["historical_global_sensemaking_comparison"],
+      "unsupported_claims": ["redistributable_gold", "personal_memory_lifecycle", "new_claim_without_preflight"]
+    }
+  ]
+}

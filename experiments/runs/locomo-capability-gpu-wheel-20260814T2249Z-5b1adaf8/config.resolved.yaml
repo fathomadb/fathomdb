@@ -1,0 +1,12 @@
+compatibility: linux
+features:
+- pyo3/extension-module
+- default-embedder
+- default-reranker
+- embed-cuda
+- rerank-cuda
+schema_version: locomo-capability-gpu-wheel.v1
+source_commit: 13c2767e9b79f275d59126b621749a33363c7d3d
+toolchain:
+  nvcc: absent
+wheelhouse: /home/coreyt/.local/share/fathomdb-experiments/locomo-capability-20260814/wheelhouse

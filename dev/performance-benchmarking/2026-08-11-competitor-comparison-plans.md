@@ -1,5 +1,10 @@
 # Competitor-comparison plans — 2026-08-11
 
+> **Program relationship.** This document supplies the shared native-comparator
+> contract for tracks M0, G0, and H0 in the
+> [overall performance benchmarking and experiments program](PROGRAM.md).
+> Current priority, blockers, and sequence live there.
+
 ## Shared comparison contract
 
 Each comparison must give both arms the identical frozen raw input and

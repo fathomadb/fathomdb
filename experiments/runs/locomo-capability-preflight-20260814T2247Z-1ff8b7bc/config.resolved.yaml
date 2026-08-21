@@ -1,0 +1,14 @@
+checkpoint_commit: 06a32c86edca5b3db02a5d016830a9e8ad835d69
+dependency_lock_sha256: 4a0254e909ed86ad89fd2078c1d8c54b880aed953c81bcf36ed87857f7ee0d84
+gpu_wheel:
+  reason: canonical main checkout is dirty
+  status: unbuilt
+harness_commit: 4b61c5d31b9c668a12b4f5e78064248a02c82d2b
+local_main_commit: 13c2767e9b79f275d59126b621749a33363c7d3d
+origin_main_commit: dd1f04714617c5f435ca4edd607235cd14003c07
+provenance_manifests:
+  session:
+    sha256: 46e928b1d4afa865e59689682101a56a024dea46348154ba37e60da97e66c6e4
+  turn:
+    sha256: 43453c5d1b865dd1721bd0892f1af7f965e2c8484fea999eefa5cddf9da78f66
+schema_version: locomo-capability-preflight.v1

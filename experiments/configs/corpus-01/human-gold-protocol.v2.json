@@ -1,0 +1,33 @@
+{
+  "schema_version": "corpus-01-human-gold-protocol.v2",
+  "program_track": "CORPUS-01",
+  "protocol_id": "corpus_01_human_gold_v2",
+  "matrix_sha256": "5381f7936913328414442c9eeaa9c0ef9b4674c5f7cf9233125c4c773bcf81b3",
+  "qualified_manifest_schema": "corpus-01-human-gold-manifest.v2",
+  "amendment_schema": "corpus-01-human-gold-amendment.v1",
+  "required_categories": [
+    "knowledge_update",
+    "supersession",
+    "source_erasure",
+    "time_scoped_validity"
+  ],
+  "required_reviewer_count": 2,
+  "allowed_judgments": ["contradicted", "insufficient_evidence", "supported"],
+  "allowed_adjudications": ["adjudicated", "not_required"],
+  "prohibited_fields": [
+    "answer",
+    "answer_text",
+    "evidence_text",
+    "question",
+    "raw_payload",
+    "verbatim_quote"
+  ],
+  "external_artifact_rule": "external_only_content_free_manifest_in_repo",
+  "workflow": [
+    "factual_preflight",
+    "sample_external_records",
+    "blind_double_review",
+    "adjudicate_disagreement",
+    "export_opaque_manifest"
+  ]
+}

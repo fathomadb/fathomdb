@@ -1,5 +1,10 @@
 # Mem0 OSS baseline readiness plan
 
+> **Program relationship.** This is readiness work for track M0 in the
+> [overall performance benchmarking and experiments program](../PROGRAM.md).
+> Its prerequisites remain blockers until the portfolio board records them as
+> resolved.
+
 ## Objective
 
 Run Mem0's official `memory-benchmarks` OSS + Qdrant pipeline once before

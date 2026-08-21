@@ -1,5 +1,10 @@
 # HippoRAG-2 baseline readiness plan
 
+> **Program relationship.** This is the parked H0 track in the
+> [overall performance benchmarking and experiments program](../PROGRAM.md).
+> Its official-runtime, credential, and corpus prerequisites remain explicit
+> blockers.
+
 ## Objective
 
 Run the official HippoRAG-2 MuSiQue reproduction once before any controlled

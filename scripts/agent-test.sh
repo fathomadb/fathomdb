@@ -467,6 +467,11 @@ run_tier_suite fast test-plans-status-frontmatter bash scripts/tests/test_plans_
 # here is not vacuous. RED fixtures built inline under mktemp -d.
 run_tier_suite fast test-lint-plan-anchors bash scripts/tests/test_lint_plan_anchors.sh
 
+# Performance-program Track Runner: proves the coordinator/worker/reviewer
+# control is present in both agent-facing and harness-facing entry points, and
+# that an absent scoped agent binding fails rather than silently degrading.
+run_tier_suite fast test-track-runner bash scripts/tests/test_track_runner.sh
+
 # T2a: recurrence guard for the single-writer release-state file and its
 # marker-delimited generated views — regenerate-and-diff, marker well-formedness,
 # the orphan-marker confinement rule, and the TC-37 zero-blocks hard fail. RED
@@ -556,6 +561,22 @@ else
   python_suite_skip_reason="pytest not installed or no tests dir"
 fi
 run_tier_maybe_suite heavy test-python "$python_suite_skip_reason" "${python_suite_command[@]}"
+
+# PROGRAM Track Runner exercises the current LOCOMO/Mem0 harnesses directly:
+# their typed configs must retain the right track identifier through each arm
+# and the final comparison receipt. Keep this small suite outside src/python/
+# so its durable-experiment tests run in the ordinary agent loop too.
+experiment_track_runner_skip_reason=""
+experiment_track_runner_command=()
+if [ -n "$python_bin" ] && "$python_bin" -c 'import pytest' >/dev/null 2>&1; then
+  experiment_track_runner_command=(env PYTHONPATH=. "$python_bin" -m pytest -q
+    tests/experiments/test_fathomdb_locomo.py
+    tests/experiments/test_mem0_oss.py
+    tests/experiments/test_mem0_comparison.py)
+else
+  experiment_track_runner_skip_reason="pytest not installed"
+fi
+run_tier_maybe_suite fast test-program-experiment-harness "$experiment_track_runner_skip_reason" "${experiment_track_runner_command[@]}"
 
 # ledgerwatch (dev/agent-tools): pure-stdlib pytest suite, no fathomdb binding
 # needed, so it runs under whichever interpreter was resolved above without the

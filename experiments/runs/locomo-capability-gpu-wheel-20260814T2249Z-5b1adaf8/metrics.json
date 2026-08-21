@@ -1,0 +1,8 @@
+{
+  "phase": "A",
+  "gpu_wheel": {
+    "status": "blocked_prerequisite",
+    "reason": "nvcc_not_found"
+  },
+  "reuse": "no_local_compatible_wheel"
+}

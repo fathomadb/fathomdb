@@ -1,5 +1,12 @@
 # LOCOMO FathomDB capability campaign — revised
 
+> **Program relationship.** This is active track `LOCOMO-01` in the
+> [overall performance benchmarking and experiments program](PROGRAM.md).
+> Its dated Phase-A preparation contract is
+> [2026-08-16-locomo-01-phase-a-contract.md](2026-08-16-locomo-01-phase-a-contract.md).
+> The selected `LOCOMO-01` configuration is the only FathomDB arm eligible for
+> the later native Mem0 comparison work.
+
 ## Phase A gates
 
 1. Checkpoint the recorder code/test diff only; exclude `logs/`, raw artifacts, and unreviewed run directories. Create an isolated campaign worktree from that commit, reconcile it with current `origin/main`, and record checkpoint, main, dependency-lock, harness, and wheel hashes.

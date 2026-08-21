@@ -1,0 +1,82 @@
+{
+  "schema_version": "locomo-phase-a.v1",
+  "campaign": "phase_a_grid_preparation",
+  "program_track": "LOCOMO-01",
+  "execution": {
+    "mode": "plan_only",
+    "live_execution": "forbidden"
+  },
+  "baseline": {
+    "canonical_id": "A0",
+    "record_run_id": "locomo-capability-a0-baseline-20260814T2311Z-d4a71071",
+    "source_arm_run_id": "fathomdb-locomo-official-seam-20260814T2303Z-fb622897",
+    "ingest_unit": "turn",
+    "retrieval_mode": "fts_only",
+    "top_k": 10,
+    "source_retrieval_metrics_sha256": "dedb329481751dda7cc8a40de87b99a6be6c56893255c0983f198076c0abb34b",
+    "source_margin_contract_sha256": "1c0fade71b568452ebb619c3cfccd4a5ce28f96b89d8afb0c888ab3275513c85"
+  },
+  "corpus": {
+    "source": "LOCOMO",
+    "raw_sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+    "normalized_sha256": "e9999b551ac67e899f0008c9ec446cecce937ce12f01f2f08cefa9f690fc4c7c",
+    "sessions": 272,
+    "source_questions": 1540,
+    "a0_evidence_backed_questions": 1536,
+    "payload": "external_only"
+  },
+  "provenance": {
+    "source_record_run_id": "locomo-capability-preflight-20260814T2247Z-1ff8b7bc",
+    "turn": {
+      "identifier": "locomo-turn-provenance.v1",
+      "sha256": "43453c5d1b865dd1721bd0892f1af7f965e2c8484fea999eefa5cddf9da78f66",
+      "storage": "external_only"
+    },
+    "session": {
+      "identifier": "locomo-session-provenance.v1",
+      "sha256": "46e928b1d4afa865e59689682101a56a024dea46348154ba37e60da97e66c6e4",
+      "storage": "external_only"
+    }
+  },
+  "measurement": {
+    "m1": {
+      "metric": "r_at_10",
+      "paired_confidence_rule": "one_sided_95_lower_bound_at_least_negative_margin",
+      "bootstrap": {
+        "seed": 20260814,
+        "resamples": 10000
+      },
+      "margin": 0.02405130733344985,
+      "sanity_range": [0.01, 0.04]
+    },
+    "m2": ["mrr", "r_at_1", "ndcg_at_10"],
+    "m4": {
+      "actual": "unmeasured",
+      "proxy": "temporal_evidence_recall"
+    },
+    "m6": ["facade_query_ms", "engine_query_ms"],
+    "m7": ["ingest_ack_ms", "ready_to_search_ms"],
+    "fast_local": {
+      "p95_multiplier": 1.5,
+      "rule": "M1 pass and candidate p95 <= 1.5 * A0 p95"
+    },
+    "quality_local_gpu": "report_only_not_a_locomo_acceptance_claim"
+  },
+  "grid": {
+    "ingest_units": ["turn", "session"],
+    "treatments": [
+      {"id": "fts_only", "retrieval": "fts", "cross_encoder": null, "candidate_pool": null, "candidate_depth": null, "bounded_neighbor_expansion": false},
+      {"id": "hybrid", "retrieval": "hybrid", "cross_encoder": null, "candidate_pool": null, "candidate_depth": null, "bounded_neighbor_expansion": false},
+      {"id": "hybrid_ce_alpha_03_pool_10", "retrieval": "hybrid", "cross_encoder": "alpha_0.3", "candidate_pool": 10, "candidate_depth": 10, "bounded_neighbor_expansion": false},
+      {"id": "hybrid_ce_alpha_10_pool_10", "retrieval": "hybrid", "cross_encoder": "alpha_1.0", "candidate_pool": 10, "candidate_depth": 10, "bounded_neighbor_expansion": false},
+      {"id": "hybrid_ce_alpha_10_pool_20", "retrieval": "hybrid", "cross_encoder": "alpha_1.0", "candidate_pool": 20, "candidate_depth": 20, "bounded_neighbor_expansion": false},
+      {"id": "fts_bounded_neighbor", "retrieval": "fts", "cross_encoder": null, "candidate_pool": null, "candidate_depth": null, "bounded_neighbor_expansion": true}
+    ],
+    "runtime_cells": [
+      {"device": "cpu", "cache_state": "cold"},
+      {"device": "cpu", "cache_state": "steady"},
+      {"device": "gpu", "cache_state": "cold"},
+      {"device": "gpu", "cache_state": "steady"}
+    ]
+  }
+}

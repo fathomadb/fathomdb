@@ -1,0 +1,13 @@
+{
+  "phase": "A",
+  "provenance": {
+    "turn_manifest": "ready",
+    "session_manifest": "ready"
+  },
+  "airlock": {
+    "liveness": "previously_verified",
+    "scorer_route": "unconfigured"
+  },
+  "m3": "not_run",
+  "m4": "not_run"
+}

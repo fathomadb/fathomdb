@@ -314,6 +314,9 @@ jobs:
     environment: cuda-unmerged-preflight
     env:
       FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
+      CUDA_HOME: /usr/local/cuda-12.6
+      LIBRARY_PATH: /usr/local/cuda-12.6/targets/x86_64-linux/lib
+      CUDARC_CUDA_VERSION: "12060"
       CUDA_PREFLIGHT_WITNESS_DIR: ${{ github.workspace }}/cuda-preflight-witness-${{ github.run_id }}-${{ github.run_attempt }}
       CUDA_RERANK_PREFLIGHT_WITNESS_DIR: ${{ github.workspace }}/cuda-rerank-preflight-witness-${{ github.run_id }}-${{ github.run_attempt }}
     timeout-minutes: 45
@@ -565,6 +568,9 @@ jobs:
     environment: cuda-unmerged-preflight
     env:
       FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
+      CUDA_HOME: /usr/local/cuda-12.6
+      LIBRARY_PATH: /usr/local/cuda-12.6/targets/x86_64-linux/lib
+      CUDARC_CUDA_VERSION: "12060"
     timeout-minutes: 45
     permissions:
       contents: read
@@ -699,6 +705,9 @@ jobs:
     environment: cuda-unmerged-preflight
     env:
       FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
+      CUDA_HOME: /usr/local/cuda-12.6
+      LIBRARY_PATH: /usr/local/cuda-12.6/targets/x86_64-linux/lib
+      CUDARC_CUDA_VERSION: "12060"
     timeout-minutes: 45
     permissions:
       contents: read
@@ -822,6 +831,9 @@ jobs:
     environment: cuda-unmerged-preflight
     env:
       FATHOMDB_CUDA_GPU_UUID: ${{ vars.FATHOMDB_CUDA_GPU_UUID }}
+      CUDA_HOME: /usr/local/cuda-12.6
+      LIBRARY_PATH: /usr/local/cuda-12.6/targets/x86_64-linux/lib
+      CUDARC_CUDA_VERSION: "12060"
     timeout-minutes: 45
     permissions:
       contents: read

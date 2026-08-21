@@ -18,6 +18,9 @@ SCHEMA_VERSION_V2 = "fathomdb.cuda-package-rehearsal/v2"
 SCHEMA_VERSION_V3 = "fathomdb.cuda-package-rehearsal/v3"
 BUILD_INPUT_SCHEMA_V2 = "fathomdb.cuda-package-build-input/v2"
 BUILD_INPUT_SCHEMA_V3 = "fathomdb.cuda-package-build-input/v3"
+UNMERGED_ROUTE_SCHEMA = "fathomdb.cuda-unmerged-route-receipt/v1"
+MAIN_ROUTE_SCHEMA = "fathomdb.cuda-main-route-receipt/v2"
+MAIN_WORKFLOW_REF = "fathomadb/fathomdb/.github/workflows/release.yml@refs/heads/main"
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 COMMIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
 MANIFEST = "cuda-package-rehearsal.json"
@@ -411,7 +414,21 @@ def validate(root: Path, candidate_sha: str) -> None:
     if not isinstance(version, str) or re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version) is None or manifest["target"] != TARGET:
         fail("rehearsal version or target is invalid")
     route, route_bytes = load_object(root / ROUTE_RECEIPT, "route receipt")
-    if route.get("schema_version") != "fathomdb.cuda-unmerged-route-receipt/v1" or route.get("candidate_sha") != candidate_sha:
+    if route.get("schema_version") == MAIN_ROUTE_SCHEMA:
+        require_exact_keys(
+            route,
+            {"schema_version", "workflow_ref", "workflow_sha", "run_id", "run_attempt", "candidate_sha"},
+            "main-route receipt",
+        )
+        if route["workflow_ref"] != MAIN_WORKFLOW_REF:
+            fail("main-route receipt workflow ref is invalid")
+        require_sha(route["workflow_sha"], "main-route receipt workflow SHA", COMMIT_SHA)
+        for field in ("run_id", "run_attempt"):
+            if not isinstance(route[field], int) or isinstance(route[field], bool) or route[field] < 1:
+                fail(f"main-route receipt {field} is invalid")
+    elif route.get("schema_version") != UNMERGED_ROUTE_SCHEMA:
+        fail("route receipt schema is unsupported")
+    if route.get("candidate_sha") != candidate_sha:
         fail("route receipt does not bind the requested candidate")
     if require_sha(manifest["route_receipt_sha256"], "route receipt digest") != hashlib.sha256(route_bytes).hexdigest():
         fail("route receipt digest mismatch")

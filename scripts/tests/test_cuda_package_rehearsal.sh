@@ -160,6 +160,31 @@ VALID="$TMPROOT/valid"
 make_valid_bundle "$VALID"
 expect_accept "$VALID" 'exact complete package rehearsal bundle is accepted'
 
+cp -a "$VALID" "$TMPROOT/main-route-v2"
+python3 - "$TMPROOT/main-route-v2" "$CANDIDATE" <<'PY'
+import hashlib
+import json
+from pathlib import Path
+import sys
+
+root, candidate = map(Path, sys.argv[1:])
+route = {
+    "candidate_sha": str(candidate),
+    "run_attempt": 1,
+    "run_id": 1,
+    "schema_version": "fathomdb.cuda-main-route-receipt/v2",
+    "workflow_ref": "fathomadb/fathomdb/.github/workflows/release.yml@refs/heads/main",
+    "workflow_sha": "a" * 40,
+}
+route_path = root / "route-receipt.json"
+route_path.write_text(json.dumps(route, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+manifest_path = root / "cuda-package-rehearsal.json"
+manifest = json.loads(manifest_path.read_text())
+manifest["route_receipt_sha256"] = hashlib.sha256(route_path.read_bytes()).hexdigest()
+manifest_path.write_text(json.dumps(manifest, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+PY
+expect_accept "$TMPROOT/main-route-v2" 'main-route v2 receipt is accepted for a dry run'
+
 cp -a "$VALID" "$TMPROOT/rerank-v3"
 python3 - "$TMPROOT/rerank-v3" "$REPO_ROOT" <<'PY'
 import hashlib

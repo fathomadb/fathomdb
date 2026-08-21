@@ -569,6 +569,11 @@ jobs:
     permissions:
       contents: read
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, main-owned control plane only
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control-plane
+          persist-credentials: false
       - name: Download same-run unmerged route receipt
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8.0.1
         with:
@@ -579,11 +584,6 @@ jobs:
         with:
           name: cuda-preflight-witness
           path: preflight-witness
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, main-owned control plane only
-        with:
-          ref: ${{ github.workflow_sha }}
-          path: control-plane
-          persist-credentials: false
       - name: Verify same-run receipt and preflight witness before candidate checkout
         shell: bash
         run: |
@@ -703,6 +703,11 @@ jobs:
     permissions:
       contents: read
     steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, control plane
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: control-plane
+          persist-credentials: false
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8.0.1
         with:
           name: cuda-unmerged-route-receipt-${{ github.run_id }}-${{ github.run_attempt }}
@@ -715,11 +720,6 @@ jobs:
         with:
           name: cuda-rerank-preflight-packages
           path: rerank-preflight-packages
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, control plane
-        with:
-          ref: ${{ github.workflow_sha }}
-          path: control-plane
-          persist-credentials: false
       - name: Verify candidate binding and v3 witness
         shell: bash
         run: |

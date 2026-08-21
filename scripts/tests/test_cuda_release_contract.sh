@@ -136,9 +136,9 @@ else
   exit 1
 fi
 
-if grep -Fq 'exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0' \
+if grep -Fq 'exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache LD_LIBRARY_PATH=/usr/local/cuda/lib64 FATHOMDB_EMBED_DEVICE=cuda:0' \
   "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh" \
-  && grep -Fq 'exec env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 node' \
+  && grep -Fq 'exec env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache LD_LIBRARY_PATH=/usr/local/cuda/lib64 FATHOMDB_EMBED_DEVICE=cuda:0 node' \
   "$REPO_ROOT/scripts/release/cuda-package-rehearsal-smoke.sh"; then
   printf 'PASS  Slice 20 GPU PID attestations exec the actual Python and Node runtimes\n'
 else

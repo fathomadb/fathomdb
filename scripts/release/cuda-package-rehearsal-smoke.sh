@@ -13,6 +13,7 @@ CUDA_GPU_UUID="$FATHOMDB_CUDA_GPU_UUID"
 CUDA_GPU_INDEX="$(resolve_cuda_gpu_index "$CUDA_GPU_UUID")"
 CUDA_GPU_DOCKER_SELECTOR="device=$CUDA_GPU_UUID"
 CUDA_RUNTIME_LIBRARY="${CUDA_HOME:?cuda-package-smoke: CUDA_HOME is required}/targets/x86_64-linux/lib/libcudart.so.12"
+CUDA_LIBRARY_DIRECTORY="${CUDA_HOME}/targets/x86_64-linux/lib"
 
 usage() {
   printf 'usage: %s --python-wheel FILE --npm-main FILE --napi-platform FILE --cli-archive FILE --model-cache-manifest FILE --hf-home DIR --smoke-dir DIR [--reranker-cache-manifest FILE]\n' "$0" >&2
@@ -59,6 +60,11 @@ hf_home_abs="$(realpath -- "$hf_home")"
 cuda_runtime_library_abs="$(realpath -- "$CUDA_RUNTIME_LIBRARY")"
 [ -f "$cuda_runtime_library_abs" ] || {
   printf 'cuda-package-smoke: CUDA runtime library is absent: %s\n' "$CUDA_RUNTIME_LIBRARY" >&2
+  exit 1
+}
+cuda_library_directory_abs="$(realpath -- "$CUDA_LIBRARY_DIRECTORY")"
+[ -d "$cuda_library_directory_abs" ] || {
+  printf 'cuda-package-smoke: CUDA library directory is absent: %s\n' "$CUDA_LIBRARY_DIRECTORY" >&2
   exit 1
 }
 python3 - "$hf_home_abs" "$model_cache_manifest_abs" <<'PY'
@@ -326,10 +332,11 @@ wait_for_gpu() {
 python_gpu="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
   --mount "type=bind,src=$python_wheel_abs,dst=/input/$WHEEL_FILENAME,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
+  --mount "type=bind,src=$cuda_library_directory_abs,dst=/usr/local/cuda/lib64,readonly" \
   -e "WHEEL_FILENAME=$WHEEL_FILENAME" \
   "$CUDA_MANYLINUX_IMAGE" sh -ceu '
     env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 WHEEL_FILENAME="$WHEEL_FILENAME" /opt/python/cp311-cp311/bin/python -m pip install --no-deps "/input/$WHEEL_FILENAME"
-    exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 /opt/python/cp311-cp311/bin/python -c "from fathomdb import Engine; import tempfile; from pathlib import Path; d=tempfile.TemporaryDirectory(); e=Engine.open(str(Path(d.name)/\"gpu.fdb\"),use_default_embedder=True); e.embed(\"CUDA package rehearsal installed Python GPU smoke\"); e.close(); import time; time.sleep(20)"
+    exec env -i PATH=/opt/python/cp311-cp311/bin:/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache LD_LIBRARY_PATH=/usr/local/cuda/lib64 FATHOMDB_EMBED_DEVICE=cuda:0 /opt/python/cp311-cp311/bin/python -c "from fathomdb import Engine; import tempfile; from pathlib import Path; d=tempfile.TemporaryDirectory(); e=Engine.open(str(Path(d.name)/\"gpu.fdb\"),use_default_embedder=True); e.embed(\"CUDA package rehearsal installed Python GPU smoke\"); e.close(); import time; time.sleep(20)"
   ')"
 wait_for_gpu "$python_gpu" python
 
@@ -338,10 +345,11 @@ napi_gpu="$(docker run -d --gpus "$CUDA_GPU_DOCKER_SELECTOR" --network none \
   --mount "type=bind,src=$napi_platform_abs,dst=/input/fathomdb-linux-x64-gnu.tgz,readonly" \
   --mount "type=bind,src=$hf_home_abs,dst=/fathomdb-hf,readonly" \
   --mount "type=bind,src=$cuda_runtime_library_abs,dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly" \
+  --mount "type=bind,src=$cuda_library_directory_abs,dst=/usr/local/cuda/lib64,readonly" \
   "$CUDA_DRIVERLESS_NODE_IMAGE" sh -ceu '
     mkdir /consumer && cd /consumer
     printf "%s\n" "{\"private\":true,\"type\":\"module\",\"dependencies\":{\"fathomdb\":\"file:/input/fathomdb.tgz\",\"fathomdb-linux-x64-gnu\":\"file:/input/fathomdb-linux-x64-gnu.tgz\"}}" > package.json
     env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache npm install --offline --ignore-scripts --no-audit --no-fund
-    exec env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache FATHOMDB_EMBED_DEVICE=cuda:0 node --input-type=module -e "import { Engine } from \"fathomdb\"; const e=await Engine.open(\"/tmp/gpu.fdb\",{useDefaultEmbedder:true}); await e.embed(\"CUDA package rehearsal installed N-API GPU smoke\"); await e.close(); await new Promise(resolve=>setTimeout(resolve,20000));"
+    exec env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache LD_LIBRARY_PATH=/usr/local/cuda/lib64 FATHOMDB_EMBED_DEVICE=cuda:0 node --input-type=module -e "import { Engine } from \"fathomdb\"; const e=await Engine.open(\"/tmp/gpu.fdb\",{useDefaultEmbedder:true}); await e.embed(\"CUDA package rehearsal installed N-API GPU smoke\"); await e.close(); await new Promise(resolve=>setTimeout(resolve,20000));"
   ')"
 wait_for_gpu "$napi_gpu" napi

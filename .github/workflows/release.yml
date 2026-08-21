@@ -379,6 +379,13 @@ jobs:
           name: cuda-preflight-witness
           path: ${{ env.CUDA_PREFLIGHT_WITNESS_DIR }}
           if-no-files-found: error
+      - name: Upload CUDA preflight package bytes
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cuda-preflight-packages
+          path: ${{ env.CUDA_PREFLIGHT_WITNESS_DIR }}.packages
+          if-no-files-found: error
       - name: Upload CUDA reranker v3 preflight witness
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -590,6 +597,11 @@ jobs:
         with:
           name: cuda-preflight-witness
           path: preflight-witness
+      - name: Download same-run CUDA preflight package bytes
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v8.0.1
+        with:
+          name: cuda-preflight-packages
+          path: preflight-packages
       - name: Verify same-run receipt and preflight witness before candidate checkout
         shell: bash
         run: |
@@ -652,9 +664,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          wheel="$(find ../preflight-witness/python-dist -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
-          npm_main="$(find ../preflight-witness/npm-artifacts/main -maxdepth 1 -type f -name 'fathomdb-*.tgz' -print -quit)"
-          napi_platform="$(find ../preflight-witness/npm-artifacts/platforms/linux-x64-gnu -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
+          wheel="$(find ../preflight-packages -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
+          npm_main="$(find ../preflight-packages -maxdepth 1 -type f -name 'fathomdb-*.tgz' ! -name '*linux-x64-gnu*' -print -quit)"
+          napi_platform="$(find ../preflight-packages -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
           cli_archive="$(find . -maxdepth 1 -type f -name 'fathomdb-*-x86_64-unknown-linux-gnu.tar.gz' -print -quit)"
           test -n "$wheel" && test -n "$npm_main" && test -n "$napi_platform" && test -n "$cli_archive"
           bash ../control-plane/scripts/release/cuda-package-rehearsal-smoke.sh \
@@ -669,9 +681,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          wheel="$(find preflight-witness/python-dist -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
-          npm_main="$(find preflight-witness/npm-artifacts/main -maxdepth 1 -type f -name 'fathomdb-*.tgz' -print -quit)"
-          napi_platform="$(find preflight-witness/npm-artifacts/platforms/linux-x64-gnu -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
+          wheel="$(find preflight-packages -maxdepth 1 -type f -name 'fathomdb-*.whl' -print -quit)"
+          npm_main="$(find preflight-packages -maxdepth 1 -type f -name 'fathomdb-*.tgz' ! -name '*linux-x64-gnu*' -print -quit)"
+          napi_platform="$(find preflight-packages -maxdepth 1 -type f -name 'fathomdb-linux-x64-gnu-*.tgz' -print -quit)"
           cli_archive="$(find candidate -maxdepth 1 -type f -name 'fathomdb-*-x86_64-unknown-linux-gnu.tar.gz' -print -quit)"
           bash control-plane/scripts/release/cuda-package-rehearsal.sh \
             --candidate-sha '${{ inputs.candidate_commit }}' \

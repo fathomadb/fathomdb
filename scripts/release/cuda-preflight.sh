@@ -797,11 +797,9 @@ PY
 python3 "$SCRIPT_DIR/verify-cuda-preflight-witness.py" \
   --witness-dir "$OUTPUT_DIR" \
   --candidate-sha "$CANDIDATE_SHA"
-if [ "$RERANK_CUDA" = true ]; then
-  PACKAGE_DIR="${OUTPUT_DIR}.packages"
-  mkdir "$PACKAGE_DIR"
-  cp "$WHEEL" "$PACKAGE_DIR/"
-  cp "$NPM_MAIN/$NPM_MAIN_TARBALL" "$PACKAGE_DIR/"
-  cp "$NPM_PLATFORM/$NPM_PLATFORM_TARBALL" "$PACKAGE_DIR/"
-fi
+PACKAGE_DIR="${OUTPUT_DIR}.packages"
+mkdir "$PACKAGE_DIR"
+cp "$WHEEL" "$PACKAGE_DIR/"
+cp "$NPM_MAIN/$NPM_MAIN_TARBALL" "$PACKAGE_DIR/"
+cp "$NPM_PLATFORM/$NPM_PLATFORM_TARBALL" "$PACKAGE_DIR/"
 printf 'cuda-preflight: pass; witness at %s\n' "$OUTPUT_DIR"

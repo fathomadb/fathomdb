@@ -211,12 +211,10 @@ docker run --rm --network none \
   "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
   env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable HF_HOME=/fathomdb-hf XDG_CACHE_HOME=/fathomdb-product-cache WHEEL_FILENAME="$WHEEL_FILENAME" sh -ceu '
     test ! -e /dev/nvidiactl
+    python -m pip install --no-deps "/input/$WHEEL_FILENAME"
     exec python -c '"'"'
 import tempfile
-import os
 from pathlib import Path
-import subprocess
-subprocess.run(["python", "-m", "pip", "install", "--no-deps", f"/input/{os.environ['WHEEL_FILENAME']}"], check=True)
 from fathomdb import Engine
 with tempfile.TemporaryDirectory() as d:
     engine=Engine.open(str(Path(d) / "cpu.fdb"), use_default_embedder=True)

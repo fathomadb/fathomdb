@@ -75,7 +75,7 @@ EOF
       policy=cuda:0 status=cuda_unavailable effective=null reason='"no_visible_cuda_device"' exit_code=65 ordinal_value=0 environment='{"FATHOMDB_EMBED_DEVICE":"cuda:0"}'
     fi
     stdout="$root/smoke/$mode-cli-stdout.json"
-    printf '{"schema_version":"fathomdb.doctor.gpu/v1","policy":"%s","cuda_compiled":true,"status":"%s","effective_device":%s,"devices":[],"reason":%s,"selected_uuid":null}\n' "$policy" "$status" "$effective" "$reason" > "$stdout"
+    printf '{"schema_version":"fathomdb.doctor.gpu.v1","policy":"%s","cuda_compiled":true,"status":"%s","effective_device":%s,"devices":[],"reason":%s,"selected_uuid":null}\n' "$policy" "$status" "$effective" "$reason" > "$stdout"
     digest="$(sha256sum "$stdout" | cut -d' ' -f1)"
     cat > "$root/smoke/$mode-cli.json" <<EOF
 {"archive_filename":"fathomdb-$version-x86_64-unknown-linux-gnu.tar.gz","archive_sha256":"PLACEHOLDER","argv":["/tmp/fathomdb-cli/fathomdb-$version-x86_64-unknown-linux-gnu/fathomdb","doctor","gpu","--json"],"consumer":"cli","doctor_output_filename":"$mode-cli-stdout.json","doctor_output_sha256":"$digest","effective_device":$effective,"environment":$environment,"evidence_provenance":"installed_candidate","exit_code":$exit_code,"isolation":{"database_opened":false,"model_loaded":false,"network":"none","source_checkout_mounted":false},"reason":$reason,"requested_ordinal":$ordinal_value,"requested_policy":"$policy","schema_version":"fathomdb.cuda-package-cli-smoke/v2","status":"$status","target":"x86_64-unknown-linux-gnu"}

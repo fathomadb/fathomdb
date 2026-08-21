@@ -228,7 +228,7 @@ def validate_package_coordinate(kind: str, value: object, version: str, package_
 def validate_doctor_output(value: dict[str, Any], raw: bytes, policy: str, status: str, effective: object, reason: object) -> None:
     require_exact_keys(value, {"schema_version", "policy", "cuda_compiled", "status", "effective_device", "devices", "reason", "selected_uuid"}, "raw doctor output")
     expected = {
-        "schema_version": "fathomdb.doctor.gpu/v1", "policy": policy, "cuda_compiled": True,
+        "schema_version": "fathomdb.doctor.gpu.v1", "policy": policy, "cuda_compiled": True,
         "status": status, "effective_device": effective, "devices": [], "reason": reason,
         "selected_uuid": None,
     }

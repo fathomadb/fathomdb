@@ -261,11 +261,12 @@ for mode in cpu forced-cuda-unavailable; do
   docker run --rm --network none \
     --mount "type=bind,src=$cli_archive_abs,dst=/input/fathomdb-cli.tar.gz,readonly" \
     --mount "type=bind,src=$smoke_dir_abs,dst=/evidence" \
+    --mount "type=bind,src=$smoke_dir_abs,dst=/fathomdb-cli" \
     "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
     # FATHOMDB_RERANK_DEVICE is absent under env -i: the product's unset=auto path is the evidence.
     env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable \
       "${doctor_env[@]}" sh -ceu '
-        mkdir /fathomdb-cli
+        mkdir -p /fathomdb-cli
         tar -xzf /input/fathomdb-cli.tar.gz -C /fathomdb-cli
         binary="$(find /fathomdb-cli -mindepth 2 -maxdepth 2 -type f -name fathomdb -print -quit)"
         exec "$binary" doctor gpu --json
@@ -280,10 +281,11 @@ if [ -n "$reranker_cache_manifest_abs" ]; then
   set +e
   docker run --rm --network none \
     --mount "type=bind,src=$cli_archive_abs,dst=/input/fathomdb-cli.tar.gz,readonly" \
+    --mount "type=bind,src=$smoke_dir_abs,dst=/fathomdb-cli" \
     "$CUDA_DRIVERLESS_PYTHON_IMAGE" \
     env -i PATH=/usr/local/bin:/usr/bin:/bin HOME=/tmp/unavailable \
       sh -ceu '
-        mkdir /fathomdb-cli
+        mkdir -p /fathomdb-cli
         tar -xzf /input/fathomdb-cli.tar.gz -C /fathomdb-cli
         binary="$(find /fathomdb-cli -mindepth 2 -maxdepth 2 -type f -name fathomdb -print -quit)"
         exec "$binary" doctor reranker-gpu --json

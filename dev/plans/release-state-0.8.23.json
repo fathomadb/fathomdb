@@ -1,6 +1,6 @@
 {
   "release": "0.8.23",
-  "release_kind": "integrated; publication pending",
+  "release_kind": "released; publication complete",
   "board": "dev/plans/runs/STATUS-0.8.23.md",
   "plan": "dev/plans/plan-0.8.23.md",
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
@@ -392,9 +392,9 @@
       },
       {
         "id": "publication",
-        "title": "Complete planning and any approved implementation/rehearsal without publishing 0.8.23",
+        "title": "Publish 0.8.23 after the owner accepted the completed release evidence",
         "halts_run": false,
-        "source": "HITL 2026-08-10"
+        "source": "repository owner 2026-08-21"
       }
     ]
   },

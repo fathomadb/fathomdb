@@ -242,7 +242,7 @@ manifest["pending_external"] = ["compatible_gpu_reranker_cli", "incompatible_rer
 manifest["build_input"] = build
 manifest["preflight_witness_sha256"] = hashlib.sha256(preflight_witness_path.read_bytes()).hexdigest()
 archive = manifest["packages"]["cli_archive"]
-raw = json.dumps({"schema_version":"fathomdb.doctor.reranker-gpu.v1","subsystem":"reranker","policy":"auto","cuda_compiled":True,"effective_device":"cpu","devices":[],"reason":"no_visible_cuda_device","selected_uuid":None}, ensure_ascii=True, separators=(",", ":")).encode("ascii") + b"\n"
+raw = json.dumps({"schema_version":"fathomdb.doctor.reranker-gpu.v1","subsystem":"reranker","policy":"auto","cuda_compiled":True,"effective_device":"cpu","devices":[],"reason":"no_visible_cuda_device","selected_uuid":None}, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("ascii") + b"\n"
 smoke = root / "smoke"
 (smoke / "reranker-cli-doctor-stdout.json").write_bytes(raw)
 version = manifest["version"]

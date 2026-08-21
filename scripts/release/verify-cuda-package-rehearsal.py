@@ -322,7 +322,7 @@ def validate_reranker_cli_doctor(root: Path, value: dict[str, Any], version: str
         "policy": "auto", "cuda_compiled": True, "effective_device": "cpu", "devices": [],
         "reason": "no_visible_cuda_device", "selected_uuid": None,
     }
-    if raw != json.dumps(expected, ensure_ascii=True, separators=(",", ":")).encode("ascii") + b"\n" or output != expected:
+    if raw != json.dumps(expected, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("ascii") + b"\n" or output != expected:
         fail("reranker CLI doctor raw output differs from the product CPU diagnostic")
 
 

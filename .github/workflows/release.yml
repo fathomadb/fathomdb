@@ -1588,6 +1588,8 @@ jobs:
           node-version: "25.9.0"
           registry-url: "https://registry.npmjs.org"
       - name: Promote only the main fathomdb package to latest
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm dist-tag add "fathomdb@${RELEASE_TAG#v}" latest
 
   # AC-054 partial: only this job marks the release complete by creating the

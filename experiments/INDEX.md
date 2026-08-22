@@ -18,3 +18,4 @@ GENERATED FROM `index.jsonl` — do NOT hand-edit. Regenerate with `experiments/
 | 2026-08-22T18:19:04Z | scale-02-input-pack | scale-02-input-pack-20260822T1819Z-221cf7ed | complete | 17376 | 4d2a4d65528f7a04a67ed3930ab02cb50aeae42d | 0.0 | file_count=17376; program_track=SCALE-02 |  |
 | 2026-08-22T18:23:06Z | scale-02-fts-tuning | scale-02-fts-tuning-20260822T1823Z-27c3a7ae | complete | 10000 | 50869a70a0035cefff5b63ce57814003be7ff61b | 0.0 | cells=6; equivalence_mismatches=22; program_track=SCALE-02 |  |
 | 2026-08-22T18:37:06Z | scale-02-fts-tuning | scale-02-fts-tuning-20260822T1837Z-d50ec2cf | complete | 10000 | d2ebdcd4526ad33e4b840eaf3d2c03dbc5f6681f | 0.0 | cells=6; equivalence_mismatches=22; program_track=SCALE-02 |  |
+| 2026-08-22T18:51:14Z | scale-02-fts-tuning | scale-02-fts-tuning-20260822T1851Z-51e41245 | complete | 10000 | 6c24da79c09c17ec20ac4f9615c7f6229997e739 | 0.0 | cells=6; equivalence_mismatches=0; program_track=SCALE-02 |  |

@@ -201,6 +201,17 @@ def test_aggregate_emits_fidelity_and_uncertainty_without_payloads_or_latency_cl
     assert "latency" not in encoded
     assert "elapsed" not in encoded
 
+    primary_receipt = tc5_gpu_v2.aggregate_results(
+        config,
+        arm="primary",
+        results=[dict(result, selected_vector_rows=17271) for result in results],
+        fixture_digest="1" * 64,
+        index_digest="2" * 64,
+        binary_digest="3" * 64,
+    )
+    assert receipt["action"] == "tc5-gpu-smoke"
+    assert primary_receipt["action"] == "tc5-gpu-primary"
+
 
 def test_aggregate_rejects_partial_or_wrong_device_results():
     config = tc5_gpu_v2.load_config(CONFIG)

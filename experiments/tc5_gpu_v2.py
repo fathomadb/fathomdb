@@ -503,7 +503,7 @@ def aggregate_results(
     return {
         "schema_version": "tc5-gpu-arm-result.v2",
         "program_track": "SCALE-01",
-        "action": "tc5-gpu-smoke",
+        "action": "tc5-gpu-smoke" if arm == "bridge" else "tc5-gpu-primary",
         "arm": arm,
         "document_count": config.arms[arm],
         "query_completion_count": config.query_count,

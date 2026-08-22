@@ -195,8 +195,20 @@ matrix_target="\${{ matrix.target }}"
 
 grep -Fqx '    needs: changes' <<<"$block" \
   || fail 'runtime job must run after the non-docs detector'
-grep -Fqx "    if: needs.changes.outputs.docs_only != 'true'" <<<"$block" \
-  || fail 'runtime job must be always-on for every non-docs change'
+# Proportional routing: the job runs for the categories that actually feed the
+# native artifacts (plus the ci.yml override), never for Markdown-only diffs,
+# and not under [ci-lite]. The exact boolean shape is evaluated by
+# scripts/tests/test_ci_proportional_routing.py; this guards the drivers.
+grep -Fqx "    if: >-" <<<"$block" \
+  || fail 'runtime job must carry a folded job-level routing condition'
+for driver in ci_workflow rust python typescript native_artifact_harness; do
+  grep -Fq "needs.changes.outputs.${driver} == 'true'" <<<"$block" \
+    || fail "runtime job routing must include the ${driver} category"
+done
+grep -Fq "needs.changes.outputs.docs_only != 'true'" <<<"$block" \
+  || fail 'runtime job must skip Markdown-only changes'
+grep -Fq "needs.changes.outputs.ci_mode != 'lite'" <<<"$block" \
+  || fail 'runtime job must be suppressed under [ci-lite]'
 grep -Fqx "    runs-on: \${{ matrix.runner }}" <<<"$block" \
   || fail 'runtime job must execute on every selected native runner'
 
@@ -348,7 +360,9 @@ if [ "${NATIVE_RUNTIME_VALIDATION_FIXTURE:-0}" != "1" ]; then
     fail 'exact-five control accepted an unsupported sixth matrix row'
   fi
 
-  sed '0,/smoke-local-native-artifacts\.sh/s//smoke-pypi-wheel.sh/' "$CI_YML" > "$fixture"
+  # Substitute the job's invocation, not the classifier's path-filter entry for
+  # the same script (which precedes the job in the workflow).
+  sed '0,/bash scripts\/release\/smoke\/smoke-local-native-artifacts\.sh/s//bash scripts\/release\/smoke\/smoke-pypi-wheel.sh/' "$CI_YML" > "$fixture"
   if NATIVE_RUNTIME_VALIDATION_FIXTURE=1 CI_YML="$fixture" bash "$0" >/dev/null 2>&1; then
     fail 'local-artifact command control accepted a registry smoke substitution'
   fi

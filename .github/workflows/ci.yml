@@ -227,7 +227,12 @@ jobs:
   # cannot be absent from both jobs, and no suite can be in both by accident.
   verify-fast:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      always() &&
+      (
+        needs.changes.result != 'success' ||
+        needs.changes.outputs.docs_only != 'true'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -280,7 +285,19 @@ jobs:
   # language skips.
   verify:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.rust == 'true' ||
+          needs.changes.outputs.python == 'true' ||
+          needs.changes.outputs.typescript == 'true' ||
+          needs.changes.outputs.verify_harness == 'true' ||
+          needs.changes.outputs.rust_test_harness == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -345,7 +362,16 @@ jobs:
   # without allowing its known scheduling-sensitive failures to gate a release.
   rust-workspace-race-report:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.rust == 'true' ||
+          needs.changes.outputs.rust_test_harness == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -404,7 +430,18 @@ jobs:
   # gate rather than pass vacuously.
   security:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.rust == 'true' ||
+          needs.changes.outputs.python == 'true' ||
+          needs.changes.outputs.typescript == 'true' ||
+          needs.changes.outputs.security_harness == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
@@ -439,7 +476,17 @@ jobs:
   # the env var stays unset and the tests run normally — fast on warm cache.
   default-embedder-tests:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.rust == 'true' ||
+          needs.changes.outputs.python == 'true' ||
+          needs.changes.outputs.typescript == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -551,7 +598,15 @@ jobs:
   # its retained log records elapsed checkpoint time and the typed lock result.
   windows-wal-checkpoint-diagnosis:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.rust == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
@@ -580,7 +635,17 @@ jobs:
   # only—never a database path, SQL, query text, source id, or result data.
   windows-wal-attribution:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.rust == 'true' ||
+          needs.changes.outputs.python == 'true' ||
+          needs.changes.outputs.windows == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -868,7 +933,16 @@ jobs:
   # macOS x64/ARM64, and Windows x64. Musl and other targets remain unsupported.
   wheel-size-gate:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.rust == 'true' ||
+          needs.changes.outputs.python == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
     strategy:
       fail-fast: false
       matrix:
@@ -973,7 +1047,18 @@ jobs:
   # remain the post-publish Slice 20 release gate.
   native-artifact-runtime-validation:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.rust == 'true' ||
+          needs.changes.outputs.python == 'true' ||
+          needs.changes.outputs.typescript == 'true' ||
+          needs.changes.outputs.native_artifact_harness == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
     strategy:
       fail-fast: false
       matrix:

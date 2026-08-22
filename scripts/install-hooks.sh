@@ -6,10 +6,11 @@
 #
 # WHY core.hooksPath instead of symlinking into .git/hooks:
 #   * Zero "remember to run it": once bootstrap.sh sets this, every actor in
-#     this clone runs the tracked pre-commit (md auto-fix/enforce, fmt, ruff)
-#     and pre-push automatically — there is no per-file adoption decision that
-#     could silently leave a stale legacy hook in place (the failure mode that
-#     left the markdown guard dormant in every checkout).
+#     this clone runs the tracked pre-commit (md auto-fix/enforce, fmt, ruff),
+#     advisory commit-msg warning, and pre-push automatically — there is no
+#     per-file adoption decision that could silently leave a stale legacy hook
+#     in place (the failure mode that left the markdown guard dormant in every
+#     checkout).
 #   * Worktrees: core.hooksPath lives in the SHARED common config (.git/config),
 #     so linked worktrees inherit it; the value is REPO-RELATIVE (scripts/hooks),
 #     which git resolves against each worktree's own root — so a linked worktree
@@ -29,7 +30,7 @@ DESIRED="scripts/hooks"
 
 # Keep the tracked hooks executable (a fresh clone can land them mode 0644 on
 # some filesystems / archive extractions).
-chmod +x scripts/hooks/pre-commit scripts/hooks/pre-push 2>/dev/null || true
+chmod +x scripts/hooks/pre-commit scripts/hooks/commit-msg scripts/hooks/pre-push 2>/dev/null || true
 
 CURRENT="$(git config --get core.hooksPath || true)"
 if [ "$CURRENT" = "$DESIRED" ]; then
@@ -43,5 +44,5 @@ fi
 
 git config core.hooksPath "$DESIRED"
 echo "install-hooks: set core.hooksPath='$DESIRED'."
-echo "install-hooks: tracked pre-commit (md auto-fix/enforce, fmt, ruff) + pre-push"
+echo "install-hooks: tracked pre-commit + advisory commit-msg warning + pre-push"
 echo "install-hooks: (fast clippy/actionlint; full gate opt-in via FATHOMDB_PREPUSH_FULL=1) are now active."

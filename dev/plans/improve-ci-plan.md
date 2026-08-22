@@ -327,15 +327,16 @@ message mentioned `[skip ci]` in prose. GitHub interprets that text before it
 starts `push` and `pull_request` workflows, so neither `ci.yml` nor its router
 can report the suppressed run.
 
-Before a squash landing, scan every message that GitHub may copy into the
-squash body:
+The landing-message defect was corrected in two layers. The repository squash
+defaults are now `PR_TITLE` plus `BLANK`, so checkpoint messages are no longer
+copied into the generated commit body. A warning-only detector runs against
+the final proposed message in the tracked `commit-msg` hook, rescans outgoing
+history in `pre-push`, and checks the PR title in the existing `changes` job.
+Every warning remains advisory and recommends `[ci-lite]` for intentionally
+proportional CI; no new gate was added.
 
-```bash
-git log --format=%B origin/main..HEAD |
-  rg -n -i '\[(skip ci|ci skip|no ci|skip actions|actions skip)\]|^skip-checks:[[:space:]]*true$'
-```
-
-An empty result is expected. The merge dialog's final title and body remain
-the authoritative input; for a deterministic CLI landing, pass an explicit
-clean `--subject` and `--body` to `gh pr merge --squash`. After merge, the
-absence of the expected `CI` run for the merge SHA is the post-landing alert.
+PR #244 then exercised the configured default without supplying a hand-written
+subject or body. GitHub produced commit `0985cfcd` with the PR title and an
+empty body, and `main`-push CI run `32603662022` completed successfully through
+the Markdown/baseline route while all eight scoped heavy jobs and `verify-fast`
+were skipped.

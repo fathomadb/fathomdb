@@ -188,7 +188,11 @@ def load_config(path: str | Path) -> dict[str, Any]:
         ("rank_cache64", "rank_fast", "cache64"),
         ("rank_mmap256_cache64", "rank_fast", "mmap256_cache64"),
     ]
-    if not isinstance(cells, list) or [
+    if not isinstance(cells, list):
+        raise Scale02FollowupError("tuning cell matrix drifted")
+    for cell in cells:
+        _exact(cell, "tuning cell", {"id", "query_path", "reader_profile"})
+    if [
         (item.get("id"), item.get("query_path"), item.get("reader_profile"))
         for item in cells
     ] != expected_cells:

@@ -1,6 +1,6 @@
 # SCALE-02 — Local-first scale envelope
 
-**Status:** active; workload preregistration next.
+**Status:** active; workload and advisory policy approved, 10k execution next.
 
 ## Decision
 
@@ -18,6 +18,9 @@ retrieval profile without implying an unmeasured capacity guarantee?
 - SCALE-02 measures FathomDB 0.8.23 on one declared host. Its result is an
   advisory operating envelope for the registered workload, not a product
   capacity limit.
+- The executable
+  [configuration](../../../experiments/configs/scale-02/a0-envelope.v1.json)
+  binds the workload and advisory policy approved by the HITL on 2026-08-22.
 
 ## Draft plan
 

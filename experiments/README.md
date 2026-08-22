@@ -80,6 +80,28 @@ its download bytes and elapsed time are retained outside the measured cell; the
 subsequent open records the resolved device and allocation witness. The safe
 setup metadata belongs beside external artifacts, not in a committed receipt.
 
+## SCALE-02 local-first envelope
+
+`python -m experiments.scale_02` owns the A0 FTS-only efficiency envelope. Its
+[configuration](configs/scale-02/a0-envelope.v1.json) binds ANSWER-01's A0
+decision, the SCALE-01 primary, the 10k/17,272/25k/40k/50k ladder, fresh
+databases, repetitions, cache states, resource/storage metrics, uncertainty,
+and the advisory policy. Validate it or qualify all frozen inputs without
+creating output:
+
+```bash
+python -m experiments.scale_02 validate experiments/configs/scale-02/a0-envelope.v1.json
+python -m experiments.scale_02 dry-run experiments/configs/scale-02/a0-envelope.v1.json /external/new-root
+```
+
+The workload and advisory policy were approved together by the HITL on
+2026-08-22. Execute one increasing ladder point at a time against a new
+external root. Each point creates five fresh databases and writes a standard
+receipt plus index row, including a blocked receipt if authorized execution
+fails. The 10k and 17,272 prefixes are real; larger points add explicitly
+labelled deterministic derived-fixture rows and therefore make efficiency,
+not additional real-corpus fidelity, claims.
+
 ## Rules for the writer
 
 - `index.jsonl` is **append-only**: never rewrite or reorder existing lines.

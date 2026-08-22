@@ -85,9 +85,13 @@ preflight_trigger="$(awk '
   found && /^[^[:space:]#][^:]*:$/ { exit }
   found { print }
 ' "$PREFLIGHT")"
-expected_trigger=$'  push:\n    paths:\n      - .github/workflows/aarch64-release-preflight.yml\n      - .github/workflows/release.yml\n      - src/python/**\n      - src/rust/**\n      - src/ts/**\n      - Cargo.toml\n      - Cargo.lock\n  workflow_dispatch:'
+# Manual rehearsal only. The automatic ARM64 owner is ci.yml's proportional
+# native-artifact-runtime-validation row (ubuntu-24.04-arm), which also asserts
+# the shipped cp310-abi3 wheel tag; a push/schedule trigger here would bypass
+# the change classifier (and GitHub ignores path filters on tag pushes).
+expected_trigger=$'  workflow_dispatch:'
 if [ "$preflight_trigger" != "$expected_trigger" ]; then
-  printf 'FAIL  AArch64 release preflight triggers or watched paths drifted\n' >&2
+  printf 'FAIL  AArch64 release preflight must be workflow_dispatch-only (no push or schedule)\n' >&2
   exit 1
 fi
 

@@ -48,6 +48,31 @@ env:
   NPM_DIST_TAG: "next"
 
 jobs:
+  # Advisory full-history secret scan from the selected release candidate's
+  # checkout (the history script mirrors and scans every fetched ref).
+  # Independent by design: no `needs`, and no build, publisher, smoke,
+  # promotion, or finalization job may depend on it. `continue-on-error` keeps
+  # it visible on the run without gating publication while the history
+  # allowlist baseline remains noisy (see dev/design/ci-cd-simplified-redesign).
+  # Per-push CI scans only the current tree; the same scan is also available
+  # on demand via .github/workflows/gitleaks-history.yml.
+  gitleaks-history-advisory:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0, candidate SHA or canonical release tag
+        with:
+          ref: ${{ env.RELEASE_CHECKOUT_REF }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install pinned Gitleaks
+        run: bash scripts/install-gitleaks.sh
+      - name: Scan reachable Git history
+        run: bash scripts/security/gitleaks-history.sh
+
   # Single ubuntu preflight. Combines:
   #   - scripts/verify-release-gates.sh (tag↔Cargo.toml lockstep, set-version
   #     --check-files lockstep, HEAD-on-main, CHANGELOG section, crate

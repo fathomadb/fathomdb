@@ -536,6 +536,56 @@ if [ "${NATIVE_RUNTIME_VALIDATION_FIXTURE:-0}" != "1" ]; then
   if NATIVE_RUNTIME_VALIDATION_FIXTURE=1 PS1_HELPER="$ps1_fixture" bash "$0" >/dev/null 2>&1; then
     fail 'PowerShell exit-code control accepted removal of the Python smoke guard'
   fi
+
+  # ABI3 ownership: the proportional native row is the automatic owner of the
+  # ARM64 wheel evidence formerly carried by the AArch64 preflight's
+  # three-interpreter maturin build. The Bash smoke therefore asserts the
+  # shipped stable-ABI tag structurally — filename and WHEEL metadata — before
+  # any install. These controls run the real script against synthetic wheels.
+  SH_HELPER="$REPO_ROOT/scripts/release/smoke/smoke-local-native-artifacts.sh"
+  grep -Fq 'cp310-abi3' "$SH_HELPER" \
+    || fail 'Bash smoke must assert the shipped cp310-abi3 wheel tag'
+  abi3_root="$(mktemp -d)"
+  trap 'rm -f "$fixture" "$ps1_fixture"; rm -rf "$abi3_root"' EXIT
+  mkdir -p "$abi3_root/ts"
+  : > "$abi3_root/ts/fathomdb.linux-x64-gnu.node"
+  make_wheel() {
+    # $1 wheel dir, $2 filename, $3 WHEEL metadata tag
+    rm -rf "$1"
+    mkdir -p "$1"
+    python3 - "$1/$2" "$3" <<'PY'
+import sys, zipfile
+path, tag = sys.argv[1], sys.argv[2]
+with zipfile.ZipFile(path, "w") as wheel:
+    wheel.writestr(
+        "fathomdb-0.0.0.dist-info/WHEEL",
+        f"Wheel-Version: 1.0\nGenerator: fixture\nRoot-Is-Purelib: false\nTag: {tag}\n",
+    )
+PY
+  }
+  run_abi3_control() {
+    # Echoes the script's stderr; ignores its exit status.
+    { bash "$SH_HELPER" "$1" "$abi3_root/ts" "$abi3_root/ts" linux-x64-gnu >/dev/null; } 2>&1 || true
+  }
+  make_wheel "$abi3_root/wrong-name" fathomdb-0.0.0-cp311-cp311-linux_x86_64.whl cp311-cp311-linux_x86_64
+  if bash "$SH_HELPER" "$abi3_root/wrong-name" "$abi3_root/ts" "$abi3_root/ts" linux-x64-gnu >/dev/null 2>&1; then
+    fail 'ABI3 control accepted a wheel whose filename is not tagged cp310-abi3'
+  fi
+  abi3_output="$(run_abi3_control "$abi3_root/wrong-name")"
+  [[ "$abi3_output" == *'not tagged cp310-abi3'* ]] \
+    || fail 'ABI3 control did not name the expected cp310-abi3 tag for a mis-tagged filename'
+  make_wheel "$abi3_root/wrong-meta" fathomdb-0.0.0-cp310-abi3-linux_x86_64.whl cp311-cp311-linux_x86_64
+  if bash "$SH_HELPER" "$abi3_root/wrong-meta" "$abi3_root/ts" "$abi3_root/ts" linux-x64-gnu >/dev/null 2>&1; then
+    fail 'ABI3 control accepted a cp310-abi3 filename over mismatched WHEEL metadata'
+  fi
+  abi3_output="$(run_abi3_control "$abi3_root/wrong-meta")"
+  [[ "$abi3_output" == *'not tagged cp310-abi3'* ]] \
+    || fail 'ABI3 control did not name the expected cp310-abi3 tag for mismatched WHEEL metadata'
+  make_wheel "$abi3_root/consistent" fathomdb-0.0.0-cp310-abi3-linux_x86_64.whl cp310-abi3-linux_x86_64
+  abi3_output="$(run_abi3_control "$abi3_root/consistent")"
+  if [[ "$abi3_output" == *'not tagged cp310-abi3'* ]]; then
+    fail 'ABI3 control rejected a consistently tagged cp310-abi3 wheel'
+  fi
 fi
 
 printf 'PASS test-native-artifact-runtime-validation\n'

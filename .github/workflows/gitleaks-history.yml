@@ -1,0 +1,26 @@
+name: Gitleaks history
+
+# On-demand full-history secret scan. Per-push CI keeps the current-tree scan
+# (scripts/security/gitleaks-current.sh, always-on in ci.yml); the reachable-
+# history classification is expensive and its allowlist baseline is known to
+# be noisy, so it runs here by dispatch and as an independent advisory job in
+# release.yml rather than on every push. No push or schedule trigger.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks-history:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install pinned Gitleaks
+        run: bash scripts/install-gitleaks.sh
+      - name: Scan reachable Git history
+        run: bash scripts/security/gitleaks-history.sh

@@ -61,6 +61,7 @@ typescript/node_modules/
 typescript/packages/*/dist/
 typescript/apps/*/dist/
 .venv/
+.venv
 **/.venv/
 dist/
 **/dist/

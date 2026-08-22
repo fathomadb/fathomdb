@@ -19,6 +19,14 @@ blast_radius: >
 
 # CI/CD redesign — final evaluation and recommendation
 
+> **§2–§4 and §8 SUPERSEDED 2026-08-21.** The HITL rejected this doc's
+> tiers/aggregator-required-checks/nightly-schedule/rollout-soak shape as
+> too much process for a single-maintainer repo. See
+> `ci-cd-simplified-redesign-20260821.md` for the corrected, much smaller
+> prescription. §1 (the challenge evaluation) and §5–§7 (the gitleaks
+> precondition, the stale-doc flags, and the honest limits of any CI
+> redesign) are unaffected and still hold.
+
 **Status: PROPOSED.** Nothing here is implemented. No workflow, script,
 GitHub setting, or ledger entry changes as a result of this document. Every
 recommendation below is for the HITL to accept, defer, amend, or reject.

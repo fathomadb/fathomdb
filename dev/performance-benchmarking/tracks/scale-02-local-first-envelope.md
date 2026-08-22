@@ -1,8 +1,7 @@
 # SCALE-02 — Local-first scale envelope
 
-**Status:** compact follow-up execution in progress; the completed
-default-0.8.23 result remains the baseline, and the formal rerun is not yet
-authorized.
+**Status:** compact follow-up complete; `rank_default` is recommended and the
+formal 10k rerun awaits HITL approval plus production landing.
 
 ## Decision
 
@@ -60,10 +59,12 @@ retrieval profile without implying an unmeasured capacity guarantee?
 ## Follow-up plan
 
 1. **Implement and qualify the candidates.** Add the deterministic FTS rank
-   fast path: request `top_k + 1` rows with `ORDER BY rank`, sort the retained
-   set by `(score, write_cursor)`, and fall back to the existing full sort when
-   the top-k boundary is tied. Test byte-identical ordered hits and scores for
-   ties, supersession, validity, edge fusion, and public limit-prefix behavior.
+   fast path: request the existing direct-text candidate window plus one row
+   with `ORDER BY rank`, sort the retained candidate window by
+   `(score, write_cursor)`, and fall back to the existing full sort when the
+   candidate-window boundary is tied. Test byte-identical ordered hits and
+   scores for overfetch/body deduplication, ties, supersession, validity, edge
+   fusion, and public limit-prefix behavior.
    Implement observed reader-setting evidence; experiment-only environment
    hooks are not an eligible production configuration.
 2. **Generate tuning and equivalence evidence.** First compare the current and
@@ -113,6 +114,15 @@ SCALE-02 operating point was established under this policy.
 
 Unregistered local diagnostics motivated the follow-up matrix but are not
 decision evidence. They must be reproduced by the stored tuning receipts.
+
+The corrected [compact tuning receipt](../../../experiments/runs/scale-02-fts-tuning-20260822T1851Z-51e41245/record.json)
+records five fresh repetitions per cell, zero errors/timeouts, exact ordered
+top-10 equivalence for all 100 TC-5 and 32 ANSWER-01 queries, and observed
+reader settings. `rank_default` is the lowest-footprint eligible cell: its 95%
+upper bounds are 9.50 ms p50 and 44.25 ms p99 with shipped reader defaults.
+The [selection receipt](../../../experiments/runs/scale-02-fts-selection-20260822T1859Z-946ebdc2/record.json)
+and [proposed v2 configuration](../../../experiments/configs/scale-02/a0-envelope.v2.proposed.json)
+remain pending HITL; no formal 10k rerun has occurred.
 
 ## Stop
 

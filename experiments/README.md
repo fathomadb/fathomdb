@@ -109,6 +109,8 @@ reader profiles, concurrency 1/2/4, and 132 retrieval-equivalence queries. Raw
 databases, timings, witnesses, and their artifact manifest remain external;
 safe aggregates use the normal experiment index. Selection writes a
 pending-HITL v2 proposal and cannot authorize the formal 10k rerun.
+The current proposal selects the rank-fast query path with shipped reader
+defaults; its receipt and configuration remain pending HITL.
 
 ## Rules for the writer
 

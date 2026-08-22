@@ -10,12 +10,9 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. **ANSWER-01:** implement and run the fixed 32-question, two-arm, $0 dry run.
-2. **ANSWER-01:** if separately launched, run the capped live pilot and apply
-   its answer-quality boundary.
-3. **SCALE-01:** implement TC-5 v2, then run the 7,667-document GPU smoke and
+1. **SCALE-01:** implement TC-5 v2, then run the 7,667-document GPU smoke and
    17,272-document GPU primary.
-4. **SCALE-02:** after ANSWER-01 and SCALE-01, run the selected profile's
+2. **SCALE-02:** after SCALE-01, run A0's
    advisory 10k-to-50k efficiency envelope.
 
 CORPUS-01 may resolve its two insufficient supersession cases independently.
@@ -28,14 +25,16 @@ CORPUS-01 may resolve its two insufficient supersession cases independently.
 | [TRACE-01](tracks/trace-01-projection-lifecycle-integrity.md) | Complete | Rerun only if projection lifecycle behavior changes. |
 | [LOCOMO-01](tracks/locomo-01-self-characterization.md) | Directional decision accepted | Use reported GPU winner `hybrid_ce_alpha_10_pool_20` in ANSWER-01. The missing safe grid receipt limits reproducibility but does not require a confirming grid. |
 | [PARENT-01](tracks/parent-01-parent-child-screening.md) | Directional decision accepted | Keep parent expansion opt-in; reopen only for a diagnosed answer-context gap. |
-| [ANSWER-01](tracks/answer-01-shortlist-scoring.md) | Active | Build and run the $0 A0-versus-winner dry run. Airlock and model aliases are verified; live scoring is separate. |
+| [ANSWER-01](tracks/answer-01-shortlist-scoring.md) | Complete | The [paired live receipt](../../experiments/runs/answer-01-shortlist-live-20260822T1234Z-8a050808/record.json) retains A0; reopen only with a new retrieval treatment or larger confirmatory contract. |
 | [SCALE-01](tracks/scale-01-tc5-fidelity.md) | Active | Add the 0.8.23 GPU-primary controls and run TC-5. CPU is an optional 7,667-document, twelve-worker equivalence bridge. |
 | [CORPUS-01](tracks/corpus-01-gold-coverage.md) | Narrow follow-up | Human-review the two insufficient supersession cases; do not broaden the corpus search. |
-| [MEMORY-01](tracks/memory-01-native-mem0-comparison.md) | Blocked | Wait for the ANSWER-01 profile and native comparator prerequisites. |
-| [SCALE-02](tracks/scale-02-local-first-envelope.md) | Blocked | Wait for ANSWER-01 and the SCALE-01 receipt. |
+| [TEMPORAL-01](tracks/temporal-01-time-scoped-retrieval.md) | Planned | Wait for CORPUS-01-qualified temporal gold and the selected retrieval baseline. |
+| [EXTRACT-01](tracks/extract-01-semantic-memory.md) | Planned | Wait for TRACE-01 lifecycle coverage, qualified update gold, and the selected canonical baseline. |
+| [MEMORY-01](tracks/memory-01-native-mem0-comparison.md) | Blocked | Use A0; wait for native comparator prerequisites. |
+| [SCALE-02](tracks/scale-02-local-first-envelope.md) | Blocked | Use A0; wait for the SCALE-01 receipt and workload registration. |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |
-| [GLOBAL-01](tracks/global-01-native-graphrag.md) | Parked | Wait for useful GRAPH-01 evidence and native-run prerequisites. |
+| [GLOBAL-01](tracks/global-01-native-graphrag.md) | Parked | Wait for a named global-synthesis failure, an eligible graph or summary/map-reduce treatment, and native-run prerequisites. |
 | [REASON-01](tracks/reason-01-native-hipporag2.md) | Parked | Wait for useful GRAPH-01 evidence and native-run prerequisites. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |
 

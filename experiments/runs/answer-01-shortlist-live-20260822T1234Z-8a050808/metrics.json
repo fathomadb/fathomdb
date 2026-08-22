@@ -1,0 +1,73 @@
+{
+  "schema_version": "answer-01.safe-summary.v1",
+  "status": "complete",
+  "question_count": 32,
+  "pair_count": 64,
+  "complete_pair_count": 32,
+  "cost_usd": 0.05709485,
+  "live_calls": 128,
+  "decision_eligible": true,
+  "arms": {
+    "a0_turn_fts": {
+      "n": 32,
+      "answer_accuracy": 0.46875,
+      "temporal_correctness": 0.45454545454545453,
+      "grounded_rate": 0.71875,
+      "attribution_rate": 0.75,
+      "by_class": {
+        "factoid": {
+          "n": 10,
+          "answer_accuracy": 0.8,
+          "grounded_rate": 0.9,
+          "attribution_rate": 0.9
+        },
+        "temporal": {
+          "n": 11,
+          "answer_accuracy": 0.45454545454545453,
+          "grounded_rate": 0.6363636363636364,
+          "attribution_rate": 0.6363636363636364
+        },
+        "multi_session": {
+          "n": 11,
+          "answer_accuracy": 0.18181818181818182,
+          "grounded_rate": 0.6363636363636364,
+          "attribution_rate": 0.7272727272727273
+        }
+      }
+    },
+    "hybrid_ce_alpha_10_pool_20": {
+      "n": 32,
+      "answer_accuracy": 0.4375,
+      "temporal_correctness": 0.2727272727272727,
+      "grounded_rate": 0.78125,
+      "attribution_rate": 0.8125,
+      "by_class": {
+        "factoid": {
+          "n": 10,
+          "answer_accuracy": 0.8,
+          "grounded_rate": 0.9,
+          "attribution_rate": 0.9
+        },
+        "temporal": {
+          "n": 11,
+          "answer_accuracy": 0.2727272727272727,
+          "grounded_rate": 0.7272727272727273,
+          "attribution_rate": 0.7272727272727273
+        },
+        "multi_session": {
+          "n": 11,
+          "answer_accuracy": 0.2727272727272727,
+          "grounded_rate": 0.7272727272727273,
+          "attribution_rate": 0.8181818181818182
+        }
+      }
+    }
+  },
+  "paired_deltas": {
+    "answer_accuracy": -0.03125,
+    "temporal_correctness": -0.18181818181818182,
+    "grounded_rate": 0.0625,
+    "attribution_rate": 0.0625
+  },
+  "decision": "retain_a0"
+}

@@ -39,6 +39,8 @@ case "$1" in
       SCALE-01) plan="scale-01-tc5-fidelity.md" ;;
       CORPUS-01) plan="corpus-01-gold-coverage.md" ;;
       ANSWER-01) plan="answer-01-shortlist-scoring.md" ;;
+      TEMPORAL-01) plan="temporal-01-time-scoped-retrieval.md" ;;
+      EXTRACT-01) plan="extract-01-semantic-memory.md" ;;
       MEMORY-01) plan="memory-01-native-mem0-comparison.md" ;;
       SCALE-02) plan="scale-02-local-first-envelope.md" ;;
       LATENT-01) plan="latent-01-late-chunking-feasibility.md" ;;

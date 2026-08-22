@@ -1,0 +1,59 @@
+arms:
+- database_id: answer-01-a0-turn-fts
+  embed_device: cpu
+  embedder: none
+  id: a0_turn_fts
+  rerank_device: cpu
+  retrieval: fts
+  search: {}
+  top_k: 10
+- database_id: answer-01-hybrid-ce-winner
+  embed_device: cuda:0
+  embedder: default
+  id: hybrid_ce_alpha_10_pool_20
+  rerank_device: cuda:0
+  retrieval: hybrid
+  search:
+    alpha: 1.0
+    pool_n: 20
+    rerank_depth: 20
+  top_k: 10
+corpus:
+  identifier: locomo10
+  sha256: 79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4
+  storage: external_only
+dry_run:
+  answerer: stub-deterministic-v1
+  judge: stub-grounded-attribution-v1
+  network: false
+  question_count: 32
+live:
+  answerer:
+    input_usd_per_million: 1.25
+    model: gpt-5.4
+    output_usd_per_million: 5.0
+  checkpoint_every: 1
+  judge:
+    input_usd_per_million: 0.05
+    model: gemini-3.1-flash-lite
+    output_usd_per_million: 0.2
+  max_retries: 1
+  max_usd: 3.0
+  max_workers: 1
+program_track: ANSWER-01
+reporting:
+  classes:
+  - factoid
+  - temporal
+  - multi_session
+  metrics:
+  - answer_accuracy
+  - temporal_correctness
+  - grounded_rate
+  - attribution_rate
+schema_version: answer-01.shortlist-scoring.v1
+subset:
+  identifier: locomo-01-fixed-subset.v3
+  question_count: 32
+  sha256: 88434dd0bfbbcae73117ebbfd493220885e38441e4377212eb125c8ebf897933
+  storage: external_only

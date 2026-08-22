@@ -1,0 +1,192 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "answer-01-shortlist-dry-run-20260822T1222Z-8a050808",
+  "experiment": "answer-01-shortlist-dry-run",
+  "title": "answer-01-shortlist-dry-run",
+  "verdict": "complete",
+  "read": "ANSWER-01 two-arm $0 dry-run wiring complete; no answer-quality decision",
+  "code": {
+    "git_sha": "f64e2bee8f9e5ec91f01ac0124631d32ba0459b3",
+    "dirty": true,
+    "branch": "experiments/performance-0.8.23-plan-20260821",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "8a050808fa6292a013c1ac0b2cf87a196a41dde7886ea1a0fe37b2d0501b1a21",
+    "path": "experiments/configs/answer-01/shortlist-scoring.v1.json",
+    "resolved": {
+      "schema_version": "answer-01.shortlist-scoring.v1",
+      "program_track": "ANSWER-01",
+      "corpus": {
+        "identifier": "locomo10",
+        "sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+        "storage": "external_only"
+      },
+      "subset": {
+        "identifier": "locomo-01-fixed-subset.v3",
+        "sha256": "88434dd0bfbbcae73117ebbfd493220885e38441e4377212eb125c8ebf897933",
+        "question_count": 32,
+        "storage": "external_only"
+      },
+      "arms": [
+        {
+          "id": "a0_turn_fts",
+          "database_id": "answer-01-a0-turn-fts",
+          "retrieval": "fts",
+          "top_k": 10,
+          "embedder": "none",
+          "embed_device": "cpu",
+          "rerank_device": "cpu",
+          "search": {}
+        },
+        {
+          "id": "hybrid_ce_alpha_10_pool_20",
+          "database_id": "answer-01-hybrid-ce-winner",
+          "retrieval": "hybrid",
+          "top_k": 10,
+          "embedder": "default",
+          "embed_device": "cuda:0",
+          "rerank_device": "cuda:0",
+          "search": {
+            "alpha": 1.0,
+            "pool_n": 20,
+            "rerank_depth": 20
+          }
+        }
+      ],
+      "dry_run": {
+        "answerer": "stub-deterministic-v1",
+        "judge": "stub-grounded-attribution-v1",
+        "network": false,
+        "question_count": 32
+      },
+      "live": {
+        "answerer": {
+          "model": "gpt-5.4",
+          "input_usd_per_million": 1.25,
+          "output_usd_per_million": 5.0
+        },
+        "judge": {
+          "model": "gemini-3.1-flash-lite",
+          "input_usd_per_million": 0.05,
+          "output_usd_per_million": 0.2
+        },
+        "max_usd": 3.0,
+        "max_workers": 1,
+        "max_retries": 1,
+        "checkpoint_every": 1
+      },
+      "reporting": {
+        "classes": [
+          "factoid",
+          "temporal",
+          "multi_session"
+        ],
+        "metrics": [
+          "answer_accuracy",
+          "temporal_correctness",
+          "grounded_rate",
+          "attribution_rate"
+        ]
+      }
+    }
+  },
+  "corpus": {
+    "source": "LOCOMO",
+    "manifest_sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+    "datasets": []
+  },
+  "seeds": {},
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {}
+  },
+  "metrics": {
+    "schema_version": "answer-01.safe-summary.v1",
+    "status": "dry_run_proof",
+    "question_count": 32,
+    "pair_count": 64,
+    "complete_pair_count": 32,
+    "arms": {
+      "a0_turn_fts": {
+        "n": 32,
+        "answer_accuracy": 0.125,
+        "temporal_correctness": 0.0,
+        "grounded_rate": 1.0,
+        "attribution_rate": 1.0,
+        "by_class": {
+          "factoid": {
+            "n": 10,
+            "answer_accuracy": 0.4,
+            "grounded_rate": 1.0,
+            "attribution_rate": 1.0
+          },
+          "temporal": {
+            "n": 11,
+            "answer_accuracy": 0.0,
+            "grounded_rate": 1.0,
+            "attribution_rate": 1.0
+          },
+          "multi_session": {
+            "n": 11,
+            "answer_accuracy": 0.0,
+            "grounded_rate": 1.0,
+            "attribution_rate": 1.0
+          }
+        }
+      },
+      "hybrid_ce_alpha_10_pool_20": {
+        "n": 32,
+        "answer_accuracy": 0.125,
+        "temporal_correctness": 0.0,
+        "grounded_rate": 1.0,
+        "attribution_rate": 1.0,
+        "by_class": {
+          "factoid": {
+            "n": 10,
+            "answer_accuracy": 0.4,
+            "grounded_rate": 1.0,
+            "attribution_rate": 1.0
+          },
+          "temporal": {
+            "n": 11,
+            "answer_accuracy": 0.0,
+            "grounded_rate": 1.0,
+            "attribution_rate": 1.0
+          },
+          "multi_session": {
+            "n": 11,
+            "answer_accuracy": 0.0,
+            "grounded_rate": 1.0,
+            "attribution_rate": 1.0
+          }
+        }
+      }
+    },
+    "cost_usd": 0.0,
+    "live_calls": 0,
+    "decision_eligible": false
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [
+    {
+      "path": "external-answer-01-checkpoint.v1",
+      "sha256": "475d2903c194c9ea6e59b8c2883201452cc940598a02a09b8bf39b3a4c14a9d1"
+    },
+    {
+      "path": "external-fathomdb-doctor-1.v1",
+      "sha256": "99f5fce4572c62cb894b0326853bdbcda39353bee8263014ea89fd86623a565b"
+    },
+    {
+      "path": "external-fathomdb-doctor-2.v1",
+      "sha256": "d990355ee8b43dfb1b4ef855cee3903d4bff3d3eaa3317367527d8228a6f609b"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

@@ -104,6 +104,8 @@ track_bindings=(
   "SCALE-01 tracks/scale-01-tc5-fidelity.md"
   "CORPUS-01 tracks/corpus-01-gold-coverage.md"
   "ANSWER-01 tracks/answer-01-shortlist-scoring.md"
+  "TEMPORAL-01 tracks/temporal-01-time-scoped-retrieval.md"
+  "EXTRACT-01 tracks/extract-01-semantic-memory.md"
   "MEMORY-01 tracks/memory-01-native-mem0-comparison.md"
   "SCALE-02 tracks/scale-02-local-first-envelope.md"
   "LATENT-01 tracks/latent-01-late-chunking-feasibility.md"

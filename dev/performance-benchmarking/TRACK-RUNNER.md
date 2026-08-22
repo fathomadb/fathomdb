@@ -72,7 +72,9 @@ TRACE-01
     +-- SCALE-01 -> SCALE-02
 
 CORPUS-01 may prepare independently; LATENT-01 and GRAPH-01 are commissioned
-only from a named failure diagnosis. GLOBAL-01 and REASON-01 remain parked.
+only from a named failure diagnosis. TEMPORAL-01 and EXTRACT-01 wait for
+qualified gold, TRACE-01 lifecycle coverage, and the selected baseline.
+GLOBAL-01 and REASON-01 remain parked.
 ```
 
 `LOCOMO-01` may prepare its FTS/CPU runner after its own provenance conditions
@@ -82,9 +84,10 @@ returning a `blocked` packet; it does not invent a local replacement.
 
 The complete controlled track set is `SAFETY-01`, `TRACE-01`, `LOCOMO-01`,
 `PARENT-01`, `SCALE-01`, `CORPUS-01`, `ANSWER-01`, `MEMORY-01`, `SCALE-02`,
-`LATENT-01`, `GRAPH-01`, `GLOBAL-01`, `REASON-01`, and `SEARCH-01`. Their
-individual status and decision questions remain authoritative in PROGRAM and
-their plans; Track Runner governs how any non-historical work on them moves.
+`TEMPORAL-01`, `EXTRACT-01`, `LATENT-01`, `GRAPH-01`, `GLOBAL-01`,
+`REASON-01`, and `SEARCH-01`. Their individual status and decision questions
+remain authoritative in PROGRAM and their plans; Track Runner governs how any
+non-historical work on them moves.
 
 ## Review and integration gates
 

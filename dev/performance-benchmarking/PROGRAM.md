@@ -91,12 +91,14 @@ receipts, not inferred from a branch name or narration.
 | PARENT-01 | P1 | Parent-child LOCOMO screening: does retrieving a turn/child and returning its session/parent plus bounded neighbors improve evidence and answer context over parent-only retrieval? | Directional GPU data complete: bounded parent context does not improve child-evidence retrieval over the turn baseline, so it remains opt-in. | [track plan](tracks/parent-01-parent-child-screening.md) |
 | SCALE-01 | P1 | TC-5 eu7 scale fidelity: what manifest-qualified all-real GPU-primary vector-stage fidelity envelope is observed? | Directional fused-search data exists at 17,272 documents / 100 queries but is not TC-5. FathomDB 0.8.23 is integrated; implement the small v2 control surface, then run the GPU smoke and primary. CPU is optional. | [track plan](tracks/scale-01-tc5-fidelity.md) · [0.8.23 amendment](2026-08-21-fathomdb-0.8.23-gpu-primary-amendment.md) |
 | CORPUS-01 | P1 | Agent-memory gold coverage: are temporal change, knowledge update, supersession, and erasure represented well enough for a broad personal-memory claim? | Portfolio-qualified LLM evidence complete: 16 records cover all four categories; it remains distinct from human gold, and supersession retains two insufficient-evidence cases. | [track plan](tracks/corpus-01-gold-coverage.md) |
-| ANSWER-01 | P2 | LOCOMO shortlist scoring: does the accepted retrieval winner improve answer and temporal quality over A0? | Setup active. The Airlock route and model aliases are verified. Next: create the fixed 32-question, two-arm dry run; no live calls are part of that step. | [track plan](tracks/answer-01-shortlist-scoring.md) |
+| ANSWER-01 | P2 | LOCOMO shortlist scoring: does the accepted retrieval winner improve answer and temporal quality over A0? | Complete: the [32-question paired receipt](../../experiments/runs/answer-01-shortlist-live-20260822T1234Z-8a050808/record.json) did not show the required overall or temporal improvement; retain A0. | [track plan](tracks/answer-01-shortlist-scoring.md) |
+| TEMPORAL-01 | P3 | Time-scoped retrieval: do temporal filters and version-aware projections return the correct state without stale superseded evidence? | Planned; requires CORPUS-01-qualified temporal gold and the selected retrieval baseline. | [track plan](tracks/temporal-01-time-scoped-retrieval.md) |
+| EXTRACT-01 | P3 | FathomDB-native extracted semantic memory: do provenance-linked facts, preferences, and episodes improve update and recall quality enough to justify extraction and lifecycle costs? | Planned; requires TRACE-01 coverage, qualified update gold, and the selected canonical baseline. | [track plan](tracks/extract-01-semantic-memory.md) |
 | MEMORY-01 | P3 | Native Mem0 comparison: is the selected FathomDB memory profile near-parity or better under the official harness? | Blocked on ANSWER-01 selection plus Docker, official credential, LongMemEval acquisition, and a spend ceiling. Report raw-evidence and extracted-semantic-memory regimes separately. | [track plan](tracks/memory-01-native-mem0-comparison.md) |
 | SCALE-02 | P3 | F-17 advisory scale envelope: what measured local-first range is supportable for the selected projection profile? | Blocked on SCALE-01's primary receipt, a selected LOCOMO-01/PARENT-01 profile, and a pre-registered workload matrix. Claim policy remains open pending an HITL proposal; measure canonical records and derived projection rows separately. | [track plan](tracks/scale-02-local-first-envelope.md) |
 | LATENT-01 | P3 | Long-context/late-chunking feasibility: does a token-output, long-context embedder address a diagnosed cross-window discourse failure at acceptable cost? | Parked until LOCOMO-01/PARENT-01 diagnose that failure. Requires a model/interface preflight, labelled subset, and separate quality-and-cost contract; it is not a stride sweep. | [track plan](tracks/latent-01-late-chunking-feasibility.md) |
 | GRAPH-01 | P3 | FathomDB graph-projection self-characterization: do high-confidence, provenance-backed graph projections improve multi-hop retrieval enough to justify extraction and maintenance? | Planned; requires a bounded graph design and supporting-evidence protocol before native graph comparison is prioritized. | [track plan](tracks/graph-01-projection-characterization.md) |
-| GLOBAL-01 | parked | Native GraphRAG comparison: reproduce and compare global sensemaking fairly. | Parked pending GRAPH-01 relevance, a declared cost ceiling, metering/abort rule, and native reproduction. This is global-sensemaking calibration, not a default personal-memory gate. | [track plan](tracks/global-01-native-graphrag.md) |
+| GLOBAL-01 | parked | Native GraphRAG comparison: reproduce and compare global sensemaking fairly. | Parked pending a named global-synthesis failure, a declared FathomDB graph or source-linked summary/map-reduce treatment, a cost ceiling, metering/abort rule, and native reproduction. | [track plan](tracks/global-01-native-graphrag.md) |
 | REASON-01 | parked | Native HippoRAG-2 comparison: cross-check multi-hop retrieval and QA. | Parked pending GRAPH-01 relevance, Python 3.10, official credential, and official-corpus reconciliation. | [track plan](tracks/reason-01-native-hipporag2.md) |
 | SEARCH-01 | complete | IR-C FTS population: establish a FathomDB-only descriptive retrieval baseline. | Complete historical baseline; not a competitor, answer-quality, lifecycle, or latency claim. | [track plan](tracks/search-01-ir-c-baseline.md) |
 
@@ -116,20 +118,23 @@ SAFETY-01
 ├── CORPUS-01 ──→ broad agent-memory claim eligibility
 └── SCALE-01 ──→ SCALE-02
 
-GLOBAL-01 and REASON-01 remain parked until GRAPH-01 relevance and their
-independent external prerequisites are met.
+ANSWER-01 + CORPUS-01 + TRACE-01 ──┬──→ TEMPORAL-01
+                                  └──→ EXTRACT-01
+GRAPH-01 ──→ REASON-01
+GLOBAL-01 starts only from a named global-synthesis failure and an eligible
+graph or source-linked summary/map-reduce treatment.
 ```
 
 LOCOMO-01 and PARENT-01 have accepted directional decisions and should not run
-confirming grids. ANSWER-01 is their next action; MEMORY-01 waits for its
-answer-scored profile. SCALE-01 next runs GPU TC-5 fidelity, with CPU retained
-only as an optional small equivalence bridge. SCALE-02 then measures the
-selected profile and reports canonical records separately from derived rows.
+confirming grids. ANSWER-01 retains A0 as the answer-scored profile. SCALE-01
+next runs GPU TC-5 fidelity, with CPU retained only as an optional small
+equivalence bridge. SCALE-02 then measures the selected profile and reports
+canonical records separately from derived rows.
 
 CORPUS-01 may close its remaining human-gold gaps independently. LATENT-01 and
-GRAPH-01 start only from a diagnosed failure. GLOBAL-01 and REASON-01 remain
-parked until GRAPH-01 shows that a native comparison would answer a useful
-question.
+GRAPH-01 start only from a diagnosed failure. TEMPORAL-01 and EXTRACT-01 wait
+for qualified gold, TRACE-01 lifecycle coverage, and the selected baseline.
+GLOBAL-01 and REASON-01 retain their independent native-run prerequisites.
 
 ## Track organization
 

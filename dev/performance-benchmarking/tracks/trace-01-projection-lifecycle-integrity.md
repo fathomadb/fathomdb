@@ -9,9 +9,13 @@ canonical source through write, supersession, erasure, and re-open?
 
 ## Draft plan
 
-1. Use the fixed synthetic fixture and current projection inventory.
-2. Exercise write, supersession, erasure, and reopen once per projection type.
-3. Accept only with zero unattributed rows and zero stale searchable rows.
+1. Use the fixed synthetic fixture and enumerate every materialized projection:
+   vector children/embeddings, summaries, extracted facts/events, and graph
+   entities, claims, and edges. Record absent types as not applicable.
+2. For each type, verify projection-registry membership and canonical source
+   identity through write, supersession, source erasure, and reopen.
+3. Accept only with complete source attribution, zero orphan projection rows,
+   and zero stale searchable rows.
 
 ## Stop
 

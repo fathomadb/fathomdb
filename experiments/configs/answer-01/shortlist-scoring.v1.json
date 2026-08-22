@@ -1,0 +1,67 @@
+{
+  "schema_version": "answer-01.shortlist-scoring.v1",
+  "program_track": "ANSWER-01",
+  "corpus": {
+    "identifier": "locomo10",
+    "sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+    "storage": "external_only"
+  },
+  "subset": {
+    "identifier": "locomo-01-fixed-subset.v3",
+    "sha256": "88434dd0bfbbcae73117ebbfd493220885e38441e4377212eb125c8ebf897933",
+    "question_count": 32,
+    "storage": "external_only"
+  },
+  "arms": [
+    {
+      "id": "a0_turn_fts",
+      "database_id": "answer-01-a0-turn-fts",
+      "retrieval": "fts",
+      "top_k": 10,
+      "embedder": "none",
+      "embed_device": "cpu",
+      "rerank_device": "cpu",
+      "search": {}
+    },
+    {
+      "id": "hybrid_ce_alpha_10_pool_20",
+      "database_id": "answer-01-hybrid-ce-winner",
+      "retrieval": "hybrid",
+      "top_k": 10,
+      "embedder": "default",
+      "embed_device": "cuda:0",
+      "rerank_device": "cuda:0",
+      "search": {
+        "alpha": 1.0,
+        "pool_n": 20,
+        "rerank_depth": 20
+      }
+    }
+  ],
+  "dry_run": {
+    "answerer": "stub-deterministic-v1",
+    "judge": "stub-grounded-attribution-v1",
+    "network": false,
+    "question_count": 32
+  },
+  "live": {
+    "answerer": {
+      "model": "gpt-5.4",
+      "input_usd_per_million": 1.25,
+      "output_usd_per_million": 5.0
+    },
+    "judge": {
+      "model": "gemini-3.1-flash-lite",
+      "input_usd_per_million": 0.05,
+      "output_usd_per_million": 0.2
+    },
+    "max_usd": 3.0,
+    "max_workers": 1,
+    "max_retries": 1,
+    "checkpoint_every": 1
+  },
+  "reporting": {
+    "classes": ["factoid", "temporal", "multi_session"],
+    "metrics": ["answer_accuracy", "temporal_correctness", "grounded_rate", "attribution_rate"]
+  }
+}

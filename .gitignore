@@ -7,6 +7,10 @@
 # reproducibly; the data itself is not tracked. See
 # tests/corpus/corpus-card.md for distribution + license posture.
 /data/corpus-data/
+# Worktrees may link the canonical external corpus root here.
+/data
+# Local experiment and service logs may contain corpus/model output.
+/logs/
 
 # Keep local Codex state out of the repository, except the shared workflows.
 .codex/*

@@ -33,9 +33,9 @@ jobs:
     continue-on-error: true
     timeout-minutes: 10
     steps:
+      # Shallow checkout: the current-tree scan reads `git ls-files`, not
+      # history, so the full fetch is not needed here.
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          fetch-depth: 0
       - name: Install pinned Gitleaks
         run: bash scripts/install-gitleaks.sh
       - name: Scan current tracked tree
@@ -229,8 +229,12 @@ jobs:
   # cannot be absent from both jobs, and no suite can be in both by accident.
   verify-fast:
     needs: changes
+    # !cancelled(), not always(): always() stays true while the run is being
+    # cancelled, and GitHub does not cancel a running job whose condition is
+    # still true — a superseded PR run would keep this 30-minute job alive
+    # despite cancel-in-progress above.
     if: >-
-      always() &&
+      !cancelled() &&
       (
         needs.changes.result != 'success' ||
         needs.changes.outputs.docs_only != 'true'

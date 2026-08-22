@@ -246,10 +246,14 @@ class Expression:
             raise ValueError("unexpected end of condition")
         token = self.tokens[self.position]
         self.position += 1
-        if token == "always" and self.accept("("):
+        if token in {"always", "cancelled"} and self.accept("("):
             if not self.accept(")"):
-                raise ValueError("malformed always()")
-            return True
+                raise ValueError(f"malformed {token}()")
+            # always() is true even while the run is being cancelled, which is
+            # exactly why job conditions must not use it: GitHub does not cancel
+            # a running job whose condition stays true. cancelled() mirrors the
+            # run's cancellation state supplied by the scenario.
+            return True if token == "always" else self.context.get("run.cancelled") == "true"
         if token.startswith("'"):
             return token[1:-1]
         if token == "true":
@@ -272,10 +276,17 @@ def expected_scoped_condition(categories: tuple[str, ...]) -> str:
 
 
 def evaluate_routes(
-    conditions: dict[str, str], outputs: dict[str, str], result: str, checks: Checks, label: str
+    conditions: dict[str, str],
+    outputs: dict[str, str],
+    result: str,
+    checks: Checks,
+    label: str,
+    *,
+    run_cancelled: bool = False,
 ) -> set[str]:
     context = {f"needs.changes.outputs.{key}": value for key, value in outputs.items()}
     context["needs.changes.result"] = result
+    context["run.cancelled"] = "true" if run_cancelled else "false"
     selected: set[str] = set()
     for job_name, condition in conditions.items():
         try:
@@ -411,8 +422,12 @@ def main() -> int:
         checks.require(False, "ci.yml is missing verify-fast")
     else:
         condition = normalized_condition(verify_fast)
-        expected = "always() && ( needs.changes.result != 'success' || needs.changes.outputs.docs_only != 'true' )"
+        expected = "!cancelled() && ( needs.changes.result != 'success' || needs.changes.outputs.docs_only != 'true' )"
         checks.require(condition == expected, "verify-fast does not have the failure-aware baseline condition")
+        checks.require(
+            condition is None or "always()" not in condition,
+            "verify-fast uses always(), which keeps a superseded run alive through cancel-in-progress",
+        )
         if condition is not None:
             conditions["verify-fast"] = condition
         checks.require(re.search(r"^    needs:\s*changes\s*$", verify_fast, re.MULTILINE) is not None, "verify-fast lost needs: changes")
@@ -557,6 +572,12 @@ def main() -> int:
         not failed_routes.intersection(SCOPED_DRIVERS),
         "classifier failure fans out scoped jobs from unknown outputs",
     )
+    # A superseded PR run is cancelled (concurrency cancel-in-progress); the
+    # classifier reports `cancelled` and nothing may keep running.
+    cancelled_routes = evaluate_routes(
+        conditions, failed_outputs, "cancelled", checks, "classifier-cancelled", run_cancelled=True
+    )
+    checks.require(not cancelled_routes, f"cancelled run still selects {sorted(cancelled_routes)}")
 
     marker_step = step_block(changes, name="Determine CI mode")
     marker_script = block_scalar(marker_step, "run", 8) if marker_step is not None else None
@@ -599,6 +620,7 @@ def main() -> int:
     gitleaks = job_block(ci, "gitleaks") or ""
     checks.require("gitleaks-current.sh" in gitleaks, "per-push Gitleaks lost current-tree scanning")
     checks.require("gitleaks-history.sh" not in gitleaks, "per-push Gitleaks still scans full history")
+    checks.require("fetch-depth: 0" not in gitleaks, "per-push Gitleaks still fetches full history it no longer scans")
     checks.require(HISTORY_PATH.exists(), "dispatchable full-history Gitleaks workflow is missing")
     if HISTORY_PATH.exists():
         history = HISTORY_PATH.read_text()
@@ -614,6 +636,10 @@ def main() -> int:
         checks.require("continue-on-error: true" in advisory, "release history scan is not advisory")
         checks.require(re.search(r"^    needs:", advisory, re.MULTILINE) is None, "release history scan is not independent")
         checks.require("fetch-depth: 0" in advisory, "release history scan does not fetch full history")
+        checks.require(
+            "ref: ${{ env.RELEASE_CHECKOUT_REF }}" in advisory,
+            "release history scan does not check out the selected release candidate",
+        )
         checks.require("install-gitleaks.sh" in advisory and "gitleaks-history.sh" in advisory, "release history scan does not run the existing guard")
     for publisher in re.finditer(r"^  ((?:publish|promote|github-release)[A-Za-z0-9_-]*):\n", release, re.MULTILINE):
         block = job_block(release, publisher.group(1)) or ""
@@ -627,7 +653,15 @@ def main() -> int:
     checks.require(actionlint is not None, "actionlint is required for the routing fixture")
     if actionlint is not None:
         completed = subprocess.run(
-            [actionlint, "-config-file", str(REPO_ROOT / ".github/actionlint.yaml"), str(CI_PATH), str(AARCH_PATH), str(RELEASE_PATH)],
+            [
+                actionlint,
+                "-config-file",
+                str(REPO_ROOT / ".github/actionlint.yaml"),
+                str(CI_PATH),
+                str(AARCH_PATH),
+                str(RELEASE_PATH),
+                *([str(HISTORY_PATH)] if HISTORY_PATH.exists() else []),
+            ],
             cwd=REPO_ROOT,
             text=True,
             capture_output=True,

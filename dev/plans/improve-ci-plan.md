@@ -1,11 +1,12 @@
 ---
 title: Improve CI — in-place proportional routing plan
 date: 2026-08-22
-status: PROPOSED
+status: COMPLETE
 desc: >
-  Draft implementation plan for replacing FathomDB's monolithic non-doc CI
-  routing with tested, proportional, informational routing while preserving
-  the proven test, packaging, security, Windows, and release job bodies.
+  Implementation plan (executed on `review-ci`, 2026-08-22) for replacing
+  FathomDB's monolithic non-doc CI routing with tested, proportional,
+  informational routing while preserving the proven test, packaging,
+  security, Windows, and release job bodies.
 blast_radius: >
   .github/workflows/{ci,aarch64-release-preflight,gitleaks-history,release}.yml;
   scripts/tests/ CI routing fixtures; dev/design/
@@ -35,7 +36,7 @@ Cutover should be atomic after fixtures cover the five findings above. Also give
 full-history Gitleaks a concrete dispatchable home before removing its current
 step. That is an implementation prerequisite, not a soak period.
 
-# Improve CI — draft implementation plan
+# Improve CI — implementation plan
 
 ## 1. Goal
 
@@ -170,9 +171,11 @@ if: >-
 `ci_workflow` remains the deliberate override that executes all eight scoped
 jobs when their shared workflow changes.
 
-`verify-fast` uses `always()` and runs when `changes` fails or when the diff is
-non-Markdown. A classifier failure remains visibly red, runs the baseline, and
-does not fan out into expensive jobs using unknown classification outputs.
+`verify-fast` uses `!cancelled()` (not `always()`, which would keep a
+superseded pull-request run alive through `cancel-in-progress`) and runs when
+`changes` fails or when the diff is non-Markdown. A classifier failure remains
+visibly red, runs the baseline, and does not fan out into expensive jobs using
+unknown classification outputs. A cancelled run selects nothing.
 
 ### 4.4 Restrict lite mode to a real maintainer assertion
 
@@ -300,8 +303,19 @@ an arbitrary clean-duration requirement.
 - A trusted exact-line lite change runs `verify-fast` and the 14 independent
   jobs, but none of the eight scoped jobs.
 - An untrusted or incidental marker cannot activate lite mode.
-- A classifier failure is red and still runs `verify-fast`.
+- A classifier failure is red and still runs `verify-fast`; a cancelled run
+  keeps nothing alive.
 - Full-history Gitleaks is dispatchable and release-visible before it leaves the
   per-push job.
 - No release publisher depends on advisory CI.
 - No ruleset, required check, merge queue, schedule, or soak period is added.
+
+## 9. Outcome (2026-08-22)
+
+Executed on `review-ci` as checkpoint commits: exact pinned paths-filter
+oracle (CI-CP0), visibly RED routing fixture, classifier, §3.4 routing, and
+the AArch64/Gitleaks ownership transfer, followed by one review fix
+checkpoint (`!cancelled()` on `verify-fast`, shallow per-push Gitleaks
+checkout, `.gitattributes` whitespace carve-out for the vendored bundle,
+fixture hardening). Every definition-of-done item in §8 is covered by a
+permanent fixture under `scripts/tests/`; the design is `status: ACTIVE`.

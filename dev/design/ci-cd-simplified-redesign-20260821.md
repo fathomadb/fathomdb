@@ -1,15 +1,15 @@
 ---
 title: CI/CD simplified redesign — single-maintainer correction
 date: 2026-08-21
-status: PROPOSED
+status: ACTIVE
 desc: >
   HITL correction to `ci-cd-final-recommendation-20260821.md`: keep CI
   informational and make its cost proportional to the change. Revised seven
   times after adversarial correctness review; this revision closes the
   independent AArch64 trigger, source-tree Markdown, ci-lite trust-boundary,
-  root npm classification, and classifier-failure gaps.
-  Analysis and recommendation only; no workflow, script, or repository setting
-  is changed by this document.
+  root npm classification, and classifier-failure gaps. Implemented on the
+  `review-ci` branch (2026-08-22): classifier, routing, AArch64 trigger
+  retirement with ABI3 evidence, and Gitleaks history ownership transfer.
 blast_radius: >
   read-only: dev/design/{ci-challenges-review,delivery-requirements-map,
   ci-cd-design-hypothesis,ci-cd-best-practices-research,
@@ -24,9 +24,11 @@ blast_radius: >
 
 # CI/CD simplified redesign — single-maintainer correction
 
-**Status: PROPOSED.** Nothing here is implemented. This document supersedes
-§2–§4 and §8 of `ci-cd-final-recommendation-20260821.md` completely. §1 of
-that document remains a historical challenge evaluation.
+**Status: ACTIVE.** Implemented on the `review-ci` branch per
+`dev/plans/improve-ci-plan.md` (see §8, Round 8, for what landed and where).
+This document supersedes §2–§4 and §8 of
+`ci-cd-final-recommendation-20260821.md` completely. §1 of that document
+remains a historical challenge evaluation.
 
 ## 0. The correction, verbatim
 
@@ -225,7 +227,7 @@ checks own it, without invoking embedder or native-artifact matrices.
 
 ```yaml
 if: >-
-  always() &&
+  !cancelled() &&
   (
     needs.changes.result != 'success' ||
     needs.changes.outputs.docs_only != 'true'
@@ -239,9 +241,18 @@ remains visibly red; the eight expensive jobs do not fan out from unknown
 outputs. `verify-fast` is never suppressed by `ci-lite`.
 
 GitHub otherwise skips a job when one of its `needs` dependencies fails or is
-skipped. The explicit `always()` is therefore part of the baseline guarantee,
-not optional defensive syntax. See GitHub's
+skipped. The explicit status function is therefore part of the baseline
+guarantee, not optional defensive syntax. See GitHub's
 [workflow syntax for `needs`](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idneeds).
+
+It is `!cancelled()`, not `always()`. `always()` stays true while a run is
+being cancelled, and GitHub does not cancel a running job whose condition is
+still true, so `always()` would let a superseded pull-request run keep this
+30-minute job alive despite the workflow's `cancel-in-progress` concurrency
+policy. See GitHub's
+[workflow cancellation reference](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-cancellation).
+The routing fixture evaluates a cancelled-classifier case and rejects
+`always()` in this condition.
 
 ### 3.3 Windows source boundary
 
@@ -591,6 +602,16 @@ fixture-first implementation.
   repository refs; separated root npm dev tooling from the TypeScript SDK; made
   `verify-fast` survive classifier failure; and specified concrete
   dispatch/release homes for full-history Gitleaks.
+- **Round 8 (implementation, 2026-08-22):** landed on `review-ci` in five
+  checkpoints — vendored exact `dorny/paths-filter` oracle; visibly RED routing
+  fixture (`scripts/tests/test_ci_proportional_routing.py`); classifier
+  (`changes` job, `predicate-quantifier: every` Python matcher, trusted
+  exact-line `[ci-lite]`); §3.4 job-level routing; and the ownership transfer
+  (cp310-abi3 wheel-tag assertion in `smoke-local-native-artifacts.sh`,
+  `aarch64-release-preflight.yml` dispatch-only, `gitleaks-history.yml`
+  dispatch-only, `gitleaks-history-advisory` in `release.yml`, per-push
+  Gitleaks reduced to a shallow current-tree scan). Review correction: the
+  `verify-fast` condition uses `!cancelled()` instead of `always()` (§3.2).
 
 ## Appendix — pipeline diagram (v7)
 

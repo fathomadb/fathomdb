@@ -53,7 +53,8 @@ jobs:
   # Independent by design: no `needs`, and no build, publisher, smoke,
   # promotion, or finalization job may depend on it. `continue-on-error` keeps
   # it visible on the run without gating publication while the history
-  # allowlist baseline remains noisy (see dev/design/ci-cd-simplified-redesign).
+  # allowlist baseline remains noisy
+  # (dev/design/ci-cd-simplified-redesign-20260821.md §4).
   # Per-push CI scans only the current tree; the same scan is also available
   # on demand via .github/workflows/gitleaks-history.yml.
   gitleaks-history-advisory:

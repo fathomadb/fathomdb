@@ -1,0 +1,5 @@
+# The vendored dorny/paths-filter distribution is the exact upstream bundle
+# pinned by checksum for the CI routing oracle (scripts/tests/lib). Upstream
+# ships trailing whitespace; normalizing it would invalidate the pin, so
+# whitespace checks are disabled for that file only.
+scripts/tests/fixtures/dorny-paths-filter-v4/dist/index.js -whitespace

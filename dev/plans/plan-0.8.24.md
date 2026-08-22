@@ -30,6 +30,9 @@ for this release.
 - Add a supported Windows x64 CUDA artifact route, including the public Python
   and npm binding surfaces if the Slice 0 packaging decision keeps both SDKs in
   scope.
+- Review Windows WAL behavior experienced through the Python SDK, using the
+  linked Memex Windows job as the external finding source and distinguishing a
+  FathomDB defect from a client/workload observation before proposing a remedy.
 - Make artifact selection explicit: a generic Linux ARM64 or Windows CPU wheel
   must never be silently mistaken for a CUDA-capable binary.
 - Keep the existing CPU artifacts and their compatibility floors intact.
@@ -50,6 +53,7 @@ These become frozen requirements only at Slice 0.
 | R24-4 | Windows x64 CUDA has a named artifact and proof route that does not depend on local Windows compilation. | Remote executor provenance plus a CUDA-enabled artifact build and installed-artifact smoke on Windows. |
 | R24-5 | Python and npm CUDA support have one explicit per-platform support matrix; unsupported combinations fail clearly. | Cross-SDK matrix test and documentation truth check covering Windows x64 and Tegra versus generic ARM64/SBSA. |
 | R24-6 | The release workflow publishes only the approved new artifacts, idempotently, and preserves existing CPU publication behavior. | Focused workflow-contract tests, actionlint, one release dry run, and registry-installed smokes before a tag is cut. |
+| R24-7 | Windows WAL behavior visible to Python-SDK clients is reviewed against completed first-party Memex findings before any FathomDB behavior change is proposed. | A durable review records the completed [Memex Windows job 97065598178](https://github.com/coreyt/memex/actions/runs/32587291032/job/97065598178), its retained evidence, the comparable FathomDB Python path, and a disposition of reproduce / not reproduced / insufficient evidence. |
 
 ## 3. Slice ladder
 
@@ -64,7 +68,8 @@ These become frozen requirements only at Slice 0.
 | **10** | Tegra build, trusted publisher, and registry smoke — wire the Jetson runner, publication artifact, and installed-package proof. | implementation | 5 |
 | **15** | Windows CUDA artifact contract — define the remote Windows executor, toolchain, artifact names, CPU fallback, and Py/TS surface matrix. | design-implementation | 0 |
 | **20** | Windows CUDA remote build and installed-artifact smoke — add the approved remote route; no local Windows compilation task is permitted. | implementation | 15 |
-| **40** | Verification and release readiness — preserve CPU lanes, run scoped artifact proofs and one dry run, then perform the registry/tag release only with HITL direction. | verification-release | 10, 20 |
+| **25** | Windows Python-SDK WAL behavior review — analyze the completed Memex Windows finding and compare it with FathomDB's public Python SDK; propose a remedy only if the evidence attributes one. | review | 0 |
+| **40** | Verification and release readiness — preserve CPU lanes, run scoped artifact proofs and one dry run, then perform the registry/tag release only with HITL direction. | verification-release | 10, 20, 25 |
 
 **Hard gates.** Slice 0 is HITL-gated because the Tegra package identity and
 Windows SDK surface determine immutable public names. Slice 10 cannot publish
@@ -72,8 +77,9 @@ until the new PyPI trusted-publisher entry exists. Slice 20 cannot claim
 Windows CUDA support without a real remote Windows CUDA executor and an
 installed-package smoke. Slice 40 is the sole release-publication gate.
 
-**Parallel tracks.** Tegra (Slices 5–10) and Windows (Slices 15–20) may run in
-separate worktrees after Slice 0. They serialize changes to
+**Parallel tracks.** Tegra (Slices 5–10), Windows CUDA (Slices 15–20), and the
+read-only Windows WAL review (Slice 25) may run in separate worktrees after
+Slice 0. The implementation tracks serialize changes to
 `.github/workflows/release.yml`, `docs/compatibility/index.md`, release
 contracts, and version/package metadata.
 
@@ -111,6 +117,7 @@ contracts, and version/package metadata.
 | 1 | Tegra CUDA becomes a public, explicitly installed artifact. | Jetson Python users. | Exact package/install command, JetPack/glibc support floor, and CPU fallback behavior. |
 | 2 | Windows x64 gains CUDA-capable artifact(s), if Slice 20 closes. | Windows Python and/or Node users. | Supported SDK/platform matrix, prerequisite driver/toolkit contract, and unsupported-route error. |
 | 3 | Public package topology expands. | Release operators and dependency resolvers. | Trusted-publisher and registry identity documentation. |
+| 4 | A Windows Python-SDK WAL finding may require a client-visible behavior or diagnostic change. | Python SDK callers on Windows. | Only if Slice 25 attributes a FathomDB issue: exact observed behavior, remediation, and compatibility impact. |
 
 ## 7. Prerequisites
 
@@ -122,6 +129,7 @@ contracts, and version/package metadata.
    new PyPI project, including its exact workflow filename and environment.
 4. Before Slice 20, the owner supplies or approves a Windows CUDA executor.
    No local Windows setup is requested.
+5. Before Slice 25 closes, the linked [Memex Windows job 97065598178](https://github.com/coreyt/memex/actions/runs/32587291032/job/97065598178) must have completed and its logs/artifacts must be available for review. An in-progress or inaccessible job is insufficient evidence.
 
 ## 8. Definition of done
 
@@ -144,10 +152,14 @@ contracts, and version/package metadata.
 - 2026-08-21 — 0.8.23 remains Tegra-unpublished; its local `+tegra` wheel is a
   build-and-prove artifact, not a public PyPI release. Source: current release
   contract and registry check.
+- 2026-08-22 — Review Windows WAL behavior experienced by Python-SDK clients;
+  the linked Memex Windows job is evidence to analyze, not a conclusion to
+  import. Source: repository owner.
 
 ## 10. Immediate next slice
 
 **Slice 0 — Artifact identity and publication ADR.** Resolve the three blocking
 decisions in §4, then create the 0.8.24 release-state file and live board. No
 CUDA artifact implementation or registry configuration is authorized before
-those choices are recorded.
+those choices are recorded. Slice 25 remains evidence-only until its linked
+Memex job completes.

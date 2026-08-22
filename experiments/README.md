@@ -69,6 +69,14 @@ Historical configurations and receipts are not rewritten just to add this
 field. Corpus acquisition, GPU/model work, paid calls, and external writes
 continue to require their explicit authorization gate.
 
+Each new FathomDB measurement cell must start with
+`python -m experiments.fathomdb_test_setup <external-root> <test-id>`. The
+bootstrap refuses to reuse a test directory, writes its explicit embedding and
+reranker device policies, creates a new database, and records machine-readable
+`doctor gpu`, `doctor reranker-gpu`, and post-open `doctor check-integrity`
+evidence. The safe setup metadata belongs beside the external artifacts, not in
+a committed receipt.
+
 ## Rules for the writer
 
 - `index.jsonl` is **append-only**: never rewrite or reorder existing lines.

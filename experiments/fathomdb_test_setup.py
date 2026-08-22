@@ -1,0 +1,103 @@
+"""Create one configured FathomDB database and doctor evidence per test cell."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import subprocess
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Callable
+
+
+_DEVICE = re.compile(r"(?:auto|cpu|cuda:[0-9]+)")
+_TEST_ID = re.compile(r"[a-z0-9][a-z0-9-]*")
+
+
+@dataclass(frozen=True)
+class PreparedDatabase:
+    """Paths and safe diagnostics for one newly-created experiment database."""
+
+    database_path: Path
+    config_path: Path
+    doctor_path: Path
+
+
+DoctorRunner = Callable[..., str]
+DatabaseOpener = Callable[[Path], dict[str, Any]]
+
+
+def _default_doctor(command: list[str], *, env: dict[str, str]) -> str:
+    result = subprocess.run(command, check=False, text=True, capture_output=True, env=env)
+    if result.returncode != 0:
+        raise RuntimeError(f"fathomdb doctor failed: {' '.join(command[1:3])}")
+    return result.stdout
+
+
+def _default_open(path: Path) -> dict[str, Any]:
+    from fathomdb import Engine
+
+    engine = Engine.open(str(path), use_default_embedder=False)
+    try:
+        report = engine.open_report()
+        return {"query_backend": report.query_backend, "schema_version_after": report.schema_version_after}
+    finally:
+        engine.close()
+
+
+def prepare_test_database(
+    root: str | Path,
+    *,
+    test_id: str,
+    embed_device: str = "auto",
+    rerank_device: str = "auto",
+    fathomdb_bin: str = "fathomdb",
+    doctor_runner: DoctorRunner = _default_doctor,
+    database_opener: DatabaseOpener = _default_open,
+) -> PreparedDatabase:
+    """Create an unreused database, configure its runtime policy, and attest it.
+
+    ``root/test_id`` must not already exist: reusing state would invalidate a
+    measurement cell. Device policy is explicit in both the persisted safe
+    config and the environment passed to every doctor invocation and open.
+    """
+    if not _TEST_ID.fullmatch(test_id):
+        raise ValueError("test_id must contain only lowercase letters, digits, and hyphens")
+    if not _DEVICE.fullmatch(embed_device) or not _DEVICE.fullmatch(rerank_device):
+        raise ValueError("device policies must be auto, cpu, or cuda:N")
+    test_root = Path(root) / test_id
+    if test_root.exists():
+        raise FileExistsError(f"test database root already exists: {test_root}")
+    test_root.mkdir(parents=True)
+    database_path = test_root / "fathomdb.sqlite"
+    config_path = test_root / "fathomdb-config.v1.json"
+    doctor_path = test_root / "fathomdb-doctor.v1.json"
+    config = {"schema_version": "fathomdb.test-setup.v1", "embed_device": embed_device, "rerank_device": rerank_device}
+    config_path.write_text(json.dumps(config, sort_keys=True) + "\n", encoding="utf-8")
+    environment = dict(os.environ)
+    environment.update({"FATHOMDB_EMBED_DEVICE": embed_device, "FATHOMDB_RERANK_DEVICE": rerank_device})
+    gpu = doctor_runner([fathomdb_bin, "doctor", "gpu", "--json"], env=environment)
+    reranker = doctor_runner([fathomdb_bin, "doctor", "reranker-gpu", "--json"], env=environment)
+    opened = database_opener(database_path)
+    integrity = doctor_runner([fathomdb_bin, "doctor", "check-integrity", "--json", str(database_path)], env=environment)
+    doctor_path.write_text(json.dumps({"schema_version": "fathomdb.test-doctor.v1", "gpu": json.loads(gpu), "reranker_gpu": json.loads(reranker), "open_report": opened, "integrity": json.loads(integrity)}, sort_keys=True) + "\n", encoding="utf-8")
+    return PreparedDatabase(database_path=database_path, config_path=config_path, doctor_path=doctor_path)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("root", type=Path)
+    parser.add_argument("test_id")
+    parser.add_argument("--embed-device", default="auto")
+    parser.add_argument("--rerank-device", default="auto")
+    parser.add_argument("--fathomdb-bin", default="fathomdb")
+    args = parser.parse_args()
+    prepared = prepare_test_database(args.root, test_id=args.test_id, embed_device=args.embed_device, rerank_device=args.rerank_device, fathomdb_bin=args.fathomdb_bin)
+    print(json.dumps({"database_path": str(prepared.database_path), "config_path": str(prepared.config_path), "doctor_path": str(prepared.doctor_path)}))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

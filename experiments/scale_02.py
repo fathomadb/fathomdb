@@ -1411,7 +1411,11 @@ def run_point(
         fixture_digest=fixture.fixture_digest,
         record_base_dir=record_base_dir,
         artifacts=[
-            {"kind": "external_safe_summary", "sha256": _sha_file(summary_path)}
+            {
+                "kind": "external_safe_summary",
+                "path": summary_path.name,
+                "sha256": _sha_file(summary_path),
+            }
         ],
         open_questions=[]
         if summary["advisory"]["eligibility"] == "pass"

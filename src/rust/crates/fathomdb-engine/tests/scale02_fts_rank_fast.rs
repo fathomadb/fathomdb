@@ -102,13 +102,41 @@ fn rank_fast_matches_full_sort_and_falls_back_for_ties_and_edges() {
     baseline.engine.close().expect("close baseline engine");
     unsafe { std::env::set_var("FATHOMDB_PERF_FTS_RANK_FAST", "1") };
 
+    let overfetch = open(&dir, "overfetch-dedup");
+    let mut writes = (1..=10)
+        .map(|rank| {
+            node(
+                &format!("unique-{rank}"),
+                format!("{} unique-{rank}", "scale02dedup ".repeat(30 - rank)),
+            )
+        })
+        .collect::<Vec<_>>();
+    writes.extend(
+        (1..=20).map(|rank| node(&format!("duplicate-{rank}"), "scale02dedup weak".to_string())),
+    );
+    overfetch.engine.write(&writes).expect("write overfetch corpus");
+    overfetch.engine.drain(10_000).expect("drain overfetch corpus");
+    let fast = overfetch
+        .engine
+        .search_text_only_with_limit("scale02dedup", 10)
+        .expect("rank-fast overfetch search");
+    overfetch.engine.close().expect("close overfetch engine");
+
+    unsafe { std::env::remove_var("FATHOMDB_PERF_FTS_RANK_FAST") };
+    let baseline = open(&dir, "overfetch-dedup");
+    let full = baseline
+        .engine
+        .search_text_only_with_limit("scale02dedup", 10)
+        .expect("full-sort overfetch search");
+    assert_eq!(fast.results, full.results);
+    baseline.engine.close().expect("close overfetch baseline");
+    unsafe { std::env::set_var("FATHOMDB_PERF_FTS_RANK_FAST", "1") };
+
     let tied = open(&dir, "tie");
-    tied.engine
-        .write(&[
-            node("tie-a", "scale02tie identical".to_string()),
-            node("tie-b", "scale02tie identical".to_string()),
-        ])
-        .expect("write ties");
+    let tied_writes = (1..=101)
+        .map(|rank| node(&format!("tie-{rank}"), "scale02tie identical".to_string()))
+        .collect::<Vec<_>>();
+    tied.engine.write(&tied_writes).expect("write ties");
     tied.engine.drain(10_000).expect("drain ties");
     tied.engine.search_text_only_with_limit("scale02tie", 1).expect("tie search");
     tied.engine.close().expect("close tie engine");

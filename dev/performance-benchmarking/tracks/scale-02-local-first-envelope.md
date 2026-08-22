@@ -1,6 +1,6 @@
 # SCALE-02 — Local-first scale envelope
 
-**Status:** blocked on SCALE-01 and a selected LOCOMO/PARENT projection profile.
+**Status:** preparation ready; A0 and the SCALE-01 primary are selected.
 
 ## Decision
 
@@ -9,8 +9,10 @@ retrieval profile without implying an unmeasured capacity guarantee?
 
 ## Draft plan
 
-1. Use the ANSWER-01 profile and SCALE-01 receipt. Measure open, ingest/drain,
-   FTS, exact vector, hybrid, and the selected reranker; omit unused surfaces.
+1. Pre-register the workload matrix using A0 and the
+   [SCALE-01 primary](../../../experiments/runs/tc5-gpu-primary-20260822T1605Z-2d574205/record.json).
+   Measure open, ingest/drain, FTS, exact vector, hybrid, and the selected
+   reranker; omit unused surfaces.
 2. Run the fixed ladder at 10k, 17,272, 25k, 40k, and 50k rows. Keep GPU and
    CPU results separate; pre-register repetitions and uncertainty, and do not
    pool cold and steady-state cells.

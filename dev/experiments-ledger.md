@@ -621,6 +621,25 @@
   claude-sonnet --depth2 --max-usd 5.0`). PSD §III.D; `dev/plans/0.8.11-implementation.md` §1/§5
   (F-8b).
 
+## 0.8.23
+
+### SCALE-01 — TC-5 all-real GPU vector-stage fidelity
+
+- **Question:** What pre-fusion vector-stage fidelity is observed at the
+  manifest-qualified 17,272-document all-real envelope?
+- **N & power:** RTX 3090 embedding; 7,667-document smoke and 17,272-document
+  primary; 100 fixed queries per arm; 1,000 bootstrap resamples; `K=192`.
+- **Result:** smoke recall@10 **0.958** [0.938, 0.974], sigma 0.00921;
+  primary recall@10 **0.958** [0.939, 0.975], sigma 0.00876. Both arms had
+  complete vector projection, zero synthetic rows, and 100/100 direct-route
+  queries.
+- **Verdict:** **RESOLVED.** The historical 0.90 reference was observed at the
+  qualified primary. This is fidelity and uncertainty evidence only; it makes
+  no latency, relevance, capacity, or product claim. No CPU bridge was needed.
+- **$:** $0. **Sources:**
+  `experiments/runs/tc5-gpu-smoke-20260822T1446Z-2d574205/record.json` and
+  `experiments/runs/tc5-gpu-primary-20260822T1605Z-2d574205/record.json`.
+
 ## research/ (UNTRACKED — git-ignored; results live ONLY here)
 
 ### research/eu-0 — eu7 embedder + quantization-path sweep (RESOLVED)

@@ -1,0 +1,40 @@
+{
+  "action": "tc5-gpu-primary",
+  "arm": "primary",
+  "binary_digest": "ea82d8ec921fb22746b414453ba423da85b1a5dc6c4c5a68735733cf4a2ec7e5",
+  "bootstrap_resamples": 1000,
+  "claim_boundary": "fidelity_and_uncertainty_only",
+  "document_count": 17272,
+  "fixture_digest": "fcd01235d2e6bf250f91055d9823a5c82b69836f6854471824c914e17ea4365e",
+  "ground_truth_sha256": "2a3abe5aec8378c70d67d90de0545a883228a3486acfe2c2cc992009871a06c1",
+  "index_digest": "8f23631b3d7992d9467530072a79ede284ee01c0dc301dc5b6087fbf71d6ee81",
+  "metrics": {
+    "bootstrap_sigma": 0.00875528634597409,
+    "ci_95": [
+      0.9390000000000001,
+      0.975
+    ],
+    "recall_at_10": 0.958
+  },
+  "program_track": "SCALE-01",
+  "provenance": {
+    "bootstrap_seed": "0x0E77B007574A9",
+    "candidate_execution": "cpu/sqlite-vec",
+    "candidate_k": 192,
+    "cross_encoder_route": "disabled",
+    "cuda_uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+    "embed_device": "cuda:0",
+    "embedding_execution": "cuda:0",
+    "exact_f32_rerank_execution": "cpu/sqlite-vec",
+    "ground_truth": "exact-f32-same-model-top-10",
+    "model_asset_digest": "7a7edec71b9b8c9ce82cae05c4be673b274c36eaa474cc40ca2ef81b77847ea2",
+    "query_select_seed": "0x0E77C0125E1EC7",
+    "release": "0.8.23",
+    "sut": "pre-fusion-1bit-k192-f32-rerank-vector-stage",
+    "top_k": 10
+  },
+  "query_completion_count": 100,
+  "schema_version": "tc5-gpu-arm-result.v2",
+  "sut_result_sha256": "618c2b081fee4fcf2e45834aa127b90c226d88b61d1cc516e86c4f9ba34181ef",
+  "synthetic_document_count": 0
+}

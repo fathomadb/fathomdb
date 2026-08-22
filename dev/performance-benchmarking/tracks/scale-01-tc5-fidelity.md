@@ -1,6 +1,6 @@
 # SCALE-01 — TC-5 all-real fidelity characterization
 
-**Status:** GPU smoke complete; primary next.
+**Status:** complete; GPU primary registered.
 
 ## Decision
 
@@ -43,3 +43,12 @@ provenance, model/GPU mismatch, a reused database, or partial queries/bootstrap.
 A qualified primary closes SCALE-01 and permits SCALE-02 workload registration;
 it makes no latency, efficiency, retrieval-relevance, capacity, or product
 claim. CPU is not required for closure.
+
+## Result
+
+- [Registered GPU primary](../../../experiments/runs/tc5-gpu-primary-20260822T1605Z-2d574205/record.json):
+  17,272 real documents, 100 complete queries, recall@10 `0.958`, 95%
+  bootstrap interval `[0.939, 0.975]`, and bootstrap sigma `0.00876`.
+- The historical `0.90` reference was observed. This remains bounded
+  vector-stage fidelity evidence, not a latency, relevance, or capacity claim.
+- No CPU bridge was needed.

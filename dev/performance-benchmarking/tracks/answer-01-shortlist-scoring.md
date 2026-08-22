@@ -1,30 +1,26 @@
 # ANSWER-01 — LOCOMO shortlist answer scoring
 
-**Status:** setup active; direct HITL acceptance makes the directional GPU
-survivor `hybrid_ce_alpha_10_pool_20` eligible for a preflight-only dry run.
-No answerer or judge invocation is authorized until scorer routing, aliases,
-retry/checkpoint behavior, and a spend ceiling are frozen.
+**Status:** ready to implement and run the $0 dry run; live scoring is separate.
 
 ## Decision
 
-Do the selected retrieval configurations improve answer accuracy and temporal
-correctness, not only retrieval proxy metrics?
+Does `hybrid_ce_alpha_10_pool_20` improve answer accuracy and temporal
+correctness over A0?
 
-## Preparation and contract
+## Draft plan
 
-1. Freeze the accepted directional GPU survivor
-   `hybrid_ce_alpha_10_pool_20` as the only dry-run retrieval treatment. The
-   historical grid has no committed safe receipt, so this is a decision basis,
-   not a reproducible full-grid measurement claim.
-2. Verify A0 fingerprint parity before reusing historical scoring; otherwise
-   score all candidates under one pinned invocation.
-3. Preflight the authenticated loopback route, model aliases, one-worker retry
-   behavior, checkpoint/resume, cumulative spend ceiling, and no-direct-egress rule.
-4. Pre-register answerer, judge, prompts, temporal metric, uncertainty method,
-   and abstention treatment.
+1. Fix 32 questions and two arms: A0 and
+   `hybrid_ce_alpha_10_pool_20`. Dry-run both with stubbed answerer and judge;
+   make no model calls.
+2. After live-run approval, score the same arms through Airlock with `gpt-5.4`
+   as answerer and `gemini-3.1-flash-lite` as judge. Use one worker, one retry,
+   and checkpoint every question. The cumulative cap is $3 at 32 questions and
+   $8 at 100.
+3. Advance the retrieval winner only if paired overall answer quality improves
+   and temporal quality does not regress. Otherwise retain A0 or report
+   inconclusive evidence.
 
-## Exit evidence
+## Stop
 
-Each candidate has a complete scored receipt and safe external artifact manifest.
-The result selects a profile or reports inconclusive evidence; it does not start
-MEMORY-01 without a declared winner and cost approval.
+Stop at the cap, on an incomplete pair, or after repeated route failure. Do not
+start MEMORY-01 without a declared answer-scored profile.

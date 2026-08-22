@@ -7,15 +7,15 @@
 How does the selected FathomDB multi-hop treatment compare with native
 HippoRAG-2 on supporting-evidence recall and answer quality?
 
-## Preparation and contract
+## Draft plan
 
-1. Pin the official repository, Python 3.10 environment, credential route,
-   corpus reconciliation, model identities, and a cost ceiling.
-2. Freeze MuSiQue question/evidence filtering, top-k, all-bridges metric,
-   answer F1, timeout, and failure accounting for both systems.
-3. Run a small external-only smoke before a complete matched comparison.
+1. Start only if GRAPH-01 shows a useful multi-hop treatment.
+2. Pin the official HippoRAG-2 build and reconciled MuSiQue set; run one smoke,
+   then one matched comparison with the same top-k, answerer, judge, and cap.
+3. Decide from supporting-evidence recall and answer F1, with failures counted
+   equally for both systems.
 
-## Exit evidence
+## Stop
 
-Matched complete receipts support a bounded multi-hop conclusion. A blocked
-environment or corpus mismatch remains a `blocked_prerequisite` result.
+Stop on environment or corpus mismatch, incomplete arms, or the cost cap. Do
+not replace the native system with a local approximation.

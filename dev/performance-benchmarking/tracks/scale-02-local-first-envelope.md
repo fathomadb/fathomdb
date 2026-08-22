@@ -7,17 +7,16 @@
 What measured local-first operating envelope is supportable for the selected
 retrieval profile without implying an unmeasured capacity guarantee?
 
-## Preparation and contract
+## Draft plan
 
-1. Pre-register the workload matrix: open, ingest/drain, FTS, vector, hybrid,
-   rerank, and every enabled projection, with CPU/GPU/cold/steady cells separate.
-2. Freeze the scale ladder, host/device, corpus or fixture provenance, criteria,
-   error policy, and repetitions before measurement.
-3. Count canonical records separately from vector children, summaries, entities,
-   edges, and all derived projection rows.
+1. Use the ANSWER-01 profile and SCALE-01 receipt. Measure open, ingest/drain,
+   FTS, exact vector, hybrid, and the selected reranker; omit unused surfaces.
+2. Run the fixed ladder at 10k, 17,272, 25k, 40k, and 50k rows. Keep GPU and
+   CPU results separate and report p50/p95/p99, throughput, and errors.
+3. Name the largest observed passing point and report canonical records and
+   derived projection rows separately.
 
-## Exit evidence
+## Stop
 
-The report names the largest observed passing configuration and every excluded
-operation. It contains p50/p95/p99, throughput, errors, and projection
-amplification; it is advisory only.
+Stop at the first unsafe or persistently failing point; do not extrapolate past
+50k or convert the advisory result into a capacity guarantee.

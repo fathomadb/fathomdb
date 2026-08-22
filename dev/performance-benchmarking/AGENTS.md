@@ -5,7 +5,7 @@ These instructions apply to all work under `dev/performance-benchmarking/`.
 - Follow [TRACK-RUNNER.md](TRACK-RUNNER.md) for every PROGRAM track. Begin with
   `./scripts/track-runner.sh check`, `./scripts/track-runner.sh status`, and
   `./scripts/track-runner.sh brief <TRACK-ID>`.
-- Read PROGRAM, PROGRAM-GOALS, the track charter, and the named dependency
+- Read PROGRAM, PROGRAM-GOALS, the track plan, and the named dependency
   contract before changing code or planning an execution.
 - Use one isolated worktree and one writer per active track. The coordinator
   alone edits PROGRAM, TRACK-RUNNER, [TRACK-RUNNER-STATUS.md](TRACK-RUNNER-STATUS.md),

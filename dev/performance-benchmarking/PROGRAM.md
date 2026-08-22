@@ -1,9 +1,9 @@
 # Overall performance benchmarking and agent-memory experiments program
 
-This is the authoritative plan for FathomDB's performance benchmarking and
-experiments program. It prioritizes work, records dependencies, and names the
-decision that each track may inform. It does not replace a track's frozen
-measurement contract, and it is not a results ledger.
+This is the portfolio overview for FathomDB's performance benchmarking and
+experiments program. It prioritizes tracks, records dependencies, and names the
+decision each track may inform. Each linked track file is its short plan.
+Execution details belong in configuration and receipts, not here.
 
 The intended product outcome is stated in
 [the program goals](PROGRAM-GOALS.md): an agent-memory database with one
@@ -89,9 +89,9 @@ receipts, not inferred from a branch name or narration.
 | TRACE-01 | complete | Projection lifecycle integrity: can every derived retrieval unit retain canonical source identity and be superseded or erased without a stale hit? | Complete canary: `trace-projection.v1` is contract-tested on a fixed synthetic lifecycle fixture, independently reviewed, and integrated at `ca5b656d`. It enables lifecycle-dependent preparation; it does not authorize a live benchmark. | [track plan](tracks/trace-01-projection-lifecycle-integrity.md) |
 | LOCOMO-01 | P1 | LOCOMO self-characterization: which FathomDB retrieval configuration is eligible for answer scoring? | Directional GPU data complete: the 26-cell RTX 3090 grid identifies turn-level `hybrid_ce_alpha_10_pool_20` as the retrieval survivor. Formal CPU+GPU closure was intentionally not pursued. | [track plan](tracks/locomo-01-self-characterization.md) |
 | PARENT-01 | P1 | Parent-child LOCOMO screening: does retrieving a turn/child and returning its session/parent plus bounded neighbors improve evidence and answer context over parent-only retrieval? | Directional GPU data complete: bounded parent context does not improve child-evidence retrieval over the turn baseline, so it remains opt-in. | [track plan](tracks/parent-01-parent-child-screening.md) |
-| SCALE-01 | P1 | TC-5 eu7 scale fidelity: what manifest-qualified all-real GPU-primary vector-stage fidelity envelope is observed? | Directional real-only GPU fused-search characterization is complete at 17,272 documents / 100 queries. 0.8.23 supplies the exact private pre-fusion selector, but the performance branch must integrate it and accept a v2 GPU-primary contract before it can clear TC-5 fidelity; do not treat the fused operational result as its substitute. | [track plan](tracks/scale-01-tc5-fidelity.md) · [0.8.23 amendment](2026-08-21-fathomdb-0.8.23-gpu-primary-amendment.md) |
+| SCALE-01 | P1 | TC-5 eu7 scale fidelity: what manifest-qualified all-real GPU-primary vector-stage fidelity envelope is observed? | Directional fused-search data exists at 17,272 documents / 100 queries but is not TC-5. FathomDB 0.8.23 is integrated; implement the small v2 control surface, then run the GPU smoke and primary. CPU is optional. | [track plan](tracks/scale-01-tc5-fidelity.md) · [0.8.23 amendment](2026-08-21-fathomdb-0.8.23-gpu-primary-amendment.md) |
 | CORPUS-01 | P1 | Agent-memory gold coverage: are temporal change, knowledge update, supersession, and erasure represented well enough for a broad personal-memory claim? | Portfolio-qualified LLM evidence complete: 16 records cover all four categories; it remains distinct from human gold, and supersession retains two insufficient-evidence cases. | [track plan](tracks/corpus-01-gold-coverage.md) |
-| ANSWER-01 | P2 | LOCOMO shortlist scoring: do the selected retrieval survivors improve answer and temporal quality? | Setup active: HITL accepts directional GPU survivor `hybrid_ce_alpha_10_pool_20` as the sole retrieval basis for a preflight-only dry run. Full scoring remains blocked on a pinned scorer route, aliases, retry/checkpoint policy, and spend ceiling. Preserve class-level results and attribution. | [track plan](tracks/answer-01-shortlist-scoring.md) |
+| ANSWER-01 | P2 | LOCOMO shortlist scoring: does the accepted retrieval winner improve answer and temporal quality over A0? | Setup active. The Airlock route and model aliases are verified. Next: create the fixed 32-question, two-arm dry run; no live calls are part of that step. | [track plan](tracks/answer-01-shortlist-scoring.md) |
 | MEMORY-01 | P3 | Native Mem0 comparison: is the selected FathomDB memory profile near-parity or better under the official harness? | Blocked on ANSWER-01 selection plus Docker, official credential, LongMemEval acquisition, and a spend ceiling. Report raw-evidence and extracted-semantic-memory regimes separately. | [track plan](tracks/memory-01-native-mem0-comparison.md) |
 | SCALE-02 | P3 | F-17 advisory scale envelope: what measured local-first range is supportable for the selected projection profile? | Blocked on SCALE-01's primary receipt, a selected LOCOMO-01/PARENT-01 profile, and a pre-registered workload matrix. Claim policy remains open pending an HITL proposal; measure canonical records and derived projection rows separately. | [track plan](tracks/scale-02-local-first-envelope.md) |
 | LATENT-01 | P3 | Long-context/late-chunking feasibility: does a token-output, long-context embedder address a diagnosed cross-window discourse failure at acceptable cost? | Parked until LOCOMO-01/PARENT-01 diagnose that failure. Requires a model/interface preflight, labelled subset, and separate quality-and-cost contract; it is not a stride sweep. | [track plan](tracks/latent-01-late-chunking-feasibility.md) |
@@ -120,30 +120,27 @@ GLOBAL-01 and REASON-01 remain parked until GRAPH-01 relevance and their
 independent external prerequisites are met.
 ```
 
-TRACE-01, CORPUS-01, LOCOMO-01, and SCALE-01 may prepare in parallel once their
-own test, provenance, and corpus preconditions are met. CPU/FTS LOCOMO-01 cells
-do not wait for GPU enablement; it gates only GPU cells. PARENT-01 may join the
-LOCOMO-01 grid only through a frozen amendment; otherwise it runs before
-ANSWER-01 selects its shortlist. MEMORY-01 never starts from an arbitrary
-FathomDB profile: it uses only the selected answer-scored profile and the
-shared native-comparator contract.
+LOCOMO-01 and PARENT-01 have accepted directional decisions and should not run
+confirming grids. ANSWER-01 is their next action; MEMORY-01 waits for its
+answer-scored profile. SCALE-01 next runs GPU TC-5 fidelity, with CPU retained
+only as an optional small equivalence bridge. SCALE-02 then measures the
+selected profile and reports canonical records separately from derived rows.
 
-SCALE-02 is not a generic document-count exercise. Its workload matrix names
-the selected profile, canonical-record count, and every derived projection-row
-or vector count. It must report those quantities separately so that a
-parent-child, summary, or graph projection multiplier cannot be hidden behind
-a user-visible memory count.
+CORPUS-01 may close its remaining human-gold gaps independently. LATENT-01 and
+GRAPH-01 start only from a diagnosed failure. GLOBAL-01 and REASON-01 remain
+parked until GRAPH-01 shows that a native comparison would answer a useful
+question.
 
 ## Track organization
 
-The existing dated documents remain the current executable plans during this
-transition. New or materially rewritten plans use this logical layout:
+Track files are the plans. Keep them short. Runnable detail goes in one small
+configuration per run, and measured evidence goes in receipts:
 
 ```text
 dev/performance-benchmarking/
   PROGRAM.md                  # this portfolio board and sequencing
   contracts/                  # shared comparison and measurement contracts
-  tracks/                     # one decision-bearing plan per active track
+  tracks/                     # one short plan per decision-bearing track
 
 experiments/
   configs/<track>/            # typed executable configurations
@@ -166,8 +163,7 @@ question. In the same change, update the track plan and link the relevant
 past state resemble the current portfolio; instead, link them from the active
 track or result note that supersedes their role.
 
-Before executing a row marked "New plan required" or "New plan or
-LOCOMO-plan amendment required", create the dated plan, register its track ID
-here, and freeze its measurements, uncertainty treatment, cost limit, and
-eligibility rule. Do not let this portfolio board itself become an executable
-measurement contract.
+Before execution, the track plan must name its inputs, run, decision rule, and
+stop condition. Put parameter lists in configuration rather than expanding the
+plan. Do not let this portfolio overview become an executable measurement
+contract.

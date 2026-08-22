@@ -6,7 +6,7 @@ usage() {
   cat >&2 <<'USAGE'
 Usage: check-track-runner.sh [--root PATH] [--quiet]
 
-Checks that the performance program, its track charters, the scoped agent
+Checks that the performance program, its track plans, the scoped agent
 instructions, and the experiment-harness instructions remain bound to the
 Track Runner operating control.
 USAGE
@@ -114,10 +114,10 @@ track_bindings=(
 )
 for binding in "${track_bindings[@]}"; do
   track_id="${binding%% *}"
-  charter="${binding#* }"
-  require_file "dev/performance-benchmarking/$charter"
-  if [ -f "$root/dev/performance-benchmarking/$charter" ]; then
-    require_text "dev/performance-benchmarking/$charter" "$track_id"
+  plan="${binding#* }"
+  require_file "dev/performance-benchmarking/$plan"
+  if [ -f "$root/dev/performance-benchmarking/$plan" ]; then
+    require_text "dev/performance-benchmarking/$plan" "$track_id"
   fi
   require_text "dev/performance-benchmarking/PROGRAM.md" "$track_id"
   require_text "dev/performance-benchmarking/TRACK-RUNNER.md" "$track_id"
@@ -129,5 +129,5 @@ if [ "$fail" -ne 0 ]; then
 fi
 
 if [ "$quiet" -eq 0 ]; then
-  printf 'ok    track-runner: PROGRAM, track charters, scoped agents, and experiment harnesses are bound\n'
+  printf 'ok    track-runner: PROGRAM, track plans, scoped agents, and experiment harnesses are bound\n'
 fi

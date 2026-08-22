@@ -7,15 +7,9 @@ index remain the source of execution evidence.
 
 **Last reconciled:** 2026-08-21
 
-**Integration base:** `f0190a16` on
-`experiments/performance-0.8.23-plan-20260821`. Directional GPU run artifacts
-are external; this board names their scope and decisions but does not treat
-them as a formal CPU+GPU Phase-B closure or an exact TC-5 fidelity result.
-
-The [program-completion execution hand-off](2026-08-17-program-completion-execution-handoff.md)
-is the next coordinator packet. It retains the existing frozen inputs and
-release gates while authorizing prerequisite resolution and the already-approved
-executors in their contract order.
+**Integration branch:** `experiments/performance-0.8.23-plan-20260821`.
+Directional GPU run artifacts are external; this board names their scope and
+decisions but does not treat them as an exact TC-5 fidelity result.
 
 ## Current lanes
 
@@ -44,9 +38,9 @@ not human gold.
 HITL accepts `hybrid_ce_alpha_10_pool_20` as the directional retrieval decision
 basis. The grid's external safe receipt is unavailable in the shared artifact
 root, so this does not upgrade it to a reproducible full-grid claim. ANSWER-01
-may prepare a no-answerer/no-judge dry run using only this treatment. A live
-answer-quality action remains blocked on a pinned authenticated loopback route,
-model aliases, one-worker retry/checkpoint policy, and spend ceiling.
+may implement and run a no-answerer/no-judge dry run using only this treatment.
+The Airlock route and model aliases are verified, and the worker, retry,
+checkpoint, and cost limits are selected. A live run remains a separate action.
 
 `LOCOMO-01` handed off `6bfc1004` from
 `/tmp/fathomdb-locomo-01-20260816` on
@@ -357,13 +351,13 @@ LOCOMO/PARENT controls; coordinator release remains the next gate.
 | --- | --- | --- | --- |
 | SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
 | TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
-| LOCOMO-01 | Active | Inputs qualified; reviewed fixed-subset dry run completed; full-grid closure pending | The v3 fixed subset and frozen 1,536 evidence-backed population qualify in report `de7e968f78f4c46dc7e86c4e40e9687ae1f3b64b7d8d650cb1935c76fcc685d2`. The released five-cell CPU dry run produced content-free projection `ea854b55a795cf3123c431f330d298aaf05cc730e00f2f71292b06330e407181`; the 26-cell CPU action has no accepted projection because this execution host terminates its long-running foreground process. |
-| PARENT-01 | Active | Scoped relation proof and joint dry-run completed; full-grid closure pending | Parent proof v2 resolves scoped raw-turn collisions without exposing raw identifiers. The dry run covers its CPU PARENT cell. GPU `cuda:0` is available under the reviewed device mask, but no GPU full-grid projection exists. |
-| SCALE-01 | Active | 0.8.23 GPU-primary v2 integration and runtime qualification pending | The amendment pins a 17,272-document GPU primary, 7,667-document GPU bridge, and 100-query external input set. The source-only private selector and v2 controls require review before a smoke release; an optional CPU bridge is 7,667 documents with twelve observed effective workers. |
-| CORPUS-01 | Active | Independent LLM-review pilot completed; evidence limited | `seq-253` authorizes a distinct LLM route. Two reviewers completed a content-free 12-record LongMemEval pilot; it has no source-erasure record and therefore does not qualify a broad lifecycle claim. |
-| ANSWER-01 | Blocked | Waiting for selected retrieval survivor | Require LOCOMO/PARENT selection plus scorer and cost preflight. |
+| LOCOMO-01 | Directional decision accepted | Closed for the current retrieval decision | HITL accepts the reported 26-cell GPU grid and `hybrid_ce_alpha_10_pool_20` winner as the decision basis. The missing safe grid receipt remains a limitation, not a reason for a confirming CPU grid. |
+| PARENT-01 | Directional decision accepted | Closed for the current retrieval decision | The reported GPU comparison found no retrieval gain from bounded parent context. Parent expansion remains opt-in and is reconsidered only for a diagnosed answer-context gap. |
+| SCALE-01 | Active | TC-5 v2 implementation and GPU qualification pending | FathomDB 0.8.23 is integrated. Next is the 7,667-document GPU smoke and 17,272-document primary; the 7,667-document, twelve-worker CPU bridge is optional. |
+| CORPUS-01 | LLM evidence complete; human-gold gaps remain | Review only insufficient cases | Sixteen records cover all four lifecycle categories; two supersession cases remain insufficient. |
+| ANSWER-01 | Setup active | $0 dry run not yet implemented | The retrieval winner, Airlock route, aliases, scorer classes, and caps are selected. Next is the fixed 32-question A0-versus-winner dry run with no model calls. |
 | MEMORY-01 | Blocked | Waiting for ANSWER-01 | Require selected profile, native prerequisites, and declared spend ceiling. |
-| SCALE-02 | Blocked | Waiting for initial measures and selected profile | Claim policy remains open pending an HITL proposal. Freeze workload matrix and distinguish canonical from derived counts after the evidence exists. |
+| SCALE-02 | Blocked | Waiting for ANSWER-01 and SCALE-01 | Then run the fixed 10k-to-50k advisory ladder on only the selected profile, with canonical and derived counts separate. |
 | LATENT-01 | Parked | Not commissioned | Requires diagnosed cross-window discourse failure. |
 | GRAPH-01 | Planned | Not commissioned | Requires bounded graph design and supporting-evidence protocol. |
 | GLOBAL-01 | Parked | Not commissioned | Requires GRAPH-01 relevance and native cost/reproduction preflight. |
@@ -380,11 +374,11 @@ integration change whenever any of these events occurs:
 2. A worker hands off: record the commit SHA, test/verification result,
    independent-review verdict, and any blocker or authorization request.
 3. A lane is integrated, rejected, blocked, resumed, or closed: update the
-   affected row, PROGRAM/charter state if it truly changed, and link any safe
+   affected row, PROGRAM/plan state if it truly changed, and link any safe
    receipt or run ID.
 4. A final cross-lane review closes: record its reviewed integration SHA and
    the resulting next authorized action.
 
 Never copy raw metrics, corpus payloads, credentials, or model output here.
 Never change a row from blocked or planned to complete based on narration: link
-the reviewed commit and receipt, then apply the charter's exit rule.
+the reviewed commit and receipt, then apply the plan's exit rule.

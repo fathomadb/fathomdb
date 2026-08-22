@@ -7,18 +7,15 @@
 Can a long-context, token-output embedder improve the diagnosed subset enough to
 justify its ingest, storage, and query costs?
 
-## Preparation and contract
+## Draft plan
 
-1. Document the failure signature and a labelled cross-window subset; do not use
-   a generic stride sweep as its proxy.
-2. Preflight model context length, token-vector access, licensing, hardware,
-   identity pinning, and external artifact capacity.
-3. Freeze naïve chunking, whole-document, and late-chunking controls with equal
-   parent aggregation and answer-context treatment.
-4. Measure retrieval, answer quality, duplicate rate, ingest/index cost, storage,
-   and query tails separately.
+1. Start only with a labelled set of real cross-window failures.
+2. Compare the selected baseline with one late-chunking treatment under the
+   same parent and answer-context rules.
+3. Accept only if answer/retrieval quality improves enough to justify measured
+   ingest, storage, and query cost.
 
-## Exit evidence
+## Stop
 
-The result identifies a query shape for which late chunking earns use or records
-that it does not. It does not alter defaults without a separate product decision.
+Do not run a stride grid. Stop if no diagnosed subset exists or the model cannot
+provide token-level vectors.

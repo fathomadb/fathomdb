@@ -17,10 +17,15 @@ if ! "$CHECKER" --root "$REPO_ROOT" --quiet; then
   exit 1
 fi
 
-if ! "$RUNNER" brief TRACE-01 >/dev/null; then
-  printf 'FAIL  track-runner did not resolve TRACE-01\n' >&2
-  exit 1
-fi
+for track_id in \
+  SAFETY-01 TRACE-01 LOCOMO-01 PARENT-01 SCALE-01 CORPUS-01 ANSWER-01 \
+  MEMORY-01 SCALE-02 LATENT-01 GRAPH-01 GLOBAL-01 REASON-01 SEARCH-01
+do
+  if ! "$RUNNER" brief "$track_id" >/dev/null; then
+    printf 'FAIL  track-runner did not resolve %s\n' "$track_id" >&2
+    exit 1
+  fi
+done
 
 if ! "$RUNNER" status >/dev/null; then
   printf 'FAIL  track-runner did not expose the live status board\n' >&2

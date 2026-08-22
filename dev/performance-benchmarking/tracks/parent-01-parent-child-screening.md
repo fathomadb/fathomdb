@@ -1,32 +1,20 @@
 # PARENT-01 — Parent-child retrieval screening
 
-**Status:** active; `parent_child_turn_session_v1` is HITL-approved in the
-[dated grid amendment](../2026-08-17-parent-01-v1-grid-amendment.md). Its
-release-gated executor, external adapter, and factual qualifier are integrated.
-Execution is blocked before release on a qualified byte-matching LOCOMO corpus,
-fixed subset, and unambiguous canonical parent proof; GPU cells additionally
-require a working NVIDIA driver.
+**Status:** directional decision accepted; parent context remains opt-in.
 
 ## Decision
 
 Does child retrieval followed by parent/session and bounded-neighbor context
 improve evidence recovery and answer context over parent-only retrieval?
 
-## Preparation and contract
+## Draft plan
 
-1. Consume the accepted TRACE-01 source/lifecycle contract for the selected
-   child and parent projections.
-2. Implement the approved frozen treatment: individual-turn child, exact
-   enclosing-session parent, hybrid top-10 child ranking, five deduplicated
-   session bundles, rank-preserving parent selection, and one neighbor on each
-   side within the session.
-3. Extend LOCOMO provenance and metrics to report child evidence recall, parent
-   recall, duplicate rate, context expansion, and per-class latency.
-4. Write tests for parent mapping, duplicate removal, missing-parent handling,
-   neighbor bounds, and receipt isolation from public API changes.
+1. Retain the reported GPU comparison showing no retrieval gain from bounded
+   parent context over the turn-level winner.
+2. Keep parent expansion available as an opt-in answer-context treatment.
+3. Revisit it only if ANSWER-01 identifies a specific context-completeness gap.
 
-## Exit evidence
+## Stop
 
-The treatment is eligible only if it clears LOCOMO-01’s retrieval and latency
-rules without a material class regression. It becomes an ANSWER-01 candidate,
-not a product default, only after that evidence exists.
+Do not add parent variants or another grid without a diagnosed failure they are
+intended to fix.

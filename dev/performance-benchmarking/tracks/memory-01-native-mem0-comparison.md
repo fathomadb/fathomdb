@@ -7,18 +7,16 @@
 Is the selected FathomDB profile near-parity or better than Mem0 under the
 official harness and an identical answer-scoring contract?
 
-## Preparation and contract
+## Draft plan
 
-1. Pin official harness/container commits, Python interpreter, Compose overlays,
-   corpus digest, services, credentials route, and spend ceiling.
-2. Run the native and FathomDB arms under matched question set, top-k, timeout,
-   answerer, and judge controls; refuse mismatched or incomplete arm receipts.
-3. Report raw-evidence retrieval and extracted-semantic-memory regimes separately.
-4. Use paired confidence intervals and preserve all unavailable prerequisites as
-   typed evidence rather than replacing them with local reimplementations.
+1. Wait for ANSWER-01 to select the FathomDB profile and for the official Mem0
+   harness, corpus, credentials, and cost cap to be available.
+2. Run one matched comparison with the same questions, answerer, judge, top-k,
+   and timeout for both systems.
+3. Decide near-parity or loss from paired results; report raw-evidence and
+   extracted-memory regimes separately.
 
-## Exit evidence
+## Stop
 
-A comparison receipt names its matched inputs, uncertainty, cost, and limitations.
-Any loss is characterized into mechanism, fairness fix, and capability options for
-human decision; it never autonomously selects a fork or product default.
+Stop on an input mismatch, incomplete arm, or cost cap. Characterize a loss;
+do not start an unbounded tuning loop.

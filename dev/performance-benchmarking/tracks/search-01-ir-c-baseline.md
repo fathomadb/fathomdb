@@ -6,16 +6,13 @@
 
 What FathomDB-only lexical retrieval result anchors later retrieval experiments?
 
-## Preparation and contract
+## Draft plan
 
-1. Preserve the historical receipt, corpus digest, workload, and distinction
-   between retrieval quality and answer-quality claims.
-2. Re-run only through a new frozen regression plan that states why historical
-   evidence is insufficient; never overwrite its historical receipt.
-3. Use it as an FTS comparator for IR behavior, not as an agent-memory or
-   latency/comparator verdict.
+1. Preserve the historical receipt and corpus digest unchanged.
+2. Use it only as the lexical retrieval reference for later IR work.
+3. Rerun only when a named regression question makes the old evidence unusable.
 
-## Exit evidence
+## Stop
 
-The existing evidence remains discoverable and immutable. Any new measurement is
-a separately identified receipt with its own configuration and claim class.
+Do not reinterpret this result as answer quality, agent-memory quality, latency,
+or competitor evidence.

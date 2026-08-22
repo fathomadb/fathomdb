@@ -7,15 +7,15 @@
 Under a fair native reproduction, how does FathomDB compare with GraphRAG on
 global coverage, diversity, empowerment, and cost?
 
-## Preparation and contract
+## Draft plan
 
-1. Establish GRAPH-01 relevance and pin GraphRAG version, indexing settings,
-   community level, corpus, answer budget, judge protocol, and output limits.
-2. Declare a cost ceiling, live metering, checkpoint/resume, and abort rule
-   before indexing. Match retrieval/read budgets and remove known reader limits.
-3. Use repeated, order-swapped judgments with an uncertainty and power rule.
+1. Start only if GRAPH-01 shows relevant global-sensemaking value.
+2. Pin the official GraphRAG build and run one small smoke, then one matched
+   comparison on the same corpus, read budget, answerer, judge, and cost cap.
+3. Report coverage, diversity, empowerment, cost, and uncertainty for both
+   exhaustive and product-viable FathomDB modes.
 
-## Exit evidence
+## Stop
 
-The receipt distinguishes exhaustive and product-viable FathomDB modes, includes
-cost and uncertainty, and reports split/inconclusive outcomes honestly.
+Stop on corpus mismatch, incomplete arms, or the cost cap. A split result is a
+valid result; do not tune indefinitely.

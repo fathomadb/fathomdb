@@ -1066,7 +1066,7 @@ def record_input_pack(config_path: str | Path) -> dict[str, Any]:
         "persistent_root_identifier": "fathomdb-data/performance-benchmarking/scale-02",
         "payload_committed": False,
     }
-    run_id, record = _lib.write_record(
+    run_id, run_directory = _lib.write_record(
         "scale-02-input-pack",
         ts=datetime.now(UTC),
         config_obj={
@@ -1096,6 +1096,7 @@ def record_input_pack(config_path: str | Path) -> dict[str, Any]:
         open_questions=[],
     )
     _lib.regen_index_md()
+    record = run_directory / "record.json"
     return {"run_id": run_id, "record_sha256": sha_file(record)}
 
 
@@ -1158,7 +1159,7 @@ def run_tuning(config_path: str | Path) -> dict[str, Any]:
         },
         "formal_rerun_authorized": False,
     }
-    receipt_run_id, record = _lib.write_record(
+    receipt_run_id, run_directory = _lib.write_record(
         "scale-02-fts-tuning",
         ts=timestamp,
         config_obj=config,
@@ -1207,6 +1208,7 @@ def run_tuning(config_path: str | Path) -> dict[str, Any]:
     if receipt_run_id != run_id:
         raise Scale02FollowupError("tuning run ID drifted")
     _lib.regen_index_md()
+    record = run_directory / "record.json"
     return {
         "run_id": run_id,
         "record_path": str(record),
@@ -1320,7 +1322,7 @@ def synthesize_selection(
         "tuning_sha256": sha_file(tuning_path),
         "proposal_sha256": sha_file(proposal_path),
     }
-    run_id, record = _lib.write_record(
+    run_id, run_directory = _lib.write_record(
         "scale-02-fts-selection",
         ts=datetime.now(UTC),
         config_obj=resolved,
@@ -1353,6 +1355,7 @@ def synthesize_selection(
         open_questions=["approve or reject the proposed formal SCALE-02 10k configuration"],
     )
     _lib.regen_index_md()
+    record = run_directory / "record.json"
     return {
         "run_id": run_id,
         "record_path": str(record),

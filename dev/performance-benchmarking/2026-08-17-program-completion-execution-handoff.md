@@ -2,19 +2,29 @@
 
 **Date:** 2026-08-17
 **Role:** Track Runner coordinator
-**Goal:** complete the already-authorized `LOCOMO-01`, `PARENT-01`,
-`SCALE-01`, and `CORPUS-01` work with qualified external evidence and safe
-receipts.
+**Goal:** generate decision-useful performance data for `LOCOMO-01`,
+`PARENT-01`, `SCALE-01`, and `CORPUS-01`, prioritizing GPU-backed runs and
+analysis with only the minimum checks needed to avoid misleading results.
 **Authority:** HITL authorizations `seq-249` and `seq-250`, plus the stated
 goal. This hand-off does not authorize `ANSWER-01`, `MEMORY-01`, `SCALE-02`, a
 product claim, a paid service, a substitute corpus, or a floor relaxation.
 
-**2026-08-21 amendment:** the released 0.8.23 baseline and its
-[GPU-primary amendment](2026-08-21-fathomdb-0.8.23-gpu-primary-amendment.md)
-supersede this historical hand-off's incompatible CPU-first and unavailable
-NVIDIA-driver instructions. Preserve this document as the prior execution
-packet; use the amendment for new LOCOMO/PARENT GPU cells and the future TC-5
-v2 release path.
+## Current outcome — 2026-08-21
+
+The directional GPU campaign is complete. The full 26-cell LOCOMO/PARENT GPU
+grid identifies turn-level `hybrid_ce_alpha_10_pool_20` as the retrieval
+survivor; session-level retrieval is not competitive, and PARENT context is
+opt-in rather than a retrieval-quality improvement. SCALE has real-only GPU
+fused-search operational data at 17,272 documents and 100 questions. Released
+0.8.23 provides the exact private pre-fusion TC-5 selector; the next exact
+fidelity action requires its reviewed GPU-primary v2 controls. CORPUS has a
+16-record, four-category qualified LLM review portfolio, explicitly distinct
+from human gold.
+
+The remaining formal CPU-grid, human-gold, and exact TC-5 closure steps are not
+required for the directional-data goal. This historical hand-off is superseded
+where its CPU-first instructions conflict with the
+[GPU-primary amendment](2026-08-21-fathomdb-0.8.23-gpu-primary-amendment.md).
 
 ## Start here
 

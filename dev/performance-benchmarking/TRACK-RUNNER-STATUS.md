@@ -7,41 +7,37 @@ index remain the source of execution evidence.
 
 **Last reconciled:** 2026-08-21
 
-**Integration base:** `d8b2ac7d` on
-`experiments/performance-experiments-20260815`. This is the verified initial
-executor, qualification, and coordinator-state set plus the accepted LOCOMO
-normalized-corpus correction; replace it with the verified integration SHA at
-each accepted lane close.
+**Integration base:** `f0190a16` on
+`experiments/performance-0.8.23-plan-20260821`. Directional GPU run artifacts
+are external; this board names their scope and decisions but does not treat
+them as a formal CPU+GPU Phase-B closure or an exact TC-5 fidelity result.
 
 The [program-completion execution hand-off](2026-08-17-program-completion-execution-handoff.md)
 is the next coordinator packet. It retains the existing frozen inputs and
 release gates while authorizing prerequisite resolution and the already-approved
 executors in their contract order.
 
-## 0. FathomDB 0.8.23 GPU-primary amendment
-
-The performance branch is integrated with the released 0.8.23 mainline in an
-isolated worktree. The append-only ledger histories were reconciled through the
-ledger tools; no historical decision or caveat was discarded. The current
-execution direction is the
-[0.8.23 GPU-primary amendment](2026-08-21-fathomdb-0.8.23-gpu-primary-amendment.md):
-
-- 0.8.23 is the baseline for new embedding- and cross-encoder-accelerable
-  cells; previously completed directional GPU evidence remains historical.
-- CPU does not represent fidelity. Do not schedule a duplicate CPU full grid.
-  If TC-5 requires a CPU equivalence bridge, it is limited to 7,667 documents
-  and twelve observed effective workers.
-- The private 0.8.23 TC-5 selector is available in source but TC-5 v2 is not
-  integrated or released. Its normal order is a GPU 7,667-document smoke then
-  a GPU 17,272-document primary, with a fresh one-RTX-3090 UUID preflight.
-- `nvidia-smi` is usable on this host. That replaces the stale driver blocker,
-  but every release still needs fresh UUID, free-memory, process, and allocation
-  evidence; no GPU experiment action is released by this planning update.
-
-This section supersedes incompatible CPU-first and unavailable-driver wording
-elsewhere in this historical status record.
-
 ## Current lanes
+
+### 0.8.23 GPU-primary amendment — 2026-08-21
+
+The released 0.8.23 Python wheel is available in an isolated benchmark runtime,
+and its source line supplies the private exact pre-fusion TC-5 executable. The
+[GPU-primary amendment](2026-08-21-fathomdb-0.8.23-gpu-primary-amendment.md)
+makes GPU the primary next runtime while retaining CPU only as a separately
+released 7,667-document, twelve-core equivalence bridge. The canonical branch
+is now integrated; the remaining TC-5 gate is red-first v2 controls and review.
+
+### Directional GPU outcome — 2026-08-17
+
+The RTX 3090 GPU lane completed all 26 LOCOMO-01/PARENT-01 cells over the frozen
+1,536-question population. Turn-level `hybrid_ce_alpha_10_pool_20` is the
+directional survivor; session-level treatments are substantially weaker, and
+PARENT context does not improve child-evidence retrieval over the turn baseline.
+SCALE-01 has a 17,272-document / 100-question GPU fused-search operational
+characterization; it is not an exact TC-5 fidelity result. CORPUS-01 has
+16 records across four lifecycle categories as portfolio-qualified LLM evidence,
+not human gold.
 
 `LOCOMO-01` handed off `6bfc1004` from
 `/tmp/fathomdb-locomo-01-20260816` on

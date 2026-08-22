@@ -10,6 +10,9 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 
+#[cfg(unix)]
+use std::os::unix::fs::OpenOptionsExt;
+
 use fathomdb_embedder::{
     tc5_local_asset_directory_identity, CandleBgeEmbedder, ExplicitCandleDevice,
 };
@@ -749,11 +752,12 @@ fn reject_result_destination(path: &Path) -> Result<(), String> {
 fn install_new(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let parent = path.parent().ok_or("result needs a parent directory")?;
     let temporary = parent.join(format!(".tc5-result-{}", std::process::id()));
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&temporary)
-        .map_err(|_| "cannot create result temporary".to_string())?;
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    let mut file =
+        options.open(&temporary).map_err(|_| "cannot create result temporary".to_string())?;
     file.write_all(bytes).map_err(|_| "cannot write result".to_string())?;
     file.sync_all().map_err(|_| "cannot sync result".to_string())?;
     // `hard_link` fails if `path` appeared after validation, unlike rename's
@@ -900,6 +904,18 @@ mod tests {
         fs::write(&path, b"original").unwrap();
         assert!(install_new(&path, b"replacement").is_err());
         assert_eq!(fs::read(&path).unwrap(), b"original");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn finalization_creates_private_result_files() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("result.json");
+        install_new(&path, b"safe").unwrap();
+
+        assert_eq!(fs::metadata(path).unwrap().permissions().mode() & 0o777, 0o600);
     }
 
     #[test]

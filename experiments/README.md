@@ -71,11 +71,14 @@ continue to require their explicit authorization gate.
 
 Each new FathomDB measurement cell must start with
 `python -m experiments.fathomdb_test_setup <external-root> <test-id>`. The
-bootstrap refuses to reuse a test directory, writes its explicit embedding and
+bootstrap refuses to reuse a test directory, writes explicit embedding and
 reranker device policies, creates a new database, and records machine-readable
 `doctor gpu`, `doctor reranker-gpu`, and post-open `doctor check-integrity`
-evidence. The safe setup metadata belongs beside the external artifacts, not in
-a committed receipt.
+evidence. A GPU embedding cell must pass `--embed-device cuda:N --embedder
+default --warm-cache`: `auto` is not a GPU claim. `warm-cache` is explicit so
+its download bytes and elapsed time are retained outside the measured cell; the
+subsequent open records the resolved device and allocation witness. The safe
+setup metadata belongs beside external artifacts, not in a committed receipt.
 
 ## Rules for the writer
 

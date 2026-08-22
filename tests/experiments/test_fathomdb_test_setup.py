@@ -19,21 +19,22 @@ def test_prepare_creates_one_configured_database_and_doctor_evidence(tmp_path):
 
     opened: list[Path] = []
 
-    def open_database(path: Path) -> dict[str, str]:
+    def open_database(path: Path, use_default_embedder: bool) -> dict[str, str]:
         opened.append(path)
         path.touch()
+        assert use_default_embedder is True
         return {"query_backend": "sqlite"}
 
     prepared = fathomdb_test_setup.prepare_test_database(
-        tmp_path, test_id="locomo-gpu-cell-01", embed_device="cuda:0", rerank_device="cuda:0",
+        tmp_path, test_id="locomo-gpu-cell-01", embed_device="cuda:0", rerank_device="cuda:0", embedder="default", warm_cache=True,
         doctor_runner=doctor, database_opener=open_database,
     )
 
     assert prepared.database_path == tmp_path / "locomo-gpu-cell-01" / "fathomdb.sqlite"
     assert opened == [prepared.database_path]
     config = json.loads(prepared.config_path.read_text())
-    assert config == {"schema_version": "fathomdb.test-setup.v1", "embed_device": "cuda:0", "rerank_device": "cuda:0"}
-    assert [call[0][1:3] for call in calls] == [["doctor", "gpu"], ["doctor", "reranker-gpu"], ["doctor", "check-integrity"]]
+    assert config == {"schema_version": "fathomdb.test-setup.v1", "embed_device": "cuda:0", "embedder": "default", "rerank_device": "cuda:0"}
+    assert [call[0][1:3] for call in calls] == [["doctor", "gpu"], ["doctor", "reranker-gpu"], ["doctor", "warm-cache"], ["doctor", "check-integrity"]]
     assert all(call[1]["FATHOMDB_EMBED_DEVICE"] == "cuda:0" for call in calls)
     assert prepared.doctor_path.is_file()
 
@@ -43,3 +44,8 @@ def test_prepare_refuses_to_reuse_a_test_database(tmp_path):
 
     with pytest.raises(FileExistsError, match="already exists"):
         fathomdb_test_setup.prepare_test_database(tmp_path, test_id="same")
+
+
+def test_gpu_or_default_embedder_requires_an_explicit_cache_warm_preflight(tmp_path):
+    with pytest.raises(ValueError, match="warm_cache"):
+        fathomdb_test_setup.prepare_test_database(tmp_path, test_id="gpu", embed_device="cuda:0", embedder="default")

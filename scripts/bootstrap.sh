@@ -23,7 +23,8 @@ bash "$SCRIPT_DIR/install-gitleaks.sh"
 
 # Repo-tracked git hooks: activate via core.hooksPath (repo-relative, so linked
 # worktrees inherit it too). pre-commit = fast fmt/ruff + AST-guarded markdown
-# auto-fix/enforce; pre-push = fast clippy/actionlint (full verify opt-in via
+# auto-fix/enforce; commit-msg = advisory warning for GitHub Actions suppression
+# annotations; pre-push = fast clippy/actionlint (full verify opt-in via
 # FATHOMDB_PREPUSH_FULL=1). See scripts/install-hooks.sh.
 scripts/install-hooks.sh
 

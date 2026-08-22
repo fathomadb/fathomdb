@@ -137,6 +137,13 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - name: Warn about workflow suppression in squash title
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          printf '%s\n' "$PR_TITLE" |
+            scripts/warn-ci-skip-message.sh --source "pull request title"
       - name: Determine CI mode
         id: ci_mode
         shell: bash

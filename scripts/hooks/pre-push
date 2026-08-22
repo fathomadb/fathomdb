@@ -15,6 +15,21 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
+# A commit-msg warning can be bypassed or installed after a branch already has
+# history. Rescan only the commits this push would introduce. This remains
+# advisory: log-resolution failure or a match never blocks the push.
+zero_oid="0000000000000000000000000000000000000000"
+while read -r _local_ref local_oid remote_ref remote_oid; do
+  [ "$local_oid" = "$zero_oid" ] && continue
+  if [ "$remote_oid" = "$zero_oid" ]; then
+    outgoing_messages="$(git log --format=%B "$local_oid" --not --remotes 2>/dev/null || true)"
+  else
+    outgoing_messages="$(git log --format=%B "$remote_oid..$local_oid" 2>/dev/null || true)"
+  fi
+  printf '%s\n' "$outgoing_messages" |
+    scripts/warn-ci-skip-message.sh --source "outgoing commits for $remote_ref"
+done
+
 if [ "${FATHOMDB_PREPUSH_FULL:-0}" = "1" ]; then
   # Opt-in heavy gate: mirror exactly what an agent runs before declaring work
   # done, so CI-fail-but-local-pass drift is caught before the push.

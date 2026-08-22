@@ -83,15 +83,15 @@ setup metadata belongs beside external artifacts, not in a committed receipt.
 ## SCALE-02 local-first envelope
 
 `python -m experiments.scale_02` owns the A0 FTS-only efficiency envelope. Its
-[configuration](configs/scale-02/a0-envelope.v1.json) binds ANSWER-01's A0
+[approved configuration](configs/scale-02/a0-envelope.v2.json) binds ANSWER-01's A0
 decision, the SCALE-01 primary, the 10k/17,272/25k/40k/50k ladder, fresh
 databases, repetitions, cache states, resource/storage metrics, uncertainty,
-and the advisory policy. Validate it or qualify all frozen inputs without
-creating output:
+the advisory policy, and the production rank-fast runtime. Validate it or
+qualify all frozen inputs without creating output:
 
 ```bash
-python -m experiments.scale_02 validate experiments/configs/scale-02/a0-envelope.v1.json
-python -m experiments.scale_02 dry-run experiments/configs/scale-02/a0-envelope.v1.json /external/new-root
+python -m experiments.scale_02 validate experiments/configs/scale-02/a0-envelope.v2.json
+python -m experiments.scale_02 dry-run experiments/configs/scale-02/a0-envelope.v2.json /external/new-root
 ```
 
 The workload and advisory policy were approved together by the HITL on
@@ -109,8 +109,9 @@ reader profiles, concurrency 1/2/4, and 132 retrieval-equivalence queries. Raw
 databases, timings, witnesses, and their artifact manifest remain external;
 safe aggregates use the normal experiment index. Selection writes a
 pending-HITL v2 proposal and cannot authorize the formal 10k rerun.
-The current proposal selects the rank-fast query path with shipped reader
-defaults; its receipt and configuration remain pending HITL.
+The HITL approved its `rank_default` recommendation and production landing on
+2026-08-22. The approved v2 configuration selects that shipped behavior with
+default readers; the force-full-sort hook remains experiment-only.
 
 ## Rules for the writer
 

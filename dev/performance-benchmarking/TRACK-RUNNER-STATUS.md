@@ -10,8 +10,7 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. **SCALE-02:** approve or reject the proposed formal 10k configuration and
-   production landing.
+1. **SCALE-02:** run the approved formal 10k configuration.
 
 CORPUS-01 may resolve its two insufficient supersession cases independently.
 
@@ -29,7 +28,7 @@ CORPUS-01 may resolve its two insufficient supersession cases independently.
 | [TEMPORAL-01](tracks/temporal-01-time-scoped-retrieval.md) | Planned | Wait for CORPUS-01-qualified temporal gold and the selected retrieval baseline. |
 | [EXTRACT-01](tracks/extract-01-semantic-memory.md) | Planned | Wait for TRACE-01 lifecycle coverage, qualified update gold, and the selected canonical baseline. |
 | [MEMORY-01](tracks/memory-01-native-mem0-comparison.md) | Blocked | Use A0; wait for native comparator prerequisites. |
-| [SCALE-02](tracks/scale-02-local-first-envelope.md) | Awaiting HITL | Review `rank_default` [selection](../../experiments/runs/scale-02-fts-selection-20260822T1859Z-946ebdc2/record.json) and [proposed v2 config](../../experiments/configs/scale-02/a0-envelope.v2.proposed.json); do not run formal 10k. |
+| [SCALE-02](tracks/scale-02-local-first-envelope.md) | Ready to run | Execute the [approved formal 10k config](../../experiments/configs/scale-02/a0-envelope.v2.json); advance only on a passing receipt. |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |
 | [GLOBAL-01](tracks/global-01-native-graphrag.md) | Parked | Wait for a named global-synthesis failure, an eligible graph or summary/map-reduce treatment, and native-run prerequisites. |

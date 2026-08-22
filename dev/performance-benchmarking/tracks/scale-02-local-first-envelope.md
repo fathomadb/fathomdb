@@ -1,7 +1,7 @@
 # SCALE-02 — Local-first scale envelope
 
-**Status:** compact follow-up complete; `rank_default` is recommended and the
-formal 10k rerun awaits HITL approval plus production landing.
+**Status:** `rank_default` approved and landed in production; the formal 10k
+rerun is ready.
 
 ## Decision
 
@@ -20,8 +20,9 @@ retrieval profile without implying an unmeasured capacity guarantee?
   advisory operating envelope for the registered workload, not a product
   capacity limit.
 - The executable
-  [configuration](../../../experiments/configs/scale-02/a0-envelope.v1.json)
-  binds the workload and advisory policy approved by the HITL on 2026-08-22.
+  [configuration](../../../experiments/configs/scale-02/a0-envelope.v2.json)
+  binds the selected production path, workload, runtime, and advisory policy
+  approved by the HITL on 2026-08-22.
 
 ## Follow-up inputs
 
@@ -57,6 +58,9 @@ retrieval profile without implying an unmeasured capacity guarantee?
   versus observed reader-setting drift.
 
 ## Follow-up plan
+
+Steps 1 through 3 are complete. The HITL approved the step 3 recommendation;
+step 4 is next.
 
 1. **Implement and qualify the candidates.** Add the deterministic FTS rank
    fast path: request the existing direct-text candidate window plus one row
@@ -121,8 +125,12 @@ top-10 equivalence for all 100 TC-5 and 32 ANSWER-01 queries, and observed
 reader settings. `rank_default` is the lowest-footprint eligible cell: its 95%
 upper bounds are 9.50 ms p50 and 44.25 ms p99 with shipped reader defaults.
 The [selection receipt](../../../experiments/runs/scale-02-fts-selection-20260822T1859Z-946ebdc2/record.json)
-and [proposed v2 configuration](../../../experiments/configs/scale-02/a0-envelope.v2.proposed.json)
-remain pending HITL; no formal 10k rerun has occurred.
+recommended `rank_default`. The HITL approved that recommendation and its
+production landing as `seq-264` in the program decision ledger. The
+[result summary](../2026-08-22-scale-02-fts-followup-result.md) records the
+results and trade-offs, and the
+[approved v2 configuration](../../../experiments/configs/scale-02/a0-envelope.v2.json)
+pins the production runtime. No formal 10k rerun has occurred.
 
 ## Stop
 

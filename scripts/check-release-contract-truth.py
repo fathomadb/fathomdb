@@ -28,16 +28,63 @@ EXPECTED_READY_TRIPLES = {
 }
 CUDA_LINUX_X64 = ("ubuntu-latest", "x86_64-unknown-linux-gnu", "linux-x64-gnu")
 CANONICAL_CUDA_ROUTE_IF = "${{ github.event_name != 'workflow_dispatch' || inputs.dry_run != true }}"
-PUBLISHING_JOBS = (
-    "publish-rust-t1-embedder-api", "publish-rust-t2-schema", "publish-rust-t3-query",
-    "publish-rust-t4-embedder", "publish-rust-t5-engine", "publish-rust-t6-facade",
-    "publish-rust-t7-cli", "publish-pypi", "publish-npm-platform-linux-x64-gnu",
-    "publish-npm-platform-linux-arm64-gnu", "publish-npm-platform-darwin-x64",
-    "publish-npm-platform-darwin-arm64", "publish-npm-platform-win32-x64-msvc", "publish-npm",
-    "post-publish-smoke", "post-publish-smoke-aarch64", "post-publish-smoke-darwin-x64",
-    "post-publish-smoke-darwin-arm64", "post-publish-smoke-win32-x64", "co-tagging-assert",
-    "promote-npm-latest", "github-release", "record-v0820-partial-registry-recovery",
+RELEASE_JOB_NEEDS = {
+    "publish-rust-t1-embedder-api": ("all-builds-passed",),
+    "publish-rust-t2-schema": ("publish-rust-t1-embedder-api",),
+    "publish-rust-t3-query": ("publish-rust-t2-schema",),
+    "publish-rust-t4-embedder": ("publish-rust-t3-query",),
+    "publish-rust-t5-engine": ("publish-rust-t4-embedder",),
+    "publish-rust-t6-facade": ("publish-rust-t5-engine",),
+    "publish-rust-t7-cli": ("publish-rust-t6-facade",),
+    "publish-pypi": ("publish-rust-t5-engine",),
+    "publish-npm-platform-linux-x64-gnu": ("all-builds-passed",),
+    "publish-npm-platform-linux-arm64-gnu": ("all-builds-passed",),
+    "publish-npm-platform-darwin-x64": ("all-builds-passed",),
+    "publish-npm-platform-darwin-arm64": ("all-builds-passed",),
+    "publish-npm-platform-win32-x64-msvc": ("all-builds-passed",),
+    "publish-npm": (
+        "publish-rust-t5-engine",
+        "publish-npm-platform-linux-x64-gnu",
+        "publish-npm-platform-linux-arm64-gnu",
+        "publish-npm-platform-darwin-x64",
+        "publish-npm-platform-darwin-arm64",
+        "publish-npm-platform-win32-x64-msvc",
+    ),
+    "post-publish-smoke": ("publish-rust-t7-cli", "publish-pypi", "publish-npm"),
+    "post-publish-smoke-aarch64": ("publish-rust-t7-cli", "publish-pypi", "publish-npm"),
+    "post-publish-smoke-darwin-x64": ("publish-rust-t7-cli", "publish-pypi", "publish-npm"),
+    "post-publish-smoke-darwin-arm64": ("publish-rust-t7-cli", "publish-pypi", "publish-npm"),
+    "post-publish-smoke-win32-x64": ("publish-rust-t7-cli", "publish-pypi", "publish-npm"),
+    "co-tagging-assert": ("publish-rust-t7-cli", "publish-pypi", "publish-npm"),
+    "promote-npm-latest": (
+        "post-publish-smoke",
+        "post-publish-smoke-aarch64",
+        "post-publish-smoke-darwin-x64",
+        "post-publish-smoke-darwin-arm64",
+        "post-publish-smoke-win32-x64",
+        "co-tagging-assert",
+    ),
+    "github-release": ("promote-npm-latest",),
+    "record-v0820-partial-registry-recovery": (
+        "publish-rust-t7-cli",
+        "publish-pypi",
+        "post-publish-smoke",
+    ),
+}
+RECOVERY_ROUTE = (
+    "github.event_name == 'workflow_dispatch' && inputs.recovery_skip_npm == true "
+    "&& inputs.release_version == '0.8.20'"
 )
+RECOVERY_ALLOWED_JOBS = {
+    "publish-rust-t1-embedder-api",
+    "publish-rust-t2-schema",
+    "publish-rust-t3-query",
+    "publish-rust-t4-embedder",
+    "publish-rust-t5-engine",
+    "publish-rust-t6-facade",
+    "publish-rust-t7-cli",
+    "publish-pypi",
+}
 JOB_HEADER = re.compile(r"^  ([A-Za-z][A-Za-z0-9_-]*):\s*$")
 MATRIX_RUNNER = re.compile(r"^          - runner: ([^\s#]+)\s*$")
 MATRIX_VALUE = re.compile(r"^            ([a-z_]+): ([^\s#]+)\s*$")
@@ -78,8 +125,8 @@ CONTINUE_ON_ERROR = re.compile(
     r"^\s+continue-on-error:\s*(?P<value>[^#\n]+?)(?:\s+#.*)?$",
     re.MULTILINE,
 )
-SUCCESS_BYPASS = re.compile(
-    r"(?:\b(?:always|cancelled|failure)\s*\(|!\s*(?:\(\s*)*success\s*\()",
+UNSAFE_STATUS_BYPASS = re.compile(
+    r"(?:\b(?:cancelled|failure)\s*\(|!\s*(?:\(\s*)*success\s*\()",
     re.IGNORECASE,
 )
 
@@ -222,18 +269,41 @@ def require_failing_smoke_stops(job_name: str, block: str) -> None:
             fail(f"{job_name} must not use a non-false continue-on-error setting")
 
 
-def require_implicit_success(job_name: str, block: str) -> None:
+def job_condition(job_name: str, block: str) -> str:
     conditions = re.findall(r"^    if:\s*(.+)$", block, re.MULTILINE)
     if len(conditions) != 1:
         fail(f"{job_name} must have exactly one recognized job-level if condition")
-    if SUCCESS_BYPASS.search(conditions[0]):
-        fail(f"{job_name} must not bypass failed dependencies with a status condition")
+    return conditions[0].strip()
 
 
-def require_candidate_free(job_name: str, block: str) -> None:
-    conditions = re.findall(r"^    if:\s*(.+)$", block, re.MULTILINE)
-    if len(conditions) != 1 or "inputs.candidate_commit == ''" not in conditions[0]:
-        fail(f"{job_name} must be unreachable from an unmerged candidate dispatch")
+def expected_release_condition(job_name: str, expected_needs: tuple[str, ...]) -> str:
+    success = [f"needs.{dependency}.result == 'success'" for dependency in expected_needs]
+    candidate_release = "always() && inputs.candidate_commit == '' && inputs.dry_run != true"
+    if job_name == "post-publish-smoke":
+        guarded = success[:-1] + [f"(({RECOVERY_ROUTE}) || {success[-1]})"]
+        return "${{ " + " && ".join([candidate_release, *guarded]) + " }}"
+    if job_name == "record-v0820-partial-registry-recovery":
+        return "${{ " + " && ".join(["always()", "inputs.candidate_commit == ''", RECOVERY_ROUTE, *success]) + " }}"
+    route = [candidate_release]
+    if job_name not in RECOVERY_ALLOWED_JOBS:
+        route.append(f"!({RECOVERY_ROUTE})")
+    return "${{ " + " && ".join([*route, *success]) + " }}"
+
+
+def require_fail_closed_release_job(
+    job_name: str,
+    block: str,
+    expected_needs: tuple[str, ...],
+) -> None:
+    condition = job_condition(job_name, block)
+    actual_needs = needs(job_name, block)
+    if set(actual_needs) != set(expected_needs):
+        fail(f"{job_name} dependencies are {actual_needs}, expected {list(expected_needs)}")
+    expected_condition = expected_release_condition(job_name, expected_needs)
+    if condition != expected_condition:
+        fail(f"{job_name} must use its exact fail-closed canonical/recovery condition")
+    if UNSAFE_STATUS_BYPASS.search(condition):
+        fail(f"{job_name} must not accept a failed or cancelled dependency state")
 
 
 def require_trusted_linux_x64_cuda_producer(jobs: dict[str, str]) -> None:
@@ -306,7 +376,7 @@ def require_trusted_linux_x64_cuda_producer(jobs: dict[str, str]) -> None:
         if route_condition not in all_builds:
             fail("all-builds-passed must select the candidate rehearsal or canonical producer by route")
 
-    for publisher in PUBLISHING_JOBS:
+    for publisher in RELEASE_JOB_NEEDS:
         publisher_block = jobs.get(publisher)
         if publisher_block is None:
             fail(f"release workflow lacks {publisher}")
@@ -349,6 +419,12 @@ def main() -> None:
                 fail(f"release-ready platform {entry.get('triple')!r} lacks {field}")
 
     jobs = workflow_jobs(repo / ".github/workflows/release.yml")
+    for job_name, expected_needs in RELEASE_JOB_NEEDS.items():
+        block = jobs.get(job_name)
+        if block is None:
+            fail(f"release workflow lacks {job_name}")
+        require_fail_closed_release_job(job_name, block, expected_needs)
+
     expected_build = {(entry["runner"], entry["rust_target"]) for entry in ready}
     cuda_build = CUDA_LINUX_X64[:2]
     if cuda_build not in expected_build:
@@ -446,8 +522,6 @@ def main() -> None:
         fail("promote-npm-latest must depend on every release-ready platform smoke")
     if "co-tagging-assert" not in promotion_needs:
         fail("promote-npm-latest must depend on co-tagging-assert")
-    require_implicit_success("promote-npm-latest", promotion)
-    require_candidate_free("promote-npm-latest", promotion)
     promotion_command_count = promotion.count("npm dist-tag add")
     if promotion_command_count != 1 or not PROMOTION_COMMAND.search(promotion):
         fail("promote-npm-latest must promote only fathomdb@${RELEASE_TAG#v} to latest")
@@ -457,9 +531,6 @@ def main() -> None:
         fail("release workflow lacks github-release")
     if "promote-npm-latest" not in needs("github-release", github_release):
         fail("github-release must depend on promote-npm-latest")
-    require_implicit_success("github-release", github_release)
-    require_candidate_free("github-release", github_release)
-
     print(f"ok    release-contract-truth: {release} has {len(ready)} release-ready native triples")
 
 

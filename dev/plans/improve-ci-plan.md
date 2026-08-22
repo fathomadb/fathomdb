@@ -82,9 +82,23 @@ diagnostics, or the five-platform artifact matrix.
 
 ### 4.1 Establish the failing routing fixture
 
-Extend the existing CI contract-fixture family under `scripts/tests/`. The test
-must execute the real `dorny/paths-filter` matching semantics for path cases and
-must evaluate the actual job conditions for route cases.
+This is the first implementation step. Do not edit workflow behavior before it
+is complete.
+
+First pass blocking checkpoint **CI-CP0 — exact matcher oracle**. Demonstrate
+that the proposed fixture executes code from the exact pinned
+`dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d` implementation,
+and record the adapter, commit pin, and invocation in the fixture header. A
+hand-written glob evaluator, YAML-only inspection, the root `picomatch`
+dependency used as a proxy, or copied expected outputs is not acceptable. If an
+offline exact-source adapter is needed, checksum-pin the vendored action source
+or distribution and invoke its real matcher entry point; do not fetch mutable
+code during the test. If the exact implementation cannot be exercised, stop at
+CI-CP0 rather than weakening the oracle.
+
+Then extend the existing CI contract-fixture family under `scripts/tests/`. The
+test must execute that proven matcher adapter for path cases and must evaluate
+the actual job conditions for route cases.
 
 Add RED cases for:
 
@@ -100,7 +114,10 @@ Add RED cases for:
 - current-tree, dispatchable full-history, and advisory release Gitleaks; and
 - tag-push release safety.
 
-Commit or stage the failing fixture before editing workflow behavior.
+Run the fixture against the current workflow and observe the required RED
+cases. Commit or stage the failing fixture before editing workflow behavior.
+Section 4.2 must not begin until CI-CP0 is recorded and the fixture is visibly
+RED.
 
 ### 4.2 Replace the classifier in place
 
@@ -156,11 +173,17 @@ does not fan out into expensive jobs using unknown classification outputs.
 
 Before removing its `push` trigger, compare
 `.github/workflows/aarch64-release-preflight.yml` with the Linux ARM64 row of
-`native-artifact-runtime-validation` and migrate its unique contract assertions:
+`native-artifact-runtime-validation` and its smoke script. The comparison already
+establishes that `smoke-local-native-artifacts.sh` stages the N-API binary,
+creates the actual npm tarball, installs it offline, and runtime-smokes it. Do
+not duplicate those stronger existing assertions merely to reproduce the old
+workflow's `npm pack --dry-run` command.
 
-- ABI3/interpreter compatibility evidence not already proved by the native row;
-- staging the Linux ARM64 N-API binary into its platform package; and
-- `npm pack --dry-run` verification of that package.
+The only unresolved evidence comparison is the preflight's Python
+3.10/3.11/3.12 maturin invocation versus the native row's Python 3.11 build and
+install. Add only the missing executable or structural ABI3 assertion proved
+necessary by the fixture; do not treat a multi-interpreter build argument as
+three runtime-install smokes.
 
 Put executable artifact assertions in the Linux ARM64 native row and structural
 contract assertions in fast fixtures where execution adds no signal. Then make
@@ -237,6 +260,8 @@ an arbitrary clean-duration requirement.
 - `.github/workflows/gitleaks-history.yml` (new)
 - `.github/workflows/release.yml` (one independent advisory job only)
 - `scripts/tests/<focused-ci-routing-fixture>.sh` (name chosen during TDD setup)
+- the checksum-pinned exact-action matcher adapter selected at CI-CP0, if the
+  pinned implementation is not already executable from installed tooling
 - any existing CI-shape fixture that owns the invariant being changed
 - `dev/design/ci-cd-simplified-redesign-20260821.md`
 - `dev/plans/improve-ci-plan.md`
@@ -244,6 +269,8 @@ an arbitrary clean-duration requirement.
 ## 8. Definition of done
 
 - All CI-R1 through CI-R10 acceptance signals pass.
+- CI-CP0 records and executes the exact pinned paths-filter implementation; no
+  hand-written matcher or proxy supplies routing results.
 - The five adversarial findings are represented by permanent fixtures.
 - A Windows-only attribution change selects no ARM64, generic Python, Rust,
   TypeScript, security, wheel, or native matrix job.

@@ -254,7 +254,17 @@ def require_unmerged_workflow_route() -> None:
 
     for name in PUBLISHING_JOBS:
         job = workflow_job(name)
-        if job.count("\n    if:") != 1 or "inputs.candidate_commit == ''" not in job:
+        conditions = re.findall(r"^    if:\s*(.+)$", job, re.MULTILINE)
+        if len(conditions) != 1:
+            fail(f"{name} must have exactly one recognized job-level condition")
+        condition = conditions[0]
+        candidate_free = "inputs.candidate_commit == ''" in condition
+        canonical_push = (
+            "github.event_name == 'push'" in condition
+            and "workflow_dispatch" not in condition
+            and "||" not in condition
+        )
+        if not candidate_free and not canonical_push:
             fail(f"{name} must be unreachable from an unmerged candidate dispatch")
 
 

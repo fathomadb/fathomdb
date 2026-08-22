@@ -228,9 +228,18 @@ fi
 npm_platform_block="$(job_block publish-npm-platform-linux-x64-gnu)"
 npm_platform_arm_block="$(job_block publish-npm-platform-linux-arm64-gnu)"
 npm_main_block="$(job_block publish-npm)"
-if grep -Fq "if: \${{ $candidate_free_expr && !($recovery_dispatch_expr) }}" <<<"$npm_platform_block" \
-  && grep -Fq "if: \${{ $candidate_free_expr && !($recovery_dispatch_expr) }}" <<<"$npm_platform_arm_block" \
-  && grep -Fq "if: \${{ $candidate_free_expr && !($recovery_dispatch_expr) }}" <<<"$npm_main_block"; then
+if grep -Fq 'always()' <<<"$npm_platform_block" \
+  && grep -Fq "$candidate_free_expr" <<<"$npm_platform_block" \
+  && grep -Fq "!($recovery_dispatch_expr)" <<<"$npm_platform_block" \
+  && grep -Fq "needs.all-builds-passed.result == 'success'" <<<"$npm_platform_block" \
+  && grep -Fq 'always()' <<<"$npm_platform_arm_block" \
+  && grep -Fq "$candidate_free_expr" <<<"$npm_platform_arm_block" \
+  && grep -Fq "!($recovery_dispatch_expr)" <<<"$npm_platform_arm_block" \
+  && grep -Fq "needs.all-builds-passed.result == 'success'" <<<"$npm_platform_arm_block" \
+  && grep -Fq 'always()' <<<"$npm_main_block" \
+  && grep -Fq "$candidate_free_expr" <<<"$npm_main_block" \
+  && grep -Fq "!($recovery_dispatch_expr)" <<<"$npm_main_block" \
+  && grep -Fq "needs.publish-npm-platform-win32-x64-msvc.result == 'success'" <<<"$npm_main_block"; then
   pass "recovery dispatch explicitly skips both platform and main npm publish jobs"
 else
   fail "recovery dispatch must skip both platform and main npm publish jobs"
@@ -239,6 +248,8 @@ fi
 smoke_block="$(job_block post-publish-smoke)"
 if grep -Fq 'needs.publish-rust-t7-cli.result == '\''success'\''' <<<"$smoke_block" \
   && grep -Fq 'needs.publish-pypi.result == '\''success'\''' <<<"$smoke_block" \
+  && grep -Fq 'always()' <<<"$smoke_block" \
+  && grep -Fq "$candidate_free_expr" <<<"$smoke_block" \
   && grep -Fq "$recovery_dispatch_expr) || needs.publish-npm.result == 'success'" <<<"$smoke_block" \
   && grep -Fq "fromJSON(($recovery_dispatch_expr) && '[\"crates-cli\",\"pypi-wheel\"]' || '[\"crates-cli\",\"pypi-wheel\",\"npm-package\"]')" <<<"$smoke_block"; then
   pass "recovery keeps crates and PyPI smokes while omitting npm smoke"
@@ -249,9 +260,16 @@ fi
 co_tagging_block="$(job_block co-tagging-assert)"
 github_release_block="$(job_block github-release)"
 partial_record_block="$(job_block record-v0820-partial-registry-recovery)"
-if grep -Fq "if: \${{ $candidate_free_expr && inputs.dry_run != true && !($recovery_dispatch_expr) }}" <<<"$co_tagging_block" \
-  && grep -Fq "if: \${{ $candidate_free_expr && inputs.dry_run != true && !($recovery_dispatch_expr) }}" <<<"$github_release_block" \
+if grep -Fq 'always()' <<<"$co_tagging_block" \
+  && grep -Fq "$candidate_free_expr && inputs.dry_run != true && !($recovery_dispatch_expr)" <<<"$co_tagging_block" \
+  && grep -Fq "needs.publish-npm.result == 'success'" <<<"$co_tagging_block" \
+  && grep -Fq 'always()' <<<"$github_release_block" \
+  && grep -Fq "$candidate_free_expr && inputs.dry_run != true && !($recovery_dispatch_expr)" <<<"$github_release_block" \
+  && grep -Fq "needs.promote-npm-latest.result == 'success'" <<<"$github_release_block" \
+  && grep -Fq 'always()' <<<"$partial_record_block" \
+  && grep -Fq "$candidate_free_expr" <<<"$partial_record_block" \
   && grep -Fq "$recovery_dispatch_expr" <<<"$partial_record_block" \
+  && grep -Fq "needs.post-publish-smoke.result == 'success'" <<<"$partial_record_block" \
   && grep -Fq 'v0.8.20 partial registry recovery' <<<"$partial_record_block" \
   && grep -Fq 'GITHUB_STEP_SUMMARY' <<<"$partial_record_block"; then
   pass "recovery skips npm-dependent finalization and records partial state"

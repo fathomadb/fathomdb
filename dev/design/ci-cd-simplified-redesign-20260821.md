@@ -342,19 +342,26 @@ it also ignores `ci-lite`, runs on matching feature-branch pushes, and runs on
 tag pushes because GitHub does not evaluate path filters for tags. Recent runs
 took about six minutes and included duplicate same-SHA branch/tag executions.
 
-The redesign makes that workflow `workflow_dispatch`-only. Before removing its
-`push` trigger, move every assertion not already proved elsewhere into the Linux
-ARM64 row of `native-artifact-runtime-validation` or a fast structural fixture:
+The redesign makes that workflow `workflow_dispatch`-only. The code-grounded
+comparison must distinguish existing ownership from genuinely missing evidence:
 
-- ABI3/interpreter compatibility evidence;
-- staging the ARM64 N-API binary into its platform package; and
-- `npm pack --dry-run` verification of that package.
+- `smoke-local-native-artifacts.sh` already stages the ARM64 N-API binary into
+  its platform package, creates the actual package tarball with `npm pack`,
+  installs it offline, and runtime-smokes it. That is stronger than duplicating
+  the old workflow's `npm pack --dry-run`; do not add duplicate staging or pack
+  steps.
+- The remaining comparison is ABI3/interpreter evidence. The preflight passes
+  Python 3.10, 3.11, and 3.12 to maturin, while the proportional native row
+  builds and installs with Python 3.11. Before retiring the push trigger, add
+  only the missing executable or structural ABI3 assertion identified by the
+  fixture; do not assume the three-interpreter build proves three runtime
+  installs.
 
 The existing native row already builds and runtime-smokes both the ARM64 Python
 wheel and N-API artifact on `ubuntu-24.04-arm`; it is the proportional automatic
 owner. The separate workflow remains available for a targeted manual rehearsal,
-with no schedule. This change and its migrated assertions land atomically: the
-automatic trigger is not removed before its unique evidence has another owner.
+with no schedule. Trigger retirement and any genuinely missing ABI3 assertion
+land atomically.
 
 GitHub documents that `paths` filters are not evaluated for tag pushes in its
 [workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onpushpull_requestpull_request_targetpathspaths-ignore).
@@ -459,10 +466,21 @@ pre-release cross-platform artifact signal.
 
 ### 3.8 Fixture-first implementation requirement
 
-Before editing workflow conditions, add a failing fixture that executes the
-real `dorny/paths-filter` matching semantics—not merely a YAML structure parser.
-The fixture then becomes green with the workflow change. This TDD ordering is a
-firm precondition.
+Before editing workflow conditions, pass a blocking matcher-oracle checkpoint:
+the fixture must demonstrate that it executes code from the exact pinned
+`dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d` implementation.
+Record the adapter, commit pin, and invocation in the fixture header. A
+hand-written glob evaluator, a YAML structure parser, root `picomatch` used as a
+proxy, or copied expected booleans does not pass this checkpoint. If the pinned
+action cannot be executed offline, stop and choose a verifiable exact-source
+adapter—such as checksum-pinned vendored action source or distribution invoked
+through its real matcher entry point—before changing `ci.yml`; do not weaken the
+oracle to keep moving.
+
+After that checkpoint, add the failing routing fixture and observe the required
+RED cases against the current workflow. Commit or stage the fixture before
+editing workflow behavior. The fixture then becomes green with the workflow
+change. This TDD ordering is a firm precondition.
 
 The fixture must cover:
 
@@ -530,12 +548,13 @@ look at useful red results.” That is deliberate. Narrow routing and a fast,
 never-suppressed baseline make each result cheaper and more meaningful; they do
 not turn it into a gate.
 
-## 7. Remaining HITL decisions
+## 7. Deferred options, not implementation decisions
 
-1. Keep all 14 independent jobs unconditional, or scope some governance jobs
-   to `dev/plans|steward|design/**`?
-2. Build `--surface=` for the heavy verifier?
-3. Build commit-range Gitleaks, or keep the fast full-tree baseline?
+The implementation plan resolves this redesign's choices: keep all 14
+independent jobs unconditional, do not build `--surface=`, and retain the fast
+full-tree Gitleaks baseline. Scoping governance jobs, splitting the heavy
+verifier, and adding commit-range Gitleaks remain possible future work, but none
+is a prerequisite or an authorized expansion of this implementation.
 
 The `[ci-lite]` marker shape and trust boundary are resolved in §3.6. Windows
 workflow routing, the independent AArch64 trigger, and fixture sequencing are

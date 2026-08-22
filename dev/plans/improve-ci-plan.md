@@ -319,3 +319,23 @@ checkpoint (`!cancelled()` on `verify-fast`, shallow per-push Gitleaks
 checkout, `.gitattributes` whitespace carve-out for the vendored bundle,
 fixture hardening). Every definition-of-done item in §8 is covered by a
 permanent fixture under `scripts/tests/`; the design is `status: ACTIVE`.
+
+PR #243 provided the full-surface live validation: all selected jobs passed.
+Its squash commit did not provide the expected `main`-push validation because
+GitHub assembled the squash body from checkpoint messages and one historical
+message mentioned `[skip ci]` in prose. GitHub interprets that text before it
+starts `push` and `pull_request` workflows, so neither `ci.yml` nor its router
+can report the suppressed run.
+
+Before a squash landing, scan every message that GitHub may copy into the
+squash body:
+
+```bash
+git log --format=%B origin/main..HEAD |
+  rg -n -i '\[(skip ci|ci skip|no ci|skip actions|actions skip)\]|^skip-checks:[[:space:]]*true$'
+```
+
+An empty result is expected. The merge dialog's final title and body remain
+the authoritative input; for a deterministic CLI landing, pass an explicit
+clean `--subject` and `--body` to `gh pr merge --squash`. After merge, the
+absence of the expected `CI` run for the merge SHA is the post-landing alert.

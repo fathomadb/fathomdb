@@ -3,11 +3,23 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
 
 from experiments import scale_02_followup as followup
+
+
+def test_configured_executable_path_preserves_venv_symlink(tmp_path):
+    executable = tmp_path / "venv" / "bin" / "python"
+    executable.parent.mkdir(parents=True)
+    executable.symlink_to(sys.executable)
+
+    resolved = followup._configured_executable_path(executable, "runtime.python")
+
+    assert resolved == executable
+    assert resolved.is_symlink()
 
 
 def test_freeze_inputs_writes_digest_manifest_and_refuses_drift(tmp_path):

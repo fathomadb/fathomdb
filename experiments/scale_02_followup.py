@@ -85,6 +85,14 @@ def _resolved_path(value: object, label: str) -> Path:
     return (path if path.is_absolute() else REPO_ROOT / path).resolve()
 
 
+def _configured_executable_path(value: object, label: str) -> Path:
+    if not isinstance(value, (str, Path)) or not str(value):
+        raise Scale02FollowupError(f"{label} must be a non-empty path")
+    path = Path(value)
+    absolute = path if path.is_absolute() else REPO_ROOT / path
+    return absolute.parent.resolve() / absolute.name
+
+
 def load_config(path: str | Path) -> dict[str, Any]:
     """Load and strictly validate the registered follow-up configuration."""
     try:
@@ -601,7 +609,7 @@ def _runtime_scale_config(config: Mapping[str, Any]) -> scale_02.Scale02Config:
         corpus_index_sha256=sha_file(input_root / inputs["tc5_index"]),
         qualified_manifest=input_root / inputs["tc5_qualified_manifest"],
         qualified_manifest_sha256=sha_file(input_root / inputs["tc5_qualified_manifest"]),
-        python=_resolved_path(runtime["python"], "runtime.python"),
+        python=_configured_executable_path(runtime["python"], "runtime.python"),
         python_extension=_resolved_path(runtime["python_extension"], "runtime.python_extension"),
         python_extension_sha256=runtime["python_extension_sha256"],
         fathomdb_bin=_resolved_path(runtime["fathomdb_bin"], "runtime.fathomdb_bin"),

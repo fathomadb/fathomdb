@@ -1,19 +1,17 @@
 name: AArch64 release preflight
 
-# A branch-runnable, no-publish rehearsal for the release workflow's Linux
+# A manually dispatched, no-publish rehearsal for the release workflow's Linux
 # AArch64 binding artifacts. It is deliberately separate from release.yml:
 # that workflow validates an immutable tag reachable from main, while this
-# preflight must prove the unmerged branch on a real ARM64 runner.
+# preflight proves a chosen ref on a real ARM64 runner.
+#
+# No automatic trigger: the proportional native-artifact-runtime-validation
+# row in ci.yml (ubuntu-24.04-arm) already builds, installs, and runtime-smokes
+# the ARM64 wheel and N-API package on every routed change and asserts the
+# shipped cp310-abi3 wheel tag. A push trigger here bypassed that classifier,
+# ignored [ci-lite], and fired twice per tagged SHA because GitHub does not
+# evaluate path filters for tag pushes.
 on:
-  push:
-    paths:
-      - .github/workflows/aarch64-release-preflight.yml
-      - .github/workflows/release.yml
-      - src/python/**
-      - src/rust/**
-      - src/ts/**
-      - Cargo.toml
-      - Cargo.lock
   workflow_dispatch:
 
 permissions:

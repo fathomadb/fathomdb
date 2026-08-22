@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/dorny/paths-filter",
+  "commit": "fbd0ab8f3e69293af611ebaee6363fc25e6d187d",
+  "version_comment": "v4.0.1",
+  "entrypoint": "dist/index.js",
+  "entrypoint_sha256": "2a8458c162f898df02eaa4ddad64501a5be7b7d1a27dc788069bcd2219b9a798",
+  "license": "MIT",
+  "license_sha256": "5730dccb89882cb567a44c9035df1668df1b03c23e4d1a71c59924eeba8e405a"
+}

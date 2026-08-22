@@ -408,6 +408,8 @@ run_tier_suite fast test-npm-inject-optional-deps bash scripts/tests/test_npm_in
 
 # actionlint binary present + rejects deliberately-broken fixture.
 run_tier_suite fast test-actionlint-fixture bash scripts/tests/test_actionlint_fixture.sh
+run_tier_suite fast test-paths-filter-oracle bash scripts/tests/test_paths_filter_oracle.sh
+run_tier_suite fast test-ci-proportional-routing python3 scripts/tests/test_ci_proportional_routing.py
 
 # Go-installed actionlint prefixes its exact version with `v`; bootstrap and
 # agent-lint must normalize that conventional form without accepting drift.

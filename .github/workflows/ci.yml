@@ -11,6 +11,7 @@ on:
 # could exploit.
 permissions:
   contents: read
+  pull-requests: read
 
 # A newer pull-request commit supersedes its older run, so those runs share a
 # group and cancel promptly. GitHub cancels an older pending run in a shared
@@ -21,8 +22,10 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # 0.8.23 Slice 50: reachable history is scanned independently of the
+  # 0.8.23 Slice 50: the current tracked tree is scanned independently of the
   # docs-only detector, because a path filter cannot be a security boundary.
+  # Reachable-history scanning moved off the per-push path (see the note after
+  # the current-tree step).
   gitleaks:
     runs-on: ubuntu-latest
     # Security findings are retained for offline review; they do not block this
@@ -30,15 +33,15 @@ jobs:
     continue-on-error: true
     timeout-minutes: 10
     steps:
+      # Shallow checkout: the current-tree scan reads `git ls-files`, not
+      # history, so the full fetch is not needed here.
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          fetch-depth: 0
       - name: Install pinned Gitleaks
         run: bash scripts/install-gitleaks.sh
       - name: Scan current tracked tree
         run: bash scripts/security/gitleaks-current.sh
-      - name: Scan reachable Git history
-        run: bash scripts/security/gitleaks-history.sh
+      # Full-history scanning is owned by .github/workflows/gitleaks-history.yml
+      # (workflow_dispatch) and release.yml's gitleaks-history-advisory job.
 
   # 0.8.21 Slice 35 (SHELL-LINT-CI) — the shell gate, EARLY and INDEPENDENT.
   # Design of record: dev/design/ci-verify-robustness-review.md R2.1.
@@ -119,14 +122,106 @@ jobs:
       # changed; docs_only is its negation. The bias is safe: a misread can only
       # make heavy jobs RUN on a docs change (slower), never SKIP on a code change.
       docs_only: ${{ steps.filter.outputs.nonmd == 'false' }}
+      rust: ${{ steps.filter.outputs.rust }}
+      python: ${{ steps.python_non_windows.outputs.python }}
+      typescript: ${{ steps.filter.outputs.typescript }}
+      windows: ${{ steps.filter.outputs.windows }}
+      ci_workflow: ${{ steps.filter.outputs.ci_workflow }}
+      verify_harness: ${{ steps.filter.outputs.verify_harness }}
+      rust_test_harness: ${{ steps.filter.outputs.rust_test_harness }}
+      security_harness: ${{ steps.filter.outputs.security_harness }}
+      native_artifact_harness: ${{ steps.filter.outputs.native_artifact_harness }}
+      ci_mode: ${{ steps.ci_mode.outputs.ci_mode }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      - name: Determine CI mode
+        id: ci_mode
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          PUSH_SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          candidate="$PUSH_SHA"
+          trusted_source=true
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            candidate="$PR_HEAD_SHA"
+            if [ "$PR_HEAD_REPOSITORY" != "$REPOSITORY" ]; then
+              trusted_source=false
+            fi
+            case "$PR_AUTHOR_ASSOCIATION" in
+              OWNER|MEMBER|COLLABORATOR) ;;
+              *) trusted_source=false ;;
+            esac
+          elif [ "$EVENT_NAME" = "push" ]; then
+            read -r _first_parent second_parent _rest < <(
+              git show -s --format='%P' "$PUSH_SHA"
+            )
+            if [ -n "${second_parent:-}" ]; then
+              candidate="$second_parent"
+            fi
+          fi
+          message="$(git show -s --format='%B' "$candidate")"
+          if [ "$trusted_source" = true ] && grep -Fxq -- '[ci-lite]' <<<"$message"; then
+            echo "ci_mode=lite" >> "$GITHUB_OUTPUT"
+          else
+            echo "ci_mode=normal" >> "$GITHUB_OUTPUT"
+          fi
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
         id: filter
         with:
           filters: |
             nonmd:
               - '!**/*.md'
+            windows:
+              - 'src/python/tests/test_slice65_wal_attribution_installed.py'
+            rust:
+              - 'src/rust/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            typescript:
+              - 'src/ts/**'
+            ci_workflow:
+              - '.github/workflows/ci.yml'
+            verify_harness:
+              - 'scripts/agent-verify.sh'
+              - 'scripts/agent-test.sh'
+              - 'scripts/lib/agent-output.sh'
+              - 'scripts/lib/agent-suite-run.sh'
+              - 'scripts/lib/agent-python-env.sh'
+              - 'scripts/bootstrap.sh'
+            rust_test_harness:
+              - 'scripts/test-rust-workspace.sh'
+            security_harness:
+              - 'scripts/agent-security.sh'
+              - 'scripts/bootstrap.sh'
+              - 'scripts/security/check-no-listen.sh'
+              - 'scripts/security/check-netns-deny-egress.sh'
+              - 'scripts/security/check-netns-deny-egress-catch.sh'
+              - 'scripts/security/lib-egress-allowlist.sh'
+              - 'scripts/security/lib-gate-policy.sh'
+              - 'scripts/security/lib-gate-policy.test.sh'
+              - 'scripts/security/ast_scan.py'
+              - 'scripts/security/check-removal-changelog.sh'
+              - 'scripts/security/check_removal_changelog.py'
+            native_artifact_harness:
+              - 'scripts/release/smoke/smoke-local-native-artifacts.sh'
+              - 'scripts/release/smoke/smoke-local-native-artifacts.ps1'
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4.0.1
+        id: python_non_windows
+        with:
+          predicate-quantifier: every
+          filters: |
+            python:
+              - 'src/python/**'
+              - '!src/python/tests/test_slice65_wal_attribution_installed.py'
 
   # The fast verifier owns every cheap diagnostic suite plus lint, typecheck,
   # and security. It runs alongside the heavy language-test tier below. The
@@ -134,7 +229,16 @@ jobs:
   # cannot be absent from both jobs, and no suite can be in both by accident.
   verify-fast:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    # !cancelled(), not always(): always() stays true while the run is being
+    # cancelled, and GitHub does not cancel a running job whose condition is
+    # still true — a superseded PR run would keep this 30-minute job alive
+    # despite cancel-in-progress above.
+    if: >-
+      !cancelled() &&
+      (
+        needs.changes.result != 'success' ||
+        needs.changes.outputs.docs_only != 'true'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -187,7 +291,19 @@ jobs:
   # language skips.
   verify:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.rust == 'true' ||
+          needs.changes.outputs.python == 'true' ||
+          needs.changes.outputs.typescript == 'true' ||
+          needs.changes.outputs.verify_harness == 'true' ||
+          needs.changes.outputs.rust_test_harness == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -252,7 +368,16 @@ jobs:
   # without allowing its known scheduling-sensitive failures to gate a release.
   rust-workspace-race-report:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.rust == 'true' ||
+          needs.changes.outputs.rust_test_harness == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -311,7 +436,18 @@ jobs:
   # gate rather than pass vacuously.
   security:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.rust == 'true' ||
+          needs.changes.outputs.python == 'true' ||
+          needs.changes.outputs.typescript == 'true' ||
+          needs.changes.outputs.security_harness == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
@@ -346,7 +482,17 @@ jobs:
   # the env var stays unset and the tests run normally — fast on warm cache.
   default-embedder-tests:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.rust == 'true' ||
+          needs.changes.outputs.python == 'true' ||
+          needs.changes.outputs.typescript == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -458,7 +604,15 @@ jobs:
   # its retained log records elapsed checkpoint time and the typed lock result.
   windows-wal-checkpoint-diagnosis:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.rust == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
@@ -487,7 +641,17 @@ jobs:
   # only—never a database path, SQL, query text, source id, or result data.
   windows-wal-attribution:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.rust == 'true' ||
+          needs.changes.outputs.python == 'true' ||
+          needs.changes.outputs.windows == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -775,7 +939,16 @@ jobs:
   # macOS x64/ARM64, and Windows x64. Musl and other targets remain unsupported.
   wheel-size-gate:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.rust == 'true' ||
+          needs.changes.outputs.python == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
     strategy:
       fail-fast: false
       matrix:
@@ -880,7 +1053,18 @@ jobs:
   # remain the post-publish Slice 20 release gate.
   native-artifact-runtime-validation:
     needs: changes
-    if: needs.changes.outputs.docs_only != 'true'
+    if: >-
+      needs.changes.outputs.ci_workflow == 'true' ||
+      (
+        needs.changes.outputs.docs_only != 'true' &&
+        (
+          needs.changes.outputs.rust == 'true' ||
+          needs.changes.outputs.python == 'true' ||
+          needs.changes.outputs.typescript == 'true' ||
+          needs.changes.outputs.native_artifact_harness == 'true'
+        ) &&
+        needs.changes.outputs.ci_mode != 'lite'
+      )
     strategy:
       fail-fast: false
       matrix:

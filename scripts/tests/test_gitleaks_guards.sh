@@ -278,10 +278,12 @@ for index, job in enumerate(jobs):
         break
 else:
     raise SystemExit(1)
-required = ("fetch-depth: 0", "install-gitleaks.sh", "gitleaks-current.sh", "gitleaks-history.sh")
+required = ("install-gitleaks.sh", "gitleaks-current.sh")
 if any(item not in body for item in required):
     raise SystemExit(1)
-if body.find("gitleaks-current.sh") > body.find("gitleaks-history.sh"):
+# Full-history scanning moved off the per-push path: it is owned by the
+# dispatchable gitleaks-history workflow and the release advisory job below.
+if "gitleaks-history.sh" in body:
     raise SystemExit(1)
 if not re.search(r"^    continue-on-error:\s*true\s*$", body, re.M):
     raise SystemExit(1)
@@ -289,9 +291,56 @@ if re.search(r"^    needs:\s*changes\s*$", body, re.M) or re.search(r"^    if:",
     raise SystemExit(1)
 PY
 then
-  pass "always-on CI report-only current-tree and history guards have no docs-only bypass"
+  pass "always-on CI report-only current-tree guard has no docs-only bypass and no per-push history scan"
 else
-  fail "always-on CI report-only current-tree and history guards have no docs-only bypass"
+  fail "always-on CI report-only current-tree guard has no docs-only bypass and no per-push history scan"
+fi
+
+HISTORY_WORKFLOW="$REPO_ROOT/.github/workflows/gitleaks-history.yml"
+RELEASE="$REPO_ROOT/.github/workflows/release.yml"
+if python3 - "$HISTORY_WORKFLOW" "$RELEASE" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+history_path, release_path = Path(sys.argv[1]), Path(sys.argv[2])
+if not history_path.is_file():
+    raise SystemExit(1)
+history = history_path.read_text()
+trigger = history.split("permissions:\n", 1)[0]
+if re.search(r"^  workflow_dispatch:\s*$", trigger, re.M) is None:
+    raise SystemExit(1)
+if re.search(r"^  (?:push|pull_request|schedule):", trigger, re.M):
+    raise SystemExit(1)
+for item in ("fetch-depth: 0", "install-gitleaks.sh", "gitleaks-history.sh"):
+    if item not in history:
+        raise SystemExit(1)
+
+release = release_path.read_text()
+jobs_text = release[release.find("jobs:\n") + len("jobs:\n") :]
+jobs = list(re.finditer(r"^  ([A-Za-z0-9_-]+):\n", jobs_text, re.M))
+advisory = None
+for index, job in enumerate(jobs):
+    end = jobs[index + 1].start() if index + 1 < len(jobs) else len(jobs_text)
+    body = jobs_text[job.end() : end]
+    if job.group(1) == "gitleaks-history-advisory":
+        advisory = body
+    elif "gitleaks-history-advisory" in body:
+        raise SystemExit(1)  # no build, publish, smoke, or promotion job may need it
+if advisory is None:
+    raise SystemExit(1)
+if re.search(r"^    needs:", advisory, re.M):
+    raise SystemExit(1)
+if not re.search(r"^    continue-on-error:\s*true\s*$", advisory, re.M):
+    raise SystemExit(1)
+for item in ("fetch-depth: 0", "install-gitleaks.sh", "gitleaks-history.sh"):
+    if item not in advisory:
+        raise SystemExit(1)
+PY
+then
+  pass "full-history guard is dispatchable and an independent advisory release job"
+else
+  fail "full-history guard is dispatchable and an independent advisory release job"
 fi
 
 printf '%s passed, %s failed\n' "$PASS" "$FAIL"

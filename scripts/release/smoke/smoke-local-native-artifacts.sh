@@ -24,6 +24,42 @@ if [ ! -f "$TS_DIR/fathomdb.$NAPI_LABEL.node" ]; then
   exit 1
 fi
 
+# The shipped wheel is a stable-ABI build (pyo3 abi3-py310), so one artifact
+# serves every CPython >= 3.10. Assert that tag structurally — filename and
+# WHEEL metadata — because a single-interpreter maturin build would otherwise
+# silently produce a version-specific wheel that still installs here.
+ABI3_TAG="cp310-abi3"
+wheel_name="$(basename "${wheel_paths[0]}")"
+case "$wheel_name" in
+  *-"$ABI3_TAG"-*.whl) ;;
+  *)
+    printf 'smoke-local-native-artifacts: wheel %s is not tagged %s\n' \
+      "$wheel_name" "$ABI3_TAG" >&2
+    exit 1
+    ;;
+esac
+if ! python3 - "${wheel_paths[0]}" "$ABI3_TAG" <<'PY'
+import sys, zipfile
+
+path, abi3_tag = sys.argv[1], sys.argv[2]
+with zipfile.ZipFile(path) as wheel:
+    names = [n for n in wheel.namelist() if n.endswith(".dist-info/WHEEL")]
+    if len(names) != 1:
+        sys.exit(f"expected exactly one dist-info/WHEEL entry, found {names}")
+    tags = [
+        line.split(":", 1)[1].strip()
+        for line in wheel.read(names[0]).decode().splitlines()
+        if line.startswith("Tag:")
+    ]
+if not tags or any(not tag.startswith(f"{abi3_tag}-") for tag in tags):
+    sys.exit(f"WHEEL metadata is not tagged {abi3_tag} (tags: {tags})")
+PY
+then
+  printf 'smoke-local-native-artifacts: wheel %s is not tagged %s in its WHEEL metadata\n' \
+    "$wheel_name" "$ABI3_TAG" >&2
+  exit 1
+fi
+
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 

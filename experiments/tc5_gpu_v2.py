@@ -545,6 +545,21 @@ def _write_new_json(path: Path, value: object) -> None:
         handle.write(_json_bytes(value) + b"\n")
 
 
+def configure_tc5_dense_projection(engine: object) -> None:
+    """Declare the production searchable-vector arm before TC-5 document writes."""
+    from fathomdb import ProjectionRole, ProjectionSpec
+
+    engine.configure_projections(
+        [
+            ProjectionSpec(
+                name="tc5_dense",
+                roles=frozenset({ProjectionRole.SEARCHABLE}),
+                vector=True,
+            )
+        ]
+    )
+
+
 def _ingest_database(config: Tc5GpuConfig, inputs: ArmInputs, output_root: Path) -> Path:
     prior = {
         key: os.environ.get(key)
@@ -574,6 +589,7 @@ def _ingest_database(config: Tc5GpuConfig, inputs: ArmInputs, output_root: Path)
 
         engine = Engine.open(str(prepared.database_path), use_default_embedder=True)
         try:
+            configure_tc5_dense_projection(engine)
             for offset in range(0, len(inputs.documents), 256):
                 engine.write(
                     [

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -85,6 +87,36 @@ def test_binary_environment_scrubs_fathomdb_controls_and_selects_one_gpu():
     assert environment["CUDA_VISIBLE_DEVICES"] == "GPU-pinned"
     assert "NVIDIA_VISIBLE_DEVICES" not in environment
     assert not any(key.startswith("FATHOMDB_") for key in environment)
+
+
+def test_database_setup_declares_the_production_dense_projection(monkeypatch):
+    configured = []
+
+    class ProjectionSpec:
+        def __init__(self, *, name, roles, vector):
+            self.name = name
+            self.roles = roles
+            self.vector = vector
+
+    monkeypatch.setitem(
+        sys.modules,
+        "fathomdb",
+        SimpleNamespace(
+            ProjectionRole=SimpleNamespace(SEARCHABLE="searchable"),
+            ProjectionSpec=ProjectionSpec,
+        ),
+    )
+
+    class Engine:
+        def configure_projections(self, specs):
+            configured.extend(specs)
+
+    tc5_gpu_v2.configure_tc5_dense_projection(Engine())
+
+    assert len(configured) == 1
+    assert configured[0].name == "tc5_dense"
+    assert configured[0].roles == frozenset({"searchable"})
+    assert configured[0].vector is True
 
 
 def test_query_job_binds_source_exclusion_and_all_fidelity_pins(tmp_path):

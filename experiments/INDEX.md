@@ -20,3 +20,6 @@ GENERATED FROM `index.jsonl` — do NOT hand-edit. Regenerate with `experiments/
 | 2026-08-22T18:37:06Z | scale-02-fts-tuning | scale-02-fts-tuning-20260822T1837Z-d50ec2cf | complete | 10000 | d2ebdcd4526ad33e4b840eaf3d2c03dbc5f6681f | 0.0 | cells=6; equivalence_mismatches=22; program_track=SCALE-02 |  |
 | 2026-08-22T18:51:14Z | scale-02-fts-tuning | scale-02-fts-tuning-20260822T1851Z-51e41245 | complete | 10000 | 6c24da79c09c17ec20ac4f9615c7f6229997e739 | 0.0 | cells=6; equivalence_mismatches=0; program_track=SCALE-02 |  |
 | 2026-08-22T18:59:39Z | scale-02-fts-selection | scale-02-fts-selection-20260822T1859Z-946ebdc2 | recommendation_pending_hitl | 10000 | 6492c0879ac9db4b3285e3d9d3dd7d03fb18b6bf | 0.0 | quality_applicability=unchanged; recommended_cell=rank_default |  |
+| 2026-08-22T22:39:28Z | scale-02-a0-10000 | scale-02-a0-10000-20260822T2239Z-e993dd61 | complete | 10000 | 2278854071c7fe363381fd26f9a72e028254b439 | 0.0 | eligibility=pass; point=10000 |  |
+| 2026-08-22T22:41:51Z | scale-02-a0-17272 | scale-02-a0-17272-20260822T2241Z-c543eeb9 | complete | 17272 | 2278854071c7fe363381fd26f9a72e028254b439 | 0.0 | eligibility=pass; point=17272 |  |
+| 2026-08-22T22:45:33Z | scale-02-a0-25000 | scale-02-a0-25000-20260822T2245Z-ee93a826 | advisory_limit_observed | 25000 | 2278854071c7fe363381fd26f9a72e028254b439 | 0.0 | eligibility=fail; point=25000 |  |

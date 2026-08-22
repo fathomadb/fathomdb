@@ -1,0 +1,272 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "scale-02-a0-10000-20260822T2239Z-e993dd61",
+  "experiment": "scale-02-a0-10000",
+  "title": "scale-02-a0-10000",
+  "verdict": "complete",
+  "read": "SCALE-02 A0 10,000-record point: pass",
+  "code": {
+    "git_sha": "2278854071c7fe363381fd26f9a72e028254b439",
+    "dirty": false,
+    "branch": "experiments/performance-0.8.23-plan-20260821",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "e993dd61ce12b4dbfd351cb3653ee3fe730d878dc7926ccd9beafb78edc5cc5d",
+    "path": "experiments/configs/scale-02/a0-envelope.v2.json",
+    "resolved": {
+      "schema_version": "scale-02-execution.v1",
+      "program_track": "SCALE-02",
+      "release": "0.8.23",
+      "approval": {
+        "state": "approved",
+        "approved_by": "HITL",
+        "approved_at": "2026-08-22T22:04:23.894Z"
+      },
+      "dependencies": {
+        "answer_01": {
+          "path": "experiments/runs/answer-01-shortlist-live-20260822T1234Z-8a050808/record.json",
+          "sha256": "6154060203276c1b9aa9e8e489af677cdc6cb06d872d340c37a54639f9ada49a",
+          "run_id": "answer-01-shortlist-live-20260822T1234Z-8a050808",
+          "decision": "retain_a0"
+        },
+        "scale_01": {
+          "path": "experiments/runs/tc5-gpu-primary-20260822T1605Z-2d574205/record.json",
+          "sha256": "1d15bf945172d9ea59ff20938e33eac50782530540df0f05f44add8f4d64ed6e",
+          "run_id": "tc5-gpu-primary-20260822T1605Z-2d574205",
+          "decision": "fidelity_primary_complete"
+        }
+      },
+      "profile": {
+        "id": "a0_turn_fts",
+        "retrieval": "fts",
+        "top_k": 10,
+        "embedder": "none",
+        "embed_device": "cpu",
+        "reranker": "none",
+        "rerank_device": "cpu"
+      },
+      "ladder": [
+        10000,
+        17272,
+        25000,
+        40000,
+        50000
+      ],
+      "corpus": {
+        "root": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/inputs/input-pack-v1/tc5",
+        "index": "tc5-corpus-input.v1.json",
+        "index_sha256": "624b6b42e7e1d40866fea48d37a34b0ef8d786f46f4aa2ed9a3dd245d22a0a0a",
+        "qualified_manifest": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/inputs/input-pack-v1/tc5-qualified-manifest.json",
+        "qualified_manifest_sha256": "f6180a00d1551a143a7445aa6ed28ed589533400ee702835663729694e393df5",
+        "real_primary_count": 17272,
+        "growth": {
+          "mode": "deterministic_derived_fixture",
+          "seed": "0x5CA1E02020260822",
+          "source": "qualified_real_prefix_round_robin",
+          "disclosure": "points_above_17272_are_efficiency_fixture_not_real_corpus_fidelity"
+        }
+      },
+      "workload": {
+        "repetitions": 5,
+        "write_batch_size": 256,
+        "cold_query_count": 100,
+        "cold_definition": "first_query_pass_after_populated_reopen_without_intentional_warmup",
+        "warmup_query_count": 100,
+        "steady_query_count": 1000,
+        "steady_definition": "same_repetition_after_the_declared_100_query_warmup",
+        "mutation_count": 20,
+        "concurrency": 1,
+        "query_order_seed": "0x5CA1E0200A0F75",
+        "drain_timeout_seconds": 1200,
+        "query_timeout_ms": 5000
+      },
+      "uncertainty": {
+        "method": "repetition_level_percentile_bootstrap",
+        "confidence": 0.95,
+        "resamples": 2000,
+        "seed": "0x5CA1E020B00757"
+      },
+      "advisory_policy": {
+        "state": "approved",
+        "required_repetitions": 5,
+        "max_errors": 0,
+        "max_timeouts": 0,
+        "steady_fts_p50_ms": 20,
+        "steady_fts_p99_ms": 150,
+        "mutation_to_ready_p99_ms": 5000,
+        "max_peak_rss_fraction": 0.8
+      },
+      "runtime": {
+        "python": "/tmp/fathomdb-scale02-formal-runtime-68f59ea8/bin/python",
+        "python_package_version": "0.8.23",
+        "python_extension": "/tmp/fathomdb-scale02-formal-runtime-68f59ea8/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so",
+        "python_extension_sha256": "7b50dd18bf793a2cb74f2f7e56cae3635312497e2ebcace156497be28db03307",
+        "fathomdb_bin": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/runtime/68f59ea8/fathomdb",
+        "fathomdb_bin_sha256": "7e385a1f916f6386e838782867fbe23ba57149f5ac4465535d1c1cfcf3dfb8a2"
+      },
+      "claim_boundary": "advisory_a0_efficiency_only",
+      "execution_point": 10000
+    }
+  },
+  "corpus": {
+    "source": "TC-5 qualified real prefix plus disclosed derived fixture",
+    "manifest_sha256": "6a650ccebc9ba4c8f171b03a8092ba997b5307b49dc21f105faa2bd4374d4447",
+    "datasets": [
+      "tc5-qualified-real-v2"
+    ]
+  },
+  "seeds": {
+    "query_order": "0x5CA1E0200A0F75",
+    "bootstrap": "0x5CA1E020B00757",
+    "growth": "0x5CA1E02020260822"
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb": "0.8.23",
+      "fathomdb_cli_sha256": "7e385a1f916f6386e838782867fbe23ba57149f5ac4465535d1c1cfcf3dfb8a2",
+      "fathomdb_python_extension_sha256": "7b50dd18bf793a2cb74f2f7e56cae3635312497e2ebcace156497be28db03307"
+    }
+  },
+  "metrics": {
+    "schema_version": "scale-02-point-summary.v1",
+    "program_track": "SCALE-02",
+    "profile": "a0_turn_fts",
+    "point": 10000,
+    "repetitions": 5,
+    "canonical_records": 10000,
+    "real_records": 10000,
+    "derived_fixture_records": 0,
+    "cache_states": {
+      "cold": {
+        "latency_ms": {
+          "n": 500,
+          "p50": 8.11920699197799,
+          "p95": 17.756412969902158,
+          "p99": 29.99637008178979,
+          "throughput_per_second": 111.34732291983929
+        }
+      },
+      "steady": {
+        "latency_ms": {
+          "n": 5000,
+          "p50": 9.414386004209518,
+          "p95": 18.409308046102524,
+          "p99": 42.58679796475917,
+          "throughput_per_second": 96.57937937415747
+        },
+        "p99_repetition_median_ci_95": [
+          26.16732195019722,
+          43.95864100661129
+        ]
+      }
+    },
+    "operations": {
+      "open_ms": {
+        "n": 5,
+        "p50": 3.7488959496840835,
+        "p95": 3.828235901892185,
+        "p99": 3.828235901892185,
+        "throughput_per_second": 271.31174371117646
+      },
+      "ingest_ack_ms": {
+        "n": 5,
+        "p50": 1593.8830849481747,
+        "p95": 1598.5007180133834,
+        "p99": 1598.5007180133834,
+        "throughput_per_second": 0.6284756275751759
+      },
+      "ready_ms": {
+        "n": 5,
+        "p50": 1594.4050409598276,
+        "p95": 1599.023145972751,
+        "p99": 1599.023145972751,
+        "throughput_per_second": 0.6282697003097784
+      },
+      "acknowledgement_to_ready_ms": {
+        "n": 5,
+        "p50": 0.5224279593676329,
+        "p95": 0.5278280004858971,
+        "p99": 0.5278280004858971,
+        "throughput_per_second": 1917.435233388467
+      },
+      "ingest_records_per_second": {
+        "n": 5,
+        "p50": 6273.985899238746,
+        "p95": 6332.538084024559,
+        "p99": 6332.538084024559
+      },
+      "mutation_to_ready_ms": {
+        "n": 100,
+        "p50": 1.5756790526211262,
+        "p95": 8.29879695083946,
+        "p99": 9.349000989459455,
+        "throughput_per_second": 417.8693246746466
+      }
+    },
+    "errors": 0,
+    "timeouts": 0,
+    "resources": {
+      "peak_rss_bytes": 214327296,
+      "host_memory_bytes": 67262119936,
+      "max_peak_rss_fraction": 0.0031864487203783157,
+      "peak_host_cpu_fraction": 0.1889763779527559,
+      "peak_host_memory_fraction": 0.24688528687172895,
+      "process_cpu_seconds": 70.10901453800001,
+      "max_effective_cpu_cores": 1.0009803327360243,
+      "gpu": "not_applicable"
+    },
+    "storage": {
+      "database_bytes": 76537856,
+      "derived_index_bytes": 54624256,
+      "projection_amplification": 2.492710280373832
+    },
+    "advisory": {
+      "state": "approved",
+      "eligibility": "pass",
+      "criteria": {
+        "complete_repetitions": true,
+        "errors": true,
+        "timeouts": true,
+        "steady_fts_p50": true,
+        "steady_fts_p99": true,
+        "mutation_to_ready_p99": true,
+        "peak_rss_fraction": true
+      }
+    },
+    "provenance": {
+      "doctor_sha256s": [
+        "76d11310c50ce64b63643a5817bae3e9320e5efa2d3ecbf34cc61c410520d7ae",
+        "76d11310c50ce64b63643a5817bae3e9320e5efa2d3ecbf34cc61c410520d7ae",
+        "76d11310c50ce64b63643a5817bae3e9320e5efa2d3ecbf34cc61c410520d7ae",
+        "76d11310c50ce64b63643a5817bae3e9320e5efa2d3ecbf34cc61c410520d7ae",
+        "76d11310c50ce64b63643a5817bae3e9320e5efa2d3ecbf34cc61c410520d7ae"
+      ],
+      "device": {
+        "embed": "cpu",
+        "rerank": "cpu",
+        "gpu": null
+      }
+    },
+    "claim_boundary": "advisory_a0_efficiency_only",
+    "fixture_digest": "6a650ccebc9ba4c8f171b03a8092ba997b5307b49dc21f105faa2bd4374d4447"
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": [
+    "tests/experiments/test_scale_02.py"
+  ],
+  "files_changed": [],
+  "artifacts": [
+    {
+      "kind": "external_safe_summary",
+      "path": "scale-02-point-summary.v1.json",
+      "sha256": "d9d29c756ecb8f0b6d5839bd2bfe510f6b35b95e182d4d8996a904e312479eb5"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

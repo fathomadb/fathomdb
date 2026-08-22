@@ -10,9 +10,8 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. **SCALE-02:** run the approved formal 10k configuration.
-
-CORPUS-01 may resolve its two insufficient supersession cases independently.
+1. **CORPUS-01:** human-review the two insufficient supersession cases without
+   broadening the corpus search.
 
 ## Track status
 
@@ -28,7 +27,7 @@ CORPUS-01 may resolve its two insufficient supersession cases independently.
 | [TEMPORAL-01](tracks/temporal-01-time-scoped-retrieval.md) | Planned | Wait for CORPUS-01-qualified temporal gold and the selected retrieval baseline. |
 | [EXTRACT-01](tracks/extract-01-semantic-memory.md) | Planned | Wait for TRACE-01 lifecycle coverage, qualified update gold, and the selected canonical baseline. |
 | [MEMORY-01](tracks/memory-01-native-mem0-comparison.md) | Blocked | Use A0; wait for native comparator prerequisites. |
-| [SCALE-02](tracks/scale-02-local-first-envelope.md) | Ready to run | Execute the [approved formal 10k config](../../experiments/configs/scale-02/a0-envelope.v2.json); advance only on a passing receipt. |
+| [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the [17,272 passing receipt](../../experiments/runs/scale-02-a0-17272-20260822T2241Z-c543eeb9/record.json) and [25k boundary receipt](../../experiments/runs/scale-02-a0-25000-20260822T2245Z-ee93a826/record.json); rerun only if the registered contract changes. |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |
 | [GLOBAL-01](tracks/global-01-native-graphrag.md) | Parked | Wait for a named global-synthesis failure, an eligible graph or summary/map-reduce treatment, and native-run prerequisites. |

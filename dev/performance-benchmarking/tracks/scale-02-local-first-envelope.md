@@ -1,7 +1,7 @@
 # SCALE-02 — Local-first scale envelope
 
-**Status:** `rank_default` approved and landed in production; the formal 10k
-rerun is ready.
+**Status:** complete; the measured advisory A0 envelope is 17,272 records, and
+25k is the first observed failing point.
 
 ## Decision
 
@@ -59,8 +59,8 @@ retrieval profile without implying an unmeasured capacity guarantee?
 
 ## Follow-up plan
 
-Steps 1 through 3 are complete. The HITL approved the step 3 recommendation;
-step 4 is next.
+All four steps are complete. The HITL approved the step 3 recommendation, and
+step 4 stopped at the first failing point as registered.
 
 1. **Implement and qualify the candidates.** Add the deterministic FTS rank
    fast path: request the existing direct-text candidate window plus one row
@@ -130,7 +130,15 @@ production landing as `seq-264` in the program decision ledger. The
 [result summary](../2026-08-22-scale-02-fts-followup-result.md) records the
 results and trade-offs, and the
 [approved v2 configuration](../../../experiments/configs/scale-02/a0-envelope.v2.json)
-pins the production runtime. No formal 10k rerun has occurred.
+pins the production runtime.
+
+The formal [10k](../../../experiments/runs/scale-02-a0-10000-20260822T2239Z-e993dd61/record.json)
+and [17,272](../../../experiments/runs/scale-02-a0-17272-20260822T2241Z-c543eeb9/record.json)
+points passed every registered criterion. The
+[25k point](../../../experiments/runs/scale-02-a0-25000-20260822T2245Z-ee93a826/record.json)
+failed only steady p50 at 23.90 ms against the 20 ms policy. All attempted
+points completed five repetitions with zero errors and zero timeouts. The stop
+rule prohibited 40k and 50k, so the measured advisory envelope is 17,272.
 
 ## Stop
 

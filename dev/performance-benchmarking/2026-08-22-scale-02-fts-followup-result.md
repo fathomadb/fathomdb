@@ -51,10 +51,29 @@ The external artifact manifest has SHA-256
   boundary retain the full-sort path. The experiment-only force-full-sort
   control remains available for comparison; it is not a production setting.
 - This decision establishes the treatment for the formal 10k rerun. It does
-  not establish the 10k-to-50k scale envelope or a product capacity guarantee.
+  not by itself establish a product capacity guarantee.
 
-## Next action
+## Formal scale envelope
 
-Run the approved five-repetition formal 10k contract. Advance to 17,272,
-25k, 40k, and 50k only if the formal 10k receipt passes the registered stop
-rule.
+The approved treatment completed five fresh repetitions at each attempted
+point. The 10k and 17,272 points passed every criterion. The 25k point failed
+only the 20 ms steady-p50 criterion, so the registered stop rule prohibited
+40k and 50k.
+
+| Records | Corpus composition | Steady p50 | Steady p99 | Throughput | Peak RSS | Result |
+| ---: | --- | ---: | ---: | ---: | ---: | --- |
+| 10,000 | all real | 9.41 ms | 42.59 ms | 96.58 qps | 204 MiB | Pass |
+| 17,272 | all real | 14.68 ms | 82.84 ms | 51.51 qps | 216 MiB | Pass |
+| 25,000 | 17,272 real + 7,728 derived | 23.90 ms | 112.21 ms | 31.61 qps | 232 MiB | Fail: p50 |
+
+All attempted points had zero errors and zero timeouts. Mutation-to-ready p99
+was 9.35 ms, 9.51 ms, and 15.19 ms respectively, well within the 5,000 ms
+policy. The formal receipts are the [10k](../../experiments/runs/scale-02-a0-10000-20260822T2239Z-e993dd61/record.json),
+[17,272](../../experiments/runs/scale-02-a0-17272-20260822T2241Z-c543eeb9/record.json),
+and [25k](../../experiments/runs/scale-02-a0-25000-20260822T2245Z-ee93a826/record.json)
+records.
+
+The measured advisory A0 envelope on this host is therefore 17,272 records.
+The 25k result is the first observed failing point, not evidence of a hard
+capacity limit. Reopen SCALE-02 only if the workload, policy, host, inputs, or
+production search behavior changes.

@@ -1,7 +1,7 @@
 # SCALE-02 — Local-first scale envelope
 
-**Status:** complete; the measured advisory A0 envelope is 17,272 records, and
-25k is the first observed failing point.
+**Status:** diagnostic continuation approved; the original measured advisory A0
+envelope remains 17,272 records, and 25k is the first fixed-policy failing point.
 
 ## Decision
 
@@ -23,6 +23,11 @@ retrieval profile without implying an unmeasured capacity guarantee?
   [configuration](../../../experiments/configs/scale-02/a0-envelope.v2.json)
   binds the selected production path, workload, runtime, and advisory policy
   approved by the HITL on 2026-08-22.
+- The HITL subsequently authorized `seq-265`: preserve the fixed-policy result,
+  collect configured-as-is 40k and 50k baselines, and separately evaluate a
+  scale-adjusted p50 budget of `max(20 ms, records / 1000)` (25/40/50 ms at
+  25k/40k/50k). The executable continuation contract is
+  [`post-boundary-baseline.v1.json`](../../../experiments/configs/scale-02/post-boundary-baseline.v1.json).
 
 ## Follow-up inputs
 
@@ -147,3 +152,10 @@ the registered retry rule, incomplete repetition, provenance/device mismatch,
 or reused database. Do not advance through a failed size, extrapolate between
 points or past 50k, substitute synthetic rows for the registered corpus, or
 convert the advisory result into a capacity guarantee.
+
+The `seq-265` diagnostic continuation is the sole exception to advancing past
+the fixed-policy failure. It changes no runtime, workload, corpus construction,
+or original receipt. Its 40k and 50k outputs are post-boundary baselines, not an
+expansion of the original envelope. At most two accuracy-preserving tuning
+hypotheses may be frozen after those baselines are analyzed and before their
+25k/40k/50k cells run.

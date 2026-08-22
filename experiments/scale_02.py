@@ -1241,7 +1241,11 @@ def _registry_root(record_base_dir: Path | None) -> Path:
 
 
 def _require_prior_points(
-    config: Scale02Config, point: int, record_base_dir: Path | None
+    config: Scale02Config,
+    point: int,
+    record_base_dir: Path | None,
+    *,
+    allow_advisory_limit_observed: bool = False,
 ) -> None:
     prior_points = config.sizes[: config.sizes.index(point)]
     if not prior_points:
@@ -1253,16 +1257,50 @@ def _require_prior_points(
         except (OSError, json.JSONDecodeError):
             continue
         metrics = record.get("metrics", {})
+        if not isinstance(metrics, dict):
+            continue
+        verdict = record.get("verdict")
+        eligibility = metrics.get("advisory", {}).get("eligibility")
         if (
-            isinstance(metrics, dict)
-            and record.get("experiment") == f"scale-02-a0-{metrics.get('point')}"
-            and record.get("verdict") == "complete"
-            and metrics.get("advisory", {}).get("eligibility") == "pass"
+            record.get("experiment") == f"scale-02-a0-{metrics.get('point')}"
+            and (
+                (verdict == "complete" and eligibility == "pass")
+                or (
+                    allow_advisory_limit_observed
+                    and verdict in {
+                        "advisory_limit_observed",
+                        "post_boundary_baseline_complete",
+                    }
+                    and eligibility in {"pass", "fail"}
+                )
+            )
         ):
             passed.add(metrics["point"])
     for prior in prior_points:
         if prior not in passed:
             raise Scale02Error(f"prior ladder point {prior} has no passing receipt")
+
+
+def _scale_adjusted_advisory(
+    summary: Mapping[str, Any], point: int
+) -> dict[str, Any]:
+    """Evaluate the authorized linear p50 budget without changing the original."""
+    p50_limit_ms = max(20.0, point / 1000.0)
+    original = summary["advisory"]
+    criteria = dict(original["criteria"])
+    criteria["steady_fts_p50"] = (
+        float(summary["cache_states"]["steady"]["latency_ms"]["p50"])
+        <= p50_limit_ms
+    )
+    return {
+        "schema_version": "scale-02-scale-adjusted-advisory.v1",
+        "authorization": "seq-265",
+        "formula": "max(20_ms, canonical_records / 1000)",
+        "steady_fts_p50_ms": p50_limit_ms,
+        "eligibility": "pass" if all(criteria.values()) else "fail",
+        "criteria": criteria,
+        "original_fixed_policy_eligibility": original["eligibility"],
+    }
 
 
 def _write_point_record(
@@ -1277,9 +1315,11 @@ def _write_point_record(
     record_base_dir: Path | None,
     artifacts: list[dict[str, str]] | None = None,
     open_questions: list[str] | None = None,
+    execution_mode: str = "formal_ladder",
 ) -> str:
     resolved = json.loads(json.dumps(config.resolved))
     resolved["execution_point"] = point
+    resolved["execution_mode"] = execution_mode
     code = _lib.git_info()
     code["baseline_commit"] = None
     env = _lib.env_info(
@@ -1337,6 +1377,7 @@ def run_point(
     engine_factory: Callable[[str], Any] | None = None,
     prepare: Callable[..., PreparedDatabase] = prepare_test_database,
     record_base_dir: Path | None = None,
+    post_boundary_baseline: bool = False,
 ) -> dict[str, Any]:
     """Execute and register one size point; never advances the ladder itself."""
     config = load_config(config_path)
@@ -1346,7 +1387,12 @@ def run_point(
         raise Scale02Error("point is outside the preregistered ladder")
     if output_root.resolve().is_relative_to(REPO_ROOT.resolve()):
         raise Scale02Error("SCALE-02 artifacts must remain outside the repository")
-    _require_prior_points(config, point, record_base_dir)
+    _require_prior_points(
+        config,
+        point,
+        record_base_dir,
+        allow_advisory_limit_observed=post_boundary_baseline,
+    )
     fixture: Fixture | None = None
     repetitions: list[dict[str, Any]] = []
     try:
@@ -1390,9 +1436,19 @@ def run_point(
             fixture_digest=fixture.fixture_digest if fixture else None,
             record_base_dir=record_base_dir,
             open_questions=["resolve the execution failure before retrying this point"],
+            execution_mode="post_boundary_baseline"
+            if post_boundary_baseline
+            else "formal_ladder",
         )
         raise Scale02Error(f"SCALE-02 point blocked: {exc}") from exc
     summary["fixture_digest"] = fixture.fixture_digest
+    if post_boundary_baseline:
+        summary["post_boundary_baseline"] = {
+            "purpose": "configured_as_is_measurement_after_original_stop",
+            "authorization": "seq-265",
+            "scale_adjusted_advisory": _scale_adjusted_advisory(summary, point),
+            "claim_boundary": "baseline_only_not_original_envelope_expansion",
+        }
     summary_path = point_root / "scale-02-point-summary.v1.json"
     summary_path.write_text(
         json.dumps(summary, sort_keys=True) + "\n", encoding="utf-8"
@@ -1404,10 +1460,20 @@ def run_point(
         config_path,
         point,
         metrics=summary,
-        verdict="complete"
-        if summary["advisory"]["eligibility"] == "pass"
-        else "advisory_limit_observed",
-        read=f"SCALE-02 A0 {point:,}-record point: {summary['advisory']['eligibility']}",
+        verdict=(
+            "post_boundary_baseline_complete"
+            if post_boundary_baseline
+            else (
+                "complete"
+                if summary["advisory"]["eligibility"] == "pass"
+                else "advisory_limit_observed"
+            )
+        ),
+        read=(
+            f"SCALE-02 A0 {point:,}-record configured-as-is post-boundary baseline"
+            if post_boundary_baseline
+            else f"SCALE-02 A0 {point:,}-record point: {summary['advisory']['eligibility']}"
+        ),
         fixture_digest=fixture.fixture_digest,
         record_base_dir=record_base_dir,
         artifacts=[
@@ -1417,9 +1483,15 @@ def run_point(
                 "sha256": _sha_file(summary_path),
             }
         ],
-        open_questions=[]
-        if summary["advisory"]["eligibility"] == "pass"
-        else ["advisory boundary reached at this point"],
+        open_questions=(
+            []
+            if post_boundary_baseline
+            or summary["advisory"]["eligibility"] == "pass"
+            else ["advisory boundary reached at this point"]
+        ),
+        execution_mode="post_boundary_baseline"
+        if post_boundary_baseline
+        else "formal_ladder",
     )
     return {
         "run_id": run_id,
@@ -1441,6 +1513,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("config", type=Path)
     run.add_argument("point", type=int)
     run.add_argument("output_root", type=Path)
+    run.add_argument("--post-boundary-baseline", action="store_true")
     args = parser.parse_args(argv)
     try:
         if args.command == "validate":
@@ -1449,7 +1522,12 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "dry-run":
             result = dry_run(args.config, output_root=args.output_root)
         else:
-            result = run_point(args.config, args.point, output_root=args.output_root)
+            result = run_point(
+                args.config,
+                args.point,
+                output_root=args.output_root,
+                post_boundary_baseline=args.post_boundary_baseline,
+            )
     except (OSError, Scale02Error, json.JSONDecodeError) as exc:
         parser.error(str(exc))
     print(json.dumps(result, indent=2, sort_keys=True))

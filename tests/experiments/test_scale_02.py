@@ -355,6 +355,78 @@ def test_run_point_refuses_to_skip_an_unpassed_ladder_point(tmp_path, monkeypatc
         )
 
 
+def test_post_boundary_baseline_accepts_observed_limit_but_not_blocked_point(
+    tmp_path,
+):
+    config = replace(scale_02.load_config(CONFIG), sizes=(3, 4))
+    registry = tmp_path / "registry" / "runs"
+    observed = registry / "observed"
+    observed.mkdir(parents=True)
+    (observed / "record.json").write_text(
+        json.dumps(
+            {
+                "experiment": "scale-02-a0-3",
+                "verdict": "advisory_limit_observed",
+                "metrics": {
+                    "point": 3,
+                    "advisory": {"eligibility": "fail"},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    scale_02._require_prior_points(
+        config,
+        4,
+        tmp_path / "registry",
+        allow_advisory_limit_observed=True,
+    )
+
+    (observed / "record.json").write_text(
+        json.dumps(
+            {
+                "experiment": "scale-02-a0-3",
+                "verdict": "blocked_execution",
+                "metrics": {"point": 3},
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(scale_02.Scale02Error, match="prior ladder point 3"):
+        scale_02._require_prior_points(
+            config,
+            4,
+            tmp_path / "registry",
+            allow_advisory_limit_observed=True,
+        )
+
+
+def test_scale_adjusted_advisory_uses_linear_budget_without_rewriting_original():
+    summary = {
+        "cache_states": {"steady": {"latency_ms": {"p50": 23.9}}},
+        "advisory": {
+            "eligibility": "fail",
+            "criteria": {
+                "complete_repetitions": True,
+                "errors": True,
+                "timeouts": True,
+                "steady_fts_p50": False,
+                "steady_fts_p99": True,
+                "mutation_to_ready_p99": True,
+                "peak_rss_fraction": True,
+            },
+        },
+    }
+
+    adjusted = scale_02._scale_adjusted_advisory(summary, 25_000)
+
+    assert adjusted["steady_fts_p50_ms"] == 25.0
+    assert adjusted["eligibility"] == "pass"
+    assert adjusted["original_fixed_policy_eligibility"] == "fail"
+    assert summary["advisory"]["criteria"]["steady_fts_p50"] is False
+
+
 def test_authorized_execution_failure_writes_blocked_receipt(tmp_path, monkeypatch):
     config = scale_02.load_config(CONFIG)
     approved = replace(

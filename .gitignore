@@ -77,8 +77,7 @@ dev/memex/
 .bosun-cache/
 
 # Security fix M-6: Prevent accidental commit of secrets and sensitive files.
-.env
-.env.*
+.env*
 !tooling/sqlite.env
 *.pem
 *.key

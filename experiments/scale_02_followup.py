@@ -482,16 +482,18 @@ def _treatment_environment(
     keys = (
         "FATHOMDB_PERF_EXPERIMENTS",
         "FATHOMDB_PERF_FTS_RANK_FAST",
+        "FATHOMDB_PERF_FTS_FORCE_FULL_SORT",
         "FATHOMDB_PERF_READER_PRAGMAS",
         "FATHOMDB_PERF_READER_PRAGMA_WITNESS",
         "FATHOMDB_PERF_FTS_ROUTE_WITNESS",
     )
     prior = {key: os.environ.get(key) for key in keys}
     os.environ["FATHOMDB_PERF_EXPERIMENTS"] = "1"
+    os.environ.pop("FATHOMDB_PERF_FTS_RANK_FAST", None)
     if rank_fast:
-        os.environ["FATHOMDB_PERF_FTS_RANK_FAST"] = "1"
+        os.environ.pop("FATHOMDB_PERF_FTS_FORCE_FULL_SORT", None)
     else:
-        os.environ.pop("FATHOMDB_PERF_FTS_RANK_FAST", None)
+        os.environ["FATHOMDB_PERF_FTS_FORCE_FULL_SORT"] = "1"
     pragmas = profile["pragmas"]
     if pragmas:
         os.environ["FATHOMDB_PERF_READER_PRAGMAS"] = pragmas
@@ -890,9 +892,9 @@ def _hit_signature(result: Any) -> str:
 def _compare_queries(engine: Any, queries: Sequence[str], route_witness: Path) -> dict[str, Any]:
     comparisons = []
     for query in queries:
-        os.environ.pop("FATHOMDB_PERF_FTS_RANK_FAST", None)
+        os.environ["FATHOMDB_PERF_FTS_FORCE_FULL_SORT"] = "1"
         baseline = _hit_signature(engine.search_text_only(query, limit=10))
-        os.environ["FATHOMDB_PERF_FTS_RANK_FAST"] = "1"
+        os.environ.pop("FATHOMDB_PERF_FTS_FORCE_FULL_SORT", None)
         candidate = _hit_signature(engine.search_text_only(query, limit=10))
         comparisons.append(
             {

@@ -14584,10 +14584,10 @@ fn read_search_in_tx(
         if let Some(now) = now_param {
             text_params.push(rusqlite::types::Value::Integer(now));
         }
-        let rank_fast_requested = direct_text_candidate_limit.is_some()
-            && filter.is_none()
-            && std::env::var_os("FATHOMDB_PERF_EXPERIMENTS").is_some()
-            && std::env::var("FATHOMDB_PERF_FTS_RANK_FAST").is_ok_and(|value| value == "1");
+        let force_full_sort = std::env::var_os("FATHOMDB_PERF_EXPERIMENTS").is_some()
+            && std::env::var("FATHOMDB_PERF_FTS_FORCE_FULL_SORT").is_ok_and(|value| value == "1");
+        let rank_fast_requested =
+            direct_text_candidate_limit.is_some() && filter.is_none() && !force_full_sort;
         let rank_fast_eligible = rank_fast_requested
             && tx
                 .query_row(

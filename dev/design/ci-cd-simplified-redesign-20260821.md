@@ -4,7 +4,7 @@ date: 2026-08-21
 status: PROPOSED
 desc: >
   HITL correction to `ci-cd-final-recommendation-20260821.md`: keep CI
-  informational and make its cost proportional to the change. Revised five
+  informational and make its cost proportional to the change. Revised six
   times after adversarial correctness review; this revision fixes mixed-diff
   classification, preserves ci-lite intent through supported landing modes,
   replaces a shared harness bucket with dependency-accurate routing, resolves
@@ -235,7 +235,7 @@ conditions instead:
 | `verify-fast` | Any non-Markdown change; unchanged and never lite-suppressed |
 | `rust-workspace-race-report` | `rust \|\| rust_test_harness \|\| ci_workflow` |
 | `security` | `rust \|\| python \|\| typescript \|\| security_harness \|\| ci_workflow` |
-| `default-embedder-tests` | `rust \|\| python \|\| ci_workflow` |
+| `default-embedder-tests` | `rust \|\| python \|\| typescript \|\| ci_workflow` |
 | `wheel-size-gate` | `rust \|\| python \|\| ci_workflow` |
 | `native-artifact-runtime-validation` | `rust \|\| python \|\| typescript \|\| native_artifact_harness \|\| ci_workflow` |
 | `windows-wal-checkpoint-diagnosis` | `rust \|\| ci_workflow` |
@@ -265,8 +265,9 @@ The categories follow actual call edges:
   absent because this job does not execute them. `verify-fast` already exercises
   the ordinary security path for any non-Markdown change.
 - `default-embedder-tests` has no harness category: it invokes Cargo and pytest
-  directly and does **not** call `agent-test.sh`. Rust/Python changes and
-  `ci_workflow` are its real inputs.
+  directly, then builds and executes the TypeScript test tree; it does **not**
+  call `agent-test.sh`. Rust, Python, TypeScript, and `ci_workflow` are its real
+  inputs.
 - `native_artifact_harness` names only the two smoke scripts that the native
   artifact job invokes. An unrelated `scripts/release/**` edit gets
   `verify-fast` and its release-contract fixtures, not two five-platform
@@ -456,6 +457,8 @@ chooses `ci.yml` coupling, and §3.8 requires fixture-first implementation.
   changes run every scoped job while separating release scripts; and
   distinguished the deleted protection snapshot from independent repository
   merge settings.
+- **Round 6:** added the missing TypeScript route for `default-embedder-tests`,
+  which compiles and executes tests sourced from `src/ts/**` directly.
 
 ## Appendix — pipeline diagram (v6)
 

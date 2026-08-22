@@ -14597,7 +14597,7 @@ fn read_search_in_tx(
                 )
                 .unwrap_or(false);
         let rank_fast_candidates = if rank_fast_eligible {
-            let rank_limit = final_limit.saturating_add(1);
+            let rank_limit = rank_fast_scan_limit(final_limit, fts_only_limit);
             let rank_sql = format!(
                 "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
                  bm25(search_index), cn.logical_id, cn.source_id FROM search_index \
@@ -15010,6 +15010,10 @@ fn read_search_in_tx(
 /// Restore the production score/cursor order after FTS5's optimized
 /// `ORDER BY rank` scan. Returning `None` requests the full stable-sort query
 /// when the extra row ties the requested boundary.
+fn rank_fast_scan_limit(final_limit: usize, candidate_limit: Option<usize>) -> usize {
+    candidate_limit.unwrap_or(final_limit).saturating_add(1)
+}
+
 fn retain_rank_fast_candidates(
     mut candidates: Vec<SearchHit>,
     limit: usize,
@@ -23557,12 +23561,13 @@ unsafe extern "C" fn profile_callback_trampoline(
 #[cfg(test)]
 mod tests {
     use super::{
-        derive_stable_id, native_connection_state_for_test, reader_perf_observation,
-        resolve_source_type, retain_rank_fast_candidates, DeviceResolution, EmbedderChoice, Engine,
-        EngineError, IdSpace, IdSpaceKind, InitialState, LoaderInfo, ManagedConnectionRegistry,
-        NativeTransactionState, PreparedWrite, RuntimeProbeConnection, SearchHit,
-        SoftFallbackBranch, SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS,
-        KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
+        derive_stable_id, native_connection_state_for_test, rank_fast_scan_limit,
+        reader_perf_observation, resolve_source_type, retain_rank_fast_candidates,
+        DeviceResolution, EmbedderChoice, Engine, EngineError, IdSpace, IdSpaceKind, InitialState,
+        LoaderInfo, ManagedConnectionRegistry, NativeTransactionState, PreparedWrite,
+        RuntimeProbeConnection, SearchHit, SoftFallbackBranch, SourceId, WalAttributionRole,
+        ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS,
+        READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder::{
         DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,
@@ -25175,6 +25180,12 @@ mod tests {
             .is_none(),
             "a top-k boundary tie must fall back to the full stable sort"
         );
+    }
+
+    #[test]
+    fn scale02_rank_fast_preserves_the_direct_text_candidate_window() {
+        assert_eq!(rank_fast_scan_limit(10, Some(100)), 101);
+        assert_eq!(rank_fast_scan_limit(10, None), 11);
     }
 
     #[test]

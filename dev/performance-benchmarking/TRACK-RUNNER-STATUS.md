@@ -1,384 +1,49 @@
 # Track Runner status
 
-This is the coordinator-owned, live progress board for the
-[performance benchmarking and experiments program](PROGRAM.md). It records
-coordination state, not measurements: receipts and the append-only experiment
-index remain the source of execution evidence.
+Current coordination state for the
+[performance benchmarking program](PROGRAM.md). Track plans define the work;
+[`experiments/`](../../experiments/README.md) holds execution receipts and the
+append-only evidence index.
 
-**Last reconciled:** 2026-08-21
+- **Last reconciled:** 2026-08-22
+- **Branch:** `experiments/performance-0.8.23-plan-20260821`
 
-**Integration branch:** `experiments/performance-0.8.23-plan-20260821`.
-Directional GPU run artifacts are external; this board names their scope and
-decisions but does not treat them as an exact TC-5 fidelity result.
+## Immediate sequence
 
-## Current lanes
+1. **ANSWER-01:** implement and run the fixed 32-question, two-arm, $0 dry run.
+2. **ANSWER-01:** if separately launched, run the capped live pilot and apply
+   its answer-quality boundary.
+3. **SCALE-01:** implement TC-5 v2, then run the 7,667-document GPU smoke and
+   17,272-document GPU primary.
+4. **SCALE-02:** after ANSWER-01 and SCALE-01, run the selected profile's
+   advisory 10k-to-50k efficiency envelope.
 
-### 0.8.23 GPU-primary amendment — 2026-08-21
-
-The released 0.8.23 Python wheel is available in an isolated benchmark runtime,
-and its source line supplies the private exact pre-fusion TC-5 executable. The
-[GPU-primary amendment](2026-08-21-fathomdb-0.8.23-gpu-primary-amendment.md)
-makes GPU the primary next runtime while retaining CPU only as a separately
-released 7,667-document, twelve-core equivalence bridge. The canonical branch
-is now integrated; the remaining TC-5 gate is red-first v2 controls and review.
-
-### Directional GPU outcome — 2026-08-17
-
-The RTX 3090 GPU lane completed all 26 LOCOMO-01/PARENT-01 cells over the frozen
-1,536-question population. Turn-level `hybrid_ce_alpha_10_pool_20` is the
-directional survivor; session-level treatments are substantially weaker, and
-PARENT context does not improve child-evidence retrieval over the turn baseline.
-SCALE-01 has a 17,272-document / 100-question GPU fused-search operational
-characterization; it is not an exact TC-5 fidelity result. CORPUS-01 has
-16 records across four lifecycle categories as portfolio-qualified LLM evidence,
-not human gold.
-
-### Retrieval decision and ANSWER-01 dry-run boundary — 2026-08-21
-
-HITL accepts `hybrid_ce_alpha_10_pool_20` as the directional retrieval decision
-basis. The grid's external safe receipt is unavailable in the shared artifact
-root, so this does not upgrade it to a reproducible full-grid claim. ANSWER-01
-may implement and run a no-answerer/no-judge dry run using only this treatment.
-The Airlock route and model aliases are verified, and the worker, retry,
-checkpoint, and cost limits are selected. A live run remains a separate action.
-
-`LOCOMO-01` handed off `6bfc1004` from
-`/tmp/fathomdb-locomo-01-20260816` on
-`experiments/performance-locomo-01-20260816`; independent review requested a
-targeted correction before integration. The review accepted its red-first,
-no-live scope and pin evidence, but found that treatment IDs could retain their
-names while their semantic parameters drifted. Remediation handoff `65427d29`
-adds red-first mutation coverage and fail-closed, type-checked validation for
-all six frozen treatment mappings; follow-up independent review accepted
-`65427d29`, integrated here as `4bbc1b4f`. Its full verifier passed Rust but
-stopped at Python collection because this isolated worktree has no local native
-binding; that environmental limitation is recorded in its handoff, not treated
-as a green gate. The integrated catalog is plan-only; no LOCOMO execution is
-authorized.
-
-`SCALE-01` handed off `9997c2cd` from
-`/tmp/fathomdb-scale-01-20260816` on
-`experiments/performance-scale-01-20260816`; independent read-only review
-accepted it and it is integrated here as `afbfeed2`. Its red-first, focused 10-test, full
-80-experiment-test, and full `./scripts/agent-verify.sh` evidence passed
-(`72/73` suites, one documented skip). The worktree-local native binding used
-for that verifier is ignored local state, not a source change. No TC-5
-execution is authorized.
-
-The final cross-lane review accepted the integrated safety, configuration,
-receipt, and no-live boundaries at `acc5fa9a`, after focused review accepted
-the active-identifier correction from legacy `L0`/`T0` to
-`LOCOMO-01`/`SCALE-01`. The unchanged combined full verifier passed
-(`agent-test.sh: 72/73 suites passed`, one documented skip; AC-037 had its
-expected environmental downgrade). No implementation or execution evidence was
-challenged.
-
-HITL authorization `seq-249` permits: the LOCOMO fixed-subset dry run and
-Phase-B CPU/FTS grid; LOCOMO GPU/CE cells; the SCALE TC-5 smoke and long CPU
-characterization; and CORPUS-01 corpus and human-gold work. These permissions
-do not commission a writer or replace the required frozen run configuration,
-worker handoff, review, safe receipt/index, or artifact boundaries. No paid
-service, extractor, push, or downstream ANSWER-01/MEMORY-01/SCALE-02 execution
-is authorized.
-
-HITL decision `seq-250` approves `parent_child_turn_session_v1`: its exact
-frozen amendment is linked from PARENT-01. Later empirical variants remain
-permitted only through a new frozen amendment and normal review. The 0.90 TC-5
-goal remains in force; a current-configuration ground-truth remediation is
-authorized but must first receive a dated diagnostic contract. SCALE-02 claim
-policy remains open pending an HITL proposal; no product policy is authorized
-before initial measures. The coordinator alone edits this board and PROGRAM
-state.
-
-Two preparation-to-execution implementation lanes were commissioned from
-campaign base `378a8214`: `LOCOMO-01` plus approved `PARENT-01` in
-`/tmp/fathomdb-perf-locomo-parent-exec-20260816` on
-`experiments/performance-locomo-parent-exec-20260816`, and `SCALE-01` in
-`/tmp/fathomdb-perf-scale-exec-20260816` on
-`experiments/performance-scale-exec-20260816`. The SCALE preparation lane was
-independently accepted at worker SHA `61142179` and integrated here as
-`ec9978d5`: its red-first TC-5 execution boundary, safe configuration,
-content-free receipt projection, and dated ground-truth remediation contract
-are now the campaign control. Neither lane may acquire a corpus or run a
-smoke, grid, model, GPU, or external write until the coordinator releases the
-corresponding frozen execution step.
-
-The LOCOMO/PARENT preparation handoff `4e444d19` received an independent
-`REQUEST-CHANGES` verdict. The reviewer accepted its initial red-first history
-and immutable cell grid, but found four execution-contract gaps: fixed-subset
-dispatch order drift, receipts that could claim completion without bound cell
-coverage and required metrics, parent bundles without membership/ordinal proof,
-and a receipt-verdict correction without a red test. The worker is remediating
-these issues in its isolated worktree; no LOCOMO/PARENT execution is released.
-
-The red-first LOCOMO/PARENT remediation `77a0c700` was independently accepted
-and is integrated here as `d0a88779`. It fixes the reported execution-order,
-complete-receipt, relation-proof, and test-first gaps; the integrated focused
-Phase-A/Phase-B tests and safe validation/preview pass. This remains a safe
-adapter boundary: a separate live executor must be reviewed and released before
-the authorized fixed-subset dry run uses external inputs.
-
-The next SCALE-01 lane is commissioned from campaign base `a79ab744` in
-`/tmp/fathomdb-perf-scale-live-executor-20260816` on
-`experiments/performance-scale-live-executor-20260816`. It owns only the
-external-only live-executor implementation and tests. The executor remains
-disabled and must receive independent review and coordinator integration before
-the authorized smoke or characterization is invoked.
-
-The LOCOMO/PARENT live-executor lane is commissioned from campaign base
-`4c9e3216` in `/tmp/fathomdb-perf-locomo-parent-live-executor-20260816` on
-`experiments/performance-locomo-parent-live-executor-20260816`. It owns only
-the external-only runner/configuration and tests. It remains disabled pending
-its independent review and coordinator integration; it may not run the
-authorized dry subset or any full CPU/GPU cell during implementation.
-
-The SCALE live-executor handoff `98b0b87f` received an independent
-`REQUEST-CHANGES` verdict. Its red-first history and scope were sound, but the
-review found a generated-output symlink escape, non-finite uncertainty
-acceptance, missing release/config/runner digest evidence in durable receipts,
-and omitted runtime provenance fields. The worker is remediating these issues
-in its isolated worktree; no SCALE execution is released.
-
-The first SCALE remediation handoff `49088175` received a second
-`REQUEST-CHANGES` verdict on evidence, not a known remaining runtime defect:
-the new tests reached a generic provenance rejection before proving their
-specific containment, receipt, finite-uncertainty, and runtime-provenance
-claims, and one release-binding case was already green before the fix. The
-worker must provide an unmasked red checkpoint and correct its handoff claim;
-no SCALE execution is released.
-
-The LOCOMO/PARENT live-executor handoff `b70ca4e1` received an independent
-`REQUEST-CHANGES` verdict. Its red-first history and general release boundary
-were sound, but full TRACE validation, canonical parent-manifest binding,
-same-release full-grid closure, actual GPU attestation, duplicate-key-safe
-adapter parsing, and accepted-review-evidence binding were absent. The worker
-is remediating all six points in its isolated worktree; no LOCOMO/PARENT
-execution is released.
-
-The SCALE final replay review found the hardened executor sound, but issued a
-last `REQUEST-CHANGES` for one inaccurate evidence claim: pre-hardening code
-already rejected negative-infinite uncertainty (with a weaker diagnostic), so
-the replay proves seven behavioral defects rather than eight. The worker is
-correcting that historical replay and handoff wording only; no SCALE execution
-is released.
-
-The final SCALE live-executor handoff `4c30072f` was independently accepted
-and is integrated here as `e87be86d`. It carries the release-bound,
-external-only executor, hardened containment and provenance checks, seven
-unmasked historical defect replays, and accurate negative-infinity regression
-coverage. The next gate is a coordinator-issued release record plus factual
-external manifest/corpus/output preflight before the authorized smoke.
-
-The LOCOMO/PARENT live-executor remediation `2520bd48` was independently
-accepted and is integrated here as `655ec77c`. It enforces full TRACE
-validation, canonical parent-manifest binding, exact same-release 52-cell
-closure, actual CUDA/adapter attestation, duplicate-key-safe adapter parsing,
-and review-evidence binding. The next gate is factual external provenance and
-environment preflight plus a coordinator-issued release before the authorized
-fixed-subset dry run.
-
-`CORPUS-01` is commissioned from campaign base `d07c551e` in
-`/tmp/fathomdb-perf-corpus-01-20260816` on
-`experiments/performance-corpus-01-20260816`. The lane may prepare the
-versioned corpus/license matrix and human-gold protocol under the existing
-external-data boundary. It may not acquire a new payload or manufacture gold
-answers during implementation.
-
-Read-only execution preflight found no qualified release inputs yet. A
-gitignored LOCOMO corpus root is present outside this worktree, but no exact
-external manifest/provenance, accepted TRACE sidecar, parent-relation proof,
-or released adapter has been qualified. TC-5 likewise lacks its qualified
-all-real manifest, external driver, and output root. `nvidia-smi` is present
-but cannot communicate with the NVIDIA driver, so GPU/CE cells remain an
-environmental blocker despite the installed CUDA compiler. These are factual
-prerequisites, not a new authorization decision.
-
-The LOCOMO external-adapter preparation lane is commissioned from campaign
-base `efc21558` in `/tmp/fathomdb-perf-locomo-external-adapter-20260816` on
-`experiments/performance-locomo-external-adapter-20260816`. It may implement
-and test the released adapter ABI against synthetic fixtures only. It may not
-read the corpus payload, invoke a model/device, generate a release, or run an
-authorized measurement.
-
-The CORPUS-01 handoff `13d63a97` received an independent `REQUEST-CHANGES`
-verdict. Its portfolio coverage and no-payload boundary were sound, but it did
-not fail closed on unsupported corpus/category claims, lacked machine-traceable
-license/preflight/claim/power provenance, and did not provide committed
-red-first topology. The worker is remediating these issues; no corpus or human
-gold work is released.
-
-The LOCOMO external-adapter handoff `70284d48` received an independent
-`REQUEST-CHANGES` verdict. It must enforce frozen action/cell admission,
-preserve ranked results and PARENT rank, prove contiguous parent ordinals,
-derive rather than fabricate parent metrics, and contain generated output at
-the adapter layer. The worker is adding red-first corrections; no adapter is
-integrated or execution released.
-
-The CORPUS-01 remediation `aa52220a` received a second `REQUEST-CHANGES`
-verdict. Its native/qualified-human-gold model and factual preflight bindings
-are sound, but an `approval_ref` can be syntactically forged because it is not
-bound to a trusted amendment approval and exact corpus/category pair. The
-worker is adding a content-free trusted approval registry requirement; no
-corpus or human-gold work is released.
-
-The LOCOMO external-adapter remediation `e5b6f17d` was independently accepted
-and is integrated here as `477ad51a`. It enforces exact frozen cell/action
-admission, rank-preserving parent proof and measured parent metrics,
-contiguous canonical ordinals, and output containment. The CPU fixed-subset
-still needs qualified external corpus/provenance/TRACE/parent inputs and a
-coordinator release; GPU cells additionally need a working NVIDIA driver.
-
-The CORPUS-01 trusted-amendment handoff `1ca17718` received a third
-`REQUEST-CHANGES` verdict on proof and verification evidence. Its registry
-comparison is sound, but its red test used a new API keyword instead of
-demonstrating legacy forged-sequence acceptance, did not cover mismatched
-registry rows, and omitted recorded post-fix full-verifier evidence. The
-worker is correcting those narrow gaps; no corpus or human-gold work is
-released.
-
-The CORPUS-01 corrected handoff `cb920dd2` passed its code and red-replay
-review, but received one final documentation `REQUEST-CHANGES`: it did not
-durably record the already-green post-fix full-verifier result and still used
-future-tense rerun wording. The worker is making that docs-only evidence
-correction; no corpus or human-gold work is released.
-
-The TC-5 external-driver preparation lane is commissioned from campaign base
-`8101f1db` in `/tmp/fathomdb-perf-tc5-external-driver-20260816` on
-`experiments/performance-tc5-external-driver-20260816`. It may implement and
-test the CPU driver ABI with synthetic fixtures only. It may not inspect an
-all-real payload, load the pinned model, run a smoke, or write a campaign
-artifact during preparation.
-
-The TC-5 driver worker committed an unintended shared
-`fathomdb-py` test-hook change in its first implementation. That commit is not
-eligible for review or integration. The worker is preserving history and
-creating a corrective commit that restores the shared binding exactly to its
-campaign-base content and removes any dependency on that hook; no TC-5 action
-is released.
-
-The corrected TC-5 driver handoff `219de861` restored shared scope and passed
-its ABI review, but received one `REQUEST-CHANGES` for direct-invocation
-safety: it checked for an existing result sidecar only after corpus/runtime
-callbacks. The worker is adding a red-first early-destination rejection before
-those callbacks; no TC-5 action is released.
-
-The TC-5 external-driver remediation `426be68e` was independently accepted
-and is integrated here as `d1a6b1aa`. It has no net shared-binding change and
-rejects an existing result sidecar before input/runtime callbacks. The next
-gate is factual qualification of the all-real manifest, corpus/output roots,
-CPU host/model/ground truth, and a coordinator release before the authorized
-smoke.
-
-Two factual-input qualification lanes are commissioned from campaign base
-`febd1155`: LOCOMO/PARENT in
-`/tmp/fathomdb-perf-locomo-input-qualification-20260816` on
-`experiments/performance-locomo-input-qualification-20260816`, and TC-5 in
-`/tmp/fathomdb-perf-tc5-input-qualification-20260816` on
-`experiments/performance-tc5-input-qualification-20260816`. They may inspect
-the authorized external corpus roots and create only content-free external
-preflight manifests/proofs under declared external roots. They may not issue
-releases, load models, select GPU, run an adapter/driver, or measure a cell.
-
-The first TC-5 qualification handoff `175d9d7b` received an independent
-`REQUEST-CHANGES`: its current blocker report is safe, but its writer accepts
-arbitrary mappings and must enforce exact content-free report schemas. The
-first LOCOMO/PARENT qualification handoff `a0da3012` also received
-`REQUEST-CHANGES`: its current evidence is safe, but malformed external
-corpus/subset inputs raise before the contract-required signed blocked report.
-Both workers supplied and independently cleared red-first corrections; no
-release or measurement is authorized.
-
-The final TC-5 qualification remediation `b4189424` and LOCOMO/PARENT
-qualification remediation `86f63dfd` were independently accepted and are
-integrated here as `aa3ce63a` and `db3a9363`, respectively. Their safe external
-reports establish hard factual blockers: TC-5 has no exact eligible all-real
-18,472/7,667 source, manifest, ground truth, or runtime inventory. LOCOMO's
-initial report also listed a corpus mismatch, later shown to be a raw-versus-
-normalized validation defect; its remaining blockers are the missing fixed
-subset and globally ambiguous child IDs for the parent proof. Both reports are
-`blocked_prerequisite`, no-live, and release-ineligible. GPU/CE also remains
-blocked because the NVIDIA driver is not usable. No substitute corpus,
-synthetic padding, historical EU7 output, or cross-release evidence may clear
-these gates.
-
-The CORPUS-01 final handoff `c540a9d7` was independently accepted and is
-integrated here as `c419399e`. The matrix/protocol now fails closed on
-unsupported native claims, unqualified human-gold amendments, incomplete
-factual preflight, and untrusted approval bindings. The next gate is a
-coordinator-created trusted amendment registry only when a real, approved
-human-gold batch needs it; no payload or human-review work has yet begun.
-
-The final cross-lane review accepted the reconciled initial executor and
-qualification state at `2598aad5`. It verified that PROGRAM and the PARENT-01,
-SCALE-01, and CORPUS-01 charters agree with this board: the mechanisms are
-integrated, but all authorized measurements remain blocked on their factual
-external prerequisites and a coordinator release. No action, result, receipt,
-or experiment-index row has been issued after HITL authorization.
-
-The follow-up LOCOMO/PARENT qualification correction was independently accepted
-and integrated here as `d8b2ac7d`. It derives the canonical normalized corpus
-hash through `eval.locomo_loader` from the available historical raw corpus,
-which has the expected raw SHA-256 and produces the frozen Phase-B digest. The
-correction is red-first and no-live; it changes no frozen pin, subset,
-parent-identity scheme, or release boundary. It supersedes the initial report's
-raw-versus-normalized corpus mismatch. The remaining factual blocks are the
-missing fixed subset and unambiguous canonical parent proof.
-
-The coordinator re-ran the accepted LOCOMO/PARENT factual qualifier on
-2026-08-17 into a fresh external preflight root. Its content-free report
-`e8b804a246502d5c8636b417967de11455b3181c05afd1e88eb7ebacc0a21d6b`
-confirms the frozen normalized corpus and both provenance pins, emits a valid
-TRACE projection, and remains `blocked` only on
-`dry_run_subset_input_unavailable` and
-`parent_relation_proof_ambiguous_child_identifier`. It invoked no adapter,
-database, model, device, or measurement and issued no release, result receipt,
-or experiment-index row.
-
-The coordinator then generated the HITL-authorized fixed-subset control through
-an explicit v3 amendment, corrected the qualifier's frozen 1,536
-evidence-backed question population, and replaced the ambiguous raw-turn
-representation with content-free scoped parent proof v2. Fresh factual
-qualification is `qualified` with report SHA-256
-`de7e968f78f4c46dc7e86c4e40e9687ae1f3b64b7d8d650cb1935c76fcc685d2`;
-it binds the v3 subset, all pinned external inputs, a 5,882-entry parent proof,
-and TRACE. No adapter, model, device, benchmark, release, receipt, or index
-action has been invoked. The required independent review accepted the corrected
-LOCOMO/PARENT controls; coordinator release remains the next gate.
+CORPUS-01 may resolve its two insufficient supersession cases independently.
 
 ## Track status
 
-| ID | Portfolio state | Runner state | Verified evidence / next gate |
-| --- | --- | --- | --- |
-| SAFETY-01 | Complete infrastructure | Closed; re-check on each new track | Safe receipt/index contract exists; retain as campaign control. |
-| TRACE-01 | Complete canary | Closed and integrated | `ca5b656d` integrates the independently accepted `a4a7ed0b` history: three red-first fixes, 10 focused tests, and a full `agent-verify` pass. |
-| LOCOMO-01 | Directional decision accepted | Closed for the current retrieval decision | HITL accepts the reported 26-cell GPU grid and `hybrid_ce_alpha_10_pool_20` winner as the decision basis. The missing safe grid receipt remains a limitation, not a reason for a confirming CPU grid. |
-| PARENT-01 | Directional decision accepted | Closed for the current retrieval decision | The reported GPU comparison found no retrieval gain from bounded parent context. Parent expansion remains opt-in and is reconsidered only for a diagnosed answer-context gap. |
-| SCALE-01 | Active | TC-5 v2 implementation and GPU qualification pending | FathomDB 0.8.23 is integrated. Next is the 7,667-document GPU smoke and 17,272-document primary; the 7,667-document, twelve-worker CPU bridge is optional. |
-| CORPUS-01 | LLM evidence complete; human-gold gaps remain | Review only insufficient cases | Sixteen records cover all four lifecycle categories; two supersession cases remain insufficient. |
-| ANSWER-01 | Setup active | $0 dry run not yet implemented | The retrieval winner, Airlock route, aliases, scorer classes, and caps are selected. Next is the fixed 32-question A0-versus-winner dry run with no model calls. |
-| MEMORY-01 | Blocked | Waiting for ANSWER-01 | Require selected profile, native prerequisites, and declared spend ceiling. |
-| SCALE-02 | Blocked | Waiting for ANSWER-01 and SCALE-01 | Then run the fixed 10k-to-50k advisory ladder on only the selected profile, with canonical and derived counts separate. |
-| LATENT-01 | Parked | Not commissioned | Requires diagnosed cross-window discourse failure. |
-| GRAPH-01 | Planned | Not commissioned | Requires bounded graph design and supporting-evidence protocol. |
-| GLOBAL-01 | Parked | Not commissioned | Requires GRAPH-01 relevance and native cost/reproduction preflight. |
-| REASON-01 | Parked | Not commissioned | Requires GRAPH-01 relevance and external Python/credential/corpus prerequisites. |
-| SEARCH-01 | Complete historical | Closed | Retained FTS descriptive baseline; no current execution. |
+| Track | State | Next action or condition |
+| --- | --- | --- |
+| [SAFETY-01](tracks/safety-01-campaign-controls.md) | Complete | Reuse its receipt and artifact checks for every run. |
+| [TRACE-01](tracks/trace-01-projection-lifecycle-integrity.md) | Complete | Rerun only if projection lifecycle behavior changes. |
+| [LOCOMO-01](tracks/locomo-01-self-characterization.md) | Directional decision accepted | Use reported GPU winner `hybrid_ce_alpha_10_pool_20` in ANSWER-01. The missing safe grid receipt limits reproducibility but does not require a confirming grid. |
+| [PARENT-01](tracks/parent-01-parent-child-screening.md) | Directional decision accepted | Keep parent expansion opt-in; reopen only for a diagnosed answer-context gap. |
+| [ANSWER-01](tracks/answer-01-shortlist-scoring.md) | Active | Build and run the $0 A0-versus-winner dry run. Airlock and model aliases are verified; live scoring is separate. |
+| [SCALE-01](tracks/scale-01-tc5-fidelity.md) | Active | Add the 0.8.23 GPU-primary controls and run TC-5. CPU is an optional 7,667-document, twelve-worker equivalence bridge. |
+| [CORPUS-01](tracks/corpus-01-gold-coverage.md) | Narrow follow-up | Human-review the two insufficient supersession cases; do not broaden the corpus search. |
+| [MEMORY-01](tracks/memory-01-native-mem0-comparison.md) | Blocked | Wait for the ANSWER-01 profile and native comparator prerequisites. |
+| [SCALE-02](tracks/scale-02-local-first-envelope.md) | Blocked | Wait for ANSWER-01 and the SCALE-01 receipt. |
+| [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
+| [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |
+| [GLOBAL-01](tracks/global-01-native-graphrag.md) | Parked | Wait for useful GRAPH-01 evidence and native-run prerequisites. |
+| [REASON-01](tracks/reason-01-native-hipporag2.md) | Parked | Wait for useful GRAPH-01 evidence and native-run prerequisites. |
+| [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |
 
-## Update protocol
+## Board rules
 
-Only the Track Runner coordinator edits this file. Update it in the same
-integration change whenever any of these events occurs:
-
-1. A lane is commissioned: record its base SHA, branch/worktree, owner role,
-   owned paths, and the next gate in **Current lanes**.
-2. A worker hands off: record the commit SHA, test/verification result,
-   independent-review verdict, and any blocker or authorization request.
-3. A lane is integrated, rejected, blocked, resumed, or closed: update the
-   affected row, PROGRAM/plan state if it truly changed, and link any safe
-   receipt or run ID.
-4. A final cross-lane review closes: record its reviewed integration SHA and
-   the resulting next authorized action.
-
-Never copy raw metrics, corpus payloads, credentials, or model output here.
-Never change a row from blocked or planned to complete based on narration: link
-the reviewed commit and receipt, then apply the plan's exit rule.
+- Record only current state, the immediate next action, and links to durable
+  plans or receipts.
+- Do not copy metrics, handoff histories, review dialogue, old blockers,
+  credentials, corpus payloads, or model output into this board.
+- Update the affected row when its state or next action changes. Git history
+  preserves the previous board state.

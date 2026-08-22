@@ -257,3 +257,104 @@ maintainer to look, not on GitHub to force it.
    catching CUDA/Tegra regressions between releases, or whether an
    occasional (not nightly) manual cadence should be a personal habit rather
    than automated at all.
+
+## Appendix — pipeline diagram
+
+```text
+                  FathomDB CI -- simplified, single-maintainer shape
+              (dev/design/ci-cd-simplified-redesign-20260821.md, PROPOSED)
+                    informational only -- nothing here is a gate
+
+  every push / PR                                                    [ci-lite] in commit message?
+  ================                                                   =============================
+  +--------------------+                                              yes -> skip everything below
+  | push: any branch,   |                                                    except preflight+changes
+  | any PR               |
+  +----------+-----------+
+             |
+             v
+  +----------------------------+   ~5-10s, no toolchain installs, checked FIRST
+  | preflight                    |   -> command -v rg / jq / git / curl
+  |   fails loud in <30s if a    |   fixes: today `rg` is apt-get-installed as
+  |   tool a script assumes      |   verify-fast's 6th step -- buried, not a
+  |   exists is missing          |   fast, isolated failure
+  +----------------------------+
+             |
+             v
+  +----------------------------+
+  | changes (dorny/paths-filter) |   ONE flag today (docs_only) -> FIVE:
+  |   extends the EXISTING job,  |     docs_only    *.md only
+  |   no new taxonomy job needed |     rust          src/rust/**, Cargo.*
+  +--------------+---------------+     python        python/**, fathomdb-py/**
+                  |                     typescript    typescript/**, fathomdb-napi/**
+                  |                     windows_relevant   **/*windows*, **/*wal*
+                  |                     release_infra .github/workflows/**, scripts/release/**
+                  v
+  +--------------------------------------------------------------------------+
+  | scoped jobs -- only the categories touched actually run                   |
+  |                                                                            |
+  |   docs_only        -> markdownlint, docs                    (cheap)       |
+  |   rust              -> verify, verify-fast, rust-workspace-race-report,   |
+  |                        security, default-embedder-tests    (was: ALL of  |
+  |                        these ran on ANY non-.md change, no matter what)   |
+  |   python             -> verify's Python suite, wheel-size-gate            |
+  |   typescript          -> verify's TS suite, native-artifact-runtime-      |
+  |                          validation                                       |
+  |   windows_relevant     -> windows-wal-checkpoint-diagnosis / -attribution |
+  |                          (only after their os.uname() bug is fixed --     |
+  |                          broken diagnostics run for NOBODY until then)    |
+  |   release_infra       -> wheel-size-gate, native-artifact-runtime-        |
+  |                          validation                                       |
+  +--------------------------------------------------------------------------+
+     example: edit ONE windows-wal script -> windows_relevant fires alone.
+     no Rust build, no Python wheel, no five-platform anything.
+     example: fix a typo in a .md file -> docs_only alone.
+     example: fix a Rust comment typo -> rust fires (paths-filter is path-
+       based, not content-based) -- use [ci-lite] in the commit message to
+       skip it anyway, maintainer's call, not inferred.
+
+  +----------------------------+
+  | governance jobs               |   board-currency, ledger-integrity,
+  |   UNCHANGED FROM TODAY --     |   plan-anchors, governed-surface-pin,
+  |   run on EVERY push, by       |   pinned-override-rot, c1-contract-
+  |   pre-existing deliberate     |   conformance, transcript-hygiene,
+  |   design (no `if:` at all)    |   release-state-views, steward-orient
+  |   *** OPEN QUESTION FOR HITL: |   -- 9 jobs, always-on, same shape as
+  |     keep always-on, or scope  |   what this redesign otherwise removes.
+  |     to dev/plans|steward|     |   Not changed here without a decision.
+  |     design/** touched? ***    |
+  +----------------------------+
+
+  ------------------------------------------------------------------------------
+  RESULT ON THE CHECKS TAB / PR -- INFORMATIONAL ONLY
+  ------------------------------------------------------------------------------
+    red or green, every time -- but nothing is REQUIRED.
+    no branch-protection ruleset re-applied. no merge queue. no "requires."
+    maintainer reads the Checks tab and decides -- GitHub enforces nothing.
+
+    optional, HITL's call, NOT this doc's recommendation either way:
+      non_fast_forward + deletion protection alone (pure accident-guard,
+      blocks force-push/branch-delete fat-fingers -- zero required checks,
+      zero PR-review requirement, not a workflow gate)
+
+  ------------------------------------------------------------------------------
+  MOVED OFF THE PUSH PATH -- ON-DEMAND, NOT NIGHTLY
+  ------------------------------------------------------------------------------
+  +----------------------+          +--------------------------------------+
+  | workflow_dispatch       |------> | gitleaks -- FULL git-history scan    |
+  | (run it when you want)  |        |   (only after one-time triage-to-    |
+  +----------------------+         |    zero of the 57 pre-existing finds) |
+                                     | CUDA build+run  -> windchill3 (3090) |
+                                     | Tegra build+run -> Jetson Orin box   |
+                                     +--------------------------------------+
+                                     NO recurring nightly cron -- that's its
+                                     own kind of ceremony/infra to babysit.
+                                     Run it when you actually want the signal.
+
+  +----------------------+          RELEASE  (release.yml -- unchanged in kind)
+  | tag push (v0.x.y)       |------> +--------------------------------------+
+  +----------------------+         | crates.io * PyPI (5 wheel variants) * |
+                                     | npm (6 packages) -- idempotent gate  |
+                                     | + 5 post-publish smokes               |
+                                     +--------------------------------------+
+```

@@ -1,0 +1,119 @@
+{
+  "schema_version": "scale-02-fts-tuning.v1",
+  "program_track": "SCALE-02",
+  "release": "0.8.23",
+  "approval": {
+    "state": "approved",
+    "approved_by": "HITL",
+    "approved_at": "2026-08-22T13:17:19-05:00"
+  },
+  "dependencies": {
+    "baseline": {
+      "path": "experiments/runs/scale-02-a0-10000-20260822T1715Z-77c37c77/record.json",
+      "sha256": "8210f4edd78ce202ed49b8a6468d77239f11a6c228dad7ec6f782047930d94a8",
+      "run_id": "scale-02-a0-10000-20260822T1715Z-77c37c77"
+    },
+    "answer_01": {
+      "path": "experiments/runs/answer-01-shortlist-live-20260822T1234Z-8a050808/record.json",
+      "sha256": "6154060203276c1b9aa9e8e489af677cdc6cb06d872d340c37a54639f9ada49a",
+      "run_id": "answer-01-shortlist-live-20260822T1234Z-8a050808"
+    },
+    "scale_01": {
+      "path": "experiments/runs/tc5-gpu-primary-20260822T1605Z-2d574205/record.json",
+      "sha256": "1d15bf945172d9ea59ff20938e33eac50782530540df0f05f44add8f4d64ed6e",
+      "run_id": "tc5-gpu-primary-20260822T1605Z-2d574205"
+    },
+    "base_config": {
+      "path": "experiments/configs/scale-02/a0-envelope.v1.json",
+      "sha256": "300bad0544bd5de0e2d47190d60d793f6a9f4af7097eeab4b33e1b32e03c1a65"
+    }
+  },
+  "inputs": {
+    "root": "data/performance-benchmarking/scale-02/inputs/input-pack-v1",
+    "manifest": "input-manifest.v1.json",
+    "manifest_sha256": "1d1aee57b20f38ed39dc780c44d12be6ec1a18f64f02dbf8ae5fcf79d5f72795",
+    "tc5_index": "tc5/tc5-corpus-input.v1.json",
+    "tc5_qualified_manifest": "tc5-qualified-manifest.json",
+    "locomo_corpus": "locomo10.json",
+    "locomo_subset": "locomo-fixed-subset.json"
+  },
+  "treatments": {
+    "cells": [
+      {"id": "current_default", "query_path": "current", "reader_profile": "default"},
+      {"id": "rank_default", "query_path": "rank_fast", "reader_profile": "default"},
+      {"id": "rank_mmap128", "query_path": "rank_fast", "reader_profile": "mmap128"},
+      {"id": "rank_mmap256", "query_path": "rank_fast", "reader_profile": "mmap256"},
+      {"id": "rank_cache64", "query_path": "rank_fast", "reader_profile": "cache64"},
+      {"id": "rank_mmap256_cache64", "query_path": "rank_fast", "reader_profile": "mmap256_cache64"}
+    ],
+    "reader_profiles": [
+      {
+        "id": "default",
+        "pragmas": "",
+        "expected": {"cache_size": -2000, "mmap_size": 0, "temp_store": 0},
+        "footprint_order": 0
+      },
+      {
+        "id": "mmap128",
+        "pragmas": "mmap_size=134217728",
+        "expected": {"cache_size": -2000, "mmap_size": 134217728, "temp_store": 0},
+        "footprint_order": 1
+      },
+      {
+        "id": "mmap256",
+        "pragmas": "mmap_size=268435456",
+        "expected": {"cache_size": -2000, "mmap_size": 268435456, "temp_store": 0},
+        "footprint_order": 2
+      },
+      {
+        "id": "cache64",
+        "pragmas": "cache_size=-65536",
+        "expected": {"cache_size": -65536, "mmap_size": 0, "temp_store": 0},
+        "footprint_order": 3
+      },
+      {
+        "id": "mmap256_cache64",
+        "pragmas": "mmap_size=268435456,cache_size=-65536",
+        "expected": {"cache_size": -65536, "mmap_size": 268435456, "temp_store": 0},
+        "footprint_order": 4
+      }
+    ],
+    "concurrency": [1, 2, 4],
+    "formal_concurrency": 1
+  },
+  "workload": {
+    "point": 10000,
+    "repetitions": 5,
+    "cold_queries": 100,
+    "warmup_queries": 100,
+    "steady_queries": 1000,
+    "mutations": 20,
+    "query_order_seed": "0x5CA1E0200A0F75",
+    "bootstrap_seed": "0x5CA1E020B00757",
+    "bootstrap_resamples": 2000
+  },
+  "equivalence": {
+    "tc5_queries": 100,
+    "answer_01_queries": 32,
+    "top_k": 10
+  },
+  "selection_policy": {
+    "steady_p50_ms": 20,
+    "steady_p99_ms": 150,
+    "max_rss_fraction": 0.8,
+    "confidence": 0.95,
+    "selection": "lowest_footprint_eligible"
+  },
+  "runtime": {
+    "python": "/tmp/fathomdb-scale02-followup-runtime-1e856a3c/bin/python",
+    "python_extension": "/tmp/fathomdb-scale02-followup-runtime-1e856a3c/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so",
+    "python_extension_sha256": "577b94f1de0c7f9b7bcce1261583474c0ab8b1f2dcb2e14b79dcce96e63d729f",
+    "fathomdb_bin": "target/release/fathomdb",
+    "fathomdb_bin_sha256": "ca52398e670d9546219217e3eab7451fa33ff14c045440df8227fe7e1d0b66e4",
+    "wheel": "data/performance-benchmarking/scale-02/runtime/1e856a3c/fathomdb-0.8.23-cp310-abi3-manylinux_2_39_x86_64.whl",
+    "wheel_sha256": "68ddcc9f0f3545c31652822fa3871a200f3dde357e682ff9d2a25de7faf085fe",
+    "source_git_sha": "1e856a3c3f65d922146b0252aea600fb63380525"
+  },
+  "artifact_root": "data/performance-benchmarking/scale-02/runs",
+  "claim_boundary": "tuning_and_retrieval_equivalence_only"
+}

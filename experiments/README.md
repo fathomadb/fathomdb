@@ -102,6 +102,14 @@ fails. The 10k and 17,272 prefixes are real; larger points add explicitly
 labelled deterministic derived-fixture rows and therefore make efficiency,
 not additional real-corpus fidelity, claims.
 
+The registered compact FTS follow-up is owned by
+`python -m experiments.scale_02_followup`. It freezes TC-5 and ANSWER-01 inputs
+into the persistent data root, then runs the current/rank-fast control, five
+reader profiles, concurrency 1/2/4, and 132 retrieval-equivalence queries. Raw
+databases, timings, witnesses, and their artifact manifest remain external;
+safe aggregates use the normal experiment index. Selection writes a
+pending-HITL v2 proposal and cannot authorize the formal 10k rerun.
+
 ## Rules for the writer
 
 - `index.jsonl` is **append-only**: never rewrite or reorder existing lines.

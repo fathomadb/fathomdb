@@ -1,7 +1,8 @@
 # SCALE-02 — Local-first scale envelope
 
-**Status:** follow-up planned; the completed default-0.8.23 result remains the
-baseline, and no tuning or rerun is authorized by this plan.
+**Status:** compact follow-up execution in progress; the completed
+default-0.8.23 result remains the baseline, and the formal rerun is not yet
+authorized.
 
 ## Decision
 

@@ -14584,7 +14584,63 @@ fn read_search_in_tx(
         if let Some(now) = now_param {
             text_params.push(rusqlite::types::Value::Integer(now));
         }
-        if let Ok(mut statement) = tx.prepare(&join_sql) {
+        let rank_fast_requested = direct_text_candidate_limit.is_some()
+            && filter.is_none()
+            && std::env::var_os("FATHOMDB_PERF_EXPERIMENTS").is_some()
+            && std::env::var("FATHOMDB_PERF_FTS_RANK_FAST").is_ok_and(|value| value == "1");
+        let rank_fast_eligible = rank_fast_requested
+            && tx
+                .query_row(
+                    "SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)",
+                    [],
+                    |row| row.get::<_, bool>(0),
+                )
+                .unwrap_or(false);
+        let rank_fast_candidates = if rank_fast_eligible {
+            let rank_limit = final_limit.saturating_add(1);
+            let rank_sql = format!(
+                "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
+                 bm25(search_index), cn.logical_id, cn.source_id FROM search_index \
+                 LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
+                 WHERE search_index MATCH ?1 \
+                   AND cn.superseded_at IS NULL \
+                   AND (cn.state = 'active' OR cn.state IS NULL)\
+                   {text_validity} \
+                 ORDER BY rank LIMIT {rank_limit}"
+            );
+            tx.prepare(&rank_sql)
+                .and_then(|mut statement| {
+                    statement
+                        .query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
+                            let body = row.get::<_, String>(0)?;
+                            let logical_id = row.get::<_, Option<String>>(4)?;
+                            Ok(SearchHit {
+                                id: derive_stable_id(logical_id.as_deref(), &body),
+                                body,
+                                kind: row.get::<_, String>(1)?,
+                                write_cursor: row.get::<_, i64>(2)? as u64,
+                                score: row.get::<_, f64>(3)?,
+                                branch: SoftFallbackBranch::Text,
+                                source_id: row.get::<_, Option<String>>(5)?,
+                                ce_score: None,
+                            })
+                        })?
+                        .collect::<rusqlite::Result<Vec<_>>>()
+                })
+                .ok()
+                .and_then(|rows| retain_rank_fast_candidates(rows, final_limit))
+        } else {
+            None
+        };
+        if let Some(candidates) = rank_fast_candidates {
+            record_perf_fts_route("rank_fast");
+            candidates
+        } else if let Ok(mut statement) = tx.prepare(&join_sql) {
+            if rank_fast_eligible {
+                record_perf_fts_route("full_sort_fallback");
+            } else if rank_fast_requested {
+                record_perf_fts_route("full_sort_ineligible");
+            }
             let rows =
                 statement.query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
                     let body = row.get::<_, String>(0)?;
@@ -14949,6 +15005,45 @@ fn read_search_in_tx(
     };
 
     Ok((cursor, soft_fallback, results, graph_stats, explanation))
+}
+
+/// Restore the production score/cursor order after FTS5's optimized
+/// `ORDER BY rank` scan. Returning `None` requests the full stable-sort query
+/// when the extra row ties the requested boundary.
+fn retain_rank_fast_candidates(
+    mut candidates: Vec<SearchHit>,
+    limit: usize,
+) -> Option<Vec<SearchHit>> {
+    candidates.sort_by(|left, right| {
+        left.score.total_cmp(&right.score).then_with(|| left.write_cursor.cmp(&right.write_cursor))
+    });
+    if candidates.len() > limit
+        && candidates[limit - 1].score.total_cmp(&candidates[limit].score)
+            == std::cmp::Ordering::Equal
+    {
+        return None;
+    }
+    candidates.truncate(limit);
+    Some(candidates)
+}
+
+fn record_perf_fts_route(route: &str) {
+    let Some(path) = std::env::var_os("FATHOMDB_PERF_FTS_ROUTE_WITNESS") else {
+        return;
+    };
+    static WITNESS_LOCK: std::sync::OnceLock<Mutex<()>> = std::sync::OnceLock::new();
+    let Ok(_guard) = WITNESS_LOCK.get_or_init(|| Mutex::new(())).lock() else {
+        return;
+    };
+    let line = serde_json::json!({"schema_version": "scale-02-fts-route.v1", "route": route});
+    match OpenOptions::new().create(true).append(true).open(path) {
+        Ok(mut file) => {
+            if let Err(error) = writeln!(file, "{line}") {
+                eprintln!("perf-experiment: could not write FTS route witness: {error}");
+            }
+        }
+        Err(error) => eprintln!("perf-experiment: could not open FTS route witness: {error}"),
+    }
 }
 
 /// R3 (Slice 30) + C1 (0.8.1 graph-arm seeding) — graph-arm BFS candidate generation.
@@ -23245,34 +23340,73 @@ fn apply_perf_experiment_reader_pragmas(connection: &Connection) {
     if std::env::var_os("FATHOMDB_PERF_EXPERIMENTS").is_none() {
         return;
     }
-    let raw = match std::env::var("FATHOMDB_PERF_READER_PRAGMAS") {
-        Ok(s) if !s.is_empty() => s,
-        _ => return,
-    };
-    for entry in raw.split(',') {
-        let entry = entry.trim();
-        if entry.is_empty() {
-            continue;
-        }
-        let (name, value) = match entry.split_once('=') {
-            Some((n, v)) => (n.trim(), v.trim()),
-            None => {
-                eprintln!("perf-experiment: bad pragma entry (expect name=value): {entry}");
+    let raw = std::env::var("FATHOMDB_PERF_READER_PRAGMAS").unwrap_or_default();
+    if !raw.is_empty() {
+        for entry in raw.split(',') {
+            let entry = entry.trim();
+            if entry.is_empty() {
                 continue;
             }
-        };
-        if name.is_empty() {
-            eprintln!("perf-experiment: empty pragma name in entry: {entry}");
-            continue;
-        }
-        match connection.pragma_update(None, name, value) {
-            Ok(()) => {
-                eprintln!("perf-experiment: applied PRAGMA {name}={value} on reader");
+            let (name, value) = match entry.split_once('=') {
+                Some((n, v)) => (n.trim(), v.trim()),
+                None => {
+                    eprintln!("perf-experiment: bad pragma entry (expect name=value): {entry}");
+                    continue;
+                }
+            };
+            if name.is_empty() {
+                eprintln!("perf-experiment: empty pragma name in entry: {entry}");
+                continue;
             }
-            Err(err) => {
-                eprintln!("perf-experiment: PRAGMA {name}={value} failed: {err}");
+            match connection.pragma_update(None, name, value) {
+                Ok(()) => {
+                    eprintln!("perf-experiment: applied PRAGMA {name}={value} on reader");
+                }
+                Err(err) => {
+                    eprintln!("perf-experiment: PRAGMA {name}={value} failed: {err}");
+                }
             }
         }
+    }
+    if let Some(path) = std::env::var_os("FATHOMDB_PERF_READER_PRAGMA_WITNESS") {
+        match reader_perf_observation(connection) {
+            Ok(observation) => write_perf_reader_witness(path.as_ref(), &observation),
+            Err(error) => eprintln!("perf-experiment: could not observe reader settings: {error}"),
+        }
+    }
+}
+
+fn reader_perf_observation(connection: &Connection) -> rusqlite::Result<serde_json::Value> {
+    let sqlite_version =
+        connection.query_row("SELECT sqlite_version()", [], |row| row.get::<_, String>(0))?;
+    let cache_size =
+        connection.pragma_query_value(None, "cache_size", |row| row.get::<_, i64>(0))?;
+    let mmap_size =
+        connection.pragma_query_value(None, "mmap_size", |row| row.get::<_, i64>(0)).unwrap_or(0);
+    let temp_store =
+        connection.pragma_query_value(None, "temp_store", |row| row.get::<_, i64>(0))?;
+    Ok(serde_json::json!({
+        "schema_version": "scale-02-reader-settings.v1",
+        "requested": std::env::var("FATHOMDB_PERF_READER_PRAGMAS").ok(),
+        "cache_size": cache_size,
+        "mmap_size": mmap_size,
+        "temp_store": temp_store,
+        "sqlite_version": sqlite_version,
+    }))
+}
+
+fn write_perf_reader_witness(path: &Path, observation: &serde_json::Value) {
+    static WITNESS_LOCK: std::sync::OnceLock<Mutex<()>> = std::sync::OnceLock::new();
+    let Ok(_guard) = WITNESS_LOCK.get_or_init(|| Mutex::new(())).lock() else {
+        return;
+    };
+    match OpenOptions::new().create(true).append(true).open(path) {
+        Ok(mut file) => {
+            if let Err(error) = writeln!(file, "{observation}") {
+                eprintln!("perf-experiment: could not write reader witness: {error}");
+            }
+        }
+        Err(error) => eprintln!("perf-experiment: could not open reader witness: {error}"),
     }
 }
 
@@ -23423,11 +23557,12 @@ unsafe extern "C" fn profile_callback_trampoline(
 #[cfg(test)]
 mod tests {
     use super::{
-        derive_stable_id, native_connection_state_for_test, resolve_source_type, DeviceResolution,
-        EmbedderChoice, Engine, EngineError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
-        ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, RuntimeProbeConnection,
-        SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL,
-        PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
+        derive_stable_id, native_connection_state_for_test, reader_perf_observation,
+        resolve_source_type, retain_rank_fast_candidates, DeviceResolution, EmbedderChoice, Engine,
+        EngineError, IdSpace, IdSpaceKind, InitialState, LoaderInfo, ManagedConnectionRegistry,
+        NativeTransactionState, PreparedWrite, RuntimeProbeConnection, SearchHit,
+        SoftFallbackBranch, SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS,
+        KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder::{
         DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,
@@ -25006,6 +25141,52 @@ mod tests {
         assert_eq!(IdSpace::content("y").to_prefixed(), "h:y");
         assert_eq!(IdSpace::passage("3").to_prefixed(), "p:3");
         assert_eq!(IdSpace::parse("untagged"), None);
+    }
+
+    #[test]
+    fn scale02_rank_fast_retains_stable_prefix_only_across_a_strict_boundary() {
+        let hit = |cursor: u64, score: f64| SearchHit {
+            id: IdSpace::logical(format!("rank-fast-{cursor}")),
+            write_cursor: cursor,
+            kind: "doc".to_string(),
+            body: format!("body {cursor}"),
+            score,
+            branch: SoftFallbackBranch::Text,
+            source_id: Some("scale-02:test".to_string()),
+            ce_score: None,
+        };
+
+        let retained = retain_rank_fast_candidates(
+            vec![hit(8, -4.0), hit(3, -5.0), hit(2, -5.0), hit(9, -3.0)],
+            3,
+        )
+        .expect("strict score boundary is eligible");
+        assert_eq!(
+            retained.iter().map(|item| item.write_cursor).collect::<Vec<_>>(),
+            vec![2, 3, 8],
+            "rank-fast must restore the production score/cursor ordering"
+        );
+
+        assert!(
+            retain_rank_fast_candidates(
+                vec![hit(1, -5.0), hit(2, -4.0), hit(3, -3.0), hit(4, -3.0)],
+                3,
+            )
+            .is_none(),
+            "a top-k boundary tie must fall back to the full stable sort"
+        );
+    }
+
+    #[test]
+    fn scale02_reader_observation_reports_effective_sqlite_settings() {
+        let connection = Connection::open_in_memory().expect("open sqlite");
+        connection.pragma_update(None, "cache_size", -65_536_i64).expect("set cache");
+        let observation = reader_perf_observation(&connection).expect("observe settings");
+
+        assert_eq!(observation["schema_version"], "scale-02-reader-settings.v1");
+        assert_eq!(observation["cache_size"], -65_536);
+        assert!(observation["mmap_size"].is_i64() || observation["mmap_size"].is_u64());
+        assert!(observation["sqlite_version"].as_str().is_some_and(|value| !value.is_empty()));
     }
 
     // Pack 1 drift-detection: the Rust helper used by the two writer

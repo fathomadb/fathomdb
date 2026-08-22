@@ -6,17 +6,20 @@ desc: >
   HITL correction to `ci-cd-final-recommendation-20260821.md`: that doc's
   tiers/aggregators/required-checks/rollout-soak shape is more ceremony than
   a single-maintainer repo needs. This doc keeps that doc's diagnosis (the
-  challenge catalogue, the delivery-requirements map) but replaces its
-  prescription with a much smaller one: informational (non-gating) CI,
-  fine-grained path scoping in place of the existing single `docs_only`
-  flag, a fast environment preflight, and heavy/fragile work moved to
-  on-demand rather than either "every push" or a new nightly commitment.
-  Analysis and recommendation only; no CI config, script, or GitHub setting
-  is changed by this document.
+  challenge catalogue, the delivery-requirements map) and restates, rather
+  than inherits, the durable facts underneath its now-rejected prescription.
+  Revised after an adversarial correctness review found several concrete
+  implementation errors in the first draft (wrong source paths, an invalid
+  workflow-level `if:`, a preflight design that can't validate what it
+  claims to, and stale facts about gitleaks' current blocking status) — see
+  §7. Analysis and recommendation only; no CI config, script, or GitHub
+  setting is changed by this document.
 blast_radius: >
   read-only: dev/design/{ci-challenges-review,delivery-requirements-map,
   ci-cd-design-hypothesis,ci-cd-best-practices-research,
-  ci-cd-final-recommendation}-20260821.md; .github/workflows/ci.yml
+  ci-cd-final-recommendation}-20260821.md; .github/workflows/{ci,
+  release}.yml; scripts/security/gitleaks-history.sh;
+  scripts/agent-verify.sh
 ---
 
 # CI/CD simplified redesign — single-maintainer correction
@@ -24,10 +27,14 @@ blast_radius: >
 **Status: PROPOSED.** Nothing here is implemented. This document supersedes
 §2–§4 and §8 of `ci-cd-final-recommendation-20260821.md` (the trigger/tier
 structure, the required-check set, the nightly-schedule commitment, and the
-soak-before-re-protecting rollout). It does **not** supersede that doc's §1
-(challenge evaluation) or §5–§7 (gitleaks precondition, stale-doc flags,
-honesty about what a redesign can't mechanically guarantee) — those still
-hold and are cited here by reference rather than repeated.
+soak-before-re-protecting rollout) **completely** — not just in shape, but
+in every specific fact those sections asserted, several of which (a required
+five-check ruleset, a nightly-scan commitment, "why required checks will
+stay trustworthy") no longer apply once nothing is required. §1 of that
+document (the challenge evaluation) still holds as a historical record. §5–§7
+are restated here in corrected, current form (§4, §6) rather than inherited
+by reference, because two of their specifics were already stale by the time
+of this revision — see §4.
 
 ## 0. The correction, verbatim
 
@@ -41,70 +48,53 @@ hold and are cited here by reference rather than repeated.
 > then needed by CI script) should be rare, and caught in the first 30
 > second."
 
-The prior doc's §2–§3 built exactly the kind of process the HITL is
-rejecting here: two new required aggregator checks (`gate-fast`,
-`gate-build`), a restored 5-name required-check branch-protection ruleset,
-and a rollout sequence that explicitly waited for the new tiers to "run
-clean for a few real days" before re-gating `main` (§8.5) — a soak period in
-substance even though that doc didn't use the word. That shape is wrong for
-this repo. This doc replaces it.
-
-## 1. What's being cut, and why
+## 1. What's cut from the prior recommendation, and why
 
 | Cut from the prior recommendation | Why it doesn't fit a single-maintainer repo |
 |---|---|
-| Merge queue *(already dropped by stage-3 research, doc 4 §1 — reconfirmed here)* | No concurrent human PRs to serialize |
-| `gate-fast` / `gate-build` aggregator jobs | Exist only to be **required** checks; if nothing is required, nothing needs a stable aggregate name |
-| Re-applying branch protection with a 5-check required-status-checks ruleset | This *is* the "gates/requires" the HITL is explicitly declining. A solo maintainer reads the Checks tab and decides; GitHub doesn't need to enforce that decision for them |
-| Nightly `schedule` cron for GPU/gitleaks-full-history rehearsal | A new recurring commitment is its own kind of ceremony — infra that runs and must be watched whether or not anything changed |
-| "Run clean for a few days" rollout gate (§8.5 of the prior doc) | A soak period by another name |
-| Full 5-platform matrix "once per push to main" | Still runs on every trunk push regardless of what changed; a comment-typo commit to `main` still pays for it |
-
-What's **kept unchanged** from the prior investigation: the gitleaks
-triage-to-zero precondition (§5 of the final recommendation — still true,
-still has to happen before the full-history scan can be trusted either way),
-the honest §7 point that no CI mechanism prevents a required check from
-rotting again (more true than ever once there *are* no required checks —
-see §5 below), and the flags on `docs/compatibility/index.md` and
-`dev/steward/branch-protection.md` being stale.
+| Merge queue *(already dropped by stage-3 research)* | No concurrent human PRs to serialize |
+| `gate-fast` / `gate-build` aggregator jobs | Exist only to be **required** checks; nothing needs a stable aggregate name if nothing is required |
+| Re-applying branch protection with a required-status-checks ruleset | This *is* the "gates/requires" the HITL is declining |
+| Nightly `schedule` cron for GPU/gitleaks-full-history rehearsal | A recurring commitment is its own kind of ceremony |
+| "Run clean for a few days" rollout gate | A soak period by another name |
+| Full 5-platform matrix "once per push to main" as a distinct new trigger | Redundant once nothing requires it — see §3.5 |
 
 ## 2. The organizing idea
 
 CI becomes **informational, not a gate**, and its cost becomes **proportional
-to what the diff actually touches**, using the mechanism the repo already
-has — `dorny/paths-filter` in the `changes` job (`.github/workflows/ci.yml`
-lines 113–129) — extended from one boolean to a handful, instead of the
-prior doc's new "taxonomy classifier" concept (which was heavier machinery
-for the same idea). Nothing needs a new job type; the existing jobs just get
-narrower `if:` conditions.
+to what the diff touches**, using the mechanism the repo already has —
+`dorny/paths-filter` in the `changes` job (`.github/workflows/ci.yml` lines
+113–129) — extended from one boolean to several, rather than a new
+"taxonomy classifier" job. But path-scoping has a real ceiling: it can only
+see which *files* changed, not what changed *inside* them, and today's
+`verify` job (the single most expensive one) has no per-language entry
+point at all. §3.3 and §3.6 are honest about exactly where that ceiling is,
+per the correctness review.
 
-Today, `changes` computes exactly one thing:
-
-```yaml
-docs_only: ${{ steps.filter.outputs.nonmd == 'false' }}
-```
-
-and every heavy job (`verify`, `verify-fast`, `rust-workspace-race-report`,
-`security`, `default-embedder-tests`, both Windows WAL jobs, `wheel-size-gate`,
-`native-artifact-runtime-validation`) shares the single condition
-`if: needs.changes.outputs.docs_only != 'true'` — so a change to *one* Windows
-diagnostic script runs literally everything else too, and a one-character
-comment fix in a `.rs` file runs the full 60-minute `verify` job because it
-isn't a `.md` file. That's the direct mechanism behind both examples in the
-HITL's correction.
+Today, `changes` computes one thing (`docs_only`, via a `nonmd` filter), and
+every heavy job shares `if: needs.changes.outputs.docs_only != 'true'` — so
+editing one Windows diagnostic script runs literally everything else too,
+and a comment fix in a `.rs` file runs the full 60-minute `verify` job
+because it isn't a `.md` file.
 
 ## 3. Concrete shape
 
-### 3.1 Extend the path-filter categories (in place of a new taxonomy job)
+### 3.1 Extend the path-filter categories — with the repo's real layout
+
+The first draft of this doc used `python/**` and `typescript/**` as filter
+roots. Those are wrong: the actual Python SDK source is `src/python/**`
+(`python/` at repo root is a build/example output directory, not source),
+and the actual TypeScript/napi source is `src/ts/**`, which has its own
+`package.json`/`package-lock.json` distinct from the repo-root ones.
+Corrected:
 
 ```yaml
   changes:
     outputs:
       docs_only: ...            # unchanged
-      rust:      ${{ steps.filter.outputs.rust }}
-      python:    ${{ steps.filter.outputs.python }}
+      rust:       ${{ steps.filter.outputs.rust }}
+      python:     ${{ steps.filter.outputs.python }}
       typescript: ${{ steps.filter.outputs.typescript }}
-      windows_relevant: ${{ steps.filter.outputs.windows_relevant }}
       release_infra: ${{ steps.filter.outputs.release_infra }}
     steps:
       - uses: dorny/paths-filter@...
@@ -112,48 +102,121 @@ HITL's correction.
           filters: |
             nonmd: [ '!**/*.md' ]
             rust: [ 'src/rust/**', 'Cargo.toml', 'Cargo.lock' ]
-            python: [ 'python/**', 'src/rust/crates/fathomdb-py/**' ]
-            typescript: [ 'typescript/**', 'src/rust/crates/fathomdb-napi/**', 'package.json' ]
-            windows_relevant: [ '**/*windows*', '**/*wal*' ]
+            python: [ 'src/python/**' ]
+            typescript: [ 'src/ts/**', 'package.json', 'package-lock.json' ]
             release_infra: [ '.github/workflows/**', 'scripts/release/**' ]
 ```
 
-Each existing job's `if:` narrows from the single `docs_only != 'true'` to
-the category it actually depends on — for example:
+`dorny/paths-filter`'s README documents that its default PR-diff mode can
+fall back to the GitHub REST API depending on checkout depth/event type,
+which needs `pull-requests: read`; `ci.yml` currently grants only
+`contents: read` (line 13). The existing `changes` job has apparently
+worked in production without that permission, which suggests it's staying
+in local-git-diff mode given the current checkout — but that should be
+**verified on a real PR, not assumed**, and `pull-requests: read` is cheap
+enough to add defensively regardless (least-privilege cost is negligible;
+the failure mode it prevents — paths-filter silently degrading — is not).
 
-- `verify` → `if: needs.changes.outputs.rust == 'true' || needs.changes.outputs.python == 'true' || needs.changes.outputs.typescript == 'true'`
-- `windows-wal-checkpoint-diagnosis` / `windows-wal-attribution` → `if: needs.changes.outputs.windows_relevant == 'true'` (once their `os.uname()` bug — doc 1 §1.3 — is actually fixed; broken diagnostics shouldn't run at all in the meantime, blocking or not)
-- `wheel-size-gate`, `native-artifact-runtime-validation` → gated on `release_infra` or `rust` as appropriate
-- the 9 always-on governance jobs (`board-currency`, `ledger-integrity`, `plan-anchors`, `governed-surface-pin`, `pinned-override-rot`, `c1-contract-conformance`, `transcript-hygiene`, `release-state-views`, `steward-orient`, `docs`) currently carry **no `if:` at all by deliberate design** (see the "Deliberately carries NO `if:` and NO `needs:`" comments in `ci.yml`). That's a separate, pre-existing design decision about the steward/ledger process, not something this doc's diff-scoping mechanism should silently change — but it's worth the HITL flagging explicitly in §6 below whether that governance-on-every-push posture is itself still wanted, since it's the same shape of always-on ceremony this doc is otherwise removing.
+There is no `windows`-specific filter category in this list. §3.3 explains
+why, concretely, rather than proposing one that would misbehave.
 
-A misspelling fixed in a Rust comment: `rust == 'true'` (paths-filter is
-path-based, not content-based, so it can't tell a comment fix from a logic
-change by itself — see the escape hatch in §3.3 for that gap) still runs the
-now-scoped `verify`. A misspelling in a `.md` file: `docs_only` alone,
-nothing else. A one-line edit to `windows-wal-attribution.py`: only
-`windows_relevant` fires — no Rust build, no Python wheel, no five-platform
-anything.
+### 3.2 No silent "unclassified" gap
 
-### 3.2 Fast environment preflight — target under 30 seconds
+The prior draft implied any job not covered by an explicit path category
+could receive **no** verification at all. That's not actually true of the
+mechanism already in place, but it's worth stating explicitly rather than
+leaving it implicit: `verify-fast` (the cheap, ~1–2 minute lint/typecheck/
+security suite) keeps its current `if: needs.changes.outputs.docs_only !=
+'true'` condition unchanged — it already runs on **any** non-doc change,
+regardless of which specific path category matched. Only the *heavier*,
+per-surface jobs (§3.4) get narrowed further. A change to, say,
+`scripts/**` or a config file with no specific category still gets
+`verify-fast` at minimum; it is never zero-signal.
 
-Today's tool bootstrapping is buried: `verify-fast` installs `ripgrep` via
-`apt-get` as its sixth step (`ci.yml` line 161–162), *after* checkout,
-TMPDIR setup, Python setup, Node setup, and Rust toolchain install — so a
-genuine environment problem (a tool `scripts/bootstrap.sh` or an
-`agent-verify` suite assumes exists, and doesn't) only surfaces minutes in,
-mixed in with real build/test failures, not distinguished from them.
+### 3.3 Windows scoping — what path-filtering can and can't do here
 
-Add one job, first in the graph, that does nothing but check the runner has
-what the scripts need — no checkout of the full history, no language
-toolchain installs:
+`windows-wal-checkpoint-diagnosis` (`ci.yml` line 459) runs:
+
+```text
+cargo test -p fathomdb-engine --features operator --test erasure_completeness \
+  erasure_busy_cross_process_windows_yields_typed_diagnostic
+```
+
+— a Windows-specific test *inside* `erasure_completeness.rs`, a generically
+named file in core `fathomdb-engine`. No path glob (`**/*windows*`,
+`**/*wal*`, or anything else) can distinguish a change to that specific test
+from any other change to that file, because the Windows-specificity is
+inside the file's content, not its path. A glob broad enough to catch it
+would also match unrelated Rust files that happen to contain "wal" (e.g.
+write-ahead-log code generally) and would match Windows-related *design
+docs* under `dev/design/**/*windows*.md`, breaking the cheap-docs promise
+in the other direction — exactly the "too broad and too narrow at once"
+finding from the correctness review.
+
+The honest scoping: this job stays under the `rust` category (§3.1) like
+the rest of `fathomdb-engine` — which is *correct*, not a compromise, since
+its test genuinely depends on core Rust code. What §3.1's filters *can*
+scope precisely is changes to files that are actually, structurally
+Windows-only: the workflow YAML step itself, or a dedicated
+Windows-only script/module if one exists outside shared source (none
+currently does for this job). The user's "one Windows-specific item"
+example is best satisfied by keeping Windows-only *tooling* (scripts,
+workflow steps) in Windows-only paths going forward, not by trying to infer
+platform-specificity from file content after the fact — that's a repo
+organization habit, not a CI mechanism.
+
+### 3.4 What's immediately actionable vs. what needs a script change
+
+The correctness review's sharpest finding: `verify` (the 60-minute heavy
+suite) invokes `agent-verify.sh --tier=heavy`, which runs Rust, Python, and
+TypeScript **together** — there is no existing way to run just the Python
+suite. Claiming `python`-only changes would run only "verify's Python
+suite" was not describing anything that exists.
+
+**Immediately actionable (CI-YAML-only, no script changes):**
+
+- `wheel-size-gate`, `native-artifact-runtime-validation` — already
+  independent jobs; gate on `release_infra` or `rust` as appropriate.
+- `windows-wal-checkpoint-diagnosis` / `windows-wal-attribution` — gate on
+  `rust` per §3.3 (same condition as today's `docs_only != 'true'`, just
+  narrower than "any non-doc change"). These should also stop running
+  entirely until their `os.uname()` bug (challenge catalogue §1.3) is
+  fixed — a broken diagnostic gains nothing from being scoped instead of
+  removed.
+- `verify-fast`, `verify`, `rust-workspace-race-report`, `security`,
+  `default-embedder-tests` — stay on today's `docs_only != 'true'`
+  condition (i.e. any `rust`/`python`/`typescript` category, treated as one
+  bucket) because `verify` cannot currently be split further. This is
+  **coarser than the pitch in the first draft** — a Python-only change
+  still pays for the full Rust+Python+TS suite — and should be described
+  that way, not oversold.
+
+**Needs real script work first (out of scope for a docs/CI-YAML change):**
+
+- Add a `--surface=rust|python|typescript` selector to
+  `scripts/agent-verify.sh` / `scripts/agent-test.sh` so `verify` can
+  actually run only the touched language's suite. Until that lands,
+  per-language scoping of the biggest cost item in the pipeline is a stated
+  future improvement, not something this doc can deliver on its own.
+
+### 3.5 Fast environment preflight — per job, not a shared job
+
+The first draft proposed one `preflight` job that other jobs `needs:`. That
+doesn't work: GitHub-hosted jobs each get a fresh, independent VM (runner
+images are also updated on a rolling weekly basis per GitHub's own docs), so
+one job's tool-presence check proves nothing about a different job's
+runner — including a different OS entirely (Windows/macOS jobs vs. the
+Ubuntu preflight VM). Worse, a `needs: preflight` edge means a preflight
+failure skips every other job's *real* diagnostics, hiding the actual
+failure behind an unrelated one.
+
+Corrected: put the tool-presence check as the **first step of each job that
+needs it**, on that job's own runner, before any toolchain setup:
 
 ```yaml
-  preflight:
-    runs-on: ubuntu-latest
-    timeout-minutes: 1
-    steps:
-      - uses: actions/checkout@... # shallow, no fetch-depth: 0
+      - uses: actions/checkout@...
       - name: Verify required tools are present
+        shell: bash              # or pwsh on windows-latest, with Get-Command
         run: |
           set -euo pipefail
           for tool in rg jq git curl; do
@@ -161,169 +224,192 @@ toolchain installs:
           done
 ```
 
-Everything else (`needs: [changes, preflight]`) waits on this, but since
-it's ~5–10 seconds on a GitHub-hosted runner, it isn't a meaningful serial
-tax — it just means a missing-tool failure reports in seconds, standing
-alone, instead of being buried in a 30–60 minute job's failure log next to
-unrelated test output.
+On `windows-latest` runners, the equivalent step uses `Get-Command` in
+`pwsh`, not `command -v`. This adds ~2–5 seconds per job rather than one
+shared ~30-second job, and a missing-tool failure now reports standing
+alone, on the runner that actually has the problem, before any expensive
+setup — which is what "caught in the first 30 seconds" actually requires.
 
-### 3.3 Escape hatch for changes path-scoping can't see
+### 3.6 Full skip: use GitHub's native mechanism, not a custom one
 
-Path filters are path-based, not content-based — they can't distinguish "a
-Rust comment typo" from "a Rust logic change" in the same file. Rather than
-building content-aware diffing (real machinery, disproportionate for this),
-give the maintainer (or an agent committing on their behalf) an explicit,
-cheap opt-out: a commit-message trailer, checked in one `if:` at the very
-top of the workflow, no new job:
+The first draft proposed checking `github.event.head_commit.message` for a
+`[ci-lite]` trailer in a workflow-level `if:`. Neither part of that works:
+GitHub Actions doesn't support a workflow-level `if:` (only
+`jobs.<job_id>.if` and step-level conditions), and
+`github.event.head_commit` belongs to the `push` event payload, not `pull_
+request` — a PR-triggered run wouldn't see it at all, and even on `push`,
+checking only the head commit lets an earlier substantive commit in the
+same push slip through unexamined.
 
-```yaml
-if: ${{ !contains(github.event.head_commit.message, '[ci-lite]') }}
-```
+Since nothing in this design is required, there is no need for a bespoke
+partial-skip mechanism: GitHub's native `[skip ci]` / `[ci skip]` commit-
+message markers (and the `skip-checks: true` pull-request/commit-status
+equivalent) already skip an entire workflow run, are documented, and are
+safe to rely on precisely *because* nothing here gates anything — a skipped
+run was never going to block anything anyway. Use that for "this commit
+needs no CI at all." For "run only the cheap stuff," §3.1–§3.4's automatic
+path-scoping is the mechanism — there's no separate manual "lite mode" to
+build or maintain.
 
-`[ci-lite]` in a commit message skips everything except `preflight`,
-`changes`, and the always-fast lint/typecheck step — the maintainer's call,
-made per-commit, not a rule the CI infers or enforces. This is the kind of
-mechanism that fits "not trying to add gates": it's a way to say *less* CI
-is needed this time, never a way CI blocks anything.
+### 3.7 What moves off the always-run path, and how
 
-### 3.4 No required status checks
+The full 5-platform matrix and any GPU/Tegra work never need a distinct
+"once per push to main" trigger layer, because in this design nothing forces
+them to run on every push in the first place — `release_infra`/`rust`
+scoping already limits when the relevant jobs fire, and full cross-platform
+validation belongs at `workflow_dispatch` (run on demand) and at the
+existing tag-triggered `release.yml`, not as new standing infrastructure.
 
-Branch protection on `main` is **not re-applied** as a required-status-checks
-ruleset. CI still runs, still reports red/green on every commit and the
-Checks tab, still stays genuinely informative once §3.1's scoping makes red
-mean something specific — but nothing in GitHub configuration prevents a
-push or merge based on it. If the HITL wants *some* minimal accident-guard —
-`non_fast_forward` (blocks force-push) and `deletion` (blocks deleting
-`main`) protection alone, with **no required status checks and no PR-review
-requirement** — that's a one-line-each addition and genuinely just guards
-against fat-fingering, not a workflow gate. It's optional, not this doc's
-recommendation either way; see §6.
+## 4. Gitleaks — corrected to current reality
 
-### 3.5 Heavy/fragile work: on-demand, not nightly
+The first draft's framing ("57 pre-existing findings block every PR, need a
+one-time triage before moving off the blocking path") is **stale**. As of
+this revision:
 
-The prior doc moved full-history gitleaks and GPU/Tegra builds to a nightly
-`schedule`. This doc moves them to `workflow_dispatch` (run-it-when-you-want)
-plus the existing tag-triggered `release.yml`, and drops the recurring cron
-entirely — no new always-on infrastructure to babysit. The gitleaks
-triage-to-zero precondition from `ci-cd-final-recommendation-20260821.md`
-§5 is unchanged: do that once, then the full-history scan is available
-on-demand and at release time, never a recurring commitment and never a
-per-push blocker.
+- `gitleaks` (`ci.yml` line 26) was already made non-blocking on `main`
+  by commit `a755e1d8` ("ci: make Gitleaks report-only", 2026-08-20) —
+  `continue-on-error: true` at the job level. It no longer blocks
+  anything, on `main`, today. Challenge catalogue §1.1 is therefore
+  already partially resolved independent of this redesign.
+- It still **runs unconditionally on every push** (no `if:` at all — not
+  even gated on `docs_only`), and both steps ("Scan current tracked tree"
+  and "Scan reachable Git history" — `scripts/security/gitleaks-current.sh`
+  and `scripts/security/gitleaks-history.sh`) run together in the same job
+  every time. That's a real, current cost/volume issue, just not a
+  blocking one.
+- `scripts/security/gitleaks-history.sh` already implements an
+  allowlist/reconciliation mechanism ("safe report") distinct from a raw
+  finding count — re-running it during this revision showed
+  `expected_records=100 observed_records=121 unknown=21`, i.e. the
+  allowlist and the actual history are currently **out of sync**, not
+  simply "57 untriaged findings" as the earlier catalogue stated. The exact
+  current count and classification needs the maintainer to look at this
+  script's own output, not this doc's summary of a snapshot from several
+  days prior.
 
-## 4. Explicitly out of scope (same as the prior doc)
+**Revised recommendation:** split the job's two steps by trigger instead of
+running them together every time — "Scan current tracked tree" (fast,
+diff-relevant) stays on every push; "Scan reachable Git history" moves to
+`workflow_dispatch` plus (once actually wired — `release.yml` currently has
+**no** gitleaks step at all, contrary to the assumption in the prior
+recommendation doc) a real step in the release workflow. `gitleaks` itself
+supports commit-range scanning via `--log-opts`, which is the natural way
+to keep "current tracked tree" cheap without needing the full-history
+machinery on every push. None of this is a security-blocking precondition
+anymore, since the job is already report-only — it's a cost reduction and
+an accuracy fix (reconciling the 21-record mismatch) that stands on its own,
+whenever the maintainer wants to do it.
 
-CUDA/maturin toolchain churn (`ci-cd-final-recommendation-20260821.md`
-§1.2/1.7) stays out of scope here too — it's a real release-engineering
-defect (GCC/nvcc pinning, build-order bugs), not a CI-triggering problem,
-and no amount of scoping or de-gating touches it. The `cargo hack check
---each-feature` GPU-compile proxy from the prior doc's research (doc 4 §3)
-is still a reasonable cheap early-warning addition inside the `rust`-scoped
-Tier, independent of everything else this doc changes.
+## 5. Explicitly out of scope
 
-## 5. What this doesn't solve, said plainly
+CUDA/maturin toolchain churn (challenge catalogue §1.2/§1.7) stays out of
+scope — real release-engineering defects, not a CI-triggering problem.
+`cargo hack check --each-feature` as a GPU-compile proxy (carried from
+stage-3 research) is a reasonable idea but is **unverified for this repo's
+actual CUDA/Metal/ONNX feature combinations** — it should be spiked once,
+manually, before being relied on, not assumed to work.
 
-Removing required checks removes the specific 2026-08-20 failure mode (a
-required check that stays red for days, forcing a choice between living
-with permanently-failing gates or deleting them) by removing the gate, not
-by fixing the checks. That is a deliberate trade, not an oversight: for a
-single maintainer, "CI can be wrong sometimes and I'll notice" is a
-reasonable posture that "CI must never be wrong because it blocks me" is
-not, especially given the concrete history of gitleaks and the Windows
-diagnostic both being wrong for days at a time. The risk this accepts: a
-red check nobody is forced to look at can go unnoticed longer than a
-required one. Fine-grained scoping (§3.1) partly offsets this — a red
-`windows_relevant` check next to a Windows-only commit is a much clearer
-signal than one red name among 25 unconditional jobs — but it's still on the
-maintainer to look, not on GitHub to force it.
+## 6. What this doesn't solve, said plainly
 
-## 6. Open decisions for HITL
+Removing required checks removes the 2026-08-20 failure mode (a check
+staying red for days, forcing a choice between living with it or deleting
+the gate) by removing the gate, not by fixing the checks — a deliberate
+trade for a single maintainer, and the risk is symmetric either way: a red
+check nobody is forced to look at can go unnoticed longer than a required
+one would. Fine-grained scoping (§3.1–§3.4) partly offsets this by making a
+red result mean something more specific, but it is still on the maintainer
+to look, not on GitHub to force it — no CI mechanism substitutes for that.
 
-1. **The 9 always-on governance jobs** (`board-currency`, `ledger-integrity`,
-   `plan-anchors`, `governed-surface-pin`, `pinned-override-rot`,
-   `c1-contract-conformance`, `transcript-hygiene`, `release-state-views`,
-   `steward-orient`) currently run unconditionally on every push by
-   deliberate design, independent of this doc's scoping mechanism. Worth an
-   explicit call: keep them always-on (they're comparatively cheap, doc-state
-   checks rather than builds), or fold them into the same path-scoping
-   (e.g., only run when `dev/plans/**`, `dev/steward/**`, or `dev/design/**`
-   changed)?
-2. **Whether to keep any branch protection at all** (§3.4) — fully open
-   (nothing), or the minimal `non_fast_forward`+`deletion` accident-guard
-   with zero required checks.
-3. **The `[ci-lite]` trailer's exact scope** — this doc proposes it skips
-   everything but preflight/changes/lint; the HITL may want it narrower or
-   broader.
-4. **Whether `workflow_dispatch`-only (no nightly) is sufficient** for
-   catching CUDA/Tegra regressions between releases, or whether an
-   occasional (not nightly) manual cadence should be a personal habit rather
-   than automated at all.
+## 7. Revision note
 
-## Appendix — pipeline diagram
+This document was revised after an adversarial correctness review
+identified eight concrete implementation errors in the first draft (wrong
+`src/python`/`src/ts` paths; an invalid workflow-level `if:` for the
+`[ci-lite]` idea; a `preflight` job design that can't validate a different
+job's runner; an over/under-matching `windows_relevant` glob; an
+unsupportable claim that `verify` could be split per-language today; a
+stale gitleaks-triage framing that predated `a755e1d8`; a wrong claim that
+`release.yml` already runs gitleaks; and an "any branch" push-trigger claim
+where `ci.yml` actually restricts `push` to `main`). Every finding was
+checked against the current repo before this revision, not taken on faith —
+§3.1–§3.7 and §4 above are the corrected result. §0–§2 and §5–§6 (the
+policy direction itself — informational CI, no gates, no soak) are
+unchanged, because the review confirmed that direction was right; only the
+mechanics were wrong.
+
+## Appendix — pipeline diagram (v2, corrected)
 
 ```text
-                  FathomDB CI -- simplified, single-maintainer shape
+                  FathomDB CI -- simplified, single-maintainer shape (v2)
               (dev/design/ci-cd-simplified-redesign-20260821.md, PROPOSED)
                     informational only -- nothing here is a gate
 
-  every push / PR                                                    [ci-lite] in commit message?
-  ================                                                   =============================
-  +--------------------+                                              yes -> skip everything below
-  | push: any branch,   |                                                    except preflight+changes
-  | any PR               |
-  +----------+-----------+
-             |
-             v
-  +----------------------------+   ~5-10s, no toolchain installs, checked FIRST
-  | preflight                    |   -> command -v rg / jq / git / curl
-  |   fails loud in <30s if a    |   fixes: today `rg` is apt-get-installed as
-  |   tool a script assumes      |   verify-fast's 6th step -- buried, not a
-  |   exists is missing          |   fast, isolated failure
-  +----------------------------+
-             |
-             v
-  +----------------------------+
-  | changes (dorny/paths-filter) |   ONE flag today (docs_only) -> FIVE:
-  |   extends the EXISTING job,  |     docs_only    *.md only
-  |   no new taxonomy job needed |     rust          src/rust/**, Cargo.*
-  +--------------+---------------+     python        python/**, fathomdb-py/**
-                  |                     typescript    typescript/**, fathomdb-napi/**
-                  |                     windows_relevant   **/*windows*, **/*wal*
-                  |                     release_infra .github/workflows/**, scripts/release/**
-                  v
-  +--------------------------------------------------------------------------+
-  | scoped jobs -- only the categories touched actually run                   |
-  |                                                                            |
-  |   docs_only        -> markdownlint, docs                    (cheap)       |
-  |   rust              -> verify, verify-fast, rust-workspace-race-report,   |
-  |                        security, default-embedder-tests    (was: ALL of  |
-  |                        these ran on ANY non-.md change, no matter what)   |
-  |   python             -> verify's Python suite, wheel-size-gate            |
-  |   typescript          -> verify's TS suite, native-artifact-runtime-      |
-  |                          validation                                       |
-  |   windows_relevant     -> windows-wal-checkpoint-diagnosis / -attribution |
-  |                          (only after their os.uname() bug is fixed --     |
-  |                          broken diagnostics run for NOBODY until then)    |
-  |   release_infra       -> wheel-size-gate, native-artifact-runtime-        |
-  |                          validation                                       |
-  +--------------------------------------------------------------------------+
-     example: edit ONE windows-wal script -> windows_relevant fires alone.
-     no Rust build, no Python wheel, no five-platform anything.
-     example: fix a typo in a .md file -> docs_only alone.
-     example: fix a Rust comment typo -> rust fires (paths-filter is path-
-       based, not content-based) -- use [ci-lite] in the commit message to
-       skip it anyway, maintainer's call, not inferred.
+  TRIGGERS (as ci.yml actually defines them today -- unchanged)
+  ================================================================
+  +----------------------+          +----------------------+
+  | push: main only        |          | pull_request: any     |
+  | (ci.yml `on.push.       |          | branch                 |
+  |  branches: [main]`)     |          +-----------+-----------+
+  +-----------+-----------+                      |
+              |                                    |
+              +---------------------+--------------+
+                                     v
+  full skip: commit carries [skip ci] / [ci skip] -- GitHub's OWN native
+  mechanism, not a custom marker. Safe here because nothing is required,
+  so a skipped run was never going to block anything anyway.
+                                     |
+                                     v
+  +----------------------------------------------------------------+
+  | changes (dorny/paths-filter -- EXTENDS the existing job)          |
+  |   docs_only unchanged; adds, with CORRECTED real paths:            |
+  |     rust           src/rust/**, Cargo.toml, Cargo.lock             |
+  |     python          src/python/**            (NOT top-level        |
+  |     typescript       src/ts/**, its own       python/ -- that's    |
+  |                       package.json/-lock      build/example output)|
+  |     release_infra   .github/workflows/**, scripts/release/**       |
+  |   permissions gains `pull-requests: read` (defensive, verify on a  |
+  |   real PR -- paths-filter's PR-diff mode can need the REST API)    |
+  +----------------------------------------------------------------+
+                                     |
+              +----------------------+----------------------+
+              |                                               |
+              v                                               v
+  +---------------------------+                 +--------------------------------+
+  | EVERY job: tool-presence    |                 | verify-fast -- unchanged        |
+  | check as ITS OWN first step,|                 |   condition: docs_only!='true'  |
+  | on ITS OWN runner (Ubuntu/  |                 |   i.e. runs on ANY non-doc      |
+  | Windows/macOS each get a    |                 |   change -- the baseline; NEVER |
+  | fresh VM -- one shared      |                 |   zero-signal even for an       |
+  | "preflight" job proves      |                 |   unclassified path             |
+  | nothing about another job's |                 +--------------------------------+
+  | runner)                     |
+  |   bash: command -v rg jq    |
+  |         git curl            |
+  |   pwsh (windows-latest):    |
+  |         Get-Command          |
+  |   ~2-5s per job, fails loud, |
+  |   BEFORE toolchain setup     |
+  +---------------------------+
 
-  +----------------------------+
-  | governance jobs               |   board-currency, ledger-integrity,
-  |   UNCHANGED FROM TODAY --     |   plan-anchors, governed-surface-pin,
-  |   run on EVERY push, by       |   pinned-override-rot, c1-contract-
-  |   pre-existing deliberate     |   conformance, transcript-hygiene,
-  |   design (no `if:` at all)    |   release-state-views, steward-orient
-  |   *** OPEN QUESTION FOR HITL: |   -- 9 jobs, always-on, same shape as
-  |     keep always-on, or scope  |   what this redesign otherwise removes.
-  |     to dev/plans|steward|     |   Not changed here without a decision.
-  |     design/** touched? ***    |
-  +----------------------------+
+  IMMEDIATELY ACTIONABLE (CI-YAML only)              NEEDS SCRIPT WORK FIRST
+  ======================================              ==========================
+  wheel-size-gate                  -> release_infra   verify (60-min heavy suite)
+  native-artifact-runtime-         -> release_infra    runs Rust+Python+TS
+    validation                                          TOGETHER via
+  windows-wal-checkpoint-          -> rust (NOT a       agent-verify.sh --tier=heavy.
+    diagnosis / -attribution          windows_*         No per-language selector
+    (once os.uname() bug fixed;       filter -- its     exists today. Splitting it
+    broken diagnostics run for        test lives in     needs a --surface=rust|
+    NOBODY until then)                erasure_          python|typescript flag
+                                       completeness.rs,  added to agent-verify.sh /
+                                       a generic Rust    agent-test.sh FIRST.
+                                       file -- no path   Until then: python-only
+                                       glob can see a    and typescript-only changes
+                                       #[cfg(windows)]   still pay for the full
+                                       block inside it)  Rust+Python+TS run, same as
+                                                          today's docs_only split --
+                                                          coarser than first hoped,
+                                                          stated honestly.
 
   ------------------------------------------------------------------------------
   RESULT ON THE CHECKS TAB / PR -- INFORMATIONAL ONLY
@@ -332,29 +418,26 @@ maintainer to look, not on GitHub to force it.
     no branch-protection ruleset re-applied. no merge queue. no "requires."
     maintainer reads the Checks tab and decides -- GitHub enforces nothing.
 
-    optional, HITL's call, NOT this doc's recommendation either way:
-      non_fast_forward + deletion protection alone (pure accident-guard,
-      blocks force-push/branch-delete fat-fingers -- zero required checks,
-      zero PR-review requirement, not a workflow gate)
+  ------------------------------------------------------------------------------
+  GITLEAKS -- split by cost, not blocking status (already report-only since
+  commit a755e1d8, 2026-08-20 -- this is a COST fix, not a security-gate fix)
+  ------------------------------------------------------------------------------
+    "Scan current tracked tree"  -> stays on every push, cheap, diff-relevant
+    "Scan reachable Git history" -> moves to workflow_dispatch + a REAL step
+                                     added to release.yml (which currently has
+                                     NO gitleaks step at all)
+    the allowlist/reconciliation script (gitleaks-history.sh) currently shows
+    expected_records=100 observed_records=121 unknown=21 -- maintainer's own
+    look at that output is the source of truth, not any doc's finding count.
 
   ------------------------------------------------------------------------------
-  MOVED OFF THE PUSH PATH -- ON-DEMAND, NOT NIGHTLY
+  RELEASE  (release.yml -- unchanged in kind; full 5-platform matrix and GPU/
+  Tegra work live here or behind workflow_dispatch, never as new standing
+  nightly/per-push infrastructure)
   ------------------------------------------------------------------------------
   +----------------------+          +--------------------------------------+
-  | workflow_dispatch       |------> | gitleaks -- FULL git-history scan    |
-  | (run it when you want)  |        |   (only after one-time triage-to-    |
-  +----------------------+         |    zero of the 57 pre-existing finds) |
-                                     | CUDA build+run  -> windchill3 (3090) |
-                                     | Tegra build+run -> Jetson Orin box   |
-                                     +--------------------------------------+
-                                     NO recurring nightly cron -- that's its
-                                     own kind of ceremony/infra to babysit.
-                                     Run it when you actually want the signal.
-
-  +----------------------+          RELEASE  (release.yml -- unchanged in kind)
-  | tag push (v0.x.y)       |------> +--------------------------------------+
-  +----------------------+         | crates.io * PyPI (5 wheel variants) * |
-                                     | npm (6 packages) -- idempotent gate  |
-                                     | + 5 post-publish smokes               |
+  | tag push (v0.x.y)       |------> | crates.io * PyPI (5 wheel variants) * |
+  | or workflow_dispatch     |        | npm (6 packages) * gitleaks full-      |
+  +----------------------+         | history * GPU/Tegra rehearsal          |
                                      +--------------------------------------+
 ```

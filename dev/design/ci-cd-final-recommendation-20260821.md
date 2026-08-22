@@ -471,3 +471,94 @@ Kept proportionate — this is a recommendation, not a task breakdown:
    pass** (doc 3's open question 4) before implementation — this doc treats
    that as an implementation-time detail, not a design gap, but it is real
    remaining work.
+
+## Appendix — pipeline diagram
+
+ASCII rendering of §2–§3's trigger/tier structure and the required-check set,
+for quick reference alongside the prose above.
+
+```text
+                        FathomDB CI/CD -- proposed redesign
+              (dev/design/ci-cd-final-recommendation-20260821.md, PROPOSED)
+
+  TRIGGER                          WHAT RUNS                              REQUIRED CHECK?
+  =======                          =========                              ===============
+
+  +----------------------+          TIER 1 -- fast gate (GitHub-hosted, <5 min, every time)
+  | push: open PR         |   +-->  +--------------------------------------+
+  | (draft or ready)      |---+     | shell-lint                          |
+  | push: any non-main    |   |     | gitleaks -- DIFF SCOPE only          |   ==> gate-fast  [REQUIRED]
+  | branch                 |   |     | verify-fast                          |       needs: all Tier-1 jobs
+  +----------------------+   |     | taxonomy classifier ("changes")      |       if: always()
+                               |     | ~13 always-on governance jobs        |       fails on any
+                               |     +--------------------------------------+       failure/cancelled
+                               |                     |
+                               |                     | taxonomy label(s) detected
+                               |                     v
+                               |     TIER 2 -- scoped build/validate (only relevant legs run)
+                               |     +--------------------------------------+
+                               +-->  | rust_core      -> verify (full suite)|   ==> gate-build [REQUIRED]
+                                     | python_binding -> wheel-size-gate    |       needs: only the Tier-2
+                                     | ts_binding     -> ARM64 napi build   |       jobs taxonomy actually
+                                     |                   (containerized)    |       activated this push
+                                     | cuda_gpu       -> cargo hack check   |       same explicit-result
+                                     |                   --each-feature     |       pattern as gate-fast
+                                     |                   (compile-only GPU |
+                                     |                   proxy, no GPU)    |
+                                     | release_infra  -> native-artifact-  |
+                                     |                   runtime-validation|
+                                     | docs_only      -> (Tier 1 only)     |
+                                     +--------------------------------------+
+
+  +----------------------+          FULL MATRIX -- once per push to main
+  | push: main             |------> +--------------------------------------+
+  | (post-merge)            |        | all 5 published platform/arch targets|   NOT a required check --
+  +----------------------+         | linux-x64/arm64-gnu, darwin-x64/arm64,|   post-merge signal only,
+                                     | win32-x64-msvc -- CPU only            |   visible on main's commit
+                                     | concurrency: group=main-full-matrix, |   status
+                                     |   cancel-in-progress: true            |
+                                     +--------------------------------------+
+                                     newest push supersedes an in-flight run
+                                     instead of queuing -- no merge queue needed
+                                     (single HITL/agent workflow, sequential
+                                     pushes, not concurrent human PRs)
+
+  +----------------------+          NIGHTLY / SCHEDULED  (schedule + workflow_dispatch)
+  | nightly schedule        |------> +--------------------------------------+
+  | against main             |        | gitleaks -- FULL git-history scan    |   NOT required -- surfaced
+  +----------------------+         |   (only after triage-to-zero, see §5) |   via a staleness/age
+                                     | CUDA build+run  -> windchill3 (3090) |   status job, non-blocking
+                                     | Tegra build+run -> Jetson Orin box   |
+                                     | concurrency: per-runner-label group, |
+                                     |   cancel-in-progress: false           |
+                                     |   (queue, never kill a GPU run       |
+                                     |    mid-flight)                        |
+                                     +--------------------------------------+
+
+  +----------------------+          RELEASE  (release.yml -- unchanged in kind)
+  | tag push (v0.x.y)       |------> +--------------------------------------+
+  +----------------------+         | crates.io * PyPI (5 wheel variants) * |
+                                     | npm (6 packages) -- idempotent gate  |
+                                     | + 5 post-publish smokes               |
+                                     +--------------------------------------+
+
+  ------------------------------------------------------------------------------
+  REMOVED FROM THE PR PATH ENTIRELY
+  ------------------------------------------------------------------------------
+    windows-wal-checkpoint-diagnosis / windows-wal-attribution
+      - was wired as a "required" check; broken os.uname() bug, never fixed
+      - moves to: non-blocking diagnostic workflow, or dropped until fixed
+      - was never a build/validate job -- should never have been required
+
+  ------------------------------------------------------------------------------
+  BRANCH PROTECTION ON main -- required-check surface: 5 names (was 16)
+  ------------------------------------------------------------------------------
+    [*] gate-fast             aggregator -- stable name, immune to matrix
+    [*] gate-build            aggregator -- name churn (new/renamed platform
+                               row never touches branch protection again)
+    [*] CodeQL                existing working aggregator pattern, kept as-is
+    [*] non_fast_forward       restored -- blocks force-push; was collateral
+    [*] deletion                damage on 2026-08-20, never part of the
+                               "ceremony, no true value" complaint
+    [ ] PR-review requirement  restored alongside the above
+```

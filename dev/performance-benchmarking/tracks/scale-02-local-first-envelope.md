@@ -1,6 +1,6 @@
 # SCALE-02 — Local-first scale envelope
 
-**Status:** active; workload and advisory policy approved, 10k execution next.
+**Status:** complete; advisory boundary observed at the first registered point.
 
 ## Decision
 
@@ -59,6 +59,15 @@ separately: their success does not enlarge A0, and their failure does not
 shrink A0 unless it affects a required A0 cell. Keep cold and steady-state,
 CPU and GPU, and canonical and derived-row results distinct. Link SCALE-01 as
 fidelity evidence without pooling it into SCALE-02 performance results.
+
+## Result
+
+The [10k receipt](../../../experiments/runs/scale-02-a0-10000-20260822T1715Z-77c37c77/record.json)
+records five complete fresh-database repetitions with zero errors and zero
+timeouts. Steady FTS p50 was 29.94 ms against the approved 20 ms limit; p99 was
+58.93 ms against 150 ms. The first point therefore failed advisory eligibility,
+and the registered stop rule prohibited the 17,272-to-50k points. No passing
+SCALE-02 operating point was established under this policy.
 
 ## Stop
 

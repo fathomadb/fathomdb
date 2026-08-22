@@ -4,17 +4,17 @@ date: 2026-08-21
 status: PROPOSED
 desc: >
   HITL correction to `ci-cd-final-recommendation-20260821.md`: keep CI
-  informational and make its cost proportional to the change. Revised six
-  times after adversarial correctness review; this revision fixes mixed-diff
-  classification, preserves ci-lite intent through supported landing modes,
-  replaces a shared harness bucket with dependency-accurate routing, resolves
-  ci.yml self-change routing, and removes stale branch-protection claims.
+  informational and make its cost proportional to the change. Revised seven
+  times after adversarial correctness review; this revision closes the
+  independent AArch64 trigger, source-tree Markdown, ci-lite trust-boundary,
+  root npm classification, and classifier-failure gaps.
   Analysis and recommendation only; no workflow, script, or repository setting
   is changed by this document.
 blast_radius: >
   read-only: dev/design/{ci-challenges-review,delivery-requirements-map,
   ci-cd-design-hypothesis,ci-cd-best-practices-research,
-  ci-cd-final-recommendation}-20260821.md; .github/workflows/{ci,release}.yml;
+  ci-cd-final-recommendation}-20260821.md; .github/workflows/
+  {ci,release,aarch64-release-preflight}.yml; package.json; package-lock.json;
   scripts/security/gitleaks-current.sh; scripts/tests/
   {test_dev_environment_tools,test_shell_lint_ci_job}.sh; scripts/
   {agent-verify,agent-test,agent-security,test-rust-workspace}.sh;
@@ -65,8 +65,9 @@ protection.
 Two independent levers make cost proportional:
 
 1. **Path categories** select jobs whose source or harness dependency changed.
-2. **`[ci-lite]`** is a maintainer assertion that this particular diff is
-   administrative and does not need the eight expensive, change-scoped jobs.
+2. **`[ci-lite]`** is a trusted-maintainer assertion that this particular diff
+   is administrative and does not need the eight expensive, change-scoped
+   jobs.
 
 Path matching cannot distinguish a typo in a Rust comment from a logic change
 in the same file. `ci-lite` supplies that missing intent. It never suppresses
@@ -110,13 +111,24 @@ jobs:
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
+          PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
           PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
           PUSH_SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
           candidate="$PUSH_SHA"
+          trusted_source=true
           if [ "$EVENT_NAME" = "pull_request" ]; then
             candidate="$PR_HEAD_SHA"
+            if [ "$PR_HEAD_REPOSITORY" != "$REPOSITORY" ]; then
+              trusted_source=false
+            fi
+            case "$PR_AUTHOR_ASSOCIATION" in
+              OWNER|MEMBER|COLLABORATOR) ;;
+              *) trusted_source=false ;;
+            esac
           elif [ "$EVENT_NAME" = "push" ]; then
             read -r _first_parent second_parent _rest < <(
               git show -s --format='%P' "$PUSH_SHA"
@@ -126,7 +138,7 @@ jobs:
             fi
           fi
           message="$(git show -s --format='%B' "$candidate")"
-          if [[ "$message" == *"[ci-lite]"* ]]; then
+          if [ "$trusted_source" = true ] && grep -Fxq -- '[ci-lite]' <<<"$message"; then
             echo "ci_mode=lite" >> "$GITHUB_OUTPUT"
           else
             echo "ci_mode=normal" >> "$GITHUB_OUTPUT"
@@ -140,7 +152,7 @@ jobs:
             windows:
               - 'src/python/tests/test_slice65_wal_attribution_installed.py'
             rust: [ 'src/rust/**', 'Cargo.toml', 'Cargo.lock' ]
-            typescript: [ 'src/ts/**', 'package.json', 'package-lock.json' ]
+            typescript: [ 'src/ts/**' ]
             ci_workflow:
               - '.github/workflows/ci.yml'
             verify_harness:
@@ -193,20 +205,43 @@ booleans and incorrectly made the third case `python=false`. A global
 semantics across `src/rust/**`, `Cargo.toml`, and `Cargo.lock`. Only the focused
 Python-minus-Windows invocation uses `every`.
 
+This focused use matches the action's documented semantics:
+[`every` includes a file only when it matches every pattern](https://github.com/dorny/paths-filter#usage),
+while the filter output is true when any changed file satisfies the filter.
+
 `pull-requests: read` is required because `paths-filter` uses the pull-request
 files API on PR events. The repository has no tracked top-level `python/`
 source tree; `src/python/**` is the real surface.
 
+Root `package.json` and `package-lock.json` are deliberately not TypeScript SDK
+inputs. The root package identifies itself as private repository Markdown/dev
+tooling and points to `src/ts/` as the actual binding. A root npm-tooling change
+is an unclassified non-Markdown change: `verify-fast` plus the existing tooling
+checks own it, without invoking embedder or native-artifact matrices.
+
 ### 3.2 No silent unclassified gap
 
-`verify-fast` keeps its current condition:
+`verify-fast` remains the baseline, but its condition becomes failure-aware:
 
 ```yaml
-if: needs.changes.outputs.docs_only != 'true'
+if: >-
+  always() &&
+  (
+    needs.changes.result != 'success' ||
+    needs.changes.outputs.docs_only != 'true'
+  )
 ```
 
 It runs for every non-Markdown change, including unclassified scripts and
-configuration. It is never suppressed by `ci-lite`.
+configuration. It also runs when checkout, Git, the pull-request files API, the
+marker parser, or either matcher makes `changes` fail. The failed classifier
+remains visibly red; the eight expensive jobs do not fan out from unknown
+outputs. `verify-fast` is never suppressed by `ci-lite`.
+
+GitHub otherwise skips a job when one of its `needs` dependencies fails or is
+skipped. The explicit `always()` is therefore part of the baseline guarantee,
+not optional defensive syntax. See GitHub's
+[workflow syntax for `needs`](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_idneeds).
 
 ### 3.3 Windows source boundary
 
@@ -229,10 +264,10 @@ The former `ci_harness` boolean was both overbroad and incomplete. For example,
 sourced directly by `agent-test.sh` were absent. Use these job-specific
 conditions instead:
 
-| Job | Run when this category is true, before `ci-lite` |
+| Job | Run when this category is true, before Markdown/lite guards |
 |---|---|
 | `verify` | `rust \|\| python \|\| typescript \|\| verify_harness \|\| rust_test_harness \|\| ci_workflow` |
-| `verify-fast` | Any non-Markdown change; unchanged and never lite-suppressed |
+| `verify-fast` | Any non-Markdown change or classifier failure; never lite-suppressed |
 | `rust-workspace-race-report` | `rust \|\| rust_test_harness \|\| ci_workflow` |
 | `security` | `rust \|\| python \|\| typescript \|\| security_harness \|\| ci_workflow` |
 | `default-embedder-tests` | `rust \|\| python \|\| typescript \|\| ci_workflow` |
@@ -243,6 +278,12 @@ conditions instead:
 | `markdownlint` | `docs_only == 'true'`; unchanged |
 | `design-status` | Always-on; unchanged |
 | Remaining 13 always-on jobs | Always-on; unchanged |
+
+Every category-selected scoped job also requires `docs_only != 'true'`.
+Language globs intentionally own their entire source trees, which include
+README files; the shared condition guard, not eight duplicated matcher
+exclusions, preserves the Markdown fast path. `ci_workflow=true` remains the
+sole override because changing the shared workflow must exercise all eight jobs.
 
 The 14 always-on jobs are `gitleaks`, `shell-lint`, `board-currency`,
 `ledger-integrity`, `plan-anchors`, `governed-surface-pin`,
@@ -292,7 +333,35 @@ and general `scripts/release/**` changes are separate from `ci_workflow` and do
 not accidentally invoke every CI job. Exact native smoke-script changes are
 routed by `native_artifact_harness`.
 
-#### 3.4b Future language splitting
+#### 3.4b Independent AArch64 preflight — automatic trigger retired
+
+`.github/workflows/aarch64-release-preflight.yml` currently bypasses this
+classifier. Its `push.paths` includes every Rust, Python, and TypeScript path,
+so the Windows-only attribution control launches a Linux ARM64 artifact build;
+it also ignores `ci-lite`, runs on matching feature-branch pushes, and runs on
+tag pushes because GitHub does not evaluate path filters for tags. Recent runs
+took about six minutes and included duplicate same-SHA branch/tag executions.
+
+The redesign makes that workflow `workflow_dispatch`-only. Before removing its
+`push` trigger, move every assertion not already proved elsewhere into the Linux
+ARM64 row of `native-artifact-runtime-validation` or a fast structural fixture:
+
+- ABI3/interpreter compatibility evidence;
+- staging the ARM64 N-API binary into its platform package; and
+- `npm pack --dry-run` verification of that package.
+
+The existing native row already builds and runtime-smokes both the ARM64 Python
+wheel and N-API artifact on `ubuntu-24.04-arm`; it is the proportional automatic
+owner. The separate workflow remains available for a targeted manual rehearsal,
+with no schedule. This change and its migrated assertions land atomically: the
+automatic trigger is not removed before its unique evidence has another owner.
+
+GitHub documents that `paths` filters are not evaluated for tag pushes in its
+[workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onpushpull_requestpull_request_targetpathspaths-ignore).
+The observed duplicate route is retained as evidence in
+[run 32514924075](https://github.com/fathomadb/fathomdb/actions/runs/32514924075).
+
+#### 3.4c Future language splitting
 
 Splitting `verify` by language still requires a real
 `--surface=rust|python|typescript` selector in `agent-verify.sh` and
@@ -318,26 +387,37 @@ already exercise the first two, while `tar` is job-specific.
 
 ### 3.6 `ci-lite` across PRs and `main`
 
-Use `[ci-lite]`, not GitHub's native `[skip ci]`. Native skip syntax can suppress
-whole workflows; this design must never suppress tag-triggered `release.yml`.
+Use a standalone line exactly equal to `[ci-lite]`, not a substring and not
+GitHub's native `[skip ci]`. Exact-line matching prevents a commit such as
+“document `[ci-lite]` behavior” from accidentally selecting lite mode. Native
+skip syntax can suppress whole workflows; this design must never suppress
+tag-triggered `release.yml`.
+
+The marker is trusted only on repository `push` events and on pull requests
+whose head repository equals `github.repository` and whose author association is
+`OWNER`, `MEMBER`, or `COLLABORATOR`. A fork, Dependabot-style, or otherwise
+untrusted PR always gets `ci_mode=normal`, even if its head message contains the
+exact marker. The same-repository-plus-association conjunction is the bounded
+trust surface intended by “maintainer assertion.”
 
 The marker is read from one well-defined candidate commit:
 
 | Event / landing method | Candidate commit whose message is read |
 |---|---|
-| Pull request | `github.event.pull_request.head.sha`, not the synthetic merge ref |
+| Trusted same-repository pull request | `github.event.pull_request.head.sha`, not the synthetic merge ref |
+| Fork or untrusted-author pull request | No candidate is trusted; always `normal` |
 | Merge commit pushed to `main` | The pushed merge commit's second parent (the PR head) |
 | Rebase merge pushed to `main` | The pushed tip commit; rebase preserves its message |
 | Squash merge pushed to `main` | The resulting squash commit; the maintainer must retain/add `[ci-lite]` in the squash message |
 | Direct push to `main` | The pushed tip commit |
 
-Thus a lite PR merged with a merge commit or rebase remains lite on the
+Thus a trusted lite PR merged with a merge commit or rebase remains lite on the
 subsequent `main` run. A squash can remain lite, but only when its resulting
-commit message contains the marker; the mechanism cannot recover a marker that
-GitHub or the maintainer discarded. A direct push can be lite. For a multi-
-commit direct push, the tip marker authorizes lite treatment for the entire
-pushed diff. These are explicit trust semantics for a single maintainer, not an
-inference about whether the diff is truly administrative.
+commit message retains the standalone marker line; the mechanism cannot recover
+a marker that GitHub or the maintainer discarded. A direct push can be lite. For
+a multi-commit direct push, the tip marker authorizes lite treatment for the
+entire pushed diff. These are explicit trust semantics for a single maintainer,
+not an inference about whether the diff is truly administrative.
 
 The mechanism avoids duplicate heavy work for lite PRs when the landing method
 preserves the marker as specified. Normal PRs still run scoped heavy jobs on the
@@ -352,13 +432,16 @@ this shape:
 if: >-
   needs.changes.outputs.ci_workflow == 'true' ||
   (
+    needs.changes.outputs.docs_only != 'true' &&
     (<job-specific categories from §3.4>) &&
     needs.changes.outputs.ci_mode != 'lite'
   )
 ```
 
-`verify-fast` and the 14 always-on jobs are never suppressed. A `ci.yml` change
-always runs the eight jobs even if its commit message contains `[ci-lite]`.
+`verify-fast` and the 14 always-on jobs are never lite-suppressed. Source-tree
+Markdown does not run a scoped job merely because it also matches a language
+glob. A `ci.yml` change always runs the eight jobs even if its commit message
+contains `[ci-lite]`.
 
 Release safety is structural: marker detection and job conditions exist only
 in `ci.yml`, whose push trigger is `main`; `release.yml` neither reads
@@ -367,8 +450,10 @@ runs even when the tagged commit message contains `[ci-lite]`.
 
 ### 3.7 Work moved off the always-run path
 
-Full-history Gitleaks and future GPU/Tegra rehearsals use
-`workflow_dispatch` plus relevant release-time execution, not a nightly cron.
+Full-history Gitleaks gets a dedicated
+`.github/workflows/gitleaks-history.yml` with `workflow_dispatch` only, plus an
+independent advisory job during release. Future GPU/Tegra rehearsals likewise
+remain explicitly dispatched or release-time work, not a nightly cron.
 `native-artifact-runtime-validation` remains change-scoped CI because it is the
 pre-release cross-platform artifact signal.
 
@@ -382,7 +467,11 @@ firm precondition.
 The fixture must cover:
 
 - Markdown-only and unclassified non-Markdown changes;
+- a Markdown file under each of `src/rust/**`, `src/python/**`, and `src/ts/**`,
+  proving no scoped heavy route fires;
 - Rust-, ordinary-Python-, and TypeScript-only diffs;
+- root `package.json` and `package-lock.json`, proving `typescript=false` and no
+  scoped TypeScript route;
 - the installed Windows control alone: `windows=true`, `python=false`;
 - the typing test alone: `windows=false`, `python=true`;
 - **the installed Windows control plus an ordinary Python file:**
@@ -391,12 +480,20 @@ The fixture must cover:
   change does not run `verify`, race-report, or default-embedder jobs;
 - `ci.yml` itself, proving all eight scoped jobs run even with `[ci-lite]`;
 - a general release script versus each native artifact smoke script;
-- a PR-head marker, merge-commit second-parent marker, rebased-tip marker,
-  squash-tip marker, and direct-push-tip marker;
+- a trusted same-repository PR marker, merge-commit second-parent marker,
+  rebased-tip marker, squash-tip marker, and direct-push-tip marker;
+- a fork PR and an untrusted-author same-repository PR with an exact marker, plus
+  a trusted PR with only an incidental marker substring, proving all produce
+  `normal`;
 - a squash result with no marker, proving it safely produces `normal`;
 - lite mode, proving only the eight scoped jobs skip while `verify-fast` and all
-  14 independent jobs remain unchanged; and
-- a tagged commit containing `[ci-lite]`, proving `release.yml` still runs.
+  14 independent jobs remain unchanged;
+- a tagged commit containing `[ci-lite]`, proving `release.yml` still runs;
+- a failed `changes` job, proving `verify-fast` runs while the eight scoped jobs
+  do not fan out from unknown outputs;
+- the AArch64 workflow, proving it is dispatch-only and that its unique
+  assertions have another tested owner; and
+- current-tree, dispatchable full-history, and advisory release Gitleaks routes.
 
 The workflow fixture must also pass `actionlint`. A test that only checks
 category names would have missed both the old negation bug and the later mixed-
@@ -404,11 +501,20 @@ diff boolean bug.
 
 ## 4. Gitleaks
 
-`gitleaks-current.sh` scans the full tracked tree, not a diff, on every push.
-Commit-range scanning through Gitleaks `--log-opts` requires new script work.
-Full-history scanning moves to `workflow_dispatch` plus an advisory release
-step, not a publish dependency, until the existing allowlist mismatch
-(`expected_records=100 observed_records=121 unknown=21`) is reconciled.
+`gitleaks-current.sh` scans the full tracked tree, not a diff, on every push and
+stays in the existing independent `gitleaks` job. Commit-range scanning through
+Gitleaks `--log-opts` requires new script work.
+
+Before removing `gitleaks-history.sh` from the per-push job, create
+`.github/workflows/gitleaks-history.yml` with `workflow_dispatch`, a full-history
+checkout, the pinned installer, and the existing history script. Also add an
+independent `continue-on-error: true` release job that scans the selected release
+candidate. No build or publisher job may `need` that advisory job. The dispatch
+workflow and release-visible route land atomically with removal from per-push CI.
+
+The history scan stays advisory until the existing allowlist mismatch
+(`expected_records=100 observed_records=121 unknown=21`) is reconciled; moving it
+does not convert a known noisy baseline into a green claim.
 
 ## 5. Explicitly out of scope
 
@@ -430,11 +536,12 @@ not turn it into a gate.
    to `dev/plans|steward|design/**`?
 2. Build `--surface=` for the heavy verifier?
 3. Build commit-range Gitleaks, or keep the fast full-tree baseline?
-4. Accept `[ci-lite]` as the marker text and the explicit tip-message / entire-
-   diff trust semantics in §3.6?
 
-Windows workflow routing and fixture sequencing are no longer open: §3.4a
-chooses `ci.yml` coupling, and §3.8 requires fixture-first implementation.
+The `[ci-lite]` marker shape and trust boundary are resolved in §3.6. Windows
+workflow routing, the independent AArch64 trigger, and fixture sequencing are
+also no longer open: §3.4a chooses `ci.yml` coupling, §3.4b makes the redundant
+preflight dispatch-only after evidence migration, and §3.8 requires
+fixture-first implementation.
 
 ## 8. Revision history
 
@@ -459,8 +566,14 @@ chooses `ci.yml` coupling, and §3.8 requires fixture-first implementation.
   merge settings.
 - **Round 6:** added the missing TypeScript route for `default-embedder-tests`,
   which compiles and executes tests sourced from `src/ts/**` directly.
+- **Round 7:** specified retirement of the classifier-bypassing AArch64 push
+  route after its unique evidence moves; guarded language-tree Markdown from
+  scoped jobs; restricted lite mode to exact-line markers from trusted
+  repository refs; separated root npm dev tooling from the TypeScript SDK; made
+  `verify-fast` survive classifier failure; and specified concrete
+  dispatch/release homes for full-history Gitleaks.
 
-## Appendix — pipeline diagram (v6)
+## Appendix — pipeline diagram (v7)
 
 ```text
              FathomDB CI — informational, proportional, single-maintainer
@@ -473,7 +586,7 @@ chooses `ci.yml` coupling, and §3.8 requires fixture-first implementation.
  | focused every-filter: python excluding installed control   |
  | job drivers: verify / rust-test / security / native smoke  |
  | self-change: ci_workflow                                   |
- | mode: PR head, merge second parent, or landed/direct tip   |
+ | mode: trusted exact-line marker; fork PRs always normal    |
  +----------------------------+-------------------------------+
                               |
              +----------------+----------------+
@@ -481,16 +594,19 @@ chooses `ci.yml` coupling, and §3.8 requires fixture-first implementation.
              v                                 v
   never suppressed                    eight scoped heavy jobs
   ----------------                    ------------------------
-  verify-fast (any non-md)             selected by source/driver
+  verify-fast (non-md/failure)          selected by source/driver
   14 independent jobs                  skipped by [ci-lite]
-  markdownlint (docs-only)              except ci_workflow=true
+  markdownlint (docs-only)              docs_only guard on every route
 
  windows control alone -> windows=true, python=false
  windows + ordinary Python -> windows=true, python=true
  security harness -> security only (+ invariant fast/independent jobs)
  ci.yml change -> all eight scoped jobs; no unsafe self-classification gap
+ classifier failure -> red + verify-fast; no unknown heavy fan-out
+ AArch64 preflight -> workflow_dispatch only after evidence migration
 
- [ci-lite] never appears in release.yml and is not native [skip ci]
+ current-tree Gitleaks -> per push | history -> dispatch + release advisory
+ [ci-lite] is not native [skip ci] and never controls release.yml
  tag push -> release workflow still runs
 
  no required checks | no merge queue | no soak | no nightly ceremony

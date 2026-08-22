@@ -69,6 +69,7 @@ def prepare_test_database(
     rerank_device: str = "auto",
     embedder: str = "none",
     warm_cache: bool = False,
+    check_reranker: bool = True,
     fathomdb_bin: str = "fathomdb",
     doctor_runner: DoctorRunner = _default_doctor,
     database_opener: DatabaseOpener = _default_open,
@@ -93,16 +94,27 @@ def prepare_test_database(
     test_root = Path(root) / test_id
     if test_root.exists():
         raise FileExistsError(f"test database root already exists: {test_root}")
-    test_root.mkdir(parents=True)
+    test_root.mkdir(parents=True, mode=0o700)
     database_path = test_root / "fathomdb.sqlite"
     config_path = test_root / "fathomdb-config.v1.json"
     doctor_path = test_root / "fathomdb-doctor.v1.json"
-    config = {"schema_version": "fathomdb.test-setup.v1", "embed_device": embed_device, "rerank_device": rerank_device, "embedder": embedder}
+    config = {
+        "schema_version": "fathomdb.test-setup.v1",
+        "embed_device": embed_device,
+        "rerank_device": rerank_device if check_reranker else None,
+        "cross_encoder": "enabled" if check_reranker else "disabled",
+        "embedder": embedder,
+    }
     config_path.write_text(json.dumps(config, sort_keys=True) + "\n", encoding="utf-8")
+    config_path.chmod(0o600)
     environment = dict(os.environ)
     environment.update({"FATHOMDB_EMBED_DEVICE": embed_device, "FATHOMDB_RERANK_DEVICE": rerank_device})
     gpu = doctor_runner([fathomdb_bin, "doctor", "gpu", "--json"], env=environment)
-    reranker = doctor_runner([fathomdb_bin, "doctor", "reranker-gpu", "--json"], env=environment)
+    reranker = (
+        json.loads(doctor_runner([fathomdb_bin, "doctor", "reranker-gpu", "--json"], env=environment))
+        if check_reranker
+        else {"status": "not_applicable", "reason": "cross_encoder_disabled"}
+    )
     cache: dict[str, Any] | None = None
     if warm_cache:
         started = time.monotonic()
@@ -111,6 +123,7 @@ def prepare_test_database(
     os.environ.update({"FATHOMDB_EMBED_DEVICE": embed_device, "FATHOMDB_RERANK_DEVICE": rerank_device})
     try:
         opened = database_opener(database_path, embedder == "default")
+        database_path.chmod(0o600)
     finally:
         for key, prior in (("FATHOMDB_EMBED_DEVICE", prior_embed), ("FATHOMDB_RERANK_DEVICE", prior_rerank)):
             if prior is None:
@@ -118,7 +131,8 @@ def prepare_test_database(
             else:
                 os.environ[key] = prior
     integrity = doctor_runner([fathomdb_bin, "doctor", "check-integrity", "--json", str(database_path)], env=environment)
-    doctor_path.write_text(json.dumps({"schema_version": "fathomdb.test-doctor.v1", "gpu": json.loads(gpu), "reranker_gpu": json.loads(reranker), "cache": cache, "open_report": opened, "integrity": json.loads(integrity)}, sort_keys=True) + "\n", encoding="utf-8")
+    doctor_path.write_text(json.dumps({"schema_version": "fathomdb.test-doctor.v1", "gpu": json.loads(gpu), "reranker_gpu": reranker, "cache": cache, "open_report": opened, "integrity": json.loads(integrity)}, sort_keys=True) + "\n", encoding="utf-8")
+    doctor_path.chmod(0o600)
     return PreparedDatabase(database_path=database_path, config_path=config_path, doctor_path=doctor_path)
 
 
@@ -130,9 +144,10 @@ def main() -> int:
     parser.add_argument("--rerank-device", default="auto")
     parser.add_argument("--embedder", choices=("none", "default"), default="none")
     parser.add_argument("--warm-cache", action="store_true")
+    parser.add_argument("--disable-cross-encoder", action="store_true")
     parser.add_argument("--fathomdb-bin", default="fathomdb")
     args = parser.parse_args()
-    prepared = prepare_test_database(args.root, test_id=args.test_id, embed_device=args.embed_device, rerank_device=args.rerank_device, embedder=args.embedder, warm_cache=args.warm_cache, fathomdb_bin=args.fathomdb_bin)
+    prepared = prepare_test_database(args.root, test_id=args.test_id, embed_device=args.embed_device, rerank_device=args.rerank_device, embedder=args.embedder, warm_cache=args.warm_cache, check_reranker=not args.disable_cross_encoder, fathomdb_bin=args.fathomdb_bin)
     print(json.dumps({"database_path": str(prepared.database_path), "config_path": str(prepared.config_path), "doctor_path": str(prepared.doctor_path)}))
     return 0
 

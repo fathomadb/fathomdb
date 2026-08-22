@@ -567,6 +567,7 @@ def _ingest_database(config: Tc5GpuConfig, inputs: ArmInputs, output_root: Path)
             rerank_device="cpu",
             embedder="default",
             warm_cache=True,
+            check_reranker=False,
             fathomdb_bin=str(config.fathomdb_bin),
         )
         from fathomdb import Engine

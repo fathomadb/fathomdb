@@ -1,6 +1,7 @@
 # SCALE-02 — Local-first scale envelope
 
-**Status:** complete; advisory boundary observed at the first registered point.
+**Status:** follow-up planned; the completed default-0.8.23 result remains the
+baseline, and no tuning or rerun is authorized by this plan.
 
 ## Decision
 
@@ -22,34 +23,74 @@ retrieval profile without implying an unmeasured capacity guarantee?
   [configuration](../../../experiments/configs/scale-02/a0-envelope.v1.json)
   binds the workload and advisory policy approved by the HITL on 2026-08-22.
 
-## Draft plan
+## Follow-up inputs
 
-1. Pre-register a workload matrix at 10k, 17,272, 25k, 40k, and 50k canonical
-   records. Make A0's open, ingest/drain/readiness, and FTS cells required.
-   Register pre-fusion exact-vector, hybrid, or bounded CE reranker cells only
-   as separately named components; an unmeasured component is out of scope.
-2. Bind the corpus manifest, query set, operation mix, concurrency, seeds,
-   FathomDB build and configuration, projection enrollment, model assets, and
-   explicit CPU/GPU routes before execution. Report canonical and derived rows
-   separately. GPU cells must pin the approved GPU; never use `auto` or a
-   silent CPU fallback.
-3. Give every independent repetition a fresh database and output directory
-   through the shared
-   [`prepare_test_database`](../../../experiments/fathomdb_test_setup.py)
-   setup. Complete integrity checks and `fathomdb doctor` before timing. Keep
-   model acquisition outside the measured interval while recording its bytes
-   and elapsed time separately. In each repetition, record cold observations
-   before the declared warm-up and steady-state observations after it; never
-   pool them.
-4. Pre-register repetitions, warm-up, sampling, ordering, timeout/retry rules,
-   uncertainty construction, and advisory pass criteria. Run the size ladder
-   in increasing order and advance only after the current point produces a
-   complete, valid receipt.
-5. For every registered operation, report p50/p95/p99 latency, throughput,
-   error and timeout counts, and sample completeness. Also report peak host
-   CPU/RAM, GPU memory/utilization where used, database bytes, projection
-   amplification, ingest acknowledgement-to-ready time, and
-   mutation-to-ready time.
+- Preserve the existing [10k baseline receipt](../../../experiments/runs/scale-02-a0-10000-20260822T1715Z-77c37c77/record.json),
+  approved v1 configuration, ANSWER-01 A0 receipt, and SCALE-01 receipt by
+  path, run ID, and SHA-256.
+- Before implementation, copy the qualified TC-5 corpus pack, its 100-query
+  set, and the ANSWER-01 LOCOMO corpus and fixed 32-question subset from their
+  temporary roots into
+  `data/performance-benchmarking/scale-02/inputs/input-pack-v1/`. Preserve
+  relative paths and write `input-manifest.v1.json` with every file's size and
+  SHA-256. A safe committed input-pack receipt records only aggregate counts,
+  digests, and the persistent-root identifier.
+- Every executable configuration pins the input-manifest digest, query order,
+  seeds, host facts, code SHA, binary and extension digests, SQLite version,
+  exact reader settings, and the approved CPU-only A0 route. No `auto`, GPU,
+  embedder, reranker, or paid model belongs in these cells.
+
+## Stored evidence contract
+
+- Raw databases, per-query timings, query-plan evidence, doctor output, logs,
+  and content-bearing equivalence data live under
+  `data/performance-benchmarking/scale-02/runs/<run-id>/`. Each run writes an
+  `artifact-manifest.v1.json` containing relative paths, byte sizes, and
+  SHA-256 values. Keep these artifacts through program close.
+- Safe aggregate evidence is committed through the existing
+  `experiments.record.v1` receipt and append-only index. Configurations live in
+  `experiments/configs/scale-02/`; receipts live in `experiments/runs/`.
+- Planned typed payloads are `scale-02-fts-tuning.v1` for tuning,
+  `scale-02-fts-selection.v1` for synthesis, and `scale-02-execution.v2` for
+  the formal rerun. Their implementations must reject unknown fields,
+  repository artifact roots, missing digests, reused databases, and requested
+  versus observed reader-setting drift.
+
+## Follow-up plan
+
+1. **Implement and qualify the candidates.** Add the deterministic FTS rank
+   fast path: request `top_k + 1` rows with `ORDER BY rank`, sort the retained
+   set by `(score, write_cursor)`, and fall back to the existing full sort when
+   the top-k boundary is tied. Test byte-identical ordered hits and scores for
+   ties, supersession, validity, edge fusion, and public limit-prefix behavior.
+   Implement observed reader-setting evidence; experiment-only environment
+   hooks are not an eligible production configuration.
+2. **Generate tuning and equivalence evidence.** First compare the current and
+   rank-fast query paths under shipped reader defaults. On the eligible query
+   path, compare default readers, 128 MiB mmap, 256 MiB mmap, 64 MiB cache per
+   reader, and 256 MiB mmap plus 64 MiB cache. Use five fresh 10k databases per
+   performance cell, with the v1 cold/warm/steady workload unchanged. For the
+   selected reader candidate, separately measure concurrency 1, 2, and 4;
+   concurrency 1 remains the formal latency treatment. Emit a content-free
+   equivalence receipt over the 100 TC-5 queries and ANSWER-01's 32 A0 queries.
+   `temp_store=MEMORY`, FTS `optimize`, tokenizer/schema changes, and query-term
+   narrowing remain excluded unless the registered cells fail and a new plan
+   justifies them.
+3. **Analyze and propose the formal configuration.** Write one
+   `scale-02-fts-selection.v1` receipt that consumes the baseline, tuning,
+   concurrency, equivalence, ANSWER-01 quality, and SCALE-01 fidelity receipts
+   by run ID and digest. A candidate is eligible only with identical ordered
+   top-10 retrieval evidence, zero errors/timeouts, complete repetitions,
+   unchanged quality applicability, and 95% upper bounds within the original
+   20 ms p50, 150 ms p99, and 80% RAM policy. Recommend the lowest-footprint
+   eligible production setting, state every rejection, and produce an exact
+   `a0-envelope.v2` proposal. The selection receipt remains
+   `recommendation_pending_hitl`; it is not permission to rerun.
+4. **Rerun formal SCALE-02 at 10k only after approval.** After the HITL approves
+   the selection and v2 configuration together, land the selected behavior as
+   the measured production default, pin its build digests, dry-run the frozen
+   inputs, and execute the original five-repetition 10k contract in fresh
+   databases. Resume 17,272-to-50k only if the formal 10k receipt passes.
 
 ## Decision rule
 
@@ -68,6 +109,9 @@ timeouts. Steady FTS p50 was 29.94 ms against the approved 20 ms limit; p99 was
 58.93 ms against 150 ms. The first point therefore failed advisory eligibility,
 and the registered stop rule prohibited the 17,272-to-50k points. No passing
 SCALE-02 operating point was established under this policy.
+
+Unregistered local diagnostics motivated the follow-up matrix but are not
+decision evidence. They must be reproduced by the stored tuning receipts.
 
 ## Stop
 

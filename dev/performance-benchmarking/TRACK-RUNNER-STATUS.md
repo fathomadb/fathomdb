@@ -10,7 +10,8 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. **CORPUS-01:** human-review the two insufficient supersession cases.
+1. **SCALE-02:** preserve the frozen input packs, then implement the registered
+   FTS tuning and equivalence harness without running it.
 
 CORPUS-01 may resolve its two insufficient supersession cases independently.
 
@@ -28,7 +29,7 @@ CORPUS-01 may resolve its two insufficient supersession cases independently.
 | [TEMPORAL-01](tracks/temporal-01-time-scoped-retrieval.md) | Planned | Wait for CORPUS-01-qualified temporal gold and the selected retrieval baseline. |
 | [EXTRACT-01](tracks/extract-01-semantic-memory.md) | Planned | Wait for TRACE-01 lifecycle coverage, qualified update gold, and the selected canonical baseline. |
 | [MEMORY-01](tracks/memory-01-native-mem0-comparison.md) | Blocked | Use A0; wait for native comparator prerequisites. |
-| [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the 10k advisory-limit receipt; higher points remain intentionally unrun. |
+| [SCALE-02](tracks/scale-02-local-first-envelope.md) | Follow-up planned | Preserve inputs, implement the tuning/equivalence harness, and stop before external execution. |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |
 | [GLOBAL-01](tracks/global-01-native-graphrag.md) | Parked | Wait for a named global-synthesis failure, an eligible graph or summary/map-reduce treatment, and native-run prerequisites. |

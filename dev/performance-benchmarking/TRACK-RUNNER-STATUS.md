@@ -39,6 +39,15 @@ characterization; it is not an exact TC-5 fidelity result. CORPUS-01 has
 16 records across four lifecycle categories as portfolio-qualified LLM evidence,
 not human gold.
 
+### Retrieval decision and ANSWER-01 dry-run boundary — 2026-08-21
+
+HITL accepts `hybrid_ce_alpha_10_pool_20` as the directional retrieval decision
+basis. The grid's external safe receipt is unavailable in the shared artifact
+root, so this does not upgrade it to a reproducible full-grid claim. ANSWER-01
+may prepare a no-answerer/no-judge dry run using only this treatment. A live
+answer-quality action remains blocked on a pinned authenticated loopback route,
+model aliases, one-worker retry/checkpoint policy, and spend ceiling.
+
 `LOCOMO-01` handed off `6bfc1004` from
 `/tmp/fathomdb-locomo-01-20260816` on
 `experiments/performance-locomo-01-20260816`; independent review requested a

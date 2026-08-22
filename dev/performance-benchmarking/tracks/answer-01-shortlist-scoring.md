@@ -1,6 +1,9 @@
 # ANSWER-01 — LOCOMO shortlist answer scoring
 
-**Status:** blocked on LOCOMO-01/PARENT-01 survivors and scorer readiness.
+**Status:** setup active; direct HITL acceptance makes the directional GPU
+survivor `hybrid_ce_alpha_10_pool_20` eligible for a preflight-only dry run.
+No answerer or judge invocation is authorized until scorer routing, aliases,
+retry/checkpoint behavior, and a spend ceiling are frozen.
 
 ## Decision
 
@@ -9,8 +12,10 @@ correctness, not only retrieval proxy metrics?
 
 ## Preparation and contract
 
-1. Freeze at most canonical A0, best Fast, and best Quality-GPU survivors with
-   their complete retrieval receipts and class breakdowns.
+1. Freeze the accepted directional GPU survivor
+   `hybrid_ce_alpha_10_pool_20` as the only dry-run retrieval treatment. The
+   historical grid has no committed safe receipt, so this is a decision basis,
+   not a reproducible full-grid measurement claim.
 2. Verify A0 fingerprint parity before reusing historical scoring; otherwise
    score all candidates under one pinned invocation.
 3. Preflight the authenticated loopback route, model aliases, one-worker retry

@@ -23,3 +23,5 @@ GENERATED FROM `index.jsonl` — do NOT hand-edit. Regenerate with `experiments/
 | 2026-08-22T22:39:28Z | scale-02-a0-10000 | scale-02-a0-10000-20260822T2239Z-e993dd61 | complete | 10000 | 2278854071c7fe363381fd26f9a72e028254b439 | 0.0 | eligibility=pass; point=10000 |  |
 | 2026-08-22T22:41:51Z | scale-02-a0-17272 | scale-02-a0-17272-20260822T2241Z-c543eeb9 | complete | 17272 | 2278854071c7fe363381fd26f9a72e028254b439 | 0.0 | eligibility=pass; point=17272 |  |
 | 2026-08-22T22:45:33Z | scale-02-a0-25000 | scale-02-a0-25000-20260822T2245Z-ee93a826 | advisory_limit_observed | 25000 | 2278854071c7fe363381fd26f9a72e028254b439 | 0.0 | eligibility=fail; point=25000 |  |
+| 2026-08-22T23:11:29Z | scale-02-a0-40000 | scale-02-a0-40000-20260822T2311Z-be43f004 | post_boundary_baseline_complete | 40000 | a6fb70e75af0b4a2bbc62a5f7a5e1296e938f8f7 | 0.0 | eligibility=fail; point=40000 |  |
+| 2026-08-22T23:24:11Z | scale-02-a0-50000 | scale-02-a0-50000-20260822T2324Z-f5c98234 | post_boundary_baseline_complete | 50000 | a6fb70e75af0b4a2bbc62a5f7a5e1296e938f8f7 | 0.0 | eligibility=fail; point=50000 |  |

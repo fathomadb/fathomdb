@@ -1,0 +1,145 @@
+{
+  "schema_version": "scale-02-point-summary.v1",
+  "program_track": "SCALE-02",
+  "profile": "a0_turn_fts",
+  "point": 50000,
+  "repetitions": 5,
+  "canonical_records": 50000,
+  "real_records": 17272,
+  "derived_fixture_records": 32728,
+  "cache_states": {
+    "cold": {
+      "latency_ms": {
+        "n": 500,
+        "p50": 84.92801594547927,
+        "p95": 270.2244119718671,
+        "p99": 328.63332994747907,
+        "throughput_per_second": 8.937374049014323
+      }
+    },
+    "steady": {
+      "latency_ms": {
+        "n": 5000,
+        "p50": 109.49064895976335,
+        "p95": 283.6747720139101,
+        "p99": 326.35700807441026,
+        "throughput_per_second": 8.486153229397841
+      },
+      "p99_repetition_median_ci_95": [
+        318.3609968982637,
+        343.88436400331557
+      ]
+    }
+  },
+  "operations": {
+    "open_ms": {
+      "n": 5,
+      "p50": 3.606945974752307,
+      "p95": 4.033953999169171,
+      "p99": 4.033953999169171,
+      "throughput_per_second": 269.4060603677779
+    },
+    "ingest_ack_ms": {
+      "n": 5,
+      "p50": 8966.61050489638,
+      "p95": 9884.947071084753,
+      "p99": 9884.947071084753,
+      "throughput_per_second": 0.10926826044687227
+    },
+    "ready_ms": {
+      "n": 5,
+      "p50": 8967.195299919695,
+      "p95": 9885.660298052244,
+      "p99": 9885.660298052244,
+      "throughput_per_second": 0.10926127929930177
+    },
+    "acknowledgement_to_ready_ms": {
+      "n": 5,
+      "p50": 0.5562310107052326,
+      "p95": 0.7132269674912095,
+      "p99": 0.7132269674912095,
+      "throughput_per_second": 1710.1471932309032
+    },
+    "ingest_records_per_second": {
+      "n": 5,
+      "p50": 5576.243104648807,
+      "p95": 5619.940492430005,
+      "p99": 5619.940492430005
+    },
+    "mutation_to_ready_ms": {
+      "n": 100,
+      "p50": 1.6893729334697127,
+      "p95": 5.3349819499999285,
+      "p99": 7.400666945613921,
+      "throughput_per_second": 434.86714686999915
+    }
+  },
+  "errors": 0,
+  "timeouts": 0,
+  "resources": {
+    "peak_rss_bytes": 324612096,
+    "host_memory_bytes": 67262119936,
+    "max_peak_rss_fraction": 0.004826075899910215,
+    "peak_host_cpu_fraction": 1.0,
+    "peak_host_memory_fraction": 0.2685521760121051,
+    "process_cpu_seconds": 753.1090586830001,
+    "max_effective_cpu_cores": 1.0041474877313694,
+    "gpu": "not_applicable"
+  },
+  "storage": {
+    "database_bytes": 385273856,
+    "derived_index_bytes": 275075072,
+    "projection_amplification": 2.4961715730002974
+  },
+  "advisory": {
+    "state": "approved",
+    "eligibility": "fail",
+    "criteria": {
+      "complete_repetitions": true,
+      "errors": true,
+      "timeouts": true,
+      "steady_fts_p50": false,
+      "steady_fts_p99": false,
+      "mutation_to_ready_p99": true,
+      "peak_rss_fraction": true
+    }
+  },
+  "provenance": {
+    "doctor_sha256s": [
+      "76d11310c50ce64b63643a5817bae3e9320e5efa2d3ecbf34cc61c410520d7ae",
+      "76d11310c50ce64b63643a5817bae3e9320e5efa2d3ecbf34cc61c410520d7ae",
+      "76d11310c50ce64b63643a5817bae3e9320e5efa2d3ecbf34cc61c410520d7ae",
+      "76d11310c50ce64b63643a5817bae3e9320e5efa2d3ecbf34cc61c410520d7ae",
+      "76d11310c50ce64b63643a5817bae3e9320e5efa2d3ecbf34cc61c410520d7ae"
+    ],
+    "device": {
+      "embed": "cpu",
+      "rerank": "cpu",
+      "gpu": null
+    }
+  },
+  "claim_boundary": "advisory_a0_efficiency_only",
+  "fixture_digest": "6a650ccebc9ba4c8f171b03a8092ba997b5307b49dc21f105faa2bd4374d4447",
+  "post_boundary_baseline": {
+    "purpose": "configured_as_is_measurement_after_original_stop",
+    "authorization": "seq-265",
+    "scale_adjusted_advisory": {
+      "schema_version": "scale-02-scale-adjusted-advisory.v1",
+      "authorization": "seq-265",
+      "formula": "max(20_ms, canonical_records / 1000)",
+      "steady_fts_p50_ms": 50.0,
+      "eligibility": "fail",
+      "criteria": {
+        "complete_repetitions": true,
+        "errors": true,
+        "timeouts": true,
+        "steady_fts_p50": false,
+        "steady_fts_p99": false,
+        "mutation_to_ready_p99": true,
+        "peak_rss_fraction": true
+      },
+      "original_fixed_policy_eligibility": "fail"
+    },
+    "claim_boundary": "baseline_only_not_original_envelope_expansion"
+  }
+}

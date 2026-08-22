@@ -1,6 +1,6 @@
 # SCALE-02 — Local-first scale envelope
 
-**Status:** preparation ready; A0 and the SCALE-01 primary are selected.
+**Status:** active; workload preregistration next.
 
 ## Decision
 

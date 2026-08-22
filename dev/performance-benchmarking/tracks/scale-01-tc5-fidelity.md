@@ -1,6 +1,6 @@
 # SCALE-01 — TC-5 all-real fidelity characterization
 
-**Status:** active; verify TC-5 v2, then run GPU fidelity.
+**Status:** GPU smoke complete; primary next.
 
 ## Decision
 
@@ -10,11 +10,10 @@ manifest-qualified 17,272-document envelope, with an optional, smaller
 
 ## Draft plan
 
-1. Verify and commit the v2 runner, query-source exclusion, aggregate recall,
-   fresh-database setup, and explicit `cuda:0` controls. Do not run TC-5 from a
-   dirty worktree.
-2. Run a 7,667-document GPU smoke, then the 17,272-document, 100-query GPU
-   primary with the frozen TC-5 fidelity rule.
+1. Review the registered
+   [7,667-document GPU smoke](../../../experiments/runs/tc5-gpu-smoke-20260822T1446Z-2d574205/record.json).
+2. Run the 17,272-document, 100-query GPU primary with the frozen TC-5 fidelity
+   rule.
 3. Run CPU only if a release-equivalence bridge is still needed: 7,667
    documents, up to twelve observed workers, in a separate receipt.
 

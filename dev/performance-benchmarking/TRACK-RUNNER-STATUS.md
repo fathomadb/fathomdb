@@ -10,7 +10,7 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. **SCALE-01:** implement TC-5 v2, then run the 7,667-document GPU smoke and
+1. **SCALE-01:** review the registered 7,667-document GPU smoke, then run the
    17,272-document GPU primary.
 2. **SCALE-02:** after SCALE-01, run A0's
    advisory 10k-to-50k efficiency envelope.
@@ -26,7 +26,7 @@ CORPUS-01 may resolve its two insufficient supersession cases independently.
 | [LOCOMO-01](tracks/locomo-01-self-characterization.md) | Directional decision accepted | Use reported GPU winner `hybrid_ce_alpha_10_pool_20` in ANSWER-01. The missing safe grid receipt limits reproducibility but does not require a confirming grid. |
 | [PARENT-01](tracks/parent-01-parent-child-screening.md) | Directional decision accepted | Keep parent expansion opt-in; reopen only for a diagnosed answer-context gap. |
 | [ANSWER-01](tracks/answer-01-shortlist-scoring.md) | Complete | The [paired live receipt](../../experiments/runs/answer-01-shortlist-live-20260822T1234Z-8a050808/record.json) retains A0; reopen only with a new retrieval treatment or larger confirmatory contract. |
-| [SCALE-01](tracks/scale-01-tc5-fidelity.md) | Active | Add the 0.8.23 GPU-primary controls and run TC-5. CPU is an optional 7,667-document, twelve-worker equivalence bridge. |
+| [SCALE-01](tracks/scale-01-tc5-fidelity.md) | GPU smoke complete | Review the [smoke receipt](../../experiments/runs/tc5-gpu-smoke-20260822T1446Z-2d574205/record.json), then run the 17,272-document GPU primary. CPU remains optional. |
 | [CORPUS-01](tracks/corpus-01-gold-coverage.md) | Narrow follow-up | Human-review the two insufficient supersession cases; do not broaden the corpus search. |
 | [TEMPORAL-01](tracks/temporal-01-time-scoped-retrieval.md) | Planned | Wait for CORPUS-01-qualified temporal gold and the selected retrieval baseline. |
 | [EXTRACT-01](tracks/extract-01-semantic-memory.md) | Planned | Wait for TRACE-01 lifecycle coverage, qualified update gold, and the selected canonical baseline. |

@@ -1,0 +1,31 @@
+arms:
+  bridge: 7667
+  primary: 17272
+claim_boundary: fidelity_and_uncertainty_only
+inputs:
+  bridge_selection: all-query-sources-then-qualified-manifest-order
+  corpus_index: tc5-corpus-input.v1.json
+  corpus_index_sha256: 624b6b42e7e1d40866fea48d37a34b0ef8d786f46f4aa2ed9a3dd245d22a0a0a
+  corpus_root: /tmp/fathomdb-scale-01-20260817/corpus-input-v2
+  model_asset_digest: 7a7edec71b9b8c9ce82cae05c4be673b274c36eaa474cc40ca2ef81b77847ea2
+  model_asset_directory: /home/coreyt/.cache/fathomdb/embedders/0b2926f8a9b1
+  qualified_manifest: /tmp/fathomdb-scale-01-20260817/tc5-manifest.all-real.v2.json
+  qualified_manifest_sha256: f6180a00d1551a143a7445aa6ed28ed589533400ee702835663729694e393df5
+measurement:
+  bootstrap_resamples: 1000
+  bootstrap_seed: '0x0E77B007574A9'
+  candidate_k: 192
+  ground_truth: exact-f32-same-model-top-10
+  query_count: 100
+  query_select_seed: '0x0E77C0125E1EC7'
+  sut: pre-fusion-1bit-k192-f32-rerank-vector-stage
+  top_k: 10
+program_track: SCALE-01
+release: 0.8.23
+runtime:
+  binary_feature: tc5-benchmark-cuda
+  cuda_uuid: GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b
+  embed_device: cuda:0
+  fathomdb_bin: /tmp/fathomdb-performance-0.8.23-plan-20260821/target/release/fathomdb
+  python: /tmp/fathomdb-answer01-runtime-20260822/bin/python
+schema_version: tc5-gpu-execution.v2

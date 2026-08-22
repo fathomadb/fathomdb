@@ -1,0 +1,144 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "tc5-gpu-smoke-20260822T1446Z-2d574205",
+  "experiment": "tc5-gpu-smoke",
+  "title": "tc5-gpu-smoke",
+  "verdict": "complete",
+  "read": "SCALE-01 GPU smoke complete; primary pending",
+  "code": {
+    "git_sha": "cd72da1403f378e6ea004b5c7e56ecfa8e81b145",
+    "dirty": false,
+    "branch": "experiments/performance-0.8.23-plan-20260821",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "2d574205314db1d2dd86e6fa5d19996ec802c2060c6f824528d2e38d2c4f6c6e",
+    "path": "experiments/configs/scale-01/tc5-gpu-v2.json",
+    "resolved": {
+      "schema_version": "tc5-gpu-execution.v2",
+      "program_track": "SCALE-01",
+      "release": "0.8.23",
+      "arms": {
+        "bridge": 7667,
+        "primary": 17272
+      },
+      "measurement": {
+        "candidate_k": 192,
+        "top_k": 10,
+        "query_count": 100,
+        "bootstrap_resamples": 1000,
+        "query_select_seed": "0x0E77C0125E1EC7",
+        "bootstrap_seed": "0x0E77B007574A9",
+        "ground_truth": "exact-f32-same-model-top-10",
+        "sut": "pre-fusion-1bit-k192-f32-rerank-vector-stage"
+      },
+      "inputs": {
+        "corpus_root": "/tmp/fathomdb-scale-01-20260817/corpus-input-v2",
+        "corpus_index": "tc5-corpus-input.v1.json",
+        "corpus_index_sha256": "624b6b42e7e1d40866fea48d37a34b0ef8d786f46f4aa2ed9a3dd245d22a0a0a",
+        "qualified_manifest": "/tmp/fathomdb-scale-01-20260817/tc5-manifest.all-real.v2.json",
+        "qualified_manifest_sha256": "f6180a00d1551a143a7445aa6ed28ed589533400ee702835663729694e393df5",
+        "bridge_selection": "all-query-sources-then-qualified-manifest-order",
+        "model_asset_directory": "/home/coreyt/.cache/fathomdb/embedders/0b2926f8a9b1",
+        "model_asset_digest": "7a7edec71b9b8c9ce82cae05c4be673b274c36eaa474cc40ca2ef81b77847ea2"
+      },
+      "runtime": {
+        "python": "/tmp/fathomdb-answer01-runtime-20260822/bin/python",
+        "fathomdb_bin": "/tmp/fathomdb-performance-0.8.23-plan-20260821/target/release/fathomdb",
+        "embed_device": "cuda:0",
+        "cuda_uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+        "binary_feature": "tc5-benchmark-cuda"
+      },
+      "claim_boundary": "fidelity_and_uncertainty_only"
+    }
+  },
+  "corpus": {
+    "source": "TC-5 all-real",
+    "manifest_sha256": "f6180a00d1551a143a7445aa6ed28ed589533400ee702835663729694e393df5",
+    "datasets": []
+  },
+  "seeds": {
+    "query_select": "0x0E77C0125E1EC7",
+    "bootstrap": "0x0E77B007574A9"
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": {
+      "effective_device": "cuda:0",
+      "uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+      "name": "NVIDIA GeForce RTX 3090"
+    },
+    "key_deps": {
+      "fathomdb": "0.8.23"
+    }
+  },
+  "metrics": {
+    "action": "tc5-gpu-smoke",
+    "arm": "bridge",
+    "binary_digest": "edc25573a844451112d837bdcfff0243176d87108082bfb51287677fd6437c8d",
+    "bootstrap_resamples": 1000,
+    "claim_boundary": "fidelity_and_uncertainty_only",
+    "document_count": 7667,
+    "fixture_digest": "9e92d236e44fc7443c1940f6870877a6e6eb07e92136ca2da331f88221e622ed",
+    "ground_truth_sha256": "ef6be77b9b5670b0992606167f6cc191849f51ac90b6c4b7d25f403c3dc7f34b",
+    "index_digest": "0f1ec5d934183cbfa338ce445f347bf60e2751d4c4ee540449de999922e4beb4",
+    "metrics": {
+      "bootstrap_sigma": 0.009210423443034523,
+      "ci_95": [
+        0.9380000000000002,
+        0.9740000000000003
+      ],
+      "recall_at_10": 0.958
+    },
+    "program_track": "SCALE-01",
+    "provenance": {
+      "bootstrap_seed": "0x0E77B007574A9",
+      "candidate_execution": "cpu/sqlite-vec",
+      "candidate_k": 192,
+      "cross_encoder_route": "disabled",
+      "cuda_uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+      "embed_device": "cuda:0",
+      "embedding_execution": "cuda:0",
+      "exact_f32_rerank_execution": "cpu/sqlite-vec",
+      "ground_truth": "exact-f32-same-model-top-10",
+      "model_asset_digest": "7a7edec71b9b8c9ce82cae05c4be673b274c36eaa474cc40ca2ef81b77847ea2",
+      "query_select_seed": "0x0E77C0125E1EC7",
+      "release": "0.8.23",
+      "sut": "pre-fusion-1bit-k192-f32-rerank-vector-stage",
+      "top_k": 10
+    },
+    "query_completion_count": 100,
+    "schema_version": "tc5-gpu-arm-result.v2",
+    "sut_result_sha256": "436493dcd17973f33cde5424391cd73288a9740d1c837ed5231a7bc0db7cf84a",
+    "synthetic_document_count": 0
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {
+    "red_green": [
+      "query-source exclusion",
+      "aggregate recall",
+      "fresh database setup",
+      "dense projection enrollment",
+      "private result permissions"
+    ]
+  },
+  "tests": {
+    "python": "11 passed",
+    "rust_tc5": "13 passed",
+    "cuda_feature": "12 passed"
+  },
+  "files_changed": [],
+  "artifacts": [
+    {
+      "path": "external-tc5-gpu-arm-result.v2",
+      "sha256": "fdb8412b1bbf5c9073270466e1f8075b9cbac46b32a65a9b8790144ac28f28f1"
+    },
+    {
+      "path": "external-fathomdb-doctor.v1",
+      "sha256": "d1ae778b17afb4d110eab008c3af54cf8790326750f9d1facd35fc259434039f"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

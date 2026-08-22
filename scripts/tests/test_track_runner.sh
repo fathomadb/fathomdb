@@ -41,7 +41,8 @@ fi
 
 for test_path in \
   tests/experiments/test_answer_01.py \
-  tests/experiments/test_fathomdb_test_setup.py
+  tests/experiments/test_fathomdb_test_setup.py \
+  tests/experiments/test_tc5_gpu_v2.py
 do
   if ! grep -qF "$test_path" "$AGENT_TEST"; then
     printf 'FAIL  agent-test does not run %s\n' "$test_path" >&2

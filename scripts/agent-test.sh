@@ -572,6 +572,7 @@ if [ -n "$python_bin" ] && "$python_bin" -c 'import pytest' >/dev/null 2>&1; the
   experiment_track_runner_command=(env PYTHONPATH=. "$python_bin" -m pytest -q
     tests/experiments/test_answer_01.py
     tests/experiments/test_fathomdb_test_setup.py
+    tests/experiments/test_tc5_gpu_v2.py
     tests/experiments/test_fathomdb_locomo.py
     tests/experiments/test_mem0_oss.py
     tests/experiments/test_mem0_comparison.py)

@@ -8,6 +8,7 @@ use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+use rusqlite::OptionalExtension;
 use rusqlite::{params, Connection, TransactionBehavior};
 use sha2::{Digest, Sha256};
 
@@ -15,6 +16,7 @@ use sha2::{Digest, Sha256};
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct VectorStageScope {
     kind: String,
+    exclude_logical_id: Option<String>,
     selection_digest: String,
 }
 
@@ -24,7 +26,20 @@ impl VectorStageScope {
     pub fn kind(kind: impl Into<String>) -> Self {
         let kind = kind.into();
         let selection_digest = digest_text(&format!("kind:{kind}"));
-        Self { kind, selection_digest }
+        Self { kind, exclude_logical_id: None, selection_digest }
+    }
+
+    /// Constructs a kind selection that omits one manifest-pinned query source.
+    #[must_use]
+    pub fn kind_excluding_logical_id(
+        kind: impl Into<String>,
+        exclude_logical_id: impl Into<String>,
+    ) -> Self {
+        let kind = kind.into();
+        let exclude_logical_id = exclude_logical_id.into();
+        let selection_digest =
+            digest_text(&format!("kind:{kind}\nexclude_logical_id:{exclude_logical_id}"));
+        Self { kind, exclude_logical_id: Some(exclude_logical_id), selection_digest }
     }
 
     /// Canonical digest of the fixed selection, safe to attest externally.
@@ -247,6 +262,7 @@ pub(crate) fn read_vector_stage_in_tx(
         || request.top_k == 0
         || request.candidate_k < request.top_k
         || request.candidate_k > request.expected_vector_rows
+        || request.scope.exclude_logical_id.as_deref() == Some("")
     {
         return Err(VectorStageError::InvalidRequest);
     }
@@ -257,10 +273,23 @@ pub(crate) fn read_vector_stage_in_tx(
     let tx = reader
         .transaction_with_behavior(TransactionBehavior::Deferred)
         .map_err(|_| VectorStageError::Storage)?;
+    let excluded_row: Option<i64> = match request.scope.exclude_logical_id.as_deref() {
+        Some(logical_id) => tx
+            .query_row(
+                "SELECT write_cursor FROM canonical_nodes \
+                 WHERE kind = ?1 AND logical_id = ?2 AND superseded_at IS NULL",
+                params![request.scope.kind, logical_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| VectorStageError::Storage)?,
+        None => None,
+    };
     let observed: usize = tx
         .query_row(
-            "SELECT COUNT(*) FROM vector_default WHERE kind = ?1",
-            [&request.scope.kind],
+            "SELECT COUNT(*) FROM vector_default \
+             WHERE kind = ?1 AND (?2 IS NULL OR rowid != ?2)",
+            params![request.scope.kind, excluded_row],
             |row| row.get(0),
         )
         .map_err(|_| VectorStageError::Storage)?;
@@ -272,19 +301,29 @@ pub(crate) fn read_vector_stage_in_tx(
     }
 
     let candidate_started = Instant::now();
+    let candidate_limit = request.candidate_k + usize::from(excluded_row.is_some());
     let mut candidate_stmt = tx
         .prepare(
             "WITH bit_candidates AS (\
                SELECT rowid, distance FROM vector_default \
                WHERE embedding_bin MATCH vec_quantize_binary(vec_f32(?1)) AND kind = ?2 \
                ORDER BY distance LIMIT ?3\
-             ) SELECT rowid FROM bit_candidates ORDER BY distance, rowid",
+             ) SELECT rowid FROM bit_candidates \
+               WHERE (?4 IS NULL OR rowid != ?4) \
+               ORDER BY distance, rowid LIMIT ?5",
         )
         .map_err(|_| VectorStageError::Storage)?;
     let candidates: Vec<u64> = candidate_stmt
-        .query_map(params![query, request.scope.kind, request.candidate_k as i64], |row| {
-            row.get::<_, i64>(0).map(|id| id as u64)
-        })
+        .query_map(
+            params![
+                query,
+                request.scope.kind,
+                candidate_limit as i64,
+                excluded_row,
+                request.candidate_k as i64
+            ],
+            |row| row.get::<_, i64>(0).map(|id| id as u64),
+        )
         .map_err(|_| VectorStageError::Storage)?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|_| VectorStageError::Storage)?;
@@ -317,11 +356,12 @@ pub(crate) fn read_vector_stage_in_tx(
     let truth_started = Instant::now();
     let ground_truth: Vec<u64> = tx
         .prepare(
-            "SELECT rowid FROM vector_default WHERE kind = ?1 \
-             ORDER BY vec_distance_l2(embedding, vec_f32(?2)), rowid LIMIT ?3",
+            "SELECT rowid FROM vector_default \
+             WHERE kind = ?1 AND (?2 IS NULL OR rowid != ?2) \
+             ORDER BY vec_distance_l2(embedding, vec_f32(?3)), rowid LIMIT ?4",
         )
         .map_err(|_| VectorStageError::Storage)?
-        .query_map(params![request.scope.kind, query, request.top_k as i64], |row| {
+        .query_map(params![request.scope.kind, excluded_row, query, request.top_k as i64], |row| {
             row.get::<_, i64>(0).map(|id| id as u64)
         })
         .map_err(|_| VectorStageError::Storage)?

@@ -80,7 +80,26 @@ diagnostics, or the five-platform artifact matrix.
 
 ## 4. Work sequence
 
-### 4.1 Establish the failing routing fixture
+Development is incremental; exposure is atomic. Use small, reviewable checkpoint
+commits on the implementation branch, but do not merge, cherry-pick, or otherwise
+expose an intermediate checkpoint independently. Only the complete, verified
+topology is a landing unit. “Atomic cutover” describes that final landing, not a
+single editing pass.
+
+The six checkpoints are:
+
+1. Establish CI-CP0 with the exact pinned matcher implementation and no workflow
+   edits.
+2. Commit the visibly failing routing fixtures as a separate test-only
+   checkpoint.
+3. Extend the existing `changes` classifier in place.
+4. Change only `needs` and `if` routing for the eight scoped jobs, preserving
+   their bodies.
+5. Transfer AArch64 and full-history Gitleaks ownership without a coverage gap.
+6. Run full verification and adversarial review, then land the complete branch
+   coherently.
+
+### 4.1 Establish the matcher and fixture checkpoints
 
 This is the first implementation step. Do not edit workflow behavior before it
 is complete.
@@ -115,9 +134,9 @@ Add RED cases for:
 - tag-push release safety.
 
 Run the fixture against the current workflow and observe the required RED
-cases. Commit or stage the failing fixture before editing workflow behavior.
-Section 4.2 must not begin until CI-CP0 is recorded and the fixture is visibly
-RED.
+cases. Commit the failing fixture as a separate test-only checkpoint before
+editing workflow behavior. Section 4.2 must not begin until CI-CP0 is recorded,
+the fixture is visibly RED, and that checkpoint commit exists.
 
 ### 4.2 Replace the classifier in place
 
@@ -232,10 +251,13 @@ Run in latency order and stop on the first failure:
 5. `./scripts/agent-verify.sh` because workflow and harness contracts changed.
 6. `git diff --check` and an independent review of the final workflow diff.
 
-Land the classifier, conditions, AArch64 trigger correction, Gitleaks replacement
-route, fixtures, plan, and design update together. Do not leave an intermediate
-commit on the landing branch where full-history scanning has been removed but its
-dispatchable replacement does not exist.
+Checkpoint commits are implementation aids on the working branch, not separately
+landable changes. Land the classifier, conditions, AArch64 trigger correction,
+Gitleaks replacement route, fixtures, plan, and design update together. Do not
+merge or cherry-pick an intermediate checkpoint onto the landing branch. In
+particular, the landing branch must never contain a state where the AArch64 push
+trigger has lost unique evidence or full-history scanning has been removed
+without its dispatchable and release-advisory replacements.
 
 The first resulting CI run is operational evidence, not a required gate or soak
 period. Correct an implementation defect if it is red; do not delay cutover for

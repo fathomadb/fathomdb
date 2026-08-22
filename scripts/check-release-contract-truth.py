@@ -82,6 +82,7 @@ SUCCESS_BYPASS = re.compile(
     r"(?:\b(?:always|cancelled|failure)\s*\(|!\s*(?:\(\s*)*success\s*\()",
     re.IGNORECASE,
 )
+PUSH_ONLY = re.compile(r"^\$\{\{\s*github\.event_name == 'push'\s*\}\}$")
 
 
 def root() -> Path:
@@ -232,7 +233,10 @@ def require_implicit_success(job_name: str, block: str) -> None:
 
 def require_candidate_free(job_name: str, block: str) -> None:
     conditions = re.findall(r"^    if:\s*(.+)$", block, re.MULTILINE)
-    if len(conditions) != 1 or "inputs.candidate_commit == ''" not in conditions[0]:
+    if len(conditions) != 1:
+        fail(f"{job_name} must have exactly one recognized job-level if condition")
+    condition = conditions[0].strip()
+    if "inputs.candidate_commit == ''" not in condition and PUSH_ONLY.fullmatch(condition) is None:
         fail(f"{job_name} must be unreachable from an unmerged candidate dispatch")
 
 

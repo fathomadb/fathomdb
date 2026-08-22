@@ -1571,7 +1571,7 @@ jobs:
   # resolve them through the version-pinned optionalDependencies of fathomdb.
   promote-npm-latest:
     runs-on: ubuntu-latest
-    if: ${{ always() && github.event_name == 'push' }}
+    if: ${{ github.event_name == 'push' }}
     needs:
       - post-publish-smoke
       - post-publish-smoke-aarch64
@@ -1597,7 +1597,7 @@ jobs:
   # run, so the release is never marked done. Skipped on dry-run.
   github-release:
     runs-on: ubuntu-latest
-    if: ${{ always() && github.event_name == 'push' }}
+    if: ${{ github.event_name == 'push' }}
     needs:
       - promote-npm-latest
     steps:

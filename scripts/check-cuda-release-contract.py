@@ -122,6 +122,12 @@ PUBLISHING_JOBS = (
     "post-publish-smoke-darwin-arm64", "post-publish-smoke-win32-x64", "co-tagging-assert",
     "promote-npm-latest", "github-release", "record-v0820-partial-registry-recovery",
 )
+PUSH_ONLY_JOB_IF = re.compile(
+    r"^    if: \$\{\{ (?:always\(\) && )?github\.event_name == 'push' \}\}$",
+    re.MULTILINE,
+)
+
+
 def fail(message: str) -> None:
     print(f"cuda-release-contract: {message}", file=sys.stderr)
     raise SystemExit(1)
@@ -254,7 +260,9 @@ def require_unmerged_workflow_route() -> None:
 
     for name in PUBLISHING_JOBS:
         job = workflow_job(name)
-        if job.count("\n    if:") != 1 or "inputs.candidate_commit == ''" not in job:
+        if job.count("\n    if:") != 1 or (
+            "inputs.candidate_commit == ''" not in job and PUSH_ONLY_JOB_IF.search(job) is None
+        ):
             fail(f"{name} must be unreachable from an unmerged candidate dispatch")
 
 

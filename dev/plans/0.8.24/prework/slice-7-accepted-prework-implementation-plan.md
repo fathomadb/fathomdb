@@ -1,6 +1,6 @@
 ---
 title: 0.8.24 Slice 7 — accepted prework implementation plan
-status: APPROVED-FOR-IMPLEMENTATION
+status: COMPLETE
 target_release: 0.8.24
 ---
 
@@ -12,6 +12,9 @@ The owner accepted the four packages below in the first-round Slice 6 decision.
 The required independent read-only review passed after FIX-1, and the owner
 approved this final plan on 2026-08-23. The implementation boundary remains
 exactly the four packages below.
+
+**Completion:** S7-01 through S7-04 are complete. Exact evidence and commits
+are in [the Slice 7 completion record](slice-7-completion.md).
 
 ## Purpose
 

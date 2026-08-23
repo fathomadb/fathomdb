@@ -1,6 +1,6 @@
 ---
 title: 0.8.24 Slice 6 — proposal register
-status: AWAITING-HITL
+status: COMPLETE
 target_release: 0.8.24
 ---
 

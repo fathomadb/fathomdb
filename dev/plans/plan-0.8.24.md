@@ -271,7 +271,7 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 ## Immediate next action
 
 Slice 6 has recorded the owner's [initial decisions](0.8.24/prework/slice-6-hitl-decisions.md)
-and written the accepted-work Slice 7 plan. Its required independent review
-passed after one documented FIX-1, and the owner has approved its bounded
-implementation. The next action is S7-01 through S7-04 in a fresh isolated
-worktree; no feature or external release action is included.
+and completed the accepted-work Slice 7 plan after one documented FIX-1.
+No feature or external release action was included. The next action is the
+separate draft-to-ready planning of the owner-approved feature slices, beginning
+with Slice 10's current-main CI assessment or another owner-selected feature.

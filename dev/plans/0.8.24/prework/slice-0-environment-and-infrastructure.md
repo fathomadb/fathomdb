@@ -1,6 +1,6 @@
 ---
 title: 0.8.24 Slice 0 — environment and project-infrastructure baseline
-status: PROPOSED
+status: COMPLETE
 target_release: 0.8.24
 ---
 
@@ -144,6 +144,13 @@ no new benchmark run is part of Slice 0.
    - benchmark evidence source and performance decision rule.
 
 No decision is treated as accepted until the Slice 6 interactive HITL session.
+
+## Outcome
+
+Completed 2026-08-23. The five evidence records and the owner decision brief
+are present in this directory. Remote GitHub metadata is explicitly classified
+unknown because the GitHub API was rate-limited; no retry or configuration
+change was attempted.
 
 ## Exit criteria
 

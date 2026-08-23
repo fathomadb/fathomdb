@@ -50,6 +50,10 @@ until the owner accepts the Slice 6 review outcome.
 The detailed, read-only execution sequence is in
 [Slice 0 — environment and project-infrastructure baseline](0.8.24/prework/slice-0-environment-and-infrastructure.md).
 
+**Slice 0 completed 2026-08-23.** Its evidence and owner decision brief are in
+`dev/plans/0.8.24/prework/`; remote GitHub metadata is deliberately recorded
+as unknown while the authenticated API is rate-limited.
+
 ## Scope and non-goals
 
 ### In scope
@@ -191,7 +195,6 @@ implement them now.
 
 ## Immediate next action
 
-Continue **Slice 0**: inventory the current runners, registry/trusted-publisher
-configuration, new main CI workflow, benchmark evidence source, and existing
-release-publisher behavior. Produce a concise decision brief for Slice 6; do
-not modify infrastructure or product files while gathering it.
+Proceed to **Slice 1**: a durable Dependabot and library sweep. It must
+enumerate available upgrades and the rationale for every pin/source without
+changing dependencies, lockfiles, Dependabot, infrastructure, or product code.

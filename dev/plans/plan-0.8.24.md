@@ -171,12 +171,41 @@ Feature slices use multiples of ten. Their exact contents remain contingent on
 Slice 6 decisions; this ladder is the proposed allocation, not authorization to
 implement them now.
 
+### Prework-to-feature allocation and planning protocol
+
+Slice 7 implements **only** owner-accepted repository/version-preparation work
+whose primary destination is Slice 7. It does not plan, make ready, implement,
+or provide acceptance evidence for Slices 10–70. Each feature slice opens its
+own draft plan after the applicable Slice 6 decisions, incorporates its rows
+from the register below, completes its own design/ready review, and then
+implements only that ready plan. A new finding from Slices 3–5 must be added
+both to this register and to the appropriate feature-slice draft; it must not
+be silently folded into Slice 7.
+
+| Source finding | Primary destination and mandatory initial-plan content |
+| --- | --- |
+| Slice 0 main-CI relationship and new-main workflow inventory | **10:** assess the exact current main CI/release interface, preserve proportional routing, and make no release-branch recreation of main CI. |
+| Slice 0 retained performance branch/evidence and owner-selected streamed boundary-tie result | **20:** inspect the named evidence and unmerged engine delta, declare the integration decision rule and targeted correctness proof, and do not require a confirming benchmark run. |
+| Slice 0 Tegra package-identity decision; Slice 1 N24-1/R24-8 | **30:** obtain the owner-selected separate public distribution identity, trusted-publisher route, explicit CPU-versus-CUDA selection contract, and Jetson installed-package proof plan. |
+| Slice 0 Windows SDK/executor decision; Slice 1 N24-2/R24-9 | **40:** obtain the owner-selected Python/npm matrix and remote Windows CUDA executor contract, then plan artifact provenance, unsupported-route behavior, and Windows installed-package proof without a local Windows build. |
+| Slice 1 R24-12 and the unresolved external Memex evidence boundary | **50:** obtain/inspect the linked client evidence, compare the installed FathomDB Python WAL path, and plan only an attributed fix or a durable no-change/insufficient-evidence finding. |
+| Slice 1 N24-3/N24-4/R24-10 and Slice 0 publication topology | **60:** plan target smokes, CPU artifact preservation, and immutable-existing-artifact publisher retry/idempotency evidence. |
+| Slice 0 release-control/branch-boundary evidence and the completed feature-slice outputs | **70:** plan evidence assembly, release-branch/main integration, and owner-ready publication preparation; publication itself remains separately authorized. |
+
+The register does not make any feature ready or authorize its work. It is the
+minimum input each feature's separate draft plan must carry forward; later
+Slices 3–5 may refine, reject, or add rows through the same mechanism.
+Slice 7 is not a ladder gate for feature planning or implementation. A feature
+may name a specific owner-accepted Slice 7 maintenance change as a narrow
+dependency only when its own ready plan proves that dependency; absent that
+explicit proof, Slices 7 and 10–70 proceed independently.
+
 | Slice | Title | Primary outcome | Depends on |
 | ---: | --- | --- | --- |
 | **10** | Main CI workflow assessment and integration | Confirm what the new CI workflow on `main` already supplies; make only approved, narrow CI changes on `main` and document the release interface. | 0, 6 |
 | **20** | Benchmark-directed engine performance | Reproduce or otherwise validate the identified benchmark result, define a decision rule, then make measured engine-level adjustments only when evidence supports them. | 0, 5, 6 |
-| **30** | Public Tegra CUDA distribution | Ship the approved separate Tegra distribution and explicit installer/compatibility contract; never the `+tegra` PyPI shape. | 0, 7, 10 |
-| **40** | Windows x64 CUDA distribution | Build and publish the approved Windows CUDA Python and/or npm artifacts via the remote executor; no local Windows compilation. | 0, 7, 10 |
+| **30** | Public Tegra CUDA distribution | Ship the approved separate Tegra distribution and explicit installer/compatibility contract; never the `+tegra` PyPI shape. | 0, 6, 10 |
+| **40** | Windows x64 CUDA distribution | Build and publish the approved Windows CUDA Python and/or npm artifacts via the remote executor; no local Windows compilation. | 0, 6, 10 |
 | **50** | Windows Python SDK WAL behavior review | Analyze the completed Memex job, compare the relevant FathomDB Python path, and route an attributed fix or a no-change finding to its proper slice. | 0, 5, 6 |
 | **60** | Installed-package smokes and CPU/publisher preservation | Jetson and Windows clean-install smokes; CPU artifact preservation checks; publisher idempotency proof and failure/retry behavior. | 30, 40 |
 | **70** | Release integration and owner-ready evidence | Assemble scoped evidence, resolve release-branch/main integration, and prepare—not perform without direction—the 0.8.24 publication decision. | 10, 20, 30, 40, 50, 60 |

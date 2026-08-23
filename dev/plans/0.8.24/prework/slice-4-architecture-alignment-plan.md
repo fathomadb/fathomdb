@@ -38,7 +38,8 @@ change.
    stale against intentional shipped behavior, and proposals that require a
    new or successor decision.
 5. Propose the smallest appropriate correction and allocate it to Slice 7 or a
-   feature slice.
+   feature slice. A feature-slice allocation must also update that feature's
+   initial-plan input in the overall plan; it never becomes Slice 7 work.
 
 ## Non-goals and no-implementation boundary
 

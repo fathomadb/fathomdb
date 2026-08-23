@@ -41,6 +41,9 @@ proposals only; it does not alter an authoritative contract.
    binding architecture, and packaging architecture for required draft CRUD.
 5. Allocate every retained product or architecture draft to Slice 7, one
    feature slice (10, 20, 30, 40, 50, 60, or 70), or postponement.
+   When a row belongs to a feature slice, add it directly to that feature's
+   initial draft-plan input in `plan-0.8.24.md`; never convert it into Slice 7
+   implementation work.
 
 ## Non-goals and no-implementation boundary
 
@@ -133,7 +136,8 @@ do not create duplicate implementation ownership.
 2. `slice-3-architecture-drafts.md` — architecture CRUD proposals and explicit
    no-change findings, each with its owning slice and decision prerequisites.
 3. An update to the overall plan only if the review changes a proposed slice
-   allocation; no generated release-state region is created or edited.
+   allocation, including the prework-to-feature register for every retained
+   Slice 10–70 row; no generated release-state region is created or edited.
 
 ## Completion and verification
 
@@ -144,6 +148,8 @@ Slice 3 is complete when:
 - every retained need traces to a falsifiable requirement and acceptance
   signal, or explicitly records the missing layer;
 - every product and architecture proposal has exactly one primary allocation;
+- every retained Slice 10–70 allocation has been copied to that feature's
+  initial-plan input rather than left only in a prework record;
 - every cited path exists and every architecture assertion distinguishes
   current authority, evidence, inference, and net-new proposal;
 - canonical contracts, source, tests, workflows, dependencies, and release

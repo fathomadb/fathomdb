@@ -118,6 +118,11 @@ possible. Cross-cutting installed-package and publisher proofs belong in Slice
 unapproved executor, registry identity, SDK surface, or contract decision stays
 blocked on that decision rather than receiving a weaker substitute.
 
+For every Slice 10–70 allocation, add the required proof directly to that
+feature's initial-plan input in `plan-0.8.24.md`. Slice 7 may implement only a
+separately accepted repository-preparation item; it cannot absorb a
+feature-specific verification gap.
+
 ## Deliverable
 
 `slice-5-verification-adequacy.md`, containing:

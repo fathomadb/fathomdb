@@ -69,7 +69,7 @@ details may be STALE.** For distilled experiment results, read
 | 0.8.4 | closed (GraphRAG SPLIT; Fork E re-opened) | **ARCHIVED in place** — see `dev/experiments-ledger.md` |
 | 0.8.5 | historical | Retained in place; consult the live release-state JSON for current work. |
 | 0.8.23 | shipped/closed | Retained in place; resolve live work through the release-state lookup rule. |
-| 0.8.24 | draft prework | Not a live release-state record; see `plan-0.8.24.md`. |
+| 0.8.24 | draft feature planning | Prework Slices 0–7 are complete; Slices 10–70 have draft plans but no live release-state record. |
 
 Transient per-run artifacts (raw `*-output.json`, codex `*-review-*` logs, `.log`,
 checkpoints) under `runs/` were pruned by the ledger-prune (`scripts/repo-prune/prompts/prune-docs.md`) and are

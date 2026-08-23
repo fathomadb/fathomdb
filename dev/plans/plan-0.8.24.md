@@ -243,6 +243,21 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 | **60** | Installed-package smokes and CPU/publisher preservation | Jetson and Windows clean-install smokes; CPU artifact preservation checks; publisher idempotency proof and failure/retry behavior. | 30, 40 |
 | **70** | Release integration and owner-ready evidence | Assemble scoped evidence, resolve release-branch/main integration, and prepare—not perform without direction—the 0.8.24 publication decision. | 10, 20, 30, 40, 50, 60 |
 
+### Feature-slice draft plans
+
+Each feature now has a separate draft plan. These documents plan their own
+slice-preparation, draft contract/design review, implementation boundary,
+verification, prerequisites, and handoff. Their existence does not make a
+slice ready or authorize implementation or an external release action.
+
+- [Slice 10 — main CI assessment and integration](0.8.24/features/slice-10/plan.md)
+- [Slice 20 — benchmark-directed engine performance](0.8.24/features/slice-20/plan.md)
+- [Slice 30 — public Tegra CUDA distribution](0.8.24/features/slice-30/plan.md)
+- [Slice 40 — Windows x64 CUDA distribution](0.8.24/features/slice-40/plan.md)
+- [Slice 50 — Windows Python SDK WAL review](0.8.24/features/slice-50/plan.md)
+- [Slice 60 — installed smokes and publisher preservation](0.8.24/features/slice-60/plan.md)
+- [Slice 70 — release integration and owner-ready evidence](0.8.24/features/slice-70/plan.md)
+
 ### Feature acceptance signals
 
 | ID | Requirement | Evidence required before Slice 70 |
@@ -270,8 +285,9 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 
 ## Immediate next action
 
-Slice 6 has recorded the owner's [initial decisions](0.8.24/prework/slice-6-hitl-decisions.md)
-and completed the accepted-work Slice 7 plan after one documented FIX-1.
-No feature or external release action was included. The next action is the
-separate draft-to-ready planning of the owner-approved feature slices, beginning
-with Slice 10's current-main CI assessment or another owner-selected feature.
+Slices 0–7 are complete. The separate feature-slice drafts above now require
+review and draft-to-ready disposition; no feature or external release action is
+authorized by drafting them. Slice 10 begins with its current-main no-change
+assessment. Slices 20 and 50 can prepare independently; Slices 30 and 40 cannot
+implement until their explicit identity/executor choices are recorded; Slice 60
+consumes the approved target outputs; Slice 70 remains final integration only.

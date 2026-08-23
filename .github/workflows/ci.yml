@@ -204,6 +204,7 @@ jobs:
               - 'scripts/lib/agent-suite-run.sh'
               - 'scripts/lib/agent-python-env.sh'
               - 'scripts/bootstrap.sh'
+              - 'scripts/bootstrap-heavy.sh'
             rust_test_harness:
               - 'scripts/test-rust-workspace.sh'
             security_harness:
@@ -349,8 +350,8 @@ jobs:
           toolchain: "1.95.0"
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-      - name: Bootstrap dev tooling
-        run: bash scripts/bootstrap.sh
+      - name: Bootstrap heavy test dependencies
+        run: bash scripts/bootstrap-heavy.sh
       - name: agent-verify heavy (Rust -> Python -> TypeScript)
         env:
           # run_capped is normally quiet on success. CI needs per-suite timing

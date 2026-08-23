@@ -46,3 +46,10 @@ separate draft-to-ready plan.
 Slice 6 now submits the detailed Slice 7 plan to its required independent
 read-only review. After up to two documented correction cycles, the owner must
 make the final Slice 7 plan disposition before implementation starts.
+
+## Final Slice 7 plan disposition
+
+**Owner decision, 2026-08-23:** “Approved.” The independent review passed
+after FIX-1, and the owner approved implementation of the final Slice 7 plan.
+Only S7-01 through S7-04 are authorized. This approval does not widen the
+feature-slice boundaries or authorize external release actions.

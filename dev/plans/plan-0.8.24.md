@@ -272,6 +272,6 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 
 Slice 6 has recorded the owner's [initial decisions](0.8.24/prework/slice-6-hitl-decisions.md)
 and written the accepted-work Slice 7 plan. Its required independent review
-passed after one documented FIX-1. The next action is the owner's final Slice 7
-plan disposition; implementation remains blocked until that decision is
-recorded.
+passed after one documented FIX-1, and the owner has approved its bounded
+implementation. The next action is S7-01 through S7-04 in a fresh isolated
+worktree; no feature or external release action is included.

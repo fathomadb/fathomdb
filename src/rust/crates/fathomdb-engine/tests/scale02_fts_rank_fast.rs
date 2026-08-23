@@ -1,8 +1,9 @@
-//! SCALE-02's experiment-only FTS rank fast-path equivalence controls.
+//! SCALE-02's production FTS rank-stream behavior and equivalence controls.
 
 use fathomdb_embedder::NoopEmbedder;
 use fathomdb_engine::{EmbedderChoice, Engine, InitialState, PreparedWrite, SourceId};
 use fathomdb_schema::SQLITE_SUFFIX;
+use rusqlite::params;
 use serde_json::Value;
 use std::sync::{Arc, Mutex};
 use tempfile::TempDir;
@@ -82,13 +83,12 @@ fn boundary_witnesses(path: &std::path::Path) -> Vec<Value> {
 }
 
 #[test]
-fn rank_fast_is_the_production_direct_text_path() {
+fn rank_stream_is_the_production_direct_text_path() {
     let _lock = ENV_LOCK.lock().expect("environment lock");
     let dir = TempDir::new().expect("tempdir");
     let witness = dir.path().join("production-routes.jsonl");
     let _env = EnvGuard::update(&[
         ("FATHOMDB_PERF_EXPERIMENTS", None),
-        ("FATHOMDB_PERF_FTS_RANK_FAST", None),
         ("FATHOMDB_PERF_FTS_FORCE_FULL_SORT", None),
         ("FATHOMDB_PERF_FTS_ROUTE_WITNESS", Some(witness.display().to_string())),
     ]);
@@ -104,17 +104,16 @@ fn rank_fast_is_the_production_direct_text_path() {
     opened.engine.search_text_only("scale02production").expect("production search");
     opened.engine.close().expect("close production engine");
 
-    assert_eq!(routes(&witness), ["rank_fast"]);
+    assert_eq!(routes(&witness), ["rank_stream_strict_boundary"]);
 }
 
 #[test]
-fn rank_fast_matches_full_sort_and_falls_back_for_ties_and_edges() {
+fn rank_stream_matches_full_sort_and_keeps_edges_on_the_exact_path() {
     let _lock = ENV_LOCK.lock().expect("environment lock");
     let dir = TempDir::new().expect("tempdir");
     let witness = dir.path().join("routes.jsonl");
     let _env = EnvGuard::update(&[
         ("FATHOMDB_PERF_EXPERIMENTS", Some("1".to_string())),
-        ("FATHOMDB_PERF_FTS_RANK_FAST", Some("1".to_string())),
         ("FATHOMDB_PERF_FTS_FORCE_FULL_SORT", None),
         ("FATHOMDB_PERF_FTS_ROUTE_WITNESS", Some(witness.display().to_string())),
     ]);
@@ -128,9 +127,9 @@ fn rank_fast_matches_full_sort_and_falls_back_for_ties_and_edges() {
     opened.engine.write(&writes).expect("write nodes");
     opened.engine.drain(10_000).expect("drain");
     let fast =
-        opened.engine.search_text_only_with_limit("scale02fast", 10).expect("rank-fast search");
+        opened.engine.search_text_only_with_limit("scale02fast", 10).expect("rank-stream search");
     opened.engine.close().expect("close fast engine");
-    assert!(routes(&witness).contains(&"rank_fast".to_string()));
+    assert!(routes(&witness).contains(&"rank_stream_strict_boundary".to_string()));
 
     unsafe { std::env::set_var("FATHOMDB_PERF_FTS_FORCE_FULL_SORT", "1") };
     let baseline = open(&dir, "strict-boundary");
@@ -170,16 +169,6 @@ fn rank_fast_matches_full_sort_and_falls_back_for_ties_and_edges() {
     baseline.engine.close().expect("close overfetch baseline");
     unsafe { std::env::remove_var("FATHOMDB_PERF_FTS_FORCE_FULL_SORT") };
 
-    let tied = open(&dir, "tie");
-    let tied_writes = (1..=101)
-        .map(|rank| node(&format!("tie-{rank}"), "scale02tie identical".to_string()))
-        .collect::<Vec<_>>();
-    tied.engine.write(&tied_writes).expect("write ties");
-    tied.engine.drain(10_000).expect("drain ties");
-    tied.engine.search_text_only_with_limit("scale02tie", 1).expect("tie search");
-    tied.engine.close().expect("close tie engine");
-    assert!(routes(&witness).contains(&"full_sort_fallback".to_string()));
-
     let edged = open(&dir, "edge");
     edged
         .engine
@@ -218,7 +207,6 @@ fn rank_stream_completes_the_boundary_tie_without_changing_results() {
     let _env = EnvGuard::update(&[
         ("FATHOMDB_PERF_EXPERIMENTS", Some("1".to_string())),
         ("FATHOMDB_PERF_FTS_FORCE_FULL_SORT", None),
-        ("FATHOMDB_PERF_FTS_STREAM_TIES", Some("1".to_string())),
         ("FATHOMDB_PERF_FTS_ROUTE_WITNESS", Some(route_witness.display().to_string())),
         ("FATHOMDB_PERF_FTS_BOUNDARY_WITNESS", Some(boundary_witness.display().to_string())),
         ("FATHOMDB_PERF_FTS_QUERY_PLAN_WITNESS", Some(query_plan_witness.display().to_string())),
@@ -277,4 +265,48 @@ fn rank_stream_completes_the_boundary_tie_without_changing_results() {
             && row["role"] == "reader"
             && row["journal_mode"] == "wal"
     }));
+}
+
+#[test]
+fn rank_stream_row_failure_falls_back_to_the_stable_sort() {
+    let _lock = ENV_LOCK.lock().expect("environment lock");
+    let dir = TempDir::new().expect("tempdir");
+    let witness = dir.path().join("fallback-routes.jsonl");
+    let _env = EnvGuard::update(&[
+        ("FATHOMDB_PERF_EXPERIMENTS", Some("1".to_string())),
+        ("FATHOMDB_PERF_FTS_FORCE_FULL_SORT", None),
+        ("FATHOMDB_PERF_FTS_ROUTE_WITNESS", Some(witness.display().to_string())),
+    ]);
+
+    let opened = open(&dir, "stream-fallback");
+    opened
+        .engine
+        .write(&[
+            node("fallback-a", "scale02fallback first".to_string()),
+            node("fallback-b", "scale02fallback second".to_string()),
+            node("fallback-c", "scale02fallback third".to_string()),
+        ])
+        .expect("write valid rows");
+    opened.engine.drain(10_000).expect("drain valid rows");
+    opened.engine.close().expect("close before projection corruption");
+
+    let db_path = dir.path().join(format!("stream-fallback{SQLITE_SUFFIX}"));
+    let connection = rusqlite::Connection::open(db_path).expect("open projection directly");
+    connection
+        .execute(
+            "INSERT INTO search_index(body, kind, write_cursor) VALUES (?1, ?2, ?3)",
+            params!["scale02fallback malformed projection", "doc", "not-an-integer"],
+        )
+        .expect("insert malformed projection row");
+    connection.close().expect("close projection connection");
+
+    let reopened = open(&dir, "stream-fallback");
+    let result = reopened
+        .engine
+        .search_text_only_with_limit("scale02fallback", 10)
+        .expect("fallback search remains serviceable");
+    reopened.engine.close().expect("close fallback engine");
+
+    assert_eq!(result.results.len(), 3, "the malformed projection row is skipped");
+    assert_eq!(routes(&witness), ["full_sort_fallback"]);
 }

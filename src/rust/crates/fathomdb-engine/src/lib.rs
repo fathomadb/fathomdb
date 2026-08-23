@@ -14590,11 +14590,9 @@ fn read_search_in_tx(
         }
         let force_full_sort = std::env::var_os("FATHOMDB_PERF_EXPERIMENTS").is_some()
             && std::env::var("FATHOMDB_PERF_FTS_FORCE_FULL_SORT").is_ok_and(|value| value == "1");
-        let stream_boundary_ties = std::env::var_os("FATHOMDB_PERF_EXPERIMENTS").is_some()
-            && std::env::var("FATHOMDB_PERF_FTS_STREAM_TIES").is_ok_and(|value| value == "1");
-        let rank_fast_requested =
+        let rank_stream_requested =
             direct_text_candidate_limit.is_some() && filter.is_none() && !force_full_sort;
-        let rank_fast_eligible = rank_fast_requested
+        let rank_stream_eligible = rank_stream_requested
             && tx
                 .query_row(
                     "SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)",
@@ -14602,14 +14600,8 @@ fn read_search_in_tx(
                     |row| row.get::<_, bool>(0),
                 )
                 .unwrap_or(false);
-        let rank_fast_candidates = if rank_fast_eligible {
-            let (rank_candidate_limit, rank_scan_limit) =
-                rank_fast_candidate_window(final_limit, fts_only_limit);
-            let rank_limit_clause = if stream_boundary_ties {
-                String::new()
-            } else {
-                format!(" LIMIT {rank_scan_limit}")
-            };
+        let rank_stream_candidates = if rank_stream_eligible {
+            let rank_candidate_limit = fts_only_limit.unwrap_or(final_limit);
             let rank_sql = format!(
                 "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
                  bm25(search_index), cn.logical_id, cn.source_id FROM search_index \
@@ -14618,51 +14610,37 @@ fn read_search_in_tx(
                    AND cn.superseded_at IS NULL \
                    AND (cn.state = 'active' OR cn.state IS NULL)\
                    {text_validity} \
-                 ORDER BY rank{rank_limit_clause}"
+                 ORDER BY rank"
             );
-            if stream_boundary_ties {
-                record_perf_fts_query_plan(&tx, &rank_sql, &text_params);
-                tx.prepare(&rank_sql)
-                    .and_then(|mut statement| {
-                        let mut rows =
-                            statement.query(rusqlite::params_from_iter(text_params.iter()))?;
-                        collect_complete_rank_boundary(&mut rows, rank_candidate_limit)
-                    })
-                    .ok()
-                    .map(|(rows, evidence)| {
-                        let route = if evidence.crossed_boundary_tie {
-                            "rank_stream_tie_completed"
-                        } else {
-                            "rank_stream_strict_boundary"
-                        };
-                        (rows, route, Some(evidence))
-                    })
-            } else {
-                tx.prepare(&rank_sql)
-                    .and_then(|mut statement| {
-                        statement
-                            .query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
-                                rank_search_hit_from_row(row)
-                            })?
-                            .collect::<rusqlite::Result<Vec<_>>>()
-                    })
-                    .ok()
-                    .and_then(|rows| retain_rank_fast_candidates(rows, rank_candidate_limit))
-                    .map(|rows| (rows, "rank_fast", None))
-            }
+            record_perf_fts_query_plan(&tx, &rank_sql, &text_params);
+            tx.prepare(&rank_sql)
+                .and_then(|mut statement| {
+                    let mut rows =
+                        statement.query(rusqlite::params_from_iter(text_params.iter()))?;
+                    collect_complete_rank_boundary(&mut rows, rank_candidate_limit)
+                })
+                .ok()
+                .map(|(rows, evidence)| {
+                    let route = if evidence.crossed_boundary_tie {
+                        "rank_stream_tie_completed"
+                    } else {
+                        "rank_stream_strict_boundary"
+                    };
+                    (rows, route, Some(evidence))
+                })
         } else {
             None
         };
-        if let Some((candidates, route, boundary_evidence)) = rank_fast_candidates {
+        if let Some((candidates, route, boundary_evidence)) = rank_stream_candidates {
             record_perf_fts_route(route);
             if let Some(evidence) = boundary_evidence {
                 record_perf_fts_boundary(route, &evidence);
             }
             candidates
         } else if let Ok(mut statement) = tx.prepare(&join_sql) {
-            if rank_fast_eligible {
+            if rank_stream_eligible {
                 record_perf_fts_route("full_sort_fallback");
-            } else if rank_fast_requested {
+            } else if rank_stream_requested {
                 record_perf_fts_route("full_sort_ineligible");
             }
             let rows =
@@ -15029,34 +15007,6 @@ fn read_search_in_tx(
     };
 
     Ok((cursor, soft_fallback, results, graph_stats, explanation))
-}
-
-/// Restore the production score/cursor order after FTS5's optimized
-/// `ORDER BY rank` scan. Returning `None` requests the full stable-sort query
-/// when the extra row ties the requested boundary.
-fn rank_fast_candidate_window(
-    final_limit: usize,
-    candidate_limit: Option<usize>,
-) -> (usize, usize) {
-    let retained = candidate_limit.unwrap_or(final_limit);
-    (retained, retained.saturating_add(1))
-}
-
-fn retain_rank_fast_candidates(
-    mut candidates: Vec<SearchHit>,
-    limit: usize,
-) -> Option<Vec<SearchHit>> {
-    candidates.sort_by(|left, right| {
-        left.score.total_cmp(&right.score).then_with(|| left.write_cursor.cmp(&right.write_cursor))
-    });
-    if candidates.len() > limit
-        && candidates[limit - 1].score.total_cmp(&candidates[limit].score)
-            == std::cmp::Ordering::Equal
-    {
-        return None;
-    }
-    candidates.truncate(limit);
-    Some(candidates)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -23784,12 +23734,11 @@ unsafe extern "C" fn profile_callback_trampoline(
 #[cfg(test)]
 mod tests {
     use super::{
-        derive_stable_id, native_connection_state_for_test, rank_fast_candidate_window,
-        reader_perf_observation, resolve_source_type, retain_complete_rank_boundary_candidates,
-        retain_rank_fast_candidates, DeviceResolution, EmbedderChoice, Engine, EngineError,
-        IdSpace, IdSpaceKind, InitialState, LoaderInfo, ManagedConnectionRegistry,
-        NativeTransactionState, PreparedWrite, RuntimeProbeConnection, SearchHit,
-        SoftFallbackBranch, SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS,
+        derive_stable_id, native_connection_state_for_test, reader_perf_observation,
+        resolve_source_type, retain_complete_rank_boundary_candidates, DeviceResolution,
+        EmbedderChoice, Engine, EngineError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
+        ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, RuntimeProbeConnection,
+        SearchHit, SoftFallbackBranch, SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS,
         KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder::{
@@ -25370,46 +25319,6 @@ mod tests {
         assert_eq!(IdSpace::content("y").to_prefixed(), "h:y");
         assert_eq!(IdSpace::passage("3").to_prefixed(), "p:3");
         assert_eq!(IdSpace::parse("untagged"), None);
-    }
-
-    #[test]
-    fn scale02_rank_fast_retains_stable_prefix_only_across_a_strict_boundary() {
-        let hit = |cursor: u64, score: f64| SearchHit {
-            id: IdSpace::logical(format!("rank-fast-{cursor}")),
-            write_cursor: cursor,
-            kind: "doc".to_string(),
-            body: format!("body {cursor}"),
-            score,
-            branch: SoftFallbackBranch::Text,
-            source_id: Some("scale-02:test".to_string()),
-            ce_score: None,
-        };
-
-        let retained = retain_rank_fast_candidates(
-            vec![hit(8, -4.0), hit(3, -5.0), hit(2, -5.0), hit(9, -3.0)],
-            3,
-        )
-        .expect("strict score boundary is eligible");
-        assert_eq!(
-            retained.iter().map(|item| item.write_cursor).collect::<Vec<_>>(),
-            vec![2, 3, 8],
-            "rank-fast must restore the production score/cursor ordering"
-        );
-
-        assert!(
-            retain_rank_fast_candidates(
-                vec![hit(1, -5.0), hit(2, -4.0), hit(3, -3.0), hit(4, -3.0)],
-                3,
-            )
-            .is_none(),
-            "a top-k boundary tie must fall back to the full stable sort"
-        );
-    }
-
-    #[test]
-    fn scale02_rank_fast_preserves_the_direct_text_candidate_window() {
-        assert_eq!(rank_fast_candidate_window(10, Some(100)), (100, 101));
-        assert_eq!(rank_fast_candidate_window(10, None), (10, 11));
     }
 
     proptest! {

@@ -109,9 +109,10 @@ reader profiles, concurrency 1/2/4, and 132 retrieval-equivalence queries. Raw
 databases, timings, witnesses, and their artifact manifest remain external;
 safe aggregates use the normal experiment index. Selection writes a
 pending-HITL v2 proposal and cannot authorize the formal 10k rerun.
-The HITL approved its `rank_default` recommendation and production landing on
-2026-08-22. The approved v2 configuration selects that shipped behavior with
-default readers; the force-full-sort hook remains experiment-only.
+The HITL first approved `rank_default`, then superseded it with `stream_default`
+under `seq-267`. The production direct-text path now streams through the BM25
+boundary tie using default readers; the force-full-sort hook remains
+experiment-only.
 
 ## Rules for the writer
 

@@ -171,6 +171,6 @@ two-factor test of streamed BM25 boundary-tie completion under default and
 mmap128 readers. Both streamed cells pass through 50k with exact ordered
 top-100 and top-10 equivalence. The registered selector recommends shipped
 reader defaults. HITL `seq-267` approves `stream_default` as the production FTS
-path and retains the no-mmap decision. Land the code without a confirming
-benchmark; see the
+path and retains the no-mmap decision. The production code is landed and
+code-verified without a confirming benchmark; see the
 [implementation note](../2026-08-23-scale-02-stream-default-implementation.md).

@@ -606,8 +606,8 @@ assert_contains "$retained_rust_body" \
   'record.busy && record.classification == "unclassified_external"' \
   "retained Rust control classifies an idle-owned BUSY checkpoint as unattributed"
 assert_contains "$retained_rust_body" \
-  'record.active_roles.is_empty()' \
-  "retained Rust control still rejects every managed active role"
+  'records.iter().all(|record| record.active_roles.is_empty())' \
+  "retained Rust control rejects a managed active role on every attempt"
 assert_contains "$retained_rust_body" \
   'record.classification == "no_owned_snapshot"' \
   "retained Rust control preserves the clean checkpoint outcome"

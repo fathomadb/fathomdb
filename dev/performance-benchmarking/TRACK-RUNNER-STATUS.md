@@ -10,9 +10,9 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. **TEMPORAL-01:** prepare an external source-derived validity-window manifest
-   and temporal adapter. Do not release a comparison until both exist; retain
-   the limited supersession claim boundary.
+1. **TEMPORAL-01:** implement and run the synthetic TRACE validity cell. Do not
+   release an external-corpus comparison without a reviewed source-derived
+   manifest and temporal adapter.
 2. **EXTRACT-01:** write its factual preflight and fixed extraction-treatment
    contract using LongMemEval-S, ELPS, and TRACE-01.
 
@@ -27,7 +27,7 @@ append-only evidence index.
 | [ANSWER-01](tracks/answer-01-shortlist-scoring.md) | Complete | The [paired live receipt](../../experiments/runs/answer-01-shortlist-live-20260822T1234Z-8a050808/record.json) retains A0; reopen only with a new retrieval treatment or larger confirmatory contract. |
 | [SCALE-01](tracks/scale-01-tc5-fidelity.md) | Complete | Preserve the [GPU primary receipt](../../experiments/runs/tc5-gpu-primary-20260822T1605Z-2d574205/record.json); rerun only for input or fidelity-contract changes. |
 | [CORPUS-01](tracks/corpus-01-gold-coverage.md) | Complete, limited | Preserve `seq-268` and the [result](2026-08-23-corpus-01-supersession-human-review-result.md); neither reviewed case qualifies as supersession gold. |
-| [TEMPORAL-01](tracks/temporal-01-time-scoped-retrieval.md) | Preflight complete, blocked | Inputs verified; do not release a comparison until an external validity-window manifest and temporal adapter are bound. |
+| [TEMPORAL-01](tracks/temporal-01-time-scoped-retrieval.md) | Synthetic TRACE validity next | Upstream LongMemEval and TimelineQA releases lack an external validity-window manifest; external-corpus comparison remains blocked. |
 | [EXTRACT-01](tracks/extract-01-semantic-memory.md) | Input acquisition complete | Bind the LongMemEval-S knowledge-update slice and ELPS/TRACE roles to a factual preflight and fixed extraction-treatment contract. |
 | [MEMORY-01](tracks/memory-01-native-mem0-comparison.md) | Blocked | Use A0; wait for native comparator prerequisites. |
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |

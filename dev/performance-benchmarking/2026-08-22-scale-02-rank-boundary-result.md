@@ -5,7 +5,8 @@
 Recommend streamed BM25 boundary-tie completion with shipped reader defaults.
 It passes the scale-adjusted 25/40/50 ms p50 policy through 50k, preserves exact
 ordered retrieval, and avoids mmap128's roughly 0.5–1.0 GiB additional RSS.
-Production landing remains a post-result HITL decision.
+HITL `seq-267` approves this `stream_default` production landing and supersedes
+the earlier `rank_default` production-path decision at `seq-264`.
 
 The original fixed-20-ms A0 envelope remains 17,272 records. This off-shoot is
 a separate algorithm-selection result, not a retroactive rewrite of that
@@ -69,6 +70,7 @@ benefit after the algorithmic fix.
   `bad0098141509c6b960e0cad95a149020543c8f0fe375ab3ce9b116b45ee594b`
 - candidate source: `9e507553f954c56d5c6177eabf1750faddf3acfd`
 - authorization: `seq-266`
+- production selection: `seq-267`
 
 External databases and content-bearing query comparisons remain outside the
 repository under `data/performance-benchmarking/scale-02/rank-boundary-9e507553/`.

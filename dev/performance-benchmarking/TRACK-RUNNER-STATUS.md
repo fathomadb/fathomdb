@@ -10,7 +10,9 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. **CORPUS-01:** human-review the two insufficient supersession cases without
+1. **SCALE-02:** land `stream_default` as the production FTS path with shipped
+   reader defaults; do not add mmap or rerun a confirming benchmark.
+2. **CORPUS-01:** human-review the two insufficient supersession cases without
    broadening the corpus search.
 
 ## Track status
@@ -27,7 +29,7 @@ append-only evidence index.
 | [TEMPORAL-01](tracks/temporal-01-time-scoped-retrieval.md) | Planned | Wait for CORPUS-01-qualified temporal gold and the selected retrieval baseline. |
 | [EXTRACT-01](tracks/extract-01-semantic-memory.md) | Planned | Wait for TRACE-01 lifecycle coverage, qualified update gold, and the selected canonical baseline. |
 | [MEMORY-01](tracks/memory-01-native-mem0-comparison.md) | Blocked | Use A0; wait for native comparator prerequisites. |
-| [SCALE-02](tracks/scale-02-local-first-envelope.md) | Follow-up complete | Review the [rank-boundary result](2026-08-22-scale-02-rank-boundary-result.md); HITL production landing decision is pending. |
+| [SCALE-02](tracks/scale-02-local-first-envelope.md) | Production change approved | Land `stream_default` under `seq-267`; preserve shipped reader defaults and the [implementation note](2026-08-23-scale-02-stream-default-implementation.md). No confirming benchmark. |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |
 | [GLOBAL-01](tracks/global-01-native-graphrag.md) | Parked | Wait for a named global-synthesis failure, an eligible graph or summary/map-reduce treatment, and native-run prerequisites. |

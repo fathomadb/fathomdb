@@ -1,10 +1,12 @@
 {
-  "schema_version": "scale-02-rank-boundary.v1.proposed",
+  "schema_version": "scale-02-rank-boundary.v1",
   "program_track": "SCALE-02",
   "release": "0.8.23",
   "authorization": {
-    "state": "pending_hitl",
-    "scope": "implementation_and_execution"
+    "state": "approved",
+    "approved_by": "HITL",
+    "approved_at": "2026-08-23T01:23:36.606Z",
+    "ledger_ref": "seq-266"
   },
   "dependencies": {
     "base_execution": {
@@ -70,6 +72,7 @@
     "concurrency": 1
   },
   "qualification": {
+    "control_database_root": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/formal-rank-default-68f59ea8",
     "require_no_temp_order_by_for_stream_statement": true,
     "reproduce_control_fallback_counts": {"25000": 20, "40000": 41, "50000": 58},
     "record_writer_and_reader_journal_mode": true,
@@ -91,11 +94,14 @@
   },
   "runtime": {
     "base_source_git_sha": "68f59ea8d2066bbfa62f82988b3545de16a1f81b",
-    "candidate_source_git_sha": null,
-    "fathomdb_cli_sha256": null,
-    "fathomdb_python_extension_sha256": null,
+    "candidate_source_git_sha": "9e507553f954c56d5c6177eabf1750faddf3acfd",
+    "python": "/tmp/fathomdb-scale02-rank-boundary-9e507553/bin/python",
+    "python_extension": "/tmp/fathomdb-scale02-rank-boundary-9e507553/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so",
+    "python_extension_sha256": "7cb85c69ba0c22c4639b74a4db6223e710dfa3fc7a73ee75dbc1d793fe681a57",
+    "fathomdb_bin": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/runtime/9e507553/fathomdb",
+    "fathomdb_bin_sha256": "7daf0ef77246abbfe2dd46b4f7f6d7ee2d56ada5248f59b1d390269bb5e6d79c",
     "sqlite_version": "3.53.2"
   },
-  "artifact_root": null,
-  "claim_boundary": "design_only_pending_hitl_implementation_and_execution"
+  "artifact_root": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/rank-boundary-9e507553",
+  "claim_boundary": "experiment_only_pending_post_result_production_decision"
 }

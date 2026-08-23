@@ -64,3 +64,19 @@ def test_cell_decision_requires_performance_and_exact_equivalence():
     decision = followup.evaluate_cell(cell, policy)
     assert decision["eligible"] is False
     assert decision["reasons"] == ["retrieval_equivalence"]
+
+
+def test_committed_hypothesis_receipt_uses_logical_artifact_path():
+    receipt = json.loads(
+        Path(
+            "experiments/runs/scale-02-scale-hypotheses-20260822T2328Z-55ce25d2/record.json"
+        ).read_text(encoding="utf-8")
+    )
+
+    assert receipt["artifacts"] == [
+        {
+            "kind": "external_artifact_manifest",
+            "path": "artifact-manifest.v1.json",
+            "sha256": "96da584a4a49937f3baaccaed70d0207861584b957faf2e5b1e12c4ef76303ee",
+        }
+    ]

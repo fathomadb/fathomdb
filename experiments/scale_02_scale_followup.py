@@ -296,6 +296,7 @@ def run(config_path: str | Path) -> dict[str, Any]:
         artifacts=[
             {
                 "kind": "external_artifact_manifest",
+                "path": "artifact-manifest.v1.json",
                 "sha256": scale_02_followup.sha_file(manifest_path),
             }
         ],

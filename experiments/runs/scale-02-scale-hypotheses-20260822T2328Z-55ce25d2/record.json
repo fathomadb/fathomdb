@@ -734,6 +734,7 @@
   "artifacts": [
     {
       "kind": "external_artifact_manifest",
+      "path": "artifact-manifest.v1.json",
       "sha256": "96da584a4a49937f3baaccaed70d0207861584b957faf2e5b1e12c4ef76303ee"
     }
   ],

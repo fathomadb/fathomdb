@@ -1,0 +1,163 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "temporal-01-trace-validity-20260823T1625Z-af0c03f1",
+  "experiment": "temporal-01-trace-validity",
+  "title": "temporal-01-trace-validity",
+  "verdict": "complete",
+  "read": "Synthetic TRACE half-open validity boundaries passed; no corpus or historical-state claim.",
+  "code": {
+    "git_sha": "20d31636104216e2d236d7984128ea32d3f4e23a",
+    "dirty": true,
+    "branch": "experiments/performance-0.8.23-plan-20260821",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "af0c03f160081852b1c5d165ac7b17fe0a8d6580fbb3c30ade917d2792c642ed",
+    "path": "experiments/configs/temporal-01/trace-validity.v1.json",
+    "resolved": {
+      "schema_version": "temporal-01-trace-validity.v1",
+      "program_track": "TEMPORAL-01",
+      "cell_id": "temporal-01-trace-validity",
+      "profile": {
+        "id": "a0_turn_fts",
+        "retrieval": "fts",
+        "top_k": 10,
+        "embedder": "none",
+        "embed_device": "cpu",
+        "reranker": "none",
+        "rerank_device": "cpu"
+      },
+      "fixture": {
+        "query": "trace validity signal",
+        "records": [
+          {
+            "logical_id": "trace-prior",
+            "source_id": "trace-source-prior",
+            "body": "trace validity signal prior",
+            "valid_from": 1000,
+            "valid_until": 2000
+          },
+          {
+            "logical_id": "trace-middle",
+            "source_id": "trace-source-middle",
+            "body": "trace validity signal middle",
+            "valid_from": 3000,
+            "valid_until": 4000
+          },
+          {
+            "logical_id": "trace-late",
+            "source_id": "trace-source-late",
+            "body": "trace validity signal late",
+            "valid_from": 5000,
+            "valid_until": 6000
+          },
+          {
+            "logical_id": "trace-always",
+            "source_id": "trace-source-always",
+            "body": "trace validity signal always"
+          }
+        ],
+        "probes": [
+          {
+            "valid_as_of": 1000,
+            "expected_ids": [
+              "trace-always",
+              "trace-prior"
+            ]
+          },
+          {
+            "valid_as_of": 1500,
+            "expected_ids": [
+              "trace-always",
+              "trace-prior"
+            ]
+          },
+          {
+            "valid_as_of": 2000,
+            "expected_ids": [
+              "trace-always"
+            ]
+          },
+          {
+            "valid_as_of": 2500,
+            "expected_ids": [
+              "trace-always"
+            ]
+          },
+          {
+            "valid_as_of": 3000,
+            "expected_ids": [
+              "trace-always",
+              "trace-middle"
+            ]
+          },
+          {
+            "valid_as_of": 4000,
+            "expected_ids": [
+              "trace-always"
+            ]
+          },
+          {
+            "valid_as_of": 5000,
+            "expected_ids": [
+              "trace-always",
+              "trace-late"
+            ]
+          },
+          {
+            "valid_as_of": 6000,
+            "expected_ids": [
+              "trace-always"
+            ]
+          }
+        ]
+      },
+      "claim_boundary": "synthetic_world_time_validity_only_no_corpus_or_history_claim"
+    }
+  },
+  "corpus": {
+    "source": "synthetic_trace",
+    "manifest_sha256": null,
+    "datasets": []
+  },
+  "seeds": {},
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb": "0.8.23"
+    }
+  },
+  "metrics": {
+    "schema_version": "temporal-01-trace-validity-result.v1",
+    "program_track": "TEMPORAL-01",
+    "record_count": 4,
+    "probe_count": 8,
+    "exact_probe_count": 8,
+    "unexpected_hit_count": 0,
+    "missing_expected_hit_count": 0,
+    "query_latency_ms": {
+      "p50": 0.29884505784139037,
+      "p95": 0.37795398384332657,
+      "max": 0.39835297502577305
+    },
+    "claim_boundary": "synthetic_world_time_validity_only_no_corpus_or_history_claim"
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [
+    {
+      "path": "external-fathomdb-config.v1",
+      "sha256": "8c482e92a4b4e5e7818e6c2faecc70e299cb86b6a8dcaf1f76625fd573ae9704"
+    },
+    {
+      "path": "external-fathomdb-doctor.v1",
+      "sha256": "909a60281f0c0e739dbf5892b3667799afbc5de6d0f0e1b247be2f25c988fc57"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

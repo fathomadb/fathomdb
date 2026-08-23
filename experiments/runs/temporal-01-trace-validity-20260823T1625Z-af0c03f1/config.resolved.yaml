@@ -1,0 +1,62 @@
+cell_id: temporal-01-trace-validity
+claim_boundary: synthetic_world_time_validity_only_no_corpus_or_history_claim
+fixture:
+  probes:
+  - expected_ids:
+    - trace-always
+    - trace-prior
+    valid_as_of: 1000
+  - expected_ids:
+    - trace-always
+    - trace-prior
+    valid_as_of: 1500
+  - expected_ids:
+    - trace-always
+    valid_as_of: 2000
+  - expected_ids:
+    - trace-always
+    valid_as_of: 2500
+  - expected_ids:
+    - trace-always
+    - trace-middle
+    valid_as_of: 3000
+  - expected_ids:
+    - trace-always
+    valid_as_of: 4000
+  - expected_ids:
+    - trace-always
+    - trace-late
+    valid_as_of: 5000
+  - expected_ids:
+    - trace-always
+    valid_as_of: 6000
+  query: trace validity signal
+  records:
+  - body: trace validity signal prior
+    logical_id: trace-prior
+    source_id: trace-source-prior
+    valid_from: 1000
+    valid_until: 2000
+  - body: trace validity signal middle
+    logical_id: trace-middle
+    source_id: trace-source-middle
+    valid_from: 3000
+    valid_until: 4000
+  - body: trace validity signal late
+    logical_id: trace-late
+    source_id: trace-source-late
+    valid_from: 5000
+    valid_until: 6000
+  - body: trace validity signal always
+    logical_id: trace-always
+    source_id: trace-source-always
+profile:
+  embed_device: cpu
+  embedder: none
+  id: a0_turn_fts
+  rerank_device: cpu
+  reranker: none
+  retrieval: fts
+  top_k: 10
+program_track: TEMPORAL-01
+schema_version: temporal-01-trace-validity.v1

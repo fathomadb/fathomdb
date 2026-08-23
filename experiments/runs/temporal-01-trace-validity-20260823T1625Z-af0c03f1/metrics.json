@@ -1,0 +1,15 @@
+{
+  "schema_version": "temporal-01-trace-validity-result.v1",
+  "program_track": "TEMPORAL-01",
+  "record_count": 4,
+  "probe_count": 8,
+  "exact_probe_count": 8,
+  "unexpected_hit_count": 0,
+  "missing_expected_hit_count": 0,
+  "query_latency_ms": {
+    "p50": 0.29884505784139037,
+    "p95": 0.37795398384332657,
+    "max": 0.39835297502577305
+  },
+  "claim_boundary": "synthetic_world_time_validity_only_no_corpus_or_history_claim"
+}

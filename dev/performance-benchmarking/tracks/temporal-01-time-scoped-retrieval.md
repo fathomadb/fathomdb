@@ -1,7 +1,7 @@
 # TEMPORAL-01 — Time-scoped retrieval
 
-**Status:** factual preflight complete; first executable cell is synthetic
-TRACE validity. External-corpus comparison remains blocked.
+**Status:** synthetic TRACE validity complete. External-corpus comparison
+remains blocked.
 
 ## Decision
 
@@ -50,3 +50,11 @@ Stop external-corpus execution if a source-derived validity-window mapping
 cannot be declared. The synthetic TRACE cell cannot establish corpus fidelity,
 supersession, erasure, or answer quality. Do not broaden the corpus or infer
 temporal correctness from aggregate LOCOMO accuracy.
+
+## Execution evidence
+
+[Synthetic TRACE validity receipt](../../../experiments/runs/temporal-01-trace-validity-20260823T1625Z-af0c03f1/record.json): all eight fixed
+`ReadView(valid_as_of=...)` probes returned their exact expected FTS ID sets;
+missing and unexpected hit counts were zero. The result establishes only the
+declared synthetic world-time validity boundary. It does not establish corpus
+retrieval, answer quality, supersession, erasure, or historical-state behavior.

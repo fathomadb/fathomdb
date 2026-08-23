@@ -144,9 +144,12 @@ expect_value warmRestoresErrexit true "BGE warm step restores fail-fast behavior
 expect_value nodeSerialLoop true "default-embedder Node test files remain serial and isolated"
 expect_value raceAdvisory true "Rust race report remains independent and advisory"
 
-if [ "$(contract_value warmUsesCacheEnv)" = true ] &&
-  [ "$(contract_value warmWarns)" = true ] &&
-  [ "$(contract_value warmSummarizes)" = true ]; then
+warm_uses_cache_env="$(contract_value warmUsesCacheEnv)"
+warm_warns="$(contract_value warmWarns)"
+warm_summarizes="$(contract_value warmSummarizes)"
+if [ "$warm_uses_cache_env" = true ] &&
+  [ "$warm_warns" = true ] &&
+  [ "$warm_summarizes" = true ]; then
   FAKE_BIN="$WORK/bin"
   mkdir -p "$FAKE_BIN"
   printf '%s\n' \

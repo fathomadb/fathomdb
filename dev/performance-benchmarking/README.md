@@ -92,9 +92,10 @@ Mem0 comparison is re-run.
 | `data/corpus-data/raw/timelineqa/`, `timeqa/`, and `tot/` | Temporal and personal-memory regression/stress testing. | No historical shared-comparator protocol is registered. |
 | `data/corpus-data/external/memex-elps/` | ELPS extraction conformance. | Not an end-to-end retrieval or competitor benchmark. |
 
-LongMemEval was the original primary agent-memory source, but it is streamed or
-cached outside this `data/` inventory; do not claim it is locally reproducible
-until its actual cache or acquired payload is recorded in the campaign note.
+LongMemEval-S and oracle are locally acquired under
+`data/corpus-data/raw/longmemeval-cleaned/`, with source revision and payload
+hashes in the corpus data registry. LongMemEval-M remains unacquired because no
+current measurement contract requires its 500-session context.
 
 ## Performance evidence register
 

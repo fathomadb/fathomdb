@@ -1,0 +1,5 @@
+# Standard LongMemEval acquisition for current performance-program tracks.
+# LongMemEval-M is deliberately excluded until a registered measurement needs it.
+files:
+  - longmemeval_s_cleaned.json
+  - longmemeval_oracle.json

@@ -2,6 +2,11 @@
 
 **Status:** complete, limited; supersession human-gold gap confirmed.
 
+**Acquired inputs:** TimeQA dev/test and LongMemEval-S/oracle are registered in
+the [corpus data registry](../../../tests/corpus/scripts/manifest.json). They
+enable track-specific factual preflights, but do not change the limited
+supersession verdict.
+
 ## Decision
 
 Is the gold portfolio sufficient to support claims about mutable, temporal,

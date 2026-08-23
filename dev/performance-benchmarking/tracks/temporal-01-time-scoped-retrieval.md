@@ -1,6 +1,7 @@
 # TEMPORAL-01 — Time-scoped retrieval
 
-**Status:** planned; requires adequate temporal gold and a selected retrieval baseline.
+**Status:** input acquisition complete; requires a factual preflight and fixed
+measurement contract.
 
 ## Decision
 
@@ -10,13 +11,15 @@ evidence?
 
 ## Draft plan
 
-1. Fix a licensed, local manifest of time-scoped, ordering, and changed-fact
-   cases from the CORPUS-01-qualified portfolio, with canonical timestamps,
-   source identity, and explicit supersession.
-2. Compare the selected baseline with one temporal-filter/projection treatment.
+1. Bind the registered local TimeQA dev/test files and LongMemEval-S temporal
+   slice to a content-free factual preflight. Keep TimeQA and LongMemEval
+   results separate: they have different source and query shapes.
+2. Fix a licensed local manifest of time-scoped, ordering, and changed-fact
+   cases with canonical timestamps, source identity, and declared exclusions.
+3. Compare the selected baseline with one temporal-filter/projection treatment.
    Report evidence recall, as-of and current-state accuracy, stale-hit rate, and
-   latency separately by query class.
-3. Accept only if time-scoped or changed-state quality improves without a
+   latency separately by corpus and query class.
+4. Accept only if time-scoped or changed-state quality improves without a
    provenance, supersession, or source-erasure violation.
 
 ## Stop

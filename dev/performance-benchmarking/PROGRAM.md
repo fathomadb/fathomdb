@@ -92,7 +92,7 @@ receipts, not inferred from a branch name or narration.
 | SCALE-01 | complete | TC-5 eu7 scale fidelity: what manifest-qualified all-real GPU-primary vector-stage fidelity envelope is observed? | Complete: the registered 17,272-document, 100-query GPU primary provides bounded vector-stage fidelity and uncertainty evidence. CPU was not required. | [track plan](tracks/scale-01-tc5-fidelity.md) · [primary receipt](../../experiments/runs/tc5-gpu-primary-20260822T1605Z-2d574205/record.json) · [smoke receipt](../../experiments/runs/tc5-gpu-smoke-20260822T1446Z-2d574205/record.json) |
 | CORPUS-01 | complete, limited | Agent-memory gold coverage: are temporal change, knowledge update, supersession, and erasure represented well enough for a broad personal-memory claim? | Two human reviewers judged both remaining supersession cases `insufficient_evidence` at `seq-268`. No qualified supersession gold exists, so the broad mutable-memory claim remains unsupported. | [track plan](tracks/corpus-01-gold-coverage.md) · [result](2026-08-23-corpus-01-supersession-human-review-result.md) |
 | ANSWER-01 | P2 | LOCOMO shortlist scoring: does the accepted retrieval winner improve answer and temporal quality over A0? | Complete: the [32-question paired receipt](../../experiments/runs/answer-01-shortlist-live-20260822T1234Z-8a050808/record.json) did not show the required overall or temporal improvement; retain A0. | [track plan](tracks/answer-01-shortlist-scoring.md) |
-| TEMPORAL-01 | P3 | Time-scoped retrieval: do temporal filters and version-aware projections return the correct state without stale superseded evidence? | Inputs acquired: TimeQA, evaluation-only TimelineQA, and LongMemEval-S. Requires a factual preflight and fixed comparison contract; results remain corpus-specific. | [track plan](tracks/temporal-01-time-scoped-retrieval.md) |
+| TEMPORAL-01 | P3 | Time-scoped retrieval: do temporal filters and version-aware projections return the correct state without stale superseded evidence? | Factual inputs confirmed: TimeQA, evaluation-only TimelineQA, and LongMemEval-S. Blocked before comparison on a source-derived validity-window manifest and temporal adapter; results must remain corpus-specific. | [track plan](tracks/temporal-01-time-scoped-retrieval.md) · [preflight](2026-08-23-temporal-01-factual-preflight-result.md) |
 | EXTRACT-01 | P3 | FathomDB-native extracted semantic memory: do provenance-linked facts, preferences, and episodes improve update and recall quality enough to justify extraction and lifecycle costs? | Inputs acquired: LongMemEval-S knowledge-update plus TRACE-01 and ELPS conformance. Requires a factual preflight and fixed extraction treatment contract. | [track plan](tracks/extract-01-semantic-memory.md) |
 | MEMORY-01 | P3 | Native Mem0 comparison: is the selected FathomDB memory profile near-parity or better under the official harness? | Blocked on ANSWER-01 selection plus Docker, official credential, LongMemEval acquisition, and a spend ceiling. Report raw-evidence and extracted-semantic-memory regimes separately. | [track plan](tracks/memory-01-native-mem0-comparison.md) |
 | SCALE-02 | complete | F-17 advisory scale envelope: what measured local-first range is supportable for the selected projection profile? | The original fixed-policy A0 envelope remains 17,272. The rank-boundary off-shoot passes through 50k with exact retrieval equivalence. HITL `seq-267` approved `stream_default`; the production FTS path is landed and code-verified. | [track plan](tracks/scale-02-local-first-envelope.md) · [original result](2026-08-22-scale-02-fts-followup-result.md) · [scale extension](2026-08-22-scale-02-scale-extension-result.md) · [rank-boundary result](2026-08-22-scale-02-rank-boundary-result.md) · [implementation note](2026-08-23-scale-02-stream-default-implementation.md) |
@@ -140,10 +140,12 @@ CORPUS-01 is complete but limited: the two remaining supersession cases were
 human-reviewed as `insufficient_evidence`, so the broad mutable-memory claim
 remains unsupported. TimeQA, evaluation-only TimelineQA, and LongMemEval-S/oracle
 are acquired, pinned, and registered as external evaluation inputs. TEMPORAL-01
-and EXTRACT-01 next need their factual preflights and fixed measurement
-contracts; TRACE-01 lifecycle coverage and the selected baseline are already
-available. LATENT-01 and GRAPH-01 start only from a diagnosed failure.
-GLOBAL-01 and REASON-01 retain their independent native-run prerequisites.
+has confirmed those input facts but is blocked before comparison on its
+source-derived validity-window manifest and adapter. EXTRACT-01 next needs its
+factual preflight and fixed measurement contract; TRACE-01 lifecycle coverage
+and the selected baseline are already available. LATENT-01 and GRAPH-01 start
+only from a diagnosed failure. GLOBAL-01 and REASON-01 retain their independent
+native-run prerequisites.
 
 ## Track organization
 

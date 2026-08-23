@@ -1,0 +1,21 @@
+{
+  "schema_version": "temporal-01-factual-preflight-policy.v1",
+  "program_track": "TEMPORAL-01",
+  "preflight_id": "temporal-01-input-facts-v1",
+  "registry_sha256": "a2411189140f087881a83d22126050c9aa918d3b6a016f59d1ad43b563595707",
+  "inputs": {
+    "timeqa": {
+      "files": ["test.easy.json", "test.hard.json"]
+    },
+    "longmemeval": {
+      "file": "longmemeval_s_cleaned.json",
+      "class": "temporal-reasoning"
+    },
+    "timelineqa": {
+      "densities": ["sparse", "medium", "dense"]
+    }
+  },
+  "baseline": "a0_turn_fts",
+  "treatment": "readview_valid_as_of",
+  "claim_boundary": "world_time_validity_only_no_history_as_of_or_supersession_claim"
+}

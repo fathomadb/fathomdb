@@ -270,8 +270,7 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 
 ## Immediate next action
 
-Slice 5 is complete: it found adequate structural controls for existing CPU,
-publisher, CUDA-rehearsal, WAL-control, and CI-routing behavior, while leaving
-real target-installed and external-client evidence with the owning feature
-slices. Proceed with Slice 6: consolidate the proposals, score them, and hold
-the required first-round HITL decision session before finalizing Slice 7.
+Slice 6 has consolidated the scored [proposal
+register](0.8.24/prework/slice-6-proposal-register.md). It is now awaiting the
+required first-round HITL decisions; no Slice 7 implementation plan can be
+finalized until those explicit decisions are recorded.

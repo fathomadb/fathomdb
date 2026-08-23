@@ -111,6 +111,15 @@ root-tooling remediation for later owner acceptance.
 | **6** | Consolidation, independent plan review, and HITL | Ranked proposal register, an owner decision record, Slice 7 implementation plan, independent review output, up to two FIX-n updates, and final owner disposition. | Decisions and plan updates only. |
 | **7** | Accepted prework implementation | The Slice 6-approved plan executed with normal tests/review. | Only owner-accepted prework items. |
 
+Draft execution plans now exist for
+[Slice 3](0.8.24/prework/slice-3-product-document-drafts-plan.md),
+[Slice 4](0.8.24/prework/slice-4-architecture-alignment-plan.md),
+[Slice 5](0.8.24/prework/slice-5-verification-adequacy-plan.md),
+[Slice 6](0.8.24/prework/slice-6-hitl-consolidation-plan.md), and
+[Slice 7](0.8.24/prework/slice-7-accepted-prework-implementation-plan.md).
+They define execution and evidence boundaries but do not mark those slices
+started or authorize implementation.
+
 ### Slices 1–5 method and durable locations
 
 Slice 0 creates `dev/plans/0.8.24/prework/` and the five named records above.
@@ -201,7 +210,8 @@ implement them now.
 
 Slice 2 is complete: its review found no safe archive/delete candidate and
 proposed narrow current-document/navigation and Prettier-deprecation items for
-owner triage. Proceed to **Slice 3**: draft User Needs, Requirements,
-Acceptance Criteria, and architecture CRUD changes only; allocate every draft
-to Slice 7, a feature slice, or postponement without editing canonical product
-documents.
+owner triage. Proceed using the [Slice 3 draft
+plan](0.8.24/prework/slice-3-product-document-drafts-plan.md): draft User Needs,
+Requirements, Acceptance Criteria, and architecture CRUD changes only;
+allocate every draft to Slice 7, a feature slice, or postponement without
+editing canonical product documents.

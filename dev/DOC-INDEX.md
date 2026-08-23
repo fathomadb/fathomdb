@@ -57,6 +57,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/0.8.24/prework/slice-5-verification-adequacy.md` | 0.8.24 verification traceability, critical-path coverage, and proof-gap allocation | 0.8.24 Slice 5 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-6-proposal-register.md` | 0.8.24 scored prework and feature decision register awaiting HITL rulings | 0.8.24 Slice 6 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-6-hitl-decisions.md` | 0.8.24 initial owner decisions and feature/prework boundary | 0.8.24 Slice 6 | 2026-08-23 |
+| `dev/plans/0.8.24/prework/slice-6-slice-7-independent-review.md` | 0.8.24 independent plan review and documented FIX-n cycles | 0.8.24 Slice 6 | 2026-08-23 |
 | `dev/plans/runs/0.8.23-slice-72-draft-plan.md` | Approved plan for concurrent embedding and CE GPU coexistence characterization | 0.8.23 Slice 72 | 2026-08-18 |
 | `dev/plans/runs/0.8.23-slice-72-status.md` | Local completion and external-GPU-evidence boundary for concurrent BGE and CE characterization | 0.8.23 Slice 72 | 2026-08-18 |
 | `dev/requirements.md` | Numbered requirements (REQ-*); REQ-053 = governed SDK surface (allowlist + parity + recovery-denylist + typed boundary) | 25 amended REQ-053 (Q3) | 2026-06-04 |

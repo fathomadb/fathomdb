@@ -93,7 +93,7 @@ receipts, not inferred from a branch name or narration.
 | CORPUS-01 | complete, limited | Agent-memory gold coverage: are temporal change, knowledge update, supersession, and erasure represented well enough for a broad personal-memory claim? | Two human reviewers judged both remaining supersession cases `insufficient_evidence` at `seq-268`. No qualified supersession gold exists, so the broad mutable-memory claim remains unsupported. | [track plan](tracks/corpus-01-gold-coverage.md) · [result](2026-08-23-corpus-01-supersession-human-review-result.md) |
 | ANSWER-01 | P2 | LOCOMO shortlist scoring: does the accepted retrieval winner improve answer and temporal quality over A0? | Complete: the [32-question paired receipt](../../experiments/runs/answer-01-shortlist-live-20260822T1234Z-8a050808/record.json) did not show the required overall or temporal improvement; retain A0. | [track plan](tracks/answer-01-shortlist-scoring.md) |
 | TEMPORAL-01 | P3 | Time-scoped retrieval: do temporal filters and version-aware projections return the correct state without stale superseded evidence? | Synthetic TRACE validity passed. The official releases lack an external validity-window manifest, so external-corpus comparison remains blocked on a reviewed manifest and adapter. | [track plan](tracks/temporal-01-time-scoped-retrieval.md) · [synthetic receipt](../../experiments/runs/temporal-01-trace-validity-20260823T1625Z-af0c03f1/record.json) · [source review](2026-08-23-temporal-01-source-manifest-review.md) |
-| EXTRACT-01 | P3 | FathomDB-native extracted semantic memory: do provenance-linked facts, preferences, and episodes improve update and recall quality enough to justify extraction and lifecycle costs? | Inputs acquired: LongMemEval-S knowledge-update plus TRACE-01 and ELPS conformance. Requires a factual preflight and fixed extraction treatment contract. | [track plan](tracks/extract-01-semantic-memory.md) |
+| EXTRACT-01 | complete, limited | FathomDB-native extracted semantic memory: do provenance-linked facts improve knowledge-update quality enough to justify extraction and lifecycle costs? | Complete on 78 LongMemEval-S knowledge-update cases. The +1/78 descriptive quality delta does not overcome failed value-changing supersession; retain raw A0. Preferences, episodes, general memory, and confidence calibration are outside the claim. | [track plan](tracks/extract-01-semantic-memory.md) · [receipt](../../experiments/runs/extract-01-knowledge-update-20260823T2236Z-59e805cb/record.json) · [result](2026-08-23-extract-01-implementation.md) |
 | MEMORY-01 | P3 | Native Mem0 comparison: is the selected FathomDB memory profile near-parity or better under the official harness? | Blocked on ANSWER-01 selection plus Docker, official credential, LongMemEval acquisition, and a spend ceiling. Report raw-evidence and extracted-semantic-memory regimes separately. | [track plan](tracks/memory-01-native-mem0-comparison.md) |
 | SCALE-02 | complete | F-17 advisory scale envelope: what measured local-first range is supportable for the selected projection profile? | The original fixed-policy A0 envelope remains 17,272. The rank-boundary off-shoot passes through 50k with exact retrieval equivalence. HITL `seq-267` approved `stream_default`; the production FTS path is landed and code-verified. | [track plan](tracks/scale-02-local-first-envelope.md) · [original result](2026-08-22-scale-02-fts-followup-result.md) · [scale extension](2026-08-22-scale-02-scale-extension-result.md) · [rank-boundary result](2026-08-22-scale-02-rank-boundary-result.md) · [implementation note](2026-08-23-scale-02-stream-default-implementation.md) |
 | LATENT-01 | P3 | Long-context/late-chunking feasibility: does a token-output, long-context embedder address a diagnosed cross-window discourse failure at acceptable cost? | Parked until LOCOMO-01/PARENT-01 diagnose that failure. Requires a model/interface preflight, labelled subset, and separate quality-and-cost contract; it is not a stride sweep. | [track plan](tracks/latent-01-late-chunking-feasibility.md) |
@@ -142,11 +142,11 @@ remains unsupported. TimeQA, evaluation-only TimelineQA, and LongMemEval-S/oracl
 are acquired, pinned, and registered as external evaluation inputs. The
 upstream releases do not provide an external validity-window manifest, so
 TEMPORAL-01's synthetic TRACE validity cell is complete; its corpus comparison
-remains blocked on a reviewed manifest and adapter. EXTRACT-01 next needs its factual
-preflight and fixed measurement contract; TRACE-01 lifecycle coverage and the
-selected baseline are already available. LATENT-01 and GRAPH-01 start only from
-a diagnosed failure. GLOBAL-01 and REASON-01 retain their independent native-run
-prerequisites.
+remains blocked on a reviewed manifest and adapter. EXTRACT-01 is complete for
+its limited knowledge-update claim and retains raw A0 because native
+value-changing extracted facts were not consolidated. LATENT-01 and GRAPH-01
+start only from a diagnosed failure.
+GLOBAL-01 and REASON-01 retain their independent native-run prerequisites.
 
 ## Track organization
 

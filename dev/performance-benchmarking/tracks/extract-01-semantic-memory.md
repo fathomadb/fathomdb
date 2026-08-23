@@ -1,29 +1,36 @@
 # EXTRACT-01 — FathomDB-native extracted semantic memory
 
-**Status:** input acquisition complete; requires a factual preflight and fixed
-extraction treatment contract.
+**Status:** complete, limited; retain raw knowledge-update memory because
+value-changing extracted facts are not consolidated.
 
 ## Decision
 
-Do FathomDB-native, provenance-linked extracted facts, preferences, and
-episodes improve update and recall quality enough to justify their extraction,
-conflict, and lifecycle costs?
+Do FathomDB-native, provenance-linked extracted facts improve knowledge-update
+quality enough to justify their extraction, conflict, and lifecycle costs?
 
-## Draft plan
+## Plan
 
-1. Use ELPS only for extraction conformance. Bind the registered LongMemEval-S
-   knowledge-update slice to the answer/evidence portion of the quality
-   contract; it does not substitute for extraction-precision gold.
-2. Fix the facts, preferences, episodes, conflicts, and updates to score, with
-   the corresponding source, answer, and lifecycle boundaries declared before
-   execution.
-3. Compare the selected canonical-record baseline with one bounded FathomDB
-   extraction treatment carrying confidence and canonical source provenance.
-4. Report extraction precision/coverage, evidence or answer quality, source-link
-   completeness, conflict/merge outcomes, supersession, post-erasure absence,
-   storage amplification, and ingest cost.
-5. Accept only if quality improves within the declared cost and confidence
-   boundary with no attribution or lifecycle violation.
+1. Compare A0 FTS over canonical turns with the same turns plus question-blind
+   native ELPS entities and fact edges on all 78 LongMemEval-S
+   `knowledge-update` cases.
+2. Use the reference answer and answer-session labels only for answer and
+   evidence scoring. Report extraction precision as unscored because no human
+   atomic-fact gold exists.
+3. Report paired answer accuracy, evidence recall, source-link completeness,
+   conflict and supersession behavior, post-erasure absence, storage
+   amplification, ingest time, extraction failures, and LLM cost.
+4. Accept only if quality improves within the fixed $20 cap with complete
+   source attribution and no lifecycle violation.
+
+## Result
+
+The [78-case receipt](../../../experiments/runs/extract-01-knowledge-update-20260823T2236Z-59e805cb/record.json)
+shows a descriptive +1/78 answer-accuracy delta and complete source links, but
+the lifecycle cell leaves competing value-changing facts active. The decision
+is `do_not_adopt_unconsolidated_extraction`. See the
+[implementation and result note](../2026-08-23-extract-01-implementation.md).
+Preferences, episodes, general long-term memory, and confidence calibration
+remain outside this fixed claim.
 
 ## Stop
 

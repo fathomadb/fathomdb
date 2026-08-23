@@ -640,6 +640,33 @@
   `experiments/runs/tc5-gpu-smoke-20260822T1446Z-2d574205/record.json` and
   `experiments/runs/tc5-gpu-primary-20260822T1605Z-2d574205/record.json`.
 
+### EXTRACT-01 — native extracted semantic memory
+
+- **Question:** Does adding question-blind, provenance-linked native ELPS
+  memory improve LongMemEval-S knowledge-update quality enough to justify its
+  extraction and lifecycle costs over raw A0 FTS?
+- **N:** All 78 `knowledge-update` cases; paired raw A0 versus the same raw
+  memory plus native entities and fact edges. Gemini 3.1 Flash-Lite extracted
+  and answered; Claude Sonnet applied the official knowledge-update rubric.
+- **Result:** answer accuracy was **64/78 (82.05%) raw** and **65/78 (83.33%)
+  treatment**, a descriptive **+1/78 (+1.28 pp)**. Paired outcomes were 2 wins,
+  1 loss, 63 both correct, and 12 both wrong. Evidence recall@10 moved from
+  77/78 to 78/78. Source-link completeness was 100%; one of 390 extraction
+  documents exhausted bounded semantic retries. All 994 extracted edge outputs
+  carried bounded confidence, but confidence was saturated (mean 0.997, median
+  1.0) and is uncalibrated without human atomic-fact gold.
+- **Lifecycle:** conflict detection, post-erasure absence, and zero active
+  orphans passed. Value-changing Boston-to-Austin facts remained competing, so
+  `supersession_applied=false`.
+- **Verdict:** **RESOLVED — do not adopt unconsolidated extraction.** Retain raw
+  A0 for knowledge updates until native value-changing consolidation exists.
+  The small descriptive quality movement does not satisfy the fixed
+  no-lifecycle-violation rule. Preferences, episodes, and general memory remain
+  outside this claim.
+- **$:** **$2.7983 primary** of the $20 cap; total observed task spend including
+  abandoned provider attempts and preflights remained below $5. **Source:**
+  `experiments/runs/extract-01-knowledge-update-20260823T2236Z-59e805cb/record.json`.
+
 ## research/ (UNTRACKED — git-ignored; results live ONLY here)
 
 ### research/eu-0 — eu7 embedder + quantization-path sweep (RESOLVED)

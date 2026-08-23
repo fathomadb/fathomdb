@@ -10,9 +10,7 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. **EXTRACT-01:** write its factual preflight and fixed extraction-treatment
-   contract using LongMemEval-S, ELPS, and TRACE-01.
-2. **TEMPORAL-01:** keep external-corpus comparison blocked until a reviewed
+1. **TEMPORAL-01:** keep external-corpus comparison blocked until a reviewed
    source-derived manifest and temporal adapter exist.
 
 ## Track status
@@ -27,7 +25,7 @@ append-only evidence index.
 | [SCALE-01](tracks/scale-01-tc5-fidelity.md) | Complete | Preserve the [GPU primary receipt](../../experiments/runs/tc5-gpu-primary-20260822T1605Z-2d574205/record.json); rerun only for input or fidelity-contract changes. |
 | [CORPUS-01](tracks/corpus-01-gold-coverage.md) | Complete, limited | Preserve `seq-268` and the [result](2026-08-23-corpus-01-supersession-human-review-result.md); neither reviewed case qualifies as supersession gold. |
 | [TEMPORAL-01](tracks/temporal-01-time-scoped-retrieval.md) | Synthetic validity complete, corpus blocked | [Eight exact TRACE boundary probes](../../experiments/runs/temporal-01-trace-validity-20260823T1625Z-af0c03f1/record.json) passed; upstream LongMemEval and TimelineQA releases lack an external validity-window manifest. |
-| [EXTRACT-01](tracks/extract-01-semantic-memory.md) | Input acquisition complete | Bind the LongMemEval-S knowledge-update slice and ELPS/TRACE roles to a factual preflight and fixed extraction-treatment contract. |
+| [EXTRACT-01](tracks/extract-01-semantic-memory.md) | Complete, limited | Preserve the [78-case receipt](../../experiments/runs/extract-01-knowledge-update-20260823T2236Z-59e805cb/record.json); retain raw A0 for knowledge updates until value-changing extraction consolidation exists. |
 | [MEMORY-01](tracks/memory-01-native-mem0-comparison.md) | Blocked | Use A0; wait for native comparator prerequisites. |
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |

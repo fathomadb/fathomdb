@@ -165,6 +165,24 @@ boundary errors, and unmet decisions. The author may perform at most two
 documented FIX-n cycles, then presents the revised plan to the owner and
 records the final decision. No subagent starts until this Slice 6 review point.
 
+## Merged-main CI integration assignment
+
+`5e2a05e2` (`ci: streamline long-running job setup`) is already merged on
+`origin/main`. It adds cache-aware setup to the long-running CI jobs, separates
+heavy-only dependency bootstrap into `scripts/bootstrap-heavy.sh`, and adds the
+corresponding local CI-contract tests. It is not release-branch work and does
+not create a new prework gate.
+
+**Slice 10 owns its integration.** After Slice 6 authorizes feature planning,
+its draft must begin from the then-current `origin/main`, inspect this landing
+alongside the prior proportional-routing workflow changes, and determine the
+smallest release-interface action, if any. It must preserve the fast/heavy job
+ownership split and the local contract tests; it must not recreate, backport,
+or overwrite the merged main CI work from `release/0.8.24`. Its ready plan
+must state the narrow local structural checks used for any CI edit (including
+the relevant CI-contract tests and `actionlint`) and must not manually start a
+full hosted CI run merely to integrate this already-merged work.
+
 ## Proposed feature slices
 
 Feature slices use multiples of ten. Their exact contents remain contingent on
@@ -184,7 +202,7 @@ be silently folded into Slice 7.
 
 | Source finding | Primary destination and mandatory initial-plan content |
 | --- | --- |
-| Slice 0 main-CI relationship and new-main workflow inventory | **10:** assess the exact current main CI/release interface, preserve proportional routing, and make no release-branch recreation of main CI. |
+| Slice 0 main-CI relationship and new-main workflow inventory; merged-main `5e2a05e2` cache/heavy-bootstrap CI landing | **10:** assess the exact current main CI/release interface, preserve proportional routing plus the fast/heavy ownership split, and make no release-branch recreation, backport, or overwrite of main CI. |
 | Slice 0 retained performance branch/evidence and owner-selected streamed boundary-tie result | **20:** inspect the named evidence and unmerged engine delta, declare the integration decision rule and targeted correctness proof, and do not require a confirming benchmark run. |
 | Slice 0 Tegra package-identity decision; Slice 1 N24-1/R24-8 | **30:** obtain the owner-selected separate public distribution identity, trusted-publisher route, explicit CPU-versus-CUDA selection contract, and Jetson installed-package proof plan. |
 | Slice 0 Windows SDK/executor decision; Slice 1 N24-2/R24-9 | **40:** obtain the owner-selected Python/npm matrix and remote Windows CUDA executor contract, then plan artifact provenance, unsupported-route behavior, and Windows installed-package proof without a local Windows build. |
@@ -211,7 +229,7 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 
 | Slice | Title | Primary outcome | Depends on |
 | ---: | --- | --- | --- |
-| **10** | Main CI workflow assessment and integration | Confirm what the new CI workflow on `main` already supplies; make only approved, narrow CI changes on `main` and document the release interface. | 0, 6 |
+| **10** | Main CI workflow assessment and integration | Integrate the already-merged `5e2a05e2` CI contract by confirming what current `main` supplies; make only approved, narrow CI changes on `main` and document the release interface. | 0, 6 |
 | **20** | Benchmark-directed engine performance | Reproduce or otherwise validate the identified benchmark result, define a decision rule, then make measured engine-level adjustments only when evidence supports them. | 0, 5, 6 |
 | **30** | Public Tegra CUDA distribution | Ship the approved separate Tegra distribution and explicit installer/compatibility contract; never the `+tegra` PyPI shape. | 0, 6, 10 |
 | **40** | Windows x64 CUDA distribution | Build and publish the approved Windows CUDA Python and/or npm artifacts via the remote executor; no local Windows compilation. | 0, 6, 10 |

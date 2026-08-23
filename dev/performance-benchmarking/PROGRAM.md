@@ -90,7 +90,7 @@ receipts, not inferred from a branch name or narration.
 | LOCOMO-01 | P1 | LOCOMO self-characterization: which FathomDB retrieval configuration is eligible for answer scoring? | Directional GPU data complete: the 26-cell RTX 3090 grid identifies turn-level `hybrid_ce_alpha_10_pool_20` as the retrieval survivor. Formal CPU+GPU closure was intentionally not pursued. | [track plan](tracks/locomo-01-self-characterization.md) |
 | PARENT-01 | P1 | Parent-child LOCOMO screening: does retrieving a turn/child and returning its session/parent plus bounded neighbors improve evidence and answer context over parent-only retrieval? | Directional GPU data complete: bounded parent context does not improve child-evidence retrieval over the turn baseline, so it remains opt-in. | [track plan](tracks/parent-01-parent-child-screening.md) |
 | SCALE-01 | complete | TC-5 eu7 scale fidelity: what manifest-qualified all-real GPU-primary vector-stage fidelity envelope is observed? | Complete: the registered 17,272-document, 100-query GPU primary provides bounded vector-stage fidelity and uncertainty evidence. CPU was not required. | [track plan](tracks/scale-01-tc5-fidelity.md) · [primary receipt](../../experiments/runs/tc5-gpu-primary-20260822T1605Z-2d574205/record.json) · [smoke receipt](../../experiments/runs/tc5-gpu-smoke-20260822T1446Z-2d574205/record.json) |
-| CORPUS-01 | P1 | Agent-memory gold coverage: are temporal change, knowledge update, supersession, and erasure represented well enough for a broad personal-memory claim? | Portfolio-qualified LLM evidence complete: 16 records cover all four categories; it remains distinct from human gold, and supersession retains two insufficient-evidence cases. | [track plan](tracks/corpus-01-gold-coverage.md) |
+| CORPUS-01 | complete, limited | Agent-memory gold coverage: are temporal change, knowledge update, supersession, and erasure represented well enough for a broad personal-memory claim? | Two human reviewers judged both remaining supersession cases `insufficient_evidence` at `seq-268`. No qualified supersession gold exists, so the broad mutable-memory claim remains unsupported. | [track plan](tracks/corpus-01-gold-coverage.md) · [result](2026-08-23-corpus-01-supersession-human-review-result.md) |
 | ANSWER-01 | P2 | LOCOMO shortlist scoring: does the accepted retrieval winner improve answer and temporal quality over A0? | Complete: the [32-question paired receipt](../../experiments/runs/answer-01-shortlist-live-20260822T1234Z-8a050808/record.json) did not show the required overall or temporal improvement; retain A0. | [track plan](tracks/answer-01-shortlist-scoring.md) |
 | TEMPORAL-01 | P3 | Time-scoped retrieval: do temporal filters and version-aware projections return the correct state without stale superseded evidence? | Planned; requires CORPUS-01-qualified temporal gold and the selected retrieval baseline. | [track plan](tracks/temporal-01-time-scoped-retrieval.md) |
 | EXTRACT-01 | P3 | FathomDB-native extracted semantic memory: do provenance-linked facts, preferences, and episodes improve update and recall quality enough to justify extraction and lifecycle costs? | Planned; requires TRACE-01 coverage, qualified update gold, and the selected canonical baseline. | [track plan](tracks/extract-01-semantic-memory.md) |
@@ -136,10 +136,12 @@ for mmap128. HITL `seq-267` approved `stream_default` as the production FTS
 path with shipped reader defaults. The production landing is complete; no
 confirming benchmark was required.
 
-CORPUS-01 may close its remaining human-gold gaps independently. LATENT-01 and
-GRAPH-01 start only from a diagnosed failure. TEMPORAL-01 and EXTRACT-01 wait
-for qualified gold, TRACE-01 lifecycle coverage, and the selected baseline.
-GLOBAL-01 and REASON-01 retain their independent native-run prerequisites.
+CORPUS-01 is complete but limited: the two remaining supersession cases were
+human-reviewed as `insufficient_evidence`, so the broad mutable-memory claim
+remains unsupported. LATENT-01 and GRAPH-01 start only from a diagnosed
+failure. TEMPORAL-01 and EXTRACT-01 still wait for qualified gold; TRACE-01
+lifecycle coverage and the selected baseline are already available. GLOBAL-01
+and REASON-01 retain their independent native-run prerequisites.
 
 ## Track organization
 

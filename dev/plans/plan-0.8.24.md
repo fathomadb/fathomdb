@@ -191,6 +191,9 @@ be silently folded into Slice 7.
 | Slice 1 R24-12 and the unresolved external Memex evidence boundary | **50:** obtain/inspect the linked client evidence, compare the installed FathomDB Python WAL path, and plan only an attributed fix or a durable no-change/insufficient-evidence finding. |
 | Slice 1 N24-3/N24-4/R24-10 and Slice 0 publication topology | **60:** plan target smokes, CPU artifact preservation, and immutable-existing-artifact publisher retry/idempotency evidence. |
 | Slice 0 release-control/branch-boundary evidence and the completed feature-slice outputs | **70:** plan evidence assembly, release-branch/main integration, and owner-ready publication preparation; publication itself remains separately authorized. |
+| Slice 3 conditional target-artifact CRUD (`REQ-TARGET-TEGRA` / `AC-TARGET-TEGRA`) | **30:** carry the proposed need/requirement/criterion into Slice 30's own draft-to-ready plan; do not edit canonical contracts until owner approval. |
+| Slice 3 conditional Windows CUDA CRUD (`REQ-TARGET-WINDOWS-CUDA` / `AC-TARGET-WINDOWS-CUDA`) | **40:** carry the proposed need/requirement/criterion into Slice 40's own draft-to-ready plan; do not edit canonical contracts until owner approval. |
+| Slice 3 release retry and installed-target CRUD (updates to REQ-050/AC-054 and REQ-052/AC-056) | **60:** make the canonical/documentation change only if the owner accepts it, then prove retry-safe completion and target-installed smoke. |
 
 The register does not make any feature ready or authorize its work. It is the
 minimum input each feature's separate draft plan must carry forward; later
@@ -237,10 +240,10 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 
 ## Immediate next action
 
-Slice 2 is complete: its review found no safe archive/delete candidate and
-proposed narrow current-document/navigation and Prettier-deprecation items for
-owner triage. Proceed using the [Slice 3 draft
-plan](0.8.24/prework/slice-3-product-document-drafts-plan.md): draft User Needs,
-Requirements, Acceptance Criteria, and architecture CRUD changes only;
-allocate every draft to Slice 7, a feature slice, or postponement without
-editing canonical product documents.
+Slice 3 is complete: it retained only conditional target-artifact and
+release-retry/installed-smoke canonical CRUD, routed them directly to Slices
+30, 40, and 60, and rejected internal-maintenance items as product contracts.
+Proceed using the [Slice 4 draft
+plan](0.8.24/prework/slice-4-architecture-alignment-plan.md): review the
+Slice 0–3 proposals against current architecture and code without implementing
+or modifying authoritative documents.

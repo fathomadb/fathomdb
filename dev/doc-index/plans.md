@@ -12,9 +12,9 @@
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
-| `dev/plans/plan-0.8.23.md` | **Current 0.8.23 release plan.** Planning Slices 0–6 supply the hygiene/preparation workplan; later work remains explicitly commissioned. | 0.8.23 Slices 0–6 | 2026-08-15 |
-| `dev/plans/release-state-0.8.23.json` | **Current single writer.** Names the live plan/board and owns the release ladder, landed witnesses, and next work. | 0.8.23 release state | 2026-08-15 |
-| `dev/plans/runs/STATUS-0.8.23.md` | **Current live state board.** Read only after resolving it through the release-state JSON. | 0.8.23 release state | 2026-08-15 |
+| `dev/plans/plan-0.8.23.md` | **Completed 0.8.23 release plan.** Retained release evidence; it is not the current planning surface. | 0.8.23 history | 2026-08-23 |
+| `dev/plans/release-state-0.8.23.json` | **Completed 0.8.23 single writer.** Retained state evidence; live work must be resolved rather than inferred from it. | 0.8.23 history | 2026-08-23 |
+| `dev/plans/runs/STATUS-0.8.23.md` | **Completed 0.8.23 state board.** Retained in place; not a current-work declaration. | 0.8.23 history | 2026-08-23 |
 | `dev/plans/plan-0.8.24.md` | **Draft 0.8.24 release plan.** Defines prework Slices 0–7 and the proposed feature-slice ladder without creating a live release-state record or authorizing implementation. | 0.8.24 prework | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-0-environment-and-infrastructure.md` | **Slice 0 baseline.** Records release-worktree setup, CI/runner/registry/benchmark evidence, and owner decisions still required before platform work. | 0.8.24 Slice 0 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-1-{design-review,library-sweep}.md` | **Slice 1 review and sweep.** Records feature allocation and dependency/dependabot evidence without changing manifests or automation. | 0.8.24 Slice 1 | 2026-08-23 |

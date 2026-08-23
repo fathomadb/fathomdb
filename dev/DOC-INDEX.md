@@ -43,13 +43,13 @@ refresh in the closing commit when you touch a doc).
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
-| `dev/README.md` | Entry map for the engineering docs tree | — | 2026-05-02 |
+| `dev/README.md` | Entry map for the engineering docs tree | — | 2026-08-23 |
 | `dev/needs.md` | Product/consumer needs driving requirements | — | 2026-05-28 |
 | `dev/notes/earp-agent-orientation.md` · `earp-hitl-decisions.md` | EARP navigation, boundaries, and current HITL rulings | EARP developer harness | 2026-08-08 |
 | `dev/notes/0.8.23-architecture-tradeoffs.md` | 0.8.23 architecture documentation follow-up | 0.8.23 planning | 2026-08-07 |
-| `dev/plans/plan-0.8.23.md` | Active hygiene, preparation, and feature-slice release plan | 0.8.23 release ladder | 2026-08-18 |
-| `dev/plans/release-state-0.8.23.json` | Single writer selecting the live 0.8.23 board, ladder, and next work | 0.8.23 release state | 2026-08-18 |
-| `dev/plans/runs/STATUS-0.8.23.md` | Live 0.8.23 state board; read via the release-state `board` key | 0.8.23 release state | 2026-08-18 |
+| `dev/plans/plan-0.8.23.md` | Completed 0.8.23 release plan, retained in place | 0.8.23 history | 2026-08-23 |
+| `dev/plans/release-state-0.8.23.json` | Completed 0.8.23 release-state record | 0.8.23 history | 2026-08-23 |
+| `dev/plans/runs/STATUS-0.8.23.md` | Completed 0.8.23 state board, retained in place | 0.8.23 history | 2026-08-23 |
 | `dev/plans/plan-0.8.24.md` | Draft 0.8.24 release plan and slice allocation | 0.8.24 prework | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-{0,1,2}-*.md` | 0.8.24 prework findings and design reviews | 0.8.24 Slices 0–2 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-3-*-drafts.md` | 0.8.24 product and architecture draft CRUD | 0.8.24 Slice 3 | 2026-08-23 |

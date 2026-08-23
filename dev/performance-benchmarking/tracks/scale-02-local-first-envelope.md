@@ -165,4 +165,8 @@ That continuation is complete. The
 [result](../2026-08-22-scale-02-scale-extension-result.md) and
 [hypothesis receipt](../../../experiments/runs/scale-02-scale-hypotheses-20260822T2328Z-55ce25d2/record.json)
 record the configured-as-is baselines and both frozen hypotheses. No tested
-profile passes at 50k; further execution requires a new plan and authorization.
+profile passes at 50k. A
+[third off-shoot](../2026-08-22-scale-02-rank-boundary-design.md) now proposes a
+two-factor test of streamed BM25 boundary-tie completion under default and
+mmap128 readers. It remains design-only; implementation and execution require
+HITL authorization.

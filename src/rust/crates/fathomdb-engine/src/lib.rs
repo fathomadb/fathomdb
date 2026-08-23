@@ -6825,6 +6825,10 @@ impl Engine {
         connection
             .pragma_update(None, "journal_mode", "WAL")
             .map_err(|err| map_open_sqlite_error(err, OpenStage::WalReplay))?;
+        connection
+            .pragma_update(None, "synchronous", "NORMAL")
+            .map_err(|err| map_open_sqlite_error(err, OpenStage::WalReplay))?;
+        record_perf_connection_observation(&connection, "writer");
 
         reject_legacy_shape(&connection)?;
         let migration = migrate_with_event_sink(&connection, migrations, emit_migration_event)
@@ -14586,6 +14590,8 @@ fn read_search_in_tx(
         }
         let force_full_sort = std::env::var_os("FATHOMDB_PERF_EXPERIMENTS").is_some()
             && std::env::var("FATHOMDB_PERF_FTS_FORCE_FULL_SORT").is_ok_and(|value| value == "1");
+        let stream_boundary_ties = std::env::var_os("FATHOMDB_PERF_EXPERIMENTS").is_some()
+            && std::env::var("FATHOMDB_PERF_FTS_STREAM_TIES").is_ok_and(|value| value == "1");
         let rank_fast_requested =
             direct_text_candidate_limit.is_some() && filter.is_none() && !force_full_sort;
         let rank_fast_eligible = rank_fast_requested
@@ -14599,6 +14605,11 @@ fn read_search_in_tx(
         let rank_fast_candidates = if rank_fast_eligible {
             let (rank_candidate_limit, rank_scan_limit) =
                 rank_fast_candidate_window(final_limit, fts_only_limit);
+            let rank_limit_clause = if stream_boundary_ties {
+                String::new()
+            } else {
+                format!(" LIMIT {rank_scan_limit}")
+            };
             let rank_sql = format!(
                 "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
                  bm25(search_index), cn.logical_id, cn.source_id FROM search_index \
@@ -14607,34 +14618,46 @@ fn read_search_in_tx(
                    AND cn.superseded_at IS NULL \
                    AND (cn.state = 'active' OR cn.state IS NULL)\
                    {text_validity} \
-                 ORDER BY rank LIMIT {rank_scan_limit}"
+                 ORDER BY rank{rank_limit_clause}"
             );
-            tx.prepare(&rank_sql)
-                .and_then(|mut statement| {
-                    statement
-                        .query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
-                            let body = row.get::<_, String>(0)?;
-                            let logical_id = row.get::<_, Option<String>>(4)?;
-                            Ok(SearchHit {
-                                id: derive_stable_id(logical_id.as_deref(), &body),
-                                body,
-                                kind: row.get::<_, String>(1)?,
-                                write_cursor: row.get::<_, i64>(2)? as u64,
-                                score: row.get::<_, f64>(3)?,
-                                branch: SoftFallbackBranch::Text,
-                                source_id: row.get::<_, Option<String>>(5)?,
-                                ce_score: None,
-                            })
-                        })?
-                        .collect::<rusqlite::Result<Vec<_>>>()
-                })
-                .ok()
-                .and_then(|rows| retain_rank_fast_candidates(rows, rank_candidate_limit))
+            if stream_boundary_ties {
+                record_perf_fts_query_plan(&tx, &rank_sql, &text_params);
+                tx.prepare(&rank_sql)
+                    .and_then(|mut statement| {
+                        let mut rows =
+                            statement.query(rusqlite::params_from_iter(text_params.iter()))?;
+                        collect_complete_rank_boundary(&mut rows, rank_candidate_limit)
+                    })
+                    .ok()
+                    .map(|(rows, evidence)| {
+                        let route = if evidence.crossed_boundary_tie {
+                            "rank_stream_tie_completed"
+                        } else {
+                            "rank_stream_strict_boundary"
+                        };
+                        (rows, route, Some(evidence))
+                    })
+            } else {
+                tx.prepare(&rank_sql)
+                    .and_then(|mut statement| {
+                        statement
+                            .query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
+                                rank_search_hit_from_row(row)
+                            })?
+                            .collect::<rusqlite::Result<Vec<_>>>()
+                    })
+                    .ok()
+                    .and_then(|rows| retain_rank_fast_candidates(rows, rank_candidate_limit))
+                    .map(|rows| (rows, "rank_fast", None))
+            }
         } else {
             None
         };
-        if let Some(candidates) = rank_fast_candidates {
-            record_perf_fts_route("rank_fast");
+        if let Some((candidates, route, boundary_evidence)) = rank_fast_candidates {
+            record_perf_fts_route(route);
+            if let Some(evidence) = boundary_evidence {
+                record_perf_fts_boundary(route, &evidence);
+            }
             candidates
         } else if let Ok(mut statement) = tx.prepare(&join_sql) {
             if rank_fast_eligible {
@@ -15036,6 +15059,86 @@ fn retain_rank_fast_candidates(
     Some(candidates)
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct RankBoundaryEvidence {
+    candidate_limit: usize,
+    rows_consumed: usize,
+    boundary_group_size: usize,
+    crossed_boundary_tie: bool,
+}
+
+fn rank_search_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SearchHit> {
+    let body = row.get::<_, String>(0)?;
+    let logical_id = row.get::<_, Option<String>>(4)?;
+    Ok(SearchHit {
+        id: derive_stable_id(logical_id.as_deref(), &body),
+        body,
+        kind: row.get::<_, String>(1)?,
+        write_cursor: row.get::<_, i64>(2)? as u64,
+        score: row.get::<_, f64>(3)?,
+        branch: SoftFallbackBranch::Text,
+        source_id: row.get::<_, Option<String>>(5)?,
+        ce_score: None,
+    })
+}
+
+fn collect_complete_rank_boundary(
+    rows: &mut rusqlite::Rows<'_>,
+    limit: usize,
+) -> rusqlite::Result<(Vec<SearchHit>, RankBoundaryEvidence)> {
+    let mut candidates = Vec::with_capacity(limit.saturating_add(1));
+    let mut rows_consumed = 0;
+    let mut boundary_score = None;
+
+    while let Some(row) = rows.next()? {
+        let candidate = rank_search_hit_from_row(row)?;
+        rows_consumed += 1;
+        if candidates.len() < limit {
+            if candidates.len().saturating_add(1) == limit {
+                boundary_score = Some(candidate.score);
+            }
+            candidates.push(candidate);
+            continue;
+        }
+        if boundary_score.is_some_and(|score: f64| {
+            score.total_cmp(&candidate.score) == std::cmp::Ordering::Equal
+        }) {
+            candidates.push(candidate);
+            continue;
+        }
+        break;
+    }
+
+    let boundary_group_size = boundary_score.map_or(0, |score| {
+        candidates
+            .iter()
+            .filter(|candidate| score.total_cmp(&candidate.score) == std::cmp::Ordering::Equal)
+            .count()
+    });
+    let crossed_boundary_tie = candidates.len() > limit;
+    candidates = retain_complete_rank_boundary_candidates(candidates, limit);
+    Ok((
+        candidates,
+        RankBoundaryEvidence {
+            candidate_limit: limit,
+            rows_consumed,
+            boundary_group_size,
+            crossed_boundary_tie,
+        },
+    ))
+}
+
+fn retain_complete_rank_boundary_candidates(
+    mut candidates: Vec<SearchHit>,
+    limit: usize,
+) -> Vec<SearchHit> {
+    candidates.sort_by(|left, right| {
+        left.score.total_cmp(&right.score).then_with(|| left.write_cursor.cmp(&right.write_cursor))
+    });
+    candidates.truncate(limit);
+    candidates
+}
+
 fn record_perf_fts_route(route: &str) {
     let Some(path) = std::env::var_os("FATHOMDB_PERF_FTS_ROUTE_WITNESS") else {
         return;
@@ -15052,6 +15155,76 @@ fn record_perf_fts_route(route: &str) {
             }
         }
         Err(error) => eprintln!("perf-experiment: could not open FTS route witness: {error}"),
+    }
+}
+
+fn record_perf_fts_boundary(route: &str, evidence: &RankBoundaryEvidence) {
+    let Some(path) = std::env::var_os("FATHOMDB_PERF_FTS_BOUNDARY_WITNESS") else {
+        return;
+    };
+    static WITNESS_LOCK: std::sync::OnceLock<Mutex<()>> = std::sync::OnceLock::new();
+    let Ok(_guard) = WITNESS_LOCK.get_or_init(|| Mutex::new(())).lock() else {
+        return;
+    };
+    let line = serde_json::json!({
+        "schema_version": "scale-02-fts-boundary.v1",
+        "route": route,
+        "candidate_limit": evidence.candidate_limit,
+        "rows_consumed": evidence.rows_consumed,
+        "boundary_group_size": evidence.boundary_group_size,
+    });
+    match OpenOptions::new().create(true).append(true).open(path) {
+        Ok(mut file) => {
+            if let Err(error) = writeln!(file, "{line}") {
+                eprintln!("perf-experiment: could not write FTS boundary witness: {error}");
+            }
+        }
+        Err(error) => eprintln!("perf-experiment: could not open FTS boundary witness: {error}"),
+    }
+}
+
+fn record_perf_fts_query_plan(
+    transaction: &rusqlite::Transaction<'_>,
+    statement: &str,
+    parameters: &[rusqlite::types::Value],
+) {
+    let Some(path) = std::env::var_os("FATHOMDB_PERF_FTS_QUERY_PLAN_WITNESS") else {
+        return;
+    };
+    static WITNESS_LOCK: std::sync::OnceLock<Mutex<()>> = std::sync::OnceLock::new();
+    let Ok(_guard) = WITNESS_LOCK.get_or_init(|| Mutex::new(())).lock() else {
+        return;
+    };
+    if std::path::Path::new(&path).exists() {
+        return;
+    }
+    let explain = format!("EXPLAIN QUERY PLAN {statement}");
+    let Ok(mut prepared) = transaction.prepare(&explain) else {
+        return;
+    };
+    let Ok(details) = prepared
+        .query_map(rusqlite::params_from_iter(parameters.iter()), |row| row.get::<_, String>(3))
+    else {
+        return;
+    };
+    let Ok(details) = details.collect::<rusqlite::Result<Vec<_>>>() else {
+        return;
+    };
+    let uses_temp_btree =
+        details.iter().any(|detail| detail.contains("USE TEMP B-TREE FOR ORDER BY"));
+    let line = serde_json::json!({
+        "schema_version": "scale-02-fts-query-plan.v1",
+        "statement": "stream_complete_boundary_tie",
+        "uses_temp_btree_for_order_by": uses_temp_btree,
+    });
+    match OpenOptions::new().create_new(true).write(true).open(path) {
+        Ok(mut file) => {
+            if let Err(error) = writeln!(file, "{line}") {
+                eprintln!("perf-experiment: could not write FTS query-plan witness: {error}");
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(error) => eprintln!("perf-experiment: could not open FTS query-plan witness: {error}"),
     }
 }
 
@@ -17494,6 +17667,7 @@ fn open_runtime_connection(
         managed_connections,
     )?;
     connection.pragma_update(None, "journal_mode", "WAL")?;
+    connection.pragma_update(None, "synchronous", "NORMAL")?;
     // OPP-12 Phase-1 (0.8.19 Slice 10, design §3 gap-4) — `secure_delete=ON` at
     // EVERY open. The projection/vector-rewrite runtime connection performs
     // DELETEs (shadow-table rewrites), so its freed pages must be scrubbed too;
@@ -23383,6 +23557,7 @@ fn apply_perf_experiment_reader_pragmas(connection: &Connection) {
             Err(error) => eprintln!("perf-experiment: could not observe reader settings: {error}"),
         }
     }
+    record_perf_connection_observation(connection, "reader");
 }
 
 fn reader_perf_observation(connection: &Connection) -> rusqlite::Result<serde_json::Value> {
@@ -23416,6 +23591,49 @@ fn write_perf_reader_witness(path: &Path, observation: &serde_json::Value) {
             }
         }
         Err(error) => eprintln!("perf-experiment: could not open reader witness: {error}"),
+    }
+}
+
+fn record_perf_connection_observation(connection: &Connection, role: &str) {
+    let Some(path) = std::env::var_os("FATHOMDB_PERF_CONNECTION_PRAGMA_WITNESS") else {
+        return;
+    };
+    let observation = (|| -> rusqlite::Result<serde_json::Value> {
+        Ok(serde_json::json!({
+            "schema_version": "scale-02-connection-settings.v1",
+            "role": role,
+            "journal_mode": connection.pragma_query_value(
+                None,
+                "journal_mode",
+                |row| row.get::<_, String>(0),
+            )?,
+            "synchronous": connection.pragma_query_value(
+                None,
+                "synchronous",
+                |row| row.get::<_, i64>(0),
+            )?,
+            "sqlite_version": connection.query_row(
+                "SELECT sqlite_version()",
+                [],
+                |row| row.get::<_, String>(0),
+            )?,
+        }))
+    })();
+    let Ok(observation) = observation else {
+        eprintln!("perf-experiment: could not observe {role} connection settings");
+        return;
+    };
+    static WITNESS_LOCK: std::sync::OnceLock<Mutex<()>> = std::sync::OnceLock::new();
+    let Ok(_guard) = WITNESS_LOCK.get_or_init(|| Mutex::new(())).lock() else {
+        return;
+    };
+    match OpenOptions::new().create(true).append(true).open(path) {
+        Ok(mut file) => {
+            if let Err(error) = writeln!(file, "{observation}") {
+                eprintln!("perf-experiment: could not write connection witness: {error}");
+            }
+        }
+        Err(error) => eprintln!("perf-experiment: could not open connection witness: {error}"),
     }
 }
 
@@ -23567,17 +23785,18 @@ unsafe extern "C" fn profile_callback_trampoline(
 mod tests {
     use super::{
         derive_stable_id, native_connection_state_for_test, rank_fast_candidate_window,
-        reader_perf_observation, resolve_source_type, retain_rank_fast_candidates,
-        DeviceResolution, EmbedderChoice, Engine, EngineError, IdSpace, IdSpaceKind, InitialState,
-        LoaderInfo, ManagedConnectionRegistry, NativeTransactionState, PreparedWrite,
-        RuntimeProbeConnection, SearchHit, SoftFallbackBranch, SourceId, WalAttributionRole,
-        ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS,
-        READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
+        reader_perf_observation, resolve_source_type, retain_complete_rank_boundary_candidates,
+        retain_rank_fast_candidates, DeviceResolution, EmbedderChoice, Engine, EngineError,
+        IdSpace, IdSpaceKind, InitialState, LoaderInfo, ManagedConnectionRegistry,
+        NativeTransactionState, PreparedWrite, RuntimeProbeConnection, SearchHit,
+        SoftFallbackBranch, SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS,
+        KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder::{
         DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,
     };
     use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
+    use proptest::prelude::*;
     use rusqlite::Connection;
     use std::collections::BTreeSet;
     use std::path::Path;
@@ -25193,6 +25412,54 @@ mod tests {
         assert_eq!(rank_fast_candidate_window(10, None), (10, 11));
     }
 
+    proptest! {
+        #[test]
+        fn scale02_completed_boundary_group_matches_the_full_stable_prefix(
+            scores in proptest::collection::vec(-20_i16..=0_i16, 1..200),
+            requested_limit in 1_usize..100,
+        ) {
+            let hit = |cursor: u64, score: f64| SearchHit {
+                id: IdSpace::logical(format!("rank-stream-{cursor}")),
+                write_cursor: cursor,
+                kind: "doc".to_string(),
+                body: format!("body {cursor}"),
+                score,
+                branch: SoftFallbackBranch::Text,
+                source_id: Some("scale-02:test".to_string()),
+                ce_score: None,
+            };
+            let mut native = scores
+                .iter()
+                .enumerate()
+                .map(|(index, score)| hit(index as u64 + 1, f64::from(*score)))
+                .collect::<Vec<_>>();
+            native.sort_by(|left, right| {
+                left.score
+                    .total_cmp(&right.score)
+                    .then_with(|| right.write_cursor.cmp(&left.write_cursor))
+            });
+            let limit = requested_limit.min(native.len());
+            let boundary_score = native[limit - 1].score;
+            let completed = native
+                .iter()
+                .take_while(|candidate| {
+                    candidate.score.total_cmp(&boundary_score) != std::cmp::Ordering::Greater
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            let selected = retain_complete_rank_boundary_candidates(completed, limit);
+
+            let mut expected = native;
+            expected.sort_by(|left, right| {
+                left.score
+                    .total_cmp(&right.score)
+                    .then_with(|| left.write_cursor.cmp(&right.write_cursor))
+            });
+            expected.truncate(limit);
+            prop_assert_eq!(selected, expected);
+        }
+    }
+
     #[test]
     fn scale02_reader_observation_reports_effective_sqlite_settings() {
         let connection = Connection::open_in_memory().expect("open sqlite");
@@ -25203,6 +25470,24 @@ mod tests {
         assert_eq!(observation["cache_size"], -65_536);
         assert!(observation["mmap_size"].is_i64() || observation["mmap_size"].is_u64());
         assert!(observation["sqlite_version"].as_str().is_some_and(|value| !value.is_empty()));
+    }
+
+    #[test]
+    fn writer_uses_the_accepted_wal_normal_durability_profile() {
+        let dir = TempDir::new().expect("tempdir");
+        let opened = Engine::open_without_embedder_for_test(dir.path().join("durability.sqlite"))
+            .expect("open engine");
+        let writer = opened.engine.connection.lock().expect("writer mutex");
+        let writer = writer.as_ref().expect("writer connection");
+        let journal_mode = writer
+            .pragma_query_value(None, "journal_mode", |row| row.get::<_, String>(0))
+            .expect("journal mode");
+        let synchronous = writer
+            .pragma_query_value(None, "synchronous", |row| row.get::<_, i64>(0))
+            .expect("synchronous mode");
+
+        assert_eq!(journal_mode, "wal");
+        assert_eq!(synchronous, 1, "ADR-0.6.0 requires synchronous=NORMAL");
     }
 
     // Pack 1 drift-detection: the Rust helper used by the two writer

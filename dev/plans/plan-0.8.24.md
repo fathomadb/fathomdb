@@ -199,6 +199,9 @@ implement them now.
 
 ## Immediate next action
 
-Proceed to **Slice 2**: a repository-wide cruft review with a durable
-keep/deprecate-in-place/archive/delete proposal. It must not delete, archive,
-or rewrite any repository content.
+Slice 2 is complete: its review found no safe archive/delete candidate and
+proposed narrow current-document/navigation and Prettier-deprecation items for
+owner triage. Proceed to **Slice 3**: draft User Needs, Requirements,
+Acceptance Criteria, and architecture CRUD changes only; allocate every draft
+to Slice 7, a feature slice, or postponement without editing canonical product
+documents.

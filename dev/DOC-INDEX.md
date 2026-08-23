@@ -50,6 +50,8 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/plan-0.8.23.md` | Active hygiene, preparation, and feature-slice release plan | 0.8.23 release ladder | 2026-08-18 |
 | `dev/plans/release-state-0.8.23.json` | Single writer selecting the live 0.8.23 board, ladder, and next work | 0.8.23 release state | 2026-08-18 |
 | `dev/plans/runs/STATUS-0.8.23.md` | Live 0.8.23 state board; read via the release-state `board` key | 0.8.23 release state | 2026-08-18 |
+| `dev/plans/plan-0.8.24.md` | Draft 0.8.24 release plan and slice allocation | 0.8.24 prework | 2026-08-23 |
+| `dev/plans/0.8.24/prework/slice-{0,1,2}-*.md` | 0.8.24 prework findings and design reviews | 0.8.24 Slices 0–2 | 2026-08-23 |
 | `dev/plans/runs/0.8.23-slice-72-draft-plan.md` | Approved plan for concurrent embedding and CE GPU coexistence characterization | 0.8.23 Slice 72 | 2026-08-18 |
 | `dev/plans/runs/0.8.23-slice-72-status.md` | Local completion and external-GPU-evidence boundary for concurrent BGE and CE characterization | 0.8.23 Slice 72 | 2026-08-18 |
 | `dev/requirements.md` | Numbered requirements (REQ-*); REQ-053 = governed SDK surface (allowlist + parity + recovery-denylist + typed boundary) | 25 amended REQ-053 (Q3) | 2026-06-04 |

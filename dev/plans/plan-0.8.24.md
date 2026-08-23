@@ -42,10 +42,9 @@ The job is evidence to assess, not a pre-decided FathomDB defect.
   coverage and any remaining integration needed; the release branch does not
   silently substitute for `main` as its delivery branch.
 
-Slice 0 remains active until its environment and infrastructure findings are
-recorded, including the three owner decisions below. The existing overall plan
-is this draft; no live release-state JSON or generated status board is created
-until the owner accepts the Slice 6 review outcome.
+Slice 0 is complete. The existing overall plan remains a draft; no live
+release-state JSON or generated status board is created until the owner accepts
+the Slice 6 review outcome.
 
 The detailed, read-only execution sequence is in
 [Slice 0 — environment and project-infrastructure baseline](0.8.24/prework/slice-0-environment-and-infrastructure.md).
@@ -53,6 +52,11 @@ The detailed, read-only execution sequence is in
 **Slice 0 completed 2026-08-23.** Its evidence and owner decision brief are in
 `dev/plans/0.8.24/prework/`; remote GitHub metadata is deliberately recorded
 as unknown while the authenticated API is rate-limited.
+
+**Slice 1 completed 2026-08-23.** Its [design review](0.8.24/prework/slice-1-design-review.md)
+and [library sweep](0.8.24/prework/slice-1-library-sweep.md) approve the
+feature allocations, add draft N24/R24/AC24 items, and identify one contained
+root-tooling remediation for later owner acceptance.
 
 ## Scope and non-goals
 
@@ -195,6 +199,6 @@ implement them now.
 
 ## Immediate next action
 
-Proceed to **Slice 1**: a durable Dependabot and library sweep. It must
-enumerate available upgrades and the rationale for every pin/source without
-changing dependencies, lockfiles, Dependabot, infrastructure, or product code.
+Proceed to **Slice 2**: a repository-wide cruft review with a durable
+keep/deprecate-in-place/archive/delete proposal. It must not delete, archive,
+or rewrite any repository content.

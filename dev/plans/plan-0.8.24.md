@@ -58,6 +58,12 @@ and [library sweep](0.8.24/prework/slice-1-library-sweep.md) approve the
 feature allocations, add draft N24/R24/AC24 items, and identify one contained
 root-tooling remediation for later owner acceptance.
 
+**Slice 5 completed 2026-08-23.** Its [verification-adequacy
+review](0.8.24/prework/slice-5-verification-adequacy.md) separates the
+existing local contract controls from the still-required target, registry, and
+external-client evidence, and assigns every resulting proof gap to one feature
+or contingent prework slice.
+
 ## Scope and non-goals
 
 ### In scope
@@ -264,9 +270,8 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 
 ## Immediate next action
 
-Slice 4 is complete: it found no runtime architecture defect, retained the
-main-CI no-change presumption, and routed the real product gaps to the
-appropriate feature slices. Proceed using the [Slice 5 draft
-plan](0.8.24/prework/slice-5-verification-adequacy-plan.md): review each
-retained requirement/criterion and critical path for adequate evidence without
-adding or changing tests.
+Slice 5 is complete: it found adequate structural controls for existing CPU,
+publisher, CUDA-rehearsal, WAL-control, and CI-routing behavior, while leaving
+real target-installed and external-client evidence with the owning feature
+slices. Proceed with Slice 6: consolidate the proposals, score them, and hold
+the required first-round HITL decision session before finalizing Slice 7.

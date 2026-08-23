@@ -1,0 +1,2401 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "scale-02-rank-boundary-20260823T0147Z-c5ade6de",
+  "experiment": "scale-02-rank-boundary",
+  "title": "scale-02-rank-boundary",
+  "verdict": "complete",
+  "read": "SCALE-02 rank-boundary two-factor off-shoot complete",
+  "code": {
+    "git_sha": "f30591737f4ddc68864565bd15246c499d90fe5e",
+    "dirty": false,
+    "branch": "experiments/performance-0.8.23-plan-20260821",
+    "baseline_commit": "68f59ea8d2066bbfa62f82988b3545de16a1f81b"
+  },
+  "config": {
+    "sha256": "c5ade6dec49246da426afc68fbfe98df1783e853da4a52878cebd9a0bdc857f8",
+    "path": "experiments/configs/scale-02/rank-boundary.v1.json",
+    "resolved": {
+      "schema_version": "scale-02-rank-boundary.v1",
+      "program_track": "SCALE-02",
+      "release": "0.8.23",
+      "authorization": {
+        "state": "approved",
+        "approved_by": "HITL",
+        "approved_at": "2026-08-23T01:23:36.606Z",
+        "ledger_ref": "seq-266"
+      },
+      "dependencies": {
+        "base_execution": {
+          "path": "experiments/configs/scale-02/a0-envelope.v2.json",
+          "sha256": "eb86d5b41e63b4854bde695200b9a0b9552a5c2474650f7cb0762b862851cd28"
+        },
+        "baseline_25000": {
+          "path": "experiments/runs/scale-02-a0-25000-20260822T2245Z-ee93a826/record.json",
+          "sha256": "4acfbcdc87f6d2fb43a3e4c15875163114495487a8f824a2c0189ff95db9f96b"
+        },
+        "baseline_40000": {
+          "path": "experiments/runs/scale-02-a0-40000-20260822T2311Z-be43f004/record.json",
+          "sha256": "76445f78007cffd13d46b1175a2890805dcf0c60f52d17ce9692d56ecd49d6e5"
+        },
+        "baseline_50000": {
+          "path": "experiments/runs/scale-02-a0-50000-20260822T2324Z-f5c98234/record.json",
+          "sha256": "5ce02194e5386faf0a87460bb2f668d103f6e2f1cd78f57128d2d92347d5b184"
+        },
+        "reader_hypotheses": {
+          "path": "experiments/runs/scale-02-scale-hypotheses-20260822T2328Z-55ce25d2/record.json",
+          "sha256": "82a555e93dd78331394014293eb2fbb2513efe27818a86bd6a1d4033f100c423"
+        }
+      },
+      "hypothesis": "Completing only the BM25 score group tied across the top-100 boundary in FTS5 native rank order will preserve exact retrieval and avoid the growing full-match sort; the default-versus-mmap factor will separate its algorithm effect from reader working-set effects.",
+      "points": [
+        25000,
+        40000,
+        50000
+      ],
+      "factors": [
+        {
+          "id": "boundary_handling",
+          "levels": [
+            "shipped_full_sort_fallback",
+            "stream_complete_boundary_tie"
+          ]
+        },
+        {
+          "id": "reader_profile",
+          "levels": [
+            "default",
+            "mmap128"
+          ]
+        }
+      ],
+      "reader_profiles": {
+        "default": {
+          "pragmas": null,
+          "expected": {
+            "cache_size": -2000,
+            "mmap_size": 0,
+            "temp_store": 0
+          }
+        },
+        "mmap128": {
+          "pragmas": "mmap_size=134217728",
+          "expected": {
+            "cache_size": -2000,
+            "mmap_size": 134217728,
+            "temp_store": 0
+          }
+        }
+      },
+      "matrix": {
+        "design": "full_factorial",
+        "cells_per_point": 4,
+        "repetitions_per_cell": 5,
+        "fresh_databases": 60,
+        "balanced_execution_order": true
+      },
+      "workload": {
+        "cold_queries": 100,
+        "warmup_queries": 100,
+        "steady_queries": 1000,
+        "mutations": 20,
+        "equivalence_queries_per_cell": 100,
+        "query_order_seed": "0x5CA1E0200A0F75",
+        "treatment_order_seed": "0x5CA1E02071E5",
+        "bootstrap_seed": "0x5CA1E020B00757",
+        "bootstrap_resamples": 2000,
+        "concurrency": 1
+      },
+      "qualification": {
+        "control_database_root": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/formal-rank-default-68f59ea8",
+        "require_no_temp_order_by_for_stream_statement": true,
+        "reproduce_control_fallback_counts": {
+          "25000": 20,
+          "40000": 41,
+          "50000": 58
+        },
+        "record_writer_and_reader_journal_mode": true,
+        "record_writer_and_reader_synchronous": true,
+        "stop_on_durability_adr_mismatch": true,
+        "require_exact_ordered_top100_candidates": true,
+        "require_exact_ordered_top10_public_results": true,
+        "require_zero_stream_full_sort_fallbacks": true,
+        "record_rows_consumed_and_boundary_group_size": true
+      },
+      "policy": {
+        "steady_p50_ms_by_point": {
+          "25000": 25,
+          "40000": 40,
+          "50000": 50
+        },
+        "steady_p99_ms": 150,
+        "max_rss_fraction": 0.8,
+        "max_errors": 0,
+        "max_timeouts": 0,
+        "max_25k_p50_or_p99_regression_fraction": 0.1,
+        "selection_order": [
+          "stream_default",
+          "stream_mmap128"
+        ]
+      },
+      "runtime": {
+        "base_source_git_sha": "68f59ea8d2066bbfa62f82988b3545de16a1f81b",
+        "candidate_source_git_sha": "9e507553f954c56d5c6177eabf1750faddf3acfd",
+        "python": "/tmp/fathomdb-scale02-rank-boundary-9e507553/bin/python",
+        "python_extension": "/tmp/fathomdb-scale02-rank-boundary-9e507553/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so",
+        "python_extension_sha256": "7cb85c69ba0c22c4639b74a4db6223e710dfa3fc7a73ee75dbc1d793fe681a57",
+        "fathomdb_bin": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/runtime/9e507553/fathomdb",
+        "fathomdb_bin_sha256": "7daf0ef77246abbfe2dd46b4f7f6d7ee2d56ada5248f59b1d390269bb5e6d79c",
+        "sqlite_version": "3.53.2"
+      },
+      "artifact_root": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/rank-boundary-9e507553",
+      "claim_boundary": "experiment_only_pending_post_result_production_decision"
+    }
+  },
+  "corpus": {
+    "source": "TC-5 qualified real prefix plus disclosed derived fixture",
+    "manifest_sha256": "f6180a00d1551a143a7445aa6ed28ed589533400ee702835663729694e393df5",
+    "datasets": [
+      "tc5-qualified-real-v2"
+    ]
+  },
+  "seeds": {
+    "query_order": "0x5CA1E0200A0F75",
+    "treatment_order": "0x5CA1E02071E5",
+    "bootstrap": "0x5CA1E020B00757",
+    "growth": "0x5CA1E02020260822"
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb": "0.8.23",
+      "fathomdb_cli_sha256": "7daf0ef77246abbfe2dd46b4f7f6d7ee2d56ada5248f59b1d390269bb5e6d79c",
+      "fathomdb_python_extension_sha256": "7cb85c69ba0c22c4639b74a4db6223e710dfa3fc7a73ee75dbc1d793fe681a57",
+      "sqlite": "3.53.2"
+    }
+  },
+  "metrics": {
+    "schema_version": "scale-02-rank-boundary-result.v1",
+    "program_track": "SCALE-02",
+    "status": "complete",
+    "hypothesis": "Completing only the BM25 score group tied across the top-100 boundary in FTS5 native rank order will preserve exact retrieval and avoid the growing full-match sort; the default-versus-mmap factor will separate its algorithm effect from reader working-set effects.",
+    "preflight": {
+      "schema_version": "scale-02-rank-boundary-preflight.v1",
+      "points": {
+        "25000": {
+          "control_route_counts": {
+            "rank_fast": 80,
+            "full_sort_fallback": 20
+          },
+          "control_equivalence_mismatches": 0,
+          "stream": {
+            "query_count": 100,
+            "top100_mismatch_count": 0,
+            "top10_mismatch_count": 0,
+            "route_counts": {
+              "rank_stream_strict_boundary": 160,
+              "rank_stream_tie_completed": 40
+            },
+            "full_sort_fallbacks": 0,
+            "rows_consumed": {
+              "n": 200,
+              "p50": 101.0,
+              "p95": 106.0,
+              "p99": 110.0,
+              "throughput_per_second": 9.810654370646523,
+              "max": 112
+            },
+            "boundary_group_size": {
+              "n": 200,
+              "p50": 1.0,
+              "p95": 8.0,
+              "p99": 12.0,
+              "throughput_per_second": 440.52863436123346,
+              "max": 12
+            }
+          },
+          "query_plan": {
+            "schema_version": "scale-02-fts-query-plan.v1",
+            "statement": "stream_complete_boundary_tie",
+            "uses_temp_btree_for_order_by": false
+          },
+          "control_connections": {
+            "connection_count": 9,
+            "role_counts": {
+              "reader": 8,
+              "writer": 1
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          "control_reader": {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 8,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          "stream_connections": {
+            "connection_count": 9,
+            "role_counts": {
+              "reader": 8,
+              "writer": 1
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          "stream_reader": {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 8,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          }
+        },
+        "40000": {
+          "control_route_counts": {
+            "full_sort_fallback": 41,
+            "rank_fast": 59
+          },
+          "control_equivalence_mismatches": 0,
+          "stream": {
+            "query_count": 100,
+            "top100_mismatch_count": 0,
+            "top10_mismatch_count": 0,
+            "route_counts": {
+              "rank_stream_tie_completed": 82,
+              "rank_stream_strict_boundary": 118
+            },
+            "full_sort_fallbacks": 0,
+            "rows_consumed": {
+              "n": 200,
+              "p50": 101.0,
+              "p95": 104.0,
+              "p99": 108.0,
+              "throughput_per_second": 9.811616954474097,
+              "max": 109
+            },
+            "boundary_group_size": {
+              "n": 200,
+              "p50": 2.0,
+              "p95": 20.0,
+              "p99": 21.0,
+              "throughput_per_second": 238.6634844868735,
+              "max": 21
+            }
+          },
+          "query_plan": {
+            "schema_version": "scale-02-fts-query-plan.v1",
+            "statement": "stream_complete_boundary_tie",
+            "uses_temp_btree_for_order_by": false
+          },
+          "control_connections": {
+            "connection_count": 9,
+            "role_counts": {
+              "reader": 8,
+              "writer": 1
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          "control_reader": {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 8,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          "stream_connections": {
+            "connection_count": 9,
+            "role_counts": {
+              "reader": 8,
+              "writer": 1
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          "stream_reader": {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 8,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          }
+        },
+        "50000": {
+          "control_route_counts": {
+            "full_sort_fallback": 58,
+            "rank_fast": 42
+          },
+          "control_equivalence_mismatches": 0,
+          "stream": {
+            "query_count": 100,
+            "top100_mismatch_count": 0,
+            "top10_mismatch_count": 0,
+            "route_counts": {
+              "rank_stream_tie_completed": 116,
+              "rank_stream_strict_boundary": 84
+            },
+            "full_sort_fallbacks": 0,
+            "rows_consumed": {
+              "n": 200,
+              "p50": 102.0,
+              "p95": 123.0,
+              "p99": 123.0,
+              "throughput_per_second": 9.594166746618056,
+              "max": 123
+            },
+            "boundary_group_size": {
+              "n": 200,
+              "p50": 2.0,
+              "p95": 27.0,
+              "p99": 29.0,
+              "throughput_per_second": 158.73015873015873,
+              "max": 33
+            }
+          },
+          "query_plan": {
+            "schema_version": "scale-02-fts-query-plan.v1",
+            "statement": "stream_complete_boundary_tie",
+            "uses_temp_btree_for_order_by": false
+          },
+          "control_connections": {
+            "connection_count": 9,
+            "role_counts": {
+              "reader": 8,
+              "writer": 1
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          "control_reader": {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 8,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          "stream_connections": {
+            "connection_count": 9,
+            "role_counts": {
+              "reader": 8,
+              "writer": 1
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          "stream_reader": {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 8,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          }
+        }
+      }
+    },
+    "cells": [
+      {
+        "id": "control_default",
+        "query_path": "rank_fast",
+        "reader_profile": "default",
+        "footprint_order": 0,
+        "repetitions": 5,
+        "complete_repetitions": true,
+        "errors": 0,
+        "timeouts": 0,
+        "steady": {
+          "n": 5000,
+          "p50": 24.00623995345086,
+          "p95": 93.52487290743738,
+          "p99": 110.71371997240931,
+          "throughput_per_second": 31.615932356199096
+        },
+        "upper_95": {
+          "steady_p50_ms": 24.31557304225862,
+          "steady_p99_ms": 116.37320602312684,
+          "rss_fraction": 0.005941144174168658
+        },
+        "resources": {
+          "peak_rss_bytes": 399613952,
+          "max_effective_cpu_cores": 1.0043469012681554
+        },
+        "storage": {
+          "database_bytes": 193490944,
+          "derived_index_bytes": 137932800
+        },
+        "point": 25000,
+        "boundary_handling": "shipped_full_sort_fallback",
+        "reader_observations": [
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          }
+        ],
+        "connection_observations": [
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        ]
+      },
+      {
+        "id": "control_default",
+        "query_path": "rank_fast",
+        "reader_profile": "default",
+        "footprint_order": 0,
+        "repetitions": 5,
+        "complete_repetitions": true,
+        "errors": 0,
+        "timeouts": 0,
+        "steady": {
+          "n": 5000,
+          "p50": 49.8037749202922,
+          "p95": 175.13018904719502,
+          "p99": 260.57760906405747,
+          "throughput_per_second": 13.917314613749292
+        },
+        "upper_95": {
+          "steady_p50_ms": 50.08478497620672,
+          "steady_p99_ms": 269.6368939941749,
+          "rss_fraction": 0.006225833387327865
+        },
+        "resources": {
+          "peak_rss_bytes": 418762752,
+          "max_effective_cpu_cores": 1.0034323064108934
+        },
+        "storage": {
+          "database_bytes": 309641216,
+          "derived_index_bytes": 221741056
+        },
+        "point": 40000,
+        "boundary_handling": "shipped_full_sort_fallback",
+        "reader_observations": [
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          }
+        ],
+        "connection_observations": [
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        ]
+      },
+      {
+        "id": "control_default",
+        "query_path": "rank_fast",
+        "reader_profile": "default",
+        "footprint_order": 0,
+        "repetitions": 5,
+        "complete_repetitions": true,
+        "errors": 0,
+        "timeouts": 0,
+        "steady": {
+          "n": 5000,
+          "p50": 108.31769404467195,
+          "p95": 281.0139210196212,
+          "p99": 327.44599506258965,
+          "throughput_per_second": 8.439704224231694
+        },
+        "upper_95": {
+          "steady_p50_ms": 112.23658395465463,
+          "steady_p99_ms": 344.0221290802583,
+          "rss_fraction": 0.00660338913526093
+        },
+        "resources": {
+          "peak_rss_bytes": 444157952,
+          "max_effective_cpu_cores": 1.0041360037498581
+        },
+        "storage": {
+          "database_bytes": 385273856,
+          "derived_index_bytes": 275075072
+        },
+        "point": 50000,
+        "boundary_handling": "shipped_full_sort_fallback",
+        "reader_observations": [
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          }
+        ],
+        "connection_observations": [
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        ]
+      },
+      {
+        "id": "stream_default",
+        "query_path": "rank_fast",
+        "reader_profile": "default",
+        "footprint_order": 0,
+        "repetitions": 5,
+        "complete_repetitions": true,
+        "errors": 0,
+        "timeouts": 0,
+        "steady": {
+          "n": 5000,
+          "p50": 8.597307954914868,
+          "p95": 31.224266975186765,
+          "p99": 39.52760202810168,
+          "throughput_per_second": 84.62936402115348
+        },
+        "upper_95": {
+          "steady_p50_ms": 9.962758049368858,
+          "steady_p99_ms": 43.07766689453274,
+          "rss_fraction": 0.005943275537261829
+        },
+        "resources": {
+          "peak_rss_bytes": 399757312,
+          "max_effective_cpu_cores": 0.9976076001254028
+        },
+        "storage": {
+          "database_bytes": 193490944,
+          "derived_index_bytes": 137932800
+        },
+        "point": 25000,
+        "boundary_handling": "stream_complete_boundary_tie",
+        "reader_observations": [
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          }
+        ],
+        "connection_observations": [
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        ],
+        "equivalence": {
+          "query_count": 100,
+          "top100_mismatch_count": 0,
+          "top10_mismatch_count": 0,
+          "route_counts": {
+            "rank_stream_strict_boundary": 160,
+            "rank_stream_tie_completed": 40
+          },
+          "full_sort_fallbacks": 0,
+          "rows_consumed": {
+            "n": 200,
+            "p50": 101.0,
+            "p95": 106.0,
+            "p99": 110.0,
+            "throughput_per_second": 9.810654370646523,
+            "max": 112
+          },
+          "boundary_group_size": {
+            "n": 200,
+            "p50": 1.0,
+            "p95": 8.0,
+            "p99": 12.0,
+            "throughput_per_second": 440.52863436123346,
+            "max": 12
+          },
+          "connection_observation": {
+            "connection_count": 9,
+            "role_counts": {
+              "reader": 8,
+              "writer": 1
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        },
+        "decision": {
+          "eligible": true,
+          "reasons": []
+        }
+      },
+      {
+        "id": "stream_default",
+        "query_path": "rank_fast",
+        "reader_profile": "default",
+        "footprint_order": 0,
+        "repetitions": 5,
+        "complete_repetitions": true,
+        "errors": 0,
+        "timeouts": 0,
+        "steady": {
+          "n": 5000,
+          "p50": 10.541253024712205,
+          "p95": 21.810204023495317,
+          "p99": 24.240584927611053,
+          "throughput_per_second": 85.67842807366048
+        },
+        "upper_95": {
+          "steady_p50_ms": 10.598663007840514,
+          "steady_p99_ms": 24.240584927611053,
+          "rss_fraction": 0.00619678595317237
+        },
+        "resources": {
+          "peak_rss_bytes": 416808960,
+          "max_effective_cpu_cores": 0.9929944846753133
+        },
+        "storage": {
+          "database_bytes": 309641216,
+          "derived_index_bytes": 221741056
+        },
+        "point": 40000,
+        "boundary_handling": "stream_complete_boundary_tie",
+        "reader_observations": [
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          }
+        ],
+        "connection_observations": [
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        ],
+        "equivalence": {
+          "query_count": 100,
+          "top100_mismatch_count": 0,
+          "top10_mismatch_count": 0,
+          "route_counts": {
+            "rank_stream_tie_completed": 82,
+            "rank_stream_strict_boundary": 118
+          },
+          "full_sort_fallbacks": 0,
+          "rows_consumed": {
+            "n": 200,
+            "p50": 101.0,
+            "p95": 104.0,
+            "p99": 108.0,
+            "throughput_per_second": 9.811616954474097,
+            "max": 109
+          },
+          "boundary_group_size": {
+            "n": 200,
+            "p50": 2.0,
+            "p95": 20.0,
+            "p99": 21.0,
+            "throughput_per_second": 238.6634844868735,
+            "max": 21
+          },
+          "connection_observation": {
+            "connection_count": 9,
+            "role_counts": {
+              "reader": 8,
+              "writer": 1
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        },
+        "decision": {
+          "eligible": true,
+          "reasons": []
+        }
+      },
+      {
+        "id": "stream_default",
+        "query_path": "rank_fast",
+        "reader_profile": "default",
+        "footprint_order": 0,
+        "repetitions": 5,
+        "complete_repetitions": true,
+        "errors": 0,
+        "timeouts": 0,
+        "steady": {
+          "n": 5000,
+          "p50": 12.953788973391056,
+          "p95": 27.041474008001387,
+          "p99": 30.737348017282784,
+          "throughput_per_second": 69.46671149737557
+        },
+        "upper_95": {
+          "steady_p50_ms": 13.02187005057931,
+          "steady_p99_ms": 30.737348017282784,
+          "rss_fraction": 0.006604302576586575
+        },
+        "resources": {
+          "peak_rss_bytes": 444219392,
+          "max_effective_cpu_cores": 0.9924390278881123
+        },
+        "storage": {
+          "database_bytes": 385273856,
+          "derived_index_bytes": 275075072
+        },
+        "point": 50000,
+        "boundary_handling": "stream_complete_boundary_tie",
+        "reader_observations": [
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          }
+        ],
+        "connection_observations": [
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        ],
+        "equivalence": {
+          "query_count": 100,
+          "top100_mismatch_count": 0,
+          "top10_mismatch_count": 0,
+          "route_counts": {
+            "rank_stream_tie_completed": 116,
+            "rank_stream_strict_boundary": 84
+          },
+          "full_sort_fallbacks": 0,
+          "rows_consumed": {
+            "n": 200,
+            "p50": 102.0,
+            "p95": 123.0,
+            "p99": 123.0,
+            "throughput_per_second": 9.594166746618056,
+            "max": 123
+          },
+          "boundary_group_size": {
+            "n": 200,
+            "p50": 2.0,
+            "p95": 27.0,
+            "p99": 29.0,
+            "throughput_per_second": 158.73015873015873,
+            "max": 33
+          },
+          "connection_observation": {
+            "connection_count": 9,
+            "role_counts": {
+              "reader": 8,
+              "writer": 1
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        },
+        "decision": {
+          "eligible": true,
+          "reasons": []
+        }
+      },
+      {
+        "id": "control_mmap128",
+        "query_path": "rank_fast",
+        "reader_profile": "mmap128",
+        "footprint_order": 1,
+        "repetitions": 5,
+        "complete_repetitions": true,
+        "errors": 0,
+        "timeouts": 0,
+        "steady": {
+          "n": 5000,
+          "p50": 9.176713996566832,
+          "p95": 30.641146935522556,
+          "p99": 36.20953403878957,
+          "throughput_per_second": 85.13457347039902
+        },
+        "upper_95": {
+          "steady_p50_ms": 9.455731022171676,
+          "steady_p99_ms": 38.22505101561546,
+          "rss_fraction": 0.02118605362655693
+        },
+        "resources": {
+          "peak_rss_bytes": 1425018880,
+          "max_effective_cpu_cores": 0.9988934611413712
+        },
+        "storage": {
+          "database_bytes": 193490944,
+          "derived_index_bytes": 137932800
+        },
+        "point": 25000,
+        "boundary_handling": "shipped_full_sort_fallback",
+        "reader_observations": [
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          }
+        ],
+        "connection_observations": [
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        ]
+      },
+      {
+        "id": "control_mmap128",
+        "query_path": "rank_fast",
+        "reader_profile": "mmap128",
+        "footprint_order": 1,
+        "repetitions": 5,
+        "complete_repetitions": true,
+        "errors": 0,
+        "timeouts": 0,
+        "steady": {
+          "n": 5000,
+          "p50": 25.28262499254197,
+          "p95": 91.1039849743247,
+          "p99": 132.4478629976511,
+          "throughput_per_second": 26.14766815735023
+        },
+        "upper_95": {
+          "steady_p50_ms": 25.892988895066082,
+          "steady_p99_ms": 137.64417299535125,
+          "rss_fraction": 0.021711952245774664
+        },
+        "resources": {
+          "peak_rss_bytes": 1460391936,
+          "max_effective_cpu_cores": 1.0016616667842648
+        },
+        "storage": {
+          "database_bytes": 309641216,
+          "derived_index_bytes": 221741056
+        },
+        "point": 40000,
+        "boundary_handling": "shipped_full_sort_fallback",
+        "reader_observations": [
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          }
+        ],
+        "connection_observations": [
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        ]
+      },
+      {
+        "id": "control_mmap128",
+        "query_path": "rank_fast",
+        "reader_profile": "mmap128",
+        "footprint_order": 1,
+        "repetitions": 5,
+        "complete_repetitions": true,
+        "errors": 0,
+        "timeouts": 0,
+        "steady": {
+          "n": 5000,
+          "p50": 67.0906399609521,
+          "p95": 159.37608992680907,
+          "p99": 190.84136793389916,
+          "throughput_per_second": 14.372663929394909
+        },
+        "upper_95": {
+          "steady_p50_ms": 67.60718103032559,
+          "steady_p99_ms": 198.0044860392809,
+          "rss_fraction": 0.02208073895698154
+        },
+        "resources": {
+          "peak_rss_bytes": 1485197312,
+          "max_effective_cpu_cores": 1.0029480399805188
+        },
+        "storage": {
+          "database_bytes": 385273856,
+          "derived_index_bytes": 275075072
+        },
+        "point": 50000,
+        "boundary_handling": "shipped_full_sort_fallback",
+        "reader_observations": [
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          }
+        ],
+        "connection_observations": [
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        ]
+      },
+      {
+        "id": "stream_mmap128",
+        "query_path": "rank_fast",
+        "reader_profile": "mmap128",
+        "footprint_order": 1,
+        "repetitions": 5,
+        "complete_repetitions": true,
+        "errors": 0,
+        "timeouts": 0,
+        "steady": {
+          "n": 5000,
+          "p50": 6.387922912836075,
+          "p95": 13.28745309729129,
+          "p99": 15.931549947708845,
+          "throughput_per_second": 140.55069074523863
+        },
+        "upper_95": {
+          "steady_p50_ms": 6.5987310372292995,
+          "steady_p99_ms": 16.09297189861536,
+          "rss_fraction": 0.01630279629966137
+        },
+        "resources": {
+          "peak_rss_bytes": 1096560640,
+          "max_effective_cpu_cores": 0.9939392860859828
+        },
+        "storage": {
+          "database_bytes": 193490944,
+          "derived_index_bytes": 137932800
+        },
+        "point": 25000,
+        "boundary_handling": "stream_complete_boundary_tie",
+        "reader_observations": [
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          }
+        ],
+        "connection_observations": [
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        ],
+        "equivalence": {
+          "query_count": 100,
+          "top100_mismatch_count": 0,
+          "top10_mismatch_count": 0,
+          "route_counts": {
+            "rank_stream_strict_boundary": 160,
+            "rank_stream_tie_completed": 40
+          },
+          "full_sort_fallbacks": 0,
+          "rows_consumed": {
+            "n": 200,
+            "p50": 101.0,
+            "p95": 106.0,
+            "p99": 110.0,
+            "throughput_per_second": 9.810654370646523,
+            "max": 112
+          },
+          "boundary_group_size": {
+            "n": 200,
+            "p50": 1.0,
+            "p95": 8.0,
+            "p99": 12.0,
+            "throughput_per_second": 440.52863436123346,
+            "max": 12
+          },
+          "connection_observation": {
+            "connection_count": 9,
+            "role_counts": {
+              "reader": 8,
+              "writer": 1
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        },
+        "decision": {
+          "eligible": true,
+          "reasons": []
+        }
+      },
+      {
+        "id": "stream_mmap128",
+        "query_path": "rank_fast",
+        "reader_profile": "mmap128",
+        "footprint_order": 1,
+        "repetitions": 5,
+        "complete_repetitions": true,
+        "errors": 0,
+        "timeouts": 0,
+        "steady": {
+          "n": 5000,
+          "p50": 10.193596011959016,
+          "p95": 21.309666917659342,
+          "p99": 25.948283029720187,
+          "throughput_per_second": 87.62517407332491
+        },
+        "upper_95": {
+          "steady_p50_ms": 10.264590964652598,
+          "steady_p99_ms": 26.369401020929217,
+          "rss_fraction": 0.01497398275520211
+        },
+        "resources": {
+          "peak_rss_bytes": 1007181824,
+          "max_effective_cpu_cores": 0.9936011163366779
+        },
+        "storage": {
+          "database_bytes": 309641216,
+          "derived_index_bytes": 221741056
+        },
+        "point": 40000,
+        "boundary_handling": "stream_complete_boundary_tie",
+        "reader_observations": [
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          }
+        ],
+        "connection_observations": [
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        ],
+        "equivalence": {
+          "query_count": 100,
+          "top100_mismatch_count": 0,
+          "top10_mismatch_count": 0,
+          "route_counts": {
+            "rank_stream_tie_completed": 82,
+            "rank_stream_strict_boundary": 118
+          },
+          "full_sort_fallbacks": 0,
+          "rows_consumed": {
+            "n": 200,
+            "p50": 101.0,
+            "p95": 104.0,
+            "p99": 108.0,
+            "throughput_per_second": 9.811616954474097,
+            "max": 109
+          },
+          "boundary_group_size": {
+            "n": 200,
+            "p50": 2.0,
+            "p95": 20.0,
+            "p99": 21.0,
+            "throughput_per_second": 238.6634844868735,
+            "max": 21
+          },
+          "connection_observation": {
+            "connection_count": 9,
+            "role_counts": {
+              "reader": 8,
+              "writer": 1
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        },
+        "decision": {
+          "eligible": true,
+          "reasons": []
+        }
+      },
+      {
+        "id": "stream_mmap128",
+        "query_path": "rank_fast",
+        "reader_profile": "mmap128",
+        "footprint_order": 1,
+        "repetitions": 5,
+        "complete_repetitions": true,
+        "errors": 0,
+        "timeouts": 0,
+        "steady": {
+          "n": 5000,
+          "p50": 13.700308045372367,
+          "p95": 29.093107907101512,
+          "p99": 41.41091997735202,
+          "throughput_per_second": 63.327577362461035
+        },
+        "upper_95": {
+          "steady_p50_ms": 14.741108054295182,
+          "steady_p99_ms": 42.4523699330166,
+          "rss_fraction": 0.014611590133274743
+        },
+        "resources": {
+          "peak_rss_bytes": 982806528,
+          "max_effective_cpu_cores": 0.9937624142516955
+        },
+        "storage": {
+          "database_bytes": 385273856,
+          "derived_index_bytes": 275075072
+        },
+        "point": 50000,
+        "boundary_handling": "stream_complete_boundary_tie",
+        "reader_observations": [
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 134217728,
+              "temp_store": 0
+            }
+          }
+        ],
+        "connection_observations": [
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          },
+          {
+            "connection_count": 36,
+            "role_counts": {
+              "reader": 32,
+              "writer": 4
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        ],
+        "equivalence": {
+          "query_count": 100,
+          "top100_mismatch_count": 0,
+          "top10_mismatch_count": 0,
+          "route_counts": {
+            "rank_stream_tie_completed": 116,
+            "rank_stream_strict_boundary": 84
+          },
+          "full_sort_fallbacks": 0,
+          "rows_consumed": {
+            "n": 200,
+            "p50": 102.0,
+            "p95": 123.0,
+            "p99": 123.0,
+            "throughput_per_second": 9.594166746618056,
+            "max": 123
+          },
+          "boundary_group_size": {
+            "n": 200,
+            "p50": 2.0,
+            "p95": 27.0,
+            "p99": 29.0,
+            "throughput_per_second": 158.73015873015873,
+            "max": 33
+          },
+          "connection_observation": {
+            "connection_count": 9,
+            "role_counts": {
+              "reader": 8,
+              "writer": 1
+            },
+            "reader_synchronous_values": [
+              2
+            ],
+            "sqlite_version": "3.53.2"
+          }
+        },
+        "decision": {
+          "eligible": true,
+          "reasons": []
+        }
+      }
+    ],
+    "selection": {
+      "state": "result_pending_hitl",
+      "recommended_cell": "stream_default",
+      "eligible_through": {
+        "stream_default": 50000,
+        "stream_mmap128": 50000
+      }
+    },
+    "artifact_manifest": {
+      "sha256": "bad0098141509c6b960e0cad95a149020543c8f0fe375ab3ce9b116b45ee594b",
+      "file_count": 481,
+      "total_bytes": 18677750665
+    },
+    "claim_boundary": "experiment_only_pending_post_result_production_decision"
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": [
+    "tests/experiments/test_scale_02_rank_boundary.py",
+    "src/rust/crates/fathomdb-engine/tests/scale02_fts_rank_fast.rs"
+  ],
+  "files_changed": [],
+  "artifacts": [
+    {
+      "kind": "external_artifact_manifest",
+      "path": "artifact-manifest.v1.json",
+      "sha256": "bad0098141509c6b960e0cad95a149020543c8f0fe375ab3ce9b116b45ee594b"
+    }
+  ],
+  "review": null,
+  "open_questions": [
+    "HITL production landing decision remains pending"
+  ]
+}

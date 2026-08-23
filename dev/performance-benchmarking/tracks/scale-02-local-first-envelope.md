@@ -166,7 +166,8 @@ That continuation is complete. The
 [hypothesis receipt](../../../experiments/runs/scale-02-scale-hypotheses-20260822T2328Z-55ce25d2/record.json)
 record the configured-as-is baselines and both frozen hypotheses. No tested
 profile passes at 50k. A
-[third off-shoot](../2026-08-22-scale-02-rank-boundary-design.md) now proposes a
+[third off-shoot](../2026-08-22-scale-02-rank-boundary-result.md) completed its
 two-factor test of streamed BM25 boundary-tie completion under default and
-mmap128 readers. It remains design-only; implementation and execution require
-HITL authorization.
+mmap128 readers. Both streamed cells pass through 50k with exact ordered
+top-100 and top-10 equivalence. The registered selector recommends shipped
+reader defaults; production landing awaits the post-result HITL decision.

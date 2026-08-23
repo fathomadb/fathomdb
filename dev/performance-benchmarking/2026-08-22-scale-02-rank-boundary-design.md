@@ -169,9 +169,9 @@ timed cell. Any mismatch stops the run for review.
 
 ## Run matrix
 
-The proposed executable contract is
-[`rank-boundary.v1.proposed.json`](../../experiments/configs/scale-02/rank-boundary.v1.proposed.json).
-It is pending HITL authorization and implementation digests.
+The approved executable contract is
+[`rank-boundary.v1.json`](../../experiments/configs/scale-02/rank-boundary.v1.json).
+HITL authorization is recorded at `seq-266`.
 
 | Boundary handling | Reader profile | Purpose |
 | --- | --- | --- |

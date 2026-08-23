@@ -89,7 +89,7 @@ Mem0 comparison is re-run.
 | `data/corpus-data/eval/ir_gold/all.gold.json` | 4,597-query FathomDB retrieval benchmark: exact-fact, exploratory, and negative queries; compare retrieval systems only. | It has no free-text answers, so it cannot support answer-accuracy claims. |
 | `data/corpus-data/raw/beir/{arguana,fiqa,nfcorpus,touche2020}/` | Standard retrieval comparisons with qrels. | Not an agent-memory or graph-system head-to-head by itself. |
 | `data/corpus-data/raw/summhay/summhay.jsonl` | Global query-focused summarization with insight and citation gold. | Strong GraphRAG-adjacent follow-up, but not the historical AP-News gate. |
-| `data/corpus-data/raw/timelineqa/`, `timeqa/`, and `tot/` | Temporal and personal-memory regression/stress testing. | No historical shared-comparator protocol is registered. |
+| `data/corpus-data/raw/timelineqa/`, `timeqa/`, and `tot/` | Temporal and personal-memory regression/stress testing. | TimelineQA is authorized for evaluation only; no historical shared-comparator protocol is registered. |
 | `data/corpus-data/external/memex-elps/` | ELPS extraction conformance. | Not an end-to-end retrieval or competitor benchmark. |
 
 LongMemEval-S and oracle are locally acquired under

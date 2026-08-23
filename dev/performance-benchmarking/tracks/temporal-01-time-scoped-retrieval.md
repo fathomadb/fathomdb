@@ -11,9 +11,11 @@ evidence?
 
 ## Draft plan
 
-1. Bind the registered local TimeQA dev/test files and LongMemEval-S temporal
-   slice to a content-free factual preflight. Keep TimeQA and LongMemEval
-   results separate: they have different source and query shapes.
+1. Bind the registered local TimeQA dev/test files, the user-authorized
+   evaluation-only TimelineQA density slices, and LongMemEval-S temporal slice
+   to a content-free factual preflight. Keep all three results separate: they
+   have different source and query shapes. TimelineQA payload remains external
+   and is never committed or shipped.
 2. Fix a licensed local manifest of time-scoped, ordering, and changed-fact
    cases with canonical timestamps, source identity, and declared exclusions.
 3. Compare the selected baseline with one temporal-filter/projection treatment.

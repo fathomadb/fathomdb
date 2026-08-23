@@ -53,9 +53,9 @@ if [ -f src/ts/package.json ] && [ ! -d src/ts/node_modules ]; then
   (cd src/ts && npm install --silent)
 fi
 
-# Repo-wide markdown tooling (markdownlint-cli2 + prettier).
+# Repo-wide Markdown tooling.
 if [ -f package.json ] && [ ! -d node_modules ]; then
-  echo "Installing markdown dev tooling (markdownlint-cli2 + prettier)..."
+  echo "Installing Markdown dev tooling (markdownlint-cli2)..."
   npm install --silent
 fi
 

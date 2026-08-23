@@ -598,6 +598,32 @@ assert_absent "$serial_incident_body" \
 assert_absent "$actual_checkpoint_engine_body" \
   'binding_native_state_observation_for_test' \
   "real erasure checkpoint path is untouched by the binding sampler observer"
+retained_rust_body="$(function_body "$ENGINE_SOURCE" "wal_attribution_retained_materialized_result_is_idle_at_checkpoint")"
+assert_contains "$retained_rust_body" \
+  'Err(EngineError::ErasureIncomplete { stage, .. }) if stage == "wal_checkpoint"' \
+  "retained Rust control accepts only the typed WAL-checkpoint refusal"
+assert_contains "$retained_rust_body" \
+  'record.busy && record.classification == "unclassified_external"' \
+  "retained Rust control classifies an idle-owned BUSY checkpoint as unattributed"
+assert_contains "$retained_rust_body" \
+  'record.active_roles.is_empty()' \
+  "retained Rust control still rejects every managed active role"
+assert_contains "$retained_rust_body" \
+  'record.classification == "no_owned_snapshot"' \
+  "retained Rust control preserves the clean checkpoint outcome"
+retained_python_body="$(python_function_body "$PY_CONTROL" "run_retained_materialized")"
+assert_contains "$retained_python_body" \
+  'except ErasureIncompleteError as error:' \
+  "retained installed-Python control accepts only a typed erasure refusal"
+assert_contains "$retained_python_body" \
+  'error.stage == "wal_checkpoint"' \
+  "retained installed-Python control rejects a non-WAL refusal"
+assert_contains "$retained_python_body" \
+  '(True, "unclassified_external", [])' \
+  "retained installed-Python control requires unattributed BUSY with no managed role"
+assert_contains "$retained_python_body" \
+  '(False, "no_owned_snapshot", [])' \
+  "retained installed-Python control preserves clean no-owned checkpoints"
 for control in \
   wal_attribution_close_boundary_fresh_open_is_clean \
   wal_attribution_close_boundary_read_get_is_clean \
@@ -613,6 +639,34 @@ done
 if [ "${WINDOWS_WAL_ATTRIBUTION_FIXTURE:-0}" != "1" ]; then
   TMPROOT="$(mktemp -d)"
   trap 'rm -rf "$TMPROOT"' EXIT
+
+  RETAINED_RUST_CLASSIFICATION_MUTATED="$TMPROOT/lib-without-retained-unattributed.rs"
+  sed '/fn wal_attribution_retained_materialized_result_is_idle_at_checkpoint/,/^    fn / s/unclassified_external/retained-classification-removed/' \
+    "$ENGINE_SOURCE" >"$RETAINED_RUST_CLASSIFICATION_MUTATED"
+  set +e
+  retained_rust_classification_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 ENGINE_SOURCE="$RETAINED_RUST_CLASSIFICATION_MUTATED" bash "$0" 2>&1)"
+  retained_rust_classification_rc=$?
+  set -e
+  if [ "$retained_rust_classification_rc" -ne 0 ] \
+    && grep -Fq 'retained Rust control classifies an idle-owned BUSY checkpoint as unattributed' <<<"$retained_rust_classification_out"; then
+    pass "mutation proves retained Rust unattributed outcome is load-bearing"
+  else
+    fail "mutation did not fail retained Rust unattributed outcome: $retained_rust_classification_out"
+  fi
+
+  RETAINED_PY_CLASSIFICATION_MUTATED="$TMPROOT/python-without-retained-unattributed.py"
+  sed '/^def run_retained_materialized/,/^def / s/unclassified_external/retained-classification-removed/' \
+    "$PY_CONTROL" >"$RETAINED_PY_CLASSIFICATION_MUTATED"
+  set +e
+  retained_py_classification_out="$(WINDOWS_WAL_ATTRIBUTION_FIXTURE=1 PY_CONTROL="$RETAINED_PY_CLASSIFICATION_MUTATED" bash "$0" 2>&1)"
+  retained_py_classification_rc=$?
+  set -e
+  if [ "$retained_py_classification_rc" -ne 0 ] \
+    && grep -Fq 'retained installed-Python control requires unattributed BUSY with no managed role' <<<"$retained_py_classification_out"; then
+    pass "mutation proves retained installed-Python unattributed outcome is load-bearing"
+  else
+    fail "mutation did not fail retained installed-Python unattributed outcome: $retained_py_classification_out"
+  fi
 
   for marker in \
     'managed_reader_completion_ack reader_autocommit=1 collector_roles=idle' \

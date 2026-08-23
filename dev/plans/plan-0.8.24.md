@@ -47,6 +47,9 @@ recorded, including the three owner decisions below. The existing overall plan
 is this draft; no live release-state JSON or generated status board is created
 until the owner accepts the Slice 6 review outcome.
 
+The detailed, read-only execution sequence is in
+[Slice 0 — environment and project-infrastructure baseline](0.8.24/prework/slice-0-environment-and-infrastructure.md).
+
 ## Scope and non-goals
 
 ### In scope

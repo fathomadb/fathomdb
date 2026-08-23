@@ -352,7 +352,7 @@ def run_binding_child(expected_version: str, path: str) -> None:
 
 
 def run_retained_materialized(expected_version: str) -> None:
-    """Retain public read data and prove the live Engine is immediately idle."""
+    """Retain public read data and prove no managed role owns later checkpoints."""
     _assert_installed_version(expected_version)
     with tempfile.TemporaryDirectory(prefix="slice65-retained-") as directory:
         engine = Engine.open(str(Path(directory) / "retained.sqlite"), use_default_embedder=False)
@@ -367,13 +367,40 @@ def run_retained_materialized(expected_version: str) -> None:
             assert retained is not None and json.loads(retained.body)["nested"]["value"] == "kept"
             test_hooks = _wal_attribution_test_hooks(engine)
             assert test_hooks._wal_attribution_snapshot_for_test()["no_owned_snapshot"] is True
+            clean = (False, "no_owned_snapshot", [])
+            unattributed = (True, "unclassified_external", [])
+            operations = (
+                ("erase", lambda: engine.erase_source("slice65-retained-source")),
+                (
+                    "transition",
+                    lambda: engine.transition(
+                        "slice65-retained-root", "deleted", "slice65 retained idle control"
+                    ),
+                ),
+                ("purge", lambda: engine.purge("slice65-retained-root")),
+            )
             before = len(test_hooks._wal_attribution_checkpoint_records_for_test())
-            engine.erase_source("slice65-retained-source")
-            engine.transition("slice65-retained-root", "deleted", "slice65 retained idle control")
-            engine.purge("slice65-retained-root")
+            typed_refusals: list[str] = []
+            for label, operation in operations:
+                try:
+                    operation()
+                except ErasureIncompleteError as error:
+                    assert error.stage == "wal_checkpoint"
+                    typed_refusals.append(label)
             records = test_hooks._wal_attribution_checkpoint_records_for_test()[before:]
-            assert records and all(r[1:] == (False, "no_owned_snapshot", []) for r in records)
-            print("slice65_wal python_retained_materialized_idle=passed", flush=True)
+            normalized = [(record[1], record[2], record[3]) for record in records]
+            assert normalized and all(record in (clean, unattributed) for record in normalized), (
+                f"retained result observed unexpected managed checkpoint records: {normalized!r}"
+            )
+            assert sum(record == unattributed for record in normalized) >= len(typed_refusals), (
+                "each typed WAL refusal must retain an unattributed BUSY checkpoint record"
+            )
+            print(
+                "slice65_wal python_retained_materialized_idle=passed "
+                f"checkpoint_records={len(normalized)} "
+                f"typed_refusals={','.join(typed_refusals) or 'none'}",
+                flush=True,
+            )
         finally:
             engine.close()
 

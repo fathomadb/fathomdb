@@ -270,7 +270,7 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 
 ## Immediate next action
 
-Slice 6 has consolidated the scored [proposal
-register](0.8.24/prework/slice-6-proposal-register.md). It is now awaiting the
-required first-round HITL decisions; no Slice 7 implementation plan can be
-finalized until those explicit decisions are recorded.
+Slice 6 has recorded the owner's [initial decisions](0.8.24/prework/slice-6-hitl-decisions.md)
+and written the accepted-work Slice 7 plan. The next action is its required
+independent read-only plan review; Slice 7 implementation remains blocked on
+that review and the owner's final plan disposition.

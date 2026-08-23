@@ -63,6 +63,13 @@ P24-11) the required explicit choice. On receipt, Slice 6 will write the
 decision record and derive a Slice 7 plan containing only accepted P24-01,
 P24-03, P24-04, and/or P24-05 work.
 
+## Decision outcome
+
+The owner approved the register on 2026-08-23. The authoritative dispositions
+and their precise feature-scope boundary are recorded in
+[Slice 6 HITL decisions](slice-6-hitl-decisions.md). The accepted Slice 7 set
+is P24-01, P24-03, P24-04, and P24-05 only.
+
 ## Sources
 
 - `dev/plans/0.8.24/prework/slice-{0,1,2,3,4,5}-*.md` and the Slice 0

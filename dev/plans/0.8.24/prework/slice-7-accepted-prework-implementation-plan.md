@@ -1,6 +1,6 @@
 ---
 title: 0.8.24 Slice 7 — accepted prework implementation plan
-status: DRAFT-CONTINGENT
+status: READY-FOR-INDEPENDENT-REVIEW
 target_release: 0.8.24
 ---
 
@@ -8,10 +8,10 @@ target_release: 0.8.24
 
 ## Contingency
 
-This is a planning shell, not authorization to implement. Slice 6 must replace
-the candidate register with the owner's accepted prework, complete the required
-independent read-only review/FIX-n process, and record final owner approval
-before Slice 7 starts.
+The owner has accepted the four packages below in the first-round Slice 6
+decision. This plan is still not authorization to implement: it must receive
+the required independent read-only review, any necessary bounded FIX-n cycles,
+and the owner's final plan disposition before Slice 7 starts.
 
 ## Purpose
 
@@ -39,25 +39,12 @@ Slice 7 may start only when all of the following are true:
 
 If any gate is false, Slice 7 remains blocked and makes no changes.
 
-## Current candidate register — not authorized
+## Accepted scope
 
-The candidates below are inputs to Slice 6 only. Presence in this table does
-not mean accepted, and Slice 6 must remove every non-accepted row from the
-implementation scope.
-
-| Candidate | Source | Possible bounded proof |
-| --- | --- | --- |
-| Update root `markdownlint-cli2` and lockfile to remediate the audited `js-yaml` path | Slice 1 | Root audit plus the repository's guarded Markdown checks |
-| Review Pyright 1.1.410 → 1.1.411 | Slice 1 | Version guard and Python typecheck; postpone if output changes are not understood |
-| Remove the unused Prettier dependency and obsolete bootstrap wording | Slices 1–2 | Direct-use scan, clean root install, and guarded Markdown tooling checks |
-| Correct maintained former-owner repository URLs | Slice 2 | Bounded maintained-surface scan and documentation link/build checks |
-| Correct stale reader-facing “current release” assertions | Slice 2 | Bounded current-release scan against actually published registry state |
-| Reconcile active engineering navigation | Slice 2 | Navigation/index consistency and release-state lookup checks |
-| Change Dependabot's paused posture | Slice 1 | Owner policy decision and configuration-specific check; no implied acceptance |
-
-Slice 2 found no valid archive/delete candidate. No file deletion or archival
-belongs in Slice 7 unless Slice 6 adds a concrete owner-accepted proposal that
-satisfies R24-15/AC24-15 draft safeguards.
+The [Slice 6 decision record](slice-6-hitl-decisions.md) accepts **only**
+P24-01, P24-03, P24-04, and P24-05. Pyright is postponed, Dependabot remains
+paused, and no archive/delete candidate exists. No feature-slice work is
+included.
 
 ## Scope rules
 
@@ -93,29 +80,97 @@ satisfies R24-15/AC24-15 draft safeguards.
   integration. Existing automatic behavior, if any, is recorded rather than
   treated as an extra gate.
 
-## Implementation-plan form
+## Ordered implementation packages
 
-Slice 6 replaces this section with one ordered block per accepted work package:
+### S7-01 — root Markdown security remediation
 
-### S7-XX — `<accepted work package>`
+- **Owner decision:** P24-01 accepted: update root `markdownlint-cli2` and its
+  lockfile to remove the audited `js-yaml` path.
+- **Files/surfaces:** `package.json` and `package-lock.json` only. No
+  TypeScript-package manifest, source, workflow, or Markdown content change.
+- **RED/baseline proof:** capture root `npm audit --json` showing the known
+  `markdownlint-cli2 → js-yaml` advisory path and record the resolved version.
+- **Change:** update only the root `markdownlint-cli2` declaration and its
+  lock resolution to the reviewed compatible version; do not add overrides or
+  unrelated package updates.
+- **GREEN proof:** rerun root `npm audit --json`; run `npx markdownlint-cli2`
+  and the repository's guarded Markdown checks. The named advisory path must
+  be absent and Markdown tooling must retain its AST-guarded behavior.
+- **Broader check:** no hosted CI. A root dev-tool dependency change warrants
+  the selected local lint/contract checks, not release, CUDA, or package smoke.
+- **Stop conditions:** a new advisory cohort, lockfile churn outside the named
+  dependency tree, a Markdown semantic-neutrality failure, or changed tool
+  behavior requiring broader owner choice.
 
-- **Owner decision:** link and exact accepted wording.
-- **Purpose:** observable problem being corrected.
-- **Files/surfaces:** exhaustive edit set and intentionally excluded neighbors.
-- **Preconditions:** required evidence, versions, and branch/base state.
-- **RED/baseline proof:** failing test, audit, scan, or reproducible stale-state
-  check that demonstrates the problem.
-- **Change:** smallest approved implementation.
-- **GREEN proof:** exact targeted commands and expected end state.
-- **Broader check:** only the repository verification justified by the actual
-  blast radius; explain any omission or environment limitation.
-- **Stop conditions:** unexpected public/ADR/runtime impact, new dependency
-  cohort, unavailable prerequisite, or scope beyond the owner decision.
-- **Evidence:** files/logs/commit recorded at close.
+### S7-02 — remove unused Prettier tooling
 
-Sequence shared-file packages serially. Separate a package only when it has a
-different dependency, risk boundary, or required executor—not merely to create
-an additional review or CI event.
+- **Owner decision:** P24-03 accepted: remove the unsupported root Prettier
+  dependency and obsolete bootstrap wording.
+- **Files/surfaces:** `package.json`, `package-lock.json`, and
+  `scripts/bootstrap.sh`. Retain historical records, the Markdown safety
+  policy, and comments that accurately state Prettier is not used for Markdown.
+- **RED/baseline proof:** retain the completed direct-use scan: root manifests
+  install Prettier while active commands do not invoke it; the bootstrap text
+  advertises it as Markdown tooling.
+- **Change:** remove only the root dev dependency/lock entry and change the
+  bootstrap message/comment to name the remaining Markdown tooling accurately.
+- **GREEN proof:** repeat the supported-command scan; perform a clean root
+  `npm ci`; run `npx markdownlint-cli2` and the guarded Markdown check.
+- **Broader check:** no hosted CI. Do not run Prettier or rewrite historical
+  references merely because they mention it.
+- **Stop conditions:** any active supported non-Markdown invocation, a clean
+  install regression, or a need to delete tool configuration/history not
+  covered by the accepted package.
+
+### S7-03 — maintained public-link and release-currency correction
+
+- **Owner decision:** P24-04 accepted: correct former-owner links and
+  reader-facing stale current-release assertions on maintained surfaces.
+- **Files/surfaces:** `mkdocs.yml`; `src/python/README.md`; `src/ts/README.md`;
+  `src/rust/crates/{fathomdb,fathomdb-cli,fathomdb-embedder,fathomdb-embedder-api,fathomdb-engine,fathomdb-query,fathomdb-schema}/README.md`;
+  and only active assertions found by the baseline in `docs/{index.md,compatibility/index.md,concepts/index.md,embedder.md,getting-started/index.md,guides/index.md,install/python.md,install/rust.md,install/typescript.md,operations/index.md,reference/index.md,reference/python-api.md,reference/typescript-api.md}`.
+  `docs/release-notes/{0.6.0,0.6.1,0.8.0}.md` and other historical evidence are
+  intentionally excluded unless an individual line falsely presents itself as
+  current guidance.
+- **RED/baseline proof:** save the bounded `coreyt/fathomdb` and `0.8.21`
+  scans, classify each hit active versus historical, and confirm the latest
+  published release before editing. Do not pre-announce 0.8.24.
+- **Change:** replace only active former-owner URLs with the canonical
+  `fathomadb/fathomdb` route and update only active current-release claims to
+  the actually published release.
+- **GREEN proof:** rerun the bounded scans with historical exclusions; run the
+  docs lint/build and link checks applicable to edited files.
+- **Broader check:** documentation-only checks; no hosted CI or registry
+  mutation.
+- **Stop conditions:** uncertainty whether a line is historical, a link target
+  that has a different canonical owner, an unresolved release version, or a
+  required public contract/ADR change.
+
+### S7-04 — active engineering navigation correction
+
+- **Owner decision:** P24-05 accepted: reconcile active engineering navigation
+  to the existing release-state lookup rule.
+- **Files/surfaces:** `dev/README.md`, `dev/plans/README.md`,
+  `dev/DOC-INDEX.md`, and `dev/doc-index/plans.md` only. Do not create/edit a
+  `release-state-*.json` file or historical release board.
+- **RED/baseline proof:** retain the exact conflicting statements: the former
+  `0.8.6–0.8.16` schedule called master, the current program schedule entry,
+  and the already-defined release-state resolution rule.
+- **Change:** remove or qualify stale hard-coded active-program claims so all
+  four active navigation surfaces direct readers to the current program
+  schedule and resolve a live release through `release-state-*.json`.
+- **GREEN proof:** bounded text scan and index consistency review; run scoped
+  Markdown lint, plan-status/anchor checks, and `git diff --check`.
+- **Broader check:** documentation/index checks only; no hosted CI or
+  release-state mutation.
+- **Stop conditions:** a conflict with an accepted ADR or live release-state
+  contract, a required history rewrite, or a scope expansion beyond the four
+  named files.
+
+The root manifests/lockfile are shared by S7-01 and S7-02; execute them
+serially in that order. S7-03 and S7-04 may share one documentation commit only
+if their bounded evidence remains separately recorded; they must not pull
+feature documentation into Slice 7.
 
 ## Baseline execution sequence
 

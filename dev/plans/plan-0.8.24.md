@@ -194,6 +194,12 @@ be silently folded into Slice 7.
 | Slice 3 conditional target-artifact CRUD (`REQ-TARGET-TEGRA` / `AC-TARGET-TEGRA`) | **30:** carry the proposed need/requirement/criterion into Slice 30's own draft-to-ready plan; do not edit canonical contracts until owner approval. |
 | Slice 3 conditional Windows CUDA CRUD (`REQ-TARGET-WINDOWS-CUDA` / `AC-TARGET-WINDOWS-CUDA`) | **40:** carry the proposed need/requirement/criterion into Slice 40's own draft-to-ready plan; do not edit canonical contracts until owner approval. |
 | Slice 3 release retry and installed-target CRUD (updates to REQ-050/AC-054 and REQ-052/AC-056) | **60:** make the canonical/documentation change only if the owner accepts it, then prove retry-safe completion and target-installed smoke. |
+| Slice 4 code alignment: current CI is proportional and already on main | **10:** retain a no-change presumption; add a route only when the feature ready plan proves a concrete selector/transfer/smoke gap. |
+| Slice 4 code alignment: retained 811-line SCALE-02 branch delta | **20:** review the complete delta and write a bounded implementation design with the retained fidelity constraints; no opportunistic commit copy or benchmark rerun. |
+| Slice 4 code alignment: Python currently rejects a public `fathomdb-tegra` reading | **30:** after identity decision, deliberately supersede the local-only co-install/documentation assumption as part of the feature design. |
+| Slice 4 code alignment: Windows loader/package and hosted jobs are CPU-only | **40:** after SDK/executor decision, plan a separate CUDA artifact/loader/provenance shape that preserves the CPU package. |
+| Slice 4 code alignment: existing WAL controls do not attribute external client behavior | **50:** compare actual external evidence before any defect/contract proposal. |
+| Slice 4 code alignment: retry-safe mechanics conflict with atomic-publish wording | **60:** implement the owner-approved release semantics/documentation change and targeted publisher/installed-smoke proof. |
 
 The register does not make any feature ready or authorize its work. It is the
 minimum input each feature's separate draft plan must carry forward; later
@@ -240,10 +246,9 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 
 ## Immediate next action
 
-Slice 3 is complete: it retained only conditional target-artifact and
-release-retry/installed-smoke canonical CRUD, routed them directly to Slices
-30, 40, and 60, and rejected internal-maintenance items as product contracts.
-Proceed using the [Slice 4 draft
-plan](0.8.24/prework/slice-4-architecture-alignment-plan.md): review the
-Slice 0–3 proposals against current architecture and code without implementing
-or modifying authoritative documents.
+Slice 4 is complete: it found no runtime architecture defect, retained the
+main-CI no-change presumption, and routed the real product gaps to the
+appropriate feature slices. Proceed using the [Slice 5 draft
+plan](0.8.24/prework/slice-5-verification-adequacy-plan.md): review each
+retained requirement/criterion and critical path for adequate evidence without
+adding or changing tests.

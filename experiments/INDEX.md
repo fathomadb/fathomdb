@@ -25,3 +25,4 @@ GENERATED FROM `index.jsonl` — do NOT hand-edit. Regenerate with `experiments/
 | 2026-08-22T22:45:33Z | scale-02-a0-25000 | scale-02-a0-25000-20260822T2245Z-ee93a826 | advisory_limit_observed | 25000 | 2278854071c7fe363381fd26f9a72e028254b439 | 0.0 | eligibility=fail; point=25000 |  |
 | 2026-08-22T23:11:29Z | scale-02-a0-40000 | scale-02-a0-40000-20260822T2311Z-be43f004 | post_boundary_baseline_complete | 40000 | a6fb70e75af0b4a2bbc62a5f7a5e1296e938f8f7 | 0.0 | eligibility=fail; point=40000 |  |
 | 2026-08-22T23:24:11Z | scale-02-a0-50000 | scale-02-a0-50000-20260822T2324Z-f5c98234 | post_boundary_baseline_complete | 50000 | a6fb70e75af0b4a2bbc62a5f7a5e1296e938f8f7 | 0.0 | eligibility=fail; point=50000 |  |
+| 2026-08-22T23:28:14Z | scale-02-scale-hypotheses | scale-02-scale-hypotheses-20260822T2328Z-55ce25d2 | complete | 50000 | 6dae1c01d8733826a3e23f4f022198f950b5a502 | 0.0 | cells=6; eligible_cells=3; equivalence_mismatches=0 |  |

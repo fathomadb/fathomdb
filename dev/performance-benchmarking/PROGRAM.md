@@ -95,7 +95,7 @@ receipts, not inferred from a branch name or narration.
 | TEMPORAL-01 | P3 | Time-scoped retrieval: do temporal filters and version-aware projections return the correct state without stale superseded evidence? | Planned; requires CORPUS-01-qualified temporal gold and the selected retrieval baseline. | [track plan](tracks/temporal-01-time-scoped-retrieval.md) |
 | EXTRACT-01 | P3 | FathomDB-native extracted semantic memory: do provenance-linked facts, preferences, and episodes improve update and recall quality enough to justify extraction and lifecycle costs? | Planned; requires TRACE-01 coverage, qualified update gold, and the selected canonical baseline. | [track plan](tracks/extract-01-semantic-memory.md) |
 | MEMORY-01 | P3 | Native Mem0 comparison: is the selected FathomDB memory profile near-parity or better under the official harness? | Blocked on ANSWER-01 selection plus Docker, official credential, LongMemEval acquisition, and a spend ceiling. Report raw-evidence and extracted-semantic-memory regimes separately. | [track plan](tracks/memory-01-native-mem0-comparison.md) |
-| SCALE-02 | complete | F-17 advisory scale envelope: what measured local-first range is supportable for the selected projection profile? | Complete: A0 passes at 10k and 17,272; 25k fails the steady-p50 policy, so 40k and 50k were not run. | [track plan](tracks/scale-02-local-first-envelope.md) · [result](2026-08-22-scale-02-fts-followup-result.md) · [17,272 receipt](../../experiments/runs/scale-02-a0-17272-20260822T2241Z-c543eeb9/record.json) |
+| SCALE-02 | complete | F-17 advisory scale envelope: what measured local-first range is supportable for the selected projection profile? | Complete: the original fixed-policy A0 envelope is 17,272. In the separately authorized scale-adjusted view, shipped defaults pass at 25k and mmap128 passes at 40k; no tested profile passes at 50k. | [track plan](tracks/scale-02-local-first-envelope.md) · [original result](2026-08-22-scale-02-fts-followup-result.md) · [scale extension](2026-08-22-scale-02-scale-extension-result.md) |
 | LATENT-01 | P3 | Long-context/late-chunking feasibility: does a token-output, long-context embedder address a diagnosed cross-window discourse failure at acceptable cost? | Parked until LOCOMO-01/PARENT-01 diagnose that failure. Requires a model/interface preflight, labelled subset, and separate quality-and-cost contract; it is not a stride sweep. | [track plan](tracks/latent-01-late-chunking-feasibility.md) |
 | GRAPH-01 | P3 | FathomDB graph-projection self-characterization: do high-confidence, provenance-backed graph projections improve multi-hop retrieval enough to justify extraction and maintenance? | Planned; requires a bounded graph design and supporting-evidence protocol before native graph comparison is prioritized. | [track plan](tracks/graph-01-projection-characterization.md) |
 | GLOBAL-01 | parked | Native GraphRAG comparison: reproduce and compare global sensemaking fairly. | Parked pending a named global-synthesis failure, a declared FathomDB graph or source-linked summary/map-reduce treatment, a cost ceiling, metering/abort rule, and native reproduction. | [track plan](tracks/global-01-native-graphrag.md) |
@@ -128,10 +128,10 @@ graph or source-linked summary/map-reduce treatment.
 LOCOMO-01 and PARENT-01 have accepted directional decisions and should not run
 confirming grids. ANSWER-01 retains A0 as the answer-scored profile. SCALE-01
 is complete on the registered GPU primary; no CPU bridge was required.
-SCALE-02 retains its default-0.8.23 10k stop as a baseline. Its compact FTS
-follow-up selected `rank_default`, and the HITL approved its production
-landing. The formal run establishes a 17,272-record advisory envelope; 25k is
-the first observed failing point, and the stop rule prohibited 40k and 50k.
+SCALE-02 retains its fixed-20-ms 17,272-record envelope. The separately
+authorized scale-adjusted extension collected configured-as-is 40k and 50k
+baselines and tested two reader hypotheses. Shipped defaults pass at 25k;
+mmap128 passes at 40k; neither tested treatment passes at 50k.
 
 CORPUS-01 may close its remaining human-gold gaps independently. LATENT-01 and
 GRAPH-01 start only from a diagnosed failure. TEMPORAL-01 and EXTRACT-01 wait

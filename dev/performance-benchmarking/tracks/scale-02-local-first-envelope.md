@@ -1,7 +1,8 @@
 # SCALE-02 — Local-first scale envelope
 
-**Status:** diagnostic continuation approved; the original measured advisory A0
-envelope remains 17,272 records, and 25k is the first fixed-policy failing point.
+**Status:** diagnostic continuation complete; the original fixed-policy A0
+envelope remains 17,272, configured-as-is passes the scale-adjusted policy at
+25k, and the mmap hypothesis passes it at 40k but not 50k.
 
 ## Decision
 
@@ -159,3 +160,9 @@ or original receipt. Its 40k and 50k outputs are post-boundary baselines, not an
 expansion of the original envelope. At most two accuracy-preserving tuning
 hypotheses may be frozen after those baselines are analyzed and before their
 25k/40k/50k cells run.
+
+That continuation is complete. The
+[result](../2026-08-22-scale-02-scale-extension-result.md) and
+[hypothesis receipt](../../../experiments/runs/scale-02-scale-hypotheses-20260822T2328Z-55ce25d2/record.json)
+record the configured-as-is baselines and both frozen hypotheses. No tested
+profile passes at 50k; further execution requires a new plan and authorization.

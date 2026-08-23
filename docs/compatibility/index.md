@@ -1,11 +1,12 @@
 # Compatibility
 
 Supported platforms, toolchains, and version-alignment policy for the
-published **0.8.21** release.
+published **0.8.23** release.
 
 > **Pre-1.0 = beta.** FathomDB is on a pre-1.0 line. The surface may
-> change between micro releases, and 0.8.21 carries breaking changes
-> relative to 0.8.9 (see [breaking changes](#breaking-changes-since-089)).
+> change between micro releases; consult the
+> [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md)
+> for published-version detail.
 > "GA" in earlier release notes referred to release *engineering* — a
 > tagged, published artifact — not to an API-stability promise.
 
@@ -26,7 +27,7 @@ and release jobs.
 
 ## Prebuilt artifacts — Linux x86_64 and AArch64 published
 
-⚠ **The published 0.8.21 wheel and npm platform binaries support Linux
+⚠ **The published 0.8.23 wheel and npm platform binaries support Linux
 `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu` glibc.** Linux
 aarch64 is published for Python and npm. Do not expect the published npm
 package to install on macOS, Windows, or Linux musl.
@@ -85,7 +86,7 @@ published Python and npm packages in this release.
 
 ## On-disk schema
 
-The 0.8.22 development line sets `SCHEMA_VERSION` to **26** (the released
+The published 0.8.23 line sets `SCHEMA_VERSION` to **26** (the released
 0.8.21 line is **25**; 0.8.20 shipped **24**). Migration runs at
 `Engine.open` and only there.
 
@@ -98,7 +99,7 @@ after upgrading** rather than relying on an in-place upgrade.
 
 ## Versioning — two axes
 
-0.8.21 follows two-axis versioning:
+0.8.23 follows two-axis versioning:
 
 - **Axis W (workspace lockstep)** — the runtime / binding / CLI crates
   plus the Python and TypeScript packages all carry the same workspace
@@ -122,7 +123,7 @@ This decouples embedder-protocol stability from binding cadence.
 | A projection spec with `fts` / `vector` but no `searchable` role is refused | add the role, or name the projection in `drop` |
 | Migration step 23 drops existing edge rows | re-ingest edges after upgrading |
 
-The [CHANGELOG](https://github.com/coreyt/fathomdb/blob/main/CHANGELOG.md)
+The [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md)
 is the authoritative list.
 
 ## 0.5.x / 0.6.x compatibility

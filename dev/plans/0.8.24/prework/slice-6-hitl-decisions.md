@@ -53,3 +53,9 @@ make the final Slice 7 plan disposition before implementation starts.
 after FIX-1, and the owner approved implementation of the final Slice 7 plan.
 Only S7-01 through S7-04 are authorized. This approval does not widen the
 feature-slice boundaries or authorize external release actions.
+
+**Owner scope amendment, 2026-08-23:** authorized the S7-03 maintained-public
+documentation correction to include `docs/reference/{cli,config,errors}.md`
+and `docs/operations/worktree-consolidation.md`. These are active public
+former-owner links found by the S7-03 baseline; historical release notes remain
+excluded.

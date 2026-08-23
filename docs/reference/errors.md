@@ -11,7 +11,7 @@ Two of the 27 are themselves parents — `VectorError`
 (`EmbedderNotConfiguredError`) — so catching a parent also catches its
 child.
 
-Authoritative spec: [`dev/design/errors.md`](https://github.com/coreyt/fathomdb/blob/main/dev/design/errors.md).
+Authoritative spec: [`dev/design/errors.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/design/errors.md).
 
 ## Catch-all base
 
@@ -166,4 +166,4 @@ except CorruptionError as e:
 - [TypeScript API](typescript-api.md)
 - [CLI](cli.md)
 - [Erasure](../operations/erasure.md)
-- Authoritative spec: [`dev/design/errors.md`](https://github.com/coreyt/fathomdb/blob/main/dev/design/errors.md)
+- Authoritative spec: [`dev/design/errors.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/design/errors.md)

@@ -134,6 +134,9 @@ included.
 - **Files/surfaces:** `mkdocs.yml`; `src/python/README.md`; `src/ts/README.md`;
   `src/rust/crates/{fathomdb,fathomdb-cli,fathomdb-embedder,fathomdb-embedder-api,fathomdb-engine,fathomdb-query,fathomdb-schema}/README.md`;
   and only active assertions found by the baseline in `docs/{index.md,compatibility/index.md,concepts/index.md,embedder.md,getting-started/index.md,guides/index.md,install/python.md,install/rust.md,install/typescript.md,operations/index.md,reference/index.md,reference/python-api.md,reference/typescript-api.md}`;
+  `docs/reference/{cli,config,errors}.md` and
+  `docs/operations/worktree-consolidation.md` under the owner-authorized
+  S7-03 scope amendment;
   `dev/DOC-INDEX.md`, `dev/doc-index/plans.md`, and the shared
   `slice-7-completion.md` when required by the edited documentation.
   `docs/release-notes/{0.6.0,0.6.1,0.8.0}.md` and other historical evidence are

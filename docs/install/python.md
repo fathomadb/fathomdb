@@ -4,7 +4,7 @@ The `fathomdb` Python SDK is a [PyO3](https://pyo3.rs/) binding over the
 native Rust runtime. Published wheels are platform-tagged (no source build
 required on supported platforms).
 
-> **0.8.21 is published to PyPI** for Linux x86_64/glibc and Linux
+> **0.8.23 is published to PyPI** for Linux x86_64/glibc and Linux
 > AArch64/glibc. Other hosts must use the from-source path below. FathomDB is
 > pre-1.0 and the surface is **beta**.
 
@@ -21,7 +21,7 @@ required on supported platforms).
 ## Install the published wheel
 
 ```bash
-pip install fathomdb==0.8.21
+pip install fathomdb==0.8.23
 ```
 
 ## Install (current path — from source)
@@ -29,7 +29,7 @@ pip install fathomdb==0.8.21
 Editable from `main` using [maturin](https://www.maturin.rs/):
 
 ```bash
-git clone https://github.com/coreyt/fathomdb
+git clone https://github.com/fathomadb/fathomdb
 cd fathomdb
 pip install -e src/python/
 ```
@@ -109,4 +109,4 @@ for a richer walkthrough.
 - [Reference — Python API](../reference/python-api.md)
 - [Reference — config](../reference/config.md)
 - [Compatibility](../compatibility/index.md)
-- [CHANGELOG](https://github.com/coreyt/fathomdb/blob/main/CHANGELOG.md)
+- [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md)

@@ -1,10 +1,10 @@
 # Getting Started
 
-> **Published release.** **v0.8.21 is published** to crates.io / PyPI /
+> **Published release.** **v0.8.23 is published** to crates.io / PyPI /
 > npm. Native Python and npm artifacts cover Linux x86_64/glibc and Linux
 > AArch64/glibc, and npm installs use its `next` dist-tag. FathomDB is pre-1.0 and
 > the surface is **beta**. See the
-> [CHANGELOG](https://github.com/coreyt/fathomdb/blob/main/CHANGELOG.md)
+> [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md)
 > for what changed since 0.8.9.
 
 ## Where to go
@@ -15,7 +15,7 @@
 - [Install — TypeScript / Node.js](../install/typescript.md)
 - [Install — Rust](../install/rust.md)
 
-## What ships in 0.8.21
+## What ships in 0.8.23
 
 The governed SDK surface (identical names in Python, TypeScript and
 Rust, in each language's idiomatic spelling — pinned by
@@ -59,7 +59,7 @@ Rust, in each language's idiomatic spelling — pinned by
 - A projection spec carrying `fts`/`vector` without the `searchable`
   role is refused.
 
-The [CHANGELOG](https://github.com/coreyt/fathomdb/blob/main/CHANGELOG.md)
+The [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md)
 is the authoritative list.
 
 ## Use the right SDK

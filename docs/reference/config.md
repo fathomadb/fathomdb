@@ -4,7 +4,7 @@ Engine-owned runtime knobs (0.8.20). The same five knobs are exposed by
 every binding in idiomatic spelling (Python snake_case, TS camelCase,
 Rust snake_case).
 
-Authoritative spec: [`dev/design/engine.md`](https://github.com/coreyt/fathomdb/blob/main/dev/design/engine.md);
+Authoritative spec: [`dev/design/engine.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/design/engine.md);
 cross-binding symmetry pinned by `dev/design/bindings.md` § 6.
 
 ## Knob matrix
@@ -78,4 +78,4 @@ other knobs are open-time only.
 
 - [Python API — Engine.open](python-api.md)
 - [TypeScript API — Engine.open](typescript-api.md)
-- Authoritative spec: [`dev/design/engine.md`](https://github.com/coreyt/fathomdb/blob/main/dev/design/engine.md)
+- Authoritative spec: [`dev/design/engine.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/design/engine.md)

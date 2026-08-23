@@ -43,4 +43,4 @@ cargo add fathomdb-schema
 
 MIT. See the `LICENSE` file shipped in this crate.
 
-Source, issues and full documentation: <https://github.com/coreyt/fathomdb>
+Source, issues and full documentation: <https://github.com/fathomadb/fathomdb>

@@ -1,8 +1,7 @@
 # Guides
 
-Guides cover the published 0.8.21 surface and the local, unpublished 0.8.22
-candidate. Candidate-only APIs are not available from a registry until the held
-release gates complete.
+Guides cover the published 0.8.23 surface. APIs not yet available from a
+registry are marked separately.
 
 - [Working with structured search hits](structured-search-hits.md) — read the
   typed `id` (`IdSpace`), `kind`, `body`, `score`, `branch`, `source_id` and

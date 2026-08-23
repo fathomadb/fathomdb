@@ -280,24 +280,25 @@ refresh in the closing commit when you touch a doc).
 
 | Path | Purpose | Owning slice / AC | Last-touched |
 |------|---------|-------------------|--------------|
-| `docs/index.md` | Docs home | X2 (nav) | 2026-05-17 |
-| `docs/getting-started/index.md` | Getting-started overview | — | 2026-05-17 |
+| `docs/index.md` | Docs home for the published 0.8.23 surface | X2 (nav) | 2026-08-23 |
+| `docs/getting-started/index.md` | Getting-started overview for 0.8.23 | — | 2026-08-23 |
 | `docs/getting-started/quickstart.md` | Quickstart (five-operation contract) | 5/30 (new surface examples) | 2026-05-17 |
-| `docs/install/python.md` | Python install | — | 2026-05-30 |
-| `docs/install/typescript.md` | TypeScript install | — | 2026-05-30 |
-| `docs/install/rust.md` | Rust install | — | 2026-05-17 |
-| `docs/reference/index.md` | API-reference overview; distinguishes published 0.8.21 from held 0.8.22 candidate | 0.8.22 documentation correctness | 2026-08-08 |
-| `docs/reference/python-api.md` | Python API reference incl. governed `read.*`, projection configuration/derived readiness, and `read.projection_status` | Slices 21/22 landed in PR #207; public release held | 2026-08-08 |
-| `docs/reference/typescript-api.md` | TypeScript API reference incl. governed `read.*`, projection configuration/derived readiness, and `read.projectionStatus` | Slices 21/22 landed in PR #207; public release held | 2026-08-08 |
-| `docs/reference/cli.md` | CLI reference (recovery verbs CLI-only); 34 documents the `doctor dump-mutations` op-store read-back diagnostic +... | 34 (dump-mutations); 0.8.20 Slice 5d (R-20-E8) | 2026-07-19 |
-| `docs/reference/errors.md` | Error reference (taxonomy) | per-binding error-class adds | 2026-05-17 |
-| `docs/reference/config.md` | Config reference | — | 2026-05-17 |
-| `docs/concepts/index.md` | Concepts overview; distinguishes unpublished 0.8.22 candidate from published 0.8.21 | 0.8.22 documentation correctness | 2026-08-08 |
-| `docs/embedder.md` | Default embedder; accurate published-versus-candidate release framing | 0.8.22 documentation correctness | 2026-08-08 |
-| `docs/compatibility/index.md` | Compatibility matrix; removes stale attribute-filter availability claim | 0.8.22 documentation correctness | 2026-08-08 |
-| `docs/operations/index.md` | Operations guide; distinguishes published 0.8.21 from held 0.8.22 candidate | 0.8.22 documentation correctness | 2026-08-08 |
+| `docs/install/python.md` | Python install for published 0.8.23 | — | 2026-08-23 |
+| `docs/install/typescript.md` | TypeScript install for published 0.8.23 | — | 2026-08-23 |
+| `docs/install/rust.md` | Rust install for published 0.8.23 | — | 2026-08-23 |
+| `docs/reference/index.md` | API-reference overview for the published 0.8.23 surface | 0.8.24 Slice 7 | 2026-08-23 |
+| `docs/reference/python-api.md` | Python API reference incl. governed `read.*`, projection configuration/derived readiness, and `read.projection_status` | Slices 21/22 published by 0.8.23 | 2026-08-23 |
+| `docs/reference/typescript-api.md` | TypeScript API reference incl. governed `read.*`, projection configuration/derived readiness, and `read.projectionStatus` | Slices 21/22 published by 0.8.23 | 2026-08-23 |
+| `docs/reference/cli.md` | CLI reference (recovery verbs CLI-only) | 34 (dump-mutations); 0.8.24 Slice 7 link correction | 2026-08-23 |
+| `docs/reference/errors.md` | Error reference (taxonomy) | 0.8.24 Slice 7 link correction | 2026-08-23 |
+| `docs/reference/config.md` | Config reference | 0.8.24 Slice 7 link correction | 2026-08-23 |
+| `docs/concepts/index.md` | Concepts overview for the published 0.8.23 surface | 0.8.24 Slice 7 | 2026-08-23 |
+| `docs/embedder.md` | Default embedder, published 0.8.23 framing | 0.8.24 Slice 7 | 2026-08-23 |
+| `docs/compatibility/index.md` | Compatibility matrix for published 0.8.23 | 0.8.24 Slice 7 | 2026-08-23 |
+| `docs/operations/index.md` | Operations guide for the published 0.8.23 surface | 0.8.24 Slice 7 | 2026-08-23 |
+| `docs/operations/worktree-consolidation.md` | Worktree consolidation protocol overview | 0.8.24 Slice 7 link correction | 2026-08-23 |
 | `docs/operations/erasure.md` | Erasure boundary | 0.8.20 Slice 5d (R-20-E4/E8, design §4 item 12) | 2026-07-19 |
-| `docs/guides/index.md` | Guides hub; distinguishes published 0.8.21 from held 0.8.22 candidate | 0.8.22 documentation correctness | 2026-08-08 |
+| `docs/guides/index.md` | Guides hub for the published 0.8.23 surface | 0.8.24 Slice 7 | 2026-08-23 |
 | `docs/guides/structured-search-hits.md` | Structured `SearchHit` usage guide (id/kind/body/score/branch; Py + TS) | 5 (G1); 10 (score → RRF) | 2026-06-03 |
 | `docs/guides/retrieve-by-id.md` | Retrieve-by-id guide — `read.get`/`read.get_many` point lookup by `logical_id` (active-only) +... | 30 (G2/G3) | 2026-06-04 |
 | `docs/guides/hybrid-search-filtering.md` | Hybrid-search guide — RRF plus Python/TS metadata and declared-projection attribute filters | 0.8.22 documentation correctness | 2026-08-08 |
@@ -306,9 +307,9 @@ refresh in the closing commit when you touch a doc).
 | `docs/positions/recovery-surface.md` | Position: recovery surface (denylist, CLI-only) | preserved by 25/30 | 2026-05-01 |
 | `docs/positions/tokenizer-policy.md` | Position: tokenizer policy | 5 (FTS5 default upgrade) | 2026-05-01 |
 | `docs/positions/embedder-identity.md` | Position: embedder identity | — | 2026-05-01 |
-| `docs/release-notes/0.6.0.md` | 0.6.0 historical release notes; points to published 0.8.21 as current | 0.8.22 documentation correctness | 2026-08-08 |
-| `docs/release-notes/0.6.1.md` | 0.6.1 historical release notes; points to published 0.8.21 as current | 0.8.22 documentation correctness | 2026-08-08 |
-| `docs/release-notes/0.8.0.md` | 0.8.0 historical release notes; points to published 0.8.21 as current | 0.8.22 documentation correctness | 2026-08-08 |
+| `docs/release-notes/0.6.0.md` | 0.6.0 historical release notes; current-link banner names 0.8.23 | 0.8.24 Slice 7 | 2026-08-23 |
+| `docs/release-notes/0.6.1.md` | 0.6.1 historical release notes; current-link banner names 0.8.23 | 0.8.24 Slice 7 | 2026-08-23 |
+| `docs/release-notes/0.8.0.md` | 0.8.0 historical release notes; current-link banner names 0.8.23 | 0.8.24 Slice 7 | 2026-08-23 |
 | `dev/releases/0.8.0.md` | 0.8.0 internal release record | 40/GA-2 | 2026-06-08 |
 
 ## Corpus / eval expansion (out-of-band, owner-managed — integrated at Slice-5 push 2026-06-02)

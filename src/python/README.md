@@ -101,4 +101,4 @@ pip install -e src/python/
 
 MIT. See the `LICENSE` file shipped in this distribution.
 
-Source, issues and full documentation: <https://github.com/coreyt/fathomdb>
+Source, issues and full documentation: <https://github.com/fathomadb/fathomdb>

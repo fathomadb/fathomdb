@@ -204,6 +204,7 @@ jobs:
               - 'scripts/lib/agent-suite-run.sh'
               - 'scripts/lib/agent-python-env.sh'
               - 'scripts/bootstrap.sh'
+              - 'scripts/bootstrap-heavy.sh'
             rust_test_harness:
               - 'scripts/test-rust-workspace.sh'
             security_harness:
@@ -261,16 +262,20 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: src/python/pyproject.toml
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "25.9.0"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            src/ts/package-lock.json
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
         with:
           toolchain: "1.95.0"
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-      - name: Install Ripgrep for developer-environment contract checks
-        run: sudo apt-get update && sudo apt-get install --yes ripgrep
       - name: Bootstrap dev tooling
         run: bash scripts/bootstrap.sh
       - name: agent-verify fast (lint -> typecheck -> security -> cheap suites)
@@ -333,16 +338,20 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: src/python/pyproject.toml
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "25.9.0"
+          cache: npm
+          cache-dependency-path: src/ts/package-lock.json
       - uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # stable
         with:
           toolchain: "1.95.0"
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-      - name: Bootstrap dev tooling
-        run: bash scripts/bootstrap.sh
+      - name: Bootstrap heavy test dependencies
+        run: bash scripts/bootstrap-heavy.sh
       - name: agent-verify heavy (Rust -> Python -> TypeScript)
         env:
           # run_capped is normally quiet on success. CI needs per-suite timing
@@ -534,25 +543,35 @@ jobs:
       - name: Warm BGE embedder cache (no-op on cache hit)
         id: warm
         shell: bash
+        env:
+          BGE_CACHE_HIT: ${{ steps.bge-cache.outputs.cache-hit }}
         run: |
           set +e
           # Surface cache-hit outcome as a GitHub Actions notice so it
           # shows up in the run summary without log-diving. A regression
           # that breaks the cache key (silently forcing cold downloads
           # on every run) becomes visible at a glance here.
-          echo "::notice title=BGE cache::hit=${{ steps.bge-cache.outputs.cache-hit }}"
+          echo "::notice title=BGE cache::hit=$BGE_CACHE_HIT"
           cargo run --quiet -p fathomdb-cli --features default-embedder \
             --bin fathomdb -- doctor warm-cache --json
           rc=$?
+          set -e
           if [ "$rc" -ne 0 ]; then
-            echo "warm-cache failed (rc=$rc); will skip network-hitting tests"
             echo "FATHOMDB_SKIP_NETWORK_TESTS=1" >> "$GITHUB_ENV"
+            echo "::warning title=BGE live-model coverage skipped::warm-cache exited ${rc}; live-model tests will be skipped"
+            {
+              echo "### BGE live-model coverage"
+              echo
+              echo "- live-model-tests: skipped"
+              echo "- warm-cache-exit-code: ${rc}"
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
-          # Never fail the job on warm-cache failure — the env gate covers it.
-          exit 0
+          # The warm command is advisory; failures writing its evidence remain fatal.
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: src/python/pyproject.toml
       - name: Install the Python binding from this checkout
         run: python -m pip install -e 'src/python[dev]'
       # The generic agent loop deliberately sets FATHOMDB_SKIP_NETWORK_TESTS=1
@@ -565,6 +584,8 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "25.9.0"
+          cache: npm
+          cache-dependency-path: src/ts/package-lock.json
       - name: Install locked TypeScript test dependencies
         run: cd src/ts && npm ci
       - name: Build native debug TypeScript test binding

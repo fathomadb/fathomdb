@@ -411,6 +411,8 @@ run_tier_suite fast test-actionlint-fixture bash scripts/tests/test_actionlint_f
 run_tier_suite fast test-paths-filter-oracle bash scripts/tests/test_paths_filter_oracle.sh
 run_tier_suite fast test-ci-proportional-routing python3 scripts/tests/test_ci_proportional_routing.py
 run_tier_suite fast test-ci-skip-message-warning bash scripts/tests/test_ci_skip_message_warning.sh
+run_tier_suite fast test-ci-long-job-efficiency bash scripts/tests/test_ci_long_job_efficiency.sh
+run_tier_suite fast test-bootstrap-heavy bash scripts/tests/test_bootstrap_heavy.sh
 
 # Go-installed actionlint prefixes its exact version with `v`; bootstrap and
 # agent-lint must normalize that conventional form without accepting drift.

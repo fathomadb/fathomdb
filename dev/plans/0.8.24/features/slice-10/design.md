@@ -37,7 +37,7 @@ slice that decides their identity, executor, artifacts, and proof.
 - `verify` owns heavy Rust/Python/TypeScript suites and uses
   `bootstrap-heavy.sh`; changes to that helper route through the verifier
   harness category.
-- Workflow changes deliberately select all scoped jobs. Documentation-only
+- Changes to `ci.yml` deliberately select all scoped jobs. Documentation-only
   changes retain lightweight documentation/repository checks without forcing
   the heavy matrix.
 

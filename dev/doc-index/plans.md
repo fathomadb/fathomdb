@@ -15,7 +15,7 @@
 | `dev/plans/plan-0.8.23.md` | **Completed 0.8.23 release plan.** Retained release evidence; it is not the current planning surface. | 0.8.23 history | 2026-08-23 |
 | `dev/plans/release-state-0.8.23.json` | **Completed 0.8.23 single writer.** Retained state evidence; live work must be resolved rather than inferred from it. | 0.8.23 history | 2026-08-23 |
 | `dev/plans/runs/STATUS-0.8.23.md` | **Completed 0.8.23 state board.** Retained in place; not a current-work declaration. | 0.8.23 history | 2026-08-23 |
-| `dev/plans/plan-0.8.24.md` | **Active 0.8.24 release plan.** Prework and Slice 10 are complete; remaining feature slices retain separate draft-to-ready control without a live release-state record. | 0.8.24 release | 2026-08-24 |
+| `dev/plans/plan-0.8.24.md` | **Proposed 0.8.24 release plan.** Prework and Slice 10 are complete; remaining feature slices retain separate draft-to-ready control without a live release-state record. | 0.8.24 planning | 2026-08-24 |
 | `dev/plans/0.8.24/prework/slice-0-environment-and-infrastructure.md` | **Slice 0 baseline.** Records release-worktree setup, CI/runner/registry/benchmark evidence, and owner decisions still required before platform work. | 0.8.24 Slice 0 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-1-{design-review,library-sweep}.md` | **Slice 1 review and sweep.** Records feature allocation and dependency/dependabot evidence without changing manifests or automation. | 0.8.24 Slice 1 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-2-{design-review,cruft-review}.md` | **Slice 2 review and inventory.** Classifies repository material and proposes narrow documentation/tooling follow-ups without modifying content. | 0.8.24 Slice 2 | 2026-08-23 |

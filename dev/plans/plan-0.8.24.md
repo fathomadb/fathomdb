@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.24 — release prework and portable CUDA distribution
-status: ACTIVE
+status: PROPOSED
 target_release: 0.8.24
 ---
 
@@ -38,13 +38,14 @@ The job is evidence to assess, not a pre-decided FathomDB defect.
   `origin/main`, not the shared local `main` checkout.
 - **Shared checkout:** deliberately untouched. At setup it was three commits
   behind `origin/main` and had owner files untracked.
-- **New CI work:** it is new work on `main`. Slice 10 determines its actual
-  coverage and any remaining integration needed; the release branch does not
+- **New CI work:** it is already merged on `main` and was assessed by Slice 10.
+  No remaining integration change was found; the release branch does not
   silently substitute for `main` as its delivery branch.
 
-Slice 0 is complete. The existing overall plan remains a draft; no live
-release-state JSON or generated status board is created until the owner accepts
-the Slice 6 review outcome.
+Slice 0 is complete. The overall plan remains proposed because no live
+release-state JSON or generated status board has been deliberately created.
+The completed Slice 6 decisions and Slice 10 assessment do not implicitly
+create or activate that single-writer release state.
 
 The detailed, read-only execution sequence is in
 [Slice 0 — environment and project-infrastructure baseline](0.8.24/prework/slice-0-environment-and-infrastructure.md).
@@ -79,8 +80,7 @@ future-design dependency or hosted ceremony run.
   Jetson installed-package smoke.
 - Windows x64 CUDA Python and/or npm surface, produced and proven remotely.
 - Existing CPU artifact preservation and publisher idempotency.
-- The new CI workflow now being developed on `main`, after confirming what it
-  actually does.
+- The CI workflow already merged on `main` and assessed by Slice 10.
 - Engine-level performance adjustments justified by benchmark-branch results.
 - Windows Python-SDK WAL review and any owner-approved follow-on.
 
@@ -198,9 +198,9 @@ full hosted CI run merely to integrate this already-merged work.
 
 ## Proposed feature slices
 
-Feature slices use multiples of ten. Their exact contents remain contingent on
-Slice 6 decisions; this ladder is the proposed allocation, not authorization to
-implement them now.
+Feature slices use multiples of ten. Their contents follow the completed Slice
+6 decisions plus each slice's own draft-to-ready review; this ladder remains a
+proposed release-level allocation rather than an implicit release-state record.
 
 ### Prework-to-feature allocation and planning protocol
 

@@ -50,7 +50,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/plan-0.8.23.md` | Completed 0.8.23 release plan, retained in place | 0.8.23 history | 2026-08-23 |
 | `dev/plans/release-state-0.8.23.json` | Completed 0.8.23 release-state record | 0.8.23 history | 2026-08-23 |
 | `dev/plans/runs/STATUS-0.8.23.md` | Completed 0.8.23 state board, retained in place | 0.8.23 history | 2026-08-23 |
-| `dev/plans/plan-0.8.24.md` | Active 0.8.24 release plan and slice allocation | 0.8.24 release | 2026-08-24 |
+| `dev/plans/plan-0.8.24.md` | Proposed 0.8.24 release plan and slice allocation; no live release-state record | 0.8.24 planning | 2026-08-24 |
 | `dev/plans/0.8.24/prework/slice-{0,1,2}-*.md` | 0.8.24 prework findings and design reviews | 0.8.24 Slices 0–2 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-3-*-drafts.md` | 0.8.24 product and architecture draft CRUD | 0.8.24 Slice 3 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-4-architecture-alignment.md` | 0.8.24 architecture and code alignment review | 0.8.24 Slice 4 | 2026-08-23 |

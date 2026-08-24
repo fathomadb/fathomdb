@@ -196,6 +196,10 @@ required-features = ["default-embedder"]
 name = "tc5_vector_stage"
 required-features = ["tc5-benchmark"]
 
+[[test]]
+name = "slice20_fts_rank_stream"
+required-features = ["test-hooks"]
+
 [dev-dependencies]
 libc = "0.2"
 proptest = "1"

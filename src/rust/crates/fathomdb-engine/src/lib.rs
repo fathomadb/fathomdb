@@ -6825,6 +6825,11 @@ impl Engine {
         connection
             .pragma_update(None, "journal_mode", "WAL")
             .map_err(|err| map_open_sqlite_error(err, OpenStage::WalReplay))?;
+        connection
+            .pragma_update(None, "synchronous", "NORMAL")
+            .map_err(|err| map_open_sqlite_error(err, OpenStage::WalReplay))?;
+        #[cfg(feature = "test-hooks")]
+        record_writer_pragma_witness_for_test(&connection);
 
         reject_legacy_shape(&connection)?;
         let migration = migrate_with_event_sink(&connection, migrations, emit_migration_event)
@@ -14584,7 +14589,69 @@ fn read_search_in_tx(
         if let Some(now) = now_param {
             text_params.push(rusqlite::types::Value::Integer(now));
         }
-        if let Ok(mut statement) = tx.prepare(&join_sql) {
+        #[cfg(feature = "test-hooks")]
+        let force_full_sort =
+            std::env::var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST").is_ok_and(|value| value == "1");
+        #[cfg(not(feature = "test-hooks"))]
+        let force_full_sort = false;
+        let rank_stream_requested =
+            direct_text_candidate_limit.is_some() && filter.is_none() && !force_full_sort;
+        let rank_stream_eligible = rank_stream_requested
+            && tx
+                .query_row(
+                    "SELECT NOT EXISTS(SELECT 1 FROM search_index_edges LIMIT 1)",
+                    [],
+                    |row| row.get::<_, bool>(0),
+                )
+                .unwrap_or(false);
+        let rank_stream_candidates = if rank_stream_eligible {
+            let rank_candidate_limit = fts_only_limit.unwrap_or(final_limit);
+            #[cfg(feature = "test-hooks")]
+            let rank_mapping = if std::env::var_os("FATHOMDB_FTS_FAIL_STREAM_FOR_TEST").is_some() {
+                "missing_ranker()"
+            } else {
+                "bm25()"
+            };
+            #[cfg(not(feature = "test-hooks"))]
+            let rank_mapping = "bm25()";
+            let rank_sql = format!(
+                "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
+                 bm25(search_index), cn.logical_id, cn.source_id FROM search_index \
+                 LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
+                 WHERE search_index MATCH ?1 \
+                   AND cn.superseded_at IS NULL \
+                   AND (cn.state = 'active' OR cn.state IS NULL)\
+                   {text_validity} \
+                   AND rank MATCH '{rank_mapping}' \
+                 ORDER BY rank"
+            );
+            #[cfg(feature = "test-hooks")]
+            record_fts_query_plan_for_test(&tx, &rank_sql, &text_params);
+            tx.prepare(&rank_sql)
+                .and_then(|mut statement| {
+                    let mut rows =
+                        statement.query(rusqlite::params_from_iter(text_params.iter()))?;
+                    collect_complete_rank_boundary(&mut rows, rank_candidate_limit)
+                })
+                .ok()
+        } else {
+            None
+        };
+        if let Some((candidates, _crossed_boundary_tie)) = rank_stream_candidates {
+            #[cfg(feature = "test-hooks")]
+            record_fts_route_for_test(if _crossed_boundary_tie {
+                "rank_stream_tie_completed"
+            } else {
+                "rank_stream_strict_boundary"
+            });
+            candidates
+        } else if let Ok(mut statement) = tx.prepare(&join_sql) {
+            #[cfg(feature = "test-hooks")]
+            if rank_stream_eligible {
+                record_fts_route_for_test("full_sort_fallback");
+            } else if rank_stream_requested {
+                record_fts_route_for_test("full_sort_ineligible");
+            }
             let rows =
                 statement.query_map(rusqlite::params_from_iter(text_params.iter()), |row| {
                     let body = row.get::<_, String>(0)?;
@@ -14949,6 +15016,134 @@ fn read_search_in_tx(
     };
 
     Ok((cursor, soft_fallback, results, graph_stats, explanation))
+}
+
+fn rank_search_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SearchHit> {
+    let body = row.get::<_, String>(0)?;
+    let logical_id = row.get::<_, Option<String>>(4)?;
+    Ok(SearchHit {
+        id: derive_stable_id(logical_id.as_deref(), &body),
+        body,
+        kind: row.get::<_, String>(1)?,
+        write_cursor: row.get::<_, i64>(2)? as u64,
+        score: row.get::<_, f64>(3)?,
+        branch: SoftFallbackBranch::Text,
+        source_id: row.get::<_, Option<String>>(5)?,
+        ce_score: None,
+    })
+}
+
+fn collect_complete_rank_boundary(
+    rows: &mut rusqlite::Rows<'_>,
+    limit: usize,
+) -> rusqlite::Result<(Vec<SearchHit>, bool)> {
+    let mut candidates = Vec::with_capacity(limit.saturating_add(1));
+    let mut boundary_score = None;
+
+    while let Some(row) = rows.next()? {
+        let candidate = rank_search_hit_from_row(row)?;
+        if candidates.len() < limit {
+            if candidates.len().saturating_add(1) == limit {
+                boundary_score = Some(candidate.score);
+            }
+            candidates.push(candidate);
+            continue;
+        }
+        if boundary_score.is_some_and(|score: f64| {
+            score.total_cmp(&candidate.score) == std::cmp::Ordering::Equal
+        }) {
+            candidates.push(candidate);
+            continue;
+        }
+        break;
+    }
+
+    let crossed_boundary_tie = candidates.len() > limit;
+    candidates = retain_complete_rank_boundary_candidates(candidates, limit);
+    Ok((candidates, crossed_boundary_tie))
+}
+
+fn retain_complete_rank_boundary_candidates(
+    mut candidates: Vec<SearchHit>,
+    limit: usize,
+) -> Vec<SearchHit> {
+    candidates.sort_by(|left, right| {
+        left.score.total_cmp(&right.score).then_with(|| left.write_cursor.cmp(&right.write_cursor))
+    });
+    candidates.truncate(limit);
+    candidates
+}
+
+#[cfg(feature = "test-hooks")]
+fn append_json_witness_for_test(variable: &str, value: &serde_json::Value) {
+    let Some(path) = std::env::var_os(variable) else {
+        return;
+    };
+    static WITNESS_LOCK: std::sync::OnceLock<Mutex<()>> = std::sync::OnceLock::new();
+    let Ok(_guard) = WITNESS_LOCK.get_or_init(|| Mutex::new(())).lock() else {
+        return;
+    };
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(file, "{value}");
+    }
+}
+
+#[cfg(feature = "test-hooks")]
+fn record_fts_route_for_test(route: &str) {
+    append_json_witness_for_test(
+        "FATHOMDB_FTS_ROUTE_WITNESS_FOR_TEST",
+        &serde_json::json!({"route": route}),
+    );
+}
+
+#[cfg(feature = "test-hooks")]
+fn record_writer_pragma_witness_for_test(connection: &Connection) {
+    let observation = (|| -> rusqlite::Result<serde_json::Value> {
+        Ok(serde_json::json!({
+            "role": "writer",
+            "journal_mode": connection.pragma_query_value(
+                None,
+                "journal_mode",
+                |row| row.get::<_, String>(0),
+            )?,
+            "synchronous": connection.pragma_query_value(
+                None,
+                "synchronous",
+                |row| row.get::<_, i64>(0),
+            )?,
+        }))
+    })();
+    if let Ok(observation) = observation {
+        append_json_witness_for_test("FATHOMDB_WRITER_PRAGMA_WITNESS_FOR_TEST", &observation);
+    }
+}
+
+#[cfg(feature = "test-hooks")]
+fn record_fts_query_plan_for_test(
+    transaction: &rusqlite::Transaction<'_>,
+    statement: &str,
+    parameters: &[rusqlite::types::Value],
+) {
+    let explain = format!("EXPLAIN QUERY PLAN {statement}");
+    let observation = transaction
+        .prepare(&explain)
+        .and_then(|mut prepared| {
+            let details = prepared
+                .query_map(rusqlite::params_from_iter(parameters.iter()), |row| {
+                    row.get::<_, String>(3)
+                })?;
+            details.collect::<rusqlite::Result<Vec<_>>>()
+        })
+        .map(|details| {
+            serde_json::json!({
+                "uses_temp_btree_for_order_by": details
+                    .iter()
+                    .any(|detail| detail.contains("USE TEMP B-TREE FOR ORDER BY")),
+            })
+        });
+    if let Ok(observation) = observation {
+        append_json_witness_for_test("FATHOMDB_FTS_QUERY_PLAN_WITNESS_FOR_TEST", &observation);
+    }
 }
 
 /// R3 (Slice 30) + C1 (0.8.1 graph-arm seeding) — graph-arm BFS candidate generation.
@@ -23423,16 +23618,18 @@ unsafe extern "C" fn profile_callback_trampoline(
 #[cfg(test)]
 mod tests {
     use super::{
-        derive_stable_id, native_connection_state_for_test, resolve_source_type, DeviceResolution,
-        EmbedderChoice, Engine, EngineError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
-        ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, RuntimeProbeConnection,
-        SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL,
-        PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
+        derive_stable_id, native_connection_state_for_test, resolve_source_type,
+        retain_complete_rank_boundary_candidates, DeviceResolution, EmbedderChoice, Engine,
+        EngineError, IdSpace, IdSpaceKind, InitialState, LoaderInfo, ManagedConnectionRegistry,
+        NativeTransactionState, PreparedWrite, RuntimeProbeConnection, SearchHit,
+        SoftFallbackBranch, SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS,
+        KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder::{
         DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,
     };
     use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
+    use proptest::prelude::*;
     use rusqlite::Connection;
     use std::collections::BTreeSet;
     use std::path::Path;
@@ -25104,5 +25301,52 @@ mod tests {
             .expect("write should succeed");
 
         assert_eq!(receipt.cursor, 1);
+    }
+
+    proptest! {
+        #[test]
+        fn completed_rank_group_matches_the_full_stable_prefix(
+            scores in proptest::collection::vec(-20_i16..=0_i16, 1..200),
+            requested_limit in 1_usize..100,
+        ) {
+            let hit = |cursor: u64, score: f64| SearchHit {
+                id: IdSpace::logical(format!("rank-stream-{cursor}")),
+                write_cursor: cursor,
+                kind: "doc".to_string(),
+                body: format!("body {cursor}"),
+                score,
+                branch: SoftFallbackBranch::Text,
+                source_id: Some("slice20:test".to_string()),
+                ce_score: None,
+            };
+            let mut native = scores
+                .iter()
+                .enumerate()
+                .map(|(index, score)| hit(index as u64 + 1, f64::from(*score)))
+                .collect::<Vec<_>>();
+            native.sort_by(|left, right| {
+                left.score
+                    .total_cmp(&right.score)
+                    .then_with(|| right.write_cursor.cmp(&left.write_cursor))
+            });
+            let limit = requested_limit.min(native.len());
+            let boundary_score = native[limit - 1].score;
+            let completed = native
+                .iter()
+                .take_while(|candidate| {
+                    candidate.score.total_cmp(&boundary_score) != std::cmp::Ordering::Greater
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            let selected = retain_complete_rank_boundary_candidates(completed, limit);
+            let mut expected = native;
+            expected.sort_by(|left, right| {
+                left.score
+                    .total_cmp(&right.score)
+                    .then_with(|| left.write_cursor.cmp(&right.write_cursor))
+            });
+            expected.truncate(limit);
+            prop_assert_eq!(selected, expected);
+        }
     }
 }

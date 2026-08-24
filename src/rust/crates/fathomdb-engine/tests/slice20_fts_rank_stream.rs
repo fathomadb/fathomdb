@@ -86,6 +86,7 @@ fn production_stream_matches_full_sort_across_strict_tie_and_rank_override() {
     let writer_witness = dir.path().join("writer.jsonl");
     let _env = EnvGuard::update(&[
         ("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST", None),
+        ("FATHOMDB_FTS_FAIL_STREAM_FOR_TEST", None),
         ("FATHOMDB_FTS_ROUTE_WITNESS_FOR_TEST", Some(route_witness.display().to_string())),
         ("FATHOMDB_FTS_QUERY_PLAN_WITNESS_FOR_TEST", Some(plan_witness.display().to_string())),
         ("FATHOMDB_WRITER_PRAGMA_WITNESS_FOR_TEST", Some(writer_witness.display().to_string())),
@@ -149,6 +150,16 @@ fn production_stream_matches_full_sort_across_strict_tie_and_rank_override() {
     pinned.engine.close().expect("close pinned stream");
     assert_eq!(pinned_result, full_sort(&dir, "strict", "slice20strict"));
 
+    unsafe { std::env::set_var("FATHOMDB_FTS_FAIL_STREAM_FOR_TEST", "1") };
+    let failed_statement = open(&dir, "strict");
+    let fallback = failed_statement
+        .engine
+        .search_text_only_with_limit("slice20strict", 100)
+        .expect("failed stream falls back");
+    failed_statement.engine.close().expect("close statement-failure fallback");
+    unsafe { std::env::remove_var("FATHOMDB_FTS_FAIL_STREAM_FOR_TEST") };
+    assert_eq!(fallback, full_sort(&dir, "strict", "slice20strict"));
+
     let observed_routes = routes(&route_witness);
     assert!(observed_routes.contains(&"rank_stream_strict_boundary".to_string()));
     assert!(observed_routes.contains(&"rank_stream_tie_completed".to_string()));
@@ -174,6 +185,7 @@ fn edges_are_ineligible_and_stream_row_errors_fall_back_without_partial_output()
     let route_witness = dir.path().join("fallback-routes.jsonl");
     let _env = EnvGuard::update(&[
         ("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST", None),
+        ("FATHOMDB_FTS_FAIL_STREAM_FOR_TEST", None),
         ("FATHOMDB_FTS_ROUTE_WITNESS_FOR_TEST", Some(route_witness.display().to_string())),
         ("FATHOMDB_FTS_QUERY_PLAN_WITNESS_FOR_TEST", None),
         ("FATHOMDB_WRITER_PRAGMA_WITNESS_FOR_TEST", None),

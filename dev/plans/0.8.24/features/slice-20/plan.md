@@ -1,6 +1,6 @@
 ---
 title: 0.8.24 Slice 20 — benchmark-directed engine performance draft plan
-status: READY
+status: IMPLEMENTED-AWAITING-INDEPENDENT-REVIEW
 target_release: 0.8.24
 ---
 

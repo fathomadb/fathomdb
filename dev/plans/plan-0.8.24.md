@@ -243,7 +243,7 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 | Slice | Title | Primary outcome | Depends on |
 | ---: | --- | --- | --- |
 | **10** | Main CI workflow assessment and integration | **Complete:** current `main` supplies the existing proportional CI/release interface; no workflow or script change was required. | 0, 6 |
-| **20** | Benchmark-directed engine performance | Reproduce or otherwise validate the identified benchmark result, define a decision rule, then make measured engine-level adjustments only when evidence supports them. | 0, 5, 6 |
+| **20** | Benchmark-directed engine performance | **Implemented, awaiting independent review:** integrate the owner-selected streamed BM25 boundary behavior without rerunning the settled benchmark. | 0, 5, 6 |
 | **30** | Public Tegra CUDA distribution | Ship the approved separate Tegra distribution and explicit installer/compatibility contract; never the `+tegra` PyPI shape. | 0, 6, 10 |
 | **40** | Windows x64 CUDA distribution | Build and publish the approved Windows CUDA Python and/or npm artifacts via the remote executor; no local Windows compilation. | 0, 6, 10 |
 | **50** | Windows Python SDK WAL behavior review | Analyze the completed Memex job, compare the relevant FathomDB Python path, and route an attributed fix or a no-change finding to its proper slice. | 0, 5, 6 |
@@ -252,8 +252,9 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 
 ### Feature-slice draft plans
 
-Each feature has a separate plan. Slice 10 is complete; Slices 20–70 still plan
-their own slice-preparation, draft contract/design review, implementation
+Each feature has a separate plan. Slice 10 is complete; Slice 20 is implemented
+and awaits independent review; Slices 30–70 still plan their own
+slice-preparation, draft contract/design review, implementation
 boundary, verification, prerequisites, and handoff. A draft's existence does
 not make its slice ready or authorize implementation or an external release
 action.
@@ -294,8 +295,9 @@ action.
 
 ## Immediate next action
 
-Slices 0–7 and 10 are complete. Slices 20 and 50 can proceed through their own
-draft-to-ready review independently. Slices 30 and 40 cannot implement until
+Slices 0–7 and 10 are complete. Slice 20 awaits independent review; Slice 50
+can proceed through its own draft-to-ready review independently. Slices 30 and
+40 cannot implement until
 their explicit identity/executor choices are recorded; Slice 60 consumes the
 approved target outputs; Slice 70 remains final integration only. No external
 release action is authorized by these planning records.

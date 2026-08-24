@@ -1,0 +1,94 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "fathomdb-locomo-official-seam-20260824T0722Z-f99cc7bf",
+  "experiment": "fathomdb-locomo-official-seam",
+  "title": "fathomdb-locomo-official-seam",
+  "verdict": "blocked_prerequisite",
+  "read": "FathomDB OSS façade unavailable: FathomDB OSS façade exited before becoming healthy",
+  "code": {
+    "git_sha": "cb244cb032477c00d4c0a254a40e6bfbba1868bc",
+    "dirty": true,
+    "branch": "experiments/performance-0.8.23-plan-20260821",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "f99cc7bf17ed6ed7401f5fc00955dac73855cb5b55259b072011e15db9eceb7d",
+    "path": null,
+    "resolved": {
+      "schema_version": "fathomdb-locomo.v2",
+      "campaign": "official_seam_predict_only",
+      "program_track": "MEMORY-01",
+      "harness": {
+        "checkout": "external-verified-checkout",
+        "python": "external-verified-interpreter",
+        "git_sha": "fd5f36267175a991d921cd77f1eeed90de746293",
+        "upstream_git_sha": "4b61c5d31b9c668a12b4f5e78064248a02c82d2b"
+      },
+      "corpus": {
+        "dataset_path": "external-verified-corpus",
+        "raw_sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+        "normalized_sha256": "e9999b551ac67e899f0008c9ec446cecce937ce12f01f2f08cefa9f690fc4c7c",
+        "sessions": 272,
+        "eligible_questions": 1443
+      },
+      "benchmark": {
+        "project_name": "fathomdb-locomo-official-seam",
+        "conversations": "0,1,2,3,4,5,6,7,8,9",
+        "categories": "1,2,3,4",
+        "top_k": 10,
+        "top_k_cutoffs": [
+          10
+        ],
+        "max_workers": 10,
+        "rpm": 600,
+        "predict_only": true,
+        "resume": true
+      },
+      "facade": {
+        "python": "external-verified-interpreter",
+        "host": "127.0.0.1",
+        "port": 8889,
+        "provenance_manifest": "external-provenance-manifest",
+        "provenance_manifest_sha256": "43453c5d1b865dd1721bd0892f1af7f965e2c8484fea999eefa5cddf9da78f66"
+      },
+      "output": {
+        "external_root": "external-access-controlled"
+      }
+    }
+  },
+  "corpus": {
+    "source": "LOCOMO",
+    "manifest_sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+    "datasets": []
+  },
+  "seeds": {},
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {}
+  },
+  "metrics": {
+    "phase": "ingest_search_predict_only",
+    "completion": {
+      "complete": false,
+      "expected_questions": 1443
+    }
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [
+    {
+      "path": "runs/fathomdb-locomo-official-seam-20260824T0722Z-f99cc7bf/fathomdb-locomo-arm.result.v1.json",
+      "sha256": "cd9175b00f409927b2c2e4ba65186335999dd15a55c83e1e00da7b537e974776"
+    },
+    {
+      "path": "external-artifacts.manifest.v1",
+      "sha256": "d1a1914e246e0d32454071fbeac1937bb3a4e9d53ec1be7ecd5196a975af7313"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

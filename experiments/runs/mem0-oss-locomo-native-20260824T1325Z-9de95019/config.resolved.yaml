@@ -1,0 +1,53 @@
+airlock:
+  admission_concurrency: 4
+  admission_rpm: 120
+  base_url: http://127.0.0.1:4000/v1
+  embedder_alias: text-embedding-3-small
+  host_gateway: false
+  llm_alias: gpt-4o-mini
+  provider_route: openrouter_exact_models
+  redaction_smoke: required
+benchmark:
+  categories: 1,2,3,4
+  conversations: 0,1,2,3,4,5,6,7,8,9
+  max_workers: 2
+  predict_only: true
+  project_name: fathomdb-mem0-locomo-native
+  resume: true
+  rpm: 20
+  top_k: 10
+  top_k_cutoffs:
+  - 10
+campaign: native_locomo_predict
+compose:
+  base_file: /tmp/fathomdb-mem0-memory-benchmarks/docker-compose.yml
+corpus:
+  dataset_path: /home/coreyt/projects/fathomdb/data/corpus-data/raw/locomo10.json
+  eligible_questions: 1540
+  normalized_sha256: e9999b551ac67e899f0008c9ec446cecce937ce12f01f2f08cefa9f690fc4c7c
+  raw_sha256: 79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4
+  sessions: 272
+harness:
+  checkout: /tmp/fathomdb-mem0-memory-benchmarks
+  git_sha: 41d1e633c78dd9102f466b0255971a664f833fd3
+  python: /tmp/fathomdb-mem0-memory-benchmarks/.venv/bin/python
+  upstream_git_sha: 4b61c5d31b9c668a12b4f5e78064248a02c82d2b
+mem0:
+  compose_project: fathomdb-mem0-locomo
+  embedder_model: text-embedding-3-small
+  host: http://127.0.0.1:8888
+  llm_model: gpt-4o-mini
+output:
+  external_root: /tmp/fathomdb-memory01-artifacts
+program_track: MEMORY-01
+provenance_artifacts:
+- name: compose_override
+  path: /tmp/fathomdb-mem0-locomo/compose.override.yaml
+  sha256: c76baa8f902e5cd0dcd2fb9379e736436a28886eaec5ba5bf3452953a71358ba
+- name: mem0_airlock_config
+  path: /tmp/fathomdb-mem0-locomo/mem0-airlock.yaml
+  sha256: 1b6a5f86025dc8afc700c5cfdb703a7e653799fef4af2cf1fdc9455418812a11
+- name: harness_resilience_patch
+  path: /tmp/fathomdb-performance-0.8.23-plan-20260821/experiments/configs/mem0-oss/memory01-resilience.patch
+  sha256: 33b3468820c4c9af7653e573a9d8ecd448f9734948cddb454cefd742230b2ce1
+schema_version: mem0-oss.v2

@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import json
+import sys
+from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -79,6 +82,43 @@ def test_store_add_search_and_delete_are_user_isolated(tmp_path):
 
     store.delete_user("locomo_0_test")
     assert stores[0].closed is True
+
+
+def test_default_store_prepares_each_user_database_before_open(tmp_path, monkeypatch):
+    prepared: list[tuple[str, dict]] = []
+
+    def fake_prepare(root, *, test_id, **kwargs):
+        prepared.append((test_id, kwargs))
+        database = root / test_id / "fathomdb.sqlite"
+        database.parent.mkdir(parents=True)
+        database.touch()
+        return SimpleNamespace(database_path=database)
+
+    class FakeEngineApi:
+        @staticmethod
+        def open(path, *, use_default_embedder):
+            assert use_default_embedder is False
+            return _Engine(path)
+
+    monkeypatch.setattr(facade, "prepare_test_database", fake_prepare)
+    monkeypatch.setitem(sys.modules, "fathomdb", SimpleNamespace(Engine=FakeEngineApi))
+    store = FathomDBOssStore(tmp_path)
+
+    store.add({
+        "user_id": "locomo_0_test",
+        "messages": [{"role": "user", "content": "alpha"}],
+    })
+
+    assert len(prepared) == 1
+    test_id, policy = prepared[0]
+    assert test_id.startswith("user-")
+    assert policy == {
+        "embed_device": "cpu",
+        "rerank_device": "cpu",
+        "embedder": "none",
+        "check_reranker": False,
+        "fathomdb_bin": str(Path(sys.executable).parent / "fathomdb"),
+    }
 
 
 def test_store_rejects_a_limit_that_fathomdb_fts_cannot_honor(tmp_path):

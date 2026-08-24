@@ -1,0 +1,136 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "fathomdb-vs-mem0-locomo-comparison-20260824T2140Z-01e702be",
+  "experiment": "fathomdb-vs-mem0-locomo-comparison",
+  "title": "fathomdb-vs-mem0-locomo-comparison",
+  "verdict": "pass",
+  "read": "FathomDB meets the registered near-parity rule",
+  "code": {
+    "git_sha": "cb244cb032477c00d4c0a254a40e6bfbba1868bc",
+    "dirty": true,
+    "branch": "experiments/performance-0.8.23-plan-20260821",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "01e702bee56594e423d7db55514848f0baece1558a1f7c4b4877d6b5f310816e",
+    "path": null,
+    "resolved": {
+      "schema_version": "mem0-comparison.v1",
+      "campaign": "locomo_paired_answer_scoring",
+      "program_track": "MEMORY-01",
+      "workload": {
+        "top_k": 10,
+        "top_k_cutoffs": [
+          10
+        ],
+        "conversations": "0,1,2,3,4,5,6,7,8,9",
+        "categories": "1,2,3,4",
+        "resume": true,
+        "raw_sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+        "normalized_sha256": "e9999b551ac67e899f0008c9ec446cecce937ce12f01f2f08cefa9f690fc4c7c",
+        "sessions": 272,
+        "eligible_questions": 1540,
+        "harness_git_sha": "41d1e633c78dd9102f466b0255971a664f833fd3"
+      },
+      "arms": {
+        "mem0_oss": "mem0-oss-locomo-native-20260824T1325Z-9de95019",
+        "fathomdb": "fathomdb-locomo-official-seam-20260824T1309Z-3762b22a"
+      },
+      "scoring": {
+        "answerer_model": "gpt-4o-mini",
+        "judge_model": "gpt-4o-mini",
+        "provider": "openai_compatible_airlock",
+        "provider_route": "openrouter_exact_models",
+        "evidence_aware": true,
+        "cutoff": 10,
+        "max_workers": 2,
+        "rpm_per_role": 20,
+        "bootstrap_seed": 20260814,
+        "bootstrap_resamples": 10000,
+        "decision_rule": "one_sided_95_lower_bound_fathomdb_minus_mem0_gte_zero"
+      }
+    }
+  },
+  "corpus": {
+    "source": "LOCOMO",
+    "manifest_sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+    "datasets": []
+  },
+  "seeds": {
+    "paired_bootstrap": "20260814"
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {}
+  },
+  "metrics": {
+    "phase": "paired_answer_scoring",
+    "arms": {
+      "mem0_oss": "mem0-oss-locomo-native-20260824T1325Z-9de95019",
+      "fathomdb": "fathomdb-locomo-official-seam-20260824T1309Z-3762b22a"
+    },
+    "paired": {
+      "overall": {
+        "questions": 1540,
+        "mem0_oss_accuracy": 0.672077922077922,
+        "fathomdb_accuracy": 0.7519480519480519,
+        "fathomdb_minus_mem0": 0.07987012987012987
+      },
+      "by_category": {
+        "1": {
+          "questions": 282,
+          "mem0_oss_accuracy": 0.8262411347517731,
+          "fathomdb_accuracy": 0.7446808510638298,
+          "fathomdb_minus_mem0": -0.08156028368794332
+        },
+        "2": {
+          "questions": 321,
+          "mem0_oss_accuracy": 0.16199376947040497,
+          "fathomdb_accuracy": 0.5202492211838006,
+          "fathomdb_minus_mem0": 0.35825545171339557
+        },
+        "3": {
+          "questions": 96,
+          "mem0_oss_accuracy": 0.7708333333333334,
+          "fathomdb_accuracy": 0.8333333333333334,
+          "fathomdb_minus_mem0": 0.0625
+        },
+        "4": {
+          "questions": 841,
+          "mem0_oss_accuracy": 0.8038049940546967,
+          "fathomdb_accuracy": 0.8335315101070154,
+          "fathomdb_minus_mem0": 0.029726516052318686
+        }
+      },
+      "one_sided_95_lower_bound": 0.05779220779220779,
+      "bootstrap": {
+        "resamples": 10000,
+        "seed": 20260814
+      }
+    },
+    "score_manifests": {
+      "mem0_oss": {
+        "scored_files": 1540,
+        "sha256": "b942fd811fb318d400d8adce411de5314269a35d58e7d0742a4f9167dcbed919"
+      },
+      "fathomdb": {
+        "scored_files": 1540,
+        "sha256": "2ab487d39195c094b2703339e5379962e7d9b001d30c1cdf25770b433d9be9ad"
+      }
+    }
+  },
+  "cost_usd": null,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [
+    {
+      "path": "runs/fathomdb-vs-mem0-locomo-comparison-20260824T2140Z-01e702be/mem0-comparison.result.v1.json",
+      "sha256": "770df42bdad5f029ce4806d9fc084f6fdd5c07b1a417f531faf8ea0172307447"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

@@ -1,0 +1,48 @@
+{
+  "schema_version": "fathomdb-locomo-arm.result.v1",
+  "run_id": "fathomdb-locomo-official-seam-20260824T0730Z-df43cb73",
+  "verdict": "complete",
+  "retrieval_mode": "fts_only",
+  "completion": {
+    "complete": true,
+    "expected_questions": 1540,
+    "completed_questions": 1540,
+    "missing_question_ids": [],
+    "failed_ingestion_conversations": [],
+    "search_latency_ms": {
+      "n": 1540,
+      "mean": 685.3845454545454
+    },
+    "retrieval_results": {
+      "n": 1540,
+      "total": 15376
+    },
+    "facade_metrics": {
+      "facade_query_ms": {
+        "n": 1540,
+        "p50": 1.4717599842697382,
+        "p95": 1.911010011099279,
+        "p99": 2.270227996632457
+      },
+      "engine_query_ms": {
+        "n": 1540,
+        "p50": 1.429289928637445,
+        "p95": 1.8629190744832158,
+        "p99": 2.2192129399627447
+      },
+      "ingest_ack_ms": {
+        "n": 5882,
+        "p50": 1.1194649850949645,
+        "p95": 5.073725013062358,
+        "p99": 5.26872300542891
+      },
+      "ready_to_search_ms": {
+        "n": 5882,
+        "p50": 1.5145710203796625,
+        "p95": 5.513103911653161,
+        "p99": 5.714974948205054
+      }
+    },
+    "facade_provenance_requests": 1529
+  }
+}

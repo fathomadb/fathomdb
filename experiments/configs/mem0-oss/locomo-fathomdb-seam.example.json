@@ -1,18 +1,19 @@
 {
-  "schema_version": "fathomdb-locomo.v1",
+  "schema_version": "fathomdb-locomo.v2",
   "campaign": "official_seam_predict_only",
-  "program_track": "LOCOMO-01",
+  "program_track": "MEMORY-01",
   "harness": {
     "checkout": "/tmp/fathomdb-mem0-memory-benchmarks",
     "python": "/tmp/fathomdb-mem0-memory-benchmarks/.venv/bin/python",
-    "git_sha": "4b61c5d31b9c668a12b4f5e78064248a02c82d2b"
+    "git_sha": "41d1e633c78dd9102f466b0255971a664f833fd3",
+    "upstream_git_sha": "4b61c5d31b9c668a12b4f5e78064248a02c82d2b"
   },
   "corpus": {
     "dataset_path": "/home/coreyt/projects/fathomdb/data/corpus-data/raw/locomo10.json",
     "raw_sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
     "normalized_sha256": "e9999b551ac67e899f0008c9ec446cecce937ce12f01f2f08cefa9f690fc4c7c",
     "sessions": 272,
-    "eligible_questions": 1443
+    "eligible_questions": 1540
   },
   "benchmark": {
     "project_name": "fathomdb-locomo-official-seam",
@@ -21,7 +22,7 @@
     "top_k": 10,
     "top_k_cutoffs": [10],
     "max_workers": 10,
-    "rpm": 200,
+    "rpm": 600,
     "predict_only": true,
     "resume": true
   },
@@ -29,6 +30,7 @@
     "python": "/home/coreyt/projects/fathomdb/.venv/bin/python",
     "host": "127.0.0.1",
     "port": 8889,
+    "fathomdb_bin": "/tmp/fathomdb-performance-0.8.23-plan-20260821/target/debug/fathomdb",
     "provenance_manifest": "/srv/fathomdb-experiments/locomo-capability/locomo-provenance.v1.json",
     "provenance_manifest_sha256": "REPLACE_WITH_SHA256"
   },

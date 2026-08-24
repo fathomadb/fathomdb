@@ -5,13 +5,13 @@ Current coordination state for the
 [`experiments/`](../../experiments/README.md) holds execution receipts and the
 append-only evidence index.
 
-- **Last reconciled:** 2026-08-23
+- **Last reconciled:** 2026-08-24
 - **Branch:** `experiments/performance-0.8.23-plan-20260821`
 
 ## Immediate sequence
 
-1. **TEMPORAL-01:** keep external-corpus comparison blocked until a reviewed
-   source-derived manifest and temporal adapter exist.
+1. No run queued. MEMORY-01 is complete; remaining planned tracks require
+   their declared trigger or missing input.
 
 ## Track status
 
@@ -26,7 +26,7 @@ append-only evidence index.
 | [CORPUS-01](tracks/corpus-01-gold-coverage.md) | Complete, limited | Preserve `seq-268` and the [result](2026-08-23-corpus-01-supersession-human-review-result.md); neither reviewed case qualifies as supersession gold. |
 | [TEMPORAL-01](tracks/temporal-01-time-scoped-retrieval.md) | Synthetic validity complete, corpus blocked | [Eight exact TRACE boundary probes](../../experiments/runs/temporal-01-trace-validity-20260823T1625Z-af0c03f1/record.json) passed; upstream LongMemEval and TimelineQA releases lack an external validity-window manifest. |
 | [EXTRACT-01](tracks/extract-01-semantic-memory.md) | Complete, limited | Preserve the [78-case receipt](../../experiments/runs/extract-01-knowledge-update-20260823T2236Z-59e805cb/record.json); retain raw A0 for knowledge updates until value-changing extraction consolidation exists. |
-| [MEMORY-01](tracks/memory-01-native-mem0-comparison.md) | Blocked | Use A0; wait for native comparator prerequisites. |
+| [MEMORY-01](tracks/memory-01-native-mem0-comparison.md) | Complete | Preserve the [paired pass receipt](../../experiments/runs/fathomdb-vs-mem0-locomo-comparison-20260824T2140Z-01e702be/record.json); treat the multi-hop loss as a diagnosis, not a broad failure-set claim. |
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |

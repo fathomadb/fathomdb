@@ -13,6 +13,7 @@ import hashlib
 import json
 import math
 import shutil
+import sys
 import threading
 import time
 from collections.abc import Callable
@@ -23,6 +24,7 @@ from typing import Any, Protocol
 from urllib.parse import parse_qs, urlparse
 
 from experiments.locomo_provenance import ProvenanceEntry, ProvenanceMap, load_manifest, search_request_fingerprint
+from experiments.fathomdb_test_setup import prepare_test_database
 
 
 MAX_FTS_RESULTS = 10
@@ -71,9 +73,12 @@ class FathomDBOssStore:
     """One FathomDB database per official Mem0 user ID."""
 
     def __init__(self, root: str | Path, *, engine_factory: Callable[[str], _Engine] | None = None,
-                 provenance: ProvenanceMap | None = None) -> None:
+                 provenance: ProvenanceMap | None = None,
+                 fathomdb_bin: str | None = None) -> None:
         self.root = Path(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
+        self._prepare_databases = engine_factory is None
+        self._fathomdb_bin = fathomdb_bin or str(Path(sys.executable).parent / "fathomdb")
         if engine_factory is None:
             from fathomdb import Engine
 
@@ -93,11 +98,23 @@ class FathomDBOssStore:
         self._lock = threading.RLock()
 
     def _path(self, user_id: str) -> Path:
-        return self.root / _user_token(user_id)
+        return self.root / f"user-{_user_token(user_id)}"
 
     def _engine(self, user_id: str) -> _Engine:
         if user_id not in self._engines:
-            self._engines[user_id] = self._engine_factory(str(self._path(user_id)))
+            path = self._path(user_id)
+            if self._prepare_databases:
+                prepared = prepare_test_database(
+                    self.root,
+                    test_id=path.name,
+                    embed_device="cpu",
+                    rerank_device="cpu",
+                    embedder="none",
+                    check_reranker=False,
+                    fathomdb_bin=self._fathomdb_bin,
+                )
+                path = prepared.database_path
+            self._engines[user_id] = self._engine_factory(str(path))
             self._chunk_counts[user_id] = 0
         return self._engines[user_id]
 
@@ -269,10 +286,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, required=True, help="external campaign database root")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8889)
+    parser.add_argument("--fathomdb-bin", required=True)
     parser.add_argument("--provenance-manifest", type=Path, required=True,
                         help="content-free LOCOMO payload-to-ID manifest outside the repository")
     args = parser.parse_args(argv)
-    store = FathomDBOssStore(args.root, provenance=load_manifest(args.provenance_manifest))
+    store = FathomDBOssStore(
+        args.root,
+        provenance=load_manifest(args.provenance_manifest),
+        fathomdb_bin=args.fathomdb_bin,
+    )
     server = ThreadingHTTPServer((args.host, args.port), handler_for(store))
     try:
         server.serve_forever()

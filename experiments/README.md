@@ -175,9 +175,13 @@ pinned to `top_k: 10` and cutoff `10`; a larger retrieval-depth comparison is
 not emitted until FathomDB exposes a compatible limit control.
 
 Run the two configured arms with `python -m experiments.mem0_oss run …` and
-`python -m experiments.fathomdb_locomo run …`; then pass their `record.json`
-files to `python -m experiments.mem0_comparison`. The comparison writer refuses
-non-complete or workload-mismatched arm receipts.
+`python -m experiments.fathomdb_locomo run …`. Score both external prediction
+directories with the official evidence-aware LOCOMO `--evaluate-only` path and
+identical `gpt-4o-mini` answerer/judge controls. Then pass the two arm records
+and scored directories to `python -m experiments.mem0_comparison` with
+`--native-output-dir` and `--fathom-output-dir`. The comparison writer refuses
+incomplete, workload-mismatched, or incompletely scored arms and retains only
+safe paired aggregates and hashes.
 
 For the native arm, `python -m experiments.mem0_oss services-up …` starts only
 the named campaign's Mem0 and Qdrant Compose services; then `preflight` must

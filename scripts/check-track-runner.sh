@@ -89,11 +89,11 @@ require_text "dev/performance-benchmarking/TRACK-RUNNER-STATUS.md" "## Immediate
 require_text "dev/performance-benchmarking/TRACK-RUNNER-STATUS.md" "## Track status"
 require_text "dev/performance-benchmarking/TRACK-RUNNER-STATUS.md" "## Board rules"
 require_text "experiments/fathomdb_locomo.py" "program_track"
-require_text "experiments/fathomdb_locomo.py" "LOCOMO-01"
+require_text "experiments/fathomdb_locomo.py" "MEMORY-01"
 require_text "experiments/mem0_oss.py" "program_track"
 require_text "experiments/mem0_oss.py" "MEMORY-01"
 require_text "experiments/mem0_comparison.py" "program_track"
-require_text "experiments/configs/mem0-oss/locomo-fathomdb-seam.example.json" "LOCOMO-01"
+require_text "experiments/configs/mem0-oss/locomo-fathomdb-seam.example.json" "MEMORY-01"
 require_text "experiments/configs/mem0-oss/locomo-native-predict.example.json" "MEMORY-01"
 
 track_bindings=(

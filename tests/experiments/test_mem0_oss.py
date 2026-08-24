@@ -29,16 +29,19 @@ def _config(tmp_path: Path) -> dict:
     override.write_text("services: {}\n", encoding="utf-8")
     mem0_config = tmp_path / "mem0-airlock.yaml"
     mem0_config.write_text("version: v1.1\n", encoding="utf-8")
+    harness_patch = tmp_path / "memory01-resilience.patch"
+    harness_patch.write_text("resilience patch\n", encoding="utf-8")
     base_compose = tmp_path / "docker-compose.yml"
     base_compose.write_text("services: {}\n", encoding="utf-8")
     return {
-        "schema_version": "mem0-oss.v1",
+        "schema_version": "mem0-oss.v2",
         "campaign": "native_locomo_predict",
         "program_track": "MEMORY-01",
         "harness": {
             "checkout": str(tmp_path / "memory-benchmarks"),
             "python": "/tmp/fathomdb-mem0-memory-benchmarks/.venv/bin/python",
-            "git_sha": "4b61c5d31b9c668a12b4f5e78064248a02c82d2b",
+            "git_sha": "fd5f36267175a991d921cd77f1eeed90de746293",
+            "upstream_git_sha": "4b61c5d31b9c668a12b4f5e78064248a02c82d2b",
         },
         "corpus": {
             "dataset_path": str(dataset),
@@ -59,6 +62,9 @@ def _config(tmp_path: Path) -> dict:
             "llm_alias": "gpt-4o-mini",
             "embedder_alias": "text-embedding-3-small",
             "redaction_smoke": "required",
+            "provider_route": "direct_openai",
+            "admission_rpm": 120,
+            "admission_concurrency": 4,
         },
         "benchmark": {
             "project_name": "fathomdb-mem0-locomo-native",
@@ -66,8 +72,8 @@ def _config(tmp_path: Path) -> dict:
             "categories": "1,2,3,4",
             "top_k": 10,
             "top_k_cutoffs": [10],
-            "max_workers": 10,
-            "rpm": 200,
+            "max_workers": 2,
+            "rpm": 20,
             "predict_only": True,
             "resume": True,
         },
@@ -76,6 +82,7 @@ def _config(tmp_path: Path) -> dict:
         "provenance_artifacts": [
             {"name": "compose_override", "path": str(override), "sha256": _sha(override)},
             {"name": "mem0_airlock_config", "path": str(mem0_config), "sha256": _sha(mem0_config)},
+            {"name": "harness_resilience_patch", "path": str(harness_patch), "sha256": _sha(harness_patch)},
         ],
     }
 
@@ -106,6 +113,18 @@ def test_resolve_config_requires_predict_only_resume_and_hashed_artifacts(tmp_pa
     config = _config(tmp_path)
     config["benchmark"]["top_k"] = 11
     with pytest.raises(ValueError, match="top_k"):
+        mem0_oss.resolve_config(config)
+
+
+def test_resolve_config_requires_client_pacing_below_airlock(tmp_path):
+    config = _config(tmp_path)
+    config["benchmark"]["rpm"] = 31
+    with pytest.raises(ValueError, match="admission_rpm"):
+        mem0_oss.resolve_config(config)
+
+    config = _config(tmp_path)
+    config["benchmark"]["max_workers"] = 5
+    with pytest.raises(ValueError, match="admission_concurrency"):
         mem0_oss.resolve_config(config)
 
 
@@ -175,6 +194,13 @@ def test_write_receipt_uses_generic_run_layout_and_typed_unavailable_cost(tmp_pa
     assert record["cost_usd"] is None
     assert record["metrics"]["cost"]["status"] == "unavailable"
     assert str(output) not in (run_dir / "record.json").read_text(encoding="utf-8")
+    assert {artifact["path"] for artifact in record["artifacts"]} == {
+        "external-artifacts.manifest.v1",
+        "external-compose_override",
+        "external-harness_resilience_patch",
+        "external-mem0_airlock_config",
+        f"{run_id}/mem0-oss-arm.result.v1.json",
+    }
     index_row = json.loads((tmp_path / "experiments" / "index.jsonl").read_text(encoding="utf-8"))
     assert index_row["run_id"] == run_id
     assert run_id in (tmp_path / "experiments" / "INDEX.md").read_text(encoding="utf-8")

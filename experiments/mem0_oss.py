@@ -23,7 +23,7 @@ from experiments import _lib
 
 
 EXPERIMENT = "mem0-oss-locomo-native"
-SCHEMA_VERSION = "mem0-oss.v1"
+SCHEMA_VERSION = "mem0-oss.v2"
 
 _TOP_LEVEL = {
     "schema_version",
@@ -39,10 +39,19 @@ _TOP_LEVEL = {
     "compose",
 }
 _FIELDS = {
-    "harness": {"checkout", "python", "git_sha"},
+    "harness": {"checkout", "python", "git_sha", "upstream_git_sha"},
     "corpus": {"dataset_path", "raw_sha256", "normalized_sha256", "sessions", "eligible_questions"},
     "mem0": {"host", "compose_project", "llm_model", "embedder_model"},
-    "airlock": {"base_url", "host_gateway", "llm_alias", "embedder_alias", "redaction_smoke"},
+    "airlock": {
+        "base_url",
+        "host_gateway",
+        "llm_alias",
+        "embedder_alias",
+        "redaction_smoke",
+        "provider_route",
+        "admission_rpm",
+        "admission_concurrency",
+    },
     "benchmark": {
         "project_name",
         "conversations",
@@ -141,6 +150,10 @@ def resolve_config(document: object) -> dict[str, Any]:
         raise ValueError("harness.python must name the isolated harness interpreter")
     if not isinstance(harness["git_sha"], str) or len(harness["git_sha"]) < 12:
         raise ValueError("harness.git_sha must be a pinned commit")
+    if not isinstance(harness["upstream_git_sha"], str) or len(harness["upstream_git_sha"]) < 12:
+        raise ValueError("harness.upstream_git_sha must be a pinned commit")
+    if harness["git_sha"] == harness["upstream_git_sha"]:
+        raise ValueError("harness.git_sha must include the pinned resilience patch")
     if not isinstance(compose["base_file"], str) or not Path(compose["base_file"]).is_file():
         raise ValueError("compose.base_file must name the official Compose file")
     dataset_path = Path(str(corpus["dataset_path"]))
@@ -168,11 +181,23 @@ def resolve_config(document: object) -> dict[str, Any]:
         raise ValueError("Airlock aliases must exactly match the Mem0 model identifiers")
     if airlock["redaction_smoke"] != "required":
         raise ValueError("airlock.redaction_smoke must be 'required'")
+    if airlock["provider_route"] not in {"direct_openai", "openrouter_exact_models"}:
+        raise ValueError("airlock.provider_route must name a reviewed exact-model route")
+    for key in ("admission_rpm", "admission_concurrency"):
+        if not isinstance(airlock[key], int) or isinstance(airlock[key], bool) or airlock[key] <= 0:
+            raise ValueError(f"airlock.{key} must be a positive integer")
 
     if benchmark["predict_only"] is not True:
         raise ValueError("native receipt phase must be predict_only before answer/judge authorization")
     if benchmark["resume"] is not True:
         raise ValueError("native receipt phase must enable resume")
+    for key in ("rpm", "max_workers"):
+        if not isinstance(benchmark[key], int) or isinstance(benchmark[key], bool) or benchmark[key] <= 0:
+            raise ValueError(f"benchmark.{key} must be a positive integer")
+    if benchmark["rpm"] * 4 > airlock["admission_rpm"]:
+        raise ValueError("benchmark.rpm must leave 4x internal fan-out headroom below airlock.admission_rpm")
+    if benchmark["max_workers"] > airlock["admission_concurrency"]:
+        raise ValueError("benchmark.max_workers must not exceed airlock.admission_concurrency")
     if not isinstance(benchmark["top_k"], int) or isinstance(benchmark["top_k"], bool) or not 1 <= benchmark["top_k"] <= 10:
         raise ValueError("benchmark.top_k must be an integer in [1, 10] for the matched FathomDB FTS arm")
     if not isinstance(output["external_root"], str) or not output["external_root"]:
@@ -196,8 +221,13 @@ def resolve_config(document: object) -> dict[str, Any]:
             raise ValueError(f"provenance artifact does not exist: {path}")
         if _sha256(path) != _require_sha256(artifact["sha256"], name=f"provenance_artifact[{artifact['name']}].sha256"):
             raise ValueError(f"provenance artifact sha256 mismatch: {artifact['name']}")
-    if names != {"compose_override", "mem0_airlock_config"}:
-        raise ValueError("provenance artifacts must be compose_override and mem0_airlock_config")
+    expected_artifacts = {
+        "compose_override",
+        "mem0_airlock_config",
+        "harness_resilience_patch",
+    }
+    if names != expected_artifacts:
+        raise ValueError(f"provenance artifacts must be {sorted(expected_artifacts)}")
     return root
 
 
@@ -229,6 +259,14 @@ def preflight(config: dict[str, Any]) -> list[str]:
             failures.append("cannot inspect harness cleanliness")
         elif probe.stdout.strip():
             failures.append("harness checkout must be clean")
+        parent_probe = subprocess.run(
+            ["git", "rev-parse", "HEAD^"], cwd=checkout, check=False,
+            text=True, capture_output=True, env=_lib.git_env(),
+        )
+        if parent_probe.returncode != 0:
+            failures.append("cannot inspect harness parent commit")
+        elif parent_probe.stdout.strip() != resolved["harness"]["upstream_git_sha"]:
+            failures.append("harness resilience patch is not based on the pinned upstream commit")
     artifacts_by_name = {item["name"]: Path(item["path"]) for item in resolved["provenance_artifacts"]}
     compose = artifacts_by_name["compose_override"]
     mem0_config = artifacts_by_name["mem0_airlock_config"]
@@ -349,9 +387,8 @@ def build_harness_command(config: dict[str, Any], *, run_id: str, raw_dir: Path)
     ]
 
 
-def _artifact(path: Path, *, run_dir: Path, external: bool = False) -> dict[str, str]:
-    reference = str(path) if external else str(path.relative_to(run_dir.parent))
-    return {"path": reference, "sha256": _sha256(path)}
+def _artifact(path: Path, *, run_dir: Path) -> dict[str, str]:
+    return {"path": str(path.relative_to(run_dir.parent)), "sha256": _sha256(path)}
 
 
 def _native_output_dir(config: dict[str, Any], raw_dir: Path) -> Path:
@@ -426,11 +463,11 @@ def _metrics(config: dict[str, Any], raw_dir: Path) -> dict[str, Any]:
 
 def _provenance_refs(config: dict[str, Any], run_dir: Path) -> list[dict[str, str]]:
     """Reference checked overlays by digest without copying their contents."""
-    artifacts: list[dict[str, str]] = []
-    for item in config["provenance_artifacts"]:
-        source = Path(item["path"])
-        artifacts.append(_artifact(source, run_dir=run_dir, external=True))
-    return artifacts
+    del run_dir
+    return [
+        {"path": f"external-{item['name']}", "sha256": _sha256(Path(item["path"]))}
+        for item in config["provenance_artifacts"]
+    ]
 
 
 def write_receipt(
@@ -467,7 +504,7 @@ def write_receipt(
     manifest_path.write_text(
         json.dumps(external_artifact_manifest(raw_dir), indent=2) + "\n", encoding="utf-8"
     )
-    artifacts.append(_artifact(manifest_path, run_dir=run_dir, external=True))
+    artifacts.append({"path": "external-artifacts.manifest.v1", "sha256": _sha256(manifest_path)})
 
     corpus = resolved["corpus"]
     receipt = _lib.write_record(

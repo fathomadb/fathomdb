@@ -19,12 +19,19 @@ from experiments import _lib, mem0_oss
 
 
 EXPERIMENT = "fathomdb-locomo-official-seam"
-SCHEMA_VERSION = "fathomdb-locomo.v1"
+SCHEMA_VERSION = "fathomdb-locomo.v2"
 _TOP_LEVEL = {"schema_version", "campaign", "program_track", "harness", "corpus", "benchmark", "facade", "output"}
-_HARNESS = {"checkout", "python", "git_sha"}
+_HARNESS = {"checkout", "python", "git_sha", "upstream_git_sha"}
 _CORPUS = {"dataset_path", "raw_sha256", "normalized_sha256", "sessions", "eligible_questions"}
 _BENCHMARK = {"project_name", "conversations", "categories", "top_k", "top_k_cutoffs", "max_workers", "rpm", "predict_only", "resume"}
-_FACADE = {"python", "host", "port", "provenance_manifest", "provenance_manifest_sha256"}
+_FACADE = {
+    "python",
+    "host",
+    "port",
+    "fathomdb_bin",
+    "provenance_manifest",
+    "provenance_manifest_sha256",
+}
 _OUTPUT = {"external_root"}
 
 
@@ -59,8 +66,8 @@ def resolve_config(document: object) -> dict[str, Any]:
     _reject_secrets(root)
     if root["schema_version"] != SCHEMA_VERSION or root["campaign"] != "official_seam_predict_only":
         raise ValueError("config must declare the FathomDB official predict-only campaign")
-    if root["program_track"] != "LOCOMO-01":
-        raise ValueError("program_track must be 'LOCOMO-01' for the FathomDB LOCOMO arm")
+    if root["program_track"] != "MEMORY-01":
+        raise ValueError("program_track must be 'MEMORY-01' for the matched FathomDB arm")
     harness = _exact(root["harness"], "harness", _HARNESS)
     corpus = _exact(root["corpus"], "corpus", _CORPUS)
     benchmark = _exact(root["benchmark"], "benchmark", _BENCHMARK)
@@ -79,6 +86,9 @@ def resolve_config(document: object) -> dict[str, Any]:
         raise ValueError("facade must bind a valid loopback port")
     if not isinstance(facade["python"], str) or not facade["python"]:
         raise ValueError("facade.python must be non-empty")
+    fathomdb_bin = Path(str(facade["fathomdb_bin"]))
+    if not fathomdb_bin.is_file() or not os.access(fathomdb_bin, os.X_OK):
+        raise ValueError("facade.fathomdb_bin must be executable")
     provenance_manifest = Path(str(facade["provenance_manifest"]))
     if not provenance_manifest.is_file() or _sha256(provenance_manifest) != facade["provenance_manifest_sha256"]:
         raise ValueError("facade provenance manifest path or sha256 is invalid")
@@ -106,13 +116,15 @@ def receipt_config(config: dict[str, Any]) -> dict[str, Any]:
         "schema_version": config["schema_version"], "campaign": config["campaign"],
         "program_track": config["program_track"],
         "harness": {"checkout": "external-verified-checkout", "python": "external-verified-interpreter",
-                    "git_sha": config["harness"]["git_sha"]},
+                    "git_sha": config["harness"]["git_sha"],
+                    "upstream_git_sha": config["harness"]["upstream_git_sha"]},
         "corpus": {"dataset_path": "external-verified-corpus", "raw_sha256": config["corpus"]["raw_sha256"],
                    "normalized_sha256": config["corpus"]["normalized_sha256"], "sessions": config["corpus"]["sessions"],
                    "eligible_questions": config["corpus"]["eligible_questions"]},
         "benchmark": dict(config["benchmark"]),
         "facade": {"python": "external-verified-interpreter", "host": config["facade"]["host"],
-                   "port": config["facade"]["port"], "provenance_manifest": "external-provenance-manifest",
+                   "port": config["facade"]["port"], "fathomdb_bin": "external-verified-binary",
+                   "provenance_manifest": "external-provenance-manifest",
                    "provenance_manifest_sha256": config["facade"]["provenance_manifest_sha256"]},
         "output": {"external_root": "external-access-controlled"},
     }
@@ -220,12 +232,18 @@ def run(config: dict[str, Any], *, base_dir: str | Path) -> tuple[str, Path, int
         ["git", "status", "--porcelain"], cwd=checkout, check=False, text=True,
         capture_output=True, env=_lib.git_env(),
     ) if checkout.is_dir() else None
+    parent_probe = subprocess.run(
+        ["git", "rev-parse", "HEAD^"], cwd=checkout, check=False, text=True,
+        capture_output=True, env=_lib.git_env(),
+    ) if checkout.is_dir() else None
     invalid_harness = (
         not checkout.is_dir() or not interpreter.is_file() or not os.access(interpreter, os.X_OK)
         or not facade_interpreter.is_file() or not os.access(facade_interpreter, os.X_OK)
         or facade_probe is None or facade_probe.returncode != 0
         or git_probe is None or git_probe.returncode != 0
         or git_probe.stdout.strip() != resolved["harness"]["git_sha"]
+        or parent_probe is None or parent_probe.returncode != 0
+        or parent_probe.stdout.strip() != resolved["harness"]["upstream_git_sha"]
         or clean_probe is None or clean_probe.returncode != 0 or bool(clean_probe.stdout.strip())
     )
     if invalid_harness:
@@ -240,6 +258,7 @@ def run(config: dict[str, Any], *, base_dir: str | Path) -> tuple[str, Path, int
         process = subprocess.Popen(
             [resolved["facade"]["python"], "-m", "experiments.fathomdb_oss_facade", "--root", str(raw_dir / "fathomdb"),
              "--host", resolved["facade"]["host"], "--port", str(resolved["facade"]["port"]),
+             "--fathomdb-bin", resolved["facade"]["fathomdb_bin"],
              "--provenance-manifest", resolved["facade"]["provenance_manifest"]],
             cwd=_lib.REPO_ROOT,
             stdout=(raw_dir / "facade.stdout.log").open("w", encoding="utf-8"),

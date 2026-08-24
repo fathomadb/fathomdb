@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.24 — release prework and portable CUDA distribution
-status: PROPOSED
+status: ACTIVE
 target_release: 0.8.24
 ---
 
@@ -63,6 +63,13 @@ review](0.8.24/prework/slice-5-verification-adequacy.md) separates the
 existing local contract controls from the still-required target, registry, and
 external-client evidence, and assigns every resulting proof gap to one feature
 or contingent prework slice.
+
+**Slice 10 completed 2026-08-24.** Its [status
+record](0.8.24/features/slice-10/status.md) closes the current-main assessment
+with no workflow or script change. The accepted [interface
+design](0.8.24/features/slice-10/design.md) hands target-specific route work to
+Slices 30/40 and final evidence assembly to Slice 70 without introducing a
+future-design dependency or hosted ceremony run.
 
 ## Scope and non-goals
 
@@ -235,7 +242,7 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 
 | Slice | Title | Primary outcome | Depends on |
 | ---: | --- | --- | --- |
-| **10** | Main CI workflow assessment and integration | Integrate the already-merged `5e2a05e2` CI contract by confirming what current `main` supplies; make only approved, narrow CI changes on `main` and document the release interface. | 0, 6 |
+| **10** | Main CI workflow assessment and integration | **Complete:** current `main` supplies the existing proportional CI/release interface; no workflow or script change was required. | 0, 6 |
 | **20** | Benchmark-directed engine performance | Reproduce or otherwise validate the identified benchmark result, define a decision rule, then make measured engine-level adjustments only when evidence supports them. | 0, 5, 6 |
 | **30** | Public Tegra CUDA distribution | Ship the approved separate Tegra distribution and explicit installer/compatibility contract; never the `+tegra` PyPI shape. | 0, 6, 10 |
 | **40** | Windows x64 CUDA distribution | Build and publish the approved Windows CUDA Python and/or npm artifacts via the remote executor; no local Windows compilation. | 0, 6, 10 |
@@ -245,10 +252,11 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 
 ### Feature-slice draft plans
 
-Each feature now has a separate draft plan. These documents plan their own
-slice-preparation, draft contract/design review, implementation boundary,
-verification, prerequisites, and handoff. Their existence does not make a
-slice ready or authorize implementation or an external release action.
+Each feature has a separate plan. Slice 10 is complete; Slices 20–70 still plan
+their own slice-preparation, draft contract/design review, implementation
+boundary, verification, prerequisites, and handoff. A draft's existence does
+not make its slice ready or authorize implementation or an external release
+action.
 
 - [Slice 10 — main CI assessment and integration](0.8.24/features/slice-10/plan.md)
 - [Slice 20 — benchmark-directed engine performance](0.8.24/features/slice-20/plan.md)
@@ -275,9 +283,10 @@ slice ready or authorize implementation or an external release action.
 - The shared `main` checkout is not a 0.8.24 editing surface. Every writer uses
   a fresh worktree off current `origin/main`; shared mutable workflow files are
   serialized.
-- Feature work that belongs on `main`—notably Slice 10 CI work—lands there by
-  its own approved path. The release branch is rebased or integrated only after
-  that main work is verified from git; it must not recreate or overwrite it.
+- Any later shared-CI work demonstrated by Slice 30 or 40 belongs on current
+  `main` through that slice's explicitly revised plan. The release branch is
+  integrated only after such work is verified from git; it must not recreate
+  or overwrite it.
 - No `maturin develop` or `pip install -e` runs from a worktree. Targeted Python
   build operations use the canonical main checkout or an approved target host.
 - No release tag is created or pushed by this plan. A `v*` push is a real,
@@ -285,9 +294,8 @@ slice ready or authorize implementation or an external release action.
 
 ## Immediate next action
 
-Slices 0–7 are complete. The separate feature-slice drafts above now require
-review and draft-to-ready disposition; no feature or external release action is
-authorized by drafting them. Slice 10 begins with its current-main no-change
-assessment. Slices 20 and 50 can prepare independently; Slices 30 and 40 cannot
-implement until their explicit identity/executor choices are recorded; Slice 60
-consumes the approved target outputs; Slice 70 remains final integration only.
+Slices 0–7 and 10 are complete. Slices 20 and 50 can proceed through their own
+draft-to-ready review independently. Slices 30 and 40 cannot implement until
+their explicit identity/executor choices are recorded; Slice 60 consumes the
+approved target outputs; Slice 70 remains final integration only. No external
+release action is authorized by these planning records.

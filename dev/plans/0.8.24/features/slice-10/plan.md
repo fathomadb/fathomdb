@@ -1,6 +1,6 @@
 ---
-title: 0.8.24 Slice 10 — main CI assessment and integration draft plan
-status: DRAFT
+title: 0.8.24 Slice 10 — main CI assessment and integration plan
+status: COMPLETE
 target_release: 0.8.24
 ---
 
@@ -8,9 +8,10 @@ target_release: 0.8.24
 
 ## Planning boundary
 
-This document plans Slice 10. It does not perform the assessment, edit a
-workflow, start hosted CI, or make the slice ready. The slice must complete its
-own preparation and design review before any implementation decision.
+This document records the reviewed Slice 10 plan and its completed execution.
+The assessment found no current-main CI integration gap, so the accepted
+implementation is a durable interface record with no workflow or script edit.
+No hosted CI was started.
 
 The default outcome is **no CI change**. The proportional-routing and
 fast/heavy-bootstrap work is already on `main`, including `5e2a05e2`. Slice 10
@@ -39,8 +40,8 @@ Establish the smallest truthful interface between current `main` CI and the
 - Current `origin/main`, not the release branch's remembered baseline.
 - `5e2a05e2`, `.github/workflows/{ci,release}.yml`,
   `scripts/bootstrap-heavy.sh`, and their local contract tests.
-- Slice 30 and Slice 40 ready-design inputs when those drafts identify a real
-  target route. Their absence is not permission to speculate.
+- Slice 30 and Slice 40 draft inputs only as ownership context. Slice 10 does
+  not wait for their ready designs or pre-plan their target routes.
 - Memory `fathomdb-ci-single-maintainer-minimal-not-gated.md`: CI is
   informational and diff-scoped; no required-check, merge-queue, soak-period,
   or administrative full-suite ceremony is introduced.
@@ -72,17 +73,18 @@ implementation of those contracts, not a substitute architecture.
 - Using a full hosted CI run to confirm a local structural change when no
   external executor behavior is in question.
 
-## Slice prep — planned first phase
+## Slice prep
 
-Slice execution begins by creating these durable records under this directory:
+Slice execution created these durable records under this directory:
 
 - `prep.md` — goals, current-main SHA, inputs, and evidence inventory;
 - `draft-contracts.md` — draft needs, requirements, and acceptance signals;
 - `design.md` — the reviewed CI/release-interface design; and
-- `research.md` — primary-source questions, findings, and applicability.
+- `research.md` — primary-source research disposition and applicability; and
+- `status.md` — implementation and verification closeout.
 
-These records remain slice-local drafts until the slice reviewer accepts them.
-They do not edit canonical product requirements or architecture by themselves.
+The accepted contracts remain slice-local. They do not edit canonical product
+requirements or architecture by themselves.
 
 ### Prep tasks
 
@@ -111,7 +113,7 @@ They do not edit canonical product requirements or architecture by themselves.
 6. Produce an exists-versus-net-new map. A job name, path filter, or runner
    label is structural evidence only; it is not target hardware evidence.
 
-## Draft design and design review
+## Design and design review
 
 ### Initial design
 
@@ -120,9 +122,9 @@ The expected design has three boundaries:
 1. `ci.yml` remains informational and proportionally routes ordinary changes.
 2. `release.yml` owns explicit release rehearsal/publication and target artifact
    assembly; it is not made an automatic consequence of administrative edits.
-3. Slices 30/40 own target-specific executor and evidence production. Slice 10
-   changes CI only if their reviewed design names a route current main cannot
-   select or validate.
+3. Slices 30/40 own target-specific executor, target workflow, and evidence
+   production. Slice 10 closes the existing interface now; a later target
+   design owns any explicit plan revision and narrowly justified route change.
 
 The design must include a job/file ownership table, trigger/event table,
 permissions table, artifact producer/consumer edges, path-classifier mapping,
@@ -155,23 +157,25 @@ design to remove any speculative job, required gate, duplicated main work, or
 claim that structural CI proves hardware. Record the revision and verdict in
 `design.md` before implementation can be considered.
 
-## Planned execution after prep approval
+## Execution disposition
 
 ### Phase 1 — current-main assessment
 
 - Work in a fresh isolated branch/worktree from the then-current `origin/main`.
 - Produce a current-main evidence matrix for triggers, classifier outputs,
   jobs, runners, permissions, artifacts, and local contract tests.
-- Compare the approved Slice 30/40 route needs against that matrix.
+- Record the seam that Slice 30/40 must consume without inventing their target
+  selector, runner, artifact, or smoke route.
 
 ### Phase 2 — decision branch
 
 **No gap:** make no workflow/script change. Complete the interface record and
 route target-specific needs back to their owning slice.
 
-**Concrete gap:** stop for reviewer acceptance of the exact change. Then use
-TDD for the local workflow contract, make only the accepted YAML/script edit,
-and retain the no-required-check/no-full-dispatch boundary.
+**Concrete gap:** none was found. If a later target design demonstrates one,
+its owning slice must revise its plan explicitly, obtain review of the exact
+change, use RED/GREEN for the local workflow contract, and retain the
+no-required-check/no-full-dispatch boundary.
 
 ### Phase 3 — documentation and handoff
 
@@ -218,19 +222,20 @@ destructive history rewrite or overwrite current main.
 
 ## Decisions and prerequisites for the next reviewer
 
-The Slice 10 reviewer must decide:
+The Slice 10 reviewer decided:
 
-1. whether current main fully supplies the interface (recommended default);
-2. if not, the one concrete gap and smallest correction;
-3. whether any proposed external execution proves a fact unavailable locally;
-4. which target slice owns each new prerequisite.
+1. current main fully supplies the existing interface;
+2. there is no current workflow or script correction;
+3. no external execution is needed for this structural assessment; and
+4. target prerequisites remain owned by Slices 30/40, while Slice 70 owns final
+   evidence assembly.
 
-The slice cannot become ready while its plan contains a speculative target job
-or an unresolved shared-workflow ownership conflict.
+The independent design review first returned NEEDS-REVISION for the circular
+future-design dependency and stale `[ci-lite]` prose, then accepted the revised
+no-workflow-change result.
 
 ## Definition of done
 
-Slice 10 closes when current-main behavior is accurately documented, every
-claimed gap is evidenced, the no-change path has been genuinely considered,
-any accepted narrow edit has local contract proof, no hosted ceremony run was
-manufactured, and Slices 30/40/70 have an explicit interface handoff.
+Slice 10 closed after current-main behavior was documented, the no-change path
+was verified by mutation-sensitive existing contracts, no hosted ceremony run
+was manufactured, and Slices 30/40/70 received an explicit interface handoff.

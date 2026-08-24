@@ -25,9 +25,11 @@ branch work. The relevant landing sequence is:
 avoid unnecessary heavier jobs. Its scoped categories include Rust, Python,
 TypeScript, the Windows WAL installed-attribution test path, CI workflow,
 verification harness, security harness, Rust test harness, and native artifact
-harness. `[ci-lite]` is deliberately limited to trusted pull-request handling;
-it is not a release-workflow bypass and does not apply to a main push through
-an assumed merge-message transfer.
+harness. An exact `[ci-lite]` marker is accepted only from a trusted source:
+an owner/member/collaborator same-repository pull request, a direct push's
+candidate commit, or the second parent of a merge push. It never applies to
+`release.yml`, and incidental prose containing the marker does not activate
+lite mode.
 
 ## Release interface
 

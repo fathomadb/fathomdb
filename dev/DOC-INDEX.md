@@ -50,7 +50,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/plan-0.8.23.md` | Completed 0.8.23 release plan, retained in place | 0.8.23 history | 2026-08-23 |
 | `dev/plans/release-state-0.8.23.json` | Completed 0.8.23 release-state record | 0.8.23 history | 2026-08-23 |
 | `dev/plans/runs/STATUS-0.8.23.md` | Completed 0.8.23 state board, retained in place | 0.8.23 history | 2026-08-23 |
-| `dev/plans/plan-0.8.24.md` | Draft 0.8.24 release plan and slice allocation | 0.8.24 prework | 2026-08-23 |
+| `dev/plans/plan-0.8.24.md` | Active 0.8.24 release plan and slice allocation | 0.8.24 release | 2026-08-24 |
 | `dev/plans/0.8.24/prework/slice-{0,1,2}-*.md` | 0.8.24 prework findings and design reviews | 0.8.24 Slices 0–2 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-3-*-drafts.md` | 0.8.24 product and architecture draft CRUD | 0.8.24 Slice 3 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-4-architecture-alignment.md` | 0.8.24 architecture and code alignment review | 0.8.24 Slice 4 | 2026-08-23 |
@@ -59,7 +59,8 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/0.8.24/prework/slice-6-hitl-decisions.md` | 0.8.24 initial owner decisions and feature/prework boundary | 0.8.24 Slice 6 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-6-slice-7-independent-review.md` | 0.8.24 independent plan review and documented FIX-n cycles | 0.8.24 Slice 6 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-7-completion.md` | 0.8.24 accepted-prework completion evidence and commit mapping | 0.8.24 Slice 7 | 2026-08-23 |
-| `dev/plans/0.8.24/features/slice-{10,20,30,40,50,60,70}/plan.md` | Draft feature-slice preparation, design, execution, evidence, and handoff plans | 0.8.24 Slices 10–70 | 2026-08-23 |
+| `dev/plans/0.8.24/features/slice-{10,20,30,40,50,60,70}/plan.md` | Feature-slice preparation, design, execution, evidence, and handoff plans; Slice 10 complete | 0.8.24 Slices 10–70 | 2026-08-24 |
+| `dev/plans/0.8.24/features/slice-10/{prep,draft-contracts,research,design,status}.md` | Completed current-main CI assessment, accepted interface design, evidence, and target-slice handoff | 0.8.24 Slice 10 | 2026-08-24 |
 | `dev/plans/runs/0.8.23-slice-72-draft-plan.md` | Approved plan for concurrent embedding and CE GPU coexistence characterization | 0.8.23 Slice 72 | 2026-08-18 |
 | `dev/plans/runs/0.8.23-slice-72-status.md` | Local completion and external-GPU-evidence boundary for concurrent BGE and CE characterization | 0.8.23 Slice 72 | 2026-08-18 |
 | `dev/requirements.md` | Numbered requirements (REQ-*); REQ-053 = governed SDK surface (allowlist + parity + recovery-denylist + typed boundary) | 25 amended REQ-053 (Q3) | 2026-06-04 |

@@ -96,7 +96,7 @@ fn production_stream_matches_full_sort_across_strict_tie_and_rank_override() {
         .map(|rank| {
             node(
                 &format!("strict-{rank}"),
-                format!("{} strict-{rank}", "slice20strict ".repeat((rank % 17) + 1)),
+                format!("{} strict-{rank}", "slice20strict ".repeat(rank)),
             )
         })
         .collect::<Vec<_>>();

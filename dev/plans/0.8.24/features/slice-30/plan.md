@@ -50,7 +50,9 @@ changing the CPU distribution or import topology:
 - Target: classic Jetson Orin (`sm_87`) on L4T R36 / JetPack 6, CUDA 12.6,
   glibc 2.35. Generic AArch64/SBSA and Thor are unsupported.
 - Build/evidence route: dedicated real Jetson runner and the existing
-  host-native build/witness workflow are proven inputs.
+  host-native build/witness workflow are proven inputs. The current workflow
+  is not yet a 0.8.24 route: both jobs hard-code
+  `refs/heads/release/0.8.23` and would skip a 0.8.24 dispatch.
 - Repository claim: `fathomadb/fathomdb`.
 
 ## Blocking prerequisite
@@ -77,7 +79,9 @@ repository owner.
    honest wheel tag, detection-gated exact install command, CPU/Tegra
    separation, and publisher route.
 3. GREEN the smallest allowlisted packaging/workflow/docs changes. Preserve
-   the build wrapper's host-native `+tegra` staging and existing witness.
+   the build wrapper's host-native `+tegra` staging and existing witness. Make
+   the Jetson evidence workflow accept the exact authorized 0.8.24 release
+   candidate rather than silently skipping it.
 4. Run local structural tests and `actionlint`; do not claim target evidence
    from those checks.
 5. On the dedicated Jetson only, build the exact candidate and retain source,
@@ -101,6 +105,13 @@ repository owner.
 - Extend `test_jetson_tegra_cuda_evidence_ci_job.sh` so immutable artifact
   transfer is credentialless and the target-controlled job has no publication
   credential or deployment step.
+- First add a RED mutation/contract arm proving the current
+  `refs/heads/release/0.8.23` predicates skip a `release/0.8.24` candidate.
+  GREEN must replace the stale literal with a bounded release-branch contract
+  that permits the exact authorized `release/0.8.24` candidate while rejecting
+  unrelated refs and still requiring `candidate_sha == github.sha`.
+- Assert both `validate-candidate` and `tegra-cuda-evidence` share the same
+  bounded ref predicate; a test that fixes only one job remains RED.
 - Add release-workflow mutation fixtures proving the hosted publisher consumes
   only the named artifact/digest, uses the declared environment, and cannot
   route the Tegra wheel to PyPI.
@@ -114,7 +125,8 @@ repository owner.
 - `scripts/release/build-python-cuda-tegra.sh` only if a contract test proves a
   publication-handoff gap;
 - `scripts/check-cuda-release-contract.py` and focused release-contract tests;
-- `.github/workflows/jetson-tegra-cuda-evidence.yml` for immutable build output;
+- `.github/workflows/jetson-tegra-cuda-evidence.yml` only for the bounded
+  0.8.24 candidate-ref correction and immutable build output;
 - `.github/workflows/release.yml` or one narrowly scoped publisher workflow,
   after the deployment route is selected;
 - public compatibility/install documentation, the release design, maintained

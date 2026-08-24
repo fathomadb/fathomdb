@@ -39,7 +39,7 @@ Python co-install diagnostics, Tegra platform reference, and the authoritative
 | Build | Host-native `build-python-cuda-tegra.sh` | Candidate-version integration only if tests show a gap |
 | Wheel truth | Bare `linux_aarch64`, abi3, glibc 2.35 contract | Public index transport |
 | Detection | Classic-Tegra/SBSA/Thor classification and generic-build warning | Endpoint-bearing exact repair command |
-| Runner evidence | Dedicated `jetson-fathomdb` route and successful run 32296395639 | 0.8.24 candidate execution after implementation |
+| Runner evidence | Dedicated `jetson-fathomdb` route and successful run 32296395639 | Correct both hard-coded `release/0.8.23` job predicates, then execute the exact 0.8.24 candidate after implementation |
 | Publisher | Credentialless evidence artifact retention | Declared endpoint owner and hosted deployment route |
 | CPU path | Generic `fathomdb` on PyPI | Preservation proof only |
 
@@ -59,6 +59,11 @@ and PyPI Tegra uploads are not claimed.
 Resolved: repository, distribution/import name, local-version convention,
 target matrix, wheel tag, build host, detection rule, exact-pin rule, and
 candidate evidence route.
+
+Proven current-code gap: `.github/workflows/jetson-tegra-cuda-evidence.yml`
+guards both jobs with `github.ref == 'refs/heads/release/0.8.23'`. A dispatch
+from `release/0.8.24` would skip rather than build. This is future Slice 30
+workflow implementation work, not evidence that the runner route is absent.
 
 Blocked: no concrete first-party PEP 503 URL, service owner, deployment
 mechanism, authentication method, or publisher environment is declared. The

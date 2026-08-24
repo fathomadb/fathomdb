@@ -30,6 +30,11 @@ Run 32296395639 passed on Orin against
 `linux_aarch64` `+tegra` wheel and CPU/auto/forced-CUDA installed proof. This
 resolves executor feasibility, not public endpoint readiness.
 
+The executor route has one proven source gap: both jobs in its workflow are
+hard-coded to `refs/heads/release/0.8.23`, so `release/0.8.24` would skip. The
+future implementation must correct both predicates under a bounded
+release-candidate contract; this does not reopen runner selection.
+
 ## Still required from the owner
 
 1. Concrete first-party PEP 503 HTTPS root and owning service/account.
@@ -44,4 +49,5 @@ must not be inferred from `fathomadb/fathomdb`.
 
 Status remains BLOCKED. Once the two inputs are supplied, update this record,
 perform endpoint-specific primary-source research, obtain independent design
-re-review, and then begin the RED/GREEN sequence in `plan.md`.
+re-review, and then begin the RED/GREEN sequence in `plan.md`, including the
+two-job 0.8.24 workflow-ref correction.

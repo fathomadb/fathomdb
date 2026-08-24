@@ -23,6 +23,8 @@ host-bound, detection-gated, and not PyPI-uploadable.
 - Authoritative D-80.6-3 and the release-independent Tegra platform reference.
 - Existing host-native build, co-install/displacement detection, CUDA contract,
   witness, and manual evidence workflow.
+- Current workflow gap: both Jetson jobs hard-code
+  `refs/heads/release/0.8.23`; a `release/0.8.24` dispatch would skip.
 - Successful dedicated-Orin run 32296395639 at exact
   `59c1033e229838632b5d0fe1ecd48845f3007fa0`.
 - Owner clarification that the repository is `fathomadb/fathomdb`.
@@ -37,6 +39,11 @@ is declared. The repository name does not imply a hostname. The publisher
 environment and authentication path also do not exist in the observed GitHub
 configuration. These are required architecture inputs, so no RED test, code,
 workflow, build, runner, registry, or publication action was started.
+
+After that external prerequisite closes, implementation must also correct the
+proven workflow-ref gap under RED/GREEN tests for both jobs. That code gap is
+planned work, not the external blocker and not a reason to claim Slice 30
+complete.
 
 ## Durable records
 

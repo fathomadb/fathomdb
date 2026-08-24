@@ -67,6 +67,13 @@ host, source, wheel, digest, and three policy results. That is confirmed runner
 and functionality evidence. A new 0.8.24 candidate run is needed only after
 implementation; historical evidence is not repurposed as release evidence.
 
+The workflow is currently release-pinned, not reusable as-is: both its
+validation and evidence jobs require `refs/heads/release/0.8.23`. The Slice 30
+implementation must first encode one bounded ref contract for both jobs that
+admits the authorized `release/0.8.24` candidate, rejects unrelated refs, and
+preserves the exact `candidate_sha == github.sha` identity check. A broad
+all-branches relaxation is outside the design.
+
 ## Trust and artifact transfer
 
 The target-controlled Jetson builder must remain credentialless. Its output is
@@ -89,6 +96,8 @@ different service.
 - Preserves generic CPU packaging, npm, Rust targets, and existing release
   idempotency.
 - Uses the proven Jetson-native artifact and evidence boundary.
+- Requires a narrow workflow compatibility correction before any 0.8.24 target
+  evidence claim; a skipped job is never a passing target proof.
 - Keeps endpoint/service-specific deployment outside target-controlled code.
 
 ## Challenging aspects after endpoint selection

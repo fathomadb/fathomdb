@@ -43,6 +43,15 @@ GitHub run 32296395639 succeeded on the dedicated Orin at exact commit
 and forced-CUDA installed-wheel behavior with a validated Tegra GPU witness.
 This proves the route and matrix, not 0.8.24 publication readiness.
 
+### Can the existing workflow run the 0.8.24 candidate unchanged?
+
+No. Both jobs in `.github/workflows/jetson-tegra-cuda-evidence.yml` use the
+literal predicate `github.ref == 'refs/heads/release/0.8.23'`. Consequently a
+0.8.24 dispatch reaches a skipped workflow, not the proved build/witness route.
+This is a source-inspected compatibility gap. It requires a bounded ref-contract
+test and workflow correction after the external endpoint prerequisite closes;
+it does not require another executor or a new evidence architecture.
+
 ## Primary references retained by the repository
 
 - Python packaging version and name normalization specifications:

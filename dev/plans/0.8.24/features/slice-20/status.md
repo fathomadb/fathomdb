@@ -28,6 +28,7 @@ unrelated experiment infrastructure are unchanged.
 | RED contract | `70e64e0a` — target exited 101; current code emitted neither streamed/ineligible route evidence nor a writer invariant witness. |
 | RED fixture refinement | `9fbd38a6` — made the strict boundary genuinely score-unique; did not change the required route/equivalence assertion. |
 | GREEN implementation | `6c4f3ace` — exact rank stream, fallback, property proof, writer invariant, and aligned design/AC text. |
+| Independent review FIX-1 | Test-only evidence tightened: statement-failure route selection, eligible no-edge 10/50/100 public-prefix equivalence, and nonempty query-plan witness. Production code unchanged. |
 
 The independent design reviewer returned NEEDS-REVISION before implementation.
 The binding corrections are recorded in `design.md`: preserve current-main WAL
@@ -54,7 +55,7 @@ publisher, benchmark runner, or registry state.
 
 | Check | Result |
 | --- | --- |
-| Slice 20 stream/control integration target | 2 passed |
+| Slice 20 stream/control integration target | 3 passed |
 | Engine unit/property tests under `test-hooks` | 29 passed, including generated rank-group equivalence |
 | Filtered KNN | 6 passed |
 | Legacy tokenizer migration/recall | 1 passed |

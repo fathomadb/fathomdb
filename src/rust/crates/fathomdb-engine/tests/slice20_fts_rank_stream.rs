@@ -150,6 +150,7 @@ fn production_stream_matches_full_sort_across_strict_tie_and_rank_override() {
     pinned.engine.close().expect("close pinned stream");
     assert_eq!(pinned_result, full_sort(&dir, "strict", "slice20strict"));
 
+    let routes_before_failure = routes(&route_witness);
     unsafe { std::env::set_var("FATHOMDB_FTS_FAIL_STREAM_FOR_TEST", "1") };
     let failed_statement = open(&dir, "strict");
     let fallback = failed_statement
@@ -158,21 +159,88 @@ fn production_stream_matches_full_sort_across_strict_tie_and_rank_override() {
         .expect("failed stream falls back");
     failed_statement.engine.close().expect("close statement-failure fallback");
     unsafe { std::env::remove_var("FATHOMDB_FTS_FAIL_STREAM_FOR_TEST") };
+    let routes_after_failure = routes(&route_witness);
+    assert_eq!(
+        routes_after_failure.len(),
+        routes_before_failure.len() + 1,
+        "the injected statement failure must record exactly one selected route"
+    );
+    assert_eq!(
+        routes_after_failure.last().map(String::as_str),
+        Some("full_sort_fallback"),
+        "the injected statement failure must select the full-sort fallback"
+    );
     assert_eq!(fallback, full_sort(&dir, "strict", "slice20strict"));
 
     let observed_routes = routes(&route_witness);
     assert!(observed_routes.contains(&"rank_stream_strict_boundary".to_string()));
     assert!(observed_routes.contains(&"rank_stream_tie_completed".to_string()));
-    assert!(jsonl(&plan_witness).iter().all(|row| row["uses_temp_btree_for_order_by"] == false));
+    let observed_plans = jsonl(&plan_witness);
+    assert!(!observed_plans.is_empty(), "eligible streamed calls must emit query-plan evidence");
+    assert!(observed_plans.iter().all(|row| row["uses_temp_btree_for_order_by"] == false));
     assert!(jsonl(&writer_witness).iter().any(|row| {
         row["role"] == "writer" && row["journal_mode"] == "wal" && row["synchronous"] == 1
     }));
 }
 
+#[test]
+fn eligible_stream_preserves_public_limit_prefixes_and_full_sort_equivalence() {
+    let _lock = ENV_LOCK.lock().expect("environment lock");
+    let dir = TempDir::new().expect("tempdir");
+    let route_witness = dir.path().join("limit-routes.jsonl");
+    let _env = EnvGuard::update(&[
+        ("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST", None),
+        ("FATHOMDB_FTS_FAIL_STREAM_FOR_TEST", None),
+        ("FATHOMDB_FTS_ROUTE_WITNESS_FOR_TEST", Some(route_witness.display().to_string())),
+        ("FATHOMDB_FTS_QUERY_PLAN_WITNESS_FOR_TEST", None),
+        ("FATHOMDB_WRITER_PRAGMA_WITNESS_FOR_TEST", None),
+    ]);
+
+    let opened = open(&dir, "limits");
+    let writes = (1..=140)
+        .map(|rank| {
+            node(&format!("limit-{rank}"), format!("{} limit-{rank}", "slice20limit ".repeat(rank)))
+        })
+        .collect::<Vec<_>>();
+    opened.engine.write(&writes).expect("write eligible no-edge corpus");
+    opened.engine.drain(10_000).expect("drain eligible no-edge corpus");
+
+    let streamed_10 =
+        opened.engine.search_text_only_with_limit("slice20limit", 10).expect("stream limit 10");
+    let streamed_50 =
+        opened.engine.search_text_only_with_limit("slice20limit", 50).expect("stream limit 50");
+    let streamed_100 =
+        opened.engine.search_text_only_with_limit("slice20limit", 100).expect("stream limit 100");
+    opened.engine.close().expect("close streamed limits");
+
+    let streamed_routes = routes(&route_witness);
+    assert_eq!(streamed_routes.len(), 3, "each eligible public call must select one route");
+    assert!(
+        streamed_routes.iter().all(|route| route.starts_with("rank_stream_")),
+        "the no-edge public limit calls must use the streamed route"
+    );
+
+    assert_eq!(streamed_10, full_sort_with_limit(&dir, "limits", "slice20limit", 10));
+    assert_eq!(streamed_50, full_sort_with_limit(&dir, "limits", "slice20limit", 50));
+    assert_eq!(streamed_100, full_sort_with_limit(&dir, "limits", "slice20limit", 100));
+    assert_eq!(streamed_10.results, streamed_50.results[..10]);
+    assert_eq!(streamed_50.results, streamed_100.results[..50]);
+}
+
 fn full_sort(dir: &TempDir, name: &str, query: &str) -> fathomdb_engine::SearchResult {
+    full_sort_with_limit(dir, name, query, 100)
+}
+
+fn full_sort_with_limit(
+    dir: &TempDir,
+    name: &str,
+    query: &str,
+    limit: usize,
+) -> fathomdb_engine::SearchResult {
     unsafe { std::env::set_var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST", "1") };
     let opened = open(dir, name);
-    let result = opened.engine.search_text_only_with_limit(query, 100).expect("full-sort control");
+    let result =
+        opened.engine.search_text_only_with_limit(query, limit).expect("full-sort control");
     opened.engine.close().expect("close full-sort control");
     unsafe { std::env::remove_var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST") };
     result

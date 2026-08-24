@@ -17,8 +17,8 @@ target_release: 0.8.24
 0.8.24 makes CUDA distribution practical without weakening the CPU release
 contract:
 
-- publish Tegra CUDA through a distinct public distribution rather than an
-  invalid PyPI `+tegra` local version;
+- publish Tegra CUDA as exact `fathomdb==0.8.24+tegra` from a first-party PEP
+  503 index while generic CPU `fathomdb==0.8.24` remains on PyPI;
 - provide Windows x64 CUDA through a remote Windows executor, never requiring
   an end user or release operator to compile Windows CUDA locally;
 - preserve current CPU artifacts and make release publishing idempotent; and
@@ -41,6 +41,10 @@ The job is evidence to assess, not a pre-decided FathomDB defect.
 - **New CI work:** it is already merged on `main` and was assessed by Slice 10.
   No remaining integration change was found; the release branch does not
   silently substitute for `main` as its delivery branch.
+- **Slice 30 identity correction:** D-80.6-3 already owns the same-name
+  `+tegra` alternate-index topology. Slice 30 retired its stale
+  distinct-distribution premise and is blocked only on the concrete first-party
+  PEP 503 endpoint and publisher deployment route.
 
 Slice 0 is complete. The overall plan remains proposed because no live
 release-state JSON or generated status board has been deliberately created.
@@ -76,8 +80,8 @@ future-design dependency or hosted ceremony run.
 
 ### In scope
 
-- Separate public Tegra CUDA package identity, metadata, publication route, and
-  Jetson installed-package smoke.
+- Same-distribution Tegra CUDA local-version metadata, first-party PEP 503
+  publication route, and Jetson installed-package smoke.
 - Windows x64 CUDA Python and/or npm surface, produced and proven remotely.
 - Existing CPU artifact preservation and publisher idempotency.
 - The CI workflow already merged on `main` and assessed by Slice 10.
@@ -94,11 +98,11 @@ future-design dependency or hosted ceremony run.
 
 ## Decisions Slice 0 must prepare for HITL
 
-1. **Tegra package identity.** Select the public distribution name and
-   installer contract. The leading shape is a separately named project such as
-   `fathomdb-tegra`, because a local version (`+tegra`) is not a valid public
-   PyPI upload and two same-name Linux ARM64 wheels cannot make pip choose CUDA
-   deterministically.
+1. **Tegra package transport.** D-80.6-3 already selects the distribution and
+   installer shape: generic CPU `fathomdb==0.8.24` stays on PyPI; Tegra uses
+   exact `fathomdb==0.8.24+tegra` on a first-party PEP 503 index, detection-
+   gated on classic Tegra. Slice 30 still needs the concrete endpoint owner and
+   publisher deployment route; it must not invent a hostname.
 2. **Windows SDK surfaces.** Decide whether Windows CUDA ships Python, npm, or
    both, along with the clear unsupported-route behavior.
 3. **Remote Windows executor.** Identify its host/runner label, CUDA/toolchain
@@ -217,7 +221,7 @@ be silently folded into Slice 7.
 | --- | --- |
 | Slice 0 main-CI relationship and new-main workflow inventory; merged-main `5e2a05e2` cache/heavy-bootstrap CI landing | **10:** assess the exact current main CI/release interface, preserve proportional routing plus the fast/heavy ownership split, and make no release-branch recreation, backport, or overwrite of main CI. |
 | Slice 0 retained performance branch/evidence and owner-selected streamed boundary-tie result | **20:** inspect the named evidence and unmerged engine delta, declare the integration decision rule and targeted correctness proof, and do not require a confirming benchmark run. |
-| Slice 0 Tegra package-identity decision; Slice 1 N24-1/R24-8 | **30:** obtain the owner-selected separate public distribution identity, trusted-publisher route, explicit CPU-versus-CUDA selection contract, and Jetson installed-package proof plan. |
+| Slice 0 Tegra package-identity decision; Slice 1 N24-1/R24-8 | **30:** apply D-80.6-3's same-`fathomdb`, exact-`+tegra` first-party-index topology; obtain the concrete PEP 503 endpoint and publisher route; preserve explicit CPU-versus-CUDA selection and Jetson proof. |
 | Slice 0 Windows SDK/executor decision; Slice 1 N24-2/R24-9 | **40:** obtain the owner-selected Python/npm matrix and remote Windows CUDA executor contract, then plan artifact provenance, unsupported-route behavior, and Windows installed-package proof without a local Windows build. |
 | Slice 1 R24-12 and the unresolved external Memex evidence boundary | **50:** obtain/inspect the linked client evidence, compare the installed FathomDB Python WAL path, and plan only an attributed fix or a durable no-change/insufficient-evidence finding. |
 | Slice 1 N24-3/N24-4/R24-10 and Slice 0 publication topology | **60:** plan target smokes, CPU artifact preservation, and immutable-existing-artifact publisher retry/idempotency evidence. |
@@ -227,7 +231,7 @@ be silently folded into Slice 7.
 | Slice 3 release retry and installed-target CRUD (updates to REQ-050/AC-054 and REQ-052/AC-056) | **60:** make the canonical/documentation change only if the owner accepts it, then prove retry-safe completion and target-installed smoke. |
 | Slice 4 code alignment: current CI is proportional and already on main | **10:** retain a no-change presumption; add a route only when the feature ready plan proves a concrete selector/transfer/smoke gap. |
 | Slice 4 code alignment: retained 811-line SCALE-02 branch delta | **20:** review the complete delta and write a bounded implementation design with the retained fidelity constraints; no opportunistic commit copy or benchmark rerun. |
-| Slice 4 code alignment: Python currently rejects a public `fathomdb-tegra` reading | **30:** after identity decision, deliberately supersede the local-only co-install/documentation assumption as part of the feature design. |
+| Slice 4 code alignment: Python retains `fathomdb-tegra` only as a local sibling-package tripwire | **30:** do not publish that name; extend the existing `+tegra` displaced-build guidance only after the concrete first-party endpoint is declared. |
 | Slice 4 code alignment: Windows loader/package and hosted jobs are CPU-only | **40:** after SDK/executor decision, plan a separate CUDA artifact/loader/provenance shape that preserves the CPU package. |
 | Slice 4 code alignment: existing WAL controls do not attribute external client behavior | **50:** compare actual external evidence before any defect/contract proposal. |
 | Slice 4 code alignment: retry-safe mechanics conflict with atomic-publish wording | **60:** implement the owner-approved release semantics/documentation change and targeted publisher/installed-smoke proof. |
@@ -243,8 +247,8 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 | Slice | Title | Primary outcome | Depends on |
 | ---: | --- | --- | --- |
 | **10** | Main CI workflow assessment and integration | **Complete:** current `main` supplies the existing proportional CI/release interface; no workflow or script change was required. | 0, 6 |
-| **20** | Benchmark-directed engine performance | **Implemented, awaiting independent review:** integrate the owner-selected streamed BM25 boundary behavior without rerunning the settled benchmark. | 0, 5, 6 |
-| **30** | Public Tegra CUDA distribution | Ship the approved separate Tegra distribution and explicit installer/compatibility contract; never the `+tegra` PyPI shape. | 0, 6, 10 |
+| **20** | Benchmark-directed engine performance | **Complete:** owner-selected streamed BM25 boundary behavior integrated without rerunning the settled benchmark. | 0, 5, 6 |
+| **30** | Public Tegra CUDA distribution | **Blocked:** serve exact `fathomdb==0.8.24+tegra` from a declared first-party PEP 503 index; endpoint ownership and publisher deployment route remain undeclared. Never upload the host-bound wheel to PyPI. | 0, 6, 10 |
 | **40** | Windows x64 CUDA distribution | Build and publish the approved Windows CUDA Python and/or npm artifacts via the remote executor; no local Windows compilation. | 0, 6, 10 |
 | **50** | Windows Python SDK WAL behavior review | Analyze the completed Memex job, compare the relevant FathomDB Python path, and route an attributed fix or a no-change finding to its proper slice. | 0, 5, 6 |
 | **60** | Installed-package smokes and CPU/publisher preservation | Jetson and Windows clean-install smokes; CPU artifact preservation checks; publisher idempotency proof and failure/retry behavior. | 30, 40 |
@@ -252,12 +256,12 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 
 ### Feature-slice draft plans
 
-Each feature has a separate plan. Slice 10 is complete; Slice 20 is implemented
-and awaits independent review; Slices 30–70 still plan their own
-slice-preparation, draft contract/design review, implementation
-boundary, verification, prerequisites, and handoff. A draft's existence does
-not make its slice ready or authorize implementation or an external release
-action.
+Each feature has a separate plan. Slices 10 and 20 are complete. Slice 30 has
+completed its package/design reconciliation but remains blocked before TDD on
+its concrete endpoint and publisher route. Slices 40–70 retain their own
+slice-preparation, draft contract/design review, implementation boundary,
+verification, prerequisites, and handoff. A plan's existence does not make its
+slice ready or authorize implementation or an external release action.
 
 - [Slice 10 — main CI assessment and integration](0.8.24/features/slice-10/plan.md)
 - [Slice 20 — benchmark-directed engine performance](0.8.24/features/slice-20/plan.md)
@@ -295,9 +299,9 @@ action.
 
 ## Immediate next action
 
-Slices 0–7 and 10 are complete. Slice 20 awaits independent review; Slice 50
-can proceed through its own draft-to-ready review independently. Slices 30 and
-40 cannot implement until
-their explicit identity/executor choices are recorded; Slice 60 consumes the
-approved target outputs; Slice 70 remains final integration only. No external
-release action is authorized by these planning records.
+Slices 0–7, 10, and 20 are complete. Slice 30 is blocked until the concrete
+first-party PEP 503 URL/service owner and publisher deployment route are
+declared. Slice 40 remains blocked on its executor choices; Slice 50 can
+proceed independently. Slice 60 consumes approved target outputs, and Slice 70
+remains final integration only. No external release action is authorized by
+these planning records.

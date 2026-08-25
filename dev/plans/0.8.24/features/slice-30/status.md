@@ -1,6 +1,6 @@
 ---
 title: 0.8.24 Slice 30 — status
-status: BLOCKED
+status: IN_PROGRESS
 target_release: 0.8.24
 ---
 
@@ -8,8 +8,8 @@ target_release: 0.8.24
 
 ## Outcome
 
-Slice 30 planning and design reconciliation are complete, but Slice 30 itself
-is **BLOCKED before implementation**. D-80.6-3 already resolves package
+Slice 30 planning and design reconciliation are complete and implementation is
+now **IN_PROGRESS**. D-80.6-3 already resolves package
 identity: CPU remains `fathomdb==0.8.24` on PyPI; Tegra is the same `fathomdb`
 distribution/import at exact `0.8.24+tegra` on a first-party PEP 503 index.
 The stale `fathomdb-tegra` / separate-import draft premise is retired.
@@ -32,13 +32,20 @@ host-bound, detection-gated, and not PyPI-uploadable.
   `cuda-unmerged-preflight`; no Actions variables; repository secret names
   `CARGO_REGISTRY_TOKEN` and `NPM_TOKEN`.
 
-## Blocker
+## Authorized interim route
 
-No concrete first-party PEP 503 URL/service owner or publisher deployment route
-is declared. The repository name does not imply a hostname. The publisher
-environment and authentication path also do not exist in the observed GitHub
-configuration. These are required architecture inputs, so no RED test, code,
-workflow, build, runner, registry, or publication action was started.
+On 2026-08-25 the owner authorized GitHub Pages as an interim first-party PEP
+503 route. Pages is now enabled in Actions mode at
+`https://fathomadb.github.io/fathomdb/`; Slice 30's PEP 503 base is
+`https://fathomadb.github.io/fathomdb/tegra/simple/`. The planned hosted
+publisher deploys only after the credentialless Jetson artifact is verified,
+uses the `github-pages` environment with `pages: write` and `id-token: write`,
+and carries no package-registry credential.
+
+This closes the prior endpoint/publisher-design blocker. It does not publish a
+wheel, dispatch a runner, or make GitHub Pages the permanent distribution
+decision. Before a later Tegra release, hosting and distribution must be
+re-reviewed for durable multi-version retention and endpoint policy.
 
 After that external prerequisite closes, implementation must also correct the
 proven workflow-ref gap under RED/GREEN tests for both jobs. That code gap is
@@ -56,9 +63,9 @@ complete.
 
 ## Completion state
 
-This is a blocked status, not a completed Slice 30 claim. After the endpoint and
-deployment route are supplied, the design requires independent re-review before
-implementation. Slice 60 receives no registry-installed Tegra handoff yet.
+This is an in-progress status, not a completed Slice 30 claim. Slice 60 receives
+no registry-installed Tegra handoff until explicit publication and its clean
+Jetson installed-package smoke complete.
 
 No hosted workflow, Jetson build, registry query/mutation, runner operation,
 environment change, secret access, push, tag, or publication occurred.

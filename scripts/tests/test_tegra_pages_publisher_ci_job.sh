@@ -30,6 +30,24 @@ assert_absent() {
   fi
 }
 
+job_block() {
+  local job_name="$1"
+  awk -v job_name="$job_name" '
+    $0 == "  " job_name ":" { in_job = 1; next }
+    in_job && /^  [A-Za-z0-9_-]+:$/ { exit }
+    in_job { print }
+  ' "$WORKFLOW"
+}
+
+assert_job_contains() {
+  local job_name="$1" needle="$2" description="$3"
+  if job_block "$job_name" | grep -Fq -- "$needle"; then
+    pass "$description"
+  else
+    fail "$description (missing from $job_name: $needle)"
+  fi
+}
+
 if [ -f "$WORKFLOW" ]; then
   pass "Jetson Tegra workflow exists"
 else
@@ -44,18 +62,18 @@ assert_contains '      type: boolean' "Pages publication input is boolean"
 assert_contains '  prepare-tegra-pages:' "hosted Pages preparation job exists"
 assert_contains '  deploy-tegra-pages:' "hosted Pages deployment job exists"
 assert_contains 'runs-on: ubuntu-latest' "Pages work runs on a hosted runner"
-assert_contains "github.ref == 'refs/heads/release/0.8.24'" "Pages route is bounded to the authorized release branch"
-assert_contains 'inputs.publish_to_pages == true' "Pages route requires explicit publication opt-in"
+assert_job_contains prepare-tegra-pages "github.ref == 'refs/heads/release/0.8.24'" "Pages preparation is bounded to the authorized release branch"
+assert_job_contains deploy-tegra-pages "github.ref == 'refs/heads/release/0.8.24'" "Pages deployment is bounded to the authorized release branch"
+assert_job_contains prepare-tegra-pages 'inputs.publish_to_pages == true' "Pages preparation requires explicit publication opt-in"
+assert_job_contains deploy-tegra-pages 'inputs.publish_to_pages == true' "Pages deployment requires explicit publication opt-in"
 assert_contains 'name: github-pages' "Pages deployment uses the dedicated GitHub environment"
 assert_contains 'pages: write' "only the Pages deploy route requests Pages write access"
 assert_contains 'id-token: write' "Pages deploy route requests its OIDC token"
 assert_contains 'actions/download-artifact@' "hosted publisher consumes the Jetson artifact"
 assert_contains 'jetson-tegra-cuda-evidence-${{ github.run_id }}-${{ github.run_attempt }}' "publisher accepts only this run's retained Jetson artifact"
-assert_contains 'Version: ${expected_version}' "publisher verifies the +tegra wheel metadata version"
 assert_contains 'fathomdb-${expected_version}-*-linux_aarch64.whl' "publisher accepts only the honest Tegra wheel tag"
-assert_contains 'tegra/simple/index.html' "publisher creates the PEP 503 root page"
-assert_contains 'tegra/simple/fathomdb/index.html' "publisher creates the normalized project page"
-assert_contains '#sha256=${wheel_sha256}' "project page pins the wheel digest"
+assert_contains 'bash scripts/release/build-tegra-pages-index.sh' "publisher delegates index construction to the exercised helper"
+assert_contains '--version "$expected_version"' "publisher passes the exact +tegra version to the index helper"
 assert_contains 'actions/upload-pages-artifact@' "publisher uploads a Pages deployment artifact"
 assert_contains 'actions/deploy-pages@' "publisher deploys only through GitHub Pages"
 assert_absent 'twine upload' "Pages publisher cannot upload to PyPI"
@@ -91,21 +109,21 @@ if [ "${TEGRA_PAGES_CI_FIXTURE:-0}" != "1" ]; then
   mutation_out="$(TEGRA_PAGES_CI_FIXTURE=1 JETSON_TEGRA_CI_YML="$MUTATED" bash "$0" 2>&1)"
   mutation_rc=$?
   set -e
-  if [ "$mutation_rc" -ne 0 ] && grep -Fq 'Pages route requires explicit publication opt-in' <<<"$mutation_out"; then
+  if [ "$mutation_rc" -ne 0 ] && grep -Fq 'Pages preparation requires explicit publication opt-in' <<<"$mutation_out"; then
     pass "mutation proves a Pages deploy cannot run without opt-in"
   else
     fail "publication-condition mutation did not fail its assertion: $mutation_out"
   fi
 
-  sed '0,/#sha256=\${wheel_sha256}/s//#sha512=${wheel_sha256}/' "$WORKFLOW" >"$MUTATED"
+  sed '0,/build-tegra-pages-index\.sh/s//missing-tegra-pages-index.sh/' "$WORKFLOW" >"$MUTATED"
   set +e
   mutation_out="$(TEGRA_PAGES_CI_FIXTURE=1 JETSON_TEGRA_CI_YML="$MUTATED" bash "$0" 2>&1)"
   mutation_rc=$?
   set -e
-  if [ "$mutation_rc" -ne 0 ] && grep -Fq 'project page pins the wheel digest' <<<"$mutation_out"; then
-    pass "mutation proves the PEP 503 SHA-256 link is load-bearing"
+  if [ "$mutation_rc" -ne 0 ] && grep -Fq 'publisher delegates index construction to the exercised helper' <<<"$mutation_out"; then
+    pass "mutation proves the publisher cannot bypass the exercised index helper"
   else
-    fail "digest-link mutation did not fail its assertion: $mutation_out"
+    fail "index-helper mutation did not fail its assertion: $mutation_out"
   fi
 fi
 

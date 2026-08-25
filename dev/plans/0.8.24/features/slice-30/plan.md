@@ -1,6 +1,6 @@
 ---
 title: 0.8.24 Slice 30 — public Tegra CUDA distribution plan
-status: BLOCKED
+status: READY
 target_release: 0.8.24
 ---
 
@@ -8,7 +8,7 @@ target_release: 0.8.24
 
 ## Status and governing correction
 
-Slice 30 is **blocked before TDD implementation**. The package identity is not
+Slice 30 is **ready for TDD implementation**. The package identity is not
 open: accepted decision D-80.6-3 keeps the distribution name `fathomdb` and
 distinguishes the Tegra build with the exact local version `0.8.24+tegra` on a
 first-party PEP 503 index. Generic CPU `fathomdb==0.8.24` remains on PyPI.
@@ -55,41 +55,44 @@ changing the CPU distribution or import topology:
   `refs/heads/release/0.8.23` and would skip a 0.8.24 dispatch.
 - Repository claim: `fathomadb/fathomdb`.
 
-## Blocking prerequisite
+## Authorized interim publication route
 
-Before a RED test or implementation edit, the owner must declare:
+The owner authorized GitHub Pages as the interim first-party PEP 503 host on
+2026-08-25. Pages is enabled in GitHub Actions mode for this repository; the
+concrete base is
+`https://fathomadb.github.io/fathomdb/tegra/simple/`, owned by
+`fathomadb/fathomdb`.
 
-1. the concrete HTTPS root for the first-party PEP 503 index and the owning
-   service/account; and
-2. the publisher deployment route from the credentialless Jetson artifact to
-   that endpoint, including the GitHub environment and authentication method.
+The narrow publisher route is credentialless on the Jetson followed by a hosted
+GitHub Actions job that consumes only the retained wheel artifact, constructs
+the static PEP 503 pages, and deploys through the `github-pages` environment
+with `pages: write` and `id-token: write`. It has no PyPI, npm, crates.io, or
+long-lived registry credential. The deployment is explicitly opt-in and limited
+to the exact 0.8.24 release branch and version. A retry must prove the same
+wheel filename and SHA-256 before replacing the Pages deployment.
 
-Repository inspection and the already-completed GitHub metadata query found no
-declared endpoint: there are no Actions variables, the only environments are
-`pypi` and `cuda-unmerged-preflight`, and the only repository secret names are
-`CARGO_REGISTRY_TOKEN` and `NPM_TOKEN`. No hostname is inferred from the
-repository owner.
+This is an interim 0.8.24 distribution route, not a permanent hosting ruling.
+Before a later Tegra release, revisit artifact retention, multi-version index
+generation, domain ownership, and distribution policy. That review must not
+silently replace the 0.8.24 endpoint or broaden this publisher.
 
 ## Implementation plan after the blocker closes
 
-1. Record the endpoint, ownership, environment, authentication, and immutable
-   path convention in `decision.md`; change this plan to READY only after an
-   independent design re-review.
-2. Add RED contract tests for the exact same-name/local-version topology,
+1. Add RED contract tests for the exact same-name/local-version topology,
    honest wheel tag, detection-gated exact install command, CPU/Tegra
    separation, and publisher route.
-3. GREEN the smallest allowlisted packaging/workflow/docs changes. Preserve
+2. GREEN the smallest allowlisted packaging/workflow/docs changes. Preserve
    the build wrapper's host-native `+tegra` staging and existing witness. Make
    the Jetson evidence workflow accept the exact authorized 0.8.24 release
    candidate rather than silently skipping it.
-4. Run local structural tests and `actionlint`; do not claim target evidence
+3. Run local structural tests and `actionlint`; do not claim target evidence
    from those checks.
-5. On the dedicated Jetson only, build the exact candidate and retain source,
+4. On the dedicated Jetson only, build the exact candidate and retain source,
    toolchain, wheel digest, installed `cpu`/`auto`/`cuda:0` smokes, and GPU
    witness. Publishing remains separately authorized.
-6. Hand the immutable artifact to the separately trusted publisher. After a
-   separately authorized upload, install from the declared endpoint on a clean
-   Jetson and hand that proof to Slice 60.
+5. On explicit publish input, hand the immutable artifact to the scoped GitHub
+   Pages publisher. After the Pages deployment, install from the declared
+   endpoint on a clean Jetson and hand that proof to Slice 60.
 
 ## Future RED/GREEN tests
 
@@ -127,8 +130,8 @@ repository owner.
 - `scripts/check-cuda-release-contract.py` and focused release-contract tests;
 - `.github/workflows/jetson-tegra-cuda-evidence.yml` only for the bounded
   0.8.24 candidate-ref correction and immutable build output;
-- `.github/workflows/release.yml` or one narrowly scoped publisher workflow,
-  after the deployment route is selected;
+- `.github/workflows/jetson-tegra-cuda-evidence.yml` for the bounded 0.8.24
+  candidate-ref correction and its opt-in hosted GitHub Pages publisher;
 - public compatibility/install documentation, the release design, maintained
   indexes, and Slice 30 local records.
 
@@ -149,10 +152,8 @@ separate justification and are not implied by this plan.
 
 ## Definition of done
 
-Slice 30 is not complete while the endpoint and deployment route are
-undeclared. It closes only after those decisions are recorded, the revised
-design passes review, RED/GREEN implementation is complete, a real Jetson
-candidate proof is retained, and the immutable artifact/publisher handoff is
-ready for the separately authorized publication step. This blocked planning
-record performs no build, runner, registry, workflow-dispatch, or publication
-action.
+Slice 30 closes only after the authorized route's design passes review,
+RED/GREEN implementation is complete, a real Jetson candidate proof is
+retained, and the immutable artifact/Pages publisher handoff is ready for the
+explicit publication input. This plan does not itself dispatch a workflow or
+publish an artifact.

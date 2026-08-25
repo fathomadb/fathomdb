@@ -10,6 +10,11 @@ on:
         description: "Exact lowercase 40-hex commit to validate (must equal the dispatched workflow commit)"
         required: true
         type: string
+      publish_to_pages:
+        description: "After Jetson validation, publish the exact Tegra wheel to the interim GitHub Pages index"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -23,7 +28,7 @@ concurrency:
 jobs:
   validate-candidate:
     name: Validate immutable evidence candidate
-    if: github.ref == 'refs/heads/release/0.8.23'
+    if: github.ref == 'refs/heads/release/0.8.24'
     runs-on: [self-hosted, Linux, ARM64, jetson, aarch64]
     timeout-minutes: 5
     outputs:
@@ -49,7 +54,7 @@ jobs:
   tegra-cuda-evidence:
     name: Build and witness the Tegra CUDA wheel
     needs: validate-candidate
-    if: github.ref == 'refs/heads/release/0.8.23'
+    if: github.ref == 'refs/heads/release/0.8.24'
     runs-on: [self-hosted, Linux, ARM64, jetson, aarch64]
     timeout-minutes: 90
     env:
@@ -250,3 +255,83 @@ jobs:
           path: ${{ runner.temp }}/fathomdb-jetson-tegra-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           retention-days: 30
           if-no-files-found: warn
+
+  # The Jetson has no publication credential. This hosted job receives only
+  # its retained artifact and constructs the interim, exact-version PEP 503
+  # site. It is deliberately opt-in for the authorized 0.8.24 release branch.
+  prepare-tegra-pages:
+    name: Prepare interim Tegra PEP 503 Pages artifact
+    needs: tegra-cuda-evidence
+    if: ${{ inputs.publish_to_pages == true && github.ref == 'refs/heads/release/0.8.24' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      wheel_sha256: ${{ steps.index.outputs.wheel_sha256 }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Download only this run's Jetson evidence artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: jetson-tegra-cuda-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence
+      - id: index
+        name: Verify wheel and construct the static PEP 503 index
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_version="$(python3 - <<'PY'
+          from pathlib import Path
+          try:
+              import tomllib
+          except ModuleNotFoundError:
+              import tomli as tomllib
+          with Path("src/python/pyproject.toml").open("rb") as stream:
+              print(tomllib.load(stream)["project"]["version"])
+          PY
+          )"
+          expected_version="${base_version}+tegra"
+          mapfile -t wheels < <(find evidence/wheel -maxdepth 1 -type f \
+            -name "fathomdb-${expected_version}-*-linux_aarch64.whl" -print)
+          [ "${#wheels[@]}" -eq 1 ] || {
+            printf 'expected exactly one fathomdb-%s-*-linux_aarch64.whl; found %s\n' \
+              "$expected_version" "${#wheels[@]}" >&2
+            exit 1
+          }
+          wheel="${wheels[0]}"
+          site_root="$RUNNER_TEMP/fathomdb-tegra-pages-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          index_result="$(bash scripts/release/build-tegra-pages-index.sh \
+            --wheel "$wheel" --out "$site_root" --version "$expected_version")"
+          wheel_sha256="${index_result#wheel_sha256=}"
+          [ "$wheel_sha256" != "$index_result" ] || {
+            printf 'Pages index builder did not return wheel_sha256\n' >&2
+            exit 1
+          }
+          printf 'wheel_sha256=%s\n' "$wheel_sha256" >> "$GITHUB_OUTPUT"
+          printf 'site_root=%s\n' "$site_root" >> "$GITHUB_OUTPUT"
+      - name: Upload static Pages artifact
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        with:
+          name: github-pages
+          path: ${{ steps.index.outputs.site_root }}
+
+  deploy-tegra-pages:
+    name: Deploy interim Tegra PEP 503 Pages index
+    needs: prepare-tegra-pages
+    if: ${{ inputs.publish_to_pages == true && github.ref == 'refs/heads/release/0.8.24' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        name: Deploy static PEP 503 artifact to GitHub Pages
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

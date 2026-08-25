@@ -1,6 +1,6 @@
 ---
 title: 0.8.24 Slice 30 — decision reconciliation
-status: PARTIAL-BLOCKED
+status: READY
 target_release: 0.8.24
 ---
 
@@ -35,19 +35,29 @@ hard-coded to `refs/heads/release/0.8.23`, so `release/0.8.24` would skip. The
 future implementation must correct both predicates under a bounded
 release-candidate contract; this does not reopen runner selection.
 
-## Still required from the owner
+## Authorized interim Pages route
 
-1. Concrete first-party PEP 503 HTTPS root and owning service/account.
-2. Deployment route: publisher workflow/job, GitHub environment,
-   authentication method, path/project scope, and immutable/retry policy.
+The owner authorized the following interim route on 2026-08-25 and GitHub Pages
+was enabled in Actions mode for the repository.
 
-The repository and GitHub metadata do not declare either. Existing environment
-and secret names are unrelated to a new PEP 503 host. The hostname and service
-must not be inferred from `fathomadb/fathomdb`.
+| Decision | Ruling |
+| --- | --- |
+| PEP 503 base | `https://fathomadb.github.io/fathomdb/tegra/simple/` |
+| Owner | `fathomadb/fathomdb` GitHub Pages site |
+| Publisher | The hosted publisher job in `.github/workflows/jetson-tegra-cuda-evidence.yml`, after the credentialless Jetson build/evidence job |
+| Environment/authentication | `github-pages`; ephemeral repository `GITHUB_TOKEN` restricted to `pages: write` plus Pages OIDC `id-token: write`; no registry secret |
+| Scope | Explicit opt-in only, exact `release/0.8.24` candidate and `fathomdb==0.8.24+tegra`; generic CPU PyPI release remains untouched |
+| Retry | Verify the exact wheel filename, metadata version, and SHA-256 before redeploying; never substitute another artifact for the same local version |
+
+The static Pages deployment hosts the PEP 503 HTML and the wheel for the
+interim 0.8.24 release. Before any later Tegra release, the owner and a design
+review must revisit durable multi-version retention, endpoint/domain policy,
+and distribution support. No later release may inherit this interim route by
+default.
 
 ## Gate
 
-Status remains BLOCKED. Once the two inputs are supplied, update this record,
-perform endpoint-specific primary-source research, obtain independent design
-re-review, and then begin the RED/GREEN sequence in `plan.md`, including the
-two-job 0.8.24 workflow-ref correction.
+Status is READY for the scoped RED/GREEN implementation in `plan.md`, including
+the two-job 0.8.24 workflow-ref correction. Publication and the resulting
+installed-package smoke remain explicit release actions, not a consequence of
+merging the workflow.

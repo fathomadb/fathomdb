@@ -70,6 +70,18 @@ assert_contains 'git rev-parse HEAD' "checked-out source identity is retained"
 assert_contains 'checkout must be clean after checkout' "dirty checkout fails before any evidence build"
 assert_contains 'if [ -n "$checkout_status" ]; then' "checkout status is enforced before evidence"
 assert_contains 'printf '\''clean\n'\'' > "$EVIDENCE_DIR/checkout-status.txt"' "clean checkout status is retained as evidence"
+assert_contains 'Fail closed unless candidate has the authorized release version' "Jetson route checks the authorized project version before build"
+assert_contains '--expected-version 0.8.24' "Jetson route is hard-bound to the authorized base version"
+if awk '
+  /name: Fail closed unless candidate has the authorized release version/ { in_step = 1; seen = 1; next }
+  in_step && /^[[:space:]]+- name:/ { in_step = 0 }
+  in_step && /^[[:space:]]+if:/ { conditional = 1 }
+  END { exit(!seen || conditional) }
+' "$WORKFLOW"; then
+  pass "authorized-version check applies to every Jetson evidence run"
+else
+  fail "authorized-version check must not be conditional on publication"
+fi
 assert_contains 'uname -s' "host preflight checks Linux explicitly"
 assert_contains 'uname -m' "host preflight checks AArch64 explicitly"
 assert_contains 'nvidia,tegra' "host preflight requires the Tegra-family signal"

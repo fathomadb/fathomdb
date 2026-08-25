@@ -50,9 +50,10 @@ changing the CPU distribution or import topology:
 - Target: classic Jetson Orin (`sm_87`) on L4T R36 / JetPack 6, CUDA 12.6,
   glibc 2.35. Generic AArch64/SBSA and Thor are unsupported.
 - Build/evidence route: dedicated real Jetson runner and the existing
-  host-native build/witness workflow are proven inputs. The current workflow
-  is not yet a 0.8.24 route: both jobs hard-code
-  `refs/heads/release/0.8.23` and would skip a 0.8.24 dispatch.
+  host-native build/witness workflow are proven inputs. Slice 30 corrected the
+  earlier `release/0.8.23` predicates: both jobs now accept only
+  `refs/heads/release/0.8.24`, and every candidate build fails closed until
+  the normal release version bump sets `project.version` to `0.8.24`.
 - Repository claim: `fathomadb/fathomdb`.
 
 ## Authorized interim publication route
@@ -109,11 +110,11 @@ silently replace the 0.8.24 endpoint or broaden this publisher.
 - Extend `test_jetson_tegra_cuda_evidence_ci_job.sh` so immutable artifact
   transfer is credentialless and the target-controlled job has no publication
   credential or deployment step.
-- First add a RED mutation/contract arm proving the current
-  `refs/heads/release/0.8.23` predicates skip a `release/0.8.24` candidate.
-  GREEN must replace the stale literal with a bounded release-branch contract
-  that permits the exact authorized `release/0.8.24` candidate while rejecting
-  unrelated refs and still requiring `candidate_sha == github.sha`.
+- Implement a RED mutation/contract arm that proved the prior
+  `refs/heads/release/0.8.23` predicates skipped a `release/0.8.24` candidate,
+  then replace them with a bounded release-branch contract that permits the
+  exact authorized `release/0.8.24` candidate while rejecting unrelated refs
+  and still requiring `candidate_sha == github.sha`.
 - Assert both `validate-candidate` and `tegra-cuda-evidence` share the same
   bounded ref predicate; a test that fixes only one job remains RED.
 - Add release-workflow mutation fixtures proving the hosted publisher consumes

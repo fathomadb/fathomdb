@@ -39,7 +39,7 @@ Python co-install diagnostics, Tegra platform reference, and the authoritative
 | Build | Host-native `build-python-cuda-tegra.sh` | Candidate-version integration only if tests show a gap |
 | Wheel truth | Bare `linux_aarch64`, abi3, glibc 2.35 contract | Public index transport |
 | Detection | Classic-Tegra/SBSA/Thor classification and generic-build warning | Endpoint-bearing exact repair command |
-| Runner evidence | Dedicated `jetson-fathomdb` route and successful run 32296395639 | Correct both hard-coded `release/0.8.23` job predicates, then execute the exact 0.8.24 candidate after implementation |
+| Runner evidence | Dedicated `jetson-fathomdb` route and successful run 32296395639 | Both jobs now accept only `release/0.8.24`; execute the exact candidate after the normal version bump |
 | Publisher | Credentialless evidence artifact retention | Interim GitHub Pages endpoint and hosted deployment route; durable distribution review before a later Tegra release |
 | CPU path | Generic `fathomdb` on PyPI | Preservation proof only |
 
@@ -60,10 +60,12 @@ Resolved: repository, distribution/import name, local-version convention,
 target matrix, wheel tag, build host, detection rule, exact-pin rule, and
 candidate evidence route.
 
-Proven current-code gap: `.github/workflows/jetson-tegra-cuda-evidence.yml`
-guards both jobs with `github.ref == 'refs/heads/release/0.8.23'`. A dispatch
-from `release/0.8.24` would skip rather than build. This is future Slice 30
-workflow implementation work, not evidence that the runner route is absent.
+Historical source gap resolved in Slice 30:
+`.github/workflows/jetson-tegra-cuda-evidence.yml` now bounds both jobs to
+`github.ref == 'refs/heads/release/0.8.24'`. The Jetson job checks
+`project.version == 0.8.24` before every candidate build, so release execution
+must perform the normal version bump before dispatch. The runner route itself
+remains proven.
 
 Resolved after this preparation review: GitHub Pages is enabled in Actions mode
 for `fathomadb/fathomdb`; the interim base is

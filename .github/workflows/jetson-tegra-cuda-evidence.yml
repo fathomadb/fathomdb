@@ -107,8 +107,7 @@ jobs:
             "$CANDIDATE_SHA" "$actual_sha" "$GITHUB_WORKFLOW_REF" "$GITHUB_WORKFLOW_SHA" \
             > "$EVIDENCE_DIR/source-identity.txt"
 
-      - name: Fail closed unless Pages publication has the authorized version
-        if: ${{ inputs.publish_to_pages == true }}
+      - name: Fail closed unless candidate has the authorized release version
         shell: bash
         run: bash scripts/release/require-tegra-pages-release-version.sh \
           --manifest src/python/pyproject.toml --expected-version 0.8.24

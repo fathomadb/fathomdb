@@ -45,12 +45,12 @@ This proves the route and matrix, not 0.8.24 publication readiness.
 
 ### Can the existing workflow run the 0.8.24 candidate unchanged?
 
-No. Both jobs in `.github/workflows/jetson-tegra-cuda-evidence.yml` use the
-literal predicate `github.ref == 'refs/heads/release/0.8.23'`. Consequently a
-0.8.24 dispatch reaches a skipped workflow, not the proved build/witness route.
-This was a source-inspected compatibility gap. Slice 30 corrects it with a
-bounded ref-contract test and workflow change; it does not require another
-executor or a new evidence architecture.
+Yes, after the normal release version bump. Slice 30 replaces the prior
+`release/0.8.23` predicates in both jobs with the exact
+`refs/heads/release/0.8.24` contract. Every candidate build now checks
+`project.version == 0.8.24` before building, so the current 0.8.23 metadata
+deliberately fails rather than producing mislabeled evidence. This correction
+does not require another executor or a new evidence architecture.
 
 ## Primary references retained by the repository
 

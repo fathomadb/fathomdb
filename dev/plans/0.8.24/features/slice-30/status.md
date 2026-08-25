@@ -23,8 +23,9 @@ host-bound, detection-gated, and not PyPI-uploadable.
 - Authoritative D-80.6-3 and the release-independent Tegra platform reference.
 - Existing host-native build, co-install/displacement detection, CUDA contract,
   witness, and manual evidence workflow.
-- Current workflow gap: both Jetson jobs hard-code
-  `refs/heads/release/0.8.23`; a `release/0.8.24` dispatch would skip.
+- Historical workflow gap resolved in Slice 30: both Jetson jobs now admit
+  only `refs/heads/release/0.8.24`; the candidate build also fails closed
+  until the normal version bump sets `project.version` to `0.8.24`.
 - Successful dedicated-Orin run 32296395639 at exact
   `59c1033e229838632b5d0fe1ecd48845f3007fa0`.
 - Owner clarification that the repository is `fathomadb/fathomdb`.

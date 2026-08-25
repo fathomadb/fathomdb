@@ -30,10 +30,11 @@ Run 32296395639 passed on Orin against
 `linux_aarch64` `+tegra` wheel and CPU/auto/forced-CUDA installed proof. This
 resolves executor feasibility, not public endpoint readiness.
 
-The executor route has one proven source gap: both jobs in its workflow are
-hard-coded to `refs/heads/release/0.8.23`, so `release/0.8.24` would skip. The
-future implementation must correct both predicates under a bounded
-release-candidate contract; this does not reopen runner selection.
+The earlier `release/0.8.23` predicate was a proven source gap. Slice 30's
+workflow implementation now bounds both jobs to
+`refs/heads/release/0.8.24` and checks `project.version == 0.8.24` before
+every candidate build. This resolves workflow routing without reopening runner
+selection.
 
 ## Authorized interim Pages route
 

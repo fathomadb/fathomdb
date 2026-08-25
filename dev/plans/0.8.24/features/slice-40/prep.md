@@ -28,7 +28,7 @@ runner or alter a release route.
 | npm CPU | `platformPackageName` in `src/ts/src/platform.ts` maps Windows x64 to `fathomdb-native-win32-x64-msvc`; the package is constrained to `win32`/`x64`. | Existing accepted CPU identity only. |
 | Existing Windows checks | Release workflow has Windows build, platform publish, and post-publish smoke jobs. | Hosted CPU evidence only. |
 | CUDA implementation | No Windows CUDA package, loader choice, CUDA job, or target artifact contract is present. | Net new. |
-| Remote executor | Slice 0 recorded Linux self-hosted CUDA only and no approved Windows CUDA selector/facts. | Owner input P24-10 required. |
+| Remote builder | Slice 0 recorded Linux self-hosted CUDA only and no approved Windows CUDA builder/facts. | Owner input P24-10 required. |
 | Local VM | `gh-runner-wonl-win11` is local Windows validation; current assessment observes a virtual display, no NVIDIA hostdev, and CPU-only validation. | Explicitly excluded as CUDA proof. |
 
 ## Decision inputs
@@ -36,7 +36,7 @@ runner or alter a release route.
 | Decision | Required owner record | Why it cannot be inferred |
 | --- | --- | --- |
 | P24-09 | Python, npm, or both, plus intended supported/unsupported behavior. | The current Python and npm CPU routes have different packaging and loader mechanics. |
-| P24-10 | Executor identity/selector, observed GPU/toolchain facts, trust boundary, artifact transfer, and retention. | Neither a generic hosted Windows runner nor the local VM proves CUDA capability or artifact trust. |
+| P24-10 | Trusted-builder form: owner-operated external non-Actions builder, or Actions builder in a dedicated selected-repository/selected-workflow runner group; observed GPU/toolchain facts, trust boundary, artifact transfer, and retention. Labels alone are not access control. | Neither a generic hosted Windows runner nor the local VM proves CUDA capability or artifact trust. |
 
 ## Dependencies and handoff
 

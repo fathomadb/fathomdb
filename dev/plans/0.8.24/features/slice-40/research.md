@@ -20,6 +20,10 @@ target_release: 0.8.24
 - The local Windows VM is useful for native Windows filesystem/CPU validation
   but its virtual display and absence of NVIDIA host-device passthrough make it
   unsuitable for Windows CUDA compilation or runtime proof.
+- A future Windows GPU builder need not be registered with Actions. If it is
+  registered, a label is not an authorization boundary: the selected repository
+  and workflow must be restricted by a dedicated runner group, and the builder
+  must not receive secrets, OIDC, or publishing credentials.
 
 ## Research required after P24-09/P24-10
 

@@ -36,7 +36,7 @@ with sealed candidate bytes and a clean installed-package Windows GPU smoke.
 | Python | `fathomdb` is a Windows `x86_64-pc-windows-msvc` wheel in the ordinary CPU matrix. | A distinct CUDA artifact identity/selection and its build/proof path, if Python is selected. |
 | npm | Thin `fathomdb` resolves the CPU package `fathomdb-native-win32-x64-msvc` through version-pinned optional dependencies. | A CUDA package/loader topology, if npm is selected. |
 | CI | Hosted Windows builds, publishes, and post-publish CPU smokes exist. | A remote Windows CUDA build and target smoke route. |
-| Runner inventory | Existing self-hosted CUDA route is Linux; no observed/approved Windows CUDA selector, GPU, toolkit, or transfer route exists. | An observed and approved Windows executor contract. |
+| Runner inventory | Existing self-hosted CUDA route is Linux; no observed/approved Windows CUDA builder, GPU, toolkit, or transfer route exists. | An observed and approved Windows builder contract. |
 | Local Windows VM | The local VM is a Windows CPU validation environment with virtual display and no NVIDIA host-device passthrough. | It cannot supply CUDA build or runtime proof. |
 
 The current npm CPU name is accepted by ADR-0.8.22. It cannot be silently
@@ -48,8 +48,14 @@ The minimum proposal is **Python-only**, using a first-party PEP 503 route and
 an exact Python local version for the Windows CUDA artifact. This is a
 recommendation for owner review, not a selected or final identity. It has the
 smallest public surface because Python can retain the existing `fathomdb`
-import while an explicit CUDA distribution/index selection avoids replacing
-the CPU wheel.
+import while explicit selection avoids replacing the CPU artifact at PyPI.
+
+The selected CUDA installation is an **exclusive CPU/CUDA replacement or
+upgrade in one environment**, never a co-install with the CPU `fathomdb`
+artifact. Installation must use the complete exact local-version pin and only
+the selected first-party index/mapping. A floating `--extra-index-url` route
+and upload of the Windows CUDA wheel to PyPI are forbidden. The generic CPU
+artifact remains separately available from PyPI.
 
 Selecting npm, or both SDKs, requires a separately reviewed package identity
 and deterministic loader policy. The current npm loader has one Windows x64
@@ -63,12 +69,18 @@ That is ADR-level work before implementation.
 P24-10 must provide an executor record with all of the following before any
 implementation or candidate dispatch:
 
-- a stable GitHub selector and observed online ownership boundary;
+- an explicitly trusted, owner-approved Windows GPU builder: either an
+  owner-operated external builder that is not registered with Actions, or an
+  Actions builder restricted to a dedicated runner group for the selected
+  repository and selected workflow only. Labels are routing metadata, not
+  access control;
 - Windows version/architecture; NVIDIA GPU model and compute capability;
   driver and CUDA toolkit; MSVC/Windows SDK; Rust; and selected Python/Node
   versions;
-- a main-owned harness that accepts an immutable candidate SHA rather than
-  candidate-controlled privileged workflow logic;
+- a main-owned control plane that accepts an immutable candidate SHA rather
+  than candidate-controlled privileged workflow logic. An Actions builder
+  never runs for a pull request, fork, or `pull_request_target`, and carries
+  no secrets, OIDC token, or publishing credential;
 - dependency/DLL inspection, build manifest, artifact SHA-256 values, and
   retained GPU runtime witness; and
 - a credentialless build-to-hosted-publisher transfer. Registry credentials,
@@ -77,8 +89,10 @@ implementation or candidate dispatch:
 
 The same executor must perform the clean candidate-installed lifecycle proof:
 install sealed bytes in a fresh environment; open, write, search, close, and
-exit; then retain selected CUDA device/process evidence. A compile, upload, or
-`nvidia-smi` result alone is insufficient.
+exit; then prove device resolution selected the same GPU UUID that has the
+active computation process PID. Retain the selected UUID, GPU model, driver,
+toolkit, candidate SHA, artifact digest, and PID evidence. A compile, upload,
+bare `nvidia-smi`, or a process on a different GPU fails this proof.
 
 ## Work after owner decisions
 
@@ -95,9 +109,10 @@ exit; then retain selected CUDA device/process evidence. A compile, upload, or
 5. On the approved Windows GPU executor, build the selected artifact and run
    the candidate-installed smoke. No local VM or hosted CPU substitution.
 6. Hand Slice 60 the exact identity, digest, executor record, install command,
-   unsupported behavior, and smoke evidence. Slice 60 owns post-publication
-   installed proof and publisher-preservation matrix; Slice 70 owns final
-   release integration and owner-authorized publishing.
+  unsupported behavior, and smoke evidence including selected UUID and active
+  PID correlation. Slice 60 owns post-publication installed proof and
+  publisher-preservation matrix; Slice 70 owns final release integration and
+  owner-authorized publishing.
 
 ## Verification
 
@@ -106,7 +121,8 @@ exit; then retain selected CUDA device/process evidence. A compile, upload, or
 - `actionlint`, relevant PowerShell/shell checks, package metadata inspection,
   and documentation/plan lint for the changed files.
 - On the approved executor only: CUDA/toolchain/DLL evidence, sealed digest,
-  and fresh installed-artifact GPU lifecycle smoke.
+  and fresh installed-artifact GPU lifecycle smoke whose selected UUID matches
+  the GPU UUID with the active computation PID.
 
 ## Non-goals and stop conditions
 

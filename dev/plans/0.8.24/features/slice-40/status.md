@@ -20,8 +20,8 @@ P24-09 (SDK surface) and P24-10 (real Windows CUDA executor).
   environment boundary.
 - Recorded the existing-versus-net-new map and local contract drafts.
 - Produced a conditional design and exact executor/evidence contract.
-- Confirmed that no current Windows CUDA artifact, selector, GPU/toolchain
-  evidence, loader identity, or installed GPU smoke exists.
+- Confirmed that no current Windows CUDA artifact, trusted builder,
+  GPU/toolchain evidence, loader identity, or installed GPU smoke exists.
 
 ## Explicit non-substitutions
 
@@ -30,6 +30,10 @@ P24-09 (SDK surface) and P24-10 (real Windows CUDA executor).
   passthrough; it is CPU-only validation, not Windows CUDA proof.
 - GitHub-hosted `windows-latest` build/publish/smoke jobs are CPU routes and
   are not an approved CUDA executor.
+- Actions labels are not access control. Any Actions builder must instead be
+  restricted to a dedicated selected-repository/selected-workflow runner group
+  and carry no secrets, OIDC, or publishing credentials; an owner-operated
+  external non-Actions builder is also an allowed decision outcome.
 - No local Windows compile, hosted CPU substitution, runner/VM operation,
   publication, workflow dispatch, or GitHub setting change occurred.
 

@@ -50,10 +50,10 @@ wheel, dispatch a runner, or make GitHub Pages the permanent distribution
 decision. Before a later Tegra release, hosting and distribution must be
 re-reviewed for durable multi-version retention and endpoint policy.
 
-After that external prerequisite closes, implementation must also correct the
-proven workflow-ref gap under RED/GREEN tests for both jobs. That code gap is
-planned work, not the external blocker and not a reason to claim Slice 30
-complete.
+Slice 30 has corrected the workflow-ref gap under RED/GREEN tests for both
+jobs. The slice remains open for the normal 0.8.24 version bump and an
+owner-authorized real-Jetson candidate run; neither has been performed by this
+implementation change.
 
 ## Durable records
 

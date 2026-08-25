@@ -82,6 +82,20 @@ if awk '
 else
   fail "authorized-version check must not be conditional on publication"
 fi
+if awk '
+  /name: Fail closed unless candidate has the authorized release version/ { in_step = 1; seen = 1; next }
+  in_step && /^[[:space:]]+- name:/ { in_step = 0 }
+  in_step && /^[[:space:]]+run: \|[[:space:]]*$/ { literal_run = 1 }
+  in_step && /set -euo pipefail/ { strict_shell = 1 }
+  in_step && /^[[:space:]]+bash scripts\/release\/require-tegra-pages-release-version\.sh \\[[:space:]]*$/ { helper_command = 1 }
+  in_step && /^[[:space:]]+--manifest src\/python\/pyproject\.toml \\[[:space:]]*$/ { manifest_argument = 1 }
+  in_step && /^[[:space:]]+--expected-version 0\.8\.24[[:space:]]*$/ { version_argument = 1 }
+  END { exit(!seen || !literal_run || !strict_shell || !helper_command || !manifest_argument || !version_argument) }
+' "$WORKFLOW"; then
+  pass "authorized-version command uses a strict literal block with distinct arguments"
+else
+  fail "authorized-version command must use a strict literal block with distinct arguments"
+fi
 assert_contains 'uname -s' "host preflight checks Linux explicitly"
 assert_contains 'uname -m' "host preflight checks AArch64 explicitly"
 assert_contains 'nvidia,tegra' "host preflight requires the Tegra-family signal"

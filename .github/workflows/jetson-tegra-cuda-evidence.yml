@@ -109,8 +109,11 @@ jobs:
 
       - name: Fail closed unless candidate has the authorized release version
         shell: bash
-        run: bash scripts/release/require-tegra-pages-release-version.sh \
-          --manifest src/python/pyproject.toml --expected-version 0.8.24
+        run: |
+          set -euo pipefail
+          bash scripts/release/require-tegra-pages-release-version.sh \
+            --manifest src/python/pyproject.toml \
+            --expected-version 0.8.24
 
       - name: Fail closed unless this is a classic Tegra CUDA host
         shell: bash

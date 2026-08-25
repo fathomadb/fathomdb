@@ -66,6 +66,10 @@ grep -Fx "Version: ${version}" "$metadata_file" >/dev/null || {
   printf 'wheel metadata must contain Version: %s\n' "$version" >&2
   exit 1
 }
+grep -Fx 'Name: fathomdb' "$metadata_file" >/dev/null || {
+  printf 'wheel metadata must contain Name: fathomdb\n' >&2
+  exit 1
+}
 
 if [ -e "$out" ]; then
   existing_output="$(find "$out" -mindepth 1 -print -quit)"

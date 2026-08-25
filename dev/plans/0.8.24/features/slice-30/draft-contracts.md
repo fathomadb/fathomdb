@@ -69,5 +69,6 @@ artifact digest, candidate proof, and clean registry-installed smoke command.
 ## Approval condition
 
 N30-1 and R30-1 through R30-6 are approved as the corrected design direction.
-AC30-1 through AC30-5 become executable only after the first-party endpoint
-and deployment route are declared. Until then the slice remains BLOCKED.
+AC30-1 through AC30-5 are executable through the authorized interim GitHub
+Pages route. Publication and the registry-installed smoke remain explicit
+release actions; this record does not claim either has occurred.

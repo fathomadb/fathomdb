@@ -1,6 +1,6 @@
 ---
 title: 0.8.24 Slice 30 — preparation review
-status: COMPLETE-BLOCKED
+status: COMPLETE
 target_release: 0.8.24
 ---
 
@@ -40,7 +40,7 @@ Python co-install diagnostics, Tegra platform reference, and the authoritative
 | Wheel truth | Bare `linux_aarch64`, abi3, glibc 2.35 contract | Public index transport |
 | Detection | Classic-Tegra/SBSA/Thor classification and generic-build warning | Endpoint-bearing exact repair command |
 | Runner evidence | Dedicated `jetson-fathomdb` route and successful run 32296395639 | Correct both hard-coded `release/0.8.23` job predicates, then execute the exact 0.8.24 candidate after implementation |
-| Publisher | Credentialless evidence artifact retention | Declared endpoint owner and hosted deployment route |
+| Publisher | Credentialless evidence artifact retention | Interim GitHub Pages endpoint and hosted deployment route; durable distribution review before a later Tegra release |
 | CPU path | Generic `fathomdb` on PyPI | Preservation proof only |
 
 ## Supported matrix
@@ -65,9 +65,10 @@ guards both jobs with `github.ref == 'refs/heads/release/0.8.23'`. A dispatch
 from `release/0.8.24` would skip rather than build. This is future Slice 30
 workflow implementation work, not evidence that the runner route is absent.
 
-Blocked: no concrete first-party PEP 503 URL, service owner, deployment
-mechanism, authentication method, or publisher environment is declared. The
-already-collected GitHub metadata shows only environments `pypi` and
-`cuda-unmerged-preflight`, no Actions variables, and secret names
-`CARGO_REGISTRY_TOKEN` / `NPM_TOKEN`. No code phase starts from an invented
-endpoint.
+Resolved after this preparation review: GitHub Pages is enabled in Actions mode
+for `fathomadb/fathomdb`; the interim base is
+`https://fathomadb.github.io/fathomdb/tegra/simple/`. The hosted publisher uses
+the `github-pages` environment with `pages: write` and `id-token: write`, and
+no registry secret. The 0.8.24 implementation remains responsible for the
+branch-ref correction, hard version check, artifact validation, and explicit
+publication input.

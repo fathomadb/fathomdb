@@ -40,7 +40,9 @@ On 2026-08-25 the owner authorized GitHub Pages as an interim first-party PEP
 `https://fathomadb.github.io/fathomdb/tegra/simple/`. The planned hosted
 publisher deploys only after the credentialless Jetson artifact is verified,
 uses the `github-pages` environment with `pages: write` and `id-token: write`,
-and carries no package-registry credential.
+and carries no package-registry credential. Each Pages redeploy is explicitly
+owner-authorized and revalidates its input; this interim static deployment does
+not claim durable multi-version immutability.
 
 This closes the prior endpoint/publisher-design blocker. It does not publish a
 wheel, dispatch a runner, or make GitHub Pages the permanent distribution

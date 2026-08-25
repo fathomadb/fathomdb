@@ -107,6 +107,12 @@ jobs:
             "$CANDIDATE_SHA" "$actual_sha" "$GITHUB_WORKFLOW_REF" "$GITHUB_WORKFLOW_SHA" \
             > "$EVIDENCE_DIR/source-identity.txt"
 
+      - name: Fail closed unless Pages publication has the authorized version
+        if: ${{ inputs.publish_to_pages == true }}
+        shell: bash
+        run: bash scripts/release/require-tegra-pages-release-version.sh \
+          --manifest src/python/pyproject.toml --expected-version 0.8.24
+
       - name: Fail closed unless this is a classic Tegra CUDA host
         shell: bash
         run: |
@@ -284,17 +290,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base_version="$(python3 - <<'PY'
-          from pathlib import Path
-          try:
-              import tomllib
-          except ModuleNotFoundError:
-              import tomli as tomllib
-          with Path("src/python/pyproject.toml").open("rb") as stream:
-              print(tomllib.load(stream)["project"]["version"])
-          PY
-          )"
-          expected_version="${base_version}+tegra"
+          bash scripts/release/require-tegra-pages-release-version.sh \
+            --manifest src/python/pyproject.toml --expected-version 0.8.24
+          expected_version='0.8.24+tegra'
           mapfile -t wheels < <(find evidence/wheel -maxdepth 1 -type f \
             -name "fathomdb-${expected_version}-*-linux_aarch64.whl" -print)
           [ "${#wheels[@]}" -eq 1 ] || {

@@ -68,8 +68,9 @@ GitHub Actions job that consumes only the retained wheel artifact, constructs
 the static PEP 503 pages, and deploys through the `github-pages` environment
 with `pages: write` and `id-token: write`. It has no PyPI, npm, crates.io, or
 long-lived registry credential. The deployment is explicitly opt-in and limited
-to the exact 0.8.24 release branch and version. A retry must prove the same
-wheel filename and SHA-256 before replacing the Pages deployment.
+to the exact 0.8.24 release branch and version. Every redeploy is an explicit
+owner-authorized action that revalidates that run's wheel filename, metadata,
+and SHA-256; it does not claim to preserve a prior Pages deployment.
 
 This is an interim 0.8.24 distribution route, not a permanent hosting ruling.
 Before a later Tegra release, revisit artifact retention, multi-version index

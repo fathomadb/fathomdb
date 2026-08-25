@@ -87,5 +87,28 @@ else
   fail "mismatched wheel metadata did not fail closed: $bad_out"
 fi
 
+WRONG_NAME_WHEEL="$TMPROOT/wrong-name/$WHEEL_NAME"
+mkdir -p "$(dirname "$WRONG_NAME_WHEEL")"
+python3 - "$WRONG_NAME_WHEEL" "$VERSION" <<'PY'
+import sys
+import zipfile
+
+wheel, version = sys.argv[1:]
+with zipfile.ZipFile(wheel, 'w') as archive:
+    archive.writestr(
+        f'fathomdb-{version}.dist-info/METADATA',
+        f'Metadata-Version: 2.1\nName: not-fathomdb\nVersion: {version}\n',
+    )
+PY
+set +e
+wrong_name_out="$("$BUILDER" --wheel "$WRONG_NAME_WHEEL" --out "$TMPROOT/wrong-name-site" --version "$VERSION" 2>&1)"
+wrong_name_rc=$?
+set -e
+if [ "$wrong_name_rc" -ne 0 ] && grep -Fq 'Name: fathomdb' <<<"$wrong_name_out"; then
+  pass "wrong wheel distribution name fails closed"
+else
+  fail "wrong wheel distribution name did not fail closed: $wrong_name_out"
+fi
+
 printf '%s passed, %s failed\n' "$PASSED" "$FAILED"
 [ "$FAILED" -eq 0 ]

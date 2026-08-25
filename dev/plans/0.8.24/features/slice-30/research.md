@@ -48,9 +48,9 @@ This proves the route and matrix, not 0.8.24 publication readiness.
 No. Both jobs in `.github/workflows/jetson-tegra-cuda-evidence.yml` use the
 literal predicate `github.ref == 'refs/heads/release/0.8.23'`. Consequently a
 0.8.24 dispatch reaches a skipped workflow, not the proved build/witness route.
-This is a source-inspected compatibility gap. It requires a bounded ref-contract
-test and workflow correction after the external endpoint prerequisite closes;
-it does not require another executor or a new evidence architecture.
+This was a source-inspected compatibility gap. Slice 30 corrects it with a
+bounded ref-contract test and workflow change; it does not require another
+executor or a new evidence architecture.
 
 ## Primary references retained by the repository
 
@@ -70,11 +70,12 @@ it does not require another executor or a new evidence architecture.
   `dev/design/0.8.23-aarch64-tegra.md`, and
   `dev/plans/runs/0.8.23-slice-80-status.md`.
 
-## Remaining research cannot precede the missing choice
+## Interim-host research disposition
 
-The endpoint service determines deployment APIs, authentication, immutable
-layout, cache behavior, and how PEP 503 pages are generated. Researching one
-provider and encoding its mechanics before the owner selects it would invent
-architecture. The next review must receive the concrete URL/service/owner and
-then verify its primary deployment documentation, OIDC support or scoped
-credential model, overwrite semantics, and simple-index conformance.
+The owner selected GitHub Pages in Actions mode as the interim service, at
+`https://fathomadb.github.io/fathomdb/tegra/simple/`. The implementation uses
+the official Pages artifact/deployment route and a static PEP 503 layout with a
+SHA-256 wheel link. Pages replacement is not treated as immutable multi-version
+storage. Before a later Tegra release, re-review durable storage, cache,
+endpoint/domain, and distribution policy rather than extending this route by
+default.

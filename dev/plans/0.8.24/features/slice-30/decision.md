@@ -47,13 +47,13 @@ was enabled in Actions mode for the repository.
 | Publisher | The hosted publisher job in `.github/workflows/jetson-tegra-cuda-evidence.yml`, after the credentialless Jetson build/evidence job |
 | Environment/authentication | `github-pages`; ephemeral repository `GITHUB_TOKEN` restricted to `pages: write` plus Pages OIDC `id-token: write`; no registry secret |
 | Scope | Explicit opt-in only, exact `release/0.8.24` candidate and `fathomdb==0.8.24+tegra`; generic CPU PyPI release remains untouched |
-| Retry | Verify the exact wheel filename, metadata version, and SHA-256 before redeploying; never substitute another artifact for the same local version |
+| Redeploy | Each Pages deployment remains explicit owner-authorized. It revalidates the exact filename, `Name`, `Version`, and SHA-256 of that run's wheel; it does not claim automated preservation of a prior Pages deployment. |
 
 The static Pages deployment hosts the PEP 503 HTML and the wheel for the
 interim 0.8.24 release. Before any later Tegra release, the owner and a design
 review must revisit durable multi-version retention, endpoint/domain policy,
 and distribution support. No later release may inherit this interim route by
-default.
+default; Pages replacement is not presented as immutable multi-version storage.
 
 ## Gate
 

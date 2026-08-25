@@ -59,10 +59,10 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/0.8.24/prework/slice-6-hitl-decisions.md` | 0.8.24 initial owner decisions and feature/prework boundary | 0.8.24 Slice 6 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-6-slice-7-independent-review.md` | 0.8.24 independent plan review and documented FIX-n cycles | 0.8.24 Slice 6 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-7-completion.md` | 0.8.24 accepted-prework completion evidence and commit mapping | 0.8.24 Slice 7 | 2026-08-23 |
-| `dev/plans/0.8.24/features/slice-{10,20,30,40,50,60,70}/plan.md` | Feature-slice preparation, design, execution, evidence, and handoff plans; Slices 10/20 complete and Slice 30 endpoint-blocked | 0.8.24 Slices 10–70 | 2026-08-24 |
+| `dev/plans/0.8.24/features/slice-{10,20,30,40,50,60,70}/plan.md` | Feature-slice preparation, design, execution, evidence, and handoff plans; Slices 10/20 complete and Slice 30 implements an interim GitHub Pages route | 0.8.24 Slices 10–70 | 2026-08-25 |
 | `dev/plans/0.8.24/features/slice-10/{prep,draft-contracts,research,design,status}.md` | Completed current-main CI assessment, accepted interface design, evidence, and target-slice handoff | 0.8.24 Slice 10 | 2026-08-24 |
 | `dev/plans/0.8.24/features/slice-20/{prep,draft-contracts,research,design,status}.md` | Benchmark-directed FTS rank-boundary design, implementation evidence, and completion record | 0.8.24 Slice 20 | 2026-08-24 |
-| `dev/plans/0.8.24/features/slice-30/{prep,draft-contracts,research,design,decision,status}.md` | Corrected same-`fathomdb` Tegra topology, target evidence, and explicit first-party-index publisher blocker | 0.8.24 Slice 30 | 2026-08-24 |
+| `dev/plans/0.8.24/features/slice-30/{prep,draft-contracts,research,design,decision,status}.md` | Corrected same-`fathomdb` Tegra topology, interim GitHub Pages publisher design, target evidence, and deferred durable-hosting review | 0.8.24 Slice 30 | 2026-08-25 |
 | `dev/plans/runs/0.8.23-slice-72-draft-plan.md` | Approved plan for concurrent embedding and CE GPU coexistence characterization | 0.8.23 Slice 72 | 2026-08-18 |
 | `dev/plans/runs/0.8.23-slice-72-status.md` | Local completion and external-GPU-evidence boundary for concurrent BGE and CE characterization | 0.8.23 Slice 72 | 2026-08-18 |
 | `dev/requirements.md` | Numbered requirements (REQ-*); REQ-053 = governed SDK surface (allowlist + parity + recovery-denylist + typed boundary) | 25 amended REQ-053 (Q3) | 2026-06-04 |

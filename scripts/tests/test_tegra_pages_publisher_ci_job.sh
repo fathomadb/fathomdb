@@ -41,10 +41,23 @@ job_block() {
 
 assert_job_contains() {
   local job_name="$1" needle="$2" description="$3"
-  if job_block "$job_name" | grep -Fq -- "$needle"; then
+  local block
+  block="$(job_block "$job_name")"
+  if grep -Fq -- "$needle" <<<"$block"; then
     pass "$description"
   else
     fail "$description (missing from $job_name: $needle)"
+  fi
+}
+
+assert_job_absent() {
+  local job_name="$1" needle="$2" description="$3"
+  local block
+  block="$(job_block "$job_name")"
+  if grep -Fq -- "$needle" <<<"$block"; then
+    fail "$description (unexpected in $job_name: $needle)"
+  else
+    pass "$description"
   fi
 }
 
@@ -67,13 +80,18 @@ assert_job_contains deploy-tegra-pages "github.ref == 'refs/heads/release/0.8.24
 assert_job_contains prepare-tegra-pages 'inputs.publish_to_pages == true' "Pages preparation requires explicit publication opt-in"
 assert_job_contains deploy-tegra-pages 'inputs.publish_to_pages == true' "Pages deployment requires explicit publication opt-in"
 assert_contains 'name: github-pages' "Pages deployment uses the dedicated GitHub environment"
-assert_contains 'pages: write' "only the Pages deploy route requests Pages write access"
-assert_contains 'id-token: write' "Pages deploy route requests its OIDC token"
+assert_job_contains deploy-tegra-pages 'pages: write' "Pages deploy route requests Pages write access"
+assert_job_contains deploy-tegra-pages 'id-token: write' "Pages deploy route requests its OIDC token"
+assert_job_absent tegra-cuda-evidence 'pages: write' "Jetson evidence remains unable to deploy Pages"
+assert_job_absent prepare-tegra-pages 'pages: write' "Pages preparation remains unable to deploy Pages"
 assert_contains 'actions/download-artifact@' "hosted publisher consumes the Jetson artifact"
 assert_contains 'jetson-tegra-cuda-evidence-${{ github.run_id }}-${{ github.run_attempt }}' "publisher accepts only this run's retained Jetson artifact"
 assert_contains 'fathomdb-${expected_version}-*-linux_aarch64.whl' "publisher accepts only the honest Tegra wheel tag"
 assert_contains 'bash scripts/release/build-tegra-pages-index.sh' "publisher delegates index construction to the exercised helper"
 assert_contains '--version "$expected_version"' "publisher passes the exact +tegra version to the index helper"
+assert_job_contains tegra-cuda-evidence 'require-tegra-pages-release-version.sh' "Jetson preflight rejects stale project metadata before a build"
+assert_job_contains prepare-tegra-pages 'require-tegra-pages-release-version.sh' "publisher rejects stale project metadata before publication"
+assert_contains '--expected-version 0.8.24' "publisher is hard-bound to the authorized base version"
 assert_contains 'actions/upload-pages-artifact@' "publisher uploads a Pages deployment artifact"
 assert_contains 'actions/deploy-pages@' "publisher deploys only through GitHub Pages"
 assert_absent 'twine upload' "Pages publisher cannot upload to PyPI"
@@ -104,12 +122,12 @@ if [ "${TEGRA_PAGES_CI_FIXTURE:-0}" != "1" ]; then
     fail "publication-default mutation did not fail its assertion: $mutation_out"
   fi
 
-  sed '0,/inputs.publish_to_pages == true/s//inputs.publish_to_pages == false/' "$WORKFLOW" >"$MUTATED"
+  sed '0,/inputs.publish_to_pages == true/! s/inputs.publish_to_pages == true/inputs.publish_to_pages == false/' "$WORKFLOW" >"$MUTATED"
   set +e
   mutation_out="$(TEGRA_PAGES_CI_FIXTURE=1 JETSON_TEGRA_CI_YML="$MUTATED" bash "$0" 2>&1)"
   mutation_rc=$?
   set -e
-  if [ "$mutation_rc" -ne 0 ] && grep -Fq 'Pages preparation requires explicit publication opt-in' <<<"$mutation_out"; then
+  if [ "$mutation_rc" -ne 0 ] && grep -Fq 'Pages deployment requires explicit publication opt-in' <<<"$mutation_out"; then
     pass "mutation proves a Pages deploy cannot run without opt-in"
   else
     fail "publication-condition mutation did not fail its assertion: $mutation_out"
@@ -124,6 +142,17 @@ if [ "${TEGRA_PAGES_CI_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves the publisher cannot bypass the exercised index helper"
   else
     fail "index-helper mutation did not fail its assertion: $mutation_out"
+  fi
+
+  sed '0,/require-tegra-pages-release-version\.sh/s//missing-tegra-pages-release-version.sh/' "$WORKFLOW" >"$MUTATED"
+  set +e
+  mutation_out="$(TEGRA_PAGES_CI_FIXTURE=1 JETSON_TEGRA_CI_YML="$MUTATED" bash "$0" 2>&1)"
+  mutation_rc=$?
+  set -e
+  if [ "$mutation_rc" -ne 0 ] && grep -Fq 'Jetson preflight rejects stale project metadata before a build' <<<"$mutation_out"; then
+    pass "mutation proves stale project metadata cannot reach publication"
+  else
+    fail "release-version-checker mutation did not fail its assertion: $mutation_out"
   fi
 fi
 

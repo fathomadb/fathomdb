@@ -1,6 +1,6 @@
 ---
 title: 0.8.24 Slice 30 — corrected Tegra publication design
-status: REVIEWED-BLOCKED
+status: IMPLEMENTING
 target_release: 0.8.24
 ---
 
@@ -11,16 +11,16 @@ target_release: 0.8.24
 The independent review rejected the draft's distinct `fathomdb-tegra`
 distribution / separate-import premise because it contradicts accepted
 D-80.6-3. This document adopts the existing architecture and narrows the open
-decision to transport and deployment. The design is architecturally aligned
-but cannot become READY until the concrete first-party index and publisher
-route are declared and re-reviewed.
+decision to transport and deployment. The owner selected an interim GitHub
+Pages route on 2026-08-25; implementation is intentionally limited to 0.8.24
+and must be re-reviewed before a later Tegra release chooses durable hosting.
 
 ## Package topology
 
 | Consumer | Distribution | Version | Source | Platform |
 | --- | --- | --- | --- | --- |
 | Generic CPU | `fathomdb` | `0.8.24` | PyPI | Existing supported CPU wheels |
-| Jetson Orin CUDA | `fathomdb` | `0.8.24+tegra` | First-party PEP 503 endpoint, TBD | `cp310-abi3-linux_aarch64` |
+| Jetson Orin CUDA | `fathomdb` | `0.8.24+tegra` | `https://fathomadb.github.io/fathomdb/tegra/simple/` | `cp310-abi3-linux_aarch64` |
 
 There is one import package and one distribution identity. Installing one
 version replaces the other normally; there are never two distributions
@@ -47,12 +47,12 @@ alternate source:
 fathomdb==0.8.24+tegra
 ```
 
-The endpoint portion remains absent until declared. `--extra-index-url` may be
+The endpoint is the interim GitHub Pages base above. `--extra-index-url` may be
 shown only after classic-Tegra confirmation because pip does not prioritize
 indexes. A uv explicit-index/source mapping should be documented alongside it
 to bind only `fathomdb` to the first-party source. A later generic PyPI upgrade
 can displace the Tegra build; the existing version-aware warning/doctor path
-must provide the exact repairing command once the endpoint exists.
+must provide the exact repairing command for this endpoint.
 
 ## Build and provenance
 
@@ -67,9 +67,8 @@ host, source, wheel, digest, and three policy results. That is confirmed runner
 and functionality evidence. A new 0.8.24 candidate run is needed only after
 implementation; historical evidence is not repurposed as release evidence.
 
-The workflow is currently release-pinned, not reusable as-is: both its
-validation and evidence jobs require `refs/heads/release/0.8.23`. The Slice 30
-implementation must first encode one bounded ref contract for both jobs that
+The workflow was release-pinned to 0.8.23. Slice 30 encodes one bounded 0.8.24
+ref contract for both jobs that
 admits the authorized `release/0.8.24` candidate, rejects unrelated refs, and
 preserves the exact `candidate_sha == github.sha` identity check. A broad
 all-branches relaxation is outside the design.
@@ -78,15 +77,11 @@ all-branches relaxation is outside the design.
 
 The target-controlled Jetson builder must remain credentialless. Its output is
 an immutable Actions artifact plus digest. A separate hosted publisher consumes
-that exact artifact and deploys only to the selected first-party PEP 503
-service. The publisher's environment, endpoint, authentication, immutable-path
-rules, and retry behavior are parameters awaiting owner decision.
-
-No current repository/GitHub setting supplies them: no Actions variable names
-exist; environments are only `pypi` and `cuda-unmerged-preflight`; repository
-secret names are only `CARGO_REGISTRY_TOKEN` and `NPM_TOKEN`. The `pypi`
-environment is for PyPI CPU publication and is not silently reused for a
-different service.
+that exact artifact, verifies `Name: fathomdb`, exact `Version`, filename, and
+SHA-256, and deploys the static PEP 503 tree only through the `github-pages`
+environment with `pages: write` and `id-token: write`. The Jetson has no
+publication credential. Pages redeploys are explicit owner-authorized actions,
+not a claim of immutable multi-version storage.
 
 ## Architectural fit
 
@@ -98,14 +93,14 @@ different service.
 - Uses the proven Jetson-native artifact and evidence boundary.
 - Requires a narrow workflow compatibility correction before any 0.8.24 target
   evidence claim; a skipped job is never a passing target proof.
-- Keeps endpoint/service-specific deployment outside target-controlled code.
+- Keeps Pages deployment outside target-controlled code.
 
-## Challenging aspects after endpoint selection
+## Deferred hosting/distribution review
 
-1. Prove the service emits PEP 503-normalized project pages and immutable file
-   links for `fathomdb` without conflating it with PyPI ownership.
-2. Prove authentication can be limited to the selected path/project and that a
-   retry cannot overwrite published bytes.
+1. Choose durable multi-version artifact retention and endpoint/domain policy
+   before a later Tegra release.
+2. Re-evaluate whether Pages should continue to serve wheels or only index
+   immutable release assets.
 3. Bind artifact name, SHA-256, source SHA, workflow identity, and environment
    across build and publisher jobs without trusting mutable metadata.
 4. Ensure installation docs never expose a floating alternate-index command to

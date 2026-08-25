@@ -60,7 +60,8 @@ assert_contains 'runs-on: [self-hosted, Linux, ARM64, jetson, aarch64]' "job rou
 assert_config_contains 'labels: [gpu, cuda-12, jetson, aarch64]' "actionlint knows the registered custom Jetson labels"
 assert_contains 'timeout-minutes: 90' "evidence job has a bounded timeout"
 assert_contains 'persist-credentials: false' "checkout leaves no GitHub credential in git config"
-assert_contains "if: github.ref == 'refs/heads/release/0.8.23'" "self-hosted jobs are restricted to the release branch"
+assert_contains "if: github.ref == 'refs/heads/release/0.8.24'" "self-hosted jobs are restricted to the authorized release branch"
+assert_absent "refs/heads/release/0.8.23" "stale 0.8.23 branch predicates are absent"
 assert_contains "ref: \${{ github.sha }}" "checkout uses GitHub's immutable dispatch SHA"
 assert_absent "ref: \${{ needs.validate-candidate.outputs.candidate_sha }}" "dispatch input cannot select executed checkout bytes"
 assert_contains 'fetch-depth: 1' "checkout needs no mutable branch history"
@@ -133,6 +134,19 @@ if [ "${JETSON_TEGRA_CI_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves the clean-checkout guard is load-bearing"
   else
     fail "clean-checkout mutation did not fail its assertion: $mutation_out"
+  fi
+
+  sed '0,/refs\/heads\/release\/0\.8\.24/s//refs\/heads\/release\/0.8.23/' "$WORKFLOW" >"$MUTATED"
+  set +e
+  mutation_out="$(JETSON_TEGRA_CI_FIXTURE=1 JETSON_TEGRA_CI_YML="$MUTATED" bash "$0" 2>&1)"
+  mutation_rc=$?
+  set -e
+  if [ "$mutation_rc" -ne 0 ] \
+    && grep -Fq 'self-hosted jobs are restricted to the authorized release branch' <<<"$mutation_out" \
+    && grep -Fq 'stale 0.8.23 branch predicates are absent' <<<"$mutation_out"; then
+    pass "mutation proves both Jetson jobs retain the 0.8.24 branch contract"
+  else
+    fail "release-branch mutation did not fail both job assertions: $mutation_out"
   fi
 fi
 

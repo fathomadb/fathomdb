@@ -1,239 +1,129 @@
 ---
-title: 0.8.24 Slice 40 — Windows x64 CUDA distribution draft plan
-status: DRAFT
+title: 0.8.24 Slice 40 — Windows x64 CUDA distribution
+status: PROPOSED
 target_release: 0.8.24
 ---
 
 # Slice 40 — Windows x64 CUDA distribution
 
-## Planning boundary
+## Reviewed disposition
 
-This document plans Slice 40. It does not choose the Python/npm matrix, operate
-a Windows host, compile locally, register a runner, upload an artifact, configure
-a publisher, or publish a package. The accepted direction requires a remote
-Windows x64 CUDA executor. **No local Windows compilation is required or
-authorized.**
+**REVIEWED — BLOCKED / READY FOR OWNER DECISION.** This slice has completed
+its discovery, draft-contract, and architectural-fit work. It must not begin
+product, packaging, workflow, executor, or publication work until both owner
+inputs below are recorded:
 
-## Goal and outcome
+1. **P24-09:** select the supported Windows CUDA SDK surface: Python, npm, or
+   both, including unsupported-route behavior.
+2. **P24-10:** name a real remote Windows x64 CUDA executor and approve its
+   build-to-publisher trust boundary.
 
-Design and, after explicit decisions, implement prebuilt Windows x64 CUDA for
-the owner-selected Python, npm, or combined SDK surface while preserving every
-existing Windows CPU artifact and unsupported-route behavior. The result must:
+No local Windows compilation is required or authorized. A hosted
+`windows-latest` CPU build and the local Windows VM are validation resources,
+not substitutes for the approved CUDA executor.
 
-- require no end-user or release-operator local Windows compilation;
-- bind bytes to current source, MSVC/Rust/Python/Node/CUDA/driver/GPU facts;
-- distinguish CUDA artifact identity/selection from the existing CPU wheel and
-  `fathomdb-native-win32-x64-msvc` npm package;
-- move immutable artifacts through a reviewed trust boundary to hosted
-  OIDC publishers where required; and
-- supply Slice 60 with a real Windows GPU candidate-installed smoke contract.
+## Goal
 
-## Authority and inputs
+Deliver the owner-selected prebuilt Windows x64 CUDA SDK surface without
+changing existing Windows CPU identities or requiring an end user or release
+operator to compile Windows CUDA locally. A completed route supplies Slice 60
+with sealed candidate bytes and a clean installed-package Windows GPU smoke.
 
-- P24-09/P24-10, R24-2/R24-9, A24-3, draft
-  `REQ-TARGET-WINDOWS-CUDA`/`AC-TARGET-WINDOWS-CUDA`, and Slice 6 decisions.
-- `dev/plans/0.8.24/prework/executor-inventory.md` and publication topology.
-- ADR-0.8.22 for the existing Windows **CPU** npm package name.
-- Current Windows CPU jobs, Python/N-API package metadata, `platform.ts`, CUDA
-  feature forwarding/build helpers, witness schemas, and installed smokes.
-- `dev/design/0.8.23-windows-local-environment.md` as a CPU Windows validation
-  environment description, not proof of a CUDA GPU executor.
-- NVIDIA's current Windows CUDA installation/compiler compatibility guide.
-- npm trusted-publishing documentation: OIDC trusted publishing currently
-  requires a supported cloud-hosted runner, so a self-hosted GPU builder cannot
-  silently become the npm publisher.
+## Established facts
 
-Primary references begin with:
+| Area | Existing / observed | Net new after decisions |
+| --- | --- | --- |
+| Python | `fathomdb` is a Windows `x86_64-pc-windows-msvc` wheel in the ordinary CPU matrix. | A distinct CUDA artifact identity/selection and its build/proof path, if Python is selected. |
+| npm | Thin `fathomdb` resolves the CPU package `fathomdb-native-win32-x64-msvc` through version-pinned optional dependencies. | A CUDA package/loader topology, if npm is selected. |
+| CI | Hosted Windows builds, publishes, and post-publish CPU smokes exist. | A remote Windows CUDA build and target smoke route. |
+| Runner inventory | Existing self-hosted CUDA route is Linux; no observed/approved Windows CUDA selector, GPU, toolkit, or transfer route exists. | An observed and approved Windows executor contract. |
+| Local Windows VM | The local VM is a Windows CPU validation environment with virtual display and no NVIDIA host-device passthrough. | It cannot supply CUDA build or runtime proof. |
 
-- <https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/>
-- <https://docs.npmjs.com/trusted-publishers/>
-- <https://docs.github.com/en/actions/reference/security/secure-use>
-- <https://docs.github.com/en/actions/concepts/security/artifact-attestations>
+The current npm CPU name is accepted by ADR-0.8.22. It cannot be silently
+renamed, replaced, or treated as a CUDA variant.
 
-## Scope
+## Recommended decision shape
 
-### In scope
+The minimum proposal is **Python-only**, using a first-party PEP 503 route and
+an exact Python local version for the Windows CUDA artifact. This is a
+recommendation for owner review, not a selected or final identity. It has the
+smallest public surface because Python can retain the existing `fathomdb`
+import while an explicit CUDA distribution/index selection avoids replacing
+the CPU wheel.
 
-- Obtain the owner-selected Python/npm support matrix.
-- Observe and approve a remote Windows x64 CUDA executor and its trust boundary.
-- Choose artifact/distribution identity and runtime selection for each selected
-  SDK without replacing the CPU artifact.
-- Define remote build, link/dependency inspection, GPU runtime proof, artifact
-  sealing/transfer, hosted publication, and installed smoke.
-- Define clear behavior for unsupported, CUDA-unavailable, and forced-CUDA
-  routes.
-- Add/update an ADR/design, public compatibility/install docs, and interface
-  docs if loader or error behavior is user-visible.
+Selecting npm, or both SDKs, requires a separately reviewed package identity
+and deterministic loader policy. The current npm loader has one Windows x64
+CPU package identity. A second CUDA package is not selected merely by adding
+another matching optional dependency; precedence, forced/automatic behavior,
+co-install/upgrade behavior, and unsupported errors become public contract.
+That is ADR-level work before implementation.
 
-### Non-goals
+## Required executor and artifact boundary
 
-- Local Windows compilation, hosted `windows-latest` CPU jobs as CUDA proof,
-  Windows ARM64/32-bit, macOS CUDA, or Tegra.
-- Renaming or replacing the existing Windows CPU npm package by implication.
-- Requiring both SDKs if the owner selects only one.
-- Giving a self-hosted/public-repository runner publish credentials or trusting
-  a label as access control.
-- Claiming a compile, artifact upload, or `nvidia-smi` output alone is an
-  installed-package smoke.
+P24-10 must provide an executor record with all of the following before any
+implementation or candidate dispatch:
 
-## Slice prep — planned first phase
+- a stable GitHub selector and observed online ownership boundary;
+- Windows version/architecture; NVIDIA GPU model and compute capability;
+  driver and CUDA toolkit; MSVC/Windows SDK; Rust; and selected Python/Node
+  versions;
+- a main-owned harness that accepts an immutable candidate SHA rather than
+  candidate-controlled privileged workflow logic;
+- dependency/DLL inspection, build manifest, artifact SHA-256 values, and
+  retained GPU runtime witness; and
+- a credentialless build-to-hosted-publisher transfer. Registry credentials,
+  OIDC environment claims, and publisher authority stay in a reviewed hosted
+  job, never on the GPU builder.
 
-Create under this directory:
+The same executor must perform the clean candidate-installed lifecycle proof:
+install sealed bytes in a fresh environment; open, write, search, close, and
+exit; then retain selected CUDA device/process evidence. A compile, upload, or
+`nvidia-smi` result alone is insufficient.
 
-- `prep.md` — goals, SDK/executor inventory, current-main SHA, and decision state;
-- `draft-contracts.md` — slice-local needs/requirements/acceptance drafts;
-- `design.md` — selected artifact, loader, executor, transfer, and smoke design;
-- `research.md` — primary-source Windows CUDA/npm/GitHub findings; and
-- `decision.md` — owner-selected SDK matrix and approved executor contract.
+## Work after owner decisions
 
-### Prep tasks
+1. Record P24-09 and P24-10 in `decision.md`; promote only the chosen draft
+   contract. Do not edit canonical needs, requirements, or acceptance before
+   that decision.
+2. Write the selected architecture decision/ADR and public interface/install
+   contract. Add RED package identity, loader, unsupported-route, manifest,
+   and CPU-preservation tests.
+3. Implement the smallest selected Python and/or npm route GREEN. Preserve the
+   existing CPU wheel and `fathomdb-native-win32-x64-msvc` package unchanged.
+4. Add a main-owned, credentialless remote build route and sealed artifact
+   handoff. Run source/workflow and package inspections locally.
+5. On the approved Windows GPU executor, build the selected artifact and run
+   the candidate-installed smoke. No local VM or hosted CPU substitution.
+6. Hand Slice 60 the exact identity, digest, executor record, install command,
+   unsupported behavior, and smoke evidence. Slice 60 owns post-publication
+   installed proof and publisher-preservation matrix; Slice 70 owns final
+   release integration and owner-authorized publishing.
 
-1. Record the chosen SDK surface: Python, npm, or both. For each, enumerate the
-   current CPU package, native module filename, loader/import path, version,
-   optional dependencies, and release job.
-2. Observe the proposed remote executor: selector, online state, Windows build,
-   GPU/compute capability, driver/CUDA toolkit, Visual Studio/MSVC/SDK, Rust,
-   Python, Node/npm, storage/cache, service identity, isolation, and transfer.
-3. Restate and refine the drafts:
-   - **N40-DRAFT:** a Windows x64 user can explicitly install a supported
-     prebuilt CUDA SDK artifact without compiling it locally;
-   - **R40-DRAFT-1:** the selected SDK matrix and CPU/CUDA package-selection
-     behavior are explicit, versioned, and fail clearly when unsupported;
-   - **R40-DRAFT-2:** remote build bytes are bound to immutable source and
-     executor/toolchain/GPU evidence before a hosted publisher consumes them;
-   - **AC40-DRAFT:** each selected installed artifact completes
-     open/write/search/close/exit with selected CUDA and retained process/device
-     evidence; CPU artifacts remain separately installable.
-4. Read bindings/release architecture, Python/TypeScript interfaces, ADR-0.8.22,
-   and the actual loader/package/workflow/test bodies. Write an
-   exists-versus-net-new map.
-5. Assign prerequisites: CI route to Slice 10, SDK/executor/identity choices to
-   this slice's owner gate, shared publisher/smoke matrix to Slice 60, and final
-   evidence/publication readiness to Slice 70.
+## Verification
 
-## Artifact options the design must evaluate
+- RED/GREEN structural tests for selected package identity, selection, errors,
+  CPU preservation, workflow privilege split, and artifact manifest.
+- `actionlint`, relevant PowerShell/shell checks, package metadata inspection,
+  and documentation/plan lint for the changed files.
+- On the approved executor only: CUDA/toolchain/DLL evidence, sealed digest,
+  and fresh installed-artifact GPU lifecycle smoke.
 
-For every selected SDK, compare options without assuming the answer:
+## Non-goals and stop conditions
 
-### Python
-
-- a separately named Windows-CUDA distribution with explicit mutual exclusion
-  if it provides the same `fathomdb` import package;
-- a separate CUDA plugin/native-provider distribution loaded by the CPU package;
-  or
-- another explicit identity that preserves the CPU wheel tag and import path.
-
-Two different CPU/CUDA wheels with the same project/version/platform tag are
-not a viable immutable-registry distinction.
-
-### npm
-
-- a separately named CUDA platform package selected explicitly by a stable
-  loader policy;
-- a separate top-level CUDA distribution; or
-- another owner-approved topology that never changes the accepted CPU package
-  identity from ADR-0.8.22.
-
-Installing two matching OS/CPU optional dependencies is not sufficient; the
-loader selection and unsupported behavior must be deterministic and tested.
-
-## Draft design and design review
-
-### Required design content
-
-- selected SDK matrix and exact package names;
-- user selection/configuration and unsupported/unavailable/forced behavior;
-- CPU package preservation and co-install/upgrade semantics;
-- remote executor trust, default-branch workflow ownership, candidate SHA, and
-  no-candidate-controlled privileged script boundary;
-- pinned Windows/CUDA/MSVC/Rust/Python/Node toolchain and dependency inspection;
-- artifact manifest/digests, transfer, retention, and hosted publisher jobs;
-- OIDC/environment/repository/workflow claims for PyPI/npm as applicable;
-- real Windows GPU lifecycle smoke and selected-device/process evidence;
-- docs/interfaces/ADR/release-note consequences; and
-- Slice 60/70 handoff schema.
-
-### Challenging aspects and research plan
-
-1. Verify NVIDIA's supported Windows/compiler/CUDA matrix for the proposed
-   target and the project's Candle/native dependency chain.
-2. Inspect PE/DLL dependency behavior and decide which CUDA runtime libraries
-   may be redistributed versus host-provided; use NVIDIA and dependency
-   license/docs as primary sources.
-3. Verify npm/PyPI OIDC runner and workflow/environment constraints. In
-   particular, keep self-hosted build separate from cloud-hosted npm publish.
-4. Evaluate artifact attestations or an equivalent signed manifest; an
-   attestation proves provenance, not runtime correctness, so retain the GPU
-   smoke separately.
-5. Verify how Python and npm installers behave when CPU and CUDA artifacts have
-   overlapping files or platform selectors.
-
-### Architectural-fit review and revision
-
-Check the design against actual CPU packages/loaders, bindings architecture,
-the Windows CPU ADR, public interfaces, and current release workflow. Revise to
-remove any implicit CPU replacement, unproved hosted-runner capability, or
-self-hosted publication credential. A changed package identity or public loader
-policy receives an ADR/successor and matching interface/docs before code.
-
-## Planned implementation sequence after decisions
-
-1. Land the approved ADR/design and failing local contract tests first.
-2. Implement selected package metadata/loader/build-contract changes under TDD.
-3. Prepare a main-owned remote build harness with immutable source input and
-   fail-closed manifest sealing.
-4. Execute compilation only on the approved remote Windows CUDA host. Retain
-   toolchain, dependencies, digests, and GPU runtime evidence.
-5. Transfer sealed artifacts to a reviewed hosted publisher job; never pass
-   publishing credentials to the build host.
-6. Run the clean candidate-installed smoke on the remote GPU host.
-7. Update public install/compatibility docs and hand exact artifacts/smokes to
-   Slice 60. Publication remains separately authorized.
-
-## Verification and evidence
-
-- Local RED/GREEN contract tests for package identities, loader selection,
-  unsupported paths, workflow graph, manifests, and negative evidence.
-- Existing Windows CPU package/runtime tests stay green unchanged or are
-  extended only to assert preservation.
-- `actionlint`, PowerShell/shell checks, package dry-run/inspection, and
-  applicable release-contract tests.
-- Remote build witness includes immutable SHA, compiler/toolchain, DLL
-  dependencies, artifact digests, and CUDA/GPU facts.
-- Candidate-installed smoke uses a fresh environment and installed artifact,
-  not source/editable state; it performs open/write/search/close/exit and proves
-  selected CUDA with device/process evidence.
-- Registry-installed proof is handed to Slice 60/70 and happens only after a
-  separately authorized publication.
-
-## Risks and recovery
-
-| Risk | Control / recovery |
-| --- | --- |
-| CPU package is silently replaced | Separate identity/selection and explicit preservation tests. |
-| Remote host is CPU-only or misconfigured | Observe GPU/toolchain before ready status; hosted Windows CPU is not evidence. |
-| Self-hosted runner can publish | Split build from hosted OIDC publication and verify manifest/digests. |
-| Candidate-controlled code reaches privileged host | Default-branch-owned harness, immutable SHA, reviewed trust route. |
-| Missing DLLs fail only for users | Inspect dependencies and run clean installed smoke on the target host. |
-| Published bytes are immutable | Fail before publish; recover through deprecation/yank and a corrected version, never replacement. |
-
-## Decisions and prerequisites for the next reviewer
-
-Ready status requires:
-
-1. owner-selected Python/npm/both matrix;
-2. exact CPU/CUDA package and loader topology for each selected SDK;
-3. named, observed, approved remote Windows CUDA executor;
-4. build-to-publisher trust/transfer design; and
-5. trusted-publisher/environment claims for each selected registry.
-
-If no suitable executor or safe artifact identity is available, Windows CUDA is
-deferred rather than weakened into local compile or CPU-only evidence.
+- No local Windows compilation, VM passthrough work, runner registration,
+  hosted Windows CPU substitution, package publication, or GitHub setting
+  change in this planning state.
+- If P24-09 or P24-10 is absent, retain this slice as blocked; do not infer a
+  combined SDK surface or an executor from labels, VM availability, or a
+  generic hosted job.
+- If the selected identity or loader changes a public platform contract,
+  create the required ADR/interface/docs before code.
 
 ## Definition of done
 
-Slice 40 closes only after the selected prebuilt Windows CUDA surface is
-implemented under TDD, existing CPU artifacts remain intact, remote build and
-clean installed GPU smoke evidence are retained with immutable provenance, and
-Slice 60 receives the exact artifact/smoke matrix. It does not close on a
-hosted CPU build, source compilation, or artifact upload alone.
+Slice 40 is complete only when the owner-selected Windows CUDA surface is
+implemented under TDD; existing CPU artifacts remain intact; an approved remote
+Windows CUDA executor has produced provenance-bound bytes; and a clean
+installed-package Windows GPU smoke has passed. Publication and
+registry-installed smoke remain Slice 60/70 work and require separate owner
+authorization.

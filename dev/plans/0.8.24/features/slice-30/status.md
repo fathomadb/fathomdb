@@ -1,6 +1,6 @@
 ---
 title: 0.8.24 Slice 30 — status
-status: IN_PROGRESS
+status: COMPLETE
 target_release: 0.8.24
 ---
 
@@ -8,8 +8,8 @@ target_release: 0.8.24
 
 ## Outcome
 
-Slice 30 planning and design reconciliation are complete and implementation is
-now **IN_PROGRESS**. D-80.6-3 already resolves package
+Slice 30 planning, design reconciliation, implementation, and its authorized
+real-Jetson/Pages execution are **COMPLETE**. D-80.6-3 already resolves package
 identity: CPU remains `fathomdb==0.8.24` on PyPI; Tegra is the same `fathomdb`
 distribution/import at exact `0.8.24+tegra` on a first-party PEP 503 index.
 The stale `fathomdb-tegra` / separate-import draft premise is retired.
@@ -45,15 +45,19 @@ and carries no package-registry credential. Each Pages redeploy is explicitly
 owner-authorized and revalidates its input; this interim static deployment does
 not claim durable multi-version immutability.
 
-This closes the prior endpoint/publisher-design blocker. It does not publish a
-wheel, dispatch a runner, or make GitHub Pages the permanent distribution
-decision. Before a later Tegra release, hosting and distribution must be
-re-reviewed for durable multi-version retention and endpoint policy.
+This closes the prior endpoint/publisher-design blocker. The owner-authorized
+run `32878233246` deployed the verified
+`fathomdb-0.8.24+tegra-cp310-abi3-linux_aarch64.whl` to that endpoint from
+candidate `2431f8729afb247518804e90b9ca324592c95456`. GitHub Pages remains an
+interim distribution decision; before a later Tegra release, hosting and
+distribution must be re-reviewed for durable multi-version retention and
+endpoint policy.
 
-Slice 30 has corrected the workflow-ref gap under RED/GREEN tests for both
-jobs. The slice remains open for the normal 0.8.24 version bump and an
-owner-authorized real-Jetson candidate run; neither has been performed by this
-implementation change.
+Slice 30 corrected the workflow-ref gap under RED/GREEN tests for both jobs.
+The normal 0.8.24 version bump and owner-authorized real-Jetson candidate run
+have now been performed. The successful workflow retained immutable candidate
+identity, a real Jetson build, CPU/auto/forced-CUDA installed-wheel smokes, an
+in-process GPU witness, and the Pages deployment artifact.
 
 ## Durable records
 
@@ -66,9 +70,18 @@ implementation change.
 
 ## Completion state
 
-This is an in-progress status, not a completed Slice 30 claim. Slice 60 receives
-no registry-installed Tegra handoff until explicit publication and its clean
-Jetson installed-package smoke complete.
+**COMPLETE — 2026-08-25.** Run
+[`32878233246`](https://github.com/fathomadb/fathomdb/actions/runs/32878233246)
+passed every job for candidate
+`2431f8729afb247518804e90b9ca324592c95456`: immutable-candidate validation,
+real Jetson build and witness, static PEP 503 construction, and GitHub Pages
+deployment. The deployed project index contains the exact wheel and SHA-256.
 
-No hosted workflow, Jetson build, registry query/mutation, runner operation,
-environment change, secret access, push, tag, or publication occurred.
+Slice 60 receives the public-Tegra handoff and owns the separately scoped clean
+post-publication Jetson install from the PEP 503 endpoint, plus cross-package
+publisher preservation. Those are not conditions for this Slice 30 completion.
+
+No package registry, tag, or release publication occurred. The only external
+publication is the authorized interim GitHub Pages deployment; the
+`github-pages` environment now permits the exact `release/0.8.24` branch in
+addition to its existing `main` policy.

@@ -256,9 +256,9 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 
 ### Feature-slice draft plans
 
-Each feature has a separate plan. Slices 10 and 20 are complete. Slice 30 has
-completed its package/design reconciliation and is implementing the authorized
-interim Pages route. Slices 40–70 retain their own
+Each feature has a separate plan. Slices 10, 20, and 30 are complete. Slice 30
+published its verified Tegra wheel to the authorized interim Pages route;
+durable hosting/distribution remains a later review. Slices 40–70 retain their own
 slice-preparation, draft contract/design review, implementation boundary,
 verification, prerequisites, and handoff. A plan's existence does not make its
 slice ready or authorize implementation or an external release action.
@@ -299,9 +299,7 @@ slice ready or authorize implementation or an external release action.
 
 ## Immediate next action
 
-Slices 0–7, 10, and 20 are complete. Slice 30 is implementing the authorized
-interim GitHub Pages PEP 503 route; its real Jetson proof and publication remain
-explicit release actions. Slice 40 remains blocked on its executor choices; Slice 50 can
-proceed independently. Slice 60 consumes approved target outputs, and Slice 70
-remains final integration only. No external release action is authorized by
-these planning records.
+Slices 0–7, 10, 20, and 30 are complete. Slice 40 remains blocked on its
+executor choices; Slice 50 can proceed independently. Slice 60 consumes
+approved target outputs, and Slice 70 remains final integration only. No
+additional external release action is authorized by these planning records.

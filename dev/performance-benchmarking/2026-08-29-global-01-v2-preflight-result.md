@@ -1,9 +1,9 @@
 # GLOBAL-01 v2 recovery preflight result
 
-**Status:** ready for HITL; no model-completion call authorized.
+**Status:** authorized for paid execution at a $12 hard cap.
 
 The fresh v2 zero-spend preflight passed with configuration SHA-256
-`15096cae2823d621954a640e185c8238e01ff8b46150c743c9c644a2f2af4cee`.
+`483e11adaa302b75bda57f359894b4b01763ec65d63017cc112570977af08208`.
 
 - All 1,397 corpus documents and 49 qualified questions matched.
 - The development, witness, and held-out selection hashes matched.
@@ -15,12 +15,13 @@ The fresh v2 zero-spend preflight passed with configuration SHA-256
   remained enabled.
 - Preflight spend was $0.
 
-The measured retrieval steady p95 was 18.07 ms. The unchanged paid projection
-is $9.50 with a proposed $12 hard cap. The v2 configuration remains
-`pending_hitl`; the prior v1 authorization does not authorize this fresh run.
+The measured retrieval steady p95 was 18.65 ms. The unchanged paid projection
+is $9.50. Coreyt authorized the fresh v2 run on 2026-08-29 with a $12 hard cap.
+The next gate is fresh A/A followed by the three-question witness; held-out
+execution remains conditional on a valid witness.
 
 ## Records
 
 - [Recovery contract](2026-08-29-global-01-v2-recovery-contract.md)
-- [Safe preflight receipt](../../experiments/runs/global-01-lazy-preflight-20260829T2026Z-15096cae/record.json)
+- [Authorized safe preflight receipt](../../experiments/runs/global-01-lazy-preflight-20260829T2045Z-483e11ad/record.json)
 - [Stopped v1 witness](../../experiments/runs/global-01-lazy-witness-20260829T1924Z-aa159044/record.json)

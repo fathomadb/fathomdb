@@ -1,6 +1,6 @@
 # GLOBAL-01 — Native GraphRAG comparison
 
-**Status:** v2 recovery ready for HITL; v1 witness remains invalid.
+**Status:** v2 paid execution authorized; v1 witness remains invalid.
 
 ## Decision
 
@@ -52,7 +52,8 @@ The [v2 recovery contract](../2026-08-29-global-01-v2-recovery-contract.md)
 removes the contradictory attribution encoding, preserves the measurement
 design, and uses a fresh checkpoint. Its
 [zero-spend preflight](../2026-08-29-global-01-v2-preflight-result.md) passed.
-Paid A/A and witness execution require new HITL authorization and a hard cap.
+Coreyt authorized fresh A/A and witness execution on 2026-08-29 with a $12
+hard cap. Held-out execution remains conditional on a valid witness.
 
 ## Stop
 

@@ -122,7 +122,8 @@ It then exhausted generic retries on a map batch that alternated between an
 uncited claim and an overlong claim. Bind targeted, content-free correction
 instructions for those existing validators, then preflight one fresh witness.
 The [v7 preflight](../../../experiments/runs/global-01-lazy-preflight-20260829T2158Z-60b3642c/record.json)
-passed at zero spend.
+passed at zero spend. Its three-question witness passed for $0.703. The matched
+held-out comparison is running from that checkpoint.
 
 ## Stop
 

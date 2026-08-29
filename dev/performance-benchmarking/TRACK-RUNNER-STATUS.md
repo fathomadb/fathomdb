@@ -10,9 +10,8 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. Run one fresh v7 A/A and witness.
-2. Run held-out only if the v7 witness is valid.
-3. Register the receipt and decision without tuning held-out outcomes.
+1. Complete the active v7 held-out comparison.
+2. Register the receipt and decision without tuning held-out outcomes.
 
 ## Track status
 
@@ -31,7 +30,7 @@ append-only evidence index.
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |
-| [GLOBAL-01](tracks/global-01-native-graphrag.md) | V7 authorized and preflighted | The [v7 preflight](../../experiments/runs/global-01-lazy-preflight-20260829T2158Z-60b3642c/record.json) passed at $0 with targeted content-free map corrections; run one fresh A/A and witness. |
+| [GLOBAL-01](tracks/global-01-native-graphrag.md) | V7 witness valid; held-out running | The three-question witness passed for $0.703. Complete the matched held-out comparison from its checkpoint, then register the decision. |
 | [REASON-01](tracks/reason-01-native-hipporag2.md) | Parked | Wait for useful GRAPH-01 evidence and native-run prerequisites. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |
 

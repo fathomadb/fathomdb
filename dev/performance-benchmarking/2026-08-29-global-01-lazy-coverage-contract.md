@@ -182,6 +182,13 @@ the exact canonical source ID and hash before persisting each claim. This is an
 encoding correction only; it changes neither evidence selection nor any
 registered measurement boundary.
 
+Revision `v3-compact-source-refs` completed the next batch and removed output
+truncation. A later batch returned compact but surplus semantic output.
+Revision `v4-cap-surplus-claims` makes the already-registered maximum
+deterministic in the caller by retaining only the first two control claims or
+first four treatment claims. Invalid source references and claims over 30 words
+still fail closed.
+
 ## Basis
 
 - [GLOBAL-01 improvement hypothesis](2026-08-29-global-01-improvement-hypothesis.md)

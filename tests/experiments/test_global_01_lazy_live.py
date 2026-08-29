@@ -146,6 +146,28 @@ def test_mapped_claim_source_refs_restore_canonical_attribution():
     ]
 
 
+def test_mapped_claims_drop_surplus_after_registered_maximum():
+    claims = global_01_lazy_live._validate_mapped_claims(
+        {
+            "claims": [
+                {"text": f"Claim {ordinal}.", "source_refs": ["S0"]}
+                for ordinal in range(3)
+            ]
+        },
+        known_source_refs={
+            "S0": {
+                "source_id": "source-1",
+                "content_sha256": "a" * 64,
+            }
+        },
+        prefix="control-q-00",
+        max_claims=2,
+        max_words=30,
+    )
+
+    assert [claim["text"] for claim in claims] == ["Claim 0.", "Claim 1."]
+
+
 def test_semantic_revision_preserves_legacy_invalid_cells(tmp_path: Path):
     class FakeClient:
         def __init__(self):

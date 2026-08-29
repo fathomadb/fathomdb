@@ -44,6 +44,14 @@ deterministically restores the registered canonical ID and hash before
 persistence. Claim limits, evidence, source attribution, model/token budgets,
 and decision boundaries remain unchanged.
 
+The compact revision completed batch six and removed output truncation. Batch
+seven then returned three compact responses of 127–140 tokens that failed the
+registered semantic boundary. Campaign spend at this stop was $0.1949654.
+Because the generator may return surplus relevant claims, revision
+`v4-cap-surplus-claims` enforces the registered boundary in the caller by
+retaining only the first two control claims or first four treatment claims.
+Unknown source references and claims over 30 words continue to fail closed.
+
 ## Artifacts
 
 - External checkpoint:

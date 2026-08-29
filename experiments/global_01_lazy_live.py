@@ -24,7 +24,7 @@ from experiments.fathomdb_test_setup import prepare_test_database
 
 CHECKPOINT_SCHEMA = "global-01.lazy-checkpoint.v1"
 RESULT_SCHEMA = "global-01.lazy-result.v1"
-SEMANTIC_REVISION = "v3-compact-source-refs"
+SEMANTIC_REVISION = "v4-cap-surplus-claims"
 METRICS = ("comprehensiveness", "diversity", "empowerment", "directness")
 HEADLINE_METRICS = METRICS[:3]
 _JSON_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE)
@@ -299,8 +299,9 @@ def _validate_mapped_claims(
     if not isinstance(value, dict) or set(value) != {"claims"}:
         raise Global01LazyLiveError("claim map must contain only claims")
     claims = value["claims"]
-    if not isinstance(claims, list) or len(claims) > max_claims:
+    if not isinstance(claims, list):
         raise Global01LazyLiveError("claim map claims are not a list")
+    claims = claims[:max_claims]
     result = []
     for ordinal, claim in enumerate(claims):
         if not isinstance(claim, dict) or set(claim) != {"text", "source_refs"}:

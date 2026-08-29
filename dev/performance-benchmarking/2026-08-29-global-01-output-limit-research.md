@@ -48,6 +48,9 @@ V4 implements the compact reduction adapter and fail-closed canonical
 restoration without changing the answer, retrieval, scoring, or acceptance
 contract.
 
+The [v4 preflight](../../experiments/runs/global-01-lazy-preflight-20260829T2129Z-62bb47c3/record.json)
+passed at zero spend under configuration `62bb47c3`.
+
 ## Sources
 
 - [DeepSeek models and pricing](https://api-docs.deepseek.com/quick_start/pricing)

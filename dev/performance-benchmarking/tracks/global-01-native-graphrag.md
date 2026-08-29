@@ -1,6 +1,6 @@
 # GLOBAL-01 — Native GraphRAG comparison
 
-**Status:** v4 compact reduction adapter ready for preflight.
+**Status:** v4 compact-reference preflight passed; witness next.
 
 ## Decision
 
@@ -101,6 +101,9 @@ Unknown references, duplicate references, missing coverage rows, invalid
 dispositions, and unlinked final claims fail closed. Canonical source IDs and
 hashes are restored before the existing structured-answer validator and
 checkpoint persistence.
+
+The [v4 preflight](../../../experiments/runs/global-01-lazy-preflight-20260829T2129Z-62bb47c3/record.json)
+passed at zero spend.
 
 ## Stop
 

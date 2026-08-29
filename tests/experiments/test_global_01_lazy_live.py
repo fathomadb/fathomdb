@@ -268,6 +268,62 @@ def test_semantic_revision_preserves_legacy_invalid_cells(tmp_path: Path):
     assert f"invalid/{global_01_lazy_live.SEMANTIC_REVISION}/maps/control/q/0/0" in state.cells
 
 
+def test_semantic_retry_supplies_validation_feedback_without_response_content(
+    tmp_path: Path,
+):
+    class FakeClient:
+        def __init__(self):
+            self.prompts = []
+            self.responses = iter(
+                [
+                    (
+                        '{"claims":[{"text":"too long","source_refs":["S0"]}]}',
+                        {"prompt_tokens": 1, "completion_tokens": 1},
+                        0.01,
+                        1.0,
+                    ),
+                    (
+                        '{"claims":[{"text":"short","source_refs":["S0"]}]}',
+                        {"prompt_tokens": 1, "completion_tokens": 1},
+                        0.01,
+                        1.0,
+                    ),
+                ]
+            )
+
+        def complete(self, _model, prompt, **_kwargs):
+            self.prompts.append(prompt)
+            return next(self.responses)
+
+    client = FakeClient()
+    checkpoint = tmp_path / "checkpoint.json"
+    state = global_01_lazy_live.LazyRunState.new("e" * 64, 1.0)
+
+    value = global_01_lazy_live._complete_json_cell(
+        client,
+        state=state,
+        checkpoint_path=checkpoint,
+        cell="maps/control/q/0",
+        model="model",
+        prompt="original task",
+        max_tokens=300,
+        temperature=0.0,
+        validator=lambda raw: raw
+        if raw["claims"][0]["text"] == "short"
+        else (_ for _ in ()).throw(
+            global_01_lazy_live.Global01LazyLiveError(
+                "mapped claim text exceeds word limit"
+            )
+        ),
+    )
+
+    assert value["claims"][0]["text"] == "short"
+    assert client.prompts[0] == "original task"
+    assert "mapped claim text exceeds word limit" in client.prompts[1]
+    assert "too long" not in client.prompts[1]
+    assert "Return a corrected JSON object" in client.prompts[1]
+
+
 def test_assertion_score_requires_all_final_claims_and_valid_indices():
     answer = {
         "claims": [

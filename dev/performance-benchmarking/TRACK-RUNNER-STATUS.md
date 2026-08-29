@@ -10,9 +10,9 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. Run GLOBAL-01 v2 A/A and the three-question witness from a fresh checkpoint.
-2. Run held-out only if the v2 witness is valid.
-3. Register the receipt and decision without tuning against held-out outcomes.
+1. Repeat GLOBAL-01 v2 zero-spend preflight after the semantic-retry correction.
+2. Run fresh A/A and the three-question witness from a new artifact root.
+3. Run held-out only if the corrected witness is valid.
 
 ## Track status
 
@@ -31,7 +31,7 @@ append-only evidence index.
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |
-| [GLOBAL-01](tracks/global-01-native-graphrag.md) | V2 authorized | The [authorized recovery preflight](../../experiments/runs/global-01-lazy-preflight-20260829T2045Z-483e11ad/record.json) passed at $0; run fresh A/A and the witness under the $12 hard cap. |
+| [GLOBAL-01](tracks/global-01-native-graphrag.md) | V2 correction ready for preflight | The [invalid witness](../../experiments/runs/global-01-lazy-witness-20260829T2047Z-483e11ad/record.json) exposed deterministic retries without validation feedback. The content-free correction is implemented; repeat preflight before a fresh witness. |
 | [REASON-01](tracks/reason-01-native-hipporag2.md) | Parked | Wait for useful GRAPH-01 evidence and native-run prerequisites. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |
 

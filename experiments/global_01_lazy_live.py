@@ -24,7 +24,7 @@ from experiments.fathomdb_test_setup import prepare_test_database
 
 CHECKPOINT_SCHEMA = "global-01.lazy-checkpoint.v1"
 RESULT_SCHEMA = "global-01.lazy-result.v1"
-SEMANTIC_REVISION = "v5-dual-attribution"
+SEMANTIC_REVISION = "v6-validation-feedback"
 METRICS = ("comprehensiveness", "diversity", "empowerment", "directness")
 HEADLINE_METRICS = METRICS[:3]
 _JSON_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE)
@@ -438,13 +438,22 @@ def _complete_json_cell(
 ) -> dict[str, Any]:
     if cell in state.cells:
         return state.cells[cell]["value"]
+    validation_error: str | None = None
     for attempt in range(3):
         invalid = f"invalid/{SEMANTIC_REVISION}/{cell}/{attempt}"
         if invalid in state.cells:
+            validation_error = state.cells[invalid]["semantic_failure"]["error"]
             continue
+        attempt_prompt = prompt
+        if validation_error is not None:
+            attempt_prompt += (
+                "\n\nVALIDATION CORRECTION: The previous response failed because: "
+                f"{validation_error}. Return a corrected JSON object that satisfies "
+                "the original instructions. Do not repeat the invalid response."
+            )
         response, usage, cost, latency_ms = client.complete(
             model,
-            prompt,
+            attempt_prompt,
             max_tokens=max_tokens,
             temperature=temperature,
             remaining_cost_usd=state.remaining_cost_usd,
@@ -459,6 +468,7 @@ def _complete_json_cell(
             KeyError,
             TypeError,
         ) as exc:
+            failure_metadata = semantic_failure_metadata(raw, exc)
             state.complete(
                 invalid,
                 {
@@ -467,11 +477,12 @@ def _complete_json_cell(
                     ).hexdigest(),
                     "usage": usage,
                     "latency_ms": latency_ms,
-                    "semantic_failure": semantic_failure_metadata(raw, exc),
+                    "semantic_failure": failure_metadata,
                 },
                 cost_usd=cost,
             )
             state.save(checkpoint_path)
+            validation_error = failure_metadata["error"]
             continue
         state.complete(
             cell,
@@ -646,7 +657,8 @@ def _map_prompt(
         "only with supplied SOURCE_REF values; the caller resolves them to the "
         "shown canonical source ID and hash. An empty "
         f"claim list is valid. Return at most {max_claims} claims. Keep each claim "
-        "to at most 30 words and cite only the minimum sufficient supplied "
+        "to at most 30 words (counted as whitespace-separated tokens) and cite "
+        "only the minimum sufficient supplied "
         "sources.\n\n"
         f"QUESTION:\n{question}\n\nSOURCES:\n{_map_source_context(rows)}\n\n"
         'Return compact JSON only: {"claims":[{"text":"...",'

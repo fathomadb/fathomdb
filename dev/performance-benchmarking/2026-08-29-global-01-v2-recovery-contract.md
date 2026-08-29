@@ -62,14 +62,15 @@ $9.50 spend, and proposed $12 hard cap.
 Coreyt authorized v2 model-completion calls on 2026-08-29 under the registered
 $12 hard cap and witness-before-held-out sequence.
 
-The zero-spend gate passed under configuration SHA-256
-`15096cae2823d621954a640e185c8238e01ff8b46150c743c9c644a2f2af4cee`.
-The registered receipt is `awaiting_hitl`.
+The authorized zero-spend gate passed under configuration SHA-256
+`483e11adaa302b75bda57f359894b4b01763ec65d63017cc112570977af08208`.
+The registered receipt is `authorized_ready`.
 
 ## Basis
 
 - [Stopped v1 witness](../../experiments/runs/global-01-lazy-witness-20260829T1924Z-aa159044/record.json)
 - [V2 preflight result](2026-08-29-global-01-v2-preflight-result.md)
-- [V2 preflight receipt](../../experiments/runs/global-01-lazy-preflight-20260829T2026Z-15096cae/record.json)
+- [V2 preflight receipt](../../experiments/runs/global-01-lazy-preflight-20260829T2045Z-483e11ad/record.json)
+- [Invalid v2 witness](../../experiments/runs/global-01-lazy-witness-20260829T2047Z-483e11ad/record.json)
 - [V1 execution note](2026-08-29-global-01-witness-execution-note.md)
 - [Original measurement contract](2026-08-29-global-01-lazy-coverage-contract.md)

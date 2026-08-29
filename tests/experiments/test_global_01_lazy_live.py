@@ -583,6 +583,23 @@ def test_assertion_score_requires_all_final_claims_and_valid_indices():
         )
 
 
+def test_assertion_score_projects_required_fields_before_strict_validation():
+    answer = {"claims": [{"claim_id": "final-1"}]}
+    score = {
+        "passed_assertion_indices": [0],
+        "claim_support": [{"claim_id": "final-1", "supported": True}],
+        "assertion_analysis": [{"index": 0, "reason": "supported"}],
+        "failed_assertion_indices": [],
+    }
+
+    assert global_01_lazy_live.validate_assertion_score(
+        score, answer=answer, assertion_count=1
+    ) == {
+        "passed_assertion_indices": [0],
+        "claim_support": [{"claim_id": "final-1", "supported": True}],
+    }
+
+
 def test_scorer_excerpt_is_bounded_and_selects_claim_relevant_text():
     body = (
         "Unrelated opening material. " * 200

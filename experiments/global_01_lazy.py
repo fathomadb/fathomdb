@@ -28,6 +28,7 @@ RECOVERY_SCHEMA = "global-01.lazy-coverage.v2"
 OUTPUT_RECOVERY_SCHEMA = "global-01.lazy-coverage.v3"
 COMPACT_RECOVERY_SCHEMA = "global-01.lazy-coverage.v4"
 SCORER_OUTPUT_SCHEMA = "global-01.lazy-coverage.v5"
+SCORER_ADAPTER_SCHEMA = "global-01.lazy-coverage.v6"
 PROGRAM_TRACK = "GLOBAL-01"
 PROFILE = "global_lazy_coverage_v1"
 DISPOSITIONS = {
@@ -110,6 +111,7 @@ def validate_config(value: object) -> dict[str, Any]:
         OUTPUT_RECOVERY_SCHEMA: "apnews-global-lazy-coverage-v3",
         COMPACT_RECOVERY_SCHEMA: "apnews-global-lazy-coverage-v4",
         SCORER_OUTPUT_SCHEMA: "apnews-global-lazy-coverage-v5",
+        SCORER_ADAPTER_SCHEMA: "apnews-global-lazy-coverage-v6",
     }.get(schema)
     if (
         expected_label is None
@@ -215,7 +217,12 @@ def validate_config(value: object) -> dict[str, Any]:
     reduce_max_tokens = (
         4096
         if schema
-        in {OUTPUT_RECOVERY_SCHEMA, COMPACT_RECOVERY_SCHEMA, SCORER_OUTPUT_SCHEMA}
+        in {
+            OUTPUT_RECOVERY_SCHEMA,
+            COMPACT_RECOVERY_SCHEMA,
+            SCORER_OUTPUT_SCHEMA,
+            SCORER_ADAPTER_SCHEMA,
+        }
         else 1500
     )
     if not isinstance(control, dict) or control != {
@@ -277,9 +284,9 @@ def validate_config(value: object) -> dict[str, Any]:
         raise Global01LazyError("assertion scorer model drifted")
     if models["assertion_scorer"].get("source_excerpt_max_chars") != 1600:
         raise Global01LazyError("assertion scorer excerpt boundary drifted")
-    if schema == SCORER_OUTPUT_SCHEMA and models["assertion_scorer"].get(
-        "max_tokens"
-    ) != 2048:
+    if schema in {SCORER_OUTPUT_SCHEMA, SCORER_ADAPTER_SCHEMA} and models[
+        "assertion_scorer"
+    ].get("max_tokens") != 2048:
         raise Global01LazyError("v5 assertion scorer output ceiling drifted")
 
     execution = root["execution"]
@@ -299,6 +306,7 @@ def validate_config(value: object) -> dict[str, Any]:
         OUTPUT_RECOVERY_SCHEMA,
         COMPACT_RECOVERY_SCHEMA,
         SCORER_OUTPUT_SCHEMA,
+        SCORER_ADAPTER_SCHEMA,
     } and execution.get(
         "map_output_adapter"
     ) != (
@@ -309,22 +317,31 @@ def validate_config(value: object) -> dict[str, Any]:
         OUTPUT_RECOVERY_SCHEMA,
         COMPACT_RECOVERY_SCHEMA,
         SCORER_OUTPUT_SCHEMA,
+        SCORER_ADAPTER_SCHEMA,
     } and (
         execution.get("generator_max_output_tokens") != 393216
         or execution.get("reduction_max_tokens_basis")
         != "DeepSeek docs, live route, and observed truncation (v1)"
     ):
         raise Global01LazyError("v3 output-limit basis drifted")
-    if schema in {COMPACT_RECOVERY_SCHEMA, SCORER_OUTPUT_SCHEMA} and execution.get(
-        "reduce_output_adapter"
-    ) != "compact_refs_with_canonical_restore_v1":
+    if schema in {
+        COMPACT_RECOVERY_SCHEMA,
+        SCORER_OUTPUT_SCHEMA,
+        SCORER_ADAPTER_SCHEMA,
+    } and execution.get("reduce_output_adapter") != (
+        "compact_refs_with_canonical_restore_v1"
+    ):
         raise Global01LazyError("v4 reduction output adapter drifted")
-    if schema == SCORER_OUTPUT_SCHEMA and (
+    if schema in {SCORER_OUTPUT_SCHEMA, SCORER_ADAPTER_SCHEMA} and (
         execution.get("scorer_max_output_tokens") != 65536
         or execution.get("scorer_max_tokens_basis")
         != "Anthropic model docs and observed truncation (v1)"
     ):
         raise Global01LazyError("v5 scorer output-limit basis drifted")
+    if schema == SCORER_ADAPTER_SCHEMA and execution.get(
+        "scorer_output_adapter"
+    ) != "required_fields_projection_v1":
+        raise Global01LazyError("v6 scorer output adapter drifted")
 
     pricing = root["pricing"]
     if (

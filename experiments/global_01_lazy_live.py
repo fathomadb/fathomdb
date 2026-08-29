@@ -24,7 +24,7 @@ from experiments.fathomdb_test_setup import prepare_test_database
 
 CHECKPOINT_SCHEMA = "global-01.lazy-checkpoint.v1"
 RESULT_SCHEMA = "global-01.lazy-result.v1"
-SEMANTIC_REVISION = "v9-compact-reduction"
+SEMANTIC_REVISION = "v10-scorer-projection"
 METRICS = ("comprehensiveness", "diversity", "empowerment", "directness")
 HEADLINE_METRICS = METRICS[:3]
 OUTPUT_LIMIT_ERROR = "response reached the output token limit"
@@ -375,12 +375,11 @@ def validate_assertion_score(
     value: object, *, answer: Mapping[str, Any], assertion_count: int
 ) -> dict[str, Any]:
     """Require valid assertion indices and exactly one score per final claim."""
-    if not isinstance(value, dict) or set(value) != {
-        "passed_assertion_indices",
-        "claim_support",
-    }:
+    required = {"passed_assertion_indices", "claim_support"}
+    if not isinstance(value, dict) or not required.issubset(value):
         raise Global01LazyLiveError("assertion score shape is invalid")
-    indices = value["passed_assertion_indices"]
+    score = {key: value[key] for key in required}
+    indices = score["passed_assertion_indices"]
     if (
         not isinstance(indices, list)
         or any(not isinstance(index, int) for index in indices)
@@ -388,7 +387,7 @@ def validate_assertion_score(
         or any(index < 0 or index >= assertion_count for index in indices)
     ):
         raise Global01LazyLiveError("assertion score indices are invalid")
-    support = value["claim_support"]
+    support = score["claim_support"]
     final_ids = {claim["claim_id"] for claim in answer["claims"]}
     if not isinstance(support, list):
         raise Global01LazyLiveError("claim support is not a list")
@@ -404,7 +403,7 @@ def validate_assertion_score(
         support_ids.add(row["claim_id"])
     if support_ids != final_ids:
         raise Global01LazyLiveError("claim support does not cover all final claims")
-    return json.loads(json.dumps(value))
+    return json.loads(json.dumps(score))
 
 
 def _pairwise_prompt(question: str, answer_a: str, answer_b: str) -> str:
@@ -881,7 +880,8 @@ def _score_prompt(
         f"{json.dumps(assertions, separators=(',', ':'))}\n\nANSWER:\n"
         f"{json.dumps(answer, separators=(',', ':'))}\n\nCITED SOURCES:\n"
         f"{_source_context(excerpts)}\n\n"
-        'Return JSON only: {"passed_assertion_indices":[0],"claim_support":'
+        'Return JSON only with exactly these two top-level keys and no analysis: '
+        '{"passed_assertion_indices":[0],"claim_support":'
         '[{"claim_id":"final-1","supported":true}]}.'
     )
 

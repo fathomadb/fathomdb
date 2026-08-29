@@ -16,7 +16,9 @@ The correction keeps the measurement contract unchanged. Semantic retries now
 append only the content-free validator error to the original prompt and ask
 for corrected JSON. Invalid response content is neither persisted in metadata
 nor replayed. A new semantic revision and fresh artifact root prevent reuse of
-the failed cells.
+the failed cells. The post-correction
+[zero-spend preflight](../../experiments/runs/global-01-lazy-preflight-20260829T2053Z-483e11ad/record.json)
+passed.
 
 ## Records
 

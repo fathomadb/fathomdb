@@ -71,6 +71,12 @@ additional worst-case output reservation is $1.321 at the registered $5/M
 output price. The revised full-run projection is $11.72 under the unchanged
 $12 hard cap.
 
+V5 binds that ceiling in the assertion-scorer configuration. Its
+[authorized zero-spend preflight](../../experiments/runs/global-01-lazy-preflight-20260829T2142Z-da326e0b/record.json)
+passed against both live aliases and the isolated FathomDB 0.8.23 runtime under
+configuration SHA-256
+`da326e0b857c3be7f2b0d450b2ec1b9931c25f006346df851eb39c6032da56f3`.
+
 ## Sources
 
 - [DeepSeek models and pricing](https://api-docs.deepseek.com/quick_start/pricing)

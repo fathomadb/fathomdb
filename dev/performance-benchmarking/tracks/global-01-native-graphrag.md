@@ -111,7 +111,8 @@ The run then stopped before held-out work because all three assertion-scorer
 attempts reached its hardcoded 700-token ceiling. The routed Claude Haiku 4.5
 model supports 64,000 output tokens. Register a 2,048-token scorer ceiling,
 which raises the conservative full-run projection to $11.72 under the existing
-$12 cap, then use a fresh preflight and artifact root.
+$12 cap. The [v5 preflight](../../../experiments/runs/global-01-lazy-preflight-20260829T2142Z-da326e0b/record.json)
+passed at zero spend; run fresh A/A and witness from a new root.
 
 ## Stop
 

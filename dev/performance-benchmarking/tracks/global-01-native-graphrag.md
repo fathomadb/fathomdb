@@ -28,5 +28,7 @@ valid result; do not tune indefinitely.
 The [first-run result](../2026-08-29-global-01-first-run-result.md) is split.
 Native GraphRAG led directionally on comprehensiveness, diversity, and
 empowerment; source-linked map-reduce led on directness. Reopen only for a
-preregistered hierarchical-summary or graph treatment prompted by the measured
-coverage gap.
+preregistered treatment prompted by the measured coverage gap. The
+[performance-gap analysis and falsifiable improvement hypothesis](../2026-08-29-global-01-improvement-hypothesis.md)
+captures the proposed `global_lazy_coverage_v1` treatment and its rejection
+boundary; it is not yet implemented or accepted.

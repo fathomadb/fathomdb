@@ -1154,6 +1154,51 @@ def acceptance_verdict(boundaries: Mapping[str, bool]) -> str:
     return "accept" if boundaries and all(boundaries.values()) else "reject"
 
 
+def invalid_witness_summary(
+    state: LazyRunState,
+    *,
+    witness_question_ids: set[str],
+    failure: Global01LazyLiveError,
+) -> dict[str, Any]:
+    """Build a content-free receipt for a stopped, decision-ineligible witness."""
+    answer_cells = [
+        cell
+        for cell in state.cells
+        if cell.startswith("answers/") and len(cell.split("/")) == 3
+    ]
+    witness_answers = [
+        cell for cell in answer_cells if cell.split("/")[2] in witness_question_ids
+    ]
+    heldout_answers = [
+        cell for cell in answer_cells if cell.split("/")[2] not in witness_question_ids
+    ]
+    failure_category = (
+        "semantic_retry_budget_exhausted"
+        if str(failure).startswith("semantic retry budget exhausted")
+        else "witness_execution_contract_failed"
+    )
+    return {
+        "schema_version": "global-01.lazy-witness-invalid.v1",
+        "program_track": "GLOBAL-01",
+        "config_sha256": state.config_sha256,
+        "state": "invalid_witness",
+        "decision_eligible": False,
+        "failure_category": failure_category,
+        "aa_passed": bool(state.cells.get("gate/aa", {}).get("passed")),
+        "witness_question_count": len(witness_question_ids),
+        "completed_witness_answers": len(witness_answers),
+        "heldout_answers": len(heldout_answers),
+        "completed_map_cells": sum(
+            cell.startswith("maps/") for cell in state.cells
+        ),
+        "invalid_semantic_submissions": sum(
+            cell.startswith("invalid/") for cell in state.cells
+        ),
+        "cost_usd": state.cost_usd,
+        "cost_cap_usd": state.cost_cap_usd,
+    }
+
+
 def _acceptance_summary(
     config: Mapping[str, Any],
     summary: Mapping[str, Any],
@@ -1275,6 +1320,81 @@ def _register_result_receipt(
     return run_id, run_dir
 
 
+def _register_invalid_witness_receipt(
+    *,
+    config: Mapping[str, Any],
+    config_path: Path,
+    state: LazyRunState,
+    summary: Mapping[str, Any],
+    summary_path: Path,
+    checkpoint_path: Path,
+    base_dir: Path,
+) -> tuple[str, Path]:
+    run_id, run_dir = _lib.write_record(
+        "global-01-lazy-witness",
+        ts=datetime.fromisoformat(state.started_at),
+        config_obj=config,
+        metrics=summary,
+        verdict="invalid_witness",
+        read=(
+            "GLOBAL-01 A/A passed, but the development witness exhausted its "
+            "semantic retry boundary before any complete answer or held-out "
+            "execution; no quality decision is eligible."
+        ),
+        code=_lib.git_info(),
+        corpus={
+            "source": "AP News BenchmarkQED",
+            "manifest_sha256": config["corpus"]["archive_sha256"],
+            "datasets": [
+                {
+                    "name": "AP News BenchmarkQED",
+                    "documents": config["corpus"]["article_count"],
+                    "questions": summary["witness_question_count"],
+                    "selection_sha256": config["questions"]["split"][
+                        "witness_selection_sha256"
+                    ],
+                }
+            ],
+        },
+        seeds={"split": config["questions"]["split"]["seed"]},
+        env=_lib.env_info(
+            key_deps={
+                "fathomdb": config["execution"]["fathomdb_version"],
+                "generator": config["models"]["generator"]["model"],
+                "judge": config["models"]["pairwise_judge"]["model"],
+            }
+        ),
+        cost_usd=float(summary["cost_usd"]),
+        headline={
+            "program_track": "GLOBAL-01",
+            "status": "invalid_witness",
+            "decision_eligible": False,
+        },
+        n=int(summary["completed_witness_answers"]),
+        config_path=str(config_path),
+        tests=[
+            "tests/experiments/test_global_01_lazy.py",
+            "tests/experiments/test_global_01_lazy_live.py",
+        ],
+        artifacts=[
+            {
+                "path": str(summary_path),
+                "sha256": global_01_lazy.file_sha256(summary_path),
+            },
+            {
+                "path": str(checkpoint_path),
+                "sha256": global_01_lazy.file_sha256(checkpoint_path),
+            },
+        ],
+        open_questions=[],
+        base_dir=base_dir,
+    )
+    _lib.regen_index_md(
+        index_path=base_dir / "index.jsonl", md_path=base_dir / "INDEX.md"
+    )
+    return run_id, run_dir
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("phase", choices=("aa", "witness", "heldout"))
@@ -1328,16 +1448,49 @@ def main() -> int:
     try:
         view = ReadView()
         witness = [row for row in private_manifest["questions"] if row["witness"]]
-        witness_required = _run_questions(
-            questions=witness,
-            engine=engine,
-            view=view,
-            client=client,
-            config=config,
-            documents=documents,
-            state=state,
-            checkpoint_path=checkpoint_path,
-        )
+        try:
+            witness_required = _run_questions(
+                questions=witness,
+                engine=engine,
+                view=view,
+                client=client,
+                config=config,
+                documents=documents,
+                state=state,
+                checkpoint_path=checkpoint_path,
+            )
+        except Global01LazyLiveError as exc:
+            invalid = invalid_witness_summary(
+                state,
+                witness_question_ids={row["question_id"] for row in witness},
+                failure=exc,
+            )
+            invalid_path = args.artifact_root / "witness-invalid.json"
+            invalid_path.write_text(
+                json.dumps(invalid, indent=2) + "\n", encoding="utf-8"
+            )
+            invalid_path.chmod(0o600)
+            run_id, run_dir = _register_invalid_witness_receipt(
+                config=config,
+                config_path=args.config,
+                state=state,
+                summary=invalid,
+                summary_path=invalid_path,
+                checkpoint_path=checkpoint_path,
+                base_dir=args.base_dir,
+            )
+            print(
+                json.dumps(
+                    {
+                        "state": "invalid_witness",
+                        "decision_eligible": False,
+                        "cost_usd": state.cost_usd,
+                        "run_id": run_id,
+                        "run_dir": str(run_dir),
+                    }
+                )
+            )
+            return 2
         assert_cells_complete(state, witness_required)
         if "gate/witness" not in state.cells:
             state.complete(

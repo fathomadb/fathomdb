@@ -260,6 +260,31 @@ def test_completeness_guard_blocks_partial_verdict():
         global_01_lazy_live.assert_cells_complete(state, ["one", "two"])
 
 
+def test_invalid_witness_summary_is_not_decision_eligible():
+    state = global_01_lazy_live.LazyRunState.new("c" * 64, 12.0)
+    state.complete("gate/aa", {"passed": True}, cost_usd=0.1)
+    state.complete("maps/control/q1/0", {"value": {"claims": []}})
+    state.complete(
+        "invalid/v4-cap-surplus-claims/maps/control/q1/1/0",
+        {"usage": {"prompt_tokens": 1, "completion_tokens": 1}},
+        cost_usd=0.01,
+    )
+
+    summary = global_01_lazy_live.invalid_witness_summary(
+        state,
+        witness_question_ids={"q1", "q2", "q3"},
+        failure=global_01_lazy_live.Global01LazyLiveError(
+            "semantic retry budget exhausted for maps/control/q1/1"
+        ),
+    )
+
+    assert summary["state"] == "invalid_witness"
+    assert summary["decision_eligible"] is False
+    assert summary["failure_category"] == "semantic_retry_budget_exhausted"
+    assert summary["completed_witness_answers"] == 0
+    assert summary["heldout_answers"] == 0
+
+
 def test_paid_runner_requires_matching_safe_preflight(tmp_path: Path):
     config = json.loads(
         Path(

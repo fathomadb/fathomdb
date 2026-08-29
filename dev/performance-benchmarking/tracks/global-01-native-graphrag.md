@@ -1,6 +1,6 @@
 # GLOBAL-01 — Native GraphRAG comparison
 
-**Status:** output-limit retry correction ready for zero-spend preflight.
+**Status:** output-limit retry preflight passed; witness resume next.
 
 ## Decision
 
@@ -67,6 +67,9 @@ its reduction attempts each reached the exact output ceiling and produced
 truncated JSON. Output-limit-aware feedback is now implemented under a new
 semantic revision. After zero-spend binding, resume the bound checkpoint and
 retain its completed A/A and maps.
+
+The [output-limit correction preflight](../../../experiments/runs/global-01-lazy-preflight-20260829T2059Z-483e11ad/record.json)
+passed at zero spend.
 
 ## Stop
 

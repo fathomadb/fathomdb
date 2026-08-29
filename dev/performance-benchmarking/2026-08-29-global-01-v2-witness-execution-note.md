@@ -33,6 +33,9 @@ complete JSON with shorter prose and all schema entries retained. A new
 semantic revision isolates these attempts; the bound checkpoint may resume its
 completed A/A and map cells after a fresh zero-spend code binding.
 
+That [binding passed](../../experiments/runs/global-01-lazy-preflight-20260829T2059Z-483e11ad/record.json)
+at zero spend.
+
 ## Records
 
 - [Invalid v2 witness receipt](../../experiments/runs/global-01-lazy-witness-20260829T2047Z-483e11ad/record.json)

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -370,6 +370,33 @@ def test_semantic_retry_identifies_output_limit_and_requests_shorter_json(
     assert "response reached the output token limit" in client.prompts[1]
     assert "shorten prose" in client.prompts[1]
     assert "truncated" not in client.prompts[1]
+
+
+def test_resumed_invalid_witness_uses_a_new_receipt_timestamp(tmp_path: Path):
+    config = {"contract": "same"}
+    state = global_01_lazy_live.LazyRunState.new("a" * 64, 12.0)
+    started = datetime.fromisoformat(state.started_at)
+    existing_id = global_01_lazy_live._lib.make_run_id(
+        "global-01-lazy-witness",
+        started,
+        global_01_lazy_live._lib.config_sha256(config),
+    )
+    (tmp_path / "runs" / existing_id).mkdir(parents=True)
+
+    selected = global_01_lazy_live._invalid_receipt_timestamp(
+        config,
+        state,
+        tmp_path,
+        now=started + timedelta(minutes=1),
+    )
+
+    assert selected != started
+    selected_id = global_01_lazy_live._lib.make_run_id(
+        "global-01-lazy-witness",
+        selected,
+        global_01_lazy_live._lib.config_sha256(config),
+    )
+    assert not (tmp_path / "runs" / selected_id).exists()
 
 
 def test_assertion_score_requires_all_final_claims_and_valid_indices():

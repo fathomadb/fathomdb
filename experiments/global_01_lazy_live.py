@@ -13,7 +13,7 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -24,7 +24,7 @@ from experiments.fathomdb_test_setup import prepare_test_database
 
 CHECKPOINT_SCHEMA = "global-01.lazy-checkpoint.v1"
 RESULT_SCHEMA = "global-01.lazy-result.v1"
-SEMANTIC_REVISION = "v7-output-limit-feedback"
+SEMANTIC_REVISION = "v8-output-limit-4096"
 METRICS = ("comprehensiveness", "diversity", "empowerment", "directness")
 HEADLINE_METRICS = METRICS[:3]
 OUTPUT_LIMIT_ERROR = "response reached the output token limit"
@@ -183,7 +183,7 @@ class AirlockClient:
         max_tokens: int,
         temperature: float,
         remaining_cost_usd: float,
-    ) -> tuple[str, dict[str, int], float, float]:
+    ) -> tuple[str, dict[str, Any], float, float]:
         reservation = _maximum_request_cost(
             self.config, model, prompt, max_tokens
         )
@@ -217,7 +217,8 @@ class AirlockClient:
             try:
                 with urllib.request.urlopen(request, timeout=330) as response:
                     payload = json.load(response)
-                content = payload["choices"][0]["message"]["content"] or ""
+                choice = payload["choices"][0]
+                content = choice["message"]["content"] or ""
                 usage = {
                     "prompt_tokens": int(
                         payload.get("usage", {}).get("prompt_tokens", 0)
@@ -225,6 +226,7 @@ class AirlockClient:
                     "completion_tokens": int(
                         payload.get("usage", {}).get("completion_tokens", 0)
                     ),
+                    "finish_reason": str(choice.get("finish_reason") or ""),
                 }
                 if not content.strip() or min(usage.values()) <= 0:
                     raise Global01LazyLiveError(
@@ -470,12 +472,16 @@ def _complete_json_cell(
             parsed = validator(raw)
         except (
             Global01LazyLiveError,
+            global_01_lazy.Global01LazyError,
             json.JSONDecodeError,
             KeyError,
             TypeError,
         ) as exc:
             failure_metadata = semantic_failure_metadata(raw, exc)
-            if usage["completion_tokens"] >= max_tokens:
+            if (
+                usage.get("finish_reason") == "length"
+                or usage["completion_tokens"] >= max_tokens
+            ):
                 failure_metadata["error"] = OUTPUT_LIMIT_ERROR
             state.complete(
                 invalid,
@@ -1409,9 +1415,10 @@ def _register_invalid_witness_receipt(
     checkpoint_path: Path,
     base_dir: Path,
 ) -> tuple[str, Path]:
+    receipt_timestamp = _invalid_receipt_timestamp(config, state, base_dir)
     run_id, run_dir = _lib.write_record(
         "global-01-lazy-witness",
-        ts=datetime.fromisoformat(state.started_at),
+        ts=receipt_timestamp,
         config_obj=config,
         metrics=summary,
         verdict="invalid_witness",
@@ -1472,6 +1479,30 @@ def _register_invalid_witness_receipt(
         index_path=base_dir / "index.jsonl", md_path=base_dir / "INDEX.md"
     )
     return run_id, run_dir
+
+
+def _invalid_receipt_timestamp(
+    config: Mapping[str, Any],
+    state: LazyRunState,
+    base_dir: Path,
+    *,
+    now: datetime | None = None,
+) -> datetime:
+    """Select a new receipt ID on resume without rewriting prior evidence."""
+    experiment = "global-01-lazy-witness"
+    config_sha = _lib.config_sha256(config)
+    started = datetime.fromisoformat(state.started_at)
+    started_id = _lib.make_run_id(experiment, started, config_sha)
+    if not (base_dir / "runs" / started_id).exists():
+        return started
+    candidate = (now or datetime.now(timezone.utc)).replace(second=0, microsecond=0)
+    while (
+        base_dir
+        / "runs"
+        / _lib.make_run_id(experiment, candidate, config_sha)
+    ).exists():
+        candidate += timedelta(minutes=1)
+    return candidate
 
 
 def main() -> int:

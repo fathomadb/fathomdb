@@ -36,6 +36,13 @@ completed A/A and map cells after a fresh zero-spend code binding.
 That [binding passed](../../experiments/runs/global-01-lazy-preflight-20260829T2059Z-483e11ad/record.json)
 at zero spend.
 
+The bound resume classified all three new failures as output-limit failures,
+but explicit shortening feedback still produced exactly 1,500 tokens. Spend
+reached $0.21801604 with no complete witness answer and no held-out execution.
+The [model-limit review](2026-08-29-global-01-output-limit-research.md) closes v2
+and moves the unchanged matched comparison to a 4,096-token v3 reduction
+ceiling.
+
 ## Records
 
 - [Invalid v2 witness receipt](../../experiments/runs/global-01-lazy-witness-20260829T2047Z-483e11ad/record.json)

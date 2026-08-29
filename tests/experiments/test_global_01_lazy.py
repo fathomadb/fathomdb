@@ -20,6 +20,9 @@ CONFIG_PATH = Path(
 V2_CONFIG_PATH = Path(
     "experiments/configs/global-01/apnews-global-lazy-coverage.v2.json"
 )
+V3_CONFIG_PATH = Path(
+    "experiments/configs/global-01/apnews-global-lazy-coverage.v3.json"
+)
 
 
 def _config() -> dict[str, object]:
@@ -77,6 +80,24 @@ def test_v2_config_registers_recovery_adapter_and_bound_authorization():
         "state": "approved",
         "approved_by": "coreyt",
         "approved_at": "2026-08-29T20:43:12Z",
+        "cost_cap_usd": 12.0,
+    }
+    global_01_lazy.assert_execution_authorized(config)
+
+
+def test_v3_config_uses_documented_output_headroom_under_the_bound_cap():
+    config = global_01_lazy.validate_config(
+        json.loads(V3_CONFIG_PATH.read_text(encoding="utf-8"))
+    )
+
+    assert config["schema_version"] == "global-01.lazy-coverage.v3"
+    assert config["profiles"]["control"]["reduce_max_tokens"] == 4096
+    assert config["profiles"]["treatment"]["reduce_max_tokens"] == 4096
+    assert config["pricing"]["projected_total_usd"] == 10.4
+    assert config["approval"] == {
+        "state": "approved",
+        "approved_by": "coreyt",
+        "approved_at": "2026-08-29T21:09:07Z",
         "cost_cap_usd": 12.0,
     }
     global_01_lazy.assert_execution_authorized(config)

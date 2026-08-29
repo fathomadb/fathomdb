@@ -98,7 +98,7 @@ receipts, not inferred from a branch name or narration.
 | SCALE-02 | complete | F-17 advisory scale envelope: what measured local-first range is supportable for the selected projection profile? | The original fixed-policy A0 envelope remains 17,272. The rank-boundary off-shoot passes through 50k with exact retrieval equivalence. HITL `seq-267` approved `stream_default`; the production FTS path is landed and code-verified. | [track plan](tracks/scale-02-local-first-envelope.md) · [original result](2026-08-22-scale-02-fts-followup-result.md) · [scale extension](2026-08-22-scale-02-scale-extension-result.md) · [rank-boundary result](2026-08-22-scale-02-rank-boundary-result.md) · [implementation note](2026-08-23-scale-02-stream-default-implementation.md) |
 | LATENT-01 | P3 | Long-context/late-chunking feasibility: does a token-output, long-context embedder address a diagnosed cross-window discourse failure at acceptable cost? | Parked until LOCOMO-01/PARENT-01 diagnose that failure. Requires a model/interface preflight, labelled subset, and separate quality-and-cost contract; it is not a stride sweep. | [track plan](tracks/latent-01-late-chunking-feasibility.md) |
 | GRAPH-01 | P3 | FathomDB graph-projection self-characterization: do high-confidence, provenance-backed graph projections improve multi-hop retrieval enough to justify extraction and maintenance? | Planned; requires a bounded graph design and supporting-evidence protocol before native graph comparison is prioritized. | [track plan](tracks/graph-01-projection-characterization.md) |
-| GLOBAL-01 | complete, limited | Native GraphRAG comparison: reproduce and compare global sensemaking fairly. | The native witness passed and the matched result is split: GraphRAG led directionally on coverage-oriented measures while source-linked map-reduce led on directness. Reopen only for a preregistered hierarchical-summary or graph treatment. | [track plan](tracks/global-01-native-graphrag.md) · [result](2026-08-29-global-01-first-run-result.md) · [receipt](../../experiments/runs/global-01-native-comparison-20260829T1613Z-40685e82/record.json) |
+| GLOBAL-01 | P3 | Global sensemaking: can a bounded source-linked coverage treatment close the first run's coverage gap without losing directness, attribution, lifecycle fidelity, or acceptable cost? | Planned. The first native comparison is complete and split. Its measured synthesis failure supports planning `global_lazy_coverage_v1`; its contract and input preflight precede implementation, and runner preflight and authorization precede paid execution. | [track plan](tracks/global-01-native-graphrag.md) · [hypothesis](2026-08-29-global-01-improvement-hypothesis.md) · [first result](2026-08-29-global-01-first-run-result.md) · [first receipt](../../experiments/runs/global-01-native-comparison-20260829T1613Z-40685e82/record.json) |
 | REASON-01 | parked | Native HippoRAG-2 comparison: cross-check multi-hop retrieval and QA. | Parked pending GRAPH-01 relevance, Python 3.10, official credential, and official-corpus reconciliation. | [track plan](tracks/reason-01-native-hipporag2.md) |
 | SEARCH-01 | complete | IR-C FTS population: establish a FathomDB-only descriptive retrieval baseline. | Complete historical baseline; not a competitor, answer-quality, lifecycle, or latency claim. | [track plan](tracks/search-01-ir-c-baseline.md) |
 
@@ -146,7 +146,11 @@ remains blocked on a reviewed manifest and adapter. EXTRACT-01 is complete for
 its limited knowledge-update claim and retains raw A0 because native
 value-changing extracted facts were not consolidated. LATENT-01 and GRAPH-01
 start only from a diagnosed failure.
-GLOBAL-01 and REASON-01 retain their independent native-run prerequisites.
+GLOBAL-01 has a named synthesis failure and an eligible source-linked
+treatment. Its next work is the dated `global_lazy_coverage_v1` measurement
+contract, followed by zero-spend preflight and implementation, then a return
+for execution authorization before any model-backed witness. REASON-01 retains
+its independent native-run prerequisites.
 
 ## Track organization
 

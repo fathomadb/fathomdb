@@ -425,6 +425,25 @@ def test_semantic_retry_supplies_validation_feedback_without_response_content(
     assert "Return a corrected JSON object" in client.prompts[1]
 
 
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (
+            "mapped claim lacks canonical sources",
+            "Omit any claim that cannot cite at least one supplied SOURCE_REF",
+        ),
+        (
+            "mapped claim text exceeds word limit",
+            "Shorten or split every claim to at most 30 whitespace-separated words",
+        ),
+    ],
+)
+def test_semantic_retry_adds_targeted_content_free_correction(error, expected):
+    correction = global_01_lazy_live.validation_correction(error)
+
+    assert expected in correction
+
+
 def test_semantic_retry_identifies_output_limit_and_requests_shorter_json(
     tmp_path: Path,
 ):

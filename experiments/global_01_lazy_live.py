@@ -24,7 +24,7 @@ from experiments.fathomdb_test_setup import prepare_test_database
 
 CHECKPOINT_SCHEMA = "global-01.lazy-checkpoint.v1"
 RESULT_SCHEMA = "global-01.lazy-result.v1"
-SEMANTIC_REVISION = "v10-scorer-projection"
+SEMANTIC_REVISION = "v11-targeted-correction"
 METRICS = ("comprehensiveness", "diversity", "empowerment", "directness")
 HEADLINE_METRICS = METRICS[:3]
 OUTPUT_LIMIT_ERROR = "response reached the output token limit"
@@ -462,6 +462,7 @@ def _complete_json_cell(
                     " Fit the complete JSON within the output limit: shorten prose "
                     "while retaining every required schema entry."
                 )
+            attempt_prompt += validation_correction(validation_error)
         response, usage, cost, latency_ms = client.complete(
             model,
             attempt_prompt,
@@ -509,6 +510,25 @@ def _complete_json_cell(
         state.save(checkpoint_path)
         return parsed
     raise Global01LazyLiveError(f"semantic retry budget exhausted for {cell}")
+
+
+def validation_correction(error: str) -> str:
+    """Return content-free instructions for known validation failures."""
+    if error in {
+        "mapped claim lacks canonical sources",
+        "mapped claim source binding drifted",
+    }:
+        return (
+            " Every retained claim must cite at least one distinct supplied "
+            "SOURCE_REF. Omit any claim that cannot cite at least one supplied "
+            "SOURCE_REF; never invent or leave an empty source_refs list."
+        )
+    if error == "mapped claim text exceeds word limit":
+        return (
+            " Shorten or split every claim to at most 30 whitespace-separated "
+            "words while preserving its supplied SOURCE_REF citations."
+        )
+    return ""
 
 
 def semantic_failure_metadata(

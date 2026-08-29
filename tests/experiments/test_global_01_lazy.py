@@ -32,6 +32,9 @@ V5_CONFIG_PATH = Path(
 V6_CONFIG_PATH = Path(
     "experiments/configs/global-01/apnews-global-lazy-coverage.v6.json"
 )
+V7_CONFIG_PATH = Path(
+    "experiments/configs/global-01/apnews-global-lazy-coverage.v7.json"
+)
 
 
 def _config() -> dict[str, object]:
@@ -155,6 +158,19 @@ def test_v6_config_binds_fail_closed_scorer_projection():
         "required_fields_projection_v1"
     )
     assert config["models"]["assertion_scorer"]["max_tokens"] == 2048
+    assert config["pricing"]["projected_total_usd"] == 11.72
+    global_01_lazy.assert_execution_authorized(config)
+
+
+def test_v7_config_binds_targeted_validation_corrections():
+    config = global_01_lazy.validate_config(
+        json.loads(V7_CONFIG_PATH.read_text(encoding="utf-8"))
+    )
+
+    assert config["schema_version"] == "global-01.lazy-coverage.v7"
+    assert config["execution"]["semantic_retry_adapter"] == (
+        "targeted_content_free_v1"
+    )
     assert config["pricing"]["projected_total_usd"] == 11.72
     global_01_lazy.assert_execution_authorized(config)
 

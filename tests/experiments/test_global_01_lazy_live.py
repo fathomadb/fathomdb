@@ -324,6 +324,54 @@ def test_semantic_retry_supplies_validation_feedback_without_response_content(
     assert "Return a corrected JSON object" in client.prompts[1]
 
 
+def test_semantic_retry_identifies_output_limit_and_requests_shorter_json(
+    tmp_path: Path,
+):
+    class FakeClient:
+        def __init__(self):
+            self.prompts = []
+            self.responses = iter(
+                [
+                    (
+                        '{"answer":"truncated',
+                        {"prompt_tokens": 10, "completion_tokens": 300},
+                        0.01,
+                        1.0,
+                    ),
+                    (
+                        '{"answer":"complete"}',
+                        {"prompt_tokens": 10, "completion_tokens": 20},
+                        0.01,
+                        1.0,
+                    ),
+                ]
+            )
+
+        def complete(self, _model, prompt, **_kwargs):
+            self.prompts.append(prompt)
+            return next(self.responses)
+
+    client = FakeClient()
+    state = global_01_lazy_live.LazyRunState.new("f" * 64, 1.0)
+
+    value = global_01_lazy_live._complete_json_cell(
+        client,
+        state=state,
+        checkpoint_path=tmp_path / "checkpoint.json",
+        cell="reductions/control/q",
+        model="model",
+        prompt="reduce task",
+        max_tokens=300,
+        temperature=0.0,
+        validator=lambda raw: raw,
+    )
+
+    assert value == {"answer": "complete"}
+    assert "response reached the output token limit" in client.prompts[1]
+    assert "shorten prose" in client.prompts[1]
+    assert "truncated" not in client.prompts[1]
+
+
 def test_assertion_score_requires_all_final_claims_and_valid_indices():
     answer = {
         "claims": [

@@ -20,8 +20,22 @@ the failed cells. The post-correction
 [zero-spend preflight](../../experiments/runs/global-01-lazy-preflight-20260829T2053Z-483e11ad/record.json)
 passed.
 
+On the fresh retry, the map correction worked: one over-limit map response
+self-corrected, and all ten control map cells completed. The control reduction
+then reached exactly 1,500 completion tokens on all three attempts and returned
+truncated JSON. Execution stopped at $0.18734320 with no complete answer and no
+held-out work. The generic JSON parse position did not tell the model that it
+had to shorten its response.
+
+The second correction classifies a parse failure at the exact completion-token
+ceiling as an output-limit failure. Its content-free retry instruction requires
+complete JSON with shorter prose and all schema entries retained. A new
+semantic revision isolates these attempts; the bound checkpoint may resume its
+completed A/A and map cells after a fresh zero-spend code binding.
+
 ## Records
 
 - [Invalid v2 witness receipt](../../experiments/runs/global-01-lazy-witness-20260829T2047Z-483e11ad/record.json)
+- [Invalid post-correction witness receipt](../../experiments/runs/global-01-lazy-witness-20260829T2054Z-483e11ad/record.json)
 - [Authorized v2 preflight receipt](../../experiments/runs/global-01-lazy-preflight-20260829T2045Z-483e11ad/record.json)
 - [Recovery contract](2026-08-29-global-01-v2-recovery-contract.md)

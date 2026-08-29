@@ -1,6 +1,6 @@
 # GLOBAL-01 — Native GraphRAG comparison
 
-**Status:** v2 semantic-retry correction preflight passed; witness next.
+**Status:** output-limit retry correction ready for zero-spend preflight.
 
 ## Decision
 
@@ -58,9 +58,15 @@ hard cap. Held-out execution remains conditional on a valid witness.
 Fresh A/A passed, but the v2 witness stopped after deterministic retries
 repeated over-limit claims without validation feedback. The
 [v2 execution note](../2026-08-29-global-01-v2-witness-execution-note.md)
-records the invalid receipt and content-free retry correction. Repeat preflight
-passed in the [fresh receipt](../../../experiments/runs/global-01-lazy-preflight-20260829T2053Z-483e11ad/record.json).
-Use a fresh witness root; do not reuse the stopped cells.
+records the invalid receipt and content-free retry correction. The repeat
+preflight passed in the [fresh receipt](../../../experiments/runs/global-01-lazy-preflight-20260829T2053Z-483e11ad/record.json),
+and the next attempt used a fresh witness root.
+
+That fresh run completed all control maps after one validation-aware retry, but
+its reduction attempts each reached the exact output ceiling and produced
+truncated JSON. Output-limit-aware feedback is now implemented under a new
+semantic revision. After zero-spend binding, resume the bound checkpoint and
+retain its completed A/A and maps.
 
 ## Stop
 

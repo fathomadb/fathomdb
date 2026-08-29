@@ -24,9 +24,10 @@ from experiments.fathomdb_test_setup import prepare_test_database
 
 CHECKPOINT_SCHEMA = "global-01.lazy-checkpoint.v1"
 RESULT_SCHEMA = "global-01.lazy-result.v1"
-SEMANTIC_REVISION = "v6-validation-feedback"
+SEMANTIC_REVISION = "v7-output-limit-feedback"
 METRICS = ("comprehensiveness", "diversity", "empowerment", "directness")
 HEADLINE_METRICS = METRICS[:3]
+OUTPUT_LIMIT_ERROR = "response reached the output token limit"
 _JSON_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE)
 
 
@@ -451,6 +452,11 @@ def _complete_json_cell(
                 f"{validation_error}. Return a corrected JSON object that satisfies "
                 "the original instructions. Do not repeat the invalid response."
             )
+            if validation_error == OUTPUT_LIMIT_ERROR:
+                attempt_prompt += (
+                    " Fit the complete JSON within the output limit: shorten prose "
+                    "while retaining every required schema entry."
+                )
         response, usage, cost, latency_ms = client.complete(
             model,
             attempt_prompt,
@@ -469,6 +475,8 @@ def _complete_json_cell(
             TypeError,
         ) as exc:
             failure_metadata = semantic_failure_metadata(raw, exc)
+            if usage["completion_tokens"] >= max_tokens:
+                failure_metadata["error"] = OUTPUT_LIMIT_ERROR
             state.complete(
                 invalid,
                 {

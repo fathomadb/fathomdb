@@ -10,9 +10,10 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. Run fresh v5 A/A and witness from a new root.
-2. Run held-out only if the v5 witness is valid.
-3. Register the receipt and decision without tuning held-out outcomes.
+1. Register the assertion-scorer required-field projection in v6.
+2. Run fresh v6 A/A and witness from a new root.
+3. Run held-out only if the v6 witness is valid.
+4. Register the receipt and decision without tuning held-out outcomes.
 
 ## Track status
 
@@ -31,7 +32,7 @@ append-only evidence index.
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |
-| [GLOBAL-01](tracks/global-01-native-graphrag.md) | V5 authorized and preflighted | The [v5 preflight](../../experiments/runs/global-01-lazy-preflight-20260829T2142Z-da326e0b/record.json) passed at $0 with the 2,048-token scorer ceiling; run fresh A/A and witness. |
+| [GLOBAL-01](tracks/global-01-native-graphrag.md) | V5 scorer length fixed; shape blocked | The [v5 witness](../../experiments/runs/global-01-lazy-witness-20260829T2144Z-da326e0b/record.json) completed scorer output below 2,048 tokens but rejected extra explanatory keys. Bind a required-field projection in v6 and preflight. |
 | [REASON-01](tracks/reason-01-native-hipporag2.md) | Parked | Wait for useful GRAPH-01 evidence and native-run prerequisites. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |
 

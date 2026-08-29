@@ -77,6 +77,14 @@ passed against both live aliases and the isolated FathomDB 0.8.23 runtime under
 configuration SHA-256
 `da326e0b857c3be7f2b0d450b2ec1b9931c25f006346df851eb39c6032da56f3`.
 
+The [v5 witness](../../experiments/runs/global-01-lazy-witness-20260829T2144Z-da326e0b/record.json)
+confirmed that 2,048 resolves scorer truncation: the three formerly truncated
+responses stopped normally at 754–804 tokens. They contained the two required
+score fields plus explanatory top-level fields, so exact-shape validation
+stopped the witness after $0.288 and before held-out work. The next adapter may
+project only the two required fields, then apply the unchanged fail-closed index
+and final-claim coverage validation.
+
 ## Sources
 
 - [DeepSeek models and pricing](https://api-docs.deepseek.com/quick_start/pricing)

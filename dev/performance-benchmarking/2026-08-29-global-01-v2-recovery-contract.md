@@ -1,7 +1,7 @@
 # GLOBAL-01 v2 witness recovery contract
 
-**Status:** zero-spend preflight passed; paid execution requires new HITL
-authorization.
+**Status:** paid execution authorized by coreyt on 2026-08-29 with a $12 hard
+cap.
 
 ## Decision
 
@@ -59,7 +59,8 @@ $9.50 spend, and proposed $12 hard cap.
    completeness, or cost-cap failure.
 5. Run the 39-question held-out comparison only if the witness is valid.
 
-No v2 model-completion call is authorized by this document.
+Coreyt authorized v2 model-completion calls on 2026-08-29 under the registered
+$12 hard cap and witness-before-held-out sequence.
 
 The zero-spend gate passed under configuration SHA-256
 `15096cae2823d621954a640e185c8238e01ff8b46150c743c9c644a2f2af4cee`.

@@ -10,9 +10,8 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. Resume the corrected GLOBAL-01 three-question witness; A/A passed.
-2. Stop if the witness is invalid.
-3. If the witness is valid, run the 39-question held-out comparison.
+1. Preserve the invalid GLOBAL-01 witness receipt; do not run held-out.
+2. Prepare GRAPH-01's bounded graph and supporting-evidence contract.
 
 ## Track status
 
@@ -31,7 +30,7 @@ append-only evidence index.
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |
-| [GLOBAL-01](tracks/global-01-native-graphrag.md) | Active | A/A passed. Resume the corrected witness from the same checkpoint; run held-out only if valid. |
+| [GLOBAL-01](tracks/global-01-native-graphrag.md) | Stopped, invalid witness | Preserve the [receipt](../../experiments/runs/global-01-lazy-witness-20260829T1924Z-aa159044/record.json); no held-out run or quality verdict. |
 | [REASON-01](tracks/reason-01-native-hipporag2.md) | Parked | Wait for useful GRAPH-01 evidence and native-run prerequisites. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |
 

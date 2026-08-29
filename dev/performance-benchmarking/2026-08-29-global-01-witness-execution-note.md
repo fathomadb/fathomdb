@@ -1,7 +1,6 @@
 # GLOBAL-01 witness execution note
 
-**Status:** resumable compact-encoding correction; no held-out questions
-executed.
+**Status:** invalid witness; stopped without held-out execution.
 
 ## Evidence
 
@@ -52,9 +51,16 @@ Because the generator may return surplus relevant claims, revision
 retaining only the first two control claims or first four treatment claims.
 Unknown source references and claims over 30 words continue to fail closed.
 
+The deterministic cap did not change the failed batch. Three more compact
+responses of 127–139 tokens exhausted revision `v4-cap-surplus-claims`.
+Execution stopped at $0.21765224 with six completed map cells, 12 invalid
+semantic submissions, zero complete witness answers, and zero held-out
+answers. This is an execution-contract failure, not a quality verdict.
+
 ## Artifacts
 
 - External checkpoint:
   `data/performance-benchmarking/global-01/runs/global-01-lazy-coverage-20260829-a/checkpoint.json`
 - [Measurement contract](2026-08-29-global-01-lazy-coverage-contract.md)
 - [Authorized preflight receipt](../../experiments/runs/global-01-lazy-preflight-20260829T1922Z-aa159044/record.json)
+- [Invalid witness receipt](../../experiments/runs/global-01-lazy-witness-20260829T1924Z-aa159044/record.json)

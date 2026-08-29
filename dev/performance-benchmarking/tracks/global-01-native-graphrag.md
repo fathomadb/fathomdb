@@ -1,6 +1,6 @@
 # GLOBAL-01 — Native GraphRAG comparison
 
-**Status:** active; A/A passed and the corrected witness is next.
+**Status:** stopped; development witness invalid and held-out not run.
 
 ## Decision
 
@@ -42,10 +42,11 @@ freezes step 1. Steps 2–4 passed in the
 is registered. Coreyt authorized execution on 2026-08-29. The projected spend
 is $9.50 and the hard cap is $12.00.
 
-The A/A gate passed. The first witness map stopped on deterministic output
-truncation before held-out execution. The
-[execution note](../2026-08-29-global-01-witness-execution-note.md) records the
-bounded prompt correction and same-checkpoint resume.
+The A/A gate passed. The witness then exhausted its semantic retry boundary
+without a complete answer. The
+[execution note](../2026-08-29-global-01-witness-execution-note.md) and
+[receipt](../../../experiments/runs/global-01-lazy-witness-20260829T1924Z-aa159044/record.json)
+record the stopped, decision-ineligible run.
 
 ## Stop
 
@@ -60,5 +61,6 @@ Native GraphRAG led directionally on comprehensiveness, diversity, and
 empowerment; source-linked map-reduce led on directness. That measured coverage
 gap supports only a preregistered treatment. The
 [performance-gap analysis and falsifiable improvement hypothesis](../2026-08-29-global-01-improvement-hypothesis.md)
-provides that basis. The treatment is contracted and implemented as an
-experimental caller-side profile, but it is not yet executed or accepted.
+provides that basis. The treatment remains unaccepted. Reopen only with a new
+preregistered generator/output contract; do not reuse this witness as a quality
+result.

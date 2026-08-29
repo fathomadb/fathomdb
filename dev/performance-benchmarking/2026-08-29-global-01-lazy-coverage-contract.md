@@ -1,7 +1,6 @@
 # GLOBAL-01 lazy-coverage measurement contract
 
-**Status:** registered; paid execution authorized by coreyt on 2026-08-29 with
-a $12 hard cap.
+**Status:** stopped at an invalid development witness; no held-out execution.
 
 ## Decision
 
@@ -189,10 +188,16 @@ deterministic in the caller by retaining only the first two control claims or
 first four treatment claims. Invalid source references and claims over 30 words
 still fail closed.
 
+The same batch remained invalid after the deterministic cap. The witness
+therefore stopped under the registered semantic retry rule at $0.21765224. No
+complete witness answer or held-out answer was generated, so the comparison is
+not decision-eligible.
+
 ## Basis
 
 - [GLOBAL-01 improvement hypothesis](2026-08-29-global-01-improvement-hypothesis.md)
 - [GLOBAL-01 first result](2026-08-29-global-01-first-run-result.md)
+- [Invalid witness receipt](../../experiments/runs/global-01-lazy-witness-20260829T1924Z-aa159044/record.json)
 - [BenchmarkQED datasets](https://microsoft.github.io/benchmark-qed/datasets/)
 - [BenchmarkQED AutoQ assertion contract](https://microsoft.github.io/benchmark-qed/cli/autoq/)
 - [BenchmarkQED AutoE example](https://microsoft.github.io/benchmark-qed/notebooks/autoe/)

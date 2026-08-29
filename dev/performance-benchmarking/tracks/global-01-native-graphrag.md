@@ -115,7 +115,8 @@ $12 cap. The [v5 preflight](../../../experiments/runs/global-01-lazy-preflight-2
 passed at zero spend. The [v5 witness](../../../experiments/runs/global-01-lazy-witness-20260829T2144Z-da326e0b/record.json)
 confirmed normal scorer completion below 2,048 tokens, but exact-shape
 validation rejected extra explanatory top-level fields. Register a deterministic
-required-field projection, then preflight and run from a fresh root.
+required-field projection. The [v6 preflight](../../../experiments/runs/global-01-lazy-preflight-20260829T2150Z-52b3aafe/record.json)
+passed at zero spend; run fresh A/A and witness from a new root.
 
 ## Stop
 

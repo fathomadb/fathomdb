@@ -1,0 +1,157 @@
+{
+  "schema_version": "global-01.lazy-coverage.v4",
+  "program_track": "GLOBAL-01",
+  "run_label": "apnews-global-lazy-coverage-v4",
+  "approval": {
+    "state": "approved",
+    "approved_by": "coreyt",
+    "approved_at": "2026-08-29T21:26:15Z",
+    "cost_cap_usd": 12.0
+  },
+  "corpus": {
+    "root": "data/corpus-data/raw/apnews_benchmarkqed",
+    "archive_sha256": "2f70dda22a9f261f285c94f3ac13a8f0df60b69fe3df1b5853b47b372065a66f",
+    "article_count": 1397,
+    "document_granularity": "canonical_article",
+    "license_class": "noncommercial_nonredistributable_evaluation_only"
+  },
+  "questions": {
+    "assertions_path": "generated_questions_v2/data_global_questions_assertions.json",
+    "assertions_file_sha256": "b40c3ff9e18944e8763c888d5a986abe665263a8a52159f110ae889795ab0730",
+    "qualification": {
+      "is_valid": true,
+      "grounding_min": 4,
+      "relevance_min": 4,
+      "verifiability_min": 4
+    },
+    "qualified_count": 49,
+    "qualified_assertion_count": 637,
+    "qualified_manifest_sha256": "bbc03b55617e34b2489aa14efb16495fc80f7f204fe86233c4a77898d122a5ed",
+    "split": {
+      "seed": "global-01-split-20260829-v1",
+      "exclude_first_run_from_development": true,
+      "first_run_private_manifest": "data/performance-benchmarking/global-01/runs/preflight-20260825-c/private-input-manifest.json",
+      "development_count": 10,
+      "development_selection_sha256": "f0cc9eaaf7f27520fffc4be9a3dbdfb9d31087b31e78ff72782c48d06379dd27",
+      "heldout_count": 39,
+      "heldout_selection_sha256": "a00798af1fac0b2982597a1610c9c38d69be01e0f2a6d7fbb187d798ed573b5e",
+      "first_run_overlap_heldout_count": 2,
+      "witness_count": 3,
+      "witness_selection_sha256": "5dc634d24a8907530e624eba44e2de9721548690a7936b6746e1774a85ef9d91"
+    }
+  },
+  "profiles": {
+    "control": {
+      "name": "source_mapreduce_c_v1_fts50",
+      "retrieval": "fts_only",
+      "candidate_depth": 50,
+      "map_batch_documents": 5,
+      "map_max_tokens": 300,
+      "reduce_max_tokens": 4096
+    },
+    "treatment": {
+      "name": "global_lazy_coverage_v1",
+      "caller_selected": true,
+      "subquery_count": 4,
+      "retrieval": "fts_only",
+      "candidate_depth_per_query": 50,
+      "rrf_k": 60,
+      "grouping": "subquery_intent_source_linked_v1",
+      "relevance_weight": 0.65,
+      "novelty_weight": 0.35,
+      "max_documents_per_group": 6,
+      "max_documents_total": 24,
+      "context_max_tokens": 24000,
+      "map_max_tokens": 600,
+      "reduce_max_tokens": 4096,
+      "derived_persistence": "none"
+    }
+  },
+  "models": {
+    "generator": {
+      "model": "deepseek-v4-pro",
+      "thinking_mode": "disabled",
+      "temperature": 0.0,
+      "decomposition_max_tokens": 300
+    },
+    "pairwise_judge": {
+      "model": "claude-haiku",
+      "temperature": 0.7,
+      "repetitions": 5,
+      "order_swapped": true,
+      "metrics": [
+        "comprehensiveness",
+        "diversity",
+        "empowerment",
+        "directness"
+      ]
+    },
+    "assertion_scorer": {
+      "model": "claude-haiku",
+      "temperature": 0.0,
+      "trials": 2,
+      "source_excerpt_max_chars": 1600,
+      "mode": "qualified_assertion_and_claim_support_v1"
+    }
+  },
+  "evaluation": {
+    "aa": {
+      "checkpoint_path": "data/performance-benchmarking/global-01/runs/global-01-first-run-deepseek-20260829-b/checkpoint.json",
+      "checkpoint_sha256": "94cb341dd48c7a3a75d3e5668c2b5a34169d31b77817465611000f6dd46c368c",
+      "answer_manifest_sha256": "e89ae0edb69230a31557fb212d7748a283f9ecc160d640747cbb207a62335ea1",
+      "answer_count": 16,
+      "repetitions": 1,
+      "order_swapped": true,
+      "tie_rate_min": 0.95,
+      "side_preference_max": 0.05
+    },
+    "bootstrap_draws": 2000,
+    "bootstrap_seed": 20260829,
+    "cold_repetitions": 1,
+    "steady_repetitions": 5,
+    "acceptance": {
+      "headline_win_rate_min": 0.55,
+      "headline_ci_lower_strictly_above": 0.5,
+      "assertion_recall_delta_min": 0.1,
+      "directness_win_rate_min": 0.45,
+      "unsupported_claim_delta_max": 0.0,
+      "canonical_source_link_completeness": 1.0,
+      "lifecycle_failure_max": 0,
+      "token_cost_ratio_max": 2.0,
+      "end_to_end_p95_ratio_max": 2.0
+    }
+  },
+  "execution": {
+    "fathomdb_version": "0.8.23",
+    "fathomdb_python": "data/performance-benchmarking/global-01/toolchains/fathomdb-0.8.23-venv/bin/python",
+    "fathomdb_cli": "data/performance-benchmarking/scale-02/runtime/9e507553/fathomdb",
+    "read_view": "strict_current",
+    "map_output_adapter": "compact_refs_or_canonical_v2",
+    "reduce_output_adapter": "compact_refs_with_canonical_restore_v1",
+    "generator_max_output_tokens": 393216,
+    "reduction_max_tokens_basis": "DeepSeek docs, live route, and observed truncation (v1)",
+    "checkpoint_every_cell": true,
+    "resume_only_missing": true,
+    "concurrency": 1,
+    "retry_attempts": 6,
+    "retry_backoff_seconds": [1, 2, 4, 8, 16, 32],
+    "honor_retry_after": true,
+    "completeness_required": true
+  },
+  "pricing": {
+    "currency": "USD",
+    "source": "deepseek_official_2026-08-29_peak_and_registered_haiku",
+    "deepseek-v4-pro": {
+      "input_per_million": 1.32,
+      "output_per_million": 3.96
+    },
+    "claude-haiku": {
+      "input_per_million": 1.0,
+      "output_per_million": 5.0
+    },
+    "planned_model_cells": 1376,
+    "maximum_semantic_submissions": 4128,
+    "projected_total_usd": 10.4,
+    "recommended_cap_usd": 12.0
+  }
+}

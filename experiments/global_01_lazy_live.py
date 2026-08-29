@@ -24,7 +24,7 @@ from experiments.fathomdb_test_setup import prepare_test_database
 
 CHECKPOINT_SCHEMA = "global-01.lazy-checkpoint.v1"
 RESULT_SCHEMA = "global-01.lazy-result.v1"
-SEMANTIC_REVISION = "v8-output-limit-4096"
+SEMANTIC_REVISION = "v9-compact-reduction"
 METRICS = ("comprehensiveness", "diversity", "empowerment", "directness")
 HEADLINE_METRICS = METRICS[:3]
 OUTPUT_LIMIT_ERROR = "response reached the output token limit"
@@ -684,7 +684,52 @@ def _map_prompt(
     )
 
 
-def _reduce_prompt(question: str, claims: Sequence[Mapping[str, Any]]) -> str:
+def _reduce_prompt(
+    question: str, claims: Sequence[Mapping[str, Any]]
+) -> tuple[str, dict[str, dict[str, str]], dict[str, str]]:
+    source_refs: dict[str, dict[str, str]] = {}
+    source_ref_by_identity: dict[tuple[str, str], str] = {}
+    mapped_refs: dict[str, str] = {}
+    compact_claims = []
+    for ordinal, claim in enumerate(claims):
+        mapped_ref = f"M{ordinal}"
+        mapped_refs[mapped_ref] = claim["claim_id"]
+        claim_source_refs = []
+        for source in claim["sources"]:
+            identity = (source["source_id"], source["content_sha256"])
+            source_ref = source_ref_by_identity.get(identity)
+            if source_ref is None:
+                source_ref = f"S{len(source_refs)}"
+                source_ref_by_identity[identity] = source_ref
+                source_refs[source_ref] = dict(source)
+            claim_source_refs.append(source_ref)
+        compact_claims.append(
+            {
+                "mapped_claim_ref": mapped_ref,
+                "text": claim["text"],
+                "source_refs": claim_source_refs,
+            }
+        )
+    prompt = (
+        "Synthesize a direct, comprehensive global answer using only the mapped "
+        "claims. Cite every final claim with supplied SOURCE_REF values. Account "
+        "for every mapped claim exactly once in the coverage ledger. Allowed "
+        "dispositions: included, redundant, irrelevant, conflicting-or-uncertain, "
+        "omitted-for-budget.\n\n"
+        f"QUESTION:\n{question}\n\nMAPPED CLAIMS:\n"
+        f"{json.dumps(compact_claims, separators=(',', ':'))}\n\n"
+        'Return compact JSON only: {"answer":"...","claims":'
+        '[{"claim_ref":"F0","text":"...","source_refs":["S0"]}],'
+        '"coverage_ledger":[{"mapped_claim_ref":"M0",'
+        '"disposition":"included","final_claim_refs":["F0"]}]}. '
+        "Use short claim_ref values and return complete JSON within the limit."
+    )
+    return prompt, source_refs, mapped_refs
+
+
+def _legacy_reduce_prompt(
+    question: str, claims: Sequence[Mapping[str, Any]]
+) -> str:
     return (
         "Synthesize a direct, comprehensive global answer using only the mapped "
         "claims. Preserve canonical citations on every final claim. Account for "
@@ -696,7 +741,104 @@ def _reduce_prompt(question: str, claims: Sequence[Mapping[str, Any]]) -> str:
         'Return JSON only: {"answer":"...","claims":[{"claim_id":"final-1",'
         '"text":"...","sources":[{"source_id":"...","content_sha256":"..."}]}],'
         '"coverage_ledger":[{"mapped_claim_id":"...","disposition":"included",'
-        '"final_claim_ids":["final-1"]}]}.'
+        '"final_claim_ids":["final-1"]}]}. '
+    )
+
+
+def _validate_compact_reduction(
+    value: object,
+    *,
+    known_source_refs: Mapping[str, Mapping[str, str]],
+    known_mapped_refs: Mapping[str, str],
+) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != {
+        "answer",
+        "claims",
+        "coverage_ledger",
+    }:
+        raise Global01LazyLiveError("compact reduction keys are incomplete")
+    if not isinstance(value["answer"], str) or not value["answer"].strip():
+        raise Global01LazyLiveError("compact reduction answer is empty")
+    claims = value["claims"]
+    if not isinstance(claims, list) or not claims:
+        raise Global01LazyLiveError("compact reduction has no claims")
+    final_ref_to_id: dict[str, str] = {}
+    canonical_claims = []
+    for ordinal, claim in enumerate(claims):
+        if not isinstance(claim, dict) or set(claim) != {
+            "claim_ref",
+            "text",
+            "source_refs",
+        }:
+            raise Global01LazyLiveError("compact final claim keys are incomplete")
+        claim_ref = claim["claim_ref"]
+        if (
+            not isinstance(claim_ref, str)
+            or not claim_ref
+            or claim_ref in final_ref_to_id
+        ):
+            raise Global01LazyLiveError("compact final claim reference is invalid")
+        refs = claim["source_refs"]
+        if (
+            not isinstance(claim["text"], str)
+            or not claim["text"].strip()
+            or not isinstance(refs, list)
+            or not refs
+            or any(
+                not isinstance(ref, str) or ref not in known_source_refs
+                for ref in refs
+            )
+            or len(refs) != len(set(refs))
+        ):
+            raise Global01LazyLiveError("compact final claim is invalid")
+        claim_id = f"final-{ordinal + 1}"
+        final_ref_to_id[claim_ref] = claim_id
+        canonical_claims.append(
+            {
+                "claim_id": claim_id,
+                "text": claim["text"].strip(),
+                "sources": [dict(known_source_refs[ref]) for ref in refs],
+            }
+        )
+    ledger = value["coverage_ledger"]
+    if not isinstance(ledger, list):
+        raise Global01LazyLiveError("compact coverage ledger is missing")
+    canonical_ledger = []
+    for row in ledger:
+        if not isinstance(row, dict) or set(row) != {
+            "mapped_claim_ref",
+            "disposition",
+            "final_claim_refs",
+        }:
+            raise Global01LazyLiveError("compact coverage row is incomplete")
+        mapped_ref = row["mapped_claim_ref"]
+        final_refs = row["final_claim_refs"]
+        if (
+            not isinstance(mapped_ref, str)
+            or mapped_ref not in known_mapped_refs
+            or row["disposition"] not in global_01_lazy.DISPOSITIONS
+            or not isinstance(final_refs, list)
+            or any(ref not in final_ref_to_id for ref in final_refs)
+        ):
+            raise Global01LazyLiveError("compact coverage row is invalid")
+        canonical_ledger.append(
+            {
+                "mapped_claim_id": known_mapped_refs[mapped_ref],
+                "disposition": row["disposition"],
+                "final_claim_ids": [final_ref_to_id[ref] for ref in final_refs],
+            }
+        )
+    return global_01_lazy.validate_structured_answer(
+        {
+            "answer": value["answer"].strip(),
+            "claims": canonical_claims,
+            "coverage_ledger": canonical_ledger,
+        },
+        known_sources={
+            source["source_id"]: source["content_sha256"]
+            for source in known_source_refs.values()
+        },
+        mapped_claim_ids=set(known_mapped_refs.values()),
     )
 
 
@@ -950,18 +1092,35 @@ def _run_answer_arm(
     known_all = {row["source_id"]: row["content_sha256"] for row in rows}
     mapped_ids = {claim["claim_id"] for claim in mapped}
     reduce_cell = f"reductions/{arm}/{qid}"
+    if config["execution"].get("reduce_output_adapter") == (
+        "compact_refs_with_canonical_restore_v1"
+    ):
+        reduce_prompt, reduce_source_refs, reduce_mapped_refs = _reduce_prompt(
+            question["text"], mapped
+        )
+        def reduce_validator(raw: object) -> dict[str, Any]:
+            return _validate_compact_reduction(
+                raw,
+                known_source_refs=reduce_source_refs,
+                known_mapped_refs=reduce_mapped_refs,
+            )
+    else:
+        reduce_prompt = _legacy_reduce_prompt(question["text"], mapped)
+
+        def reduce_validator(raw: object) -> dict[str, Any]:
+            return global_01_lazy.validate_structured_answer(
+                raw, known_sources=known_all, mapped_claim_ids=mapped_ids
+            )
     answer = _complete_json_cell(
         client,
         state=state,
         checkpoint_path=checkpoint_path,
         cell=reduce_cell,
         model=generator["model"],
-        prompt=_reduce_prompt(question["text"], mapped),
+        prompt=reduce_prompt,
         max_tokens=reduce_limit,
         temperature=generator["temperature"],
-        validator=lambda raw: global_01_lazy.validate_structured_answer(
-            raw, known_sources=known_all, mapped_claim_ids=mapped_ids
-        ),
+        validator=reduce_validator,
     )
     state.complete(
         answer_cell,

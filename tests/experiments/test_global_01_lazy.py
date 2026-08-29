@@ -23,6 +23,9 @@ V2_CONFIG_PATH = Path(
 V3_CONFIG_PATH = Path(
     "experiments/configs/global-01/apnews-global-lazy-coverage.v3.json"
 )
+V4_CONFIG_PATH = Path(
+    "experiments/configs/global-01/apnews-global-lazy-coverage.v4.json"
+)
 
 
 def _config() -> dict[str, object]:
@@ -98,6 +101,26 @@ def test_v3_config_uses_documented_output_headroom_under_the_bound_cap():
         "state": "approved",
         "approved_by": "coreyt",
         "approved_at": "2026-08-29T21:09:07Z",
+        "cost_cap_usd": 12.0,
+    }
+    global_01_lazy.assert_execution_authorized(config)
+
+
+def test_v4_config_compacts_reduction_identity_without_raising_the_ceiling():
+    config = global_01_lazy.validate_config(
+        json.loads(V4_CONFIG_PATH.read_text(encoding="utf-8"))
+    )
+
+    assert config["schema_version"] == "global-01.lazy-coverage.v4"
+    assert config["profiles"]["control"]["reduce_max_tokens"] == 4096
+    assert config["profiles"]["treatment"]["reduce_max_tokens"] == 4096
+    assert config["execution"]["reduce_output_adapter"] == (
+        "compact_refs_with_canonical_restore_v1"
+    )
+    assert config["approval"] == {
+        "state": "approved",
+        "approved_by": "coreyt",
+        "approved_at": "2026-08-29T21:26:15Z",
         "cost_cap_usd": 12.0,
     }
     global_01_lazy.assert_execution_authorized(config)

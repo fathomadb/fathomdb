@@ -10,9 +10,9 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. Implement and test compact reduction references with canonical restoration.
-2. Run a fresh zero-spend preflight and witness root.
-3. Run held-out only if the compact-reference witness is valid.
+1. Run the v4 compact-reference zero-spend preflight.
+2. Run fresh A/A and witness from a new root.
+3. Run held-out only if the v4 witness is valid.
 
 ## Track status
 
@@ -31,7 +31,7 @@ append-only evidence index.
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |
-| [GLOBAL-01](tracks/global-01-native-graphrag.md) | Compact reduction correction next | The [v3 witness](../../experiments/runs/global-01-lazy-witness-20260829T2118Z-b0f3c328/record.json) reached 4,096 tokens with `finish_reason=length` three times. Keep the ceiling and remove identifier serialization overhead. |
+| [GLOBAL-01](tracks/global-01-native-graphrag.md) | V4 ready for preflight | Compact source, mapped-claim, and final-claim references now restore to canonical identity before persistence and pass fail-closed tests. |
 | [REASON-01](tracks/reason-01-native-hipporag2.md) | Parked | Wait for useful GRAPH-01 evidence and native-run prerequisites. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |
 

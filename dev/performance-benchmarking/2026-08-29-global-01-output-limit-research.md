@@ -44,6 +44,10 @@ canonical source UUID/hash pairs and long mapped-claim IDs. The next correction
 keeps the 4,096 task ceiling and uses compact local references with deterministic
 canonical restoration, avoiding an 8,192-token cost expansion.
 
+V4 implements the compact reduction adapter and fail-closed canonical
+restoration without changing the answer, retrieval, scoring, or acceptance
+contract.
+
 ## Sources
 
 - [DeepSeek models and pricing](https://api-docs.deepseek.com/quick_start/pricing)

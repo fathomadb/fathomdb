@@ -26,6 +26,7 @@ from experiments.fathomdb_test_setup import prepare_test_database
 SCHEMA = "global-01.lazy-coverage.v1"
 RECOVERY_SCHEMA = "global-01.lazy-coverage.v2"
 OUTPUT_RECOVERY_SCHEMA = "global-01.lazy-coverage.v3"
+COMPACT_RECOVERY_SCHEMA = "global-01.lazy-coverage.v4"
 PROGRAM_TRACK = "GLOBAL-01"
 PROFILE = "global_lazy_coverage_v1"
 DISPOSITIONS = {
@@ -106,6 +107,7 @@ def validate_config(value: object) -> dict[str, Any]:
         SCHEMA: "apnews-global-lazy-coverage",
         RECOVERY_SCHEMA: "apnews-global-lazy-coverage-v2",
         OUTPUT_RECOVERY_SCHEMA: "apnews-global-lazy-coverage-v3",
+        COMPACT_RECOVERY_SCHEMA: "apnews-global-lazy-coverage-v4",
     }.get(schema)
     if (
         expected_label is None
@@ -208,7 +210,9 @@ def validate_config(value: object) -> dict[str, Any]:
 
     profiles = _require_keys(root["profiles"], "profiles", {"control", "treatment"})
     control = profiles["control"]
-    reduce_max_tokens = 4096 if schema == OUTPUT_RECOVERY_SCHEMA else 1500
+    reduce_max_tokens = (
+        4096 if schema in {OUTPUT_RECOVERY_SCHEMA, COMPACT_RECOVERY_SCHEMA} else 1500
+    )
     if not isinstance(control, dict) or control != {
         "name": "source_mapreduce_c_v1_fts50",
         "retrieval": "fts_only",
@@ -281,18 +285,26 @@ def validate_config(value: object) -> dict[str, Any]:
         or execution.get("completeness_required") is not True
     ):
         raise Global01LazyError("execution resilience contract drifted")
-    if schema in {RECOVERY_SCHEMA, OUTPUT_RECOVERY_SCHEMA} and execution.get(
+    if schema in {
+        RECOVERY_SCHEMA,
+        OUTPUT_RECOVERY_SCHEMA,
+        COMPACT_RECOVERY_SCHEMA,
+    } and execution.get(
         "map_output_adapter"
     ) != (
         "compact_refs_or_canonical_v2"
     ):
         raise Global01LazyError("v2 map output adapter drifted")
-    if schema == OUTPUT_RECOVERY_SCHEMA and (
+    if schema in {OUTPUT_RECOVERY_SCHEMA, COMPACT_RECOVERY_SCHEMA} and (
         execution.get("generator_max_output_tokens") != 393216
         or execution.get("reduction_max_tokens_basis")
         != "DeepSeek docs, live route, and observed truncation (v1)"
     ):
         raise Global01LazyError("v3 output-limit basis drifted")
+    if schema == COMPACT_RECOVERY_SCHEMA and execution.get(
+        "reduce_output_adapter"
+    ) != "compact_refs_with_canonical_restore_v1":
+        raise Global01LazyError("v4 reduction output adapter drifted")
 
     pricing = root["pricing"]
     if (

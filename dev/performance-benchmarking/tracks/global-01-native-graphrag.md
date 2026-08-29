@@ -1,6 +1,6 @@
 # GLOBAL-01 — Native GraphRAG comparison
 
-**Status:** compact reduction reference correction next.
+**Status:** v4 compact reduction adapter ready for preflight.
 
 ## Decision
 
@@ -95,6 +95,12 @@ reductions. Do not raise the task ceiling again before removing avoidable
 serialization overhead. Use short local source, mapped-claim, and final-claim
 references in reduction output; restore and validate canonical identities in
 the caller before persistence.
+
+V4 implements that adapter while retaining the 4,096-token matched ceiling.
+Unknown references, duplicate references, missing coverage rows, invalid
+dispositions, and unlinked final claims fail closed. Canonical source IDs and
+hashes are restored before the existing structured-answer validator and
+checkpoint persistence.
 
 ## Stop
 

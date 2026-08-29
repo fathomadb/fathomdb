@@ -455,6 +455,62 @@ def test_resumed_invalid_witness_uses_a_new_receipt_timestamp(tmp_path: Path):
     assert not (tmp_path / "runs" / selected_id).exists()
 
 
+def test_compact_reduction_restores_canonical_identity():
+    mapped = [
+        {
+            "claim_id": "control-question-00-000",
+            "text": "First mapped fact.",
+            "sources": [
+                {"source_id": "source-one", "content_sha256": "a" * 64}
+            ],
+        },
+        {
+            "claim_id": "control-question-01-000",
+            "text": "Second mapped fact.",
+            "sources": [
+                {"source_id": "source-two", "content_sha256": "b" * 64}
+            ],
+        },
+    ]
+    prompt, source_refs, mapped_refs = global_01_lazy_live._reduce_prompt(
+        "What happened?", mapped
+    )
+
+    answer = global_01_lazy_live._validate_compact_reduction(
+        {
+            "answer": "Both facts happened.",
+            "claims": [
+                {
+                    "claim_ref": "F0",
+                    "text": "Both facts happened.",
+                    "source_refs": ["S0", "S1"],
+                }
+            ],
+            "coverage_ledger": [
+                {
+                    "mapped_claim_ref": mapped_ref,
+                    "disposition": "included",
+                    "final_claim_refs": ["F0"],
+                }
+                for mapped_ref in ("M0", "M1")
+            ],
+        },
+        known_source_refs=source_refs,
+        known_mapped_refs=mapped_refs,
+    )
+
+    assert "M0" in prompt and "S0" in prompt
+    assert "source-one" not in prompt and "a" * 64 not in prompt
+    assert answer["claims"][0]["sources"] == [
+        {"source_id": "source-one", "content_sha256": "a" * 64},
+        {"source_id": "source-two", "content_sha256": "b" * 64},
+    ]
+    assert {row["mapped_claim_id"] for row in answer["coverage_ledger"]} == {
+        "control-question-00-000",
+        "control-question-01-000",
+    }
+
+
 def test_assertion_score_requires_all_final_claims_and_valid_indices():
     answer = {
         "claims": [

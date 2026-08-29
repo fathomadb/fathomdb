@@ -1,6 +1,6 @@
 # GLOBAL-01 — Native GraphRAG comparison
 
-**Status:** v3 post-fix preflight passed; fresh A/A and witness next.
+**Status:** compact reduction reference correction next.
 
 ## Decision
 
@@ -88,6 +88,13 @@ preflight and artifact root.
 
 The [post-fix preflight](../../../experiments/runs/global-01-lazy-preflight-20260829T2117Z-b0f3c328/record.json)
 passed at zero spend.
+
+The [v3 witness](../../../experiments/runs/global-01-lazy-witness-20260829T2118Z-b0f3c328/record.json)
+then reached 4,096 tokens with `finish_reason=length` on all three control
+reductions. Do not raise the task ceiling again before removing avoidable
+serialization overhead. Use short local source, mapped-claim, and final-claim
+references in reduction output; restore and validate canonical identities in
+the caller before persistence.
 
 ## Stop
 

@@ -37,6 +37,13 @@ stopped root contains no completed cell and must not resume.
 The [post-fix preflight](../../experiments/runs/global-01-lazy-preflight-20260829T2117Z-b0f3c328/record.json)
 passed at zero spend.
 
+The [v3 witness](../../experiments/runs/global-01-lazy-witness-20260829T2118Z-b0f3c328/record.json)
+confirmed `finish_reason=length` at exactly 4,096 tokens on all three reduction
+attempts. The model limit is not the constraint. The current output repeats
+canonical source UUID/hash pairs and long mapped-claim IDs. The next correction
+keeps the 4,096 task ceiling and uses compact local references with deterministic
+canonical restoration, avoiding an 8,192-token cost expansion.
+
 ## Sources
 
 - [DeepSeek models and pricing](https://api-docs.deepseek.com/quick_start/pricing)

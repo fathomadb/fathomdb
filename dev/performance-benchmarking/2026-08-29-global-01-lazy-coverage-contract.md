@@ -1,7 +1,7 @@
 # GLOBAL-01 lazy-coverage measurement contract
 
-**Status:** registered for zero-spend preparation; paid execution is not
-authorized.
+**Status:** registered; paid execution authorized by coreyt on 2026-08-29 with
+a $12 hard cap.
 
 ## Decision
 
@@ -159,8 +159,8 @@ attempts remain separately bounded. The $12.00 hard cap is authoritative and
 can stop the run before either count is reached. Neither value authorizes
 execution.
 
-Stop before the first model-backed A/A call until the HITL explicitly approves
-the execution and hard cap. Stop during execution on configuration or input
+HITL authorized execution with a $12 hard cap on 2026-08-29. Stop during
+execution on configuration or input
 drift, invalid A/A behavior, a failed lifecycle canary, non-resumable state,
 incomplete output, exhausted retry budget, or the cost cap.
 

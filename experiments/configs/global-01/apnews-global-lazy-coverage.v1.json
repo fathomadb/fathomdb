@@ -3,10 +3,10 @@
   "program_track": "GLOBAL-01",
   "run_label": "apnews-global-lazy-coverage",
   "approval": {
-    "state": "pending_hitl",
-    "approved_by": null,
-    "approved_at": null,
-    "cost_cap_usd": null
+    "state": "approved",
+    "approved_by": "coreyt",
+    "approved_at": "2026-08-29T19:20:57Z",
+    "cost_cap_usd": 12.0
   },
   "corpus": {
     "root": "data/corpus-data/raw/apnews_benchmarkqed",

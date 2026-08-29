@@ -1,6 +1,6 @@
 # GLOBAL-01 lazy-coverage preflight result
 
-**Status:** ready for HITL execution authorization.
+**Status:** authorized for execution.
 
 The zero-spend preflight passed on the complete 1,397-article AP News corpus
 and all 49 qualified questions. The isolated CLI and Python runtimes are
@@ -20,7 +20,7 @@ Projected spend is $9.50 with a recommended $12.00 hard cap, 1,376 planned paid
 cells, and at most 4,128 semantic-format submissions. No paid call has been
 made.
 
-Next: obtain HITL authorization for the $12 cap, run A/A judge validation, and
+Coreyt authorized the $12 cap on 2026-08-29. Next: run A/A judge validation and
 proceed to the three-question witness only if A/A passes.
 
 This receipt supersedes the zero-spend `8567b830` preflight receipt, whose
@@ -29,3 +29,4 @@ under either configuration.
 
 - [Measurement contract](2026-08-29-global-01-lazy-coverage-contract.md)
 - [Safe preflight receipt](../../experiments/runs/global-01-lazy-preflight-20260829T1841Z-6da51962/record.json)
+- [Authorized preflight receipt](../../experiments/runs/global-01-lazy-preflight-20260829T1922Z-aa159044/record.json)

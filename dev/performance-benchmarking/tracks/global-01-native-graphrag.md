@@ -1,6 +1,6 @@
 # GLOBAL-01 — Native GraphRAG comparison
 
-**Status:** awaiting HITL authorization for the paid A/A gate and witness.
+**Status:** authorized; A/A gate is next.
 
 ## Decision
 
@@ -39,8 +39,8 @@ The dated
 freezes step 1. Steps 2–4 passed in the
 [zero-spend preflight](../2026-08-29-global-01-lazy-preflight-result.md), and the
 [safe receipt](../../../experiments/runs/global-01-lazy-preflight-20260829T1841Z-6da51962/record.json)
-is registered. Paid execution remains unauthorized. The projected spend is
-$9.50 and the recommended hard cap is $12.00.
+is registered. Coreyt authorized execution on 2026-08-29. The projected spend
+is $9.50 and the hard cap is $12.00.
 
 ## Stop
 

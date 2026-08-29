@@ -10,10 +10,9 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. Obtain HITL authorization for GLOBAL-01 paid execution with a $12 hard cap.
-2. Run the A/A judge gate.
-3. If A/A passes, run the three-question witness.
-4. If the witness is valid, run the 39-question held-out comparison.
+1. Run the GLOBAL-01 A/A judge gate under the authorized $12 hard cap.
+2. If A/A passes, run the three-question witness.
+3. If the witness is valid, run the 39-question held-out comparison.
 
 ## Track status
 
@@ -32,7 +31,7 @@ append-only evidence index.
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |
-| [GLOBAL-01](tracks/global-01-native-graphrag.md) | Awaiting HITL | The [zero-spend preflight](2026-08-29-global-01-lazy-preflight-result.md) and [receipt](../../experiments/runs/global-01-lazy-preflight-20260829T1841Z-6da51962/record.json) are complete. Authorize or decline the $12 hard cap before A/A. |
+| [GLOBAL-01](tracks/global-01-native-graphrag.md) | Authorized | Coreyt approved the $12 hard cap. Run A/A using the [authorized preflight receipt](../../experiments/runs/global-01-lazy-preflight-20260829T1922Z-aa159044/record.json). |
 | [REASON-01](tracks/reason-01-native-hipporag2.md) | Parked | Wait for useful GRAPH-01 evidence and native-run prerequisites. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |
 

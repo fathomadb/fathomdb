@@ -37,13 +37,23 @@ def _assertion(statement: str, score: int = 4) -> dict[str, object]:
     }
 
 
-def test_shipped_config_requires_explicit_profile_and_pending_paid_approval():
+def test_shipped_config_requires_explicit_profile_and_bound_paid_approval():
     config = global_01_lazy.validate_config(_config())
 
     assert config["profiles"]["treatment"]["name"] == "global_lazy_coverage_v1"
     assert config["profiles"]["treatment"]["caller_selected"] is True
+    assert config["approval"]["cost_cap_usd"] == 12.0
+    global_01_lazy.assert_execution_authorized(config)
+
+    pending = copy.deepcopy(config)
+    pending["approval"] = {
+        "state": "pending_hitl",
+        "approved_by": None,
+        "approved_at": None,
+        "cost_cap_usd": None,
+    }
     with pytest.raises(global_01_lazy.Global01LazyError, match="HITL approval"):
-        global_01_lazy.assert_execution_authorized(config)
+        global_01_lazy.assert_execution_authorized(pending)
 
     automatic = copy.deepcopy(config)
     automatic["profiles"]["treatment"]["caller_selected"] = False
@@ -253,7 +263,14 @@ def test_checkpoint_plan_resumes_only_missing_cells():
 
 
 def test_safe_preflight_receipt_is_registered_without_private_payload(tmp_path: Path):
-    config = global_01_lazy.validate_config(_config())
+    pending = _config()
+    pending["approval"] = {
+        "state": "pending_hitl",
+        "approved_by": None,
+        "approved_at": None,
+        "cost_cap_usd": None,
+    }
+    config = global_01_lazy.validate_config(pending)
     report_path = tmp_path / "safe-preflight.json"
     report_path.write_text(
         json.dumps(
@@ -290,3 +307,25 @@ def test_safe_preflight_receipt_is_registered_without_private_payload(tmp_path: 
     assert record["metrics"]["state"] == "ready_for_hitl"
     assert "documents" not in record["metrics"]
     assert "private_questions" not in record["metrics"]
+
+    approved = copy.deepcopy(config)
+    approved["approval"] = {
+        "state": "approved",
+        "approved_by": "coreyt",
+        "approved_at": "2026-08-29T19:20:57Z",
+        "cost_cap_usd": 12.0,
+    }
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report["config_sha256"] = global_01_lazy.canonical_sha256(approved)
+    report_path.write_text(json.dumps(report), encoding="utf-8")
+    _, approved_dir = global_01_lazy.register_preflight_receipt(
+        approved,
+        report_path=report_path,
+        config_path=CONFIG_PATH,
+        base_dir=tmp_path / "approved-experiments",
+        ts=datetime(2026, 8, 29, 19, 1, tzinfo=timezone.utc),
+    )
+    approved_record = json.loads(
+        (approved_dir / "record.json").read_text(encoding="utf-8")
+    )
+    assert approved_record["verdict"] == "authorized_ready"

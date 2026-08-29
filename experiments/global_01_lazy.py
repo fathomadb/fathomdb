@@ -1016,16 +1016,22 @@ def register_preflight_receipt(
         or report.get("cost_usd") != 0.0
     ):
         raise Global01LazyError("safe preflight report identity or state drifted")
+    authorized = config["approval"]["state"] == "approved"
+    verdict = "authorized_ready" if authorized else "awaiting_hitl"
     run_id, run_dir = _lib.write_record(
         "global-01-lazy-preflight",
         ts=ts,
         config_obj=config,
         metrics=report,
-        verdict="awaiting_hitl",
+        verdict=verdict,
         read=(
             "GLOBAL-01 lazy-coverage input, isolated 0.8.23 runtime, retrieval, "
             "lifecycle, Airlock alias, and resilience preflight passed at zero spend; "
-            "paid A/A and witness remain unauthorized."
+            + (
+                "the registered paid A/A gate is authorized."
+                if authorized
+                else "paid A/A and witness remain unauthorized."
+            )
         ),
         code=_lib.git_info(),
         corpus={
@@ -1051,7 +1057,10 @@ def register_preflight_receipt(
             }
         ),
         cost_usd=0.0,
-        headline={"program_track": PROGRAM_TRACK, "status": "ready_for_hitl"},
+        headline={
+            "program_track": PROGRAM_TRACK,
+            "status": "authorized_ready" if authorized else "ready_for_hitl",
+        },
         n=report["questions"]["qualified_count"],
         config_path=str(config_path),
         tdd_evidence={
@@ -1068,9 +1077,13 @@ def register_preflight_receipt(
                 "sha256": file_sha256(report_path),
             }
         ],
-        open_questions=[
-            "HITL must authorize the paid A/A check and a hard USD cap before execution."
-        ],
+        open_questions=(
+            []
+            if authorized
+            else [
+                "HITL must authorize the paid A/A check and a hard USD cap before execution."
+            ]
+        ),
         base_dir=base_dir,
     )
     _lib.regen_index_md(

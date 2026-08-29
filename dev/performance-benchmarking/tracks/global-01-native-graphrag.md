@@ -1,6 +1,6 @@
 # GLOBAL-01 — Native GraphRAG comparison
 
-**Status:** v3 finish-reason accounting fix ready for preflight.
+**Status:** v3 post-fix preflight passed; fresh A/A and witness next.
 
 ## Decision
 
@@ -85,6 +85,9 @@ string `finish_reason` with numeric usage values before checkpointing. No A/A
 cell, witness answer, or held-out work completed. The fixed client validates
 only numeric token fields and persists finish reason separately. Use a fresh
 preflight and artifact root.
+
+The [post-fix preflight](../../../experiments/runs/global-01-lazy-preflight-20260829T2117Z-b0f3c328/record.json)
+passed at zero spend.
 
 ## Stop
 

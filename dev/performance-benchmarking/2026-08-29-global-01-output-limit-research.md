@@ -34,6 +34,9 @@ cell could checkpoint. The corrected client validates numeric prompt and
 completion counts independently and retains `finish_reason` as metadata. The
 stopped root contains no completed cell and must not resume.
 
+The [post-fix preflight](../../experiments/runs/global-01-lazy-preflight-20260829T2117Z-b0f3c328/record.json)
+passed at zero spend.
+
 ## Sources
 
 - [DeepSeek models and pricing](https://api-docs.deepseek.com/quick_start/pricing)

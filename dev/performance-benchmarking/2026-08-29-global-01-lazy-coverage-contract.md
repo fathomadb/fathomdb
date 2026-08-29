@@ -174,6 +174,14 @@ models, output-token budgets, scorer, acceptance boundaries, or the cost cap.
 The original invalid cells remain in the checkpoint and their cost remains
 charged to the same campaign.
 
+Revision `v2-bounded-map` completed five control batches, then another batch
+reached the 300-token ceiling despite satisfying the registered semantic
+bounds. Revision `v3-compact-source-refs` replaces repeated canonical UUID and
+SHA-256 output fields with short prompt-local references. The runner restores
+the exact canonical source ID and hash before persisting each claim. This is an
+encoding correction only; it changes neither evidence selection nor any
+registered measurement boundary.
+
 ## Basis
 
 - [GLOBAL-01 improvement hypothesis](2026-08-29-global-01-improvement-hypothesis.md)

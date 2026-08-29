@@ -24,7 +24,7 @@ from experiments.fathomdb_test_setup import prepare_test_database
 
 CHECKPOINT_SCHEMA = "global-01.lazy-checkpoint.v1"
 RESULT_SCHEMA = "global-01.lazy-result.v1"
-SEMANTIC_REVISION = "v2-bounded-map"
+SEMANTIC_REVISION = "v3-compact-source-refs"
 METRICS = ("comprehensiveness", "diversity", "empowerment", "directness")
 HEADLINE_METRICS = METRICS[:3]
 _JSON_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE)
@@ -291,31 +291,37 @@ def parse_subqueries(text: str, *, count: int) -> list[str]:
 def _validate_mapped_claims(
     value: object,
     *,
-    known_sources: Mapping[str, str],
+    known_source_refs: Mapping[str, Mapping[str, str]],
     prefix: str,
+    max_claims: int,
+    max_words: int,
 ) -> list[dict[str, Any]]:
     if not isinstance(value, dict) or set(value) != {"claims"}:
         raise Global01LazyLiveError("claim map must contain only claims")
     claims = value["claims"]
-    if not isinstance(claims, list):
+    if not isinstance(claims, list) or len(claims) > max_claims:
         raise Global01LazyLiveError("claim map claims are not a list")
     result = []
     for ordinal, claim in enumerate(claims):
-        if not isinstance(claim, dict) or set(claim) != {"text", "sources"}:
+        if not isinstance(claim, dict) or set(claim) != {"text", "source_refs"}:
             raise Global01LazyLiveError("mapped claim shape is invalid")
         if not isinstance(claim["text"], str) or not claim["text"].strip():
             raise Global01LazyLiveError("mapped claim text is empty")
-        sources = claim["sources"]
-        if not isinstance(sources, list) or not sources:
+        if len(claim["text"].split()) > max_words:
+            raise Global01LazyLiveError("mapped claim text exceeds word limit")
+        source_refs = claim["source_refs"]
+        if (
+            not isinstance(source_refs, list)
+            or not source_refs
+            or len(source_refs) != len(set(source_refs))
+        ):
             raise Global01LazyLiveError("mapped claim lacks canonical sources")
-        for source in sources:
-            if (
-                not isinstance(source, dict)
-                or set(source) != {"source_id", "content_sha256"}
-                or known_sources.get(source["source_id"])
-                != source["content_sha256"]
-            ):
+        sources = []
+        for source_ref in source_refs:
+            source = known_source_refs.get(source_ref)
+            if source is None:
                 raise Global01LazyLiveError("mapped claim source binding drifted")
+            sources.append(dict(source))
         result.append(
             {
                 "claim_id": f"{prefix}-{ordinal:03d}",
@@ -544,6 +550,14 @@ def _source_context(rows: Sequence[Mapping[str, Any]]) -> str:
     )
 
 
+def _map_source_context(rows: Sequence[Mapping[str, Any]]) -> str:
+    return "\n\n".join(
+        f"SOURCE_REF=S{ordinal}\nSOURCE_ID={row['source_id']}\n"
+        f"CONTENT_SHA256={row['content_sha256']}\nTEXT={row['body']}"
+        for ordinal, row in enumerate(rows)
+    )
+
+
 def best_source_excerpt(body: str, claim: str, *, max_chars: int) -> str:
     """Select a bounded deterministic source window with maximum claim overlap."""
     if max_chars <= 0:
@@ -574,9 +588,9 @@ def _map_prompt(
         f"claim list is valid. Return at most {max_claims} claims. Keep each claim "
         "to at most 30 words and cite only the minimum sufficient supplied "
         "sources.\n\n"
-        f"QUESTION:\n{question}\n\nSOURCES:\n{_source_context(rows)}\n\n"
-        'Return JSON only: {"claims":[{"text":"...","sources":'
-        '[{"source_id":"...","content_sha256":"..."}]}]}.'
+        f"QUESTION:\n{question}\n\nSOURCES:\n{_map_source_context(rows)}\n\n"
+        'Return compact JSON only: {"claims":[{"text":"...",'
+        '"source_refs":["S0"]}]}.'
     )
 
 
@@ -811,7 +825,13 @@ def _run_answer_arm(
     mapped: list[dict[str, Any]] = []
     for ordinal, batch in enumerate(batches):
         map_cell = f"maps/{arm}/{qid}/{ordinal}"
-        known = {row["source_id"]: row["content_sha256"] for row in batch}
+        known_source_refs = {
+            f"S{source_ordinal}": {
+                "source_id": row["source_id"],
+                "content_sha256": row["content_sha256"],
+            }
+            for source_ordinal, row in enumerate(batch)
+        }
         value = _complete_json_cell(
             client,
             state=state,
@@ -823,11 +843,13 @@ def _run_answer_arm(
             ),
             max_tokens=map_limit,
             temperature=generator["temperature"],
-            validator=lambda raw, known=known, ordinal=ordinal: {
+            validator=lambda raw, known_source_refs=known_source_refs, ordinal=ordinal: {
                 "claims": _validate_mapped_claims(
                     raw,
-                    known_sources=known,
+                    known_source_refs=known_source_refs,
                     prefix=f"{arm}-{qid}-{ordinal:02d}",
+                    max_claims=map_max_claims,
+                    max_words=30,
                 )
             },
         )

@@ -107,6 +107,43 @@ def test_map_prompt_bounds_claim_count_and_length():
 
     assert "at most 2 claims" in prompt
     assert "at most 30 words" in prompt
+    assert "SOURCE_REF=S0" in prompt
+    assert '"source_refs":["S0"]' in prompt
+
+
+def test_mapped_claim_source_refs_restore_canonical_attribution():
+    claims = global_01_lazy_live._validate_mapped_claims(
+        {
+            "claims": [
+                {
+                    "text": "A concise supported claim.",
+                    "source_refs": ["S0"],
+                }
+            ]
+        },
+        known_source_refs={
+            "S0": {
+                "source_id": "source-1",
+                "content_sha256": "a" * 64,
+            }
+        },
+        prefix="control-q-00",
+        max_claims=2,
+        max_words=30,
+    )
+
+    assert claims == [
+        {
+            "claim_id": "control-q-00-000",
+            "text": "A concise supported claim.",
+            "sources": [
+                {
+                    "source_id": "source-1",
+                    "content_sha256": "a" * 64,
+                }
+            ],
+        }
+    ]
 
 
 def test_semantic_revision_preserves_legacy_invalid_cells(tmp_path: Path):

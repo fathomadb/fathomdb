@@ -1,6 +1,7 @@
 # GLOBAL-01 witness execution note
 
-**Status:** resumable witness correction; no held-out questions executed.
+**Status:** resumable compact-encoding correction; no held-out questions
+executed.
 
 ## Evidence
 
@@ -28,6 +29,20 @@ Revision-specific invalid-cell paths preserve the original failures and allow
 an idempotent resume. Inputs, split, models, scorer, acceptance boundaries, and
 the $12 hard cap are unchanged. Resume the same artifact root; proceed to the
 held-out comparison only if the three-question witness validates.
+
+The bounded revision completed the first five control batches. The sixth batch
+then produced three more responses at the exact 300-token ceiling, exhausting
+its revision-specific retries. Campaign spend at the second stop was
+$0.16363388; no complete answer or held-out work existed.
+
+The successful bounded maps contained two claims of 13–28 words and one source
+each. The remaining avoidable output cost was repetition of the canonical
+source UUID and 64-byte content hash inside every generated claim. Semantic
+revision `v3-compact-source-refs` gives each supplied source a short local
+reference such as `S0`. The generator emits those references, and the runner
+deterministically restores the registered canonical ID and hash before
+persistence. Claim limits, evidence, source attribution, model/token budgets,
+and decision boundaries remain unchanged.
 
 ## Artifacts
 

@@ -1,6 +1,6 @@
 # GLOBAL-01 DeepSeek output-limit correction
 
-**Status:** v3 implementation ready for zero-spend preflight.
+**Status:** v3 zero-spend preflight passed; paid witness next.
 
 Airlock resolves `deepseek-v4-pro` to native
 `deepseek/deepseek-v4-pro`. Its live model metadata reports a 1,000,000-token
@@ -24,6 +24,10 @@ the unchanged $12 hard cap.
 The runner now preserves provider `finish_reason` and identifies `length`
 directly. Resumed invalid witnesses also receive a new receipt timestamp rather
 than rewriting an earlier receipt.
+
+The [authorized v3 preflight](../../experiments/runs/global-01-lazy-preflight-20260829T2113Z-b0f3c328/record.json)
+passed at zero spend under configuration SHA-256
+`b0f3c3281392b4012ae4d7bcf44bb577bb1a9354e5ea4cf37c966f8a410fa83d`.
 
 ## Sources
 

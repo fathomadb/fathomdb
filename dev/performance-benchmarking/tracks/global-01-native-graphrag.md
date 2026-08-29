@@ -1,6 +1,6 @@
 # GLOBAL-01 — Native GraphRAG comparison
 
-**Status:** v3 output-limit correction ready for zero-spend preflight.
+**Status:** v3 preflight passed; fresh A/A and witness next.
 
 ## Decision
 
@@ -76,6 +76,9 @@ shortening feedback. The [model-limit review](../2026-08-29-global-01-output-lim
 confirms that 1,500 was an undersized experiment ceiling. V3 raises both matched
 reduction arms to 4,096, records the 393,216-token routed-model maximum, keeps
 the projected run below $12, and requires a fresh preflight and checkpoint.
+
+The [v3 preflight](../../../experiments/runs/global-01-lazy-preflight-20260829T2113Z-b0f3c328/record.json)
+passed at zero spend under configuration `b0f3c328`.
 
 ## Stop
 

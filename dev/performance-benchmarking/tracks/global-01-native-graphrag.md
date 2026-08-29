@@ -116,7 +116,11 @@ passed at zero spend. The [v5 witness](../../../experiments/runs/global-01-lazy-
 confirmed normal scorer completion below 2,048 tokens, but exact-shape
 validation rejected extra explanatory top-level fields. Register a deterministic
 required-field projection. The [v6 preflight](../../../experiments/runs/global-01-lazy-preflight-20260829T2150Z-52b3aafe/record.json)
-passed at zero spend; run fresh A/A and witness from a new root.
+passed at zero spend. The [v6 witness](../../../experiments/runs/global-01-lazy-witness-20260829T2151Z-52b3aafe/record.json)
+validated scorer projection and completed one question's scoring and judging.
+It then exhausted generic retries on a map batch that alternated between an
+uncited claim and an overlong claim. Bind targeted, content-free correction
+instructions for those existing validators, then preflight one fresh witness.
 
 ## Stop
 

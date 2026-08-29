@@ -148,6 +148,51 @@ def test_decomposition_requires_exact_bounded_unique_queries():
         )
 
 
+def test_assertion_scorer_uses_configured_output_ceiling(monkeypatch, tmp_path: Path):
+    calls = []
+
+    def capture(*_args, **kwargs):
+        calls.append(kwargs)
+        return {}
+
+    monkeypatch.setattr(global_01_lazy_live, "_complete_json_cell", capture)
+    config = {
+        "models": {
+            "assertion_scorer": {
+                "model": "claude-haiku",
+                "temperature": 0.0,
+                "trials": 1,
+                "source_excerpt_max_chars": 1600,
+                "max_tokens": 2048,
+            },
+            "pairwise_judge": {
+                "model": "claude-haiku",
+                "temperature": 0.7,
+                "repetitions": 1,
+            },
+        }
+    }
+    answer = {"answer": "Answer.", "claims": []}
+
+    global_01_lazy_live._run_scores_and_judges(
+        question={
+            "question_id": "q1",
+            "text": "Question?",
+            "qualified_assertions": ["Assertion."],
+        },
+        answers={"control": answer, "treatment": answer},
+        documents={},
+        client=object(),
+        config=config,
+        state=global_01_lazy_live.LazyRunState.new("a" * 64, 12.0),
+        checkpoint_path=tmp_path / "checkpoint.json",
+    )
+
+    scorer_calls = [call for call in calls if call["cell"].startswith("scorer/")]
+    assert len(scorer_calls) == 2
+    assert {call["max_tokens"] for call in scorer_calls} == {2048}
+
+
 def test_map_prompt_bounds_claim_count_and_length():
     prompt = global_01_lazy_live._map_prompt(
         "Question?",

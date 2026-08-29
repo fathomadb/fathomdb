@@ -1164,7 +1164,7 @@ def _run_scores_and_judges(
                     documents,
                     max_excerpt_chars=scorer["source_excerpt_max_chars"],
                 ),
-                max_tokens=700,
+                max_tokens=scorer["max_tokens"],
                 temperature=scorer["temperature"],
                 validator=lambda raw, arm=arm: validate_assertion_score(
                     raw,

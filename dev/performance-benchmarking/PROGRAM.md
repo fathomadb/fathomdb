@@ -98,7 +98,7 @@ receipts, not inferred from a branch name or narration.
 | SCALE-02 | complete | F-17 advisory scale envelope: what measured local-first range is supportable for the selected projection profile? | The original fixed-policy A0 envelope remains 17,272. The rank-boundary off-shoot passes through 50k with exact retrieval equivalence. HITL `seq-267` approved `stream_default`; the production FTS path is landed and code-verified. | [track plan](tracks/scale-02-local-first-envelope.md) · [original result](2026-08-22-scale-02-fts-followup-result.md) · [scale extension](2026-08-22-scale-02-scale-extension-result.md) · [rank-boundary result](2026-08-22-scale-02-rank-boundary-result.md) · [implementation note](2026-08-23-scale-02-stream-default-implementation.md) |
 | LATENT-01 | P3 | Long-context/late-chunking feasibility: does a token-output, long-context embedder address a diagnosed cross-window discourse failure at acceptable cost? | Parked until LOCOMO-01/PARENT-01 diagnose that failure. Requires a model/interface preflight, labelled subset, and separate quality-and-cost contract; it is not a stride sweep. | [track plan](tracks/latent-01-late-chunking-feasibility.md) |
 | GRAPH-01 | P3 | FathomDB graph-projection self-characterization: do high-confidence, provenance-backed graph projections improve multi-hop retrieval enough to justify extraction and maintenance? | Planned; requires a bounded graph design and supporting-evidence protocol before native graph comparison is prioritized. | [track plan](tracks/graph-01-projection-characterization.md) |
-| GLOBAL-01 | P3 | Global sensemaking: can a bounded source-linked coverage treatment close the first run's coverage gap without losing directness, attribution, lifecycle fidelity, or acceptable cost? | Authorized. The dated contract, explicit caller-side treatment, isolated 0.8.23 runtime, full-corpus retrieval/lifecycle preflight, resumable runner, and safe receipt are complete. Run A/A under the $12 hard cap. | [track plan](tracks/global-01-native-graphrag.md) · [contract](2026-08-29-global-01-lazy-coverage-contract.md) · [preflight](2026-08-29-global-01-lazy-preflight-result.md) · [authorized receipt](../../experiments/runs/global-01-lazy-preflight-20260829T1922Z-aa159044/record.json) |
+| GLOBAL-01 | P3 | Global sensemaking: can a bounded source-linked coverage treatment close the first run's coverage gap without losing directness, attribution, lifecycle fidelity, or acceptable cost? | Active. A/A passed. Resume the corrected three-question witness under the $12 hard cap; run held-out only if it validates. | [track plan](tracks/global-01-native-graphrag.md) · [contract](2026-08-29-global-01-lazy-coverage-contract.md) · [execution note](2026-08-29-global-01-witness-execution-note.md) · [authorized receipt](../../experiments/runs/global-01-lazy-preflight-20260829T1922Z-aa159044/record.json) |
 | REASON-01 | parked | Native HippoRAG-2 comparison: cross-check multi-hop retrieval and QA. | Parked pending GRAPH-01 relevance, Python 3.10, official credential, and official-corpus reconciliation. | [track plan](tracks/reason-01-native-hipporag2.md) |
 | SEARCH-01 | complete | IR-C FTS population: establish a FathomDB-only descriptive retrieval baseline. | Complete historical baseline; not a competitor, answer-quality, lifecycle, or latency claim. | [track plan](tracks/search-01-ir-c-baseline.md) |
 
@@ -146,9 +146,9 @@ remains blocked on a reviewed manifest and adapter. EXTRACT-01 is complete for
 its limited knowledge-update claim and retains raw A0 because native
 value-changing extracted facts were not consolidated. LATENT-01 and GRAPH-01
 start only from a diagnosed failure.
-GLOBAL-01 is authorized under the registered $12 hard cap. Run A/A judge
-validation, then the three-question witness, then the held-out comparison only
-if both gates pass. REASON-01 retains its independent native-run prerequisites.
+GLOBAL-01 is active under the registered $12 hard cap. A/A passed. Resume the
+corrected three-question witness, then run the held-out comparison only if the
+witness is valid. REASON-01 retains its independent native-run prerequisites.
 
 ## Track organization
 

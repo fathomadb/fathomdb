@@ -50,7 +50,8 @@ budgets. Every presented source carries canonical `source_id` and content hash.
 The 15-document first-run control cannot exhaustively map all 1,397 documents
 at acceptable cost. The registered full-corpus control therefore retrieves the
 top 50 FTS candidates for the original question, maps fixed ordinal batches of
-five with a 300-token limit, and reduces them under the matched answer budget.
+five with a 300-token limit and at most two 30-word claims per batch, and
+reduces them under the matched answer budget.
 It preserves the first treatment's fixed batching and independent mapping while
 making the full-corpus comparison executable. It is a named scaled control, not
 an assertion that the first-run implementation was unchanged.
@@ -67,7 +68,8 @@ The caller must select this profile explicitly. It performs:
 5. greedy relevance-plus-novelty selection with weights 0.65 and 0.35,
    respectively, at most six documents per group, at most 24 documents total,
    and a 24,000-token context ceiling;
-6. one source-linked claim map per non-empty group, limited to 600 tokens; and
+6. one source-linked claim map per non-empty group, limited to 600 tokens and
+   at most four 30-word claims; and
 7. coverage-ledger reduction under the matched 1,500-token answer budget.
 
 Claims are query-time-only. Each claim and final answer claim must retain at
@@ -163,6 +165,14 @@ HITL authorized execution with a $12 hard cap on 2026-08-29. Stop during
 execution on configuration or input
 drift, invalid A/A behavior, a failed lifecycle canary, non-resumable state,
 incomplete output, exhausted retry budget, or the cost cap.
+
+The A/A gate passed. The initial witness stopped at the first control map after
+three identical responses exhausted the exact 300-token output ceiling. Before
+any held-out execution, semantic revision `v2-bounded-map` made the registered
+claim-count and claim-length bounds explicit. It does not change inputs, split,
+models, output-token budgets, scorer, acceptance boundaries, or the cost cap.
+The original invalid cells remain in the checkpoint and their cost remains
+charged to the same campaign.
 
 ## Basis
 

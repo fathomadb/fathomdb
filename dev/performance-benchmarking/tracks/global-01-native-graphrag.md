@@ -1,6 +1,6 @@
 # GLOBAL-01 — Native GraphRAG comparison
 
-**Status:** authorized; A/A gate is next.
+**Status:** active; A/A passed and the corrected witness is next.
 
 ## Decision
 
@@ -41,6 +41,11 @@ freezes step 1. Steps 2–4 passed in the
 [safe receipt](../../../experiments/runs/global-01-lazy-preflight-20260829T1841Z-6da51962/record.json)
 is registered. Coreyt authorized execution on 2026-08-29. The projected spend
 is $9.50 and the hard cap is $12.00.
+
+The A/A gate passed. The first witness map stopped on deterministic output
+truncation before held-out execution. The
+[execution note](../2026-08-29-global-01-witness-execution-note.md) records the
+bounded prompt correction and same-checkpoint resume.
 
 ## Stop
 

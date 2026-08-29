@@ -24,6 +24,7 @@ from experiments.fathomdb_test_setup import prepare_test_database
 
 CHECKPOINT_SCHEMA = "global-01.lazy-checkpoint.v1"
 RESULT_SCHEMA = "global-01.lazy-result.v1"
+SEMANTIC_REVISION = "v2-bounded-map"
 METRICS = ("comprehensiveness", "diversity", "empowerment", "directness")
 HEADLINE_METRICS = METRICS[:3]
 _JSON_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE)
@@ -400,6 +401,9 @@ def _complete_json_cell(
     if cell in state.cells:
         return state.cells[cell]["value"]
     for attempt in range(3):
+        invalid = f"invalid/{SEMANTIC_REVISION}/{cell}/{attempt}"
+        if invalid in state.cells:
+            continue
         response, usage, cost, latency_ms = client.complete(
             model,
             prompt,
@@ -410,7 +414,6 @@ def _complete_json_cell(
         try:
             parsed = validator(_json_object(response))
         except (Global01LazyLiveError, json.JSONDecodeError, KeyError, TypeError):
-            invalid = f"invalid/{cell}/{attempt}"
             state.complete(
                 invalid,
                 {
@@ -559,11 +562,18 @@ def best_source_excerpt(body: str, claim: str, *, max_chars: int) -> str:
     return max(candidates)[2]
 
 
-def _map_prompt(question: str, rows: Sequence[Mapping[str, Any]]) -> str:
+def _map_prompt(
+    question: str,
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    max_claims: int,
+) -> str:
     return (
         "Extract only source-grounded claims relevant to the question. Each claim "
         "must cite one or more supplied source_id/content_sha256 pairs. An empty "
-        "claim list is valid.\n\n"
+        f"claim list is valid. Return at most {max_claims} claims. Keep each claim "
+        "to at most 30 words and cite only the minimum sufficient supplied "
+        "sources.\n\n"
         f"QUESTION:\n{question}\n\nSOURCES:\n{_source_context(rows)}\n\n"
         'Return JSON only: {"claims":[{"text":"...","sources":'
         '[{"source_id":"...","content_sha256":"..."}]}]}.'
@@ -785,14 +795,19 @@ def _run_answer_arm(
     rows = state.cells[retrieval_cell]["rows"]
     if arm == "control":
         batch_size = config["profiles"]["control"]["map_batch_documents"]
-        batches = [rows[start : start + batch_size] for start in range(0, len(rows), batch_size)]
+        batches = [
+            rows[start : start + batch_size]
+            for start in range(0, len(rows), batch_size)
+        ]
         map_limit = config["profiles"]["control"]["map_max_tokens"]
+        map_max_claims = 2
     else:
         groups: dict[int, list[dict[str, Any]]] = {}
         for row in rows:
             groups.setdefault(int(row["group_ordinal"]), []).append(row)
         batches = [groups[key] for key in sorted(groups)]
         map_limit = config["profiles"]["treatment"]["map_max_tokens"]
+        map_max_claims = 4
     mapped: list[dict[str, Any]] = []
     for ordinal, batch in enumerate(batches):
         map_cell = f"maps/{arm}/{qid}/{ordinal}"
@@ -803,7 +818,9 @@ def _run_answer_arm(
             checkpoint_path=checkpoint_path,
             cell=map_cell,
             model=generator["model"],
-            prompt=_map_prompt(question["text"], batch),
+            prompt=_map_prompt(
+                question["text"], batch, max_claims=map_max_claims
+            ),
             max_tokens=map_limit,
             temperature=generator["temperature"],
             validator=lambda raw, known=known, ordinal=ordinal: {

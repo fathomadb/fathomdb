@@ -10,8 +10,8 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. Run the GLOBAL-01 A/A judge gate under the authorized $12 hard cap.
-2. If A/A passes, run the three-question witness.
+1. Resume the corrected GLOBAL-01 three-question witness; A/A passed.
+2. Stop if the witness is invalid.
 3. If the witness is valid, run the 39-question held-out comparison.
 
 ## Track status
@@ -31,7 +31,7 @@ append-only evidence index.
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |
-| [GLOBAL-01](tracks/global-01-native-graphrag.md) | Authorized | Coreyt approved the $12 hard cap. Run A/A using the [authorized preflight receipt](../../experiments/runs/global-01-lazy-preflight-20260829T1922Z-aa159044/record.json). |
+| [GLOBAL-01](tracks/global-01-native-graphrag.md) | Active | A/A passed. Resume the corrected witness from the same checkpoint; run held-out only if valid. |
 | [REASON-01](tracks/reason-01-native-hipporag2.md) | Parked | Wait for useful GRAPH-01 evidence and native-run prerequisites. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |
 

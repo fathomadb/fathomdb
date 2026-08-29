@@ -92,6 +92,64 @@ def test_decomposition_requires_exact_bounded_unique_queries():
         )
 
 
+def test_map_prompt_bounds_claim_count_and_length():
+    prompt = global_01_lazy_live._map_prompt(
+        "Question?",
+        [
+            {
+                "source_id": "source-1",
+                "content_sha256": "a" * 64,
+                "body": "Evidence.",
+            }
+        ],
+        max_claims=2,
+    )
+
+    assert "at most 2 claims" in prompt
+    assert "at most 30 words" in prompt
+
+
+def test_semantic_revision_preserves_legacy_invalid_cells(tmp_path: Path):
+    class FakeClient:
+        def __init__(self):
+            self.responses = iter(
+                [
+                    ("{}", {"prompt_tokens": 1, "completion_tokens": 1}, 0.01, 1.0),
+                    (
+                        '{"ok":true}',
+                        {"prompt_tokens": 1, "completion_tokens": 1},
+                        0.01,
+                        1.0,
+                    ),
+                ]
+            )
+
+        def complete(self, *args, **kwargs):
+            return next(self.responses)
+
+    checkpoint = tmp_path / "checkpoint.json"
+    state = global_01_lazy_live.LazyRunState.new("d" * 64, 1.0)
+    state.complete("invalid/maps/control/q/0/0", {"legacy": True}, cost_usd=0.01)
+
+    value = global_01_lazy_live._complete_json_cell(
+        FakeClient(),
+        state=state,
+        checkpoint_path=checkpoint,
+        cell="maps/control/q/0",
+        model="model",
+        prompt="prompt",
+        max_tokens=300,
+        temperature=0.0,
+        validator=lambda raw: raw
+        if raw.get("ok") is True
+        else (_ for _ in ()).throw(global_01_lazy_live.Global01LazyLiveError("bad")),
+    )
+
+    assert value == {"ok": True}
+    assert state.cells["invalid/maps/control/q/0/0"] == {"legacy": True}
+    assert f"invalid/{global_01_lazy_live.SEMANTIC_REVISION}/maps/control/q/0/0" in state.cells
+
+
 def test_assertion_score_requires_all_final_claims_and_valid_indices():
     answer = {
         "claims": [

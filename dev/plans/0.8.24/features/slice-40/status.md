@@ -43,6 +43,12 @@ Record P24-09 and P24-10 using `decision.md`. With both decisions, Slice 40
 can promote the applicable draft contracts, write the selected ADR/interface
 change, add RED tests, and implement/prove the route on the approved executor.
 
+## HITL hold — 2026-08-29
+
+The HITL is actively resolving the VM/libvirt issue. Do not take any additional
+VM, GPU-passthrough, runner, or Slice 40 execution actions until the HITL
+provides further information.
+
 ## Handoff
 
 Slice 60 will require the selected identity/version/index or registry,

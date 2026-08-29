@@ -1,6 +1,6 @@
 # GLOBAL-01 DeepSeek output-limit correction
 
-**Status:** v3 zero-spend preflight passed; paid witness next.
+**Status:** reduction correction validated; scorer correction required.
 
 Airlock resolves `deepseek-v4-pro` to native
 `deepseek/deepseek-v4-pro`. Its live model metadata reports a 1,000,000-token
@@ -51,9 +51,31 @@ contract.
 The [v4 preflight](../../experiments/runs/global-01-lazy-preflight-20260829T2129Z-62bb47c3/record.json)
 passed at zero spend under configuration `62bb47c3`.
 
+The [v4 witness](../../experiments/runs/global-01-lazy-witness-20260829T2130Z-62bb47c3/record.json)
+validated the compact reduction: it produced two complete witness answers and
+advanced through 15 map cells. It then exposed a separate assertion-scorer
+ceiling. All three treatment-scorer attempts reached the hardcoded 700-token
+ceiling with `finish_reason=length` on a roughly 14,200-token prompt. No
+held-out work ran.
+
+Airlock resolves `claude-haiku` to `claude-haiku-4-5-20251001`. Anthropic
+documents a 200,000-token context window and a 64,000-token maximum output for
+that model. It also documents that `max_tokens` does not count against output
+token-per-minute admission; only generated tokens count. The 700-token value
+was therefore an undersized experiment ceiling, not a model or rate limit.
+
+The scorer contract needs less than 1 KB of JSON for the observed 20-claim
+answer. A 2,048-token ceiling gives nearly three times the failed ceiling while
+remaining far below the model maximum. Across 196 planned scorer cells, the
+additional worst-case output reservation is $1.321 at the registered $5/M
+output price. The revised full-run projection is $11.72 under the unchanged
+$12 hard cap.
+
 ## Sources
 
 - [DeepSeek models and pricing](https://api-docs.deepseek.com/quick_start/pricing)
 - [DeepSeek Chat Completions](https://api-docs.deepseek.com/api/create-chat-completion/)
 - [DeepSeek JSON output](https://api-docs.deepseek.com/guides/json_mode/)
 - [OpenRouter DeepSeek V4 Pro](https://openrouter.ai/deepseek/deepseek-v4-pro)
+- [Anthropic model overview](https://platform.claude.com/docs/en/models/overview)
+- [Anthropic rate limits](https://platform.claude.com/docs/en/api/rate-limits)

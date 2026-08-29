@@ -10,9 +10,10 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. Run fresh v4 A/A and witness from a new root.
-2. Run held-out only if the v4 witness is valid.
-3. Register the receipt and decision without tuning held-out outcomes.
+1. Bind the documented 2,048-token assertion-scorer ceiling in v5.
+2. Run fresh v5 A/A and witness from a new root.
+3. Run held-out only if the v5 witness is valid.
+4. Register the receipt and decision without tuning held-out outcomes.
 
 ## Track status
 
@@ -31,7 +32,7 @@ append-only evidence index.
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |
-| [GLOBAL-01](tracks/global-01-native-graphrag.md) | V4 authorized and preflighted | The [compact-reference preflight](../../experiments/runs/global-01-lazy-preflight-20260829T2129Z-62bb47c3/record.json) passed at $0; run fresh A/A and witness. |
+| [GLOBAL-01](tracks/global-01-native-graphrag.md) | V4 reduction valid; scorer blocked | The [v4 witness](../../experiments/runs/global-01-lazy-witness-20260829T2130Z-62bb47c3/record.json) reached scoring, where the 700-token ceiling truncated all retries. Bind 2,048 in v5, preflight, then run fresh A/A and witness. |
 | [REASON-01](tracks/reason-01-native-hipporag2.md) | Parked | Wait for useful GRAPH-01 evidence and native-run prerequisites. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |
 

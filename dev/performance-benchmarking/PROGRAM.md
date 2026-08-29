@@ -98,7 +98,7 @@ receipts, not inferred from a branch name or narration.
 | SCALE-02 | complete | F-17 advisory scale envelope: what measured local-first range is supportable for the selected projection profile? | The original fixed-policy A0 envelope remains 17,272. The rank-boundary off-shoot passes through 50k with exact retrieval equivalence. HITL `seq-267` approved `stream_default`; the production FTS path is landed and code-verified. | [track plan](tracks/scale-02-local-first-envelope.md) · [original result](2026-08-22-scale-02-fts-followup-result.md) · [scale extension](2026-08-22-scale-02-scale-extension-result.md) · [rank-boundary result](2026-08-22-scale-02-rank-boundary-result.md) · [implementation note](2026-08-23-scale-02-stream-default-implementation.md) |
 | LATENT-01 | P3 | Long-context/late-chunking feasibility: does a token-output, long-context embedder address a diagnosed cross-window discourse failure at acceptable cost? | Parked until LOCOMO-01/PARENT-01 diagnose that failure. Requires a model/interface preflight, labelled subset, and separate quality-and-cost contract; it is not a stride sweep. | [track plan](tracks/latent-01-late-chunking-feasibility.md) |
 | GRAPH-01 | P3 | FathomDB graph-projection self-characterization: do high-confidence, provenance-backed graph projections improve multi-hop retrieval enough to justify extraction and maintenance? | Planned; requires a bounded graph design and supporting-evidence protocol before native graph comparison is prioritized. | [track plan](tracks/graph-01-projection-characterization.md) |
-| GLOBAL-01 | P3 | Global sensemaking: can a bounded source-linked coverage treatment close the first run's coverage gap without losing directness, attribution, lifecycle fidelity, or acceptable cost? | V4 keeps the 4,096-token matched ceiling and uses short local reduction references with deterministic canonical restoration. Its authorized zero-spend preflight passed; run fresh A/A and witness. | [track plan](tracks/global-01-native-graphrag.md) · [output-limit basis](2026-08-29-global-01-output-limit-research.md) · [preflight receipt](../../experiments/runs/global-01-lazy-preflight-20260829T2129Z-62bb47c3/record.json) |
+| GLOBAL-01 | P3 | Global sensemaking: can a bounded source-linked coverage treatment close the first run's coverage gap without losing directness, attribution, lifecycle fidelity, or acceptable cost? | V4 validated compact reduction and reached assertion scoring. The scorer's 700-token experiment ceiling truncated all retries; bind the documented, cost-safe 2,048-token ceiling in v5 and preflight a fresh run. | [track plan](tracks/global-01-native-graphrag.md) · [output-limit basis](2026-08-29-global-01-output-limit-research.md) · [v4 witness](../../experiments/runs/global-01-lazy-witness-20260829T2130Z-62bb47c3/record.json) |
 | REASON-01 | parked | Native HippoRAG-2 comparison: cross-check multi-hop retrieval and QA. | Parked pending GRAPH-01 relevance, Python 3.10, official credential, and official-corpus reconciliation. | [track plan](tracks/reason-01-native-hipporag2.md) |
 | SEARCH-01 | complete | IR-C FTS population: establish a FathomDB-only descriptive retrieval baseline. | Complete historical baseline; not a competitor, answer-quality, lifecycle, or latency claim. | [track plan](tracks/search-01-ir-c-baseline.md) |
 
@@ -152,9 +152,11 @@ stopped before held-out work because deterministic semantic retries omitted
 validation feedback. That correction worked, then reduction output reached the
 exact token ceiling without actionable retry feedback. The second runner
 correction confirmed that 1,500 tokens cannot hold the required reduction.
-V3 raises only the matched reduction ceiling to 4,096 under the existing hard
-cap and requires a fresh zero-spend preflight and checkpoint. REASON-01 retains
-its independent native-run prerequisites.
+V3 raised only the matched reduction ceiling to 4,096. V4 compacted reduction
+references and validated that path in a fresh witness, which then exposed an
+independent 700-token assertion-scorer ceiling. V5 will bind a documented
+2,048-token scorer ceiling under the existing hard cap. REASON-01 retains its
+independent native-run prerequisites.
 
 ## Track organization
 

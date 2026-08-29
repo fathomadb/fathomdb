@@ -1,6 +1,6 @@
 # GLOBAL-01 — Native GraphRAG comparison
 
-**Status:** stopped; development witness invalid and held-out not run.
+**Status:** v2 recovery ready for HITL; v1 witness remains invalid.
 
 ## Decision
 
@@ -48,6 +48,12 @@ without a complete answer. The
 [receipt](../../../experiments/runs/global-01-lazy-witness-20260829T1924Z-aa159044/record.json)
 record the stopped, decision-ineligible run.
 
+The [v2 recovery contract](../2026-08-29-global-01-v2-recovery-contract.md)
+removes the contradictory attribution encoding, preserves the measurement
+design, and uses a fresh checkpoint. Its
+[zero-spend preflight](../2026-08-29-global-01-v2-preflight-result.md) passed.
+Paid A/A and witness execution require new HITL authorization and a hard cap.
+
 ## Stop
 
 Stop on corpus or split drift, invalid A/A behavior, failed lifecycle canaries,
@@ -61,6 +67,6 @@ Native GraphRAG led directionally on comprehensiveness, diversity, and
 empowerment; source-linked map-reduce led on directness. That measured coverage
 gap supports only a preregistered treatment. The
 [performance-gap analysis and falsifiable improvement hypothesis](../2026-08-29-global-01-improvement-hypothesis.md)
-provides that basis. The treatment remains unaccepted. Reopen only with a new
-preregistered generator/output contract; do not reuse this witness as a quality
-result.
+provides that basis. The treatment remains unaccepted. V2 is reopened only
+under its preregistered recovery contract; do not reuse the v1 witness as a
+quality result.

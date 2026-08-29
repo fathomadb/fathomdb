@@ -64,3 +64,10 @@ answers. This is an execution-contract failure, not a quality verdict.
 - [Measurement contract](2026-08-29-global-01-lazy-coverage-contract.md)
 - [Authorized preflight receipt](../../experiments/runs/global-01-lazy-preflight-20260829T1922Z-aa159044/record.json)
 - [Invalid witness receipt](../../experiments/runs/global-01-lazy-witness-20260829T1924Z-aa159044/record.json)
+
+## Follow-up
+
+The [v2 recovery contract](2026-08-29-global-01-v2-recovery-contract.md)
+removes the contradictory attribution instructions and passed zero-spend
+preflight under a fresh configuration hash. It does not alter this v1 outcome
+or reuse this checkpoint.

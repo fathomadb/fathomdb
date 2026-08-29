@@ -61,8 +61,14 @@ $9.50 spend, and proposed $12 hard cap.
 
 No v2 model-completion call is authorized by this document.
 
+The zero-spend gate passed under configuration SHA-256
+`15096cae2823d621954a640e185c8238e01ff8b46150c743c9c644a2f2af4cee`.
+The registered receipt is `awaiting_hitl`.
+
 ## Basis
 
 - [Stopped v1 witness](../../experiments/runs/global-01-lazy-witness-20260829T1924Z-aa159044/record.json)
+- [V2 preflight result](2026-08-29-global-01-v2-preflight-result.md)
+- [V2 preflight receipt](../../experiments/runs/global-01-lazy-preflight-20260829T2026Z-15096cae/record.json)
 - [V1 execution note](2026-08-29-global-01-witness-execution-note.md)
 - [Original measurement contract](2026-08-29-global-01-lazy-coverage-contract.md)

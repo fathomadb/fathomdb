@@ -10,8 +10,9 @@ append-only evidence index.
 
 ## Immediate sequence
 
-1. Preserve the invalid GLOBAL-01 witness receipt; do not run held-out.
-2. Prepare GRAPH-01's bounded graph and supporting-evidence contract.
+1. Obtain HITL authorization and a hard cap for the fresh GLOBAL-01 v2 run.
+2. If approved, run A/A and the three-question witness from a fresh checkpoint.
+3. Run held-out only if the v2 witness is valid.
 
 ## Track status
 
@@ -30,7 +31,7 @@ append-only evidence index.
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |
-| [GLOBAL-01](tracks/global-01-native-graphrag.md) | Stopped, invalid witness | Preserve the [receipt](../../experiments/runs/global-01-lazy-witness-20260829T1924Z-aa159044/record.json); no held-out run or quality verdict. |
+| [GLOBAL-01](tracks/global-01-native-graphrag.md) | V2 ready for HITL | The [recovery preflight](../../experiments/runs/global-01-lazy-preflight-20260829T2026Z-15096cae/record.json) passed at $0; obtain new paid-run authorization and cap. |
 | [REASON-01](tracks/reason-01-native-hipporag2.md) | Parked | Wait for useful GRAPH-01 evidence and native-run prerequisites. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |
 

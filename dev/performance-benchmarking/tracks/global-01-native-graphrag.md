@@ -121,6 +121,8 @@ validated scorer projection and completed one question's scoring and judging.
 It then exhausted generic retries on a map batch that alternated between an
 uncited claim and an overlong claim. Bind targeted, content-free correction
 instructions for those existing validators, then preflight one fresh witness.
+The [v7 preflight](../../../experiments/runs/global-01-lazy-preflight-20260829T2158Z-60b3642c/record.json)
+passed at zero spend.
 
 ## Stop
 

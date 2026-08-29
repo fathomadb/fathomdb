@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -77,6 +78,61 @@ def test_client_refuses_worst_case_cost_before_network(monkeypatch):
         )
 
     assert called is False
+
+
+def test_client_preserves_finish_reason_without_mixing_it_into_token_checks(
+    monkeypatch,
+):
+    payload = {
+        "choices": [
+            {
+                "message": {"content": '{"ok":true}'},
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+    }
+    monkeypatch.setattr(
+        global_01_lazy_live.urllib.request,
+        "urlopen",
+        lambda *_args, **_kwargs: io.BytesIO(json.dumps(payload).encode()),
+    )
+    client = global_01_lazy_live.AirlockClient(
+        "http://127.0.0.1:4000",
+        "secret",
+        {
+            "execution": {
+                "retry_attempts": 1,
+                "retry_backoff_seconds": [1],
+            },
+            "models": {
+                "generator": {
+                    "model": "deepseek-v4-pro",
+                    "thinking_mode": "disabled",
+                }
+            },
+            "pricing": {
+                "deepseek-v4-pro": {
+                    "input_per_million": 1.32,
+                    "output_per_million": 3.96,
+                }
+            },
+        },
+    )
+
+    _content, usage, _cost, _latency = client.complete(
+        "deepseek-v4-pro",
+        "return JSON",
+        max_tokens=100,
+        temperature=0.0,
+        remaining_cost_usd=1.0,
+    )
+
+    assert usage == {
+        "prompt_tokens": 10,
+        "completion_tokens": 5,
+        "finish_reason": "stop",
+    }
 
 
 def test_decomposition_requires_exact_bounded_unique_queries():

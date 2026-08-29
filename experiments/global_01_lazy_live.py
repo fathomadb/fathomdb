@@ -228,7 +228,11 @@ class AirlockClient:
                     ),
                     "finish_reason": str(choice.get("finish_reason") or ""),
                 }
-                if not content.strip() or min(usage.values()) <= 0:
+                if (
+                    not content.strip()
+                    or usage["prompt_tokens"] <= 0
+                    or usage["completion_tokens"] <= 0
+                ):
                     raise Global01LazyLiveError(
                         f"{model} returned empty content or missing usage"
                     )

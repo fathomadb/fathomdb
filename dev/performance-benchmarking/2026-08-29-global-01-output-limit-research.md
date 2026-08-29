@@ -29,6 +29,11 @@ The [authorized v3 preflight](../../experiments/runs/global-01-lazy-preflight-20
 passed at zero spend under configuration SHA-256
 `b0f3c3281392b4012ae4d7bcf44bb577bb1a9354e5ea4cf37c966f8a410fa83d`.
 
+The first paid response exposed a local mixed-type usage check before its A/A
+cell could checkpoint. The corrected client validates numeric prompt and
+completion counts independently and retains `finish_reason` as metadata. The
+stopped root contains no completed cell and must not resume.
+
 ## Sources
 
 - [DeepSeek models and pricing](https://api-docs.deepseek.com/quick_start/pricing)

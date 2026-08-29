@@ -1,7 +1,6 @@
 # GLOBAL-01 — Native GraphRAG comparison
 
-**Status:** planned; the first comparison is complete and limited, and a
-preregistered second treatment is authorized for planning only.
+**Status:** awaiting HITL authorization for the paid A/A gate and witness.
 
 ## Decision
 
@@ -35,6 +34,14 @@ registered limits?
 8. Record the receipt and decision. Accept the profile only if every registered
    quality, attribution, lifecycle, latency, and cost boundary passes.
 
+The dated
+[lazy-coverage measurement contract](../2026-08-29-global-01-lazy-coverage-contract.md)
+freezes step 1. Steps 2–4 passed in the
+[zero-spend preflight](../2026-08-29-global-01-lazy-preflight-result.md), and the
+[safe receipt](../../../experiments/runs/global-01-lazy-preflight-20260829T1841Z-6da51962/record.json)
+is registered. Paid execution remains unauthorized. The projected spend is
+$9.50 and the recommended hard cap is $12.00.
+
 ## Stop
 
 Stop on corpus or split drift, invalid A/A behavior, failed lifecycle canaries,
@@ -48,5 +55,5 @@ Native GraphRAG led directionally on comprehensiveness, diversity, and
 empowerment; source-linked map-reduce led on directness. That measured coverage
 gap supports only a preregistered treatment. The
 [performance-gap analysis and falsifiable improvement hypothesis](../2026-08-29-global-01-improvement-hypothesis.md)
-provides that basis. The treatment is not yet contracted, implemented, or
-accepted.
+provides that basis. The treatment is contracted and implemented as an
+experimental caller-side profile, but it is not yet executed or accepted.

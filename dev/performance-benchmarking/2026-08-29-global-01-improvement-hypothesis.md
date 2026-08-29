@@ -240,7 +240,10 @@ on the eight first-run questions.
 
 ### Arms
 
-- Control: current `source_mapreduce_c_v1`.
+- Control: `source_mapreduce_c_v1_fts50`, the registered full-corpus scaling
+  adaptation that applies one FTS-50 candidate gate before the current fixed
+  batch map/reduce pattern. The 15-document exhaustive first-run control is not
+  represented as scalable to all 1,397 documents.
 - Treatment: `global_lazy_coverage_v1`.
 - Optional reference, not a tuning oracle: native GraphRAG global search.
 

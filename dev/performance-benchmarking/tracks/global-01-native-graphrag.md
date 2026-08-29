@@ -1,6 +1,7 @@
 # GLOBAL-01 — Native GraphRAG comparison
 
-**Status:** parked; global-sensemaking calibration, not a personal-memory default gate.
+**Status:** complete, limited; global-sensemaking calibration, not a
+personal-memory default gate.
 
 ## Decision
 
@@ -21,3 +22,11 @@ global coverage, diversity, empowerment, and cost?
 
 Stop on corpus mismatch, incomplete arms, or the cost cap. A split result is a
 valid result; do not tune indefinitely.
+
+## Outcome
+
+The [first-run result](../2026-08-29-global-01-first-run-result.md) is split.
+Native GraphRAG led directionally on comprehensiveness, diversity, and
+empowerment; source-linked map-reduce led on directness. Reopen only for a
+preregistered hierarchical-summary or graph treatment prompted by the measured
+coverage gap.

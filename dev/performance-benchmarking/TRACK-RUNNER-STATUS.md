@@ -5,13 +5,13 @@ Current coordination state for the
 [`experiments/`](../../experiments/README.md) holds execution receipts and the
 append-only evidence index.
 
-- **Last reconciled:** 2026-08-24
+- **Last reconciled:** 2026-08-29
 - **Branch:** `experiments/performance-0.8.23-plan-20260821`
 
 ## Immediate sequence
 
-1. No run queued. MEMORY-01 is complete; remaining planned tracks require
-   their declared trigger or missing input.
+1. No run queued. GLOBAL-01 is complete; remaining planned tracks require their
+   declared trigger or missing input.
 
 ## Track status
 
@@ -30,7 +30,7 @@ append-only evidence index.
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planned | Start only from a labelled multi-hop failure set. |
-| [GLOBAL-01](tracks/global-01-native-graphrag.md) | Parked | Wait for a named global-synthesis failure, an eligible graph or summary/map-reduce treatment, and native-run prerequisites. |
+| [GLOBAL-01](tracks/global-01-native-graphrag.md) | Complete, limited | Preserve the [split first-run result](2026-08-29-global-01-first-run-result.md); reopen only for a preregistered hierarchical-summary or graph treatment. |
 | [REASON-01](tracks/reason-01-native-hipporag2.md) | Parked | Wait for useful GRAPH-01 evidence and native-run prerequisites. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |
 

@@ -74,7 +74,7 @@ TRACE-01
 CORPUS-01 may prepare independently; LATENT-01 and GRAPH-01 are commissioned
 only from a named failure diagnosis. TEMPORAL-01 and EXTRACT-01 wait for
 qualified gold, TRACE-01 lifecycle coverage, and the selected baseline.
-GLOBAL-01 and REASON-01 remain parked.
+GLOBAL-01 is complete and limited; REASON-01 remains parked.
 ```
 
 `LOCOMO-01` may prepare its FTS/CPU runner after its own provenance conditions

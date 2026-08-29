@@ -1,0 +1,48 @@
+{
+  "schema_version": "global-01.result.v1",
+  "program_track": "GLOBAL-01",
+  "config_sha256": "40685e82ded3b0b0e049779d2384c08cae47ff646743a835451ae6da70ddada0",
+  "state": "complete",
+  "native_witness": "valid",
+  "question_count": 8,
+  "judge_repetitions": 5,
+  "order_swapped": true,
+  "cost_usd": 1.5334708800000014,
+  "cost_cap_usd": 6.0,
+  "verdict": "split",
+  "metrics": {
+    "comprehensiveness": {
+      "fathomdb_win_rate": 0.375,
+      "clustered_bootstrap_ci95": [
+        0.0,
+        0.75
+      ],
+      "judgments": 80
+    },
+    "diversity": {
+      "fathomdb_win_rate": 0.375,
+      "clustered_bootstrap_ci95": [
+        0.0,
+        0.75
+      ],
+      "judgments": 80
+    },
+    "empowerment": {
+      "fathomdb_win_rate": 0.3875,
+      "clustered_bootstrap_ci95": [
+        0.0375,
+        0.75
+      ],
+      "judgments": 80
+    },
+    "directness": {
+      "fathomdb_win_rate": 0.96875,
+      "clustered_bootstrap_ci95": [
+        0.90625,
+        1.0
+      ],
+      "judgments": 80
+    }
+  },
+  "answer_manifest_sha256": "e89ae0edb69230a31557fb212d7748a283f9ecc160d640747cbb207a62335ea1"
+}

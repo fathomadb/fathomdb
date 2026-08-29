@@ -24,6 +24,7 @@ from experiments.fathomdb_test_setup import prepare_test_database
 
 
 SCHEMA = "global-01.lazy-coverage.v1"
+RECOVERY_SCHEMA = "global-01.lazy-coverage.v2"
 PROGRAM_TRACK = "GLOBAL-01"
 PROFILE = "global_lazy_coverage_v1"
 DISPOSITIONS = {
@@ -99,10 +100,15 @@ def validate_config(value: object) -> dict[str, Any]:
             "pricing",
         },
     )
+    schema = root["schema_version"]
+    expected_label = {
+        SCHEMA: "apnews-global-lazy-coverage",
+        RECOVERY_SCHEMA: "apnews-global-lazy-coverage-v2",
+    }.get(schema)
     if (
-        root["schema_version"] != SCHEMA
+        expected_label is None
         or root["program_track"] != PROGRAM_TRACK
-        or root["run_label"] != "apnews-global-lazy-coverage"
+        or root["run_label"] != expected_label
     ):
         raise Global01LazyError("GLOBAL-01 lazy schema, track, or label drifted")
 
@@ -272,6 +278,10 @@ def validate_config(value: object) -> dict[str, Any]:
         or execution.get("completeness_required") is not True
     ):
         raise Global01LazyError("execution resilience contract drifted")
+    if schema == RECOVERY_SCHEMA and execution.get("map_output_adapter") != (
+        "compact_refs_or_canonical_v2"
+    ):
+        raise Global01LazyError("v2 map output adapter drifted")
 
     pricing = root["pricing"]
     if (

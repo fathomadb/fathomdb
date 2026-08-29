@@ -24,7 +24,7 @@ from experiments.fathomdb_test_setup import prepare_test_database
 
 CHECKPOINT_SCHEMA = "global-01.lazy-checkpoint.v1"
 RESULT_SCHEMA = "global-01.lazy-result.v1"
-SEMANTIC_REVISION = "v4-cap-surplus-claims"
+SEMANTIC_REVISION = "v5-dual-attribution"
 METRICS = ("comprehensiveness", "diversity", "empowerment", "directness")
 HEADLINE_METRICS = METRICS[:3]
 _JSON_FENCE = re.compile(r"^```(?:json)?\s*|\s*```$", re.IGNORECASE)
@@ -302,27 +302,58 @@ def _validate_mapped_claims(
     if not isinstance(claims, list):
         raise Global01LazyLiveError("claim map claims are not a list")
     claims = claims[:max_claims]
+    known_sources = {
+        (source["source_id"], source["content_sha256"])
+        for source in known_source_refs.values()
+    }
     result = []
     for ordinal, claim in enumerate(claims):
-        if not isinstance(claim, dict) or set(claim) != {"text", "source_refs"}:
+        if not isinstance(claim, dict) or set(claim) not in (
+            {"text", "source_refs"},
+            {"text", "sources"},
+        ):
             raise Global01LazyLiveError("mapped claim shape is invalid")
         if not isinstance(claim["text"], str) or not claim["text"].strip():
             raise Global01LazyLiveError("mapped claim text is empty")
         if len(claim["text"].split()) > max_words:
             raise Global01LazyLiveError("mapped claim text exceeds word limit")
-        source_refs = claim["source_refs"]
-        if (
-            not isinstance(source_refs, list)
-            or not source_refs
-            or len(source_refs) != len(set(source_refs))
-        ):
-            raise Global01LazyLiveError("mapped claim lacks canonical sources")
-        sources = []
-        for source_ref in source_refs:
-            source = known_source_refs.get(source_ref)
-            if source is None:
-                raise Global01LazyLiveError("mapped claim source binding drifted")
-            sources.append(dict(source))
+        sources: list[dict[str, str]] = []
+        if "source_refs" in claim:
+            source_refs = claim["source_refs"]
+            if (
+                not isinstance(source_refs, list)
+                or not source_refs
+                or any(not isinstance(source_ref, str) for source_ref in source_refs)
+                or len(source_refs) != len(set(source_refs))
+            ):
+                raise Global01LazyLiveError("mapped claim lacks canonical sources")
+            for source_ref in source_refs:
+                source = known_source_refs.get(source_ref)
+                if source is None:
+                    raise Global01LazyLiveError(
+                        "mapped claim source binding drifted"
+                    )
+                sources.append(dict(source))
+        else:
+            canonical_sources = claim["sources"]
+            if not isinstance(canonical_sources, list) or not canonical_sources:
+                raise Global01LazyLiveError("mapped claim lacks canonical sources")
+            seen_sources: set[tuple[str, str]] = set()
+            for source in canonical_sources:
+                if not isinstance(source, dict) or set(source) != {
+                    "source_id",
+                    "content_sha256",
+                }:
+                    raise Global01LazyLiveError(
+                        "mapped claim source binding drifted"
+                    )
+                identity = (source["source_id"], source["content_sha256"])
+                if identity not in known_sources or identity in seen_sources:
+                    raise Global01LazyLiveError(
+                        "mapped claim source binding drifted"
+                    )
+                seen_sources.add(identity)
+                sources.append(dict(source))
         result.append(
             {
                 "claim_id": f"{prefix}-{ordinal:03d}",
@@ -418,9 +449,16 @@ def _complete_json_cell(
             temperature=temperature,
             remaining_cost_usd=state.remaining_cost_usd,
         )
+        raw: dict[str, Any] | None = None
         try:
-            parsed = validator(_json_object(response))
-        except (Global01LazyLiveError, json.JSONDecodeError, KeyError, TypeError):
+            raw = _json_object(response)
+            parsed = validator(raw)
+        except (
+            Global01LazyLiveError,
+            json.JSONDecodeError,
+            KeyError,
+            TypeError,
+        ) as exc:
             state.complete(
                 invalid,
                 {
@@ -429,6 +467,7 @@ def _complete_json_cell(
                     ).hexdigest(),
                     "usage": usage,
                     "latency_ms": latency_ms,
+                    "semantic_failure": semantic_failure_metadata(raw, exc),
                 },
                 cost_usd=cost,
             )
@@ -442,6 +481,25 @@ def _complete_json_cell(
         state.save(checkpoint_path)
         return parsed
     raise Global01LazyLiveError(f"semantic retry budget exhausted for {cell}")
+
+
+def semantic_failure_metadata(
+    value: Mapping[str, Any] | None,
+    failure: Exception,
+) -> dict[str, Any]:
+    """Describe a semantic failure without retaining response content."""
+    message = str(failure)
+    result: dict[str, Any] = {
+        "error": message if len(message) <= 120 else type(failure).__name__,
+        "top_level_keys": sorted(value) if isinstance(value, Mapping) else [],
+    }
+    claims = value.get("claims") if isinstance(value, Mapping) else None
+    if isinstance(claims, list):
+        result["claim_count"] = len(claims)
+        result["claim_key_sets"] = [
+            sorted(claim) if isinstance(claim, Mapping) else [] for claim in claims
+        ]
+    return result
 
 
 def _load_aa_answers(config: Mapping[str, Any], repository_root: Path) -> list[dict[str, str]]:
@@ -584,8 +642,9 @@ def _map_prompt(
     max_claims: int,
 ) -> str:
     return (
-        "Extract only source-grounded claims relevant to the question. Each claim "
-        "must cite one or more supplied source_id/content_sha256 pairs. An empty "
+        "Extract only source-grounded claims relevant to the question. Cite claims "
+        "only with supplied SOURCE_REF values; the caller resolves them to the "
+        "shown canonical source ID and hash. An empty "
         f"claim list is valid. Return at most {max_claims} claims. Keep each claim "
         "to at most 30 words and cite only the minimum sufficient supplied "
         "sources.\n\n"

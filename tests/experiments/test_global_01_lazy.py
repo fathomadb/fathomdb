@@ -17,6 +17,9 @@ from experiments import global_01_lazy
 CONFIG_PATH = Path(
     "experiments/configs/global-01/apnews-global-lazy-coverage.v1.json"
 )
+V2_CONFIG_PATH = Path(
+    "experiments/configs/global-01/apnews-global-lazy-coverage.v2.json"
+)
 
 
 def _config() -> dict[str, object]:
@@ -59,6 +62,19 @@ def test_shipped_config_requires_explicit_profile_and_bound_paid_approval():
     automatic["profiles"]["treatment"]["caller_selected"] = False
     with pytest.raises(global_01_lazy.Global01LazyError, match="caller-selected"):
         global_01_lazy.validate_config(automatic)
+
+
+def test_v2_config_registers_recovery_adapter_but_requires_new_authorization():
+    config = global_01_lazy.validate_config(
+        json.loads(V2_CONFIG_PATH.read_text(encoding="utf-8"))
+    )
+
+    assert config["schema_version"] == "global-01.lazy-coverage.v2"
+    assert config["execution"]["map_output_adapter"] == (
+        "compact_refs_or_canonical_v2"
+    )
+    with pytest.raises(global_01_lazy.Global01LazyError, match="HITL approval"):
+        global_01_lazy.assert_execution_authorized(config)
 
 
 def test_question_split_is_deterministic_and_keeps_prior_questions_out_of_development():

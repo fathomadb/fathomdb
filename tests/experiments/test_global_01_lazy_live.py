@@ -109,6 +109,8 @@ def test_map_prompt_bounds_claim_count_and_length():
     assert "at most 30 words" in prompt
     assert "SOURCE_REF=S0" in prompt
     assert '"source_refs":["S0"]' in prompt
+    assert "Cite claims only with supplied SOURCE_REF values" in prompt
+    assert "must cite one or more supplied source_id/content_sha256 pairs" not in prompt
 
 
 def test_mapped_claim_source_refs_restore_canonical_attribution():
@@ -144,6 +146,63 @@ def test_mapped_claim_source_refs_restore_canonical_attribution():
             ],
         }
     ]
+
+
+def test_mapped_claims_accept_exact_canonical_attribution_fallback():
+    claims = global_01_lazy_live._validate_mapped_claims(
+        {
+            "claims": [
+                {
+                    "text": "A concise supported claim.",
+                    "sources": [
+                        {
+                            "source_id": "source-1",
+                            "content_sha256": "a" * 64,
+                        }
+                    ],
+                }
+            ]
+        },
+        known_source_refs={
+            "S0": {
+                "source_id": "source-1",
+                "content_sha256": "a" * 64,
+            }
+        },
+        prefix="control-q-00",
+        max_claims=2,
+        max_words=30,
+    )
+
+    assert claims[0]["sources"] == [
+        {"source_id": "source-1", "content_sha256": "a" * 64}
+    ]
+
+
+def test_semantic_failure_metadata_is_content_free_and_actionable():
+    metadata = global_01_lazy_live.semantic_failure_metadata(
+        {
+            "claims": [
+                {
+                    "text": "Sensitive claim text must not be retained.",
+                    "sources": [
+                        {"source_id": "source-1", "content_sha256": "a" * 64}
+                    ],
+                }
+            ]
+        },
+        global_01_lazy_live.Global01LazyLiveError(
+            "mapped claim shape is invalid"
+        ),
+    )
+
+    assert metadata == {
+        "error": "mapped claim shape is invalid",
+        "top_level_keys": ["claims"],
+        "claim_count": 1,
+        "claim_key_sets": [["sources", "text"]],
+    }
+    assert "Sensitive" not in json.dumps(metadata)
 
 
 def test_mapped_claims_drop_surplus_after_registered_maximum():

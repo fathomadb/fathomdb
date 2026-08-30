@@ -99,7 +99,7 @@ receipts, not inferred from a branch name or narration.
 | LATENT-01 | P3 | Long-context/late-chunking feasibility: does a token-output, long-context embedder address a diagnosed cross-window discourse failure at acceptable cost? | Parked until LOCOMO-01/PARENT-01 diagnose that failure. Requires a model/interface preflight, labelled subset, and separate quality-and-cost contract; it is not a stride sweep. | [track plan](tracks/latent-01-late-chunking-feasibility.md) |
 | GRAPH-01 | complete, rejected | FathomDB graph-projection self-characterization: do high-confidence, provenance-backed graph projections improve multi-hop retrieval enough to justify extraction and maintenance? | The provenance and lifecycle substrate passed, but `protected_bridge_v1` reduced pooled multi-hop retrieval slightly, changed only 2.67% of questions, and produced no answer-F1 change. Retain the fused control and do not start REASON-01 from this evidence. | [track plan](tracks/graph-01-projection-characterization.md) · [result](2026-08-30-graph-01-result.md) · [receipt](../../experiments/runs/graph-01-protected-bridge-20260830T0035Z-d6e7c4b2/record.json) |
 | GLOBAL-01 | complete | Global sensemaking: can a bounded source-linked coverage treatment close the first run's coverage gap without losing directness, attribution, lifecycle fidelity, or acceptable cost? | Complete: the 39-question held-out comparison rejected `global_lazy_coverage_v1` on headline quality and assertion recall. Retain the source-linked map-reduce control; grounding and efficiency gains do not earn adoption. | [track plan](tracks/global-01-native-graphrag.md) · [result](2026-08-29-global-01-lazy-coverage-result.md) · [receipt](../../experiments/runs/global-01-lazy-coverage-20260829T2159Z-60b3642c/record.json) |
-| REASON-01 | complete, rejected | Multi-hop treatment eligibility and native HippoRAG-2 comparison: can an explicit FathomDB relationship profile improve the diagnosed multi-hop gap, and how does an accepted treatment compare with the native system? | `protected_multiquery_v1` improved fractional gold-session recall by 7.81 points and met latency limits, but answer accuracy fell 2.75 points with a −8.26-point one-sided lower bound; groundedness and attribution also regressed. Reject the profile and stop before native HippoRAG-2. | [track plan](tracks/reason-01-native-hipporag2.md) · [result](2026-08-30-reason-01-result.md) |
+| REASON-01 | complete, rejected; compact-ledger offshoot incomplete | Multi-hop treatment eligibility and native HippoRAG-2 comparison: can an explicit FathomDB relationship profile improve the diagnosed multi-hop gap, and how does an accepted treatment compare with the native system? | `protected_multiquery_v1` remains rejected. The compact-ledger diagnostic stopped after 47 complete cases when its answer guardrail rejected five unsupported responses against an evidence-empty ledger. No quality decision or untouched confirmation is eligible. | [track plan](tracks/reason-01-native-hipporag2.md) · [result](2026-08-30-reason-01-result.md) · [diagnosis](2026-08-30-reason-01-retrieval-to-answer-diagnosis.md) · [offshoot result](2026-08-30-reason-01-compact-ledger-result.md) · [receipt](../../experiments/runs/reason-01-compact-ledger-20260830T2002Z-ab15e1aa/record.json) |
 | SEARCH-01 | complete | IR-C FTS population: establish a FathomDB-only descriptive retrieval baseline. | Complete historical baseline; not a competitor, answer-quality, lifecycle, or latency claim. | [track plan](tracks/search-01-ir-c-baseline.md) |
 
 ## Execution order
@@ -163,8 +163,12 @@ is now complete. `protected_multiquery_v1` improved supporting-session
 retrieval but failed answer correctness, groundedness, and attribution on the
 untouched held-out cohort. Reject it, preserve deep compact as rejected
 development evidence, and do not run native HippoRAG-2 or refresh MEMORY-01 from
-this treatment. The npm-recovery assertions and expired CUDA release-candidate
-manifest remain unrelated repository debt.
+this treatment. The non-confirmatory `protected_evidence_ledger_v1` offshoot is
+closed incomplete: its guardrail rejected unsupported citations correctly, but
+the frozen run did not complete and therefore produced no comparative quality
+decision. Do not start an untouched confirmation from this result.
+The npm-recovery assertions and expired CUDA release-candidate manifest remain
+unrelated repository debt.
 
 ## Track organization
 

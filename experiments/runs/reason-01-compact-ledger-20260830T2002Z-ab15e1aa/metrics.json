@@ -1,0 +1,42 @@
+{
+  "schema_version": "reason01.compact-ledger-attempt.v1",
+  "program_track": "REASON-01",
+  "state": "stopped_semantic_retry_exhausted",
+  "decision_eligible": false,
+  "decision": null,
+  "question_count": 109,
+  "fully_completed_cases": 47,
+  "completed": {
+    "ledgers": 48,
+    "answers": 141,
+    "correctness": 141,
+    "evidence": 141
+  },
+  "expected": {
+    "ledgers": 109,
+    "answers": 327,
+    "correctness": 327,
+    "evidence": 327
+  },
+  "failure": {
+    "stage": "protected_evidence_ledger_v1_answer",
+    "case_id_sha256": "01922e304b142cbb684072f22e10c145355a8e0cebbc41a97f20d9cb60028054",
+    "semantic_attempts": 5,
+    "ledger_evidence_count": 0,
+    "reason": "unknown citations against evidence-empty ledger",
+    "guardrail_rejections": 5
+  },
+  "spend": {
+    "runner_accounted_usd": 1.3285172399920002,
+    "airlock_authoritative_incremental_usd": 1.35743,
+    "airlock_authoritative_total_including_diagnostics_usd": 2.115847,
+    "provider_cap_usd": 10.0
+  },
+  "artifacts": {
+    "checkpoint_sha256": "cd344c7ce7afbe47ac09789e2260eeb15181b76d01a1f3aeee121ad4f632841d",
+    "receipt_sha256": "bbfb625cd5ffdf20b3438f4d53c3994a408326af756208418f558a792f0159fe",
+    "summary_sha256": "ecb844490e8129880c4be5454c021759c2ff5cc8d7ebea1910be2e773f3d37e2"
+  },
+  "retrieval_changed": false,
+  "quality_metrics_available": false
+}

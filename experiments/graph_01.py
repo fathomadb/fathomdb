@@ -89,6 +89,7 @@ def admit_relations(
     extractions: Mapping[str, Mapping[str, object]],
     *,
     generic_entities: set[str] | None = None,
+    allow_missing_empty: bool = False,
 ) -> tuple[list[AdmittedEdge], dict[str, Any]]:
     """Apply the frozen question-blind support filter to extracted relations."""
     by_idx = _paragraph_index(paragraphs)
@@ -96,10 +97,14 @@ def admit_relations(
     types: dict[str, set[str]] = {}
     entity_sources: dict[str, set[int]] = {}
     duplicate_entities = 0
+    missing_extractions = 0
     for idx in sorted(by_idx):
         extraction = extractions.get(f"{question_id}#{idx}")
         if not isinstance(extraction, Mapping):
-            raise Graph01Error(f"missing extraction for {question_id}#{idx}")
+            if not allow_missing_empty:
+                raise Graph01Error(f"missing extraction for {question_id}#{idx}")
+            extraction = {"entities": [], "relations": []}
+            missing_extractions += 1
         seen: set[str] = set()
         for entity in _entities(extraction.get("entities")):
             name, type_name = entity.get("name"), entity.get("type")
@@ -123,13 +128,18 @@ def admit_relations(
         "rejected_type_conflict": 0,
         "duplicate_entities": duplicate_entities,
         "type_conflict_entities": len(conflicts),
+        "missing_extractions": missing_extractions,
         "endpoint_orphans": 0,
         "source_link_completeness": 1.0,
     }
     admitted: list[AdmittedEdge] = []
     for idx in sorted(by_idx):
         source_id = f"{question_id}#{idx}"
-        extraction = extractions[source_id]
+        extraction = extractions.get(source_id)
+        if not isinstance(extraction, Mapping):
+            if not allow_missing_empty:
+                raise Graph01Error(f"missing extraction for {source_id}")
+            extraction = {"entities": [], "relations": []}
         paragraph_entities = {
             normalize_entity(str(entity["name"]))
             for entity in _entities(extraction.get("entities"))
@@ -186,6 +196,8 @@ def paragraph_entity_membership(
     question_id: str,
     paragraphs: Sequence[Mapping[str, object]],
     extractions: Mapping[str, Mapping[str, object]],
+    *,
+    allow_missing_empty: bool = False,
 ) -> dict[int, set[str]]:
     """Return extracted entity membership by paragraph index."""
     by_idx = _paragraph_index(paragraphs)
@@ -193,7 +205,9 @@ def paragraph_entity_membership(
     for idx in sorted(by_idx):
         extraction = extractions.get(f"{question_id}#{idx}")
         if not isinstance(extraction, Mapping):
-            raise Graph01Error(f"missing extraction for {question_id}#{idx}")
+            if not allow_missing_empty:
+                raise Graph01Error(f"missing extraction for {question_id}#{idx}")
+            extraction = {"entities": [], "relations": []}
         result[idx] = {
             normalize_entity(str(entity["name"]))
             for entity in _entities(extraction.get("entities"))
@@ -206,6 +220,8 @@ def projection_items(
     paragraphs: Sequence[Mapping[str, object]],
     extractions: Mapping[str, Mapping[str, object]],
     edges: Sequence[AdmittedEdge],
+    *,
+    allow_missing_empty: bool = False,
 ) -> list[dict[str, Any]]:
     """Create deterministic canonical writes with exact edge provenance."""
     by_idx = _paragraph_index(paragraphs)
@@ -220,11 +236,20 @@ def projection_items(
                 "source_id": source_id,
             }
         )
-    membership = paragraph_entity_membership(question_id, paragraphs, extractions)
+    membership = paragraph_entity_membership(
+        question_id,
+        paragraphs,
+        extractions,
+        allow_missing_empty=allow_missing_empty,
+    )
     first_source: dict[str, int] = {}
     display: dict[str, str] = {}
     for idx in sorted(membership):
-        extraction = extractions[f"{question_id}#{idx}"]
+        extraction = extractions.get(f"{question_id}#{idx}")
+        if not isinstance(extraction, Mapping):
+            if not allow_missing_empty:
+                raise Graph01Error(f"missing extraction for {question_id}#{idx}")
+            extraction = {"entities": [], "relations": []}
         for entity in _entities(extraction.get("entities")):
             norm = normalize_entity(str(entity["name"]))
             first_source.setdefault(norm, idx)

@@ -82,6 +82,18 @@ def test_type_conflict_and_generic_entities_are_ineligible() -> None:
     assert report["rejected_generic_endpoint"] == 1
 
 
+def test_missing_extraction_is_empty_only_under_explicit_policy() -> None:
+    extractions = _extractions()
+    del extractions["q1#1"]
+    with pytest.raises(Graph01Error, match="missing extraction"):
+        admit_relations("q1", _paragraphs(), extractions)
+    admitted, report = admit_relations(
+        "q1", _paragraphs(), extractions, allow_missing_empty=True
+    )
+    assert len(admitted) == 1
+    assert report["missing_extractions"] == 1
+
+
 def test_projection_items_keep_paragraph_provenance_on_edges() -> None:
     admitted, _ = admit_relations("q1", _paragraphs(), _extractions())
     items = projection_items("q1", _paragraphs(), _extractions(), admitted)

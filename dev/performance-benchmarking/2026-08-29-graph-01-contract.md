@@ -24,6 +24,10 @@ default.
   `dev/plans/runs/0.8.2-m1-verdict-gpt54.json`, SHA-256
   `3f4061119a278045c6c905f5fc5db9705ef733a2b051541042a49012f14f2019`.
 - Extraction identity: local Qwen3.6-27B, inherited from the pinned cache.
+- One paragraph lacks a cached extraction. The zero-spend preflight discovered
+  this before execution. The document remains in both retrieval arms and is
+  represented by an empty graph contribution; no mixed-model backfill is
+  allowed. The safe receipt reports the missing count.
 - FathomDB runtime: 0.8.23. Every execution builds a new database. No old
   graph database is reused as runtime state.
 

@@ -129,16 +129,27 @@ def _prepare_projection(
                 paragraphs,
                 extractions,
                 generic_entities=set(config["treatment"]["generic_entity_tokens"]),
+                allow_missing_empty=(
+                    config["inputs"]["missing_extraction_policy"]
+                    == "empty_graph_keep_document"
+                ),
             )
             edges_by_q[question.id] = edges
             membership_by_q[question.id] = graph_01.paragraph_entity_membership(
-                question.id, paragraphs, extractions
+                question.id,
+                paragraphs,
+                extractions,
+                allow_missing_empty=True,
             )
             for key, value in report.items():
                 if isinstance(value, (int, float)) and key != "source_link_completeness":
                     aggregate[key] = aggregate.get(key, 0.0) + float(value)
             for item in graph_01.projection_items(
-                question.id, paragraphs, extractions, edges
+                question.id,
+                paragraphs,
+                extractions,
+                edges,
+                allow_missing_empty=True,
             ):
                 output.write(json.dumps(item, ensure_ascii=False) + "\n")
                 item_count += 1
@@ -921,7 +932,14 @@ def _preflight(config_path: Path, run_root: Path) -> dict[str, Any]:
         "inputs": inputs,
         "toolchain": toolchain,
         "cost_cap_usd": config["approval"]["cost_cap_usd"],
-        "state": "ready" if missing == 0 and all(toolchain.values()) else "blocked",
+        "state": (
+            "ready"
+            if missing == 1
+            and config["inputs"]["missing_extraction_policy"]
+            == "empty_graph_keep_document"
+            and all(toolchain.values())
+            else "blocked"
+        ),
         "cost_usd": 0.0,
     }
     run_root.mkdir(parents=True, exist_ok=True, mode=0o700)

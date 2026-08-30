@@ -11,5 +11,6 @@
 | Graph promotion could discard good context. | Protect control ranks one through eight, cap promotions at two, and require candidates to remain in the control top twenty. |
 | The reused cohort has been observed in earlier work. | Label the result as a registered reused-cohort characterization, not pristine held-out evidence. |
 | Paid execution could repeat earlier rate-limit losses. | Require atomic per-cell checkpoints, resume-only-missing behavior, worst-case cost reservation, and `Retry-After` handling. |
+| Zero-spend preflight found one missing paragraph extraction in the pinned cache. | Keep the document in both arms and treat its graph contribution as empty. Do not mix extractor models or use its supporting label to repair it. |
 
 No unresolved design finding blocks RED tests.

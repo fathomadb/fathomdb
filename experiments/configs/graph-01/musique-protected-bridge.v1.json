@@ -16,6 +16,7 @@
     "cohort_path": "dev/plans/runs/0.8.2-m1-verdict-gpt54.json",
     "cohort_sha256": "3f4061119a278045c6c905f5fc5db9705ef733a2b051541042a49012f14f2019",
     "question_count": 300,
+    "missing_extraction_policy": "empty_graph_keep_document",
     "claim_boundary": "registered_reused_cohort_characterization"
   },
   "control": {

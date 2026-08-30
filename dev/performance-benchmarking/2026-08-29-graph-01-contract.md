@@ -41,9 +41,12 @@ The treatment is `protected_bridge_v1`:
 
 1. Rebuild question-namespaced entity and relation projections in a fresh
    FathomDB. Each relation edge carries its exact source paragraph ID.
-2. Admit an edge only when both normalized endpoints are non-generic, both
+2. Normalize Unicode letter/number/mark and symbol tokens without transliteration.
+   Admit an edge only when both normalized endpoints are non-generic, both
    appear in its paragraph's extracted entity set, both appear verbatim in the
    source paragraph, and neither endpoint has a conflicting extracted type.
+   Count and reject malformed extracted relations without inferring missing
+   fields; retain their source documents in both arms.
 3. Resolve query anchors only by exact normalized entity-phrase occurrence in
    the question. Use the control top five as passage seeds.
 4. Enumerate simple paths of one or two edges from query anchors to entities in

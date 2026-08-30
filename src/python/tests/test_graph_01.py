@@ -94,6 +94,41 @@ def test_missing_extraction_is_empty_only_under_explicit_policy() -> None:
     assert report["missing_extractions"] == 1
 
 
+def test_relation_admission_preserves_unicode_and_symbol_entities() -> None:
+    paragraphs = [
+        {
+            "idx": 0,
+            "title": "Currency",
+            "text": "东北师大 reports its fees in £.",
+        }
+    ]
+    extractions = {
+        "q1#0": {
+            "entities": [
+                {"name": "东北师大", "type": "Organization"},
+                {"name": "£", "type": "Symbol"},
+            ],
+            "relations": [
+                {"subject": "东北师大", "predicate": "uses", "object": "£"}
+            ],
+        }
+    }
+    admitted, report = admit_relations("q1", paragraphs, extractions)
+    assert [(edge.subject, edge.object) for edge in admitted] == [("东北师大", "£")]
+    assert report["relations_admitted"] == 1
+
+
+def test_malformed_extracted_relation_is_counted_and_rejected() -> None:
+    extractions = _extractions()
+    extractions["q1#0"]["relations"] = [
+        {"subject": "Beta", "publisher": "Missing predicate and object"}
+    ]
+    admitted, report = admit_relations("q1", _paragraphs(), extractions)
+    assert len(admitted) == 1
+    assert report["relations_total"] == 2
+    assert report["rejected_malformed_relation"] == 1
+
+
 def test_projection_items_keep_paragraph_provenance_on_edges() -> None:
     admitted, _ = admit_relations("q1", _paragraphs(), _extractions())
     items = projection_items("q1", _paragraphs(), _extractions(), admitted)

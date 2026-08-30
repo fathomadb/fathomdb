@@ -11,7 +11,7 @@ import json
 import math
 import os
 import random
-import re
+import unicodedata
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -22,18 +22,37 @@ class Graph01Error(RuntimeError):
     """Raised when GRAPH-01 cannot preserve its registered contract."""
 
 
-_TOKENS = re.compile(r"[a-z0-9]+")
 _GENERIC = {"entity", "person", "place", "thing", "unknown"}
 
 
+def _tokens(value: str) -> list[str]:
+    tokens: list[str] = []
+    current: list[str] = []
+    current_kind: str | None = None
+    for character in value.casefold():
+        category = unicodedata.category(character)
+        kind = "word" if category[0] in {"L", "M", "N"} else "symbol" if category[0] == "S" else None
+        if kind != current_kind and current:
+            tokens.append("".join(current))
+            current = []
+        if kind is None:
+            current_kind = None
+            continue
+        current.append(character)
+        current_kind = kind
+    if current:
+        tokens.append("".join(current))
+    return tokens
+
+
 def normalize_entity(value: str) -> str:
-    """Return the stable ASCII-token identity used only within a question."""
-    return " ".join(_TOKENS.findall(value.casefold()))
+    """Return the stable Unicode-token identity used only within a question."""
+    return " ".join(_tokens(value))
 
 
 def _phrase_in(entity: str, text: str) -> bool:
     entity_tokens = entity.split()
-    text_tokens = _TOKENS.findall(text.casefold())
+    text_tokens = _tokens(text)
     if not entity_tokens:
         return False
     width = len(entity_tokens)
@@ -126,6 +145,7 @@ def admit_relations(
         "rejected_nonverbatim_endpoint": 0,
         "rejected_generic_endpoint": 0,
         "rejected_type_conflict": 0,
+        "rejected_malformed_relation": 0,
         "duplicate_entities": duplicate_entities,
         "type_conflict_entities": len(conflicts),
         "missing_extractions": missing_extractions,
@@ -152,7 +172,8 @@ def admit_relations(
             raw_predicate = relation.get("predicate")
             raw_object = relation.get("object")
             if not all(isinstance(value, str) and value.strip() for value in (raw_subject, raw_predicate, raw_object)):
-                raise Graph01Error("relation subject, predicate, and object must be non-empty strings")
+                report["rejected_malformed_relation"] += 1
+                continue
             subject = normalize_entity(raw_subject)
             object_ = normalize_entity(raw_object)
             rejected = False

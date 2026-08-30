@@ -12,5 +12,6 @@
 | The reused cohort has been observed in earlier work. | Label the result as a registered reused-cohort characterization, not pristine held-out evidence. |
 | Paid execution could repeat earlier rate-limit losses. | Require atomic per-cell checkpoints, resume-only-missing behavior, worst-case cost reservation, and `Retry-After` handling. |
 | Zero-spend preflight found one missing paragraph extraction in the pinned cache. | Keep the document in both arms and treat its graph contribution as empty. Do not mix extractor models or use its supporting label to repair it. |
+| First execution exposed an ASCII-only normalizer and malformed cached relations. | Preserve Unicode letter/number/mark and symbol tokens. Count and reject relations that lack a valid subject, predicate, or object; never infer their missing fields. Documents remain in both arms. |
 
 No unresolved design finding blocks RED tests.

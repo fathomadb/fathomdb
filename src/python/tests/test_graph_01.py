@@ -21,7 +21,7 @@ from experiments.graph_01 import (
     protected_bridge_ranking,
     retrieval_decision,
 )
-from experiments.graph_01_live import _edge_audit_prompt
+from experiments.graph_01_live import _edge_audit_prompt, _repo_relative
 
 
 def _paragraphs() -> list[dict[str, object]]:
@@ -163,6 +163,12 @@ def test_edge_audit_prompt_uses_batch_local_opaque_ids() -> None:
     )
     assert canonical_id not in prompt
     assert '"edge_id": "audit-000"' in prompt
+
+
+def test_receipt_path_normalizes_relative_repo_input() -> None:
+    assert _repo_relative(
+        Path("experiments/configs/graph-01/musique-protected-bridge.v1.json")
+    ) == "experiments/configs/graph-01/musique-protected-bridge.v1.json"
 
 
 def test_bridge_ranking_promotes_only_bounded_candidate_and_protects_top_eight() -> None:

@@ -16,5 +16,6 @@
 | Claude's valid audit object arrived inside a single `json` code fence. | Strip only one exact outer JSON fence, then apply the unchanged strict object, key, ID, and Boolean checks. Preserve the three invalid attempts and their cost in the checkpoint. |
 | Airlock's PII guard correctly redacted a numeric substring inside one canonical corpus edge ID. | Give the judge deterministic batch-local opaque IDs and map them back only after exact ID-set validation. Do not bypass or weaken the guard. |
 | The reused cohort includes retrieval rows without labelled supporting passages. | Follow the inherited metric definition: symmetrically exclude undefined pairs, report the exclusion count, and fail on asymmetric undefined values. Keep all registered rows in answer evaluation. |
+| Completed measurements failed only while serializing a relative receipt path. | Resolve the CLI path, require it to remain under the repository root, and store its repository-relative form. Reuse all paid cells on resume. |
 
 No unresolved design finding blocks RED tests.

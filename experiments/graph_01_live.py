@@ -62,6 +62,13 @@ def _resolve(path: str) -> Path:
     return REPO_ROOT / path
 
 
+def _repo_relative(path: Path) -> str:
+    try:
+        return str(path.resolve().relative_to(REPO_ROOT.resolve()))
+    except ValueError as exc:
+        raise graph_01.Graph01Error("GRAPH-01 receipt path is outside the repository") from exc
+
+
 def _verify_inputs(config: Mapping[str, Any]) -> dict[str, Any]:
     inputs = config["inputs"]
     result: dict[str, Any] = {}
@@ -895,12 +902,12 @@ def _run(config_path: Path, run_root: Path) -> tuple[str, Path]:
             "answer_f1_delta": answer_delta["point"],
         },
         n=len(observations),
-        config_path=str(config_path.relative_to(REPO_ROOT)),
+        config_path=_repo_relative(config_path),
         tdd_evidence={
-            "red": "ModuleNotFoundError before implementation",
+            "red": "initial missing module plus execution-discovered boundary failures",
             "green": "src/python/tests/test_graph_01.py",
         },
-        tests={"graph_01": "9 passed"},
+        tests={"graph_01": "14 passed"},
         files_changed=[
             "experiments/graph_01.py",
             "experiments/graph_01_live.py",

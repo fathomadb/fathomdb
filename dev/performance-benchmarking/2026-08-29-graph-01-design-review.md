@@ -14,5 +14,6 @@
 | Zero-spend preflight found one missing paragraph extraction in the pinned cache. | Keep the document in both arms and treat its graph contribution as empty. Do not mix extractor models or use its supporting label to repair it. |
 | First execution exposed an ASCII-only normalizer and malformed cached relations. | Preserve Unicode letter/number/mark and symbol tokens. Count and reject relations that lack a valid subject, predicate, or object; never infer their missing fields. Documents remain in both arms. |
 | Claude's valid audit object arrived inside a single `json` code fence. | Strip only one exact outer JSON fence, then apply the unchanged strict object, key, ID, and Boolean checks. Preserve the three invalid attempts and their cost in the checkpoint. |
+| Airlock's PII guard correctly redacted a numeric substring inside one canonical corpus edge ID. | Give the judge deterministic batch-local opaque IDs and map them back only after exact ID-set validation. Do not bypass or weaken the guard. |
 
 No unresolved design finding blocks RED tests.

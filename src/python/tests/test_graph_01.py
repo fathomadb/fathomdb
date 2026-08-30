@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -19,6 +20,7 @@ from experiments.graph_01 import (
     protected_bridge_ranking,
     retrieval_decision,
 )
+from experiments.graph_01_live import _edge_audit_prompt
 
 
 def _paragraphs() -> list[dict[str, object]]:
@@ -142,6 +144,24 @@ def test_projection_items_keep_paragraph_provenance_on_edges() -> None:
             "source_id": "q1#10",
         }
     ]
+
+
+def test_edge_audit_prompt_uses_batch_local_opaque_ids() -> None:
+    admitted, _ = admit_relations("q1", _paragraphs(), _extractions())
+    canonical_id = admitted[0].edge_id
+    question = SimpleNamespace(
+        paragraphs=[
+            SimpleNamespace(idx=row["idx"], body=f"{row['title']}\n{row['text']}")
+            for row in _paragraphs()
+        ]
+    )
+    prompt = _edge_audit_prompt(
+        admitted,
+        {"q1": question},
+        {canonical_id: "audit-000"},
+    )
+    assert canonical_id not in prompt
+    assert '"edge_id": "audit-000"' in prompt
 
 
 def test_bridge_ranking_promotes_only_bounded_candidate_and_protects_top_eight() -> None:

@@ -533,6 +533,7 @@ def _run_cells(
 def _edge_audit_prompt(
     edges: Sequence[graph_01.AdmittedEdge],
     question_by_id: Mapping[str, Any],
+    edge_to_audit_id: Mapping[str, str],
 ) -> str:
     rows = []
     for edge in edges:
@@ -543,7 +544,7 @@ def _edge_audit_prompt(
         )
         rows.append(
             {
-                "edge_id": edge.edge_id,
+                "edge_id": edge_to_audit_id[edge.edge_id],
                 "subject": edge.raw_subject,
                 "predicate": edge.predicate,
                 "object": edge.raw_object,
@@ -623,19 +624,27 @@ def _run(config_path: Path, run_root: Path) -> tuple[str, Path]:
     judge = config["models"]["edge_judge"]
     for start in range(0, len(audited), batch_size):
         batch = audited[start : start + batch_size]
-        expected_ids = {edge.edge_id for edge in batch}
+        edge_to_audit_id = {
+            edge.edge_id: f"audit-{offset:03d}" for offset, edge in enumerate(batch)
+        }
+        audit_id_to_edge = {value: key for key, value in edge_to_audit_id.items()}
+        expected_ids = set(audit_id_to_edge)
 
-        def parse_audit(text: str, expected_ids: set[str] = expected_ids) -> dict[str, bool]:
+        def parse_audit(
+            text: str,
+            expected_ids: set[str] = expected_ids,
+            audit_id_to_edge: Mapping[str, str] = audit_id_to_edge,
+        ) -> dict[str, bool]:
             value = graph_01.parse_edge_audit(text)
             if set(value) != expected_ids:
                 raise graph_01.Graph01Error("edge audit IDs are incomplete or unexpected")
-            return value
+            return {audit_id_to_edge[audit_id]: supported for audit_id, supported in value.items()}
 
         audit_cells.append(
             Cell(
                 f"audit/{start // batch_size}",
                 judge["model"],
-                _edge_audit_prompt(batch, question_by_id),
+                _edge_audit_prompt(batch, question_by_id, edge_to_audit_id),
                 judge["max_tokens"],
                 judge["temperature"],
                 parse_audit,

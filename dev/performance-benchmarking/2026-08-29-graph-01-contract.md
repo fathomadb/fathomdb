@@ -71,6 +71,8 @@ bytes, and storage amplification over the corpus.
 Independently judge a fixed-seed sample of up to 100 admitted edges in batches
 of ten. The judge sees the source paragraph and extracted subject, predicate,
 and object, but no question, answer, supporting label, or retrieval result.
+Batch-local opaque audit IDs prevent the gateway's PII guard from transforming
+canonical corpus IDs; map them back locally only after exact ID-set validation.
 The graph is eligible only if judged edge precision is at least 0.90 and its
 Wilson 95% lower bound is at least 0.80. Source-link completeness must be 1.0;
 endpoint orphans, active stale edges, supersession-canary hits, and

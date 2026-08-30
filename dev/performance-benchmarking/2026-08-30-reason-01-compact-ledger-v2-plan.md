@@ -88,5 +88,11 @@ partial checkpoint or use this consumed cohort for promotion.
   `data/performance-benchmarking/locomo-multihop/runs/reason01-compact-ledger-v2-preflight-20260830-01/reason01-compact-ledger-receipt.v2.json`
   (`sha256:0dacfc71597374d0e95cdabd14ae6f624209d5256de6fb95d002ea694f8c0a76`).
 
-The next action is one paid dynamic-schema route probe, followed by a fresh v2
-diagnostic only if the probe preserves the exact registered schema behavior.
+## Closeout
+
+The paid dynamic-schema route probe passed, and the fresh v2 diagnostic
+completed all 109 cases. The registered decision was `descriptive_fail`:
+answer accuracy increased 2.75 points versus A0, while groundedness decreased
+9.17 points and attribution decreased 5.50 points. Close the offshoot and
+retain A0. See the [result](2026-08-30-reason-01-compact-ledger-v2-result.md)
+and [receipt](../../experiments/runs/reason-01-compact-ledger-v2-20260830T2156Z-572f51ea/record.json).

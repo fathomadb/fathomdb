@@ -687,6 +687,30 @@
 - **$:** **$8.5501** of the $12 cap. **Source:**
   `experiments/runs/global-01-lazy-coverage-20260829T2159Z-60b3642c/record.json`.
 
+### REASON-01 — protected retrieval and compact evidence ledger
+
+- **Question:** Can a protected multi-query relationship profile improve the
+  diagnosed multi-hop gap, and can exact-strip evidence compaction retain its
+  retrieval gain without losing answer correctness, groundedness, or
+  attribution versus A0?
+- **N:** The untouched protected-treatment comparison and a separate complete
+  109-case consumed-cohort compact-ledger v2 diagnostic.
+- **Result:** `protected_multiquery_v1` improved supporting-session retrieval
+  but lost answer quality on the held-out cohort. Compact-ledger v2 completed
+  all 109 diagnostic cases and reduced mean answer input from 13,611 to 1,407
+  characters. Versus A0, accuracy changed +2.75 points, groundedness -9.17
+  points, and attribution -5.50 points. Six cases exhausted ledger semantic
+  repair and were retained as quality failures.
+- **Verdict:** **REJECT.** Retain A0. V2 fixed the v1 abstention and continuation
+  flaw, but failed the descriptive groundedness and attribution boundary. Do
+  not run an untouched confirmation, native HippoRAG-2 comparison, or
+  MEMORY-01 refresh from either rejected treatment.
+- **$:** **$3.0294 authoritative Airlock spend**, including the v2 route probe,
+  under the $10 cap. **Sources:**
+  `experiments/runs/reason-01-compact-ledger-v2-20260830T2156Z-572f51ea/record.json`
+  and
+  `dev/performance-benchmarking/2026-08-30-reason-01-compact-ledger-v2-result.md`.
+
 ## research/ (UNTRACKED — git-ignored; results live ONLY here)
 
 ### research/eu-0 — eu7 embedder + quantization-path sweep (RESOLVED)

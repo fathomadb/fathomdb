@@ -31,7 +31,7 @@ append-only evidence index.
 | [MEMORY-01](tracks/memory-01-native-mem0-comparison.md) | Complete | Preserve the [paired pass receipt](../../experiments/runs/fathomdb-vs-mem0-locomo-comparison-20260824T2140Z-01e702be/record.json); treat the multi-hop loss as a diagnosis, not a broad failure-set claim. |
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
-| [GRAPH-01](tracks/graph-01-projection-characterization.md) | Planning | Freeze the labelled failure cohort and design a non-PPR bounded bridge-completion treatment. |
+| [GRAPH-01](tracks/graph-01-projection-characterization.md) | Implementing | Contract and design review are complete; implement RED/GREEN, preflight the fresh native projection, then run under the authorized cap. |
 | [GLOBAL-01](tracks/global-01-native-graphrag.md) | Complete, rejected | Preserve the [held-out result](2026-08-29-global-01-lazy-coverage-result.md) and [receipt](../../experiments/runs/global-01-lazy-coverage-20260829T2159Z-60b3642c/record.json); retain the source-linked map-reduce control. |
 | [REASON-01](tracks/reason-01-native-hipporag2.md) | Parked | Wait for useful GRAPH-01 evidence and native-run prerequisites. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |

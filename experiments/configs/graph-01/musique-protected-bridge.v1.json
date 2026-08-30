@@ -1,0 +1,97 @@
+{
+  "schema_version": "graph-01.protected-bridge.v1",
+  "program_track": "GRAPH-01",
+  "run_label": "musique-protected-bridge-v1",
+  "approval": {
+    "state": "approved",
+    "approved_by": "coreyt",
+    "approved_at": "2026-08-29T00:00:00Z",
+    "cost_cap_usd": 20.0
+  },
+  "inputs": {
+    "corpus_path": "data/corpus-data/raw/musique_dev.jsonl",
+    "corpus_sha256": "3cff37fd7221506a343a125cf7ca20aab7cd09877e376122da9627e1b935b26f",
+    "extractions_path": "data/corpus-data/graph-cache/0.8.2-m1-v1/extractions.json",
+    "extractions_sha256": "7ca969520e7c79dab83a3cce0800f8e87369b3aed7b7264577f6959f397373d4",
+    "cohort_path": "dev/plans/runs/0.8.2-m1-verdict-gpt54.json",
+    "cohort_sha256": "3f4061119a278045c6c905f5fc5db9705ef733a2b051541042a49012f14f2019",
+    "question_count": 300,
+    "claim_boundary": "registered_reused_cohort_characterization"
+  },
+  "control": {
+    "name": "fused_rrf_k60",
+    "bm25": true,
+    "dense_model": "BAAI/bge-small-en-v1.5",
+    "dense_pooling": "cls",
+    "rrf_k": 60,
+    "candidate_depth": 20,
+    "context_passages": 10
+  },
+  "treatment": {
+    "name": "protected_bridge_v1",
+    "query_anchor": "exact_normalized_entity_phrase",
+    "seed_passages": 5,
+    "path_depth_max": 2,
+    "protected_control_ranks": 8,
+    "promotion_max": 2,
+    "candidate_depth": 20,
+    "context_passages": 10,
+    "generic_entity_tokens": ["entity", "person", "place", "thing", "unknown"]
+  },
+  "quality": {
+    "edge_audit_sample": 100,
+    "edge_audit_batch": 10,
+    "edge_precision_min": 0.9,
+    "edge_precision_wilson_lower_min": 0.8,
+    "source_link_completeness": 1.0,
+    "orphan_max": 0,
+    "stale_max": 0
+  },
+  "evaluation": {
+    "bootstrap_draws": 2000,
+    "bootstrap_seed": 20260829,
+    "primary_hops": [3, 4],
+    "complete_bridge_delta_min": 0.04,
+    "complete_bridge_ci_lower_strictly_above": 0.0,
+    "supporting_recall_delta_min": 0.0,
+    "two_hop_complete_bridge_delta_strictly_above": -0.02,
+    "distinct_question_rate_min": 0.1,
+    "graph_addon_p95_ms_max": 25.0,
+    "storage_amplification_max": 1.5,
+    "answer_f1_noninferiority_ci_lower": -0.02,
+    "answer_f1_material_delta_min": 0.04,
+    "answer_f1_material_ci_lower_strictly_above": 0.0
+  },
+  "models": {
+    "edge_judge": {
+      "model": "claude-haiku",
+      "temperature": 0.0,
+      "max_tokens": 1200
+    },
+    "answerer": {
+      "model": "deepseek-v4-pro",
+      "thinking_mode": "disabled",
+      "temperature": 0.0,
+      "max_tokens": 300
+    }
+  },
+  "pricing": {
+    "claude-haiku": {"input_per_million": 1.0, "output_per_million": 5.0},
+    "deepseek-v4-pro": {"input_per_million": 1.32, "output_per_million": 3.96}
+  },
+  "execution": {
+    "fathomdb_version": "0.8.23",
+    "fathomdb_python": "data/performance-benchmarking/global-01/toolchains/fathomdb-0.8.23-venv/bin/python",
+    "fathomdb_cli": "data/performance-benchmarking/scale-02/runtime/9e507553/fathomdb",
+    "database_fresh_per_run": true,
+    "embed_device": "auto",
+    "rerank_device": "auto",
+    "use_default_embedder": false,
+    "checkpoint_every_cell": true,
+    "resume_only_missing": true,
+    "concurrency": 4,
+    "retry_attempts": 6,
+    "retry_backoff_seconds": [1, 2, 4, 8, 16, 32],
+    "honor_retry_after": true
+  }
+}

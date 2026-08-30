@@ -10,8 +10,9 @@ append-only evidence index.
 
 ## Immediate sequence
 
-No data-generating track is active. TEMPORAL-01 is corpus-blocked; LATENT-01
-and REASON-01 remain parked.
+No data-generating run is active. REASON-01 treatment registration and held-out
+eligibility planning are next. The native HippoRAG-2 comparison starts only if
+that treatment passes; the current Mem0 refresh follows treatment selection.
 
 ## Track status
 
@@ -26,12 +27,12 @@ and REASON-01 remain parked.
 | [CORPUS-01](tracks/corpus-01-gold-coverage.md) | Complete, limited | Preserve `seq-268` and the [result](2026-08-23-corpus-01-supersession-human-review-result.md); neither reviewed case qualifies as supersession gold. |
 | [TEMPORAL-01](tracks/temporal-01-time-scoped-retrieval.md) | Synthetic validity complete, corpus blocked | [Eight exact TRACE boundary probes](../../experiments/runs/temporal-01-trace-validity-20260823T1625Z-af0c03f1/record.json) passed; upstream LongMemEval and TimelineQA releases lack an external validity-window manifest. |
 | [EXTRACT-01](tracks/extract-01-semantic-memory.md) | Complete, limited | Preserve the [78-case receipt](../../experiments/runs/extract-01-knowledge-update-20260823T2236Z-59e805cb/record.json); retain raw A0 for knowledge updates until value-changing extraction consolidation exists. |
-| [MEMORY-01](tracks/memory-01-native-mem0-comparison.md) | Complete | Preserve the [paired pass receipt](../../experiments/runs/fathomdb-vs-mem0-locomo-comparison-20260824T2140Z-01e702be/record.json); treat the multi-hop loss as a diagnosis, not a broad failure-set claim. |
+| [MEMORY-01](tracks/memory-01-native-mem0-comparison.md) | Complete; refresh after REASON-01 eligibility | Preserve the [paired pass receipt](../../experiments/runs/fathomdb-vs-mem0-locomo-comparison-20260824T2140Z-01e702be/record.json); treat the multi-hop loss as a diagnosis. Refresh against a newly pinned official build only after a FathomDB multi-hop treatment is selected. |
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Complete, rejected | Preserve the [result](2026-08-30-graph-01-result.md) and [receipt](../../experiments/runs/graph-01-protected-bridge-20260830T0035Z-d6e7c4b2/record.json); retain the fused control. |
 | [GLOBAL-01](tracks/global-01-native-graphrag.md) | Complete, rejected | Preserve the [held-out result](2026-08-29-global-01-lazy-coverage-result.md) and [receipt](../../experiments/runs/global-01-lazy-coverage-20260829T2159Z-60b3642c/record.json); retain the source-linked map-reduce control. |
-| [REASON-01](tracks/reason-01-native-hipporag2.md) | Parked | GRAPH-01 did not provide a useful gain; native-run prerequisites also remain open. |
+| [REASON-01](tracks/reason-01-native-hipporag2.md) | Next: treatment eligibility | Register `protected_multiquery_v1`, bind it against preserved development evidence, and run one untouched held-out eligibility comparison against A0. Deep compact remains rejected; proceed to native HippoRAG-2 only if the protected profile passes. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |
 
 ## Board rules

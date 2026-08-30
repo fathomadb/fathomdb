@@ -94,12 +94,12 @@ receipts, not inferred from a branch name or narration.
 | ANSWER-01 | P2 | LOCOMO shortlist scoring: does the accepted retrieval winner improve answer and temporal quality over A0? | Complete: the [32-question paired receipt](../../experiments/runs/answer-01-shortlist-live-20260822T1234Z-8a050808/record.json) did not show the required overall or temporal improvement; retain A0. | [track plan](tracks/answer-01-shortlist-scoring.md) |
 | TEMPORAL-01 | P3 | Time-scoped retrieval: do temporal filters and version-aware projections return the correct state without stale superseded evidence? | Synthetic TRACE validity passed. The official releases lack an external validity-window manifest, so external-corpus comparison remains blocked on a reviewed manifest and adapter. | [track plan](tracks/temporal-01-time-scoped-retrieval.md) · [synthetic receipt](../../experiments/runs/temporal-01-trace-validity-20260823T1625Z-af0c03f1/record.json) · [source review](2026-08-23-temporal-01-source-manifest-review.md) |
 | EXTRACT-01 | complete, limited | FathomDB-native extracted semantic memory: do provenance-linked facts improve knowledge-update quality enough to justify extraction and lifecycle costs? | Complete on 78 LongMemEval-S knowledge-update cases. The +1/78 descriptive quality delta does not overcome failed value-changing supersession; retain raw A0. Preferences, episodes, general memory, and confidence calibration are outside the claim. | [track plan](tracks/extract-01-semantic-memory.md) · [receipt](../../experiments/runs/extract-01-knowledge-update-20260823T2236Z-59e805cb/record.json) · [result](2026-08-23-extract-01-implementation.md) |
-| MEMORY-01 | complete | Native Mem0 comparison: is the selected FathomDB memory profile near-parity or better under the official harness? | Pass: A0 scored 75.19% versus Mem0 OSS at 67.21%; the +7.99-point paired delta has a +5.78-point one-sided 95% lower bound. Mem0 retains an 8.16-point multi-hop advantage, so class-wide dominance is not claimed. | [track plan](tracks/memory-01-native-mem0-comparison.md) · [result](2026-08-24-memory-01-result.md) · [receipt](../../experiments/runs/fathomdb-vs-mem0-locomo-comparison-20260824T2140Z-01e702be/record.json) |
+| MEMORY-01 | complete; refresh after REASON-01 eligibility | Native Mem0 comparison: is the selected FathomDB memory profile near-parity or better under the official harness? | Pass against the pinned Mem0 OSS build: A0 scored 75.19% versus 67.21%; the +7.99-point paired delta has a +5.78-point one-sided 95% lower bound. Mem0 retains an 8.16-point multi-hop advantage. Refresh the comparison against a newly pinned official build only after REASON-01 accepts a FathomDB multi-hop treatment; do not rerun unchanged A0 as confirmation. | [track plan](tracks/memory-01-native-mem0-comparison.md) · [result](2026-08-24-memory-01-result.md) · [receipt](../../experiments/runs/fathomdb-vs-mem0-locomo-comparison-20260824T2140Z-01e702be/record.json) |
 | SCALE-02 | complete | F-17 advisory scale envelope: what measured local-first range is supportable for the selected projection profile? | The original fixed-policy A0 envelope remains 17,272. The rank-boundary off-shoot passes through 50k with exact retrieval equivalence. HITL `seq-267` approved `stream_default`; the production FTS path is landed and code-verified. | [track plan](tracks/scale-02-local-first-envelope.md) · [original result](2026-08-22-scale-02-fts-followup-result.md) · [scale extension](2026-08-22-scale-02-scale-extension-result.md) · [rank-boundary result](2026-08-22-scale-02-rank-boundary-result.md) · [implementation note](2026-08-23-scale-02-stream-default-implementation.md) |
 | LATENT-01 | P3 | Long-context/late-chunking feasibility: does a token-output, long-context embedder address a diagnosed cross-window discourse failure at acceptable cost? | Parked until LOCOMO-01/PARENT-01 diagnose that failure. Requires a model/interface preflight, labelled subset, and separate quality-and-cost contract; it is not a stride sweep. | [track plan](tracks/latent-01-late-chunking-feasibility.md) |
 | GRAPH-01 | complete, rejected | FathomDB graph-projection self-characterization: do high-confidence, provenance-backed graph projections improve multi-hop retrieval enough to justify extraction and maintenance? | The provenance and lifecycle substrate passed, but `protected_bridge_v1` reduced pooled multi-hop retrieval slightly, changed only 2.67% of questions, and produced no answer-F1 change. Retain the fused control and do not start REASON-01 from this evidence. | [track plan](tracks/graph-01-projection-characterization.md) · [result](2026-08-30-graph-01-result.md) · [receipt](../../experiments/runs/graph-01-protected-bridge-20260830T0035Z-d6e7c4b2/record.json) |
 | GLOBAL-01 | complete | Global sensemaking: can a bounded source-linked coverage treatment close the first run's coverage gap without losing directness, attribution, lifecycle fidelity, or acceptable cost? | Complete: the 39-question held-out comparison rejected `global_lazy_coverage_v1` on headline quality and assertion recall. Retain the source-linked map-reduce control; grounding and efficiency gains do not earn adoption. | [track plan](tracks/global-01-native-graphrag.md) · [result](2026-08-29-global-01-lazy-coverage-result.md) · [receipt](../../experiments/runs/global-01-lazy-coverage-20260829T2159Z-60b3642c/record.json) |
-| REASON-01 | parked | Native HippoRAG-2 comparison: cross-check multi-hop retrieval and QA. | Parked pending GRAPH-01 relevance, Python 3.10, official credential, and official-corpus reconciliation. | [track plan](tracks/reason-01-native-hipporag2.md) |
+| REASON-01 | P1 next | Multi-hop treatment eligibility and native HippoRAG-2 comparison: can an explicit FathomDB relationship profile improve the diagnosed multi-hop gap, and how does an accepted treatment compare with the native system? | First register and validate `protected_multiquery_v1` against A0 on untouched held-out data. The deep-compact offshoot is rejected because its small development answer gain came with a larger groundedness loss. Run the matched native comparison only if the protected treatment is eligible and all native preflights pass. | [track plan](tracks/reason-01-native-hipporag2.md) |
 | SEARCH-01 | complete | IR-C FTS population: establish a FathomDB-only descriptive retrieval baseline. | Complete historical baseline; not a competitor, answer-quality, lifecycle, or latency claim. | [track plan](tracks/search-01-ir-c-baseline.md) |
 
 ## Execution order
@@ -120,7 +120,7 @@ SAFETY-01
 
 ANSWER-01 + CORPUS-01 + TRACE-01 ──┬──→ TEMPORAL-01
                                   └──→ EXTRACT-01
-GRAPH-01 ──→ REASON-01
+MEMORY-01 multi-hop diagnosis ──→ REASON-01
 GLOBAL-01 starts only from a named global-synthesis failure and an eligible
 graph or source-linked summary/map-reduce treatment.
 ```
@@ -150,14 +150,21 @@ GLOBAL-01 is complete. Its source-linked lazy-coverage treatment reduced
 unsupported claims, model cost, and p95 latency, but lost the registered
 headline comparison and assertion-recall boundary on the 39-question held-out
 set. Retain `source_mapreduce_c_v1_fts50`; do not tune the rejected treatment
-against held-out outcomes. REASON-01 retains its independent native-run
-prerequisites.
+against held-out outcomes.
 
 GRAPH-01 is complete. Its provenance-complete, lifecycle-clean graph met the
 registered edge-quality, latency, and storage boundaries, but exact-anchor
 protected bridge completion did not improve multi-hop retrieval or answer F1.
-Retain the fused control, reject `protected_bridge_v1`, and leave REASON-01
-parked.
+Retain the fused control and reject `protected_bridge_v1`.
+
+REASON-01 is next because MEMORY-01 identified a material multi-hop gap and
+preserved development evidence identifies a distinct, non-graph candidate.
+Register `protected_multiquery_v1`, reproduce only enough to bind the
+implementation, and evaluate it once on untouched held-out data. Preserve deep
+compact as rejected development evidence. If the protected profile is not
+eligible, stop. If it is eligible, continue within REASON-01 to the matched
+native HippoRAG-2 comparison. Refresh MEMORY-01 against a newly pinned current
+Mem0 build only after a FathomDB multi-hop treatment is selected.
 
 ## Track organization
 
@@ -195,3 +202,24 @@ Before execution, the track plan must name its inputs, run, decision rule, and
 stop condition. Put parameter lists in configuration rather than expanding the
 plan. Do not let this portfolio overview become an executable measurement
 contract.
+
+## Potential later work
+
+These items are not active tracks and do not authorize implementation, paid
+execution, or a claim. Promote one only when an accepted result identifies its
+decision as the next unresolved program question.
+
+- Qualify [MemOps](https://github.com/MemTensor/MemOps) as a possible external
+  lifecycle and supersession manifest for TEMPORAL-01 and CORPUS-01.
+- Consider a GLOBAL-02 source-linked hierarchical community-summary treatment
+  only as a new mechanism; do not retune the rejected GLOBAL-01 lazy treatment.
+- Use [LongMemEval-V2](https://github.com/xiaowu0162/LongMemEval-V2) for broader
+  agent-memory accuracy and latency validation after a FathomDB profile is
+  selected.
+- Extend quality-and-scale characterization with
+  [BEAM](https://github.com/mohammadtavakoli78/BEAM) only after current
+  comparator parity and the existing local envelope are reconciled.
+- Consider GPU late-interaction or cross-encoder selection only if the simpler
+  deep-candidate compact profile fails its eligibility boundary.
+- Reopen graph retrieval only for a materially different mechanism with a new
+  source-linked hypothesis; do not continue tuning `protected_bridge_v1`.

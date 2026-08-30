@@ -5,15 +5,13 @@ Current coordination state for the
 [`experiments/`](../../experiments/README.md) holds execution receipts and the
 append-only evidence index.
 
-- **Last reconciled:** 2026-08-29
+- **Last reconciled:** 2026-08-30
 - **Branch:** `experiments/performance-0.8.23-plan-20260821`
 
 ## Immediate sequence
 
-1. Freeze the labelled GRAPH-01 cohort and dated measurement contract.
-2. Design-review a provenance-backed graph treatment that is materially
-   different from the rejected BFS and lexical-seeded PPR mechanisms.
-3. Implement and run the bounded comparison under the authorized $20 cap.
+No data-generating track is active. TEMPORAL-01 is corpus-blocked; LATENT-01
+and REASON-01 remain parked.
 
 ## Track status
 
@@ -31,9 +29,9 @@ append-only evidence index.
 | [MEMORY-01](tracks/memory-01-native-mem0-comparison.md) | Complete | Preserve the [paired pass receipt](../../experiments/runs/fathomdb-vs-mem0-locomo-comparison-20260824T2140Z-01e702be/record.json); treat the multi-hop loss as a diagnosis, not a broad failure-set claim. |
 | [SCALE-02](tracks/scale-02-local-first-envelope.md) | Complete | Preserve the `stream_default` production path, shipped reader defaults, decision receipt, and [implementation note](2026-08-23-scale-02-stream-default-implementation.md). |
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
-| [GRAPH-01](tracks/graph-01-projection-characterization.md) | Implementing | Contract and design review are complete; implement RED/GREEN, preflight the fresh native projection, then run under the authorized cap. |
+| [GRAPH-01](tracks/graph-01-projection-characterization.md) | Complete, rejected | Preserve the [result](2026-08-30-graph-01-result.md) and [receipt](../../experiments/runs/graph-01-protected-bridge-20260830T0035Z-d6e7c4b2/record.json); retain the fused control. |
 | [GLOBAL-01](tracks/global-01-native-graphrag.md) | Complete, rejected | Preserve the [held-out result](2026-08-29-global-01-lazy-coverage-result.md) and [receipt](../../experiments/runs/global-01-lazy-coverage-20260829T2159Z-60b3642c/record.json); retain the source-linked map-reduce control. |
-| [REASON-01](tracks/reason-01-native-hipporag2.md) | Parked | Wait for useful GRAPH-01 evidence and native-run prerequisites. |
+| [REASON-01](tracks/reason-01-native-hipporag2.md) | Parked | GRAPH-01 did not provide a useful gain; native-run prerequisites also remain open. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |
 
 ## Board rules

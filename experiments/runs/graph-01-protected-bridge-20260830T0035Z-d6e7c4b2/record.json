@@ -1,0 +1,283 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "graph-01-protected-bridge-20260830T0035Z-d6e7c4b2",
+  "experiment": "graph-01-protected-bridge",
+  "title": "graph-01-protected-bridge",
+  "verdict": "reject",
+  "read": "GRAPH-01 protected bridge-completion completed and was rejected.",
+  "code": {
+    "git_sha": "913db710f994add8e7a050b937164300b1e74076",
+    "dirty": false,
+    "branch": "experiments/performance-0.8.23-plan-20260821",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "d6e7c4b28f14aa3ddda09906cc970c499f5c6a3504d5c0502890cc6ce7be08e3",
+    "path": "experiments/configs/graph-01/musique-protected-bridge.v1.json",
+    "resolved": {
+      "schema_version": "graph-01.protected-bridge.v1",
+      "program_track": "GRAPH-01",
+      "run_label": "musique-protected-bridge-v1",
+      "approval": {
+        "state": "approved",
+        "approved_by": "coreyt",
+        "approved_at": "2026-08-29T00:00:00Z",
+        "cost_cap_usd": 20.0
+      },
+      "inputs": {
+        "corpus_path": "data/corpus-data/raw/musique_dev.jsonl",
+        "corpus_sha256": "3cff37fd7221506a343a125cf7ca20aab7cd09877e376122da9627e1b935b26f",
+        "extractions_path": "data/corpus-data/graph-cache/0.8.2-m1-v1/extractions.json",
+        "extractions_sha256": "7ca969520e7c79dab83a3cce0800f8e87369b3aed7b7264577f6959f397373d4",
+        "cohort_path": "dev/plans/runs/0.8.2-m1-verdict-gpt54.json",
+        "cohort_sha256": "3f4061119a278045c6c905f5fc5db9705ef733a2b051541042a49012f14f2019",
+        "question_count": 300,
+        "missing_extraction_policy": "empty_graph_keep_document",
+        "claim_boundary": "registered_reused_cohort_characterization"
+      },
+      "control": {
+        "name": "fused_rrf_k60",
+        "bm25": true,
+        "dense_model": "BAAI/bge-small-en-v1.5",
+        "dense_pooling": "cls",
+        "rrf_k": 60,
+        "candidate_depth": 20,
+        "context_passages": 10
+      },
+      "treatment": {
+        "name": "protected_bridge_v1",
+        "query_anchor": "exact_normalized_entity_phrase",
+        "seed_passages": 5,
+        "path_depth_max": 2,
+        "protected_control_ranks": 8,
+        "promotion_max": 2,
+        "candidate_depth": 20,
+        "context_passages": 10,
+        "generic_entity_tokens": [
+          "entity",
+          "person",
+          "place",
+          "thing",
+          "unknown"
+        ]
+      },
+      "quality": {
+        "edge_audit_sample": 100,
+        "edge_audit_batch": 10,
+        "edge_precision_min": 0.9,
+        "edge_precision_wilson_lower_min": 0.8,
+        "source_link_completeness": 1.0,
+        "orphan_max": 0,
+        "stale_max": 0
+      },
+      "evaluation": {
+        "bootstrap_draws": 2000,
+        "bootstrap_seed": 20260829,
+        "primary_hops": [
+          3,
+          4
+        ],
+        "complete_bridge_delta_min": 0.04,
+        "complete_bridge_ci_lower_strictly_above": 0.0,
+        "supporting_recall_delta_min": 0.0,
+        "two_hop_complete_bridge_delta_strictly_above": -0.02,
+        "distinct_question_rate_min": 0.1,
+        "graph_addon_p95_ms_max": 25.0,
+        "storage_amplification_max": 1.5,
+        "answer_f1_noninferiority_ci_lower": -0.02,
+        "answer_f1_material_delta_min": 0.04,
+        "answer_f1_material_ci_lower_strictly_above": 0.0
+      },
+      "models": {
+        "edge_judge": {
+          "model": "claude-haiku",
+          "temperature": 0.0,
+          "max_tokens": 1200
+        },
+        "answerer": {
+          "model": "deepseek-v4-pro",
+          "thinking_mode": "disabled",
+          "temperature": 0.0,
+          "max_tokens": 300
+        }
+      },
+      "pricing": {
+        "claude-haiku": {
+          "input_per_million": 1.0,
+          "output_per_million": 5.0
+        },
+        "deepseek-v4-pro": {
+          "input_per_million": 1.32,
+          "output_per_million": 3.96
+        }
+      },
+      "execution": {
+        "fathomdb_version": "0.8.23",
+        "fathomdb_python": "data/performance-benchmarking/global-01/toolchains/fathomdb-0.8.23-venv/bin/python",
+        "fathomdb_cli": "data/performance-benchmarking/scale-02/runtime/9e507553/fathomdb",
+        "database_fresh_per_run": true,
+        "embed_device": "auto",
+        "rerank_device": "auto",
+        "use_default_embedder": false,
+        "checkpoint_every_cell": true,
+        "resume_only_missing": true,
+        "concurrency": 4,
+        "retry_attempts": 6,
+        "retry_backoff_seconds": [
+          1,
+          2,
+          4,
+          8,
+          16,
+          32
+        ],
+        "honor_retry_after": true
+      }
+    }
+  },
+  "corpus": {
+    "source": "MuSiQue-Ans registered reused cohort",
+    "manifest_sha256": "3cff37fd7221506a343a125cf7ca20aab7cd09877e376122da9627e1b935b26f",
+    "datasets": [
+      {
+        "name": "MuSiQue-Ans",
+        "questions": 300,
+        "selection_sha256": "3f4061119a278045c6c905f5fc5db9705ef733a2b051541042a49012f14f2019"
+      }
+    ]
+  },
+  "seeds": {
+    "bootstrap": 20260829
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb": "0.8.23",
+      "edge_judge": "claude-haiku",
+      "answerer": "deepseek-v4-pro"
+    }
+  },
+  "metrics": {
+    "schema_version": "graph-01.result.v1",
+    "program_track": "GRAPH-01",
+    "state": "complete",
+    "verdict": "reject",
+    "question_count": 300,
+    "primary_question_count": 144,
+    "cost_usd": 0.32930456,
+    "cost_cap_usd": 20.0,
+    "graph_quality": {
+      "relations_total": 59866.0,
+      "relations_admitted": 21033.0,
+      "rejected_missing_endpoint": 8979.0,
+      "rejected_nonverbatim_endpoint": 31045.0,
+      "rejected_generic_endpoint": 15.0,
+      "rejected_type_conflict": 9473.0,
+      "rejected_malformed_relation": 11.0,
+      "duplicate_entities": 122.0,
+      "type_conflict_entities": 1688.0,
+      "missing_extractions": 1.0,
+      "endpoint_orphans": 0,
+      "projection_items": 77646,
+      "source_link_completeness": 1.0,
+      "active_edges": 21033,
+      "active_nodes": 56613,
+      "inactive_edges": 0,
+      "active_stale_edges": 0,
+      "database_bytes": 45178880,
+      "storage_amplification": 0.8012048092349319,
+      "edge_audit_n": 100,
+      "edge_precision": 0.94,
+      "edge_precision_wilson95": [
+        0.8752318455410406,
+        0.9722138760368118
+      ],
+      "eligible": true
+    },
+    "lifecycle": {
+      "supersession_stale_hits": 0,
+      "erasure_stale_hits": 0,
+      "eligible": true
+    },
+    "retrieval": {
+      "quality_eligible": true,
+      "lifecycle_eligible": true,
+      "complete_bridge_delta": {
+        "point": -0.006993006993006993,
+        "ci95": [
+          -0.02097902097902098,
+          0.0
+        ],
+        "n": 143,
+        "excluded_undefined": 1,
+        "draws": 2000,
+        "seed": 20260829
+      },
+      "supporting_recall_delta": -0.0023310023310023314,
+      "two_hop_complete_bridge_delta": 0.007575757575757576,
+      "distinct_question_rate": 0.02666666666666667,
+      "graph_addon_p95_ms": 5.97913595024693,
+      "storage_amplification": 0.8012048092349319,
+      "decision": {
+        "passed": false,
+        "boundaries": {
+          "quality": true,
+          "lifecycle": true,
+          "complete_bridge_point": false,
+          "complete_bridge_ci": false,
+          "supporting_recall": false,
+          "two_hop": true,
+          "distinctness": false,
+          "latency": true,
+          "storage": true
+        }
+      }
+    },
+    "answer": {
+      "control_f1": 0.11881613756613757,
+      "treatment_f1": 0.11881613756613757,
+      "paired_delta": {
+        "point": 0.0,
+        "ci95": [
+          0.0,
+          0.0
+        ],
+        "n": 144,
+        "excluded_undefined": 0,
+        "draws": 2000,
+        "seed": 20260829
+      },
+      "decision": {
+        "accepted": false,
+        "retrieval_route": false,
+        "material_answer_route": false
+      },
+      "model": "deepseek-v4-pro"
+    }
+  },
+  "cost_usd": 0.32930456,
+  "tdd_evidence": {
+    "red": "initial missing module plus execution-discovered boundary failures",
+    "green": "src/python/tests/test_graph_01.py"
+  },
+  "tests": {
+    "graph_01": "14 passed"
+  },
+  "files_changed": [
+    "experiments/graph_01.py",
+    "experiments/graph_01_live.py",
+    "src/python/tests/test_graph_01.py"
+  ],
+  "artifacts": [
+    "data/performance-benchmarking/graph-01/runs/graph-01-protected-bridge-20260829-a/result.v1.json",
+    "data/performance-benchmarking/graph-01/runs/graph-01-protected-bridge-20260829-a/observations.v1.json",
+    "data/performance-benchmarking/graph-01/runs/graph-01-protected-bridge-20260829-a/native/projection/fathomdb.sqlite"
+  ],
+  "review": {
+    "status": "approved",
+    "path": "dev/performance-benchmarking/2026-08-29-graph-01-design-review.md"
+  },
+  "open_questions": []
+}

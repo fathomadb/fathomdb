@@ -1,0 +1,102 @@
+approval:
+  approved_at: '2026-08-29T00:00:00Z'
+  approved_by: coreyt
+  cost_cap_usd: 20.0
+  state: approved
+control:
+  bm25: true
+  candidate_depth: 20
+  context_passages: 10
+  dense_model: BAAI/bge-small-en-v1.5
+  dense_pooling: cls
+  name: fused_rrf_k60
+  rrf_k: 60
+evaluation:
+  answer_f1_material_ci_lower_strictly_above: 0.0
+  answer_f1_material_delta_min: 0.04
+  answer_f1_noninferiority_ci_lower: -0.02
+  bootstrap_draws: 2000
+  bootstrap_seed: 20260829
+  complete_bridge_ci_lower_strictly_above: 0.0
+  complete_bridge_delta_min: 0.04
+  distinct_question_rate_min: 0.1
+  graph_addon_p95_ms_max: 25.0
+  primary_hops:
+  - 3
+  - 4
+  storage_amplification_max: 1.5
+  supporting_recall_delta_min: 0.0
+  two_hop_complete_bridge_delta_strictly_above: -0.02
+execution:
+  checkpoint_every_cell: true
+  concurrency: 4
+  database_fresh_per_run: true
+  embed_device: auto
+  fathomdb_cli: data/performance-benchmarking/scale-02/runtime/9e507553/fathomdb
+  fathomdb_python: data/performance-benchmarking/global-01/toolchains/fathomdb-0.8.23-venv/bin/python
+  fathomdb_version: 0.8.23
+  honor_retry_after: true
+  rerank_device: auto
+  resume_only_missing: true
+  retry_attempts: 6
+  retry_backoff_seconds:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16
+  - 32
+  use_default_embedder: false
+inputs:
+  claim_boundary: registered_reused_cohort_characterization
+  cohort_path: dev/plans/runs/0.8.2-m1-verdict-gpt54.json
+  cohort_sha256: 3f4061119a278045c6c905f5fc5db9705ef733a2b051541042a49012f14f2019
+  corpus_path: data/corpus-data/raw/musique_dev.jsonl
+  corpus_sha256: 3cff37fd7221506a343a125cf7ca20aab7cd09877e376122da9627e1b935b26f
+  extractions_path: data/corpus-data/graph-cache/0.8.2-m1-v1/extractions.json
+  extractions_sha256: 7ca969520e7c79dab83a3cce0800f8e87369b3aed7b7264577f6959f397373d4
+  missing_extraction_policy: empty_graph_keep_document
+  question_count: 300
+models:
+  answerer:
+    max_tokens: 300
+    model: deepseek-v4-pro
+    temperature: 0.0
+    thinking_mode: disabled
+  edge_judge:
+    max_tokens: 1200
+    model: claude-haiku
+    temperature: 0.0
+pricing:
+  claude-haiku:
+    input_per_million: 1.0
+    output_per_million: 5.0
+  deepseek-v4-pro:
+    input_per_million: 1.32
+    output_per_million: 3.96
+program_track: GRAPH-01
+quality:
+  edge_audit_batch: 10
+  edge_audit_sample: 100
+  edge_precision_min: 0.9
+  edge_precision_wilson_lower_min: 0.8
+  orphan_max: 0
+  source_link_completeness: 1.0
+  stale_max: 0
+run_label: musique-protected-bridge-v1
+schema_version: graph-01.protected-bridge.v1
+treatment:
+  candidate_depth: 20
+  context_passages: 10
+  generic_entity_tokens:
+  - entity
+  - person
+  - place
+  - thing
+  - unknown
+  name: protected_bridge_v1
+  path_depth_max: 2
+  promotion_max: 2
+  protected_control_ranks: 8
+  query_anchor: exact_normalized_entity_phrase
+  seed_passages: 5

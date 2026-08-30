@@ -1,6 +1,6 @@
 # GLOBAL-01 — Native GraphRAG comparison
 
-**Status:** v4 reduction valid; assertion-scorer ceiling correction next.
+**Status:** complete; treatment rejected.
 
 ## Decision
 
@@ -122,8 +122,9 @@ It then exhausted generic retries on a map batch that alternated between an
 uncited claim and an overlong claim. Bind targeted, content-free correction
 instructions for those existing validators, then preflight one fresh witness.
 The [v7 preflight](../../../experiments/runs/global-01-lazy-preflight-20260829T2158Z-60b3642c/record.json)
-passed at zero spend. Its three-question witness passed for $0.703. The matched
-held-out comparison is running from that checkpoint.
+passed at zero spend. Its three-question witness passed for $0.703. The
+[39-question held-out comparison](../../../experiments/runs/global-01-lazy-coverage-20260829T2159Z-60b3642c/record.json)
+then completed within the authorized cap and rejected the treatment.
 
 ## Stop
 
@@ -138,6 +139,9 @@ Native GraphRAG led directionally on comprehensiveness, diversity, and
 empowerment; source-linked map-reduce led on directness. That measured coverage
 gap supports only a preregistered treatment. The
 [performance-gap analysis and falsifiable improvement hypothesis](../2026-08-29-global-01-improvement-hypothesis.md)
-provides that basis. The treatment remains unaccepted. V2 is reopened only
-under its preregistered recovery contract; do not reuse the v1 witness as a
-quality result.
+provides that basis. The registered
+[held-out result](../2026-08-29-global-01-lazy-coverage-result.md) rejects
+`global_lazy_coverage_v1`: grounding, directness, attribution, lifecycle,
+cost, and latency passed, but headline pairwise quality and assertion recall
+failed. Retain `source_mapreduce_c_v1_fts50` and do not tune the treatment
+against the held-out outcomes.

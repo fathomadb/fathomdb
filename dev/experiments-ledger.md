@@ -667,6 +667,26 @@
   abandoned provider attempts and preflights remained below $5. **Source:**
   `experiments/runs/extract-01-knowledge-update-20260823T2236Z-59e805cb/record.json`.
 
+### GLOBAL-01 — source-linked lazy coverage
+
+- **Question:** Does `global_lazy_coverage_v1` improve global
+  comprehensiveness, diversity, and empowerment over source-linked map-reduce
+  while retaining directness, grounding, attribution, lifecycle fidelity, and
+  acceptable cost?
+- **N:** 39 held-out AP News BenchmarkQED questions; matched answers, five
+  order-swapped pairwise judgments per metric, two assertion-scoring trials,
+  and 2,000 question-clustered bootstrap draws.
+- **Result:** Treatment win rates were 0.353 comprehensiveness, 0.385 diversity,
+  0.451 empowerment, and 0.542 directness. Qualified-assertion recall changed
+  from 0.519 to 0.504; unsupported claims improved from 0.063 to 0.015.
+  Treatment/control generation-cost and p95-latency ratios were 0.437 and
+  0.830. Attribution was complete and lifecycle canaries passed.
+- **Verdict:** **REJECT.** The treatment failed the registered headline-quality
+  and assertion-recall boundaries. Retain `source_mapreduce_c_v1_fts50`; do not
+  tune against held-out outcomes.
+- **$:** **$8.5501** of the $12 cap. **Source:**
+  `experiments/runs/global-01-lazy-coverage-20260829T2159Z-60b3642c/record.json`.
+
 ## research/ (UNTRACKED — git-ignored; results live ONLY here)
 
 ### research/eu-0 — eu7 embedder + quantization-path sweep (RESOLVED)

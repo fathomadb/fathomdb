@@ -83,7 +83,9 @@ content-free manifest.
 2. Run each contract family and preserve its targeted behavioral RED result.
 3. Implement only enough behavior and configuration to make those tests GREEN.
 4. Run the live 282-question equivalence check and zero-spend held-out preflight.
-5. Run the full repository verification gate with ptrace enabled.
+5. Run scoped verification and the ptrace-capable security gate. Also run the
+   repository-wide gate to identify debt, but block REASON-01 only on failures
+   that overlap its runner or pinned runtime dependencies.
 
 ## Failure behavior
 

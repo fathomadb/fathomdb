@@ -85,8 +85,10 @@
 - **AC9.** An importable skeleton produces targeted behavioral RED failures for
   registry/resolution, recipe calls, merge properties, refusal behavior, safe
   trace, equivalence drift, and held-out overlap. The same focused suite is
-  GREEN afterward; lint, typecheck, test, and the ptrace-capable repository
-  verification gate pass.
+  GREEN afterward; scoped lint, typecheck, tests, and the ptrace-capable
+  security gate pass. A repository-wide failure blocks this experiment only
+  when it overlaps the experiment runner or its pinned runtime dependencies;
+  unrelated release-control failures are recorded as repository debt.
 
 ## Held-out eligibility criteria
 

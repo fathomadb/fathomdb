@@ -10,9 +10,9 @@ append-only evidence index.
 
 ## Immediate sequence
 
-No data-generating run is active. REASON-01 treatment registration and held-out
-eligibility planning are next. The native HippoRAG-2 comparison starts only if
-that treatment passes; the current Mem0 refresh follows treatment selection.
+No data-generating run is active. REASON-01 rejected
+`protected_multiquery_v1`: retrieval improved, but answer correctness,
+groundedness, and attribution regressed. Stop before native HippoRAG-2.
 
 ## Track status
 
@@ -32,7 +32,7 @@ that treatment passes; the current Mem0 refresh follows treatment selection.
 | [LATENT-01](tracks/latent-01-late-chunking-feasibility.md) | Parked | Start only from a labelled cross-window failure set. |
 | [GRAPH-01](tracks/graph-01-projection-characterization.md) | Complete, rejected | Preserve the [result](2026-08-30-graph-01-result.md) and [receipt](../../experiments/runs/graph-01-protected-bridge-20260830T0035Z-d6e7c4b2/record.json); retain the fused control. |
 | [GLOBAL-01](tracks/global-01-native-graphrag.md) | Complete, rejected | Preserve the [held-out result](2026-08-29-global-01-lazy-coverage-result.md) and [receipt](../../experiments/runs/global-01-lazy-coverage-20260829T2159Z-60b3642c/record.json); retain the source-linked map-reduce control. |
-| [REASON-01](tracks/reason-01-native-hipporag2.md) | Next: treatment eligibility | Register `protected_multiquery_v1`, bind it against preserved development evidence, and run one untouched held-out eligibility comparison against A0. Deep compact remains rejected; proceed to native HippoRAG-2 only if the protected profile passes. |
+| [REASON-01](tracks/reason-01-native-hipporag2.md) | Complete, rejected | Preserve the [held-out result](2026-08-30-reason-01-result.md); do not promote the profile, run native HippoRAG-2, or refresh MEMORY-01 from this treatment. Unrelated release-control failures remain known repository debt. |
 | [SEARCH-01](tracks/search-01-ir-c-baseline.md) | Complete historical | Preserve as the lexical reference; no current run. |
 
 ## Board rules

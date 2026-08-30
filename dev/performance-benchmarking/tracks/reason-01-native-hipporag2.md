@@ -1,6 +1,6 @@
 # REASON-01 — Native HippoRAG-2 comparison
 
-**Status:** next; treatment eligibility precedes the native comparison.
+**Status:** complete; treatment rejected before native comparison.
 
 ## Decision
 
@@ -24,6 +24,15 @@ supporting-evidence recall and answer quality?
    answerer, judge, and cap.
 4. Decide the native comparison from supporting-evidence recall and answer F1,
    with paired uncertainty and failures counted equally for both systems.
+
+## Current gate
+
+The [held-out result](../2026-08-30-reason-01-result.md) rejects
+`protected_multiquery_v1`. It improved fractional gold-session recall by 7.81
+points and met its latency/context limits, but answer accuracy fell 2.75 points;
+groundedness and attribution also regressed. Stop before native HippoRAG-2 and
+do not refresh MEMORY-01 from this treatment. Unrelated npm-recovery and expired
+CUDA release-manifest failures remain known repository debt.
 
 ## Stop
 

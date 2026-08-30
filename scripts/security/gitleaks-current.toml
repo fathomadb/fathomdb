@@ -14,6 +14,13 @@ paths = ['''^(?:.*/)?scripts/check-cuda-release-contract\.py$''']
 regexes = ['''^tokenizer\.json": "[0-9a-f]{64}"$''']
 
 [[rules.allowlists]]
+description = "REASON-01 tokenizer digests are artifact-integrity metadata"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''^experiments/configs/reason-01/profile-registry\.v1\.json$''']
+regexes = ['''^[0-9a-f]{64}$''']
+
+[[rules.allowlists]]
 description = "CUDA tokenizer digest export is artifact-integrity metadata"
 condition = "AND"
 regexTarget = "match"

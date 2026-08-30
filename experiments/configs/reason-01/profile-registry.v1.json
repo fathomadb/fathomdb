@@ -1,0 +1,61 @@
+{
+  "schema_version": "reason01.profile-registry.v1",
+  "program_track": "REASON-01",
+  "known_intents": [
+    "exact",
+    "semantic",
+    "timeline",
+    "relationship",
+    "global",
+    "fast"
+  ],
+  "profiles": [
+    {
+      "id": "protected_multiquery_v1",
+      "version": 1,
+      "status": "experimental",
+      "intent": "relationship",
+      "recipe": {
+        "fts_prefix_limit": 10,
+        "max_queries": 3,
+        "hybrid_alpha": 1.0,
+        "hybrid_pool_n": 20,
+        "hybrid_rerank_depth": 20,
+        "use_graph_arm": false,
+        "explain": true,
+        "hybrid_limit": 20,
+        "context_limit": 20
+      },
+      "runtime": {
+        "fathomdb_version": "0.8.23",
+        "fathomdb_source_commit": "7c49fa11b811d1e34b5ff2d9a3d57c8da13ff3de",
+        "embed_device": "cuda:0",
+        "rerank_device": "cuda:0",
+        "embedder_id": "fathomdb-bge-small-en-v1.5@5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+        "reranker_id": "fathomdb-ms-marco-TinyBERT-L2-v2@81d1926f67cb8eee2c2be17ca9f793c7c3bd20cc",
+        "host": "windchill3",
+        "gpu_uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+        "gpu_driver": "580.173.02",
+        "native_module_sha256": "43d6beec69bdfa82a03d946e1d95008c7749a5432198e871810ac02144393fe2",
+        "cli_sha256": "056dcdb71b53f1580ecff9e32ba26e7d316117cf63853ea2c4a53e07dbf07482",
+        "embedder_cache_key": "0b2926f8a9b1",
+        "embedder_config_sha256": "094f8e891b932f2000c92cfc663bac4c62069f5d8af5b5278c4306aef3084750",
+        "embedder_tokenizer_sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+        "embedder_model_sha256": "3c9f31665447c8911517620762200d2245a2518d6e7208acc78cd9db317e21ad",
+        "reranker_cache_key": "0290849b0459",
+        "reranker_config_sha256": "2144195e107cd7ea61556478e7add12986ebfbc3085f924fc0b90c2410604879",
+        "reranker_tokenizer_sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66",
+        "reranker_model_sha256": "a0e7364ddf91ff7028f1102e1b91ac7a72e3db4061241bd84efe45c72c9af03a",
+        "doctor_required": true,
+        "cpu_fallback": false
+      },
+      "evidence": {
+        "scope": "development_only",
+        "equivalence_receipt_sha256": "fb85dbe6fbd5bccd4f47b0f018155dbb9f331567078249af9e7f015ae580802c",
+        "locomo_corpus_sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+        "adapter_sha256": "91bc8eaf4f9fbd27970237c0536caede4aa8b6469022cc16eddd0fc71618d963",
+        "identity_map_sha256": "f523e5b0f1ca7621461c769676018198ee165f00648c8887a9c5d8063425d938"
+      }
+    }
+  ]
+}

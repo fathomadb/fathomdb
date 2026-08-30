@@ -19,9 +19,16 @@ from typing import Any, Callable, Mapping, Sequence
 from experiments.reason_01_run import paired_bootstrap, retry_after_seconds
 
 
-SCHEMA = "reason01.compact-ledger-checkpoint.v1"
-ARMS = ("a0_raw", "protected_raw", "protected_evidence_ledger_v1")
+SCHEMA_V1 = "reason01.compact-ledger-checkpoint.v1"
+SCHEMA_V2 = "reason01.compact-ledger-checkpoint.v2"
+SCHEMA = SCHEMA_V1
+ARMS_V1 = ("a0_raw", "protected_raw", "protected_evidence_ledger_v1")
+ARMS_V2 = ("a0_raw", "protected_raw", "protected_evidence_ledger_v2")
+ARMS = ARMS_V1
 QUOTE_EQUIVALENCE = ("'", '"', "‘", "’", "“", "”")
+V2_ABSTENTION = (
+    "The available memories do not contain enough information to answer this question."
+)
 OFFICIAL_PROMPT = (
     "I will give you a question, a correct answer, and a response from a model. "
     "Please answer yes if the response contains the correct answer. Otherwise, "
@@ -76,10 +83,18 @@ LEDGER_FORMAT: dict[str, Any] = {
                         "type": "object",
                         "properties": {
                             "id": {"type": "string"},
-                            "quote": {"type": "string", "minLength": 8, "maxLength": 600},
+                            "quote": {
+                                "type": "string",
+                                "minLength": 8,
+                                "maxLength": 600,
+                            },
                             "requirements": {
                                 "type": "array",
-                                "items": {"type": "integer", "minimum": 0, "maximum": 5},
+                                "items": {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 5,
+                                },
                                 "minItems": 1,
                                 "uniqueItems": True,
                             },
@@ -105,7 +120,11 @@ LEDGER_FORMAT: dict[str, Any] = {
                                 "minItems": 2,
                                 "uniqueItems": True,
                             },
-                            "description": {"type": "string", "minLength": 1, "maxLength": 240},
+                            "description": {
+                                "type": "string",
+                                "minLength": 1,
+                                "maxLength": 240,
+                            },
                         },
                         "required": ["ids", "description"],
                         "additionalProperties": False,
@@ -157,7 +176,9 @@ class CompactLedgerError(RuntimeError):
 
 
 def _canonical_hash(value: object) -> str:
-    encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    encoded = json.dumps(
+        value, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
     return hashlib.sha256(encoded.encode()).hexdigest()
 
 
@@ -189,10 +210,50 @@ def _json_object(content: str, label: str) -> dict[str, Any]:
     return value
 
 
-def arm_order(index: int) -> tuple[str, ...]:
+def arm_order(index: int, arms: tuple[str, ...] = ARMS) -> tuple[str, ...]:
     """Rotate all arms deterministically to limit time/order confounding."""
-    offset = index % len(ARMS)
-    return ARMS[offset:] + ARMS[:offset]
+    offset = index % len(arms)
+    return arms[offset:] + arms[:offset]
+
+
+def _arms(config: Mapping[str, Any]) -> tuple[str, ...]:
+    expected = (
+        ARMS_V2
+        if config.get("schema_version") == "reason01.compact-ledger-run.v2"
+        else ARMS_V1
+    )
+    configured = tuple(config.get("arms", ()))
+    if configured and configured != expected:
+        raise CompactLedgerError("configured arms drifted")
+    return expected
+
+
+def answer_format(known_ids: set[str]) -> dict[str, Any]:
+    """Build a strict per-cell schema limited to the exact evidence IDs."""
+    item_schema: dict[str, Any] = {"type": "string"}
+    if known_ids:
+        item_schema["enum"] = sorted(known_ids)
+    return {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "reason01_answer",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "answer": {"type": "string"},
+                    "citations": {
+                        "type": "array",
+                        "items": item_schema,
+                        "uniqueItems": True,
+                        "maxItems": len(known_ids),
+                    },
+                },
+                "required": ["answer", "citations"],
+                "additionalProperties": False,
+            },
+        },
+    }
 
 
 def _locate_quote(body: str, quote: str, identity: str) -> tuple[str, int, str]:
@@ -240,7 +301,10 @@ def parse_ledger(content: str, hits: Sequence[Mapping[str, str]]) -> dict[str, A
     if (
         not isinstance(requirements, list)
         or not 1 <= len(requirements) <= 6
-        or any(not isinstance(item, str) or not item.strip() or len(item) > 160 for item in requirements)
+        or any(
+            not isinstance(item, str) or not item.strip() or len(item) > 160
+            for item in requirements
+        )
     ):
         raise CompactLedgerError("ledger requirements are invalid")
     if not isinstance(evidence, list) or len(evidence) > 10:
@@ -251,7 +315,11 @@ def parse_ledger(content: str, hits: Sequence[Mapping[str, str]]) -> dict[str, A
     enriched: list[dict[str, Any]] = []
     seen: set[str] = set()
     for item in evidence:
-        if not isinstance(item, Mapping) or set(item) != {"id", "quote", "requirements"}:
+        if not isinstance(item, Mapping) or set(item) != {
+            "id",
+            "quote",
+            "requirements",
+        }:
             raise CompactLedgerError("ledger evidence contract drifted")
         identity, quote, indexes = item["id"], item["quote"], item["requirements"]
         if not isinstance(identity, str) or identity not in hit_map:
@@ -274,7 +342,13 @@ def parse_ledger(content: str, hits: Sequence[Mapping[str, str]]) -> dict[str, A
             not isinstance(indexes, list)
             or not indexes
             or len(set(indexes)) != len(indexes)
-            or any(not isinstance(i, int) or isinstance(i, bool) or i < 0 or i >= len(requirements) for i in indexes)
+            or any(
+                not isinstance(i, int)
+                or isinstance(i, bool)
+                or i < 0
+                or i >= len(requirements)
+                for i in indexes
+            )
         ):
             raise CompactLedgerError("ledger requirement indexes are invalid")
         enriched.append(
@@ -293,7 +367,13 @@ def parse_ledger(content: str, hits: Sequence[Mapping[str, str]]) -> dict[str, A
     if (
         not isinstance(missing, list)
         or len(set(missing)) != len(missing)
-        or any(not isinstance(i, int) or isinstance(i, bool) or i < 0 or i >= len(requirements) for i in missing)
+        or any(
+            not isinstance(i, int)
+            or isinstance(i, bool)
+            or i < 0
+            or i >= len(requirements)
+            for i in missing
+        )
     ):
         raise CompactLedgerError("ledger missing indexes are invalid")
     if not isinstance(conflicts, list) or len(conflicts) > 4:
@@ -322,10 +402,114 @@ def parse_ledger(content: str, hits: Sequence[Mapping[str, str]]) -> dict[str, A
     }
 
 
-def raw_answer_messages(case: Mapping[str, object], hits: Sequence[Mapping[str, str]]) -> list[dict[str, str]]:
+def validate_v2_ledger(ledger: Mapping[str, Any]) -> dict[str, Any]:
+    """Require complete, non-overlapping evidence-or-missing requirement coverage."""
+    requirements = ledger["requirements"]
+    expected = set(range(len(requirements)))
+    covered = {index for row in ledger["evidence"] for index in row["requirements"]}
+    missing = set(ledger["missing"])
+    if covered & missing or covered | missing != expected:
+        raise CompactLedgerError("v2 ledger requirement coverage is inconsistent")
+    return dict(ledger)
+
+
+def parse_ledger_v2(content: str, hits: Sequence[Mapping[str, str]]) -> dict[str, Any]:
+    """Parse canonical strips and enforce the v2 coverage invariant."""
+    return validate_v2_ledger(parse_ledger(content, hits))
+
+
+def all_requirements_missing(ledger: Mapping[str, Any]) -> bool:
+    """Return whether a valid ledger marks every requirement missing."""
+    requirements = ledger["requirements"]
+    return (
+        bool(requirements)
+        and not ledger["evidence"]
+        and set(ledger["missing"]) == set(range(len(requirements)))
+    )
+
+
+def deterministic_abstention(
+    ledger: Mapping[str, Any], text: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Create the runner-owned all-missing answer and bounded-scope attribution."""
+    if not all_requirements_missing(ledger) or text != V2_ABSTENTION:
+        raise CompactLedgerError("deterministic abstention contract drifted")
+    answer = {
+        "answer": text,
+        "citations": [],
+        "citation_contract_valid": True,
+        "abstention": True,
+        "deterministic": True,
+    }
+    evidence = {
+        "claims": [],
+        "grounded": True,
+        "attributed": True,
+        "deterministic": True,
+        "valid_abstention": True,
+        "abstention_basis": {
+            "kind": "all_requirements_missing_ledger_state",
+            "requirement_indexes": list(ledger["missing"]),
+        },
+    }
+    return answer, evidence
+
+
+def terminal_answer_failure(error: str, attempts: int) -> dict[str, Any]:
+    """Represent exhausted malformed output as a persisted false quality cell."""
+    return {
+        "answer": "",
+        "citations": [],
+        "citation_contract_valid": False,
+        "abstention": False,
+        "terminal_quality_failure": True,
+        "failure_reason": error,
+        "semantic_attempts": attempts,
+    }
+
+
+def terminal_ledger_failure(error: str, attempts: int) -> dict[str, Any]:
+    """Represent an unusable ledger without inventing missingness or evidence."""
+    return {
+        "requirements": [],
+        "evidence": [],
+        "missing": [],
+        "conflicts": [],
+        "terminal_quality_failure": True,
+        "failure_reason": error,
+        "semantic_attempts": attempts,
+    }
+
+
+def terminal_correctness_failure(error: str, attempts: int) -> dict[str, Any]:
+    """Fail correctness closed after scorer output exhaustion."""
+    return {
+        "answer_correct": False,
+        "terminal_quality_failure": True,
+        "failure_reason": error,
+        "semantic_attempts": attempts,
+    }
+
+
+def terminal_evidence_failure(error: str, attempts: int) -> dict[str, Any]:
+    """Fail grounding and attribution closed after judge output exhaustion."""
+    return {
+        "claims": [],
+        "grounded": False,
+        "attributed": False,
+        "terminal_quality_failure": True,
+        "failure_reason": error,
+        "semantic_attempts": attempts,
+    }
+
+
+def raw_answer_messages(
+    case: Mapping[str, object], hits: Sequence[Mapping[str, str]]
+) -> list[dict[str, str]]:
     """Build the common raw-context answer prompt with an injection boundary."""
     context = "\n".join(
-        f"<memory id={json.dumps(hit['logical_id'])}>\n{hit['body']}\n</memory>" for hit in hits
+        f"<memory id={json.dumps(hit['logical_id'])}>\n{hit['body']}\n</memory>"
+        for hit in hits
     )
     return [
         {
@@ -340,14 +524,20 @@ def raw_answer_messages(case: Mapping[str, object], hits: Sequence[Mapping[str, 
                 "answer only when there is no relevant evidence."
             ),
         },
-        {"role": "user", "content": f"Question:\n{case['question']}\n\nMemories:\n{context}"},
+        {
+            "role": "user",
+            "content": f"Question:\n{case['question']}\n\nMemories:\n{context}",
+        },
     ]
 
 
-def ledger_messages(case: Mapping[str, object], hits: Sequence[Mapping[str, str]]) -> list[dict[str, str]]:
+def ledger_messages(
+    case: Mapping[str, object], hits: Sequence[Mapping[str, str]]
+) -> list[dict[str, str]]:
     """Build the protected-candidate evidence-ledger prompt."""
     context = "\n".join(
-        f"<memory id={json.dumps(hit['logical_id'])}>\n{hit['body']}\n</memory>" for hit in hits
+        f"<memory id={json.dumps(hit['logical_id'])}>\n{hit['body']}\n</memory>"
+        for hit in hits
     )
     return [
         {
@@ -367,7 +557,10 @@ def ledger_messages(case: Mapping[str, object], hits: Sequence[Mapping[str, str]
                 "never strings or explanations (example: [0,2] or []). Do not paraphrase evidence."
             ),
         },
-        {"role": "user", "content": f"Question:\n{case['question']}\n\nCandidates:\n{context}"},
+        {
+            "role": "user",
+            "content": f"Question:\n{case['question']}\n\nCandidates:\n{context}",
+        },
     ]
 
 
@@ -412,7 +605,9 @@ def compact_answer_messages(
     ]
 
 
-def parse_answer(content: str, known_ids: set[str], *, allow_empty: bool) -> dict[str, Any]:
+def parse_answer(
+    content: str, known_ids: set[str], *, allow_empty: bool
+) -> dict[str, Any]:
     """Validate answer and canonical citations."""
     value = _json_object(content, "answer response")
     if set(value) != {"answer", "citations"}:
@@ -437,10 +632,21 @@ def parse_answer(content: str, known_ids: set[str], *, allow_empty: bool) -> dic
     }
 
 
-def correctness_messages(case: Mapping[str, object], answer: str) -> list[dict[str, str]]:
+def correctness_messages(
+    case: Mapping[str, object], answer: str
+) -> list[dict[str, str]]:
     """Build the official blinded LongMemEval correctness prompt."""
-    template = OFFICIAL_ABSTENTION_PROMPT if str(case["question_id"]).endswith("_abs") else OFFICIAL_PROMPT
-    return [{"role": "user", "content": template.format(case["question"], case["answer"], answer)}]
+    template = (
+        OFFICIAL_ABSTENTION_PROMPT
+        if str(case["question_id"]).endswith("_abs")
+        else OFFICIAL_PROMPT
+    )
+    return [
+        {
+            "role": "user",
+            "content": template.format(case["question"], case["answer"], answer),
+        }
+    ]
 
 
 def parse_correctness(content: str) -> dict[str, bool]:
@@ -506,24 +712,49 @@ def parse_evidence_result(content: str, known_ids: set[str]) -> dict[str, Any]:
         raise CompactLedgerError("evidence judgment lacks material claims")
     normalized = []
     for claim in claims:
-        if not isinstance(claim, Mapping) or set(claim) != {"text", "entailed", "supporting_citations"}:
+        if not isinstance(claim, Mapping) or set(claim) != {
+            "text",
+            "entailed",
+            "supporting_citations",
+        }:
             raise CompactLedgerError("evidence claim contract drifted")
-        text, entailed, support = claim["text"], claim["entailed"], claim["supporting_citations"]
+        text, entailed, support = (
+            claim["text"],
+            claim["entailed"],
+            claim["supporting_citations"],
+        )
         if (
             not isinstance(text, str)
             or not text.strip()
             or not isinstance(entailed, bool)
             or not isinstance(support, list)
             or len(support) != len(set(support))
-            or any(not isinstance(item, str) or item not in known_ids for item in support)
+            or any(
+                not isinstance(item, str) or item not in known_ids for item in support
+            )
         ):
             raise CompactLedgerError("evidence claim support is invalid")
-        normalized.append({"text": text.strip(), "entailed": entailed, "supporting_citations": support})
+        normalized.append(
+            {
+                "text": text.strip(),
+                "entailed": entailed,
+                "supporting_citations": support,
+            }
+        )
     expected_grounded = all(row["entailed"] for row in normalized)
-    expected_attributed = expected_grounded and all(row["supporting_citations"] for row in normalized)
-    if value["grounded"] is not expected_grounded or value["attributed"] is not expected_attributed:
+    expected_attributed = expected_grounded and all(
+        row["supporting_citations"] for row in normalized
+    )
+    if (
+        value["grounded"] is not expected_grounded
+        or value["attributed"] is not expected_attributed
+    ):
         raise CompactLedgerError("evidence judgment support booleans are inconsistent")
-    return {"claims": normalized, "grounded": expected_grounded, "attributed": expected_attributed}
+    return {
+        "claims": normalized,
+        "grounded": expected_grounded,
+        "attributed": expected_attributed,
+    }
 
 
 @dataclass
@@ -551,16 +782,27 @@ class Checkpoint:
         self.state = state
 
     @classmethod
-    def open(cls, path: Path, *, binding_sha256: str, question_ids: list[str]) -> Checkpoint:
+    def open(
+        cls,
+        path: Path,
+        *,
+        binding_sha256: str,
+        question_ids: list[str],
+        schema_version: str = SCHEMA_V1,
+    ) -> Checkpoint:
         if path.exists():
             try:
                 state = State(**json.loads(path.read_text(encoding="utf-8")))
             except (OSError, json.JSONDecodeError, TypeError) as exc:
                 raise CompactLedgerError("checkpoint is invalid") from exc
-            if state.schema_version != SCHEMA or state.binding_sha256 != binding_sha256 or state.question_ids != question_ids:
+            if (
+                state.schema_version != schema_version
+                or state.binding_sha256 != binding_sha256
+                or state.question_ids != question_ids
+            ):
                 raise CompactLedgerError("checkpoint binding drifted")
             return cls(path, state)
-        checkpoint = cls(path, State(SCHEMA, binding_sha256, question_ids))
+        checkpoint = cls(path, State(schema_version, binding_sha256, question_ids))
         checkpoint.save()
         return checkpoint
 
@@ -615,7 +857,10 @@ class Checkpoint:
 
 def reserve_cost(*, spent: float, reserved: float, cap: float) -> None:
     """Refuse a call whose pessimistic reservation exceeds the local cap."""
-    if not all(math.isfinite(value) and value >= 0 for value in (spent, reserved, cap)) or spent + reserved > cap:
+    if (
+        not all(math.isfinite(value) and value >= 0 for value in (spent, reserved, cap))
+        or spent + reserved > cap
+    ):
         raise CompactLedgerError("provider cost cap would be exceeded before call")
 
 
@@ -637,7 +882,11 @@ class AirlockClient:
     """Authenticated isolated-loopback client with provider-respecting backoff."""
 
     def __init__(self, base: str, key: str, *, attempts: int) -> None:
-        if not base.startswith(("http://127.0.0.1:", "http://localhost:")) or not key or attempts < 1:
+        if (
+            not base.startswith(("http://127.0.0.1:", "http://localhost:"))
+            or not key
+            or attempts < 1
+        ):
             raise CompactLedgerError("isolated Airlock route is invalid")
         self.base = base.rstrip("/") + "/v1"
         self.key = key
@@ -666,7 +915,11 @@ class AirlockClient:
             except urllib.error.HTTPError as exc:
                 if (exc.code != 429 and exc.code < 500) or attempt + 1 == self.attempts:
                     raise CompactLedgerError(f"Airlock HTTP {exc.code}") from exc
-                time.sleep(retry_after_seconds(dict(exc.headers.items()), fallback=min(60.0, 2.0**attempt)))
+                time.sleep(
+                    retry_after_seconds(
+                        dict(exc.headers.items()), fallback=min(60.0, 2.0**attempt)
+                    )
+                )
             except (TimeoutError, urllib.error.URLError) as exc:
                 if attempt + 1 == self.attempts:
                     raise CompactLedgerError("Airlock retry budget exhausted") from exc
@@ -677,7 +930,11 @@ class AirlockClient:
         rows = self._request("/models").get("data")
         if not isinstance(rows, list):
             raise CompactLedgerError("Airlock model catalog is invalid")
-        return {row["id"] for row in rows if isinstance(row, Mapping) and isinstance(row.get("id"), str)}
+        return {
+            row["id"]
+            for row in rows
+            if isinstance(row, Mapping) and isinstance(row.get("id"), str)
+        }
 
     def complete(
         self,
@@ -708,26 +965,38 @@ class AirlockClient:
             prompt = value["usage"]["prompt_tokens"]
             completion = value["usage"]["completion_tokens"]
         except (KeyError, IndexError, TypeError) as exc:
-            raise CompactLedgerError("Airlock completion lacks content or usage") from exc
-        if not isinstance(content, str) or not isinstance(prompt, int) or not isinstance(completion, int):
+            raise CompactLedgerError(
+                "Airlock completion lacks content or usage"
+            ) from exc
+        if (
+            not isinstance(content, str)
+            or not isinstance(prompt, int)
+            or not isinstance(completion, int)
+        ):
             raise CompactLedgerError("Airlock completion types drifted")
         return Reply(
             content,
             prompt,
             completion,
             response_id=value.get("id") if isinstance(value.get("id"), str) else None,
-            provider=value.get("provider") if isinstance(value.get("provider"), str) else None,
+            provider=value.get("provider")
+            if isinstance(value.get("provider"), str)
+            else None,
             served_by=(
                 value.get("_airlock_served_by")
                 if isinstance(value.get("_airlock_served_by"), str)
                 else None
             ),
-            response_model=value.get("model") if isinstance(value.get("model"), str) else None,
+            response_model=value.get("model")
+            if isinstance(value.get("model"), str)
+            else None,
             elapsed_ms=elapsed_ms,
         )
 
 
-def _reserve(model: Mapping[str, Any], messages: Sequence[Mapping[str, str]], max_tokens: int) -> float:
+def _reserve(
+    model: Mapping[str, Any], messages: Sequence[Mapping[str, str]], max_tokens: int
+) -> float:
     estimated_input = math.ceil(sum(len(row["content"]) for row in messages) / 3)
     return (
         estimated_input * float(model["input_per_million"])
@@ -755,9 +1024,11 @@ def _ensure_result(
     semantic_attempts: int,
     semantic_retry_seeds: Sequence[int],
     cap: float,
+    on_exhausted: Callable[[str, int], Mapping[str, Any]] | None = None,
 ) -> Mapping[str, Any]:
     if len(semantic_retry_seeds) != semantic_attempts or any(
-        not isinstance(seed, int) or isinstance(seed, bool) for seed in semantic_retry_seeds
+        not isinstance(seed, int) or isinstance(seed, bool)
+        for seed in semantic_retry_seeds
     ):
         raise CompactLedgerError("semantic retry seed schedule drifted")
     if isinstance(cell.get("result"), Mapping):
@@ -776,7 +1047,10 @@ def _ensure_result(
         if cell["attempts"] and last_error is not None:
             call_messages.extend(
                 [
-                    {"role": "assistant", "content": str(cell["attempts"][-1]["content"])},
+                    {
+                        "role": "assistant",
+                        "content": str(cell["attempts"][-1]["content"]),
+                    },
                     {
                         "role": "user",
                         "content": (
@@ -816,6 +1090,13 @@ def _ensure_result(
             continue
         checkpoint.put_result(cell, result)
         return result
+    if on_exhausted is not None:
+        result = on_exhausted(
+            str(last_error or CompactLedgerError("semantic retry budget exhausted")),
+            len(cell["attempts"]),
+        )
+        checkpoint.put_result(cell, result)
+        return result
     raise CompactLedgerError("semantic retry budget exhausted")
 
 
@@ -826,7 +1107,9 @@ def _load_json(path: Path, label: str) -> Any:
         raise CompactLedgerError(f"{label} is unavailable") from exc
 
 
-def _load_inputs(args: argparse.Namespace, config: Mapping[str, Any]) -> tuple[list[Mapping[str, Any]], Mapping[str, Any], Mapping[str, set[str]]]:
+def _load_inputs(
+    args: argparse.Namespace, config: Mapping[str, Any]
+) -> tuple[list[Mapping[str, Any]], Mapping[str, Any], Mapping[str, set[str]]]:
     bindings = config["bindings"]
     for path, key in (
         (args.source, "source_sha256"),
@@ -839,7 +1122,11 @@ def _load_inputs(args: argparse.Namespace, config: Mapping[str, Any]) -> tuple[l
     oracle = _load_json(args.oracle, "LongMemEval oracle")
     frozen = _load_json(args.frozen_checkpoint, "frozen retrieval checkpoint")
     ids = frozen.get("question_ids")
-    if not isinstance(ids, list) or len(ids) != config["question_count"] or len(frozen.get("retrievals", {})) != len(ids) * 2:
+    if (
+        not isinstance(ids, list)
+        or len(ids) != config["question_count"]
+        or len(frozen.get("retrievals", {})) != len(ids) * 2
+    ):
         raise CompactLedgerError("frozen retrieval checkpoint is incomplete")
     source_map = {row["question_id"]: row for row in source}
     oracle_map = {row["question_id"]: row for row in oracle}
@@ -849,14 +1136,18 @@ def _load_inputs(args: argparse.Namespace, config: Mapping[str, Any]) -> tuple[l
         case = oracle_map[identity]
         exact[identity] = {
             f"longmemeval-{identity}-{session_id}-{turn_index}"
-            for session_id, session in zip(case["haystack_session_ids"], case["haystack_sessions"], strict=True)
+            for session_id, session in zip(
+                case["haystack_session_ids"], case["haystack_sessions"], strict=True
+            )
             for turn_index, turn in enumerate(session)
             if turn.get("has_answer") is True
         }
     return cases, frozen, exact
 
 
-def _raw_hits(frozen: Mapping[str, Any], arm: str, question_id: str) -> list[Mapping[str, str]]:
+def _raw_hits(
+    frozen: Mapping[str, Any], arm: str, question_id: str
+) -> list[Mapping[str, str]]:
     source_arm = "a0" if arm == "a0_raw" else "protected_multiquery_v1"
     try:
         hits = frozen["retrievals"][f"{source_arm}||{question_id}"]["hits"]
@@ -876,6 +1167,9 @@ def run(
     client: AirlockClient,
 ) -> None:
     """Generate all arms, then corrected blinded quality scores."""
+    arms = _arms(config)
+    treatment_arm = arms[-1]
+    is_v2 = config.get("schema_version") == "reason01.compact-ledger-run.v2"
     models = config["models"]
     required = {
         models[role]["model"]
@@ -890,11 +1184,15 @@ def run(
         a0_messages = raw_answer_messages(case, _raw_hits(frozen, "a0_raw", qid))
         a0_user_chars = len(a0_messages[-1]["content"])
         protected = _raw_hits(frozen, "protected_raw", qid)
-        if len(ledger_messages(case, protected)[-1]["content"]) > int(config["ledger_input_max_chars"]):
+        if len(ledger_messages(case, protected)[-1]["content"]) > int(
+            config["ledger_input_max_chars"]
+        ):
             raise CompactLedgerError("ledger input exceeds frozen preflight limit")
-        for arm in arm_order(index):
+        for arm in arm_order(index, arms):
             cell_id = f"{arm}||{qid}"
-            if arm == "protected_evidence_ledger_v1":
+            deterministic_evidence: Mapping[str, Any] | None = None
+            answer: Mapping[str, Any] | None = None
+            if arm == treatment_arm:
                 ledger_cell = checkpoint.direct_cell("ledgers", qid)
                 ledger = _ensure_result(
                     checkpoint,
@@ -904,44 +1202,103 @@ def run(
                     messages=ledger_messages(case, protected),
                     max_tokens=int(models["ledger"]["max_tokens"]),
                     response_format=LEDGER_FORMAT,
-                    parser=lambda content, hits=protected: parse_ledger(content, hits),
+                    parser=(
+                        (lambda content, hits=protected: parse_ledger_v2(content, hits))
+                        if is_v2
+                        else (
+                            lambda content, hits=protected: parse_ledger(content, hits)
+                        )
+                    ),
                     semantic_attempts=semantic_attempts,
                     semantic_retry_seeds=config["semantic_retry_seeds"],
                     cap=cap,
+                    on_exhausted=terminal_ledger_failure if is_v2 else None,
                 )
-                messages = compact_answer_messages(
-                    case,
-                    ledger,
-                    a0_user_chars=a0_user_chars,
-                    absolute_max_chars=int(config["compact_answer_max_chars"]),
-                )
-                known = {row["id"] for row in ledger["evidence"]}
-                allow_empty = bool(ledger["missing"])
+                if ledger.get("terminal_quality_failure") is True:
+                    answer_cell = checkpoint.direct_cell("answers", cell_id)
+                    existing = answer_cell.get("result")
+                    if isinstance(existing, Mapping):
+                        answer = existing
+                    else:
+                        failure = terminal_answer_failure(
+                            f"ledger: {ledger['failure_reason']}",
+                            int(ledger["semantic_attempts"]),
+                        )
+                        failure["upstream_stage"] = "ledger"
+                        checkpoint.put_result(answer_cell, failure)
+                        answer = failure
+                    messages = []
+                    known: set[str] = set()
+                    allow_empty = False
+                elif is_v2 and all_requirements_missing(ledger):
+                    answer_cell = checkpoint.direct_cell("answers", cell_id)
+                    existing = answer_cell.get("result")
+                    generated, deterministic_evidence = deterministic_abstention(
+                        ledger, str(config["protocol"]["all_missing_abstention"])
+                    )
+                    if isinstance(existing, Mapping):
+                        answer = existing
+                    else:
+                        checkpoint.put_result(answer_cell, generated)
+                        answer = generated
+                    messages = []
+                    known = set()
+                    allow_empty = True
+                else:
+                    messages = compact_answer_messages(
+                        case,
+                        ledger,
+                        a0_user_chars=a0_user_chars,
+                        absolute_max_chars=int(config["compact_answer_max_chars"]),
+                    )
+                    known = {row["id"] for row in ledger["evidence"]}
+                    allow_empty = bool(ledger["missing"])
             else:
                 hits = _raw_hits(frozen, arm, qid)
                 messages = raw_answer_messages(case, hits)
                 known = {row["logical_id"] for row in hits}
                 allow_empty = True
-            answer_cell = checkpoint.direct_cell("answers", cell_id)
-            answer = _ensure_result(
-                checkpoint,
-                answer_cell,
-                client=client,
-                model=models["reader"],
-                messages=messages,
-                max_tokens=int(models["reader"]["answer_max_tokens"]),
-                response_format=ANSWER_FORMAT,
-                parser=lambda content, ids=known, empty=allow_empty: parse_answer(content, ids, allow_empty=empty),
-                semantic_attempts=semantic_attempts,
-                semantic_retry_seeds=config["semantic_retry_seeds"],
-                cap=cap,
-            )
-            if not answer["answer"] and not qid.endswith("_abs"):
+            if answer is None:
+                answer_cell = checkpoint.direct_cell("answers", cell_id)
+                answer = _ensure_result(
+                    checkpoint,
+                    answer_cell,
+                    client=client,
+                    model=models["reader"],
+                    messages=messages,
+                    max_tokens=int(models["reader"]["answer_max_tokens"]),
+                    response_format=answer_format(known) if is_v2 else ANSWER_FORMAT,
+                    parser=lambda content, ids=known, empty=allow_empty: parse_answer(
+                        content, ids, allow_empty=empty
+                    ),
+                    semantic_attempts=semantic_attempts,
+                    semantic_retry_seeds=config["semantic_retry_seeds"],
+                    cap=cap,
+                    on_exhausted=terminal_answer_failure if is_v2 else None,
+                )
+            if answer.get("terminal_quality_failure") is True:
+                checkpoint.state.correctness[cell_id] = {
+                    "answer_correct": False,
+                    "deterministic": True,
+                    "terminal_quality_failure": True,
+                }
+                checkpoint.state.evidence[cell_id] = terminal_evidence_failure(
+                    str(answer["failure_reason"]), int(answer["semantic_attempts"])
+                )
+                checkpoint.save()
+                continue
+            if (
+                answer.get("abstention") is True or not answer["answer"]
+            ) and not qid.endswith("_abs"):
                 correctness = {"answer_correct": False, "deterministic": True}
             else:
                 score_messages = correctness_messages(case, str(answer["answer"]))
                 cache_key = _canonical_hash(
-                    {"model": models["correctness"]["route"], "messages": score_messages, "max_tokens": 10}
+                    {
+                        "model": models["correctness"]["route"],
+                        "messages": score_messages,
+                        "max_tokens": 10,
+                    }
                 )
                 cache_cell = checkpoint.cache_cell("correctness", cache_key, cell_id)
                 correctness = _ensure_result(
@@ -956,19 +1313,30 @@ def run(
                     semantic_attempts=semantic_attempts,
                     semantic_retry_seeds=config["semantic_retry_seeds"],
                     cap=cap,
+                    on_exhausted=terminal_correctness_failure if is_v2 else None,
                 )
             checkpoint.state.correctness[cell_id] = dict(correctness)
             checkpoint.save()
-            if not answer["answer"]:
+            if deterministic_evidence is not None:
+                evidence_result = deterministic_evidence
+            elif not answer["answer"]:
                 evidence_result: Mapping[str, Any] = {
-                    "claims": [], "grounded": False, "attributed": False, "deterministic": True
+                    "claims": [],
+                    "grounded": False,
+                    "attributed": False,
+                    "deterministic": True,
                 }
             else:
-                if arm == "protected_evidence_ledger_v1":
-                    evidence_rows, kind = checkpoint.state.ledgers[qid]["result"]["evidence"], "strip"
+                if arm == treatment_arm:
+                    evidence_rows, kind = (
+                        checkpoint.state.ledgers[qid]["result"]["evidence"],
+                        "strip",
+                    )
                 else:
                     evidence_rows, kind = _raw_hits(frozen, arm, qid), "raw"
-                judge_messages = evidence_messages(answer, evidence_rows, evidence_kind=kind)
+                judge_messages = evidence_messages(
+                    answer, evidence_rows, evidence_kind=kind
+                )
                 evidence_key = _canonical_hash(
                     {"model": models["evidence"]["route"], "messages": judge_messages}
                 )
@@ -981,14 +1349,21 @@ def run(
                     messages=judge_messages,
                     max_tokens=int(models["evidence"]["max_tokens"]),
                     response_format=EVIDENCE_FORMAT,
-                    parser=lambda content, ids=set(answer["citations"]): parse_evidence_result(content, ids),
+                    parser=lambda content, ids=set(answer["citations"]): (
+                        parse_evidence_result(content, ids)
+                    ),
                     semantic_attempts=semantic_attempts,
                     semantic_retry_seeds=config["semantic_retry_seeds"],
                     cap=cap,
+                    on_exhausted=terminal_evidence_failure if is_v2 else None,
                 )
             checkpoint.state.evidence[cell_id] = dict(evidence_result)
             checkpoint.save()
-        print(f"REASON-01 compact-ledger {index + 1}/{len(cases)}", file=sys.stderr, flush=True)
+        print(
+            f"REASON-01 compact-ledger {index + 1}/{len(cases)}",
+            file=sys.stderr,
+            flush=True,
+        )
 
 
 def _rate(values: Sequence[bool]) -> float:
@@ -1001,17 +1376,23 @@ def _attempt_metrics(cells: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     return {
         "calls": len(attempts),
         "cost_usd": sum(float(attempt.get("cost_usd", 0.0)) for attempt in attempts),
-        "prompt_tokens": sum(int(attempt.get("prompt_tokens", 0)) for attempt in attempts),
+        "prompt_tokens": sum(
+            int(attempt.get("prompt_tokens", 0)) for attempt in attempts
+        ),
         "completion_tokens": sum(
             int(attempt.get("completion_tokens", 0)) for attempt in attempts
         ),
-        "latency_p50_ms": (
-            statistics.median(elapsed) if elapsed else None
-        ),
+        "latency_p50_ms": (statistics.median(elapsed) if elapsed else None),
         "latency_p95_ms": (
             elapsed[math.ceil(0.95 * len(elapsed)) - 1] if elapsed else None
         ),
-        "semantic_retries": sum(max(0, len(cell.get("attempts", [])) - 1) for cell in cells),
+        "semantic_retries": sum(
+            max(0, len(cell.get("attempts", [])) - 1) for cell in cells
+        ),
+        "terminal_quality_failures": sum(
+            int(cell.get("result", {}).get("terminal_quality_failure") is True)
+            for cell in cells
+        ),
     }
 
 
@@ -1024,10 +1405,22 @@ def summarize(
     config: Mapping[str, Any],
 ) -> dict[str, Any]:
     """Create the content-free descriptive decision receipt."""
-    expected = len(cases) * len(ARMS)
-    complete = len(checkpoint.state.answers) == len(checkpoint.state.correctness) == len(checkpoint.state.evidence) == expected
+    arms = _arms(config)
+    treatment_arm = arms[-1]
+    is_v2 = config.get("schema_version") == "reason01.compact-ledger-run.v2"
+    expected = len(cases) * len(arms)
+    complete = (
+        len(checkpoint.state.answers)
+        == len(checkpoint.state.correctness)
+        == len(checkpoint.state.evidence)
+        == expected
+    )
     summary: dict[str, Any] = {
-        "schema_version": "reason01.compact-ledger-summary.v1",
+        "schema_version": (
+            "reason01.compact-ledger-summary.v2"
+            if is_v2
+            else "reason01.compact-ledger-summary.v1"
+        ),
         "question_count": len(cases),
         "complete": complete,
         "cost_usd": checkpoint.state.cost_usd,
@@ -1037,34 +1430,66 @@ def summarize(
         return summary
     by_arm: dict[str, Any] = {}
     vectors: dict[str, dict[str, list[float]]] = {}
-    for arm in ARMS:
-        answers = [checkpoint.state.answers[f"{arm}||{case['question_id']}"]["result"] for case in cases]
-        correctness = [checkpoint.state.correctness[f"{arm}||{case['question_id']}"] for case in cases]
-        evidence = [checkpoint.state.evidence[f"{arm}||{case['question_id']}"] for case in cases]
+    for arm in arms:
+        answers = [
+            checkpoint.state.answers[f"{arm}||{case['question_id']}"]["result"]
+            for case in cases
+        ]
+        correctness = [
+            checkpoint.state.correctness[f"{arm}||{case['question_id']}"]
+            for case in cases
+        ]
+        evidence = [
+            checkpoint.state.evidence[f"{arm}||{case['question_id']}"] for case in cases
+        ]
         correct_v = [float(row["answer_correct"]) for row in correctness]
         ground_v = [float(row["grounded"]) for row in evidence]
         attribute_v = [float(row["attributed"]) for row in evidence]
-        vectors[arm] = {"answer_correct": correct_v, "grounded": ground_v, "attributed": attribute_v}
+        vectors[arm] = {
+            "answer_correct": correct_v,
+            "grounded": ground_v,
+            "attributed": attribute_v,
+        }
         context_precisions = []
         utilizations = []
         input_chars = []
         for case, answer in zip(cases, answers, strict=True):
             qid = str(case["question_id"])
-            if arm == "protected_evidence_ledger_v1":
-                rows = checkpoint.state.ledgers[qid]["result"]["evidence"]
+            if arm == treatment_arm:
+                ledger = checkpoint.state.ledgers[qid]["result"]
+                rows = ledger["evidence"]
                 selected = {row["id"] for row in rows}
-                input_chars.append(len(compact_answer_messages(
-                    case,
-                    checkpoint.state.ledgers[qid]["result"],
-                    a0_user_chars=len(raw_answer_messages(case, _raw_hits(frozen, "a0_raw", qid))[-1]["content"]),
-                    absolute_max_chars=int(config["compact_answer_max_chars"]),
-                )[-1]["content"]))
+                if ledger.get("terminal_quality_failure") is True:
+                    input_chars.append(0)
+                elif answer.get("deterministic") is True:
+                    input_chars.append(0)
+                else:
+                    input_chars.append(
+                        len(
+                            compact_answer_messages(
+                                case,
+                                ledger,
+                                a0_user_chars=len(
+                                    raw_answer_messages(
+                                        case, _raw_hits(frozen, "a0_raw", qid)
+                                    )[-1]["content"]
+                                ),
+                                absolute_max_chars=int(
+                                    config["compact_answer_max_chars"]
+                                ),
+                            )[-1]["content"]
+                        )
+                    )
             else:
                 rows = _raw_hits(frozen, arm, qid)
                 selected = {row["logical_id"] for row in rows}
                 input_chars.append(len(raw_answer_messages(case, rows)[-1]["content"]))
-            context_precisions.append(len(selected & exact[qid]) / len(selected) if selected else 0.0)
-            utilizations.append(len(set(answer["citations"])) / len(selected) if selected else 0.0)
+            context_precisions.append(
+                len(selected & exact[qid]) / len(selected) if selected else 0.0
+            )
+            utilizations.append(
+                len(set(answer["citations"])) / len(selected) if selected else 0.0
+            )
         by_arm[arm] = {
             "non_empty_rate": _rate([bool(row["answer"]) for row in answers]),
             "answer_accuracy": statistics.fmean(correct_v),
@@ -1073,12 +1498,65 @@ def summarize(
             "citation_contract_validity": statistics.fmean(
                 float(row["citation_contract_valid"]) for row in answers
             ),
+            "valid_abstention_rate": statistics.fmean(
+                float(row.get("abstention") is True) for row in answers
+            ),
+            "terminal_quality_failure_rate": statistics.fmean(
+                float(row.get("terminal_quality_failure") is True) for row in answers
+            ),
             "context_precision": statistics.fmean(context_precisions),
             "evidence_utilization": statistics.fmean(utilizations),
             "answer_input_chars_mean": statistics.fmean(input_chars),
-            "answer_input_chars_p95": sorted(input_chars)[math.ceil(0.95 * len(input_chars)) - 1],
+            "answer_input_chars_p95": sorted(input_chars)[
+                math.ceil(0.95 * len(input_chars)) - 1
+            ],
         }
     summary["arms"] = by_arm
+    summary["terminal_quality_failures"] = {
+        arm: {
+            "ledger": (
+                sum(
+                    int(
+                        checkpoint.state.ledgers[str(case["question_id"])][
+                            "result"
+                        ].get("terminal_quality_failure")
+                        is True
+                    )
+                    for case in cases
+                )
+                if arm == treatment_arm
+                else 0
+            ),
+            "answer": sum(
+                int(
+                    checkpoint.state.answers[f"{arm}||{case['question_id']}"][
+                        "result"
+                    ].get("terminal_quality_failure")
+                    is True
+                )
+                for case in cases
+            ),
+            "correctness": sum(
+                int(
+                    checkpoint.state.correctness[f"{arm}||{case['question_id']}"].get(
+                        "terminal_quality_failure"
+                    )
+                    is True
+                )
+                for case in cases
+            ),
+            "evidence": sum(
+                int(
+                    checkpoint.state.evidence[f"{arm}||{case['question_id']}"].get(
+                        "terminal_quality_failure"
+                    )
+                    is True
+                )
+                for case in cases
+            ),
+        }
+        for arm in arms
+    }
     summary["execution_stages"] = {
         "ledger": _attempt_metrics(list(checkpoint.state.ledgers.values())),
         **{
@@ -1089,7 +1567,7 @@ def summarize(
                     if key.startswith(f"{arm}||")
                 ]
             )
-            for arm in ARMS
+            for arm in arms
         },
         "correctness": _attempt_metrics(
             list(checkpoint.state.caches.get("correctness", {}).values())
@@ -1102,12 +1580,12 @@ def summarize(
     for metric in ("answer_correct", "grounded", "attributed"):
         paired[metric] = paired_bootstrap(
             vectors["a0_raw"][metric],
-            vectors["protected_evidence_ledger_v1"][metric],
+            vectors[treatment_arm][metric],
             draws=int(config["bootstrap_draws"]),
             seed=int(config["bootstrap_seed"]),
         )
     summary["paired_compact_vs_a0"] = paired
-    compact = by_arm["protected_evidence_ledger_v1"]
+    compact = by_arm[treatment_arm]
     a0 = by_arm["a0_raw"]
     passed = (
         compact["answer_accuracy"] >= a0["answer_accuracy"]
@@ -1116,7 +1594,9 @@ def summarize(
         and checkpoint.state.cost_usd <= float(config["max_usd"])
     )
     summary["decision"] = "descriptive_pass" if passed else "descriptive_fail"
-    summary["eligible_next_action"] = "untouched_confirmation_plan" if passed else "close_offshoot"
+    summary["eligible_next_action"] = (
+        "untouched_confirmation_plan" if passed else "close_offshoot"
+    )
     return summary
 
 
@@ -1132,8 +1612,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--preflight-only", action="store_true")
     args = parser.parse_args(argv)
     config = _load_json(args.config, "run config")
-    if not isinstance(config, Mapping) or config.get("schema_version") != "reason01.compact-ledger-run.v1":
+    if not isinstance(config, Mapping) or config.get("schema_version") not in {
+        "reason01.compact-ledger-run.v1",
+        "reason01.compact-ledger-run.v2",
+    }:
         raise CompactLedgerError("run config drifted")
+    is_v2 = config["schema_version"] == "reason01.compact-ledger-run.v2"
+    _arms(config)
+    if is_v2 and config.get("protocol") != {
+        "all_missing_policy": "deterministic_abstention",
+        "all_missing_abstention": V2_ABSTENTION,
+        "citation_schema": "per_cell_exact_id_enum",
+        "semantic_exhaustion": "terminal_quality_failure_continue",
+        "valid_abstention_grounding": "no_positive_factual_claim",
+        "valid_abstention_attribution": "all_requirements_missing_ledger_state",
+    }:
+        raise CompactLedgerError("v2 protocol drifted")
     quote_config = config.get("quote_equivalence")
     if (
         not isinstance(quote_config, Mapping)
@@ -1154,7 +1648,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         qid = str(case["question_id"])
         protected = _raw_hits(frozen, "protected_raw", qid)
         chars = len(ledger_messages(case, protected)[-1]["content"])
-        if chars > int(config["ledger_input_max_chars"]) or math.ceil(chars / 3) + int(config["models"]["ledger"]["max_tokens"]) > int(config["models"]["ledger"]["context_tokens"]):
+        if chars > int(config["ledger_input_max_chars"]) or math.ceil(chars / 3) + int(
+            config["models"]["ledger"]["max_tokens"]
+        ) > int(config["models"]["ledger"]["context_tokens"]):
             raise CompactLedgerError("ledger prompt exceeds pinned model context")
     binding = {
         "config_sha256": _sha256(args.config),
@@ -1164,33 +1660,47 @@ def main(argv: Sequence[str] | None = None) -> int:
         "runner_sha256": _sha256(Path(__file__)),
         "prompt_hashes": {
             "official": hashlib.sha256(OFFICIAL_PROMPT.encode()).hexdigest(),
-            "official_abstention": hashlib.sha256(OFFICIAL_ABSTENTION_PROMPT.encode()).hexdigest(),
+            "official_abstention": hashlib.sha256(
+                OFFICIAL_ABSTENTION_PROMPT.encode()
+            ).hexdigest(),
         },
         "models": config["models"],
     }
     args.artifact_root.mkdir(parents=True, exist_ok=True)
+    artifact_version = "v2" if is_v2 else "v1"
     checkpoint = Checkpoint.open(
-        args.artifact_root / "reason01-compact-ledger-checkpoint.v1.json",
+        args.artifact_root
+        / f"reason01-compact-ledger-checkpoint.{artifact_version}.json",
         binding_sha256=_canonical_hash(binding),
         question_ids=[str(case["question_id"]) for case in cases],
+        schema_version=SCHEMA_V2 if is_v2 else SCHEMA_V1,
     )
     if not args.preflight_only:
-        key = os.environ.get("AIRLOCK_VIRTUAL_KEY") or os.environ.get("AIRLOCK_MASTER_KEY")
+        key = os.environ.get("AIRLOCK_VIRTUAL_KEY") or os.environ.get(
+            "AIRLOCK_MASTER_KEY"
+        )
         if not key:
-            raise CompactLedgerError("AIRLOCK_VIRTUAL_KEY or AIRLOCK_MASTER_KEY is required")
+            raise CompactLedgerError(
+                "AIRLOCK_VIRTUAL_KEY or AIRLOCK_MASTER_KEY is required"
+            )
         run(
             checkpoint,
             cases,
             frozen,
             config=config,
-            client=AirlockClient(args.airlock_base, key, attempts=int(config["http_attempts"])),
+            client=AirlockClient(
+                args.airlock_base, key, attempts=int(config["http_attempts"])
+            ),
         )
     summary = summarize(checkpoint, cases, frozen, exact, config=config)
-    _atomic_json(args.artifact_root / "reason01-compact-ledger-summary.v1.json", summary)
     _atomic_json(
-        args.artifact_root / "reason01-compact-ledger-receipt.v1.json",
+        args.artifact_root / f"reason01-compact-ledger-summary.{artifact_version}.json",
+        summary,
+    )
+    _atomic_json(
+        args.artifact_root / f"reason01-compact-ledger-receipt.{artifact_version}.json",
         {
-            "schema_version": "reason01.compact-ledger-receipt.v1",
+            "schema_version": f"reason01.compact-ledger-receipt.{artifact_version}",
             "binding": binding,
             "checkpoint_sha256": _sha256(checkpoint.path),
             "summary": summary,

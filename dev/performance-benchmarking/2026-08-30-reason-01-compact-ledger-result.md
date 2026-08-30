@@ -43,10 +43,10 @@ it did not change FathomDB retrieval, storage, Engine, or SDK behavior. It
 therefore supplies no new retrieval claim and no evidence that the compact arm
 restores correctness, grounding, or attribution.
 
-A future treatment may preregister deterministic abstention when a validated
-ledger contains no evidence and explicit missing requirements. That is a new
-hypothesis, not a repair or continuation of this run, and would require an
-untouched decision cohort.
+The [v2 plan](2026-08-30-reason-01-compact-ledger-v2-plan.md) now preregisters
+deterministic all-missing abstention and fail-closed continuation. V2 is a new
+protocol, not a repair or continuation of this run, and remains
+non-confirmatory on the consumed cohort.
 
 ## Evidence
 

@@ -15,8 +15,10 @@
   limit 20; then round-robin unique shadow hits after the protected A0 prefix to
   a maximum of 20 context items.
 - **R4 — One read view.** Every constituent read receives the caller's same
-  validity/read view, projection cursor, and metadata filter by object identity.
-  The profile must not organize stale, out-of-window, or filtered records.
+  validity/read view by object identity, and every result must report the same
+  projection cursor. Because the public FTS-only primitive cannot accept a
+  metadata filter, this experimental profile rejects filtered requests before
+  any Engine call. The profile must not organize stale or out-of-window records.
 - **R5 — Exact runtime.** The registered experiment requires the pinned
   FathomDB build, default embedder, CUDA embedding and reranking, and successful
   setup/doctor attestation. It fails closed rather than substituting CPU,
@@ -62,14 +64,14 @@
   protected override with another known intent conflicts; unknown intents,
   unknown overrides, and every other combination fail.
 - **AC3.** A contract fixture observes one FTS-10 call and at most three exact
-  hybrid calls with the registered parameters and identical read-view,
-  projection-cursor, and metadata-filter identity.
+  hybrid calls with the registered parameters and identical read-view identity;
+  every result reports the same projection cursor.
 - **AC4.** Property tests show that the merge always retains the complete unique
   A0 prefix, emits no duplicate identity, never exceeds 20 items, and is
   deterministic for arbitrary candidate sequences.
-- **AC5.** Missing CUDA/reranker attestation, invalid limits, metadata-filter
-  mismatch, or attribution conflict fails closed with zero or bounded calls as
-  appropriate.
+- **AC5.** Missing CUDA/reranker attestation, invalid limits, any non-null
+  metadata filter, projection-cursor mismatch, or attribution conflict fails
+  closed with zero or bounded calls as appropriate.
 - **AC6.** Serialized safe traces contain no fixture query/body strings and
   expose only hashes for queries and selected identities.
 - **AC7.** After the runtime import and attestation are repaired, a fresh

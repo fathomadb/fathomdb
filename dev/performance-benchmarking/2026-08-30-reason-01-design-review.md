@@ -28,8 +28,9 @@ more conservative choice.
    The existing shared Python environment currently fails its FathomDB import;
    the implementation must repair and attest it before live equivalence.
 4. **Resolution and filter semantics were ambiguous.** Added the complete known
-   intent/override truth table and required read view, projection cursor, and
-   metadata filter propagation by identity.
+   intent/override truth table. Public FTS-only search cannot accept a metadata
+   filter, so filtered requests now fail before retrieval; the same read view is
+   passed to every branch and returned projection cursors must agree.
 5. **A missing-module RED was too weak.** Required an importable skeleton and a
    targeted behavioral RED result for every contract family.
 6. **Identity and trace details were implicit.** Defined identity as

@@ -44,10 +44,12 @@ fail. There is no content-based classifier.
 4. Stable round-robin merge of unique hybrid identities after the complete A0
    prefix until 20 items are selected.
 
-Every call receives the same read view, projection cursor, and metadata filter
-by object identity. Hit identity is `SearchHit.id.value`; the executor verifies
-one `(source_id, body_sha256)` attribution tuple per identity across all
-branches.
+Every call receives the same read view by object identity, and the executor
+requires every returned result to report the same projection cursor. The public
+FTS-only primitive has no metadata-filter parameter, so the profile rejects any
+non-null filter before its first Engine call. Hit identity is
+`SearchHit.id.value`; the executor verifies one `(source_id, body_sha256)`
+attribution tuple per identity across all branches.
 
 ### Trace
 

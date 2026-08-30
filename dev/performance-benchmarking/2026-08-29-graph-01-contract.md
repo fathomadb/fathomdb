@@ -84,6 +84,9 @@ Primary retrieval endpoint: paired change in all-supporting-passages-present at
 10 on the pooled three- and four-hop questions. Secondary endpoints are mean
 supporting-passage recall at 10, the two-hop complete-bridge change, treatment
 distinctness, and graph add-on latency.
+Questions without any labelled supporting passage are undefined for recall and
+complete-bridge: exclude the pair symmetrically, report the count, and fail if
+only one arm is undefined. They remain in registered answer evaluation.
 
 Use 2,000 question-level paired bootstrap draws with seed `20260829`. A
 retrieval win requires all of:

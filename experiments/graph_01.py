@@ -409,13 +409,44 @@ def _quantile(values: Sequence[float], probability: float) -> float:
     return ordered[lower] * (1 - weight) + ordered[upper] * weight
 
 
+def _defined_deltas(
+    control: Sequence[float | None], treatment: Sequence[float | None]
+) -> tuple[list[float], int]:
+    if len(control) != len(treatment) or not control:
+        raise Graph01Error("paired inputs are invalid")
+    deltas: list[float] = []
+    excluded = 0
+    for control_value, treatment_value in zip(control, treatment, strict=True):
+        if control_value is None and treatment_value is None:
+            excluded += 1
+            continue
+        if control_value is None or treatment_value is None:
+            raise Graph01Error("paired inputs have asymmetric undefined values")
+        deltas.append(float(treatment_value) - float(control_value))
+    if not deltas:
+        raise Graph01Error("paired inputs have no defined observations")
+    return deltas, excluded
+
+
+def paired_mean_delta(
+    control: Sequence[float | None], treatment: Sequence[float | None]
+) -> float:
+    """Return a paired mean after symmetrically excluding undefined gold cells."""
+    deltas, _excluded = _defined_deltas(control, treatment)
+    return sum(deltas) / len(deltas)
+
+
 def bootstrap_paired_mean(
-    control: Sequence[float], treatment: Sequence[float], *, draws: int, seed: int
+    control: Sequence[float | None],
+    treatment: Sequence[float | None],
+    *,
+    draws: int,
+    seed: int,
 ) -> dict[str, Any]:
     """Return point and percentile interval for paired question-level deltas."""
-    if len(control) != len(treatment) or not control or draws <= 0:
+    if draws <= 0:
         raise Graph01Error("paired bootstrap inputs are invalid")
-    deltas = [float(b) - float(a) for a, b in zip(control, treatment, strict=True)]
+    deltas, excluded = _defined_deltas(control, treatment)
     rng = random.Random(seed)
     samples = [
         sum(deltas[rng.randrange(len(deltas))] for _ in deltas) / len(deltas)
@@ -425,6 +456,7 @@ def bootstrap_paired_mean(
         "point": sum(deltas) / len(deltas),
         "ci95": [_quantile(samples, 0.025), _quantile(samples, 0.975)],
         "n": len(deltas),
+        "excluded_undefined": excluded,
         "draws": draws,
         "seed": seed,
     }

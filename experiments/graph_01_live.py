@@ -730,11 +730,13 @@ def _run(config_path: Path, run_root: Path) -> tuple[str, Path]:
         draws=config["evaluation"]["bootstrap_draws"],
         seed=config["evaluation"]["bootstrap_seed"],
     )
-    recall_delta = statistics.fmean(
-        row["treatment_recall"] - row["control_recall"] for row in primary
+    recall_delta = graph_01.paired_mean_delta(
+        [row["control_recall"] for row in primary],
+        [row["treatment_recall"] for row in primary],
     )
-    two_hop_delta = statistics.fmean(
-        row["treatment_complete"] - row["control_complete"] for row in two_hop
+    two_hop_delta = graph_01.paired_mean_delta(
+        [row["control_complete"] for row in two_hop],
+        [row["treatment_complete"] for row in two_hop],
     )
     distinct_rate = statistics.fmean(row["control"] != row["treatment"] for row in observations)
     retrieval_metrics = {

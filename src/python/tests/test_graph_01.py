@@ -16,6 +16,7 @@ from experiments.graph_01 import (
     bootstrap_paired_mean,
     parse_answer,
     parse_edge_audit,
+    paired_mean_delta,
     projection_items,
     protected_bridge_ranking,
     retrieval_decision,
@@ -220,6 +221,14 @@ def test_bootstrap_and_retrieval_rule_are_paired_and_all_boundary() -> None:
     assert retrieval_decision(passing)["passed"] is True
     passing["complete_bridge_delta"] = {"point": 0.05, "ci95": [0.0, 0.09]}
     assert retrieval_decision(passing)["passed"] is False
+
+    defined = bootstrap_paired_mean([None, 0.0], [None, 1.0], draws=20, seed=7)
+    assert defined["point"] == 1.0
+    assert defined["n"] == 1
+    assert defined["excluded_undefined"] == 1
+    assert paired_mean_delta([None, 0.5], [None, 1.0]) == 0.5
+    with pytest.raises(Graph01Error, match="asymmetric undefined"):
+        paired_mean_delta([None], [1.0])
 
 
 def test_answer_decision_allows_registered_retrieval_or_material_answer_route() -> None:

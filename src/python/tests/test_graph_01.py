@@ -238,6 +238,10 @@ def test_model_outputs_are_strictly_parsed() -> None:
         '{"edge_id":"e2","supported":false}]}'
     )
     assert audit == {"e1": True, "e2": False}
+    fenced = parse_edge_audit(
+        '```json\n{"edges":[{"edge_id":"e1","supported":true}]}\n```'
+    )
+    assert fenced == {"e1": True}
     assert parse_answer('{"answer":"Beta"}') == "Beta"
     with pytest.raises(Graph01Error):
         parse_edge_audit('{"edges":[{"edge_id":"e1","supported":"yes"}]}')

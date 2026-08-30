@@ -527,8 +527,12 @@ class PaidState:
 
 
 def _json_exact(text: str) -> Mapping[str, Any]:
+    candidate = text.strip()
+    lines = candidate.splitlines()
+    if len(lines) >= 3 and lines[0] in {"```", "```json"} and lines[-1] == "```":
+        candidate = "\n".join(lines[1:-1]).strip()
     try:
-        value = json.loads(text)
+        value = json.loads(candidate)
     except json.JSONDecodeError as exc:
         raise Graph01Error("model response is not JSON") from exc
     if not isinstance(value, dict):

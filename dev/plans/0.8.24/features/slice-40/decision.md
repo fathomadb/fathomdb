@@ -1,17 +1,24 @@
 ---
 title: 0.8.24 Slice 40 — decision record
-status: PROPOSED
+status: POSTPONED-TO-0.8.26
 target_release: 0.8.24
 ---
 
 # Slice 40 decision record
 
-## Open owner decisions
+## Scope ruling
+
+**POSTPONED TO 0.8.26 — HITL ruling `seq-258`.** P24-09 and P24-10 are not
+open 0.8.24 decisions. Their existing analysis is retained as 0.8.26 planning
+input; no Windows CUDA executor, artifact, smoke, workflow, or publication
+work is authorized for 0.8.24.
+
+## Deferred owner decisions
 
 | ID | Decision required | Current ruling | Consequence |
 | --- | --- | --- | --- |
-| P24-09 | Windows CUDA SDK surface: Python, npm, or both; define unsupported routes. | **Open.** Recommended minimum: Python-only via a first-party PEP 503 full exact-local-version pin and selected index/mapping, as an exclusive CPU/CUDA replacement or upgrade in one environment. The final identity is not selected here. | Blocks artifact identity, public documentation, loader design, and TDD implementation. |
-| P24-10 | Remote Windows CUDA builder and trust/transfer boundary. | **Open.** It may be an owner-operated external builder not registered with Actions, or an Actions builder restricted to a dedicated selected-repository/selected-workflow runner group. Current self-hosted CUDA inventory is Linux-only; the local Windows VM and hosted Windows jobs are CPU-only validation, not CUDA proof. | Blocks build, GPU smoke, and any claim of supported Windows CUDA. |
+| P24-09 | Windows CUDA SDK surface: Python, npm, or both; define unsupported routes. | **Deferred to 0.8.26.** The former recommendation is retained as input only; no identity is selected. | Blocks the future 0.8.26 artifact, public documentation, loader design, and TDD implementation. |
+| P24-10 | Remote Windows CUDA builder and trust/transfer boundary. | **Deferred to 0.8.26.** The former builder alternatives are retained as input only. | Blocks the future 0.8.26 build, GPU smoke, and any supported-Windows-CUDA claim. |
 
 ## Accepted constraints
 

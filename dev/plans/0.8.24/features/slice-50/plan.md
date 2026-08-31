@@ -1,10 +1,14 @@
 ---
 title: 0.8.24 Slice 50 — Windows Python SDK WAL review draft plan
-status: DRAFT
+status: POSTPONED-TO-0.8.26
 target_release: 0.8.24
 ---
 
 # Slice 50 — Windows Python SDK WAL behavior review
+
+> **POSTPONED TO 0.8.26 — HITL ruling `seq-258`.** This retained draft is
+> planning input only. No Memex evidence retrieval, Windows reproduction,
+> diagnostic, workflow, or product action is authorized under 0.8.24.
 
 ## Planning boundary
 

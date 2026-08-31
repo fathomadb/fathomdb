@@ -1,10 +1,13 @@
 ---
 title: 0.8.24 Slice 40 — draft contracts
-status: PROPOSED
+status: POSTPONED-TO-0.8.26
 target_release: 0.8.24
 ---
 
 # Slice 40 draft contracts
+
+> **POSTPONED TO 0.8.26 — HITL ruling `seq-258`.** These remain draft inputs
+> only; none becomes a 0.8.24 canonical contract or implementation task.
 
 These are local drafts derived from Slice 3. They are not edits to
 `dev/needs.md`, `dev/requirements.md`, or `dev/acceptance.md` and must remain
@@ -21,5 +24,5 @@ drafts until P24-09 and P24-10 are decided.
 ## Approval rule
 
 P24-09 selects which rows become real. P24-10 selects where the GPU proof can
-be produced. Until both are recorded, these rows do not authorize a canonical
+be produced. Both decisions are deferred to 0.8.26; these rows do not authorize a canonical
 contract change, a package name, a workflow, a runner action, or publication.

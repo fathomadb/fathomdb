@@ -1,17 +1,21 @@
 ---
 title: 0.8.24 Slice 40 — Windows x64 CUDA distribution
-status: PROPOSED
+status: POSTPONED-TO-0.8.26
 target_release: 0.8.24
 ---
 
 # Slice 40 — Windows x64 CUDA distribution
 
+> **POSTPONED TO 0.8.26 — HITL ruling `seq-258`.** This retained draft is
+> planning input only. No executor, VM, runner, build, smoke, workflow,
+> registry, or publication action is authorized for this slice under 0.8.24.
+
 ## Reviewed disposition
 
-**REVIEWED — BLOCKED / READY FOR OWNER DECISION.** This slice has completed
-its discovery, draft-contract, and architectural-fit work. It must not begin
-product, packaging, workflow, executor, or publication work until both owner
-inputs below are recorded:
+**REVIEWED — POSTPONED.** This slice completed its discovery, draft-contract,
+and architectural-fit work; it is retained for 0.8.26. It must not begin
+product, packaging, workflow, executor, or publication work under 0.8.24.
+The prior owner inputs below are deferred, not open:
 
 1. **P24-09:** select the supported Windows CUDA SDK surface: Python, npm, or
    both, including unsupported-route behavior.

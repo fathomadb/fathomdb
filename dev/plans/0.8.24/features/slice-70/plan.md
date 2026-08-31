@@ -37,7 +37,8 @@ Produce one owner-reviewable 0.8.24 release candidate and evidence packet that:
 ## Authority and inputs
 
 - `dev/plans/plan-0.8.24.md`, Slice 6 decisions, and completed Slice 7 record.
-- Reviewed outputs/evidence from Slices 10, 20, 30, 40, 50, and 60.
+- Reviewed outputs/evidence from Slices 10, 20, 30, and 60. Windows Slices 40
+  and 50 are postponed to 0.8.26 by `seq-258` and are not 0.8.24 inputs.
 - Execution-time `origin/main`; accepted feature commits verified from git.
 - `dev/design/release.md`, `scripts/verify-release-gates.sh`,
   `scripts/set-version.sh`, `scripts/release/local-dry-run.sh`, release workflow,
@@ -152,8 +153,9 @@ complete in any earlier state.
   existence semantics from official registry docs only where readiness changed.
 - Verify GitHub workflow environment/OIDC/artifact claims and exact tag/ref
   behavior from official GitHub docs when the workflow design depends on them.
-- Verify NVIDIA target compatibility only through the already approved Slice
-  30/40 records; Slice 70 does not reopen their target design.
+- Verify Tegra target compatibility only through the approved Slice 30 record;
+  Slice 70 does not reopen its target design. Windows support is outside this
+  release after `seq-258`.
 - Treat registry propagation separately from publish failure; use existing
   exact-version queries and bounded smoke retry policy.
 

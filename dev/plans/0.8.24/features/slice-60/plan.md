@@ -11,33 +11,35 @@ target_release: 0.8.24
 This document plans Slice 60. It does not publish, mutate registries or trusted
 publishers, promote npm tags, create a release tag, or claim post-publication
 evidence before publication. It consumes the exact package identities and
-artifact contracts approved by Slices 30 and 40.
+artifact contract approved by Slice 30.
 
-Slice 60 owns the smoke mechanisms and evidence matrix. Prepublication target
-proof installs sealed candidate artifacts in fresh environments. Actual
-registry-installed proof can occur only after a separately authorized publish;
-Slice 70 consumes that post-publish evidence before declaring the release done.
+Slice 60 owns the smoke mechanisms and evidence matrix for CPU and Tegra only.
+Prepublication target proof installs sealed candidate artifacts in fresh
+environments. Actual registry-installed proof can occur only after a separately
+authorized publish; Slice 70 consumes that post-publish evidence before
+declaring the release done. Windows scope is postponed to 0.8.26 by `seq-258`.
 
 ## Goal and outcome
 
 Preserve the complete existing CPU publication contract while adding the
-selected Tegra and Windows CUDA targets:
+selected Tegra CUDA target:
 
 - every existing CPU package retains its identity, version alignment,
   optional-dependency/loader wiring, ABI floor, and installability;
 - each publisher treats an exact existing immutable artifact as success/no-op,
   treats registry uncertainty as failure, and can continue missing targets;
 - canonical “atomic publish” wording is corrected to retry-safe completion;
-- every new target has a clean candidate-installed target smoke and an exact
+- the Tegra target has a clean candidate-installed target smoke and an exact
   post-publication registry-install smoke; and
 - release completion remains false until every required artifact and smoke is
   present and verified.
 
 ## Authority and inputs
 
-- P24-14/P24-15, R24-3/R24-4/R24-10, A24-1/A24-4, and Slice 6 approval.
+- P24-14/P24-15, R24-3/R24-4/R24-10, A24-1/A24-4, Slice 6 approval, and the
+  Windows-scope deferral at `seq-258`.
 - Draft updates to NEED-016, REQ-050/AC-054, and REQ-052/AC-056 from Slice 3.
-- Outputs and approved identities from Slices 30 and 40.
+- Outputs and approved identities from Slice 30.
 - `dev/design/release.md`, `dev/architecture.md`, Tier-1/platform/package ADRs,
   release workflow, publish helpers, smoke scripts, and contract tests.
 - `scripts/release/{cargo,npm,pypi}-publish-if-new.sh` and tests for existing,
@@ -49,13 +51,13 @@ selected Tegra and Windows CUDA targets:
 
 ### In scope
 
-- Build a candidate-version matrix of all existing and approved new artifacts,
+- Build a candidate-version matrix of all existing CPU and approved Tegra artifacts,
   registries, package names, build jobs, publishers, tags, and smokes.
 - Update canonical release-completion wording to match immutable registry and
   retry-safe mechanics.
 - Extend publisher guards/tests only where the new identities are not already
   covered; preserve existing fail-closed behavior.
-- Add target-specific candidate-install and registry-install smoke harnesses,
+- Add Tegra candidate-install and registry-install smoke harnesses,
   provenance schema, negative tests, and evidence checks.
 - Preserve CPU Python, npm, Cargo/CLI, macOS, Linux x64/ARM64, and Windows CPU
   paths affected by release workflow or metadata changes.
@@ -63,7 +65,8 @@ selected Tegra and Windows CUDA targets:
 
 ### Non-goals
 
-- Selecting Tegra/Windows identities or executors; those belong to Slices 30/40.
+- Selecting Tegra identities or executors; that belongs to Slice 30. Windows
+  identities, executors, and smokes are postponed to 0.8.26.
 - Rebuilding target artifacts, changing engine behavior, or investigating WAL.
 - Claiming a dry run, uploaded artifact, import-only check, or source-tree test
   is a registry-installed lifecycle smoke.
@@ -82,7 +85,7 @@ Create under this directory:
 
 ### Prep tasks
 
-1. Require approved Slice 30/40 handoffs: exact names/versions, registries,
+1. Require the approved Slice 30 handoff: exact names/versions, registries,
    artifacts/digests, build provenance, target matrix, install commands, and
    unsupported behavior. Missing fields block that target.
 2. Enumerate the current release workflow and public package set from code and
@@ -101,7 +104,7 @@ Create under this directory:
      identity/version/digest/target provenance.
 4. Read architecture, release design, ADRs, publisher/smoke scripts, workflow,
    and full test bodies. Write an exists-versus-net-new map.
-5. Identify prerequisites and route them: artifact defects to Slice 30/40, CI
+5. Identify prerequisites and route them: artifact defects to Slice 30, CI
    selector gap to Slice 10, external registry configuration to owner, and
    final integration/publication authorization to Slice 70.
 
@@ -118,7 +121,6 @@ At minimum, the design records:
 | npm main | Thin `fathomdb` package and exact optional dependencies |
 | npm CPU platform | Linux x64/ARM64, macOS x64/ARM64, Windows x64 accepted names |
 | Tegra CUDA | Exact Slice 30 distribution/index and supported target tuple |
-| Windows CUDA | Exact Slice 40 selected Python/npm identities and target tuple |
 | GitHub release | Expected assets, digests, and dependency on successful smokes |
 
 Each row names producer, immutable artifact digest, publisher authentication,
@@ -183,7 +185,7 @@ a distinct target distribution, require an ADR successor before implementation.
    CPU preservation, or smoke provenance behavior.
 3. Make the smallest helper/workflow/smoke changes; preserve existing routes.
 4. Run local publisher fixture and structural tests, package inspections, and
-   candidate smokes on the actual Jetson/Windows target hosts.
+   candidate smokes on the actual Jetson target host.
 5. Fill `evidence-matrix.md` with candidate evidence and mark post-publication
    rows pending rather than falsely complete.
 6. Hand Slice 70 the exact remaining publication/post-publish sequence. After
@@ -204,7 +206,7 @@ Local/structural proof includes applicable:
 
 Target/external proof includes:
 
-- clean candidate-installed Jetson and selected Windows CUDA smokes;
+- clean candidate-installed Jetson smoke;
 - affected CPU candidate install smokes on their actual platform families;
 - exact trusted-publisher/readiness observations without secret disclosure;
 - after publication, exact-version registry queries and target-native installed

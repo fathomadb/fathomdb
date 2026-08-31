@@ -1,6 +1,6 @@
 ---
 title: 0.8.24 Slice 40 — status
-status: PROPOSED
+status: POSTPONED-TO-0.8.26
 target_release: 0.8.24
 ---
 
@@ -8,10 +8,11 @@ target_release: 0.8.24
 
 ## Current state
 
-**BLOCKED — READY FOR OWNER DECISION.** Preparation, product-contract review,
-repository discovery, and conditional architecture review are complete. No
-implementation has started because both required owner decisions remain open:
-P24-09 (SDK surface) and P24-10 (real Windows CUDA executor).
+**POSTPONED TO 0.8.26 — HITL ruling `seq-258`.** Preparation,
+product-contract review, repository discovery, and conditional architecture
+review are retained as 0.8.26 input. No implementation has started and neither
+P24-09 (SDK surface) nor P24-10 (real Windows CUDA executor) is an open
+0.8.24 decision.
 
 ## Work completed
 
@@ -39,20 +40,11 @@ P24-09 (SDK surface) and P24-10 (real Windows CUDA executor).
 
 ## Next owner action
 
-Record P24-09 and P24-10 using `decision.md`. With both decisions, Slice 40
-can promote the applicable draft contracts, write the selected ADR/interface
-change, add RED tests, and implement/prove the route on the approved executor.
-
-## HITL hold — 2026-08-29
-
-The HITL is actively resolving the VM/libvirt issue. Do not take any additional
-VM, GPU-passthrough, runner, or Slice 40 execution actions until the HITL
-provides further information.
+Create the 0.8.26 planning record before reopening P24-09 or P24-10. Until
+then, do not take VM, GPU-passthrough, runner, executor, build, smoke,
+workflow, registry, or publication actions for this slice.
 
 ## Handoff
 
-Slice 60 will require the selected identity/version/index or registry,
-artifact digest, source and executor provenance, CPU-preservation assertions,
-candidate install command, and successful Windows GPU smoke. Slice 70 consumes
-that evidence for release integration; it must not manufacture an absent
-executor or package topology.
+Slice 60 and Slice 70 no longer consume Windows evidence in 0.8.24. The
+retained draft's next consumer is the future 0.8.26 Windows-support plan.

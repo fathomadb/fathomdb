@@ -27,12 +27,19 @@ owns semantic policy, reasoning, and answers.
   contracts won conflicts, experiment assets and results were retained, and
   append-only performance decisions were reallocated to ledger sequences
   259–270.
+- **Main reconciliation:** post-cut `main` commit `4fc1b890`, which retires the
+  expired CUDA candidate, is included by merge commit `3e9f4673`; it produced
+  no tree delta against the already-corrected release branch.
 - **Local dependencies:** `node_modules` and `data` are ignored symlinks to the
   primary checkout's local resources. An ignored, worktree-local `.venv/bin`
   shim exposes only the primary environment's Python and pinned-tool launchers;
   the environment itself is not symlinked or rebound. The test-hook ownership
   guard therefore refuses native rebuilds from this worktree while ordinary
   tests and experiment tooling can use the already-installed dependencies.
+- **Allocation verification:** `./scripts/agent-verify.sh` passed all 103
+  executed suites with one intentional TypeScript skip. The strict ptrace and
+  egress checks ran unchanged; 1,251 Python tests passed with 32 explicit
+  test-hook/integration skips in the focused environment check.
 
 ## Scope
 

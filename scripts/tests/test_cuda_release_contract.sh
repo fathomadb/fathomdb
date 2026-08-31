@@ -106,6 +106,46 @@ if grep -Fq 'bash candidate/scripts/release/cuda-package-rehearsal' "$REPO_ROOT/
 fi
 printf 'PASS  Slice 20 self-hosted rehearsal executes only trusted control-plane helpers\n'
 
+# The canonical tag build sends only the two publisher inputs off the
+# self-hosted GPU machine. In particular, setup-node must not archive the
+# runner's shared npm cache: that cache is not a release artifact and can be
+# far larger than the wheel and .node bytes this job actually produces.
+python3 - "$REPO_ROOT/.github/workflows/release.yml" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+match = re.search(
+    r"^  build-cuda-linux-x64-gnu:\n(?P<body>.*?)(?=^  # Cross-ecosystem gate:)",
+    text,
+    re.MULTILINE | re.DOTALL,
+)
+if match is None:
+    raise SystemExit("canonical CUDA build job is missing")
+body = match.group("body")
+
+node = re.search(
+    r"actions/setup-node@[^\n]*\n(?P<with>        with:\n(?:          [^\n]*\n)+)",
+    body,
+)
+if node is None or "package-manager-cache: false\n" not in node.group("with"):
+    raise SystemExit("canonical CUDA build must disable setup-node package-manager cache saves")
+
+uploads = re.findall(
+    r"uses: actions/upload-artifact@[^\n]*\n        with:\n(?P<with>(?:          [^\n]*\n)+)",
+    body,
+)
+expected = {
+    "name: python-dist-x86_64-unknown-linux-gnu\npath: cuda-canonical-artifacts/python/*.whl\nif-no-files-found: error\n",
+    "name: napi-linux-x64-gnu\npath: cuda-canonical-artifacts/napi/fathomdb.linux-x64-gnu.node\nif-no-files-found: error\n",
+}
+actual = {part.replace("          ", "") for part in uploads}
+if actual != expected:
+    raise SystemExit(f"canonical CUDA build must upload only publisher inputs; got {actual!r}")
+PY
+printf 'PASS  canonical CUDA build uploads only publisher inputs without caching the host npm store\n'
+
 # Slice 80.7: the Tegra wrapper stages only metadata, stamps +tegra, proves
 # both wheel surfaces, and prints the concrete install command after success.
 python3 - "$REPO_ROOT/scripts/release/build-python-cuda-tegra.sh" <<'PY'

@@ -1,12 +1,12 @@
 ---
 title: FathomDB 0.8.25 — governed data-plane foldback
-status: PROPOSED
+status: ACTIVE
 target_release: 0.8.25
 ---
 
 # FathomDB 0.8.25 — proposed release plan
 
-## Purpose
+## Goals and scope
 
 0.8.25 converts the completed performance program and the complete Memex 0.6.0
 consumer-needs inventory into governed FathomDB data-plane contracts. FathomDB
@@ -79,7 +79,7 @@ Out of scope:
 - adoption of a benchmark treatment that fails its registered boundary; and
 - publication, which always requires separate HITL authorization.
 
-## Dependency-linear slice sequence
+## Slice ladder
 
 Prework runs sequentially through Slices 0–7. Feature work starts at Slice 10.
 Every later slice depends only on earlier slices; no slice number hides a
@@ -87,7 +87,7 @@ backward dependency.
 
 | Slice | Outcome | Depends on | State |
 | ---: | --- | --- | --- |
-| 0 | Identify environment and project-infrastructure needs; establish the isolated release branch/worktree, release-state/board authority, and overall plan. | merged 0.8.24 main | In progress; branch/worktree created |
+| 0 | Identify environment and project-infrastructure needs; establish the isolated release branch/worktree, release-state/board authority, and overall plan. | merged 0.8.24 main | In progress; inventory and state authority established |
 | 1 | Inspect Dependabot and perform a read-only library/pinning sweep; enumerate and plan dependency responses without upgrading. | 0 | Not started |
 | 2 | Perform a repo-wide cruft review and propose keep, deprecate-in-place, archive-in-place, or delete without taking action. | 1 | Not started |
 | 3 | Draft product-needs, requirements, acceptance-criteria, and architecture CRUD changes; allocate each draft to an implementation slice. | 2 | Not started |
@@ -110,7 +110,20 @@ backward dependency.
 | 70 | Qualify temporal and associative/graph-diffusion retrieval primitives without changing defaults absent an accepted benchmark. | 65 | Not started |
 | 75 | Run cross-SDK/wire parity, snapshot concurrency, lifecycle, cold/steady performance, resource, and retrieval-only evaluation closure. | 70 | Not started |
 
-## Delivery contract
+## Requirements and acceptance criteria
+
+Prework requirements are defined by
+[`0.8.25-prework-slices-0-7.md`](0.8.25-prework-slices-0-7.md): Slices 0–5
+produce evidence and proposals, Slice 6 records HITL decisions and a reviewed
+Slice 7 plan, and Slice 7 implements only approved repository preparation.
+
+Feature requirements and slice-local falsifiable acceptance criteria are
+written by their owning Slice 10+ plan before implementation. The complete
+consumer-needs allocation is
+[`memex-0.6.0-needs-in-fathomdb-0.8.25.md`](memex-0.6.0-needs-in-fathomdb-0.8.25.md).
+No feature is accepted merely because it appears in this release overview.
+
+## Cross-cutting DoD
 
 Each feature slice writes numbered requirements and slice-local falsifiable
 acceptance criteria, then a design grounded in the reviewed architecture. An
@@ -124,6 +137,14 @@ Do not mint global `dev/acceptance.md` identifiers for these features without
 separate authorization. Historical benchmark receipts remain evidence, not
 generated test oracles.
 
+## Reserved-gap policy
+
+Every finding remains in its owning prework register or feature-slice plan until
+the Slice 6 HITL session explicitly includes, postpones, or rejects it. Slice 7
+cannot absorb Slice 10+ work. A failed benchmark treatment remains durable
+negative evidence and does not become a default. Deferred work names its target
+release or backlog authority; it is never silently dropped.
+
 ## Workload checkpoint
 
 Slice 6 records every item before any scope reduction. It scores understanding,
@@ -132,7 +153,7 @@ The release may be overweight; evaluate that only after the prework findings
 and feature-slice plans are complete. No item silently moves out of 0.8.25, and
 completed performance tracks are not reopened by this planning work.
 
-## Immediate next action
+## Immediate next slice
 
 Complete Slice 0's environment and project-infrastructure inventory in the
 isolated release worktree using

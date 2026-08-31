@@ -1,0 +1,60 @@
+{
+  "release": "0.8.25",
+  "release_kind": "active development release; prework in progress",
+  "board": "dev/plans/runs/STATUS-0.8.25.md",
+  "plan": "dev/plans/plan-0.8.25.md",
+  "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
+  "schema_version": 26,
+  "origin_main_schema_version": 26,
+  "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
+  "ladder": [
+    {"slice": 0, "short": "ENVIRONMENT", "title": "environment and project-infrastructure preflight", "depends_on": [], "status": "IN_PROGRESS", "design_refs": ["dev/plans/0.8.25-prework-slices-0-7.md"]},
+    {"slice": 1, "short": "DEPENDENCIES", "title": "Dependabot, library, and pinning sweep", "depends_on": [0], "status": "NOT_STARTED"},
+    {"slice": 2, "short": "CRUFT", "title": "repository-wide cruft review", "depends_on": [1], "status": "NOT_STARTED"},
+    {"slice": 3, "short": "DRAFT-CONTRACTS", "title": "product-contract and architecture CRUD drafts", "depends_on": [2], "status": "NOT_STARTED"},
+    {"slice": 4, "short": "ARCHITECTURE", "title": "architecture and code-alignment review", "depends_on": [3], "status": "NOT_STARTED"},
+    {"slice": 5, "short": "VERIFICATION", "title": "verification-adequacy review", "depends_on": [4], "status": "NOT_STARTED"},
+    {"slice": 6, "short": "HITL", "title": "proposal scoring, HITL decisions, and Slice 7 plan", "depends_on": [5], "status": "NOT_STARTED"},
+    {"slice": 7, "short": "PREWORK-IMPLEMENTATION", "title": "approved repository-preparation implementation", "depends_on": [6], "status": "NOT_STARTED"},
+    {"slice": 10, "short": "MEASUREMENT", "title": "executable measurement-layer classification", "depends_on": [7], "status": "NOT_STARTED"},
+    {"slice": 15, "short": "IDENTITY", "title": "revision identity and canonical source provenance", "depends_on": [10], "status": "NOT_STARTED"},
+    {"slice": 20, "short": "DEPENDENCY", "title": "single-source and multi-source dependency registration", "depends_on": [15], "status": "NOT_STARTED"},
+    {"slice": 25, "short": "ACTUATION", "title": "atomic caller-decided semantic actuation", "depends_on": [20], "status": "NOT_STARTED"},
+    {"slice": 30, "short": "LIFECYCLE", "title": "dependency-aware lifecycle and erasure closure", "depends_on": [25], "status": "NOT_STARTED"},
+    {"slice": 35, "short": "SNAPSHOT", "title": "frozen reads and eligibility-before-ranking", "depends_on": [30], "status": "NOT_STARTED"},
+    {"slice": 40, "short": "READINESS", "title": "projection generation and readiness correlation", "depends_on": [35], "status": "NOT_STARTED"},
+    {"slice": 45, "short": "PAGINATION", "title": "governed pagination and latest-state reads", "depends_on": [40], "status": "NOT_STARTED"},
+    {"slice": 50, "short": "EVIDENCE", "title": "source-complete evidence resolution", "depends_on": [45], "status": "NOT_STARTED"},
+    {"slice": 55, "short": "TRACE", "title": "provenance tracing, explanation, and integrity", "depends_on": [50], "status": "NOT_STARTED"},
+    {"slice": 60, "short": "GRAPH", "title": "constrained combined graph expansion", "depends_on": [55], "status": "NOT_STARTED"},
+    {"slice": 65, "short": "SELECTION", "title": "deterministic candidate-selection qualification", "depends_on": [60], "status": "NOT_STARTED"},
+    {"slice": 70, "short": "ASSOCIATIVE", "title": "temporal and associative retrieval qualification", "depends_on": [65], "status": "NOT_STARTED"},
+    {"slice": 75, "short": "CLOSURE", "title": "cross-SDK, concurrency, lifecycle, and performance closure", "depends_on": [70], "status": "NOT_STARTED"}
+  ],
+  "landed": [],
+  "next_slice": 0,
+  "remaining_ladder": [0, 1, 2, 3, 4, 5, 6, 7, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75],
+  "decisions": {
+    "unruled": [],
+    "ruled": [
+      {
+        "id": "direct-execution",
+        "title": "0.8.25 uses direct agents without Steward or Orchestrator roles",
+        "source": "repository owner 2026-08-31"
+      },
+      {
+        "id": "cuda-ptrace",
+        "title": "CUDA and ptrace use are authorized for applicable 0.8.25 work",
+        "source": "repository owner standing authorization"
+      }
+    ]
+  },
+  "generated_views": [
+    {
+      "id": "status-next-action",
+      "file": "dev/plans/runs/STATUS-0.8.25.md",
+      "location": "Immediate next action",
+      "renders": "the lifecycle-aware next action and remaining dependency ladder"
+    }
+  ]
+}

@@ -239,7 +239,7 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 | Slice | Title | Primary outcome | Depends on |
 | ---: | --- | --- | --- |
 | **10** | Main CI workflow assessment and integration | **Complete:** current `main` supplies the existing proportional CI/release interface; no workflow or script change was required. | 0, 6 |
-| **20** | Benchmark-directed engine performance | **Implemented — awaiting independent review and merge:** owner-selected streamed BM25 boundary behavior was reconstructed without rerunning the settled benchmark. | 0, 5, 6 |
+| **20** | Benchmark-directed engine performance | **Complete:** owner-selected streamed BM25 boundary behavior was reconstructed and independently verified without rerunning the settled benchmark. | 0, 5, 6 |
 | **30** | Public Tegra CUDA distribution | **Complete:** exact `fathomdb==0.8.24+tegra` is served from the authorized interim GitHub Pages PEP 503 index with Jetson proof; never upload the host-bound wheel to PyPI. | 0, 6, 10 |
 | **40** | Windows x64 CUDA distribution | **POSTPONED TO 0.8.26 (`seq-258`).** No executor, VM, runner, build, smoke, workflow, or publication work remains in 0.8.24. | — |
 | **50** | Windows Python SDK WAL behavior review | **POSTPONED TO 0.8.26 (`seq-258`).** No external-evidence review or native-Windows reproduction remains in 0.8.24. | — |
@@ -248,8 +248,7 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 
 ### Feature-slice draft plans
 
-Each feature has a separate plan. Slice 10 and Slice 30 are complete; Slice 20
-awaits independent review and merge. Slice 30 published its verified Tegra wheel
+Each feature has a separate plan. Slices 10, 20, and 30 are complete. Slice 30 published its verified Tegra wheel
 to the authorized interim Pages route; durable hosting/distribution remains a
 later review. Slices 40 and 50 are postponed to 0.8.26. Slices 60 and 70 retain
 their own slice-preparation, draft contract/design review, implementation
@@ -292,8 +291,7 @@ make its slice ready or authorize implementation or an external release action.
 
 ## Immediate next action
 
-Slices 0–7, 10, and 30 are complete. Slice 20 is implemented and awaits its
-independent review and merge. Slices 40 and 50 are postponed to 0.8.26 by
-`seq-258`; they no longer block this release. Slice 60 now consumes the Tegra
-output only, and Slice 70 remains final integration only. No additional
-external release action is authorized by these planning records.
+Slices 0–7, 10, 20, and 30 are complete. Slices 40 and 50 are postponed to
+0.8.26 by `seq-258`; they no longer block this release. Slice 60 now consumes
+the Tegra output only, and Slice 70 remains final integration only. No
+additional external release action is authorized by these planning records.

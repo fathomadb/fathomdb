@@ -1,6 +1,6 @@
 ---
 title: 0.8.24 Slice 20 — implementation status
-status: IMPLEMENTED-AWAITING-INDEPENDENT-REVIEW
+status: COMPLETE
 target_release: 0.8.24
 ---
 
@@ -8,9 +8,9 @@ target_release: 0.8.24
 
 ## Outcome
 
-The bounded Slice 20 implementation is complete on
-`release/0.8.24-slice20` and awaits the parent-owned independent code review,
-verification, and merge. Eligible direct-text FTS node collection now streams
+The bounded Slice 20 implementation is complete and already integrated into
+`release/0.8.24`. Independent code review and verification closed the remaining
+status gap; no additional production change was required. Eligible direct-text FTS node collection now streams
 the complete score group crossing the fixed 100-candidate boundary, restores
 the existing stable order, and returns the same candidates as the full-sort
 control.
@@ -29,6 +29,7 @@ unrelated experiment infrastructure are unchanged.
 | RED fixture refinement | `9fbd38a6` — made the strict boundary genuinely score-unique; did not change the required route/equivalence assertion. |
 | GREEN implementation | `6c4f3ace` — exact rank stream, fallback, property proof, writer invariant, and aligned design/AC text. |
 | Independent review FIX-1 | Test-only evidence tightened: statement-failure route selection, eligible no-edge 10/50/100 public-prefix equivalence, and nonempty query-plan witness. Production code unchanged. |
+| Independent closure review | PASS — implementation bounded to the reviewed collector/writer invariant; no schema, binding, workflow, or public SDK change found. See `review.md`. |
 
 The independent design reviewer returned NEEDS-REVISION before implementation.
 The binding corrections are recorded in `design.md`: preserve current-main WAL
@@ -68,13 +69,13 @@ publisher, benchmark runner, or registry state.
 | Full workspace check, all targets | PASS |
 | Rust format, Markdown/plan/anchor lint, diff check | PASS |
 | Normal `agent-test.sh` stage | INCOMPLETE: stopped after sandbox-only fixture failures and the classified release-state checker mismatch; focused engine tests above passed |
+| Independent closure verification | PASS — Slice 20 stream target 3/3; engine `test-hooks` unit/property tests 29/29; related regression targets 35/35; format; warnings-denied clippy; checks with and without `test-hooks`; diff check. |
 
 `agent-verify.sh` reached the repository lint phase and then stopped on an
-unrelated pre-existing release-branch inconsistency: the checker
-`scripts/check-public-doc-truth.py` is hard-coded to release state 0.8.21 while
-the owner-approved Slice 7 maintained docs correctly state published 0.8.23.
-Slice 20 did not widen its exact allowlist to alter that checker. The parent
-classified it as pre-existing and outside Slice 20.
+unrelated release-truth inconsistency: `scripts/check-public-doc-truth.py` is
+hard-coded to release state 0.8.21 while maintained docs correctly state
+published 0.8.23. Slice 70 owns that release-wide correction and the final full
+release gate. It is not a defect in the bounded Slice 20 engine delta.
 
 The separately requested normal `agent-test.sh` stage was started and stopped
 with exit 130 after it continued into long-running tests beyond the parent's
@@ -95,8 +96,8 @@ sole performance decision basis.
 
 ## Handoff
 
-The parent must independently review and verify commit `6c4f3ace` plus its RED
-ancestors. If accepted, it may merge the branch into `release/0.8.24`, update
-the master-plan Slice 20 row to complete, and remove this temporary worktree and
-branch. Any schema, SDK, public-contract, or broader release change remains out
-of scope and requires a separate owner decision.
+`6c4f3ace` and the test-only follow-up `70c39c5b` are already ancestors of
+`release/0.8.24`; no merge remains. Slice 70 consumes the closed engine evidence
+and owns the release-wide truth correction, candidate reconciliation, and final
+verification. Any schema, SDK, public-contract, or broader release change
+remains out of scope and requires a separate owner decision.

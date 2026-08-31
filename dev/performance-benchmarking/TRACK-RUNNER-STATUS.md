@@ -11,10 +11,11 @@ append-only evidence index.
 ## Immediate sequence
 
 No data-generating run is active. The completed program and receipts are now on
-`release/0.8.25`; its reviewed architecture and delivery plan are complete.
-Write requirements and acceptance criteria for executable measurement-layer
-classification next. Do not start source-complete evidence implementation or
-reopen rejected treatments before that contract is accepted.
+`release/0.8.25`. The comprehensive Memex needs crosswalk, architecture v2
+draft, and dependency-linear delivery plan v2 are authored under Slice 5.
+Complete their independent review before closing Slice 5. Feature work begins
+at Slice 10 with executable measurement classification; do not start later
+slices or reopen rejected treatments before their dependencies are accepted.
 
 ## Track status
 

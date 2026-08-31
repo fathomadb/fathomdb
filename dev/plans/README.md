@@ -70,6 +70,7 @@ details may be STALE.** For distilled experiment results, read
 | 0.8.5 | historical | Retained in place; consult the live release-state JSON for current work. |
 | 0.8.23 | shipped/closed | Retained in place; resolve live work through the release-state lookup rule. |
 | 0.8.24 | feature planning and implementation | Prework and Slices 10/20 are complete; Slice 30 is implementing an authorized interim GitHub Pages index route; no live release-state record exists. |
+| 0.8.25 | active planning | Performance and Memex data-plane foldback is allocated; Slice 5 review precedes feature Slice 10. |
 
 Transient per-run artifacts (raw `*-output.json`, codex `*-review-*` logs, `.log`,
 checkpoints) under `runs/` were pruned by the ledger-prune (`scripts/repo-prune/prompts/prune-docs.md`) and are

@@ -1,5 +1,5 @@
 ---
-title: FathomDB 0.8.25 — performance-program data-plane foldback
+title: FathomDB 0.8.25 — governed data-plane foldback
 status: ACTIVE
 target_release: 0.8.25
 ---
@@ -8,10 +8,17 @@ target_release: 0.8.25
 
 ## Purpose
 
-0.8.25 converts the completed performance program's confirmed data-plane gaps
-into governed FathomDB contracts while preserving the product boundary:
-FathomDB owns durable mechanisms and invariants; an external semantic component
-owns semantic policy, reasoning, and answers.
+0.8.25 converts the completed performance program and the complete Memex 0.6.0
+consumer-needs inventory into governed FathomDB data-plane contracts. FathomDB
+owns durable mechanisms and invariants. An external semantic component owns
+semantic policy, reasoning, and answers.
+
+The requirements crosswalk is
+[`memex-0.6.0-needs-in-fathomdb-0.8.25.md`](memex-0.6.0-needs-in-fathomdb-0.8.25.md).
+The successor architecture and delivery plan are
+[`fathomdb-data-plane-architecture-v2.md`](../design/fathomdb-data-plane-architecture-v2.md)
+and [`fathomdb-data-plane-foldback-v2.md`](fathomdb-data-plane-foldback-v2.md).
+They remain draft inputs until Slice 5 completes independent review.
 
 ## Setup record
 
@@ -32,10 +39,9 @@ owns semantic policy, reasoning, and answers.
   no tree delta against the already-corrected release branch.
 - **Local dependencies:** `node_modules` and `data` are ignored symlinks to the
   primary checkout's local resources. An ignored, worktree-local `.venv/bin`
-  shim exposes only the primary environment's Python and pinned-tool launchers;
-  the environment itself is not symlinked or rebound. The test-hook ownership
-  guard therefore refuses native rebuilds from this worktree while ordinary
-  tests and experiment tooling can use the already-installed dependencies.
+  shim exposes the primary environment's Python and pinned-tool launchers but
+  does not rebind the environment to this worktree. Native rebuilds remain
+  main-checkout-only.
 - **Allocation verification:** `./scripts/agent-verify.sh` passed all 103
   executed suites with one intentional TypeScript skip. The strict ptrace and
   egress checks ran unchanged; 1,251 Python tests passed with 32 explicit
@@ -43,56 +49,91 @@ owns semantic policy, reasoning, and answers.
 
 ## Scope
 
-The versioned architecture is
-[`fathomdb-data-plane-architecture-v1.md`](../design/fathomdb-data-plane-architecture-v1.md).
-The detailed delivery method is
-[`fathomdb-data-plane-foldback-v1.md`](fathomdb-data-plane-foldback-v1.md).
-
 In scope:
 
-- experiment measurement-layer classification;
-- opt-in source-complete evidence resolution;
-- constrained combined graph expansion; and
-- governed native filtering and stable pagination.
+- executable measurement-layer classification;
+- durable record-revision and source-version provenance;
+- explicit single- and multi-source dependencies;
+- atomic application of caller-decided semantic mutations and complete
+  receipts;
+- dependency-aware lifecycle, erasure, and integrity closure;
+- frozen read snapshots and eligibility-before-ranking predicates;
+- projection generation identity and readiness correlation;
+- stable ordered pagination and governed `latest_state` reads;
+- opt-in source-complete evidence and structural explanation;
+- constrained combined graph expansion;
+- benchmark-gated deterministic candidate-selection primitives; and
+- cross-SDK, concurrency, lifecycle, and performance verification.
 
 Out of scope:
 
 - an Engine-owned semantic control plane;
-- extraction/entity/conflict policy, query decomposition, synthesis, answer
-  generation, or semantic entailment;
-- retuning rejected GLOBAL-01, GRAPH-01, or REASON-01 treatments; and
+- extraction, entity resolution, contradiction, truth, ontology, query intent,
+  decomposition, synthesis, answer generation, semantic verification, model
+  choice, spend, or HITL policy;
+- adoption of a benchmark treatment that fails its registered boundary; and
 - publication, which always requires separate HITL authorization.
 
-## Slice sequence
+## Dependency-linear slice sequence
+
+Feature work starts at Slice 10. Every later slice depends only on earlier
+slices; no slice number hides a backward dependency.
 
 | Slice | Outcome | Depends on | State |
 | ---: | --- | --- | --- |
-| 0 | Import the committed performance program onto the 0.8.24-based release branch; reconcile ledgers and retired duplicate tests. | merged 0.8.24 main | Complete (`9ce9fcbd`) |
-| 5 | Restore and finalize the reviewed architecture, boundary, learning register, and delivery plan. | 0 | Complete |
-| 7 | Write requirements/AC, review design, implement with RED/GREEN, review, and verify measurement-layer classification, including the existing GLOBAL-01 paths. | 5 | Not started |
-| 10 | Write requirements/AC, review design, implement with RED/GREEN, review, and verify opt-in source-complete evidence. | 7 | Not started |
-| 20 | Write requirements/AC, review design, implement with RED/GREEN, review, and verify constrained combined graph expansion. | 10 | Not started |
-| 30 | Write requirements/AC, review design, implement with RED/GREEN, review, and verify governed filters and stable pagination. | 10 | Not started |
-| 40 | Run compact cross-workstream lifecycle/performance validation, binding parity, repository verification, and owner-ready release evidence. | 20, 30 | Not started |
+| 0 | Import the committed performance program onto the 0.8.24-based release branch and reconcile retained evidence. | merged 0.8.24 main | Complete (`9ce9fcbd`) |
+| 5 | Reconcile the complete Memex needs inventory, architecture v2, delivery plan v2, and workload assessment; complete independent design review. | 0 | In progress |
+| 10 | Make measurement-layer classification executable, including whether `Engine.search` ran and which compared components differed. | 5 | Not started |
+| 15 | Add immutable record-revision identity, caller source-version identity, exact source locators, canonical hashes, and missing Rust-facade identity exports. | 10 | Not started |
+| 20 | Add queryable canonical-to-derived, derived-to-derived, and multi-source dependency registration with caller-declared liveness rules. | 15 | Not started |
+| 25 | Add atomic caller-decided semantic actuation, model-free consolidation application, idempotent operation identity, and complete mutation receipts. | 20 | Not started |
+| 30 | Close lifecycle and erasure across registered dependencies with visibility fencing, idempotent propagation, and no-active-orphan proof. | 25 | Not started |
+| 35 | Add an Engine-minted frozen read snapshot and uniform indexed eligibility predicates before lexical, vector, or graph truncation. | 30 | Not started |
+| 40 | Add durable projection-generation identity and correlate mutation-to-ready, degraded, blocked, and deferred states. | 35 | Not started |
+| 45 | Add opaque ordered pagination for canonical list, graph, and current-state reads; expose governed `latest_state` point and page reads. | 40 | Not started |
+| 50 | Add opt-in source-complete evidence resolution bound to the originating snapshot and eligibility envelope. | 45 | Not started |
+| 55 | Add backward/forward provenance tracing, inclusion/exclusion explanation, receipt correlation, dependency-orphan checks, and governed operator maintenance. | 50 | Not started |
+| 60 | Add constrained combined graph expansion with typed direction, edge/target constraints, predicates, bounded continuation, and exact path evidence. | 55 | Not started |
+| 65 | Qualify deterministic entity/alias, duplicate, diversity, complementary-evidence, coverage, and candidate-fusion primitives. | 60 | Not started |
+| 70 | Qualify temporal and associative/graph-diffusion retrieval primitives without changing defaults absent an accepted benchmark. | 65 | Not started |
+| 75 | Run cross-SDK/wire parity, snapshot concurrency, lifecycle, cold/steady performance, resource, and retrieval-only evaluation closure. | 70 | Not started |
 
-Slice 5 establishes the architectural classification and preserves the
-existing GLOBAL-01 scope. Slice 7 makes that rule executable in experiment
-metadata and validation before any later verification report may be accepted.
+## Delivery contract
+
+Each feature slice writes numbered requirements and slice-local falsifiable
+acceptance criteria, then a design grounded in the reviewed architecture. An
+independent design review allows at most three documented FIX-n cycles.
+Implementation follows TDD RED/GREEN, then an independent implementation
+review allows at most four documented FIX-n cycles, subject to the standing
+same-failure retry stop. Focused, lifecycle, parity, and repository verification
+must pass before closure.
+
+Do not mint global `dev/acceptance.md` identifiers for these features without
+separate authorization. Historical benchmark receipts remain evidence, not
+generated test oracles.
+
+## Workload checkpoint
+
+Slice 5 records every item before any scope reduction. It groups the ladder by
+P0/P1/P2, schema and public-API risk, verification cost, and critical-path
+dependency. The release may be overweight; evaluate that only after the slice
+plans are complete. No item silently moves out of 0.8.25, and completed
+performance tracks are not reopened by this planning work.
 
 ## Immediate next action
 
-Commission Slice 7 from its requirements and acceptance criteria. Do not begin
-implementation from the architecture prose alone, and do not start Slice 10
-until the measurement-classification contract is accepted.
+Complete independent review of the Slice 5 crosswalk, architecture v2, and
+delivery plan v2. Resolve at most three design FIX-n cycles, then close Slice 5
+before commissioning Slice 10. Do not begin feature implementation from draft
+architecture prose.
 
-## Verification and stop gates
+## Stop gates
 
-Every feature slice uses the review and TDD limits in the foldback plan. Stop
-for an unresolved P1/P2 finding, public-surface change without ADR/interface
-grounding, stale or uneraseable evidence, unbounded retrieval, binding drift,
+Stop for an unresolved P1/P2 review finding, a public-surface change without
+ADR/interface grounding, stale or uneraseable evidence, an unbounded query
+path, binding drift, a benchmark treatment that misses its registered boundary,
 or a requirement that belongs to the external semantic component.
 
-The expired 0.8.23 unmerged CUDA candidate was retired to the contract's empty
-canonical manifest during Slice 5. Standing CUDA and ptrace authorization at
-`seq-271` does not extend a candidate expiry, authorize publication, or weaken
-the protected release route.
+Standing CUDA and ptrace authorization at `seq-271` permits applicable
+verification; it does not authorize publication or weaken the protected release
+route.

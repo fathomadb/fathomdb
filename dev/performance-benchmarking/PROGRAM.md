@@ -183,17 +183,23 @@ All currently authorized decision tracks are complete, rejected, limited, or
 parked on an explicit new-evidence condition. No additional benchmark run is
 the immediate next action.
 
-Release 0.8.25 owns four bounded foldbacks from the completed evidence:
+Release 0.8.25 preserves those performance foldbacks and adds the complete
+Memex 0.6.0 data-plane needs inventory. The expanded scope includes executable
+measurement classification, durable revision/source provenance, dependencies,
+atomic semantic actuation, lifecycle and erasure closure, frozen reads,
+eligibility-before-ranking, projection generation identity, ordered pagination
+and `latest_state`, source-complete evidence, constrained graph expansion,
+structural tracing/integrity, benchmark-gated deterministic retrieval, and
+integrated performance verification.
 
-1. classify measurements as data-plane, semantic-control-plane, or end to end;
-2. add opt-in source-complete evidence resolution;
-3. add constrained combined graph expansion; and
-4. extend governed native filters and stable pagination.
-
-The governing architecture is
-[`fathomdb-data-plane-architecture-v1.md`](../design/fathomdb-data-plane-architecture-v1.md),
-and the reviewed delivery sequence is
-[`fathomdb-data-plane-foldback-v1.md`](../plans/fathomdb-data-plane-foldback-v1.md).
+This planning does not reopen completed experiment tracks or promote rejected
+treatments. The durable crosswalk is
+[`memex-0.6.0-needs-in-fathomdb-0.8.25.md`](../plans/memex-0.6.0-needs-in-fathomdb-0.8.25.md).
+The draft successor architecture and delivery sequence are
+[`fathomdb-data-plane-architecture-v2.md`](../design/fathomdb-data-plane-architecture-v2.md)
+and
+[`fathomdb-data-plane-foldback-v2.md`](../plans/fathomdb-data-plane-foldback-v2.md).
+They require Slice 5 independent review before feature work starts at Slice 10.
 Semantic interpretation, decomposition, synthesis, and answer verification
 remain external memory-system responsibilities.
 

@@ -53,6 +53,8 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/plan-0.8.24.md` | Proposed 0.8.24 release plan and slice allocation; no live release-state record | 0.8.24 planning | 2026-08-24 |
 | `dev/plans/plan-0.8.25.md` | Proposed dependency-linear performance and Memex data-plane foldback plan | 0.8.25 | 2026-08-31 |
 | `dev/plans/0.8.25-prework-slices-0-7.md` | Environment-to-HITL prework and approved preparation contract | 0.8.25 Slices 0–7 | 2026-08-31 |
+| `dev/plans/0.8.25/prework/slice-{1-dependency-sweep,2-cruft-review}.md` | Dependency/pinning evidence and repository cruft action proposals | 0.8.25 Slices 1–2 | 2026-08-31 |
+| `dev/plans/0.8.25/prework/slice-{3-contract-and-architecture-drafts,4-architecture-and-code-alignment,5-verification-adequacy}.md` | Draft contracts, as-built alignment, and verification-gap allocation | 0.8.25 Slices 3–5 | 2026-08-31 |
 | `dev/plans/memex-0.6.0-needs-in-fathomdb-0.8.25.md` | Code-grounded Memex needs crosswalk and slice allocation | 0.8.25 Slice 3 | 2026-08-31 |
 | `dev/plans/fathomdb-data-plane-foldback-v2.md` | Proposed dependency-linear requirements/design/TDD delivery plan | 0.8.25 Slice 6 | 2026-08-31 |
 | `dev/plans/fathomdb-data-plane-foldback-v1.md` | Reviewed initial four-workstream foldback plan retained as baseline | 0.8.25 history | 2026-08-31 |

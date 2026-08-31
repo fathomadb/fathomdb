@@ -132,6 +132,65 @@ projection-generation, storage/resource, and rebuild-cost measurements. Add a
 retrieval-only native `Engine.search` global witness and keep answer-system
 metrics separate.
 
+## Slice 3 draft contract allocation
+
+These identifiers are local planning labels, not accepted global `REQ-*` or
+`AC-*` entries. Each owning slice must refine and accept its contract before
+implementation.
+
+| Slice | Requirement package | Mandatory proof package |
+| ---: | --- | --- |
+| 10 | R25-10 executable measurement-layer classification | Receipt schema negative cases, GLOBAL-01 reclassification, native retrieval-only witness |
+| 15 | R25-15 revision identity and canonical source provenance | Restart/reindex properties, locator/hash rejection, SDK/wire round trips |
+| 20 | R25-20 explicit single/multi-source dependencies | Invalid reference/cycle rejection, bidirectional lookup, liveness-rule removal |
+| 25 | R25-25 atomic caller-decided semantic batch and complete receipt | RED partial-failure injection, idempotent replay, cross-SDK receipt parity |
+| 30 | R25-30 dependency-aware lifecycle and erasure closure | State-transition matrix, crash/restart/resume, stale-index and no-orphan proof |
+| 35 | R25-35 frozen snapshots and pre-ranking eligibility | Mutation/validity races, unsupported predicates, native query-plan proof |
+| 40 | R25-40 durable projection generations/readiness correlation | Restart and wrong-generation negative tests, mutation-to-ready receipt proof |
+| 45 | R25-45 opaque ordered pages and governed `latest_state` | Duplicate/omission race, cursor mismatch/expiry/drift, point/page agreement |
+| 50 | R25-50 eligibility-bound source-complete evidence | Exact-byte resolution plus invisible/erased/stale/mismatched non-disclosure |
+| 55 | R25-55 provenance tracing, explanation, and integrity | Reciprocal traces, deterministic exclusions, injected-orphan/projection faults |
+| 60 | R25-60 constrained combined graph expansion | Constraint-before-truncation, deterministic continuation, exact path/lifecycle evidence |
+| 65 | R25-65 qualified deterministic candidate selection | Replayable quality/efficiency receipts and default-promotion guard |
+| 70 | R25-70 qualified temporal and associative retrieval | Changed-fact/time-scoped/multi-hop quality with accepted-default regression guard |
+| 75 | R25-75 integrated parity, concurrency, lifecycle, performance, and evaluation closure | Registry-installed cross-SDK fixtures and cold/steady distribution/resource receipts |
+
+## Slice 4 architecture constraints
+
+The architecture review adds these mandatory refinements to the owning slice
+plans:
+
+- Slice 15 defines UTF-8 byte locators, immutable revision binding, hash
+  algorithm, and versioned wire evolution.
+- Slices 20/30 define a bounded dependency-liveness grammar and test every
+  source-removal consequence without assigning semantic truth to the Engine.
+- Slice 35 specifies observable frozen-snapshot semantics with typed
+  unavailable/drift/expiry outcomes; it does not assume a permanently-held
+  SQLite reader transaction.
+- Slice 45 exposes current `operational_state`; `latest_state` remains a
+  consumer concept, and cursors remain distinct from ranked top-K.
+- Slices 35/55/60 apply eligibility and graph constraints before truncation and
+  distinguish ineligible, not-selected, unavailable, and degraded outcomes.
+- Slice 50 preserves compact default hits and creates/resolves evidence only
+  under the originating visibility envelope.
+- Every public/persisted feature slice defines version/unknown-field behavior
+  and ships feature-local Rust/Python/TypeScript parity before Slice 75 audits
+  the combined surface.
+
+## Slice 5 verification constraints
+
+Every owning slice must cover positive, typed-negative, failure/rollback,
+close/reopen, concurrent mutation, and lifecycle/erasure behavior proportional
+to risk. Codec, dependency, cursor, projection, recovery, and cross-SDK
+round-trip layers use property-based tests. The database is real, unsupported
+inputs fail closed, default compact-search behavior has an explicit
+non-regression test, and a skipped external/platform route is recorded as
+missing evidence rather than a pass.
+
+Feature-local parity and correctness land in Slices 15–70. Slice 75 runs the
+installed cross-SDK and integrated workload audit; it must not become a holding
+area for tests omitted by their owning feature slice.
+
 ## Dependency and workload policy
 
 The exact ladder and states live in [`plan-0.8.25.md`](plan-0.8.25.md). Prework

@@ -93,7 +93,7 @@ backward dependency.
 | 3 | Draft product-needs, requirements, acceptance-criteria, and architecture CRUD changes; allocate each draft to an implementation slice. | 2 | Complete (`51043e20`) |
 | 4 | Review proposed architecture against Slices 0–3 and high-level code alignment; write change proposals only. | 3 | Complete (`51043e20`) |
 | 5 | Review verification adequacy from needs through requirements, acceptance criteria, tests, critical paths, and release goals. | 4 | Complete (`51043e20`) |
-| 6 | Consolidate and score proposals, conduct interactive HITL decisions, write/review the Slice 7 plan, and update the release plan. | 5 | Not started |
+| 6 | Consolidate and score proposals, conduct interactive HITL decisions, write/review the Slice 7 plan, and update the release plan. | 5 | Awaiting initial HITL |
 | 7 | Implement only HITL-approved repository-preparation work from Slices 0–6 with TDD/review/independent verification; write status and clean isolated worktrees. | 6 | Not started |
 | 10 | Make measurement-layer classification executable, including whether `Engine.search` ran and which compared components differed. | 7 | Not started |
 | 15 | Add immutable record-revision identity, caller source-version identity, exact source locators, canonical hashes, and missing Rust-facade identity exports. | 10 | Not started |
@@ -153,6 +153,11 @@ The release may be overweight; evaluate that only after the prework findings
 and feature-slice plans are complete. No item silently moves out of 0.8.25, and
 completed performance tracks are not reopened by this planning work.
 
+The complete scored decision package is
+[`slice-6-proposal-register.md`](0.8.25/prework/slice-6-proposal-register.md).
+Its single open ruling covers explicit per-row dispositions P25-01 through
+P25-26; approving the recommendations does not collapse or omit any row.
+
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
@@ -160,12 +165,11 @@ completed performance tracks are not reopened by this planning work.
 
 **Remaining ladder:** 6 → 7 → 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 65 → 70 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
-Prepare Slice 6: consolidate every Slice 0–5 proposal, score understanding,
-risk, effort, and include/postpone disposition, then present the concise
-decision package for interactive HITL review. After decisions, write the Slice
-7 repository-preparation implementation plan and obtain its explicitly required
-independent review. The direct agent must not invoke a Steward or Orchestrator.
-Do not begin implementation before the owner rules on the proposal register.
+The Slice 6 register is prepared and awaiting the owner's initial disposition.
+After that ruling, write the approved-only Slice 7 implementation plan and
+obtain its explicitly required independent review. The direct agent must not
+invoke a Steward or Orchestrator. Do not begin implementation before the owner
+approves the reviewed Slice 7 plan.
 
 ## Stop gates
 

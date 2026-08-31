@@ -12,7 +12,7 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 6 (HITL), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 6 (HITL), AWAITING_HITL.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
 Prework is active on the durable `release/0.8.25` worktree. Slices 0–7 are
 sequential; feature work begins at Slice 10. Direct agents execute this release
@@ -28,7 +28,7 @@ without Steward or Orchestrator roles.
 | 3 | Draft contracts | Complete on release branch (`51043e20`) |
 | 4 | Architecture/code alignment | Complete on release branch (`51043e20`) |
 | 5 | Verification adequacy | Complete on release branch (`51043e20`) |
-| 6 | Proposal scoring and interactive HITL | Next |
+| 6 | Proposal scoring and interactive HITL | Awaiting initial HITL |
 | 7 | Approved repository preparation | Not started |
 | 10 | Measurement classification | Not started |
 | 15 | Identity and source provenance | Not started |
@@ -46,6 +46,10 @@ without Steward or Orchestrator roles.
 | 75 | Integrated release closure | Not started |
 
 ## Decisions and blockers
+
+- One decision is open and halts the run: disposition P25-01 through P25-26 in
+  `dev/plans/0.8.25/prework/slice-6-proposal-register.md`. No Slice 7 plan or
+  implementation is authorized until the owner rules.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not

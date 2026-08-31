@@ -9,7 +9,7 @@
   },
   "scope": {
     "npm": "All root package.json overrides are governed. Each must have a matching npm_overrides record with a rationale and a complete per-pin advisory_ids mapping. R2 deliberately fails closed for any live override: npm's lockfile records the override result, not a mechanically reproducible no-override resolution.",
-    "cargo": "This checker does not implement a general Cargo override grammar. The only supported Cargo exception is the root [patch.crates-io] Candle 0.10.2 cohort declared by cargo_candle_exception. Any other [patch], [replace], or direct Git dependency hard-fails as unsupported. Root .cargo/config.toml and .cargo/config are also parsed: any [patch] table or unparseable candidate hard-fails; ordinary non-patch config remains allowed. Adding a new Cargo exception requires an explicit guard redesign.",
+    "cargo": "This checker does not implement a general Cargo override grammar. The only supported Cargo exception is the root [patch.crates-io] Candle 0.10.2 cohort declared by cargo_candle_exception. The cohort includes candle-kernels because its build script owns the static CUDART linkage required for CPU-mode artifacts to load without libcudart. Any other [patch], [replace], or direct Git dependency hard-fails as unsupported. Root .cargo/config.toml and .cargo/config are also parsed: any [patch] table or unparseable candidate hard-fails; ordinary non-patch config remains allowed. Adding a new Cargo exception requires an explicit guard redesign.",
     "governed_commit_pins": "scripts/governed-surface-pin.json pins repository contract content, not an external dependency version. Its commit/hash integrity is enforced by scripts/check-governed-surface-pin.sh; it has no package-advisory semantics and is explicitly not reinterpreted here."
   },
   "npm_overrides": [],
@@ -18,13 +18,14 @@
     "mechanism": "patch.crates-io",
     "packages": [
       "candle-core-fathomdb",
+      "candle-kernels",
       "candle-nn-fathomdb",
       "candle-transformers-fathomdb"
     ],
     "git": "https://github.com/coreyt/candle-fathomdb.git",
-    "rev": "5719d90e60edd14c4c1a3bf87952648131b2153a",
+    "rev": "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee",
     "version": "0.10.2",
-    "rationale": "FathomDB-maintained Candle 0.10.2 preserves the Linux AArch64 CPU Gemm/F16 fallback. This immutable source revision changes cudarc only to load the NVIDIA driver dynamically, keeping libcuda.so.1 out of distributable artifacts; core, nn, and transformers remain one source cohort so their public types stay unified.",
+    "rationale": "FathomDB-maintained Candle 0.10.2 preserves the Linux AArch64 CPU Gemm/F16 fallback. This immutable source revision keeps CUDA driver discovery dynamic and links the CUDART runtime statically in candle-kernels, so CPU-mode distributable artifacts can map without libcuda.so.1 or libcudart. Core, kernels, nn, and transformers remain one source cohort so their public types and linkage boundary stay unified.",
     "advisory_posture": {
       "status": "external-source-unassessed",
       "scope": "outside the checked-in npm advisory snapshot",

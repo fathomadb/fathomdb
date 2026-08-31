@@ -51,6 +51,9 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/release-state-0.8.23.json` | Completed 0.8.23 release-state record | 0.8.23 history | 2026-08-23 |
 | `dev/plans/runs/STATUS-0.8.23.md` | Completed 0.8.23 state board, retained in place | 0.8.23 history | 2026-08-23 |
 | `dev/plans/plan-0.8.24.md` | Proposed 0.8.24 release plan and slice allocation; no live release-state record | 0.8.24 planning | 2026-08-24 |
+| `dev/plans/plan-0.8.25.md` | Active 0.8.25 data-plane foldback release plan | 0.8.25 | 2026-08-31 |
+| `dev/plans/fathomdb-data-plane-foldback-v1.md` | Reviewed four-workstream requirements/design/TDD delivery plan | 0.8.25 | 2026-08-31 |
+| `dev/plans/fathomdb-data-plane-architecture-review-v1.md` | Independent two-cycle approval record for data-plane architecture v1 | 0.8.25 | 2026-08-31 |
 | `dev/plans/0.8.24/prework/slice-{0,1,2}-*.md` | 0.8.24 prework findings and design reviews | 0.8.24 Slices 0–2 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-3-*-drafts.md` | 0.8.24 product and architecture draft CRUD | 0.8.24 Slice 3 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-4-architecture-alignment.md` | 0.8.24 architecture and code alignment review | 0.8.24 Slice 4 | 2026-08-23 |
@@ -79,6 +82,8 @@ refresh in the closing commit when you touch a doc).
 | `dev/tegra-platform-reference.md` | Tegra/L4T platform reference: build, packaging, CI, detection, GPU-evidence facts and traps | 0.8.23 Slice 80 (80.5/80.6) | 2026-08-19 |
 | `dev/experiments-ledger.md` | Distilled results of record for EVERY FathomDB experiment | ledger-prune (`scripts/repo-prune/prompts/prune-docs.md`) | 2026-06-26 |
 | `dev/performance-benchmarking/TRACK-RUNNER*.md` | Codex-native execution control and live progress board for PROGRAM | performance experiments | 2026-08-16 |
+| `dev/performance-benchmarking/FATHOMDB-BOUNDARY.md` | FathomDB data-plane boundary and measured performance interpretation | performance foldback | 2026-08-31 |
+| `dev/performance-benchmarking/PROGRAM-LEARNINGS.md` | Durable cross-track performance and operations learning register | performance foldback | 2026-08-31 |
 | `scripts/repo-prune/README.md` | repo-prune mini-project | repo-prune (tooling) | 2026-06-26 |
 | `dev/tools/onnx/README.md` · `dev/tools/onnx/export_bge_small_onnx.py` | ONNX embedder export tooling (0.8.16 Slice 10) | 0.8.16 Slice 10 (tooling) | 2026-07-08 |
 | `dev/notes/0.8.0-fts5-tokenizer-latency-experiment.md` | B2 FTS5 tokenizer latency experiment report | Slice 6 (B2) | 2026-06-07 |
@@ -170,6 +175,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/design/0.8.20-tc90-tc91-characterization.md` | Characterization (no fix) — `Engine::transition`'s deferred write race (reproduces 10/10 under stress), and the cadence-sensitive duplicate embeds whose discarded worker commit is structurally invisible to terminal-state counting | 0.8.20 Slice 23 (R-20-SV leg 2); TC-90/TC-91, fix at 0.8.21 | 2026-07-29 |
 | `dev/design/0.8.20-slice-31-sbom-survey-tool.md` | Spec of record for `scripts/sbom-survey` — CycloneDX SBOM over tracked manifests, tiering, used-vs-published diff; 23 criteria | 0.8.20 Slice 31 (Library Sweep #3 leg 1/3; no requirement id, TC-76) | 2026-07-29 |
 | `dev/design/chunking-strategy-and-test-guidance.md` | Verbatim chunking strategy and test guidance | performance experiments | 2026-08-15 |
+| `dev/design/fathomdb-data-plane-architecture-v1.md` | Versioned data-plane boundary and planned evidence, graph, and filter contracts | 0.8.25 | 2026-08-31 |
 | `scripts/sbom-survey/README.md` | Operating note for the dependency-survey mini-project — how to run the suite, and why it is deliberately not CI-gating | 0.8.20 Slice 31 (Library Sweep #3 leg 1/3) | 2026-07-29 |
 | `scripts/sbom-survey/smoke-install-run.sh` | TC-115 install-then-run smoke — installs the tool into a throwaway venv, invokes the INSTALLED console script, and asserts its artifacts are byte-identical to a source-tree run. Deliberately NOT CI-wired (`seq-172`) | 0.8.20 Slice 33 (Library Sweep #3 leg 3/3) | 2026-07-29 |
 | `dev/plans/runs/0.8.20-slice-33-library-sweep-3-FINDINGS.md` | **Findings of record** for Library Sweep #3 — the ONLINE `sbom-survey` run at `29c2eae0`: 774 components, 28 direct outdated, per-dependency surgical verdicts, and the hand-off to 0.8.22. ASCERTAIN-ONLY; applied nothing | 0.8.20 Slice 33 (Library Sweep #3 leg 3/3; no requirement id, TC-76) | 2026-07-29 |

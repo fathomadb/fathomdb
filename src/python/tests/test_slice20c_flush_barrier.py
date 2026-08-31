@@ -689,6 +689,7 @@ def _pending_node_rows_below(path: str, cursor: int) -> int:
     )
 
 
+@pytest.mark.requires_test_hooks
 def test_a_pending_edge_body_survives_a_full_scan_window_of_node_rows(tmp_path) -> None:
     """A no-runtime session dispatches no embedding work. A pending edge body
     behind a full node scan window reports immediate typed feedback from

@@ -5,6 +5,11 @@ experiments program. It prioritizes tracks, records dependencies, and names the
 decision each track may inform. Each linked track file is its short plan.
 Execution details belong in configuration and receipts, not here.
 
+The completed program's product boundary and durable cross-track findings are
+summarized in [FathomDB's boundary](FATHOMDB-BOUNDARY.md) and the
+[learning register](PROGRAM-LEARNINGS.md). Product foldback is allocated to
+the [0.8.25 plan](../plans/plan-0.8.25.md); it does not reopen completed tracks.
+
 The intended product outcome is stated in
 [the program goals](PROGRAM-GOALS.md): an agent-memory database with one
 provenance-preserving canonical record and selectively materialized retrieval
@@ -171,6 +176,26 @@ the offshoot and retain A0. No untouched confirmation, native HippoRAG-2 run,
 or MEMORY-01 refresh is eligible from either treatment.
 The npm-recovery assertions and expired CUDA release-candidate manifest remain
 unrelated repository debt.
+
+## Program close and 0.8.25 foldback
+
+All currently authorized decision tracks are complete, rejected, limited, or
+parked on an explicit new-evidence condition. No additional benchmark run is
+the immediate next action.
+
+Release 0.8.25 owns four bounded foldbacks from the completed evidence:
+
+1. classify measurements as data-plane, semantic-control-plane, or end to end;
+2. add opt-in source-complete evidence resolution;
+3. add constrained combined graph expansion; and
+4. extend governed native filters and stable pagination.
+
+The governing architecture is
+[`fathomdb-data-plane-architecture-v1.md`](../design/fathomdb-data-plane-architecture-v1.md),
+and the reviewed delivery sequence is
+[`fathomdb-data-plane-foldback-v1.md`](../plans/fathomdb-data-plane-foldback-v1.md).
+Semantic interpretation, decomposition, synthesis, and answer verification
+remain external memory-system responsibilities.
 
 ## Track organization
 

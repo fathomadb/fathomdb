@@ -452,12 +452,8 @@ elif mutation == "candidate-credentials":
     path.write_text(text[:start] + job.replace(needle, replacement, 1) + text[end:])
     raise SystemExit(0)
 elif mutation == "publishing-reach":
-    needle = (
-        "  publish-rust-t1-embedder-api:\n"
-        "    runs-on: ubuntu-latest\n"
-        "    if: ${{ always() && github.event_name == 'push' }}\n"
-    )
-    replacement = needle.replace("always() && github.event_name == 'push'", "true")
+    needle = "  publish-rust-t1-embedder-api:\n"
+    replacement = needle + "    if: ${{ true }}\n"
 else:
     raise SystemExit("unknown least-privilege mutation")
 if text.count(needle) != 1:

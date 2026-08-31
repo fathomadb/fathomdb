@@ -10,6 +10,9 @@ For priorities, dependencies, and execution sequence, use the
 [overall performance benchmarking and experiments program](PROGRAM.md).
 `experiments/` remains the append-only execution ledger and receipt store;
 this directory does not duplicate its run records or generated scoreboard.
+The completed campaign's product interpretation lives in
+[FathomDB's boundary](FATHOMDB-BOUNDARY.md), with cross-track findings in the
+[learning register](PROGRAM-LEARNINGS.md).
 For the campaign's Codex-native coordinator/worker/reviewer operating control,
 use [Track Runner](TRACK-RUNNER.md) and its live
 [status board](TRACK-RUNNER-STATUS.md).
@@ -123,7 +126,7 @@ The current EARP campaign notes and raw artifacts are normally found under
 | 2026-08-08 | EARP paired limit-10-versus-50 calibration | Complete diagnostic loop: the pre-fix instrument found limit-dependent top-K contents, and the post-fix rerun found zero differing pairs. | [Result](2026-08-08-earp-limit-calibration-result.md) |
 | 2026-08-11 | EARP retrieval-score versus answerer-judgment abstention | Historical descriptive evidence only. Raw artifacts are unavailable, the judgment run was incomplete, and `retrieved_scores` remains a separate unlanded decision. | [Result](2026-08-11-earp-abstention-result.md) |
 | 2026-08-11 | IR-C FTS initial population: 10,506 documents, 4,597 queries, `limit=10` | Quality is complete. The repaired, quality-linked one-repetition artifact has two complete cells and is a descriptive baseline only; it is not a comparator or latency claim. The earlier artifact remains typed-invalid historical evidence. | [Plan](2026-08-11-initial-population-plan.md) · [Result](2026-08-11-initial-population-results.md) |
-| 2026-08-14 | LOCOMO FathomDB self-characterization: ingest/query knob grid vs FathomDB's own FTS-only baseline; first M6 (query latency) and M7 (ingest-to-queryable latency) instrumentation for FathomDB. | Planned. Phase A (worktree reconciliation, stable provenance fix, M6/M7 harness, resumable scorer wrapper) not yet started. | [Plan](2026-08-14-locomo-fathomdb-capability-campaign-plan.md) |
+| 2026-08-14 | LOCOMO FathomDB self-characterization: ingest/query knob grid vs FathomDB's own FTS-only baseline; first M6 (query latency) and M7 (ingest-to-queryable latency) instrumentation for FathomDB. | Complete directional GPU screen. Turn-level `hybrid_ce_alpha_10_pool_20` survived retrieval screening, but ANSWER-01 retained A0 after paired answer scoring. | [Plan](2026-08-14-locomo-fathomdb-capability-campaign-plan.md) · [Program](PROGRAM.md) |
 
 ## Data and license posture
 

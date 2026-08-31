@@ -50,7 +50,7 @@ fn resolved_combined_gold_loads_validates_and_is_pinned() {
         gold.corpus_hash, FROZEN_CORPUS_HASH,
         "resolved gold must be pinned to the frozen 0.8.x-B snapshot"
     );
-    assert_eq!(gold.qrels_version, "ir-c-reused-v1");
+    assert_eq!(gold.qrels_version, "ir-c-reused-v2");
 
     // The validator (methodology + schema invariants) must be fully clean —
     // this is the real source of truth, not the Python build-time mirror.
@@ -98,6 +98,7 @@ fn resolved_per_source_gold_sets_validate_when_present() {
         };
         let gold = load_gold_set(&path).unwrap_or_else(|e| panic!("load {source} gold: {e}"));
         assert_eq!(gold.corpus_hash, FROZEN_CORPUS_HASH, "{source}: not pinned to frozen snapshot");
+        assert_eq!(gold.qrels_version, "ir-c-reused-v2", "{source}: stale qrels version");
         let issues = validate_gold_set(&gold);
         assert!(issues.is_empty(), "{source} gold validator issues: {issues:?}");
         assert!(!gold.queries.is_empty(), "{source} gold is empty");

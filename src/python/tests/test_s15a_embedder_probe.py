@@ -606,6 +606,7 @@ def test_integration_tests_are_opt_in_and_marker_registered() -> None:
 
     env = dict(os.environ)
     env.pop(_INTEGRATION_OPT_IN_ENV, None)  # default gate: opt-in NOT enabled
+    env.pop("FATHOMDB_TESTS_ALLOW_REBUILD", None)
     env["FATHOMDB_TESTS_NO_REBUILD"] = "1"
     env["PYTHONPATH"] = os.pathsep.join(
         [str(repo_python_src), env.get("PYTHONPATH", "")]

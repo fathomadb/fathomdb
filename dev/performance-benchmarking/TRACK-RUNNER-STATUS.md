@@ -5,14 +5,16 @@ Current coordination state for the
 [`experiments/`](../../experiments/README.md) holds execution receipts and the
 append-only evidence index.
 
-- **Last reconciled:** 2026-08-30
-- **Branch:** `experiments/performance-0.8.23-plan-20260821`
+- **Last reconciled:** 2026-08-31
+- **Branch:** `release/0.8.25`
 
 ## Immediate sequence
 
-No data-generating run is active. REASON-01 compact-ledger v2 completed and was
-rejected. Retain A0. No untouched confirmation, native HippoRAG-2 comparison,
-or MEMORY-01 refresh is eligible from the tested treatments.
+No data-generating run is active. The completed program and receipts are now on
+`release/0.8.25`; its reviewed architecture and delivery plan are complete.
+Write requirements and acceptance criteria for executable measurement-layer
+classification next. Do not start source-complete evidence implementation or
+reopen rejected treatments before that contract is accepted.
 
 ## Track status
 

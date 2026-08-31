@@ -119,12 +119,12 @@ fn doctor_platform_is_database_free_and_emits_the_v1_record() {
 }
 
 #[test]
-fn doctor_gpu_help_contains_the_exact_tegra_source_build_procedure() {
+fn doctor_gpu_help_contains_the_exact_tegra_pages_install_procedure() {
     let output = fathomdb().args(["doctor", "gpu", "--help"]).output().expect("spawn");
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).expect("UTF-8 help");
-    assert!(stdout.contains("python3 -m venv .venv\n. .venv/bin/activate\npython -m pip install --upgrade pip 'maturin==1.14.1'\n./scripts/release/build-python-cuda-tegra.sh --interpreter python"));
-    assert!(stdout.contains("python -m pip install <built-wheel>"));
+    assert!(stdout.contains("fathomdb==0.8.24+tegra"));
+    assert!(stdout.contains("https://fathomadb.github.io/fathomdb/tegra/simple/"));
 }
 
 #[cfg(feature = "default-reranker")]

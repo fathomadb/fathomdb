@@ -1,6 +1,6 @@
 ---
 title: 0.8.24 Slice 60 — installed smokes and publisher preservation draft plan
-status: DRAFT
+status: IMPLEMENTING
 target_release: 0.8.24
 ---
 
@@ -57,7 +57,9 @@ selected Tegra CUDA target:
   retry-safe mechanics.
 - Extend publisher guards/tests only where the new identities are not already
   covered; preserve existing fail-closed behavior.
-- Add Tegra candidate-install and registry-install smoke harnesses,
+- Add a Tegra public-PEP-503 installed-package smoke harness. It must use one
+  declared index, an exact local-version requirement, an independently retained
+  wheel SHA-256, a fresh venv, and an offline model cache for the CUDA witness.
   provenance schema, negative tests, and evidence checks.
 - Preserve CPU Python, npm, Cargo/CLI, macOS, Linux x64/ARM64, and Windows CPU
   paths affected by release workflow or metadata changes.
@@ -178,19 +180,25 @@ ADRs, architecture, and locked acceptance policy. Revise canonical documents so
 mechanics and contract agree. If a new target changes Tier-1 rather than adding
 a distinct target distribution, require an ADR successor before implementation.
 
-## Planned implementation sequence after prep approval
+## Approved implementation sequence
 
-1. Commit approved requirement/acceptance/architecture/release-design wording.
-2. Add RED tests for any missing publisher identity, retry state, workflow edge,
-   CPU preservation, or smoke provenance behavior.
-3. Make the smallest helper/workflow/smoke changes; preserve existing routes.
-4. Run local publisher fixture and structural tests, package inspections, and
-   candidate smokes on the actual Jetson target host.
-5. Fill `evidence-matrix.md` with candidate evidence and mark post-publication
-   rows pending rather than falsely complete.
-6. Hand Slice 70 the exact remaining publication/post-publish sequence. After
-   owner-authorized publication, record actual registry-installed smoke results
-   and only then mark Slice 60 evidence complete.
+1. Record the reviewed target matrix and the revised requirement/acceptance
+   wording. Correct the impossible all-or-nothing wording to retry-safe
+   completion without weakening the requirement that every target is verified.
+2. Add RED structural tests for a new `smoke-tegra-pages-wheel.sh`: malformed
+   version/index/digest fail before networking; no extra index, source install,
+   editable install, or cache is allowed; the exact digest is checked before
+   install; and the lifecycle and CUDA witness remain mandatory.
+3. Implement the smallest script, public Python/CLI guidance, and generic-build
+   warning changes. Preserve all existing CPU and legacy Windows CPU release
+   lanes; no new Windows work belongs to this release.
+4. Recover the SHA-256 from the retained Slice 30 evidence artifact, compare it
+   to the Pages index link, then run the new script once on the actual Jetson.
+5. Fill `evidence-matrix.md` with that installed public-index proof. Registry
+   publication for CPU packages, npm promotion, tag creation, and post-tag
+   smokes remain Slice 70 owner actions.
+6. Hand Slice 70 the precise evidence, remaining release sequence, and the
+   explicit no-tag/no-push boundary of this slice.
 
 ## Verification and evidence
 

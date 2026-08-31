@@ -2,7 +2,7 @@
 title: Release Subsystem Design
 date: 2026-05-12
 target_release: 0.6.0
-desc: Version axes, tiered publish order, multi-registry publish discipline, and post-publish verification
+desc: Version axes, tiered publish order, retry-safe multi-registry completion, and post-publish verification
 blast_radius: release workflows; REQ-047..REQ-052; scripts/set-version.sh; .github/workflows/release.yml; dev/plans/ci-deferred.md
 status: locked
 ---
@@ -11,7 +11,7 @@ status: locked
 
 This file owns release-gate mechanics: version axes, sibling-package
 co-tagging, tiered publish order, registry-installed smoke verification, and
-atomic completion of the multi-registry publish flow.
+retry-safe completion of the multi-registry publish flow.
 
 ## Version axes (2026-05-12)
 
@@ -62,8 +62,10 @@ sit between tiers (pattern from pre-0.6.0 `.github/workflows/release.yml`).
 Cross-ecosystem gate: every tier must succeed before the next tier
 starts. `all-builds-passed` gates Tier T1 from starting until every
 matrix build for the release has produced an artifact (no "publish T1
-while the napi-rs prebuild is still red"). Cross-registry atomicity is
-covered by the post-publish smoke step below.
+while the napi-rs prebuild is still red"). Cross-registry completion is covered
+by the post-publish smoke step below: already-present immutable artifacts may
+be validated and skipped, but no release is complete until every required
+target has its public installed-package proof.
 
 Tier inter-step sleep: keep the pre-0.6.0 60-second
 crates.io-index-propagation sleep between tiers. Without the sleep,

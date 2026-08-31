@@ -58,11 +58,20 @@ same gate, not exempted from it: both numbers come from
 `scripts/check-glibc-floor-doc-truth.sh` fails if either claim on this page
 drifts from it.
 
-0.8.23 does not publish a Tegra artifact or index. Build it on the Jetson with
-`scripts/release/build-python-cuda-tegra.sh`; the wrapper prints the concrete
-wheel-install command only after asserting its `+tegra` metadata identity.
-Use `fathomdb doctor platform --json` to distinguish classic Tegra from ARM64
-SBSA before diagnosing an incompatible CUDA provider.
+For a confirmed classic Jetson Orin only, 0.8.24 serves the exact
+`fathomdb==0.8.24+tegra` wheel from the interim first-party PEP 503 index:
+
+```bash
+python -m pip install --isolated --no-cache-dir --only-binary=:all: \
+  --index-url https://fathomadb.github.io/fathomdb/tegra/simple/ \
+  'fathomdb==0.8.24+tegra'
+```
+
+Do not use a floating requirement or `--extra-index-url`: pip merges candidate
+sets and does not prioritize indexes. The Pages route is interim 0.8.24
+hosting, not a durable multi-version distribution decision. Use
+`fathomdb doctor platform --json` to distinguish classic Tegra from ARM64 SBSA
+before diagnosing an incompatible CUDA provider.
 
 | OS      | Architecture                | Published prebuilt? |
 | ------- | --------------------------- | ------------------- |

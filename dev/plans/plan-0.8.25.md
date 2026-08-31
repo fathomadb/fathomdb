@@ -135,10 +135,12 @@ completed performance tracks are not reopened by this planning work.
 ## Immediate next action
 
 Complete Slice 0's environment and project-infrastructure inventory in the
-isolated release worktree. Record remaining setup decisions without changing
-product code, then advance to the read-only Slice 1 dependency sweep. Do not
-begin feature implementation before Slice 7 closes and the plan advances to
-Slice 10.
+isolated release worktree using
+[`prompts/0.8.25-slice-0-handoff.md`](prompts/0.8.25-slice-0-handoff.md).
+Record remaining setup decisions without changing product code, then advance
+to the read-only Slice 1 dependency sweep. The Slice 0 agent works directly and
+must not invoke a Steward or Orchestrator. Do not begin feature implementation
+before Slice 7 closes and the plan advances to Slice 10.
 
 ## Stop gates
 

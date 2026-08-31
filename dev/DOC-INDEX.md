@@ -234,6 +234,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/prompts/0.8.22-slice-21-projection-state.md` | Landed in PR #207: Slice 21 projection-runtime-state plan | 0.8.22 Slice 21; integrated in `main` | 2026-08-08 |
 | `dev/plans/prompts/0.8.22-slice-22-projection-status.md` | Landed in PR #207: Slice 22 projection-status API plan | 0.8.22 Slice 22; integrated in `main` | 2026-08-08 |
 | `dev/plans/prompts/0.8.22-slice-23-text-limit-prefix-stability.md` | Completed Slice 23 direct FTS result-prefix repair plan | 0.8.22 Slice 23; integrated in `main` | 2026-08-08 |
+| `dev/plans/prompts/0.8.25-slice-0-handoff.md` | Direct Slice 0 environment and project-infrastructure handoff; explicitly excludes Steward and Orchestrator workflows | 0.8.25 Slice 0 | 2026-08-31 |
 | `dev/plans/earp-foundation.md` | As-built EARP evaluation-platform plan and acceptance criteria | EARP developer harness | 2026-08-08 |
 | `dev/plans/runs/0.8.22-slice-23-design-review-20260808.md` | Approved Slice 23 design review and FIX-1 closure | 0.8.22 Slice 23; integrated in `main` | 2026-08-08 |
 | `dev/plans/runs/0.8.22-slice-23-pickup-review-20260808.md` | Approved Slice 23 pickup review | 0.8.22 Slice 23; integrated in `main` | 2026-08-08 |

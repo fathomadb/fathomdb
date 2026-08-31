@@ -11,6 +11,14 @@
     "ref": "origin/release/0.8.23",
     "main_integration": "COMPLETE"
   },
+  "published": {
+    "tag": "v0.8.23",
+    "tag_commit": "e9cf8763384cabe244da9d47867076a05af2e224",
+    "published_on": "2026-08-21",
+    "npm_dist_tag": "latest",
+    "native_artifact_scope": "Linux x86_64/glibc and AArch64/glibc",
+    "evidence": "STATUS-0.8.23 records the tag, crates.io and PyPI publication, npm next/latest resolution, and the required registry-installed npm smoke on windchill3."
+  },
   "ladder": [
     {
       "slice": 0,

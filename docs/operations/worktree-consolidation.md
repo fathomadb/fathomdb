@@ -404,5 +404,5 @@ old manifest, approval, dry-run receipt, or freeze attestation for a later
 iteration.
 
 For the complete formal protocol and implementation details, see the internal
-[consolidation protocol](https://github.com/coreyt/fathomdb/blob/main/dev/design/worktree-branch-consolidation.md)
-and [implementation design](https://github.com/coreyt/fathomdb/blob/main/dev/design/worktree-branch-consolidator.md).
+[consolidation protocol](https://github.com/fathomadb/fathomdb/blob/main/dev/design/worktree-branch-consolidation.md)
+and [implementation design](https://github.com/fathomadb/fathomdb/blob/main/dev/design/worktree-branch-consolidator.md).

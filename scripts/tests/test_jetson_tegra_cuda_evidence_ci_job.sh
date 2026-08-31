@@ -60,7 +60,8 @@ assert_contains 'runs-on: [self-hosted, Linux, ARM64, jetson, aarch64]' "job rou
 assert_config_contains 'labels: [gpu, cuda-12, jetson, aarch64]' "actionlint knows the registered custom Jetson labels"
 assert_contains 'timeout-minutes: 90' "evidence job has a bounded timeout"
 assert_contains 'persist-credentials: false' "checkout leaves no GitHub credential in git config"
-assert_contains "if: github.ref == 'refs/heads/release/0.8.23'" "self-hosted jobs are restricted to the release branch"
+assert_contains "if: github.ref == 'refs/heads/release/0.8.24'" "self-hosted jobs are restricted to the authorized release branch"
+assert_absent "refs/heads/release/0.8.23" "stale 0.8.23 branch predicates are absent"
 assert_contains "ref: \${{ github.sha }}" "checkout uses GitHub's immutable dispatch SHA"
 assert_absent "ref: \${{ needs.validate-candidate.outputs.candidate_sha }}" "dispatch input cannot select executed checkout bytes"
 assert_contains 'fetch-depth: 1' "checkout needs no mutable branch history"
@@ -69,6 +70,32 @@ assert_contains 'git rev-parse HEAD' "checked-out source identity is retained"
 assert_contains 'checkout must be clean after checkout' "dirty checkout fails before any evidence build"
 assert_contains 'if [ -n "$checkout_status" ]; then' "checkout status is enforced before evidence"
 assert_contains 'printf '\''clean\n'\'' > "$EVIDENCE_DIR/checkout-status.txt"' "clean checkout status is retained as evidence"
+assert_contains 'Fail closed unless candidate has the authorized release version' "Jetson route checks the authorized project version before build"
+assert_contains '--expected-version 0.8.24' "Jetson route is hard-bound to the authorized base version"
+if awk '
+  /name: Fail closed unless candidate has the authorized release version/ { in_step = 1; seen = 1; next }
+  in_step && /^[[:space:]]+- name:/ { in_step = 0 }
+  in_step && /^[[:space:]]+if:/ { conditional = 1 }
+  END { exit(!seen || conditional) }
+' "$WORKFLOW"; then
+  pass "authorized-version check applies to every Jetson evidence run"
+else
+  fail "authorized-version check must not be conditional on publication"
+fi
+if awk '
+  /name: Fail closed unless candidate has the authorized release version/ { in_step = 1; seen = 1; next }
+  in_step && /^[[:space:]]+- name:/ { in_step = 0 }
+  in_step && /^[[:space:]]+run: \|[[:space:]]*$/ { literal_run = 1 }
+  in_step && /set -euo pipefail/ { strict_shell = 1 }
+  in_step && /^[[:space:]]+bash scripts\/release\/require-tegra-pages-release-version\.sh \\[[:space:]]*$/ { helper_command = 1 }
+  in_step && /^[[:space:]]+--manifest src\/python\/pyproject\.toml \\[[:space:]]*$/ { manifest_argument = 1 }
+  in_step && /^[[:space:]]+--expected-version 0\.8\.24[[:space:]]*$/ { version_argument = 1 }
+  END { exit(!seen || !literal_run || !strict_shell || !helper_command || !manifest_argument || !version_argument) }
+' "$WORKFLOW"; then
+  pass "authorized-version command uses a strict literal block with distinct arguments"
+else
+  fail "authorized-version command must use a strict literal block with distinct arguments"
+fi
 assert_contains 'uname -s' "host preflight checks Linux explicitly"
 assert_contains 'uname -m' "host preflight checks AArch64 explicitly"
 assert_contains 'nvidia,tegra' "host preflight requires the Tegra-family signal"
@@ -133,6 +160,19 @@ if [ "${JETSON_TEGRA_CI_FIXTURE:-0}" != "1" ]; then
     pass "mutation proves the clean-checkout guard is load-bearing"
   else
     fail "clean-checkout mutation did not fail its assertion: $mutation_out"
+  fi
+
+  sed '0,/refs\/heads\/release\/0\.8\.24/s//refs\/heads\/release\/0.8.23/' "$WORKFLOW" >"$MUTATED"
+  set +e
+  mutation_out="$(JETSON_TEGRA_CI_FIXTURE=1 JETSON_TEGRA_CI_YML="$MUTATED" bash "$0" 2>&1)"
+  mutation_rc=$?
+  set -e
+  if [ "$mutation_rc" -ne 0 ] \
+    && grep -Fq 'self-hosted jobs are restricted to the authorized release branch' <<<"$mutation_out" \
+    && grep -Fq 'stale 0.8.23 branch predicates are absent' <<<"$mutation_out"; then
+    pass "mutation proves both Jetson jobs retain the 0.8.24 branch contract"
+  else
+    fail "release-branch mutation did not fail both job assertions: $mutation_out"
   fi
 fi
 

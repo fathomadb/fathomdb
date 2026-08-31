@@ -1,165 +1,297 @@
 ---
-title: FathomDB 0.8.24 — public CUDA artifacts for Tegra and Windows
+title: FathomDB 0.8.24 — release prework and portable CUDA distribution
 status: PROPOSED
 target_release: 0.8.24
 ---
 
-# FathomDB 0.8.24 — Draft Plan · public CUDA artifacts for Tegra and Windows
+# FathomDB 0.8.24 — plan of record
 
-> **Status: scope commissioned; design not yet ratified.** This is a planning
-> record only. It does not authorize a tag, registry upload, runner change, or
-> a local Windows CUDA build. A live release board and state file are created
-> only when Slice 0 accepts this plan.
+> **Planning posture.** This plan first performs bounded discovery and an
+> owner-led decision review. Slices 1–5 write proposals only; they do not
+> change product code, documentation contracts, dependencies, runners, registry
+> settings, or release workflows. Slice 7 is the only prework implementation
+> slice, and contains only work the owner accepts in Slice 6.
 
-**Theme.** Make CUDA support distributable where it is presently either a
-local-only Jetson wheel or absent from the Windows release artifacts. The
-library remains CPU-safe by default; CUDA stays an opt-in runtime capability.
+## Purpose
 
-**Footprint.** Tegra builds and its installed-package smoke run on the Jetson
-runner. Windows CUDA is built and proved only on an approved remote Windows
-CUDA executor; no local Windows compiler, toolkit, VM, or GPU is a prerequisite
-for this release.
+0.8.24 makes Tegra CUDA distribution practical without weakening the CPU
+release contract:
 
----
+- publish Tegra CUDA as exact `fathomdb==0.8.24+tegra` from a first-party PEP
+  503 index while generic CPU `fathomdb==0.8.24` remains on PyPI;
+- preserve current CPU artifacts and make release publishing idempotent; and
+- prove each new target by installing the published package on that target.
 
-## 1. Goal and scope
+**HITL scope ruling — 2026-08-30 (`seq-258`).** All Windows support is
+postponed to **0.8.26**: Windows x64 CUDA distribution, its executor/VM/runner
+work, Windows GPU smokes, and the Windows Python-SDK WAL review. The retained
+Slice 40 and Slice 50 plans are input to 0.8.26, not blocked 0.8.24 work.
 
-- Publish a clearly identified, installable Tegra CUDA Python artifact from the
-  Jetson runner, with its JetPack/glibc 2.35 contract and a real
-  install/open/write/search/close smoke.
-- Add a supported Windows x64 CUDA artifact route, including the public Python
-  and npm binding surfaces if the Slice 0 packaging decision keeps both SDKs in
-  scope.
-- Review Windows WAL behavior experienced through the Python SDK, using the
-  linked Memex Windows job as the external finding source and distinguishing a
-  FathomDB defect from a client/workload observation before proposing a remedy.
-- Make artifact selection explicit: a generic Linux ARM64 or Windows CPU wheel
-  must never be silently mistaken for a CUDA-capable binary.
-- Keep the existing CPU artifacts and their compatibility floors intact.
+## Slice 0 setup record
 
-**Out of scope:** local Windows CUDA compilation; Windows ARM64; macOS CUDA;
-Tegra SBSA support; CUDA performance claims; a CUDA default flip; and changing
-the existing 0.8.23 registry artifacts.
+- **Release branch:** `release/0.8.24`
+- **Release worktree:** `/tmp/fathomdb-release-0.8.24`
+- **Baseline:** `origin/main` at `ee9bb753e6847daa0e72902eed972a5498f4f556`
+- **Preflight:** passed on 2026-08-23; the worktree was cut from current
+  `origin/main`, not the shared local `main` checkout.
+- **Shared checkout:** deliberately untouched. At setup it was three commits
+  behind `origin/main` and had owner files untracked.
+- **New CI work:** it is already merged on `main` and was assessed by Slice 10.
+  No remaining integration change was found; the release branch does not
+  silently substitute for `main` as its delivery branch.
+- **Slice 30 identity correction:** D-80.6-3 already owns the same-name
+  `+tegra` alternate-index topology. Slice 30 retired its stale
+  distinct-distribution premise; GitHub Pages is the authorized interim PEP
+  503 route while durable hosting/distribution remains deferred for review.
 
-## 2. Provisional requirements and acceptance signals
+Slice 0 is complete. The overall plan remains proposed because no live
+release-state JSON or generated status board has been deliberately created.
+The completed Slice 6 decisions and Slice 10 assessment do not implicitly
+create or activate that single-writer release state.
 
-These become frozen requirements only at Slice 0.
+The detailed, read-only execution sequence is in
+[Slice 0 — environment and project-infrastructure baseline](0.8.24/prework/slice-0-environment-and-infrastructure.md).
 
-| ID | Requirement | Falsifiable acceptance signal |
+**Slice 0 completed 2026-08-23.** Its evidence and owner decision brief are in
+`dev/plans/0.8.24/prework/`; remote GitHub metadata is deliberately recorded
+as unknown while the authenticated API is rate-limited.
+
+**Slice 1 completed 2026-08-23.** Its [design review](0.8.24/prework/slice-1-design-review.md)
+and [library sweep](0.8.24/prework/slice-1-library-sweep.md) approve the
+feature allocations, add draft N24/R24/AC24 items, and identify one contained
+root-tooling remediation for later owner acceptance.
+
+**Slice 5 completed 2026-08-23.** Its [verification-adequacy
+review](0.8.24/prework/slice-5-verification-adequacy.md) separates the
+existing local contract controls from the still-required target, registry, and
+external-client evidence, and assigns every resulting proof gap to one feature
+or contingent prework slice.
+
+**Slice 10 completed 2026-08-24.** Its [status
+record](0.8.24/features/slice-10/status.md) closes the current-main assessment
+with no workflow or script change. The accepted [interface
+design](0.8.24/features/slice-10/design.md) hands target-specific route work to
+Slices 30/40 and final evidence assembly to Slice 70 without introducing a
+future-design dependency or hosted ceremony run.
+
+## Scope and non-goals
+
+### In scope
+
+- Same-distribution Tegra CUDA local-version metadata, first-party PEP 503
+  publication route, and Jetson installed-package smoke.
+- Existing CPU artifact preservation and publisher idempotency.
+- The CI workflow already merged on `main` and assessed by Slice 10.
+- Engine-level performance adjustments justified by benchmark-branch results.
+
+### Not in scope
+
+- Uploading `fathomdb==0.8.24+tegra` to PyPI.
+- All Windows support (including CUDA distribution, VM/runner work, smokes,
+  and Python-SDK WAL review), which is deferred to 0.8.26; Windows ARM64,
+  macOS CUDA, Tegra SBSA, or changing 0.8.23 artifacts.
+- Treating a benchmark, a Memex finding, or a CI workflow as a product decision
+  before it has been inspected and accepted through Slice 6.
+
+## Decisions Slice 0 must prepare for HITL
+
+1. **Tegra package transport.** D-80.6-3 already selects the distribution and
+   installer shape: generic CPU `fathomdb==0.8.24` stays on PyPI; Tegra uses
+   exact `fathomdb==0.8.24+tegra` on a first-party PEP 503 index, detection-
+   gated on classic Tegra. Slice 30 uses the authorized interim GitHub Pages
+   endpoint and must re-review durable hosting before a later Tegra release.
+2. **Main CI relationship.** Establish whether the new CI workflow on `main`
+   already covers the relevant contract, needs a narrow extension, or should
+   remain independent. No release branch change may overwrite newer main CI
+   work.
+3. **Benchmark evidence source.** Identify the benchmark branch, committed
+   result files, baseline, decision rule, and owner-approved performance target
+   before Slice 20 alters the engine.
+
+## Prework slices — discovery before implementation
+
+| Slice | Title | Deliverable | Permitted effect |
+| ---: | --- | --- | --- |
+| **0** | Environment and project-infrastructure baseline | Setup record; runner/registry/CI/benchmark inventory; decision brief for the five items above. | Create isolated branch/worktree and this draft only. |
+| **1** | Dependabot and library sweep | `slice-1-library-sweep.md`: every upgrade candidate, source, current/available version, security/compatibility signal, and pin/source rationale. | Write findings only. No dependency, lockfile, or Dependabot change. |
+| **2** | Repository cruft review | `slice-2-cruft-review.md`: program docs, `dev/`, developer notes/intermediate docs, public docs, and code/test artifacts categorized keep / deprecate-in-place / archive / delete. | Write proposal only. No deletion, archival, or doc rewrite. |
+| **3** | Product-document and architecture draft deltas | `slice-3-product-doc-drafts.md`: draft CRUD changes for User Needs, Requirements, and Acceptance Criteria; draft architecture CRUD changes; a slice allocation for every draft. | Drafts only. No contract, ADR, requirement, AC, or architecture edit. |
+| **4** | Architecture and code-alignment review | `slice-4-architecture-alignment.md`: implications from Slices 0–3 plus a high-level code-versus-architecture alignment review and proposed code/architecture changes. | Write proposal only. No implementation. |
+| **5** | Verification-adequacy review | `slice-5-verification-adequacy.md`: requirement → acceptance criterion → test traceability; product-goal/critical-path coverage; gaps and proposed proof. | Write proposal only. No test or workflow change. |
+| **6** | Consolidation, independent plan review, and HITL | Ranked proposal register, an owner decision record, Slice 7 implementation plan, independent review output, up to two FIX-n updates, and final owner disposition. | Decisions and plan updates only. |
+| **7** | Accepted prework implementation | The Slice 6-approved plan executed with normal tests/review. | Only owner-accepted prework items. |
+
+Draft execution plans now exist for
+[Slice 3](0.8.24/prework/slice-3-product-document-drafts-plan.md),
+[Slice 4](0.8.24/prework/slice-4-architecture-alignment-plan.md),
+[Slice 5](0.8.24/prework/slice-5-verification-adequacy-plan.md),
+[Slice 6](0.8.24/prework/slice-6-hitl-consolidation-plan.md), and
+[Slice 7](0.8.24/prework/slice-7-accepted-prework-implementation-plan.md).
+They define execution and evidence boundaries but do not mark those slices
+started or authorize implementation.
+
+### Slices 1–5 method and durable locations
+
+Slice 0 creates `dev/plans/0.8.24/prework/` and the five named records above.
+Each proposal must cite its concrete source files, distinguish evidence from
+inference, name its suggested destination slice, and explain why no immediate
+action was taken. For Slice 1, every pin is classified as intentional
+compatibility/dependency/security/toolchain pin, unknown, or stale; unknown is
+never silently unpinned. For Slice 2, “archive” names the destination and
+retention rationale; “delete” names the replacement or why none is needed.
+
+Slice 3 treats User Needs, Requirements, Acceptance Criteria, and architecture
+as draft changes under review—not as generated text to land. It explicitly
+allocates each draft to Slice 7 or a numbered feature slice below, or marks it
+postponed.
+
+Slice 5 must answer all three questions separately:
+
+1. Does every in-scope requirement have falsifiable acceptance criteria?
+2. Does each acceptance criterion have an appropriate test or other named
+   verification mechanism?
+3. Are the in-scope product goals and critical paths—especially CPU install,
+   Tegra install, and publication idempotency—known and adequately exercised?
+
+### Slice 6 HITL protocol
+
+Slice 6 consolidates every proposal from Slices 0–5 into one compact register:
+
+| Field | Meaning |
+| --- | --- |
+| Proposal | Exact requested change and source record |
+| Understanding | Clear / needs evidence / unclear |
+| Risk | Low / medium / high with concrete failure mode |
+| Effort | S / M / L with dependency notes |
+| Recommendation | Include / postpone / reject |
+| HITL decision | Accepted / postponed / rejected / needs clarification |
+| Destination | Slice 7 or a feature-slice number |
+
+The owner receives the register interactively and decides each item. Only then
+does Slice 6 write the detailed Slice 7 implementation plan. A separate
+read-only subagent reviews that plan for scope, missing tests, worktree/main
+boundary errors, and unmet decisions. The author may perform at most two
+documented FIX-n cycles, then presents the revised plan to the owner and
+records the final decision. No subagent starts until this Slice 6 review point.
+
+## Merged-main CI integration assignment
+
+`5e2a05e2` (`ci: streamline long-running job setup`) is already merged on
+`origin/main`. It adds cache-aware setup to the long-running CI jobs, separates
+heavy-only dependency bootstrap into `scripts/bootstrap-heavy.sh`, and adds the
+corresponding local CI-contract tests. It is not release-branch work and does
+not create a new prework gate.
+
+**Slice 10 owns its integration.** After Slice 6 authorizes feature planning,
+its draft must begin from the then-current `origin/main`, inspect this landing
+alongside the prior proportional-routing workflow changes, and determine the
+smallest release-interface action, if any. It must preserve the fast/heavy job
+ownership split and the local contract tests; it must not recreate, backport,
+or overwrite the merged main CI work from `release/0.8.24`. Its ready plan
+must state the narrow local structural checks used for any CI edit (including
+the relevant CI-contract tests and `actionlint`) and must not manually start a
+full hosted CI run merely to integrate this already-merged work.
+
+## Proposed feature slices
+
+Feature slices use multiples of ten. Their contents follow the completed Slice
+6 decisions plus each slice's own draft-to-ready review; this ladder remains a
+proposed release-level allocation rather than an implicit release-state record.
+
+### Prework-to-feature allocation and planning protocol
+
+Slice 7 implements **only** owner-accepted repository/version-preparation work
+whose primary destination is Slice 7. It does not plan, make ready, implement,
+or provide acceptance evidence for Slices 10–70. Each feature slice opens its
+own draft plan after the applicable Slice 6 decisions, incorporates its rows
+from the register below, completes its own design/ready review, and then
+implements only that ready plan. A new finding from Slices 3–5 must be added
+both to this register and to the appropriate feature-slice draft; it must not
+be silently folded into Slice 7.
+
+| Source finding | Primary destination and mandatory initial-plan content |
+| --- | --- |
+| Slice 0 main-CI relationship and new-main workflow inventory; merged-main `5e2a05e2` cache/heavy-bootstrap CI landing | **10:** assess the exact current main CI/release interface, preserve proportional routing plus the fast/heavy ownership split, and make no release-branch recreation, backport, or overwrite of main CI. |
+| Slice 0 retained performance branch/evidence and owner-selected streamed boundary-tie result | **20:** inspect the named evidence and unmerged engine delta, declare the integration decision rule and targeted correctness proof, and do not require a confirming benchmark run. |
+| Slice 0 Tegra package-identity decision; Slice 1 N24-1/R24-8 | **30:** apply D-80.6-3's same-`fathomdb`, exact-`+tegra` first-party-index topology through the interim GitHub Pages route; preserve explicit CPU-versus-CUDA selection and Jetson proof. |
+| Slice 0 Windows SDK/executor decision; Slice 1 N24-2/R24-9 | **40:** **POSTPONED TO 0.8.26 (`seq-258`).** Preserve the reviewed draft as an input; do not select a SDK matrix, executor, artifact, or Windows proof route in 0.8.24. |
+| Slice 1 R24-12 and the unresolved external Memex evidence boundary | **50:** **POSTPONED TO 0.8.26 (`seq-258`).** Preserve the read-only evidence plan; do not inspect, reproduce, or disposition Windows WAL behavior in 0.8.24. |
+| Slice 1 N24-3/N24-4/R24-10 and Slice 0 publication topology | **60:** plan Tegra target smokes, CPU artifact preservation, and immutable-existing-artifact publisher retry/idempotency evidence. |
+| Slice 0 release-control/branch-boundary evidence and the completed feature-slice outputs | **70:** plan evidence assembly, release-branch/main integration, and owner-ready publication preparation; publication itself remains separately authorized. |
+| Slice 3 conditional target-artifact CRUD (`REQ-TARGET-TEGRA` / `AC-TARGET-TEGRA`) | **30:** carry the proposed need/requirement/criterion into Slice 30's own draft-to-ready plan; do not edit canonical contracts until owner approval. |
+| Slice 3 conditional Windows CUDA CRUD (`REQ-TARGET-WINDOWS-CUDA` / `AC-TARGET-WINDOWS-CUDA`) | **40:** **POSTPONED TO 0.8.26 (`seq-258`).** Do not edit canonical contracts in 0.8.24. |
+| Slice 3 release retry and installed-target CRUD (updates to REQ-050/AC-054 and REQ-052/AC-056) | **60:** make the canonical/documentation change only if the owner accepts it, then prove retry-safe completion and target-installed smoke. |
+| Slice 4 code alignment: current CI is proportional and already on main | **10:** retain a no-change presumption; add a route only when the feature ready plan proves a concrete selector/transfer/smoke gap. |
+| Slice 4 code alignment: retained 811-line SCALE-02 branch delta | **20:** review the complete delta and write a bounded implementation design with the retained fidelity constraints; no opportunistic commit copy or benchmark rerun. |
+| Slice 4 code alignment: Python retains `fathomdb-tegra` only as a local sibling-package tripwire | **30:** do not publish that name; extend the existing `+tegra` displaced-build guidance for the interim Pages endpoint only after its install contract is implemented. |
+| Slice 4 code alignment: Windows loader/package and hosted jobs are CPU-only | **40:** **POSTPONED TO 0.8.26 (`seq-258`).** Retain the finding without 0.8.24 implementation. |
+| Slice 4 code alignment: existing WAL controls do not attribute external client behavior | **50:** **POSTPONED TO 0.8.26 (`seq-258`).** Retain the attribution finding without 0.8.24 evidence work. |
+| Slice 4 code alignment: retry-safe mechanics conflict with atomic-publish wording | **60:** implement the owner-approved release semantics/documentation change and targeted publisher/installed-smoke proof. |
+
+The register does not make any feature ready or authorize its work. It is the
+minimum input each feature's separate draft plan must carry forward; later
+Slices 3–5 may refine, reject, or add rows through the same mechanism.
+Slice 7 is not a ladder gate for feature planning or implementation. A feature
+may name a specific owner-accepted Slice 7 maintenance change as a narrow
+dependency only when its own ready plan proves that dependency; absent that
+explicit proof, Slices 7 and 10–70 proceed independently.
+
+| Slice | Title | Primary outcome | Depends on |
+| ---: | --- | --- | --- |
+| **10** | Main CI workflow assessment and integration | **Complete:** current `main` supplies the existing proportional CI/release interface; no workflow or script change was required. | 0, 6 |
+| **20** | Benchmark-directed engine performance | **Complete:** owner-selected streamed BM25 boundary behavior was reconstructed and independently verified without rerunning the settled benchmark. | 0, 5, 6 |
+| **30** | Public Tegra CUDA distribution | **Complete:** exact `fathomdb==0.8.24+tegra` is served from the authorized interim GitHub Pages PEP 503 index with Jetson proof; never upload the host-bound wheel to PyPI. | 0, 6, 10 |
+| **40** | Windows x64 CUDA distribution | **POSTPONED TO 0.8.26 (`seq-258`).** No executor, VM, runner, build, smoke, workflow, or publication work remains in 0.8.24. | — |
+| **50** | Windows Python SDK WAL behavior review | **POSTPONED TO 0.8.26 (`seq-258`).** No external-evidence review or native-Windows reproduction remains in 0.8.24. | — |
+| **60** | Installed-package smokes and CPU/publisher preservation | **Complete:** exact public Pages Tegra install passed on Jetson with retained digest, lifecycle, and CUDA witness; CPU publisher preservation remains covered by existing fixtures. | 30 |
+| **70** | Release integration and owner-ready evidence | **Complete locally:** assembled non-Windows evidence, repaired public-release/candidate-version truth guards, and prepared the owner handoff. No owner-only release action was performed. | 10, 20, 30, 60 |
+
+### Feature-slice draft plans
+
+Each feature has a separate plan. Slices 10, 20, and 30 are complete. Slice 30 published its verified Tegra wheel
+to the authorized interim Pages route; durable hosting/distribution remains a
+later review. Slices 40 and 50 are postponed to 0.8.26. Slices 60 and 70 are
+complete locally; Slice 70's owner handoff retains every irreversible release
+action. A plan's existence does not authorize an external release action.
+
+- [Slice 10 — main CI assessment and integration](0.8.24/features/slice-10/plan.md)
+- [Slice 20 — benchmark-directed engine performance](0.8.24/features/slice-20/plan.md)
+- [Slice 30 — public Tegra CUDA distribution](0.8.24/features/slice-30/plan.md)
+- [Slice 40 — Windows x64 CUDA distribution](0.8.24/features/slice-40/plan.md)
+- [Slice 50 — Windows Python SDK WAL review](0.8.24/features/slice-50/plan.md)
+- [Slice 60 — installed smokes and publisher preservation](0.8.24/features/slice-60/plan.md)
+- [Slice 70 — release integration and owner-ready evidence](0.8.24/features/slice-70/plan.md)
+
+### Feature acceptance signals
+
+| ID | Requirement | Evidence required before Slice 70 |
 | --- | --- | --- |
-| R24-1 | A public Tegra distribution identity is valid for its registry and cannot be confused with the generic ARM64 CPU wheel. | A packaging test rejects the previous `+tegra` public-upload shape; a registry-query fixture proves the selected name/version and installation command. |
-| R24-2 | The Jetson runner builds the selected Tegra artifact with the declared CUDA, `sm_87`, native Linux, and glibc 2.35 contract. | Target-host build witness plus `check-glibc-floor.sh --floor 2.35` against the published bytes. |
-| R24-3 | The Tegra artifact is published through a configured trusted publisher and works when installed from its public registry. | Registry version/file query and a clean Jetson install/open/write/search/close/process-exit smoke. |
-| R24-4 | Windows x64 CUDA has a named artifact and proof route that does not depend on local Windows compilation. | Remote executor provenance plus a CUDA-enabled artifact build and installed-artifact smoke on Windows. |
-| R24-5 | Python and npm CUDA support have one explicit per-platform support matrix; unsupported combinations fail clearly. | Cross-SDK matrix test and documentation truth check covering Windows x64 and Tegra versus generic ARM64/SBSA. |
-| R24-6 | The release workflow publishes only the approved new artifacts, idempotently, and preserves existing CPU publication behavior. | Focused workflow-contract tests, actionlint, one release dry run, and registry-installed smokes before a tag is cut. |
-| R24-7 | Windows WAL behavior visible to Python-SDK clients is reviewed against completed first-party Memex findings before any FathomDB behavior change is proposed. | A durable review records the completed [Memex Windows job 97065598178](https://github.com/coreyt/memex/actions/runs/32587291032/job/97065598178), its retained evidence, the comparable FathomDB Python path, and a disposition of reproduce / not reproduced / insufficient evidence. |
+| R24-1 | Tegra’s public identity is registry-valid and cannot be confused with generic ARM64 CPU. | Metadata/selection test, registry query, and clean Jetson installed-package open/write/search/close/exit smoke. |
+| R24-2 | Windows x64 CUDA has one explicit supported SDK matrix and remote proof route. | **POSTPONED TO 0.8.26 (`seq-258`)**; not a 0.8.24 release condition. |
+| R24-3 | Existing CPU artifacts are preserved. | CPU package-name/version/install checks and ABI-floor contract checks for the affected lanes. |
+| R24-4 | Publishing remains retry-safe. | Contract test or recorded dry-run demonstrating skip-if-existing/idempotent publisher behavior without replacing valid existing artifacts. |
+| R24-5 | Engine changes improve the nominated benchmark according to its pre-declared decision rule and do not regress applicable critical paths. | Retained baseline/comparison evidence plus targeted regression tests. |
+| R24-6 | Python-SDK Windows WAL behavior has an evidence-based disposition. | **POSTPONED TO 0.8.26 (`seq-258`)**; not a 0.8.24 release condition. |
+| R24-7 | New CI work is compatible with the release topology. | Main-branch workflow review, actionlint/contract proof as applicable, and documented branch/interface ownership. |
 
-## 3. Slice ladder
+## Branch, worktree, and publication rules
 
-```text
-0 → 5 → 10 → 15 → 20 → 40
-```
+- The shared `main` checkout is not a 0.8.24 editing surface. Every writer uses
+  a fresh worktree off current `origin/main`; shared mutable workflow files are
+  serialized.
+- Any later shared-CI work demonstrated by Slice 30 or 40 belongs on current
+  `main` through that slice's explicitly revised plan. The release branch is
+  integrated only after such work is verified from git; it must not recreate
+  or overwrite it.
+- No `maturin develop` or `pip install -e` runs from a worktree. Targeted Python
+  build operations use the canonical main checkout or an approved target host.
+- No release tag is created or pushed by this plan. A `v*` push is a real,
+  multi-registry publication event and requires a separate owner decision.
 
-| Slice | Title | Work type | Depends on |
-| ---: | --- | --- | --- |
-| **0** | Artifact identity and publication ADR — choose the Tegra public distribution name/installer contract; decide whether Windows CUDA ships Python, npm, or both; create live board/state. | design-adr | — |
-| **5** | Tegra public package contract — refactor the current local-only `+tegra` build into the approved public artifact form and test its metadata/selection boundaries. | implementation | 0 |
-| **10** | Tegra build, trusted publisher, and registry smoke — wire the Jetson runner, publication artifact, and installed-package proof. | implementation | 5 |
-| **15** | Windows CUDA artifact contract — define the remote Windows executor, toolchain, artifact names, CPU fallback, and Py/TS surface matrix. | design-implementation | 0 |
-| **20** | Windows CUDA remote build and installed-artifact smoke — add the approved remote route; no local Windows compilation task is permitted. | implementation | 15 |
-| **25** | Windows Python-SDK WAL behavior review — analyze the completed Memex Windows finding and compare it with FathomDB's public Python SDK; propose a remedy only if the evidence attributes one. | review | 0 |
-| **40** | Verification and release readiness — preserve CPU lanes, run scoped artifact proofs and one dry run, then perform the registry/tag release only with HITL direction. | verification-release | 10, 20, 25 |
+## Immediate next action
 
-**Hard gates.** Slice 0 is HITL-gated because the Tegra package identity and
-Windows SDK surface determine immutable public names. Slice 10 cannot publish
-until the new PyPI trusted-publisher entry exists. Slice 20 cannot claim
-Windows CUDA support without a real remote Windows CUDA executor and an
-installed-package smoke. Slice 40 is the sole release-publication gate.
-
-**Parallel tracks.** Tegra (Slices 5–10), Windows CUDA (Slices 15–20), and the
-read-only Windows WAL review (Slice 25) may run in separate worktrees after
-Slice 0. The implementation tracks serialize changes to
-`.github/workflows/release.yml`, `docs/compatibility/index.md`, release
-contracts, and version/package metadata.
-
-## 4. Packaging decisions to settle at Slice 0
-
-1. **Tegra public identity (blocking).** The current artifact is
-   `0.8.23+tegra`; PyPI does not permit local-version labels on public uploads.
-   The leading candidate is a separately named distribution such as
-   `fathomdb-tegra==0.8.24`, installed explicitly on Jetson. Do not upload a
-   second `fathomdb==0.8.24` `linux_aarch64` wheel beside the generic manylinux
-   ARM64 CPU wheel: pip selection would not establish the requested CUDA
-   capability deterministically.
-2. **Windows CUDA surfaces (blocking).** Decide whether 0.8.24 ships both the
-   Python wheel and npm platform package, or one SDK only. The default planning
-   assumption is both, because the public bindings must not report divergent
-   CUDA support without an explicit ruling.
-3. **Remote Windows executor (blocking Slice 20).** Name the Windows CUDA
-   runner/host, its CUDA toolkit, GPU capability, artifact retention boundary,
-   and trusted execution route. “No local compile required” does not relax the
-   requirement for a real Windows artifact and installed-package evidence.
-
-## 5. Verified override and duplication register
-
-| # | Concept | Sources | Consequence if they drift |
-| ---: | --- | --- | --- |
-| 1 | Tegra version and upload boundary | `scripts/release/build-python-cuda-tegra.sh:165-212`; `docs/compatibility/index.md:48-62` | An unauditable local wheel could be advertised or uploaded as public. |
-| 2 | PyPI artifact aggregation | `.github/workflows/release.yml:1159-1184`; `src/python/pyproject.toml:16-19` | A new wheel could be omitted, collide with the main project, or bypass trusted publishing. |
-| 3 | Native-platform name resolution | `src/ts/src/platform.ts:25-93`; `src/ts/package.json:20-21` | npm could install a CPU or wrong-platform binding without a clear failure. |
-| 4 | Existing Windows CPU build lanes | `.github/workflows/release.yml:404-464`; `.github/workflows/release.yml:466-495` | A Windows CUDA route could accidentally replace or weaken the CPU artifact. |
-
-## 6. Behavior-change register
-
-| # | Change | Who notices | Required changelog/documentation outcome |
-| ---: | --- | --- | --- |
-| 1 | Tegra CUDA becomes a public, explicitly installed artifact. | Jetson Python users. | Exact package/install command, JetPack/glibc support floor, and CPU fallback behavior. |
-| 2 | Windows x64 gains CUDA-capable artifact(s), if Slice 20 closes. | Windows Python and/or Node users. | Supported SDK/platform matrix, prerequisite driver/toolkit contract, and unsupported-route error. |
-| 3 | Public package topology expands. | Release operators and dependency resolvers. | Trusted-publisher and registry identity documentation. |
-| 4 | A Windows Python-SDK WAL finding may require a client-visible behavior or diagnostic change. | Python SDK callers on Windows. | Only if Slice 25 attributes a FathomDB issue: exact observed behavior, remediation, and compatibility impact. |
-
-## 7. Prerequisites
-
-1. 0.8.23 remains closed on `main`; its published registries are immutable and
-   are not re-cut for this work.
-2. The Jetson runner is online, has the already-declared JetPack/CUDA contract,
-   and can access its model/cache prerequisites.
-3. Before Slice 10, the owner configures a trusted publisher for the selected
-   new PyPI project, including its exact workflow filename and environment.
-4. Before Slice 20, the owner supplies or approves a Windows CUDA executor.
-   No local Windows setup is requested.
-5. Before Slice 25 closes, the linked [Memex Windows job 97065598178](https://github.com/coreyt/memex/actions/runs/32587291032/job/97065598178) must have completed and its logs/artifacts must be available for review. An in-progress or inaccessible job is insufficient evidence.
-
-## 8. Definition of done
-
-- TDD for package identity, artifact selection, failure messages, and release
-  workflow wiring; no generated-oracle tests.
-- Existing CPU Python/npm packages remain installable and their declared ABI
-  floors stay enforced.
-- Every new public artifact is installed from its registry in a clean target
-  environment and completes open/write/search/close with a clean process exit.
-- `actionlint`, release-contract checks, compatibility documentation truth, and
-  the normal release dry run pass before tag authorization.
-- The final tag is only pushed after the owner approves the evidence; no
-  speculative `v*` tag push.
-
-## 9. Decisions recorded
-
-- 2026-08-21 — 0.8.24 scope includes public Tegra publication and Windows CUDA.
-  Local Windows CUDA compilation is expressly out of scope. Source: repository
-  owner.
-- 2026-08-21 — 0.8.23 remains Tegra-unpublished; its local `+tegra` wheel is a
-  build-and-prove artifact, not a public PyPI release. Source: current release
-  contract and registry check.
-- 2026-08-22 — Review Windows WAL behavior experienced by Python-SDK clients;
-  the linked Memex Windows job is evidence to analyze, not a conclusion to
-  import. Source: repository owner.
-
-## 10. Immediate next slice
-
-**Slice 0 — Artifact identity and publication ADR.** Resolve the three blocking
-decisions in §4, then create the 0.8.24 release-state file and live board. No
-CUDA artifact implementation or registry configuration is authorized before
-those choices are recorded. Slice 25 remains evidence-only until its linked
-Memex job completes.
+Slices 0–7, 10, 20, 30, 60, and 70 are complete locally. Slices 40 and 50 are
+postponed to 0.8.26 by `seq-258`; they do not block 0.8.24. Pause before the
+owner decides whether to push the release branch, integrate main, tag, or
+publish; no such external release action is authorized by these planning
+records.

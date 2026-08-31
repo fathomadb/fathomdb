@@ -178,6 +178,8 @@ def test_generic_build_on_confirmed_classic_tegra_warns_under_default_filters() 
     assert result.returncode == 0, result.stderr
     assert "FathomDbPlatformWarning" in result.stderr
     assert "Generic FathomDB build detected on confirmed classic Tegra" in result.stderr
+    assert "fathomdb==0.8.24+tegra" in result.stderr
+    assert "https://fathomadb.github.io/fathomdb/tegra/simple/" in result.stderr
 
 
 @pytest.mark.parametrize(

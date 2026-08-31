@@ -14,6 +14,7 @@ trap 'rm -rf "$TMPROOT"' EXIT
 make_fixture() {
   local root="$1"
   mkdir -p "$root/.github/workflows" "$root/dev" "$root/src/ts/npm"
+  cp "$REPO_ROOT/Cargo.toml" "$root/Cargo.toml"
   cp "$REPO_ROOT/dev/platform-capabilities.json" "$root/dev/"
   cp "$REPO_ROOT/.github/workflows/release.yml" "$root/.github/workflows/"
   cp -R "$REPO_ROOT/src/ts/npm/." "$root/src/ts/npm/"
@@ -41,6 +42,19 @@ expect_fail() {
 FIXTURE="$TMPROOT/fixture"
 make_fixture "$FIXTURE"
 expect_pass "$FIXTURE" 'baseline release-ready contract agrees'
+
+make_fixture "$FIXTURE"
+python3 - "$FIXTURE/dev/platform-capabilities.json" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+manifest = json.loads(path.read_text())
+manifest["release"] = "0.8.22"
+path.write_text(json.dumps(manifest, indent=2) + "\n")
+PY
+expect_pass "$FIXTURE" 'candidate package versions follow the workspace version, not published manifest history'
 
 for canonical_cuda_mutation in missing skipped aggregate-bypass candidate-bundle; do
   make_fixture "$FIXTURE"

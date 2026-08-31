@@ -4,7 +4,7 @@ The `fathomdb` npm package is a [napi-rs](https://napi.rs/) binding
 over the native Rust runtime. The published package selects a
 platform-tagged `.node` binary at load time.
 
-> **0.8.21 is published on npm's `next` dist-tag.** It ships Linux
+> **0.8.23 is published on npm's `next` dist-tag.** It ships Linux
 > x86_64/glibc and Linux AArch64/glibc native packages; other hosts must build
 > from source.
 > FathomDB is pre-1.0 and the surface is **beta**.
@@ -18,7 +18,7 @@ platform-tagged `.node` binary at load time.
 ## Requirements
 
 - Node **18** or later (release.yml runs CI on Node 25.9.0).
-- The published `0.8.21` npm package supports Linux
+- The published `0.8.23` npm package supports Linux
   `x86_64-unknown-linux-gnu` and `aarch64-unknown-linux-gnu`. Other hosts
   must build from source.
 - Linux glibc floor: **2.28** (both architectures — see
@@ -34,7 +34,7 @@ npm install fathomdb@next
 ## Install (current path — build from source)
 
 ```bash
-git clone https://github.com/coreyt/fathomdb
+git clone https://github.com/fathomadb/fathomdb
 cd fathomdb/src/ts
 npm install
 npm run build
@@ -90,4 +90,4 @@ Expected output: `ok`. See [Quickstart](../getting-started/quickstart.md).
 - [Reference — TypeScript API](../reference/typescript-api.md)
 - [Reference — config](../reference/config.md)
 - [Compatibility](../compatibility/index.md)
-- [CHANGELOG](https://github.com/coreyt/fathomdb/blob/main/CHANGELOG.md)
+- [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md)

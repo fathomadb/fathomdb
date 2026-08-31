@@ -33,9 +33,9 @@ Directory split:
 
 Do not infer the active release from this directory or the staleness table.
 The one live release is selected by `dev/plans/release-state-*.json`; read its
-`board` and `plan` keys, then use the named `STATUS-<version>.md` board. At
-present, the live records are `plan-0.8.23.md`,
-`release-state-0.8.23.json`, and `runs/STATUS-0.8.23.md`.
+`board` and `plan` keys, then use the named `STATUS-<version>.md` board. Do
+not declare a fixed current release in this index: a draft plan is not a live
+release until a release-state file names it.
 
 ## Archive convention (in place — do NOT relocate)
 
@@ -68,7 +68,8 @@ details may be STALE.** For distilled experiment results, read
 | 0.8.0, 0.8.1, 0.8.2, 0.8.3 | shipped/closed | **ARCHIVED in place — stale** |
 | 0.8.4 | closed (GraphRAG SPLIT; Fork E re-opened) | **ARCHIVED in place** — see `dev/experiments-ledger.md` |
 | 0.8.5 | historical | Retained in place; consult the live release-state JSON for current work. |
-| 0.8.23 | **IN FLIGHT** | LIVE — `plan-0.8.23.md`, `release-state-0.8.23.json`, and `runs/STATUS-0.8.23.md`. |
+| 0.8.23 | shipped/closed | Retained in place; resolve live work through the release-state lookup rule. |
+| 0.8.24 | feature planning and implementation | Prework and Slices 10/20 are complete; Slice 30 is implementing an authorized interim GitHub Pages index route; no live release-state record exists. |
 
 Transient per-run artifacts (raw `*-output.json`, codex `*-review-*` logs, `.log`,
 checkpoints) under `runs/` were pruned by the ledger-prune (`scripts/repo-prune/prompts/prune-docs.md`) and are

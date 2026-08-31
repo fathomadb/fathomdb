@@ -1,10 +1,9 @@
 # Concepts
 
-Mental model for the unpublished 0.8.22 development candidate. The current
-published release is 0.8.21; candidate-only APIs described here are not
-available from a registry until the held release gates complete. Detailed
-treatment lives in internal design docs under
-[`dev/design/`](https://github.com/coreyt/fathomdb/tree/main/dev/design);
+Mental model for the published 0.8.23 release. APIs not yet available from a
+registry are marked separately. Detailed treatment lives in internal design
+docs under
+[`dev/design/`](https://github.com/fathomadb/fathomdb/tree/main/dev/design);
 this page is the consumer-facing overview.
 
 ## Engine lifecycle
@@ -110,7 +109,7 @@ to re-open with a different embedder raises
 Vector identity belongs to the embedder per `ADR-0.6.0-vector-identity-embedder-owned`.
 
 Detailed trait + lifecycle docs: see Rust API docs (`docs.rs/fathomdb-embedder-api` post-publish; pre-GA, see
-[`src/rust/crates/fathomdb-embedder-api/`](https://github.com/coreyt/fathomdb/tree/main/src/rust/crates/fathomdb-embedder-api)).
+[`src/rust/crates/fathomdb-embedder-api/`](https://github.com/fathomadb/fathomdb/tree/main/src/rust/crates/fathomdb-embedder-api)).
 
 ## Recovery surface
 

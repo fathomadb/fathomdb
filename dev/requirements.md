@@ -439,10 +439,12 @@ the ADR is authoritative.
   _Source:_ `dev/release-policy.md` § Version Source Of Truth + § Release
   Gates.
 
-- **REQ-050 — Atomic multi-registry publish.** A release is published
-  only after all artifact targets succeed; partial publishes are
-  forbidden. Targets enumerated by ADR-0.6.0-tier1-ci-platforms +
-  per-binding publish workflow.
+- **REQ-050 — Retry-safe multi-registry completion.** A release is complete
+  only after every required artifact target succeeds and is verified. Exact
+  immutable bytes already present with the expected identity/digest are a
+  no-op; absence permits publish; query uncertainty fails closed. A partial
+  publish is never marked complete. Targets are enumerated by
+  ADR-0.6.0-tier1-ci-platforms + per-binding publish workflow.
   _Source:_ `dev/release-policy.md` § Manual Fallback + § Release
   Workflow Shape; ADR-0.6.0-tier1-ci-platforms.
 
@@ -454,9 +456,10 @@ the ADR is authoritative.
   _Cross-cite:_ ADR-0.6.0-sqlite-vec-acceptance,
   ADR-0.6.0-vector-index-location.
 
-- **REQ-052 — Registry-installed wheel is the release gate.** Release
-  evidence is the published wheel installed from the public registry
-  into a fresh venv and run end-to-end.
+- **REQ-052 — Target-native installed package is the release gate.** Release
+  evidence is each affected target's exact public package installed into a
+  fresh environment from its declared source and run end-to-end. The evidence
+  records identity, version, source, digest, and target provenance.
   _Source:_ memory `feedback_release_verification`;
   `dev/notes/0.6.0-rewrite-proposal.md` Tests §5. _Cross-cite:_
   ADR-0.6.0-tier1-ci-platforms (per-binding smoke spec).

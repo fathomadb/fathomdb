@@ -857,12 +857,12 @@ the only test-plan.md responsibility for this section.)
 **Measurement:** Run version-consistency check against synthetic mismatch; assert non-zero exit + named files. Run against match; assert exit 0.
 **Fixture:** version-consistency fixtures.
 
-## AC-054: Atomic multi-registry publish
+## AC-054: Retry-safe multi-registry completion
 
 **Requirement ref:** REQ-050
 **Test id:** T-054
-**Assertion:** The release-finalize script (named in `release-policy.md`) refuses to mark a release done while any one of the configured registry publishes (PyPI, crates.io, npm, GitHub Release) is in failed state.
-**Measurement:** Inject a publish failure on one registry in a release-dry-run; assert release-finalize refuses to mark complete; assert a recorded failed-publish artifact exists.
+**Assertion:** The release-finalize script (named in `release-policy.md`) refuses to mark a release done while any configured target lacks successful installed proof or is in a failed/unknown state. A matching immutable artifact at the exact identity/digest is a no-op; an uncertain exact-version query fails closed.
+**Measurement:** Inject failed and unknown registry states in release-dry-run fixtures; assert release-finalize refuses to mark complete and retains the state record. Inject a matching immutable artifact; assert it is skipped rather than replaced.
 **Fixture:** dry-run-with-injected-failure (test-plan.md fixture spec — pending; release-finalize script name pending in release-policy.md).
 
 ## AC-055: `sqlite-vec` validated at open with vector rows present
@@ -873,12 +873,12 @@ the only test-plan.md responsibility for this section.)
 **Measurement:** Seed DB with 1 vector row; close; remove `sqlite-vec` shared library from load path; reopen; assert typed exception at open call (not at first vector query).
 **Fixture:** vec-extension-removal fixture.
 
-## AC-056: Registry-installed wheel is the release gate
+## AC-056: Target-native installed package is the release gate
 
 **Requirement ref:** REQ-052
 **Test id:** T-056
-**Assertion:** The release-checklist script requires evidence (a recorded artifact path) of `pip install fathomdb==<version>` from PyPI in a fresh venv followed by an end-to-end open + write + search + close + process-exit script returning success, before marking the release done.
-**Measurement:** Inspect release-checklist script source; assert it contains the install-from-registry step + the end-to-end smoke step + the recorded-artifact check; remove the smoke step in a fixture; assert release-checklist refuses to mark done.
+**Assertion:** The release-checklist script requires evidence of each affected target's exact public package installed into a fresh environment from its declared source, with identity/version/digest/target provenance and an end-to-end open + write + search + close + process-exit success before marking the release done.
+**Measurement:** Inspect smoke/checklist source; assert exact-source install, artifact-digest verification, lifecycle, and recorded provenance. Remove any step in a fixture; assert release-checklist refuses to mark done.
 **Fixture:** checklist-bypass-attempt fixture.
 
 ## Public surface
@@ -1152,8 +1152,8 @@ Added 2026-05-02 as an HITL amendment to the locked corpus per
 **Assertion (tiered by corpus size N; the binding release gate for the 0.x and 1.x lines is the 10k tier):**
 
 - **10,000-row tier — BINDING:** p50 ≤ 20 ms AND p99 ≤ 150 ms over ≥ P-PERF-SAMPLES samples.
-- **100,000 / 1,000,000 tiers — TRACKED, not gated:** same 20/150 target, deferred to post-1.0 — the FTS5 MATCH scan + `bm25()` + matched-row materialization is O(N) (the SELECT is unbounded). HITL accepts the ~1 ms-over at the tracked 100k tier.
-**Measurement:** LOCAL once-per-release / `perf-canonical.yml` dispatch (`--release`, isolated). In code the budget is asserted only at `n ≤ AC012_GATE_N` (10,000); larger N is reported (`AC012_TIER_INFO`), mirroring `ac_013`'s `AC013_GATE_N` branch. The latency is O(N) corpus-scaling, **not** the porter tokenizer — Slice 6 engine A/B showed porter ≈ unicode61 within noise, so the Slice-5 tokenizer upgrade is kept. Full data: `dev/plans/runs/0.8.0-slice-6-tokenizer-experiment-20260607T003001Z.md`.
+- **100,000 / 1,000,000 tiers — TRACKED, not gated:** same 20/150 target, deferred to post-1.0. The T-012 fixture invokes hybrid `Engine::search`, whose FTS arm retains full matched-row materialization and O(N) corpus scaling. The separate direct-text API now uses bounded rank-boundary collection when eligible; that implementation choice does not revise this threshold or retroactively change the T-012 evidence. HITL accepts the ~1 ms-over at the tracked 100k tier.
+**Measurement:** LOCAL once-per-release / `perf-canonical.yml` dispatch (`--release`, isolated). In code the budget is asserted only at `n ≤ AC012_GATE_N` (10,000); larger N is reported (`AC012_TIER_INFO`), mirroring `ac_013`'s `AC013_GATE_N` branch. The measured hybrid path remains O(N) corpus-scaling, **not** the porter tokenizer — Slice 6 engine A/B showed porter ≈ unicode61 within noise, so the Slice-5 tokenizer upgrade is kept. The 0.8.24 direct-text rank-boundary selection adds no new canonical performance threshold and requires no confirming benchmark. Full data: `dev/plans/runs/0.8.0-slice-6-tokenizer-experiment-20260607T003001Z.md`.
 **Fixture:** synthetic Zipfian corpus (`seed_ac012_corpus`) in `perf_gates`.
 
 ---

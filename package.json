@@ -7,10 +7,9 @@
     "lint:md": "markdownlint-cli2",
     "format:md": "bash scripts/md-safe-fix.sh"
   },
-  "comment-scripts": "0.8.9.1: prettier removed from the markdown path (lint:md-format / format:md). prettier's non-configurable *->_ emphasis reflow corrupts fragile markdown (see dev/tools/md-fix-corruption-ledger.md); markdownlint-cli2 --fix via the AST-guarded scripts/md-safe-fix.sh is the safe fixer. prettier kept as a devDependency only for any non-markdown use; remove if unused.",
+  "comment-scripts": "0.8.9.1: Prettier is removed from the root toolchain and must not return to the Markdown path (lint:md-format / format:md): its non-configurable *->_ emphasis reflow corrupts fragile markdown (see dev/tools/md-fix-corruption-ledger.md). markdownlint-cli2 --fix via the AST-guarded scripts/md-safe-fix.sh is the safe fixer.",
   "devDependencies": {
-    "markdownlint-cli2": "^0.23.0",
-    "prettier": "^3.9.4"
+    "markdownlint-cli2": "^0.23.2"
   },
-  "comment-security": "0.8.21 PIN-ROT: the former markdown-it, js-yaml, and linkify-it root overrides were removed after package-lock.json showed markdownlint-cli2@0.23.0 already resolves patched markdown-it@14.2.0 and js-yaml@5.2.0, while markdown-it@14.2.0 resolves patched linkify-it@5.0.2. The offline pin-rot gate prevents a future override from becoming an untracked security exception; advisory provenance is scripts/pinned-override-rot.json."
+  "comment-security": "0.8.24 Slice 7: markdownlint-cli2@0.23.2 resolves the audited js-yaml@5.2.2 path, while its markdown-it@14.3.0 resolution carries linkify-it@5.0.2. The offline pin-rot gate prevents a future override from becoming an untracked security exception; advisory provenance is scripts/pinned-override-rot.json."
 }

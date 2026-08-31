@@ -1,11 +1,10 @@
 # TypeScript API
 
 Package: `fathomdb`. Authoritative spec:
-[`dev/interfaces/typescript.md`](https://github.com/coreyt/fathomdb/blob/main/dev/interfaces/typescript.md).
+[`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/typescript.md).
 
-> **Release state.** 0.8.21 is the current published release. This reference
-> also documents the local 0.8.22 candidate; its candidate-only APIs are not
-> available from a registry until the held release gates complete.
+> **Release state.** 0.8.23 is the current published release. APIs not yet
+> available from a registry are marked separately.
 
 **TS SDK parity caveat.** The TS surface covers the same governed command set
 and the same error taxonomy as Python, but Python remains the more heavily
@@ -13,7 +12,7 @@ exercised binding. Prefer Python for production pilots. See
 [SDK parity](../positions/sdk-parity.md).
 
 All runtime operations are Promise-returning. The TS↔Python parity
-matrix is in [`dev/notes/12-TX-parity-matrix.md`](https://github.com/coreyt/fathomdb/blob/main/dev/notes/12-TX-parity-matrix.md).
+matrix is in [`dev/notes/12-TX-parity-matrix.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/notes/12-TX-parity-matrix.md).
 
 ## Top-level
 
@@ -706,5 +705,5 @@ and FathomDB provides no GPU reservation or hard memory cap.
 - [Config knobs](config.md)
 - [Errors](errors.md)
 - [Erasure](../operations/erasure.md)
-- Locked spec: [`dev/interfaces/typescript.md`](https://github.com/coreyt/fathomdb/blob/main/dev/interfaces/typescript.md)
-- TS↔Python parity matrix: [`dev/notes/12-TX-parity-matrix.md`](https://github.com/coreyt/fathomdb/blob/main/dev/notes/12-TX-parity-matrix.md)
+- Locked spec: [`dev/interfaces/typescript.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/typescript.md)
+- TS↔Python parity matrix: [`dev/notes/12-TX-parity-matrix.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/notes/12-TX-parity-matrix.md)

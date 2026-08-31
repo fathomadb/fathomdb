@@ -4,7 +4,7 @@ The `fathomdb` Python SDK is a [PyO3](https://pyo3.rs/) binding over the
 native Rust runtime. Published wheels are platform-tagged (no source build
 required on supported platforms).
 
-> **0.8.21 is published to PyPI** for Linux x86_64/glibc and Linux
+> **0.8.23 is published to PyPI** for Linux x86_64/glibc and Linux
 > AArch64/glibc. Other hosts must use the from-source path below. FathomDB is
 > pre-1.0 and the surface is **beta**.
 
@@ -21,7 +21,7 @@ required on supported platforms).
 ## Install the published wheel
 
 ```bash
-pip install fathomdb==0.8.21
+pip install fathomdb==0.8.23
 ```
 
 ## Install (current path — from source)
@@ -29,7 +29,7 @@ pip install fathomdb==0.8.21
 Editable from `main` using [maturin](https://www.maturin.rs/):
 
 ```bash
-git clone https://github.com/coreyt/fathomdb
+git clone https://github.com/fathomadb/fathomdb
 cd fathomdb
 pip install -e src/python/
 ```
@@ -41,21 +41,23 @@ only supported native-build path for development.
 
 ## Jetson / Tegra CUDA
 
-There is no published Tegra CUDA artifact in 0.8.23. On a Jetson host, build
-the supported host-native wheel with the documented toolchain:
+On a confirmed classic Jetson Orin (L4T R36 / JetPack 6, CUDA 12.6), install
+the exact 0.8.24 Tegra build from the interim first-party index:
 
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
-python -m pip install --upgrade pip 'maturin==1.14.1'
-./scripts/release/build-python-cuda-tegra.sh --interpreter python
+python -m pip install --isolated --no-cache-dir --only-binary=:all: \
+  --index-url https://fathomadb.github.io/fathomdb/tegra/simple/ \
+  'fathomdb==0.8.24+tegra'
 ```
 
-The wrapper validates its JetPack build contract, stamps and verifies the
-wheel's `+tegra` local version, then prints the exact
-`python -m pip install <built-wheel>` command for that concrete artifact. Run
-that final printed command. Do not use a generic AArch64 CUDA build on classic
-Tegra; the SDK emits a visible warning if it can confirm that mismatch.
+This is a detection-gated, exact-version route: do not use a floating version
+or `--extra-index-url`. The GitHub Pages transport is interim 0.8.24 hosting
+and must be re-reviewed before a later Tegra release. Unsupported JetPack,
+generic AArch64/SBSA, and Thor hosts have no supported Tegra CUDA route. Do not
+use a generic AArch64 CUDA build on classic Tegra; the SDK emits a visible
+warning if it can confirm that mismatch.
 
 ## Default embedder
 
@@ -109,4 +111,4 @@ for a richer walkthrough.
 - [Reference — Python API](../reference/python-api.md)
 - [Reference — config](../reference/config.md)
 - [Compatibility](../compatibility/index.md)
-- [CHANGELOG](https://github.com/coreyt/fathomdb/blob/main/CHANGELOG.md)
+- [CHANGELOG](https://github.com/fathomadb/fathomdb/blob/main/CHANGELOG.md)

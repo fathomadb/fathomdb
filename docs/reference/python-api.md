@@ -1,11 +1,10 @@
 # Python API
 
 Module: `fathomdb`. Authoritative spec:
-[`dev/interfaces/python.md`](https://github.com/coreyt/fathomdb/blob/main/dev/interfaces/python.md).
+[`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/python.md).
 
-> **Release state.** 0.8.21 is the current published release. This reference
-> also documents the local 0.8.22 candidate; its candidate-only APIs are not
-> available from a registry until the held release gates complete.
+> **Release state.** 0.8.23 is the current published release. APIs not yet
+> available from a registry are marked separately.
 
 ## Top-level
 
@@ -706,4 +705,4 @@ and FathomDB provides no GPU reservation or hard memory cap.
 - [Config knobs](config.md)
 - [Errors](errors.md)
 - [Erasure](../operations/erasure.md)
-- Locked spec: [`dev/interfaces/python.md`](https://github.com/coreyt/fathomdb/blob/main/dev/interfaces/python.md)
+- Locked spec: [`dev/interfaces/python.md`](https://github.com/fathomadb/fathomdb/blob/main/dev/interfaces/python.md)

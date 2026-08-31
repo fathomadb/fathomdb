@@ -12,8 +12,9 @@ content here. Those belong in `docs/`.
 Read these first — this is where the current release actually lives.
 
 - `plans/` release planning and execution. Contains:
-  - `plans/0.8.6-0.8.16-PROGRAM-SEQUENCING.md` — **master schedule-of-record**
-    for the 0.8.x line (despite the filename, it sequences through 0.8.24)
+  - `plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md` — current program
+    schedule-of-record; `0.8.6-0.8.16-PROGRAM-SEQUENCING.md` is retained
+    historical sequencing evidence
   - `plans/runs/` — per-release boards and run results;
     the **live board** is named by `plans/release-state-*.json`'s `board` key — resolve it there, never hardcode a version (`scripts/steward-orient.sh` prints it)
   - `plans/release-state-<version>.json` — machine state for the release; one

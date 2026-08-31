@@ -601,9 +601,10 @@ fn ac_012_text_query_latency_on_fts5_path() {
     );
 
     // AC-076 tiered budget: binding gate only at the 10k tier (0.x/1.x); 100k
-    // and 1M are tracked post-1.0 targets (O(N) FTS MATCH scan + bm25 over the
-    // matched-row set; the tokenizer is exonerated — Slice 6). Mirrors the
-    // AC-013 AC013_GATE_N branch below. See
+    // and 1M are tracked post-1.0 targets. This fixture calls hybrid `search`,
+    // whose FTS arm still materializes the matched-row set; Slice 20's bounded
+    // direct-text collector does not change this measurement. The tokenizer is
+    // exonerated — Slice 6. Mirrors the AC-013 AC013_GATE_N branch below. See
     // ADR-0.7.0-text-query-latency-gates-revised + the Slice 6 experiment.
     if n <= AC012_GATE_N {
         assert!(

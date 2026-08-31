@@ -1,0 +1,45 @@
+{
+  "phase": "ingest_search_predict_only",
+  "completion": {
+    "complete": true,
+    "expected_questions": 152,
+    "completed_questions": 152,
+    "missing_question_ids": [],
+    "failed_ingestion_conversations": [],
+    "search_latency_ms": {
+      "n": 152,
+      "mean": 23.435526315789474
+    },
+    "retrieval_results": {
+      "n": 152,
+      "total": 1513
+    },
+    "facade_metrics": {
+      "facade_query_ms": {
+        "n": 152,
+        "p50": 23.212808000153018,
+        "p95": 30.569144999844866,
+        "p99": 31.022650999602774
+      },
+      "engine_query_ms": {
+        "n": 152,
+        "p50": 23.16897600030643,
+        "p95": 30.502689000059036,
+        "p99": 30.987936000201444
+      },
+      "ingest_ack_ms": {
+        "n": 419,
+        "p50": 1.0918930001935223,
+        "p95": 1.5627620000486786,
+        "p99": 2.289414999722794
+      },
+      "ready_to_search_ms": {
+        "n": 419,
+        "p50": 1.7774980001377116,
+        "p95": 2.3012970000308997,
+        "p99": 3.3664790003058442
+      }
+    },
+    "facade_provenance_requests": 152
+  }
+}

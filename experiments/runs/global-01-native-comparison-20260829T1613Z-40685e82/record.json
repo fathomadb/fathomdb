@@ -1,0 +1,193 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "global-01-native-comparison-20260829T1613Z-40685e82",
+  "experiment": "global-01-native-comparison",
+  "title": "global-01-native-comparison",
+  "verdict": "split",
+  "read": "Native GraphRAG led directionally on global coverage, diversity, and empowerment; FathomDB source map-reduce led on directness. The small clustered sample does not support parity or a general win claim.",
+  "code": {
+    "git_sha": "4554dae50f5500d8b6cf51c77e14be07453c20d3",
+    "dirty": true,
+    "branch": "experiments/performance-0.8.23-plan-20260821",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "40685e82ded3b0b0e049779d2384c08cae47ff646743a835451ae6da70ddada0",
+    "path": "experiments/configs/global-01/apnews-15doc-first-run.v1.json",
+    "resolved": {
+      "schema_version": "global-01.first-run.v1",
+      "program_track": "GLOBAL-01",
+      "run_label": "apnews-15doc-first-run",
+      "approval": {
+        "state": "approved",
+        "approved_by": "coreyt",
+        "approved_at": "2026-08-29T15:20:01Z",
+        "cost_cap_usd": 6.0
+      },
+      "corpus": {
+        "root": "data/corpus-data/raw/apnews_benchmarkqed",
+        "archive_sha256": "2f70dda22a9f261f285c94f3ac13a8f0df60b69fe3df1b5853b47b372065a66f",
+        "article_count": 1397,
+        "witness_count": 15,
+        "preserved_input_root": "data/corpus-data/0.8.4-graphrag-artifacts/microsoft-graphrag-workspace/input"
+      },
+      "questions": {
+        "scope": "global",
+        "count": 8,
+        "selection_rule": "ordered_global_stride_floor",
+        "selection_sha256": "0f5ce411eb0a953c8265986e2bda4b17f754f707ab3866b7ddf3bba97428451c"
+      },
+      "graphrag": {
+        "version": "3.1.0",
+        "freeze": "data/corpus-data/0.8.4-graphrag-artifacts/graphrag-venv-pip-freeze.txt",
+        "freeze_sha256": "2a4f8265aadf6e3bf202d52fccf52da2b21ec95c113adea1a1df9f520c7fbee9",
+        "settings": "data/corpus-data/0.8.4-graphrag-artifacts/microsoft-graphrag-workspace/settings.yaml",
+        "settings_sha256": "692630b210353c7b11f488055b1d3dd84d7321f0889f5b50bb1f4cc8970b129b",
+        "prompts": "data/corpus-data/0.8.4-graphrag-artifacts/microsoft-graphrag-workspace/prompts",
+        "embedding_shim": "dev/plans/runs/0.8.4-graphrag-embshim.py",
+        "embedding_shim_sha256": "50511af2efcc8e0e8c710e052a8bdf2b8657be85302dd037e4e52f7d3982d0aa",
+        "answer_model": "deepseek-v4-pro",
+        "thinking_mode": "disabled",
+        "community_level": 1,
+        "dynamic_selection": false,
+        "concurrency": 4
+      },
+      "fathomdb": {
+        "version": "0.8.23",
+        "profile": "source_mapreduce_c_v1",
+        "embedder": "none",
+        "reranker": "disabled",
+        "map_batch_documents": 5,
+        "map_max_tokens": 300,
+        "reduce_max_tokens": 1500
+      },
+      "judge": {
+        "model": "claude-haiku",
+        "repetitions": 5,
+        "order_swapped": true,
+        "metrics": [
+          "comprehensiveness",
+          "diversity",
+          "empowerment",
+          "directness"
+        ]
+      },
+      "pricing": {
+        "currency": "USD",
+        "source": "deepseek_official_2026-08-29_peak",
+        "deepseek-v4-pro": {
+          "input_per_million": 1.32,
+          "output_per_million": 3.96
+        },
+        "claude-haiku": {
+          "input_per_million": 1.0,
+          "output_per_million": 5.0
+        },
+        "projected_total_usd": 4.22,
+        "recommended_cap_usd": 6.0
+      }
+    }
+  },
+  "corpus": {
+    "source": "AP News BenchmarkQED",
+    "manifest_sha256": "2f70dda22a9f261f285c94f3ac13a8f0df60b69fe3df1b5853b47b372065a66f",
+    "datasets": [
+      {
+        "name": "AP News BenchmarkQED",
+        "documents": 15,
+        "questions": 8,
+        "selection_sha256": "0f5ce411eb0a953c8265986e2bda4b17f754f707ab3866b7ddf3bba97428451c"
+      }
+    ]
+  },
+  "seeds": {
+    "clustered_bootstrap": 20260829
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb": "0.8.23",
+      "graphrag": "3.1.0",
+      "generator": "deepseek-v4-pro",
+      "judge": "claude-haiku-4.5"
+    }
+  },
+  "metrics": {
+    "schema_version": "global-01.result.v1",
+    "program_track": "GLOBAL-01",
+    "config_sha256": "40685e82ded3b0b0e049779d2384c08cae47ff646743a835451ae6da70ddada0",
+    "state": "complete",
+    "native_witness": "valid",
+    "question_count": 8,
+    "judge_repetitions": 5,
+    "order_swapped": true,
+    "cost_usd": 1.5334708800000014,
+    "cost_cap_usd": 6.0,
+    "verdict": "split",
+    "metrics": {
+      "comprehensiveness": {
+        "fathomdb_win_rate": 0.375,
+        "clustered_bootstrap_ci95": [
+          0.0,
+          0.75
+        ],
+        "judgments": 80
+      },
+      "diversity": {
+        "fathomdb_win_rate": 0.375,
+        "clustered_bootstrap_ci95": [
+          0.0,
+          0.75
+        ],
+        "judgments": 80
+      },
+      "empowerment": {
+        "fathomdb_win_rate": 0.3875,
+        "clustered_bootstrap_ci95": [
+          0.0375,
+          0.75
+        ],
+        "judgments": 80
+      },
+      "directness": {
+        "fathomdb_win_rate": 0.96875,
+        "clustered_bootstrap_ci95": [
+          0.90625,
+          1.0
+        ],
+        "judgments": 80
+      }
+    },
+    "answer_manifest_sha256": "e89ae0edb69230a31557fb212d7748a283f9ecc160d640747cbb207a62335ea1"
+  },
+  "cost_usd": 1.5334708800000014,
+  "tdd_evidence": {
+    "red": "native witness rejected missing reports; judge retry test failed before implementation",
+    "green": "14 targeted tests passed"
+  },
+  "tests": [
+    "tests/experiments/test_global_01.py",
+    "tests/experiments/test_global_01_live.py"
+  ],
+  "files_changed": [],
+  "artifacts": [
+    {
+      "path": "data/performance-benchmarking/global-01/runs/global-01-first-run-deepseek-20260829-b/result.json",
+      "sha256": "c12dbac613dec39347ef41f99cd6c076cf3e0b99391463faeba4b48864db4f8c"
+    },
+    {
+      "path": "data/performance-benchmarking/global-01/runs/global-01-first-run-deepseek-20260829-b/checkpoint.json",
+      "sha256": "94cb341dd48c7a3a75d3e5668c2b5a34169d31b77817465611000f6dd46c368c"
+    },
+    {
+      "path": "data/performance-benchmarking/global-01/runs/global-01-first-run-deepseek-20260829-b/graphrag/output/community_reports.parquet",
+      "sha256": "032469aa549d7a9efacb58cdf738e2a0d175c25e1430623a7f37e315cc49821d"
+    }
+  ],
+  "review": null,
+  "open_questions": [
+    "Reopen only for a preregistered source-linked hierarchical summary or graph treatment prompted by this named global-coverage gap."
+  ]
+}

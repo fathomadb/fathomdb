@@ -1,0 +1,326 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "reason-01-compact-ledger-v2-20260830T2156Z-572f51ea",
+  "experiment": "reason-01-compact-ledger-v2",
+  "title": "reason-01-compact-ledger-v2",
+  "verdict": "reject",
+  "read": "Complete consumed-cohort diagnostic: compact ledger v2 reduced context sharply and improved answer accuracy by 2.75 points versus A0, but lost groundedness by 9.17 points and attribution by 5.50 points; close the offshoot and retain A0.",
+  "code": {
+    "git_sha": "a2840bb815794a07e06d536fbf85d9a3d67f0bc2",
+    "dirty": false,
+    "branch": "experiments/performance-0.8.23-plan-20260821",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "572f51ea28197f8428a1eae629b94ee29580bb5fe9ff60b4eacbb8405dfdf23a",
+    "path": "experiments/configs/reason-01/compact-ledger-run.v2.json",
+    "resolved": {
+      "schema_version": "reason01.compact-ledger-run.v2",
+      "program_track": "REASON-01",
+      "question_count": 109,
+      "arms": [
+        "a0_raw",
+        "protected_raw",
+        "protected_evidence_ledger_v2"
+      ],
+      "bindings": {
+        "source_sha256": "d6f21ea9d60a0d56f34a05b609c79c88a451d2ae03597821ea3d5a9678c3a442",
+        "oracle_sha256": "821a2034d219ab45846873dd14c14f12cfe7776e73527a483f9dac095d38620c",
+        "frozen_checkpoint_sha256": "0caeb0c357fb97398a9e3a70edca214254d158dac27753346bcdbfa02c6b5170",
+        "longmemeval_revision": "9e0b455f4ef0e2ab8f2e582289761153549043fc"
+      },
+      "protocol": {
+        "all_missing_policy": "deterministic_abstention",
+        "all_missing_abstention": "The available memories do not contain enough information to answer this question.",
+        "citation_schema": "per_cell_exact_id_enum",
+        "semantic_exhaustion": "terminal_quality_failure_continue",
+        "valid_abstention_grounding": "no_positive_factual_claim",
+        "valid_abstention_attribution": "all_requirements_missing_ledger_state"
+      },
+      "models": {
+        "ledger": {
+          "model": "reason01-claude-haiku-4.5",
+          "route": "openrouter/anthropic/claude-haiku-4.5",
+          "input_per_million": 1.0,
+          "output_per_million": 5.0,
+          "context_tokens": 200000,
+          "max_tokens": 2400
+        },
+        "reader": {
+          "model": "reason01-deepseek-v4-pro",
+          "route": "openrouter/deepseek/deepseek-v4-pro",
+          "input_per_million": 0.417252,
+          "output_per_million": 0.834504,
+          "context_tokens": 1048576,
+          "answer_max_tokens": 400,
+          "thinking_mode": "disabled"
+        },
+        "correctness": {
+          "model": "reason01-gpt-4o-2024-08-06",
+          "route": "openrouter/openai/gpt-4o-2024-08-06",
+          "input_per_million": 2.5,
+          "output_per_million": 10.0,
+          "max_tokens": 10
+        },
+        "evidence": {
+          "model": "reason01-claude-haiku-4.5",
+          "route": "openrouter/anthropic/claude-haiku-4.5",
+          "input_per_million": 1.0,
+          "output_per_million": 5.0,
+          "max_tokens": 1000
+        }
+      },
+      "max_usd": 9.0,
+      "http_attempts": 8,
+      "semantic_attempts": 5,
+      "semantic_retry_seeds": [
+        20260830,
+        20260831,
+        20260832,
+        20260833,
+        20260834
+      ],
+      "ledger_input_max_chars": 200000,
+      "compact_answer_max_chars": 12000,
+      "quote_equivalence": {
+        "characters": [
+          "'",
+          "\"",
+          "‘",
+          "’",
+          "“",
+          "”"
+        ],
+        "sha256": "a4b29c9514665401e229ea2e1bfbf691c65863cb4e79bb73439334161de5b7c6"
+      },
+      "bootstrap_draws": 10000,
+      "bootstrap_seed": 20260830
+    }
+  },
+  "corpus": {
+    "source": "LongMemEval-S multi-session consumed REASON-01 cohort",
+    "manifest_sha256": "18a8715c48fdaf479196f0796506b1b61874ec6962318cf81bf88989aea36217",
+    "datasets": [
+      {
+        "name": "LongMemEval-S cleaned",
+        "questions": 109,
+        "selection_sha256": "4760284e9a6a3e45f6345a0c44e9ce86ac89230cc4f5d040be47d8539dafd0ac"
+      }
+    ]
+  },
+  "seeds": {
+    "bootstrap": 20260830,
+    "semantic_retry": [
+      20260830,
+      20260831,
+      20260832,
+      20260833,
+      20260834
+    ]
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "ledger": "openrouter/anthropic/claude-haiku-4.5",
+      "reader": "openrouter/deepseek/deepseek-v4-pro",
+      "correctness": "openrouter/openai/gpt-4o-2024-08-06"
+    }
+  },
+  "metrics": {
+    "schema_version": "reason01.compact-ledger-result.v2",
+    "program_track": "REASON-01",
+    "state": "complete",
+    "decision": "descriptive_fail",
+    "decision_scope": "consumed-cohort-descriptive-only",
+    "eligible_next_action": "close_offshoot",
+    "summary": {
+      "arms": {
+        "a0_raw": {
+          "answer_accuracy": 0.5412844036697247,
+          "answer_input_chars_mean": 13611.247706422018,
+          "answer_input_chars_p95": 20354,
+          "attribution_rate": 0.6146788990825688,
+          "citation_contract_validity": 0.9357798165137615,
+          "context_precision": 0.14678899082568808,
+          "evidence_utilization": 0.1834862385321101,
+          "grounded_rate": 0.6605504587155964,
+          "non_empty_rate": 0.8899082568807339,
+          "terminal_quality_failure_rate": 0.0,
+          "valid_abstention_rate": 0.0
+        },
+        "protected_evidence_ledger_v2": {
+          "answer_accuracy": 0.5688073394495413,
+          "answer_input_chars_mean": 1406.532110091743,
+          "answer_input_chars_p95": 3982,
+          "attribution_rate": 0.5596330275229358,
+          "citation_contract_validity": 0.9357798165137615,
+          "context_precision": 0.5272171253822631,
+          "evidence_utilization": 0.6751783893985729,
+          "grounded_rate": 0.5688073394495413,
+          "non_empty_rate": 0.908256880733945,
+          "terminal_quality_failure_rate": 0.05504587155963303,
+          "valid_abstention_rate": 0.07339449541284404
+        },
+        "protected_raw": {
+          "answer_accuracy": 0.6055045871559633,
+          "answer_input_chars_mean": 29654.45871559633,
+          "answer_input_chars_p95": 39152,
+          "attribution_rate": 0.6330275229357798,
+          "citation_contract_validity": 0.908256880733945,
+          "context_precision": 0.08577981651376146,
+          "evidence_utilization": 0.09954128440366972,
+          "grounded_rate": 0.6697247706422018,
+          "non_empty_rate": 0.944954128440367,
+          "terminal_quality_failure_rate": 0.0,
+          "valid_abstention_rate": 0.0
+        }
+      },
+      "complete": true,
+      "cost_usd": 3.1519151605359967,
+      "decision": "descriptive_fail",
+      "decision_scope": "consumed-cohort-descriptive-only",
+      "eligible_next_action": "close_offshoot",
+      "execution_stages": {
+        "answer:a0_raw": {
+          "calls": 109,
+          "completion_tokens": 9763,
+          "cost_usd": 0.160599877548,
+          "latency_p50_ms": 3098.79722900223,
+          "latency_p95_ms": 7161.081939000724,
+          "prompt_tokens": 365373,
+          "semantic_retries": 0,
+          "terminal_quality_failures": 0
+        },
+        "answer:protected_evidence_ledger_v2": {
+          "calls": 95,
+          "completion_tokens": 9428,
+          "cost_usd": 0.037937386344,
+          "latency_p50_ms": 3784.715628000413,
+          "latency_p95_ms": 7127.548554999521,
+          "prompt_tokens": 72066,
+          "semantic_retries": 0,
+          "terminal_quality_failures": 6
+        },
+        "answer:protected_raw": {
+          "calls": 109,
+          "completion_tokens": 10646,
+          "cost_usd": 0.32825089664400003,
+          "latency_p50_ms": 3086.6386020024947,
+          "latency_p95_ms": 6212.359116001608,
+          "prompt_tokens": 765405,
+          "semantic_retries": 0,
+          "terminal_quality_failures": 0
+        },
+        "correctness": {
+          "calls": 272,
+          "completion_tokens": 578,
+          "cost_usd": 0.11616,
+          "latency_p50_ms": 548.7375005013746,
+          "latency_p95_ms": 842.5657500010857,
+          "prompt_tokens": 44152,
+          "semantic_retries": 0,
+          "terminal_quality_failures": 0
+        },
+        "evidence_judge": {
+          "calls": 284,
+          "completion_tokens": 53594,
+          "cost_usd": 0.52342,
+          "latency_p50_ms": 1696.463178999693,
+          "latency_p95_ms": 3507.3636720007926,
+          "prompt_tokens": 255450,
+          "semantic_retries": 9,
+          "terminal_quality_failures": 0
+        },
+        "ledger": {
+          "calls": 196,
+          "completion_tokens": 72711,
+          "cost_usd": 1.985547,
+          "latency_p50_ms": 3333.3991120016435,
+          "latency_p95_ms": 7643.315365003218,
+          "prompt_tokens": 1621992,
+          "semantic_retries": 87,
+          "terminal_quality_failures": 6
+        }
+      },
+      "paired_compact_vs_a0": {
+        "answer_correct": {
+          "delta": 0.027522935779816515,
+          "one_sided_95_lower": -0.045871559633027525
+        },
+        "attributed": {
+          "delta": -0.05504587155963303,
+          "one_sided_95_lower": -0.1559633027522936
+        },
+        "grounded": {
+          "delta": -0.09174311926605505,
+          "one_sided_95_lower": -0.1926605504587156
+        }
+      },
+      "question_count": 109,
+      "schema_version": "reason01.compact-ledger-summary.v2",
+      "terminal_quality_failures": {
+        "a0_raw": {
+          "answer": 0,
+          "correctness": 0,
+          "evidence": 0,
+          "ledger": 0
+        },
+        "protected_evidence_ledger_v2": {
+          "answer": 6,
+          "correctness": 6,
+          "evidence": 6,
+          "ledger": 6
+        },
+        "protected_raw": {
+          "answer": 0,
+          "correctness": 0,
+          "evidence": 0,
+          "ledger": 0
+        }
+      }
+    },
+    "spend": {
+      "runner_accounted_usd": 3.1519151605359967,
+      "airlock_authoritative_total_including_probe_usd": 3.029448,
+      "provider_cap_usd": 10.0
+    },
+    "artifacts": {
+      "checkpoint_sha256": "df68d4a417506e396135fb8e76d90251e53c5e312d7525072d21cd4b3c23f62a",
+      "receipt_sha256": "a92fbf33e7453c61149ce6d11ed198687a0521f648064a7a80324ea06fa077e4",
+      "summary_sha256": "d8135e0d1c5d3f84d3a814eb7b81a6561a59c541c4522c4f705a6bfe30d19faa",
+      "schema_probe_sha256": "767871a92217d3ad24d5852111c22adde18fde44dcb4c79183a0f77c51c48ad1",
+      "airlock_spend_state_sha256": "65d6cd40d38110ee51546967e8f86b5aa1a79303ec2c1e527226cbab3b908206"
+    },
+    "retrieval_changed": false,
+    "promotion_eligible": false
+  },
+  "cost_usd": 3.029448,
+  "tdd_evidence": {
+    "red": "end-to-end tests first failed for deterministic empty-evidence abstention, exact citation enums, retry exhaustion, and continuation",
+    "green": "15 focused v1/v2 runner tests passed before paid execution"
+  },
+  "tests": {
+    "command": "python -m pytest tests/experiments/test_reason_01_compact_ledger.py -q",
+    "passed": 15
+  },
+  "files_changed": [
+    "experiments/configs/reason-01/compact-ledger-run.v2.json",
+    "experiments/reason_01_compact_ledger.py",
+    "tests/experiments/test_reason_01_compact_ledger.py",
+    "dev/performance-benchmarking/2026-08-30-reason-01-compact-ledger-v2-plan.md"
+  ],
+  "artifacts": [
+    "data/performance-benchmarking/locomo-multihop/runs/reason01-compact-ledger-v2-20260830-01/reason01-compact-ledger-checkpoint.v2.json",
+    "data/performance-benchmarking/locomo-multihop/runs/reason01-compact-ledger-v2-20260830-01/reason01-compact-ledger-receipt.v2.json",
+    "data/performance-benchmarking/locomo-multihop/runs/reason01-compact-ledger-v2-20260830-01/reason01-compact-ledger-summary.v2.json",
+    "data/performance-benchmarking/locomo-multihop/runs/reason01-compact-ledger-v2-schema-probe-20260830-01/reason01-dynamic-citation-schema-probe.v1.json",
+    "data/performance-benchmarking/locomo-multihop/runs/reason01-compact-ledger-v2-20260830-01/airlock-spend-state.v1.json"
+  ],
+  "review": {
+    "path": "dev/performance-benchmarking/2026-08-30-reason-01-compact-ledger-v2-plan.md",
+    "status": "preregistered_and_user_authorized"
+  },
+  "open_questions": []
+}

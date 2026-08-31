@@ -1,0 +1,721 @@
+"""Execution controls for the paid GLOBAL-01 lazy-coverage comparison."""
+
+from __future__ import annotations
+
+import io
+import json
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+import pytest
+
+from experiments import global_01_lazy_live
+
+
+def test_retry_after_accepts_seconds_and_http_date():
+    now = datetime(2026, 8, 29, 18, 0, tzinfo=timezone.utc)
+
+    assert global_01_lazy_live.retry_delay(
+        {"Retry-After": "17"}, fallback=2.0, now=now
+    ) == 17.0
+    assert global_01_lazy_live.retry_delay(
+        {"Retry-After": "Sat, 29 Aug 2026 18:00:31 GMT"},
+        fallback=2.0,
+        now=now,
+    ) == 31.0
+    assert global_01_lazy_live.retry_delay({}, fallback=2.0, now=now) == 2.0
+
+
+def test_checkpoint_round_trip_is_bound_and_resumes_only_missing(tmp_path: Path):
+    path = tmp_path / "checkpoint.json"
+    state = global_01_lazy_live.LazyRunState.new("a" * 64, 12.0)
+    state.complete("aa/answer-1/0/ab", {"verdicts": {}}, cost_usd=0.25)
+    state.save(path)
+
+    restored = global_01_lazy_live.LazyRunState.load(path, "a" * 64, 12.0)
+
+    assert restored.cost_usd == 0.25
+    assert restored.missing(["aa/answer-1/0/ab", "aa/answer-1/0/ba"]) == [
+        "aa/answer-1/0/ba"
+    ]
+    with pytest.raises(global_01_lazy_live.Global01LazyLiveError, match="drifted"):
+        global_01_lazy_live.LazyRunState.load(path, "b" * 64, 12.0)
+
+
+def test_client_refuses_worst_case_cost_before_network(monkeypatch):
+    called = False
+
+    def unexpected(*args, **kwargs):
+        nonlocal called
+        called = True
+        raise AssertionError("network must not be called")
+
+    monkeypatch.setattr(global_01_lazy_live.urllib.request, "urlopen", unexpected)
+    client = global_01_lazy_live.AirlockClient(
+        "http://127.0.0.1:4000",
+        "secret",
+        {
+            "execution": {
+                "retry_attempts": 1,
+                "retry_backoff_seconds": [1],
+            },
+            "pricing": {
+                "deepseek-v4-pro": {
+                    "input_per_million": 1.32,
+                    "output_per_million": 3.96,
+                }
+            },
+        },
+    )
+
+    with pytest.raises(global_01_lazy_live.Global01LazyLiveError, match="cost cap"):
+        client.complete(
+            "deepseek-v4-pro",
+            "x" * 10_000,
+            max_tokens=1_000,
+            temperature=0.0,
+            remaining_cost_usd=0.000001,
+        )
+
+    assert called is False
+
+
+def test_client_preserves_finish_reason_without_mixing_it_into_token_checks(
+    monkeypatch,
+):
+    payload = {
+        "choices": [
+            {
+                "message": {"content": '{"ok":true}'},
+                "finish_reason": "stop",
+            }
+        ],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+    }
+    monkeypatch.setattr(
+        global_01_lazy_live.urllib.request,
+        "urlopen",
+        lambda *_args, **_kwargs: io.BytesIO(json.dumps(payload).encode()),
+    )
+    client = global_01_lazy_live.AirlockClient(
+        "http://127.0.0.1:4000",
+        "secret",
+        {
+            "execution": {
+                "retry_attempts": 1,
+                "retry_backoff_seconds": [1],
+            },
+            "models": {
+                "generator": {
+                    "model": "deepseek-v4-pro",
+                    "thinking_mode": "disabled",
+                }
+            },
+            "pricing": {
+                "deepseek-v4-pro": {
+                    "input_per_million": 1.32,
+                    "output_per_million": 3.96,
+                }
+            },
+        },
+    )
+
+    _content, usage, _cost, _latency = client.complete(
+        "deepseek-v4-pro",
+        "return JSON",
+        max_tokens=100,
+        temperature=0.0,
+        remaining_cost_usd=1.0,
+    )
+
+    assert usage == {
+        "prompt_tokens": 10,
+        "completion_tokens": 5,
+        "finish_reason": "stop",
+    }
+
+
+def test_decomposition_requires_exact_bounded_unique_queries():
+    value = global_01_lazy_live.parse_subqueries(
+        '{"subqueries":["one area","second area","third area","fourth area"]}',
+        count=4,
+    )
+    assert value == ["one area", "second area", "third area", "fourth area"]
+
+    with pytest.raises(global_01_lazy_live.Global01LazyLiveError, match="subqueries"):
+        global_01_lazy_live.parse_subqueries(
+            '{"subqueries":["same","same","third","fourth"]}', count=4
+        )
+
+
+def test_assertion_scorer_uses_configured_output_ceiling(monkeypatch, tmp_path: Path):
+    calls = []
+
+    def capture(*_args, **kwargs):
+        calls.append(kwargs)
+        return {}
+
+    monkeypatch.setattr(global_01_lazy_live, "_complete_json_cell", capture)
+    config = {
+        "models": {
+            "assertion_scorer": {
+                "model": "claude-haiku",
+                "temperature": 0.0,
+                "trials": 1,
+                "source_excerpt_max_chars": 1600,
+                "max_tokens": 2048,
+            },
+            "pairwise_judge": {
+                "model": "claude-haiku",
+                "temperature": 0.7,
+                "repetitions": 1,
+            },
+        }
+    }
+    answer = {"answer": "Answer.", "claims": []}
+
+    global_01_lazy_live._run_scores_and_judges(
+        question={
+            "question_id": "q1",
+            "text": "Question?",
+            "qualified_assertions": ["Assertion."],
+        },
+        answers={"control": answer, "treatment": answer},
+        documents={},
+        client=object(),
+        config=config,
+        state=global_01_lazy_live.LazyRunState.new("a" * 64, 12.0),
+        checkpoint_path=tmp_path / "checkpoint.json",
+    )
+
+    scorer_calls = [call for call in calls if call["cell"].startswith("scorer/")]
+    assert len(scorer_calls) == 2
+    assert {call["max_tokens"] for call in scorer_calls} == {2048}
+
+
+def test_map_prompt_bounds_claim_count_and_length():
+    prompt = global_01_lazy_live._map_prompt(
+        "Question?",
+        [
+            {
+                "source_id": "source-1",
+                "content_sha256": "a" * 64,
+                "body": "Evidence.",
+            }
+        ],
+        max_claims=2,
+    )
+
+    assert "at most 2 claims" in prompt
+    assert "at most 30 words" in prompt
+    assert "SOURCE_REF=S0" in prompt
+    assert '"source_refs":["S0"]' in prompt
+    assert "Cite claims only with supplied SOURCE_REF values" in prompt
+    assert "must cite one or more supplied source_id/content_sha256 pairs" not in prompt
+
+
+def test_mapped_claim_source_refs_restore_canonical_attribution():
+    claims = global_01_lazy_live._validate_mapped_claims(
+        {
+            "claims": [
+                {
+                    "text": "A concise supported claim.",
+                    "source_refs": ["S0"],
+                }
+            ]
+        },
+        known_source_refs={
+            "S0": {
+                "source_id": "source-1",
+                "content_sha256": "a" * 64,
+            }
+        },
+        prefix="control-q-00",
+        max_claims=2,
+        max_words=30,
+    )
+
+    assert claims == [
+        {
+            "claim_id": "control-q-00-000",
+            "text": "A concise supported claim.",
+            "sources": [
+                {
+                    "source_id": "source-1",
+                    "content_sha256": "a" * 64,
+                }
+            ],
+        }
+    ]
+
+
+def test_mapped_claims_accept_exact_canonical_attribution_fallback():
+    claims = global_01_lazy_live._validate_mapped_claims(
+        {
+            "claims": [
+                {
+                    "text": "A concise supported claim.",
+                    "sources": [
+                        {
+                            "source_id": "source-1",
+                            "content_sha256": "a" * 64,
+                        }
+                    ],
+                }
+            ]
+        },
+        known_source_refs={
+            "S0": {
+                "source_id": "source-1",
+                "content_sha256": "a" * 64,
+            }
+        },
+        prefix="control-q-00",
+        max_claims=2,
+        max_words=30,
+    )
+
+    assert claims[0]["sources"] == [
+        {"source_id": "source-1", "content_sha256": "a" * 64}
+    ]
+
+
+def test_semantic_failure_metadata_is_content_free_and_actionable():
+    metadata = global_01_lazy_live.semantic_failure_metadata(
+        {
+            "claims": [
+                {
+                    "text": "Sensitive claim text must not be retained.",
+                    "sources": [
+                        {"source_id": "source-1", "content_sha256": "a" * 64}
+                    ],
+                }
+            ]
+        },
+        global_01_lazy_live.Global01LazyLiveError(
+            "mapped claim shape is invalid"
+        ),
+    )
+
+    assert metadata == {
+        "error": "mapped claim shape is invalid",
+        "top_level_keys": ["claims"],
+        "claim_count": 1,
+        "claim_key_sets": [["sources", "text"]],
+    }
+    assert "Sensitive" not in json.dumps(metadata)
+
+
+def test_mapped_claims_drop_surplus_after_registered_maximum():
+    claims = global_01_lazy_live._validate_mapped_claims(
+        {
+            "claims": [
+                {"text": f"Claim {ordinal}.", "source_refs": ["S0"]}
+                for ordinal in range(3)
+            ]
+        },
+        known_source_refs={
+            "S0": {
+                "source_id": "source-1",
+                "content_sha256": "a" * 64,
+            }
+        },
+        prefix="control-q-00",
+        max_claims=2,
+        max_words=30,
+    )
+
+    assert [claim["text"] for claim in claims] == ["Claim 0.", "Claim 1."]
+
+
+def test_semantic_revision_preserves_legacy_invalid_cells(tmp_path: Path):
+    class FakeClient:
+        def __init__(self):
+            self.responses = iter(
+                [
+                    ("{}", {"prompt_tokens": 1, "completion_tokens": 1}, 0.01, 1.0),
+                    (
+                        '{"ok":true}',
+                        {"prompt_tokens": 1, "completion_tokens": 1},
+                        0.01,
+                        1.0,
+                    ),
+                ]
+            )
+
+        def complete(self, *args, **kwargs):
+            return next(self.responses)
+
+    checkpoint = tmp_path / "checkpoint.json"
+    state = global_01_lazy_live.LazyRunState.new("d" * 64, 1.0)
+    state.complete("invalid/maps/control/q/0/0", {"legacy": True}, cost_usd=0.01)
+
+    value = global_01_lazy_live._complete_json_cell(
+        FakeClient(),
+        state=state,
+        checkpoint_path=checkpoint,
+        cell="maps/control/q/0",
+        model="model",
+        prompt="prompt",
+        max_tokens=300,
+        temperature=0.0,
+        validator=lambda raw: raw
+        if raw.get("ok") is True
+        else (_ for _ in ()).throw(global_01_lazy_live.Global01LazyLiveError("bad")),
+    )
+
+    assert value == {"ok": True}
+    assert state.cells["invalid/maps/control/q/0/0"] == {"legacy": True}
+    assert f"invalid/{global_01_lazy_live.SEMANTIC_REVISION}/maps/control/q/0/0" in state.cells
+
+
+def test_semantic_retry_supplies_validation_feedback_without_response_content(
+    tmp_path: Path,
+):
+    class FakeClient:
+        def __init__(self):
+            self.prompts = []
+            self.responses = iter(
+                [
+                    (
+                        '{"claims":[{"text":"too long","source_refs":["S0"]}]}',
+                        {"prompt_tokens": 1, "completion_tokens": 1},
+                        0.01,
+                        1.0,
+                    ),
+                    (
+                        '{"claims":[{"text":"short","source_refs":["S0"]}]}',
+                        {"prompt_tokens": 1, "completion_tokens": 1},
+                        0.01,
+                        1.0,
+                    ),
+                ]
+            )
+
+        def complete(self, _model, prompt, **_kwargs):
+            self.prompts.append(prompt)
+            return next(self.responses)
+
+    client = FakeClient()
+    checkpoint = tmp_path / "checkpoint.json"
+    state = global_01_lazy_live.LazyRunState.new("e" * 64, 1.0)
+
+    value = global_01_lazy_live._complete_json_cell(
+        client,
+        state=state,
+        checkpoint_path=checkpoint,
+        cell="maps/control/q/0",
+        model="model",
+        prompt="original task",
+        max_tokens=300,
+        temperature=0.0,
+        validator=lambda raw: raw
+        if raw["claims"][0]["text"] == "short"
+        else (_ for _ in ()).throw(
+            global_01_lazy_live.Global01LazyLiveError(
+                "mapped claim text exceeds word limit"
+            )
+        ),
+    )
+
+    assert value["claims"][0]["text"] == "short"
+    assert client.prompts[0] == "original task"
+    assert "mapped claim text exceeds word limit" in client.prompts[1]
+    assert "too long" not in client.prompts[1]
+    assert "Return a corrected JSON object" in client.prompts[1]
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (
+            "mapped claim lacks canonical sources",
+            "Omit any claim that cannot cite at least one supplied SOURCE_REF",
+        ),
+        (
+            "mapped claim text exceeds word limit",
+            "Shorten or split every claim to at most 30 whitespace-separated words",
+        ),
+    ],
+)
+def test_semantic_retry_adds_targeted_content_free_correction(error, expected):
+    correction = global_01_lazy_live.validation_correction(error)
+
+    assert expected in correction
+
+
+def test_semantic_retry_identifies_output_limit_and_requests_shorter_json(
+    tmp_path: Path,
+):
+    class FakeClient:
+        def __init__(self):
+            self.prompts = []
+            self.responses = iter(
+                [
+                    (
+                        '{"answer":"truncated',
+                        {"prompt_tokens": 10, "completion_tokens": 300},
+                        0.01,
+                        1.0,
+                    ),
+                    (
+                        '{"answer":"complete"}',
+                        {"prompt_tokens": 10, "completion_tokens": 20},
+                        0.01,
+                        1.0,
+                    ),
+                ]
+            )
+
+        def complete(self, _model, prompt, **_kwargs):
+            self.prompts.append(prompt)
+            return next(self.responses)
+
+    client = FakeClient()
+    state = global_01_lazy_live.LazyRunState.new("f" * 64, 1.0)
+
+    value = global_01_lazy_live._complete_json_cell(
+        client,
+        state=state,
+        checkpoint_path=tmp_path / "checkpoint.json",
+        cell="reductions/control/q",
+        model="model",
+        prompt="reduce task",
+        max_tokens=300,
+        temperature=0.0,
+        validator=lambda raw: raw,
+    )
+
+    assert value == {"answer": "complete"}
+    assert "response reached the output token limit" in client.prompts[1]
+    assert "shorten prose" in client.prompts[1]
+    assert "truncated" not in client.prompts[1]
+
+
+def test_resumed_invalid_witness_uses_a_new_receipt_timestamp(tmp_path: Path):
+    config = {"contract": "same"}
+    state = global_01_lazy_live.LazyRunState.new("a" * 64, 12.0)
+    started = datetime.fromisoformat(state.started_at)
+    existing_id = global_01_lazy_live._lib.make_run_id(
+        "global-01-lazy-witness",
+        started,
+        global_01_lazy_live._lib.config_sha256(config),
+    )
+    (tmp_path / "runs" / existing_id).mkdir(parents=True)
+
+    selected = global_01_lazy_live._invalid_receipt_timestamp(
+        config,
+        state,
+        tmp_path,
+        now=started + timedelta(minutes=1),
+    )
+
+    assert selected != started
+    selected_id = global_01_lazy_live._lib.make_run_id(
+        "global-01-lazy-witness",
+        selected,
+        global_01_lazy_live._lib.config_sha256(config),
+    )
+    assert not (tmp_path / "runs" / selected_id).exists()
+
+
+def test_compact_reduction_restores_canonical_identity():
+    mapped = [
+        {
+            "claim_id": "control-question-00-000",
+            "text": "First mapped fact.",
+            "sources": [
+                {"source_id": "source-one", "content_sha256": "a" * 64}
+            ],
+        },
+        {
+            "claim_id": "control-question-01-000",
+            "text": "Second mapped fact.",
+            "sources": [
+                {"source_id": "source-two", "content_sha256": "b" * 64}
+            ],
+        },
+    ]
+    prompt, source_refs, mapped_refs = global_01_lazy_live._reduce_prompt(
+        "What happened?", mapped
+    )
+
+    answer = global_01_lazy_live._validate_compact_reduction(
+        {
+            "answer": "Both facts happened.",
+            "claims": [
+                {
+                    "claim_ref": "F0",
+                    "text": "Both facts happened.",
+                    "source_refs": ["S0", "S1"],
+                }
+            ],
+            "coverage_ledger": [
+                {
+                    "mapped_claim_ref": mapped_ref,
+                    "disposition": "included",
+                    "final_claim_refs": ["F0"],
+                }
+                for mapped_ref in ("M0", "M1")
+            ],
+        },
+        known_source_refs=source_refs,
+        known_mapped_refs=mapped_refs,
+    )
+
+    assert "M0" in prompt and "S0" in prompt
+    assert "source-one" not in prompt and "a" * 64 not in prompt
+    assert answer["claims"][0]["sources"] == [
+        {"source_id": "source-one", "content_sha256": "a" * 64},
+        {"source_id": "source-two", "content_sha256": "b" * 64},
+    ]
+    assert {row["mapped_claim_id"] for row in answer["coverage_ledger"]} == {
+        "control-question-00-000",
+        "control-question-01-000",
+    }
+
+
+def test_assertion_score_requires_all_final_claims_and_valid_indices():
+    answer = {
+        "claims": [
+            {"claim_id": "final-1"},
+            {"claim_id": "final-2"},
+        ]
+    }
+    score = {
+        "passed_assertion_indices": [0, 2],
+        "claim_support": [
+            {"claim_id": "final-1", "supported": True},
+            {"claim_id": "final-2", "supported": False},
+        ],
+    }
+
+    assert global_01_lazy_live.validate_assertion_score(
+        score, answer=answer, assertion_count=3
+    ) == score
+
+    bad = json.loads(json.dumps(score))
+    bad["claim_support"].pop()
+    with pytest.raises(global_01_lazy_live.Global01LazyLiveError, match="claim"):
+        global_01_lazy_live.validate_assertion_score(
+            bad, answer=answer, assertion_count=3
+        )
+
+
+def test_assertion_score_projects_required_fields_before_strict_validation():
+    answer = {"claims": [{"claim_id": "final-1"}]}
+    score = {
+        "passed_assertion_indices": [0],
+        "claim_support": [{"claim_id": "final-1", "supported": True}],
+        "assertion_analysis": [{"index": 0, "reason": "supported"}],
+        "failed_assertion_indices": [],
+    }
+
+    assert global_01_lazy_live.validate_assertion_score(
+        score, answer=answer, assertion_count=1
+    ) == {
+        "passed_assertion_indices": [0],
+        "claim_support": [{"claim_id": "final-1", "supported": True}],
+    }
+
+
+def test_scorer_excerpt_is_bounded_and_selects_claim_relevant_text():
+    body = (
+        "Unrelated opening material. " * 200
+        + "The regional hospital expanded mental health crisis services. "
+        + "Unrelated closing material. " * 200
+    )
+
+    excerpt = global_01_lazy_live.best_source_excerpt(
+        body,
+        "mental health crisis services expanded",
+        max_chars=240,
+    )
+
+    assert len(excerpt) <= 240
+    assert "mental health crisis services" in excerpt
+
+
+def test_completeness_guard_blocks_partial_verdict():
+    state = global_01_lazy_live.LazyRunState.new("c" * 64, 12.0)
+
+    with pytest.raises(global_01_lazy_live.Global01LazyLiveError, match="incomplete"):
+        global_01_lazy_live.assert_cells_complete(state, ["one", "two"])
+
+
+def test_invalid_witness_summary_is_not_decision_eligible():
+    state = global_01_lazy_live.LazyRunState.new("c" * 64, 12.0)
+    state.complete("gate/aa", {"passed": True}, cost_usd=0.1)
+    state.complete("maps/control/q1/0", {"value": {"claims": []}})
+    state.complete(
+        "invalid/v4-cap-surplus-claims/maps/control/q1/1/0",
+        {"usage": {"prompt_tokens": 1, "completion_tokens": 1}},
+        cost_usd=0.01,
+    )
+
+    summary = global_01_lazy_live.invalid_witness_summary(
+        state,
+        witness_question_ids={"q1", "q2", "q3"},
+        failure=global_01_lazy_live.Global01LazyLiveError(
+            "semantic retry budget exhausted for maps/control/q1/1"
+        ),
+    )
+
+    assert summary["state"] == "invalid_witness"
+    assert summary["decision_eligible"] is False
+    assert summary["failure_category"] == "semantic_retry_budget_exhausted"
+    assert summary["completed_witness_answers"] == 0
+    assert summary["heldout_answers"] == 0
+
+
+def test_paid_runner_requires_matching_safe_preflight(tmp_path: Path):
+    config = json.loads(
+        Path(
+            "experiments/configs/global-01/apnews-global-lazy-coverage.v1.json"
+        ).read_text(encoding="utf-8")
+    )
+    report = tmp_path / "safe-preflight.json"
+    report.write_text(
+        json.dumps(
+            {
+                "schema_version": "global-01.lazy-preflight.v1",
+                "state": "ready_for_hitl",
+                "config_sha256": global_01_lazy_live._canonical_sha256(config),
+                "cost_usd": 0.0,
+                "lifecycle": {
+                    "strict_current_supersession": "pass",
+                    "temporal_failures": 0,
+                    "erasure": "pass",
+                    "derived_rows_written": 0,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert global_01_lazy_live.validate_safe_preflight(config, report)["state"] == (
+        "ready_for_hitl"
+    )
+    value = json.loads(report.read_text(encoding="utf-8"))
+    value["config_sha256"] = "0" * 64
+    report.write_text(json.dumps(value), encoding="utf-8")
+    with pytest.raises(global_01_lazy_live.Global01LazyLiveError, match="preflight"):
+        global_01_lazy_live.validate_safe_preflight(config, report)
+
+
+def test_acceptance_verdict_requires_every_registered_boundary():
+    boundaries = {
+        "headline_win_rates": True,
+        "headline_ci_lower_bounds": True,
+        "assertion_recall_delta": True,
+        "directness": True,
+        "unsupported_claim_delta": True,
+        "source_link_completeness": True,
+        "lifecycle": True,
+        "token_cost_ratio": True,
+        "end_to_end_p95_ratio": True,
+    }
+
+    assert global_01_lazy_live.acceptance_verdict(boundaries) == "accept"
+    boundaries["directness"] = False
+    assert global_01_lazy_live.acceptance_verdict(boundaries) == "reject"

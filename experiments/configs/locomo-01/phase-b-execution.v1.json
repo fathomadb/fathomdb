@@ -1,0 +1,87 @@
+{
+  "schema_version": "locomo-phase-b.v1",
+  "campaign": "authorized_phase_b_execution",
+  "program_track": "LOCOMO-01",
+  "execution": {
+    "default_mode": "preview_only",
+    "release_required": true
+  },
+  "phase_a_grid": {
+    "path": "experiments/configs/locomo-01/phase-a-grid.v1.json",
+    "sha256": "3a01207c68f2c575044deb47d1291af2f07fbbb5b75cad3eab97475db789afda"
+  },
+  "external_inputs": {
+    "corpus": {
+      "identifier": "locomo-normalized.v1",
+      "sha256": "e9999b551ac67e899f0008c9ec446cecce937ce12f01f2f08cefa9f690fc4c7c",
+      "question_count": 1536,
+      "storage": "external_only"
+    },
+    "turn_provenance": {
+      "identifier": "locomo-turn-provenance.v1",
+      "sha256": "43453c5d1b865dd1721bd0892f1af7f965e2c8484fea999eefa5cddf9da78f66",
+      "storage": "external_only"
+    },
+    "session_provenance": {
+      "identifier": "locomo-session-provenance.v1",
+      "sha256": "46e928b1d4afa865e59689682101a56a024dea46348154ba37e60da97e66c6e4",
+      "storage": "external_only"
+    },
+    "dry_run_subset": {
+      "identifier": "locomo-01-fixed-subset.v3",
+      "sha256": "88434dd0bfbbcae73117ebbfd493220885e38441e4377212eb125c8ebf897933",
+      "question_count": 32,
+      "storage": "external_only"
+    }
+  },
+  "metric_families": {
+    "m1": "r_at_10_paired_one_sided_95",
+    "m2": ["mrr", "r_at_1", "ndcg_at_10"],
+    "m4_proxy": "temporal_evidence_recall",
+    "m6": ["facade_query_ms", "engine_query_ms"],
+    "m7": ["ingest_ack_ms", "ready_to_search_ms"],
+    "class_metrics": ["factoid", "temporal", "multi_session"]
+  },
+  "cells": [
+    {
+      "kind": "phase_a_grid",
+      "program_track": "LOCOMO-01"
+    },
+    {
+      "kind": "parent_child_turn_session_v1",
+      "program_track": "PARENT-01",
+      "ingest_unit": "turn",
+      "retrieval": "hybrid",
+      "runtime_cells": [
+        {"device": "cpu", "cache_state": "cold"},
+        {"device": "cpu", "cache_state": "steady"},
+        {"device": "gpu", "cache_state": "cold"},
+        {"device": "gpu", "cache_state": "steady"}
+      ],
+      "parent_child": {
+        "version": "parent_child_turn_session_v1",
+        "parent_relation": "exact_enclosing_session",
+        "child_top_k": 10,
+        "parent_bundle_limit": 5,
+        "parent_rank": "best_child_original_rank_then_parent_session_id",
+        "fusion": "none",
+        "neighbors_each_side": 1,
+        "max_turns_per_bundle": 3,
+        "max_turns_total": 15,
+        "safe_attribution": ["parent_session_id", "seed_child_id", "ordered_neighbor_ids", "trace_source_id"]
+      }
+    }
+  ],
+  "dry_run_cell_ids": [
+    "turn--fts_only--cpu--cold",
+    "turn--hybrid--cpu--steady",
+    "session--fts_only--cpu--cold",
+    "session--hybrid--cpu--steady",
+    "turn--parent_child_turn_session_v1--cpu--cold"
+  ],
+  "receipt": {
+    "schema_version": "locomo-phase-b.safe-receipt.v1",
+    "external_metrics_ref": "locomo-phase-b-metrics.v1",
+    "historical_output_paths": []
+  }
+}

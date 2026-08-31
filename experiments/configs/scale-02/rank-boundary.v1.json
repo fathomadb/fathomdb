@@ -1,0 +1,107 @@
+{
+  "schema_version": "scale-02-rank-boundary.v1",
+  "program_track": "SCALE-02",
+  "release": "0.8.23",
+  "authorization": {
+    "state": "approved",
+    "approved_by": "HITL",
+    "approved_at": "2026-08-23T01:23:36.606Z",
+    "ledger_ref": "seq-267"
+  },
+  "dependencies": {
+    "base_execution": {
+      "path": "experiments/configs/scale-02/a0-envelope.v2.json",
+      "sha256": "eb86d5b41e63b4854bde695200b9a0b9552a5c2474650f7cb0762b862851cd28"
+    },
+    "baseline_25000": {
+      "path": "experiments/runs/scale-02-a0-25000-20260822T2245Z-ee93a826/record.json",
+      "sha256": "4acfbcdc87f6d2fb43a3e4c15875163114495487a8f824a2c0189ff95db9f96b"
+    },
+    "baseline_40000": {
+      "path": "experiments/runs/scale-02-a0-40000-20260822T2311Z-be43f004/record.json",
+      "sha256": "76445f78007cffd13d46b1175a2890805dcf0c60f52d17ce9692d56ecd49d6e5"
+    },
+    "baseline_50000": {
+      "path": "experiments/runs/scale-02-a0-50000-20260822T2324Z-f5c98234/record.json",
+      "sha256": "5ce02194e5386faf0a87460bb2f668d103f6e2f1cd78f57128d2d92347d5b184"
+    },
+    "reader_hypotheses": {
+      "path": "experiments/runs/scale-02-scale-hypotheses-20260822T2328Z-55ce25d2/record.json",
+      "sha256": "82a555e93dd78331394014293eb2fbb2513efe27818a86bd6a1d4033f100c423"
+    }
+  },
+  "hypothesis": "Completing only the BM25 score group tied across the top-100 boundary in FTS5 native rank order will preserve exact retrieval and avoid the growing full-match sort; the default-versus-mmap factor will separate its algorithm effect from reader working-set effects.",
+  "points": [25000, 40000, 50000],
+  "factors": [
+    {
+      "id": "boundary_handling",
+      "levels": ["shipped_full_sort_fallback", "stream_complete_boundary_tie"]
+    },
+    {
+      "id": "reader_profile",
+      "levels": ["default", "mmap128"]
+    }
+  ],
+  "reader_profiles": {
+    "default": {
+      "pragmas": null,
+      "expected": {"cache_size": -2000, "mmap_size": 0, "temp_store": 0}
+    },
+    "mmap128": {
+      "pragmas": "mmap_size=134217728",
+      "expected": {"cache_size": -2000, "mmap_size": 134217728, "temp_store": 0}
+    }
+  },
+  "matrix": {
+    "design": "full_factorial",
+    "cells_per_point": 4,
+    "repetitions_per_cell": 5,
+    "fresh_databases": 60,
+    "balanced_execution_order": true
+  },
+  "workload": {
+    "cold_queries": 100,
+    "warmup_queries": 100,
+    "steady_queries": 1000,
+    "mutations": 20,
+    "equivalence_queries_per_cell": 100,
+    "query_order_seed": "0x5CA1E0200A0F75",
+    "treatment_order_seed": "0x5CA1E02071E5",
+    "bootstrap_seed": "0x5CA1E020B00757",
+    "bootstrap_resamples": 2000,
+    "concurrency": 1
+  },
+  "qualification": {
+    "control_database_root": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/formal-rank-default-68f59ea8",
+    "require_no_temp_order_by_for_stream_statement": true,
+    "reproduce_control_fallback_counts": {"25000": 20, "40000": 41, "50000": 58},
+    "record_writer_and_reader_journal_mode": true,
+    "record_writer_and_reader_synchronous": true,
+    "stop_on_durability_adr_mismatch": true,
+    "require_exact_ordered_top100_candidates": true,
+    "require_exact_ordered_top10_public_results": true,
+    "require_zero_stream_full_sort_fallbacks": true,
+    "record_rows_consumed_and_boundary_group_size": true
+  },
+  "policy": {
+    "steady_p50_ms_by_point": {"25000": 25, "40000": 40, "50000": 50},
+    "steady_p99_ms": 150,
+    "max_rss_fraction": 0.8,
+    "max_errors": 0,
+    "max_timeouts": 0,
+    "max_25k_p50_or_p99_regression_fraction": 0.1,
+    "selection_order": ["stream_default", "stream_mmap128"]
+  },
+  "runtime": {
+    "base_source_git_sha": "68f59ea8d2066bbfa62f82988b3545de16a1f81b",
+    "candidate_source_git_sha": "9e507553f954c56d5c6177eabf1750faddf3acfd",
+    "python": "/tmp/fathomdb-scale02-rank-boundary-9e507553/bin/python",
+    "python_extension": "/tmp/fathomdb-scale02-rank-boundary-9e507553/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so",
+    "python_extension_sha256": "7cb85c69ba0c22c4639b74a4db6223e710dfa3fc7a73ee75dbc1d793fe681a57",
+    "fathomdb_bin": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/runtime/9e507553/fathomdb",
+    "fathomdb_bin_sha256": "7daf0ef77246abbfe2dd46b4f7f6d7ee2d56ada5248f59b1d390269bb5e6d79c",
+    "sqlite_version": "3.53.2"
+  },
+  "artifact_root": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/rank-boundary-9e507553",
+  "claim_boundary": "experiment_only_pending_post_result_production_decision"
+}

@@ -1,0 +1,80 @@
+advisory_policy:
+  max_errors: 0
+  max_peak_rss_fraction: 0.8
+  max_timeouts: 0
+  mutation_to_ready_p99_ms: 5000
+  required_repetitions: 5
+  state: approved
+  steady_fts_p50_ms: 20
+  steady_fts_p99_ms: 150
+approval:
+  approved_at: '2026-08-22T12:10:07-05:00'
+  approved_by: HITL
+  state: approved
+claim_boundary: advisory_a0_efficiency_only
+corpus:
+  growth:
+    disclosure: points_above_17272_are_efficiency_fixture_not_real_corpus_fidelity
+    mode: deterministic_derived_fixture
+    seed: '0x5CA1E02020260822'
+    source: qualified_real_prefix_round_robin
+  index: tc5-corpus-input.v1.json
+  index_sha256: 624b6b42e7e1d40866fea48d37a34b0ef8d786f46f4aa2ed9a3dd245d22a0a0a
+  qualified_manifest: /tmp/fathomdb-scale-01-20260817/tc5-manifest.all-real.v2.json
+  qualified_manifest_sha256: f6180a00d1551a143a7445aa6ed28ed589533400ee702835663729694e393df5
+  real_primary_count: 17272
+  root: /tmp/fathomdb-scale-01-20260817/corpus-input-v2
+dependencies:
+  answer_01:
+    decision: retain_a0
+    path: experiments/runs/answer-01-shortlist-live-20260822T1234Z-8a050808/record.json
+    run_id: answer-01-shortlist-live-20260822T1234Z-8a050808
+    sha256: 6154060203276c1b9aa9e8e489af677cdc6cb06d872d340c37a54639f9ada49a
+  scale_01:
+    decision: fidelity_primary_complete
+    path: experiments/runs/tc5-gpu-primary-20260822T1605Z-2d574205/record.json
+    run_id: tc5-gpu-primary-20260822T1605Z-2d574205
+    sha256: 1d15bf945172d9ea59ff20938e33eac50782530540df0f05f44add8f4d64ed6e
+execution_point: 10000
+ladder:
+- 10000
+- 17272
+- 25000
+- 40000
+- 50000
+profile:
+  embed_device: cpu
+  embedder: none
+  id: a0_turn_fts
+  rerank_device: cpu
+  reranker: none
+  retrieval: fts
+  top_k: 10
+program_track: SCALE-02
+release: 0.8.23
+runtime:
+  fathomdb_bin: target/release/fathomdb
+  fathomdb_bin_sha256: 6b40882fe3a99ed06750ff1e2062a914bf683f7d1c41298a6642bf501e2a36be
+  python: .venv/bin/python
+  python_extension: .venv/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+  python_extension_sha256: a622fe87161630d5bfb64fad1dc4eb3883971e1a46e21d411ceffc6a3624ee27
+  python_package_version: 0.8.23
+schema_version: scale-02-execution.v1
+uncertainty:
+  confidence: 0.95
+  method: repetition_level_percentile_bootstrap
+  resamples: 2000
+  seed: '0x5CA1E020B00757'
+workload:
+  cold_definition: first_query_pass_after_populated_reopen_without_intentional_warmup
+  cold_query_count: 100
+  concurrency: 1
+  drain_timeout_seconds: 1200
+  mutation_count: 20
+  query_order_seed: '0x5CA1E0200A0F75'
+  query_timeout_ms: 5000
+  repetitions: 5
+  steady_definition: same_repetition_after_the_declared_100_query_warmup
+  steady_query_count: 1000
+  warmup_query_count: 100
+  write_batch_size: 256

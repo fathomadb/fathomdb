@@ -1,0 +1,105 @@
+{
+  "schema_version": "scale-02-fts-selection.v1",
+  "state": "recommendation_pending_hitl",
+  "quality_applicability": "unchanged",
+  "recommended_cell": "rank_default",
+  "candidates": [
+    {
+      "cell_id": "current_default",
+      "eligible": false,
+      "reasons": [
+        "not_rank_fast_candidate",
+        "steady_p50_upper"
+      ],
+      "footprint_order": 0
+    },
+    {
+      "cell_id": "rank_default",
+      "eligible": true,
+      "reasons": [],
+      "footprint_order": 0
+    },
+    {
+      "cell_id": "rank_mmap128",
+      "eligible": true,
+      "reasons": [],
+      "footprint_order": 1
+    },
+    {
+      "cell_id": "rank_mmap256",
+      "eligible": true,
+      "reasons": [],
+      "footprint_order": 2
+    },
+    {
+      "cell_id": "rank_cache64",
+      "eligible": true,
+      "reasons": [],
+      "footprint_order": 3
+    },
+    {
+      "cell_id": "rank_mmap256_cache64",
+      "eligible": true,
+      "reasons": [],
+      "footprint_order": 4
+    }
+  ],
+  "program_track": "SCALE-02",
+  "basis": {
+    "baseline": {
+      "run_id": "scale-02-a0-10000-20260822T1715Z-77c37c77",
+      "sha256": "8210f4edd78ce202ed49b8a6468d77239f11a6c228dad7ec6f782047930d94a8",
+      "steady_p50_ms": 29.944693902507424
+    },
+    "answer_01": {
+      "run_id": "answer-01-shortlist-live-20260822T1234Z-8a050808",
+      "sha256": "6154060203276c1b9aa9e8e489af677cdc6cb06d872d340c37a54639f9ada49a",
+      "decision": "retain_a0",
+      "a0": {
+        "n": 32,
+        "answer_accuracy": 0.46875,
+        "temporal_correctness": 0.45454545454545453,
+        "grounded_rate": 0.71875,
+        "attribution_rate": 0.75,
+        "by_class": {
+          "factoid": {
+            "n": 10,
+            "answer_accuracy": 0.8,
+            "grounded_rate": 0.9,
+            "attribution_rate": 0.9
+          },
+          "temporal": {
+            "n": 11,
+            "answer_accuracy": 0.45454545454545453,
+            "grounded_rate": 0.6363636363636364,
+            "attribution_rate": 0.6363636363636364
+          },
+          "multi_session": {
+            "n": 11,
+            "answer_accuracy": 0.18181818181818182,
+            "grounded_rate": 0.6363636363636364,
+            "attribution_rate": 0.7272727272727273
+          }
+        }
+      }
+    },
+    "scale_01": {
+      "run_id": "tc5-gpu-primary-20260822T1605Z-2d574205",
+      "sha256": "1d15bf945172d9ea59ff20938e33eac50782530540df0f05f44add8f4d64ed6e",
+      "recall_at_10": 0.958,
+      "ci_95": [
+        0.9390000000000001,
+        0.975
+      ]
+    },
+    "tuning": {
+      "run_id": "scale-02-fts-tuning-20260822T1851Z-51e41245",
+      "sha256": "fe8620be9865009709677f6c7a40ea3a6e9522e00ea7b8f3d9ed6ebfbea18c8f"
+    }
+  },
+  "proposed_config": {
+    "path": "experiments/configs/scale-02/a0-envelope.v2.proposed.json",
+    "sha256": "7669ca88701eb9a46838ab9a2c86bbc6e7d3cfa16ca682d4762e9282184c63f8"
+  },
+  "formal_rerun_authorized": false
+}

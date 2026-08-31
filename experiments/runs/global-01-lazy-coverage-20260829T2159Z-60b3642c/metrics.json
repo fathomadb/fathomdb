@@ -1,0 +1,103 @@
+{
+  "schema_version": "global-01.lazy-result.v1",
+  "program_track": "GLOBAL-01",
+  "config_sha256": "60b3642c7cb5f5dcb0910205dfd85c93ed73ec939f78ce9709044a6893e0555e",
+  "state": "complete",
+  "verdict": "reject",
+  "question_count": 39,
+  "cost_usd": 8.55008568000001,
+  "cost_cap_usd": 12.0,
+  "preflight_sha256": "97694ceb82ce2f6588be8ef3cddd3a7989b24931773ccc0448f0fcdb2d43ddf8",
+  "canonical_source_link_completeness": 1.0,
+  "lifecycle": {
+    "strict_current_supersession": "pass",
+    "temporal_boundaries": 2,
+    "temporal_failures": 0,
+    "erasure": "pass",
+    "derived_rows_written": 0
+  },
+  "operations": {
+    "control": {
+      "model_calls": 462,
+      "prompt_tokens": 2567348,
+      "completion_tokens": 119405,
+      "generator_cost_usd": 3.86174316,
+      "end_to_end_p50_ms": 49601.09555999952,
+      "end_to_end_p95_ms": 60030.84743600084
+    },
+    "treatment": {
+      "model_calls": 289,
+      "prompt_tokens": 929467,
+      "completion_tokens": 116377,
+      "generator_cost_usd": 1.68774936,
+      "end_to_end_p50_ms": 39400.97205499842,
+      "end_to_end_p95_ms": 49854.78489199886
+    },
+    "ratios": {
+      "treatment_to_control_token_cost": 0.43704339985158414,
+      "treatment_to_control_end_to_end_p95": 0.8304861087484943
+    }
+  },
+  "acceptance": {
+    "verdict": "reject",
+    "boundaries": {
+      "headline_win_rates": false,
+      "headline_ci_lower_bounds": false,
+      "assertion_recall_delta": false,
+      "directness": true,
+      "unsupported_claim_delta": true,
+      "source_link_completeness": true,
+      "lifecycle": true,
+      "token_cost_ratio": true,
+      "end_to_end_p95_ratio": true
+    }
+  },
+  "pairwise": {
+    "comprehensiveness": {
+      "treatment_win_rate": 0.3525641025641026,
+      "question_clustered_ci95": [
+        0.21794871794871795,
+        0.4935897435897436
+      ],
+      "judgments": 390
+    },
+    "diversity": {
+      "treatment_win_rate": 0.38461538461538464,
+      "question_clustered_ci95": [
+        0.2512820512820513,
+        0.5230769230769231
+      ],
+      "judgments": 390
+    },
+    "empowerment": {
+      "treatment_win_rate": 0.4512820512820513,
+      "question_clustered_ci95": [
+        0.31025641025641026,
+        0.5923076923076923
+      ],
+      "judgments": 390
+    },
+    "directness": {
+      "treatment_win_rate": 0.5423076923076923,
+      "question_clustered_ci95": [
+        0.4128205128205128,
+        0.6717948717948717
+      ],
+      "judgments": 390
+    }
+  },
+  "scoring": {
+    "control": {
+      "qualified_assertion_recall": 0.519173050131314,
+      "unsupported_claim_rate": 0.06270909536865717
+    },
+    "treatment": {
+      "qualified_assertion_recall": 0.5036881620800411,
+      "unsupported_claim_rate": 0.014977882741040635
+    },
+    "paired_deltas": {
+      "assertion_recall": -0.015484888051272905,
+      "unsupported_claim_rate": -0.04773121262761653
+    }
+  }
+}

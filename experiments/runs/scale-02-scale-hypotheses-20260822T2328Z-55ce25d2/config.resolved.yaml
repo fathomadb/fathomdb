@@ -1,0 +1,96 @@
+{
+  "artifact_root": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/scale-hypotheses-68f59ea8",
+  "authorization": {
+    "approved_by": "HITL",
+    "ledger_ref": "seq-266",
+    "maximum_hypotheses": 2,
+    "state": "approved"
+  },
+  "claim_boundary": "experiment_only_reader_hypotheses_not_production_selection",
+  "dependencies": {
+    "base_execution": {
+      "path": "experiments/configs/scale-02/a0-envelope.v2.json",
+      "sha256": "eb86d5b41e63b4854bde695200b9a0b9552a5c2474650f7cb0762b862851cd28"
+    },
+    "baseline_25000": {
+      "path": "experiments/runs/scale-02-a0-25000-20260822T2245Z-ee93a826/record.json",
+      "sha256": "4acfbcdc87f6d2fb43a3e4c15875163114495487a8f824a2c0189ff95db9f96b"
+    },
+    "baseline_40000": {
+      "path": "experiments/runs/scale-02-a0-40000-20260822T2311Z-be43f004/record.json",
+      "sha256": "76445f78007cffd13d46b1175a2890805dcf0c60f52d17ce9692d56ecd49d6e5"
+    },
+    "baseline_50000": {
+      "path": "experiments/runs/scale-02-a0-50000-20260822T2324Z-f5c98234/record.json",
+      "sha256": "5ce02194e5386faf0a87460bb2f668d103f6e2f1cd78f57128d2d92347d5b184"
+    },
+    "prior_tuning": {
+      "path": "experiments/runs/scale-02-fts-tuning-20260822T1851Z-51e41245/record.json",
+      "sha256": "fe8620be9865009709677f6c7a40ea3a6e9522e00ea7b8f3d9ed6ebfbea18c8f"
+    }
+  },
+  "hypothesis": "The rank-fast query path is index-I/O limited above 25k; bounded mmap or page-cache capacity will preserve exact retrieval while bringing median latency within the scale-adjusted budget and tail latency within 150 ms.",
+  "points": [
+    25000,
+    40000,
+    50000
+  ],
+  "policy": {
+    "max_errors": 0,
+    "max_rss_fraction": 0.8,
+    "max_timeouts": 0,
+    "require_exact_ordered_top10": true,
+    "steady_p50_ms_by_point": {
+      "25000": 25,
+      "40000": 40,
+      "50000": 50
+    },
+    "steady_p99_ms": 150
+  },
+  "program_track": "SCALE-02",
+  "release": "0.8.23",
+  "runtime_source_git_sha": "68f59ea8d2066bbfa62f82988b3545de16a1f81b",
+  "schema_version": "scale-02-scale-hypotheses.v1",
+  "treatments": [
+    {
+      "basis": "best prior 10k latency with the smaller mmap allocation",
+      "id": "rank_mmap128",
+      "reader_profile": {
+        "expected": {
+          "cache_size": -2000,
+          "mmap_size": 134217728,
+          "temp_store": 0
+        },
+        "footprint_order": 1,
+        "id": "mmap128",
+        "pragmas": "mmap_size=134217728"
+      }
+    },
+    {
+      "basis": "near-best prior 10k latency with lower observed RSS than mmap",
+      "id": "rank_cache64",
+      "reader_profile": {
+        "expected": {
+          "cache_size": -65536,
+          "mmap_size": 0,
+          "temp_store": 0
+        },
+        "footprint_order": 2,
+        "id": "cache64",
+        "pragmas": "cache_size=-65536"
+      }
+    }
+  ],
+  "workload": {
+    "bootstrap_resamples": 2000,
+    "bootstrap_seed": "0x5CA1E020B00757",
+    "cold_queries": 100,
+    "concurrency": 1,
+    "equivalence_queries_per_cell": 100,
+    "mutations": 20,
+    "query_order_seed": "0x5CA1E0200A0F75",
+    "repetitions": 5,
+    "steady_queries": 1000,
+    "warmup_queries": 100
+  }
+}

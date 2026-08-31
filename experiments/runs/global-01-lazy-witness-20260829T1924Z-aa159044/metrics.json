@@ -1,0 +1,16 @@
+{
+  "schema_version": "global-01.lazy-witness-invalid.v1",
+  "program_track": "GLOBAL-01",
+  "config_sha256": "aa1590441dae7ee56b72463c050b00aacf23b3738a0bd35f2b9a1611d54d9785",
+  "state": "invalid_witness",
+  "decision_eligible": false,
+  "failure_category": "semantic_retry_budget_exhausted",
+  "aa_passed": true,
+  "witness_question_count": 3,
+  "completed_witness_answers": 0,
+  "heldout_answers": 0,
+  "completed_map_cells": 6,
+  "invalid_semantic_submissions": 12,
+  "cost_usd": 0.21765224,
+  "cost_cap_usd": 12.0
+}

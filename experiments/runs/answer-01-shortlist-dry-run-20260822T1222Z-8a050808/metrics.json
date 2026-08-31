@@ -1,0 +1,66 @@
+{
+  "schema_version": "answer-01.safe-summary.v1",
+  "status": "dry_run_proof",
+  "question_count": 32,
+  "pair_count": 64,
+  "complete_pair_count": 32,
+  "arms": {
+    "a0_turn_fts": {
+      "n": 32,
+      "answer_accuracy": 0.125,
+      "temporal_correctness": 0.0,
+      "grounded_rate": 1.0,
+      "attribution_rate": 1.0,
+      "by_class": {
+        "factoid": {
+          "n": 10,
+          "answer_accuracy": 0.4,
+          "grounded_rate": 1.0,
+          "attribution_rate": 1.0
+        },
+        "temporal": {
+          "n": 11,
+          "answer_accuracy": 0.0,
+          "grounded_rate": 1.0,
+          "attribution_rate": 1.0
+        },
+        "multi_session": {
+          "n": 11,
+          "answer_accuracy": 0.0,
+          "grounded_rate": 1.0,
+          "attribution_rate": 1.0
+        }
+      }
+    },
+    "hybrid_ce_alpha_10_pool_20": {
+      "n": 32,
+      "answer_accuracy": 0.125,
+      "temporal_correctness": 0.0,
+      "grounded_rate": 1.0,
+      "attribution_rate": 1.0,
+      "by_class": {
+        "factoid": {
+          "n": 10,
+          "answer_accuracy": 0.4,
+          "grounded_rate": 1.0,
+          "attribution_rate": 1.0
+        },
+        "temporal": {
+          "n": 11,
+          "answer_accuracy": 0.0,
+          "grounded_rate": 1.0,
+          "attribution_rate": 1.0
+        },
+        "multi_session": {
+          "n": 11,
+          "answer_accuracy": 0.0,
+          "grounded_rate": 1.0,
+          "attribution_rate": 1.0
+        }
+      }
+    }
+  },
+  "cost_usd": 0.0,
+  "live_calls": 0,
+  "decision_eligible": false
+}

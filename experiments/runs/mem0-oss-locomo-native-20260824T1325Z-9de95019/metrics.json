@@ -1,0 +1,23 @@
+{
+  "phase": "ingest_search_predict_only",
+  "completion": {
+    "complete": true,
+    "expected_questions": 1540,
+    "completed_questions": 1540,
+    "missing_question_ids": [],
+    "failed_ingestion_conversations": [],
+    "search_latency_ms": {
+      "n": 1540,
+      "mean": 5081.338701298701
+    },
+    "retrieval_results": {
+      "n": 1540,
+      "total": 30800
+    }
+  },
+  "cost": {
+    "status": "unavailable",
+    "value": null,
+    "reason": "the Airlock service does not provide a run-isolated spend receipt"
+  }
+}

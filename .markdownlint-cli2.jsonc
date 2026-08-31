@@ -26,6 +26,9 @@
     // Gitignored eval corpus payloads (never committed; seeded locally for runs).
     "data/corpus-data/**",
 
+    // Gitignored native benchmark toolchains contain third-party package docs.
+    "data/performance-benchmarking/**/toolchains/**",
+
     // repo-prune tool backups (staging dir for pruned files; not maintained prose).
     "scripts/repo-prune/backups/**",
 

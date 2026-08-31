@@ -1,0 +1,59 @@
+{
+  "approval": {
+    "approved_at": null,
+    "approved_by": null,
+    "state": "pending_hitl"
+  },
+  "candidate_runtime": {
+    "fathomdb_bin": "data/performance-benchmarking/scale-02/runtime/718c21d9/fathomdb",
+    "fathomdb_bin_sha256": "afe9005ffd51c0544eb3e1a78ec86696d193a8a7791f7e9cdcb38a46cbbd0b32",
+    "python": "/tmp/fathomdb-scale02-followup-runtime-718c21d9/bin/python",
+    "python_extension": "/tmp/fathomdb-scale02-followup-runtime-718c21d9/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so",
+    "python_extension_sha256": "3c49fa019f95e74e84e2db7d64e65f3d4a3f57d73724014c4359c306903b8250",
+    "source_git_sha": "718c21d98a773312ba8b651740f96c32f50f5fa1",
+    "wheel": "data/performance-benchmarking/scale-02/runtime/718c21d9/fathomdb-0.8.23-cp310-abi3-manylinux_2_39_x86_64.whl",
+    "wheel_sha256": "1525ffaf7331bfd1c886c31725a932f2b75dfe1e31ff16570378a5ec3f857199"
+  },
+  "claim_boundary": "formal_10k_rerun_pending_hitl_and_production_landing",
+  "inputs": {
+    "manifest_sha256": "1d1aee57b20f38ed39dc780c44d12be6ec1a18f64f02dbf8ae5fcf79d5f72795",
+    "point": 10000
+  },
+  "policy": {
+    "confidence": 0.95,
+    "max_rss_fraction": 0.8,
+    "selection": "lowest_footprint_eligible",
+    "steady_p50_ms": 20,
+    "steady_p99_ms": 150
+  },
+  "profile": {
+    "expected_reader_settings": {
+      "cache_size": -2000,
+      "mmap_size": 0,
+      "temp_store": 0
+    },
+    "id": "a0_turn_fts",
+    "query_path": "rank_fast_pending_production_landing",
+    "reader_pragmas": "",
+    "reader_profile": "default",
+    "top_k": 10
+  },
+  "program_track": "SCALE-02",
+  "release": "0.8.23",
+  "schema_version": "scale-02-execution.v2",
+  "tuning_receipt": {
+    "run_id": "scale-02-fts-tuning-20260822T1851Z-51e41245",
+    "sha256": "fe8620be9865009709677f6c7a40ea3a6e9522e00ea7b8f3d9ed6ebfbea18c8f"
+  },
+  "workload": {
+    "bootstrap_resamples": 2000,
+    "bootstrap_seed": "0x5CA1E020B00757",
+    "cold_queries": 100,
+    "mutations": 20,
+    "point": 10000,
+    "query_order_seed": "0x5CA1E0200A0F75",
+    "repetitions": 5,
+    "steady_queries": 1000,
+    "warmup_queries": 100
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": "tc5-input-qualification-policy.v1",
+  "program_track": "SCALE-01",
+  "policy_id": "tc5-all-real-fidelity-input-qualification-v1",
+  "required_supported_claim": "retrieval_fidelity_only",
+  "required_attestations": [
+    "license_copy_sha256",
+    "source_artifact_sha256",
+    "cpu_host_attestation_sha256",
+    "model_asset_sha256",
+    "ground_truth_artifact_sha256",
+    "vector_stage_runtime_sha256",
+    "output_root_attestation_sha256"
+  ],
+  "claim_boundary": "fidelity_only_no_scale02_or_product_claim",
+  "release_state": "factual_inputs_qualified_pending_coordinator_release"
+}

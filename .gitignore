@@ -7,6 +7,10 @@
 # reproducibly; the data itself is not tracked. See
 # tests/corpus/corpus-card.md for distribution + license posture.
 /data/corpus-data/
+# Worktrees may link the canonical external corpus root here.
+/data
+# Local experiment and service logs may contain corpus/model output.
+/logs/
 
 # Keep local Codex state out of the repository, except the shared workflows.
 .codex/*
@@ -57,6 +61,7 @@ typescript/node_modules/
 typescript/packages/*/dist/
 typescript/apps/*/dist/
 .venv/
+.venv
 **/.venv/
 dist/
 **/dist/
@@ -77,8 +82,7 @@ dev/memex/
 .bosun-cache/
 
 # Security fix M-6: Prevent accidental commit of secrets and sensitive files.
-.env
-.env.*
+.env*
 !tooling/sqlite.env
 *.pem
 *.key

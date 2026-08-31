@@ -1,0 +1,10 @@
+{
+  "schema_version": "fathomdb-locomo-arm.result.v1",
+  "run_id": "fathomdb-locomo-official-seam-20260824T0722Z-f99cc7bf",
+  "verdict": "blocked_prerequisite",
+  "retrieval_mode": "fts_only",
+  "completion": {
+    "complete": false,
+    "expected_questions": 1443
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "scale-02-input-pack-20260822T1819Z-221cf7ed",
+  "experiment": "scale-02-input-pack",
+  "title": "scale-02-input-pack",
+  "verdict": "complete",
+  "read": "SCALE-02 frozen TC-5 and ANSWER-01 inputs preserved and digest-addressed",
+  "code": {
+    "git_sha": "4d2a4d65528f7a04a67ed3930ab02cb50aeae42d",
+    "dirty": false,
+    "branch": "experiments/performance-0.8.23-plan-20260821",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "221cf7ed85c6a78775ba87b1474795cd08814b58b1fa24694eff11c7e5267b68",
+    "path": "experiments/configs/scale-02/fts-tuning.v1.json",
+    "resolved": {
+      "schema_version": "scale-02-input-pack-config.v1",
+      "program_track": "SCALE-02",
+      "manifest_sha256": "1d1aee57b20f38ed39dc780c44d12be6ec1a18f64f02dbf8ae5fcf79d5f72795"
+    }
+  },
+  "corpus": {
+    "source": "TC-5 and LOCOMO frozen external input pack",
+    "manifest_sha256": "1d1aee57b20f38ed39dc780c44d12be6ec1a18f64f02dbf8ae5fcf79d5f72795",
+    "datasets": [
+      "tc5-qualified-real-v2",
+      "locomo10-answer-01-subset-v3"
+    ]
+  },
+  "seeds": {},
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb": "0.8.23"
+    }
+  },
+  "metrics": {
+    "schema_version": "scale-02-input-pack-receipt.v1",
+    "program_track": "SCALE-02",
+    "pack_id": "scale-02-input-pack-v1",
+    "manifest_sha256": "1d1aee57b20f38ed39dc780c44d12be6ec1a18f64f02dbf8ae5fcf79d5f72795",
+    "file_count": 17376,
+    "total_bytes": 37198748,
+    "datasets": {
+      "tc5": {
+        "document_count": 17272,
+        "query_count": 100
+      },
+      "answer_01": {
+        "question_count": 32
+      }
+    },
+    "persistent_root_identifier": "fathomdb-data/performance-benchmarking/scale-02",
+    "payload_committed": false
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": [
+    "tests/experiments/test_scale_02_followup.py"
+  ],
+  "files_changed": [],
+  "artifacts": [
+    {
+      "kind": "external_input_manifest",
+      "sha256": "1d1aee57b20f38ed39dc780c44d12be6ec1a18f64f02dbf8ae5fcf79d5f72795"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

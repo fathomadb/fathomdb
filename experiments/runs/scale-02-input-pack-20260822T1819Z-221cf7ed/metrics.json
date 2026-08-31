@@ -1,0 +1,19 @@
+{
+  "schema_version": "scale-02-input-pack-receipt.v1",
+  "program_track": "SCALE-02",
+  "pack_id": "scale-02-input-pack-v1",
+  "manifest_sha256": "1d1aee57b20f38ed39dc780c44d12be6ec1a18f64f02dbf8ae5fcf79d5f72795",
+  "file_count": 17376,
+  "total_bytes": 37198748,
+  "datasets": {
+    "tc5": {
+      "document_count": 17272,
+      "query_count": 100
+    },
+    "answer_01": {
+      "question_count": 32
+    }
+  },
+  "persistent_root_identifier": "fathomdb-data/performance-benchmarking/scale-02",
+  "payload_committed": false
+}

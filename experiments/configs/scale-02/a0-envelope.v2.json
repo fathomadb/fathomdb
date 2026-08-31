@@ -1,0 +1,87 @@
+{
+  "schema_version": "scale-02-execution.v1",
+  "program_track": "SCALE-02",
+  "release": "0.8.23",
+  "approval": {
+    "state": "approved",
+    "approved_by": "HITL",
+    "approved_at": "2026-08-22T22:04:23.894Z"
+  },
+  "dependencies": {
+    "answer_01": {
+      "path": "experiments/runs/answer-01-shortlist-live-20260822T1234Z-8a050808/record.json",
+      "sha256": "6154060203276c1b9aa9e8e489af677cdc6cb06d872d340c37a54639f9ada49a",
+      "run_id": "answer-01-shortlist-live-20260822T1234Z-8a050808",
+      "decision": "retain_a0"
+    },
+    "scale_01": {
+      "path": "experiments/runs/tc5-gpu-primary-20260822T1605Z-2d574205/record.json",
+      "sha256": "1d15bf945172d9ea59ff20938e33eac50782530540df0f05f44add8f4d64ed6e",
+      "run_id": "tc5-gpu-primary-20260822T1605Z-2d574205",
+      "decision": "fidelity_primary_complete"
+    }
+  },
+  "profile": {
+    "id": "a0_turn_fts",
+    "retrieval": "fts",
+    "top_k": 10,
+    "embedder": "none",
+    "embed_device": "cpu",
+    "reranker": "none",
+    "rerank_device": "cpu"
+  },
+  "ladder": [10000, 17272, 25000, 40000, 50000],
+  "corpus": {
+    "root": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/inputs/input-pack-v1/tc5",
+    "index": "tc5-corpus-input.v1.json",
+    "index_sha256": "624b6b42e7e1d40866fea48d37a34b0ef8d786f46f4aa2ed9a3dd245d22a0a0a",
+    "qualified_manifest": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/inputs/input-pack-v1/tc5-qualified-manifest.json",
+    "qualified_manifest_sha256": "f6180a00d1551a143a7445aa6ed28ed589533400ee702835663729694e393df5",
+    "real_primary_count": 17272,
+    "growth": {
+      "mode": "deterministic_derived_fixture",
+      "seed": "0x5CA1E02020260822",
+      "source": "qualified_real_prefix_round_robin",
+      "disclosure": "points_above_17272_are_efficiency_fixture_not_real_corpus_fidelity"
+    }
+  },
+  "workload": {
+    "repetitions": 5,
+    "write_batch_size": 256,
+    "cold_query_count": 100,
+    "cold_definition": "first_query_pass_after_populated_reopen_without_intentional_warmup",
+    "warmup_query_count": 100,
+    "steady_query_count": 1000,
+    "steady_definition": "same_repetition_after_the_declared_100_query_warmup",
+    "mutation_count": 20,
+    "concurrency": 1,
+    "query_order_seed": "0x5CA1E0200A0F75",
+    "drain_timeout_seconds": 1200,
+    "query_timeout_ms": 5000
+  },
+  "uncertainty": {
+    "method": "repetition_level_percentile_bootstrap",
+    "confidence": 0.95,
+    "resamples": 2000,
+    "seed": "0x5CA1E020B00757"
+  },
+  "advisory_policy": {
+    "state": "approved",
+    "required_repetitions": 5,
+    "max_errors": 0,
+    "max_timeouts": 0,
+    "steady_fts_p50_ms": 20,
+    "steady_fts_p99_ms": 150,
+    "mutation_to_ready_p99_ms": 5000,
+    "max_peak_rss_fraction": 0.8
+  },
+  "runtime": {
+    "python": "/tmp/fathomdb-scale02-formal-runtime-68f59ea8/bin/python",
+    "python_package_version": "0.8.23",
+    "python_extension": "/tmp/fathomdb-scale02-formal-runtime-68f59ea8/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so",
+    "python_extension_sha256": "7b50dd18bf793a2cb74f2f7e56cae3635312497e2ebcace156497be28db03307",
+    "fathomdb_bin": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/runtime/68f59ea8/fathomdb",
+    "fathomdb_bin_sha256": "7e385a1f916f6386e838782867fbe23ba57149f5ac4465535d1c1cfcf3dfb8a2"
+  },
+  "claim_boundary": "advisory_a0_efficiency_only"
+}

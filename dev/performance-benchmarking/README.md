@@ -6,6 +6,14 @@ dataset identity, measurement protocol, result status, and pointers to the
 authoritative artifacts. It is not a data lake or a second copy of an
 experiment.
 
+For priorities, dependencies, and execution sequence, use the
+[overall performance benchmarking and experiments program](PROGRAM.md).
+`experiments/` remains the append-only execution ledger and receipt store;
+this directory does not duplicate its run records or generated scoreboard.
+For the campaign's Codex-native coordinator/worker/reviewer operating control,
+use [Track Runner](TRACK-RUNNER.md) and its live
+[status board](TRACK-RUNNER-STATUS.md).
+
 ## Storage rule
 
 - Store short, reviewable result notes and this index here.
@@ -81,12 +89,13 @@ Mem0 comparison is re-run.
 | `data/corpus-data/eval/ir_gold/all.gold.json` | 4,597-query FathomDB retrieval benchmark: exact-fact, exploratory, and negative queries; compare retrieval systems only. | It has no free-text answers, so it cannot support answer-accuracy claims. |
 | `data/corpus-data/raw/beir/{arguana,fiqa,nfcorpus,touche2020}/` | Standard retrieval comparisons with qrels. | Not an agent-memory or graph-system head-to-head by itself. |
 | `data/corpus-data/raw/summhay/summhay.jsonl` | Global query-focused summarization with insight and citation gold. | Strong GraphRAG-adjacent follow-up, but not the historical AP-News gate. |
-| `data/corpus-data/raw/timelineqa/`, `timeqa/`, and `tot/` | Temporal and personal-memory regression/stress testing. | No historical shared-comparator protocol is registered. |
+| `data/corpus-data/raw/timelineqa/`, `timeqa/`, and `tot/` | Temporal and personal-memory regression/stress testing. | TimelineQA is authorized for evaluation only; no historical shared-comparator protocol is registered. |
 | `data/corpus-data/external/memex-elps/` | ELPS extraction conformance. | Not an end-to-end retrieval or competitor benchmark. |
 
-LongMemEval was the original primary agent-memory source, but it is streamed or
-cached outside this `data/` inventory; do not claim it is locally reproducible
-until its actual cache or acquired payload is recorded in the campaign note.
+LongMemEval-S and oracle are locally acquired under
+`data/corpus-data/raw/longmemeval-cleaned/`, with source revision and payload
+hashes in the corpus data registry. LongMemEval-M remains unacquired because no
+current measurement contract requires its 500-session context.
 
 ## Performance evidence register
 

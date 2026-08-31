@@ -68,7 +68,7 @@ fn node(body: &str) -> PreparedWrite {
     PreparedWrite::Node {
         kind: "doc".into(),
         body: body.into(),
-        logical_id: None,
+        logical_id: Some(body.into()),
         source_id: SourceId::new("tc5").unwrap(),
         valid_from: None,
         valid_until: None,
@@ -113,4 +113,35 @@ fn direct_vector_stage_uses_one_scope_and_distinct_truth_route() {
     assert_ne!(result.rerank, result.ground_truth);
     assert_eq!(result.candidate_execution, "cpu/sqlite-vec");
     assert_eq!(result.rerank_execution, "cpu/sqlite-vec");
+}
+
+#[test]
+fn direct_vector_stage_excludes_the_manifest_pinned_query_source_everywhere() {
+    let dir = tempdir().unwrap();
+    let opened = Engine::open_with_embedder_for_test(
+        dir.path().join("tc5-exclusion.db"),
+        Arc::new(FixedEmbedder),
+    )
+    .unwrap();
+    let engine = &opened.engine;
+    engine.configure_vector_kind_for_test("doc").unwrap();
+    let receipt = engine.write(&[node("a"), node("b"), node("c")]).unwrap();
+    engine.drain(5_000).unwrap();
+    let excluded_row = receipt.row_cursors[0];
+
+    let result = engine
+        .tc5_vector_stage(VectorStageRequest {
+            query_vector: vector(10.0, 10.0),
+            candidate_k: 2,
+            top_k: 1,
+            scope: VectorStageScope::kind_excluding_logical_id("doc", "a"),
+            expected_vector_rows: 2,
+            route_observer: RouteObserver::new(),
+        })
+        .unwrap();
+
+    assert!(!result.candidates.contains(&excluded_row));
+    assert!(!result.rerank.contains(&excluded_row));
+    assert!(!result.ground_truth.contains(&excluded_row));
+    assert_ne!(result.selection_digest, VectorStageScope::kind("doc").selection_digest());
 }

@@ -1,0 +1,7 @@
+{
+  "program_track": "SCALE-02",
+  "proposal_sha256": "7669ca88701eb9a46838ab9a2c86bbc6e7d3cfa16ca682d4762e9282184c63f8",
+  "schema_version": "scale-02-fts-selection-config.v1",
+  "tuning_run_id": "scale-02-fts-tuning-20260822T1851Z-51e41245",
+  "tuning_sha256": "fe8620be9865009709677f6c7a40ea3a6e9522e00ea7b8f3d9ed6ebfbea18c8f"
+}

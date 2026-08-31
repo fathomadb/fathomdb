@@ -1,0 +1,82 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "locomo-capability-preflight-20260814T2247Z-1ff8b7bc",
+  "experiment": "locomo-capability-preflight",
+  "title": "locomo-capability-preflight",
+  "verdict": "blocked_prerequisite",
+  "read": "Phase A provenance is ready; GPU wheel and authenticated scorer route remain prerequisites.",
+  "code": {
+    "git_sha": "06a32c86edca5b3db02a5d016830a9e8ad835d69",
+    "dirty": false,
+    "branch": "campaign/locomo-capability-20260814",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "1ff8b7bcc372e76938680db87cc54668135652c36e6ec480107f7fade9c6e47c",
+    "path": null,
+    "resolved": {
+      "schema_version": "locomo-capability-preflight.v1",
+      "checkpoint_commit": "06a32c86edca5b3db02a5d016830a9e8ad835d69",
+      "local_main_commit": "13c2767e9b79f275d59126b621749a33363c7d3d",
+      "origin_main_commit": "dd1f04714617c5f435ca4edd607235cd14003c07",
+      "dependency_lock_sha256": "4a0254e909ed86ad89fd2078c1d8c54b880aed953c81bcf36ed87857f7ee0d84",
+      "harness_commit": "4b61c5d31b9c668a12b4f5e78064248a02c82d2b",
+      "provenance_manifests": {
+        "turn": {
+          "sha256": "43453c5d1b865dd1721bd0892f1af7f965e2c8484fea999eefa5cddf9da78f66"
+        },
+        "session": {
+          "sha256": "46e928b1d4afa865e59689682101a56a024dea46348154ba37e60da97e66c6e4"
+        }
+      },
+      "gpu_wheel": {
+        "status": "unbuilt",
+        "reason": "canonical main checkout is dirty"
+      }
+    }
+  },
+  "corpus": {
+    "source": "LOCOMO",
+    "manifest_sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+    "datasets": []
+  },
+  "seeds": {},
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {}
+  },
+  "metrics": {
+    "phase": "A",
+    "provenance": {
+      "turn_manifest": "ready",
+      "session_manifest": "ready"
+    },
+    "airlock": {
+      "liveness": "previously_verified",
+      "scorer_route": "unconfigured"
+    },
+    "m3": "not_run",
+    "m4": "not_run"
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [
+    {
+      "path": "locomo-turn-provenance.v1",
+      "sha256": "43453c5d1b865dd1721bd0892f1af7f965e2c8484fea999eefa5cddf9da78f66"
+    },
+    {
+      "path": "locomo-session-provenance.v1",
+      "sha256": "46e928b1d4afa865e59689682101a56a024dea46348154ba37e60da97e66c6e4"
+    }
+  ],
+  "review": null,
+  "open_questions": [
+    "Build the GPU wheel from a clean canonical-main checkout.",
+    "Configure the authenticated Airlock scorer route before M3."
+  ]
+}

@@ -1,0 +1,6 @@
+retrieval_mode: fts_only
+schema_version: locomo-retrieval-analysis.v1
+scoring_unit: evidence_backed_question
+source_arm_run: fathomdb-locomo-official-seam-20260814T2253Z-aa0e73a8
+source_external_metrics_sha256: 4bab8eb140bfe7e601166ad2946e0a337acf480551754e3f3c96ac296810348e
+top_k: 10

@@ -1,5 +1,10 @@
 # GraphRAG baseline readiness plan
 
+> **Program relationship.** This is the parked G0 track in the
+> [overall performance benchmarking and experiments program](../PROGRAM.md).
+> It must not resume without the program's cost and native-reproduction
+> prerequisites.
+
 ## Objective
 
 First reproduce GraphRAG's native 15-document witness once. Then make one

@@ -1,0 +1,10 @@
+{
+  "schema_version": "extract-01.safe-summary.v1",
+  "program_track": "EXTRACT-01",
+  "status": "blocked_invalid_extractor_output",
+  "completed_cases": 0,
+  "attempted_calls": 1,
+  "cost_usd": 0.050198,
+  "reason": "extractor exhausted 4096 completion tokens without valid JSON",
+  "decision_eligible": false
+}

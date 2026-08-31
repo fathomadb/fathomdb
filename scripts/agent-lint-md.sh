@@ -56,6 +56,13 @@ run_capped lint-findings "$SCRIPT_DIR/lint-findings.sh"
 # markdownlint job never sees.
 run_capped lint-plan-anchors "$SCRIPT_DIR/lint-plan-anchors.sh" --quiet
 
+# Track Runner: the performance-program coordinator/worker/reviewer control is
+# deliberately lighter than a release ladder, but it still needs one enforced
+# binding across the program, charters, scoped agent instructions, and receipt
+# harness instructions. A missing connection would otherwise let a worker
+# silently fall back to an ad-hoc experiment.
+run_capped check-track-runner "$SCRIPT_DIR/check-track-runner.sh" --quiet
+
 # T2a (DOC-HYGIENE-2): release state has ONE writer — dev/plans/release-state-*.json
 # — and the prose restatements of it are marker-delimited GENERATED regions. This
 # leg regenerates every region and diffs it against the document, so a hand-edit

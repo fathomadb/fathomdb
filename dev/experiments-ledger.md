@@ -621,6 +621,96 @@
   claude-sonnet --depth2 --max-usd 5.0`). PSD §III.D; `dev/plans/0.8.11-implementation.md` §1/§5
   (F-8b).
 
+## 0.8.23
+
+### SCALE-01 — TC-5 all-real GPU vector-stage fidelity
+
+- **Question:** What pre-fusion vector-stage fidelity is observed at the
+  manifest-qualified 17,272-document all-real envelope?
+- **N & power:** RTX 3090 embedding; 7,667-document smoke and 17,272-document
+  primary; 100 fixed queries per arm; 1,000 bootstrap resamples; `K=192`.
+- **Result:** smoke recall@10 **0.958** [0.938, 0.974], sigma 0.00921;
+  primary recall@10 **0.958** [0.939, 0.975], sigma 0.00876. Both arms had
+  complete vector projection, zero synthetic rows, and 100/100 direct-route
+  queries.
+- **Verdict:** **RESOLVED.** The historical 0.90 reference was observed at the
+  qualified primary. This is fidelity and uncertainty evidence only; it makes
+  no latency, relevance, capacity, or product claim. No CPU bridge was needed.
+- **$:** $0. **Sources:**
+  `experiments/runs/tc5-gpu-smoke-20260822T1446Z-2d574205/record.json` and
+  `experiments/runs/tc5-gpu-primary-20260822T1605Z-2d574205/record.json`.
+
+### EXTRACT-01 — native extracted semantic memory
+
+- **Question:** Does adding question-blind, provenance-linked native ELPS
+  memory improve LongMemEval-S knowledge-update quality enough to justify its
+  extraction and lifecycle costs over raw A0 FTS?
+- **N:** All 78 `knowledge-update` cases; paired raw A0 versus the same raw
+  memory plus native entities and fact edges. Gemini 3.1 Flash-Lite extracted
+  and answered; Claude Sonnet applied the official knowledge-update rubric.
+- **Result:** answer accuracy was **64/78 (82.05%) raw** and **65/78 (83.33%)
+  treatment**, a descriptive **+1/78 (+1.28 pp)**. Paired outcomes were 2 wins,
+  1 loss, 63 both correct, and 12 both wrong. Evidence recall@10 moved from
+  77/78 to 78/78. Source-link completeness was 100%; one of 390 extraction
+  documents exhausted bounded semantic retries. All 994 extracted edge outputs
+  carried bounded confidence, but confidence was saturated (mean 0.997, median
+  1.0) and is uncalibrated without human atomic-fact gold.
+- **Lifecycle:** conflict detection, post-erasure absence, and zero active
+  orphans passed. Value-changing Boston-to-Austin facts remained competing, so
+  `supersession_applied=false`.
+- **Verdict:** **RESOLVED — do not adopt unconsolidated extraction.** Retain raw
+  A0 for knowledge updates until native value-changing consolidation exists.
+  The small descriptive quality movement does not satisfy the fixed
+  no-lifecycle-violation rule. Preferences, episodes, and general memory remain
+  outside this claim.
+- **$:** **$2.7983 primary** of the $20 cap; total observed task spend including
+  abandoned provider attempts and preflights remained below $5. **Source:**
+  `experiments/runs/extract-01-knowledge-update-20260823T2236Z-59e805cb/record.json`.
+
+### GLOBAL-01 — source-linked lazy coverage
+
+- **Question:** Does `global_lazy_coverage_v1` improve global
+  comprehensiveness, diversity, and empowerment over source-linked map-reduce
+  while retaining directness, grounding, attribution, lifecycle fidelity, and
+  acceptable cost?
+- **N:** 39 held-out AP News BenchmarkQED questions; matched answers, five
+  order-swapped pairwise judgments per metric, two assertion-scoring trials,
+  and 2,000 question-clustered bootstrap draws.
+- **Result:** Treatment win rates were 0.353 comprehensiveness, 0.385 diversity,
+  0.451 empowerment, and 0.542 directness. Qualified-assertion recall changed
+  from 0.519 to 0.504; unsupported claims improved from 0.063 to 0.015.
+  Treatment/control generation-cost and p95-latency ratios were 0.437 and
+  0.830. Attribution was complete and lifecycle canaries passed.
+- **Verdict:** **REJECT.** The treatment failed the registered headline-quality
+  and assertion-recall boundaries. Retain `source_mapreduce_c_v1_fts50`; do not
+  tune against held-out outcomes.
+- **$:** **$8.5501** of the $12 cap. **Source:**
+  `experiments/runs/global-01-lazy-coverage-20260829T2159Z-60b3642c/record.json`.
+
+### REASON-01 — protected retrieval and compact evidence ledger
+
+- **Question:** Can a protected multi-query relationship profile improve the
+  diagnosed multi-hop gap, and can exact-strip evidence compaction retain its
+  retrieval gain without losing answer correctness, groundedness, or
+  attribution versus A0?
+- **N:** The untouched protected-treatment comparison and a separate complete
+  109-case consumed-cohort compact-ledger v2 diagnostic.
+- **Result:** `protected_multiquery_v1` improved supporting-session retrieval
+  but lost answer quality on the held-out cohort. Compact-ledger v2 completed
+  all 109 diagnostic cases and reduced mean answer input from 13,611 to 1,407
+  characters. Versus A0, accuracy changed +2.75 points, groundedness -9.17
+  points, and attribution -5.50 points. Six cases exhausted ledger semantic
+  repair and were retained as quality failures.
+- **Verdict:** **REJECT.** Retain A0. V2 fixed the v1 abstention and continuation
+  flaw, but failed the descriptive groundedness and attribution boundary. Do
+  not run an untouched confirmation, native HippoRAG-2 comparison, or
+  MEMORY-01 refresh from either rejected treatment.
+- **$:** **$3.0294 authoritative Airlock spend**, including the v2 route probe,
+  under the $10 cap. **Sources:**
+  `experiments/runs/reason-01-compact-ledger-v2-20260830T2156Z-572f51ea/record.json`
+  and
+  `dev/performance-benchmarking/2026-08-30-reason-01-compact-ledger-v2-result.md`.
+
 ## research/ (UNTRACKED — git-ignored; results live ONLY here)
 
 ### research/eu-0 — eu7 embedder + quantization-path sweep (RESOLVED)

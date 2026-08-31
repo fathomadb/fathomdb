@@ -1,0 +1,34 @@
+{
+  "schema_version": "temporal-01-trace-validity.v1",
+  "program_track": "TEMPORAL-01",
+  "cell_id": "temporal-01-trace-validity",
+  "profile": {
+    "id": "a0_turn_fts",
+    "retrieval": "fts",
+    "top_k": 10,
+    "embedder": "none",
+    "embed_device": "cpu",
+    "reranker": "none",
+    "rerank_device": "cpu"
+  },
+  "fixture": {
+    "query": "trace validity signal",
+    "records": [
+      {"logical_id": "trace-prior", "source_id": "trace-source-prior", "body": "trace validity signal prior", "valid_from": 1000, "valid_until": 2000},
+      {"logical_id": "trace-middle", "source_id": "trace-source-middle", "body": "trace validity signal middle", "valid_from": 3000, "valid_until": 4000},
+      {"logical_id": "trace-late", "source_id": "trace-source-late", "body": "trace validity signal late", "valid_from": 5000, "valid_until": 6000},
+      {"logical_id": "trace-always", "source_id": "trace-source-always", "body": "trace validity signal always"}
+    ],
+    "probes": [
+      {"valid_as_of": 1000, "expected_ids": ["trace-always", "trace-prior"]},
+      {"valid_as_of": 1500, "expected_ids": ["trace-always", "trace-prior"]},
+      {"valid_as_of": 2000, "expected_ids": ["trace-always"]},
+      {"valid_as_of": 2500, "expected_ids": ["trace-always"]},
+      {"valid_as_of": 3000, "expected_ids": ["trace-always", "trace-middle"]},
+      {"valid_as_of": 4000, "expected_ids": ["trace-always"]},
+      {"valid_as_of": 5000, "expected_ids": ["trace-always", "trace-late"]},
+      {"valid_as_of": 6000, "expected_ids": ["trace-always"]}
+    ]
+  },
+  "claim_boundary": "synthetic_world_time_validity_only_no_corpus_or_history_claim"
+}

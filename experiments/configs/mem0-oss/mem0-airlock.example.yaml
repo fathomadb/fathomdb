@@ -1,0 +1,17 @@
+# Mounted into the official Mem0 container at /app/config.yaml. Airlock remains
+# the existing host systemd service; this address is only the container-to-host
+# bridge created by compose.airlock.override.example.yaml.
+version: v1.1
+llm:
+  provider: openai
+  config:
+    model: gpt-4o-mini
+    api_key: ${OPENAI_API_KEY}
+    openai_base_url: http://host.docker.internal:4000/v1
+    temperature: 0.1
+embedder:
+  provider: openai
+  config:
+    model: text-embedding-3-small
+    api_key: ${OPENAI_API_KEY}
+    openai_base_url: http://host.docker.internal:4000/v1

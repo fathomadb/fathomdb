@@ -1,0 +1,68 @@
+{
+  "schema_version": "mem0-oss.v2",
+  "campaign": "native_locomo_predict",
+  "program_track": "MEMORY-01",
+  "harness": {
+    "checkout": "/tmp/fathomdb-mem0-memory-benchmarks",
+    "python": "/tmp/fathomdb-mem0-memory-benchmarks/.venv/bin/python",
+    "git_sha": "41d1e633c78dd9102f466b0255971a664f833fd3",
+    "upstream_git_sha": "4b61c5d31b9c668a12b4f5e78064248a02c82d2b"
+  },
+  "corpus": {
+    "dataset_path": "/home/coreyt/projects/fathomdb/data/corpus-data/raw/locomo10.json",
+    "raw_sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+    "normalized_sha256": "e9999b551ac67e899f0008c9ec446cecce937ce12f01f2f08cefa9f690fc4c7c",
+    "sessions": 272,
+    "eligible_questions": 1540
+  },
+  "mem0": {
+    "host": "http://127.0.0.1:8888",
+    "compose_project": "fathomdb-mem0-locomo",
+    "llm_model": "gpt-4o-mini",
+    "embedder_model": "text-embedding-3-small"
+  },
+  "airlock": {
+    "base_url": "http://host.docker.internal:4000/v1",
+    "host_gateway": true,
+    "llm_alias": "gpt-4o-mini",
+    "embedder_alias": "text-embedding-3-small",
+    "redaction_smoke": "required",
+    "provider_route": "openrouter_exact_models",
+    "admission_rpm": 120,
+    "admission_concurrency": 4
+  },
+  "benchmark": {
+    "project_name": "fathomdb-mem0-locomo-native",
+    "conversations": "0,1,2,3,4,5,6,7,8,9",
+    "categories": "1,2,3,4",
+    "top_k": 10,
+    "top_k_cutoffs": [10],
+    "max_workers": 2,
+    "rpm": 20,
+    "predict_only": true,
+    "resume": true
+  },
+  "output": {
+    "external_root": "/srv/fathomdb-experiments/mem0-locomo"
+  },
+  "compose": {
+    "base_file": "/tmp/fathomdb-mem0-memory-benchmarks/docker-compose.yml"
+  },
+  "provenance_artifacts": [
+    {
+      "name": "compose_override",
+      "path": "/tmp/fathomdb-mem0-locomo/compose.override.yaml",
+      "sha256": "REPLACE_WITH_SHA256"
+    },
+    {
+      "name": "mem0_airlock_config",
+      "path": "/tmp/fathomdb-mem0-locomo/mem0-airlock.yaml",
+      "sha256": "REPLACE_WITH_SHA256"
+    },
+    {
+      "name": "harness_resilience_patch",
+      "path": "/tmp/fathomdb-performance-0.8.23-plan-20260821/experiments/configs/mem0-oss/memory01-resilience.patch",
+      "sha256": "33b3468820c4c9af7653e573a9d8ecd448f9734948cddb454cefd742230b2ce1"
+    }
+  ]
+}

@@ -1,0 +1,303 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "global-01-lazy-preflight-20260829T2150Z-52b3aafe",
+  "experiment": "global-01-lazy-preflight",
+  "title": "global-01-lazy-preflight",
+  "verdict": "authorized_ready",
+  "read": "GLOBAL-01 lazy-coverage input, isolated 0.8.23 runtime, retrieval, lifecycle, Airlock alias, and resilience preflight passed at zero spend; the registered paid A/A gate is authorized.",
+  "code": {
+    "git_sha": "acd89d3bcfb6e45460cf4dc056dabbb886f37de4",
+    "dirty": false,
+    "branch": "experiments/performance-0.8.23-plan-20260821",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "52b3aafebd0c048e14284f6a9f735e64e8bbdc6dbb4c3dc047e2cba946af27ff",
+    "path": "experiments/configs/global-01/apnews-global-lazy-coverage.v6.json",
+    "resolved": {
+      "schema_version": "global-01.lazy-coverage.v6",
+      "program_track": "GLOBAL-01",
+      "run_label": "apnews-global-lazy-coverage-v6",
+      "approval": {
+        "state": "approved",
+        "approved_by": "coreyt",
+        "approved_at": "2026-08-29T21:48:00Z",
+        "cost_cap_usd": 12.0
+      },
+      "corpus": {
+        "root": "data/corpus-data/raw/apnews_benchmarkqed",
+        "archive_sha256": "2f70dda22a9f261f285c94f3ac13a8f0df60b69fe3df1b5853b47b372065a66f",
+        "article_count": 1397,
+        "document_granularity": "canonical_article",
+        "license_class": "noncommercial_nonredistributable_evaluation_only"
+      },
+      "questions": {
+        "assertions_path": "generated_questions_v2/data_global_questions_assertions.json",
+        "assertions_file_sha256": "b40c3ff9e18944e8763c888d5a986abe665263a8a52159f110ae889795ab0730",
+        "qualification": {
+          "is_valid": true,
+          "grounding_min": 4,
+          "relevance_min": 4,
+          "verifiability_min": 4
+        },
+        "qualified_count": 49,
+        "qualified_assertion_count": 637,
+        "qualified_manifest_sha256": "bbc03b55617e34b2489aa14efb16495fc80f7f204fe86233c4a77898d122a5ed",
+        "split": {
+          "seed": "global-01-split-20260829-v1",
+          "exclude_first_run_from_development": true,
+          "first_run_private_manifest": "data/performance-benchmarking/global-01/runs/preflight-20260825-c/private-input-manifest.json",
+          "development_count": 10,
+          "development_selection_sha256": "f0cc9eaaf7f27520fffc4be9a3dbdfb9d31087b31e78ff72782c48d06379dd27",
+          "heldout_count": 39,
+          "heldout_selection_sha256": "a00798af1fac0b2982597a1610c9c38d69be01e0f2a6d7fbb187d798ed573b5e",
+          "first_run_overlap_heldout_count": 2,
+          "witness_count": 3,
+          "witness_selection_sha256": "5dc634d24a8907530e624eba44e2de9721548690a7936b6746e1774a85ef9d91"
+        }
+      },
+      "profiles": {
+        "control": {
+          "name": "source_mapreduce_c_v1_fts50",
+          "retrieval": "fts_only",
+          "candidate_depth": 50,
+          "map_batch_documents": 5,
+          "map_max_tokens": 300,
+          "reduce_max_tokens": 4096
+        },
+        "treatment": {
+          "name": "global_lazy_coverage_v1",
+          "caller_selected": true,
+          "subquery_count": 4,
+          "retrieval": "fts_only",
+          "candidate_depth_per_query": 50,
+          "rrf_k": 60,
+          "grouping": "subquery_intent_source_linked_v1",
+          "relevance_weight": 0.65,
+          "novelty_weight": 0.35,
+          "max_documents_per_group": 6,
+          "max_documents_total": 24,
+          "context_max_tokens": 24000,
+          "map_max_tokens": 600,
+          "reduce_max_tokens": 4096,
+          "derived_persistence": "none"
+        }
+      },
+      "models": {
+        "generator": {
+          "model": "deepseek-v4-pro",
+          "thinking_mode": "disabled",
+          "temperature": 0.0,
+          "decomposition_max_tokens": 300
+        },
+        "pairwise_judge": {
+          "model": "claude-haiku",
+          "temperature": 0.7,
+          "repetitions": 5,
+          "order_swapped": true,
+          "metrics": [
+            "comprehensiveness",
+            "diversity",
+            "empowerment",
+            "directness"
+          ]
+        },
+        "assertion_scorer": {
+          "model": "claude-haiku",
+          "temperature": 0.0,
+          "trials": 2,
+          "source_excerpt_max_chars": 1600,
+          "mode": "qualified_assertion_and_claim_support_v1",
+          "max_tokens": 2048
+        }
+      },
+      "evaluation": {
+        "aa": {
+          "checkpoint_path": "data/performance-benchmarking/global-01/runs/global-01-first-run-deepseek-20260829-b/checkpoint.json",
+          "checkpoint_sha256": "94cb341dd48c7a3a75d3e5668c2b5a34169d31b77817465611000f6dd46c368c",
+          "answer_manifest_sha256": "e89ae0edb69230a31557fb212d7748a283f9ecc160d640747cbb207a62335ea1",
+          "answer_count": 16,
+          "repetitions": 1,
+          "order_swapped": true,
+          "tie_rate_min": 0.95,
+          "side_preference_max": 0.05
+        },
+        "bootstrap_draws": 2000,
+        "bootstrap_seed": 20260829,
+        "cold_repetitions": 1,
+        "steady_repetitions": 5,
+        "acceptance": {
+          "headline_win_rate_min": 0.55,
+          "headline_ci_lower_strictly_above": 0.5,
+          "assertion_recall_delta_min": 0.1,
+          "directness_win_rate_min": 0.45,
+          "unsupported_claim_delta_max": 0.0,
+          "canonical_source_link_completeness": 1.0,
+          "lifecycle_failure_max": 0,
+          "token_cost_ratio_max": 2.0,
+          "end_to_end_p95_ratio_max": 2.0
+        }
+      },
+      "execution": {
+        "fathomdb_version": "0.8.23",
+        "fathomdb_python": "data/performance-benchmarking/global-01/toolchains/fathomdb-0.8.23-venv/bin/python",
+        "fathomdb_cli": "data/performance-benchmarking/scale-02/runtime/9e507553/fathomdb",
+        "read_view": "strict_current",
+        "map_output_adapter": "compact_refs_or_canonical_v2",
+        "reduce_output_adapter": "compact_refs_with_canonical_restore_v1",
+        "scorer_output_adapter": "required_fields_projection_v1",
+        "generator_max_output_tokens": 393216,
+        "reduction_max_tokens_basis": "DeepSeek docs, live route, and observed truncation (v1)",
+        "scorer_max_output_tokens": 65536,
+        "scorer_max_tokens_basis": "Anthropic model docs and observed truncation (v1)",
+        "checkpoint_every_cell": true,
+        "resume_only_missing": true,
+        "concurrency": 1,
+        "retry_attempts": 6,
+        "retry_backoff_seconds": [
+          1,
+          2,
+          4,
+          8,
+          16,
+          32
+        ],
+        "honor_retry_after": true,
+        "completeness_required": true
+      },
+      "pricing": {
+        "currency": "USD",
+        "source": "deepseek_official_2026-08-29_peak_and_registered_haiku",
+        "deepseek-v4-pro": {
+          "input_per_million": 1.32,
+          "output_per_million": 3.96
+        },
+        "claude-haiku": {
+          "input_per_million": 1.0,
+          "output_per_million": 5.0
+        },
+        "planned_model_cells": 1376,
+        "maximum_semantic_submissions": 4128,
+        "projected_total_usd": 11.72,
+        "recommended_cap_usd": 12.0
+      }
+    }
+  },
+  "corpus": {
+    "source": "AP News BenchmarkQED",
+    "manifest_sha256": "2f70dda22a9f261f285c94f3ac13a8f0df60b69fe3df1b5853b47b372065a66f",
+    "datasets": [
+      {
+        "name": "AP News BenchmarkQED",
+        "documents": 1397,
+        "questions": 49,
+        "selection_sha256": "bbc03b55617e34b2489aa14efb16495fc80f7f204fe86233c4a77898d122a5ed"
+      }
+    ]
+  },
+  "seeds": {
+    "split": "global-01-split-20260829-v1"
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb": "0.8.23",
+      "generator": "deepseek-v4-pro",
+      "judge": "claude-haiku"
+    }
+  },
+  "metrics": {
+    "schema_version": "global-01.lazy-preflight.v1",
+    "state": "ready_for_hitl",
+    "program_track": "GLOBAL-01",
+    "config_sha256": "52b3aafebd0c048e14284f6a9f735e64e8bbdc6dbb4c3dc047e2cba946af27ff",
+    "cost_usd": 0.0,
+    "corpus": {
+      "archive_sha256": "2f70dda22a9f261f285c94f3ac13a8f0df60b69fe3df1b5853b47b372065a66f",
+      "manifest_sha256": "340919ad2a3029585df4741ebad4008c0a2e2c679420ca5a5d7a11d4ed1f9282",
+      "article_count": 1397,
+      "document_binding_sha256": "a663dbdb5741631796f72970933f4bc47659ecc6913d16cda3e29097b9e1081b"
+    },
+    "questions": {
+      "qualified_count": 49,
+      "qualified_assertion_count": 637,
+      "qualified_manifest_sha256": "bbc03b55617e34b2489aa14efb16495fc80f7f204fe86233c4a77898d122a5ed",
+      "development_count": 10,
+      "development_selection_sha256": "f0cc9eaaf7f27520fffc4be9a3dbdfb9d31087b31e78ff72782c48d06379dd27",
+      "heldout_count": 39,
+      "heldout_selection_sha256": "a00798af1fac0b2982597a1610c9c38d69be01e0f2a6d7fbb187d798ed573b5e",
+      "witness_count": 3,
+      "witness_selection_sha256": "5dc634d24a8907530e624eba44e2de9721548690a7936b6746e1774a85ef9d91",
+      "first_run_overlap_heldout_count": 2
+    },
+    "runtime": {
+      "fathomdb_python_version": "0.8.23",
+      "fathomdb_cli_version": "fathomdb 0.8.23",
+      "fathomdb_cli_sha256": "7daf0ef77246abbfe2dd46b4f7f6d7ee2d56ada5248f59b1d390269bb5e6d79c",
+      "doctor_sha256": "76d11310c50ce64b63643a5817bae3e9320e5efa2d3ecbf34cc61c410520d7ae",
+      "database_config_sha256": "8c482e92a4b4e5e7818e6c2faecc70e299cb86b6a8dcaf1f76625fd573ae9704",
+      "embedder": "none",
+      "reranker": "disabled",
+      "gpu_required": false
+    },
+    "authentication": {
+      "key_source": "AIRLOCK_VIRTUAL_KEY",
+      "required_aliases": [
+        "deepseek-v4-pro",
+        "claude-haiku"
+      ],
+      "model_count": 86
+    },
+    "retrieval": {
+      "questions": 49,
+      "candidate_depth": 50,
+      "minimum_hit_count": 50,
+      "maximum_hit_count": 50,
+      "control_context_tokens_estimate": 3446662,
+      "cold_p50_ms": 14.572583000699524,
+      "cold_p95_ms": 18.248338001285447,
+      "steady_p50_ms": 14.842703001704649,
+      "steady_p95_ms": 18.1763119999232
+    },
+    "lifecycle": {
+      "strict_current_supersession": "pass",
+      "temporal_boundaries": 2,
+      "temporal_failures": 0,
+      "erasure": "pass",
+      "derived_rows_written": 0
+    },
+    "resilience": {
+      "checkpoint_every_cell": true,
+      "resume_only_missing": true,
+      "retry_attempts": 6,
+      "honor_retry_after": true,
+      "completeness_required": true
+    },
+    "pricing": {
+      "planned_model_cells": 1376,
+      "maximum_semantic_submissions": 4128,
+      "projected_total_usd": 11.72,
+      "recommended_cap_usd": 12.0
+    }
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {
+    "red": "paid CLI and lifecycle/resume contracts failed before implementation",
+    "green": "GLOBAL-01 lazy preparation and execution-control tests pass"
+  },
+  "tests": [
+    "tests/experiments/test_global_01_lazy.py",
+    "tests/experiments/test_global_01_lazy_live.py"
+  ],
+  "files_changed": [],
+  "artifacts": [
+    {
+      "path": "data/performance-benchmarking/global-01/runs/global-01-lazy-v6-preflight-20260829-a/safe-preflight.json",
+      "sha256": "9fc3da116f8f18e6c065963b761e509646e3534579fd51773a4f87755e1fb1a0"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

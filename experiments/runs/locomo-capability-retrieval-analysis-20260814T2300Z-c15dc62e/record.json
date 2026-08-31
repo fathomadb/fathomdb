@@ -1,0 +1,64 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "locomo-capability-retrieval-analysis-20260814T2300Z-c15dc62e",
+  "experiment": "locomo-capability-retrieval-analysis",
+  "title": "locomo-capability-retrieval-analysis",
+  "verdict": "complete",
+  "read": "A0 turn-level FTS dry run has safe evidence-backed retrieval metrics",
+  "code": {
+    "git_sha": "e07381fc00db6daea7ee6a9ed26f387e77b11559",
+    "dirty": true,
+    "branch": "campaign/locomo-capability-20260814",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "c15dc62efbbad8fbeed14205e7bf0ed9497391a0fb34725242c76c63c4045b69",
+    "path": null,
+    "resolved": {
+      "schema_version": "locomo-retrieval-analysis.v1",
+      "source_arm_run": "fathomdb-locomo-official-seam-20260814T2253Z-aa0e73a8",
+      "source_external_metrics_sha256": "4bab8eb140bfe7e601166ad2946e0a337acf480551754e3f3c96ac296810348e",
+      "scoring_unit": "evidence_backed_question",
+      "retrieval_mode": "fts_only",
+      "top_k": 10
+    }
+  },
+  "corpus": {
+    "source": "LOCOMO",
+    "manifest_sha256": "79fa87e90f04081343b8c8debecb80a9a6842b76a7aa537dc9fdf651ea698ff4",
+    "datasets": []
+  },
+  "seeds": {},
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {}
+  },
+  "metrics": {
+    "phase": "retrieval_analysis",
+    "aggregate": {
+      "n": 150,
+      "excluded_no_evidence": 2,
+      "r_at_5": 0.5866666666666667,
+      "r_at_10": 0.6733333333333333,
+      "r_at_20": 0.6733333333333333,
+      "mrr": 0.44080952380952376,
+      "r_at_1": 0.3333333333333333,
+      "ndcg_at_10": 0.4731713973645494,
+      "temporal_evidence_recall": 0.918918918918919
+    }
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": null,
+  "files_changed": [],
+  "artifacts": [
+    {
+      "path": "external-retrieval-metrics.v1",
+      "sha256": "4bab8eb140bfe7e601166ad2946e0a337acf480551754e3f3c96ac296810348e"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

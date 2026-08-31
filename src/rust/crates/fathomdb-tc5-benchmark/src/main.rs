@@ -10,6 +10,9 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 
+#[cfg(unix)]
+use std::os::unix::fs::OpenOptionsExt;
+
 use fathomdb_embedder::{
     tc5_local_asset_directory_identity, CandleBgeEmbedder, ExplicitCandleDevice,
 };
@@ -50,6 +53,7 @@ struct Manifest {
     model_asset_digest: String,
     database: String,
     scope_kind: String,
+    exclude_logical_id: String,
     selection_digest: String,
     query: String,
     expected_vector_rows: usize,
@@ -212,6 +216,7 @@ struct MeasurementResult<'a> {
     candidate_count: usize,
     rerank_count: usize,
     ground_truth_count: usize,
+    recall_at_top_k: f64,
     candidate_ids_digest: String,
     rerank_ids_digest: String,
     ground_truth_ids_digest: String,
@@ -370,11 +375,10 @@ fn execute_with_factory(
     if sha256_file(Path::new(&manifest.database))? != manifest.index_digest {
         return Err("qualified index identity does not match manifest pin".into());
     }
-    if VectorStageScope::kind(&manifest.scope_kind).selection_digest() != manifest.selection_digest
-    {
-        return Err("manifest scope selection digest mismatch".into());
-    }
-    let selected_scope = VectorStageScope::kind(&manifest.scope_kind);
+    let selected_scope = VectorStageScope::kind_excluding_logical_id(
+        &manifest.scope_kind,
+        &manifest.exclude_logical_id,
+    );
     let embedding_device = embedder.device_label();
     let embedder: Arc<dyn Embedder> = Arc::new(BoxedEmbedder { inner: embedder });
     let opened = Engine::open_with_choice(&manifest.database, EmbedderChoice::Caller(embedder))
@@ -466,6 +470,7 @@ fn validate_resolved_settings_digest(spec: &Spec, manifest: &Manifest) -> Result
         ("runtime_identity", &manifest.runtime_identity),
         ("build_identity", &manifest.build_identity),
         ("scope_kind", &manifest.scope_kind),
+        ("exclude_logical_id", &manifest.exclude_logical_id),
         ("selection_digest", &manifest.selection_digest),
         ("cuda_uuid", manifest.cuda_uuid.as_deref().unwrap_or("")),
     ]);
@@ -490,6 +495,7 @@ fn validate_resolved_settings_digest(spec: &Spec, manifest: &Manifest) -> Result
 fn validate_manifest(manifest: &Manifest, spec: &Spec) -> Result<(), String> {
     if manifest.version != 1
         || manifest.expected_vector_rows == 0
+        || manifest.exclude_logical_id.is_empty()
         || spec.candidate_k > manifest.expected_vector_rows
         || !manifest.allowed_candidate_k.contains(&spec.candidate_k)
         || !manifest.allowed_top_k.contains(&spec.top_k)
@@ -505,6 +511,12 @@ fn validate_manifest(manifest: &Manifest, spec: &Spec) -> Result<(), String> {
         || manifest.index_construction_device.is_empty()
         || manifest.runtime_identity.is_empty()
         || manifest.build_identity.is_empty()
+        || VectorStageScope::kind_excluding_logical_id(
+            &manifest.scope_kind,
+            &manifest.exclude_logical_id,
+        )
+        .selection_digest()
+            != manifest.selection_digest
     {
         return Err("qualified manifest pin or range mismatch".into());
     }
@@ -683,6 +695,9 @@ fn write_measurement(
         candidate_count: stage.candidate_count,
         rerank_count: stage.rerank.len(),
         ground_truth_count: stage.ground_truth.len(),
+        recall_at_top_k: stage.rerank.iter().filter(|row| stage.ground_truth.contains(row)).count()
+            as f64
+            / stage.ground_truth.len() as f64,
         candidate_ids_digest: digest_row_keys(&stage.candidates),
         rerank_ids_digest: digest_row_keys(&stage.rerank),
         ground_truth_ids_digest: digest_row_keys(&stage.ground_truth),
@@ -737,11 +752,12 @@ fn reject_result_destination(path: &Path) -> Result<(), String> {
 fn install_new(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let parent = path.parent().ok_or("result needs a parent directory")?;
     let temporary = parent.join(format!(".tc5-result-{}", std::process::id()));
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&temporary)
-        .map_err(|_| "cannot create result temporary".to_string())?;
+    let mut options = OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    options.mode(0o600);
+    let mut file =
+        options.open(&temporary).map_err(|_| "cannot create result temporary".to_string())?;
     file.write_all(bytes).map_err(|_| "cannot write result".to_string())?;
     file.sync_all().map_err(|_| "cannot sync result".to_string())?;
     // `hard_link` fails if `path` appeared after validation, unlike rename's
@@ -836,13 +852,20 @@ mod tests {
     }
 
     fn valid_manifest(asset_directory: &str, asset_digest: &str) -> Manifest {
+        let exclude_logical_id = "query-source";
         Manifest {
             version: 1,
             model_asset_directory: asset_directory.into(),
             model_asset_digest: asset_digest.into(),
             database: "/private/qualified-index.db".into(),
             scope_kind: "doc".into(),
-            selection_digest: VectorStageScope::kind("doc").selection_digest().into(),
+            exclude_logical_id: exclude_logical_id.into(),
+            selection_digest: VectorStageScope::kind_excluding_logical_id(
+                "doc",
+                exclude_logical_id,
+            )
+            .selection_digest()
+            .into(),
             query: "qualified query".into(),
             expected_vector_rows: 192,
             allowed_candidate_k: vec![192],
@@ -883,6 +906,18 @@ mod tests {
         assert_eq!(fs::read(&path).unwrap(), b"original");
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn finalization_creates_private_result_files() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("result.json");
+        install_new(&path, b"safe").unwrap();
+
+        assert_eq!(fs::metadata(path).unwrap().permissions().mode() & 0o777, 0o600);
+    }
+
     #[test]
     fn manifest_requires_allowed_values_and_sha_pins() {
         let spec = Spec {
@@ -904,7 +939,10 @@ mod tests {
             model_asset_digest: "0".repeat(64),
             database: "unused".into(),
             scope_kind: "doc".into(),
-            selection_digest: VectorStageScope::kind("doc").selection_digest().into(),
+            exclude_logical_id: "query-source".into(),
+            selection_digest: VectorStageScope::kind_excluding_logical_id("doc", "query-source")
+                .selection_digest()
+                .into(),
             query: "qualified query".into(),
             expected_vector_rows: 192,
             allowed_candidate_k: vec![192],
@@ -918,6 +956,16 @@ mod tests {
             build_identity: "tc5-build-v1".into(),
             cuda_uuid: None,
         };
+        assert!(validate_manifest(&manifest, &spec).is_err());
+    }
+
+    #[test]
+    fn manifest_binds_the_query_source_exclusion_into_the_selection() {
+        let spec = valid_spec();
+        let mut manifest = valid_manifest("unused", &"0".repeat(64));
+        assert!(validate_manifest(&manifest, &spec).is_ok());
+
+        manifest.exclude_logical_id = "different-source".into();
         assert!(validate_manifest(&manifest, &spec).is_err());
     }
 
@@ -1084,6 +1132,7 @@ mod tests {
         assert!(output.contains("\"build_identity\":\"tc5-build-v1\""));
         assert!(output.contains("\"cuda_uuid\":null"));
         assert!(output.contains("candidate_ids_digest"));
+        assert!(output.contains("\"recall_at_top_k\":0.0"));
         assert!(!output.contains("[101"));
         assert!(!output.contains(",202"));
         assert!(!output.contains("/private/model-cache"));

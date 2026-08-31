@@ -1,0 +1,98 @@
+{
+  "schema_version": "graph-01.result.v1",
+  "program_track": "GRAPH-01",
+  "state": "complete",
+  "verdict": "reject",
+  "question_count": 300,
+  "primary_question_count": 144,
+  "cost_usd": 0.32930456,
+  "cost_cap_usd": 20.0,
+  "graph_quality": {
+    "relations_total": 59866.0,
+    "relations_admitted": 21033.0,
+    "rejected_missing_endpoint": 8979.0,
+    "rejected_nonverbatim_endpoint": 31045.0,
+    "rejected_generic_endpoint": 15.0,
+    "rejected_type_conflict": 9473.0,
+    "rejected_malformed_relation": 11.0,
+    "duplicate_entities": 122.0,
+    "type_conflict_entities": 1688.0,
+    "missing_extractions": 1.0,
+    "endpoint_orphans": 0,
+    "projection_items": 77646,
+    "source_link_completeness": 1.0,
+    "active_edges": 21033,
+    "active_nodes": 56613,
+    "inactive_edges": 0,
+    "active_stale_edges": 0,
+    "database_bytes": 45178880,
+    "storage_amplification": 0.8012048092349319,
+    "edge_audit_n": 100,
+    "edge_precision": 0.94,
+    "edge_precision_wilson95": [
+      0.8752318455410406,
+      0.9722138760368118
+    ],
+    "eligible": true
+  },
+  "lifecycle": {
+    "supersession_stale_hits": 0,
+    "erasure_stale_hits": 0,
+    "eligible": true
+  },
+  "retrieval": {
+    "quality_eligible": true,
+    "lifecycle_eligible": true,
+    "complete_bridge_delta": {
+      "point": -0.006993006993006993,
+      "ci95": [
+        -0.02097902097902098,
+        0.0
+      ],
+      "n": 143,
+      "excluded_undefined": 1,
+      "draws": 2000,
+      "seed": 20260829
+    },
+    "supporting_recall_delta": -0.0023310023310023314,
+    "two_hop_complete_bridge_delta": 0.007575757575757576,
+    "distinct_question_rate": 0.02666666666666667,
+    "graph_addon_p95_ms": 5.97913595024693,
+    "storage_amplification": 0.8012048092349319,
+    "decision": {
+      "passed": false,
+      "boundaries": {
+        "quality": true,
+        "lifecycle": true,
+        "complete_bridge_point": false,
+        "complete_bridge_ci": false,
+        "supporting_recall": false,
+        "two_hop": true,
+        "distinctness": false,
+        "latency": true,
+        "storage": true
+      }
+    }
+  },
+  "answer": {
+    "control_f1": 0.11881613756613757,
+    "treatment_f1": 0.11881613756613757,
+    "paired_delta": {
+      "point": 0.0,
+      "ci95": [
+        0.0,
+        0.0
+      ],
+      "n": 144,
+      "excluded_undefined": 0,
+      "draws": 2000,
+      "seed": 20260829
+    },
+    "decision": {
+      "accepted": false,
+      "retrieval_route": false,
+      "material_answer_route": false
+    },
+    "model": "deepseek-v4-pro"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "phase": "ingest_search_predict_only",
+  "completion": {
+    "complete": false,
+    "expected_questions": 1443
+  }
+}

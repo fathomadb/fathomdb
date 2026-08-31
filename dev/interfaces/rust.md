@@ -21,9 +21,11 @@ that feature, `fathomdb-engine::tc5_benchmark` exposes the documented narrow
 internal ABI `VectorStageScope`, `VectorStageRequest`, `VectorStageResult`,
 `VectorStageError`, and `RouteAttestation`, plus `Engine::tc5_vector_stage`.
 The ABI accepts an already-created query vector and immutable manifest-derived
-scope; it cannot carry compiled text, FTS, fusion, graph, CE, or ambient device
-settings. Its row keys are internal executable input and must be digested before
-an external result artifact is written.
+scope, including one manifest-pinned query-source `logical_id` exclusion applied
+to candidate selection, exact rerank, and full-corpus truth. It cannot carry
+compiled text, FTS, fusion, graph, CE, or ambient device settings. Its row keys
+are internal executable input and must be digested before an external result
+artifact is written; only aggregate recall may accompany those digests.
 
 ## Support posture
 

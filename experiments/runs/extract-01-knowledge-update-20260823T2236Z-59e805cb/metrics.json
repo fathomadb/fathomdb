@@ -1,0 +1,36 @@
+{
+  "schema_version": "extract-01.safe-summary.v1",
+  "program_track": "EXTRACT-01",
+  "status": "complete",
+  "n": 78,
+  "arms": {
+    "raw_fts": {
+      "n": 78,
+      "answer_accuracy": 0.8205128205128205,
+      "evidence_recall_at_10": 0.9871794871794872
+    },
+    "raw_plus_elps_fts": {
+      "n": 78,
+      "answer_accuracy": 0.8333333333333334,
+      "evidence_recall_at_10": 1.0
+    }
+  },
+  "paired_answer_accuracy_delta": 0.012820512820512886,
+  "source_link_completeness": 1.0,
+  "extraction_precision": "unscored_no_human_gold",
+  "failed_extraction_document_count": 1,
+  "extracted_row_count": 2096,
+  "raw_row_count": 38089,
+  "storage_amplification": 1.0,
+  "mean_treatment_ingest_ms": 25.066709078740903,
+  "lifecycle": {
+    "conflict_detected": true,
+    "supersession_applied": false,
+    "same_identity_supersession": true,
+    "erasure_absent": true,
+    "orphan_count": 0,
+    "doctor_sha256": "76d11310c50ce64b63643a5817bae3e9320e5efa2d3ecbf34cc61c410520d7ae"
+  },
+  "cost_usd": 2.79825575,
+  "decision": "do_not_adopt_unconsolidated_extraction"
+}

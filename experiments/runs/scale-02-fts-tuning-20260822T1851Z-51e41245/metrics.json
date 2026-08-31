@@ -1,0 +1,691 @@
+{
+  "schema_version": "scale-02-fts-tuning.v1",
+  "program_track": "SCALE-02",
+  "status": "complete",
+  "input_manifest_sha256": "1d1aee57b20f38ed39dc780c44d12be6ec1a18f64f02dbf8ae5fcf79d5f72795",
+  "runtime": {
+    "source_git_sha": "718c21d98a773312ba8b651740f96c32f50f5fa1",
+    "python_extension_sha256": "3c49fa019f95e74e84e2db7d64e65f3d4a3f57d73724014c4359c306903b8250",
+    "fathomdb_bin_sha256": "afe9005ffd51c0544eb3e1a78ec86696d193a8a7791f7e9cdcb38a46cbbd0b32",
+    "wheel_sha256": "1525ffaf7331bfd1c886c31725a932f2b75dfe1e31ff16570378a5ec3f857199"
+  },
+  "performance_cells": [
+    {
+      "id": "current_default",
+      "query_path": "current",
+      "reader_profile": "default",
+      "footprint_order": 0,
+      "repetitions": 5,
+      "complete_repetitions": true,
+      "errors": 0,
+      "timeouts": 0,
+      "steady": {
+        "n": 5000,
+        "p50": 28.951058979146183,
+        "p95": 49.63633697479963,
+        "p99": 52.844239049591124,
+        "throughput_per_second": 33.70615644260723
+      },
+      "upper_95": {
+        "steady_p50_ms": 29.088782030157745,
+        "steady_p99_ms": 53.37309907190502,
+        "rss_fraction": 0.003393373628680986
+      },
+      "resources": {
+        "peak_rss_bytes": 228245504,
+        "max_effective_cpu_cores": 1.0041481633676368
+      },
+      "storage": {
+        "database_bytes": 76537856,
+        "derived_index_bytes": 54624256
+      },
+      "reader_observations": [
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 0,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 0,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 0,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 0,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 0,
+            "temp_store": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "rank_default",
+      "query_path": "rank_fast",
+      "reader_profile": "default",
+      "footprint_order": 0,
+      "repetitions": 5,
+      "complete_repetitions": true,
+      "errors": 0,
+      "timeouts": 0,
+      "steady": {
+        "n": 5000,
+        "p50": 9.358547045849264,
+        "p95": 18.10452202335,
+        "p99": 41.99963400606066,
+        "throughput_per_second": 97.63249677829481
+      },
+      "upper_95": {
+        "steady_p50_ms": 9.495925973169506,
+        "steady_p99_ms": 44.24882493913174,
+        "rss_fraction": 0.003584526450094194
+      },
+      "resources": {
+        "peak_rss_bytes": 241102848,
+        "max_effective_cpu_cores": 0.9990893501269695
+      },
+      "storage": {
+        "database_bytes": 76537856,
+        "derived_index_bytes": 54624256
+      },
+      "reader_observations": [
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 0,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 0,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 0,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 0,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 0,
+            "temp_store": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "rank_mmap128",
+      "query_path": "rank_fast",
+      "reader_profile": "mmap128",
+      "footprint_order": 1,
+      "repetitions": 5,
+      "complete_repetitions": true,
+      "errors": 0,
+      "timeouts": 0,
+      "steady": {
+        "n": 5000,
+        "p50": 2.9723329935222864,
+        "p95": 6.164212012663484,
+        "p99": 11.02700107730925,
+        "throughput_per_second": 288.72743160046537
+      },
+      "upper_95": {
+        "steady_p50_ms": 2.9924820410087705,
+        "steady_p99_ms": 11.273266980424523,
+        "rss_fraction": 0.011838260476441253
+      },
+      "resources": {
+        "peak_rss_bytes": 796266496,
+        "max_effective_cpu_cores": 0.992842918053425
+      },
+      "storage": {
+        "database_bytes": 76537856,
+        "derived_index_bytes": 54624256
+      },
+      "reader_observations": [
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 134217728,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 134217728,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 134217728,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 134217728,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 134217728,
+            "temp_store": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "rank_mmap256",
+      "query_path": "rank_fast",
+      "reader_profile": "mmap256",
+      "footprint_order": 2,
+      "repetitions": 5,
+      "complete_repetitions": true,
+      "errors": 0,
+      "timeouts": 0,
+      "steady": {
+        "n": 5000,
+        "p50": 2.9999950202181935,
+        "p95": 6.277695996686816,
+        "p99": 11.067095911130309,
+        "throughput_per_second": 286.4828540095797
+      },
+      "upper_95": {
+        "steady_p50_ms": 3.040301031433046,
+        "steady_p99_ms": 11.193254962563515,
+        "rss_fraction": 0.011580548230432747
+      },
+      "resources": {
+        "peak_rss_bytes": 778932224,
+        "max_effective_cpu_cores": 0.993357199289738
+      },
+      "storage": {
+        "database_bytes": 76537856,
+        "derived_index_bytes": 54624256
+      },
+      "reader_observations": [
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 268435456,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 268435456,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 268435456,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 268435456,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -2000,
+            "mmap_size": 268435456,
+            "temp_store": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "rank_cache64",
+      "query_path": "rank_fast",
+      "reader_profile": "cache64",
+      "footprint_order": 3,
+      "repetitions": 5,
+      "complete_repetitions": true,
+      "errors": 0,
+      "timeouts": 0,
+      "steady": {
+        "n": 5000,
+        "p50": 3.253585076890886,
+        "p95": 7.030789973214269,
+        "p99": 15.093000954948366,
+        "throughput_per_second": 254.42599818578077
+      },
+      "upper_95": {
+        "steady_p50_ms": 3.2967369770631194,
+        "steady_p99_ms": 15.286447014659643,
+        "rss_fraction": 0.008880963736622956
+      },
+      "resources": {
+        "peak_rss_bytes": 597352448,
+        "max_effective_cpu_cores": 0.9942936675916662
+      },
+      "storage": {
+        "database_bytes": 76537856,
+        "derived_index_bytes": 54624256
+      },
+      "reader_observations": [
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -65536,
+            "mmap_size": 0,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -65536,
+            "mmap_size": 0,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -65536,
+            "mmap_size": 0,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -65536,
+            "mmap_size": 0,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -65536,
+            "mmap_size": 0,
+            "temp_store": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "rank_mmap256_cache64",
+      "query_path": "rank_fast",
+      "reader_profile": "mmap256_cache64",
+      "footprint_order": 4,
+      "repetitions": 5,
+      "complete_repetitions": true,
+      "errors": 0,
+      "timeouts": 0,
+      "steady": {
+        "n": 5000,
+        "p50": 2.982582082040608,
+        "p95": 6.2103779055178165,
+        "p99": 11.104826000519097,
+        "throughput_per_second": 287.48272210831254
+      },
+      "upper_95": {
+        "steady_p50_ms": 3.018300049006939,
+        "steady_p99_ms": 11.264597997069359,
+        "rss_fraction": 0.016811522221956986
+      },
+      "resources": {
+        "peak_rss_bytes": 1130778624,
+        "max_effective_cpu_cores": 0.9929245511164507
+      },
+      "storage": {
+        "database_bytes": 76537856,
+        "derived_index_bytes": 54624256
+      },
+      "reader_observations": [
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -65536,
+            "mmap_size": 268435456,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -65536,
+            "mmap_size": 268435456,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -65536,
+            "mmap_size": 268435456,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -65536,
+            "mmap_size": 268435456,
+            "temp_store": 0
+          }
+        },
+        {
+          "schema_version": "scale-02-reader-observation-summary.v1",
+          "connection_count": 32,
+          "sqlite_version": "3.53.2",
+          "effective": {
+            "cache_size": -65536,
+            "mmap_size": 268435456,
+            "temp_store": 0
+          }
+        }
+      ]
+    }
+  ],
+  "concurrency": {
+    "schema_version": "scale-02-concurrency-summary.v1",
+    "selected_cell": "rank_default",
+    "cells": {
+      "1": {
+        "source": "selected_performance_cell",
+        "steady": {
+          "n": 5000,
+          "p50": 9.358547045849264,
+          "p95": 18.10452202335,
+          "p99": 41.99963400606066,
+          "throughput_per_second": 97.63249677829481
+        },
+        "resources": {
+          "peak_rss_bytes": 241102848,
+          "max_effective_cpu_cores": 0.9990893501269695
+        }
+      },
+      "2": {
+        "source": "fresh_concurrency_cell",
+        "repetitions": 5,
+        "latency_ms": {
+          "n": 5000,
+          "p50": 8.965848945081234,
+          "p95": 23.56723800767213,
+          "p99": 42.69395605660975,
+          "throughput_per_second": 93.5323500447982
+        },
+        "throughput_per_second": {
+          "p50": 191.12988657805496,
+          "p95": 212.52654710529558
+        },
+        "errors": 0,
+        "timeouts": 0,
+        "max_effective_cpu_cores": 1.9774793952446421,
+        "reader_observations": [
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          }
+        ]
+      },
+      "4": {
+        "source": "fresh_concurrency_cell",
+        "repetitions": 5,
+        "latency_ms": {
+          "n": 5000,
+          "p50": 10.638431995175779,
+          "p95": 31.277959933504462,
+          "p99": 51.666904939338565,
+          "throughput_per_second": 76.0055226358664
+        },
+        "throughput_per_second": {
+          "p50": 296.36585191457283,
+          "p95": 321.7200217978742
+        },
+        "errors": 0,
+        "timeouts": 0,
+        "max_effective_cpu_cores": 3.654266467271405,
+        "reader_observations": [
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          },
+          {
+            "schema_version": "scale-02-reader-observation-summary.v1",
+            "connection_count": 32,
+            "sqlite_version": "3.53.2",
+            "effective": {
+              "cache_size": -2000,
+              "mmap_size": 0,
+              "temp_store": 0
+            }
+          }
+        ]
+      }
+    }
+  },
+  "equivalence": {
+    "tc5": {
+      "query_count": 100,
+      "mismatch_count": 0,
+      "route_counts": {
+        "rank_fast": 92,
+        "full_sort_fallback": 8
+      }
+    },
+    "answer_01": {
+      "query_count": 32,
+      "mismatch_count": 0,
+      "route_counts": {
+        "rank_fast": 8,
+        "full_sort_fallback": 24
+      }
+    }
+  },
+  "preliminary_reader_cell": "rank_default",
+  "artifact_manifest": {
+    "sha256": "f0b029f282163f46e36cbbc4dc40e8409dd4b93f093963e7a18ba17381b0ad16",
+    "file_count": 260,
+    "total_bytes": 3207833677
+  },
+  "formal_rerun_authorized": false
+}

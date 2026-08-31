@@ -22,6 +22,13 @@ EXPECTED_ALLOWLISTS = [
         "regexes": [r'^tokenizer\.json": "[0-9a-f]{64}"$'],
     },
     {
+        "description": "REASON-01 tokenizer digests are artifact-integrity metadata",
+        "condition": "AND",
+        "regexTarget": "secret",
+        "paths": [r"^experiments/configs/reason-01/profile-registry\.v1\.json$"],
+        "regexes": [r"^[0-9a-f]{64}$"],
+    },
+    {
         "description": "CUDA tokenizer digest export is artifact-integrity metadata",
         "condition": "AND",
         "regexTarget": "match",

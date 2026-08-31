@@ -1,0 +1,344 @@
+diff --git a/benchmarks/common/llm_client.py b/benchmarks/common/llm_client.py
+index 1455f57..db6883b 100644
+--- a/benchmarks/common/llm_client.py
++++ b/benchmarks/common/llm_client.py
+@@ -22,6 +22,8 @@ from typing import Any, TypeVar
+ 
+ from aiolimiter import AsyncLimiter
+ 
++from benchmarks.common.retry import retry_delay_seconds
++
+ logger = logging.getLogger(__name__)
+ 
+ T = TypeVar("T")
+@@ -57,7 +59,7 @@ class LLMClient:
+         self.model = model
+         self.provider = provider.lower()
+         self.max_retries = max_retries
+-        self.limiter = AsyncLimiter(rpm, 60)
++        self.limiter = AsyncLimiter(1, 60 / rpm)
+         self.timeout = timeout
+         self._client: Any = None
+ 
+@@ -188,6 +190,13 @@ class LLMClient:
+                 logger.warning("Generation attempt %d/%d timed out", attempt + 1, self.max_retries)
+             except Exception as exc:
+                 logger.warning("Generation attempt %d/%d failed: %s", attempt + 1, self.max_retries, exc)
++                if attempt < self.max_retries - 1:
++                    await asyncio.sleep(
++                        retry_delay_seconds(
++                            exc, fallback_seconds=2 * (attempt + 1)
++                        )
++                    )
++                    continue
+             if attempt < self.max_retries - 1:
+                 await asyncio.sleep(2 * (attempt + 1))
+         return ""
+@@ -214,6 +223,13 @@ class LLMClient:
+                 logger.warning("Anthropic generation attempt %d/%d timed out", attempt + 1, self.max_retries)
+             except Exception as exc:
+                 logger.warning("Anthropic generation attempt %d/%d failed: %s", attempt + 1, self.max_retries, exc)
++                if attempt < self.max_retries - 1:
++                    await asyncio.sleep(
++                        retry_delay_seconds(
++                            exc, fallback_seconds=2 * (attempt + 1)
++                        )
++                    )
++                    continue
+             if attempt < self.max_retries - 1:
+                 await asyncio.sleep(2 * (attempt + 1))
+         return ""
+@@ -302,6 +318,13 @@ class LLMClient:
+                 logger.warning("Structured output attempt %d/%d timed out", attempt + 1, self.max_retries)
+             except Exception as exc:
+                 logger.warning("Structured output attempt %d/%d failed: %s", attempt + 1, self.max_retries, exc)
++                if attempt < self.max_retries - 1:
++                    await asyncio.sleep(
++                        retry_delay_seconds(
++                            exc, fallback_seconds=2 * (attempt + 1)
++                        )
++                    )
++                    continue
+             if attempt < self.max_retries - 1:
+                 await asyncio.sleep(2 * (attempt + 1))
+ 
+@@ -354,6 +377,13 @@ class LLMClient:
+                 logger.warning("Anthropic structured attempt %d/%d timed out", attempt + 1, self.max_retries)
+             except Exception as exc:
+                 logger.warning("Anthropic structured attempt %d/%d failed: %s", attempt + 1, self.max_retries, exc)
++                if attempt < self.max_retries - 1:
++                    await asyncio.sleep(
++                        retry_delay_seconds(
++                            exc, fallback_seconds=2 * (attempt + 1)
++                        )
++                    )
++                    continue
+             if attempt < self.max_retries - 1:
+                 await asyncio.sleep(2 * (attempt + 1))
+ 
+diff --git a/benchmarks/common/mem0_client.py b/benchmarks/common/mem0_client.py
+index 05be44c..3030bbe 100644
+--- a/benchmarks/common/mem0_client.py
++++ b/benchmarks/common/mem0_client.py
+@@ -29,6 +29,8 @@ from typing import Any
+ import aiohttp
+ from aiolimiter import AsyncLimiter
+ 
++from benchmarks.common.retry import retry_delay_seconds
++
+ logger = logging.getLogger(__name__)
+ 
+ 
+@@ -80,7 +82,7 @@ class Mem0Client:
+         self.event_poll_interval = event_poll_interval
+         self.event_poll_timeout = event_poll_timeout
+         self.timeout = aiohttp.ClientTimeout(total=timeout)
+-        self.limiter = AsyncLimiter(100000, 60)  # no client-side rate limiting
++        self.limiter = AsyncLimiter(1, 60 / rpm)
+         self._session: aiohttp.ClientSession | None = None
+ 
+     @property
+@@ -174,10 +176,17 @@ class Mem0Client:
+             except Exception as exc:
+                 logger.warning("ADD attempt %d/%d failed (user=%s): %s", attempt + 1, self.max_retries, user_id, str(exc)[:200])
+                 if attempt < self.max_retries - 1:
+-                    await asyncio.sleep(self.retry_delay * (attempt + 1))
++                    await asyncio.sleep(
++                        retry_delay_seconds(
++                            exc,
++                            fallback_seconds=self.retry_delay * (attempt + 1),
++                        )
++                    )
+                 else:
+                     logger.error("ADD failed after %d attempts for user=%s", self.max_retries, user_id)
+-                    return None
++                    raise RuntimeError(
++                        f"ADD failed after {self.max_retries} attempts for user={user_id}"
++                    ) from exc
+ 
+     async def _add_cloud(
+         self, messages, user_id, observation_date, timestamp, custom_instructions, metadata,
+@@ -307,10 +316,17 @@ class Mem0Client:
+             except Exception as exc:
+                 logger.warning("SEARCH attempt %d/%d failed (user=%s): %s", attempt + 1, self.max_retries, user_id, str(exc)[:200])
+                 if attempt < self.max_retries - 1:
+-                    await asyncio.sleep(self.retry_delay * (attempt + 1))
++                    await asyncio.sleep(
++                        retry_delay_seconds(
++                            exc,
++                            fallback_seconds=self.retry_delay * (attempt + 1),
++                        )
++                    )
+                 else:
+                     logger.error("SEARCH failed after %d attempts for user=%s", self.max_retries, user_id)
+-                    return []
++                    raise RuntimeError(
++                        f"SEARCH failed after {self.max_retries} attempts for user={user_id}"
++                    ) from exc
+ 
+     async def _search_cloud(self, query, user_id, top_k, rerank, score_debug) -> list[dict]:
+         """Search via Mem0 cloud V3 API."""
+diff --git a/benchmarks/common/retry.py b/benchmarks/common/retry.py
+new file mode 100644
+index 0000000..a41e1f4
+--- /dev/null
++++ b/benchmarks/common/retry.py
+@@ -0,0 +1,46 @@
++"""Retry helpers shared by benchmark HTTP and model clients."""
++
++from __future__ import annotations
++
++from datetime import UTC, datetime
++from email.utils import parsedate_to_datetime
++from typing import Any, Mapping
++
++
++def _headers(error: object) -> Mapping[str, Any]:
++    headers = getattr(error, "headers", None)
++    if headers is None:
++        response = getattr(error, "response", None)
++        headers = getattr(response, "headers", None)
++    return headers if isinstance(headers, Mapping) else {}
++
++
++def retry_delay_seconds(
++    error: object,
++    *,
++    fallback_seconds: float,
++    now: datetime | None = None,
++) -> float:
++    """Return Retry-After when present, otherwise the caller's fallback."""
++    value = next(
++        (
++            raw
++            for key, raw in _headers(error).items()
++            if str(key).lower() == "retry-after"
++        ),
++        None,
++    )
++    if value is None:
++        return max(0.0, float(fallback_seconds))
++    try:
++        return max(0.0, float(value))
++    except (TypeError, ValueError):
++        pass
++    try:
++        target = parsedate_to_datetime(str(value))
++        if target.tzinfo is None:
++            target = target.replace(tzinfo=UTC)
++        current = now or datetime.now(UTC)
++        return max(0.0, (target - current).total_seconds())
++    except (TypeError, ValueError, OverflowError):
++        return max(0.0, float(fallback_seconds))
+diff --git a/benchmarks/locomo/run.py b/benchmarks/locomo/run.py
+index 8e4bdb9..4602ad8 100644
+--- a/benchmarks/locomo/run.py
++++ b/benchmarks/locomo/run.py
+@@ -354,6 +354,18 @@ async def ingest_conversation(
+                 total_failed += 1
+                 logger.warning("Ingestion failed: conv %d %s chunk %d", conv_idx, session_key, chunk_idx)
+ 
++                checkpoint.save_progress(key, {
++                    "conversation_idx": conv_idx,
++                    "user_id": user_id,
++                    "run_id": run_id,
++                    "chunk_size": CHUNK_SIZE,
++                    "completed_chunks": list(chunks_already_done),
++                })
++                pbar.close()
++                if debug_file:
++                    debug_file.close()
++                return False, user_id, total_processed
++
+             chunks_already_done.add(chunk_key)
+             checkpoint.save_progress(key, {
+                 "conversation_idx": conv_idx,
+diff --git a/tests/test_memory01_resilience.py b/tests/test_memory01_resilience.py
+new file mode 100644
+index 0000000..9d727e4
+--- /dev/null
++++ b/tests/test_memory01_resilience.py
+@@ -0,0 +1,123 @@
++from __future__ import annotations
++
++import asyncio
++import json
++from datetime import UTC, datetime, timedelta
++from email.utils import format_datetime
++from types import SimpleNamespace
++
++from aiolimiter import AsyncLimiter
++
++from benchmarks.common.llm_client import LLMClient
++from benchmarks.common.mem0_client import Mem0Client
++from benchmarks.common.retry import retry_delay_seconds
++from benchmarks.locomo.run import ingest_conversation
++
++
++def test_mem0_client_uses_declared_rpm() -> None:
++    client = Mem0Client(rpm=17)
++
++    assert client.limiter.max_rate == 1
++    assert client.limiter.time_period == 60 / 17
++
++
++def test_llm_client_evenly_paces_declared_rpm() -> None:
++    client = LLMClient(model="gpt-4o-mini", api_key="test", rpm=19)
++
++    assert client.limiter.max_rate == 1
++    assert client.limiter.time_period == 60 / 19
++
++
++def test_retry_delay_prefers_numeric_retry_after() -> None:
++    error = SimpleNamespace(headers={"Retry-After": "23"})
++
++    assert retry_delay_seconds(error, fallback_seconds=4) == 23
++
++
++def test_retry_delay_accepts_http_date() -> None:
++    now = datetime.now(UTC)
++    error = SimpleNamespace(
++        headers={"Retry-After": format_datetime(now + timedelta(seconds=31))}
++    )
++
++    delay = retry_delay_seconds(error, fallback_seconds=4, now=now)
++
++    assert 30 <= delay <= 31
++
++
++def test_llm_retry_sleeps_for_retry_after(monkeypatch) -> None:
++    class RateLimited(Exception):
++        headers = {"Retry-After": "19"}
++
++    class Completions:
++        attempts = 0
++
++        async def create(self, **kwargs):
++            self.attempts += 1
++            if self.attempts == 1:
++                raise RateLimited("slow down")
++            return SimpleNamespace(
++                choices=[
++                    SimpleNamespace(
++                        message=SimpleNamespace(content="done"),
++                        finish_reason="stop",
++                    )
++                ]
++            )
++
++    sleeps: list[float] = []
++
++    async def record_sleep(seconds: float) -> None:
++        sleeps.append(seconds)
++
++    client = LLMClient.__new__(LLMClient)
++    client.model = "gpt-4o-mini"
++    client.max_retries = 2
++    client.timeout = 30
++    client.limiter = AsyncLimiter(20, 60)
++    client._client = SimpleNamespace(
++        chat=SimpleNamespace(completions=Completions())
++    )
++    monkeypatch.setattr(asyncio, "sleep", record_sleep)
++
++    result = asyncio.run(
++        client._generate_openai("system", "user", temperature=0, max_tokens=10)
++    )
++
++    assert result == "done"
++    assert sleeps == [19]
++
++
++def test_failed_ingestion_chunk_remains_resumable(tmp_path) -> None:
++    class FailedMem0:
++        async def add(self, *args, **kwargs):
++            return None
++
++    entry = {
++        "conversation": {
++            "speaker_a": "A",
++            "speaker_b": "B",
++            "session_1_date_time": "1:00 pm on 1 May, 2023",
++            "session_1": [{"speaker": "A", "text": "remember this"}],
++        }
++    }
++
++    success, _, completed = asyncio.run(
++        ingest_conversation(
++            0,
++            entry,
++            FailedMem0(),
++            SimpleNamespace(info=lambda *args: None, warning=lambda *args: None),
++            "run",
++            "project",
++            str(tmp_path),
++            SimpleNamespace(requested=False),
++            debug=False,
++        )
++    )
++
++    assert success is False
++    assert completed == 0
++    assert not (tmp_path / "_ingestion_0.json").exists()
++    progress = json.loads((tmp_path / "_progress_0.json").read_text())
++    assert progress["completed_chunks"] == []

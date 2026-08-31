@@ -133,12 +133,13 @@ def validate_build_input(value: object, candidate_sha: str, version: str) -> str
 def validate_cpu_smoke(value: dict[str, Any], consumer: str) -> None:
     require_exact_keys(
         value,
-        {"schema_version", "consumer", "network", "environment", "gpu_nodes_visible", "source_imported", "outcome"},
+        {"schema_version", "consumer", "policies", "network", "environment", "gpu_nodes_visible", "source_imported", "outcome"},
         f"CPU {consumer} smoke",
     )
     if value != {
         "schema_version": "fathomdb.cuda-package-cpu-smoke/v1",
         "consumer": consumer,
+        "policies": ["auto", "cpu"],
         "network": "none",
         "environment": "env -i",
         "gpu_nodes_visible": False,
@@ -496,6 +497,15 @@ def validate(root: Path, candidate_sha: str) -> None:
     }
     if {path.name for path in package_dir.iterdir()} != filenames:
         fail("package directory does not exactly match manifest inventory")
+    linkage, _ = load_object(preflight_witness_dir / "artifact-linkage.json", "artifact linkage")
+    artifacts = linkage.get("artifacts")
+    if not isinstance(artifacts, dict):
+        fail("artifact linkage has no archive inventory")
+    for linkage_name, package_name in (("python_wheel", "python_wheel"), ("napi_tarball", "napi_platform")):
+        linkage_record = artifacts.get(linkage_name)
+        package_record = packages[package_name]
+        if not isinstance(linkage_record, dict) or linkage_record.get("sha256") != package_record["sha256"]:
+            fail(f"artifact linkage does not bind the retained {package_name} bytes")
     archive = packages["cli_archive"]
     validate_smokes(
         root, manifest["smoke_evidence_sha256"], version, archive["filename"], archive["sha256"],

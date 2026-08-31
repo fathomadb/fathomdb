@@ -23,6 +23,7 @@ EVIDENCE_NAMES = {
     "environment.txt",
     "manylinux-build.txt",
     "dynamic-dependencies.txt",
+    "artifact-linkage.json",
     "python-auditwheel.txt",
     "driverless-python-cpu-smoke.txt",
     "driverless-napi-cpu-smoke.txt",
@@ -58,7 +59,7 @@ def write_json(path: Path, value: object) -> None:
 
 def capture(consumer: str, status: str = "cuda_unavailable", reason: str = "no_visible_cuda_device") -> dict[str, object]:
     argv = (
-        ["/opt/python/cp311-cp311/bin/python", "/fathomdb-harness/forced-python-open.py"]
+        ["python", "/fathomdb-harness/forced-python-open.py"]
         if consumer == "python"
         else ["node", "/fathomdb-harness/forced-napi-open.mjs"]
     )
@@ -158,6 +159,25 @@ def make_valid(root: Path, repo_root: Path) -> None:
         "gpu-python-cuda-smoke.txt", "gpu-napi-cuda-smoke.txt",
     ):
         (root / name).write_text(f"fixture evidence: {name}\n", encoding="utf-8")
+    readelf_output = " 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]\n"
+    linkage = {
+        "schema_version": "fathomdb.cuda-artifact-linkage/v1",
+        "artifacts": {
+            artifact: {
+                "sha256": "0" * 64,
+                "members": [{
+                    "path": f"{prefix}:fathomdb/native.so",
+                    "sha256": "1" * 64,
+                    "needed": ["libc.so.6"],
+                    "readelf": readelf_output,
+                    "readelf_filename": f"{artifact}.readelf.txt",
+                    "readelf_sha256": digest_bytes(readelf_output.encode("utf-8")),
+                }],
+            }
+            for artifact, prefix in (("python_wheel", "python-wheel"), ("napi_tarball", "napi-tarball"))
+        },
+    }
+    write_json(root / "artifact-linkage.json", linkage)
     shutil.copyfile(repo_root / "scripts/release/forced-python-open.py", root / "forced-python-open.py")
     shutil.copyfile(repo_root / "scripts/release/forced-napi-open.mjs", root / "forced-napi-open.mjs")
     for consumer in ("python", "napi"):

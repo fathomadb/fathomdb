@@ -19,6 +19,7 @@ make_fixture() {
   cp "$REPO_ROOT/scripts/release/build-napi-cuda.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/build-python-cuda-tegra.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/cuda-preflight.sh" "$root/scripts/release/"
+  cp "$REPO_ROOT/scripts/release/inspect-cuda-artifacts.py" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/lib/cuda-gpu-selection.sh" "$root/scripts/lib/"
   cp "$REPO_ROOT/scripts/release/cuda-image-attestation.sh" "$root/scripts/release/"
   cp "$REPO_ROOT/scripts/release/cuda-preflight-witness.schema.json" "$root/scripts/release/"
@@ -145,6 +146,28 @@ if actual != expected:
     raise SystemExit(f"canonical CUDA build must upload only publisher inputs; got {actual!r}")
 PY
 printf 'PASS  canonical CUDA build uploads only publisher inputs without caching the host npm store\n'
+
+# R25-CUDA-LOAD: a "driverless" CPU proof is invalid if its container has a
+# CUDA runtime mount or dynamic-library search path. The installed module must
+# be able to load before runtime policy has a chance to select CPU.
+python3 - "$REPO_ROOT/scripts/release/cuda-preflight.sh" <<'PY'
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+start = text.index("printf 'cuda-preflight: prove the installed Python wheel defaults to CPU in a driverless container\\n'")
+end = text.index("run_forced_python()", start)
+driverless = text[start:end]
+for forbidden in (
+    'dst=/opt/cuda/lib64,readonly',
+    'dst=/usr/lib/x86_64-linux-gnu/libcudart.so.12,readonly',
+    'LD_LIBRARY_PATH=/opt/cuda/lib64',
+    'LD_LIBRARY_PATH=/usr/local/cuda/lib64',
+):
+    if forbidden in driverless:
+        raise SystemExit(f"driverless CPU smoke must not expose CUDA runtime: {forbidden}")
+PY
+printf 'PASS  driverless CPU preflight smokes expose no CUDA runtime library\n'
 
 # Slice 80.7: the Tegra wrapper stages only metadata, stamps +tegra, proves
 # both wheel surfaces, and prints the concrete install command after success.
@@ -406,7 +429,7 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = 'export LIBRARY_PATH="$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64${LIBRARY_PATH:+:$LIBRARY_PATH}"\n'
+needle = 'export LIBRARY_PATH="$CUDA_NAPI_HOST_TOOLKIT_ROOT/targets/x86_64-linux/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"\n'
 if text.count(needle) != 1:
     raise SystemExit("fixture no longer contains exactly one N-API CUDA runtime linker search path")
 path.write_text(text.replace(needle, "", 1))
@@ -420,7 +443,7 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = 'candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "5719d90e60edd14c4c1a3bf87952648131b2153a" }\n'
+needle = 'candle-nn-fathomdb = { git = "https://github.com/coreyt/candle-fathomdb.git", rev = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee" }\n'
 if text.count(needle) != 1:
     raise SystemExit("fixture no longer contains exactly one Candle NN source pin")
 path.write_text(text.replace(needle, "", 1))
@@ -434,9 +457,9 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = 'source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=5719d90e60edd14c4c1a3bf87952648131b2153a#5719d90e60edd14c4c1a3bf87952648131b2153a"'
-if text.count(needle) != 3:
-    raise SystemExit("fixture no longer contains all three immutable Candle lock sources")
+needle = 'source = "git+https://github.com/coreyt/candle-fathomdb.git?rev=cf02edbc2ade01b4da42715e9e2a8f0364e5dcee#cf02edbc2ade01b4da42715e9e2a8f0364e5dcee"'
+if text.count(needle) != 4:
+    raise SystemExit("fixture no longer contains all four immutable Candle lock sources")
 path.write_text(text.replace(needle, 'source = "registry+https://github.com/rust-lang/crates.io-index"', 1))
 PY
 expect_fail "$FIXTURE" 'rejects a Candle lockfile that falls back to crates.io'
@@ -694,10 +717,10 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = 'Engine.open(str(pathlib.Path(directory) / "driverless.fdb"), use_default_embedder=True)'
+needle = 'Engine.open(str(pathlib.Path(directory) / f"driverless-{policy}.fdb"), use_default_embedder=True)'
 if text.count(needle) != 1:
     raise SystemExit("fixture no longer contains exactly one driverless Python open")
-path.write_text(text.replace(needle, 'Engine.open(str(pathlib.Path(directory) / "driverless.fdb"), use_default_embedder=False)', 1))
+path.write_text(text.replace(needle, 'Engine.open(str(pathlib.Path(directory) / f"driverless-{policy}.fdb"), use_default_embedder=False)', 1))
 PY
 expect_fail "$FIXTURE" 'rejects a driverless Python smoke that skips the default embedder'
 
@@ -708,10 +731,10 @@ import sys
 
 path = Path(sys.argv[1])
 text = path.read_text()
-needle = 'Engine.open("/fathomdb-tmp/driverless-node.fdb", { useDefaultEmbedder: true })'
+needle = 'Engine.open(`/fathomdb-tmp/driverless-node-${policy}.fdb`, { useDefaultEmbedder: true })'
 if text.count(needle) != 1:
     raise SystemExit("fixture no longer contains exactly one driverless N-API default-embedder open")
-path.write_text(text.replace(needle, 'Engine.open("/fathomdb-tmp/driverless-node.fdb", { useDefaultEmbedder: false })', 1))
+path.write_text(text.replace(needle, 'Engine.open(`/fathomdb-tmp/driverless-node-${policy}.fdb`, { useDefaultEmbedder: false })', 1))
 PY
 expect_fail "$FIXTURE" 'rejects a driverless installed N-API smoke that skips the default embedder'
 

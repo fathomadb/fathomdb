@@ -126,6 +126,12 @@ Slice-0 gate before Slices 15 and 25 open.
 | - | -------- | ------------------ | ------------ | -------- |
 | 43 | interface | Supported Linux x86_64 CUDA-capable artifacts provide one CPU/GPU runtime with typed `auto`/`cpu`/`cuda:N` policy and `doctor gpu`; forced CUDA never silently falls back | proposed under HITL `seq:250` | ADR-0.8.23-dual-runtime-device-policy.md |
 
+## Phase 0.8.25 (CUDA artifact correction)
+
+| # | Category | Candidate decision | HITL verdict | ADR file |
+| - | -------- | ------------------ | ------------ | -------- |
+| 44 | architecture | Linux x86_64 CUDA-capable artifacts must map and run CPU mode without a dynamic CUDA runtime or NVIDIA driver dependency; inspect real package bytes and retain separate CPU/GPU evidence | approved for implementation (HITL 2026-08-31) | ADR-0.8.25-driverless-cuda-runtime-linkage.md |
+
 ## Categories
 
 acceptance | architecture | design | interface.

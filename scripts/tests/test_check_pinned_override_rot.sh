@@ -93,8 +93,8 @@ metadata.write_text(json.dumps(data), encoding="utf-8")
     }}}
 }), encoding="utf-8")
 candle_git = "https://github.com/coreyt/candle-fathomdb.git"
-candle_rev = "5719d90e60edd14c4c1a3bf87952648131b2153a"
-candle_packages = ["candle-core-fathomdb", "candle-nn-fathomdb", "candle-transformers-fathomdb"]
+candle_rev = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee"
+candle_packages = ["candle-core-fathomdb", "candle-kernels", "candle-nn-fathomdb", "candle-transformers-fathomdb"]
 (root / "Cargo.toml").write_text(
     "[workspace]\nresolver = '2'\n\n[patch.crates-io]\n"
     + "".join(f'{item} = {{ git = "{candle_git}", rev = "{candle_rev}" }}\n' for item in candle_packages),
@@ -357,14 +357,16 @@ from pathlib import Path
 root = Path(sys.argv[1])
 mode = sys.argv[2]
 git = "https://github.com/coreyt/candle-fathomdb.git"
-rev = "5719d90e60edd14c4c1a3bf87952648131b2153a"
-packages = ["candle-core-fathomdb", "candle-nn-fathomdb", "candle-transformers-fathomdb"]
+rev = "cf02edbc2ade01b4da42715e9e2a8f0364e5dcee"
+packages = ["candle-core-fathomdb", "candle-kernels", "candle-nn-fathomdb", "candle-transformers-fathomdb"]
 manifest_packages = packages.copy()
 manifest_revs = {package: rev for package in packages}
 lock_revs = {package: rev for package in packages}
 extra_manifest = ""
 if mode == "missing":
     manifest_packages.pop()
+elif mode == "missing-kernels":
+    manifest_packages.remove("candle-kernels")
 elif mode == "split":
     manifest_revs["candle-nn-fathomdb"] = "89abcdef0123456789abcdef0123456789abcdef"
 elif mode == "revision-drift":
@@ -427,6 +429,15 @@ if [ "$RC" -ne 1 ]; then
 fi
 expect_failure 'missing approved Candle patch candle-transformers-fathomdb' \
   'missing Candle package from the approved cohort is rejected'
+
+# The kernel patch is the driverless-linkage boundary. Its omission must fail
+# even if the remaining public Candle crates retain their governed source.
+make_and_run_candle_fixture missing-kernels missing-kernels
+if [ "$RC" -ne 1 ]; then
+  fail "missing Candle kernel patch must fail, got rc=$RC output=$OUT"
+fi
+expect_failure 'missing approved Candle patch candle-kernels' \
+  'missing Candle kernel from the approved cohort is rejected'
 
 make_and_run_candle_fixture split split
 if [ "$RC" -ne 1 ]; then

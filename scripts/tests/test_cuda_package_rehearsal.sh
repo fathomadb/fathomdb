@@ -62,7 +62,7 @@ PY
 EOF
   for consumer in python napi; do
     cat > "$root/smoke/cpu-$consumer.json" <<EOF
-{"consumer":"$consumer","environment":"env -i","gpu_nodes_visible":false,"network":"none","outcome":"passed","schema_version":"fathomdb.cuda-package-cpu-smoke/v1","source_imported":false}
+{"consumer":"$consumer","environment":"env -i","gpu_nodes_visible":false,"network":"none","outcome":"passed","policies":["auto","cpu"],"schema_version":"fathomdb.cuda-package-cpu-smoke/v1","source_imported":false}
 EOF
     cat > "$root/smoke/gpu-$consumer.json" <<EOF
 {"consumer":"$consumer","device_name":"NVIDIA test","driver_version":"999.99","gpu_uuid":"GPU-test","host_index":0,"network":"none","nvidia_smi_pid":4242,"nvidia_smi_uuid":"GPU-test","outcome":"passed","requested_ordinal":0,"schema_version":"fathomdb.cuda-package-gpu-smoke/v1","smoke_pid":4242,"source_imported":false}
@@ -99,6 +99,15 @@ for kind, name, contains_cuda in (
     ("cli_archive", f"fathomdb-{version}-x86_64-unknown-linux-gnu.tar.gz", True),
 ):
     packages[kind] = {"contains_cuda": contains_cuda, "filename": name, "sha256": digest(root / "packages" / name), "target": "x86_64-unknown-linux-gnu", "version": version}
+linkage_path = root / "preflight-witness" / "artifact-linkage.json"
+linkage = json.loads(linkage_path.read_text())
+linkage["artifacts"]["python_wheel"]["sha256"] = packages["python_wheel"]["sha256"]
+linkage["artifacts"]["napi_tarball"]["sha256"] = packages["napi_platform"]["sha256"]
+linkage_path.write_text(json.dumps(linkage, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+witness_path = root / "preflight-witness" / "cuda-preflight-witness.json"
+witness = json.loads(witness_path.read_text())
+witness["evidence_sha256"]["artifact-linkage.json"] = digest(linkage_path)
+witness_path.write_text(json.dumps(witness, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
 cli_sha = packages["cli_archive"]["sha256"]
 for path in (root / "smoke").glob("*-cli.json"):
     value = json.loads(path.read_text())
@@ -346,6 +355,29 @@ expect_reject "$TMPROOT/cross-candidate" 'cross-candidate manifest is rejected'
 cp -a "$VALID" "$TMPROOT/preflight-substituted"
 printf '\n' >> "$TMPROOT/preflight-substituted/preflight-witness/cuda-preflight-witness.json"
 expect_reject "$TMPROOT/preflight-substituted" 'preflight witness byte substitution is rejected'
+
+cp -a "$VALID" "$TMPROOT/linkage-package-mismatch"
+python3 - "$TMPROOT/linkage-package-mismatch" <<'PY'
+import hashlib
+import json
+from pathlib import Path
+import sys
+
+root = Path(sys.argv[1])
+linkage_path = root / "preflight-witness" / "artifact-linkage.json"
+linkage = json.loads(linkage_path.read_text())
+linkage["artifacts"]["python_wheel"]["sha256"] = "0" * 64
+linkage_path.write_text(json.dumps(linkage, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+witness_path = root / "preflight-witness" / "cuda-preflight-witness.json"
+witness = json.loads(witness_path.read_text())
+witness["evidence_sha256"]["artifact-linkage.json"] = hashlib.sha256(linkage_path.read_bytes()).hexdigest()
+witness_path.write_text(json.dumps(witness, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+manifest_path = root / "cuda-package-rehearsal.json"
+manifest = json.loads(manifest_path.read_text())
+manifest["preflight_witness_sha256"] = hashlib.sha256(witness_path.read_bytes()).hexdigest()
+manifest_path.write_text(json.dumps(manifest, ensure_ascii=True, separators=(",", ":"), sort_keys=True) + "\n")
+PY
+expect_reject "$TMPROOT/linkage-package-mismatch" 'linkage evidence must bind retained package bytes'
 
 cp -a "$VALID" "$TMPROOT/symlink"
 mv "$TMPROOT/symlink/packages/fathomdb-$VERSION.tgz" "$TMPROOT/symlink/packages/real.tgz"

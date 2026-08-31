@@ -211,19 +211,6 @@ grep -F 'manylinux_2_28' "$WORK_DIR/python-auditwheel.txt" >/dev/null || {
   printf 'cuda-preflight: wheel is not manylinux_2_28\n' >&2
   exit 1
 }
-unzip -q "$WHEEL" -d "$WORK_DIR/python-unpacked"
-PYTHON_EXTENSION="$(find "$WORK_DIR/python-unpacked" -type f -name '*.so' -print -quit)"
-[ -n "$PYTHON_EXTENSION" ] || {
-  printf 'cuda-preflight: wheel contains no Python extension\n' >&2
-  exit 1
-}
-{
-  printf '[node readelf]\n'; readelf -d "$NAPI_BINARY"
-  printf '\n[node ldd]\n'; ldd "$NAPI_BINARY"
-  printf '\n[python readelf]\n'; readelf -d "$PYTHON_EXTENSION"
-  printf '\n[python ldd]\n'; ldd "$PYTHON_EXTENSION"
-} | tee "$WORK_DIR/dynamic-dependencies.txt"
-
 printf 'cuda-preflight: stage installed N-API package\n'
 (
   cd "$REPO_ROOT/src/ts"
@@ -241,6 +228,12 @@ cp "$NAPI_BINARY" "$NPM_PLATFORM/fathomdb.linux-x64-gnu.node"
 bash "$SCRIPT_DIR/npm-inject-optional-deps.sh" "$NPM_MAIN" "$NPM_PLATFORM_ROOT"
 NPM_PLATFORM_TARBALL="$(cd "$NPM_PLATFORM" && npm pack --silent)"
 NPM_MAIN_TARBALL="$(cd "$NPM_MAIN" && npm pack --silent)"
+python3 "$SCRIPT_DIR/inspect-cuda-artifacts.py" \
+  --python-wheel "$WHEEL" \
+  --napi-tarball "$NPM_PLATFORM/$NPM_PLATFORM_TARBALL" \
+  --output-dir "$WORK_DIR/artifact-linkage"
+cp "$WORK_DIR/artifact-linkage/artifact-linkage.json" "$WORK_DIR/dynamic-dependencies.txt"
+cp "$WORK_DIR/artifact-linkage/artifact-linkage.json" "$WORK_DIR/artifact-linkage.json"
 
 for smoke in driverless_python driverless_napi gpu_python gpu_napi; do
   initial_entry=""
@@ -282,14 +275,22 @@ docker run --rm --network none \
     test ! -e /dev/nvidiactl
     python -m pip install --no-deps --no-cache-dir --target /fathomdb-tmp/python-site "/input/$WHEEL_FILENAME"
     python - <<"PY"
+import os
 import pathlib
 import tempfile
 from fathomdb import Engine
-with tempfile.TemporaryDirectory(dir="/fathomdb-tmp") as directory:
-    engine = Engine.open(str(pathlib.Path(directory) / "driverless.fdb"), use_default_embedder=True)
-    assert engine.open_report().embedder_device_resolution.effective_device.kind == "cpu"
-    assert len(engine.embed("driverless Python CPU fallback proof")) == 384
-    engine.close()
+for policy in ("auto", "cpu"):
+    if policy == "auto":
+        os.environ.pop("FATHOMDB_EMBED_DEVICE", None)
+    else:
+        os.environ["FATHOMDB_EMBED_DEVICE"] = policy
+    with tempfile.TemporaryDirectory(dir="/fathomdb-tmp") as directory:
+        engine = Engine.open(str(pathlib.Path(directory) / f"driverless-{policy}.fdb"), use_default_embedder=True)
+        assert engine.open_report().embedder_device_resolution.effective_device.kind == "cpu"
+        assert len(engine.embed(f"driverless Python {policy} CPU proof")) == 384
+        engine.write([{"kind": "doc", "body": "driverless CPU lifecycle", "source_id": f"driverless-{policy}"}])
+        engine.search("driverless")
+        engine.close()
 if __import__("os").environ.get("FATHOMDB_CUDA_REHEARSAL_RERANK") == "true":
     from fathomdb import rerank
     result = rerank("reranker CPU proof", [{"id": 1, "body": "TinyBERT CPU inference", "score": 1.0}], 1)
@@ -306,10 +307,9 @@ docker run --rm --network none \
   --mount "type=bind,src=$DEFAULT_EMBEDDER_HF_HOME,dst=/fathomdb-hf,readonly" \
   --mount "type=bind,src=$WORK_DIR/cache/driverless_napi,dst=/fathomdb-product-cache" \
   --mount "type=bind,src=$WORK_DIR/tmp/driverless_napi,dst=/fathomdb-tmp" \
-  --mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64,dst=/opt/cuda/lib64,readonly" \
   "${MODEL_ENV[@]}" \
   "${RERANKER_MOUNT[@]}" "${RERANKER_ENV[@]}" \
-  -e LD_LIBRARY_PATH=/opt/cuda/lib64 -e npm_config_cache=/fathomdb-tmp/npm-cache \
+  -e npm_config_cache=/fathomdb-tmp/npm-cache \
   "$CUDA_DRIVERLESS_NODE_IMAGE" \
   env -u FATHOMDB_EMBED_DEVICE -u FATHOMDB_RERANK_DEVICE -u CUDA_VISIBLE_DEVICES -u NVIDIA_VISIBLE_DEVICES -u HIP_VISIBLE_DEVICES -u ROCR_VISIBLE_DEVICES -u HUGGINGFACE_HUB_CACHE -u TRANSFORMERS_CACHE -u FATHOMDB_EMBEDDER_CACHE_DIR sh -ceu '
     test ! -e /dev/nvidiactl
@@ -318,10 +318,18 @@ docker run --rm --network none \
     npm install --offline --ignore-scripts --no-audit --no-fund
     node --input-type=module - <<"JS"
 import { Engine } from "fathomdb";
-const engine = await Engine.open("/fathomdb-tmp/driverless-node.fdb", { useDefaultEmbedder: true });
-if (engine.openReport().embedderDeviceResolution.effectiveDevice.kind !== "cpu") throw new Error("expected CPU fallback");
-if ((await engine.embed("driverless N-API CPU fallback proof")).length !== 384) throw new Error("expected 384-vector");
+for (const policy of ["auto", "cpu"]) {
+  if (policy === "auto") delete process.env.FATHOMDB_EMBED_DEVICE;
+  else process.env.FATHOMDB_EMBED_DEVICE = policy;
+  const engine = await Engine.open(`/fathomdb-tmp/driverless-node-${policy}.fdb`, { useDefaultEmbedder: true });
+  if (engine.openReport().embedderDeviceResolution.effectiveDevice.kind !== "cpu") throw new Error("expected CPU fallback");
+  if ((await engine.embed(`driverless N-API ${policy} CPU proof`)).length !== 384) throw new Error("expected 384-vector");
+  await engine.write([{kind: "doc", body: "driverless CPU lifecycle", sourceId: `driverless-${policy}`}]);
+  await engine.search("driverless");
+  await engine.close();
+}
 if (process.env.FATHOMDB_CUDA_REHEARSAL_RERANK === "true") {
+  const engine = await Engine.open("/fathomdb-tmp/driverless-reranker.fdb", { useDefaultEmbedder: true });
   await engine.write([{kind: "doc", body: "TinyBERT CPU inference", sourceId: "reranker-cpu-proof"}]);
   await engine.drain(30_000);
   const deadline = Date.now() + 10_000;
@@ -332,8 +340,8 @@ if (process.env.FATHOMDB_CUDA_REHEARSAL_RERANK === "true") {
     result = await engine.search("TinyBERT CPU inference", undefined, 1);
   }
   if (result.results.length !== 1 || result.results[0].ceScore === null) throw new Error("expected installed N-API reranker inference");
+  await engine.close();
 }
-await engine.close();
 console.log("driverless installed N-API CUDA-capable default-embedder CPU smoke: ok");
 JS
   ' | tee "$WORK_DIR/driverless-napi-cpu-smoke.txt"
@@ -376,8 +384,9 @@ run_forced_python() {
     --mount "type=bind,src=$FORCED_PYTHON_SITE,dst=/fathomdb-site,readonly" \
     --mount "type=bind,src=$WORK_DIR/forced-python-open.py,dst=/fathomdb-harness/forced-python-open.py,readonly" \
     -e HOME=/fathomdb-unavailable-home -e TMPDIR=/tmp -e PYTHONPATH=/fathomdb-site -e FATHOMDB_EMBED_DEVICE=cuda:0 \
-    "$CUDA_MANYLINUX_IMAGE" sh -ceu '
-      exec /opt/python/cp311-cp311/bin/python /fathomdb-harness/forced-python-open.py
+    "$CUDA_DRIVERLESS_PYTHON_IMAGE" sh -ceu '
+      test ! -e /dev/nvidiactl
+      exec python /fathomdb-harness/forced-python-open.py
     ' >"$stdout" 2>"$stderr"
   local exit_code="$?"
   set -e
@@ -394,9 +403,9 @@ run_forced_napi() {
   docker run --rm --network none \
     --mount "type=bind,src=$WORK_DIR/forced-napi-open.mjs,dst=/fathomdb-harness/forced-napi-open.mjs,readonly" \
     --mount "type=bind,src=$FORCED_NAPI_INSTALL/node_modules,dst=/fathomdb-harness/node_modules,readonly" \
-    --mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64,dst=/opt/cuda/lib64,readonly" \
-    -e HOME=/fathomdb-unavailable-home -e TMPDIR=/tmp -e FATHOMDB_EMBED_DEVICE=cuda:0 -e LD_LIBRARY_PATH=/opt/cuda/lib64 \
+    -e HOME=/fathomdb-unavailable-home -e TMPDIR=/tmp -e FATHOMDB_EMBED_DEVICE=cuda:0 \
     "$CUDA_DRIVERLESS_NODE_IMAGE" sh -ceu '
+      test ! -e /dev/nvidiactl
       exec node /fathomdb-harness/forced-napi-open.mjs
     ' >"$stdout" 2>"$stderr"
   local exit_code="$?"
@@ -418,8 +427,9 @@ run_forced_reranker_python() {
     --mount "type=bind,src=$FORCED_PYTHON_SITE,dst=/fathomdb-site,readonly" \
     --mount "type=bind,src=$WORK_DIR/forced-reranker-python.py,dst=/fathomdb-harness/forced-reranker-python.py,readonly" \
     -e HOME=/fathomdb-unavailable-home -e TMPDIR=/tmp -e PYTHONPATH=/fathomdb-site -e FATHOMDB_RERANK_DEVICE=cuda:0 \
-    "$CUDA_MANYLINUX_IMAGE" sh -ceu '
-      exec /opt/python/cp311-cp311/bin/python /fathomdb-harness/forced-reranker-python.py
+    "$CUDA_DRIVERLESS_PYTHON_IMAGE" sh -ceu '
+      test ! -e /dev/nvidiactl
+      exec python /fathomdb-harness/forced-reranker-python.py
     ' >"$stdout" 2>"$stderr"
   local exit_code="$?"
   set -e
@@ -436,9 +446,9 @@ run_forced_reranker_napi() {
   docker run --rm --network none \
     --mount "type=bind,src=$WORK_DIR/forced-reranker-napi.mjs,dst=/fathomdb-harness/forced-reranker-napi.mjs,readonly" \
     --mount "type=bind,src=$FORCED_NAPI_INSTALL/node_modules,dst=/fathomdb-harness/node_modules,readonly" \
-    --mount "type=bind,src=$CUDA_NAPI_HOST_TOOLKIT_ROOT/lib64,dst=/opt/cuda/lib64,readonly" \
-    -e HOME=/fathomdb-unavailable-home -e TMPDIR=/tmp -e FATHOMDB_RERANK_DEVICE=cuda:0 -e LD_LIBRARY_PATH=/opt/cuda/lib64 \
+    -e HOME=/fathomdb-unavailable-home -e TMPDIR=/tmp -e FATHOMDB_RERANK_DEVICE=cuda:0 \
     "$CUDA_DRIVERLESS_NODE_IMAGE" sh -ceu '
+      test ! -e /dev/nvidiactl
       exec node /fathomdb-harness/forced-reranker-napi.mjs
     ' >"$stdout" 2>"$stderr"
   local exit_code="$?"
@@ -750,7 +760,7 @@ if rerank_cuda:
 PY
 
 EVIDENCE_NAMES=(
-  environment.txt manylinux-build.txt dynamic-dependencies.txt python-auditwheel.txt
+  environment.txt manylinux-build.txt dynamic-dependencies.txt artifact-linkage.json python-auditwheel.txt
   driverless-python-cpu-smoke.txt driverless-napi-cpu-smoke.txt
   gpu-python-cuda-witness.json gpu-napi-cuda-witness.json
   gpu-python-cuda-smoke.txt gpu-napi-cuda-smoke.txt

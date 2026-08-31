@@ -16,6 +16,10 @@ SCHEMA_VERSION_V2 = "fathomdb.cuda-preflight-witness/v2"
 SCHEMA_VERSION_V3 = "fathomdb.cuda-preflight-witness/v3"
 WITNESS_NAME = "cuda-preflight-witness.json"
 SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+CUDA_NEEDED = re.compile(
+    r"^lib(?:cuda|cudart|cublas(?:lt)?|curand|cufft|cusolver|cusparse|nvrtc|nvjitlink|nvidia-ml|nvml)(?:[._-]|$)",
+    re.IGNORECASE,
+)
 COMMIT_SHA = re.compile(r"[0-9a-f]{40}\Z")
 COMPUTE_CAPABILITY = re.compile(r"[0-9]+\.[0-9]+\Z")
 CUDA_UUID = re.compile(r"(?:GPU-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\Z", re.IGNORECASE)
@@ -61,6 +65,7 @@ EVIDENCE_NAMES = frozenset({
     "environment.txt",
     "manylinux-build.txt",
     "dynamic-dependencies.txt",
+    "artifact-linkage.json",
     "python-auditwheel.txt",
     "driverless-python-cpu-smoke.txt",
     "driverless-napi-cpu-smoke.txt",
@@ -173,7 +178,7 @@ def validate_capture(
         "effective_device", "reason", "error",
     }, f"forced {consumer} capture")
     expected_argv = (
-        ["/opt/python/cp311-cp311/bin/python", "/fathomdb-harness/forced-python-open.py"]
+        ["python", "/fathomdb-harness/forced-python-open.py"]
         if consumer == "python"
         else ["node", "/fathomdb-harness/forced-napi-open.mjs"]
     )
@@ -505,6 +510,53 @@ def validate_cache_topology(path: Path, manifest: dict[str, Any]) -> None:
             fail(f"smoke-cache topology {name} does not prove isolated materialization")
 
 
+def validate_artifact_linkage(path: Path) -> None:
+    value, _ = load_canonical_object(path, "artifact linkage")
+    require_exact_keys(value, {"schema_version", "artifacts"}, "artifact linkage")
+    if value["schema_version"] != "fathomdb.cuda-artifact-linkage/v1":
+        fail("artifact linkage schema is unsupported")
+    artifacts = value["artifacts"]
+    if not isinstance(artifacts, dict):
+        fail("artifact linkage artifacts must be an object")
+    require_exact_keys(artifacts, {"python_wheel", "napi_tarball"}, "artifact linkage artifacts")
+    seen_paths: set[str] = set()
+    for artifact, prefix in (("python_wheel", "python-wheel:"), ("napi_tarball", "napi-tarball:")):
+        record = artifacts[artifact]
+        if not isinstance(record, dict):
+            fail(f"artifact linkage {artifact} must be an object")
+        require_exact_keys(record, {"sha256", "members"}, f"artifact linkage {artifact}")
+        require_digest(record["sha256"], f"artifact linkage {artifact} digest")
+        members = record["members"]
+        if not isinstance(members, list) or not members:
+            fail(f"artifact linkage {artifact} must retain every ELF member")
+        for member in members:
+            if not isinstance(member, dict):
+                fail(f"artifact linkage {artifact} member must be an object")
+            require_exact_keys(
+                member, {"path", "sha256", "needed", "readelf", "readelf_filename", "readelf_sha256"},
+                f"artifact linkage {artifact} member",
+            )
+            member_path = require_string(member["path"], f"artifact linkage {artifact} member path")
+            if not member_path.startswith(prefix) or member_path in seen_paths:
+                fail(f"artifact linkage {artifact} member path is not unique or has the wrong archive")
+            seen_paths.add(member_path)
+            require_digest(member["sha256"], f"artifact linkage {artifact} member digest")
+            readelf = require_string(member["readelf"], f"artifact linkage {artifact} readelf")
+            readelf_name = require_string(member["readelf_filename"], f"artifact linkage {artifact} readelf filename")
+            if not readelf_name.endswith(".readelf.txt"):
+                fail(f"artifact linkage {artifact} readelf filename is invalid")
+            if require_digest(member["readelf_sha256"], f"artifact linkage {artifact} readelf digest") != sha256_bytes(readelf.encode("utf-8")):
+                fail(f"artifact linkage {artifact} readelf digest does not bind retained output")
+            needed = member["needed"]
+            if not isinstance(needed, list) or any(not isinstance(library, str) for library in needed):
+                fail(f"artifact linkage {artifact} needed libraries are invalid")
+            retained_needed = re.findall(r"Shared library: \[([^]]+)\]", readelf)
+            if needed != retained_needed:
+                fail(f"artifact linkage {artifact} readelf dependency list differs from retained output")
+            if any(CUDA_NEEDED.match(library) for library in needed):
+                fail(f"artifact linkage {artifact} retains a CUDA/NVIDIA dynamic dependency")
+
+
 def validate(witness_dir: Path, candidate_sha: str) -> None:
     if COMMIT_SHA.fullmatch(candidate_sha) is None:
         fail("requested candidate SHA must be a lowercase 40-hex commit")
@@ -569,6 +621,7 @@ def validate(witness_dir: Path, candidate_sha: str) -> None:
     if require_digest(witness["build_input_sha256"], "root build-input digest") != sha256_bytes(build_raw):
         fail("root build-input digest differs from retained input")
     validate_cache_topology(witness_dir / "smoke-cache-topology.json", model_manifest)
+    validate_artifact_linkage(witness_dir / "artifact-linkage.json")
     source_dir = Path(__file__).resolve().parent
     for name in ("forced-python-open.py", "forced-napi-open.mjs"):
         if (witness_dir / name).read_bytes() != (source_dir / name).read_bytes():

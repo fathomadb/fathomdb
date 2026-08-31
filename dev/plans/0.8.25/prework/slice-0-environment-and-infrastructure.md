@@ -47,7 +47,7 @@ change was made.
 | --- | --- | --- |
 | Release authority | `release-state-*.json` plus generated board views | Established for 0.8.25 in this slice. JSON is the only writer for generated facts. |
 | Release-branch state | Generic `landed` rendering means reachable from `origin/main`; only 0.8.23 has a release-specific completion exception | **P25-INFRA-03 → Slice 7 proposal:** generalize branch-completion identity or retain explicit ladder statuses without false main-landed claims. |
-| Verification | `agent-{lint,typecheck,test,verify}.sh`; `check.sh`; release-installed smokes | **P25-ENV-01 → Slice 7 proposal:** add or document a worktree-safe Python/native verification mode using built wheels and an external venv. |
+| Verification | `agent-{lint,typecheck,test,verify}.sh`; `check.sh`; release-installed smokes | **P25-ENV-01 → Slice 7 proposal:** add or document a worktree-safe Python/native verification mode using built wheels and an external venv. **P25-INFRA-04 → Slice 7 proposal:** rebuild Rust in a fresh target directory after the worktree relocation; the retained target cache embeds the removed `/tmp` checkout in test binaries and dep metadata. |
 | CI/platform matrix | Linux x64/ARM64, macOS x64/ARM64, Windows x64, CUDA x64, and a separate Tegra route | Feature slices must add only missing contract-specific selectors/tests. Do not duplicate the matrix in prework. |
 | Registry proof | Ordered release workflow, artifact upload/download, registry-installed smokes, and recovery guards | No registry action in prework. Slice 75 audits new surfaces; publication remains separately authorized. |
 | Documentation | `dev/DOC-INDEX.md`, detailed indexes, plan, board, and generated-view lint | Add each new prework record to both developer indexes in its closing commit. |
@@ -82,3 +82,8 @@ current slice does not implement it.
 - Release-state can track the next slice on a release branch, but its generic
   completion claim is still main-specific. Prework uses explicit per-entry
   `COMPLETE_ON_RELEASE_BRANCH` status and keeps `landed` truthful.
+- The worktree relocation preserved a Rust target cache compiled under the old
+  `/tmp` path. A full serial workspace run therefore failed 24 targets on
+  missing old-path binaries, fixtures, scripts, and receipts; 986 retained
+  artifacts contain that path. Source files do not hardcode it. Slice 7 must
+  use a fresh release-bound target directory and rerun the unchanged suite.

@@ -9,12 +9,12 @@
   "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
   "ladder": [
     {"slice": 0, "short": "ENVIRONMENT", "title": "environment and project-infrastructure preflight", "depends_on": [], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25-prework-slices-0-7.md"], "sha": "321ca576", "merge_subject": "docs(0.8.25): establish Slice 0 environment and release state", "evidence": "The durable worktree, environment/platform inventory, Python verification gap, release-state authority, board, and Slice 6 decision inputs are recorded on release/0.8.25 without product, dependency, workflow, runner, registry, or public-documentation changes. The generic `landed` set remains empty because its renderer claims origin/main reachability."},
-    {"slice": 1, "short": "DEPENDENCIES", "title": "Dependabot, library, and pinning sweep", "depends_on": [0], "status": "NOT_STARTED"},
-    {"slice": 2, "short": "CRUFT", "title": "repository-wide cruft review", "depends_on": [1], "status": "NOT_STARTED"},
-    {"slice": 3, "short": "DRAFT-CONTRACTS", "title": "product-contract and architecture CRUD drafts", "depends_on": [2], "status": "NOT_STARTED"},
-    {"slice": 4, "short": "ARCHITECTURE", "title": "architecture and code-alignment review", "depends_on": [3], "status": "NOT_STARTED"},
-    {"slice": 5, "short": "VERIFICATION", "title": "verification-adequacy review", "depends_on": [4], "status": "NOT_STARTED"},
-    {"slice": 6, "short": "HITL", "title": "proposal scoring, HITL decisions, and Slice 7 plan", "depends_on": [5], "status": "NOT_STARTED"},
+    {"slice": 1, "short": "DEPENDENCIES", "title": "Dependabot, library, and pinning sweep", "depends_on": [0], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/prework/slice-1-dependency-sweep.md"], "sha": "51043e20", "merge_subject": "docs(0.8.25): complete prework Slices 1 through 5", "evidence": "Read-only npm, PyPI, RustSec, manifest, lock, workflow, and pin-source evidence is recorded. Four patchable Rust advisory packages and bounded optional tool maintenance are proposed for Slice 6; no dependency or automation changed."},
+    {"slice": 2, "short": "CRUFT", "title": "repository-wide cruft review", "depends_on": [1], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/prework/slice-2-cruft-review.md"], "sha": "51043e20", "merge_subject": "docs(0.8.25): complete prework Slices 1 through 5", "evidence": "Repository plans, engineering/public docs, source/tests/scripts, historical runs, and experiment evidence were classified as keep, deprecate-in-place, archive-in-place, or delete proposals. No cleanup action was taken."},
+    {"slice": 3, "short": "DRAFT-CONTRACTS", "title": "product-contract and architecture CRUD drafts", "depends_on": [2], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/prework/slice-3-contract-and-architecture-drafts.md", "dev/plans/fathomdb-data-plane-foldback-v2.md"], "sha": "51043e20", "merge_subject": "docs(0.8.25): complete prework Slices 1 through 5", "evidence": "Four successor user needs and fourteen local requirement/acceptance packages are drafted and allocated exactly to Slices 10 through 75. Accepted global contracts remain unchanged."},
+    {"slice": 4, "short": "ARCHITECTURE", "title": "architecture and code-alignment review", "depends_on": [3], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/prework/slice-4-architecture-and-code-alignment.md", "dev/design/fathomdb-data-plane-architecture-v2.md"], "sha": "51043e20", "merge_subject": "docs(0.8.25): complete prework Slices 1 through 5", "evidence": "Architecture v2 is judged directionally correct with seven bounded clarifications. The as-built Engine/schema/SDK seams and genuine gaps are mapped to their owning feature slices; no architecture authority or code changed."},
+    {"slice": 5, "short": "VERIFICATION", "title": "verification-adequacy review", "depends_on": [4], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/prework/slice-5-verification-adequacy.md", "dev/plans/fathomdb-data-plane-foldback-v2.md"], "sha": "51043e20", "merge_subject": "docs(0.8.25): complete prework Slices 1 through 5", "evidence": "Every draft requirement has a falsifiable proof package and owning slice. Critical paths, existing reusable tests, missing feature proof, and three repository-test-infrastructure proposals are recorded; no tests or criteria changed."},
+    {"slice": 6, "short": "HITL", "title": "proposal scoring, HITL decisions, and Slice 7 plan", "depends_on": [5], "status": "NOT_STARTED", "design_refs": ["dev/plans/0.8.25-prework-slices-0-7.md", "dev/plans/0.8.25/prework/slice-1-dependency-sweep.md", "dev/plans/0.8.25/prework/slice-2-cruft-review.md", "dev/plans/0.8.25/prework/slice-3-contract-and-architecture-drafts.md", "dev/plans/0.8.25/prework/slice-4-architecture-and-code-alignment.md", "dev/plans/0.8.25/prework/slice-5-verification-adequacy.md", "dev/plans/fathomdb-data-plane-foldback-v2.md"]},
     {"slice": 7, "short": "PREWORK-IMPLEMENTATION", "title": "approved repository-preparation implementation", "depends_on": [6], "status": "NOT_STARTED"},
     {"slice": 10, "short": "MEASUREMENT", "title": "executable measurement-layer classification", "depends_on": [7], "status": "NOT_STARTED"},
     {"slice": 15, "short": "IDENTITY", "title": "revision identity and canonical source provenance", "depends_on": [10], "status": "NOT_STARTED"},
@@ -32,8 +32,8 @@
     {"slice": 75, "short": "CLOSURE", "title": "cross-SDK, concurrency, lifecycle, and performance closure", "depends_on": [70], "status": "NOT_STARTED"}
   ],
   "landed": [],
-  "next_slice": 1,
-  "remaining_ladder": [1, 2, 3, 4, 5, 6, 7, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75],
+  "next_slice": 6,
+  "remaining_ladder": [6, 7, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75],
   "decisions": {
     "unruled": [],
     "ruled": [
@@ -44,12 +44,24 @@
       },
       {
         "id": "cuda-ptrace",
-        "title": "CUDA and ptrace use are authorized for applicable 0.8.25 work",
-        "source": "repository owner standing authorization"
+        "title": "CUDA, NVIDIA tools including nvidia-smi, and ptrace are standing-authorized for applicable 0.8.25 work, including unconfined execution when needed",
+        "source": "repository owner standing authorization, reaffirmed 2026-08-31"
       }
     ]
   },
   "generated_views": [
+    {
+      "id": "plan-immediate-next",
+      "file": "dev/plans/plan-0.8.25.md",
+      "location": "Immediate next slice",
+      "renders": "the next slice and remaining dependency ladder"
+    },
+    {
+      "id": "status-current-state",
+      "file": "dev/plans/runs/STATUS-0.8.25.md",
+      "location": "Current state",
+      "renders": "the next slice and the main-reachable landed set"
+    },
     {
       "id": "status-next-action",
       "file": "dev/plans/runs/STATUS-0.8.25.md",

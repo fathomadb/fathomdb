@@ -88,11 +88,11 @@ backward dependency.
 | Slice | Outcome | Depends on | State |
 | ---: | --- | --- | --- |
 | 0 | Identify environment and project-infrastructure needs; establish the isolated release branch/worktree, release-state/board authority, and overall plan. | merged 0.8.24 main | Complete (`321ca576`) |
-| 1 | Inspect Dependabot and perform a read-only library/pinning sweep; enumerate and plan dependency responses without upgrading. | 0 | Not started |
-| 2 | Perform a repo-wide cruft review and propose keep, deprecate-in-place, archive-in-place, or delete without taking action. | 1 | Not started |
-| 3 | Draft product-needs, requirements, acceptance-criteria, and architecture CRUD changes; allocate each draft to an implementation slice. | 2 | Not started |
-| 4 | Review proposed architecture against Slices 0–3 and high-level code alignment; write change proposals only. | 3 | Not started |
-| 5 | Review verification adequacy from needs through requirements, acceptance criteria, tests, critical paths, and release goals. | 4 | Not started |
+| 1 | Inspect Dependabot and perform a read-only library/pinning sweep; enumerate and plan dependency responses without upgrading. | 0 | Complete (`51043e20`) |
+| 2 | Perform a repo-wide cruft review and propose keep, deprecate-in-place, archive-in-place, or delete without taking action. | 1 | Complete (`51043e20`) |
+| 3 | Draft product-needs, requirements, acceptance-criteria, and architecture CRUD changes; allocate each draft to an implementation slice. | 2 | Complete (`51043e20`) |
+| 4 | Review proposed architecture against Slices 0–3 and high-level code alignment; write change proposals only. | 3 | Complete (`51043e20`) |
+| 5 | Review verification adequacy from needs through requirements, acceptance criteria, tests, critical paths, and release goals. | 4 | Complete (`51043e20`) |
 | 6 | Consolidate and score proposals, conduct interactive HITL decisions, write/review the Slice 7 plan, and update the release plan. | 5 | Not started |
 | 7 | Implement only HITL-approved repository-preparation work from Slices 0–6 with TDD/review/independent verification; write status and clean isolated worktrees. | 6 | Not started |
 | 10 | Make measurement-layer classification executable, including whether `Engine.search` ran and which compared components differed. | 7 | Not started |
@@ -155,11 +155,17 @@ completed performance tracks are not reopened by this planning work.
 
 ## Immediate next slice
 
-Complete the read-only Slice 1 Dependabot, library, and pinning sweep. Enumerate
-upgrade candidates and verified pin reasons, but do not change dependencies,
-manifests, lockfiles, or automation. The direct agent must not invoke a Steward
-or Orchestrator. Do not begin feature implementation before Slice 7 closes and
-the plan advances to Slice 10.
+<!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
+**IMMEDIATE NEXT: Slice 6** (`HITL`) — proposal scoring, HITL decisions, and Slice 7 plan
+
+**Remaining ladder:** 6 → 7 → 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 65 → 70 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+
+Prepare Slice 6: consolidate every Slice 0–5 proposal, score understanding,
+risk, effort, and include/postpone disposition, then present the concise
+decision package for interactive HITL review. After decisions, write the Slice
+7 repository-preparation implementation plan and obtain its explicitly required
+independent review. The direct agent must not invoke a Steward or Orchestrator.
+Do not begin implementation before the owner rules on the proposal register.
 
 ## Stop gates
 

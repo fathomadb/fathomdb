@@ -11,9 +11,10 @@ observed_on: 2026-08-31
 
 The repository has broad real-database, lifecycle, release, platform, and
 cross-SDK coverage, but it cannot yet prove the new 0.8.25 contracts. That is
-expected before feature implementation. Three existing verification debts do
+expected before feature implementation. Four existing verification debts do
 need prework decisions: trivial property-test scaffolds, release-worktree
-Python provenance, and stale canonical traceability/fixture prose.
+Python provenance, stale canonical traceability/fixture prose, and the Rust
+target cache retained across the worktree relocation.
 
 No acceptance criterion, test, CI workflow, or source changed in this slice.
 
@@ -67,6 +68,7 @@ completed retrieval program. The Slice 3 local R25/AC25 packages close the
 | V25-03 | Canonical acceptance prose contains many “fixture pending” statements even where `test-plan.md` and tests now exist; NEED-026 is absent and REQ-067/AC-077 are stale placeholders. | Perform a bounded traceability reconciliation with a failing checker/fixture; update only provably stale mappings and successor pointers. Do not rewrite all historical AC prose. | Slice 7 documentation/test infrastructure |
 | V25-04 | `agent-verify` intentionally excludes long, live-model, all-feature, operator, GPU, Windows, and registry-installed bodies. | Keep the fast gate bounded. Each feature plan must name its additional execution route; Slice 75 verifies receipt presence, not silently substitutes fast CI. | Slices 10–75 |
 | V25-05 | Experiment results are plentiful, but end-to-end answer metrics can be mistaken for Engine quality and some runs bypassed `Engine.search`. | Make classification executable and require retrieval-only receipts for data-plane claims. | Slice 10 |
+| V25-06 | The relocated worktree's retained Rust target cache embeds `/tmp/fathomdb-release-0.8.25`. The unchanged serial suite failed 24 targets because test binaries resolved the CLI, fixtures, scripts, and receipts under that removed checkout; 986 retained artifacts contain the obsolete path. Focused recompilation made three CLI targets pass, confirming stale build provenance rather than product behavior. | In a fresh release-bound target directory, rebuild from source, assert the removed checkout path is absent from executable/dep metadata, and rerun the unchanged serial workspace suite. Do not patch test oracles around stale compile-time paths. | Slice 7, P25-INFRA-04 |
 
 ## Test-method requirements for every feature slice
 
@@ -85,7 +87,7 @@ completed retrieval program. The Slice 3 local R25/AC25 packages close the
 
 ## Slice 7 boundary
 
-Only V25-01 through V25-03 are repository-preparation candidates. All
+Only V25-01 through V25-03 and V25-06 are repository-preparation candidates. All
 feature-specific tests are directly allocated in the v2 feature plan. No
 0.8.25 product behavior is implemented by Slice 7.
 

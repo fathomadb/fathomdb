@@ -20,6 +20,7 @@ This brief supplies Slice 6 decisions. A recommendation is not HITL approval.
 | P25-ENV-08 | Shared `data` and `node_modules` links can leak mutation across checkouts | Treat as read-only convenience; copy mutable inputs and use private caches for runs | Every run plan | Resolved policy |
 | P25-INFRA-01 | 0.8.25 lacked its release-state file and status board | Establish both through generated-view tooling | Slice 0 | Complete |
 | P25-INFRA-02 | New data-plane contracts need platform, lifecycle, concurrency, and retrieval-only proof | Keep verification local to each Slice 10+ contract and audit the combined surface in Slice 75 | Slices 10–75 | Already allocated |
+| P25-INFRA-03 | Generic release-state completion rendering treats `landed` as `origin/main`; 0.8.25 completes work on a release branch | Generalize branch-completion identity and its verification without a release-number special case | Slice 7 decision | Proposed |
 
 ## Slice 0 disposition
 

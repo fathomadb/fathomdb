@@ -20,7 +20,7 @@ without Steward or Orchestrator roles.
 
 | Slices | Scope | State |
 | --- | --- | --- |
-| 0–5 | Environment, dependencies, cruft, contracts, architecture, verification | Slice 0 in progress |
+| 0–5 | Environment, dependencies, cruft, contracts, architecture, verification | Slice 0 complete on release branch; Slice 1 next |
 | 6 | Proposal scoring and interactive HITL decisions | Not started |
 | 7 | Approved repository-preparation implementation only | Not started |
 | 10–75 | Dependency-linear product and measurement features | Not started |
@@ -31,12 +31,15 @@ without Steward or Orchestrator roles.
   not establish host absence.
 - The current `.venv/bin` shim resolves to the primary checkout and cannot
   certify release-branch Python/native behavior.
+- Generic release-state `landed` rendering claims `origin/main`; release-branch
+  completion therefore uses explicit ladder status until Slice 7 decides a
+  generalized branch-completion contract.
 - No publication, external-system mutation, or feature implementation is
   authorized by prework.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Continue Slice 0 (ENVIRONMENT)** — environment and project-infrastructure preflight. **Remaining ladder:** 0 → 1 → 2 → 3 → 4 → 5 → 6 → 7 → 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 65 → 70 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 1 (DEPENDENCIES)** — Dependabot, library, and pinning sweep. **Remaining ladder:** 1 → 2 → 3 → 4 → 5 → 6 → 7 → 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 65 → 70 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 

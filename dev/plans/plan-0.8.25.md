@@ -87,7 +87,7 @@ backward dependency.
 
 | Slice | Outcome | Depends on | State |
 | ---: | --- | --- | --- |
-| 0 | Identify environment and project-infrastructure needs; establish the isolated release branch/worktree, release-state/board authority, and overall plan. | merged 0.8.24 main | In progress; inventory and state authority established |
+| 0 | Identify environment and project-infrastructure needs; establish the isolated release branch/worktree, release-state/board authority, and overall plan. | merged 0.8.24 main | Complete (`321ca576`) |
 | 1 | Inspect Dependabot and perform a read-only library/pinning sweep; enumerate and plan dependency responses without upgrading. | 0 | Not started |
 | 2 | Perform a repo-wide cruft review and propose keep, deprecate-in-place, archive-in-place, or delete without taking action. | 1 | Not started |
 | 3 | Draft product-needs, requirements, acceptance-criteria, and architecture CRUD changes; allocate each draft to an implementation slice. | 2 | Not started |
@@ -155,13 +155,11 @@ completed performance tracks are not reopened by this planning work.
 
 ## Immediate next slice
 
-Complete Slice 0's environment and project-infrastructure inventory in the
-isolated release worktree using
-[`prompts/0.8.25-slice-0-handoff.md`](prompts/0.8.25-slice-0-handoff.md).
-Record remaining setup decisions without changing product code, then advance
-to the read-only Slice 1 dependency sweep. The Slice 0 agent works directly and
-must not invoke a Steward or Orchestrator. Do not begin feature implementation
-before Slice 7 closes and the plan advances to Slice 10.
+Complete the read-only Slice 1 Dependabot, library, and pinning sweep. Enumerate
+upgrade candidates and verified pin reasons, but do not change dependencies,
+manifests, lockfiles, or automation. The direct agent must not invoke a Steward
+or Orchestrator. Do not begin feature implementation before Slice 7 closes and
+the plan advances to Slice 10.
 
 ## Stop gates
 

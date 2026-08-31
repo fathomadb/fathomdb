@@ -8,7 +8,7 @@
   "origin_main_schema_version": 26,
   "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
   "ladder": [
-    {"slice": 0, "short": "ENVIRONMENT", "title": "environment and project-infrastructure preflight", "depends_on": [], "status": "IN_PROGRESS", "design_refs": ["dev/plans/0.8.25-prework-slices-0-7.md"]},
+    {"slice": 0, "short": "ENVIRONMENT", "title": "environment and project-infrastructure preflight", "depends_on": [], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25-prework-slices-0-7.md"], "sha": "321ca576", "merge_subject": "docs(0.8.25): establish Slice 0 environment and release state", "evidence": "The durable worktree, environment/platform inventory, Python verification gap, release-state authority, board, and Slice 6 decision inputs are recorded on release/0.8.25 without product, dependency, workflow, runner, registry, or public-documentation changes. The generic `landed` set remains empty because its renderer claims origin/main reachability."},
     {"slice": 1, "short": "DEPENDENCIES", "title": "Dependabot, library, and pinning sweep", "depends_on": [0], "status": "NOT_STARTED"},
     {"slice": 2, "short": "CRUFT", "title": "repository-wide cruft review", "depends_on": [1], "status": "NOT_STARTED"},
     {"slice": 3, "short": "DRAFT-CONTRACTS", "title": "product-contract and architecture CRUD drafts", "depends_on": [2], "status": "NOT_STARTED"},
@@ -32,8 +32,8 @@
     {"slice": 75, "short": "CLOSURE", "title": "cross-SDK, concurrency, lifecycle, and performance closure", "depends_on": [70], "status": "NOT_STARTED"}
   ],
   "landed": [],
-  "next_slice": 0,
-  "remaining_ladder": [0, 1, 2, 3, 4, 5, 6, 7, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75],
+  "next_slice": 1,
+  "remaining_ladder": [1, 2, 3, 4, 5, 6, 7, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75],
   "decisions": {
     "unruled": [],
     "ruled": [

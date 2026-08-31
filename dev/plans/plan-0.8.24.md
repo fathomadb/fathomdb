@@ -244,16 +244,15 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 | **40** | Windows x64 CUDA distribution | **POSTPONED TO 0.8.26 (`seq-258`).** No executor, VM, runner, build, smoke, workflow, or publication work remains in 0.8.24. | — |
 | **50** | Windows Python SDK WAL behavior review | **POSTPONED TO 0.8.26 (`seq-258`).** No external-evidence review or native-Windows reproduction remains in 0.8.24. | — |
 | **60** | Installed-package smokes and CPU/publisher preservation | **Complete:** exact public Pages Tegra install passed on Jetson with retained digest, lifecycle, and CUDA witness; CPU publisher preservation remains covered by existing fixtures. | 30 |
-| **70** | Release integration and owner-ready evidence | Assemble the non-Windows scoped evidence, resolve release-branch/main integration, and prepare—not perform without direction—the 0.8.24 publication decision. | 10, 20, 30, 60 |
+| **70** | Release integration and owner-ready evidence | **Complete locally:** assembled non-Windows evidence, repaired public-release/candidate-version truth guards, and prepared the owner handoff. No owner-only release action was performed. | 10, 20, 30, 60 |
 
 ### Feature-slice draft plans
 
 Each feature has a separate plan. Slices 10, 20, and 30 are complete. Slice 30 published its verified Tegra wheel
 to the authorized interim Pages route; durable hosting/distribution remains a
-later review. Slices 40 and 50 are postponed to 0.8.26. Slices 60 and 70 retain
-their own slice-preparation, draft contract/design review, implementation
-boundary, verification, prerequisites, and handoff. A plan's existence does not
-make its slice ready or authorize implementation or an external release action.
+later review. Slices 40 and 50 are postponed to 0.8.26. Slices 60 and 70 are
+complete locally; Slice 70's owner handoff retains every irreversible release
+action. A plan's existence does not authorize an external release action.
 
 - [Slice 10 — main CI assessment and integration](0.8.24/features/slice-10/plan.md)
 - [Slice 20 — benchmark-directed engine performance](0.8.24/features/slice-20/plan.md)
@@ -291,7 +290,8 @@ make its slice ready or authorize implementation or an external release action.
 
 ## Immediate next action
 
-Slices 0–7, 10, 20, 30, and 60 are complete. Slices 40 and 50 are postponed to
-0.8.26 by `seq-258`; they no longer block this release. Slice 70 remains final
-integration only. No additional external release action is authorized by these
-planning records.
+Slices 0–7, 10, 20, 30, 60, and 70 are complete locally. Slices 40 and 50 are
+postponed to 0.8.26 by `seq-258`; they do not block 0.8.24. Pause before the
+owner decides whether to push the release branch, integrate main, tag, or
+publish; no such external release action is authorized by these planning
+records.

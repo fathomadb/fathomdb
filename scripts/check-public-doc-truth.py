@@ -4,6 +4,7 @@
 import json
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -33,6 +34,9 @@ NUMBER_WORDS = {
     "eleven": 11,
     "twelve": 12,
 }
+STATE_RE = re.compile(r"dev/plans/release-state-(\d+)\.(\d+)\.(\d+)\.json$")
+COMMIT_RE = re.compile(r"[0-9a-f]{40}$")
+DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}$")
 
 
 def repo_root() -> Path:
@@ -54,6 +58,59 @@ def load_json(root: Path, relative: Path) -> dict:
         fail(f"cannot read {relative}: {exc}")
 
 
+def tracked_release_states(root: Path) -> list[Path]:
+    """Return release-state records from Git's tracked-file index only."""
+    result = subprocess.run(
+        ["git", "-C", str(root), "--no-optional-locks", "ls-files", "-z", "--", "dev/plans/release-state-*.json"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if result.returncode:
+        detail = result.stderr.decode("utf-8", "replace").strip()
+        fail(f"cannot list tracked release-state records: {detail}")
+    return [Path(path.decode("utf-8")) for path in result.stdout.split(b"\0") if path]
+
+
+def published_record(state: dict, version: str, relative: Path) -> dict | None:
+    """Validate the canonical nullable publication record for one state."""
+    published = state.get("published")
+    if published is None:
+        return None
+    if not isinstance(published, dict):
+        fail(f"{relative} has a non-object published record")
+    required = ("tag", "tag_commit", "published_on", "npm_dist_tag")
+    if any(not isinstance(published.get(field), str) or not published[field] for field in required):
+        fail(f"{relative} has an incomplete published record")
+    if published["tag"] != f"v{version}":
+        fail(f"{relative} published tag {published['tag']!r} does not match v{version}")
+    if not COMMIT_RE.fullmatch(published["tag_commit"]):
+        fail(f"{relative} published tag_commit is not a full lowercase commit SHA")
+    if not DATE_RE.fullmatch(published["published_on"]):
+        fail(f"{relative} published_on is not an ISO date")
+    return published
+
+
+def current_published_state(root: Path) -> dict:
+    """Return the newest valid published state from tracked canonical records."""
+    candidates: list[tuple[tuple[int, int, int], dict]] = []
+    for relative in tracked_release_states(root):
+        match = STATE_RE.fullmatch(relative.as_posix())
+        if not match:
+            fail(f"tracked release-state path has an invalid name: {relative}")
+        version = ".".join(match.groups())
+        state = load_json(root, relative)
+        version = state.get("release")
+        if version != ".".join(match.groups()):
+            fail(f"{relative} release does not match its filename")
+        published = published_record(state, version, relative)
+        if published is not None:
+            candidates.append((tuple(int(part) for part in match.groups()), state))
+    if not candidates:
+        fail("no release-state record declares publication complete")
+    return max(candidates, key=lambda item: item[0])[1]
+
+
 def workspace_member_count(cargo_toml: str) -> int:
     match = re.search(r"(?ms)^members\s*=\s*\[(.*?)^\]", cargo_toml)
     if not match:
@@ -71,15 +128,10 @@ def has_platform_boundary(text: str) -> bool:
 
 def main() -> None:
     root = repo_root()
-    state = load_json(root, Path("dev/plans/release-state-0.8.21.json"))
+    state = current_published_state(root)
     version = state.get("release")
-    published = state.get("published")
-    if not isinstance(version, str) or not isinstance(published, dict):
-        fail("release-state-0.8.21.json must declare release and published")
-    if published.get("tag") != f"v{version}":
-        fail("release-state published tag must match its release")
-    if published.get("npm_dist_tag") != "next":
-        fail("release-state must declare npm's next dist-tag")
+    if not isinstance(version, str):
+        fail("current published release-state must declare release")
 
     manifest = load_json(root, Path("dev/platform-capabilities.json"))
     published_triples = [

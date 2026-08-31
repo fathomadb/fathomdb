@@ -21,7 +21,7 @@ PAGES_DEPLOYMENT_RUN="$5"
 EVIDENCE_DIR="$6"
 EXPECTED_INDEX_URL='https://fathomadb.github.io/fathomdb/tegra/simple/'
 
-if ! printf '%s' "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\+tegra$'; then
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+\+tegra$ ]]; then
   printf 'smoke-tegra-pages-wheel: invalid version %q; expected X.Y.Z+tegra\n' "$VERSION" >&2
   exit 2
 fi
@@ -29,15 +29,15 @@ if [ "$INDEX_URL" != "$EXPECTED_INDEX_URL" ]; then
   printf 'smoke-tegra-pages-wheel: invalid index %q; expected the authorized first-party index\n' "$INDEX_URL" >&2
   exit 2
 fi
-if ! printf '%s' "$EXPECTED_SHA256" | grep -qE '^[0-9a-f]{64}$'; then
+if [[ ! "$EXPECTED_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
   printf 'smoke-tegra-pages-wheel: invalid expected SHA-256\n' >&2
   exit 2
 fi
-if ! printf '%s' "$CANDIDATE_SHA" | grep -qE '^[0-9a-f]{40}$'; then
+if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
   printf 'smoke-tegra-pages-wheel: invalid candidate SHA\n' >&2
   exit 2
 fi
-if ! printf '%s' "$PAGES_DEPLOYMENT_RUN" | grep -qE '^[0-9]+$'; then
+if [[ ! "$PAGES_DEPLOYMENT_RUN" =~ ^[0-9]+$ ]]; then
   printf 'smoke-tegra-pages-wheel: invalid Pages deployment run\n' >&2
   exit 2
 fi

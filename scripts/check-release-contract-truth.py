@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Fail closed when the 0.8.23 release-ready native contract drifts.
+"""Fail closed when the release-candidate native contract drifts.
 
 Usage: ``python3 scripts/check-release-contract-truth.py``.
 
 This intentionally parses only the small, known-shaped release workflow
 blocks.  GitHub's workflow syntax remains actionlint's responsibility.  Public
 documentation is intentionally excluded: it describes only published
-artifacts and is checked by ``check-public-doc-truth.py``.
+artifacts and is checked by ``check-public-doc-truth.py``.  The capability
+manifest records the last public native-artifact state; candidate package
+versions instead follow the workspace's Axis-W version.
 """
 
 from __future__ import annotations
@@ -148,6 +150,21 @@ def read_json(path: Path) -> dict:
     if not isinstance(value, dict):
         fail(f"{path} must contain a JSON object")
     return value
+
+
+def workspace_release(path: Path) -> str:
+    """Read the candidate Axis-W version from ``[workspace.package]``."""
+    try:
+        text = path.read_text()
+    except OSError as exc:
+        fail(f"cannot read {path}: {exc}")
+    match = re.search(
+        r"(?ms)^\[workspace\.package\]\n.*?^version\s*=\s*\"(\d+\.\d+\.\d+)\"\s*$",
+        text,
+    )
+    if not match:
+        fail("Cargo.toml lacks a semver [workspace.package] version")
+    return match.group(1)
 
 
 def workflow_jobs(path: Path) -> dict[str, str]:
@@ -387,12 +404,13 @@ def require_trusted_linux_x64_cuda_producer(jobs: dict[str, str]) -> None:
 def main() -> None:
     repo = root()
     manifest = read_json(repo / "dev/platform-capabilities.json")
-    release = manifest.get("release")
+    manifest_release = manifest.get("release")
     platforms = manifest.get("platforms")
-    if not isinstance(release, str) or not isinstance(platforms, list):
+    if not isinstance(manifest_release, str) or not isinstance(platforms, list):
         fail("platform manifest must declare a string release and platforms list")
     if not all(isinstance(entry, dict) for entry in platforms):
         fail("platform manifest contains a non-object platform")
+    release = workspace_release(repo / "Cargo.toml")
 
     ready = [entry for entry in platforms if entry.get("status") in READY_STATUSES]
     triples = [entry.get("triple") for entry in ready]

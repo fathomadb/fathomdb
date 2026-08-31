@@ -195,11 +195,15 @@ integrated performance verification.
 This planning does not reopen completed experiment tracks or promote rejected
 treatments. The durable crosswalk is
 [`memex-0.6.0-needs-in-fathomdb-0.8.25.md`](../plans/memex-0.6.0-needs-in-fathomdb-0.8.25.md).
-The draft successor architecture and delivery sequence are
+The proposed successor architecture and delivery sequence are
 [`fathomdb-data-plane-architecture-v2.md`](../design/fathomdb-data-plane-architecture-v2.md)
 and
 [`fathomdb-data-plane-foldback-v2.md`](../plans/fathomdb-data-plane-foldback-v2.md).
-They require Slice 5 independent review before feature work starts at Slice 10.
+Release prework is governed by
+[`0.8.25-prework-slices-0-7.md`](../plans/0.8.25-prework-slices-0-7.md).
+Slices 0–6 identify, review, and decide repository preparation; Slice 7 may
+implement only the approved prework. Feature work starts at Slice 10 after that
+boundary closes.
 Semantic interpretation, decomposition, synthesis, and answer verification
 remain external memory-system responsibilities.
 

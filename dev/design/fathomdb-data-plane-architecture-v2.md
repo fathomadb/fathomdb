@@ -160,5 +160,6 @@ The complete allocation is
 and the delivery method is
 [`fathomdb-data-plane-foldback-v2.md`](../plans/fathomdb-data-plane-foldback-v2.md).
 
-This draft becomes the active successor to architecture v1 only after Slice 5
-independent review closes without unresolved P1/P2 findings.
+This proposal becomes the active successor to architecture v1 only after Slice
+4 review, Slice 5 verification analysis, and Slice 6 HITL approval close without
+unresolved P1/P2 findings.

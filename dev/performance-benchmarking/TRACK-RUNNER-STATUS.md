@@ -12,10 +12,11 @@ append-only evidence index.
 
 No data-generating run is active. The completed program and receipts are now on
 `release/0.8.25`. The comprehensive Memex needs crosswalk, architecture v2
-draft, and dependency-linear delivery plan v2 are authored under Slice 5.
-Complete their independent review before closing Slice 5. Feature work begins
-at Slice 10 with executable measurement classification; do not start later
-slices or reopen rejected treatments before their dependencies are accepted.
+proposal, dependency-linear delivery plan v2, and Slices 0–7 prework contract
+are authored. Complete Slice 0's environment/project-infrastructure inventory,
+then proceed sequentially through read-only Slices 1–5, Slice 6 HITL decisions,
+and approved Slice 7 repository preparation. Feature work begins at Slice 10;
+do not start it early or reopen rejected treatments.
 
 ## Track status
 

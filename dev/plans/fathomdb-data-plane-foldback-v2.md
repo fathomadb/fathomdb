@@ -13,7 +13,9 @@ architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 Deliver the complete performance and Memex data-plane foldback without moving
 semantic policy into FathomDB. The sequence is intentionally linear: each slice
 creates the identity, dependency, snapshot, or evidence contract required by
-the next. Feature work begins at Slice 10.
+the next. Slices 0–7 prepare the repository and decisions under
+[`0.8.25-prework-slices-0-7.md`](0.8.25-prework-slices-0-7.md). Feature work
+begins at Slice 10.
 
 ## Common delivery contract
 
@@ -37,6 +39,18 @@ Do not mint global `dev/acceptance.md` IDs without separate authorization. Do
 not regenerate historical benchmark results as test oracles.
 
 ## Slice groups
+
+### Slices 0–7 — prework and approved repository preparation
+
+Slices 0–5 inspect environment/infrastructure, dependencies, repository cruft,
+product contracts/architecture, code alignment, and verification adequacy.
+Except for Slice 0's isolated release setup, they write proposals and take no
+implementation action. Slice 6 scores every proposal, conducts interactive HITL
+decisions, and produces a subagent-reviewed Slice 7 plan with at most two FIX-n
+cycles. Slice 7 implements only approved repository preparation with TDD,
+independent review/verification, a durable status record, and safe worktree
+cleanup. Product features discovered in prework are added directly to their
+owning Slice 10+ plan and are never implemented by Slice 7.
 
 ### Slice 10 — executable measurement classification
 
@@ -120,10 +134,10 @@ metrics separate.
 
 ## Dependency and workload policy
 
-The exact ladder and states live in [`plan-0.8.25.md`](plan-0.8.25.md).
-No feature slice may start early or run in parallel across an unmet dependency.
-Cross-SDK parity is part of each public feature slice; Slice 75 audits it rather
-than postponing it.
+The exact ladder and states live in [`plan-0.8.25.md`](plan-0.8.25.md). Prework
+is sequential through Slice 7. No feature slice may start early or run in
+parallel across an unmet dependency. Cross-SDK parity is part of each public
+feature slice; Slice 75 audits it rather than postponing it.
 
 After every slice plan is written, assess P0/P1/P2 value, schema/API risk,
 verification cost, and critical path. Keep every identified item allocated

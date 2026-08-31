@@ -1,10 +1,10 @@
 ---
 title: FathomDB 0.8.25 — governed data-plane foldback
-status: ACTIVE
+status: PROPOSED
 target_release: 0.8.25
 ---
 
-# FathomDB 0.8.25 — plan of record
+# FathomDB 0.8.25 — proposed release plan
 
 ## Purpose
 
@@ -15,10 +15,13 @@ semantic policy, reasoning, and answers.
 
 The requirements crosswalk is
 [`memex-0.6.0-needs-in-fathomdb-0.8.25.md`](memex-0.6.0-needs-in-fathomdb-0.8.25.md).
+The prework contract is
+[`0.8.25-prework-slices-0-7.md`](0.8.25-prework-slices-0-7.md).
 The successor architecture and delivery plan are
 [`fathomdb-data-plane-architecture-v2.md`](../design/fathomdb-data-plane-architecture-v2.md)
 and [`fathomdb-data-plane-foldback-v2.md`](fathomdb-data-plane-foldback-v2.md).
-They remain draft inputs until Slice 5 completes independent review.
+They remain proposed inputs until Slice 4 architecture review, Slice 5
+verification review, and Slice 6 HITL decisions are complete.
 
 ## Setup record
 
@@ -40,8 +43,10 @@ They remain draft inputs until Slice 5 completes independent review.
 - **Local dependencies:** `node_modules` and `data` are ignored symlinks to the
   primary checkout's local resources. An ignored, worktree-local `.venv/bin`
   shim exposes the primary environment's Python and pinned-tool launchers but
-  does not rebind the environment to this worktree. Native rebuilds remain
-  main-checkout-only.
+  does not rebind the environment to this worktree. This is adequate for
+  planning-only checks, not native rebuild verification. Slice 0 must choose an
+  isolated release-bound build/test arrangement that neither rebuilds against
+  the wrong source nor pollutes the primary `main` checkout.
 - **Allocation verification:** `./scripts/agent-verify.sh` passed all 103
   executed suites with one intentional TypeScript skip. The strict ptrace and
   egress checks ran unchanged; 1,251 Python tests passed with 32 explicit
@@ -76,14 +81,21 @@ Out of scope:
 
 ## Dependency-linear slice sequence
 
-Feature work starts at Slice 10. Every later slice depends only on earlier
-slices; no slice number hides a backward dependency.
+Prework runs sequentially through Slices 0–7. Feature work starts at Slice 10.
+Every later slice depends only on earlier slices; no slice number hides a
+backward dependency.
 
 | Slice | Outcome | Depends on | State |
 | ---: | --- | --- | --- |
-| 0 | Import the committed performance program onto the 0.8.24-based release branch and reconcile retained evidence. | merged 0.8.24 main | Complete (`9ce9fcbd`) |
-| 5 | Reconcile the complete Memex needs inventory, architecture v2, delivery plan v2, and workload assessment; complete independent design review. | 0 | In progress |
-| 10 | Make measurement-layer classification executable, including whether `Engine.search` ran and which compared components differed. | 5 | Not started |
+| 0 | Identify environment and project-infrastructure needs; establish the isolated release branch/worktree, release-state/board authority, and overall plan. | merged 0.8.24 main | In progress; branch/worktree created |
+| 1 | Inspect Dependabot and perform a read-only library/pinning sweep; enumerate and plan dependency responses without upgrading. | 0 | Not started |
+| 2 | Perform a repo-wide cruft review and propose keep, deprecate-in-place, archive-in-place, or delete without taking action. | 1 | Not started |
+| 3 | Draft product-needs, requirements, acceptance-criteria, and architecture CRUD changes; allocate each draft to an implementation slice. | 2 | Not started |
+| 4 | Review proposed architecture against Slices 0–3 and high-level code alignment; write change proposals only. | 3 | Not started |
+| 5 | Review verification adequacy from needs through requirements, acceptance criteria, tests, critical paths, and release goals. | 4 | Not started |
+| 6 | Consolidate and score proposals, conduct interactive HITL decisions, write/review the Slice 7 plan, and update the release plan. | 5 | Not started |
+| 7 | Implement only HITL-approved repository-preparation work from Slices 0–6 with TDD/review/independent verification; write status and clean isolated worktrees. | 6 | Not started |
+| 10 | Make measurement-layer classification executable, including whether `Engine.search` ran and which compared components differed. | 7 | Not started |
 | 15 | Add immutable record-revision identity, caller source-version identity, exact source locators, canonical hashes, and missing Rust-facade identity exports. | 10 | Not started |
 | 20 | Add queryable canonical-to-derived, derived-to-derived, and multi-source dependency registration with caller-declared liveness rules. | 15 | Not started |
 | 25 | Add atomic caller-decided semantic actuation, model-free consolidation application, idempotent operation identity, and complete mutation receipts. | 20 | Not started |
@@ -114,18 +126,19 @@ generated test oracles.
 
 ## Workload checkpoint
 
-Slice 5 records every item before any scope reduction. It groups the ladder by
-P0/P1/P2, schema and public-API risk, verification cost, and critical-path
-dependency. The release may be overweight; evaluate that only after the slice
-plans are complete. No item silently moves out of 0.8.25, and completed
-performance tracks are not reopened by this planning work.
+Slice 6 records every item before any scope reduction. It scores understanding,
+risk, effort, and release disposition, then collects explicit HITL decisions.
+The release may be overweight; evaluate that only after the prework findings
+and feature-slice plans are complete. No item silently moves out of 0.8.25, and
+completed performance tracks are not reopened by this planning work.
 
 ## Immediate next action
 
-Complete independent review of the Slice 5 crosswalk, architecture v2, and
-delivery plan v2. Resolve at most three design FIX-n cycles, then close Slice 5
-before commissioning Slice 10. Do not begin feature implementation from draft
-architecture prose.
+Complete Slice 0's environment and project-infrastructure inventory in the
+isolated release worktree. Record remaining setup decisions without changing
+product code, then advance to the read-only Slice 1 dependency sweep. Do not
+begin feature implementation before Slice 7 closes and the plan advances to
+Slice 10.
 
 ## Stop gates
 

@@ -243,7 +243,7 @@ explicit proof, Slices 7 and 10–70 proceed independently.
 | **30** | Public Tegra CUDA distribution | **Complete:** exact `fathomdb==0.8.24+tegra` is served from the authorized interim GitHub Pages PEP 503 index with Jetson proof; never upload the host-bound wheel to PyPI. | 0, 6, 10 |
 | **40** | Windows x64 CUDA distribution | **POSTPONED TO 0.8.26 (`seq-258`).** No executor, VM, runner, build, smoke, workflow, or publication work remains in 0.8.24. | — |
 | **50** | Windows Python SDK WAL behavior review | **POSTPONED TO 0.8.26 (`seq-258`).** No external-evidence review or native-Windows reproduction remains in 0.8.24. | — |
-| **60** | Installed-package smokes and CPU/publisher preservation | Jetson clean-install smoke; CPU artifact preservation checks; publisher idempotency proof and failure/retry behavior. | 30 |
+| **60** | Installed-package smokes and CPU/publisher preservation | **Complete:** exact public Pages Tegra install passed on Jetson with retained digest, lifecycle, and CUDA witness; CPU publisher preservation remains covered by existing fixtures. | 30 |
 | **70** | Release integration and owner-ready evidence | Assemble the non-Windows scoped evidence, resolve release-branch/main integration, and prepare—not perform without direction—the 0.8.24 publication decision. | 10, 20, 30, 60 |
 
 ### Feature-slice draft plans
@@ -291,7 +291,7 @@ make its slice ready or authorize implementation or an external release action.
 
 ## Immediate next action
 
-Slices 0–7, 10, 20, and 30 are complete. Slices 40 and 50 are postponed to
-0.8.26 by `seq-258`; they no longer block this release. Slice 60 now consumes
-the Tegra output only, and Slice 70 remains final integration only. No
-additional external release action is authorized by these planning records.
+Slices 0–7, 10, 20, 30, and 60 are complete. Slices 40 and 50 are postponed to
+0.8.26 by `seq-258`; they no longer block this release. Slice 70 remains final
+integration only. No additional external release action is authorized by these
+planning records.

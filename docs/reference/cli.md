@@ -64,10 +64,11 @@ Its JSON record is `fathomdb.doctor.platform.v1` with ordered fields
 uses filesystem Tier 1 plus an ordered absolute `nvidia-smi` Tier 2 probe; an
 unavailable, timed-out, or nonzero Tier 2 result is `unknown` and exits `70`.
 
-For Jetson/Tegra CUDA, 0.8.23 has no published artifact. The exact source-build
-procedure is available in `fathomdb doctor gpu --help`; run the final
-`python -m pip install <built-wheel>` line printed by the wrapper after it
-proves the generated wheel.
+For a confirmed classic Jetson/Tegra CUDA host, `fathomdb doctor gpu --help`
+prints the exact interim 0.8.24 command: `fathomdb==0.8.24+tegra` from
+`https://fathomadb.github.io/fathomdb/tegra/simple/`. It uses one index and an
+exact version; do not use a floating requirement or `--extra-index-url`.
+Unsupported targets have no supported Tegra CUDA route.
 
 ### `dump-mutations` — op-store read-back
 

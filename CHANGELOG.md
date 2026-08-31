@@ -10,9 +10,36 @@ AC-050c) gates merges against this invariant.
 
 ## [Unreleased]
 
+## 0.8.24 — 2026-08-31
+
+**Publication status: prepared, not yet tagged or published to the canonical
+registries.** The separately scoped interim Pages index already serves the
+exact Tegra wheel described below; it does not make the 0.8.24 release itself
+tagged or canonically published.
+
+### Added
+
+- An exact, first-party Pages installed-package proof for the Jetson Orin
+  `fathomdb==0.8.24+tegra` wheel, including the retained candidate digest,
+  clean venv lifecycle, and CUDA allocation witness.
+
+### Changed
+
+- Tegra guidance now uses the detection-gated, exact-version interim Pages
+  route. Unsupported JetPack, SBSA, and Thor systems have no supported Tegra
+  CUDA route in this release.
+- Release completion now models immutable existing artifacts as validated
+  no-ops, fails closed on uncertainty, and requires target-native installed
+  package proof before completion.
+
+### Removed
+
+None.
+
 ## 0.8.23 — 2026-08-20
 
-**Publication status: pending.** This version is not yet tagged.
+**Publication status: published.** This version is tagged and available from
+its configured registries.
 
 ### Added
 

@@ -1,10 +1,24 @@
 ---
 title: 0.8.24 Slice 70 — release integration and evidence draft plan
-status: DRAFT
+status: COMPLETE
 target_release: 0.8.24
 ---
 
 # Slice 70 — release integration and owner-ready evidence
+
+## Completion record
+
+Slice 70 completed locally after an independent review and independent
+re-verification. It repairs the retained 0.8.23 publication state from its
+board evidence, makes public-document truth use only tracked and validated
+publication records, and makes native package contract checks use the 0.8.24
+Axis-W candidate rather than the historical capability manifest version.
+
+The 0.8.24 changelog distinguishes the already-public interim Pages Tegra
+wheel from the untagged, not-canonically-published release. No tag, push, PR,
+main merge, workflow dispatch, environment approval, or registry publication
+was performed. The remaining transitions are owner-only as recorded in
+`owner-handoff.md`.
 
 ## Planning boundary
 
@@ -263,9 +277,6 @@ become a catch-all implementation slice.
 
 ## Definition of done
 
-Slice 70 closes only when the accepted candidate is on current main, every
-requirement and artifact is traced to reviewed evidence, version/release/docs
-state is consistent, full local release/workspace gates are green, the owner
-authorized publication, exact registry versions exist, and all required
-registry-installed target smokes pass. PUBLISH_READY alone is not release
-completion.
+This slice prepares the local candidate and owner handoff only. The final
+release remains unpublished until the owner separately authorizes tag/push and
+registry publication; PUBLISH_READY alone is not release completion.

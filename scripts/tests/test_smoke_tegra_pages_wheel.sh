@@ -38,6 +38,11 @@ contains "requires forced CUDA" 'FATHOMDB_EMBED_DEVICE=cuda:0'
 contains "requires an allocation witness" 'FATHOMDB_GPU_ALLOCATION_WITNESS=1'
 contains "validates the witness" 'verify-tegra-gpu-witness.py'
 contains "requires a classic Tegra nvgpu confirmation" '*nvgpu*'
+if grep -qE "printf.*\\|[[:space:]]*grep[[:space:]]+-q" "$SMOKE"; then
+  fail "does not pipe input validation through an early-exiting grep"
+else
+  pass "does not pipe input validation through an early-exiting grep"
+fi
 
 for args in \
   '0.8.24 https://fathomadb.github.io/fathomdb/tegra/simple/ 0123456789012345678901234567890123456789012345678901234567890123 2431f8729afb247518804e90b9ca324592c95456 32878233246 /tmp/tegra-smoke-invalid' \
@@ -47,10 +52,13 @@ for args in \
   read -r -a argv <<<"$args"
   if output="$("$SMOKE" "${argv[@]}" 2>&1)"; then
     fail "invalid input fails before download: $args"
-  elif printf '%s' "$output" | grep -qiE 'invalid|usage|expected|must'; then
-    pass "invalid input fails before download: $args"
   else
-    fail "invalid input has actionable diagnostic: $args"
+    case "${output,,}" in
+      *invalid* | *usage* | *expected* | *must*)
+        pass "invalid input fails before download: $args"
+        ;;
+      *) fail "invalid input has actionable diagnostic: $args" ;;
+    esac
   fi
 done
 

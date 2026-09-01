@@ -92,6 +92,10 @@ CUDA_NAPI_HOST_CXX = "/usr/bin/g++-13"
 CUDA_HOST_GCC_VERSION_TEGRA_ORIN = "11.4.0"
 CUDA_HOST_CC_TEGRA_ORIN = "/usr/bin/gcc"
 CUDA_HOST_CXX_TEGRA_ORIN = "/usr/bin/g++"
+CUDA_X64_HOST_TOOLKIT_ROOT = "/usr/local/cuda-12.6"
+CUDA_X64_HOST_CUDART_LIBRARY_DIR = (
+    "/usr/local/cuda-12.6/targets/x86_64-linux/lib"
+)
 # Measured on the Jetson Orin AGX (design § 2.7): lib64 is a symlink to the
 # aarch64-linux target lib dir, and the driver library lives in an
 # L4T-specific `nvidia/` subdirectory rather than at the bare multiarch path.
@@ -177,6 +181,20 @@ def require_fragment(block: str, fragment: str, label: str) -> None:
 def forbid_fragment(block: str, fragment: str, label: str, why: str) -> None:
     if fragment in block:
         fail(f"{label} must not contain {fragment!r}: {why}")
+
+
+def require_x64_cuda_toolkit_environment(block: str, label: str) -> None:
+    """Require host search paths for the statically linked Candle CUDART."""
+    require_fragment(
+        block,
+        f"CUDA_PATH: {CUDA_X64_HOST_TOOLKIT_ROOT}",
+        f"{label} CUDA toolkit environment",
+    )
+    require_fragment(
+        block,
+        f"LIBRARY_PATH: {CUDA_X64_HOST_CUDART_LIBRARY_DIR}",
+        f"{label} CUDART library environment",
+    )
 
 
 def require_unmerged_candidate_control_plane() -> None:
@@ -443,6 +461,7 @@ def require_cuda_package_rehearsal() -> None:
     require_fragment(canonical, "runs-on: [self-hosted, Linux, X64, gpu, cuda-12]", "canonical CUDA builder")
     require_fragment(canonical, "environment: cuda-unmerged-preflight", "canonical CUDA builder")
     require_fragment(canonical, CUDA_GPU_UUID_ENV, "canonical CUDA builder GPU UUID binding")
+    require_x64_cuda_toolkit_environment(canonical, "canonical CUDA builder")
     if not re.search(r"^    permissions:\n      contents: read$", canonical, re.MULTILINE):
         fail("canonical CUDA builder must declare read-only contents permission")
     if "id-token: write" in canonical or "registry-url:" in canonical:
@@ -1118,6 +1137,7 @@ def main() -> None:
     if "contents: write" in job or "id-token: write" in job:
         fail("cuda-contract-preflight must not inherit release publishing permissions")
     require_fragment(job, "bash scripts/release/cuda-preflight.sh", "cuda-contract-preflight")
+    require_x64_cuda_toolkit_environment(job, "cuda-contract-preflight")
     require_fragment(job, "${{ env.RELEASE_CHECKOUT_REF }}", "cuda-contract-preflight checkout")
     require_fragment(job, UPLOAD_ARTIFACT_ACTION, "cuda-contract-preflight witness upload")
     require_fragment(job, "name: cuda-preflight-witness", "cuda-contract-preflight witness upload")
@@ -1140,6 +1160,12 @@ def main() -> None:
         reranker_job,
         CUDA_GPU_UUID_ENV,
         "cuda-reranker-package-rehearsal GPU UUID binding",
+    )
+    require_x64_cuda_toolkit_environment(
+        workflow_job("cuda-package-rehearsal"), "cuda-package-rehearsal"
+    )
+    require_x64_cuda_toolkit_environment(
+        reranker_job, "cuda-reranker-package-rehearsal"
     )
 
     print("cuda-release-contract: pass")

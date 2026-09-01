@@ -64,7 +64,8 @@ In scope:
 - dependency-aware lifecycle, erasure, and integrity closure;
 - frozen read snapshots and eligibility-before-ranking predicates;
 - projection generation identity and readiness correlation;
-- stable ordered pagination and governed `latest_state` reads;
+- stable ordered pagination and governed `operational_state` reads, with
+  `latest_state` remaining a consumer concept;
 - opt-in source-complete evidence and structural explanation;
 - constrained combined graph expansion;
 - benchmark-gated deterministic candidate-selection primitives; and
@@ -102,7 +103,7 @@ backward dependency.
 | 30 | Close lifecycle and erasure across registered dependencies with visibility fencing, idempotent propagation, and no-active-orphan proof. | 25 | Not started |
 | 35 | Add an Engine-minted frozen read snapshot and uniform indexed eligibility predicates before lexical, vector, or graph truncation. | 30 | Not started |
 | 40 | Add durable projection-generation identity and correlate mutation-to-ready, degraded, blocked, and deferred states. | 35 | Not started |
-| 45 | Add opaque ordered pagination for canonical list, graph, and current-state reads; expose governed `latest_state` point and page reads. | 40 | Not started |
+| 45 | Add opaque ordered pagination for canonical list, graph, and current-state reads; expose governed `operational_state` point and page reads while keeping `latest_state` a consumer concept. | 40 | Not started |
 | 50 | Add opt-in source-complete evidence resolution bound to the originating snapshot and eligibility envelope. | 45 | Not started |
 | 55 | Add backward/forward provenance tracing, inclusion/exclusion explanation, receipt correlation, dependency-orphan checks, and governed operator maintenance. | 50 | Not started |
 | 60 | Add constrained combined graph expansion with typed direction, edge/target constraints, predicates, bounded continuation, and exact path evidence. | 55 | Not started |
@@ -118,8 +119,9 @@ produce evidence and proposals, Slice 6 records HITL decisions and a reviewed
 Slice 7 plan, and Slice 7 implements only approved repository preparation.
 
 Feature requirements and slice-local falsifiable acceptance criteria are
-written by their owning Slice 10+ plan before implementation. The complete
-consumer-needs allocation is
+written by their owning Slice 10+ plan before implementation. The draft plan
+index is [`0.8.25/features/README.md`](0.8.25/features/README.md), and the
+complete consumer-needs allocation is
 [`memex-0.6.0-needs-in-fathomdb-0.8.25.md`](memex-0.6.0-needs-in-fathomdb-0.8.25.md).
 No feature is accepted merely because it appears in this release overview.
 

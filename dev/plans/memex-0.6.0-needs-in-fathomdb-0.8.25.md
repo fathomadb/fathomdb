@@ -56,17 +56,18 @@ Status terms are strict:
 
 | # | Need | Existing FathomDB mechanism | Gap and 0.8.25 disposition | Slice |
 | ---: | --- | --- | --- | ---: |
-| 21 | Concurrent read/write guarantees | WAL, reader workers, deferred reader transactions, stress tests, and typed storage/runtime failures exist. | **Partial for new contracts.** Define snapshot behavior and drift outcomes during mutation; measure cold/steady contention. | 75 |
+| 21 | Concurrent read/write guarantees | WAL, reader workers, deferred reader transactions, stress tests, and typed storage/runtime failures exist. | **Partial for new contracts.** Define snapshot behavior and typed drift outcomes during mutation in Slice 35; measure cold/steady contention in Slice 75. | 35, 75 |
 | 22 | Predictable local performance | Accepted FTS envelope reaches 50k with exact top-100 equivalence; graph traversal is bounded. | **Partial for new contracts.** Measure evidence, pagination, dependencies, mutation-to-ready, erasure propagation, and projection-generation overhead. | 75 |
-| 23 | Cross-SDK parity | Governed facade parity and typed errors are established across Rust, Python, and TypeScript. | **Partial.** Fix the known Rust inability to name `SearchHit`/`IdSpace`; require parity and versioned wire fixtures in every feature slice. | 15, 75 |
+| 23 | Cross-SDK parity | Governed facade parity and typed errors are established across Rust, Python, and TypeScript. | **Partial.** Fix the known Rust inability to name `SearchHit`/`IdSpace`; require Rust/Python/TypeScript parity, versioned wire fixtures, and applicable Windows CPU/native proof in every public or persisted feature slice. Slice 75 audits the combined installed surface. | 15–70, 75 |
 | 24 | Data-plane evaluation support | Typed experiment receipts and the completed performance program exist. | **Partial.** Make measurement classification executable and add retrieval-only receipts, including a native `Engine.search` global witness. | 10, 75 |
 
-## Additional Memex integration need — `latest_state`
+## Additional Memex integration need — current operational state
 
 The schema already maintains authoritative current rows in
 `operational_state`, but governed reads expose only the append-only mutation
 log. Slice 45 adds current-state point lookup and ordered pagination over the
-existing table. This is a read-surface addition, not a data migration.
+existing table. `latest_state` remains a Memex/consumer concept. This is a
+read-surface addition, not a data migration.
 
 ## Memex-side modernization, not FathomDB scope
 

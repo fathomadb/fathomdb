@@ -91,7 +91,8 @@ paths.
 Slice 40 adds durable projection-generation identity and mutation/readiness
 correlation. Slice 45 uses both contracts for opaque, stable ordered cursors on
 canonical list, graph, and current-state reads, including governed point/page
-access to existing `latest_state`. Ranked search stays bounded top-K.
+access to existing `operational_state`. `latest_state` remains a consumer
+concept. Ranked search stays bounded top-K.
 
 Tests cover snapshot mutation races, validity boundaries, unsupported
 predicates, native query plans, cursor mismatch/expiry/drift, duplicates,
@@ -126,11 +127,11 @@ does not ship as a default.
 
 ### Slice 75 — integrated closure
 
-Run cross-SDK and wire parity plus cold/steady concurrency, evidence-resolution,
-pagination, dependency mutation, mutation-to-ready, erasure propagation,
-projection-generation, storage/resource, and rebuild-cost measurements. Add a
-retrieval-only native `Engine.search` global witness and keep answer-system
-metrics separate.
+Run installed cross-SDK and wire parity, including Windows CPU/native proof,
+plus cold/steady concurrency, evidence-resolution, pagination, dependency
+mutation, mutation-to-ready, erasure propagation, projection-generation,
+storage/resource, and rebuild-cost measurements. Add a retrieval-only native
+`Engine.search` global witness and keep answer-system metrics separate.
 
 ## Slice 3 draft contract allocation
 
@@ -147,7 +148,7 @@ implementation.
 | 30 | R25-30 dependency-aware lifecycle and erasure closure | State-transition matrix, crash/restart/resume, stale-index and no-orphan proof |
 | 35 | R25-35 frozen snapshots and pre-ranking eligibility | Mutation/validity races, unsupported predicates, native query-plan proof |
 | 40 | R25-40 durable projection generations/readiness correlation | Restart and wrong-generation negative tests, mutation-to-ready receipt proof |
-| 45 | R25-45 opaque ordered pages and governed `latest_state` | Duplicate/omission race, cursor mismatch/expiry/drift, point/page agreement |
+| 45 | R25-45 opaque ordered pages and governed `operational_state` | Duplicate/omission race, cursor mismatch/expiry/drift, point/page agreement |
 | 50 | R25-50 eligibility-bound source-complete evidence | Exact-byte resolution plus invisible/erased/stale/mismatched non-disclosure |
 | 55 | R25-55 provenance tracing, explanation, and integrity | Reciprocal traces, deterministic exclusions, injected-orphan/projection faults |
 | 60 | R25-60 constrained combined graph expansion | Constraint-before-truncation, deterministic continuation, exact path/lifecycle evidence |
@@ -190,6 +191,30 @@ missing evidence rather than a pass.
 Feature-local parity and correctness land in Slices 15–70. Slice 75 runs the
 installed cross-SDK and integrated workload audit; it must not become a holding
 area for tests omitted by their owning feature slice.
+
+Each owning plan must select the applicable routes below and name the exact
+command, workflow job, fixture, and receipt path before its design may become
+READY:
+
+- local fast: `bash scripts/agent-verify.sh --tier=fast`;
+- local heavy/all: `bash scripts/agent-verify.sh --tier=heavy` and, at closure,
+  `bash scripts/agent-verify.sh --tier=all`;
+- Windows CPU/native: the applicable `windows-latest` Rust, Python, and Node
+  jobs in `.github/workflows/ci.yml` or `.github/workflows/release.yml`;
+- all-feature/operator: focused Cargo commands with the feature's actual
+  feature set, plus the repository all-feature route when compatible;
+- GPU/CUDA: `cuda-contract-preflight` and the applicable CUDA package-rehearsal
+  route when the feature can change dense, rerank, fusion, or graph behavior;
+- live-model: a named, budgeted, non-default receipt-producing route only when
+  a treatment depends on a downloaded model or provider;
+- registry-installed: the release workflow's fresh-machine Python, npm/native,
+  and CLI smoke routes for every changed public binding or wire contract.
+
+Windows CPU/native behavior is proved feature-locally for every public or
+persisted Slice 15–70 change. Windows CUDA remains outside 0.8.25. Slice 75
+checks that the named receipts exist and agree; it does not supply missing
+feature-local proof. A route that is not applicable must be marked `N/A` with a
+reason, rather than omitted.
 
 ## Dependency and workload policy
 

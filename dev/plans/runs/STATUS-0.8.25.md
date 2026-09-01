@@ -12,7 +12,7 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 6 (HITL), AWAITING_HITL.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 7 (PREWORK-IMPLEMENTATION), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
 Prework is active on the durable `release/0.8.25` worktree. Slices 0–7 are
 sequential; feature work begins at Slice 10. Direct agents execute this release
@@ -28,8 +28,8 @@ without Steward or Orchestrator roles.
 | 3 | Draft contracts | Complete on release branch (`51043e20`) |
 | 4 | Architecture/code alignment | Complete on release branch (`51043e20`) |
 | 5 | Verification adequacy | Complete on release branch (`51043e20`) |
-| 6 | Proposal scoring and interactive HITL | Awaiting final plan approval |
-| 7 | Approved repository preparation | Not started |
+| 6 | Proposal scoring and interactive HITL | Complete on release branch (`3a35c1e6`; approved `seq-274`) |
+| 7 | Approved repository preparation | Ready |
 | 10 | Measurement classification | Not started |
 | 15 | Identity and source provenance | Not started |
 | 20 | Dependency registration | Not started |
@@ -47,10 +47,9 @@ without Steward or Orchestrator roles.
 
 ## Decisions and blockers
 
-- `seq-272` and `seq-273` rule every proposal. P25-07 includes the test-only
-  `httpmock` correction with explicit stop conditions; P25-17 keeps all
-  runs/data; P25-20 remains narrow. The reviewed Slice 7 plan is PASS after
-  FIX-1/FIX-2 and awaits final owner approval.
+- `seq-272` and `seq-273` rule every proposal. `seq-274` approves the reviewed
+  Slice 7 plan and closes Slice 6. P25-17 keeps all runs/data; P25-20 remains
+  narrow.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not
@@ -65,7 +64,7 @@ without Steward or Orchestrator roles.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 6 (HITL)** — proposal scoring, HITL decisions, and Slice 7 plan. **Remaining ladder:** 6 → 7 → 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 65 → 70 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 7 (PREWORK-IMPLEMENTATION)** — approved repository-preparation implementation. **Remaining ladder:** 7 → 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 65 → 70 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 

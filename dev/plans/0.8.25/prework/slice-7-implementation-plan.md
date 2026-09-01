@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 7 — approved prework implementation plan
-status: REVIEWED_AWAITING_HITL
+status: APPROVED
 target_release: 0.8.25
 observed_on: 2026-09-01
 ---
@@ -18,6 +18,10 @@ Decision authority is `seq-272` and `seq-273`. The complete owner mapping is in
 [`slice-6-hitl-decisions.md`](slice-6-hitl-decisions.md). Implementation may
 start only after the required independent review passes and the owner approves
 this reviewed plan.
+
+Both gates are closed: independent review passed after FIX-1/FIX-2, and the
+owner approved this plan at `seq-274`. Slice 7 implementation may proceed only
+within this file's scope and stop conditions.
 
 ## Accepted scope
 

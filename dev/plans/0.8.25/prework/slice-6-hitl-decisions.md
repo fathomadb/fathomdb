@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 6 — HITL decisions
-status: AWAITING_FINAL_PLAN_APPROVAL
+status: COMPLETE
 target_release: 0.8.25
 observed_on: 2026-09-01
 ---
@@ -9,7 +9,8 @@ observed_on: 2026-09-01
 
 ## Owner rulings
 
-Decision authority is append-only ledger entries `seq-272` and `seq-273`.
+Decision authority is append-only ledger entries `seq-272`, `seq-273`, and
+`seq-274`.
 
 The owner approved the recommended dispositions for P25-01 through P25-06 and
 P25-08 through P25-26 at `seq-272`. The owner further ruled that P25-17 keeps
@@ -25,7 +26,7 @@ product pins move or the current mock APIs prove incompatible.
 
 | Register IDs | Owner disposition | Effect |
 | --- | --- | --- |
-| P25-01, P25-04–P25-07, P25-11–P25-16, P25-18–P25-20, P25-23, P25-24 | **Accepted for Slice 7 planning.** | These are the only candidate implementation packages; the detailed plan still requires review and final owner approval. |
+| P25-01, P25-04–P25-07, P25-11–P25-16, P25-18–P25-20, P25-23, P25-24 | **Accepted for Slice 7.** | These are the only implementation packages in the reviewed and approved plan. |
 | P25-02, P25-21 | **Retain/no change.** | Preserve the npm release pin and intentional historical/source/fixture/local-artifact policies. |
 | P25-03 | **Accepted boundary.** | Windows CPU/native parity remains feature-local; Windows CUDA is postponed. |
 | P25-08–P25-10 | **Postponed.** | Do not change the Candle stack, Pyright, or Ruff in Slice 7. |
@@ -36,9 +37,8 @@ product pins move or the current mock APIs prove incompatible.
 
 ## Boundaries
 
-- This ruling authorizes planning, not Slice 7 implementation.
-- Slice 7 remains blocked until its approved-only plan is independently
-  reviewed and the owner approves that final plan.
+- `seq-274` approves the independently reviewed plan and authorizes Slice 7
+  implementation only within that plan.
 - No product implementation, publication, tag, registry mutation, hosted
   workflow, Windows CUDA work, broad cleanup, or historical-data deletion is
   authorized.
@@ -90,5 +90,12 @@ Primary sources:
 
 The correction is reversible and has no publication or runtime behavior
 effect. The owner selected option 1 at `seq-273`; no proposal-register decision
-remains open. The reviewed Slice 7 plan still requires the final interactive
-approval required by the Slice 6 contract.
+remains open.
+
+## Final plan approval
+
+The independent review passed after FIX-1 and FIX-2. At `seq-274`, the owner
+approved the completed Slice 6 work and the reviewed Slice 7 plan. Slice 6 is
+complete and Slice 7 is the next authorized unit of work. This approval does
+not authorize a push, publication, registry mutation, hosted workflow, or work
+outside the plan.

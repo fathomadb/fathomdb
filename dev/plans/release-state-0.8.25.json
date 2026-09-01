@@ -1,6 +1,6 @@
 {
   "release": "0.8.25",
-  "release_kind": "active development release; prework in progress",
+  "release_kind": "active development release; approved prework implementation next",
   "board": "dev/plans/runs/STATUS-0.8.25.md",
   "plan": "dev/plans/plan-0.8.25.md",
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
@@ -14,7 +14,7 @@
     {"slice": 3, "short": "DRAFT-CONTRACTS", "title": "product-contract and architecture CRUD drafts", "depends_on": [2], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/prework/slice-3-contract-and-architecture-drafts.md", "dev/plans/fathomdb-data-plane-foldback-v2.md"], "sha": "51043e20", "merge_subject": "docs(0.8.25): complete prework Slices 1 through 5", "evidence": "Four successor user needs and fourteen local requirement/acceptance packages are drafted and allocated exactly to Slices 10 through 75. Accepted global contracts remain unchanged."},
     {"slice": 4, "short": "ARCHITECTURE", "title": "architecture and code-alignment review", "depends_on": [3], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/prework/slice-4-architecture-and-code-alignment.md", "dev/design/fathomdb-data-plane-architecture-v2.md"], "sha": "51043e20", "merge_subject": "docs(0.8.25): complete prework Slices 1 through 5", "evidence": "Architecture v2 is judged directionally correct with seven bounded clarifications. The as-built Engine/schema/SDK seams and genuine gaps are mapped to their owning feature slices; no architecture authority or code changed."},
     {"slice": 5, "short": "VERIFICATION", "title": "verification-adequacy review", "depends_on": [4], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/prework/slice-5-verification-adequacy.md", "dev/plans/fathomdb-data-plane-foldback-v2.md"], "sha": "51043e20", "merge_subject": "docs(0.8.25): complete prework Slices 1 through 5", "evidence": "Every draft requirement has a falsifiable proof package and owning slice. Critical paths, existing reusable tests, missing feature proof, and three repository-test-infrastructure proposals are recorded; no tests or criteria changed."},
-    {"slice": 6, "short": "HITL", "title": "proposal scoring, HITL decisions, and Slice 7 plan", "depends_on": [5], "status": "AWAITING_HITL", "design_refs": ["dev/plans/0.8.25-prework-slices-0-7.md", "dev/plans/0.8.25/prework/slice-1-dependency-sweep.md", "dev/plans/0.8.25/prework/slice-2-cruft-review.md", "dev/plans/0.8.25/prework/slice-3-contract-and-architecture-drafts.md", "dev/plans/0.8.25/prework/slice-4-architecture-and-code-alignment.md", "dev/plans/0.8.25/prework/slice-5-verification-adequacy.md", "dev/plans/0.8.25/prework/slice-6-proposal-register.md", "dev/plans/0.8.25/prework/slice-6-hitl-decisions.md", "dev/plans/0.8.25/prework/slice-6-slice-7-independent-review.md", "dev/plans/0.8.25/prework/slice-7-implementation-plan.md", "dev/plans/fathomdb-data-plane-foldback-v2.md"]},
+    {"slice": 6, "short": "HITL", "title": "proposal scoring, HITL decisions, and Slice 7 plan", "depends_on": [5], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25-prework-slices-0-7.md", "dev/plans/0.8.25/prework/slice-1-dependency-sweep.md", "dev/plans/0.8.25/prework/slice-2-cruft-review.md", "dev/plans/0.8.25/prework/slice-3-contract-and-architecture-drafts.md", "dev/plans/0.8.25/prework/slice-4-architecture-and-code-alignment.md", "dev/plans/0.8.25/prework/slice-5-verification-adequacy.md", "dev/plans/0.8.25/prework/slice-6-proposal-register.md", "dev/plans/0.8.25/prework/slice-6-hitl-decisions.md", "dev/plans/0.8.25/prework/slice-6-slice-7-independent-review.md", "dev/plans/0.8.25/prework/slice-7-implementation-plan.md", "dev/plans/fathomdb-data-plane-foldback-v2.md"], "sha": "3a35c1e6", "merge_subject": "docs(0.8.25): prepare reviewed Slice 7 plan", "evidence": "Every Slice 0–5 proposal is ruled at seq-272/seq-273, postponed work is preserved in the draft 0.8.26 scope, the approved-only Slice 7 plan passed independent review after FIX-1/FIX-2, and final owner approval at seq-274 authorizes Slice 7 implementation within that plan."},
     {"slice": 7, "short": "PREWORK-IMPLEMENTATION", "title": "approved repository-preparation implementation", "depends_on": [6], "status": "NOT_STARTED", "design_refs": ["dev/plans/0.8.25/prework/slice-7-implementation-plan.md"]},
     {"slice": 10, "short": "MEASUREMENT", "title": "executable measurement-layer classification", "depends_on": [7], "status": "NOT_STARTED"},
     {"slice": 15, "short": "IDENTITY", "title": "revision identity and canonical source provenance", "depends_on": [10], "status": "NOT_STARTED"},
@@ -32,17 +32,10 @@
     {"slice": 75, "short": "CLOSURE", "title": "cross-SDK, concurrency, lifecycle, and performance closure", "depends_on": [70], "status": "NOT_STARTED"}
   ],
   "landed": [],
-  "next_slice": 6,
-  "remaining_ladder": [6, 7, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75],
+  "next_slice": 7,
+  "remaining_ladder": [7, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75],
   "decisions": {
-    "unruled": [
-      {
-        "id": "slice-6-final-slice-7-plan",
-        "title": "Approve or correct the independently reviewed Slice 7 implementation plan",
-        "source": "dev/plans/0.8.25/prework/slice-7-implementation-plan.md",
-        "halts_run": true
-      }
-    ],
+    "unruled": [],
     "ruled": [
       {
         "id": "direct-execution",
@@ -63,6 +56,11 @@
         "id": "slice-6-p25-07-httpmock",
         "title": "Include test-only httpmock 0.8.3, preserve loader tests, prove async-std absent, and stop on product-pin movement or API incompatibility",
         "source": "seq-273"
+      },
+      {
+        "id": "slice-6-final-slice-7-plan",
+        "title": "Approve the independently reviewed Slice 7 implementation plan and close Slice 6",
+        "source": "seq-274"
       }
     ]
   },

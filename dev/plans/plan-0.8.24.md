@@ -1,11 +1,18 @@
 ---
 title: FathomDB 0.8.24 — release prework and portable CUDA distribution
-status: PROPOSED
+status: SUPERSEDED
 target_release: 0.8.24
+superseded_by: dev/plans/plan-0.8.25.md
+closure_source: steward-ledger seq-259
 ---
 
 # FathomDB 0.8.24 — plan of record
 
+> **Closure — 2026-09-01.** The repository owner closed 0.8.24 without a
+> further tag move, GitHub Release, or registry publication (`seq-259`). Its
+> completed slice work and retained evidence remain historical inputs. The
+> immutable registry-artifact defect is owned by the active
+> [0.8.25 plan](plan-0.8.25.md); this plan no longer authorizes delivery work.
 > **Planning posture.** This plan first performs bounded discovery and an
 > owner-led decision review. Slices 1–5 write proposals only; they do not
 > change product code, documentation contracts, dependencies, runners, registry
@@ -290,8 +297,9 @@ action. A plan's existence does not authorize an external release action.
 
 ## Immediate next action
 
-Slices 0–7, 10, 20, 30, 60, and 70 are complete locally. Slices 40 and 50 are
-postponed to 0.8.26 by `seq-258`; they do not block 0.8.24. Pause before the
-owner decides whether to push the release branch, integrate main, tag, or
-publish; no such external release action is authorized by these planning
-records.
+None. Slices 0–7, 10, 20, 30, 60, and 70 remain completed local work; Slices
+40 and 50 remain postponed to 0.8.26 by `seq-258`. The owner closed the release
+at `seq-259`, which supersedes the former owner-action handoff. Preserve the
+existing `v0.8.24` tag and immutable artifacts as historical provenance; do not
+move the tag, create a GitHub Release, or attempt republishing. The corrective
+delivery path is 0.8.25.

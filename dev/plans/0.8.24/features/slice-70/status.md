@@ -43,10 +43,17 @@ The completed target-native Tegra proof remains in Slice 60: the exact public
 Pages wheel was installed and exercised on Jetson `10.83.10.13` with its
 retained candidate/digest/CUDA witness.
 
-## Explicitly not performed
+## Closure supersession
+
+The owner closed 0.8.24 at `steward-ledger seq-259`. That ruling supersedes this
+record's former owner-action handoff: no `v0.8.24` tag move, GitHub Release, or
+registry publication remains pending. The corrective delivery path is 0.8.25;
+the retained Slice 60/70 evidence is historical.
+
+## Explicitly not performed before closure
 
 No tag, remote push, PR, merge to `main`, GitHub workflow dispatch,
 environment approval, registry publication, or post-publication smoke was
 performed. Windows CUDA and Windows WAL remain outside 0.8.24 under `seq-258`.
-The only remaining actions are the separate owner decisions and execution
-described in `owner-handoff.md`.
+The former owner actions in `owner-handoff.md` were subsequently superseded by
+the closure ruling above.

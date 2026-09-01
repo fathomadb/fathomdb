@@ -1,40 +1,44 @@
 ---
 title: 0.8.25 Slice 6 — HITL decisions
-status: PARTIAL
+status: AWAITING_FINAL_PLAN_APPROVAL
 target_release: 0.8.25
 observed_on: 2026-09-01
 ---
 
 # Slice 6 — HITL decisions
 
-## Initial ruling
+## Owner rulings
 
-Decision authority is append-only ledger entry `seq-272`.
+Decision authority is append-only ledger entries `seq-272` and `seq-273`.
 
 The owner approved the recommended dispositions for P25-01 through P25-06 and
-P25-08 through P25-26. P25-07 remains open for additional information. The
-owner further ruled that P25-17 keeps all runs and data, and that P25-20 stays
-narrow while still completing the maintained-index corrections that are
-needed.
+P25-08 through P25-26 at `seq-272`. The owner further ruled that P25-17 keeps
+all runs and data, and that P25-20 stays narrow while still completing the
+maintained-index corrections that are needed.
+
+After reviewing the focused dependency evidence, the owner ruled P25-07 at
+`seq-273`: include the test-only `httpmock 0.7.0 -> 0.8.3` upgrade in Slice 7,
+preserve the existing loader tests, prove `async-std` disappears, and stop if
+product pins move or the current mock APIs prove incompatible.
 
 ## Recorded dispositions
 
 | Register IDs | Owner disposition | Effect |
 | --- | --- | --- |
-| P25-01, P25-04–P25-06, P25-11–P25-16, P25-18–P25-20, P25-23, P25-24 | **Accepted for Slice 7 planning.** | These are the only candidate implementation packages; the detailed plan still requires review and final owner approval. |
+| P25-01, P25-04–P25-07, P25-11–P25-16, P25-18–P25-20, P25-23, P25-24 | **Accepted for Slice 7 planning.** | These are the only candidate implementation packages; the detailed plan still requires review and final owner approval. |
 | P25-02, P25-21 | **Retain/no change.** | Preserve the npm release pin and intentional historical/source/fixture/local-artifact policies. |
 | P25-03 | **Accepted boundary.** | Windows CPU/native parity remains feature-local; Windows CUDA is postponed. |
 | P25-08–P25-10 | **Postponed.** | Do not change the Candle stack, Pyright, or Ruff in Slice 7. |
 | P25-17 | **Retain/no change, explicitly strengthened.** | Keep all `runs/` data and experiment/performance evidence. No deletion, pruning, or bulk path rewrite is authorized. |
 | P25-20 | **Accepted narrowly.** | Correct only maintained current-authority index rows needed by the accepted documentation/architecture changes; no broad index rewrite. |
 | P25-22, P25-25, P25-26 | **Accepted as feature scope.** | Product work remains in Slices 10–75 and is prohibited from Slice 7. |
-| P25-07 | **Needs more information.** | Remains the sole open Slice 6 proposal decision. |
+| P25-07 | **Accepted with stop conditions.** | Upgrade only test-only `httpmock` to 0.8.3; preserve tests, prove `async-std` is absent, and stop on product-pin movement or API incompatibility. |
 
 ## Boundaries
 
 - This ruling authorizes planning, not Slice 7 implementation.
-- Slice 7 remains blocked until P25-07 is ruled, its approved-only plan is
-  independently reviewed, and the owner approves that final plan.
+- Slice 7 remains blocked until its approved-only plan is independently
+  reviewed and the owner approves that final plan.
 - No product implementation, publication, tag, registry mutation, hosted
   workflow, Windows CUDA work, broad cleanup, or historical-data deletion is
   authorized.
@@ -85,4 +89,6 @@ Primary sources:
    evidence.
 
 The correction is reversible and has no publication or runtime behavior
-effect. P25-07 is the only decision still halting Slice 7 planning.
+effect. The owner selected option 1 at `seq-273`; no proposal-register decision
+remains open. The reviewed Slice 7 plan still requires the final interactive
+approval required by the Slice 6 contract.

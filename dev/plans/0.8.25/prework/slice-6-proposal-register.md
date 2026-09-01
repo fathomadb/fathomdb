@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 6 — proposal register
-status: AWAITING_HITL
+status: DECIDED
 target_release: 0.8.25
 observed_on: 2026-08-31
 ---
@@ -69,15 +69,15 @@ Slice 7 to implement product behavior.
 
 ## Recommended accepted Slice 7 set
 
-If the owner approves the recommendations, Slice 7 contains exactly P25-01,
-P25-04, P25-05, P25-06, P25-11, P25-12 through P25-16, and P25-18 through
-P25-20. P25-23/P25-24 supply the bounded contract decisions for P25-12, while
-P25-25 supplies the architecture corrections for P25-16.
+The accepted Slice 7 scope contains exactly P25-01, P25-04 through P25-07,
+P25-11 through P25-16, P25-18 through P25-20, P25-23, and P25-24.
+P25-23/P25-24 supply the bounded contract decisions for P25-12, while P25-25
+supplies the architecture corrections for P25-16.
 
 Slice 7 does not implement P25-22, P25-25, or P25-26 product work. It does not
-upgrade Ruff/Pyright, migrate `httpmock`, change the Candle stack, delete
-history, enable Dependabot, add Windows CUDA, publish, tag, mutate registries,
-or run hosted workflows.
+upgrade Ruff/Pyright, change the Candle stack, delete history, enable
+Dependabot, add Windows CUDA, publish, tag, mutate registries, or run hosted
+workflows.
 
 ## HITL decision framing
 
@@ -130,6 +130,7 @@ separately HITL-gated.
 The owner approved the recommended dispositions for P25-01 through P25-06 and
 P25-08 through P25-26 at `seq-272`, with two explicit refinements: P25-17 keeps
 all runs and data, and P25-20 remains narrow while completing needed maintained
-index corrections. P25-07 alone remains open after requesting more information;
-its focused evidence and revised recommendation are recorded in
+index corrections. At `seq-273`, the owner included P25-07 as a test-only
+`httpmock 0.8.3` upgrade with test-preservation, dependency-removal proof, and
+product-pin/API stop conditions. The complete ruling is recorded in
 [`slice-6-hitl-decisions.md`](slice-6-hitl-decisions.md).

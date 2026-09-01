@@ -93,7 +93,7 @@ backward dependency.
 | 3 | Draft product-needs, requirements, acceptance-criteria, and architecture CRUD changes; allocate each draft to an implementation slice. | 2 | Complete (`51043e20`) |
 | 4 | Review proposed architecture against Slices 0–3 and high-level code alignment; write change proposals only. | 3 | Complete (`51043e20`) |
 | 5 | Review verification adequacy from needs through requirements, acceptance criteria, tests, critical paths, and release goals. | 4 | Complete (`51043e20`) |
-| 6 | Consolidate and score proposals, conduct interactive HITL decisions, write/review the Slice 7 plan, and update the release plan. | 5 | Awaiting initial HITL |
+| 6 | Consolidate and score proposals, conduct interactive HITL decisions, write/review the Slice 7 plan, and update the release plan. | 5 | Awaiting final plan approval |
 | 7 | Implement only HITL-approved repository-preparation work from Slices 0–6 with TDD/review/independent verification; write status and clean isolated worktrees. | 6 | Not started |
 | 10 | Make measurement-layer classification executable, including whether `Engine.search` ran and which compared components differed. | 7 | Not started |
 | 15 | Add immutable record-revision identity, caller source-version identity, exact source locators, canonical hashes, and missing Rust-facade identity exports. | 10 | Not started |
@@ -155,10 +155,12 @@ completed performance tracks are not reopened by this planning work.
 
 The complete scored decision package is
 [`slice-6-proposal-register.md`](0.8.25/prework/slice-6-proposal-register.md).
-The partial owner ruling is
+The complete proposal ruling is
 [`slice-6-hitl-decisions.md`](0.8.25/prework/slice-6-hitl-decisions.md).
-All recommendations except P25-07 are ruled at `seq-272`; P25-17 explicitly
-keeps all run data, P25-20 stays narrow, and P25-07 is the sole open decision.
+All proposals are ruled at `seq-272`/`seq-273`; P25-17 explicitly keeps all run
+data, P25-20 stays narrow, and P25-07 includes the test-only `httpmock`
+correction with its stop conditions. The Slice 7 plan passed independent
+review after two bounded FIX cycles and awaits final owner approval.
 
 ## Immediate next slice
 
@@ -167,11 +169,9 @@ keeps all run data, P25-20 stays narrow, and P25-07 is the sole open decision.
 
 **Remaining ladder:** 6 → 7 → 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 65 → 70 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
-Resolve P25-07 using the focused local/upstream evidence in the partial ruling.
-After that ruling, write the approved-only Slice 7 implementation plan and
-obtain its explicitly required independent review. The direct agent must not
-invoke a Steward or Orchestrator. Do not begin implementation before the owner
-approves the reviewed Slice 7 plan.
+Approve or correct the independently reviewed approved-only Slice 7 plan. The
+direct agent must not invoke a Steward or Orchestrator. Do not begin
+implementation before the owner approves the reviewed plan.
 
 ## Stop gates
 

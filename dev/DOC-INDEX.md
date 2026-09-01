@@ -52,6 +52,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/runs/STATUS-0.8.23.md` | Completed 0.8.23 state board, retained in place | 0.8.23 history | 2026-08-23 |
 | `dev/plans/plan-0.8.24.md` | Proposed 0.8.24 release plan and slice allocation; no live release-state record | 0.8.24 planning | 2026-08-24 |
 | `dev/plans/plan-0.8.25.md` | Proposed dependency-linear performance and Memex data-plane foldback plan | 0.8.25 | 2026-08-31 |
+| `dev/plans/0.8.26-draft-scope.md` | Non-authoritative intake preserving work postponed from 0.8.24 and 0.8.25 | 0.8.26 draft | 2026-09-01 |
 | `dev/plans/0.8.25-prework-slices-0-7.md` | Environment-to-HITL prework and approved preparation contract | 0.8.25 Slices 0–7 | 2026-08-31 |
 | `dev/plans/0.8.25/prework/slice-{1-dependency-sweep,2-cruft-review}.md` | Dependency/pinning evidence and repository cruft action proposals | 0.8.25 Slices 1–2 | 2026-08-31 |
 | `dev/plans/0.8.25/prework/slice-{3-contract-and-architecture-drafts,4-architecture-and-code-alignment,5-verification-adequacy}.md` | Draft contracts, as-built alignment, and verification-gap allocation | 0.8.25 Slices 3–5 | 2026-08-31 |
@@ -240,7 +241,9 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/release-state-0.8.25.json` · `dev/plans/runs/STATUS-0.8.25.md` | Machine-owned release state and generated live board for the dependency-linear 0.8.25 ladder | 0.8.25 | 2026-08-31 |
 | `dev/plans/0.8.25/prework/slice-0-{environment-and-infrastructure,decision-brief}.md` | Slice 0 environment/infrastructure evidence and decision inputs | 0.8.25 Slice 0 | 2026-08-31 |
 | `dev/plans/0.8.25/prework/slice-6-proposal-register.md` | Complete scored Slice 6 decision package and recommended Slice 7 boundary | 0.8.25 Slice 6 | 2026-08-31 |
-| `dev/plans/0.8.25/prework/slice-6-hitl-decisions.md` | Partial owner ruling and focused P25-07 dependency evidence/options | 0.8.25 Slice 6 | 2026-09-01 |
+| `dev/plans/0.8.25/prework/slice-6-hitl-decisions.md` | Complete proposal rulings and bounded P25-07 dependency decision | 0.8.25 Slice 6 | 2026-09-01 |
+| `dev/plans/0.8.25/prework/slice-7-implementation-plan.md` | Approved-only prework requirements, design, TDD, review, and verification plan | 0.8.25 Slices 6–7 | 2026-09-01 |
+| `dev/plans/0.8.25/prework/slice-6-slice-7-independent-review.md` | Independent Slice 7 plan review and bounded FIX-n record | 0.8.25 Slice 6 | 2026-09-01 |
 | `dev/plans/earp-foundation.md` | As-built EARP evaluation-platform plan and acceptance criteria | EARP developer harness | 2026-08-08 |
 | `dev/plans/runs/0.8.22-slice-23-design-review-20260808.md` | Approved Slice 23 design review and FIX-1 closure | 0.8.22 Slice 23; integrated in `main` | 2026-08-08 |
 | `dev/plans/runs/0.8.22-slice-23-pickup-review-20260808.md` | Approved Slice 23 pickup review | 0.8.22 Slice 23; integrated in `main` | 2026-08-08 |

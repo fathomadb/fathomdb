@@ -28,7 +28,7 @@ without Steward or Orchestrator roles.
 | 3 | Draft contracts | Complete on release branch (`51043e20`) |
 | 4 | Architecture/code alignment | Complete on release branch (`51043e20`) |
 | 5 | Verification adequacy | Complete on release branch (`51043e20`) |
-| 6 | Proposal scoring and interactive HITL | Awaiting initial HITL |
+| 6 | Proposal scoring and interactive HITL | Awaiting final plan approval |
 | 7 | Approved repository preparation | Not started |
 | 10 | Measurement classification | Not started |
 | 15 | Identity and source provenance | Not started |
@@ -47,10 +47,10 @@ without Steward or Orchestrator roles.
 
 ## Decisions and blockers
 
-- `seq-272` approves every recommendation except P25-07, explicitly keeps all
-  runs/data under P25-17, and keeps P25-20 narrow. P25-07 is the sole open
-  decision and halts Slice 7 planning pending the focused evidence/options in
-  `dev/plans/0.8.25/prework/slice-6-hitl-decisions.md`.
+- `seq-272` and `seq-273` rule every proposal. P25-07 includes the test-only
+  `httpmock` correction with explicit stop conditions; P25-17 keeps all
+  runs/data; P25-20 remains narrow. The reviewed Slice 7 plan is PASS after
+  FIX-1/FIX-2 and awaits final owner approval.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not

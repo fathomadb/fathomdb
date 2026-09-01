@@ -14,7 +14,7 @@
     {"slice": 3, "short": "DRAFT-CONTRACTS", "title": "product-contract and architecture CRUD drafts", "depends_on": [2], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/prework/slice-3-contract-and-architecture-drafts.md", "dev/plans/fathomdb-data-plane-foldback-v2.md"], "sha": "51043e20", "merge_subject": "docs(0.8.25): complete prework Slices 1 through 5", "evidence": "Four successor user needs and fourteen local requirement/acceptance packages are drafted and allocated exactly to Slices 10 through 75. Accepted global contracts remain unchanged."},
     {"slice": 4, "short": "ARCHITECTURE", "title": "architecture and code-alignment review", "depends_on": [3], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/prework/slice-4-architecture-and-code-alignment.md", "dev/design/fathomdb-data-plane-architecture-v2.md"], "sha": "51043e20", "merge_subject": "docs(0.8.25): complete prework Slices 1 through 5", "evidence": "Architecture v2 is judged directionally correct with seven bounded clarifications. The as-built Engine/schema/SDK seams and genuine gaps are mapped to their owning feature slices; no architecture authority or code changed."},
     {"slice": 5, "short": "VERIFICATION", "title": "verification-adequacy review", "depends_on": [4], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/prework/slice-5-verification-adequacy.md", "dev/plans/fathomdb-data-plane-foldback-v2.md"], "sha": "51043e20", "merge_subject": "docs(0.8.25): complete prework Slices 1 through 5", "evidence": "Every draft requirement has a falsifiable proof package and owning slice. Critical paths, existing reusable tests, missing feature proof, and three repository-test-infrastructure proposals are recorded; no tests or criteria changed."},
-    {"slice": 6, "short": "HITL", "title": "proposal scoring, HITL decisions, and Slice 7 plan", "depends_on": [5], "status": "AWAITING_HITL", "design_refs": ["dev/plans/0.8.25-prework-slices-0-7.md", "dev/plans/0.8.25/prework/slice-1-dependency-sweep.md", "dev/plans/0.8.25/prework/slice-2-cruft-review.md", "dev/plans/0.8.25/prework/slice-3-contract-and-architecture-drafts.md", "dev/plans/0.8.25/prework/slice-4-architecture-and-code-alignment.md", "dev/plans/0.8.25/prework/slice-5-verification-adequacy.md", "dev/plans/0.8.25/prework/slice-6-proposal-register.md", "dev/plans/fathomdb-data-plane-foldback-v2.md"]},
+    {"slice": 6, "short": "HITL", "title": "proposal scoring, HITL decisions, and Slice 7 plan", "depends_on": [5], "status": "AWAITING_HITL", "design_refs": ["dev/plans/0.8.25-prework-slices-0-7.md", "dev/plans/0.8.25/prework/slice-1-dependency-sweep.md", "dev/plans/0.8.25/prework/slice-2-cruft-review.md", "dev/plans/0.8.25/prework/slice-3-contract-and-architecture-drafts.md", "dev/plans/0.8.25/prework/slice-4-architecture-and-code-alignment.md", "dev/plans/0.8.25/prework/slice-5-verification-adequacy.md", "dev/plans/0.8.25/prework/slice-6-proposal-register.md", "dev/plans/0.8.25/prework/slice-6-hitl-decisions.md", "dev/plans/fathomdb-data-plane-foldback-v2.md"]},
     {"slice": 7, "short": "PREWORK-IMPLEMENTATION", "title": "approved repository-preparation implementation", "depends_on": [6], "status": "NOT_STARTED"},
     {"slice": 10, "short": "MEASUREMENT", "title": "executable measurement-layer classification", "depends_on": [7], "status": "NOT_STARTED"},
     {"slice": 15, "short": "IDENTITY", "title": "revision identity and canonical source provenance", "depends_on": [10], "status": "NOT_STARTED"},
@@ -37,9 +37,9 @@
   "decisions": {
     "unruled": [
       {
-        "id": "slice-6-proposal-dispositions",
-        "title": "Disposition every P25-01 through P25-26 proposal and authorize the resulting Slice 7 planning set",
-        "source": "dev/plans/0.8.25/prework/slice-6-proposal-register.md",
+        "id": "slice-6-p25-07-httpmock",
+        "title": "Decide whether P25-07 upgrades test-only httpmock 0.7.0 to 0.8.3, postpones the discontinued async-std path, or replaces the mock server",
+        "source": "dev/plans/0.8.25/prework/slice-6-hitl-decisions.md",
         "halts_run": true
       }
     ],
@@ -53,6 +53,11 @@
         "id": "cuda-ptrace",
         "title": "CUDA, NVIDIA tools including nvidia-smi, and ptrace are standing-authorized for applicable 0.8.25 work, including unconfined execution when needed",
         "source": "repository owner standing authorization, reaffirmed 2026-08-31"
+      },
+      {
+        "id": "slice-6-proposal-dispositions-except-p25-07",
+        "title": "Recommended dispositions approved for P25-01 through P25-06 and P25-08 through P25-26; all runs and data are retained and maintained-index correction stays narrow",
+        "source": "seq-272"
       }
     ]
   },

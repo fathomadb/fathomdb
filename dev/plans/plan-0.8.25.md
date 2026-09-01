@@ -155,8 +155,10 @@ completed performance tracks are not reopened by this planning work.
 
 The complete scored decision package is
 [`slice-6-proposal-register.md`](0.8.25/prework/slice-6-proposal-register.md).
-Its single open ruling covers explicit per-row dispositions P25-01 through
-P25-26; approving the recommendations does not collapse or omit any row.
+The partial owner ruling is
+[`slice-6-hitl-decisions.md`](0.8.25/prework/slice-6-hitl-decisions.md).
+All recommendations except P25-07 are ruled at `seq-272`; P25-17 explicitly
+keeps all run data, P25-20 stays narrow, and P25-07 is the sole open decision.
 
 ## Immediate next slice
 
@@ -165,7 +167,7 @@ P25-26; approving the recommendations does not collapse or omit any row.
 
 **Remaining ladder:** 6 → 7 → 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 65 → 70 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
-The Slice 6 register is prepared and awaiting the owner's initial disposition.
+Resolve P25-07 using the focused local/upstream evidence in the partial ruling.
 After that ruling, write the approved-only Slice 7 implementation plan and
 obtain its explicitly required independent review. The direct agent must not
 invoke a Steward or Orchestrator. Do not begin implementation before the owner

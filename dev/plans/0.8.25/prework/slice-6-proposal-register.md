@@ -33,7 +33,7 @@ plan.
 | P25-04 | Generalize release-state/view tooling so release-branch completion is representable without falsely claiming `origin/main` reachability or special-casing 0.8.25. Source: P25-INFRA-03. | Medium; exact schema change needs RED-first design. | **High:** current honest state makes strict board checks red; a careless change could falsify historical boards. | M; state schema, renderer, fixtures, migration of only the live state. | **Include.** | Slice 7 |
 | P25-05 | Rebuild Rust in a fresh release-bound target directory, assert the removed `/tmp` worktree path is absent from executable/dep metadata, and rerun the unchanged serial suite. Sources: P25-INFRA-04, V25-06. | High | **High:** retained binaries produce false product failures and non-reproducible verification. | M; full rebuild and serial workspace runtime. | **Include.** | Slice 7 |
 | P25-06 | Patch lock-compatible `crossbeam-epoch`, `anyhow`, `event-listener`, and `memmap2` advisories without crossing Candle/SQLite/ORT/binding pins. Source: Slice 1 required updates. | High | **High:** one vulnerability and three unsoundness advisories remain; resolver movement can affect native/GPU code. | M; RED policy fixture, lock update, all-feature CPU/CUDA verification. | **Include as one bounded security package.** | Slice 7 |
-| P25-07 | Replace or upgrade the test-only `async-std` path through `httpmock`. Source: Slice 1 RUSTSEC-2025-0052. | Medium; maintained replacement and compatibility are not yet selected. | Medium; unmaintained test dependency versus avoidable migration churn. | M/L; test-infrastructure migration. | **Postpone** to a focused dependency slice unless P25-06 cannot resolve without it. | Dependency backlog |
+| P25-07 | Upgrade the test-only `httpmock 0.7.0` path to 0.8.3, which upstream changed from `async-std` to Tokio. Source: Slice 1 RUSTSEC-2025-0052 and the P25-07 follow-up in `slice-6-hitl-decisions.md`. | High; upstream declares no expected 0.8.0 API break, current MSRV is compatible, and the use is isolated to one loader-test file. | Medium; test-oracle/source or lock churn versus retaining a discontinued dependency. | M; RED dependency-policy fixture, manifest/lock change, loader tests and tree proof. | **Include**, stopping if source compatibility fails or product pins move. | Slice 7 |
 | P25-08 | Remove transitive `paste` by changing the Candle/GEMM/tokenizers stack. Source: Slice 1 RUSTSEC-2024-0436. | Medium; coupled upstream route is unknown. | Medium; unmaintained transitive crate, but blind removal risks core embedding platforms. | L/XL; coupled native-stack migration. | **Postpone.** | Candle/platform backlog |
 | P25-09 | Update Pyright 1.1.410 to 1.1.411. Source: Slice 1. | High | Low; exact diagnostic pin could change, with no security driver. | S; guard, typecheck, clean-environment proof. | **Postpone** to avoid coupling optional maintenance to security work. | Tooling backlog |
 | P25-10 | Update Ruff 0.15.17 to 0.16.5. Source: Slice 1. | High | Medium; lint/output churn with no security driver. | M; output review and broad fixes may follow. | **Postpone.** | Tooling backlog |
@@ -124,3 +124,12 @@ separately HITL-gated.
 - `dev/design/fathomdb-data-plane-architecture-v2.md`
 - `dev/plans/fathomdb-data-plane-foldback-v2.md`
 - `dev/plans/release-state-0.8.25.json`
+
+## Decision outcome
+
+The owner approved the recommended dispositions for P25-01 through P25-06 and
+P25-08 through P25-26 at `seq-272`, with two explicit refinements: P25-17 keeps
+all runs and data, and P25-20 remains narrow while completing needed maintained
+index corrections. P25-07 alone remains open after requesting more information;
+its focused evidence and revised recommendation are recorded in
+[`slice-6-hitl-decisions.md`](slice-6-hitl-decisions.md).

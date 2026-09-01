@@ -47,9 +47,10 @@ without Steward or Orchestrator roles.
 
 ## Decisions and blockers
 
-- One decision is open and halts the run: disposition P25-01 through P25-26 in
-  `dev/plans/0.8.25/prework/slice-6-proposal-register.md`. No Slice 7 plan or
-  implementation is authorized until the owner rules.
+- `seq-272` approves every recommendation except P25-07, explicitly keeps all
+  runs/data under P25-17, and keeps P25-20 narrow. P25-07 is the sole open
+  decision and halts Slice 7 planning pending the focused evidence/options in
+  `dev/plans/0.8.25/prework/slice-6-hitl-decisions.md`.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not

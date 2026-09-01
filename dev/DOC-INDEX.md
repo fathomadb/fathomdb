@@ -240,6 +240,7 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/release-state-0.8.25.json` · `dev/plans/runs/STATUS-0.8.25.md` | Machine-owned release state and generated live board for the dependency-linear 0.8.25 ladder | 0.8.25 | 2026-08-31 |
 | `dev/plans/0.8.25/prework/slice-0-{environment-and-infrastructure,decision-brief}.md` | Slice 0 environment/infrastructure evidence and decision inputs | 0.8.25 Slice 0 | 2026-08-31 |
 | `dev/plans/0.8.25/prework/slice-6-proposal-register.md` | Complete scored Slice 6 decision package and recommended Slice 7 boundary | 0.8.25 Slice 6 | 2026-08-31 |
+| `dev/plans/0.8.25/prework/slice-6-hitl-decisions.md` | Partial owner ruling and focused P25-07 dependency evidence/options | 0.8.25 Slice 6 | 2026-09-01 |
 | `dev/plans/earp-foundation.md` | As-built EARP evaluation-platform plan and acceptance criteria | EARP developer harness | 2026-08-08 |
 | `dev/plans/runs/0.8.22-slice-23-design-review-20260808.md` | Approved Slice 23 design review and FIX-1 closure | 0.8.22 Slice 23; integrated in `main` | 2026-08-08 |
 | `dev/plans/runs/0.8.22-slice-23-pickup-review-20260808.md` | Approved Slice 23 pickup review | 0.8.22 Slice 23; integrated in `main` | 2026-08-08 |

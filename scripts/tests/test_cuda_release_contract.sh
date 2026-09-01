@@ -377,6 +377,38 @@ path.write_text(text.replace(needle, '', 1))
 PY
 expect_fail "$FIXTURE" 'rejects a CUDA job without its environment-owned GPU UUID binding'
 
+for cuda_job in \
+  cuda-contract-preflight \
+  cuda-package-rehearsal \
+  cuda-reranker-package-rehearsal \
+  build-cuda-linux-x64-gnu; do
+  make_fixture "$FIXTURE"
+  python3 - "$FIXTURE/.github/workflows/release.yml" "$cuda_job" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+job = sys.argv[2]
+text = path.read_text()
+needle = '      CUDA_PATH: /usr/local/cuda-12.6\n'
+match = re.search(
+    rf"^  {re.escape(job)}:\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)",
+    text,
+    re.MULTILINE | re.DOTALL,
+)
+if match is None:
+    raise SystemExit(f"fixture lacks CUDA job {job}")
+body = match.group("body")
+if body.count(needle) != 1:
+    raise SystemExit(f"fixture CUDA job {job} must contain exactly one toolkit binding")
+path.write_text(
+    text[:match.start("body")] + body.replace(needle, "", 1) + text[match.end("body"):]
+)
+PY
+  expect_fail "$FIXTURE" "rejects $cuda_job without its CUDART static-link search path"
+done
+
 make_fixture "$FIXTURE"
 python3 - "$FIXTURE/scripts/release/cuda-preflight.sh" "$FIXTURE/scripts/release/cuda-package-rehearsal-smoke.sh" <<'PY'
 from pathlib import Path

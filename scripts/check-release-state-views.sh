@@ -156,7 +156,7 @@ def _git(*args):
 
 
 def completion_facts(st):
-    """Return the optional 0.8.23 completion reference after strict validation.
+    """Return an optional release-branch completion reference after strict validation.
 
     The absence of this object is intentional legacy behavior: older state files
     claim a main landing and must render byte-for-byte as they did before this
@@ -167,21 +167,21 @@ def completion_facts(st):
     completion = st.get("completion")
     if completion is None:
         return None
-    if st.get("release") != "0.8.23":
-        raise ValueError(
-            "`completion` is only permitted for release 0.8.23. Older release "
-            "state files retain their byte-identical `origin/main` landing model.")
     if not isinstance(completion, dict):
         raise ValueError("`completion` must be an object with exactly `ref` and `main_integration`")
     if set(completion) != {"ref", "main_integration"}:
         raise ValueError(
             "`completion` must contain exactly `ref` and `main_integration`; "
             "unknown or missing fields cannot silently change the landing claim")
-    expected_ref = "origin/release/0.8.23"
+    release = st.get("release")
+    if not isinstance(release, str) or not release:
+        raise ValueError(
+            "a state file with `completion` must contain a non-empty string `release`")
+    expected_ref = "origin/release/%s" % release
     if completion["ref"] != expected_ref:
         raise ValueError(
-            "`completion.ref` is %r; 0.8.23 release-branch completion must name %r"
-            % (completion["ref"], expected_ref))
+            "`completion.ref` is %r; release %s completion must name %r"
+            % (completion["ref"], release, expected_ref))
     integration = completion["main_integration"]
     if integration not in ("PENDING", "COMPLETE"):
         raise ValueError(

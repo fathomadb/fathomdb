@@ -2,6 +2,8 @@
 title: 0.8.25 Slice 10 — executable measurement classification
 status: DRAFT
 depends_on: 7
+design: design.md
+design_status: REVIEWED_BLOCKED_ON_SLICE_7
 ---
 
 # Slice 10 plan

@@ -2,6 +2,8 @@
 title: 0.8.25 Slice 15 — identity and canonical provenance
 status: DRAFT
 depends_on: 10
+design: design.md
+design_status: REVIEWED_BLOCKED_ON_SLICE_7
 ---
 
 # Slice 15 plan

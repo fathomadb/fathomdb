@@ -2,6 +2,8 @@
 title: 0.8.25 Slice 55 — tracing, explanation, and integrity
 status: DRAFT
 depends_on: 50
+design: design.md
+design_status: REVIEWED_BLOCKED_ON_SLICE_7
 ---
 
 # Slice 55 plan

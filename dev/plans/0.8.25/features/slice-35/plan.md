@@ -2,6 +2,8 @@
 title: 0.8.25 Slice 35 — frozen reads and eligibility
 status: DRAFT
 depends_on: 30
+design: design.md
+design_status: REVIEWED_BLOCKED_ON_SLICE_7
 ---
 
 # Slice 35 plan

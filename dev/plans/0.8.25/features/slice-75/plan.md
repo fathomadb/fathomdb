@@ -2,6 +2,8 @@
 title: 0.8.25 Slice 75 — integrated closure
 status: DRAFT
 depends_on: 70
+design: design.md
+design_status: REVIEWED_BLOCKED_ON_SLICE_7
 ---
 
 # Slice 75 plan

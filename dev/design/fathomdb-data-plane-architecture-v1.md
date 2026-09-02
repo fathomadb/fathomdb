@@ -4,9 +4,16 @@ status: ACTIVE
 architecture_version: 1
 implementation_status: planned
 target_release: 0.8.25
+approved_successor: dev/design/fathomdb-data-plane-architecture-v2.md
+successor_activation_gate: 0.8.25 Slice 7 completion
 ---
 
 # FathomDB data-plane architecture v1
+
+> **Successor notice:** architecture v2 is approved by the 0.8.25 Slice 6 HITL
+> decisions and becomes active when Slice 7 completes. Until that gate closes,
+> v1 remains the active historical baseline. New Slice 10+ design drafts target
+> v2 and may not become READY under v1.
 
 ## Purpose and boundary
 

@@ -20,8 +20,8 @@ The prework contract is
 The successor architecture and delivery plan are
 [`fathomdb-data-plane-architecture-v2.md`](../design/fathomdb-data-plane-architecture-v2.md)
 and [`fathomdb-data-plane-foldback-v2.md`](fathomdb-data-plane-foldback-v2.md).
-They remain proposed inputs until Slice 4 architecture review, Slice 5
-verification review, and Slice 6 HITL decisions are complete.
+Architecture v2 is approved by the completed Slice 4–6 review/HITL sequence
+and becomes active implementation authority when Slice 7 completes.
 
 ## Setup record
 
@@ -29,7 +29,8 @@ verification review, and Slice 6 HITL decisions are complete.
   `fca10bd2dfbb59ba7446fe66e0b1a9555c4df993`, which contains the merged
   `release/0.8.24` branch.
 - **Release branch:** `release/0.8.25`.
-- **Release worktree:** `/tmp/fathomdb-release-0.8.25`.
+- **Release worktree:**
+  `/home/coreyt/projects/fathomdb-worktrees/release-0.8.25`.
 - **Performance source:**
   `experiments/performance-0.8.23-plan-20260821` at
   `1fdd8142fda0c660b241b5785a52a9499e0ad2bb`.
@@ -124,6 +125,18 @@ index is [`0.8.25/features/README.md`](0.8.25/features/README.md), and the
 complete consumer-needs allocation is
 [`memex-0.6.0-needs-in-fathomdb-0.8.25.md`](memex-0.6.0-needs-in-fathomdb-0.8.25.md).
 No feature is accepted merely because it appears in this release overview.
+
+The [design-documentation matrix](0.8.25/design-documentation-matrix.md)
+allocates the 21 projected logical design needs exactly once to fourteen
+slice-owned design records. Those records may complete independent review
+before Slice 7, but remain reviewed drafts rather than READY implementation
+authority until the architecture activation and sequential dependency gates
+close.
+
+The design-documentation campaign is complete: all fourteen records passed
+independent review with no unresolved P1/P2 finding. Their current status is
+`REVIEWED_BLOCKED_ON_SLICE_7`; this does not start feature implementation or
+advance any Slice 10+ plan to READY.
 
 ## Cross-cutting DoD
 

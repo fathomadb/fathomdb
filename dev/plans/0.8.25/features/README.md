@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.25 feature-slice plans
-status: DRAFT
+status: DESIGNS_REVIEWED_BLOCKED_ON_SLICE_7
 target_release: 0.8.25
 ---
 
@@ -17,6 +17,19 @@ requirements and acceptance criteria, architecture-grounded design,
 independent design review with at most three FIX-n cycles, TDD RED/GREEN,
 independent implementation review with at most four FIX-n cycles, verification,
 and a durable status record.
+
+The [design-documentation matrix](../design-documentation-matrix.md) maps the
+21 logical design needs exactly once into the fourteen slice-owned design
+records. Design review may complete while Slice 7 is open, but no feature
+design becomes READY implementation authority before Slice 7 activates
+architecture v2 and all earlier slice dependencies are complete.
+
+Independent review is complete for all fourteen designs. The final review
+records are [Slices 10–30](design-review-10-30-cycle2.md),
+[Slices 35–55](design-review-35-55-cycle3.md), and
+[Slices 60–75](design-review-60-75-cycle2.md). All P1/P2 findings are resolved;
+the plans remain DRAFT because Slice 7 and sequential implementation gates are
+still open.
 
 ## Verification route vocabulary
 
@@ -44,24 +57,24 @@ changes a public or persisted contract. Such a slice must land Rust, Python,
 TypeScript, versioned-wire, unknown-field/variant, and Windows CPU/native proof
 locally; Slice 75 only audits the combined installed surface.
 
-## Plan index
+## Plan and design index
 
-| Slice | Draft plan |
-| ---: | --- |
-| 10 | [Measurement classification](slice-10/plan.md) |
-| 15 | [Identity and canonical provenance](slice-15/plan.md) |
-| 20 | [Dependency registration and liveness](slice-20/plan.md) |
-| 25 | [Atomic semantic actuation](slice-25/plan.md) |
-| 30 | [Lifecycle and erasure closure](slice-30/plan.md) |
-| 35 | [Frozen reads and eligibility](slice-35/plan.md) |
-| 40 | [Projection generation and readiness](slice-40/plan.md) |
-| 45 | [Governed pagination and operational state](slice-45/plan.md) |
-| 50 | [Source-complete evidence](slice-50/plan.md) |
-| 55 | [Tracing, explanation, and integrity](slice-55/plan.md) |
-| 60 | [Constrained combined graph expansion](slice-60/plan.md) |
-| 65 | [Deterministic candidate selection](slice-65/plan.md) |
-| 70 | [Temporal and associative retrieval](slice-70/plan.md) |
-| 75 | [Integrated closure](slice-75/plan.md) |
+| Slice | Draft plan | Consolidated design |
+| ---: | --- | --- |
+| 10 | [Measurement classification](slice-10/plan.md) | [Design](slice-10/design.md) |
+| 15 | [Identity and canonical provenance](slice-15/plan.md) | [Design](slice-15/design.md) |
+| 20 | [Dependency registration and liveness](slice-20/plan.md) | [Design](slice-20/design.md) |
+| 25 | [Atomic semantic actuation](slice-25/plan.md) | [Design](slice-25/design.md) |
+| 30 | [Lifecycle and erasure closure](slice-30/plan.md) | [Design](slice-30/design.md) |
+| 35 | [Frozen reads and eligibility](slice-35/plan.md) | [Design](slice-35/design.md) |
+| 40 | [Projection generation and readiness](slice-40/plan.md) | [Design](slice-40/design.md) |
+| 45 | [Governed pagination and operational state](slice-45/plan.md) | [Design](slice-45/design.md) |
+| 50 | [Source-complete evidence](slice-50/plan.md) | [Design](slice-50/design.md) |
+| 55 | [Tracing, explanation, and integrity](slice-55/plan.md) | [Design](slice-55/design.md) |
+| 60 | [Constrained combined graph expansion](slice-60/plan.md) | [Design](slice-60/design.md) |
+| 65 | [Deterministic candidate selection](slice-65/plan.md) | [Design](slice-65/design.md) |
+| 70 | [Temporal and associative retrieval](slice-70/plan.md) | [Design](slice-70/design.md) |
+| 75 | [Integrated closure](slice-75/plan.md) | [Design](slice-75/design.md) |
 
 Slices are strictly sequential. A later plan may be drafted but cannot become
 READY while its dependency is incomplete.

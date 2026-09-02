@@ -2,6 +2,8 @@
 title: 0.8.25 Slice 40 — projection generation and readiness
 status: DRAFT
 depends_on: 35
+design: design.md
+design_status: REVIEWED_BLOCKED_ON_SLICE_7
 ---
 
 # Slice 40 plan

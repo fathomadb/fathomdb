@@ -2,6 +2,8 @@
 title: 0.8.25 Slice 25 — atomic semantic actuation
 status: DRAFT
 depends_on: 20
+design: design.md
+design_status: REVIEWED_BLOCKED_ON_SLICE_7
 ---
 
 # Slice 25 plan

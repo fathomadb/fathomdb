@@ -2,6 +2,8 @@
 title: 0.8.25 Slice 50 — source-complete evidence
 status: DRAFT
 depends_on: 45
+design: design.md
+design_status: REVIEWED_BLOCKED_ON_SLICE_7
 ---
 
 # Slice 50 plan

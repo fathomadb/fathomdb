@@ -2,6 +2,8 @@
 title: 0.8.25 Slice 60 — constrained combined graph expansion
 status: DRAFT
 depends_on: 55
+design: design.md
+design_status: REVIEWED_BLOCKED_ON_SLICE_7
 ---
 
 # Slice 60 plan

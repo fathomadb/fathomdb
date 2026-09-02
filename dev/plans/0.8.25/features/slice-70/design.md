@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 70 — temporal and associative retrieval qualification design
-status: REVIEWED_BLOCKED_ON_SLICE_7
+status: REALLOCATED_EXPERIMENTAL
 design_version: 1
 target_release: 0.8.25
 depends_on: 65
@@ -8,6 +8,12 @@ readiness_gate: 0.8.25 Slice 7 completion
 ---
 
 # Slice 70 — temporal and associative retrieval qualification design
+
+> **Reallocated:** This reviewed design is preserved as experimental evidence,
+> not 0.8.25 implementation authority. The temporal profile is reconsidered
+> for 0.8.28; associative PPR/graph diffusion is reviewed when planning
+> 0.8.31. See the
+> [scope adjustment](../../scope-adjustment-2026-09-02.md).
 
 ## Authority and scope
 

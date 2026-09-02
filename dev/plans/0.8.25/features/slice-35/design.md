@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 35 — frozen reads and eligibility design
-status: REVIEWED_BLOCKED_ON_SLICE_7
+status: REVIEWED_MAX_ENVELOPE_SCOPE_NARROWED
 design_version: 2
 target_release: 0.8.25
 depends_on: 30
@@ -9,6 +9,13 @@ architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 ---
 
 # Slice 35 — frozen reads and eligibility design
+
+> **0.8.25 implementation boundary:** Eligibility-before-ranking remains
+> complete; frozen reads are optional and compact. Full snapshot lease and
+> retention machinery is deferred by the
+> [scope adjustment](../../scope-adjustment-2026-09-02.md). Ordinary reads
+> must not acquire snapshot overhead. Reconcile this maximum-envelope design
+> before READY review.
 
 ## Authority and comparison
 

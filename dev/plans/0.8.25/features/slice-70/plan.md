@@ -1,12 +1,18 @@
 ---
 title: 0.8.25 Slice 70 — temporal and associative retrieval qualification
-status: DRAFT
+status: REALLOCATED_EXPERIMENTAL
 depends_on: 65
 design: design.md
-design_status: REVIEWED_BLOCKED_ON_SLICE_7
+design_status: REVIEWED_EVIDENCE_NOT_0.8.25_AUTHORITY
 ---
 
 # Slice 70 plan
+
+> **Reallocated:** This reviewed plan is preserved as experimental evidence.
+> It is not part of the active 0.8.25 ladder. The specialized temporal profile
+> is reconsidered in 0.8.28; associative PPR/graph diffusion is reviewed when
+> planning 0.8.31. See the
+> [scope adjustment](../../scope-adjustment-2026-09-02.md).
 
 ## Outcome and carried obligations
 

@@ -18,22 +18,20 @@
     {"slice": 7, "short": "PREWORK-IMPLEMENTATION", "title": "approved repository-preparation implementation", "depends_on": [6], "status": "NOT_STARTED", "design_refs": ["dev/plans/0.8.25/prework/slice-7-implementation-plan.md"]},
     {"slice": 10, "short": "MEASUREMENT", "title": "executable measurement-layer classification", "depends_on": [7], "status": "NOT_STARTED"},
     {"slice": 15, "short": "IDENTITY", "title": "revision identity and canonical source provenance", "depends_on": [10], "status": "NOT_STARTED"},
-    {"slice": 20, "short": "DEPENDENCY", "title": "single-source and multi-source dependency registration", "depends_on": [15], "status": "NOT_STARTED"},
-    {"slice": 25, "short": "ACTUATION", "title": "atomic caller-decided semantic actuation", "depends_on": [20], "status": "NOT_STARTED"},
+    {"slice": 20, "short": "DEPENDENCY", "title": "core canonical-source-to-derived dependency registration", "depends_on": [15], "status": "NOT_STARTED"},
+    {"slice": 25, "short": "ACTUATION", "title": "bounded atomic caller-decided actuation", "depends_on": [20], "status": "NOT_STARTED"},
     {"slice": 30, "short": "LIFECYCLE", "title": "dependency-aware lifecycle and erasure closure", "depends_on": [25], "status": "NOT_STARTED"},
-    {"slice": 35, "short": "SNAPSHOT", "title": "frozen reads and eligibility-before-ranking", "depends_on": [30], "status": "NOT_STARTED"},
-    {"slice": 40, "short": "READINESS", "title": "projection generation and readiness correlation", "depends_on": [35], "status": "NOT_STARTED"},
-    {"slice": 45, "short": "PAGINATION", "title": "governed pagination and latest-state reads", "depends_on": [40], "status": "NOT_STARTED"},
-    {"slice": 50, "short": "EVIDENCE", "title": "source-complete evidence resolution", "depends_on": [45], "status": "NOT_STARTED"},
-    {"slice": 55, "short": "TRACE", "title": "provenance tracing, explanation, and integrity", "depends_on": [50], "status": "NOT_STARTED"},
-    {"slice": 60, "short": "GRAPH", "title": "constrained combined graph expansion", "depends_on": [55], "status": "NOT_STARTED"},
-    {"slice": 65, "short": "SELECTION", "title": "deterministic candidate-selection qualification", "depends_on": [60], "status": "NOT_STARTED"},
-    {"slice": 70, "short": "ASSOCIATIVE", "title": "temporal and associative retrieval qualification", "depends_on": [65], "status": "NOT_STARTED"},
-    {"slice": 75, "short": "CLOSURE", "title": "cross-SDK, concurrency, lifecycle, and performance closure", "depends_on": [70], "status": "NOT_STARTED"}
+    {"slice": 35, "short": "ELIGIBILITY", "title": "eligibility-before-ranking and optional frozen reads", "depends_on": [30], "status": "NOT_STARTED"},
+    {"slice": 40, "short": "READINESS", "title": "core projection generation and readiness correlation", "depends_on": [35], "status": "NOT_STARTED"},
+    {"slice": 45, "short": "PAGINATION", "title": "minimal pagination and operational-state reads", "depends_on": [40], "status": "NOT_STARTED"},
+    {"slice": 50, "short": "EVIDENCE", "title": "compact source-complete evidence", "depends_on": [45], "status": "NOT_STARTED"},
+    {"slice": 55, "short": "TRACE", "title": "basic provenance tracing and integrity", "depends_on": [50], "status": "NOT_STARTED"},
+    {"slice": 60, "short": "GRAPH", "title": "minimal constrained graph parity", "depends_on": [55], "status": "NOT_STARTED"},
+    {"slice": 75, "short": "CLOSURE", "title": "trimmed trustworthy release verification", "depends_on": [60], "status": "NOT_STARTED"}
   ],
   "landed": [],
   "next_slice": 7,
-  "remaining_ladder": [7, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75],
+  "remaining_ladder": [7, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 75],
   "decisions": {
     "unruled": [],
     "ruled": [
@@ -61,6 +59,11 @@
         "id": "slice-6-final-slice-7-plan",
         "title": "Approve the independently reviewed Slice 7 implementation plan and close Slice 6",
         "source": "seq-274"
+      },
+      {
+        "id": "post-design-scope-adjustment",
+        "title": "Narrow 0.8.25 to the provenance-safe data-plane core; allocate bubble work through 0.8.26-0.8.28/Parked and experimental work to odd-micro review checkpoints",
+        "source": "repository owner 2026-09-02; dev/plans/0.8.25/scope-adjustment-2026-09-02.md"
       }
     ]
   },

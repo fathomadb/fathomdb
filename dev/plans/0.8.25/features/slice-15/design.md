@@ -94,7 +94,7 @@ complete provenance.
 
 ## Shared 0.8.25 wire/SDK rules
 
-Every new public/persisted object in Slices 15–70 carries integer
+Every new public/persisted object in active Slices 15–60 carries integer
 `schema_version` and canonical fixtures. Requests/persisted writes reject
 unknown fields/variants/enums, duplicate keys, and unsupported versions.
 Responses accept the supported major, ignore additive unknown object fields,

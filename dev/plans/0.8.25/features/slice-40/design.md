@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 40 — projection generation and readiness design
-status: REVIEWED_BLOCKED_ON_SLICE_7
+status: REVIEWED_MAX_ENVELOPE_SCOPE_NARROWED
 design_version: 2
 target_release: 0.8.25
 depends_on: 35
@@ -9,6 +9,13 @@ architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 ---
 
 # Slice 40 — projection generation and readiness design
+
+> **0.8.25 implementation boundary:** Keep durable generation identity,
+> false-readiness prevention, restart-safe advancement, and compact
+> mutation-to-ready correlation. A richer public work-manifest surface is
+> outside 0.8.25 under the
+> [scope adjustment](../../scope-adjustment-2026-09-02.md). Reconcile this
+> maximum-envelope design before READY review.
 
 ## Authority and comparison
 

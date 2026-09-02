@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 55 — tracing, explanation, and integrity design
-status: REVIEWED_BLOCKED_ON_SLICE_7
+status: REVIEWED_MAX_ENVELOPE_SCOPE_NARROWED
 design_version: 4
 target_release: 0.8.25
 depends_on: 50
@@ -9,6 +9,13 @@ architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 ---
 
 # Slice 55 — tracing, explanation, and integrity design
+
+> **0.8.25 implementation boundary:** Retain bounded reciprocal tracing,
+> orphan/projection checks, and compact inclusion/degradation explanation.
+> Persisted trace pages and expanded exclusion tracing are deferred; frozen
+> jobs and repair orchestration are experimental under the
+> [scope adjustment](../../scope-adjustment-2026-09-02.md). Reconcile this
+> maximum-envelope design before READY review.
 
 ## Authority and comparison
 

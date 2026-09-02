@@ -3,17 +3,20 @@ title: 0.8.25 Slice 25 — atomic semantic actuation
 status: DRAFT
 depends_on: 20
 design: design.md
-design_status: REVIEWED_BLOCKED_ON_SLICE_7
+design_status: REVIEWED_MAX_ENVELOPE_SCOPE_RECONCILIATION_REQUIRED
 ---
 
 # Slice 25 plan
 
 ## Outcome and carried obligations
 
-Implement R25/AC25-25; Memex needs 3, 17, and 18; and A25-05. Add one typed,
-model-free, idempotent batch for caller-decided records, dependencies,
-facts/edges, lifecycle actions, consolidation verdicts, and metadata, with a
-complete committed-consequence or whole-batch-refusal receipt.
+Implement the core subset of R25/AC25-25 and Memex needs 3/17/18 under the
+approved [scope adjustment](../../scope-adjustment-2026-09-02.md). Add one
+bounded typed, model-free, idempotent batch for caller-decided canonical and
+derived records, core dependencies, and lifecycle actions. Return a compact
+committed or whole-batch-refused receipt with operation identity, affected
+IDs, resulting boundary, and readiness/closure references. Broader operation
+coverage and exhaustive consequence receipts are allocated to 0.8.26.
 
 ## Verification routes
 
@@ -23,7 +26,7 @@ verbs use that feature. GPU/CUDA and live-model are N/A.
 
 ## Draft-to-ready and delivery
 
-Specify atomicity, idempotency, policy/version, before/after state, partial
+Specify atomicity, boundedness, idempotency, compact receipt, whole-batch
 refusal, codec, parity, and Windows criteria; design transaction and receipt
 semantics; review; preserve RED fault-injection/replay tests through GREEN;
 review; verify selected routes; and record status. Stop on partial commit,

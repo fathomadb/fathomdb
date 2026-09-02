@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 design-documentation work matrix
-status: REVIEWED_BLOCKED_ON_SLICE_7
+status: REVIEWED_MAX_ENVELOPE_SCOPE_NARROWED
 target_release: 0.8.25
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 ---
@@ -13,6 +13,12 @@ This is the one-to-one authority map for the 21 logical design needs projected
 by Slices 10–75. The needs are consolidated into fourteen slice-owned design
 records. A slice design may be reviewed before its predecessor implements, but
 cannot become READY until the preceding slice and Slice 7 are complete.
+
+This matrix records the completed maximum-envelope design campaign. The later
+owner-approved [scope adjustment](scope-adjustment-2026-09-02.md) narrows
+0.8.25 implementation authority without deleting or rewriting the reviewed
+work. Retained designs with narrowed envelopes require scope reconciliation at
+their READY review; Slice 65/70 designs are reallocated experimental evidence.
 
 Disposition vocabulary is mechanical:
 
@@ -62,8 +68,22 @@ Disposition vocabulary is mechanical:
   [cycle 2 PASS](features/design-review-60-75-cycle2.md).
 
 All implementation-shaping P1/P2 findings are resolved. The designs remain
-blocked from READY only by Slice 7 activation and their sequential feature
-slice dependencies.
+reviewed evidence. Retained unchanged designs remain blocked by Slice 7 and
+their sequential dependencies; narrowed designs additionally require
+reconciliation to the approved scope. Slices 65/70 cannot become READY for
+0.8.25.
+
+## Post-review implementation disposition
+
+| Matrix rows | Disposition |
+| --- | --- |
+| 1–2, 6, 8 | Retained in 0.8.25 as reviewed. |
+| 4–5, 7, 9–14, 20–21 | Retained with the narrower boundary stated in the scope adjustment; reconcile before READY. |
+| 15, 18 | Manual profile/temporal work reconsidered for 0.8.28. |
+| 16–17 | Experimental candidate-selection review at 0.8.29. |
+| 19 | Experimental associative/diffusion review at 0.8.31. |
+| Portions of 13 and 20 | Full repair/integrity orchestration and exhaustive matrices reviewed at 0.8.33. |
+| Database-owned semantic reasoning | Parked outside the approved data-plane architecture. |
 
 ## Completion rules
 

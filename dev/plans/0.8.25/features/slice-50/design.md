@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 50 — source-complete evidence design
-status: REVIEWED_BLOCKED_ON_SLICE_7
+status: REVIEWED_MAX_ENVELOPE_SCOPE_NARROWED
 design_version: 3
 target_release: 0.8.25
 depends_on: 45
@@ -9,6 +9,12 @@ architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 ---
 
 # Slice 50 — source-complete evidence design
+
+> **0.8.25 implementation boundary:** Retain a compact opt-in evidence
+> identity and eligibility-bound resolver without default-hit growth.
+> Persisted evidence leases and replayable receipt retention are deferred by
+> the [scope adjustment](../../scope-adjustment-2026-09-02.md). Reconcile this
+> maximum-envelope design before READY review.
 
 ## Authority and comparison
 

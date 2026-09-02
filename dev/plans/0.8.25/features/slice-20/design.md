@@ -1,12 +1,19 @@
 ---
 title: 0.8.25 Slice 20 — dependency registration and liveness design
-status: REVIEWED_BLOCKED_ON_SLICE_7
+status: REVIEWED_MAX_ENVELOPE_SCOPE_NARROWED
 design_version: 1
 review_fix: 2
 depends_on: 15
 ---
 
 # Slice 20 design
+
+> **0.8.25 implementation boundary:** The reviewed design below records the
+> maximum envelope. Only canonical-source-to-derived dependencies, bounded
+> forward/reverse lookup, validation, and cycle rejection remain in 0.8.25.
+> Source sets, general derived-to-derived graphs, and configurable liveness are
+> deferred by the [scope adjustment](../../scope-adjustment-2026-09-02.md).
+> Reconcile the design to that subset before READY review.
 
 ## Authority and disposition
 

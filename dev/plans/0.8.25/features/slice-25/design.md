@@ -1,12 +1,19 @@
 ---
 title: 0.8.25 Slice 25 — atomic semantic actuation design
-status: REVIEWED_BLOCKED_ON_SLICE_7
+status: REVIEWED_MAX_ENVELOPE_SCOPE_NARROWED
 design_version: 1
 review_fix: 2
 depends_on: 20
 ---
 
 # Slice 25 design
+
+> **0.8.25 implementation boundary:** The reviewed design below records the
+> maximum envelope. 0.8.25 retains a bounded batch for records, core
+> dependencies, and lifecycle actions with a compact committed/refused
+> receipt. Broader operations and exhaustive consequence journals are deferred
+> by the [scope adjustment](../../scope-adjustment-2026-09-02.md). Reconcile
+> the design to that subset before READY review.
 
 ## Authority and disposition
 

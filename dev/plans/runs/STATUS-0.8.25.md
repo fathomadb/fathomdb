@@ -15,8 +15,10 @@ there, then regenerate this board's fenced view. The release plan is
 <!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 7 (PREWORK-IMPLEMENTATION), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
 Prework is active on the durable `release/0.8.25` worktree. Slices 0–7 are
-sequential; feature work begins at Slice 10. Direct agents execute this release
-without Steward or Orchestrator roles.
+sequential; feature work begins at Slice 10. The owner-approved 2026-09-02
+scope adjustment removes Slices 65/70 and narrows the retained implementation
+ladder. Direct agents execute this release without Steward or Orchestrator
+roles.
 
 ## Slice ladder
 
@@ -32,24 +34,26 @@ without Steward or Orchestrator roles.
 | 7 | Approved repository preparation | Ready |
 | 10 | Measurement classification | Not started |
 | 15 | Identity and source provenance | Not started |
-| 20 | Dependency registration | Not started |
-| 25 | Atomic semantic actuation | Not started |
+| 20 | Core dependency registration | Not started |
+| 25 | Core atomic semantic actuation | Not started |
 | 30 | Lifecycle and erasure closure | Not started |
-| 35 | Frozen reads and eligibility | Not started |
-| 40 | Projection generation/readiness | Not started |
-| 45 | Pagination and current state | Not started |
-| 50 | Source-complete evidence | Not started |
-| 55 | Tracing, explanation, and integrity | Not started |
-| 60 | Constrained graph expansion | Not started |
-| 65 | Deterministic candidate selection | Not started |
-| 70 | Temporal and associative retrieval | Not started |
-| 75 | Integrated release closure | Not started |
+| 35 | Eligibility and optional frozen reads | Not started |
+| 40 | Core projection generation/readiness | Not started |
+| 45 | Minimal pagination and operational state | Not started |
+| 50 | Compact source-complete evidence | Not started |
+| 55 | Basic tracing and integrity | Not started |
+| 60 | Minimal constrained graph parity | Not started |
+| 75 | Trimmed trustworthy release verification | Not started |
 
 ## Decisions and blockers
 
 - `seq-272` and `seq-273` rule every proposal. `seq-274` approves the reviewed
   Slice 7 plan and closes Slice 6. P25-17 keeps all runs/data; P25-20 remains
   narrow.
+- The owner-approved
+  [scope adjustment](../0.8.25/scope-adjustment-2026-09-02.md) is the current
+  feature boundary. Bubble work is allocated to 0.8.26–0.8.28 or Parked;
+  experimental work is assigned to 0.8.29/0.8.31/0.8.33 reviews or Parked.
 
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not
@@ -64,7 +68,7 @@ without Steward or Orchestrator roles.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 7 (PREWORK-IMPLEMENTATION)** — approved repository-preparation implementation. **Remaining ladder:** 7 → 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 65 → 70 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 7 (PREWORK-IMPLEMENTATION)** — approved repository-preparation implementation. **Remaining ladder:** 7 → 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 

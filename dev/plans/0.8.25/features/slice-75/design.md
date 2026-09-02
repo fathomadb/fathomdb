@@ -1,23 +1,31 @@
 ---
 title: 0.8.25 Slice 75 — integrated closure and installed conformance design
-status: REVIEWED_BLOCKED_ON_SLICE_7
+status: REVIEWED_MAX_ENVELOPE_SCOPE_NARROWED
 design_version: 1
 target_release: 0.8.25
-depends_on: 70
+depends_on: 60
 readiness_gate: 0.8.25 Slice 7 completion
 ---
 
 # Slice 75 — integrated closure and installed conformance design
 
+> **0.8.25 implementation boundary:** Verify only the retained Slice 10–60
+> surface with installed SDK/wire parity, representative lifecycle/evidence/
+> concurrency paths, selected regression performance, and a native retrieval
+> witness. Exhaustive scale-by-feature-by-CUDA matrices and Slice 65/70
+> live-model routes are excluded by the
+> [scope adjustment](../../scope-adjustment-2026-09-02.md). Reconcile this
+> maximum-envelope design before READY review.
+
 ## Authority and purpose
 
 This design owns R25/AC25-75, the measurement half of Memex need 21, needs 22
 and 24, and the integrated audit of need 23 and A25-01 through A25-07. It audits
-evidence produced by Slices 10–70 and measures the assembled data plane. It does
+evidence produced by retained Slices 10–60 and measures the assembled data plane. It does
 not repair missing feature proof, tune a failed profile, hide nonexecuted
 platforms, or mix answer-system results into a FathomDB claim.
 
-The design is REVIEWED_BLOCKED_ON_SLICE_7 and cannot become READY until Slice 7 activates
+The design cannot become READY until Slice 7 activates
 architecture v2 and every owning feature slice is READY with its own
 verification record.
 
@@ -41,7 +49,7 @@ verification record.
 | `dev/design/release.md` | **Preserve/reuse.** Owns registry install isolation and post-publish smoke principles. |
 | SCALE-01/SCALE-02 receipts | **Historical baselines.** Do not rewrite them; use their exact A0 operating points and result-equivalence discipline. |
 | GLOBAL-01 receipts | **Reclassify/reference.** They remain end-to-end evidence; the new native witness is separate retrieval-only evidence. |
-| Slice 10–70 records | **Audit inputs.** Missing or contradictory proof blocks closure and is returned to its owner. |
+| Retained Slice 10–60 records | **Audit inputs.** Missing or contradictory proof blocks closure and is returned to its owner. |
 
 ## Integrated evidence contract
 
@@ -77,7 +85,7 @@ package/native-package pairs, and their wire fixtures. A sealed per-target build
 manifest records candidate SHA, target triple, feature/profile set, toolchain,
 command, artifact name/version, size, and SHA-256. Source paths, editable
 installs, and a worktree-native module are forbidden. The same fixture
-corpus exercises every public Slice 15–70 type, success response, typed error,
+corpus exercises every retained public Slice 15–60 type, success response, typed error,
 unknown request field/variant, additive response field, and material unknown
 response variant. Rust/Python/TypeScript semantic results and canonical wire
 JSON must agree after documented casing conversion.
@@ -93,9 +101,9 @@ paths. CLI proof executes the packaged binary or installs it from the local
 crate registry in a clean cargo home.
 
 Windows x64 CPU/native Rust, Python, and Node evidence is mandatory. Windows
-CUDA remains explicitly deferred and cannot be implied by Linux CUDA. Linux
-CUDA runs every accepted dense/rerank profile and records `nvidia-smi`, runtime,
-model revision, allocation witness, and CPU-equivalence result. Pre-publication
+CUDA remains explicitly deferred and cannot be implied by Linux CUDA. Focused
+Linux CUDA runs only where a retained dense/graph contract changed and records
+`nvidia-smi`, runtime, model revision, and allocation witness. Pre-publication
 CLI doctor and packed-artifact open/write/search/lifecycle smokes are mandatory.
 
 Actual PyPI/npm/crates.io registry-installed smokes are a separate
@@ -196,7 +204,7 @@ gold.
 
 ## Flow, isolation, and failure policy
 
-1. Validate candidate cleanliness, exact commit, Slice 10–70 evidence closure,
+1. Validate candidate cleanliness, exact commit, retained Slice 10–60 evidence closure,
    manifest/schema, artifact versions, data roots, device/platform availability,
    and spend/network declarations.
 2. Build immutable artifacts once per target/profile from the same commit;
@@ -204,9 +212,9 @@ gold.
    in an isolated environment; prove imports/binaries resolve there.
 3. Create a fresh database per repetition and run cells in manifest order.
    Cold and steady samples, platforms, record sizes, and repetitions never pool.
-4. Checkpoint raw results atomically after every cell. Respect provider backoff
-   only for a preregistered live-model route; malformed exhausted cells become
-   failures and execution continues where safe.
+4. Checkpoint raw results atomically after every cell; malformed exhausted
+   cells become failures and execution continues where safe. No live-model
+   route is part of 0.8.25 closure.
 5. Validate file closure, digests, sample counts, cross-object equality, and
    status derivation before calculating summaries or appending the index.
 
@@ -241,14 +249,15 @@ processes retain logs and the remaining matrix is explicitly unrun.
 | SDK/wire parity | Same success/error fixtures across Rust/Python/TS, including unknown-field/variant evolution and Windows CPU/native. |
 | Snapshot concurrency | Scheduled writer races prove one view or typed failure at 1/4/12 readers and 10k/50k. |
 | Lifecycle closure | Fault/restart, stale projection, source-set removal, erasure fence, orphan injection, and repair authority tests. |
-| Performance | Five cold/steady repetitions retain raw distributions and resource/storage data for every declared cell; threshold drift rejects. |
+| Performance | Representative cold/steady cells retain raw distributions and resource/storage data; threshold drift rejects. Exhaustive scale-by-feature-by-CUDA coverage is not required. |
 | Evaluation boundary | A mixed-layer receipt and a witness bypassing `Engine.search` reject; the native search-only witness validates. |
 | GPU/platform honesty | Missing CUDA/Windows evidence is explicit; CPU/CUDA equivalence and device witnesses are required where selected. |
 
-Run repository fast, heavy, all, all-feature, and operator gates;
+Run repository fast, heavy, all, applicable all-feature/operator gates;
 pre-publication packed Python/npm/native/CLI/Rust-consumer and wire conformance;
-Windows CPU/native Rust/Python/Node; Linux CUDA; strict ptrace stress; lifecycle
-fault suites; and every live-model route accepted by Slices 65/70. After
+Windows CPU/native Rust/Python/Node; focused Linux CUDA where a retained
+contract changed; strict ptrace stress; and representative lifecycle fault
+suites. After
 separate publish authorization, run actual registry smokes as the
 post-publication close gate. Record N/A and unavailable separately; Windows
 CUDA is N/A by release decision.

@@ -8,13 +8,17 @@ target_release: 0.8.25
 
 ## Goals and scope
 
-0.8.25 converts the completed performance program and the complete Memex 0.6.0
-consumer-needs inventory into governed FathomDB data-plane contracts. FathomDB
-owns durable mechanisms and invariants. An external semantic component owns
-semantic policy, reasoning, and answers.
+0.8.25 uses the completed performance program and complete Memex 0.6.0
+consumer-needs inventory to deliver the essential governed FathomDB data-plane
+core and allocate nonessential work durably. FathomDB owns durable mechanisms
+and invariants. An external semantic component owns semantic policy, reasoning,
+and answers.
 
 The requirements crosswalk is
 [`memex-0.6.0-needs-in-fathomdb-0.8.25.md`](memex-0.6.0-needs-in-fathomdb-0.8.25.md).
+The approved post-design implementation boundary is
+[`0.8.25/scope-adjustment-2026-09-02.md`](0.8.25/scope-adjustment-2026-09-02.md);
+it supersedes earlier allocation language where they conflict.
 The prework contract is
 [`0.8.25-prework-slices-0-7.md`](0.8.25-prework-slices-0-7.md).
 The successor architecture and delivery plan are
@@ -59,18 +63,18 @@ In scope:
 
 - executable measurement-layer classification;
 - durable record-revision and source-version provenance;
-- explicit single- and multi-source dependencies;
-- atomic application of caller-decided semantic mutations and complete
-  receipts;
+- core canonical-source-to-derived dependency registration and lookup;
+- bounded atomic application of caller-decided records, dependencies, and
+  lifecycle actions with compact committed/refused receipts;
 - dependency-aware lifecycle, erasure, and integrity closure;
-- frozen read snapshots and eligibility-before-ranking predicates;
-- projection generation identity and readiness correlation;
-- stable ordered pagination and governed `operational_state` reads, with
+- optional frozen reads and uniform eligibility-before-ranking predicates;
+- core projection generation identity and readiness correlation;
+- minimal stable canonical pagination and governed `operational_state` reads, with
   `latest_state` remaining a consumer concept;
-- opt-in source-complete evidence and structural explanation;
-- constrained combined graph expansion;
-- benchmark-gated deterministic candidate-selection primitives; and
-- cross-SDK, concurrency, lifecycle, and performance verification.
+- compact opt-in source-complete evidence, basic tracing, and integrity checks;
+- minimal constrained combined graph parity; and
+- proportionate cross-SDK, concurrency, lifecycle, and performance
+  verification.
 
 Out of scope:
 
@@ -79,6 +83,11 @@ Out of scope:
   decomposition, synthesis, answer generation, semantic verification, model
   choice, spend, or HITL policy;
 - adoption of a benchmark treatment that fails its registered boundary; and
+- candidate-selection, associative/diffusion, automatic-routing, or other
+  experimental profile implementation allocated to the odd-micro review
+  schedule;
+- exhaustive scale-by-feature-by-CUDA matrices where representative release
+  regression evidence is sufficient; and
 - publication, which always requires separate HITL authorization.
 
 ## Slice ladder
@@ -99,18 +108,16 @@ backward dependency.
 | 7 | Implement only HITL-approved repository-preparation work from Slices 0–6 with TDD/review/independent verification; write status and clean isolated worktrees. | 6 | Ready |
 | 10 | Make measurement-layer classification executable, including whether `Engine.search` ran and which compared components differed. | 7 | Not started |
 | 15 | Add immutable record-revision identity, caller source-version identity, exact source locators, canonical hashes, and missing Rust-facade identity exports. | 10 | Not started |
-| 20 | Add queryable canonical-to-derived, derived-to-derived, and multi-source dependency registration with caller-declared liveness rules. | 15 | Not started |
-| 25 | Add atomic caller-decided semantic actuation, model-free consolidation application, idempotent operation identity, and complete mutation receipts. | 20 | Not started |
+| 20 | Add core queryable canonical-source-to-derived dependency registration, bounded lookup, validation, and cycle rejection. | 15 | Not started |
+| 25 | Add a bounded model-free atomic batch for caller-decided records, core dependencies, and lifecycle actions with compact idempotent receipts. | 20 | Not started |
 | 30 | Close lifecycle and erasure across registered dependencies with visibility fencing, idempotent propagation, and no-active-orphan proof. | 25 | Not started |
-| 35 | Add an Engine-minted frozen read snapshot and uniform indexed eligibility predicates before lexical, vector, or graph truncation. | 30 | Not started |
-| 40 | Add durable projection-generation identity and correlate mutation-to-ready, degraded, blocked, and deferred states. | 35 | Not started |
-| 45 | Add opaque ordered pagination for canonical list, graph, and current-state reads; expose governed `operational_state` point and page reads while keeping `latest_state` a consumer concept. | 40 | Not started |
-| 50 | Add opt-in source-complete evidence resolution bound to the originating snapshot and eligibility envelope. | 45 | Not started |
-| 55 | Add backward/forward provenance tracing, inclusion/exclusion explanation, receipt correlation, dependency-orphan checks, and governed operator maintenance. | 50 | Not started |
-| 60 | Add constrained combined graph expansion with typed direction, edge/target constraints, predicates, bounded continuation, and exact path evidence. | 55 | Not started |
-| 65 | Qualify deterministic entity/alias, duplicate, diversity, complementary-evidence, coverage, and candidate-fusion primitives. | 60 | Not started |
-| 70 | Qualify temporal and associative/graph-diffusion retrieval primitives without changing defaults absent an accepted benchmark. | 65 | Not started |
-| 75 | Run cross-SDK/wire parity, snapshot concurrency, lifecycle, cold/steady performance, resource, and retrieval-only evaluation closure. | 70 | Not started |
+| 35 | Add uniform indexed eligibility before lexical, vector, or graph truncation plus an optional Engine-minted frozen read context. | 30 | Not started |
+| 40 | Add core durable projection-generation identity, false-readiness prevention, restart-safe advancement, and compact mutation-to-ready correlation. | 35 | Not started |
+| 45 | Add minimal stable canonical pagination plus governed `operational_state` point/page reads while keeping `latest_state` a consumer concept. | 40 | Not started |
+| 50 | Add compact opt-in source-complete evidence resolution under the original or equivalent eligibility envelope. | 45 | Not started |
+| 55 | Add basic reciprocal provenance tracing, orphan/projection integrity checks, and compact inclusion/degradation explanation. | 50 | Not started |
+| 60 | Make combined graph expansion honor typed seed, direction, edge/target, bound, eligibility, and read-context constraints with deterministic one-page results. | 55 | Not started |
+| 75 | Audit installed cross-SDK/wire parity, representative concurrency/lifecycle/evidence paths, selected regression performance, and retrieval-only measurement. | 60 | Not started |
 
 ## Requirements and acceptance criteria
 
@@ -127,16 +134,17 @@ complete consumer-needs allocation is
 No feature is accepted merely because it appears in this release overview.
 
 The [design-documentation matrix](0.8.25/design-documentation-matrix.md)
-allocates the 21 projected logical design needs exactly once to fourteen
-slice-owned design records. Those records may complete independent review
-before Slice 7, but remain reviewed drafts rather than READY implementation
-authority until the architecture activation and sequential dependency gates
-close.
+records the completed maximum-envelope campaign: 21 projected logical needs
+mapped exactly once to fourteen reviewed design records. The later approved
+[scope adjustment](0.8.25/scope-adjustment-2026-09-02.md) limits 0.8.25
+implementation authority, preserves the broader designs as evidence, and
+allocates every removed item durably.
 
 The design-documentation campaign is complete: all fourteen records passed
-independent review with no unresolved P1/P2 finding. Their current status is
-`REVIEWED_BLOCKED_ON_SLICE_7`; this does not start feature implementation or
-advance any Slice 10+ plan to READY.
+independent review with no unresolved P1/P2 finding. Retained-slice records are
+`REVIEWED_BLOCKED_ON_SLICE_7`; Slice 65/70 records are
+`REALLOCATED_EXPERIMENTAL`. Review does not start feature implementation or
+advance any plan to READY.
 
 ## Cross-cutting DoD
 
@@ -164,9 +172,10 @@ release or backlog authority; it is never silently dropped.
 
 Slice 6 records every item before any scope reduction. It scores understanding,
 risk, effort, and release disposition, then collects explicit HITL decisions.
-The release may be overweight; evaluate that only after the prework findings
-and feature-slice plans are complete. No item silently moves out of 0.8.25, and
-completed performance tracks are not reopened by this planning work.
+The release was evaluated after the feature-design campaign and narrowed by
+the approved 2026-09-02 scope adjustment. No item moved silently: deferred and
+experimental work is assigned to 0.8.26, 0.8.27, 0.8.28, odd-micro review
+checkpoints, or Parked. Completed performance tracks are not reopened.
 
 The complete scored decision package is
 [`slice-6-proposal-register.md`](0.8.25/prework/slice-6-proposal-register.md).
@@ -182,7 +191,7 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
 **IMMEDIATE NEXT: Slice 7** (`PREWORK-IMPLEMENTATION`) — approved repository-preparation implementation
 
-**Remaining ladder:** 7 → 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 65 → 70 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 7 → 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
 Execute the approved Slice 7 plan directly, preserving its TDD, stop, review,
 verification, no-push, and no-publication boundaries.

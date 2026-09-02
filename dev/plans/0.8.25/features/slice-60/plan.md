@@ -1,19 +1,22 @@
 ---
-title: 0.8.25 Slice 60 — constrained combined graph expansion
+title: 0.8.25 Slice 60 — minimal constrained graph parity
 status: DRAFT
 depends_on: 55
 design: design.md
-design_status: REVIEWED_BLOCKED_ON_SLICE_7
+design_status: REVIEWED_MAX_ENVELOPE_SCOPE_RECONCILIATION_REQUIRED
 ---
 
 # Slice 60 plan
 
 ## Outcome and carried obligations
 
-Implement R25/AC25-60; Memex need 15 and graph-path portions of 12; and A25-05
-and A25-06. Extend combined expansion with query/explicit seeds, direction,
-edge kind, target kind, indexed predicates, frozen snapshot, bounded
-deterministic continuation, and exact seed/edge/path evidence.
+Implement the minimal subset of R25/AC25-60; Memex need 15 and graph-origin
+portions of 12; and A25-05/A25-06 under the approved
+[scope adjustment](../../scope-adjustment-2026-09-02.md). Make combined
+expansion honor query or explicit seeds, direction, edge kind, target kind,
+indexed eligibility, bounds, and one read context with deterministic one-page
+results. Rich continuation and replayable full path evidence are allocated to
+0.8.28.
 
 ## Verification routes
 
@@ -23,8 +26,8 @@ registry-installed graph/search smokes. Operator and live-model are N/A.
 
 ## Draft-to-ready and delivery
 
-Define constraint-before-truncation, direction/kind matrix, deterministic page,
-path lifecycle/evidence, fallback, parity, Windows, and CUDA criteria; design
+Define constraint-before-truncation, direction/kind matrix, deterministic
+one-page result, compact graph origin, fallback, parity, Windows, and CUDA criteria; design
 against existing BFS/graph-arm contracts; review; implement RED/GREEN matrix
 tests; review; verify; and record status. Stop on ignored constraints,
 unbounded expansion, or reintroduction of rejected exact-anchor treatment.

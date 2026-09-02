@@ -1,6 +1,6 @@
 ---
 title: FathomDB data-plane foldback plan v2
-status: PROPOSED
+status: ACTIVE
 plan_version: 2
 target_release: 0.8.25
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -10,10 +10,12 @@ architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 
 ## Outcome
 
-Deliver the complete performance and Memex data-plane foldback without moving
-semantic policy into FathomDB. The sequence is intentionally linear: each slice
-creates the identity, dependency, snapshot, or evidence contract required by
-the next. Slices 0–7 prepare the repository and decisions under
+Deliver the essential performance and Memex data-plane foldback without moving
+semantic policy or unproven retrieval algorithms into FathomDB. The complete
+needs/design inventory remains durable; the approved
+[`0.8.25 scope adjustment`](0.8.25/scope-adjustment-2026-09-02.md) defines the
+narrower implementation boundary and future allocation. The active sequence is
+intentionally linear. Slices 0–7 prepare the repository and decisions under
 [`0.8.25-prework-slices-0-7.md`](0.8.25-prework-slices-0-7.md). Feature work
 begins at Slice 10.
 
@@ -100,10 +102,11 @@ omissions, and current-state replacement.
 
 ### Slices 50–55 — evidence, explanation, and integrity
 
-Slice 50 adds opt-in evidence references and resolution under the originating
-snapshot and eligibility envelope. Slice 55 adds forward/back provenance,
-inclusion/exclusion explanation, receipt correlation, dependency-orphan checks,
-and governed operator maintenance.
+Slice 50 adds compact opt-in evidence references and resolution under the
+original or equivalent eligibility envelope. Slice 55 adds bounded forward/back
+provenance, compact inclusion/degradation explanation, and dependency-orphan/
+projection checks. Persisted evidence/trace leases, broad exclusion tracing,
+and repair orchestration are outside 0.8.25.
 
 Tests cover current, superseded, inactive, invisible, erased, mismatched, and
 unavailable evidence; stale references cannot reveal bytes. Bare search hits
@@ -111,27 +114,27 @@ retain their shape and cost.
 
 ### Slice 60 — constrained combined graph expansion
 
-Extend the existing combined-expansion path with query/explicit seeds,
-direction, edge kind, target kind, indexed predicates, frozen snapshot,
-bounded deterministic continuation, and exact seed/edge/path evidence. Do not
-reintroduce the rejected GRAPH-01 exact-anchor treatment.
+Make the existing combined-expansion path honor query/explicit seeds,
+direction, edge kind, target kind, indexed eligibility, bounds, and one read
+context with deterministic one-page results. Rich continuation and replayable
+path evidence move to 0.8.28. Do not reintroduce the rejected GRAPH-01
+exact-anchor treatment.
 
-### Slices 65–70 — benchmark-gated deterministic selection
+### Slices 65–70 — reallocated reviewed evidence
 
-Slice 65 evaluates entity/alias matching, duplicate suppression, diversity,
-complementarity, coverage, and candidate fusion. Slice 70 evaluates temporal
-retrieval and associative graph diffusion. Every treatment is named, bounded,
-opt-in, preregistered, and compared with the accepted default. A treatment that
-misses quality, lifecycle, or efficiency boundaries is recorded as rejected and
-does not ship as a default.
+Slices 65 and 70 are not active 0.8.25 implementation slices. Their reviewed
+designs remain evidence. Manual profile/temporal work is reconsidered in
+0.8.28; candidate-selection experiments at the 0.8.29 planning review; and
+associative/routing experiments at the 0.8.31 planning review. No default
+changes.
 
 ### Slice 75 — integrated closure
 
-Run installed cross-SDK and wire parity, including Windows CPU/native proof,
-plus cold/steady concurrency, evidence-resolution, pagination, dependency
-mutation, mutation-to-ready, erasure propagation, projection-generation,
-storage/resource, and rebuild-cost measurements. Add a retrieval-only native
-`Engine.search` global witness and keep answer-system metrics separate.
+Run installed cross-SDK/wire parity, including Windows CPU/native proof, plus
+representative concurrency, evidence, pagination, dependency, readiness,
+lifecycle, and selected performance regression checks. Add a retrieval-only
+native `Engine.search` witness and keep answer-system metrics separate.
+Exhaustive scale-by-feature-by-CUDA matrices are experimental, not required.
 
 ## Slice 3 draft contract allocation
 
@@ -143,18 +146,18 @@ implementation.
 | ---: | --- | --- |
 | 10 | R25-10 executable measurement-layer classification | Receipt schema negative cases, GLOBAL-01 reclassification, native retrieval-only witness |
 | 15 | R25-15 revision identity and canonical source provenance | Restart/reindex properties, locator/hash rejection, SDK/wire round trips |
-| 20 | R25-20 explicit single/multi-source dependencies | Invalid reference/cycle rejection, bidirectional lookup, liveness-rule removal |
-| 25 | R25-25 atomic caller-decided semantic batch and complete receipt | RED partial-failure injection, idempotent replay, cross-SDK receipt parity |
+| 20 | R25-20 core canonical-source-to-derived dependencies | Invalid reference/cycle rejection and bounded bidirectional lookup; broader forms move to 0.8.26 |
+| 25 | R25-25 bounded caller-decided semantic batch and compact receipt | RED partial-failure injection, idempotent replay, cross-SDK receipt parity; broader forms move to 0.8.26 |
 | 30 | R25-30 dependency-aware lifecycle and erasure closure | State-transition matrix, crash/restart/resume, stale-index and no-orphan proof |
-| 35 | R25-35 frozen snapshots and pre-ranking eligibility | Mutation/validity races, unsupported predicates, native query-plan proof |
+| 35 | R25-35 pre-ranking eligibility and optional frozen reads | Mutation/validity races, unsupported predicates, native query-plan proof, no mandatory snapshot overhead |
 | 40 | R25-40 durable projection generations/readiness correlation | Restart and wrong-generation negative tests, mutation-to-ready receipt proof |
-| 45 | R25-45 opaque ordered pages and governed `operational_state` | Duplicate/omission race, cursor mismatch/expiry/drift, point/page agreement |
-| 50 | R25-50 eligibility-bound source-complete evidence | Exact-byte resolution plus invisible/erased/stale/mismatched non-disclosure |
-| 55 | R25-55 provenance tracing, explanation, and integrity | Reciprocal traces, deterministic exclusions, injected-orphan/projection faults |
-| 60 | R25-60 constrained combined graph expansion | Constraint-before-truncation, deterministic continuation, exact path/lifecycle evidence |
-| 65 | R25-65 qualified deterministic candidate selection | Replayable quality/efficiency receipts and default-promotion guard |
-| 70 | R25-70 qualified temporal and associative retrieval | Changed-fact/time-scoped/multi-hop quality with accepted-default regression guard |
-| 75 | R25-75 integrated parity, concurrency, lifecycle, performance, and evaluation closure | Registry-installed cross-SDK fixtures and cold/steady distribution/resource receipts |
+| 45 | R25-45 minimal canonical/state pages and governed `operational_state` | Duplicate/omission race and point/page agreement; full cursor leases move to 0.8.27 |
+| 50 | R25-50 compact eligibility-bound source-complete evidence | Exact-byte resolution plus invisible/erased/stale/mismatched non-disclosure |
+| 55 | R25-55 basic provenance tracing, explanation, and integrity | Bounded reciprocal traces, compact degradation reasons, injected-orphan/projection faults |
+| 60 | R25-60 minimal constrained combined graph parity | Constraint-before-truncation and deterministic bounded one-page evidence |
+| 65 | Reallocated experimental evidence | Candidate-selection review at 0.8.29; no 0.8.25 implementation |
+| 70 | Reallocated experimental evidence | Temporal reconsideration at 0.8.28; associative review at 0.8.31 |
+| 75 | R25-75 trimmed parity, lifecycle, performance, and evaluation closure | Installed cross-SDK fixtures plus representative concurrency/resource receipts |
 
 ## Slice 4 architecture constraints
 
@@ -163,8 +166,9 @@ plans:
 
 - Slice 15 defines UTF-8 byte locators, immutable revision binding, hash
   algorithm, and versioned wire evolution.
-- Slices 20/30 define a bounded dependency-liveness grammar and test every
-  source-removal consequence without assigning semantic truth to the Engine.
+- Slices 20/30 define and close the core canonical-source-to-derived dependency
+  form without assigning semantic truth to the Engine. Multi-source liveness
+  moves to 0.8.26.
 - Slice 35 specifies observable frozen-snapshot semantics with typed
   unavailable/drift/expiry outcomes; it does not assume a permanently-held
   SQLite reader transaction.
@@ -188,7 +192,7 @@ inputs fail closed, default compact-search behavior has an explicit
 non-regression test, and a skipped external/platform route is recorded as
 missing evidence rather than a pass.
 
-Feature-local parity and correctness land in Slices 15–70. Slice 75 runs the
+Feature-local parity and correctness land in active Slices 15–60. Slice 75 runs the
 installed cross-SDK and integrated workload audit; it must not become a holding
 area for tests omitted by their owning feature slice.
 
@@ -211,7 +215,7 @@ READY:
   and CLI smoke routes for every changed public binding or wire contract.
 
 Windows CPU/native behavior is proved feature-locally for every public or
-persisted Slice 15–70 change. Windows CUDA remains outside 0.8.25. Slice 75
+persisted active Slice 15–60 change. Windows CUDA remains outside 0.8.25. Slice 75
 checks that the named receipts exist and agree; it does not supply missing
 feature-local proof. A route that is not applicable must be marked `N/A` with a
 reason, rather than omitted.
@@ -224,9 +228,9 @@ parallel across an unmet dependency. Cross-SDK parity is part of each public
 feature slice; Slice 75 audits it rather than postponing it.
 
 After every slice plan is written, assess P0/P1/P2 value, schema/API risk,
-verification cost, and critical path. Keep every identified item allocated
-until the HITL explicitly changes scope. Planning an overweight release is
-preferable to silently dropping a consumer obligation.
+verification cost, and critical path. The 2026-09-02 owner decision performed
+that reduction; removed work remains allocated in future drafts or the
+experimental review inventory rather than silently disappearing.
 
 ## Stop conditions
 

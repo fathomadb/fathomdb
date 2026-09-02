@@ -167,7 +167,7 @@ of architecture v2 rather than optional implementation guidance:
 | A25-02 | Exact locators are UTF-8 byte ranges over a named immutable revision, using a declared canonical byte representation and hash algorithm; invalid boundaries and hash mismatch reject typed. | 15, 50 |
 | A25-03 | FathomDB exposes governed current operational state backed by `operational_state`; `latest_state` remains a consumer concept. | 45 |
 | A25-04 | Multi-source dependencies use a bounded Engine-known liveness grammar. `all_required` and `any_surviving` have distinct removal behavior; unsupported rules reject typed. | 20, 30 |
-| A25-05 | Every new persisted or public type defines schema/wire version and unknown-field/unknown-variant behavior, with feature-local Rust, Python, TypeScript, and applicable Windows CPU/native proof. | 15–70; audit 75 |
+| A25-05 | Every new persisted or public type defines schema/wire version and unknown-field/unknown-variant behavior, with feature-local Rust, Python, TypeScript, and applicable Windows CPU/native proof. | active 15–60; audit 75; future slices retain the rule |
 | A25-06 | Eligibility and graph constraints execute before seed/candidate truncation and expansion; explanation distinguishes ineligible, not selected, unavailable, and degraded outcomes. | 35, 55, 60 |
 | A25-07 | Default `SearchHit` remains compact. Evidence handles are opt-in, bound to the originating visibility envelope, and resolve stale or invisible state only to typed non-disclosure. | 50 |
 

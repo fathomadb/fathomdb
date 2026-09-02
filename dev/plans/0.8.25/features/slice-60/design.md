@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 60 — constrained combined graph expansion design
-status: REVIEWED_BLOCKED_ON_SLICE_7
+status: REVIEWED_MAX_ENVELOPE_SCOPE_NARROWED
 design_version: 1
 target_release: 0.8.25
 depends_on: 55
@@ -8,6 +8,13 @@ readiness_gate: 0.8.25 Slice 7 completion
 ---
 
 # Slice 60 — constrained combined graph expansion design
+
+> **0.8.25 implementation boundary:** Retain honored seed, direction,
+> `edge_kind`, target-kind, eligibility, bound, and read-context constraints
+> with deterministic one-page results. Rich continuation and replayable full
+> path evidence are deferred by the
+> [scope adjustment](../../scope-adjustment-2026-09-02.md). Reconcile this
+> maximum-envelope design before READY review.
 
 ## Authority and scope
 

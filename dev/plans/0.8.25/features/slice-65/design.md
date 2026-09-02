@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 65 — deterministic candidate selection and profile qualification design
-status: REVIEWED_BLOCKED_ON_SLICE_7
+status: REALLOCATED_EXPERIMENTAL
 design_version: 1
 target_release: 0.8.25
 depends_on: 60
@@ -8,6 +8,12 @@ readiness_gate: 0.8.25 Slice 7 completion
 ---
 
 # Slice 65 — deterministic candidate selection and profile qualification design
+
+> **Reallocated:** This reviewed design is preserved as experimental evidence,
+> not 0.8.25 implementation authority. Manual profile-contract work is
+> reconsidered for 0.8.28; candidate-selection experiments are reviewed when
+> planning 0.8.29. See the
+> [scope adjustment](../../scope-adjustment-2026-09-02.md).
 
 ## Authority and shared ownership
 

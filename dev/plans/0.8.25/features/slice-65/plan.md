@@ -1,12 +1,18 @@
 ---
 title: 0.8.25 Slice 65 — deterministic candidate selection qualification
-status: DRAFT
+status: REALLOCATED_EXPERIMENTAL
 depends_on: 60
 design: design.md
-design_status: REVIEWED_BLOCKED_ON_SLICE_7
+design_status: REVIEWED_EVIDENCE_NOT_0.8.25_AUTHORITY
 ---
 
 # Slice 65 plan
+
+> **Reallocated:** This reviewed plan is preserved as experimental evidence.
+> It is not part of the active 0.8.25 ladder. Manual profile-contract work is
+> reconsidered in 0.8.28; entity/alias, complementary/coverage, and new
+> MMR/diversity treatments are reviewed when planning 0.8.29. See the
+> [scope adjustment](../../scope-adjustment-2026-09-02.md).
 
 ## Outcome and carried obligations
 

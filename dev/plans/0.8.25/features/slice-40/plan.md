@@ -3,16 +3,18 @@ title: 0.8.25 Slice 40 — projection generation and readiness
 status: DRAFT
 depends_on: 35
 design: design.md
-design_status: REVIEWED_BLOCKED_ON_SLICE_7
+design_status: REVIEWED_MAX_ENVELOPE_SCOPE_RECONCILIATION_REQUIRED
 ---
 
 # Slice 40 plan
 
 ## Outcome and carried obligations
 
-Implement R25/AC25-40; Memex need 13; and A25-05. Add durable projection
-generation identity and correlate mutations with ready, degraded, blocked, and
-deferred projection work across restart.
+Implement the core of R25/AC25-40, Memex need 13, and A25-05 under the approved
+[scope adjustment](../../scope-adjustment-2026-09-02.md). Add durable
+projection-generation identity, prevent false readiness, advance safely across
+restart, and expose compact mutation-to-ready correlation. A richer public
+work-manifest surface is not required in 0.8.25.
 
 ## Verification routes
 

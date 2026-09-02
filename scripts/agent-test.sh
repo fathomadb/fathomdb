@@ -155,6 +155,7 @@ run_tier_suite fast test-agent-test-collect-all bash scripts/tests/test_agent_te
 # Scripts (bash): release-time preflight (tag/--check-files/CHANGELOG/metadata).
 run_tier_suite fast test-verify-release-gates bash scripts/tests/test_verify_release_gates.sh
 run_tier_suite fast test-verify-release-python-wheel bash scripts/tests/test_verify_release_python_wheel.sh
+run_tier_suite fast test-dependency-policy bash scripts/tests/test_check_dependency_policy.sh
 
 # Exact Rust, npm, actionlint, and dispatch-tag alignment between local
 # prework and the release workflow.

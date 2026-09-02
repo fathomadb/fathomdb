@@ -1,6 +1,6 @@
 ---
 title: FathomDB 0.8.25 feature-slice plans
-status: DESIGNS_REVIEWED_BLOCKED_ON_SLICE_7
+status: ACTIVE_DESIGNS_SCOPE_RECONCILED_FORMAL_REVIEWS_PENDING
 target_release: 0.8.25
 ---
 
@@ -22,17 +22,19 @@ The [design-documentation matrix](../design-documentation-matrix.md) records
 the completed maximum-envelope campaign: 21 logical needs mapped exactly once
 into fourteen slice-owned design records. The later owner-approved
 [scope adjustment](../scope-adjustment-2026-09-02.md) is the implementation
-boundary. It preserves every reviewed design but removes Slices 65 and 70 from
-the active 0.8.25 ladder and narrows Slices 20, 25, 30, 35, 40, 45, 50, 55,
-60, and 75.
+boundary. The [coherence review](../design-coherence-review-2026-09-02.md)
+reconciled the twelve active designs to that boundary; removed design work is
+preserved in
+[`0.8.x-after-0.8.25-design-notes.md`](../../../design/0.8.x-after-0.8.25-design-notes.md).
 
-Independent review is complete for all fourteen designs. The final review
+Independent review is complete for the former maximum-envelope designs. The final review
 records are [Slices 10–30](design-review-10-30-cycle2.md),
 [Slices 35–55](design-review-35-55-cycle3.md), and
-[Slices 60–75](design-review-60-75-cycle2.md). All P1/P2 findings are resolved;
-the retained plans remain DRAFT because Slice 7 and sequential implementation
-gates are still open. Slice 65/70 designs remain historical reviewed evidence,
-not 0.8.25 implementation authority.
+[Slices 60–75](design-review-60-75-cycle2.md). All prior P1/P2 findings are
+resolved. The active contracts changed materially during scope reconciliation,
+so they remain DRAFT pending their slice-local formal independent review as
+well as Slice 7 and sequential gates. Slice 65/70 designs remain historical
+reviewed evidence, not 0.8.25 implementation authority.
 
 ## Verification route vocabulary
 

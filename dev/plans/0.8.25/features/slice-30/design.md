@@ -1,118 +1,104 @@
 ---
-title: 0.8.25 Slice 30 — lifecycle and erasure closure design
-status: REVIEWED_MAX_ENVELOPE_SCOPE_NARROWED
-design_version: 1
-review_fix: 2
+title: 0.8.25 Slice 30 — core lifecycle and erasure closure design
+status: DRAFT_SCOPE_RECONCILED_BLOCKED_ON_SLICE_7
+design_version: 2
 depends_on: 25
+architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 ---
 
 # Slice 30 design
 
-> **0.8.25 implementation boundary:** The reviewed design below records the
-> maximum dependency-closure envelope. 0.8.25 closes lifecycle and erasure for
-> the Slice 20 canonical-source-to-derived core. Multi-source liveness and the
-> corresponding journal/consequence extensions move to 0.8.26 under the
-> [scope adjustment](../../scope-adjustment-2026-09-02.md). Reconcile this
-> design to the core dependency model before READY review.
+## Authority and boundary
 
-## Authority and predecessor disposition
+Implements R25/AC25-30, N25-01/N25-02, Memex needs 5/6, and A25-05 for the
+Slice 20 canonical-source-to-derived relation. Existing lifecycle, erasure,
+and projection-registry contracts remain authoritative substrates. This design
+adds direct-dependent closure without introducing semantic policy.
 
-Implements R25/AC25-30, N25-01/N25-02, Memex needs 5/6, and A25-04/A25-05.
-Existing lifecycle/erasure/projection-registry paths are reused. Historical
-lifecycle and erasure records remain unchanged; this is their dependency-
-closure successor. READY remains blocked on Slice 7/review.
+Recursive derived DAG closure, source-set liveness, prepared-request journal
+recovery, and source-separable multi-source behavior are allocated after
+0.8.25.
 
-## Dependency-stage contract
+## Contract
 
 ```text
-ClosurePhase = planned | barriered | propagating | projections_pending |
-               proving | complete | incomplete
-ClosureStatusV1 { schema_version: 1, operation_id, root_action,
-  admitted_boundary, liveness_view, phase, processed_count, pending_count,
-  barriers, state_changes, dependency_consequences, projection_work_intents,
-  erasure_scope?, blockers, proof? }
-ClosureProofV1 { schema_version: 1, operation_id, proof_write_boundary,
-  active_orphan_count: 0, searchable_orphan_count: 0,
-  projection_orphan_count: 0, post_plan_dependency_count: 0,
-  journal_payload_match_count: 0, wal_complete, checks }
+ClosurePhase = planned | barriered | propagating |
+               projections_pending | proving | complete | incomplete
+ClosureStatusV1 {
+  schema_version: 1, operation_id, root_source_revision_id, root_action,
+  admitted_boundary, phase, processed_count, pending_count,
+  affected_revision_ids, projection_work_ids, blockers, proof?
+}
+ClosureProofV1 {
+  schema_version: 1, operation_id, proof_write_boundary,
+  active_dependent_count: 0,
+  searchable_dependent_count: 0,
+  projection_orphan_count: 0,
+  post_admission_dependency_count: 0,
+  checks
+}
 ```
 
-This slice uses Slice 25 boundaries/projection intents only. Reactivation is the
-existing transition to active, requires live dependencies, and cannot restore
-erased bytes.
+Supersede, invalidate, delete, and erase of a canonical source create a closure
+intent and source barrier in the same writer transaction as the root lifecycle
+change. The model-free transition matrix is fixed:
 
-## Liveness versus physical erasure
+| Source action | Direct dependent action |
+| --- | --- |
+| supersede | invalidate; no replacement is inferred |
+| invalidate | invalidate |
+| delete | delete |
+| erase | erase source-derived bytes and indexes |
 
-Ordinary lifecycle closure uses Slice 20 strict liveness. Physical erasure is
-stricter: any caller-authored artifact possibly containing erased-source
-material is barriered and inactivated/erased regardless of `any_surviving`.
-Only a registered Engine-owned source-separable projection may remove one source
-component and remain. A caller artifact can return only as a new external
-revision with clean bytes/dependencies. Removed members remain non-content
-tombstoned audit links; the same body is never silently detached.
+Erasure retains only approved non-content tombstones. A derived artifact can
+return only through a new caller-authored revision and dependency.
 
-## Barrier admission and conservative read guard
+## Fencing and propagation
 
-Slice 25 atomically persists root/source barriers with closure intent. Every
-write, dependency registration, actuation, projection, and lifecycle path
-rejects new reference/derivation from a barriered root/source.
+From barrier admission through successful proof, every governed list, search,
+FTS, vector, graph, projection, and evidence path applies a direct dependency
+guard before candidate/seed/frontier truncation. A derived revision whose
+active Slice 20 dependency names a barriered source is ineligible even before
+its work row is processed. Missing/corrupt dependency indexes or inability to
+evaluate the guard fails the read `closure_visibility_unavailable`.
 
-From barrier commit until proof retires it, every governed canonical, list,
-search, FTS, vector, graph, projection, and evidence read applies an Engine
-`closure_visibility_guard` **before** candidate/seed/frontier truncation. Using
-indexed Slice 20 reverse dependencies, an artifact is ineligible when its
-active dependency ancestry reaches a barriered artifact/source, whether or not
-a work row has been materialized. The guard is cycle-safe, bound to the read's
-strict effective instant, and has no permissive limit: storage error, missing
-index, traversal-resource exhaustion, or inability to prove absence fails the
-entire read `closure_visibility_unavailable`. SDK/post-filter emulation is
-forbidden. The guard remains until zero proof/atomic barrier retirement.
+The same barrier rejects new derived writes or dependencies against the source.
+Propagation uses durable work rows keyed by `(closure_operation_id,
+derived_revision_id, action)` and bounded transactions. It resumes
+idempotently after restart. Because Slice 20 has no derived-to-derived edges,
+this is a bounded direct lookup, not recursive ancestry traversal.
 
-Propagation uses durable frontier rows keyed by `(operation, artifact, action)`
-and processes at most 1,000 per transaction to a fixed point. Total impact is
-not capped. Resource exhaustion records resumable incomplete and retains
-barriers/guard; operator resume cannot lift them. Each discovered artifact is
-also directly fenced.
+If more dependents exist than one transaction processes, the barrier and guard
+remain. Resource exhaustion records `incomplete` and never lifts visibility
+fencing. A concurrent dependency registration either commits before admission
+and appears in the fixed work/proof set or observes the barrier and fails.
 
-## Semantic-operation journal erasure
+## Completion and proof
 
-Before source/revision erasure propagation, use Slice 25's reference index to
-find every nonterminal operation that may contain matching bytes. Under the
-single writer, deterministically recover it to committed/refused terminal state
-before the erasure advances. Terminalization strips request bytes atomically.
-If recovery cannot finish, erasure becomes `incomplete`, retains its barrier and
-visibility guard, and reports `journal_recovery_required`; it never deletes
-recovery state or claims success.
+After dependent lifecycle work, drain relevant projections and inspect
+canonical/dependency, FTS, vector, graph, evidence, and WAL state. Completion
+requires zero active/searchable/projection dependents plus no post-admission
+dependency. The zero proof and barrier retirement commit atomically at a later
+write boundary. An empty queue alone is not completion.
 
-Terminal receipts/reference rows contain only the approved non-content
-idempotency/audit minimum. Erasure removes/redacts prohibited references under
-the existing audit policy. Completion scans journal payload/blob columns and
-reference indexes, and proves no matching source/revision bytes or prohibited
-content remains. Raw byte canaries cover admitted, recovery-required, committed,
-and refused operations plus WAL. The journal participates in the same proof
-boundary as canonical/dependency/projection/telemetry stores.
+Current lifecycle and erasure APIs remain compatible. Reactivation is the
+existing transition to `active`, requires a currently valid source dependency,
+and cannot restore erased bytes. All public/persisted types follow Slice 15
+wire/SDK rules.
 
-## Proof, invariants, and failures
+Failures include closure conflict, barrier conflict, visibility unavailable,
+inactive reactivation, projection/proof incomplete, resource exhausted, and
+erasure incomplete.
 
-After propagation, drain projection intents and run raw canonical, dependency,
-FTS/vector/graph, evidence/telemetry, semantic-journal, and WAL checks at a later
-write boundary. Proof checks no post-admission dependency exists. Only zero
-proof atomically marks complete/retires barrier; failure retains it. Empty work
-queue alone is not completion.
+## RED/GREEN and verification
 
-No impacted artifact is visible after barrier admission, including last-page
-undiscovered descendants. Failures include closure/boundary/barrier conflict,
-visibility unavailable, journal recovery required, dependency rule, inactive
-reactivation, erasure/projection/proof incomplete, and resource exhausted.
+RED tests cover every root action, a dependent below the first work page,
+read/write races, missing reverse index, injected projection orphan, restart at
+each phase, exhausted resources, false empty-queue completion, and raw-byte/WAL
+erasure canaries. GREEN proves immediate fail-closed visibility, idempotent
+resume, no post-barrier registration, exact affected-state transitions, zero
+proof, atomic barrier retirement, and clean replacement by a new revision.
 
-## Tests and verification
-
-Maximum-envelope tests below cover all transitions/rules, physical-erasure
-cases, source-separable projection, clean replacement, audit tombstones,
-more-than-one-page closure with immediate query of the last undiscovered descendant,
-guard failure-closed paths, write races, resource resume/restart, journal
-admitted/recovery/terminal payload stripping, raw receipt/reference/WAL
-canaries, and later-boundary proof. Run fast, heavy, all/all-feature/operator,
-Windows SDK/native, and packaged artifacts; CUDA/model N/A. The READY
-reconciliation must remove deferred multi-source cases from the 0.8.25
-mandatory matrix without deleting them from future-release evidence.
+Run fast, heavy, all/all-feature/operator, Windows Rust/Python/Node, and locally
+packed artifact routes. CUDA and live-model are N/A. A formal independent READY
+review remains required after Slice 7 and Slice 25 complete.

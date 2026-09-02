@@ -142,9 +142,13 @@ implementation authority, preserves the broader designs as evidence, and
 allocates every removed item durably.
 
 The design-documentation campaign is complete: all fourteen maximum-envelope
-records passed independent review with no unresolved P1/P2 finding. Slice
-10/15 records remain `REVIEWED_BLOCKED_ON_SLICE_7`; narrowed retained
-records require scope reconciliation before READY; and Slice 65/70 records are
+records passed independent review with no unresolved P1/P2 finding. The later
+[design coherence review](0.8.25/design-coherence-review-2026-09-02.md)
+reconciled the twelve active designs to the approved narrower scope and moved
+removed design work to
+[`0.8.x-after-0.8.25-design-notes.md`](../design/0.8.x-after-0.8.25-design-notes.md).
+Because the normative designs changed materially, each active slice still
+requires its formal independent review before READY. Slice 65/70 records remain
 `REALLOCATED_EXPERIMENTAL`. Review does not start feature implementation.
 
 ## Cross-cutting DoD

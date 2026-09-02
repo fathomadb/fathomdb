@@ -74,9 +74,10 @@ listed review or Parked, but may not silently promote it.
 ## Documentation and implementation effect
 
 - The reviewed Slice 65 and 70 designs are preserved and marked reallocated.
-- Retained slice designs remain useful maximum-envelope designs, but their
-  0.8.25 implementation authority is limited by this document and their
-  revised slice plans.
+- The former maximum-envelope designs remain in Git history and review records.
+  The active slice designs have been rewritten to this document's 0.8.25
+  boundary; removed design items are preserved in
+  `dev/design/0.8.x-after-0.8.25-design-notes.md`.
 - Future-release scope files preserve deferred work; no implementation is
   authorized by allocation alone.
 - Slice 75 depends directly on Slice 60 and verifies only the retained surface.

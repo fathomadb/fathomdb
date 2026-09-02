@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 15 — identity, provenance, and wire evolution design
-status: REVIEWED_BLOCKED_ON_SLICE_7
-design_version: 1
+status: DRAFT_SCOPE_RECONCILED_BLOCKED_ON_SLICE_7
+design_version: 2
 review_fix: 2
 depends_on: 10
 ---
@@ -39,9 +39,11 @@ ArtifactProvenanceV1 {
 
 Every canonical record has one `ArtifactRevisionId` that is also its
 `SourceRevisionId`; its whole-body link spans that canonical revision. Every
-caller-derived artifact has its own artifact revision and zero or more links to
-different canonical source revisions; Slice 20 represents semantic dependency
-sets over those revisions. New source-backed writes require complete links.
+caller-derived artifact has its own artifact revision and zero or one link to
+a canonical source revision in 0.8.25. The wire/storage field remains a list so
+0.8.26 can relax the bound additively for reviewed multi-source provenance;
+0.8.25 rejects more than one link. Slice 20 represents the matching core
+dependency. New source-backed writes require one complete link.
 
 Canonical bytes are exact stored UTF-8 with no normalization. Whole-body is
 `[0, byte_len)`. Ranges are ordered, in bounds, and code-point aligned. SHA-256
@@ -100,8 +102,8 @@ unknown fields/variants/enums, duplicate keys, and unsupported versions.
 Responses accept the supported major, ignore additive unknown object fields,
 and reject unknown required variants/newer majors. Opaque IDs are strings; u64
 offsets are decimal strings in JSON. Typed errors share code/field path across
-SDKs. Each owner proves Windows CPU/native and fresh installed parity; Slice 75
-only audits. Bare `SearchHit` remains unchanged.
+SDKs. Each owner proves Windows CPU/native and locally packaged parity; Slice
+75 only audits. Bare `SearchHit` remains unchanged.
 
 ## Persistence, flow, failures, and tests
 
@@ -110,10 +112,16 @@ and canonical-source unique indexes. Prepare bytes/links, validate or mint IDs,
 validate ranges/hashes, then commit row and synchronous projections in the
 writer transaction. Async work carries artifact revision.
 
+The Rust facade exports the same revision/source/provenance types and codecs as
+the Python and TypeScript bindings while preserving the existing `IdSpace`
+surface. No SDK may collapse a revision ID into a logical ID or write cursor.
+
 Tests cover the validator union, cross-class uniqueness, namespace/length/
-non-PII rules, canonical versus derived identities, multi-source links,
+non-PII rules, canonical versus derived identities, zero/one source link and
+multi-source rejection,
 restart/reindex/supersession, every migration row, equal bytes across sources,
 collision/open failure, incomplete evidence, UTF-8/hash tamper, erasure, wire/
 u64/error fixtures, three SDKs, Windows, and locally packaged artifacts. Run
 fast, heavy, all, all-feature, Windows and packaged-artifact routes;
-operator/CUDA/model and pre-publication registry routes are N/A.
+operator/CUDA/model and pre-publication registry routes are N/A. A formal
+independent READY review remains required after Slice 7 and Slice 10 complete.

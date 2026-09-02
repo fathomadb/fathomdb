@@ -1,96 +1,112 @@
 ---
-title: 0.8.25 Slice 25 — atomic semantic actuation design
-status: REVIEWED_MAX_ENVELOPE_SCOPE_NARROWED
-design_version: 1
-review_fix: 2
+title: 0.8.25 Slice 25 — bounded atomic actuation design
+status: DRAFT_SCOPE_RECONCILED_BLOCKED_ON_SLICE_7
+design_version: 2
 depends_on: 20
+architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 ---
 
 # Slice 25 design
 
-> **0.8.25 implementation boundary:** The reviewed design below records the
-> maximum envelope. 0.8.25 retains a bounded batch for records, core
-> dependencies, and lifecycle actions with a compact committed/refused
-> receipt. Broader operations and exhaustive consequence journals are deferred
-> by the [scope adjustment](../../scope-adjustment-2026-09-02.md). Reconcile
-> the design to that subset before READY review.
+## Authority and boundary
 
-## Authority and disposition
+Implements the retained core of R25/AC25-25, N25-01, Memex needs 3/17 and the
+compact portion of 18, plus A25-05. It is a model-free mechanism for applying
+decisions already made by a caller. Typed-write, `PreparedWrite`, and the
+single SQLite writer transaction remain the implementation substrate.
 
-Implements R25/AC25-25, N25-01, Memex needs 3/17/18, and A25-05. Typed-write,
-`PreparedWrite`, and `Engine.write` are reused internally. Provider-based
-consolidation is historical reference; no provider runs here. Existing compact
-receipts remain; this adds model-free actuation. READY stays blocked.
+Facts, edges, merge/coexist verdict variants, full consequence journals,
+public crash-journal administration, and omnibus batch sizes are outside this
+slice and preserved in the post-0.8.25 design notes.
 
-## Dependency-stage public contract
+## Contract
 
 ```text
-ExpectedWriteBoundaryV1 { schema_version: 1, database_id,
-                          canonical_write_boundary }
-ResultingWriteBoundaryV1 { schema_version: 1, database_id,
-                           canonical_write_boundary }
-ProjectionWorkIntentV1 { schema_version: 1, projection_name,
-  mutation_boundary, projection_cursor, terminal_state, work_kind }
-SemanticBatchV1 { schema_version: 1, operation_id, policy,
-  expected_write_boundary?, operations }
-SemanticBatchReceiptV1 { schema_version: 1, operation_id, request_sha256,
-  outcome, policy, admitted_boundary, resulting_write_boundary?, created_ids,
-  affected_ids, state_changes, dependency_changes, projection_work_intents,
-  closure_operation_ids, refusals }
-Outcome = committed | committed_closure_pending | refused
+ActuationOperationV1 =
+  PutCanonical { record }
+  | PutDerived { record }
+  | RegisterSourceDependency { dependency }
+  | TransitionLifecycle { target_revision_id, transition }
+
+ActuationBatchV1 {
+  schema_version: 1,
+  operation_id,
+  decision_policy_id?,
+  expected_write_boundary?,
+  operations: [1..128]
+}
+
+ActuationReceiptV1 {
+  schema_version: 1,
+  operation_id,
+  request_sha256,
+  outcome: committed | committed_closure_pending | refused,
+  reason_codes,
+  affected_revision_ids,
+  resulting_write_boundary?,
+  projection_work_ids,
+  closure_operation_ids
+}
 ```
 
-Operations are canonical/derived/fact/edge writes, dependency put/retire,
-transition, and caller-decided coexist/supersede/invalidate/merge. Slice 25 has
-no frozen snapshot/generation type; Slices 35/40 extend additively. Merge writes
-exact caller content/dependencies; no semantic provider runs.
+The lifecycle transition union is the existing governed active/superseded/
+invalidated/deleted transition contract. Reactivation uses the existing
+transition to `active`; erased bytes are never restored. A caller expresses a
+supersession by creating the replacement revision and transitioning the old
+revision in the same batch. FathomDB validates the decision but does not decide
+whether the claims conflict.
 
-## Crash-stable journal and erasure index
+## Atomicity and idempotency
 
-The operation journal stores ID, canonical digest, prepared request while
-nonterminal, admission boundary, phase, and terminal receipt. A normalized
-`semantic_operation_references` index records every source ID, source revision,
-artifact revision, logical identity, and dependency-set revision referenced by
-the request, keyed by operation ID. Journal and reference index updates share
-the admission/terminal writer transactions.
+The Engine canonicalizes and hashes the closed request, validates all
+operations against one prospective state, then applies domain rows, synchronous
+projection work, the compact operation record, and receipt in one SQLite writer
+transaction. An operation may reference a record created earlier in the same
+batch. Any invalid operation refuses the whole batch; per-operation reason
+codes are diagnostic and never imply partial commit.
 
-First transaction reserves ID/digest and validates at the stored boundary.
-Invalid requests store terminal refusal in that transaction; valid requests
-store an admitted deterministic prepared plan. The next transaction applies
-all domain rows and terminal receipt atomically. Engine open recovers admitted
-plans before later writes. Same ID/digest replays terminal or returns
-`operation_in_progress`; another digest conflicts.
+The compact operation table stores only operation ID, request digest, terminal
+outcome/reason codes, opaque affected IDs, boundaries, and work/closure IDs. It
+stores no record bodies, query text, source locators, or prepared request.
 
-On either committed or refused terminal transition, prepared request bytes and
-any content-bearing diagnostics are zeroed/deleted in the same transaction.
-Terminal journal rows retain only operation/digest, policy version, non-content
-opaque IDs, phase, boundary, reason codes, and compact receipt. Reference-index
-rows retain opaque non-content IDs for idempotency, audit, and erasure lookup.
-Terminal rows are outside cap sweeps until explicit governed operation-record
-erasure/database destruction. Nonterminal payloads remain inside Slice 30's
-source/revision erasure boundary and cannot be removed before recovery resolves.
+- Same operation ID and digest returns the identical terminal receipt.
+- Same operation ID and different digest returns `operation_id_conflict`.
+- A crash before transaction commit leaves neither mutation nor receipt; retry
+  executes normally.
+- A crash after commit replays the stored receipt.
 
-## Lifecycle staging and invariants
+There is no admitted/in-progress public state in 0.8.25. SQLite atomic commit,
+not a second public recovery protocol, is the crash boundary.
 
-Every lifecycle batch creates a baseline closure intent and root/source barrier
-regardless of size. Intent ID, roots, action, admission boundary, liveness
-instant, and journal references commit atomically with domain mutation and
-receipt. Direct roots fail closed; receipt is `committed_closure_pending` and
-names closure IDs. Slice 30 processes intents.
+## Validation, lifecycle, and limits
 
-Validation considers the prospective whole batch and allows earlier creates.
-Any domain failure rolls back all domain state. Partial refusal is diagnostic
-only. Failures include invalid operation/reference/transition, cycle,
-write-boundary mismatch, idempotency conflict/in-progress, projection contract,
-bounds, barrier conflict, and recovery required. Cap at 1,000 operations,
-10,000 references, and existing payload limits.
+Validation checks Slice 15 identity/provenance, Slice 20 dependency roles,
+allowed lifecycle transitions, expected boundary, projection declarations,
+payload limits, and at most 128 operations/2,048 total references. The batch
+cannot invoke a provider, model, network, GPU, query decomposition, semantic
+merge, or truth judgment.
 
-## Tests and verification
+A lifecycle action that requires Slice 30 propagation commits its root barrier
+and closure intent atomically and returns `committed_closure_pending`. Other
+committed batches return `committed`. The receipt is compact; detailed
+consequences remain queryable through the owning record, dependency,
+projection, and closure APIs.
 
-Fault injection covers reservation, validation, admission, commit, reopen,
-same-ID concurrency, terminal replay/retention, and reference-index atomicity.
-Fixtures prove terminal payload stripping, non-content receipts, admitted
-source lookup, and no deletion before recovery. Also cover forward references,
-verdicts, cycles, boundaries/intents/barriers, codecs, SDK/Windows/installed
-parity. Run fast, heavy, all/all-feature and registry; operator for recovery;
-CUDA/model N/A.
+All types follow Slice 15 wire and SDK rules. Failures include invalid
+operation/reference/transition, dependency conflict, boundary mismatch,
+projection contract mismatch, bounds, barrier conflict, and idempotency
+conflict.
+
+## RED/GREEN and verification
+
+RED tests inject failure at every operation position, invalid forward
+references, mismatched boundaries, same-ID/different-digest races, limits, and
+codec drift. GREEN proves no partial domain/receipt/projection state, legal
+within-batch forward references, identical replay, before/after-commit crash
+behavior, terminal non-content storage, and Slice 30 closure intent creation.
+
+Run fast, heavy, all/all-feature, Windows Rust/Python/Node, and locally packed
+artifact routes. Run the operator-feature route only if the reused lifecycle
+transition is operator-gated; otherwise record it N/A at readiness. CUDA,
+live-model, and pre-publication registry routes are N/A. A formal independent
+READY review remains required after Slice 7 and Slice 20 complete.

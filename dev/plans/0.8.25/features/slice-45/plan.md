@@ -3,7 +3,7 @@ title: 0.8.25 Slice 45 — minimal pagination and operational state
 status: DRAFT
 depends_on: 40
 design: design.md
-design_status: REVIEWED_MAX_ENVELOPE_SCOPE_RECONCILIATION_REQUIRED
+design_status: SCOPE_RECONCILED_FORMAL_REVIEW_REQUIRED
 ---
 
 # Slice 45 plan

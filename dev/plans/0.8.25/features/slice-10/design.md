@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 10 — executable measurement classification design
-status: REVIEWED_BLOCKED_ON_SLICE_7
-design_version: 1
+status: DRAFT_SCOPE_RECONCILED_BLOCKED_ON_SLICE_7
+design_version: 2
 review_fix: 1
 depends_on: 7
 ---
@@ -85,8 +85,11 @@ GLOBAL-01 is pinned as four distinct paths:
 3. The 39-question held-out control and treatment each carry separate positive
    `Engine.search` witnesses, but answer metrics are end-to-end because caller
    planning and answer generation contributed.
-4. The new direct native witness calls `Engine.search` without answerer/judge
-   and emits data-plane retrieval metrics only.
+4. Slice 10 adds a small deterministic direct-native fixture that calls
+   `Engine.search` without answerer/judge and emits data-plane retrieval
+   metrics only. It validates classification machinery; Slice 75 repeats the
+   witness against the locally packaged release candidate and owns the final
+   release evidence.
 
 Each path references exact receipt and result hashes. Missing inputs or a typed
 Engine refusal produce a blocked receipt, never an empty result.
@@ -101,6 +104,7 @@ append-only, local, no-network/model/GPU, and excluded from retrieval latency.
 
 RED/GREEN fixtures cover positive/negative/unknown witnesses, per-arm
 asymmetry, all four GLOBAL paths, dangling/hash-changed sources, mixed claims,
-idempotent migration, and the direct witness. Run fast schema/unit, heavy copied
-index migration, all, and native search witness. Product/platform/model routes
-remain N/A unless implementation adds a product surface.
+idempotent migration, and the direct fixture. Run fast schema/unit, heavy copied
+index migration, all, and the small native fixture. Product/platform/model
+routes remain N/A unless implementation adds a product surface. A formal
+independent READY review remains required after Slice 7 completes.

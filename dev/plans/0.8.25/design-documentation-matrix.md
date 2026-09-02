@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 design-documentation work matrix
-status: REVIEWED_MAX_ENVELOPE_SCOPE_NARROWED
+status: ACTIVE_DESIGNS_SCOPE_RECONCILED_FORMAL_REVIEWS_PENDING
 target_release: 0.8.25
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 ---
@@ -14,11 +14,13 @@ by Slices 10–75. The needs are consolidated into fourteen slice-owned design
 records. A slice design may be reviewed before its predecessor implements, but
 cannot become READY until the preceding slice and Slice 7 are complete.
 
-This matrix records the completed maximum-envelope design campaign. The later
-owner-approved [scope adjustment](scope-adjustment-2026-09-02.md) narrows
-0.8.25 implementation authority without deleting or rewriting the reviewed
-work. Retained designs with narrowed envelopes require scope reconciliation at
-their READY review; Slice 65/70 designs are reallocated experimental evidence.
+This matrix records the completed maximum-envelope design campaign and its
+later reconciliation. The owner-approved
+[scope adjustment](scope-adjustment-2026-09-02.md) narrowed 0.8.25. The twelve
+active designs now contain only that executable subset; removed design work is
+preserved in
+[`0.8.x-after-0.8.25-design-notes.md`](../../design/0.8.x-after-0.8.25-design-notes.md).
+Slice 65/70 designs remain reallocated historical evidence.
 
 Disposition vocabulary is mechanical:
 
@@ -57,6 +59,31 @@ Disposition vocabulary is mechanical:
 | 20 | 75 | Integrated concurrency, lifecycle, latency, resource, rebuild workload | N25-04; R25/AC25-75; Memex 21/22/24 | Scale v2; EARP; performance PROGRAM | `features/slice-75/design.md` | Adopt measurement framework; new release matrix | [PASS cycle 2](features/design-review-60-75-cycle2.md) |
 | 21 | 75 | Installed SDK/wire/Windows/CUDA/receipt conformance | R25/AC25-75; Memex 23/24 | release, bindings, interface, workflow designs | `features/slice-75/design.md` | Adopt release mechanisms; new 0.8.25 fixture matrix | [PASS cycle 2](features/design-review-60-75-cycle2.md) |
 
+## Current executable allocation
+
+The table above is the historical maximum-envelope map and review record. The
+current allocation is intentionally split:
+
+| Original rows | 0.8.25 design authority | Moved design authority |
+| --- | --- | --- |
+| 1–3 | Slices 10/15, with zero/one-source cardinality | Multi-source cardinality in the post-0.8.25 notes |
+| 4 | Slice 20 one-source relation | 0.8.26 source sets, derived dependencies, liveness |
+| 5 | Slice 25 bounded core actuation and compact receipt | 0.8.26 broader operations/consequences; omnibus journal Parked |
+| 6 | Slice 30 direct-dependent closure | 0.8.26 recursive/multi-source closure |
+| 7–8 | Slice 35 eligibility plus optional self-contained context | 0.8.27 persisted snapshot leases |
+| 9 | Slice 40 generation/readiness core | Rich public work manifests Parked |
+| 10 | Slice 45 canonical/state keyset pages | 0.8.27 full cursor leases and generalized graph pages |
+| 11 | Slice 50 stateless one-source evidence | 0.8.27 persisted replay; 0.8.26 multi-source evidence |
+| 12–13 | Slice 55 compact inclusion/degradation, one-call trace/checks | 0.8.28 exclusion tracing; 0.8.33 jobs/repair |
+| 14 | Slice 60 deterministic one-page constrained expansion | 0.8.28 graph continuation/full path replay |
+| 15–19 | No 0.8.25 implementation authority | 0.8.28 and odd-micro experimental reviews |
+| 20–21 | Slice 75 representative release closure | 0.8.33 exhaustive matrices |
+
+“Mapped exactly once” therefore describes the original campaign. Current
+implementation authority is the active slice design for retained work and
+[`0.8.x-after-0.8.25-design-notes.md`](../../design/0.8.x-after-0.8.25-design-notes.md)
+for every moved item.
+
 ## Review closure
 
 - Slices 10–30: cycle 0 review, FIX-1, cycle 1 review, FIX-2, and final
@@ -67,18 +94,18 @@ Disposition vocabulary is mechanical:
 - Slices 60–75: cycle 0 review, FIX-1, cycle 1 review, FIX-2, and final
   [cycle 2 PASS](features/design-review-60-75-cycle2.md).
 
-All implementation-shaping P1/P2 findings are resolved. The designs remain
-reviewed evidence. Retained unchanged designs remain blocked by Slice 7 and
-their sequential dependencies; narrowed designs additionally require
-reconciliation to the approved scope. Slices 65/70 cannot become READY for
-0.8.25.
+All maximum-envelope implementation-shaping P1/P2 findings were resolved. The
+later [scope-alignment review](design-coherence-review-2026-09-02.md) resolved
+all plan/design coherence findings and rewrote the active contracts. Because
+those normative designs changed materially, every active slice still requires
+its formal independent READY review after Slice 7 and sequential dependencies.
+Slices 65/70 cannot become READY for 0.8.25.
 
 ## Post-review implementation disposition
 
 | Matrix rows | Disposition |
 | --- | --- |
-| 1–2, 8 | Retained in 0.8.25 as reviewed. |
-| 4–7, 9–14, 20–21 | Retained with the narrower boundary stated in the scope adjustment; reconcile before READY. |
+| 1–14, 20–21 | Active 0.8.25 portions are scope-reconciled; formal slice-local review remains required before READY. |
 | 15, 18 | Manual profile/temporal work reconsidered for 0.8.28. |
 | 16–17 | Experimental candidate-selection review at 0.8.29. |
 | 19 | Experimental associative/diffusion review at 0.8.31. |
@@ -87,7 +114,8 @@ reconciliation to the approved scope. Slices 65/70 cannot become READY for
 
 ## Completion rules
 
-The matrix is complete only when every row names an independently reviewed
-design record and has no unresolved P1/P2 finding. Review completion does not
-override slice dependencies: until Slice 7 completes, design records remain
-reviewed drafts rather than READY implementation authority.
+The original matrix is complete because every row names an independently
+reviewed maximum-envelope record with no unresolved P1/P2 finding. The active
+scope-reconciled designs are DRAFT and require a new formal slice-local review.
+Review completion never overrides dependencies or grants implementation
+authority.

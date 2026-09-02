@@ -1,97 +1,107 @@
 ---
-title: 0.8.25 Slice 20 — dependency registration and liveness design
-status: REVIEWED_MAX_ENVELOPE_SCOPE_NARROWED
-design_version: 1
-review_fix: 2
+title: 0.8.25 Slice 20 — core dependency registration design
+status: DRAFT_SCOPE_RECONCILED_BLOCKED_ON_SLICE_7
+design_version: 2
 depends_on: 15
+architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 ---
 
 # Slice 20 design
 
-> **0.8.25 implementation boundary:** The reviewed design below records the
-> maximum envelope. Only canonical-source-to-derived dependencies, bounded
-> forward/reverse lookup, validation, and cycle rejection remain in 0.8.25.
-> Source sets, general derived-to-derived graphs, and configurable liveness are
-> deferred by the [scope adjustment](../../scope-adjustment-2026-09-02.md).
-> Reconcile the design to that subset before READY review.
+## Authority and boundary
 
-## Authority and disposition
+Implements the retained core of R25/AC25-20, N25-01, Memex need 4, and
+A25-05. It adds one provenance-safe dependency relation from an immutable
+canonical source revision to an immutable caller-derived artifact revision.
+FathomDB validates and indexes the relation; it does not infer it or assign
+semantic truth.
 
-Implements R25/AC25-20, N25-01, Memex needs 4/14, and A25-04/A25-05.
-Projection linkage is precedent, not the generic store; the lifecycle protocol
-is historical evidence. This is the new architecture-v2 dependency authority.
-FathomDB enforces structure, never semantic truth. READY remains blocked.
+Multi-source sets, derived-to-derived dependencies, logical-current
+retargeting, and configurable liveness are allocated to
+[`0.8.x-after-0.8.25-design-notes.md`](../../../../design/0.8.x-after-0.8.25-design-notes.md).
+They are not dormant variants in this contract.
 
-## Public/wire contract
+## Contract
 
 ```text
-ArtifactRefV1 =
-  LogicalCurrent { id_space, logical_id }
-  | PinnedRevision { artifact_revision_id }
-DependencySetV1 {
-  schema_version: 1, set_id, dependency_set_revision_id, dependent,
-  members[1..256], liveness: all_required | any_surviving,
-  lifecycle: active | retired, metadata
+DependencyId(string)
+SourceDependencyV1 {
+  schema_version: 1,
+  dependency_id,
+  source_revision_id: SourceRevisionId,
+  derived_revision_id: ArtifactRevisionId,
+  state: active | retired,
+  created_write_boundary,
+  retired_write_boundary?
 }
-DependencyLivenessViewV1 {
-  schema_version: 1, effective_valid_at, canonical_write_boundary,
-  lifecycle_mode: strict_current
-}
+DependencyPageV1 { schema_version: 1, items, truncated: false }
 ```
 
-`LogicalCurrent` follows future active revisions; `PinnedRevision` never
-retargets. Set ID is stable and set revision immutable. Replacement appends an
-active revision and retires the old atomically; delete retires without
-destroying history. Historical reads name a set revision. A dependent may own
-multiple active sets: all sets must be live; each applies its closed rule.
+The source must be a complete Slice 15 canonical source revision. The
+dependent must be a distinct caller-derived revision. Both references are
+pinned and never retarget when either logical record receives a new revision.
+A derived revision has at most one active source dependency in 0.8.25. The
+stored representation permits that bound to be relaxed additively later.
 
-## Structural liveness and validity boundaries
+Public operations are `register_source_dependency`,
+`retire_source_dependency`, `dependencies_for_source`, and
+`source_for_derived`. Registration is idempotent for an identical dependency
+ID and endpoints. Reuse with different endpoints fails. Retirement preserves
+the non-content identity row for audit and idempotency.
 
-Dependency liveness ignores caller eligibility/access and historical view
-relaxations. A closure operation fixes one strict-current effective instant.
-A logical-current member survives when its current revision is active/valid at
-that instant; a pinned member survives only when that revision is active/valid.
-`all_required` needs every member and `any_surviving` at least one.
+## Persistence and validation
 
-Registration or activation of an **active** dependent requires every set to be
-live at the transaction's fixed instant; otherwise it rejects
-`dependency_not_live`. A caller may instead create/transition the dependent
-inactive or pending. A future member `valid_from` never schedules closure and
-never auto-activates a dependent. The caller may later request the existing
-transition to active, which re-evaluates strict liveness at that later instant.
+Persist one normalized relation table with unique indexes on dependency ID,
+active derived revision, and `(source_revision_id, derived_revision_id)`, plus
+an index ordered by `(source_revision_id, derived_revision_id, dependency_id)`.
+Registration validates the prospective transaction before writing:
 
-Only a boundary that can change an active set from live to non-live is queued.
-For validity alone this is an applicable member `valid_until`; immediate write,
-supersession, invalidation, and erasure losses create closure intent in their
-writer transaction. For `all_required`, every finite member `valid_until` is a
-loss boundary. For `any_surviving`, the queued loss boundary is recomputed after
-each mutation as the latest finite `valid_until` among surviving members, or no
-boundary when a member has no finite end. Future `valid_from` is excluded.
+1. both immutable revisions exist and have the required roles;
+2. the source provenance is complete and currently valid for registration;
+3. the endpoints differ and no active dependency already owns the derived
+   revision;
+4. the derived revision does not identify a canonical source; and
+5. IDs and versions satisfy Slice 15 wire rules.
 
-The writer scheduler admits Slice 30 closure when a queued loss becomes due.
-Every governed retrieval checks due-loss rows before candidates; until the due
-closure is barriered/completed it fails `dependency_closure_due` rather than
-show stale derived state. Writes recompute the queue atomically.
+The role restriction makes a cycle structurally impossible. Self-reference,
+derived-as-source, and canonical-as-dependent requests return typed
+`dependency_cycle_or_role_invalid`; the Engine must not accept a generic edge
+and rely on a later closure pass to discover the error.
 
-## Persistence, cycles, and failures
+Until Slice 45, source lookup returns at most 100 ordered entries. More than
+100 returns `dependency_lookup_bound_exceeded` with no partial result.
+`source_for_derived` returns zero or one relation. No client-side scan or
+shadow reverse index is part of the contract.
 
-Persist stable sets, immutable revisions, members, current pointer, lifecycle,
-and next loss boundary, indexed both directions. Validate prospective active
-set revisions in the writer transaction. Logical-current references resolve
-against the prospective current map; pinned references remain fixed. Reject
-self/reachable cycles, then append/retire and queue atomically.
+## Lifecycle and compatibility
 
-Queries order set/revision/member. Until Slice 45, return at most 100 sets and
-refuse overflow. Caps: 256 members/set, 1,024 sets/mutation, 10,000 reachable
-nodes. Failures include missing/ambiguous reference, cycle, unknown rule,
-set-revision conflict, dependency not live, closure due, and bounds.
+Slice 30 consumes the reverse index for lifecycle and erasure closure. A
+retired relation cannot make a dependent eligible; retirement does not by
+itself restore or activate either artifact. Source supersession never
+silently retargets a dependency.
 
-## Tests and verification
+The feature is additive. Existing records remain readable. Legacy derived
+records without registered dependencies remain explicitly unlinked and cannot
+claim dependency-complete evidence. All public and persisted objects follow
+Slice 15 version, unknown-field/variant, typed-error, Rust/Python/TypeScript,
+Windows CPU/native, and locally packaged parity rules.
 
-Tests cover both reference modes, supersession, immutable set history,
-replacement/delete, cycles, both rules/multiple sets, caller-view independence,
-active registration refusal, inactive/pending creation, `valid_from` without
-closure/reactivation, `valid_until` loss for each rule, queue recomputation,
-scheduler/read refusal, restart, rollback, limits, reciprocity, codecs and
-three-SDK/Windows/installed parity. Run fast, heavy, all/all-feature, Windows
-and registry; CUDA/model N/A.
+Failures are `dependency_reference_missing`,
+`dependency_provenance_incomplete`, `dependency_cycle_or_role_invalid`,
+`dependency_conflict`, `dependency_not_active`, and
+`dependency_lookup_bound_exceeded`.
+
+## RED/GREEN and verification
+
+RED fixtures cover missing/wrong-role/self references, a second active source,
+ID replay with changed endpoints, overflow, and cross-SDK codec disagreement.
+GREEN properties cover stable forward/reverse ordering, exact reciprocity,
+restart/reindex preservation, atomic rollback, retirement/replay, source
+supersession without retargeting, and legacy-unlinked behavior. Real-database
+lifecycle tests prove Slice 30 can discover every direct dependent without an
+application shadow index.
+
+Run fast, heavy, all/all-feature, Windows Rust/Python/Node, and locally packed
+artifact routes. CUDA, model, operator, and pre-publication registry routes are
+N/A. A formal independent READY review remains required after Slice 7 and
+Slice 15 complete.

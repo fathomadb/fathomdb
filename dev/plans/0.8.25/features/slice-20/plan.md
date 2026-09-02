@@ -3,7 +3,7 @@ title: 0.8.25 Slice 20 — core dependency registration
 status: DRAFT
 depends_on: 15
 design: design.md
-design_status: REVIEWED_MAX_ENVELOPE_SCOPE_RECONCILIATION_REQUIRED
+design_status: SCOPE_RECONCILED_FORMAL_REVIEW_REQUIRED
 ---
 
 # Slice 20 plan

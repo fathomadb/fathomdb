@@ -61,6 +61,11 @@ architecture allocation, and future-work placement agree. No active slice
 depends on reallocated Slice 65/70 work. No experimental algorithm, live-model
 route, publication, or actual registry mutation is required for 0.8.25.
 
+This prerequisite was satisfied by the later
+[`design-coherence-review-2026-09-02.md`](design-coherence-review-2026-09-02.md).
+The rewritten active designs remain DRAFT pending their formal independent
+slice-local reviews. The original finding was:
+
 Before each narrowed slice becomes READY, its maximum-envelope design must be
 reconciled to the approved subset, receive the normal independent design
 review, and name exact commands, fixtures, thresholds, and receipt paths. This

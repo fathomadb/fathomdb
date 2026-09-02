@@ -1480,10 +1480,10 @@ if printf '%s\n' "$CI_JOB_BLOCK" | grep -qE '^[[:space:]]+fetch-depth:[[:space:]
 else
   fail "the release-state-views job must set checkout fetch-depth: 0; block: $CI_JOB_BLOCK"
 fi
-if printf '%s\n' "$CI_JOB_BLOCK" | grep -qF 'refs/heads/release/0.8.23'; then
-  pass "the release-state-views job fetches the scoped 0.8.23 completion ref"
+if printf '%s\n' "$CI_JOB_BLOCK" | grep -qF 'refs/heads/release/*:refs/remotes/origin/release/*'; then
+  pass "the release-state-views job fetches generic release completion refs"
 else
-  fail "the release-state-views job must fetch origin/release/0.8.23 for completion-ref verification; block: $CI_JOB_BLOCK"
+  fail "the release-state-views job must fetch generic origin/release/* completion refs; block: $CI_JOB_BLOCK"
 fi
 
 # --- Arm R (remote-landing guard) ------------------------------------------
@@ -1610,6 +1610,7 @@ fi
 # legacy fixture releases: adding it must not silently retarget their landing
 # claims, and omitting it must preserve their bytes exactly.
 completion_ref_fixture() {
+  local release="${1:-0.8.23}"
   setup_fixture
   (
     cd "$FIX"
@@ -1620,19 +1621,20 @@ completion_ref_fixture() {
     git push -q origin main
     main_head="$(git rev-parse --short HEAD)"
 
-    git checkout -q -b release/0.8.23
+    git checkout -q -b "release/$release"
     echo "release-only change" >release-only.txt
     git add release-only.txt && git commit -qm 'release: Slice 30 complete'
     release_head="$(git rev-parse --short HEAD)"
-    git push -q origin release/0.8.23
+    git push -q origin "release/$release"
 
-    python3 - "$main_head" "$release_head" <<'PY'
+    python3 - "$main_head" "$release_head" "$release" <<'PY'
 import json, sys
 p = "dev/plans/release-state-9.9.9.json"
 st = json.load(open(p))
-st["release"] = "0.8.23"
+release = sys.argv[3]
+st["release"] = release
 st["completion"] = {
-    "ref": "origin/release/0.8.23",
+    "ref": "origin/release/" + release,
     "main_integration": "PENDING",
 }
 for e in st["ladder"]:
@@ -1640,12 +1642,16 @@ for e in st["ladder"]:
     if e["slice"] == 5: e["sha"] = sys.argv[2]
 json.dump(st, open(p, "w"), indent=2)
 PY
-    mv dev/plans/release-state-9.9.9.json dev/plans/release-state-0.8.23.json
-    perl -pi -e 's/release-state:9\.9\.9:/release-state:0.8.23:/g; s/The 9\.9\.9 ladder/The 0.8.23 ladder/g' \
-      dev/plans/master.md dev/plans/runs/board.md dev/plans/runs/handoff.md
-    python3 - <<'PY'
-import json
-p = "dev/plans/release-state-0.8.23.json"
+    mv dev/plans/release-state-9.9.9.json "dev/plans/release-state-$release.json"
+    python3 - "$release" <<'PY'
+import json, pathlib, sys
+release = sys.argv[1]
+for name in ("dev/plans/master.md", "dev/plans/runs/board.md", "dev/plans/runs/handoff.md"):
+    p = pathlib.Path(name)
+    text = p.read_text().replace("release-state:9.9.9:", f"release-state:{release}:")
+    text = text.replace("The 9.9.9 ladder", f"The {release} ladder")
+    p.write_text(text)
+p = f"dev/plans/release-state-{release}.json"
 st = json.load(open(p))
 st["generated_views"].append({
     "id": "status-current-state",
@@ -1653,18 +1659,18 @@ st["generated_views"].append({
 })
 json.dump(st, open(p, "w"), indent=2)
 PY
-    cat >>dev/plans/runs/board.md <<'EOF'
+    cat >>dev/plans/runs/board.md <<EOF
 
 ## Completion status
 
-<!-- BEGIN GENERATED release-state:0.8.23:status-current-state --><!-- END GENERATED release-state:0.8.23:status-current-state -->
+<!-- BEGIN GENERATED release-state:${release}:status-current-state --><!-- END GENERATED release-state:${release}:status-current-state -->
 EOF
     # Discovery is deliberately over tracked inputs. Stage the rename before
     # invoking the fixture gate so it sees the new single writer, not the now
     # missing legacy pathname.
     git add -A
     ./scripts/check-release-state-views.sh --write >/dev/null 2>&1
-    git add -A && git commit -qm 'fixture: 0.8.23 release completion reference'
+    git add -A && git commit -qm "fixture: $release release completion reference"
   )
 }
 
@@ -1679,26 +1685,52 @@ else
   fail "arm R4b (release-branch completion render): rc=$RC out=$OUT"
 fi
 
-# A completion object is a narrowly approved 0.8.23 migration. Another
-# release must not be able to reinterpret its existing `landed` array by
-# copying this object, and an unrecognised integration state must not become a
-# truthy/falsey branch by accident.
-setup_fixture
-python3 - "$FIX/dev/plans/release-state-9.9.9.json" <<'PY'
+# Every release may use the same exact release-scoped completion object. Build
+# the rendered baseline through the already-supported release, then retarget
+# every exact release token without asking the gate under test to bootstrap the
+# behavior being tested.
+completion_ref_fixture
+(
+  cd "$FIX"
+  git branch release/0.8.25
+  git push -q origin release/0.8.25
+  python3 - <<'PY'
+import json, pathlib
+old = pathlib.Path("dev/plans/release-state-0.8.23.json")
+st = json.loads(old.read_text())
+st["release"] = "0.8.25"
+st["completion"]["ref"] = "origin/release/0.8.25"
+new = pathlib.Path("dev/plans/release-state-0.8.25.json")
+new.write_text(json.dumps(st, indent=2))
+old.unlink()
+for name in ("dev/plans/master.md", "dev/plans/runs/board.md", "dev/plans/runs/handoff.md"):
+    p = pathlib.Path(name)
+    p.write_text(p.read_text().replace("0.8.23", "0.8.25"))
+PY
+  git add -A
+)
+run_gate
+if [ "$RC" -eq 0 ] \
+   && grep -qF 'COMPLETED on `origin/release/0.8.25`; `origin/main` integration is PENDING' "$FIX/dev/plans/master.md"; then
+  pass "arm R4b: generic 0.8.25 PENDING completion uses its exact release ref"
+else
+  fail "arm R4b (generic completion): rc=$RC out=$OUT"
+fi
+
+# COMPLETE is false while the release branch has not reached main.
+python3 - "$FIX/dev/plans/release-state-0.8.25.json" <<'PY'
 import json, sys
 p = sys.argv[1]
 st = json.load(open(p))
-st["completion"] = {
-    "ref": "origin/release/9.9.9",
-    "main_integration": "PENDING",
-}
+st["completion"]["main_integration"] = "COMPLETE"
 json.dump(st, open(p, "w"), indent=2)
 PY
 run_gate
-if [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -qF 'only permitted for release 0.8.23'; then
-  pass "arm R4b: completion is rejected outside 0.8.23"
+if [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -qF 'integration as COMPLETE' \
+   && printf '%s' "$OUT" | grep -qF 'is not reachable from `origin/main`'; then
+  pass "arm R4b: COMPLETE fails before the generic release ref reaches origin/main"
 else
-  fail "arm R4b (completion scope): rc=$RC out=$OUT"
+  fail "arm R4b (complete integration truth): rc=$RC out=$OUT"
 fi
 
 completion_ref_fixture

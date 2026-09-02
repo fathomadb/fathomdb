@@ -130,8 +130,9 @@ parallel release-state mechanism. Validate `completion.ref` as
 origin-main semantics for states with no `completion` object.
 
 **Files:** `scripts/check-release-state-views.sh`,
-`scripts/tests/test_check_release_state_views.sh`, the 0.8.25 release-state JSON,
-and generated 0.8.25 plan/board regions through the writer script only.
+`scripts/tests/test_check_release_state_views.sh`, `.github/workflows/ci.yml`,
+the 0.8.25 release-state JSON, and generated 0.8.25 plan/board regions through
+the writer script only.
 
 **Symbols:** generalize `completion_facts` and its existing remote-landing/render
 callers; keep the current state schema rather than adding another claim path.

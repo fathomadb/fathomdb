@@ -2,7 +2,8 @@
 title: 0.8.25 Slice 7 — approved prework implementation plan
 status: APPROVED
 target_release: 0.8.25
-observed_on: 2026-09-01
+observed_on: 2026-09-02
+plan_version: 2
 ---
 
 # Slice 7 — approved prework implementation plan
@@ -22,6 +23,24 @@ this reviewed plan.
 Both gates are closed: independent review passed after FIX-1/FIX-2, and the
 owner approved this plan at `seq-274`. Slice 7 implementation may proceed only
 within this file's scope and stop conditions.
+
+## Post-scope alignment
+
+The 2026-09-02 scope/design reconciliation did not change the approved Slice 7
+proposal set, but it changed three implementation assumptions:
+
+- architecture v2.1 now defines a narrow 0.8.25 profile and allocates
+  multi-source, persisted-lease, rich-continuation, and experimental retrieval
+  work after 0.8.25;
+- Slices 65/70 are historical reviewed evidence, not active release slices, so
+  maintained traceability points to the active owners and durable future-work
+  records; and
+- the owner's current execution instruction limits implementation review to two
+  FIX-n cycles.
+
+The package designs below incorporate those changes. No Slice 10+ product
+behavior enters Slice 7. This alignment and the instruction to proceed are the
+owner authority for plan version 2.
 
 ## Accepted scope
 
@@ -53,7 +72,7 @@ The following remain outside Slice 7:
 | S7-R4 — Required Rust advisory corrections must not move protected product pins. | S7-AC4: accepted patch floors resolve, `httpmock` is 0.8.3, `async-std` is absent, existing loader tests pass unchanged in intent, and any product-pin movement or mock API incompatibility stops the package. |
 | S7-R5 — Property testing must exercise real existing contracts. | S7-AC5: the trivial identity scaffolds are rejected, and bounded generated cases prove Engine/Python write-close-reopen identity plus schema migration ordering/contiguity without mocking the database. |
 | S7-R6 — Maintained traceability must resolve to current authority. | S7-AC6: a repeatable checker rejects unresolved need references; NEED-026 has a concise matching need; REQ-067/AC-077 remain historical placeholders with current successor-slice pointers and no invented threshold. |
-| S7-R7 — Active architecture and navigation must be singular and verifiable. | S7-AC7: architecture v2 incorporates A25-01–A25-07 and becomes the active versioned authority; v1 remains as deprecated history; stale active paths/status/comments are corrected narrowly; all runs/data remain untouched. |
+| S7-R7 — Active architecture and navigation must be singular and verifiable. | S7-AC7: architecture v2.1 incorporates the 0.8.25 form of A25-01–A25-07, identifies later-profile work explicitly, and becomes the active versioned authority; v1 remains deprecated history; stale active paths/status/comments are corrected narrowly; all runs/data remain untouched. |
 
 ## Implementation discipline
 
@@ -69,8 +88,10 @@ The following remain outside Slice 7:
   RED, then replace the trivial properties without weakening that guard.
 - Run packages serially in the order below. If a stop condition fires, record
   it in the completion record and return to HITL; do not improvise a wider fix.
-- After implementation, obtain an independent code review with at most four
-  documented FIX-n cycles and a separate read-only verification subagent.
+- After implementation, obtain an independent high-effort code review with at
+  most two documented FIX-n cycles and a separate read-only verification
+  subagent. Record the actual reviewer model; do not misstate an unavailable
+  requested model.
 
 ## Ordered packages
 
@@ -261,8 +282,9 @@ Slice 10+ acceptance criterion instead of testing an existing contract.
 checker that every NEED referenced by traceability resolves in `dev/needs.md`.
 Restore only a concise NEED-026 security-hardening statement matching its
 existing trace row. Preserve REQ-067/AC-077 as historical placeholders, adding
-successor pointers to the applicable 0.8.25 Slices 10, 65, 70, and 75 without
-inventing metrics or thresholds.
+successor pointers to active 0.8.25 Slices 10/75 and to the durable
+post-0.8.25 design/experimental-review records for former Slices 65/70,
+without inventing metrics or thresholds.
 
 **Files/symbols:** `dev/needs.md`, `dev/requirements.md`, `dev/acceptance.md`,
 `dev/traceability.md`, and `dev/test-plan.md` only if its existing mapping
@@ -285,11 +307,12 @@ accepted requirements/criteria, or broad acceptance-document reconciliation.
 **Maps:** P25-13 through P25-16, P25-18 through P25-20, with P25-17/P25-25 as
 constraints; satisfies S7-R7/S7-AC7.
 
-**Design:** make `fathomdb-data-plane-architecture-v2.md` the active versioned
-successor after incorporating A25-01–A25-07: observable snapshots,
-revision-bound UTF-8 locators, governed operational-state naming, explicit
-bounded multi-source liveness, precise wire evolution, pre-truncation
-constraints, and opt-in visibility-bound evidence resolution. For A25-05, each
+**Design:** make architecture v2.1 the active versioned successor after
+incorporating the 0.8.25 profile of A25-01–A25-07: optional reproducible read
+contexts, revision-bound UTF-8 locators, governed operational-state naming,
+the zero/one-source core with multi-source liveness explicitly allocated to
+0.8.26, precise wire evolution, pre-truncation constraints, and opt-in
+visibility-bound evidence resolution. For A25-05, each
 public/persisted request and response carries a version. Unknown request fields
 or variants fail typed before execution. Older clients may ignore additive
 unknown response fields, but an unknown response variant that affects identity,
@@ -297,7 +320,9 @@ lifecycle, visibility, mutation, ranking, or continuation returns a typed
 unsupported-version outcome and is never mapped to a default. An older writer
 must not mutate or reindex a persisted newer-version artifact it cannot fully
 interpret. Deprecate v1 and foldback v1 in place with successor pointers; do
-not delete them or change the single-source provenance decision.
+not delete them. Preserve the zero/one-source 0.8.25 decision and link the
+post-0.8.25 design notes rather than embedding deferred contracts in active
+architecture.
 
 Also make only these proven active-surface corrections:
 
@@ -332,7 +357,7 @@ After package-level GREEN evidence:
    non-executed platform route.
 3. Ask an independent reviewer to inspect the implementation diff, decisions,
    tests, protected pins, generated views, architecture authority, and scope.
-   Resolve at most four FIX-n cycles; unresolved material findings return to
+   Resolve at most two FIX-n cycles; unresolved material findings return to
    HITL.
 4. Ask a separate read-only subagent to rerun or inspect the planned evidence.
    The implementation author does not self-certify completion.

@@ -23,8 +23,8 @@ the completed maximum-envelope campaign: 21 logical needs mapped exactly once
 into fourteen slice-owned design records. The later owner-approved
 [scope adjustment](../scope-adjustment-2026-09-02.md) is the implementation
 boundary. It preserves every reviewed design but removes Slices 65 and 70 from
-the active 0.8.25 ladder and narrows Slices 20, 25, 35, 40, 45, 50, 55, 60,
-and 75.
+the active 0.8.25 ladder and narrows Slices 20, 25, 30, 35, 40, 45, 50, 55,
+60, and 75.
 
 Independent review is complete for all fourteen designs. The final review
 records are [Slices 10–30](design-review-10-30-cycle2.md),
@@ -47,8 +47,11 @@ not 0.8.25 implementation authority.
   package-rehearsal route.
 - **live-model:** an explicitly budgeted, receipt-producing route when a
   treatment requires a model or provider.
-- **registry-installed:** fresh-machine release-workflow Python, npm/native,
-  and CLI smokes. Publication still requires separate HITL authorization.
+- **packaged:** isolated consumers install locally built wheel, npm/native
+  tarball, crate/CLI artifacts with no source-tree fallback.
+- **registry-installed:** post-publication fresh-machine smokes only. This route
+  requires separate publication authorization and never blocks pre-publication
+  slice READY.
 
 Every selected route must name its exact command or workflow job and receipt
 path before the slice becomes READY. Every unselected route must be recorded as

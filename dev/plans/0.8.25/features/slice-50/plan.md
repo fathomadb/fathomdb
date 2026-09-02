@@ -21,14 +21,15 @@ Persisted evidence leases and replayable receipt retention are allocated to
 ## Verification routes
 
 Selected: fast, heavy, all, all-feature, Windows CPU/native Rust/Python/Node,
-and registry-installed evidence smokes. Operator, GPU/CUDA, and live-model are
-N/A because resolution is storage/visibility work.
+and packaged evidence smokes. Operator, GPU/CUDA, live-model, and
+pre-publication registry-installed are N/A because resolution is
+storage/visibility work.
 
 ## Draft-to-ready and delivery
 
 Define exact-byte/hash, current/superseded/inactive/invisible/erased/stale/
 mismatched/unavailable, non-disclosure, compact-hit, codec, parity, and Windows
 criteria; design compact resolver authorization without mandatory persisted
-leases; review; implement preserved RED/GREEN
-tests; review; verify; and record status. Stop on stale-reference disclosure or
+leases; review; implement preserved RED/GREEN tests; review; verify; and record
+status. Stop on stale-reference disclosure or
 mandatory per-hit expansion.

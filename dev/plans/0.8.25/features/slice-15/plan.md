@@ -18,8 +18,9 @@ evolution, and typed unknown-field behavior while preserving `IdSpace`.
 ## Verification routes
 
 Selected: fast, heavy, all, all-feature, Windows CPU/native Rust/Python/Node,
-and registry-installed SDK/CLI smokes. Operator, GPU/CUDA, and live-model are
-N/A. Name exact jobs, fixtures, and receipt paths at readiness.
+and packaged SDK/CLI smokes. Operator, GPU/CUDA, live-model, and
+pre-publication registry-installed are N/A. Name exact jobs, fixtures, and
+receipt paths at readiness.
 
 ## Draft-to-ready and delivery
 

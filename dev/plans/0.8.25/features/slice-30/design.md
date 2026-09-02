@@ -1,12 +1,19 @@
 ---
 title: 0.8.25 Slice 30 — lifecycle and erasure closure design
-status: REVIEWED_BLOCKED_ON_SLICE_7
+status: REVIEWED_MAX_ENVELOPE_SCOPE_NARROWED
 design_version: 1
 review_fix: 2
 depends_on: 25
 ---
 
 # Slice 30 design
+
+> **0.8.25 implementation boundary:** The reviewed design below records the
+> maximum dependency-closure envelope. 0.8.25 closes lifecycle and erasure for
+> the Slice 20 canonical-source-to-derived core. Multi-source liveness and the
+> corresponding journal/consequence extensions move to 0.8.26 under the
+> [scope adjustment](../../scope-adjustment-2026-09-02.md). Reconcile this
+> design to the core dependency model before READY review.
 
 ## Authority and predecessor disposition
 
@@ -100,9 +107,12 @@ reactivation, erasure/projection/proof incomplete, and resource exhausted.
 
 ## Tests and verification
 
-Tests cover all transitions/rules, physical-erasure cases, source-separable
-projection, clean replacement, audit tombstones, >1-page closure with immediate
-query of last undiscovered descendant, guard failure-closed paths, write races,
-resource resume/restart, journal admitted/recovery/terminal payload stripping,
-raw receipt/reference/WAL canaries, and later-boundary proof. Run fast, heavy,
-all/all-feature/operator, Windows SDK/native, and installed; CUDA/model N/A.
+Maximum-envelope tests below cover all transitions/rules, physical-erasure
+cases, source-separable projection, clean replacement, audit tombstones,
+more-than-one-page closure with immediate query of the last undiscovered descendant,
+guard failure-closed paths, write races, resource resume/restart, journal
+admitted/recovery/terminal payload stripping, raw receipt/reference/WAL
+canaries, and later-boundary proof. Run fast, heavy, all/all-feature/operator,
+Windows SDK/native, and packaged artifacts; CUDA/model N/A. The READY
+reconciliation must remove deferred multi-source cases from the 0.8.25
+mandatory matrix without deleting them from future-release evidence.

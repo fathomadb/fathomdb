@@ -21,8 +21,9 @@ coverage and exhaustive consequence receipts are allocated to 0.8.26.
 ## Verification routes
 
 Selected: fast, heavy, all, all-feature, Windows CPU/native Rust/Python/Node,
-and registry-installed batch/receipt smokes. Operator is selected if lifecycle
-verbs use that feature. GPU/CUDA and live-model are N/A.
+and packaged batch/receipt smokes. Operator is selected if lifecycle verbs use
+that feature. GPU/CUDA, live-model, and pre-publication registry-installed are
+N/A.
 
 ## Draft-to-ready and delivery
 

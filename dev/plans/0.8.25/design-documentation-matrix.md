@@ -77,8 +77,8 @@ reconciliation to the approved scope. Slices 65/70 cannot become READY for
 
 | Matrix rows | Disposition |
 | --- | --- |
-| 1–2, 6, 8 | Retained in 0.8.25 as reviewed. |
-| 4–5, 7, 9–14, 20–21 | Retained with the narrower boundary stated in the scope adjustment; reconcile before READY. |
+| 1–2, 8 | Retained in 0.8.25 as reviewed. |
+| 4–7, 9–14, 20–21 | Retained with the narrower boundary stated in the scope adjustment; reconcile before READY. |
 | 15, 18 | Manual profile/temporal work reconsidered for 0.8.28. |
 | 16–17 | Experimental candidate-selection review at 0.8.29. |
 | 19 | Experimental associative/diffusion review at 0.8.31. |

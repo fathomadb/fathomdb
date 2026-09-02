@@ -21,13 +21,16 @@ results. Rich continuation and replayable full path evidence are allocated to
 ## Verification routes
 
 Selected: fast, heavy, all, all-feature, Windows CPU/native Rust/Python/Node,
-GPU/CUDA because combined fused search can use dense/rerank arms, and
-registry-installed graph/search smokes. Operator and live-model are N/A.
+and packaged graph/search smokes. GPU/CUDA is selected only if implementation
+changes dense/rerank dispatch; otherwise it is N/A because graph constraint
+parity is device-independent. Operator, live-model, and pre-publication
+registry-installed are N/A.
 
 ## Draft-to-ready and delivery
 
 Define constraint-before-truncation, direction/kind matrix, deterministic
-one-page result, compact graph origin, fallback, parity, Windows, and CUDA criteria; design
+one-page result, compact graph origin, fallback, parity, Windows, and conditional
+CUDA criteria; design
 against existing BFS/graph-arm contracts; review; implement RED/GREEN matrix
 tests; review; verify; and record status. Stop on ignored constraints,
 unbounded expansion, or reintroduction of rejected exact-anchor treatment.

@@ -20,13 +20,14 @@ allocated to 0.8.26. The Engine enforces structure, never semantic truth.
 ## Verification routes
 
 Selected: fast, heavy, all, all-feature, Windows CPU/native Rust/Python/Node,
-and registry-installed public-contract smokes. Operator, GPU/CUDA, and
-live-model are N/A unless the design changes an operator surface.
+and packaged public-contract smokes. Operator, GPU/CUDA, live-model, and
+pre-publication registry-installed are N/A unless the design changes an
+operator surface.
 
 ## Draft-to-ready and delivery
 
 Define reference, cycle, lookup, source-removal, codec, parity, and Windows
 criteria; design core dependency persistence and bounded lookup; review;
 implement RED/GREEN property and real-database tests; review; verify selected
-routes; and record status. Stop on unbounded liveness, shadow-index ownership,
+routes; and record status. Stop on unbounded lookup, shadow-index ownership,
 or ambiguous source-removal consequences.

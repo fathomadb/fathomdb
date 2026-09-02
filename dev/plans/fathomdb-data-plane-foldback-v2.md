@@ -25,8 +25,8 @@ Every feature slice follows the same bounded loop:
 
 1. Write numbered requirements and slice-local falsifiable acceptance criteria.
    Map every criterion to a named test or measurement before implementation.
-2. Write a design grounded in the reviewed architecture, current ADRs, public
-   interfaces, and code—not architecture prose alone.
+2. Write or reconcile a design grounded in the reviewed architecture, current
+   ADRs, public interfaces, and code—not architecture prose alone.
 3. Obtain an independent design review. Allow at most three documented FIX-n
    cycles; unresolved P1/P2 findings stop the slice.
 4. Implement with TDD: preserve the RED test before implementation, make it
@@ -65,40 +65,46 @@ receipts without rewriting their measured evidence.
 
 Slice 15 adds immutable record revisions, source versions, exact locators,
 hashes, and the missing Rust identity exports while preserving `IdSpace`.
-Slice 20 adds canonical-to-derived, derived-to-derived, and source-set
-dependencies with caller-declared liveness rules and bidirectional lookup.
+Slice 20 adds one canonical-source-to-derived dependency form with bounded
+bidirectional lookup and structural validation. Multi-source sets, general
+derived-to-derived graphs, and configurable liveness move to 0.8.26.
 
 Tests cover restart/reindex identity, locator/hash integrity, invalid
-references, cycles, multi-source removal, and cross-SDK wire round trips.
+references, invalid dependency roles/self-reference, source removal, and
+cross-SDK wire round trips.
 
 ### Slices 25–30 — actuation and lifecycle closure
 
-Slice 25 adds one atomic semantic batch for caller-decided canonical/derived
-writes, dependencies, facts/edges, lifecycle actions, consolidation verdicts,
-and metadata. The complete receipt reports both committed consequences and
-whole-batch refusal reasons. Operation IDs make retries idempotent.
+Slice 25 adds one bounded atomic batch for caller-decided canonical/derived
+writes, core dependencies, and lifecycle actions. Its compact receipt reports
+operation identity, committed/refused outcome, affected IDs, resulting
+boundary, and readiness/closure references. Operation IDs make retries
+idempotent. Broader operations and complete consequence receipts move to
+0.8.26.
 
 Slice 30 propagates lifecycle and erasure through dependencies, fences
 incomplete work, and proves no active/searchable orphan remains. Tests inject
 mid-operation failures and verify rollback, retry, projection closure, and
-multi-source liveness rules.
+core source-to-derived closure.
 
 ### Slices 35–45 — frozen reads, readiness, pagination, and current state
 
-Slice 35 introduces an Engine-minted frozen snapshot and extends the existing
-allowlisted predicate grammar with only natively indexed membership/existence.
-Eligibility runs before candidate truncation on lexical, vector, and graph
-paths.
+Slice 35 makes eligibility-before-ranking uniform and offers a compact
+Engine-minted frozen read context when requested. Ordinary reads do not require
+it. The existing allowlisted predicate grammar grows only where a predicate is
+natively indexed. Eligibility runs before candidate truncation on lexical,
+vector, and graph paths; full snapshot leases move to 0.8.27.
 
-Slice 40 adds durable projection-generation identity and mutation/readiness
-correlation. Slice 45 uses both contracts for opaque, stable ordered cursors on
-canonical list, graph, and current-state reads, including governed point/page
-access to existing `operational_state`. `latest_state` remains a consumer
-concept. Ranked search stays bounded top-K.
+Slice 40 adds core durable projection-generation identity and compact
+mutation/readiness correlation. Slice 45 adds stable bounded continuation for
+canonical and current-state reads, including governed point/page access to
+existing `operational_state`. `latest_state` remains a consumer concept.
+Ranked search stays bounded top-K. Full cursor leases and generalized graph
+pagination move to 0.8.27.
 
-Tests cover snapshot mutation races, validity boundaries, unsupported
-predicates, native query plans, cursor mismatch/expiry/drift, duplicates,
-omissions, and current-state replacement.
+Tests cover optional-read-context mutation races, validity boundaries,
+unsupported predicates, native query plans, request/order cursor mismatch,
+duplicates, omissions, and current-state replacement.
 
 ### Slices 50–55 — evidence, explanation, and integrity
 
@@ -169,13 +175,14 @@ plans:
 - Slices 20/30 define and close the core canonical-source-to-derived dependency
   form without assigning semantic truth to the Engine. Multi-source liveness
   moves to 0.8.26.
-- Slice 35 specifies observable frozen-snapshot semantics with typed
-  unavailable/drift/expiry outcomes; it does not assume a permanently-held
-  SQLite reader transaction.
+- Slice 35 specifies optional observable frozen-read semantics with typed
+  unavailable/drift/expiry outcomes; it does not impose snapshots on ordinary
+  reads or assume a permanently held SQLite reader transaction.
 - Slice 45 exposes current `operational_state`; `latest_state` remains a
   consumer concept, and cursors remain distinct from ranked top-K.
 - Slices 35/55/60 apply eligibility and graph constraints before truncation and
-  distinguish ineligible, not-selected, unavailable, and degraded outcomes.
+  expose compact inclusion/degradation state. Expanded deterministic
+  ineligible/not-selected explanation moves to 0.8.28.
 - Slice 50 preserves compact default hits and creates/resolves evidence only
   under the originating visibility envelope.
 - Every public/persisted feature slice defines version/unknown-field behavior
@@ -209,16 +216,18 @@ READY:
   feature set, plus the repository all-feature route when compatible;
 - GPU/CUDA: `cuda-contract-preflight` and the applicable CUDA package-rehearsal
   route when the feature can change dense, rerank, fusion, or graph behavior;
-- live-model: a named, budgeted, non-default receipt-producing route only when
-  a treatment depends on a downloaded model or provider;
-- registry-installed: the release workflow's fresh-machine Python, npm/native,
-  and CLI smoke routes for every changed public binding or wire contract.
+- live-model: not selected by the retained 0.8.25 ladder; future experimental
+  treatments must separately name and budget such a route;
+- packaged: isolated consumers install locally built wheel, npm/native
+  tarball, crate/CLI artifacts without source-tree fallback;
+- registry-installed: post-publication fresh-machine smokes only, after
+  separate publication authorization; they do not block slice READY.
 
 Windows CPU/native behavior is proved feature-locally for every public or
-persisted active Slice 15–60 change. Windows CUDA remains outside 0.8.25. Slice 75
-checks that the named receipts exist and agree; it does not supply missing
-feature-local proof. A route that is not applicable must be marked `N/A` with a
-reason, rather than omitted.
+persisted change in active Slices 15–60. Windows CUDA remains outside 0.8.25.
+Slice 75 checks that the named receipts exist and agree; it does not supply
+missing feature-local proof. A route that is not applicable must be marked
+`N/A` with a reason, rather than omitted.
 
 ## Dependency and workload policy
 

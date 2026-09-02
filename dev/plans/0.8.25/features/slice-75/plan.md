@@ -20,10 +20,12 @@ performance, and retrieval-only evaluation.
 ## Verification routes
 
 Selected: fast, heavy, all, applicable all-feature/operator, Windows CPU/native
-Rust/Python/Node, registry-installed Python/npm/native/CLI, native
-`Engine.search` witness, and focused CUDA only where a retained dense/graph
-contract changed. Live-model, Windows CUDA, and exhaustive
-scale-by-feature-by-CUDA matrices are N/A.
+Rust/Python/Node, packaged Python/npm/native/CLI, final packaged-candidate
+native `Engine.search` witness, and focused CUDA only where a retained
+dense/graph contract changed. Live-model, Windows CUDA, pre-publication
+registry-installed, and exhaustive scale-by-feature-by-CUDA matrices are N/A.
+Actual registry-installed smokes remain a separately authorized
+post-publication close gate.
 
 ## Draft-to-ready and delivery
 

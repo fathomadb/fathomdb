@@ -114,5 +114,6 @@ Tests cover the validator union, cross-class uniqueness, namespace/length/
 non-PII rules, canonical versus derived identities, multi-source links,
 restart/reindex/supersession, every migration row, equal bytes across sources,
 collision/open failure, incomplete evidence, UTF-8/hash tamper, erasure, wire/
-u64/error fixtures, three SDKs, Windows, and installed packages. Run fast,
-heavy, all, all-feature, Windows and registry; operator/CUDA/model N/A.
+u64/error fixtures, three SDKs, Windows, and locally packaged artifacts. Run
+fast, heavy, all, all-feature, Windows and packaged-artifact routes;
+operator/CUDA/model and pre-publication registry routes are N/A.

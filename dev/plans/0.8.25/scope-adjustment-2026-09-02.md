@@ -25,7 +25,7 @@ unproven retrieval algorithms remain outside the release implementation scope.
 
 | Slice | Retained outcome | Explicit boundary |
 | ---: | --- | --- |
-| 10 | Executable measurement classification and trustworthy release claims. | Keep the native `Engine.search` witness and historical classification without changing measured payloads. |
+| 10 | Executable measurement classification and trustworthy release claims. | Validate classification with a small native `Engine.search` fixture and preserve historical payloads; Slice 75 runs the final packaged-candidate witness. |
 | 15 | Immutable revision/source identity, source version, exact locator, canonical hash, additive wire evolution, and SDK parity. | Preserve legacy reads and additive migration behavior. |
 | 20 | Core dependency registration. | Canonical-source-to-derived dependency identity, bounded forward/reverse lookup, structural validation, and cycle rejection only. Multi-source sets, general derived-to-derived graphs, and configurable liveness grammar are deferred. |
 | 25 | Core model-free atomic actuation. | One bounded idempotent batch for canonical/derived writes, core dependency registration, and caller-decided lifecycle actions; return a compact committed/refused receipt. Broader omnibus operations and exhaustive consequence journals are deferred. |

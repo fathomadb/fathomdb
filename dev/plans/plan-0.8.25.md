@@ -4,7 +4,7 @@ status: ACTIVE
 target_release: 0.8.25
 ---
 
-# FathomDB 0.8.25 — proposed release plan
+# FathomDB 0.8.25 — release plan
 
 ## Goals and scope
 
@@ -49,9 +49,10 @@ and becomes active implementation authority when Slice 7 completes.
   primary checkout's local resources. An ignored, worktree-local `.venv/bin`
   shim exposes the primary environment's Python and pinned-tool launchers but
   does not rebind the environment to this worktree. This is adequate for
-  planning-only checks, not native rebuild verification. Slice 0 must choose an
-  isolated release-bound build/test arrangement that neither rebuilds against
-  the wrong source nor pollutes the primary `main` checkout.
+  planning-only checks, not native rebuild verification. Slice 0 recorded the
+  need for an isolated release-bound build/test arrangement; Slice 7 implements
+  the approved arrangement without rebuilding against the wrong source or
+  polluting the primary `main` checkout.
 - **Allocation verification:** `./scripts/agent-verify.sh` passed all 103
   executed suites with one intentional TypeScript skip. The strict ptrace and
   egress checks ran unchanged; 1,251 Python tests passed with 32 explicit
@@ -82,7 +83,7 @@ Out of scope:
 - extraction, entity resolution, contradiction, truth, ontology, query intent,
   decomposition, synthesis, answer generation, semantic verification, model
   choice, spend, or HITL policy;
-- adoption of a benchmark treatment that fails its registered boundary; and
+- adoption of a benchmark treatment that fails its registered boundary;
 - candidate-selection, associative/diffusion, automatic-routing, or other
   experimental profile implementation allocated to the odd-micro review
   schedule;
@@ -140,16 +141,16 @@ mapped exactly once to fourteen reviewed design records. The later approved
 implementation authority, preserves the broader designs as evidence, and
 allocates every removed item durably.
 
-The design-documentation campaign is complete: all fourteen records passed
-independent review with no unresolved P1/P2 finding. Retained-slice records are
-`REVIEWED_BLOCKED_ON_SLICE_7`; Slice 65/70 records are
-`REALLOCATED_EXPERIMENTAL`. Review does not start feature implementation or
-advance any plan to READY.
+The design-documentation campaign is complete: all fourteen maximum-envelope
+records passed independent review with no unresolved P1/P2 finding. Slice
+10/15 records remain `REVIEWED_BLOCKED_ON_SLICE_7`; narrowed retained
+records require scope reconciliation before READY; and Slice 65/70 records are
+`REALLOCATED_EXPERIMENTAL`. Review does not start feature implementation.
 
 ## Cross-cutting DoD
 
 Each feature slice writes numbered requirements and slice-local falsifiable
-acceptance criteria, then a design grounded in the reviewed architecture. An
+acceptance criteria, then writes or reconciles a design grounded in the reviewed architecture. An
 independent design review allows at most three documented FIX-n cycles.
 Implementation follows TDD RED/GREEN, then an independent implementation
 review allows at most four documented FIX-n cycles, subject to the standing
@@ -163,7 +164,7 @@ generated test oracles.
 ## Reserved-gap policy
 
 Every finding remains in its owning prework register or feature-slice plan until
-the Slice 6 HITL session explicitly includes, postpones, or rejects it. Slice 7
+an explicit owner decision includes, postpones, parks, or rejects it. Slice 7
 cannot absorb Slice 10+ work. A failed benchmark treatment remains durable
 negative evidence and does not become a default. Deferred work names its target
 release or backlog authority; it is never silently dropped.

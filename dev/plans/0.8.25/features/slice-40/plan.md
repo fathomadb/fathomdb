@@ -19,8 +19,9 @@ work-manifest surface is not required in 0.8.25.
 ## Verification routes
 
 Selected: fast, heavy, all, all-feature/operator, Windows CPU/native
-Rust/Python/Node, GPU/CUDA for dense readiness, and registry-installed status
-smokes. Live-model is N/A unless readiness proof requires model acquisition.
+Rust/Python/Node, GPU/CUDA for dense readiness, and packaged status smokes.
+Live-model and pre-publication registry-installed are N/A; local model
+acquisition/readiness is an environment preflight, not a live-model route.
 
 ## Draft-to-ready and delivery
 

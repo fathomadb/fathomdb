@@ -21,13 +21,13 @@ and sophisticated repair orchestration remain experimental.
 ## Verification routes
 
 Selected: fast, heavy, all, all-feature/operator, Windows CPU/native
-Rust/Python/Node, and registry-installed explanation/operator smokes. GPU/CUDA
-and live-model are N/A.
+Rust/Python/Node, and packaged explanation/operator smokes. GPU/CUDA,
+live-model, and pre-publication registry-installed are N/A.
 
 ## Draft-to-ready and delivery
 
 Define reciprocal trace, compact inclusion/degradation reasons, privacy,
 injected orphan/projection fault, codec, parity, and Windows criteria; design
-bounded one-request traversal and checks; review; implement RED/GREEN fault/property
-tests; review; verify; and record status. Stop on unbounded tracing, semantic
+bounded one-request traversal and checks; review; implement RED/GREEN
+fault/property tests; review; verify; and record status. Stop on unbounded tracing, semantic
 correctness claims, or content-bearing telemetry.

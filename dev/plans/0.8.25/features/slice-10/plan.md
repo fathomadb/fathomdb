@@ -18,9 +18,10 @@ claims; and reclassify GLOBAL-01 without rewriting measured evidence.
 ## Verification routes
 
 Selected: fast, heavy, all, and a native retrieval-only `Engine.search`
-witness. Windows CPU/native, all-feature/operator, GPU/CUDA, live-model, and
-registry-installed are N/A unless the design introduces a public executable or
-binding surface; the readiness review must confirm that judgment.
+classification fixture. The final installed release-candidate witness belongs
+to Slice 75. Windows CPU/native, all-feature/operator, GPU/CUDA, live-model,
+packaged, and registry-installed are N/A unless the design introduces a public
+executable or binding surface; the readiness review must confirm that judgment.
 
 ## Draft-to-ready and delivery
 

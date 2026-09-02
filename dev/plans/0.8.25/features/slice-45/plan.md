@@ -21,13 +21,13 @@ allocated to 0.8.27.
 ## Verification routes
 
 Selected: fast, heavy, all, all-feature, Windows CPU/native Rust/Python/Node,
-and registry-installed pagination smokes. Operator, GPU/CUDA, and live-model
-are N/A.
+and packaged pagination smokes. Operator, GPU/CUDA, live-model, and
+pre-publication registry-installed are N/A.
 
 ## Draft-to-ready and delivery
 
 Define request/order mismatch, duplicate/omission race, point/page,
 replacement, codec, parity, and Windows criteria; design a compact opaque
-continuation that can bind an optional Slice 35 read context; review; implement RED/GREEN property and
-real-database tests; review; verify; and record status. Stop on unstable pages,
+continuation that can bind an optional Slice 35 read context; review; implement
+RED/GREEN property and real-database tests; review; verify; and record status. Stop on unstable pages,
 cursor leakage, or a new `latest_state` storage authority.

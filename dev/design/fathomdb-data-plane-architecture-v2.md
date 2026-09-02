@@ -18,6 +18,11 @@ FathomDB is the durable, provenance-preserving data plane for an agent-memory
 system. It owns mechanisms and invariants. A separate semantic component owns
 task intent and semantic policy.
 
+Architecture v2 is a multi-release destination. The approved
+[`0.8.25 scope adjustment`](../plans/0.8.25/scope-adjustment-2026-09-02.md)
+delivers its essential core first and stages the remaining constraints without
+weakening or silently deleting them.
+
 FathomDB owns identity, source linkage, dependency representation, validity,
 lifecycle transitions, erasure, projection readiness, deterministic retrieval
 primitives, governed mutation, structural explanation, and integrity checks.
@@ -166,9 +171,9 @@ of architecture v2 rather than optional implementation guidance:
 | A25-01 | A frozen snapshot is defined by reproducible canonical boundary, validity instant, projection generation, and eligibility envelope, with typed unavailable, drift, and expiry outcomes. It does not promise a permanently held SQLite reader transaction. | 35 |
 | A25-02 | Exact locators are UTF-8 byte ranges over a named immutable revision, using a declared canonical byte representation and hash algorithm; invalid boundaries and hash mismatch reject typed. | 15, 50 |
 | A25-03 | FathomDB exposes governed current operational state backed by `operational_state`; `latest_state` remains a consumer concept. | 45 |
-| A25-04 | Multi-source dependencies use a bounded Engine-known liveness grammar. `all_required` and `any_surviving` have distinct removal behavior; unsupported rules reject typed. | 20, 30 |
+| A25-04 | Multi-source dependencies use a bounded Engine-known liveness grammar. `all_required` and `any_surviving` have distinct removal behavior; unsupported rules reject typed. | 0.8.26 successors to the 20/30 core |
 | A25-05 | Every new persisted or public type defines schema/wire version and unknown-field/unknown-variant behavior, with feature-local Rust, Python, TypeScript, and applicable Windows CPU/native proof. | active 15–60; audit 75; future slices retain the rule |
-| A25-06 | Eligibility and graph constraints execute before seed/candidate truncation and expansion; explanation distinguishes ineligible, not selected, unavailable, and degraded outcomes. | 35, 55, 60 |
+| A25-06 | Eligibility and graph constraints execute before seed/candidate truncation and expansion. 0.8.25 reports compact inclusion/degradation state; expanded deterministic ineligible/not-selected explanation follows only when justified. | 35/55/60 core; expanded explanation 0.8.28 |
 | A25-07 | Default `SearchHit` remains compact. Evidence handles are opt-in, bound to the originating visibility envelope, and resolve stale or invisible state only to typed non-disclosure. | 50 |
 
 Architecture v1 remains historical. Accepted/locked predecessor designs remain

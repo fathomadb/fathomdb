@@ -175,10 +175,12 @@ expansion as a default retrieval treatment.
 | Bounds and safe order | Depth/seed/page bounds and cycles terminate; a shuffled graph with more than 10,000 same-hop paths fails with no page/cursor, while a below-cap multi-page walk has no duplicate, omission, or reorder across insertion permutations and reopen. |
 | Compatibility | Existing `neighbors`/`search_expand` and default `Engine.search` fixtures remain byte-for-byte compatible where serialized. |
 
-Run focused engine/query tests, SDK and wire fixtures, lifecycle/erasure tests,
-heavy graph matrices, all/all-feature suites, Windows CPU/native Rust/Python/
-Node, registry-installed graph/search smokes, and CUDA seeding tests when dense
-or rerank is configured. Operator and live-model routes are not applicable.
+The maximum-envelope route used focused engine/query tests, SDK and wire
+fixtures, lifecycle/erasure tests, heavy graph matrices, all/all-feature suites,
+Windows CPU/native Rust/Python/Node, packaged graph/search smokes, and CUDA
+seeding tests when dense or rerank dispatch changed. The narrowed READY review
+must mark CUDA N/A when implementation is device-independent. Operator,
+live-model, and pre-publication registry routes are not applicable.
 
 An independent review may require at most three FIX-n cycles. Any unresolved
 P1/P2 issue, post-truncation constraint, unbounded path, mixed snapshot, or

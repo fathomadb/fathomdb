@@ -20,14 +20,14 @@ not require it; full lease/retention machinery is allocated to 0.8.27.
 ## Verification routes
 
 Selected: fast, heavy, all, all-feature, Windows CPU/native Rust/Python/Node,
-GPU/CUDA because dense eligibility is affected, and registry-installed search
-smokes. Operator and live-model are N/A.
+GPU/CUDA because dense eligibility is affected, and packaged search smokes.
+Operator, live-model, and pre-publication registry-installed are N/A.
 
 ## Draft-to-ready and delivery
 
 Define optional snapshot, mutation/validity race, unsupported predicate,
 native query-plan, all-arm equivalence, parity, Windows, and CUDA criteria;
 design without mandatory snapshot overhead or a permanently held SQLite
-transaction; review;
-implement RED/GREEN real-database/property tests; review; verify; and record
+transaction; review; implement RED/GREEN real-database/property tests; review;
+verify; and record
 status. Stop on post-truncation filtering or ambiguous snapshot boundaries.

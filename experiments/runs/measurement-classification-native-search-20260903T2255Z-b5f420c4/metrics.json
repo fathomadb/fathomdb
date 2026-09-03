@@ -1,0 +1,15 @@
+{
+  "schema_version": "measurement-classification.native-result.v1",
+  "program_track": "GLOBAL-01",
+  "state": "complete",
+  "expected_source_id": "source-cedar",
+  "returned_source_ids": [
+    "source-cedar"
+  ],
+  "retrieval": {
+    "call_count": 1,
+    "recall_at_3": 1.0,
+    "reciprocal_rank": 1.0,
+    "result_count": 1
+  }
+}

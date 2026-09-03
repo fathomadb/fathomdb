@@ -24,8 +24,15 @@ def _write_json(path: Path, value: object) -> None:
 
 def _authority() -> dict:
     return {
-        "schema_version": "measurement.plan.v1",
+        "schema_version": "measurement.plan.v2",
         "plan_id": "native-search-v1",
+        "measurement_roots": [
+            {
+                "source_artifact_id": "metrics",
+                "json_pointers": ["/retrieval"],
+            }
+        ],
+        "metric_exclusions": [],
         "components": [
             {
                 "id": "engine",
@@ -232,6 +239,10 @@ def test_comparison_sets_are_derived_not_narrated(tmp_path):
         {"id": "planner", "name": "query planner", "kind": "query_planner"}
     )
     authority["components"] = copy.deepcopy(document["components"])
+    document["execution_witnesses"][0]["arm_id"] = "control"
+    treatment_witness = copy.deepcopy(document["execution_witnesses"][0])
+    treatment_witness.update({"id": "treatment-call", "arm_id": "treatment"})
+    document["execution_witnesses"].append(treatment_witness)
     comparison = {
         "id": "arms",
         "arms": [
@@ -243,7 +254,7 @@ def test_comparison_sets_are_derived_not_narrated(tmp_path):
             {
                 "id": "treatment",
                 "component_ids": ["engine", "metric", "planner"],
-                "execution_witness_ids": [],
+                "execution_witness_ids": ["treatment-call"],
             },
         ],
         "shared_component_ids": ["engine", "metric"],
@@ -363,6 +374,85 @@ def test_classification_id_covers_the_full_body(tmp_path):
     original = mc.classification_id(document)
     document["claims"][0]["layer"] = "end_to_end"
     assert mc.classification_id(document) != original
+
+
+def test_engine_metric_requires_an_execution_witness(tmp_path):
+    document, authority = _complete_document(tmp_path)
+    document["metrics"][0]["execution_witness_ids"] = []
+    authority["metric_bindings"][0]["execution_witness_ids"] = []
+    document["migration"]["measurement_plan_sha256"] = mc.canonical_sha256(authority)
+    document["classification_id"] = mc.classification_id(document)
+
+    with pytest.raises(mc.ClassificationError, match="execution witness"):
+        mc.validate_classification(
+            document, repository_root=tmp_path, authority=authority
+        )
+
+
+def test_successful_data_plane_metric_rejects_unknown_historical_witness(tmp_path):
+    document, authority = _complete_document(tmp_path)
+    document["execution_witnesses"][0].update(
+        {
+            "engine_search_state": "unknown_historical",
+            "call_count": None,
+            "count_semantics": "unknown",
+            "evidence_kind": "immutable_receipt",
+        }
+    )
+    document["classification_id"] = mc.classification_id(document)
+
+    with pytest.raises(mc.ClassificationError, match="unknown_historical"):
+        mc.validate_classification(
+            document, repository_root=tmp_path, authority=authority
+        )
+
+
+def test_plan_bound_roots_reject_hidden_numeric_metric(tmp_path):
+    document, authority = _complete_document(tmp_path)
+    metrics_path = tmp_path / "metrics.json"
+    _write_json(
+        metrics_path,
+        {"retrieval": {"recall_at_3": 1.0}, "quality_score": 0.25},
+    )
+    document["source_artifacts"][0]["sha256"] = _sha(metrics_path)
+    document["classification_id"] = mc.classification_id(document)
+
+    with pytest.raises(mc.ClassificationError, match="unclassified"):
+        mc.validate_classification(
+            document, repository_root=tmp_path, authority=authority
+        )
+
+
+def test_plan_rejects_overlapping_measurement_roots(tmp_path):
+    document, authority = _complete_document(tmp_path)
+    authority["measurement_roots"][0]["json_pointers"].append(
+        "/retrieval/recall_at_3"
+    )
+    document["migration"]["measurement_plan_sha256"] = mc.canonical_sha256(authority)
+    document["classification_id"] = mc.classification_id(document)
+
+    with pytest.raises(mc.ClassificationError, match="overlap"):
+        mc.validate_classification(
+            document, repository_root=tmp_path, authority=authority
+        )
+
+
+def test_source_hash_mismatch_rejects(tmp_path):
+    document, authority = _complete_document(tmp_path)
+    document["source_artifacts"][0]["sha256"] = "0" * 64
+    document["classification_id"] = mc.classification_id(document)
+
+    with pytest.raises(mc.ClassificationError, match="SHA-256"):
+        mc.validate_classification(
+            document, repository_root=tmp_path, authority=authority
+        )
+
+
+def test_native_blocker_preserves_specific_failure_category():
+    blocker = mc._native_blocker(  # noqa: SLF001 - contract-level typed outcome
+        mc.ClassificationError("native expected hit is missing")
+    )
+    assert blocker["code"] == "expected_hit_missing"
 
 
 def test_portable_repository_gate_loads_post_cutover_plan_and_sidecar(tmp_path):

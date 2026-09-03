@@ -137,7 +137,7 @@ loader-test-hooks = ["default-embedder"]
 tc5-benchmark = ["default-embedder"]
 
 [dev-dependencies]
-httpmock = "0.7"
+httpmock = "=0.8.3"
 tempfile = "3"
 sha2 = "0.11"
 

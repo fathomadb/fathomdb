@@ -1717,6 +1717,52 @@ else
   fail "arm R4b (generic completion): rc=$RC out=$OUT"
 fi
 
+# The live 0.8.25 shape keeps `landed` reserved for origin/main while ladder
+# rows may be complete on the release branch. A positive completion ref must
+# verify those row SHAs too; an empty landed array must not make the check
+# vacuous.
+python3 - "$FIX/dev/plans/release-state-0.8.25.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+st = json.load(open(p))
+st["landed"] = []
+for entry in st["ladder"]:
+    if entry["slice"] in (0, 5):
+        entry["status"] = "COMPLETE_ON_RELEASE_BRANCH"
+json.dump(st, open(p, "w"), indent=2)
+PY
+(cd "$FIX" && ./scripts/check-release-state-views.sh --write >/dev/null 2>&1)
+run_gate
+if [ "$RC" -eq 0 ]; then
+  pass "arm R4b: release-branch completion rows verify with an empty landed set"
+else
+  fail "arm R4b (branch-complete rows): rc=$RC out=$OUT"
+fi
+(
+  cd "$FIX"
+  echo "not pushed to release ref" >not-on-release-ref.txt
+  git add not-on-release-ref.txt && git commit -qm 'fixture: branch-complete SHA absent from release ref'
+  local_only="$(git rev-parse --short HEAD)"
+  python3 - "$local_only" <<'PY'
+import json, sys
+p = "dev/plans/release-state-0.8.25.json"
+st = json.load(open(p))
+for entry in st["ladder"]:
+    if entry["slice"] == 5:
+        entry["sha"] = sys.argv[1]
+json.dump(st, open(p, "w"), indent=2)
+PY
+)
+run_gate
+if [ "$RC" -ne 0 ] && grep -qF 'not reachable from origin/release/0.8.25' <<<"$OUT"; then
+  pass "arm R4b: an unpushed release-branch completion row HARD-fails"
+else
+  fail "arm R4b (unpushed branch-complete row): rc=$RC out=$OUT"
+fi
+
+# Restore the ordinary populated-landed fixture for the existing COMPLETE arm.
+completion_ref_fixture 0.8.25
+
 # COMPLETE is false while the release branch has not reached main.
 python3 - "$FIX/dev/plans/release-state-0.8.25.json" <<'PY'
 import json, sys

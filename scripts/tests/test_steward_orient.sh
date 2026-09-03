@@ -283,6 +283,29 @@ else
   fail "arm 6b (board named): out=$OUT"
 fi
 
+# A modern board delegates its next action to the generated release-state view
+# instead of retaining the legacy table row. Prove the fallback and one
+# lifecycle-sensitive action mapping directly on a fixture.
+setup_fixture
+sed -i '/^| \*\*Immediate next action\*\* |/d' "$FIX/dev/plans/runs/STATUS-0.9.0.md"
+python3 - "$FIX/dev/plans/release-state-0.9.0.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+d = json.load(open(p))
+d["generated_views"] = [{"id": "status-next-action", "file": d["board"]}]
+for entry in d["ladder"]:
+    if entry["slice"] == d["next_slice"]:
+        entry["status"] = "IN_PROGRESS"
+json.dump(d, open(p, "w"), indent=2)
+PY
+run_orient "$FIX"
+if [ "$RC" -eq 0 ] && grep -qF 'NEXT ACTION (from release state)' <<<"$OUT" \
+   && grep -qF 'Continue Slice 20.' <<<"$OUT"; then
+  pass "state-owned next action maps IN_PROGRESS to Continue Slice"
+else
+  fail "state-owned next-action fallback: rc=$RC err=$ERR out=$OUT"
+fi
+
 # --- Arm 8: board-CLOSED detector parity (correction 4) --------------------
 # The shared predicate's window is `head -n 15`, because YAML frontmatter pushes
 # the banner down (measured at line 10 on STATUS-0.8.9.1.md). Here the ONLY

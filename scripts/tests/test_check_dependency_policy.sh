@@ -26,6 +26,30 @@ EOF
 make_fixture "$TMP/good" '=0.8.3' no 5.4.2
 python3 "$CHECK" --root "$TMP/good" >/dev/null || { echo 'FAIL valid dependency policy'; exit 1; }
 
+# Python 3.10 has no stdlib tomllib. Force that import to fail and provide the
+# declared tomli-compatible surface so the supported fallback is executable,
+# not merely present as dead source text.
+mkdir -p "$TMP/py310-shim"
+cat >"$TMP/py310-shim/tomllib.py" <<'PY'
+raise ModuleNotFoundError("No module named 'tomllib'", name="tomllib")
+PY
+cat >"$TMP/py310-shim/tomli.py" <<'PY'
+import re
+
+def loads(text):
+    if "[[package]]" not in text:
+        match = re.search(r'^httpmock\s*=\s*"([^"]+)"', text, re.MULTILINE)
+        return {"dev-dependencies": {"httpmock": match.group(1)}}
+    packages = []
+    for block in text.split("[[package]]")[1:]:
+        name = re.search(r'^name\s*=\s*"([^"]+)"', block, re.MULTILINE)
+        version = re.search(r'^version\s*=\s*"([^"]+)"', block, re.MULTILINE)
+        packages.append({"name": name.group(1), "version": version.group(1)})
+    return {"package": packages}
+PY
+PYTHONPATH="$TMP/py310-shim" python3 "$CHECK" --root "$TMP/good" >/dev/null \
+  || { echo 'FAIL Python 3.10 tomli fallback'; exit 1; }
+
 make_fixture "$TMP/bad-pin" '0.8' no 5.4.2
 if python3 "$CHECK" --root "$TMP/bad-pin" >/dev/null 2>&1; then echo 'FAIL loose httpmock pin passed'; exit 1; fi
 

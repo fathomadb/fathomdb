@@ -1,0 +1,38 @@
+{
+  "cross_encoder": "disabled",
+  "database_root": "data/performance-benchmarking/0.8.25/slice-10/databases",
+  "device": "cpu",
+  "embedder": "none",
+  "expected_source_id": "source-cedar",
+  "fathomdb_bin": "target/debug/fathomdb",
+  "limit": 3,
+  "measurement_plan": {
+    "path": "experiments/configs/measurement-classification/native-search.measurement-plan.v2.json",
+    "plan_id": "slice-10-native-search-v2",
+    "sha256": "efe2656c55dd2aefc8145835c1be3a7af1eefc344ef93083aafafb04bdb07661"
+  },
+  "program_track": "GLOBAL-01",
+  "query": "cedar launch checklist",
+  "records": [
+    {
+      "body": "The cedar launch checklist requires a signed readiness receipt.",
+      "kind": "document",
+      "logical_id": "native-cedar",
+      "source_id": "source-cedar"
+    },
+    {
+      "body": "The maple maintenance window starts after the nightly backup.",
+      "kind": "document",
+      "logical_id": "native-maple",
+      "source_id": "source-maple"
+    },
+    {
+      "body": "The willow archive contains historical lifecycle receipts.",
+      "kind": "document",
+      "logical_id": "native-willow",
+      "source_id": "source-willow"
+    }
+  ],
+  "schema_version": "measurement-classification.native-search.v2",
+  "seed": 20260903
+}

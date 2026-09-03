@@ -1,0 +1,108 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "measurement-classification-native-search-20260903T2332Z-851dbebe",
+  "experiment": "measurement-classification-native-search",
+  "title": "measurement-classification-native-search",
+  "verdict": "pass",
+  "read": "One direct native Engine.search call returned the pinned source.",
+  "code": {
+    "git_sha": "dd736cda47cd7eb5ed8474e09302906e94419d44",
+    "dirty": false,
+    "branch": "release/0.8.25",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "851dbebe2771af01e9dae1af728fc8f48625163692e2ba31a59971a9677ff687",
+    "path": "experiments/configs/measurement-classification/native-search.v2.json",
+    "resolved": {
+      "schema_version": "measurement-classification.native-search.v2",
+      "program_track": "GLOBAL-01",
+      "seed": 20260903,
+      "device": "cpu",
+      "embedder": "none",
+      "cross_encoder": "disabled",
+      "query": "cedar launch checklist",
+      "limit": 3,
+      "expected_source_id": "source-cedar",
+      "records": [
+        {
+          "kind": "document",
+          "logical_id": "native-cedar",
+          "source_id": "source-cedar",
+          "body": "The cedar launch checklist requires a signed readiness receipt."
+        },
+        {
+          "kind": "document",
+          "logical_id": "native-maple",
+          "source_id": "source-maple",
+          "body": "The maple maintenance window starts after the nightly backup."
+        },
+        {
+          "kind": "document",
+          "logical_id": "native-willow",
+          "source_id": "source-willow",
+          "body": "The willow archive contains historical lifecycle receipts."
+        }
+      ],
+      "database_root": "data/performance-benchmarking/0.8.25/slice-10/databases",
+      "fathomdb_bin": "target/debug/fathomdb",
+      "measurement_plan": {
+        "path": "experiments/configs/measurement-classification/native-search.measurement-plan.v2.json",
+        "sha256": "efe2656c55dd2aefc8145835c1be3a7af1eefc344ef93083aafafb04bdb07661",
+        "plan_id": "slice-10-native-search-v2"
+      }
+    }
+  },
+  "corpus": {
+    "source": "literal Slice 10 retrieval-only fixture",
+    "manifest_sha256": "2d852f7d488aed673360dbc5787f61731d0720535170db114f96c4d0d3e769cb",
+    "datasets": [
+      {
+        "name": "slice-10-native",
+        "documents": 3,
+        "questions": 1
+      }
+    ]
+  },
+  "seeds": {
+    "fixture": 20260903
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb": "0.8.24"
+    }
+  },
+  "metrics": {
+    "schema_version": "measurement-classification.native-result.v2",
+    "program_track": "GLOBAL-01",
+    "state": "complete",
+    "expected_source_id": "source-cedar",
+    "retrieval": {
+      "call_count": 1,
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "result_count": 1
+    }
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": [
+    "tests/experiments/test_measurement_classification.py"
+  ],
+  "files_changed": [],
+  "artifacts": [
+    {
+      "path": "data/performance-benchmarking/0.8.25/slice-10/databases/slice-10-native-20260903233205/fathomdb-config.v1.json",
+      "sha256": "8c482e92a4b4e5e7818e6c2faecc70e299cb86b6a8dcaf1f76625fd573ae9704"
+    },
+    {
+      "path": "data/performance-benchmarking/0.8.25/slice-10/databases/slice-10-native-20260903233205/fathomdb-doctor.v1.json",
+      "sha256": "76d11310c50ce64b63643a5817bae3e9320e5efa2d3ecbf34cc61c410520d7ae"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

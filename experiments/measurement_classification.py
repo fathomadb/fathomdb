@@ -188,17 +188,9 @@ def _sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _artifact_bytes(
-    row: dict[str, Any],
-    repository_root: Path,
-    locator_overrides: dict[str, str] | None = None,
-) -> bytes:
+def _artifact_bytes(row: dict[str, Any], repository_root: Path) -> bytes:
     kind = row["locator_kind"]
     locator = row["locator"]
-    if locator_overrides and locator in locator_overrides:
-        return _repository_path(
-            repository_root, locator_overrides[locator], "artifact override"
-        ).read_bytes()
     if kind == "git_blob":
         if ":" not in locator:
             raise ClassificationError("git_blob locator must be <commit>:<path>")
@@ -311,9 +303,7 @@ def _validate_authority(authority: dict[str, Any]) -> None:
 
 
 def _validate_artifacts(
-    rows: list[Any],
-    repository_root: Path,
-    locator_overrides: dict[str, str] | None = None,
+    rows: list[Any], repository_root: Path
 ) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
     artifacts: list[dict[str, Any]] = []
     decoded: dict[str, Any] = {}
@@ -342,7 +332,7 @@ def _validate_artifacts(
                 raise ClassificationError("metrics payload requires measurement roots")
         elif roots:
             raise ClassificationError("evidence-only artifact must have empty roots")
-        payload = _artifact_bytes(row, repository_root, locator_overrides)
+        payload = _artifact_bytes(row, repository_root)
         if _sha256_bytes(payload) != row["sha256"]:
             raise ClassificationError("source artifact SHA-256 mismatch")
         if row["role"] == "metrics_payload":
@@ -635,7 +625,6 @@ def validate_classification(
     repository_root: str | Path,
     authority: dict[str, Any],
     allow_legacy: bool = False,
-    locator_overrides: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Validate a classification against its source-bound measurement plan."""
     row = _closed(document, TOP_KEYS, "classification")
@@ -657,7 +646,6 @@ def validate_classification(
     artifacts, decoded = _validate_artifacts(
         _list(row["source_artifacts"], "source_artifacts"),
         Path(repository_root),
-        locator_overrides,
     )
     strict_authority = authority["schema_version"] == PLAN_VERSION
     if legacy != (authority["schema_version"] == LEGACY_PLAN_VERSION):
@@ -995,19 +983,18 @@ def validate_repository(repository_root: str | Path) -> None:
     for index, value in enumerate(superseded_values):
         entry = _closed(
             value,
-            {"run_id", "record_archive_path", "reason"},
+            {"run_id", "record_sha256", "reason"},
             f"superseded post-cutover runs[{index}]",
         )
         if entry["reason"] != "invalid_ancillary_locator_quarantined":
             raise ClassificationError("unsupported superseded run reason")
         run_id = _nonempty_string(entry["run_id"], "superseded run id")
-        archive_path = _nonempty_string(
-            entry["record_archive_path"], "superseded record archive path"
+        record_sha256 = _nonempty_string(
+            entry["record_sha256"], "superseded record SHA-256"
         )
-        _repository_path(root, archive_path, "superseded record archive path")
         if run_id in superseded_records:
             raise ClassificationError("duplicate superseded post-cutover run id")
-        superseded_records[run_id] = archive_path
+        superseded_records[run_id] = record_sha256
     superseded = set(superseded_records)
     if len(superseded) != len(superseded_values):
         raise ClassificationError("duplicate superseded post-cutover run id")
@@ -1023,11 +1010,7 @@ def validate_repository(repository_root: str | Path) -> None:
         index_row = json.loads(line)
         run_id = index_row["run_id"]
         run_dir = experiments_dir / "runs" / run_id
-        record_path = (
-            root / superseded_records[run_id]
-            if run_id in superseded_records
-            else run_dir / "record.json"
-        )
+        record_path = run_dir / "record.json"
         record = _load_json(record_path, "post-cutover record")
         if record.get("run_id") != run_id:
             raise ClassificationError("post-cutover record run_id mismatch")
@@ -1039,23 +1022,19 @@ def validate_repository(repository_root: str | Path) -> None:
         legacy = run_id in superseded
         if legacy:
             observed_superseded.add(run_id)
+            if _sha256_bytes(record_path.read_bytes()) != superseded_records[run_id]:
+                raise ClassificationError("superseded record SHA-256 mismatch")
         sidecar = _load_json(
             run_dir / (LEGACY_SIDECAR_NAME if legacy else SIDECAR_NAME),
             "post-cutover classification",
         )
         if sidecar.get("run_id") != run_id:
             raise ClassificationError("post-cutover classification run_id mismatch")
-        locator_overrides = None
-        if legacy:
-            locator_overrides = {
-                f"experiments/runs/{run_id}/record.json": superseded_records[run_id]
-            }
         validate_classification(
             sidecar,
             repository_root=root,
             authority=authority,
             allow_legacy=legacy,
-            locator_overrides=locator_overrides,
         )
     if observed_superseded != superseded:
         raise ClassificationError("superseded post-cutover inventory is not closed")
@@ -1705,9 +1684,8 @@ def materialize_historical(
         "superseded_postcutover_runs": [
             {
                 "run_id": SUPERSEDED_NATIVE_V1_RUN_ID,
-                "record_archive_path": (
-                    "experiments/superseded-runs/"
-                    f"{SUPERSEDED_NATIVE_V1_RUN_ID}/record.json"
+                "record_sha256": (
+                    "4f393460aab1be0ce7e58765879e0a2718c25ba747c69d8b4241b8c875d740ff"
                 ),
                 "reason": "invalid_ancillary_locator_quarantined",
             }

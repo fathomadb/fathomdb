@@ -11,7 +11,7 @@
   "superseded_postcutover_runs": [
     {
       "run_id": "measurement-classification-native-search-20260903T2255Z-b5f420c4",
-      "record_archive_path": "experiments/superseded-runs/measurement-classification-native-search-20260903T2255Z-b5f420c4/record.json",
+      "record_sha256": "4f393460aab1be0ce7e58765879e0a2718c25ba747c69d8b4241b8c875d740ff",
       "reason": "invalid_ancillary_locator_quarantined"
     }
   ]

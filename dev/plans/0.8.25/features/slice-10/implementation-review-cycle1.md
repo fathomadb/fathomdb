@@ -19,9 +19,9 @@ FAIL. FIX-2 was required before Slice 10 could close.
    `Engine.search` call path cannot be assigned to another component kind, and
    a graph arm's witness must agree with the arm's Engine component.
 2. **P1 — The provisional v1 correction broke receipt immutability.** FIX-2
-   restores and quarantines the byte-original record, maps its archive locator
-   in the closed v2 policy, fully validates its v1 sidecar with that override,
-   and makes every legacy classification ineligible as successful evidence.
+   restores the byte-original canonical record, pins its hash in the closed v2
+   policy, fully validates its v1 sidecar, and makes every legacy classification
+   ineligible as successful evidence.
 3. **P2 — Persistence failures could append an index row without its sidecar.**
    FIX-2 adds a `before_index` finalization hook to the shared receipt writer.
    Runtime/result evidence and the validated sidecar must now exist before the

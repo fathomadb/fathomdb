@@ -31,9 +31,7 @@ FAIL. FIX-1 was required before Slice 10 could close.
    source-hash mismatch, and typed native failure mapping.
 
 The provisional v1 native receipt is retained in the append-only index. Its
-machine-absolute ancillary setup locators make it invalid for the normal run
-contract, so the byte-original record is quarantined under
-`experiments/superseded-runs/` and remains attributable to `c7fd9fba`. Policy
-v2 explicitly maps and fully validates those original bytes while marking the
-run superseded, so it cannot support a successful claim; a clean v2 witness is
-required for closure.
+machine-absolute ancillary setup locators make it invalid for active evidence,
+so policy v2 pins and fully validates the byte-original canonical record while
+marking it superseded. It remains attributable to `c7fd9fba` and cannot support
+a successful claim; a clean v2 witness is required for closure.

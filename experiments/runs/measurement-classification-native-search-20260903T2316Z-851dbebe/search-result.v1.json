@@ -1,0 +1,8 @@
+{
+  "schema_version": "measurement-classification.search-result.v1",
+  "expected_source_id": "source-cedar",
+  "expected_rank": 1,
+  "returned_source_ids": [
+    "source-cedar"
+  ]
+}

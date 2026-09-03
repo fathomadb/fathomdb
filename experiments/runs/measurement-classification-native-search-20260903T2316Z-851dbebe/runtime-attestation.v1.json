@@ -1,0 +1,20 @@
+{
+  "schema_version": "measurement-classification.runtime-attestation.v1",
+  "fathomdb_version": "0.8.24",
+  "python_executable": {
+    "path": "/usr/bin/python3.12",
+    "sha256": "a92f0f95e883390c7256b2e441484aac06b1002dbe1d924141a77c8d82f96223"
+  },
+  "python_module": {
+    "path": "/tmp/fathomdb-s7-final-wheel.pgL8YG/venv/lib/python3.12/site-packages/fathomdb/__init__.py",
+    "sha256": "ef7a3de6e0d51ca095b5d65daf5321b3563fbe01660e2f541fb7757ad7e8830e"
+  },
+  "native_extension": {
+    "path": "/tmp/fathomdb-s7-final-wheel.pgL8YG/venv/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so",
+    "sha256": "d5ddfb49b5dcd7aab9d52236d945fd2ffa8e267cd1ff2d35276aab1caa3f1428"
+  },
+  "fathomdb_cli": {
+    "path": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/target/debug/fathomdb",
+    "sha256": "47e2a530d516ac3b367c901317f65a06f2a71c857ffc4cd6d8c505af6edf00a5"
+  }
+}

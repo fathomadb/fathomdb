@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from experiments import _lib
 from experiments import measurement_classification as mc
 
 
@@ -362,3 +363,90 @@ def test_classification_id_covers_the_full_body(tmp_path):
     original = mc.classification_id(document)
     document["claims"][0]["layer"] = "end_to_end"
     assert mc.classification_id(document) != original
+
+
+def test_portable_repository_gate_loads_post_cutover_plan_and_sidecar(tmp_path):
+    experiments = tmp_path / "experiments"
+    plan = _authority()
+    plan_path = experiments / "configs" / "native.measurement-plan.v1.json"
+    _write_json(plan_path, plan)
+    config = {
+        "program_track": "GLOBAL-01",
+        "measurement_plan": {
+            "path": "experiments/configs/native.measurement-plan.v1.json",
+            "sha256": mc.canonical_sha256(plan),
+            "plan_id": plan["plan_id"],
+        },
+    }
+    run_id, run_dir = _lib.write_record(
+        "post-cutover",
+        ts=__import__("datetime").datetime(
+            2026, 9, 3, 18, 0, tzinfo=__import__("datetime").timezone.utc
+        ),
+        config_obj=config,
+        metrics={"retrieval": {"recall_at_3": 1.0}},
+        verdict="pass",
+        read="portable fixture",
+        code={
+            "git_sha": "fixture",
+            "dirty": False,
+            "branch": "fixture",
+            "baseline_commit": None,
+        },
+        corpus={"source": None, "manifest_sha256": None, "datasets": []},
+        seeds={},
+        env={
+            "python": "3.12",
+            "lockfile_sha256": None,
+            "gpu": None,
+            "key_deps": {},
+        },
+        cost_usd=0.0,
+        base_dir=experiments,
+    )
+    runner = tmp_path / "runner.py"
+    runner.write_text("engine.search(query)\n", encoding="utf-8")
+    document, _ = _complete_document(tmp_path)
+    document["run_id"] = run_id
+    document["source_artifacts"][0].update(
+        {
+            "locator": str(
+                (run_dir / "metrics.json").relative_to(tmp_path)
+            ),
+            "sha256": _sha(run_dir / "metrics.json"),
+        }
+    )
+    document["classification_id"] = mc.classification_id(document)
+    mc.write_classification(
+        run_dir, document, repository_root=tmp_path, authority=plan
+    )
+
+    manifest_path = experiments / "measurement-classification-global-01.v1.json"
+    _write_json(
+        manifest_path,
+        {
+            "schema_version": "measurement.classification-historical.v1",
+            "included": [],
+            "excluded": [],
+        },
+    )
+    _write_json(
+        experiments / "measurement-classification-policy.v1.json",
+        {
+            "schema_version": "measurement.classification-policy.v1",
+            "classifier_version": "1",
+            "index": {
+                "path": "experiments/index.jsonl",
+                "prefix_bytes": 0,
+                "prefix_lines": 0,
+                "prefix_sha256": hashlib.sha256(b"").hexdigest(),
+            },
+            "historical_manifest_path": str(manifest_path.relative_to(tmp_path)),
+        },
+    )
+
+    mc.validate_repository(tmp_path)
+
+    (run_dir / mc.SIDECAR_NAME).unlink()
+    with pytest.raises(mc.ClassificationError, match="classification_missing"):
+        mc.validate_repository(tmp_path)

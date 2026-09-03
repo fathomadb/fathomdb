@@ -6,7 +6,11 @@ from __future__ import annotations
 import argparse
 import pathlib
 import sys
-import tomllib
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 support
+    import tomli as tomllib
 
 
 def _version_tuple(value: str) -> tuple[int, ...]:

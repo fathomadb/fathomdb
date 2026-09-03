@@ -7,7 +7,7 @@ target_release: 0.8.25
 baseline: dev/design/fathomdb-data-plane-architecture-v1.md
 approval_status: APPROVED
 approved_by: 0.8.25 Slice 6 HITL seq-272..274
-activation_gate: 0.8.25 Slice 7 completion
+activation_gate: 0.8.25 Slice 7 S7-07 GREEN
 activated_on: 2026-09-02
 ---
 
@@ -182,8 +182,22 @@ hidden inside a FathomDB data-plane claim.
 
 ## Compatibility and safety
 
-- New revision, dependency, actuation-batch, read-context, cursor, evidence, and
-  graph request/response types require Rust, Python, TypeScript, and wire parity.
+- Every new persisted or public request and response carries an explicit
+  integer schema/wire version. New revision, dependency, actuation-batch,
+  read-context, cursor, evidence, and graph types require Rust, Python,
+  TypeScript, wire, and applicable Windows CPU/native parity in their owning
+  feature slice.
+- Unknown request fields or request variants reject with a typed
+  unsupported-version outcome before execution; they are never ignored or
+  defaulted into a mutation, visibility, retrieval, or continuation decision.
+- Older readers may ignore additive unknown response fields. An unknown
+  response variant that affects identity, lifecycle, visibility, mutation,
+  ranking, evidence, or continuation rejects with a typed unsupported-version
+  outcome and is never mapped to a default variant.
+- An older writer must not mutate, rebuild, or reindex a persisted artifact
+  whose newer version it cannot fully interpret. Read-only inspection may
+  proceed only where that type's version contract explicitly defines it as
+  safe.
 - Existing bare search-result shape and default retrieval remain unchanged.
 - Existing single-source records remain valid. 0.8.25 keeps the provenance
   representation additively extensible but enforces a zero/one-source bound;
@@ -191,7 +205,6 @@ hidden inside a FathomDB data-plane claim.
 - Governed current-state reads expose the existing `operational_state` table
   and require no data migration. `latest_state` remains consumer terminology,
   not a FathomDB table, lifecycle axis, or semantic-truth policy.
-- Unknown mutation, predicate, cursor, graph, or evidence fields fail closed.
 - Erasure, supersession, access, snapshot, and binding tests precede performance
   or readiness claims.
 
@@ -223,6 +236,7 @@ and the delivery method is
 [`fathomdb-data-plane-foldback-v2.md`](../plans/fathomdb-data-plane-foldback-v2.md).
 
 Slice 4 review, Slice 5 verification analysis, and Slice 6 HITL approval are
-complete. Architecture v2 is approved as the versioned successor. It becomes
-the active implementation authority when Slice 7 records completion; until
-then, Slice 10+ designs may be drafted and reviewed but cannot become READY.
+complete. Architecture v2 became the active versioned successor when S7-07
+recorded GREEN at `a0c9f927`. The rest of Slice 7 remains the repository
+preparation gate: Slice 10+ designs may be drafted and reviewed, but cannot
+become READY until Slice 7 records completion.

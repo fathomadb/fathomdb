@@ -253,7 +253,18 @@ def check_remote_landing(release, st, completion):
 
     by = _by_slice(st)
     unpushed = []
-    for n in st["landed"]:
+    verified_slices = list(st["landed"])
+    if completion is not None and completion["main_integration"] == "PENDING":
+        # `landed` is intentionally reserved for origin/main. A release branch
+        # may therefore carry authoritative completed rows while that array is
+        # empty. Once the state makes the positive `completion.ref` claim,
+        # every such row must be verified against it as well.
+        verified_slices.extend(
+            entry["slice"] for entry in st["ladder"]
+            if entry.get("status") == "COMPLETE_ON_RELEASE_BRANCH"
+            and entry["slice"] not in verified_slices
+        )
+    for n in verified_slices:
         sha = by[n]["sha"]
         rc, _ = _git("rev-parse", "--verify", "--quiet", sha + "^{commit}")
         if rc != 0:

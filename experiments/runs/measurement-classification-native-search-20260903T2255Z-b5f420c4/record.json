@@ -98,11 +98,11 @@
   "files_changed": [],
   "artifacts": [
     {
-      "path": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/data/performance-benchmarking/0.8.25/slice-10/databases/slice-10-native-20260903225532/fathomdb-config.v1.json",
+      "path": "data/performance-benchmarking/0.8.25/slice-10/databases/slice-10-native-20260903225532/fathomdb-config.v1.json",
       "sha256": "8c482e92a4b4e5e7818e6c2faecc70e299cb86b6a8dcaf1f76625fd573ae9704"
     },
     {
-      "path": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/data/performance-benchmarking/0.8.25/slice-10/databases/slice-10-native-20260903225532/fathomdb-doctor.v1.json",
+      "path": "data/performance-benchmarking/0.8.25/slice-10/databases/slice-10-native-20260903225532/fathomdb-doctor.v1.json",
       "sha256": "76d11310c50ce64b63643a5817bae3e9320e5efa2d3ecbf34cc61c410520d7ae"
     }
   ],

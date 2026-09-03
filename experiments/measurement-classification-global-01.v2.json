@@ -1,0 +1,2016 @@
+{
+  "schema_version": "measurement.classification-historical.v2",
+  "included": [
+    {
+      "run_id": "global-01-native-comparison-20260829T1613Z-40685e82",
+      "record_sha256": "e6c436456a638c54fe4051052f758f603a58020aacd1b6cb881ce60dbd275f7f",
+      "metrics_sha256": "c12dbac613dec39347ef41f99cd6c076cf3e0b99391463faeba4b48864db4f8c",
+      "authority": {
+        "schema_version": "measurement.plan.v2",
+        "plan_id": "historical-global-01-native-comparison-20260829T1613Z-40685e82",
+        "components": [
+          {
+            "id": "corpus",
+            "name": "AP News corpus",
+            "kind": "corpus_gold"
+          },
+          {
+            "id": "storage",
+            "name": "FathomDB storage",
+            "kind": "fathomdb_storage"
+          },
+          {
+            "id": "engine",
+            "name": "FathomDB Engine.search",
+            "kind": "fathomdb_engine_search"
+          },
+          {
+            "id": "external",
+            "name": "GraphRAG retrieval",
+            "kind": "external_retrieval"
+          },
+          {
+            "id": "answer",
+            "name": "answer generator",
+            "kind": "answer_generator"
+          },
+          {
+            "id": "judge",
+            "name": "semantic judge",
+            "kind": "semantic_judge"
+          },
+          {
+            "id": "metric",
+            "name": "deterministic aggregation",
+            "kind": "deterministic_metric"
+          }
+        ],
+        "call_paths": [
+          {
+            "id": "initial-fathom-path",
+            "operation": "Engine.search",
+            "source_artifact_ids": [
+              "audit"
+            ]
+          },
+          {
+            "id": "initial-graph-path",
+            "operation": "external_retrieval",
+            "source_artifact_ids": [
+              "audit"
+            ]
+          }
+        ],
+        "comparisons": [
+          {
+            "id": "global-first-run",
+            "arms": [
+              {
+                "id": "fathomdb",
+                "component_ids": [
+                  "corpus",
+                  "storage",
+                  "engine",
+                  "answer",
+                  "judge",
+                  "metric"
+                ],
+                "execution_witness_ids": [
+                  "initial-fathom-search"
+                ]
+              },
+              {
+                "id": "graphrag",
+                "component_ids": [
+                  "corpus",
+                  "external",
+                  "answer",
+                  "judge",
+                  "metric"
+                ],
+                "execution_witness_ids": [
+                  "initial-graph-search"
+                ]
+              }
+            ],
+            "shared_component_ids": [
+              "corpus",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "differing_component_ids": [
+              "storage",
+              "engine",
+              "external"
+            ]
+          }
+        ],
+        "metric_bindings": [
+          {
+            "id": "initial-a9ff4118c7db",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/metrics/comprehensiveness/clustered_bootstrap_ci95/0",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "external",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "initial-fathom-search",
+              "initial-graph-search"
+            ]
+          },
+          {
+            "id": "initial-3e49615d885b",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/metrics/comprehensiveness/clustered_bootstrap_ci95/1",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "external",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "initial-fathom-search",
+              "initial-graph-search"
+            ]
+          },
+          {
+            "id": "initial-0e6cf7976fcf",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/metrics/comprehensiveness/fathomdb_win_rate",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "external",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "initial-fathom-search",
+              "initial-graph-search"
+            ]
+          },
+          {
+            "id": "initial-e20fea2298ad",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/metrics/comprehensiveness/judgments",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "external",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "initial-fathom-search",
+              "initial-graph-search"
+            ]
+          },
+          {
+            "id": "initial-61a55158e523",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/metrics/directness/clustered_bootstrap_ci95/0",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "external",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "initial-fathom-search",
+              "initial-graph-search"
+            ]
+          },
+          {
+            "id": "initial-6e6eb815d79a",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/metrics/directness/clustered_bootstrap_ci95/1",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "external",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "initial-fathom-search",
+              "initial-graph-search"
+            ]
+          },
+          {
+            "id": "initial-cee5db3f1904",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/metrics/directness/fathomdb_win_rate",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "external",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "initial-fathom-search",
+              "initial-graph-search"
+            ]
+          },
+          {
+            "id": "initial-696d6d97a302",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/metrics/directness/judgments",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "external",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "initial-fathom-search",
+              "initial-graph-search"
+            ]
+          },
+          {
+            "id": "initial-d82bb1348bbd",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/metrics/diversity/clustered_bootstrap_ci95/0",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "external",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "initial-fathom-search",
+              "initial-graph-search"
+            ]
+          },
+          {
+            "id": "initial-f61be073fa22",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/metrics/diversity/clustered_bootstrap_ci95/1",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "external",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "initial-fathom-search",
+              "initial-graph-search"
+            ]
+          },
+          {
+            "id": "initial-3a3535177501",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/metrics/diversity/fathomdb_win_rate",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "external",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "initial-fathom-search",
+              "initial-graph-search"
+            ]
+          },
+          {
+            "id": "initial-6601a6250dbb",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/metrics/diversity/judgments",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "external",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "initial-fathom-search",
+              "initial-graph-search"
+            ]
+          },
+          {
+            "id": "initial-d1eccd3d99a2",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/metrics/empowerment/clustered_bootstrap_ci95/0",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "external",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "initial-fathom-search",
+              "initial-graph-search"
+            ]
+          },
+          {
+            "id": "initial-281a4e490f09",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/metrics/empowerment/clustered_bootstrap_ci95/1",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "external",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "initial-fathom-search",
+              "initial-graph-search"
+            ]
+          },
+          {
+            "id": "initial-6dc641a6e78a",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/metrics/empowerment/fathomdb_win_rate",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "external",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "initial-fathom-search",
+              "initial-graph-search"
+            ]
+          },
+          {
+            "id": "initial-cfc104872c6f",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/metrics/empowerment/judgments",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "external",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "initial-fathom-search",
+              "initial-graph-search"
+            ]
+          }
+        ],
+        "measurement_roots": [
+          {
+            "source_artifact_id": "metrics",
+            "json_pointers": [
+              "/metrics"
+            ]
+          }
+        ],
+        "metric_exclusions": [
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/answer_manifest_sha256",
+            "reason": "identifier_or_hash"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/config_sha256",
+            "reason": "identifier_or_hash"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/cost_cap_usd",
+            "reason": "cost_budget"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/cost_usd",
+            "reason": "run_control"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/judge_repetitions",
+            "reason": "run_control"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/native_witness",
+            "reason": "run_control"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/order_swapped",
+            "reason": "run_control"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/program_track",
+            "reason": "run_control"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/question_count",
+            "reason": "run_control"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/schema_version",
+            "reason": "run_control"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/state",
+            "reason": "run_control"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/verdict",
+            "reason": "run_control"
+          }
+        ],
+        "claims": [
+          {
+            "id": "initial-global-end-to-end",
+            "layer": "end_to_end",
+            "metric_ids": [
+              "initial-a9ff4118c7db",
+              "initial-3e49615d885b",
+              "initial-0e6cf7976fcf",
+              "initial-e20fea2298ad",
+              "initial-61a55158e523",
+              "initial-6e6eb815d79a",
+              "initial-cee5db3f1904",
+              "initial-696d6d97a302",
+              "initial-d82bb1348bbd",
+              "initial-f61be073fa22",
+              "initial-3a3535177501",
+              "initial-6601a6250dbb",
+              "initial-d1eccd3d99a2",
+              "initial-281a4e490f09",
+              "initial-6dc641a6e78a",
+              "initial-cfc104872c6f"
+            ]
+          }
+        ]
+      },
+      "audit_receipt_sha256": "2a4ea65dcf6e50f49b5a8e946a648f805407cde7723090e63f70a92df6f0ce57"
+    },
+    {
+      "run_id": "global-01-lazy-coverage-20260829T2159Z-60b3642c",
+      "record_sha256": "aeee7ae26f8cd25b49c4bc2c9b67e5c6303e202d83b7a4a40bd997bdc57878af",
+      "metrics_sha256": "6a5f8b335595668029c768f76fdcd3d86f89495317daa155c5d605984c5b3f06",
+      "authority": {
+        "schema_version": "measurement.plan.v2",
+        "plan_id": "historical-global-01-lazy-coverage-20260829T2159Z-60b3642c",
+        "components": [
+          {
+            "id": "corpus",
+            "name": "AP News corpus",
+            "kind": "corpus_gold"
+          },
+          {
+            "id": "storage",
+            "name": "FathomDB storage",
+            "kind": "fathomdb_storage"
+          },
+          {
+            "id": "engine",
+            "name": "FathomDB Engine.search",
+            "kind": "fathomdb_engine_search"
+          },
+          {
+            "id": "planner",
+            "name": "query planner",
+            "kind": "query_planner"
+          },
+          {
+            "id": "candidate",
+            "name": "candidate planner",
+            "kind": "candidate_planner"
+          },
+          {
+            "id": "context",
+            "name": "context packer",
+            "kind": "context_packer"
+          },
+          {
+            "id": "answer",
+            "name": "answer generator",
+            "kind": "answer_generator"
+          },
+          {
+            "id": "judge",
+            "name": "semantic judge",
+            "kind": "semantic_judge"
+          },
+          {
+            "id": "metric",
+            "name": "deterministic aggregation",
+            "kind": "deterministic_metric"
+          }
+        ],
+        "call_paths": [
+          {
+            "id": "heldout-control-path",
+            "operation": "Engine.search",
+            "source_artifact_ids": [
+              "audit",
+              "lazy-implementation",
+              "live-implementation"
+            ]
+          },
+          {
+            "id": "heldout-treatment-path",
+            "operation": "Engine.search",
+            "source_artifact_ids": [
+              "audit",
+              "lazy-implementation",
+              "live-implementation"
+            ]
+          },
+          {
+            "id": "heldout-lifecycle-path",
+            "operation": "Engine.search",
+            "source_artifact_ids": [
+              "audit",
+              "lazy-implementation"
+            ]
+          }
+        ],
+        "comparisons": [
+          {
+            "id": "global-heldout",
+            "arms": [
+              {
+                "id": "control",
+                "component_ids": [
+                  "corpus",
+                  "storage",
+                  "engine",
+                  "context",
+                  "answer",
+                  "judge",
+                  "metric"
+                ],
+                "execution_witness_ids": [
+                  "heldout-control-search"
+                ]
+              },
+              {
+                "id": "treatment",
+                "component_ids": [
+                  "corpus",
+                  "storage",
+                  "engine",
+                  "planner",
+                  "candidate",
+                  "context",
+                  "answer",
+                  "judge",
+                  "metric"
+                ],
+                "execution_witness_ids": [
+                  "heldout-treatment-search"
+                ]
+              }
+            ],
+            "shared_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "differing_component_ids": [
+              "planner",
+              "candidate"
+            ]
+          }
+        ],
+        "metric_bindings": [
+          {
+            "id": "heldout-f2eeb6e5c9c9",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/canonical_source_link_completeness",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-7d69c88a1d17",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/lifecycle/derived_rows_written",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "data_plane",
+            "contributing_component_ids": [
+              "storage",
+              "engine",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-lifecycle-search"
+            ]
+          },
+          {
+            "id": "heldout-5beb00501fe6",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/lifecycle/erasure",
+            "value_type": "enum",
+            "allowed_values": [
+              "pass",
+              "fail"
+            ],
+            "layer": "data_plane",
+            "contributing_component_ids": [
+              "storage",
+              "engine",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-lifecycle-search"
+            ]
+          },
+          {
+            "id": "heldout-7d00dcbd8a78",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/lifecycle/strict_current_supersession",
+            "value_type": "enum",
+            "allowed_values": [
+              "pass",
+              "fail"
+            ],
+            "layer": "data_plane",
+            "contributing_component_ids": [
+              "storage",
+              "engine",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-lifecycle-search"
+            ]
+          },
+          {
+            "id": "heldout-e1fbbc1f632e",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/lifecycle/temporal_boundaries",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "data_plane",
+            "contributing_component_ids": [
+              "storage",
+              "engine",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-lifecycle-search"
+            ]
+          },
+          {
+            "id": "heldout-bc726ff94451",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/lifecycle/temporal_failures",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "data_plane",
+            "contributing_component_ids": [
+              "storage",
+              "engine",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-lifecycle-search"
+            ]
+          },
+          {
+            "id": "heldout-3145529f728e",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/operations/control/completion_tokens",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search"
+            ]
+          },
+          {
+            "id": "heldout-edacbf1cee7d",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/operations/control/end_to_end_p50_ms",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search"
+            ]
+          },
+          {
+            "id": "heldout-4c4febbae2e3",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/operations/control/end_to_end_p95_ms",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search"
+            ]
+          },
+          {
+            "id": "heldout-8bc04cb3bd5a",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/operations/control/generator_cost_usd",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search"
+            ]
+          },
+          {
+            "id": "heldout-246c8fe41c91",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/operations/control/model_calls",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search"
+            ]
+          },
+          {
+            "id": "heldout-3e5638af8d42",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/operations/control/prompt_tokens",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search"
+            ]
+          },
+          {
+            "id": "heldout-5bb646e9c344",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/operations/ratios/treatment_to_control_end_to_end_p95",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-6426b75ff1c5",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/operations/ratios/treatment_to_control_token_cost",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-d4ea8de86616",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/operations/treatment/completion_tokens",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-9645c228503b",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/operations/treatment/end_to_end_p50_ms",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-a3fb69bd4f95",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/operations/treatment/end_to_end_p95_ms",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-6e376702fcc2",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/operations/treatment/generator_cost_usd",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-af6d5ecd4fba",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/operations/treatment/model_calls",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-a010309a3818",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/operations/treatment/prompt_tokens",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-b18de664eaf0",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/acceptance/boundaries/assertion_recall_delta",
+            "value_type": "boolean",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-f61735845d75",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/acceptance/boundaries/directness",
+            "value_type": "boolean",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-3df7fb310d88",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/acceptance/boundaries/end_to_end_p95_ratio",
+            "value_type": "boolean",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-34e33786cf4d",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/acceptance/boundaries/headline_ci_lower_bounds",
+            "value_type": "boolean",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-45c6323bcbda",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/acceptance/boundaries/headline_win_rates",
+            "value_type": "boolean",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-95ca569d2dbf",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/acceptance/boundaries/lifecycle",
+            "value_type": "boolean",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-be1e3bad55d6",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/acceptance/boundaries/source_link_completeness",
+            "value_type": "boolean",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-7f39a2bb87d6",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/acceptance/boundaries/token_cost_ratio",
+            "value_type": "boolean",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-f47fc2b8ba1e",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/acceptance/boundaries/unsupported_claim_delta",
+            "value_type": "boolean",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-fd68df113f71",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/pairwise/comprehensiveness/judgments",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-383fcdea557f",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/pairwise/comprehensiveness/question_clustered_ci95/0",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-fd2e348318f9",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/pairwise/comprehensiveness/question_clustered_ci95/1",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-128939fbd8ce",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/pairwise/comprehensiveness/treatment_win_rate",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-840afb87a747",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/pairwise/directness/judgments",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-d7c45cc5b837",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/pairwise/directness/question_clustered_ci95/0",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-b4f7beef66f5",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/pairwise/directness/question_clustered_ci95/1",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-ce74e281fb07",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/pairwise/directness/treatment_win_rate",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-617313acce9b",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/pairwise/diversity/judgments",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-7bcbbaeeac50",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/pairwise/diversity/question_clustered_ci95/0",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-0a39ef2792f6",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/pairwise/diversity/question_clustered_ci95/1",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-cb705ccfebec",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/pairwise/diversity/treatment_win_rate",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-79bf77925c6c",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/pairwise/empowerment/judgments",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-befc33c4214c",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/pairwise/empowerment/question_clustered_ci95/0",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-976fc497780c",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/pairwise/empowerment/question_clustered_ci95/1",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-a3c35e39df3f",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/pairwise/empowerment/treatment_win_rate",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-714d3c2d4a78",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/scoring/control/qualified_assertion_recall",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-01079b01da49",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/scoring/control/unsupported_claim_rate",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-16f3e5b976e1",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/scoring/paired_deltas/assertion_recall",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-cff71511d727",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/scoring/paired_deltas/unsupported_claim_rate",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-05ed91baf5d6",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/scoring/treatment/qualified_assertion_recall",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          },
+          {
+            "id": "heldout-ed91a4b0bf21",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/scoring/treatment/unsupported_claim_rate",
+            "value_type": "number",
+            "allowed_values": [],
+            "layer": "end_to_end",
+            "contributing_component_ids": [
+              "corpus",
+              "storage",
+              "engine",
+              "planner",
+              "candidate",
+              "context",
+              "answer",
+              "judge",
+              "metric"
+            ],
+            "execution_witness_ids": [
+              "heldout-control-search",
+              "heldout-treatment-search"
+            ]
+          }
+        ],
+        "measurement_roots": [
+          {
+            "source_artifact_id": "metrics",
+            "json_pointers": [
+              "/canonical_source_link_completeness",
+              "/lifecycle",
+              "/operations",
+              "/acceptance/boundaries",
+              "/pairwise",
+              "/scoring"
+            ]
+          }
+        ],
+        "metric_exclusions": [
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/acceptance/verdict",
+            "reason": "run_control"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/config_sha256",
+            "reason": "identifier_or_hash"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/cost_cap_usd",
+            "reason": "cost_budget"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/cost_usd",
+            "reason": "run_control"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/preflight_sha256",
+            "reason": "identifier_or_hash"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/program_track",
+            "reason": "run_control"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/question_count",
+            "reason": "run_control"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/schema_version",
+            "reason": "run_control"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/state",
+            "reason": "run_control"
+          },
+          {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/verdict",
+            "reason": "run_control"
+          }
+        ],
+        "claims": [
+          {
+            "id": "heldout-lifecycle",
+            "layer": "data_plane",
+            "metric_ids": [
+              "heldout-7d69c88a1d17",
+              "heldout-5beb00501fe6",
+              "heldout-7d00dcbd8a78",
+              "heldout-e1fbbc1f632e",
+              "heldout-bc726ff94451"
+            ]
+          },
+          {
+            "id": "heldout-end-to-end",
+            "layer": "end_to_end",
+            "metric_ids": [
+              "heldout-f2eeb6e5c9c9",
+              "heldout-3145529f728e",
+              "heldout-edacbf1cee7d",
+              "heldout-4c4febbae2e3",
+              "heldout-8bc04cb3bd5a",
+              "heldout-246c8fe41c91",
+              "heldout-3e5638af8d42",
+              "heldout-5bb646e9c344",
+              "heldout-6426b75ff1c5",
+              "heldout-d4ea8de86616",
+              "heldout-9645c228503b",
+              "heldout-a3fb69bd4f95",
+              "heldout-6e376702fcc2",
+              "heldout-af6d5ecd4fba",
+              "heldout-a010309a3818",
+              "heldout-b18de664eaf0",
+              "heldout-f61735845d75",
+              "heldout-3df7fb310d88",
+              "heldout-34e33786cf4d",
+              "heldout-45c6323bcbda",
+              "heldout-95ca569d2dbf",
+              "heldout-be1e3bad55d6",
+              "heldout-7f39a2bb87d6",
+              "heldout-f47fc2b8ba1e",
+              "heldout-fd68df113f71",
+              "heldout-383fcdea557f",
+              "heldout-fd2e348318f9",
+              "heldout-128939fbd8ce",
+              "heldout-840afb87a747",
+              "heldout-d7c45cc5b837",
+              "heldout-b4f7beef66f5",
+              "heldout-ce74e281fb07",
+              "heldout-617313acce9b",
+              "heldout-7bcbbaeeac50",
+              "heldout-0a39ef2792f6",
+              "heldout-cb705ccfebec",
+              "heldout-79bf77925c6c",
+              "heldout-befc33c4214c",
+              "heldout-976fc497780c",
+              "heldout-a3c35e39df3f",
+              "heldout-714d3c2d4a78",
+              "heldout-01079b01da49",
+              "heldout-16f3e5b976e1",
+              "heldout-cff71511d727",
+              "heldout-05ed91baf5d6",
+              "heldout-ed91a4b0bf21"
+            ]
+          }
+        ]
+      },
+      "audit_receipt_sha256": "2a4ea65dcf6e50f49b5a8e946a648f805407cde7723090e63f70a92df6f0ce57"
+    }
+  ],
+  "excluded": [
+    {
+      "run_id": "global-01-lazy-preflight-20260829T1839Z-8567b830",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-preflight-20260829T1841Z-6da51962",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-preflight-20260829T1922Z-aa159044",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-witness-20260829T1924Z-aa159044",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-preflight-20260829T2026Z-15096cae",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-preflight-20260829T2045Z-483e11ad",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-witness-20260829T2047Z-483e11ad",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-preflight-20260829T2053Z-483e11ad",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-witness-20260829T2054Z-483e11ad",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-preflight-20260829T2059Z-483e11ad",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-preflight-20260829T2113Z-b0f3c328",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-preflight-20260829T2117Z-b0f3c328",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-witness-20260829T2118Z-b0f3c328",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-preflight-20260829T2129Z-62bb47c3",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-witness-20260829T2130Z-62bb47c3",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-preflight-20260829T2142Z-da326e0b",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-witness-20260829T2144Z-da326e0b",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-preflight-20260829T2150Z-52b3aafe",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-witness-20260829T2151Z-52b3aafe",
+      "reason": "not_decision_bearing_complete_comparison"
+    },
+    {
+      "run_id": "global-01-lazy-preflight-20260829T2158Z-60b3642c",
+      "reason": "not_decision_bearing_complete_comparison"
+    }
+  ]
+}

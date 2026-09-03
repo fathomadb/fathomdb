@@ -82,7 +82,7 @@ def _complete_document(root: Path) -> tuple[dict, dict]:
     implementation_path.write_text("engine.search(query)\n", encoding="utf-8")
     authority = _authority()
     document = {
-        "schema_version": "measurement.classification.v1",
+        "schema_version": mc.SCHEMA_VERSION,
         "classifier_version": "1",
         "classification_id": "",
         "run_id": "native-run",
@@ -198,17 +198,23 @@ def test_source_bound_plan_prevents_hiding_an_answerer(tmp_path):
 
 def test_enum_measurement_and_unknown_historical_witness_are_valid(tmp_path):
     document, authority = _complete_document(tmp_path)
+    answerer = {"id": "answer", "name": "answer model", "kind": "answer_generator"}
+    document["components"].append(answerer)
+    authority["components"].append(copy.deepcopy(answerer))
     _write_json(tmp_path / "metrics.json", {"lifecycle": {"erasure": "pass"}})
     document["source_artifacts"][0]["sha256"] = _sha(tmp_path / "metrics.json")
     document["source_artifacts"][0]["measurement_root_json_pointers"] = [
         "/lifecycle"
     ]
+    authority["measurement_roots"][0]["json_pointers"] = ["/lifecycle"]
     metric = document["metrics"][0]
     metric.update(
         {
             "json_pointer": "/lifecycle/erasure",
             "value_type": "enum",
             "allowed_values": ["pass", "fail"],
+            "layer": "end_to_end",
+            "contributing_component_ids": ["engine", "metric", "answer"],
             "execution_witness_ids": ["unknown-call"],
         }
     )
@@ -227,6 +233,8 @@ def test_enum_measurement_and_unknown_historical_witness_are_valid(tmp_path):
     ]
     authority["metric_bindings"] = copy.deepcopy(document["metrics"])
     authority["metric_bindings"][0]["execution_witness_ids"] = ["unknown-call"]
+    document["claims"][0]["layer"] = "end_to_end"
+    authority["claims"][0]["layer"] = "end_to_end"
     document["migration"]["measurement_plan_sha256"] = mc.canonical_sha256(authority)
     document["classification_id"] = mc.classification_id(document)
 
@@ -511,19 +519,19 @@ def test_portable_repository_gate_loads_post_cutover_plan_and_sidecar(tmp_path):
         run_dir, document, repository_root=tmp_path, authority=plan
     )
 
-    manifest_path = experiments / "measurement-classification-global-01.v1.json"
+    manifest_path = experiments / mc.HISTORICAL_MANIFEST_NAME
     _write_json(
         manifest_path,
         {
-            "schema_version": "measurement.classification-historical.v1",
+            "schema_version": mc.HISTORICAL_VERSION,
             "included": [],
             "excluded": [],
         },
     )
     _write_json(
-        experiments / "measurement-classification-policy.v1.json",
+        experiments / mc.POLICY_NAME,
         {
-            "schema_version": "measurement.classification-policy.v1",
+            "schema_version": mc.POLICY_VERSION,
             "classifier_version": "1",
             "index": {
                 "path": "experiments/index.jsonl",
@@ -532,6 +540,7 @@ def test_portable_repository_gate_loads_post_cutover_plan_and_sidecar(tmp_path):
                 "prefix_sha256": hashlib.sha256(b"").hexdigest(),
             },
             "historical_manifest_path": str(manifest_path.relative_to(tmp_path)),
+            "superseded_postcutover_run_ids": [],
         },
     )
 

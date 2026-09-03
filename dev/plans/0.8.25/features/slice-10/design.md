@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 10 — executable measurement classification design
 status: READY
-design_version: 5
+design_version: 6
 review_fix: 3
 depends_on: 7
 ---
@@ -33,8 +33,14 @@ review with no unresolved P1/P2.
 
 ## Versioned classification contract
 
-The closed JSON schema is `measurement.classification.v1`. Every object rejects
+The closed JSON schema is `measurement.classification.v2`. Every object rejects
 unknown keys, unknown enum values, duplicate IDs, and dangling references.
+Implementation review found that the provisional v1 contract let a sidecar
+select its own measurement roots and did not require an Engine-contributed
+metric or comparison arm to name an execution witness. Version 2 binds roots
+and exclusions in the plan and enforces those witnesses. The one provisional
+v1 native run remains preserved but is explicitly superseded and cannot support
+a successful claim.
 
 ```text
 MeasurementLayer = data_plane | semantic_control_plane | end_to_end
@@ -42,41 +48,41 @@ ExecutionState = executed | not_executed | unknown_historical
 EvidenceKind = instrumented_call | source_result | coverage_trace |
                static_path_audit | immutable_receipt
 ClassificationOutcome = complete | blocked
-BlockedReasonV1 {
+BlockedReasonV2 {
   code, stage, message, detail
 }
 
-SourceArtifactV1 {
+SourceArtifactV2 {
   id, locator_kind, locator, role, sha256, measurement_root_json_pointers
 }
-ComponentV1 {
+ComponentV2 {
   id, name, kind
 }
-CallPathV1 {
+CallPathV2 {
   id, operation, source_artifact_ids
 }
-ExecutionWitnessV1 {
+ExecutionWitnessV2 {
   id, arm_id?, call_path_id, component_id, engine_search_state,
   call_count, count_semantics, evidence_kind, source_artifact_ids
 }
-MetricRefV1 {
+MetricRefV2 {
   id, source_artifact_id, json_pointer, value_type, allowed_values,
   layer,
   contributing_component_ids, execution_witness_ids
 }
-MetricExclusionV1 {
+MetricExclusionV2 {
   source_artifact_id, json_pointer, reason
 }
-ComparisonArmV1 {
+ComparisonArmV2 {
   id, component_ids, execution_witness_ids
 }
-ComparisonV1 {
+ComparisonV2 {
   id, arms, shared_component_ids, differing_component_ids
 }
-ClaimV1 {
+ClaimV2 {
   id, layer, metric_ids
 }
-MeasurementClassificationV1 {
+MeasurementClassificationV2 {
   schema_version, classifier_version, classification_id, run_id, outcome,
   blocked_reason, source_artifacts, components, call_paths,
   execution_witnesses, metrics, metric_exclusions, comparisons, claims,
@@ -125,7 +131,7 @@ data-plane claim.
 Component completeness is not trusted to the classification sidecar. Every
 post-cutover run's resolved config contains a closed `measurement_plan` object
 with `path`, `sha256`, and `plan_id`. The referenced tracked
-`measurement.plan.v1` document fixes component/call-path/arm manifests,
+`measurement.plan.v2` document fixes component/call-path/arm manifests,
 measurement roots, each expected metric JSON Pointer and its required
 components, and expected claims before execution. The record's existing config
 hash binds that plan. Validation requires the sidecar to equal the plan's
@@ -136,7 +142,7 @@ closed plan fields for pre-cutover runs. This source-bound plan is the
 authority from which layer, shared/differing, and completeness checks derive;
 the sidecar is the observed application of that plan.
 
-Every `call_path_id` resolves to one `CallPathV1`, whose `operation` is exactly
+Every `call_path_id` resolves to one `CallPathV2`, whose `operation` is exactly
 `Engine.search` or `external_retrieval`. An optional `arm_id` must resolve to a
 comparison arm; it is null for a standalone characterization such as the native
 fixture. `count_semantics` is `exact`, `lower_bound`, or `unknown`. `executed`
@@ -155,7 +161,7 @@ than narrative.
 ## Persistence and future enforcement
 
 The sidecar path is
-`experiments/runs/<run_id>/measurement-classification.v1.json`. Its
+`experiments/runs/<run_id>/measurement-classification.v2.json`. Its
 `classification_id` is the SHA-256 of the complete canonical classification
 body with only `classification_id` omitted. Writers serialize UTF-8 canonical
 JSON with one trailing newline to an exclusive same-directory temporary file,
@@ -166,12 +172,13 @@ target exists, identical bytes are success and differing bytes raise
 it. No classification index is added: the existing append-only experiment
 index remains authoritative for run discovery.
 
-`experiments/measurement-classification-policy.v1.json` is closed to
-`schema_version`, `classifier_version`, `index`, and
-`historical_manifest_path`. `index` is closed to `path`, `prefix_bytes`,
+`experiments/measurement-classification-policy.v2.json` is closed to
+`schema_version`, `classifier_version`, `index`,
+`historical_manifest_path`, and the exact superseded post-cutover run set.
+`index` is closed to `path`, `prefix_bytes`,
 `prefix_lines`, and `prefix_sha256`.
 
-`experiments/measurement-classification-global-01.v1.json` is closed to
+`experiments/measurement-classification-global-01.v2.json` is closed to
 `schema_version`, `included`, and `excluded`. Each included row fixes run ID,
 record/metrics hashes, measurement roots, required artifact locators/hashes,
 component/call-path/arm manifests, metric ownership, and claims. Each excluded
@@ -257,19 +264,22 @@ empty or guessed sidecar.
 
 ## Native fixture
 
-`experiments/configs/measurement-classification/native-search.v1.json` pins:
+`experiments/configs/measurement-classification/native-search.v2.json` pins:
 
 - `program_track: GLOBAL-01`, schema/config version, seed, CPU device,
   `embedder: none`, cross-encoder disabled, query, limit, and expected source;
 - three literal tiny records and their stable caller IDs;
-- a tracked `native-search.measurement-plan.v1.json` whose hash is bound by the
+- a tracked `native-search.measurement-plan.v2.json` whose hash is bound by the
   resolved config;
 - `prepare_test_database` with a fresh external database root and captured safe
   `fathomdb doctor`/resolved-config evidence.
 
-The fixture wraps the concrete `Engine.search` call with a local counter; the
-counter, returned hit IDs, reciprocal rank, and recall are written before the
-sidecar. Exactly one call is required. A missing expected hit, non-one call
+The fixture wraps the concrete `Engine.search` call with a local counter. The
+counter, reciprocal rank, and recall are written to the metrics payload;
+returned hit IDs and expected rank are retained in a separate hashed result
+detail artifact. A hashed runtime attestation binds the Python executable,
+Python package, native extension, and CLI used by the call. Exactly one call is
+required. A missing expected hit, non-one call
 count, setup refusal, or record/classification failure emits a standard blocked
 receipt and fails nonzero. The blocked record still receives a valid blocked
 classification before exit. It uses no network, model, GPU, generated oracle,
@@ -307,7 +317,7 @@ python -m experiments.measurement_classification validate-tree --repository-root
 python -m experiments.measurement_classification audit-historical \
   --repository-root . --external-root data
 python -m experiments.measurement_classification run-native \
-  --config experiments/configs/measurement-classification/native-search.v1.json
+  --config experiments/configs/measurement-classification/native-search.v2.json
 ./scripts/agent-verify.sh --tier=fast
 ./scripts/agent-verify.sh --tier=heavy
 ./scripts/agent-verify.sh --tier=all

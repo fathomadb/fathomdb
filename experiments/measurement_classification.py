@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import copy
 import hashlib
+import importlib.util
 import json
 import os
 import subprocess
@@ -19,13 +20,16 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-SCHEMA_VERSION = "measurement.classification.v1"
-PLAN_VERSION = "measurement.plan.v1"
+SCHEMA_VERSION = "measurement.classification.v2"
+LEGACY_SCHEMA_VERSION = "measurement.classification.v1"
+PLAN_VERSION = "measurement.plan.v2"
+LEGACY_PLAN_VERSION = "measurement.plan.v1"
 CLASSIFIER_VERSION = "1"
-SIDECAR_NAME = "measurement-classification.v1.json"
-POLICY_NAME = "measurement-classification-policy.v1.json"
-POLICY_VERSION = "measurement.classification-policy.v1"
-HISTORICAL_VERSION = "measurement.classification-historical.v1"
+SIDECAR_NAME = "measurement-classification.v2.json"
+LEGACY_SIDECAR_NAME = "measurement-classification.v1.json"
+POLICY_NAME = "measurement-classification-policy.v2.json"
+POLICY_VERSION = "measurement.classification-policy.v2"
+HISTORICAL_VERSION = "measurement.classification-historical.v2"
 
 LAYERS = ("data_plane", "semantic_control_plane", "end_to_end")
 LAYER_RANK = {name: rank for rank, name in enumerate(LAYERS)}
@@ -75,9 +79,13 @@ EXCLUSION_REASONS = {"identifier_or_hash", "run_control", "cost_budget"}
 INITIAL_RUN_ID = "global-01-native-comparison-20260829T1613Z-40685e82"
 HELDOUT_RUN_ID = "global-01-lazy-coverage-20260829T2159Z-60b3642c"
 HELDOUT_COMMIT = "f5c5715236bc4827f1753d8a1b3b95334590e677"
-HISTORICAL_MANIFEST_NAME = "measurement-classification-global-01.v1.json"
+HISTORICAL_MANIFEST_NAME = "measurement-classification-global-01.v2.json"
 HISTORICAL_AUDIT_PATH = Path(
     "experiments/audits/global-01-measurement-classification-source.v1.json"
+)
+LEGACY_POLICY_NAME = "measurement-classification-policy.v1.json"
+SUPERSEDED_NATIVE_V1_RUN_ID = (
+    "measurement-classification-native-search-20260903T2255Z-b5f420c4"
 )
 
 TOP_KEYS = {
@@ -105,12 +113,24 @@ PLAN_KEYS = {
     "call_paths",
     "comparisons",
     "metric_bindings",
+    "measurement_roots",
+    "metric_exclusions",
     "claims",
 }
+LEGACY_PLAN_KEYS = PLAN_KEYS - {"measurement_roots", "metric_exclusions"}
 
 
 class ClassificationError(ValueError):
     """A classification is structurally invalid or contradicts its authority."""
+
+
+class NativeRunError(RuntimeError):
+    """A typed failure from a specific stage of the native search witness."""
+
+    def __init__(self, code: str, stage: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+        self.stage = stage
 
 
 def canonical_json(value: Any) -> str:
@@ -240,8 +260,12 @@ def _maximum_layer(component_ids: list[str], components: dict[str, dict[str, Any
 
 
 def _validate_authority(authority: dict[str, Any]) -> None:
-    _closed(authority, PLAN_KEYS, "measurement plan")
-    if authority["schema_version"] != PLAN_VERSION:
+    version = authority.get("schema_version") if isinstance(authority, dict) else None
+    if version == PLAN_VERSION:
+        _closed(authority, PLAN_KEYS, "measurement plan")
+    elif version == LEGACY_PLAN_VERSION:
+        _closed(authority, LEGACY_PLAN_KEYS, "legacy measurement plan")
+    else:
         raise ClassificationError("unsupported measurement plan version")
     _nonempty_string(authority["plan_id"], "measurement plan id")
     _list(authority["components"], "measurement plan components")
@@ -249,6 +273,33 @@ def _validate_authority(authority: dict[str, Any]) -> None:
     _list(authority["comparisons"], "measurement plan comparisons")
     _list(authority["metric_bindings"], "measurement plan metric_bindings")
     _list(authority["claims"], "measurement plan claims")
+    if version == PLAN_VERSION:
+        roots = _list(authority["measurement_roots"], "measurement plan roots")
+        if not roots:
+            raise ClassificationError("measurement plan roots cannot be empty")
+        seen: dict[str, list[str]] = {}
+        for index, value in enumerate(roots):
+            row = _closed(
+                value,
+                {"source_artifact_id", "json_pointers"},
+                f"measurement roots[{index}]",
+            )
+            pointers = _list(row["json_pointers"], "measurement root pointers")
+            if not pointers:
+                raise ClassificationError("measurement plan roots cannot be empty")
+            prior = seen.setdefault(row["source_artifact_id"], [])
+            for pointer in pointers:
+                if not isinstance(pointer, str) or not pointer.startswith("/"):
+                    raise ClassificationError("measurement root JSON Pointer is invalid")
+                if any(
+                    pointer == other
+                    or pointer.startswith(f"{other}/")
+                    or other.startswith(f"{pointer}/")
+                    for other in prior
+                ):
+                    raise ClassificationError("measurement plan roots overlap")
+                prior.append(pointer)
+        _list(authority["metric_exclusions"], "measurement plan exclusions")
 
 
 def _validate_artifacts(
@@ -428,6 +479,8 @@ def _validate_metrics(
     decoded: dict[str, Any],
     components: dict[str, dict[str, Any]],
     witnesses: dict[str, dict[str, Any]],
+    *,
+    strict_all_leaves: bool,
 ) -> dict[str, dict[str, Any]]:
     metrics = []
     keys = {
@@ -472,6 +525,19 @@ def _validate_metrics(
         witness_ids = _list(row["execution_witness_ids"], "metric witness ids")
         if not set(witness_ids) <= set(witnesses):
             raise ClassificationError("metric witness reference invalid")
+        engine_contributed = any(
+            components[item]["kind"] == "fathomdb_engine_search"
+            for item in component_ids
+        )
+        if engine_contributed and not witness_ids:
+            raise ClassificationError("Engine metric requires an execution witness")
+        if engine_contributed and row["layer"] == "data_plane" and any(
+            witnesses[item]["engine_search_state"] == "unknown_historical"
+            for item in witness_ids
+        ):
+            raise ClassificationError(
+                "unknown_historical cannot support a successful data-plane metric"
+            )
         key = (artifact_id, pointer)
         if key in classified:
             raise ClassificationError("metric leaf classified more than once")
@@ -496,15 +562,21 @@ def _validate_metrics(
             raise ClassificationError("metric leaf classification overlaps")
         excluded.add(key)
 
-    expected: set[tuple[str, str]] = set()
+    measurement_scope: set[tuple[str, str]] = set()
+    all_leaves: set[tuple[str, str]] = set()
     for artifact_id, payload in decoded.items():
+        for pointer in _leaf_pointers(payload, ""):
+            all_leaves.add((artifact_id, pointer))
         for root in artifacts[artifact_id]["measurement_root_json_pointers"]:
             subtree = _json_pointer(payload, root)
             for pointer in _leaf_pointers(subtree, root):
-                expected.add((artifact_id, pointer))
+                measurement_scope.add((artifact_id, pointer))
+    if not classified <= measurement_scope:
+        raise ClassificationError("metric lies outside plan-bound measurement roots")
+    expected = all_leaves if strict_all_leaves else measurement_scope
     if classified | excluded != expected:
         raise ClassificationError(
-            "measurement plan roots are not exhaustively classified"
+            "metrics payload contains an unclassified scalar leaf"
         )
     return _unique(metrics, "metric")
 
@@ -542,10 +614,12 @@ def validate_classification(
     *,
     repository_root: str | Path,
     authority: dict[str, Any],
+    allow_legacy: bool = False,
 ) -> dict[str, Any]:
     """Validate a classification against its source-bound measurement plan."""
     row = _closed(document, TOP_KEYS, "classification")
-    if row["schema_version"] != SCHEMA_VERSION:
+    legacy = row["schema_version"] == LEGACY_SCHEMA_VERSION
+    if row["schema_version"] != SCHEMA_VERSION and not (allow_legacy and legacy):
         raise ClassificationError("unsupported classification version")
     if row["classifier_version"] != CLASSIFIER_VERSION:
         raise ClassificationError("unsupported classifier version")
@@ -562,6 +636,23 @@ def validate_classification(
     artifacts, decoded = _validate_artifacts(
         _list(row["source_artifacts"], "source_artifacts"), Path(repository_root)
     )
+    strict_authority = authority["schema_version"] == PLAN_VERSION
+    if legacy != (authority["schema_version"] == LEGACY_PLAN_VERSION):
+        raise ClassificationError("classification and plan versions differ")
+    if strict_authority and row["outcome"] == "complete":
+        planned_roots = {
+            item["source_artifact_id"]: item["json_pointers"]
+            for item in authority["measurement_roots"]
+        }
+        observed_roots = {
+            identity: artifact["measurement_root_json_pointers"]
+            for identity, artifact in artifacts.items()
+            if artifact["role"] == "metrics_payload"
+        }
+        if observed_roots != planned_roots:
+            raise ClassificationError("measurement plan roots differ from sidecar")
+    if strict_authority and row["metric_exclusions"] != authority["metric_exclusions"]:
+        raise ClassificationError("measurement plan exclusions differ from sidecar")
     components = _validate_components(_list(row["components"], "components"))
     if row["components"] != authority["components"]:
         raise ClassificationError("measurement plan components differ")
@@ -602,6 +693,10 @@ def validate_classification(
 
     if row["blocked_reason"] is not None:
         raise ClassificationError("complete classification cannot have blocked_reason")
+    if row["metrics"] != authority["metric_bindings"]:
+        raise ClassificationError(
+            "measurement plan metric bindings differ in layer or ownership"
+        )
     witnesses = _validate_witnesses(
         _list(row["execution_witnesses"], "execution_witnesses"),
         paths,
@@ -611,8 +706,17 @@ def validate_classification(
     )
     for comparison in row["comparisons"]:
         for arm in comparison["arms"]:
-            if not set(arm["execution_witness_ids"]) <= set(witnesses):
+            arm_witness_ids = arm["execution_witness_ids"]
+            if not set(arm_witness_ids) <= set(witnesses):
                 raise ClassificationError("comparison witness reference invalid")
+            engine_arm = any(
+                components[item]["kind"] == "fathomdb_engine_search"
+                for item in arm["component_ids"]
+            )
+            if engine_arm and not arm_witness_ids:
+                raise ClassificationError("Engine comparison arm requires an execution witness")
+            if any(witnesses[item]["arm_id"] != arm["id"] for item in arm_witness_ids):
+                raise ClassificationError("comparison execution witness belongs to another arm")
     metrics = _validate_metrics(
         _list(row["metrics"], "metrics"),
         _list(row["metric_exclusions"], "metric_exclusions"),
@@ -620,11 +724,10 @@ def validate_classification(
         decoded,
         components,
         witnesses,
+        strict_all_leaves=strict_authority,
     )
-    if row["metrics"] != authority["metric_bindings"]:
-        raise ClassificationError(
-            "measurement plan metric bindings differ in layer or ownership"
-        )
+    if not metrics:
+        raise ClassificationError("complete classification requires metrics")
     _validate_claims(_list(row["claims"], "claims"), metrics)
     if row["claims"] != authority["claims"]:
         raise ClassificationError("measurement plan claims differ")
@@ -693,17 +796,23 @@ def validate_index_prefix(index_path: str | Path, policy: dict[str, Any]) -> Non
 
 
 def validate_post_cutover_presence(
-    *, experiments_dir: str | Path, index_path: str | Path, prefix_lines: int
+    *,
+    experiments_dir: str | Path,
+    index_path: str | Path,
+    prefix_lines: int,
+    superseded_run_ids: set[str] | None = None,
 ) -> None:
     """Require one normal sidecar for every index row after the frozen prefix."""
     lines = Path(index_path).read_text(encoding="utf-8").splitlines()
+    superseded = superseded_run_ids or set()
     for line in lines[prefix_lines:]:
         try:
             row = json.loads(line)
             run_id = row["run_id"]
         except (json.JSONDecodeError, KeyError, TypeError) as exc:
             raise ClassificationError("post-cutover index row is invalid") from exc
-        sidecar = Path(experiments_dir) / "runs" / run_id / SIDECAR_NAME
+        sidecar_name = LEGACY_SIDECAR_NAME if run_id in superseded else SIDECAR_NAME
+        sidecar = Path(experiments_dir) / "runs" / run_id / sidecar_name
         if not sidecar.is_file():
             raise ClassificationError(f"classification_missing: {run_id}")
 
@@ -813,7 +922,13 @@ def validate_repository(repository_root: str | Path) -> None:
     policy = _load_json(experiments_dir / POLICY_NAME, "classification policy")
     _closed(
         policy,
-        {"schema_version", "classifier_version", "index", "historical_manifest_path"},
+        {
+            "schema_version",
+            "classifier_version",
+            "index",
+            "historical_manifest_path",
+            "superseded_postcutover_run_ids",
+        },
         "classification policy",
     )
     if (
@@ -839,11 +954,23 @@ def validate_repository(repository_root: str | Path) -> None:
     manifest = _load_json(manifest_path, "historical manifest")
     _validate_historical_manifest(root, experiments_dir, manifest, prefix_rows)
 
+    superseded_values = _list(
+        policy["superseded_postcutover_run_ids"], "superseded post-cutover runs"
+    )
+    superseded = {
+        _nonempty_string(value, "superseded post-cutover run id")
+        for value in superseded_values
+    }
+    if len(superseded) != len(superseded_values):
+        raise ClassificationError("duplicate superseded post-cutover run id")
+
     validate_post_cutover_presence(
         experiments_dir=experiments_dir,
         index_path=index_path,
         prefix_lines=index_policy["prefix_lines"],
+        superseded_run_ids=superseded,
     )
+    observed_superseded: set[str] = set()
     for line in lines[index_policy["prefix_lines"] :]:
         index_row = json.loads(line)
         run_id = index_row["run_id"]
@@ -856,10 +983,29 @@ def validate_repository(repository_root: str | Path) -> None:
         except (KeyError, TypeError) as exc:
             raise ClassificationError("post-cutover measurement plan is missing") from exc
         authority = _load_measurement_plan(root, plan_ref)
-        sidecar = _load_json(run_dir / SIDECAR_NAME, "post-cutover classification")
+        legacy = run_id in superseded
+        if legacy:
+            observed_superseded.add(run_id)
+        sidecar = _load_json(
+            run_dir / (LEGACY_SIDECAR_NAME if legacy else SIDECAR_NAME),
+            "post-cutover classification",
+        )
         if sidecar.get("run_id") != run_id:
             raise ClassificationError("post-cutover classification run_id mismatch")
-        validate_classification(sidecar, repository_root=root, authority=authority)
+        if legacy:
+            if (
+                sidecar.get("schema_version") != LEGACY_SCHEMA_VERSION
+                or sidecar.get("measurement_plan_id") != authority["plan_id"]
+            ):
+                raise ClassificationError("superseded legacy classification is invalid")
+        else:
+            validate_classification(
+                sidecar,
+                repository_root=root,
+                authority=authority,
+            )
+    if observed_superseded != superseded:
+        raise ClassificationError("superseded post-cutover inventory is not closed")
 
 
 def _validate_tree_command(args: argparse.Namespace) -> int:
@@ -1040,6 +1186,30 @@ def _metric_bindings(
     return bindings
 
 
+def _metric_exclusions_for_payload(
+    payload: dict[str, Any], bindings: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    classified = {item["json_pointer"] for item in bindings}
+    exclusions = []
+    for pointer in _leaf_pointers(payload, ""):
+        if pointer in classified:
+            continue
+        if "sha256" in pointer or pointer.endswith("_id"):
+            reason = "identifier_or_hash"
+        elif "cost_cap" in pointer or "budget" in pointer:
+            reason = "cost_budget"
+        else:
+            reason = "run_control"
+        exclusions.append(
+            {
+                "source_artifact_id": "metrics",
+                "json_pointer": pointer,
+                "reason": reason,
+            }
+        )
+    return exclusions
+
+
 def _historical_authorities(repository_root: Path) -> dict[str, dict[str, Any]]:
     initial_metrics = _load_json(
         repository_root / "experiments" / "runs" / INITIAL_RUN_ID / "metrics.json",
@@ -1105,6 +1275,12 @@ def _historical_authorities(repository_root: Path) -> dict[str, dict[str, Any]]:
         ],
         "comparisons": [initial_comparison],
         "metric_bindings": initial_bindings,
+        "measurement_roots": [
+            {"source_artifact_id": "metrics", "json_pointers": ["/metrics"]}
+        ],
+        "metric_exclusions": _metric_exclusions_for_payload(
+            initial_metrics, initial_bindings
+        ),
         "claims": [
             {
                 "id": "initial-global-end-to-end",
@@ -1214,6 +1390,12 @@ def _historical_authorities(repository_root: Path) -> dict[str, dict[str, Any]]:
         ],
         "comparisons": [heldout_comparison],
         "metric_bindings": heldout_bindings,
+        "measurement_roots": [
+            {"source_artifact_id": "metrics", "json_pointers": heldout_roots}
+        ],
+        "metric_exclusions": _metric_exclusions_for_payload(
+            heldout_metrics, heldout_bindings
+        ),
         "claims": [
             {"id": "heldout-lifecycle", "layer": "data_plane", "metric_ids": lifecycle_ids},
             {"id": "heldout-end-to-end", "layer": "end_to_end", "metric_ids": end_ids},
@@ -1269,16 +1451,7 @@ def _historical_classification(
             path=f"{run_base}/metrics.json",
             role="metrics_payload",
             roots=(
-                ["/metrics"]
-                if run_id == INITIAL_RUN_ID
-                else [
-                    "/canonical_source_link_completeness",
-                    "/lifecycle",
-                    "/operations",
-                    "/acceptance/boundaries",
-                    "/pairwise",
-                    "/scoring",
-                ]
+                authority["measurement_roots"][0]["json_pointers"]
             ),
         ),
         _repository_artifact(
@@ -1390,7 +1563,7 @@ def _historical_classification(
         "call_paths": authority["call_paths"],
         "execution_witnesses": witnesses,
         "metrics": authority["metric_bindings"],
-        "metric_exclusions": [],
+        "metric_exclusions": authority["metric_exclusions"],
         "comparisons": authority["comparisons"],
         "claims": authority["claims"],
         "migration": {
@@ -1430,13 +1603,21 @@ def materialize_historical(
     index_path = experiments_dir / "index.jsonl"
     index_bytes = index_path.read_bytes()
     index_rows = [json.loads(line) for line in index_bytes.splitlines()]
+    legacy_policy = _load_json(
+        experiments_dir / LEGACY_POLICY_NAME, "legacy classification policy"
+    )
+    frozen_bytes = legacy_policy["index"]["prefix_bytes"]
+    frozen_lines = legacy_policy["index"]["prefix_lines"]
+    frozen_prefix = index_bytes[:frozen_bytes]
+    validate_index_prefix(index_path, legacy_policy["index"])
+    historical_rows = index_rows[:frozen_lines]
     included_ids = {INITIAL_RUN_ID, HELDOUT_RUN_ID}
     excluded = [
         {
             "run_id": row["run_id"],
             "reason": "not_decision_bearing_complete_comparison",
         }
-        for row in index_rows
+        for row in historical_rows
         if row["run_id"].startswith("global-01-") and row["run_id"] not in included_ids
     ]
     manifest = {
@@ -1463,11 +1644,12 @@ def materialize_historical(
         "classifier_version": CLASSIFIER_VERSION,
         "index": {
             "path": "experiments/index.jsonl",
-            "prefix_bytes": len(index_bytes),
-            "prefix_lines": len(index_rows),
-            "prefix_sha256": _sha256_bytes(index_bytes),
+            "prefix_bytes": frozen_bytes,
+            "prefix_lines": frozen_lines,
+            "prefix_sha256": _sha256_bytes(frozen_prefix),
         },
         "historical_manifest_path": f"experiments/{HISTORICAL_MANIFEST_NAME}",
+        "superseded_postcutover_run_ids": [SUPERSEDED_NATIVE_V1_RUN_ID],
     }
     _write_generated_json(experiments_dir / POLICY_NAME, policy)
 
@@ -1508,7 +1690,7 @@ NATIVE_CONFIG_KEYS = {
 def _validate_native_config(config: dict[str, Any], repository_root: Path) -> dict[str, Any]:
     _closed(config, NATIVE_CONFIG_KEYS, "native config")
     if (
-        config["schema_version"] != "measurement-classification.native-search.v1"
+        config["schema_version"] != "measurement-classification.native-search.v2"
         or config["program_track"] != "GLOBAL-01"
         or config["device"] != "cpu"
         or config["embedder"] != "none"
@@ -1555,6 +1737,10 @@ def _native_classification(
     run_id: str,
     authority: dict[str, Any],
     code_sha: str,
+    config_locator: str,
+    plan_locator: str,
+    attestation_locator: str,
+    result_detail_locator: str | None,
     outcome: str,
     blocked_reason: dict[str, Any] | None,
 ) -> dict[str, Any]:
@@ -1569,13 +1755,13 @@ def _native_classification(
         _repository_artifact(
             repository_root,
             identity="configuration",
-            path="experiments/configs/measurement-classification/native-search.v1.json",
+            path=config_locator,
             role="configuration",
         ),
         _repository_artifact(
             repository_root,
             identity="plan",
-            path="experiments/configs/measurement-classification/native-search.measurement-plan.v1.json",
+            path=plan_locator,
             role="configuration",
         ),
         _git_artifact(
@@ -1583,11 +1769,19 @@ def _native_classification(
             identity="implementation",
             locator=f"{code_sha}:experiments/measurement_classification.py",
         ),
+        _repository_artifact(
+            repository_root,
+            identity="runtime-attestation",
+            path=attestation_locator,
+            role="derivation_spec",
+        ),
     ]
     witnesses: list[dict[str, Any]] = []
     metrics: list[dict[str, Any]] = []
     claims: list[dict[str, Any]] = []
     if outcome == "complete":
+        if result_detail_locator is None:
+            raise ClassificationError("complete native classification lacks result detail")
         artifacts.insert(
             0,
             _repository_artifact(
@@ -1597,6 +1791,14 @@ def _native_classification(
                 role="metrics_payload",
                 roots=["/retrieval"],
             ),
+        )
+        artifacts.append(
+            _repository_artifact(
+                repository_root,
+                identity="result-detail",
+                path=result_detail_locator,
+                role="derivation_spec",
+            )
         )
         witnesses = [
             {
@@ -1608,7 +1810,11 @@ def _native_classification(
                 "call_count": 1,
                 "count_semantics": "exact",
                 "evidence_kind": "instrumented_call",
-                "source_artifact_ids": ["implementation"],
+                "source_artifact_ids": [
+                    "implementation",
+                    "runtime-attestation",
+                    "result-detail",
+                ],
             }
         ]
         metrics = authority["metric_bindings"]
@@ -1626,7 +1832,7 @@ def _native_classification(
         "call_paths": authority["call_paths"],
         "execution_witnesses": witnesses,
         "metrics": metrics,
-        "metric_exclusions": [],
+        "metric_exclusions": authority["metric_exclusions"],
         "comparisons": authority["comparisons"],
         "claims": claims,
         "migration": {
@@ -1642,7 +1848,13 @@ def _native_classification(
 
 
 def _native_blocker(exc: Exception) -> dict[str, Any]:
-    if isinstance(exc, ClassificationError):
+    if isinstance(exc, NativeRunError):
+        code, stage = exc.code, exc.stage
+    elif isinstance(exc, ClassificationError) and "expected hit is missing" in str(exc):
+        code, stage = "expected_hit_missing", "result_validation"
+    elif isinstance(exc, ClassificationError) and "call count" in str(exc):
+        code, stage = "search_call_count_mismatch", "result_validation"
+    elif isinstance(exc, ClassificationError):
         code, stage = "config_invalid_value", "configuration"
     elif isinstance(exc, FileExistsError):
         code, stage = "run_id_collision", "database_setup"
@@ -1651,6 +1863,45 @@ def _native_blocker(exc: Exception) -> dict[str, Any]:
     else:
         code, stage = "engine_search_failed", "search"
     return {"code": code, "stage": stage, "message": str(exc), "detail": {}}
+
+
+def _runtime_attestation(
+    repository_root: Path, config: dict[str, Any], fathomdb_version: str
+) -> dict[str, Any]:
+    def identify(path: Path) -> dict[str, str]:
+        resolved = path.resolve()
+        if not resolved.is_file():
+            raise NativeRunError(
+                "source_artifact_unavailable",
+                "runtime_attestation",
+                f"runtime artifact is unavailable: {resolved}",
+            )
+        return {"path": str(resolved), "sha256": _sha256_bytes(resolved.read_bytes())}
+
+    module_spec = importlib.util.find_spec("fathomdb")
+    native_spec = importlib.util.find_spec("fathomdb._fathomdb")
+    if module_spec is None or module_spec.origin is None:
+        raise NativeRunError(
+            "source_artifact_unavailable",
+            "runtime_attestation",
+            "FathomDB Python module is unavailable",
+        )
+    if native_spec is None or native_spec.origin is None:
+        raise NativeRunError(
+            "source_artifact_unavailable",
+            "runtime_attestation",
+            "FathomDB native extension is unavailable",
+        )
+    return {
+        "schema_version": "measurement-classification.runtime-attestation.v1",
+        "fathomdb_version": fathomdb_version,
+        "python_executable": identify(Path(sys.executable)),
+        "python_module": identify(Path(module_spec.origin)),
+        "native_extension": identify(Path(native_spec.origin)),
+        "fathomdb_cli": identify(
+            _repository_path(repository_root, config["fathomdb_bin"], "fathomdb_bin")
+        ),
+    }
 
 
 def run_native(repository_root: str | Path, config_path: str | Path) -> str:
@@ -1673,28 +1924,50 @@ def run_native(repository_root: str | Path, config_path: str | Path) -> str:
     fathomdb_version = "unavailable"
     metrics: dict[str, Any]
     blocker: dict[str, Any] | None = None
+    source_ids: list[str] = []
+    rank: int | None = None
     try:
         _validate_native_config(config, root)
         test_id = f"slice-10-native-{timestamp.strftime('%Y%m%d%H%M%S').lower()}"
-        prepared = prepare_test_database(
-            root / config["database_root"],
-            test_id=test_id,
-            embed_device="cpu",
-            rerank_device="cpu",
-            embedder="none",
-            warm_cache=False,
-            check_reranker=False,
-            fathomdb_bin=str(root / config["fathomdb_bin"]),
-        )
+        try:
+            prepared = prepare_test_database(
+                root / config["database_root"],
+                test_id=test_id,
+                embed_device="cpu",
+                rerank_device="cpu",
+                embedder="none",
+                warm_cache=False,
+                check_reranker=False,
+                fathomdb_bin=str(root / config["fathomdb_bin"]),
+            )
+        except Exception as exc:
+            raise NativeRunError(
+                "database_setup_failed", "database_setup", str(exc)
+            ) from exc
         from fathomdb import Engine, __version__ as fathomdb_version
 
-        engine = Engine.open(str(prepared.database_path), use_default_embedder=False)
         try:
-            engine.write(config["records"])
-            engine.drain(timeout_s=60)
+            engine = Engine.open(
+                str(prepared.database_path), use_default_embedder=False
+            )
+        except Exception as exc:
+            raise NativeRunError("engine_open_failed", "engine_open", str(exc)) from exc
+        try:
+            try:
+                engine.write(config["records"])
+                engine.drain(timeout_s=60)
+            except Exception as exc:
+                raise NativeRunError(
+                    "record_write_failed", "record_write", str(exc)
+                ) from exc
             call_count = 0
-            call_count += 1
-            result = engine.search(config["query"], limit=config["limit"])
+            try:
+                call_count += 1
+                result = engine.search(config["query"], limit=config["limit"])
+            except Exception as exc:
+                raise NativeRunError(
+                    "engine_search_failed", "search", str(exc)
+                ) from exc
         finally:
             engine.close()
         source_ids = [hit.source_id for hit in result.results]
@@ -1705,11 +1978,10 @@ def run_native(repository_root: str | Path, config_path: str | Path) -> str:
             raise ClassificationError("native expected hit is missing")
         rank = source_ids.index(expected) + 1
         metrics = {
-            "schema_version": "measurement-classification.native-result.v1",
+            "schema_version": "measurement-classification.native-result.v2",
             "program_track": "GLOBAL-01",
             "state": "complete",
             "expected_source_id": expected,
-            "returned_source_ids": source_ids,
             "retrieval": {
                 "call_count": call_count,
                 "recall_at_3": 1.0,
@@ -1733,8 +2005,14 @@ def run_native(repository_root: str | Path, config_path: str | Path) -> str:
     artifacts = []
     if prepared is not None:
         artifacts = [
-            {"path": str(prepared.config_path), "sha256": _sha256_bytes(prepared.config_path.read_bytes())},
-            {"path": str(prepared.doctor_path), "sha256": _sha256_bytes(prepared.doctor_path.read_bytes())},
+            {
+                "path": str(prepared.config_path.relative_to(root)),
+                "sha256": _sha256_bytes(prepared.config_path.read_bytes()),
+            },
+            {
+                "path": str(prepared.doctor_path.relative_to(root)),
+                "sha256": _sha256_bytes(prepared.doctor_path.read_bytes()),
+            },
         ]
     run_id, run_dir = _lib.write_record(
         "measurement-classification-native-search",
@@ -1759,11 +2037,34 @@ def run_native(repository_root: str | Path, config_path: str | Path) -> str:
         artifacts=artifacts,
         base_dir=root / "experiments",
     )
+    attestation_path = run_dir / "runtime-attestation.v1.json"
+    attestation = _runtime_attestation(root, config, fathomdb_version)
+    _write_generated_json(attestation_path, attestation)
+    result_detail_locator = None
+    if blocker is None:
+        result_detail_path = run_dir / "search-result.v1.json"
+        _write_generated_json(
+            result_detail_path,
+            {
+                "schema_version": "measurement-classification.search-result.v1",
+                "expected_source_id": config["expected_source_id"],
+                "expected_rank": rank,
+                "returned_source_ids": source_ids,
+            },
+        )
+        result_detail_locator = str(result_detail_path.relative_to(root))
+    config_locator = str(path.relative_to(root))
+    plan_locator = config["measurement_plan"]["path"]
+    attestation_locator = str(attestation_path.relative_to(root))
     document = _native_classification(
         root,
         run_id=run_id,
         authority=authority,
         code_sha=code["git_sha"],
+        config_locator=config_locator,
+        plan_locator=plan_locator,
+        attestation_locator=attestation_locator,
+        result_detail_locator=result_detail_locator,
         outcome="complete" if blocker is None else "blocked",
         blocked_reason=blocker,
     )

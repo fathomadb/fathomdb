@@ -23,13 +23,12 @@ version: 2
 # on its original reason. It was carried onto `main` on 2026-08-04 by explicit
 # HITL decision, as a standing posture rather than a recovery measure.
 #
-# ⚠ WHAT THIS COSTS. GitHub currently reports SIX open advisories on the default
-# branch, TWO of them HIGH. Pausing PR creation does not silence the advisories
-# themselves, but it does remove the automated pull requests that would
-# otherwise surface and remediate them. While this pause stands, dependency
-# advisories must be tracked and remediated MANUALLY. Re-check
-# https://github.com/coreyt/fathomdb/security/dependabot before assuming the
-# tree is current.
+# ⚠ WHAT THIS COSTS. Pausing PR creation removes the automated pull requests
+# that would otherwise surface upgrades. The 2026-09-02 local shipped-tree
+# checks (`cargo audit`, root `npm audit --offline`, and `src/ts` npm audit)
+# report zero known advisories, but they do not replace future registry-backed
+# review. While the pause stands, dependency advisories must be tracked and
+# remediated manually.
 updates:
   - package-ecosystem: "pip"
     directory: "/src/python"

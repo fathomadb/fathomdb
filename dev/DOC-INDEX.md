@@ -50,15 +50,15 @@ refresh in the closing commit when you touch a doc).
 | `dev/plans/plan-0.8.23.md` | Completed 0.8.23 release plan, retained in place | 0.8.23 history | 2026-08-23 |
 | `dev/plans/release-state-0.8.23.json` | Completed 0.8.23 release-state record | 0.8.23 history | 2026-08-23 |
 | `dev/plans/runs/STATUS-0.8.23.md` | Completed 0.8.23 state board, retained in place | 0.8.23 history | 2026-08-23 |
-| `dev/plans/plan-0.8.24.md` | Proposed 0.8.24 release plan and slice allocation; no live release-state record | 0.8.24 planning | 2026-08-24 |
+| `dev/plans/plan-0.8.24.md` | Historical 0.8.24 plan; completed work is integrated into main | 0.8.24 history | 2026-09-02 |
 | `dev/plans/plan-0.8.25.md` | Proposed dependency-linear performance and Memex data-plane foldback plan | 0.8.25 | 2026-08-31 |
 | `dev/plans/0.8.26-draft-scope.md` | Non-authoritative intake preserving work postponed from 0.8.24 and 0.8.25 | 0.8.26 draft | 2026-09-01 |
 | `dev/plans/0.8.25-prework-slices-0-7.md` | Environment-to-HITL prework and approved preparation contract | 0.8.25 Slices 0–7 | 2026-08-31 |
 | `dev/plans/0.8.25/prework/slice-{1-dependency-sweep,2-cruft-review}.md` | Dependency/pinning evidence and repository cruft action proposals | 0.8.25 Slices 1–2 | 2026-08-31 |
 | `dev/plans/0.8.25/prework/slice-{3-contract-and-architecture-drafts,4-architecture-and-code-alignment,5-verification-adequacy}.md` | Draft contracts, as-built alignment, and verification-gap allocation | 0.8.25 Slices 3–5 | 2026-08-31 |
 | `dev/plans/memex-0.6.0-needs-in-fathomdb-0.8.25.md` | Code-grounded Memex needs crosswalk and slice allocation | 0.8.25 Slice 3 | 2026-08-31 |
-| `dev/plans/fathomdb-data-plane-foldback-v2.md` | Proposed dependency-linear requirements/design/TDD delivery plan | 0.8.25 Slice 6 | 2026-08-31 |
-| `dev/plans/fathomdb-data-plane-foldback-v1.md` | Reviewed initial four-workstream foldback plan retained as baseline | 0.8.25 history | 2026-08-31 |
+| `dev/plans/fathomdb-data-plane-foldback-v2.md` | Active dependency-linear requirements/design/TDD delivery plan | 0.8.25 Slice 7 | 2026-09-02 |
+| `dev/plans/fathomdb-data-plane-foldback-v1.md` | Superseded four-workstream foldback plan retained as history | 0.8.25 history | 2026-09-02 |
 | `dev/plans/fathomdb-data-plane-architecture-review-v1.md` | Independent two-cycle approval record for data-plane architecture v1 | 0.8.25 | 2026-08-31 |
 | `dev/plans/0.8.24/prework/slice-{0,1,2}-*.md` | 0.8.24 prework findings and design reviews | 0.8.24 Slices 0–2 | 2026-08-23 |
 | `dev/plans/0.8.24/prework/slice-3-*-drafts.md` | 0.8.24 product and architecture draft CRUD | 0.8.24 Slice 3 | 2026-08-23 |
@@ -181,8 +181,8 @@ refresh in the closing commit when you touch a doc).
 | `dev/design/0.8.20-tc90-tc91-characterization.md` | Characterization (no fix) — `Engine::transition`'s deferred write race (reproduces 10/10 under stress), and the cadence-sensitive duplicate embeds whose discarded worker commit is structurally invisible to terminal-state counting | 0.8.20 Slice 23 (R-20-SV leg 2); TC-90/TC-91, fix at 0.8.21 | 2026-07-29 |
 | `dev/design/0.8.20-slice-31-sbom-survey-tool.md` | Spec of record for `scripts/sbom-survey` — CycloneDX SBOM over tracked manifests, tiering, used-vs-published diff; 23 criteria | 0.8.20 Slice 31 (Library Sweep #3 leg 1/3; no requirement id, TC-76) | 2026-07-29 |
 | `dev/design/chunking-strategy-and-test-guidance.md` | Verbatim chunking strategy and test guidance | performance experiments | 2026-08-15 |
-| `dev/design/fathomdb-data-plane-architecture-v1.md` | Versioned data-plane boundary and planned evidence, graph, and filter contracts | 0.8.25 | 2026-08-31 |
-| `dev/design/fathomdb-data-plane-architecture-v2.md` | Proposed data-plane architecture for full performance and Memex foldback | 0.8.25 Slice 4 | 2026-08-31 |
+| `dev/design/fathomdb-data-plane-architecture-v1.md` | Superseded data-plane architecture retained as reviewed history | 0.8.25 history | 2026-09-02 |
+| `dev/design/fathomdb-data-plane-architecture-v2.md` | Active v2.1 data-plane architecture and narrowed 0.8.25 profile | 0.8.25 Slice 7 | 2026-09-02 |
 | `scripts/sbom-survey/README.md` | Operating note for the dependency-survey mini-project — how to run the suite, and why it is deliberately not CI-gating | 0.8.20 Slice 31 (Library Sweep #3 leg 1/3) | 2026-07-29 |
 | `scripts/sbom-survey/smoke-install-run.sh` | TC-115 install-then-run smoke — installs the tool into a throwaway venv, invokes the INSTALLED console script, and asserts its artifacts are byte-identical to a source-tree run. Deliberately NOT CI-wired (`seq-172`) | 0.8.20 Slice 33 (Library Sweep #3 leg 3/3) | 2026-07-29 |
 | `dev/plans/runs/0.8.20-slice-33-library-sweep-3-FINDINGS.md` | **Findings of record** for Library Sweep #3 — the ONLINE `sbom-survey` run at `29c2eae0`: 774 components, 28 direct outdated, per-dependency surgical verdicts, and the hand-off to 0.8.22. ASCERTAIN-ONLY; applied nothing | 0.8.20 Slice 33 (Library Sweep #3 leg 3/3; no requirement id, TC-76) | 2026-07-29 |

@@ -38,7 +38,7 @@ ADRs.
 
 Canonical for internal subsystem design, subject to ADR and requirement owners.
 
-The approved, Slice-7-gated 0.8.25 successor architecture is
+The active 0.8.25 architecture is
 [`fathomdb-data-plane-architecture-v2.md`](fathomdb-data-plane-architecture-v2.md).
 Its feature-level design records and predecessor dispositions are indexed by
 [`../plans/0.8.25/design-documentation-matrix.md`](../plans/0.8.25/design-documentation-matrix.md).

@@ -1,13 +1,14 @@
 ---
 title: FathomDB data-plane architecture v2
-status: COMPLETE
+status: ACTIVE
 architecture_version: 2.1
-implementation_status: planned
+implementation_status: active authority; implemented incrementally by feature slices
 target_release: 0.8.25
 baseline: dev/design/fathomdb-data-plane-architecture-v1.md
 approval_status: APPROVED
 approved_by: 0.8.25 Slice 6 HITL seq-272..274
 activation_gate: 0.8.25 Slice 7 completion
+activated_on: 2026-09-02
 ---
 
 # FathomDB data-plane architecture v2

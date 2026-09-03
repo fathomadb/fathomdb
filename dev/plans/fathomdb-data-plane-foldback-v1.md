@@ -1,12 +1,16 @@
 ---
 title: FathomDB data-plane foldback plan v1
-status: ACTIVE
+status: SUPERSEDED
+superseded_by: dev/plans/fathomdb-data-plane-foldback-v2.md
 plan_version: 1
 target_release: 0.8.25
 architecture: dev/design/fathomdb-data-plane-architecture-v1.md
 ---
 
 # FathomDB data-plane foldback plan v1
+
+> **Superseded:** the dependency-linear v2 plan is the active 0.8.25 delivery
+> authority. This four-workstream plan is retained as reviewed history.
 
 ## Outcome
 

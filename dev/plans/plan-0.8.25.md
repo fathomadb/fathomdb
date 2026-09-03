@@ -24,8 +24,8 @@ The prework contract is
 The successor architecture and delivery plan are
 [`fathomdb-data-plane-architecture-v2.md`](../design/fathomdb-data-plane-architecture-v2.md)
 and [`fathomdb-data-plane-foldback-v2.md`](fathomdb-data-plane-foldback-v2.md).
-Architecture v2 is approved by the completed Slice 4–6 review/HITL sequence
-and becomes active implementation authority when Slice 7 completes.
+Architecture v2.1 is the active implementation authority following the completed
+Slice 4–7 review, decision, and repository-preparation sequence.
 
 ## Setup record
 

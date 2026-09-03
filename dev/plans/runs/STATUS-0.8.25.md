@@ -12,10 +12,10 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 7 (PREWORK-IMPLEMENTATION), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 10 (MEASUREMENT), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
-Prework is active on the durable `release/0.8.25` worktree. Slices 0–7 are
-sequential; feature work begins at Slice 10. The owner-approved 2026-09-02
+Prework is complete on the durable `release/0.8.25` worktree. Feature work
+begins at Slice 10. The owner-approved 2026-09-02
 scope adjustment removes Slices 65/70 and narrows the retained implementation
 ladder. Direct agents execute this release without Steward or Orchestrator
 roles.
@@ -31,7 +31,7 @@ roles.
 | 4 | Architecture/code alignment | Complete on release branch (`51043e20`) |
 | 5 | Verification adequacy | Complete on release branch (`51043e20`) |
 | 6 | Proposal scoring and interactive HITL | Complete on release branch (`3a35c1e6`; approved `seq-274`) |
-| 7 | Approved repository preparation | Ready |
+| 7 | Approved repository preparation | Complete on release branch (`fdbae48a`) |
 | 10 | Measurement classification | Not started |
 | 15 | Identity and source provenance | Not started |
 | 20 | Core dependency registration | Not started |
@@ -58,30 +58,31 @@ roles.
 - CUDA, NVIDIA tools including `nvidia-smi`, and ptrace are standing-authorized,
   including unconfined execution when needed. Sandboxed probe failures do not
   establish host absence.
-- The current `.venv/bin` shim resolves to the primary checkout and cannot
-  certify release-branch Python/native behavior.
-- Generic release-state `landed` rendering claims `origin/main`; release-branch
-  completion therefore uses explicit ladder status until Slice 7 decides a
-  generalized branch-completion contract.
+- Release-branch Python/native behavior is certified through the isolated
+  release-wheel verifier; the primary-checkout `.venv` is not evidence.
+- Generic release-state completion now distinguishes release-branch completion
+  from `origin/main` reachability. The `landed` set remains empty until an
+  independently authorized push and integration.
 - No publication, external-system mutation, or feature implementation is
   authorized by prework.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 7 (PREWORK-IMPLEMENTATION)** — approved repository-preparation implementation. **Remaining ladder:** 7 → 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 10 (MEASUREMENT)** — executable measurement-layer classification. **Remaining ladder:** 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 
 Every transition must pass the release-state renderer, developer Markdown
 lint, and `git diff --check`. Each Slice 1–5 record is proposal-only.
 
-- Release-state view and commission-manifest regression suites pass after the
-  live plan/board views and Slice 6 curated inputs were registered.
-- The unconfined strict run passed ptrace, egress, security, Python, and the
-  other unaffected suites. It remains red on P25-INFRA-03: legacy board and
-  briefing tools require `origin/main` landings and cannot represent completed
-  release-branch-only prework.
-- The unchanged serial Rust workspace run remains red on P25-INFRA-04: 24 test
-  targets use retained binaries compiled under the removed `/tmp` worktree.
-  A focused 34-test CLI rerun passed after recompilation, distinguishing stale
-  target provenance from product behavior. Slice 7 must verify a fresh target.
+- Slice 7 fast verification passes 103/103 suites; the appropriately sized
+  heavy route passes 2/3 applicable suites with one explicit exclusion.
+- A fresh serial Rust workspace run passes and contains no removed-worktree
+  target provenance. The isolated release-built Python wheel passes real
+  open/write/search/close and property checks.
+- Dependency policy, loader behavior, RustSec, protected pins, traceability,
+  strict ptrace, documentation, and release-state views pass.
+- The CUDA feature suite passes all 79 tests on RTX 3090 GPU 0 with CUDA 12.6,
+  including CPU/GPU logit agreement and real GPU load/score.
+- Independent implementation review passes after FIX-1/FIX-2 with no remaining
+  P1/P2/P3 finding; a separate read-only verifier confirms the evidence.

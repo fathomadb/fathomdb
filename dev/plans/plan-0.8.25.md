@@ -196,12 +196,14 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 7** (`PREWORK-IMPLEMENTATION`) — approved repository-preparation implementation
+**IMMEDIATE NEXT: Slice 10** (`MEASUREMENT`) — executable measurement-layer classification
 
-**Remaining ladder:** 7 → 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
-Execute the approved Slice 7 plan directly, preserving its TDD, stop, review,
-verification, no-push, and no-publication boundaries.
+Execute the Slice 10 plan directly. Reconcile its reviewed draft against the
+activated architecture and current code, then use TDD, independent design and
+implementation review, and read-only verification. Slice 10 remains bounded to
+measurement classification and its small native `Engine.search` witness.
 
 ## Stop gates
 

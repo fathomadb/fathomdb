@@ -1,15 +1,16 @@
 ---
 title: 0.8.25 Slice 7 — prework completion record
-status: REVIEW_PENDING
+status: COMPLETE_ON_RELEASE_BRANCH
 target_release: 0.8.25
+completed_on: 2026-09-03
+implementation_commit: fdbae48a
 ---
 
 # Slice 7 — prework completion record
 
 Slice 7 implements the owner-approved repository preparation only. Product
-behavior assigned to Slices 10 and later is unchanged. This record remains
-`REVIEW_PENDING` until the independent implementation review, read-only
-verification audit, and closure gates finish.
+behavior assigned to Slices 10 and later is unchanged. The independent
+implementation review, read-only verification audit, and closure gates pass.
 
 ## S7-01 — durable Rust build provenance
 
@@ -84,21 +85,44 @@ verification audit, and closure gates finish.
 
 ## Aggregate verification state
 
-- The fresh Rust workspace suite, actual wheel smoke/property, RustSec and pin
-  checks, focused CPU loader suite, release-state readers, and documentation
-  gates have passed.
-- `agent-verify.sh --tier=fast` is being rerun after its two release-reader
-  regressions were corrected.
-- CUDA and the standalone strict ptrace probe are authorized but not yet
-  executable in this task's current managed `workspace-write` sandbox:
-  `/dev/nvidia*` is absent and escalation is disabled by the active permission
-  profile. This is an environment evidence gap, not a passing product result.
-- Independent implementation review and read-only verification are in
-  progress. No review verdict is recorded yet.
+- Fresh Rust workspace: with
+  `CARGO_TARGET_DIR=target/release-0.8.25-final`,
+  `cargo test --workspace --all-targets --no-fail-fast --
+  --test-threads=1` exited 0. `/tmp/s7-final-rust.log` contains 193 passing
+  `test result:` records and no failure. The fixed-string scan of the target
+  for `/tmp/fathomdb-release-0.8.25` exited 1 with no match.
+- Agent gates: `npm_config_cache=/tmp/fathomdb-npm-cache bash
+  scripts/agent-verify.sh --tier=fast` exited 0 with 103/103 suites passing.
+  `bash scripts/agent-verify.sh --tier=heavy` exited 0 with 2/3 applicable
+  suites passing and one explicitly excluded suite.
+- Python package: `bash scripts/verify-release-python-wheel.sh --python
+  python3.12 --wheel-dir <fresh-wheel-dir> --venv-dir <fresh-venv-dir>` exited
+  0 from the release worktree. The external-venv lifecycle and installed-wheel
+  property tests pass.
+- Dependency/security: the policy checker, loader tests, pin checks, absence of
+  `async-std`, and unfiltered RustSec audit pass. The final resolved package
+  versions are recorded in S7-04 above.
+- Strict process gate: `strace -f -qq -e trace=%file,%network -o
+  /tmp/codex-ptrace-probe.trace true` exited 0 with a non-empty trace.
+  `cargo test -p fathomdb-cli --lib
+  doctor_gpu_process_matrix_has_exact_outputs_and_no_side_effects --
+  --nocapture` exited 0 with 1/1 passing.
+- CUDA: unconfined `nvidia-smi` found two idle RTX 3090 24 GiB devices. With
+  GPU 0 selected, K620 excluded, CUDA 12.6 bound through `CUDA_HOME`, `PATH`,
+  `LIBRARY_PATH`, and `LD_LIBRARY_PATH`, `cargo test -p fathomdb-embedder
+  --features embed-cuda,rerank-cuda,loader-test-hooks` exited 0. All 79 tests
+  passed, including CPU/GPU logits and real GPU load/score.
+- Documentation: maintained Markdown, public-doc, strict MkDocs, link, and
+  `git diff --check` gates pass after the authority transition.
+- Review: the independent high-effort implementation review passed after the
+  allowed FIX-1/FIX-2 cycles with no P1/P2/P3 finding remaining. The separate
+  read-only verifier independently confirmed the RED/GREEN and final evidence.
+  See
+  [`slice-7-implementation-review.md`](slice-7-implementation-review.md).
 
 ## Scope and handoff
 
 No feature-slice implementation, publication, tag, registry action, main merge,
-or push is included. After closure, the release-state writer will mark Slice 7
-complete on the release branch, remove it from the remaining ladder, and point
-the immediate next action to Slice 10.
+or push is included. The release-state writer marks Slice 7 complete on the
+release branch, removes it from the remaining ladder, and points the immediate
+next action to Slice 10.

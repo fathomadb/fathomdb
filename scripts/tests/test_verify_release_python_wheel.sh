@@ -66,22 +66,22 @@ run_case success env
 pass "valid isolated wheel fixture passes"
 
 run_case missing env FAKE_NO_WHEEL=1
-[ "$rc" -ne 0 ] && printf '%s' "$output" | grep -q 'exactly one wheel' \
+[ "$rc" -ne 0 ] && grep -q 'exactly one wheel' <<<"$output" \
   || fail "missing wheel is rejected: $output"
 pass "missing wheel is rejected"
 
 run_case primary-module env FAKE_MODULE="$TMP/primary/fathomdb/__init__.py"
-[ "$rc" -ne 0 ] && printf '%s' "$output" | grep -q 'module escaped fresh venv' \
+[ "$rc" -ne 0 ] && grep -q 'module escaped fresh venv' <<<"$output" \
   || fail "primary-tree Python module is rejected: $output"
 pass "primary-tree Python module is rejected"
 
 run_case primary-native env FAKE_NATIVE="$TMP/primary/fathomdb/_fathomdb.so"
-[ "$rc" -ne 0 ] && printf '%s' "$output" | grep -q 'native module escaped fresh venv' \
+[ "$rc" -ne 0 ] && grep -q 'native module escaped fresh venv' <<<"$output" \
   || fail "primary-tree native module is rejected: $output"
 pass "primary-tree native module is rejected"
 
 run_case editable env FAKE_EDITABLE=true
-[ "$rc" -ne 0 ] && printf '%s' "$output" | grep -q 'editable install' \
+[ "$rc" -ne 0 ] && grep -q 'editable install' <<<"$output" \
   || fail "editable installation is rejected: $output"
 pass "editable installation is rejected"
 

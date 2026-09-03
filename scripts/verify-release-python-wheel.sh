@@ -31,7 +31,9 @@ mkdir -p "$wheel_dir"
     --features pyo3/extension-module,default-embedder -i "$python_bin"
 )
 
-mapfile -t wheels < <(find "$wheel_dir" -maxdepth 1 -type f -name '*.whl' -print)
+wheel_manifest="$wheel_dir/.wheel-manifest"
+find "$wheel_dir" -maxdepth 1 -type f -name '*.whl' -print >"$wheel_manifest"
+mapfile -t wheels <"$wheel_manifest"
 if [ "${#wheels[@]}" -ne 1 ]; then
   echo "expected exactly one wheel in $wheel_dir; found ${#wheels[@]}" >&2
   exit 1

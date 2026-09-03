@@ -12,8 +12,10 @@ make_fixture() {
   {
     printf 'version = 4\n'
     for pair in "httpmock 0.8.3" "anyhow 1.0.103" "crossbeam-epoch 0.9.20" "memmap2 0.9.11" "event-listener $event"; do
-      set -- $pair
-      printf '[[package]]\nname = "%s"\nversion = "%s"\n' "$1" "$2"
+      read -r crate version <<EOF
+$pair
+EOF
+      printf '[[package]]\nname = "%s"\nversion = "%s"\n' "$crate" "$version"
     done
     if [ "$include_async" = yes ]; then
       printf '[[package]]\nname = "async-std"\nversion = "1.13.2"\n'

@@ -1306,6 +1306,13 @@ measurements per the parameter table.
 > `dev/plans/prompts/0.8.x-IR-1-recall-measure.md`,
 > `dev/plans/prompts/0.8.x-IR-2-recall-gate.md`.
 
+**Successor disposition (0.8.25):** AC-077 remains a historical reservation,
+not a release gate. [Slice 10](plans/0.8.25/features/slice-10/plan.md) owns
+measurement classification, [Slice 75](plans/0.8.25/features/slice-75/plan.md)
+owns representative release verification, and deferred retrieval experiments
+remain in the [post-0.8.25 design notes](design/0.8.x-after-0.8.25-design-notes.md)
+and [experimental review schedule](plans/0.8.29-0.8.33-experimental-review-schedule.md).
+
 ## AC-079: Signed 0.8.20 governed-surface delta
 
 **Requirement ref:** R-20-AC / REQ-053

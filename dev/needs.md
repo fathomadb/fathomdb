@@ -185,6 +185,10 @@ NEED-025: **Minimal migrations and bounded upgrade complexity.**
 Users need upgrade posture that avoids long chains of accumulated migrations and
 avoid compatibility shims that hide breaking changes.
 
+NEED-026: **Security hardening at every externally influenced boundary.**
+Users need local operation without implicit network egress, bounded validation,
+and safe handling of search and structured inputs.
+
 ## Out of Scope / Non-Needs (0.6.0)
 
 These are intentionally not user needs for 0.6.0 and should be treated as

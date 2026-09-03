@@ -625,6 +625,14 @@ finding with a user-visible falsifiable outcome.
   `dev/notes/recall-eval-framework-assessment-20260607T174821Z.md`;
   `dev/plans/prompts/0.8.x-IR-1-recall-measure.md`.
 
+  **Successor disposition (0.8.25):** this placeholder remains historical and
+  does not become a release threshold. Measurement classification is owned by
+  [Slice 10](plans/0.8.25/features/slice-10/plan.md), representative release
+  verification by [Slice 75](plans/0.8.25/features/slice-75/plan.md), and the
+  deferred/experimental retrieval treatments by the
+  [post-0.8.25 design notes](design/0.8.x-after-0.8.25-design-notes.md) and
+  [experimental review schedule](plans/0.8.29-0.8.33-experimental-review-schedule.md).
+
 ## Non-goals
 
 (Carried from `plan.md` for cross-linking; authoritative in `plan.md`.)

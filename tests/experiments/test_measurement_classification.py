@@ -415,6 +415,43 @@ def test_successful_data_plane_metric_rejects_unknown_historical_witness(tmp_pat
         )
 
 
+def test_engine_metric_rejects_not_executed_witness(tmp_path):
+    document, authority = _complete_document(tmp_path)
+    document["execution_witnesses"][0].update(
+        {
+            "engine_search_state": "not_executed",
+            "call_count": 0,
+            "count_semantics": "exact",
+            "evidence_kind": "static_path_audit",
+        }
+    )
+    document["classification_id"] = mc.classification_id(document)
+
+    with pytest.raises(mc.ClassificationError, match="executed Engine witness"):
+        mc.validate_classification(
+            document, repository_root=tmp_path, authority=authority
+        )
+
+
+def test_engine_search_witness_rejects_non_engine_component(tmp_path):
+    document, authority = _complete_document(tmp_path)
+    document["execution_witnesses"][0]["component_id"] = "metric"
+    document["classification_id"] = mc.classification_id(document)
+
+    with pytest.raises(mc.ClassificationError, match="Engine.search.*component"):
+        mc.validate_classification(
+            document, repository_root=tmp_path, authority=authority
+        )
+
+
+def test_legacy_complete_sidecar_is_never_successful_evidence(tmp_path):
+    document, _ = _complete_document(tmp_path)
+    document["schema_version"] = mc.LEGACY_SCHEMA_VERSION
+    document["classification_id"] = mc.classification_id(document)
+
+    assert mc.is_successful_evidence(document) is False
+
+
 def test_plan_bound_roots_reject_hidden_numeric_metric(tmp_path):
     document, authority = _complete_document(tmp_path)
     metrics_path = tmp_path / "metrics.json"

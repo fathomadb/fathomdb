@@ -201,6 +201,41 @@ def test_write_record_does_not_double_append_same_run_id(tmp_path):
     assert len(lines) == 1
 
 
+def test_write_record_registers_only_after_before_index_hook_succeeds(tmp_path):
+    def fail_before_index(_run_id, run_dir):
+        (run_dir / "sidecar.json").write_text("partial\n", encoding="utf-8")
+        raise RuntimeError("sidecar failed")
+
+    with pytest.raises(RuntimeError, match="sidecar failed"):
+        _lib.write_record(
+            "demo",
+            ts=TS,
+            config_obj={"a": 1},
+            metrics={"score": 1.0},
+            verdict="blocked",
+            read="blocked",
+            code={
+                "git_sha": "abc",
+                "dirty": False,
+                "branch": "b",
+                "baseline_commit": None,
+            },
+            corpus={"source": None, "manifest_sha256": None, "datasets": []},
+            seeds={},
+            env={
+                "python": "3.12",
+                "lockfile_sha256": None,
+                "gpu": None,
+                "key_deps": {},
+            },
+            cost_usd=0.0,
+            base_dir=tmp_path,
+            before_index=fail_before_index,
+        )
+
+    assert not (tmp_path / "index.jsonl").exists()
+
+
 # --- append_index is append-only -------------------------------------------
 
 

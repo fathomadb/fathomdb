@@ -237,6 +237,6 @@ and the delivery method is
 
 Slice 4 review, Slice 5 verification analysis, and Slice 6 HITL approval are
 complete. Architecture v2 became the active versioned successor when S7-07
-recorded GREEN at `a0c9f927`. The rest of Slice 7 remains the repository
+recorded complete GREEN at `007a3152`. The rest of Slice 7 remains the repository
 preparation gate: Slice 10+ designs may be drafted and reviewed, but cannot
 become READY until Slice 7 records completion.

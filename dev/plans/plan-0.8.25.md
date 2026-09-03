@@ -25,7 +25,9 @@ The successor architecture and delivery plan are
 [`fathomdb-data-plane-architecture-v2.md`](../design/fathomdb-data-plane-architecture-v2.md)
 and [`fathomdb-data-plane-foldback-v2.md`](fathomdb-data-plane-foldback-v2.md).
 Architecture v2.1 is the active implementation authority following the completed
-Slice 4–7 review, decision, and repository-preparation sequence.
+Slice 4–6 review/decision work and the S7-07 architecture package. Overall
+Slice 7 completion separately gates Slice 10 readiness and is recorded by the
+canonical release state below.
 
 ## Setup record
 

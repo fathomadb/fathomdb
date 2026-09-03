@@ -1,0 +1,11 @@
+{
+  "schema_version": "measurement-classification.native-blocked.v1",
+  "program_track": "GLOBAL-01",
+  "state": "blocked",
+  "blocked_reason": {
+    "code": "expected_hit_missing",
+    "stage": "result_validation",
+    "message": "native expected hit is missing",
+    "detail": {}
+  }
+}

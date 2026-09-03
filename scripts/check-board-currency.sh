@@ -454,6 +454,33 @@ for key, first, second in state_dup:
 if state_dup:
     sys.exit(1)
 
+# A release may truthfully complete slices on its release branch before the
+# separately authorized origin/main integration. In that state `landed` stays
+# empty because generated prose reserves LANDED for origin/main, while ladder
+# status + SHA are still authoritative completion facts for the live board.
+# Reconcile those exact rows rather than falling back to merge-subject guessing.
+authoritative_ids = list(st["landed"])
+authoritative_ids.extend(
+    entry["slice"] for entry in st["ladder"]
+    if entry.get("status") == "COMPLETE_ON_RELEASE_BRANCH"
+    and entry["slice"] not in authoritative_ids
+)
+completion = st.get("completion")
+if completion is not None:
+    if (not isinstance(completion, dict)
+            or set(completion) != {"ref", "main_integration"}):
+        err("STALE  %s: %s has a malformed `completion` object" % (ver, state_path))
+        sys.exit(1)
+    expected_ref = "origin/release/%s" % st.get("release")
+    if completion["ref"] != expected_ref:
+        err("STALE  %s: %s completion ref must name %s"
+            % (ver, state_path, expected_ref))
+        sys.exit(1)
+    if completion["main_integration"] not in ("PENDING", "COMPLETE"):
+        err("STALE  %s: %s completion state must be PENDING or COMPLETE"
+            % (ver, state_path))
+        sys.exit(1)
+
 # --- (c-pre) STATE COMPLETENESS: a landed slice MUST carry its landing SHA ----
 # fix-2 finding A. The original construct was
 #     sha = (by_slice.get(key) or {}).get("sha")
@@ -478,7 +505,7 @@ if state_dup:
 # used as `sha not in status`, and a non-string there is either a TypeError
 # (e.g. a number) or a silently wrong answer.
 reconciled = 0
-for n in st["landed"]:
+for n in authoritative_ids:
     key = slice_str(n)
     entry = by_slice.get(key)
     if entry is None:
@@ -494,7 +521,7 @@ for n in st["landed"]:
         sha = entry["sha"]
     else:
         sha = None
-        err("STALE  %s Slice %s: %s records it in `landed`, but %s. The SHA-row "
+        err("STALE  %s Slice %s: %s records it as completed, but %s. The SHA-row "
             "check would then be a silent NO-OP for this slice and the board's "
             "hand-written row would be certified on the marker regex alone — a "
             "landed slice and its landing SHA are two halves of one fact, and "
@@ -504,7 +531,7 @@ for n in st["landed"]:
 
     row = rows.get(key)
     if row is None:
-        err("STALE  %s Slice %s: %s records it in `landed` but %s's ladder table "
+        err("STALE  %s Slice %s: %s records it as completed but %s's ladder table "
             "has NO row for it — a board cannot be current for a slice it does "
             "not list (TC-133)" % (ver, key, state_path, board_path))
         bad = True
@@ -520,7 +547,7 @@ for n in st["landed"]:
     if hit is None and flat.lower() in WHOLE_CELL_MARKERS:
         hit = flat
     if hit is not None:
-        err("STALE  %s Slice %s: %s records it LANDED in `landed`, but the "
+        err("STALE  %s Slice %s: %s records it as completed, but the "
             "hand-written ladder row at %s:%d still describes it as \"%s\". "
             "Presence of a SHA elsewhere in the file is NOT currency of THIS "
             "row (TC-133)" % (ver, key, state_path, board_path, lineno, hit))
@@ -606,17 +633,20 @@ if claims == 0:
 if bad:
     sys.exit(1)
 
-err("ok    %s: board/state cross-read (TC-133): %d landed slice(s) reconciled "
+err("ok    %s: board/state cross-read (TC-133): %d completed slice(s) reconciled "
     "against %s, %d `Ladder remaining` claim(s) agree with `remaining_ladder`"
     % (ver, reconciled, state_path, claims))
 sys.exit(0)
 CROSS_READ_PY
 }
 
-# Emit `slice<TAB>sha` for a canonical current state with authoritative landed
-# facts. Empty output means the caller must retain the legacy merge-subject
-# predicate (e.g. a pre-first-land foundation or an old fixture). Any malformed
-# non-empty landed set is a hard error: machine facts must never be partial.
+# Emit `slice<TAB>sha` for a canonical current state with authoritative
+# completion facts. Ordinarily those are `landed`; while `completion` records a
+# PENDING release-branch integration they are the ladder entries explicitly
+# marked COMPLETE_ON_RELEASE_BRANCH. Empty output means the caller must retain
+# the legacy merge-subject predicate (e.g. a pre-first-land foundation or an old
+# fixture). Any malformed non-empty completion set is a hard error: machine
+# facts must never be partial.
 cbc_machine_lands() {
   local state="$1"
   python3 - "$state" <<'MACHINE_LANDS_PY'
@@ -630,8 +660,6 @@ try:
     landed = state.get("landed")
     if not isinstance(landed, list):
         raise ValueError("`landed` is not a JSON array")
-    if not landed:
-        raise SystemExit(0)
     ladder = state.get("ladder")
     if not isinstance(ladder, list):
         raise ValueError("`ladder` is not a JSON array")
@@ -643,14 +671,32 @@ try:
         if key in by_slice:
             raise ValueError("`ladder` contains duplicate slice %s" % key)
         by_slice[key] = entry
-    for slice_id in landed:
+    completion = state.get("completion")
+    completed = list(landed)
+    completed.extend(
+        entry["slice"] for entry in ladder
+        if entry.get("status") == "COMPLETE_ON_RELEASE_BRANCH"
+        and entry["slice"] not in completed
+    )
+    if completion is not None:
+        if not isinstance(completion, dict) or set(completion) != {"ref", "main_integration"}:
+            raise ValueError("`completion` must contain exactly `ref` and `main_integration`")
+        release = state.get("release")
+        expected_ref = "origin/release/%s" % release
+        if completion["ref"] != expected_ref:
+            raise ValueError("`completion.ref` must name %s" % expected_ref)
+        if completion["main_integration"] not in ("PENDING", "COMPLETE"):
+            raise ValueError("`completion.main_integration` must be PENDING or COMPLETE")
+    if not completed:
+        raise SystemExit(0)
+    for slice_id in completed:
         key = str(slice_id)
         entry = by_slice.get(key)
         if entry is None:
-            raise ValueError("landed slice %s has no ladder entry" % key)
+            raise ValueError("completed slice %s has no ladder entry" % key)
         sha = entry.get("sha")
         if not isinstance(sha, str) or not sha:
-            raise ValueError("landed slice %s has no non-empty ladder sha" % key)
+            raise ValueError("completed slice %s has no non-empty ladder sha" % key)
         print("%s\t%s" % (key, sha))
 except SystemExit:
     raise

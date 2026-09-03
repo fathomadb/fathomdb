@@ -71,6 +71,7 @@ run_capped check-track-runner "$SCRIPT_DIR/check-track-runner.sh" --quiet
 # nothing checking the copies agreed; one reconciliation commit touched 7 files.)
 # Pure bash + python3, and python3 absent is a hard failure, not a skip (TC-37).
 run_capped check-release-state-views "$SCRIPT_DIR/check-release-state-views.sh" --quiet
+run_capped check-traceability-contracts "$SCRIPT_DIR/check-traceability-contracts.py" --root .
 
 # docs/** structural lint. The repo .markdownlint-cli2.jsonc IGNORES docs/** (it is
 # otherwise gated only by `mkdocs build --strict`, which does NOT enforce markdownlint

@@ -1065,17 +1065,16 @@ else
   fail "unreachable canonical SHA: rc=$RC out=$OUT"
 fi
 
-# Terminal-release regression: once every tracked release is published,
-# release-current.py returns success with no current board. Retained historical
-# boards must not be currency-checked merely because they predate the CLOSED
-# banner convention.
+# Real-repository regression: the resolver may return either no board after a
+# terminal release or one active board. In both cases the canonical checkout
+# must pass without reopening retained historical boards such as 0.8.20.
 run_checker "$REPO_ROOT"
 if [ "$RC" -eq 0 ] \
    && grep -q 'no live STATUS-0.8.z.md board contradicts git ancestry' <<<"$OUT" \
    && ! grep -q '0.8.20' <<<"$OUT"; then
-  pass "all published releases leave no board-currency work"
+  pass "the real repository's resolved current-board state is internally current"
 else
-  fail "terminal-release regression: rc=$RC out=$OUT"
+  fail "real-repository current-board regression: rc=$RC out=$OUT"
 fi
 
 # --- Arm 2: stale board — checker exits non-zero, names the sha ----------------

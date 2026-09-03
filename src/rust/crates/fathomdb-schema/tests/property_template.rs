@@ -1,18 +1,22 @@
-// Property-test scaffold for fathomdb-schema.
-//
-// Real targets (per ADR-0.6.0-json-schema-policy and ADR-0.6.0-decision-index):
-//   - schema parse/serialize idempotence: parse(serialize(s)) == s
-//   - schema version monotonicity: migration registry stays contiguous
-//   - field-name canonicalization: round-trips through wire form
-//
-// Extend this as real schema types land.
+//! Bounded property checks for the migration registry's existing contract.
 
 use proptest::prelude::*;
 
 proptest! {
+    #![proptest_config(ProptestConfig::with_cases(32))]
+
     #[test]
-    fn schema_version_covers_registered_migrations(_x in any::<u32>()) {
-        let max_step = fathomdb_schema::MIGRATIONS.iter().map(|step| step.step_id).max().unwrap();
-        prop_assert_eq!(fathomdb_schema::SCHEMA_VERSION, max_step);
+    fn migration_suffix_is_contiguous_and_ends_at_head(
+        starting_step in 0..fathomdb_schema::SCHEMA_VERSION,
+    ) {
+        let suffix: Vec<u32> = fathomdb_schema::MIGRATIONS
+            .iter()
+            .filter(|migration| migration.step_id > starting_step)
+            .map(|migration| migration.step_id)
+            .collect();
+        prop_assert!(!suffix.is_empty());
+        prop_assert_eq!(suffix[0], starting_step + 1);
+        prop_assert!(suffix.windows(2).all(|pair| pair[1] == pair[0] + 1));
+        prop_assert_eq!(suffix.last().copied(), Some(fathomdb_schema::SCHEMA_VERSION));
     }
 }

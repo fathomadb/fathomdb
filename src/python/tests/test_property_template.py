@@ -1,27 +1,55 @@
-"""Property-test scaffold for the Python surface.
+"""Bounded property checks for the installed Python Engine contract."""
 
-Real targets (per ADR-0.6.0-python-api-shape):
-  - Python API round-trip: open(close(...)) idempotence on a temp dir
-  - JSON-Schema validation: parse(serialize(s)) == s for canonical schemas
-  - filter_json_fused_*: invalid schema raises BuilderValidationError (per
-    project_fused_json_filters_contract.md — must not silently degrade)
+from __future__ import annotations
 
-Replace this trivial property when real Python API surface lands.
-"""
+import tempfile
+from pathlib import Path
 
 import pytest
 
 try:
-    # Optional dev/test dep (declared in `[test]`/`[dev]` extras only).
-    # Env-independent: when pyright runs without the extra installed it
-    # would flag `reportMissingImports`; the `try/except` already guards
-    # the runtime path, so a targeted, line-scoped ignore is the honest fix.
-    from hypothesis import given, strategies as st  # pyright: ignore[reportMissingImports]
+    from hypothesis import given, settings, strategies as st  # pyright: ignore[reportMissingImports]
 except ImportError:  # pragma: no cover
-    pytest.skip("hypothesis not installed; install with `pip install -e src/python[test]`",
-                allow_module_level=True)
+    pytest.skip("hypothesis not installed; install the test extra", allow_module_level=True)
+
+from fathomdb import Engine
 
 
-@given(st.integers())
-def test_placeholder_identity(x: int) -> None:
-    assert x == x
+@settings(max_examples=12, deadline=None)
+@given(
+    token=st.text(alphabet="abcdefghijklmnopqrstuvwxyz", min_size=4, max_size=12),
+    logical_suffix=st.text(
+        alphabet="abcdefghijklmnopqrstuvwxyz0123456789", min_size=4, max_size=12
+    ),
+)
+def test_written_record_identity_survives_reopen(token: str, logical_suffix: str) -> None:
+    body = f"property durable {token}"
+    logical_id = f"property-{logical_suffix}"
+    source_id = f"property:{logical_suffix}"
+    with tempfile.TemporaryDirectory() as root:
+        path = str(Path(root) / "property.sqlite")
+        engine = Engine.open(path, use_default_embedder=False)
+        try:
+            engine.write(
+                [
+                    {
+                        "kind": "doc",
+                        "body": body,
+                        "logical_id": logical_id,
+                        "source_id": source_id,
+                    }
+                ]
+            )
+            engine.drain(timeout_s=5)
+            before = next(hit for hit in engine.search(token).results if hit.body == body)
+        finally:
+            engine.close()
+
+        reopened = Engine.open(path, use_default_embedder=False)
+        try:
+            after = next(hit for hit in reopened.search(token).results if hit.body == body)
+            assert after.id == before.id
+            assert after.body == body
+            assert after.source_id == source_id
+        finally:
+            reopened.close()

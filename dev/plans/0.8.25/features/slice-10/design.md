@@ -174,7 +174,10 @@ index remains authoritative for run discovery.
 
 `experiments/measurement-classification-policy.v2.json` is closed to
 `schema_version`, `classifier_version`, `index`,
-`historical_manifest_path`, and the exact superseded post-cutover run set.
+`historical_manifest_path`, and the exact superseded post-cutover run set. A
+superseded entry records its run ID, preserved record archive path, and closed
+quarantine reason; the validator applies that locator override and fully
+validates the original v1 sidecar and original record bytes.
 `index` is closed to `path`, `prefix_bytes`,
 `prefix_lines`, and `prefix_sha256`.
 

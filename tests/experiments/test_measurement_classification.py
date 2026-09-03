@@ -577,7 +577,7 @@ def test_portable_repository_gate_loads_post_cutover_plan_and_sidecar(tmp_path):
                 "prefix_sha256": hashlib.sha256(b"").hexdigest(),
             },
             "historical_manifest_path": str(manifest_path.relative_to(tmp_path)),
-            "superseded_postcutover_run_ids": [],
+            "superseded_postcutover_runs": [],
         },
     )
 

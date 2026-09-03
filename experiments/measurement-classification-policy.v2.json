@@ -8,7 +8,11 @@
     "prefix_sha256": "e42443271ab2b3703fcdfdedbb69c5259304171b1da119b9692eb04d2e1a6a52"
   },
   "historical_manifest_path": "experiments/measurement-classification-global-01.v2.json",
-  "superseded_postcutover_run_ids": [
-    "measurement-classification-native-search-20260903T2255Z-b5f420c4"
+  "superseded_postcutover_runs": [
+    {
+      "run_id": "measurement-classification-native-search-20260903T2255Z-b5f420c4",
+      "record_archive_path": "experiments/superseded-runs/measurement-classification-native-search-20260903T2255Z-b5f420c4/record.json",
+      "reason": "invalid_ancillary_locator_quarantined"
+    }
   ]
 }

@@ -26,7 +26,7 @@ import subprocess
 from dataclasses import MISSING, asdict, dataclass, fields, is_dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 try:  # PyYAML is present in the dev venv; JSON is a valid YAML subset so
     # config.resolved.yaml stays readable either way.
@@ -451,10 +451,13 @@ def write_record(
     open_questions: list | None = None,
     base_dir: str | Path | None = None,
     index_path: str | Path | None = None,
+    before_index: Callable[[str, Path], None] | None = None,
 ) -> tuple[str, Path]:
     """Compute the config hash + ``run_id``, write ``record.json`` +
     ``config.resolved.yaml`` + ``metrics.json`` under ``runs/<run_id>/``, and
-    append the index line. Returns ``(run_id, run_dir)``.
+    append the index line. ``before_index``, when supplied, runs after the
+    durable run files exist and before registration; failure leaves no index
+    row. Returns ``(run_id, run_dir)``.
 
     ``ts`` is supplied by the caller (a live runner passes ``datetime.now(UTC)``)
     so this stays pure/deterministic.
@@ -538,6 +541,8 @@ def write_record(
         if index_path is not None
         else (base / "index.jsonl" if base_dir is not None else INDEX_PATH)
     )
+    if before_index is not None:
+        before_index(run_id, run_dir)
     # Idempotency guard: a re-write of the same run_id (identical config within
     # the same UTC minute) refreshes the run dir but must NOT double-append.
     if run_id not in index_run_ids(idx):

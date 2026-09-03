@@ -188,9 +188,17 @@ def _sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _artifact_bytes(row: dict[str, Any], repository_root: Path) -> bytes:
+def _artifact_bytes(
+    row: dict[str, Any],
+    repository_root: Path,
+    locator_overrides: dict[str, str] | None = None,
+) -> bytes:
     kind = row["locator_kind"]
     locator = row["locator"]
+    if locator_overrides and locator in locator_overrides:
+        return _repository_path(
+            repository_root, locator_overrides[locator], "artifact override"
+        ).read_bytes()
     if kind == "git_blob":
         if ":" not in locator:
             raise ClassificationError("git_blob locator must be <commit>:<path>")
@@ -303,7 +311,9 @@ def _validate_authority(authority: dict[str, Any]) -> None:
 
 
 def _validate_artifacts(
-    rows: list[Any], repository_root: Path
+    rows: list[Any],
+    repository_root: Path,
+    locator_overrides: dict[str, str] | None = None,
 ) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
     artifacts: list[dict[str, Any]] = []
     decoded: dict[str, Any] = {}
@@ -332,7 +342,7 @@ def _validate_artifacts(
                 raise ClassificationError("metrics payload requires measurement roots")
         elif roots:
             raise ClassificationError("evidence-only artifact must have empty roots")
-        payload = _artifact_bytes(row, repository_root)
+        payload = _artifact_bytes(row, repository_root, locator_overrides)
         if _sha256_bytes(payload) != row["sha256"]:
             raise ClassificationError("source artifact SHA-256 mismatch")
         if row["role"] == "metrics_payload":
@@ -445,6 +455,11 @@ def _validate_witnesses(
         count = row["call_count"]
         semantics = row["count_semantics"]
         operation = paths[row["call_path_id"]]["operation"]
+        component_kind = components[row["component_id"]]["kind"]
+        if operation == "Engine.search" and component_kind != "fathomdb_engine_search":
+            raise ClassificationError(
+                "Engine.search witness must use a FathomDB Engine component"
+            )
         if state == "executed":
             if (
                 operation != "Engine.search"
@@ -531,13 +546,18 @@ def _validate_metrics(
         )
         if engine_contributed and not witness_ids:
             raise ClassificationError("Engine metric requires an execution witness")
-        if engine_contributed and row["layer"] == "data_plane" and any(
-            witnesses[item]["engine_search_state"] == "unknown_historical"
-            for item in witness_ids
-        ):
-            raise ClassificationError(
-                "unknown_historical cannot support a successful data-plane metric"
+        if engine_contributed and row["layer"] == "data_plane":
+            executed_engine_witness = any(
+                components[witnesses[item]["component_id"]]["kind"]
+                == "fathomdb_engine_search"
+                and witnesses[item]["engine_search_state"] == "executed"
+                for item in witness_ids
             )
+            if not executed_engine_witness:
+                raise ClassificationError(
+                    "unknown_historical or not_executed cannot replace an "
+                    "executed Engine witness for a data-plane metric"
+                )
         key = (artifact_id, pointer)
         if key in classified:
             raise ClassificationError("metric leaf classified more than once")
@@ -615,6 +635,7 @@ def validate_classification(
     repository_root: str | Path,
     authority: dict[str, Any],
     allow_legacy: bool = False,
+    locator_overrides: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Validate a classification against its source-bound measurement plan."""
     row = _closed(document, TOP_KEYS, "classification")
@@ -634,7 +655,9 @@ def validate_classification(
         raise ClassificationError("measurement plan identity mismatch")
 
     artifacts, decoded = _validate_artifacts(
-        _list(row["source_artifacts"], "source_artifacts"), Path(repository_root)
+        _list(row["source_artifacts"], "source_artifacts"),
+        Path(repository_root),
+        locator_overrides,
     )
     strict_authority = authority["schema_version"] == PLAN_VERSION
     if legacy != (authority["schema_version"] == LEGACY_PLAN_VERSION):
@@ -715,6 +738,14 @@ def validate_classification(
             )
             if engine_arm and not arm_witness_ids:
                 raise ClassificationError("Engine comparison arm requires an execution witness")
+            if engine_arm and not any(
+                components[witnesses[item]["component_id"]]["kind"]
+                == "fathomdb_engine_search"
+                for item in arm_witness_ids
+            ):
+                raise ClassificationError(
+                    "Engine comparison arm requires a matching Engine witness"
+                )
             if any(witnesses[item]["arm_id"] != arm["id"] for item in arm_witness_ids):
                 raise ClassificationError("comparison execution witness belongs to another arm")
     metrics = _validate_metrics(
@@ -736,7 +767,10 @@ def validate_classification(
 
 def is_successful_evidence(document: dict[str, Any]) -> bool:
     """Return whether a valid classification may support a successful claim."""
-    return document.get("outcome") == "complete"
+    return (
+        document.get("schema_version") == SCHEMA_VERSION
+        and document.get("outcome") == "complete"
+    )
 
 
 def write_classification(
@@ -927,7 +961,7 @@ def validate_repository(repository_root: str | Path) -> None:
             "classifier_version",
             "index",
             "historical_manifest_path",
-            "superseded_postcutover_run_ids",
+            "superseded_postcutover_runs",
         },
         "classification policy",
     )
@@ -955,12 +989,26 @@ def validate_repository(repository_root: str | Path) -> None:
     _validate_historical_manifest(root, experiments_dir, manifest, prefix_rows)
 
     superseded_values = _list(
-        policy["superseded_postcutover_run_ids"], "superseded post-cutover runs"
+        policy["superseded_postcutover_runs"], "superseded post-cutover runs"
     )
-    superseded = {
-        _nonempty_string(value, "superseded post-cutover run id")
-        for value in superseded_values
-    }
+    superseded_records: dict[str, str] = {}
+    for index, value in enumerate(superseded_values):
+        entry = _closed(
+            value,
+            {"run_id", "record_archive_path", "reason"},
+            f"superseded post-cutover runs[{index}]",
+        )
+        if entry["reason"] != "invalid_ancillary_locator_quarantined":
+            raise ClassificationError("unsupported superseded run reason")
+        run_id = _nonempty_string(entry["run_id"], "superseded run id")
+        archive_path = _nonempty_string(
+            entry["record_archive_path"], "superseded record archive path"
+        )
+        _repository_path(root, archive_path, "superseded record archive path")
+        if run_id in superseded_records:
+            raise ClassificationError("duplicate superseded post-cutover run id")
+        superseded_records[run_id] = archive_path
+    superseded = set(superseded_records)
     if len(superseded) != len(superseded_values):
         raise ClassificationError("duplicate superseded post-cutover run id")
 
@@ -975,7 +1023,12 @@ def validate_repository(repository_root: str | Path) -> None:
         index_row = json.loads(line)
         run_id = index_row["run_id"]
         run_dir = experiments_dir / "runs" / run_id
-        record = _load_json(run_dir / "record.json", "post-cutover record")
+        record_path = (
+            root / superseded_records[run_id]
+            if run_id in superseded_records
+            else run_dir / "record.json"
+        )
+        record = _load_json(record_path, "post-cutover record")
         if record.get("run_id") != run_id:
             raise ClassificationError("post-cutover record run_id mismatch")
         try:
@@ -992,18 +1045,18 @@ def validate_repository(repository_root: str | Path) -> None:
         )
         if sidecar.get("run_id") != run_id:
             raise ClassificationError("post-cutover classification run_id mismatch")
+        locator_overrides = None
         if legacy:
-            if (
-                sidecar.get("schema_version") != LEGACY_SCHEMA_VERSION
-                or sidecar.get("measurement_plan_id") != authority["plan_id"]
-            ):
-                raise ClassificationError("superseded legacy classification is invalid")
-        else:
-            validate_classification(
-                sidecar,
-                repository_root=root,
-                authority=authority,
-            )
+            locator_overrides = {
+                f"experiments/runs/{run_id}/record.json": superseded_records[run_id]
+            }
+        validate_classification(
+            sidecar,
+            repository_root=root,
+            authority=authority,
+            allow_legacy=legacy,
+            locator_overrides=locator_overrides,
+        )
     if observed_superseded != superseded:
         raise ClassificationError("superseded post-cutover inventory is not closed")
 
@@ -1649,7 +1702,16 @@ def materialize_historical(
             "prefix_sha256": _sha256_bytes(frozen_prefix),
         },
         "historical_manifest_path": f"experiments/{HISTORICAL_MANIFEST_NAME}",
-        "superseded_postcutover_run_ids": [SUPERSEDED_NATIVE_V1_RUN_ID],
+        "superseded_postcutover_runs": [
+            {
+                "run_id": SUPERSEDED_NATIVE_V1_RUN_ID,
+                "record_archive_path": (
+                    "experiments/superseded-runs/"
+                    f"{SUPERSEDED_NATIVE_V1_RUN_ID}/record.json"
+                ),
+                "reason": "invalid_ancillary_locator_quarantined",
+            }
+        ],
     }
     _write_generated_json(experiments_dir / POLICY_NAME, policy)
 
@@ -2014,6 +2076,40 @@ def run_native(repository_root: str | Path, config_path: str | Path) -> str:
                 "sha256": _sha256_bytes(prepared.doctor_path.read_bytes()),
             },
         ]
+
+    def finalize_before_index(run_id: str, run_dir: Path) -> None:
+        attestation_path = run_dir / "runtime-attestation.v1.json"
+        attestation = _runtime_attestation(root, config, fathomdb_version)
+        _write_generated_json(attestation_path, attestation)
+        result_detail_locator = None
+        if blocker is None:
+            result_detail_path = run_dir / "search-result.v1.json"
+            _write_generated_json(
+                result_detail_path,
+                {
+                    "schema_version": "measurement-classification.search-result.v1",
+                    "expected_source_id": config["expected_source_id"],
+                    "expected_rank": rank,
+                    "returned_source_ids": source_ids,
+                },
+            )
+            result_detail_locator = str(result_detail_path.relative_to(root))
+        document = _native_classification(
+            root,
+            run_id=run_id,
+            authority=authority,
+            code_sha=code["git_sha"],
+            config_locator=str(path.relative_to(root)),
+            plan_locator=config["measurement_plan"]["path"],
+            attestation_locator=str(attestation_path.relative_to(root)),
+            result_detail_locator=result_detail_locator,
+            outcome="complete" if blocker is None else "blocked",
+            blocked_reason=blocker,
+        )
+        write_classification(
+            run_dir, document, repository_root=root, authority=authority
+        )
+
     run_id, run_dir = _lib.write_record(
         "measurement-classification-native-search",
         ts=timestamp,
@@ -2036,39 +2132,8 @@ def run_native(repository_root: str | Path, config_path: str | Path) -> str:
         tests=["tests/experiments/test_measurement_classification.py"],
         artifacts=artifacts,
         base_dir=root / "experiments",
+        before_index=finalize_before_index,
     )
-    attestation_path = run_dir / "runtime-attestation.v1.json"
-    attestation = _runtime_attestation(root, config, fathomdb_version)
-    _write_generated_json(attestation_path, attestation)
-    result_detail_locator = None
-    if blocker is None:
-        result_detail_path = run_dir / "search-result.v1.json"
-        _write_generated_json(
-            result_detail_path,
-            {
-                "schema_version": "measurement-classification.search-result.v1",
-                "expected_source_id": config["expected_source_id"],
-                "expected_rank": rank,
-                "returned_source_ids": source_ids,
-            },
-        )
-        result_detail_locator = str(result_detail_path.relative_to(root))
-    config_locator = str(path.relative_to(root))
-    plan_locator = config["measurement_plan"]["path"]
-    attestation_locator = str(attestation_path.relative_to(root))
-    document = _native_classification(
-        root,
-        run_id=run_id,
-        authority=authority,
-        code_sha=code["git_sha"],
-        config_locator=config_locator,
-        plan_locator=plan_locator,
-        attestation_locator=attestation_locator,
-        result_detail_locator=result_detail_locator,
-        outcome="complete" if blocker is None else "blocked",
-        blocked_reason=blocker,
-    )
-    write_classification(run_dir, document, repository_root=root, authority=authority)
     _lib.regen_index_md(
         index_path=root / "experiments" / "index.jsonl",
         md_path=root / "experiments" / "INDEX.md",

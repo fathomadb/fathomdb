@@ -1726,8 +1726,8 @@ st["completion"]["main_integration"] = "COMPLETE"
 json.dump(st, open(p, "w"), indent=2)
 PY
 run_gate
-if [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -qF 'integration as COMPLETE' \
-   && printf '%s' "$OUT" | grep -qF 'is not reachable from `origin/main`'; then
+if [ "$RC" -ne 0 ] && printf '%s' "$OUT" | grep -qF 'LANDED on `origin/main`' \
+   && printf '%s' "$OUT" | grep -qF 'not reachable from origin/main'; then
   pass "arm R4b: COMPLETE fails before the generic release ref reaches origin/main"
 else
   fail "arm R4b (complete integration truth): rc=$RC out=$OUT"
@@ -1790,6 +1790,7 @@ json.dump(st, open(p, "w"), indent=2)
 PY
 (
   cd "$FIX"
+  ./scripts/check-release-state-views.sh --write >/dev/null 2>&1
   git push -q origin --delete release/0.8.23
   git update-ref -d refs/remotes/origin/release/0.8.23
 )

@@ -202,15 +202,23 @@ def landing_claim(st, sentence=False):
 
 def check_remote_landing(release, st, completion):
     """Verify landed SHAs against the claim's ref and its main-integration fact."""
-    target = completion["ref"] if completion is not None else "origin/main"
+    # PENDING completion is a positive claim about the release branch and must
+    # verify against that exact ref. Once integration is COMPLETE, however, the
+    # durable claim is that every recorded slice is reachable from origin/main;
+    # the now-redundant release branch may legitimately have been deleted.
+    target = (
+        "origin/main"
+        if completion is None or completion["main_integration"] == "COMPLETE"
+        else completion["ref"]
+    )
     has_target = _git("rev-parse", "--verify", "--quiet", target)[0] == 0
     has_main = _git("rev-parse", "--verify", "--quiet", "origin/main")[0] == 0
     if not has_target:
         if completion is None:
             return  # Legacy fresh/detached clone: `origin/main` is unverifiable.
         bad("FAIL check-release-state-views: %s completion claims `%s`, but that remote-tracking "
-            "ref is absent. A release-branch completion claim must be verifiable; fetch the ref "
-            "or correct `completion.ref`." % (release, target))
+            "ref is absent. The completion claim must be verifiable; fetch the ref or correct "
+            "the completion state." % (release, target))
         return
     if completion is not None and not has_main:
         bad("FAIL check-release-state-views: %s completion records main integration as %s, but "
@@ -254,15 +262,12 @@ def check_remote_landing(release, st, completion):
         if _git("merge-base", "--is-ancestor", sha, target)[0] != 0:
             unpushed.append((n, sha, "not reachable from %s" % target))
 
-    if completion is not None:
+    if completion is not None and completion["main_integration"] == "PENDING":
         integrated = _git("merge-base", "--is-ancestor", target, "origin/main")[0] == 0
-        if completion["main_integration"] == "PENDING" and integrated:
+        if integrated:
             bad("FAIL check-release-state-views: %s records `origin/main` integration as PENDING, "
                 "but `%s` is already reachable from `origin/main`. Mark it COMPLETE or remove "
                 "the completion object." % (release, target))
-        elif completion["main_integration"] == "COMPLETE" and not integrated:
-            bad("FAIL check-release-state-views: %s records `origin/main` integration as COMPLETE, "
-                "but `%s` is not reachable from `origin/main`." % (release, target))
 
     if not unpushed:
         return

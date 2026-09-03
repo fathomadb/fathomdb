@@ -1778,6 +1778,28 @@ else
   fail "arm R4b (pending integration truth): rc=$RC out=$OUT"
 fi
 
+# Once integration is COMPLETE, the release branch may be deleted. The durable
+# claim is then origin/main reachability; requiring the retired remote-tracking
+# ref would make completed historical state fail forever in a fresh clone.
+python3 - "$FIX/dev/plans/release-state-0.8.23.json" <<'PY'
+import json, sys
+p = sys.argv[1]
+st = json.load(open(p))
+st["completion"]["main_integration"] = "COMPLETE"
+json.dump(st, open(p, "w"), indent=2)
+PY
+(
+  cd "$FIX"
+  git push -q origin --delete release/0.8.23
+  git update-ref -d refs/remotes/origin/release/0.8.23
+)
+run_gate
+if [ "$RC" -eq 0 ]; then
+  pass "arm R4b: COMPLETE remains verifiable on origin/main after release-branch deletion"
+else
+  fail "arm R4b (deleted completed branch): rc=$RC out=$OUT"
+fi
+
 # --- Arm R5: a SHALLOW clone is UNVERIFIABLE, never FALSE ---------------------
 # THE DEFECT THIS PINS. `actions/checkout` defaults to `--depth=1`. In that clone
 # `origin/main` EXISTS but holds only the tip commit, so every historical landed

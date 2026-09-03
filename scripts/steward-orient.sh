@@ -356,6 +356,10 @@ def is_initial_release(state):
 
 ladder = d.get("ladder") or []
 landed = [e for e in ladder if e.get("status") == "LANDED"]
+completed_on_branch = [
+    e for e in ladder if e.get("status") == "COMPLETE_ON_RELEASE_BRANCH"
+]
+completed = landed + completed_on_branch
 schema = d.get("schema_version", "?")
 nxt = d.get("next_slice")
 rem = d.get("remaining_ladder") or []
@@ -365,13 +369,14 @@ rem = d.get("remaining_ladder") or []
 # thing the release was derived FROM), so it stays.
 print(f"RELEASE {ver}  SCHEMA {schema}  board={board.split('/')[-1]}")
 
-if landed:
-    cells = " ".join(f"{e.get('slice')}({e.get('sha') or '?'})" for e in landed)
-    print(f"  LANDED {cells}")
+if completed:
+    cells = " ".join(f"{e.get('slice')}({e.get('sha') or '?'})" for e in completed)
+    label = "COMPLETE" if completed_on_branch else "LANDED"
+    print(f"  {label} {cells}")
 else:
     print("  LANDED (none)")
     if not is_initial_release(d):
-        print(f"#EMPTY:landed slices (no ladder entry in {path} has status LANDED)")
+        print(f"#EMPTY:completed slices (no ladder entry in {path} is LANDED or COMPLETE_ON_RELEASE_BRANCH)")
 
 # The state file also carries a flat `landed` list; if its own two fields
 # disagree, the single writer is internally inconsistent and must say so.
@@ -409,15 +414,32 @@ if [ -n "$BOARD" ]; then
 import json, sys
 try:
     d = json.load(open(sys.argv[1], encoding="utf-8"))
-    if "foundation" in str(d.get("release_kind", "")).casefold() and d.get("next_slice") is not None:
-        print(d["next_slice"])
+    generated = d.get("generated_views") or []
+    state_owned = any(
+        isinstance(view, dict) and view.get("id") == "status-next-action"
+        for view in generated
+    )
+    if (("foundation" in str(d.get("release_kind", "")).casefold() or state_owned)
+            and d.get("next_slice") is not None):
+        nxt = d["next_slice"]
+        entry = next(
+            (item for item in (d.get("ladder") or [])
+             if isinstance(item, dict) and item.get("slice") == nxt),
+            {},
+        )
+        action = {
+            "REVIEWED_PENDING_INTEGRATION": "Land reviewed Slice",
+            "PREP_COMPLETE_PUBLISH_HELD": "Await explicit publication authorization for Slice",
+            "IN_PROGRESS": "Continue Slice",
+        }.get(entry.get("status"), "Commission Slice")
+        print(f"{action} {nxt}")
 except Exception:
     pass
 PY
 )"
     if [ -n "$FOUNDATION_NEXT" ]; then
       add "NEXT ACTION (from release state)"
-      add "  Slice $FOUNDATION_NEXT is current."
+      add "  $FOUNDATION_NEXT."
     else
       note_empty "board next action (no '| **Immediate next action** |' row in $BOARD)"
       add "NEXT ACTION (row not found in $(basename "$BOARD"))"

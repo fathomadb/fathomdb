@@ -284,6 +284,46 @@ def test_comparison_sets_are_derived_not_narrated(tmp_path):
         )
 
 
+def test_comparison_witness_must_belong_to_its_arm(tmp_path):
+    document, authority = _complete_document(tmp_path)
+    document["components"].append(
+        {"id": "external", "name": "external", "kind": "external_retrieval"}
+    )
+    authority["components"] = copy.deepcopy(document["components"])
+    document["execution_witnesses"][0]["arm_id"] = "control"
+    treatment = copy.deepcopy(document["execution_witnesses"][0])
+    treatment.update({"id": "treatment-call", "arm_id": "control"})
+    document["execution_witnesses"].append(treatment)
+    comparison = {
+        "id": "ownership",
+        "arms": [
+            {
+                "id": "control",
+                "component_ids": ["engine", "metric"],
+                "execution_witness_ids": ["search-call"],
+            },
+            {
+                "id": "treatment",
+                "component_ids": ["engine", "metric", "external"],
+                "execution_witness_ids": ["treatment-call"],
+            },
+        ],
+        "shared_component_ids": ["engine", "metric"],
+        "differing_component_ids": ["external"],
+    }
+    document["comparisons"] = [comparison]
+    authority["comparisons"] = [copy.deepcopy(comparison)]
+    document["migration"]["measurement_plan_sha256"] = mc.canonical_sha256(
+        authority
+    )
+    document["classification_id"] = mc.classification_id(document)
+
+    with pytest.raises(mc.ClassificationError, match="another arm"):
+        mc.validate_classification(
+            document, repository_root=tmp_path, authority=authority
+        )
+
+
 def test_blocked_classification_satisfies_presence_but_not_success(tmp_path):
     document, authority = _complete_document(tmp_path)
     document.update(
@@ -586,3 +626,35 @@ def test_portable_repository_gate_loads_post_cutover_plan_and_sidecar(tmp_path):
     (run_dir / mc.SIDECAR_NAME).unlink()
     with pytest.raises(mc.ClassificationError, match="classification_missing"):
         mc.validate_repository(tmp_path)
+
+
+def test_every_indexed_run_has_its_canonical_record():
+    root = Path(mc.__file__).resolve().parents[1]
+    for line in (root / "experiments" / "index.jsonl").read_text().splitlines():
+        run_id = json.loads(line)["run_id"]
+        assert (root / "experiments" / "runs" / run_id / "record.json").is_file()
+
+
+def test_committed_blocked_native_run_is_valid_and_ineligible():
+    root = Path(mc.__file__).resolve().parents[1]
+    config = json.loads(
+        (
+            root
+            / "experiments/configs/measurement-classification/native-search-blocked.v2.json"
+        ).read_text()
+    )
+    config_sha = _lib.config_sha256(config)
+    rows = [
+        json.loads(line)
+        for line in (root / "experiments/index.jsonl").read_text().splitlines()
+        if json.loads(line).get("config_sha256") == config_sha
+    ]
+    assert len(rows) == 1
+    run_dir = root / "experiments" / "runs" / rows[0]["run_id"]
+    sidecar = json.loads((run_dir / mc.SIDECAR_NAME).read_text())
+    authority = mc._load_measurement_plan(  # noqa: SLF001 - receipt contract
+        root, config["measurement_plan"]
+    )
+    mc.validate_classification(sidecar, repository_root=root, authority=authority)
+    assert sidecar["outcome"] == "blocked"
+    assert mc.is_successful_evidence(sidecar) is False

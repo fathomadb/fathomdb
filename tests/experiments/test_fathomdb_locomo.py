@@ -138,8 +138,24 @@ def test_run_allocates_raw_output_under_its_public_receipt_id(tmp_path, monkeypa
 
 
 def test_committed_receipts_use_only_logical_artifact_names():
+    policy = json.loads(
+        (_lib.EXPERIMENTS_DIR / "measurement-classification-policy.v2.json").read_text()
+    )
+    superseded = {
+        row["run_id"] for row in policy["superseded_postcutover_runs"]
+    }
+    observed_superseded = set()
     for receipt_path in sorted((_lib.EXPERIMENTS_DIR / "runs").glob("*/record.json")):
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        if receipt["run_id"] in superseded:
+            observed_superseded.add(receipt["run_id"])
+            assert any(
+                Path(artifact["path"]).is_absolute()
+                for artifact in receipt["artifacts"]
+                if "path" in artifact
+            )
+            continue
         for artifact in receipt["artifacts"]:
             if "path" in artifact:
                 assert not Path(artifact["path"]).is_absolute(), receipt_path
+    assert observed_superseded == superseded

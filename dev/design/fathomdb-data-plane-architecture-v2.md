@@ -172,9 +172,11 @@ retained as experimental evidence and does not change a default.
 
 Every result is classified as data-plane, semantic-control-plane, or end to end.
 Receipts state whether `Engine.search` ran and identify shared and differing
-components. GLOBAL-01's initial storage-backed witness bypassed `Engine.search`;
-its held-out comparison used search but also caller planning and answer
-generation. Neither is a retrieval-only comparison.
+components. Retrospective review of GLOBAL-01's initial storage-backed runner
+found a bypass, but its dirty code receipt cannot prove that negative and the
+executable classification therefore records `unknown_historical`. Its clean
+held-out comparison proves search execution but also used caller planning and
+answer generation. Neither is a retrieval-only comparison.
 
 Release verification therefore adds a native retrieval-only global witness and
 separately reports answer-system results. No answerer or semantic judge may be
@@ -235,8 +237,8 @@ The complete allocation is
 and the delivery method is
 [`fathomdb-data-plane-foldback-v2.md`](../plans/fathomdb-data-plane-foldback-v2.md).
 
-Slice 4 review, Slice 5 verification analysis, and Slice 6 HITL approval are
-complete. Architecture v2 became the active versioned successor when S7-07
-recorded complete GREEN at `007a3152`. The rest of Slice 7 remains the repository
-preparation gate: Slice 10+ designs may be drafted and reviewed, but cannot
-become READY until Slice 7 records completion.
+Slice 4 review, Slice 5 verification analysis, Slice 6 HITL approval, and Slice
+7 repository preparation are complete. Architecture v2 became the active
+versioned successor when S7-07 recorded complete GREEN at `007a3152`; Slice 7
+closed at `dbf3a479`. Slice 10+ designs may now advance through their own
+independent READY and implementation gates in dependency order.

@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 10 — executable measurement classification
-status: DRAFT
+status: READY_FOR_IMPLEMENTATION
 depends_on: 7
 design: design.md
-design_status: SCOPE_RECONCILED_FORMAL_REVIEW_REQUIRED
+design_status: READY_REVIEW_PASS_CYCLE_3
 ---
 
 # Slice 10 plan
@@ -25,8 +25,20 @@ executable or binding surface; the readiness review must confirm that judgment.
 
 ## Draft-to-ready and delivery
 
-Refine numbered requirements and negative receipt-schema criteria; design the
-classification and migration path; review it; preserve RED fixtures for
-misclassified receipts and GREEN implementation; review implementation; run
-the selected routes; and write the status/receipt record. Stop on ambiguous
-metric ownership or any attempt to alter historical measurements.
+1. Reconcile the design with immutable GLOBAL-01 evidence and obtain an
+   independent READY verdict.
+2. Commit RED fixtures for schema closure, source-bound metrics, layer
+   derivation, historical cutover enforcement, atomic/idempotent sidecars, and
+   the native witness.
+3. Implement the classifier, validator, historical sidecars, cutover policy,
+   lint gate, and native fixture until those unchanged fixtures are GREEN.
+4. Obtain independent implementation review, allowing at most three total
+   documented FIX-n cycles across design and implementation.
+5. Use a separate verifier to run selected tests and inspect the generated
+   historical/native evidence; then run the full workspace gate.
+6. Write `status.md` and advance the canonical release state only after every
+   acceptance criterion is evidenced.
+
+Stop on ambiguous metric ownership, unverifiable search-execution claims, or
+any attempt to alter historical measurements or the append-only experiment
+index.

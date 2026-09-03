@@ -80,6 +80,7 @@ run_capped release-contract-truth "$SCRIPT_DIR/check-release-contract-truth.py"
 run_capped public-doc-truth "$SCRIPT_DIR/check-public-doc-truth.py"
 run_capped pinned-override-rot "$SCRIPT_DIR/check-pinned-override-rot.sh"
 run_capped property-test-scaffolds "$SCRIPT_DIR/check-property-test-scaffolds.py" --root .
+run_capped measurement-classification .venv/bin/python -m experiments.measurement_classification validate-tree --repository-root .
 
 # Python
 run_capped lint-python "$ruff_bin" check src/python

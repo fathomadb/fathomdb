@@ -1,0 +1,78 @@
+{
+  "schema_version": "measurement.plan.v1",
+  "plan_id": "slice-10-native-search-v1",
+  "components": [
+    {
+      "id": "engine",
+      "name": "FathomDB Engine.search",
+      "kind": "fathomdb_engine_search"
+    },
+    {
+      "id": "metric",
+      "name": "deterministic retrieval metric",
+      "kind": "deterministic_metric"
+    }
+  ],
+  "call_paths": [
+    {
+      "id": "native-search",
+      "operation": "Engine.search",
+      "source_artifact_ids": ["implementation"]
+    }
+  ],
+  "comparisons": [],
+  "metric_bindings": [
+    {
+      "id": "search-call-count",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/retrieval/call_count",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": ["engine", "metric"],
+      "execution_witness_ids": ["native-search-call"]
+    },
+    {
+      "id": "recall-at-3",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/retrieval/recall_at_3",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": ["engine", "metric"],
+      "execution_witness_ids": ["native-search-call"]
+    },
+    {
+      "id": "reciprocal-rank",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/retrieval/reciprocal_rank",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": ["engine", "metric"],
+      "execution_witness_ids": ["native-search-call"]
+    },
+    {
+      "id": "result-count",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/retrieval/result_count",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": ["engine", "metric"],
+      "execution_witness_ids": ["native-search-call"]
+    }
+  ],
+  "claims": [
+    {
+      "id": "native-retrieval-only",
+      "layer": "data_plane",
+      "metric_ids": [
+        "search-call-count",
+        "recall-at-3",
+        "reciprocal-rank",
+        "result-count"
+      ]
+    }
+  ]
+}

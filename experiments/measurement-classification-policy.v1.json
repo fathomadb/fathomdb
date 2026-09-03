@@ -1,0 +1,11 @@
+{
+  "schema_version": "measurement.classification-policy.v1",
+  "classifier_version": "1",
+  "index": {
+    "path": "experiments/index.jsonl",
+    "prefix_bytes": 47742,
+    "prefix_lines": 60,
+    "prefix_sha256": "e42443271ab2b3703fcdfdedbb69c5259304171b1da119b9692eb04d2e1a6a52"
+  },
+  "historical_manifest_path": "experiments/measurement-classification-global-01.v1.json"
+}

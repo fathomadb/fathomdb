@@ -1,0 +1,62 @@
+{
+  "schema_version": "measurement.classification-historical-audit.v1",
+  "runs": [
+    {
+      "run_id": "global-01-native-comparison-20260829T1613Z-40685e82",
+      "record_sha256": "e6c436456a638c54fe4051052f758f603a58020aacd1b6cb881ce60dbd275f7f",
+      "metrics_sha256": "c12dbac613dec39347ef41f99cd6c076cf3e0b99391463faeba4b48864db4f8c",
+      "external_artifacts": [
+        {
+          "path": "data/performance-benchmarking/global-01/runs/global-01-first-run-deepseek-20260829-b/result.json",
+          "sha256": "c12dbac613dec39347ef41f99cd6c076cf3e0b99391463faeba4b48864db4f8c"
+        },
+        {
+          "path": "data/performance-benchmarking/global-01/runs/global-01-first-run-deepseek-20260829-b/checkpoint.json",
+          "sha256": "94cb341dd48c7a3a75d3e5668c2b5a34169d31b77817465611000f6dd46c368c"
+        },
+        {
+          "path": "data/performance-benchmarking/global-01/runs/global-01-first-run-deepseek-20260829-b/graphrag/output/community_reports.parquet",
+          "sha256": "032469aa549d7a9efacb58cdf738e2a0d175c25e1430623a7f37e315cc49821d"
+        }
+      ],
+      "engine_search": {
+        "state": "unknown_historical"
+      }
+    },
+    {
+      "run_id": "global-01-lazy-coverage-20260829T2159Z-60b3642c",
+      "record_sha256": "aeee7ae26f8cd25b49c4bc2c9b67e5c6303e202d83b7a4a40bd997bdc57878af",
+      "metrics_sha256": "6a5f8b335595668029c768f76fdcd3d86f89495317daa155c5d605984c5b3f06",
+      "external_artifacts": [
+        {
+          "path": "data/performance-benchmarking/global-01/runs/global-01-lazy-coverage-v7-20260829-a/result.json",
+          "sha256": "6a5f8b335595668029c768f76fdcd3d86f89495317daa155c5d605984c5b3f06"
+        },
+        {
+          "path": "data/performance-benchmarking/global-01/runs/global-01-lazy-coverage-v7-20260829-a/checkpoint.json",
+          "sha256": "f7ace32bc7893bf9c846a9c2140af9cc1f3b6599efae1aef3445897012f9030e"
+        }
+      ],
+      "engine_search": {
+        "state": "executed",
+        "control_retrieval_cells": 42,
+        "control_queries_per_cell": 1,
+        "control_call_lower_bound": 42,
+        "treatment_retrieval_cells": 42,
+        "treatment_queries_per_cell": 5,
+        "treatment_call_lower_bound": 210,
+        "lifecycle_call_lower_bound": 5,
+        "implementation_blobs": [
+          {
+            "locator": "f5c5715236bc4827f1753d8a1b3b95334590e677:experiments/global_01_lazy.py",
+            "sha256": "84fe2c1aa00e2430b40e6aa8cd7b122500b8327255b038268f0ec86c1a99f5cb"
+          },
+          {
+            "locator": "f5c5715236bc4827f1753d8a1b3b95334590e677:experiments/global_01_lazy_live.py",
+            "sha256": "7379c2518d8201a3a5e5993da1194f04bae51cc9a55fb4eaed1407da832c8879"
+          }
+        ]
+      }
+    }
+  ]
+}

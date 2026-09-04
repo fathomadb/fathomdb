@@ -12,10 +12,10 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 25 (ACTUATION), IN_PROGRESS.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 30 (LIFECYCLE), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
-Prework and Slices 10 and 15 are complete on the durable `release/0.8.25`
-worktree. Feature work continues with Slice 20. The owner-approved 2026-09-02
+Prework and Slices 10 through 25 are complete on the durable `release/0.8.25`
+worktree. Feature work continues with Slice 30. The owner-approved 2026-09-02
 scope adjustment removes Slices 65/70 and narrows the retained implementation
 ladder. Direct agents execute this release without Steward or Orchestrator
 roles.
@@ -34,8 +34,8 @@ roles.
 | 7 | Approved repository preparation | Complete on release branch (`fdbae48a`) |
 | 10 | Measurement classification | Complete on release branch (`f383ec82`) |
 | 15 | Identity and source provenance | Complete on release branch (`9a53e26a`) |
-| 20 | Core dependency registration | Not started |
-| 25 | Core atomic semantic actuation | Not started |
+| 20 | Core dependency registration | Complete on release branch (`7766d4c4`) |
+| 25 | Core atomic semantic actuation | Complete on release branch (`131053da`) |
 | 30 | Lifecycle and erasure closure | Not started |
 | 35 | Eligibility and optional frozen reads | Not started |
 | 40 | Core projection generation/readiness | Not started |
@@ -68,7 +68,7 @@ roles.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Continue Slice 25 (ACTUATION)** — bounded atomic caller-decided actuation. **Remaining ladder:** 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 30 (LIFECYCLE)** — dependency-aware lifecycle and erasure closure. **Remaining ladder:** 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 
@@ -94,6 +94,13 @@ lint, and `git diff --check`. Each Slice 1–5 record is proposal-only.
   review at cycle 4. Independent focused verification covers schema 27,
   atomic versioned writes, corruption-safe erasure, SDK error parity, and
   packaged-smoke contracts. Its between-slice memory checkpoint is complete.
+- Slice 20 passes independent design review at cycle 5 and implementation
+  review at cycle 3. Its 55 focused Rust/schema tests, 103 fast suites, and
+  packaged Python/TypeScript dependency smokes pass.
+- Slice 25 passes independent design review at cycle 6 and implementation
+  review at cycle 7. Its 76 focused Rust/schema tests, 387 TypeScript tests,
+  fresh-wheel Python tests, rollback/projection proofs, and governed-surface
+  gate pass.
 - A diagnostic release-wide long gate exposed the pre-existing AC-013 vector
   latency failure and was stopped after that failure. It is release debt, not
   a Slice 10 regression.

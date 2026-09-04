@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 25 — atomic semantic actuation
-status: DRAFT_REVIEW_FIX_1
+status: DRAFT_REVIEW_FIX_2
 depends_on: 20
 design: design.md
-design_status: REVIEW_FIX_1_REQUIRED
+design_status: REVIEW_FIX_2_REQUIRED
 ---
 
 # Slice 25 plan
@@ -15,7 +15,7 @@ compact portion of 18 under the approved
 [scope adjustment](../../scope-adjustment-2026-09-02.md). Add one bounded,
 typed, model-free, idempotent actuation batch for caller-decided canonical and
 derived node writes, Slice 20 source dependency registrations, and existing
-lifecycle transitions. Return one compact terminal receipt for a committed or
+  governed lifecycle transitions. Return one compact terminal receipt for a committed or
 whole-batch-refused request.
 
 FathomDB validates and atomically applies a decision; it does not extract,

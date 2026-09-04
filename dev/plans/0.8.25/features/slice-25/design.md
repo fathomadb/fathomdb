@@ -1,8 +1,9 @@
 ---
 title: 0.8.25 Slice 25 — bounded atomic actuation design
-status: FIX_6_AUTHORIZED_PENDING_REVIEW
+status: READY_FOR_RED
 design_version: 8
 review_fix: 6
+review: design-review-cycle6.md
 depends_on: 20
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 decision: dev/adr/ADR-0.8.25-bounded-atomic-actuation.md

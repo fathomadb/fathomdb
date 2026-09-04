@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 25 status
-status: DESIGN_FIX_6_AUTHORIZED_PENDING_REVIEW
+status: READY_FOR_RED
 slice: 25
 updated: 2026-09-04
 ---
@@ -11,14 +11,12 @@ updated: 2026-09-04
 
 Slice 25 is commissioned and remains `IN_PROGRESS`; implementation has not
 started. Five ordinary design FIX cycles were consumed. At `seq-275`, the
-release owner authorized one exceptional documentation-only FIX-6 and final
-independent review for the two P2 ambiguities left at cycle 5.
+release owner authorized one exceptional documentation-only FIX-6. The final
+independent review passed at `7a08bcd9` with no unresolved P1/P2 or material P3
+finding, so RED may begin.
 
 ## Required decision
 
-FIX-6 applies the exact recommendations in
-[`design-review-cycle5.md`](design-review-cycle5.md): lifecycle refusal and
-counter-exhaustion precedence, logical-ID normalization before hashing, and
-the related keyed receipt validation clarification. Product code, schema
-migration, and RED tests remain blocked until the exceptional independent
-review passes.
+Write and preserve the first failing Slice 25 tests before changing production
+code. The authoritative final review is
+[`design-review-cycle6.md`](design-review-cycle6.md).

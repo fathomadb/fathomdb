@@ -94,7 +94,7 @@ fn create_depend_delete_is_refused_by_prospective_closure() {
     )
     .unwrap();
 
-    let receipt = opened.engine.actuate(request).unwrap();
+    let receipt = opened.engine.actuate(request.clone()).unwrap();
     assert_eq!(receipt.outcome, ActuationOutcomeV1::Refused);
     assert_eq!(receipt.reason_codes, vec![ActuationRefusalReasonV1::DependencyClosureRequired]);
     assert_eq!(receipt.refused_operation_index, Some(3));
@@ -138,12 +138,13 @@ fn missing_dependency_endpoint_is_reference_unavailable_with_exact_path() {
     )
     .unwrap();
 
-    let receipt = opened.engine.actuate(request).unwrap();
+    let receipt = opened.engine.actuate(request.clone()).unwrap();
     assert_eq!(receipt.reason_codes, vec![ActuationRefusalReasonV1::ReferenceUnavailable]);
     assert_eq!(
         receipt.refused_field_path.as_deref(),
         Some("/operations/0/dependency/derivedRevisionId")
     );
+    assert_eq!(opened.engine.actuate(request).unwrap(), receipt);
 }
 
 #[test]
@@ -165,12 +166,13 @@ fn nested_provenance_failure_preserves_its_exact_path() {
         ActuationBatchV1::new("bad-provenance", vec![ActuationOperationV1::PutDerivedNode(bad)])
             .unwrap();
 
-    let receipt = opened.engine.actuate(request).unwrap();
+    let receipt = opened.engine.actuate(request.clone()).unwrap();
     assert_eq!(receipt.reason_codes, vec![ActuationRefusalReasonV1::WriteRefused]);
     assert_eq!(
         receipt.refused_field_path.as_deref(),
         Some("/operations/0/record/provenance/canonicalSourceHash")
     );
+    assert_eq!(opened.engine.actuate(request).unwrap(), receipt);
 }
 
 #[test]

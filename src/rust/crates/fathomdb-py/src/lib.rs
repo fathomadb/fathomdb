@@ -2812,12 +2812,19 @@ fn dict_str_required(d: &Bound<'_, PyDict>, key: &str) -> PyResult<String> {
 /// The rationale is not tidiness: `excise_source` addresses rows BY `source_id`,
 /// so a row written without one is reachable by no erasure call — un-erasable.
 fn dict_source_id_required(d: &Bound<'_, PyDict>, kind: &str) -> PyResult<SourceId> {
-    let raw = dict_str(d, "source_id")?.ok_or_else(|| {
-        WriteValidationError::new_err(format!(
-            "{kind} write item missing required field \"source_id\": provenance is mandatory \
-             since 0.8.20 — a row written without it can never be erased by excise_source"
-        ))
-    })?;
+    let raw = match dict_get(d, "source_id")? {
+        Some(value) if !value.is_none() => value.extract::<String>().map_err(|_| {
+            WriteValidationError::new_err(
+                "source_id contains characters not representable as UTF-8 (lone surrogate)",
+            )
+        })?,
+        _ => {
+            return Err(WriteValidationError::new_err(format!(
+                "{kind} write item missing required field \"source_id\": provenance is mandatory \
+                 since 0.8.20 — a row written without it can never be erased by excise_source"
+            )))
+        }
+    };
     SourceId::new(raw).map_err(|_| {
         WriteValidationError::new_err(
             "\"source_id\" must be a non-empty identifier outside the engine's reserved \

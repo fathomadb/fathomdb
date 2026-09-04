@@ -86,6 +86,17 @@ def test_actuation_round_trip_replay_and_decimal_boundaries(tmp_path: Path) -> N
     engine.close()
 
 
+def test_actuation_preserves_embedded_nul_source_identity(tmp_path: Path) -> None:
+    engine = Engine.open(str(tmp_path / "actuation-nul.fathom"))
+    engine.write([{"kind": "ordinary", "body": "ordinary", "source_id": "source\0id"}])
+    request = _request("python-nul-source")
+    request["operations"][0]["record"]["source_id"] = "source\0id"  # type: ignore[index,typeddict-item]
+    receipt = engine.actuate(request)
+    assert receipt.outcome == "committed"
+    assert engine.actuate(request) == receipt
+    engine.close()
+
+
 def test_shared_all_variant_fixture_has_exact_receipt_and_digest(tmp_path: Path) -> None:
     engine = Engine.open(str(tmp_path / "shared-actuation.fathom"))
     request = _snake_wire(SHARED_FIXTURE["request"])

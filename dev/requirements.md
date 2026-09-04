@@ -580,13 +580,16 @@ finding with a user-visible falsifiable outcome.
   `design/bindings.md`; `interfaces/python.md`;
   `interfaces/typescript.md`.
 
-- **REQ-064 — FFI string inputs reject embedded NUL and unpaired
-  surrogates.** Any caller-supplied string (Python `str` /
+- **REQ-064 — FFI content/control strings reject embedded NUL and unpaired
+  surrogates.** Any caller-supplied content or control string (Python `str` /
   TypeScript `string`) reaching a `write` / `search` /
   `admin.configure` argument is rejected with `WriteValidationError`
   if it contains an embedded `\0` byte or an unpaired UTF-16
   surrogate. Rejection happens at the binding layer, before the
-  payload reaches the writer.
+  payload reaches the writer. Closed identity newtypes retain their own
+  Engine grammar; in particular, `SourceId` permits embedded NUL and bindings
+  preserve it exactly. Unpaired surrogates remain unrepresentable as Rust
+  UTF-8 strings.
   _Source:_ `dev/security-review.md` SR-007. _Cross-cite:_
   `interfaces/python.md`; `interfaces/typescript.md`;
   `design/errors.md` `WriteValidationError`.

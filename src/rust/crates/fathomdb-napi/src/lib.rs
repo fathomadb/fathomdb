@@ -3019,16 +3019,20 @@ fn json_str_alt_required(item: &JsonValue, camel: &str, snake: &str) -> Result<S
 /// The rationale is not tidiness: `excise_source` addresses rows BY `source_id`,
 /// so a row written without one is reachable by no erasure call — un-erasable.
 fn json_source_id_required(item: &JsonValue, kind: &str) -> Result<SourceId> {
-    let raw = json_str_alt(item, "sourceId", "source_id")?.ok_or_else(|| {
-        typed_error(
-            CODE_WRITE_VALIDATION,
-            format!(
-                "{kind} write item missing required field \"sourceId\": provenance is mandatory \
-                 since 0.8.20 — a row written without it can never be erased by excise_source"
-            ),
-            JsonValue::Null,
-        )
-    })?;
+    let raw = json_get(item, "sourceId")
+        .or_else(|| json_get(item, "source_id"))
+        .and_then(JsonValue::as_str)
+        .map(str::to_string)
+        .ok_or_else(|| {
+            typed_error(
+                CODE_WRITE_VALIDATION,
+                format!(
+                    "{kind} write item missing required field \"sourceId\": provenance is mandatory \
+                     since 0.8.20 — a row written without it can never be erased by excise_source"
+                ),
+                JsonValue::Null,
+            )
+        })?;
     SourceId::new(raw).map_err(|_| {
         typed_error(
             CODE_WRITE_VALIDATION,

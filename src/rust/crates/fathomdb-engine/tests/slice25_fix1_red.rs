@@ -541,6 +541,40 @@ fn infrastructure_failure_after_each_operation_rolls_back_the_whole_batch() {
         let dir = TempDir::new().unwrap();
         let db_path = path(&dir, &format!("operation-fault-{fault_index}"));
         let opened = Engine::open(&db_path).unwrap();
+        let rollback_tables = [
+            "canonical_nodes",
+            "canonical_edges",
+            "canonical_attributes",
+            "search_index",
+            "search_index_v2",
+            "search_index_edges",
+            "_fathomdb_artifact_revisions",
+            "_fathomdb_source_versions",
+            "_fathomdb_source_links",
+            "_fathomdb_source_dependencies",
+            "_fathomdb_projection_terminal",
+            "_fathomdb_actuation_receipts",
+            "_fathomdb_actuation_receipt_source_refs",
+        ];
+        let before = Connection::open(&db_path).unwrap();
+        let before_counts = rollback_tables
+            .iter()
+            .map(|table| {
+                before
+                    .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                        row.get::<_, i64>(0)
+                    })
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let before_state = before
+            .prepare("SELECT key,value FROM _fathomdb_open_state ORDER BY key")
+            .unwrap()
+            .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        drop(before);
         let request = ActuationBatchV1::new(
             format!("operation-fault-{fault_index}"),
             vec![
@@ -566,14 +600,23 @@ fn infrastructure_failure_after_each_operation_rolls_back_the_whole_batch() {
         opened.engine.force_actuation_failure_after_operation_for_test(fault_index);
         assert!(matches!(opened.engine.actuate(request.clone()), Err(EngineError::Storage)));
         let connection = Connection::open(&db_path).unwrap();
-        for table in
-            ["canonical_nodes", "_fathomdb_source_dependencies", "_fathomdb_actuation_receipts"]
-        {
+        for (table, expected) in rollback_tables.iter().zip(before_counts) {
             let count: i64 = connection
                 .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row.get(0))
                 .unwrap();
-            assert_eq!(count, 0, "fault after operation {fault_index} left rows in {table}");
+            assert_eq!(
+                count, expected,
+                "fault after operation {fault_index} changed rows in {table}"
+            );
         }
+        let after_state = connection
+            .prepare("SELECT key,value FROM _fathomdb_open_state ORDER BY key")
+            .unwrap()
+            .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(after_state, before_state, "fault changed cursor or generation state");
         drop(connection);
 
         let receipt = opened.engine.actuate(request).unwrap();

@@ -1054,12 +1054,12 @@ Added 2026-05-02 as an HITL amendment to the locked corpus per
 
 ---
 
-## AC-068a: FFI rejects embedded NUL in string arguments
+## AC-068a: FFI rejects embedded NUL in content/control string arguments
 
 **Requirement ref:** REQ-064
 **Test id:** T-068a
-**Assertion:** Submitting a write payload that contains an embedded `\0` in any string field (typed write or op-store payload) raises `WriteValidationError` from the binding layer; no SQLite bind happens, and no row is written.
-**Measurement:** From Python and TypeScript: submit payload with `"a\0b"` in a text field; assert `WriteValidationError`; assert no new row in canonical or op-store tables.
+**Assertion:** Submitting a write payload that contains an embedded `\0` in a content or control string field (typed write or op-store payload) raises `WriteValidationError` from the binding layer; no SQLite bind happens, and no row is written. A `SourceId` is governed by its closed identity grammar and preserves embedded NUL exactly.
+**Measurement:** From Python and TypeScript: submit payload with `"a\0b"` in a body, kind, or op-store field; assert `WriteValidationError`; assert no new row. Submit a boundary-valid `source_id` / `sourceId` containing embedded NUL through ordinary write and atomic actuation; assert commit and exact replay parity with Rust.
 **Fixture:** in-memory engine.
 
 ---

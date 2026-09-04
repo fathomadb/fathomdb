@@ -478,6 +478,9 @@ stored receipt; a different digest or an erased receipt raises
 and projection cursors are `u64`. Source erasure or purge redacts every matching
 receipt to an opaque, permanently reserved operation-ID tombstone.
 
+`SourceId` retains its existing closed grammar, including embedded NUL; Python
+and TypeScript preserve every Engine-valid source identity exactly.
+
 ### `source_id` is STRUCTURALLY MANDATORY (0.8.20 Slice 5c, R-20-E3)
 
 `PreparedWrite::Node` and `PreparedWrite::Edge` both carry

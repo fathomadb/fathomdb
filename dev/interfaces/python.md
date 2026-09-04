@@ -265,6 +265,10 @@ domain refusals are terminal receipts, not exceptions. Exact replay is
 idempotent; source erasure and purge make a matching operation ID permanently
 unusable without retaining its prior receipt content.
 
+`source_id` follows the Engine `SourceId` grammar rather than the generic
+content-string FFI guard, so an embedded NUL is preserved exactly; body, kind,
+and other content/control strings retain the REQ-064 rejection.
+
 ## Node write-item validity window (0.8.20 Slice 15b, TC-34)
 
 `engine.write([...])` takes loose mappings, not typed structs. A **node** item

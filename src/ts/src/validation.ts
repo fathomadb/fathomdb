@@ -216,6 +216,8 @@ function validateWriteEntityFfiTree(value: unknown): void {
   for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
     if (key === "provenance") {
       validateProvenanceFfiTree(nested);
+    } else if (key === "sourceId" || key === "source_id") {
+      validateFfiTreeEncoding(nested, true);
     } else {
       validateFfiTreeEncoding(nested, false);
     }
@@ -234,6 +236,8 @@ export function validateWriteFfiTree(batch: unknown[]): void {
         validateWriteEntityFfiTree(value);
       } else if (key === "provenance") {
         validateProvenanceFfiTree(value);
+      } else if (key === "sourceId" || key === "source_id") {
+        validateFfiTreeEncoding(value, true);
       } else {
         validateFfiTreeEncoding(value, false);
       }

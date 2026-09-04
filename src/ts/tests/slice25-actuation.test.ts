@@ -60,6 +60,24 @@ test("actuation commits and exact replay returns the terminal receipt", async ()
   await engine.close();
 });
 
+test("actuation preserves embedded-NUL source identity", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "fathomdb-actuation-nul-"));
+  const engine = await Engine.open(join(dir, "actuation.fathom"));
+  await engine.write([{ kind: "ordinary", body: "ordinary", sourceId: "source\0id" }]);
+  const input = request("typescript-nul-source");
+  const record = (
+    input.operations[0] as Extract<
+      (typeof input.operations)[number],
+      { type: "put_canonical_node" }
+    >
+  ).record;
+  record.sourceId = "source\0id";
+  const receipt = await engine.actuate(input);
+  assert.equal(receipt.outcome, "committed");
+  assert.deepEqual(await engine.actuate(input), receipt);
+  await engine.close();
+});
+
 test("shared all-variant fixture has exact receipt and digest", async () => {
   const dir = mkdtempSync(join(tmpdir(), "fathomdb-actuation-shared-"));
   const engine = await Engine.open(join(dir, "actuation.fathom"));

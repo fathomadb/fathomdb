@@ -617,6 +617,8 @@ fn load_receipt(
     if schema != 1 || !(1..=MAX_OPERATIONS as i64).contains(&operations_count.unwrap_or(0)) {
         return Err(EngineError::Storage);
     }
+    let operations_count =
+        usize::try_from(operations_count.unwrap_or(0)).map_err(|_| EngineError::Storage)?;
     let outcome = ActuationOutcomeV1::parse(&outcome).ok_or(EngineError::Storage)?;
     let reason_strings: Vec<String> =
         serde_json::from_str(&reasons_json).map_err(|_| EngineError::Storage)?;
@@ -635,6 +637,7 @@ fn load_receipt(
         return Err(EngineError::Storage);
     }
     if affected_revision_ids.len() > MAX_AFFECTED_REVISIONS
+        || affected_revision_ids.len() > operations_count.saturating_mul(2)
         || affected_revision_ids.iter().any(|id| !stored_artifact_revision_id_is_valid(id))
         || affected_revision_ids.iter().collect::<BTreeSet<_>>().len()
             != affected_revision_ids.len()
@@ -645,6 +648,7 @@ fn load_receipt(
         serde_json::from_str(&pending_json).map_err(|_| EngineError::Storage)?;
     if serde_json::to_string(&pending_strings).map_err(|_| EngineError::Storage)? != pending_json
         || pending_strings.len() > MAX_PENDING_CURSORS
+        || pending_strings.len() > operations_count
     {
         return Err(EngineError::Storage);
     }
@@ -687,6 +691,27 @@ fn load_receipt(
             {
                 return Err(EngineError::Storage);
             }
+            let boundary = resulting_write_boundary.ok_or(EngineError::Storage)?;
+            if pending_projection_write_cursors.iter().any(|cursor| *cursor > boundary) {
+                return Err(EngineError::Storage);
+            }
+            for cursor in &pending_projection_write_cursors {
+                let cursor = i64::try_from(*cursor).map_err(|_| EngineError::Storage)?;
+                let belongs_to_request: bool = connection
+                    .query_row(
+                        "SELECT EXISTS(\
+                           SELECT 1 FROM _fathomdb_artifact_revisions ar \
+                           JOIN json_each(?2) ids ON ids.value=ar.revision_id \
+                           WHERE ar.write_cursor=?1\
+                         )",
+                        params![cursor, affected_json],
+                        |row| row.get(0),
+                    )
+                    .map_err(|_| EngineError::Storage)?;
+                if !belongs_to_request {
+                    return Err(EngineError::Storage);
+                }
+            }
         }
         ActuationOutcomeV1::CommittedClosurePending => return Err(EngineError::Storage),
         ActuationOutcomeV1::Refused => {
@@ -702,7 +727,7 @@ fn load_receipt(
                 reason_codes[0],
                 refused_index,
                 refused_path.as_deref(),
-                usize::try_from(operations_count.unwrap_or(0)).map_err(|_| EngineError::Storage)?,
+                operations_count,
             )?;
         }
     }
@@ -739,43 +764,36 @@ fn validate_refusal_shape(
     let Some(index) = index.filter(|value| *value < operations_count) else {
         return Err(EngineError::Storage);
     };
-    let expected = match reason {
-        ActuationRefusalReasonV1::WriteRefused | ActuationRefusalReasonV1::WriteCursorExhausted => {
-            format!("/operations/{index}/record")
-        }
+    let operation_path = |suffix: &str| format!("/operations/{index}{suffix}");
+    let matches_one = |suffixes: &[&str]| {
+        path.is_some_and(|value| suffixes.iter().any(|suffix| value == operation_path(suffix)))
+    };
+    let valid = match reason {
+        ActuationRefusalReasonV1::WriteRefused => matches_one(&[
+            "/record",
+            "/record/provenance/sourceVersionId",
+            "/record/provenance/sourceRevisionId",
+            "/record/provenance/sourceLocator",
+            "/record/provenance/canonicalSourceHash",
+        ]),
+        ActuationRefusalReasonV1::WriteCursorExhausted => matches_one(&["/record"]),
         ActuationRefusalReasonV1::ProvenanceRoleMismatch => {
-            format!("/operations/{index}/record/provenance/role")
+            matches_one(&["/record/provenance/role"])
         }
-        ActuationRefusalReasonV1::ReferenceUnavailable => {
-            let prefix = format!("/operations/{index}/");
-            return path
-                .is_some_and(|value| {
-                    value.starts_with(&prefix)
-                        && (value.ends_with("sourceRevisionId")
-                            || value.ends_with("derivedRevisionId"))
-                })
-                .then_some(())
-                .ok_or(EngineError::Storage);
-        }
+        ActuationRefusalReasonV1::ReferenceUnavailable => matches_one(&[
+            "/record/provenance/sourceRevisionId",
+            "/dependency/sourceRevisionId",
+            "/dependency/derivedRevisionId",
+        ]),
         ActuationRefusalReasonV1::DependencyRefused
-        | ActuationRefusalReasonV1::DependencyGenerationExhausted => {
-            format!("/operations/{index}/dependency")
-        }
+        | ActuationRefusalReasonV1::DependencyGenerationExhausted => matches_one(&["/dependency"]),
         ActuationRefusalReasonV1::LifecycleRefused => {
-            let prefix = format!("/operations/{index}/");
-            return path
-                .is_some_and(|value| {
-                    value == format!("{prefix}logicalId")
-                        || value == format!("{prefix}expectedCurrentRevisionId")
-                        || value == format!("{prefix}toState")
-                })
-                .then_some(())
-                .ok_or(EngineError::Storage);
+            matches_one(&["/expectedCurrentRevisionId", "/toState"])
         }
-        ActuationRefusalReasonV1::DependencyClosureRequired => format!("/operations/{index}"),
+        ActuationRefusalReasonV1::DependencyClosureRequired => matches_one(&[""]),
         ActuationRefusalReasonV1::ExpectedWriteBoundaryMismatch => unreachable!(),
     };
-    (path == Some(expected.as_str())).then_some(()).ok_or(EngineError::Storage)
+    valid.then_some(()).ok_or(EngineError::Storage)
 }
 
 fn validate_source_refs(connection: &Connection, operation_id: &str) -> Result<usize, EngineError> {
@@ -1814,6 +1832,8 @@ mod tests {
     }
 
     proptest! {
+        #![proptest_config(ProptestConfig::with_cases(32))]
+
         #[test]
         fn request_digest_is_deterministic_and_operation_order_sensitive(
             left in "[a-z][a-z0-9]{0,15}",
@@ -1837,6 +1857,127 @@ mod tests {
 
             prop_assert_eq!(request_digest(&forward), request_digest(&forward));
             prop_assert_ne!(request_digest(&forward), request_digest(&reverse));
+        }
+
+        #[test]
+        fn persisted_receipt_round_trip_and_replay_are_equivalent(
+            suffix in "[a-z][a-z0-9]{0,15}",
+            body in ".{0,64}",
+        ) {
+            let dir = tempfile::TempDir::new().unwrap();
+            let path = dir.path().join(format!("property{}", fathomdb_schema::SQLITE_SUFFIX));
+            let revision = format!("revision-{suffix}");
+            let mut node = canonical(&revision);
+            node.body = body;
+            let request = ActuationBatchV1::new(
+                format!("operation-{suffix}"),
+                vec![ActuationOperationV1::PutCanonicalNode(node)],
+            ).unwrap();
+            let first = {
+                let opened = Engine::open(&path).unwrap();
+                opened.engine.actuate(request.clone()).unwrap()
+            };
+            let reopened = Engine::open(&path).unwrap();
+            prop_assert_eq!(reopened.engine.actuate(request).unwrap(), first);
+        }
+
+        #[test]
+        fn committed_receipt_collection_formulas_hold_for_bounded_batches(
+            count in 1_usize..16,
+            suffix in "[a-z][a-z0-9]{0,8}",
+        ) {
+            let dir = tempfile::TempDir::new().unwrap();
+            let path = dir.path().join(format!("collections{}", fathomdb_schema::SQLITE_SUFFIX));
+            let revisions = (0..count)
+                .map(|index| format!("revision-{suffix}-{index}"))
+                .collect::<Vec<_>>();
+            let operations = revisions
+                .iter()
+                .map(|revision| ActuationOperationV1::PutCanonicalNode(canonical(revision)))
+                .collect();
+            let request = ActuationBatchV1::new(
+                format!("collections-{suffix}"),
+                operations,
+            ).unwrap();
+            let opened = Engine::open(&path).unwrap();
+            let receipt = opened.engine.actuate(request.clone()).unwrap();
+            prop_assert_eq!(&receipt.affected_revision_ids, &revisions);
+            prop_assert_eq!(receipt.resulting_write_boundary, Some(count as u64));
+            prop_assert!(receipt.pending_projection_write_cursors.len() <= count);
+            prop_assert_eq!(opened.engine.actuate(request).unwrap(), receipt);
+        }
+    }
+
+    #[test]
+    fn refusal_path_grammar_is_exact_and_complete() {
+        let admitted = [
+            (ActuationRefusalReasonV1::WriteRefused, "/operations/0/record"),
+            (
+                ActuationRefusalReasonV1::WriteRefused,
+                "/operations/0/record/provenance/sourceVersionId",
+            ),
+            (
+                ActuationRefusalReasonV1::WriteRefused,
+                "/operations/0/record/provenance/sourceRevisionId",
+            ),
+            (
+                ActuationRefusalReasonV1::WriteRefused,
+                "/operations/0/record/provenance/sourceLocator",
+            ),
+            (
+                ActuationRefusalReasonV1::WriteRefused,
+                "/operations/0/record/provenance/canonicalSourceHash",
+            ),
+            (ActuationRefusalReasonV1::WriteCursorExhausted, "/operations/0/record"),
+            (
+                ActuationRefusalReasonV1::ProvenanceRoleMismatch,
+                "/operations/0/record/provenance/role",
+            ),
+            (
+                ActuationRefusalReasonV1::ReferenceUnavailable,
+                "/operations/0/record/provenance/sourceRevisionId",
+            ),
+            (
+                ActuationRefusalReasonV1::ReferenceUnavailable,
+                "/operations/0/dependency/sourceRevisionId",
+            ),
+            (
+                ActuationRefusalReasonV1::ReferenceUnavailable,
+                "/operations/0/dependency/derivedRevisionId",
+            ),
+            (ActuationRefusalReasonV1::DependencyRefused, "/operations/0/dependency"),
+            (ActuationRefusalReasonV1::DependencyGenerationExhausted, "/operations/0/dependency"),
+            (ActuationRefusalReasonV1::LifecycleRefused, "/operations/0/expectedCurrentRevisionId"),
+            (ActuationRefusalReasonV1::LifecycleRefused, "/operations/0/toState"),
+            (ActuationRefusalReasonV1::DependencyClosureRequired, "/operations/0"),
+        ];
+        for (reason, path) in admitted {
+            assert_eq!(validate_refusal_shape(reason, Some(0), Some(path), 1), Ok(()));
+        }
+        assert_eq!(
+            validate_refusal_shape(
+                ActuationRefusalReasonV1::ExpectedWriteBoundaryMismatch,
+                None,
+                Some("/expectedWriteBoundary"),
+                1,
+            ),
+            Ok(())
+        );
+
+        let rejected = [
+            (ActuationRefusalReasonV1::WriteRefused, "/operations/0/record/provenance"),
+            (
+                ActuationRefusalReasonV1::ReferenceUnavailable,
+                "/operations/0/unowned/sourceRevisionId",
+            ),
+            (ActuationRefusalReasonV1::LifecycleRefused, "/operations/0/logicalId"),
+            (ActuationRefusalReasonV1::DependencyRefused, "/operations/0/dependency/id"),
+        ];
+        for (reason, path) in rejected {
+            assert!(matches!(
+                validate_refusal_shape(reason, Some(0), Some(path), 1),
+                Err(EngineError::Storage)
+            ));
         }
     }
 

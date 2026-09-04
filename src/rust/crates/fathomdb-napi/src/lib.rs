@@ -3071,6 +3071,16 @@ fn actuation_napi_error(reason: &str, field_path: impl Into<String>) -> Error {
     )
 }
 
+fn nested_actuation_napi_error(error: Error, root: &str) -> Error {
+    let nested_path = serde_json::from_str::<JsonValue>(&error.reason).ok().and_then(|envelope| {
+        envelope.get("payload")?.get("fieldPath")?.as_str().map(str::to_string)
+    });
+    let field_path = nested_path
+        .filter(|path| path.starts_with('/'))
+        .map_or_else(|| root.to_string(), |path| format!("{root}{path}"));
+    actuation_napi_error("nested_request_invalid", field_path)
+}
+
 fn strict_actuation_object<'a>(
     value: &'a JsonValue,
     allowed: &[&str],
@@ -3178,9 +3188,9 @@ fn translate_actuation_operation(value: &JsonValue, index: usize) -> Result<Actu
                 ],
                 &format!("{root}/record"),
             )?;
-            let prepared = translate_node(record).map_err(|_| {
-                actuation_napi_error("nested_request_invalid", format!("{root}/record"))
-            })?;
+            let record_root = format!("{root}/record");
+            let prepared = translate_node(record)
+                .map_err(|error| nested_actuation_napi_error(error, &record_root))?;
             let PreparedWrite::ProvenancedNode(node) = prepared else {
                 return Err(actuation_napi_error(
                     "nested_request_invalid",
@@ -3198,11 +3208,10 @@ fn translate_actuation_operation(value: &JsonValue, index: usize) -> Result<Actu
             let dependency = object.get("dependency").ok_or_else(|| {
                 actuation_napi_error("field_missing", format!("{root}/dependency"))
             })?;
+            let dependency_root = format!("{root}/dependency");
             translate_dependency_registration(dependency)
                 .map(ActuationOperationV1::RegisterSourceDependency)
-                .map_err(|_| {
-                    actuation_napi_error("nested_request_invalid", format!("{root}/dependency"))
-                })
+                .map_err(|error| nested_actuation_napi_error(error, &dependency_root))
         }
         "transition_lifecycle" => {
             strict_actuation_object(

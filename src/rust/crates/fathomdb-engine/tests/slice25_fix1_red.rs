@@ -7,6 +7,7 @@ use fathomdb_engine::{
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
+use std::sync::{Arc, Barrier};
 use tempfile::TempDir;
 
 fn path(dir: &TempDir, name: &str) -> std::path::PathBuf {
@@ -167,7 +168,7 @@ fn nested_provenance_failure_preserves_its_exact_path() {
     assert_eq!(receipt.reason_codes, vec![ActuationRefusalReasonV1::WriteRefused]);
     assert_eq!(
         receipt.refused_field_path.as_deref(),
-        Some("/operations/0/record/provenance/canonicalSourceHash/digestHex")
+        Some("/operations/0/record/provenance/canonicalSourceHash")
     );
 }
 
@@ -240,7 +241,145 @@ fn keyed_conflict_records_typed_failure_telemetry() {
     assert!(matches!(opened.engine.actuate(conflict), Err(EngineError::Actuation(_))));
     let after = opened.engine.counters();
 
-    assert_eq!(after.errors_by_code.get("FDB_ACTUATION"), Some(&1));
+    assert_eq!(after.errors_by_code.get("ActuationError"), Some(&1));
     assert_eq!(after.writes, before.writes);
     assert_eq!(after.write_rows, before.write_rows);
+}
+
+#[test]
+fn later_invalid_operation_precedes_exhausted_write_cursor() {
+    let dir = TempDir::new().unwrap();
+    let db_path = path(&dir, "cursor-precedence");
+    let opened = Engine::open(&db_path).unwrap();
+    Connection::open(&db_path)
+        .unwrap()
+        .execute(
+            "INSERT INTO _fathomdb_open_state(key,value) VALUES(\
+               'tc33_reserved_write_cursor',?1\
+             ) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            [i64::MAX.to_string()],
+        )
+        .unwrap();
+    let request = ActuationBatchV1::new(
+        "cursor-precedence",
+        vec![
+            ActuationOperationV1::PutCanonicalNode(canonical("source-r1", "source")),
+            ActuationOperationV1::PutCanonicalNode(derived(
+                "role-mismatch",
+                "derived-as-canonical",
+                "source-r1",
+            )),
+        ],
+    )
+    .unwrap();
+
+    let receipt = opened.engine.actuate(request).unwrap();
+    assert_eq!(receipt.reason_codes, vec![ActuationRefusalReasonV1::ProvenanceRoleMismatch]);
+    assert_eq!(receipt.refused_operation_index, Some(1));
+}
+
+#[test]
+fn prospective_closure_precedes_exhausted_dependency_generation() {
+    let dir = TempDir::new().unwrap();
+    let db_path = path(&dir, "closure-precedence");
+    let opened = Engine::open(&db_path).unwrap();
+    Connection::open(&db_path)
+        .unwrap()
+        .execute(
+            "UPDATE _fathomdb_open_state SET value=?1 \
+             WHERE key='_fathomdb_dependency_generation'",
+            [i64::MAX.to_string()],
+        )
+        .unwrap();
+    let request = ActuationBatchV1::new(
+        "closure-precedence",
+        vec![
+            ActuationOperationV1::PutCanonicalNode(canonical("source-r1", "source")),
+            ActuationOperationV1::PutDerivedNode(derived("derived-r1", "derived", "source-r1")),
+            ActuationOperationV1::RegisterSourceDependency(
+                SourceDependencyRegistrationV1::new("dep-r1", "source-r1", "derived-r1").unwrap(),
+            ),
+            ActuationOperationV1::TransitionLifecycle(
+                LifecycleActuationV1::new(
+                    "source",
+                    ArtifactRevisionId::new("source-r1").unwrap(),
+                    LifecycleState::Deleted,
+                    None,
+                )
+                .unwrap(),
+            ),
+        ],
+    )
+    .unwrap();
+
+    let receipt = opened.engine.actuate(request).unwrap();
+    assert_eq!(receipt.reason_codes, vec![ActuationRefusalReasonV1::DependencyClosureRequired]);
+    assert_eq!(receipt.refused_operation_index, Some(3));
+}
+
+#[test]
+fn same_id_race_counts_only_the_winning_mutation() {
+    let dir = TempDir::new().unwrap();
+    let opened = Engine::open(path(&dir, "same-id-race")).unwrap();
+    let engine = Arc::new(opened.engine);
+    let barrier = Arc::new(Barrier::new(9));
+    let request = Arc::new(
+        ActuationBatchV1::new(
+            "same-id-race",
+            vec![ActuationOperationV1::PutCanonicalNode(canonical("source-r1", "source"))],
+        )
+        .unwrap(),
+    );
+
+    let receipts = std::thread::scope(|scope| {
+        let handles = (0..8)
+            .map(|_| {
+                let engine = Arc::clone(&engine);
+                let barrier = Arc::clone(&barrier);
+                let request = Arc::clone(&request);
+                scope.spawn(move || {
+                    barrier.wait();
+                    engine.actuate((*request).clone()).unwrap()
+                })
+            })
+            .collect::<Vec<_>>();
+        barrier.wait();
+        handles.into_iter().map(|handle| handle.join().unwrap()).collect::<Vec<_>>()
+    });
+
+    assert!(receipts.windows(2).all(|pair| pair[0] == pair[1]));
+    let counters = engine.counters();
+    assert_eq!(counters.writes, 1);
+    assert_eq!(counters.write_rows, 1);
+}
+
+#[test]
+fn source_erasure_redacts_more_than_one_receipt_page() {
+    let dir = TempDir::new().unwrap();
+    let db_path = path(&dir, "paged-redaction");
+    let opened = Engine::open(&db_path).unwrap();
+    for index in 0..130 {
+        let request = ActuationBatchV1::new(
+            format!("shared-source-{index:03}"),
+            vec![ActuationOperationV1::PutCanonicalNode(canonical("source-r1", "source"))],
+        )
+        .unwrap();
+        opened.engine.actuate(request).unwrap();
+    }
+
+    opened.engine.erase_source("source-a").unwrap();
+    let connection = Connection::open(&db_path).unwrap();
+    let erased: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM _fathomdb_actuation_receipts WHERE outcome='erased'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let refs: i64 = connection
+        .query_row("SELECT COUNT(*) FROM _fathomdb_actuation_receipt_source_refs", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!((erased, refs), (130, 0));
 }

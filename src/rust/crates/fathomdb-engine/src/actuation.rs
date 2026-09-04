@@ -1,7 +1,7 @@
 use super::*;
 use rusqlite::{params, OptionalExtension};
 use sha2::{Digest, Sha256};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::time::Instant;
@@ -381,6 +381,28 @@ fn validate_request(request: &ActuationBatchV1) -> Result<(), ActuationError> {
             ActuationErrorReason::OperationCountInvalid,
             "/operations",
         ));
+    }
+    for (index, operation) in request.operations.iter().enumerate() {
+        let ActuationOperationV1::TransitionLifecycle(lifecycle) = operation else {
+            continue;
+        };
+        if lifecycle.logical_id.is_empty()
+            || lifecycle.logical_id.contains('\x1e')
+            || lifecycle.logical_id.starts_with("l:")
+            || lifecycle.logical_id.starts_with("h:")
+            || lifecycle.logical_id.starts_with("p:")
+        {
+            return Err(ActuationError::new(
+                ActuationErrorReason::LogicalIdInvalid,
+                format!("/operations/{index}/logicalId"),
+            ));
+        }
+        if !matches!(lifecycle.to_state, LifecycleState::Active | LifecycleState::Deleted) {
+            return Err(ActuationError::new(
+                ActuationErrorReason::LifecycleTargetInvalid,
+                format!("/operations/{index}/toState"),
+            ));
+        }
     }
     Ok(())
 }
@@ -945,49 +967,60 @@ pub(super) fn redact_actuation_receipts_for_refs(
     connection: &Connection,
     refs: &BTreeSet<(String, String)>,
 ) -> Result<(), EngineError> {
-    let mut operation_ids = BTreeSet::new();
     for (kind, value) in refs {
-        let mut statement = connection
-            .prepare(
-                "SELECT operation_id FROM _fathomdb_actuation_receipt_source_refs \
-                 WHERE ref_kind=?1 AND ref_value=?2 ORDER BY operation_id",
-            )
-            .map_err(|_| EngineError::Storage)?;
-        let rows = statement
-            .query_map(params![kind, value], |row| row.get::<_, String>(0))
-            .map_err(|_| EngineError::Storage)?
-            .collect::<rusqlite::Result<Vec<_>>>()
-            .map_err(|_| EngineError::Storage)?;
-        operation_ids.extend(rows);
-    }
-    for operation_id in operation_ids {
-        let digest: String = connection
-            .query_row(
-                "SELECT request_sha256 FROM _fathomdb_actuation_receipts \
-                 WHERE operation_id=?1 AND outcome!='erased'",
-                [&operation_id],
-                |row| row.get(0),
-            )
-            .map_err(|_| EngineError::Storage)?;
-        let _ = load_receipt(connection, &operation_id, &digest)?.ok_or(EngineError::Storage)?;
-        connection
-            .execute(
-                "DELETE FROM _fathomdb_actuation_receipt_source_refs WHERE operation_id=?1",
-                [&operation_id],
-            )
-            .map_err(|_| EngineError::Storage)?;
-        connection
-            .execute(
-                "UPDATE _fathomdb_actuation_receipts SET \
-                   request_sha256=NULL,operations_count=NULL,outcome='erased', \
-                   refused_operation_index=NULL,refused_field_path=NULL, \
-                   reason_codes_json='[]',affected_revision_ids_json='[]', \
-                   resulting_write_boundary=NULL,resulting_dependency_generation=NULL, \
-                   pending_projection_write_cursors_json='[]',closure_operation_ids_json='[]' \
-                 WHERE operation_id=?1",
-                [&operation_id],
-            )
-            .map_err(|_| EngineError::Storage)?;
+        let mut after = String::new();
+        loop {
+            let operation_ids = {
+                let mut statement = connection
+                    .prepare(
+                        "SELECT operation_id FROM _fathomdb_actuation_receipt_source_refs \
+                         WHERE ref_kind=?1 AND ref_value=?2 AND operation_id>?3 \
+                         ORDER BY operation_id LIMIT 64",
+                    )
+                    .map_err(|_| EngineError::Storage)?;
+                let rows = statement
+                    .query_map(params![kind, value, after], |row| row.get::<_, String>(0))
+                    .map_err(|_| EngineError::Storage)?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+                    .map_err(|_| EngineError::Storage)?;
+                rows
+            };
+            let Some(last) = operation_ids.last().cloned() else {
+                break;
+            };
+            for operation_id in operation_ids {
+                let digest: String = connection
+                    .query_row(
+                        "SELECT request_sha256 FROM _fathomdb_actuation_receipts \
+                         WHERE operation_id=?1 AND outcome!='erased'",
+                        [&operation_id],
+                        |row| row.get(0),
+                    )
+                    .map_err(|_| EngineError::Storage)?;
+                let _ = load_receipt(connection, &operation_id, &digest)?
+                    .ok_or(EngineError::Storage)?;
+                connection
+                    .execute(
+                        "DELETE FROM _fathomdb_actuation_receipt_source_refs \
+                         WHERE operation_id=?1",
+                        [&operation_id],
+                    )
+                    .map_err(|_| EngineError::Storage)?;
+                connection
+                    .execute(
+                        "UPDATE _fathomdb_actuation_receipts SET \
+                           request_sha256=NULL,operations_count=NULL,outcome='erased', \
+                           refused_operation_index=NULL,refused_field_path=NULL, \
+                           reason_codes_json='[]',affected_revision_ids_json='[]', \
+                           resulting_write_boundary=NULL,resulting_dependency_generation=NULL, \
+                           pending_projection_write_cursors_json='[]',closure_operation_ids_json='[]' \
+                         WHERE operation_id=?1",
+                        [&operation_id],
+                    )
+                    .map_err(|_| EngineError::Storage)?;
+            }
+            after = last;
+        }
     }
     Ok(())
 }
@@ -1013,69 +1046,25 @@ fn current_revision_for_logical(
     .transpose()
 }
 
-fn closure_refusal(
+fn closure_refusal_for_losses(
     connection: &Connection,
-    request: &ActuationBatchV1,
+    losses: &[(usize, String)],
 ) -> Result<Option<Refusal>, EngineError> {
-    let request_dependencies = request
-        .operations
-        .iter()
-        .filter_map(|operation| match operation {
-            ActuationOperationV1::RegisterSourceDependency(dependency) => {
-                Some(dependency.source_revision_id.as_str().to_string())
-            }
-            _ => None,
-        })
-        .collect::<BTreeSet<_>>();
-    let mut logical: HashMap<String, Option<(String, String)>> = HashMap::new();
-    for (index, operation) in request.operations.iter().enumerate() {
-        let loss = match operation {
-            ActuationOperationV1::PutCanonicalNode(node)
-            | ActuationOperationV1::PutDerivedNode(node) => {
-                let Some(logical_id) = &node.logical_id else { continue };
-                if !logical.contains_key(logical_id) {
-                    let current = current_revision_for_logical(connection, logical_id)?
-                        .map(|(revision, _, role)| (revision, role));
-                    logical.insert(logical_id.clone(), current);
-                }
-                let prior = logical.get(logical_id).cloned().flatten();
-                logical.insert(
-                    logical_id.clone(),
-                    Some((
-                        node.provenance.artifact_revision_id.as_str().to_string(),
-                        match node.provenance.role {
-                            ProvenanceRole::Canonical => "canonical_source",
-                            ProvenanceRole::Derived => "derived_semantic",
-                        }
-                        .to_string(),
-                    )),
-                );
-                prior.filter(|(_, role)| role == "canonical_source").map(|(revision, _)| revision)
-            }
-            ActuationOperationV1::TransitionLifecycle(lifecycle)
-                if lifecycle.to_state == LifecycleState::Deleted =>
-            {
-                current_revision_for_logical(connection, &lifecycle.logical_id)?
-                    .filter(|(_, _, role)| role == "canonical_source")
-                    .map(|(revision, _, _)| revision)
-            }
-            _ => None,
-        };
-        let Some(revision) = loss else { continue };
-        let persisted: bool = connection
+    for (index, revision) in losses {
+        let has_dependency: bool = connection
             .query_row(
                 "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies d \
                  JOIN _fathomdb_source_links l \
                    ON l.artifact_revision_id=d.derived_revision_id \
                  WHERE l.source_revision_id=?1)",
-                [&revision],
+                [revision],
                 |row| row.get(0),
             )
             .map_err(|_| EngineError::Storage)?;
-        if persisted || request_dependencies.contains(&revision) {
+        if has_dependency {
             return Ok(Some(Refusal {
                 reason: ActuationRefusalReasonV1::DependencyClosureRequired,
-                index: Some(index),
+                index: Some(*index),
                 path: Some(format!("/operations/{index}")),
             }));
         }
@@ -1083,7 +1072,136 @@ fn closure_refusal(
     Ok(None)
 }
 
-fn map_domain_error(error: EngineError, index: usize) -> Result<Refusal, EngineError> {
+fn simulation_cursor_base(
+    connection: &Connection,
+    put_count: u64,
+    preferred: u64,
+) -> Result<u64, EngineError> {
+    if preferred.checked_add(put_count).is_some_and(|value| value <= i64::MAX as u64) {
+        return Ok(preferred);
+    }
+    let ceiling = i64::MAX
+        .checked_sub(i64::try_from(put_count).map_err(|_| EngineError::Storage)?)
+        .ok_or(EngineError::Storage)?;
+    let highest: i64 = connection
+        .query_row(
+            "SELECT COALESCE(MAX(write_cursor),0) FROM (\
+               SELECT write_cursor FROM canonical_nodes WHERE write_cursor <= ?1 \
+               UNION ALL SELECT write_cursor FROM canonical_edges WHERE write_cursor <= ?1 \
+               UNION ALL SELECT write_cursor FROM operational_mutations WHERE write_cursor <= ?1 \
+               UNION ALL SELECT write_cursor FROM operational_state WHERE write_cursor <= ?1\
+             )",
+            [ceiling],
+            |row| row.get(0),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    u64::try_from(highest).map_err(|_| EngineError::Storage)
+}
+
+fn simulate_request(
+    connection: &Connection,
+    request: &ActuationBatchV1,
+    base_cursor: u64,
+    provenance_row_cap: u64,
+) -> Result<Option<Refusal>, EngineError> {
+    connection
+        .execute_batch("SAVEPOINT fathomdb_actuation_validation")
+        .map_err(|_| EngineError::Storage)?;
+    let outcome = (|| {
+        let mut next_cursor = base_cursor;
+        let mut losses = Vec::new();
+        for (index, operation) in request.operations.iter().enumerate() {
+            match operation {
+                ActuationOperationV1::PutCanonicalNode(node)
+                | ActuationOperationV1::PutDerivedNode(node) => {
+                    let expected_role =
+                        matches!(operation, ActuationOperationV1::PutCanonicalNode(_));
+                    if matches!(node.provenance.role, ProvenanceRole::Canonical) != expected_role {
+                        return Ok(Some(Refusal {
+                            reason: ActuationRefusalReasonV1::ProvenanceRoleMismatch,
+                            index: Some(index),
+                            path: Some(format!("/operations/{index}/record/provenance/role")),
+                        }));
+                    }
+                    if let Some(logical_id) = &node.logical_id {
+                        if let Some((revision, _, role)) =
+                            current_revision_for_logical(connection, logical_id)?
+                        {
+                            if role == "canonical_source" {
+                                losses.push((index, revision));
+                            }
+                        }
+                    }
+                    let write = PreparedWrite::ProvenancedNode(node.clone());
+                    let plan = match validate_write(connection, &write) {
+                        Ok(plan) => plan,
+                        Err(error) => return map_domain_error(error, index, None).map(Some),
+                    };
+                    match apply_batch_in_transaction(
+                        connection,
+                        &[write],
+                        &[plan],
+                        next_cursor,
+                        provenance_row_cap,
+                        &[],
+                    ) {
+                        Ok(_) => next_cursor = next_cursor.saturating_add(1),
+                        Err(CommitBatchError::Provenance(error)) => {
+                            return map_domain_error(EngineError::Provenance(error), index, None)
+                                .map(Some);
+                        }
+                        Err(CommitBatchError::Sql(_)) => return Err(EngineError::Storage),
+                    }
+                }
+                ActuationOperationV1::RegisterSourceDependency(dependency) => {
+                    let prospective = DependencyProspectiveState::default();
+                    let validated = match validate_source_dependency_registration(
+                        connection,
+                        dependency.clone(),
+                        &prospective,
+                    ) {
+                        Ok(validated) => validated,
+                        Err(error) => {
+                            let field = missing_dependency_field(connection, dependency).ok();
+                            return map_domain_error(error, index, field).map(Some);
+                        }
+                    };
+                    apply_validated_source_dependency(connection, &validated, 1)?;
+                }
+                ActuationOperationV1::TransitionLifecycle(lifecycle) => {
+                    if lifecycle.to_state == LifecycleState::Deleted {
+                        if let Some((revision, _, role)) =
+                            current_revision_for_logical(connection, &lifecycle.logical_id)?
+                        {
+                            if role == "canonical_source" {
+                                losses.push((index, revision));
+                            }
+                        }
+                    }
+                    if let Err(error) = apply_lifecycle(connection, lifecycle, index) {
+                        return match error {
+                            RefusalOrInfrastructure::Refusal(refusal) => Ok(Some(refusal)),
+                            RefusalOrInfrastructure::Infrastructure(error) => Err(error),
+                        };
+                    }
+                }
+            }
+        }
+        closure_refusal_for_losses(connection, &losses)
+    })();
+    connection
+        .execute_batch(
+            "ROLLBACK TO fathomdb_actuation_validation; RELEASE fathomdb_actuation_validation",
+        )
+        .map_err(|_| EngineError::Storage)?;
+    outcome
+}
+
+fn map_domain_error(
+    error: EngineError,
+    index: usize,
+    missing_dependency_field: Option<&str>,
+) -> Result<Refusal, EngineError> {
     let (reason, suffix) = match error {
         EngineError::WriteValidation | EngineError::SchemaValidation => {
             (ActuationRefusalReasonV1::WriteRefused, "/record")
@@ -1098,19 +1216,62 @@ fn map_domain_error(error: EngineError, index: usize) -> Result<Refusal, EngineE
         {
             (ActuationRefusalReasonV1::ReferenceUnavailable, "/record/provenance/sourceRevisionId")
         }
-        EngineError::Provenance(_) => (ActuationRefusalReasonV1::WriteRefused, "/record"),
+        EngineError::Provenance(provenance) => {
+            let suffix = format!("/record{}", provenance.field_path);
+            return Ok(Refusal {
+                reason: ActuationRefusalReasonV1::WriteRefused,
+                index: Some(index),
+                path: Some(format!("/operations/{index}{suffix}")),
+            });
+        }
         EngineError::Dependency(ref dependency)
             if dependency.reason == DependencyErrorReason::DependencyGenerationExhausted =>
         {
             (ActuationRefusalReasonV1::DependencyGenerationExhausted, "/dependency")
         }
-        EngineError::Dependency(_) => (ActuationRefusalReasonV1::DependencyRefused, "/dependency"),
+        EngineError::Dependency(ref dependency)
+            if dependency.reason == DependencyErrorReason::DependencyReferenceMissing =>
+        {
+            let field = missing_dependency_field.unwrap_or("derivedRevisionId");
+            let suffix = format!("/dependency/{field}");
+            return Ok(Refusal {
+                reason: ActuationRefusalReasonV1::ReferenceUnavailable,
+                index: Some(index),
+                path: Some(format!("/operations/{index}{suffix}")),
+            });
+        }
+        EngineError::Dependency(dependency) => {
+            let suffix = if dependency.field_path.is_empty() {
+                "/dependency".to_string()
+            } else {
+                format!("/dependency{}", dependency.field_path)
+            };
+            return Ok(Refusal {
+                reason: ActuationRefusalReasonV1::DependencyRefused,
+                index: Some(index),
+                path: Some(format!("/operations/{index}{suffix}")),
+            });
+        }
         EngineError::IllegalTransition { .. } => {
             (ActuationRefusalReasonV1::LifecycleRefused, "/toState")
         }
         other => return Err(other),
     };
     Ok(Refusal { reason, index: Some(index), path: Some(format!("/operations/{index}{suffix}")) })
+}
+
+fn missing_dependency_field(
+    connection: &Connection,
+    dependency: &SourceDependencyRegistrationV1,
+) -> Result<&'static str, EngineError> {
+    let derived_exists: bool = connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions WHERE revision_id=?1)",
+            [dependency.derived_revision_id.as_str()],
+            |row| row.get(0),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    Ok(if derived_exists { "sourceRevisionId" } else { "derivedRevisionId" })
 }
 
 fn apply_lifecycle(
@@ -1182,6 +1343,11 @@ enum RefusalOrInfrastructure {
     Infrastructure(EngineError),
 }
 
+enum ActuationAttempt {
+    New(ActuationReceiptV1),
+    Replay(ActuationReceiptV1),
+}
+
 impl From<EngineError> for RefusalOrInfrastructure {
     fn from(error: EngineError) -> Self {
         Self::Infrastructure(error)
@@ -1204,20 +1370,39 @@ impl Engine {
         self.ensure_open()?;
         validate_request(&request)?;
         let digest = request_digest(&request);
-        {
+        let initial = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-            if let Some(receipt) = load_receipt(connection, &request.operation_id, &digest)? {
-                return Ok(receipt);
+            load_receipt(connection, &request.operation_id, &digest)
+        };
+        match initial {
+            Ok(Some(receipt)) => return Ok(receipt),
+            Ok(None) => {}
+            Err(error) => {
+                self.emit_event(lifecycle::Phase::Started, lifecycle::EventCategory::Writer, None);
+                let code = error.stable_code();
+                self.counters.record_error(code);
+                self.emit_event(
+                    lifecycle::Phase::Failed,
+                    lifecycle::EventCategory::Writer,
+                    Some(code),
+                );
+                self.emit_event(
+                    lifecycle::Phase::Failed,
+                    lifecycle::EventCategory::Error,
+                    Some(code),
+                );
+                return Err(error);
             }
         }
 
-        self.emit_event(lifecycle::Phase::Started, lifecycle::EventCategory::Writer, None);
         let started = Instant::now();
         let result = self.actuate_new(&request, &digest);
         self.detect_slow(started, lifecycle::EventCategory::Writer);
         match result {
-            Ok(receipt) => {
+            Ok(ActuationAttempt::Replay(receipt)) => Ok(receipt),
+            Ok(ActuationAttempt::New(receipt)) => {
+                self.emit_event(lifecycle::Phase::Started, lifecycle::EventCategory::Writer, None);
                 let rows = if receipt.outcome == ActuationOutcomeV1::Committed {
                     request
                         .operations
@@ -1238,6 +1423,7 @@ impl Engine {
                 Ok(receipt)
             }
             Err(error) => {
+                self.emit_event(lifecycle::Phase::Started, lifecycle::EventCategory::Writer, None);
                 let code = error.stable_code();
                 self.counters.record_error(code);
                 self.emit_event(
@@ -1259,7 +1445,7 @@ impl Engine {
         &self,
         request: &ActuationBatchV1,
         digest: &str,
-    ) -> Result<ActuationReceiptV1, EngineError> {
+    ) -> Result<ActuationAttempt, EngineError> {
         if request
             .operations
             .iter()
@@ -1275,7 +1461,7 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
         if let Some(receipt) = load_receipt(&tx, &request.operation_id, digest)? {
             tx.commit().map_err(|_| EngineError::Storage)?;
-            return Ok(receipt);
+            return Ok(ActuationAttempt::Replay(receipt));
         }
         enrich_resolved_refs(&tx, request, &mut refs)?;
 
@@ -1296,7 +1482,7 @@ impl Engine {
                 return Err(EngineError::Storage);
             }
             tx.commit().map_err(|_| EngineError::Storage)?;
-            return Ok(receipt);
+            return Ok(ActuationAttempt::New(receipt));
         }
         let put_count = request
             .operations
@@ -1309,7 +1495,25 @@ impl Engine {
                 )
             })
             .count() as u64;
-        if base_cursor.checked_add(put_count).filter(|value| *value <= i64::MAX as u64).is_none() {
+        let cursor_available =
+            base_cursor.checked_add(put_count).is_some_and(|value| value <= i64::MAX as u64);
+        let validation_base = simulation_cursor_base(&tx, put_count, base_cursor)?;
+        if let Some(refusal) = simulate_request(
+            &tx,
+            request,
+            validation_base,
+            self.provenance_row_cap.load(Ordering::Relaxed),
+        )? {
+            let receipt = receipt_for_refusal(request, digest.to_string(), refusal);
+            store_receipt(&tx, &receipt, request.operations.len())?;
+            store_source_refs(&tx, &request.operation_id, &refs)?;
+            if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
+                return Err(EngineError::Storage);
+            }
+            tx.commit().map_err(|_| EngineError::Storage)?;
+            return Ok(ActuationAttempt::New(receipt));
+        }
+        if !cursor_available {
             let index = request
                 .operations
                 .iter()
@@ -1333,10 +1537,8 @@ impl Engine {
             store_receipt(&tx, &receipt, request.operations.len())?;
             store_source_refs(&tx, &request.operation_id, &refs)?;
             tx.commit().map_err(|_| EngineError::Storage)?;
-            return Ok(receipt);
+            return Ok(ActuationAttempt::New(receipt));
         }
-        let closure_refusal = closure_refusal(&tx, request)?;
-
         let batch_writes = request
             .operations
             .iter()
@@ -1387,7 +1589,7 @@ impl Engine {
                             .map(|(revision, _, _)| revision);
                         let write = PreparedWrite::ProvenancedNode(node.clone());
                         let plan = validate_write(&tx, &write).map_err(|error| {
-                            map_domain_error(error, index)
+                            map_domain_error(error, index, None)
                                 .map(RefusalOrInfrastructure::Refusal)
                                 .unwrap_or_else(RefusalOrInfrastructure::Infrastructure)
                         })?;
@@ -1437,6 +1639,7 @@ impl Engine {
                                 Err(RefusalOrInfrastructure::Refusal(map_domain_error(
                                     EngineError::Provenance(error),
                                     index,
+                                    None,
                                 )?))
                             }
                             Err(CommitBatchError::Sql(_)) => {
@@ -1453,7 +1656,8 @@ impl Engine {
                         &prospective,
                     )
                     .map_err(|error| {
-                        map_domain_error(error, index)
+                        let field = missing_dependency_field(&tx, dependency).ok();
+                        map_domain_error(error, index, field)
                             .map(RefusalOrInfrastructure::Refusal)
                             .unwrap_or_else(RefusalOrInfrastructure::Infrastructure)
                     })?;
@@ -1469,7 +1673,7 @@ impl Engine {
                                         generation
                                     }
                                     Err(error) => {
-                                        return Err(match map_domain_error(error, index) {
+                                        return Err(match map_domain_error(error, index, None) {
                                             Ok(mapped) => RefusalOrInfrastructure::Refusal(mapped),
                                             Err(error) => {
                                                 RefusalOrInfrastructure::Infrastructure(error)
@@ -1507,10 +1711,6 @@ impl Engine {
             }
         }
 
-        if refusal.is_none() {
-            refusal = closure_refusal;
-        }
-
         if let Some(refusal) = refusal {
             tx.execute_batch(
                 "ROLLBACK TO fathomdb_actuation_domain; RELEASE fathomdb_actuation_domain",
@@ -1523,7 +1723,7 @@ impl Engine {
                 return Err(EngineError::Storage);
             }
             tx.commit().map_err(|_| EngineError::Storage)?;
-            return Ok(receipt);
+            return Ok(ActuationAttempt::New(receipt));
         }
         if let Some(generation) = dependency_generation {
             store_dependency_generation(&tx, generation)?;
@@ -1559,7 +1759,7 @@ impl Engine {
         if !receipt.pending_projection_write_cursors.is_empty() || unstranded {
             self.projection_runtime.notify_new_work();
         }
-        Ok(receipt)
+        Ok(ActuationAttempt::New(receipt))
     }
 }
 

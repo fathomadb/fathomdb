@@ -6,7 +6,7 @@ Field names owned by `dev/interfaces/python.md` § Caller-visible data shapes.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal, NotRequired, TypedDict, TypeGuard, Union
+from typing import Literal, TypedDict, TypeGuard, Union
 
 #: Typed soft-fallback branch values per `dev/design/retrieval.md`.
 #: ``"text_edge"`` added in Slice 15 (G11) for edge-body hits from
@@ -149,14 +149,17 @@ class RegisterSourceDependencyActuationV1(TypedDict):
     dependency: SourceDependencyRegistrationV1
 
 
-class TransitionLifecycleActuationV1(TypedDict):
-    """Revision-pinned lifecycle transition in an actuation batch."""
-
+class _TransitionLifecycleActuationRequiredV1(TypedDict):
     type: Literal["transition_lifecycle"]
     logical_id: str
     expected_current_revision_id: str
     to_state: Literal["active", "deleted"]
-    reason: NotRequired[str | None]
+
+
+class TransitionLifecycleActuationV1(_TransitionLifecycleActuationRequiredV1, total=False):
+    """Revision-pinned lifecycle transition in an actuation batch."""
+
+    reason: str | None
 
 
 ActuationOperationV1 = Union[
@@ -167,14 +170,17 @@ ActuationOperationV1 = Union[
 ]
 
 
-class ActuationBatchV1(TypedDict):
-    """Bounded, model-free, caller-decided atomic actuation request."""
-
+class _ActuationBatchRequiredV1(TypedDict):
     schema_version: Literal[1]
     operation_id: str
-    decision_policy_id: NotRequired[str | None]
-    expected_write_boundary: NotRequired[str | None]
     operations: list[ActuationOperationV1]
+
+
+class ActuationBatchV1(_ActuationBatchRequiredV1, total=False):
+    """Bounded, model-free, caller-decided atomic actuation request."""
+
+    decision_policy_id: str | None
+    expected_write_boundary: str | None
 
 
 @dataclass(frozen=True)

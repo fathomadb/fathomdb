@@ -14,6 +14,17 @@ fn re_exports_compile() {
     let _ = std::any::type_name::<fathomdb::PreparedWrite>();
     let _ = std::any::type_name::<fathomdb::EngineError>();
     let _ = std::any::type_name::<fathomdb::EngineOpenError>();
+    let _ = std::any::type_name::<fathomdb::ArtifactRevisionId>();
+    let _ = std::any::type_name::<fathomdb::CanonicalHash>();
+    let _ = std::any::type_name::<fathomdb::ProvenanceCompleteness>();
+    let _ = std::any::type_name::<fathomdb::ProvenanceError>();
+    let _ = std::any::type_name::<fathomdb::ProvenanceErrorReason>();
+    let _ = std::any::type_name::<fathomdb::ProvenancedEdgeV1>();
+    let _ = std::any::type_name::<fathomdb::ProvenancedNodeV1>();
+    let _ = std::any::type_name::<fathomdb::SourceLocator>();
+    let _ = std::any::type_name::<fathomdb::SourceRevisionId>();
+    let _ = std::any::type_name::<fathomdb::SourceVersionId>();
+    let _ = std::any::type_name::<fathomdb::WriteProvenanceV1>();
 
     let _ = std::any::type_name::<fathomdb::CorruptionDetail>();
     let _ = std::any::type_name::<fathomdb::CorruptionKind>();

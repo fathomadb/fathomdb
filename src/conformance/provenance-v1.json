@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "canonical": {
+    "artifactRevisionId": "source-revision-1",
+    "sourceVersionId": "source-v1"
+  },
+  "derived": {
+    "artifactRevisionId": "derived-revision-1",
+    "sourceVersionId": "source-v1",
+    "sourceRevisionId": "source-revision-1",
+    "sourceLocator": {
+      "kind": "utf8_bytes",
+      "startInclusive": "1",
+      "endExclusive": "3"
+    },
+    "canonicalSourceHash": {
+      "algorithm": "sha256",
+      "digestHex": "6c1b23c36e07dcc014ad4d3419e5a60fe7f76ed57ea26175e97c58ba71caf4ed"
+    }
+  },
+  "invalid": {
+    "unknownFieldReason": "unknown_field",
+    "unknownFieldPath": "/provenance/futureField",
+    "unsupportedVersionReason": "unsupported_schema_version",
+    "unsupportedVersionPath": "/provenance/schemaVersion"
+  }
+}

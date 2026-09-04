@@ -263,3 +263,145 @@ fn physical_source_purge_erases_registered_dependents_and_keeps_proof() {
     assert!(physical.1 > 0);
     assert_eq!(physical.2, 0);
 }
+
+#[test]
+fn next_writer_recovers_a_proving_soft_closure_after_reopen() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "recover-soft");
+    let opened = Engine::open(&db).unwrap();
+    seed_registered(&opened.engine);
+    let request = ActuationBatchV1::new(
+        "recover-soft",
+        vec![ActuationOperationV1::TransitionLifecycle(
+            LifecycleActuationV1::new(
+                "source",
+                ArtifactRevisionId::new("source-r1").unwrap(),
+                LifecycleState::Deleted,
+                None,
+            )
+            .unwrap(),
+        )],
+    )
+    .unwrap();
+    let receipt = opened.engine.actuate(request).unwrap();
+    let closure_id = receipt.closure_operation_ids[0].clone();
+    opened.engine.close().unwrap();
+
+    let connection = Connection::open(&db).unwrap();
+    connection
+        .execute(
+            "UPDATE _fathomdb_dependency_closures SET phase='proving', \
+             structural_proof_write_boundary=NULL, proof_json=NULL \
+             WHERE closure_operation_id=?1",
+            [&closure_id],
+        )
+        .unwrap();
+    drop(connection);
+
+    let reopened = Engine::open(&db).unwrap();
+    reopened
+        .engine
+        .write(&[canonical("unrelated-r1", "v-unrelated", "unrelated", "unrelated body")])
+        .unwrap();
+    let status = reopened
+        .engine
+        .read_dependency_closure(ClosureLookupV1::new(closure_id).unwrap())
+        .unwrap()
+        .unwrap();
+    assert_eq!(status.phase, ClosurePhaseV1::Complete);
+}
+
+#[test]
+fn unrelated_writer_is_fenced_while_physical_closure_is_nonterminal() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "physical-fence");
+    let opened = Engine::open(&db).unwrap();
+    let connection = Connection::open(&db).unwrap();
+    connection
+        .execute(
+            "UPDATE _fathomdb_open_state SET value='1' \
+             WHERE key='_fathomdb_closure_sequence'",
+            [],
+        )
+        .unwrap();
+    let proof = serde_json::json!({
+        "schema_version": 1,
+        "proof_write_boundary": 0,
+        "current_active_dependent_nodes": 0,
+        "current_derived_edges": 0,
+        "view_eligible_dependents": 0,
+        "ownerless_projection_rows": 0,
+        "post_admission_registrations": 0,
+        "remaining_dependency_rows": 0,
+        "remaining_canonical_rows": 0,
+        "remaining_projection_rows": 0,
+        "remaining_receipt_reference_rows": 0,
+    });
+    connection
+        .execute(
+            "INSERT INTO _fathomdb_dependency_closures(\
+               schema_version,closure_operation_id,root_kind,root_value,cause,\
+               effective_at_epoch_s,admitted_write_boundary,admitted_dependency_generation,\
+               closure_sequence,retry_fingerprint,phase,affected_count,blocker_code,\
+               structural_proof_write_boundary,proof_json\
+             ) VALUES(1,?1,'source_bucket','bucket','source_erased',0,0,0,1,?2,\
+                      'at_rest_pending',1,NULL,0,?3)",
+            params![format!("_fdb:c:{}", "c".repeat(64)), "d".repeat(64), proof.to_string()],
+        )
+        .unwrap();
+    drop(connection);
+
+    let error = opened
+        .engine
+        .write(&[canonical("unrelated-r1", "v-unrelated", "unrelated", "unrelated body")])
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::ErasureIncomplete { ref stage, .. } if stage == "dependency_closure"
+    ));
+}
+
+#[test]
+fn nonterminal_barrier_hides_derived_search_hits() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "read-barrier");
+    let opened = Engine::open(&db).unwrap();
+    opened
+        .engine
+        .write(&[
+            canonical("source-r1", "v1", "source", "source body"),
+            derived_node("derived-r1", "derived", "source-r1"),
+        ])
+        .unwrap();
+    opened
+        .engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new("dep", "source-r1", "derived-r1").unwrap(),
+        )
+        .unwrap();
+    assert!(!opened.engine.search("derived body").unwrap().results.is_empty());
+
+    let connection = Connection::open(&db).unwrap();
+    connection
+        .execute(
+            "UPDATE _fathomdb_open_state SET value='1' \
+             WHERE key='_fathomdb_closure_sequence'",
+            [],
+        )
+        .unwrap();
+    connection
+        .execute(
+            "INSERT INTO _fathomdb_dependency_closures(\
+               schema_version,closure_operation_id,root_kind,root_value,cause,\
+               effective_at_epoch_s,admitted_write_boundary,admitted_dependency_generation,\
+               closure_sequence,retry_fingerprint,phase,affected_count,blocker_code,\
+               structural_proof_write_boundary,proof_json\
+             ) VALUES(1,?1,'source_revision','source-r1','soft_deleted',0,2,1,1,?2,\
+                      'proving',1,NULL,NULL,NULL)",
+            params![format!("_fdb:c:{}", "e".repeat(64)), "f".repeat(64)],
+        )
+        .unwrap();
+    drop(connection);
+
+    assert!(opened.engine.search("derived body").unwrap().results.is_empty());
+}

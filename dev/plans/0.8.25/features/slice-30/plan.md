@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 30 — lifecycle and erasure closure
-status: DRAFT_RECONCILED_AWAITING_REVIEW
+status: READY
 depends_on: 25
 design: design.md
-design_status: DRAFT_RECONCILED_FORMAL_REVIEW_REQUIRED
+design_status: READY
 ---
 
 # Slice 30 plan

@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 30 — core lifecycle and erasure closure design
-status: DRAFT_REVIEW_FIX_3
+status: READY
 design_version: 6
 review_fix: 3
-review: design-review-cycle3.md
+review: design-review-cycle4.md
 depends_on: 25
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 ---

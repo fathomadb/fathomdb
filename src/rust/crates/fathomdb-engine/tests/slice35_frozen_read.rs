@@ -64,10 +64,10 @@ fn frozen_context_survives_restart_and_binds_eligibility_without_leaking_it_in_t
     let path = dir.path().join(format!("frozen{SQLITE_SUFFIX}"));
     let opened = open(&path);
     opened.engine.configure_vector_kind_for_test("note").unwrap();
-    opened.engine.configure_vector_kind_for_test("task").unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
     opened
         .engine
-        .write(&[node("N1", "note", "needle filter-secret"), node("T1", "task", "needle task")])
+        .write(&[node("N1", "note", "needle filter-secret"), node("D1", "doc", "needle doc")])
         .unwrap();
     opened.engine.drain(10_000).unwrap();
 
@@ -119,7 +119,7 @@ fn frozen_context_rejects_tamper_database_mismatch_context_change_and_state_drif
     ));
 
     let mut changed_context = frozen.clone();
-    changed_context.context.eligibility.kind = Some("task".to_string());
+    changed_context.context.eligibility.kind = Some("doc".to_string());
     assert!(matches!(
         search(&left.engine, &changed_context),
         Err(EngineError::FrozenRead(error))
@@ -158,4 +158,26 @@ fn frozen_context_bounds_attributes_but_legacy_duplicate_conjunctions_remain_val
         ReadContextV1::new(ReadView::default(), too_many),
         Err(EngineError::FrozenRead(error)) if error.reason == FrozenReadErrorReason::ContextInvalid
     ));
+}
+
+#[test]
+fn frozen_search_expand_uses_the_bound_context_and_rejects_drift() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("expand{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    opened.engine.configure_vector_kind_for_test("note").unwrap();
+    opened.engine.write(&[node("N1", "note", "needle one")]).unwrap();
+    opened.engine.drain(10_000).unwrap();
+    let frozen = opened.engine.freeze_read_context(&context("note")).unwrap();
+
+    let result = opened.engine.search_expand_frozen("needle", &frozen, 0, 10).unwrap();
+    assert!(result.search_hits.iter().all(|hit| hit.kind == "note"));
+
+    opened.engine.write(&[node("N2", "note", "needle two")]).unwrap();
+    assert!(matches!(
+        opened.engine.search_expand_frozen("needle", &frozen, 0, 10),
+        Err(EngineError::FrozenRead(error))
+            if error.reason == FrozenReadErrorReason::StateDrifted
+    ));
+    opened.engine.close().unwrap();
 }

@@ -98,6 +98,27 @@ fn measure_recall(engine: &Engine) -> f64 {
     hits as f64 / QUERIES.len() as f64
 }
 
+/// Measure the deliberately under-migrated phase-A database through the v10
+/// surface itself. A head Engine is not expected to execute head read
+/// predicates against a schema intentionally stopped twenty migrations early.
+fn measure_v10_recall(connection: &Connection) -> f64 {
+    let mut hits = 0usize;
+    for (query, relevant) in QUERIES {
+        let found: bool = connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM search_index \
+                 WHERE search_index MATCH ?1 AND body=?2)",
+                rusqlite::params![query, relevant],
+                |row| row.get(0),
+            )
+            .expect("v10 recall search");
+        if found {
+            hits += 1;
+        }
+    }
+    hits as f64 / QUERIES.len() as f64
+}
+
 const FLOOR: f64 = 0.90;
 
 #[test]
@@ -114,16 +135,11 @@ fn ac_fts_tokenizer_floor_holds_across_migration() {
         seed_v10_corpus(&raw);
     }
     let before_recall = {
-        let opened =
-            Engine::open_with_migrations_for_test(&path, V10_MIGRATIONS, |_| {}).expect("open v10");
-        // Confirm we really are at the prior schema version.
-        assert_eq!(
-            opened.report.schema_version_after, 10,
-            "phase A must open at SCHEMA_VERSION 10"
-        );
-        let r = measure_recall(&opened.engine);
-        opened.engine.close().unwrap();
-        r
+        let raw = Connection::open(&path).expect("raw open for v10 recall");
+        let schema_version: u32 =
+            raw.query_row("PRAGMA user_version", [], |row| row.get(0)).unwrap();
+        assert_eq!(schema_version, 10, "phase A must remain at SCHEMA_VERSION 10");
+        measure_v10_recall(&raw)
     };
     eprintln!("[pr_g1_tokenizer_recall] BEFORE (v10 unicode61) recall = {before_recall:.3}");
     assert!(
@@ -132,10 +148,10 @@ fn ac_fts_tokenizer_floor_holds_across_migration() {
     );
 
     // --- Phase B: re-open with the FULL migration set so step 11 (tokenizer)
-    // runs — step 12 (G0 substrate) and step 13 (op-store index) also run but are
-    // additive-only and do not touch the FTS shadow. Measure the AFTER floor on
-    // the SAME on-disk corpus. If re-tokenization is not wired, search_index was
-    // dropped+recreated empty and recall is 0. ---
+    // runs. Later additive steps do not change the tokenizer migration's
+    // obligation. Measure the AFTER floor on the SAME on-disk corpus. If
+    // re-tokenization is not wired, search_index was dropped+recreated empty and
+    // recall is 0. ---
     let after_recall = {
         let opened =
             Engine::open_with_migrations_for_test(&path, MIGRATIONS, |_| {}).expect("open head");
@@ -145,7 +161,7 @@ fn ac_fts_tokenizer_floor_holds_across_migration() {
         );
         assert!(
             opened.report.schema_version_before == 10,
-            "phase B must observe a 10 -> 14 migration, saw before={}",
+            "phase B must observe a 10 -> head migration, saw before={}",
             opened.report.schema_version_before
         );
         let r = measure_recall(&opened.engine);

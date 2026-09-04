@@ -1,8 +1,9 @@
 use fathomdb_engine::{
     ActuationBatchV1, ActuationErrorReason, ActuationOperationV1, ActuationOutcomeV1,
-    ArtifactRevisionId, CanonicalHash, Engine, EngineError, InitialState, LifecycleActuationV1,
-    LifecycleState, ProvenancedNodeV1, SourceDependencyRegistrationV1, SourceId, SourceLocator,
-    SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+    ArtifactRevisionId, CanonicalHash, ClosureLookupV1, ClosurePhaseV1, Engine, EngineError,
+    InitialState, LifecycleActuationV1, LifecycleState, ProvenancedNodeV1,
+    SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
+    WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use serde_json::Value;
@@ -215,7 +216,7 @@ fn shared_all_variant_fixture_has_exact_receipt_and_digest() {
 }
 
 #[test]
-fn dependency_protected_source_loss_returns_replayable_terminal_refusal() {
+fn dependency_protected_source_loss_returns_replayable_closure_receipt() {
     let dir = TempDir::new().unwrap();
     let opened = Engine::open(path(&dir, "closure")).unwrap();
     let seed = ActuationBatchV1::new(
@@ -242,9 +243,15 @@ fn dependency_protected_source_loss_returns_replayable_terminal_refusal() {
     )
     .unwrap();
     let receipt = opened.engine.actuate(replacement.clone()).unwrap();
-    assert_eq!(receipt.outcome, ActuationOutcomeV1::Refused);
-    assert_eq!(receipt.reason_codes[0].as_str(), "dependency_closure_required");
-    assert_eq!(receipt.refused_operation_index, Some(0));
-    assert_eq!(receipt.refused_field_path.as_deref(), Some("/operations/0"));
+    assert_eq!(receipt.outcome, ActuationOutcomeV1::CommittedClosurePending);
+    assert_eq!(receipt.closure_operation_ids.len(), 1);
+    let closure = opened
+        .engine
+        .read_dependency_closure(
+            ClosureLookupV1::new(receipt.closure_operation_ids[0].clone()).unwrap(),
+        )
+        .unwrap()
+        .unwrap();
+    assert_eq!(closure.phase, ClosurePhaseV1::Complete);
     assert_eq!(opened.engine.actuate(replacement).unwrap(), receipt);
 }

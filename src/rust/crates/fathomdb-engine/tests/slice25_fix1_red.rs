@@ -2,10 +2,11 @@ use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::lifecycle::{Event, EventCategory, Phase, Subscriber};
 use fathomdb_engine::{
     ActuationBatchV1, ActuationErrorReason, ActuationOperationV1, ActuationOutcomeV1,
-    ActuationRefusalReasonV1, ArtifactRevisionId, CanonicalHash, Engine, EngineError, InitialState,
-    LifecycleActuationV1, LifecycleState, ProjectionFts, ProjectionRole, ProjectionSpec,
-    ProjectionVector, ProvenancedNodeV1, SourceDependencyRegistrationV1, SourceId, SourceLocator,
-    SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+    ActuationRefusalReasonV1, ArtifactRevisionId, CanonicalHash, ClosureLookupV1, ClosurePhaseV1,
+    Engine, EngineError, InitialState, LifecycleActuationV1, LifecycleState, ProjectionFts,
+    ProjectionRole, ProjectionSpec, ProjectionVector, ProvenancedNodeV1,
+    SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
+    WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
@@ -143,7 +144,7 @@ fn projection_rollback_state(connection: &Connection) -> Vec<(String, Vec<String
 }
 
 #[test]
-fn create_depend_delete_is_refused_by_prospective_closure() {
+fn create_depend_delete_commits_one_replayable_closure() {
     let dir = TempDir::new().unwrap();
     let opened = Engine::open(path(&dir, "create-depend-delete")).unwrap();
     let request = ActuationBatchV1::new(
@@ -168,9 +169,17 @@ fn create_depend_delete_is_refused_by_prospective_closure() {
     .unwrap();
 
     let receipt = opened.engine.actuate(request.clone()).unwrap();
-    assert_eq!(receipt.outcome, ActuationOutcomeV1::Refused);
-    assert_eq!(receipt.reason_codes, vec![ActuationRefusalReasonV1::DependencyClosureRequired]);
-    assert_eq!(receipt.refused_operation_index, Some(3));
+    assert_eq!(receipt.outcome, ActuationOutcomeV1::CommittedClosurePending);
+    assert_eq!(receipt.closure_operation_ids.len(), 1);
+    let closure = opened
+        .engine
+        .read_dependency_closure(
+            ClosureLookupV1::new(receipt.closure_operation_ids[0].clone()).unwrap(),
+        )
+        .unwrap()
+        .unwrap();
+    assert_eq!(closure.phase, ClosurePhaseV1::Complete);
+    assert_eq!(opened.engine.actuate(request).unwrap(), receipt);
 }
 
 #[test]
@@ -355,7 +364,7 @@ fn later_invalid_operation_precedes_exhausted_write_cursor() {
 }
 
 #[test]
-fn prospective_closure_precedes_exhausted_dependency_generation() {
+fn earlier_dependency_registration_exhaustion_precedes_later_closure() {
     let dir = TempDir::new().unwrap();
     let db_path = path(&dir, "closure-precedence");
     let opened = Engine::open(&db_path).unwrap();
@@ -389,8 +398,8 @@ fn prospective_closure_precedes_exhausted_dependency_generation() {
     .unwrap();
 
     let receipt = opened.engine.actuate(request).unwrap();
-    assert_eq!(receipt.reason_codes, vec![ActuationRefusalReasonV1::DependencyClosureRequired]);
-    assert_eq!(receipt.refused_operation_index, Some(3));
+    assert_eq!(receipt.reason_codes, vec![ActuationRefusalReasonV1::DependencyGenerationExhausted]);
+    assert_eq!(receipt.refused_operation_index, Some(2));
 }
 
 #[test]

@@ -525,21 +525,7 @@ fn an_unreadable_cache_entry_falls_back_to_running_the_probe() {
         open_count_close(&path, Arc::new(CountingRefEmbedder { calls: calls.clone() }), &calls);
     assert_eq!(cached, 0, "verified workspace reopens free");
 
-    // Garble every `_fathomdb_open_state` value that is not a known non-probe
-    // marker: whatever key TC-68 chose, its cached verdict is now unreadable.
-    {
-        let conn = rusqlite::Connection::open(&path).unwrap();
-        conn.execute(
-            "UPDATE _fathomdb_open_state SET value = 'not-a-fingerprint'
-             WHERE key NOT IN ('projection_cursor',
-                               'search_index_tokenizer_reproject_complete',
-                               'tc33_edge_vector_prune_complete',
-                               'tc33_reserved_write_cursor',
-                               '_fathomdb_dependency_generation')",
-            [],
-        )
-        .expect("garble the cached verdict");
-    }
+    install_verdict_marker(&path, "not-a-fingerprint");
 
     let (after_garble, degraded) =
         open_count_close(&path, Arc::new(CountingRefEmbedder { calls: calls.clone() }), &calls);
@@ -560,19 +546,7 @@ fn a_missing_cache_entry_falls_back_to_running_the_probe() {
     let calls = counter();
     seed_verified_workspace(&path, &calls);
 
-    {
-        let conn = rusqlite::Connection::open(&path).unwrap();
-        conn.execute(
-            "DELETE FROM _fathomdb_open_state
-             WHERE key NOT IN ('projection_cursor',
-                               'search_index_tokenizer_reproject_complete',
-                               'tc33_edge_vector_prune_complete',
-                               'tc33_reserved_write_cursor',
-                               '_fathomdb_dependency_generation')",
-            [],
-        )
-        .expect("delete the cached verdict");
-    }
+    clear_verdict_marker(&path);
 
     let (after_delete, degraded) =
         open_count_close(&path, Arc::new(CountingRefEmbedder { calls: calls.clone() }), &calls);
@@ -594,19 +568,7 @@ fn a_divergence_on_a_rerun_still_disables_dense() {
     seed_verified_workspace(&path, &calls);
 
     // Invalidate the cached verdict the same way a pre-TC-68 workspace would look.
-    {
-        let conn = rusqlite::Connection::open(&path).unwrap();
-        conn.execute(
-            "DELETE FROM _fathomdb_open_state
-             WHERE key NOT IN ('projection_cursor',
-                               'search_index_tokenizer_reproject_complete',
-                               'tc33_edge_vector_prune_complete',
-                               'tc33_reserved_write_cursor',
-                               '_fathomdb_dependency_generation')",
-            [],
-        )
-        .expect("delete the cached verdict");
-    }
+    clear_verdict_marker(&path);
 
     let (embeds, degraded) = open_count_close(
         &path,

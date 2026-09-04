@@ -906,20 +906,19 @@ fn tc90_mechanism_transition_sql_shape_on_real_schema_is_busy_5() {
     let _ = b.execute_batch("ROLLBACK;");
 }
 
-/// **Pin 2 — the real [`Engine::transition`] under the same HELD write lock.**
+/// **Pin 2 — Slice 30 resolution: the real [`Engine::transition`] now acquires
+/// its write lock before lifecycle and closure reads.**
 ///
-/// Deterministic: the lock is taken by a second connection and held for the whole
-/// call, so nothing here depends on winning a race. This is the engine-level
-/// counterpart to pin 1 and it is what makes "the shape reaches SQLite" a
-/// measurement rather than a code reading.
-///
-/// Note what is NOT asserted: the numeric code. `transition` maps every rusqlite
-/// error through `.map_err(|_| EngineError::Storage)` and — unlike `write_inner`
-/// (`lib.rs:5097`) — never calls `emit_sqlite_internal_error`, so on this path the
-/// code is not merely opaque to the host, it is never emitted at all. Pin 1 is
-/// where the code comes from.
+/// Pin 1 intentionally preserves the historical deferred-promotion mechanism.
+/// The production call no longer has that shape: while a second connection holds
+/// the lock, `BEGIN IMMEDIATE` consults SQLite's busy policy, waits for a bounded
+/// release, and succeeds. The two-phase handshake makes the ordering explicit;
+/// no scheduler race can release the blocker before the measured call begins.
 #[test]
-fn tc90_mechanism_engine_transition_under_held_write_lock_fails_immediately() {
+fn tc90_mechanism_engine_transition_under_held_write_lock_survives() {
+    const HOLD: Duration = Duration::from_millis(250);
+    const READY_TIMEOUT: Duration = Duration::from_secs(30);
+
     let dir = TempDir::new().expect("tempdir");
     let path = dir.path().join(format!("tc90_mech_engine{SQLITE_SUFFIX}"));
     let calls = Arc::new(AtomicUsize::new(0));
@@ -932,19 +931,34 @@ fn tc90_mechanism_engine_transition_under_held_write_lock_fails_immediately() {
     engine.write(&[governed_node("tc90-held", "held-lock subject")]).expect("seed");
     engine.drain(60_000).expect("drain");
 
-    let blocker = rusqlite::Connection::open(&path).expect("open blocker");
-    blocker.execute_batch("BEGIN IMMEDIATE;").expect("blocker takes the write lock");
-    blocker
-        .execute(
-            "INSERT OR IGNORE INTO _fathomdb_projection_terminal(write_cursor, state) \
-             VALUES(?1, ?2)",
-            rusqlite::params![9_999_998_i64, "up_to_date"],
-        )
-        .expect("blocker writes under its lock");
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel::<()>();
+    let (ack_tx, ack_rx) = std::sync::mpsc::channel::<()>();
+    let holder = {
+        let path = path.clone();
+        std::thread::spawn(move || {
+            let blocker = rusqlite::Connection::open(path).expect("open blocker");
+            blocker.execute_batch("BEGIN IMMEDIATE;").expect("blocker takes the write lock");
+            blocker
+                .execute(
+                    "INSERT OR IGNORE INTO _fathomdb_projection_terminal(write_cursor, state) \
+                     VALUES(?1, ?2)",
+                    rusqlite::params![9_999_998_i64, "up_to_date"],
+                )
+                .expect("blocker writes under its lock");
+            ready_tx.send(()).expect("announce held lock");
+            ack_rx.recv_timeout(READY_TIMEOUT).expect("writer acknowledges timing start");
+            std::thread::sleep(HOLD);
+            blocker.execute_batch("ROLLBACK;").expect("release held lock");
+        })
+    };
+
+    ready_rx.recv_timeout(READY_TIMEOUT).expect("blocker must hold lock before transition");
 
     let started = Instant::now();
+    ack_tx.send(()).expect("transition timing started");
     let result = engine.transition("tc90-held", LifecycleState::Deleted, None);
     let elapsed = started.elapsed();
+    holder.join().expect("blocker thread must not panic");
     println!(
         "TC90-MECH engine_transition result={:?} elapsed_ms={}",
         result.as_ref().err(),
@@ -952,18 +966,14 @@ fn tc90_mechanism_engine_transition_under_held_write_lock_fails_immediately() {
     );
 
     assert!(
-        matches!(result, Err(EngineError::Storage)),
-        "TC-90: `Engine::transition` under a held WAL write lock returns the opaque unit \
-         variant `EngineError::Storage`; got {result:?}"
+        result.is_ok(),
+        "Slice 30: `Engine::transition` must survive bounded held-lock contention; got {result:?}"
     );
     assert!(
-        elapsed < Duration::from_millis(2_000),
-        "and it returns IMMEDIATELY — the busy handler is skipped for a promotion, so no \
-         backoff happens (took {elapsed:?})"
+        elapsed >= HOLD / 2,
+        "transition returned before the synchronized blocker released ({elapsed:?})"
     );
 
-    let _ = blocker.execute_batch("ROLLBACK;");
-    drop(blocker);
     let _ = engine.close();
 }
 

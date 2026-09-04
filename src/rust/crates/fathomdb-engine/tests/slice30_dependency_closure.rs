@@ -38,6 +38,30 @@ fn canonical(revision: &str, version: &str, logical: &str, body: &str) -> Prepar
     })
 }
 
+fn canonical_with_validity(
+    revision: &str,
+    version: &str,
+    logical: &str,
+    body: &str,
+    valid_from: Option<i64>,
+    valid_until: Option<i64>,
+) -> PreparedWrite {
+    PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+        kind: "doc".into(),
+        body: body.into(),
+        source_id: SourceId::new("bucket").unwrap(),
+        logical_id: Some(logical.into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from,
+        valid_until,
+        provenance: WriteProvenanceV1::canonical(
+            ArtifactRevisionId::new(revision).unwrap(),
+            SourceVersionId::new(version).unwrap(),
+        ),
+    })
+}
+
 fn derived_node(revision: &str, logical: &str, source_revision: &str) -> PreparedWrite {
     PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
         kind: "fact".into(),
@@ -321,6 +345,148 @@ fn physical_source_purge_erases_registered_dependents_and_keeps_proof() {
     assert_eq!(physical.0, "complete");
     assert!(physical.1 > 0);
     assert_eq!(physical.2, 0);
+}
+
+#[test]
+fn registered_derived_read_uses_source_validity_from_the_same_read_view() {
+    let dir = TempDir::new().unwrap();
+    let opened = Engine::open(path(&dir, "source-validity")).unwrap();
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+        as i64;
+    opened
+        .engine
+        .write(&[
+            canonical_with_validity(
+                "source-r1",
+                "v1",
+                "source",
+                "source body",
+                Some(now - 10),
+                Some(now + 10),
+            ),
+            derived_node("derived-r1", "derived", "source-r1"),
+        ])
+        .unwrap();
+    opened
+        .engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new("dep", "source-r1", "derived-r1").unwrap(),
+        )
+        .unwrap();
+
+    let inside = ReadView { valid_as_of: Some(now), ..ReadView::default() };
+    let at_end = ReadView { valid_as_of: Some(now + 10), ..ReadView::default() };
+    let relaxed = ReadView {
+        valid_as_of: Some(now + 10),
+        include_out_of_window: true,
+        ..ReadView::default()
+    };
+
+    assert!(opened.engine.read_get("derived", &inside).unwrap().is_some());
+    assert!(opened.engine.read_get("derived", &at_end).unwrap().is_none());
+    assert!(opened.engine.read_get("derived", &relaxed).unwrap().is_some());
+}
+
+#[test]
+fn physical_closure_measures_surviving_canonical_rows_and_rolls_back() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "physical-proof-measured");
+    let opened = Engine::open(&db).unwrap();
+    seed_registered(&opened.engine);
+    opened.engine.transition("source", LifecycleState::Deleted, None).unwrap();
+
+    let connection = Connection::open(&db).unwrap();
+    connection
+        .execute_batch(
+            "CREATE TRIGGER preserve_derived_row_before_delete \
+             BEFORE DELETE ON canonical_nodes \
+             WHEN OLD.logical_id='derived' \
+             BEGIN SELECT RAISE(IGNORE); END;",
+        )
+        .unwrap();
+    drop(connection);
+
+    assert!(matches!(opened.engine.purge("source"), Err(EngineError::Storage)));
+
+    let connection = Connection::open(&db).unwrap();
+    let roots: i64 = connection
+        .query_row("SELECT COUNT(*) FROM canonical_nodes WHERE logical_id='source'", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    let derived: i64 = connection
+        .query_row("SELECT COUNT(*) FROM canonical_nodes WHERE logical_id='derived'", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!((roots, derived), (1, 1), "the failed proof must roll back the erase");
+}
+
+#[test]
+fn post_commit_closure_finalization_failure_does_not_reuse_write_boundary() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "post-commit-finalization");
+    let opened = Engine::open(&db).unwrap();
+    seed_registered(&opened.engine);
+    let connection = Connection::open(&db).unwrap();
+    connection
+        .execute_batch(
+            "CREATE TRIGGER fail_closure_completion_before_update \
+             BEFORE UPDATE OF phase ON _fathomdb_dependency_closures \
+             WHEN NEW.phase='complete' \
+             BEGIN SELECT RAISE(ABORT, 'forced closure finalization failure'); END;",
+        )
+        .unwrap();
+    drop(connection);
+
+    let request = ActuationBatchV1::new(
+        "force-finalization-failure",
+        vec![
+            ActuationOperationV1::PutCanonicalNode(
+                match canonical("batch-r1", "batch-v1", "batch-write", "batch body") {
+                    PreparedWrite::ProvenancedNode(node) => node,
+                    _ => unreachable!(),
+                },
+            ),
+            ActuationOperationV1::TransitionLifecycle(
+                LifecycleActuationV1::new(
+                    "source",
+                    ArtifactRevisionId::new("source-r1").unwrap(),
+                    LifecycleState::Deleted,
+                    None,
+                )
+                .unwrap(),
+            ),
+        ],
+    )
+    .unwrap();
+    assert!(matches!(opened.engine.actuate(request), Err(EngineError::Storage)));
+
+    let connection = Connection::open(&db).unwrap();
+    connection.execute("DROP TRIGGER fail_closure_completion_before_update", []).unwrap();
+    let committed_boundary: i64 = connection
+        .query_row(
+            "SELECT admitted_write_boundary FROM _fathomdb_dependency_closures \
+             WHERE root_value='source-r1' ORDER BY closure_sequence DESC LIMIT 1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    drop(connection);
+
+    opened
+        .engine
+        .write(&[canonical("unrelated-r1", "unrelated-v1", "unrelated", "unrelated body")])
+        .unwrap();
+    let connection = Connection::open(&db).unwrap();
+    let next_cursor: i64 = connection
+        .query_row(
+            "SELECT write_cursor FROM canonical_nodes WHERE logical_id='unrelated'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert!(next_cursor > committed_boundary);
 }
 
 #[test]

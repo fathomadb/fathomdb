@@ -1763,6 +1763,12 @@ impl Engine {
                             };
                             apply_validated_source_dependency(&tx, &validated, generation)
                                 .map_err(RefusalOrInfrastructure::Infrastructure)?;
+                            // Later operations in this same atomic batch must
+                            // observe the generation of the dependency just
+                            // registered. A later refusal rolls this update
+                            // back with the actuation-domain savepoint.
+                            store_dependency_generation(&tx, generation)
+                                .map_err(RefusalOrInfrastructure::Infrastructure)?;
                             Ok(())
                         }
                     }

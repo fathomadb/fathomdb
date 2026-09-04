@@ -12139,26 +12139,20 @@ impl Engine {
         )
         .map_err(|_| EngineError::Storage)?;
 
-        let mut enqueued_projection = false;
-        if let Some((_, cursor, kind, body, row_kind)) = &current {
-            erase_row_projections(&tx, *cursor).map_err(|_| EngineError::Storage)?;
+        if let Some((_, cursor, _, body, _)) = &current {
+            purge_row_projections_for_cursor_in(
+                &tx,
+                *cursor,
+                &[ProjectionClass::Attribute, ProjectionClass::PropertyFts],
+            )
+            .map_err(|_| EngineError::Storage)?;
             if matches!(to_state, LifecycleState::Active) {
-                enqueued_projection = project_canonical_node_row(
-                    &tx,
-                    u64::try_from(*cursor).map_err(|_| EngineError::Storage)?,
-                    kind,
-                    body,
-                    row_kind_from_column(row_kind),
-                    ProjectionPass::Write,
-                    true,
-                )
-                .map_err(|_| EngineError::Storage)?;
+                project_node_attributes(&tx, *cursor, body).map_err(|_| EngineError::Storage)?;
+                refresh_vector_attr_values_for_row(&tx, *cursor, body)
+                    .map_err(|_| EngineError::Storage)?;
             }
         }
         tx.commit().map_err(|_| EngineError::Storage)?;
-        if enqueued_projection {
-            self.projection_runtime.notify_new_work();
-        }
         self.counters.record_admin();
         Ok(())
     }

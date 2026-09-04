@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 25 — atomic semantic actuation
-status: DRAFT_REVIEW_FIX_5
+status: AWAITING_HITL_DESIGN_FIX_CAP
 depends_on: 20
 design: design.md
-design_status: REVIEW_FIX_5_REQUIRED
+design_status: BLOCKED_AFTER_REVIEW_CYCLE_5
 ---
 
 # Slice 25 plan

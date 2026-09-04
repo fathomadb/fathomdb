@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 25 — bounded atomic actuation design
-status: DRAFT_REVIEW_FIX_5
+status: BLOCKED_DESIGN_FIX_CAP
 design_version: 7
 review_fix: 5
 depends_on: 20

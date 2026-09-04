@@ -47,6 +47,27 @@ Classify the result before continuing:
 - do not relax AC-072, change its fixture, or introduce an optimization
   treatment as part of this investigation.
 
+## Generic release-preflight correction
+
+Slice 20 commissioning found that `scripts/preflight.sh` hard-codes the 0.8.23
+completion file and tests dependency closure only through prose in the master
+plan. It therefore rejects a correctly based 0.8.25 feature worktree even when
+the live 0.8.25 release-state writer records the prerequisite complete.
+
+- **S75-R-PREFLIGHT.** Preflight must discover the one active release-state
+  file, validate its exact release/board/plan/ref contract, and decide worktree
+  freshness and dependency closure from that state instead of a hard-coded
+  release or narration grep.
+- **S75-AC-PREFLIGHT.** RED fixtures reproduce the false 0.8.25 stale-base and
+  missing-Slice-15 outcomes. GREEN accepts the exact release tip and completed
+  prerequisite, preserves 0.8.23 completed-release behavior, and rejects an
+  absent/malformed state, wrong release/ref, non-descendant worktree, open
+  prerequisite, and primary-checkout landing.
+
+This is release-infrastructure work, not a dependency-product change. Design
+review, TDD RED/GREEN, implementation review, and independent verification are
+required with the rest of Slice 75.
+
 ## Verification routes
 
 Selected: fast, heavy, all, applicable all-feature/operator, Windows CPU/native
@@ -63,8 +84,8 @@ post-publication close gate.
 Define receipt-presence and agreement criteria, installed wire fixtures,
 representative concurrency, evidence/page/dependency overhead,
 mutation-to-ready, erasure propagation, selected rebuild/resource regressions,
-and classification gates; design a proportionate workload matrix without
-semantic answer claims; review; implement
+classification gates, and generic release-state preflight; design a
+proportionate workload matrix without semantic answer claims; review; implement
 RED/GREEN harness checks; review; execute all selected routes; and record final
 release evidence. Stop when an owning slice lacks proof or a data-plane claim
 mixes answer-system metrics.

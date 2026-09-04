@@ -20,6 +20,29 @@ The matrix is deliberately representative. Exhaustive scale-by-feature-by-
 CUDA coverage, live-model routes, future profile/temporal treatments, and
 full integrity orchestration are preserved after 0.8.25.
 
+## Workload 0 — release-state-aware preflight
+
+The preflight gate discovers the single `dev/plans/release-state-*.json` writer
+for the active release and validates its release identity, board/plan paths,
+ladder, completion/ref state, and requested prerequisite before evaluating a
+feature worktree. Worktree freshness is relative to the release-state-declared
+base and release tip, not a hard-coded historical release or current
+`origin/main`. Dependency closure comes from the exact ladder entry and its
+Git-verifiable SHA, not a prose grep.
+
+The existing primary-checkout landing refusal, disk, mid-operation, board,
+ledger, governed-surface, and transcript checks remain unchanged. Missing,
+multiple, malformed, wrong-release, unverifiable-ref, non-descendant, or open-
+prerequisite state fails closed. Canonical fixtures preserve both a completed
+0.8.23 release and the active 0.8.25 release without embedding either version
+in product logic.
+
+TDD begins with fixtures reproducing the Slice 20 false rejection, then covers
+every accepted and refused state above. Implementation review must verify that
+the correction does not let a stale worktree or incomplete prerequisite pass;
+independent verification runs the fixture suite and the real Slice 75
+commissioning preflight.
+
 ## Manifest and receipt
 
 `IntegratedClosureManifestV1` is a strict checked-in evaluation configuration.

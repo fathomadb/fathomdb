@@ -35,7 +35,7 @@ ReadContextV1 {
 }
 FrozenReadContextV1 {
   schema_version: 1, database_id, effective_valid_at,
-  canonical_write_boundary, eligibility_sha256,
+  canonical_write_boundary, dependency_generation, eligibility_sha256,
   projection_generation_ids, token
 }
 ```
@@ -56,18 +56,20 @@ post-filtering.
 ## Optional frozen-read semantics
 
 `freeze_read(view, eligibility)` reads one UTC instant, canonical boundary,
-and serving projection generations in one transaction and returns an
+Slice 20 dependency generation, and serving projection generations in one
+transaction and returns an
 authenticated self-contained context. The token contains no content and
 requires no lease row. Subsequent context-bearing operations either reproduce
 that boundary using retained immutable revisions/generations or return a typed
 failure. They never silently advance to newer state.
 
 The context does not promise retained history. A projection rebuild, pruned
-revision, database mismatch, changed eligibility digest, or unavailable
-boundary returns `frozen_read_unavailable`, `frozen_read_mismatch`, or
-`frozen_read_drifted`. There is no TTL, renewal, pruning job, or permanently
-held SQLite reader transaction in 0.8.25. Current access, erasure, and Slice 30
-barriers are always rechecked and can only reduce visibility.
+revision, dependency-generation drift, database mismatch, changed eligibility
+digest, or unavailable boundary returns `frozen_read_unavailable`,
+`frozen_read_mismatch`, or `frozen_read_drifted`. There is no TTL, renewal,
+pruning job, or permanently held SQLite reader transaction in 0.8.25. Current
+access, erasure, and Slice 30 barriers are always rechecked and can only reduce
+visibility.
 
 The context names at most 64 projection generations and its encoded token is at
 most 4 KiB. A database with more applicable generations must use an ordinary

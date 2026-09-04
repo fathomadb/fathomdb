@@ -44,6 +44,7 @@ ActuationReceiptV1 {
   reason_codes,
   affected_revision_ids,
   resulting_write_boundary?,
+  resulting_dependency_generation?,
   projection_work_ids,
   closure_operation_ids
 }
@@ -64,6 +65,12 @@ projection work, the compact operation record, and receipt in one SQLite writer
 transaction. An operation may reference a record created earlier in the same
 batch. Any invalid operation refuses the whole batch; per-operation reason
 codes are diagnostic and never imply partial commit.
+
+Slice 20 dependency membership has a separate monotonic generation because it
+does not own projection work. A batch containing one or more successful
+dependency additions advances that generation once and returns it as
+`resulting_dependency_generation`; a batch without such a change returns
+`None`. `resulting_write_boundary` retains its canonical/global meaning.
 
 The compact operation table stores only operation ID, request digest, terminal
 outcome/reason codes, opaque affected IDs, boundaries, and work/closure IDs. It

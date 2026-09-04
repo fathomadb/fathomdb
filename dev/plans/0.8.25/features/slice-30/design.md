@@ -58,7 +58,7 @@ return only through a new caller-authored revision and dependency.
 From barrier admission through successful proof, every governed list, search,
 FTS, vector, graph, projection, and evidence path applies a direct dependency
 guard before candidate/seed/frontier truncation. A derived revision whose
-active Slice 20 dependency names a barriered source is ineligible even before
+registered Slice 20 dependency names a barriered source is ineligible even before
 its work row is processed. Missing/corrupt dependency indexes or inability to
 evaluate the guard fails the read `closure_visibility_unavailable`.
 
@@ -80,6 +80,10 @@ canonical/dependency, FTS, vector, graph, evidence, and WAL state. Completion
 requires zero active/searchable/projection dependents plus no post-admission
 dependency. The zero proof and barrier retirement commit atomically at a later
 write boundary. An empty queue alone is not completion.
+
+Any closure transaction that deletes one or more Slice 20 registrations also
+advances the separate dependency generation exactly once in that transaction.
+Closure that changes no dependency leaves it unchanged.
 
 Current lifecycle and erasure APIs remain compatible. Reactivation is the
 existing transition to `active`, requires a currently valid source dependency,

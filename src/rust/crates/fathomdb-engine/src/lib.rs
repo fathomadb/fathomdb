@@ -1823,7 +1823,7 @@ enum ReaderRequest {
         /// The existence axis is refused upstream, never carried here.
         view: ReadView,
         frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
-        frozen_query_runtime: Option<FrozenQueryRuntime>,
+        frozen_query_runtime: Option<Box<FrozenQueryRuntime>>,
         /// When present, produce bounded graph expansion from the final search
         /// hits before committing the same reader transaction.
         expand_depth: Option<u32>,
@@ -2397,7 +2397,7 @@ fn reader_worker_loop(
                     explain,
                     view,
                     frozen_binding.as_deref(),
-                    frozen_query_runtime,
+                    frozen_query_runtime.as_deref(),
                     expand_depth,
                     &wal_attribution,
                     worker_idx,
@@ -10463,11 +10463,13 @@ impl Engine {
             None => None,
         };
         let query_vector = raw_query_vector.and_then(|vector| serde_json::to_string(&vector).ok());
-        let frozen_query_runtime = is_frozen.then(|| FrozenQueryRuntime {
-            embedder: self.runtime_embedder.clone(),
-            embedder_identity: self.runtime_embedder_identity.clone(),
-            dense_disabled_reason,
-            observed_generation: Arc::clone(&self.read_visibility_generation),
+        let frozen_query_runtime = is_frozen.then(|| {
+            Box::new(FrozenQueryRuntime {
+                embedder: self.runtime_embedder.clone(),
+                embedder_identity: self.runtime_embedder_identity.clone(),
+                dense_disabled_reason,
+                observed_generation: Arc::clone(&self.read_visibility_generation),
+            })
         });
         // The public result limit is independent of the test-only vector
         // candidate fanout. The seam may raise this fanout for recall tests,
@@ -15740,7 +15742,7 @@ fn read_search_in_tx(
     explain: bool,
     view: ReadView,
     frozen_binding: Option<&frozen_read::FrozenReadBinding>,
-    frozen_query_runtime: Option<FrozenQueryRuntime>,
+    frozen_query_runtime: Option<&FrozenQueryRuntime>,
     expand_depth: Option<u32>,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
@@ -15788,46 +15790,45 @@ fn read_search_in_tx(
     let owned_compiled;
     let owned_query_vector;
     let owned_query_vector_bin;
-    let (compiled, query_vector, query_vector_bin) =
-        if let Some(runtime) = frozen_query_runtime.as_ref() {
-            validate_search_result_limit(final_limit)
-                .map_err(|error| SearchReaderError::InvalidArgument(error.to_string()))?;
-            if expand_depth.is_some_and(|depth| depth > 3) {
-                return Err(SearchReaderError::InvalidArgument(format!(
-                    "traversal depth {} exceeds the SDK ceiling of 3",
-                    expand_depth.unwrap_or_default()
-                )));
-            }
-            if let Some(reason) = runtime.dense_disabled_reason.as_ref() {
-                return Err(SearchReaderError::VectorEquivalenceMismatch(reason.clone()));
-            }
-            if raw_query.trim().is_empty() {
-                return Err(SearchReaderError::WriteValidation);
-            }
-            owned_compiled = compile_text_query(raw_query);
-            let raw_vector =
-                runtime.embedder.as_ref().and_then(|embedder| embedder.embed(raw_query).ok());
-            owned_query_vector_bin = match raw_vector.as_ref() {
-                Some(vector) if identity_requires_mean_centering(&runtime.embedder_identity) => {
-                    let pinned = read_pinned_mean_vec(&tx, runtime.embedder_identity.dimension)
-                        .map_err(|_| SearchReaderError::Sqlite(rusqlite::Error::InvalidQuery))?;
-                    match pinned {
-                        Some(mean) => serde_json::to_string(&subtract_mean(vector, &mean)).ok(),
-                        None => serde_json::to_string(vector).ok(),
-                    }
+    let (compiled, query_vector, query_vector_bin) = if let Some(runtime) = frozen_query_runtime {
+        validate_search_result_limit(final_limit)
+            .map_err(|error| SearchReaderError::InvalidArgument(error.to_string()))?;
+        if expand_depth.is_some_and(|depth| depth > 3) {
+            return Err(SearchReaderError::InvalidArgument(format!(
+                "traversal depth {} exceeds the SDK ceiling of 3",
+                expand_depth.unwrap_or_default()
+            )));
+        }
+        if let Some(reason) = runtime.dense_disabled_reason.as_ref() {
+            return Err(SearchReaderError::VectorEquivalenceMismatch(reason.clone()));
+        }
+        if raw_query.trim().is_empty() {
+            return Err(SearchReaderError::WriteValidation);
+        }
+        owned_compiled = compile_text_query(raw_query);
+        let raw_vector =
+            runtime.embedder.as_ref().and_then(|embedder| embedder.embed(raw_query).ok());
+        owned_query_vector_bin = match raw_vector.as_ref() {
+            Some(vector) if identity_requires_mean_centering(&runtime.embedder_identity) => {
+                let pinned = read_pinned_mean_vec(&tx, runtime.embedder_identity.dimension)
+                    .map_err(|_| SearchReaderError::Sqlite(rusqlite::Error::InvalidQuery))?;
+                match pinned {
+                    Some(mean) => serde_json::to_string(&subtract_mean(vector, &mean)).ok(),
+                    None => serde_json::to_string(vector).ok(),
                 }
-                Some(vector) => serde_json::to_string(vector).ok(),
-                None => None,
-            };
-            owned_query_vector = raw_vector.and_then(|vector| serde_json::to_string(&vector).ok());
-            (&owned_compiled, owned_query_vector.as_deref(), owned_query_vector_bin.as_deref())
-        } else {
-            (
-                compiled.ok_or_else(|| SearchReaderError::Sqlite(rusqlite::Error::InvalidQuery))?,
-                query_vector,
-                query_vector_bin,
-            )
+            }
+            Some(vector) => serde_json::to_string(vector).ok(),
+            None => None,
         };
+        owned_query_vector = raw_vector.and_then(|vector| serde_json::to_string(&vector).ok());
+        (&owned_compiled, owned_query_vector.as_deref(), owned_query_vector_bin.as_deref())
+    } else {
+        (
+            compiled.ok_or_else(|| SearchReaderError::Sqlite(rusqlite::Error::InvalidQuery))?,
+            query_vector,
+            query_vector_bin,
+        )
+    };
     let cursor = load_projection_cursor(&tx)?;
     // fix-3 (codex §9 [P2], TOCTOU) — validate every filter attribute name on THIS
     // reader transaction's snapshot, before `build_vector_phase1_sql` emits

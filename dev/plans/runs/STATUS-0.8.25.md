@@ -12,10 +12,10 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 30 (LIFECYCLE), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 35 (ELIGIBILITY), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
-Prework and Slices 10 through 25 are complete on the durable `release/0.8.25`
-worktree. Feature work continues with Slice 30. The owner-approved 2026-09-02
+Prework and Slices 10 through 30 are complete on the durable `release/0.8.25`
+worktree. Slice 35 is next. The owner-approved 2026-09-02
 scope adjustment removes Slices 65/70 and narrows the retained implementation
 ladder. Direct agents execute this release without Steward or Orchestrator
 roles.
@@ -36,7 +36,7 @@ roles.
 | 15 | Identity and source provenance | Complete on release branch (`9a53e26a`) |
 | 20 | Core dependency registration | Complete on release branch (`7766d4c4`) |
 | 25 | Core atomic semantic actuation | Complete on release branch (`131053da`) |
-| 30 | Lifecycle and erasure closure | Not started |
+| 30 | Lifecycle and erasure closure | Complete on release branch (`75617521`) |
 | 35 | Eligibility and optional frozen reads | Not started |
 | 40 | Core projection generation/readiness | Not started |
 | 45 | Minimal pagination and operational state | Not started |
@@ -68,7 +68,7 @@ roles.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 30 (LIFECYCLE)** — dependency-aware lifecycle and erasure closure. **Remaining ladder:** 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 35 (ELIGIBILITY)** — eligibility-before-ranking and optional frozen reads. **Remaining ladder:** 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 
@@ -101,6 +101,10 @@ lint, and `git diff --check`. Each Slice 1–5 record is proposal-only.
   review at cycle 7. Its 76 focused Rust/schema tests, 387 TypeScript tests,
   fresh-wheel Python tests, rollback/projection proofs, and governed-surface
   gate pass.
+- Slice 30 passes design reconciliation and implementation review. Verification
+  FIX-1 closed the sole post-review P2 through committed RED/GREEN. Its 26
+  focused tests, 103 fast suites, full serial Rust workspace, heavy Rust and
+  TypeScript routes, operator route, and fresh-wheel corruption replay pass.
 - A diagnostic release-wide long gate exposed the pre-existing AC-013 vector
   latency failure and was stopped after that failure. It is release debt, not
   a Slice 10 regression.

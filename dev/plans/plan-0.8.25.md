@@ -26,8 +26,8 @@ The successor architecture and delivery plan are
 and [`fathomdb-data-plane-foldback-v2.md`](fathomdb-data-plane-foldback-v2.md).
 Architecture v2.1 is the active implementation authority following the completed
 Slice 4–6 review/decision work and the S7-07 architecture package. Slices 7
-through 25 are complete on the release branch; the canonical release state
-below now commissions Slice 30.
+through 30 are complete on the release branch; the canonical release state
+below now commissions Slice 35.
 
 ## Setup record
 
@@ -205,15 +205,14 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 30** (`LIFECYCLE`) — dependency-aware lifecycle and erasure closure
+**IMMEDIATE NEXT: Slice 35** (`ELIGIBILITY`) — eligibility-before-ranking and optional frozen reads
 
-**Remaining ladder:** 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
-Execute the Slice 30 plan directly. Reconcile its scoped draft against the
-completed identity, dependency, and actuation substrates, the activated
-architecture, and current code; then use TDD, independent design and
-implementation review, and read-only verification. Slice 30 remains bounded to
-dependency-aware lifecycle and erasure closure.
+Execute the Slice 35 plan directly. Reconcile eligibility and optional frozen
+reads against the completed identity, dependency, actuation, and lifecycle
+substrates; then use TDD, independent design and implementation review, and
+read-only verification.
 
 ## Stop gates
 

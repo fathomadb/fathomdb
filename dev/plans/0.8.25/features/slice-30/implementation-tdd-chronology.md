@@ -32,6 +32,8 @@ implementation. It does not retroactively describe post-hoc coverage as RED.
 | FIX-7 GREEN | `6082a4c2` | Ordinary transition again maintains vector metadata synchronously and selectively, while dependent closure keeps full projection removal. Actuation makes an earlier reserved dependency generation visible to later closure admission within the same rollback-safe savepoint. All six formerly failing targets pass serially. |
 | FIX-8 COVERAGE/DOC CORRECTION | `57628948` | Full-workspace verification showed the projection-worker pause was already after successful `BEGIN IMMEDIATE`; its extra optional-attribution wait was removed. The worker-first oracle was corrected to distinguish the retained, lifecycle-filtered root vector from the purged dependent vector, and TC-90's top-level narrative now separates historical mechanism from current behavior. No product defect was exposed. |
 | FIX-8 REVIEW CORRECTION | `7185d7b0` | Both race orderings now prove physical vec0 row identity rather than terminal-readiness or total-count proxies. Remaining TC-90 comments describe the ignored loops as post-fix contention instruments and preserve baseline reproduction claims as history. |
+| VERIFICATION FIX-1 RED | `27ac460b` | A same-open-Engine point read accepted missing, malformed, and regressed durable closure-sequence singleton state that reopen correctly rejected. |
+| VERIFICATION FIX-1 GREEN | `75617521` | Open and keyed closure reads now share the canonical singleton/max-sequence validator. Independent review and a fresh-wheel replay of the original corruption case pass. |
 
-Further cycles append rows here before Slice 30 is closed. The status record
-will identify the final implementation and verification commits.
+Slice 30 closed after verification FIX-1. The status record identifies the
+final implementation and verification evidence.

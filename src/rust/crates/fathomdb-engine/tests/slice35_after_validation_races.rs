@@ -3,8 +3,8 @@ use std::sync::{Arc, Barrier};
 use std::thread;
 
 use fathomdb_engine::{
-    arm_frozen_after_validation_hook_for_test, Engine, InitialState, LifecycleState, PreparedWrite,
-    ProjectionRole, ProjectionSpec, ReadContextV1, ReadView, SearchFilter, SourceId,
+    arm_frozen_after_validation_hook_for_test, Engine, EngineError, InitialState, LifecycleState,
+    PreparedWrite, ProjectionRole, ProjectionSpec, ReadContextV1, ReadView, SearchFilter, SourceId,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
@@ -36,7 +36,11 @@ fn mutate(engine: &Engine, mutation: Mutation) {
             engine.transition("root", LifecycleState::Deleted, None).unwrap();
         }
         Mutation::Erasure => {
-            engine.erase_source("test:slice35-after-validation").unwrap();
+            assert!(matches!(
+                engine.erase_source("test:slice35-after-validation"),
+                Err(EngineError::ErasureIncomplete { stage, .. })
+                    if stage == "wal_checkpoint"
+            ));
         }
         Mutation::DependencyClosure => {
             engine
@@ -109,6 +113,11 @@ fn assert_after_validation_mutation_uses_the_pinned_snapshot(mutation: Mutation)
         result.results.iter().any(|hit| hit.id.value == "root"),
         "the operation must remain on the snapshot pinned before {mutation:?}"
     );
+    if matches!(mutation, Mutation::Erasure) {
+        engine
+            .erase_source("test:slice35-after-validation")
+            .expect("erasure retry must close once the pinned snapshot is released");
+    }
 }
 
 #[test]

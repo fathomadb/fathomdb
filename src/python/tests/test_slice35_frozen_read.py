@@ -33,7 +33,8 @@ def test_frozen_search_preserves_context_and_filters_before_ranking(db_path: str
     result = engine.search_frozen("needle", frozen, limit=1)
 
     assert frozen.schema_version == 1
-    assert frozen.context == context
+    assert frozen.context.eligibility == context.eligibility
+    assert frozen.context.view.valid_as_of == frozen.effective_valid_at
     assert [hit.id.value for hit in result.results] == ["allowed"]
     engine.close()
 

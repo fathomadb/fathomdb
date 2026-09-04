@@ -1,9 +1,9 @@
-use std::sync::Arc;
+use std::{collections::BTreeSet, sync::Arc};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    Engine, EngineError, FrozenReadErrorReason, InitialState, PreparedWrite, ReadContextV1,
-    ReadView, SearchFilter, SourceId,
+    Engine, EngineError, FrozenReadErrorReason, InitialState, PreparedWrite, ProjectionRole,
+    ProjectionSpec, ReadContextV1, ReadView, SearchFilter, SourceId,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
@@ -49,6 +49,22 @@ fn context(kind: &str) -> ReadContextV1 {
     let mut eligibility = SearchFilter::default();
     eligibility.kind = Some(kind.to_string());
     ReadContextV1::new(ReadView::default(), eligibility).unwrap()
+}
+
+fn edge(logical_id: &str, from: &str, to: &str) -> PreparedWrite {
+    PreparedWrite::Edge {
+        kind: "link".to_string(),
+        from: from.to_string(),
+        to: to.to_string(),
+        source_id: SourceId::new("test:slice35").unwrap(),
+        logical_id: Some(logical_id.to_string()),
+        body: None,
+        t_valid: None,
+        t_invalid: None,
+        confidence: None,
+        extractor_model_id: None,
+        temporal_fallback: None,
+    }
 }
 
 fn search(
@@ -179,5 +195,55 @@ fn frozen_search_expand_uses_the_bound_context_and_rejects_drift() {
         Err(EngineError::FrozenRead(error))
             if error.reason == FrozenReadErrorReason::StateDrifted
     ));
+    opened.engine.close().unwrap();
+}
+
+#[test]
+fn frozen_expansion_applies_eligibility_before_the_graph_cap() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("expand-filter{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    let mut roles = BTreeSet::new();
+    roles.insert(ProjectionRole::Filterable);
+    opened
+        .engine
+        .configure_projections(
+            &[ProjectionSpec {
+                name: "owner".to_string(),
+                roles,
+                fts: None,
+                vector: None,
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+
+    let mut writes = vec![
+        node("root", "doc", r#"{"owner":"alice","text":"unique expansion root"}"#),
+        node("zz-eligible", "doc", r#"{"owner":"alice","text":"eligible neighbor"}"#),
+        edge("edge-eligible", "root", "zz-eligible"),
+    ];
+    for index in 0..60 {
+        let id = format!("aa-ineligible-{index:02}");
+        writes.push(node(&id, "doc", &format!(r#"{{"owner":"bob","text":"neighbor {index}"}}"#)));
+        writes.push(edge(&format!("edge-{index:02}"), "root", &id));
+    }
+    opened.engine.write(&writes).unwrap();
+    opened.engine.drain(10_000).unwrap();
+
+    let mut filter = SearchFilter::default();
+    filter.attributes = vec![("owner".to_string(), "alice".to_string())];
+    let frozen = opened
+        .engine
+        .freeze_read_context(&ReadContextV1::new(ReadView::default(), filter).unwrap())
+        .unwrap();
+    let result =
+        opened.engine.search_expand_frozen("unique expansion root", &frozen, 1, 1).unwrap();
+
+    assert_eq!(
+        result.expanded.iter().map(|(node, _)| node.logical_id.as_str()).collect::<Vec<_>>(),
+        ["zz-eligible"]
+    );
     opened.engine.close().unwrap();
 }

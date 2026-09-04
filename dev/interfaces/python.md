@@ -269,6 +269,26 @@ unusable without retaining its prior receipt content.
 content-string FFI guard, so an embedded NUL is preserved exactly; body, kind,
 and other content/control strings retain the REQ-064 rejection.
 
+## Dependency lifecycle closure (0.8.25 Slice 30)
+
+Source-losing lifecycle and erasure operations close direct registered
+dependents atomically. A nonterminal closure remains invisible under every
+`ReadView`; an incomplete physical closure fences other writers with the
+existing `ErasureIncomplete` stage `dependency_closure` until the exact
+originating operation is retried.
+
+`engine.read_dependency_closure(request)` accepts only
+`{"schema_version": 1, "closure_operation_id": ...}` and returns a frozen
+`ClosureStatusV1` or `None` for an absent valid opaque ID. Its root is the
+closed `source_revision`/`source_bucket` union; cause is `superseded`,
+`soft_deleted`, `purged`, or `source_erased`; phase is `proving`,
+`at_rest_pending`, `complete`, or `incomplete`. All counts and boundaries are
+canonical unsigned decimal strings. A completed status carries a
+`ClosureProofV1`; an incomplete status also carries one only for physical
+closure. Invalid schema, unknown fields, or invalid identifiers raise
+`DependencyClosureError` with closed `reason` and canonical RFC 6901
+`field_path`. There is no public list, resume, or repair method.
+
 ## Node write-item validity window (0.8.20 Slice 15b, TC-34)
 
 `engine.write([...])` takes loose mappings, not typed structs. A **node** item

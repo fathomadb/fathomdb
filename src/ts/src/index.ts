@@ -190,6 +190,44 @@ export interface DependencyListV1 {
   items: SourceDependencyV1[];
 }
 
+/** Closed lookup for one opaque Engine-minted closure operation. */
+export interface ClosureLookupV1 {
+  schemaVersion: 1;
+  closureOperationId: string;
+}
+
+/** Scalar zero-proof for a completed dependency closure. */
+export interface ClosureProofV1 {
+  schemaVersion: 1;
+  proofWriteBoundary: string;
+  currentActiveDependentNodes: string;
+  currentDerivedEdges: string;
+  viewEligibleDependents: string;
+  ownerlessProjectionRows: string;
+  postAdmissionRegistrations: string;
+  remainingDependencyRows: string | null;
+  remainingCanonicalRows: string | null;
+  remainingProjectionRows: string | null;
+  remainingReceiptReferenceRows: string | null;
+}
+
+/** Current durable status of one dependency closure. */
+export interface ClosureStatusV1 {
+  schemaVersion: 1;
+  closureOperationId: string;
+  root:
+    | { type: "source_revision"; sourceRevisionId: string }
+    | { type: "source_bucket"; sourceId: string };
+  cause: "superseded" | "soft_deleted" | "purged" | "source_erased";
+  phase: "proving" | "at_rest_pending" | "complete" | "incomplete";
+  effectiveAtEpochS: string;
+  admittedWriteBoundary: string;
+  admittedDependencyGeneration: string;
+  affectedCount: string;
+  blockerCode: string | null;
+  proof: ClosureProofV1 | null;
+}
+
 export type ActuationOperationV1 =
   | { type: "put_canonical_node"; record: Record<string, unknown> }
   | { type: "put_derived_node"; record: Record<string, unknown> }
@@ -1272,6 +1310,18 @@ export class Engine {
   ): Promise<SourceDependencyV1 | null> {
     const value = await intercept(() => this.#native.dependencyForDerived(request));
     return value === null ? null : dependencyResponse(value);
+  }
+
+  /** Return current closure status, or `null` for an absent opaque ID. */
+  async readDependencyClosure(
+    request: ClosureLookupV1,
+  ): Promise<ClosureStatusV1 | null> {
+    try {
+      const value = await this.#native.readDependencyClosure(request);
+      return value as ClosureStatusV1 | null;
+    } catch (err) {
+      rethrowTyped(err);
+    }
   }
 
   /**

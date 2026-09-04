@@ -53,19 +53,20 @@ use fathomdb_engine::{
     rerank_passages as rust_rerank_passages, ActuationBatchV1,
     ActuationError as RustActuationError, ActuationOperationV1, ActuationOutcomeV1,
     ActuationReceiptV1 as RustActuationReceiptV1, ArtifactRevisionId,
-    BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ComparisonOp as RustComparisonOp,
+    BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ClosureLookupV1, ClosureRootV1,
+    ClosureStatusV1 as RustClosureStatusV1, ComparisonOp as RustComparisonOp,
     ConsolidateAxis as RustConsolidateAxis, ConsolidateReceipt as RustConsolidateReceipt,
     CorruptionDetail, CorruptionKind, DenseReadiness as RustDenseReadiness,
-    DependencyDerivedLookupV1, DependencyError as RustDependencyError,
-    DependencyListV1 as RustDependencyListV1, DependencySourceLookupV1, EmbedderChoice,
-    EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
-    EngineError as RustEngineError, EngineOpenError, ExciseReport as RustExciseReport,
-    Explanation as RustExplanation, ExtractDocument as RustExtractDocument, Filter as RustFilter,
-    FilterTerm as RustFilterTerm, IdSpace as RustIdSpace,
-    IngestWithExtractorReceipt as RustIngestWithExtractorReceipt, InitialState,
-    LifecycleActuationV1, LifecycleState as RustLifecycleState, NodeRecord as RustNodeRecord,
-    OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
-    PerHitExplain as RustPerHitExplain, Predicate as RustPredicate, PreparedWrite,
+    DependencyClosureError as RustDependencyClosureError, DependencyDerivedLookupV1,
+    DependencyError as RustDependencyError, DependencyListV1 as RustDependencyListV1,
+    DependencySourceLookupV1, EmbedderChoice, EmbeddingReadiness as RustEmbeddingReadiness,
+    Engine as RustEngine, EngineError as RustEngineError, EngineOpenError,
+    ExciseReport as RustExciseReport, Explanation as RustExplanation,
+    ExtractDocument as RustExtractDocument, Filter as RustFilter, FilterTerm as RustFilterTerm,
+    IdSpace as RustIdSpace, IngestWithExtractorReceipt as RustIngestWithExtractorReceipt,
+    InitialState, LifecycleActuationV1, LifecycleState as RustLifecycleState,
+    NodeRecord as RustNodeRecord, OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport,
+    OpenStage, PerHitExplain as RustPerHitExplain, Predicate as RustPredicate, PreparedWrite,
     ProjectionDelta as RustProjectionDelta, ProjectionFts as RustProjectionFts,
     ProjectionRole as RustProjectionRole, ProjectionRuntimeStatus as RustProjectionRuntimeStatus,
     ProjectionRuntimeStatusEntry as RustProjectionRuntimeStatusEntry,
@@ -108,6 +109,7 @@ create_exception!(_fathomdb, WriteValidationError, EngineError);
 create_exception!(_fathomdb, SchemaValidationError, EngineError);
 create_exception!(_fathomdb, ProvenanceError, EngineError);
 create_exception!(_fathomdb, DependencyError, EngineError);
+create_exception!(_fathomdb, DependencyClosureError, EngineError);
 create_exception!(_fathomdb, ActuationError, EngineError);
 create_exception!(_fathomdb, OverloadedError, EngineError);
 create_exception!(_fathomdb, ClosingError, EngineError);
@@ -255,6 +257,7 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
         }
         RustEngineError::Provenance(error) => provenance_error_to_py(&error),
         RustEngineError::Dependency(error) => dependency_error_to_py(&error),
+        RustEngineError::DependencyClosure(error) => dependency_closure_error_to_py(&error),
         RustEngineError::Actuation(error) => actuation_error_to_py(&error),
         RustEngineError::Overloaded => OverloadedError::new_err("engine overloaded"),
         RustEngineError::Closing => ClosingError::new_err("engine is closing"),
@@ -343,6 +346,20 @@ fn provenance_error_to_py(error: &RustProvenanceError) -> PyErr {
 fn dependency_error_to_py(error: &RustDependencyError) -> PyErr {
     let exc = DependencyError::new_err(format!(
         "dependency {} at {}",
+        error.reason.as_str(),
+        error.field_path
+    ));
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("reason", error.reason.as_str());
+        let _ = value.setattr("field_path", error.field_path.as_str());
+    });
+    exc
+}
+
+fn dependency_closure_error_to_py(error: &RustDependencyClosureError) -> PyErr {
+    let exc = DependencyClosureError::new_err(format!(
+        "dependency closure {} at {}",
         error.reason.as_str(),
         error.field_path
     ));
@@ -632,6 +649,100 @@ impl From<RustDependencyListV1> for PyDependencyListV1 {
         Self {
             schema_version: value.schema_version,
             items: value.items.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "ClosureProofV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyClosureProofV1 {
+    schema_version: u32,
+    proof_write_boundary: String,
+    current_active_dependent_nodes: String,
+    current_derived_edges: String,
+    view_eligible_dependents: String,
+    ownerless_projection_rows: String,
+    post_admission_registrations: String,
+    remaining_dependency_rows: Option<String>,
+    remaining_canonical_rows: Option<String>,
+    remaining_projection_rows: Option<String>,
+    remaining_receipt_reference_rows: Option<String>,
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "ClosureStatusV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyClosureStatusV1 {
+    schema_version: u32,
+    closure_operation_id: String,
+    root_type: String,
+    source_revision_id: Option<String>,
+    source_id: Option<String>,
+    cause: String,
+    phase: String,
+    effective_at_epoch_s: String,
+    admitted_write_boundary: String,
+    admitted_dependency_generation: String,
+    affected_count: String,
+    blocker_code: Option<String>,
+    proof: Option<PyClosureProofV1>,
+}
+
+impl From<RustClosureStatusV1> for PyClosureStatusV1 {
+    fn from(value: RustClosureStatusV1) -> Self {
+        let (root_type, source_revision_id, source_id) = match value.root {
+            ClosureRootV1::SourceRevision { source_revision_id } => {
+                ("source_revision".to_string(), Some(source_revision_id.as_str().to_string()), None)
+            }
+            ClosureRootV1::SourceBucket { source_id } => {
+                ("source_bucket".to_string(), None, Some(source_id.as_str().to_string()))
+            }
+        };
+        Self {
+            schema_version: value.schema_version,
+            closure_operation_id: value.closure_operation_id.as_str().to_string(),
+            root_type,
+            source_revision_id,
+            source_id,
+            cause: value.cause.as_str().to_string(),
+            phase: value.phase.as_str().to_string(),
+            effective_at_epoch_s: value.effective_at_epoch_s.to_string(),
+            admitted_write_boundary: value.admitted_write_boundary.to_string(),
+            admitted_dependency_generation: value.admitted_dependency_generation.to_string(),
+            affected_count: value.affected_count.to_string(),
+            blocker_code: value.blocker_code,
+            proof: value.proof.map(|proof| PyClosureProofV1 {
+                schema_version: proof.schema_version,
+                proof_write_boundary: proof.proof_write_boundary.to_string(),
+                current_active_dependent_nodes: proof.current_active_dependent_nodes.to_string(),
+                current_derived_edges: proof.current_derived_edges.to_string(),
+                view_eligible_dependents: proof.view_eligible_dependents.to_string(),
+                ownerless_projection_rows: proof.ownerless_projection_rows.to_string(),
+                post_admission_registrations: proof.post_admission_registrations.to_string(),
+                remaining_dependency_rows: proof
+                    .remaining_dependency_rows
+                    .map(|item| item.to_string()),
+                remaining_canonical_rows: proof
+                    .remaining_canonical_rows
+                    .map(|item| item.to_string()),
+                remaining_projection_rows: proof
+                    .remaining_projection_rows
+                    .map(|item| item.to_string()),
+                remaining_receipt_reference_rows: proof
+                    .remaining_receipt_reference_rows
+                    .map(|item| item.to_string()),
+            }),
         }
     }
 }
@@ -1933,6 +2044,17 @@ impl PyEngine {
             .map(|value| value.map(Into::into))
     }
 
+    fn read_dependency_closure(
+        &self,
+        py: Python<'_>,
+        request: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<PyClosureStatusV1>> {
+        let request = translate_closure_lookup(request)?;
+        let engine = Arc::clone(&self.inner);
+        call_engine(py, move || engine.read_dependency_closure(request))
+            .map(|value| value.map(Into::into))
+    }
+
     /// G10 + 0.8.1 R1 — hybrid search with an optional closed metadata filter
     /// and an optional CE rerank depth. Each filter field is an optional kwarg;
     /// all-`None` is the unfiltered (byte-identical) path. `rerank_depth=0`
@@ -2875,6 +2997,18 @@ fn dependency_input_error(reason: &str, field_path: impl Into<String>) -> PyErr 
     exc
 }
 
+fn dependency_closure_input_error(reason: &str, field_path: impl Into<String>) -> PyErr {
+    let field_path = field_path.into();
+    let exc =
+        DependencyClosureError::new_err(format!("dependency closure {reason} at {field_path}"));
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("reason", reason);
+        let _ = value.setattr("field_path", field_path);
+    });
+    exc
+}
+
 fn actuation_input_error(reason: &str, field_path: impl Into<String>) -> PyErr {
     let field_path = field_path.into();
     let exc = ActuationError::new_err(format!("actuation {reason} at {field_path}"));
@@ -3147,6 +3281,51 @@ fn dependency_request_dict<'py>(
         ));
     }
     Ok(dict)
+}
+
+fn translate_closure_lookup(value: &Bound<'_, PyAny>) -> PyResult<ClosureLookupV1> {
+    let dict = value.cast::<PyDict>().map_err(|_| {
+        dependency_closure_input_error("unsupported_schema_version", "/schemaVersion")
+    })?;
+    let schema = match dict_get(dict, "schema_version")? {
+        Some(value) if !value.is_instance_of::<pyo3::types::PyBool>() => {
+            value.extract::<u32>().ok()
+        }
+        _ => None,
+    };
+    if schema != Some(1) {
+        return Err(dependency_closure_input_error("unsupported_schema_version", "/schemaVersion"));
+    }
+    let mut unknown = None;
+    for key in dict.keys().iter() {
+        let key = key
+            .extract::<String>()
+            .map_err(|_| dependency_closure_input_error("unknown_field", ""))?;
+        if !["schema_version", "closure_operation_id"].contains(&key.as_str()) {
+            let canonical = snake_to_camel(&key);
+            if unknown.as_ref().is_none_or(|current| canonical < *current) {
+                unknown = Some(canonical);
+            }
+        }
+    }
+    if let Some(key) = unknown {
+        return Err(dependency_closure_input_error(
+            "unknown_field",
+            format!("/{}", escape_json_pointer_token(&key)),
+        ));
+    }
+    let id = match dict_get(dict, "closure_operation_id")? {
+        Some(value) if !value.is_none() => extract_validated_str(&value).map_err(|_| {
+            dependency_closure_input_error("closure_operation_id_invalid", "/closureOperationId")
+        })?,
+        _ => {
+            return Err(dependency_closure_input_error(
+                "closure_operation_id_invalid",
+                "/closureOperationId",
+            ))
+        }
+    };
+    ClosureLookupV1::new(id).map_err(|error| dependency_closure_error_to_py(&error))
 }
 
 fn dependency_required_string(
@@ -3999,6 +4178,8 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PySourceDependencyV1>()?;
     m.add_class::<PyActuationReceiptV1>()?;
     m.add_class::<PyDependencyListV1>()?;
+    m.add_class::<PyClosureProofV1>()?;
+    m.add_class::<PyClosureStatusV1>()?;
     // Slice 20 — graph traversal result types.
     m.add_class::<PyExpandedNode>()?;
     m.add_class::<PySearchExpandResult>()?;
@@ -4057,6 +4238,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("SchemaValidationError", py.get_type::<SchemaValidationError>())?;
     m.add("ProvenanceError", py.get_type::<ProvenanceError>())?;
     m.add("DependencyError", py.get_type::<DependencyError>())?;
+    m.add("DependencyClosureError", py.get_type::<DependencyClosureError>())?;
     m.add("ActuationError", py.get_type::<ActuationError>())?;
     m.add("OverloadedError", py.get_type::<OverloadedError>())?;
     m.add("ClosingError", py.get_type::<ClosingError>())?;

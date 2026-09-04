@@ -314,7 +314,7 @@ fn an_uncommittable_kind_is_reported_not_silently_dropped() {
     );
 
     // The report is additive READ metadata; nothing about it needs a schema step.
-    assert_eq!(SCHEMA_VERSION, 29, "Slice 25 adds terminal actuation receipts");
+    assert_eq!(SCHEMA_VERSION, 30, "Slice 30 adds dependency closures");
 
     opened.engine.close().unwrap();
 }

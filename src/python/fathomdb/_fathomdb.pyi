@@ -31,6 +31,34 @@ class DependencyListV1:
     schema_version: int
     items: list[SourceDependencyV1]
 
+class ClosureProofV1:
+    schema_version: int
+    proof_write_boundary: str
+    current_active_dependent_nodes: str
+    current_derived_edges: str
+    view_eligible_dependents: str
+    ownerless_projection_rows: str
+    post_admission_registrations: str
+    remaining_dependency_rows: str | None
+    remaining_canonical_rows: str | None
+    remaining_projection_rows: str | None
+    remaining_receipt_reference_rows: str | None
+
+class ClosureStatusV1:
+    schema_version: int
+    closure_operation_id: str
+    root_type: str
+    source_revision_id: str | None
+    source_id: str | None
+    cause: str
+    phase: str
+    effective_at_epoch_s: str
+    admitted_write_boundary: str
+    admitted_dependency_generation: str
+    affected_count: str
+    blocker_code: str | None
+    proof: ClosureProofV1 | None
+
 class ActuationReceiptV1:
     schema_version: int
     operation_id: str
@@ -286,6 +314,7 @@ class Engine:
     def register_source_dependency(self, request: Any) -> SourceDependencyV1: ...
     def dependencies_for_source(self, request: Any) -> DependencyListV1: ...
     def dependency_for_derived(self, request: Any) -> SourceDependencyV1 | None: ...
+    def read_dependency_closure(self, request: Any) -> ClosureStatusV1 | None: ...
     def embed(self, text: str) -> list[float]: ...
     def search(
         self,
@@ -630,6 +659,13 @@ class ProvenanceError(EngineError):
     ) -> None: ...
 
 class DependencyError(EngineError):
+    reason: str
+    field_path: str
+    def __init__(
+        self, *args: Any, reason: str = ..., field_path: str = ...
+    ) -> None: ...
+
+class DependencyClosureError(EngineError):
     reason: str
     field_path: str
     def __init__(

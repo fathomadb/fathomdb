@@ -21,7 +21,7 @@ use std::time::Instant;
 
 use rusqlite::Connection;
 
-pub const SCHEMA_VERSION: u32 = 29;
+pub const SCHEMA_VERSION: u32 = 30;
 
 /// SQLite `PRAGMA` name carrying the on-disk schema-version sentinel.
 ///
@@ -1062,7 +1062,83 @@ pub const MIGRATIONS: &[Migration] = &[
                   )
                   BEGIN
                       SELECT RAISE(ABORT, 'actuation receipt reference owner invalid');
-                  END;",
+              END;",
+    },
+    // 0.8.25 Slice 30 — content-free direct-dependency lifecycle closure
+    // records. Shape only: existing dependencies remain valid and no closure
+    // is synthesized for historical lifecycle events.
+    Migration {
+        step_id: 30,
+        sql: "-- MIGRATION-ACCRETION-EXEMPTION: Slice-30 dependency closure state and checked sequence; additive shape only, no canonical-content rewrite or historical closure synthesis.
+              INSERT INTO _fathomdb_open_state(key, value)
+                  VALUES('_fathomdb_closure_sequence', '0');
+              CREATE TABLE _fathomdb_dependency_closures(
+                  schema_version INTEGER NOT NULL CHECK(schema_version = 1),
+                  closure_operation_id TEXT PRIMARY KEY,
+                  root_kind TEXT NOT NULL CHECK(root_kind IN (
+                      'source_revision','source_bucket'
+                  )),
+                  root_value TEXT NOT NULL,
+                  cause TEXT NOT NULL CHECK(cause IN (
+                      'superseded','soft_deleted','purged','source_erased'
+                  )),
+                  effective_at_epoch_s INTEGER NOT NULL,
+                  admitted_write_boundary INTEGER NOT NULL
+                      CHECK(admitted_write_boundary >= 0),
+                  admitted_dependency_generation INTEGER NOT NULL
+                      CHECK(admitted_dependency_generation >= 0),
+                  closure_sequence INTEGER NOT NULL UNIQUE
+                      CHECK(closure_sequence > 0),
+                  retry_fingerprint TEXT NOT NULL CHECK(
+                      length(retry_fingerprint) = 64 AND
+                      retry_fingerprint = lower(retry_fingerprint) AND
+                      retry_fingerprint NOT GLOB '*[^0-9a-f]*'
+                  ),
+                  phase TEXT NOT NULL CHECK(phase IN (
+                      'proving','at_rest_pending','complete','incomplete'
+                  )),
+                  affected_count INTEGER NOT NULL CHECK(affected_count > 0),
+                  blocker_code TEXT CHECK(blocker_code IN (
+                      'projection_state_unavailable','proof_unavailable',
+                      'telemetry_redaction','wal_checkpoint'
+                  )),
+                  structural_proof_write_boundary INTEGER
+                      CHECK(structural_proof_write_boundary >= 0),
+                  proof_json TEXT CHECK(
+                      proof_json IS NULL OR json_valid(proof_json)
+                  ),
+                  CHECK(
+                      (phase = 'complete' AND blocker_code IS NULL AND
+                       structural_proof_write_boundary IS NOT NULL AND
+                       proof_json IS NOT NULL) OR
+                      (phase = 'incomplete' AND blocker_code IS NOT NULL AND
+                       ((cause IN ('purged','source_erased') AND
+                         structural_proof_write_boundary IS NOT NULL AND
+                         proof_json IS NOT NULL) OR
+                        (cause IN ('superseded','soft_deleted') AND
+                         structural_proof_write_boundary IS NULL AND
+                         proof_json IS NULL))) OR
+                      (phase = 'proving' AND blocker_code IS NULL AND
+                       cause IN ('superseded','soft_deleted') AND
+                       structural_proof_write_boundary IS NULL AND
+                       proof_json IS NULL) OR
+                      (phase = 'at_rest_pending' AND blocker_code IS NULL AND
+                       cause IN ('purged','source_erased') AND
+                       structural_proof_write_boundary IS NOT NULL AND
+                       proof_json IS NOT NULL)
+                  )
+              );
+              CREATE INDEX _fathomdb_dependency_closures_root
+                  ON _fathomdb_dependency_closures(
+                      root_kind, root_value, phase
+                  );
+              CREATE INDEX _fathomdb_dependency_closures_recovery
+                  ON _fathomdb_dependency_closures(
+                      phase, closure_sequence
+                  );
+              CREATE UNIQUE INDEX _fathomdb_dependency_closures_active_retry
+                  ON _fathomdb_dependency_closures(retry_fingerprint)
+                  WHERE phase != 'complete';",
     },
 ];
 

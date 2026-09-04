@@ -2,9 +2,8 @@
 
 use fathomdb_engine::{
     ArtifactRevisionId, CanonicalHash, DependencyDerivedLookupV1, DependencyErrorReason, Engine,
-    EngineError, InitialState, LifecycleState, PreparedWrite, ProvenanceErrorReason,
-    ProvenancedNodeV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
-    WriteProvenanceV1,
+    EngineError, InitialState, LifecycleState, PreparedWrite, ProvenancedNodeV1, SourceId,
+    SourceLocator, SourceRevisionId, SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
@@ -119,26 +118,40 @@ fn source_erasure_deletes_registration_and_advances_once() {
 }
 
 #[test]
-fn purge_of_source_with_surviving_dependent_refuses_without_mutation() {
+fn purge_of_source_closes_and_erases_registered_dependent() {
     let dir = TempDir::new().unwrap();
     let db = path(&dir, "source-in-use");
     let opened = Engine::open(&db).unwrap();
     write_chain(&opened.engine, "bucket");
 
     opened.engine.transition("source", LifecycleState::Deleted, None).unwrap();
-    let error = opened.engine.purge("source").unwrap_err();
+    opened.engine.purge("source").unwrap();
 
-    assert!(matches!(
-        error,
-        EngineError::Provenance(ref error)
-            if error.reason == ProvenanceErrorReason::ProvenanceInUse
-    ));
-    assert_eq!(generation(&db), "1");
+    assert_eq!(generation(&db), "2");
     assert!(opened
         .engine
         .dependency_for_derived(DependencyDerivedLookupV1::new("derived-r1").unwrap())
         .unwrap()
-        .is_some());
+        .is_none());
+    let connection = Connection::open(&db).unwrap();
+    let remaining: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM canonical_nodes \
+             WHERE logical_id IN ('source','derived')",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(remaining, 0);
+    let closure: (String, String, i64) = connection
+        .query_row(
+            "SELECT cause,phase,affected_count FROM _fathomdb_dependency_closures \
+             WHERE root_value='source-r1' ORDER BY closure_sequence DESC LIMIT 1",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .unwrap();
+    assert_eq!(closure, ("purged".into(), "complete".into(), 1));
 }
 
 #[test]

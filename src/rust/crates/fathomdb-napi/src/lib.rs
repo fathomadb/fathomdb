@@ -42,7 +42,8 @@ use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
     ActuationBatchV1, ActuationOperationV1, ActuationOutcomeV1,
     ActuationReceiptV1 as RustActuationReceiptV1, ArtifactRevisionId,
-    BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ComparisonOp as RustComparisonOp,
+    BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ClosureLookupV1, ClosureRootV1,
+    ClosureStatusV1 as RustClosureStatusV1, ComparisonOp as RustComparisonOp,
     ConsolidateAxis as RustConsolidateAxis, ConsolidateReceipt as RustConsolidateReceipt,
     CorruptionDetail, CorruptionKind, DenseReadiness as RustDenseReadiness,
     DependencyDerivedLookupV1, DependencyListV1 as RustDependencyListV1, DependencySourceLookupV1,
@@ -95,6 +96,7 @@ const CODE_WRITE_VALIDATION: &str = "FDB_WRITE_VALIDATION";
 const CODE_SCHEMA_VALIDATION: &str = "FDB_SCHEMA_VALIDATION";
 const CODE_PROVENANCE: &str = "FDB_PROVENANCE";
 const CODE_DEPENDENCY: &str = "FDB_DEPENDENCY";
+const CODE_DEPENDENCY_CLOSURE: &str = "FDB_DEPENDENCY_CLOSURE";
 const CODE_ACTUATION: &str = "FDB_ACTUATION";
 const CODE_OVERLOADED: &str = "FDB_OVERLOADED";
 const CODE_CLOSING: &str = "FDB_CLOSING";
@@ -251,6 +253,14 @@ fn engine_error_to_napi(err: RustEngineError) -> Error {
         RustEngineError::Dependency(error) => typed_error(
             CODE_DEPENDENCY,
             format!("dependency {} at {}", error.reason.as_str(), error.field_path),
+            json!({
+                "reason": error.reason.as_str(),
+                "fieldPath": error.field_path,
+            }),
+        ),
+        RustEngineError::DependencyClosure(error) => typed_error(
+            CODE_DEPENDENCY_CLOSURE,
+            format!("dependency closure {} at {}", error.reason.as_str(), error.field_path),
             json!({
                 "reason": error.reason.as_str(),
                 "fieldPath": error.field_path,
@@ -1972,6 +1982,16 @@ impl Engine {
             .map(|value| value.map(Into::into))
     }
 
+    /// Return the current status for one opaque dependency-closure operation.
+    #[napi]
+    pub async fn read_dependency_closure(&self, request: JsonValue) -> Result<Option<JsonValue>> {
+        let request = translate_closure_lookup(&request)?;
+        let engine = Arc::clone(&self.inner);
+        call_engine(move || engine.read_dependency_closure(request))
+            .await
+            .map(|value| value.map(closure_status_json))
+    }
+
     /// OPP-12 Phase-1 (0.8.19 Slice 10) — `transition` lifecycle verb. Thin
     /// pass-through: enforces the legal-transition table + `reason`
     /// clear-on-admit/set-on-exclude semantics (design §2/§3). Keys on the bare
@@ -3351,6 +3371,86 @@ fn translate_dependency_derived_lookup(value: &JsonValue) -> Result<DependencyDe
         "dependency_reference_invalid",
     )?)
     .map_err(|error| dependency_napi_error(error.reason.as_str(), error.field_path))
+}
+
+fn dependency_closure_napi_error(reason: &str, field_path: impl Into<String>) -> Error {
+    let field_path = field_path.into();
+    typed_error(
+        CODE_DEPENDENCY_CLOSURE,
+        format!("dependency closure {reason} at {field_path}"),
+        json!({ "reason": reason, "fieldPath": field_path }),
+    )
+}
+
+fn translate_closure_lookup(value: &JsonValue) -> Result<ClosureLookupV1> {
+    let object = value.as_object().ok_or_else(|| {
+        dependency_closure_napi_error("unsupported_schema_version", "/schemaVersion")
+    })?;
+    if object.get("schemaVersion").and_then(JsonValue::as_u64) != Some(1) {
+        return Err(dependency_closure_napi_error("unsupported_schema_version", "/schemaVersion"));
+    }
+    if let Some(key) = object
+        .keys()
+        .filter(|key| !["schemaVersion", "closureOperationId"].contains(&key.as_str()))
+        .min()
+    {
+        return Err(dependency_closure_napi_error(
+            "unknown_field",
+            format!("/{}", escape_json_pointer_token(key)),
+        ));
+    }
+    let id = match object.get("closureOperationId") {
+        Some(JsonValue::String(value)) if !value.contains('\0') => value.clone(),
+        _ => {
+            return Err(dependency_closure_napi_error(
+                "closure_operation_id_invalid",
+                "/closureOperationId",
+            ))
+        }
+    };
+    ClosureLookupV1::new(id)
+        .map_err(|error| dependency_closure_napi_error(error.reason.as_str(), error.field_path))
+}
+
+fn closure_status_json(value: RustClosureStatusV1) -> JsonValue {
+    let root = match value.root {
+        ClosureRootV1::SourceRevision { source_revision_id } => json!({
+            "type": "source_revision",
+            "sourceRevisionId": source_revision_id.as_str(),
+        }),
+        ClosureRootV1::SourceBucket { source_id } => json!({
+            "type": "source_bucket",
+            "sourceId": source_id.as_str(),
+        }),
+    };
+    let proof = value.proof.map(|proof| {
+        json!({
+            "schemaVersion": proof.schema_version,
+            "proofWriteBoundary": proof.proof_write_boundary.to_string(),
+            "currentActiveDependentNodes": proof.current_active_dependent_nodes.to_string(),
+            "currentDerivedEdges": proof.current_derived_edges.to_string(),
+            "viewEligibleDependents": proof.view_eligible_dependents.to_string(),
+            "ownerlessProjectionRows": proof.ownerless_projection_rows.to_string(),
+            "postAdmissionRegistrations": proof.post_admission_registrations.to_string(),
+            "remainingDependencyRows": proof.remaining_dependency_rows.map(|item| item.to_string()),
+            "remainingCanonicalRows": proof.remaining_canonical_rows.map(|item| item.to_string()),
+            "remainingProjectionRows": proof.remaining_projection_rows.map(|item| item.to_string()),
+            "remainingReceiptReferenceRows": proof.remaining_receipt_reference_rows.map(|item| item.to_string()),
+        })
+    });
+    json!({
+        "schemaVersion": value.schema_version,
+        "closureOperationId": value.closure_operation_id.as_str(),
+        "root": root,
+        "cause": value.cause.as_str(),
+        "phase": value.phase.as_str(),
+        "effectiveAtEpochS": value.effective_at_epoch_s.to_string(),
+        "admittedWriteBoundary": value.admitted_write_boundary.to_string(),
+        "admittedDependencyGeneration": value.admitted_dependency_generation.to_string(),
+        "affectedCount": value.affected_count.to_string(),
+        "blockerCode": value.blocker_code,
+        "proof": proof,
+    })
 }
 
 fn strict_json_keys(value: &JsonValue, allowed: &[&str], base_path: &str) -> Result<()> {

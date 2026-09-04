@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 import pytest
 
 from fathomdb import Engine
@@ -18,8 +20,11 @@ def test_closure_lookup_is_closed_and_absence_is_not_disclosure(db_path: str) ->
     )
     with pytest.raises(DependencyClosureError) as excinfo:
         engine.read_dependency_closure(
-            {"schema_version": 2, "closure_operation_id": "_fdb:c:" + "a" * 64}
-        )  # type: ignore[arg-type]
+            cast(
+                Any,
+                {"schema_version": 2, "closure_operation_id": "_fdb:c:" + "a" * 64},
+            )
+        )
     assert excinfo.value.reason == "unsupported_schema_version"
     assert excinfo.value.field_path == "/schemaVersion"
     engine.close()

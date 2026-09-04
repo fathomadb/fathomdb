@@ -93,6 +93,20 @@ export interface NativeDependencyListV1 {
   items: NativeSourceDependencyV1[];
 }
 
+export interface NativeClosureStatusV1 {
+  schemaVersion: number;
+  closureOperationId: string;
+  root: Record<string, string>;
+  cause: string;
+  phase: string;
+  effectiveAtEpochS: string;
+  admittedWriteBoundary: string;
+  admittedDependencyGeneration: string;
+  affectedCount: string;
+  blockerCode?: string | null;
+  proof?: Record<string, string | number | null> | null;
+}
+
 /** 0.8.20 Slice 5d (R-20-E4) — native `eraseSource` outcome. */
 interface NativeEraseReport {
   sourceRef: string;
@@ -475,6 +489,7 @@ export interface NativeEngine {
   registerSourceDependency(request: unknown): Promise<NativeSourceDependencyV1>;
   dependenciesForSource(request: unknown): Promise<NativeDependencyListV1>;
   dependencyForDerived(request: unknown): Promise<NativeSourceDependencyV1 | null>;
+  readDependencyClosure(request: unknown): Promise<NativeClosureStatusV1 | null>;
   // OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle verbs.
   transition(
     logicalId: string,

@@ -29,6 +29,9 @@ from fathomdb.types import (
     ActuationBatchV1,
     ActuationReceiptV1,
     CounterSnapshot,
+    ClosureLookupV1,
+    ClosureProofV1,
+    ClosureStatusV1,
     CudaDeviceInfo,
     CudaVisibleDevice,
     DeviceResolution,
@@ -447,6 +450,47 @@ class Engine:
             source_revision_id=value.source_revision_id,
             derived_revision_id=value.derived_revision_id,
             registered_dependency_generation=value.registered_dependency_generation,
+        )
+
+    def read_dependency_closure(
+        self, request: ClosureLookupV1
+    ) -> ClosureStatusV1 | None:
+        """Return current closure status, or ``None`` for an absent opaque ID."""
+        value = self._native.read_dependency_closure(request)
+        if value is None:
+            return None
+        root = (
+            {"type": "source_revision", "source_revision_id": value.source_revision_id}
+            if value.root_type == "source_revision"
+            else {"type": "source_bucket", "source_id": value.source_id}
+        )
+        proof = value.proof
+        return ClosureStatusV1(
+            schema_version=value.schema_version,
+            closure_operation_id=value.closure_operation_id,
+            root=root,
+            cause=value.cause,
+            phase=value.phase,
+            effective_at_epoch_s=value.effective_at_epoch_s,
+            admitted_write_boundary=value.admitted_write_boundary,
+            admitted_dependency_generation=value.admitted_dependency_generation,
+            affected_count=value.affected_count,
+            blocker_code=value.blocker_code,
+            proof=None
+            if proof is None
+            else ClosureProofV1(
+                schema_version=proof.schema_version,
+                proof_write_boundary=proof.proof_write_boundary,
+                current_active_dependent_nodes=proof.current_active_dependent_nodes,
+                current_derived_edges=proof.current_derived_edges,
+                view_eligible_dependents=proof.view_eligible_dependents,
+                ownerless_projection_rows=proof.ownerless_projection_rows,
+                post_admission_registrations=proof.post_admission_registrations,
+                remaining_dependency_rows=proof.remaining_dependency_rows,
+                remaining_canonical_rows=proof.remaining_canonical_rows,
+                remaining_projection_rows=proof.remaining_projection_rows,
+                remaining_receipt_reference_rows=proof.remaining_receipt_reference_rows,
+            ),
         )
 
     def transition(

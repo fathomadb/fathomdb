@@ -3,10 +3,10 @@
 use fathomdb_engine::{
     ActuationBatchV1, ActuationOperationV1, ActuationOutcomeV1, ArtifactRevisionId, CanonicalHash,
     ClosureCauseV1, ClosureLookupV1, ClosurePhaseV1, ClosureRootV1, DependencyErrorReason, Engine,
-    EngineError, InitialState, LifecycleActuationV1, LifecycleState, PreparedWrite, ProjectionFts,
-    ProjectionRole, ProjectionSpec, ProvenanceErrorReason, ProvenancedEdgeV1, ProvenancedNodeV1,
-    ReadView, SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId,
-    SourceVersionId, WriteProvenanceV1,
+    EngineError, EngineOpenError, InitialState, LifecycleActuationV1, LifecycleState,
+    PreparedWrite, ProjectionFts, ProjectionRole, ProjectionSpec, ProvenanceErrorReason,
+    ProvenancedEdgeV1, ProvenancedNodeV1, ReadView, SourceDependencyRegistrationV1, SourceId,
+    SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::{params, Connection};
@@ -216,7 +216,6 @@ fn actuation_returns_closure_id_and_keyed_complete_proof() {
     let receipt = opened.engine.actuate(request.clone()).unwrap();
     assert_eq!(receipt.outcome, ActuationOutcomeV1::CommittedClosurePending);
     assert_eq!(receipt.closure_operation_ids.len(), 1);
-    assert_eq!(opened.engine.actuate(request).unwrap(), receipt);
     let status = opened
         .engine
         .read_dependency_closure(
@@ -231,6 +230,7 @@ fn actuation_returns_closure_id_and_keyed_complete_proof() {
     assert_eq!(proof.current_active_dependent_nodes, 0);
     assert_eq!(proof.current_derived_edges, 0);
     assert_eq!(proof.view_eligible_dependents, 0);
+    assert_eq!(opened.engine.actuate(request).unwrap(), receipt);
 }
 
 #[test]
@@ -551,9 +551,38 @@ fn barrier_hides_derived_nodes_from_expansion_and_property_search() {
         "baseline projected hits: {:?}",
         baseline.results
     );
+    let derived_cursor = Connection::open(&db)
+        .unwrap()
+        .query_row(
+            "SELECT write_cursor FROM canonical_nodes WHERE logical_id='derived'",
+            [],
+            |row| row.get::<_, u64>(0),
+        )
+        .unwrap();
+    opened.engine.write_node_importance(derived_cursor, 0.75).unwrap();
+    assert_eq!(opened.engine.node_importance(derived_cursor).unwrap(), Some(0.75));
 
     install_soft_barrier(&db, "source-r1", 4);
 
+    let relaxed = ReadView {
+        include_superseded: true,
+        include_inactive: true,
+        include_out_of_window: true,
+        valid_as_of: None,
+    };
+    assert!(opened.engine.read_get("derived", &relaxed).unwrap().is_none());
+    assert!(opened
+        .engine
+        .read_list("fact", &[], 10, &relaxed)
+        .unwrap()
+        .iter()
+        .all(|node| node.logical_id != "derived"));
+    assert!(opened
+        .engine
+        .graph_neighbors("root", 1, TraversalDirection::Both, &relaxed)
+        .unwrap()
+        .iter()
+        .all(|node| node.logical_id != "derived"));
     let expanded = opened.engine.search_expand("root needle", None, 1).unwrap();
     assert!(expanded.expanded.iter().all(|(node, _)| node.logical_id != "derived"));
     let projected = opened
@@ -561,4 +590,153 @@ fn barrier_hides_derived_nodes_from_expansion_and_property_search() {
         .search_projected_text("needle", "summary", None, &ReadView::default())
         .unwrap();
     assert!(projected.results.iter().all(|hit| !hit.body.starts_with("derived body")));
+    assert_eq!(opened.engine.node_importance(derived_cursor).unwrap(), None);
+}
+
+#[test]
+fn source_erasure_records_blocker_and_exact_retry_completes_closure() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "physical-retry");
+    let sink = dir.path().join("telemetry.jsonl");
+    let rotated = dir.path().join("telemetry.jsonl.1");
+    let opened = Engine::open(&db).unwrap();
+    opened.engine.enable_telemetry(sink.to_str().unwrap()).unwrap();
+    seed_registered(&opened.engine);
+    opened.engine.search("derived body").unwrap();
+    assert!(std::fs::read_to_string(&sink).unwrap().contains("l:derived"));
+    std::fs::rename(&sink, &rotated).unwrap();
+
+    let error = opened.engine.erase_source("bucket").unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::ErasureIncomplete { ref stage, .. } if stage == "telemetry_redaction"
+    ));
+    let connection = Connection::open(&db).unwrap();
+    let closure_id: String = connection
+        .query_row(
+            "SELECT closure_operation_id FROM _fathomdb_dependency_closures \
+             WHERE root_kind='source_bucket' AND root_value='bucket'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    drop(connection);
+    let status = opened
+        .engine
+        .read_dependency_closure(ClosureLookupV1::new(&closure_id).unwrap())
+        .unwrap()
+        .unwrap();
+    assert_eq!(status.phase, ClosurePhaseV1::Incomplete);
+    assert_eq!(status.blocker_code.as_deref(), Some("telemetry_redaction"));
+    assert!(matches!(
+        opened.engine.write(&[canonical(
+            "unrelated-r1",
+            "v-unrelated",
+            "unrelated",
+            "unrelated body",
+        )]),
+        Err(EngineError::ErasureIncomplete { ref stage, .. }) if stage == "dependency_closure"
+    ));
+
+    std::fs::rename(&rotated, &sink).unwrap();
+    let retry = opened.engine.erase_source("bucket").unwrap();
+    assert_eq!(retry.nodes_excised, 0);
+    let status = opened
+        .engine
+        .read_dependency_closure(ClosureLookupV1::new(closure_id).unwrap())
+        .unwrap()
+        .unwrap();
+    assert_eq!(status.phase, ClosurePhaseV1::Complete);
+    assert_eq!(status.blocker_code, None);
+    let contents = std::fs::read_to_string(&sink).unwrap();
+    assert!(!contents.contains("l:source"));
+    assert!(!contents.contains("l:derived"));
+}
+
+#[test]
+fn open_rejects_missing_malformed_or_regressed_closure_sequence() {
+    for mutation in [
+        "DELETE FROM _fathomdb_open_state WHERE key='_fathomdb_closure_sequence'",
+        "UPDATE _fathomdb_open_state SET value='01' WHERE key='_fathomdb_closure_sequence'",
+        "UPDATE _fathomdb_open_state SET value='0' WHERE key='_fathomdb_closure_sequence'",
+    ] {
+        let dir = TempDir::new().unwrap();
+        let db = path(&dir, "sequence-corruption");
+        let opened = Engine::open(&db).unwrap();
+        seed_registered(&opened.engine);
+        opened.engine.transition("source", LifecycleState::Deleted, None).unwrap();
+        opened.engine.close().unwrap();
+        let connection = Connection::open(&db).unwrap();
+        connection.execute(mutation, []).unwrap();
+        drop(connection);
+
+        assert!(matches!(Engine::open(&db), Err(EngineOpenError::Corruption(_))), "{mutation}");
+    }
+}
+
+#[test]
+fn point_status_rejects_corrupt_proof_shape() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "proof-corruption");
+    let opened = Engine::open(&db).unwrap();
+    seed_registered(&opened.engine);
+    opened.engine.transition("source", LifecycleState::Deleted, None).unwrap();
+    let connection = Connection::open(&db).unwrap();
+    let closure_id: String = connection
+        .query_row(
+            "SELECT closure_operation_id FROM _fathomdb_dependency_closures LIMIT 1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    connection
+        .execute(
+            "UPDATE _fathomdb_dependency_closures \
+             SET proof_json=json_remove(proof_json,'$.view_eligible_dependents') \
+             WHERE closure_operation_id=?1",
+            [&closure_id],
+        )
+        .unwrap();
+    drop(connection);
+
+    assert!(matches!(
+        opened.engine.read_dependency_closure(ClosureLookupV1::new(closure_id).unwrap()),
+        Err(EngineError::Storage)
+    ));
+}
+
+#[test]
+fn closure_sequence_exhaustion_rolls_back_root_supersession() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "sequence-exhaustion");
+    let opened = Engine::open(&db).unwrap();
+    seed_registered(&opened.engine);
+    Connection::open(&db)
+        .unwrap()
+        .execute(
+            "UPDATE _fathomdb_open_state SET value='9223372036854775807' \
+             WHERE key='_fathomdb_closure_sequence'",
+            [],
+        )
+        .unwrap();
+
+    assert!(matches!(
+        opened.engine.write(&[canonical("source-r2", "v2", "source", "replacement")]),
+        Err(EngineError::Storage)
+    ));
+    let connection = Connection::open(&db).unwrap();
+    let current: (String, String) = connection
+        .query_row(
+            "SELECT r.revision_id,n.body FROM canonical_nodes n \
+             JOIN _fathomdb_artifact_revisions r ON r.write_cursor=n.write_cursor \
+             WHERE n.logical_id='source' AND n.superseded_at IS NULL",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(current, ("source-r1".into(), "source body".into()));
+    let closures: i64 = connection
+        .query_row("SELECT COUNT(*) FROM _fathomdb_dependency_closures", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(closures, 0);
 }

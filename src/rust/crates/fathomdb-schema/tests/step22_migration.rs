@@ -317,11 +317,11 @@ fn s22_is_head_and_schema_version_is_22() {
     migrate_with_steps(&conn, MIGRATIONS).expect("migration must succeed");
 
     assert_eq!(user_version(&conn), SCHEMA_VERSION);
-    assert_eq!(SCHEMA_VERSION, 29, "SCHEMA_VERSION must include Slice 25 step 29");
+    assert_eq!(SCHEMA_VERSION, 30, "SCHEMA_VERSION must include Slice 30 step 30");
     assert_eq!(
         MIGRATIONS.last().expect("at least one migration").step_id,
-        29,
-        "step-29 (actuation receipts, Slice 25) must be the last (head) migration"
+        30,
+        "step-30 (dependency closures, Slice 30) must be the last (head) migration"
     );
 }
 

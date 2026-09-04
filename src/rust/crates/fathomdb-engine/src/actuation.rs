@@ -674,7 +674,10 @@ fn load_receipt(
         serde_json::from_str(&closure_json).map_err(|_| EngineError::Storage)?;
     if serde_json::to_string(&closure_operation_ids).map_err(|_| EngineError::Storage)?
         != closure_json
-        || !closure_operation_ids.is_empty()
+        || closure_operation_ids.len() > operations_count
+        || closure_operation_ids.iter().any(|id| !id.starts_with("_fdb:c:") || id.len() != 71)
+        || closure_operation_ids.iter().collect::<BTreeSet<_>>().len()
+            != closure_operation_ids.len()
     {
         return Err(EngineError::Storage);
     }
@@ -687,12 +690,15 @@ fn load_receipt(
         .map(|value| u64::try_from(value).map_err(|_| EngineError::Storage))
         .transpose()?;
     match outcome {
-        ActuationOutcomeV1::Committed => {
+        ActuationOutcomeV1::Committed | ActuationOutcomeV1::CommittedClosurePending => {
             if refused_index.is_some()
                 || refused_path.is_some()
                 || !reason_codes.is_empty()
                 || resulting_write_boundary.is_none()
                 || resulting_dependency_generation == Some(0)
+                || (outcome == ActuationOutcomeV1::Committed && !closure_operation_ids.is_empty())
+                || (outcome == ActuationOutcomeV1::CommittedClosurePending
+                    && closure_operation_ids.is_empty())
             {
                 return Err(EngineError::Storage);
             }
@@ -731,8 +737,20 @@ fn load_receipt(
                     }
                 }
             }
+            for closure_id in &closure_operation_ids {
+                let exists: bool = connection
+                    .query_row(
+                        "SELECT EXISTS(SELECT 1 FROM _fathomdb_dependency_closures \
+                         WHERE closure_operation_id=?1)",
+                        [closure_id],
+                        |row| row.get(0),
+                    )
+                    .map_err(|_| EngineError::Storage)?;
+                if !exists {
+                    return Err(EngineError::Storage);
+                }
+            }
         }
-        ActuationOutcomeV1::CommittedClosurePending => return Err(EngineError::Storage),
         ActuationOutcomeV1::Refused => {
             if reason_codes.len() != 1
                 || !affected_revision_ids.is_empty()
@@ -1095,32 +1113,6 @@ fn current_revision_for_logical(
     .transpose()
 }
 
-fn closure_refusal_for_losses(
-    connection: &Connection,
-    losses: &[(usize, String)],
-) -> Result<Option<Refusal>, EngineError> {
-    for (index, revision) in losses {
-        let has_dependency: bool = connection
-            .query_row(
-                "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies d \
-                 JOIN _fathomdb_source_links l \
-                   ON l.artifact_revision_id=d.derived_revision_id \
-                 WHERE l.source_revision_id=?1)",
-                [revision],
-                |row| row.get(0),
-            )
-            .map_err(|_| EngineError::Storage)?;
-        if has_dependency {
-            return Ok(Some(Refusal {
-                reason: ActuationRefusalReasonV1::DependencyClosureRequired,
-                index: Some(*index),
-                path: Some(format!("/operations/{index}")),
-            }));
-        }
-    }
-    Ok(None)
-}
-
 fn simulation_cursor_base(
     connection: &Connection,
     put_count: u64,
@@ -1158,7 +1150,6 @@ fn simulate_request(
         .map_err(|_| EngineError::Storage)?;
     let outcome = (|| {
         let mut next_cursor = base_cursor;
-        let mut losses = Vec::new();
         for (index, operation) in request.operations.iter().enumerate() {
             match operation {
                 ActuationOperationV1::PutCanonicalNode(node)
@@ -1172,15 +1163,6 @@ fn simulate_request(
                             path: Some(format!("/operations/{index}/record/provenance/role")),
                         }));
                     }
-                    if let Some(logical_id) = &node.logical_id {
-                        if let Some((revision, _, role)) =
-                            current_revision_for_logical(connection, logical_id)?
-                        {
-                            if role == "canonical_source" {
-                                losses.push((index, revision));
-                            }
-                        }
-                    }
                     let write = PreparedWrite::ProvenancedNode(node.clone());
                     let plan = match validate_write(connection, &write) {
                         Ok(plan) => plan,
@@ -1193,6 +1175,7 @@ fn simulate_request(
                         next_cursor,
                         provenance_row_cap,
                         &[],
+                        dependency_closure::SoftClosureMode::Proving,
                     ) {
                         Ok(_) => next_cursor = next_cursor.saturating_add(1),
                         Err(CommitBatchError::Provenance(error)) => {
@@ -1200,6 +1183,7 @@ fn simulate_request(
                                 .map(Some);
                         }
                         Err(CommitBatchError::Sql(_)) => return Err(EngineError::Storage),
+                        Err(CommitBatchError::Engine(error)) => return Err(error),
                     }
                 }
                 ActuationOperationV1::RegisterSourceDependency(dependency) => {
@@ -1218,16 +1202,12 @@ fn simulate_request(
                     apply_validated_source_dependency(connection, &validated, 1)?;
                 }
                 ActuationOperationV1::TransitionLifecycle(lifecycle) => {
-                    if lifecycle.to_state == LifecycleState::Deleted {
-                        if let Some((revision, _, role)) =
-                            current_revision_for_logical(connection, &lifecycle.logical_id)?
-                        {
-                            if role == "canonical_source" {
-                                losses.push((index, revision));
-                            }
-                        }
-                    }
-                    if let Err(error) = apply_lifecycle(connection, lifecycle, index) {
+                    if let Err(error) = apply_lifecycle(
+                        connection,
+                        lifecycle,
+                        index,
+                        dependency_closure::SoftClosureMode::Proving,
+                    ) {
                         return match error {
                             RefusalOrInfrastructure::Refusal(refusal) => Ok(Some(refusal)),
                             RefusalOrInfrastructure::Infrastructure(error) => Err(error),
@@ -1236,7 +1216,7 @@ fn simulate_request(
                 }
             }
         }
-        closure_refusal_for_losses(connection, &losses)
+        Ok(None)
     })();
     connection
         .execute_batch(
@@ -1327,10 +1307,11 @@ fn apply_lifecycle(
     connection: &Connection,
     operation: &LifecycleActuationV1,
     index: usize,
-) -> Result<String, RefusalOrInfrastructure> {
+    closure_mode: dependency_closure::SoftClosureMode,
+) -> Result<(String, Option<ClosureOperationId>), RefusalOrInfrastructure> {
     let current = current_revision_for_logical(connection, &operation.logical_id)
         .map_err(RefusalOrInfrastructure::Infrastructure)?;
-    let Some((revision, from_state, _)) = current else {
+    let Some((revision, from_state, role)) = current else {
         return Err(RefusalOrInfrastructure::Refusal(Refusal {
             reason: ActuationRefusalReasonV1::LifecycleRefused,
             index: Some(index),
@@ -1359,8 +1340,23 @@ fn apply_lifecycle(
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .map_err(|_| RefusalOrInfrastructure::Infrastructure(EngineError::Storage))?;
+    let closure_id = if operation.to_state == LifecycleState::Deleted && role == "canonical_source"
+    {
+        dependency_closure::admit_soft_closure(
+            connection,
+            &revision,
+            ClosureCauseV1::SoftDeleted,
+            load_next_cursor(connection),
+            closure_mode,
+        )
+        .map_err(RefusalOrInfrastructure::Infrastructure)?
+    } else {
+        None
+    };
     if operation.to_state == LifecycleState::Active {
         validate_nested_projection_sources_for_body(connection, &body)
+            .map_err(RefusalOrInfrastructure::Infrastructure)?;
+        dependency_closure::guard_derived_reactivation(connection, write_cursor)
             .map_err(RefusalOrInfrastructure::Infrastructure)?;
     }
     let new_reason =
@@ -1384,7 +1380,7 @@ fn apply_lifecycle(
         refresh_vector_attr_values_for_row(connection, write_cursor, &body)
             .map_err(|_| RefusalOrInfrastructure::Infrastructure(EngineError::Storage))?;
     }
-    Ok(revision)
+    Ok((revision, closure_id))
 }
 
 enum RefusalOrInfrastructure {
@@ -1420,8 +1416,9 @@ impl Engine {
         validate_request(&request)?;
         let digest = request_digest(&request);
         let initial = {
-            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-            let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+            let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+            dependency_closure::maintain_before_writer(connection)?;
             load_receipt(connection, &request.operation_id, &digest, Some(&request))
         };
         match initial {
@@ -1526,6 +1523,7 @@ impl Engine {
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|_| EngineError::Storage)?;
+        dependency_closure::guard_no_pending_physical(&tx)?;
         if let Some(receipt) = load_receipt(&tx, &request.operation_id, digest, Some(request))? {
             tx.commit().map_err(|_| EngineError::Storage)?;
             return Ok(ActuationAttempt::Replay(receipt));
@@ -1635,6 +1633,7 @@ impl Engine {
         let mut affected = Vec::new();
         let mut affected_set = BTreeSet::new();
         let mut pending = Vec::new();
+        let mut closure_operation_ids = Vec::new();
         let mut refusal = None;
         let mut vector_enrolment_applied = false;
         let mut unstranded = false;
@@ -1681,9 +1680,11 @@ impl Engine {
                             next_cursor,
                             self.provenance_row_cap.load(Ordering::Relaxed),
                             enrol,
+                            dependency_closure::SoftClosureMode::Proving,
                         ) {
-                            Ok((_, repaired)) => {
+                            Ok((_, repaired, closure_ids)) => {
                                 unstranded |= repaired;
+                                closure_operation_ids.extend(closure_ids);
                                 next_cursor += 1;
                                 let new_revision =
                                     node.provenance.artifact_revision_id.as_str().to_string();
@@ -1719,6 +1720,9 @@ impl Engine {
                             }
                             Err(CommitBatchError::Sql(_)) => {
                                 Err(RefusalOrInfrastructure::Infrastructure(EngineError::Storage))
+                            }
+                            Err(CommitBatchError::Engine(error)) => {
+                                Err(RefusalOrInfrastructure::Infrastructure(error))
                             }
                         }
                     }
@@ -1764,10 +1768,18 @@ impl Engine {
                     }
                 }
                 ActuationOperationV1::TransitionLifecycle(lifecycle) => {
-                    match apply_lifecycle(&tx, lifecycle, index) {
-                        Ok(revision) => {
+                    match apply_lifecycle(
+                        &tx,
+                        lifecycle,
+                        index,
+                        dependency_closure::SoftClosureMode::Proving,
+                    ) {
+                        Ok((revision, closure_id)) => {
                             if affected_set.insert(revision.clone()) {
                                 affected.push(revision);
+                            }
+                            if let Some(closure_id) = closure_id {
+                                closure_operation_ids.push(closure_id);
                             }
                             Ok(())
                         }
@@ -1820,7 +1832,11 @@ impl Engine {
             schema_version: 1,
             operation_id: request.operation_id.clone(),
             request_sha256: digest.to_string(),
-            outcome: ActuationOutcomeV1::Committed,
+            outcome: if closure_operation_ids.is_empty() {
+                ActuationOutcomeV1::Committed
+            } else {
+                ActuationOutcomeV1::CommittedClosurePending
+            },
             refused_operation_index: None,
             refused_field_path: None,
             reason_codes: Vec::new(),
@@ -1828,7 +1844,10 @@ impl Engine {
             resulting_write_boundary: Some(next_cursor),
             resulting_dependency_generation: dependency_generation,
             pending_projection_write_cursors: pending,
-            closure_operation_ids: Vec::new(),
+            closure_operation_ids: closure_operation_ids
+                .iter()
+                .map(|id| id.as_str().to_string())
+                .collect(),
         };
         store_receipt(&tx, &receipt, request.operations.len())?;
         store_source_refs(&tx, &request.operation_id, &refs, request.operations.len())?;
@@ -1837,6 +1856,9 @@ impl Engine {
             return Err(EngineError::Storage);
         }
         tx.commit().map_err(|_| EngineError::Storage)?;
+        for closure_id in &closure_operation_ids {
+            dependency_closure::finalize_soft_closure(connection, closure_id)?;
+        }
         self.next_cursor.store(next_cursor, Ordering::SeqCst);
         if !receipt.pending_projection_write_cursors.is_empty() || unstranded {
             self.projection_runtime.notify_new_work();

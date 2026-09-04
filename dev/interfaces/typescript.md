@@ -276,6 +276,23 @@ ID permanently unusable without retaining its prior receipt content.
 content-string FFI guard, so an embedded NUL is preserved exactly; body, kind,
 and other content/control strings retain the REQ-064 rejection.
 
+## Dependency lifecycle closure (0.8.25 Slice 30)
+
+Source-losing lifecycle and erasure operations close direct registered
+dependents atomically. A nonterminal closure remains invisible under every
+`ReadView`; an incomplete physical closure fences other writers with the
+existing `ErasureIncomplete` stage `dependency_closure` until the exact
+originating operation is retried.
+
+`engine.readDependencyClosure(request)` accepts the closed
+`{ schemaVersion: 1, closureOperationId: string }` request and returns
+`ClosureStatusV1 | null` for one opaque Engine-minted identifier. The root,
+cause, phase, blocker, and proof vocabularies match the Rust contract exactly;
+all counts and boundaries are canonical unsigned decimal strings. Invalid
+schema, unknown fields, or identifiers throw `DependencyClosureError` with
+code `FDB_DEPENDENCY_CLOSURE`, a closed `reason`, and canonical RFC 6901
+`fieldPath`. There is no public list, resume, or repair method.
+
 ## Node write-item validity window (0.8.20 Slice 15b, TC-34)
 
 `engine.write([...])` takes loose objects, not typed structs. A **node** item

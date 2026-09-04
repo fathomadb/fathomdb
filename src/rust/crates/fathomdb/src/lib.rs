@@ -145,8 +145,10 @@
 pub use fathomdb_engine::{
     ActuationBatchV1, ActuationError, ActuationErrorReason, ActuationOperationV1,
     ActuationOutcomeV1, ActuationReceiptV1, ActuationRefusalReasonV1, ArtifactRevisionId,
-    BoundaryCrossing, CanonicalHash, ComparisonOp, CorruptionDetail, CorruptionKind,
-    CorruptionLocator, CounterSnapshot, DenseReadiness, DependencyDerivedLookupV1, DependencyError,
+    BoundaryCrossing, CanonicalHash, ClosureCauseV1, ClosureLookupV1, ClosureOperationId,
+    ClosurePhaseV1, ClosureProofV1, ClosureRootV1, ClosureStatusV1, ComparisonOp, CorruptionDetail,
+    CorruptionKind, CorruptionLocator, CounterSnapshot, DenseReadiness, DependencyClosureError,
+    DependencyClosureErrorReason, DependencyDerivedLookupV1, DependencyError,
     DependencyErrorReason, DependencyId, DependencyListV1, DependencySourceLookupV1,
     EmbedderRequired, EmbeddingOperation, EmbeddingReadiness, EmbeddingReadinessState, Engine,
     EngineError, EngineOpenError, ExciseReport, Explanation, ExtractDocument,

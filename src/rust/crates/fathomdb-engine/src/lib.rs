@@ -45,6 +45,7 @@
 //! `EngineError` are `#[non_exhaustive]` or documented as additive.
 
 mod actuation;
+mod dependency_closure;
 pub mod lifecycle;
 mod pcache2;
 #[cfg(feature = "tc5-benchmark")]
@@ -53,6 +54,10 @@ pub mod tc5_benchmark;
 pub use actuation::{
     ActuationBatchV1, ActuationError, ActuationErrorReason, ActuationOperationV1,
     ActuationOutcomeV1, ActuationReceiptV1, ActuationRefusalReasonV1, LifecycleActuationV1,
+};
+pub use dependency_closure::{
+    ClosureCauseV1, ClosureLookupV1, ClosureOperationId, ClosurePhaseV1, ClosureProofV1,
+    ClosureRootV1, ClosureStatusV1, DependencyClosureError, DependencyClosureErrorReason,
 };
 
 /// Slice 72's private trusted-runner rendezvous. This is compiled only by the
@@ -3591,7 +3596,12 @@ impl ReadView {
     /// The full node predicate (existence + validity) for `alias`. This is the
     /// ONE function every read site calls, so no site can drift from another.
     fn node_sql(&self, alias: &str, now_idx: usize) -> String {
-        format!("{}{}", self.existence_sql(alias), self.validity_sql(alias, now_idx))
+        format!(
+            "{}{}{}",
+            self.existence_sql(alias),
+            self.validity_sql(alias, now_idx),
+            dependency_closure::read_barrier_sql(alias)
+        )
     }
 
     /// 0.8.20 Slice 15b fix-3 (F2) — resolve this view's validity instant ONCE
@@ -3703,6 +3713,15 @@ impl FrozenView {
     fn validity_sql(&self, alias: &str, now_idx: usize) -> String {
         self.view.validity_sql(alias, now_idx)
     }
+
+    fn node_sql(&self, alias: &str, now_idx: usize) -> String {
+        format!(
+            "{}{}{}",
+            self.view.existence_sql(alias),
+            self.view.validity_sql(alias, now_idx),
+            dependency_closure::read_barrier_sql(alias)
+        )
+    }
 }
 
 /// 0.8.20 Slice 15b fix-3 (F2) — how many times [`current_epoch_seconds`] has
@@ -3763,7 +3782,10 @@ fn current_epoch_seconds() -> i64 {
 /// Always begins with ` AND `, so every call site must already have a preceding
 /// `WHERE` predicate.
 fn edge_validity_sql(alias: &str, now_idx: usize) -> String {
-    format!(" AND ({alias}.t_invalid IS NULL OR {alias}.t_invalid > ?{now_idx})")
+    format!(
+        " AND ({alias}.t_invalid IS NULL OR {alias}.t_invalid > ?{now_idx}){}",
+        dependency_closure::read_barrier_sql(alias)
+    )
 }
 
 /// TC-33 — parse one ISO-8601 timestamp to INTEGER epoch seconds using SQLite's
@@ -5098,6 +5120,10 @@ pub enum DependencyErrorReason {
     DependencyLookupBoundExceeded,
     /// The independent generation singleton has reached SQLite's signed maximum.
     DependencyGenerationExhausted,
+    /// The pinned source exists but is not current, active, or in-window.
+    DependencySourceIneligible,
+    /// A nonterminal lifecycle closure fences the pinned source.
+    DependencyClosureActive,
     /// The request schema discriminator is absent or not exactly version 1.
     UnsupportedSchemaVersion,
     /// A closed request contains an unrecognized field.
@@ -5118,6 +5144,8 @@ impl DependencyErrorReason {
             Self::DependencyConflict => "dependency_conflict",
             Self::DependencyLookupBoundExceeded => "dependency_lookup_bound_exceeded",
             Self::DependencyGenerationExhausted => "dependency_generation_exhausted",
+            Self::DependencySourceIneligible => "dependency_source_ineligible",
+            Self::DependencyClosureActive => "dependency_closure_active",
             Self::UnsupportedSchemaVersion => "unsupported_schema_version",
             Self::UnknownField => "unknown_field",
         }
@@ -5369,6 +5397,8 @@ pub enum ProvenanceErrorReason {
     UnknownField,
     RoleInvalid,
     ProvenanceInUse,
+    SourceRevisionIneligible,
+    SourceClosureActive,
 }
 
 impl ProvenanceErrorReason {
@@ -5389,6 +5419,8 @@ impl ProvenanceErrorReason {
             Self::UnknownField => "unknown_field",
             Self::RoleInvalid => "role_invalid",
             Self::ProvenanceInUse => "provenance_in_use",
+            Self::SourceRevisionIneligible => "source_revision_ineligible",
+            Self::SourceClosureActive => "source_closure_active",
         }
     }
 }
@@ -6026,6 +6058,8 @@ pub enum EngineError {
     Provenance(ProvenanceError),
     /// Immutable source-dependency validation, conflict, or bounded-read refusal.
     Dependency(DependencyError),
+    /// Dependency-closure lookup validation refusal.
+    DependencyClosure(DependencyClosureError),
     /// Bounded caller-decided actuation request or idempotency refusal.
     Actuation(ActuationError),
     Overloaded,
@@ -6137,6 +6171,12 @@ impl From<DependencyError> for EngineError {
     }
 }
 
+impl From<DependencyClosureError> for EngineError {
+    fn from(error: DependencyClosureError) -> Self {
+        Self::DependencyClosure(error)
+    }
+}
+
 impl Display for EngineError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -6162,6 +6202,7 @@ impl Display for EngineError {
             Self::SchemaValidation => write!(f, "schema validation error"),
             Self::Provenance(error) => write!(f, "provenance: {error}"),
             Self::Dependency(error) => write!(f, "dependency: {error}"),
+            Self::DependencyClosure(error) => write!(f, "dependency closure: {error}"),
             Self::Actuation(error) => write!(f, "actuation: {error}"),
             Self::Overloaded => write!(f, "engine overloaded"),
             Self::Closing => write!(f, "engine is closing"),
@@ -6225,6 +6266,7 @@ impl EngineError {
             Self::SchemaValidation => "SchemaValidationError",
             Self::Provenance(_) => "ProvenanceError",
             Self::Dependency(_) => "DependencyError",
+            Self::DependencyClosure(_) => "DependencyClosureError",
             Self::Actuation(_) => "ActuationError",
             Self::Overloaded => "OverloadedError",
             Self::Closing => "ClosingError",
@@ -7443,6 +7485,10 @@ impl Engine {
         let migration = migrate_with_event_sink(&connection, migrations, emit_migration_event)
             .map_err(map_migration_error)?;
         validate_dependency_generation_on_open(&connection, migration.schema_version_after)?;
+        dependency_closure::validate_closure_state_on_open(
+            &connection,
+            migration.schema_version_after,
+        )?;
         // 0.8.0 Slice 5 (G1) — global FTS5 tokenizer-default upgrade. Step 11
         // drops + recreates `search_index` with the new tokenizer, leaving it
         // EMPTY on a migrated DB. The projection scheduler will NOT
@@ -8397,6 +8443,7 @@ impl Engine {
 
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        dependency_closure::maintain_before_writer(connection)?;
         let plans = validate_batch(connection, batch)?;
         validate_nested_projection_sources_for_write(connection, batch)?;
         // The enrolment decision is read-only here. Registration and stranded-row
@@ -8425,7 +8472,7 @@ impl Engine {
         let has_edge_body_work = batch.iter().any(|write| {
             matches!(storage_write_shape(write).as_ref(), PreparedWrite::Edge { body: Some(_), .. })
         });
-        let (dangling_edge_endpoints, unstranded) = match commit_batch(
+        let (dangling_edge_endpoints, unstranded, _closure_ids) = match commit_batch(
             connection,
             batch,
             &plans,
@@ -8441,6 +8488,7 @@ impl Engine {
             Err(CommitBatchError::Provenance(error)) => {
                 return Err(EngineError::Provenance(error));
             }
+            Err(CommitBatchError::Engine(error)) => return Err(error),
         };
         let pending_projection = !projection_jobs.is_empty()
             || !vector_kinds_to_enrol.is_empty()
@@ -9126,7 +9174,11 @@ impl Engine {
 
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+        dependency_closure::maintain_before_writer(connection)?;
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        dependency_closure::guard_no_pending_physical(&tx)?;
 
         for v in verdicts {
             let edge_ref =
@@ -10715,6 +10767,47 @@ impl Engine {
         settled
     }
 
+    fn freeze_projection_for_closure_retry(&self) -> Result<(), EngineError> {
+        self.projection_runtime.set_frozen(true);
+        if self.projection_runtime.wait_for_workers_idle(LIFECYCLE_DRAIN_TIMEOUT_MS) {
+            Ok(())
+        } else {
+            self.projection_runtime.set_frozen(false);
+            Err(EngineError::Scheduler)
+        }
+    }
+
+    fn finish_physical_dependency_closures(
+        &self,
+        verb: &'static str,
+        closure_ids: &[ClosureOperationId],
+    ) -> Result<(), EngineError> {
+        {
+            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+            dependency_closure::validate_physical_closures(connection, closure_ids)?;
+        }
+        if let Err(error) = self.complete_erasure_at_rest(verb) {
+            let blocker = match &error {
+                EngineError::ErasureIncomplete { stage, .. }
+                    if stage == "telemetry_redaction" || stage == "wal_checkpoint" =>
+                {
+                    Some(stage.as_str())
+                }
+                _ => None,
+            };
+            if let Some(blocker) = blocker {
+                let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+                let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+                dependency_closure::mark_physical_incomplete(connection, closure_ids, blocker)?;
+            }
+            return Err(error);
+        }
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        dependency_closure::complete_physical_closures(connection, closure_ids)
+    }
+
     /// Wait before a metadata-only mutation that must not turn an absent
     /// embedder into an unrelated operation failure. Direct [`Self::drain`]
     /// still reports the typed Slice-30 feedback; with no configured runtime
@@ -11525,7 +11618,11 @@ impl Engine {
                 .unwrap_or_else(|p| p.into_inner());
             let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-            let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+            dependency_closure::maintain_before_writer(connection)?;
+            let tx = connection
+                .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+                .map_err(|_| EngineError::Storage)?;
+            dependency_closure::guard_no_pending_physical(&tx)?;
             #[cfg(debug_assertions)]
             let fail = self
                 .projection_runtime
@@ -11600,12 +11697,17 @@ impl Engine {
         self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        connection
-            .execute(
-                "UPDATE canonical_nodes SET importance = ?1 WHERE write_cursor = ?2",
-                params![importance, write_cursor],
-            )
+        dependency_closure::maintain_before_writer(connection)?;
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|_| EngineError::Storage)?;
+        dependency_closure::guard_no_pending_physical(&tx)?;
+        tx.execute(
+            "UPDATE canonical_nodes SET importance = ?1 WHERE write_cursor = ?2",
+            params![importance, write_cursor],
+        )
+        .map_err(|_| EngineError::Storage)?;
+        tx.commit().map_err(|_| EngineError::Storage)?;
         Ok(())
     }
 
@@ -11617,12 +11719,18 @@ impl Engine {
         self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let barrier = dependency_closure::read_barrier_sql("canonical_nodes");
         connection
             .query_row(
-                "SELECT importance FROM canonical_nodes WHERE write_cursor = ?1 LIMIT 1",
+                &format!(
+                    "SELECT importance FROM canonical_nodes \
+                     WHERE write_cursor = ?1{barrier} LIMIT 1"
+                ),
                 params![write_cursor],
                 |r| r.get::<_, Option<f64>>(0),
             )
+            .optional()
+            .map(Option::flatten)
             .map_err(|_| EngineError::Storage)
     }
 
@@ -11892,10 +12000,9 @@ impl Engine {
     ///
     /// Keys on the BARE `logical_id` (`l:` space only); a `Content`(`h:`) or
     /// `Passage`(`p:`) id raises [`EngineError::NotLifecycleAddressable`].
-    /// The state flip mutates the single active (`superseded_at IS NULL`) row; a
-    /// `deleted` row STAYS node-FTS / vector indexed (gap-5) — only the
-    /// `state='active'` default filter excludes those shadows, so an undelete
-    /// needs no re-projection there.
+    /// The state flip mutates the single active (`superseded_at IS NULL`) row.
+    /// Row-owned projections are removed on exclusion and rebuilt on admission,
+    /// so lifecycle-closed dependencies cannot consume bounded candidate slots.
     ///
     /// 0.8.20 Slice 15d fix-2 [P2] — the row-owned ATTRIBUTE projection
     /// (`canonical_attributes` / `property_search_index`) is the exception: it has
@@ -11927,18 +12034,30 @@ impl Engine {
 
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+        dependency_closure::maintain_before_writer(connection)?;
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        dependency_closure::guard_no_pending_physical(&tx)?;
 
         // The lifecycle state lives on the single active (superseded_at IS NULL)
         // version; a `deleted` row is still that active version, just flagged.
         // fix-2 [P2] — also read its `write_cursor` + `body` so the row-owned
         // attribute projection can be maintained after the state flip.
-        let current: Option<(String, i64, String)> = tx
+        let current: Option<(String, i64, String, String, String)> = tx
             .query_row(
-                "SELECT state, write_cursor, body FROM canonical_nodes \
+                "SELECT state, write_cursor, kind, body, row_kind FROM canonical_nodes \
                  WHERE logical_id = ?1 AND superseded_at IS NULL",
                 params![lid],
-                |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?, r.get::<_, String>(2)?)),
+                |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, i64>(1)?,
+                        r.get::<_, String>(2)?,
+                        r.get::<_, String>(3)?,
+                        r.get::<_, String>(4)?,
+                    ))
+                },
             )
             .optional()
             .map_err(|_| EngineError::Storage)?;
@@ -11946,7 +12065,7 @@ impl Engine {
         // A missing active row is an absent/purged node — the terminal `Purged`
         // state for legality purposes (nothing is a legal target from there).
         let from_state = match &current {
-            Some((s, _, _)) => LifecycleState::from_str_opt(s).ok_or(EngineError::Storage)?,
+            Some((s, _, _, _, _)) => LifecycleState::from_str_opt(s).ok_or(EngineError::Storage)?,
             None => LifecycleState::Purged,
         };
 
@@ -11959,8 +12078,27 @@ impl Engine {
         }
 
         if matches!(to_state, LifecycleState::Active) {
-            if let Some((_, _, body)) = &current {
+            if let Some((_, _, _, body, _)) = &current {
                 validate_nested_projection_sources_for_body(&tx, body)?;
+            }
+            if let Some((_, cursor, _, _, _)) = &current {
+                dependency_closure::guard_derived_reactivation(&tx, *cursor)?;
+            }
+        }
+
+        if matches!(to_state, LifecycleState::Deleted) {
+            if let Some((_, cursor, _, _, _)) = &current {
+                if let Some(source_revision) =
+                    dependency_closure::source_revision_for_cursor(&tx, *cursor)?
+                {
+                    dependency_closure::admit_soft_closure(
+                        &tx,
+                        &source_revision,
+                        ClosureCauseV1::SoftDeleted,
+                        self.next_cursor.load(Ordering::SeqCst),
+                        dependency_closure::SoftClosureMode::Complete,
+                    )?;
+                }
             }
         }
 
@@ -11977,35 +12115,26 @@ impl Engine {
         )
         .map_err(|_| EngineError::Storage)?;
 
-        // fix-2 [P2] — maintain the row-owned attribute projection so it keeps
-        // tracking the backfill's set (projected ⟺ active ∧ non-superseded). The
-        // transitioned row is the single non-superseded version, so the invariant
-        // reduces to `projected ⟺ to_state == Active`. We PURGE unconditionally
-        // (idempotent — a no-op on the never-projected pending / already-purged
-        // deleted arms) then RE-PROJECT when landing `Active`. This covers every
-        // legal move: promote (pending→active) projects the withheld attributes;
-        // soft-delete (active→deleted) purges; undelete (deleted→active)
-        // re-projects; reject (pending→deleted) is a no-op. The property tables
-        // (`canonical_attributes` / `property_search_index`) carry NO read-side
-        // lifecycle filter — unlike node-FTS / vector shadows, which the canonical
-        // read path already excludes when non-active — so they MUST be maintained
-        // at rest, the same rationale as fix-1's purge-on-supersede. Node-FTS /
-        // vector shadows are deliberately left intact (gap-5: a deleted row STAYS
-        // indexed; only the `state='active'` default read filter hides it).
-        if let Some((cursor, body)) = current.as_ref().map(|(_, c, b)| (*c, b.as_str())) {
-            purge_row_projections_for_cursor_in(
-                &tx,
-                cursor,
-                &[ProjectionClass::Attribute, ProjectionClass::PropertyFts],
-            )
-            .map_err(|_| EngineError::Storage)?;
+        let mut enqueued_projection = false;
+        if let Some((_, cursor, kind, body, row_kind)) = &current {
+            erase_row_projections(&tx, *cursor).map_err(|_| EngineError::Storage)?;
             if matches!(to_state, LifecycleState::Active) {
-                project_node_attributes(&tx, cursor, body).map_err(|_| EngineError::Storage)?;
-                refresh_vector_attr_values_for_row(&tx, cursor, body)
-                    .map_err(|_| EngineError::Storage)?;
+                enqueued_projection = project_canonical_node_row(
+                    &tx,
+                    u64::try_from(*cursor).map_err(|_| EngineError::Storage)?,
+                    kind,
+                    body,
+                    row_kind_from_column(row_kind),
+                    ProjectionPass::Write,
+                    true,
+                )
+                .map_err(|_| EngineError::Storage)?;
             }
         }
         tx.commit().map_err(|_| EngineError::Storage)?;
+        if enqueued_projection {
+            self.projection_runtime.notify_new_work();
+        }
         self.counters.record_admin();
         Ok(())
     }
@@ -12053,7 +12182,11 @@ impl Engine {
         let (delta, enqueued_backfill) = {
             let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-            let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+            dependency_closure::maintain_before_writer(connection)?;
+            let tx = connection
+                .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+                .map_err(|_| EngineError::Storage)?;
+            dependency_closure::guard_no_pending_physical(&tx)?;
             let applied = apply_projection_config(&tx, specs, drop, dense_arm_live)?;
             tx.commit().map_err(|_| EngineError::Storage)?;
             applied
@@ -12226,9 +12359,11 @@ impl Engine {
         self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        dependency_closure::maintain_before_writer(connection)?;
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|_| EngineError::Storage)?;
+        dependency_closure::guard_no_pending_physical(&tx)?;
         let validated = validate_source_dependency_registration(
             &tx,
             request,
@@ -12403,6 +12538,18 @@ impl Engine {
         self.ensure_open()?;
         let lid = Self::resolve_lifecycle_target(logical_id)?;
 
+        let pending = {
+            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+            dependency_closure::pending_physical_retry(connection, "purge", &lid)?
+        };
+        if !pending.is_empty() {
+            self.freeze_projection_for_closure_retry()?;
+            let result = self.finish_physical_dependency_closures("purge", &pending);
+            self.projection_runtime.set_frozen(false);
+            return result;
+        }
+
         // Drain in-flight projection work before the erase, exactly as
         // `excise_source` does: SQLite-WAL would otherwise let a worker that
         // already dequeued a job for a purged cursor commit its vec0 /
@@ -12412,25 +12559,31 @@ impl Engine {
         // before freezing the scanner; with no configured runtime, freeze after
         // the immediate Slice-30 feedback and remove the pending row instead.
         self.freeze_projection_for_erasure()?;
-        let outcome = self.purge_inner(&lid);
+        let outcome = (|| {
+            let closure_ids = self.purge_inner(&lid)?;
+            self.finish_physical_dependency_closures("purge", &closure_ids)
+        })();
         self.projection_runtime.set_frozen(false);
         // 0.8.20 Slice 5b (R-20-E5/E6) — the rows are gone from the tables; now
         // finish the erasure AT REST (telemetry sink + `-wal` bytes) before
         // reporting success. Runs after the connection guard inside
         // `purge_inner` has been dropped: `complete_erasure_at_rest` re-acquires
         // it for the checkpoint.
-        outcome?;
-        self.complete_erasure_at_rest("purge")
+        outcome
     }
 
     /// The erased rows' prefixed stable ids ([`IdSpace::to_prefixed`]) are NOT
     /// returned: they are enqueued for redaction inside this transaction (see
     /// [`enqueue_pending_redaction`]), because a caller-held vector is lost on the
     /// retry path that codex Â§9 P2 found.
-    fn purge_inner(&self, lid: &str) -> Result<(), EngineError> {
+    fn purge_inner(&self, lid: &str) -> Result<Vec<ClosureOperationId>, EngineError> {
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+        dependency_closure::maintain_before_writer(connection)?;
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        dependency_closure::guard_no_pending_physical(&tx)?;
 
         // Precondition on the active row's state. Absent (never-created or
         // already-purged) → idempotent no-op success.
@@ -12447,7 +12600,7 @@ impl Engine {
             None => {
                 // Idempotent: nothing to erase.
                 tx.commit().map_err(|_| EngineError::Storage)?;
-                return Ok(());
+                return Ok(Vec::new());
             }
             Some(s) => LifecycleState::from_str_opt(&s).ok_or(EngineError::Storage)?,
         };
@@ -12463,7 +12616,7 @@ impl Engine {
         // Collect every version cursor for the node, plus every cursor of an edge
         // that touches it (either endpoint), across ALL versions — the projection
         // shadow tables are keyed by these per-row `write_cursor`s.
-        let node_cursors: Vec<i64> = {
+        let mut node_cursors: Vec<i64> = {
             let mut stmt = tx
                 .prepare("SELECT write_cursor FROM canonical_nodes WHERE logical_id = ?1")
                 .map_err(|_| EngineError::Storage)?;
@@ -12472,7 +12625,7 @@ impl Engine {
                 .map_err(|_| EngineError::Storage)?;
             rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|_| EngineError::Storage)?
         };
-        let edge_cursors: Vec<i64> = {
+        let mut edge_cursors: Vec<i64> = {
             let mut stmt = tx
                 .prepare(
                     "SELECT write_cursor FROM canonical_edges \
@@ -12485,14 +12638,62 @@ impl Engine {
             rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|_| EngineError::Storage)?
         };
 
-        // 0.8.20 Slice 5b (R-20-E6) — the stable ids the telemetry sink may have
-        // persisted for these rows, collected BEFORE the DELETEs.
-        let erased_stable_ids = collect_erased_stable_ids(
-            &tx,
-            "SELECT logical_id, body FROM canonical_nodes WHERE logical_id = ?1",
-            "SELECT logical_id, body FROM canonical_edges WHERE from_id = ?1 OR to_id = ?1",
-            lid,
-        )?;
+        let source_revisions = node_cursors
+            .iter()
+            .map(|cursor| dependency_closure::source_revision_for_cursor(&tx, *cursor))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        let physical_plans =
+            dependency_closure::physical_dependents_for_sources(&tx, &source_revisions)?;
+        for (_, dependents) in &physical_plans {
+            for (class, cursor) in dependents {
+                match class.as_str() {
+                    "node" => node_cursors.push(*cursor),
+                    "edge" => edge_cursors.push(*cursor),
+                    _ => return Err(EngineError::Storage),
+                }
+            }
+        }
+        node_cursors.sort_unstable();
+        node_cursors.dedup();
+        edge_cursors.sort_unstable();
+        edge_cursors.dedup();
+
+        // The stable ids the telemetry sink may have persisted, collected for
+        // the complete expanded cursor set before any DELETE.
+        let erased_stable_ids =
+            collect_erased_stable_ids_for_cursors(&tx, &node_cursors, &edge_cursors)?;
+        let pending_cursor = self.next_cursor.load(Ordering::SeqCst).saturating_add(1);
+        let enqueued =
+            self.telemetry_enabled.load(Ordering::Acquire) && !erased_stable_ids.is_empty();
+
+        let mut closure_ids = Vec::new();
+        let proof_boundary =
+            if enqueued { pending_cursor } else { self.next_cursor.load(Ordering::SeqCst) };
+        for (source_revision, dependents) in &physical_plans {
+            tx.execute(
+                "DELETE FROM _fathomdb_dependency_closures \
+                 WHERE root_kind='source_revision' AND root_value=?1 AND phase='complete'",
+                [source_revision],
+            )
+            .map_err(|_| EngineError::Storage)?;
+            if let Some(id) = dependency_closure::record_physical_closure(
+                &tx,
+                dependency_closure::PhysicalClosureAdmission {
+                    root_kind: "source_revision",
+                    root_value: source_revision,
+                    retry_verb: "purge",
+                    retry_argument: lid,
+                    cause: ClosureCauseV1::Purged,
+                    boundary: proof_boundary,
+                    affected_count: dependents.len(),
+                },
+            )? {
+                closure_ids.push(id);
+            }
+        }
 
         let affected_cursors: Vec<i64> =
             node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
@@ -12523,7 +12724,20 @@ impl Engine {
             erase_row_projections(&tx, *cursor).map_err(|_| EngineError::Storage)?;
         }
 
-        // Erase the canonical rows: all node versions + all touching edges
+        // Erase every exact row in the admitted physical closure, including
+        // registered dependents whose logical identity is unrelated to the
+        // purged root. The root-wide deletes that follow retain the pre-Slice-30
+        // all-version and endpoint cascade contract.
+        for cursor in &node_cursors {
+            tx.execute("DELETE FROM canonical_nodes WHERE write_cursor = ?1", [cursor])
+                .map_err(|_| EngineError::Storage)?;
+        }
+        for cursor in &edge_cursors {
+            tx.execute("DELETE FROM canonical_edges WHERE write_cursor = ?1", [cursor])
+                .map_err(|_| EngineError::Storage)?;
+        }
+
+        // Erase the canonical root rows: all node versions + all touching edges
         // (gap-3 CASCADE-REMOVE — no content-free stubs in Phase-1).
         tx.execute("DELETE FROM canonical_nodes WHERE logical_id = ?1", params![lid])
             .map_err(|_| EngineError::Storage)?;
@@ -12534,9 +12748,6 @@ impl Engine {
         // erasure now owes, atomically with the deletes above. Only when a sink
         // is attached: with telemetry never enabled there is no file the ids
         // could have leaked into, so there is nothing to owe.
-        let pending_cursor = self.next_cursor.load(Ordering::SeqCst).saturating_add(1);
-        let enqueued =
-            self.telemetry_enabled.load(Ordering::Acquire) && !erased_stable_ids.is_empty();
         if enqueued {
             enqueue_pending_redaction(&tx, "purge", &erased_stable_ids, pending_cursor)?;
         }
@@ -12546,7 +12757,7 @@ impl Engine {
             self.next_cursor.store(pending_cursor, Ordering::SeqCst);
         }
         self.counters.record_admin();
-        Ok(())
+        Ok(closure_ids)
     }
 
     /// 0.8.20 Slice 5d (R-20-E4, design §4 item 9b) — the **governed SDK
@@ -12618,6 +12829,26 @@ impl Engine {
     ) -> Result<ExciseReport, EngineError> {
         self.ensure_open()?;
 
+        let pending = {
+            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+            dependency_closure::pending_physical_retry(connection, verb, source_id)?
+        };
+        if !pending.is_empty() {
+            self.freeze_projection_for_closure_retry()?;
+            let result = (|| {
+                self.finish_physical_dependency_closures(verb, &pending)?;
+                Ok(ExciseReport {
+                    source_ref: source_id.to_string(),
+                    nodes_excised: 0,
+                    edges_excised: 0,
+                    projections_invalidated: 0,
+                })
+            })();
+            self.projection_runtime.set_frozen(false);
+            return result;
+        }
+
         // Drain MUST succeed before the excise transaction. SQLite-WAL
         // would otherwise allow a worker that already dequeued a job
         // for an excised cursor to commit its INSERT into vec0 /
@@ -12629,16 +12860,18 @@ impl Engine {
         // ordering, while allowing this destructive operation to delete
         // otherwise-unserviceable no-embedder rows.
         self.freeze_projection_for_erasure()?;
-        let outcome = self.excise_source_inner(verb, source_id);
+        let outcome = (|| {
+            let (report, closure_ids) = self.excise_source_inner(verb, source_id)?;
+            self.finish_physical_dependency_closures(verb, &closure_ids)?;
+            Ok(report)
+        })();
         self.projection_runtime.set_frozen(false);
         // 0.8.20 Slice 5b (R-20-E5/E6) — finish the erasure AT REST before
         // reporting success: redact the erased stable ids out of the telemetry
         // sink, then truncate the `-wal` so the erased bytes are not still
         // readable on disk. On persistent checkpoint BUSY this returns
         // `ErasureIncomplete` rather than an `ExciseReport`.
-        let report = outcome?;
-        self.complete_erasure_at_rest(verb)?;
-        Ok(report)
+        outcome
     }
 
     /// Doctor `verify-embedder` seam (AC-040a). Compares the
@@ -13218,10 +13451,14 @@ impl Engine {
         &self,
         verb: &'static str,
         source_id: &str,
-    ) -> Result<ExciseReport, EngineError> {
+    ) -> Result<(ExciseReport, Vec<ClosureOperationId>), EngineError> {
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+        dependency_closure::maintain_before_writer(connection)?;
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        dependency_closure::guard_no_pending_physical(&tx)?;
 
         // Collect the cursor sets up-front so we can targeted-delete
         // shadow rows AND emit an accurate audit row in one txn.
@@ -13243,6 +13480,40 @@ impl Engine {
                 .map_err(|_| EngineError::Storage)?;
             rows.collect::<rusqlite::Result<Vec<_>>>().map_err(|_| EngineError::Storage)?
         };
+
+        let source_revisions = node_cursors
+            .iter()
+            .map(|cursor| dependency_closure::source_revision_for_cursor(&tx, *cursor))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>();
+        let physical_plans =
+            dependency_closure::physical_dependents_for_sources(&tx, &source_revisions)?;
+        let affected_dependencies = physical_plans.iter().map(|(_, rows)| rows.len()).sum();
+        for source_revision in &source_revisions {
+            tx.execute(
+                "DELETE FROM _fathomdb_dependency_closures \
+                 WHERE root_kind='source_revision' AND root_value=?1 AND phase='complete'",
+                [source_revision],
+            )
+            .map_err(|_| EngineError::Storage)?;
+        }
+        let proof_boundary = self.next_cursor.load(Ordering::SeqCst).saturating_add(1);
+        let closure_ids = dependency_closure::record_physical_closure(
+            &tx,
+            dependency_closure::PhysicalClosureAdmission {
+                root_kind: "source_bucket",
+                root_value: source_id,
+                retry_verb: verb,
+                retry_argument: source_id,
+                cause: ClosureCauseV1::SourceErased,
+                boundary: proof_boundary,
+                affected_count: affected_dependencies,
+            },
+        )?
+        .into_iter()
+        .collect::<Vec<_>>();
 
         // 0.8.20 Slice 5b (R-20-E6) — stable ids the telemetry sink may hold for
         // these rows, collected BEFORE the DELETEs.
@@ -13334,12 +13605,15 @@ impl Engine {
 
         tx.commit().map_err(|_| EngineError::Storage)?;
         self.next_cursor.store(audit_cursor, Ordering::SeqCst);
-        Ok(ExciseReport {
-            source_ref: source_id.to_string(),
-            nodes_excised,
-            edges_excised,
-            projections_invalidated: shadow_invalidated,
-        })
+        Ok((
+            ExciseReport {
+                source_ref: source_id.to_string(),
+                nodes_excised,
+                edges_excised,
+                projections_invalidated: shadow_invalidated,
+            },
+            closure_ids,
+        ))
     }
 
     /// 0.8.20 Slice 5b (R-20-E7) — erase ONE op-store record, by collection and
@@ -13411,7 +13685,11 @@ impl Engine {
     ) -> Result<ExciseRecordReport, EngineError> {
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+        dependency_closure::maintain_before_writer(connection)?;
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        dependency_closure::guard_no_pending_physical(&tx)?;
 
         let records_excised = tx
             .execute(
@@ -13485,7 +13763,11 @@ impl Engine {
     ) -> Result<RebuildReport, EngineError> {
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+        dependency_closure::maintain_before_writer(connection)?;
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        dependency_closure::guard_no_pending_physical(&tx)?;
         // 0.8.20 Slice 5a (R-20-E1) — registry-driven invalidation. A full
         // rebuild truncates EVERY row-owned projection (the previous hand-rolled
         // list omitted `search_index_v2`, so a rebuild neither dropped stale v2
@@ -14975,12 +15257,12 @@ fn read_projected_text_in_tx(
     if let Some(filter) = filter {
         validate_filter_attributes_on_snapshot(&tx, filter)?;
     }
-    let validity = frozen.validity_sql("n", 3);
+    let node_predicate = frozen.node_sql("n", 3);
     let sql = format!(
         "SELECT p.write_cursor, bm25(property_search_index), n.kind, n.body, n.logical_id, n.source_id
          FROM property_search_index p JOIN canonical_nodes n ON n.write_cursor = p.write_cursor
          WHERE p.attr_name = ?1 AND property_search_index MATCH ?2
-           AND n.superseded_at IS NULL AND n.state = 'active'{validity}
+           {node_predicate}
          ORDER BY bm25(property_search_index) ASC, p.write_cursor ASC"
     );
     let mut params = vec![
@@ -15189,10 +15471,11 @@ fn read_search_in_tx(
         // On a corpus that never authored a window every row is NULL/NULL and
         // the conjunct matches everything ⇒ default behaviour is unchanged.
         let node_validity = view.validity_sql("canonical_nodes", 2);
+        let node_barrier = dependency_closure::read_barrier_sql("canonical_nodes");
         let mut node_stmt = tx.prepare(&format!(
             "SELECT kind, body, logical_id, source_id FROM canonical_nodes \
              WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active'\
-             {node_validity} LIMIT 1"
+             {node_validity}{node_barrier} LIMIT 1"
         ))?;
         // fix-2 (codex §9 [P2]): an edge body projected into `vector_default`
         // (kind = "edge_fact") is hydrated HERE by write_cursor. Gating on
@@ -15386,6 +15669,7 @@ fn read_search_in_tx(
         // row-set, the `bm25(search_index), write_cursor` ordering and the
         // scores are all byte-unchanged.
         let text_validity = view.validity_sql("cn", 2);
+        let text_barrier = dependency_closure::read_barrier_sql("cn");
         let join_sql = format!(
             "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
              bm25(search_index), cn.logical_id, cn.source_id FROM search_index \
@@ -15393,7 +15677,7 @@ fn read_search_in_tx(
              WHERE search_index MATCH ?1 \
                AND cn.superseded_at IS NULL \
                AND (cn.state = 'active' OR cn.state IS NULL)\
-               {text_validity} \
+               {text_validity}{text_barrier} \
              ORDER BY bm25(search_index), search_index.write_cursor{limit_clause}"
         );
         // `:now` rides at ?2 only when the view emitted a conjunct; the relaxed
@@ -15435,7 +15719,7 @@ fn read_search_in_tx(
                  WHERE search_index MATCH ?1 \
                    AND cn.superseded_at IS NULL \
                    AND (cn.state = 'active' OR cn.state IS NULL)\
-                   {text_validity} \
+                   {text_validity}{text_barrier} \
                    AND rank MATCH '{rank_mapping}' \
                  ORDER BY rank"
             );
@@ -15645,6 +15929,8 @@ fn read_search_in_tx(
             dropped_edge_hits = dropped_edge_hits.saturating_add(1);
         }
     }
+    let vector_results = filter_barriered_search_hits(&tx, vector_results)?;
+    let text_results = filter_barriered_search_hits(&tx, text_results)?;
     tx.commit()?;
 
     // GA-2 / Slice-40 (◆ B-1) measurement seam: when `vector_stage_only` is set
@@ -15830,6 +16116,22 @@ fn read_search_in_tx(
     };
 
     Ok((cursor, soft_fallback, results, graph_stats, explanation))
+}
+
+fn filter_barriered_search_hits(
+    connection: &Connection,
+    hits: Vec<SearchHit>,
+) -> rusqlite::Result<Vec<SearchHit>> {
+    let mut visible = Vec::with_capacity(hits.len());
+    for hit in hits {
+        let cursor = i64::try_from(hit.write_cursor).map_err(|_| rusqlite::Error::InvalidQuery)?;
+        if !dependency_closure::derived_cursor_has_active_barrier(connection, cursor)
+            .map_err(|_| rusqlite::Error::InvalidQuery)?
+        {
+            visible.push(hit);
+        }
+    }
+    Ok(visible)
 }
 
 fn rank_search_hit_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<SearchHit> {
@@ -16105,6 +16407,7 @@ fn bfs_graph_arm_candidates(
         {
             // `?1` MATCH, `?2` LIMIT ⇒ `:now` binds at `?3`.
             let seed_validity = view.validity_sql("cn", 3);
+            let seed_barrier = dependency_closure::read_barrier_sql("cn");
             let mut node_seed_stmt = tx.prepare(&format!(
                 "SELECT cn.logical_id, cn.source_id \
                  FROM search_index si \
@@ -16113,7 +16416,7 @@ fn bfs_graph_arm_candidates(
                    AND cn.superseded_at IS NULL \
                    AND cn.state = 'active' \
                    AND cn.logical_id IS NOT NULL\
-                   {seed_validity} \
+                   {seed_validity}{seed_barrier} \
                  ORDER BY bm25(search_index), si.write_cursor \
                  LIMIT ?2"
             ))?;
@@ -16142,10 +16445,11 @@ fn bfs_graph_arm_candidates(
         // nodes, not just the fact body (codex §9 [P2]). Seeds whose body is already in
         // the two-arm result are skipped; the cap is respected.
         let active_validity = view.validity_sql("canonical_nodes", 2);
+        let active_barrier = dependency_closure::read_barrier_sql("canonical_nodes");
         let mut active_stmt = tx.prepare(&format!(
             "SELECT kind, body, write_cursor FROM canonical_nodes \
              WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active'\
-             {active_validity} LIMIT 1"
+             {active_validity}{active_barrier} LIMIT 1"
         ))?;
         for (lid, source_id, seed_confidence) in candidate_seeds {
             stats.seeds_considered += 1;
@@ -16224,10 +16528,11 @@ fn bfs_graph_arm_candidates(
     // Fetch write_cursor alongside kind+body so graph-arm hits carry a real id
     // for apply_recency_reweight (id=0 would force min_id=0 and distort span).
     let body_validity = view.validity_sql("canonical_nodes", 2);
+    let body_barrier = dependency_closure::read_barrier_sql("canonical_nodes");
     let mut body_stmt = tx.prepare(&format!(
         "SELECT kind, body, write_cursor FROM canonical_nodes \
          WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active'\
-         {body_validity} \
+         {body_validity}{body_barrier} \
          LIMIT 1"
     ))?;
 
@@ -16646,13 +16951,17 @@ fn build_bfs_with_depth_sql() -> String {
                              // TC-33: `?1` anchor, `?2` depth ⇒ the edge `:now` binds at `?3`. This is a
                              // SECOND, separate BFS template — the edge-validity predicate has to be
                              // re-grounded here too or `search_expand` silently keeps the old semantics.
+    let strict = ReadView::default();
+    let anchor_node = strict.node_sql("n", 3);
+    let next_node = strict.node_sql("next_n", 3);
+    let projection_node = strict.node_sql("n", 3);
     let edge_valid = edge_validity_sql("e", 3);
     format!(
         "WITH RECURSIVE
   traversal(logical_id, depth, visited) AS (
     SELECT n.logical_id, 0, char(30) || n.logical_id || char(30)
     FROM canonical_nodes n
-    WHERE n.logical_id = ?1 AND n.superseded_at IS NULL AND n.state = 'active'
+    WHERE n.logical_id = ?1{anchor_node}
     UNION ALL
     SELECT
       CASE WHEN e.from_id = t.logical_id THEN e.to_id ELSE e.from_id END,
@@ -16662,7 +16971,7 @@ fn build_bfs_with_depth_sql() -> String {
     JOIN canonical_edges e ON (e.from_id = t.logical_id OR e.to_id = t.logical_id)
     JOIN canonical_nodes next_n
       ON next_n.logical_id = CASE WHEN e.from_id = t.logical_id THEN e.to_id ELSE e.from_id END
-      AND next_n.superseded_at IS NULL AND next_n.state = 'active'
+      {next_node}
     WHERE t.depth < ?2
       AND e.superseded_at IS NULL{edge_valid}
       AND instr(t.visited,
@@ -16672,8 +16981,7 @@ fn build_bfs_with_depth_sql() -> String {
 SELECT n.logical_id, n.kind, n.body, n.write_cursor, MIN(tr.depth) AS min_depth
 FROM traversal tr
 JOIN canonical_nodes n ON n.logical_id = tr.logical_id
-WHERE n.superseded_at IS NULL AND n.state = 'active'
-  AND tr.logical_id != ?1
+WHERE tr.logical_id != ?1{projection_node}
 GROUP BY n.logical_id
 LIMIT {cap}"
     )
@@ -16700,12 +17008,13 @@ fn crossed_boundary_since_in_tx(
     // means "no upper bound on the interval".
     let upper = view.now_param().unwrap_or(i64::MAX);
     let existence = view.existence_sql("canonical_nodes");
+    let barrier = dependency_closure::read_barrier_sql("canonical_nodes");
     // `1 = 1` keeps the leading ` AND ` of `existence_sql` well-formed even when
     // every existence flag is relaxed and the conjunct is empty.
     let sql = format!(
         "SELECT logical_id, kind, body, write_cursor, valid_from, valid_until \
          FROM canonical_nodes \
-         WHERE 1 = 1{existence} \
+         WHERE 1 = 1{existence}{barrier} \
            AND logical_id IS NOT NULL \
            AND ( (valid_from IS NOT NULL AND valid_from > ?1 AND valid_from <= ?2) \
               OR (valid_until IS NOT NULL AND valid_until > ?1 AND valid_until <= ?2) ) \
@@ -16792,6 +17101,7 @@ fn search_expand_in_tx(
     worker_idx: usize,
 ) -> rusqlite::Result<SearchExpandResult> {
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
+    let frozen = ReadView::default().freeze();
 
     // Step 1: resolve write_cursor → logical_id for each search hit.
     // Possible outcomes per hit:
@@ -16801,23 +17111,26 @@ fn search_expand_in_tx(
     //   - Some(lid): active named node → keep; use as BFS root.
     let mut hit_logical_ids: Vec<Option<String>> = Vec::with_capacity(search_hits.len());
     {
-        let mut node_stmt = tx.prepare(
+        let node_predicate = frozen.node_sql("canonical_nodes", 2);
+        let mut node_stmt = tx.prepare(&format!(
             "SELECT logical_id FROM canonical_nodes
-             WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active'
-             LIMIT 1",
-        )?;
-        let mut edge_stmt = tx.prepare(
+             WHERE write_cursor = ?1{node_predicate}
+             LIMIT 1"
+        ))?;
+        let edge_predicate = edge_validity_sql("canonical_edges", 2);
+        let mut edge_stmt = tx.prepare(&format!(
             "SELECT 1 FROM canonical_edges
-             WHERE write_cursor = ?1 AND superseded_at IS NULL
-             LIMIT 1",
-        )?;
+             WHERE write_cursor = ?1 AND superseded_at IS NULL{edge_predicate}
+             LIMIT 1"
+        ))?;
         for hit in search_hits {
             if hit.branch == SoftFallbackBranch::TextEdge {
                 // Edge-body hit: verify the edge row is still active in THIS snapshot.
                 // Stale edge hits (superseded between search and expansion) are dropped.
                 let cursor_i64 = hit.write_cursor as i64;
-                let active: Option<i32> =
-                    edge_stmt.query_row([cursor_i64], |row| row.get(0)).optional()?;
+                let active: Option<i32> = edge_stmt
+                    .query_row(params![cursor_i64, frozen.edge_now()], |row| row.get(0))
+                    .optional()?;
                 if active.is_some() {
                     hit_logical_ids.push(Some(String::new())); // sentinel: keep hit, skip BFS
                 } else {
@@ -16830,7 +17143,9 @@ fn search_expand_in_tx(
                 //   Some(None)   → row with NULL logical_id → anonymous node
                 //   Some(Some(s)) → active named node
                 let resolved = node_stmt
-                    .query_row([cursor_i64], |row| row.get::<_, Option<String>>(0))
+                    .query_row(params![cursor_i64, frozen.now_param().unwrap_or_default()], |row| {
+                        row.get::<_, Option<String>>(0)
+                    })
                     .optional()?;
                 match resolved {
                     None => hit_logical_ids.push(None), // superseded: drop
@@ -16862,7 +17177,7 @@ fn search_expand_in_tx(
         // TC-33: `?3` is the edge-validity instant. `search_expand` has no
         // `ReadView` in scope, so it uses the default (strict) semantics —
         // resolved ONCE here, not per root, so every root in one call agrees.
-        let edge_now = current_epoch_seconds();
+        let edge_now = frozen.edge_now();
         for root_id in hit_logical_ids.iter().flatten().filter(|s| !s.is_empty()) {
             let neighbor_rows =
                 bfs_stmt.query_map(params![root_id, depth_i64, edge_now], |row| {
@@ -18487,6 +18802,12 @@ fn commit_projection_outcomes(
     // holds its own immediate transaction, which SQLite rejects without
     // invoking the busy handler and forces the worker to recompute the batch.
     let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    if dependency_closure::guard_no_pending_physical(&tx).is_err() {
+        return Err(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY),
+            Some("dependency closure fences projection publication".to_string()),
+        ));
+    }
     let _activity = shared.wal_attribution.enabled.then(|| {
         WalAttributionActivity::begin(
             Arc::clone(&shared.wal_attribution),
@@ -18539,6 +18860,17 @@ fn commit_projection_outcomes(
         match outcome {
             ProjectionOutcome::Success { cursor, kind, blob, bin_blob } => {
                 if terminal_state_for_cursor(&tx, *cursor)?.is_some() {
+                    continue;
+                }
+                if !dependency_closure::projection_owner_is_eligible(&tx, *cursor)
+                    .map_err(|_| rusqlite::Error::InvalidQuery)?
+                {
+                    delete_vector_partition_row(&tx, *cursor as i64)?;
+                    tx.execute(
+                        "DELETE FROM _fathomdb_vector_rows WHERE write_cursor=?1",
+                        [*cursor as i64],
+                    )?;
+                    record_projection_terminal(&tx, *cursor, "up_to_date")?;
                     continue;
                 }
                 // Build the threshold decision in the transaction-local
@@ -18950,6 +19282,32 @@ fn collect_erased_stable_ids(
                 derive_stable_id(logical_id.as_deref(), body.as_deref().unwrap_or(""))
                     .to_prefixed(),
             );
+        }
+    }
+    ids.sort_unstable();
+    ids.dedup();
+    Ok(ids)
+}
+
+fn collect_erased_stable_ids_for_cursors(
+    connection: &Connection,
+    node_cursors: &[i64],
+    edge_cursors: &[i64],
+) -> Result<Vec<String>, EngineError> {
+    let mut ids = Vec::new();
+    for (table, cursors) in [("canonical_nodes", node_cursors), ("canonical_edges", edge_cursors)] {
+        let sql = format!("SELECT logical_id,body FROM {table} WHERE write_cursor=?1");
+        for cursor in cursors {
+            let row: Option<(Option<String>, Option<String>)> = connection
+                .query_row(&sql, [cursor], |row| Ok((row.get(0)?, row.get(1)?)))
+                .optional()
+                .map_err(|_| EngineError::Storage)?;
+            if let Some((logical_id, body)) = row {
+                ids.push(
+                    derive_stable_id(logical_id.as_deref(), body.as_deref().unwrap_or(""))
+                        .to_prefixed(),
+                );
+            }
         }
     }
     ids.sort_unstable();
@@ -21583,7 +21941,7 @@ fn saturating_add_u64(acc: u64, n: usize) -> u64 {
     acc.saturating_add(n as u64)
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq)]
 enum DependencyValidationMode {
     Requested,
     Persisted,
@@ -22420,6 +22778,26 @@ fn validate_dependency_chain(
             ),
             DependencyValidationMode::Persisted => EngineError::Storage,
         });
+    }
+    if mode == DependencyValidationMode::Requested {
+        if dependency_closure::active_barrier_for_source(connection, requested_source_revision)? {
+            return Err(DependencyError::new(
+                DependencyErrorReason::DependencyClosureActive,
+                "/sourceRevisionId",
+            )
+            .into());
+        }
+        if !dependency_closure::source_revision_is_strictly_eligible(
+            connection,
+            requested_source_revision,
+            current_epoch_seconds(),
+        )? {
+            return Err(DependencyError::new(
+                DependencyErrorReason::DependencySourceIneligible,
+                "/sourceRevisionId",
+            )
+            .into());
+        }
     }
     Ok(())
 }
@@ -24748,6 +25126,7 @@ fn bm25f_search_inner(
 enum CommitBatchError {
     Sql(rusqlite::Error),
     Provenance(ProvenanceError),
+    Engine(EngineError),
 }
 
 impl From<rusqlite::Error> for CommitBatchError {
@@ -24759,6 +25138,12 @@ impl From<rusqlite::Error> for CommitBatchError {
 impl From<ProvenanceError> for CommitBatchError {
     fn from(error: ProvenanceError) -> Self {
         Self::Provenance(error)
+    }
+}
+
+impl From<EngineError> for CommitBatchError {
+    fn from(error: EngineError) -> Self {
+        Self::Engine(error)
     }
 }
 
@@ -25010,6 +25395,28 @@ fn register_artifact_identity(
                 )
                 .into());
             }
+            if dependency_closure::active_barrier_for_source(tx, source_revision_id.as_str())
+                .map_err(|_| rusqlite::Error::InvalidQuery)?
+            {
+                return Err(ProvenanceError::new(
+                    ProvenanceErrorReason::SourceClosureActive,
+                    "/provenance/sourceRevisionId",
+                )
+                .into());
+            }
+            if !dependency_closure::source_revision_is_strictly_eligible(
+                tx,
+                source_revision_id.as_str(),
+                current_epoch_seconds(),
+            )
+            .map_err(|_| rusqlite::Error::InvalidQuery)?
+            {
+                return Err(ProvenanceError::new(
+                    ProvenanceErrorReason::SourceRevisionIneligible,
+                    "/provenance/sourceRevisionId",
+                )
+                .into());
+            }
             tx.execute(
                 "INSERT INTO _fathomdb_artifact_revisions(\
                    schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness\
@@ -25044,7 +25451,7 @@ fn commit_batch(
     base_cursor: u64,
     provenance_row_cap: u64,
     vector_kinds_to_enrol: &[String],
-) -> Result<(u64, bool), CommitBatchError> {
+) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
     // 0.8.20 Slice 21a-2 (TC-57) — `BEGIN IMMEDIATE`, not rusqlite's `BEGIN
     // DEFERRED` default. Take the WAL write lock AT `BEGIN`, before the
     // supersession SELECT below, so this transaction never has to PROMOTE a read
@@ -25086,6 +25493,7 @@ fn commit_batch(
         base_cursor,
         provenance_row_cap,
         vector_kinds_to_enrol,
+        dependency_closure::SoftClosureMode::Complete,
     )?;
     tx.commit()?;
     Ok(result)
@@ -25104,7 +25512,10 @@ fn apply_batch_in_transaction(
     base_cursor: u64,
     provenance_row_cap: u64,
     vector_kinds_to_enrol: &[String],
-) -> Result<(u64, bool), CommitBatchError> {
+    closure_mode: dependency_closure::SoftClosureMode,
+) -> Result<(u64, bool, Vec<ClosureOperationId>), CommitBatchError> {
+    dependency_closure::guard_no_pending_physical(tx)?;
+    let mut closure_ids = Vec::new();
     for kind in vector_kinds_to_enrol {
         register_vector_kind(tx, kind)?;
     }
@@ -25146,6 +25557,21 @@ fn apply_batch_in_transaction(
                     // current value until a boot re-derive/reconfigure cleared the
                     // table — a stale read that violates the active-only invariant.
                     let prior_g0 = prior_node_cursors_by_logical_id(tx, logical_id)?;
+                    for prior_cursor in &prior_g0 {
+                        if let Some(source_revision) =
+                            dependency_closure::source_revision_for_cursor(tx, *prior_cursor)?
+                        {
+                            if let Some(id) = dependency_closure::admit_soft_closure(
+                                tx,
+                                &source_revision,
+                                ClosureCauseV1::Superseded,
+                                cursor,
+                                closure_mode,
+                            )? {
+                                closure_ids.push(id);
+                            }
+                        }
+                    }
                     tx.execute(
                         "UPDATE canonical_nodes SET superseded_at = ?1
                          WHERE logical_id = ?2 AND superseded_at IS NULL",
@@ -25440,7 +25866,7 @@ fn apply_batch_in_transaction(
     enforce_provenance_retention(tx, provenance_row_cap)?;
     advance_projection_cursor(tx)?;
 
-    Ok((dangling_edge_endpoints, unstranded))
+    Ok((dangling_edge_endpoints, unstranded, closure_ids))
 }
 
 fn load_next_cursor(connection: &Connection) -> u64 {
@@ -25456,7 +25882,15 @@ fn load_next_cursor(connection: &Connection) -> u64 {
     // already-projected and never get indexed. Step 23 stashes the pre-drop
     // maximum here; folding it in keeps cursors monotonic across the migration.
     let reserved = reserved_write_cursor(connection);
-    nodes.max(edges).max(mutations).max(state).max(reserved)
+    let closure_boundary = connection
+        .query_row(
+            "SELECT COALESCE(MAX(admitted_write_boundary),0) \
+             FROM _fathomdb_dependency_closures",
+            [],
+            |row| row.get::<_, u64>(0),
+        )
+        .unwrap_or(0);
+    nodes.max(edges).max(mutations).max(state).max(reserved).max(closure_boundary)
 }
 
 /// The write-cursor high-water mark reserved by schema step 23, or 0 when the

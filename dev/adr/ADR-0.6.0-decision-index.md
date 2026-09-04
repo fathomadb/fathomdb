@@ -131,6 +131,7 @@ Slice-0 gate before Slices 15 and 25 open.
 | # | Category | Candidate decision | HITL verdict | ADR file |
 | - | -------- | ------------------ | ------------ | -------- |
 | 44 | interface | Add one bounded, model-free, idempotent atomic actuation method while preserving `PreparedWrite`, existing methods, the typed/no-SQL boundary, and the recovery denylist | accepted by approved 0.8.25 scope and Slice 25 execution authorization | ADR-0.8.25-bounded-atomic-actuation.md |
+| 45 | architecture | Close direct single-source dependencies atomically across lifecycle and erasure, fence nonterminal work, prove completion, and expose only a keyed status read | accepted by approved 0.8.25 scope and Slice 30 execution authorization | ADR-0.8.25-dependency-lifecycle-closure.md |
 
 ## Categories
 

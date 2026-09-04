@@ -4,6 +4,7 @@
   "_slice22_c5_signature": "HITL 2026-08-07, steward-ledger seq-247: C5 authorizes exactly read.projection_status(engine) and read.projectionStatus(engine) as pure governed status reads. The associated ProjectionRuntimeStatus facade is a signed non-command type contract; this allowlist adds only those two verbs, preserves core and the five recovery-denylist names byte-for-byte, and leaves C1 unchanged.",
   "_slice20_dependency_signature": "The approved 0.8.25 Slice 20 dependency registry exposes three additive governed dependency verbs in each binding. They register and inspect caller-declared source dependencies without semantic inference. The recovery denylist and core membership are unchanged.",
   "_slice25_actuation_signature": "HITL approved the 0.8.25 Slice 25 plan and implementation. The additive actuate verb applies bounded caller-decided operations atomically and returns a compact terminal receipt; FathomDB makes no semantic decision. The recovery denylist is unchanged.",
+  "_slice30_closure_signature": "HITL approved the 0.8.25 Slice 30 plan and execution. The additive read_dependency_closure/readDependencyClosure verb is a keyed, bounded status read for Engine-minted dependency-closure operations; it adds no public resume or list administration. Core membership and the recovery denylist are unchanged.",
   "allowlist": [
     "Engine.open",
     "admin.configure",
@@ -15,6 +16,8 @@
     "dependenciesForSource",
     "dependency_for_derived",
     "dependencyForDerived",
+    "read_dependency_closure",
+    "readDependencyClosure",
     "transition",
     "purge",
     "erase_source",

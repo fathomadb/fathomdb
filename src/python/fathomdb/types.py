@@ -128,6 +128,47 @@ class DependencyListV1:
     items: tuple[SourceDependencyV1, ...]
 
 
+class ClosureLookupV1(TypedDict):
+    """Closed lookup for one opaque Engine-minted closure operation."""
+
+    schema_version: Literal[1]
+    closure_operation_id: str
+
+
+@dataclass(frozen=True)
+class ClosureProofV1:
+    """Scalar zero-proof for a completed dependency closure."""
+
+    schema_version: int
+    proof_write_boundary: str
+    current_active_dependent_nodes: str
+    current_derived_edges: str
+    view_eligible_dependents: str
+    ownerless_projection_rows: str
+    post_admission_registrations: str
+    remaining_dependency_rows: str | None
+    remaining_canonical_rows: str | None
+    remaining_projection_rows: str | None
+    remaining_receipt_reference_rows: str | None
+
+
+@dataclass(frozen=True)
+class ClosureStatusV1:
+    """Current durable status of one dependency closure."""
+
+    schema_version: int
+    closure_operation_id: str
+    root: dict[str, str]
+    cause: str
+    phase: str
+    effective_at_epoch_s: str
+    admitted_write_boundary: str
+    admitted_dependency_generation: str
+    affected_count: str
+    blocker_code: str | None
+    proof: ClosureProofV1 | None
+
+
 class PutCanonicalNodeActuationV1(TypedDict):
     """Actuation operation storing a complete canonical node revision."""
 

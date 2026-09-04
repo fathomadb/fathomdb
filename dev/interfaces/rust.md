@@ -481,6 +481,29 @@ receipt to an opaque, permanently reserved operation-ID tombstone.
 `SourceId` retains its existing closed grammar, including embedded NUL; Python
 and TypeScript preserve every Engine-valid source identity exactly.
 
+### Dependency lifecycle closure (0.8.25 Slice 30)
+
+Source supersession, soft deletion, purge, and source erasure atomically close
+every direct Slice 20 dependent. A nonterminal closure is an unconditional
+eligibility and projection-publication barrier under every `ReadView`.
+Physical closure shares the existing telemetry/WAL completion boundary and is
+completed only by an exact retry of the originating physical operation; other
+writes receive the existing `ErasureIncomplete { stage:
+"dependency_closure" }` failure.
+
+`Engine::read_dependency_closure(ClosureLookupV1)` is the sole public closure
+read. It returns `Option<ClosureStatusV1>` for one opaque Engine-minted
+`ClosureOperationId`; there is no public list, resume, or repair API. The
+closed status includes `ClosureRootV1`, `ClosureCauseV1`, `ClosurePhaseV1`,
+admission boundaries, affected count, optional blocker, and optional
+`ClosureProofV1`. Counts and boundaries are `u64`; valid absent IDs return
+`None` without disclosure. Invalid request shape or identity returns
+`EngineError::DependencyClosure(DependencyClosureError)` with a closed reason
+and RFC 6901 `field_path`.
+
+The old actuation refusal spelling `dependency_closure_required` is reserved
+for wire compatibility but is no longer emitted after this slice.
+
 ### `source_id` is STRUCTURALLY MANDATORY (0.8.20 Slice 5c, R-20-E3)
 
 `PreparedWrite::Node` and `PreparedWrite::Edge` both carry

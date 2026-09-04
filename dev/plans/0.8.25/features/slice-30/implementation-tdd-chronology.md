@@ -25,7 +25,8 @@ implementation. It does not retroactively describe post-hoc coverage as RED.
 | FIX-3 GREEN | `1b4f59b6` | BM25F shares strict dependency eligibility across corpus and candidates; TypeScript mirrors the Rust closure-state matrix; physical proof measures exact pre-delete artifact-revision, source-link, and source-version scope. |
 | FIX-4 RED | `33880fd2` | Logical purge failed when an unrelated artifact shared its source bucket; open and point read accepted a nonzero completed proof. |
 | FIX-4 GREEN | `77922947` | Physical proof scope is root-aware, and persisted proof semantics are cause-aware and zero-validating at open and point read. |
-| FIX-5 PROPERTY COVERAGE | `83c64aa2` | Bounded generated mutations cover every common and physical proof-count class across soft and physical causes, requiring identical fail-closed point-read and reopen behavior. This post-implementation property coverage did not expose a new RED defect. |
+| FIX-5 PROPERTY COVERAGE | `83c64aa2` | Bounded generated mutations sampled common and physical proof-count classes across soft and physical causes, requiring identical fail-closed point-read and reopen behavior. This post-implementation property coverage did not expose a new RED defect. |
+| FIX-6 COVERAGE CORRECTION | `467f5ac1` | Each generated nonzero value now traverses the complete deterministic 18-cell cause/field matrix and proves the unmodified receipt is readable before mutation. No product RED defect was exposed. |
 
 Further cycles append rows here before Slice 30 is closed. The status record
 will identify the final implementation and verification commits.

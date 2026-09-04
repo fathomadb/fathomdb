@@ -1,17 +1,17 @@
 //! Slice 30 — dependency-aware lifecycle and erasure closure.
 
 use std::sync::{mpsc, Arc};
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    ActuationBatchV1, ActuationOperationV1, ActuationOutcomeV1, ArtifactRevisionId, CanonicalHash,
-    ClosureCauseV1, ClosureLookupV1, ClosurePhaseV1, ClosureRootV1, DependencyErrorReason, Engine,
-    EngineError, EngineOpenError, InitialState, LifecycleActuationV1, LifecycleState,
-    PreparedWrite, ProjectionFts, ProjectionRole, ProjectionSpec, ProvenanceErrorReason,
-    ProvenancedEdgeV1, ProvenancedNodeV1, ReadView, SoftFallbackBranch,
-    SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
-    TraversalDirection, WriteProvenanceV1, TOP_K_BIT_CANDIDATES,
+    ActuationBatchV1, ActuationOperationV1, ActuationOutcomeV1, ArtifactRevisionId, Bm25fQueryPlan,
+    CanonicalHash, ClosureCauseV1, ClosureLookupV1, ClosurePhaseV1, ClosureRootV1,
+    DependencyErrorReason, Engine, EngineError, EngineOpenError, InitialState,
+    LifecycleActuationV1, LifecycleState, PreparedWrite, ProjectionFts, ProjectionRole,
+    ProjectionSpec, ProvenanceErrorReason, ProvenancedEdgeV1, ProvenancedNodeV1, ReadView,
+    SoftFallbackBranch, SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId,
+    SourceVersionId, TraversalDirection, WriteProvenanceV1, TOP_K_BIT_CANDIDATES,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::{params, Connection};
@@ -463,7 +463,9 @@ fn physical_closure_measures_surviving_canonical_rows_and_rolls_back() {
 
 #[test]
 fn physical_closure_measures_projection_and_dependency_residue() {
-    for residue in ["projection", "dependency"] {
+    for residue in
+        ["projection", "dependency", "artifact_revision", "source_link", "source_version"]
+    {
         let dir = TempDir::new().unwrap();
         let db = path(&dir, residue);
         let opened = Engine::open(&db).unwrap();
@@ -503,6 +505,30 @@ fn physical_closure_measures_projection_and_dependency_residue() {
                      BEGIN SELECT RAISE(IGNORE); END;",
                 )
                 .unwrap(),
+            "artifact_revision" => connection
+                .execute_batch(
+                    "CREATE TRIGGER preserve_artifact_revision_before_delete \
+                     BEFORE DELETE ON _fathomdb_artifact_revisions \
+                     WHEN OLD.revision_id='derived-r1' \
+                     BEGIN SELECT RAISE(IGNORE); END;",
+                )
+                .unwrap(),
+            "source_link" => connection
+                .execute_batch(
+                    "CREATE TRIGGER preserve_source_link_before_delete \
+                     BEFORE DELETE ON _fathomdb_source_links \
+                     WHEN OLD.artifact_revision_id='derived-r1' \
+                     BEGIN SELECT RAISE(IGNORE); END;",
+                )
+                .unwrap(),
+            "source_version" => connection
+                .execute_batch(
+                    "CREATE TRIGGER preserve_source_version_before_delete \
+                     BEFORE DELETE ON _fathomdb_source_versions \
+                     WHEN OLD.source_revision_id='source-r1' \
+                     BEGIN SELECT RAISE(IGNORE); END;",
+                )
+                .unwrap(),
             _ => unreachable!(),
         }
         drop(connection);
@@ -518,6 +544,60 @@ fn physical_closure_measures_projection_and_dependency_residue() {
             .unwrap();
         assert_eq!(roots, 1, "{residue} proof failure must roll back the erase");
     }
+}
+
+#[test]
+fn bm25f_excludes_dependency_behind_an_admitted_barrier() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "bm25f-barrier");
+    let opened = Engine::open(&db).unwrap();
+    opened
+        .engine
+        .write(&[
+            canonical("source-r1", "v1", "source", "source body"),
+            derived_node_with_body("derived-r1", "derived", "classifiedtoken"),
+        ])
+        .unwrap();
+    opened
+        .engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new("dep", "source-r1", "derived-r1").unwrap(),
+        )
+        .unwrap();
+    install_soft_barrier(&db, "source-r1", 3);
+
+    let results =
+        opened.engine.bm25f_search("classifiedtoken", &Bm25fQueryPlan::default()).unwrap();
+    assert!(results.is_empty(), "barrier-fenced dependent leaked through BM25F: {results:?}");
+}
+
+#[test]
+fn bm25f_excludes_dependency_of_an_expired_source() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "bm25f-expired-source");
+    let opened = Engine::open(&db).unwrap();
+    opened
+        .engine
+        .write(&[
+            canonical("source-r1", "v1", "source", "source body"),
+            derived_node_with_body("derived-r1", "derived", "classifiedtoken"),
+        ])
+        .unwrap();
+    opened
+        .engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new("dep", "source-r1", "derived-r1").unwrap(),
+        )
+        .unwrap();
+    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
+    Connection::open(&db)
+        .unwrap()
+        .execute("UPDATE canonical_nodes SET valid_until=?1 WHERE logical_id='source'", [now - 1])
+        .unwrap();
+
+    let results =
+        opened.engine.bm25f_search("classifiedtoken", &Bm25fQueryPlan::default()).unwrap();
+    assert!(results.is_empty(), "expired-source dependent leaked through BM25F: {results:?}");
 }
 
 #[test]

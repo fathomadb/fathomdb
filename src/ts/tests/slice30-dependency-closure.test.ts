@@ -74,6 +74,25 @@ test("closure response decoder rejects unknown variants and malformed decimals",
           proof: { ...valid.proof, currentActiveDependentNodes: "00" },
         },
       ],
+      ["/proof", { ...valid, proof: null }],
+      ["/proof", { ...valid, phase: "proving" }],
+      ["/blockerCode", { ...valid, phase: "incomplete", blockerCode: null }],
+      [
+        "/blockerCode",
+        { ...valid, phase: "proving", proof: null, blockerCode: "proof_unavailable" },
+      ],
+      ["/phase", { ...valid, cause: "purged", phase: "proving", proof: null }],
+      ["/phase", { ...valid, phase: "at_rest_pending" }],
+      [
+        "/proof",
+        {
+          ...valid,
+          cause: "source_erased",
+          phase: "incomplete",
+          blockerCode: "wal_checkpoint",
+          proof: null,
+        },
+      ],
     ] as const) {
       native.readDependencyClosure = async () => response;
       await assert.rejects(

@@ -146,7 +146,7 @@ fn frozen_context_rejects_tamper_database_mismatch_context_change_and_state_drif
     assert!(matches!(
         search(&right.engine, &frozen),
         Err(EngineError::FrozenRead(error))
-            if error.reason == FrozenReadErrorReason::DatabaseMismatch
+            if error.reason == FrozenReadErrorReason::TokenAuthenticationFailed
     ));
     right.engine.close().unwrap();
 

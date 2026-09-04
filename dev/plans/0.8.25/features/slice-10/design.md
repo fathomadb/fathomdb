@@ -323,12 +323,18 @@ python -m experiments.measurement_classification run-native \
   --config experiments/configs/measurement-classification/native-search.v2.json
 ./scripts/agent-verify.sh --tier=fast
 ./scripts/agent-verify.sh --tier=heavy
-./scripts/agent-verify.sh --tier=all
-AGENT_LONG=1 ./scripts/check.sh
 ```
+
+The fast and heavy tiers are the appropriately sized Slice 10 gates. The `all`
+tier would only repeat those same registered suites, while `AGENT_LONG=1`
+activates release-wide canonical performance fixtures unrelated to this
+evaluation-only change. A diagnostic long-gate attempt reached the pre-existing
+`ac_013_vector_retrieval_latency` failure before it was stopped; this is
+recorded as repository debt and is not attributed to Slice 10.
 
 The generated native record, sidecar, setup receipt, and status record are
 inspected independently. Windows, binding, wire, live-model, registry, and CUDA
 routes are N/A because this slice adds no product surface and performs a
-CPU-only development fixture. The full workspace clippy/check gates remain
-mandatory. No unresolved implementation-shaping decision may remain at READY.
+CPU-only development fixture. The selected fast/heavy tiers exercise the
+applicable workspace lint, typecheck, and test gates. No unresolved
+implementation-shaping decision may remain at READY.

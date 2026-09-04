@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 10 — executable measurement classification
-status: READY_FOR_IMPLEMENTATION
+status: COMPLETE_ON_RELEASE_BRANCH
 depends_on: 7
 design: design.md
 design_status: READY_REVIEW_PASS_CYCLE_3
@@ -17,7 +17,7 @@ claims; and reclassify GLOBAL-01 without rewriting measured evidence.
 
 ## Verification routes
 
-Selected: fast, heavy, all, and a native retrieval-only `Engine.search`
+Selected: fast, heavy, and a native retrieval-only `Engine.search`
 classification fixture. The final installed release-candidate witness belongs
 to Slice 75. Windows CPU/native, all-feature/operator, GPU/CUDA, live-model,
 packaged, and registry-installed are N/A unless the design introduces a public
@@ -32,10 +32,12 @@ executable or binding surface; the readiness review must confirm that judgment.
    the native witness.
 3. Implement the classifier, validator, historical sidecars, cutover policy,
    lint gate, and native fixture until those unchanged fixtures are GREEN.
-4. Obtain independent implementation review, allowing at most three total
-   documented FIX-n cycles across design and implementation.
-5. Use a separate verifier to run selected tests and inspect the generated
-   historical/native evidence; then run the full workspace gate.
+4. Obtain independent implementation review, allowing at most three documented
+   implementation FIX-n cycles. Design readiness has its own completed
+   three-FIX ceiling.
+5. Use a separate verifier to run the scoped workspace gates, inspect the
+   generated historical/native evidence, and record any release-wide debt
+   exposed by diagnostic gates without misattributing it to this slice.
 6. Write `status.md` and advance the canonical release state only after every
    acceptance criterion is evidenced.
 

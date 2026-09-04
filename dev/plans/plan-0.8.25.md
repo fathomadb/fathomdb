@@ -25,9 +25,9 @@ The successor architecture and delivery plan are
 [`fathomdb-data-plane-architecture-v2.md`](../design/fathomdb-data-plane-architecture-v2.md)
 and [`fathomdb-data-plane-foldback-v2.md`](fathomdb-data-plane-foldback-v2.md).
 Architecture v2.1 is the active implementation authority following the completed
-Slice 4–6 review/decision work and the S7-07 architecture package. Overall
-Slice 7 completion separately gates Slice 10 readiness and is recorded by the
-canonical release state below.
+Slice 4–6 review/decision work and the S7-07 architecture package. Slices 7 and
+10 are complete on the release branch; the canonical release state below now
+commissions Slice 15.
 
 ## Setup record
 
@@ -196,9 +196,9 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 10** (`MEASUREMENT`) — executable measurement-layer classification
+**IMMEDIATE NEXT: Slice 15** (`IDENTITY`) — revision identity and canonical source provenance
 
-**Remaining ladder:** 10 → 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
 Execute the Slice 10 plan directly. Reconcile its reviewed draft against the
 activated architecture and current code, then use TDD, independent design and

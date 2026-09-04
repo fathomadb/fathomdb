@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 30 — core lifecycle and erasure closure design
 status: READY
-design_version: 8
+design_version: 9
 review_fix: 3
 review: design-review-cycle4.md
 depends_on: 25
@@ -208,6 +208,11 @@ Every point read validates ID hash shape, root grammar, sequence singleton,
 closed variants, phase constraints, proof JSON, count conversions, and
 `structural_proof_write_boundary <=` current write boundary. Any disagreement
 is `Storage`.
+Every persisted proof also enforces the cause-specific zero contract: common
+counts are zero, eligible dependents equal active nodes plus current edges,
+soft causes omit physical-residue fields, and physical causes contain zero for
+every physical-residue field. Shape-correct but contradictory proofs are
+therefore rejected at both open and point read.
 
 The sequence singleton reuses Slice 20's fail-closed generation rules: the
 stored value is canonical nonnegative decimal with no leading zero except
@@ -265,7 +270,10 @@ together; restart never reconstructs erased member identities from a count.
 node/edge rows plus immutable artifact-revision, source-link, and source-version
 rows captured by primary key before deletion. The pre-delete scope retains
 those keys only in memory until the transaction commits; no erased identity is
-persisted in the content-free closure record.
+persisted in the content-free closure record. A logical purge scopes these keys
+to the exact affected revisions even when unrelated artifacts share their
+source bucket. Only source erasure expands proof scope to every identity and
+provenance row in the erased bucket.
 
 Ordinary `write`/supersession and `transition` complete their soft proof in this
 same transaction, preserving existing return and exact retry semantics. Purge,

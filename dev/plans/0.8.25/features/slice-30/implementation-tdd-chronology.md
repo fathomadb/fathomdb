@@ -23,6 +23,8 @@ implementation. It does not retroactively describe post-hoc coverage as RED.
 | RACE COVERAGE | `e78f8693` | Companion coverage proves worker-before-admission and admission-before-worker projection ordering, plus an installed non-null TypeScript closure read. This was added after the behavior and is not claimed as RED. |
 | FIX-3 RED | `2cbb1c4a` | BM25F leaked barrier-fenced and expired-source dependents; TypeScript accepted invalid phase/cause/proof/blocker combinations. Identity/provenance rollback cases already failed closed under the legacy orphan guard. |
 | FIX-3 GREEN | `1b4f59b6` | BM25F shares strict dependency eligibility across corpus and candidates; TypeScript mirrors the Rust closure-state matrix; physical proof measures exact pre-delete artifact-revision, source-link, and source-version scope. |
+| FIX-4 RED | `33880fd2` | Logical purge failed when an unrelated artifact shared its source bucket; open and point read accepted a nonzero completed proof. |
+| FIX-4 GREEN | `77922947` | Physical proof scope is root-aware, and persisted proof semantics are cause-aware and zero-validating at open and point read. |
 
 Further cycles append rows here before Slice 30 is closed. The status record
 will identify the final implementation and verification commits.

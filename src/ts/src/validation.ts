@@ -5,7 +5,7 @@
 // Rust-side guard never sees them. We catch them in TS BEFORE the
 // native call so the no-row-written invariant holds end-to-end.
 
-import { WriteValidationError } from "./errors.js";
+import { ProvenanceError, WriteValidationError } from "./errors.js";
 
 export function validateFfiString(value: string): void {
   validateFfiStringEncoding(value, false);
@@ -54,7 +54,85 @@ function validateFfiTreeEncoding(value: unknown, allowNul: boolean): void {
   }
 }
 
-/** Validate write strings without preempting provenance-specific NUL errors. */
+function provenanceEncodingError(reason: string, fieldPath: string): ProvenanceError {
+  return new ProvenanceError(`provenance ${reason} at ${fieldPath}`, reason, fieldPath);
+}
+
+function validateProvenanceString(
+  value: unknown,
+  reason: string,
+  fieldPath: string,
+): void {
+  if (typeof value !== "string") return;
+  try {
+    validateFfiString(value);
+  } catch (error) {
+    if (error instanceof WriteValidationError) {
+      throw provenanceEncodingError(reason, fieldPath);
+    }
+    throw error;
+  }
+}
+
+function validateProvenanceFfiTree(value: unknown): void {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return;
+  const provenance = value as Record<string, unknown>;
+  if (provenance.schemaVersion !== 1) return;
+  if (provenance.role !== "canonical" && provenance.role !== "derived") return;
+
+  validateProvenanceString(
+    provenance.artifactRevisionId,
+    "revision_id_invalid",
+    "/provenance/artifactRevisionId",
+  );
+  validateProvenanceString(
+    provenance.sourceVersionId,
+    "source_version_invalid",
+    "/provenance/sourceVersionId",
+  );
+  validateProvenanceString(
+    provenance.sourceRevisionId,
+    "revision_id_invalid",
+    "/provenance/sourceRevisionId",
+  );
+
+  const locator = provenance.sourceLocator;
+  if (locator !== null && typeof locator === "object" && !Array.isArray(locator)) {
+    for (const key of ["kind", "startInclusive", "endExclusive"]) {
+      validateProvenanceString(
+        (locator as Record<string, unknown>)[key],
+        "locator_invalid",
+        `/provenance/sourceLocator/${key}`,
+      );
+    }
+  }
+  const hash = provenance.canonicalSourceHash;
+  if (hash !== null && typeof hash === "object" && !Array.isArray(hash)) {
+    for (const key of ["algorithm", "digestHex"]) {
+      validateProvenanceString(
+        (hash as Record<string, unknown>)[key],
+        "hash_invalid",
+        `/provenance/canonicalSourceHash/${key}`,
+      );
+    }
+  }
+}
+
+function validateWriteEntityFfiTree(value: unknown): void {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    validateFfiTreeEncoding(value, false);
+    return;
+  }
+  for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+    if (key === "provenance") {
+      validateProvenanceFfiTree(nested);
+    } else {
+      validateFfiTreeEncoding(nested, false);
+    }
+  }
+}
+
+/** Validate direct and wrapped write strings with provenance-specific errors. */
 export function validateWriteFfiTree(batch: unknown[]): void {
   for (const item of batch) {
     if (item === null || typeof item !== "object" || Array.isArray(item)) {
@@ -62,7 +140,13 @@ export function validateWriteFfiTree(batch: unknown[]): void {
       continue;
     }
     for (const [key, value] of Object.entries(item as Record<string, unknown>)) {
-      validateFfiTreeEncoding(value, key === "provenance");
+      if (key === "node" || key === "edge") {
+        validateWriteEntityFfiTree(value);
+      } else if (key === "provenance") {
+        validateProvenanceFfiTree(value);
+      } else {
+        validateFfiTreeEncoding(value, false);
+      }
     }
   }
 }

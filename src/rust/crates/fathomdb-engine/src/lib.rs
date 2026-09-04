@@ -12067,7 +12067,7 @@ impl Engine {
 
         let affected_cursors: Vec<i64> =
             node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
-        erase_artifact_identity_for_cursors(&tx, &affected_cursors, true)?;
+        erase_artifact_identity_for_cursors(&tx, &affected_cursors, true, None)?;
 
         // Erase the row-owned projection shadows for every collected cursor.
         // 0.8.20 Slice 5a (R-20-E1): registry-driven — the hand-rolled delete
@@ -12810,7 +12810,7 @@ impl Engine {
 
         let affected_cursors: Vec<i64> =
             node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
-        erase_artifact_identity_for_cursors(&tx, &affected_cursors, false)?;
+        erase_artifact_identity_for_cursors(&tx, &affected_cursors, false, Some(source_id))?;
 
         // 0.8.20 Slice 5a (R-20-E1) — registry-driven erasure. The previous
         // hand-rolled list here OMITTED `search_index_v2`, a CONTENT-STORING
@@ -21100,6 +21100,7 @@ fn erase_artifact_identity_for_cursors(
     tx: &Connection,
     cursors: &[i64],
     refuse_surviving_dependents: bool,
+    source_bucket: Option<&str>,
 ) -> Result<(), EngineError> {
     let affected: std::collections::HashSet<i64> = cursors.iter().copied().collect();
     let mut revisions: Vec<(String, String)> = Vec::new();
@@ -21126,22 +21127,48 @@ fn erase_artifact_identity_for_cursors(
             let mut statement = tx
                 .prepare(
                     "SELECT ar.write_cursor FROM _fathomdb_source_links link \
-                     JOIN _fathomdb_artifact_revisions ar \
+                     LEFT JOIN _fathomdb_artifact_revisions ar \
                        ON ar.revision_id = link.artifact_revision_id \
                      WHERE link.source_revision_id = ?1",
                 )
                 .map_err(|_| EngineError::Storage)?;
             let dependent_cursors = statement
-                .query_map([revision_id], |row| row.get::<_, i64>(0))
+                .query_map([revision_id], |row| row.get::<_, Option<i64>>(0))
                 .map_err(|_| EngineError::Storage)?;
             for dependent in dependent_cursors {
                 let dependent = dependent.map_err(|_| EngineError::Storage)?;
-                if !affected.contains(&dependent) {
+                if dependent.is_none_or(|cursor| !affected.contains(&cursor)) {
                     return Err(EngineError::Provenance(ProvenanceError::new(
                         ProvenanceErrorReason::ProvenanceInUse,
                         "",
                     )));
                 }
+            }
+        }
+    }
+
+    // Source erasure owns the complete source bucket. Before deleting raw
+    // ownerless rows from that bucket, fail closed if a corrupt link points at
+    // an owner outside the canonical cursor set: deleting only its link would
+    // turn a complete artifact into a dangling owner.
+    if let Some(source_id) = source_bucket {
+        let mut statement = tx
+            .prepare(
+                "SELECT ar.write_cursor FROM _fathomdb_source_links link \
+                 LEFT JOIN _fathomdb_artifact_revisions ar \
+                   ON ar.revision_id = link.artifact_revision_id \
+                 WHERE link.source_id = ?1",
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let owner_cursors = statement
+            .query_map([source_id], |row| row.get::<_, Option<i64>>(0))
+            .map_err(|_| EngineError::Storage)?;
+        for owner_cursor in owner_cursors {
+            if owner_cursor
+                .map_err(|_| EngineError::Storage)?
+                .is_some_and(|cursor| !affected.contains(&cursor))
+            {
+                return Err(EngineError::Storage);
             }
         }
     }
@@ -21156,11 +21183,22 @@ fn erase_artifact_identity_for_cursors(
     for (revision_id, role) in &revisions {
         if role == "canonical_source" {
             tx.execute(
+                "DELETE FROM _fathomdb_source_links WHERE source_revision_id = ?1",
+                [revision_id],
+            )
+            .map_err(|_| EngineError::Storage)?;
+            tx.execute(
                 "DELETE FROM _fathomdb_source_versions WHERE source_revision_id = ?1",
                 [revision_id],
             )
             .map_err(|_| EngineError::Storage)?;
         }
+    }
+    if let Some(source_id) = source_bucket {
+        tx.execute("DELETE FROM _fathomdb_source_links WHERE source_id = ?1", [source_id])
+            .map_err(|_| EngineError::Storage)?;
+        tx.execute("DELETE FROM _fathomdb_source_versions WHERE source_id = ?1", [source_id])
+            .map_err(|_| EngineError::Storage)?;
     }
     for cursor in cursors {
         tx.execute("DELETE FROM _fathomdb_artifact_revisions WHERE write_cursor = ?1", [cursor])
@@ -21173,8 +21211,23 @@ fn erase_artifact_identity_for_cursors(
                 "SELECT \
                    EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions WHERE revision_id = ?1) + \
                    EXISTS(SELECT 1 FROM _fathomdb_source_links WHERE artifact_revision_id = ?1) + \
+                   EXISTS(SELECT 1 FROM _fathomdb_source_links WHERE source_revision_id = ?1) + \
                    EXISTS(SELECT 1 FROM _fathomdb_source_versions WHERE source_revision_id = ?1)",
                 [revision_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        if orphans != 0 {
+            return Err(EngineError::Storage);
+        }
+    }
+    if let Some(source_id) = source_bucket {
+        let orphans: i64 = tx
+            .query_row(
+                "SELECT \
+                   EXISTS(SELECT 1 FROM _fathomdb_source_links WHERE source_id = ?1) + \
+                   EXISTS(SELECT 1 FROM _fathomdb_source_versions WHERE source_id = ?1)",
+                [source_id],
                 |row| row.get(0),
             )
             .map_err(|_| EngineError::Storage)?;
@@ -23310,6 +23363,37 @@ fn runtime_revision_id(write: &PreparedWrite, cursor: u64) -> String {
         _ => unreachable!("only canonical entities have artifact revisions"),
     }
     format!("_fdb:r:{}", hex_encode(&hasher.finalize()))
+}
+
+// Slice 15 stores no owner row for pre-step-27 content. Keep its deterministic
+// identity derivation internal until the opt-in Slice 50 evidence resolver
+// exposes it; default records and search hits remain unchanged.
+#[allow(dead_code)]
+fn legacy_revision_id(
+    artifact_class: &str,
+    cursor: u64,
+    source_id: Option<&str>,
+    body: Option<&str>,
+) -> String {
+    let mut hasher = Sha256::new();
+    revision_hash_field(&mut hasher, b"fathomdb:artifact-revision:migrated:v1");
+    revision_hash_field(&mut hasher, artifact_class.as_bytes());
+    revision_hash_field(&mut hasher, cursor.to_string().as_bytes());
+    match source_id {
+        Some(source_id) => {
+            revision_hash_field(&mut hasher, b"source-id:some");
+            revision_hash_field(&mut hasher, source_id.as_bytes());
+        }
+        None => revision_hash_field(&mut hasher, b"source-id:none"),
+    }
+    match body {
+        Some(body) => {
+            revision_hash_field(&mut hasher, b"body:some");
+            revision_hash_field(&mut hasher, body.as_bytes());
+        }
+        None => revision_hash_field(&mut hasher, b"body:none"),
+    }
+    format!("_fdb:m:{}", hex_encode(&hasher.finalize()))
 }
 
 fn canonical_body_hash(body: &str) -> String {

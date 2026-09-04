@@ -27,3 +27,11 @@ Cycle 1 confirmed that FIX-1 made vector-kind enrolment atomic with rejected
 provenance writes, established role-error precedence, escaped dynamic RFC 6901
 tokens, consumed the shared fixture in both SDKs, and added Unix and Windows
 packaged provenance smokes.
+
+## Legacy lookup scope interpretation
+
+Slice 15 proves that opening a pre-step-27 database performs no identity
+backfill and that the internal `_fdb:m:` derivation is deterministic and
+tuple-sensitive. It does not add a public or test-only lookup verb: the reviewed
+design keeps `NodeRecord` and default hits unchanged and assigns external legacy
+identity resolution to the opt-in Slice 50 evidence contract.

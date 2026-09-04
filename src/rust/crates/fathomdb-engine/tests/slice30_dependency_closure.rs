@@ -1151,6 +1151,39 @@ fn open_rejects_missing_malformed_or_regressed_closure_sequence() {
 }
 
 #[test]
+fn point_status_rejects_missing_malformed_or_regressed_closure_sequence() {
+    for mutation in [
+        "DELETE FROM _fathomdb_open_state WHERE key='_fathomdb_closure_sequence'",
+        "UPDATE _fathomdb_open_state SET value='01' WHERE key='_fathomdb_closure_sequence'",
+        "UPDATE _fathomdb_open_state SET value='0' WHERE key='_fathomdb_closure_sequence'",
+    ] {
+        let dir = TempDir::new().unwrap();
+        let db = path(&dir, "point-sequence-corruption");
+        let opened = Engine::open(&db).unwrap();
+        seed_registered(&opened.engine);
+        opened.engine.transition("source", LifecycleState::Deleted, None).unwrap();
+        let connection = Connection::open(&db).unwrap();
+        let closure_id: String = connection
+            .query_row(
+                "SELECT closure_operation_id FROM _fathomdb_dependency_closures LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        connection.execute(mutation, []).unwrap();
+        drop(connection);
+
+        assert!(
+            matches!(
+                opened.engine.read_dependency_closure(ClosureLookupV1::new(closure_id).unwrap()),
+                Err(EngineError::Storage)
+            ),
+            "{mutation}"
+        );
+    }
+}
+
+#[test]
 fn point_status_rejects_corrupt_proof_shape() {
     let dir = TempDir::new().unwrap();
     let db = path(&dir, "proof-corruption");

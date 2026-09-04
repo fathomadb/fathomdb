@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 30 — core lifecycle and erasure closure design
-status: DRAFT_REVIEW_FIX_2
-design_version: 5
-review_fix: 2
-review: design-review-cycle2.md
+status: DRAFT_REVIEW_FIX_3
+design_version: 6
+review_fix: 3
+review: design-review-cycle3.md
 depends_on: 25
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 ---
@@ -149,7 +149,7 @@ CREATE TABLE _fathomdb_dependency_closures(
   admitted_dependency_generation INTEGER NOT NULL
     CHECK(admitted_dependency_generation >= 0),
   closure_sequence INTEGER NOT NULL UNIQUE CHECK(closure_sequence > 0),
-  retry_fingerprint TEXT NOT NULL UNIQUE CHECK(
+  retry_fingerprint TEXT NOT NULL CHECK(
     length(retry_fingerprint) = 64 AND
     retry_fingerprint = lower(retry_fingerprint) AND
     retry_fingerprint NOT GLOB '*[^0-9a-f]*'
@@ -188,6 +188,9 @@ CREATE INDEX _fathomdb_dependency_closures_root
   ON _fathomdb_dependency_closures(root_kind, root_value, phase);
 CREATE INDEX _fathomdb_dependency_closures_recovery
   ON _fathomdb_dependency_closures(phase, closure_sequence);
+CREATE UNIQUE INDEX _fathomdb_dependency_closures_active_retry
+  ON _fathomdb_dependency_closures(retry_fingerprint)
+  WHERE phase != 'complete';
 ```
 
 The table stores opaque/non-PII identifiers, a one-way retry fingerprint, and
@@ -196,6 +199,9 @@ derived revision ID. The retry fingerprint is SHA-256 over the domain
 `fathomdb.dependency-closure-retry.v1\0`, normalized originating verb, and
 normalized root argument. It locates the post-purge result after the logical
 row is gone; it is not an authorization token or evidence identifier.
+Only a nonterminal physical operation owns the fingerprint uniquely. Completion
+releases that uniqueness, so delete/recreate/delete and
+erase/repopulate/erase each admit a new closure with a new sequence and ID.
 `proof_json` is emitted and parsed in one canonical key order, contains exactly
 the `ClosureProofV1` scalar fields, and must agree with its indexed boundary.
 Every point read validates ID hash shape, root grammar, sequence singleton,
@@ -274,8 +280,11 @@ returns that receipt, and keyed status reports current closure state.
 `Engine::open` validates closure rows, sequence state, and active barriers, but
 does not attempt external telemetry or WAL work and does not fail merely
 because a valid physical closure is pending. The pre-writer maintenance seam
-may finalize only nonphysical `proving` rows, in `closure_sequence` order and
-batches of at most 32. There is no public resume/list administration.
+finalizes nonphysical `proving` rows and retries nonphysical `incomplete`
+rows, in `closure_sequence` order and batches of at most 32. It clears a soft
+blocker only in the transaction that commits a valid proof. Exact actuation
+replay invokes the same bounded maintenance before returning the immutable
+receipt. There is no public resume/list administration.
 
 While a physical row is nonterminal, `enable_telemetry`, close, keyed closure
 status reads, and ordinary reads under the barrier remain allowed. The exact
@@ -305,8 +314,9 @@ erased bytes.
 Proof success and phase `complete` commit together. A checkable operational
 failure records `incomplete` plus one closed blocker; unclassifiable storage
 corruption returns `Storage` and leaves the prior nonterminal row unchanged.
-An exact originating retry rechecks an `incomplete` operation and clears its
-blocker only when proof and external obligations succeed. No empty queue or
+Internal maintenance rechecks a nonphysical `incomplete` operation; an exact
+originating retry rechecks a physical `incomplete` operation. Each clears its
+blocker only when proof and any external obligations succeed. No empty queue or
 affected count is itself proof.
 
 ## Eligibility, historical views, and projection races
@@ -333,9 +343,10 @@ Registration/reactivation return `dependency_source_ineligible` or
 `dependency_closure_active`; ordinary writes return
 `source_revision_ineligible` or `source_closure_active`; actuation maps those to
 the matching dependency receipt reasons at the nested source-revision path.
-Validation order is existing provenance shape/hash/role, source eligibility,
-active closure, dependency conflict, then lifecycle legality, so malformed
-provenance cannot probe fence state. `valid_from` never auto-reactivates;
+Validation order is existing provenance shape/hash/role, active closure, source
+eligibility, dependency conflict, then lifecycle legality, so malformed
+provenance cannot probe fence state while a structurally valid fenced request
+gets the distinct closure-active reason. `valid_from` never auto-reactivates;
 scheduled `valid_until` propagation is 0.8.26 work.
 
 Projection publication revalidates the canonical owner, dependency source under
@@ -361,6 +372,9 @@ barriers under strict and relaxed views; both projection publication races;
 crash/reopen at proving and at-rest phases; exact receipt replay; phase/proof
 corruption; source erasure of prior closure rows; raw database/WAL canaries;
 closure-sequence missing/malformed/regressed/exhausted/rollback/no-op cases;
+repeat delete/recreate/delete and erase/repopulate/erase admission; nonphysical
+incomplete recovery and exact actuation replay maintenance; reachable
+closure-active versus ineligible precedence;
 schema/property invariants; strict binding codecs; and existing no-dependent
 compatibility.
 

@@ -36,9 +36,10 @@ semantic decisions outside the Engine.
   erased for purge/source erasure. Closure is direct only; recursive and
   multi-source semantics remain allocated to 0.8.26.
 - **S30-R3 — bounded recovery.** Direct consequences commit atomically with the
-  root mutation. Any remaining proof/at-rest phase survives restart and is
-  resumed automatically in bounded internal batches; no public journal
-  administration is added.
+  root mutation. Nonphysical proof survives restart and resumes in bounded
+  internal batches. Physical at-rest work survives behind a barrier and the
+  exact originating erasure retry completes it after recovery configuration is
+  available; no public journal administration is added.
 - **S30-R4 — truthful completion.** Completion requires a durable zero proof
   over active canonical dependents, every registered row-owned projection,
   dependency rows, pending projection work, and the existing telemetry/WAL
@@ -50,7 +51,8 @@ semantic decisions outside the Engine.
 
 Acceptance requires unchanged RED fixtures proving: immediate invisibility
 after admission; node and edge propagation; registration/reactivation races;
-bounded multi-operation recovery; crash/reopen at each durable phase; exact replay;
+bounded nonphysical recovery; physical exact-retry recovery; crash/reopen at
+each durable phase; exact replay;
 corrupt/missing indexes fail closed; and raw database/WAL checks find no erased
 dependent bytes. Public status must never claim complete while any injected
 active, searchable, projection, dependency, or pending-work orphan remains.

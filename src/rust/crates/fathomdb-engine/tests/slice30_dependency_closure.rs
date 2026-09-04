@@ -547,6 +547,29 @@ fn physical_closure_measures_projection_and_dependency_residue() {
 }
 
 #[test]
+fn logical_purge_preserves_unrelated_artifact_in_the_same_source_bucket() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "purge-shared-bucket");
+    let opened = Engine::open(&db).unwrap();
+    seed_registered(&opened.engine);
+    opened
+        .engine
+        .write(&[canonical("unrelated-r1", "unrelated-v1", "unrelated", "unrelated body")])
+        .unwrap();
+    opened.engine.transition("source", LifecycleState::Deleted, None).unwrap();
+
+    opened.engine.purge("source").unwrap();
+
+    let connection = Connection::open(&db).unwrap();
+    let unrelated: i64 = connection
+        .query_row("SELECT COUNT(*) FROM canonical_nodes WHERE logical_id='unrelated'", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(unrelated, 1);
+}
+
+#[test]
 fn bm25f_excludes_dependency_behind_an_admitted_barrier() {
     let dir = TempDir::new().unwrap();
     let db = path(&dir, "bm25f-barrier");
@@ -1147,6 +1170,58 @@ fn point_status_rejects_corrupt_proof_shape() {
         opened.engine.read_dependency_closure(ClosureLookupV1::new(closure_id).unwrap()),
         Err(EngineError::Storage)
     ));
+}
+
+#[test]
+fn point_status_rejects_nonzero_complete_proof() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "proof-semantic-point-corruption");
+    let opened = Engine::open(&db).unwrap();
+    seed_registered(&opened.engine);
+    opened.engine.transition("source", LifecycleState::Deleted, None).unwrap();
+    let connection = Connection::open(&db).unwrap();
+    let closure_id: String = connection
+        .query_row(
+            "SELECT closure_operation_id FROM _fathomdb_dependency_closures LIMIT 1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    connection
+        .execute(
+            "UPDATE _fathomdb_dependency_closures \
+             SET proof_json=json_set(proof_json,'$.current_active_dependent_nodes',1) \
+             WHERE closure_operation_id=?1",
+            [&closure_id],
+        )
+        .unwrap();
+    drop(connection);
+
+    assert!(matches!(
+        opened.engine.read_dependency_closure(ClosureLookupV1::new(closure_id).unwrap()),
+        Err(EngineError::Storage)
+    ));
+}
+
+#[test]
+fn reopen_rejects_nonzero_complete_proof() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "proof-semantic-open-corruption");
+    let opened = Engine::open(&db).unwrap();
+    seed_registered(&opened.engine);
+    opened.engine.transition("source", LifecycleState::Deleted, None).unwrap();
+    opened.engine.close().unwrap();
+    let connection = Connection::open(&db).unwrap();
+    connection
+        .execute(
+            "UPDATE _fathomdb_dependency_closures \
+             SET proof_json=json_set(proof_json,'$.current_active_dependent_nodes',1)",
+            [],
+        )
+        .unwrap();
+    drop(connection);
+
+    assert!(matches!(Engine::open(&db), Err(EngineOpenError::Corruption(_))));
 }
 
 #[test]

@@ -375,7 +375,11 @@ fn unrelated_writer_is_fenced_while_physical_closure_is_nonterminal() {
     let dir = TempDir::new().unwrap();
     let db = path(&dir, "physical-fence");
     let opened = Engine::open(&db).unwrap();
+    opened.engine.write(&[canonical("victim-r1", "v1", "victim", "victim body")]).unwrap();
     let connection = Connection::open(&db).unwrap();
+    connection
+        .execute("UPDATE canonical_nodes SET state='deleted' WHERE logical_id='victim'", [])
+        .unwrap();
     connection
         .execute(
             "UPDATE _fathomdb_open_state SET value='1' \
@@ -416,6 +420,16 @@ fn unrelated_writer_is_fenced_while_physical_closure_is_nonterminal() {
         .unwrap_err();
     assert!(matches!(
         error,
+        EngineError::ErasureIncomplete { ref stage, .. } if stage == "dependency_closure"
+    ));
+    let configure_error = opened.engine.configure_projections(&[], &[]).unwrap_err();
+    assert!(matches!(
+        configure_error,
+        EngineError::ErasureIncomplete { ref stage, .. } if stage == "dependency_closure"
+    ));
+    let purge_error = opened.engine.purge("victim").unwrap_err();
+    assert!(matches!(
+        purge_error,
         EngineError::ErasureIncomplete { ref stage, .. } if stage == "dependency_closure"
     ));
 }

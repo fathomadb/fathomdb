@@ -2,18 +2,21 @@
 //!
 //! ## What this file is
 //!
-//! TC-90 (ledger `seq-128`, p1, `area: engine`) claims [`Engine::transition`] has
-//! the SAME shape TC-57 fixed in `commit_batch`: it READS before it WRITES inside
-//! a rusqlite `BEGIN DEFERRED` transaction, so the transaction must promote a read
-//! lock to the WAL write lock while the async projection worker holds it.
+//! At the 0.8.20 baseline, TC-90 (ledger `seq-128`, p1, `area: engine`) established
+//! that [`Engine::transition`] had the SAME shape TC-57 fixed in `commit_batch`:
+//! it read before it wrote inside a rusqlite `BEGIN DEFERRED` transaction, so the
+//! transaction had to promote a read lock while another writer held the WAL lock.
 //!
-//! **CHARACTERIZATION ONLY — NO FIX** (steward `seq-136`: the fix lands at
-//! 0.8.21). `src/rust/crates/fathomdb-engine/src/lib.rs` is byte-identical to the
-//! baseline `94f09d7d` in the commit that lands this file. The written
-//! characterization is `dev/design/0.8.20-tc90-tc91-characterization.md`; the
-//! template it follows is `dev/design/0.8.20-tc57-write-race-characterization.md`.
+//! ## Slice 30 resolution (0.8.25)
 //!
-//! ## The shape IS there — quoted from `lib.rs` at `94f09d7d`
+//! The current [`Engine::transition`] opens `BEGIN IMMEDIATE` before lifecycle or
+//! dependency-closure reads. The historical raw-SQL pin below remains evidence of
+//! the old failure mechanism; the real-Engine pin now proves the resolved contract:
+//! under a synchronized 250 ms held write lock, transition waits and succeeds.
+//! The written historical characterization remains
+//! `dev/design/0.8.20-tc90-tc91-characterization.md`.
+//!
+//! ## Historical shape — quoted from `lib.rs` at `94f09d7d`
 //!
 //! ```text
 //! lib.rs:8221   let tx = connection.transaction()...;                  // BEGIN DEFERRED
@@ -29,7 +32,7 @@
 //! differs is the MITIGATION already present at the call site, and it is that
 //! difference — not the transaction shape — that the two loop arms measure.
 //!
-//! ## The two mitigations `transition` has and `commit_batch` did not
+//! ## The two mitigations baseline `transition` had and `commit_batch` did not
 //!
 //! 1. **`lib.rs:8217` — `self.drain(LIFECYCLE_DRAIN_TIMEOUT_MS)?` before the
 //!    transaction.** Waits for `active_jobs == 0 && queued_jobs == 0` AND for the
@@ -97,8 +100,8 @@
 //! * [`tc90_mechanism_transition_sql_shape_on_real_schema_is_busy_5`] replays
 //!   `transition`'s two statements VERBATIM against a real engine-created
 //!   `canonical_nodes`, with a counting busy handler installed.
-//! * [`tc90_mechanism_engine_transition_under_held_write_lock_fails_immediately`]
-//!   drives the real [`Engine::transition`] under the same held lock.
+//! * [`tc90_mechanism_engine_transition_under_held_write_lock_survives`] drives
+//!   the current [`Engine::transition`] under a synchronized, bounded held lock.
 //! * [`tc90_mechanism_control_engine_write_under_held_write_lock_survives`] drives
 //!   the already-`BEGIN IMMEDIATE` [`Engine::write`] under the SAME held lock. It
 //!   is the direct evidence for whether TC-57's R1 remedy transfers here.
@@ -117,24 +120,24 @@
 //! comparison. Run with `--ignored`.
 //!
 //! **LIVE in the default profile — all three `tc90_mechanism_*` pins**, on the
-//! same basis TC-57's own `tc57_mechanism_*` pins run that way. None of them
-//! races for anything: the contending write lock is TAKEN and HELD by a second
-//! connection for the whole measured call, so the outcome is decided by SQLite's
-//! documented promotion behaviour rather than by scheduling. Their wall-clock
+//! same basis TC-57's own `tc57_mechanism_*` pins run that way. None races for
+//! lock ownership: the contending lock is synchronized before the measured call.
+//! Pin 1 preserves SQLite's historical deferred-promotion behavior; pins 2 and 3
+//! prove current immediate transactions wait and survive. Their wall-clock
 //! assertions are one-sided bounds with large margins, not equalities:
 //!
 //! | pin | shape | timing assertion | measured | margin |
 //! |---|---|---|---|---|
 //! | 1 (`..._sql_shape_...`) | two connections, ONE thread, no sleeps | `< 500 ms` | 0 ms | fails instantly by construction — the busy handler is skipped |
-//! | 2 (`..._engine_transition_...`) | blocker held on the calling thread | `< 2 000 ms` | 0 ms | same construction; no `drain` work is outstanding |
+//! | 2 (`..._engine_transition_...`) | blocker thread handshakes `ready` → `ack`, then holds 250 ms | `>= 125 ms`, succeeds | bounded wait | current transition takes `BEGIN IMMEDIATE`; its 5 000 ms busy timeout leaves ample slack |
 //! | 3 (`..._control_engine_write_...`) | blocker thread handshakes `ready` → `ack`, then holds 900 ms | `>= 450 ms` | 930–937 ms (N = 20, quiet); 934–940 ms (N = 10) under a 24-way CPU load | the holder takes the lock BEFORE the timer starts and does not begin its 900 ms hold until AFTER the timer starts, so release cannot precede `started + 900 ms`; the writer's 5 000 ms busy timeout leaves ~4.1 s of slack |
 //!
-//! Pin 3 is the only one with a thread, and it is the one deliberate call: it is
-//! kept live because it is the load-bearing evidence that TC-57's R1 remedy
-//! transfers (design doc §3.3), and a fix scoped against R-A would otherwise be
-//! reasoning from an ignored test.
+//! Pins 2 and 3 use blocker threads. Pin 2 is the Slice 30 regression contract;
+//! pin 3 remains the load-bearing control that established TC-57's R1 remedy
+//! transfers (design doc §3.3).
 //!
-//! Its thread is synchronised by a **two-phase handshake**, and getting there
+//! Each blocker thread is synchronised by a **two-phase handshake**. For pin 3,
+//! getting there
 //! took two corrections. codex §9 round 5 (finding 4) removed a fixed 100 ms
 //! sleep that only *assumed* the blocker had won the scheduler. codex §9 round 6
 //! (finding 1) then found that its replacement — a single readiness signal —

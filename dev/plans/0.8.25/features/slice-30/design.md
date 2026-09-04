@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 30 — core lifecycle and erasure closure design
 status: READY
-design_version: 9
+design_version: 10
 review_fix: 3
 review: design-review-cycle4.md
 depends_on: 25
@@ -245,6 +245,13 @@ allowed only when the validated exact revision is already non-current or
 inactive. A physical target must exist when enumerated; its deletion and
 dependency removal share the root transaction.
 
+That selective rule also preserves ordinary root-node lifecycle behavior:
+`transition` removes and synchronously restores attribute/property metadata but
+does not discard and asynchronously rebuild an otherwise valid vector row.
+Full row-owned projection removal belongs to the dependent consequence above,
+where it is required to prevent a closed dependent from occupying a bounded
+candidate window.
+
 Source erasure already selects all rows in the source bucket. Same-bucket
 dependent rows are counted and classified as physically completed before their
 rows disappear; there is no later per-dependent work queue. It also deletes
@@ -287,7 +294,11 @@ commits phase `proving`, outcome `committed_closure_pending`, and ordered
 closure IDs. Immediately after commit it publishes the committed write cursor
 in process before attempting fallible internal proof finalization; the
 immutable receipt still describes the state at its commit. Exact replay returns
-that receipt, and keyed status reports current closure state.
+that receipt, and keyed status reports current closure state. A dependency
+generation reserved by an earlier operation in the same batch is persisted
+inside the batch savepoint before a later closure is admitted, so the proof's
+admitted generation includes that registration. Any later refusal rolls the
+singleton update back with the same savepoint.
 
 ## Internal recovery and proof
 
@@ -387,6 +398,13 @@ avoid creating closure rows. Read paths may bypass the dependency anti-join
 only from an Engine-session cached zero-dependency/zero-nonterminal state that
 invalidates on every relevant commit. Slice 75 measures fast-path and
 dependent-path overhead.
+
+Lifecycle mutation uses `BEGIN IMMEDIATE`, fixing its former read-to-write
+promotion race: bounded lock contention is handled by SQLite's configured busy
+policy rather than failing immediately during promotion. Historical tokenizer
+migration characterization measures its deliberately pre-head phase through
+that historical schema's raw FTS surface; production Engine reads run only
+after migration to the current schema.
 
 The durable [TDD chronology](implementation-tdd-chronology.md) records which
 coverage preceded implementation, which coverage was added during the first

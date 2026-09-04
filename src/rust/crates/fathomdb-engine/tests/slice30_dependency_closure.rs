@@ -774,7 +774,13 @@ fn projection_worker_before_admission_cannot_publish_dependency_residue() {
         received.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
     });
     opened.engine.drain(5_000).unwrap();
-    assert_eq!(opened.engine.vector_row_count_for_test().unwrap(), 0);
+    assert_eq!(
+        opened.engine.vector_row_count_for_test().unwrap(),
+        1,
+        "the lifecycle-filtered source shadow remains, but closure must remove the dependent shadow"
+    );
+    assert!(opened.engine.has_vector_for_cursor_for_test(1).unwrap());
+    assert!(!opened.engine.has_vector_for_cursor_for_test(2).unwrap());
 }
 
 #[test]

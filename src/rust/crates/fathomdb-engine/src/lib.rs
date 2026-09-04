@@ -1452,8 +1452,6 @@ struct WalAttributionCollector {
     roles: Mutex<BTreeMap<(WalAttributionRole, usize), WalAttributionRoleState>>,
     checkpoints: Mutex<Vec<WalCheckpointRecord>>,
     checkpoint_active: AtomicBool,
-    #[cfg(debug_assertions)]
-    role_changed: Condvar,
     #[cfg(any(test, feature = "test-hooks"))]
     reader_snapshot_pause: Mutex<Option<ReaderSnapshotPause>>,
     #[cfg(test)]
@@ -1497,8 +1495,6 @@ impl WalAttributionCollector {
             roles: Mutex::new(BTreeMap::new()),
             checkpoints: Mutex::new(Vec::new()),
             checkpoint_active: AtomicBool::new(false),
-            #[cfg(debug_assertions)]
-            role_changed: Condvar::new(),
             #[cfg(any(test, feature = "test-hooks"))]
             reader_snapshot_pause: Mutex::new(None),
             #[cfg(test)]
@@ -1592,42 +1588,8 @@ impl WalAttributionCollector {
         }
         if let Ok(mut roles) = self.roles.lock() {
             roles.insert((role, index), WalAttributionRoleState { active, phase });
-            #[cfg(debug_assertions)]
-            self.role_changed.notify_all();
         }
         self.emit(role, index, phase);
-    }
-
-    #[cfg(debug_assertions)]
-    fn wait_until_exclusively_active(
-        &self,
-        role: WalAttributionRole,
-        index: usize,
-        timeout: Duration,
-    ) -> bool {
-        let deadline = Instant::now() + timeout;
-        let Ok(mut roles) = self.roles.lock() else {
-            return false;
-        };
-        loop {
-            let mut active = roles.iter().filter_map(|((active_role, active_index), state)| {
-                state.active.then_some((*active_role, *active_index))
-            });
-            if active.next() == Some((role, index)) && active.next().is_none() {
-                return true;
-            }
-            let remaining = deadline.saturating_duration_since(Instant::now());
-            if remaining.is_zero() {
-                return false;
-            }
-            let Ok((next_roles, wait)) = self.role_changed.wait_timeout(roles, remaining) else {
-                return false;
-            };
-            roles = next_roles;
-            if wait.timed_out() {
-                return false;
-            }
-        }
     }
 
     fn snapshot(&self) -> WalAttributionSnapshot {
@@ -12025,8 +11987,11 @@ impl Engine {
     /// Keys on the BARE `logical_id` (`l:` space only); a `Content`(`h:`) or
     /// `Passage`(`p:`) id raises [`EngineError::NotLifecycleAddressable`].
     /// The state flip mutates the single active (`superseded_at IS NULL`) row.
-    /// Row-owned projections are removed on exclusion and rebuilt on admission,
-    /// so lifecycle-closed dependencies cannot consume bounded candidate slots.
+    /// Search visibility is removed on exclusion and restored on admission.
+    /// Attribute projections, which cannot apply a read-side lifecycle filter,
+    /// are maintained at rest. FTS/vector shadows remain in place and their read
+    /// paths enforce lifecycle eligibility; dependency closure separately purges
+    /// closed derived artifacts so they cannot consume bounded candidate slots.
     ///
     /// 0.8.20 Slice 15d fix-2 [P2] — the row-owned ATTRIBUTE projection
     /// (`canonical_attributes` / `property_search_index`) is the exception: it has
@@ -12049,11 +12014,10 @@ impl Engine {
         // (unfrozen so any unprojected row completes) leaves the worker idle; a
         // bare state flip enqueues no new projection work.
         //
-        // Slice 40 B3 aligns the worker with `commit_batch`:
-        // `commit_projection_outcomes` acquires `BEGIN IMMEDIATE` before its reads.
-        // This drain remains load-bearing because the worker owns a separate
-        // connection while this state flip still reads before its own write; it
-        // keeps that deferred transaction out of the worker's write window.
+        // Slice 40 B3 aligns the worker with `commit_batch`, and Slice 30 gives
+        // this state flip the same `BEGIN IMMEDIATE` ordering. The drain remains
+        // load-bearing because it settles projection work before dependency
+        // closure admission and avoids needless contention with worker commits.
         self.drain_for_non_embedding_mutation()?;
 
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
@@ -18903,15 +18867,10 @@ fn commit_projection_outcomes(
         .unwrap_or_else(|poisoned| poisoned.into_inner())
         .take()
     {
-        if !shared.wal_attribution.wait_until_exclusively_active(
-            WalAttributionRole::ProjectionWorker,
-            worker_idx,
-            Duration::from_secs(2),
-        ) {
-            eprintln!(
-                "slice65_wal projection_worker exclusive_activity_wait=timeout worker={worker_idx}"
-            );
-        }
+        // `transaction_with_behavior(Immediate)` above has already acquired the
+        // WAL write lock. The rendezvous must therefore report that SQLite fact
+        // directly; WAL attribution is optional in integration builds and is
+        // neither necessary nor sufficient to establish transaction ownership.
         transaction_ready.wait();
         release.wait();
     }

@@ -31,6 +31,20 @@ class DependencyListV1:
     schema_version: int
     items: list[SourceDependencyV1]
 
+class ActuationReceiptV1:
+    schema_version: int
+    operation_id: str
+    request_sha256: str
+    outcome: str
+    refused_operation_index: int | None
+    refused_field_path: str | None
+    reason_codes: list[str]
+    affected_revision_ids: list[str]
+    resulting_write_boundary: str | None
+    resulting_dependency_generation: str | None
+    pending_projection_write_cursors: list[str]
+    closure_operation_ids: list[str]
+
 class SoftFallback:
     branch: str
 
@@ -268,6 +282,7 @@ class Engine:
     # error — validate the pair before calling.
     # See `fathomdb.engine.Engine.write`.
     def write(self, batch: Iterable[Any]) -> WriteReceipt: ...
+    def actuate(self, request: Any) -> ActuationReceiptV1: ...
     def register_source_dependency(self, request: Any) -> SourceDependencyV1: ...
     def dependencies_for_source(self, request: Any) -> DependencyListV1: ...
     def dependency_for_derived(self, request: Any) -> SourceDependencyV1 | None: ...
@@ -615,6 +630,13 @@ class ProvenanceError(EngineError):
     ) -> None: ...
 
 class DependencyError(EngineError):
+    reason: str
+    field_path: str
+    def __init__(
+        self, *args: Any, reason: str = ..., field_path: str = ...
+    ) -> None: ...
+
+class ActuationError(EngineError):
     reason: str
     field_path: str
     def __init__(

@@ -50,7 +50,9 @@ use fathomdb_embedder::{
 };
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
-    rerank_passages as rust_rerank_passages, ArtifactRevisionId,
+    rerank_passages as rust_rerank_passages, ActuationBatchV1,
+    ActuationError as RustActuationError, ActuationOperationV1, ActuationOutcomeV1,
+    ActuationReceiptV1 as RustActuationReceiptV1, ArtifactRevisionId,
     BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ComparisonOp as RustComparisonOp,
     ConsolidateAxis as RustConsolidateAxis, ConsolidateReceipt as RustConsolidateReceipt,
     CorruptionDetail, CorruptionKind, DenseReadiness as RustDenseReadiness,
@@ -61,7 +63,7 @@ use fathomdb_engine::{
     Explanation as RustExplanation, ExtractDocument as RustExtractDocument, Filter as RustFilter,
     FilterTerm as RustFilterTerm, IdSpace as RustIdSpace,
     IngestWithExtractorReceipt as RustIngestWithExtractorReceipt, InitialState,
-    LifecycleState as RustLifecycleState, NodeRecord as RustNodeRecord,
+    LifecycleActuationV1, LifecycleState as RustLifecycleState, NodeRecord as RustNodeRecord,
     OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
     PerHitExplain as RustPerHitExplain, Predicate as RustPredicate, PreparedWrite,
     ProjectionDelta as RustProjectionDelta, ProjectionFts as RustProjectionFts,
@@ -106,6 +108,7 @@ create_exception!(_fathomdb, WriteValidationError, EngineError);
 create_exception!(_fathomdb, SchemaValidationError, EngineError);
 create_exception!(_fathomdb, ProvenanceError, EngineError);
 create_exception!(_fathomdb, DependencyError, EngineError);
+create_exception!(_fathomdb, ActuationError, EngineError);
 create_exception!(_fathomdb, OverloadedError, EngineError);
 create_exception!(_fathomdb, ClosingError, EngineError);
 create_exception!(_fathomdb, DatabaseLockedError, EngineError);
@@ -252,6 +255,7 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
         }
         RustEngineError::Provenance(error) => provenance_error_to_py(&error),
         RustEngineError::Dependency(error) => dependency_error_to_py(&error),
+        RustEngineError::Actuation(error) => actuation_error_to_py(&error),
         RustEngineError::Overloaded => OverloadedError::new_err("engine overloaded"),
         RustEngineError::Closing => ClosingError::new_err("engine is closing"),
         RustEngineError::Extractor => ExtractorError::new_err("extractor error"),
@@ -339,6 +343,20 @@ fn provenance_error_to_py(error: &RustProvenanceError) -> PyErr {
 fn dependency_error_to_py(error: &RustDependencyError) -> PyErr {
     let exc = DependencyError::new_err(format!(
         "dependency {} at {}",
+        error.reason.as_str(),
+        error.field_path
+    ));
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("reason", error.reason.as_str());
+        let _ = value.setattr("field_path", error.field_path.as_str());
+    });
+    exc
+}
+
+fn actuation_error_to_py(error: &RustActuationError) -> PyErr {
+    let exc = ActuationError::new_err(format!(
+        "actuation {} at {}",
         error.reason.as_str(),
         error.field_path
     ));
@@ -534,6 +552,64 @@ impl From<RustSourceDependencyV1> for PySourceDependencyV1 {
             source_revision_id: value.source_revision_id.as_str().to_string(),
             derived_revision_id: value.derived_revision_id.as_str().to_string(),
             registered_dependency_generation: value.registered_dependency_generation.to_string(),
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "ActuationReceiptV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyActuationReceiptV1 {
+    schema_version: u32,
+    operation_id: String,
+    request_sha256: String,
+    outcome: String,
+    refused_operation_index: Option<usize>,
+    refused_field_path: Option<String>,
+    reason_codes: Vec<String>,
+    affected_revision_ids: Vec<String>,
+    resulting_write_boundary: Option<String>,
+    resulting_dependency_generation: Option<String>,
+    pending_projection_write_cursors: Vec<String>,
+    closure_operation_ids: Vec<String>,
+}
+
+impl From<RustActuationReceiptV1> for PyActuationReceiptV1 {
+    fn from(value: RustActuationReceiptV1) -> Self {
+        let outcome = match value.outcome {
+            ActuationOutcomeV1::Committed => "committed",
+            ActuationOutcomeV1::CommittedClosurePending => "committed_closure_pending",
+            ActuationOutcomeV1::Refused => "refused",
+        }
+        .to_string();
+        Self {
+            schema_version: value.schema_version,
+            operation_id: value.operation_id,
+            request_sha256: value.request_sha256,
+            outcome,
+            refused_operation_index: value.refused_operation_index,
+            refused_field_path: value.refused_field_path,
+            reason_codes: value
+                .reason_codes
+                .into_iter()
+                .map(|reason| reason.as_str().to_string())
+                .collect(),
+            affected_revision_ids: value.affected_revision_ids,
+            resulting_write_boundary: value.resulting_write_boundary.map(|item| item.to_string()),
+            resulting_dependency_generation: value
+                .resulting_dependency_generation
+                .map(|item| item.to_string()),
+            pending_projection_write_cursors: value
+                .pending_projection_write_cursors
+                .into_iter()
+                .map(|item| item.to_string())
+                .collect(),
+            closure_operation_ids: value.closure_operation_ids,
         }
     }
 }
@@ -1816,6 +1892,16 @@ impl PyEngine {
         Ok(PyWriteReceipt::from_rust(receipt))
     }
 
+    fn actuate(
+        &self,
+        py: Python<'_>,
+        request: &Bound<'_, PyAny>,
+    ) -> PyResult<PyActuationReceiptV1> {
+        let request = translate_actuation_request(request)?;
+        let engine = Arc::clone(&self.inner);
+        call_engine(py, move || engine.actuate(request)).map(Into::into)
+    }
+
     fn register_source_dependency(
         &self,
         py: Python<'_>,
@@ -2782,6 +2868,210 @@ fn dependency_input_error(reason: &str, field_path: impl Into<String>) -> PyErr 
     exc
 }
 
+fn actuation_input_error(reason: &str, field_path: impl Into<String>) -> PyErr {
+    let field_path = field_path.into();
+    let exc = ActuationError::new_err(format!("actuation {reason} at {field_path}"));
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("reason", reason);
+        let _ = value.setattr("field_path", field_path);
+    });
+    exc
+}
+
+fn strict_actuation_dict<'py>(
+    value: &'py Bound<'py, PyAny>,
+    allowed: &[&str],
+    base_path: &str,
+) -> PyResult<&'py Bound<'py, PyDict>> {
+    let dict = value
+        .cast::<PyDict>()
+        .map_err(|_| actuation_input_error("field_type_invalid", base_path))?;
+    let mut unknown = None;
+    for key in dict.keys().iter() {
+        let key = key
+            .extract::<String>()
+            .map_err(|_| actuation_input_error("unknown_field", base_path))?;
+        if !allowed.contains(&key.as_str()) {
+            let canonical = snake_to_camel(&key);
+            if unknown.as_ref().is_none_or(|current| canonical < *current) {
+                unknown = Some(canonical);
+            }
+        }
+    }
+    if let Some(key) = unknown {
+        return Err(actuation_input_error(
+            "unknown_field",
+            format!("{base_path}/{}", escape_json_pointer_token(&key)),
+        ));
+    }
+    Ok(dict)
+}
+
+fn actuation_required_string(dict: &Bound<'_, PyDict>, key: &str, path: &str) -> PyResult<String> {
+    match dict_get(dict, key)? {
+        Some(value) if !value.is_none() => extract_validated_str(&value)
+            .map_err(|_| actuation_input_error("field_type_invalid", path)),
+        _ => Err(actuation_input_error("field_missing", path)),
+    }
+}
+
+fn translate_actuation_request(value: &Bound<'_, PyAny>) -> PyResult<ActuationBatchV1> {
+    let dict = value
+        .cast::<PyDict>()
+        .map_err(|_| actuation_input_error("unsupported_schema_version", "/schemaVersion"))?;
+    let schema = match dict_get(dict, "schema_version")? {
+        Some(value) if !value.is_instance_of::<pyo3::types::PyBool>() => {
+            value.extract::<u32>().ok()
+        }
+        _ => None,
+    };
+    if schema != Some(1) {
+        return Err(actuation_input_error("unsupported_schema_version", "/schemaVersion"));
+    }
+    let dict = strict_actuation_dict(
+        value,
+        &[
+            "schema_version",
+            "operation_id",
+            "decision_policy_id",
+            "expected_write_boundary",
+            "operations",
+        ],
+        "",
+    )?;
+    let operation_id = actuation_required_string(dict, "operation_id", "/operationId")?;
+    let operations_value = dict_get(dict, "operations")?
+        .ok_or_else(|| actuation_input_error("field_missing", "/operations"))?;
+    let operations_list = operations_value
+        .cast::<PyList>()
+        .map_err(|_| actuation_input_error("field_type_invalid", "/operations"))?;
+    let mut operations = Vec::with_capacity(operations_list.len());
+    for (index, operation) in operations_list.iter().enumerate() {
+        operations.push(translate_actuation_operation(&operation, index)?);
+    }
+    let mut request = ActuationBatchV1::new(operation_id, operations)
+        .map_err(|error| actuation_error_to_py(&error))?;
+    if let Some(policy) = dict_get(dict, "decision_policy_id")?.filter(|value| !value.is_none()) {
+        let policy = extract_validated_str(&policy)
+            .map_err(|_| actuation_input_error("field_type_invalid", "/decisionPolicyId"))?;
+        request = request
+            .with_decision_policy_id(policy)
+            .map_err(|error| actuation_error_to_py(&error))?;
+    }
+    if let Some(boundary) = dict_get(dict, "expected_write_boundary")?.filter(|v| !v.is_none()) {
+        if boundary.is_instance_of::<pyo3::types::PyBool>() {
+            return Err(actuation_input_error("field_type_invalid", "/expectedWriteBoundary"));
+        }
+        let text = extract_validated_str(&boundary)
+            .map_err(|_| actuation_input_error("field_type_invalid", "/expectedWriteBoundary"))?;
+        let parsed =
+            text.parse::<u64>().ok().filter(|parsed| parsed.to_string() == text).ok_or_else(
+                || actuation_input_error("field_type_invalid", "/expectedWriteBoundary"),
+            )?;
+        request = request.with_expected_write_boundary(parsed);
+    }
+    Ok(request)
+}
+
+fn translate_actuation_operation(
+    value: &Bound<'_, PyAny>,
+    index: usize,
+) -> PyResult<ActuationOperationV1> {
+    let root = format!("/operations/{index}");
+    let dict =
+        value.cast::<PyDict>().map_err(|_| actuation_input_error("field_type_invalid", &root))?;
+    let kind = actuation_required_string(dict, "type", &format!("{root}/type"))?;
+    match kind.as_str() {
+        "put_canonical_node" | "put_derived_node" => {
+            strict_actuation_dict(value, &["type", "record"], &root)?;
+            let record = dict_get(dict, "record")?
+                .ok_or_else(|| actuation_input_error("field_missing", format!("{root}/record")))?;
+            strict_actuation_dict(
+                &record,
+                &[
+                    "kind",
+                    "body",
+                    "source_id",
+                    "logical_id",
+                    "state",
+                    "reason",
+                    "valid_from",
+                    "valid_until",
+                    "provenance",
+                ],
+                &format!("{root}/record"),
+            )?;
+            let prepared = translate_node(&record).map_err(|_| {
+                actuation_input_error("nested_request_invalid", format!("{root}/record"))
+            })?;
+            let PreparedWrite::ProvenancedNode(node) = prepared else {
+                return Err(actuation_input_error(
+                    "nested_request_invalid",
+                    format!("{root}/record/provenance"),
+                ));
+            };
+            if kind == "put_canonical_node" {
+                Ok(ActuationOperationV1::PutCanonicalNode(node))
+            } else {
+                Ok(ActuationOperationV1::PutDerivedNode(node))
+            }
+        }
+        "register_source_dependency" => {
+            strict_actuation_dict(value, &["type", "dependency"], &root)?;
+            let dependency = dict_get(dict, "dependency")?.ok_or_else(|| {
+                actuation_input_error("field_missing", format!("{root}/dependency"))
+            })?;
+            translate_dependency_registration(&dependency)
+                .map(ActuationOperationV1::RegisterSourceDependency)
+                .map_err(|_| {
+                    actuation_input_error("nested_request_invalid", format!("{root}/dependency"))
+                })
+        }
+        "transition_lifecycle" => {
+            strict_actuation_dict(
+                value,
+                &["type", "logical_id", "expected_current_revision_id", "to_state", "reason"],
+                &root,
+            )?;
+            let logical_id =
+                actuation_required_string(dict, "logical_id", &format!("{root}/logicalId"))?;
+            let revision = actuation_required_string(
+                dict,
+                "expected_current_revision_id",
+                &format!("{root}/expectedCurrentRevisionId"),
+            )?;
+            let revision = ArtifactRevisionId::new(revision).map_err(|_| {
+                actuation_input_error(
+                    "revision_id_invalid",
+                    format!("{root}/expectedCurrentRevisionId"),
+                )
+            })?;
+            let target = actuation_required_string(dict, "to_state", &format!("{root}/toState"))?;
+            let target = RustLifecycleState::from_str_opt(&target).ok_or_else(|| {
+                actuation_input_error("lifecycle_target_invalid", format!("{root}/toState"))
+            })?;
+            let reason = match dict_get(dict, "reason")? {
+                Some(value) if !value.is_none() => {
+                    Some(extract_validated_str(&value).map_err(|_| {
+                        actuation_input_error("field_type_invalid", format!("{root}/reason"))
+                    })?)
+                }
+                _ => None,
+            };
+            LifecycleActuationV1::new(logical_id, revision, target, reason)
+                .map(ActuationOperationV1::TransitionLifecycle)
+                .map_err(|error| {
+                    actuation_input_error(
+                        error.reason.as_str(),
+                        format!("{root}{}", error.field_path),
+                    )
+                })
+        }
+        _ => Err(actuation_input_error("unknown_operation_variant", format!("{root}/type"))),
+    }
+}
+
 fn dependency_request_dict<'py>(
     value: &'py Bound<'py, PyAny>,
     allowed: &[&str],
@@ -3666,6 +3956,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyNodeRecord>()?;
     m.add_class::<PyOpStoreRow>()?;
     m.add_class::<PySourceDependencyV1>()?;
+    m.add_class::<PyActuationReceiptV1>()?;
     m.add_class::<PyDependencyListV1>()?;
     // Slice 20 — graph traversal result types.
     m.add_class::<PyExpandedNode>()?;
@@ -3725,6 +4016,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("SchemaValidationError", py.get_type::<SchemaValidationError>())?;
     m.add("ProvenanceError", py.get_type::<ProvenanceError>())?;
     m.add("DependencyError", py.get_type::<DependencyError>())?;
+    m.add("ActuationError", py.get_type::<ActuationError>())?;
     m.add("OverloadedError", py.get_type::<OverloadedError>())?;
     m.add("ClosingError", py.get_type::<ClosingError>())?;
     m.add("DatabaseLockedError", py.get_type::<DatabaseLockedError>())?;

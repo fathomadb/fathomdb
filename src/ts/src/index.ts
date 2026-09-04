@@ -21,6 +21,7 @@ import {
   type NativePerHitExplain,
 } from "./binding.js";
 import {
+  ActuationError,
   DependencyError,
   InvalidArgumentError,
   InvalidFilterError,
@@ -184,6 +185,46 @@ export interface DependencyListV1 {
   items: SourceDependencyV1[];
 }
 
+export type ActuationOperationV1 =
+  | { type: "put_canonical_node"; record: Record<string, unknown> }
+  | { type: "put_derived_node"; record: Record<string, unknown> }
+  | {
+      type: "register_source_dependency";
+      dependency: SourceDependencyRegistrationV1;
+    }
+  | {
+      type: "transition_lifecycle";
+      logicalId: string;
+      expectedCurrentRevisionId: string;
+      toState: "active" | "deleted";
+      reason?: string | null;
+    };
+
+/** Bounded, model-free, caller-decided atomic actuation request. */
+export interface ActuationBatchV1 {
+  schemaVersion: 1;
+  operationId: string;
+  decisionPolicyId?: string | null;
+  expectedWriteBoundary?: string | null;
+  operations: ActuationOperationV1[];
+}
+
+/** Compact terminal receipt for one actuation operation ID. */
+export interface ActuationReceiptV1 {
+  schemaVersion: 1;
+  operationId: string;
+  requestSha256: string;
+  outcome: "committed" | "committed_closure_pending" | "refused";
+  refusedOperationIndex: number | null;
+  refusedFieldPath: string | null;
+  reasonCodes: string[];
+  affectedRevisionIds: string[];
+  resultingWriteBoundary: string | null;
+  resultingDependencyGeneration: string | null;
+  pendingProjectionWriteCursors: string[];
+  closureOperationIds: string[];
+}
+
 function dependencyResponse(value: {
   schemaVersion: number;
   dependencyId: string;
@@ -199,6 +240,41 @@ function dependencyResponse(value: {
     );
   }
   return { ...value, schemaVersion: 1 };
+}
+
+function actuationResponse(value: {
+  schemaVersion: number;
+  operationId: string;
+  requestSha256: string;
+  outcome: string;
+  refusedOperationIndex?: number | null;
+  refusedFieldPath?: string | null;
+  reasonCodes: string[];
+  affectedRevisionIds: string[];
+  resultingWriteBoundary?: string | null;
+  resultingDependencyGeneration?: string | null;
+  pendingProjectionWriteCursors: string[];
+  closureOperationIds: string[];
+}): ActuationReceiptV1 {
+  if (
+    value.schemaVersion !== 1 ||
+    !["committed", "committed_closure_pending", "refused"].includes(value.outcome)
+  ) {
+    throw new ActuationError(
+      "actuation response has an unsupported schema or outcome",
+      "unsupported_schema_version",
+      "/schemaVersion",
+    );
+  }
+  return {
+    ...value,
+    schemaVersion: 1,
+    outcome: value.outcome as ActuationReceiptV1["outcome"],
+    refusedOperationIndex: value.refusedOperationIndex ?? null,
+    refusedFieldPath: value.refusedFieldPath ?? null,
+    resultingWriteBoundary: value.resultingWriteBoundary ?? null,
+    resultingDependencyGeneration: value.resultingDependencyGeneration ?? null,
+  };
 }
 
 /**
@@ -1159,6 +1235,15 @@ export class Engine {
     return dependencyResponse(
       await intercept(() => this.#native.registerSourceDependency(request)),
     );
+  }
+
+  /** Atomically apply a bounded set of caller-decided memory operations. */
+  async actuate(request: ActuationBatchV1): Promise<ActuationReceiptV1> {
+    try {
+      return actuationResponse(await this.#native.actuate(request));
+    } catch (err) {
+      rethrowTyped(err);
+    }
   }
 
   /** Return at most 100 dependencies in stable derived-revision order. */

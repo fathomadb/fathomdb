@@ -35,7 +35,7 @@ fn step27_adds_closed_versioned_registries_without_backfill() {
 
     let report = migrate_with_steps(&connection, &steps_through(27)).unwrap();
 
-    assert_eq!(SCHEMA_VERSION, 28);
+    assert_eq!(SCHEMA_VERSION, 29);
     assert_eq!(report.schema_version_before, 26);
     assert_eq!(report.schema_version_after, 27);
     assert_eq!(report.migration_steps.iter().map(|s| s.step_id).collect::<Vec<_>>(), vec![27]);

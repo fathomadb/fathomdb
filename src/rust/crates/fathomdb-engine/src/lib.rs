@@ -44,10 +44,16 @@
 //! run at open and only there. `PreparedWrite`, `SearchFilter` and
 //! `EngineError` are `#[non_exhaustive]` or documented as additive.
 
+mod actuation;
 pub mod lifecycle;
 mod pcache2;
 #[cfg(feature = "tc5-benchmark")]
 pub mod tc5_benchmark;
+
+pub use actuation::{
+    ActuationBatchV1, ActuationError, ActuationErrorReason, ActuationOperationV1,
+    ActuationOutcomeV1, ActuationReceiptV1, ActuationRefusalReasonV1, LifecycleActuationV1,
+};
 
 /// Slice 72's private trusted-runner rendezvous. This is compiled only by the
 /// non-shipped characterization feature and exists solely to delimit real CE
@@ -6016,6 +6022,8 @@ pub enum EngineError {
     Provenance(ProvenanceError),
     /// Immutable source-dependency validation, conflict, or bounded-read refusal.
     Dependency(DependencyError),
+    /// Bounded caller-decided actuation request or idempotency refusal.
+    Actuation(ActuationError),
     Overloaded,
     Closing,
     /// G11 (Slice 15) — BYO-LLM extractor subprocess error (protocol mismatch,
@@ -6150,6 +6158,7 @@ impl Display for EngineError {
             Self::SchemaValidation => write!(f, "schema validation error"),
             Self::Provenance(error) => write!(f, "provenance: {error}"),
             Self::Dependency(error) => write!(f, "dependency: {error}"),
+            Self::Actuation(error) => write!(f, "actuation: {error}"),
             Self::Overloaded => write!(f, "engine overloaded"),
             Self::Closing => write!(f, "engine is closing"),
             Self::Extractor => write!(f, "extractor error"),
@@ -6212,6 +6221,7 @@ impl EngineError {
             Self::SchemaValidation => "SchemaValidationError",
             Self::Provenance(_) => "ProvenanceError",
             Self::Dependency(_) => "DependencyError",
+            Self::Actuation(_) => "ActuationError",
             Self::Overloaded => "OverloadedError",
             Self::Closing => "ClosingError",
             Self::Extractor => "ExtractorError",
@@ -12466,6 +12476,22 @@ impl Engine {
 
         let affected_cursors: Vec<i64> =
             node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
+        let mut erased_source_ids = BTreeSet::new();
+        for sql in [
+            "SELECT source_id FROM canonical_nodes WHERE logical_id=?1 AND source_id IS NOT NULL",
+            "SELECT source_id FROM canonical_edges WHERE (from_id=?1 OR to_id=?1) AND source_id IS NOT NULL",
+        ] {
+            let mut statement = tx.prepare(sql).map_err(|_| EngineError::Storage)?;
+            let rows = statement
+                .query_map([lid], |row| row.get::<_, String>(0))
+                .map_err(|_| EngineError::Storage)?
+                .collect::<rusqlite::Result<Vec<_>>>()
+                .map_err(|_| EngineError::Storage)?;
+            erased_source_ids.extend(rows);
+        }
+        let receipt_refs =
+            actuation_erasure_refs_for_cursors(&tx, &affected_cursors, erased_source_ids)?;
+        actuation::redact_actuation_receipts_for_refs(&tx, &receipt_refs)?;
         erase_artifact_identity_for_cursors(&tx, &affected_cursors, true, None)?;
 
         // Erase the row-owned projection shadows for every collected cursor.
@@ -13209,6 +13235,9 @@ impl Engine {
 
         let affected_cursors: Vec<i64> =
             node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
+        let receipt_refs =
+            actuation_erasure_refs_for_cursors(&tx, &affected_cursors, [source_id.to_string()])?;
+        actuation::redact_actuation_receipts_for_refs(&tx, &receipt_refs)?;
         erase_artifact_identity_for_cursors(&tx, &affected_cursors, false, Some(source_id))?;
 
         // 0.8.20 Slice 5a (R-20-E1) — registry-driven erasure. The previous
@@ -21340,7 +21369,7 @@ fn value_contains_external_ref(value: &Value) -> bool {
 // fix-30 [P2]: helpers to collect active edge write_cursors BEFORE a supersession
 // UPDATE so the callers can prune stale vector_default rows.
 fn prior_edge_cursors_by_logical_id(
-    tx: &rusqlite::Transaction<'_>,
+    tx: &Connection,
     logical_id: &str,
 ) -> rusqlite::Result<Vec<i64>> {
     let mut s = tx.prepare_cached(
@@ -21358,7 +21387,7 @@ fn prior_edge_cursors_by_logical_id(
 /// The partial-unique-active index means this is at most one cursor; a `Vec`
 /// keeps it robust and symmetric with the edge path.
 fn prior_node_cursors_by_logical_id(
-    tx: &rusqlite::Transaction<'_>,
+    tx: &Connection,
     logical_id: &str,
 ) -> rusqlite::Result<Vec<i64>> {
     let mut s = tx.prepare_cached(
@@ -21370,7 +21399,7 @@ fn prior_node_cursors_by_logical_id(
 }
 
 fn prior_edge_cursors_by_triple(
-    tx: &rusqlite::Transaction<'_>,
+    tx: &Connection,
     from: &str,
     to: &str,
     kind: &str,
@@ -22449,6 +22478,32 @@ fn validate_persisted_dependency_row(
         return Err(EngineError::Storage);
     }
     Ok(())
+}
+
+fn actuation_erasure_refs_for_cursors(
+    connection: &Connection,
+    cursors: &[i64],
+    source_ids: impl IntoIterator<Item = String>,
+) -> Result<BTreeSet<(String, String)>, EngineError> {
+    let mut refs = source_ids
+        .into_iter()
+        .map(|value| ("source_id".to_string(), value))
+        .collect::<BTreeSet<_>>();
+    for cursor in cursors {
+        let revision: Option<String> = connection
+            .query_row(
+                "SELECT revision_id FROM _fathomdb_artifact_revisions WHERE write_cursor=?1",
+                [cursor],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| EngineError::Storage)?;
+        if let Some(revision) = revision {
+            refs.insert(("artifact_revision_id".to_string(), revision.clone()));
+            refs.insert(("source_revision_id".to_string(), revision));
+        }
+    }
+    Ok(refs)
 }
 
 fn erase_artifact_identity_for_cursors(
@@ -25004,12 +25059,37 @@ fn commit_batch(
     // handler consulted, i.e. absorbed by the existing 5 s default instead of
     // surfaced (pinned by `tc57_mechanism_control_write_first_is_retryable`).
     let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+    let result = apply_batch_in_transaction(
+        &tx,
+        batch,
+        plans,
+        base_cursor,
+        provenance_row_cap,
+        vector_kinds_to_enrol,
+    )?;
+    tx.commit()?;
+    Ok(result)
+}
 
+/// Apply a validated ordinary write batch inside an already-owned transaction.
+///
+/// Slice 25 reuses this seam so caller-decided writes, dependency registrations,
+/// lifecycle changes, and their terminal receipt share one SQLite commit. The
+/// enclosing owner remains responsible for committing, publishing the cursor,
+/// and notifying the projection worker.
+fn apply_batch_in_transaction(
+    tx: &Connection,
+    batch: &[PreparedWrite],
+    plans: &[WritePlan],
+    base_cursor: u64,
+    provenance_row_cap: u64,
+    vector_kinds_to_enrol: &[String],
+) -> Result<(u64, bool), CommitBatchError> {
     for kind in vector_kinds_to_enrol {
-        register_vector_kind(&tx, kind)?;
+        register_vector_kind(tx, kind)?;
     }
     let unstranded =
-        if vector_kinds_to_enrol.is_empty() { false } else { reenqueue_stranded_vector_rows(&tx)? };
+        if vector_kinds_to_enrol.is_empty() { false } else { reenqueue_stranded_vector_rows(tx)? };
 
     for (i, (original_write, plan)) in batch.iter().zip(plans).enumerate() {
         // Per-row cursor: row i gets `base_cursor + i + 1`. See the
@@ -25045,7 +25125,7 @@ fn commit_batch(
                     // property filter / property-FTS saw BOTH the stale and the
                     // current value until a boot re-derive/reconfigure cleared the
                     // table — a stale read that violates the active-only invariant.
-                    let prior_g0 = prior_node_cursors_by_logical_id(&tx, logical_id)?;
+                    let prior_g0 = prior_node_cursors_by_logical_id(tx, logical_id)?;
                     tx.execute(
                         "UPDATE canonical_nodes SET superseded_at = ?1
                          WHERE logical_id = ?2 AND superseded_at IS NULL",
@@ -25061,7 +25141,7 @@ fn commit_batch(
                     // them here would be a behaviour change outside this fix's scope.
                     for sc in &prior_g0 {
                         purge_row_projections_for_cursor_in(
-                            &tx,
+                            tx,
                             *sc,
                             &[ProjectionClass::Attribute, ProjectionClass::PropertyFts],
                         )?;
@@ -25102,7 +25182,7 @@ fn commit_batch(
                 // it (which projects them then). Node-FTS / vector shadows are left
                 // to their read-side lifecycle filter, exactly as for supersession.
                 project_canonical_node_row(
-                    &tx,
+                    tx,
                     cursor,
                     kind,
                     body,
@@ -25135,14 +25215,14 @@ fn commit_batch(
                 if let Some(logical_id) = logical_id {
                     // fix-30 [P2]: collect prior active cursors BEFORE tombstoning
                     // so stale vector_default rows can be pruned.
-                    let prior_g0 = prior_edge_cursors_by_logical_id(&tx, logical_id)?;
+                    let prior_g0 = prior_edge_cursors_by_logical_id(tx, logical_id)?;
                     tx.execute(
                         "UPDATE canonical_edges SET superseded_at = ?1
                          WHERE logical_id = ?2 AND superseded_at IS NULL",
                         params![cursor, logical_id],
                     )?;
                     for sc in &prior_g0 {
-                        delete_vector_partition_row(&tx, *sc)?;
+                        delete_vector_partition_row(tx, *sc)?;
                         tx.execute(
                             "DELETE FROM _fathomdb_vector_rows WHERE write_cursor = ?1",
                             [sc],
@@ -25161,7 +25241,7 @@ fn commit_batch(
                         // tombstoned and its vector shadow just deleted, so there is
                         // no further projection work for this cursor. Same reasoning
                         // and same token as the step-23 backfill (fix-4, TC-33).
-                        record_projection_terminal(&tx, *sc as u64, "up_to_date")?;
+                        record_projection_terminal(tx, *sc as u64, "up_to_date")?;
                     }
                 }
                 // G11 — invalidate-not-accumulate: for fact-edges (body IS NOT NULL),
@@ -25171,14 +25251,14 @@ fn commit_batch(
                 // Regular edges (body=None) skip this path — they retain G0 semantics.
                 if body.is_some() {
                     // fix-30 [P2]: collect and prune vector shadow for the superseded edge.
-                    let prior_g11 = prior_edge_cursors_by_triple(&tx, from, to, kind)?;
+                    let prior_g11 = prior_edge_cursors_by_triple(tx, from, to, kind)?;
                     tx.execute(
                         "UPDATE canonical_edges SET superseded_at = ?1
                          WHERE from_id = ?2 AND to_id = ?3 AND kind = ?4 AND superseded_at IS NULL",
                         params![cursor, from, to, kind],
                     )?;
                     for sc in &prior_g11 {
-                        delete_vector_partition_row(&tx, *sc)?;
+                        delete_vector_partition_row(tx, *sc)?;
                         tx.execute(
                             "DELETE FROM _fathomdb_vector_rows WHERE write_cursor = ?1",
                             [sc],
@@ -25189,7 +25269,7 @@ fn commit_batch(
                         // only ('failed','up_to_date') and INSERT OR IGNORE swallows
                         // a violating row, so 'superseded' never landed and wedged
                         // the shared readiness watermark.
-                        record_projection_terminal(&tx, *sc as u64, "up_to_date")?;
+                        record_projection_terminal(tx, *sc as u64, "up_to_date")?;
                     }
                 }
                 let temporal_fallback_i: Option<i64> =
@@ -25219,7 +25299,7 @@ fn commit_batch(
                 // longer inlined here: the write path and the rebuild replay
                 // share ONE projector, so they cannot drift.
                 project_canonical_edge_row(
-                    &tx,
+                    tx,
                     cursor,
                     kind,
                     body.as_deref(),
@@ -25239,7 +25319,7 @@ fn commit_batch(
                         retention_json = excluded.retention_json",
                     params![name, kind, schema_json, retention_json],
                 )?;
-                record_projection_terminal(&tx, cursor, "up_to_date")?;
+                record_projection_terminal(tx, cursor, "up_to_date")?;
             }
             (
                 PreparedWrite::OpStore { collection, record_key, schema_id, body },
@@ -25251,7 +25331,7 @@ fn commit_batch(
                      ) VALUES(?1, ?2, 'append', ?3, ?4, ?5)",
                     params![collection, record_key, body, schema_id, cursor],
                 )?;
-                record_projection_terminal(&tx, cursor, "up_to_date")?;
+                record_projection_terminal(tx, cursor, "up_to_date")?;
             }
             (
                 PreparedWrite::OpStore { collection, record_key, schema_id, body },
@@ -25267,11 +25347,11 @@ fn commit_batch(
                         write_cursor = excluded.write_cursor",
                     params![collection, record_key, body, schema_id, cursor],
                 )?;
-                record_projection_terminal(&tx, cursor, "up_to_date")?;
+                record_projection_terminal(tx, cursor, "up_to_date")?;
             }
             _ => return Err(rusqlite::Error::InvalidQuery.into()),
         }
-        register_artifact_identity(&tx, original_write, cursor)?;
+        register_artifact_identity(tx, original_write, cursor)?;
     }
 
     // G8 (Slice 20 / F10) — cross-row dangling-edge flag-and-count. This runs
@@ -25337,10 +25417,9 @@ fn commit_batch(
         count
     };
 
-    enforce_provenance_retention(&tx, provenance_row_cap)?;
-    advance_projection_cursor(&tx)?;
+    enforce_provenance_retention(tx, provenance_row_cap)?;
+    advance_projection_cursor(tx)?;
 
-    tx.commit()?;
     Ok((dangling_edge_endpoints, unstranded))
 }
 

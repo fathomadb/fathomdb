@@ -40,17 +40,18 @@ use fathomdb_embedder::{
 };
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
-    ArtifactRevisionId, BoundaryCrossing as RustBoundaryCrossing, CanonicalHash,
-    ComparisonOp as RustComparisonOp, ConsolidateAxis as RustConsolidateAxis,
-    ConsolidateReceipt as RustConsolidateReceipt, CorruptionDetail, CorruptionKind,
-    DenseReadiness as RustDenseReadiness, DependencyDerivedLookupV1,
-    DependencyListV1 as RustDependencyListV1, DependencySourceLookupV1, EmbedderChoice,
-    EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
+    ActuationBatchV1, ActuationOperationV1, ActuationOutcomeV1,
+    ActuationReceiptV1 as RustActuationReceiptV1, ArtifactRevisionId,
+    BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ComparisonOp as RustComparisonOp,
+    ConsolidateAxis as RustConsolidateAxis, ConsolidateReceipt as RustConsolidateReceipt,
+    CorruptionDetail, CorruptionKind, DenseReadiness as RustDenseReadiness,
+    DependencyDerivedLookupV1, DependencyListV1 as RustDependencyListV1, DependencySourceLookupV1,
+    EmbedderChoice, EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
     EngineError as RustEngineError, EngineOpenError, ExciseReport as RustExciseReport,
     Explanation as RustExplanation, ExtractDocument as RustExtractDocument, Filter as RustFilter,
     FilterTerm as RustFilterTerm, IdSpace as RustIdSpace,
     IngestWithExtractorReceipt as RustIngestWithExtractorReceipt, InitialState,
-    LifecycleState as RustLifecycleState, NodeRecord as RustNodeRecord,
+    LifecycleActuationV1, LifecycleState as RustLifecycleState, NodeRecord as RustNodeRecord,
     OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
     PerHitExplain as RustPerHitExplain, Predicate as RustPredicate, PreparedWrite,
     ProjectionDelta as RustProjectionDelta, ProjectionFts as RustProjectionFts,
@@ -94,6 +95,7 @@ const CODE_WRITE_VALIDATION: &str = "FDB_WRITE_VALIDATION";
 const CODE_SCHEMA_VALIDATION: &str = "FDB_SCHEMA_VALIDATION";
 const CODE_PROVENANCE: &str = "FDB_PROVENANCE";
 const CODE_DEPENDENCY: &str = "FDB_DEPENDENCY";
+const CODE_ACTUATION: &str = "FDB_ACTUATION";
 const CODE_OVERLOADED: &str = "FDB_OVERLOADED";
 const CODE_CLOSING: &str = "FDB_CLOSING";
 const CODE_DATABASE_LOCKED: &str = "FDB_DATABASE_LOCKED";
@@ -249,6 +251,14 @@ fn engine_error_to_napi(err: RustEngineError) -> Error {
         RustEngineError::Dependency(error) => typed_error(
             CODE_DEPENDENCY,
             format!("dependency {} at {}", error.reason.as_str(), error.field_path),
+            json!({
+                "reason": error.reason.as_str(),
+                "fieldPath": error.field_path,
+            }),
+        ),
+        RustEngineError::Actuation(error) => typed_error(
+            CODE_ACTUATION,
+            format!("actuation {} at {}", error.reason.as_str(), error.field_path),
             json!({
                 "reason": error.reason.as_str(),
                 "fieldPath": error.field_path,
@@ -606,6 +616,66 @@ impl From<RustSourceDependencyV1> for SourceDependencyV1 {
             derived_revision_id: value.derived_revision_id.as_str().to_string(),
             registered_dependency_generation: value.registered_dependency_generation.to_string(),
         }
+    }
+}
+
+#[napi(object)]
+pub struct ActuationReceiptV1 {
+    pub schema_version: u32,
+    pub operation_id: String,
+    pub request_sha256: String,
+    pub outcome: String,
+    pub refused_operation_index: Option<u32>,
+    pub refused_field_path: Option<String>,
+    pub reason_codes: Vec<String>,
+    pub affected_revision_ids: Vec<String>,
+    pub resulting_write_boundary: Option<String>,
+    pub resulting_dependency_generation: Option<String>,
+    pub pending_projection_write_cursors: Vec<String>,
+    pub closure_operation_ids: Vec<String>,
+}
+
+impl TryFrom<RustActuationReceiptV1> for ActuationReceiptV1 {
+    type Error = Error;
+
+    fn try_from(value: RustActuationReceiptV1) -> Result<Self> {
+        let outcome = match value.outcome {
+            ActuationOutcomeV1::Committed => "committed",
+            ActuationOutcomeV1::CommittedClosurePending => "committed_closure_pending",
+            ActuationOutcomeV1::Refused => "refused",
+        }
+        .to_string();
+        Ok(Self {
+            schema_version: value.schema_version,
+            operation_id: value.operation_id,
+            request_sha256: value.request_sha256,
+            outcome,
+            refused_operation_index: value
+                .refused_operation_index
+                .map(|item| {
+                    u32::try_from(item).map_err(|_| {
+                        typed_error(CODE_STORAGE, "actuation index overflow", JsonValue::Null)
+                    })
+                })
+                .transpose()?,
+            refused_field_path: value.refused_field_path,
+            reason_codes: value
+                .reason_codes
+                .into_iter()
+                .map(|reason| reason.as_str().to_string())
+                .collect(),
+            affected_revision_ids: value.affected_revision_ids,
+            resulting_write_boundary: value.resulting_write_boundary.map(|item| item.to_string()),
+            resulting_dependency_generation: value
+                .resulting_dependency_generation
+                .map(|item| item.to_string()),
+            pending_projection_write_cursors: value
+                .pending_projection_write_cursors
+                .into_iter()
+                .map(|item| item.to_string())
+                .collect(),
+            closure_operation_ids: value.closure_operation_ids,
+        })
     }
 }
 
@@ -1867,6 +1937,13 @@ impl Engine {
     }
 
     #[napi]
+    pub async fn actuate(&self, request: JsonValue) -> Result<ActuationReceiptV1> {
+        let request = translate_actuation_request(&request)?;
+        let engine = Arc::clone(&self.inner);
+        call_engine(move || engine.actuate(request)).await?.try_into()
+    }
+
+    #[napi]
     pub async fn register_source_dependency(
         &self,
         request: JsonValue,
@@ -2983,6 +3060,194 @@ fn dependency_napi_error(reason: &str, field_path: impl Into<String>) -> Error {
         format!("dependency {reason} at {field_path}"),
         json!({ "reason": reason, "fieldPath": field_path }),
     )
+}
+
+fn actuation_napi_error(reason: &str, field_path: impl Into<String>) -> Error {
+    let field_path = field_path.into();
+    typed_error(
+        CODE_ACTUATION,
+        format!("actuation {reason} at {field_path}"),
+        json!({ "reason": reason, "fieldPath": field_path }),
+    )
+}
+
+fn strict_actuation_object<'a>(
+    value: &'a JsonValue,
+    allowed: &[&str],
+    base_path: &str,
+) -> Result<&'a serde_json::Map<String, JsonValue>> {
+    let object =
+        value.as_object().ok_or_else(|| actuation_napi_error("field_type_invalid", base_path))?;
+    if let Some(key) = object.keys().filter(|key| !allowed.contains(&key.as_str())).min() {
+        return Err(actuation_napi_error(
+            "unknown_field",
+            format!("{base_path}/{}", escape_json_pointer_token(key)),
+        ));
+    }
+    Ok(object)
+}
+
+fn actuation_required_string(
+    object: &serde_json::Map<String, JsonValue>,
+    key: &str,
+    path: &str,
+) -> Result<String> {
+    match object.get(key) {
+        Some(JsonValue::String(value)) if !value.contains('\0') => Ok(value.clone()),
+        None | Some(JsonValue::Null) => Err(actuation_napi_error("field_missing", path)),
+        _ => Err(actuation_napi_error("field_type_invalid", path)),
+    }
+}
+
+fn translate_actuation_request(value: &JsonValue) -> Result<ActuationBatchV1> {
+    let object = value
+        .as_object()
+        .ok_or_else(|| actuation_napi_error("unsupported_schema_version", "/schemaVersion"))?;
+    if object.get("schemaVersion").and_then(JsonValue::as_u64) != Some(1) {
+        return Err(actuation_napi_error("unsupported_schema_version", "/schemaVersion"));
+    }
+    let object = strict_actuation_object(
+        value,
+        &[
+            "schemaVersion",
+            "operationId",
+            "decisionPolicyId",
+            "expectedWriteBoundary",
+            "operations",
+        ],
+        "",
+    )?;
+    let operation_id = actuation_required_string(object, "operationId", "/operationId")?;
+    let operation_values = object
+        .get("operations")
+        .ok_or_else(|| actuation_napi_error("field_missing", "/operations"))?
+        .as_array()
+        .ok_or_else(|| actuation_napi_error("field_type_invalid", "/operations"))?;
+    let operations = operation_values
+        .iter()
+        .enumerate()
+        .map(|(index, operation)| translate_actuation_operation(operation, index))
+        .collect::<Result<Vec<_>>>()?;
+    let mut request = ActuationBatchV1::new(operation_id, operations)
+        .map_err(|error| actuation_napi_error(error.reason.as_str(), error.field_path))?;
+    if let Some(value) = object.get("decisionPolicyId").filter(|value| !value.is_null()) {
+        let policy = value
+            .as_str()
+            .filter(|value| !value.contains('\0'))
+            .ok_or_else(|| actuation_napi_error("field_type_invalid", "/decisionPolicyId"))?;
+        request = request
+            .with_decision_policy_id(policy)
+            .map_err(|error| actuation_napi_error(error.reason.as_str(), error.field_path))?;
+    }
+    if let Some(value) = object.get("expectedWriteBoundary").filter(|value| !value.is_null()) {
+        let text = value
+            .as_str()
+            .ok_or_else(|| actuation_napi_error("field_type_invalid", "/expectedWriteBoundary"))?;
+        let boundary =
+            text.parse::<u64>().ok().filter(|parsed| parsed.to_string() == text).ok_or_else(
+                || actuation_napi_error("field_type_invalid", "/expectedWriteBoundary"),
+            )?;
+        request = request.with_expected_write_boundary(boundary);
+    }
+    Ok(request)
+}
+
+fn translate_actuation_operation(value: &JsonValue, index: usize) -> Result<ActuationOperationV1> {
+    let root = format!("/operations/{index}");
+    let object =
+        value.as_object().ok_or_else(|| actuation_napi_error("field_type_invalid", &root))?;
+    let kind = actuation_required_string(object, "type", &format!("{root}/type"))?;
+    match kind.as_str() {
+        "put_canonical_node" | "put_derived_node" => {
+            strict_actuation_object(value, &["type", "record"], &root)?;
+            let record = object
+                .get("record")
+                .ok_or_else(|| actuation_napi_error("field_missing", format!("{root}/record")))?;
+            strict_actuation_object(
+                record,
+                &[
+                    "kind",
+                    "body",
+                    "sourceId",
+                    "logicalId",
+                    "state",
+                    "reason",
+                    "validFrom",
+                    "validUntil",
+                    "provenance",
+                ],
+                &format!("{root}/record"),
+            )?;
+            let prepared = translate_node(record).map_err(|_| {
+                actuation_napi_error("nested_request_invalid", format!("{root}/record"))
+            })?;
+            let PreparedWrite::ProvenancedNode(node) = prepared else {
+                return Err(actuation_napi_error(
+                    "nested_request_invalid",
+                    format!("{root}/record/provenance"),
+                ));
+            };
+            if kind == "put_canonical_node" {
+                Ok(ActuationOperationV1::PutCanonicalNode(node))
+            } else {
+                Ok(ActuationOperationV1::PutDerivedNode(node))
+            }
+        }
+        "register_source_dependency" => {
+            strict_actuation_object(value, &["type", "dependency"], &root)?;
+            let dependency = object.get("dependency").ok_or_else(|| {
+                actuation_napi_error("field_missing", format!("{root}/dependency"))
+            })?;
+            translate_dependency_registration(dependency)
+                .map(ActuationOperationV1::RegisterSourceDependency)
+                .map_err(|_| {
+                    actuation_napi_error("nested_request_invalid", format!("{root}/dependency"))
+                })
+        }
+        "transition_lifecycle" => {
+            strict_actuation_object(
+                value,
+                &["type", "logicalId", "expectedCurrentRevisionId", "toState", "reason"],
+                &root,
+            )?;
+            let logical_id =
+                actuation_required_string(object, "logicalId", &format!("{root}/logicalId"))?;
+            let revision = actuation_required_string(
+                object,
+                "expectedCurrentRevisionId",
+                &format!("{root}/expectedCurrentRevisionId"),
+            )?;
+            let revision = ArtifactRevisionId::new(revision).map_err(|_| {
+                actuation_napi_error(
+                    "revision_id_invalid",
+                    format!("{root}/expectedCurrentRevisionId"),
+                )
+            })?;
+            let target = actuation_required_string(object, "toState", &format!("{root}/toState"))?;
+            let target = RustLifecycleState::from_str_opt(&target).ok_or_else(|| {
+                actuation_napi_error("lifecycle_target_invalid", format!("{root}/toState"))
+            })?;
+            let reason = match object.get("reason") {
+                None | Some(JsonValue::Null) => None,
+                Some(JsonValue::String(value)) if !value.contains('\0') => Some(value.clone()),
+                _ => {
+                    return Err(actuation_napi_error(
+                        "field_type_invalid",
+                        format!("{root}/reason"),
+                    ))
+                }
+            };
+            LifecycleActuationV1::new(logical_id, revision, target, reason)
+                .map(ActuationOperationV1::TransitionLifecycle)
+                .map_err(|error| {
+                    actuation_napi_error(
+                        error.reason.as_str(),
+                        format!("{root}{}", error.field_path),
+                    )
+                })
+        }
+        _ => Err(actuation_napi_error("unknown_operation_variant", format!("{root}/type"))),
+    }
 }
 
 fn dependency_request_object<'a>(

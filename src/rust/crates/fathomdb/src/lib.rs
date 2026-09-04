@@ -143,12 +143,14 @@
 //   current projection runtime. Its command spelling is binding-specific;
 //   these types were HITL-signed in steward-ledger seq-247.
 pub use fathomdb_engine::{
-    ArtifactRevisionId, BoundaryCrossing, CanonicalHash, ComparisonOp, CorruptionDetail,
-    CorruptionKind, CorruptionLocator, CounterSnapshot, DenseReadiness, DependencyDerivedLookupV1,
-    DependencyError, DependencyErrorReason, DependencyId, DependencyListV1,
-    DependencySourceLookupV1, EmbedderRequired, EmbeddingOperation, EmbeddingReadiness,
-    EmbeddingReadinessState, Engine, EngineError, EngineOpenError, ExciseReport, Explanation,
-    ExtractDocument, IngestWithExtractorReceipt, InitialState, LifecycleState, NodeRecord,
+    ActuationBatchV1, ActuationError, ActuationErrorReason, ActuationOperationV1,
+    ActuationOutcomeV1, ActuationReceiptV1, ActuationRefusalReasonV1, ArtifactRevisionId,
+    BoundaryCrossing, CanonicalHash, ComparisonOp, CorruptionDetail, CorruptionKind,
+    CorruptionLocator, CounterSnapshot, DenseReadiness, DependencyDerivedLookupV1, DependencyError,
+    DependencyErrorReason, DependencyId, DependencyListV1, DependencySourceLookupV1,
+    EmbedderRequired, EmbeddingOperation, EmbeddingReadiness, EmbeddingReadinessState, Engine,
+    EngineError, EngineOpenError, ExciseReport, Explanation, ExtractDocument,
+    IngestWithExtractorReceipt, InitialState, LifecycleActuationV1, LifecycleState, NodeRecord,
     OpenReport, OpenStage, OpenedEngine, PerHitExplain, Predicate, PreparedWrite, ProjectionDelta,
     ProjectionFts, ProjectionRole, ProjectionRuntimeStatus, ProjectionRuntimeStatusEntry,
     ProjectionRuntimeUnavailabilityReason, ProjectionSpec, ProjectionStatusDenseReadiness,

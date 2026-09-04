@@ -21,7 +21,7 @@ use std::time::Instant;
 
 use rusqlite::Connection;
 
-pub const SCHEMA_VERSION: u32 = 28;
+pub const SCHEMA_VERSION: u32 = 29;
 
 /// SQLite `PRAGMA` name carrying the on-disk schema-version sentinel.
 ///
@@ -966,6 +966,103 @@ pub const MIGRATIONS: &[Migration] = &[
                   ON _fathomdb_source_links(source_revision_id, artifact_revision_id);
               INSERT INTO _fathomdb_open_state(key, value)
                   VALUES('_fathomdb_dependency_generation', '0');",
+    },
+    // 0.8.25 Slice 25 — terminal bounded actuation receipts and their
+    // content-free reverse provenance index. Shape only: callers opt in to the
+    // new API and no historical write is assigned a synthetic receipt.
+    Migration {
+        step_id: 29,
+        sql: "-- MIGRATION-ACCRETION-EXEMPTION: Slice-25 terminal actuation receipts and reverse source-reference index; additive shape only, no historical receipt synthesis or canonical-content rewrite.
+              CREATE TABLE _fathomdb_actuation_receipts(
+                  operation_id TEXT PRIMARY KEY,
+                  schema_version INTEGER NOT NULL CHECK(schema_version = 1),
+                  request_sha256 TEXT,
+                  operations_count INTEGER,
+                  outcome TEXT NOT NULL CHECK(outcome IN (
+                      'committed','committed_closure_pending','refused','erased'
+                  )),
+                  refused_operation_index INTEGER,
+                  refused_field_path TEXT,
+                  reason_codes_json TEXT NOT NULL,
+                  affected_revision_ids_json TEXT NOT NULL,
+                  resulting_write_boundary INTEGER,
+                  resulting_dependency_generation INTEGER,
+                  pending_projection_write_cursors_json TEXT NOT NULL,
+                  closure_operation_ids_json TEXT NOT NULL,
+                  CHECK(
+                      (outcome = 'erased' AND request_sha256 IS NULL) OR
+                      (outcome != 'erased' AND request_sha256 IS NOT NULL AND
+                       length(request_sha256) = 64 AND
+                       request_sha256 NOT GLOB '*[^0-9a-f]*')
+                  ),
+                  CHECK(
+                      (outcome = 'erased' AND operations_count IS NULL) OR
+                      (outcome != 'erased' AND operations_count BETWEEN 1 AND 128)
+                  ),
+                  CHECK(json_valid(reason_codes_json) AND json_type(reason_codes_json) = 'array'),
+                  CHECK(json_valid(affected_revision_ids_json) AND json_type(affected_revision_ids_json) = 'array'),
+                  CHECK(json_valid(pending_projection_write_cursors_json) AND json_type(pending_projection_write_cursors_json) = 'array'),
+                  CHECK(json_valid(closure_operation_ids_json) AND json_type(closure_operation_ids_json) = 'array'),
+                  CHECK(json_array_length(affected_revision_ids_json) <= 256),
+                  CHECK(json_array_length(pending_projection_write_cursors_json) <= 128),
+                  CHECK(json_array_length(closure_operation_ids_json) <= 128),
+                  CHECK(
+                      (outcome = 'refused' AND
+                       json_array_length(reason_codes_json) = 1 AND
+                       json_array_length(affected_revision_ids_json) = 0 AND
+                       json_array_length(pending_projection_write_cursors_json) = 0 AND
+                       json_array_length(closure_operation_ids_json) = 0 AND
+                       (refused_operation_index IS NULL OR
+                        (refused_operation_index >= 0 AND
+                         refused_operation_index < operations_count)) AND
+                       resulting_write_boundary IS NULL AND
+                       resulting_dependency_generation IS NULL) OR
+                      (outcome IN ('committed','committed_closure_pending') AND
+                       json_array_length(reason_codes_json) = 0 AND
+                       refused_operation_index IS NULL AND
+                       refused_field_path IS NULL AND
+                       resulting_write_boundary IS NOT NULL AND
+                       resulting_write_boundary >= 0 AND
+                       (resulting_dependency_generation IS NULL OR
+                        resulting_dependency_generation > 0) AND
+                       ((outcome = 'committed' AND
+                         json_array_length(closure_operation_ids_json) = 0) OR
+                        (outcome = 'committed_closure_pending' AND
+                         json_array_length(closure_operation_ids_json) BETWEEN 1 AND 128))) OR
+                      (outcome = 'erased' AND request_sha256 IS NULL AND
+                       operations_count IS NULL AND
+                       refused_operation_index IS NULL AND
+                       refused_field_path IS NULL AND
+                       json_array_length(reason_codes_json) = 0 AND
+                       json_array_length(affected_revision_ids_json) = 0 AND
+                       resulting_write_boundary IS NULL AND
+                       resulting_dependency_generation IS NULL AND
+                       json_array_length(pending_projection_write_cursors_json) = 0 AND
+                       json_array_length(closure_operation_ids_json) = 0)
+                  )
+              );
+              CREATE TABLE _fathomdb_actuation_receipt_source_refs(
+                  operation_id TEXT NOT NULL,
+                  schema_version INTEGER NOT NULL CHECK(schema_version = 1),
+                  ref_kind TEXT NOT NULL CHECK(ref_kind IN (
+                      'source_id','source_revision_id','artifact_revision_id'
+                  )),
+                  ref_value TEXT NOT NULL,
+                  PRIMARY KEY(operation_id, ref_kind, ref_value)
+              );
+              CREATE INDEX _fathomdb_actuation_receipt_refs_reverse
+                  ON _fathomdb_actuation_receipt_source_refs(
+                      ref_kind, ref_value, operation_id
+                  );
+              CREATE TRIGGER _fathomdb_actuation_ref_owner_before_insert
+                  BEFORE INSERT ON _fathomdb_actuation_receipt_source_refs
+                  WHEN NOT EXISTS (
+                      SELECT 1 FROM _fathomdb_actuation_receipts
+                      WHERE operation_id = NEW.operation_id AND outcome != 'erased'
+                  )
+                  BEGIN
+                      SELECT RAISE(ABORT, 'actuation receipt reference owner invalid');
+                  END;",
     },
 ];
 

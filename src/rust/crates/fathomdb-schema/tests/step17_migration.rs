@@ -62,11 +62,11 @@ fn s17_search_index_v2_present_and_schema_version_is_17() {
     assert!(table_exists(&conn, "search_index"), "single-column search_index must be RETAINED");
 
     assert_eq!(user_version(&conn), SCHEMA_VERSION);
-    assert_eq!(SCHEMA_VERSION, 28, "SCHEMA_VERSION must include Slice 20 step 28");
+    assert_eq!(SCHEMA_VERSION, 29, "SCHEMA_VERSION must include Slice 25 step 29");
     assert_eq!(
         MIGRATIONS.last().expect("at least one migration").step_id,
-        28,
-        "step-28 (source dependency registry, Slice 20) must be the last (head) migration"
+        29,
+        "step-29 (actuation receipts, Slice 25) must be the last (head) migration"
     );
 
     // The v2 table carries the three BM25F fields kind/body/status (+ the

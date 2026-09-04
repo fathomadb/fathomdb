@@ -283,15 +283,15 @@ fn s21_is_in_registry_and_schema_version_is_head() {
     // 0.8.20 Slice 10b superseded step-21 as head with step-22 (R-20-NV node
     // validity window). Step-21 is no longer the last migration, but it MUST
     // still be in the registry and still run on the way to head.
-    assert_eq!(SCHEMA_VERSION, 28, "SCHEMA_VERSION must include Slice 20 step 28");
+    assert_eq!(SCHEMA_VERSION, 29, "SCHEMA_VERSION must include Slice 25 step 29");
     assert!(
         MIGRATIONS.iter().any(|m| m.step_id == 21),
         "step-21 (legacy provenance backfill) must remain in the registry"
     );
     assert_eq!(
         MIGRATIONS.last().expect("at least one migration").step_id,
-        28,
-        "step-28 (source dependency registry, Slice 20) must be the last (head) migration"
+        29,
+        "step-29 (actuation receipts, Slice 25) must be the last (head) migration"
     );
 }
 

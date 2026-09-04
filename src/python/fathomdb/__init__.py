@@ -25,6 +25,9 @@ from fathomdb.config import EngineConfig
 from fathomdb.engine import Engine
 from fathomdb.filter import Filter
 from fathomdb.types import (
+    ActuationBatchV1,
+    ActuationOperationV1,
+    ActuationReceiptV1,
     CounterSnapshot,
     CanonicalHash,
     CanonicalWriteProvenanceV1,
@@ -71,6 +74,9 @@ from fathomdb.types import (
 )
 
 __all__ = [
+    "ActuationBatchV1",
+    "ActuationOperationV1",
+    "ActuationReceiptV1",
     "ConsolidateReceipt",
     "CanonicalHash",
     "CanonicalWriteProvenanceV1",

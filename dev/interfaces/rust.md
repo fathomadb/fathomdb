@@ -463,6 +463,21 @@ membership advances it once; replay, reads, refusals, and no-op erasure do not.
 closed `DependencyErrorReason`, and an RFC 6901 `field_path`. Persisted chain or
 generation corruption fails closed as `EngineError::Storage`.
 
+### Atomic actuation (0.8.25 Slice 25)
+
+`Engine::actuate(ActuationBatchV1)` applies 1–128 ordered, caller-decided
+operations in one transaction. The closed operation set is canonical-node put,
+derived-node put, source-dependency registration, and revision-pinned lifecycle
+transition. FathomDB validates and actuates the decision; it does not extract,
+merge, infer contradiction, or choose truth.
+
+An admitted request returns `ActuationReceiptV1` with a terminal `committed` or
+`refused` outcome. Exact `operation_id` and canonical-digest replay returns the
+stored receipt; a different digest or an erased receipt raises
+`EngineError::Actuation(ActuationError)`. Boundaries, dependency generations,
+and projection cursors are `u64`. Source erasure or purge redacts every matching
+receipt to an opaque, permanently reserved operation-ID tombstone.
+
 ### `source_id` is STRUCTURALLY MANDATORY (0.8.20 Slice 5c, R-20-E3)
 
 `PreparedWrite::Node` and `PreparedWrite::Edge` both carry

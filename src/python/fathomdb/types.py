@@ -6,7 +6,7 @@ Field names owned by `dev/interfaces/python.md` § Caller-visible data shapes.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal, TypedDict, TypeGuard, Union
+from typing import Literal, NotRequired, TypedDict, TypeGuard, Union
 
 #: Typed soft-fallback branch values per `dev/design/retrieval.md`.
 #: ``"text_edge"`` added in Slice 15 (G11) for edge-body hits from
@@ -126,6 +126,73 @@ class DependencyListV1:
 
     schema_version: int
     items: tuple[SourceDependencyV1, ...]
+
+
+class PutCanonicalNodeActuationV1(TypedDict):
+    """Actuation operation storing a complete canonical node revision."""
+
+    type: Literal["put_canonical_node"]
+    record: dict[str, object]
+
+
+class PutDerivedNodeActuationV1(TypedDict):
+    """Actuation operation storing a complete derived node revision."""
+
+    type: Literal["put_derived_node"]
+    record: dict[str, object]
+
+
+class RegisterSourceDependencyActuationV1(TypedDict):
+    """Actuation operation registering one immutable dependency."""
+
+    type: Literal["register_source_dependency"]
+    dependency: SourceDependencyRegistrationV1
+
+
+class TransitionLifecycleActuationV1(TypedDict):
+    """Revision-pinned lifecycle transition in an actuation batch."""
+
+    type: Literal["transition_lifecycle"]
+    logical_id: str
+    expected_current_revision_id: str
+    to_state: Literal["active", "deleted"]
+    reason: NotRequired[str | None]
+
+
+ActuationOperationV1 = Union[
+    PutCanonicalNodeActuationV1,
+    PutDerivedNodeActuationV1,
+    RegisterSourceDependencyActuationV1,
+    TransitionLifecycleActuationV1,
+]
+
+
+class ActuationBatchV1(TypedDict):
+    """Bounded, model-free, caller-decided atomic actuation request."""
+
+    schema_version: Literal[1]
+    operation_id: str
+    decision_policy_id: NotRequired[str | None]
+    expected_write_boundary: NotRequired[str | None]
+    operations: list[ActuationOperationV1]
+
+
+@dataclass(frozen=True)
+class ActuationReceiptV1:
+    """Compact terminal receipt for one actuation operation ID."""
+
+    schema_version: int
+    operation_id: str
+    request_sha256: str
+    outcome: Literal["committed", "committed_closure_pending", "refused"]
+    refused_operation_index: int | None
+    refused_field_path: str | None
+    reason_codes: tuple[str, ...]
+    affected_revision_ids: tuple[str, ...]
+    resulting_write_boundary: str | None
+    resulting_dependency_generation: str | None
+    pending_projection_write_cursors: tuple[str, ...]
+    closure_operation_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True)

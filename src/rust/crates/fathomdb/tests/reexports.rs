@@ -33,6 +33,14 @@ fn re_exports_compile() {
     let _ = std::any::type_name::<fathomdb::DependencyListV1>();
     let _ = std::any::type_name::<fathomdb::DependencyError>();
     let _ = std::any::type_name::<fathomdb::DependencyErrorReason>();
+    let _ = std::any::type_name::<fathomdb::ActuationBatchV1>();
+    let _ = std::any::type_name::<fathomdb::ActuationOperationV1>();
+    let _ = std::any::type_name::<fathomdb::LifecycleActuationV1>();
+    let _ = std::any::type_name::<fathomdb::ActuationReceiptV1>();
+    let _ = std::any::type_name::<fathomdb::ActuationOutcomeV1>();
+    let _ = std::any::type_name::<fathomdb::ActuationRefusalReasonV1>();
+    let _ = std::any::type_name::<fathomdb::ActuationError>();
+    let _ = std::any::type_name::<fathomdb::ActuationErrorReason>();
 
     let _ = std::any::type_name::<fathomdb::CorruptionDetail>();
     let _ = std::any::type_name::<fathomdb::CorruptionKind>();

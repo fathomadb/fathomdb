@@ -73,6 +73,21 @@ export interface NativeSourceDependencyV1 {
   registeredDependencyGeneration: string;
 }
 
+export interface NativeActuationReceiptV1 {
+  schemaVersion: number;
+  operationId: string;
+  requestSha256: string;
+  outcome: string;
+  refusedOperationIndex?: number | null;
+  refusedFieldPath?: string | null;
+  reasonCodes: string[];
+  affectedRevisionIds: string[];
+  resultingWriteBoundary?: string | null;
+  resultingDependencyGeneration?: string | null;
+  pendingProjectionWriteCursors: string[];
+  closureOperationIds: string[];
+}
+
 export interface NativeDependencyListV1 {
   schemaVersion: number;
   items: NativeSourceDependencyV1[];
@@ -456,6 +471,7 @@ interface NativeAdminConfigureOptions {
 
 export interface NativeEngine {
   write(batch: unknown[]): Promise<NativeWriteReceipt>;
+  actuate(request: unknown): Promise<NativeActuationReceiptV1>;
   registerSourceDependency(request: unknown): Promise<NativeSourceDependencyV1>;
   dependenciesForSource(request: unknown): Promise<NativeDependencyListV1>;
   dependencyForDerived(request: unknown): Promise<NativeSourceDependencyV1 | null>;

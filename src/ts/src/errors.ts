@@ -47,6 +47,17 @@ export class DependencyError extends FathomDbError {
     this.fieldPath = fieldPath;
   }
 }
+export class ActuationError extends FathomDbError {
+  readonly code = "FDB_ACTUATION";
+  readonly reason: string;
+  readonly fieldPath: string;
+
+  constructor(message: string, reason: string, fieldPath: string) {
+    super(message);
+    this.reason = reason;
+    this.fieldPath = fieldPath;
+  }
+}
 export class OverloadedError extends FathomDbError {}
 export class ClosingError extends FathomDbError {}
 
@@ -305,6 +316,7 @@ type ErrorCode =
   | "FDB_CONSOLIDATOR"
   | "FDB_PROVENANCE"
   | "FDB_DEPENDENCY"
+  | "FDB_ACTUATION"
   // G4 (Slice 35) — filter predicate construction error.
   | "FDB_INVALID_FILTER"
   // Slice 20 — depth > 3 or invalid argument (G5/G6).
@@ -398,6 +410,12 @@ function build(envelope: Envelope): Error {
       );
     case "FDB_DEPENDENCY":
       return new DependencyError(
+        envelope.message,
+        String(p.reason ?? ""),
+        String(p.fieldPath ?? ""),
+      );
+    case "FDB_ACTUATION":
+      return new ActuationError(
         envelope.message,
         String(p.reason ?? ""),
         String(p.fieldPath ?? ""),

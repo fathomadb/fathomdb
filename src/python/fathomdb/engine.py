@@ -26,6 +26,8 @@ from fathomdb._fathomdb import purge as _native_purge
 from fathomdb._fathomdb import transition as _native_transition
 from fathomdb.config import EngineConfig
 from fathomdb.types import (
+    ActuationBatchV1,
+    ActuationReceiptV1,
     CounterSnapshot,
     CudaDeviceInfo,
     CudaVisibleDevice,
@@ -390,6 +392,27 @@ class Engine:
             source_revision_id=value.source_revision_id,
             derived_revision_id=value.derived_revision_id,
             registered_dependency_generation=value.registered_dependency_generation,
+        )
+
+    def actuate(self, request: ActuationBatchV1) -> ActuationReceiptV1:
+        """Atomically apply a bounded set of caller-decided memory operations."""
+        value = self._native.actuate(request)
+        return ActuationReceiptV1(
+            schema_version=value.schema_version,
+            operation_id=value.operation_id,
+            request_sha256=value.request_sha256,
+            outcome=cast(
+                Literal["committed", "committed_closure_pending", "refused"],
+                value.outcome,
+            ),
+            refused_operation_index=value.refused_operation_index,
+            refused_field_path=value.refused_field_path,
+            reason_codes=tuple(value.reason_codes),
+            affected_revision_ids=tuple(value.affected_revision_ids),
+            resulting_write_boundary=value.resulting_write_boundary,
+            resulting_dependency_generation=value.resulting_dependency_generation,
+            pending_projection_write_cursors=tuple(value.pending_projection_write_cursors),
+            closure_operation_ids=tuple(value.closure_operation_ids),
         )
 
     def dependencies_for_source(

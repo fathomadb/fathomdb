@@ -1,10 +1,10 @@
 ---
 title: Wire Format
-date: 2026-07-29
+date: 2026-09-04
 target_release: 0.8.25
 desc: On-disk + IPC formats (if any) for 0.8.25; short OK
 blast_radius: architecture.md § 5; design/engine.md; design/migrations.md
-status: locked
+status: draft-0.8.25
 ---
 
 # Wire Format
@@ -27,9 +27,12 @@ The authoritative layout owner remains `architecture.md` § 5.
 ## Schema-version sentinel
 
 The canonical schema-version sentinel is SQLite `PRAGMA user_version`. In the
-0.8.25 development line `fathomdb-schema::SCHEMA_VERSION` is **28**. Step 28
-adds the source-dependency registry, its source-lookup index, and the mandatory
-independent dependency-generation singleton without backfilling legacy rows.
+0.8.25 development line `fathomdb-schema::SCHEMA_VERSION` is **29**. Step 28
+adds the source-dependency registry and generation singleton. Step 29 adds the
+bounded terminal actuation-receipt and source-reference tables without
+backfilling legacy rows. Actuation request bodies and source locators are never
+persisted in those tables; source erasure replaces a matching terminal receipt
+with an opaque operation-ID tombstone.
 
 Ownership split:
 

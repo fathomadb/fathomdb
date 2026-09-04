@@ -251,6 +251,20 @@ shape, identity, conflicts, bounds, or generation exhaustion raise
 attributes. Requests validate schema version, unknown fields, required
 field/type, then identity grammar before database-dependent checks.
 
+## Atomic actuation (0.8.25 Slice 25)
+
+`engine.actuate(request)` accepts a closed snake-case `ActuationBatchV1` with
+1–128 ordered operations: `put_canonical_node`, `put_derived_node`,
+`register_source_dependency`, or `transition_lifecycle`. It returns the frozen
+`ActuationReceiptV1` dataclass. Write boundaries, dependency generations, and
+projection cursors use canonical unsigned decimal strings.
+
+Malformed requests and operation-ID conflict/erasure raise `ActuationError`
+with closed `reason` and canonical RFC 6901 `field_path`. Database-dependent
+domain refusals are terminal receipts, not exceptions. Exact replay is
+idempotent; source erasure and purge make a matching operation ID permanently
+unusable without retaining its prior receipt content.
+
 ## Node write-item validity window (0.8.20 Slice 15b, TC-34)
 
 `engine.write([...])` takes loose mappings, not typed structs. A **node** item

@@ -65,6 +65,7 @@ from fathomdb._fathomdb import (
 )
 from fathomdb._fathomdb import ProvenanceError as _ProvenanceError
 from fathomdb._fathomdb import DependencyError as _DependencyError
+from fathomdb._fathomdb import ActuationError as _ActuationError
 from fathomdb._fathomdb import (
     SchedulerError as _SchedulerError,
 )
@@ -116,6 +117,7 @@ StorageError = _StorageError
 ProjectionError = _ProjectionError
 ProvenanceError = _ProvenanceError
 DependencyError = _DependencyError
+ActuationError = _ActuationError
 VectorError = _VectorError
 EmbedderError = _EmbedderError
 EmbedDevicePolicyError = _EmbedDevicePolicyError
@@ -195,10 +197,12 @@ _install_typed_init(ErasureIncompleteError, ("stage", "detail"))
 _install_typed_init(ProjectionDestructiveError, ("name", "delta"))
 _install_typed_init(ProvenanceError, ("reason", "field_path"))
 _install_typed_init(DependencyError, ("reason", "field_path"))
+_install_typed_init(ActuationError, ("reason", "field_path"))
 
 
 __all__ = [
     "ClosingError",
+    "ActuationError",
     "CorruptionError",
     "DatabaseLockedError",
     "EmbedderDimensionMismatchError",

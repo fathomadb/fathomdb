@@ -5,7 +5,7 @@
 // Rust-side guard never sees them. We catch them in TS BEFORE the
 // native call so the no-row-written invariant holds end-to-end.
 
-import { ProvenanceError, WriteValidationError } from "./errors.js";
+import { ActuationError, ProvenanceError, WriteValidationError } from "./errors.js";
 
 export function validateFfiString(value: string): void {
   validateFfiStringEncoding(value, false);
@@ -34,6 +34,56 @@ function validateFfiStringEncoding(value: string, allowNul: boolean): void {
 
 export function validateFfiTree(value: unknown): void {
   validateFfiTreeEncoding(value, false);
+}
+
+function escapeJsonPointerToken(value: string): string {
+  return value.replaceAll("~", "~0").replaceAll("/", "~1");
+}
+
+function actuationEncodingError(fieldPath: string): ActuationError {
+  return new ActuationError(
+    `actuation nested_request_invalid at ${fieldPath}`,
+    "nested_request_invalid",
+    fieldPath,
+  );
+}
+
+function validateActuationString(value: string, fieldPath: string, allowNul: boolean): void {
+  for (let index = 0; index < value.length; index++) {
+    const code = value.charCodeAt(index);
+    if (code === 0 && !allowNul) throw actuationEncodingError(fieldPath);
+    if (code >= 0xd800 && code <= 0xdbff) {
+      if (index + 1 >= value.length) throw actuationEncodingError(fieldPath);
+      const next = value.charCodeAt(index + 1);
+      if (next < 0xdc00 || next > 0xdfff) throw actuationEncodingError(fieldPath);
+      index++;
+    } else if (code >= 0xdc00 && code <= 0xdfff) {
+      throw actuationEncodingError(fieldPath);
+    }
+  }
+}
+
+function validateActuationValue(value: unknown, fieldPath: string): void {
+  if (typeof value === "string") {
+    const allowNul = /^\/operations\/\d+\/record\/sourceId$/.test(fieldPath);
+    validateActuationString(value, fieldPath, allowNul);
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => validateActuationValue(item, `${fieldPath}/${index}`));
+    return;
+  }
+  if (value !== null && typeof value === "object") {
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+      const canonicalKey = key === "source_id" ? "sourceId" : key;
+      validateActuationValue(nested, `${fieldPath}/${escapeJsonPointerToken(canonicalKey)}`);
+    }
+  }
+}
+
+/** Guard all actuation strings before napi-rs can replace malformed UTF-16. */
+export function validateActuationFfiTree(request: unknown): void {
+  validateActuationValue(request, "");
 }
 
 function validateFfiTreeEncoding(value: unknown, allowNul: boolean): void {

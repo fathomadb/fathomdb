@@ -10,6 +10,7 @@ const MAX_OPERATIONS: usize = 128;
 const MAX_AFFECTED_REVISIONS: usize = 256;
 const MAX_PENDING_CURSORS: usize = 128;
 const MAX_SOURCE_REFS: usize = 1024;
+const MAX_SOURCE_REFS_PER_OPERATION: usize = 8;
 
 /// One operation in a bounded caller-decided actuation batch.
 #[derive(Clone, Debug, PartialEq)]
@@ -519,6 +520,7 @@ fn load_receipt(
     connection: &Connection,
     operation_id: &str,
     digest: &str,
+    request: Option<&ActuationBatchV1>,
 ) -> Result<Option<ActuationReceiptV1>, EngineError> {
     type Row = (
         i64,
@@ -591,7 +593,7 @@ fn load_receipt(
             && generation.is_none()
             && pending_json == "[]"
             && closure_json == "[]"
-            && validate_source_refs(connection, operation_id)? == 0;
+            && validate_source_refs(connection, operation_id, 0)? == 0;
         if !erased_is_canonical {
             return Err(EngineError::Storage);
         }
@@ -619,6 +621,9 @@ fn load_receipt(
     }
     let operations_count =
         usize::try_from(operations_count.unwrap_or(0)).map_err(|_| EngineError::Storage)?;
+    if request.is_some_and(|value| value.operations.len() != operations_count) {
+        return Err(EngineError::Storage);
+    }
     let outcome = ActuationOutcomeV1::parse(&outcome).ok_or(EngineError::Storage)?;
     let reason_strings: Vec<String> =
         serde_json::from_str(&reasons_json).map_err(|_| EngineError::Storage)?;
@@ -697,19 +702,33 @@ fn load_receipt(
             }
             for cursor in &pending_projection_write_cursors {
                 let cursor = i64::try_from(*cursor).map_err(|_| EngineError::Storage)?;
-                let belongs_to_request: bool = connection
+                let revision_id: Option<String> = connection
                     .query_row(
-                        "SELECT EXISTS(\
-                           SELECT 1 FROM _fathomdb_artifact_revisions ar \
-                           JOIN json_each(?2) ids ON ids.value=ar.revision_id \
-                           WHERE ar.write_cursor=?1\
-                         )",
-                        params![cursor, affected_json],
+                        "SELECT revision_id FROM _fathomdb_artifact_revisions \
+                         WHERE write_cursor=?1",
+                        [cursor],
                         |row| row.get(0),
                     )
+                    .optional()
                     .map_err(|_| EngineError::Storage)?;
-                if !belongs_to_request {
+                let Some(revision_id) = revision_id else {
                     return Err(EngineError::Storage);
+                };
+                if !affected_revision_ids.contains(&revision_id) {
+                    return Err(EngineError::Storage);
+                }
+                if let Some(request) = request {
+                    let created_by_request = request.operations.iter().any(|operation| {
+                        matches!(
+                            operation,
+                            ActuationOperationV1::PutCanonicalNode(node)
+                                | ActuationOperationV1::PutDerivedNode(node)
+                                if node.provenance.artifact_revision_id.as_str() == revision_id
+                        )
+                    });
+                    if !created_by_request {
+                        return Err(EngineError::Storage);
+                    }
                 }
             }
         }
@@ -731,7 +750,11 @@ fn load_receipt(
             )?;
         }
     }
-    validate_source_refs(connection, operation_id)?;
+    validate_source_refs(
+        connection,
+        operation_id,
+        operations_count.saturating_mul(MAX_SOURCE_REFS_PER_OPERATION),
+    )?;
     Ok(Some(ActuationReceiptV1 {
         schema_version: 1,
         operation_id: operation_id.to_string(),
@@ -796,22 +819,27 @@ fn validate_refusal_shape(
     valid.then_some(()).ok_or(EngineError::Storage)
 }
 
-fn validate_source_refs(connection: &Connection, operation_id: &str) -> Result<usize, EngineError> {
+fn validate_source_refs(
+    connection: &Connection,
+    operation_id: &str,
+    max_refs: usize,
+) -> Result<usize, EngineError> {
+    let limit = i64::try_from(max_refs.saturating_add(1)).map_err(|_| EngineError::Storage)?;
     let mut statement = connection
         .prepare(
             "SELECT schema_version,ref_kind,ref_value \
              FROM _fathomdb_actuation_receipt_source_refs \
-             WHERE operation_id=?1 ORDER BY ref_kind,ref_value LIMIT 1025",
+             WHERE operation_id=?1 ORDER BY ref_kind,ref_value LIMIT ?2",
         )
         .map_err(|_| EngineError::Storage)?;
     let rows = statement
-        .query_map([operation_id], |row| {
+        .query_map(params![operation_id, limit], |row| {
             Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?))
         })
         .map_err(|_| EngineError::Storage)?
         .collect::<rusqlite::Result<Vec<_>>>()
         .map_err(|_| EngineError::Storage)?;
-    if rows.len() > MAX_SOURCE_REFS {
+    if rows.len() > max_refs || rows.len() > MAX_SOURCE_REFS {
         return Err(EngineError::Storage);
     }
     for (schema, kind, value) in &rows {
@@ -964,8 +992,11 @@ fn store_source_refs(
     connection: &Connection,
     operation_id: &str,
     refs: &BTreeSet<(&'static str, String)>,
+    operations_count: usize,
 ) -> Result<(), EngineError> {
-    if refs.len() > MAX_SOURCE_REFS {
+    if refs.len() > MAX_SOURCE_REFS
+        || refs.len() > operations_count.saturating_mul(MAX_SOURCE_REFS_PER_OPERATION)
+    {
         return Err(EngineError::Storage);
     }
     for (kind, value) in refs {
@@ -1015,7 +1046,7 @@ pub(super) fn redact_actuation_receipts_for_refs(
                         |row| row.get(0),
                     )
                     .map_err(|_| EngineError::Storage)?;
-                let _ = load_receipt(connection, &operation_id, &digest)?
+                let _ = load_receipt(connection, &operation_id, &digest, None)?
                     .ok_or(EngineError::Storage)?;
                 connection
                     .execute(
@@ -1391,7 +1422,7 @@ impl Engine {
         let initial = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-            load_receipt(connection, &request.operation_id, &digest)
+            load_receipt(connection, &request.operation_id, &digest, Some(&request))
         };
         match initial {
             Ok(Some(receipt)) => return Ok(receipt),
@@ -1495,7 +1526,7 @@ impl Engine {
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|_| EngineError::Storage)?;
-        if let Some(receipt) = load_receipt(&tx, &request.operation_id, digest)? {
+        if let Some(receipt) = load_receipt(&tx, &request.operation_id, digest, Some(request))? {
             tx.commit().map_err(|_| EngineError::Storage)?;
             return Ok(ActuationAttempt::Replay(receipt));
         }
@@ -1515,7 +1546,7 @@ impl Engine {
                 },
             );
             store_receipt(&tx, &receipt, request.operations.len())?;
-            store_source_refs(&tx, &request.operation_id, &refs)?;
+            store_source_refs(&tx, &request.operation_id, &refs, request.operations.len())?;
             if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
                 return Err(EngineError::Storage);
             }
@@ -1544,7 +1575,7 @@ impl Engine {
         )? {
             let receipt = receipt_for_refusal(request, digest.to_string(), refusal);
             store_receipt(&tx, &receipt, request.operations.len())?;
-            store_source_refs(&tx, &request.operation_id, &refs)?;
+            store_source_refs(&tx, &request.operation_id, &refs, request.operations.len())?;
             if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
                 return Err(EngineError::Storage);
             }
@@ -1573,7 +1604,7 @@ impl Engine {
                 },
             );
             store_receipt(&tx, &receipt, request.operations.len())?;
-            store_source_refs(&tx, &request.operation_id, &refs)?;
+            store_source_refs(&tx, &request.operation_id, &refs, request.operations.len())?;
             if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
                 return Err(EngineError::Storage);
             }
@@ -1764,7 +1795,7 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
             let receipt = receipt_for_refusal(request, digest.to_string(), refusal);
             store_receipt(&tx, &receipt, request.operations.len())?;
-            store_source_refs(&tx, &request.operation_id, &refs)?;
+            store_source_refs(&tx, &request.operation_id, &refs, request.operations.len())?;
             if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
                 return Err(EngineError::Storage);
             }
@@ -1796,7 +1827,7 @@ impl Engine {
             closure_operation_ids: Vec::new(),
         };
         store_receipt(&tx, &receipt, request.operations.len())?;
-        store_source_refs(&tx, &request.operation_id, &refs)?;
+        store_source_refs(&tx, &request.operation_id, &refs, request.operations.len())?;
         if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
             return Err(EngineError::Storage);
         }

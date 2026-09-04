@@ -85,6 +85,20 @@ fn assert_refusal_replays(
     receipt
 }
 
+fn assert_database_and_wal_do_not_contain(path: &std::path::Path, secrets: &[&str]) {
+    let mut bytes = std::fs::read(path).unwrap();
+    let wal_path = format!("{}-wal", path.display());
+    if let Ok(wal) = std::fs::read(wal_path) {
+        bytes.extend_from_slice(&wal);
+    }
+    for secret in secrets {
+        assert!(
+            !bytes.windows(secret.len()).any(|window| window == secret.as_bytes()),
+            "erased bytes remained at rest: {secret}"
+        );
+    }
+}
+
 #[test]
 fn precommit_failure_rolls_back_domain_and_receipt_then_retry_commits() {
     let dir = TempDir::new().unwrap();
@@ -689,12 +703,99 @@ fn erasure_removes_receipt_evidence_from_database_and_wal_and_uses_reverse_index
 
     opened.engine.erase_source("raw-erasure-source").unwrap();
     drop(opened);
-    let mut bytes = std::fs::read(&db_path).unwrap();
-    let wal_path = format!("{}-wal", db_path.display());
-    if let Ok(wal) = std::fs::read(wal_path) {
-        bytes.extend_from_slice(&wal);
+    assert_database_and_wal_do_not_contain(&db_path, &[body, revision]);
+}
+
+#[test]
+fn purge_redacts_create_and_lifecycle_receipts_across_restart() {
+    let dir = TempDir::new().unwrap();
+    let db_path = path(&dir, "purge-receipts");
+    let revision = "slice25-purge-revision-2091bbd4";
+    let body = "slice25-purge-body-83f7e012";
+    let mut node = canonical_node(revision, "purge-logical", "purge-source");
+    node.body = body.into();
+    let create = ActuationBatchV1::new(
+        "purge-create-operation",
+        vec![ActuationOperationV1::PutCanonicalNode(node)],
+    )
+    .unwrap();
+    let lifecycle = ActuationBatchV1::new(
+        "purge-lifecycle-operation",
+        vec![ActuationOperationV1::TransitionLifecycle(
+            LifecycleActuationV1::new(
+                "purge-logical",
+                ArtifactRevisionId::new(revision).unwrap(),
+                LifecycleState::Deleted,
+                Some("purge receipt verification".into()),
+            )
+            .unwrap(),
+        )],
+    )
+    .unwrap();
+    {
+        let opened = Engine::open(&db_path).unwrap();
+        opened.engine.actuate(create.clone()).unwrap();
+        opened.engine.actuate(lifecycle.clone()).unwrap();
+        opened.engine.purge("purge-logical").unwrap();
     }
-    for secret in [body.as_bytes(), revision.as_bytes()] {
-        assert!(!bytes.windows(secret.len()).any(|window| window == secret));
+
+    let reopened = Engine::open(&db_path).unwrap();
+    for request in [create, lifecycle] {
+        assert!(matches!(
+            reopened.engine.actuate(request),
+            Err(EngineError::Actuation(error))
+                if error.reason == fathomdb_engine::ActuationErrorReason::OperationIdErased
+        ));
     }
+    drop(reopened);
+    assert_database_and_wal_do_not_contain(&db_path, &[body, revision]);
+}
+
+#[test]
+fn erasing_one_source_redacts_a_refused_multi_source_receipt() {
+    let dir = TempDir::new().unwrap();
+    let db_path = path(&dir, "refused-multi-source");
+    let first_revision = "slice25-refused-first-5e878a22";
+    let second_revision = "slice25-refused-second-9b3c7d01";
+    let mut first = canonical_node(first_revision, "refused-first", "refused-source-a");
+    first.body = "slice25-refused-body-a-8c2e113f".into();
+    let mut second = canonical_node(first_revision, "refused-second", "refused-source-b");
+    second.body = "slice25-refused-body-b-e1f037a9".into();
+    second.provenance = WriteProvenanceV1::canonical(
+        ArtifactRevisionId::new(first_revision).unwrap(),
+        SourceVersionId::new(second_revision).unwrap(),
+    );
+    let request = ActuationBatchV1::new(
+        "refused-multi-source-operation",
+        vec![
+            ActuationOperationV1::PutCanonicalNode(first),
+            ActuationOperationV1::PutCanonicalNode(second),
+        ],
+    )
+    .unwrap();
+    {
+        let opened = Engine::open(&db_path).unwrap();
+        assert_eq!(
+            opened.engine.actuate(request.clone()).unwrap().outcome,
+            ActuationOutcomeV1::Refused
+        );
+        opened.engine.erase_source("refused-source-a").unwrap();
+    }
+
+    let reopened = Engine::open(&db_path).unwrap();
+    assert!(matches!(
+        reopened.engine.actuate(request),
+        Err(EngineError::Actuation(error))
+            if error.reason == fathomdb_engine::ActuationErrorReason::OperationIdErased
+    ));
+    drop(reopened);
+    assert_database_and_wal_do_not_contain(
+        &db_path,
+        &[
+            first_revision,
+            second_revision,
+            "slice25-refused-body-a-8c2e113f",
+            "slice25-refused-body-b-e1f037a9",
+        ],
+    );
 }

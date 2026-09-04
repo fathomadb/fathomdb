@@ -770,6 +770,10 @@ pub struct Engine {
     vector_equivalence_refusals: AtomicU64,
     #[cfg(debug_assertions)]
     force_next_commit_failure: AtomicBool,
+    #[cfg(debug_assertions)]
+    actuation_after_initial_lookup_delay_ms: AtomicU64,
+    #[cfg(debug_assertions)]
+    actuation_failure_after_operation: AtomicUsize,
 }
 
 /// 0.8.8 Slice 15 (OPP-9) — opt-in telemetry capture state (per `enable_telemetry`).
@@ -7342,6 +7346,10 @@ impl Engine {
                         vector_equivalence_refusals: AtomicU64::new(0),
                         #[cfg(debug_assertions)]
                         force_next_commit_failure: AtomicBool::new(false),
+                        #[cfg(debug_assertions)]
+                        actuation_after_initial_lookup_delay_ms: AtomicU64::new(0),
+                        #[cfg(debug_assertions)]
+                        actuation_failure_after_operation: AtomicUsize::new(usize::MAX),
                     },
                     report,
                 };
@@ -10805,6 +10813,18 @@ impl Engine {
     #[doc(hidden)]
     pub fn force_next_commit_failure_for_test(&self) {
         self.force_next_commit_failure.store(true, Ordering::SeqCst);
+    }
+
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    pub fn set_actuation_after_initial_lookup_delay_ms_for_test(&self, value: u64) {
+        self.actuation_after_initial_lookup_delay_ms.store(value, Ordering::SeqCst);
+    }
+
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    pub fn force_actuation_failure_after_operation_for_test(&self, index: usize) {
+        self.actuation_failure_after_operation.store(index, Ordering::SeqCst);
     }
 
     /// Force the next background projection terminal commit to fail with a

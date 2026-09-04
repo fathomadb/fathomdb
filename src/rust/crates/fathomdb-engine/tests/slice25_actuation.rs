@@ -5,6 +5,7 @@ use fathomdb_engine::{
     SourceRevisionId, SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
@@ -120,6 +121,97 @@ fn mixed_batch_commits_atomically_and_exact_replay_is_idempotent() {
             if error.reason == ActuationErrorReason::OperationIdConflict
                 && error.field_path == "/operationId"
     ));
+}
+
+#[test]
+fn shared_all_variant_fixture_has_exact_receipt_and_digest() {
+    let fixture: Value = serde_json::from_str(include_str!(
+        "../../../../../dev/fixtures/slice25-actuation-conformance-v1.json"
+    ))
+    .unwrap();
+    let expected = &fixture["expected"];
+    let dir = TempDir::new().unwrap();
+    let opened = Engine::open(path(&dir, "shared-fixture")).unwrap();
+    let request = ActuationBatchV1::new(
+        "slice25-shared-v1",
+        vec![
+            ActuationOperationV1::PutCanonicalNode(ProvenancedNodeV1 {
+                kind: "document".into(),
+                body: "source body Ω".into(),
+                source_id: SourceId::new("source-bucket").unwrap(),
+                logical_id: Some("source".into()),
+                state: InitialState::Active,
+                reason: Some("observed".into()),
+                valid_from: Some(-7),
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("source-r1").unwrap(),
+                    SourceVersionId::new("source-v1").unwrap(),
+                ),
+            }),
+            ActuationOperationV1::PutDerivedNode(ProvenancedNodeV1 {
+                kind: "fact".into(),
+                body: "derived β".into(),
+                source_id: SourceId::new("source-bucket").unwrap(),
+                logical_id: Some("derived".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::derived(
+                    ArtifactRevisionId::new("derived-r1").unwrap(),
+                    SourceVersionId::new("source-v1").unwrap(),
+                    SourceRevisionId::new("source-r1").unwrap(),
+                    SourceLocator::utf8_bytes(0, 14),
+                    CanonicalHash::sha256(
+                        "7c4069526a04e70d6d586b7d0cf27d792e2840613530b30244376bcce3274249",
+                    )
+                    .unwrap(),
+                ),
+            }),
+            ActuationOperationV1::RegisterSourceDependency(
+                SourceDependencyRegistrationV1::new("dependency-r1", "source-r1", "derived-r1")
+                    .unwrap(),
+            ),
+            ActuationOperationV1::TransitionLifecycle(
+                LifecycleActuationV1::new(
+                    "derived",
+                    ArtifactRevisionId::new("derived-r1").unwrap(),
+                    LifecycleState::Deleted,
+                    Some("retired".into()),
+                )
+                .unwrap(),
+            ),
+        ],
+    )
+    .unwrap()
+    .with_decision_policy_id("memex:v1")
+    .unwrap();
+
+    let receipt = opened.engine.actuate(request.clone()).unwrap();
+    assert_eq!(receipt.request_sha256, expected["requestSha256"].as_str().unwrap());
+    assert_eq!(expected["outcome"].as_str(), Some("committed"));
+    assert_eq!(receipt.outcome, ActuationOutcomeV1::Committed);
+    assert_eq!(
+        receipt.affected_revision_ids,
+        expected["affectedRevisionIds"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|value| value.as_str().unwrap().to_string())
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        receipt.resulting_write_boundary.unwrap().to_string(),
+        expected["resultingWriteBoundary"].as_str().unwrap()
+    );
+    assert_eq!(
+        receipt.resulting_dependency_generation.unwrap().to_string(),
+        expected["resultingDependencyGeneration"].as_str().unwrap()
+    );
+    assert!(receipt.pending_projection_write_cursors.is_empty());
+    assert!(receipt.closure_operation_ids.is_empty());
+    assert_eq!(opened.engine.actuate(request).unwrap(), receipt);
 }
 
 #[test]

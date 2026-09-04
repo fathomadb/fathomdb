@@ -1396,13 +1396,22 @@ impl Engine {
             }
         }
 
-        let started = Instant::now();
-        let result = self.actuate_new(&request, &digest);
-        self.detect_slow(started, lifecycle::EventCategory::Writer);
+        #[cfg(debug_assertions)]
+        {
+            let delay = self.actuation_after_initial_lookup_delay_ms.load(Ordering::SeqCst);
+            if delay > 0 {
+                std::thread::sleep(std::time::Duration::from_millis(delay));
+            }
+        }
+        let mut admitted_started = None;
+        let result = self.actuate_new(&request, &digest, &mut admitted_started);
         match result {
             Ok(ActuationAttempt::Replay(receipt)) => Ok(receipt),
             Ok(ActuationAttempt::New(receipt)) => {
-                self.emit_event(lifecycle::Phase::Started, lifecycle::EventCategory::Writer, None);
+                self.detect_slow(
+                    admitted_started.expect("new actuation has an admission timestamp"),
+                    lifecycle::EventCategory::Writer,
+                );
                 let rows = if receipt.outcome == ActuationOutcomeV1::Committed {
                     request
                         .operations
@@ -1423,7 +1432,15 @@ impl Engine {
                 Ok(receipt)
             }
             Err(error) => {
-                self.emit_event(lifecycle::Phase::Started, lifecycle::EventCategory::Writer, None);
+                if let Some(started) = admitted_started {
+                    self.detect_slow(started, lifecycle::EventCategory::Writer);
+                } else {
+                    self.emit_event(
+                        lifecycle::Phase::Started,
+                        lifecycle::EventCategory::Writer,
+                        None,
+                    );
+                }
                 let code = error.stable_code();
                 self.counters.record_error(code);
                 self.emit_event(
@@ -1445,6 +1462,7 @@ impl Engine {
         &self,
         request: &ActuationBatchV1,
         digest: &str,
+        admitted_started: &mut Option<Instant>,
     ) -> Result<ActuationAttempt, EngineError> {
         if request
             .operations
@@ -1463,6 +1481,8 @@ impl Engine {
             tx.commit().map_err(|_| EngineError::Storage)?;
             return Ok(ActuationAttempt::Replay(receipt));
         }
+        self.emit_event(lifecycle::Phase::Started, lifecycle::EventCategory::Writer, None);
+        *admitted_started = Some(Instant::now());
         enrich_resolved_refs(&tx, request, &mut refs)?;
 
         let base_cursor = load_next_cursor(&tx);
@@ -1536,6 +1556,9 @@ impl Engine {
             );
             store_receipt(&tx, &receipt, request.operations.len())?;
             store_source_refs(&tx, &request.operation_id, &refs)?;
+            if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
+                return Err(EngineError::Storage);
+            }
             tx.commit().map_err(|_| EngineError::Storage)?;
             return Ok(ActuationAttempt::New(receipt));
         }
@@ -1708,6 +1731,11 @@ impl Engine {
                     }
                     RefusalOrInfrastructure::Infrastructure(error) => return Err(error),
                 }
+            }
+            #[cfg(debug_assertions)]
+            if self.actuation_failure_after_operation.load(Ordering::SeqCst) == index {
+                self.actuation_failure_after_operation.store(usize::MAX, Ordering::SeqCst);
+                return Err(EngineError::Storage);
             }
         }
 

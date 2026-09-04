@@ -163,6 +163,15 @@ review allows at most five documented FIX-n cycles, subject to the standing
 same-failure retry stop. Focused, lifecycle, parity, and repository verification
 must pass before closure.
 
+After a feature slice closes and before the next slice starts, perform a
+between-slice memory compaction. Distill reusable corrections and execution
+lessons into the external FathomDB memory store, reconcile its `MEMORY.md`
+index, and remove or supersede stale duplicate guidance. Release state,
+acceptance evidence, and slice-specific narration remain in the repository;
+secrets, transient logs, and unverified claims never enter memory. Record the
+completed memory checkpoint in the closing slice status before commissioning
+the next slice.
+
 Do not mint global `dev/acceptance.md` identifiers for these features without
 separate authorization. Historical benchmark receipts remain evidence, not
 generated test oracles.

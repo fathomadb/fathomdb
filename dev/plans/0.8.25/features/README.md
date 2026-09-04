@@ -16,7 +16,8 @@ Every slice uses the delivery loop in
 requirements and acceptance criteria, architecture-grounded design,
 independent design review with at most five FIX-n cycles, TDD RED/GREEN,
 independent implementation review with at most five FIX-n cycles, verification,
-and a durable status record.
+and a durable status record. After that status closes, compact the external
+FathomDB memory store and reconcile its index before starting the next slice.
 
 The [design-documentation matrix](../design-documentation-matrix.md) records
 the completed maximum-envelope campaign: 21 logical needs mapped exactly once

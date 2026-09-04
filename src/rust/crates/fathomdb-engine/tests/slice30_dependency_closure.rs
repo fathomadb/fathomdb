@@ -440,6 +440,65 @@ fn physical_closure_measures_surviving_canonical_rows_and_rolls_back() {
 }
 
 #[test]
+fn physical_closure_measures_projection_and_dependency_residue() {
+    for residue in ["projection", "dependency"] {
+        let dir = TempDir::new().unwrap();
+        let db = path(&dir, residue);
+        let opened = Engine::open(&db).unwrap();
+        seed_registered(&opened.engine);
+        opened.engine.transition("source", LifecycleState::Deleted, None).unwrap();
+        let connection = Connection::open(&db).unwrap();
+        match residue {
+            "projection" => {
+                let cursor: i64 = connection
+                    .query_row(
+                        "SELECT write_cursor FROM _fathomdb_artifact_revisions \
+                         WHERE revision_id='derived-r1'",
+                        [],
+                        |row| row.get(0),
+                    )
+                    .unwrap();
+                connection
+                    .execute(
+                        "INSERT OR REPLACE INTO _fathomdb_projection_terminal(write_cursor,state) \
+                         VALUES(?1,'up_to_date')",
+                        [cursor],
+                    )
+                    .unwrap();
+                connection
+                    .execute_batch(
+                        "CREATE TRIGGER preserve_projection_before_delete \
+                         BEFORE DELETE ON _fathomdb_projection_terminal \
+                         BEGIN SELECT RAISE(IGNORE); END;",
+                    )
+                    .unwrap();
+            }
+            "dependency" => connection
+                .execute_batch(
+                    "CREATE TRIGGER preserve_dependency_before_delete \
+                     BEFORE DELETE ON _fathomdb_source_dependencies \
+                     WHEN OLD.derived_revision_id='derived-r1' \
+                     BEGIN SELECT RAISE(IGNORE); END;",
+                )
+                .unwrap(),
+            _ => unreachable!(),
+        }
+        drop(connection);
+
+        assert!(matches!(opened.engine.purge("source"), Err(EngineError::Storage)), "{residue}");
+        let connection = Connection::open(&db).unwrap();
+        let roots: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM canonical_nodes WHERE logical_id='source'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(roots, 1, "{residue} proof failure must roll back the erase");
+    }
+}
+
+#[test]
 fn post_commit_closure_finalization_failure_does_not_reuse_write_boundary() {
     let dir = TempDir::new().unwrap();
     let db = path(&dir, "post-commit-finalization");

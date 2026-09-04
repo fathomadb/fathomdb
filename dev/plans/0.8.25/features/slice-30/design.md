@@ -325,8 +325,14 @@ affected count is itself proof.
 
 A nonterminal closure barrier is unconditional: registered dependents matching
 its source revision or source bucket are excluded before canonical, FTS,
-vector, property, graph seed/frontier, or expansion truncation under every
-`ReadView`, including historical relaxations.
+property, graph seed/frontier, or expansion truncation under every `ReadView`,
+including historical relaxations. SQLite-vec cannot apply the provenance
+anti-join inside its bounded KNN candidate operation. If any registered
+dependency is fenced or its source is ineligible under the frozen view, the
+whole vector arm therefore fails closed before KNN and reports the existing
+vector soft-fallback signal; the eligibility-filtered lexical and graph arms
+continue. It never truncates a mixed eligible/ineligible vector pool and then
+silently reports an incomplete vector result.
 
 Outside an active barrier, dependency source eligibility is evaluated under
 the same frozen `ReadView` and resolved instant as the derived candidate. The

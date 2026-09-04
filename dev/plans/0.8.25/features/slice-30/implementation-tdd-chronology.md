@@ -17,6 +17,8 @@ implementation. It does not retroactively describe post-hoc coverage as RED.
 | GREEN-1 | `21ff56dc` | Initial implementation. This commit also added test coverage; those additions are compatibility evidence, not pre-implementation RED evidence. |
 | PIN-1 | `ee85922c` | Approved governed-surface allowlist and exact pin. |
 | FIX-1 RED | `58a9b604` | Reviewer-driven failures for source-view eligibility, measured physical proof rollback, post-commit cursor publication, and strict TypeScript response decoding. |
+| FIX-1 GREEN | `3a9aa8cf` | Measured proof, shared source eligibility, cursor publication ordering, strict response decoder, and this chronology. |
+| FIX-2 RED | `d5920ef9` | More than 192 ineligible vector candidates demonstrated the pre-hydration truncation gap and missing degradation signal. |
 
 Further cycles append rows here before Slice 30 is closed. The status record
 will identify the final implementation and verification commits.

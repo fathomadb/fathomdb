@@ -15399,7 +15399,17 @@ fn read_search_in_tx(
     if let Some(filter) = filter {
         validate_filter_attributes_on_snapshot(&tx, filter)?;
     }
-    let vector_results = if let Some(query_vector) = query_vector {
+    let vector_eligibility_degraded = query_vector.is_some()
+        && dependency_closure::vector_arm_requires_fallback(
+            &tx,
+            view.view.include_superseded,
+            view.view.include_inactive,
+            view.view.include_out_of_window,
+            view.edge_now(),
+        )?;
+    let vector_results = if let Some(query_vector) =
+        query_vector.filter(|_| !vector_eligibility_degraded)
+    {
         let mut rowids = Vec::new();
         let bin_vector = query_vector_bin.unwrap_or(query_vector);
         {
@@ -15608,7 +15618,9 @@ fn read_search_in_tx(
         Vec::new()
     };
     let vector_rows_visible = !vector_results.is_empty();
-    let soft_fallback = if query_vector.is_some() && !vector_rows_visible {
+    let soft_fallback = if vector_eligibility_degraded {
+        Some(SoftFallback { branch: SoftFallbackBranch::Vector })
+    } else if query_vector.is_some() && !vector_rows_visible {
         tx.query_row(
             "SELECT 1
              FROM search_index

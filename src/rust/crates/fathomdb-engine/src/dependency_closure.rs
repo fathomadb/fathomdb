@@ -777,6 +777,61 @@ pub(crate) fn derived_cursor_has_active_barrier(
     source.map(|source| active_barrier_for_source(connection, &source)).unwrap_or(Ok(false))
 }
 
+pub(crate) fn vector_arm_requires_fallback(
+    connection: &Connection,
+    include_superseded: bool,
+    include_inactive: bool,
+    include_out_of_window: bool,
+    effective_at: i64,
+) -> rusqlite::Result<bool> {
+    let mut source_predicate = String::new();
+    if !include_superseded {
+        source_predicate.push_str(" AND source_node.superseded_at IS NULL");
+    }
+    if !include_inactive {
+        source_predicate.push_str(" AND source_node.state='active'");
+    }
+    if !include_out_of_window {
+        source_predicate.push_str(
+            " AND (source_node.valid_from IS NULL OR source_node.valid_from <= ?1) \
+             AND (source_node.valid_until IS NULL OR source_node.valid_until > ?1)",
+        );
+    }
+    let sql = format!(
+        "SELECT EXISTS(\
+           SELECT 1 FROM _fathomdb_artifact_revisions owner \
+           JOIN _fathomdb_source_dependencies dependency \
+             ON dependency.derived_revision_id=owner.revision_id \
+           JOIN _fathomdb_source_links derived_link \
+             ON derived_link.artifact_revision_id=owner.revision_id \
+           WHERE EXISTS(\
+             SELECT 1 FROM _fathomdb_dependency_closures closure \
+             LEFT JOIN _fathomdb_source_links source_link \
+               ON source_link.artifact_revision_id=derived_link.source_revision_id \
+             WHERE closure.phase!='complete' AND (\
+               (closure.root_kind='source_revision' \
+                 AND closure.root_value=derived_link.source_revision_id) OR \
+               (closure.root_kind='source_bucket' \
+                 AND closure.root_value=source_link.source_id)\
+             )\
+           ) OR NOT EXISTS(\
+             SELECT 1 FROM _fathomdb_artifact_revisions source_revision \
+             JOIN canonical_nodes source_node \
+               ON source_node.write_cursor=source_revision.write_cursor \
+             WHERE source_revision.revision_id=derived_link.source_revision_id \
+               AND source_revision.artifact_class='node' \
+               AND source_revision.artifact_role='canonical_source' \
+               AND source_revision.completeness='complete'{source_predicate}\
+           )\
+         )"
+    );
+    if include_out_of_window {
+        connection.query_row(&sql, [], |row| row.get(0))
+    } else {
+        connection.query_row(&sql, [effective_at], |row| row.get(0))
+    }
+}
+
 pub(crate) fn read_eligibility_sql(
     alias: &str,
     include_superseded: bool,

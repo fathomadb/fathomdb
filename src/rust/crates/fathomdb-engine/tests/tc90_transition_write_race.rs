@@ -257,8 +257,8 @@ struct ArmConfig {
     writer_threads: usize,
     /// Rows per competing `Engine::write` call. A burst larger than
     /// `PROJECTION_COMMIT_BATCH` (16) makes the worker commit FULL 16-job
-    /// transactions, which is the longest write-lock hold the worker ever takes —
-    /// i.e. the widest target the promote window can be offered.
+    /// transactions, which was the longest write-lock hold the baseline worker
+    /// took and remains the strongest post-fix contention workload.
     burst: usize,
     /// Sleep between competing writes. `0` saturates; a few ms lets
     /// `transition`'s own `drain` reach idle instead of burning its timeout.
@@ -267,7 +267,8 @@ struct ArmConfig {
     transitions: usize,
     /// Per-`embed()` sleep for the arm's embedder.
     ///
-    /// This is the sharpest knob on the promote window. The worker can only hold
+    /// Historically, this was the sharpest knob on the promotion window. The
+    /// worker can only hold
     /// the write lock `embed_delay_ms` AFTER the competing write that enqueued its
     /// job released the connection mutex, whereas `transition` reaches its
     /// promoting `UPDATE` microseconds after acquiring that same mutex. Setting it
@@ -373,10 +374,9 @@ fn run_arm(config: &ArmConfig) -> ArmOutcome {
     }
     engine.drain(60_000).expect("seed drain");
 
-    // The competing writer. Its job is to keep offering `transition` the one
-    // in-process window that exists: `drain` returns idle, this thread wins the
-    // connection mutex, commits, wakes the dispatcher, and a worker is holding the
-    // write lock by the time `transition` promotes.
+    // The competing writer recreates the historical contention schedule. On the
+    // current engine it is a post-fix regression workload: transition acquires an
+    // immediate transaction and must wait rather than promote a read lock.
     let stop = Arc::new(AtomicBool::new(false));
     let competing_writes = Arc::new(AtomicUsize::new(0));
     let competing_errors = Arc::new(AtomicUsize::new(0));
@@ -515,17 +515,17 @@ fn run_arm(config: &ArmConfig) -> ArmOutcome {
 ///
 /// **MEASURED 0/20 at `94f09d7d`** (two sessions of 10) — 120 transitions,
 /// 122-147 competing writes,
-/// ~175 embeds per run. This arm does NOT reproduce TC-90; the stress arm does.
-/// It is kept because it is the arm directly comparable to TC-57's, and because a
-/// fix must keep it green.
+/// ~175 embeds per run. This arm did not reproduce TC-90; the historical stress
+/// arm did. It remains directly comparable to TC-57 and must stay green as a
+/// post-fix regression instrument.
 ///
 /// `#[ignore]`d for the same reason TC-57's pair was: this is a characterization
 /// instrument whose baseline result is a MEASUREMENT, not a merge-gate invariant,
 /// and `cargo test --workspace` is not a stable signal for concurrency tests
 /// anyway (ledger TC-72: ~1 run in 3 fails on plain `main`). The pair is enabled
 /// and disabled as one unit — a comparison with one arm running is worse than no
-/// comparison. The eventual 0.8.21 fix removes both attributes as its RED->GREEN
-/// step, exactly as Slice 21a-2 did for TC-57.
+/// comparison. On the current engine both arms exercise the resolved
+/// `BEGIN IMMEDIATE` path and must remain free of storage failures.
 #[test]
 #[ignore = "TC-90 characterization arm — run explicitly with --ignored; see the design doc"]
 fn tc90_repro_transition_loop_races_projection_worker() {
@@ -645,8 +645,8 @@ fn tc90_control_transition_loop_without_second_writer() {
 /// measure, and no arm asserted its `Scheduler` / other-variant counts at all.
 /// Under that bar a run that issued **one** transition, or truncated at its
 /// wall-clock budget, or was dominated by `Scheduler` drain timeouts, would still
-/// satisfy the 0.8.21 green bar in design doc §4 — without ever having measured
-/// the promote race the doc documents. **An acceptance bar is only as good as
+/// satisfy the historical green bar in design doc §4 — without ever having
+/// measured the promotion race the doc documents. **An acceptance bar is only as good as
 /// what it refuses to accept**, so every parameter of the protocol is pinned
 /// here.
 ///
@@ -699,8 +699,9 @@ fn assert_protocol_ran(outcome: &ArmOutcome, expected_transitions: usize) {
     );
 }
 
-/// **TC-90 STRESS REPRO ARM — this is the arm that REPRODUCES.** The widest
-/// promote window the in-process shape can be given.
+/// **TC-90 HISTORICAL STRESS REPRO ARM.** At the baseline this gave the old
+/// deferred transaction its widest promotion window. On the current engine it
+/// is the strongest ignored post-fix contention regression instrument.
 ///
 /// **MEASURED 10/10 at `94f09d7d`, in each of TWO independent sessions.** Storage
 /// failures per 40 transitions:
@@ -710,8 +711,8 @@ fn assert_protocol_ran(outcome: &ArmOutcome, expected_transitions: usize) {
 /// * session B (after): 8, 4, 4, 1, 4, 2, 4, 4, 3, 4 — mean **3.8**
 ///
 /// **The 10/10 reproduction replicated; the per-run rate did NOT** (5.9 vs 3.8,
-/// same commit, same machine). Pooled range **1-10 per 40**. Judge this arm — and
-/// the eventual 0.8.21 fix — on the reproduction rate; do not quote a percentage.
+/// same commit, same machine). Pooled range **1-10 per 40**. Quote that historical
+/// finding as a reproduction rate, not as a stable per-transition percentage.
 ///
 /// `attempted == 40`, `truncated == false`, `scheduler_errors == 0` and
 /// `other_errors == 0` in all 20 runs, so the signal is the promote race and
@@ -741,7 +742,7 @@ fn tc90_stress_transition_loop_under_saturating_burst_load() {
         outcome.storage_errors,
         0,
         "TC-90 STRESS: {} of {} transitions failed with `EngineError::Storage` \
-         (first at index {:?} after {} ms) — the promote race IS reachable; \
+         (first at index {:?} after {} ms) — post-fix contention regressed; \
          scheduler={} other={} kinds={:?}",
         outcome.storage_errors,
         outcome.attempted,
@@ -1103,8 +1104,8 @@ fn tc90_mechanism_control_engine_write_under_held_write_lock_survives() {
 
     assert!(
         result.is_ok(),
-        "the `BEGIN IMMEDIATE` writer must SURVIVE the identical contention that refuses \
-         `transition`'s promotion — got {result:?}"
+        "the control `BEGIN IMMEDIATE` writer must survive the same bounded contention as \
+         the current `BEGIN IMMEDIATE` transition path — got {result:?}"
     );
     assert!(
         elapsed >= HOLD / 2,

@@ -779,8 +779,8 @@ fn projection_worker_before_admission_cannot_publish_dependency_residue() {
         1,
         "the lifecycle-filtered source shadow remains, but closure must remove the dependent shadow"
     );
-    assert!(opened.engine.has_vector_for_cursor_for_test(1).unwrap());
-    assert!(!opened.engine.has_vector_for_cursor_for_test(2).unwrap());
+    assert!(opened.engine.has_vector_row_for_cursor_for_test(1).unwrap());
+    assert!(!opened.engine.has_vector_row_for_cursor_for_test(2).unwrap());
 }
 
 #[test]
@@ -795,6 +795,8 @@ fn admission_before_projection_worker_terminalizes_without_publication() {
     opened.engine.set_projection_scheduler_frozen_for_test(false);
     opened.engine.drain(5_000).unwrap();
     assert_eq!(opened.engine.vector_row_count_for_test().unwrap(), 1);
+    assert!(opened.engine.has_vector_row_for_cursor_for_test(1).unwrap());
+    assert!(!opened.engine.has_vector_row_for_cursor_for_test(2).unwrap());
 }
 
 #[test]

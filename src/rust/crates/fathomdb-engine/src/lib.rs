@@ -11753,6 +11753,23 @@ impl Engine {
             .map_err(|_| EngineError::Storage)
     }
 
+    /// Test-only distinction between a physical vec0 row and its terminal
+    /// readiness record. Closure may terminalize an ineligible projection
+    /// without publishing vector bytes, so readiness alone is not a row oracle.
+    #[doc(hidden)]
+    pub fn has_vector_row_for_cursor_for_test(&self, cursor: u64) -> Result<bool, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM vector_default WHERE rowid = ?1)",
+                [i64::try_from(cursor).map_err(|_| EngineError::Storage)?],
+                |row| row.get::<_, bool>(0),
+            )
+            .map_err(|_| EngineError::Storage)
+    }
+
     #[doc(hidden)]
     pub fn read_vector_blob_for_test(&self, rowid: i64) -> Result<Vec<u8>, EngineError> {
         self.ensure_open()?;

@@ -464,6 +464,86 @@ fn source_reference_limit_rejects_the_first_over_bound_row() {
 }
 
 #[test]
+fn source_reference_limit_is_eight_per_operation_not_only_global() {
+    let dir = TempDir::new().unwrap();
+    let db_path = path(&dir, "ref-formula");
+    let operation_id = "ref-formula";
+    let batch = request(operation_id);
+    {
+        let opened = Engine::open(&db_path).unwrap();
+        opened.engine.actuate(batch.clone()).unwrap();
+    }
+    let mut connection = Connection::open(&db_path).unwrap();
+    let tx = connection.transaction().unwrap();
+    tx.execute(
+        "DELETE FROM _fathomdb_actuation_receipt_source_refs WHERE operation_id=?1",
+        [operation_id],
+    )
+    .unwrap();
+    for index in 0..9 {
+        tx.execute(
+            "INSERT INTO _fathomdb_actuation_receipt_source_refs(\
+               operation_id,schema_version,ref_kind,ref_value\
+             ) VALUES(?1,1,'artifact_revision_id',?2)",
+            [operation_id, &format!("artifact-{index}")],
+        )
+        .unwrap();
+    }
+    tx.commit().unwrap();
+    let reopened = Engine::open(&db_path).unwrap();
+    assert!(matches!(reopened.engine.actuate(batch), Err(EngineError::Storage)));
+}
+
+#[test]
+fn pending_cursor_must_belong_to_a_revision_created_by_this_request() {
+    let dir = TempDir::new().unwrap();
+    let db_path = path(&dir, "pending-created");
+    let opened = Engine::open(&db_path).unwrap();
+    opened
+        .engine
+        .actuate(
+            ActuationBatchV1::new(
+                "pending-seed",
+                vec![ActuationOperationV1::PutCanonicalNode(canonical_node(
+                    "pending-old-r1",
+                    "pending-logical",
+                    "pending-source",
+                ))],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let replacement = ActuationBatchV1::new(
+        "pending-replacement",
+        vec![ActuationOperationV1::PutCanonicalNode(canonical_node(
+            "pending-new-r1",
+            "pending-logical",
+            "pending-source",
+        ))],
+    )
+    .unwrap();
+    opened.engine.actuate(replacement.clone()).unwrap();
+    let connection = Connection::open(&db_path).unwrap();
+    let old_cursor: i64 = connection
+        .query_row(
+            "SELECT write_cursor FROM _fathomdb_artifact_revisions \
+             WHERE revision_id='pending-old-r1'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    connection
+        .execute(
+            "UPDATE _fathomdb_actuation_receipts \
+             SET pending_projection_write_cursors_json=?1 \
+             WHERE operation_id='pending-replacement'",
+            [serde_json::to_string(&[old_cursor.to_string()]).unwrap()],
+        )
+        .unwrap();
+    assert!(matches!(opened.engine.actuate(replacement), Err(EngineError::Storage)));
+}
+
+#[test]
 fn source_id_with_embedded_nul_commits_and_replays_exactly() {
     let dir = TempDir::new().unwrap();
     let db_path = path(&dir, "nul-source-id");

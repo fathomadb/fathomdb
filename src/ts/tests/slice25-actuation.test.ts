@@ -78,6 +78,27 @@ test("actuation preserves embedded-NUL source identity", async () => {
   await engine.close();
 });
 
+test("actuation rejects an unpaired surrogate at the canonical nested path", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "fathomdb-actuation-surrogate-"));
+  const engine = await Engine.open(join(dir, "actuation.fathom"));
+  const input = request("typescript-surrogate-source");
+  const record = (
+    input.operations[0] as Extract<
+      (typeof input.operations)[number],
+      { type: "put_canonical_node" }
+    >
+  ).record;
+  record.sourceId = `source${String.fromCharCode(0xd800)}id`;
+  await assert.rejects(
+    engine.actuate(input),
+    (error: unknown) =>
+      error instanceof ActuationError &&
+      error.reason === "nested_request_invalid" &&
+      error.fieldPath === "/operations/0/record/sourceId",
+  );
+  await engine.close();
+});
+
 test("shared all-variant fixture has exact receipt and digest", async () => {
   const dir = mkdtempSync(join(tmpdir(), "fathomdb-actuation-shared-"));
   const engine = await Engine.open(join(dir, "actuation.fathom"));

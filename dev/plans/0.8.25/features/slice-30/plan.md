@@ -59,25 +59,28 @@ active, searchable, projection, dependency, or pending-work orphan remains.
 
 ## Verification routes
 
-Selected: fast, heavy, all, all-feature/operator, Windows CPU/native
-Rust/Python/Node, and packaged lifecycle smokes. GPU/CUDA, live-model, and
-pre-publication registry-installed are N/A.
+Selected: fast, heavy, full serial Rust, applicable feature-specific/operator,
+Windows CPU/native Rust/Python/Node, and packaged lifecycle smokes. A monolithic
+`--all-features` build is not a valid route because mutually exclusive CUDA and
+Metal features are platform-specific. GPU/CUDA, live-model, and pre-publication
+registry-installed are N/A.
 
 ## Draft-to-ready and delivery
 
 1. Reconcile the design with the landed Slice 20/25 schema, transaction seams,
    source-link authority, actual lifecycle enum, and existing erasure boundary.
-2. Obtain an independent design review. Resolve at most four FIX-n cycles;
+2. Obtain an independent design review. Resolve at most five FIX-n cycles;
    unresolved P1/P2 findings keep the slice out of READY.
 3. Write and commit failing Rust, Python, TypeScript, migration/property, and
    installed-package tests before product implementation.
 4. Implement RED to GREEN without editing the binding acceptance tests to make
    failures pass. Preserve compatibility and keep one writer/one provenance
    authority.
-5. Obtain independent implementation review, with at most four FIX-n cycles,
-   then a separate verification pass. Allocate any accepted residual to the
-   owning future slice with requirements/design review, RED/GREEN, code review,
-   and verification obligations.
+5. Obtain independent implementation review, with at most five FIX-n cycles,
+   then a separate verification pass. The owner explicitly authorized FIX-6,
+   FIX-7, and FIX-8 for this slice when findings required them. Allocate any
+   accepted residual to the owning future slice with requirements/design review,
+   RED/GREEN, code review, and verification obligations.
 6. Run the selected routes, write `status.md`, advance release state only from
    exact Git evidence, and checkpoint reusable lessons before Slice 35.
 

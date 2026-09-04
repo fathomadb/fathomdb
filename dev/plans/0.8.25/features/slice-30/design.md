@@ -3,7 +3,7 @@ title: 0.8.25 Slice 30 — core lifecycle and erasure closure design
 status: READY
 design_version: 10
 review_fix: 3
-review: design-review-cycle4.md
+review: design-reconciliation-review.md
 depends_on: 25
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 ---
@@ -412,8 +412,11 @@ GREEN commit, and each later reviewer-driven RED/FIX cycle. Review findings do
 not retroactively count as pre-implementation RED coverage.
 
 GREEN runs focused schema/Engine/binding tests, fast verification, heavy
-erasure/concurrency tests, all/all-feature/operator routes, installed wheel and
-N-API smokes, and Windows CPU/native Rust/Python/Node routes. CUDA, live models,
+erasure/concurrency tests, full serial Rust and applicable feature-specific/
+operator routes, installed wheel and N-API smokes, and Windows CPU/native
+Rust/Python/Node routes. A monolithic `--all-features` build is structurally
+invalid because platform-specific CUDA and Metal features are mutually
+exclusive. CUDA, live models,
 and network access are N/A. The strict ptrace-capable gate runs unchanged
 outside the sandbox if needed.
 

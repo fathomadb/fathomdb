@@ -8248,7 +8248,8 @@ impl Engine {
 
     #[cfg(debug_assertions)]
     #[allow(dead_code)]
-    fn pause_projection_worker_after_wal_transaction_for_test(
+    #[doc(hidden)]
+    pub fn pause_projection_worker_after_wal_transaction_for_test(
         &self,
     ) -> (Arc<Barrier>, Arc<Barrier>) {
         self.projection_runtime.pause_projection_worker_after_wal_transaction_for_test()

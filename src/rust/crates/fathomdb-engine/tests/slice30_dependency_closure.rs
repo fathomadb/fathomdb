@@ -1,6 +1,7 @@
 //! Slice 30 — dependency-aware lifecycle and erasure closure.
 
-use std::sync::Arc;
+use std::sync::{mpsc, Arc};
+use std::time::Duration;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
@@ -28,6 +29,27 @@ impl Embedder for FixedEmbedder {
     fn embed(&self, _text: &str) -> Result<Vector, EmbedderError> {
         Ok(vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     }
+}
+
+fn seed_projection_race(engine: &Engine) {
+    let mut derived = derived_node("race-derived-r1", "race-derived", "race-source-r1");
+    let PreparedWrite::ProvenancedNode(node) = &mut derived else {
+        unreachable!("derived_node returns a provenanced node");
+    };
+    node.kind = "doc".into();
+    engine
+        .write(&[canonical("race-source-r1", "v1", "race-source", "source body"), derived])
+        .unwrap();
+    engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new(
+                "race-dependency",
+                "race-source-r1",
+                "race-derived-r1",
+            )
+            .unwrap(),
+        )
+        .unwrap();
 }
 
 fn path(dir: &TempDir, name: &str) -> std::path::PathBuf {
@@ -622,6 +644,47 @@ fn vector_top_k_ineligible_dependencies_degrade_before_candidate_truncation() {
         result.soft_fallback.as_ref().map(|fallback| fallback.branch),
         Some(SoftFallbackBranch::Vector),
     );
+}
+
+#[test]
+fn projection_worker_before_admission_cannot_publish_dependency_residue() {
+    let dir = TempDir::new().unwrap();
+    let opened = Engine::open_with_embedder_for_test(
+        path(&dir, "projection-worker-first"),
+        Arc::new(FixedEmbedder),
+    )
+    .unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    let (ready, release) = opened.engine.pause_projection_worker_after_wal_transaction_for_test();
+    seed_projection_race(&opened.engine);
+    ready.wait();
+
+    let (sent, received) = mpsc::sync_channel(1);
+    std::thread::scope(|scope| {
+        scope.spawn(|| {
+            sent.send(opened.engine.transition("race-source", LifecycleState::Deleted, None))
+                .unwrap();
+        });
+        assert!(received.recv_timeout(Duration::from_millis(50)).is_err());
+        release.wait();
+        received.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+    });
+    opened.engine.drain(5_000).unwrap();
+    assert_eq!(opened.engine.vector_row_count_for_test().unwrap(), 0);
+}
+
+#[test]
+fn admission_before_projection_worker_terminalizes_without_publication() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "projection-admission-first");
+    let opened = Engine::open_with_embedder_for_test(&db, Arc::new(FixedEmbedder)).unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened.engine.set_projection_scheduler_frozen_for_test(true);
+    seed_projection_race(&opened.engine);
+    install_soft_barrier(&db, "race-source-r1", 3);
+    opened.engine.set_projection_scheduler_frozen_for_test(false);
+    opened.engine.drain(5_000).unwrap();
+    assert_eq!(opened.engine.vector_row_count_for_test().unwrap(), 1);
 }
 
 #[test]

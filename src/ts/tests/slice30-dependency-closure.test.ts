@@ -95,3 +95,74 @@ test("closure response decoder rejects unknown variants and malformed decimals",
     await engine.close();
   }
 });
+
+test("closure response decoder accepts a non-null installed status", async () => {
+  const engine = await Engine.open(freshDbPath());
+  try {
+    await engine.write([
+      {
+        kind: "doc",
+        body: "source body",
+        sourceId: "source-a",
+        logicalId: "source",
+        provenance: {
+          schemaVersion: 1,
+          role: "canonical",
+          artifactRevisionId: "source-r1",
+          sourceVersionId: "source-v1",
+        },
+      },
+      {
+        kind: "fact",
+        body: "derived body",
+        sourceId: "source-a",
+        logicalId: "derived",
+        provenance: {
+          schemaVersion: 1,
+          role: "derived",
+          artifactRevisionId: "derived-r1",
+          sourceVersionId: "source-v1",
+          sourceRevisionId: "source-r1",
+          sourceLocator: { kind: "whole_body" },
+          canonicalSourceHash: {
+            algorithm: "sha256",
+            digestHex: "8e0217a3ecb3eea361aa1807153c7ad853ff9e4d3e107a2d8be40ad66ceb2dc6",
+          },
+        },
+      },
+    ]);
+    await engine.registerSourceDependency({
+      schemaVersion: 1,
+      dependencyId: "source-derived",
+      sourceRevisionId: "source-r1",
+      derivedRevisionId: "derived-r1",
+    });
+    const receipt = await engine.actuate({
+      schemaVersion: 1,
+      operationId: "typescript-closure-status",
+      operations: [
+        {
+          type: "transition_lifecycle",
+          logicalId: "source",
+          expectedCurrentRevisionId: "source-r1",
+          toState: "deleted",
+        },
+      ],
+    });
+    assert.equal(receipt.closureOperationIds.length, 1);
+    const status = await engine.readDependencyClosure({
+      schemaVersion: 1,
+      closureOperationId: receipt.closureOperationIds[0]!,
+    });
+    assert.equal(status?.phase, "complete");
+    assert.equal(status?.cause, "soft_deleted");
+    assert.deepEqual(status?.root, {
+      type: "source_revision",
+      sourceRevisionId: "source-r1",
+    });
+    assert.equal(status?.proof?.currentActiveDependentNodes, "0");
+    assert.equal(status?.proof?.ownerlessProjectionRows, "0");
+  } finally {
+    await engine.close();
+  }
+});

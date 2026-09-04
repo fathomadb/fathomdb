@@ -26,7 +26,7 @@ def test_frozen_search_preserves_context_and_filters_before_ranking(db_path: str
         ]
     )
     context = fathomdb.ReadContextV1(
-        eligibility=fathomdb.SearchFilter(attributes=[("owner", "alice")])
+        eligibility=fathomdb.SearchFilter(attributes=(("owner", "alice"),))
     )
 
     frozen = engine.freeze_read_context(context)
@@ -45,7 +45,7 @@ def test_frozen_context_rejects_state_drift(db_path: str) -> None:
     frozen = engine.freeze_read_context(fathomdb.ReadContextV1())
     engine.write([_doc("after", "needle after", "alice")])
 
-    with pytest.raises(fathomdb.errors.FrozenReadError, match="snapshot_drift"):
+    with pytest.raises(fathomdb.errors.FrozenReadError, match="state_drifted"):
         engine.search_frozen("needle", frozen)
     engine.close()
 
@@ -55,7 +55,7 @@ def test_frozen_search_expand_uses_the_same_context(db_path: str) -> None:
     engine.write([_doc("root", "expand needle", "alice")])
     frozen = engine.freeze_read_context(
         fathomdb.ReadContextV1(
-            eligibility=fathomdb.SearchFilter(attributes=[("owner", "alice")])
+            eligibility=fathomdb.SearchFilter(attributes=(("owner", "alice"),))
         )
     )
 

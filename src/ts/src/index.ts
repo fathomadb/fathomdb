@@ -16,9 +16,11 @@ import {
   type NativeEmbedderDeviceResolution,
   type NativeEmbedderEvent,
   type NativeEngine,
+  type NativeFrozenReadContextV1,
   type NativeGpuAllocationWitness,
   type NativeOpenReport,
   type NativePerHitExplain,
+  type NativeSearchResult,
 } from "./binding.js";
 import {
   ActuationError,
@@ -791,6 +793,31 @@ export interface SearchFilter {
   attributes?: [string, string][];
 }
 
+/** Versioned validity and eligibility request for a frozen read. */
+export interface ReadContextV1 {
+  schemaVersion: 1;
+  view: ReadView;
+  eligibility: SearchFilter;
+}
+
+/** Database-local, authenticated read context minted by an Engine. */
+export interface FrozenReadContextV1 {
+  schemaVersion: 1;
+  effectiveValidAt: number;
+  context: ReadContextV1;
+  token: string;
+}
+
+/** Per-call ranked-search controls that cannot weaken a frozen context. */
+export interface FrozenSearchOptions {
+  rerankDepth?: number;
+  useGraphArm?: boolean;
+  alpha?: number;
+  poolN?: number;
+  explain?: boolean;
+  limit?: number;
+}
+
 /** Options shared by ranked search methods. `limit` defaults to 10 and is 1–100. */
 export type SearchOptions = ReadView & {
   limit?: number;
@@ -819,6 +846,78 @@ function splitSearchOptions(options: SearchOptions | undefined): {
     limit: validateRankedResultLimit("limit", limit),
     view: Object.keys(view).length === 0 ? undefined : view,
   };
+}
+
+function mapNativeSearchResult(r: NativeSearchResult): SearchResult {
+  const branch = r.softFallback?.branch;
+  const e = r.explanation;
+  return {
+    projectionCursor: r.projectionCursor,
+    softFallback:
+      branch === "vector" || branch === "text" || branch === "text_edge" || branch === "graph_arm"
+        ? { branch: branch as SoftFallbackBranch }
+        : null,
+    results: r.results.map((hit) => ({
+      id: { space: hit.id.space, value: hit.id.value },
+      kind: hit.kind,
+      body: hit.body,
+      score: hit.score,
+      branch:
+        hit.branch === "vector" || hit.branch === "text_edge" || hit.branch === "graph_arm"
+          ? (hit.branch as SoftFallbackBranch)
+          : "text",
+      sourceId: hit.sourceId ?? null,
+      ceScore: hit.ceScore ?? null,
+    })),
+    explanation: e
+      ? {
+          trace: {
+            queryChars: e.trace.queryChars,
+            k: e.trace.k,
+            rerankDepth: e.trace.rerankDepth,
+            poolN: e.trace.poolN,
+            alpha: e.trace.alpha,
+            useGraphArm: e.trace.useGraphArm,
+            recency: e.trace.recency,
+            embedderId: e.trace.embedderId,
+            ceActive: e.trace.ceActive,
+            vectorHits: e.trace.vectorHits,
+            textHits: e.trace.textHits,
+            graphHits: e.trace.graphHits,
+            droppedEdgeHits: e.trace.droppedEdgeHits,
+          },
+          perHit: e.perHit.map(mapPerHitExplain),
+        }
+      : null,
+  };
+}
+
+function assertKnownKeys(value: object, allowed: readonly string[], name: string): void {
+  const unknown = Object.keys(value).filter((key) => !allowed.includes(key)).sort();
+  if (unknown.length > 0) {
+    throw new InvalidArgumentError(`${name} has unknown field ${unknown[0]}`);
+  }
+}
+
+function validateReadContext(context: ReadContextV1): void {
+  assertKnownKeys(context, ["schemaVersion", "view", "eligibility"], "ReadContextV1");
+  if (context.schemaVersion !== 1) {
+    throw new InvalidArgumentError("ReadContextV1.schemaVersion must be 1");
+  }
+  assertKnownKeys(
+    context.view,
+    ["includeSuperseded", "includeInactive", "includeOutOfWindow", "validAsOf"],
+    "ReadContextV1.view",
+  );
+  assertKnownKeys(
+    context.eligibility,
+    ["sourceType", "kind", "createdAfter", "status", "attributes"],
+    "ReadContextV1.eligibility",
+  );
+}
+
+function nativeFrozenContext(context: FrozenReadContextV1): NativeFrozenReadContextV1 {
+  return context;
 }
 
 /**
@@ -1645,6 +1744,110 @@ export class Engine {
     return intercept(() =>
       this.#native.configureProjections(nativeSpecs, drop ?? null),
     );
+  }
+
+  /** Mint a restart-stable read context bound to this database state. */
+  async freezeReadContext(context: ReadContextV1): Promise<FrozenReadContextV1> {
+    validateReadContext(context);
+    const frozen = await intercept(() => this.#native.freezeReadContext(context));
+    return {
+      schemaVersion: 1,
+      effectiveValidAt: frozen.effectiveValidAt,
+      context: {
+        schemaVersion: 1,
+        view: frozen.context.view,
+        eligibility: {
+          sourceType: frozen.context.eligibility.sourceType,
+          kind: frozen.context.eligibility.kind,
+          createdAfter: frozen.context.eligibility.createdAfter,
+          status: frozen.context.eligibility.status,
+          attributes: frozen.context.eligibility.attributes?.map(
+            (pair) => [pair[0]!, pair[1]!] as [string, string],
+          ),
+        },
+      },
+      token: frozen.token,
+    };
+  }
+
+  /** Search under an Engine-authenticated frozen validity/eligibility context. */
+  async searchFrozen(
+    query: string,
+    context: FrozenReadContextV1,
+    options: FrozenSearchOptions = {},
+  ): Promise<SearchResult> {
+    validateFfiString(query);
+    assertKnownKeys(
+      options,
+      ["rerankDepth", "useGraphArm", "alpha", "poolN", "explain", "limit"],
+      "FrozenSearchOptions",
+    );
+    validateReadContext(context.context);
+    assertKnownKeys(
+      context,
+      ["schemaVersion", "effectiveValidAt", "context", "token"],
+      "FrozenReadContextV1",
+    );
+    validateFfiString(context.token);
+    return mapNativeSearchResult(
+      await intercept(() =>
+        this.#native.searchFrozen(
+          query,
+          nativeFrozenContext(context),
+          options.rerankDepth,
+          options.useGraphArm,
+          options.alpha,
+          options.poolN,
+          options.explain,
+          validateRankedResultLimit("limit", options.limit),
+        ),
+      ),
+    );
+  }
+
+  /** Search and graph-expand on one frozen reader transaction. */
+  async searchExpandFrozen(
+    query: string,
+    context: FrozenReadContextV1,
+    depth: number,
+    options: SearchExpandOptions = {},
+  ): Promise<SearchExpandResult> {
+    validateFfiString(query);
+    validateReadContext(context.context);
+    assertKnownKeys(
+      context,
+      ["schemaVersion", "effectiveValidAt", "context", "token"],
+      "FrozenReadContextV1",
+    );
+    assertKnownKeys(options, ["searchLimit"], "SearchExpandOptions");
+    if (!Number.isInteger(depth) || depth < 0 || depth > 3) {
+      throw new InvalidArgumentError(
+        `searchExpandFrozen depth must be an integer between 0 and 3; got ${depth}`,
+      );
+    }
+    const result = await intercept(() =>
+      this.#native.searchExpandFrozen(
+        query,
+        nativeFrozenContext(context),
+        depth,
+        validateRankedResultLimit("searchLimit", options.searchLimit),
+      ),
+    );
+    return {
+      searchHits: result.searchHits.map((hit) => ({
+        id: { space: hit.id.space, value: hit.id.value },
+        kind: hit.kind,
+        body: hit.body,
+        score: hit.score,
+        branch: (hit.branch === "vector" || hit.branch === "text_edge" || hit.branch === "graph_arm")
+          ? hit.branch
+          : "text",
+        sourceId: hit.sourceId ?? null,
+        ceScore: hit.ceScore ?? null,
+      })),
+      expanded: result.expanded,
+      allLogicalIds: result.allLogicalIds,
+    };
   }
 
   async search(

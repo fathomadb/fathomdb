@@ -893,6 +893,31 @@ pub(crate) fn vector_arm_requires_fallback(
     include_out_of_window: bool,
     effective_at: i64,
 ) -> rusqlite::Result<bool> {
+    let direct_state_unsafe: bool = connection.query_row(
+        "SELECT EXISTS(\
+           SELECT 1 FROM _fathomdb_vector_rows vr \
+           LEFT JOIN canonical_nodes n ON n.write_cursor=vr.write_cursor AND vr.kind!='edge_fact' \
+           LEFT JOIN canonical_edges e ON e.write_cursor=vr.write_cursor AND vr.kind='edge_fact' \
+           WHERE (vr.kind='edge_fact' AND (e.write_cursor IS NULL \
+                    OR (?2=0 AND e.superseded_at IS NOT NULL) \
+                    OR (?4=0 AND e.t_invalid IS NOT NULL AND e.t_invalid<=?1))) \
+              OR (vr.kind!='edge_fact' AND (n.write_cursor IS NULL \
+                    OR (?2=0 AND n.superseded_at IS NOT NULL) \
+                    OR (?3=0 AND n.state!='active') \
+                    OR (?4=0 AND ((n.valid_from IS NOT NULL AND n.valid_from>?1) \
+                                  OR (n.valid_until IS NOT NULL AND n.valid_until<=?1))))) \
+           LIMIT 1)",
+        params![
+            effective_at,
+            i64::from(include_superseded),
+            i64::from(include_inactive),
+            i64::from(include_out_of_window),
+        ],
+        |row| row.get(0),
+    )?;
+    if direct_state_unsafe {
+        return Ok(true);
+    }
     let mut source_predicate = String::new();
     if !include_superseded {
         source_predicate.push_str(" AND source_node.superseded_at IS NULL");

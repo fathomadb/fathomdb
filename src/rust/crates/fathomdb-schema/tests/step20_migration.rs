@@ -84,8 +84,8 @@ fn s20_existence_columns_present_and_schema_version_is_head() {
     assert_eq!(user_version(&conn), SCHEMA_VERSION);
     assert_eq!(
         MIGRATIONS.last().expect("at least one migration").step_id,
-        30,
-        "step-30 (dependency closures, Slice 30) must be the last (head) migration"
+        31,
+        "step-31 (frozen reads, Slice 35) must be the last (head) migration"
     );
 
     let shape = table_shape(&conn, "canonical_nodes");

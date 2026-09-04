@@ -212,6 +212,17 @@ export class ConsolidatorError extends FathomDbError {}
 // G4 (Slice 35) — filter predicate construction error (non-allowlisted path).
 export class InvalidFilterError extends FathomDbError {}
 
+/** Frozen-read token, context, database, or bound-state refusal. */
+export class FrozenReadError extends FathomDbError {
+  readonly reason: string;
+  readonly fieldPath: string;
+  constructor(message: string, reason: string, fieldPath: string) {
+    super(message);
+    this.reason = reason;
+    this.fieldPath = fieldPath;
+  }
+}
+
 // Slice 20 — depth > 3 or other invalid argument (G5/G6).
 export class InvalidArgumentError extends FathomDbError {}
 
@@ -331,6 +342,7 @@ type ErrorCode =
   | "FDB_ACTUATION"
   // G4 (Slice 35) — filter predicate construction error.
   | "FDB_INVALID_FILTER"
+  | "FDB_FROZEN_READ"
   // Slice 20 — depth > 3 or invalid argument (G5/G6).
   | "FDB_INVALID_ARGUMENT"
   // 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense refusal.
@@ -470,6 +482,12 @@ function build(envelope: Envelope): Error {
       return new ConsolidatorError(envelope.message);
     case "FDB_INVALID_FILTER":
       return new InvalidFilterError(envelope.message);
+    case "FDB_FROZEN_READ":
+      return new FrozenReadError(
+        envelope.message,
+        String(p.reason ?? ""),
+        String(p.fieldPath ?? ""),
+      );
     case "FDB_INVALID_ARGUMENT":
       return new InvalidArgumentError(envelope.message);
     case "FDB_VECTOR_EQUIVALENCE_MISMATCH":

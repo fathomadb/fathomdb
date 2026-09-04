@@ -63,19 +63,20 @@ use fathomdb_engine::{
     Engine as RustEngine, EngineError as RustEngineError, EngineOpenError,
     ExciseReport as RustExciseReport, Explanation as RustExplanation,
     ExtractDocument as RustExtractDocument, Filter as RustFilter, FilterTerm as RustFilterTerm,
-    IdSpace as RustIdSpace, IngestWithExtractorReceipt as RustIngestWithExtractorReceipt,
-    InitialState, LifecycleActuationV1, LifecycleState as RustLifecycleState,
-    NodeRecord as RustNodeRecord, OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport,
-    OpenStage, PerHitExplain as RustPerHitExplain, Predicate as RustPredicate, PreparedWrite,
+    FrozenReadContextV1 as RustFrozenReadContextV1, IdSpace as RustIdSpace,
+    IngestWithExtractorReceipt as RustIngestWithExtractorReceipt, InitialState,
+    LifecycleActuationV1, LifecycleState as RustLifecycleState, NodeRecord as RustNodeRecord,
+    OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
+    PerHitExplain as RustPerHitExplain, Predicate as RustPredicate, PreparedWrite,
     ProjectionDelta as RustProjectionDelta, ProjectionFts as RustProjectionFts,
     ProjectionRole as RustProjectionRole, ProjectionRuntimeStatus as RustProjectionRuntimeStatus,
     ProjectionRuntimeStatusEntry as RustProjectionRuntimeStatusEntry,
     ProjectionSpec as RustProjectionSpec, ProjectionVector as RustProjectionVector,
     ProvenanceError as RustProvenanceError, ProvenancedEdgeV1, ProvenancedNodeV1,
-    QueryTrace as RustQueryTrace, ReadView as RustReadView, ScalarValue as RustScalarValue,
-    SearchExpandResult as RustSearchExpandResult, SearchFilter as RustSearchFilter,
-    SearchHit as RustSearchHit, SearchResult as RustSearchResult, SoftFallback as RustSoftFallback,
-    SoftFallbackBranch, SourceDependencyRegistrationV1,
+    QueryTrace as RustQueryTrace, ReadContextV1 as RustReadContextV1, ReadView as RustReadView,
+    ScalarValue as RustScalarValue, SearchExpandResult as RustSearchExpandResult,
+    SearchFilter as RustSearchFilter, SearchHit as RustSearchHit, SearchResult as RustSearchResult,
+    SoftFallback as RustSoftFallback, SoftFallbackBranch, SourceDependencyRegistrationV1,
     SourceDependencyV1 as RustSourceDependencyV1, SourceId, SourceLocator, SourceRevisionId,
     SourceVersionId, TraversalDirection as RustTraversalDirection, WriteProvenanceV1,
     WriteReceipt as RustWriteReceipt,
@@ -125,6 +126,7 @@ create_exception!(_fathomdb, ExtractorError, EngineError);
 create_exception!(_fathomdb, ConsolidatorError, EngineError);
 // G4 (Slice 35) — filter predicate construction error (non-allowlisted path).
 create_exception!(_fathomdb, InvalidFilterError, EngineError);
+create_exception!(_fathomdb, FrozenReadError, EngineError);
 // 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense-refusal leaf.
 create_exception!(_fathomdb, VectorEquivalenceMismatchError, EngineError);
 // Slice 20 (G5/G6) — traversal depth > 3 or other out-of-range argument.
@@ -266,6 +268,7 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
         RustEngineError::InvalidFilter { reason } => {
             InvalidFilterError::new_err(format!("invalid filter: {reason}"))
         }
+        RustEngineError::FrozenRead(error) => frozen_read_error_to_py(&error),
         RustEngineError::InvalidArgument { msg } => InvalidArgumentError::new_err(msg),
         RustEngineError::VectorEquivalenceMismatch { reason } => {
             let exc = VectorEquivalenceMismatchError::new_err(format!(
@@ -383,6 +386,17 @@ fn actuation_error_to_py(error: &RustActuationError) -> PyErr {
         let _ = value.setattr("field_path", error.field_path.as_str());
     });
     exc
+}
+
+fn frozen_read_error_to_py(error: &fathomdb_engine::FrozenReadError) -> PyErr {
+    let exception =
+        FrozenReadError::new_err(format!("{} at {}", error.reason.as_str(), error.field_path));
+    Python::attach(|py| {
+        let value = exception.value(py);
+        let _ = value.setattr("reason", error.reason.as_str());
+        let _ = value.setattr("field_path", &error.field_path);
+    });
+    exception
 }
 
 fn corruption_kind_str(kind: CorruptionKind) -> &'static str {
@@ -1143,6 +1157,98 @@ impl PyReadView {
 /// `view=None` means the strict default view.
 fn read_view_or_default(view: Option<&PyReadView>) -> RustReadView {
     view.map(PyReadView::to_rust).unwrap_or_default()
+}
+
+/// Versioned eligibility and validity context for frozen search.
+#[pyclass(module = "fathomdb._fathomdb", name = "ReadContextV1", frozen, skip_from_py_object)]
+#[derive(Clone)]
+struct PyReadContextV1 {
+    inner: RustReadContextV1,
+}
+
+#[pymethods]
+impl PyReadContextV1 {
+    #[new]
+    #[pyo3(signature = (
+        view=None, source_type=None, kind=None, created_after=None, status=None,
+        attributes=None, schema_version=1
+    ))]
+    #[allow(clippy::too_many_arguments)]
+    fn new(
+        view: Option<&PyReadView>,
+        source_type: Option<String>,
+        kind: Option<String>,
+        created_after: Option<i64>,
+        status: Option<String>,
+        attributes: Option<Vec<(String, String)>>,
+        schema_version: u32,
+    ) -> PyResult<Self> {
+        let mut eligibility = RustSearchFilter::default();
+        eligibility.source_type = source_type;
+        eligibility.kind = kind;
+        eligibility.created_after = created_after;
+        eligibility.status = status;
+        eligibility.attributes = attributes.unwrap_or_default();
+        if schema_version != 1 {
+            return Err(FrozenReadError::new_err("unsupported_schema_version at /schemaVersion"));
+        }
+        let inner = RustReadContextV1::new(read_view_or_default(view), eligibility)
+            .map_err(engine_error_to_py)?;
+        Ok(Self { inner })
+    }
+
+    #[getter]
+    fn schema_version(&self) -> u32 {
+        self.inner.schema_version
+    }
+}
+
+/// Engine-minted authenticated read context.
+#[pyclass(module = "fathomdb._fathomdb", name = "FrozenReadContextV1", frozen, skip_from_py_object)]
+#[derive(Clone)]
+struct PyFrozenReadContextV1 {
+    inner: RustFrozenReadContextV1,
+}
+
+#[pymethods]
+impl PyFrozenReadContextV1 {
+    #[new]
+    #[pyo3(signature = (effective_valid_at, context, token, schema_version=1))]
+    fn new(
+        effective_valid_at: i64,
+        context: &PyReadContextV1,
+        token: String,
+        schema_version: u32,
+    ) -> Self {
+        Self {
+            inner: RustFrozenReadContextV1 {
+                schema_version,
+                effective_valid_at,
+                context: context.inner.clone(),
+                token,
+            },
+        }
+    }
+
+    #[getter]
+    fn schema_version(&self) -> u32 {
+        self.inner.schema_version
+    }
+
+    #[getter]
+    fn effective_valid_at(&self) -> i64 {
+        self.inner.effective_valid_at
+    }
+
+    #[getter]
+    fn token(&self) -> &str {
+        &self.inner.token
+    }
+
+    #[getter]
+    fn context(&self) -> PyReadContextV1 {
+        PyReadContextV1 { inner: self.inner.context.clone() }
+    }
 }
 
 /// 0.8.20 Slice 10b (R-20-NV) — the Python face of `BoundaryCrossing`.
@@ -1994,6 +2100,73 @@ impl PyEngine {
 
     fn open_report(&self, py: Python<'_>) -> PyOpenReport {
         PyOpenReport::from_rust(py, &self.open_report)
+    }
+
+    /// Mint a restart-stable authenticated read context.
+    fn freeze_read_context(
+        &self,
+        py: Python<'_>,
+        context: &PyReadContextV1,
+    ) -> PyResult<PyFrozenReadContextV1> {
+        let engine = Arc::clone(&self.inner);
+        let context = context.inner.clone();
+        call_engine(py, move || engine.freeze_read_context(&context))
+            .map(|inner| PyFrozenReadContextV1 { inner })
+    }
+
+    /// Search using eligibility and validity authenticated by a frozen context.
+    #[pyo3(signature = (
+        query, context, rerank_depth=0, use_graph_arm=false, alpha=0.3,
+        pool_n=0, explain=false, limit=10
+    ))]
+    #[allow(clippy::too_many_arguments)]
+    fn search_frozen(
+        &self,
+        py: Python<'_>,
+        query: &str,
+        context: &PyFrozenReadContextV1,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        explain: bool,
+        limit: usize,
+    ) -> PyResult<PySearchResult> {
+        validate_ffi_string_py(query)?;
+        let engine = Arc::clone(&self.inner);
+        let query = query.to_string();
+        let context = context.inner.clone();
+        call_engine(py, move || {
+            engine.search_frozen(
+                &query,
+                &context,
+                rerank_depth,
+                use_graph_arm,
+                alpha,
+                pool_n,
+                explain,
+                limit,
+            )
+        })
+        .map(PySearchResult::from_rust)
+    }
+
+    /// Search and expand under a frozen context.
+    #[pyo3(signature = (query, context, depth, limit=10))]
+    fn search_expand_frozen(
+        &self,
+        py: Python<'_>,
+        query: &str,
+        context: &PyFrozenReadContextV1,
+        depth: u32,
+        limit: usize,
+    ) -> PyResult<PySearchExpandResult> {
+        validate_ffi_string_py(query)?;
+        let engine = Arc::clone(&self.inner);
+        let query = query.to_string();
+        let context = context.inner.clone();
+        call_engine(py, move || engine.search_expand_frozen(&query, &context, depth, limit))
+            .map(PySearchExpandResult::from_rust)
     }
 
     fn write(&self, py: Python<'_>, batch: Bound<'_, PyList>) -> PyResult<PyWriteReceipt> {
@@ -4211,6 +4384,8 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(graph_neighbors, &m)?)?;
     m.add_function(wrap_pyfunction!(crossed_boundary_since, &m)?)?;
     m.add_class::<PyReadView>()?;
+    m.add_class::<PyReadContextV1>()?;
+    m.add_class::<PyFrozenReadContextV1>()?;
     m.add_class::<PyBoundaryCrossing>()?;
     m.add_function(wrap_pyfunction!(search_expand, &m)?)?;
     // 0.8.2 Slice E2 — standalone rerank over an arbitrary passage list.
@@ -4251,6 +4426,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("ExtractorError", py.get_type::<ExtractorError>())?;
     m.add("ConsolidatorError", py.get_type::<ConsolidatorError>())?;
     m.add("InvalidFilterError", py.get_type::<InvalidFilterError>())?;
+    m.add("FrozenReadError", py.get_type::<FrozenReadError>())?;
     m.add("InvalidArgumentError", py.get_type::<InvalidArgumentError>())?;
     m.add("VectorEquivalenceMismatchError", py.get_type::<VectorEquivalenceMismatchError>())?;
     m.add("IllegalTransitionError", py.get_type::<IllegalTransitionError>())?;

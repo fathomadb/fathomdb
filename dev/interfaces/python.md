@@ -900,3 +900,14 @@ per call. This guarantee does not extend to hybrid `engine.search` APIs.
 Python does not expose recovery verbs or doctor-only flags. In particular,
 there is no SDK equivalent of `recover`, `check-integrity`, `--quick`,
 `--full`, or `--round-trip`. See `design/recovery.md`.
+
+## Frozen read context (0.8.25 Slice 35)
+
+`ReadContextV1(view=..., eligibility=...)` is passed to
+`engine.freeze_read_context`. The returned `FrozenReadContextV1` carries the
+resolved `effective_valid_at`, the resolved context, and an opaque token.
+`engine.search_frozen` and `engine.search_expand_frozen` consume the complete
+object and raise `errors.FrozenReadError` with `reason` and `field_path` on a
+tampered, foreign, unsupported, unavailable, or drifted context. Search
+controls may change ranking or result count but cannot weaken the bound view or
+eligibility.

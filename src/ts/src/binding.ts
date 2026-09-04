@@ -230,7 +230,7 @@ interface NativeExplanation {
   perHit: NativePerHitExplain[];
 }
 
-interface NativeSearchResult {
+export interface NativeSearchResult {
   projectionCursor: number;
   softFallback: NativeSoftFallback | null;
   results: NativeSearchHit[];
@@ -272,6 +272,19 @@ export interface NativeReadView {
   includeInactive?: boolean;
   includeOutOfWindow?: boolean;
   validAsOf?: number;
+}
+
+export interface NativeReadContextV1 {
+  schemaVersion: number;
+  view: NativeReadView;
+  eligibility: NativeSearchFilter;
+}
+
+export interface NativeFrozenReadContextV1 {
+  schemaVersion: number;
+  effectiveValidAt: number;
+  context: NativeReadContextV1;
+  token: string;
 }
 
 /**
@@ -507,6 +520,23 @@ export interface NativeEngine {
   readProjections(): Promise<NativeProjectionSpec[]>;
   readProjectionStatus(): Promise<NativeProjectionRuntimeStatus>;
   readEmbeddingReadiness(): Promise<NativeEmbeddingReadiness>;
+  freezeReadContext(context: NativeReadContextV1): Promise<NativeFrozenReadContextV1>;
+  searchFrozen(
+    query: string,
+    context: NativeFrozenReadContextV1,
+    rerankDepth?: number,
+    useGraphArm?: boolean,
+    alpha?: number,
+    poolN?: number,
+    explain?: boolean,
+    limit?: number,
+  ): Promise<NativeSearchResult>;
+  searchExpandFrozen(
+    query: string,
+    context: NativeFrozenReadContextV1,
+    depth: number,
+    limit?: number,
+  ): Promise<NativeSearchExpandResult>;
   search(
     query: string,
     filter?: NativeSearchFilter,

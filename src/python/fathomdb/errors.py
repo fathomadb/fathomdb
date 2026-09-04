@@ -112,6 +112,7 @@ from fathomdb._fathomdb import (
 from fathomdb._fathomdb import (
     ProjectionDestructiveError as _ProjectionDestructiveError,
 )
+from fathomdb._fathomdb import FrozenReadError as _FrozenReadError
 
 EngineError = _EngineError
 StorageError = _StorageError
@@ -160,6 +161,7 @@ ErasureIncompleteError = _ErasureIncompleteError
 # 0.8.20 Slice 15d (R-20-PR) — `configure_projections` refused a destructive
 # change to a live projection without an explicit `drop`; carries `name`/`delta`.
 ProjectionDestructiveError = _ProjectionDestructiveError
+FrozenReadError = _FrozenReadError
 
 
 def _install_typed_init(cls: type, fields: tuple[str, ...]) -> None:
@@ -201,6 +203,7 @@ _install_typed_init(ProvenanceError, ("reason", "field_path"))
 _install_typed_init(DependencyError, ("reason", "field_path"))
 _install_typed_init(DependencyClosureError, ("reason", "field_path"))
 _install_typed_init(ActuationError, ("reason", "field_path"))
+_install_typed_init(FrozenReadError, ("reason", "field_path"))
 
 
 __all__ = [
@@ -219,6 +222,7 @@ __all__ = [
     "EngineError",
     "ErasureIncompleteError",
     "ExtractorError",
+    "FrozenReadError",
     "IllegalTransitionError",
     "IncompatibleSchemaVersionError",
     "InvalidArgumentError",

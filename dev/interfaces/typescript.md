@@ -937,3 +937,13 @@ hits are text branch with no soft fallback or explanation.
 TypeScript does not expose recovery verbs or doctor-only flags. In particular,
 there is no SDK equivalent of `recover`, `checkIntegrity`, `quick`, `full`, or
 `roundTrip`. See `design/recovery.md`.
+
+## Frozen read context (0.8.25 Slice 35)
+
+`ReadContextV1` combines `ReadView` and `SearchFilter` under
+`schemaVersion: 1`. `engine.freezeReadContext` returns a
+`FrozenReadContextV1` whose resolved context, effective instant, and opaque
+token must be echoed to `engine.searchFrozen` or
+`engine.searchExpandFrozen`. Refusals surface as `FrozenReadError` with stable
+`reason` and `fieldPath`. Frozen search options can affect ranking and result
+count only; they cannot weaken the authenticated view or eligibility.

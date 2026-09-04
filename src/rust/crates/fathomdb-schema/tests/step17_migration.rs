@@ -62,11 +62,11 @@ fn s17_search_index_v2_present_and_schema_version_is_17() {
     assert!(table_exists(&conn, "search_index"), "single-column search_index must be RETAINED");
 
     assert_eq!(user_version(&conn), SCHEMA_VERSION);
-    assert_eq!(SCHEMA_VERSION, 30, "SCHEMA_VERSION must include Slice 30 step 30");
+    assert_eq!(SCHEMA_VERSION, 31, "SCHEMA_VERSION must include Slice 35 step 31");
     assert_eq!(
         MIGRATIONS.last().expect("at least one migration").step_id,
-        30,
-        "step-30 (dependency closures, Slice 30) must be the last (head) migration"
+        31,
+        "step-31 (frozen reads, Slice 35) must be the last (head) migration"
     );
 
     // The v2 table carries the three BM25F fields kind/body/status (+ the

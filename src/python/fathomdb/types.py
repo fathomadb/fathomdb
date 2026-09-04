@@ -395,6 +395,25 @@ class ReadView:
     valid_as_of: int | None = None
 
 
+@dataclass(frozen=True)
+class ReadContextV1:
+    """Versioned validity and eligibility context for frozen search."""
+
+    view: ReadView = field(default_factory=ReadView)
+    eligibility: "SearchFilter" = field(default_factory=lambda: SearchFilter())
+    schema_version: int = 1
+
+
+@dataclass(frozen=True)
+class FrozenReadContextV1:
+    """Authenticated database-local read context returned by the Engine."""
+
+    effective_valid_at: int
+    context: ReadContextV1
+    token: str
+    schema_version: int = 1
+
+
 class ProjectionRole:
     """0.8.20 Slice 15d (R-20-PR) — the three projection roles (set members).
 
@@ -944,6 +963,8 @@ class CounterSnapshot:
 
 __all__ = [
     "ReadView",
+    "ReadContextV1",
+    "FrozenReadContextV1",
     "BoundaryCrossing",
     "CounterSnapshot",
     "CudaDeviceInfo",

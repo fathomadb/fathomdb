@@ -50,22 +50,22 @@ use fathomdb_engine::{
     EmbedderChoice, EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
     EngineError as RustEngineError, EngineOpenError, ExciseReport as RustExciseReport,
     Explanation as RustExplanation, ExtractDocument as RustExtractDocument, Filter as RustFilter,
-    FilterTerm as RustFilterTerm, IdSpace as RustIdSpace,
-    IngestWithExtractorReceipt as RustIngestWithExtractorReceipt, InitialState,
-    LifecycleActuationV1, LifecycleState as RustLifecycleState, NodeRecord as RustNodeRecord,
-    OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
-    PerHitExplain as RustPerHitExplain, Predicate as RustPredicate, PreparedWrite,
+    FilterTerm as RustFilterTerm, FrozenReadContextV1 as RustFrozenReadContextV1,
+    IdSpace as RustIdSpace, IngestWithExtractorReceipt as RustIngestWithExtractorReceipt,
+    InitialState, LifecycleActuationV1, LifecycleState as RustLifecycleState,
+    NodeRecord as RustNodeRecord, OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport,
+    OpenStage, PerHitExplain as RustPerHitExplain, Predicate as RustPredicate, PreparedWrite,
     ProjectionDelta as RustProjectionDelta, ProjectionFts as RustProjectionFts,
     ProjectionRole as RustProjectionRole, ProjectionRuntimeStatus as RustProjectionRuntimeStatus,
     ProjectionRuntimeStatusEntry as RustProjectionRuntimeStatusEntry,
     ProjectionSpec as RustProjectionSpec, ProjectionVector as RustProjectionVector,
-    ProvenancedEdgeV1, ProvenancedNodeV1, QueryTrace as RustQueryTrace, ReadView as RustReadView,
-    ScalarValue as RustScalarValue, SearchExpandResult as RustSearchExpandResult,
-    SearchFilter as RustSearchFilter, SearchHit as RustSearchHit, SearchResult as RustSearchResult,
-    SoftFallbackBranch, SourceDependencyRegistrationV1,
-    SourceDependencyV1 as RustSourceDependencyV1, SourceId, SourceLocator, SourceRevisionId,
-    SourceVersionId, TraversalDirection as RustTraversalDirection, WriteProvenanceV1,
-    WriteReceipt as RustWriteReceipt,
+    ProvenancedEdgeV1, ProvenancedNodeV1, QueryTrace as RustQueryTrace,
+    ReadContextV1 as RustReadContextV1, ReadView as RustReadView, ScalarValue as RustScalarValue,
+    SearchExpandResult as RustSearchExpandResult, SearchFilter as RustSearchFilter,
+    SearchHit as RustSearchHit, SearchResult as RustSearchResult, SoftFallbackBranch,
+    SourceDependencyRegistrationV1, SourceDependencyV1 as RustSourceDependencyV1, SourceId,
+    SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection as RustTraversalDirection,
+    WriteProvenanceV1, WriteReceipt as RustWriteReceipt,
 };
 use fathomdb_schema::MigrationStepReport as RustMigrationStepReport;
 use napi::{Error, JsUnknown, Result, Status};
@@ -124,6 +124,7 @@ const CODE_ERASURE_INCOMPLETE: &str = "FDB_ERASURE_INCOMPLETE";
 // 0.8.20 Slice 15d (R-20-PR) — configure_projections refused a destructive
 // change without an explicit drop.
 const CODE_PROJECTION_DESTRUCTIVE: &str = "FDB_PROJECTION_DESTRUCTIVE";
+const CODE_FROZEN_READ: &str = "FDB_FROZEN_READ";
 const CODE_PANIC: &str = "FDB_PANIC";
 
 // ===== Typed-error encoder ============================================
@@ -269,6 +270,14 @@ fn engine_error_to_napi(err: RustEngineError) -> Error {
         RustEngineError::Actuation(error) => typed_error(
             CODE_ACTUATION,
             format!("actuation {} at {}", error.reason.as_str(), error.field_path),
+            json!({
+                "reason": error.reason.as_str(),
+                "fieldPath": error.field_path,
+            }),
+        ),
+        RustEngineError::FrozenRead(error) => typed_error(
+            CODE_FROZEN_READ,
+            format!("{} at {}", error.reason.as_str(), error.field_path),
             json!({
                 "reason": error.reason.as_str(),
                 "fieldPath": error.field_path,
@@ -2109,6 +2118,64 @@ impl Engine {
         Ok(EmbeddingReadiness::from_rust(&readiness))
     }
 
+    /// Mint a restart-stable authenticated read context.
+    #[napi]
+    pub async fn freeze_read_context(&self, context: ReadContextV1) -> Result<FrozenReadContextV1> {
+        let context = read_context_to_rust(context)?;
+        let engine = Arc::clone(&self.inner);
+        let frozen = call_engine(move || engine.freeze_read_context(&context)).await?;
+        Ok(frozen_context_from_rust(frozen))
+    }
+
+    /// Search under a frozen validity and eligibility context.
+    #[napi]
+    #[allow(clippy::too_many_arguments)]
+    pub async fn search_frozen(
+        &self,
+        query: String,
+        context: FrozenReadContextV1,
+        rerank_depth: Option<u32>,
+        use_graph_arm: Option<bool>,
+        alpha: Option<f64>,
+        pool_n: Option<u32>,
+        explain: Option<bool>,
+        limit: Option<u32>,
+    ) -> Result<SearchResult> {
+        validate_ffi_string_napi(&query)?;
+        let context = frozen_context_to_rust(context)?;
+        let depth = rerank_depth.unwrap_or(0) as usize;
+        let graph_arm = use_graph_arm.unwrap_or(false);
+        let alpha = alpha.unwrap_or(0.3);
+        let pool_n = pool_n.map(|value| value as usize).unwrap_or(depth);
+        let explain = explain.unwrap_or(false);
+        let limit = limit.unwrap_or(10) as usize;
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(move || {
+            engine.search_frozen(&query, &context, depth, graph_arm, alpha, pool_n, explain, limit)
+        })
+        .await?;
+        Ok(SearchResult::from_rust(result))
+    }
+
+    /// Search and expand on one frozen reader transaction.
+    #[napi]
+    pub async fn search_expand_frozen(
+        &self,
+        query: String,
+        context: FrozenReadContextV1,
+        depth: u32,
+        limit: Option<u32>,
+    ) -> Result<SearchExpandResult> {
+        validate_ffi_string_napi(&query)?;
+        let context = frozen_context_to_rust(context)?;
+        let limit = limit.unwrap_or(10) as usize;
+        let engine = Arc::clone(&self.inner);
+        let result =
+            call_engine(move || engine.search_expand_frozen(&query, &context, depth, limit))
+                .await?;
+        Ok(SearchExpandResult::from_rust(result))
+    }
+
     #[napi]
     #[allow(clippy::too_many_arguments)]
     pub async fn search(
@@ -2531,6 +2598,84 @@ pub struct ReadViewInput {
     pub include_out_of_window: Option<bool>,
     /// Validity instant, INTEGER epoch SECONDS. Omitted = now.
     pub valid_as_of: Option<i64>,
+}
+
+/// Versioned validity and eligibility request for a frozen read context.
+#[napi(object)]
+pub struct ReadContextV1 {
+    pub schema_version: u32,
+    pub view: ReadViewInput,
+    pub eligibility: SearchFilterInput,
+}
+
+/// Engine-minted database-local authenticated read context.
+#[napi(object)]
+pub struct FrozenReadContextV1 {
+    pub schema_version: u32,
+    pub effective_valid_at: i64,
+    pub context: ReadContextV1,
+    pub token: String,
+}
+
+fn search_filter_from_required_input(input: SearchFilterInput) -> Result<RustSearchFilter> {
+    Ok(search_filter_input_to_rust(Some(input))?.unwrap_or_default())
+}
+
+fn read_context_to_rust(input: ReadContextV1) -> Result<RustReadContextV1> {
+    if input.schema_version != 1 {
+        return Err(typed_error(
+            CODE_FROZEN_READ,
+            "unsupported_schema_version at /schemaVersion",
+            json!({ "reason": "unsupported_schema_version", "fieldPath": "/schemaVersion" }),
+        ));
+    }
+    let view = read_view_or_default(Some(input.view));
+    let eligibility = search_filter_from_required_input(input.eligibility)?;
+    RustReadContextV1::new(view, eligibility).map_err(engine_error_to_napi)
+}
+
+fn read_context_from_rust(context: &RustReadContextV1) -> ReadContextV1 {
+    ReadContextV1 {
+        schema_version: context.schema_version,
+        view: ReadViewInput {
+            include_superseded: Some(context.view.include_superseded),
+            include_inactive: Some(context.view.include_inactive),
+            include_out_of_window: Some(context.view.include_out_of_window),
+            valid_as_of: context.view.valid_as_of,
+        },
+        eligibility: SearchFilterInput {
+            source_type: context.eligibility.source_type.clone(),
+            kind: context.eligibility.kind.clone(),
+            created_after: context.eligibility.created_after,
+            status: context.eligibility.status.clone(),
+            attributes: Some(
+                context
+                    .eligibility
+                    .attributes
+                    .iter()
+                    .map(|(name, value)| vec![name.clone(), value.clone()])
+                    .collect(),
+            ),
+        },
+    }
+}
+
+fn frozen_context_to_rust(input: FrozenReadContextV1) -> Result<RustFrozenReadContextV1> {
+    Ok(RustFrozenReadContextV1 {
+        schema_version: input.schema_version,
+        effective_valid_at: input.effective_valid_at,
+        context: read_context_to_rust(input.context)?,
+        token: input.token,
+    })
+}
+
+fn frozen_context_from_rust(context: RustFrozenReadContextV1) -> FrozenReadContextV1 {
+    FrozenReadContextV1 {
+        schema_version: context.schema_version,
+        effective_valid_at: context.effective_valid_at,
+        context: read_context_from_rust(&context.context),
+        token: context.token,
+    }
 }
 
 /// An omitted `view` means the strict default view.

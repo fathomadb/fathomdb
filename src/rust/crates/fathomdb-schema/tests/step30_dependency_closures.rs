@@ -31,10 +31,10 @@ fn insert_closure(connection: &Connection, id_digit: char, phase: &str) -> rusql
 
 #[test]
 fn step30_adds_content_free_closure_state_and_checked_sequence() {
-    assert_eq!(SCHEMA_VERSION, 30);
+    assert_eq!(SCHEMA_VERSION, 31);
     let connection = Connection::open_in_memory().unwrap();
     migrate_with_steps(&connection, &MIGRATIONS[..29]).unwrap();
-    migrate(&connection).unwrap();
+    migrate_with_steps(&connection, &MIGRATIONS[..30]).unwrap();
 
     assert_eq!(user_version(&connection), 30);
     let sequence: String = connection

@@ -1366,6 +1366,7 @@ fn engine_error_code(err: &EngineError) -> &'static str {
         EngineError::Consolidator => "ConsolidatorError",
         // G4 (Slice 35) — filter predicate construction error.
         EngineError::InvalidFilter { .. } => "InvalidFilterError",
+        EngineError::FrozenRead(_) => "FrozenReadError",
         EngineError::InvalidArgument { .. } => "InvalidArgumentError",
         // 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense refusal.
         EngineError::VectorEquivalenceMismatch { .. } => "VectorEquivalenceMismatchError",

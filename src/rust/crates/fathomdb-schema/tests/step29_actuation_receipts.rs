@@ -7,12 +7,12 @@ fn user_version(connection: &Connection) -> u32 {
 
 #[test]
 fn step29_adds_only_bounded_terminal_actuation_receipts() {
-    assert_eq!(SCHEMA_VERSION, 30);
+    assert_eq!(SCHEMA_VERSION, 31);
     let connection = Connection::open_in_memory().unwrap();
     migrate_with_steps(&connection, &MIGRATIONS[..28]).unwrap();
 
     migrate(&connection).unwrap();
-    assert_eq!(user_version(&connection), 30);
+    assert_eq!(user_version(&connection), 31);
     for name in ["_fathomdb_actuation_receipts", "_fathomdb_actuation_receipt_source_refs"] {
         let count: i64 = connection
             .query_row(

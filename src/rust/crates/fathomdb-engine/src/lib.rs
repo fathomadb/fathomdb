@@ -46,6 +46,7 @@
 
 mod actuation;
 mod dependency_closure;
+mod frozen_read;
 pub mod lifecycle;
 mod pcache2;
 #[cfg(feature = "tc5-benchmark")]
@@ -59,6 +60,7 @@ pub use dependency_closure::{
     ClosureCauseV1, ClosureLookupV1, ClosureOperationId, ClosurePhaseV1, ClosureProofV1,
     ClosureRootV1, ClosureStatusV1, DependencyClosureError, DependencyClosureErrorReason,
 };
+pub use frozen_read::{FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, ReadContextV1};
 
 /// Slice 72's private trusted-runner rendezvous. This is compiled only by the
 /// non-shipped characterization feature and exists solely to delimit real CE
@@ -696,6 +698,7 @@ const READER_LOOKASIDE_SLOT_COUNT: std::os::raw::c_int = 500;
 pub struct Engine {
     path: PathBuf,
     next_cursor: AtomicU64,
+    read_visibility_generation: AtomicU64,
     closed: AtomicBool,
     lock: Mutex<Option<File>>,
     connection: Mutex<Option<Connection>>,
@@ -1819,6 +1822,10 @@ enum ReaderRequest {
         /// treats NULL as unbounded ⇒ the conjunct is a provable no-op there).
         /// The existence axis is refused upstream, never carried here.
         view: ReadView,
+        frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
+        /// When present, produce bounded graph expansion from the final search
+        /// hits before committing the same reader transaction.
+        expand_depth: Option<u32>,
         respond: SyncSender<ReaderResponse>,
     },
     /// Slice 30 (G2) — active-only point lookup by `logical_id`. Returns one
@@ -1878,7 +1885,10 @@ enum ReaderRequest {
     SearchExpand {
         search_hits: Vec<SearchHit>,
         depth: u32,
-        respond: SyncSender<rusqlite::Result<SearchExpandResult>>,
+        view: ReadView,
+        filter: Option<Box<SearchFilter>>,
+        frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
+        respond: SyncSender<Result<SearchExpandResult, SearchReaderError>>,
     },
     /// Slice 20 test seam — run `EXPLAIN QUERY PLAN` on the BFS CTE SQL for
     /// the given root/depth/direction and return the plan detail lines.
@@ -1962,7 +1972,14 @@ enum ReaderRequest {
 // it rides the internal channel as a side-channel; unlike it, the explanation IS
 // surfaced (onto `SearchResult.explanation`) when requested.
 type ReaderResponse = Result<
-    (u64, Option<SoftFallback>, Vec<SearchHit>, GraphFrontierStats, Option<Explanation>),
+    (
+        u64,
+        Option<SoftFallback>,
+        Vec<SearchHit>,
+        GraphFrontierStats,
+        Option<Explanation>,
+        Option<SearchExpandResult>,
+    ),
     SearchReaderError,
 >;
 
@@ -1991,6 +2008,7 @@ enum SearchReaderError {
     Sqlite(rusqlite::Error),
     InvalidFilter(String),
     RerankerDevicePolicy(RerankerDevicePolicyError),
+    FrozenRead(FrozenReadError),
 }
 
 impl From<rusqlite::Error> for SearchReaderError {
@@ -2341,6 +2359,8 @@ fn reader_worker_loop(
                 pool_n,
                 explain,
                 view,
+                frozen_binding,
+                expand_depth,
                 respond,
             } => {
                 #[cfg(feature = "tc5-benchmark")]
@@ -2364,6 +2384,8 @@ fn reader_worker_loop(
                     pool_n,
                     explain,
                     view,
+                    frozen_binding.as_deref(),
+                    expand_depth,
                     &wal_attribution,
                     worker_idx,
                 );
@@ -2432,11 +2454,21 @@ fn reader_worker_loop(
                 finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
-            ReaderRequest::SearchExpand { search_hits, depth, respond } => {
+            ReaderRequest::SearchExpand {
+                search_hits,
+                depth,
+                view,
+                filter,
+                frozen_binding,
+                respond,
+            } => {
                 let result = search_expand_in_tx(
                     &mut connection,
                     &search_hits,
                     depth,
+                    view,
+                    filter.as_deref(),
+                    frozen_binding.as_deref(),
                     &wal_attribution,
                     worker_idx,
                 );
@@ -6046,6 +6078,9 @@ pub enum EngineError {
     DependencyClosure(DependencyClosureError),
     /// Bounded caller-decided actuation request or idempotency refusal.
     Actuation(ActuationError),
+    /// A frozen read context was malformed, unauthenticated, addressed to a
+    /// different database, or no longer matches the database read state.
+    FrozenRead(FrozenReadError),
     Overloaded,
     Closing,
     /// G11 (Slice 15) — BYO-LLM extractor subprocess error (protocol mismatch,
@@ -6161,6 +6196,12 @@ impl From<DependencyClosureError> for EngineError {
     }
 }
 
+impl From<FrozenReadError> for EngineError {
+    fn from(error: FrozenReadError) -> Self {
+        Self::FrozenRead(error)
+    }
+}
+
 impl Display for EngineError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -6188,6 +6229,7 @@ impl Display for EngineError {
             Self::Dependency(error) => write!(f, "dependency: {error}"),
             Self::DependencyClosure(error) => write!(f, "dependency closure: {error}"),
             Self::Actuation(error) => write!(f, "actuation: {error}"),
+            Self::FrozenRead(error) => write!(f, "frozen read: {error}"),
             Self::Overloaded => write!(f, "engine overloaded"),
             Self::Closing => write!(f, "engine is closing"),
             Self::Extractor => write!(f, "extractor error"),
@@ -6252,6 +6294,7 @@ impl EngineError {
             Self::Dependency(_) => "DependencyError",
             Self::DependencyClosure(_) => "DependencyClosureError",
             Self::Actuation(_) => "ActuationError",
+            Self::FrozenRead(_) => "FrozenReadError",
             Self::Overloaded => "OverloadedError",
             Self::Closing => "ClosingError",
             Self::Extractor => "ExtractorError",
@@ -6956,6 +6999,105 @@ impl Drop for Engine {
 }
 
 impl Engine {
+    /// Mint an authenticated read context bound to the current database state.
+    ///
+    /// The returned context is portable across process restarts for this
+    /// database. Any visibility-affecting mutation makes later consumption fail
+    /// with [`FrozenReadErrorReason::StateDrifted`].
+    pub fn freeze_read_context(
+        &self,
+        context: &ReadContextV1,
+    ) -> Result<FrozenReadContextV1, EngineError> {
+        self.ensure_open()?;
+        context.view.reject_existence_relaxation_on_search()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let (frozen, generation) = frozen_read::mint(connection, context)?;
+        let previous = self.read_visibility_generation.fetch_max(generation, Ordering::AcqRel);
+        if generation < previous {
+            return Err(FrozenReadError {
+                reason: FrozenReadErrorReason::StateUnavailable,
+                field_path: "/token".to_string(),
+            }
+            .into());
+        }
+        Ok(frozen)
+    }
+
+    /// Search using an authenticated frozen context.
+    ///
+    /// Eligibility and validity come exclusively from `frozen`; callers cannot
+    /// weaken them while consuming the token. A stale or foreign token is a
+    /// typed [`EngineError::FrozenRead`] refusal.
+    #[allow(clippy::too_many_arguments)]
+    pub fn search_frozen(
+        &self,
+        query: &str,
+        frozen: &FrozenReadContextV1,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        explain: bool,
+        limit: usize,
+    ) -> Result<SearchResult, EngineError> {
+        let limit = validate_search_result_limit(limit)?;
+        self.ensure_open()?;
+        let binding = {
+            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+            frozen_read::authenticate(connection, frozen)?
+        };
+        self.search_inner_with_frozen_binding_and_stats(
+            query,
+            Some(frozen.context.eligibility.clone()),
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            explain,
+            frozen.context.view,
+            limit,
+            Some(binding),
+        )
+        .map(|(result, _stats, _expanded)| result)
+    }
+
+    /// Hybrid search plus bounded expansion on one reader transaction under an
+    /// authenticated state binding.
+    pub fn search_expand_frozen(
+        &self,
+        query: &str,
+        frozen: &FrozenReadContextV1,
+        depth: u32,
+        limit: usize,
+    ) -> Result<SearchExpandResult, EngineError> {
+        if depth > 3 {
+            return Err(EngineError::InvalidArgument {
+                msg: format!("traversal depth {depth} exceeds the SDK ceiling of 3"),
+            });
+        }
+        let limit = validate_search_result_limit(limit)?;
+        let binding = {
+            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+            frozen_read::authenticate(connection, frozen)?
+        };
+        let (_search, _stats, expanded) = self.search_inner_with_frozen_binding_and_expansion(
+            query,
+            Some(frozen.context.eligibility.clone()),
+            0,
+            false,
+            0.3,
+            0,
+            false,
+            frozen.context.view,
+            limit,
+            Some(binding),
+            Some(depth),
+        )?;
+        expanded.ok_or(EngineError::Storage)
+    }
     /// Executes the TC-5 benchmark-only direct vector stage on one reader-worker
     /// snapshot. This symbol exists only with the `tc5-benchmark` feature and is
     /// deliberately not re-exported by the facade crate.
@@ -7292,6 +7434,12 @@ impl Engine {
                 };
 
                 let next_cursor = load_next_cursor(&connection);
+                let read_visibility_generation =
+                    frozen_read::load_visibility_generation(&connection).map_err(|_| {
+                        EngineOpenError::Io {
+                            message: "could not load frozen-read visibility generation".to_string(),
+                        }
+                    })?;
                 let subscribers = Arc::new(lifecycle::SubscriberRegistry::new());
                 let profiling_enabled = Arc::new(AtomicBool::new(false));
                 let slow_threshold_ms = Arc::new(AtomicU64::new(DEFAULT_SLOW_THRESHOLD_MS));
@@ -7335,6 +7483,7 @@ impl Engine {
                     engine: Self {
                         path: canonical_path.clone(),
                         next_cursor: AtomicU64::new(next_cursor),
+                        read_visibility_generation: AtomicU64::new(read_visibility_generation),
                         closed: AtomicBool::new(false),
                         lock: Mutex::new(Some(lock)),
                         connection: Mutex::new(Some(connection)),
@@ -7469,6 +7618,8 @@ impl Engine {
         let migration = migrate_with_event_sink(&connection, migrations, emit_migration_event)
             .map_err(map_migration_error)?;
         validate_dependency_generation_on_open(&connection, migration.schema_version_after)?;
+        frozen_read::validate_on_open(&connection, migration.schema_version_after)
+            .map_err(|message| EngineOpenError::Io { message })?;
         dependency_closure::validate_closure_state_on_open(
             &connection,
             migration.schema_version_after,
@@ -9735,29 +9886,35 @@ impl Engine {
             pool_n: 0,
             explain: false,
             view: *view,
+            frozen_binding: None,
+            expand_depth: None,
             respond: response_tx,
         };
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }
         let search_result = response_rx.recv().map_err(|_| EngineError::Storage)?;
-        let (cursor, soft_fallback, results, _graph_stats, explanation) = match search_result {
-            Ok(result) => result,
-            // fix-3 (codex §9 [P2]) — carry the reader-snapshot validation verdict
-            // through: an undeclared `filterable` attribute is the EXISTING typed
-            // `InvalidFilter`, never collapsed to `Storage`. (This path takes
-            // `filter = None`, so it never fires here, but the match stays total.)
-            Err(SearchReaderError::InvalidFilter(reason)) => {
-                return Err(EngineError::InvalidFilter { reason });
-            }
-            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
-                return Err(EngineError::RerankerDevicePolicy(error));
-            }
-            Err(SearchReaderError::Sqlite(err)) => {
-                self.emit_sqlite_internal_error(&err);
-                return Err(EngineError::Storage);
-            }
-        };
+        let (cursor, soft_fallback, results, _graph_stats, explanation, _expanded) =
+            match search_result {
+                Ok(result) => result,
+                // fix-3 (codex §9 [P2]) — carry the reader-snapshot validation verdict
+                // through: an undeclared `filterable` attribute is the EXISTING typed
+                // `InvalidFilter`, never collapsed to `Storage`. (This path takes
+                // `filter = None`, so it never fires here, but the match stays total.)
+                Err(SearchReaderError::InvalidFilter(reason)) => {
+                    return Err(EngineError::InvalidFilter { reason });
+                }
+                Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                    return Err(EngineError::RerankerDevicePolicy(error));
+                }
+                Err(SearchReaderError::FrozenRead(error)) => {
+                    return Err(EngineError::FrozenRead(error));
+                }
+                Err(SearchReaderError::Sqlite(err)) => {
+                    self.emit_sqlite_internal_error(&err);
+                    return Err(EngineError::Storage);
+                }
+            };
         Ok(SearchResult { projection_cursor: cursor, soft_fallback, results, explanation })
     }
 
@@ -9817,6 +9974,7 @@ impl Engine {
             Err(SearchReaderError::RerankerDevicePolicy(error)) => {
                 Err(EngineError::RerankerDevicePolicy(error))
             }
+            Err(SearchReaderError::FrozenRead(error)) => Err(EngineError::FrozenRead(error)),
             Err(SearchReaderError::Sqlite(err)) => {
                 self.emit_sqlite_internal_error(&err);
                 Err(EngineError::Storage)
@@ -10138,6 +10296,65 @@ impl Engine {
         view: ReadView,
         result_limit: usize,
     ) -> Result<(SearchResult, GraphFrontierStats), EngineError> {
+        self.search_inner_with_frozen_binding_and_stats(
+            query,
+            filter,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            explain,
+            view,
+            result_limit,
+            None,
+        )
+        .map(|(result, stats, _expanded)| (result, stats))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn search_inner_with_frozen_binding_and_stats(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        explain: bool,
+        view: ReadView,
+        result_limit: usize,
+        frozen_binding: Option<frozen_read::FrozenReadBinding>,
+    ) -> Result<(SearchResult, GraphFrontierStats, Option<SearchExpandResult>), EngineError> {
+        self.search_inner_with_frozen_binding_and_expansion(
+            query,
+            filter,
+            rerank_depth,
+            use_graph_arm,
+            alpha,
+            pool_n,
+            explain,
+            view,
+            result_limit,
+            frozen_binding,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn search_inner_with_frozen_binding_and_expansion(
+        &self,
+        query: &str,
+        filter: Option<SearchFilter>,
+        rerank_depth: usize,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: usize,
+        explain: bool,
+        view: ReadView,
+        result_limit: usize,
+        frozen_binding: Option<frozen_read::FrozenReadBinding>,
+        expand_depth: Option<u32>,
+    ) -> Result<(SearchResult, GraphFrontierStats, Option<SearchExpandResult>), EngineError> {
         self.ensure_open()?;
         // 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-4) — the SINGLE
         // vector-dependent choke point. If the open-time self-check found a
@@ -10248,29 +10465,35 @@ impl Engine {
             pool_n,
             explain,
             view,
+            frozen_binding: frozen_binding.map(Box::new),
+            expand_depth,
             respond: response_tx,
         };
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }
         let search_result = response_rx.recv().map_err(|_| EngineError::Storage)?;
-        let (cursor, soft_fallback, results, graph_stats, explanation) = match search_result {
-            Ok(result) => result,
-            // fix-3 (codex §9 [P2]) — an undeclared `filterable` attribute is caught
-            // on the reader's OWN snapshot (validate + vec0 query = one transaction),
-            // so it surfaces as the EXISTING typed `InvalidFilter` and can never be
-            // the opaque `no such column` `Storage` error the TOCTOU race produced.
-            Err(SearchReaderError::InvalidFilter(reason)) => {
-                return Err(EngineError::InvalidFilter { reason });
-            }
-            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
-                return Err(EngineError::RerankerDevicePolicy(error));
-            }
-            Err(SearchReaderError::Sqlite(err)) => {
-                self.emit_sqlite_internal_error(&err);
-                return Err(EngineError::Storage);
-            }
-        };
+        let (cursor, soft_fallback, results, graph_stats, explanation, expanded) =
+            match search_result {
+                Ok(result) => result,
+                // fix-3 (codex §9 [P2]) — an undeclared `filterable` attribute is caught
+                // on the reader's OWN snapshot (validate + vec0 query = one transaction),
+                // so it surfaces as the EXISTING typed `InvalidFilter` and can never be
+                // the opaque `no such column` `Storage` error the TOCTOU race produced.
+                Err(SearchReaderError::InvalidFilter(reason)) => {
+                    return Err(EngineError::InvalidFilter { reason });
+                }
+                Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                    return Err(EngineError::RerankerDevicePolicy(error));
+                }
+                Err(SearchReaderError::FrozenRead(error)) => {
+                    return Err(EngineError::FrozenRead(error));
+                }
+                Err(SearchReaderError::Sqlite(err)) => {
+                    self.emit_sqlite_internal_error(&err);
+                    return Err(EngineError::Storage);
+                }
+            };
 
         // The worker (`read_search_in_tx`) has no embedder identity; fill the
         // trace's `embedder_id` here, where `self.runtime_embedder_identity` is in
@@ -10284,6 +10507,7 @@ impl Engine {
         Ok((
             SearchResult { projection_cursor: cursor, soft_fallback, results, explanation },
             graph_stats,
+            expanded,
         ))
     }
 
@@ -10459,6 +10683,9 @@ impl Engine {
         let request = ReaderRequest::SearchExpand {
             search_hits: search_result.results,
             depth,
+            view: ReadView::default(),
+            filter: None,
+            frozen_binding: None,
             respond: response_tx,
         };
         if self.reader_pool.dispatch(request).is_err() {
@@ -10466,7 +10693,14 @@ impl Engine {
         }
         match response_rx.recv().map_err(|_| EngineError::Storage)? {
             Ok(result) => Ok(result),
-            Err(err) => {
+            Err(SearchReaderError::InvalidFilter(reason)) => {
+                Err(EngineError::InvalidFilter { reason })
+            }
+            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                Err(EngineError::RerankerDevicePolicy(error))
+            }
+            Err(SearchReaderError::FrozenRead(error)) => Err(EngineError::FrozenRead(error)),
+            Err(SearchReaderError::Sqlite(err)) => {
                 self.emit_sqlite_internal_error(&err);
                 Err(EngineError::Storage)
             }
@@ -14987,6 +15221,110 @@ pub fn vector_phase1_sql_for_test(filter: Option<&SearchFilter>) -> String {
     build_vector_phase1_sql(filter, SEARCH_RERANK_LIMIT)
 }
 
+/// Compile node eligibility into SQL that executes before ranking or limits.
+fn append_node_eligibility_sql(
+    filter: Option<&SearchFilter>,
+    alias: &str,
+    params: &mut Vec<rusqlite::types::Value>,
+) -> String {
+    use rusqlite::types::Value;
+    let Some(filter) = filter else {
+        return String::new();
+    };
+    let mut sql = String::new();
+    let mut bind = |value: Value| {
+        params.push(value);
+        params.len()
+    };
+    if let Some(value) = &filter.source_type {
+        let index = bind(Value::Text(value.clone()));
+        sql.push_str(&format!(
+            " AND CASE {alias}.kind WHEN 'email' THEN 'email' WHEN 'article' THEN 'article' \
+             WHEN 'paper' THEN 'paper' WHEN 'meeting' THEN 'meeting' WHEN 'note' THEN 'note' \
+             WHEN 'todo' THEN 'todo' WHEN 'doc' THEN 'article' END = ?{index}"
+        ));
+    }
+    if let Some(value) = &filter.kind {
+        let index = bind(Value::Text(value.clone()));
+        sql.push_str(&format!(" AND {alias}.kind = ?{index}"));
+    }
+    if let Some(value) = filter.created_after {
+        let index = bind(Value::Integer(value));
+        sql.push_str(&format!(
+            " AND EXISTS(SELECT 1 FROM vector_default vm WHERE vm.rowid = {alias}.write_cursor \
+             AND vm.created_at >= ?{index})"
+        ));
+    }
+    if let Some(value) = &filter.status {
+        let index = bind(Value::Text(value.clone()));
+        sql.push_str(&format!(
+            " AND EXISTS(SELECT 1 FROM vector_default vm WHERE vm.rowid = {alias}.write_cursor \
+             AND vm.status = ?{index})"
+        ));
+    }
+    for (ordinal, (name, value)) in filter.attributes.iter().enumerate() {
+        let name_index = bind(Value::Text(name.clone()));
+        let value_index = bind(Value::Text(value.clone()));
+        sql.push_str(&format!(
+            " AND EXISTS(SELECT 1 FROM canonical_attributes ca{ordinal} \
+             WHERE ca{ordinal}.write_cursor = {alias}.write_cursor \
+             AND ca{ordinal}.attr_name = ?{name_index} \
+             AND ca{ordinal}.attr_value = ?{value_index})"
+        ));
+    }
+    sql
+}
+
+/// Compile edge-hit eligibility before edge FTS ranking.
+fn append_edge_eligibility_sql(
+    filter: Option<&SearchFilter>,
+    alias: &str,
+    params: &mut Vec<rusqlite::types::Value>,
+) -> String {
+    use rusqlite::types::Value;
+    let Some(filter) = filter else {
+        return String::new();
+    };
+    let mut sql = String::new();
+    let mut bind = |value: Value| {
+        params.push(value);
+        params.len()
+    };
+    if let Some(value) = &filter.source_type {
+        let index = bind(Value::Text(value.clone()));
+        sql.push_str(&format!(" AND 'edge_fact' = ?{index}"));
+    }
+    if let Some(value) = &filter.kind {
+        let index = bind(Value::Text(value.clone()));
+        sql.push_str(&format!(" AND {alias}.kind = ?{index}"));
+    }
+    if let Some(value) = filter.created_after {
+        let index = bind(Value::Integer(value));
+        sql.push_str(&format!(
+            " AND EXISTS(SELECT 1 FROM vector_default vm WHERE vm.rowid = {alias}.write_cursor \
+             AND vm.created_at >= ?{index})"
+        ));
+    }
+    if let Some(value) = &filter.status {
+        let index = bind(Value::Text(value.clone()));
+        sql.push_str(&format!(
+            " AND EXISTS(SELECT 1 FROM vector_default vm WHERE vm.rowid = {alias}.write_cursor \
+             AND vm.status = ?{index})"
+        ));
+    }
+    for (ordinal, (name, value)) in filter.attributes.iter().enumerate() {
+        let name_index = bind(Value::Text(name.clone()));
+        let value_index = bind(Value::Text(value.clone()));
+        sql.push_str(&format!(
+            " AND EXISTS(SELECT 1 FROM canonical_attributes eca{ordinal} \
+             WHERE eca{ordinal}.write_cursor = {alias}.write_cursor \
+             AND eca{ordinal}.attr_name = ?{name_index} \
+             AND eca{ordinal}.attr_value = ?{value_index})"
+        ));
+    }
+    sql
+}
+
 /// G10 — does a text-branch hit satisfy the filter? The vector branch is
 /// pruned in-SQL; the text branch is constrained here against the same metadata:
 /// `kind` directly, `source_type` via [`resolve_source_type`], and
@@ -14994,6 +15332,7 @@ pub fn vector_phase1_sql_for_test(filter: Option<&SearchFilter>) -> String {
 /// text-only row absent from the vector partition cannot satisfy a
 /// `created_after`/`status` predicate, so it is excluded — filtered semantic
 /// search is a vector-metadata capability.
+#[allow(dead_code)]
 fn text_hit_passes_filter(
     tx: &rusqlite::Transaction<'_>,
     id: u64,
@@ -15143,6 +15482,7 @@ fn hit_attributes_pass_filter(
 /// - `created_after` / `status`: query `vector_default WHERE rowid = write_cursor`;
 ///   if absent from the vector partition the hit cannot satisfy a vec-metadata
 ///   predicate and is excluded.
+#[allow(dead_code)]
 fn edge_fts_hit_passes_filter(
     tx: &rusqlite::Transaction<'_>,
     write_cursor: u64,
@@ -15206,6 +15546,7 @@ fn edge_fts_hit_passes_filter(
 /// Apply every edge filter except declared projection attributes. This isolates
 /// the explanatory count from edge candidates rejected for an independent
 /// source-type, relation-kind, or vec-metadata predicate.
+#[allow(dead_code)]
 fn edge_fts_hit_passes_non_attribute_filter(
     tx: &rusqlite::Transaction<'_>,
     write_cursor: u64,
@@ -15271,13 +15612,6 @@ fn read_projected_text_in_tx(
         validate_filter_attributes_on_snapshot(&tx, filter)?;
     }
     let node_predicate = frozen.node_sql("n", 3);
-    let sql = format!(
-        "SELECT p.write_cursor, bm25(property_search_index), n.kind, n.body, n.logical_id, n.source_id
-         FROM property_search_index p JOIN canonical_nodes n ON n.write_cursor = p.write_cursor
-         WHERE p.attr_name = ?1 AND property_search_index MATCH ?2
-           {node_predicate}
-         ORDER BY bm25(property_search_index) ASC, p.write_cursor ASC"
-    );
     let mut params = vec![
         rusqlite::types::Value::Text(name.to_string()),
         rusqlite::types::Value::Text(compiled.match_expression),
@@ -15285,6 +15619,14 @@ fn read_projected_text_in_tx(
     if let Some(now) = frozen.now_param() {
         params.push(rusqlite::types::Value::Integer(now));
     }
+    let filter_predicate = append_node_eligibility_sql(filter, "n", &mut params);
+    let sql = format!(
+        "SELECT p.write_cursor, bm25(property_search_index), n.kind, n.body, n.logical_id, n.source_id
+         FROM property_search_index p JOIN canonical_nodes n ON n.write_cursor = p.write_cursor
+         WHERE p.attr_name = ?1 AND property_search_index MATCH ?2
+           {node_predicate}{filter_predicate}
+         ORDER BY bm25(property_search_index) ASC, p.write_cursor ASC"
+    );
     let mut stmt = tx.prepare(&sql)?;
     let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
         Ok((
@@ -15299,9 +15641,6 @@ fn read_projected_text_in_tx(
     let mut results = Vec::new();
     for row in rows {
         let (cursor, bm25, kind, body, logical_id, source_id) = row?;
-        if !text_hit_passes_filter(&tx, cursor as u64, &kind, filter)? {
-            continue;
-        }
         results.push(SearchHit {
             id: derive_stable_id(logical_id.as_deref(), &body),
             write_cursor: cursor as u64,
@@ -15344,6 +15683,8 @@ fn read_search_in_tx(
     pool_n: usize,
     explain: bool,
     view: ReadView,
+    frozen_binding: Option<&frozen_read::FrozenReadBinding>,
+    expand_depth: Option<u32>,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
 ) -> ReaderResponse {
@@ -15367,6 +15708,9 @@ fn read_search_in_tx(
     // production and on every non-race test.
     reader_search_hook::fire();
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
+    if let Some(expected) = frozen_binding {
+        frozen_read::validate_snapshot(&tx, expected).map_err(SearchReaderError::FrozenRead)?;
+    }
     let cursor = load_projection_cursor(&tx)?;
     // fix-3 (codex §9 [P2], TOCTOU) — validate every filter attribute name on THIS
     // reader transaction's snapshot, before `build_vector_phase1_sql` emits
@@ -15707,6 +16051,12 @@ fn read_search_in_tx(
             view.view.include_out_of_window,
             2,
         );
+        let mut text_params: Vec<rusqlite::types::Value> =
+            vec![rusqlite::types::Value::Text(compiled.match_expression.clone())];
+        if let Some(now) = now_param {
+            text_params.push(rusqlite::types::Value::Integer(now));
+        }
+        let text_filter = append_node_eligibility_sql(filter, "cn", &mut text_params);
         let join_sql = format!(
             "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
              bm25(search_index), cn.logical_id, cn.source_id FROM search_index \
@@ -15714,16 +16064,9 @@ fn read_search_in_tx(
              WHERE search_index MATCH ?1 \
                AND cn.superseded_at IS NULL \
                AND (cn.state = 'active' OR cn.state IS NULL)\
-               {text_validity}{text_eligibility} \
+               {text_validity}{text_eligibility}{text_filter} \
              ORDER BY bm25(search_index), search_index.write_cursor{limit_clause}"
         );
-        // `:now` rides at ?2 only when the view emitted a conjunct; the relaxed
-        // view produces the byte-identical single-parameter statement.
-        let mut text_params: Vec<rusqlite::types::Value> =
-            vec![rusqlite::types::Value::Text(compiled.match_expression.clone())];
-        if let Some(now) = now_param {
-            text_params.push(rusqlite::types::Value::Integer(now));
-        }
         #[cfg(feature = "test-hooks")]
         let force_full_sort =
             std::env::var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST").is_ok_and(|value| value == "1");
@@ -15756,7 +16099,7 @@ fn read_search_in_tx(
                  WHERE search_index MATCH ?1 \
                    AND cn.superseded_at IS NULL \
                    AND (cn.state = 'active' OR cn.state IS NULL)\
-                   {text_validity}{text_eligibility} \
+                   {text_validity}{text_eligibility}{text_filter} \
                    AND rank MATCH '{rank_mapping}' \
                  ORDER BY rank"
             );
@@ -15872,12 +16215,7 @@ fn read_search_in_tx(
             }
         }
     };
-    let mut text_results: Vec<SearchHit> = Vec::with_capacity(text_candidates.len());
-    for hit in text_candidates {
-        if text_hit_passes_filter(&tx, hit.write_cursor, &hit.kind, filter)? {
-            text_results.push(hit);
-        }
-    }
+    let mut text_results: Vec<SearchHit> = text_candidates;
 
     // G11 (Slice 15) — edge-body FTS branch from `search_index_edges`.
     // Appended to text_results; tagged with SoftFallbackBranch::TextEdge so
@@ -15914,21 +16252,25 @@ fn read_search_in_tx(
         // and always present (edge invalidation is not relaxed by node existence
         // relaxation).
         let edge_validity = edge_validity_sql_for_view("ce", 2, &view.view);
+        let mut edge_params = vec![
+            rusqlite::types::Value::Text(compiled.match_expression.clone()),
+            rusqlite::types::Value::Integer(view.edge_now()),
+        ];
+        let edge_filter = append_edge_eligibility_sql(filter, "ce", &mut edge_params);
         let edge_sql = format!(
             "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), \
              ce.logical_id, ce.source_id \
              FROM search_index_edges sei \
              JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor \
              WHERE search_index_edges MATCH ?1 \
-               AND ce.superseded_at IS NULL{edge_validity} \
+               AND ce.superseded_at IS NULL{edge_validity}{edge_filter} \
              ORDER BY bm25(search_index_edges), sei.write_cursor"
         );
         // search_index_edges may not exist on very old DBs not yet at step-14;
         // ignore the error gracefully (returns empty slice).
         if let Ok(mut stmt) = tx.prepare(&edge_sql) {
-            if let Ok(rows) = stmt.query_map(
-                rusqlite::params![compiled.match_expression.as_str(), view.edge_now()],
-                |row| {
+            if let Ok(rows) =
+                stmt.query_map(rusqlite::params_from_iter(edge_params.iter()), |row| {
                     let body = row.get::<_, String>(0)?;
                     let logical_id = row.get::<_, Option<String>>(4)?;
                     Ok(SearchHit {
@@ -15942,8 +16284,8 @@ fn read_search_in_tx(
                         source_id: row.get::<_, Option<String>>(5)?,
                         ce_score: None,
                     })
-                },
-            ) {
+                })
+            {
                 rows.flatten().collect()
             } else {
                 Vec::new()
@@ -15955,20 +16297,47 @@ fn read_search_in_tx(
     // Attribute predicates intentionally apply only to node projections. Count
     // edge-FTS candidates that would otherwise pass when the caller requested
     // the opt-in explanation, without adding work to the default search path.
-    let mut dropped_edge_hits = 0_u32;
-    for row in edge_candidates {
-        if edge_fts_hit_passes_filter(&tx, row.write_cursor, &row.kind, filter)? {
-            text_results.push(row);
-        } else if explain
-            && filter.is_some_and(|active_filter| !active_filter.attributes.is_empty())
-            && edge_fts_hit_passes_non_attribute_filter(&tx, row.write_cursor, &row.kind, filter)?
-        {
-            dropped_edge_hits = dropped_edge_hits.saturating_add(1);
+    let dropped_edge_hits = if explain
+        && filter.is_some_and(|active_filter| !active_filter.attributes.is_empty())
+    {
+        let mut non_attribute_filter = filter.cloned().unwrap_or_default();
+        non_attribute_filter.attributes.clear();
+        let edge_validity = edge_validity_sql_for_view("ce", 2, &view.view);
+        let mut params = vec![
+            rusqlite::types::Value::Text(compiled.match_expression.clone()),
+            rusqlite::types::Value::Integer(view.edge_now()),
+        ];
+        let eligibility =
+            append_edge_eligibility_sql(Some(&non_attribute_filter), "ce", &mut params);
+        let sql = format!(
+            "SELECT ce.write_cursor FROM search_index_edges sei \
+             JOIN canonical_edges ce ON ce.write_cursor=sei.write_cursor \
+             WHERE search_index_edges MATCH ?1 AND ce.superseded_at IS NULL\
+             {edge_validity}{eligibility}"
+        );
+        let mut dropped = 0_u32;
+        if let Ok(mut statement) = tx.prepare(&sql) {
+            if let Ok(rows) = statement
+                .query_map(rusqlite::params_from_iter(params.iter()), |row| row.get::<_, i64>(0))
+            {
+                for cursor in rows.flatten() {
+                    if !hit_attributes_pass_filter(
+                        &tx,
+                        cursor as u64,
+                        filter.expect("attribute filter checked above"),
+                    )? {
+                        dropped = dropped.saturating_add(1);
+                    }
+                }
+            }
         }
-    }
+        dropped
+    } else {
+        0
+    };
+    text_results.extend(edge_candidates);
     let vector_results = filter_barriered_search_hits(&tx, vector_results)?;
     let text_results = filter_barriered_search_hits(&tx, text_results)?;
-    tx.commit()?;
 
     // GA-2 / Slice-40 (◆ B-1) measurement seam: when `vector_stage_only` is set
     // (only ever by the eu7 recall harness via `set_vector_stage_only_for_test`,
@@ -16035,12 +16404,13 @@ fn read_search_in_tx(
         // edge-facts), not the doc-node fused hits. `fused_hits` is still passed for
         // the seed-body exclusion set.
         let (graph_candidates, stats, graph_edge_confidence) = bfs_graph_arm_candidates(
-            reader,
+            &tx,
             &two_arm_fused,
             compiled.match_expression.as_str(),
             3,
             50,
             view,
+            filter,
         )?;
         graph_stats = stats;
         if explain {
@@ -16056,7 +16426,7 @@ fn read_search_in_tx(
         // F9 — importance (node) / confidence (edge) reweight, OFF by default.
         // Order: AFTER recency (consistent placement), BEFORE the CE rerank seam.
         let (imp_map, mut conf_map) = if importance_enabled || explain {
-            build_importance_confidence_maps(reader, &fused).unwrap_or_default()
+            build_importance_confidence_maps(&tx, &fused).unwrap_or_default()
         } else {
             (HashMap::new(), HashMap::new())
         };
@@ -16089,7 +16459,7 @@ fn read_search_in_tx(
         // F9 — importance (node) / confidence (edge) reweight, OFF by default.
         // Same placement as the graph-arm branch: after recency, before CE rerank.
         let (imp_map, conf_map) = if importance_enabled || explain {
-            build_importance_confidence_maps(reader, &fused).unwrap_or_default()
+            build_importance_confidence_maps(&tx, &fused).unwrap_or_default()
         } else {
             (HashMap::new(), HashMap::new())
         };
@@ -16152,7 +16522,11 @@ fn read_search_in_tx(
         None
     };
 
-    Ok((cursor, soft_fallback, results, graph_stats, explanation))
+    let expanded = expand_depth
+        .map(|depth| search_expand_on_snapshot(&tx, &results, depth, view, filter))
+        .transpose()?;
+    tx.commit()?;
+    Ok((cursor, soft_fallback, results, graph_stats, explanation, expanded))
 }
 
 fn filter_barriered_search_hits(
@@ -16333,12 +16707,13 @@ fn record_fts_query_plan_for_test(
 /// neighbors; within a phase, `ORDER BY write_cursor` makes the earliest-written
 /// edge win). A NULL edge confidence is simply not inserted ⇒ neutral (1.0).
 fn bfs_graph_arm_candidates(
-    reader: &mut Connection,
+    tx: &Connection,
     fused_hits: &[SearchHit],
     match_expression: &str,
     max_depth: u32,
     cap: usize,
     view: FrozenView,
+    filter: Option<&SearchFilter>,
 ) -> rusqlite::Result<(Vec<SearchHit>, GraphFrontierStats, HashMap<u64, f64>)> {
     // fix-2 (codex §9 [P2]): the opt-in graph arm hydrates NODES too, so it takes
     // the same validity conjunct as the vector and FTS branches — otherwise
@@ -16356,8 +16731,6 @@ fn bfs_graph_arm_candidates(
     // Bodies already in the fused result — exclude these from graph arm output.
     let seed_bodies: std::collections::HashSet<&str> =
         fused_hits.iter().map(|h| h.body.as_str()).collect();
-
-    let tx = reader.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
 
     let mut frontier: VecDeque<(String, u32)> = VecDeque::new(); // (logical_id, depth)
     let mut visited: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -16397,6 +16770,33 @@ fn bfs_graph_arm_candidates(
         // may be absent on very old DBs (< step-14) — degrade to no edge seeds rather
         // than error.
         // TC-33: `?1` MATCH, `?2` LIMIT ⇒ the edge `:now` binds at `?3`.
+        let mut edge_seed_params: Vec<rusqlite::types::Value> = vec![
+            rusqlite::types::Value::Text(match_expression.to_string()),
+            rusqlite::types::Value::Integer(SEED_FTS_N as i64),
+            rusqlite::types::Value::Integer(view.edge_now()),
+        ];
+        let endpoint_now_index = 4;
+        if let Some(now) = now_param {
+            edge_seed_params.push(rusqlite::types::Value::Integer(now));
+        }
+        let from_filter = append_node_eligibility_sql(filter, "ef", &mut edge_seed_params);
+        let to_filter = append_node_eligibility_sql(filter, "et", &mut edge_seed_params);
+        let from_validity = view.validity_sql("ef", endpoint_now_index);
+        let to_validity = view.validity_sql("et", endpoint_now_index);
+        let from_dependency = dependency_closure::read_eligibility_sql(
+            "ef",
+            view.view.include_superseded,
+            view.view.include_inactive,
+            view.view.include_out_of_window,
+            endpoint_now_index,
+        );
+        let to_dependency = dependency_closure::read_eligibility_sql(
+            "et",
+            view.view.include_superseded,
+            view.view.include_inactive,
+            view.view.include_out_of_window,
+            endpoint_now_index,
+        );
         if let Ok(mut edge_seed_stmt) = tx.prepare(&format!(
             "SELECT ce.from_id, ce.to_id, ce.source_id, ce.confidence \
              FROM search_index_edges sei \
@@ -16404,12 +16804,18 @@ fn bfs_graph_arm_candidates(
              WHERE search_index_edges MATCH ?1 \
                AND ce.superseded_at IS NULL{} \
                AND (ce.temporal_fallback IS NULL OR ce.temporal_fallback = 0) \
+               AND (EXISTS(SELECT 1 FROM canonical_nodes ef WHERE ef.logical_id=ce.from_id \
+                    AND ef.superseded_at IS NULL AND ef.state='active'\
+                    {from_validity}{from_dependency}{from_filter}) \
+                 OR EXISTS(SELECT 1 FROM canonical_nodes et WHERE et.logical_id=ce.to_id \
+                    AND et.superseded_at IS NULL AND et.state='active'\
+                    {to_validity}{to_dependency}{to_filter})) \
              ORDER BY bm25(search_index_edges), sei.write_cursor \
              LIMIT ?2",
             edge_validity_sql_for_view("ce", 3, &view.view)
         )) {
             let rows = edge_seed_stmt.query_map(
-                rusqlite::params![match_expression, SEED_FTS_N as i64, view.edge_now()],
+                rusqlite::params_from_iter(edge_seed_params.iter()),
                 |row| {
                     Ok((
                         row.get::<_, String>(0)?,
@@ -16451,6 +16857,14 @@ fn bfs_graph_arm_candidates(
                 view.view.include_out_of_window,
                 3,
             );
+            let mut seed_params: Vec<rusqlite::types::Value> = vec![
+                rusqlite::types::Value::Text(match_expression.to_string()),
+                rusqlite::types::Value::Integer(SEED_FTS_N as i64),
+            ];
+            if let Some(now) = now_param {
+                seed_params.push(rusqlite::types::Value::Integer(now));
+            }
+            let seed_filter = append_node_eligibility_sql(filter, "cn", &mut seed_params);
             let mut node_seed_stmt = tx.prepare(&format!(
                 "SELECT cn.logical_id, cn.source_id \
                  FROM search_index si \
@@ -16459,17 +16873,10 @@ fn bfs_graph_arm_candidates(
                    AND cn.superseded_at IS NULL \
                    AND cn.state = 'active' \
                    AND cn.logical_id IS NOT NULL\
-                   {seed_validity}{seed_eligibility} \
+                   {seed_validity}{seed_eligibility}{seed_filter} \
                  ORDER BY bm25(search_index), si.write_cursor \
                  LIMIT ?2"
             ))?;
-            let mut seed_params: Vec<rusqlite::types::Value> = vec![
-                rusqlite::types::Value::Text(match_expression.to_string()),
-                rusqlite::types::Value::Integer(SEED_FTS_N as i64),
-            ];
-            if let Some(now) = now_param {
-                seed_params.push(rusqlite::types::Value::Integer(now));
-            }
             let rows = node_seed_stmt
                 .query_map(rusqlite::params_from_iter(seed_params.iter()), |row| {
                     Ok((row.get::<_, String>(0)?, row.get::<_, Option<String>>(1)?))
@@ -16495,18 +16902,21 @@ fn bfs_graph_arm_candidates(
             view.view.include_out_of_window,
             2,
         );
+        let mut active_params_template = vec![rusqlite::types::Value::Text(String::new())];
+        if let Some(now) = now_param {
+            active_params_template.push(rusqlite::types::Value::Integer(now));
+        }
+        let active_filter =
+            append_node_eligibility_sql(filter, "canonical_nodes", &mut active_params_template);
         let mut active_stmt = tx.prepare(&format!(
             "SELECT kind, body, write_cursor FROM canonical_nodes \
              WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active'\
-             {active_validity}{active_eligibility} LIMIT 1"
+             {active_validity}{active_eligibility}{active_filter} LIMIT 1"
         ))?;
         for (lid, source_id, seed_confidence) in candidate_seeds {
             stats.seeds_considered += 1;
-            let mut active_params: Vec<rusqlite::types::Value> =
-                vec![rusqlite::types::Value::Text(lid.clone())];
-            if let Some(now) = now_param {
-                active_params.push(rusqlite::types::Value::Integer(now));
-            }
+            let mut active_params = active_params_template.clone();
+            active_params[0] = rusqlite::types::Value::Text(lid.clone());
             let row: Option<(String, String, i64)> = active_stmt
                 .query_row(rusqlite::params_from_iter(active_params.iter()), |r| {
                     Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, i64>(2)?))
@@ -16584,10 +16994,16 @@ fn bfs_graph_arm_candidates(
         view.view.include_out_of_window,
         2,
     );
+    let mut body_params_template = vec![rusqlite::types::Value::Text(String::new())];
+    if let Some(now) = now_param {
+        body_params_template.push(rusqlite::types::Value::Integer(now));
+    }
+    let body_filter =
+        append_node_eligibility_sql(filter, "canonical_nodes", &mut body_params_template);
     let mut body_stmt = tx.prepare(&format!(
         "SELECT kind, body, write_cursor FROM canonical_nodes \
          WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active'\
-         {body_validity}{body_eligibility} \
+         {body_validity}{body_eligibility}{body_filter} \
          LIMIT 1"
     ))?;
 
@@ -16626,11 +17042,8 @@ fn bfs_graph_arm_candidates(
             visited.insert(neighbor.clone());
 
             // Fetch neighbor body + write_cursor from canonical_nodes.
-            let mut body_params: Vec<rusqlite::types::Value> =
-                vec![rusqlite::types::Value::Text(neighbor.clone())];
-            if let Some(now) = now_param {
-                body_params.push(rusqlite::types::Value::Integer(now));
-            }
+            let mut body_params = body_params_template.clone();
+            body_params[0] = rusqlite::types::Value::Text(neighbor.clone());
             let row: Option<(String, String, i64)> = body_stmt
                 .query_row(rusqlite::params_from_iter(body_params.iter()), |row| {
                     Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, i64>(2)?))
@@ -16675,7 +17088,6 @@ fn bfs_graph_arm_candidates(
 
     drop(edge_stmt);
     drop(body_stmt);
-    tx.commit()?;
     stats.graph_candidates_emitted = candidates.len() as u32;
     Ok((candidates, stats, edge_confidence_by_cursor))
 }
@@ -17000,7 +17412,9 @@ LIMIT {cap}"
 /// expanded node carries its actual BFS distance from the root.
 ///
 /// Returns 5 columns: logical_id, kind, body, write_cursor, min_depth.
-fn build_bfs_with_depth_sql() -> String {
+fn build_bfs_with_depth_sql(
+    filter: Option<&SearchFilter>,
+) -> (String, Vec<rusqlite::types::Value>) {
     let cap = GRAPH_NEIGHBORS_HARD_CAP;
     let cte_cap = cap * cap; // same multigraph-safe headroom as build_bfs_sql
                              // TC-33: `?1` anchor, `?2` depth ⇒ the edge `:now` binds at `?3`. This is a
@@ -17011,12 +17425,20 @@ fn build_bfs_with_depth_sql() -> String {
     let next_node = strict.node_sql("next_n", 3);
     let projection_node = strict.node_sql("n", 3);
     let edge_valid = edge_validity_sql_for_view("e", 3, &strict);
-    format!(
+    // Reserve ?1 (root), ?2 (depth), and ?3 (the frozen validity instant).
+    // Eligibility is emitted independently at each node position because a
+    // recursive frontier must never admit an ineligible node and the final
+    // cap must count only eligible rows.
+    let mut params = vec![rusqlite::types::Value::Null; 3];
+    let anchor_eligibility = append_node_eligibility_sql(filter, "n", &mut params);
+    let next_eligibility = append_node_eligibility_sql(filter, "next_n", &mut params);
+    let projection_eligibility = append_node_eligibility_sql(filter, "n", &mut params);
+    let sql = format!(
         "WITH RECURSIVE
   traversal(logical_id, depth, visited) AS (
     SELECT n.logical_id, 0, char(30) || n.logical_id || char(30)
     FROM canonical_nodes n
-    WHERE n.logical_id = ?1{anchor_node}
+    WHERE n.logical_id = ?1{anchor_node}{anchor_eligibility}
     UNION ALL
     SELECT
       CASE WHEN e.from_id = t.logical_id THEN e.to_id ELSE e.from_id END,
@@ -17026,7 +17448,7 @@ fn build_bfs_with_depth_sql() -> String {
     JOIN canonical_edges e ON (e.from_id = t.logical_id OR e.to_id = t.logical_id)
     JOIN canonical_nodes next_n
       ON next_n.logical_id = CASE WHEN e.from_id = t.logical_id THEN e.to_id ELSE e.from_id END
-      {next_node}
+      {next_node}{next_eligibility}
     WHERE t.depth < ?2
       AND e.superseded_at IS NULL{edge_valid}
       AND instr(t.visited,
@@ -17036,10 +17458,11 @@ fn build_bfs_with_depth_sql() -> String {
 SELECT n.logical_id, n.kind, n.body, n.write_cursor, MIN(tr.depth) AS min_depth
 FROM traversal tr
 JOIN canonical_nodes n ON n.logical_id = tr.logical_id
-WHERE tr.logical_id != ?1{projection_node}
+WHERE tr.logical_id != ?1{projection_node}{projection_eligibility}
 GROUP BY n.logical_id
 LIMIT {cap}"
-    )
+    );
+    (sql, params)
 }
 
 /// 0.8.20 Slice 10b (R-20-NV) — the validity-boundary hook, on the DEFERRED
@@ -17154,16 +17577,37 @@ fn graph_neighbors_in_tx(
 /// Slice 20 (G6) — resolve search hit `write_cursor`s to `logical_id`s, run
 /// BFS for each root, and merge into a [`SearchExpandResult`]. Called inside
 /// the reader worker loop on the DEFERRED reader transaction.
+#[allow(clippy::too_many_arguments)]
 fn search_expand_in_tx(
     reader: &mut Connection,
     search_hits: &[SearchHit],
     depth: u32,
+    view: ReadView,
+    filter: Option<&SearchFilter>,
+    frozen_binding: Option<&frozen_read::FrozenReadBinding>,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
-) -> rusqlite::Result<SearchExpandResult> {
+) -> Result<SearchExpandResult, SearchReaderError> {
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
-    let frozen = ReadView::default().freeze();
+    if let Some(expected) = frozen_binding {
+        frozen_read::validate_snapshot(&tx, expected).map_err(SearchReaderError::FrozenRead)?;
+    }
+    if let Some(filter) = filter {
+        validate_filter_attributes_on_snapshot(&tx, filter)?;
+    }
+    let result = search_expand_on_snapshot(&tx, search_hits, depth, view.freeze(), filter)?;
+    tx.commit()?;
+    Ok(result)
+}
 
+/// Resolve and expand search hits on an already-pinned reader snapshot.
+fn search_expand_on_snapshot(
+    tx: &Connection,
+    search_hits: &[SearchHit],
+    depth: u32,
+    frozen: FrozenView,
+    filter: Option<&SearchFilter>,
+) -> Result<SearchExpandResult, SearchReaderError> {
     // Step 1: resolve write_cursor → logical_id for each search hit.
     // Possible outcomes per hit:
     //   - None: no matching write_cursor in canonical_nodes (superseded) → drop.
@@ -17225,7 +17669,7 @@ fn search_expand_in_tx(
     // Step 2: for each root logical_id, run the BFS and collect expanded nodes.
     // A node already in `hit_id_set` is NOT added to `expanded`.
     // Use the depth-aware variant so each node reports its actual BFS distance.
-    let bfs_sql = build_bfs_with_depth_sql();
+    let (bfs_sql, bfs_parameter_template) = build_bfs_with_depth_sql(filter);
     let depth_i64 = depth as i64;
     // nearest_hop: for each expanded logical_id track the minimum hop count
     // seen across ALL search-hit roots. A node reachable from multiple roots
@@ -17240,8 +17684,12 @@ fn search_expand_in_tx(
         // resolved ONCE here, not per root, so every root in one call agrees.
         let edge_now = frozen.edge_now();
         for root_id in hit_logical_ids.iter().flatten().filter(|s| !s.is_empty()) {
+            let mut binds = bfs_parameter_template.clone();
+            binds[0] = rusqlite::types::Value::Text(root_id.clone());
+            binds[1] = rusqlite::types::Value::Integer(depth_i64);
+            binds[2] = rusqlite::types::Value::Integer(edge_now);
             let neighbor_rows =
-                bfs_stmt.query_map(params![root_id, depth_i64, edge_now], |row| {
+                bfs_stmt.query_map(rusqlite::params_from_iter(binds.iter()), |row| {
                     let node = NodeRecord {
                         logical_id: row.get(0)?,
                         kind: row.get(1)?,

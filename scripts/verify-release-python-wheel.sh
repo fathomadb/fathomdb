@@ -82,6 +82,15 @@ with tempfile.TemporaryDirectory() as root:
         }])
         hits = engine.search("durable wheel").results
         assert any(hit.body == "durable wheel provenance smoke" for hit in hits)
+        frozen = engine.freeze_read_context(
+            fathomdb.ReadContextV1(
+                eligibility=fathomdb.SearchFilter(kind="doc"),
+            )
+        )
+        frozen_hits = engine.search_frozen("durable wheel", frozen).results
+        assert any(hit.body == "durable wheel provenance smoke" for hit in frozen_hits)
+        expanded = engine.search_expand_frozen("durable wheel", frozen, depth=0)
+        assert expanded.search_hits
     finally:
         engine.close()
 

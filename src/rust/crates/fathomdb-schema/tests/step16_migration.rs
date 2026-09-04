@@ -66,11 +66,11 @@ fn s16_row_kind_column_present_and_schema_version_is_head() {
     );
 
     assert_eq!(user_version(&conn), SCHEMA_VERSION);
-    assert_eq!(SCHEMA_VERSION, 30, "SCHEMA_VERSION must include Slice 30 step 30");
+    assert_eq!(SCHEMA_VERSION, 31, "SCHEMA_VERSION must include Slice 35 step 31");
     assert_eq!(
         MIGRATIONS.last().expect("at least one migration").step_id,
-        30,
-        "step-30 (dependency closures, Slice 30) must be the last (head) migration"
+        31,
+        "step-31 (frozen reads, Slice 35) must be the last (head) migration"
     );
 }
 

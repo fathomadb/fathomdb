@@ -63,3 +63,13 @@ Ownership split:
 - no secondary version manifest file
 - no public promise around internal SQLite page layout beyond what the on-disk
   files and `PRAGMA user_version` already expose
+
+## Frozen-read wire object (0.8.25 Slice 35)
+
+The cross-SDK object is `FrozenReadContextV1`: `schemaVersion` 1,
+`effectiveValidAt`, an echoed `ReadContextV1`, and an opaque database-local
+token. The token is bounded to 1 KiB, contains no query, eligibility value, or
+stored content, and is not portable to a separately created database. Readers
+must ignore additive response fields but reject an unsupported schema version.
+The refusal envelope uses `FDB_FROZEN_READ` with closed `reason` and
+`fieldPath` members.

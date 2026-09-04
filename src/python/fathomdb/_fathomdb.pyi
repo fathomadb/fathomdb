@@ -172,6 +172,32 @@ class ReadView:
         valid_as_of: int | None = None,
     ) -> None: ...
 
+class ReadContextV1:
+    schema_version: int
+    def __init__(
+        self,
+        view: ReadView | None = ...,
+        source_type: str | None = ...,
+        kind: str | None = ...,
+        created_after: int | None = ...,
+        status: str | None = ...,
+        attributes: list[tuple[str, str]] | None = ...,
+        schema_version: int = ...,
+    ) -> None: ...
+
+class FrozenReadContextV1:
+    schema_version: int
+    effective_valid_at: int
+    context: ReadContextV1
+    token: str
+    def __init__(
+        self,
+        effective_valid_at: int,
+        context: ReadContextV1,
+        token: str,
+        schema_version: int = ...,
+    ) -> None: ...
+
 class BoundaryCrossing:
     node: NodeRecord
     became_valid_at: int | None
@@ -291,6 +317,25 @@ class Engine:
     # them on the public stub would imply they are callable by end users,
     # which is false.
     def open_report(self) -> OpenReport: ...
+    def freeze_read_context(self, context: ReadContextV1) -> FrozenReadContextV1: ...
+    def search_frozen(
+        self,
+        query: str,
+        context: FrozenReadContextV1,
+        rerank_depth: int = ...,
+        use_graph_arm: bool = ...,
+        alpha: float = ...,
+        pool_n: int = ...,
+        explain: bool = ...,
+        limit: int = ...,
+    ) -> SearchResult: ...
+    def search_expand_frozen(
+        self,
+        query: str,
+        context: FrozenReadContextV1,
+        depth: int,
+        limit: int = ...,
+    ) -> SearchExpandResult: ...
     # Write items are loose mappings, not typed structs, so the stub cannot
     # express their shape. A NODE item accepts:
     #   kind: str (required)        body: str
@@ -615,6 +660,9 @@ def embed_batch_cls(texts: list[str]) -> list[list[float]]:
 def force_panic_for_test() -> None: ...
 
 class EngineError(Exception): ...
+class FrozenReadError(EngineError):
+    reason: str
+    field_path: str
 class StorageError(EngineError): ...
 class ProjectionError(EngineError): ...
 class VectorError(EngineError): ...

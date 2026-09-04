@@ -17,6 +17,8 @@ from typing import Any, Literal, cast
 
 from fathomdb._fathomdb import ConsolidateReceipt
 from fathomdb._fathomdb import Engine as _NativeEngine
+from fathomdb._fathomdb import FrozenReadContextV1 as _NativeFrozenReadContextV1
+from fathomdb._fathomdb import ReadContextV1 as _NativeReadContextV1
 from fathomdb._fathomdb import EraseReport
 from fathomdb._fathomdb import IngestWithExtractorReceipt
 from fathomdb._fathomdb import ProjectionSpec as _NativeProjectionSpec
@@ -38,15 +40,20 @@ from fathomdb.types import (
     EmbedderIdentity,
     EffectiveEmbedDevice,
     Explanation,
+    ExpandedNode,
+    FrozenReadContextV1,
     GpuAllocationWitness,
     IdSpace,
     MigrationStepReport,
+    NodeRecord,
     OpenReport,
     PerHitExplain,
     ProjectionDelta,
     ProjectionSpec,
     QueryTrace,
+    ReadContextV1,
     ReadView,
+    SearchExpandResult,
     SearchFilter,
     SearchHit,
     SearchResult,
@@ -67,6 +74,98 @@ from fathomdb.errors import InvalidArgumentError
 # points can never drift from the five read verbs. `fathomdb.read` imports
 # `fathomdb.engine` only under TYPE_CHECKING, so this is not circular at runtime.
 from fathomdb.read import _to_native_view
+
+
+def _map_native_search_result(result: Any) -> SearchResult:
+    fallback = result.soft_fallback
+    soft = (
+        SoftFallback(branch=cast(SoftFallbackBranch, fallback.branch))
+        if fallback is not None
+        else None
+    )
+    native_exp = result.explanation
+    explanation = (
+        Explanation(
+            trace=QueryTrace(
+                query_chars=native_exp.trace.query_chars,
+                k=native_exp.trace.k,
+                rerank_depth=native_exp.trace.rerank_depth,
+                pool_n=native_exp.trace.pool_n,
+                alpha=native_exp.trace.alpha,
+                use_graph_arm=native_exp.trace.use_graph_arm,
+                recency=native_exp.trace.recency,
+                embedder_id=native_exp.trace.embedder_id,
+                ce_active=native_exp.trace.ce_active,
+                vector_hits=native_exp.trace.vector_hits,
+                text_hits=native_exp.trace.text_hits,
+                graph_hits=native_exp.trace.graph_hits,
+                dropped_edge_hits=native_exp.trace.dropped_edge_hits,
+            ),
+            per_hit=[_map_per_hit_explain(item) for item in native_exp.per_hit],
+        )
+        if native_exp is not None
+        else None
+    )
+    return SearchResult(
+        projection_cursor=result.projection_cursor,
+        soft_fallback=soft,
+        results=[
+            SearchHit(
+                id=IdSpace(space=hit.id.space, value=hit.id.value),
+                kind=hit.kind,
+                body=hit.body,
+                score=hit.score,
+                branch=cast(SoftFallbackBranch, hit.branch),
+                source_id=hit.source_id,
+                ce_score=hit.ce_score,
+            )
+            for hit in result.results
+        ],
+        explanation=explanation,
+    )
+
+
+def _to_native_read_context(context: ReadContextV1) -> Any:
+    eligibility = context.eligibility
+    return _NativeReadContextV1(
+        view=_to_native_view(context.view),
+        source_type=eligibility.source_type,
+        kind=eligibility.kind,
+        created_after=eligibility.created_after,
+        status=eligibility.status,
+        attributes=list(eligibility.attributes),
+        schema_version=context.schema_version,
+    )
+
+
+def _to_native_frozen_context(context: FrozenReadContextV1) -> Any:
+    return _NativeFrozenReadContextV1(
+        context.effective_valid_at,
+        _to_native_read_context(context.context),
+        context.token,
+        schema_version=context.schema_version,
+    )
+
+
+def _map_native_search_hit(hit: Any) -> SearchHit:
+    return SearchHit(
+        id=IdSpace(space=hit.id.space, value=hit.id.value),
+        kind=hit.kind,
+        body=hit.body,
+        score=hit.score,
+        branch=cast(SoftFallbackBranch, hit.branch),
+        source_id=hit.source_id,
+        ce_score=hit.ce_score,
+    )
+
+
+def _map_native_node(node: Any) -> NodeRecord:
+    return NodeRecord(
+        logical_id=node.logical_id,
+        kind=node.kind,
+        body=node.body,
+        write_cursor=node.write_cursor,
+    )
 
 _KWARG_FIELDS = {
     "embedder_pool_size",
@@ -789,6 +888,95 @@ class Engine:
                 for hit in result.results
             ],
             explanation=explanation,
+        )
+
+    def freeze_read_context(self, context: ReadContextV1) -> FrozenReadContextV1:
+        """Mint a restart-stable context bound to this database's read state."""
+        if not isinstance(context, ReadContextV1):
+            raise TypeError(
+                "context must be a ReadContextV1, "
+                f"got {type(context).__name__!r}"
+            )
+        native = self._native.freeze_read_context(_to_native_read_context(context))
+        resolved_context = ReadContextV1(
+            view=ReadView(
+                include_superseded=context.view.include_superseded,
+                include_inactive=context.view.include_inactive,
+                include_out_of_window=context.view.include_out_of_window,
+                valid_as_of=native.effective_valid_at,
+            ),
+            eligibility=context.eligibility,
+            schema_version=context.schema_version,
+        )
+        return FrozenReadContextV1(
+            effective_valid_at=native.effective_valid_at,
+            context=resolved_context,
+            token=native.token,
+            schema_version=native.schema_version,
+        )
+
+    def search_frozen(
+        self,
+        query: str,
+        context: FrozenReadContextV1,
+        *,
+        rerank_depth: int = 0,
+        use_graph_arm: bool = False,
+        alpha: float = 0.3,
+        pool_n: int = 0,
+        explain: bool = False,
+        limit: int = 10,
+    ) -> SearchResult:
+        """Search under an Engine-authenticated frozen validity/eligibility context."""
+        if not isinstance(context, FrozenReadContextV1):
+            raise TypeError(
+                "context must be a FrozenReadContextV1, "
+                f"got {type(context).__name__!r}"
+            )
+        return _map_native_search_result(
+            self._native.search_frozen(
+                query,
+                _to_native_frozen_context(context),
+                rerank_depth=rerank_depth,
+                use_graph_arm=use_graph_arm,
+                alpha=alpha,
+                pool_n=pool_n,
+                explain=explain,
+                limit=_validate_ranked_result_limit("limit", limit),
+            )
+        )
+
+    def search_expand_frozen(
+        self,
+        query: str,
+        context: FrozenReadContextV1,
+        depth: int,
+        *,
+        limit: int = 10,
+    ) -> SearchExpandResult:
+        """Search and expand while enforcing one frozen read context."""
+        if not isinstance(context, FrozenReadContextV1):
+            raise TypeError(
+                "context must be a FrozenReadContextV1, "
+                f"got {type(context).__name__!r}"
+            )
+        if not isinstance(depth, int) or isinstance(depth, bool) or not 0 <= depth <= 3:
+            raise InvalidArgumentError(
+                f"depth must be an integer in 0..=3, got {depth!r}"
+            )
+        native = self._native.search_expand_frozen(
+            query,
+            _to_native_frozen_context(context),
+            depth,
+            limit=_validate_ranked_result_limit("limit", limit),
+        )
+        return SearchExpandResult(
+            search_hits=[_map_native_search_hit(hit) for hit in native.search_hits],
+            expanded=[
+                ExpandedNode(node=_map_native_node(item.node), hop_count=item.hop_count)
+                for item in native.expanded
+            ],
+            all_logical_ids=list(native.all_logical_ids),
         )
 
     def search_projected_text(

@@ -21,7 +21,7 @@ use std::time::Instant;
 
 use rusqlite::Connection;
 
-pub const SCHEMA_VERSION: u32 = 30;
+pub const SCHEMA_VERSION: u32 = 31;
 
 /// SQLite `PRAGMA` name carrying the on-disk schema-version sentinel.
 ///
@@ -69,6 +69,29 @@ pub const CANONICAL_TABLES: &[&str] = &[
 pub struct Migration {
     pub step_id: u32,
     pub sql: &'static str,
+}
+
+// Slice 35 keeps the 13-table x 3-operation trigger manifest readable while
+// still materializing one static SQL string in `MIGRATIONS`. SQLite does not
+// support dynamic DDL inside a migration transaction.
+macro_rules! read_visibility_migration_sql {
+    ($(($short:literal, $table:literal)),+ $(,)?) => {
+        concat!(
+            "-- MIGRATION-ACCRETION-EXEMPTION: Slice-35 content-free frozen-read identity/key plus read-visibility generation and real-table triggers; additive shape only, no canonical or projection backfill.\n",
+            "INSERT INTO _fathomdb_open_state(key,value) VALUES('_fathomdb_database_id',lower(hex(randomblob(16))));\n",
+            "INSERT INTO _fathomdb_open_state(key,value) VALUES('_fathomdb_read_context_key',lower(hex(randomblob(32))));\n",
+            "CREATE TABLE _fathomdb_read_visibility_state(singleton INTEGER PRIMARY KEY CHECK(singleton=1),generation INTEGER NOT NULL CHECK(generation BETWEEN 0 AND 9223372036854775807));\n",
+            "INSERT INTO _fathomdb_read_visibility_state(singleton,generation) VALUES(1,0);\n",
+            $(
+                "CREATE TRIGGER _fathomdb_read_visibility_", $short, "_ai AFTER INSERT ON ", $table,
+                " BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END WHERE singleton=1; END;\n",
+                "CREATE TRIGGER _fathomdb_read_visibility_", $short, "_au AFTER UPDATE ON ", $table,
+                " BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END WHERE singleton=1; END;\n",
+                "CREATE TRIGGER _fathomdb_read_visibility_", $short, "_ad AFTER DELETE ON ", $table,
+                " BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END WHERE singleton=1; END;\n",
+            )+
+        )
+    };
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1139,6 +1162,28 @@ pub const MIGRATIONS: &[Migration] = &[
               CREATE UNIQUE INDEX _fathomdb_dependency_closures_active_retry
                   ON _fathomdb_dependency_closures(retry_fingerprint)
                   WHERE phase != 'complete';",
+    },
+    // 0.8.25 Slice 35 — database-local frozen-read identity and the checked
+    // generation covering every real table that owns search-visible state.
+    // FTS5/vec0 virtual tables cannot carry triggers; their production writes
+    // are transactionally coupled to one of these real owner/terminal tables.
+    Migration {
+        step_id: 31,
+        sql: read_visibility_migration_sql!(
+            ("cn", "canonical_nodes"),
+            ("ce", "canonical_edges"),
+            ("ar", "_fathomdb_artifact_revisions"),
+            ("sv", "_fathomdb_source_versions"),
+            ("sl", "_fathomdb_source_links"),
+            ("sd", "_fathomdb_source_dependencies"),
+            ("dc", "_fathomdb_dependency_closures"),
+            ("pr", "_fathomdb_projection_registry"),
+            ("ca", "canonical_attributes"),
+            ("ps", "_fathomdb_projection_state"),
+            ("pt", "_fathomdb_projection_terminal"),
+            ("vk", "_fathomdb_vector_kinds"),
+            ("vr", "_fathomdb_vector_rows"),
+        ),
     },
 ];
 

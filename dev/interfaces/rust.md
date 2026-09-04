@@ -1068,3 +1068,14 @@ The Rust runtime surface does not expose recovery verbs. Recovery remains CLI
 only per `design/recovery.md` and `design/bindings.md`. The re-exported
 recovery types above are present as compile-time symbols for `fathomdb-cli`;
 the runtime `Engine` does NOT gain corresponding SDK methods.
+
+## Frozen read context (0.8.25 Slice 35)
+
+`ReadContextV1` combines one `ReadView` with one `SearchFilter`.
+`Engine::freeze_read_context` resolves its validity instant and returns a
+`FrozenReadContextV1` authenticated to the current database read state.
+`Engine::search_frozen` and `Engine::search_expand_frozen` accept that complete
+object and reject tampering, another database, unsupported versions, or state
+drift with `EngineError::FrozenRead`. Frozen combined search and expansion run
+on one reader transaction. Eligibility is applied before candidate limits in
+the lexical, dense, and graph paths.

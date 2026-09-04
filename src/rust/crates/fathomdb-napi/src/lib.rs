@@ -2903,13 +2903,11 @@ fn escape_json_pointer_token(token: &str) -> String {
 fn strict_json_keys(value: &JsonValue, allowed: &[&str], base_path: &str) -> Result<()> {
     let object =
         value.as_object().ok_or_else(|| provenance_napi_error("unknown_field", base_path))?;
-    for key in object.keys() {
-        if !allowed.contains(&key.as_str()) {
-            return Err(provenance_napi_error(
-                "unknown_field",
-                format!("{base_path}/{}", escape_json_pointer_token(key)),
-            ));
-        }
+    if let Some(key) = object.keys().filter(|key| !allowed.contains(&key.as_str())).min() {
+        return Err(provenance_napi_error(
+            "unknown_field",
+            format!("{base_path}/{}", escape_json_pointer_token(key)),
+        ));
     }
     Ok(())
 }

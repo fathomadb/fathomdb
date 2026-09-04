@@ -2687,16 +2687,23 @@ fn strict_provenance_keys(
     allowed: &[&str],
     field_path: &str,
 ) -> PyResult<()> {
+    let mut first_unknown: Option<String> = None;
     for key in dict.keys().iter() {
         let key = key
             .extract::<String>()
             .map_err(|_| provenance_input_error("unknown_field", "/provenance"))?;
         if !allowed.contains(&key.as_str()) {
-            return Err(provenance_input_error(
-                "unknown_field",
-                format!("{field_path}/{}", escape_json_pointer_token(&snake_to_camel(&key))),
-            ));
+            let canonical_key = snake_to_camel(&key);
+            if first_unknown.as_ref().is_none_or(|current| canonical_key < *current) {
+                first_unknown = Some(canonical_key);
+            }
         }
+    }
+    if let Some(key) = first_unknown {
+        return Err(provenance_input_error(
+            "unknown_field",
+            format!("{field_path}/{}", escape_json_pointer_token(&key)),
+        ));
     }
     Ok(())
 }

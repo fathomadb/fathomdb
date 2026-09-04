@@ -167,7 +167,7 @@ fn nested_provenance_failure_preserves_its_exact_path() {
     assert_eq!(receipt.reason_codes, vec![ActuationRefusalReasonV1::WriteRefused]);
     assert_eq!(
         receipt.refused_field_path.as_deref(),
-        Some("/operations/0/record/provenance/canonicalHash/digest")
+        Some("/operations/0/record/provenance/canonicalSourceHash/digestHex")
     );
 }
 

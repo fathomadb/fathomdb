@@ -120,6 +120,12 @@ Slice-0 gate before Slices 15 and 25 open.
 | - | -------- | ------------------ | ------------ | -------- |
 | 42 | release | Windows x64 MSVC native package uses `fathomdb-native-win32-x64-msvc`; all non-Windows packages retain the unscoped `fathomdb-<triple>` convention | accepted (HITL 2026-08-09) | ADR-0.8.22-windows-native-npm-package.md |
 
+## Phase 0.8.25 (data-plane boundary decisions)
+
+| # | Category | Candidate decision | HITL verdict | ADR file |
+| - | -------- | ------------------ | ------------ | -------- |
+| 43 | interface | Add one bounded, model-free, idempotent atomic actuation method while preserving `PreparedWrite`, existing methods, the typed/no-SQL boundary, and the recovery denylist | accepted by approved 0.8.25 scope and Slice 25 execution authorization | ADR-0.8.25-bounded-atomic-actuation.md |
+
 ## Phase 0.8.23 (dual-runtime decision)
 
 | # | Category | Candidate decision | HITL verdict | ADR file |

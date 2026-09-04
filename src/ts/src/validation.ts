@@ -79,15 +79,18 @@ function sanitizeActuationValue(value: unknown, fieldPath: string): unknown {
     return value.map((item, index) => sanitizeActuationValue(item, `${fieldPath}/${index}`));
   }
   if (value !== null && typeof value === "object") {
-    const sanitized: Record<string, unknown> = {};
-    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
-      const canonicalKey = key === "source_id" ? "sourceId" : key;
-      sanitized[key] = sanitizeActuationValue(
-        nested,
-        `${fieldPath}/${escapeJsonPointerToken(canonicalKey)}`,
-      );
-    }
-    return sanitized;
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, nested]) => {
+        const canonicalKey = key === "source_id" ? "sourceId" : key;
+        return [
+          key,
+          sanitizeActuationValue(
+            nested,
+            `${fieldPath}/${escapeJsonPointerToken(canonicalKey)}`,
+          ),
+        ];
+      }),
+    );
   }
   return value;
 }

@@ -2933,6 +2933,10 @@ fn actuation_required_string(dict: &Bound<'_, PyDict>, key: &str, path: &str) ->
     }
 }
 
+fn valid_actuation_caller_identity(value: &str) -> bool {
+    ArtifactRevisionId::new(value).is_ok()
+}
+
 fn translate_actuation_request(value: &Bound<'_, PyAny>) -> PyResult<ActuationBatchV1> {
     let dict = value
         .cast::<PyDict>()
@@ -2958,34 +2962,55 @@ fn translate_actuation_request(value: &Bound<'_, PyAny>) -> PyResult<ActuationBa
         "",
     )?;
     let operation_id = actuation_required_string(dict, "operation_id", "/operationId")?;
+    let decision_policy_id = match dict_get(dict, "decision_policy_id")? {
+        None => None,
+        Some(value) if value.is_none() => None,
+        Some(value) => Some(
+            extract_validated_str(&value)
+                .map_err(|_| actuation_input_error("field_type_invalid", "/decisionPolicyId"))?,
+        ),
+    };
+    let expected_write_boundary = match dict_get(dict, "expected_write_boundary")? {
+        None => None,
+        Some(value) if value.is_none() => None,
+        Some(value) => {
+            if value.is_instance_of::<pyo3::types::PyBool>() {
+                return Err(actuation_input_error("field_type_invalid", "/expectedWriteBoundary"));
+            }
+            let text = extract_validated_str(&value).map_err(|_| {
+                actuation_input_error("field_type_invalid", "/expectedWriteBoundary")
+            })?;
+            Some(text.parse::<u64>().ok().filter(|parsed| parsed.to_string() == text).ok_or_else(
+                || actuation_input_error("field_type_invalid", "/expectedWriteBoundary"),
+            )?)
+        }
+    };
     let operations_value = dict_get(dict, "operations")?
         .ok_or_else(|| actuation_input_error("field_missing", "/operations"))?;
     let operations_list = operations_value
         .cast::<PyList>()
         .map_err(|_| actuation_input_error("field_type_invalid", "/operations"))?;
+    if !valid_actuation_caller_identity(&operation_id) {
+        return Err(actuation_input_error("operation_id_invalid", "/operationId"));
+    }
+    if decision_policy_id.as_deref().is_some_and(|value| !valid_actuation_caller_identity(value)) {
+        return Err(actuation_input_error("decision_policy_id_invalid", "/decisionPolicyId"));
+    }
+    if !(1..=128).contains(&operations_list.len()) {
+        return Err(actuation_input_error("operation_count_invalid", "/operations"));
+    }
     let mut operations = Vec::with_capacity(operations_list.len());
     for (index, operation) in operations_list.iter().enumerate() {
         operations.push(translate_actuation_operation(&operation, index)?);
     }
     let mut request = ActuationBatchV1::new(operation_id, operations)
         .map_err(|error| actuation_error_to_py(&error))?;
-    if let Some(policy) = dict_get(dict, "decision_policy_id")?.filter(|value| !value.is_none()) {
-        let policy = extract_validated_str(&policy)
-            .map_err(|_| actuation_input_error("field_type_invalid", "/decisionPolicyId"))?;
+    if let Some(policy) = decision_policy_id {
         request = request
             .with_decision_policy_id(policy)
             .map_err(|error| actuation_error_to_py(&error))?;
     }
-    if let Some(boundary) = dict_get(dict, "expected_write_boundary")?.filter(|v| !v.is_none()) {
-        if boundary.is_instance_of::<pyo3::types::PyBool>() {
-            return Err(actuation_input_error("field_type_invalid", "/expectedWriteBoundary"));
-        }
-        let text = extract_validated_str(&boundary)
-            .map_err(|_| actuation_input_error("field_type_invalid", "/expectedWriteBoundary"))?;
-        let parsed =
-            text.parse::<u64>().ok().filter(|parsed| parsed.to_string() == text).ok_or_else(
-                || actuation_input_error("field_type_invalid", "/expectedWriteBoundary"),
-            )?;
+    if let Some(parsed) = expected_write_boundary {
         request = request.with_expected_write_boundary(parsed);
     }
     Ok(request)

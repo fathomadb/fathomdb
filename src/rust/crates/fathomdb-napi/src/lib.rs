@@ -3124,6 +3124,10 @@ fn actuation_required_string(
     }
 }
 
+fn valid_actuation_caller_identity(value: &str) -> bool {
+    ArtifactRevisionId::new(value).is_ok()
+}
+
 fn translate_actuation_request(value: &JsonValue) -> Result<ActuationBatchV1> {
     let object = value
         .as_object()
@@ -3143,11 +3147,34 @@ fn translate_actuation_request(value: &JsonValue) -> Result<ActuationBatchV1> {
         "",
     )?;
     let operation_id = actuation_required_string(object, "operationId", "/operationId")?;
+    let decision_policy_id = match object.get("decisionPolicyId") {
+        None | Some(JsonValue::Null) => None,
+        Some(JsonValue::String(value)) if !value.contains('\0') => Some(value.clone()),
+        _ => return Err(actuation_napi_error("field_type_invalid", "/decisionPolicyId")),
+    };
+    let expected_write_boundary = match object.get("expectedWriteBoundary") {
+        None | Some(JsonValue::Null) => None,
+        Some(JsonValue::String(text)) => {
+            Some(text.parse::<u64>().ok().filter(|parsed| parsed.to_string() == *text).ok_or_else(
+                || actuation_napi_error("field_type_invalid", "/expectedWriteBoundary"),
+            )?)
+        }
+        _ => return Err(actuation_napi_error("field_type_invalid", "/expectedWriteBoundary")),
+    };
     let operation_values = object
         .get("operations")
         .ok_or_else(|| actuation_napi_error("field_missing", "/operations"))?
         .as_array()
         .ok_or_else(|| actuation_napi_error("field_type_invalid", "/operations"))?;
+    if !valid_actuation_caller_identity(&operation_id) {
+        return Err(actuation_napi_error("operation_id_invalid", "/operationId"));
+    }
+    if decision_policy_id.as_deref().is_some_and(|value| !valid_actuation_caller_identity(value)) {
+        return Err(actuation_napi_error("decision_policy_id_invalid", "/decisionPolicyId"));
+    }
+    if !(1..=128).contains(&operation_values.len()) {
+        return Err(actuation_napi_error("operation_count_invalid", "/operations"));
+    }
     let operations = operation_values
         .iter()
         .enumerate()
@@ -3155,23 +3182,12 @@ fn translate_actuation_request(value: &JsonValue) -> Result<ActuationBatchV1> {
         .collect::<Result<Vec<_>>>()?;
     let mut request = ActuationBatchV1::new(operation_id, operations)
         .map_err(|error| actuation_napi_error(error.reason.as_str(), error.field_path))?;
-    if let Some(value) = object.get("decisionPolicyId").filter(|value| !value.is_null()) {
-        let policy = value
-            .as_str()
-            .filter(|value| !value.contains('\0'))
-            .ok_or_else(|| actuation_napi_error("field_type_invalid", "/decisionPolicyId"))?;
+    if let Some(policy) = decision_policy_id {
         request = request
             .with_decision_policy_id(policy)
             .map_err(|error| actuation_napi_error(error.reason.as_str(), error.field_path))?;
     }
-    if let Some(value) = object.get("expectedWriteBoundary").filter(|value| !value.is_null()) {
-        let text = value
-            .as_str()
-            .ok_or_else(|| actuation_napi_error("field_type_invalid", "/expectedWriteBoundary"))?;
-        let boundary =
-            text.parse::<u64>().ok().filter(|parsed| parsed.to_string() == text).ok_or_else(
-                || actuation_napi_error("field_type_invalid", "/expectedWriteBoundary"),
-            )?;
+    if let Some(boundary) = expected_write_boundary {
         request = request.with_expected_write_boundary(boundary);
     }
     Ok(request)

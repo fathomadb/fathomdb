@@ -81,7 +81,9 @@ impl Embedder for RollbackEmbedder {
     }
 
     fn embed(&self, _input: &str) -> Result<Vector, EmbedderError> {
-        Ok(vec![1.0; 384])
+        let mut vector = vec![0.0; 384];
+        vector[0] = 1.0;
+        Ok(vector)
     }
 }
 
@@ -613,6 +615,7 @@ fn infrastructure_failure_after_each_operation_rolls_back_the_whole_batch() {
         let db_path = path(&dir, &format!("operation-fault-{fault_index}"));
         let opened =
             Engine::open_with_embedder_for_test(&db_path, Arc::new(RollbackEmbedder)).unwrap();
+        assert!(!opened.report.dense_disabled, "rollback embedder must exercise dense writes");
         configure_rollback_projections(&opened.engine);
         let rollback_tables = [
             "canonical_nodes",
@@ -656,11 +659,11 @@ fn infrastructure_failure_after_each_operation_rolls_back_the_whole_batch() {
         assert!(!before_projection_state[1].1.is_empty(), "projection registry fixture is live");
         drop(before);
         let mut source = canonical("source-r1", "source");
-        source.kind = "s25src".into();
+        source.kind = "doc".into();
         source.body = r#"{"topic":"source"}"#.into();
         let mut derived =
             derived_with_source_hash("derived-r1", "derived", "source-r1", &source.body);
-        derived.kind = "s25drv".into();
+        derived.kind = "doc".into();
         derived.body = r#"{"topic":"derived"}"#.into();
         let request = ActuationBatchV1::new(
             format!("operation-fault-{fault_index}"),

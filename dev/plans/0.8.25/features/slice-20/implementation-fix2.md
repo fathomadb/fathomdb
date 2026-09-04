@@ -1,11 +1,14 @@
 ---
 title: 0.8.25 Slice 20 implementation FIX-2 response
-status: RED
+status: FIX_IMPLEMENTED_AWAITING_REVIEW
 review_cycle: 2
 reviewed_commit: a37ba549
 ---
 
 # Slice 20 implementation FIX-2 response
+
+Preserved FIX-2 RED commit:
+`8980b0a7edc7a6c816e122e66a31882287894194`.
 
 ## TDD chronology correction
 
@@ -30,3 +33,16 @@ reciprocal equality. A consistently corrupt canonical owner, source-version
 mapping, canonical self-link, and derived source-link must fail `Storage` on a
 relevant derived lookup and exact replay without introducing a whole-registry
 scan.
+
+## Implemented correction
+
+Relevant-chain validation now independently applies the public constructors to
+the persisted derived artifact revision, canonical artifact/source revision,
+derived-link source revision, source-version mapping revision, and canonical
+self-link revision. Malformed persisted values return `EngineError::Storage`
+before equality checks in both read/replay and the Slice 25 prospective-source
+loader. The checks remain within the already selected relevant chain and add no
+registry scan.
+
+The committed FIX-2 Rust, Python, and TypeScript test files were not edited
+during GREEN.

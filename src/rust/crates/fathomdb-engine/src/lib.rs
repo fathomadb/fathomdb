@@ -21910,11 +21910,26 @@ fn stored_source_version_id_is_valid(value: &str) -> bool {
     SourceVersionId::new(value).is_ok()
 }
 
+fn stored_artifact_revision_id_is_valid(value: &str) -> bool {
+    ArtifactRevisionId::new(value).is_ok()
+}
+
+fn stored_source_revision_id_is_valid(value: &str) -> bool {
+    SourceRevisionId::new(value).is_ok()
+}
+
+fn stored_canonical_source_revision_id_is_valid(value: &str) -> bool {
+    stored_artifact_revision_id_is_valid(value) && stored_source_revision_id_is_valid(value)
+}
+
 #[allow(dead_code)] // Used by the Slice 25 prospective-write constructor.
 fn load_persisted_canonical_source(
     connection: &Connection,
     source_revision: &str,
 ) -> Result<Option<ProspectiveCanonicalSource>, EngineError> {
+    if !stored_canonical_source_revision_id_is_valid(source_revision) {
+        return Err(EngineError::Storage);
+    }
     let owner: Option<(i64, String, String, String, i64)> = connection
         .query_row(
             "SELECT schema_version, artifact_class, artifact_role, completeness, write_cursor \
@@ -22026,6 +22041,8 @@ fn load_persisted_canonical_source(
         || !stored_source_id_is_valid(&link_source_id)
         || !stored_source_version_id_is_valid(&version_id)
         || !stored_source_version_id_is_valid(&link_version_id)
+        || !stored_canonical_source_revision_id_is_valid(&version_revision)
+        || !stored_canonical_source_revision_id_is_valid(&link_revision)
     {
         return Err(EngineError::Storage);
     }
@@ -22060,6 +22077,11 @@ fn validate_dependency_chain(
     derived_revision: &str,
     mode: DependencyValidationMode,
 ) -> Result<(), EngineError> {
+    if !stored_canonical_source_revision_id_is_valid(requested_source_revision)
+        || !stored_artifact_revision_id_is_valid(derived_revision)
+    {
+        return Err(EngineError::Storage);
+    }
     if requested_source_revision == derived_revision {
         return Err(dependency_validation_error(
             mode,
@@ -22169,6 +22191,9 @@ fn validate_dependency_chain(
             DependencyErrorReason::DependencyReferenceMissing,
         ));
     };
+    if !stored_canonical_source_revision_id_is_valid(&linked_source_revision) {
+        return Err(EngineError::Storage);
+    }
     if linked_source_revision != requested_source_revision {
         return Err(dependency_validation_error(
             mode,
@@ -22297,6 +22322,9 @@ fn validate_dependency_chain(
         || ![link_source_version.as_str(), version_id.as_str(), self_version_id.as_str()]
             .into_iter()
             .all(stored_source_version_id_is_valid)
+        || ![version_revision.as_str(), self_revision.as_str()]
+            .into_iter()
+            .all(stored_canonical_source_revision_id_is_valid)
     {
         return Err(EngineError::Storage);
     }

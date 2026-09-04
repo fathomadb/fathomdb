@@ -1,17 +1,34 @@
 //! Slice 30 — dependency-aware lifecycle and erasure closure.
 
+use std::sync::Arc;
+
+use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
     ActuationBatchV1, ActuationOperationV1, ActuationOutcomeV1, ArtifactRevisionId, CanonicalHash,
     ClosureCauseV1, ClosureLookupV1, ClosurePhaseV1, ClosureRootV1, DependencyErrorReason, Engine,
     EngineError, EngineOpenError, InitialState, LifecycleActuationV1, LifecycleState,
     PreparedWrite, ProjectionFts, ProjectionRole, ProjectionSpec, ProvenanceErrorReason,
-    ProvenancedEdgeV1, ProvenancedNodeV1, ReadView, SourceDependencyRegistrationV1, SourceId,
-    SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection, WriteProvenanceV1,
+    ProvenancedEdgeV1, ProvenancedNodeV1, ReadView, SoftFallbackBranch,
+    SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
+    TraversalDirection, WriteProvenanceV1, TOP_K_BIT_CANDIDATES,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::{params, Connection};
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
+
+#[derive(Clone, Debug)]
+struct FixedEmbedder;
+
+impl Embedder for FixedEmbedder {
+    fn identity(&self) -> EmbedderIdentity {
+        EmbedderIdentity::new("slice30", "fix2", 8)
+    }
+
+    fn embed(&self, _text: &str) -> Result<Vector, EmbedderError> {
+        Ok(vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    }
+}
 
 fn path(dir: &TempDir, name: &str) -> std::path::PathBuf {
     dir.path().join(format!("{name}{SQLITE_SUFFIX}"))
@@ -487,6 +504,65 @@ fn post_commit_closure_finalization_failure_does_not_reuse_write_boundary() {
         )
         .unwrap();
     assert!(next_cursor > committed_boundary);
+}
+
+#[test]
+fn vector_top_k_ineligible_dependencies_degrade_before_candidate_truncation() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "vector-pre-truncation");
+    let opened = Engine::open_with_embedder_for_test(&db, Arc::new(FixedEmbedder)).unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened.engine.configure_vector_kind_for_test("fact").unwrap();
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+        as i64;
+    let mut writes = vec![canonical_with_validity(
+        "source-r1",
+        "v1",
+        "source",
+        "source body",
+        Some(now - 10),
+        Some(now + 10),
+    )];
+    for index in 0..TOP_K_BIT_CANDIDATES {
+        writes.push(derived_node_with_body(
+            &format!("derived-r{index}"),
+            &format!("derived-{index}"),
+            "decoy body",
+        ));
+    }
+    writes.push(PreparedWrite::Node {
+        kind: "doc".into(),
+        body: "eligible unique target".into(),
+        source_id: SourceId::new("eligible-bucket").unwrap(),
+        logical_id: Some("eligible".into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+    });
+    opened.engine.write(&writes).unwrap();
+    for index in 0..TOP_K_BIT_CANDIDATES {
+        opened
+            .engine
+            .register_source_dependency(
+                SourceDependencyRegistrationV1::new(
+                    format!("dependency-{index}"),
+                    "source-r1",
+                    format!("derived-r{index}"),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    opened.engine.drain(10_000).unwrap();
+
+    let view = ReadView { valid_as_of: Some(now + 10), ..ReadView::default() };
+    let result = opened.engine.search_view("eligible", &view).unwrap();
+    assert!(result.results.iter().any(|hit| hit.body == "eligible unique target"));
+    assert_eq!(
+        result.soft_fallback.as_ref().map(|fallback| fallback.branch),
+        Some(SoftFallbackBranch::Vector),
+    );
 }
 
 #[test]

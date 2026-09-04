@@ -30,8 +30,30 @@ from fathomdb import Engine
 engine = Engine.open(sys.argv[1])
 engine.write([{
     "kind": "doc",
+    "body": "AéB",
+    "source_id": "smoke:local-native-wheel",
+    "provenance": {
+        "schema_version": 1,
+        "role": "canonical",
+        "artifact_revision_id": "wheel-source-revision",
+        "source_version_id": "wheel-source-version",
+    },
+}, {
+    "kind": "entity",
     "body": "local native wheel runtime validation",
     "source_id": "smoke:local-native-wheel",
+    "provenance": {
+        "schema_version": 1,
+        "role": "derived",
+        "artifact_revision_id": "wheel-derived-revision",
+        "source_version_id": "wheel-source-version",
+        "source_revision_id": "wheel-source-revision",
+        "source_locator": {"kind": "whole_body"},
+        "canonical_source_hash": {
+            "algorithm": "sha256",
+            "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb",
+        },
+    },
 }])
 engine.search("runtime validation")
 engine.close()
@@ -83,8 +105,30 @@ import { Engine } from "fathomdb";
 const engine = await Engine.open(process.argv[2]);
 await engine.write([{
   kind: "doc",
+  body: "AéB",
+  sourceId: "smoke:local-native-npm",
+  provenance: {
+    schemaVersion: 1,
+    role: "canonical",
+    artifactRevisionId: "npm-source-revision",
+    sourceVersionId: "npm-source-version",
+  },
+}, {
+  kind: "entity",
   body: "local native npm runtime validation",
   sourceId: "smoke:local-native-npm",
+  provenance: {
+    schemaVersion: 1,
+    role: "derived",
+    artifactRevisionId: "npm-derived-revision",
+    sourceVersionId: "npm-source-version",
+    sourceRevisionId: "npm-source-revision",
+    sourceLocator: { kind: "whole_body" },
+    canonicalSourceHash: {
+      algorithm: "sha256",
+      digestHex: "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb",
+    },
+  },
 }]);
 await engine.search("runtime validation");
 await engine.close();

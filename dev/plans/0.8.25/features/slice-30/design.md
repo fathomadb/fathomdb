@@ -1,7 +1,9 @@
 ---
 title: 0.8.25 Slice 30 — core lifecycle and erasure closure design
-status: DRAFT_RECONCILED_AWAITING_REVIEW
-design_version: 3
+status: DRAFT_REVIEW_FIX_1
+design_version: 4
+review_fix: 1
+review: design-review-cycle1.md
 depends_on: 25
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 ---
@@ -11,42 +13,35 @@ architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 ## Authority, disposition, and limits
 
 This design implements S30-R1 through S30-R5, the retained core of
-R25/AC25-30, N25-01/N25-02, Memex needs 5/6, and A25-05. It succeeds the
-dependency-stage refusal in Slice 25 while preserving the existing lifecycle,
-erasure, provenance, dependency, and projection authorities.
+R25/AC25-30, N25-01/N25-02, Memex needs 5/6, and A25-05. It succeeds Slice
+25's dependency-stage refusal while preserving the existing lifecycle,
+erasure, provenance, dependency, projection, and `ReadView` authorities.
 
-The implemented dependency shape remains exactly Slice 20's one pinned
-canonical source revision to one complete derived node or edge revision.
-Multi-source liveness, derived-to-derived recursion, scheduled validity-loss
-closure, and caller-configurable consequence policy belong to 0.8.26. Slice 30
-does not add an `invalidated` state, infer a replacement, restore a dependent,
-or make a semantic decision.
+The dependency shape remains exactly Slice 20's one pinned canonical source
+node revision to one complete derived node or edge revision. Multi-source
+liveness, derived-to-derived recursion, scheduled validity-loss closure, and
+configurable consequence policy belong to 0.8.26. Slice 30 adds no
+`invalidated` state, semantic decision, replacement, or automatic restoration.
+Public crash-journal administration remains parked.
 
 The design uses only landed write boundaries, dependency generations,
-projection cursors/terminal rows, and source links. Projection-generation
-identity is Slice 40; evidence resolution is Slice 50. Their plans must consume
-the visibility rule defined here, but their future types do not appear in the
-Slice 30 contract.
+projection cursors/terminal rows, and source links. Projection generations and
+evidence references remain owned by Slices 40 and 50.
 
 ## Existing substrate and exact delta
 
-Already present are immutable artifact/source revisions and source links
-(schema step 27), direct dependency registration and reciprocal indexes (step
-28), compact actuation receipts with reserved closure fields (step 29), node
-lifecycle transitions, edge currentness/validity, registry-driven projection
-erasure, source/purge erasure, telemetry redaction, WAL completion, and typed
+Schema steps 27–29 already provide immutable artifact/source revisions,
+authoritative source links, indexed direct dependencies, independent dependency
+generation, and terminal actuation receipts. Existing code owns node lifecycle,
+edge currentness/validity, registry-driven projection removal, source/purge
+erasure, telemetry redaction, WAL completion, and typed
 `ErasureIncomplete`.
 
-Slice 30 adds:
-
-- durable content-free closure operations and bounded work rows;
-- atomic root-mutation/barrier admission;
-- one shared strict dependency-eligibility and active-closure read guard;
-- deterministic node/edge soft and physical consequences;
-- bounded read/list/resume APIs and a structured zero proof;
-- parity codecs/errors in Rust, Python, and TypeScript; and
-- closure admission from ordinary writes, lifecycle verbs, erasure verbs, and
-  Slice 25 actuation.
+Slice 30 adds one content-free closure/proof table; atomic direct-dependent
+effects; a shared dependency visibility predicate; a keyed status read for
+Slice 25 closure IDs; internal restart finalization; two dependency refusal
+reasons; and cross-SDK parity. It adds no prepared request journal and no public
+list or resume API.
 
 ## Closed public contract
 
@@ -56,32 +51,19 @@ ClosureRootV1 =
   | SourceBucket { source_id }
 
 ClosureCauseV1 = superseded | soft_deleted | purged | source_erased
-ClosurePhaseV1 = admitted | propagating | proving | at_rest_pending |
-                 complete | incomplete
-ClosureEffectV1 = soft_delete_node | retire_edge |
-                  hard_erase_node | hard_erase_edge
+ClosurePhaseV1 = proving | at_rest_pending | complete | incomplete
 
 ClosureLookupV1 { schema_version: 1, closure_operation_id }
-ClosureResumeV1 {
-  schema_version: 1, closure_operation_id, max_work: 1..1000
-}
-ClosureListRequestV1 {
-  schema_version: 1, after_closure_operation_id?, limit: 1..100
-}
-ClosureListPageV1 {
-  schema_version: 1, items: [ClosureStatusV1], next_after_closure_operation_id?
-}
 ClosureStatusV1 {
   schema_version: 1,
   closure_operation_id,
   root: ClosureRootV1,
   cause: ClosureCauseV1,
   phase: ClosurePhaseV1,
+  effective_at_epoch_s,
   admitted_write_boundary,
   admitted_dependency_generation,
-  total_count,
-  processed_count,
-  pending_count,
+  affected_count,
   blocker_code?,
   proof?
 }
@@ -90,7 +72,7 @@ ClosureProofV1 {
   proof_write_boundary,
   current_active_dependent_nodes: 0,
   current_derived_edges: 0,
-  strict_searchable_dependents: 0,
+  view_eligible_dependents: 0,
   ownerless_projection_rows: 0,
   post_admission_registrations: 0,
   remaining_dependency_rows?,
@@ -101,43 +83,53 @@ ClosureProofV1 {
 
 Engine::read_dependency_closure(ClosureLookupV1)
   -> Result<Option<ClosureStatusV1>, EngineError>
-Engine::list_incomplete_dependency_closures(ClosureListRequestV1)
-  -> Result<ClosureListPageV1, EngineError>
-Engine::resume_dependency_closure(ClosureResumeV1)
-  -> Result<ClosureStatusV1, EngineError>
 ```
 
-`next_after_closure_operation_id` is a feature-local lexical recovery scan, not
-the governed data cursor designed by Slice 45. The next marker is present only
-when another nonterminal row exists after the returned page.
+Closure operation IDs are Engine-minted `_fdb:c:<64-lower-hex>` identifiers.
+Admission increments a checked, monotonic `_fathomdb_closure_sequence` in the
+same transaction and hashes the domain
+`fathomdb.dependency-closure.v1\0`, sequence, root kind/value, cause, effective
+instant, and admitted boundaries. The ID contains no source text and cannot
+collide when a record is deleted, reactivated, and deleted again at the same
+write boundary.
 
-Closure operation IDs are Engine-minted `_fdb:c:<64-lower-hex>` identifiers and
-contain no source text. A standalone lifecycle call that has committed its root
-mutation but cannot finish closure returns
-`EngineError::DependencyClosureIncomplete { closure_operation_id, phase,
-blocker_code }`. Python raises `DependencyClosureIncompleteError` with the same
-fields; TypeScript rejects with code `FDB_DEPENDENCY_CLOSURE_INCOMPLETE` and
-matching properties. The operation remains discoverable and resumable.
+`ClosureLookupV1::new(id)` validates the Engine-ID grammar and fixes schema
+version 1. `ClosureOperationId` exposes only `as_str`; callers cannot mint one
+through the caller-ID grammar. `read_dependency_closure` is a pure point read
+and returns `None` for an absent well-formed ID. It is not a recovery or browse
+surface. Slice 25 actuation receipts are the only public producer of a closure
+ID in 0.8.25.
 
-Malformed request fields return a versioned `DependencyClosureError` with the
-closed reasons `unsupported_schema_version`, `unknown_field`,
-`closure_operation_id_invalid`, `work_limit_invalid`, and
-`closure_not_found`. Registration/reactivation uses existing
-`DependencyError` with two additive reasons:
-`dependency_source_ineligible` and `dependency_closure_active`. Persisted-row
-corruption remains `EngineError::Storage`; it is never recast as caller error.
+`DependencyClosureError { reason, field_path }` has the closed reasons
+`unsupported_schema_version`, `unknown_field`, and
+`closure_operation_id_invalid`. Rust constructors return it directly;
+`EngineError::DependencyClosure` wraps it at the Engine boundary. Python raises
+`DependencyClosureError(reason, field_path)` and TypeScript throws the same
+class with code `FDB_DEPENDENCY_CLOSURE`. Canonical RFC 6901 paths use
+`/schemaVersion` then `/closureOperationId`.
 
-Unknown request fields/variants reject before execution. Older clients may
-ignore additive response fields, but reject unknown root/cause/phase/effect or
-error variants. Counts and boundaries are `u64` in Rust and canonical unsigned
-decimal strings in Python/TypeScript. `max_work` and list `limit` remain JSON
-numbers. Status contains counts, never an unbounded affected-ID list.
+Registration/reactivation uses existing `DependencyError` with two additive
+reasons: `dependency_source_ineligible` and `dependency_closure_active`.
+Persisted corruption remains `EngineError::Storage`. Unknown request fields are
+checked lexicographically after the schema discriminator and before the
+required ID. Older clients may ignore additive status/proof fields but reject
+unknown root/cause/phase/error variants.
 
-## Persistence
+Rust boundaries/counts/times are `u64` except `effective_at_epoch_s: i64`.
+Python and TypeScript serialize nonnegative integers as canonical unsigned
+decimal strings and the signed epoch as a canonical signed decimal string.
+Optional response fields are always present and null when absent. Root is a
+closed tagged object: snake-case Python and camel-case TypeScript outer fields,
+with lower-snake-case discriminants in both.
 
-Schema step 30 adds two content-free tables:
+## Persistence and invariants
+
+Schema step 30 adds:
 
 ```sql
+INSERT INTO _fathomdb_open_state(key, value)
+  VALUES('_fathomdb_closure_sequence', '0');
+
 CREATE TABLE _fathomdb_dependency_closures(
   schema_version INTEGER NOT NULL CHECK(schema_version = 1),
   closure_operation_id TEXT PRIMARY KEY,
@@ -148,217 +140,188 @@ CREATE TABLE _fathomdb_dependency_closures(
   cause TEXT NOT NULL CHECK(cause IN (
     'superseded','soft_deleted','purged','source_erased'
   )),
+  effective_at_epoch_s INTEGER NOT NULL,
   admitted_write_boundary INTEGER NOT NULL CHECK(admitted_write_boundary >= 0),
   admitted_dependency_generation INTEGER NOT NULL
     CHECK(admitted_dependency_generation >= 0),
+  closure_sequence INTEGER NOT NULL UNIQUE CHECK(closure_sequence > 0),
   phase TEXT NOT NULL CHECK(phase IN (
-    'admitted','propagating','proving','at_rest_pending',
-    'complete','incomplete'
+    'proving','at_rest_pending','complete','incomplete'
   )),
-  total_count INTEGER NOT NULL CHECK(total_count >= 0),
-  processed_count INTEGER NOT NULL CHECK(
-    processed_count >= 0 AND processed_count <= total_count
-  ),
-  blocker_code TEXT,
-  proof_write_boundary INTEGER,
-  proof_json TEXT,
-  CHECK((phase = 'complete') = (proof_json IS NOT NULL)),
-  CHECK(proof_json IS NULL OR json_valid(proof_json))
+  affected_count INTEGER NOT NULL CHECK(affected_count > 0),
+  blocker_code TEXT CHECK(blocker_code IN (
+    'projection_state_unavailable','proof_unavailable',
+    'telemetry_redaction','wal_checkpoint'
+  )),
+  proof_write_boundary INTEGER CHECK(proof_write_boundary >= 0),
+  proof_json TEXT CHECK(proof_json IS NULL OR json_valid(proof_json)),
+  CHECK(
+    (phase = 'complete' AND blocker_code IS NULL AND
+      proof_write_boundary IS NOT NULL AND proof_json IS NOT NULL)
+    OR
+    (phase = 'incomplete' AND blocker_code IS NOT NULL AND
+      proof_write_boundary IS NULL AND proof_json IS NULL)
+    OR
+    (phase IN ('proving','at_rest_pending') AND blocker_code IS NULL AND
+      proof_write_boundary IS NULL AND proof_json IS NULL)
+  )
 );
-CREATE INDEX _fathomdb_dependency_closures_recovery
-  ON _fathomdb_dependency_closures(phase, closure_operation_id);
 CREATE INDEX _fathomdb_dependency_closures_root
   ON _fathomdb_dependency_closures(root_kind, root_value, phase);
-
-CREATE TABLE _fathomdb_dependency_closure_work(
-  closure_operation_id TEXT NOT NULL,
-  dependency_id TEXT NOT NULL,
-  derived_revision_id TEXT NOT NULL,
-  artifact_class TEXT NOT NULL CHECK(artifact_class IN ('node','edge')),
-  effect TEXT NOT NULL CHECK(effect IN (
-    'soft_delete_node','retire_edge','hard_erase_node','hard_erase_edge'
-  )),
-  work_state TEXT NOT NULL CHECK(work_state IN ('pending','complete')),
-  PRIMARY KEY(closure_operation_id, dependency_id),
-  UNIQUE(closure_operation_id, derived_revision_id)
-);
-CREATE INDEX _fathomdb_dependency_closure_work_pending
-  ON _fathomdb_dependency_closure_work(
-    closure_operation_id, work_state, derived_revision_id
-  );
+CREATE INDEX _fathomdb_dependency_closures_recovery
+  ON _fathomdb_dependency_closures(phase, closure_sequence);
 ```
 
-All joins validate the source link, dependency row, revision registry, and
-artifact class. Any disagreement is `Storage`. Content, source locators, source
-IDs, logical IDs, and bodies never enter work rows, blocker codes, or proofs.
-Erasure may retain completed content-free closure audit rows.
+The table stores opaque/non-PII identifiers and scalar counts only—never body,
+locator, logical ID, request, dependency ID, or derived revision ID.
+`proof_json` is emitted and parsed in one canonical key order, contains exactly
+the `ClosureProofV1` scalar fields, and must agree with its indexed boundary.
+Every point read validates ID hash shape, root grammar, sequence singleton,
+closed variants, phase constraints, proof JSON, count conversions, and
+`proof_write_boundary <=` current write boundary. Any disagreement is
+`Storage`.
 
-## Admission and barriers
+## Root admission and atomic consequences
 
-The single SQLite writer admits closure in the same `BEGIN IMMEDIATE`
-transaction as the root mutation. It:
+Only source revisions with at least one Slice 20 registration create a closure.
+One `BEGIN IMMEDIATE` transaction fixes a single epoch-second instant, write
+boundary, dependency generation, and checked closure sequence. It validates
+every dependency/source-link/revision chain, inserts the closure row, applies
+all direct effects with set-based/indexed operations, and applies the root
+mutation. Total direct impact has no refusal cap.
 
-1. fixes the root and cause, current write boundary, dependency generation,
-   and operation instant;
-2. rejects an overlapping nonterminal closure over the same source revision or
-   source bucket;
-3. materializes the complete direct work set with one indexed
-   `INSERT ... SELECT`, choosing effect from artifact class and physical versus
-   soft cause;
-4. records the exact total; and
-5. applies the root mutation and commits.
-
-The nonterminal closure row is the barrier. A source-revision barrier also
-matches a source-bucket closure containing that revision. From admission until
-proof, all provenance writes and dependency registrations referencing that
-source reject `dependency_closure_active`; no later dependency can escape the
-fixed work set. Total impact has no refusal cap. The `1..1000` limit bounds each
-resume transaction, not the closure.
-
-Ordinary writes that supersede more than one depended-on source admit one
-closure per source revision. Purge does the same for depended-on revisions of
-the logical record. Source erasure admits one source-bucket closure. All of a
-single root call's barriers and root mutation commit atomically; a conflict
-rolls back the call.
-
-Slice 25 actuation replaces `dependency_closure_required` with this admission.
-A batch that admits closure stores `committed_closure_pending` and the ordered
-closure IDs in its already-versioned receipt. This outcome records the state at
-batch commit and is immutable even if closure later completes; callers resolve
-current state through `read_dependency_closure`. Exact replay returns the same
-receipt.
-
-Standalone `write`, `transition`, `purge`, `erase_source`, and operator
-`excise_source` drive admitted operations to terminal before reporting success.
-If a post-admission step fails, their root mutation remains committed and they
-return `DependencyClosureIncomplete`; retry first discovers and resumes the
-matching nonterminal operation instead of reapplying the root mutation.
-
-## Strict eligibility and visibility fencing
-
-One internal predicate is shared by canonical point/list, FTS, vector, graph,
-property, expansion, and later evidence paths. Before each arm's candidate,
-seed, or frontier truncation, a registered derived revision is eligible only
-when its pinned canonical source revision:
-
-- exists with complete provenance;
-- is current (`superseded_at IS NULL`);
-- is active for a node, or current and in-force for an edge;
-- is valid at that operation's fixed instant; and
-- is not matched by a nonterminal source-revision or source-bucket closure.
-
-The same predicate applies when registering a dependency or reactivating a
-derived node. `valid_from` becoming effective never auto-reactivates a
-dependent. Scheduled detection of a future `valid_until` loss is deferred to
-0.8.26, but every read still evaluates current strict validity. Missing tables,
-malformed rows, limit exhaustion, or inability to prove eligibility fails the
-whole operation closed; it never degrades to an unguarded result.
-
-Projection workers do not publish work for fenced derived revisions. A work
-item already in flight may finish, but remains ineligible under the shared
-guard and must be drained or removed before closure proof.
-
-## Consequence processing
-
-Each resume transaction selects at most `max_work` pending rows in
-`derived_revision_id, dependency_id` order and performs exactly one fixed
-effect:
+The fixed consequences are:
 
 | Root cause | Derived node | Derived edge |
 | --- | --- | --- |
-| `superseded` / `soft_deleted` | Set the exact current derived revision to `deleted`, retain dependency/provenance audit, and remove projections without an independent lifecycle read filter. | Retire the exact current edge revision through `superseded_at`, retain dependency/provenance audit, and remove its row-owned projections. |
-| `purged` / `source_erased` | Physically erase the exact revision, its row-owned projections, source links/revision rows, receipt refs, and any graph rows whose integrity depends on its logical endpoint. | Physically erase the exact edge revision, its row-owned projections, source links/revision rows, and receipt refs. |
+| `superseded` / `soft_deleted` | If the exact dependent revision is current and active, set it to `deleted`; retain provenance and dependency audit. | If the exact dependent revision is current, set `superseded_at` to the root transaction's resulting write boundary; retain provenance and dependency audit. |
+| `purged` / `source_erased` | Physically erase the exact dependent revision, row-owned projections, source links/revision identity, receipt references, and graph rows whose integrity depends on its logical endpoint. | Physically erase the exact edge revision, row-owned projections, source links/revision identity, and receipt references. |
 
-Already-ineligible/absent soft targets are idempotent success only after their
-persisted identity/dependency chain validates. Missing physical targets are
-idempotent only when the work row proves an earlier completed effect; otherwise
-they are corruption. A work effect and its `complete` transition share one
-transaction. Physical deletion advances the dependency generation exactly once
-per transaction if registrations are removed; soft closure retains immutable
-registrations and does not advance it.
+Soft closure also removes attribute/property projections without an independent
+lifecycle filter. Other owner-valid FTS/vector shadows may remain because
+canonical hydration excludes them. Physical effects delete every registered
+row-owned projection and any pending projection row. A missing soft target is
+allowed only when the validated exact revision is already non-current or
+inactive. A physical target must exist when enumerated; its deletion and
+dependency removal share the root transaction.
 
-Dependents are never reactivated automatically. A node can return only through
-the existing caller decision after the pinned source again satisfies strict
-eligibility. A retired or physically erased edge requires a new caller-authored
-revision and dependency.
+Source erasure already selects all rows in the source bucket. Same-bucket
+dependent rows are counted and classified as physically completed before their
+rows disappear; there is no later per-dependent work queue. It also deletes
+prior completed source-revision closure rows whose roots belong to the erased
+bucket. The current source-bucket closure row and ordinary erasure-audit row are
+the sole retained content-free event records. Purge removes prior completed
+closure rows rooted in each physically removed source revision.
 
-## Proof and at-rest completion
+Physical dependency removal advances the dependency generation exactly once in
+the root transaction. Soft closure retains immutable registrations and does not
+advance it. Root admission, every effect, closure phase, root mutation,
+actuation receipt, cursor publication, and dependency generation either all
+commit or all roll back.
 
-After no pending work remains, the operation enters `proving`. The proof runs
-against a later write boundary and is not inferred from queue emptiness. Soft
-closure requires zero current active dependent nodes, zero current derived
-edges, zero strict-view searchable dependents, zero ownerless projection rows,
-and zero post-admission registrations. Raw FTS/vector rows retained by existing
-soft-delete policy do not fail proof if they have a valid owner and cannot be
-returned; projections whose read path lacks a lifecycle/closure guard must be
-removed.
+Ordinary `write`/supersession and `transition` complete their soft proof in this
+same transaction, preserving existing return and exact retry semantics. Purge,
+`erase_source`, and operator `excise_source` commit physical proof inputs and
+phase `at_rest_pending`, then reuse existing telemetry/WAL completion before
+reporting success. They preserve the existing `ErasureIncomplete` error and
+idempotent retry contract; no new post-commit `WriteReceipt` behavior exists.
 
-Physical closure additionally requires zero affected dependency, canonical,
+Actuation performs the same effects in its existing idempotent transaction but
+commits phase `proving`, outcome `committed_closure_pending`, and ordered
+closure IDs. Immediately after commit it attempts internal proof finalization;
+the immutable receipt still describes the state at its commit. Exact replay
+returns that receipt, and keyed status reports current closure state.
+
+## Internal recovery and proof
+
+`Engine::open` and the pre-writer maintenance seam internally scan nonterminal
+rows in `closure_sequence` order and finalize bounded batches of at most 32
+operations per transaction until none remain or one produces a typed existing
+infrastructure/erasure failure. There is no public resume/list administration.
+Re-running proof is idempotent because all dependent effects already committed
+atomically with the root. A crash before the root commit leaves no closure; a
+crash afterward leaves a self-contained proof task.
+
+Soft proof requires zero current active dependent nodes, zero current derived
+edges, zero default-view eligible dependents, zero ownerless projection rows,
+and zero registrations newer than the admitted generation. Owner-valid raw
+FTS/vector rows do not fail soft proof when no governed read can return them.
+
+Physical proof additionally requires zero affected dependency, canonical,
 row-owned projection, source-link/revision, actuation-receipt-reference, and
-pending projection rows. It then enters `at_rest_pending`, completes existing
-telemetry redaction and `wal_checkpoint(TRUNCATE)`, and only afterward stores a
-content-free proof and marks `complete`. A busy WAL or redaction failure leaves
-the closure nonterminal with its barrier and returns the existing typed erasure
-stage through `DependencyClosureIncomplete`; success is never reported early.
+pending projection rows. It completes existing telemetry redaction and
+`wal_checkpoint(TRUNCATE)` before marking complete. Updating the content-free
+proof after that checkpoint may create a new WAL frame, but cannot reintroduce
+erased bytes.
 
-Proof and barrier retirement are the same transaction. A later failed or
-corrupt proof sets `incomplete`, preserves the barrier, and records only a
-closed non-content blocker code. Resume re-runs the unfinished phase
-idempotently. Completed operations are immutable audit records.
+Proof success and phase `complete` commit together. A checkable operational
+failure records `incomplete` plus one closed blocker; unclassifiable storage
+corruption returns `Storage` and leaves the prior nonterminal row unchanged.
+Internal recovery rechecks `incomplete` operations and clears the blocker only
+when the proof succeeds. No empty queue or affected count is itself proof.
 
-## Compatibility, performance, and failure boundaries
+## Eligibility, historical views, and projection races
 
-No-dependent lifecycle/write/erasure calls retain their existing return shape
-and fast path. The only new hot-read work is the indexed strict dependency/
-closure anti-join, executed only for databases with registered dependencies;
-an Engine-session cached zero-dependency/zero-barrier state may bypass it but
-must invalidate on every relevant commit. Slice 75 measures this fast-path and
+A nonterminal closure barrier is unconditional: registered dependents matching
+its source revision or source bucket are excluded before canonical, FTS,
+vector, property, graph seed/frontier, or expansion truncation under every
+`ReadView`, including historical relaxations.
+
+Outside an active barrier, dependency source eligibility is evaluated under
+the same frozen `ReadView` and resolved instant as the derived candidate. The
+default therefore requires the pinned source node revision to be current,
+active, and in-window. `include_superseded`, `include_inactive`, and
+`include_out_of_window` each relax the same source axis they already relax on
+the derived row; they do not bypass erasure or a nonterminal barrier. Search
+continues to reject its existing unsupported existence relaxations. Slice 35
+extends predicate eligibility without changing this rule.
+
+Registration and explicit reactivation are not historical reads: they always
+require the pinned source revision to exist with complete provenance and be
+current, active, in-window at one fixed current epoch second, and unfenced.
+They return `dependency_source_ineligible` or `dependency_closure_active`.
+`valid_from` never auto-reactivates; scheduled `valid_until` propagation is
+0.8.26 work.
+
+Projection publication revalidates the canonical owner, dependency source under
+the strict current view, and active closure barrier after acquiring its
+`BEGIN IMMEDIATE` transaction and atomically with the projection insert. An
+ineligible item is terminalized without publishing or has its stale row removed.
+This closes both worker-before-admission and admission-before-worker
+interleavings without freezing ordinary soft writes. Existing physical erasure
+keeps its drain/freeze ordering.
+
+## Compatibility, performance, and verification
+
+No-dependency writes/lifecycle/erasure retain their existing return shapes and
+avoid creating closure rows. Read paths may bypass the dependency anti-join
+only from an Engine-session cached zero-dependency/zero-nonterminal state that
+invalidates on every relevant commit. Slice 75 measures fast-path and
 dependent-path overhead.
 
-Closure work is O(number of direct registered dependents plus affected
-row-owned projections), page-bounded, restart-safe, and deterministic. There is
-no recursive traversal or unbounded public list. Ordinary lifecycle closure
-does not promise physical removal of every projection shadow; erasure does.
-
-Rust, Python, TypeScript, and wire interfaces document the additive requests,
-responses, errors, decimal boundaries, and unknown behavior in the same
-change. Windows must compile and run the CPU/native lifecycle fixtures. CUDA,
-live models, and network access are N/A.
-
-## RED/GREEN and verification map
-
-RED is committed before product code and covers:
-
-- source supersession and soft deletion with active node and edge dependents;
-- purge/source erasure with raw dependent body, FTS/property/vector, source
-  link, receipt-reference, telemetry, and WAL canaries;
-- registration and reactivation against inactive, superseded, invalid, and
-  barriered sources;
-- immediate pre-truncation invisibility while the last row of a greater-than-
-  one-page closure remains unprocessed;
-- bounded progress, restart at every durable phase, exact resume/replay, and
-  deterministic incomplete listing;
-- concurrent registration/admission, projection publication, and proof races;
-- corrupt/missing dependency, work, projection, and proof rows failing closed;
-- soft-proof versus physical-proof projection semantics;
-- schema migration contiguity and property-based status/work invariants; and
-- strict Python/TypeScript codecs, error parity, installed package behavior,
-  and existing no-dependent compatibility.
+RED is committed before product code and covers node/edge soft and physical
+effects; exact root/actuation atomicity; registration/reactivation eligibility;
+barriers under strict and relaxed views; both projection publication races;
+crash/reopen at proving and at-rest phases; exact receipt replay; phase/proof
+corruption; source erasure of prior closure rows; raw database/WAL canaries;
+schema/property invariants; strict binding codecs; and existing no-dependent
+compatibility.
 
 GREEN runs focused schema/Engine/binding tests, fast verification, heavy
 erasure/concurrency tests, all/all-feature/operator routes, installed wheel and
-N-API smokes, and Windows CPU/native Rust/Python/Node routes. The final verifier
-must inspect raw storage and rerun the unchanged ptrace-capable strict gate
-outside the sandbox if required.
+N-API smokes, and Windows CPU/native Rust/Python/Node routes. CUDA, live models,
+and network access are N/A. The strict ptrace-capable gate runs unchanged
+outside the sandbox if needed.
 
 ## Forward obligations
 
-- 0.8.26 extends the same barriers/proofs to multi-source and bounded recursive
-  dependencies, including scheduled validity-loss closure.
-- Slice 35 binds its optional frozen context and eligibility envelope to the
-  dependency generation and active-closure state.
-- Slice 40 succeeds cursor-only proof with generation-aware readiness.
-- Slice 50 evidence resolution rechecks this guard.
-- Slice 55 diagnoses closure/work/barrier corruption without semantic repair.
+- 0.8.26 extends closure to multi-source, bounded recursive dependencies, and
+  scheduled validity loss.
+- Slice 35 binds optional frozen reads and richer eligibility to dependency and
+  active-closure state.
+- Slice 40 replaces cursor-only projection correlation with generation-aware
+  readiness.
+- Slice 50 evidence resolution rechecks the unconditional barrier.
+- Slice 55 diagnoses closure/proof corruption without semantic repair.
 - Slice 60 applies the guard before graph seed/frontier truncation.
-- Slice 75 verifies installed parity and representative latency/concurrency.
+- Slice 75 verifies installed parity and representative lifecycle performance.

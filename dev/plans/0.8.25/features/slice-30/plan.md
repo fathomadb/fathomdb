@@ -35,21 +35,22 @@ semantic decisions outside the Engine.
   dependent is made non-searchable for supersession/deletion and physically
   erased for purge/source erasure. Closure is direct only; recursive and
   multi-source semantics remain allocated to 0.8.26.
-- **S30-R3 — bounded recovery.** Closure work advances in deterministic pages,
-  survives restart, and resumes idempotently by operation ID. A failed or
-  exhausted run retains its barrier and reports typed incomplete state.
+- **S30-R3 — bounded recovery.** Direct consequences commit atomically with the
+  root mutation. Any remaining proof/at-rest phase survives restart and is
+  resumed automatically in bounded internal batches; no public journal
+  administration is added.
 - **S30-R4 — truthful completion.** Completion requires a durable zero proof
   over active canonical dependents, every registered row-owned projection,
   dependency rows, pending projection work, and the existing telemetry/WAL
   erasure boundary. An empty work page is not proof.
-- **S30-R5 — additive parity.** Closure status, proof, resume, and typed failure
-  behavior are versioned and equivalent in Rust, Python, TypeScript, and the
-  wire fixtures; existing successful no-dependent lifecycle calls remain
-  source-compatible.
+- **S30-R5 — additive parity.** The keyed closure status/proof read and typed
+  dependency refusal behavior are versioned and equivalent in Rust, Python,
+  TypeScript, and the wire fixtures; existing successful no-dependent
+  lifecycle calls remain source-compatible.
 
 Acceptance requires unchanged RED fixtures proving: immediate invisibility
 after admission; node and edge propagation; registration/reactivation races;
-more-than-one-page recovery; crash/reopen at each durable phase; exact replay;
+bounded multi-operation recovery; crash/reopen at each durable phase; exact replay;
 corrupt/missing indexes fail closed; and raw database/WAL checks find no erased
 dependent bytes. Public status must never claim complete while any injected
 active, searchable, projection, dependency, or pending-work orphan remains.

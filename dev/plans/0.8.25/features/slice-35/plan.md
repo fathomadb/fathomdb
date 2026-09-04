@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 35 — eligibility and optional frozen reads
-status: DRAFT
+status: IMPLEMENTATION_READY
 depends_on: 30
 design: design.md
-design_status: SCOPE_RECONCILED_FORMAL_REVIEW_REQUIRED
+design_status: READY
 ---
 
 # Slice 35 plan
@@ -19,15 +19,19 @@ not require it; full lease/retention machinery is allocated to 0.8.27.
 
 ## Verification routes
 
-Selected: fast, heavy, all, all-feature, Windows CPU/native Rust/Python/Node,
-GPU/CUDA because dense eligibility is affected, and packaged search smokes.
+Selected: fast, heavy, all, applicable combined feature families (not the
+mutually exclusive CUDA-plus-Metal `--all-features` aggregate), Windows
+CPU/native Rust/Python/Node, GPU/CUDA because dense eligibility is affected,
+and isolated wheel plus offline npm pack/install search smokes.
 Operator, live-model, and pre-publication registry-installed are N/A.
 
 ## Draft-to-ready and delivery
 
-Define optional snapshot, mutation/validity race, unsupported predicate,
-native query-plan, all-arm equivalence, parity, Windows, and CUDA criteria;
-design without mandatory snapshot overhead or a permanently held SQLite
-transaction; review; implement RED/GREEN real-database/property tests; review;
-verify; and record
-status. Stop on post-truncation filtering or ambiguous snapshot boundaries.
+The implementation-ready design defines the exact retained grammar, per-arm
+lowering, stateless token, monotonic visibility generation, failure precedence,
+race linearization, public methods, and executable TDD matrix. Complete up to
+four independent design-review FIX cycles; then implement real-database and
+property RED tests before GREEN code, complete up to seven code-review FIX
+cycles, independently verify, and write `status.md`. Stop on post-truncation
+filtering, a mutable visibility path missing from the generation, or ambiguous
+snapshot boundaries.

@@ -62,8 +62,8 @@ function validateProvenanceString(
   value: unknown,
   reason: string,
   fieldPath: string,
-): void {
-  if (typeof value !== "string") return;
+): value is string {
+  if (typeof value !== "string") return false;
   try {
     validateFfiString(value);
   } catch (error) {
@@ -72,6 +72,26 @@ function validateProvenanceString(
     }
     throw error;
   }
+  return true;
+}
+
+function hasOnlyKeys(value: Record<string, unknown>, allowed: readonly string[]): boolean {
+  return Object.keys(value).every((key) => allowed.includes(key));
+}
+
+function isCallerIdentity(value: string): boolean {
+  return (
+    /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value) && !value.startsWith("_fdb:")
+  );
+}
+
+function isDecimalOffset(value: string): boolean {
+  if (!/^(0|[1-9][0-9]*)$/.test(value)) return false;
+  try {
+    return BigInt(value) <= 9223372036854775807n;
+  } catch {
+    return false;
+  }
 }
 
 function validateProvenanceFfiTree(value: unknown): void {
@@ -79,43 +99,113 @@ function validateProvenanceFfiTree(value: unknown): void {
   const provenance = value as Record<string, unknown>;
   if (provenance.schemaVersion !== 1) return;
   if (provenance.role !== "canonical" && provenance.role !== "derived") return;
+  if (
+    !hasOnlyKeys(provenance, [
+      "schemaVersion",
+      "role",
+      "artifactRevisionId",
+      "sourceVersionId",
+      "sourceRevisionId",
+      "sourceLocator",
+      "canonicalSourceHash",
+    ])
+  ) {
+    return;
+  }
 
-  validateProvenanceString(
-    provenance.artifactRevisionId,
-    "revision_id_invalid",
-    "/provenance/artifactRevisionId",
-  );
-  validateProvenanceString(
-    provenance.sourceVersionId,
-    "source_version_invalid",
-    "/provenance/sourceVersionId",
-  );
-  validateProvenanceString(
-    provenance.sourceRevisionId,
-    "revision_id_invalid",
-    "/provenance/sourceRevisionId",
-  );
+  if (
+    !validateProvenanceString(
+      provenance.artifactRevisionId,
+      "revision_id_invalid",
+      "/provenance/artifactRevisionId",
+    ) ||
+    !isCallerIdentity(provenance.artifactRevisionId)
+  ) {
+    return;
+  }
+  if (
+    !validateProvenanceString(
+      provenance.sourceVersionId,
+      "source_version_invalid",
+      "/provenance/sourceVersionId",
+    ) ||
+    !isCallerIdentity(provenance.sourceVersionId)
+  ) {
+    return;
+  }
+
+  if (provenance.role === "canonical") return;
+
+  if (
+    !validateProvenanceString(
+      provenance.sourceRevisionId,
+      "revision_id_invalid",
+      "/provenance/sourceRevisionId",
+    ) ||
+    !isCallerIdentity(provenance.sourceRevisionId)
+  ) {
+    return;
+  }
 
   const locator = provenance.sourceLocator;
-  if (locator !== null && typeof locator === "object" && !Array.isArray(locator)) {
-    for (const key of ["kind", "startInclusive", "endExclusive"]) {
-      validateProvenanceString(
-        (locator as Record<string, unknown>)[key],
+  if (locator === null || typeof locator !== "object" || Array.isArray(locator)) return;
+  const locatorObject = locator as Record<string, unknown>;
+  if (
+    !validateProvenanceString(
+      locatorObject.kind,
+      "locator_invalid",
+      "/provenance/sourceLocator/kind",
+    )
+  ) {
+    return;
+  }
+  if (locatorObject.kind === "whole_body") {
+    if (!hasOnlyKeys(locatorObject, ["kind"])) return;
+  } else if (locatorObject.kind === "utf8_bytes") {
+    if (!hasOnlyKeys(locatorObject, ["kind", "startInclusive", "endExclusive"])) return;
+    if (
+      !validateProvenanceString(
+        locatorObject.startInclusive,
         "locator_invalid",
-        `/provenance/sourceLocator/${key}`,
-      );
+        "/provenance/sourceLocator/startInclusive",
+      ) ||
+      !isDecimalOffset(locatorObject.startInclusive)
+    ) {
+      return;
     }
+    if (
+      !validateProvenanceString(
+        locatorObject.endExclusive,
+        "locator_invalid",
+        "/provenance/sourceLocator/endExclusive",
+      ) ||
+      !isDecimalOffset(locatorObject.endExclusive)
+    ) {
+      return;
+    }
+  } else {
+    return;
   }
+
   const hash = provenance.canonicalSourceHash;
-  if (hash !== null && typeof hash === "object" && !Array.isArray(hash)) {
-    for (const key of ["algorithm", "digestHex"]) {
-      validateProvenanceString(
-        (hash as Record<string, unknown>)[key],
-        "hash_invalid",
-        `/provenance/canonicalSourceHash/${key}`,
-      );
-    }
+  if (hash === null || typeof hash !== "object" || Array.isArray(hash)) return;
+  const hashObject = hash as Record<string, unknown>;
+  if (!hasOnlyKeys(hashObject, ["algorithm", "digestHex"])) return;
+  if (
+    !validateProvenanceString(
+      hashObject.algorithm,
+      "hash_invalid",
+      "/provenance/canonicalSourceHash/algorithm",
+    ) ||
+    hashObject.algorithm !== "sha256"
+  ) {
+    return;
   }
+  validateProvenanceString(
+    hashObject.digestHex,
+    "hash_invalid",
+    "/provenance/canonicalSourceHash/digestHex",
+  );
 }
 
 function validateWriteEntityFfiTree(value: unknown): void {

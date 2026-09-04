@@ -2125,14 +2125,13 @@ impl PyEngine {
         py: Python<'_>,
         query: &str,
         context: &PyFrozenReadContextV1,
-        rerank_depth: usize,
+        rerank_depth: i64,
         use_graph_arm: bool,
         alpha: f64,
-        pool_n: usize,
+        pool_n: i64,
         explain: bool,
-        limit: usize,
+        limit: i64,
     ) -> PyResult<PySearchResult> {
-        validate_ffi_string_py(query)?;
         let engine = Arc::clone(&self.inner);
         let query = query.to_string();
         let context = context.inner.clone();
@@ -2140,12 +2139,12 @@ impl PyEngine {
             engine.search_frozen(
                 &query,
                 &context,
-                rerank_depth,
+                usize::try_from(rerank_depth).unwrap_or(usize::MAX),
                 use_graph_arm,
                 alpha,
-                pool_n,
+                usize::try_from(pool_n).unwrap_or(usize::MAX),
                 explain,
-                limit,
+                usize::try_from(limit).unwrap_or(usize::MAX),
             )
         })
         .map(PySearchResult::from_rust)
@@ -2158,15 +2157,21 @@ impl PyEngine {
         py: Python<'_>,
         query: &str,
         context: &PyFrozenReadContextV1,
-        depth: u32,
-        limit: usize,
+        depth: i64,
+        limit: i64,
     ) -> PyResult<PySearchExpandResult> {
-        validate_ffi_string_py(query)?;
         let engine = Arc::clone(&self.inner);
         let query = query.to_string();
         let context = context.inner.clone();
-        call_engine(py, move || engine.search_expand_frozen(&query, &context, depth, limit))
-            .map(PySearchExpandResult::from_rust)
+        call_engine(py, move || {
+            engine.search_expand_frozen(
+                &query,
+                &context,
+                u32::try_from(depth).unwrap_or(u32::MAX),
+                usize::try_from(limit).unwrap_or(usize::MAX),
+            )
+        })
+        .map(PySearchExpandResult::from_rust)
     }
 
     fn write(&self, py: Python<'_>, batch: Bound<'_, PyList>) -> PyResult<PyWriteReceipt> {

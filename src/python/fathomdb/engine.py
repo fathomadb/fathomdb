@@ -942,7 +942,7 @@ class Engine:
                 alpha=alpha,
                 pool_n=pool_n,
                 explain=explain,
-                limit=_validate_ranked_result_limit("limit", limit),
+                limit=limit,
             )
         )
 
@@ -960,15 +960,11 @@ class Engine:
                 "context must be a FrozenReadContextV1, "
                 f"got {type(context).__name__!r}"
             )
-        if not isinstance(depth, int) or isinstance(depth, bool) or not 0 <= depth <= 3:
-            raise InvalidArgumentError(
-                f"depth must be an integer in 0..=3, got {depth!r}"
-            )
         native = self._native.search_expand_frozen(
             query,
             _to_native_frozen_context(context),
             depth,
-            limit=_validate_ranked_result_limit("limit", limit),
+            limit=limit,
         )
         return SearchExpandResult(
             search_hits=[_map_native_search_hit(hit) for hit in native.search_hits],

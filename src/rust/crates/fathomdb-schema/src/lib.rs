@@ -71,7 +71,7 @@ pub struct Migration {
     pub sql: &'static str,
 }
 
-// Slice 35 keeps the 13-table x 3-operation trigger manifest readable while
+// Slice 35 keeps the 14-table x 3-operation trigger manifest readable while
 // still materializing one static SQL string in `MIGRATIONS`. SQLite does not
 // support dynamic DDL inside a migration transaction.
 macro_rules! read_visibility_migration_sql {
@@ -1183,6 +1183,7 @@ pub const MIGRATIONS: &[Migration] = &[
             ("pt", "_fathomdb_projection_terminal"),
             ("vk", "_fathomdb_vector_kinds"),
             ("vr", "_fathomdb_vector_rows"),
+            ("ep", "_fathomdb_embedder_profiles"),
         ),
     },
 ];

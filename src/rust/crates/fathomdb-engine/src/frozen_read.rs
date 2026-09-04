@@ -19,7 +19,7 @@ const REGISTRY_DOMAIN: &[u8] = b"fathomdb.projection-registry-binding.v1\0";
 const SERVING_DOMAIN: &[u8] = b"fathomdb.projection-serving-binding.v1\0";
 const DATABASE_ID_KEY: &str = "_fathomdb_database_id";
 const READ_CONTEXT_KEY: &str = "_fathomdb_read_context_key";
-const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 13] = [
+const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 14] = [
     ("cn", "canonical_nodes"),
     ("ce", "canonical_edges"),
     ("ar", "_fathomdb_artifact_revisions"),
@@ -33,6 +33,7 @@ const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 13] = [
     ("pt", "_fathomdb_projection_terminal"),
     ("vk", "_fathomdb_vector_kinds"),
     ("vr", "_fathomdb_vector_rows"),
+    ("ep", "_fathomdb_embedder_profiles"),
 ];
 
 /// Versioned search eligibility and validity requested by a caller.
@@ -166,6 +167,14 @@ pub(crate) fn mint(
     let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
     tx.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))
         .map_err(|_| EngineError::Storage)?;
+    super::validate_filter_attributes_on_snapshot(&tx, &resolved.eligibility).map_err(|error| {
+        match error {
+            super::SearchReaderError::InvalidFilter(reason) => {
+                EngineError::InvalidFilter { reason }
+            }
+            _ => EngineError::Storage,
+        }
+    })?;
     let mut binding =
         binding_for_snapshot(&tx, effective_valid_at, digest(CONTEXT_DOMAIN, &context_bytes))?;
     let key = read_hex_open_state(&tx, READ_CONTEXT_KEY, 32)?;

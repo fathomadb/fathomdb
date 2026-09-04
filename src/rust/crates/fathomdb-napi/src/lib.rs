@@ -2134,21 +2134,21 @@ impl Engine {
         &self,
         query: String,
         context: FrozenReadContextV1,
-        rerank_depth: Option<u32>,
+        rerank_depth: Option<i64>,
         use_graph_arm: Option<bool>,
         alpha: Option<f64>,
-        pool_n: Option<u32>,
+        pool_n: Option<i64>,
         explain: Option<bool>,
-        limit: Option<u32>,
+        limit: Option<i64>,
     ) -> Result<SearchResult> {
-        validate_ffi_string_napi(&query)?;
         let context = frozen_context_to_rust(context)?;
-        let depth = rerank_depth.unwrap_or(0) as usize;
+        let depth = usize::try_from(rerank_depth.unwrap_or(0)).unwrap_or(usize::MAX);
         let graph_arm = use_graph_arm.unwrap_or(false);
         let alpha = alpha.unwrap_or(0.3);
-        let pool_n = pool_n.map(|value| value as usize).unwrap_or(depth);
+        let pool_n =
+            pool_n.map(|value| usize::try_from(value).unwrap_or(usize::MAX)).unwrap_or(depth);
         let explain = explain.unwrap_or(false);
-        let limit = limit.unwrap_or(10) as usize;
+        let limit = usize::try_from(limit.unwrap_or(10)).unwrap_or(usize::MAX);
         let engine = Arc::clone(&self.inner);
         let result = call_engine(move || {
             engine.search_frozen(&query, &context, depth, graph_arm, alpha, pool_n, explain, limit)
@@ -2163,12 +2163,12 @@ impl Engine {
         &self,
         query: String,
         context: FrozenReadContextV1,
-        depth: u32,
-        limit: Option<u32>,
+        depth: i64,
+        limit: Option<i64>,
     ) -> Result<SearchExpandResult> {
-        validate_ffi_string_napi(&query)?;
         let context = frozen_context_to_rust(context)?;
-        let limit = limit.unwrap_or(10) as usize;
+        let depth = u32::try_from(depth).unwrap_or(u32::MAX);
+        let limit = usize::try_from(limit.unwrap_or(10)).unwrap_or(usize::MAX);
         let engine = Arc::clone(&self.inner);
         let result =
             call_engine(move || engine.search_expand_frozen(&query, &context, depth, limit))
@@ -2661,10 +2661,31 @@ fn read_context_from_rust(context: &RustReadContextV1) -> ReadContextV1 {
 }
 
 fn frozen_context_to_rust(input: FrozenReadContextV1) -> Result<RustFrozenReadContextV1> {
+    let context = input.context;
+    let eligibility = context.eligibility;
+    let attributes = eligibility
+        .attributes
+        .unwrap_or_default()
+        .into_iter()
+        .map(|pair| match pair.as_slice() {
+            [name, value] => (name.clone(), value.clone()),
+            _ => ("\0invalid-frozen-attribute-pair".to_string(), format!("{pair:?}")),
+        })
+        .collect();
+    let mut rust_eligibility = RustSearchFilter::default();
+    rust_eligibility.source_type = eligibility.source_type;
+    rust_eligibility.kind = eligibility.kind;
+    rust_eligibility.created_after = eligibility.created_after;
+    rust_eligibility.status = eligibility.status;
+    rust_eligibility.attributes = attributes;
     Ok(RustFrozenReadContextV1 {
         schema_version: input.schema_version,
         effective_valid_at: input.effective_valid_at,
-        context: read_context_to_rust(input.context)?,
+        context: RustReadContextV1 {
+            schema_version: context.schema_version,
+            view: read_view_or_default(Some(context.view)),
+            eligibility: rust_eligibility,
+        },
         token: input.token,
     })
 }

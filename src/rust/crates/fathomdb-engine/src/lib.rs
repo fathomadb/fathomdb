@@ -698,7 +698,7 @@ const READER_LOOKASIDE_SLOT_COUNT: std::os::raw::c_int = 500;
 pub struct Engine {
     path: PathBuf,
     next_cursor: AtomicU64,
-    read_visibility_generation: AtomicU64,
+    read_visibility_generation: Arc<AtomicU64>,
     closed: AtomicBool,
     lock: Mutex<Option<File>>,
     connection: Mutex<Option<Connection>>,
@@ -1755,7 +1755,7 @@ enum ReaderRequest {
         respond: SyncSender<ProjectedTextReaderResponse>,
     },
     Search {
-        compiled: fathomdb_query::CompiledQuery,
+        compiled: Option<fathomdb_query::CompiledQuery>,
         /// Un-centered f32 query vector serialized for `vec_f32`. Phase 2
         /// f32 rerank uses this verbatim.
         query_vector: Option<String>,
@@ -1823,6 +1823,7 @@ enum ReaderRequest {
         /// The existence axis is refused upstream, never carried here.
         view: ReadView,
         frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
+        frozen_query_runtime: Option<FrozenQueryRuntime>,
         /// When present, produce bounded graph expansion from the final search
         /// hits before committing the same reader transaction.
         expand_depth: Option<u32>,
@@ -1962,6 +1963,13 @@ enum ReaderRequest {
     },
 }
 
+struct FrozenQueryRuntime {
+    embedder: Option<Arc<dyn Embedder>>,
+    embedder_identity: EmbedderIdentity,
+    dense_disabled_reason: Option<String>,
+    observed_generation: Arc<AtomicU64>,
+}
+
 // G0 Phase-2: the Search response carries a 4th element — the graph-arm frontier
 // meter (`GraphFrontierStats`). It rides the internal channel but is dropped before
 // `SearchResult` is built (kept OFF the governed surface); the
@@ -2009,6 +2017,9 @@ enum SearchReaderError {
     InvalidFilter(String),
     RerankerDevicePolicy(RerankerDevicePolicyError),
     FrozenRead(FrozenReadError),
+    VectorEquivalenceMismatch(String),
+    WriteValidation,
+    InvalidArgument(String),
 }
 
 impl From<rusqlite::Error> for SearchReaderError {
@@ -2360,6 +2371,7 @@ fn reader_worker_loop(
                 explain,
                 view,
                 frozen_binding,
+                frozen_query_runtime,
                 expand_depth,
                 respond,
             } => {
@@ -2367,7 +2379,7 @@ fn reader_worker_loop(
                 tc5_benchmark::record_search_route();
                 let result = read_search_in_tx(
                     &mut connection,
-                    &compiled,
+                    compiled.as_ref(),
                     query_vector.as_deref(),
                     query_vector_bin.as_deref(),
                     result_limit,
@@ -2385,6 +2397,7 @@ fn reader_worker_loop(
                     explain,
                     view,
                     frozen_binding.as_deref(),
+                    frozen_query_runtime,
                     expand_depth,
                     &wal_attribution,
                     worker_idx,
@@ -7041,7 +7054,6 @@ impl Engine {
         explain: bool,
         limit: usize,
     ) -> Result<SearchResult, EngineError> {
-        let limit = validate_search_result_limit(limit)?;
         self.ensure_open()?;
         let binding = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
@@ -7072,12 +7084,7 @@ impl Engine {
         depth: u32,
         limit: usize,
     ) -> Result<SearchExpandResult, EngineError> {
-        if depth > 3 {
-            return Err(EngineError::InvalidArgument {
-                msg: format!("traversal depth {depth} exceeds the SDK ceiling of 3"),
-            });
-        }
-        let limit = validate_search_result_limit(limit)?;
+        self.ensure_open()?;
         let binding = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
@@ -7483,7 +7490,9 @@ impl Engine {
                     engine: Self {
                         path: canonical_path.clone(),
                         next_cursor: AtomicU64::new(next_cursor),
-                        read_visibility_generation: AtomicU64::new(read_visibility_generation),
+                        read_visibility_generation: Arc::new(AtomicU64::new(
+                            read_visibility_generation,
+                        )),
                         closed: AtomicBool::new(false),
                         lock: Mutex::new(Some(lock)),
                         connection: Mutex::new(Some(connection)),
@@ -9869,7 +9878,7 @@ impl Engine {
         // request whose embedder yields no vector. Only the direct path gets the
         // fixed node candidate bound before node/edge body deduplication and RRF.
         let request = ReaderRequest::Search {
-            compiled,
+            compiled: Some(compiled),
             query_vector: None,
             query_vector_bin: None,
             result_limit: limit,
@@ -9887,6 +9896,7 @@ impl Engine {
             explain: false,
             view: *view,
             frozen_binding: None,
+            frozen_query_runtime: None,
             expand_depth: None,
             respond: response_tx,
         };
@@ -9909,6 +9919,15 @@ impl Engine {
                 }
                 Err(SearchReaderError::FrozenRead(error)) => {
                     return Err(EngineError::FrozenRead(error));
+                }
+                Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
+                    return Err(EngineError::VectorEquivalenceMismatch { reason });
+                }
+                Err(SearchReaderError::WriteValidation) => {
+                    return Err(EngineError::WriteValidation);
+                }
+                Err(SearchReaderError::InvalidArgument(msg)) => {
+                    return Err(EngineError::InvalidArgument { msg });
                 }
                 Err(SearchReaderError::Sqlite(err)) => {
                     self.emit_sqlite_internal_error(&err);
@@ -9975,6 +9994,13 @@ impl Engine {
                 Err(EngineError::RerankerDevicePolicy(error))
             }
             Err(SearchReaderError::FrozenRead(error)) => Err(EngineError::FrozenRead(error)),
+            Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
+                Err(EngineError::VectorEquivalenceMismatch { reason })
+            }
+            Err(SearchReaderError::WriteValidation) => Err(EngineError::WriteValidation),
+            Err(SearchReaderError::InvalidArgument(msg)) => {
+                Err(EngineError::InvalidArgument { msg })
+            }
             Err(SearchReaderError::Sqlite(err)) => {
                 self.emit_sqlite_internal_error(&err);
                 Err(EngineError::Storage)
@@ -10364,16 +10390,21 @@ impl Engine {
         // silent partial results. The text-only/FTS-only path
         // (`search_text_only`) does NOT route through here, so FTS stays
         // serviceable in degraded mode.
-        if self.dense_disabled.load(Ordering::Acquire) {
-            self.vector_equivalence_refusals.fetch_add(1, Ordering::Relaxed);
-            let reason =
+        let is_frozen = frozen_binding.is_some();
+        let dense_disabled_reason =
+            self.dense_disabled.load(Ordering::Acquire).then(|| {
                 self.dense_disabled_reason.lock().ok().and_then(|g| g.clone()).unwrap_or_else(
                     || "open-time #5 vector-equivalence self-check failed".to_string(),
-                );
-            return Err(EngineError::VectorEquivalenceMismatch { reason });
-        }
-        if query.trim().is_empty() {
-            return Err(EngineError::WriteValidation);
+                )
+            });
+        if !is_frozen {
+            if let Some(reason) = dense_disabled_reason.as_ref() {
+                self.vector_equivalence_refusals.fetch_add(1, Ordering::Relaxed);
+                return Err(EngineError::VectorEquivalenceMismatch { reason: reason.clone() });
+            }
+            if query.trim().is_empty() {
+                return Err(EngineError::WriteValidation);
+            }
         }
 
         // 0.8.20 Slice 15e fix-2 finding 1 [P2] — every filter attribute name is
@@ -10397,7 +10428,7 @@ impl Engine {
         // `InvalidFilter`. Moving it there also removes a per-filtered-search writer
         // lock and the fix-2 concurrent-ADD false-reject (the reader snapshot sees a
         // freshly-added declaration and accepts).
-        let compiled = compile_text_query(query);
+        let compiled = (!is_frozen).then(|| compile_text_query(query));
         // REQ-013 / AC-059b / REQ-055: the cursor returned with a search
         // MUST be derived from the same WAL snapshot the data was read
         // from. Loading `next_cursor` from the writer-side atomic before
@@ -10413,8 +10444,9 @@ impl Engine {
         // mirrors the write path: identity must be MC-required AND a
         // mean_vec must be pinned. NoopEmbedder collapses to
         // `query_vector_bin == query_vector` until EU-5b.
-        let raw_query_vector =
-            self.runtime_embedder.as_ref().and_then(|embedder| embedder.embed(query).ok());
+        let raw_query_vector = (!is_frozen)
+            .then(|| self.runtime_embedder.as_ref().and_then(|embedder| embedder.embed(query).ok()))
+            .flatten();
         let query_vector_bin = match raw_query_vector.as_ref() {
             Some(vector) if identity_requires_mean_centering(&self.runtime_embedder_identity) => {
                 let pinned = {
@@ -10431,6 +10463,12 @@ impl Engine {
             None => None,
         };
         let query_vector = raw_query_vector.and_then(|vector| serde_json::to_string(&vector).ok());
+        let frozen_query_runtime = is_frozen.then(|| FrozenQueryRuntime {
+            embedder: self.runtime_embedder.clone(),
+            embedder_identity: self.runtime_embedder_identity.clone(),
+            dense_disabled_reason,
+            observed_generation: Arc::clone(&self.read_visibility_generation),
+        });
         // The public result limit is independent of the test-only vector
         // candidate fanout. The seam may raise this fanout for recall tests,
         // but the reader still truncates visible results to `result_limit`.
@@ -10466,6 +10504,7 @@ impl Engine {
             explain,
             view,
             frozen_binding: frozen_binding.map(Box::new),
+            frozen_query_runtime,
             expand_depth,
             respond: response_tx,
         };
@@ -10488,6 +10527,16 @@ impl Engine {
                 }
                 Err(SearchReaderError::FrozenRead(error)) => {
                     return Err(EngineError::FrozenRead(error));
+                }
+                Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
+                    self.vector_equivalence_refusals.fetch_add(1, Ordering::Relaxed);
+                    return Err(EngineError::VectorEquivalenceMismatch { reason });
+                }
+                Err(SearchReaderError::WriteValidation) => {
+                    return Err(EngineError::WriteValidation);
+                }
+                Err(SearchReaderError::InvalidArgument(msg)) => {
+                    return Err(EngineError::InvalidArgument { msg });
                 }
                 Err(SearchReaderError::Sqlite(err)) => {
                     self.emit_sqlite_internal_error(&err);
@@ -10700,6 +10749,13 @@ impl Engine {
                 Err(EngineError::RerankerDevicePolicy(error))
             }
             Err(SearchReaderError::FrozenRead(error)) => Err(EngineError::FrozenRead(error)),
+            Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
+                Err(EngineError::VectorEquivalenceMismatch { reason })
+            }
+            Err(SearchReaderError::WriteValidation) => Err(EngineError::WriteValidation),
+            Err(SearchReaderError::InvalidArgument(msg)) => {
+                Err(EngineError::InvalidArgument { msg })
+            }
             Err(SearchReaderError::Sqlite(err)) => {
                 self.emit_sqlite_internal_error(&err);
                 Err(EngineError::Storage)
@@ -15666,7 +15722,7 @@ fn read_projected_text_in_tx(
 #[allow(clippy::too_many_arguments)]
 fn read_search_in_tx(
     reader: &mut Connection,
-    compiled: &fathomdb_query::CompiledQuery,
+    compiled: Option<&fathomdb_query::CompiledQuery>,
     query_vector: Option<&str>,
     query_vector_bin: Option<&str>,
     final_limit: usize,
@@ -15684,6 +15740,7 @@ fn read_search_in_tx(
     explain: bool,
     view: ReadView,
     frozen_binding: Option<&frozen_read::FrozenReadBinding>,
+    frozen_query_runtime: Option<FrozenQueryRuntime>,
     expand_depth: Option<u32>,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
@@ -15709,8 +15766,68 @@ fn read_search_in_tx(
     reader_search_hook::fire();
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     if let Some(expected) = frozen_binding {
-        frozen_read::validate_snapshot(&tx, expected).map_err(SearchReaderError::FrozenRead)?;
+        let generation =
+            frozen_read::validate_snapshot(&tx, expected).map_err(SearchReaderError::FrozenRead)?;
+        let observed = frozen_query_runtime
+            .as_ref()
+            .ok_or_else(|| {
+                SearchReaderError::FrozenRead(FrozenReadError {
+                    reason: FrozenReadErrorReason::StateUnavailable,
+                    field_path: "/token".to_string(),
+                })
+            })?
+            .observed_generation
+            .fetch_max(generation, Ordering::AcqRel);
+        if generation < observed {
+            return Err(SearchReaderError::FrozenRead(FrozenReadError {
+                reason: FrozenReadErrorReason::StateUnavailable,
+                field_path: "/token".to_string(),
+            }));
+        }
     }
+    let owned_compiled;
+    let owned_query_vector;
+    let owned_query_vector_bin;
+    let (compiled, query_vector, query_vector_bin) =
+        if let Some(runtime) = frozen_query_runtime.as_ref() {
+            validate_search_result_limit(final_limit)
+                .map_err(|error| SearchReaderError::InvalidArgument(error.to_string()))?;
+            if expand_depth.is_some_and(|depth| depth > 3) {
+                return Err(SearchReaderError::InvalidArgument(format!(
+                    "traversal depth {} exceeds the SDK ceiling of 3",
+                    expand_depth.unwrap_or_default()
+                )));
+            }
+            if let Some(reason) = runtime.dense_disabled_reason.as_ref() {
+                return Err(SearchReaderError::VectorEquivalenceMismatch(reason.clone()));
+            }
+            if raw_query.trim().is_empty() {
+                return Err(SearchReaderError::WriteValidation);
+            }
+            owned_compiled = compile_text_query(raw_query);
+            let raw_vector =
+                runtime.embedder.as_ref().and_then(|embedder| embedder.embed(raw_query).ok());
+            owned_query_vector_bin = match raw_vector.as_ref() {
+                Some(vector) if identity_requires_mean_centering(&runtime.embedder_identity) => {
+                    let pinned = read_pinned_mean_vec(&tx, runtime.embedder_identity.dimension)
+                        .map_err(|_| SearchReaderError::Sqlite(rusqlite::Error::InvalidQuery))?;
+                    match pinned {
+                        Some(mean) => serde_json::to_string(&subtract_mean(vector, &mean)).ok(),
+                        None => serde_json::to_string(vector).ok(),
+                    }
+                }
+                Some(vector) => serde_json::to_string(vector).ok(),
+                None => None,
+            };
+            owned_query_vector = raw_vector.and_then(|vector| serde_json::to_string(&vector).ok());
+            (&owned_compiled, owned_query_vector.as_deref(), owned_query_vector_bin.as_deref())
+        } else {
+            (
+                compiled.ok_or_else(|| SearchReaderError::Sqlite(rusqlite::Error::InvalidQuery))?,
+                query_vector,
+                query_vector_bin,
+            )
+        };
     let cursor = load_projection_cursor(&tx)?;
     // fix-3 (codex §9 [P2], TOCTOU) — validate every filter attribute name on THIS
     // reader transaction's snapshot, before `build_vector_phase1_sql` emits
@@ -17413,6 +17530,7 @@ LIMIT {cap}"
 ///
 /// Returns 5 columns: logical_id, kind, body, write_cursor, min_depth.
 fn build_bfs_with_depth_sql(
+    view: FrozenView,
     filter: Option<&SearchFilter>,
 ) -> (String, Vec<rusqlite::types::Value>) {
     let cap = GRAPH_NEIGHBORS_HARD_CAP;
@@ -17420,11 +17538,10 @@ fn build_bfs_with_depth_sql(
                              // TC-33: `?1` anchor, `?2` depth ⇒ the edge `:now` binds at `?3`. This is a
                              // SECOND, separate BFS template — the edge-validity predicate has to be
                              // re-grounded here too or `search_expand` silently keeps the old semantics.
-    let strict = ReadView::default();
-    let anchor_node = strict.node_sql("n", 3);
-    let next_node = strict.node_sql("next_n", 3);
-    let projection_node = strict.node_sql("n", 3);
-    let edge_valid = edge_validity_sql_for_view("e", 3, &strict);
+    let anchor_node = view.node_sql("n", 3);
+    let next_node = view.node_sql("next_n", 3);
+    let projection_node = view.node_sql("n", 3);
+    let edge_valid = edge_validity_sql_for_view("e", 3, &view.view);
     // Reserve ?1 (root), ?2 (depth), and ?3 (the frozen validity instant).
     // Eligibility is emitted independently at each node position because a
     // recursive frontier must never admit an ineligible node and the final
@@ -17438,7 +17555,7 @@ fn build_bfs_with_depth_sql(
   traversal(logical_id, depth, visited) AS (
     SELECT n.logical_id, 0, char(30) || n.logical_id || char(30)
     FROM canonical_nodes n
-    WHERE n.logical_id = ?1{anchor_node}{anchor_eligibility}
+    WHERE n.logical_id = ?1 AND ?3 IS NOT NULL{anchor_node}{anchor_eligibility}
     UNION ALL
     SELECT
       CASE WHEN e.from_id = t.logical_id THEN e.to_id ELSE e.from_id END,
@@ -17647,8 +17764,12 @@ fn search_expand_on_snapshot(
                 //   None         → no row → superseded
                 //   Some(None)   → row with NULL logical_id → anonymous node
                 //   Some(Some(s)) → active named node
+                let mut bind_values = vec![rusqlite::types::Value::Integer(cursor_i64)];
+                if let Some(now) = frozen.now_param() {
+                    bind_values.push(rusqlite::types::Value::Integer(now));
+                }
                 let resolved = node_stmt
-                    .query_row(params![cursor_i64, frozen.now_param().unwrap_or_default()], |row| {
+                    .query_row(rusqlite::params_from_iter(bind_values.iter()), |row| {
                         row.get::<_, Option<String>>(0)
                     })
                     .optional()?;
@@ -17669,7 +17790,7 @@ fn search_expand_on_snapshot(
     // Step 2: for each root logical_id, run the BFS and collect expanded nodes.
     // A node already in `hit_id_set` is NOT added to `expanded`.
     // Use the depth-aware variant so each node reports its actual BFS distance.
-    let (bfs_sql, bfs_parameter_template) = build_bfs_with_depth_sql(filter);
+    let (bfs_sql, bfs_parameter_template) = build_bfs_with_depth_sql(frozen, filter);
     let depth_i64 = depth as i64;
     // nearest_hop: for each expanded logical_id track the minimum hop count
     // seen across ALL search-hit roots. A node reachable from multiple roots
@@ -17679,9 +17800,8 @@ fn search_expand_on_snapshot(
 
     if depth > 0 {
         let mut bfs_stmt = tx.prepare(&bfs_sql)?;
-        // TC-33: `?3` is the edge-validity instant. `search_expand` has no
-        // `ReadView` in scope, so it uses the default (strict) semantics —
-        // resolved ONCE here, not per root, so every root in one call agrees.
+        // `?3` is the one frozen node/edge validity instant. Every root uses
+        // the same authenticated view and eligibility envelope.
         let edge_now = frozen.edge_now();
         for root_id in hit_logical_ids.iter().flatten().filter(|s| !s.is_empty()) {
             let mut binds = bfs_parameter_template.clone();

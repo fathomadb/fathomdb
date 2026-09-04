@@ -200,7 +200,8 @@ _fathomdb_source_links, _fathomdb_source_dependencies,
 _fathomdb_dependency_closures,
 _fathomdb_projection_registry, canonical_attributes,
 _fathomdb_projection_state, _fathomdb_projection_terminal,
-_fathomdb_vector_kinds, _fathomdb_vector_rows
+_fathomdb_vector_kinds, _fathomdb_vector_rows,
+_fathomdb_embedder_profiles
 ```
 
 Each trigger performs one atomic checked increment and raises

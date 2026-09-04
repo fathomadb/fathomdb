@@ -26,6 +26,7 @@ import {
   ActuationError,
   DependencyClosureError,
   DependencyError,
+  FrozenReadError,
   InvalidArgumentError,
   InvalidFilterError,
   rethrowTyped,
@@ -1750,6 +1751,13 @@ export class Engine {
   async freezeReadContext(context: ReadContextV1): Promise<FrozenReadContextV1> {
     validateReadContext(context);
     const frozen = await intercept(() => this.#native.freezeReadContext(context));
+    if (frozen.schemaVersion !== 1 || frozen.context.schemaVersion !== 1) {
+      throw new FrozenReadError(
+        "unsupported_schema_version at /schemaVersion",
+        "unsupported_schema_version",
+        "/schemaVersion",
+      );
+    }
     return {
       schemaVersion: 1,
       effectiveValidAt: frozen.effectiveValidAt,
@@ -1776,33 +1784,31 @@ export class Engine {
     context: FrozenReadContextV1,
     options: FrozenSearchOptions = {},
   ): Promise<SearchResult> {
-    validateFfiString(query);
-    assertKnownKeys(
-      options,
-      ["rerankDepth", "useGraphArm", "alpha", "poolN", "explain", "limit"],
-      "FrozenSearchOptions",
+    const result = await intercept(() =>
+      this.#native.searchFrozen(
+        query,
+        nativeFrozenContext(context),
+        options.rerankDepth,
+        options.useGraphArm,
+        options.alpha,
+        options.poolN,
+        options.explain,
+        options.limit,
+      ),
     );
+    validateFfiString(query);
     validateReadContext(context.context);
     assertKnownKeys(
       context,
       ["schemaVersion", "effectiveValidAt", "context", "token"],
       "FrozenReadContextV1",
     );
-    validateFfiString(context.token);
-    return mapNativeSearchResult(
-      await intercept(() =>
-        this.#native.searchFrozen(
-          query,
-          nativeFrozenContext(context),
-          options.rerankDepth,
-          options.useGraphArm,
-          options.alpha,
-          options.poolN,
-          options.explain,
-          validateRankedResultLimit("limit", options.limit),
-        ),
-      ),
+    assertKnownKeys(
+      options,
+      ["rerankDepth", "useGraphArm", "alpha", "poolN", "explain", "limit"],
+      "FrozenSearchOptions",
     );
+    return mapNativeSearchResult(result);
   }
 
   /** Search and graph-expand on one frozen reader transaction. */
@@ -1812,6 +1818,14 @@ export class Engine {
     depth: number,
     options: SearchExpandOptions = {},
   ): Promise<SearchExpandResult> {
+    const result = await intercept(() =>
+      this.#native.searchExpandFrozen(
+        query,
+        nativeFrozenContext(context),
+        depth,
+        options.searchLimit,
+      ),
+    );
     validateFfiString(query);
     validateReadContext(context.context);
     assertKnownKeys(
@@ -1820,19 +1834,6 @@ export class Engine {
       "FrozenReadContextV1",
     );
     assertKnownKeys(options, ["searchLimit"], "SearchExpandOptions");
-    if (!Number.isInteger(depth) || depth < 0 || depth > 3) {
-      throw new InvalidArgumentError(
-        `searchExpandFrozen depth must be an integer between 0 and 3; got ${depth}`,
-      );
-    }
-    const result = await intercept(() =>
-      this.#native.searchExpandFrozen(
-        query,
-        nativeFrozenContext(context),
-        depth,
-        validateRankedResultLimit("searchLimit", options.searchLimit),
-      ),
-    );
     return {
       searchHits: result.searchHits.map((hit) => ({
         id: { space: hit.id.space, value: hit.id.value },

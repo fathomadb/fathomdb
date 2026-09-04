@@ -12723,7 +12723,7 @@ impl Engine {
         let receipt_refs =
             actuation_erasure_refs_for_cursors(&tx, &affected_cursors, erased_source_ids)?;
         let proof_scope =
-            dependency_closure::physical_proof_scope(&tx, &affected_cursors, &receipt_refs)?;
+            dependency_closure::physical_proof_scope(&tx, &affected_cursors, &receipt_refs, None)?;
         for (source_revision, dependents) in &physical_plans {
             if let Some(id) = dependency_closure::record_physical_closure(
                 &tx,
@@ -13544,8 +13544,12 @@ impl Engine {
             node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
         let receipt_refs =
             actuation_erasure_refs_for_cursors(&tx, &affected_cursors, [source_id.to_string()])?;
-        let proof_scope =
-            dependency_closure::physical_proof_scope(&tx, &affected_cursors, &receipt_refs)?;
+        let proof_scope = dependency_closure::physical_proof_scope(
+            &tx,
+            &affected_cursors,
+            &receipt_refs,
+            Some(source_id),
+        )?;
         let closure_ids = dependency_closure::record_physical_closure(
             &tx,
             dependency_closure::PhysicalClosureAdmission {

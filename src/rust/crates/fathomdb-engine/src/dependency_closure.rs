@@ -229,6 +229,7 @@ pub(crate) fn physical_proof_scope(
     connection: &Connection,
     cursors: &[i64],
     receipt_refs: &BTreeSet<(String, String)>,
+    source_bucket: Option<&str>,
 ) -> Result<PhysicalProofScope, EngineError> {
     let mut revisions = Vec::new();
     for cursor in cursors {
@@ -246,10 +247,6 @@ pub(crate) fn physical_proof_scope(
     }
     revisions.sort();
     revisions.dedup();
-    let source_ids = receipt_refs
-        .iter()
-        .filter_map(|(kind, value)| (kind == "source_id").then_some(value.as_str()))
-        .collect::<BTreeSet<_>>();
     let mut source_link_artifact_revisions = BTreeSet::new();
     let mut source_version_keys = BTreeSet::new();
     for revision in &revisions {
@@ -278,7 +275,7 @@ pub(crate) fn physical_proof_scope(
             source_version_keys.insert(row.map_err(|_| EngineError::Storage)?);
         }
     }
-    for source_id in source_ids {
+    if let Some(source_id) = source_bucket {
         let mut statement = connection
             .prepare("SELECT artifact_revision_id FROM _fathomdb_source_links WHERE source_id=?1")
             .map_err(|_| EngineError::Storage)?;
@@ -311,6 +308,28 @@ pub(crate) fn physical_proof_scope(
         source_version_keys: source_version_keys.into_iter().collect(),
         receipt_refs: receipt_refs.iter().cloned().collect(),
     })
+}
+
+fn proof_semantics_are_valid(proof: &ClosureProofV1, cause: ClosureCauseV1) -> bool {
+    let common_zeros = proof.current_active_dependent_nodes == 0
+        && proof.current_derived_edges == 0
+        && proof.view_eligible_dependents == 0
+        && proof.ownerless_projection_rows == 0
+        && proof.post_admission_registrations == 0
+        && proof.view_eligible_dependents
+            == proof.current_active_dependent_nodes.saturating_add(proof.current_derived_edges);
+    let physical_zeros = [
+        proof.remaining_dependency_rows,
+        proof.remaining_canonical_rows,
+        proof.remaining_projection_rows,
+        proof.remaining_receipt_reference_rows,
+    ];
+    common_zeros
+        && if cause.is_physical() {
+            physical_zeros.iter().all(|value| *value == Some(0))
+        } else {
+            physical_zeros.iter().all(Option::is_none)
+        }
 }
 
 pub(crate) fn physical_dependents_for_sources(
@@ -1100,18 +1119,19 @@ pub(crate) fn validate_closure_state_on_open(
                 ]
                 .contains(&value)
             });
-            let phase_valid = match phase {
-                ClosurePhaseV1::Complete => blocker.is_none() && proof.is_some(),
-                ClosurePhaseV1::Proving => {
-                    blocker.is_none() && proof.is_none() && !cause.is_physical()
-                }
-                ClosurePhaseV1::AtRestPending => {
-                    blocker.is_none() && proof.is_some() && cause.is_physical()
-                }
-                ClosurePhaseV1::Incomplete => {
-                    blocker.is_some() && (proof.is_some() == cause.is_physical())
-                }
-            };
+            let phase_valid =
+                match phase {
+                    ClosurePhaseV1::Complete => blocker.is_none() && proof.is_some(),
+                    ClosurePhaseV1::Proving => {
+                        blocker.is_none() && proof.is_none() && !cause.is_physical()
+                    }
+                    ClosurePhaseV1::AtRestPending => {
+                        blocker.is_none() && proof.is_some() && cause.is_physical()
+                    }
+                    ClosurePhaseV1::Incomplete => {
+                        blocker.is_some() && (proof.is_some() == cause.is_physical())
+                    }
+                } && proof.as_ref().is_none_or(|proof| proof_semantics_are_valid(proof, cause));
             if !valid_closure_id(&id)
                 || !valid_hash(&fingerprint)
                 || !root_valid
@@ -1783,7 +1803,9 @@ impl Engine {
                     .contains(&value)
                 }) && (proof.is_some() == cause.is_physical())
             }
-        };
+        } && proof
+            .as_ref()
+            .is_none_or(|proof| proof_semantics_are_valid(proof, cause));
         if !phase_shape_valid {
             return Err(EngineError::Storage);
         }

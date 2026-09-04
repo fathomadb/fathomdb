@@ -1027,22 +1027,9 @@ pub(crate) fn validate_closure_state_on_open(
         return Ok(());
     }
     let valid = (|| -> Result<bool, rusqlite::Error> {
-        let value: String = connection.query_row(
-            "SELECT value FROM _fathomdb_open_state WHERE key=?1",
-            [CLOSURE_SEQUENCE_KEY],
-            |row| row.get(0),
-        )?;
-        let Some(sequence) = canonical_sequence(&value) else {
+        let Some(sequence) = valid_closure_sequence(connection)? else {
             return Ok(false);
         };
-        let max_sequence: i64 = connection.query_row(
-            "SELECT COALESCE(MAX(closure_sequence),0) FROM _fathomdb_dependency_closures",
-            [],
-            |row| row.get(0),
-        )?;
-        if max_sequence < 0 || sequence < max_sequence as u64 {
-            return Ok(false);
-        }
         let current_boundary: i64 = connection.query_row(
             "SELECT COALESCE(MAX(write_cursor),0) FROM (\
                SELECT write_cursor FROM canonical_nodes \
@@ -1178,6 +1165,26 @@ fn canonical_sequence(value: &str) -> Option<u64> {
         return None;
     }
     value.parse::<u64>().ok().filter(|value| *value <= i64::MAX as u64)
+}
+
+fn valid_closure_sequence(connection: &Connection) -> rusqlite::Result<Option<u64>> {
+    let value: String = connection.query_row(
+        "SELECT value FROM _fathomdb_open_state WHERE key=?1",
+        [CLOSURE_SEQUENCE_KEY],
+        |row| row.get(0),
+    )?;
+    let Some(sequence) = canonical_sequence(&value) else {
+        return Ok(None);
+    };
+    let max_sequence: i64 = connection.query_row(
+        "SELECT COALESCE(MAX(closure_sequence),0) FROM _fathomdb_dependency_closures",
+        [],
+        |row| row.get(0),
+    )?;
+    if max_sequence < 0 || sequence < max_sequence as u64 {
+        return Ok(None);
+    }
+    Ok(Some(sequence))
 }
 
 fn load_sequence(connection: &Connection) -> Result<u64, EngineError> {
@@ -1691,6 +1698,9 @@ impl Engine {
         self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        valid_closure_sequence(connection)
+            .map_err(|_| EngineError::Storage)?
+            .ok_or(EngineError::Storage)?;
         #[allow(clippy::type_complexity)]
         let row: Option<(
             i64,

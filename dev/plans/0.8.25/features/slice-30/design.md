@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 30 — core lifecycle and erasure closure design
 status: READY
-design_version: 6
+design_version: 7
 review_fix: 3
 review: design-review-cycle4.md
 depends_on: 25
@@ -271,9 +271,10 @@ idempotent retry contract; no new post-commit `WriteReceipt` behavior exists.
 
 Actuation performs the same effects in its existing idempotent transaction but
 commits phase `proving`, outcome `committed_closure_pending`, and ordered
-closure IDs. Immediately after commit it attempts internal proof finalization;
-the immutable receipt still describes the state at its commit. Exact replay
-returns that receipt, and keyed status reports current closure state.
+closure IDs. Immediately after commit it publishes the committed write cursor
+in process before attempting fallible internal proof finalization; the
+immutable receipt still describes the state at its commit. Exact replay returns
+that receipt, and keyed status reports current closure state.
 
 ## Internal recovery and proof
 
@@ -299,8 +300,9 @@ leaves a barrier and a self-contained at-rest result.
 
 Soft proof requires zero current active dependent nodes, zero current derived
 edges, zero default-view eligible dependents, zero ownerless projection rows,
-and zero registrations newer than the admitted generation. Owner-valid raw
-FTS/vector rows do not fail soft proof when no governed read can return them.
+and zero registrations newer than the admitted generation. The projection
+count is measured over every registered row-owned projection for the admitted
+dependent cursors; no constant zero is accepted.
 
 Physical proof's structural zeros are already stored atomically with deletion.
 At-rest retry validates the canonical proof, indexed boundary, unchanged active
@@ -365,18 +367,10 @@ only from an Engine-session cached zero-dependency/zero-nonterminal state that
 invalidates on every relevant commit. Slice 75 measures fast-path and
 dependent-path overhead.
 
-RED is committed before product code and covers node/edge soft and physical
-effects; exact root/actuation atomicity; registration/reactivation eligibility;
-ordinary and actuation derived-write admission, typed mapping, and precedence;
-barriers under strict and relaxed views; both projection publication races;
-crash/reopen at proving and at-rest phases; exact receipt replay; phase/proof
-corruption; source erasure of prior closure rows; raw database/WAL canaries;
-closure-sequence missing/malformed/regressed/exhausted/rollback/no-op cases;
-repeat delete/recreate/delete and erase/repopulate/erase admission; nonphysical
-incomplete recovery and exact actuation replay maintenance; reachable
-closure-active versus ineligible precedence;
-schema/property invariants; strict binding codecs; and existing no-dependent
-compatibility.
+The durable [TDD chronology](implementation-tdd-chronology.md) records which
+coverage preceded implementation, which coverage was added during the first
+GREEN commit, and each later reviewer-driven RED/FIX cycle. Review findings do
+not retroactively count as pre-implementation RED coverage.
 
 GREEN runs focused schema/Engine/binding tests, fast verification, heavy
 erasure/concurrency tests, all/all-feature/operator routes, installed wheel and

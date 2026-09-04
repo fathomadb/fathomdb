@@ -22,6 +22,7 @@ import {
 } from "./binding.js";
 import {
   ActuationError,
+  DependencyClosureError,
   DependencyError,
   InvalidArgumentError,
   InvalidFilterError,
@@ -266,6 +267,188 @@ export interface ActuationReceiptV1 {
   resultingDependencyGeneration: string | null;
   pendingProjectionWriteCursors: string[];
   closureOperationIds: string[];
+}
+
+function closureResponseError(fieldPath: string): never {
+  throw new DependencyClosureError(
+    `dependency closure response invalid at ${fieldPath}`,
+    "unknown_field",
+    fieldPath,
+  );
+}
+
+function closureRecord(value: unknown, fieldPath: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    closureResponseError(fieldPath);
+  }
+  return value as Record<string, unknown>;
+}
+
+function closureExactKeys(
+  value: Record<string, unknown>,
+  allowed: readonly string[],
+  fieldPath: string,
+): void {
+  const allowedSet = new Set(allowed);
+  const unknown = Object.keys(value).find((key) => !allowedSet.has(key));
+  if (unknown !== undefined) closureResponseError(`${fieldPath}/${unknown}`);
+}
+
+function closureString(value: unknown, fieldPath: string): string {
+  if (typeof value !== "string" || value.length === 0) closureResponseError(fieldPath);
+  return value;
+}
+
+function closureDecimal(value: unknown, fieldPath: string, signed = false): string {
+  const parsed = closureString(value, fieldPath);
+  const pattern = signed ? /^(0|-[1-9][0-9]*|[1-9][0-9]*)$/ : /^(0|[1-9][0-9]*)$/;
+  if (!pattern.test(parsed)) closureResponseError(fieldPath);
+  return parsed;
+}
+
+function closureProofResponse(value: unknown): ClosureProofV1 {
+  const proof = closureRecord(value, "/proof");
+  closureExactKeys(
+    proof,
+    [
+      "schemaVersion",
+      "proofWriteBoundary",
+      "currentActiveDependentNodes",
+      "currentDerivedEdges",
+      "viewEligibleDependents",
+      "ownerlessProjectionRows",
+      "postAdmissionRegistrations",
+      "remainingDependencyRows",
+      "remainingCanonicalRows",
+      "remainingProjectionRows",
+      "remainingReceiptReferenceRows",
+    ],
+    "/proof",
+  );
+  if (proof.schemaVersion !== 1) closureResponseError("/proof/schemaVersion");
+  const nullableDecimal = (field: string): string | null =>
+    proof[field] === null ? null : closureDecimal(proof[field], `/proof/${field}`);
+  return {
+    schemaVersion: 1,
+    proofWriteBoundary: closureDecimal(proof.proofWriteBoundary, "/proof/proofWriteBoundary"),
+    currentActiveDependentNodes: closureDecimal(
+      proof.currentActiveDependentNodes,
+      "/proof/currentActiveDependentNodes",
+    ),
+    currentDerivedEdges: closureDecimal(proof.currentDerivedEdges, "/proof/currentDerivedEdges"),
+    viewEligibleDependents: closureDecimal(
+      proof.viewEligibleDependents,
+      "/proof/viewEligibleDependents",
+    ),
+    ownerlessProjectionRows: closureDecimal(
+      proof.ownerlessProjectionRows,
+      "/proof/ownerlessProjectionRows",
+    ),
+    postAdmissionRegistrations: closureDecimal(
+      proof.postAdmissionRegistrations,
+      "/proof/postAdmissionRegistrations",
+    ),
+    remainingDependencyRows: nullableDecimal("remainingDependencyRows"),
+    remainingCanonicalRows: nullableDecimal("remainingCanonicalRows"),
+    remainingProjectionRows: nullableDecimal("remainingProjectionRows"),
+    remainingReceiptReferenceRows: nullableDecimal("remainingReceiptReferenceRows"),
+  };
+}
+
+function closureResponse(value: unknown): ClosureStatusV1 {
+  const status = closureRecord(value, "");
+  closureExactKeys(
+    status,
+    [
+      "schemaVersion",
+      "closureOperationId",
+      "root",
+      "cause",
+      "phase",
+      "effectiveAtEpochS",
+      "admittedWriteBoundary",
+      "admittedDependencyGeneration",
+      "affectedCount",
+      "blockerCode",
+      "proof",
+    ],
+    "",
+  );
+  if (status.schemaVersion !== 1) {
+    throw new DependencyClosureError(
+      "dependency closure unsupported_schema_version at /schemaVersion",
+      "unsupported_schema_version",
+      "/schemaVersion",
+    );
+  }
+  const closureOperationId = closureString(status.closureOperationId, "/closureOperationId");
+  if (!/^_fdb:c:[0-9a-f]{64}$/.test(closureOperationId)) {
+    throw new DependencyClosureError(
+      "dependency closure closure_operation_id_invalid at /closureOperationId",
+      "closure_operation_id_invalid",
+      "/closureOperationId",
+    );
+  }
+  const rootValue = closureRecord(status.root, "/root");
+  const rootType = rootValue.type;
+  let root: ClosureStatusV1["root"];
+  if (rootType === "source_revision") {
+    closureExactKeys(rootValue, ["type", "sourceRevisionId"], "/root");
+    root = {
+      type: "source_revision",
+      sourceRevisionId: closureString(rootValue.sourceRevisionId, "/root/sourceRevisionId"),
+    };
+  } else if (rootType === "source_bucket") {
+    closureExactKeys(rootValue, ["type", "sourceId"], "/root");
+    root = {
+      type: "source_bucket",
+      sourceId: closureString(rootValue.sourceId, "/root/sourceId"),
+    };
+  } else {
+    closureResponseError("/root/type");
+  }
+  const cause = closureString(status.cause, "/cause");
+  if (!["superseded", "soft_deleted", "purged", "source_erased"].includes(cause)) {
+    closureResponseError("/cause");
+  }
+  const phase = closureString(status.phase, "/phase");
+  if (!["proving", "at_rest_pending", "complete", "incomplete"].includes(phase)) {
+    closureResponseError("/phase");
+  }
+  const blockerCode = status.blockerCode;
+  if (
+    blockerCode !== null &&
+    ![
+      "projection_state_unavailable",
+      "proof_unavailable",
+      "telemetry_redaction",
+      "wal_checkpoint",
+    ].includes(String(blockerCode))
+  ) {
+    closureResponseError("/blockerCode");
+  }
+  if (blockerCode !== null && typeof blockerCode !== "string") {
+    closureResponseError("/blockerCode");
+  }
+  return {
+    schemaVersion: 1,
+    closureOperationId,
+    root,
+    cause: cause as ClosureStatusV1["cause"],
+    phase: phase as ClosureStatusV1["phase"],
+    effectiveAtEpochS: closureDecimal(status.effectiveAtEpochS, "/effectiveAtEpochS", true),
+    admittedWriteBoundary: closureDecimal(
+      status.admittedWriteBoundary,
+      "/admittedWriteBoundary",
+    ),
+    admittedDependencyGeneration: closureDecimal(
+      status.admittedDependencyGeneration,
+      "/admittedDependencyGeneration",
+    ),
+    affectedCount: closureDecimal(status.affectedCount, "/affectedCount"),
+    blockerCode,
+    proof: status.proof === null ? null : closureProofResponse(status.proof),
+  };
 }
 
 function dependencyResponse(value: {
@@ -1318,7 +1501,7 @@ export class Engine {
   ): Promise<ClosureStatusV1 | null> {
     try {
       const value = await this.#native.readDependencyClosure(request);
-      return value as ClosureStatusV1 | null;
+      return value === null ? null : closureResponse(value);
     } catch (err) {
       rethrowTyped(err);
     }

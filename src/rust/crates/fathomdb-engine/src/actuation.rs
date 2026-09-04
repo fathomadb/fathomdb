@@ -1856,10 +1856,10 @@ impl Engine {
             return Err(EngineError::Storage);
         }
         tx.commit().map_err(|_| EngineError::Storage)?;
+        self.next_cursor.store(next_cursor, Ordering::SeqCst);
         for closure_id in &closure_operation_ids {
             dependency_closure::finalize_soft_closure(connection, closure_id)?;
         }
-        self.next_cursor.store(next_cursor, Ordering::SeqCst);
         if !receipt.pending_projection_write_cursors.is_empty() || unstranded {
             self.projection_runtime.notify_new_work();
         }

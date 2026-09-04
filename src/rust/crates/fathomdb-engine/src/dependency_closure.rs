@@ -217,6 +217,43 @@ pub(crate) struct PhysicalClosureAdmission<'a> {
     pub affected_count: usize,
 }
 
+pub(crate) struct PhysicalProofScope {
+    cursors: Vec<i64>,
+    revisions: Vec<String>,
+    receipt_refs: Vec<(String, String)>,
+}
+
+pub(crate) fn physical_proof_scope(
+    connection: &Connection,
+    cursors: &[i64],
+    receipt_refs: &BTreeSet<(String, String)>,
+) -> Result<PhysicalProofScope, EngineError> {
+    let mut revisions = Vec::new();
+    for cursor in cursors {
+        let revision = connection
+            .query_row(
+                "SELECT revision_id FROM _fathomdb_artifact_revisions WHERE write_cursor=?1",
+                [cursor],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|_| EngineError::Storage)?;
+        if let Some(revision) = revision {
+            revisions.push(revision);
+        }
+    }
+    revisions.sort();
+    revisions.dedup();
+    let mut cursors = cursors.to_vec();
+    cursors.sort_unstable();
+    cursors.dedup();
+    Ok(PhysicalProofScope {
+        cursors,
+        revisions,
+        receipt_refs: receipt_refs.iter().cloned().collect(),
+    })
+}
+
 pub(crate) fn physical_dependents_for_sources(
     connection: &Connection,
     source_revisions: &[String],
@@ -259,6 +296,142 @@ fn physical_proof(boundary: u64) -> ClosureProofV1 {
         remaining_projection_rows: Some(0),
         remaining_receipt_reference_rows: Some(0),
     }
+}
+
+pub(crate) fn measure_physical_closures(
+    connection: &Connection,
+    ids: &[ClosureOperationId],
+    scope: &PhysicalProofScope,
+) -> Result<(), EngineError> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let mut active_nodes = 0_i64;
+    let mut current_edges = 0_i64;
+    let mut canonical_rows = 0_i64;
+    let mut projection_rows = 0_i64;
+    for cursor in &scope.cursors {
+        let (nodes, active): (i64, i64) = connection
+            .query_row(
+                "SELECT COUNT(*),COALESCE(SUM(state='active' AND superseded_at IS NULL),0) \
+                 FROM canonical_nodes WHERE write_cursor=?1",
+                [cursor],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let (edges, current): (i64, i64) = connection
+            .query_row(
+                "SELECT COUNT(*),COALESCE(SUM(superseded_at IS NULL),0) \
+                 FROM canonical_edges WHERE write_cursor=?1",
+                [cursor],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        canonical_rows = canonical_rows.saturating_add(nodes).saturating_add(edges);
+        active_nodes = active_nodes.saturating_add(active);
+        current_edges = current_edges.saturating_add(current);
+        for projection in ROW_OWNED_PROJECTIONS.iter() {
+            let sql = format!(
+                "SELECT COUNT(*) FROM {} WHERE {}=?1",
+                projection.table, projection.cursor_column
+            );
+            let count: i64 = connection
+                .query_row(&sql, [cursor], |row| row.get(0))
+                .map_err(|_| EngineError::Storage)?;
+            projection_rows = projection_rows.saturating_add(count);
+        }
+    }
+    let mut dependency_rows = 0_i64;
+    for revision in &scope.revisions {
+        let count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM _fathomdb_source_dependencies \
+                 WHERE derived_revision_id=?1",
+                [revision],
+                |row| row.get(0),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        dependency_rows = dependency_rows.saturating_add(count);
+    }
+    let mut receipt_rows = 0_i64;
+    for (kind, value) in &scope.receipt_refs {
+        let count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM _fathomdb_actuation_receipt_source_refs \
+                 WHERE ref_kind=?1 AND ref_value=?2",
+                params![kind, value],
+                |row| row.get(0),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        receipt_rows = receipt_rows.saturating_add(count);
+    }
+    for id in ids {
+        let (boundary, admitted_generation): (i64, i64) = connection
+            .query_row(
+                "SELECT admitted_write_boundary,admitted_dependency_generation \
+                 FROM _fathomdb_dependency_closures WHERE closure_operation_id=?1",
+                [id.as_str()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let post_admission: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM _fathomdb_source_dependencies \
+                 WHERE registered_dependency_generation>?1",
+                [admitted_generation],
+                |row| row.get(0),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let proof = ClosureProofV1 {
+            schema_version: 1,
+            proof_write_boundary: u64::try_from(boundary).map_err(|_| EngineError::Storage)?,
+            current_active_dependent_nodes: u64::try_from(active_nodes)
+                .map_err(|_| EngineError::Storage)?,
+            current_derived_edges: u64::try_from(current_edges)
+                .map_err(|_| EngineError::Storage)?,
+            view_eligible_dependents: u64::try_from(active_nodes.saturating_add(current_edges))
+                .map_err(|_| EngineError::Storage)?,
+            ownerless_projection_rows: u64::try_from(projection_rows)
+                .map_err(|_| EngineError::Storage)?,
+            post_admission_registrations: u64::try_from(post_admission)
+                .map_err(|_| EngineError::Storage)?,
+            remaining_dependency_rows: Some(
+                u64::try_from(dependency_rows).map_err(|_| EngineError::Storage)?,
+            ),
+            remaining_canonical_rows: Some(
+                u64::try_from(canonical_rows).map_err(|_| EngineError::Storage)?,
+            ),
+            remaining_projection_rows: Some(
+                u64::try_from(projection_rows).map_err(|_| EngineError::Storage)?,
+            ),
+            remaining_receipt_reference_rows: Some(
+                u64::try_from(receipt_rows).map_err(|_| EngineError::Storage)?,
+            ),
+        };
+        let has_residue = proof.current_active_dependent_nodes != 0
+            || proof.current_derived_edges != 0
+            || proof.view_eligible_dependents != 0
+            || proof.ownerless_projection_rows != 0
+            || proof.post_admission_registrations != 0
+            || proof.remaining_dependency_rows != Some(0)
+            || proof.remaining_canonical_rows != Some(0)
+            || proof.remaining_projection_rows != Some(0)
+            || proof.remaining_receipt_reference_rows != Some(0);
+        if has_residue {
+            return Err(EngineError::Storage);
+        }
+        let changed = connection
+            .execute(
+                "UPDATE _fathomdb_dependency_closures SET proof_json=?2,\
+                 structural_proof_write_boundary=?3 WHERE closure_operation_id=?1",
+                params![id.as_str(), proof_json(&proof)?, boundary],
+            )
+            .map_err(|_| EngineError::Storage)?;
+        if changed != 1 {
+            return Err(EngineError::Storage);
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn record_physical_closure(
@@ -604,8 +777,61 @@ pub(crate) fn derived_cursor_has_active_barrier(
     source.map(|source| active_barrier_for_source(connection, &source)).unwrap_or(Ok(false))
 }
 
-pub(crate) fn read_barrier_sql(alias: &str) -> String {
-    read_barrier_sql_for_cursor(&format!("{alias}.write_cursor"))
+pub(crate) fn read_eligibility_sql(
+    alias: &str,
+    include_superseded: bool,
+    include_inactive: bool,
+    include_out_of_window: bool,
+    now_idx: usize,
+) -> String {
+    read_eligibility_sql_for_cursor(
+        &format!("{alias}.write_cursor"),
+        include_superseded,
+        include_inactive,
+        include_out_of_window,
+        now_idx,
+    )
+}
+
+pub(crate) fn read_eligibility_sql_for_cursor(
+    cursor_expression: &str,
+    include_superseded: bool,
+    include_inactive: bool,
+    include_out_of_window: bool,
+    now_idx: usize,
+) -> String {
+    let mut source_predicate = String::new();
+    if !include_superseded {
+        source_predicate.push_str(" AND source_node.superseded_at IS NULL");
+    }
+    if !include_inactive {
+        source_predicate.push_str(" AND source_node.state='active'");
+    }
+    if !include_out_of_window {
+        source_predicate.push_str(&format!(
+            " AND (source_node.valid_from IS NULL OR source_node.valid_from <= ?{now_idx}) \
+             AND (source_node.valid_until IS NULL OR source_node.valid_until > ?{now_idx})"
+        ));
+    }
+    format!(
+        "{} AND NOT EXISTS(\
+           SELECT 1 FROM _fathomdb_artifact_revisions source_owner \
+           JOIN _fathomdb_source_dependencies source_dep \
+             ON source_dep.derived_revision_id=source_owner.revision_id \
+           JOIN _fathomdb_source_links derived_link \
+             ON derived_link.artifact_revision_id=source_owner.revision_id \
+           WHERE source_owner.write_cursor={cursor_expression} AND NOT EXISTS(\
+             SELECT 1 FROM _fathomdb_artifact_revisions source_revision \
+             JOIN canonical_nodes source_node \
+               ON source_node.write_cursor=source_revision.write_cursor \
+             WHERE source_revision.revision_id=derived_link.source_revision_id \
+               AND source_revision.artifact_class='node' \
+               AND source_revision.artifact_role='canonical_source' \
+               AND source_revision.completeness='complete'{source_predicate}\
+           )\
+         )",
+        read_barrier_sql_for_cursor(cursor_expression)
+    )
 }
 
 pub(crate) fn read_barrier_sql_for_cursor(cursor_expression: &str) -> String {
@@ -988,6 +1214,7 @@ fn soft_proof(
     admitted_generation: u64,
     boundary: u64,
 ) -> Result<ClosureProofV1, EngineError> {
+    let dependents = direct_dependents(connection, source_revision_id)?;
     let active_nodes: i64 = connection
         .query_row(
             "SELECT COUNT(*) FROM _fathomdb_source_dependencies d \
@@ -1022,6 +1249,19 @@ fn soft_proof(
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)?;
+    let mut projection_rows = 0_i64;
+    for dependent in &dependents {
+        for projection in ROW_OWNED_PROJECTIONS.iter() {
+            let sql = format!(
+                "SELECT COUNT(*) FROM {} WHERE {}=?1",
+                projection.table, projection.cursor_column
+            );
+            let count: i64 = connection
+                .query_row(&sql, [dependent.write_cursor], |row| row.get(0))
+                .map_err(|_| EngineError::Storage)?;
+            projection_rows = projection_rows.saturating_add(count);
+        }
+    }
     let active = u64::try_from(active_nodes).map_err(|_| EngineError::Storage)?;
     let edges = u64::try_from(current_edges).map_err(|_| EngineError::Storage)?;
     Ok(ClosureProofV1 {
@@ -1030,7 +1270,8 @@ fn soft_proof(
         current_active_dependent_nodes: active,
         current_derived_edges: edges,
         view_eligible_dependents: active.saturating_add(edges),
-        ownerless_projection_rows: 0,
+        ownerless_projection_rows: u64::try_from(projection_rows)
+            .map_err(|_| EngineError::Storage)?,
         post_admission_registrations: u64::try_from(newer).map_err(|_| EngineError::Storage)?,
         remaining_dependency_rows: None,
         remaining_canonical_rows: None,

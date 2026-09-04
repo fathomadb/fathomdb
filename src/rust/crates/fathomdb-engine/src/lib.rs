@@ -3600,7 +3600,13 @@ impl ReadView {
             "{}{}{}",
             self.existence_sql(alias),
             self.validity_sql(alias, now_idx),
-            dependency_closure::read_barrier_sql(alias)
+            dependency_closure::read_eligibility_sql(
+                alias,
+                self.include_superseded,
+                self.include_inactive,
+                self.include_out_of_window,
+                now_idx,
+            )
         )
     }
 
@@ -3719,7 +3725,13 @@ impl FrozenView {
             "{}{}{}",
             self.view.existence_sql(alias),
             self.view.validity_sql(alias, now_idx),
-            dependency_closure::read_barrier_sql(alias)
+            dependency_closure::read_eligibility_sql(
+                alias,
+                self.view.include_superseded,
+                self.view.include_inactive,
+                self.view.include_out_of_window,
+                now_idx,
+            )
         )
     }
 }
@@ -3782,9 +3794,19 @@ fn current_epoch_seconds() -> i64 {
 /// Always begins with ` AND `, so every call site must already have a preceding
 /// `WHERE` predicate.
 fn edge_validity_sql(alias: &str, now_idx: usize) -> String {
+    edge_validity_sql_for_view(alias, now_idx, &ReadView::default())
+}
+
+fn edge_validity_sql_for_view(alias: &str, now_idx: usize, view: &ReadView) -> String {
     format!(
         " AND ({alias}.t_invalid IS NULL OR {alias}.t_invalid > ?{now_idx}){}",
-        dependency_closure::read_barrier_sql(alias)
+        dependency_closure::read_eligibility_sql(
+            alias,
+            view.include_superseded,
+            view.include_inactive,
+            view.include_out_of_window,
+            now_idx,
+        )
     )
 }
 
@@ -11719,14 +11741,15 @@ impl Engine {
         self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let barrier = dependency_closure::read_barrier_sql("canonical_nodes");
+        let eligibility =
+            dependency_closure::read_eligibility_sql("canonical_nodes", false, false, false, 2);
         connection
             .query_row(
                 &format!(
                     "SELECT importance FROM canonical_nodes \
-                     WHERE write_cursor = ?1{barrier} LIMIT 1"
+                     WHERE write_cursor = ?1{eligibility} LIMIT 1"
                 ),
-                params![write_cursor],
+                params![write_cursor, current_epoch_seconds()],
                 |r| r.get::<_, Option<f64>>(0),
             )
             .optional()
@@ -12672,27 +12695,13 @@ impl Engine {
         let mut closure_ids = Vec::new();
         let proof_boundary =
             if enqueued { pending_cursor } else { self.next_cursor.load(Ordering::SeqCst) };
-        for (source_revision, dependents) in &physical_plans {
+        for (source_revision, _) in &physical_plans {
             tx.execute(
                 "DELETE FROM _fathomdb_dependency_closures \
                  WHERE root_kind='source_revision' AND root_value=?1 AND phase='complete'",
                 [source_revision],
             )
             .map_err(|_| EngineError::Storage)?;
-            if let Some(id) = dependency_closure::record_physical_closure(
-                &tx,
-                dependency_closure::PhysicalClosureAdmission {
-                    root_kind: "source_revision",
-                    root_value: source_revision,
-                    retry_verb: "purge",
-                    retry_argument: lid,
-                    cause: ClosureCauseV1::Purged,
-                    boundary: proof_boundary,
-                    affected_count: dependents.len(),
-                },
-            )? {
-                closure_ids.push(id);
-            }
         }
 
         let affected_cursors: Vec<i64> =
@@ -12712,6 +12721,24 @@ impl Engine {
         }
         let receipt_refs =
             actuation_erasure_refs_for_cursors(&tx, &affected_cursors, erased_source_ids)?;
+        let proof_scope =
+            dependency_closure::physical_proof_scope(&tx, &affected_cursors, &receipt_refs)?;
+        for (source_revision, dependents) in &physical_plans {
+            if let Some(id) = dependency_closure::record_physical_closure(
+                &tx,
+                dependency_closure::PhysicalClosureAdmission {
+                    root_kind: "source_revision",
+                    root_value: source_revision,
+                    retry_verb: "purge",
+                    retry_argument: lid,
+                    cause: ClosureCauseV1::Purged,
+                    boundary: proof_boundary,
+                    affected_count: dependents.len(),
+                },
+            )? {
+                closure_ids.push(id);
+            }
+        }
         actuation::redact_actuation_receipts_for_refs(&tx, &receipt_refs)?;
         erase_artifact_identity_for_cursors(&tx, &affected_cursors, true, None)?;
 
@@ -12751,6 +12778,8 @@ impl Engine {
         if enqueued {
             enqueue_pending_redaction(&tx, "purge", &erased_stable_ids, pending_cursor)?;
         }
+
+        dependency_closure::measure_physical_closures(&tx, &closure_ids, &proof_scope)?;
 
         tx.commit().map_err(|_| EngineError::Storage)?;
         if enqueued {
@@ -13500,20 +13529,6 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
         }
         let proof_boundary = self.next_cursor.load(Ordering::SeqCst).saturating_add(1);
-        let closure_ids = dependency_closure::record_physical_closure(
-            &tx,
-            dependency_closure::PhysicalClosureAdmission {
-                root_kind: "source_bucket",
-                root_value: source_id,
-                retry_verb: verb,
-                retry_argument: source_id,
-                cause: ClosureCauseV1::SourceErased,
-                boundary: proof_boundary,
-                affected_count: affected_dependencies,
-            },
-        )?
-        .into_iter()
-        .collect::<Vec<_>>();
 
         // 0.8.20 Slice 5b (R-20-E6) — stable ids the telemetry sink may hold for
         // these rows, collected BEFORE the DELETEs.
@@ -13528,6 +13543,22 @@ impl Engine {
             node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
         let receipt_refs =
             actuation_erasure_refs_for_cursors(&tx, &affected_cursors, [source_id.to_string()])?;
+        let proof_scope =
+            dependency_closure::physical_proof_scope(&tx, &affected_cursors, &receipt_refs)?;
+        let closure_ids = dependency_closure::record_physical_closure(
+            &tx,
+            dependency_closure::PhysicalClosureAdmission {
+                root_kind: "source_bucket",
+                root_value: source_id,
+                retry_verb: verb,
+                retry_argument: source_id,
+                cause: ClosureCauseV1::SourceErased,
+                boundary: proof_boundary,
+                affected_count: affected_dependencies,
+            },
+        )?
+        .into_iter()
+        .collect::<Vec<_>>();
         actuation::redact_actuation_receipts_for_refs(&tx, &receipt_refs)?;
         erase_artifact_identity_for_cursors(&tx, &affected_cursors, false, Some(source_id))?;
 
@@ -13602,6 +13633,8 @@ impl Engine {
         if self.telemetry_enabled.load(Ordering::Acquire) {
             enqueue_pending_redaction(&tx, verb, &erased_stable_ids, audit_cursor)?;
         }
+
+        dependency_closure::measure_physical_closures(&tx, &closure_ids, &proof_scope)?;
 
         tx.commit().map_err(|_| EngineError::Storage)?;
         self.next_cursor.store(audit_cursor, Ordering::SeqCst);
@@ -15471,11 +15504,17 @@ fn read_search_in_tx(
         // On a corpus that never authored a window every row is NULL/NULL and
         // the conjunct matches everything ⇒ default behaviour is unchanged.
         let node_validity = view.validity_sql("canonical_nodes", 2);
-        let node_barrier = dependency_closure::read_barrier_sql("canonical_nodes");
+        let node_eligibility = dependency_closure::read_eligibility_sql(
+            "canonical_nodes",
+            view.view.include_superseded,
+            view.view.include_inactive,
+            view.view.include_out_of_window,
+            2,
+        );
         let mut node_stmt = tx.prepare(&format!(
             "SELECT kind, body, logical_id, source_id FROM canonical_nodes \
              WHERE write_cursor = ?1 AND superseded_at IS NULL AND state = 'active'\
-             {node_validity}{node_barrier} LIMIT 1"
+             {node_validity}{node_eligibility} LIMIT 1"
         ))?;
         // fix-2 (codex §9 [P2]): an edge body projected into `vector_default`
         // (kind = "edge_fact") is hydrated HERE by write_cursor. Gating on
@@ -15489,7 +15528,7 @@ fn read_search_in_tx(
         // (the :9161 no-inline-clock rule). edge_now is ALWAYS present, so unlike
         // node validity this conjunct is unconditional (an edge invalidated in the
         // past stays excluded even when node existence is relaxed).
-        let edge_validity = edge_validity_sql("canonical_edges", 2);
+        let edge_validity = edge_validity_sql_for_view("canonical_edges", 2, &view.view);
         let mut edge_stmt = tx.prepare(&format!(
             "SELECT body, logical_id, source_id FROM canonical_edges \
              WHERE write_cursor = ?1 AND superseded_at IS NULL AND body IS NOT NULL\
@@ -15669,7 +15708,13 @@ fn read_search_in_tx(
         // row-set, the `bm25(search_index), write_cursor` ordering and the
         // scores are all byte-unchanged.
         let text_validity = view.validity_sql("cn", 2);
-        let text_barrier = dependency_closure::read_barrier_sql("cn");
+        let text_eligibility = dependency_closure::read_eligibility_sql(
+            "cn",
+            view.view.include_superseded,
+            view.view.include_inactive,
+            view.view.include_out_of_window,
+            2,
+        );
         let join_sql = format!(
             "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
              bm25(search_index), cn.logical_id, cn.source_id FROM search_index \
@@ -15677,7 +15722,7 @@ fn read_search_in_tx(
              WHERE search_index MATCH ?1 \
                AND cn.superseded_at IS NULL \
                AND (cn.state = 'active' OR cn.state IS NULL)\
-               {text_validity}{text_barrier} \
+               {text_validity}{text_eligibility} \
              ORDER BY bm25(search_index), search_index.write_cursor{limit_clause}"
         );
         // `:now` rides at ?2 only when the view emitted a conjunct; the relaxed
@@ -15719,7 +15764,7 @@ fn read_search_in_tx(
                  WHERE search_index MATCH ?1 \
                    AND cn.superseded_at IS NULL \
                    AND (cn.state = 'active' OR cn.state IS NULL)\
-                   {text_validity}{text_barrier} \
+                   {text_validity}{text_eligibility} \
                    AND rank MATCH '{rank_mapping}' \
                  ORDER BY rank"
             );
@@ -15876,7 +15921,7 @@ fn read_search_in_tx(
         // bound value, never `datetime('now')` (the :9161 no-inline-clock rule),
         // and always present (edge invalidation is not relaxed by node existence
         // relaxation).
-        let edge_validity = edge_validity_sql("ce", 2);
+        let edge_validity = edge_validity_sql_for_view("ce", 2, &view.view);
         let edge_sql = format!(
             "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), \
              ce.logical_id, ce.source_id \
@@ -16369,7 +16414,7 @@ fn bfs_graph_arm_candidates(
                AND (ce.temporal_fallback IS NULL OR ce.temporal_fallback = 0) \
              ORDER BY bm25(search_index_edges), sei.write_cursor \
              LIMIT ?2",
-            edge_validity_sql("ce", 3)
+            edge_validity_sql_for_view("ce", 3, &view.view)
         )) {
             let rows = edge_seed_stmt.query_map(
                 rusqlite::params![match_expression, SEED_FTS_N as i64, view.edge_now()],
@@ -16407,7 +16452,13 @@ fn bfs_graph_arm_candidates(
         {
             // `?1` MATCH, `?2` LIMIT ⇒ `:now` binds at `?3`.
             let seed_validity = view.validity_sql("cn", 3);
-            let seed_barrier = dependency_closure::read_barrier_sql("cn");
+            let seed_eligibility = dependency_closure::read_eligibility_sql(
+                "cn",
+                view.view.include_superseded,
+                view.view.include_inactive,
+                view.view.include_out_of_window,
+                3,
+            );
             let mut node_seed_stmt = tx.prepare(&format!(
                 "SELECT cn.logical_id, cn.source_id \
                  FROM search_index si \
@@ -16416,7 +16467,7 @@ fn bfs_graph_arm_candidates(
                    AND cn.superseded_at IS NULL \
                    AND cn.state = 'active' \
                    AND cn.logical_id IS NOT NULL\
-                   {seed_validity}{seed_barrier} \
+                   {seed_validity}{seed_eligibility} \
                  ORDER BY bm25(search_index), si.write_cursor \
                  LIMIT ?2"
             ))?;
@@ -16445,11 +16496,17 @@ fn bfs_graph_arm_candidates(
         // nodes, not just the fact body (codex §9 [P2]). Seeds whose body is already in
         // the two-arm result are skipped; the cap is respected.
         let active_validity = view.validity_sql("canonical_nodes", 2);
-        let active_barrier = dependency_closure::read_barrier_sql("canonical_nodes");
+        let active_eligibility = dependency_closure::read_eligibility_sql(
+            "canonical_nodes",
+            view.view.include_superseded,
+            view.view.include_inactive,
+            view.view.include_out_of_window,
+            2,
+        );
         let mut active_stmt = tx.prepare(&format!(
             "SELECT kind, body, write_cursor FROM canonical_nodes \
              WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active'\
-             {active_validity}{active_barrier} LIMIT 1"
+             {active_validity}{active_eligibility} LIMIT 1"
         ))?;
         for (lid, source_id, seed_confidence) in candidate_seeds {
             stats.seeds_considered += 1;
@@ -16522,17 +16579,23 @@ fn bfs_graph_arm_candidates(
                AND (e.temporal_fallback IS NULL OR e.temporal_fallback = 0) \
              ORDER BY e.write_cursor \
              LIMIT 64",
-            edge_validity_sql("e", 2)
+            edge_validity_sql_for_view("e", 2, &view.view)
         ),
     )?;
     // Fetch write_cursor alongside kind+body so graph-arm hits carry a real id
     // for apply_recency_reweight (id=0 would force min_id=0 and distort span).
     let body_validity = view.validity_sql("canonical_nodes", 2);
-    let body_barrier = dependency_closure::read_barrier_sql("canonical_nodes");
+    let body_eligibility = dependency_closure::read_eligibility_sql(
+        "canonical_nodes",
+        view.view.include_superseded,
+        view.view.include_inactive,
+        view.view.include_out_of_window,
+        2,
+    );
     let mut body_stmt = tx.prepare(&format!(
         "SELECT kind, body, write_cursor FROM canonical_nodes \
          WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active'\
-         {body_validity}{body_barrier} \
+         {body_validity}{body_eligibility} \
          LIMIT 1"
     ))?;
 
@@ -16914,7 +16977,7 @@ fn build_bfs_sql(direction: TraversalDirection, view: &ReadView) -> String {
     let anchor_node = view.node_sql("n", NOW_IDX);
     let next_node = view.node_sql("next_n", NOW_IDX);
     let projection_node = view.node_sql("n", NOW_IDX);
-    let edge_valid = edge_validity_sql("e", EDGE_NOW_IDX);
+    let edge_valid = edge_validity_sql_for_view("e", EDGE_NOW_IDX, view);
 
     format!(
         "WITH RECURSIVE
@@ -16955,7 +17018,7 @@ fn build_bfs_with_depth_sql() -> String {
     let anchor_node = strict.node_sql("n", 3);
     let next_node = strict.node_sql("next_n", 3);
     let projection_node = strict.node_sql("n", 3);
-    let edge_valid = edge_validity_sql("e", 3);
+    let edge_valid = edge_validity_sql_for_view("e", 3, &strict);
     format!(
         "WITH RECURSIVE
   traversal(logical_id, depth, visited) AS (
@@ -17008,13 +17071,19 @@ fn crossed_boundary_since_in_tx(
     // means "no upper bound on the interval".
     let upper = view.now_param().unwrap_or(i64::MAX);
     let existence = view.existence_sql("canonical_nodes");
-    let barrier = dependency_closure::read_barrier_sql("canonical_nodes");
+    let eligibility = dependency_closure::read_eligibility_sql(
+        "canonical_nodes",
+        view.include_superseded,
+        view.include_inactive,
+        view.include_out_of_window,
+        2,
+    );
     // `1 = 1` keeps the leading ` AND ` of `existence_sql` well-formed even when
     // every existence flag is relaxed and the conjunct is empty.
     let sql = format!(
         "SELECT logical_id, kind, body, write_cursor, valid_from, valid_until \
          FROM canonical_nodes \
-         WHERE 1 = 1{existence}{barrier} \
+         WHERE 1 = 1{existence}{eligibility} \
            AND logical_id IS NOT NULL \
            AND ( (valid_from IS NOT NULL AND valid_from > ?1 AND valid_from <= ?2) \
               OR (valid_until IS NOT NULL AND valid_until > ?1 AND valid_until <= ?2) ) \
@@ -17117,7 +17186,7 @@ fn search_expand_in_tx(
              WHERE write_cursor = ?1{node_predicate}
              LIMIT 1"
         ))?;
-        let edge_predicate = edge_validity_sql("canonical_edges", 2);
+        let edge_predicate = edge_validity_sql_for_view("canonical_edges", 2, &frozen.view);
         let mut edge_stmt = tx.prepare(&format!(
             "SELECT 1 FROM canonical_edges
              WHERE write_cursor = ?1 AND superseded_at IS NULL{edge_predicate}

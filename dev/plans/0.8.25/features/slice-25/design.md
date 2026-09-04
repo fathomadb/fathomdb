@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 25 — bounded atomic actuation design
-status: READY_FOR_RED
+status: READY_REVIEW_PASS_CYCLE_6
 design_version: 8
 review_fix: 6
 review: design-review-cycle6.md

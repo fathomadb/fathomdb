@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 25 — atomic semantic actuation
-status: READY_FOR_RED
+status: COMPLETE_ON_RELEASE_BRANCH
 depends_on: 20
 design: design.md
 design_status: PASS_AT_7a08bcd9
@@ -81,8 +81,13 @@ journal remain outside Slice 25.
    review for D25-21/D25-22. No open P1/P2 or implementation-shaping decision
    may enter RED.
 3. Write and preserve RED tests before production changes. Each implementation
-   review correction receives its own RED witness before GREEN. Resolve at
-   most five implementation FIX cycles.
+   review correction receives its own RED witness before GREEN. The planned
+   five implementation FIX cycles were consumed; the release owner authorized
+   and Slice 25 used one exceptional FIX-6. The separately authorized seventh
+   and eighth cycles were not needed after review cycle 7 passed. The FIX-6
+   rollback witness's test-only fixture repair is disclosed in
+   `implementation-tdd-chronology.md`; it is not claimed as a preserved product
+   RED.
 4. Obtain independent verification at the exact reviewed commit. Resolve at
    most two verifier FIX cycles.
 5. Write `status.md`, update the release-state JSON/generated board, and commit

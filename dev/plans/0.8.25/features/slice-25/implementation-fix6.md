@@ -9,8 +9,11 @@ green_commit: f9a65511
 
 # Slice 25 implementation FIX-6 response
 
-The release owner explicitly authorized this sixth FIX cycle. The failing
-regressions were preserved in `8db99b12`; the correction is `f9a65511`.
+The release owner explicitly authorized this sixth FIX cycle. The binding
+regressions were preserved in `8db99b12`; the correction is `f9a65511`. The
+rollback fixture required a test-only repair during GREEN, recorded without
+overstatement in
+[`implementation-tdd-chronology.md`](implementation-tdd-chronology.md).
 
 ## Corrections
 

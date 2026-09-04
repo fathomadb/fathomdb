@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 30 — core lifecycle and erasure closure design
-status: DRAFT_REVIEW_FIX_1
-design_version: 4
-review_fix: 1
-review: design-review-cycle1.md
+status: DRAFT_REVIEW_FIX_2
+design_version: 5
+review_fix: 2
+review: design-review-cycle2.md
 depends_on: 25
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 ---
@@ -110,7 +110,11 @@ class with code `FDB_DEPENDENCY_CLOSURE`. Canonical RFC 6901 paths use
 
 Registration/reactivation uses existing `DependencyError` with two additive
 reasons: `dependency_source_ineligible` and `dependency_closure_active`.
-Persisted corruption remains `EngineError::Storage`. Unknown request fields are
+Derived writes use matching additive `ProvenanceError` reasons
+`source_revision_ineligible` and `source_closure_active` at
+`/provenance/sourceRevisionId`. Actuation maps them to additive receipt reasons
+`dependency_source_ineligible` and `dependency_closure_active` at the nested
+source-revision path. Persisted corruption remains `EngineError::Storage`. Unknown request fields are
 checked lexicographically after the schema discriminator and before the
 required ID. Older clients may ignore additive status/proof fields but reject
 unknown root/cause/phase/error variants.
@@ -145,6 +149,11 @@ CREATE TABLE _fathomdb_dependency_closures(
   admitted_dependency_generation INTEGER NOT NULL
     CHECK(admitted_dependency_generation >= 0),
   closure_sequence INTEGER NOT NULL UNIQUE CHECK(closure_sequence > 0),
+  retry_fingerprint TEXT NOT NULL UNIQUE CHECK(
+    length(retry_fingerprint) = 64 AND
+    retry_fingerprint = lower(retry_fingerprint) AND
+    retry_fingerprint NOT GLOB '*[^0-9a-f]*'
+  ),
   phase TEXT NOT NULL CHECK(phase IN (
     'proving','at_rest_pending','complete','incomplete'
   )),
@@ -153,17 +162,26 @@ CREATE TABLE _fathomdb_dependency_closures(
     'projection_state_unavailable','proof_unavailable',
     'telemetry_redaction','wal_checkpoint'
   )),
-  proof_write_boundary INTEGER CHECK(proof_write_boundary >= 0),
+  structural_proof_write_boundary INTEGER
+    CHECK(structural_proof_write_boundary >= 0),
   proof_json TEXT CHECK(proof_json IS NULL OR json_valid(proof_json)),
   CHECK(
     (phase = 'complete' AND blocker_code IS NULL AND
-      proof_write_boundary IS NOT NULL AND proof_json IS NOT NULL)
+      structural_proof_write_boundary IS NOT NULL AND proof_json IS NOT NULL)
     OR
     (phase = 'incomplete' AND blocker_code IS NOT NULL AND
-      proof_write_boundary IS NULL AND proof_json IS NULL)
+      ((cause IN ('purged','source_erased') AND
+        structural_proof_write_boundary IS NOT NULL AND proof_json IS NOT NULL)
+       OR
+       (cause IN ('superseded','soft_deleted') AND
+        structural_proof_write_boundary IS NULL AND proof_json IS NULL)))
     OR
-    (phase IN ('proving','at_rest_pending') AND blocker_code IS NULL AND
-      proof_write_boundary IS NULL AND proof_json IS NULL)
+    (phase = 'proving' AND blocker_code IS NULL AND
+      structural_proof_write_boundary IS NULL AND proof_json IS NULL)
+    OR
+    (phase = 'at_rest_pending' AND blocker_code IS NULL AND
+      cause IN ('purged','source_erased') AND
+      structural_proof_write_boundary IS NOT NULL AND proof_json IS NOT NULL)
   )
 );
 CREATE INDEX _fathomdb_dependency_closures_root
@@ -172,14 +190,25 @@ CREATE INDEX _fathomdb_dependency_closures_recovery
   ON _fathomdb_dependency_closures(phase, closure_sequence);
 ```
 
-The table stores opaque/non-PII identifiers and scalar counts only—never body,
-locator, logical ID, request, dependency ID, or derived revision ID.
+The table stores opaque/non-PII identifiers, a one-way retry fingerprint, and
+scalar counts only—never body, locator, logical ID, request, dependency ID, or
+derived revision ID. The retry fingerprint is SHA-256 over the domain
+`fathomdb.dependency-closure-retry.v1\0`, normalized originating verb, and
+normalized root argument. It locates the post-purge result after the logical
+row is gone; it is not an authorization token or evidence identifier.
 `proof_json` is emitted and parsed in one canonical key order, contains exactly
 the `ClosureProofV1` scalar fields, and must agree with its indexed boundary.
 Every point read validates ID hash shape, root grammar, sequence singleton,
 closed variants, phase constraints, proof JSON, count conversions, and
-`proof_write_boundary <=` current write boundary. Any disagreement is
-`Storage`.
+`structural_proof_write_boundary <=` current write boundary. Any disagreement
+is `Storage`.
+
+The sequence singleton reuses Slice 20's fail-closed generation rules: the
+stored value is canonical nonnegative decimal with no leading zero except
+`0`, fits `i64`, and is at least `MAX(closure_sequence)`. Open rejects a
+missing, malformed, out-of-range, or regressed singleton. Admission performs a
+checked exhaustion test before any mutation; `i64::MAX` is exhausted. A
+rollback or a no-dependent no-op does not advance the sequence.
 
 ## Root admission and atomic consequences
 
@@ -219,6 +248,14 @@ advance it. Root admission, every effect, closure phase, root mutation,
 actuation receipt, cursor publication, and dependency generation either all
 commit or all roll back.
 
+Before a physical root transaction commits, it evaluates the complete affected
+set from the pre-delete plan and stores the canonical structural zero proof and
+its write boundary on the `at_rest_pending` row in that same destructive
+transaction. The proof covers every affected dependency, exact canonical row,
+row-owned projection, source link/revision, actuation receipt reference, and
+pending projection row. Delete and proof therefore survive or roll back
+together; restart never reconstructs erased member identities from a count.
+
 Ordinary `write`/supersession and `transition` complete their soft proof in this
 same transaction, preserving existing return and exact retry semantics. Purge,
 `erase_source`, and operator `excise_source` commit physical proof inputs and
@@ -234,31 +271,43 @@ returns that receipt, and keyed status reports current closure state.
 
 ## Internal recovery and proof
 
-`Engine::open` and the pre-writer maintenance seam internally scan nonterminal
-rows in `closure_sequence` order and finalize bounded batches of at most 32
-operations per transaction until none remain or one produces a typed existing
-infrastructure/erasure failure. There is no public resume/list administration.
-Re-running proof is idempotent because all dependent effects already committed
-atomically with the root. A crash before the root commit leaves no closure; a
-crash afterward leaves a self-contained proof task.
+`Engine::open` validates closure rows, sequence state, and active barriers, but
+does not attempt external telemetry or WAL work and does not fail merely
+because a valid physical closure is pending. The pre-writer maintenance seam
+may finalize only nonphysical `proving` rows, in `closure_sequence` order and
+batches of at most 32. There is no public resume/list administration.
+
+While a physical row is nonterminal, `enable_telemetry`, close, keyed closure
+status reads, and ordinary reads under the barrier remain allowed. The exact
+originating `purge`, `erase_source`, or operator `excise_source` retry is also
+allowed: purge matches its retry fingerprint after the logical row is gone,
+and source erasure matches the source-bucket root. Every other writer returns
+the existing `ErasureIncomplete { stage: "dependency_closure" }`. Exact retry
+does not reapply the root mutation; it validates the committed structural
+proof, discharges telemetry redaction and WAL checkpointing, and finalizes the
+closure. A crash before the root commit leaves no closure; a crash afterward
+leaves a barrier and a self-contained at-rest result.
 
 Soft proof requires zero current active dependent nodes, zero current derived
 edges, zero default-view eligible dependents, zero ownerless projection rows,
 and zero registrations newer than the admitted generation. Owner-valid raw
 FTS/vector rows do not fail soft proof when no governed read can return them.
 
-Physical proof additionally requires zero affected dependency, canonical,
-row-owned projection, source-link/revision, actuation-receipt-reference, and
-pending projection rows. It completes existing telemetry redaction and
+Physical proof's structural zeros are already stored atomically with deletion.
+At-rest retry validates the canonical proof, indexed boundary, unchanged active
+barrier, absence of later canonical/dependency writes, and that the root bucket
+or revision remains empty. It does not reconstruct or query erased member IDs.
+Only then does it complete existing telemetry redaction and
 `wal_checkpoint(TRUNCATE)` before marking complete. Updating the content-free
-proof after that checkpoint may create a new WAL frame, but cannot reintroduce
+phase after that checkpoint may create a new WAL frame, but cannot reintroduce
 erased bytes.
 
 Proof success and phase `complete` commit together. A checkable operational
 failure records `incomplete` plus one closed blocker; unclassifiable storage
 corruption returns `Storage` and leaves the prior nonterminal row unchanged.
-Internal recovery rechecks `incomplete` operations and clears the blocker only
-when the proof succeeds. No empty queue or affected count is itself proof.
+An exact originating retry rechecks an `incomplete` operation and clears its
+blocker only when proof and external obligations succeed. No empty queue or
+affected count is itself proof.
 
 ## Eligibility, historical views, and projection races
 
@@ -276,12 +325,18 @@ the derived row; they do not bypass erasure or a nonterminal barrier. Search
 continues to reject its existing unsupported existence relaxations. Slice 35
 extends predicate eligibility without changing this rule.
 
-Registration and explicit reactivation are not historical reads: they always
-require the pinned source revision to exist with complete provenance and be
-current, active, in-window at one fixed current epoch second, and unfenced.
-They return `dependency_source_ineligible` or `dependency_closure_active`.
-`valid_from` never auto-reactivates; scheduled `valid_until` propagation is
-0.8.26 work.
+Registration, explicit reactivation, and every ordinary or actuation-derived
+write carrying a source revision are not historical reads: they always require
+the pinned source revision to exist with complete provenance and be current,
+active, in-window at one fixed current epoch second, and unfenced.
+Registration/reactivation return `dependency_source_ineligible` or
+`dependency_closure_active`; ordinary writes return
+`source_revision_ineligible` or `source_closure_active`; actuation maps those to
+the matching dependency receipt reasons at the nested source-revision path.
+Validation order is existing provenance shape/hash/role, source eligibility,
+active closure, dependency conflict, then lifecycle legality, so malformed
+provenance cannot probe fence state. `valid_from` never auto-reactivates;
+scheduled `valid_until` propagation is 0.8.26 work.
 
 Projection publication revalidates the canonical owner, dependency source under
 the strict current view, and active closure barrier after acquiring its
@@ -301,9 +356,11 @@ dependent-path overhead.
 
 RED is committed before product code and covers node/edge soft and physical
 effects; exact root/actuation atomicity; registration/reactivation eligibility;
+ordinary and actuation derived-write admission, typed mapping, and precedence;
 barriers under strict and relaxed views; both projection publication races;
 crash/reopen at proving and at-rest phases; exact receipt replay; phase/proof
 corruption; source erasure of prior closure rows; raw database/WAL canaries;
+closure-sequence missing/malformed/regressed/exhausted/rollback/no-op cases;
 schema/property invariants; strict binding codecs; and existing no-dependent
 compatibility.
 

@@ -210,6 +210,29 @@ fn raw_dependency_row_corruption_fails_every_read_closed() {
     }
 }
 
+#[test]
+fn consistently_invalid_source_identity_refuses_purge_with_rollback() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "grammar-purge");
+    let opened = Engine::open(&db).unwrap();
+    write_chain(&opened.engine, "bucket");
+    opened.engine.transition("derived", LifecycleState::Deleted, None).unwrap();
+
+    let connection = Connection::open(&db).unwrap();
+    connection.execute("UPDATE canonical_nodes SET source_id='bad source'", []).unwrap();
+    connection.execute("UPDATE _fathomdb_source_versions SET source_id='bad source'", []).unwrap();
+    connection.execute("UPDATE _fathomdb_source_links SET source_id='bad source'", []).unwrap();
+    drop(connection);
+
+    assert!(matches!(opened.engine.purge("derived"), Err(EngineError::Storage)));
+    assert_eq!(generation(&db), "1");
+    let count: i64 = Connection::open(&db)
+        .unwrap()
+        .query_row("SELECT COUNT(*) FROM _fathomdb_source_dependencies", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(count, 1, "failed purge must retain dependency membership");
+}
+
 #[cfg(feature = "operator")]
 #[test]
 fn projection_rebuilds_do_not_remint_dependency_identity_or_generation() {

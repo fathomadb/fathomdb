@@ -25472,6 +25472,9 @@ unsafe extern "C" fn profile_callback_trampoline(
 }
 
 #[cfg(test)]
+mod slice20_fix1_tests;
+
+#[cfg(test)]
 mod tests {
     use super::{
         derive_stable_id, legacy_revision_id, native_connection_state_for_test,

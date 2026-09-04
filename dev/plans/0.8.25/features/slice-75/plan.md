@@ -17,12 +17,43 @@ backfill—the retained Slice 10–60 contracts: installed SDK/wire parity,
 representative concurrency/lifecycle/evidence paths, selected regression
 performance, and retrieval-only evaluation.
 
+## AC-013 vector-latency investigation
+
+Before running the integrated closure matrix, investigate the pre-existing
+`ac_013_vector_retrieval_latency` failure exposed by the Slice 10 diagnostic.
+This belongs to Slice 75 because it is a release-wide canonical performance
+gate; Slice 40 owns projection-generation identity and readiness, not vector
+query latency.
+
+Run the AC-072 binding 10k fixture in isolation with the repository's canonical
+release-mode AC-013 runner. Compare the release candidate with the pinned
+0.8.25 branch-point baseline
+`4fc1b890a11ebfaa8f11b15823656e856002807a` under the same host, compiler,
+SQLite, vector dimension, corpus seed, and process-isolation conditions. Run
+three alternating isolated repetitions per commit. Retain raw logs under
+`dev/plans/runs/0.8.25-slice-75-ac013/` and write the comparison to
+`ac-013-vector-latency-investigation.md` in this slice directory. The record
+must contain every repetition's p50/p99, seed and drain time, host/build
+identity, and exact commands and commits.
+
+Classify the result before continuing:
+
+- if both isolated release-mode runs pass, record the earlier failure as a
+  debug-build or shared-runner diagnostic artifact;
+- if only the release candidate fails, stop Slice 75 and route the regression
+  to the slice or change that introduced it;
+- if both runs fail, stop release closure and present the pre-existing binding-
+  gate failure for explicit disposition; and
+- do not relax AC-072, change its fixture, or introduce an optimization
+  treatment as part of this investigation.
+
 ## Verification routes
 
 Selected: fast, heavy, all, applicable all-feature/operator, Windows CPU/native
 Rust/Python/Node, packaged Python/npm/native/CLI, final packaged-candidate
-native `Engine.search` witness, and focused CUDA only where a retained
-dense/graph contract changed. Live-model, Windows CUDA, pre-publication
+native `Engine.search` witness, the isolated release-mode AC-013 comparison,
+and focused CUDA only where a retained dense/graph contract changed.
+Live-model, Windows CUDA, pre-publication
 registry-installed, and exhaustive scale-by-feature-by-CUDA matrices are N/A.
 Actual registry-installed smokes remain a separately authorized
 post-publication close gate.

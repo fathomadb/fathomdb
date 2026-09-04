@@ -29,9 +29,9 @@ import {
 } from "./errors.js";
 import type { NodeRecord, Predicate, ReadView } from "./read.js";
 import {
-  validateActuationFfiTree,
   validateFfiString,
   validateFfiTree,
+  sanitizeActuationFfiTree,
   validateWriteFfiTree,
 } from "./validation.js";
 
@@ -1244,9 +1244,8 @@ export class Engine {
 
   /** Atomically apply a bounded set of caller-decided memory operations. */
   async actuate(request: ActuationBatchV1): Promise<ActuationReceiptV1> {
-    validateActuationFfiTree(request);
     try {
-      return actuationResponse(await this.#native.actuate(request));
+      return actuationResponse(await this.#native.actuate(sanitizeActuationFfiTree(request)));
     } catch (err) {
       rethrowTyped(err);
     }

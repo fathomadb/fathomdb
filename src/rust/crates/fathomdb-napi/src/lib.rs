@@ -3018,30 +3018,41 @@ fn json_str_alt_required(item: &JsonValue, camel: &str, snake: &str) -> Result<S
 ///
 /// The rationale is not tidiness: `excise_source` addresses rows BY `source_id`,
 /// so a row written without one is reachable by no erasure call — un-erasable.
-fn json_source_id_required(item: &JsonValue, kind: &str) -> Result<SourceId> {
+fn source_id_write_error(message: String, field_path: Option<&str>) -> Error {
+    let payload = field_path.map_or(JsonValue::Null, |path| json!({ "fieldPath": path }));
+    typed_error(CODE_WRITE_VALIDATION, message, payload)
+}
+
+fn json_source_id_required_at(
+    item: &JsonValue,
+    kind: &str,
+    field_path: Option<&str>,
+) -> Result<SourceId> {
     let raw = json_get(item, "sourceId")
         .or_else(|| json_get(item, "source_id"))
         .and_then(JsonValue::as_str)
         .map(str::to_string)
         .ok_or_else(|| {
-            typed_error(
-                CODE_WRITE_VALIDATION,
+            source_id_write_error(
                 format!(
                     "{kind} write item missing required field \"sourceId\": provenance is mandatory \
                      since 0.8.20 — a row written without it can never be erased by excise_source"
                 ),
-                JsonValue::Null,
+                field_path,
             )
         })?;
     SourceId::new(raw).map_err(|_| {
-        typed_error(
-            CODE_WRITE_VALIDATION,
+        source_id_write_error(
             "\"sourceId\" must be a non-empty identifier outside the engine's reserved \
              \"_\"-prefixed namespace"
                 .to_string(),
-            JsonValue::Null,
+            field_path,
         )
     })
+}
+
+fn json_source_id_required(item: &JsonValue, kind: &str) -> Result<SourceId> {
+    json_source_id_required_at(item, kind, None)
 }
 
 fn provenance_napi_error(reason: &str, field_path: impl Into<String>) -> Error {
@@ -3193,7 +3204,7 @@ fn translate_actuation_operation(value: &JsonValue, index: usize) -> Result<Actu
                 &format!("{root}/record"),
             )?;
             let record_root = format!("{root}/record");
-            let prepared = translate_node(record)
+            let prepared = translate_node_at(record, Some("/sourceId"))
                 .map_err(|error| nested_actuation_napi_error(error, &record_root))?;
             let PreparedWrite::ProvenancedNode(node) = prepared else {
                 return Err(actuation_napi_error(
@@ -3517,7 +3528,10 @@ fn json_serialised_alt_required(item: &JsonValue, camel: &str, snake: &str) -> R
     })
 }
 
-fn translate_node(item: &JsonValue) -> Result<PreparedWrite> {
+fn translate_node_at(
+    item: &JsonValue,
+    source_id_field_path: Option<&str>,
+) -> Result<PreparedWrite> {
     let kind = json_str_required(item, "kind")?;
     let provenance = json_get(item, "provenance").map(translate_json_provenance).transpose()?;
     let body = if provenance.is_some() {
@@ -3525,7 +3539,7 @@ fn translate_node(item: &JsonValue) -> Result<PreparedWrite> {
     } else {
         json_serialised(item, "body")?.unwrap_or_else(|| "{}".to_string())
     };
-    let source_id = json_source_id_required(item, "node")?;
+    let source_id = json_source_id_required_at(item, "node", source_id_field_path)?;
     let logical_id = json_str_alt(item, "logicalId", "logical_id")?;
     // OPP-12 Phase-1 (0.8.19 Slice 5) — create-time existence state + advisory
     // reason (X1 parity with the pyo3 binding). `state` defaults to `active`; an
@@ -3575,6 +3589,10 @@ fn translate_node(item: &JsonValue) -> Result<PreparedWrite> {
             valid_until,
         }),
     }
+}
+
+fn translate_node(item: &JsonValue) -> Result<PreparedWrite> {
+    translate_node_at(item, None)
 }
 
 /// 0.8.20 Slice 15b (TC-34) — read an optional INTEGER epoch-second field.

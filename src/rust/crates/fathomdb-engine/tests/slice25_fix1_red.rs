@@ -1,13 +1,16 @@
+use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::lifecycle::{Event, EventCategory, Phase, Subscriber};
 use fathomdb_engine::{
     ActuationBatchV1, ActuationErrorReason, ActuationOperationV1, ActuationOutcomeV1,
     ActuationRefusalReasonV1, ArtifactRevisionId, CanonicalHash, Engine, EngineError, InitialState,
-    LifecycleActuationV1, LifecycleState, ProvenancedNodeV1, SourceDependencyRegistrationV1,
-    SourceId, SourceLocator, SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+    LifecycleActuationV1, LifecycleState, ProjectionFts, ProjectionRole, ProjectionSpec,
+    ProjectionVector, ProvenancedNodeV1, SourceDependencyRegistrationV1, SourceId, SourceLocator,
+    SourceRevisionId, SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
+use std::collections::BTreeSet;
 use std::sync::{Arc, Barrier, Mutex};
 use tempfile::TempDir;
 
@@ -67,6 +70,74 @@ fn derived_with_source_hash(
             hash(source_body),
         ),
     }
+}
+
+#[derive(Debug)]
+struct RollbackEmbedder;
+
+impl Embedder for RollbackEmbedder {
+    fn identity(&self) -> EmbedderIdentity {
+        EmbedderIdentity::new("slice25-rollback", "v1", 384)
+    }
+
+    fn embed(&self, _input: &str) -> Result<Vector, EmbedderError> {
+        Ok(vec![1.0; 384])
+    }
+}
+
+fn configure_rollback_projections(engine: &Engine) {
+    engine
+        .configure_projections(
+            &[ProjectionSpec {
+                name: "topic".into(),
+                roles: BTreeSet::from([ProjectionRole::Filterable, ProjectionRole::Searchable]),
+                fts: Some(ProjectionFts { tokenizer: None }),
+                vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+}
+
+fn projection_rollback_state(connection: &Connection) -> Vec<(String, Vec<String>)> {
+    [
+        (
+            "property_search_index",
+            "SELECT json_array(rowid,attr_value,attr_name,write_cursor) \
+             FROM property_search_index ORDER BY rowid",
+        ),
+        (
+            "_fathomdb_projection_registry",
+            "SELECT json_array(name,roles,fts_tokenizer,vector_embedder,vector_declared,source) \
+             FROM _fathomdb_projection_registry ORDER BY name",
+        ),
+        (
+            "_fathomdb_projection_state",
+            "SELECT json_array(kind,last_enqueued_cursor,updated_at) \
+             FROM _fathomdb_projection_state ORDER BY kind",
+        ),
+        (
+            "_fathomdb_vector_kinds",
+            "SELECT json_array(kind,profile,created_at) FROM _fathomdb_vector_kinds ORDER BY kind",
+        ),
+        (
+            "_fathomdb_vector_rows",
+            "SELECT json_array(rowid,kind,write_cursor) FROM _fathomdb_vector_rows ORDER BY rowid",
+        ),
+    ]
+    .into_iter()
+    .map(|(name, sql)| {
+        let rows = connection
+            .prepare(sql)
+            .unwrap()
+            .query_map([], |row| row.get::<_, String>(0))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        (name.into(), rows)
+    })
+    .collect()
 }
 
 #[test]
@@ -540,7 +611,9 @@ fn infrastructure_failure_after_each_operation_rolls_back_the_whole_batch() {
     for fault_index in 0..4 {
         let dir = TempDir::new().unwrap();
         let db_path = path(&dir, &format!("operation-fault-{fault_index}"));
-        let opened = Engine::open(&db_path).unwrap();
+        let opened =
+            Engine::open_with_embedder_for_test(&db_path, Arc::new(RollbackEmbedder)).unwrap();
+        configure_rollback_projections(&opened.engine);
         let rollback_tables = [
             "canonical_nodes",
             "canonical_edges",
@@ -579,12 +652,19 @@ fn infrastructure_failure_after_each_operation_rolls_back_the_whole_batch() {
             .unwrap()
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
+        let before_projection_state = projection_rollback_state(&before);
+        assert!(!before_projection_state[1].1.is_empty(), "projection registry fixture is live");
         drop(before);
+        let mut source = canonical("source-r1", "source");
+        source.body = r#"{"topic":"source"}"#.into();
+        let mut derived =
+            derived_with_source_hash("derived-r1", "derived", "source-r1", &source.body);
+        derived.body = r#"{"topic":"derived"}"#.into();
         let request = ActuationBatchV1::new(
             format!("operation-fault-{fault_index}"),
             vec![
-                ActuationOperationV1::PutCanonicalNode(canonical("source-r1", "source")),
-                ActuationOperationV1::PutDerivedNode(derived("derived-r1", "derived", "source-r1")),
+                ActuationOperationV1::PutCanonicalNode(source),
+                ActuationOperationV1::PutDerivedNode(derived),
                 ActuationOperationV1::RegisterSourceDependency(
                     SourceDependencyRegistrationV1::new("dep-r1", "source-r1", "derived-r1")
                         .unwrap(),
@@ -622,9 +702,29 @@ fn infrastructure_failure_after_each_operation_rolls_back_the_whole_batch() {
             .collect::<Result<Vec<_>, _>>()
             .unwrap();
         assert_eq!(after_state, before_state, "fault changed cursor or generation state");
+        assert_eq!(
+            projection_rollback_state(&connection),
+            before_projection_state,
+            "fault after operation {fault_index} changed exact projection/vector state"
+        );
         drop(connection);
 
         let receipt = opened.engine.actuate(request).unwrap();
         assert_eq!(receipt.outcome, ActuationOutcomeV1::Committed);
+        opened.engine.drain(5_000).unwrap();
+        let control = Connection::open(&db_path).unwrap();
+        let control_state = projection_rollback_state(&control);
+        assert_eq!(control_state[1], before_projection_state[1]);
+        for (table, rows) in control_state.iter().filter(|(table, _)| {
+            matches!(
+                table.as_str(),
+                "property_search_index"
+                    | "_fathomdb_projection_state"
+                    | "_fathomdb_vector_kinds"
+                    | "_fathomdb_vector_rows"
+            )
+        }) {
+            assert!(!rows.is_empty(), "successful control did not exercise {table}");
+        }
     }
 }

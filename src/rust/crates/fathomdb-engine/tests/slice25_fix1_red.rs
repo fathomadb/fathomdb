@@ -532,3 +532,49 @@ fn cursor_refusal_precommit_failure_rolls_back_receipt_and_is_retryable() {
     let receipt = opened.engine.actuate(request).unwrap();
     assert_eq!(receipt.reason_codes, vec![ActuationRefusalReasonV1::WriteCursorExhausted]);
 }
+
+#[test]
+fn infrastructure_failure_after_each_operation_rolls_back_the_whole_batch() {
+    for fault_index in 0..4 {
+        let dir = TempDir::new().unwrap();
+        let db_path = path(&dir, &format!("operation-fault-{fault_index}"));
+        let opened = Engine::open(&db_path).unwrap();
+        let request = ActuationBatchV1::new(
+            format!("operation-fault-{fault_index}"),
+            vec![
+                ActuationOperationV1::PutCanonicalNode(canonical("source-r1", "source")),
+                ActuationOperationV1::PutDerivedNode(derived("derived-r1", "derived", "source-r1")),
+                ActuationOperationV1::RegisterSourceDependency(
+                    SourceDependencyRegistrationV1::new("dep-r1", "source-r1", "derived-r1")
+                        .unwrap(),
+                ),
+                ActuationOperationV1::TransitionLifecycle(
+                    LifecycleActuationV1::new(
+                        "derived",
+                        ArtifactRevisionId::new("derived-r1").unwrap(),
+                        LifecycleState::Deleted,
+                        Some("caller decision".into()),
+                    )
+                    .unwrap(),
+                ),
+            ],
+        )
+        .unwrap();
+
+        opened.engine.force_actuation_failure_after_operation_for_test(fault_index);
+        assert!(matches!(opened.engine.actuate(request.clone()), Err(EngineError::Storage)));
+        let connection = Connection::open(&db_path).unwrap();
+        for table in
+            ["canonical_nodes", "_fathomdb_source_dependencies", "_fathomdb_actuation_receipts"]
+        {
+            let count: i64 = connection
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row.get(0))
+                .unwrap();
+            assert_eq!(count, 0, "fault after operation {fault_index} left rows in {table}");
+        }
+        drop(connection);
+
+        let receipt = opened.engine.actuate(request).unwrap();
+        assert_eq!(receipt.outcome, ActuationOutcomeV1::Committed);
+    }
+}

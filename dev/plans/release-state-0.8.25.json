@@ -19,7 +19,7 @@
     {"slice": 10, "short": "MEASUREMENT", "title": "executable measurement-layer classification", "depends_on": [7], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/features/slice-10/design.md", "dev/plans/0.8.25/features/slice-10/plan.md", "dev/plans/0.8.25/features/slice-10/status.md", "dev/plans/0.8.25/features/slice-10/implementation-review-cycle3.md"], "sha": "f383ec82", "merge_subject": "test(0.8.25): prove blocked receipt continuation", "evidence": "Executable measurement classifications, historical closure, final native search and blocked-continuation receipts are committed. Independent design and implementation reviews pass after the bounded three-FIX cycles; 59 focused tests, portable/deep audits, 103 fast suites, and the applicable heavy suites pass."},
     {"slice": 15, "short": "IDENTITY", "title": "revision identity and canonical source provenance", "depends_on": [10], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/features/slice-15/plan.md", "dev/plans/0.8.25/features/slice-15/design.md", "dev/plans/0.8.25/features/slice-15/status.md", "dev/plans/0.8.25/features/slice-15/implementation-review-cycle4.md"], "sha": "9a53e26a", "merge_subject": "fix: make unknown-field precedence deterministic", "evidence": "Schema step 27 and additive Rust/Python/TypeScript provenance contracts are complete. Independent design review passed at cycle 3, implementation review passed at cycle 4, and independent focused verification covers migration, identity, atomicity, erasure, SDK parity, and packaged-smoke contracts. Reusable lessons were compacted before Slice 20."},
     {"slice": 20, "short": "DEPENDENCY", "title": "core canonical-source-to-derived dependency registration", "depends_on": [15], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/features/slice-20/plan.md", "dev/plans/0.8.25/features/slice-20/design.md", "dev/plans/0.8.25/features/slice-20/status.md", "dev/plans/0.8.25/features/slice-20/implementation-review-cycle3.md"], "sha": "7766d4c4", "merge_subject": "fix(0.8.25): validate dependency revision grammar", "evidence": "Schema step 28, immutable source-to-derived dependency registration, bounded reciprocal lookup, independent dependency generation, transaction composition seams, lifecycle closure, and Rust/Python/TypeScript parity are complete. Independent design review passed at cycle 5, implementation review passed at cycle 3, and verification passed 103/103 fast suites plus 55/55 focused Rust/schema tests and exact packaged cross-SDK smokes."},
-    {"slice": 25, "short": "ACTUATION", "title": "bounded atomic caller-decided actuation", "depends_on": [20], "status": "IN_PROGRESS", "design_refs": ["dev/plans/0.8.25/features/slice-25/plan.md", "dev/plans/0.8.25/features/slice-25/design.md", "dev/plans/0.8.25/features/slice-25/status.md", "dev/plans/0.8.25/features/slice-25/design-review-cycle5.md"], "evidence": "Five design FIX cycles are exhausted. Independent cycle 5 leaves D25-21/D25-22 open; implementation is blocked pending an owner exception for one final documentation-only correction/review or postponement."},
+    {"slice": 25, "short": "ACTUATION", "title": "bounded atomic caller-decided actuation", "depends_on": [20], "status": "IN_PROGRESS", "design_refs": ["dev/plans/0.8.25/features/slice-25/plan.md", "dev/plans/0.8.25/features/slice-25/design.md", "dev/plans/0.8.25/features/slice-25/status.md", "dev/plans/0.8.25/features/slice-25/design-review-cycle5.md"], "evidence": "HITL ruling seq-275 authorizes one exceptional documentation-only FIX-6 and final independent review for D25-21/D25-22. Implementation remains blocked until that review passes."},
     {"slice": 30, "short": "LIFECYCLE", "title": "dependency-aware lifecycle and erasure closure", "depends_on": [25], "status": "NOT_STARTED"},
     {"slice": 35, "short": "ELIGIBILITY", "title": "eligibility-before-ranking and optional frozen reads", "depends_on": [30], "status": "NOT_STARTED"},
     {"slice": 40, "short": "READINESS", "title": "core projection generation and readiness correlation", "depends_on": [35], "status": "NOT_STARTED"},
@@ -33,13 +33,7 @@
   "next_slice": 25,
   "remaining_ladder": [25, 30, 35, 40, 45, 50, 55, 60, 75],
   "decisions": {
-    "unruled": [
-      {
-        "id": "slice-25-design-fix-cap-exception",
-        "title": "Authorize one exceptional final Slice 25 documentation-only correction and independent review for D25-21/D25-22, or postpone Slice 25",
-        "source": "dev/plans/0.8.25/features/slice-25/design-review-cycle5.md"
-      }
-    ],
+    "unruled": [],
     "ruled": [
       {
         "id": "direct-execution",
@@ -70,6 +64,11 @@
         "id": "post-design-scope-adjustment",
         "title": "Narrow 0.8.25 to the provenance-safe data-plane core; allocate bubble work through 0.8.26-0.8.28/Parked and experimental work to odd-micro review checkpoints",
         "source": "repository owner 2026-09-02; dev/plans/0.8.25/scope-adjustment-2026-09-02.md"
+      },
+      {
+        "id": "slice-25-design-fix-cap-exception",
+        "title": "Authorize one exceptional final Slice 25 documentation-only FIX-6 and independent review for D25-21/D25-22",
+        "source": "seq-275"
       }
     ]
   },

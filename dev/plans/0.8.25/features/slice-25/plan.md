@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 25 — atomic semantic actuation
-status: AWAITING_HITL_DESIGN_FIX_CAP
+status: DESIGN_FIX_6_AUTHORIZED_PENDING_REVIEW
 depends_on: 20
 design: design.md
-design_status: BLOCKED_AFTER_REVIEW_CYCLE_5
+design_status: FIX_6_AUTHORIZED_BY_SEQ_275
 ---
 
 # Slice 25 plan
@@ -76,8 +76,10 @@ journal remain outside Slice 25.
 
 1. Reconcile this plan/design with the landed Slice 15/20 APIs and record the
    additive actuation decision in a successor ADR.
-2. Obtain independent design review. Resolve at most five FIX cycles; no open
-   P1/P2 or implementation-shaping decision may enter RED.
+2. Obtain independent design review. Five ordinary FIX cycles were exhausted;
+   `seq-275` authorizes one exceptional final documentation-only FIX-6 and
+   review for D25-21/D25-22. No open P1/P2 or implementation-shaping decision
+   may enter RED.
 3. Write and preserve RED tests before production changes. Each implementation
    review correction receives its own RED witness before GREEN. Resolve at
    most five implementation FIX cycles.

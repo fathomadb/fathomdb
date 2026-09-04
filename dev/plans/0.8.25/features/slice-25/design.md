@@ -1,8 +1,8 @@
 ---
 title: 0.8.25 Slice 25 — bounded atomic actuation design
-status: BLOCKED_DESIGN_FIX_CAP
-design_version: 7
-review_fix: 5
+status: FIX_6_AUTHORIZED_PENDING_REVIEW
+design_version: 8
+review_fix: 6
 depends_on: 20
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 decision: dev/adr/ADR-0.8.25-bounded-atomic-actuation.md
@@ -120,9 +120,15 @@ The Rust enum uses tuple variants
 `logical_id: String`,
 `expected_current_revision_id: ArtifactRevisionId`,
 `to_state: LifecycleState`, and `reason: Option<String>`.
-`LifecycleActuationV1::new` validates the logical-ID address space and that
-`to_state` is `Active` or `Deleted`. The typed `ArtifactRevisionId` has already
-validated its grammar; legality from persisted state is database-dependent.
+`LifecycleActuationV1::new` normalizes the logical address before storage or
+digesting: bare `foo` and prefixed `l:foo` both become the stored bare value
+`foo`. It rejects an empty value after prefix removal, ASCII record separator
+(`U+001E`), and every recognized non-logical prefix, including `h:` and `p:`,
+as `logical_id_invalid` at `/logicalId`. The constructor also requires
+`to_state` to be `Active` or `Deleted`. The typed `ArtifactRevisionId` has
+already validated its grammar; legality from persisted state is
+database-dependent. Consequently, a constructed lifecycle operation cannot
+later produce `NotLifecycleAddressable`.
 
 Python request mappings use `schema_version`, `operation_id`,
 `decision_policy_id`, `expected_write_boundary`, and `operations`; operation
@@ -249,7 +255,8 @@ RFC 6901 field path when applicable:
 2. operation order: nested write/provenance validation, role mismatch,
    missing/forward reference, dependency validation, lifecycle validation;
 3. dependency closure required;
-4. checked write-cursor or dependency-generation exhaustion.
+4. checked write-cursor exhaustion;
+5. dependency-generation exhaustion.
 
 Existing validation maps deterministically:
 
@@ -258,11 +265,11 @@ Existing validation maps deterministically:
 | `WriteValidation` or `SchemaValidation` while validating a put | `write_refused` | put index; `/operations/{i}/record` |
 | provenance `role_invalid` or explicit variant/role disagreement | `provenance_role_mismatch` | put index; `/operations/{i}/record/provenance/role` |
 | provenance `source_revision_missing` | `reference_unavailable` | put index; `/operations/{i}/record/provenance/sourceRevisionId` |
-| unavailable persisted/earlier-batch operation reference | `reference_unavailable` | referring index; `/operations/{i}/record/provenance/sourceRevisionId`, `/operations/{i}/dependency/sourceRevisionId`, `/operations/{i}/dependency/derivedRevisionId`, or `/operations/{i}/expectedCurrentRevisionId` |
+| unavailable persisted/earlier-batch operation reference | `reference_unavailable` | referring index; `/operations/{i}/record/provenance/sourceRevisionId`, `/operations/{i}/dependency/sourceRevisionId`, or `/operations/{i}/dependency/derivedRevisionId` |
 | any other `ProvenanceError(reason, path)` | `write_refused` | put index; nested path prefixed by `/operations/{i}/record` |
 | `DependencyErrorReason::DependencyGenerationExhausted` | `dependency_generation_exhausted` | first dependency operation that would insert; `/operations/{i}/dependency` |
 | any other `DependencyError(reason, path)` | `dependency_refused` | dependency index; nested path prefixed by `/operations/{i}/dependency` |
-| missing/current-revision mismatch or `NotLifecycleAddressable` | `lifecycle_refused` | transition index; `/operations/{i}/expectedCurrentRevisionId` or `/operations/{i}/logicalId` |
+| missing lifecycle target or current-revision mismatch | `lifecycle_refused` | transition index; `/operations/{i}/expectedCurrentRevisionId` |
 | `IllegalTransition` | `lifecycle_refused` | transition index; `/operations/{i}/toState` |
 | prospective source-loss/dependency match | `dependency_closure_required` | earliest source-loss index; `/operations/{i}` |
 | expected boundary mismatch | `expected_write_boundary_mismatch` | no operation index; `/expectedWriteBoundary` |
@@ -443,10 +450,14 @@ The receipt table is an idempotency/audit record, not a recovery journal.
 Canonical persisted arrays use UTF-8 JSON with no insignificant whitespace.
 Reason codes and revision/closure IDs are JSON strings. Projection cursors are
 canonical unsigned decimal JSON strings, ordered ascending. Affected revision
-IDs and closure IDs preserve first-effect order with duplicates removed. On
-keyed replay the Engine parses, validates bounds/types/order, re-encodes, and
-byte-compares every array; any mismatch is `EngineError::Storage`. RED corrupts
-each forbidden erased/refused/result field and each array form independently.
+IDs preserve first-effect order with duplicates removed. Every affected ID
+must be unique and valid under the landed stored-revision union. Closure IDs
+are empty in Slice 25; when Slice 30 activates them, they must likewise be
+unique members of their then-landed closed operation-ID grammar and preserve
+first-effect order. On keyed replay the Engine parses, validates
+bounds/types/order, re-encodes, and byte-compares every array; any mismatch is
+`EngineError::Storage`. RED corrupts each forbidden erased/refused/result field
+and each array form independently.
 
 For a refused row, keyed validation also requires its sole reason to be in the
 closed refusal vocabulary and checks its scalar relationship against the
@@ -544,12 +555,16 @@ For a new request the Engine performs this sequence:
    then run the final prospective closure-safety pass across persisted and all
    prospective dependencies. On domain refusal, insert the receipt and
    source-ref index only, then commit.
-7. Reserve checked record cursors for true writes and one dependency generation
-   iff at least one dependency row will actually be inserted.
-8. Apply operations in order through transaction-scoped record, dependency,
+7. Reserve all checked record cursors for true writes. If any reservation would
+   exhaust, refuse with `write_cursor_exhausted` before checking dependency
+   generation.
+8. Reserve one dependency generation iff at least one dependency row will
+   actually be inserted. If both resources would exhaust, the cursor refusal
+   from step 7 therefore wins deterministically.
+9. Apply operations in order through transaction-scoped record, dependency,
    lifecycle, and synchronous-projection helpers. Insert the terminal receipt
    and source refs in the same transaction.
-9. Commit. Only after commit publish the in-memory next cursor and notify the
+10. Commit. Only after commit publish the in-memory next cursor and notify the
    projection worker once.
 
 Existing `Engine::write`, `register_source_dependency`, and `transition`
@@ -611,6 +626,9 @@ RED begins with shared wire/digest fixtures and real-database Rust tests for:
   ownership and paths;
 - all four variants, canonical/derived role mismatch, ordered backward and
   rejected forward references;
+- lifecycle logical-ID normalization, including bare/prefixed constructor,
+  digest, and replay equivalence plus rejection of empty, record-separator,
+  and recognized non-logical-prefixed inputs;
 - same-logical-ID supersession, revision-pinned lifecycle, illegal states,
   all four legal transitions, duplicate/no-op dependency behavior, and
   dependency-closure refusal including `pending -> deleted`;
@@ -618,6 +636,8 @@ RED begins with shared wire/digest fixtures and real-database Rust tests for:
   domain/receipt/cursor/projection state;
 - same-ID exact replay, conflict, concurrent race, restart, corrupt receipt,
   checked cursor/generation exhaustion, and before/after-commit behavior;
+- deterministic cursor-before-generation refusal when both counters would
+  exhaust in the same request;
 - exact affected-ID order, unchanged boundary for dependency/lifecycle-only
   batches, one dependency-generation advance, projection cursor selection, and
   no duplicate notification/event;
@@ -634,6 +654,8 @@ RED begins with shared wire/digest fixtures and real-database Rust tests for:
 - dependency-before/after-transition, dependency-before/after-supersession,
   exact dependency replay, and dependency against the replacement revision;
 - exact array formulas/order at their maxima and one-over corruption;
+- affected revision-ID uniqueness and landed stored-revision grammar, plus the
+  reserved Slice 30 closure-ID uniqueness/grammar activation condition;
 - one persisted-refusal corruption case for every reason/index/path rule;
 - counter/event behavior for commit, refusal, replay, conflict, erased ID,
   storage corruption, and infrastructure error;

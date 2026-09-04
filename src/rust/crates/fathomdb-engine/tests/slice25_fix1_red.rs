@@ -1,3 +1,4 @@
+use fathomdb_engine::lifecycle::{Event, EventCategory, Phase, Subscriber};
 use fathomdb_engine::{
     ActuationBatchV1, ActuationErrorReason, ActuationOperationV1, ActuationOutcomeV1,
     ActuationRefusalReasonV1, ArtifactRevisionId, CanonicalHash, Engine, EngineError, InitialState,
@@ -7,7 +8,7 @@ use fathomdb_engine::{
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
-use std::sync::{Arc, Barrier};
+use std::sync::{Arc, Barrier, Mutex};
 use tempfile::TempDir;
 
 fn path(dir: &TempDir, name: &str) -> std::path::PathBuf {
@@ -382,4 +383,152 @@ fn source_erasure_redacts_more_than_one_receipt_page() {
         })
         .unwrap();
     assert_eq!((erased, refs), (130, 0));
+}
+
+#[derive(Default)]
+struct EventSink {
+    events: Mutex<Vec<Event>>,
+}
+
+impl Subscriber for EventSink {
+    fn on_event(&self, event: &Event) {
+        self.events.lock().unwrap().push(event.clone());
+    }
+}
+
+impl EventSink {
+    fn take_writer_phases(&self) -> Vec<Phase> {
+        let mut events = self.events.lock().unwrap();
+        let phases = events
+            .iter()
+            .filter(|event| event.category == EventCategory::Writer)
+            .map(|event| event.phase)
+            .collect();
+        events.clear();
+        phases
+    }
+}
+
+fn assert_causal_terminal(phases: &[Phase], terminal: Phase) {
+    assert_eq!(phases.first(), Some(&Phase::Started));
+    assert_eq!(phases.last(), Some(&terminal));
+    assert_eq!(phases.iter().filter(|phase| **phase == Phase::Started).count(), 1);
+    assert_eq!(phases.iter().filter(|phase| **phase == terminal).count(), 1);
+    assert!(phases[1..phases.len() - 1].iter().all(|phase| *phase == Phase::Slow));
+}
+
+#[test]
+fn actuation_event_order_is_causal_for_commit_refusal_and_failure() {
+    let dir = TempDir::new().unwrap();
+    let opened = Engine::open(path(&dir, "event-order")).unwrap();
+    let sink = Arc::new(EventSink::default());
+    let _subscription = opened.engine.subscribe(Arc::clone(&sink) as Arc<dyn Subscriber>);
+    opened.engine.set_slow_threshold_ms(0).unwrap();
+
+    let committed = ActuationBatchV1::new(
+        "event-commit",
+        vec![ActuationOperationV1::PutCanonicalNode(canonical("source-r1", "source"))],
+    )
+    .unwrap();
+    opened.engine.actuate(committed.clone()).unwrap();
+    assert_causal_terminal(&sink.take_writer_phases(), Phase::Finished);
+
+    let refused = ActuationBatchV1::new(
+        "event-refusal",
+        vec![ActuationOperationV1::RegisterSourceDependency(
+            SourceDependencyRegistrationV1::new("dep-r1", "missing", "missing-derived").unwrap(),
+        )],
+    )
+    .unwrap();
+    opened.engine.actuate(refused).unwrap();
+    assert_causal_terminal(&sink.take_writer_phases(), Phase::Finished);
+
+    let conflict = ActuationBatchV1::new(
+        "event-commit",
+        vec![ActuationOperationV1::PutCanonicalNode(canonical("source-r2", "other"))],
+    )
+    .unwrap();
+    assert!(opened.engine.actuate(conflict).is_err());
+    assert_causal_terminal(&sink.take_writer_phases(), Phase::Failed);
+
+    opened.engine.actuate(committed).unwrap();
+    assert!(sink.take_writer_phases().is_empty());
+}
+
+#[test]
+fn forced_slow_inner_race_replays_emit_no_extra_events() {
+    let dir = TempDir::new().unwrap();
+    let opened = Engine::open(path(&dir, "inner-race-events")).unwrap();
+    let engine = Arc::new(opened.engine);
+    let sink = Arc::new(EventSink::default());
+    let _subscription = engine.subscribe(Arc::clone(&sink) as Arc<dyn Subscriber>);
+    engine.set_slow_threshold_ms(0).unwrap();
+    engine.set_actuation_after_initial_lookup_delay_ms_for_test(25);
+    let barrier = Arc::new(Barrier::new(9));
+    let request = Arc::new(
+        ActuationBatchV1::new(
+            "inner-race-events",
+            vec![ActuationOperationV1::PutCanonicalNode(canonical("source-r1", "source"))],
+        )
+        .unwrap(),
+    );
+
+    std::thread::scope(|scope| {
+        let handles = (0..8)
+            .map(|_| {
+                let engine = Arc::clone(&engine);
+                let barrier = Arc::clone(&barrier);
+                let request = Arc::clone(&request);
+                scope.spawn(move || {
+                    barrier.wait();
+                    engine.actuate((*request).clone()).unwrap()
+                })
+            })
+            .collect::<Vec<_>>();
+        barrier.wait();
+        for handle in handles {
+            handle.join().unwrap();
+        }
+    });
+
+    let phases = sink.take_writer_phases();
+    assert_causal_terminal(&phases, Phase::Finished);
+    assert!(phases.iter().filter(|phase| **phase == Phase::Slow).count() <= 1);
+}
+
+#[test]
+fn cursor_refusal_precommit_failure_rolls_back_receipt_and_is_retryable() {
+    let dir = TempDir::new().unwrap();
+    let db_path = path(&dir, "cursor-refusal-fault");
+    let opened = Engine::open(&db_path).unwrap();
+    Connection::open(&db_path)
+        .unwrap()
+        .execute(
+            "INSERT INTO _fathomdb_open_state(key,value) VALUES(\
+               'tc33_reserved_write_cursor',?1\
+             ) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            [i64::MAX.to_string()],
+        )
+        .unwrap();
+    let request = ActuationBatchV1::new(
+        "cursor-refusal-fault",
+        vec![ActuationOperationV1::PutCanonicalNode(canonical("source-r1", "source"))],
+    )
+    .unwrap();
+
+    opened.engine.force_next_commit_failure_for_test();
+    assert!(matches!(opened.engine.actuate(request.clone()), Err(EngineError::Storage)));
+    let receipt_count: i64 = Connection::open(&db_path)
+        .unwrap()
+        .query_row(
+            "SELECT COUNT(*) FROM _fathomdb_actuation_receipts \
+             WHERE operation_id='cursor-refusal-fault'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(receipt_count, 0);
+
+    let receipt = opened.engine.actuate(request).unwrap();
+    assert_eq!(receipt.reason_codes, vec![ActuationRefusalReasonV1::WriteCursorExhausted]);
 }

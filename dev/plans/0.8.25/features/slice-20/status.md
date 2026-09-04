@@ -4,7 +4,7 @@ status: COMPLETE_ON_RELEASE_BRANCH
 completed: 2026-09-04
 implementation_review: PASS_CYCLE_3
 verification: PASS
-memory_checkpoint: PENDING
+memory_checkpoint: COMPLETE
 ---
 
 # Slice 20 status
@@ -61,5 +61,7 @@ unconfined native build and correct release-tree package both passed.
 
 ## Between-slice memory checkpoint
 
-Pending. Slice 25 must not start until reusable Slice 20 lessons are written to
-the external memory store and indexed.
+Reusable lessons were compacted into
+`0.8.25-slice20-dependency-registration-lessons.md` in the external FathomDB
+memory store and added to its `MEMORY.md` index before Slice 25 was
+commissioned.

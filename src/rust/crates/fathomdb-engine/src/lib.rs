@@ -530,6 +530,7 @@ const SEARCH_INDEX_TOKENIZER_REPROJECT_MARKER_KEY: &str =
 const EDGE_TEMPORAL_EPOCH_SCHEMA_VERSION: u32 = 23;
 
 const DEPENDENCY_GENERATION_KEY: &str = "_fathomdb_dependency_generation";
+const SOURCE_DEPENDENCY_SCHEMA_VERSION: u32 = 28;
 const DEPENDENCY_LOOKUP_LIMIT: usize = 100;
 /// 0.8.20 Slice 15c (TC-33) fix-6 — `_fathomdb_open_state` key set once the
 /// one-time edge-vector prune commits durably (written in the SAME transaction
@@ -7423,7 +7424,7 @@ impl Engine {
         reject_legacy_shape(&connection)?;
         let migration = migrate_with_event_sink(&connection, migrations, emit_migration_event)
             .map_err(map_migration_error)?;
-        validate_dependency_generation_on_open(&connection)?;
+        validate_dependency_generation_on_open(&connection, migration.schema_version_after)?;
         // 0.8.0 Slice 5 (G1) — global FTS5 tokenizer-default upgrade. Step 11
         // drops + recreates `search_index` with the new tokenizer, leaving it
         // EMPTY on a migrated DB. The projection scheduler will NOT
@@ -12198,113 +12199,28 @@ impl Engine {
         let tx = connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
             .map_err(|_| EngineError::Storage)?;
-
-        let by_id: Option<(i64, String, i64)> = tx
-            .query_row(
-                "SELECT schema_version, derived_revision_id, registered_dependency_generation \
-                 FROM _fathomdb_source_dependencies WHERE dependency_id=?1",
-                [request.dependency_id.as_str()],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .optional()
-            .map_err(|_| EngineError::Storage)?;
-        let by_derived: Option<(i64, String, i64)> = tx
-            .query_row(
-                "SELECT schema_version, dependency_id, registered_dependency_generation \
-                 FROM _fathomdb_source_dependencies \
-                 WHERE derived_revision_id=?1",
-                [request.derived_revision_id.as_str()],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-            )
-            .optional()
-            .map_err(|_| EngineError::Storage)?;
-
-        if let Some((stored_schema, stored_derived, stored_generation)) = by_id {
-            validate_persisted_dependency_row(
-                &tx,
-                stored_schema,
-                request.dependency_id.as_str(),
-                &stored_derived,
-                stored_generation,
-            )?;
-            if stored_derived != request.derived_revision_id.as_str()
-                || by_derived.as_ref().map(|(_, dependency_id, _)| dependency_id.as_str())
-                    != Some(request.dependency_id.as_str())
-            {
-                return Err(
-                    DependencyError::new(DependencyErrorReason::DependencyConflict, "").into()
-                );
-            }
-            let stored_source: String = tx
-                .query_row(
-                    "SELECT source_revision_id FROM _fathomdb_source_links \
-                     WHERE artifact_revision_id=?1",
-                    [request.derived_revision_id.as_str()],
-                    |row| row.get(0),
-                )
-                .map_err(|_| EngineError::Storage)?;
-            validate_dependency_chain(
-                &tx,
-                &stored_source,
-                request.derived_revision_id.as_str(),
-                DependencyValidationMode::Persisted,
-            )?;
-            if stored_source != request.source_revision_id.as_str() {
-                return Err(
-                    DependencyError::new(DependencyErrorReason::DependencyConflict, "").into()
-                );
-            }
-            let generation = u64::try_from(stored_generation).map_err(|_| EngineError::Storage)?;
-            tx.commit().map_err(|_| EngineError::Storage)?;
-            return Ok(source_dependency_from_request(request, generation));
-        }
-        if let Some((stored_schema, stored_dependency_id, stored_generation)) = by_derived {
-            validate_persisted_dependency_row(
-                &tx,
-                stored_schema,
-                &stored_dependency_id,
-                request.derived_revision_id.as_str(),
-                stored_generation,
-            )?;
-            let stored_source: Option<String> = tx
-                .query_row(
-                    "SELECT source_revision_id FROM _fathomdb_source_links \
-                     WHERE artifact_revision_id=?1",
-                    [request.derived_revision_id.as_str()],
-                    |row| row.get(0),
-                )
-                .optional()
-                .map_err(|_| EngineError::Storage)?;
-            let stored_source = stored_source.ok_or(EngineError::Storage)?;
-            validate_dependency_chain(
-                &tx,
-                &stored_source,
-                request.derived_revision_id.as_str(),
-                DependencyValidationMode::Persisted,
-            )?;
-            return Err(DependencyError::new(DependencyErrorReason::DependencyConflict, "").into());
-        }
-
-        validate_dependency_chain(
+        let validated = validate_source_dependency_registration(
             &tx,
-            request.source_revision_id.as_str(),
-            request.derived_revision_id.as_str(),
-            DependencyValidationMode::Requested,
+            request,
+            &DependencyProspectiveState::default(),
         )?;
+        let validated = match validated {
+            ValidatedSourceDependencyRegistration::Replay(row) => {
+                tx.commit().map_err(|_| EngineError::Storage)?;
+                return Ok(row);
+            }
+            validated => validated,
+        };
         let generation = reserve_dependency_generation(&tx)?;
-        tx.execute(
-            "INSERT INTO _fathomdb_source_dependencies(\
-               schema_version, dependency_id, derived_revision_id, registered_dependency_generation\
-             ) VALUES(1, ?1, ?2, ?3)",
-            params![
-                request.dependency_id.as_str(),
-                request.derived_revision_id.as_str(),
-                i64::try_from(generation).map_err(|_| EngineError::Storage)?
-            ],
-        )
-        .map_err(|_| EngineError::Storage)?;
+        let inserted = apply_validated_source_dependency(&tx, &validated, generation)?;
+        if !inserted {
+            return Err(EngineError::Storage);
+        }
         store_dependency_generation(&tx, generation)?;
         tx.commit().map_err(|_| EngineError::Storage)?;
+        let ValidatedSourceDependencyRegistration::Insert(request) = validated else {
+            return Err(EngineError::Storage);
+        };
         Ok(source_dependency_from_request(request, generation))
     }
 
@@ -12321,10 +12237,9 @@ impl Engine {
         self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        validate_all_dependencies(connection)?;
         let mut statement = connection
             .prepare(
-                "SELECT d.dependency_id, d.derived_revision_id, \
+                "SELECT d.schema_version, d.dependency_id, d.derived_revision_id, \
                         d.registered_dependency_generation \
                  FROM _fathomdb_source_dependencies d \
                  JOIN _fathomdb_source_links l \
@@ -12335,11 +12250,31 @@ impl Engine {
             .map_err(|_| EngineError::Storage)?;
         let rows = statement
             .query_map([request.source_revision_id.as_str()], |row| {
-                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, i64>(2)?))
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                ))
             })
             .map_err(|_| EngineError::Storage)?
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(|_| EngineError::Storage)?;
+        for (schema, dependency_id, derived_revision_id, generation) in &rows {
+            validate_persisted_dependency_row(
+                connection,
+                *schema,
+                dependency_id,
+                derived_revision_id,
+                *generation,
+            )?;
+            validate_dependency_chain(
+                connection,
+                request.source_revision_id.as_str(),
+                derived_revision_id,
+                DependencyValidationMode::Persisted,
+            )?;
+        }
         if rows.len() > DEPENDENCY_LOOKUP_LIMIT {
             return Err(DependencyError::new(
                 DependencyErrorReason::DependencyLookupBoundExceeded,
@@ -12348,13 +12283,7 @@ impl Engine {
             .into());
         }
         let mut items = Vec::with_capacity(rows.len());
-        for (dependency_id, derived_revision_id, generation) in rows {
-            validate_dependency_chain(
-                connection,
-                request.source_revision_id.as_str(),
-                &derived_revision_id,
-                DependencyValidationMode::Persisted,
-            )?;
+        for (_, dependency_id, derived_revision_id, generation) in rows {
             items.push(SourceDependencyV1 {
                 schema_version: 1,
                 dependency_id: DependencyId(dependency_id),
@@ -12379,23 +12308,29 @@ impl Engine {
         self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        validate_all_dependencies(connection)?;
-        let row: Option<(String, i64, String)> = connection
+        let row: Option<(i64, String, i64, String)> = connection
             .query_row(
-                "SELECT d.dependency_id, d.registered_dependency_generation, \
+                "SELECT d.schema_version, d.dependency_id, d.registered_dependency_generation, \
                         l.source_revision_id \
                  FROM _fathomdb_source_dependencies d \
                  LEFT JOIN _fathomdb_source_links l \
                    ON l.artifact_revision_id=d.derived_revision_id \
                  WHERE d.derived_revision_id=?1",
                 [request.derived_revision_id.as_str()],
-                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
             )
             .optional()
             .map_err(|_| EngineError::Storage)?;
-        let Some((dependency_id, generation, source_revision_id)) = row else {
+        let Some((schema, dependency_id, generation, source_revision_id)) = row else {
             return Ok(None);
         };
+        validate_persisted_dependency_row(
+            connection,
+            schema,
+            &dependency_id,
+            request.derived_revision_id.as_str(),
+            generation,
+        )?;
         validate_dependency_chain(
             connection,
             &source_revision_id,
@@ -19316,7 +19251,13 @@ fn reject_legacy_shape(connection: &Connection) -> Result<(), EngineOpenError> {
     Err(EngineOpenError::IncompatibleSchemaVersion { seen, supported: SCHEMA_VERSION })
 }
 
-fn validate_dependency_generation_on_open(connection: &Connection) -> Result<(), EngineOpenError> {
+fn validate_dependency_generation_on_open(
+    connection: &Connection,
+    schema_version: u32,
+) -> Result<(), EngineOpenError> {
+    if schema_version < SOURCE_DEPENDENCY_SCHEMA_VERSION {
+        return Ok(());
+    }
     let valid = (|| -> Result<bool, rusqlite::Error> {
         let value: String = connection.query_row(
             "SELECT value FROM _fathomdb_open_state WHERE key=?1",
@@ -21599,6 +21540,144 @@ enum DependencyValidationMode {
     Persisted,
 }
 
+#[allow(dead_code)] // The non-default constructor is the committed Slice 25 reuse seam.
+#[derive(Clone, Debug)]
+struct ProspectiveCanonicalSource {
+    source_id: String,
+    source_version_id: String,
+    body: String,
+}
+
+/// Transaction-local dependency facts prepared during Slice 25's validate-all
+/// phase, before its domain rows are inserted.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct DependencyProspectiveState {
+    valid_chains: std::collections::HashSet<(String, String)>,
+    registrations_by_id: std::collections::HashMap<String, (String, String)>,
+    registrations_by_derived: std::collections::HashMap<String, String>,
+}
+
+#[allow(dead_code)] // Slice 20 uses the empty view; Slice 25 supplies prospective writes.
+impl DependencyProspectiveState {
+    /// Derive dependency-visible endpoint facts from ordered writes. A derived
+    /// write may reference a persisted source or a canonical source earlier in
+    /// `writes`; later/forward references remain invalid.
+    pub(crate) fn from_prepared_writes(
+        connection: &Connection,
+        writes: &[PreparedWrite],
+    ) -> Result<Self, EngineError> {
+        let mut state = Self::default();
+        let mut sources = std::collections::HashMap::<String, ProspectiveCanonicalSource>::new();
+        for write in writes {
+            let (source_id, body, provenance, is_node) = match write {
+                PreparedWrite::ProvenancedNode(node) => {
+                    (node.source_id.as_str(), Some(node.body.as_str()), &node.provenance, true)
+                }
+                PreparedWrite::ProvenancedEdge(edge) => {
+                    (edge.source_id.as_str(), edge.body.as_deref(), &edge.provenance, false)
+                }
+                _ => continue,
+            };
+            match provenance.role {
+                ProvenanceRole::Canonical => {
+                    if !is_node {
+                        return Err(dependency_validation_error(
+                            DependencyValidationMode::Requested,
+                            DependencyErrorReason::DependencyCycleOrRoleInvalid,
+                        ));
+                    }
+                    let body = body.ok_or(EngineError::Storage)?;
+                    sources.insert(
+                        provenance.artifact_revision_id.as_str().to_string(),
+                        ProspectiveCanonicalSource {
+                            source_id: source_id.to_string(),
+                            source_version_id: provenance.source_version_id.as_str().to_string(),
+                            body: body.to_string(),
+                        },
+                    );
+                }
+                ProvenanceRole::Derived => {
+                    let source_revision =
+                        provenance.source_revision_id.as_ref().ok_or(EngineError::Storage)?;
+                    let source = match sources.get(source_revision.as_str()) {
+                        Some(source) => source.clone(),
+                        None => {
+                            load_persisted_canonical_source(connection, source_revision.as_str())?
+                                .ok_or_else(|| {
+                                dependency_validation_error(
+                                    DependencyValidationMode::Requested,
+                                    DependencyErrorReason::DependencyReferenceMissing,
+                                )
+                            })?
+                        }
+                    };
+                    if source_id != source.source_id
+                        || provenance.source_version_id.as_str() != source.source_version_id
+                        || provenance.canonical_source_hash.as_ref().is_none_or(|hash| {
+                            hash.digest_hex() != canonical_body_hash(&source.body)
+                        })
+                        || provenance.locator.as_ref().is_none_or(|locator| {
+                            checked_locator_columns(locator, &source.body).is_err()
+                        })
+                    {
+                        return Err(dependency_validation_error(
+                            DependencyValidationMode::Requested,
+                            DependencyErrorReason::DependencyProvenanceMismatch,
+                        ));
+                    }
+                    let derived_revision = provenance.artifact_revision_id.as_str();
+                    if derived_revision == source_revision.as_str() {
+                        return Err(dependency_validation_error(
+                            DependencyValidationMode::Requested,
+                            DependencyErrorReason::DependencyCycleOrRoleInvalid,
+                        ));
+                    }
+                    state.valid_chains.insert((
+                        source_revision.as_str().to_string(),
+                        derived_revision.to_string(),
+                    ));
+                }
+            }
+        }
+        Ok(state)
+    }
+
+    /// Add one already-validated operation to the prospective conflict view.
+    pub(crate) fn record_registration(
+        &mut self,
+        registration: &ValidatedSourceDependencyRegistration,
+    ) -> Result<(), EngineError> {
+        let ValidatedSourceDependencyRegistration::Insert(request) = registration else {
+            return Ok(());
+        };
+        let dependency_id = request.dependency_id.as_str();
+        let source = request.source_revision_id.as_str();
+        let derived = request.derived_revision_id.as_str();
+        if self
+            .registrations_by_id
+            .get(dependency_id)
+            .is_some_and(|stored| stored != &(source.to_string(), derived.to_string()))
+            || self
+                .registrations_by_derived
+                .get(derived)
+                .is_some_and(|stored| stored != dependency_id)
+        {
+            return Err(DependencyError::new(DependencyErrorReason::DependencyConflict, "").into());
+        }
+        self.registrations_by_id
+            .insert(dependency_id.to_string(), (source.to_string(), derived.to_string()));
+        self.registrations_by_derived.insert(derived.to_string(), dependency_id.to_string());
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum ValidatedSourceDependencyRegistration {
+    Replay(SourceDependencyV1),
+    ProspectiveReplay,
+    Insert(SourceDependencyRegistrationV1),
+}
+
 fn dependency_validation_error(
     mode: DependencyValidationMode,
     reason: DependencyErrorReason,
@@ -21620,6 +21699,144 @@ fn source_dependency_from_request(
         derived_revision_id: request.derived_revision_id,
         registered_dependency_generation: generation,
     }
+}
+
+pub(crate) fn validate_source_dependency_registration(
+    connection: &Connection,
+    request: SourceDependencyRegistrationV1,
+    prospective: &DependencyProspectiveState,
+) -> Result<ValidatedSourceDependencyRegistration, EngineError> {
+    let dependency_id = request.dependency_id.as_str();
+    let requested_source = request.source_revision_id.as_str();
+    let requested_derived = request.derived_revision_id.as_str();
+
+    if let Some((source, derived)) = prospective.registrations_by_id.get(dependency_id) {
+        if source == requested_source && derived == requested_derived {
+            return Ok(ValidatedSourceDependencyRegistration::ProspectiveReplay);
+        }
+        return Err(DependencyError::new(DependencyErrorReason::DependencyConflict, "").into());
+    }
+    if prospective.registrations_by_derived.contains_key(requested_derived) {
+        return Err(DependencyError::new(DependencyErrorReason::DependencyConflict, "").into());
+    }
+
+    let by_id: Option<(i64, String, i64)> = connection
+        .query_row(
+            "SELECT schema_version, derived_revision_id, registered_dependency_generation \
+             FROM _fathomdb_source_dependencies WHERE dependency_id=?1",
+            [dependency_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let by_derived: Option<(i64, String, i64)> = connection
+        .query_row(
+            "SELECT schema_version, dependency_id, registered_dependency_generation \
+             FROM _fathomdb_source_dependencies WHERE derived_revision_id=?1",
+            [requested_derived],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+
+    if let Some((stored_schema, stored_derived, stored_generation)) = by_id {
+        validate_persisted_dependency_row(
+            connection,
+            stored_schema,
+            dependency_id,
+            &stored_derived,
+            stored_generation,
+        )?;
+        if stored_derived != requested_derived
+            || by_derived.as_ref().map(|(_, stored_id, _)| stored_id.as_str())
+                != Some(dependency_id)
+        {
+            return Err(DependencyError::new(DependencyErrorReason::DependencyConflict, "").into());
+        }
+        let stored_source: String = connection
+            .query_row(
+                "SELECT source_revision_id FROM _fathomdb_source_links \
+                 WHERE artifact_revision_id=?1",
+                [requested_derived],
+                |row| row.get(0),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        validate_dependency_chain(
+            connection,
+            &stored_source,
+            requested_derived,
+            DependencyValidationMode::Persisted,
+        )?;
+        if stored_source != requested_source {
+            return Err(DependencyError::new(DependencyErrorReason::DependencyConflict, "").into());
+        }
+        let generation = u64::try_from(stored_generation).map_err(|_| EngineError::Storage)?;
+        return Ok(ValidatedSourceDependencyRegistration::Replay(source_dependency_from_request(
+            request, generation,
+        )));
+    }
+    if let Some((stored_schema, stored_dependency_id, stored_generation)) = by_derived {
+        validate_persisted_dependency_row(
+            connection,
+            stored_schema,
+            &stored_dependency_id,
+            requested_derived,
+            stored_generation,
+        )?;
+        let stored_source: Option<String> = connection
+            .query_row(
+                "SELECT source_revision_id FROM _fathomdb_source_links \
+                 WHERE artifact_revision_id=?1",
+                [requested_derived],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(|_| EngineError::Storage)?;
+        let stored_source = stored_source.ok_or(EngineError::Storage)?;
+        validate_dependency_chain(
+            connection,
+            &stored_source,
+            requested_derived,
+            DependencyValidationMode::Persisted,
+        )?;
+        return Err(DependencyError::new(DependencyErrorReason::DependencyConflict, "").into());
+    }
+
+    if !prospective
+        .valid_chains
+        .contains(&(requested_source.to_string(), requested_derived.to_string()))
+    {
+        validate_dependency_chain(
+            connection,
+            requested_source,
+            requested_derived,
+            DependencyValidationMode::Requested,
+        )?;
+    }
+    Ok(ValidatedSourceDependencyRegistration::Insert(request))
+}
+
+pub(crate) fn apply_validated_source_dependency(
+    connection: &Connection,
+    registration: &ValidatedSourceDependencyRegistration,
+    generation: u64,
+) -> Result<bool, EngineError> {
+    let ValidatedSourceDependencyRegistration::Insert(request) = registration else {
+        return Ok(false);
+    };
+    connection
+        .execute(
+            "INSERT INTO _fathomdb_source_dependencies(\
+               schema_version, dependency_id, derived_revision_id, registered_dependency_generation\
+             ) VALUES(1, ?1, ?2, ?3)",
+            params![
+                request.dependency_id.as_str(),
+                request.derived_revision_id.as_str(),
+                i64::try_from(generation).map_err(|_| EngineError::Storage)?
+            ],
+        )
+        .map_err(|_| EngineError::Storage)?;
+    Ok(true)
 }
 
 fn canonical_dependency_generation(value: &str) -> Option<u64> {
@@ -21683,6 +21900,158 @@ fn canonical_row_for_revision(
         .query_row(sql, [write_cursor], |row| Ok((row.get(0)?, row.get(1)?)))
         .optional()
         .map_err(|_| EngineError::Storage)
+}
+
+fn stored_source_id_is_valid(value: &str) -> bool {
+    SourceId::new(value).is_ok()
+}
+
+fn stored_source_version_id_is_valid(value: &str) -> bool {
+    SourceVersionId::new(value).is_ok()
+}
+
+#[allow(dead_code)] // Used by the Slice 25 prospective-write constructor.
+fn load_persisted_canonical_source(
+    connection: &Connection,
+    source_revision: &str,
+) -> Result<Option<ProspectiveCanonicalSource>, EngineError> {
+    let owner: Option<(i64, String, String, String, i64)> = connection
+        .query_row(
+            "SELECT schema_version, artifact_class, artifact_role, completeness, write_cursor \
+             FROM _fathomdb_artifact_revisions WHERE revision_id=?1",
+            [source_revision],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let Some((schema, class, role, completeness, cursor)) = owner else {
+        return Ok(None);
+    };
+    if schema != 1 {
+        return Err(EngineError::Storage);
+    }
+    if completeness != "complete" {
+        return Err(dependency_validation_error(
+            DependencyValidationMode::Requested,
+            DependencyErrorReason::DependencyProvenanceIncomplete,
+        ));
+    }
+    if class != "node" || role != "canonical_source" {
+        return Err(dependency_validation_error(
+            DependencyValidationMode::Requested,
+            DependencyErrorReason::DependencyCycleOrRoleInvalid,
+        ));
+    }
+    let canonical: Option<(String, String)> = connection
+        .query_row(
+            "SELECT source_id, body FROM canonical_nodes WHERE write_cursor=?1",
+            [cursor],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let version: Option<(i64, String, String, String)> = connection
+        .query_row(
+            "SELECT schema_version, source_id, source_version_id, source_revision_id \
+             FROM _fathomdb_source_versions WHERE source_revision_id=?1",
+            [source_revision],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    #[allow(clippy::type_complexity)]
+    let self_link: Option<(
+        i64,
+        String,
+        String,
+        String,
+        String,
+        Option<i64>,
+        Option<i64>,
+        String,
+        String,
+    )> = connection
+        .query_row(
+            "SELECT schema_version, source_id, source_version_id, source_revision_id, \
+                    locator_kind, start_byte, end_byte, hash_algorithm, hash_digest \
+             FROM _fathomdb_source_links WHERE artifact_revision_id=?1",
+            [source_revision],
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                    row.get(7)?,
+                    row.get(8)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let Some((canonical_source_id, body)) = canonical else {
+        return Err(dependency_validation_error(
+            DependencyValidationMode::Requested,
+            DependencyErrorReason::DependencyReferenceMissing,
+        ));
+    };
+    let Some((version_schema, version_source_id, version_id, version_revision)) = version else {
+        return Err(dependency_validation_error(
+            DependencyValidationMode::Requested,
+            DependencyErrorReason::DependencyReferenceMissing,
+        ));
+    };
+    let Some((
+        link_schema,
+        link_source_id,
+        link_version_id,
+        link_revision,
+        locator,
+        start,
+        end,
+        algorithm,
+        hash,
+    )) = self_link
+    else {
+        return Err(dependency_validation_error(
+            DependencyValidationMode::Requested,
+            DependencyErrorReason::DependencyReferenceMissing,
+        ));
+    };
+    if !stored_source_id_is_valid(&canonical_source_id)
+        || !stored_source_id_is_valid(&version_source_id)
+        || !stored_source_id_is_valid(&link_source_id)
+        || !stored_source_version_id_is_valid(&version_id)
+        || !stored_source_version_id_is_valid(&link_version_id)
+    {
+        return Err(EngineError::Storage);
+    }
+    if version_schema != 1
+        || link_schema != 1
+        || canonical_source_id != version_source_id
+        || canonical_source_id != link_source_id
+        || version_id != link_version_id
+        || version_revision != source_revision
+        || link_revision != source_revision
+        || locator != "whole_body"
+        || start.is_some()
+        || end.is_some()
+        || algorithm != "sha256"
+        || hash != canonical_body_hash(&body)
+    {
+        return Err(dependency_validation_error(
+            DependencyValidationMode::Requested,
+            DependencyErrorReason::DependencyProvenanceMismatch,
+        ));
+    }
+    Ok(Some(ProspectiveCanonicalSource {
+        source_id: canonical_source_id,
+        source_version_id: version_id,
+        body,
+    }))
 }
 
 fn validate_dependency_chain(
@@ -21916,6 +22285,21 @@ fn validate_dependency_chain(
         .iter()
         .map(|byte| format!("{byte:02x}"))
         .collect::<String>();
+    if ![
+        derived_source_id.as_str(),
+        link_source_id.as_str(),
+        canonical_source_id.as_str(),
+        version_source_id.as_str(),
+        self_source_id.as_str(),
+    ]
+    .into_iter()
+    .all(stored_source_id_is_valid)
+        || ![link_source_version.as_str(), version_id.as_str(), self_version_id.as_str()]
+            .into_iter()
+            .all(stored_source_version_id_is_valid)
+    {
+        return Err(EngineError::Storage);
+    }
     let locator_valid = match locator_kind.as_str() {
         "whole_body" => start_byte.is_none() && end_byte.is_none(),
         "utf8_bytes" => match (start_byte, end_byte) {
@@ -22017,52 +22401,6 @@ fn delete_dependencies_for_erased_revisions(
             .map_err(|_| EngineError::Storage)?;
     }
     store_dependency_generation(connection, next)
-}
-
-fn validate_all_dependencies(connection: &Connection) -> Result<(), EngineError> {
-    let current_generation = load_dependency_generation(connection)?;
-    let mut statement = connection
-        .prepare(
-            "SELECT d.schema_version, d.dependency_id, d.derived_revision_id, \
-                    d.registered_dependency_generation, l.source_revision_id \
-             FROM _fathomdb_source_dependencies d \
-             LEFT JOIN _fathomdb_source_links l \
-               ON l.artifact_revision_id=d.derived_revision_id",
-        )
-        .map_err(|_| EngineError::Storage)?;
-    let rows = statement
-        .query_map([], |row| {
-            Ok((
-                row.get::<_, i64>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, String>(2)?,
-                row.get::<_, i64>(3)?,
-                row.get::<_, Option<String>>(4)?,
-            ))
-        })
-        .map_err(|_| EngineError::Storage)?
-        .collect::<rusqlite::Result<Vec<_>>>()
-        .map_err(|_| EngineError::Storage)?;
-    for (schema, dependency_id, derived, generation, source) in rows {
-        validate_persisted_dependency_row(
-            connection,
-            schema,
-            &dependency_id,
-            &derived,
-            generation,
-        )?;
-        if u64::try_from(generation).map_err(|_| EngineError::Storage)? > current_generation {
-            return Err(EngineError::Storage);
-        }
-        let source = source.ok_or(EngineError::Storage)?;
-        validate_dependency_chain(
-            connection,
-            &source,
-            &derived,
-            DependencyValidationMode::Persisted,
-        )?;
-    }
-    Ok(())
 }
 
 fn validate_persisted_dependency_row(

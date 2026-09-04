@@ -29,7 +29,11 @@ fn create_profile(conn: &Connection, name: &str, revision: &str, dimension: u32)
     .unwrap();
     conn.execute(
         "INSERT INTO _fathomdb_embedder_profiles(profile, name, revision, dimension)
-         VALUES('default', ?1, ?2, ?3)",
+         VALUES('default', ?1, ?2, ?3)
+         ON CONFLICT(profile) DO UPDATE SET
+             name=excluded.name,
+             revision=excluded.revision,
+             dimension=excluded.dimension",
         params![name, revision, dimension],
     )
     .unwrap();
@@ -92,7 +96,7 @@ fn engine_open_emits_migration_step_events() {
         step_ids,
         vec![
             2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-            26, 27
+            26, 27, 28
         ]
     );
     assert!(events.iter().all(|event| event.duration_ms.is_some()));
@@ -144,8 +148,8 @@ fn engine_open_poison_migration_reports_failure_and_preserves_user_version() {
 fn ac_048_rejects_stored_embedder_identity_mismatch() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "identity");
+    Engine::open(&path).unwrap().engine.close().unwrap();
     let conn = Connection::open(&path).unwrap();
-    set_user_version(&conn, SCHEMA_VERSION);
     create_profile(&conn, "other-embedder", "rev-b", 384);
     drop(conn);
 
@@ -172,8 +176,8 @@ fn ac_048_rejects_stored_embedder_identity_mismatch() {
 fn ac_048b_rejects_stored_embedder_dimension_mismatch() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "dimension");
+    Engine::open(&path).unwrap().engine.close().unwrap();
     let conn = Connection::open(&path).unwrap();
-    set_user_version(&conn, SCHEMA_VERSION);
     // EU-5b: store the bge-small identity at a non-default dimension so the
     // open path surfaces `EmbedderDimensionMismatch` (the name+revision both
     // match the engine's default; only the dimension drifts).

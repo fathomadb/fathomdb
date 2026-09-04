@@ -219,9 +219,9 @@ fn consistently_invalid_source_identity_refuses_purge_with_rollback() {
     opened.engine.transition("derived", LifecycleState::Deleted, None).unwrap();
 
     let connection = Connection::open(&db).unwrap();
-    connection.execute("UPDATE canonical_nodes SET source_id='bad source'", []).unwrap();
-    connection.execute("UPDATE _fathomdb_source_versions SET source_id='bad source'", []).unwrap();
-    connection.execute("UPDATE _fathomdb_source_links SET source_id='bad source'", []).unwrap();
+    connection.execute("UPDATE canonical_nodes SET source_id='_bad-source'", []).unwrap();
+    connection.execute("UPDATE _fathomdb_source_versions SET source_id='_bad-source'", []).unwrap();
+    connection.execute("UPDATE _fathomdb_source_links SET source_id='_bad-source'", []).unwrap();
     drop(connection);
 
     assert!(matches!(opened.engine.purge("derived"), Err(EngineError::Storage)));

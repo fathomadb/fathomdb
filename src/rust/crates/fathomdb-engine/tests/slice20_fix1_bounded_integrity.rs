@@ -177,9 +177,9 @@ fn bounded_healthy_reads_ignore_unrelated_corruption_but_validate_returned_rows(
 fn consistently_invalid_stored_source_and_version_ids_fail_closed() {
     for statements in [
         [
-            "UPDATE canonical_nodes SET source_id='bad source'",
-            "UPDATE _fathomdb_source_versions SET source_id='bad source'",
-            "UPDATE _fathomdb_source_links SET source_id='bad source'",
+            "UPDATE canonical_nodes SET source_id='_bad-source'",
+            "UPDATE _fathomdb_source_versions SET source_id='_bad-source'",
+            "UPDATE _fathomdb_source_links SET source_id='_bad-source'",
         ],
         [
             "UPDATE _fathomdb_source_versions SET source_version_id='bad version'",

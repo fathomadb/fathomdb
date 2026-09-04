@@ -358,14 +358,24 @@ fn every_raw_provenance_chain_break_fails_reads_and_exact_replay_closed() {
                 .map(|_| ()),
             opened
                 .engine
-                .dependencies_for_source(DependencySourceLookupV1::new("source-r1").unwrap())
-                .map(|_| ()),
-            opened
-                .engine
                 .dependency_for_derived(DependencyDerivedLookupV1::new("derived-r1").unwrap())
                 .map(|_| ()),
         ] {
             assert!(matches!(result, Err(EngineError::Storage)), "corruption {index} was accepted");
+        }
+        let by_source = opened
+            .engine
+            .dependencies_for_source(DependencySourceLookupV1::new("source-r1").unwrap());
+        if matches!(index, 3 | 4) {
+            assert!(
+                by_source.unwrap().items.is_empty(),
+                "a bounded source lookup cannot attribute a row whose authoritative link is absent or names another source"
+            );
+        } else {
+            assert!(
+                matches!(by_source, Err(EngineError::Storage)),
+                "relevant corruption {index} was accepted"
+            );
         }
     }
 }

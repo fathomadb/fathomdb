@@ -534,7 +534,8 @@ fn an_unreadable_cache_entry_falls_back_to_running_the_probe() {
              WHERE key NOT IN ('projection_cursor',
                                'search_index_tokenizer_reproject_complete',
                                'tc33_edge_vector_prune_complete',
-                               'tc33_reserved_write_cursor')",
+                               'tc33_reserved_write_cursor',
+                               '_fathomdb_dependency_generation')",
             [],
         )
         .expect("garble the cached verdict");
@@ -566,7 +567,8 @@ fn a_missing_cache_entry_falls_back_to_running_the_probe() {
              WHERE key NOT IN ('projection_cursor',
                                'search_index_tokenizer_reproject_complete',
                                'tc33_edge_vector_prune_complete',
-                               'tc33_reserved_write_cursor')",
+                               'tc33_reserved_write_cursor',
+                               '_fathomdb_dependency_generation')",
             [],
         )
         .expect("delete the cached verdict");
@@ -599,7 +601,8 @@ fn a_divergence_on_a_rerun_still_disables_dense() {
              WHERE key NOT IN ('projection_cursor',
                                'search_index_tokenizer_reproject_complete',
                                'tc33_edge_vector_prune_complete',
-                               'tc33_reserved_write_cursor')",
+                               'tc33_reserved_write_cursor',
+                               '_fathomdb_dependency_generation')",
             [],
         )
         .expect("delete the cached verdict");

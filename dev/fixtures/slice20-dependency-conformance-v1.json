@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "validRegistration": {
+    "dependencyId": "dep-1",
+    "sourceRevisionId": "source-r1",
+    "derivedRevisionId": "derived-r1"
+  },
+  "validSourceLookup": { "sourceRevisionId": "source-r1" },
+  "validDerivedLookup": { "derivedRevisionId": "derived-r1" },
+  "failures": [
+    { "request": { "schemaVersion": 2, "dependencyId": "dep-1", "sourceRevisionId": "source-r1", "derivedRevisionId": "derived-r1", "aaa": 1 }, "reason": "unsupported_schema_version", "fieldPath": "/schemaVersion" },
+    { "request": { "schemaVersion": 1, "dependencyId": "dep-1", "sourceRevisionId": "source-r1", "derivedRevisionId": "derived-r1", "zzz": 1, "aaa~x/y": 2 }, "reason": "unknown_field", "fieldPath": "/aaa~0x~1y" },
+    { "request": { "schemaVersion": 1, "sourceRevisionId": "source-r1", "derivedRevisionId": "derived-r1" }, "reason": "dependency_id_invalid", "fieldPath": "/dependencyId" },
+    { "request": { "schemaVersion": 1, "dependencyId": "dep-1", "sourceRevisionId": 7, "derivedRevisionId": "derived-r1" }, "reason": "dependency_reference_invalid", "fieldPath": "/sourceRevisionId" }
+  ]
+}

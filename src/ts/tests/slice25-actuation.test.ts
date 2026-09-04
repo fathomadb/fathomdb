@@ -99,6 +99,66 @@ test("actuation rejects an unpaired surrogate at the canonical nested path", asy
   await engine.close();
 });
 
+test("actuation surrogate guard preserves schema precedence", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "fathomdb-actuation-surrogate-schema-"));
+  const engine = await Engine.open(join(dir, "actuation.fathom"));
+  const input = request("typescript-surrogate-schema");
+  input.schemaVersion = 2 as 1;
+  const record = (
+    input.operations[0] as Extract<
+      (typeof input.operations)[number],
+      { type: "put_canonical_node" }
+    >
+  ).record;
+  record.sourceId = `source${String.fromCharCode(0xd800)}id`;
+  await assert.rejects(
+    engine.actuate(input),
+    (error: unknown) =>
+      error instanceof ActuationError &&
+      error.reason === "unsupported_schema_version" &&
+      error.fieldPath === "/schemaVersion",
+  );
+  await engine.close();
+});
+
+test("actuation surrogate guard preserves unknown-field precedence", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "fathomdb-actuation-surrogate-unknown-"));
+  const engine = await Engine.open(join(dir, "actuation.fathom"));
+  const input = request("typescript-surrogate-unknown") as ActuationBatchV1 & {
+    aUnknown: boolean;
+  };
+  input.aUnknown = true;
+  const record = (
+    input.operations[0] as Extract<
+      (typeof input.operations)[number],
+      { type: "put_canonical_node" }
+    >
+  ).record;
+  record.sourceId = `source${String.fromCharCode(0xd800)}id`;
+  await assert.rejects(
+    engine.actuate(input),
+    (error: unknown) =>
+      error instanceof ActuationError &&
+      error.reason === "unknown_field" &&
+      error.fieldPath === "/aUnknown",
+  );
+  await engine.close();
+});
+
+test("actuation surrogate guard preserves top-level ID taxonomy", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "fathomdb-actuation-surrogate-id-"));
+  const engine = await Engine.open(join(dir, "actuation.fathom"));
+  const input = request(`operation${String.fromCharCode(0xd800)}id`);
+  await assert.rejects(
+    engine.actuate(input),
+    (error: unknown) =>
+      error instanceof ActuationError &&
+      error.reason === "operation_id_invalid" &&
+      error.fieldPath === "/operationId",
+  );
+  await engine.close();
+});
+
 test("shared all-variant fixture has exact receipt and digest", async () => {
   const dir = mkdtempSync(join(tmpdir(), "fathomdb-actuation-shared-"));
   const engine = await Engine.open(join(dir, "actuation.fathom"));

@@ -25,9 +25,9 @@ The successor architecture and delivery plan are
 [`fathomdb-data-plane-architecture-v2.md`](../design/fathomdb-data-plane-architecture-v2.md)
 and [`fathomdb-data-plane-foldback-v2.md`](fathomdb-data-plane-foldback-v2.md).
 Architecture v2.1 is the active implementation authority following the completed
-Slice 4–6 review/decision work and the S7-07 architecture package. Slices 7 and
-10 are complete on the release branch; the canonical release state below now
-commissions Slice 15.
+Slice 4–6 review/decision work and the S7-07 architecture package. Slices 7,
+10, and 15 are complete on the release branch; the canonical release state
+below now commissions Slice 20.
 
 ## Setup record
 
@@ -205,14 +205,15 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 15** (`IDENTITY`) — revision identity and canonical source provenance
+**IMMEDIATE NEXT: Slice 20** (`DEPENDENCY`) — core canonical-source-to-derived dependency registration
 
-**Remaining ladder:** 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
-Execute the Slice 10 plan directly. Reconcile its reviewed draft against the
-activated architecture and current code, then use TDD, independent design and
-implementation review, and read-only verification. Slice 10 remains bounded to
-measurement classification and its small native `Engine.search` witness.
+Execute the Slice 20 plan directly. Reconcile its scoped draft against Slice
+15's identity/provenance substrate, the activated architecture, and current
+code, then use TDD, independent design and implementation review, and read-only
+verification. Slice 20 remains bounded to core canonical-source-to-derived
+dependency registration.
 
 ## Stop gates
 

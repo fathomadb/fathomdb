@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 15 — identity and canonical provenance
-status: READY
+status: COMPLETE_ON_RELEASE_BRANCH
 depends_on: 10
 design: design.md
 design_status: READY_REVIEW_PASS_CYCLE_3
@@ -37,4 +37,10 @@ the existing write/result/provider shapes while adding the versioned entity
 variants, use schema step 27 without legacy backfill, and keep complete source
 identity caller-authored. RED commits must precede GREEN for schema/Engine,
 Python, and TypeScript fixtures. Implementation review and independent
-verification each allow at most three FIX cycles.
+verification each allow at most five FIX cycles.
+
+## Completion ruling
+
+Implementation review passed at cycle 4 with no unresolved P1/P2/P3 finding.
+Independent verification passed at integrated implementation commit
+`9a53e26a`. The durable closure record is [`status.md`](status.md).

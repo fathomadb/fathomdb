@@ -12,10 +12,10 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 15 (IDENTITY), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 20 (DEPENDENCY), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
-Prework and Slice 10 are complete on the durable `release/0.8.25` worktree.
-Feature work continues with Slice 15. The owner-approved 2026-09-02
+Prework and Slices 10 and 15 are complete on the durable `release/0.8.25`
+worktree. Feature work continues with Slice 20. The owner-approved 2026-09-02
 scope adjustment removes Slices 65/70 and narrows the retained implementation
 ladder. Direct agents execute this release without Steward or Orchestrator
 roles.
@@ -33,7 +33,7 @@ roles.
 | 6 | Proposal scoring and interactive HITL | Complete on release branch (`3a35c1e6`; approved `seq-274`) |
 | 7 | Approved repository preparation | Complete on release branch (`fdbae48a`) |
 | 10 | Measurement classification | Complete on release branch (`f383ec82`) |
-| 15 | Identity and source provenance | Not started |
+| 15 | Identity and source provenance | Complete on release branch (`9a53e26a`) |
 | 20 | Core dependency registration | Not started |
 | 25 | Core atomic semantic actuation | Not started |
 | 30 | Lifecycle and erasure closure | Not started |
@@ -68,7 +68,7 @@ roles.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 15 (IDENTITY)** — revision identity and canonical source provenance. **Remaining ladder:** 15 → 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 20 (DEPENDENCY)** — core canonical-source-to-derived dependency registration. **Remaining ladder:** 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 
@@ -90,6 +90,10 @@ lint, and `git diff --check`. Each Slice 1–5 record is proposal-only.
   bounded FIX-3 cycles. Its 59 focused tests, portable and historical audits,
   fast tier, and applicable heavy suites pass; the sole heavy skip is the
   unavailable TypeScript dependency tree.
+- Slice 15 passes independent design review at cycle 3 and implementation
+  review at cycle 4. Independent focused verification covers schema 27,
+  atomic versioned writes, corruption-safe erasure, SDK error parity, and
+  packaged-smoke contracts. Its between-slice memory checkpoint is complete.
 - A diagnostic release-wide long gate exposed the pre-existing AC-013 vector
   latency failure and was stopped after that failure. It is release debt, not
   a Slice 10 regression.

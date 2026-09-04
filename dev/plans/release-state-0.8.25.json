@@ -4,7 +4,7 @@
   "board": "dev/plans/runs/STATUS-0.8.25.md",
   "plan": "dev/plans/plan-0.8.25.md",
   "master": "dev/plans/0.8.20-0.9.0-PROGRAM-SEQUENCING.md",
-  "schema_version": 26,
+  "schema_version": 27,
   "origin_main_schema_version": 26,
   "schema_version_source": "pub const SCHEMA_VERSION in src/rust/crates/fathomdb-schema/src/lib.rs",
   "ladder": [
@@ -17,7 +17,7 @@
     {"slice": 6, "short": "HITL", "title": "proposal scoring, HITL decisions, and Slice 7 plan", "depends_on": [5], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25-prework-slices-0-7.md", "dev/plans/0.8.25/prework/slice-1-dependency-sweep.md", "dev/plans/0.8.25/prework/slice-2-cruft-review.md", "dev/plans/0.8.25/prework/slice-3-contract-and-architecture-drafts.md", "dev/plans/0.8.25/prework/slice-4-architecture-and-code-alignment.md", "dev/plans/0.8.25/prework/slice-5-verification-adequacy.md", "dev/plans/0.8.25/prework/slice-6-proposal-register.md", "dev/plans/0.8.25/prework/slice-6-hitl-decisions.md", "dev/plans/0.8.25/prework/slice-6-slice-7-independent-review.md", "dev/plans/0.8.25/prework/slice-7-implementation-plan.md", "dev/plans/fathomdb-data-plane-foldback-v2.md"], "sha": "3a35c1e6", "merge_subject": "docs(0.8.25): prepare reviewed Slice 7 plan", "evidence": "Every Slice 0–5 proposal is ruled at seq-272/seq-273, postponed work is preserved in the draft 0.8.26 scope, the approved-only Slice 7 plan passed independent review after FIX-1/FIX-2, and final owner approval at seq-274 authorizes Slice 7 implementation within that plan."},
     {"slice": 7, "short": "PREWORK-IMPLEMENTATION", "title": "approved repository-preparation implementation", "depends_on": [6], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/prework/slice-7-implementation-plan.md", "dev/plans/0.8.25/prework/slice-7-completion.md", "dev/plans/0.8.25/prework/slice-7-implementation-review.md"], "sha": "fdbae48a", "merge_subject": "fix(0.8.25): correct architecture activation provenance", "evidence": "All seven approved repository-preparation packages are GREEN. Fresh-workspace, wheel, dependency/RustSec, real property, traceability, documentation, ptrace, and RTX 3090 CUDA checks pass; the independent implementation review passed after two bounded FIX cycles and a separate read-only verification audit."},
     {"slice": 10, "short": "MEASUREMENT", "title": "executable measurement-layer classification", "depends_on": [7], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/features/slice-10/design.md", "dev/plans/0.8.25/features/slice-10/plan.md", "dev/plans/0.8.25/features/slice-10/status.md", "dev/plans/0.8.25/features/slice-10/implementation-review-cycle3.md"], "sha": "f383ec82", "merge_subject": "test(0.8.25): prove blocked receipt continuation", "evidence": "Executable measurement classifications, historical closure, final native search and blocked-continuation receipts are committed. Independent design and implementation reviews pass after the bounded three-FIX cycles; 59 focused tests, portable/deep audits, 103 fast suites, and the applicable heavy suites pass."},
-    {"slice": 15, "short": "IDENTITY", "title": "revision identity and canonical source provenance", "depends_on": [10], "status": "NOT_STARTED", "design_refs": ["dev/plans/0.8.25/features/slice-15/plan.md", "dev/plans/0.8.25/features/slice-15/design.md"]},
+    {"slice": 15, "short": "IDENTITY", "title": "revision identity and canonical source provenance", "depends_on": [10], "status": "COMPLETE_ON_RELEASE_BRANCH", "design_refs": ["dev/plans/0.8.25/features/slice-15/plan.md", "dev/plans/0.8.25/features/slice-15/design.md", "dev/plans/0.8.25/features/slice-15/status.md", "dev/plans/0.8.25/features/slice-15/implementation-review-cycle4.md"], "sha": "9a53e26a", "merge_subject": "fix: make unknown-field precedence deterministic", "evidence": "Schema step 27 and additive Rust/Python/TypeScript provenance contracts are complete. Independent design review passed at cycle 3, implementation review passed at cycle 4, and independent focused verification covers migration, identity, atomicity, erasure, SDK parity, and packaged-smoke contracts. Reusable lessons were compacted before Slice 20."},
     {"slice": 20, "short": "DEPENDENCY", "title": "core canonical-source-to-derived dependency registration", "depends_on": [15], "status": "NOT_STARTED"},
     {"slice": 25, "short": "ACTUATION", "title": "bounded atomic caller-decided actuation", "depends_on": [20], "status": "NOT_STARTED"},
     {"slice": 30, "short": "LIFECYCLE", "title": "dependency-aware lifecycle and erasure closure", "depends_on": [25], "status": "NOT_STARTED"},
@@ -30,8 +30,8 @@
     {"slice": 75, "short": "CLOSURE", "title": "trimmed trustworthy release verification", "depends_on": [60], "status": "NOT_STARTED"}
   ],
   "landed": [],
-  "next_slice": 15,
-  "remaining_ladder": [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 75],
+  "next_slice": 20,
+  "remaining_ladder": [20, 25, 30, 35, 40, 45, 50, 55, 60, 75],
   "decisions": {
     "unruled": [],
     "ruled": [

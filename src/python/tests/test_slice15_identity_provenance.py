@@ -53,7 +53,7 @@ def test_python_consumes_shared_success_fixture_and_keeps_receipt_shape(
         "row_cursors",
         "dangling_edge_endpoints",
     }
-    assert receipt.row_cursors == [1, 2, 3]
+    assert receipt.row_cursors == (1, 2, 3)
     engine.close()
 
 

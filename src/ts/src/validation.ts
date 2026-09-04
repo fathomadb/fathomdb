@@ -8,9 +8,13 @@
 import { WriteValidationError } from "./errors.js";
 
 export function validateFfiString(value: string): void {
+  validateFfiStringEncoding(value, false);
+}
+
+function validateFfiStringEncoding(value: string, allowNul: boolean): void {
   for (let i = 0; i < value.length; i++) {
     const code = value.charCodeAt(i);
-    if (code === 0) {
+    if (code === 0 && !allowNul) {
       throw new WriteValidationError("embedded NUL byte in FFI string");
     }
     if (code >= 0xd800 && code <= 0xdbff) {
@@ -29,19 +33,36 @@ export function validateFfiString(value: string): void {
 }
 
 export function validateFfiTree(value: unknown): void {
+  validateFfiTreeEncoding(value, false);
+}
+
+function validateFfiTreeEncoding(value: unknown, allowNul: boolean): void {
   if (typeof value === "string") {
-    validateFfiString(value);
+    validateFfiStringEncoding(value, allowNul);
     return;
   }
   if (Array.isArray(value)) {
     for (const item of value) {
-      validateFfiTree(item);
+      validateFfiTreeEncoding(item, allowNul);
     }
     return;
   }
   if (value !== null && typeof value === "object") {
     for (const v of Object.values(value as Record<string, unknown>)) {
-      validateFfiTree(v);
+      validateFfiTreeEncoding(v, allowNul);
+    }
+  }
+}
+
+/** Validate write strings without preempting provenance-specific NUL errors. */
+export function validateWriteFfiTree(batch: unknown[]): void {
+  for (const item of batch) {
+    if (item === null || typeof item !== "object" || Array.isArray(item)) {
+      validateFfiTreeEncoding(item, false);
+      continue;
+    }
+    for (const [key, value] of Object.entries(item as Record<string, unknown>)) {
+      validateFfiTreeEncoding(value, key === "provenance");
     }
   }
 }

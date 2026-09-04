@@ -2896,12 +2896,19 @@ fn provenance_napi_error(reason: &str, field_path: impl Into<String>) -> Error {
     )
 }
 
+fn escape_json_pointer_token(token: &str) -> String {
+    token.replace('~', "~0").replace('/', "~1")
+}
+
 fn strict_json_keys(value: &JsonValue, allowed: &[&str], base_path: &str) -> Result<()> {
     let object =
         value.as_object().ok_or_else(|| provenance_napi_error("unknown_field", base_path))?;
     for key in object.keys() {
         if !allowed.contains(&key.as_str()) {
-            return Err(provenance_napi_error("unknown_field", format!("{base_path}/{key}")));
+            return Err(provenance_napi_error(
+                "unknown_field",
+                format!("{base_path}/{}", escape_json_pointer_token(key)),
+            ));
         }
     }
     Ok(())
@@ -2909,10 +2916,7 @@ fn strict_json_keys(value: &JsonValue, allowed: &[&str], base_path: &str) -> Res
 
 fn provenance_string(value: &JsonValue, key: &str, reason: &str) -> Result<String> {
     match json_get(value, key) {
-        Some(JsonValue::String(value)) => {
-            validate_ffi_string_napi(value)?;
-            Ok(value.clone())
-        }
+        Some(JsonValue::String(value)) if !value.contains('\0') => Ok(value.clone()),
         _ => Err(provenance_napi_error(reason, format!("/provenance/{key}"))),
     }
 }
@@ -2981,6 +2985,21 @@ fn translate_json_hash(value: &JsonValue) -> Result<CanonicalHash> {
 }
 
 fn translate_json_provenance(value: &JsonValue) -> Result<WriteProvenanceV1> {
+    if !value.is_object() {
+        return Err(provenance_napi_error("role_invalid", "/provenance"));
+    }
+    if json_get(value, "schemaVersion").and_then(JsonValue::as_u64) != Some(1) {
+        return Err(provenance_napi_error(
+            "unsupported_schema_version",
+            "/provenance/schemaVersion",
+        ));
+    }
+    let role = json_get(value, "role")
+        .and_then(JsonValue::as_str)
+        .ok_or_else(|| provenance_napi_error("role_invalid", "/provenance/role"))?;
+    if !matches!(role, "canonical" | "derived") {
+        return Err(provenance_napi_error("role_invalid", "/provenance/role"));
+    }
     strict_json_keys(
         value,
         &[
@@ -2994,15 +3013,6 @@ fn translate_json_provenance(value: &JsonValue) -> Result<WriteProvenanceV1> {
         ],
         "/provenance",
     )?;
-    if json_get(value, "schemaVersion").and_then(JsonValue::as_u64) != Some(1) {
-        return Err(provenance_napi_error(
-            "unsupported_schema_version",
-            "/provenance/schemaVersion",
-        ));
-    }
-    let role = json_get(value, "role")
-        .and_then(JsonValue::as_str)
-        .ok_or_else(|| provenance_napi_error("role_invalid", "/provenance/role"))?;
     let artifact_revision_id = ArtifactRevisionId::new(provenance_string(
         value,
         "artifactRevisionId",

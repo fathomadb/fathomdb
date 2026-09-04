@@ -8037,17 +8037,17 @@ impl Engine {
     /// recovers it. No marker table and no new recovery path: the two statements
     /// simply share a transaction.
     ///
-    /// That transaction is opened on the writer connection just OUTSIDE the batch
-    /// transaction: if the batch then fails, the workspace is left having enrolled
-    /// a kind whose rows are correctly queued for the dense arm the registry does
-    /// declare — inert, and self-healing on the next write or apply.
-    fn enrol_batch_vector_kinds(
+    /// Returns the kinds whose enrolment must be committed with the batch. This
+    /// pre-pass is read-only: provenance validation still runs inside
+    /// `commit_batch`, so making enrolment part of that same transaction is what
+    /// keeps a rejected write mutation-free.
+    fn batch_vector_kinds_needing_enrolment(
         &self,
         connection: &Connection,
         batch: &[PreparedWrite],
-    ) -> Result<bool, EngineError> {
+    ) -> Result<Vec<String>, EngineError> {
         if !self.usable_dense_runtime() {
-            return Ok(false);
+            return Ok(Vec::new());
         }
         // READ-ONLY pre-pass. Nothing is written here, so the overwhelmingly
         // common case — every kind in the batch already enrolled, or no vector
@@ -8066,17 +8066,13 @@ impl Engine {
                 to_enrol.push(kind.clone());
             }
         }
-        if to_enrol.is_empty() {
-            return Ok(false);
-        }
-        let to_enrol_refs: Vec<&str> = to_enrol.iter().map(String::as_str).collect();
-        self.enrol_and_unstrand(connection, &to_enrol_refs)
+        Ok(to_enrol)
     }
 
     /// 0.8.20 Slice 20c — would enrolling `kind` be correct here? The READ-ONLY
     /// half of a late enrolment; [`Engine::enrol_and_unstrand`] is the write half.
     /// The live-embedder precondition is the CALLER's (see
-    /// [`Engine::enrol_batch_vector_kinds`]).
+    /// [`Engine::batch_vector_kinds_needing_enrolment`]).
     fn vector_kind_needs_enrolment(
         &self,
         connection: &Connection,
@@ -8111,9 +8107,9 @@ impl Engine {
     /// transaction. Returns `true` iff the repair re-enqueued anything (the caller
     /// must then `notify_new_work()`, since those rows are outside its batch).
     ///
-    /// Split out so both write-path doors ([`Engine::enrol_batch_vector_kinds`]
-    /// and the `#[doc(hidden)]` `write_canonical_row_with_kind_for_test`) share it
-    /// verbatim, and so neither can register a kind without owing the repair.
+    /// Used by the `#[doc(hidden)]` `write_canonical_row_with_kind_for_test`;
+    /// production batch writes perform the same operations inside `commit_batch`
+    /// so provenance rejection also rolls them back.
     ///
     /// `register_vector_kind` is `INSERT OR IGNORE` and
     /// [`reenqueue_stranded_vector_rows`] is idempotent, so the read-only pre-pass
@@ -8154,17 +8150,10 @@ impl Engine {
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let plans = validate_batch(connection, batch)?;
         validate_nested_projection_sources_for_write(connection, batch)?;
-        // 0.8.20 Slice 20c (R-20-DR remainder) — LATE ENROLMENT, before
-        // `collect_projection_jobs` reads the vector-kind registry to decide
-        // whether the dispatcher needs waking. See
-        // `Engine::enrol_batch_vector_kinds`.
-        //
-        // fix-2 (codex §9 [P2]) — the flag says the enrolment ALSO un-stranded
-        // rows outside this batch. Those rows are not in `projection_jobs` (that
-        // only walks the batch), so it is OR-ed into `pending_projection` below:
-        // `drain` is a passive barrier and never a trigger (C4 rider), so work
-        // enqueued without a wake would sit until the next unrelated write.
-        let unstranded = self.enrol_batch_vector_kinds(connection, batch)?;
+        // The enrolment decision is read-only here. Registration and stranded-row
+        // repair commit inside the canonical batch transaction below, after all
+        // provenance checks have succeeded.
+        let vector_kinds_to_enrol = self.batch_vector_kinds_needing_enrolment(connection, batch)?;
         let projection_jobs = collect_projection_jobs(connection, batch)?;
         #[cfg(debug_assertions)]
         if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
@@ -8187,14 +8176,13 @@ impl Engine {
         let has_edge_body_work = batch.iter().any(|write| {
             matches!(storage_write_shape(write).as_ref(), PreparedWrite::Edge { body: Some(_), .. })
         });
-        let pending_projection = !projection_jobs.is_empty() || has_edge_body_work || unstranded;
-
-        let dangling_edge_endpoints = match commit_batch(
+        let (dangling_edge_endpoints, unstranded) = match commit_batch(
             connection,
             batch,
             &plans,
             base_cursor,
             self.provenance_row_cap.load(Ordering::Relaxed),
+            &vector_kinds_to_enrol,
         ) {
             Ok(count) => count,
             Err(CommitBatchError::Sql(err)) => {
@@ -8205,6 +8193,10 @@ impl Engine {
                 return Err(EngineError::Provenance(error));
             }
         };
+        let pending_projection = !projection_jobs.is_empty()
+            || !vector_kinds_to_enrol.is_empty()
+            || has_edge_body_work
+            || unstranded;
         self.next_cursor.store(last_cursor, Ordering::SeqCst);
         if pending_projection {
             self.projection_runtime.notify_new_work();
@@ -10934,7 +10926,7 @@ impl Engine {
         let engine_provenance = SourceId::engine_derived(row_kind.as_str());
 
         // 0.8.20 Slice 20c — same late enrolment the governed write path takes
-        // (`Engine::enrol_batch_vector_kinds`), so this internal writer does not
+        // (`Engine::batch_vector_kinds_needing_enrolment`), so this internal writer does not
         // silently diverge into the false-ready barrier for `coverage` rows. The
         // live-embedder precondition is checked here, as that caller does; the
         // `row_kind` gate keeps `graph` rows out of the vector registry.
@@ -17118,7 +17110,7 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
     // EDGE rows deliberately fall THROUGH to the shipped path, ladder and all.
     // `'edge_fact'` is auto-registered by the edge write itself, UN-gated on the
     // embedder (`project_canonical_edge_row`, G11 — see the note in
-    // `enrol_batch_vector_kinds`), so an edge body written with no embedder is
+    // `batch_vector_kinds_needing_enrolment`), so an edge body written with no embedder is
     // outstanding the moment it lands. Deferring it would leave `drain` and
     // `excise_source` returning `EngineError::Scheduler` on paths with nothing to
     // do with the dense arm (MEASURED: 4 shipped tests across
@@ -20678,13 +20670,9 @@ fn collect_projection_jobs(
     for write in batch {
         let write = storage_write_shape(write);
         if let PreparedWrite::Node { kind, body, .. } = write.as_ref() {
-            // 0.8.20 Slice 20c — this probe decides whether `notify_new_work` is
-            // called, so `Engine::enrol_batch_vector_kinds` MUST already have run
-            // on this batch: a kind enrolled after this point would be enqueued in
-            // the database with the dispatcher left asleep on
-            // `pending_scan == false`, and because `drain` is a passive barrier
-            // (C4 rider: never a trigger) the next `drain` would burn its ENTIRE
-            // timeout and return `EngineError::Scheduler` on work ready to run.
+            // 0.8.20 Slice 20c — this read-only probe finds already enrolled
+            // kinds. `write_inner` separately treats every prospective enrolment
+            // as pending, then notifies only after the batch transaction commits.
             if kind_is_vector_indexed(connection, kind)? {
                 jobs.push(ProjectionJob { cursor: 0, kind: kind.clone(), body: body.clone() });
             }
@@ -22759,7 +22747,8 @@ fn boot_graft_declared_vector_backfill(connection: &Connection) -> rusqlite::Res
 /// own function because **both** enrolment doors owe this treatment.
 ///
 /// fix-2 (codex §9 [P2]): [`enqueue_declared_vector_backfill`] is the DECLARE-time
-/// door; [`Engine::enrol_batch_vector_kinds`] is the WRITE-time one, and it used to
+/// door; [`Engine::batch_vector_kinds_needing_enrolment`] selects the WRITE-time
+/// enrolment set, and the old write-time path used to
 /// enrol a kind while enqueueing only the row in its own batch. A database that
 /// persisted a `searchable→vector` declaration while opened WITHOUT an embedder
 /// (Q6a graceful-absent: it defers, enrolling nothing), then reopened WITH one and
@@ -23538,7 +23527,8 @@ fn commit_batch(
     plans: &[WritePlan],
     base_cursor: u64,
     provenance_row_cap: u64,
-) -> Result<u64, CommitBatchError> {
+    vector_kinds_to_enrol: &[String],
+) -> Result<(u64, bool), CommitBatchError> {
     // 0.8.20 Slice 21a-2 (TC-57) — `BEGIN IMMEDIATE`, not rusqlite's `BEGIN
     // DEFERRED` default. Take the WAL write lock AT `BEGIN`, before the
     // supersession SELECT below, so this transaction never has to PROMOTE a read
@@ -23573,6 +23563,12 @@ fn commit_batch(
     // handler consulted, i.e. absorbed by the existing 5 s default instead of
     // surfaced (pinned by `tc57_mechanism_control_write_first_is_retryable`).
     let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+
+    for kind in vector_kinds_to_enrol {
+        register_vector_kind(&tx, kind)?;
+    }
+    let unstranded =
+        if vector_kinds_to_enrol.is_empty() { false } else { reenqueue_stranded_vector_rows(&tx)? };
 
     for (i, (original_write, plan)) in batch.iter().zip(plans).enumerate() {
         // Per-row cursor: row i gets `base_cursor + i + 1`. See the
@@ -23904,7 +23900,7 @@ fn commit_batch(
     advance_projection_cursor(&tx)?;
 
     tx.commit()?;
-    Ok(dangling_edge_endpoints)
+    Ok((dangling_edge_endpoints, unstranded))
 }
 
 fn load_next_cursor(connection: &Connection) -> u64 {

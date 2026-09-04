@@ -2667,6 +2667,10 @@ fn provenance_input_error(reason: &str, field_path: impl Into<String>) -> PyErr 
     exc
 }
 
+fn escape_json_pointer_token(token: &str) -> String {
+    token.replace('~', "~0").replace('/', "~1")
+}
+
 fn provenance_required_str(dict: &Bound<'_, PyDict>, key: &str) -> PyResult<String> {
     let reason =
         if key == "source_version_id" { "source_version_invalid" } else { "revision_id_invalid" };
@@ -2690,7 +2694,7 @@ fn strict_provenance_keys(
         if !allowed.contains(&key.as_str()) {
             return Err(provenance_input_error(
                 "unknown_field",
-                format!("{field_path}/{}", snake_to_camel(&key)),
+                format!("{field_path}/{}", escape_json_pointer_token(&snake_to_camel(&key))),
             ));
         }
     }
@@ -2772,19 +2776,6 @@ fn translate_provenance(value: &Bound<'_, PyAny>) -> PyResult<WriteProvenanceV1>
     let dict = value
         .cast::<PyDict>()
         .map_err(|_| provenance_input_error("role_invalid", "/provenance"))?;
-    strict_provenance_keys(
-        dict,
-        &[
-            "schema_version",
-            "role",
-            "artifact_revision_id",
-            "source_version_id",
-            "source_revision_id",
-            "source_locator",
-            "canonical_source_hash",
-        ],
-        "/provenance",
-    )?;
     let schema_version = match dict_get(dict, "schema_version")? {
         Some(value) if !value.is_instance_of::<pyo3::types::PyBool>() => {
             value.extract::<u32>().ok()
@@ -2802,6 +2793,22 @@ fn translate_provenance(value: &Bound<'_, PyAny>) -> PyResult<WriteProvenanceV1>
             .map_err(|_| provenance_input_error("role_invalid", "/provenance/role"))?,
         None => return Err(provenance_input_error("role_invalid", "/provenance/role")),
     };
+    if !matches!(role.as_str(), "canonical" | "derived") {
+        return Err(provenance_input_error("role_invalid", "/provenance/role"));
+    }
+    strict_provenance_keys(
+        dict,
+        &[
+            "schema_version",
+            "role",
+            "artifact_revision_id",
+            "source_version_id",
+            "source_revision_id",
+            "source_locator",
+            "canonical_source_hash",
+        ],
+        "/provenance",
+    )?;
     let artifact_revision_id =
         ArtifactRevisionId::new(provenance_required_str(dict, "artifact_revision_id")?)
             .map_err(engine_error_to_py)?;

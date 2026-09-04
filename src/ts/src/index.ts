@@ -22,7 +22,7 @@ import {
 } from "./binding.js";
 import { InvalidArgumentError, InvalidFilterError, rethrowTyped } from "./errors.js";
 import type { NodeRecord, Predicate, ReadView } from "./read.js";
-import { validateFfiString, validateFfiTree } from "./validation.js";
+import { validateFfiString, validateFfiTree, validateWriteFfiTree } from "./validation.js";
 
 export * from "./errors.js";
 export { read } from "./read.js";
@@ -1091,7 +1091,7 @@ export class Engine {
    * longer recoverable from the error, so validate the pair before calling.
    */
   async write(batch: unknown[] = []): Promise<WriteReceipt> {
-    validateFfiTree(batch);
+    validateWriteFfiTree(batch);
     return intercept(() => this.#native.write(batch));
   }
 

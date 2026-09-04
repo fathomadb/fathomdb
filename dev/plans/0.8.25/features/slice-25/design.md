@@ -1,8 +1,8 @@
 ---
 title: 0.8.25 Slice 25 — bounded atomic actuation design
-status: DRAFT_REVIEW_FIX_2
-design_version: 4
-review_fix: 2
+status: DRAFT_REVIEW_FIX_3
+design_version: 5
+review_fix: 3
 depends_on: 20
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 decision: dev/adr/ADR-0.8.25-bounded-atomic-actuation.md
@@ -35,12 +35,12 @@ shape and returns the equivalent typed receipt.
 
 ```text
 ActuationOperationV1 =
-  PutCanonicalNode { record: ProvenancedNodeV1 }
-  | PutDerivedNode { record: ProvenancedNodeV1 }
-  | RegisterSourceDependency {
+  PutCanonicalNode { type: "put_canonical_node", record: ProvenancedNodeV1 }
+  | PutDerivedNode { type: "put_derived_node", record: ProvenancedNodeV1 }
+  | RegisterSourceDependency { type: "register_source_dependency",
       dependency: SourceDependencyRegistrationV1
     }
-  | TransitionLifecycle {
+  | TransitionLifecycle { type: "transition_lifecycle",
       logical_id,
       expected_current_revision_id,
       to_state: active | deleted,
@@ -84,10 +84,22 @@ canonical unsigned decimal strings for all three, matching Slice 20.
 
 Rust exports `ActuationBatchV1`, `ActuationOperationV1`,
 `LifecycleActuationV1`, `ActuationReceiptV1`, `ActuationOutcomeV1`,
-`ActuationRefusalReasonV1`, and `ActuationError`. `ActuationBatchV1::new` takes
-the operation ID and operations, validates caller-only structure, and defaults
-schema version 1 plus absent policy/boundary; typed setters validate optional
-fields. Operation constructors take the exact nested values shown above.
+`ActuationRefusalReasonV1`, `ActuationErrorReason`, and `ActuationError`.
+`ActuationBatchV1::new` takes the operation ID and operations, validates
+caller-only structure, and defaults schema version 1 plus absent
+policy/boundary; typed setters validate optional fields.
+
+The Rust enum uses tuple variants
+`PutCanonicalNode(ProvenancedNodeV1)`,
+`PutDerivedNode(ProvenancedNodeV1)`,
+`RegisterSourceDependency(SourceDependencyRegistrationV1)`, and
+`TransitionLifecycle(LifecycleActuationV1)`. `LifecycleActuationV1` contains
+`logical_id: String`,
+`expected_current_revision_id: ArtifactRevisionId`,
+`to_state: LifecycleState`, and `reason: Option<String>`.
+`LifecycleActuationV1::new` validates the logical-ID address space, artifact
+revision grammar, and that `to_state` is `Active` or `Deleted`; legality from
+the persisted current state remains database-dependent validation.
 
 Python request mappings use `schema_version`, `operation_id`,
 `decision_policy_id`, `expected_write_boundary`, and `operations`; operation
@@ -111,10 +123,11 @@ become a refused receipt while `Storage`/`Closing` remain root errors.
 `ActuationErrorReason` is the closed set `unsupported_schema_version`,
 `unknown_field`, `unknown_operation_variant`, `field_missing`,
 `field_type_invalid`, `operation_id_invalid`, `decision_policy_id_invalid`,
-`operation_count_invalid`, `operation_id_conflict`, `operation_id_erased`, and
-`receipt_corrupt`. It exposes the lower-snake-case stable reason and RFC 6901
-field path; persisted-state reasons use `/operationId` except corruption,
-which uses `/receipt`.
+`operation_count_invalid`, `operation_id_conflict`, and `operation_id_erased`.
+It exposes the lower-snake-case stable reason and RFC 6901 field path;
+persisted-state reasons use `/operationId`. A malformed persisted receipt or
+source-ref row is `EngineError::Storage`, preserving the accepted storage-
+corruption ownership; there is no `receipt_corrupt` actuation reason.
 
 Strict parsing order is schema discriminator; lexicographically smallest
 unknown canonical camel-case field; required field/type in the top-level order
@@ -146,8 +159,9 @@ current immutable revision ID observed by the caller. All four existing moves
 are admitted: `pending -> active`, `pending -> deleted`, `active -> deleted`,
 and `deleted -> active`. `pending` and `purged` are not transition targets, and
 nonexistent semantic states such as `invalidated` are never accepted.
-Purge/erasure remain existing operator operations. A later put with the same logical ID uses existing write-time
-supersession rather than an invented lifecycle transition of an old revision.
+Purge/erasure remain existing operator operations. A later put with the same
+logical ID uses existing write-time supersession rather than an invented
+lifecycle transition of an old revision.
 
 Operations are interpreted in array order against one transaction-local
 prospective state. References may name persisted state or earlier results.
@@ -162,7 +176,7 @@ source revision has one or more registered Slice 20 dependents, either of these
 attempts receives terminal refusal `dependency_closure_required`:
 
 - a put that would supersede that source revision; or
-- `active -> deleted` for that source logical ID.
+- `active -> deleted` or `pending -> deleted` for that source logical ID.
 
 After ordered structural validation, a final prospective closure-safety pass
 compares every source revision made non-current/non-live by the request with
@@ -170,9 +184,11 @@ both persisted dependencies and every dependency registration that would be
 successful in the prospective state. Any match refuses the whole request,
 regardless of operation order. A dependency attached to the new replacement
 revision is not a dependent of the superseded source and does not trigger the
-guard. This deliberate dependency-stage gate closes the visibility gap without
-leaking future schema backward. Slice 30 will supersede this rule when it can
-admit and fence closure atomically.
+guard. If the source-loss and dependency operations have different positions,
+the refusal names the earliest source-loss operation index and its operation-
+root path. This deliberate dependency-stage gate closes the visibility gap
+without leaking future schema backward. Slice 30 will supersede this rule when
+it can admit and fence closure atomically.
 
 ## Validation and refusal precedence
 
@@ -194,6 +210,22 @@ RFC 6901 field path when applicable:
    missing/forward reference, dependency validation, lifecycle validation;
 3. dependency closure required;
 4. checked write-cursor or dependency-generation exhaustion.
+
+Existing validation maps deterministically:
+
+| Existing failure | Refusal reason | Path/index |
+| --- | --- | --- |
+| `WriteValidation` or `SchemaValidation` while validating a put | `write_refused` | put index; `/operations/{i}/record` |
+| provenance `role_invalid` or explicit variant/role disagreement | `provenance_role_mismatch` | put index; `/operations/{i}/record/provenance/role` |
+| provenance `source_revision_missing` | `reference_unavailable` | put index; `/operations/{i}/record/provenance/sourceRevisionId` |
+| any other `ProvenanceError(reason, path)` | `write_refused` | put index; nested path prefixed by `/operations/{i}/record` |
+| any `DependencyError(reason, path)` | `dependency_refused` | dependency index; nested path prefixed by `/operations/{i}/dependency` |
+| missing/current-revision mismatch or `NotLifecycleAddressable` | `lifecycle_refused` | transition index; `/operations/{i}/expectedCurrentRevisionId` or `/operations/{i}/logicalId` |
+| `IllegalTransition` | `lifecycle_refused` | transition index; `/operations/{i}/toState` |
+| prospective source-loss/dependency match | `dependency_closure_required` | earliest source-loss index; `/operations/{i}` |
+
+`Storage`, `Closing`, lock, projection, scheduler, and injected infrastructure
+failures never become receipt reasons.
 
 The closed Slice 25 refusal vocabulary is
 `expected_write_boundary_mismatch`, `write_refused`,
@@ -293,18 +325,35 @@ _fathomdb_actuation_receipts(
     json_type(closure_operation_ids_json) = 'array'),
   CHECK(
     (outcome = 'refused' AND json_array_length(reason_codes_json) = 1 AND
+      json_array_length(affected_revision_ids_json) = 0 AND
+      json_array_length(pending_projection_write_cursors_json) = 0 AND
+      json_array_length(closure_operation_ids_json) = 0 AND
+      (refused_operation_index IS NULL OR
+        refused_operation_index BETWEEN 0 AND 127) AND
       resulting_write_boundary IS NULL AND
       resulting_dependency_generation IS NULL) OR
     (outcome IN ('committed','committed_closure_pending') AND
       json_array_length(reason_codes_json) = 0 AND
       refused_operation_index IS NULL AND refused_field_path IS NULL AND
-      resulting_write_boundary IS NOT NULL) OR
-    (outcome = 'erased' AND json_array_length(reason_codes_json) = 0)
+      resulting_write_boundary IS NOT NULL AND
+      resulting_write_boundary >= 0 AND
+      (resulting_dependency_generation IS NULL OR
+        resulting_dependency_generation > 0)) OR
+    (outcome = 'erased' AND
+      request_sha256 IS NULL AND refused_operation_index IS NULL AND
+      refused_field_path IS NULL AND
+      json_array_length(reason_codes_json) = 0 AND
+      json_array_length(affected_revision_ids_json) = 0 AND
+      resulting_write_boundary IS NULL AND
+      resulting_dependency_generation IS NULL AND
+      json_array_length(pending_projection_write_cursors_json) = 0 AND
+      json_array_length(closure_operation_ids_json) = 0)
   )
 )
 
 _fathomdb_actuation_receipt_source_refs(
   operation_id TEXT NOT NULL,
+  schema_version INTEGER NOT NULL CHECK(schema_version = 1),
   ref_kind TEXT NOT NULL CHECK(ref_kind IN (
     'source_id','source_revision_id','artifact_revision_id'
   )),
@@ -324,24 +373,35 @@ canonical array member types/order and lowercase digest form; SQL checks
 structure and outcome/column consistency. Domain rows remain the authority.
 The receipt table is an idempotency/audit record, not a recovery journal.
 
+Canonical persisted arrays use UTF-8 JSON with no insignificant whitespace.
+Reason codes and revision/closure IDs are JSON strings. Projection cursors are
+canonical unsigned decimal JSON strings, ordered ascending. Affected revision
+IDs and closure IDs preserve first-effect order with duplicates removed. On
+keyed replay the Engine parses, validates bounds/types/order, re-encodes, and
+byte-compares every array; any mismatch is `EngineError::Storage`. RED corrupts
+each forbidden erased/refused/result field and each array form independently.
+
 The source-ref index records source IDs, source revision IDs, and artifact
 revision IDs named, created, or resolved as affected by the request—including
 lifecycle targets and revisions implicitly superseded by a put—without
 retaining source text or locators. Refused requests index every valid-shaped
 identity in the normalized request plus identities resolved before refusal.
 Source erasure and purge collect target identities before domain deletion, use
-the reverse index for bounded keyed lookup, and change every matching terminal
-row to an opaque `erased`
-tombstone: it nulls the digest and optional diagnostic/result fields, replaces
+the reverse index for indexed, target-complete `O(matches)` lookup, and change
+every matching terminal row to an opaque `erased` tombstone: it nulls the
+digest and optional diagnostic/result fields, replaces
 all arrays with `[]`, and removes source-ref rows in the erasure transaction.
 Deletion is explicit; correctness does not depend on SQLite foreign keys.
 The operation ID remains reserved. Replay then returns typed
 `operation_id_erased`; it cannot reveal old bytes, hashes, IDs, or outcomes and
 cannot reuse the idempotency key for a different request. Redacting an entire
 receipt when any indexed member is erased is permitted safe over-redaction.
-Query-plan/bounded-work tests prove use of the reverse index. Raw-byte and WAL
-canaries prove removal across source erasure, lifecycle-target receipts,
-refused multi-source batches, purge, and restart.
+Slice 25 does not claim constant or page-bounded work: one source may have
+unbounded receipt references. An adversarial many-receipt test proves query-
+plan index use and complete redaction. Chunking, fencing, continuation, and
+resumable receipt redaction belong to Slice 30 if measurements justify them.
+Raw-byte and WAL canaries prove removal across source erasure, lifecycle-target
+receipts, refused multi-source batches, purge, and restart.
 
 ## Transaction and runtime flow
 
@@ -349,7 +409,8 @@ For a new request the Engine performs this sequence:
 
 1. Strictly parse and normalize the request; compute its digest.
 2. Keyed receipt lookup. An exact terminal match replays without draining
-   projections. Conflict, erased tombstone, or corruption returns typed error.
+   projections. Conflict or erased tombstone returns an actuation error;
+   corruption returns `EngineError::Storage`.
 3. If the request contains any lifecycle operation, drain the existing
    projection worker using the same policy as `transition`; write/dependency-
    only requests do not add a drain. Acquire the writer mutex and begin one
@@ -375,6 +436,20 @@ become thin owners around the same validator/apply seams; their signatures and
 observable behavior do not change. No helper starts a nested transaction,
 publishes a cursor, emits duplicate events, or notifies a worker before the
 enclosing owner commits.
+
+The temporary dependency-closure refusal is guaranteed only for mutations
+submitted through `actuate`. Slice 25 intentionally leaves standalone existing
+methods behavior-compatible; Slice 30 closes those paths with shared barriers
+and lifecycle closure.
+
+A non-replay actuation emits one existing Writer `Started` event. A committed
+receipt records one write operation with `write_rows` equal to the number of
+put operations and emits one Writer `Finished` event. A terminal refusal
+records `ActuationRefused` in `errors_by_code` and emits the existing Writer and
+Error `Failed` events even though the typed refusal receipt is returned. Exact
+terminal replay emits no mutation event and changes no counters. Infrastructure
+errors retain their existing stable code/events. No nested helper emits or
+counts the same actuation again.
 
 `resulting_write_boundary` is the final global write cursor for committed
 batches. A dependency- or lifecycle-only commit returns the unchanged current
@@ -409,7 +484,8 @@ RED begins with shared wire/digest fixtures and real-database Rust tests for:
 - all four variants, canonical/derived role mismatch, ordered backward and
   rejected forward references;
 - same-logical-ID supersession, revision-pinned lifecycle, illegal states,
-  duplicate/no-op dependency behavior, and dependency-closure refusal;
+  all four legal transitions, duplicate/no-op dependency behavior, and
+  dependency-closure refusal including `pending -> deleted`;
 - failure injection at each operation and pre-commit boundary with zero partial
   domain/receipt/cursor/projection state;
 - same-ID exact replay, conflict, concurrent race, restart, corrupt receipt,
@@ -418,10 +494,14 @@ RED begins with shared wire/digest fixtures and real-database Rust tests for:
   batches, one dependency-generation advance, projection cursor selection, and
   no duplicate notification/event;
 - source erasure, operation tombstone, raw database/WAL canaries, and no
-  unbounded open scan, including reverse-index query-plan proof, purge,
-  resolved lifecycle targets, refused multi-source requests, and restart;
+  unbounded open scan, including adversarial-volume reverse-index query-plan
+  proof, purge, resolved lifecycle targets, refused multi-source requests, and
+  restart;
+- receipt corruption in every forbidden erased/refused/result column and every
+  noncanonical array representation;
 - dependency-before/after-transition, dependency-before/after-supersession,
   exact dependency replay, and dependency against the replacement revision;
+- counter/event behavior for commit, refusal, replay, and infrastructure error;
 - Rust/Python/TypeScript public exports, fixture parity, locally packaged
   smokes, Windows compile/runtime fixtures, and unchanged recovery denylist.
 

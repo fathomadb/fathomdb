@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 15 — identity and canonical provenance
-status: DRAFT
+status: READY
 depends_on: 10
 design: design.md
-design_status: SCOPE_RECONCILED_FORMAL_REVIEW_REQUIRED
+design_status: READY_REVIEW_PASS_CYCLE_3
 ---
 
 # Slice 15 plan
@@ -29,3 +29,12 @@ hash mismatch, codec, migration, parity, and Windows criteria; design storage
 and wire compatibility; review; implement with preserved RED/GREEN tests;
 review; verify all selected routes; and record status. Stop on mutable revision
 identity, ambiguous byte semantics, or incompatible wire evolution.
+
+## Readiness ruling
+
+Design v5 passed independent review after FIX-3. Implementation must preserve
+the existing write/result/provider shapes while adding the versioned entity
+variants, use schema step 27 without legacy backfill, and keep complete source
+identity caller-authored. RED commits must precede GREEN for schema/Engine,
+Python, and TypeScript fixtures. Implementation review and independent
+verification each allow at most three FIX cycles.

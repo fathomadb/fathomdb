@@ -45,7 +45,7 @@ fn derived(revision: &str, logical: &str, body: &str, source_revision: &str) -> 
         valid_until: None,
         provenance: WriteProvenanceV1::derived(
             ArtifactRevisionId::new(revision).unwrap(),
-            SourceVersionId::new(format!("version-{revision}")).unwrap(),
+            SourceVersionId::new(format!("version-{source_revision}")).unwrap(),
             SourceRevisionId::new(source_revision).unwrap(),
             SourceLocator::whole_body(),
             CanonicalHash::sha256(digest("source body")).unwrap(),

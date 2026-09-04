@@ -2655,6 +2655,41 @@ pub fn clear_reader_search_hook_for_test() {
     reader_search_hook::clear();
 }
 
+/// Slice 35 — one-shot test rendezvous after a frozen reader has authenticated
+/// its context and validated the pinned SQLite snapshot.
+///
+/// This hook proves that a visibility mutation committed after validation
+/// cannot alter the already-linearized operation. It is never armed by
+/// production code and remains outside the governed API surface.
+mod frozen_after_validation_hook {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Mutex;
+
+    static ARMED: AtomicBool = AtomicBool::new(false);
+    #[allow(clippy::type_complexity)]
+    static HOOK: Mutex<Option<Box<dyn Fn() + Send>>> = Mutex::new(None);
+
+    pub(crate) fn arm(hook: Box<dyn Fn() + Send>) {
+        *HOOK.lock().expect("frozen after-validation hook mutex") = Some(hook);
+        ARMED.store(true, Ordering::SeqCst);
+    }
+
+    pub(crate) fn fire() {
+        if !ARMED.swap(false, Ordering::SeqCst) {
+            return;
+        }
+        if let Some(hook) = HOOK.lock().expect("frozen after-validation hook mutex").take() {
+            hook();
+        }
+    }
+}
+
+/// Arm the Slice-35 post-validation rendezvous for one frozen read.
+#[doc(hidden)]
+pub fn arm_frozen_after_validation_hook_for_test(hook: Box<dyn Fn() + Send>) {
+    frozen_after_validation_hook::arm(hook);
+}
+
 impl ProjectionRuntime {
     fn new(
         path: PathBuf,
@@ -15786,6 +15821,7 @@ fn read_search_in_tx(
                 field_path: "/token".to_string(),
             }));
         }
+        frozen_after_validation_hook::fire();
     }
     let owned_compiled;
     let owned_query_vector;

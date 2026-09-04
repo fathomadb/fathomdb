@@ -48,6 +48,11 @@ from fathomdb.types import (
     SoftFallback,
     SoftFallbackBranch,
     WriteReceipt,
+    SourceDependencyRegistrationV1,
+    DependencySourceLookupV1,
+    DependencyDerivedLookupV1,
+    SourceDependencyV1,
+    DependencyListV1,
 )
 from fathomdb.filter import Filter
 from fathomdb.errors import InvalidArgumentError
@@ -372,6 +377,53 @@ class Engine:
             cursor=receipt.cursor,
             row_cursors=tuple(receipt.row_cursors),
             dangling_edge_endpoints=receipt.dangling_edge_endpoints,
+        )
+
+    def register_source_dependency(
+        self, request: SourceDependencyRegistrationV1
+    ) -> SourceDependencyV1:
+        """Register one pinned dependency; exact replay is a no-op success."""
+        value = self._native.register_source_dependency(request)
+        return SourceDependencyV1(
+            schema_version=value.schema_version,
+            dependency_id=value.dependency_id,
+            source_revision_id=value.source_revision_id,
+            derived_revision_id=value.derived_revision_id,
+            registered_dependency_generation=value.registered_dependency_generation,
+        )
+
+    def dependencies_for_source(
+        self, request: DependencySourceLookupV1
+    ) -> DependencyListV1:
+        """Return at most 100 dependencies in stable derived-revision order."""
+        value = self._native.dependencies_for_source(request)
+        return DependencyListV1(
+            schema_version=value.schema_version,
+            items=tuple(
+                SourceDependencyV1(
+                    schema_version=item.schema_version,
+                    dependency_id=item.dependency_id,
+                    source_revision_id=item.source_revision_id,
+                    derived_revision_id=item.derived_revision_id,
+                    registered_dependency_generation=item.registered_dependency_generation,
+                )
+                for item in value.items
+            ),
+        )
+
+    def dependency_for_derived(
+        self, request: DependencyDerivedLookupV1
+    ) -> SourceDependencyV1 | None:
+        """Return the dependency for one derived revision, or ``None``."""
+        value = self._native.dependency_for_derived(request)
+        if value is None:
+            return None
+        return SourceDependencyV1(
+            schema_version=value.schema_version,
+            dependency_id=value.dependency_id,
+            source_revision_id=value.source_revision_id,
+            derived_revision_id=value.derived_revision_id,
+            registered_dependency_generation=value.registered_dependency_generation,
         )
 
     def transition(

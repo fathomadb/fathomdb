@@ -445,6 +445,24 @@ The public closed types are `ArtifactRevisionId`, `SourceRevisionId`,
 JSON-pointer `field_path`. Existing `WriteReceipt`, `NodeRecord`, provider,
 and search-hit shapes are unchanged.
 
+### Source dependencies (0.8.25 Slice 20)
+
+`DependencyId` uses the same caller-ID grammar as Slice 15. The closed request
+types are `SourceDependencyRegistrationV1`, `DependencySourceLookupV1`, and
+`DependencyDerivedLookupV1`; constructors accept raw strings and validate them
+before any database access. `Engine::register_source_dependency` creates or
+exactly replays one immutable relation,
+`Engine::dependencies_for_source` returns at most 100 rows ordered by derived
+revision then dependency ID, and `Engine::dependency_for_derived` returns zero
+or one row. Results are `SourceDependencyV1` and `DependencyListV1`.
+
+The registration generation is a `u64` distinct from the canonical write
+cursor and projection terminals. One transaction that changes dependency
+membership advances it once; replay, reads, refusals, and no-op erasure do not.
+`EngineError::Dependency(DependencyError)` has stable code `"DependencyError"`, a
+closed `DependencyErrorReason`, and an RFC 6901 `field_path`. Persisted chain or
+generation corruption fails closed as `EngineError::Storage`.
+
 ### `source_id` is STRUCTURALLY MANDATORY (0.8.20 Slice 5c, R-20-E3)
 
 `PreparedWrite::Node` and `PreparedWrite::Edge` both carry

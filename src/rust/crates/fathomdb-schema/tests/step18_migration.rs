@@ -64,7 +64,7 @@ fn s18_importance_column_present_and_schema_version_is_18() {
     assert_eq!(user_version(&conn), SCHEMA_VERSION);
     // 0.8.18 Slice 5 moved the head to step-19 (#5 vector-equivalence probe);
     // step-18 (F9 importance) is no longer the head but MUST still be present.
-    assert_eq!(SCHEMA_VERSION, 27, "SCHEMA_VERSION must include Slice 15 step 27");
+    assert_eq!(SCHEMA_VERSION, 28, "SCHEMA_VERSION must include Slice 20 step 28");
     assert!(
         MIGRATIONS.iter().any(|m| m.step_id == 18),
         "step-18 (F9 importance) must still be present in the migration set"

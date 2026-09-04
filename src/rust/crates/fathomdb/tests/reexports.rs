@@ -25,6 +25,14 @@ fn re_exports_compile() {
     let _ = std::any::type_name::<fathomdb::SourceRevisionId>();
     let _ = std::any::type_name::<fathomdb::SourceVersionId>();
     let _ = std::any::type_name::<fathomdb::WriteProvenanceV1>();
+    let _ = std::any::type_name::<fathomdb::DependencyId>();
+    let _ = std::any::type_name::<fathomdb::SourceDependencyRegistrationV1>();
+    let _ = std::any::type_name::<fathomdb::DependencySourceLookupV1>();
+    let _ = std::any::type_name::<fathomdb::DependencyDerivedLookupV1>();
+    let _ = std::any::type_name::<fathomdb::SourceDependencyV1>();
+    let _ = std::any::type_name::<fathomdb::DependencyListV1>();
+    let _ = std::any::type_name::<fathomdb::DependencyError>();
+    let _ = std::any::type_name::<fathomdb::DependencyErrorReason>();
 
     let _ = std::any::type_name::<fathomdb::CorruptionDetail>();
     let _ = std::any::type_name::<fathomdb::CorruptionKind>();

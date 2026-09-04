@@ -236,6 +236,21 @@ UTF-8 byte spans raise `ProvenanceError`; it exposes closed `reason` and
 JSON-pointer `field_path` attributes. Legacy mappings remain accepted and the
 `WriteReceipt` shape is unchanged.
 
+## Source dependencies (0.8.25 Slice 20)
+
+`register_source_dependency`, `dependencies_for_source`, and
+`dependency_for_derived` accept closed snake-case request mappings. The
+exported request types are `SourceDependencyRegistrationV1`,
+`DependencySourceLookupV1`, and `DependencyDerivedLookupV1`; results are the
+frozen `SourceDependencyV1` and `DependencyListV1` dataclasses.
+
+`registered_dependency_generation` is a canonical unsigned decimal string and
+is independent of write cursors and projection terminals. Invalid request
+shape, identity, conflicts, bounds, or generation exhaustion raise
+`DependencyError`, exposing closed `reason` and RFC 6901 `field_path`
+attributes. Requests validate schema version, unknown fields, required
+field/type, then identity grammar before database-dependent checks.
+
 ## Node write-item validity window (0.8.20 Slice 15b, TC-34)
 
 `engine.write([...])` takes loose mappings, not typed structs. A **node** item
@@ -617,7 +632,7 @@ memory quota, scheduler, or evidence that retrieval/FTS/fusion/graph work used
 the GPU.
 
 Python exposes one catch-all base class, `EngineError`, plus one concrete
-subclass per canonical row in `design/errors.md` — **29** of them as of 0.8.25,
+subclass per canonical row in `design/errors.md` — **30** of them as of 0.8.25,
 1:1 with the TypeScript set below `FathomDbError`.
 
 Examples of caller-visible subclasses:
@@ -632,6 +647,7 @@ Examples of caller-visible subclasses:
 - `OverloadedError`
 - `ClosingError`
 - `ProvenanceError` (`reason`, `field_path`)
+- `DependencyError` (`reason`, `field_path`)
 
 The 0.8.19/0.8.20 additions, all of which the governed verbs above can raise:
 

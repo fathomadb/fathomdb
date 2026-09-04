@@ -314,7 +314,7 @@ fn an_uncommittable_kind_is_reported_not_silently_dropped() {
     );
 
     // The report is additive READ metadata; nothing about it needs a schema step.
-    assert_eq!(SCHEMA_VERSION, 27, "Slice 15 adds identity and provenance registries");
+    assert_eq!(SCHEMA_VERSION, 28, "Slice 20 adds source dependency registration");
 
     opened.engine.close().unwrap();
 }

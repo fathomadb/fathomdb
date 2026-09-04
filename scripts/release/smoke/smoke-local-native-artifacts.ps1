@@ -55,6 +55,21 @@ engine.write([{
         },
     },
 }])
+dependency = engine.register_source_dependency({
+    "schema_version": 1,
+    "dependency_id": "wheel-dependency",
+    "source_revision_id": "wheel-source-revision",
+    "derived_revision_id": "wheel-derived-revision",
+})
+assert dependency.registered_dependency_generation == "1"
+assert engine.dependencies_for_source({
+    "schema_version": 1,
+    "source_revision_id": "wheel-source-revision",
+}).items == (dependency,)
+assert engine.dependency_for_derived({
+    "schema_version": 1,
+    "derived_revision_id": "wheel-derived-revision",
+}) == dependency
 engine.search("runtime validation")
 engine.close()
 print("local Python wheel runtime validation: ok")
@@ -130,6 +145,27 @@ await engine.write([{
     },
   },
 }]);
+const dependency = await engine.registerSourceDependency({
+  schemaVersion: 1,
+  dependencyId: "npm-dependency",
+  sourceRevisionId: "npm-source-revision",
+  derivedRevisionId: "npm-derived-revision",
+});
+if (dependency.registeredDependencyGeneration !== "1") throw new Error("bad generation");
+const bySource = await engine.dependenciesForSource({
+  schemaVersion: 1,
+  sourceRevisionId: "npm-source-revision",
+});
+if (bySource.items.length !== 1 || bySource.items[0].dependencyId !== "npm-dependency") {
+  throw new Error("source dependency lookup failed");
+}
+const byDerived = await engine.dependencyForDerived({
+  schemaVersion: 1,
+  derivedRevisionId: "npm-derived-revision",
+});
+if (byDerived?.dependencyId !== "npm-dependency") {
+  throw new Error("derived dependency lookup failed");
+}
 await engine.search("runtime validation");
 await engine.close();
 console.log("local N-API package runtime validation: ok");

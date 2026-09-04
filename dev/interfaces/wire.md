@@ -27,9 +27,9 @@ The authoritative layout owner remains `architecture.md` § 5.
 ## Schema-version sentinel
 
 The canonical schema-version sentinel is SQLite `PRAGMA user_version`. In the
-0.8.25 development line `fathomdb-schema::SCHEMA_VERSION` is **27**. Step 27
-adds the versioned artifact-revision, source-version, and source-link
-registries without backfilling legacy rows.
+0.8.25 development line `fathomdb-schema::SCHEMA_VERSION` is **28**. Step 28
+adds the source-dependency registry, its source-lookup index, and the mandatory
+independent dependency-generation singleton without backfilling legacy rows.
 
 Ownership split:
 

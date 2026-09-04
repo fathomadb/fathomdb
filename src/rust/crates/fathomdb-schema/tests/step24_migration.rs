@@ -192,10 +192,10 @@ fn s24_precedes_the_nested_source_head_migration() {
     migrate_with_steps(&conn, MIGRATIONS).expect("migration must succeed");
 
     assert_eq!(user_version(&conn), SCHEMA_VERSION);
-    assert_eq!(SCHEMA_VERSION, 27, "SCHEMA_VERSION must include Slice 15 step 27");
+    assert_eq!(SCHEMA_VERSION, 28, "SCHEMA_VERSION must include Slice 20 step 28");
     assert_eq!(
         MIGRATIONS.last().expect("at least one migration").step_id,
-        27,
-        "step-27 (identity and provenance registries, Slice 15) must be the last (head) migration"
+        28,
+        "step-28 (source dependency registry, Slice 20) must be the last (head) migration"
     );
 }

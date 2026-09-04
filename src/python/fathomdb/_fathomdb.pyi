@@ -20,6 +20,17 @@ class WriteReceipt:
     row_cursors: list[int]
     dangling_edge_endpoints: int
 
+class SourceDependencyV1:
+    schema_version: int
+    dependency_id: str
+    source_revision_id: str
+    derived_revision_id: str
+    registered_dependency_generation: str
+
+class DependencyListV1:
+    schema_version: int
+    items: list[SourceDependencyV1]
+
 class SoftFallback:
     branch: str
 
@@ -257,6 +268,9 @@ class Engine:
     # error — validate the pair before calling.
     # See `fathomdb.engine.Engine.write`.
     def write(self, batch: Iterable[Any]) -> WriteReceipt: ...
+    def register_source_dependency(self, request: Any) -> SourceDependencyV1: ...
+    def dependencies_for_source(self, request: Any) -> DependencyListV1: ...
+    def dependency_for_derived(self, request: Any) -> SourceDependencyV1 | None: ...
     def embed(self, text: str) -> list[float]: ...
     def search(
         self,
@@ -594,6 +608,13 @@ class SchemaValidationError(EngineError): ...
 class OverloadedError(EngineError): ...
 class ClosingError(EngineError): ...
 class ProvenanceError(EngineError):
+    reason: str
+    field_path: str
+    def __init__(
+        self, *args: Any, reason: str = ..., field_path: str = ...
+    ) -> None: ...
+
+class DependencyError(EngineError):
     reason: str
     field_path: str
     def __init__(

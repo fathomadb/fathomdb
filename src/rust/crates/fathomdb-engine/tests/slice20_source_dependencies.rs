@@ -125,7 +125,17 @@ fn registration_replay_and_reciprocal_reads_are_pinned_and_cursor_independent() 
             .unwrap(),
         Some(registered)
     );
-    assert_eq!(opened.engine.write(&[]).unwrap().cursor, boundary);
+    let max_cursor: u64 = Connection::open(&db)
+        .unwrap()
+        .query_row(
+            "SELECT MAX(write_cursor) FROM (\
+               SELECT write_cursor FROM canonical_nodes UNION ALL \
+               SELECT write_cursor FROM canonical_edges)",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(max_cursor, boundary);
 }
 
 #[test]
@@ -183,6 +193,41 @@ fn validation_roles_conflicts_and_mismatch_are_typed_and_atomic() {
         ));
     }
     assert_eq!(generation(&db), "1");
+}
+
+#[test]
+fn dependency_survives_restart_and_source_supersession_without_retargeting() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "restart");
+    let opened = Engine::open(&db).unwrap();
+    opened
+        .engine
+        .write(&[
+            canonical("source-r1", "source", "bucket", "v1"),
+            derived("derived-r1", "derived", "bucket", "v1", "source-r1"),
+        ])
+        .unwrap();
+    let registered = opened
+        .engine
+        .register_source_dependency(request("dep-1", "source-r1", "derived-r1"))
+        .unwrap();
+    opened.engine.write(&[canonical("source-r2", "source", "bucket", "v2")]).unwrap();
+    opened.engine.close().unwrap();
+
+    let reopened = Engine::open(&db).unwrap();
+    let after = reopened
+        .engine
+        .dependency_for_derived(DependencyDerivedLookupV1::new("derived-r1").unwrap())
+        .unwrap()
+        .unwrap();
+    assert_eq!(after, registered);
+    assert_eq!(after.source_revision_id.as_str(), "source-r1");
+    assert!(reopened
+        .engine
+        .dependencies_for_source(DependencySourceLookupV1::new("source-r2").unwrap())
+        .unwrap()
+        .items
+        .is_empty());
 }
 
 #[test]
@@ -326,11 +371,84 @@ fn every_raw_provenance_chain_break_fails_reads_and_exact_replay_closed() {
 }
 
 proptest! {
+    #![proptest_config(ProptestConfig::with_cases(16))]
+
     #[test]
     fn dependency_id_uses_the_closed_caller_grammar(
         valid in "[A-Za-z0-9][A-Za-z0-9._:-]{0,40}",
     ) {
         let id = DependencyId::new(valid.clone()).unwrap();
         prop_assert_eq!(id.as_str(), valid);
+    }
+
+    #[test]
+    fn registration_order_does_not_change_reciprocity_replay_or_cursor(
+        count in 1usize..9,
+        reverse in any::<bool>(),
+    ) {
+        let dir = TempDir::new().unwrap();
+        let db = path(&dir, "property");
+        let opened = Engine::open(&db).unwrap();
+        let mut writes = vec![canonical("source-r1", "source", "bucket", "v1")];
+        for index in 0..count {
+            writes.push(derived(
+                &format!("derived-{index:03}"),
+                &format!("logical-{index:03}"),
+                "bucket",
+                "v1",
+                "source-r1",
+            ));
+        }
+        let boundary = opened.engine.write(&writes).unwrap().cursor;
+        let indexes: Vec<usize> = if reverse {
+            (0..count).rev().collect()
+        } else {
+            (0..count).collect()
+        };
+        for index in indexes {
+            let registration = request(
+                &format!("dep-{index:03}"),
+                "source-r1",
+                &format!("derived-{index:03}"),
+            );
+            let first = opened
+                .engine
+                .register_source_dependency(registration.clone())
+                .unwrap();
+            let replay = opened.engine.register_source_dependency(registration).unwrap();
+            prop_assert_eq!(&replay, &first);
+            prop_assert_eq!(
+                opened
+                    .engine
+                    .dependency_for_derived(
+                        DependencyDerivedLookupV1::new(format!("derived-{index:03}")).unwrap()
+                    )
+                    .unwrap(),
+                Some(first)
+            );
+        }
+        let items = opened
+            .engine
+            .dependencies_for_source(DependencySourceLookupV1::new("source-r1").unwrap())
+            .unwrap()
+            .items;
+        let derived_ids: Vec<&str> =
+            items.iter().map(|item| item.derived_revision_id.as_str()).collect();
+        let expected: Vec<String> =
+            (0..count).map(|index| format!("derived-{index:03}")).collect();
+        prop_assert_eq!(
+            derived_ids,
+            expected.iter().map(String::as_str).collect::<Vec<_>>()
+        );
+        let max_cursor: u64 = Connection::open(&db)
+            .unwrap()
+            .query_row(
+                "SELECT MAX(write_cursor) FROM canonical_nodes",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        prop_assert_eq!(max_cursor, boundary);
+        prop_assert_eq!(generation(&db), count.to_string());
     }
 }

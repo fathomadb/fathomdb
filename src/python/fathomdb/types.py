@@ -86,6 +86,48 @@ class DerivedWriteProvenanceV1(TypedDict):
 WriteProvenanceV1 = Union[CanonicalWriteProvenanceV1, DerivedWriteProvenanceV1]
 
 
+class SourceDependencyRegistrationV1(TypedDict):
+    """Closed request registering one immutable source dependency."""
+
+    schema_version: Literal[1]
+    dependency_id: str
+    source_revision_id: str
+    derived_revision_id: str
+
+
+class DependencySourceLookupV1(TypedDict):
+    """Closed source-side dependency lookup request."""
+
+    schema_version: Literal[1]
+    source_revision_id: str
+
+
+class DependencyDerivedLookupV1(TypedDict):
+    """Closed derived-side dependency lookup request."""
+
+    schema_version: Literal[1]
+    derived_revision_id: str
+
+
+@dataclass(frozen=True)
+class SourceDependencyV1:
+    """One immutable dependency with its registration generation."""
+
+    schema_version: int
+    dependency_id: str
+    source_revision_id: str
+    derived_revision_id: str
+    registered_dependency_generation: str
+
+
+@dataclass(frozen=True)
+class DependencyListV1:
+    """Bounded, deterministically ordered dependency result."""
+
+    schema_version: int
+    items: tuple[SourceDependencyV1, ...]
+
+
 @dataclass(frozen=True)
 class ProjectionRuntimeStatusEntry:
     """One declared projection's current dense status.

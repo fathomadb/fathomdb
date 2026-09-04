@@ -36,6 +36,17 @@ export class ProvenanceError extends FathomDbError {
     this.fieldPath = fieldPath;
   }
 }
+export class DependencyError extends FathomDbError {
+  readonly code = "FDB_DEPENDENCY";
+  readonly reason: string;
+  readonly fieldPath: string;
+
+  constructor(message: string, reason: string, fieldPath: string) {
+    super(message);
+    this.reason = reason;
+    this.fieldPath = fieldPath;
+  }
+}
 export class OverloadedError extends FathomDbError {}
 export class ClosingError extends FathomDbError {}
 
@@ -293,6 +304,7 @@ type ErrorCode =
   // 0.8.12 Slice 15 (OPP-2) — BYO-LLM consolidation harness protocol error.
   | "FDB_CONSOLIDATOR"
   | "FDB_PROVENANCE"
+  | "FDB_DEPENDENCY"
   // G4 (Slice 35) — filter predicate construction error.
   | "FDB_INVALID_FILTER"
   // Slice 20 — depth > 3 or invalid argument (G5/G6).
@@ -380,6 +392,12 @@ function build(envelope: Envelope): Error {
       return new SchemaValidationError(envelope.message);
     case "FDB_PROVENANCE":
       return new ProvenanceError(
+        envelope.message,
+        String(p.reason ?? ""),
+        String(p.fieldPath ?? ""),
+      );
+    case "FDB_DEPENDENCY":
+      return new DependencyError(
         envelope.message,
         String(p.reason ?? ""),
         String(p.fieldPath ?? ""),

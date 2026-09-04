@@ -64,6 +64,7 @@ from fathomdb._fathomdb import (
     ProjectionError as _ProjectionError,
 )
 from fathomdb._fathomdb import ProvenanceError as _ProvenanceError
+from fathomdb._fathomdb import DependencyError as _DependencyError
 from fathomdb._fathomdb import (
     SchedulerError as _SchedulerError,
 )
@@ -114,6 +115,7 @@ EngineError = _EngineError
 StorageError = _StorageError
 ProjectionError = _ProjectionError
 ProvenanceError = _ProvenanceError
+DependencyError = _DependencyError
 VectorError = _VectorError
 EmbedderError = _EmbedderError
 EmbedDevicePolicyError = _EmbedDevicePolicyError
@@ -192,6 +194,7 @@ _install_typed_init(ErasureIncompleteError, ("stage", "detail"))
 # 0.8.20 Slice 15d — the destructive-projection refusal carries name/delta.
 _install_typed_init(ProjectionDestructiveError, ("name", "delta"))
 _install_typed_init(ProvenanceError, ("reason", "field_path"))
+_install_typed_init(DependencyError, ("reason", "field_path"))
 
 
 __all__ = [
@@ -221,6 +224,7 @@ __all__ = [
     "ProjectionDestructiveError",
     "ProjectionError",
     "ProvenanceError",
+    "DependencyError",
     "SchedulerError",
     "SchemaValidationError",
     "StorageError",

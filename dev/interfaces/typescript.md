@@ -243,6 +243,21 @@ UTF-8 byte spans throw `ProvenanceError` with code `FDB_PROVENANCE` and expose
 closed `reason` and JSON-pointer `fieldPath` fields. Legacy objects remain
 accepted and the `WriteReceipt` shape is unchanged.
 
+## Source dependencies (0.8.25 Slice 20)
+
+`registerSourceDependency`, `dependenciesForSource`, and
+`dependencyForDerived` accept closed camel-case request objects. Exported
+request interfaces are `SourceDependencyRegistrationV1`,
+`DependencySourceLookupV1`, and `DependencyDerivedLookupV1`; results are
+`SourceDependencyV1` and `DependencyListV1`.
+
+`registeredDependencyGeneration` is a canonical unsigned decimal string and is
+independent of write cursors and projection terminals. Invalid request shape,
+identity, conflicts, bounds, or generation exhaustion throw `DependencyError`
+with code `FDB_DEPENDENCY`, a closed `reason`, and RFC 6901 `fieldPath`.
+Requests validate schema version, unknown fields, required field/type, then
+identity grammar before database-dependent checks.
+
 ## Node write-item validity window (0.8.20 Slice 15b, TC-34)
 
 `engine.write([...])` takes loose objects, not typed structs. A **node** item
@@ -645,7 +660,7 @@ reservation, memory quota, scheduler, or evidence that retrieval/FTS/fusion/
 graph work used the GPU.
 
 TypeScript exposes one concrete class per canonical row in
-`design/errors.md` — **29** of them as of 0.8.25, 1:1 with the Python set
+`design/errors.md` — **30** of them as of 0.8.25, 1:1 with the Python set
 below `EngineError`.
 
 Class examples:
@@ -660,6 +675,7 @@ Class examples:
 - `OverloadedError`
 - `ClosingError`
 - `ProvenanceError` (`reason`, `fieldPath`, code `FDB_PROVENANCE`)
+- `DependencyError` (`reason`, `fieldPath`, code `FDB_DEPENDENCY`)
 
 The 0.8.19/0.8.20 additions, all of which the governed verbs above can throw:
 

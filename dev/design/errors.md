@@ -71,7 +71,8 @@ different remediation or cross-doc ownership.
 | `SchedulerError`                | scheduler startup/shutdown / queue orchestration   | `EngineError`     | `design/scheduler.md`   | queue and shutdown failures are not vector math or write-shape failures         |
 | `OpStoreError`                  | unknown collection, kind mismatch, registry misuse | `EngineError`     | `design/op-store.md`    | op-store contract failures are separate from primary graph writes               |
 | `WriteValidationError`          | malformed typed write shape                        | `EngineError`     | `design/engine.md`      | fix caller-submitted field shape / variant construction                         |
-| `ProvenanceError`               | versioned identity/provenance validation or dependency refusal | `EngineError` | `plans/0.8.25/features/slice-15/design.md` | closed reason plus canonical JSON-pointer field path; distinct remediation from legacy write-shape failures |
+| `ProvenanceError`               | versioned identity/provenance validation             | `EngineError` | `plans/0.8.25/features/slice-15/design.md` | closed reason plus canonical JSON-pointer field path; distinct remediation from legacy write-shape failures |
+| `DependencyError`               | dependency request validation or refusal             | `EngineError` | `plans/0.8.25/features/slice-20/design.md` | closed reason plus canonical JSON-pointer field path; dependency remediation is distinct from provenance construction |
 | `InvalidArgument { msg }`       | caller-argument rejections OUTSIDE the write-validation boundary | `EngineError`     | `design/engine.md`      | carries an actionable message naming the offending argument; `WriteValidation` is a unit variant and cannot |
 | `SchemaValidationError`         | JSON Schema rejection for op-store payloads        | `EngineError`     | `design/op-store.md`    | fix payload contents against registered `schema_id`                             |
 | `EmbedderIdentityMismatchError` | open-time stored-vs-supplied identity comparison   | `EngineOpenError` | `design/embedder.md`    | open-time incompatibility, not runtime write/query failure                      |
@@ -87,6 +88,11 @@ module errors because they are cross-cutting runtime states:
 `ProvenanceError` is also a direct `EngineError` variant. Its stable payload is
 the closed lower-snake-case `reason` plus RFC 6901 `field_path`; TypeScript maps
 the same payload to `reason` and `fieldPath` under `FDB_PROVENANCE`.
+
+`DependencyError` is a direct `EngineError` variant with the same payload
+shape and maps to `FDB_DEPENDENCY` in TypeScript. Persisted dependency-chain or
+generation corruption remains `StorageError`, not a caller-remediable
+`DependencyError`.
 
 This file is the canonical home for the variant-to-binding mapping inputs and
 the reason the named error modules exist at all.
@@ -236,6 +242,7 @@ configuration error.
 | `SchedulerError`                     | `SchedulerError`                 | `SchedulerError`                 | runtime failure       |
 | `OpStoreError`                       | `OpStoreError`                   | `OpStoreError`                   | runtime failure       |
 | `WriteValidationError`               | `WriteValidationError`           | `WriteValidationError`           | runtime failure       |
+| `EngineError::Dependency`             | `DependencyError`                | `DependencyError`                | runtime failure       |
 | `EngineError::InvalidArgument`       | `InvalidArgumentError`           | `InvalidArgumentError`           | runtime failure       |
 | `SchemaValidationError`              | `SchemaValidationError`          | `SchemaValidationError`          | runtime failure       |
 | `Overloaded`                         | `OverloadedError`                | `OverloadedError`                | runtime failure       |

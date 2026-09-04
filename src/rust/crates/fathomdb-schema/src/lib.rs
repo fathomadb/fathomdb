@@ -21,7 +21,7 @@ use std::time::Instant;
 
 use rusqlite::Connection;
 
-pub const SCHEMA_VERSION: u32 = 27;
+pub const SCHEMA_VERSION: u32 = 28;
 
 /// SQLite `PRAGMA` name carrying the on-disk schema-version sentinel.
 ///
@@ -948,6 +948,24 @@ pub const MIGRATIONS: &[Migration] = &[
                       (locator_kind = 'utf8_bytes' AND start_byte IS NOT NULL AND end_byte IS NOT NULL)
                   )
               );",
+    },
+    // 0.8.25 Slice 20 — caller-named dependency registration over the
+    // authoritative Slice 15 source-link relation. Shape only: registrations
+    // are opt-in and existing source links are deliberately not backfilled.
+    Migration {
+        step_id: 28,
+        sql: "-- MIGRATION-ACCRETION-EXEMPTION: Slice-20 dependency registry and independent generation; additive shape only, no source-link backfill or canonical-content rewrite.
+              CREATE TABLE _fathomdb_source_dependencies(
+                  schema_version INTEGER NOT NULL CHECK(schema_version = 1),
+                  dependency_id TEXT PRIMARY KEY,
+                  derived_revision_id TEXT NOT NULL UNIQUE,
+                  registered_dependency_generation INTEGER NOT NULL
+                      CHECK(registered_dependency_generation > 0)
+              );
+              CREATE INDEX _fathomdb_source_links_source_derived_idx
+                  ON _fathomdb_source_links(source_revision_id, artifact_revision_id);
+              INSERT INTO _fathomdb_open_state(key, value)
+                  VALUES('_fathomdb_dependency_generation', '0');",
     },
 ];
 

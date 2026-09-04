@@ -1,6 +1,6 @@
 //! 0.8.25 Slice 15 — additive identity/provenance registry migration.
 
-use fathomdb_schema::{migrate, migrate_with_steps, Migration, MIGRATIONS, SCHEMA_VERSION};
+use fathomdb_schema::{migrate_with_steps, Migration, MIGRATIONS, SCHEMA_VERSION};
 use rusqlite::Connection;
 use std::sync::Once;
 
@@ -33,9 +33,9 @@ fn step27_adds_closed_versioned_registries_without_backfill() {
         )
         .unwrap();
 
-    let report = migrate(&connection).unwrap();
+    let report = migrate_with_steps(&connection, &steps_through(27)).unwrap();
 
-    assert_eq!(SCHEMA_VERSION, 27);
+    assert_eq!(SCHEMA_VERSION, 28);
     assert_eq!(report.schema_version_before, 26);
     assert_eq!(report.schema_version_after, 27);
     assert_eq!(report.migration_steps.iter().map(|s| s.step_id).collect::<Vec<_>>(), vec![27]);
@@ -72,9 +72,9 @@ fn step27_adds_closed_versioned_registries_without_backfill() {
 fn step27_is_idempotent_and_persisted_versions_and_enums_fail_closed() {
     register_sqlite_vec_once();
     let connection = Connection::open_in_memory().unwrap();
-    migrate(&connection).unwrap();
+    migrate_with_steps(&connection, &steps_through(27)).unwrap();
 
-    let second = migrate(&connection).unwrap();
+    let second = migrate_with_steps(&connection, &steps_through(27)).unwrap();
     assert_eq!(second.schema_version_before, 27);
     assert_eq!(second.schema_version_after, 27);
     assert!(second.migration_steps.is_empty());

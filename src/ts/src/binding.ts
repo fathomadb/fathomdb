@@ -65,6 +65,19 @@ interface NativeWriteReceipt {
   danglingEdgeEndpoints: number;
 }
 
+export interface NativeSourceDependencyV1 {
+  schemaVersion: number;
+  dependencyId: string;
+  sourceRevisionId: string;
+  derivedRevisionId: string;
+  registeredDependencyGeneration: string;
+}
+
+export interface NativeDependencyListV1 {
+  schemaVersion: number;
+  items: NativeSourceDependencyV1[];
+}
+
 /** 0.8.20 Slice 5d (R-20-E4) — native `eraseSource` outcome. */
 interface NativeEraseReport {
   sourceRef: string;
@@ -443,6 +456,9 @@ interface NativeAdminConfigureOptions {
 
 export interface NativeEngine {
   write(batch: unknown[]): Promise<NativeWriteReceipt>;
+  registerSourceDependency(request: unknown): Promise<NativeSourceDependencyV1>;
+  dependenciesForSource(request: unknown): Promise<NativeDependencyListV1>;
+  dependencyForDerived(request: unknown): Promise<NativeSourceDependencyV1 | null>;
   // OPP-12 Phase-1 (0.8.19 Slice 10) — lifecycle verbs.
   transition(
     logicalId: string,

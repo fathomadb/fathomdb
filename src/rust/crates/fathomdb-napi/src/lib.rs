@@ -43,7 +43,8 @@ use fathomdb_engine::{
     ArtifactRevisionId, BoundaryCrossing as RustBoundaryCrossing, CanonicalHash,
     ComparisonOp as RustComparisonOp, ConsolidateAxis as RustConsolidateAxis,
     ConsolidateReceipt as RustConsolidateReceipt, CorruptionDetail, CorruptionKind,
-    DenseReadiness as RustDenseReadiness, EmbedderChoice,
+    DenseReadiness as RustDenseReadiness, DependencyDerivedLookupV1,
+    DependencyListV1 as RustDependencyListV1, DependencySourceLookupV1, EmbedderChoice,
     EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
     EngineError as RustEngineError, EngineOpenError, ExciseReport as RustExciseReport,
     Explanation as RustExplanation, ExtractDocument as RustExtractDocument, Filter as RustFilter,
@@ -59,8 +60,9 @@ use fathomdb_engine::{
     ProvenancedEdgeV1, ProvenancedNodeV1, QueryTrace as RustQueryTrace, ReadView as RustReadView,
     ScalarValue as RustScalarValue, SearchExpandResult as RustSearchExpandResult,
     SearchFilter as RustSearchFilter, SearchHit as RustSearchHit, SearchResult as RustSearchResult,
-    SoftFallbackBranch, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
-    TraversalDirection as RustTraversalDirection, WriteProvenanceV1,
+    SoftFallbackBranch, SourceDependencyRegistrationV1,
+    SourceDependencyV1 as RustSourceDependencyV1, SourceId, SourceLocator, SourceRevisionId,
+    SourceVersionId, TraversalDirection as RustTraversalDirection, WriteProvenanceV1,
     WriteReceipt as RustWriteReceipt,
 };
 use fathomdb_schema::MigrationStepReport as RustMigrationStepReport;
@@ -91,6 +93,7 @@ const CODE_OP_STORE: &str = "FDB_OP_STORE";
 const CODE_WRITE_VALIDATION: &str = "FDB_WRITE_VALIDATION";
 const CODE_SCHEMA_VALIDATION: &str = "FDB_SCHEMA_VALIDATION";
 const CODE_PROVENANCE: &str = "FDB_PROVENANCE";
+const CODE_DEPENDENCY: &str = "FDB_DEPENDENCY";
 const CODE_OVERLOADED: &str = "FDB_OVERLOADED";
 const CODE_CLOSING: &str = "FDB_CLOSING";
 const CODE_DATABASE_LOCKED: &str = "FDB_DATABASE_LOCKED";
@@ -238,6 +241,14 @@ fn engine_error_to_napi(err: RustEngineError) -> Error {
         RustEngineError::Provenance(error) => typed_error(
             CODE_PROVENANCE,
             format!("provenance {} at {}", error.reason.as_str(), error.field_path),
+            json!({
+                "reason": error.reason.as_str(),
+                "fieldPath": error.field_path,
+            }),
+        ),
+        RustEngineError::Dependency(error) => typed_error(
+            CODE_DEPENDENCY,
+            format!("dependency {} at {}", error.reason.as_str(), error.field_path),
             json!({
                 "reason": error.reason.as_str(),
                 "fieldPath": error.field_path,
@@ -573,6 +584,42 @@ impl WriteReceipt {
             cursor: r.cursor as i64,
             row_cursors: r.row_cursors.into_iter().map(|c| c as i64).collect(),
             dangling_edge_endpoints: r.dangling_edge_endpoints as i64,
+        }
+    }
+}
+
+#[napi(object)]
+pub struct SourceDependencyV1 {
+    pub schema_version: u32,
+    pub dependency_id: String,
+    pub source_revision_id: String,
+    pub derived_revision_id: String,
+    pub registered_dependency_generation: String,
+}
+
+impl From<RustSourceDependencyV1> for SourceDependencyV1 {
+    fn from(value: RustSourceDependencyV1) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            dependency_id: value.dependency_id.as_str().to_string(),
+            source_revision_id: value.source_revision_id.as_str().to_string(),
+            derived_revision_id: value.derived_revision_id.as_str().to_string(),
+            registered_dependency_generation: value.registered_dependency_generation.to_string(),
+        }
+    }
+}
+
+#[napi(object)]
+pub struct DependencyListV1 {
+    pub schema_version: u32,
+    pub items: Vec<SourceDependencyV1>,
+}
+
+impl From<RustDependencyListV1> for DependencyListV1 {
+    fn from(value: RustDependencyListV1) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            items: value.items.into_iter().map(Into::into).collect(),
         }
     }
 }
@@ -1819,6 +1866,35 @@ impl Engine {
         Ok(WriteReceipt::from_rust(receipt))
     }
 
+    #[napi]
+    pub async fn register_source_dependency(
+        &self,
+        request: JsonValue,
+    ) -> Result<SourceDependencyV1> {
+        let request = translate_dependency_registration(&request)?;
+        let engine = Arc::clone(&self.inner);
+        call_engine(move || engine.register_source_dependency(request)).await.map(Into::into)
+    }
+
+    #[napi]
+    pub async fn dependencies_for_source(&self, request: JsonValue) -> Result<DependencyListV1> {
+        let request = translate_dependency_source_lookup(&request)?;
+        let engine = Arc::clone(&self.inner);
+        call_engine(move || engine.dependencies_for_source(request)).await.map(Into::into)
+    }
+
+    #[napi]
+    pub async fn dependency_for_derived(
+        &self,
+        request: JsonValue,
+    ) -> Result<Option<SourceDependencyV1>> {
+        let request = translate_dependency_derived_lookup(&request)?;
+        let engine = Arc::clone(&self.inner);
+        call_engine(move || engine.dependency_for_derived(request))
+            .await
+            .map(|value| value.map(Into::into))
+    }
+
     /// OPP-12 Phase-1 (0.8.19 Slice 10) — `transition` lifecycle verb. Thin
     /// pass-through: enforces the legal-transition table + `reason`
     /// clear-on-admit/set-on-exclude semantics (design §2/§3). Keys on the bare
@@ -2898,6 +2974,78 @@ fn provenance_napi_error(reason: &str, field_path: impl Into<String>) -> Error {
 
 fn escape_json_pointer_token(token: &str) -> String {
     token.replace('~', "~0").replace('/', "~1")
+}
+
+fn dependency_napi_error(reason: &str, field_path: impl Into<String>) -> Error {
+    let field_path = field_path.into();
+    typed_error(
+        CODE_DEPENDENCY,
+        format!("dependency {reason} at {field_path}"),
+        json!({ "reason": reason, "fieldPath": field_path }),
+    )
+}
+
+fn dependency_request_object<'a>(
+    value: &'a JsonValue,
+    allowed: &[&str],
+) -> Result<&'a serde_json::Map<String, JsonValue>> {
+    let object = value
+        .as_object()
+        .ok_or_else(|| dependency_napi_error("unsupported_schema_version", "/schemaVersion"))?;
+    if object.get("schemaVersion").and_then(JsonValue::as_u64) != Some(1) {
+        return Err(dependency_napi_error("unsupported_schema_version", "/schemaVersion"));
+    }
+    if let Some(key) = object.keys().filter(|key| !allowed.contains(&key.as_str())).min() {
+        return Err(dependency_napi_error(
+            "unknown_field",
+            format!("/{}", escape_json_pointer_token(key)),
+        ));
+    }
+    Ok(object)
+}
+
+fn dependency_string(
+    object: &serde_json::Map<String, JsonValue>,
+    key: &str,
+    reason: &str,
+) -> Result<String> {
+    match object.get(key) {
+        Some(JsonValue::String(value)) if !value.contains('\0') => Ok(value.clone()),
+        _ => Err(dependency_napi_error(reason, format!("/{key}"))),
+    }
+}
+
+fn translate_dependency_registration(value: &JsonValue) -> Result<SourceDependencyRegistrationV1> {
+    let object = dependency_request_object(
+        value,
+        &["schemaVersion", "dependencyId", "sourceRevisionId", "derivedRevisionId"],
+    )?;
+    SourceDependencyRegistrationV1::new(
+        dependency_string(object, "dependencyId", "dependency_id_invalid")?,
+        dependency_string(object, "sourceRevisionId", "dependency_reference_invalid")?,
+        dependency_string(object, "derivedRevisionId", "dependency_reference_invalid")?,
+    )
+    .map_err(|error| dependency_napi_error(error.reason.as_str(), error.field_path))
+}
+
+fn translate_dependency_source_lookup(value: &JsonValue) -> Result<DependencySourceLookupV1> {
+    let object = dependency_request_object(value, &["schemaVersion", "sourceRevisionId"])?;
+    DependencySourceLookupV1::new(dependency_string(
+        object,
+        "sourceRevisionId",
+        "dependency_reference_invalid",
+    )?)
+    .map_err(|error| dependency_napi_error(error.reason.as_str(), error.field_path))
+}
+
+fn translate_dependency_derived_lookup(value: &JsonValue) -> Result<DependencyDerivedLookupV1> {
+    let object = dependency_request_object(value, &["schemaVersion", "derivedRevisionId"])?;
+    DependencyDerivedLookupV1::new(dependency_string(
+        object,
+        "derivedRevisionId",
+        "dependency_reference_invalid",
+    )?)
+    .map_err(|error| dependency_napi_error(error.reason.as_str(), error.field_path))
 }
 
 fn strict_json_keys(value: &JsonValue, allowed: &[&str], base_path: &str) -> Result<()> {

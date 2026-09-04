@@ -20,7 +20,12 @@ import {
   type NativeOpenReport,
   type NativePerHitExplain,
 } from "./binding.js";
-import { InvalidArgumentError, InvalidFilterError, rethrowTyped } from "./errors.js";
+import {
+  DependencyError,
+  InvalidArgumentError,
+  InvalidFilterError,
+  rethrowTyped,
+} from "./errors.js";
 import type { NodeRecord, Predicate, ReadView } from "./read.js";
 import { validateFfiString, validateFfiTree, validateWriteFfiTree } from "./validation.js";
 
@@ -143,6 +148,58 @@ export interface DerivedWriteProvenanceV1 {
 export type WriteProvenanceV1 =
   | CanonicalWriteProvenanceV1
   | DerivedWriteProvenanceV1;
+
+/** Closed request registering one immutable source dependency. */
+export interface SourceDependencyRegistrationV1 {
+  schemaVersion: 1;
+  dependencyId: string;
+  sourceRevisionId: string;
+  derivedRevisionId: string;
+}
+
+/** Closed source-side dependency lookup request. */
+export interface DependencySourceLookupV1 {
+  schemaVersion: 1;
+  sourceRevisionId: string;
+}
+
+/** Closed derived-side dependency lookup request. */
+export interface DependencyDerivedLookupV1 {
+  schemaVersion: 1;
+  derivedRevisionId: string;
+}
+
+/** One immutable dependency with its independent registration generation. */
+export interface SourceDependencyV1 {
+  schemaVersion: 1;
+  dependencyId: string;
+  sourceRevisionId: string;
+  derivedRevisionId: string;
+  registeredDependencyGeneration: string;
+}
+
+/** Bounded, deterministically ordered dependency result. */
+export interface DependencyListV1 {
+  schemaVersion: 1;
+  items: SourceDependencyV1[];
+}
+
+function dependencyResponse(value: {
+  schemaVersion: number;
+  dependencyId: string;
+  sourceRevisionId: string;
+  derivedRevisionId: string;
+  registeredDependencyGeneration: string;
+}): SourceDependencyV1 {
+  if (value.schemaVersion !== 1) {
+    throw new DependencyError(
+      "dependency unsupported_schema_version at /schemaVersion",
+      "unsupported_schema_version",
+      "/schemaVersion",
+    );
+  }
+  return { ...value, schemaVersion: 1 };
+}
 
 /**
  * 0.8.20 Slice 5d (R-20-E4) — outcome of {@link Engine.eraseSource}.
@@ -1093,6 +1150,38 @@ export class Engine {
   async write(batch: unknown[] = []): Promise<WriteReceipt> {
     validateWriteFfiTree(batch);
     return intercept(() => this.#native.write(batch));
+  }
+
+  /** Register one pinned dependency; exact replay is a no-op success. */
+  async registerSourceDependency(
+    request: SourceDependencyRegistrationV1,
+  ): Promise<SourceDependencyV1> {
+    return dependencyResponse(
+      await intercept(() => this.#native.registerSourceDependency(request)),
+    );
+  }
+
+  /** Return at most 100 dependencies in stable derived-revision order. */
+  async dependenciesForSource(
+    request: DependencySourceLookupV1,
+  ): Promise<DependencyListV1> {
+    const value = await intercept(() => this.#native.dependenciesForSource(request));
+    if (value.schemaVersion !== 1) {
+      throw new DependencyError(
+        "dependency unsupported_schema_version at /schemaVersion",
+        "unsupported_schema_version",
+        "/schemaVersion",
+      );
+    }
+    return { schemaVersion: 1, items: value.items.map(dependencyResponse) };
+  }
+
+  /** Return the dependency for one derived revision, or `null`. */
+  async dependencyForDerived(
+    request: DependencyDerivedLookupV1,
+  ): Promise<SourceDependencyV1 | null> {
+    const value = await intercept(() => this.#native.dependencyForDerived(request));
+    return value === null ? null : dependencyResponse(value);
   }
 
   /**

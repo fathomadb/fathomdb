@@ -53,7 +53,9 @@ use fathomdb_engine::{
     rerank_passages as rust_rerank_passages, ArtifactRevisionId,
     BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ComparisonOp as RustComparisonOp,
     ConsolidateAxis as RustConsolidateAxis, ConsolidateReceipt as RustConsolidateReceipt,
-    CorruptionDetail, CorruptionKind, DenseReadiness as RustDenseReadiness, EmbedderChoice,
+    CorruptionDetail, CorruptionKind, DenseReadiness as RustDenseReadiness,
+    DependencyDerivedLookupV1, DependencyError as RustDependencyError,
+    DependencyListV1 as RustDependencyListV1, DependencySourceLookupV1, EmbedderChoice,
     EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
     EngineError as RustEngineError, EngineOpenError, ExciseReport as RustExciseReport,
     Explanation as RustExplanation, ExtractDocument as RustExtractDocument, Filter as RustFilter,
@@ -70,8 +72,9 @@ use fathomdb_engine::{
     QueryTrace as RustQueryTrace, ReadView as RustReadView, ScalarValue as RustScalarValue,
     SearchExpandResult as RustSearchExpandResult, SearchFilter as RustSearchFilter,
     SearchHit as RustSearchHit, SearchResult as RustSearchResult, SoftFallback as RustSoftFallback,
-    SoftFallbackBranch, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
-    TraversalDirection as RustTraversalDirection, WriteProvenanceV1,
+    SoftFallbackBranch, SourceDependencyRegistrationV1,
+    SourceDependencyV1 as RustSourceDependencyV1, SourceId, SourceLocator, SourceRevisionId,
+    SourceVersionId, TraversalDirection as RustTraversalDirection, WriteProvenanceV1,
     WriteReceipt as RustWriteReceipt,
 };
 use fathomdb_schema::MigrationStepReport as RustMigrationStepReport;
@@ -102,6 +105,7 @@ create_exception!(_fathomdb, OpStoreError, EngineError);
 create_exception!(_fathomdb, WriteValidationError, EngineError);
 create_exception!(_fathomdb, SchemaValidationError, EngineError);
 create_exception!(_fathomdb, ProvenanceError, EngineError);
+create_exception!(_fathomdb, DependencyError, EngineError);
 create_exception!(_fathomdb, OverloadedError, EngineError);
 create_exception!(_fathomdb, ClosingError, EngineError);
 create_exception!(_fathomdb, DatabaseLockedError, EngineError);
@@ -247,6 +251,7 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
             SchemaValidationError::new_err("schema validation error")
         }
         RustEngineError::Provenance(error) => provenance_error_to_py(&error),
+        RustEngineError::Dependency(error) => dependency_error_to_py(&error),
         RustEngineError::Overloaded => OverloadedError::new_err("engine overloaded"),
         RustEngineError::Closing => ClosingError::new_err("engine is closing"),
         RustEngineError::Extractor => ExtractorError::new_err("extractor error"),
@@ -320,6 +325,20 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
 fn provenance_error_to_py(error: &RustProvenanceError) -> PyErr {
     let exc = ProvenanceError::new_err(format!(
         "provenance {} at {}",
+        error.reason.as_str(),
+        error.field_path
+    ));
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("reason", error.reason.as_str());
+        let _ = value.setattr("field_path", error.field_path.as_str());
+    });
+    exc
+}
+
+fn dependency_error_to_py(error: &RustDependencyError) -> PyErr {
+    let exc = DependencyError::new_err(format!(
+        "dependency {} at {}",
         error.reason.as_str(),
         error.field_path
     ));
@@ -487,6 +506,56 @@ impl PyWriteReceipt {
             cursor: r.cursor,
             row_cursors: r.row_cursors,
             dangling_edge_endpoints: r.dangling_edge_endpoints,
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "SourceDependencyV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PySourceDependencyV1 {
+    schema_version: u32,
+    dependency_id: String,
+    source_revision_id: String,
+    derived_revision_id: String,
+    registered_dependency_generation: String,
+}
+
+impl From<RustSourceDependencyV1> for PySourceDependencyV1 {
+    fn from(value: RustSourceDependencyV1) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            dependency_id: value.dependency_id.as_str().to_string(),
+            source_revision_id: value.source_revision_id.as_str().to_string(),
+            derived_revision_id: value.derived_revision_id.as_str().to_string(),
+            registered_dependency_generation: value.registered_dependency_generation.to_string(),
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "DependencyListV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyDependencyListV1 {
+    schema_version: u32,
+    items: Vec<PySourceDependencyV1>,
+}
+
+impl From<RustDependencyListV1> for PyDependencyListV1 {
+    fn from(value: RustDependencyListV1) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            items: value.items.into_iter().map(Into::into).collect(),
         }
     }
 }
@@ -1747,6 +1816,37 @@ impl PyEngine {
         Ok(PyWriteReceipt::from_rust(receipt))
     }
 
+    fn register_source_dependency(
+        &self,
+        py: Python<'_>,
+        request: &Bound<'_, PyAny>,
+    ) -> PyResult<PySourceDependencyV1> {
+        let request = translate_dependency_registration(request)?;
+        let engine = Arc::clone(&self.inner);
+        call_engine(py, move || engine.register_source_dependency(request)).map(Into::into)
+    }
+
+    fn dependencies_for_source(
+        &self,
+        py: Python<'_>,
+        request: &Bound<'_, PyAny>,
+    ) -> PyResult<PyDependencyListV1> {
+        let request = translate_dependency_source_lookup(request)?;
+        let engine = Arc::clone(&self.inner);
+        call_engine(py, move || engine.dependencies_for_source(request)).map(Into::into)
+    }
+
+    fn dependency_for_derived(
+        &self,
+        py: Python<'_>,
+        request: &Bound<'_, PyAny>,
+    ) -> PyResult<Option<PySourceDependencyV1>> {
+        let request = translate_dependency_derived_lookup(request)?;
+        let engine = Arc::clone(&self.inner);
+        call_engine(py, move || engine.dependency_for_derived(request))
+            .map(|value| value.map(Into::into))
+    }
+
     /// G10 + 0.8.1 R1 — hybrid search with an optional closed metadata filter
     /// and an optional CE rerank depth. Each filter field is an optional kwarg;
     /// all-`None` is the unfiltered (byte-identical) path. `rerank_depth=0`
@@ -2671,6 +2771,107 @@ fn escape_json_pointer_token(token: &str) -> String {
     token.replace('~', "~0").replace('/', "~1")
 }
 
+fn dependency_input_error(reason: &str, field_path: impl Into<String>) -> PyErr {
+    let field_path = field_path.into();
+    let exc = DependencyError::new_err(format!("dependency {reason} at {field_path}"));
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("reason", reason);
+        let _ = value.setattr("field_path", field_path);
+    });
+    exc
+}
+
+fn dependency_request_dict<'py>(
+    value: &'py Bound<'py, PyAny>,
+    allowed: &[&str],
+) -> PyResult<&'py Bound<'py, PyDict>> {
+    let dict = value
+        .cast::<PyDict>()
+        .map_err(|_| dependency_input_error("unsupported_schema_version", "/schemaVersion"))?;
+    let schema = match dict_get(dict, "schema_version")? {
+        Some(value) if !value.is_instance_of::<pyo3::types::PyBool>() => {
+            value.extract::<u32>().ok()
+        }
+        _ => None,
+    };
+    if schema != Some(1) {
+        return Err(dependency_input_error("unsupported_schema_version", "/schemaVersion"));
+    }
+    let mut unknown = None;
+    for key in dict.keys().iter() {
+        let key =
+            key.extract::<String>().map_err(|_| dependency_input_error("unknown_field", ""))?;
+        if !allowed.contains(&key.as_str()) {
+            let canonical = snake_to_camel(&key);
+            if unknown.as_ref().is_none_or(|current| canonical < *current) {
+                unknown = Some(canonical);
+            }
+        }
+    }
+    if let Some(key) = unknown {
+        return Err(dependency_input_error(
+            "unknown_field",
+            format!("/{}", escape_json_pointer_token(&key)),
+        ));
+    }
+    Ok(dict)
+}
+
+fn dependency_required_string(
+    dict: &Bound<'_, PyDict>,
+    key: &str,
+    reason: &str,
+) -> PyResult<String> {
+    let path = format!("/{}", snake_to_camel(key));
+    match dict_get(dict, key)? {
+        Some(value) if !value.is_none() => {
+            extract_validated_str(&value).map_err(|_| dependency_input_error(reason, path))
+        }
+        _ => Err(dependency_input_error(reason, path)),
+    }
+}
+
+fn translate_dependency_registration(
+    value: &Bound<'_, PyAny>,
+) -> PyResult<SourceDependencyRegistrationV1> {
+    let dict = dependency_request_dict(
+        value,
+        &["schema_version", "dependency_id", "source_revision_id", "derived_revision_id"],
+    )?;
+    let dependency_id = dependency_required_string(dict, "dependency_id", "dependency_id_invalid")?;
+    let source_revision_id =
+        dependency_required_string(dict, "source_revision_id", "dependency_reference_invalid")?;
+    let derived_revision_id =
+        dependency_required_string(dict, "derived_revision_id", "dependency_reference_invalid")?;
+    SourceDependencyRegistrationV1::new(dependency_id, source_revision_id, derived_revision_id)
+        .map_err(|error| dependency_error_to_py(&error))
+}
+
+fn translate_dependency_source_lookup(
+    value: &Bound<'_, PyAny>,
+) -> PyResult<DependencySourceLookupV1> {
+    let dict = dependency_request_dict(value, &["schema_version", "source_revision_id"])?;
+    DependencySourceLookupV1::new(dependency_required_string(
+        dict,
+        "source_revision_id",
+        "dependency_reference_invalid",
+    )?)
+    .map_err(|error| dependency_error_to_py(&error))
+}
+
+fn translate_dependency_derived_lookup(
+    value: &Bound<'_, PyAny>,
+) -> PyResult<DependencyDerivedLookupV1> {
+    let dict = dependency_request_dict(value, &["schema_version", "derived_revision_id"])?;
+    DependencyDerivedLookupV1::new(dependency_required_string(
+        dict,
+        "derived_revision_id",
+        "dependency_reference_invalid",
+    )?)
+    .map_err(|error| dependency_error_to_py(&error))
+}
+
 fn provenance_required_str(dict: &Bound<'_, PyDict>, key: &str) -> PyResult<String> {
     let reason =
         if key == "source_version_id" { "source_version_invalid" } else { "revision_id_invalid" };
@@ -3464,6 +3665,8 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyOpenReport>()?;
     m.add_class::<PyNodeRecord>()?;
     m.add_class::<PyOpStoreRow>()?;
+    m.add_class::<PySourceDependencyV1>()?;
+    m.add_class::<PyDependencyListV1>()?;
     // Slice 20 — graph traversal result types.
     m.add_class::<PyExpandedNode>()?;
     m.add_class::<PySearchExpandResult>()?;
@@ -3521,6 +3724,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("WriteValidationError", py.get_type::<WriteValidationError>())?;
     m.add("SchemaValidationError", py.get_type::<SchemaValidationError>())?;
     m.add("ProvenanceError", py.get_type::<ProvenanceError>())?;
+    m.add("DependencyError", py.get_type::<DependencyError>())?;
     m.add("OverloadedError", py.get_type::<OverloadedError>())?;
     m.add("ClosingError", py.get_type::<ClosingError>())?;
     m.add("DatabaseLockedError", py.get_type::<DatabaseLockedError>())?;

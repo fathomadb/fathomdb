@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 30 — core lifecycle and erasure closure design
 status: READY
-design_version: 7
+design_version: 8
 review_fix: 3
 review: design-review-cycle4.md
 depends_on: 25
@@ -261,6 +261,11 @@ transaction. The proof covers every affected dependency, exact canonical row,
 row-owned projection, source link/revision, actuation receipt reference, and
 pending projection row. Delete and proof therefore survive or roll back
 together; restart never reconstructs erased member identities from a count.
+`remaining_canonical_rows` is the exact aggregate residue count for canonical
+node/edge rows plus immutable artifact-revision, source-link, and source-version
+rows captured by primary key before deletion. The pre-delete scope retains
+those keys only in memory until the transaction commits; no erased identity is
+persisted in the content-free closure record.
 
 Ordinary `write`/supersession and `transition` complete their soft proof in this
 same transaction, preserving existing return and exact retry semantics. Purge,
@@ -325,8 +330,10 @@ affected count is itself proof.
 
 A nonterminal closure barrier is unconditional: registered dependents matching
 its source revision or source bucket are excluded before canonical, FTS,
-property, graph seed/frontier, or expansion truncation under every `ReadView`,
-including historical relaxations. SQLite-vec cannot apply the provenance
+BM25F corpus/candidate, property, graph seed/frontier, or expansion truncation
+under every `ReadView`, including historical relaxations. The internal BM25F
+arm has no historical-view surface, so both its corpus statistics and candidate
+set use one strict current instant. SQLite-vec cannot apply the provenance
 anti-join inside its bounded KNN candidate operation. If any registered
 dependency is fenced or its source is ineligible under the frozen view, the
 whole vector arm therefore fails closed before KNN and reports the existing

@@ -15799,10 +15799,26 @@ fn read_search_in_tx(
                 expand_depth.unwrap_or_default()
             )));
         }
+        let max_ranking_control = u32::MAX as usize;
+        if rerank_depth > max_ranking_control {
+            return Err(SearchReaderError::InvalidArgument(format!(
+                "rerank_depth {rerank_depth} exceeds the u32 maximum"
+            )));
+        }
+        if pool_n > max_ranking_control {
+            return Err(SearchReaderError::InvalidArgument(format!(
+                "pool_n {pool_n} exceeds the u32 maximum"
+            )));
+        }
+        if !alpha.is_finite() {
+            return Err(SearchReaderError::InvalidArgument(
+                "alpha must be a finite number".to_string(),
+            ));
+        }
         if let Some(reason) = runtime.dense_disabled_reason.as_ref() {
             return Err(SearchReaderError::VectorEquivalenceMismatch(reason.clone()));
         }
-        if raw_query.trim().is_empty() {
+        if raw_query.trim().is_empty() || raw_query.as_bytes().contains(&0) {
             return Err(SearchReaderError::WriteValidation);
         }
         owned_compiled = compile_text_query(raw_query);
@@ -17077,6 +17093,15 @@ fn bfs_graph_arm_candidates(
     // holds the depth-0 emitted seeds; BFS appends the reachable neighbors.
     // Both statements are prepared ONCE outside the loops — re-preparing inside
     // would issue O(frontier_size × neighbors) sqlite3_prepare_v2 calls.
+    let target_node = view.node_sql("target", 3);
+    let mut edge_params_template = vec![
+        rusqlite::types::Value::Text(String::new()),
+        rusqlite::types::Value::Integer(view.edge_now()),
+    ];
+    if let Some(now) = now_param {
+        edge_params_template.push(rusqlite::types::Value::Integer(now));
+    }
+    let target_filter = append_node_eligibility_sql(filter, "target", &mut edge_params_template);
     let mut edge_stmt = tx.prepare(
         // G0 Phase-2 (BLOCK-2): carry the traversed edge's `source_id` so a
         // graph-reached neighbor can resolve back to the session it was extracted
@@ -17094,9 +17119,12 @@ fn bfs_graph_arm_candidates(
         &format!(
             "SELECT e.from_id, e.to_id, e.source_id, e.confidence \
              FROM canonical_edges e \
+             JOIN canonical_nodes target ON target.logical_id = \
+               CASE WHEN e.from_id = ?1 THEN e.to_id ELSE e.from_id END \
              WHERE (e.from_id = ?1 OR e.to_id = ?1) \
                AND e.superseded_at IS NULL{} \
                AND (e.temporal_fallback IS NULL OR e.temporal_fallback = 0) \
+               {target_node}{target_filter} \
              ORDER BY e.write_cursor \
              LIMIT 64",
             edge_validity_sql_for_view("e", 2, &view.view)
@@ -17137,14 +17165,17 @@ fn bfs_graph_arm_candidates(
         // traversing edge's `source_id` (BLOCK-2 provenance carry) and (F9)
         // `confidence` (the reweight input for the reached node).
         let neighbors: Vec<(String, Option<String>, Option<f64>)> = {
-            let rows = edge_stmt.query_map(params![&lid, view.edge_now()], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, Option<String>>(2)?,
-                    row.get::<_, Option<f64>>(3)?,
-                ))
-            })?;
+            let mut edge_params = edge_params_template.clone();
+            edge_params[0] = rusqlite::types::Value::Text(lid.clone());
+            let rows =
+                edge_stmt.query_map(rusqlite::params_from_iter(edge_params.iter()), |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, Option<String>>(2)?,
+                        row.get::<_, Option<f64>>(3)?,
+                    ))
+                })?;
             rows.flatten()
                 .map(|(from_id, to_id, source_id, confidence)| {
                     let neighbor = if from_id == lid { to_id } else { from_id };

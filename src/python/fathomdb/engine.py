@@ -67,7 +67,7 @@ from fathomdb.types import (
     DependencyListV1,
 )
 from fathomdb.filter import Filter
-from fathomdb.errors import InvalidArgumentError
+from fathomdb.errors import FrozenReadError, InvalidArgumentError
 
 # 0.8.20 Slice 15b fix-2 — reuse the read namespace's dataclass -> native
 # ReadView translator rather than duplicating it here, so the two search entry
@@ -898,6 +898,12 @@ class Engine:
                 f"got {type(context).__name__!r}"
             )
         native = self._native.freeze_read_context(_to_native_read_context(context))
+        if native.schema_version != 1 or native.context.schema_version != 1:
+            raise FrozenReadError(
+                "unsupported_schema_version at /schemaVersion",
+                reason="unsupported_schema_version",
+                field_path="/schemaVersion",
+            )
         resolved_context = ReadContextV1(
             view=ReadView(
                 include_superseded=context.view.include_superseded,

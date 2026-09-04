@@ -7,6 +7,11 @@ reviewed_commit: b952004d
 
 # Slice 20 implementation FIX-1 response
 
+> **Correction:** FIX-2 records that one source-ID RED oracle in this cycle was
+> grammar-valid and was edited during GREEN. Read
+> [`implementation-fix2.md`](implementation-fix2.md) for the bounded chronology
+> correction and the genuine source-revision RED evidence.
+
 Preserved FIX-1 RED commit:
 `a89ca66ce5f42c5b0999c2908257d059d6144f13`.
 

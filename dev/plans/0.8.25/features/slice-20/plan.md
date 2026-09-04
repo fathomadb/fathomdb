@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 20 — core dependency registration
-status: READY_FOR_IMPLEMENTATION
+status: COMPLETE_ON_RELEASE_BRANCH
 depends_on: 15
 design: design.md
 design_status: READY_REVIEW_PASS_CYCLE_5

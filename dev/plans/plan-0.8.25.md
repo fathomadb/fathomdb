@@ -205,9 +205,9 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 20** (`DEPENDENCY`) — core canonical-source-to-derived dependency registration
+**IMMEDIATE NEXT: Slice 25** (`ACTUATION`) — bounded atomic caller-decided actuation
 
-**Remaining ladder:** 20 → 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 25 → 30 → 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
 Execute the Slice 20 plan directly. Reconcile its scoped draft against Slice
 15's identity/provenance substrate, the activated architecture, and current

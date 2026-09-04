@@ -1547,6 +1547,7 @@ impl Engine {
             );
             store_receipt(&tx, &receipt, request.operations.len())?;
             store_source_refs(&tx, &request.operation_id, &refs, request.operations.len())?;
+            #[cfg(debug_assertions)]
             if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
                 return Err(EngineError::Storage);
             }
@@ -1576,6 +1577,7 @@ impl Engine {
             let receipt = receipt_for_refusal(request, digest.to_string(), refusal);
             store_receipt(&tx, &receipt, request.operations.len())?;
             store_source_refs(&tx, &request.operation_id, &refs, request.operations.len())?;
+            #[cfg(debug_assertions)]
             if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
                 return Err(EngineError::Storage);
             }
@@ -1605,6 +1607,7 @@ impl Engine {
             );
             store_receipt(&tx, &receipt, request.operations.len())?;
             store_source_refs(&tx, &request.operation_id, &refs, request.operations.len())?;
+            #[cfg(debug_assertions)]
             if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
                 return Err(EngineError::Storage);
             }
@@ -1796,6 +1799,7 @@ impl Engine {
             let receipt = receipt_for_refusal(request, digest.to_string(), refusal);
             store_receipt(&tx, &receipt, request.operations.len())?;
             store_source_refs(&tx, &request.operation_id, &refs, request.operations.len())?;
+            #[cfg(debug_assertions)]
             if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
                 return Err(EngineError::Storage);
             }
@@ -1828,6 +1832,7 @@ impl Engine {
         };
         store_receipt(&tx, &receipt, request.operations.len())?;
         store_source_refs(&tx, &request.operation_id, &refs, request.operations.len())?;
+        #[cfg(debug_assertions)]
         if self.force_next_commit_failure.swap(false, Ordering::SeqCst) {
             return Err(EngineError::Storage);
         }

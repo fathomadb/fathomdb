@@ -26,3 +26,6 @@ Preserved RED commit: `d2f965e5`.
 - Add at-rest database/WAL canaries for lifecycle-target purge and refused
   multi-source redaction, both verified after restart, while retaining the
   ordinary source-erasure and reverse-index-plan checks.
+- Run the production-profile wheel build, expose the debug-only commit-fault
+  hook as an accidental release-build dependency, and gate all five hook reads
+  with the same debug configuration as the field and setter.

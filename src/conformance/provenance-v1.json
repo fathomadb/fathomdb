@@ -51,6 +51,34 @@
         "fieldPath": "/provenance/a~1b~0c"
       },
       {
+        "name": "multipleUnknownProvenanceFields",
+        "provenance": { "schemaVersion": 1, "role": "canonical", "artifactRevisionId": "error-multi-provenance", "sourceVersionId": "source-v1", "zFuture": true, "a/future~x": true },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/a~1future~0x",
+        "assertAtomic": true
+      },
+      {
+        "name": "multipleUnknownCanonicalRoleFields",
+        "provenance": { "schemaVersion": 1, "role": "canonical", "artifactRevisionId": "error-multi-role", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "canonicalSourceHash": { "algorithm": "sha256", "digestHex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/canonicalSourceHash",
+        "assertAtomic": true
+      },
+      {
+        "name": "multipleUnknownWholeBodyLocatorFields",
+        "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-multi-locator", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "sourceLocator": { "kind": "whole_body", "zFuture": true, "a/future~x": true }, "canonicalSourceHash": { "algorithm": "sha256", "digestHex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/sourceLocator/a~1future~0x",
+        "assertAtomic": true
+      },
+      {
+        "name": "multipleUnknownHashFields",
+        "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-multi-hash", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "sourceLocator": { "kind": "whole_body" }, "canonicalSourceHash": { "algorithm": "sha256", "digestHex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb", "zFuture": true, "a/future~x": true } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/canonicalSourceHash/a~1future~0x",
+        "assertAtomic": true
+      },
+      {
         "name": "unsupportedVersion",
         "provenance": { "schemaVersion": 2, "role": "canonical", "artifactRevisionId": "error-3", "sourceVersionId": "source-v1" },
         "reason": "unsupported_schema_version",
@@ -306,6 +334,34 @@
         "provenance": { "schema_version": 1, "role": "canonical", "artifact_revision_id": "error-2", "source_version_id": "source-v1", "a/b~c": true },
         "reason": "unknown_field",
         "fieldPath": "/provenance/a~1b~0c"
+      },
+      {
+        "name": "multipleUnknownProvenanceFields",
+        "provenance": { "schema_version": 1, "role": "canonical", "artifact_revision_id": "error-multi-provenance", "source_version_id": "source-v1", "z_future": true, "a/future~x": true },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/a~1future~0x",
+        "assertAtomic": true
+      },
+      {
+        "name": "multipleUnknownCanonicalRoleFields",
+        "provenance": { "schema_version": 1, "role": "canonical", "artifact_revision_id": "error-multi-role", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "canonical_source_hash": { "algorithm": "sha256", "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/canonicalSourceHash",
+        "assertAtomic": true
+      },
+      {
+        "name": "multipleUnknownWholeBodyLocatorFields",
+        "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-multi-locator", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "source_locator": { "kind": "whole_body", "z_future": true, "a/future~x": true }, "canonical_source_hash": { "algorithm": "sha256", "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/sourceLocator/a~1future~0x",
+        "assertAtomic": true
+      },
+      {
+        "name": "multipleUnknownHashFields",
+        "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-multi-hash", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "source_locator": { "kind": "whole_body" }, "canonical_source_hash": { "algorithm": "sha256", "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb", "z_future": true, "a/future~x": true } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/canonicalSourceHash/a~1future~0x",
+        "assertAtomic": true
       },
       {
         "name": "unsupportedVersion",

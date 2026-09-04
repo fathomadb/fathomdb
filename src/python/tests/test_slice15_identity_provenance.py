@@ -89,6 +89,11 @@ def test_python_consumes_shared_error_fixture_with_reason_path_parity(
         engine.write([{"node": node} if wrapped else node])
     assert excinfo.value.reason == case["reason"]
     assert excinfo.value.field_path == case["fieldPath"]
+    if case.get("assertAtomic"):
+        receipt = engine.write(
+            [{"kind": "rollback-check", "body": "body", "source_id": "rollback-source"}]
+        )
+        assert receipt.row_cursors == ((2,) if case.get("seedCanonical") else (1,))
     engine.close()
 
 

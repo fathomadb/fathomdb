@@ -15,6 +15,7 @@ interface ErrorCase {
   reason: string;
   fieldPath: string;
   seedCanonical?: boolean;
+  assertAtomic?: boolean;
 }
 
 interface ProvenanceFixture {
@@ -102,6 +103,12 @@ for (const wrapped of [false, true]) {
             return true;
           },
         );
+        if (errorCase.assertAtomic) {
+          const receipt = await engine.write([
+            { kind: "rollback-check", body: "body", sourceId: "rollback-source" },
+          ]);
+          assert.deepEqual(receipt.rowCursors, [errorCase.seedCanonical ? 2 : 1]);
+        }
       } finally {
         await engine.close();
       }

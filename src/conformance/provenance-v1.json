@@ -105,6 +105,42 @@
         "fieldPath": "/provenance/sourceRevisionId"
       },
       {
+        "name": "canonicalRejectsNulSourceRevisionBeforeEncoding",
+        "provenance": { "schemaVersion": 1, "role": "canonical", "artifactRevisionId": "error-canonical-nul-source", "sourceVersionId": "source-v1", "sourceRevisionId": "bad\u0000revision" },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/sourceRevisionId"
+      },
+      {
+        "name": "canonicalRejectsSurrogateSourceRevisionBeforeEncoding",
+        "provenance": { "schemaVersion": 1, "role": "canonical", "artifactRevisionId": "error-canonical-surrogate-source", "sourceVersionId": "source-v1", "sourceRevisionId": "bad\ud800revision" },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/sourceRevisionId"
+      },
+      {
+        "name": "canonicalRejectsNulLocatorBeforeEncoding",
+        "provenance": { "schemaVersion": 1, "role": "canonical", "artifactRevisionId": "error-canonical-nul-locator", "sourceVersionId": "source-v1", "sourceLocator": { "kind": "bad\u0000kind" } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/sourceLocator"
+      },
+      {
+        "name": "canonicalRejectsSurrogateLocatorBeforeEncoding",
+        "provenance": { "schemaVersion": 1, "role": "canonical", "artifactRevisionId": "error-canonical-surrogate-locator", "sourceVersionId": "source-v1", "sourceLocator": { "kind": "bad\ud800kind" } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/sourceLocator"
+      },
+      {
+        "name": "canonicalRejectsNulHashBeforeEncoding",
+        "provenance": { "schemaVersion": 1, "role": "canonical", "artifactRevisionId": "error-canonical-nul-hash", "sourceVersionId": "source-v1", "canonicalSourceHash": { "algorithm": "bad\u0000algorithm", "digestHex": "bad" } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/canonicalSourceHash"
+      },
+      {
+        "name": "canonicalRejectsSurrogateHashBeforeEncoding",
+        "provenance": { "schemaVersion": 1, "role": "canonical", "artifactRevisionId": "error-canonical-surrogate-hash", "sourceVersionId": "source-v1", "canonicalSourceHash": { "algorithm": "bad\ud800algorithm", "digestHex": "bad" } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/canonicalSourceHash"
+      },
+      {
         "name": "sourceRevisionMissing",
         "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-source-missing", "sourceVersionId": "source-v1", "sourceRevisionId": "missing-revision", "sourceLocator": { "kind": "whole_body" }, "canonicalSourceHash": { "algorithm": "sha256", "digestHex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
         "reason": "source_revision_missing",
@@ -158,6 +194,72 @@
         "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-unicode-boundary", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "sourceLocator": { "kind": "utf8_bytes", "startInclusive": "2", "endExclusive": "3" }, "canonicalSourceHash": { "algorithm": "sha256", "digestHex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
         "reason": "locator_invalid",
         "fieldPath": "/provenance/sourceLocator"
+      },
+      {
+        "name": "wholeBodyRejectsRangeMember",
+        "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-whole-body-range", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "sourceLocator": { "kind": "whole_body", "startInclusive": "bad\ud800offset" }, "canonicalSourceHash": { "algorithm": "sha256", "digestHex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/sourceLocator/startInclusive"
+      },
+      {
+        "name": "unknownLocatorKindPrecedesMalformedOffset",
+        "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-unknown-locator-kind", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "sourceLocator": { "kind": "future", "startInclusive": "bad\ud800offset" }, "canonicalSourceHash": { "algorithm": "sha256", "digestHex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "locator_invalid",
+        "fieldPath": "/provenance/sourceLocator/kind"
+      },
+      {
+        "name": "utf8LocatorMissingStart",
+        "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-missing-start", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "sourceLocator": { "kind": "utf8_bytes", "endExclusive": "3" }, "canonicalSourceHash": { "algorithm": "sha256", "digestHex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "locator_invalid",
+        "fieldPath": "/provenance/sourceLocator/startInclusive"
+      },
+      {
+        "name": "utf8LocatorMissingEnd",
+        "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-missing-end", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "sourceLocator": { "kind": "utf8_bytes", "startInclusive": "0" }, "canonicalSourceHash": { "algorithm": "sha256", "digestHex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "locator_invalid",
+        "fieldPath": "/provenance/sourceLocator/endExclusive"
+      },
+      {
+        "name": "utf8LocatorRejectsExtraMember",
+        "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-extra-range", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "sourceLocator": { "kind": "utf8_bytes", "startInclusive": "0", "endExclusive": "3", "future": true }, "canonicalSourceHash": { "algorithm": "sha256", "digestHex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/sourceLocator/future"
+      },
+      {
+        "name": "nullLocatorOffset",
+        "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-null-offset", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "sourceLocator": { "kind": "utf8_bytes", "startInclusive": null, "endExclusive": "3" }, "canonicalSourceHash": { "algorithm": "sha256", "digestHex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "locator_invalid",
+        "fieldPath": "/provenance/sourceLocator/startInclusive"
+      },
+      {
+        "name": "booleanLocatorOffset",
+        "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-bool-offset", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "sourceLocator": { "kind": "utf8_bytes", "startInclusive": false, "endExclusive": "3" }, "canonicalSourceHash": { "algorithm": "sha256", "digestHex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "locator_invalid",
+        "fieldPath": "/provenance/sourceLocator/startInclusive"
+      },
+      {
+        "name": "floatLocatorOffset",
+        "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-float-offset", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "sourceLocator": { "kind": "utf8_bytes", "startInclusive": 1.5, "endExclusive": "3" }, "canonicalSourceHash": { "algorithm": "sha256", "digestHex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "locator_invalid",
+        "fieldPath": "/provenance/sourceLocator/startInclusive"
+      },
+      {
+        "name": "unknownHashAlgorithmPrecedesMalformedDigest",
+        "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-hash-algorithm", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "sourceLocator": { "kind": "whole_body" }, "canonicalSourceHash": { "algorithm": "sha512", "digestHex": "bad\ud800digest" } },
+        "reason": "hash_invalid",
+        "fieldPath": "/provenance/canonicalSourceHash/algorithm"
+      },
+      {
+        "name": "uppercaseHashDigest",
+        "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-uppercase-digest", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "sourceLocator": { "kind": "whole_body" }, "canonicalSourceHash": { "algorithm": "sha256", "digestHex": "0290CC0C54E573CE8B5150FCDAA22EE7506E99EDE078CE66D012EAA901B6EDBB" } },
+        "reason": "hash_invalid",
+        "fieldPath": "/provenance/canonicalSourceHash/digestHex"
+      },
+      {
+        "name": "wrongLengthHashDigest",
+        "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-short-digest", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "sourceLocator": { "kind": "whole_body" }, "canonicalSourceHash": { "algorithm": "sha256", "digestHex": "0290cc0c" } },
+        "reason": "hash_invalid",
+        "fieldPath": "/provenance/canonicalSourceHash/digestHex"
       }
     ]
   },
@@ -260,6 +362,42 @@
         "fieldPath": "/provenance/sourceRevisionId"
       },
       {
+        "name": "canonicalRejectsNulSourceRevisionBeforeEncoding",
+        "provenance": { "schema_version": 1, "role": "canonical", "artifact_revision_id": "error-canonical-nul-source", "source_version_id": "source-v1", "source_revision_id": "bad\u0000revision" },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/sourceRevisionId"
+      },
+      {
+        "name": "canonicalRejectsSurrogateSourceRevisionBeforeEncoding",
+        "provenance": { "schema_version": 1, "role": "canonical", "artifact_revision_id": "error-canonical-surrogate-source", "source_version_id": "source-v1", "source_revision_id": "bad\ud800revision" },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/sourceRevisionId"
+      },
+      {
+        "name": "canonicalRejectsNulLocatorBeforeEncoding",
+        "provenance": { "schema_version": 1, "role": "canonical", "artifact_revision_id": "error-canonical-nul-locator", "source_version_id": "source-v1", "source_locator": { "kind": "bad\u0000kind" } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/sourceLocator"
+      },
+      {
+        "name": "canonicalRejectsSurrogateLocatorBeforeEncoding",
+        "provenance": { "schema_version": 1, "role": "canonical", "artifact_revision_id": "error-canonical-surrogate-locator", "source_version_id": "source-v1", "source_locator": { "kind": "bad\ud800kind" } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/sourceLocator"
+      },
+      {
+        "name": "canonicalRejectsNulHashBeforeEncoding",
+        "provenance": { "schema_version": 1, "role": "canonical", "artifact_revision_id": "error-canonical-nul-hash", "source_version_id": "source-v1", "canonical_source_hash": { "algorithm": "bad\u0000algorithm", "digest_hex": "bad" } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/canonicalSourceHash"
+      },
+      {
+        "name": "canonicalRejectsSurrogateHashBeforeEncoding",
+        "provenance": { "schema_version": 1, "role": "canonical", "artifact_revision_id": "error-canonical-surrogate-hash", "source_version_id": "source-v1", "canonical_source_hash": { "algorithm": "bad\ud800algorithm", "digest_hex": "bad" } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/canonicalSourceHash"
+      },
+      {
         "name": "sourceRevisionMissing",
         "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-source-missing", "source_version_id": "source-v1", "source_revision_id": "missing-revision", "source_locator": { "kind": "whole_body" }, "canonical_source_hash": { "algorithm": "sha256", "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
         "reason": "source_revision_missing",
@@ -313,6 +451,72 @@
         "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-unicode-boundary", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "source_locator": { "kind": "utf8_bytes", "start_inclusive": "2", "end_exclusive": "3" }, "canonical_source_hash": { "algorithm": "sha256", "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
         "reason": "locator_invalid",
         "fieldPath": "/provenance/sourceLocator"
+      },
+      {
+        "name": "wholeBodyRejectsRangeMember",
+        "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-whole-body-range", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "source_locator": { "kind": "whole_body", "start_inclusive": "bad\ud800offset" }, "canonical_source_hash": { "algorithm": "sha256", "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/sourceLocator/startInclusive"
+      },
+      {
+        "name": "unknownLocatorKindPrecedesMalformedOffset",
+        "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-unknown-locator-kind", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "source_locator": { "kind": "future", "start_inclusive": "bad\ud800offset" }, "canonical_source_hash": { "algorithm": "sha256", "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "locator_invalid",
+        "fieldPath": "/provenance/sourceLocator/kind"
+      },
+      {
+        "name": "utf8LocatorMissingStart",
+        "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-missing-start", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "source_locator": { "kind": "utf8_bytes", "end_exclusive": "3" }, "canonical_source_hash": { "algorithm": "sha256", "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "locator_invalid",
+        "fieldPath": "/provenance/sourceLocator/startInclusive"
+      },
+      {
+        "name": "utf8LocatorMissingEnd",
+        "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-missing-end", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "source_locator": { "kind": "utf8_bytes", "start_inclusive": "0" }, "canonical_source_hash": { "algorithm": "sha256", "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "locator_invalid",
+        "fieldPath": "/provenance/sourceLocator/endExclusive"
+      },
+      {
+        "name": "utf8LocatorRejectsExtraMember",
+        "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-extra-range", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "source_locator": { "kind": "utf8_bytes", "start_inclusive": "0", "end_exclusive": "3", "future": true }, "canonical_source_hash": { "algorithm": "sha256", "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/sourceLocator/future"
+      },
+      {
+        "name": "nullLocatorOffset",
+        "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-null-offset", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "source_locator": { "kind": "utf8_bytes", "start_inclusive": null, "end_exclusive": "3" }, "canonical_source_hash": { "algorithm": "sha256", "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "locator_invalid",
+        "fieldPath": "/provenance/sourceLocator/startInclusive"
+      },
+      {
+        "name": "booleanLocatorOffset",
+        "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-bool-offset", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "source_locator": { "kind": "utf8_bytes", "start_inclusive": false, "end_exclusive": "3" }, "canonical_source_hash": { "algorithm": "sha256", "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "locator_invalid",
+        "fieldPath": "/provenance/sourceLocator/startInclusive"
+      },
+      {
+        "name": "floatLocatorOffset",
+        "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-float-offset", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "source_locator": { "kind": "utf8_bytes", "start_inclusive": 1.5, "end_exclusive": "3" }, "canonical_source_hash": { "algorithm": "sha256", "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "locator_invalid",
+        "fieldPath": "/provenance/sourceLocator/startInclusive"
+      },
+      {
+        "name": "unknownHashAlgorithmPrecedesMalformedDigest",
+        "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-hash-algorithm", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "source_locator": { "kind": "whole_body" }, "canonical_source_hash": { "algorithm": "sha512", "digest_hex": "bad\ud800digest" } },
+        "reason": "hash_invalid",
+        "fieldPath": "/provenance/canonicalSourceHash/algorithm"
+      },
+      {
+        "name": "uppercaseHashDigest",
+        "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-uppercase-digest", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "source_locator": { "kind": "whole_body" }, "canonical_source_hash": { "algorithm": "sha256", "digest_hex": "0290CC0C54E573CE8B5150FCDAA22EE7506E99EDE078CE66D012EAA901B6EDBB" } },
+        "reason": "hash_invalid",
+        "fieldPath": "/provenance/canonicalSourceHash/digestHex"
+      },
+      {
+        "name": "wrongLengthHashDigest",
+        "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-short-digest", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "source_locator": { "kind": "whole_body" }, "canonical_source_hash": { "algorithm": "sha256", "digest_hex": "0290cc0c" } },
+        "reason": "hash_invalid",
+        "fieldPath": "/provenance/canonicalSourceHash/digestHex"
       }
     ]
   }

@@ -62,8 +62,9 @@ def test_python_consumes_shared_success_fixture_and_keeps_receipt_shape(
     SNAKE["errors"],
     ids=[case["name"] for case in SNAKE["errors"]],
 )
+@pytest.mark.parametrize("wrapped", [False, True], ids=["direct", "wrapped"])
 def test_python_consumes_shared_error_fixture_with_reason_path_parity(
-    db_path: str, case: dict[str, Any]
+    db_path: str, case: dict[str, Any], wrapped: bool
 ) -> None:
     engine = Engine.open(db_path)
     if case.get("seedCanonical"):
@@ -79,16 +80,13 @@ def test_python_consumes_shared_error_fixture_with_reason_path_parity(
             ]
         )
     with pytest.raises(ProvenanceError) as excinfo:
-        engine.write(
-            [
-                {
-                    "kind": "doc",
-                    "body": "body",
-                    "source_id": "source-1",
-                    "provenance": case["provenance"],
-                }
-            ]
-        )
+        node = {
+            "kind": "doc",
+            "body": "body",
+            "source_id": "source-1",
+            "provenance": case["provenance"],
+        }
+        engine.write([{"node": node} if wrapped else node])
     assert excinfo.value.reason == case["reason"]
     assert excinfo.value.field_path == case["fieldPath"]
     engine.close()

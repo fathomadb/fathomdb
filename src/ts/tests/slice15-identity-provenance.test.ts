@@ -70,43 +70,43 @@ test("shared fixture canonical and both locator variants preserve compact receip
   }
 });
 
-for (const errorCase of fixture.camel.errors) {
-  test(`shared fixture rejects ${errorCase.name} with reason/path parity`, async () => {
-    const engine = await Engine.open(freshDbPath());
-    try {
-      if (errorCase.seedCanonical) {
-        await engine.write([
-          {
-            kind: "doc",
-            body: fixture.canonicalBody,
-            sourceId: "source-1",
-            logicalId: "fixture-source",
-            provenance: fixture.camel.canonical,
-          },
-        ]);
-      }
-      await assert.rejects(
-        () =>
-          engine.write([
+for (const wrapped of [false, true]) {
+  for (const errorCase of fixture.camel.errors) {
+    test(`shared fixture rejects ${wrapped ? "wrapped" : "direct"} ${errorCase.name} with reason/path parity`, async () => {
+      const engine = await Engine.open(freshDbPath());
+      try {
+        if (errorCase.seedCanonical) {
+          await engine.write([
             {
               kind: "doc",
-              body: "body",
+              body: fixture.canonicalBody,
               sourceId: "source-1",
-              provenance: errorCase.provenance,
+              logicalId: "fixture-source",
+              provenance: fixture.camel.canonical,
             },
-          ]),
-        (error: unknown) => {
-          assert.ok(error instanceof ProvenanceError);
-          assert.equal(error.code, "FDB_PROVENANCE");
-          assert.equal(error.reason, errorCase.reason);
-          assert.equal(error.fieldPath, errorCase.fieldPath);
-          return true;
-        },
-      );
-    } finally {
-      await engine.close();
-    }
-  });
+          ]);
+        }
+        const node = {
+          kind: "doc",
+          body: "body",
+          sourceId: "source-1",
+          provenance: errorCase.provenance,
+        };
+        await assert.rejects(
+          () => engine.write([wrapped ? { node } : node]),
+          (error: unknown) => {
+            assert.ok(error instanceof ProvenanceError);
+            assert.equal(error.code, "FDB_PROVENANCE");
+            assert.equal(error.reason, errorCase.reason);
+            assert.equal(error.fieldPath, errorCase.fieldPath);
+            return true;
+          },
+        );
+      } finally {
+        await engine.close();
+      }
+    });
+  }
 }
 
 for (const wrapped of [false, true]) {

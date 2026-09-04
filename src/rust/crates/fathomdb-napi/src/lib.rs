@@ -40,9 +40,10 @@ use fathomdb_embedder::{
 };
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
-    BoundaryCrossing as RustBoundaryCrossing, ComparisonOp as RustComparisonOp,
-    ConsolidateAxis as RustConsolidateAxis, ConsolidateReceipt as RustConsolidateReceipt,
-    CorruptionDetail, CorruptionKind, DenseReadiness as RustDenseReadiness, EmbedderChoice,
+    ArtifactRevisionId, BoundaryCrossing as RustBoundaryCrossing, CanonicalHash,
+    ComparisonOp as RustComparisonOp, ConsolidateAxis as RustConsolidateAxis,
+    ConsolidateReceipt as RustConsolidateReceipt, CorruptionDetail, CorruptionKind,
+    DenseReadiness as RustDenseReadiness, EmbedderChoice,
     EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
     EngineError as RustEngineError, EngineOpenError, ExciseReport as RustExciseReport,
     Explanation as RustExplanation, ExtractDocument as RustExtractDocument, Filter as RustFilter,
@@ -55,10 +56,12 @@ use fathomdb_engine::{
     ProjectionRole as RustProjectionRole, ProjectionRuntimeStatus as RustProjectionRuntimeStatus,
     ProjectionRuntimeStatusEntry as RustProjectionRuntimeStatusEntry,
     ProjectionSpec as RustProjectionSpec, ProjectionVector as RustProjectionVector,
-    QueryTrace as RustQueryTrace, ReadView as RustReadView, ScalarValue as RustScalarValue,
-    SearchExpandResult as RustSearchExpandResult, SearchFilter as RustSearchFilter,
-    SearchHit as RustSearchHit, SearchResult as RustSearchResult, SoftFallbackBranch, SourceId,
-    TraversalDirection as RustTraversalDirection, WriteReceipt as RustWriteReceipt,
+    ProvenancedEdgeV1, ProvenancedNodeV1, QueryTrace as RustQueryTrace, ReadView as RustReadView,
+    ScalarValue as RustScalarValue, SearchExpandResult as RustSearchExpandResult,
+    SearchFilter as RustSearchFilter, SearchHit as RustSearchHit, SearchResult as RustSearchResult,
+    SoftFallbackBranch, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
+    TraversalDirection as RustTraversalDirection, WriteProvenanceV1,
+    WriteReceipt as RustWriteReceipt,
 };
 use fathomdb_schema::MigrationStepReport as RustMigrationStepReport;
 use napi::{Error, JsUnknown, Result, Status};
@@ -87,6 +90,7 @@ const CODE_SCHEDULER: &str = "FDB_SCHEDULER";
 const CODE_OP_STORE: &str = "FDB_OP_STORE";
 const CODE_WRITE_VALIDATION: &str = "FDB_WRITE_VALIDATION";
 const CODE_SCHEMA_VALIDATION: &str = "FDB_SCHEMA_VALIDATION";
+const CODE_PROVENANCE: &str = "FDB_PROVENANCE";
 const CODE_OVERLOADED: &str = "FDB_OVERLOADED";
 const CODE_CLOSING: &str = "FDB_CLOSING";
 const CODE_DATABASE_LOCKED: &str = "FDB_DATABASE_LOCKED";
@@ -231,6 +235,14 @@ fn engine_error_to_napi(err: RustEngineError) -> Error {
         RustEngineError::SchemaValidation => {
             typed_error(CODE_SCHEMA_VALIDATION, "schema validation error", JsonValue::Null)
         }
+        RustEngineError::Provenance(error) => typed_error(
+            CODE_PROVENANCE,
+            format!("provenance {} at {}", error.reason.as_str(), error.field_path),
+            json!({
+                "reason": error.reason.as_str(),
+                "fieldPath": error.field_path,
+            }),
+        ),
         RustEngineError::Overloaded => {
             typed_error(CODE_OVERLOADED, "engine overloaded", JsonValue::Null)
         }
@@ -2875,6 +2887,185 @@ fn json_source_id_required(item: &JsonValue, kind: &str) -> Result<SourceId> {
     })
 }
 
+fn provenance_napi_error(reason: &str, field_path: impl Into<String>) -> Error {
+    let field_path = field_path.into();
+    typed_error(
+        CODE_PROVENANCE,
+        format!("provenance {reason} at {field_path}"),
+        json!({ "reason": reason, "fieldPath": field_path }),
+    )
+}
+
+fn strict_json_keys(value: &JsonValue, allowed: &[&str], base_path: &str) -> Result<()> {
+    let object =
+        value.as_object().ok_or_else(|| provenance_napi_error("unknown_field", base_path))?;
+    for key in object.keys() {
+        if !allowed.contains(&key.as_str()) {
+            return Err(provenance_napi_error("unknown_field", format!("{base_path}/{key}")));
+        }
+    }
+    Ok(())
+}
+
+fn provenance_string(value: &JsonValue, key: &str, reason: &str) -> Result<String> {
+    match json_get(value, key) {
+        Some(JsonValue::String(value)) => {
+            validate_ffi_string_napi(value)?;
+            Ok(value.clone())
+        }
+        _ => Err(provenance_napi_error(reason, format!("/provenance/{key}"))),
+    }
+}
+
+fn decimal_json_offset(value: &JsonValue, key: &str) -> Result<u64> {
+    let encoded = match json_get(value, key) {
+        Some(JsonValue::String(value)) => value,
+        _ => {
+            return Err(provenance_napi_error(
+                "locator_invalid",
+                format!("/provenance/sourceLocator/{key}"),
+            ))
+        }
+    };
+    let valid = encoded == "0"
+        || (!encoded.starts_with('0') && encoded.bytes().all(|byte| byte.is_ascii_digit()));
+    let parsed = encoded.parse::<u64>().ok().filter(|offset| *offset <= i64::MAX as u64);
+    if !valid || parsed.is_none() {
+        return Err(provenance_napi_error(
+            "locator_invalid",
+            format!("/provenance/sourceLocator/{key}"),
+        ));
+    }
+    Ok(parsed.unwrap())
+}
+
+fn translate_json_locator(value: &JsonValue) -> Result<SourceLocator> {
+    let kind = match json_get(value, "kind") {
+        Some(JsonValue::String(kind)) => kind.as_str(),
+        _ => {
+            return Err(provenance_napi_error("locator_invalid", "/provenance/sourceLocator/kind"))
+        }
+    };
+    match kind {
+        "whole_body" => {
+            strict_json_keys(value, &["kind"], "/provenance/sourceLocator")?;
+            Ok(SourceLocator::whole_body())
+        }
+        "utf8_bytes" => {
+            strict_json_keys(
+                value,
+                &["kind", "startInclusive", "endExclusive"],
+                "/provenance/sourceLocator",
+            )?;
+            Ok(SourceLocator::utf8_bytes(
+                decimal_json_offset(value, "startInclusive")?,
+                decimal_json_offset(value, "endExclusive")?,
+            ))
+        }
+        _ => Err(provenance_napi_error("locator_invalid", "/provenance/sourceLocator/kind")),
+    }
+}
+
+fn translate_json_hash(value: &JsonValue) -> Result<CanonicalHash> {
+    strict_json_keys(value, &["algorithm", "digestHex"], "/provenance/canonicalSourceHash")?;
+    if json_get(value, "algorithm").and_then(JsonValue::as_str) != Some("sha256") {
+        return Err(provenance_napi_error(
+            "hash_invalid",
+            "/provenance/canonicalSourceHash/algorithm",
+        ));
+    }
+    let digest = json_get(value, "digestHex").and_then(JsonValue::as_str).ok_or_else(|| {
+        provenance_napi_error("hash_invalid", "/provenance/canonicalSourceHash/digestHex")
+    })?;
+    CanonicalHash::sha256(digest).map_err(engine_error_to_napi)
+}
+
+fn translate_json_provenance(value: &JsonValue) -> Result<WriteProvenanceV1> {
+    strict_json_keys(
+        value,
+        &[
+            "schemaVersion",
+            "role",
+            "artifactRevisionId",
+            "sourceVersionId",
+            "sourceRevisionId",
+            "sourceLocator",
+            "canonicalSourceHash",
+        ],
+        "/provenance",
+    )?;
+    if json_get(value, "schemaVersion").and_then(JsonValue::as_u64) != Some(1) {
+        return Err(provenance_napi_error(
+            "unsupported_schema_version",
+            "/provenance/schemaVersion",
+        ));
+    }
+    let role = json_get(value, "role")
+        .and_then(JsonValue::as_str)
+        .ok_or_else(|| provenance_napi_error("role_invalid", "/provenance/role"))?;
+    let artifact_revision_id = ArtifactRevisionId::new(provenance_string(
+        value,
+        "artifactRevisionId",
+        "revision_id_invalid",
+    )?)
+    .map_err(engine_error_to_napi)?;
+    let source_version_id = SourceVersionId::new(provenance_string(
+        value,
+        "sourceVersionId",
+        "source_version_invalid",
+    )?)
+    .map_err(engine_error_to_napi)?;
+    match role {
+        "canonical" => {
+            strict_json_keys(
+                value,
+                &["schemaVersion", "role", "artifactRevisionId", "sourceVersionId"],
+                "/provenance",
+            )?;
+            Ok(WriteProvenanceV1::canonical(artifact_revision_id, source_version_id))
+        }
+        "derived" => {
+            strict_json_keys(
+                value,
+                &[
+                    "schemaVersion",
+                    "role",
+                    "artifactRevisionId",
+                    "sourceVersionId",
+                    "sourceRevisionId",
+                    "sourceLocator",
+                    "canonicalSourceHash",
+                ],
+                "/provenance",
+            )?;
+            let source_revision_id = SourceRevisionId::new(provenance_string(
+                value,
+                "sourceRevisionId",
+                "revision_id_invalid",
+            )?)
+            .map_err(engine_error_to_napi)?;
+            let locator = json_get(value, "sourceLocator")
+                .ok_or_else(|| {
+                    provenance_napi_error("locator_invalid", "/provenance/sourceLocator")
+                })
+                .and_then(translate_json_locator)?;
+            let hash = json_get(value, "canonicalSourceHash")
+                .ok_or_else(|| {
+                    provenance_napi_error("hash_invalid", "/provenance/canonicalSourceHash")
+                })
+                .and_then(translate_json_hash)?;
+            Ok(WriteProvenanceV1::derived(
+                artifact_revision_id,
+                source_version_id,
+                source_revision_id,
+                locator,
+                hash,
+            ))
+        }
+        _ => Err(provenance_napi_error("role_invalid", "/provenance/role")),
+    }
+}
+
 fn json_serialised_alt(item: &JsonValue, camel: &str, snake: &str) -> Result<Option<String>> {
     if let Some(v) = json_serialised(item, camel)? {
         return Ok(Some(v));
@@ -2894,7 +3085,12 @@ fn json_serialised_alt_required(item: &JsonValue, camel: &str, snake: &str) -> R
 
 fn translate_node(item: &JsonValue) -> Result<PreparedWrite> {
     let kind = json_str_required(item, "kind")?;
-    let body = json_serialised(item, "body")?.unwrap_or_else(|| "{}".to_string());
+    let provenance = json_get(item, "provenance").map(translate_json_provenance).transpose()?;
+    let body = if provenance.is_some() {
+        json_str(item, "body")?.unwrap_or_else(|| "{}".to_string())
+    } else {
+        json_serialised(item, "body")?.unwrap_or_else(|| "{}".to_string())
+    };
     let source_id = json_source_id_required(item, "node")?;
     let logical_id = json_str_alt(item, "logicalId", "logical_id")?;
     // OPP-12 Phase-1 (0.8.19 Slice 5) — create-time existence state + advisory
@@ -2922,16 +3118,29 @@ fn translate_node(item: &JsonValue) -> Result<PreparedWrite> {
     // Python and TypeScript share one rule and cannot drift.
     let valid_from = json_i64_alt(item, "validFrom", "valid_from")?;
     let valid_until = json_i64_alt(item, "validUntil", "valid_until")?;
-    Ok(PreparedWrite::Node {
-        kind,
-        body,
-        source_id,
-        logical_id,
-        state,
-        reason,
-        valid_from,
-        valid_until,
-    })
+    match provenance {
+        Some(provenance) => Ok(PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+            kind,
+            body,
+            source_id,
+            logical_id,
+            state,
+            reason,
+            valid_from,
+            valid_until,
+            provenance,
+        })),
+        None => Ok(PreparedWrite::Node {
+            kind,
+            body,
+            source_id,
+            logical_id,
+            state,
+            reason,
+            valid_from,
+            valid_until,
+        }),
+    }
 }
 
 /// 0.8.20 Slice 15b (TC-34) — read an optional INTEGER epoch-second field.
@@ -2977,7 +3186,9 @@ fn translate_edge(item: &JsonValue) -> Result<PreparedWrite> {
     let logical_id = json_str_alt(item, "logicalId", "logical_id")?;
     // Edge body (the relation text) — optional. Projected into `search_index_edges`
     // so the C1 graph arm can seed from edge-fact FTS (`source A`). NULL = not indexed.
-    let body = json_serialised(item, "body")?;
+    let provenance = json_get(item, "provenance").map(translate_json_provenance).transpose()?;
+    let body =
+        if provenance.is_some() { json_str(item, "body")? } else { json_serialised(item, "body")? };
     // R3 (Slice 30) — temporal validity fields accepted from user-facing write API.
     //
     // TC-33 (HITL-RATIFIED 2026-07-21) — `tValid`/`t_valid` and
@@ -2992,19 +3203,35 @@ fn translate_edge(item: &JsonValue) -> Result<PreparedWrite> {
     // `None` = "still valid"; that semantic is load-bearing and unchanged.
     let t_valid = json_i64_alt(item, "tValid", "t_valid")?;
     let t_invalid = json_i64_alt(item, "tInvalid", "t_invalid")?;
-    Ok(PreparedWrite::Edge {
-        kind,
-        from,
-        to,
-        source_id,
-        logical_id,
-        body,
-        t_valid,
-        t_invalid,
-        confidence: None,
-        extractor_model_id: None,
-        temporal_fallback: None,
-    })
+    match provenance {
+        Some(provenance) => Ok(PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+            kind,
+            from,
+            to,
+            source_id,
+            logical_id,
+            body,
+            t_valid,
+            t_invalid,
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+            provenance,
+        })),
+        None => Ok(PreparedWrite::Edge {
+            kind,
+            from,
+            to,
+            source_id,
+            logical_id,
+            body,
+            t_valid,
+            t_invalid,
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+        }),
+    }
 }
 
 fn translate_op_store(item: &JsonValue) -> Result<PreparedWrite> {

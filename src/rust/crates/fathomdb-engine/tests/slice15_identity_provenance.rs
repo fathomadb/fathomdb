@@ -145,7 +145,7 @@ fn invalid_locator_or_hash_rejects_the_whole_batch_with_typed_reason_and_path() 
             SourceVersionId::new("source-v1").unwrap(),
             SourceRevisionId::new("source-revision-1").unwrap(),
             SourceLocator::utf8_bytes(2, 3),
-            CanonicalHash::sha256(&digest("AéB")).unwrap(),
+            CanonicalHash::sha256(digest("AéB")).unwrap(),
         ),
     });
     let error = opened

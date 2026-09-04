@@ -192,10 +192,10 @@ fn s24_precedes_the_nested_source_head_migration() {
     migrate_with_steps(&conn, MIGRATIONS).expect("migration must succeed");
 
     assert_eq!(user_version(&conn), SCHEMA_VERSION);
-    assert_eq!(SCHEMA_VERSION, 26, "SCHEMA_VERSION must be 26 at the Slice-19 head");
+    assert_eq!(SCHEMA_VERSION, 27, "SCHEMA_VERSION must include Slice 15 step 27");
     assert_eq!(
         MIGRATIONS.last().expect("at least one migration").step_id,
-        26,
-        "step-26 (canonical FTS-hydration join indexes) must be the last (head) migration"
+        27,
+        "step-27 (identity and provenance registries, Slice 15) must be the last (head) migration"
     );
 }

@@ -4870,6 +4870,323 @@ impl TryFrom<&str> for SourceId {
     }
 }
 
+fn valid_caller_identity(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    !value.starts_with("_fdb:")
+        && (1..=128).contains(&bytes.len())
+        && bytes[0].is_ascii_alphanumeric()
+        && bytes
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-'))
+}
+
+macro_rules! caller_identity_newtype {
+    ($name:ident, $reason:ident, $path:literal, $doc:literal) => {
+        #[doc = $doc]
+        #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+        pub struct $name(String);
+
+        impl $name {
+            /// Construct a caller-authored identifier in the closed v1 grammar.
+            ///
+            /// # Errors
+            ///
+            /// Returns a typed provenance error when the value is empty, too
+            /// long, reserved, or contains a character outside the grammar.
+            pub fn new(value: impl Into<String>) -> Result<Self, EngineError> {
+                let value = value.into();
+                if !valid_caller_identity(&value) {
+                    return Err(ProvenanceError::new(ProvenanceErrorReason::$reason, $path).into());
+                }
+                Ok(Self(value))
+            }
+
+            /// Return the exact stored identifier.
+            #[must_use]
+            pub fn as_str(&self) -> &str {
+                &self.0
+            }
+        }
+    };
+}
+
+caller_identity_newtype!(
+    ArtifactRevisionId,
+    RevisionIdInvalid,
+    "/provenance/artifactRevisionId",
+    "Immutable identity of one canonical or derived artifact revision."
+);
+caller_identity_newtype!(
+    SourceRevisionId,
+    RevisionIdInvalid,
+    "/provenance/sourceRevisionId",
+    "Immutable identity of the canonical source revision for a derived artifact."
+);
+caller_identity_newtype!(
+    SourceVersionId,
+    SourceVersionInvalid,
+    "/provenance/sourceVersionId",
+    "Caller-authored version identity scoped to one source id."
+);
+
+/// Completeness recorded for an artifact revision owner.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ProvenanceCompleteness {
+    /// Exact source version, revision, locator and hash are present.
+    Complete,
+    /// The artifact is usable but exact source provenance is unavailable.
+    MigratedIncomplete,
+}
+
+impl ProvenanceCompleteness {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Complete => "complete",
+            Self::MigratedIncomplete => "migrated_incomplete",
+        }
+    }
+}
+
+/// Closed v1 locator into exact UTF-8 source bytes.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SourceLocator {
+    /// The entire canonical source body.
+    WholeBody,
+    /// A half-open range whose offsets count UTF-8 bytes.
+    Utf8Bytes {
+        /// Inclusive byte offset.
+        start_inclusive: u64,
+        /// Exclusive byte offset.
+        end_exclusive: u64,
+    },
+}
+
+impl SourceLocator {
+    /// Construct the whole-body locator.
+    #[must_use]
+    pub fn whole_body() -> Self {
+        Self::WholeBody
+    }
+
+    /// Construct a UTF-8 byte range. Bounds and code-point alignment are
+    /// validated against the referenced canonical source during the write.
+    #[must_use]
+    pub fn utf8_bytes(start_inclusive: u64, end_exclusive: u64) -> Self {
+        Self::Utf8Bytes { start_inclusive, end_exclusive }
+    }
+}
+
+/// SHA-256 digest of the entire canonical source revision.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CanonicalHash {
+    digest_hex: String,
+}
+
+impl CanonicalHash {
+    /// Construct a canonical SHA-256 hash from exactly 64 lowercase hex digits.
+    ///
+    /// # Errors
+    ///
+    /// Returns `hash_invalid` for any other spelling.
+    pub fn sha256(digest_hex: impl Into<String>) -> Result<Self, EngineError> {
+        let digest_hex = digest_hex.into();
+        if digest_hex.len() != 64
+            || !digest_hex
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        {
+            return Err(ProvenanceError::new(
+                ProvenanceErrorReason::HashInvalid,
+                "/provenance/canonicalSourceHash/digestHex",
+            )
+            .into());
+        }
+        Ok(Self { digest_hex })
+    }
+
+    /// Return the lowercase SHA-256 digest.
+    #[must_use]
+    pub fn digest_hex(&self) -> &str {
+        &self.digest_hex
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ProvenanceRole {
+    Canonical,
+    Derived,
+}
+
+/// Closed schema-version-1 provenance attached to a versioned write.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WriteProvenanceV1 {
+    schema_version: u32,
+    role: ProvenanceRole,
+    artifact_revision_id: ArtifactRevisionId,
+    source_version_id: SourceVersionId,
+    source_revision_id: Option<SourceRevisionId>,
+    locator: Option<SourceLocator>,
+    canonical_source_hash: Option<CanonicalHash>,
+}
+
+impl WriteProvenanceV1 {
+    /// Describe a canonical source node. The Engine stores a whole-body
+    /// self-link and computes the source hash from the exact UTF-8 body.
+    #[must_use]
+    pub fn canonical(
+        artifact_revision_id: ArtifactRevisionId,
+        source_version_id: SourceVersionId,
+    ) -> Self {
+        Self {
+            schema_version: 1,
+            role: ProvenanceRole::Canonical,
+            artifact_revision_id,
+            source_version_id,
+            source_revision_id: None,
+            locator: None,
+            canonical_source_hash: None,
+        }
+    }
+
+    /// Describe an artifact derived from an already-stored canonical source.
+    #[must_use]
+    pub fn derived(
+        artifact_revision_id: ArtifactRevisionId,
+        source_version_id: SourceVersionId,
+        source_revision_id: SourceRevisionId,
+        locator: SourceLocator,
+        canonical_source_hash: CanonicalHash,
+    ) -> Self {
+        Self {
+            schema_version: 1,
+            role: ProvenanceRole::Derived,
+            artifact_revision_id,
+            source_version_id,
+            source_revision_id: Some(source_revision_id),
+            locator: Some(locator),
+            canonical_source_hash: Some(canonical_source_hash),
+        }
+    }
+}
+
+/// Versioned node input preserving the legacy node fields and adding exact
+/// provenance without changing `PreparedWrite::Node`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ProvenancedNodeV1 {
+    /// Caller-defined node kind.
+    pub kind: String,
+    /// Exact UTF-8 artifact body.
+    pub body: String,
+    /// Erasure and source-family identity.
+    pub source_id: SourceId,
+    /// Optional stable logical identity used for supersession.
+    pub logical_id: Option<String>,
+    /// Initial lifecycle state.
+    pub state: InitialState,
+    /// Optional advisory lifecycle reason.
+    pub reason: Option<String>,
+    /// Inclusive world-time validity bound in epoch seconds.
+    pub valid_from: Option<i64>,
+    /// Exclusive world-time validity bound in epoch seconds.
+    pub valid_until: Option<i64>,
+    /// Closed schema-version-1 provenance.
+    pub provenance: WriteProvenanceV1,
+}
+
+/// Versioned edge input preserving the legacy edge fields and adding exact
+/// provenance without changing `PreparedWrite::Edge`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ProvenancedEdgeV1 {
+    /// Caller-defined edge kind.
+    pub kind: String,
+    /// Logical identity of the source endpoint.
+    pub from: String,
+    /// Logical identity of the destination endpoint.
+    pub to: String,
+    /// Erasure and source-family identity.
+    pub source_id: SourceId,
+    /// Optional stable logical identity used for supersession.
+    pub logical_id: Option<String>,
+    /// Optional exact UTF-8 relationship body.
+    pub body: Option<String>,
+    /// Inclusive event-time validity bound in epoch seconds.
+    pub t_valid: Option<i64>,
+    /// Exclusive event-time validity bound in epoch seconds.
+    pub t_invalid: Option<i64>,
+    /// Optional extraction confidence in the closed interval `[0, 1]`.
+    pub confidence: Option<f64>,
+    /// Optional opaque extractor model identity.
+    pub extractor_model_id: Option<String>,
+    /// Whether event time fell back to ingestion time.
+    pub temporal_fallback: Option<bool>,
+    /// Closed schema-version-1 derived provenance.
+    pub provenance: WriteProvenanceV1,
+}
+
+/// Closed machine-readable reason for a provenance refusal.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ProvenanceErrorReason {
+    RevisionIdInvalid,
+    RevisionIdConflict,
+    SourceVersionInvalid,
+    SourceVersionConflict,
+    SourceRevisionMissing,
+    SourceMismatch,
+    LocatorInvalid,
+    HashInvalid,
+    HashMismatch,
+    UnsupportedSchemaVersion,
+    UnknownField,
+    RoleInvalid,
+    ProvenanceInUse,
+}
+
+impl ProvenanceErrorReason {
+    /// Stable lower-snake-case wire spelling.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::RevisionIdInvalid => "revision_id_invalid",
+            Self::RevisionIdConflict => "revision_id_conflict",
+            Self::SourceVersionInvalid => "source_version_invalid",
+            Self::SourceVersionConflict => "source_version_conflict",
+            Self::SourceRevisionMissing => "source_revision_missing",
+            Self::SourceMismatch => "source_mismatch",
+            Self::LocatorInvalid => "locator_invalid",
+            Self::HashInvalid => "hash_invalid",
+            Self::HashMismatch => "hash_mismatch",
+            Self::UnsupportedSchemaVersion => "unsupported_schema_version",
+            Self::UnknownField => "unknown_field",
+            Self::RoleInvalid => "role_invalid",
+            Self::ProvenanceInUse => "provenance_in_use",
+        }
+    }
+}
+
+/// Typed provenance refusal with an RFC 6901 pointer over canonical camel-case
+/// wire names.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProvenanceError {
+    /// Closed machine-readable refusal reason.
+    pub reason: ProvenanceErrorReason,
+    /// RFC 6901 pointer over canonical camel-case wire names.
+    pub field_path: String,
+}
+
+impl ProvenanceError {
+    fn new(reason: ProvenanceErrorReason, field_path: impl Into<String>) -> Self {
+        Self { reason, field_path: field_path.into() }
+    }
+}
+
+impl Display for ProvenanceError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} at {}", self.reason.as_str(), self.field_path)
+    }
+}
+
+impl Error for ProvenanceError {}
+
 /// Batch input shape for [`Engine::write`].
 ///
 /// Marked `#[non_exhaustive]` per ADR-0.6.0-prepared-write-shape; new
@@ -4878,6 +5195,10 @@ impl TryFrom<&str> for SourceId {
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum PreparedWrite {
+    /// Schema-version-1 node carrying complete canonical or derived provenance.
+    ProvenancedNode(ProvenancedNodeV1),
+    /// Schema-version-1 derived edge carrying complete provenance.
+    ProvenancedEdge(ProvenancedEdgeV1),
     Node {
         kind: String,
         body: String,
@@ -4993,6 +5314,35 @@ pub enum PreparedWrite {
         schema_json: String,
         retention_json: String,
     },
+}
+
+fn storage_write_shape(write: &PreparedWrite) -> std::borrow::Cow<'_, PreparedWrite> {
+    match write {
+        PreparedWrite::ProvenancedNode(node) => std::borrow::Cow::Owned(PreparedWrite::Node {
+            kind: node.kind.clone(),
+            body: node.body.clone(),
+            source_id: node.source_id.clone(),
+            logical_id: node.logical_id.clone(),
+            state: node.state,
+            reason: node.reason.clone(),
+            valid_from: node.valid_from,
+            valid_until: node.valid_until,
+        }),
+        PreparedWrite::ProvenancedEdge(edge) => std::borrow::Cow::Owned(PreparedWrite::Edge {
+            kind: edge.kind.clone(),
+            from: edge.from.clone(),
+            to: edge.to.clone(),
+            source_id: edge.source_id.clone(),
+            logical_id: edge.logical_id.clone(),
+            body: edge.body.clone(),
+            t_valid: edge.t_valid,
+            t_invalid: edge.t_invalid,
+            confidence: edge.confidence,
+            extractor_model_id: edge.extractor_model_id.clone(),
+            temporal_fallback: edge.temporal_fallback,
+        }),
+        _ => std::borrow::Cow::Borrowed(write),
+    }
 }
 
 /// EXP-S (0.8.14 Slice 5, D1) — structural-role tag for a canonical row.
@@ -5442,6 +5792,8 @@ pub enum EngineError {
     OpStore,
     WriteValidation,
     SchemaValidation,
+    /// Immutable revision/source provenance validation or ownership refusal.
+    Provenance(ProvenanceError),
     Overloaded,
     Closing,
     /// G11 (Slice 15) — BYO-LLM extractor subprocess error (protocol mismatch,
@@ -5539,6 +5891,12 @@ pub enum EngineError {
     },
 }
 
+impl From<ProvenanceError> for EngineError {
+    fn from(error: ProvenanceError) -> Self {
+        Self::Provenance(error)
+    }
+}
+
 impl Display for EngineError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -5562,6 +5920,7 @@ impl Display for EngineError {
             Self::OpStore => write!(f, "op-store error"),
             Self::WriteValidation => write!(f, "write validation error"),
             Self::SchemaValidation => write!(f, "schema validation error"),
+            Self::Provenance(error) => write!(f, "provenance: {error}"),
             Self::Overloaded => write!(f, "engine overloaded"),
             Self::Closing => write!(f, "engine is closing"),
             Self::Extractor => write!(f, "extractor error"),
@@ -5622,6 +5981,7 @@ impl EngineError {
             Self::OpStore => "OpStoreError",
             Self::WriteValidation => "WriteValidationError",
             Self::SchemaValidation => "SchemaValidationError",
+            Self::Provenance(_) => "ProvenanceError",
             Self::Overloaded => "OverloadedError",
             Self::Closing => "ClosingError",
             Self::Extractor => "ExtractorError",
@@ -7693,22 +8053,24 @@ impl Engine {
         // common case — every kind in the batch already enrolled, or no vector
         // projection declared at all — still pays only the probes it paid before
         // and never takes a write lock.
-        let mut to_enrol: Vec<&str> = Vec::new();
+        let mut to_enrol: Vec<String> = Vec::new();
         for write in batch {
+            let write = storage_write_shape(write);
             // Only `Node` writes: edge bodies enrol `'edge_fact'` themselves in
             // `project_canonical_edge_row` (G11), unconditionally and already.
-            let PreparedWrite::Node { kind, .. } = write else { continue };
-            if to_enrol.contains(&kind.as_str()) {
+            let PreparedWrite::Node { kind, .. } = write.as_ref() else { continue };
+            if to_enrol.contains(kind) {
                 continue;
             }
             if self.vector_kind_needs_enrolment(connection, kind, RowKind::Leaf)? {
-                to_enrol.push(kind);
+                to_enrol.push(kind.clone());
             }
         }
         if to_enrol.is_empty() {
             return Ok(false);
         }
-        self.enrol_and_unstrand(connection, &to_enrol)
+        let to_enrol_refs: Vec<&str> = to_enrol.iter().map(String::as_str).collect();
+        self.enrol_and_unstrand(connection, &to_enrol_refs)
     }
 
     /// 0.8.20 Slice 20c — would enrolling `kind` be correct here? The READ-ONLY
@@ -7822,8 +8184,9 @@ impl Engine {
         // `collect_projection_jobs` only tracks Node items (pre-fetched for
         // cursor assignment); edge bodies update `_fathomdb_projection_state` in
         // `commit_batch` but need the scanner to wake up via `notify_new_work`.
-        let has_edge_body_work =
-            batch.iter().any(|w| matches!(w, PreparedWrite::Edge { body: Some(_), .. }));
+        let has_edge_body_work = batch.iter().any(|write| {
+            matches!(storage_write_shape(write).as_ref(), PreparedWrite::Edge { body: Some(_), .. })
+        });
         let pending_projection = !projection_jobs.is_empty() || has_edge_body_work || unstranded;
 
         let dangling_edge_endpoints = match commit_batch(
@@ -7834,9 +8197,12 @@ impl Engine {
             self.provenance_row_cap.load(Ordering::Relaxed),
         ) {
             Ok(count) => count,
-            Err(err) => {
+            Err(CommitBatchError::Sql(err)) => {
                 self.emit_sqlite_internal_error(&err);
                 return Err(EngineError::Storage);
+            }
+            Err(CommitBatchError::Provenance(error)) => {
+                return Err(EngineError::Provenance(error));
             }
         };
         self.next_cursor.store(last_cursor, Ordering::SeqCst);
@@ -11707,6 +12073,10 @@ impl Engine {
             lid,
         )?;
 
+        let affected_cursors: Vec<i64> =
+            node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
+        erase_artifact_identity_for_cursors(&tx, &affected_cursors, true)?;
+
         // Erase the row-owned projection shadows for every collected cursor.
         // 0.8.20 Slice 5a (R-20-E1): registry-driven — the hand-rolled delete
         // list is gone, so a newly registered projection table is erased here
@@ -12445,6 +12815,10 @@ impl Engine {
             "SELECT logical_id, body FROM canonical_edges WHERE source_id = ?1",
             source_id,
         )?;
+
+        let affected_cursors: Vec<i64> =
+            node_cursors.iter().chain(edge_cursors.iter()).copied().collect();
+        erase_artifact_identity_for_cursors(&tx, &affected_cursors, false)?;
 
         // 0.8.20 Slice 5a (R-20-E1) — registry-driven erasure. The previous
         // hand-rolled list here OMITTED `search_index_v2`, a CONTENT-STORING
@@ -17425,7 +17799,6 @@ fn row_kind_from_column(value: &str) -> RowKind {
     }
 }
 
-#[cfg(feature = "operator")]
 fn hex_encode(bytes: &[u8]) -> String {
     let mut out = String::with_capacity(bytes.len() * 2);
     for byte in bytes {
@@ -17435,7 +17808,6 @@ fn hex_encode(bytes: &[u8]) -> String {
     out
 }
 
-#[cfg(feature = "operator")]
 fn hex_nibble(value: u8) -> char {
     match value {
         0..=9 => (b'0' + value) as char,
@@ -20304,7 +20676,8 @@ fn collect_projection_jobs(
 ) -> Result<Vec<ProjectionJob>, EngineError> {
     let mut jobs = Vec::new();
     for write in batch {
-        if let PreparedWrite::Node { kind, body, .. } = write {
+        let write = storage_write_shape(write);
+        if let PreparedWrite::Node { kind, body, .. } = write.as_ref() {
             // 0.8.20 Slice 20c — this probe decides whether `notify_new_work` is
             // called, so `Engine::enrol_batch_vector_kinds` MUST already have run
             // on this batch: a kind enrolled after this point would be enqueued in
@@ -20325,6 +20698,62 @@ fn validate_write(
     write: &PreparedWrite,
 ) -> Result<WritePlan, EngineError> {
     match write {
+        PreparedWrite::ProvenancedNode(node) => {
+            validate_write(
+                connection,
+                &PreparedWrite::Node {
+                    kind: node.kind.clone(),
+                    body: node.body.clone(),
+                    source_id: node.source_id.clone(),
+                    logical_id: node.logical_id.clone(),
+                    state: node.state,
+                    reason: node.reason.clone(),
+                    valid_from: node.valid_from,
+                    valid_until: node.valid_until,
+                },
+            )?;
+            if node.provenance.schema_version != 1 {
+                return Err(ProvenanceError::new(
+                    ProvenanceErrorReason::UnsupportedSchemaVersion,
+                    "/provenance/schemaVersion",
+                )
+                .into());
+            }
+            Ok(WritePlan::Node)
+        }
+        PreparedWrite::ProvenancedEdge(edge) => {
+            if edge.provenance.role != ProvenanceRole::Derived {
+                return Err(ProvenanceError::new(
+                    ProvenanceErrorReason::RoleInvalid,
+                    "/provenance/role",
+                )
+                .into());
+            }
+            validate_write(
+                connection,
+                &PreparedWrite::Edge {
+                    kind: edge.kind.clone(),
+                    from: edge.from.clone(),
+                    to: edge.to.clone(),
+                    source_id: edge.source_id.clone(),
+                    logical_id: edge.logical_id.clone(),
+                    body: edge.body.clone(),
+                    t_valid: edge.t_valid,
+                    t_invalid: edge.t_invalid,
+                    confidence: edge.confidence,
+                    extractor_model_id: edge.extractor_model_id.clone(),
+                    temporal_fallback: edge.temporal_fallback,
+                },
+            )?;
+            if edge.provenance.schema_version != 1 {
+                return Err(ProvenanceError::new(
+                    ProvenanceErrorReason::UnsupportedSchemaVersion,
+                    "/provenance/schemaVersion",
+                )
+                .into());
+            }
+            Ok(WritePlan::Edge)
+        }
         PreparedWrite::Node { kind, body, logical_id, valid_from, valid_until, .. } => {
             if kind.trim().is_empty() || body.trim().is_empty() {
                 return Err(EngineError::WriteValidation);
@@ -20677,6 +21106,95 @@ fn delete_row_owned_projection(
 
 fn saturating_add_u64(acc: u64, n: usize) -> u64 {
     acc.saturating_add(n as u64)
+}
+
+fn erase_artifact_identity_for_cursors(
+    tx: &Connection,
+    cursors: &[i64],
+    refuse_surviving_dependents: bool,
+) -> Result<(), EngineError> {
+    let affected: std::collections::HashSet<i64> = cursors.iter().copied().collect();
+    let mut revisions: Vec<(String, String)> = Vec::new();
+    for cursor in cursors {
+        let row = tx
+            .query_row(
+                "SELECT revision_id, artifact_role FROM _fathomdb_artifact_revisions \
+                 WHERE write_cursor = ?1",
+                [cursor],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            )
+            .optional()
+            .map_err(|_| EngineError::Storage)?;
+        if let Some(row) = row {
+            revisions.push(row);
+        }
+    }
+
+    if refuse_surviving_dependents {
+        for (revision_id, role) in &revisions {
+            if role != "canonical_source" {
+                continue;
+            }
+            let mut statement = tx
+                .prepare(
+                    "SELECT ar.write_cursor FROM _fathomdb_source_links link \
+                     JOIN _fathomdb_artifact_revisions ar \
+                       ON ar.revision_id = link.artifact_revision_id \
+                     WHERE link.source_revision_id = ?1",
+                )
+                .map_err(|_| EngineError::Storage)?;
+            let dependent_cursors = statement
+                .query_map([revision_id], |row| row.get::<_, i64>(0))
+                .map_err(|_| EngineError::Storage)?;
+            for dependent in dependent_cursors {
+                let dependent = dependent.map_err(|_| EngineError::Storage)?;
+                if !affected.contains(&dependent) {
+                    return Err(EngineError::Provenance(ProvenanceError::new(
+                        ProvenanceErrorReason::ProvenanceInUse,
+                        "",
+                    )));
+                }
+            }
+        }
+    }
+
+    for (revision_id, _) in &revisions {
+        tx.execute(
+            "DELETE FROM _fathomdb_source_links WHERE artifact_revision_id = ?1",
+            [revision_id],
+        )
+        .map_err(|_| EngineError::Storage)?;
+    }
+    for (revision_id, role) in &revisions {
+        if role == "canonical_source" {
+            tx.execute(
+                "DELETE FROM _fathomdb_source_versions WHERE source_revision_id = ?1",
+                [revision_id],
+            )
+            .map_err(|_| EngineError::Storage)?;
+        }
+    }
+    for cursor in cursors {
+        tx.execute("DELETE FROM _fathomdb_artifact_revisions WHERE write_cursor = ?1", [cursor])
+            .map_err(|_| EngineError::Storage)?;
+    }
+
+    for (revision_id, _) in &revisions {
+        let orphans: i64 = tx
+            .query_row(
+                "SELECT \
+                   EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions WHERE revision_id = ?1) + \
+                   EXISTS(SELECT 1 FROM _fathomdb_source_links WHERE artifact_revision_id = ?1) + \
+                   EXISTS(SELECT 1 FROM _fathomdb_source_versions WHERE source_revision_id = ?1)",
+                [revision_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        if orphans != 0 {
+            return Err(EngineError::Storage);
+        }
+    }
+    Ok(())
 }
 
 /// 0.8.20 Slice 15d fix-1 finding 2 [P2] — purge the row-owned projections in
@@ -21044,7 +21562,8 @@ fn validate_nested_projection_sources_for_write(
         return Ok(());
     }
     for write in batch {
-        let PreparedWrite::Node { body, .. } = write else { continue };
+        let write = storage_write_shape(write);
+        let PreparedWrite::Node { body, .. } = write.as_ref() else { continue };
         validate_nested_projection_sources_for_body_in_registry(conn, body, &registry)?;
     }
     Ok(())
@@ -22751,13 +23270,275 @@ fn bm25f_search_inner(
     Ok(scored)
 }
 
+#[derive(Debug)]
+enum CommitBatchError {
+    Sql(rusqlite::Error),
+    Provenance(ProvenanceError),
+}
+
+impl From<rusqlite::Error> for CommitBatchError {
+    fn from(error: rusqlite::Error) -> Self {
+        Self::Sql(error)
+    }
+}
+
+impl From<ProvenanceError> for CommitBatchError {
+    fn from(error: ProvenanceError) -> Self {
+        Self::Provenance(error)
+    }
+}
+
+fn revision_hash_field(hasher: &mut Sha256, value: &[u8]) {
+    hasher.update((value.len() as u64).to_be_bytes());
+    hasher.update(value);
+}
+
+fn runtime_revision_id(write: &PreparedWrite, cursor: u64) -> String {
+    let write = storage_write_shape(write);
+    let mut hasher = Sha256::new();
+    revision_hash_field(&mut hasher, b"fathomdb:artifact-revision:runtime:v1");
+    match write.as_ref() {
+        PreparedWrite::Node { body, source_id, .. } => {
+            revision_hash_field(&mut hasher, b"node");
+            revision_hash_field(&mut hasher, cursor.to_string().as_bytes());
+            revision_hash_field(&mut hasher, source_id.as_str().as_bytes());
+            revision_hash_field(&mut hasher, b"source-version:none");
+            revision_hash_field(&mut hasher, body.as_bytes());
+        }
+        PreparedWrite::Edge { body, source_id, .. } => {
+            revision_hash_field(&mut hasher, b"edge");
+            revision_hash_field(&mut hasher, cursor.to_string().as_bytes());
+            revision_hash_field(&mut hasher, source_id.as_str().as_bytes());
+            revision_hash_field(&mut hasher, b"source-version:none");
+            match body {
+                None => revision_hash_field(&mut hasher, b"body:none"),
+                Some(body) => {
+                    revision_hash_field(&mut hasher, b"body:some");
+                    revision_hash_field(&mut hasher, body.as_bytes());
+                }
+            }
+        }
+        _ => unreachable!("only canonical entities have artifact revisions"),
+    }
+    format!("_fdb:r:{}", hex_encode(&hasher.finalize()))
+}
+
+fn canonical_body_hash(body: &str) -> String {
+    hex_encode(&Sha256::digest(body.as_bytes()))
+}
+
+fn checked_locator_columns(
+    locator: &SourceLocator,
+    source_body: &str,
+) -> Result<(&'static str, Option<i64>, Option<i64>), ProvenanceError> {
+    match locator {
+        SourceLocator::WholeBody => Ok(("whole_body", None, None)),
+        SourceLocator::Utf8Bytes { start_inclusive, end_exclusive } => {
+            let start = usize::try_from(*start_inclusive).ok();
+            let end = usize::try_from(*end_exclusive).ok();
+            let valid = start.zip(end).is_some_and(|(start, end)| {
+                start <= end
+                    && end <= source_body.len()
+                    && source_body.is_char_boundary(start)
+                    && source_body.is_char_boundary(end)
+            });
+            if !valid || *start_inclusive > i64::MAX as u64 || *end_exclusive > i64::MAX as u64 {
+                return Err(ProvenanceError::new(
+                    ProvenanceErrorReason::LocatorInvalid,
+                    "/provenance/sourceLocator",
+                ));
+            }
+            Ok(("utf8_bytes", Some(*start_inclusive as i64), Some(*end_exclusive as i64)))
+        }
+    }
+}
+
+fn revision_is_registered(tx: &Connection, revision_id: &str) -> rusqlite::Result<bool> {
+    tx.query_row(
+        "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions WHERE revision_id = ?1)",
+        [revision_id],
+        |row| row.get(0),
+    )
+}
+
+fn register_artifact_identity(
+    tx: &Connection,
+    original: &PreparedWrite,
+    cursor: u64,
+) -> Result<(), CommitBatchError> {
+    let (artifact_class, provenance) = match original {
+        PreparedWrite::ProvenancedNode(node) => ("node", Some(&node.provenance)),
+        PreparedWrite::ProvenancedEdge(edge) => ("edge", Some(&edge.provenance)),
+        PreparedWrite::Node { .. } => ("node", None),
+        PreparedWrite::Edge { .. } => ("edge", None),
+        _ => return Ok(()),
+    };
+
+    let Some(provenance) = provenance else {
+        let revision_id = runtime_revision_id(original, cursor);
+        if revision_is_registered(tx, &revision_id)? {
+            return Err(ProvenanceError::new(ProvenanceErrorReason::RevisionIdConflict, "").into());
+        }
+        tx.execute(
+            "INSERT INTO _fathomdb_artifact_revisions(\
+               schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness\
+             ) VALUES(1, ?1, ?2, ?3, 'legacy', ?4)",
+            params![
+                revision_id,
+                artifact_class,
+                cursor,
+                ProvenanceCompleteness::MigratedIncomplete.as_str()
+            ],
+        )?;
+        return Ok(());
+    };
+
+    let revision_id = provenance.artifact_revision_id.as_str();
+    if revision_is_registered(tx, revision_id)? {
+        return Err(ProvenanceError::new(ProvenanceErrorReason::RevisionIdConflict, "").into());
+    }
+
+    match provenance.role {
+        ProvenanceRole::Canonical => {
+            let PreparedWrite::ProvenancedNode(node) = original else {
+                return Err(ProvenanceError::new(
+                    ProvenanceErrorReason::RoleInvalid,
+                    "/provenance/role",
+                )
+                .into());
+            };
+            let existing: Option<String> = tx
+                .query_row(
+                    "SELECT source_revision_id FROM _fathomdb_source_versions \
+                     WHERE source_id = ?1 AND source_version_id = ?2",
+                    params![node.source_id.as_str(), provenance.source_version_id.as_str()],
+                    |row| row.get(0),
+                )
+                .optional()?;
+            if existing.as_deref().is_some_and(|stored| stored != revision_id) {
+                return Err(ProvenanceError::new(
+                    ProvenanceErrorReason::SourceVersionConflict,
+                    "/provenance/sourceVersionId",
+                )
+                .into());
+            }
+            let hash = canonical_body_hash(&node.body);
+            tx.execute(
+                "INSERT INTO _fathomdb_artifact_revisions(\
+                   schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness\
+                 ) VALUES(1, ?1, 'node', ?2, 'canonical_source', ?3)",
+                params![revision_id, cursor, ProvenanceCompleteness::Complete.as_str()],
+            )?;
+            tx.execute(
+                "INSERT INTO _fathomdb_source_versions(\
+                   schema_version, source_id, source_version_id, source_revision_id\
+                 ) VALUES(1, ?1, ?2, ?3)",
+                params![
+                    node.source_id.as_str(),
+                    provenance.source_version_id.as_str(),
+                    revision_id
+                ],
+            )?;
+            tx.execute(
+                "INSERT INTO _fathomdb_source_links(\
+                   schema_version, artifact_revision_id, source_id, source_version_id, source_revision_id,\
+                   locator_kind, start_byte, end_byte, hash_algorithm, hash_digest\
+                 ) VALUES(1, ?1, ?2, ?3, ?1, 'whole_body', NULL, NULL, 'sha256', ?4)",
+                params![
+                    revision_id,
+                    node.source_id.as_str(),
+                    provenance.source_version_id.as_str(),
+                    hash
+                ],
+            )?;
+        }
+        ProvenanceRole::Derived => {
+            let source_revision_id = provenance
+                .source_revision_id
+                .as_ref()
+                .expect("derived constructor always sets source revision");
+            let source: Option<(String, String, String)> = tx
+                .query_row(
+                    "SELECT sv.source_id, sv.source_version_id, n.body \
+                     FROM _fathomdb_artifact_revisions ar \
+                     JOIN _fathomdb_source_versions sv ON sv.source_revision_id = ar.revision_id \
+                     JOIN canonical_nodes n ON n.write_cursor = ar.write_cursor \
+                     WHERE ar.revision_id = ?1 AND ar.artifact_class = 'node' \
+                       AND ar.artifact_role = 'canonical_source'",
+                    [source_revision_id.as_str()],
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+                )
+                .optional()?;
+            let Some((stored_source_id, stored_version_id, source_body)) = source else {
+                return Err(ProvenanceError::new(
+                    ProvenanceErrorReason::SourceRevisionMissing,
+                    "/provenance/sourceRevisionId",
+                )
+                .into());
+            };
+            let written_source_id = match original {
+                PreparedWrite::ProvenancedNode(node) => node.source_id.as_str(),
+                PreparedWrite::ProvenancedEdge(edge) => edge.source_id.as_str(),
+                _ => unreachable!(),
+            };
+            if stored_source_id != written_source_id
+                || stored_version_id != provenance.source_version_id.as_str()
+            {
+                return Err(ProvenanceError::new(
+                    ProvenanceErrorReason::SourceMismatch,
+                    "/provenance/sourceRevisionId",
+                )
+                .into());
+            }
+            let locator =
+                provenance.locator.as_ref().expect("derived constructor always sets locator");
+            let (locator_kind, start_byte, end_byte) =
+                checked_locator_columns(locator, &source_body)?;
+            let supplied_hash = provenance
+                .canonical_source_hash
+                .as_ref()
+                .expect("derived constructor always sets hash");
+            if supplied_hash.digest_hex() != canonical_body_hash(&source_body) {
+                return Err(ProvenanceError::new(
+                    ProvenanceErrorReason::HashMismatch,
+                    "/provenance/canonicalSourceHash",
+                )
+                .into());
+            }
+            tx.execute(
+                "INSERT INTO _fathomdb_artifact_revisions(\
+                   schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness\
+                 ) VALUES(1, ?1, ?2, ?3, 'derived_semantic', ?4)",
+                params![revision_id, artifact_class, cursor, ProvenanceCompleteness::Complete.as_str()],
+            )?;
+            tx.execute(
+                "INSERT INTO _fathomdb_source_links(\
+                   schema_version, artifact_revision_id, source_id, source_version_id, source_revision_id,\
+                   locator_kind, start_byte, end_byte, hash_algorithm, hash_digest\
+                 ) VALUES(1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, 'sha256', ?8)",
+                params![
+                    revision_id,
+                    stored_source_id,
+                    stored_version_id,
+                    source_revision_id.as_str(),
+                    locator_kind,
+                    start_byte,
+                    end_byte,
+                    supplied_hash.digest_hex()
+                ],
+            )?;
+        }
+    }
+    Ok(())
+}
+
 fn commit_batch(
     connection: &mut Connection,
     batch: &[PreparedWrite],
     plans: &[WritePlan],
     base_cursor: u64,
     provenance_row_cap: u64,
-) -> rusqlite::Result<u64> {
+) -> Result<u64, CommitBatchError> {
     // 0.8.20 Slice 21a-2 (TC-57) — `BEGIN IMMEDIATE`, not rusqlite's `BEGIN
     // DEFERRED` default. Take the WAL write lock AT `BEGIN`, before the
     // supersession SELECT below, so this transaction never has to PROMOTE a read
@@ -22793,11 +23574,12 @@ fn commit_batch(
     // surfaced (pinned by `tc57_mechanism_control_write_first_is_retryable`).
     let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
 
-    for (i, (write, plan)) in batch.iter().zip(plans).enumerate() {
+    for (i, (original_write, plan)) in batch.iter().zip(plans).enumerate() {
         // Per-row cursor: row i gets `base_cursor + i + 1`. See the
         // comment in `Engine::write_inner`.
         let cursor = base_cursor.saturating_add((i as u64).saturating_add(1));
-        match (write, plan) {
+        let write = storage_write_shape(original_write);
+        match (write.as_ref(), plan) {
             (
                 PreparedWrite::Node {
                     kind,
@@ -23050,8 +23832,9 @@ fn commit_batch(
                 )?;
                 record_projection_terminal(&tx, cursor, "up_to_date")?;
             }
-            _ => return Err(rusqlite::Error::InvalidQuery),
+            _ => return Err(rusqlite::Error::InvalidQuery.into()),
         }
+        register_artifact_identity(&tx, original_write, cursor)?;
     }
 
     // G8 (Slice 20 / F10) — cross-row dangling-edge flag-and-count. This runs
@@ -23079,10 +23862,11 @@ fn commit_batch(
         // then in-batch-superseded iff `last_index[lid] > i`. This is
         // behavior-identical to the prior per-edge `batch[i+1..]` `.any(..)` scan
         // (which was O(N²) under the single-writer txn) — same skip-set, same count.
-        let mut last_index: HashMap<&str, usize> = HashMap::new();
+        let mut last_index: HashMap<String, usize> = HashMap::new();
         for (i, write) in batch.iter().enumerate() {
-            if let PreparedWrite::Edge { logical_id: Some(lid), .. } = write {
-                last_index.insert(lid.as_str(), i);
+            let write = storage_write_shape(write);
+            if let PreparedWrite::Edge { logical_id: Some(lid), .. } = write.as_ref() {
+                last_index.insert(lid.clone(), i);
             }
         }
 
@@ -23091,7 +23875,8 @@ fn commit_batch(
         )?;
         let mut count: u64 = 0;
         for (i, write) in batch.iter().enumerate() {
-            if let PreparedWrite::Edge { from, to, logical_id, .. } = write {
+            let write = storage_write_shape(write);
+            if let PreparedWrite::Edge { from, to, logical_id, .. } = write.as_ref() {
                 // Honor `edge.superseded_at IS NULL`: an edge inserted in this
                 // batch is active unless a LATER same-batch edge with the same
                 // `Some(logical_id)` tombstoned it (the loop's supersession
@@ -25041,8 +25826,13 @@ mod tests {
     fn guard_row_owned_registry() {
         /// Canonical + operational tables: `write_cursor`-carrying SOURCES OF
         /// TRUTH, never row-owned projections of another row.
-        const NON_PROJECTION_CURSOR_TABLES: &[&str] =
-            &["canonical_nodes", "canonical_edges", "operational_mutations", "operational_state"];
+        const NON_PROJECTION_CURSOR_TABLES: &[&str] = &[
+            "canonical_nodes",
+            "canonical_edges",
+            "operational_mutations",
+            "operational_state",
+            "_fathomdb_artifact_revisions",
+        ];
 
         let dir = TempDir::new().unwrap();
         let path = dir.path().join("registry_guard.fathomdb");

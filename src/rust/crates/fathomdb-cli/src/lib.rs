@@ -1355,6 +1355,7 @@ fn engine_error_code(err: &EngineError) -> &'static str {
         EngineError::Scheduler => "SchedulerError",
         EngineError::OpStore => "OpStoreError",
         EngineError::WriteValidation => "WriteValidationError",
+        EngineError::Provenance(_) => "ProvenanceError",
         EngineError::SchemaValidation => "SchemaValidationError",
         EngineError::Overloaded => "OverloadedError",
         EngineError::Closing => "ClosingError",

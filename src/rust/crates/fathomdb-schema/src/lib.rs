@@ -21,7 +21,7 @@ use std::time::Instant;
 
 use rusqlite::Connection;
 
-pub const SCHEMA_VERSION: u32 = 26;
+pub const SCHEMA_VERSION: u32 = 27;
 
 /// SQLite `PRAGMA` name carrying the on-disk schema-version sentinel.
 ///
@@ -906,6 +906,48 @@ pub const MIGRATIONS: &[Migration] = &[
         step_id: 26,
         sql: "CREATE INDEX IF NOT EXISTS canonical_nodes_write_cursor_idx ON canonical_nodes(write_cursor);
               CREATE INDEX IF NOT EXISTS canonical_edges_write_cursor_idx ON canonical_edges(write_cursor);",
+    },
+    // 0.8.25 Slice 15 — immutable artifact revisions and exact single-source
+    // provenance. Shape only: legacy canonical rows are deliberately not
+    // backfilled and therefore cannot falsely claim complete provenance.
+    Migration {
+        step_id: 27,
+        sql: "-- MIGRATION-ACCRETION-EXEMPTION: Slice-15 immutable revision/source-version/source-link registries; additive shape only, no legacy backfill or canonical-content rewrite.
+              CREATE TABLE _fathomdb_artifact_revisions(
+                  schema_version INTEGER NOT NULL CHECK(schema_version = 1),
+                  revision_id TEXT PRIMARY KEY,
+                  artifact_class TEXT NOT NULL CHECK(artifact_class IN ('node', 'edge')),
+                  write_cursor INTEGER NOT NULL,
+                  artifact_role TEXT NOT NULL
+                      CHECK(artifact_role IN ('canonical_source', 'derived_semantic', 'legacy')),
+                  completeness TEXT NOT NULL
+                      CHECK(completeness IN ('complete', 'migrated_incomplete')),
+                  UNIQUE(artifact_class, write_cursor)
+              );
+              CREATE TABLE _fathomdb_source_versions(
+                  schema_version INTEGER NOT NULL CHECK(schema_version = 1),
+                  source_id TEXT NOT NULL,
+                  source_version_id TEXT NOT NULL,
+                  source_revision_id TEXT NOT NULL UNIQUE,
+                  PRIMARY KEY(source_id, source_version_id)
+              );
+              CREATE TABLE _fathomdb_source_links(
+                  schema_version INTEGER NOT NULL CHECK(schema_version = 1),
+                  artifact_revision_id TEXT PRIMARY KEY,
+                  source_id TEXT NOT NULL,
+                  source_version_id TEXT NOT NULL,
+                  source_revision_id TEXT NOT NULL,
+                  locator_kind TEXT NOT NULL CHECK(locator_kind IN ('whole_body', 'utf8_bytes')),
+                  start_byte INTEGER,
+                  end_byte INTEGER,
+                  hash_algorithm TEXT NOT NULL CHECK(hash_algorithm = 'sha256'),
+                  hash_digest TEXT NOT NULL,
+                  CHECK(
+                      (locator_kind = 'whole_body' AND start_byte IS NULL AND end_byte IS NULL)
+                      OR
+                      (locator_kind = 'utf8_bytes' AND start_byte IS NOT NULL AND end_byte IS NOT NULL)
+                  )
+              );",
     },
 ];
 

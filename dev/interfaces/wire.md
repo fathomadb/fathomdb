@@ -1,8 +1,8 @@
 ---
 title: Wire Format
 date: 2026-07-29
-target_release: 0.8.22
-desc: On-disk + IPC formats (if any) for 0.8.22; short OK
+target_release: 0.8.25
+desc: On-disk + IPC formats (if any) for 0.8.25; short OK
 blast_radius: architecture.md § 5; design/engine.md; design/migrations.md
 status: locked
 ---
@@ -27,8 +27,9 @@ The authoritative layout owner remains `architecture.md` § 5.
 ## Schema-version sentinel
 
 The canonical schema-version sentinel is SQLite `PRAGMA user_version`. In the
-0.8.22 development line `fathomdb-schema::SCHEMA_VERSION` is **26** (the
-released 0.8.21 line is **25**; 0.8.20 shipped **24**).
+0.8.25 development line `fathomdb-schema::SCHEMA_VERSION` is **27**. Step 27
+adds the versioned artifact-revision, source-version, and source-link
+registries without backfilling legacy rows.
 
 Ownership split:
 

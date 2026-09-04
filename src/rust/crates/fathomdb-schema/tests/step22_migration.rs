@@ -317,14 +317,11 @@ fn s22_is_head_and_schema_version_is_22() {
     migrate_with_steps(&conn, MIGRATIONS).expect("migration must succeed");
 
     assert_eq!(user_version(&conn), SCHEMA_VERSION);
-    assert_eq!(
-        SCHEMA_VERSION, 26,
-        "SCHEMA_VERSION must be 26 (step-26 canonical FTS-hydration join indexes, Slice 19)"
-    );
+    assert_eq!(SCHEMA_VERSION, 27, "SCHEMA_VERSION must include Slice 15 step 27");
     assert_eq!(
         MIGRATIONS.last().expect("at least one migration").step_id,
-        26,
-        "step-26 (canonical FTS-hydration join indexes, Slice 19) must be the last (head) migration"
+        27,
+        "step-27 (identity and provenance registries, Slice 15) must be the last (head) migration"
     );
 }
 

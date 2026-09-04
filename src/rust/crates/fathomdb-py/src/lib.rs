@@ -50,10 +50,10 @@ use fathomdb_embedder::{
 };
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
-    rerank_passages as rust_rerank_passages, BoundaryCrossing as RustBoundaryCrossing,
-    ComparisonOp as RustComparisonOp, ConsolidateAxis as RustConsolidateAxis,
-    ConsolidateReceipt as RustConsolidateReceipt, CorruptionDetail, CorruptionKind,
-    DenseReadiness as RustDenseReadiness, EmbedderChoice,
+    rerank_passages as rust_rerank_passages, ArtifactRevisionId,
+    BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ComparisonOp as RustComparisonOp,
+    ConsolidateAxis as RustConsolidateAxis, ConsolidateReceipt as RustConsolidateReceipt,
+    CorruptionDetail, CorruptionKind, DenseReadiness as RustDenseReadiness, EmbedderChoice,
     EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
     EngineError as RustEngineError, EngineOpenError, ExciseReport as RustExciseReport,
     Explanation as RustExplanation, ExtractDocument as RustExtractDocument, Filter as RustFilter,
@@ -66,10 +66,12 @@ use fathomdb_engine::{
     ProjectionRole as RustProjectionRole, ProjectionRuntimeStatus as RustProjectionRuntimeStatus,
     ProjectionRuntimeStatusEntry as RustProjectionRuntimeStatusEntry,
     ProjectionSpec as RustProjectionSpec, ProjectionVector as RustProjectionVector,
+    ProvenanceError as RustProvenanceError, ProvenancedEdgeV1, ProvenancedNodeV1,
     QueryTrace as RustQueryTrace, ReadView as RustReadView, ScalarValue as RustScalarValue,
     SearchExpandResult as RustSearchExpandResult, SearchFilter as RustSearchFilter,
     SearchHit as RustSearchHit, SearchResult as RustSearchResult, SoftFallback as RustSoftFallback,
-    SoftFallbackBranch, SourceId, TraversalDirection as RustTraversalDirection,
+    SoftFallbackBranch, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
+    TraversalDirection as RustTraversalDirection, WriteProvenanceV1,
     WriteReceipt as RustWriteReceipt,
 };
 use fathomdb_schema::MigrationStepReport as RustMigrationStepReport;
@@ -99,6 +101,7 @@ create_exception!(_fathomdb, SchedulerError, EngineError);
 create_exception!(_fathomdb, OpStoreError, EngineError);
 create_exception!(_fathomdb, WriteValidationError, EngineError);
 create_exception!(_fathomdb, SchemaValidationError, EngineError);
+create_exception!(_fathomdb, ProvenanceError, EngineError);
 create_exception!(_fathomdb, OverloadedError, EngineError);
 create_exception!(_fathomdb, ClosingError, EngineError);
 create_exception!(_fathomdb, DatabaseLockedError, EngineError);
@@ -243,6 +246,7 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
         RustEngineError::SchemaValidation => {
             SchemaValidationError::new_err("schema validation error")
         }
+        RustEngineError::Provenance(error) => provenance_error_to_py(&error),
         RustEngineError::Overloaded => OverloadedError::new_err("engine overloaded"),
         RustEngineError::Closing => ClosingError::new_err("engine is closing"),
         RustEngineError::Extractor => ExtractorError::new_err("extractor error"),
@@ -311,6 +315,20 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
             exc
         }
     }
+}
+
+fn provenance_error_to_py(error: &RustProvenanceError) -> PyErr {
+    let exc = ProvenanceError::new_err(format!(
+        "provenance {} at {}",
+        error.reason.as_str(),
+        error.field_path
+    ));
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("reason", error.reason.as_str());
+        let _ = value.setattr("field_path", error.field_path.as_str());
+    });
+    exc
 }
 
 fn corruption_kind_str(kind: CorruptionKind) -> &'static str {
@@ -2622,6 +2640,222 @@ fn dict_source_id_required(d: &Bound<'_, PyDict>, kind: &str) -> PyResult<Source
     })
 }
 
+fn snake_to_camel(value: &str) -> String {
+    let mut result = String::with_capacity(value.len());
+    let mut uppercase = false;
+    for character in value.chars() {
+        if character == '_' {
+            uppercase = true;
+        } else if uppercase {
+            result.extend(character.to_uppercase());
+            uppercase = false;
+        } else {
+            result.push(character);
+        }
+    }
+    result
+}
+
+fn provenance_input_error(reason: &str, field_path: impl Into<String>) -> PyErr {
+    let field_path = field_path.into();
+    let exc = ProvenanceError::new_err(format!("provenance {reason} at {field_path}"));
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("reason", reason);
+        let _ = value.setattr("field_path", field_path);
+    });
+    exc
+}
+
+fn provenance_required_str(dict: &Bound<'_, PyDict>, key: &str) -> PyResult<String> {
+    let reason =
+        if key == "source_version_id" { "source_version_invalid" } else { "revision_id_invalid" };
+    match dict_get(dict, key)? {
+        Some(value) if !value.is_none() => extract_validated_str(&value).map_err(|_| {
+            provenance_input_error(reason, format!("/provenance/{}", snake_to_camel(key)))
+        }),
+        _ => Err(provenance_input_error(reason, format!("/provenance/{}", snake_to_camel(key)))),
+    }
+}
+
+fn strict_provenance_keys(
+    dict: &Bound<'_, PyDict>,
+    allowed: &[&str],
+    field_path: &str,
+) -> PyResult<()> {
+    for key in dict.keys().iter() {
+        let key = key
+            .extract::<String>()
+            .map_err(|_| provenance_input_error("unknown_field", "/provenance"))?;
+        if !allowed.contains(&key.as_str()) {
+            return Err(provenance_input_error(
+                "unknown_field",
+                format!("{field_path}/{}", snake_to_camel(&key)),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn decimal_offset(dict: &Bound<'_, PyDict>, key: &str) -> PyResult<u64> {
+    let value = provenance_required_str(dict, key).map_err(|_| {
+        provenance_input_error(
+            "locator_invalid",
+            format!("/provenance/sourceLocator/{}", snake_to_camel(key)),
+        )
+    })?;
+    let valid = value == "0"
+        || (!value.starts_with('0') && value.bytes().all(|byte| byte.is_ascii_digit()));
+    let parsed = value.parse::<u64>().ok().filter(|offset| *offset <= i64::MAX as u64);
+    if !valid || parsed.is_none() {
+        return Err(provenance_input_error(
+            "locator_invalid",
+            format!("/provenance/sourceLocator/{}", snake_to_camel(key)),
+        ));
+    }
+    Ok(parsed.unwrap())
+}
+
+fn translate_source_locator(value: &Bound<'_, PyAny>) -> PyResult<SourceLocator> {
+    let dict = value
+        .cast::<PyDict>()
+        .map_err(|_| provenance_input_error("locator_invalid", "/provenance/sourceLocator"))?;
+    let kind = match dict_get(dict, "kind")? {
+        Some(value) => extract_validated_str(&value).map_err(|_| {
+            provenance_input_error("locator_invalid", "/provenance/sourceLocator/kind")
+        })?,
+        None => {
+            return Err(provenance_input_error("locator_invalid", "/provenance/sourceLocator/kind"))
+        }
+    };
+    match kind.as_str() {
+        "whole_body" => {
+            strict_provenance_keys(dict, &["kind"], "/provenance/sourceLocator")?;
+            Ok(SourceLocator::whole_body())
+        }
+        "utf8_bytes" => {
+            strict_provenance_keys(
+                dict,
+                &["kind", "start_inclusive", "end_exclusive"],
+                "/provenance/sourceLocator",
+            )?;
+            Ok(SourceLocator::utf8_bytes(
+                decimal_offset(dict, "start_inclusive")?,
+                decimal_offset(dict, "end_exclusive")?,
+            ))
+        }
+        _ => Err(provenance_input_error("locator_invalid", "/provenance/sourceLocator/kind")),
+    }
+}
+
+fn translate_canonical_hash(value: &Bound<'_, PyAny>) -> PyResult<CanonicalHash> {
+    let dict = value
+        .cast::<PyDict>()
+        .map_err(|_| provenance_input_error("hash_invalid", "/provenance/canonicalSourceHash"))?;
+    strict_provenance_keys(dict, &["algorithm", "digest_hex"], "/provenance/canonicalSourceHash")?;
+    let algorithm = provenance_required_str(dict, "algorithm").map_err(|_| {
+        provenance_input_error("hash_invalid", "/provenance/canonicalSourceHash/algorithm")
+    })?;
+    if algorithm != "sha256" {
+        return Err(provenance_input_error(
+            "hash_invalid",
+            "/provenance/canonicalSourceHash/algorithm",
+        ));
+    }
+    let digest = provenance_required_str(dict, "digest_hex").map_err(|_| {
+        provenance_input_error("hash_invalid", "/provenance/canonicalSourceHash/digestHex")
+    })?;
+    CanonicalHash::sha256(digest).map_err(engine_error_to_py)
+}
+
+fn translate_provenance(value: &Bound<'_, PyAny>) -> PyResult<WriteProvenanceV1> {
+    let dict = value
+        .cast::<PyDict>()
+        .map_err(|_| provenance_input_error("role_invalid", "/provenance"))?;
+    strict_provenance_keys(
+        dict,
+        &[
+            "schema_version",
+            "role",
+            "artifact_revision_id",
+            "source_version_id",
+            "source_revision_id",
+            "source_locator",
+            "canonical_source_hash",
+        ],
+        "/provenance",
+    )?;
+    let schema_version = match dict_get(dict, "schema_version")? {
+        Some(value) if !value.is_instance_of::<pyo3::types::PyBool>() => {
+            value.extract::<u32>().ok()
+        }
+        _ => None,
+    };
+    if schema_version != Some(1) {
+        return Err(provenance_input_error(
+            "unsupported_schema_version",
+            "/provenance/schemaVersion",
+        ));
+    }
+    let role = match dict_get(dict, "role")? {
+        Some(value) => extract_validated_str(&value)
+            .map_err(|_| provenance_input_error("role_invalid", "/provenance/role"))?,
+        None => return Err(provenance_input_error("role_invalid", "/provenance/role")),
+    };
+    let artifact_revision_id =
+        ArtifactRevisionId::new(provenance_required_str(dict, "artifact_revision_id")?)
+            .map_err(engine_error_to_py)?;
+    let source_version_id =
+        SourceVersionId::new(provenance_required_str(dict, "source_version_id")?)
+            .map_err(engine_error_to_py)?;
+    match role.as_str() {
+        "canonical" => {
+            strict_provenance_keys(
+                dict,
+                &["schema_version", "role", "artifact_revision_id", "source_version_id"],
+                "/provenance",
+            )?;
+            Ok(WriteProvenanceV1::canonical(artifact_revision_id, source_version_id))
+        }
+        "derived" => {
+            strict_provenance_keys(
+                dict,
+                &[
+                    "schema_version",
+                    "role",
+                    "artifact_revision_id",
+                    "source_version_id",
+                    "source_revision_id",
+                    "source_locator",
+                    "canonical_source_hash",
+                ],
+                "/provenance",
+            )?;
+            let source_revision_id =
+                SourceRevisionId::new(provenance_required_str(dict, "source_revision_id")?)
+                    .map_err(engine_error_to_py)?;
+            let locator = dict_get(dict, "source_locator")?
+                .ok_or_else(|| {
+                    provenance_input_error("locator_invalid", "/provenance/sourceLocator")
+                })
+                .and_then(|value| translate_source_locator(&value))?;
+            let hash = dict_get(dict, "canonical_source_hash")?
+                .ok_or_else(|| {
+                    provenance_input_error("hash_invalid", "/provenance/canonicalSourceHash")
+                })
+                .and_then(|value| translate_canonical_hash(&value))?;
+            Ok(WriteProvenanceV1::derived(
+                artifact_revision_id,
+                source_version_id,
+                source_revision_id,
+                locator,
+                hash,
+            ))
+        }
+        _ => Err(provenance_input_error("role_invalid", "/provenance/role")),
+    }
+}
+
 fn translate_write_item(item: &Bound<'_, PyAny>) -> PyResult<PreparedWrite> {
     let dict = item
         .cast::<PyDict>()
@@ -2673,16 +2907,33 @@ fn translate_node(item: &Bound<'_, PyAny>) -> PyResult<PreparedWrite> {
     // Python and TypeScript share one rule and cannot drift.
     let valid_from = dict_epoch_seconds(dict, "valid_from")?;
     let valid_until = dict_epoch_seconds(dict, "valid_until")?;
-    Ok(PreparedWrite::Node {
-        kind,
-        body,
-        source_id,
-        logical_id,
-        state,
-        reason,
-        valid_from,
-        valid_until,
-    })
+    let provenance = match dict_get(dict, "provenance")? {
+        Some(value) => Some(translate_provenance(&value)?),
+        _ => None,
+    };
+    match provenance {
+        Some(provenance) => Ok(PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+            kind,
+            body,
+            source_id,
+            logical_id,
+            state,
+            reason,
+            valid_from,
+            valid_until,
+            provenance,
+        })),
+        None => Ok(PreparedWrite::Node {
+            kind,
+            body,
+            source_id,
+            logical_id,
+            state,
+            reason,
+            valid_from,
+            valid_until,
+        }),
+    }
 }
 
 /// 0.8.20 Slice 15b (TC-34) — read an optional INTEGER epoch-second field from a
@@ -2733,19 +2984,39 @@ fn translate_edge(item: &Bound<'_, PyAny>) -> PyResult<PreparedWrite> {
     // `None` = "still valid"; that semantic is load-bearing and unchanged.
     let t_valid = dict_epoch_seconds(dict, "t_valid")?;
     let t_invalid = dict_epoch_seconds(dict, "t_invalid")?;
-    Ok(PreparedWrite::Edge {
-        kind,
-        from,
-        to,
-        source_id,
-        logical_id,
-        body,
-        t_valid,
-        t_invalid,
-        confidence: None,
-        extractor_model_id: None,
-        temporal_fallback: None,
-    })
+    let provenance = match dict_get(dict, "provenance")? {
+        Some(value) => Some(translate_provenance(&value)?),
+        _ => None,
+    };
+    match provenance {
+        Some(provenance) => Ok(PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+            kind,
+            from,
+            to,
+            source_id,
+            logical_id,
+            body,
+            t_valid,
+            t_invalid,
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+            provenance,
+        })),
+        None => Ok(PreparedWrite::Edge {
+            kind,
+            from,
+            to,
+            source_id,
+            logical_id,
+            body,
+            t_valid,
+            t_invalid,
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+        }),
+    }
 }
 
 fn translate_op_store(item: &Bound<'_, PyAny>) -> PyResult<PreparedWrite> {
@@ -3235,6 +3506,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("OpStoreError", py.get_type::<OpStoreError>())?;
     m.add("WriteValidationError", py.get_type::<WriteValidationError>())?;
     m.add("SchemaValidationError", py.get_type::<SchemaValidationError>())?;
+    m.add("ProvenanceError", py.get_type::<ProvenanceError>())?;
     m.add("OverloadedError", py.get_type::<OverloadedError>())?;
     m.add("ClosingError", py.get_type::<ClosingError>())?;
     m.add("DatabaseLockedError", py.get_type::<DatabaseLockedError>())?;

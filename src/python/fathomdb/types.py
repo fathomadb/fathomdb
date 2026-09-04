@@ -38,6 +38,54 @@ ProjectionStatusDenseReadiness = Literal[
 ]
 
 
+class WholeBodySourceLocator(TypedDict):
+    """Exact locator covering the entire canonical source body."""
+
+    kind: Literal["whole_body"]
+
+
+class Utf8BytesSourceLocator(TypedDict):
+    """Half-open UTF-8 byte locator with canonical decimal-string offsets."""
+
+    kind: Literal["utf8_bytes"]
+    start_inclusive: str
+    end_exclusive: str
+
+
+SourceLocator = Union[WholeBodySourceLocator, Utf8BytesSourceLocator]
+
+
+class CanonicalHash(TypedDict):
+    """SHA-256 of the entire canonical source revision's stored UTF-8 bytes."""
+
+    algorithm: Literal["sha256"]
+    digest_hex: str
+
+
+class CanonicalWriteProvenanceV1(TypedDict):
+    """Complete provenance for a canonical source node."""
+
+    schema_version: Literal[1]
+    role: Literal["canonical"]
+    artifact_revision_id: str
+    source_version_id: str
+
+
+class DerivedWriteProvenanceV1(TypedDict):
+    """Complete provenance for an artifact derived from a canonical source."""
+
+    schema_version: Literal[1]
+    role: Literal["derived"]
+    artifact_revision_id: str
+    source_version_id: str
+    source_revision_id: str
+    source_locator: SourceLocator
+    canonical_source_hash: CanonicalHash
+
+
+WriteProvenanceV1 = Union[CanonicalWriteProvenanceV1, DerivedWriteProvenanceV1]
+
+
 @dataclass(frozen=True)
 class ProjectionRuntimeStatusEntry:
     """One declared projection's current dense status.

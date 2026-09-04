@@ -71,6 +71,7 @@ different remediation or cross-doc ownership.
 | `SchedulerError`                | scheduler startup/shutdown / queue orchestration   | `EngineError`     | `design/scheduler.md`   | queue and shutdown failures are not vector math or write-shape failures         |
 | `OpStoreError`                  | unknown collection, kind mismatch, registry misuse | `EngineError`     | `design/op-store.md`    | op-store contract failures are separate from primary graph writes               |
 | `WriteValidationError`          | malformed typed write shape                        | `EngineError`     | `design/engine.md`      | fix caller-submitted field shape / variant construction                         |
+| `ProvenanceError`               | versioned identity/provenance validation or dependency refusal | `EngineError` | `plans/0.8.25/features/slice-15/design.md` | closed reason plus canonical JSON-pointer field path; distinct remediation from legacy write-shape failures |
 | `InvalidArgument { msg }`       | caller-argument rejections OUTSIDE the write-validation boundary | `EngineError`     | `design/engine.md`      | carries an actionable message naming the offending argument; `WriteValidation` is a unit variant and cannot |
 | `SchemaValidationError`         | JSON Schema rejection for op-store payloads        | `EngineError`     | `design/op-store.md`    | fix payload contents against registered `schema_id`                             |
 | `EmbedderIdentityMismatchError` | open-time stored-vs-supplied identity comparison   | `EngineOpenError` | `design/embedder.md`    | open-time incompatibility, not runtime write/query failure                      |
@@ -82,6 +83,10 @@ module errors because they are cross-cutting runtime states:
 
 - `OverloadedError`
 - `ClosingError`
+
+`ProvenanceError` is also a direct `EngineError` variant. Its stable payload is
+the closed lower-snake-case `reason` plus RFC 6901 `field_path`; TypeScript maps
+the same payload to `reason` and `fieldPath` under `FDB_PROVENANCE`.
 
 This file is the canonical home for the variant-to-binding mapping inputs and
 the reason the named error modules exist at all.

@@ -427,6 +427,24 @@ provenance — the identifier `Engine::erase_source` consumes — and since TC-3
 governed surface (§ P1), so adding a variant field changes what every binding
 must accept. It is `#[non_exhaustive]`.
 
+### Versioned identity and provenance (0.8.25 Slice 15)
+
+`PreparedWrite::ProvenancedNode(ProvenancedNodeV1)` and
+`PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1)` add complete provenance
+without changing the fields of the legacy `Node` and `Edge` variants. The
+versioned shapes carry `WriteProvenanceV1`; canonical provenance is valid only
+for nodes, while derived provenance is valid for nodes and edges. Caller IDs
+use `[A-Za-z0-9][A-Za-z0-9._:-]{0,127}` and may not use the `_fdb:` namespace.
+
+The public closed types are `ArtifactRevisionId`, `SourceRevisionId`,
+`SourceVersionId`, `CanonicalHash`, `SourceLocator`,
+`ProvenanceCompleteness`, `WriteProvenanceV1`, `ProvenancedNodeV1`, and
+`ProvenancedEdgeV1`. Provenance refusals are
+`EngineError::Provenance(ProvenanceError)`, whose stable code is
+`"provenance"` and whose closed reason is a `ProvenanceErrorReason` plus a
+JSON-pointer `field_path`. Existing `WriteReceipt`, `NodeRecord`, provider,
+and search-hit shapes are unchanged.
+
 ### `source_id` is STRUCTURALLY MANDATORY (0.8.20 Slice 5c, R-20-E3)
 
 `PreparedWrite::Node` and `PreparedWrite::Edge` both carry

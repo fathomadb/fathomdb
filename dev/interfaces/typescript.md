@@ -228,6 +228,21 @@ migration cohort) is refused here and is reachable only through
 `SearchHit` and recorded in the retention-EXEMPT erasure-audit row, so it
 outlives the rows it names. Use an opaque document or tenant id.
 
+## Versioned identity and provenance (0.8.25 Slice 15)
+
+A write item may add a closed `provenance` object. TypeScript accepts only the
+camel-case `schemaVersion`, `artifactRevisionId`, `sourceVersionId`,
+`sourceRevisionId`, `sourceLocator`, `canonicalSourceHash`, `startInclusive`,
+`endExclusive`, and `digestHex` spellings. Offset values are canonical unsigned
+decimal strings. Exported types are `CanonicalHash`, `WholeBodySourceLocator`,
+`Utf8BytesSourceLocator`, `SourceLocator`, `CanonicalWriteProvenanceV1`,
+`DerivedWriteProvenanceV1`, and `WriteProvenanceV1`.
+
+Unknown fields, casing aliases, unsupported versions, invalid IDs, hashes, or
+UTF-8 byte spans throw `ProvenanceError` with code `FDB_PROVENANCE` and expose
+closed `reason` and JSON-pointer `fieldPath` fields. Legacy objects remain
+accepted and the `WriteReceipt` shape is unchanged.
+
 ## Node write-item validity window (0.8.20 Slice 15b, TC-34)
 
 `engine.write([...])` takes loose objects, not typed structs. A **node** item
@@ -630,7 +645,7 @@ reservation, memory quota, scheduler, or evidence that retrieval/FTS/fusion/
 graph work used the GPU.
 
 TypeScript exposes one concrete class per canonical row in
-`design/errors.md` — **28** of them as of 0.8.23, 1:1 with the Python set
+`design/errors.md` — **29** of them as of 0.8.25, 1:1 with the Python set
 below `EngineError`.
 
 Class examples:
@@ -644,6 +659,7 @@ Class examples:
 - `SchemaValidationError`
 - `OverloadedError`
 - `ClosingError`
+- `ProvenanceError` (`reason`, `fieldPath`, code `FDB_PROVENANCE`)
 
 The 0.8.19/0.8.20 additions, all of which the governed verbs above can throw:
 

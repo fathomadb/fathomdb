@@ -99,6 +99,51 @@ export interface WriteReceipt {
   danglingEdgeEndpoints: number;
 }
 
+/** Exact locator covering the entire canonical source body. */
+export interface WholeBodySourceLocator {
+  kind: "whole_body";
+}
+
+/** Half-open UTF-8 byte locator; offsets are canonical decimal strings. */
+export interface Utf8BytesSourceLocator {
+  kind: "utf8_bytes";
+  startInclusive: string;
+  endExclusive: string;
+}
+
+/** Closed v1 source-locator union. */
+export type SourceLocator = WholeBodySourceLocator | Utf8BytesSourceLocator;
+
+/** SHA-256 of the entire canonical source revision's stored UTF-8 bytes. */
+export interface CanonicalHash {
+  algorithm: "sha256";
+  digestHex: string;
+}
+
+/** Complete provenance for a canonical source node. */
+export interface CanonicalWriteProvenanceV1 {
+  schemaVersion: 1;
+  role: "canonical";
+  artifactRevisionId: string;
+  sourceVersionId: string;
+}
+
+/** Complete provenance for an artifact derived from a canonical source. */
+export interface DerivedWriteProvenanceV1 {
+  schemaVersion: 1;
+  role: "derived";
+  artifactRevisionId: string;
+  sourceVersionId: string;
+  sourceRevisionId: string;
+  sourceLocator: SourceLocator;
+  canonicalSourceHash: CanonicalHash;
+}
+
+/** Closed schema-version-1 provenance accepted by versioned writes. */
+export type WriteProvenanceV1 =
+  | CanonicalWriteProvenanceV1
+  | DerivedWriteProvenanceV1;
+
 /**
  * 0.8.20 Slice 5d (R-20-E4) — outcome of {@link Engine.eraseSource}.
  */

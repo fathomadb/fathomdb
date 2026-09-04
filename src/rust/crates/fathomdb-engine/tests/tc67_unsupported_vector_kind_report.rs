@@ -314,7 +314,7 @@ fn an_uncommittable_kind_is_reported_not_silently_dropped() {
     );
 
     // The report is additive READ metadata; nothing about it needs a schema step.
-    assert_eq!(SCHEMA_VERSION, 26, "Slice 19 adds canonical FTS-hydration join indexes");
+    assert_eq!(SCHEMA_VERSION, 27, "Slice 15 adds identity and provenance registries");
 
     opened.engine.close().unwrap();
 }

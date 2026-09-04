@@ -143,16 +143,18 @@
 //   current projection runtime. Its command spelling is binding-specific;
 //   these types were HITL-signed in steward-ledger seq-247.
 pub use fathomdb_engine::{
-    BoundaryCrossing, ComparisonOp, CorruptionDetail, CorruptionKind, CorruptionLocator,
-    CounterSnapshot, DenseReadiness, EmbedderRequired, EmbeddingOperation, EmbeddingReadiness,
-    EmbeddingReadinessState, Engine, EngineError, EngineOpenError, ExciseReport, Explanation,
-    ExtractDocument, IngestWithExtractorReceipt, InitialState, LifecycleState, NodeRecord,
-    OpenReport, OpenStage, OpenedEngine, PerHitExplain, Predicate, PreparedWrite, ProjectionDelta,
-    ProjectionFts, ProjectionRole, ProjectionRuntimeStatus, ProjectionRuntimeStatusEntry,
-    ProjectionRuntimeUnavailabilityReason, ProjectionSpec, ProjectionStatusDenseReadiness,
-    ProjectionVector, QueryTrace, ReadView, RecoveryHint, ScalarValue, SearchExpandResult,
-    SearchFilter, SearchResult, SoftFallback, SoftFallbackBranch, SourceId, Subscription,
-    TraversalDirection, WriteReceipt,
+    ArtifactRevisionId, BoundaryCrossing, CanonicalHash, ComparisonOp, CorruptionDetail,
+    CorruptionKind, CorruptionLocator, CounterSnapshot, DenseReadiness, EmbedderRequired,
+    EmbeddingOperation, EmbeddingReadiness, EmbeddingReadinessState, Engine, EngineError,
+    EngineOpenError, ExciseReport, Explanation, ExtractDocument, IngestWithExtractorReceipt,
+    InitialState, LifecycleState, NodeRecord, OpenReport, OpenStage, OpenedEngine, PerHitExplain,
+    Predicate, PreparedWrite, ProjectionDelta, ProjectionFts, ProjectionRole,
+    ProjectionRuntimeStatus, ProjectionRuntimeStatusEntry, ProjectionRuntimeUnavailabilityReason,
+    ProjectionSpec, ProjectionStatusDenseReadiness, ProjectionVector, ProvenanceCompleteness,
+    ProvenanceError, ProvenanceErrorReason, ProvenancedEdgeV1, ProvenancedNodeV1, QueryTrace,
+    ReadView, RecoveryHint, ScalarValue, SearchExpandResult, SearchFilter, SearchResult,
+    SoftFallback, SoftFallbackBranch, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
+    Subscription, TraversalDirection, WriteProvenanceV1, WriteReceipt,
 };
 
 // The operator-seam report types (`dev/interfaces/rust.md` § 2b) — CLI-only,

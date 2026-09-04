@@ -25,6 +25,17 @@ export class SchedulerError extends FathomDbError {}
 export class OpStoreError extends FathomDbError {}
 export class WriteValidationError extends FathomDbError {}
 export class SchemaValidationError extends FathomDbError {}
+export class ProvenanceError extends FathomDbError {
+  readonly code = "FDB_PROVENANCE";
+  readonly reason: string;
+  readonly fieldPath: string;
+
+  constructor(message: string, reason: string, fieldPath: string) {
+    super(message);
+    this.reason = reason;
+    this.fieldPath = fieldPath;
+  }
+}
 export class OverloadedError extends FathomDbError {}
 export class ClosingError extends FathomDbError {}
 
@@ -281,6 +292,7 @@ type ErrorCode =
   | "FDB_EXTRACTOR"
   // 0.8.12 Slice 15 (OPP-2) — BYO-LLM consolidation harness protocol error.
   | "FDB_CONSOLIDATOR"
+  | "FDB_PROVENANCE"
   // G4 (Slice 35) — filter predicate construction error.
   | "FDB_INVALID_FILTER"
   // Slice 20 — depth > 3 or invalid argument (G5/G6).
@@ -366,6 +378,12 @@ function build(envelope: Envelope): Error {
       return new WriteValidationError(envelope.message);
     case "FDB_SCHEMA_VALIDATION":
       return new SchemaValidationError(envelope.message);
+    case "FDB_PROVENANCE":
+      return new ProvenanceError(
+        envelope.message,
+        String(p.reason ?? ""),
+        String(p.fieldPath ?? ""),
+      );
     case "FDB_OVERLOADED":
       return new OverloadedError(envelope.message);
     case "FDB_CLOSING":

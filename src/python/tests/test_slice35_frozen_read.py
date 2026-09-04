@@ -64,3 +64,20 @@ def test_frozen_search_expand_uses_the_same_context(db_path: str) -> None:
     assert result.all_logical_ids == ["root"]
     assert result.expanded == []
     engine.close()
+
+
+def test_frozen_authentication_precedes_query_and_range_validation(db_path: str) -> None:
+    engine = fathomdb.Engine.open(db_path, use_default_embedder=False)
+    frozen = engine.freeze_read_context(fathomdb.ReadContextV1())
+    malformed = fathomdb.FrozenReadContextV1(
+        schema_version=frozen.schema_version,
+        effective_valid_at=frozen.effective_valid_at,
+        context=frozen.context,
+        token=frozen.token + "0",
+    )
+
+    with pytest.raises(fathomdb.errors.FrozenReadError, match="token_malformed"):
+        engine.search_frozen("", malformed, limit=-1)
+    with pytest.raises(fathomdb.errors.FrozenReadError, match="token_malformed"):
+        engine.search_expand_frozen("", malformed, depth=-1, limit=-1)
+    engine.close()

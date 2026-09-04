@@ -69,7 +69,8 @@ PYTHON="$WORK/python-venv/bin/python"
 "$PYTHON" - "$WORK/python-smoke.fdb" <<'PY'
 import sys
 
-from fathomdb import Engine
+from fathomdb import Engine, ReadContextV1
+from fathomdb.errors import FrozenReadError
 
 engine = Engine.open(sys.argv[1])
 engine.write([
@@ -117,7 +118,19 @@ assert engine.dependency_for_derived({
     "schema_version": 1,
     "derived_revision_id": "wheel-derived-revision",
 }) == dependency
-engine.search("runtime validation")
+frozen = engine.freeze_read_context(ReadContextV1())
+assert engine.search_frozen("runtime validation", frozen).results
+engine.write([{
+    "kind": "doc",
+    "body": "visibility drift",
+    "source_id": "smoke:local-native-wheel",
+}])
+try:
+    engine.search_frozen("runtime validation", frozen)
+except FrozenReadError as error:
+    assert error.reason == "state_drifted"
+else:
+    raise AssertionError("stale frozen context was accepted")
 engine.close()
 print("local Python wheel runtime validation: ok")
 PY
@@ -215,7 +228,21 @@ const byDerived = await engine.dependencyForDerived({
 if (byDerived?.dependencyId !== "npm-dependency") {
   throw new Error("derived dependency lookup failed");
 }
-await engine.search("runtime validation");
+const frozen = await engine.freezeReadContext({ schemaVersion: 1, view: {}, eligibility: {} });
+const frozenResult = await engine.searchFrozen("runtime validation", frozen);
+if (frozenResult.results.length === 0) throw new Error("frozen search returned no result");
+await engine.write([{
+  kind: "doc",
+  body: "visibility drift",
+  sourceId: "smoke:local-native-npm",
+}]);
+let drifted = false;
+try {
+  await engine.searchFrozen("runtime validation", frozen);
+} catch (error) {
+  drifted = error?.reason === "state_drifted";
+}
+if (!drifted) throw new Error("stale frozen context was accepted");
 await engine.close();
 console.log("local N-API package runtime validation: ok");
 JS

@@ -1,5 +1,6 @@
 use fathomdb_schema::{migrate, migrate_with_steps, MIGRATIONS, SCHEMA_VERSION};
 use rusqlite::{Connection, OptionalExtension};
+use std::collections::BTreeSet;
 
 fn generation(connection: &Connection) -> i64 {
     connection
@@ -54,7 +55,30 @@ fn step31_adds_identity_key_generation_and_exact_trigger_manifest() {
             |row| row.get(0),
         )
         .unwrap();
-    assert_eq!(trigger_count, 39, "13 real serving-authority tables x three mutations");
+    assert_eq!(trigger_count, 42, "14 real serving-authority tables x three mutations");
+
+    let expected_tables =
+        ["cn", "ce", "ar", "sv", "sl", "sd", "dc", "pr", "ca", "ps", "pt", "vk", "vr", "ep"];
+    let expected_names = expected_tables
+        .into_iter()
+        .flat_map(|short| {
+            ["ai", "au", "ad"]
+                .into_iter()
+                .map(move |suffix| format!("_fathomdb_read_visibility_{short}_{suffix}"))
+        })
+        .collect::<BTreeSet<_>>();
+    let actual_names = connection
+        .prepare(
+            "SELECT name FROM sqlite_master
+             WHERE type='trigger' AND name LIKE '_fathomdb_read_visibility_%'
+             ORDER BY name",
+        )
+        .unwrap()
+        .query_map([], |row| row.get::<_, String>(0))
+        .unwrap()
+        .collect::<Result<BTreeSet<_>, _>>()
+        .unwrap();
+    assert_eq!(actual_names, expected_names, "the trigger manifest is exact, not count-only");
 
     connection
         .execute("INSERT INTO canonical_nodes(write_cursor,kind,body) VALUES(1,'doc','alpha')", [])
@@ -64,6 +88,23 @@ fn step31_adds_identity_key_generation_and_exact_trigger_manifest() {
     assert_eq!(generation(&connection), 2);
     connection.execute("DELETE FROM canonical_nodes WHERE write_cursor=1", []).unwrap();
     assert_eq!(generation(&connection), 3);
+
+    connection
+        .execute(
+            "INSERT INTO _fathomdb_embedder_profiles(profile,name,revision,dimension)
+             VALUES('default','test','v1',1)",
+            [],
+        )
+        .unwrap();
+    assert_eq!(generation(&connection), 4);
+    connection
+        .execute(
+            "UPDATE _fathomdb_embedder_profiles SET mean_vec=X'00000000'
+             WHERE profile='default'",
+            [],
+        )
+        .unwrap();
+    assert_eq!(generation(&connection), 5, "centering state participates in frozen visibility");
 }
 
 #[test]

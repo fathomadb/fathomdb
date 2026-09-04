@@ -55,3 +55,22 @@ test("frozen search expansion returns the governed union", async () => {
     await engine.close();
   }
 });
+
+test("frozen authentication precedes query, shape, and range validation", async () => {
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  try {
+    const frozen = await engine.freezeReadContext({ schemaVersion: 1, view: {}, eligibility: {} });
+    const malformed = { ...frozen, token: `${frozen.token}0`, unexpected: true };
+
+    await assert.rejects(
+      () => engine.searchFrozen("", malformed, { limit: -1, unexpected: true } as never),
+      (error: unknown) => error instanceof FrozenReadError && error.reason === "token_malformed",
+    );
+    await assert.rejects(
+      () => engine.searchExpandFrozen("", malformed, -1, { searchLimit: -1 }),
+      (error: unknown) => error instanceof FrozenReadError && error.reason === "token_malformed",
+    );
+  } finally {
+    await engine.close();
+  }
+});

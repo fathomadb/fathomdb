@@ -1262,31 +1262,12 @@ fn closure_sequence_exhaustion_rolls_back_root_supersession() {
 }
 
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(32))]
+    #![proptest_config(ProptestConfig::with_cases(8))]
 
     #[test]
     fn mutated_proof_semantics_fail_closed_identically_at_point_read_and_reopen(
-        physical in any::<bool>(),
-        field_index in 0_usize..9,
         nonzero in 1_u64..=u16::MAX as u64,
     ) {
-        let dir = TempDir::new().unwrap();
-        let db = path(&dir, "proof-semantic-property");
-        let opened = Engine::open(&db).unwrap();
-        seed_registered(&opened.engine);
-        opened.engine.transition("source", LifecycleState::Deleted, None).unwrap();
-        if physical {
-            opened.engine.purge("source").unwrap();
-        }
-        let connection = Connection::open(&db).unwrap();
-        let closure_id: String = connection
-            .query_row(
-                "SELECT closure_operation_id FROM _fathomdb_dependency_closures \
-                 WHERE cause=?1 ORDER BY closure_sequence DESC LIMIT 1",
-                [if physical { "purged" } else { "soft_deleted" }],
-                |row| row.get(0),
-            )
-            .unwrap();
         let common_fields = [
             "current_active_dependent_nodes",
             "current_derived_edges",
@@ -1300,31 +1281,60 @@ proptest! {
             "remaining_projection_rows",
             "remaining_receipt_reference_rows",
         ];
-        let (field, value): (&str, Option<u64>) = if field_index < common_fields.len() {
-            (common_fields[field_index], Some(nonzero))
-        } else if physical {
-            (physical_fields[field_index - common_fields.len()], None)
-        } else {
-            (physical_fields[field_index - common_fields.len()], Some(0))
-        };
-        let json_path = format!("$.{field}");
-        connection
-            .execute(
-                "UPDATE _fathomdb_dependency_closures \
-                 SET proof_json=json_set(proof_json,?1,?2) \
-                 WHERE closure_operation_id=?3",
-                params![json_path, value, closure_id],
-            )
-            .unwrap();
-        drop(connection);
+        for physical in [false, true] {
+            for field_index in 0_usize..9 {
+                let dir = TempDir::new().unwrap();
+                let db = path(&dir, "proof-semantic-property");
+                let opened = Engine::open(&db).unwrap();
+                seed_registered(&opened.engine);
+                opened.engine.transition("source", LifecycleState::Deleted, None).unwrap();
+                if physical {
+                    opened.engine.purge("source").unwrap();
+                }
+                let connection = Connection::open(&db).unwrap();
+                let closure_id: String = connection
+                    .query_row(
+                        "SELECT closure_operation_id FROM _fathomdb_dependency_closures \
+                         WHERE cause=?1 ORDER BY closure_sequence DESC LIMIT 1",
+                        [if physical { "purged" } else { "soft_deleted" }],
+                        |row| row.get(0),
+                    )
+                    .unwrap();
+                prop_assert!(opened
+                    .engine
+                    .read_dependency_closure(
+                        ClosureLookupV1::new(closure_id.clone()).unwrap()
+                    )
+                    .unwrap()
+                    .is_some());
+                let (field, value): (&str, Option<u64>) =
+                    if field_index < common_fields.len() {
+                        (common_fields[field_index], Some(nonzero))
+                    } else if physical {
+                        (physical_fields[field_index - common_fields.len()], None)
+                    } else {
+                        (physical_fields[field_index - common_fields.len()], Some(0))
+                    };
+                let json_path = format!("$.{field}");
+                connection
+                    .execute(
+                        "UPDATE _fathomdb_dependency_closures \
+                         SET proof_json=json_set(proof_json,?1,?2) \
+                         WHERE closure_operation_id=?3",
+                        params![json_path, value, closure_id],
+                    )
+                    .unwrap();
+                drop(connection);
 
-        prop_assert!(matches!(
-            opened.engine.read_dependency_closure(
-                ClosureLookupV1::new(closure_id.clone()).unwrap()
-            ),
-            Err(EngineError::Storage)
-        ));
-        opened.engine.close().unwrap();
-        prop_assert!(matches!(Engine::open(&db), Err(EngineOpenError::Corruption(_))));
+                prop_assert!(matches!(
+                    opened.engine.read_dependency_closure(
+                        ClosureLookupV1::new(closure_id.clone()).unwrap()
+                    ),
+                    Err(EngineError::Storage)
+                ));
+                opened.engine.close().unwrap();
+                prop_assert!(matches!(Engine::open(&db), Err(EngineOpenError::Corruption(_))));
+            }
+        }
     }
 }

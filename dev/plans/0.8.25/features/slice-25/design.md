@@ -1,8 +1,8 @@
 ---
 title: 0.8.25 Slice 25 — bounded atomic actuation design
-status: DRAFT_REVIEW_FIX_4
-design_version: 6
-review_fix: 4
+status: DRAFT_REVIEW_FIX_5
+design_version: 7
+review_fix: 5
 depends_on: 20
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
 decision: dev/adr/ADR-0.8.25-bounded-atomic-actuation.md
@@ -146,7 +146,9 @@ become a refused receipt while `Storage`/`Closing` remain root errors.
 `ActuationErrorReason` is the closed set `unsupported_schema_version`,
 `unknown_field`, `unknown_operation_variant`, `field_missing`,
 `field_type_invalid`, `operation_id_invalid`, `decision_policy_id_invalid`,
-`operation_count_invalid`, `operation_id_conflict`, and `operation_id_erased`.
+`operation_count_invalid`, `logical_id_invalid`, `revision_id_invalid`,
+`lifecycle_target_invalid`, `nested_request_invalid`,
+`operation_id_conflict`, and `operation_id_erased`.
 It exposes the lower-snake-case stable reason and RFC 6901 field path;
 persisted-state reasons use `/operationId`. A malformed persisted receipt or
 source-ref row is `EngineError::Storage`, preserving the accepted storage-
@@ -215,13 +217,28 @@ it can admit and fence closure atomically.
 
 ## Validation and refusal precedence
 
-Construction/parsing failures return `EngineError::Actuation` and create no
-receipt: unsupported schema, unknown field/variant, missing/wrong-typed field,
-invalid ID grammar, empty or over-128 operations, or malformed nested public
-type. Keyed persisted-state outcomes—same operation ID/different digest,
-operation-ID erasure tombstone—also return `EngineError::Actuation`, but are
-checked after digesting and are not parsing failures. Corrupt receipt or
-reference storage returns `EngineError::Storage`.
+Error ownership has four non-overlapping layers:
+
+1. Rust constructors return `ActuationError` directly. Batch construction uses
+   `operation_id_invalid` at `/operationId` or `operation_count_invalid` at
+   `/operations`; its policy setter uses `decision_policy_id_invalid` at
+   `/decisionPolicyId`. Lifecycle construction uses `logical_id_invalid` at
+   `/logicalId` or `lifecycle_target_invalid` at `/toState`. Its revision is
+   already typed and cannot be malformed.
+2. Python/TypeScript decode closed outer fields to their matching
+   `ActuationError`. Invalid raw lifecycle revisions use
+   `revision_id_invalid`; invalid logical IDs/targets use the constructor
+   reasons. Malformed nested node/provenance/dependency mappings are wrapped as
+   `nested_request_invalid` while preserving the nested canonical pointer,
+   prefixed by `/operations/{i}/record` or `/operations/{i}/dependency`. No
+   Engine call and no receipt occurs.
+3. `Engine::actuate` wraps only keyed `operation_id_conflict` and
+   `operation_id_erased` as `EngineError::Actuation`. Corrupt receipt/reference
+   storage and infrastructure retain `EngineError::Storage` or their existing
+   family.
+4. A syntactically valid, newly admitted request returns a terminal refused
+   receipt for database-dependent domain failure according to the mapping
+   below; it is not an exception.
 
 A closed, syntactically valid request admitted under a new operation ID can
 produce a persisted terminal `refused` receipt. The first failure in this
@@ -241,8 +258,9 @@ Existing validation maps deterministically:
 | `WriteValidation` or `SchemaValidation` while validating a put | `write_refused` | put index; `/operations/{i}/record` |
 | provenance `role_invalid` or explicit variant/role disagreement | `provenance_role_mismatch` | put index; `/operations/{i}/record/provenance/role` |
 | provenance `source_revision_missing` | `reference_unavailable` | put index; `/operations/{i}/record/provenance/sourceRevisionId` |
+| unavailable persisted/earlier-batch operation reference | `reference_unavailable` | referring index; `/operations/{i}/record/provenance/sourceRevisionId`, `/operations/{i}/dependency/sourceRevisionId`, `/operations/{i}/dependency/derivedRevisionId`, or `/operations/{i}/expectedCurrentRevisionId` |
 | any other `ProvenanceError(reason, path)` | `write_refused` | put index; nested path prefixed by `/operations/{i}/record` |
-| `DependencyErrorReason::DependencyGenerationExhausted` | `dependency_generation_exhausted` | first dependency index; `/operations/{i}/dependency` |
+| `DependencyErrorReason::DependencyGenerationExhausted` | `dependency_generation_exhausted` | first dependency operation that would insert; `/operations/{i}/dependency` |
 | any other `DependencyError(reason, path)` | `dependency_refused` | dependency index; nested path prefixed by `/operations/{i}/dependency` |
 | missing/current-revision mismatch or `NotLifecycleAddressable` | `lifecycle_refused` | transition index; `/operations/{i}/expectedCurrentRevisionId` or `/operations/{i}/logicalId` |
 | `IllegalTransition` | `lifecycle_refused` | transition index; `/operations/{i}/toState` |
@@ -319,10 +337,11 @@ fields so it does not duplicate a whole body in memory.
 Schema step 29 creates:
 
 ```text
-_fathomdb_actuation_receipts(
+CREATE TABLE _fathomdb_actuation_receipts(
   operation_id TEXT PRIMARY KEY,
   schema_version INTEGER NOT NULL CHECK(schema_version = 1),
   request_sha256 TEXT,
+  operations_count INTEGER,
   outcome TEXT NOT NULL,
   refused_operation_index INTEGER,
   refused_field_path TEXT,
@@ -341,6 +360,10 @@ _fathomdb_actuation_receipts(
       length(request_sha256) = 64 AND
       request_sha256 NOT GLOB '*[^0-9a-f]*')
   ),
+  CHECK(
+    (outcome = 'erased' AND operations_count IS NULL) OR
+    (outcome != 'erased' AND operations_count BETWEEN 1 AND 128)
+  ),
   CHECK(json_valid(reason_codes_json) AND
     json_type(reason_codes_json) = 'array'),
   CHECK(json_valid(affected_revision_ids_json) AND
@@ -358,7 +381,8 @@ _fathomdb_actuation_receipts(
       json_array_length(pending_projection_write_cursors_json) = 0 AND
       json_array_length(closure_operation_ids_json) = 0 AND
       (refused_operation_index IS NULL OR
-        refused_operation_index BETWEEN 0 AND 127) AND
+        (refused_operation_index >= 0 AND
+          refused_operation_index < operations_count)) AND
       resulting_write_boundary IS NULL AND
       resulting_dependency_generation IS NULL) OR
     (outcome IN ('committed','committed_closure_pending') AND
@@ -373,7 +397,8 @@ _fathomdb_actuation_receipts(
         (outcome = 'committed_closure_pending' AND
           json_array_length(closure_operation_ids_json) BETWEEN 1 AND 128))) OR
     (outcome = 'erased' AND
-      request_sha256 IS NULL AND refused_operation_index IS NULL AND
+      request_sha256 IS NULL AND operations_count IS NULL AND
+      refused_operation_index IS NULL AND
       refused_field_path IS NULL AND
       json_array_length(reason_codes_json) = 0 AND
       json_array_length(affected_revision_ids_json) = 0 AND
@@ -382,23 +407,21 @@ _fathomdb_actuation_receipts(
       json_array_length(pending_projection_write_cursors_json) = 0 AND
       json_array_length(closure_operation_ids_json) = 0)
   )
-)
+);
 
-_fathomdb_actuation_receipt_source_refs(
+CREATE TABLE _fathomdb_actuation_receipt_source_refs(
   operation_id TEXT NOT NULL,
   schema_version INTEGER NOT NULL CHECK(schema_version = 1),
   ref_kind TEXT NOT NULL CHECK(ref_kind IN (
     'source_id','source_revision_id','artifact_revision_id'
   )),
-  ref_value TEXT NOT NULL CHECK(
-    length(ref_value) > 0 AND instr(ref_value, char(0)) = 0
-  ),
+  ref_value TEXT NOT NULL,
   PRIMARY KEY(operation_id, ref_kind, ref_value)
-)
-INDEX _fathomdb_actuation_receipt_refs_reverse
+);
+CREATE INDEX _fathomdb_actuation_receipt_refs_reverse
   ON _fathomdb_actuation_receipt_source_refs(
     ref_kind, ref_value, operation_id
-  )
+  );
 CREATE TRIGGER _fathomdb_actuation_ref_owner_before_insert
   BEFORE INSERT ON _fathomdb_actuation_receipt_source_refs
   WHEN NOT EXISTS (
@@ -407,7 +430,7 @@ CREATE TRIGGER _fathomdb_actuation_ref_owner_before_insert
   )
   BEGIN
     SELECT RAISE(ABORT, 'actuation receipt reference owner invalid');
-  END
+  END;
 ```
 
 Only terminal data is stored. Receipt JSON arrays are canonical compact JSON,
@@ -424,6 +447,20 @@ IDs and closure IDs preserve first-effect order with duplicates removed. On
 keyed replay the Engine parses, validates bounds/types/order, re-encodes, and
 byte-compares every array; any mismatch is `EngineError::Storage`. RED corrupts
 each forbidden erased/refused/result field and each array form independently.
+
+For a refused row, keyed validation also requires its sole reason to be in the
+closed refusal vocabulary and checks its scalar relationship against the
+mapping table. `expected_write_boundary_mismatch` alone has null operation
+index and exact path `/expectedWriteBoundary`. Every other reason has an index
+in `0..operations_count`, and its path must be the exact value or canonical
+descendant class in its mapping row: put/provenance under `/record`, dependency
+under `/dependency`, lifecycle under one of its three named fields,
+closure-required at the operation root, cursor exhaustion at `/record`, and
+generation exhaustion at `/dependency`. Because the prepared request is not
+stored, `operations_count` is persisted as a checked integer in the receipt
+row solely to validate the terminal receipt; it is 1–128 for every non-erased
+row and null after erasure. Unknown reasons, null/mismatched paths, or an index
+outside that stored count return `EngineError::Storage`.
 
 The exact Slice 25 collection bounds are:
 
@@ -450,6 +487,13 @@ grammar; revision kinds use the landed stored-revision union. An erased receipt
 must have zero source refs. The insert trigger prevents ordinary orphan or
 erased-owner rows without relying on `PRAGMA foreign_keys`; the validator still
 fails closed against raw corruption or a dropped/bypassed trigger.
+
+Slice 25 does not tighten `SourceId`: public values remain valid exactly when
+the landed constructor accepts them (not trim-empty and not `_`-prefixed),
+including an embedded NUL. The reference table stores and compares such values
+as SQLite parameters; it adds no SQL spelling constraint. A compatibility RED
+covers whitespace-adjacent, Unicode, punctuation, long, and embedded-NUL
+boundary-valid IDs through ordinary `write` and `actuate`.
 
 The source-ref index records source IDs, source revision IDs, and artifact
 revision IDs named, created, or resolved as affected by the request—including
@@ -562,7 +606,9 @@ RED begins with shared wire/digest fixtures and real-database Rust tests for:
 
 - empty/129-operation bounds, ID grammar, unknown/version/type/path precedence;
 - exact constructor return/error types and every existing-error-to-refusal
-  mapping row, including whole-batch boundary/cursor/generation paths;
+  mapping row, including Rust constructor, Python/TypeScript decode,
+  Engine-wrapper, admitted-refusal, and whole-batch boundary/cursor/generation
+  ownership and paths;
 - all four variants, canonical/derived role mismatch, ordered backward and
   rejected forward references;
 - same-logical-ID supersession, revision-pinned lifecycle, illegal states,
@@ -583,9 +629,12 @@ RED begins with shared wire/digest fixtures and real-database Rust tests for:
   noncanonical array representation;
 - source-reference raw corruption, invalid identity, orphan owner,
   erased-owner row, 1,025th row, keyed replay, purge, and source erasure;
+- ordinary-write/actuation parity for every valid `SourceId` class, including
+  embedded NUL;
 - dependency-before/after-transition, dependency-before/after-supersession,
   exact dependency replay, and dependency against the replacement revision;
 - exact array formulas/order at their maxima and one-over corruption;
+- one persisted-refusal corruption case for every reason/index/path rule;
 - counter/event behavior for commit, refusal, replay, conflict, erased ID,
   storage corruption, and infrastructure error;
 - Rust/Python/TypeScript public exports, fixture parity, locally packaged

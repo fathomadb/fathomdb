@@ -220,6 +220,8 @@ pub(crate) struct PhysicalClosureAdmission<'a> {
 pub(crate) struct PhysicalProofScope {
     cursors: Vec<i64>,
     revisions: Vec<String>,
+    source_link_artifact_revisions: Vec<String>,
+    source_version_keys: Vec<(String, String)>,
     receipt_refs: Vec<(String, String)>,
 }
 
@@ -244,12 +246,69 @@ pub(crate) fn physical_proof_scope(
     }
     revisions.sort();
     revisions.dedup();
+    let source_ids = receipt_refs
+        .iter()
+        .filter_map(|(kind, value)| (kind == "source_id").then_some(value.as_str()))
+        .collect::<BTreeSet<_>>();
+    let mut source_link_artifact_revisions = BTreeSet::new();
+    let mut source_version_keys = BTreeSet::new();
+    for revision in &revisions {
+        let mut statement = connection
+            .prepare(
+                "SELECT artifact_revision_id FROM _fathomdb_source_links \
+                 WHERE artifact_revision_id=?1 OR source_revision_id=?1",
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let rows = statement
+            .query_map([revision], |row| row.get::<_, String>(0))
+            .map_err(|_| EngineError::Storage)?;
+        for row in rows {
+            source_link_artifact_revisions.insert(row.map_err(|_| EngineError::Storage)?);
+        }
+        let mut statement = connection
+            .prepare(
+                "SELECT source_id,source_version_id FROM _fathomdb_source_versions \
+                 WHERE source_revision_id=?1",
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let rows = statement
+            .query_map([revision], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+            .map_err(|_| EngineError::Storage)?;
+        for row in rows {
+            source_version_keys.insert(row.map_err(|_| EngineError::Storage)?);
+        }
+    }
+    for source_id in source_ids {
+        let mut statement = connection
+            .prepare("SELECT artifact_revision_id FROM _fathomdb_source_links WHERE source_id=?1")
+            .map_err(|_| EngineError::Storage)?;
+        let rows = statement
+            .query_map([source_id], |row| row.get::<_, String>(0))
+            .map_err(|_| EngineError::Storage)?;
+        for row in rows {
+            source_link_artifact_revisions.insert(row.map_err(|_| EngineError::Storage)?);
+        }
+        let mut statement = connection
+            .prepare(
+                "SELECT source_id,source_version_id FROM _fathomdb_source_versions \
+                 WHERE source_id=?1",
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let rows = statement
+            .query_map([source_id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+            .map_err(|_| EngineError::Storage)?;
+        for row in rows {
+            source_version_keys.insert(row.map_err(|_| EngineError::Storage)?);
+        }
+    }
     let mut cursors = cursors.to_vec();
     cursors.sort_unstable();
     cursors.dedup();
     Ok(PhysicalProofScope {
         cursors,
         revisions,
+        source_link_artifact_revisions: source_link_artifact_revisions.into_iter().collect(),
+        source_version_keys: source_version_keys.into_iter().collect(),
         receipt_refs: receipt_refs.iter().cloned().collect(),
     })
 }
@@ -340,6 +399,37 @@ pub(crate) fn measure_physical_closures(
                 .map_err(|_| EngineError::Storage)?;
             projection_rows = projection_rows.saturating_add(count);
         }
+    }
+    for revision in &scope.revisions {
+        let count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM _fathomdb_artifact_revisions WHERE revision_id=?1",
+                [revision],
+                |row| row.get(0),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        canonical_rows = canonical_rows.saturating_add(count);
+    }
+    for artifact_revision in &scope.source_link_artifact_revisions {
+        let count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM _fathomdb_source_links WHERE artifact_revision_id=?1",
+                [artifact_revision],
+                |row| row.get(0),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        canonical_rows = canonical_rows.saturating_add(count);
+    }
+    for (source_id, source_version_id) in &scope.source_version_keys {
+        let count: i64 = connection
+            .query_row(
+                "SELECT COUNT(*) FROM _fathomdb_source_versions \
+                 WHERE source_id=?1 AND source_version_id=?2",
+                params![source_id, source_version_id],
+                |row| row.get(0),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        canonical_rows = canonical_rows.saturating_add(count);
     }
     let mut dependency_rows = 0_i64;
     for revision in &scope.revisions {

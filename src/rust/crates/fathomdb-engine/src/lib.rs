@@ -25096,6 +25096,8 @@ fn bm25f_search_inner(
     if query_terms.is_empty() {
         return Ok(Vec::new());
     }
+    let effective_at = current_epoch_seconds();
+    let strict_eligibility = dependency_closure::read_eligibility_sql("cn", false, false, false, 1);
 
     // Corpus pass over ACTIVE rows (superseded versions excluded): accumulate
     // N, total field length per field (for avg field length), and per-term
@@ -25104,13 +25106,14 @@ fn bm25f_search_inner(
     let mut total_len = [0.0_f64; 3]; // kind, body, status
     let mut df: HashMap<String, usize> = HashMap::new();
     {
-        let mut stmt = connection.prepare(
+        let sql = format!(
             "SELECT v.kind, v.body, v.status
              FROM search_index_v2 v
              JOIN canonical_nodes cn ON cn.write_cursor = v.write_cursor
-             WHERE cn.superseded_at IS NULL AND cn.state = 'active'",
-        )?;
-        let mut rows = stmt.query([])?;
+             WHERE cn.superseded_at IS NULL AND cn.state = 'active'{strict_eligibility}"
+        );
+        let mut stmt = connection.prepare(&sql)?;
+        let mut rows = stmt.query([effective_at])?;
         while let Some(row) = rows.next()? {
             let fields =
                 [row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?];
@@ -25142,9 +25145,12 @@ fn bm25f_search_inner(
     // Active write_cursor set, to filter FTS5 MATCH candidates (search_index_v2
     // retains superseded versions, exactly like search_index).
     let active: BTreeSet<i64> = {
-        let mut stmt = connection
-            .prepare("SELECT write_cursor FROM canonical_nodes WHERE superseded_at IS NULL AND state = 'active'")?;
-        let rows = stmt.query_map([], |r| r.get::<_, i64>(0))?;
+        let sql = format!(
+            "SELECT cn.write_cursor FROM canonical_nodes cn \
+             WHERE cn.superseded_at IS NULL AND cn.state = 'active'{strict_eligibility}"
+        );
+        let mut stmt = connection.prepare(&sql)?;
+        let rows = stmt.query_map([effective_at], |r| r.get::<_, i64>(0))?;
         rows.collect::<rusqlite::Result<BTreeSet<i64>>>()?
     };
 

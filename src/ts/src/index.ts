@@ -430,6 +430,23 @@ function closureResponse(value: unknown): ClosureStatusV1 {
   if (blockerCode !== null && typeof blockerCode !== "string") {
     closureResponseError("/blockerCode");
   }
+  const proof = status.proof === null ? null : closureProofResponse(status.proof);
+  const physicalCause = cause === "purged" || cause === "source_erased";
+  if (
+    (phase === "proving" && physicalCause) ||
+    (phase === "at_rest_pending" && !physicalCause)
+  ) {
+    closureResponseError("/phase");
+  }
+  if ((phase === "incomplete") !== (blockerCode !== null)) {
+    closureResponseError("/blockerCode");
+  }
+  const proofShapeValid =
+    (phase === "complete" && proof !== null) ||
+    (phase === "proving" && proof === null) ||
+    (phase === "at_rest_pending" && proof !== null) ||
+    (phase === "incomplete" && (proof !== null) === physicalCause);
+  if (!proofShapeValid) closureResponseError("/proof");
   return {
     schemaVersion: 1,
     closureOperationId,
@@ -447,7 +464,7 @@ function closureResponse(value: unknown): ClosureStatusV1 {
     ),
     affectedCount: closureDecimal(status.affectedCount, "/affectedCount"),
     blockerCode,
-    proof: status.proof === null ? null : closureProofResponse(status.proof),
+    proof,
   };
 }
 

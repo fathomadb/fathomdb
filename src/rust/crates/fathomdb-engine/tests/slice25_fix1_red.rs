@@ -656,9 +656,11 @@ fn infrastructure_failure_after_each_operation_rolls_back_the_whole_batch() {
         assert!(!before_projection_state[1].1.is_empty(), "projection registry fixture is live");
         drop(before);
         let mut source = canonical("source-r1", "source");
+        source.kind = "s25src".into();
         source.body = r#"{"topic":"source"}"#.into();
         let mut derived =
             derived_with_source_hash("derived-r1", "derived", "source-r1", &source.body);
+        derived.kind = "s25drv".into();
         derived.body = r#"{"topic":"derived"}"#.into();
         let request = ActuationBatchV1::new(
             format!("operation-fault-{fault_index}"),
@@ -685,12 +687,12 @@ fn infrastructure_failure_after_each_operation_rolls_back_the_whole_batch() {
         opened.engine.force_actuation_failure_after_operation_for_test(fault_index);
         assert!(matches!(opened.engine.actuate(request.clone()), Err(EngineError::Storage)));
         let connection = Connection::open(&db_path).unwrap();
-        for (table, expected) in rollback_tables.iter().zip(before_counts) {
+        for (table, expected) in rollback_tables.iter().zip(&before_counts) {
             let count: i64 = connection
                 .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row.get(0))
                 .unwrap();
             assert_eq!(
-                count, expected,
+                count, *expected,
                 "fault after operation {fault_index} changed rows in {table}"
             );
         }
@@ -715,16 +717,48 @@ fn infrastructure_failure_after_each_operation_rolls_back_the_whole_batch() {
         let control = Connection::open(&db_path).unwrap();
         let control_state = projection_rollback_state(&control);
         assert_eq!(control_state[1], before_projection_state[1]);
-        for (table, rows) in control_state.iter().filter(|(table, _)| {
-            matches!(
-                table.as_str(),
-                "property_search_index"
+        for (index, table) in rollback_tables.iter().enumerate() {
+            let count: i64 = control
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row.get(0))
+                .unwrap();
+            if matches!(
+                *table,
+                "canonical_nodes"
+                    | "canonical_attributes"
+                    | "property_search_index"
+                    | "search_index"
+                    | "search_index_v2"
+                    | "_fathomdb_artifact_revisions"
+                    | "_fathomdb_source_versions"
+                    | "_fathomdb_source_links"
+                    | "_fathomdb_source_dependencies"
                     | "_fathomdb_projection_state"
+                    | "_fathomdb_projection_terminal"
                     | "_fathomdb_vector_kinds"
                     | "_fathomdb_vector_rows"
-            )
-        }) {
-            assert!(!rows.is_empty(), "successful control did not exercise {table}");
+                    | "_fathomdb_actuation_receipts"
+                    | "_fathomdb_actuation_receipt_source_refs"
+            ) {
+                assert!(
+                    count > before_counts[index],
+                    "successful control did not increase rows in {table}: {} -> {count}",
+                    before_counts[index]
+                );
+            }
+        }
+        for table in [
+            "property_search_index",
+            "_fathomdb_projection_state",
+            "_fathomdb_vector_kinds",
+            "_fathomdb_vector_rows",
+        ] {
+            let before_rows =
+                before_projection_state.iter().find(|(name, _)| name == table).unwrap();
+            let after_rows = control_state.iter().find(|(name, _)| name == table).unwrap();
+            assert_ne!(
+                after_rows.1, before_rows.1,
+                "successful control did not change exact rows in {table}"
+            );
         }
     }
 }

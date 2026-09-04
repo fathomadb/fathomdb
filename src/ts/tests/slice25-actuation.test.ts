@@ -217,3 +217,85 @@ test("actuation rejects unknown nested record fields", async () => {
   );
   await engine.close();
 });
+
+test("actuation rejects an own top-level __proto__ field without writing", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "fathomdb-actuation-proto-"));
+  const engine = await Engine.open(join(dir, "actuation.fathom"));
+  const input = request("typescript-proto");
+  Object.defineProperty(input, "__proto__", {
+    value: {},
+    enumerable: true,
+    configurable: true,
+    writable: true,
+  });
+  await assert.rejects(
+    engine.actuate(input),
+    (error: unknown) =>
+      error instanceof ActuationError &&
+      error.reason === "unknown_field" &&
+      error.fieldPath === "/__proto__",
+  );
+  assert.equal((await engine.search("source body")).results.length, 0);
+  await engine.close();
+});
+
+test("actuation rejects an own nested __proto__ field without writing", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "fathomdb-actuation-nested-proto-"));
+  const engine = await Engine.open(join(dir, "actuation.fathom"));
+  const input = request("typescript-nested-proto");
+  const record = (
+    input.operations[0] as Extract<
+      (typeof input.operations)[number],
+      { type: "put_canonical_node" }
+    >
+  ).record;
+  Object.defineProperty(record, "__proto__", {
+    value: {},
+    enumerable: true,
+    configurable: true,
+    writable: true,
+  });
+  await assert.rejects(
+    engine.actuate(input),
+    (error: unknown) =>
+      error instanceof ActuationError &&
+      error.reason === "unknown_field" &&
+      error.fieldPath === "/operations/0/record/__proto__",
+  );
+  assert.equal((await engine.search("source body")).results.length, 0);
+  await engine.close();
+});
+
+test("actuation validates operation count before nested operation data", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "fathomdb-actuation-count-precedence-"));
+  const engine = await Engine.open(join(dir, "actuation.fathom"));
+  const input = request("typescript-count-precedence");
+  const invalid = structuredClone(input.operations[0]);
+  if (invalid.type === "put_canonical_node") invalid.record.sourceId = "";
+  input.operations = [invalid, ...Array.from({ length: 128 }, () => input.operations[0])];
+  await assert.rejects(
+    engine.actuate(input),
+    (error: unknown) =>
+      error instanceof ActuationError &&
+      error.reason === "operation_count_invalid" &&
+      error.fieldPath === "/operations",
+  );
+  await engine.close();
+});
+
+test("actuation validates policy ID before nested operation data", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "fathomdb-actuation-policy-precedence-"));
+  const engine = await Engine.open(join(dir, "actuation.fathom"));
+  const input = request("typescript-policy-precedence");
+  input.decisionPolicyId = "_invalid";
+  const operation = input.operations[0];
+  if (operation.type === "put_canonical_node") operation.record.sourceId = "";
+  await assert.rejects(
+    engine.actuate(input),
+    (error: unknown) =>
+      error instanceof ActuationError &&
+      error.reason === "decision_policy_id_invalid" &&
+      error.fieldPath === "/decisionPolicyId",
+  );
+  await engine.close();
+});

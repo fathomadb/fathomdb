@@ -142,3 +142,36 @@ def test_actuation_rejects_unknown_nested_record_field(tmp_path: Path) -> None:
     else:
         raise AssertionError("unknown nested record field was accepted")
     engine.close()
+
+
+def test_actuation_validates_operation_count_before_nested_operation_data(
+    tmp_path: Path,
+) -> None:
+    engine = Engine.open(str(tmp_path / "count-precedence.fathom"))
+    request = _request("python-count-precedence")
+    operation = request["operations"][0]
+    operation["record"]["source_id"] = ""  # type: ignore[index,typeddict-item]
+    request["operations"] = [operation] * 129
+    try:
+        engine.actuate(request)
+    except ActuationError as error:
+        assert error.reason == "operation_count_invalid"
+        assert error.field_path == "/operations"
+    else:
+        raise AssertionError("nested operation data won precedence over operation count")
+    engine.close()
+
+
+def test_actuation_validates_policy_id_before_nested_operation_data(tmp_path: Path) -> None:
+    engine = Engine.open(str(tmp_path / "policy-precedence.fathom"))
+    request = _request("python-policy-precedence")
+    request["decision_policy_id"] = "_invalid"
+    request["operations"][0]["record"]["source_id"] = ""  # type: ignore[index,typeddict-item]
+    try:
+        engine.actuate(request)
+    except ActuationError as error:
+        assert error.reason == "decision_policy_id_invalid"
+        assert error.field_path == "/decisionPolicyId"
+    else:
+        raise AssertionError("nested operation data won precedence over policy ID")
+    engine.close()

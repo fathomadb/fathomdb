@@ -14,8 +14,8 @@ commands, fixtures, receipt paths, and stop conditions are reviewed.
 Every slice uses the delivery loop in
 [`fathomdb-data-plane-foldback-v2.md`](../../fathomdb-data-plane-foldback-v2.md):
 requirements and acceptance criteria, architecture-grounded design,
-independent design review with at most three FIX-n cycles, TDD RED/GREEN,
-independent implementation review with at most four FIX-n cycles, verification,
+independent design review with at most five FIX-n cycles, TDD RED/GREEN,
+independent implementation review with at most five FIX-n cycles, verification,
 and a durable status record.
 
 The [design-documentation matrix](../design-documentation-matrix.md) records

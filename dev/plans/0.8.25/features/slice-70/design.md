@@ -231,6 +231,6 @@ when eligible, all/all-feature, Windows CPU/native, CUDA candidate-equivalence,
 registry-installed profile/rejection smokes, and any preregistered live-model
 usability route. Operator routes are not applicable.
 
-An independent review may require at most three FIX-n cycles. Unresolved P1/P2
+An independent review may require at most five FIX-n cycles. Unresolved P1/P2
 findings, inferred time intent, semantic truth selection, a second profile
 registry, use of unavailable external gold, or silent fallback blocks READY.

@@ -208,6 +208,6 @@ CUDA dense/rerank/fusion equivalence, and registry-installed smokes. A
 live-model route is run only when its sealed campaign requires an answer-
 usability gate; operator routes are not applicable.
 
-An independent review may require at most three FIX-n cycles. Unresolved P1/P2
+An independent review may require at most five FIX-n cycles. Unresolved P1/P2
 findings, an implicit router, mutable production parameters, a missing
 usability guard, or any registry-controlled default behavior blocks READY.

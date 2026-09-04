@@ -157,9 +157,9 @@ requires its formal independent review before READY. Slice 65/70 records remain
 
 Each feature slice writes numbered requirements and slice-local falsifiable
 acceptance criteria, then writes or reconciles a design grounded in the reviewed architecture. An
-independent design review allows at most three documented FIX-n cycles.
+independent design review allows at most five documented FIX-n cycles.
 Implementation follows TDD RED/GREEN, then an independent implementation
-review allows at most four documented FIX-n cycles, subject to the standing
+review allows at most five documented FIX-n cycles, subject to the standing
 same-failure retry stop. Focused, lifecycle, parity, and repository verification
 must pass before closure.
 

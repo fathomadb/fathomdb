@@ -1,15 +1,34 @@
 //! 0.8.25 Slice 15 — immutable revision identity and exact source provenance.
 
+use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    ArtifactRevisionId, CanonicalHash, Engine, EngineError, InitialState, PreparedWrite,
-    ProvenanceErrorReason, ProvenancedEdgeV1, ProvenancedNodeV1, SourceId, SourceLocator,
-    SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+    ArtifactRevisionId, CanonicalHash, Engine, EngineError, InitialState, LifecycleState,
+    PreparedWrite, ProjectionRole, ProjectionSpec, ProjectionVector, ProvenanceErrorReason,
+    ProvenancedEdgeV1, ProvenancedNodeV1, SourceId, SourceLocator, SourceRevisionId,
+    SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use proptest::prelude::*;
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
+use std::collections::BTreeSet;
+use std::sync::Arc;
 use tempfile::TempDir;
+
+#[derive(Clone, Debug)]
+struct FixedEmbedder;
+
+impl Embedder for FixedEmbedder {
+    fn identity(&self) -> EmbedderIdentity {
+        EmbedderIdentity::new("slice15-fix1", "1", 384)
+    }
+
+    fn embed(&self, _text: &str) -> Result<Vector, EmbedderError> {
+        let mut vector = vec![0.0; 384];
+        vector[0] = 1.0;
+        Ok(vector)
+    }
+}
 
 fn db_path(dir: &TempDir, name: &str) -> std::path::PathBuf {
     dir.path().join(format!("{name}{SQLITE_SUFFIX}"))
@@ -17,6 +36,59 @@ fn db_path(dir: &TempDir, name: &str) -> std::path::PathBuf {
 
 fn digest(body: &str) -> String {
     Sha256::digest(body.as_bytes()).iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn vector_spec() -> ProjectionSpec {
+    ProjectionSpec {
+        name: "summary".into(),
+        roles: BTreeSet::from([ProjectionRole::Searchable]),
+        fts: None,
+        vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+        source: None,
+    }
+}
+
+fn registry_snapshot(path: &std::path::Path) -> (i64, i64, i64, i64, String, String, i64) {
+    let connection = Connection::open(path).unwrap();
+    (
+        connection.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |r| r.get(0)).unwrap(),
+        connection
+            .query_row("SELECT COUNT(*) FROM _fathomdb_artifact_revisions", [], |r| r.get(0))
+            .unwrap(),
+        connection
+            .query_row("SELECT COUNT(*) FROM _fathomdb_source_versions", [], |r| r.get(0))
+            .unwrap(),
+        connection
+            .query_row("SELECT COUNT(*) FROM _fathomdb_source_links", [], |r| r.get(0))
+            .unwrap(),
+        connection
+            .query_row(
+                "SELECT COALESCE(group_concat(kind, ','), '') FROM \
+                 (SELECT kind FROM _fathomdb_vector_kinds ORDER BY kind)",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap(),
+        connection
+            .query_row(
+                "SELECT COALESCE(group_concat(write_cursor || ':' || state, ','), '') FROM \
+                 (SELECT write_cursor, state FROM _fathomdb_projection_terminal \
+                  ORDER BY write_cursor)",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap(),
+        connection
+            .query_row(
+                "SELECT COUNT(*) FROM canonical_nodes n \
+                 JOIN _fathomdb_vector_kinds k ON k.kind = n.kind \
+                 LEFT JOIN _fathomdb_projection_terminal t ON t.write_cursor = n.write_cursor \
+                 WHERE t.write_cursor IS NULL",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap(),
+    )
 }
 
 fn node(
@@ -220,6 +292,264 @@ fn legacy_write_gets_runtime_revision_without_claiming_complete_provenance() {
         .query_row("SELECT COUNT(*) FROM _fathomdb_source_links", [], |row| row.get(0))
         .unwrap();
     assert_eq!(links, 0);
+}
+
+#[test]
+fn failing_provenance_write_cannot_commit_late_vector_enrolment_or_queue_changes() {
+    let dir = TempDir::new().unwrap();
+    let path = db_path(&dir, "atomic-enrolment");
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(FixedEmbedder)).unwrap();
+    let source_body = r#"{"summary":"canonical source"}"#;
+    opened
+        .engine
+        .write(&[node(
+            "source",
+            source_body,
+            "source-1",
+            WriteProvenanceV1::canonical(
+                ArtifactRevisionId::new("source-revision-atomic").unwrap(),
+                SourceVersionId::new("source-v-atomic").unwrap(),
+            ),
+        )])
+        .unwrap();
+    opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
+    opened.engine.drain(5_000).unwrap();
+    let before = registry_snapshot(&path);
+
+    let failing = PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+        kind: "note".into(),
+        body: r#"{"summary":"derived"}"#.into(),
+        source_id: SourceId::new("source-1").unwrap(),
+        logical_id: Some("derived-atomic".into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        provenance: WriteProvenanceV1::derived(
+            ArtifactRevisionId::new("derived-revision-atomic").unwrap(),
+            SourceVersionId::new("source-v-atomic").unwrap(),
+            SourceRevisionId::new("source-revision-atomic").unwrap(),
+            SourceLocator::utf8_bytes(0, 10_000),
+            CanonicalHash::sha256(digest(source_body)).unwrap(),
+        ),
+    });
+    let error = opened.engine.write(&[failing]).unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::Provenance(ref error)
+            if error.reason == ProvenanceErrorReason::LocatorInvalid
+                && error.field_path == "/provenance/sourceLocator"
+    ));
+
+    assert_eq!(
+        registry_snapshot(&path),
+        before,
+        "a refused provenance write must leave canonical rows, provenance registries, \
+         vector-kind enrollment, projection terminals, and pending queue state unchanged"
+    );
+}
+
+#[test]
+fn collisions_are_global_while_source_versions_are_scoped_by_source_id() {
+    let dir = TempDir::new().unwrap();
+    let path = db_path(&dir, "identity-scope");
+    let opened = Engine::open(&path).unwrap();
+    opened
+        .engine
+        .write(&[node(
+            "source-a",
+            "A",
+            "source-a",
+            WriteProvenanceV1::canonical(
+                ArtifactRevisionId::new("revision-a1").unwrap(),
+                SourceVersionId::new("version-1").unwrap(),
+            ),
+        )])
+        .unwrap();
+
+    let collision = opened
+        .engine
+        .write(&[node(
+            "source-a-replay",
+            "A",
+            "source-a",
+            WriteProvenanceV1::canonical(
+                ArtifactRevisionId::new("revision-a1").unwrap(),
+                SourceVersionId::new("version-2").unwrap(),
+            ),
+        )])
+        .unwrap_err();
+    assert!(matches!(
+        collision,
+        EngineError::Provenance(ref error)
+            if error.reason == ProvenanceErrorReason::RevisionIdConflict
+                && error.field_path.is_empty()
+    ));
+
+    let version_conflict = opened
+        .engine
+        .write(&[node(
+            "source-a-conflict",
+            "different",
+            "source-a",
+            WriteProvenanceV1::canonical(
+                ArtifactRevisionId::new("revision-a2").unwrap(),
+                SourceVersionId::new("version-1").unwrap(),
+            ),
+        )])
+        .unwrap_err();
+    assert!(matches!(
+        version_conflict,
+        EngineError::Provenance(ref error)
+            if error.reason == ProvenanceErrorReason::SourceVersionConflict
+                && error.field_path == "/provenance/sourceVersionId"
+    ));
+
+    opened
+        .engine
+        .write(&[node(
+            "source-b",
+            "B",
+            "source-b",
+            WriteProvenanceV1::canonical(
+                ArtifactRevisionId::new("revision-b1").unwrap(),
+                SourceVersionId::new("version-1").unwrap(),
+            ),
+        )])
+        .unwrap();
+}
+
+#[test]
+fn runtime_edge_revision_distinguishes_null_from_empty_body_at_the_same_cursor() {
+    fn first_revision(body: Option<&str>) -> String {
+        let dir = TempDir::new().unwrap();
+        let path = db_path(&dir, "edge-digest");
+        let opened = Engine::open(&path).unwrap();
+        opened
+            .engine
+            .write(&[PreparedWrite::Edge {
+                kind: "rel".into(),
+                from: "a".into(),
+                to: "b".into(),
+                source_id: SourceId::new("source").unwrap(),
+                logical_id: Some("edge".into()),
+                body: body.map(str::to_string),
+                t_valid: None,
+                t_invalid: None,
+                confidence: None,
+                extractor_model_id: None,
+                temporal_fallback: None,
+            }])
+            .unwrap();
+        opened.engine.close().unwrap();
+        Connection::open(path)
+            .unwrap()
+            .query_row("SELECT revision_id FROM _fathomdb_artifact_revisions", [], |row| row.get(0))
+            .unwrap()
+    }
+
+    assert_ne!(first_revision(None), first_revision(Some("")));
+}
+
+#[test]
+fn referenced_canonical_purge_refuses_then_source_erasure_leaves_no_registry_orphans() {
+    let dir = TempDir::new().unwrap();
+    let path = db_path(&dir, "erasure");
+    let opened = Engine::open(&path).unwrap();
+    let source_body = "source bytes";
+    opened
+        .engine
+        .write(&[
+            node(
+                "source-logical",
+                source_body,
+                "source-bucket",
+                WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("source-revision-erasure").unwrap(),
+                    SourceVersionId::new("source-version-erasure").unwrap(),
+                ),
+            ),
+            node(
+                "derived-logical",
+                "derived",
+                "source-bucket",
+                WriteProvenanceV1::derived(
+                    ArtifactRevisionId::new("derived-revision-erasure").unwrap(),
+                    SourceVersionId::new("source-version-erasure").unwrap(),
+                    SourceRevisionId::new("source-revision-erasure").unwrap(),
+                    SourceLocator::whole_body(),
+                    CanonicalHash::sha256(digest(source_body)).unwrap(),
+                ),
+            ),
+        ])
+        .unwrap();
+    opened.engine.transition("source-logical", LifecycleState::Deleted, None).unwrap();
+    let error = opened.engine.purge("source-logical").unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::Provenance(ref error)
+            if error.reason == ProvenanceErrorReason::ProvenanceInUse
+                && error.field_path.is_empty()
+    ));
+    assert_eq!(registry_snapshot(&path).0, 2);
+
+    opened.engine.erase_source("source-bucket").unwrap();
+    opened.engine.close().unwrap();
+    let connection = Connection::open(path).unwrap();
+    for table in [
+        "canonical_nodes",
+        "_fathomdb_artifact_revisions",
+        "_fathomdb_source_versions",
+        "_fathomdb_source_links",
+    ] {
+        let count: i64 = connection
+            .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 0, "source erasure left an orphan in {table}");
+    }
+}
+
+#[cfg(feature = "operator")]
+#[test]
+fn supersession_and_projection_rebuild_preserve_every_revision_owner() {
+    let dir = TempDir::new().unwrap();
+    let path = db_path(&dir, "supersession-rebuild");
+    let opened = Engine::open(&path).unwrap();
+    for (body, revision, version) in
+        [("first", "revision-1", "version-1"), ("second", "revision-2", "version-2")]
+    {
+        opened
+            .engine
+            .write(&[node(
+                "same-logical",
+                body,
+                "source",
+                WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new(revision).unwrap(),
+                    SourceVersionId::new(version).unwrap(),
+                ),
+            )])
+            .unwrap();
+    }
+    let before: Vec<String> = Connection::open(&path)
+        .unwrap()
+        .prepare("SELECT revision_id FROM _fathomdb_artifact_revisions ORDER BY revision_id")
+        .unwrap()
+        .query_map([], |row| row.get(0))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    opened.engine.rebuild_projections().unwrap();
+    let after: Vec<String> = Connection::open(&path)
+        .unwrap()
+        .prepare("SELECT revision_id FROM _fathomdb_artifact_revisions ORDER BY revision_id")
+        .unwrap()
+        .query_map([], |row| row.get(0))
+        .unwrap()
+        .collect::<rusqlite::Result<_>>()
+        .unwrap();
+    assert_eq!(before, vec!["revision-1", "revision-2"]);
+    assert_eq!(after, before);
 }
 
 proptest! {

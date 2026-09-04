@@ -67,3 +67,39 @@ fn step27_adds_closed_versioned_registries_without_backfill() {
         )
         .is_err());
 }
+
+#[test]
+fn step27_is_idempotent_and_persisted_versions_and_enums_fail_closed() {
+    register_sqlite_vec_once();
+    let connection = Connection::open_in_memory().unwrap();
+    migrate(&connection).unwrap();
+
+    let second = migrate(&connection).unwrap();
+    assert_eq!(second.schema_version_before, 27);
+    assert_eq!(second.schema_version_after, 27);
+    assert!(second.migration_steps.is_empty());
+
+    for sql in [
+        "INSERT INTO _fathomdb_artifact_revisions(\
+           schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness\
+         ) VALUES(1, 'bad-class', 'future', 1, 'legacy', 'migrated_incomplete')",
+        "INSERT INTO _fathomdb_artifact_revisions(\
+           schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness\
+         ) VALUES(1, 'bad-role', 'node', 2, 'future', 'complete')",
+        "INSERT INTO _fathomdb_artifact_revisions(\
+           schema_version, revision_id, artifact_class, write_cursor, artifact_role, completeness\
+         ) VALUES(1, 'bad-complete', 'node', 3, 'legacy', 'future')",
+        "INSERT INTO _fathomdb_source_links(\
+           schema_version, artifact_revision_id, source_id, source_version_id, source_revision_id,\
+           locator_kind, start_byte, end_byte, hash_algorithm, hash_digest\
+         ) VALUES(2, 'bad-version', 's', 'v', 'r', 'whole_body', NULL, NULL, 'sha256',\
+                  printf('%064d', 0))",
+        "INSERT INTO _fathomdb_source_links(\
+           schema_version, artifact_revision_id, source_id, source_version_id, source_revision_id,\
+           locator_kind, start_byte, end_byte, hash_algorithm, hash_digest\
+         ) VALUES(1, 'bad-hash', 's', 'v', 'r', 'whole_body', NULL, NULL, 'future',\
+                  printf('%064d', 0))",
+    ] {
+        assert!(connection.execute(sql, []).is_err(), "persisted corruption accepted: {sql}");
+    }
+}

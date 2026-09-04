@@ -1,27 +1,185 @@
 {
   "schemaVersion": 1,
-  "canonical": {
-    "artifactRevisionId": "source-revision-1",
-    "sourceVersionId": "source-v1"
-  },
-  "derived": {
-    "artifactRevisionId": "derived-revision-1",
-    "sourceVersionId": "source-v1",
-    "sourceRevisionId": "source-revision-1",
-    "sourceLocator": {
-      "kind": "utf8_bytes",
-      "startInclusive": "1",
-      "endExclusive": "3"
+  "canonicalBody": "AéB",
+  "canonicalHash": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb",
+  "camel": {
+    "canonical": {
+      "schemaVersion": 1,
+      "role": "canonical",
+      "artifactRevisionId": "source-revision-1",
+      "sourceVersionId": "source-v1"
     },
-    "canonicalSourceHash": {
-      "algorithm": "sha256",
-      "digestHex": "6c1b23c36e07dcc014ad4d3419e5a60fe7f76ed57ea26175e97c58ba71caf4ed"
-    }
+    "derivedWholeBody": {
+      "schemaVersion": 1,
+      "role": "derived",
+      "artifactRevisionId": "derived-whole-1",
+      "sourceVersionId": "source-v1",
+      "sourceRevisionId": "source-revision-1",
+      "sourceLocator": { "kind": "whole_body" },
+      "canonicalSourceHash": {
+        "algorithm": "sha256",
+        "digestHex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb"
+      }
+    },
+    "derivedUtf8Bytes": {
+      "schemaVersion": 1,
+      "role": "derived",
+      "artifactRevisionId": "derived-bytes-1",
+      "sourceVersionId": "source-v1",
+      "sourceRevisionId": "source-revision-1",
+      "sourceLocator": {
+        "kind": "utf8_bytes",
+        "startInclusive": "1",
+        "endExclusive": "3"
+      },
+      "canonicalSourceHash": {
+        "algorithm": "sha256",
+        "digestHex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb"
+      }
+    },
+    "errors": [
+      {
+        "name": "unknownField",
+        "provenance": { "schemaVersion": 1, "role": "canonical", "artifactRevisionId": "error-1", "sourceVersionId": "source-v1", "futureField": true },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/futureField"
+      },
+      {
+        "name": "escapedUnknownField",
+        "provenance": { "schemaVersion": 1, "role": "canonical", "artifactRevisionId": "error-2", "sourceVersionId": "source-v1", "a/b~c": true },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/a~1b~0c"
+      },
+      {
+        "name": "unsupportedVersion",
+        "provenance": { "schemaVersion": 2, "role": "canonical", "artifactRevisionId": "error-3", "sourceVersionId": "source-v1" },
+        "reason": "unsupported_schema_version",
+        "fieldPath": "/provenance/schemaVersion"
+      },
+      {
+        "name": "rolePrecedenceMissingFields",
+        "provenance": { "schemaVersion": 1, "role": "future" },
+        "reason": "role_invalid",
+        "fieldPath": "/provenance/role"
+      },
+      {
+        "name": "rolePrecedenceMalformedFields",
+        "provenance": { "schemaVersion": 1, "role": "future", "artifactRevisionId": null, "sourceVersionId": 7 },
+        "reason": "role_invalid",
+        "fieldPath": "/provenance/role"
+      },
+      {
+        "name": "embeddedNulArtifactRevision",
+        "provenance": { "schemaVersion": 1, "role": "canonical", "artifactRevisionId": "bad\u0000revision", "sourceVersionId": "source-v1" },
+        "reason": "revision_id_invalid",
+        "fieldPath": "/provenance/artifactRevisionId"
+      },
+      {
+        "name": "embeddedNulSourceVersion",
+        "provenance": { "schemaVersion": 1, "role": "canonical", "artifactRevisionId": "error-4", "sourceVersionId": "bad\u0000version" },
+        "reason": "source_version_invalid",
+        "fieldPath": "/provenance/sourceVersionId"
+      },
+      {
+        "name": "missingLocator",
+        "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-5", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "canonicalSourceHash": { "algorithm": "sha256", "digestHex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "locator_invalid",
+        "fieldPath": "/provenance/sourceLocator"
+      },
+      {
+        "name": "missingHash",
+        "provenance": { "schemaVersion": 1, "role": "derived", "artifactRevisionId": "error-6", "sourceVersionId": "source-v1", "sourceRevisionId": "source-revision-1", "sourceLocator": { "kind": "whole_body" } },
+        "reason": "hash_invalid",
+        "fieldPath": "/provenance/canonicalSourceHash"
+      }
+    ]
   },
-  "invalid": {
-    "unknownFieldReason": "unknown_field",
-    "unknownFieldPath": "/provenance/futureField",
-    "unsupportedVersionReason": "unsupported_schema_version",
-    "unsupportedVersionPath": "/provenance/schemaVersion"
+  "snake": {
+    "canonical": {
+      "schema_version": 1,
+      "role": "canonical",
+      "artifact_revision_id": "source-revision-1",
+      "source_version_id": "source-v1"
+    },
+    "derivedWholeBody": {
+      "schema_version": 1,
+      "role": "derived",
+      "artifact_revision_id": "derived-whole-1",
+      "source_version_id": "source-v1",
+      "source_revision_id": "source-revision-1",
+      "source_locator": { "kind": "whole_body" },
+      "canonical_source_hash": {
+        "algorithm": "sha256",
+        "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb"
+      }
+    },
+    "derivedUtf8Bytes": {
+      "schema_version": 1,
+      "role": "derived",
+      "artifact_revision_id": "derived-bytes-1",
+      "source_version_id": "source-v1",
+      "source_revision_id": "source-revision-1",
+      "source_locator": { "kind": "utf8_bytes", "start_inclusive": "1", "end_exclusive": "3" },
+      "canonical_source_hash": {
+        "algorithm": "sha256",
+        "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb"
+      }
+    },
+    "errors": [
+      {
+        "name": "unknownField",
+        "provenance": { "schema_version": 1, "role": "canonical", "artifact_revision_id": "error-1", "source_version_id": "source-v1", "future_field": true },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/futureField"
+      },
+      {
+        "name": "escapedUnknownField",
+        "provenance": { "schema_version": 1, "role": "canonical", "artifact_revision_id": "error-2", "source_version_id": "source-v1", "a/b~c": true },
+        "reason": "unknown_field",
+        "fieldPath": "/provenance/a~1b~0c"
+      },
+      {
+        "name": "unsupportedVersion",
+        "provenance": { "schema_version": 2, "role": "canonical", "artifact_revision_id": "error-3", "source_version_id": "source-v1" },
+        "reason": "unsupported_schema_version",
+        "fieldPath": "/provenance/schemaVersion"
+      },
+      {
+        "name": "rolePrecedenceMissingFields",
+        "provenance": { "schema_version": 1, "role": "future" },
+        "reason": "role_invalid",
+        "fieldPath": "/provenance/role"
+      },
+      {
+        "name": "rolePrecedenceMalformedFields",
+        "provenance": { "schema_version": 1, "role": "future", "artifact_revision_id": null, "source_version_id": 7 },
+        "reason": "role_invalid",
+        "fieldPath": "/provenance/role"
+      },
+      {
+        "name": "embeddedNulArtifactRevision",
+        "provenance": { "schema_version": 1, "role": "canonical", "artifact_revision_id": "bad\u0000revision", "source_version_id": "source-v1" },
+        "reason": "revision_id_invalid",
+        "fieldPath": "/provenance/artifactRevisionId"
+      },
+      {
+        "name": "embeddedNulSourceVersion",
+        "provenance": { "schema_version": 1, "role": "canonical", "artifact_revision_id": "error-4", "source_version_id": "bad\u0000version" },
+        "reason": "source_version_invalid",
+        "fieldPath": "/provenance/sourceVersionId"
+      },
+      {
+        "name": "missingLocator",
+        "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-5", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "canonical_source_hash": { "algorithm": "sha256", "digest_hex": "0290cc0c54e573ce8b5150fcdaa22ee7506e99ede078ce66d012eaa901b6edbb" } },
+        "reason": "locator_invalid",
+        "fieldPath": "/provenance/sourceLocator"
+      },
+      {
+        "name": "missingHash",
+        "provenance": { "schema_version": 1, "role": "derived", "artifact_revision_id": "error-6", "source_version_id": "source-v1", "source_revision_id": "source-revision-1", "source_locator": { "kind": "whole_body" } },
+        "reason": "hash_invalid",
+        "fieldPath": "/provenance/canonicalSourceHash"
+      }
+    ]
   }
 }

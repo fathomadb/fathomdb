@@ -24399,11 +24399,11 @@ unsafe extern "C" fn profile_callback_trampoline(
 #[cfg(test)]
 mod tests {
     use super::{
-        derive_stable_id, native_connection_state_for_test, resolve_source_type,
-        retain_complete_rank_boundary_candidates, DeviceResolution, EmbedderChoice, Engine,
-        EngineError, IdSpace, IdSpaceKind, InitialState, LoaderInfo, ManagedConnectionRegistry,
-        NativeTransactionState, PreparedWrite, RuntimeProbeConnection, SearchHit,
-        SoftFallbackBranch, SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS,
+        derive_stable_id, legacy_revision_id, native_connection_state_for_test,
+        resolve_source_type, retain_complete_rank_boundary_candidates, DeviceResolution,
+        EmbedderChoice, Engine, EngineError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
+        ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, RuntimeProbeConnection,
+        SearchHit, SoftFallbackBranch, SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS,
         KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder::{
@@ -24419,6 +24419,25 @@ mod tests {
     use std::thread;
     use std::time::{Duration, Instant};
     use tempfile::TempDir;
+
+    #[test]
+    fn legacy_revision_derivation_is_stable_and_tuple_sensitive_without_persisting_an_owner() {
+        let revision = legacy_revision_id("node", 42, Some("legacy-source"), Some("AéB"));
+        assert_eq!(revision, legacy_revision_id("node", 42, Some("legacy-source"), Some("AéB")));
+        assert!(revision.starts_with("_fdb:m:"));
+        assert_eq!(revision.len(), "_fdb:m:".len() + 64);
+        assert!(revision["_fdb:m:".len()..].bytes().all(|byte| byte.is_ascii_hexdigit()));
+
+        for changed in [
+            legacy_revision_id("edge", 42, Some("legacy-source"), Some("AéB")),
+            legacy_revision_id("node", 43, Some("legacy-source"), Some("AéB")),
+            legacy_revision_id("node", 42, None, Some("AéB")),
+            legacy_revision_id("node", 42, Some("legacy-source"), Some("different")),
+            legacy_revision_id("node", 42, Some("legacy-source"), None),
+        ] {
+            assert_ne!(changed, revision);
+        }
+    }
 
     #[test]
     fn loader_device_resolution_reaches_open_report_once() {

@@ -256,6 +256,98 @@ fn invalid_locator_or_hash_rejects_the_whole_batch_with_typed_reason_and_path() 
 }
 
 #[test]
+fn derived_source_reference_hash_and_locator_failures_use_closed_reason_paths() {
+    let dir = TempDir::new().unwrap();
+    let path = db_path(&dir, "derived-validation-matrix");
+    let source_body = "AéB";
+    let opened = Engine::open(&path).unwrap();
+    opened
+        .engine
+        .write(&[node(
+            "source",
+            source_body,
+            "source-1",
+            WriteProvenanceV1::canonical(
+                ArtifactRevisionId::new("source-revision-matrix").unwrap(),
+                SourceVersionId::new("source-version-matrix").unwrap(),
+            ),
+        )])
+        .unwrap();
+
+    let cases = [
+        (
+            WriteProvenanceV1::derived(
+                ArtifactRevisionId::new("missing-source-case").unwrap(),
+                SourceVersionId::new("source-version-matrix").unwrap(),
+                SourceRevisionId::new("missing-source-revision").unwrap(),
+                SourceLocator::whole_body(),
+                CanonicalHash::sha256(digest(source_body)).unwrap(),
+            ),
+            ProvenanceErrorReason::SourceRevisionMissing,
+            "/provenance/sourceRevisionId",
+        ),
+        (
+            WriteProvenanceV1::derived(
+                ArtifactRevisionId::new("source-mismatch-case").unwrap(),
+                SourceVersionId::new("different-version").unwrap(),
+                SourceRevisionId::new("source-revision-matrix").unwrap(),
+                SourceLocator::whole_body(),
+                CanonicalHash::sha256(digest(source_body)).unwrap(),
+            ),
+            ProvenanceErrorReason::SourceMismatch,
+            "/provenance/sourceRevisionId",
+        ),
+        (
+            WriteProvenanceV1::derived(
+                ArtifactRevisionId::new("hash-mismatch-case").unwrap(),
+                SourceVersionId::new("source-version-matrix").unwrap(),
+                SourceRevisionId::new("source-revision-matrix").unwrap(),
+                SourceLocator::whole_body(),
+                CanonicalHash::sha256("0".repeat(64)).unwrap(),
+            ),
+            ProvenanceErrorReason::HashMismatch,
+            "/provenance/canonicalSourceHash",
+        ),
+        (
+            WriteProvenanceV1::derived(
+                ArtifactRevisionId::new("unicode-boundary-case").unwrap(),
+                SourceVersionId::new("source-version-matrix").unwrap(),
+                SourceRevisionId::new("source-revision-matrix").unwrap(),
+                SourceLocator::utf8_bytes(2, 3),
+                CanonicalHash::sha256(digest(source_body)).unwrap(),
+            ),
+            ProvenanceErrorReason::LocatorInvalid,
+            "/provenance/sourceLocator",
+        ),
+        (
+            WriteProvenanceV1::derived(
+                ArtifactRevisionId::new("signed-limit-case").unwrap(),
+                SourceVersionId::new("source-version-matrix").unwrap(),
+                SourceRevisionId::new("source-revision-matrix").unwrap(),
+                SourceLocator::utf8_bytes(0, i64::MAX as u64),
+                CanonicalHash::sha256(digest(source_body)).unwrap(),
+            ),
+            ProvenanceErrorReason::LocatorInvalid,
+            "/provenance/sourceLocator",
+        ),
+    ];
+
+    for (index, (provenance, reason, path)) in cases.into_iter().enumerate() {
+        let error = opened
+            .engine
+            .write(&[node(&format!("derived-{index}"), "derived", "source-1", provenance)])
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            EngineError::Provenance(ref error)
+                if error.reason == reason && error.field_path == path
+        ));
+    }
+    opened.engine.close().unwrap();
+    assert_eq!(registry_snapshot(&path).0, 1, "invalid derived cases must not commit rows");
+}
+
+#[test]
 fn legacy_write_gets_runtime_revision_without_claiming_complete_provenance() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "legacy-runtime");
@@ -506,6 +598,135 @@ fn referenced_canonical_purge_refuses_then_source_erasure_leaves_no_registry_orp
             .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row.get(0))
             .unwrap();
         assert_eq!(count, 0, "source erasure left an orphan in {table}");
+    }
+}
+
+fn insert_raw_source_side_link(
+    path: &std::path::Path,
+    artifact_revision_id: &str,
+    source_id: &str,
+    source_version_id: &str,
+    source_revision_id: &str,
+    hash: &str,
+) {
+    Connection::open(path)
+        .unwrap()
+        .execute(
+            "INSERT INTO _fathomdb_source_links(\
+               schema_version, artifact_revision_id, source_id, source_version_id,\
+               source_revision_id, locator_kind, start_byte, end_byte, hash_algorithm, hash_digest\
+             ) VALUES(1, ?1, ?2, ?3, ?4, 'whole_body', NULL, NULL, 'sha256', ?5)",
+            rusqlite::params![
+                artifact_revision_id,
+                source_id,
+                source_version_id,
+                source_revision_id,
+                hash
+            ],
+        )
+        .unwrap();
+}
+
+#[test]
+fn purge_refuses_a_raw_source_side_link_without_an_artifact_owner_and_rolls_back() {
+    let dir = TempDir::new().unwrap();
+    let path = db_path(&dir, "purge-raw-source-link");
+    let source_body = "source bytes";
+    let opened = Engine::open(&path).unwrap();
+    opened
+        .engine
+        .write(&[node(
+            "source-logical",
+            source_body,
+            "source-bucket",
+            WriteProvenanceV1::canonical(
+                ArtifactRevisionId::new("source-revision-raw-purge").unwrap(),
+                SourceVersionId::new("source-version-raw-purge").unwrap(),
+            ),
+        )])
+        .unwrap();
+    opened.engine.transition("source-logical", LifecycleState::Deleted, None).unwrap();
+    opened.engine.close().unwrap();
+    insert_raw_source_side_link(
+        &path,
+        "orphan-derived-revision",
+        "source-bucket",
+        "source-version-raw-purge",
+        "source-revision-raw-purge",
+        &digest(source_body),
+    );
+
+    let opened = Engine::open(&path).unwrap();
+    let error = opened.engine.purge("source-logical").unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::Provenance(ref error)
+            if error.reason == ProvenanceErrorReason::ProvenanceInUse
+                && error.field_path.is_empty()
+    ));
+    opened.engine.close().unwrap();
+    let connection = Connection::open(path).unwrap();
+    let state: String = connection
+        .query_row(
+            "SELECT state FROM canonical_nodes WHERE logical_id='source-logical'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let raw_link: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM _fathomdb_source_links \
+             WHERE artifact_revision_id='orphan-derived-revision'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(state, "deleted", "failed purge must roll back the canonical delete");
+    assert_eq!(raw_link, 1, "failed purge must not partially delete the raw link");
+}
+
+#[test]
+fn source_erasure_removes_raw_source_side_links_without_artifact_owners() {
+    let dir = TempDir::new().unwrap();
+    let path = db_path(&dir, "erase-raw-source-link");
+    let source_body = "source bytes";
+    let opened = Engine::open(&path).unwrap();
+    opened
+        .engine
+        .write(&[node(
+            "source-logical",
+            source_body,
+            "source-bucket",
+            WriteProvenanceV1::canonical(
+                ArtifactRevisionId::new("source-revision-raw-erase").unwrap(),
+                SourceVersionId::new("source-version-raw-erase").unwrap(),
+            ),
+        )])
+        .unwrap();
+    opened.engine.close().unwrap();
+    insert_raw_source_side_link(
+        &path,
+        "orphan-derived-revision",
+        "source-bucket",
+        "source-version-raw-erase",
+        "source-revision-raw-erase",
+        &digest(source_body),
+    );
+
+    let opened = Engine::open(&path).unwrap();
+    opened.engine.erase_source("source-bucket").unwrap();
+    opened.engine.close().unwrap();
+    let connection = Connection::open(path).unwrap();
+    for table in [
+        "canonical_nodes",
+        "_fathomdb_artifact_revisions",
+        "_fathomdb_source_versions",
+        "_fathomdb_source_links",
+    ] {
+        let count: i64 = connection
+            .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 0, "source erasure left raw provenance in {table}");
     }
 }
 

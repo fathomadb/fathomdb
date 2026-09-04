@@ -3,9 +3,10 @@
 use fathomdb_engine::{
     ActuationBatchV1, ActuationOperationV1, ActuationOutcomeV1, ArtifactRevisionId, CanonicalHash,
     ClosureCauseV1, ClosureLookupV1, ClosurePhaseV1, ClosureRootV1, DependencyErrorReason, Engine,
-    EngineError, InitialState, LifecycleActuationV1, LifecycleState, PreparedWrite,
-    ProvenanceErrorReason, ProvenancedEdgeV1, ProvenancedNodeV1, SourceDependencyRegistrationV1,
-    SourceId, SourceLocator, SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+    EngineError, InitialState, LifecycleActuationV1, LifecycleState, PreparedWrite, ProjectionFts,
+    ProjectionRole, ProjectionSpec, ProvenanceErrorReason, ProvenancedEdgeV1, ProvenancedNodeV1,
+    ReadView, SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId,
+    SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::{params, Connection};
@@ -49,6 +50,64 @@ fn derived_node(revision: &str, logical: &str, source_revision: &str) -> Prepare
         valid_until: None,
         provenance: derived_provenance(revision, source_revision),
     })
+}
+
+fn derived_node_with_body(revision: &str, logical: &str, body: &str) -> PreparedWrite {
+    PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+        kind: "fact".into(),
+        body: body.into(),
+        source_id: SourceId::new("bucket").unwrap(),
+        logical_id: Some(logical.into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        provenance: derived_provenance(revision, "source-r1"),
+    })
+}
+
+fn plain_edge(from: &str, to: &str, logical_id: &str) -> PreparedWrite {
+    PreparedWrite::Edge {
+        kind: "link".into(),
+        from: from.into(),
+        to: to.into(),
+        source_id: SourceId::new("other-bucket").unwrap(),
+        logical_id: Some(logical_id.into()),
+        body: None,
+        t_valid: None,
+        t_invalid: None,
+        confidence: None,
+        extractor_model_id: None,
+        temporal_fallback: None,
+    }
+}
+
+fn install_soft_barrier(db: &std::path::Path, source_revision: &str, boundary: i64) {
+    let connection = Connection::open(db).unwrap();
+    connection
+        .execute(
+            "UPDATE _fathomdb_open_state SET value='1' \
+             WHERE key='_fathomdb_closure_sequence'",
+            [],
+        )
+        .unwrap();
+    connection
+        .execute(
+            "INSERT INTO _fathomdb_dependency_closures(\
+               schema_version,closure_operation_id,root_kind,root_value,cause,\
+               effective_at_epoch_s,admitted_write_boundary,admitted_dependency_generation,\
+               closure_sequence,retry_fingerprint,phase,affected_count,blocker_code,\
+               structural_proof_write_boundary,proof_json\
+             ) VALUES(1,?1,'source_revision',?2,'soft_deleted',0,?3,1,1,?4,\
+                      'proving',1,NULL,NULL,NULL)",
+            params![
+                format!("_fdb:c:{}", "e".repeat(64)),
+                source_revision,
+                boundary,
+                "f".repeat(64)
+            ],
+        )
+        .unwrap();
 }
 
 fn derived_edge(revision: &str, source_revision: &str) -> PreparedWrite {
@@ -403,5 +462,89 @@ fn nonterminal_barrier_hides_derived_search_hits() {
         .unwrap();
     drop(connection);
 
-    assert!(opened.engine.search("derived body").unwrap().results.is_empty());
+    assert!(opened
+        .engine
+        .search("derived body")
+        .unwrap()
+        .results
+        .iter()
+        .all(|hit| !hit.body.starts_with("derived body")));
+}
+
+#[test]
+fn barrier_hides_derived_nodes_from_expansion_and_property_search() {
+    let dir = TempDir::new().unwrap();
+    let db = path(&dir, "all-read-barriers");
+    let opened = Engine::open(&db).unwrap();
+    opened
+        .engine
+        .configure_projections(
+            &[ProjectionSpec {
+                name: "summary".into(),
+                roles: [ProjectionRole::Searchable].into_iter().collect(),
+                fts: Some(ProjectionFts { tokenizer: None }),
+                vector: None,
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+    opened.engine.write(&[canonical("source-r1", "v1", "source", "source body")]).unwrap();
+    opened
+        .engine
+        .write(&[
+            derived_node_with_body(
+                "derived-r1",
+                "derived",
+                r#"{"summary":"derived projected needle"}"#,
+            ),
+            PreparedWrite::Node {
+                kind: "doc".into(),
+                body: r#"{"summary":"root needle"}"#.into(),
+                source_id: SourceId::new("other-bucket").unwrap(),
+                logical_id: Some("root".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+            },
+            plain_edge("root", "derived", "root-derived"),
+        ])
+        .unwrap();
+    opened
+        .engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new("dep", "source-r1", "derived-r1").unwrap(),
+        )
+        .unwrap();
+
+    assert_eq!(
+        opened
+            .engine
+            .query_i64_col_for_test(
+                "SELECT COUNT(*) FROM property_search_index \
+                 WHERE property_search_index MATCH 'needle' AND attr_name='summary'",
+            )
+            .unwrap(),
+        vec![2]
+    );
+    let baseline = opened
+        .engine
+        .search_projected_text("needle", "summary", None, &ReadView::default())
+        .unwrap();
+    assert!(
+        baseline.results.iter().any(|hit| hit.body.contains("derived projected needle")),
+        "baseline projected hits: {:?}",
+        baseline.results
+    );
+
+    install_soft_barrier(&db, "source-r1", 4);
+
+    let expanded = opened.engine.search_expand("root needle", None, 1).unwrap();
+    assert!(expanded.expanded.iter().all(|(node, _)| node.logical_id != "derived"));
+    let projected = opened
+        .engine
+        .search_projected_text("needle", "summary", None, &ReadView::default())
+        .unwrap();
+    assert!(projected.results.iter().all(|hit| !hit.body.starts_with("derived body")));
 }

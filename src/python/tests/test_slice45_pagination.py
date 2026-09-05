@@ -82,9 +82,21 @@ def test_page_request_refusals_retain_page_error_reason_and_path(db_path: str) -
         frozen = engine.freeze_read_context(fathomdb.ReadContextV1())
         for page, reason, field_path in [
             (fathomdb.PageRequestV1(limit=-1), "invalid_page_limit", "/limit"),
+            (fathomdb.PageRequestV1(limit=2**63), "invalid_page_limit", "/limit"),
+            (fathomdb.PageRequestV1(limit=-(2**63) - 1), "invalid_page_limit", "/limit"),
             (fathomdb.PageRequestV1(limit=0), "invalid_page_limit", "/limit"),
             (
                 fathomdb.PageRequestV1(limit=1, schema_version=2),
+                "unsupported_schema_version",
+                "/schemaVersion",
+            ),
+            (
+                fathomdb.PageRequestV1(limit=1, schema_version=-1),
+                "unsupported_schema_version",
+                "/schemaVersion",
+            ),
+            (
+                fathomdb.PageRequestV1(limit=1, schema_version=2**32),
                 "unsupported_schema_version",
                 "/schemaVersion",
             ),

@@ -1,5 +1,5 @@
 use std::collections::BTreeSet;
-use std::sync::{Arc, Barrier};
+use std::sync::{Arc, Barrier, Mutex};
 use std::thread;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
@@ -11,6 +11,8 @@ use fathomdb_engine::{
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
 use tempfile::TempDir;
+
+static RACE_HOOK_LOCK: Mutex<()> = Mutex::new(());
 
 #[derive(Clone, Debug)]
 struct FixedEmbedder;
@@ -135,6 +137,35 @@ fn canonical_pages_are_frozen_complete_and_cursor_bound() {
 }
 
 #[test]
+fn canonical_pages_support_explicit_superseded_history_without_relaxing_search() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("history{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    opened.engine.write(&[node("n-1", r#"{"version":1}"#)]).unwrap();
+    opened.engine.write(&[node("n-1", r#"{"version":2}"#)]).unwrap();
+    let context = ReadContextV1::new(
+        ReadView { include_superseded: true, ..ReadView::default() },
+        SearchFilter::default(),
+    )
+    .unwrap();
+    let frozen = opened.engine.freeze_read_context(&context).unwrap();
+    let first = opened.engine.read_canonical_page("slice45_doc", &frozen, &page(1, None)).unwrap();
+    let second = opened
+        .engine
+        .read_canonical_page("slice45_doc", &frozen, &page(1, first.next_cursor))
+        .unwrap();
+    assert_eq!(
+        first.items.into_iter().chain(second.items).map(|row| row.body).collect::<Vec<_>>(),
+        [r#"{"version":1}"#, r#"{"version":2}"#]
+    );
+    assert!(matches!(
+        opened.engine.search_frozen("version", &frozen, 0, false, 0.3, 0, false, 10),
+        Err(EngineError::InvalidArgument { .. })
+    ));
+    opened.engine.close().unwrap();
+}
+
+#[test]
 fn operational_state_point_and_page_agree_without_reading_mutation_history() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("state{SQLITE_SUFFIX}"));
@@ -232,8 +263,17 @@ fn cursor_is_opaque_and_bound_with_documented_error_precedence() {
     let frozen = opened.engine.freeze_read_context(&strict_context()).unwrap();
     let first = opened.engine.read_canonical_page("slice45_doc", &frozen, &page(1, None)).unwrap();
     let cursor = first.next_cursor.unwrap();
+    let payload_hex = cursor.0.split('.').nth(1).unwrap();
+    let payload = (0..payload_hex.len())
+        .step_by(2)
+        .map(|offset| u8::from_str_radix(&payload_hex[offset..offset + 2], 16).unwrap())
+        .collect::<Vec<_>>();
     for forbidden in ["secret-logical-id", "secret-owner", "slice45_doc", "state"] {
         assert!(!cursor.0.contains(forbidden), "cursor leaked {forbidden}");
+        assert!(
+            !payload.windows(forbidden.len()).any(|window| window == forbidden.as_bytes()),
+            "decoded cursor payload leaked {forbidden}"
+        );
     }
 
     assert_page_reason(
@@ -476,6 +516,7 @@ fn operational_governance_and_replacement_are_frozen() {
 
 #[test]
 fn page_reader_snapshot_linearizes_before_concurrent_write() {
+    let _race_guard = RACE_HOOK_LOCK.lock().unwrap();
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("race{SQLITE_SUFFIX}"));
     let opened = open(&path);
@@ -509,6 +550,7 @@ fn page_reader_snapshot_linearizes_before_concurrent_write() {
 
 #[test]
 fn operational_page_snapshot_linearizes_before_concurrent_replacement() {
+    let _race_guard = RACE_HOOK_LOCK.lock().unwrap();
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("state-race{SQLITE_SUFFIX}"));
     let opened = open(&path);
@@ -564,6 +606,7 @@ fn operational_page_snapshot_linearizes_before_concurrent_replacement() {
 
 #[test]
 fn operational_point_snapshot_linearizes_before_concurrent_replacement() {
+    let _race_guard = RACE_HOOK_LOCK.lock().unwrap();
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("state-point-race{SQLITE_SUFFIX}"));
     let opened = open(&path);

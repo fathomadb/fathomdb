@@ -1,6 +1,8 @@
+use std::collections::BTreeSet;
+
 use fathomdb_engine::{
-    slice35_ranked_eligibility_sql_for_test, Engine, InitialState, PreparedWrite, ReadContextV1,
-    ReadView, SearchFilter, SourceId,
+    slice35_ranked_eligibility_sql_for_test, Engine, InitialState, PreparedWrite, ProjectionRole,
+    ProjectionSpec, ReadContextV1, ReadView, SearchFilter, SourceId,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
@@ -60,4 +62,55 @@ fn ranked_sql_places_real_column_and_eav_eligibility_before_ranking_and_limits()
             assert!(rank < limit, "{arm}: limit precedes ranking: {sql}");
         }
     }
+}
+
+#[test]
+fn representative_body_plan_uses_fts_and_indexed_eav_before_ranking() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("body-plan{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    opened
+        .engine
+        .configure_projections(
+            &[ProjectionSpec {
+                name: "owner".to_string(),
+                roles: BTreeSet::from([ProjectionRole::Filterable]),
+                fts: None,
+                vector: None,
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+
+    let mut filter = SearchFilter::default();
+    filter.kind = Some("doc".to_string());
+    filter.attributes = vec![("owner".to_string(), "alice".to_string())];
+    let (_, sql) = slice35_ranked_eligibility_sql_for_test(&filter)
+        .into_iter()
+        .find(|(arm, _)| *arm == "body_fts")
+        .unwrap();
+    let connection = rusqlite::Connection::open(path).unwrap();
+    let plan = connection
+        .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
+        .unwrap()
+        .query_map(rusqlite::params!["needle", "doc", "owner", "alice"], |row| {
+            row.get::<_, String>(3)
+        })
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+
+    assert!(
+        plan.iter().any(|step| step.contains("search_index") && step.contains("VIRTUAL TABLE")),
+        "body FTS virtual index absent: {plan:?}"
+    );
+    assert!(
+        plan.iter().any(|step| {
+            step.contains("canonical_attributes")
+                && step.contains("INDEX")
+                && !step.contains("SCAN")
+        }),
+        "indexed EAV lookup absent: {plan:?}"
+    );
 }

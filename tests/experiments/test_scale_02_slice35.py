@@ -71,6 +71,23 @@ def test_config_pins_the_registered_workload() -> None:
         scale_02_slice35.resolve_config(changed, validate_files=False)
 
 
+def test_v3_requires_a_closed_measurement_plan_reference() -> None:
+    document = config()
+    document["schema_version"] = "scale-02-slice35.v3"
+    document["measurement_plan"] = {
+        "path": "experiments/configs/scale-02/slice35-final.measurement-plan.v2.json",
+        "sha256": "4" * 64,
+        "plan_id": "slice35-final",
+    }
+
+    resolved = scale_02_slice35.resolve_config(document, validate_files=False)
+    assert resolved["measurement_plan"] == document["measurement_plan"]
+
+    document.pop("measurement_plan")
+    with pytest.raises(scale_02_slice35.Slice35ScaleError, match="measurement_plan"):
+        scale_02_slice35.resolve_config(document, validate_files=False)
+
+
 def test_paired_bootstrap_upper_and_verdict_are_deterministic() -> None:
     baseline = [10.0, 10.1, 9.9, 10.2, 9.8]
     candidate = [10.1, 10.2, 10.0, 10.3, 9.9]

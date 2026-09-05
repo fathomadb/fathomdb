@@ -45,10 +45,14 @@ test("malformed frozen token precedes every JavaScript numeric conversion", asyn
       { rerankDepth: 1.5 },
       { rerankDepth: Number.MAX_VALUE },
       { alpha: "high" as unknown as number },
+      { alpha: Number.NaN },
+      { alpha: Number.POSITIVE_INFINITY },
+      { useGraphArm: 1 as unknown as boolean },
       { poolN: 1.5 },
       { poolN: Number.MAX_VALUE },
       { limit: 1.5 },
       { limit: Number.MAX_VALUE },
+      { explain: 1 as unknown as boolean },
     ]) {
       await assert.rejects(
         () => engine.searchFrozen("query", malformed, options),

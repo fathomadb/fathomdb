@@ -62,10 +62,14 @@ def test_frozen_expansion_rejects_python_coercions_after_authentication(
         {"rerank_depth": 1 << 100},
         {"rerank_depth": "one"},
         {"alpha": "high"},
+        {"alpha": float("nan")},
+        {"alpha": float("inf")},
+        {"use_graph_arm": 1},
         {"pool_n": 1.5},
         {"pool_n": 1 << 100},
         {"limit": 1.5},
         {"limit": 1 << 100},
+        {"explain": 1},
     ],
 )
 def test_frozen_search_authenticates_before_native_argument_conversion(

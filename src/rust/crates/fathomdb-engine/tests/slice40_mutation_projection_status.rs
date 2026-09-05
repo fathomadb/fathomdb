@@ -1,3 +1,5 @@
+#![cfg(feature = "test-hooks")]
+
 use std::sync::Arc;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
@@ -10,6 +12,9 @@ use fathomdb_engine::{
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
 use tempfile::TempDir;
+
+#[cfg(feature = "operator")]
+use fathomdb_engine::PreparedWrite;
 
 #[derive(Debug)]
 struct TestEmbedder;

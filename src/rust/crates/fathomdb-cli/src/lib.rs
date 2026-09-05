@@ -1377,6 +1377,7 @@ fn engine_error_code(err: &EngineError) -> &'static str {
         EngineError::ErasureIncomplete { .. } => "ErasureIncompleteError",
         // 0.8.20 Slice 15d (R-20-PR) — destructive projection change refused.
         EngineError::ProjectionDestructive { .. } => "ProjectionDestructiveError",
+        EngineError::ProjectionGeneration(_) => "ProjectionGenerationError",
     }
 }
 

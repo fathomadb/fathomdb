@@ -829,8 +829,8 @@ fn translate_mutation_projection_status_request(
         ));
     }
     let cursor_text = object.get("writeCursor").and_then(JsonValue::as_str).unwrap_or_default();
-    let write_cursor = if !cursor_text.is_empty()
-        && !(cursor_text.len() > 1 && cursor_text.starts_with('0'))
+    let write_cursor = if !(cursor_text.is_empty()
+        || cursor_text.len() > 1 && cursor_text.starts_with('0'))
         && cursor_text.bytes().all(|byte| byte.is_ascii_digit())
     {
         cursor_text.parse::<u64>().ok().filter(|value| *value != 0)

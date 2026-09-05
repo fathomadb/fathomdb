@@ -25956,10 +25956,15 @@ fn rederive_projections_on_boot(conn: &Connection) -> rusqlite::Result<()> {
     }
 }
 
+type ProjectionAttributeCacheRow = (i64, String, Option<String>);
+type ProjectionPropertyFtsCacheRow = (i64, String, String);
+type ProjectionRegistryCacheSnapshot =
+    (Vec<ProjectionAttributeCacheRow>, Vec<ProjectionPropertyFtsCacheRow>);
+
 fn expected_projection_registry_cache_snapshot(
     conn: &Connection,
     registry: &BTreeMap<String, StoredProjection>,
-) -> rusqlite::Result<(Vec<(i64, String, Option<String>)>, Vec<(i64, String, String)>)> {
+) -> rusqlite::Result<ProjectionRegistryCacheSnapshot> {
     let nodes = {
         let mut statement = conn.prepare(
             "SELECT write_cursor,body FROM canonical_nodes \
@@ -25996,7 +26001,7 @@ fn expected_projection_registry_cache_snapshot(
 
 fn projection_registry_cache_snapshot(
     conn: &Connection,
-) -> rusqlite::Result<(Vec<(i64, String, Option<String>)>, Vec<(i64, String, String)>)> {
+) -> rusqlite::Result<ProjectionRegistryCacheSnapshot> {
     let attributes = {
         let mut statement = conn.prepare(
             "SELECT write_cursor,attr_name,attr_value FROM canonical_attributes \

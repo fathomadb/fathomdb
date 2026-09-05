@@ -3,8 +3,8 @@ use std::sync::Arc;
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
     ActuationBatchV1, ActuationOperationV1, ArtifactRevisionId, Engine, EngineError, InitialState,
-    MutationProjectionStatusRequestV1, PreparedWrite, ProjectionGenerationErrorReason,
-    ProjectionRole, ProjectionSpec, ProjectionVector, ProvenancedNodeV1, SourceId, SourceVersionId,
+    MutationProjectionStatusRequestV1, ProjectionGenerationErrorReason, ProjectionRole,
+    ProjectionSpec, ProjectionVector, ProvenancedNodeV1, SourceId, SourceVersionId,
     WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;

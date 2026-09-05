@@ -1659,18 +1659,16 @@ mod tests {
                                     && physical.is_none()
                                 {
                                     Some(Completion::Failed)
-                                } else if terminal.is_none()
+                                } else if (terminal.is_none()
                                     && sidecar.is_none()
                                     && physical.is_none()
-                                    && enrolled
-                                {
-                                    Some(Completion::Pending)
-                                } else if !is_edge
-                                    && terminal == Some("up_to_date")
-                                    && sidecar.is_none()
-                                    && physical.is_none()
-                                    && !enrolled
-                                    && runtime != ProjectionRuntimeStateV1::Usable
+                                    && enrolled)
+                                    || (!is_edge
+                                        && terminal == Some("up_to_date")
+                                        && sidecar.is_none()
+                                        && physical.is_none()
+                                        && !enrolled
+                                        && runtime != ProjectionRuntimeStateV1::Usable)
                                 {
                                     Some(Completion::Pending)
                                 } else {

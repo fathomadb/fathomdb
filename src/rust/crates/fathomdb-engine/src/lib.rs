@@ -2830,6 +2830,71 @@ pub fn arm_page_after_validation_hook_for_test(hook: Box<dyn Fn() + Send>) {
     frozen_after_validation_hook::arm(hook);
 }
 
+// Slice 50 one-shot rendezvous for the exact evidence transaction seams. Both
+// hooks are dormant on production paths and fire only when explicitly armed by
+// an integration test.
+mod evidence_linearization_hooks {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Mutex;
+
+    struct OneShotHook {
+        armed: AtomicBool,
+        hook: Mutex<Option<Box<dyn Fn() + Send>>>,
+    }
+
+    impl OneShotHook {
+        const fn new() -> Self {
+            Self { armed: AtomicBool::new(false), hook: Mutex::new(None) }
+        }
+
+        fn arm(&self, hook: Box<dyn Fn() + Send>) {
+            *self.hook.lock().expect("evidence linearization hook mutex") = Some(hook);
+            self.armed.store(true, Ordering::SeqCst);
+        }
+
+        fn fire(&self) {
+            if !self.armed.swap(false, Ordering::SeqCst) {
+                return;
+            }
+            if let Some(hook) = self.hook.lock().expect("evidence linearization hook mutex").take()
+            {
+                hook();
+            }
+        }
+    }
+
+    static BEFORE_SIDECAR: OneShotHook = OneShotHook::new();
+    static BEFORE_RESOLVE_RETURN: OneShotHook = OneShotHook::new();
+
+    pub(crate) fn arm_before_sidecar(hook: Box<dyn Fn() + Send>) {
+        BEFORE_SIDECAR.arm(hook);
+    }
+
+    pub(crate) fn fire_before_sidecar() {
+        BEFORE_SIDECAR.fire();
+    }
+
+    pub(crate) fn arm_before_resolve_return(hook: Box<dyn Fn() + Send>) {
+        BEFORE_RESOLVE_RETURN.arm(hook);
+    }
+
+    pub(crate) fn fire_before_resolve_return() {
+        BEFORE_RESOLVE_RETURN.fire();
+    }
+}
+
+/// Arm the Slice-50 post-ranking, pre-sidecar rendezvous for one evidence search.
+#[doc(hidden)]
+pub fn arm_evidence_before_sidecar_hook_for_test(hook: Box<dyn Fn() + Send>) {
+    evidence_linearization_hooks::arm_before_sidecar(hook);
+}
+
+/// Arm the Slice-50 post-resolution, pre-return rendezvous for one evidence read.
+#[doc(hidden)]
+pub fn arm_evidence_before_resolve_return_hook_for_test(hook: Box<dyn Fn() + Send>) {
+    evidence_linearization_hooks::arm_before_resolve_return(hook);
+}
+
 impl ProjectionRuntime {
     fn new(
         path: PathBuf,
@@ -7518,6 +7583,7 @@ impl Engine {
         frozen_read::validate_snapshot(&tx, &binding)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         let result = evidence::resolve(&tx, request)?;
+        evidence_linearization_hooks::fire_before_resolve_return();
         frozen_read::validate_snapshot(&tx, &binding)
             .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
         tx.commit().map_err(|_| EngineError::Storage)?;
@@ -16828,6 +16894,7 @@ impl SearchOriginCapture for EvidenceCapture {
         explanation: Option<Explanation>,
         _expanded: Option<SearchExpandResult>,
     ) -> Result<Self::Output, SearchReaderError> {
+        evidence_linearization_hooks::fire_before_sidecar();
         let search_result =
             SearchResult { projection_cursor: cursor, soft_fallback, results, explanation };
         evidence::build_search_result(

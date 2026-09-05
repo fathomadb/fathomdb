@@ -1,32 +1,102 @@
 ---
 title: 0.8.25 Slice 40 — projection generation and readiness
-status: DRAFT
+status: DESIGN_FIX_1
 depends_on: 35
 design: design.md
-design_status: SCOPE_RECONCILED_FORMAL_REVIEW_REQUIRED
+design_status: CHANGES_REQUIRED_CYCLE_1
 ---
 
 # Slice 40 plan
 
-## Outcome and carried obligations
+## Outcome and boundary
 
-Implement the core of R25/AC25-40, Memex need 13, and A25-05 under the approved
-[scope adjustment](../../scope-adjustment-2026-09-02.md). Add durable
-projection-generation identity, prevent false readiness, advance safely across
-restart, and expose compact mutation-to-ready correlation. A richer public
-work-manifest surface is not required in 0.8.25.
+Implement the retained core of R25/AC25-40, Memex need 13, N25-01/N25-04,
+and A25-05 under the approved
+[scope adjustment](../../scope-adjustment-2026-09-02.md). Add database-local
+identity for the one in-place physical serving projection set, truthful
+readiness through an explicit boundary, and compact correlation from the
+canonical write cursors already returned by Slice 25. Preserve the existing
+projection scheduler, cursor/terminal authority, and ordinary search path.
+
+This slice does not add side-by-side physical generations, a public work
+manifest, application-managed cleanup, exactly-once model execution, profile
+routing, or a general projection scheduler. Richer generation retention and
+work administration remain after 0.8.25.
+
+## Requirements and acceptance criteria
+
+| Requirement | Acceptance criterion |
+|---|---|
+| S40-R1 Generation identity | S40-AC1 proves Engine-minted `pgen1:<32-lower-hex>` identity is database-local, immutable for one serving epoch, preserved across restart/backup copy, never reused, and changed exactly on configuration or in-place rebuild transition. |
+| S40-R2 Boundary-qualified readiness | S40-AC2 reports `observed_boundary` and `ready_through`; no response says ready when an applicable earlier cursor is pending or failed, including after restart. |
+| S40-R3 Compact mutation correlation | S40-AC3 resolves every Slice-25 `pending_projection_write_cursor` by indexed point read to its serving generation and current aggregate state without reinterpreting the Slice-20 dependency generation or Slice-25 receipt. |
+| S40-R4 Honest in-place transition | S40-AC4 configuration/rebuild retires the prior metadata epoch, installs one new serving epoch, and exposes processing/degraded state until existing physical stores catch up; no API claims an unavailable side-by-side store. |
+| S40-R5 Frozen-read and lifecycle closure | S40-AC5 changes to generation/readiness authority invalidate Slice-35 frozen reads, and erasure/lifecycle races cannot publish an ineligible projection or leave source-bearing generation artifacts. |
+| S40-R6 Additive parity and bounded cost | S40-AC6 proves Rust/Python/TypeScript/wire parity, conservative compatibility mapping, Windows source/build coverage, packaged CPU/CUDA status behavior, indexed bounds, and the preregistered latency/storage limits. |
+
+## Design and review gate
+
+Reconcile the current draft against the shipped Slice 20/25/30/35 code and the
+accepted projection/readiness/rebuild designs. The corrected design must choose
+the metadata-correlation model over fictional side-by-side physical stores and
+close the cycle-1 findings recorded in
+[`design-review-cycle1.md`](design-review-cycle1.md). Obtain independent review;
+at most four FIX-n design cycles are allowed. No implementation begins with an
+unresolved implementation-shaping P1/P2 finding.
+
+## TDD RED/GREEN implementation
+
+Commit RED separately. Use real SQLite databases and preserved fixtures:
+
+- schema/open tests for ID grammar, uniqueness, fresh/upgrade state, corruption,
+  backup copy, and no reuse;
+- Engine property/fault tests for boundary gaps, terminal failure, state
+  transitions, restart at each transition, duplicate publication, and
+  configuration/rebuild epochs;
+- concurrency tests for write, worker publication, lifecycle closure, erasure,
+  and rebuild races;
+- Slice-35 frozen-read tests for pre-migration drift, generation/readiness
+  changes, and unchanged v1 token codec;
+- Rust/Python/TypeScript canonical wire and error-precedence fixtures;
+- installed wheel and offline npm/native status smokes;
+- CPU and RTX-3090 CUDA readiness/reopen tests; Windows execution when available,
+  otherwise an explicit unavailable record;
+- preregistered write/storage/status/reopen measurement with source-bound
+  receipts.
+
+The initial focused routes are:
+
+```bash
+cargo test -p fathomdb-schema --test step32_projection_generation
+cargo test -p fathomdb-engine --features test-hooks \
+  --test slice40_projection_generation \
+  --test slice40_mutation_projection_status \
+  --test slice40_projection_generation_races \
+  --test slice35_frozen_read
+cargo test -p fathomdb-py
+cargo test -p fathomdb-napi
+npm test --workspace fathomdb -- slice40-projection-generation
+```
+
+GREEN implements the smallest contract-complete behavior. Tests remain frozen
+during each fix-to-spec cycle. Independent implementation review may use up to
+seven FIX-n cycles, with owner-authorized later cycles only if genuinely needed.
 
 ## Verification routes
 
-Selected: fast, heavy, all, all-feature/operator, Windows CPU/native
-Rust/Python/Node, GPU/CUDA for dense readiness, and packaged status smokes.
-Live-model and pre-publication registry-installed are N/A; local model
-acquisition/readiness is an environment preflight, not a live-model route.
+Run focused tests first, then `./scripts/agent-verify.sh --tier=fast`, applicable
+heavy/combined operator routes, fresh wheel/npm artifact smokes, and the
+preregistered measurement. CUDA is required because dense readiness changes;
+ptrace-dependent checks run unchanged outside the sandbox. A monolithic
+CUDA-plus-Metal `--all-features` command is invalid. Windows runtime absence is
+reported, never simulated.
 
-## Draft-to-ready and delivery
+Stop on generation reuse, an unqualified ready result, status under the wrong
+generation, public work-manifest expansion, application-owned cleanup, changed
+Slice-35 token bytes, or any false side-by-side activation claim.
 
-Specify generation identity, wrong-generation, restart, mutation-to-ready,
-typed readiness, parity, Windows, and CUDA criteria; design persistence and
-correlation; review; implement preserved RED/GREEN property and failure tests;
-review; verify; and record status. Stop on generation reuse, false readiness,
-or application-owned projection cleanup.
+## Closeout
+
+After independent verification, write `status.md`, update the release-state
+JSON and generated views, capture reusable lessons in the external memory
+store, and compact before Slice 45. Retain every run and receipt.

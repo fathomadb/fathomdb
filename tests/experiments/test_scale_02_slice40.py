@@ -10,9 +10,10 @@ from experiments import scale_02_slice40
 
 def config() -> dict[str, object]:
     return {
-        "schema_version": "scale-02-slice40.v2",
+        "schema_version": "scale-02-slice40.v3",
         "program_track": "SCALE-02",
         "release": "0.8.25",
+        "campaign": "common",
         "approval": {
             "state": "approved",
             "approved_by": "HITL",
@@ -28,6 +29,11 @@ def config() -> dict[str, object]:
             "statistics_library_sha256": "d" * 64,
             "common_worker_sha256": "e" * 64,
             "status_test_sha256": "f" * 64,
+        },
+        "measurement_plan": {
+            "path": "experiments/configs/scale-02/slice40-common-measurement-plan.v1.json",
+            "sha256": "1" * 64,
+            "plan_id": "slice40-common-v1",
         },
         "workload": {
             "records": 10_000,
@@ -70,6 +76,86 @@ def test_config_accepts_only_the_registered_contract() -> None:
     drifted["workload"]["repetitions"] = 4  # type: ignore[index]
     with pytest.raises(scale_02_slice40.Slice40ScaleError, match="workload"):
         scale_02_slice40.resolve_config(drifted, validate_repository=False)
+
+    wrong_campaign = copy.deepcopy(document)
+    wrong_campaign["campaign"] = "unknown"
+    with pytest.raises(scale_02_slice40.Slice40ScaleError, match="campaign"):
+        scale_02_slice40.resolve_config(wrong_campaign, validate_repository=False)
+
+
+def test_decision_metrics_are_compact_and_campaign_specific() -> None:
+    common = scale_02_slice40.decision_metrics(
+        "common",
+        {
+            "verdict": "pass",
+            "write_upper_95_relative_regression": {"p50": 0.01, "p95": 0.02},
+            "open_upper_95_relative_regression": 0.03,
+            "open_mean_absolute_regression_ms": 1.25,
+            "maximum_paired_storage_increase_bytes": 4096,
+        },
+    )
+    assert common == {
+        "schema_version": "scale-02-slice40-decision.v1",
+        "campaign": "common",
+        "verdict": "pass",
+        "write_p50_upper_relative_regression": 0.01,
+        "write_p95_upper_relative_regression": 0.02,
+        "open_upper_relative_regression": 0.03,
+        "open_mean_absolute_regression_ms": 1.25,
+        "maximum_paired_storage_increase_bytes": 4096,
+    }
+
+    status = scale_02_slice40.decision_metrics(
+        "status",
+        {
+            "verdict": "pass",
+            "maximum_cpu_cuda_p95_difference_ms": 0.4,
+            "status_bounds": {
+                "maximum_generation_p95_ms": 0.1,
+                "maximum_generation_p99_ms": 0.2,
+                "maximum_mutation_p95_ms": 0.3,
+                "maximum_mutation_p99_ms": 0.4,
+                "maximum_steady_full_owner_scans": 0,
+                "total_errors": 0,
+                "total_timeouts": 0,
+            },
+        },
+    )
+    assert status["campaign"] == "status"
+    assert status["maximum_generation_p99_ms"] == 0.2
+    assert status["maximum_steady_full_owner_scans"] == 0
+
+
+def test_record_registration_requires_classification_before_index(monkeypatch, tmp_path) -> None:
+    order: list[str] = []
+
+    def write_record(*args, **kwargs):
+        before_index = kwargs["before_index"]
+        run_dir = tmp_path / "runs" / "run"
+        run_dir.mkdir(parents=True)
+        (run_dir / "record.json").write_text("{}\n", encoding="utf-8")
+        (run_dir / "metrics.json").write_text("{}\n", encoding="utf-8")
+        before_index("run", run_dir)
+        order.append("index")
+        return "run", run_dir
+
+    monkeypatch.setattr(scale_02_slice40._lib, "write_record", write_record)
+    monkeypatch.setattr(
+        scale_02_slice40,
+        "_write_run_classification",
+        lambda **kwargs: order.append("classification"),
+    )
+    scale_02_slice40._register_run(
+        experiment="fixture",
+        config=config(),
+        config_path=tmp_path / "config.json",
+        decision_metrics={"verdict": "pass"},
+        detail={"raw": 1},
+        record_arguments={},
+        code_git_sha="a" * 40,
+    )
+    assert order == ["classification", "index"]
+    assert (tmp_path / "runs" / "run" / "detail.json").is_file()
 
 
 def test_execution_preflight_rejects_dirty_source(monkeypatch, tmp_path) -> None:

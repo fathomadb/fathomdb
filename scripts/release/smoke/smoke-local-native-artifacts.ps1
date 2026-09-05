@@ -34,7 +34,7 @@ from fathomdb import Engine
 engine = Engine.open(sys.argv[1])
 engine.write([{
     "kind": "doc",
-    "body": "AéB",
+    "body": "A\u00e9B",
     "source_id": "smoke:local-native-wheel",
     "provenance": {
         "schema_version": 1,
@@ -124,7 +124,7 @@ import { Engine } from "fathomdb";
 const engine = await Engine.open(process.argv[2]);
 await engine.write([{
   kind: "doc",
-  body: "AéB",
+  body: "A\u00e9B",
   sourceId: "smoke:local-native-npm",
   provenance: {
     schemaVersion: 1,
@@ -180,7 +180,7 @@ console.log("local N-API package runtime validation: ok");
   & node smoke.mjs (Join-Path $work 'npm-smoke.fdb')
   if ($LASTEXITCODE -ne 0) { throw 'smoke-local-native-artifacts: local npm runtime smoke failed' }
   Pop-Location
-  Write-Output 'smoke-local-native-artifacts: ok — local wheel + matched N-API package validated'
+  Write-Output 'smoke-local-native-artifacts: ok - local wheel + matched N-API package validated'
 } finally {
   Remove-Item -Recurse -Force $work
 }

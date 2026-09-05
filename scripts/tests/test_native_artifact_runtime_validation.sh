@@ -306,6 +306,20 @@ for helper_and_command in \
     || fail "${helper##*/} must locally validate with ${command}"
 done
 
+if ! python3 - "$REPO_ROOT/scripts/release/smoke/smoke-local-native-artifacts.ps1" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+try:
+    path.read_bytes().decode("ascii")
+except UnicodeDecodeError as exc:
+    raise SystemExit(f"PowerShell 5.1 smoke must remain ASCII-safe: {exc}")
+PY
+then
+  fail 'PowerShell 5.1 smoke must use ASCII-safe Unicode escapes'
+fi
+
 require_ps1_exit_check() {
   local invocation="$1"
   awk -v invocation="$invocation" '

@@ -317,6 +317,7 @@ def main() -> None:
     result_path = args.output_dir / "result.json"
     result_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     write_markdown(result, args.output_dir / "result.md")
+    output_relative = args.output_dir.resolve().relative_to(Path.cwd().resolve())
     manifest = {
         "schema_version": "slice45-pagination-manifest.v1",
         "binary": str(args.binary.resolve()),
@@ -326,7 +327,14 @@ def main() -> None:
         "result_sha256": sha256(result_path),
         "git_head": command_output("git", "rev-parse", "HEAD"),
         "git_diff_sha256": hashlib.sha256(
-            command_output("git", "diff", "--binary").encode("utf-8")
+            command_output(
+                "git",
+                "diff",
+                "--binary",
+                "--",
+                ".",
+                f":(exclude){output_relative}/**",
+            ).encode("utf-8")
         ).hexdigest(),
         "rustc": command_output("rustc", "--version"),
         "kernel": command_output("uname", "-srmo"),

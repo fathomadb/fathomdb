@@ -356,6 +356,7 @@ fn every_eligibility_term_executes_before_page_truncation() {
             &[],
         )
         .unwrap();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
     let mut writes = (0..300)
         .map(|index| PreparedWrite::Node {
             logical_id: Some(format!("excluded-{index:03}")),
@@ -422,20 +423,21 @@ fn operational_governance_and_replacement_are_frozen() {
     ));
     opened
         .engine
-        .write(&[
-            PreparedWrite::AdminSchema {
-                name: "state".to_string(),
-                kind: "latest_state".to_string(),
-                schema_json: "{}".to_string(),
-                retention_json: "{}".to_string(),
-            },
-            PreparedWrite::OpStore {
-                collection: "state".to_string(),
-                record_key: "key".to_string(),
-                schema_id: None,
-                body: "  {\"exact\":true}  ".to_string(),
-            },
-        ])
+        .write(&[PreparedWrite::AdminSchema {
+            name: "state".to_string(),
+            kind: "latest_state".to_string(),
+            schema_json: "{}".to_string(),
+            retention_json: "{}".to_string(),
+        }])
+        .unwrap();
+    opened
+        .engine
+        .write(&[PreparedWrite::OpStore {
+            collection: "state".to_string(),
+            record_key: "key".to_string(),
+            schema_id: None,
+            body: "  {\"exact\":true}  ".to_string(),
+        }])
         .unwrap();
     let state_frozen = opened.engine.freeze_read_context(&strict_context()).unwrap();
     let point =
@@ -459,15 +461,11 @@ fn operational_governance_and_replacement_are_frozen() {
         opened.engine.read_operational_state_page("state", &frozen, &page(1, None)),
         Err(EngineError::FrozenRead(error)) if error.reason == FrozenReadErrorReason::StateDrifted
     ));
+    let mut canonical_only = SearchFilter::default();
+    canonical_only.kind = Some("doc".to_string());
     let relaxed = opened
         .engine
-        .freeze_read_context(
-            &ReadContextV1::new(
-                ReadView { include_superseded: true, ..ReadView::default() },
-                SearchFilter::default(),
-            )
-            .unwrap(),
-        )
+        .freeze_read_context(&ReadContextV1::new(ReadView::default(), canonical_only).unwrap())
         .unwrap();
     assert!(matches!(
         opened.engine.read_operational_state_page("state", &relaxed, &page(1, None)),

@@ -2826,6 +2826,12 @@ pub fn arm_frozen_after_validation_hook_for_test(hook: Box<dyn Fn() + Send>) {
     frozen_after_validation_hook::arm(hook);
 }
 
+/// Arm the same post-validation rendezvous specifically for one frozen page.
+#[doc(hidden)]
+pub fn arm_page_after_validation_hook_for_test(hook: Box<dyn Fn() + Send>) {
+    frozen_after_validation_hook::arm(hook);
+}
+
 impl ProjectionRuntime {
     fn new(
         path: PathBuf,
@@ -11308,6 +11314,54 @@ impl Engine {
         })
     }
 
+    /// Test-only `EXPLAIN QUERY PLAN` output for the three Slice 45 read shapes.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn slice45_page_query_plans_for_test(
+        &self,
+        kind: &str,
+    ) -> Result<Vec<(String, Vec<String>)>, EngineError> {
+        self.ensure_open()?;
+        let connection = Connection::open(&self.path).map_err(|_| EngineError::Storage)?;
+        let (canonical_sql, canonical_binds) =
+            canonical_page_query(kind, &ReadView::default(), &SearchFilter::default(), 0, 100)
+                .map_err(|_| EngineError::Storage)?;
+        let plans = [
+            ("canonical_page", canonical_sql, canonical_binds),
+            (
+                "operational_point",
+                OPERATIONAL_STATE_POINT_SQL.to_string(),
+                vec![
+                    rusqlite::types::Value::Text("state".to_string()),
+                    rusqlite::types::Value::Text("key".to_string()),
+                ],
+            ),
+            (
+                "operational_page",
+                OPERATIONAL_STATE_PAGE_SQL.to_string(),
+                vec![
+                    rusqlite::types::Value::Text("state".to_string()),
+                    rusqlite::types::Value::Integer(0),
+                    rusqlite::types::Value::Integer(101),
+                ],
+            ),
+        ];
+        plans
+            .into_iter()
+            .map(|(name, sql, binds)| {
+                let mut statement = connection
+                    .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
+                    .map_err(|_| EngineError::Storage)?;
+                let details = statement
+                    .query_map(rusqlite::params_from_iter(binds.iter()), |row| row.get(3))
+                    .map_err(|_| EngineError::Storage)?
+                    .collect::<Result<Vec<String>, _>>()
+                    .map_err(|_| EngineError::Storage)?;
+                Ok((name.to_string(), details))
+            })
+            .collect()
+    }
+
     /// Read the current value of one governed `latest_state` record.
     ///
     /// Supplying a frozen context binds this point read to the same authority
@@ -18230,6 +18284,7 @@ fn read_canonical_page_in_tx(
         page,
     )?;
     frozen_read::validate_snapshot(&tx, &binding)?;
+    frozen_after_validation_hook::fire();
     validate_filter_attributes_on_snapshot(&tx, &frozen.context.eligibility)
         .map_err(page_search_error)?;
 
@@ -18296,6 +18351,28 @@ fn query_canonical_page_rows(
     after: u64,
     limit: usize,
 ) -> rusqlite::Result<(Vec<NodeRecord>, bool)> {
+    let (sql, binds) = canonical_page_query(kind, view, filter, after, limit)?;
+    let mut statement = connection.prepare(&sql)?;
+    let rows = statement.query_map(rusqlite::params_from_iter(binds.iter()), |row| {
+        Ok(NodeRecord {
+            logical_id: row.get(0)?,
+            kind: row.get(1)?,
+            body: row.get(2)?,
+            write_cursor: row.get::<_, i64>(3)? as u64,
+        })
+    })?;
+    let items = rows.collect::<Result<Vec<_>, _>>()?;
+    let has_more = items.len() > limit;
+    Ok((items, has_more))
+}
+
+fn canonical_page_query(
+    kind: &str,
+    view: &ReadView,
+    filter: &SearchFilter,
+    after: u64,
+    limit: usize,
+) -> rusqlite::Result<(String, Vec<rusqlite::types::Value>)> {
     let mut binds = vec![
         rusqlite::types::Value::Text(kind.to_string()),
         rusqlite::types::Value::Integer(
@@ -18322,19 +18399,18 @@ fn query_canonical_page_rows(
          {visibility}{eligibility} \
          ORDER BY n.write_cursor ASC LIMIT ?{limit_idx}"
     );
-    let mut statement = connection.prepare(&sql)?;
-    let rows = statement.query_map(rusqlite::params_from_iter(binds.iter()), |row| {
-        Ok(NodeRecord {
-            logical_id: row.get(0)?,
-            kind: row.get(1)?,
-            body: row.get(2)?,
-            write_cursor: row.get::<_, i64>(3)? as u64,
-        })
-    })?;
-    let items = rows.collect::<Result<Vec<_>, _>>()?;
-    let has_more = items.len() > limit;
-    Ok((items, has_more))
+    Ok((sql, binds))
 }
+
+const OPERATIONAL_STATE_POINT_SQL: &str =
+    "SELECT collection_name,record_key,payload_json,schema_id,write_cursor \
+     FROM operational_state WHERE collection_name=?1 AND record_key=?2";
+
+const OPERATIONAL_STATE_PAGE_SQL: &str =
+    "SELECT collection_name,record_key,payload_json,schema_id,write_cursor \
+     FROM operational_state \
+     WHERE collection_name=?1 AND write_cursor>?2 \
+     ORDER BY write_cursor ASC LIMIT ?3";
 
 fn read_operational_state_in_tx(
     reader: &mut Connection,
@@ -18348,25 +18424,21 @@ fn read_operational_state_in_tx(
     if let Some(frozen) = frozen {
         let binding = frozen_read::authenticate(&tx, frozen)?;
         frozen_read::validate_snapshot(&tx, &binding)?;
+        frozen_after_validation_hook::fire();
         validate_operational_context(frozen)?;
     }
     validate_operational_collection(&tx, collection)?;
     let record = tx
-        .query_row(
-            "SELECT collection_name,record_key,payload_json,schema_id,write_cursor \
-             FROM operational_state WHERE collection_name=?1 AND record_key=?2",
-            params![collection, record_key],
-            |row| {
-                Ok(OperationalStateRecordV1 {
-                    schema_version: 1,
-                    collection: row.get(0)?,
-                    record_key: row.get(1)?,
-                    payload: row.get(2)?,
-                    schema_id: row.get(3)?,
-                    write_cursor: row.get::<_, i64>(4)? as u64,
-                })
-            },
-        )
+        .query_row(OPERATIONAL_STATE_POINT_SQL, params![collection, record_key], |row| {
+            Ok(OperationalStateRecordV1 {
+                schema_version: 1,
+                collection: row.get(0)?,
+                record_key: row.get(1)?,
+                payload: row.get(2)?,
+                schema_id: row.get(3)?,
+                write_cursor: row.get::<_, i64>(4)? as u64,
+            })
+        })
         .optional()?;
     tx.commit()?;
     Ok(record)
@@ -18391,16 +18463,12 @@ fn read_operational_state_page_in_tx(
         page,
     )?;
     frozen_read::validate_snapshot(&tx, &binding)?;
+    frozen_after_validation_hook::fire();
     validate_operational_context(frozen)?;
     validate_operational_collection(&tx, collection)?;
     let limit = i64::try_from(page.limit + 1).map_err(|_| EngineError::Storage)?;
     let after = i64::try_from(after).map_err(|_| EngineError::Storage)?;
-    let mut statement = tx.prepare(
-        "SELECT collection_name,record_key,payload_json,schema_id,write_cursor \
-         FROM operational_state \
-         WHERE collection_name=?1 AND write_cursor>?2 \
-         ORDER BY write_cursor ASC LIMIT ?3",
-    )?;
+    let mut statement = tx.prepare(OPERATIONAL_STATE_PAGE_SQL)?;
     let rows = statement.query_map(params![collection, after, limit], |row| {
         Ok(OperationalStateRecordV1 {
             schema_version: 1,

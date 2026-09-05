@@ -1242,3 +1242,67 @@ impl PayloadCursor<'_> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn canonical_token_round_trips_and_single_character_tamper_fails(
+            write_cursor in any::<u64>(),
+            effective_valid_at in any::<i64>(),
+            rank in proptest::option::of(any::<u32>()),
+            fused_score in -1_000_000_f64..1_000_000_f64,
+            blended_score in -1_000_000_f64..1_000_000_f64,
+            seed in any::<[u8; 32]>(),
+        ) {
+            let key = [0x5a; 32];
+            let payload = Payload {
+                artifact_class: EvidenceArtifactClassV1::Node,
+                write_cursor,
+                effective_valid_at,
+                database_commitment: seed,
+                context_commitment: keyed(&key, b"test-context", &seed),
+                artifact_commitment: keyed(&key, b"test-artifact", &seed),
+                source_commitment: keyed(&key, b"test-source", &seed),
+                locator_commitment: keyed(&key, b"test-locator", &seed),
+                hash_commitment: keyed(&key, b"test-hash", &seed),
+                generation_commitment: keyed(&key, b"test-generation", &seed),
+                arm: EvidenceArmV1::Text,
+                contribution: EvidenceContributionV1 {
+                    schema_version: SCHEMA_VERSION,
+                    vector_rank: rank,
+                    text_rank: rank,
+                    graph_rank: None,
+                    fused_score,
+                    ce_score: None,
+                    blended_score,
+                    importance: None,
+                    confidence: None,
+                },
+                graph_origin: None,
+                graph_edge_commitment: None,
+            };
+
+            let token = encode_token(&key, &payload).unwrap();
+            prop_assert!(token.len() <= TOKEN_MAX_BYTES);
+            let decoded = decode_token(&key, &token).unwrap();
+            prop_assert_eq!(encode_payload(&decoded), encode_payload(&payload));
+
+            let mut tampered = token.into_bytes();
+            let index = tampered.len() - 1;
+            tampered[index] = if tampered[index] == b'0' { b'1' } else { b'0' };
+            let tampered = String::from_utf8(tampered).unwrap();
+            let is_unavailable = matches!(
+                decode_token(&key, &tampered),
+                Err(EngineError::Evidence(EvidenceErrorV1 {
+                    reason: EvidenceErrorReasonV1::EvidenceUnavailable,
+                    ..
+                }))
+            );
+            prop_assert!(is_unavailable);
+        }
+    }
+}

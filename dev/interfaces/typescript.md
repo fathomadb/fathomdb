@@ -972,3 +972,15 @@ point read, while `read.operationalStatePage` provides frozen pagination for a
 registered `latest_state` collection. Limits are 1 through 250. Pagination
 refusals are `PageError` values with stable `reason` and `fieldPath`; frozen
 drift remains `FrozenReadError`.
+
+## Compact source evidence (0.8.25 Slice 50)
+
+`Engine.searchWithEvidence(request)` returns `EvidenceSearchResultV1`, pairing
+the unchanged search result with one evidence reference per result position.
+`Engine.resolveEvidence(request)` returns exact one-source
+`ResolvedEvidenceV1` under an equivalent frozen context.
+
+The two methods are additive governed reads. Failures are mapped through
+`FDB_EVIDENCE` to `EvidenceError` with `reason` and `fieldPath`; unauthorized
+states expose only `evidence_unavailable` at `/evidenceRef`. Existing
+`Engine.search` and `SearchHit` are unchanged.

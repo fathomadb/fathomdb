@@ -1118,3 +1118,18 @@ an optional frozen context. `Engine::read_operational_state_page` pages that
 same current-state table under a mandatory frozen context. Refusals use
 `EngineError::Page(PageError)`; stale authority remains
 `EngineError::FrozenRead`.
+
+## Compact source evidence (0.8.25 Slice 50)
+
+`Engine::search_with_evidence(&EvidenceSearchRequestV1)` runs the ordinary
+hybrid search under a `FrozenReadContextV1` and returns
+`EvidenceSearchResultV1`: the unchanged `SearchResult` plus one positional
+`EvidenceSidecarEntryV1` per hit. `Engine::resolve_evidence` accepts the opaque
+reference and an equivalent frozen context and returns exact one-source
+`ResolvedEvidenceV1` only after current authorization is rechecked.
+
+The reference contains keyed commitments, not caller or stored identities.
+Resolution is stateless and uses one reader transaction. Ordinary search,
+schema 33, and existing result types are unchanged. Failures use
+`EngineError::Evidence(EvidenceErrorV1)` with the closed reason vocabulary in
+`ADR-0.8.25-compact-source-evidence.md`.

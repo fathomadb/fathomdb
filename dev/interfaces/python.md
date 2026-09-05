@@ -935,3 +935,16 @@ current or frozen point read, and `fathomdb.read.operational_state_page`
 provides frozen pagination for a registered `latest_state` collection. Limits
 are 1 through 250. Pagination refusals raise `errors.PageError` with stable
 `reason` and `field_path`; frozen drift continues to raise `FrozenReadError`.
+
+## Compact source evidence (0.8.25 Slice 50)
+
+`Engine.search_with_evidence(EvidenceSearchRequestV1)` returns the ordinary
+search result plus a positional evidence sidecar. `Engine.resolve_evidence`
+accepts `EvidenceResolveRequestV1` and returns exact canonical source bytes,
+the selected UTF-8 byte span, immutable identities, lifecycle, projection
+origin, contribution, and an optional direct dependency.
+
+Both requests require an Engine-minted `FrozenReadContextV1`. Failures use the
+exported `EvidenceError` with `reason` and `field_path`; unauthorized states
+collapse to `evidence_unavailable` at `/evidenceRef`. Existing `Engine.search`
+and `SearchHit` are unchanged.

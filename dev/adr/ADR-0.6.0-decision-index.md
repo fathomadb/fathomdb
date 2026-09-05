@@ -134,6 +134,7 @@ Slice-0 gate before Slices 15 and 25 open.
 | 45 | architecture | Close direct single-source dependencies atomically across lifecycle and erasure, fence nonterminal work, prove completion, and expose only a keyed status read | accepted by approved 0.8.25 scope and Slice 30 execution authorization | ADR-0.8.25-dependency-lifecycle-closure.md |
 | 46 | interface | Apply the existing ranked-search eligibility vocabulary before every bounded retrieval stage and add an optional stateless reproduce-or-fail frozen context | accepted by approved 0.8.25 scope and Slice 35 execution authorization | ADR-0.8.25-eligibility-and-frozen-reads.md |
 | 47 | interface | Add frozen keyset pages for canonical logical nodes and governed current/frozen reads for registered latest-state collections | accepted by approved 0.8.25 scope and Slice 45 execution authorization | ADR-0.8.25-frozen-pagination-and-operational-state.md |
+| 48 | interface | Add stateless, content-free evidence references and an eligibility-bound exact one-source resolver without changing ordinary search | accepted by approved 0.8.25 scope and Slice 50 execution authorization | ADR-0.8.25-compact-source-evidence.md |
 
 ## Categories
 

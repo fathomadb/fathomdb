@@ -108,3 +108,20 @@ operation, selector, frozen-context digest, limit, ordering version, and last
 write cursor without containing caller selectors or stored content. The typed
 envelope code is `FDB_PAGE`; its closed refusal object contains `reason` and
 non-disclosing `fieldPath`.
+
+## Evidence wire objects (0.8.25 Slice 50)
+
+`EvidenceSearchRequestV1` and `EvidenceResolveRequestV1` use
+`schemaVersion: 1` and require a `FrozenReadContextV1`. Search returns the
+ordinary `SearchResult` plus position-associated `EvidenceSidecarEntryV1`
+objects. An evidence reference is opaque, database-local, HMAC-authenticated,
+content-free, and bounded to 2 KiB. It is never authorization by itself.
+
+`ResolvedEvidenceV1` returns the exact one-source provenance, bytes, UTF-8 byte
+locator, lifecycle, projection origin, retrieval contribution, and optional
+direct dependency. Python integer cursors remain integers; TypeScript native
+`u64` values use canonical decimal strings where applicable. Unknown request
+fields and unsupported request schemas fail closed. Additive response fields
+may be ignored, but unknown closed variants must be rejected. The typed
+envelope is `FDB_EVIDENCE`; non-authorized cases expose only
+`evidence_unavailable` at `/evidenceRef`.

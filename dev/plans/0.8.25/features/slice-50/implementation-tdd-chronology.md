@@ -164,3 +164,24 @@ Both SDKs now expose `EvidenceError` and return
 returns `unknown_field` at the exact unknown request-field pointer. TypeScript
 passes both focused real-database tests. The rebuilt, freshly installed Python
 wheel passes exact source resolution and the typed schema-refusal smoke.
+
+## RED 8
+
+The eighth increment made the disclosure precedence executable. After a
+reference was minted, the fixture made its artifact provenance incomplete and
+its canonical source ineligible under the bound owner predicate. Resolution
+incorrectly returned `evidence_incomplete`, revealing structural state before
+current source authorization.
+
+## GREEN 8
+
+Incomplete-provenance detail is now evaluated only after artifact, source,
+graph-origin, lifecycle, validity, eligibility, and closure authorization.
+The hidden case returns only `evidence_unavailable`; restoring source
+eligibility makes the same authenticated incomplete row return the documented
+`evidence_incomplete` result. The focused real-database suite passes 10/10.
+
+The codec verification also includes a property test over cursors, validity
+instants, ranks, finite scores, and commitment bytes. Canonical payloads
+round-trip byte-for-byte, remain under the size cap, and a one-character token
+tamper always returns the non-disclosing error.

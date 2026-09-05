@@ -550,11 +550,11 @@ fn projection_serving_encoding(connection: &Connection) -> Result<Vec<u8>, Engin
         encode_i64(&mut bytes, cursor);
         encode_i64(&mut bytes, updated_at);
     }
-    // Schema 33 visibility triggers make the monotonic generation in the outer
-    // binding authoritative for every terminal insert/update/delete. Retaining
-    // the historical row-by-row digest would add O(terminal rows) work to every
-    // frozen read while providing no additional drift signal. Schema 31/32
-    // retain their exact encoding for pinned historical fixtures.
+    // Schema 33 visibility triggers atomically advance the outer monotonic
+    // generation and rotate the branch-sensitive nonce above for every terminal
+    // insert/update/delete. Retaining the historical row-by-row digest would add
+    // O(terminal rows) work without strengthening that drift signal. Schema
+    // 31/32 retain their exact encoding for pinned historical fixtures.
     if schema_version < 33 {
         let mut terminals = connection
             .prepare(

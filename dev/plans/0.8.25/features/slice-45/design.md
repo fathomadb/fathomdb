@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 45 — minimal pagination and operational-state design
 status: READY
-design_version: 8
+design_version: 9
 review_cycle: 4
 target_release: 0.8.25
 depends_on: 40
@@ -144,8 +144,9 @@ walk. Both execute `LIMIT :limit_plus_one`; the extra row determines
 has no next cursor. Reusing one cursor is pure and returns identical items,
 order, and deterministic cursor bytes while its frozen state remains valid.
 
-Schema step 33 is one atomic additive migration. It adds these two page
-indexes:
+Schema step 33 is one atomic additive migration. It adds a non-null
+`state_nonce` to the singleton `_fathomdb_read_visibility_state` row and these
+two page indexes:
 
 ```sql
 CREATE UNIQUE INDEX canonical_nodes_kind_cursor_page_idx
@@ -156,13 +157,16 @@ CREATE UNIQUE INDEX operational_state_collection_cursor_page_idx
 ON operational_state(collection_name, write_cursor);
 ```
 
-It also adds the Slice 35 insert/update/delete visibility triggers for
-`operational_collections` (`oc`) and `operational_state` (`os`), then performs
-one checked increment of `_fathomdb_read_visibility_state.generation`. The
-increment invalidates every token minted under the narrower step-32 manifest;
-at `i64::MAX` it aborts and rolls back the whole migration with
-`read visibility generation exhausted`. Frozen open validation uses exactly 14
-tables at schema 31, 16 at schema 32, and 18 at schema 33 or later.
+It replaces the Slice 35 insert/update/delete visibility triggers for all 18
+governed tables. Every terminal mutation atomically performs one checked
+increment of `_fathomdb_read_visibility_state.generation` and replaces
+`state_nonce` with a fresh 256-bit random value. The migration itself performs
+that same transition once, invalidating every token minted under the narrower
+step-32 manifest. At `i64::MAX`, either path aborts with
+`read visibility generation exhausted`; a migration failure rolls back the
+whole step. Frozen open validation uses exactly 14 governed tables at schema
+31, 16 at schema 32, and 18 at schema 33 or later, validates all three triggers
+per table against the exact manifest, and refuses a malformed nonce.
 
 The Engine already allocates `write_cursor` from one global monotonic sequence,
 but the legacy tables did not encode that invariant. The unique page indexes
@@ -303,9 +307,9 @@ RED tests are committed before implementation and use real SQLite databases:
 | `slice45_page_codec` | property round-trip; canonical fixture; tamper, noncanonical, size, version, database, operation, selector, context and limit mismatch; caller-text absence scan. |
 | `slice45_canonical_pages` | limit bounds; empty/terminal/repeated cursor; active/history write-cursor order; anonymous exclusion; kind and every Slice 35 eligibility term before limit; exact concatenation with existing `NodeRecord` shape. |
 | `slice45_operational_state` | registered format-v1 latest-state point/page; missing key; missing/wrong-kind/unsupported-format collection; replacement; exact payload; point/page agreement; no mutation-log fallback. |
-| `slice45_page_races` plus inherited Slice 35 authority suites | Page-specific post-validation races cover canonical insert and operational-state replacement. `slice35_after_validation_races`, `slice35_frozen_read_races`, and the step-31 visibility-trigger matrix remain the non-duplicated authority proofs for lifecycle, dependency closure, erasure, attributes/projections, excision, and collection drift because page reads call the same `frozen_read::validate_snapshot` inside the pinned reader transaction. Restart continuation and schema/open tests cover close/reopen. Together they prove a bound result or exact whole-call failure; Slice 45 does not clone every Slice 35 mutation fixture through a second facade. |
+| `slice45_page_races` plus inherited Slice 35 authority suites | Page-specific post-validation races cover canonical page insert, operational-state page replacement, and operational-state point replacement. `slice35_after_validation_races`, `slice35_frozen_read_races`, and the step-31 visibility-trigger matrix remain the non-duplicated authority proofs for lifecycle, dependency closure, erasure, attributes/projections, excision, and collection drift because page reads call the same `frozen_read::validate_snapshot` inside the pinned reader transaction. Restart continuation and schema/open tests cover close/reopen. Together they prove a bound result or exact whole-call failure; Slice 45 does not clone every Slice 35 mutation fixture through a second facade. |
 | `slice45_query_plans` | canonical composite and revision-cursor indexes, operational PK, no OFFSET/temp-order/mutation-log scan. |
-| `step33_pagination` | two unique page indexes, two support indexes, six exact triggers, 14/16/18 manifest branches, one cutover increment, exhaustion rollback, pre-upgrade duplicate-key migration refusal, post-upgrade duplicate-key open refusal, and schema-32-token/raw-state-mutation/upgrade refusal. |
+| `step33_pagination` | two unique page indexes, two support indexes, 54 exact schema-33 triggers, 14/16/18 governed-table manifest branches, nonce shape, one branch-sensitive cutover transition, exhaustion rollback, every terminal operation rotating the nonce, equal-count divergent-copy refusal, pre-upgrade duplicate-key migration refusal, post-upgrade duplicate-key open refusal, and schema-32-token/raw-state-mutation/upgrade refusal. |
 | binding suites | strict request/response/error wire, canonical fixture, Python/TypeScript parity, source-independent packaged smoke. |
 
 Implementation order is codec/types and RED properties; schema/index/trigger
@@ -342,20 +346,27 @@ causal baselines. Frozen validation
 records projection-state and terminal row counts plus parse, authentication,
 binding, and query stage times. The pre-GREEN pilot retains the observed
 O(number-of-terminal-rows) digest cost. Schema 33 then uses serving-binding v3:
-terminal mutations are authenticated by the already-bound monotonic visibility
-generation instead of re-hashing every terminal row. Schema 31/32 encodings
-remain exact historical fixtures; a regression test proves every terminal
-mutation advances the generation while leaving the v3 compact encoding stable.
+terminal mutations advance the already-bound monotonic visibility generation
+and rotate a compact branch-sensitive nonce instead of re-hashing every
+terminal row. The nonce prevents equal-count divergent histories, including
+copied databases, from sharing the same binding. Schema 31/32 encodings remain
+exact historical fixtures; regression tests prove every terminal insert,
+update, and delete advances the generation and changes the v3 compact binding
+in O(1).
 
 Each primary steady cell runs ten independent paired processes per scale and
-at least 1,000 operations per process; treatment order alternates. Three
-additional process-cold repetitions measure open and first use. Peak RSS uses
-five fresh processes per arm and is never inferred from two phases in one
-process. A fixed-seed 10,000-draw paired percentile bootstrap over
+at least 1,000 operations per process; each of the four pair orders alternates
+independently. Three additional matched cold repetitions run every baseline
+and treatment arm in its own fresh process using one restart-portable,
+pre-minted frozen-context fixture; database open time is controlled and
+reported separately from the single measured operation. Peak RSS uses five
+fresh processes per arm and is never inferred from two phases in one process.
+A fixed-seed 10,000-draw paired percentile bootstrap over
 repetition-level p95 deltas reports the two-sided 95% interval. The
-preregistered materiality boundary is a median paired p95 increase of both more
-than 10% and more than 0.25 ms in any primary cell, or median peak-RSS increase
-of both more than 5% and more than 8 MiB.
+preregistered materiality boundary is a median paired p95 steady-state increase
+or median paired cold-operation increase of both more than 10% and more than
+0.25 ms in any primary cell, or median peak-RSS increase of both more than 5%
+and more than 8 MiB.
 
 Raw repetitions and intervals are retained regardless of outcome. A material
 effect—including one attributable to frozen binding validation—requires causal
@@ -365,10 +376,12 @@ comparative policy remains in Slice 75. CUDA, CE, GPU allocation, and
 live-model routes are N/A because this slice executes SQLite reads only.
 
 Independent design review cycle 3 passed at `e8d14d1e` with no unresolved
-P0/P1/P2 finding. Design v8 is the cycle-4 implementation reconciliation: it
-makes the page-specific versus inherited frozen-authority proof boundary
-explicit and adds the reviewer-requested matched throughput, public-list,
-full-walk, and mint-stage observations without changing product behavior or
-materiality policy. Implementation requires committed RED/GREEN chronology,
-independent code review, separate verification, exact evidence references, and
-a Slice 45 status record.
+P0/P1/P2 finding. Design v9 resolves cycle-4 implementation findings by making
+the serving binding branch-sensitive without reintroducing an O(N) terminal
+scan, adding the operational point-read race, preserving explicit historical
+canonical pages while keeping frozen search strict, and defining matched
+separate-process cold arms. It retains the reviewer-requested matched
+throughput, public-list, full-walk, and mint-stage observations without
+changing the materiality policy. Implementation requires committed RED/GREEN
+chronology, independent code review, separate verification, exact evidence
+references, and a Slice 45 status record.

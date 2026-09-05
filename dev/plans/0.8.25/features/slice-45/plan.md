@@ -63,18 +63,22 @@ digest pilot, then verify the schema-33 compact binding and support indexes
 remove that cost without weakening drift refusal.
 
 Run ten independent paired steady processes per primary cell and scale, at
-least 1,000 operations per process, three additional process-cold repetitions,
-and five fresh peak-RSS processes per arm. Alternate treatment order. Pin
+least 1,000 operations per process, three additional matched cold repetitions
+with every arm in its own fresh process, and five fresh peak-RSS processes per
+arm. Reuse one restart-portable pre-minted frozen-context fixture for matched
+cold operations and report database-open time separately. Alternate each
+steady and cold pair's treatment order. Pin
 host/build/SQLite/configuration, input and runner digests, CPU affinity, reset/
 warm-up procedure, and retain raw/result hashes. Use a fixed-seed 10,000-draw
 paired percentile bootstrap over repetition-level p95 deltas.
 
-An effect is material per primary cell when median paired p95 increases by both
-more than 10% and more than 0.25 ms, or median peak RSS increases by both more
-than 5% and more than 8 MiB. Report intervals and raw repetitions even when
-neither threshold is crossed. A material effect keeps the slice open for
-causal analysis and an explicit reviewed disposition; it never justifies
-weakening snapshot, eligibility, or cursor integrity.
+An effect is material per primary cell when the median paired p95 steady-state
+latency or median paired cold-operation latency increases by both more than 10%
+and more than 0.25 ms, or median peak RSS increases by both more than 5% and
+more than 8 MiB. Report intervals and raw repetitions even when neither
+threshold is crossed. A material effect keeps the slice open for causal
+analysis and an explicit reviewed disposition; it never justifies weakening
+snapshot, eligibility, or cursor integrity.
 
 ## Stop gates
 

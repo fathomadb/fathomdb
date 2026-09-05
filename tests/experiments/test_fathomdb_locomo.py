@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from experiments import _lib, fathomdb_locomo
+from experiments import _lib, fathomdb_locomo, measurement_classification
 
 
 TS = datetime(2026, 8, 13, 12, 30, tzinfo=timezone.utc)
@@ -139,20 +139,39 @@ def test_run_allocates_raw_output_under_its_public_receipt_id(tmp_path, monkeypa
 
 def test_committed_receipts_use_only_logical_artifact_names():
     policy = json.loads(
-        (_lib.EXPERIMENTS_DIR / "measurement-classification-policy.v2.json").read_text()
+        (_lib.EXPERIMENTS_DIR / measurement_classification.CURRENT_POLICY_NAME).read_text()
     )
     superseded = {
-        row["run_id"] for row in policy["superseded_postcutover_runs"]
+        row["run_id"]: row for row in policy["superseded_postcutover_runs"]
     }
     amended = {
-        row["run_id"] for row in policy["external_artifact_locator_amendments"]
+        row["run_id"]: row
+        for row in policy["external_artifact_locator_amendments"]
+    }
+    quarantined = {
+        row["run_id"]: row for row in policy["misclassified_postcutover_runs"]
     }
     observed_superseded = set()
     observed_amended = set()
+    observed_quarantined = set()
     for receipt_path in sorted((_lib.EXPERIMENTS_DIR / "runs").glob("*/record.json")):
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
         if receipt["run_id"] in superseded:
             observed_superseded.add(receipt["run_id"])
+            assert _sha(receipt_path) == superseded[receipt["run_id"]]["record_sha256"]
+            assert any(
+                Path(artifact["path"]).is_absolute()
+                for artifact in receipt["artifacts"]
+                if "path" in artifact
+            )
+            continue
+        if receipt["run_id"] in quarantined:
+            observed_quarantined.add(receipt["run_id"])
+            quarantine = quarantined[receipt["run_id"]]
+            assert _sha(receipt_path) == quarantine["record_sha256"]
+            assert quarantine["reason"] == (
+                "engine_search_text_only_misclassified_as_engine_search"
+            )
             assert any(
                 Path(artifact["path"]).is_absolute()
                 for artifact in receipt["artifacts"]
@@ -161,14 +180,28 @@ def test_committed_receipts_use_only_logical_artifact_names():
             continue
         if receipt["run_id"] in amended:
             observed_amended.add(receipt["run_id"])
-            assert all(
-                artifact["kind"] == "external_safe_summary"
+            amendment = amended[receipt["run_id"]]
+            assert _sha(receipt_path) == amendment["record_sha256"]
+            absolute_artifacts = [
+                artifact
                 for artifact in receipt["artifacts"]
                 if "path" in artifact and Path(artifact["path"]).is_absolute()
-            )
+            ]
+            assert absolute_artifacts
+            if amendment["reason"] == "absolute_external_safe_summary_in_immutable_record":
+                assert all(
+                    artifact["kind"] == "external_safe_summary"
+                    for artifact in absolute_artifacts
+                )
+            else:
+                assert amendment["reason"] == (
+                    "absolute_external_summary_missing_kind_in_immutable_record"
+                )
+                assert all("kind" not in artifact for artifact in absolute_artifacts)
             continue
         for artifact in receipt["artifacts"]:
             if "path" in artifact:
                 assert not Path(artifact["path"]).is_absolute(), receipt_path
-    assert observed_superseded == superseded
-    assert observed_amended == amended
+    assert observed_superseded == set(superseded)
+    assert observed_amended == set(amended)
+    assert observed_quarantined == set(quarantined)

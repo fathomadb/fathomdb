@@ -749,3 +749,26 @@ fn incomplete_detail_is_disclosed_only_after_current_source_authorization() {
                 && error.field_path == "/provenance"
     ));
 }
+
+#[test]
+fn evidence_search_collapses_frozen_context_failure_to_nondisclosure() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("search-context-error{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    let mut frozen = opened
+        .engine
+        .freeze_read_context(
+            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+        )
+        .unwrap();
+    frozen.token.push('0');
+
+    let error = opened.engine.search_with_evidence(&request("needle", frozen)).unwrap_err();
+
+    assert!(matches!(
+        error,
+        EngineError::Evidence(ref error)
+            if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
+                && error.field_path == "/evidenceRef"
+    ));
+}

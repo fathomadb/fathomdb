@@ -86,4 +86,25 @@ def test_unsupported_evidence_schema_is_typed(db_path: str) -> None:
 
     assert raised.value.reason == "unsupported_schema_version"
     assert raised.value.field_path == "/schemaVersion"
+
+    tampered = fathomdb.FrozenReadContextV1(
+        effective_valid_at=frozen.effective_valid_at,
+        context=frozen.context,
+        token=f"{frozen.token}0",
+    )
+    with pytest.raises(fathomdb.EvidenceError) as unavailable:
+        engine.search_with_evidence(
+            fathomdb.EvidenceSearchRequestV1(query="needle", context=tampered)
+        )
+    assert unavailable.value.reason == "evidence_unavailable"
+    assert unavailable.value.field_path == "/evidenceRef"
+
+    with pytest.raises(ValueError, match="rerank_depth must be >= 0"):
+        engine.search_with_evidence(
+            fathomdb.EvidenceSearchRequestV1(
+                query="needle",
+                context=frozen,
+                rerank_depth=-1,
+            )
+        )
     engine.close()

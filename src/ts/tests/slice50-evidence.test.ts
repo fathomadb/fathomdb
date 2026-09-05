@@ -5,7 +5,7 @@ import { join } from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Engine, EvidenceError } from "../src/index.js";
+import { Engine, EvidenceError, InvalidArgumentError } from "../src/index.js";
 
 test("search and resolve exact source evidence", async () => {
   const directory = await mkdtemp(join(tmpdir(), "fathomdb-slice50-"));
@@ -109,6 +109,28 @@ test("evidence request schema and unknown fields are typed", async () => {
         error instanceof EvidenceError &&
         error.reason === "unknown_field" &&
         error.fieldPath === "/unexpected",
+    );
+    await assert.rejects(
+      engine.searchWithEvidence({
+        schemaVersion: 1,
+        query: "needle",
+        context: { ...context, token: `${context.token}0` },
+      }),
+      (error: unknown) =>
+        error instanceof EvidenceError &&
+        error.reason === "evidence_unavailable" &&
+        error.fieldPath === "/evidenceRef",
+    );
+    await assert.rejects(
+      engine.searchWithEvidence({
+        schemaVersion: 1,
+        query: "needle",
+        context,
+        rerankDepth: -1,
+      }),
+      (error: unknown) =>
+        error instanceof InvalidArgumentError &&
+        error.message.includes("rerankDepth must be >= 0"),
     );
     await engine.close();
   } finally {

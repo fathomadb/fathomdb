@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 50 — compact source-complete evidence design
-status: REVIEW_PENDING
+status: READY
 design_version: 9
 target_release: 0.8.25
 depends_on: 45

@@ -377,12 +377,24 @@ pub(crate) fn build_search_result(
         let graph_edge_commitment = match graph_origin.as_ref() {
             Some(crate::CapturedGraphOrigin::EdgeSeed { edge_cursor })
             | Some(crate::CapturedGraphOrigin::Traversal { edge_cursor, .. }) => {
-                let (revision, _, _, _, _) = load_graph_edge_revision(
+                let (revision, _, _, _, source_revision) = load_graph_edge_revision(
                     connection,
                     *edge_cursor,
                     frozen.effective_valid_at,
                     frozen.context.view.include_out_of_window,
                 )?;
+                crate::validate_dependency_chain(
+                    connection,
+                    &source_revision,
+                    &revision,
+                    crate::DependencyValidationMode::Persisted,
+                )
+                .map_err(|_| {
+                    EngineError::Evidence(EvidenceErrorV1::new(
+                        EvidenceErrorReasonV1::EvidenceCorrupt,
+                        format!("/results/{index}/graphOrigin"),
+                    ))
+                })?;
                 Some(keyed(&key, GRAPH_EDGE_DOMAIN, revision.as_bytes()))
             }
             _ => None,
@@ -401,6 +413,18 @@ pub(crate) fn build_search_result(
             )
             .into());
         }
+        validate_full_provenance(connection, &stored).map_err(|_| {
+            EngineError::Evidence(EvidenceErrorV1::new(
+                EvidenceErrorReasonV1::EvidenceCorrupt,
+                format!("/results/{index}/provenance"),
+            ))
+        })?;
+        load_dependency(connection, &stored.artifact_revision_id).map_err(|_| {
+            EngineError::Evidence(EvidenceErrorV1::new(
+                EvidenceErrorReasonV1::EvidenceCorrupt,
+                format!("/results/{index}/provenance"),
+            ))
+        })?;
         let locator_bytes = locator_bytes(&stored.locator);
         let contribution = contribution(per_hit)?;
         let generation_nonce = random_nonce(connection)?;

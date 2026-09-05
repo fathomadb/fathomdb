@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import fathomdb
 import pytest  # pyright: ignore[reportMissingImports]
 from fathomdb.engine import _map_native_evidence_search, _map_native_resolved_evidence
+from fathomdb.errors import InvalidArgumentError
 
 
 def _native_resolved_fixture() -> SimpleNamespace:
@@ -152,7 +153,7 @@ def test_unsupported_evidence_schema_is_typed(db_path: str) -> None:
     assert unavailable.value.reason == "evidence_unavailable"
     assert unavailable.value.field_path == "/evidenceRef"
 
-    with pytest.raises(fathomdb.InvalidArgumentError, match="rerank_depth must be >= 0"):
+    with pytest.raises(InvalidArgumentError, match="rerank_depth must be >= 0"):
         engine.search_with_evidence(
             fathomdb.EvidenceSearchRequestV1(
                 query="needle",
@@ -161,7 +162,7 @@ def test_unsupported_evidence_schema_is_typed(db_path: str) -> None:
             )
         )
     with pytest.raises(
-        fathomdb.InvalidArgumentError, match="rerank_depth must be <= 4294967295"
+        InvalidArgumentError, match="rerank_depth must be <= 4294967295"
     ):
         engine.search_with_evidence(
             fathomdb.EvidenceSearchRequestV1(

@@ -107,6 +107,9 @@ export function validateNativeResolvedEvidence(r: NativeResolvedEvidenceV1): voi
     "/sourceLifecycleState",
   );
   variant(r.projectionOrigin.artifactClass, ["node", "edge"], "/projectionOrigin/artifactClass");
+  if (r.projectionOrigin.artifactClass !== r.artifactLifecycle.kind) {
+    fail("evidence_corrupt", "/projectionOrigin/artifactClass");
+  }
   variant(
     r.projectionOrigin.representativeArm,
     ["vector", "text", "text_edge", "graph_arm"],
@@ -143,9 +146,9 @@ export function validateNativeResolvedEvidence(r: NativeResolvedEvidenceV1): voi
   u32(contribution.vectorRank, "/retrievalContribution/vectorRank");
   u32(contribution.textRank, "/retrievalContribution/textRank");
   u32(contribution.graphRank, "/retrievalContribution/graphRank");
-  finite(contribution.fusedScore, "/retrievalContribution/fusedScore");
+  finite(contribution.fusedScore, "/retrievalContribution/fusedScore", true);
   finite(contribution.ceScore, "/retrievalContribution/ceScore");
-  finite(contribution.blendedScore, "/retrievalContribution/blendedScore");
+  finite(contribution.blendedScore, "/retrievalContribution/blendedScore", true);
   finite(contribution.importance, "/retrievalContribution/importance");
   finite(contribution.confidence, "/retrievalContribution/confidence");
   if (r.dependency) {

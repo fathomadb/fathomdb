@@ -406,7 +406,7 @@ fn graph_arm_resolves_node_body_source_and_separate_edge_origin() {
         &reopened.engine,
         &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
     );
-    let mut corrupt_graph_request = request("graphneedle", equivalent.clone());
+    let mut corrupt_graph_request = request("alpha", equivalent.clone());
     corrupt_graph_request.use_graph_arm = true;
     let mint_error = reopened.engine.search_with_evidence(&corrupt_graph_request).unwrap_err();
     assert!(matches!(

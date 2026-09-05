@@ -276,3 +276,26 @@ ordinary test view, eliminating scheduling-dependent generation drift. The
 graph fixture supplies a deterministic test embedder so its edge-body
 projection also reaches readiness rather than suppressing the readiness error.
 Two consecutive serialized 16-test runs pass.
+
+## RED 13
+
+The final design-review continuation found that authoritative provenance was
+revalidated at resolution but not before minting. New real-database fixtures
+corrupt the body source-version chain and the graph-origin edge source before
+search. Both searches incorrectly returned complete sidecars. Dynamic SDK
+fixtures also showed that null required fused/blended scores and a mismatched
+artifact class crossed the response boundary. Python range checks returned a
+plain `ValueError` rather than the established typed invalid-argument family.
+
+## GREEN 13 — design-review FIX-2
+
+Evidence search now validates each hit's complete authoritative source chain,
+registered dependency, and graph-origin edge source chain inside the same
+reader transaction before minting any sidecar. Any failure rejects the entire
+search at the indexed result provenance/graph-origin path. Python and
+TypeScript require finite fused/blended scores, preserve nullable optional
+contributions, and enforce artifact-class/lifecycle agreement. Python ranking
+range failures now use `InvalidArgumentError`, matching ordinary frozen
+search. The known-plaintext recovery oracle is the focused Rust unit
+`generation_selector_resists_cross_token_known_plaintext_reuse`; it derives
+the first token's mask and proves that mask cannot recover the second token.

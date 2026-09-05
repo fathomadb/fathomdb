@@ -294,6 +294,8 @@ def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
         {"node", "edge"},
         "/projectionOrigin/artifactClass",
     )
+    if value.projection_origin.artifact_class != value.artifact_lifecycle_kind:
+        _evidence_response_error("evidence_corrupt", "/projectionOrigin/artifactClass")
     _require_evidence_variant(
         value.projection_origin.representative_arm,
         {"vector", "text", "text_edge", "graph_arm"},
@@ -336,8 +338,15 @@ def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
         _require_u32(getattr(contribution, name), f"/retrievalContribution/{wire_name}")
     for name, wire_name in [
         ("fused_score", "fusedScore"),
-        ("ce_score", "ceScore"),
         ("blended_score", "blendedScore"),
+    ]:
+        _require_finite(
+            getattr(contribution, name),
+            f"/retrievalContribution/{wire_name}",
+            optional=False,
+        )
+    for name, wire_name in [
+        ("ce_score", "ceScore"),
         ("importance", "importance"),
         ("confidence", "confidence"),
     ]:
@@ -1248,9 +1257,11 @@ class Engine:
         ):
             raise TypeError("rerank_depth must be a non-negative integer")
         if request.rerank_depth < 0:
-            raise ValueError(f"rerank_depth must be >= 0, got {request.rerank_depth!r}")
+            raise InvalidArgumentError(
+                f"rerank_depth must be >= 0, got {request.rerank_depth!r}"
+            )
         if request.rerank_depth > 2**32 - 1:
-            raise ValueError(
+            raise InvalidArgumentError(
                 f"rerank_depth must be <= 4294967295, got {request.rerank_depth!r}"
             )
         if not isinstance(request.use_graph_arm, bool):
@@ -1264,9 +1275,11 @@ class Engine:
         if not isinstance(request.pool_n, int) or isinstance(request.pool_n, bool):
             raise TypeError("pool_n must be a non-negative integer")
         if request.pool_n < 0:
-            raise ValueError(f"pool_n must be >= 0, got {request.pool_n!r}")
+            raise InvalidArgumentError(f"pool_n must be >= 0, got {request.pool_n!r}")
         if request.pool_n > 2**32 - 1:
-            raise ValueError(f"pool_n must be <= 4294967295, got {request.pool_n!r}")
+            raise InvalidArgumentError(
+                f"pool_n must be <= 4294967295, got {request.pool_n!r}"
+            )
         if not isinstance(request.include_explanation, bool):
             raise TypeError("include_explanation must be a bool")
         native_context = _to_native_frozen_context(request.context)

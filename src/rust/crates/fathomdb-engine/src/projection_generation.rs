@@ -163,6 +163,25 @@ pub struct MutationProjectionStatusV1 {
     pub failed_count: u64,
 }
 
+#[derive(Clone)]
+pub(crate) struct CachedProjectionGenerationStatus {
+    visibility_generation: u64,
+    data_version: u64,
+    effective_at_epoch_s: i64,
+    runtime_state: ProjectionRuntimeStateV1,
+    status: ProjectionGenerationStatusV1,
+}
+
+#[derive(Clone)]
+pub(crate) struct CachedMutationProjectionStatus {
+    visibility_generation: u64,
+    data_version: u64,
+    effective_at_epoch_s: i64,
+    runtime_state: ProjectionRuntimeStateV1,
+    request: MutationProjectionStatusRequestV1,
+    status: MutationProjectionStatusV1,
+}
+
 /// Closed projection-generation failure reason.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ProjectionGenerationErrorReason {
@@ -235,8 +254,50 @@ enum Completion {
 struct CompletionSummary {
     observed_boundary: u64,
     ready_through: u64,
-    pending: Vec<u64>,
-    failed: Vec<u64>,
+    pending_count: u64,
+    failed_count: u64,
+}
+
+#[derive(Default)]
+struct CompletionAccumulator {
+    pending_count: u64,
+    failed_count: u64,
+    first_incomplete: Option<u64>,
+}
+
+impl CompletionAccumulator {
+    fn add(&mut self, cursor: u64, completion: Completion) -> Result<(), EngineError> {
+        match completion {
+            Completion::Complete => return Ok(()),
+            Completion::Pending => {
+                self.pending_count =
+                    self.pending_count.checked_add(1).ok_or(EngineError::Storage)?;
+            }
+            Completion::Failed => {
+                self.failed_count = self.failed_count.checked_add(1).ok_or(EngineError::Storage)?;
+            }
+        }
+        self.first_incomplete =
+            Some(self.first_incomplete.map_or(cursor, |first| first.min(cursor)));
+        Ok(())
+    }
+
+    fn add_aggregate(
+        &mut self,
+        pending_count: u64,
+        failed_count: u64,
+        first_incomplete: Option<u64>,
+    ) -> Result<(), EngineError> {
+        self.pending_count =
+            self.pending_count.checked_add(pending_count).ok_or(EngineError::Storage)?;
+        self.failed_count =
+            self.failed_count.checked_add(failed_count).ok_or(EngineError::Storage)?;
+        if let Some(cursor) = first_incomplete {
+            self.first_incomplete =
+                Some(self.first_incomplete.map_or(cursor, |first| first.min(cursor)));
+        }
+        Ok(())
+    }
 }
 
 fn corruption() -> EngineError {
@@ -838,6 +899,205 @@ pub(crate) fn dense_member_kind_at(
     Ok(Some("edge_fact".to_string()))
 }
 
+fn completion_aggregate_row(
+    connection: &Connection,
+    sql: &str,
+    parameters: impl rusqlite::Params,
+) -> Result<(u64, u64, Option<u64>), EngineError> {
+    let (pending, failed, first_incomplete, corrupt): (u64, u64, Option<u64>, u64) = connection
+        .query_row(sql, parameters, |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)))
+        .map_err(|_| EngineError::Storage)?;
+    if corrupt != 0 {
+        return Err(corruption());
+    }
+    Ok((pending, failed, first_incomplete))
+}
+
+fn aggregate_unregistered_node_completion(
+    connection: &Connection,
+    node_arm_declared: bool,
+    runtime_state: ProjectionRuntimeStateV1,
+) -> Result<(u64, u64, Option<u64>), EngineError> {
+    let sql = "WITH members AS (
+        SELECT n.write_cursor AS cursor,n.kind AS expected_kind,
+               CASE n.kind
+                 WHEN 'email' THEN 'email' WHEN 'article' THEN 'article'
+                 WHEN 'paper' THEN 'paper' WHEN 'meeting' THEN 'meeting'
+                 WHEN 'note' THEN 'note' WHEN 'todo' THEN 'todo'
+                 WHEN 'doc' THEN 'article' END AS expected_source_type,
+               pt.state AS terminal,vr.rowid AS sidecar_rowid,vr.kind AS sidecar_kind,
+               vd.source_type AS physical_source_type,vd.kind AS physical_kind,
+               (vk.kind IS NOT NULL) AS enrolled
+        FROM canonical_nodes n
+        LEFT JOIN _fathomdb_projection_terminal pt ON pt.write_cursor=n.write_cursor
+        LEFT JOIN _fathomdb_vector_rows vr ON vr.write_cursor=n.write_cursor
+        LEFT JOIN vector_default vd ON vd.rowid=n.write_cursor
+        LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind
+        WHERE n.row_kind IN ('leaf','coverage')
+          AND n.kind IN ('email','article','paper','meeting','note','todo','doc')
+          AND (?1!=0 OR vk.kind IS NOT NULL)
+          AND NOT EXISTS(
+            SELECT 1 FROM _fathomdb_artifact_revisions r
+            JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=r.revision_id
+            WHERE r.artifact_class='node' AND r.write_cursor=n.write_cursor
+          )
+      ), classified AS (
+        SELECT cursor,
+          COALESCE(terminal='up_to_date' AND sidecar_rowid=cursor
+            AND sidecar_kind=expected_kind
+            AND physical_source_type=expected_source_type
+            AND physical_kind=expected_kind,0) AS complete,
+          COALESCE(terminal='failed' AND sidecar_rowid IS NULL
+            AND physical_source_type IS NULL,0) AS failed,
+          COALESCE(((terminal IS NULL AND sidecar_rowid IS NULL
+              AND physical_source_type IS NULL AND enrolled)
+            OR (terminal='up_to_date' AND sidecar_rowid IS NULL
+              AND physical_source_type IS NULL AND NOT enrolled AND ?2=0)),0) AS pending
+        FROM members
+      )
+      SELECT COALESCE(SUM(pending),0),COALESCE(SUM(failed),0),
+             MIN(CASE WHEN pending OR failed THEN cursor END),
+             COALESCE(SUM(NOT (complete OR failed OR pending)),0)
+      FROM classified";
+    completion_aggregate_row(
+        connection,
+        sql,
+        params![
+            i64::from(node_arm_declared),
+            i64::from(runtime_state == ProjectionRuntimeStateV1::Usable)
+        ],
+    )
+}
+
+fn aggregate_unregistered_edge_completion(
+    connection: &Connection,
+    effective_at: i64,
+) -> Result<(u64, u64, Option<u64>), EngineError> {
+    let sql = "WITH members AS (
+        SELECT e.write_cursor AS cursor,pt.state AS terminal,
+               vr.rowid AS sidecar_rowid,vr.kind AS sidecar_kind,
+               vd.source_type AS physical_source_type,vd.kind AS physical_kind,
+               (vk.kind IS NOT NULL) AS enrolled
+        FROM canonical_edges e
+        LEFT JOIN _fathomdb_projection_terminal pt ON pt.write_cursor=e.write_cursor
+        LEFT JOIN _fathomdb_vector_rows vr ON vr.write_cursor=e.write_cursor
+        LEFT JOIN vector_default vd ON vd.rowid=e.write_cursor
+        LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind='edge_fact'
+        WHERE e.body IS NOT NULL AND e.superseded_at IS NULL
+          AND (e.t_invalid IS NULL OR e.t_invalid>?1)
+          AND NOT EXISTS(
+            SELECT 1 FROM _fathomdb_artifact_revisions r
+            JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=r.revision_id
+            WHERE r.artifact_class='edge' AND r.write_cursor=e.write_cursor
+          )
+      ), classified AS (
+        SELECT cursor,
+          COALESCE(terminal='up_to_date' AND sidecar_rowid=cursor
+            AND sidecar_kind='edge_fact' AND physical_source_type='edge_fact'
+            AND physical_kind='edge_fact' AND enrolled,0) AS complete,
+          COALESCE(terminal='failed' AND sidecar_rowid IS NULL
+            AND physical_source_type IS NULL,0) AS failed,
+          COALESCE(terminal IS NULL AND sidecar_rowid IS NULL
+            AND physical_source_type IS NULL AND enrolled,0) AS pending
+        FROM members
+      )
+      SELECT COALESCE(SUM(pending),0),COALESCE(SUM(failed),0),
+             MIN(CASE WHEN pending OR failed THEN cursor END),
+             COALESCE(SUM(NOT (complete OR failed OR pending)),0)
+      FROM classified";
+    completion_aggregate_row(connection, sql, [effective_at])
+}
+
+fn add_registered_completion(
+    connection: &Connection,
+    effective_at: i64,
+    runtime_state: ProjectionRuntimeStateV1,
+    artifact_class: &str,
+    accumulator: &mut CompletionAccumulator,
+) -> Result<(), EngineError> {
+    let owner_table = if artifact_class == "node" { "canonical_nodes" } else { "canonical_edges" };
+    let sql = format!(
+        "SELECT DISTINCT owner.write_cursor FROM {owner_table} owner
+         JOIN _fathomdb_artifact_revisions r ON r.write_cursor=owner.write_cursor
+           AND r.artifact_class=?1
+         JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=r.revision_id
+         ORDER BY owner.write_cursor"
+    );
+    let mut statement = connection.prepare(&sql).map_err(|_| EngineError::Storage)?;
+    let rows = statement
+        .query_map([artifact_class], |row| row.get::<_, u64>(0))
+        .map_err(|_| EngineError::Storage)?;
+    for row in rows {
+        let cursor = row.map_err(|_| EngineError::Storage)?;
+        if let Some(completion) =
+            physical_member_completion_at(connection, cursor, effective_at, runtime_state)?
+        {
+            accumulator.add(cursor, completion)?;
+        }
+    }
+    Ok(())
+}
+
+fn empty_physical_fast_path(
+    connection: &Connection,
+    effective_at: i64,
+    node_arm_declared: bool,
+) -> Result<Option<CompletionAccumulator>, EngineError> {
+    let terminal_rows: u64 = connection
+        .query_row("SELECT COUNT(*) FROM _fathomdb_projection_terminal", [], |row| row.get(0))
+        .map_err(|_| EngineError::Storage)?;
+    let sidecar_rows: u64 = connection
+        .query_row("SELECT COUNT(*) FROM _fathomdb_vector_rows", [], |row| row.get(0))
+        .map_err(|_| EngineError::Storage)?;
+    let physical_rows: u64 = connection
+        .query_row("SELECT COUNT(*) FROM vector_default", [], |row| row.get(0))
+        .map_err(|_| EngineError::Storage)?;
+    if terminal_rows != 0 || sidecar_rows != 0 || physical_rows != 0 {
+        return Ok(None);
+    }
+    let dependency_rows: u64 = connection
+        .query_row("SELECT COUNT(*) FROM _fathomdb_source_dependencies", [], |row| row.get(0))
+        .map_err(|_| EngineError::Storage)?;
+    if dependency_rows != 0 {
+        return Ok(None);
+    }
+
+    let (node_count, first_node, unenrolled_nodes): (u64, Option<u64>, u64) = connection
+        .query_row(
+            "SELECT COUNT(*),MIN(n.write_cursor),COALESCE(SUM(vk.kind IS NULL),0)
+             FROM canonical_nodes n
+             LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind
+             WHERE n.row_kind IN ('leaf','coverage')
+               AND n.kind IN ('email','article','paper','meeting','note','todo','doc')
+               AND (?1!=0 OR vk.kind IS NOT NULL)",
+            [i64::from(node_arm_declared)],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    let (edge_count, first_edge): (u64, Option<u64>) = connection
+        .query_row(
+            "SELECT COUNT(*),MIN(write_cursor) FROM canonical_edges
+             WHERE body IS NOT NULL AND superseded_at IS NULL
+               AND (t_invalid IS NULL OR t_invalid>?1)",
+            [effective_at],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    let edge_enrolled: bool = connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_kinds WHERE kind='edge_fact')",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    if unenrolled_nodes != 0 || (edge_count != 0 && !edge_enrolled) {
+        return Err(corruption());
+    }
+    let pending_count = node_count.checked_add(edge_count).ok_or(EngineError::Storage)?;
+    let first_incomplete = first_node.into_iter().chain(first_edge).min();
+    Ok(Some(CompletionAccumulator { pending_count, failed_count: 0, first_incomplete }))
+}
+
 fn physical_completion(
     connection: &Connection,
     effective_at: i64,
@@ -855,8 +1115,6 @@ fn physical_completion(
     if cross_owner_cursor {
         return Err(corruption());
     }
-    let mut pending = Vec::new();
-    let mut failed = Vec::new();
 
     let node_arm_declared =
         super::vector_projection_declared(connection).map_err(|_| EngineError::Storage)?;
@@ -867,154 +1125,48 @@ fn physical_completion(
             |row| row.get(0),
         )
         .map_err(|_| EngineError::Storage)?;
-    if node_arm_declared || has_explicit_node_enrolment {
-        let sql = "SELECT n.write_cursor,n.kind,n.row_kind,n.state,\
-                          EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions r \
-                            JOIN _fathomdb_source_dependencies d \
-                              ON d.derived_revision_id=r.revision_id \
-                            WHERE r.artifact_class='node' AND r.write_cursor=n.write_cursor),\
-                          pt.state,vr.rowid,vr.kind,vd.source_type,vd.kind,(vk.kind IS NOT NULL) \
-                   FROM canonical_nodes n \
-                   LEFT JOIN _fathomdb_projection_terminal pt \
-                     ON pt.write_cursor=n.write_cursor \
-                   LEFT JOIN _fathomdb_vector_rows vr ON vr.write_cursor=n.write_cursor \
-                   LEFT JOIN vector_default vd ON vd.rowid=n.write_cursor \
-                   LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind \
-                   ORDER BY n.write_cursor";
-        let mut statement = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
-        let rows = statement
-            .query_map([], |row| {
-                Ok((
-                    row.get::<_, u64>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, String>(2)?,
-                    row.get::<_, String>(3)?,
-                    row.get::<_, bool>(4)?,
-                    row.get::<_, Option<String>>(5)?,
-                    row.get::<_, Option<u64>>(6)?,
-                    row.get::<_, Option<String>>(7)?,
-                    row.get::<_, Option<String>>(8)?,
-                    row.get::<_, Option<String>>(9)?,
-                    row.get::<_, bool>(10)?,
-                ))
-            })
-            .map_err(|_| EngineError::Storage)?;
-        for row in rows {
-            let (
-                cursor,
-                kind,
-                row_kind,
-                state,
-                registered,
-                terminal,
-                sidecar_rowid,
-                sidecar,
-                physical_source_type,
-                physical_kind,
-                enrolled,
-            ) = row.map_err(|_| EngineError::Storage)?;
-            if (!node_arm_declared && !enrolled)
-                || !matches!(row_kind.as_str(), "leaf" | "coverage")
-                || !super::kind_is_vector_committable(&kind)
-                || (registered && state != "active")
-                || (registered
-                    && !super::dependency_closure::projection_owner_is_eligible_at(
-                        connection,
-                        cursor,
-                        effective_at,
-                    )?)
-            {
-                continue;
-            }
-            let physical = physical_source_type.as_deref().zip(physical_kind.as_deref());
-            match classify_completion(
-                terminal.as_deref(),
-                sidecar.as_deref().map(|kind| (kind, sidecar_rowid == Some(cursor))),
-                physical,
-                &kind,
-                false,
-                enrolled,
-                runtime_state,
-            )? {
-                Completion::Complete => {}
-                Completion::Pending => pending.push(cursor),
-                Completion::Failed => failed.push(cursor),
-            }
-        }
-    }
-
-    let mut statement = connection
-        .prepare(
-            "SELECT e.write_cursor,\
-                    EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions r \
-                      JOIN _fathomdb_source_dependencies d \
-                        ON d.derived_revision_id=r.revision_id \
-                      WHERE r.artifact_class='edge' AND r.write_cursor=e.write_cursor),\
-                    pt.state,vr.rowid,vr.kind,vd.source_type,vd.kind,(vk.kind IS NOT NULL) \
-             FROM canonical_edges e \
-             LEFT JOIN _fathomdb_projection_terminal pt ON pt.write_cursor=e.write_cursor \
-             LEFT JOIN _fathomdb_vector_rows vr ON vr.write_cursor=e.write_cursor \
-             LEFT JOIN vector_default vd ON vd.rowid=e.write_cursor \
-             LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind='edge_fact' \
-             WHERE e.body IS NOT NULL AND e.superseded_at IS NULL \
-               AND (e.t_invalid IS NULL OR e.t_invalid>?1) ORDER BY e.write_cursor",
-        )
-        .map_err(|_| EngineError::Storage)?;
-    let rows = statement
-        .query_map([effective_at], |row| {
-            Ok((
-                row.get::<_, u64>(0)?,
-                row.get::<_, bool>(1)?,
-                row.get::<_, Option<String>>(2)?,
-                row.get::<_, Option<u64>>(3)?,
-                row.get::<_, Option<String>>(4)?,
-                row.get::<_, Option<String>>(5)?,
-                row.get::<_, Option<String>>(6)?,
-                row.get::<_, bool>(7)?,
-            ))
-        })
-        .map_err(|_| EngineError::Storage)?;
-    for row in rows {
-        let (
-            cursor,
-            registered,
-            terminal,
-            sidecar_rowid,
-            sidecar,
-            physical_source_type,
-            physical_kind,
-            enrolled,
-        ) = row.map_err(|_| EngineError::Storage)?;
-        if registered
-            && !super::dependency_closure::projection_owner_is_eligible_at(
+    let accumulator = if let Some(accumulator) =
+        empty_physical_fast_path(connection, effective_at, node_arm_declared)?
+    {
+        accumulator
+    } else {
+        let mut accumulator = CompletionAccumulator::default();
+        if node_arm_declared || has_explicit_node_enrolment {
+            let (pending, failed, first) = aggregate_unregistered_node_completion(
                 connection,
-                cursor,
+                node_arm_declared,
+                runtime_state,
+            )?;
+            accumulator.add_aggregate(pending, failed, first)?;
+            add_registered_completion(
+                connection,
                 effective_at,
-            )?
-        {
-            continue;
+                runtime_state,
+                "node",
+                &mut accumulator,
+            )?;
         }
-        let physical = physical_source_type.as_deref().zip(physical_kind.as_deref());
-        match classify_completion(
-            terminal.as_deref(),
-            sidecar.as_deref().map(|kind| (kind, sidecar_rowid == Some(cursor))),
-            physical,
-            "edge_fact",
-            true,
-            enrolled,
+        let (pending, failed, first) =
+            aggregate_unregistered_edge_completion(connection, effective_at)?;
+        accumulator.add_aggregate(pending, failed, first)?;
+        add_registered_completion(
+            connection,
+            effective_at,
             runtime_state,
-        )? {
-            Completion::Complete => {}
-            Completion::Pending => pending.push(cursor),
-            Completion::Failed => failed.push(cursor),
-        }
-    }
-    pending.sort_unstable();
-    failed.sort_unstable();
-    let first_incomplete = pending.first().into_iter().chain(failed.first()).min().copied();
+            "edge",
+            &mut accumulator,
+        )?;
+        accumulator
+    };
+
     let ready_through =
-        first_incomplete.map_or(observed_boundary, |cursor| cursor.saturating_sub(1));
-    Ok(CompletionSummary { observed_boundary, ready_through, pending, failed })
+        accumulator.first_incomplete.map_or(observed_boundary, |cursor| cursor.saturating_sub(1));
+    Ok(CompletionSummary {
+        observed_boundary,
+        ready_through,
+        pending_count: accumulator.pending_count,
+        failed_count: accumulator.failed_count,
+    })
 }
 
 fn status_in_snapshot(
@@ -1025,10 +1177,10 @@ fn status_in_snapshot(
     let generation = current_generation(connection)?;
     let completion = physical_completion(connection, effective_at_epoch_s, runtime_state)?;
     let readiness = if generation.origin == ProjectionGenerationOriginV1::LegacyUnverified
-        || !completion.failed.is_empty()
+        || completion.failed_count != 0
     {
         ProjectionReadinessV1::Degraded
-    } else if completion.pending.is_empty() {
+    } else if completion.pending_count == 0 {
         ProjectionReadinessV1::Ready
     } else {
         match runtime_state {
@@ -1048,12 +1200,45 @@ fn status_in_snapshot(
         ready_through: completion.ready_through,
         readiness,
         runtime_state,
-        pending_count: u64::try_from(completion.pending.len()).map_err(|_| EngineError::Storage)?,
-        failed_count: u64::try_from(completion.failed.len()).map_err(|_| EngineError::Storage)?,
+        pending_count: completion.pending_count,
+        failed_count: completion.failed_count,
     })
 }
 
 impl Engine {
+    fn cached_status_in_snapshot(
+        &self,
+        connection: &Connection,
+        runtime_state: ProjectionRuntimeStateV1,
+        effective_at_epoch_s: i64,
+    ) -> Result<ProjectionGenerationStatusV1, EngineError> {
+        let visibility_generation = super::frozen_read::load_visibility_generation(connection)
+            .map_err(|_| EngineError::Storage)?;
+        let data_version: u64 = connection
+            .query_row("PRAGMA data_version", [], |row| row.get(0))
+            .map_err(|_| EngineError::Storage)?;
+        let mut cache =
+            self.projection_generation_status_cache.lock().map_err(|_| EngineError::Storage)?;
+        if let Some(cached) = cache.as_ref() {
+            if cached.visibility_generation == visibility_generation
+                && cached.data_version == data_version
+                && cached.effective_at_epoch_s == effective_at_epoch_s
+                && cached.runtime_state == runtime_state
+            {
+                return Ok(cached.status.clone());
+            }
+        }
+        let status = status_in_snapshot(connection, runtime_state, effective_at_epoch_s)?;
+        *cache = Some(CachedProjectionGenerationStatus {
+            visibility_generation,
+            data_version,
+            effective_at_epoch_s,
+            runtime_state,
+            status: status.clone(),
+        });
+        Ok(status)
+    }
+
     /// Read the current serving-generation identity and physical completeness.
     pub fn read_projection_generation_status(
         &self,
@@ -1072,7 +1257,7 @@ impl Engine {
         } else {
             ProjectionRuntimeStateV1::Usable
         };
-        let status = status_in_snapshot(&tx, runtime_state, effective_at_epoch_s)?;
+        let status = self.cached_status_in_snapshot(&tx, runtime_state, effective_at_epoch_s)?;
         tx.commit().map_err(|_| EngineError::Storage)?;
         Ok(status)
     }
@@ -1117,6 +1302,28 @@ impl Engine {
             ProjectionRuntimeStateV1::Usable
         };
         let effective_at_epoch_s = current_epoch_seconds();
+        let visibility_generation = super::frozen_read::load_visibility_generation(&tx)
+            .map_err(|_| EngineError::Storage)?;
+        let data_version: u64 = tx
+            .query_row("PRAGMA data_version", [], |row| row.get(0))
+            .map_err(|_| EngineError::Storage)?;
+        {
+            let cache =
+                self.mutation_projection_status_cache.lock().map_err(|_| EngineError::Storage)?;
+            if let Some(cached) = cache.as_ref() {
+                if cached.visibility_generation == visibility_generation
+                    && cached.data_version == data_version
+                    && cached.effective_at_epoch_s == effective_at_epoch_s
+                    && cached.runtime_state == runtime_state
+                    && cached.request == request
+                {
+                    let status = cached.status.clone();
+                    tx.commit().map_err(|_| EngineError::Storage)?;
+                    return Ok(status);
+                }
+            }
+        }
+        let cache_request = request.clone();
         let raw_receipt: Option<(String, Option<String>)> = tx
             .query_row(
                 "SELECT outcome,request_sha256 FROM _fathomdb_actuation_receipts \
@@ -1182,7 +1389,7 @@ impl Engine {
             )
             .into());
         }
-        let status = status_in_snapshot(&tx, runtime_state, effective_at_epoch_s)?;
+        let status = self.cached_status_in_snapshot(&tx, runtime_state, effective_at_epoch_s)?;
         let owner_completion = physical_member_completion_at(
             &tx,
             request.write_cursor,
@@ -1221,6 +1428,15 @@ impl Engine {
             failed_count: u64::from(owner_failed),
         };
         tx.commit().map_err(|_| EngineError::Storage)?;
+        *self.mutation_projection_status_cache.lock().map_err(|_| EngineError::Storage)? =
+            Some(CachedMutationProjectionStatus {
+                visibility_generation,
+                data_version,
+                effective_at_epoch_s,
+                runtime_state,
+                request: cache_request,
+                status: result.clone(),
+            });
         Ok(result)
     }
 }

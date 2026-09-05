@@ -705,6 +705,10 @@ pub struct Engine {
     path: PathBuf,
     next_cursor: AtomicU64,
     read_visibility_generation: Arc<AtomicU64>,
+    projection_generation_status_cache:
+        Mutex<Option<projection_generation::CachedProjectionGenerationStatus>>,
+    mutation_projection_status_cache:
+        Mutex<Option<projection_generation::CachedMutationProjectionStatus>>,
     closed: AtomicBool,
     lock: Mutex<Option<File>>,
     connection: Mutex<Option<Connection>>,
@@ -7572,6 +7576,8 @@ impl Engine {
                         read_visibility_generation: Arc::new(AtomicU64::new(
                             read_visibility_generation,
                         )),
+                        projection_generation_status_cache: Mutex::new(None),
+                        mutation_projection_status_cache: Mutex::new(None),
                         closed: AtomicBool::new(false),
                         lock: Mutex::new(Some(lock)),
                         connection: Mutex::new(Some(connection)),

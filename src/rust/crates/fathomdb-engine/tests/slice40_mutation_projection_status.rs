@@ -153,3 +153,39 @@ fn tracked_cursor_without_a_current_physical_member_is_unavailable_not_ready() {
                 && error.field_path == "/projectionGeneration"
     ));
 }
+
+#[test]
+fn mutation_status_cache_invalidates_after_worker_publication() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("mutation-cache{SQLITE_SUFFIX}"));
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(TestEmbedder)).unwrap();
+    opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
+    opened.engine.set_projection_scheduler_frozen_for_test(true);
+    let receipt = opened
+        .engine
+        .actuate(
+            ActuationBatchV1::new(
+                "slice40-mutation-cache",
+                vec![ActuationOperationV1::PutCanonicalNode(canonical())],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let generation = receipt.projection_generation_id.unwrap();
+    let cursor = receipt.pending_projection_write_cursors[0];
+    let request = MutationProjectionStatusRequestV1 {
+        schema_version: 1,
+        operation_id: receipt.operation_id,
+        write_cursor: cursor,
+        expected_generation_id: generation.clone(),
+    };
+    assert_eq!(
+        opened.engine.read_mutation_projection_status(request.clone()).unwrap().readiness,
+        fathomdb_engine::ProjectionReadinessV1::Processing
+    );
+    opened.engine.publish_projection_success_for_test(cursor, "doc", generation).unwrap();
+    assert_eq!(
+        opened.engine.read_mutation_projection_status(request).unwrap().readiness,
+        fathomdb_engine::ProjectionReadinessV1::Ready
+    );
+}

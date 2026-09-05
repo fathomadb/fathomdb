@@ -4,7 +4,7 @@ status: READY
 design_version: 8
 review_cycle: 4
 reviewed_commit: 465eb0a5
-implementation_reconciliation: 1
+implementation_reconciliation: 2
 target_release: 0.8.25
 depends_on: 35
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -462,10 +462,21 @@ Readiness is derived in this order:
 7. usable runtime → `processing`.
 
 Counts are exact checked `u64` values. The implementation uses indexed UNION
-arms over physical node and edge members and point probes into terminal, sidecar,
-and vec0. `EXPLAIN QUERY PLAN` fixtures reject an unindexed canonical-table
-scan introduced by correlation fields; the bounded aggregate itself may visit
-the physical member set.
+arms over physical node and edge members, set-based terminal/sidecar/vec0
+classification, and exact point classification for registry-owned kinds.
+`EXPLAIN QUERY PLAN` fixtures reject an unindexed canonical-table scan
+introduced by correlation fields; an uncached aggregate may visit the physical
+member set.
+
+Status reads use an exact snapshot cache keyed by the read-visibility
+generation, SQLite `data_version`, effective epoch second, runtime state, and,
+for mutation status, the complete validated request. Same-connection Engine
+mutations advance read visibility; commits from other connections advance
+`data_version`; an epoch change invalidates time-bound eligibility. A cache
+miss recomputes the complete status in one reader transaction. A cache hit is
+therefore a reuse of an identical snapshot result, not an approximation or a
+weaker readiness signal. Tests must prove invalidation after worker publication
+and an out-of-band physical mutation.
 
 Existing `DenseReadiness` and projection-status coarse surfaces keep their
 accepted runtime-gated derivation unchanged: absent/refused runtime remains
@@ -766,8 +777,10 @@ Preregistered bounds:
   the fixed 10k fixture at most 64 KiB after checkpoint, with the two generation
   tables and receipt-column contribution reported separately and WAL bytes
   reported before and after checkpoint;
-- current-generation and mutation-status p95 at most 5 ms and p99 at most
-  10 ms at 50k;
+- steady-state current-generation and mutation-status p95 at most 5 ms and p99
+  at most 10 ms at 50k; the first uncached call and every invalidating
+  transition are reported separately as cold/transition observations and may
+  not be included in the steady distribution;
 - open/restart p95 upper regression at most 10% or 25 ms absolute, whichever is
   larger;
 - configuration/rebuild metadata transition cost reported separately from

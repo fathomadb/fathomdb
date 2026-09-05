@@ -210,3 +210,57 @@ fn worker_publication_never_repairs_a_partial_projection_tuple() {
     assert_generation_corruption(opened.engine.read_projection_generation_status());
     failure_release.wait();
 }
+
+#[test]
+fn generation_status_cache_invalidates_on_worker_and_external_changes() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("status-cache{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
+    opened.engine.set_projection_scheduler_frozen_for_test(true);
+    let cursor = opened.engine.write(&[node("cached-owner")]).unwrap().row_cursors[0];
+
+    let pending = opened.engine.read_projection_generation_status().unwrap();
+    assert_eq!(pending.readiness, ProjectionReadinessV1::Processing);
+    opened
+        .engine
+        .publish_projection_success_for_test(cursor, "doc", pending.generation_id)
+        .unwrap();
+    let ready = opened.engine.read_projection_generation_status().unwrap();
+    assert_eq!(ready.readiness, ProjectionReadinessV1::Ready);
+
+    Connection::open(&path)
+        .unwrap()
+        .execute("DELETE FROM vector_default WHERE rowid=?1", [cursor])
+        .unwrap();
+    assert_generation_corruption(opened.engine.read_projection_generation_status());
+}
+
+#[test]
+fn mixed_completion_summary_is_exact_and_boundary_ordered() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("mixed-summary{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
+    opened.engine.set_projection_scheduler_frozen_for_test(true);
+    let cursors = opened
+        .engine
+        .write(&[node("complete"), node("failed"), node("pending")])
+        .unwrap()
+        .row_cursors;
+    let generation = opened.engine.read_projection_generation_status().unwrap().generation_id;
+    opened.engine.publish_projection_success_for_test(cursors[0], "doc", generation).unwrap();
+    Connection::open(&path)
+        .unwrap()
+        .execute(
+            "INSERT INTO _fathomdb_projection_terminal(write_cursor,state) VALUES(?1,'failed')",
+            [cursors[1]],
+        )
+        .unwrap();
+
+    let status = opened.engine.read_projection_generation_status().unwrap();
+    assert_eq!(status.readiness, ProjectionReadinessV1::Degraded);
+    assert_eq!(status.pending_count, 1);
+    assert_eq!(status.failed_count, 1);
+    assert_eq!(status.ready_through, cursors[0]);
+}

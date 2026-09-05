@@ -98,14 +98,18 @@ def test_v3_classification_is_complete_and_exactly_counts_search_calls() -> None
         "metric_exclusions": [{"json_pointer": "/control"}],
         "claims": [{"id": "claim"}],
     }
-    artifacts = [{"id": "metrics"}]
+    artifacts = [
+        {"id": "metrics"},
+        {"id": "runner"},
+        {"id": "invocation"},
+    ]
 
     document = scale_02_slice35.classification_document(
         run_id="run-id",
         authority=authority,
         source_artifacts=artifacts,
         measurement_plan_sha256="4" * 64,
-        search_call_count=5_500,
+        search_call_counts={"baseline": 5_500, "candidate": 5_500},
     )
 
     assert document["outcome"] == "complete"
@@ -113,6 +117,11 @@ def test_v3_classification_is_complete_and_exactly_counts_search_calls() -> None
     assert [item["call_count"] for item in document["execution_witnesses"]] == [
         5_500,
         5_500,
+    ]
+    assert document["execution_witnesses"][0]["source_artifact_ids"] == [
+        "metrics",
+        "runner",
+        "invocation",
     ]
     assert document["classification_id"]
 

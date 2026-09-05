@@ -144,6 +144,58 @@ def test_valid_complete_classification_is_source_bound_and_plan_complete(tmp_pat
     mc.validate_classification(document, repository_root=tmp_path, authority=authority)
 
 
+def test_plan_v3_binds_exact_source_result_count_to_immutable_metrics(tmp_path):
+    document, authority = _complete_document(tmp_path)
+    authority["schema_version"] = "measurement.plan.v3"
+    authority["execution_witness_bindings"] = [
+        {
+            "witness_id": "search-call",
+            "source_artifact_id": "metrics",
+            "json_pointer": "/execution/search_calls",
+        }
+    ]
+    authority["metric_exclusions"] = [
+        {
+            "source_artifact_id": "metrics",
+            "json_pointer": "/execution/search_calls",
+            "reason": "run_control",
+        }
+    ]
+    metrics_path = tmp_path / "metrics.json"
+    _write_json(
+        metrics_path,
+        {"execution": {"search_calls": 1}, "retrieval": {"recall_at_3": 1.0}},
+    )
+    document["source_artifacts"][0]["sha256"] = _sha(metrics_path)
+    document["execution_witnesses"][0]["evidence_kind"] = "source_result"
+    document["execution_witnesses"][0]["source_artifact_ids"] = [
+        "metrics",
+        "implementation",
+    ]
+    document["metric_exclusions"] = copy.deepcopy(authority["metric_exclusions"])
+    document["migration"]["measurement_plan_sha256"] = mc.canonical_sha256(authority)
+    document["classification_id"] = mc.classification_id(document)
+
+    mc.validate_classification(document, repository_root=tmp_path, authority=authority)
+
+    document["execution_witnesses"][0]["call_count"] = 2
+    document["classification_id"] = mc.classification_id(document)
+    with pytest.raises(mc.ClassificationError, match="witness count"):
+        mc.validate_classification(document, repository_root=tmp_path, authority=authority)
+
+
+def test_engine_search_text_only_is_a_distinct_supported_operation(tmp_path):
+    document, authority = _complete_document(tmp_path)
+    authority["call_paths"][0]["operation"] = "Engine.search_text_only"
+    authority["components"][0]["name"] = "FathomDB Engine.search_text_only"
+    document["call_paths"] = copy.deepcopy(authority["call_paths"])
+    document["components"] = copy.deepcopy(authority["components"])
+    document["migration"]["measurement_plan_sha256"] = mc.canonical_sha256(authority)
+    document["classification_id"] = mc.classification_id(document)
+
+    mc.validate_classification(document, repository_root=tmp_path, authority=authority)
+
+
 @pytest.mark.parametrize(
     ("mutation", "message"),
     [
@@ -627,6 +679,64 @@ def test_portable_repository_gate_loads_post_cutover_plan_and_sidecar(tmp_path):
 
     (run_dir / mc.SIDECAR_NAME).unlink()
     with pytest.raises(mc.ClassificationError, match="classification_missing"):
+        mc.validate_repository(tmp_path)
+
+
+def test_quarantine_precedes_missing_plan_and_absolute_locator_validation(tmp_path):
+    experiments = tmp_path / "experiments"
+    run_id, run_dir = _lib.write_record(
+        "quarantine-fixture",
+        ts=__import__("datetime").datetime(
+            2026, 9, 5, 1, 0, tzinfo=__import__("datetime").timezone.utc
+        ),
+        config_obj={"program_track": "SCALE-02"},
+        metrics={"verdict": "pass"},
+        verdict="pass",
+        read="known false witness",
+        code={"git_sha": "fixture", "dirty": False, "branch": "fixture", "baseline_commit": None},
+        corpus={"source": None, "manifest_sha256": None, "datasets": []},
+        seeds={},
+        env={"python": "3.12", "lockfile_sha256": None, "gpu": None, "key_deps": {}},
+        cost_usd=0.0,
+        base_dir=experiments,
+        artifacts=[{"kind": "external_safe_summary", "path": "/external/result.json"}],
+    )
+    sidecar_path = run_dir / mc.SIDECAR_NAME
+    _write_json(sidecar_path, {"run_id": run_id, "known_false": True})
+    manifest_path = experiments / mc.HISTORICAL_MANIFEST_NAME
+    _write_json(
+        manifest_path,
+        {"schema_version": mc.HISTORICAL_VERSION, "included": [], "excluded": []},
+    )
+    policy = {
+        "schema_version": "measurement.classification-policy.v3",
+        "classifier_version": "1",
+        "index": {
+            "path": "experiments/index.jsonl",
+            "prefix_bytes": 0,
+            "prefix_lines": 0,
+            "prefix_sha256": hashlib.sha256(b"").hexdigest(),
+        },
+        "historical_manifest_path": str(manifest_path.relative_to(tmp_path)),
+        "superseded_postcutover_runs": [],
+        "postcutover_plan_amendments": [],
+        "external_artifact_locator_amendments": [],
+        "misclassified_postcutover_runs": [
+            {
+                "run_id": run_id,
+                "record_sha256": _sha(run_dir / "record.json"),
+                "sidecar_sha256": _sha(sidecar_path),
+                "reason": "engine_search_text_only_misclassified_as_engine_search",
+            }
+        ],
+    }
+    _write_json(experiments / "measurement-classification-policy.v3.json", policy)
+
+    mc.validate_repository(tmp_path)
+
+    policy["misclassified_postcutover_runs"][0]["sidecar_sha256"] = "0" * 64
+    _write_json(experiments / "measurement-classification-policy.v3.json", policy)
+    with pytest.raises(mc.ClassificationError, match="quarantined sidecar SHA-256"):
         mc.validate_repository(tmp_path)
 
 

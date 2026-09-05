@@ -1,3 +1,5 @@
+#![cfg(feature = "test-hooks")]
+
 use std::sync::{Arc, Barrier};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};

@@ -990,11 +990,11 @@ struct ProjectionRuntimeShared {
     projection_worker_transaction_pause: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
     /// Slice 40: one-shot rendezvous after dispatch has queued a captured-
     /// generation job and before any worker removes it from the queue.
-    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    #[cfg(feature = "test-hooks")]
     projection_worker_queued_pause: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
     /// Slice 40: one-shot rendezvous after embedding and immediately before
     /// the worker attempts to acquire SQLite's write lock.
-    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    #[cfg(feature = "test-hooks")]
     projection_worker_before_write_lock_pause: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
     /// TC-91 test-only acknowledgement after `stopping` is set and before a
     /// close joins workers, used with `projection_commit_failure_pause`.
@@ -2777,9 +2777,9 @@ impl ProjectionRuntime {
             projection_commit_failure_pause: Mutex::new(None),
             #[cfg(debug_assertions)]
             projection_worker_transaction_pause: Mutex::new(None),
-            #[cfg(any(debug_assertions, feature = "test-hooks"))]
+            #[cfg(feature = "test-hooks")]
             projection_worker_queued_pause: Mutex::new(None),
-            #[cfg(any(debug_assertions, feature = "test-hooks"))]
+            #[cfg(feature = "test-hooks")]
             projection_worker_before_write_lock_pause: Mutex::new(None),
             #[cfg(debug_assertions)]
             projection_stop_ack: Mutex::new(None),
@@ -2995,7 +2995,7 @@ impl ProjectionRuntime {
         (transaction_ready, release)
     }
 
-    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    #[cfg(feature = "test-hooks")]
     fn pause_projection_worker_while_queued_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
         let queued = Arc::new(Barrier::new(2));
         let release = Arc::new(Barrier::new(2));
@@ -3008,7 +3008,7 @@ impl ProjectionRuntime {
         (queued, release)
     }
 
-    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    #[cfg(feature = "test-hooks")]
     fn pause_projection_worker_before_write_lock_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
         let waiting = Arc::new(Barrier::new(2));
         let release = Arc::new(Barrier::new(2));
@@ -18591,7 +18591,7 @@ fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usiz
                 if stopping && queue.is_empty() {
                     return;
                 }
-                #[cfg(any(debug_assertions, feature = "test-hooks"))]
+                #[cfg(feature = "test-hooks")]
                 if !queue.is_empty() {
                     if let Some((queued, release)) = shared
                         .projection_worker_queued_pause
@@ -20060,7 +20060,7 @@ fn commit_projection_outcomes(
     // EU-5f — serialize the whole commit across workers so the at-pin
     // re-quantize sees a totally-ordered history (see `commit_gate`).
     let _gate = shared.commit_gate.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
-    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    #[cfg(feature = "test-hooks")]
     if let Some((waiting, release)) = shared
         .projection_worker_before_write_lock_pause
         .lock()

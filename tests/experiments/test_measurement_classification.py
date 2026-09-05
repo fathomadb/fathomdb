@@ -899,6 +899,33 @@ def test_external_locator_amendment_is_hash_bound_closed_and_narrow(tmp_path):
         )
 
 
+def test_external_locator_amendment_can_correct_an_immutable_missing_kind(tmp_path):
+    record_path = tmp_path / "record.json"
+    record = {
+        "run_id": "immutable-missing-kind",
+        "artifacts": [{"path": "/external/result.json", "sha256": "a" * 64}],
+    }
+    _write_json(record_path, record)
+    entry = {
+        "run_id": "immutable-missing-kind",
+        "record_sha256": _sha(record_path),
+        "reason": "absolute_external_summary_missing_kind_in_immutable_record",
+    }
+    amendments = mc._parse_external_locator_amendments([entry])  # noqa: SLF001
+    assert mc._validate_external_locator_amendment(  # noqa: SLF001
+        record_path, record, amendments
+    )
+
+    unsafe = copy.deepcopy(record)
+    unsafe["artifacts"][0]["kind"] = "database"
+    _write_json(record_path, unsafe)
+    entry["record_sha256"] = _sha(record_path)
+    with pytest.raises(mc.ClassificationError, match="unsupported artifact kind"):
+        mc._validate_external_locator_amendment(  # noqa: SLF001
+            record_path, unsafe, {"immutable-missing-kind": entry}
+        )
+
+
 def test_every_indexed_run_has_its_canonical_record():
     root = Path(mc.__file__).resolve().parents[1]
     for line in (root / "experiments" / "index.jsonl").read_text().splitlines():

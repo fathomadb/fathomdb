@@ -1,0 +1,23 @@
+{
+  "binary": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/target/release/deps/slice45_pagination_performance-36916f18217c11b7",
+  "binary_sha256": "485db71f1c8eceed6efed6dfbc0d24d744eab10cfd71bd8a5174c48bb00809a1",
+  "cpu_affinity": "0",
+  "databases": {
+    "10000": {
+      "path": "/tmp/slice45-formal-1e419a46/slice45-10000.fathom.sqlite3",
+      "sha256": "76333d513d3249bdb1cf6417d675e7d89a265796733cc7cb212c0388621128b9"
+    },
+    "50000": {
+      "path": "/tmp/slice45-formal-1e419a46/slice45-50000.fathom.sqlite3",
+      "sha256": "70ad5f6598308d8eb014fa678584379acad8eabc3c9d62c8495db6222f2e67a9"
+    }
+  },
+  "git_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "git_head": "996a76f2d0b25b923effcd2a0c423b61ecaa1192",
+  "kernel": "Linux 7.0.0-30-generic x86_64 GNU/Linux",
+  "raw_sha256": "ae28d53631dcf9379b251993c4e6666f549acd71805ab0dc60433f31528eb44b",
+  "result_sha256": "73d4660a6addf664f256faec49df1ff68af0fdbb6404b8c758872f31a0d69280",
+  "runner_sha256": "1d45b2732c63427076313ac8b2ff060a9fb7502788136c54dddd2c9e991526e5",
+  "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+  "schema_version": "slice45-pagination-manifest.v1"
+}

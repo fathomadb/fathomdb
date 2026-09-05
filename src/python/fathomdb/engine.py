@@ -194,6 +194,43 @@ def _map_native_evidence_search(result: Any) -> EvidenceSearchResultV1:
 
 
 def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
+    def require_variant(candidate: str | None, allowed: set[str], path: str) -> None:
+        if candidate not in allowed:
+            raise EvidenceError(
+                f"evidence_corrupt at {path}",
+                reason="evidence_corrupt",
+                field_path=path,
+            )
+
+    require_variant(value.locator_kind, {"whole_body", "utf8_bytes"}, "/locator/kind")
+    require_variant(value.artifact_lifecycle_kind, {"node", "edge"}, "/artifactLifecycle/kind")
+    if value.artifact_lifecycle_state is not None:
+        require_variant(
+            value.artifact_lifecycle_state,
+            {"pending", "active", "deleted", "purged"},
+            "/artifactLifecycle/state",
+        )
+    require_variant(
+        value.source_lifecycle_state,
+        {"pending", "active", "deleted", "purged"},
+        "/sourceLifecycleState",
+    )
+    require_variant(
+        value.projection_origin.artifact_class,
+        {"node", "edge"},
+        "/projectionOrigin/artifactClass",
+    )
+    require_variant(
+        value.projection_origin.representative_arm,
+        {"vector", "text", "text_edge", "graph_arm"},
+        "/projectionOrigin/representativeArm",
+    )
+    if value.projection_origin.graph_origin_kind is not None:
+        require_variant(
+            value.projection_origin.graph_origin_kind,
+            {"entity_seed", "edge_seed", "traversal"},
+            "/projectionOrigin/graphOrigin/kind",
+        )
     locator: Any = {"kind": value.locator_kind}
     if value.locator_kind == "utf8_bytes":
         locator.update(
@@ -1085,8 +1122,27 @@ class Engine:
                 field_path="/schemaVersion",
             )
         _validate_ranked_result_limit("limit", request.limit)
+        if not isinstance(request.rerank_depth, int) or isinstance(
+            request.rerank_depth, bool
+        ):
+            raise TypeError("rerank_depth must be a non-negative integer")
+        if request.rerank_depth < 0:
+            raise ValueError(f"rerank_depth must be >= 0, got {request.rerank_depth!r}")
+        if not isinstance(request.use_graph_arm, bool):
+            raise TypeError("use_graph_arm must be a bool")
+        if isinstance(request.alpha, bool) or not isinstance(
+            request.alpha, (int, float)
+        ):
+            raise TypeError("alpha must be a finite number")
+        if not math.isfinite(request.alpha):
+            raise ValueError(f"alpha must be a finite number, got {request.alpha!r}")
+        if not isinstance(request.pool_n, int) or isinstance(request.pool_n, bool):
+            raise TypeError("pool_n must be a non-negative integer")
+        if request.pool_n < 0:
+            raise ValueError(f"pool_n must be >= 0, got {request.pool_n!r}")
+        if not isinstance(request.include_explanation, bool):
+            raise TypeError("include_explanation must be a bool")
         native_context = _to_native_frozen_context(request.context)
-        self._native.validate_frozen_read_context(native_context)
         native = self._native.search_with_evidence(
             request.query,
             native_context,
@@ -1110,7 +1166,6 @@ class Engine:
                 field_path="/schemaVersion",
             )
         native_context = _to_native_frozen_context(request.context)
-        self._native.validate_frozen_read_context(native_context)
         return _map_native_resolved_evidence(
             self._native.resolve_evidence(request.evidence_ref, native_context)
         )

@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 50 — compact source-complete evidence design
-status: READY
-design_version: 7
+status: REVIEW_PENDING
+design_version: 8
 target_release: 0.8.25
 depends_on: 45
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -208,7 +208,8 @@ The payload contains only:
 3. artifact class plus internal numeric `write_cursor`;
 4. domain-separated keyed commitments to artifact revision, source revision,
    locator columns, and canonical source hash;
-5. a keyed commitment to Engine-minted projection-generation identity;
+5. an authenticated, key-protected projection-generation selector that permits
+   a direct primary-key probe without exposing the generation identity;
 6. closed retrieval-arm discriminant; and
 7. fixed nullable vector/text/graph ranks plus finite fused, CE, blended,
    importance, and confidence values copied from `PerHitExplain`; for graph
@@ -222,8 +223,8 @@ in the sidecar/result only after authorization; the opaque reference stores
 their keyed commitments. Each commitment is
 `HMAC-SHA-256(database_key, field_domain || canonical_field_bytes)`, with a
 different fixed domain for database, context, artifact revision, source
-revision, locator, source hash, projection generation, and graph edge
-revision. No unkeyed digest of a private value appears in the reference.
+revision, locator, source hash, protected projection generation, and graph
+edge revision. No unkeyed digest of a private value appears in the reference.
 Fixed contribution fields eliminate truncation and the prior
 arbitrary 16-component ambiguity. Nonfinite scores, ranks above `u32`, unknown
 arms, oversized payloads, or noncanonical option encodings fail the entire
@@ -256,7 +257,9 @@ verifiable without the database-local key.
    exact seed/traversal site; resolve and validate that edge revision in the
    same transaction. Never infer it from the hit's legacy `source_id`.
 4. Validate that the hit, explanation entry, revision row, source link,
-   projection generation, graph origin, and dependency agree. The existing
+   projection generation, graph origin, and dependency agree. Decrypt the
+   authenticated generation selector and perform one primary-key lookup; never
+   scan retained generation history. The existing
    GraphArm `SearchHit.source_id` remains the traversed edge's source for
    compatibility and may differ from the node body source returned by evidence;
    that difference is expected and is not an agreement condition. Build the

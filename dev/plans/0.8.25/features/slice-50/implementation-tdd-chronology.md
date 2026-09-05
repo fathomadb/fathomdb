@@ -88,10 +88,11 @@ required `evidence_unavailable` outcome.
 ## GREEN 3
 
 Resolution now authenticates the committed originating generation against the
-bounded Engine-owned generation history rather than requiring it to remain the
-current serving generation. It rejects zero or duplicate matches and validates
-the closed generation-ID grammar before disclosure. The focused suite passes
-7/7, including restart, retirement, and supersession.
+Engine-owned generation history rather than requiring it to remain the current
+serving generation. It rejects zero or duplicate matches and validates the
+closed generation-ID grammar before disclosure. The focused suite passes 7/7,
+including restart, retirement, and supersession. FIX-1 later replaces this
+initial history scan with a direct protected selector.
 
 ## RED 4
 
@@ -185,3 +186,37 @@ The codec verification also includes a property test over cursors, validity
 instants, ranks, finite scores, and commitment bytes. Canonical payloads
 round-trip byte-for-byte, remain under the size cap, and a one-character token
 tamper always returns the non-disclosing error.
+
+## RED 9
+
+The first implementation review identified three executable contract gaps.
+New failing tests require evidence search to collapse malformed frozen contexts
+to `evidence_unavailable`, require unsupported resolver schemas to precede
+context authentication, and require Python/TypeScript evidence search to reject
+negative ranking controls before native unsigned conversion. The Rust tests
+failed with `FrozenReadError`; TypeScript reproduced the same leak through the
+native addon.
+
+A second RED fixture corrupts the authoritative Slice 15 source-version row
+after minting a valid reference. Resolution incorrectly succeeded because it
+validated only the derived link fields and source revision body.
+
+## GREEN 9 — implementation-review FIX-1
+
+Evidence search and resolution now apply the documented schema and
+nondisclosure precedence in the Engine itself. Python no longer performs a
+leaking preflight call, and both dynamic SDKs validate the same ranking controls
+as ordinary frozen search before crossing FFI.
+
+Authorized resolution now reuses the complete Slice 15 canonical/derived
+provenance-chain validation and maps persisted dependency corruption to typed
+evidence corruption. Retained projection generations use an authenticated,
+key-protected selector and one indexed primary-key probe instead of scanning
+unbounded history. Closed response discriminants are checked by both dynamic
+SDKs before public objects are constructed.
+
+The adversarial suite now also covers source/dependency corruption, source
+deletion and erasure, graph-edge retirement, both frozen-search race windows,
+and expanded low-entropy privacy markers. The focused Rust suite passes 16/16;
+strict Clippy is green; TypeScript and a freshly built/installed Python wheel
+pass the corrected evidence routes.

@@ -19,6 +19,7 @@ const SOURCE_DOMAIN: &[u8] = b"fathomdb.evidence.source.v1\0";
 const LOCATOR_DOMAIN: &[u8] = b"fathomdb.evidence.locator.v1\0";
 const HASH_DOMAIN: &[u8] = b"fathomdb.evidence.hash.v1\0";
 const GENERATION_DOMAIN: &[u8] = b"fathomdb.evidence.generation.v1\0";
+const GENERATION_TAIL_DOMAIN: &[u8] = b"fathomdb.evidence.generation-tail.v1\0";
 const GRAPH_EDGE_DOMAIN: &[u8] = b"fathomdb.evidence.graph-edge.v1\0";
 
 /// Closed canonical artifact class carried by source evidence.
@@ -305,6 +306,11 @@ struct StoredEvidence {
     source_superseded: bool,
 }
 
+type SourceLinkRow = (String, String, String, String, Option<i64>, Option<i64>, String);
+type SourceArtifactRow = (String, String, Option<i64>, i64, String, Option<i64>, Option<i64>);
+type NodeArtifactRow = (Option<String>, String, String, Option<i64>, Option<i64>, Option<i64>);
+type EdgeArtifactRow = (Option<String>, String, Option<i64>, Option<i64>, Option<i64>);
+
 #[derive(Clone, Debug)]
 struct Payload {
     artifact_class: EvidenceArtifactClassV1,
@@ -316,7 +322,7 @@ struct Payload {
     source_commitment: [u8; 32],
     locator_commitment: [u8; 32],
     hash_commitment: [u8; 32],
-    generation_commitment: [u8; 32],
+    generation_ciphertext: Vec<u8>,
     arm: EvidenceArmV1,
     contribution: EvidenceContributionV1,
     graph_origin: Option<crate::CapturedGraphOrigin>,
@@ -410,7 +416,7 @@ pub(crate) fn build_search_result(
             source_commitment: keyed(&key, SOURCE_DOMAIN, stored.source_revision_id.as_bytes()),
             locator_commitment: keyed(&key, LOCATOR_DOMAIN, &locator_bytes),
             hash_commitment: keyed(&key, HASH_DOMAIN, stored.hash_digest.as_bytes()),
-            generation_commitment: keyed(&key, GENERATION_DOMAIN, generation.as_str().as_bytes()),
+            generation_ciphertext: protect_generation(&key, generation.as_str().as_bytes()),
             arm: EvidenceArmV1::from_branch(hit.branch),
             contribution,
             graph_origin,
@@ -468,7 +474,7 @@ pub(crate) fn resolve(
     {
         return Err(EvidenceErrorV1::unavailable().into());
     }
-    let generation = resolve_generation(connection, &key, &payload.generation_commitment)?;
+    let generation = resolve_generation(connection, &key, &payload.generation_ciphertext)?;
     let graph_origin = match (&payload.graph_origin, payload.graph_edge_commitment) {
         (None, None) if payload.arm != EvidenceArmV1::GraphArm => None,
         (Some(crate::CapturedGraphOrigin::EntitySeed), None)
@@ -601,6 +607,7 @@ pub(crate) fn resolve(
             EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceIncomplete, "/provenance").into()
         );
     }
+    validate_full_provenance(connection, &stored)?;
     let canonical_source_hash =
         CanonicalHash::sha256(stored.hash_digest.clone()).map_err(|_| {
             EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceCorrupt, "/canonicalSourceHash")
@@ -687,27 +694,26 @@ fn load_stored(
         .optional()
         .map_err(|_| EngineError::Storage)?;
     let (artifact_revision_id, completeness) = artifact.ok_or_else(EvidenceErrorV1::unavailable)?;
-    let link: Option<(String, String, String, String, Option<i64>, Option<i64>, String)> =
-        connection
-            .query_row(
-                "SELECT source_id,source_version_id,source_revision_id,locator_kind,\
+    let link: Option<SourceLinkRow> = connection
+        .query_row(
+            "SELECT source_id,source_version_id,source_revision_id,locator_kind,\
                     start_byte,end_byte,hash_digest FROM _fathomdb_source_links \
              WHERE artifact_revision_id=?1",
-                [&artifact_revision_id],
-                |row| {
-                    Ok((
-                        row.get(0)?,
-                        row.get(1)?,
-                        row.get(2)?,
-                        row.get(3)?,
-                        row.get(4)?,
-                        row.get(5)?,
-                        row.get(6)?,
-                    ))
-                },
-            )
-            .optional()
-            .map_err(|_| EngineError::Storage)?;
+            [&artifact_revision_id],
+            |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
     let (source_id, source_version_id, source_revision_id, locator_kind, start, end, hash_digest) =
         link.ok_or_else(|| {
             EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceIncomplete, "/provenance")
@@ -725,15 +731,7 @@ fn load_stored(
             .into())
         }
     };
-    let source: Option<(
-        String,
-        String,
-        Option<i64>,
-        i64,
-        String,
-        Option<i64>,
-        Option<i64>,
-    )> = connection
+    let source: Option<SourceArtifactRow> = connection
         .query_row(
             "SELECT n.body,n.state,n.superseded_at,n.write_cursor,n.kind,n.valid_from,n.valid_until \
              FROM _fathomdb_artifact_revisions ar \
@@ -772,14 +770,7 @@ fn load_stored(
     }
     let (logical_id, artifact_kind, artifact_state, artifact_superseded, edge_valid) = match class {
         EvidenceArtifactClassV1::Node => {
-            let row: Option<(
-                Option<String>,
-                String,
-                String,
-                Option<i64>,
-                Option<i64>,
-                Option<i64>,
-            )> = connection
+            let row: Option<NodeArtifactRow> = connection
                 .query_row(
                     "SELECT logical_id,kind,state,superseded_at,valid_from,valid_until \
                          FROM canonical_nodes WHERE write_cursor=?1",
@@ -807,15 +798,12 @@ fn load_stored(
             (logical, kind, Some(state), superseded.is_some(), true)
         }
         EvidenceArtifactClassV1::Edge => {
-            let row: Option<(Option<String>, String, Option<i64>, Option<i64>, Option<i64>)> =
-                connection
+            let row: Option<EdgeArtifactRow> = connection
                 .query_row(
                     "SELECT logical_id,kind,superseded_at,t_valid,t_invalid FROM canonical_edges \
                      WHERE write_cursor=?1",
                     [cursor],
-                    |row| {
-                        Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
-                    },
+                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
                 )
                 .optional()
                 .map_err(|_| EngineError::Storage)?;
@@ -903,28 +891,53 @@ fn source_revision_is_eligible(
 fn resolve_generation(
     connection: &Connection,
     key: &[u8],
-    commitment: &[u8; 32],
+    ciphertext: &[u8],
 ) -> Result<ProjectionGenerationId, EngineError> {
-    let mut statement = connection
-        .prepare("SELECT generation_id FROM _fathomdb_projection_generations")
+    let plaintext = protect_generation(key, ciphertext);
+    let generation = String::from_utf8(plaintext).map_err(|_| EvidenceErrorV1::unavailable())?;
+    let generation = ProjectionGenerationId::new(generation)
+        .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+    let exists: bool = connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_projection_generations \
+             WHERE generation_id=?1)",
+            [generation.as_str()],
+            |row| row.get(0),
+        )
         .map_err(|_| EngineError::Storage)?;
-    let rows =
-        statement.query_map([], |row| row.get::<_, String>(0)).map_err(|_| EngineError::Storage)?;
-    let mut matched = None;
-    for row in rows {
-        let generation = row.map_err(|_| EngineError::Storage)?;
-        let candidate = keyed(key, GENERATION_DOMAIN, generation.as_bytes());
-        if frozen_read::constant_time_eq(&candidate, commitment) {
-            if matched.is_some() {
-                return Err(EvidenceErrorV1::unavailable().into());
-            }
-            matched = Some(
-                ProjectionGenerationId::new(generation)
-                    .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?,
-            );
-        }
+    if !exists {
+        return Err(EvidenceErrorV1::unavailable().into());
     }
-    matched.ok_or_else(|| EvidenceErrorV1::unavailable().into())
+    Ok(generation)
+}
+
+fn protect_generation(key: &[u8], value: &[u8]) -> Vec<u8> {
+    let first = frozen_read::hmac_sha256(key, GENERATION_DOMAIN, b"selector");
+    let second = frozen_read::hmac_sha256(key, GENERATION_TAIL_DOMAIN, b"selector");
+    value.iter().zip(first.iter().chain(second.iter())).map(|(value, mask)| value ^ mask).collect()
+}
+
+fn validate_full_provenance(
+    connection: &Connection,
+    stored: &StoredEvidence,
+) -> Result<(), EngineError> {
+    let validation = if stored.artifact_revision_id == stored.source_revision_id {
+        crate::load_persisted_canonical_source(connection, &stored.source_revision_id)
+            .and_then(|source| source.ok_or(EngineError::Storage).map(|_| ()))
+    } else {
+        crate::validate_dependency_chain(
+            connection,
+            &stored.source_revision_id,
+            &stored.artifact_revision_id,
+            crate::DependencyValidationMode::Persisted,
+        )
+    };
+    validation.map_err(|_| {
+        EngineError::Evidence(EvidenceErrorV1::new(
+            EvidenceErrorReasonV1::EvidenceCorrupt,
+            "/provenance",
+        ))
+    })
 }
 
 fn load_dependency(
@@ -953,13 +966,25 @@ fn load_dependency(
         &dependency_id,
         artifact_revision_id,
         generation,
-    )?;
+    )
+    .map_err(|_| {
+        EngineError::Evidence(EvidenceErrorV1::new(
+            EvidenceErrorReasonV1::EvidenceCorrupt,
+            "/dependency",
+        ))
+    })?;
     crate::validate_dependency_chain(
         connection,
         &source_revision_id,
         artifact_revision_id,
         crate::DependencyValidationMode::Persisted,
-    )?;
+    )
+    .map_err(|_| {
+        EngineError::Evidence(EvidenceErrorV1::new(
+            EvidenceErrorReasonV1::EvidenceCorrupt,
+            "/dependency",
+        ))
+    })?;
     Ok(Some(SourceDependencyV1 {
         schema_version: 1,
         dependency_id: DependencyId(dependency_id),
@@ -1028,10 +1053,15 @@ fn encode_payload(payload: &Payload) -> Vec<u8> {
         payload.source_commitment,
         payload.locator_commitment,
         payload.hash_commitment,
-        payload.generation_commitment,
     ] {
         bytes.extend_from_slice(&commitment);
     }
+    frozen_read::encode_u32(
+        &mut bytes,
+        u32::try_from(payload.generation_ciphertext.len())
+            .expect("projection generation ciphertext is bounded"),
+    );
+    bytes.extend_from_slice(&payload.generation_ciphertext);
     bytes.push(payload.arm.tag());
     encode_optional_u32(&mut bytes, payload.contribution.vector_rank);
     encode_optional_u32(&mut bytes, payload.contribution.text_rank);
@@ -1104,7 +1134,12 @@ fn decode_payload(bytes: &[u8]) -> Result<Payload, EngineError> {
     let source_commitment = cursor.array32()?;
     let locator_commitment = cursor.array32()?;
     let hash_commitment = cursor.array32()?;
-    let generation_commitment = cursor.array32()?;
+    let generation_length =
+        usize::try_from(cursor.u32()?).map_err(|_| EvidenceErrorV1::unavailable())?;
+    if generation_length == 0 || generation_length > 64 {
+        return Err(EvidenceErrorV1::unavailable().into());
+    }
+    let generation_ciphertext = cursor.take(generation_length)?.to_vec();
     let arm = EvidenceArmV1::from_tag(cursor.u8()?).ok_or_else(EvidenceErrorV1::unavailable)?;
     let contribution = EvidenceContributionV1 {
         schema_version: SCHEMA_VERSION,
@@ -1146,7 +1181,7 @@ fn decode_payload(bytes: &[u8]) -> Result<Payload, EngineError> {
         source_commitment,
         locator_commitment,
         hash_commitment,
-        generation_commitment,
+        generation_ciphertext,
         arm,
         contribution,
         graph_origin,
@@ -1269,7 +1304,10 @@ mod tests {
                 source_commitment: keyed(&key, b"test-source", &seed),
                 locator_commitment: keyed(&key, b"test-locator", &seed),
                 hash_commitment: keyed(&key, b"test-hash", &seed),
-                generation_commitment: keyed(&key, b"test-generation", &seed),
+                generation_ciphertext: protect_generation(
+                    &key,
+                    b"pgen1:00000000000000000000000000000000",
+                ),
                 arm: EvidenceArmV1::Text,
                 contribution: EvidenceContributionV1 {
                     schema_version: SCHEMA_VERSION,

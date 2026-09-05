@@ -7394,7 +7394,8 @@ impl Engine {
         let binding = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-            frozen_read::authenticate(connection, &request.context)?
+            frozen_read::authenticate(connection, &request.context)
+                .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?
         };
         let dense_disabled_reason = self.dense_disabled.load(Ordering::Acquire).then(|| {
             self.dense_disabled_reason
@@ -7467,8 +7468,8 @@ impl Engine {
             Err(SearchReaderError::RerankerDevicePolicy(error)) => {
                 return Err(EngineError::RerankerDevicePolicy(error));
             }
-            Err(SearchReaderError::FrozenRead(error)) => {
-                return Err(EngineError::FrozenRead(error))
+            Err(SearchReaderError::FrozenRead(_)) => {
+                return Err(EngineError::Evidence(EvidenceErrorV1::unavailable()))
             }
             Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
                 self.vector_equivalence_refusals.fetch_add(1, Ordering::Relaxed);
@@ -7501,6 +7502,13 @@ impl Engine {
         &self,
         request: &EvidenceResolveRequestV1,
     ) -> Result<ResolvedEvidenceV1, EngineError> {
+        if request.schema_version != 1 {
+            return Err(EvidenceErrorV1::new(
+                EvidenceErrorReasonV1::UnsupportedSchemaVersion,
+                "/schemaVersion",
+            )
+            .into());
+        }
         self.ensure_open()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
@@ -16769,6 +16777,10 @@ trait SearchOriginCapture: Sized {
 
 struct NoEvidenceCapture;
 
+// Ordinary search retains a zero-sized capture strategy: evidence state and
+// provenance collection are absent unless the explicit evidence operation is used.
+const _: () = assert!(std::mem::size_of::<NoEvidenceCapture>() == 0);
+
 impl SearchOriginCapture for NoEvidenceCapture {
     type Output = (
         u64,
@@ -17972,6 +17984,7 @@ fn record_fts_query_plan_for_test(
 /// produced the node's winning `bfs_rank` (seeds are considered before Phase-2
 /// neighbors; within a phase, `ORDER BY write_cursor` makes the earliest-written
 /// edge win). A NULL edge confidence is simply not inserted ⇒ neutral (1.0).
+#[allow(clippy::too_many_arguments)] // Shared graph capture preserves the zero-cost default path.
 fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
     tx: &Connection,
     fused_hits: &[SearchHit],
@@ -24306,7 +24319,7 @@ fn saturating_add_u64(acc: u64, n: usize) -> u64 {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
-enum DependencyValidationMode {
+pub(crate) enum DependencyValidationMode {
     Requested,
     Persisted,
 }
@@ -24694,7 +24707,7 @@ fn stored_canonical_source_revision_id_is_valid(value: &str) -> bool {
 }
 
 #[allow(dead_code)] // Used by the Slice 25 prospective-write constructor.
-fn load_persisted_canonical_source(
+pub(crate) fn load_persisted_canonical_source(
     connection: &Connection,
     source_revision: &str,
 ) -> Result<Option<ProspectiveCanonicalSource>, EngineError> {
@@ -24842,7 +24855,7 @@ fn load_persisted_canonical_source(
     }))
 }
 
-fn validate_dependency_chain(
+pub(crate) fn validate_dependency_chain(
     connection: &Connection,
     requested_source_revision: &str,
     derived_revision: &str,

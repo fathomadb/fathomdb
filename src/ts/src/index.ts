@@ -1041,8 +1041,53 @@ function mapNativeEvidenceSearch(r: NativeEvidenceSearchResultV1): EvidenceSearc
   };
 }
 
+function requireEvidenceVariant(
+  value: string | null | undefined,
+  allowed: readonly string[],
+  fieldPath: string,
+): void {
+  if (value === null || value === undefined || !allowed.includes(value)) {
+    throw new EvidenceError(
+      `evidence_corrupt at ${fieldPath}`,
+      "evidence_corrupt",
+      fieldPath,
+    );
+  }
+}
+
 function mapNativeResolvedEvidence(r: NativeResolvedEvidenceV1): ResolvedEvidenceV1 {
   const graph = r.projectionOrigin.graphOrigin;
+  requireEvidenceVariant(r.locator.kind, ["whole_body", "utf8_bytes"], "/locator/kind");
+  requireEvidenceVariant(r.artifactLifecycle.kind, ["node", "edge"], "/artifactLifecycle/kind");
+  if (r.artifactLifecycle.state !== null && r.artifactLifecycle.state !== undefined) {
+    requireEvidenceVariant(
+      r.artifactLifecycle.state,
+      ["pending", "active", "deleted", "purged"],
+      "/artifactLifecycle/state",
+    );
+  }
+  requireEvidenceVariant(
+    r.sourceLifecycleState,
+    ["pending", "active", "deleted", "purged"],
+    "/sourceLifecycleState",
+  );
+  requireEvidenceVariant(
+    r.projectionOrigin.artifactClass,
+    ["node", "edge"],
+    "/projectionOrigin/artifactClass",
+  );
+  requireEvidenceVariant(
+    r.projectionOrigin.representativeArm,
+    ["vector", "text", "text_edge", "graph_arm"],
+    "/projectionOrigin/representativeArm",
+  );
+  if (graph) {
+    requireEvidenceVariant(
+      graph.kind,
+      ["entity_seed", "edge_seed", "traversal"],
+      "/projectionOrigin/graphOrigin/kind",
+    );
+  }
   const locator: ResolvedEvidenceV1["locator"] = r.locator.kind === "utf8_bytes"
     ? {
         kind: "utf8_bytes",
@@ -2084,6 +2129,45 @@ export class Engine {
     validateFfiString(request.query);
     validateReadContext(request.context.context);
     const limit = validateRankedResultLimit("limit", request.limit);
+    if (request.rerankDepth !== undefined) {
+      if (request.rerankDepth < 0) {
+        throw new InvalidArgumentError(
+          `rerankDepth must be >= 0; got ${request.rerankDepth}`,
+        );
+      }
+      if (!Number.isInteger(request.rerankDepth) || request.rerankDepth > 0xFFFFFFFF) {
+        throw new RangeError(
+          `rerankDepth must be an integer in 0..=4294967295; got ${request.rerankDepth}`,
+        );
+      }
+    }
+    if (request.useGraphArm !== undefined && typeof request.useGraphArm !== "boolean") {
+      throw new TypeError(`useGraphArm must be a boolean, got ${typeof request.useGraphArm}`);
+    }
+    if (
+      request.alpha !== undefined &&
+      (typeof request.alpha !== "number" || !Number.isFinite(request.alpha))
+    ) {
+      throw new RangeError(`alpha must be a finite number, got ${request.alpha}`);
+    }
+    if (request.poolN !== undefined) {
+      if (request.poolN < 0) {
+        throw new InvalidArgumentError(`poolN must be >= 0; got ${request.poolN}`);
+      }
+      if (!Number.isInteger(request.poolN) || request.poolN > 0xFFFFFFFF) {
+        throw new RangeError(
+          `poolN must be an integer in 0..=4294967295; got ${request.poolN}`,
+        );
+      }
+    }
+    if (
+      request.includeExplanation !== undefined &&
+      typeof request.includeExplanation !== "boolean"
+    ) {
+      throw new TypeError(
+        `includeExplanation must be a boolean, got ${typeof request.includeExplanation}`,
+      );
+    }
     const result = await intercept(() =>
       this.#native.searchWithEvidence(
         request.query,

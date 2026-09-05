@@ -1,14 +1,17 @@
 //! 0.8.25 Slice 50 — compact, eligibility-bound source evidence.
 
 use std::collections::BTreeSet;
+use std::sync::{Arc, Barrier};
+use std::thread;
 
 use fathomdb_engine::{
-    ArtifactRevisionId, CanonicalHash, Engine, EngineError, EvidenceArtifactLifecycleV1,
-    EvidenceErrorReasonV1, EvidenceGraphOriginV1, EvidenceResolveRequestV1,
-    EvidenceSearchRequestV1, InitialState, LifecycleState, PreparedWrite, ProjectionRole,
-    ProjectionSpec, ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter,
-    SoftFallbackBranch, SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId,
-    SourceVersionId, WriteProvenanceV1,
+    arm_frozen_after_validation_hook_for_test, arm_reader_search_hook_for_test, ArtifactRevisionId,
+    CanonicalHash, Engine, EngineError, EvidenceArtifactLifecycleV1, EvidenceErrorReasonV1,
+    EvidenceGraphOriginV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1, InitialState,
+    LifecycleState, PreparedWrite, ProjectionRole, ProjectionSpec, ProvenancedEdgeV1,
+    ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter, SoftFallbackBranch,
+    SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
+    WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use sha2::{Digest, Sha256};
@@ -233,11 +236,24 @@ fn visible_reference_payload_uses_keyed_not_dictionary_matchable_commitments() {
         .map(|index| u8::from_str_radix(&payload_hex[index..index + 2], 16).unwrap())
         .collect::<Vec<_>>();
 
+    let generation: String = rusqlite::Connection::open(&path)
+        .unwrap()
+        .query_row(
+            "SELECT generation_id FROM _fathomdb_projection_generation_current WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
     for secret in [
+        "needle",
         "source-low-entropy",
+        "source-version-low-entropy",
+        "source-logical-low-entropy",
         "source-revision-low-entropy",
+        "derived-logical-low-entropy",
         "derived-revision-low-entropy",
         source_body,
+        generation.as_str(),
     ] {
         assert!(!String::from_utf8_lossy(&payload).contains(secret));
         assert!(!payload
@@ -343,6 +359,34 @@ fn graph_arm_resolves_node_body_source_and_separate_edge_origin() {
         Some(EvidenceGraphOriginV1::EdgeSeed { ref edge_artifact_revision_id })
             if edge_artifact_revision_id == "edge-r1"
     ));
+
+    let evidence_ref = result.evidence[index].evidence_ref.clone();
+    drop(opened.engine);
+    let raw = rusqlite::Connection::open(&path).unwrap();
+    raw.execute("UPDATE canonical_edges SET superseded_at=1 WHERE logical_id='edge-logical'", [])
+        .unwrap();
+    drop(raw);
+    let reopened = Engine::open(&path).unwrap();
+    let equivalent = reopened
+        .engine
+        .freeze_read_context(
+            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+        )
+        .unwrap();
+    let error = reopened
+        .engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref,
+            context: equivalent,
+        })
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::Evidence(ref error)
+            if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
+                && error.field_path == "/evidenceRef"
+    ));
 }
 
 #[test]
@@ -436,8 +480,7 @@ fn equivalent_context_survives_restart_and_retired_projection_generation() {
             ),
         ])
         .unwrap();
-    let mut view = ReadView::default();
-    view.valid_as_of = Some(1_700_000_000);
+    let view = ReadView { valid_as_of: Some(1_700_000_000), ..ReadView::default() };
     let context = ReadContextV1::new(view, SearchFilter::default()).unwrap();
     let frozen = opened.engine.freeze_read_context(&context).unwrap();
     let evidence =
@@ -495,8 +538,7 @@ fn superseded_artifact_reference_is_nondisclosing() {
             ),
         ])
         .unwrap();
-    let mut view = ReadView::default();
-    view.valid_as_of = Some(1_700_000_000);
+    let view = ReadView { valid_as_of: Some(1_700_000_000), ..ReadView::default() };
     let context = ReadContextV1::new(view, SearchFilter::default()).unwrap();
     let first = opened.engine.freeze_read_context(&context).unwrap();
     let evidence =
@@ -867,4 +909,211 @@ fn authorized_source_identity_corruption_is_typed_evidence_corrupt() {
             if error.reason == EvidenceErrorReasonV1::EvidenceCorrupt
                 && error.field_path == "/provenance"
     ));
+}
+
+#[test]
+fn authorized_dependency_corruption_is_typed_evidence_corrupt() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("dependency-corruption{SQLITE_SUFFIX}"));
+    let source_body = "dependency authority";
+    let opened = Engine::open(&path).unwrap();
+    opened
+        .engine
+        .write(&[
+            canonical_named(
+                "corrupt-dep-source",
+                "corrupt-dep-source-r1",
+                "corrupt-dep-v1",
+                "corrupt-dep-source-id",
+                source_body,
+            ),
+            derived_named(
+                "corrupt-dep-claim",
+                "corrupt-dep-claim-r1",
+                "corrupt-dep-source-r1",
+                "corrupt-dep-v1",
+                "corrupt-dep-source-id",
+                source_body,
+                "dependencycorruptionneedle",
+            ),
+        ])
+        .unwrap();
+    opened
+        .engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new(
+                "corrupt-dep-1",
+                "corrupt-dep-source-r1",
+                "corrupt-dep-claim-r1",
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+    let frozen = opened.engine.freeze_read_context(&context).unwrap();
+    let evidence = opened
+        .engine
+        .search_with_evidence(&request("dependencycorruptionneedle", frozen))
+        .unwrap()
+        .evidence[0]
+        .evidence_ref
+        .clone();
+    drop(opened.engine);
+
+    let raw = rusqlite::Connection::open(&path).unwrap();
+    raw.pragma_update(None, "ignore_check_constraints", "ON").unwrap();
+    raw.execute(
+        "UPDATE _fathomdb_source_dependencies SET schema_version=2 \
+         WHERE dependency_id='corrupt-dep-1'",
+        [],
+    )
+    .unwrap();
+    drop(raw);
+
+    let reopened = Engine::open(&path).unwrap();
+    let equivalent = reopened.engine.freeze_read_context(&context).unwrap();
+    let error = reopened
+        .engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: evidence,
+            context: equivalent,
+        })
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::Evidence(ref error)
+            if error.reason == EvidenceErrorReasonV1::EvidenceCorrupt
+                && error.field_path == "/dependency"
+    ));
+}
+
+#[test]
+fn lifecycle_deletion_and_source_erasure_revoke_evidence() {
+    for erased in [false, true] {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("revocation-{erased}{SQLITE_SUFFIX}"));
+        let source_id = format!("revocation-source-{erased}");
+        let source_revision = format!("revocation-source-r1-{erased}");
+        let source_body = "revocation source body";
+        let opened = Engine::open(&path).unwrap();
+        opened
+            .engine
+            .write(&[
+                canonical_named(
+                    "revocation-source",
+                    &source_revision,
+                    "revocation-v1",
+                    &source_id,
+                    source_body,
+                ),
+                derived_named(
+                    "revocation-claim",
+                    &format!("revocation-claim-r1-{erased}"),
+                    &source_revision,
+                    "revocation-v1",
+                    &source_id,
+                    source_body,
+                    "revocationneedle",
+                ),
+            ])
+            .unwrap();
+        let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+        let frozen = opened.engine.freeze_read_context(&context).unwrap();
+        let evidence = opened
+            .engine
+            .search_with_evidence(&request("revocationneedle", frozen))
+            .unwrap()
+            .evidence[0]
+            .evidence_ref
+            .clone();
+        if erased {
+            opened.engine.erase_source(&source_id).unwrap();
+        } else {
+            opened.engine.transition("revocation-source", LifecycleState::Deleted, None).unwrap();
+        }
+        let equivalent = opened.engine.freeze_read_context(&context).unwrap();
+        let error = opened
+            .engine
+            .resolve_evidence(&EvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: evidence,
+                context: equivalent,
+            })
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            EngineError::Evidence(ref error)
+                if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
+                    && error.field_path == "/evidenceRef"
+        ));
+    }
+}
+
+#[test]
+fn evidence_search_races_are_snapshot_atomic_or_wholly_refused() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("evidence-race{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    let engine = Arc::new(opened.engine);
+    engine.write(&[canonical("race needle")]).unwrap();
+    let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+
+    let frozen = engine.freeze_read_context(&context).unwrap();
+    let ready = Arc::new(Barrier::new(2));
+    let release = Arc::new(Barrier::new(2));
+    let hook_ready = Arc::clone(&ready);
+    let hook_release = Arc::clone(&release);
+    arm_reader_search_hook_for_test(Box::new(move || {
+        hook_ready.wait();
+        hook_release.wait();
+    }));
+    let worker = {
+        let engine = Arc::clone(&engine);
+        thread::spawn(move || engine.search_with_evidence(&request("race", frozen)))
+    };
+    ready.wait();
+    engine
+        .write(&[canonical_named(
+            "race-later-1",
+            "race-later-r1",
+            "race-later-v1",
+            "race-later-source",
+            "later",
+        )])
+        .unwrap();
+    release.wait();
+    assert!(matches!(
+        worker.join().unwrap(),
+        Err(EngineError::Evidence(ref error))
+            if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
+    ));
+
+    let frozen = engine.freeze_read_context(&context).unwrap();
+    let ready = Arc::new(Barrier::new(2));
+    let release = Arc::new(Barrier::new(2));
+    let hook_ready = Arc::clone(&ready);
+    let hook_release = Arc::clone(&release);
+    arm_frozen_after_validation_hook_for_test(Box::new(move || {
+        hook_ready.wait();
+        hook_release.wait();
+    }));
+    let worker = {
+        let engine = Arc::clone(&engine);
+        thread::spawn(move || engine.search_with_evidence(&request("race", frozen)))
+    };
+    ready.wait();
+    engine
+        .write(&[canonical_named(
+            "race-later-2",
+            "race-later-r2",
+            "race-later-v2",
+            "race-later-source-2",
+            "later again",
+        )])
+        .unwrap();
+    release.wait();
+    let result = worker.join().unwrap().unwrap();
+    assert_eq!(result.search_result.results.len(), result.evidence.len());
+    assert!(!result.evidence.is_empty());
 }

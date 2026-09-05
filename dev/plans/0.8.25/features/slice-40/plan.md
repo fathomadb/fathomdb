@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 40 — projection generation and readiness
-status: DESIGN_FIX_4
+status: TDD_RED_PENDING
 depends_on: 35
 design: design.md
-design_status: CHANGES_REQUIRED_CYCLE_4
+design_status: PASS_CYCLE_4
 ---
 
 # Slice 40 plan

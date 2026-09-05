@@ -1,8 +1,9 @@
 ---
 title: 0.8.25 Slice 40 — core projection generation and readiness design
-status: DRAFT_FIX_4
+status: READY
 design_version: 7
 review_cycle: 4
+reviewed_commit: 465eb0a5
 target_release: 0.8.25
 depends_on: 35
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md

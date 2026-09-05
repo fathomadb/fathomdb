@@ -1,16 +1,19 @@
 ---
 title: 0.8.25 Slice 40 design review — cycle 4
-status: FIX_APPLIED_PENDING_VERIFICATION
+status: PASS
 reviewed_commit: 9cf6f146
+verified_commit: 465eb0a5
 ---
 
 # Slice 40 design review — cycle 4
 
 ## Verdict
 
-CHANGES_REQUIRED. The independent reviewer accepted generation identity,
-retention, stale-job fencing, digest ordering, trigger coverage, and platform
-routes, but found nine remaining implementation-shaping gaps.
+PASS after the documented corrections. The independent reviewer initially
+accepted generation identity, retention, stale-job fencing, digest ordering,
+trigger coverage, and platform routes, but found the remaining
+implementation-shaping gaps below. Exact-commit verification at `465eb0a5`
+confirmed that all P1/P2 findings are closed.
 
 ## Findings and dispositions
 
@@ -27,7 +30,8 @@ routes, but found nine remaining implementation-shaping gaps.
 | DR40-54 public and wire shapes incomplete | P2 | Specify existing operation-ID string grammar, additive receipt field in all SDKs, exact error payload, paths, order, and redaction. |
 | DR40-55 fresh-versus-legacy predicate undefined | P2 | Define a closed bootstrap manifest covering content, registry, receipts, enrolment, terminals, physical rows, and cursors. |
 
-No implementation begins until the cycle-4 reviewer verifies these corrections.
+Implementation did not begin until the cycle-4 reviewer verified these
+corrections.
 
 ## Correction verification follow-up
 
@@ -51,4 +55,4 @@ legacy. The final correction excludes exactly the single validated supplied
 default-profile identity when no mean is pinned, binds that identity in the
 declaration digest, adds caller-embedder fresh/restart tests, and limits the
 special FTS/dense repair helper explicitly to registered derived-node
-reactivation.
+reactivation. Final exact-commit verification at `465eb0a5` passed.

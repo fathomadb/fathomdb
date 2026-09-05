@@ -99,3 +99,10 @@ The fourth test increment requires a derived result to return its existing
 zero-or-one Slice 20 source dependency. The focused command failed 7 passed /
 1 failed because successful resolution still returned `dependency=None` for a
 registered dependency.
+
+## GREEN 4
+
+The resolver now loads and validates the Slice 20 dependency row and complete
+source-link chain on the same reader snapshot, returning the typed dependency
+only after the artifact and source are authorized. The focused suite passes
+8/8.

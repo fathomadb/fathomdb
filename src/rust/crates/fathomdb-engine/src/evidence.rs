@@ -3,8 +3,9 @@ use std::fmt::{Display, Formatter};
 use rusqlite::{Connection, OptionalExtension};
 
 use crate::{
-    frozen_read, CanonicalHash, EngineError, FrozenReadContextV1, LifecycleState,
-    ProjectionGenerationId, SearchResult, SoftFallbackBranch, SourceDependencyV1, SourceLocator,
+    frozen_read, ArtifactRevisionId, CanonicalHash, DependencyId, EngineError, FrozenReadContextV1,
+    LifecycleState, ProjectionGenerationId, SearchResult, SoftFallbackBranch, SourceDependencyV1,
+    SourceLocator, SourceRevisionId,
 };
 
 const SCHEMA_VERSION: u32 = 1;
@@ -579,6 +580,7 @@ pub(crate) fn resolve(
         .into());
     }
     let evidence_text = slice(&stored.source_body, &stored.locator)?;
+    let dependency = load_dependency(connection, &stored.artifact_revision_id)?;
     Ok(ResolvedEvidenceV1 {
         schema_version: SCHEMA_VERSION,
         logical_id: stored.logical_id,
@@ -601,7 +603,7 @@ pub(crate) fn resolve(
             graph_origin,
         },
         retrieval_contribution: payload.contribution,
-        dependency: None,
+        dependency,
     })
 }
 
@@ -827,6 +829,49 @@ fn resolve_generation(
         }
     }
     matched.ok_or_else(|| EvidenceErrorV1::unavailable().into())
+}
+
+fn load_dependency(
+    connection: &Connection,
+    artifact_revision_id: &str,
+) -> Result<Option<SourceDependencyV1>, EngineError> {
+    let row: Option<(i64, String, i64, String)> = connection
+        .query_row(
+            "SELECT d.schema_version,d.dependency_id,d.registered_dependency_generation,\
+                    l.source_revision_id \
+             FROM _fathomdb_source_dependencies d \
+             LEFT JOIN _fathomdb_source_links l \
+               ON l.artifact_revision_id=d.derived_revision_id \
+             WHERE d.derived_revision_id=?1",
+            [artifact_revision_id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let Some((schema, dependency_id, generation, source_revision_id)) = row else {
+        return Ok(None);
+    };
+    crate::validate_persisted_dependency_row(
+        connection,
+        schema,
+        &dependency_id,
+        artifact_revision_id,
+        generation,
+    )?;
+    crate::validate_dependency_chain(
+        connection,
+        &source_revision_id,
+        artifact_revision_id,
+        crate::DependencyValidationMode::Persisted,
+    )?;
+    Ok(Some(SourceDependencyV1 {
+        schema_version: 1,
+        dependency_id: DependencyId(dependency_id),
+        source_revision_id: SourceRevisionId(source_revision_id),
+        derived_revision_id: ArtifactRevisionId(artifact_revision_id.to_string()),
+        registered_dependency_generation: u64::try_from(generation)
+            .map_err(|_| EngineError::Storage)?,
+    }))
 }
 
 fn keyed(key: &[u8], domain: &[u8], value: &[u8]) -> [u8; 32] {

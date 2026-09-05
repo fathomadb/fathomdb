@@ -67,6 +67,16 @@
       "run_id": "scale-02-slice35-20260905T0231Z-cb9bad5b",
       "record_sha256": "6947b26537bb4b93c6c8e1c4a9f722d8e0e9d4943e75f7687ba280a7289dfb5d",
       "reason": "absolute_external_safe_summary_in_immutable_record"
+    },
+    {
+      "run_id": "scale-02-slice40-common-20260905T0754Z-c1feccdf",
+      "record_sha256": "a8bc7c1810a761eaceb6ac3972dfaa791be221420c9395b5b3791f0808d1c5bb",
+      "reason": "absolute_external_safe_summary_in_immutable_record"
+    },
+    {
+      "run_id": "scale-02-slice40-common-20260905T0819Z-12b4530d",
+      "record_sha256": "b0ee57797cf7e7427e48a514227e9bbfcc06dcce16b7a6d3404359b656f97066",
+      "reason": "absolute_external_safe_summary_in_immutable_record"
     }
   ]
 }

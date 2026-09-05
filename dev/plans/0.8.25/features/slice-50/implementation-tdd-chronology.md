@@ -312,3 +312,15 @@ public code before the mapper correction.
 The CLI now maps the additive Engine family to the stable `EvidenceError`
 code. Its existing outcome policy remains unrecoverable and unchanged. The
 focused CLI test and repository-wide fast gate cover the integration seam.
+
+## RED 15
+
+The repository's canonical Python typecheck, which is older than the local
+editor binary, rejected `typing.Never` on the supported Python 3.10 floor and
+did not narrow the generic native numeric value before `math.isfinite`.
+
+## GREEN 15
+
+The validator uses the Python-3.10-compatible `NoReturn` spelling and an
+explicit post-guard numeric cast. Runtime behavior is unchanged; the canonical
+repository Python typecheck is green.

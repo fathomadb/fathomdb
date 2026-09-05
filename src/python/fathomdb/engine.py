@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Sequence
-from typing import Any, Literal, Never, cast
+from typing import Any, Literal, NoReturn, cast
 
 from fathomdb._fathomdb import ConsolidateReceipt
 from fathomdb._fathomdb import Engine as _NativeEngine
@@ -177,7 +177,7 @@ def _map_native_node(node: Any) -> NodeRecord:
     )
 
 
-def _evidence_response_error(reason: str, path: str) -> Never:
+def _evidence_response_error(reason: str, path: str) -> NoReturn:
     raise EvidenceError(f"{reason} at {path}", reason=reason, field_path=path)
 
 
@@ -209,7 +209,7 @@ def _require_finite(value: object, path: str, *, optional: bool = True) -> None:
         return
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         _evidence_response_error("evidence_corrupt", path)
-    if not math.isfinite(value):
+    if not math.isfinite(cast(float, value)):
         _evidence_response_error("evidence_corrupt", path)
 
 

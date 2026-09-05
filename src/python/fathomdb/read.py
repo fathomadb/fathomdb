@@ -57,7 +57,7 @@ from fathomdb._fathomdb import ReadView as _NativeReadView
 from fathomdb._fathomdb import ReadContextV1 as _NativeReadContextV1
 from fathomdb._fathomdb import FrozenReadContextV1 as _NativeFrozenReadContextV1
 from fathomdb._fathomdb import BoundaryCrossing as _NativeBoundaryCrossing
-from fathomdb.errors import ProjectionGenerationError
+from fathomdb.errors import PageError, ProjectionGenerationError
 from fathomdb.types import (
     BoundaryCrossing,
     EmbeddingOperation,
@@ -236,6 +236,7 @@ def _to_op_store_row(native: _NativeOpStoreRow) -> OpStoreRow:
 
 
 def _to_operational_state_record(native: Any) -> OperationalStateRecordV1:
+    _require_page_response_v1(native.schema_version)
     return OperationalStateRecordV1(
         schema_version=native.schema_version,
         collection=native.collection,
@@ -244,6 +245,15 @@ def _to_operational_state_record(native: Any) -> OperationalStateRecordV1:
         schema_id=native.schema_id,
         write_cursor=native.write_cursor,
     )
+
+
+def _require_page_response_v1(schema_version: int) -> None:
+    if schema_version != 1:
+        raise PageError(
+            "unsupported_schema_version at /schemaVersion",
+            reason="unsupported_schema_version",
+            field_path="/schemaVersion",
+        )
 
 
 def get(engine: "Engine", logical_id: str, *, view: ReadView | None = None) -> NodeRecord | None:
@@ -371,6 +381,7 @@ def canonical_page(
         page.cursor,
         page.schema_version,
     )
+    _require_page_response_v1(native.schema_version)
     return PageV1(
         schema_version=native.schema_version,
         items=[_to_node_record(item) for item in native.items],
@@ -411,6 +422,7 @@ def operational_state_page(
         page.cursor,
         page.schema_version,
     )
+    _require_page_response_v1(native.schema_version)
     return PageV1(
         schema_version=native.schema_version,
         items=[_to_operational_state_record(item) for item in native.items],

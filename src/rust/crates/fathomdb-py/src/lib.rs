@@ -3410,7 +3410,7 @@ fn read_canonical_page(
     engine: &PyEngine,
     kind: &Bound<'_, PyAny>,
     context: &PyFrozenReadContextV1,
-    limit: u64,
+    limit: i64,
     cursor: Option<String>,
     schema_version: u32,
 ) -> PyResult<PyNodePageV1> {
@@ -3451,7 +3451,7 @@ fn read_operational_state_page(
     engine: &PyEngine,
     collection: &Bound<'_, PyAny>,
     context: &PyFrozenReadContextV1,
-    limit: u64,
+    limit: i64,
     cursor: Option<String>,
     schema_version: u32,
 ) -> PyResult<PyOperationalStatePageV1> {

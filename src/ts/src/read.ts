@@ -34,7 +34,12 @@ import {
   type NativeProjectionRuntimeStatus,
   type NativeEmbeddingReadiness,
 } from "./binding.js";
-import { InvalidArgumentError, ProjectionGenerationError, rethrowTyped } from "./errors.js";
+import {
+  InvalidArgumentError,
+  PageError,
+  ProjectionGenerationError,
+  rethrowTyped,
+} from "./errors.js";
 import { validateFfiString } from "./validation.js";
 import type {
   DenseReadiness,
@@ -244,10 +249,14 @@ function nativePageRequest(page: PageRequestV1): NativePageRequestV1 {
     throw new InvalidArgumentError(`PageRequestV1 has unknown field ${unknown.sort()[0]}`);
   }
   if (page.schemaVersion !== 1) {
-    throw new InvalidArgumentError("PageRequestV1.schemaVersion must be 1");
+    throw new PageError(
+      "unsupported_schema_version at /schemaVersion",
+      "unsupported_schema_version",
+      "/schemaVersion",
+    );
   }
   if (!Number.isInteger(page.limit) || page.limit < 1 || page.limit > 250) {
-    throw new RangeError("PageRequestV1.limit must be an integer in 1..=250");
+    throw new PageError("invalid_page_limit at /limit", "invalid_page_limit", "/limit");
   }
   if (page.cursor !== undefined && page.cursor !== null) {
     validateFfiString(page.cursor);
@@ -259,11 +268,22 @@ function nativePageRequest(page: PageRequestV1): NativePageRequestV1 {
   };
 }
 
+function requirePageResponseV1(schemaVersion: number): 1 {
+  if (schemaVersion !== 1) {
+    throw new PageError(
+      "unsupported_schema_version at /schemaVersion",
+      "unsupported_schema_version",
+      "/schemaVersion",
+    );
+  }
+  return schemaVersion;
+}
+
 function toOperationalStateRecord(
   record: NativeOperationalStateRecordV1,
 ): OperationalStateRecordV1 {
   return {
-    schemaVersion: 1,
+    schemaVersion: requirePageResponseV1(record.schemaVersion),
     collection: record.collection,
     recordKey: record.recordKey,
     payload: record.payload,
@@ -274,7 +294,7 @@ function toOperationalStateRecord(
 
 function toNodePage(page: NativeNodePageV1): PageV1<NodeRecord> {
   return {
-    schemaVersion: 1,
+    schemaVersion: requirePageResponseV1(page.schemaVersion),
     items: page.items.map(toNodeRecord),
     nextCursor: page.nextCursor ?? null,
   };
@@ -284,7 +304,7 @@ function toOperationalStatePage(
   page: NativeOperationalStatePageV1,
 ): PageV1<OperationalStateRecordV1> {
   return {
-    schemaVersion: 1,
+    schemaVersion: requirePageResponseV1(page.schemaVersion),
     items: page.items.map(toOperationalStateRecord),
     nextCursor: page.nextCursor ?? null,
   };

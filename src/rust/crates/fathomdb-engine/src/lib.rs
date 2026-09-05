@@ -18273,7 +18273,7 @@ fn read_canonical_page_baseline_in_tx(
     let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
     validate_filter_attributes_on_snapshot(&tx, &context.context.eligibility)
         .map_err(page_search_error)?;
-    let (items, _) = query_canonical_page_rows(
+    let (mut items, has_more) = query_canonical_page_rows(
         &tx,
         kind,
         &context.context.view,
@@ -18281,6 +18281,9 @@ fn read_canonical_page_baseline_in_tx(
         0,
         limit,
     )?;
+    if has_more {
+        items.pop();
+    }
     tx.commit()?;
     Ok(items)
 }

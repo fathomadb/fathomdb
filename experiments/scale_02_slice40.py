@@ -39,6 +39,8 @@ _TOP_KEYS = {
 }
 _EXECUTION_FILES = {
     "runner_sha256": Path(__file__),
+    "record_library_sha256": REPO_ROOT / "experiments/_lib.py",
+    "statistics_library_sha256": REPO_ROOT / "experiments/scale_02.py",
     "common_worker_sha256": REPO_ROOT
     / "experiments/rust/slice40_common_measurement.rs",
     "status_test_sha256": REPO_ROOT

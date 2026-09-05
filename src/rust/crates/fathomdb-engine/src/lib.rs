@@ -672,6 +672,7 @@ const PROJECTION_INFLIGHT_LIMIT: usize = PROJECTION_WORKERS * PROJECTION_COMMIT_
 // SQL fetch cap inside the dispatcher: enough to fill the in-flight
 // budget in a single scan so we don't pay one SQL roundtrip per job.
 const PROJECTION_SCAN_FETCH: usize = PROJECTION_INFLIGHT_LIMIT;
+const PROJECTION_TEMPORAL_WAKE_POLL: Duration = Duration::from_secs(1);
 const DEFAULT_PROJECTION_RETRY_DELAYS_MS: [u64; 3] = [1_000, 4_000, 16_000];
 
 /// G11 — the fixed projection kind every EDGE body is scheduled under
@@ -826,6 +827,7 @@ struct ProjectionRuntimeState {
     queued_jobs: usize,
     frozen: bool,
     pending_scan: bool,
+    next_temporal_scan_epoch_s: Option<i64>,
     stopping: bool,
     in_flight: BTreeSet<u64>,
 }
@@ -2800,6 +2802,7 @@ impl ProjectionRuntime {
     fn notify_new_work(&self) {
         if let Ok(mut state) = self.shared.state.lock() {
             state.pending_scan = true;
+            state.next_temporal_scan_epoch_s = None;
             self.shared.state_cvar.notify_all();
         }
     }
@@ -2879,6 +2882,7 @@ impl ProjectionRuntime {
             state.frozen = frozen;
             if !frozen {
                 state.pending_scan = true;
+                state.next_temporal_scan_epoch_s = None;
             }
             self.shared.state_cvar.notify_all();
         }
@@ -18477,6 +18481,28 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
                     WalAttributionRole::ProjectionDispatcher,
                     dispatcher_idx,
                 );
+                let can_arm_temporal_scan = !state.frozen
+                    && !state.pending_scan
+                    && state.active_jobs + state.queued_jobs < PROJECTION_INFLIGHT_LIMIT;
+                if can_arm_temporal_scan {
+                    if let Some(boundary) = state.next_temporal_scan_epoch_s {
+                        let now = current_epoch_seconds();
+                        if now >= boundary {
+                            state.next_temporal_scan_epoch_s = None;
+                            state.pending_scan = true;
+                            continue;
+                        }
+                        let until_boundary = Duration::from_secs(
+                            u64::try_from(boundary.saturating_sub(now)).unwrap_or(u64::MAX),
+                        );
+                        let wait = until_boundary.min(PROJECTION_TEMPORAL_WAKE_POLL);
+                        state = match shared.state_cvar.wait_timeout(state, wait) {
+                            Ok((state, _)) => state,
+                            Err(_) => return,
+                        };
+                        continue;
+                    }
+                }
                 state = match shared.state_cvar.wait(state) {
                     Ok(state) => state,
                     Err(_) => return,
@@ -18486,6 +18512,7 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
                 return;
             }
             state.pending_scan = false;
+            state.next_temporal_scan_epoch_s = None;
             state.in_flight.clone()
         };
 
@@ -18512,16 +18539,28 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
             dense_arm_live,
             &shared.wal_attribution,
             dispatcher_idx,
-        );
+        )
+        .and_then(|jobs| {
+            let next_temporal_scan_epoch_s = if dense_arm_live && jobs.is_empty() {
+                projection_generation::next_status_membership_boundary(
+                    &connection,
+                    current_epoch_seconds(),
+                )
+                .map_err(|_| rusqlite::Error::InvalidQuery)?
+            } else {
+                None
+            };
+            Ok((jobs, next_temporal_scan_epoch_s))
+        });
         // Keep the no-runtime no-dispatch contract local to the dispatcher too:
         // a future scan change must not turn configuration absence into a worker
         // terminal behind the caller's back.
         debug_assert!(
-            fetched.as_ref().map(|jobs| dense_arm_live || jobs.is_empty()).unwrap_or(true),
+            fetched.as_ref().map(|(jobs, _)| dense_arm_live || jobs.is_empty()).unwrap_or(true),
             "no-runtime scan returned embedding jobs despite the no-dispatch contract"
         );
         match fetched {
-            Ok(jobs) if !jobs.is_empty() => {
+            Ok((jobs, _)) if !jobs.is_empty() => {
                 if let Ok(mut state) = shared.state.lock() {
                     state.queued_jobs = state.queued_jobs.saturating_add(jobs.len());
                     for job in &jobs {
@@ -18537,10 +18576,16 @@ fn projection_dispatcher_loop(shared: Arc<ProjectionRuntimeShared>, dispatcher_i
                     shared.queue_cvar.notify_all();
                 }
             }
-            Ok(_) => {}
+            Ok((_, next_temporal_scan_epoch_s)) => {
+                if let Ok(mut state) = shared.state.lock() {
+                    state.next_temporal_scan_epoch_s = next_temporal_scan_epoch_s;
+                    shared.state_cvar.notify_all();
+                }
+            }
             Err(_) => {
                 if let Ok(mut state) = shared.state.lock() {
                     state.pending_scan = false;
+                    state.next_temporal_scan_epoch_s = None;
                     shared.state_cvar.notify_all();
                 }
             }

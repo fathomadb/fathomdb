@@ -1338,7 +1338,7 @@ fn status_in_snapshot(
     })
 }
 
-fn next_status_membership_boundary(
+pub(crate) fn next_status_membership_boundary(
     connection: &Connection,
     effective_at_epoch_s: i64,
 ) -> Result<Option<i64>, EngineError> {

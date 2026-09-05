@@ -497,6 +497,17 @@ readiness signal. Tests must prove invalidation after worker publication,
 operational-only mutation, an out-of-band physical mutation, edge expiry, and
 registered-source validity changes.
 
+The projection dispatcher uses the same next-membership-boundary calculation
+after an empty scan. When a future boundary exists, it arms a condition-variable
+deadline while remaining interruptible by ordinary post-commit notifications,
+freeze/unfreeze, capacity changes, and shutdown. The wait checks wall-clock
+progress at most once per second so forward or backward clock corrections do
+not strand the deadline, but it performs no database rescan until the boundary
+is reached. At that instant the dispatcher re-runs the ordinary eligibility
+scan. This covers a pending registered dependent becoming eligible at source
+`valid_from`, including restart after a clock rollback, without giving status
+reads scheduler side effects or polling the database continuously.
+
 Before classifying registered physical owners, a status cache miss validates
 that every dependency resolves to a derived artifact and matching source link,
 that its source revision is canonical and source-version-backed, that no source

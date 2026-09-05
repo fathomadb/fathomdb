@@ -286,7 +286,11 @@ def main() -> None:
                 "cold": groups["cold"],
                 "stage_medians": {
                     key: statistics.median(
-                        record["result"]["first_page_stages"][key]
+                        record["result"][
+                            "continuation_stages"
+                            if key.startswith("cursor_authentication_")
+                            else "first_page_stages"
+                        ][key]
                         for record in groups["latency"]
                     )
                     for key in groups["latency"][0]["result"]["first_page_stages"]

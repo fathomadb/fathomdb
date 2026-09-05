@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 50 — compact source-complete evidence design
-status: DRAFT_FIX_1_REVIEW_PENDING
-design_version: 6
+status: DRAFT_FIX_2_REVIEW_PENDING
+design_version: 7
 target_release: 0.8.25
 depends_on: 45
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -112,7 +112,7 @@ The nested types are closed and versioned:
 EvidenceArtifactClassV1 = node | edge
 
 EvidenceArtifactLifecycleV1 =
-  node { state: active | invalidated | deleted, superseded: bool }
+  node { state: pending | active | deleted | purged, superseded: bool }
   edge { superseded: bool, valid_at_effective: bool }
 
 EvidenceArmV1 = vector | text | text_edge | graph_arm
@@ -323,14 +323,17 @@ Resolution runs in one reader transaction and uses this fixed order:
    commitments, apply the full supplied view and eligibility to the artifact,
    and apply the source-byte authorization subset below before returning any
    field;
-7. recheck Slice 30 source/dependent closure barriers and current lifecycle,
-   erasure, validity, and supersession state;
-8. only after current authorization, validate provenance completeness,
+7. when graph origin names an edge, resolve its captured cursor to the same
+   committed edge revision, verify its keyed revision commitment and `edge`
+   artifact class, and apply the graph-origin authorization rules below;
+8. recheck Slice 30 source/dependent closure barriers and current lifecycle,
+   erasure, validity, and supersession state for every applicable subject;
+9. only after current authorization, validate provenance completeness,
    locator UTF-8 boundaries, whole-source SHA-256, projection-generation
    identity, contribution values, and optional dependency; and
-9. revalidate the frozen snapshot before returning exact bytes.
+10. revalidate the frozen snapshot before returning exact bytes.
 
-Steps 2–7 collapse to one public error:
+Steps 2–8 collapse to one public error:
 
 ```text
 EvidenceError {
@@ -356,6 +359,32 @@ may escape:
   internally inconsistent.
 
 Storage failure and Engine closing retain their existing top-level errors.
+
+### Graph-origin authorization
+
+`graph_origin` is a third authorization subject, distinct from the returned
+body artifact and its canonical source. `entity_seed` has no edge subject. For
+`edge_seed` or `traversal`, the resolver must, in the same frozen reader
+transaction:
+
+1. locate the captured edge cursor and matching `_fathomdb_artifact_revisions`
+   row;
+2. verify class `edge`, the keyed edge-revision commitment, and that the edge
+   still connects the returned node's logical identity;
+3. require `superseded_at IS NULL`, reject temporal-fallback edges, and apply
+   the same edge validity interval at `effective_valid_at` used by graph-arm
+   admission;
+4. reapply the original endpoint admission rule: the returned node remains an
+   eligible endpoint under the full context filter and view; and
+5. reject any active dependency-closure barrier or erased/missing dependency
+   state for the edge revision.
+
+This is last-edge origin validation, not full path replay. If any check fails,
+the whole resolution returns the identical `evidence_unavailable` error and
+does not disclose the edge revision ID, body/source identity, or failure
+detail. Only after these checks may `graph_origin.edge_artifact_revision_id`
+be returned. Post-mint edge supersession, erasure, replacement, validity, and
+endpoint-eligibility tests enforce the rule.
 
 ### Eligibility subjects
 
@@ -387,15 +416,16 @@ bytes, and compares the stored whole-source hash. `WholeBody` returns that body
 as `evidence_text`; `Utf8Bytes` returns the half-open byte slice only if both
 bounds are ordered, in range, and code-point aligned.
 
-`artifact_lifecycle` is total by captured class. A node reports its closed
-`LifecycleState` and `superseded` flag. An edge reports its `superseded` flag
-and whether its validity interval contains the effective instant; edges do not
-fabricate the node-only `state` axis. The canonical source is always a node and
-reports `source_lifecycle_state`. Successful strict resolution reports an
-active, nonsuperseded, valid artifact and source; the fields remain explicit so
-the evidence is self-describing. A valid-as-of request may resolve historical
-world-time content, but this slice
-does not make search version-complete and continues to reject
+`artifact_lifecycle` is total by captured class. A node reports the existing
+closed `LifecycleState`—with exactly `pending`, `active`, `deleted`, and
+`purged` wire spellings—and its `superseded` flag. An edge reports its
+`superseded` flag and whether its validity interval contains the effective
+instant; edges do not fabricate the node-only `state` axis. The canonical
+source is always a node and reports `source_lifecycle_state`. Successful strict
+resolution reports an active, nonsuperseded, valid artifact and source; the
+fields remain explicit so the evidence is self-describing. A valid-as-of
+request may resolve historical world-time content, but this slice does not
+make search version-complete and continues to reject
 `include_superseded`/`include_inactive` on search. Transaction-history access is
 not implied.
 
@@ -441,6 +471,9 @@ The preserved RED set includes:
    replacement all producing byte-identical `evidence_unavailable` errors;
    derived-source fixtures prove different artifact/source kinds can succeed,
    while missing or different owner/scope-style attributes deny bytes;
+   graph fixtures mutate the captured edge after mint through supersession,
+   erasure, replacement, validity, endpoint eligibility, and closure and prove
+   the same non-disclosure result;
 5. authorized locator/hash/link/dependency/generation corruption producing only
    `evidence_corrupt`, and visible legacy rows producing
    `evidence_incomplete`;

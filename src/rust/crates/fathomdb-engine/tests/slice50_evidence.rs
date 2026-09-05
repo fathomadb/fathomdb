@@ -228,7 +228,12 @@ fn visible_reference_payload_uses_keyed_not_dictionary_matchable_commitments() {
         )
         .unwrap();
 
-    let result = opened.engine.search_with_evidence(&request("needle", frozen)).unwrap();
+    let result = opened.engine.search_with_evidence(&request("needle", frozen.clone())).unwrap();
+    let second = opened.engine.search_with_evidence(&request("needle", frozen)).unwrap();
+    assert_ne!(
+        result.evidence[0].evidence_ref, second.evidence[0].evidence_ref,
+        "generation protection requires a fresh per-reference nonce",
+    );
     let token = result.evidence[0].evidence_ref.as_str();
     let payload_hex = token.split('.').nth(1).unwrap();
     let payload = (0..payload_hex.len())

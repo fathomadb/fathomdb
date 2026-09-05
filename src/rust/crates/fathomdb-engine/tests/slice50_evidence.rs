@@ -772,3 +772,99 @@ fn evidence_search_collapses_frozen_context_failure_to_nondisclosure() {
                 && error.field_path == "/evidenceRef"
     ));
 }
+
+#[test]
+fn unsupported_resolve_schema_precedes_context_authentication() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("resolve-schema-precedence{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    let mut frozen = opened
+        .engine
+        .freeze_read_context(
+            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+        )
+        .unwrap();
+    frozen.token.push('0');
+
+    let error = opened
+        .engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 2,
+            evidence_ref: fathomdb_engine::EvidenceRefV1::new("opaque").unwrap(),
+            context: frozen,
+        })
+        .unwrap_err();
+
+    assert!(matches!(
+        error,
+        EngineError::Evidence(ref error)
+            if error.reason == EvidenceErrorReasonV1::UnsupportedSchemaVersion
+                && error.field_path == "/schemaVersion"
+    ));
+}
+
+#[test]
+fn authorized_source_identity_corruption_is_typed_evidence_corrupt() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("source-chain-corruption{SQLITE_SUFFIX}"));
+    let source_body = "authoritative source body";
+    let opened = Engine::open(&path).unwrap();
+    opened
+        .engine
+        .write(&[
+            canonical_named(
+                "chain-source",
+                "chain-source-r1",
+                "chain-source-v1",
+                "chain-source-id",
+                source_body,
+            ),
+            derived_named(
+                "chain-claim",
+                "chain-claim-r1",
+                "chain-source-r1",
+                "chain-source-v1",
+                "chain-source-id",
+                source_body,
+                "chaincorruptionneedle",
+            ),
+        ])
+        .unwrap();
+    let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+    let frozen = opened.engine.freeze_read_context(&context).unwrap();
+    let evidence = opened
+        .engine
+        .search_with_evidence(&request("chaincorruptionneedle", frozen))
+        .unwrap()
+        .evidence[0]
+        .evidence_ref
+        .clone();
+    drop(opened.engine);
+
+    let raw = rusqlite::Connection::open(&path).unwrap();
+    raw.execute(
+        "UPDATE _fathomdb_source_versions SET source_version_id='different-version' \
+         WHERE source_revision_id='chain-source-r1'",
+        [],
+    )
+    .unwrap();
+    drop(raw);
+
+    let reopened = Engine::open(&path).unwrap();
+    let equivalent = reopened.engine.freeze_read_context(&context).unwrap();
+    let error = reopened
+        .engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: evidence,
+            context: equivalent,
+        })
+        .unwrap_err();
+
+    assert!(matches!(
+        error,
+        EngineError::Evidence(ref error)
+            if error.reason == EvidenceErrorReasonV1::EvidenceCorrupt
+                && error.field_path == "/provenance"
+    ));
+}

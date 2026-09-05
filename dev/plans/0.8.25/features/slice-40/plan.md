@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 40 — projection generation and readiness
-status: TDD_RED_PENDING
+status: IMPLEMENTED-AWAITING-VERIFICATION
 depends_on: 35
 design: design.md
 design_status: PASS_CYCLE_4

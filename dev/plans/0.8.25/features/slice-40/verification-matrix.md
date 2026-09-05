@@ -1,7 +1,8 @@
 ---
 title: 0.8.25 Slice 40 verification matrix
 status: IN_PROGRESS
-candidate_commit: 56350c2f
+candidate_product_commit: ad7d2824
+review_candidate_commit: PENDING_CYCLE_7
 ---
 
 # Slice 40 verification matrix
@@ -26,15 +27,17 @@ platform-unavailable record permitted by the design.
 
 | Seam | Exact proof | State |
 | --- | --- | --- |
-| Captured generation before queued publication | `stale_worker_result_cannot_publish_into_a_new_generation` | PASS |
+| Worker queued across generation transition | `queued_worker_across_generation_transition_is_rediscovered` (exactly two embedding calls) | PASS |
 | Worker computing during generation transition | `worker_computing_across_generation_transition_discards_stale_result` | PASS |
+| Worker waiting on the publication lock during transition | `worker_at_write_lock_boundary_discards_after_transition` (exactly two embedding calls) | PASS |
+| Publication transaction linearizes before transition | `publication_holding_write_lock_linearizes_before_transition` (exactly one embedding call) | PASS |
 | Closure wins before worker publication | `projection_worker_before_admission_cannot_publish_dependency_residue` | PASS predecessor |
 | Worker terminalizes after admission | `admission_before_projection_worker_terminalizes_without_publication` | PASS predecessor |
 | Restart recovers nonterminal closure without reusing authority | `next_writer_recovers_a_proving_soft_closure_after_reopen` | PASS predecessor |
 | Concurrent writer is fenced during closure | `unrelated_writer_is_fenced_while_physical_closure_is_nonterminal` | PASS predecessor |
 | Erasure drains/fences publication | `erase_source_drains_before_freezing`; `excise_source_drains_before_freezing`; `erase_source_removes_no_embedder_pending_edge_work` | PASS predecessor |
 | Old/new reader linearization and token drift | `frozen_context_rejects_tamper_database_mismatch_context_change_and_state_drift`; generation/readiness additions in `slice35_frozen_read` | PASS focused |
-| Duplicate or stale physical publication | `worker_publication_never_repairs_a_partial_projection_tuple`; `stale_worker_result_cannot_publish_into_a_new_generation` | PASS |
+| Direct old-generation or duplicate physical publication | `worker_publication_never_repairs_a_partial_projection_tuple`; `stale_worker_result_cannot_publish_into_a_new_generation` | PASS |
 
 The Slice 30 tests remain authoritative for dependency closure and erasure;
 Slice 40 does not duplicate them under new names. The Slice 40 tests add only
@@ -54,6 +57,7 @@ the generation-specific captured-work seams.
 | Durable indexed correlations | `status_query_plans_bound_correlations_with_durable_indexes` and retained plan strings in each status result | Canonical owner and correlated provenance/terminal/sidecar/kind lookups use durable indexes; vec0 virtual-table lookup is reported, not relabeled | PASS focused; formal retention pending |
 | Page, WAL, and generation retention | `database_observations` in the status receipt; common worker storage fields | Page count/size, DB/WAL bytes, one serving generation, and retained generation-history rows | PENDING |
 | Embedding throughput | Separate CUDA preflight/package receipt | Never attributed to SQLite status calls or the fixed CPU measurement embedder | PENDING |
+| Receipt classification | `slice40-common-v1` and `slice40-status-v1` plans; pre-index classification callback; retained-run sidecars | Decision metrics are compact and source-bound; full raw detail and all executing Python/Rust sources are hashed | PASS harness; final receipts pending |
 
 The status campaign compares the SQLite status path in a CPU build with the
 same path in a CUDA-linked build. Its fixed test embedder executes on CPU. It

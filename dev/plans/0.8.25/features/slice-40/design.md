@@ -181,12 +181,14 @@ closed bootstrap-content manifest is empty and every persisted cursor in
   declaration; and
 - reserved migration and projection cursors.
 
-System schema metadata, the singleton open-state row itself, and the default
-embedder-profile row established immediately before this predicate are not
-content only when their shape and values equal the release defaults and the
-profile has no pinned mean. The one-row `_fathomdb_read_visibility_state` is
-validated as well-formed but its counter value is excluded because it is an
-internal invalidation clock, not content.
+System schema metadata and the singleton open-state row itself are not content.
+Exactly one default-profile row established and validated by
+`check_embedder_profile` for the supplied built-in or caller-provided open
+identity is also excluded when `mean_vec IS NULL` and no additional profile row
+exists; its name, revision, and dimension are already bound by the declaration
+digest. A pinned mean or any additional profile is included. The one-row
+`_fathomdb_read_visibility_state` is validated as well-formed but its counter
+value is excluded because it is an internal invalidation clock, not content.
 
 The `_fathomdb_open_state` disposition is closed: valid database-ID and
 read-context-key rows are excluded; dependency generation, closure sequence,
@@ -388,9 +390,12 @@ below-watermark set rewinds the cursor before dispatch. The existing
 
 Explicit `deleted -> active` transition of a registered derived node is the
 only re-admission path after dependency soft closure; restoring the source alone
-does not reactivate or reproject its dependents. Both ordinary transition and
-Slice-25 actuation call one transactional helper after the accepted Slice-30
-reactivation guard. The helper:
+does not reactivate or reproject its dependents. For that registered-derived
+case only, both ordinary transition and Slice-25 actuation call one
+transactional helper after the accepted Slice-30 reactivation guard. Normal
+non-derived reactivation keeps its shipped path, and unrelated missing
+synchronous rows remain a Slice-55 integrity defect. The derived-reactivation
+helper:
 
 1. validates the exact expected node FTS rows and rebuilds any missing node FTS
    synchronously from canonical body;
@@ -770,7 +775,7 @@ RED is committed separately and uses real SQLite databases.
 
 | Target | Required proof |
 |---|---|
-| `step32_projection_generation` | Additive shape, checks/indexes/triggers, fresh/upgrade bootstrap, no content migration, partial/corrupt authority rejection. |
+| `step32_projection_generation` | Additive shape, checks/indexes/triggers, built-in and caller-embedder fresh/restart bootstrap, upgrade classification, no content migration, partial/corrupt authority rejection. |
 | `slice40_projection_generation` | ID grammar/collision retry, restart/copy/no reuse, declaration digest goldens, no-op stability, config/rebuild mint, legacy degradation. |
 | `slice40_projection_completion` | Exact node/edge physical membership, every state-table row, below-watermark rediscovery, no-runtime, late graft, inactive/superseded/out-of-window nodes, source delete/restore without dependent re-admission, explicit derived reactivation, edge expiry, failure, erasure, and unsupported kinds. |
 | `slice40_mutation_projection_status` | Exact Slice-25 pending construction, usable-runtime latched receipt through processing/ready, no-runtime generation-level blocked/deferred behavior, persist/replay, operation/cursor membership, required expected ID, retired/legacy/redacted/erased behavior, canonical wire/property round trips. |

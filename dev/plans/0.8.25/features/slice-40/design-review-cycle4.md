@@ -44,3 +44,11 @@ references and the remaining content-bearing tables, and gives open-state,
 read-visibility, default-profile, and seeded collection rows exact baseline
 dispositions. A final exact-commit verification of this same cycle remains
 required.
+
+The next verification accepted the lifecycle correction but found that a fresh
+database opened with a supported caller-provided embedder would be mislabeled
+legacy. The final correction excludes exactly the single validated supplied
+default-profile identity when no mean is pinned, binds that identity in the
+declaration digest, adds caller-embedder fresh/restart tests, and limits the
+special FTS/dense repair helper explicitly to registered derived-node
+reactivation.

@@ -17,10 +17,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from experiments import _lib, scale_02
+from experiments import _lib, measurement_classification, scale_02
 
 
-SCHEMA = "scale-02-slice40.v2"
+SCHEMA = "scale-02-slice40.v3"
 PROGRAM_TRACK = "SCALE-02"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BASELINE_COMMIT = "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403"
@@ -28,10 +28,12 @@ _TOP_KEYS = {
     "schema_version",
     "program_track",
     "release",
+    "campaign",
     "approval",
     "baseline",
     "candidate",
     "execution",
+    "measurement_plan",
     "workload",
     "policy",
     "artifact_root",
@@ -148,6 +150,8 @@ def resolve_config(
         or root["claim_boundary"] != "slice40_projection_generation_readiness"
     ):
         raise Slice40ScaleError("configuration identity drifted")
+    if root["campaign"] not in {"common", "status"}:
+        raise Slice40ScaleError("campaign must be common or status")
     approval = _exact(
         root["approval"], "approval", {"state", "approved_by", "approved_at"}
     )
@@ -161,6 +165,14 @@ def resolve_config(
     _commit(candidate["source_commit"], "candidate.source_commit")
     for label, digest in execution.items():
         _digest(digest, f"execution.{label}")
+    plan = _exact(
+        root["measurement_plan"],
+        "measurement_plan",
+        {"path", "sha256", "plan_id"},
+    )
+    _digest(plan["sha256"], "measurement_plan.sha256")
+    if plan["plan_id"] != f"slice40-{root['campaign']}-v1":
+        raise Slice40ScaleError("measurement_plan.plan_id does not match campaign")
     workload = _exact(root["workload"], "workload", set(_WORKLOAD))
     if workload != _WORKLOAD:
         raise Slice40ScaleError("workload drifted from the registered matrix")
@@ -169,7 +181,9 @@ def resolve_config(
         raise Slice40ScaleError("policy drifted from the registered limits")
     artifact_root = root["artifact_root"]
     if not isinstance(artifact_root, str) or not Path(artifact_root).is_absolute():
-        raise Slice40ScaleError("artifact_root must be absolute and outside the repository")
+        raise Slice40ScaleError(
+            "artifact_root must be absolute and outside the repository"
+        )
     if Path(artifact_root).resolve().is_relative_to(REPO_ROOT):
         raise Slice40ScaleError("artifact_root must remain outside the repository")
     if validate_repository:
@@ -188,7 +202,21 @@ def resolve_config(
                 raise Slice40ScaleError(f"{label} source commit is unavailable")
         for label, path in _EXECUTION_FILES.items():
             if _sha256(path) != execution[label]:
-                raise Slice40ScaleError(f"execution.{label} does not match the reviewed source")
+                raise Slice40ScaleError(
+                    f"execution.{label} does not match the reviewed source"
+                )
+        plan_path = (REPO_ROOT / plan["path"]).resolve()
+        if not plan_path.is_relative_to(REPO_ROOT):
+            raise Slice40ScaleError("measurement plan must be repository-local")
+        try:
+            plan_document = json.loads(plan_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise Slice40ScaleError("measurement plan is unavailable") from exc
+        if (
+            measurement_classification.canonical_sha256(plan_document) != plan["sha256"]
+            or plan_document.get("plan_id") != plan["plan_id"]
+        ):
+            raise Slice40ScaleError("measurement plan reference drifted")
     return root
 
 
@@ -225,13 +253,214 @@ def require_clean_execution(
     return code
 
 
-def load_config(path: str | Path, *, validate_repository: bool = True) -> dict[str, Any]:
+def load_config(
+    path: str | Path, *, validate_repository: bool = True
+) -> dict[str, Any]:
     """Load a Slice 40 campaign contract."""
     try:
         document = json.loads(Path(path).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise Slice40ScaleError("configuration is unavailable") from exc
     return resolve_config(document, validate_repository=validate_repository)
+
+
+def decision_metrics(campaign: str, detail: Mapping[str, Any]) -> dict[str, Any]:
+    """Select the preregistered decision leaves from a complete raw result."""
+    if campaign == "common":
+        write = detail["write_upper_95_relative_regression"]
+        return {
+            "schema_version": "scale-02-slice40-decision.v1",
+            "campaign": campaign,
+            "verdict": detail["verdict"],
+            "write_p50_upper_relative_regression": write["p50"],
+            "write_p95_upper_relative_regression": write["p95"],
+            "open_upper_relative_regression": detail[
+                "open_upper_95_relative_regression"
+            ],
+            "open_mean_absolute_regression_ms": detail[
+                "open_mean_absolute_regression_ms"
+            ],
+            "maximum_paired_storage_increase_bytes": detail[
+                "maximum_paired_storage_increase_bytes"
+            ],
+        }
+    if campaign == "status":
+        bounds = detail["status_bounds"]
+        return {
+            "schema_version": "scale-02-slice40-decision.v1",
+            "campaign": campaign,
+            "verdict": detail["verdict"],
+            "maximum_cpu_cuda_p95_difference_ms": detail[
+                "maximum_cpu_cuda_p95_difference_ms"
+            ],
+            "maximum_generation_p95_ms": bounds["maximum_generation_p95_ms"],
+            "maximum_generation_p99_ms": bounds["maximum_generation_p99_ms"],
+            "maximum_mutation_p95_ms": bounds["maximum_mutation_p95_ms"],
+            "maximum_mutation_p99_ms": bounds["maximum_mutation_p99_ms"],
+            "maximum_steady_full_owner_scans": bounds[
+                "maximum_steady_full_owner_scans"
+            ],
+            "total_errors": bounds["total_errors"],
+            "total_timeouts": bounds["total_timeouts"],
+        }
+    raise Slice40ScaleError("unknown campaign for decision metrics")
+
+
+def _repository_locator(path: Path, label: str) -> str:
+    resolved = path.resolve()
+    if not resolved.is_relative_to(REPO_ROOT):
+        raise Slice40ScaleError(f"{label} must be repository-local")
+    return str(resolved.relative_to(REPO_ROOT))
+
+
+def _git_artifact(commit: str, artifact_id: str, path: Path) -> dict[str, Any]:
+    relative = _repository_locator(path, artifact_id)
+    locator = f"{commit}:{relative}"
+    completed = subprocess.run(
+        ["git", "show", locator],
+        cwd=REPO_ROOT,
+        check=False,
+        stdout=subprocess.PIPE,
+    )
+    if completed.returncode != 0:
+        raise Slice40ScaleError(f"classification source is unavailable: {locator}")
+    return {
+        "id": artifact_id,
+        "role": "implementation",
+        "locator_kind": "git_blob",
+        "locator": locator,
+        "sha256": hashlib.sha256(completed.stdout).hexdigest(),
+        "measurement_root_json_pointers": [],
+    }
+
+
+def _write_run_classification(
+    *,
+    run_id: str,
+    run_dir: Path,
+    config: Mapping[str, Any],
+    config_path: Path,
+    code_git_sha: str,
+) -> None:
+    plan_ref = config["measurement_plan"]
+    plan_path = (REPO_ROOT / plan_ref["path"]).resolve()
+    authority = json.loads(plan_path.read_text(encoding="utf-8"))
+    artifacts = [
+        {
+            "id": "metrics",
+            "role": "metrics_payload",
+            "locator_kind": "repository_path",
+            "locator": _repository_locator(run_dir / "metrics.json", "metrics"),
+            "sha256": _sha256(run_dir / "metrics.json"),
+            "measurement_root_json_pointers": authority["measurement_roots"][0][
+                "json_pointers"
+            ],
+        },
+        {
+            "id": "detail",
+            "role": "derivation_spec",
+            "locator_kind": "repository_path",
+            "locator": _repository_locator(run_dir / "detail.json", "detail"),
+            "sha256": _sha256(run_dir / "detail.json"),
+            "measurement_root_json_pointers": [],
+        },
+        {
+            "id": "record",
+            "role": "record",
+            "locator_kind": "repository_path",
+            "locator": _repository_locator(run_dir / "record.json", "record"),
+            "sha256": _sha256(run_dir / "record.json"),
+            "measurement_root_json_pointers": [],
+        },
+        {
+            "id": "configuration",
+            "role": "configuration",
+            "locator_kind": "repository_path",
+            "locator": _repository_locator(config_path, "configuration"),
+            "sha256": _sha256(config_path),
+            "measurement_root_json_pointers": [],
+        },
+        {
+            "id": "plan",
+            "role": "configuration",
+            "locator_kind": "repository_path",
+            "locator": _repository_locator(plan_path, "plan"),
+            "sha256": _sha256(plan_path),
+            "measurement_root_json_pointers": [],
+        },
+        *[
+            _git_artifact(code_git_sha, label.removesuffix("_sha256"), path)
+            for label, path in _EXECUTION_FILES.items()
+        ],
+    ]
+    document = {
+        "schema_version": measurement_classification.SCHEMA_VERSION,
+        "classifier_version": measurement_classification.CLASSIFIER_VERSION,
+        "classification_id": "",
+        "run_id": run_id,
+        "outcome": "complete",
+        "blocked_reason": None,
+        "measurement_plan_id": authority["plan_id"],
+        "source_artifacts": artifacts,
+        "components": authority["components"],
+        "call_paths": authority["call_paths"],
+        "execution_witnesses": [],
+        "metrics": authority["metric_bindings"],
+        "metric_exclusions": authority["metric_exclusions"],
+        "comparisons": authority["comparisons"],
+        "claims": authority["claims"],
+        "migration": {
+            "kind": "native",
+            "manifest_path": None,
+            "manifest_entry_sha256": None,
+            "measurement_plan_id": authority["plan_id"],
+            "measurement_plan_sha256": plan_ref["sha256"],
+        },
+    }
+    document["classification_id"] = measurement_classification.classification_id(
+        document
+    )
+    measurement_classification.write_classification(
+        run_dir,
+        document,
+        repository_root=REPO_ROOT,
+        authority=authority,
+    )
+
+
+def _register_run(
+    *,
+    experiment: str,
+    config: Mapping[str, Any],
+    config_path: Path,
+    decision_metrics: Mapping[str, Any],
+    detail: Mapping[str, Any],
+    record_arguments: Mapping[str, Any],
+    code_git_sha: str,
+) -> tuple[str, Path]:
+    """Write detail and classification before making a run discoverable."""
+
+    def before_index(run_id: str, run_dir: Path) -> None:
+        (run_dir / "detail.json").write_text(
+            json.dumps(detail, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        _write_run_classification(
+            run_id=run_id,
+            run_dir=run_dir,
+            config=config,
+            config_path=config_path,
+            code_git_sha=code_git_sha,
+        )
+
+    return _lib.write_record(
+        experiment,
+        config_obj=config,
+        metrics=decision_metrics,
+        config_path=_repository_locator(config_path, "configuration"),
+        before_index=before_index,
+        **record_arguments,
+    )
 
 
 def paired_relative_upper(
@@ -268,8 +497,7 @@ def comparison_verdict(
     )
     open_pass = (
         open_upper_relative <= policy["open_max_relative_regression"]
-        or open_absolute_regression_ms
-        <= policy["open_max_absolute_regression_ms"]
+        or open_absolute_regression_ms <= policy["open_max_absolute_regression_ms"]
     )
     storage_pass = storage_increase_bytes <= policy["storage_max_increase_bytes"]
     return "pass" if write_pass and open_pass and storage_pass else "fail"
@@ -322,7 +550,9 @@ def parse_status_result(document: object) -> dict[str, Any]:
     ):
         value = result[field]
         if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-            raise Slice40ScaleError(f"status result {field} must be a nonnegative integer")
+            raise Slice40ScaleError(
+                f"status result {field} must be a nonnegative integer"
+            )
     for field in _STATUS_RESULT_KEYS - {
         "schema_version",
         "build_variant",
@@ -379,7 +609,9 @@ def status_verdict(
     """Apply registered status bounds to five paired CPU/CUDA observations."""
     repetitions = workload["repetitions"]
     if len(cpu_runs) != repetitions or len(cuda_runs) != repetitions:
-        raise Slice40ScaleError("status repetitions drifted from the registered workload")
+        raise Slice40ScaleError(
+            "status repetitions drifted from the registered workload"
+        )
     cpu = [parse_status_result(run) for run in cpu_runs]
     cuda = [parse_status_result(run) for run in cuda_runs]
     expected_shape = {
@@ -417,9 +649,7 @@ def status_verdict(
     )
 
 
-def _build_status_test(
-    *, build_variant: str, run_root: Path
-) -> dict[str, str]:
+def _build_status_test(*, build_variant: str, run_root: Path) -> dict[str, str]:
     features = "test-hooks" if build_variant == "cpu" else "test-hooks,embed-cuda"
     target_dir = run_root / f"target-{build_variant}"
     log = run_root / f"build-{build_variant}.jsonl"
@@ -511,7 +741,9 @@ def _status_test_command(
     log.write_text(completed.stdout, encoding="utf-8")
     if completed.returncode != 0:
         raise Slice40ScaleError(f"status worker failed; see {log}")
-    result_lines = [line for line in completed.stdout.splitlines() if line.startswith("{")]
+    result_lines = [
+        line for line in completed.stdout.splitlines() if line.startswith("{")
+    ]
     if seed_only:
         if result_lines:
             raise Slice40ScaleError("seed-only status worker emitted a measurement")
@@ -528,6 +760,8 @@ def run_status(config_path: str | Path) -> dict[str, Any]:
     """Execute the paired CPU/CUDA 50k status campaign and register its receipt."""
     config_path = Path(config_path).resolve()
     config = load_config(config_path)
+    if config["campaign"] != "status":
+        raise Slice40ScaleError("status command requires the status campaign")
     code = require_clean_execution(config, require_candidate_product_tree=True)
     nvidia = subprocess.run(
         ["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"],
@@ -545,7 +779,9 @@ def run_status(config_path: str | Path) -> dict[str, Any]:
     nvidia_log = run_root / "nvidia-smi.log"
     nvidia_log.write_text(nvidia.stdout, encoding="utf-8")
     executables = {
-        build_variant: _build_status_test(build_variant=build_variant, run_root=run_root)
+        build_variant: _build_status_test(
+            build_variant=build_variant, run_root=run_root
+        )
         for build_variant in ("cpu", "cuda")
     }
     results: dict[str, list[dict[str, Any]]] = {"cpu": [], "cuda": []}
@@ -565,7 +801,9 @@ def run_status(config_path: str | Path) -> dict[str, Any]:
         )
         for suffix in ("-wal", "-shm"):
             if seed_database.with_name(seed_database.name + suffix).exists():
-                raise Slice40ScaleError("status seed retained an uncheckpointed SQLite sidecar")
+                raise Slice40ScaleError(
+                    "status seed retained an uncheckpointed SQLite sidecar"
+                )
         cpu_database = repetition_root / "cpu.fathomdb"
         cuda_database = repetition_root / "cuda.fathomdb"
         shutil.copy2(seed_database, cpu_database)
@@ -607,6 +845,39 @@ def run_status(config_path: str | Path) -> dict[str, Any]:
         for left, right in zip(results["cpu"], results["cuda"], strict=True)
         for field in ("generation_p95_ms", "mutation_p95_ms")
     )
+    status_bounds = {
+        "maximum_generation_p95_ms": max(
+            result["generation_p95_ms"]
+            for treatment in results.values()
+            for result in treatment
+        ),
+        "maximum_generation_p99_ms": max(
+            result["generation_p99_ms"]
+            for treatment in results.values()
+            for result in treatment
+        ),
+        "maximum_mutation_p95_ms": max(
+            result["mutation_p95_ms"]
+            for treatment in results.values()
+            for result in treatment
+        ),
+        "maximum_mutation_p99_ms": max(
+            result["mutation_p99_ms"]
+            for treatment in results.values()
+            for result in treatment
+        ),
+        "maximum_steady_full_owner_scans": max(
+            result["steady_full_owner_scans"]
+            for treatment in results.values()
+            for result in treatment
+        ),
+        "total_errors": sum(
+            result["errors"] for treatment in results.values() for result in treatment
+        ),
+        "total_timeouts": sum(
+            result["timeouts"] for treatment in results.values() for result in treatment
+        ),
+    }
     metrics = {
         "schema_version": "scale-02-slice40-status-result.v1",
         "program_track": PROGRAM_TRACK,
@@ -619,6 +890,7 @@ def run_status(config_path: str | Path) -> dict[str, Any]:
             "cuda_interpretation": "CUDA-linked build parity; real GPU execution is verified by the separate CUDA preflight and package smoke",
         },
         "maximum_cpu_cuda_p95_difference_ms": maximum_device_p95_difference_ms,
+        "status_bounds": status_bounds,
         "treatments": results,
         "paired_database_hashes": databases,
         "database_observations": database_observations,
@@ -630,41 +902,49 @@ def run_status(config_path: str | Path) -> dict[str, Any]:
         ),
     }
     metrics_path = run_root / "metrics.json"
-    metrics_path.write_text(json.dumps(metrics, sort_keys=True) + "\n", encoding="utf-8")
-    run_id, record_dir = _lib.write_record(
-        "scale-02-slice40-status",
-        ts=datetime.now(UTC),
-        config_obj=config,
-        metrics=metrics,
-        verdict="complete" if verdict == "pass" else "advisory_limit_observed",
-        read=f"Slice 40 paired CPU/CUDA status campaign: {verdict}",
-        code=code,
-        corpus={"source": "byte-identical paired 50k status fixtures", "datasets": []},
-        seeds={"bootstrap": config["workload"]["bootstrap_seed"]},
-        env=_lib.env_info(
-            key_deps={
-                "fathomdb_candidate": config["candidate"]["source_commit"],
-                "cuda_host_witness": nvidia.stdout.strip(),
-            }
-        ),
-        cost_usd=0.0,
-        headline={
-            "verdict": verdict,
-            "maximum_cpu_cuda_p95_difference_ms": maximum_device_p95_difference_ms,
+    metrics_path.write_text(
+        json.dumps(metrics, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    run_id, record_dir = _register_run(
+        experiment="scale-02-slice40-status",
+        config=config,
+        config_path=config_path,
+        decision_metrics=decision_metrics("status", metrics),
+        detail=metrics,
+        code_git_sha=code["git_sha"],
+        record_arguments={
+            "ts": datetime.now(UTC),
+            "verdict": "complete" if verdict == "pass" else "advisory_limit_observed",
+            "read": f"Slice 40 paired CPU/CUDA status campaign: {verdict}",
+            "code": code,
+            "corpus": {
+                "source": "byte-identical paired 50k status fixtures",
+                "datasets": [],
+            },
+            "seeds": {"bootstrap": config["workload"]["bootstrap_seed"]},
+            "env": _lib.env_info(
+                key_deps={
+                    "fathomdb_candidate": config["candidate"]["source_commit"],
+                    "cuda_host_witness": nvidia.stdout.strip(),
+                }
+            ),
+            "cost_usd": 0.0,
+            "headline": {
+                "verdict": verdict,
+                "maximum_cpu_cuda_p95_difference_ms": maximum_device_p95_difference_ms,
+            },
+            "n": config["workload"]["status_records"],
+            "tests": [
+                "src/rust/crates/fathomdb-engine/tests/slice40_status_performance.rs",
+                "tests/experiments/test_scale_02_slice40.py",
+            ],
+            "files_changed": [],
+            "artifacts": [],
+            "review": None,
+            "open_questions": []
+            if verdict == "pass"
+            else ["A registered status bound missed"],
         },
-        n=config["workload"]["status_records"],
-        config_path=str(config_path),
-        tests=[
-            "src/rust/crates/fathomdb-engine/tests/slice40_status_performance.rs",
-            "tests/experiments/test_scale_02_slice40.py",
-        ],
-        files_changed=[],
-        artifacts=[
-            {"kind": "external_safe_summary", "path": str(metrics_path), "sha256": _sha256(metrics_path)},
-            {"kind": "cuda_device_witness", "path": str(nvidia_log), "sha256": _sha256(nvidia_log)},
-        ],
-        review=None,
-        open_questions=[] if verdict == "pass" else ["A registered status bound missed"],
     )
     _lib.regen_index_md()
     return {
@@ -673,6 +953,8 @@ def run_status(config_path: str | Path) -> dict[str, Any]:
         "external_metrics": str(metrics_path),
         "verdict": verdict,
     }
+
+
 def _extract_source(commit: str, destination: Path) -> None:
     archive = subprocess.run(
         ["git", "archive", "--format=tar", commit],
@@ -687,7 +969,10 @@ def _extract_source(commit: str, destination: Path) -> None:
 
 def _build_worker(source: Path, treatment_root: Path) -> Path:
     helper = REPO_ROOT / "experiments/rust/slice40_common_measurement.rs"
-    example = source / "src/rust/crates/fathomdb-engine/examples/slice40_common_measurement.rs"
+    example = (
+        source
+        / "src/rust/crates/fathomdb-engine/examples/slice40_common_measurement.rs"
+    )
     example.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(helper, example)
     target = treatment_root / "target"
@@ -745,7 +1030,9 @@ def _worker_result(
     output.with_suffix(".stdout.log").write_text(completed.stdout, encoding="utf-8")
     output.with_suffix(".stderr.log").write_text(completed.stderr, encoding="utf-8")
     if completed.returncode != 0:
-        raise Slice40ScaleError(f"worker failed; see {output.with_suffix('.stderr.log')}")
+        raise Slice40ScaleError(
+            f"worker failed; see {output.with_suffix('.stderr.log')}"
+        )
     try:
         result = json.loads(completed.stdout.splitlines()[-1])
     except (IndexError, json.JSONDecodeError) as exc:
@@ -759,6 +1046,8 @@ def run(config_path: str | Path) -> dict[str, Any]:
     """Execute the common-path five-repetition Slice 40 comparison."""
     config_path = Path(config_path).resolve()
     config = load_config(config_path)
+    if config["campaign"] != "common":
+        raise Slice40ScaleError("run command requires the common campaign")
     code = require_clean_execution(config, require_candidate_product_tree=False)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     run_root = Path(config["artifact_root"]) / f"slice40-{stamp}"
@@ -855,38 +1144,43 @@ def run(config_path: str | Path) -> dict[str, Any]:
         ),
     }
     metrics_path = run_root / "metrics.json"
-    metrics_path.write_text(json.dumps(metrics, sort_keys=True) + "\n", encoding="utf-8")
-    run_id, record_dir = _lib.write_record(
-        "scale-02-slice40-common",
-        ts=datetime.now(UTC),
-        config_obj=config,
-        metrics=metrics,
-        verdict="complete" if verdict == "pass" else "advisory_limit_observed",
-        read=f"Slice 40 write/storage/reopen comparison: {verdict}",
-        code={**code, "baseline_commit": BASELINE_COMMIT},
-        corpus={"source": "deterministic Slice 40 representative fixture", "datasets": []},
-        seeds={"bootstrap": config["workload"]["bootstrap_seed"]},
-        env=_lib.env_info(
-            key_deps={
-                "fathomdb_baseline": BASELINE_COMMIT,
-                "fathomdb_candidate": config["candidate"]["source_commit"],
-            }
-        ),
-        cost_usd=0.0,
-        headline={"verdict": verdict, **write_upper},
-        n=config["workload"]["records"],
-        config_path=str(config_path),
-        tests=["tests/experiments/test_scale_02_slice40.py"],
-        files_changed=[],
-        artifacts=[
-            {
-                "kind": "external_safe_summary",
-                "path": str(metrics_path),
-                "sha256": _sha256(metrics_path),
-            }
-        ],
-        review=None,
-        open_questions=[] if verdict == "pass" else ["A registered Slice 40 bound missed"],
+    metrics_path.write_text(
+        json.dumps(metrics, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    run_id, record_dir = _register_run(
+        experiment="scale-02-slice40-common",
+        config=config,
+        config_path=config_path,
+        decision_metrics=decision_metrics("common", metrics),
+        detail=metrics,
+        code_git_sha=code["git_sha"],
+        record_arguments={
+            "ts": datetime.now(UTC),
+            "verdict": "complete" if verdict == "pass" else "advisory_limit_observed",
+            "read": f"Slice 40 write/storage/reopen comparison: {verdict}",
+            "code": {**code, "baseline_commit": BASELINE_COMMIT},
+            "corpus": {
+                "source": "deterministic Slice 40 representative fixture",
+                "datasets": [],
+            },
+            "seeds": {"bootstrap": config["workload"]["bootstrap_seed"]},
+            "env": _lib.env_info(
+                key_deps={
+                    "fathomdb_baseline": BASELINE_COMMIT,
+                    "fathomdb_candidate": config["candidate"]["source_commit"],
+                }
+            ),
+            "cost_usd": 0.0,
+            "headline": {"verdict": verdict, **write_upper},
+            "n": config["workload"]["records"],
+            "tests": ["tests/experiments/test_scale_02_slice40.py"],
+            "files_changed": [],
+            "artifacts": [],
+            "review": None,
+            "open_questions": []
+            if verdict == "pass"
+            else ["A registered Slice 40 bound missed"],
+        },
     )
     _lib.regen_index_md()
     return {

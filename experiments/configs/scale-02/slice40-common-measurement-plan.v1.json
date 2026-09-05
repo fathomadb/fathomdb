@@ -1,0 +1,40 @@
+{
+  "schema_version": "measurement.plan.v3",
+  "plan_id": "slice40-common-v1",
+  "components": [
+    {"id": "baseline-storage", "name": "baseline FathomDB storage", "kind": "fathomdb_storage"},
+    {"id": "candidate-storage", "name": "candidate FathomDB storage", "kind": "fathomdb_storage"},
+    {"id": "metric", "name": "paired performance and policy calculation", "kind": "deterministic_metric"}
+  ],
+  "call_paths": [],
+  "comparisons": [
+    {
+      "id": "common-path-non-regression",
+      "arms": [
+        {"id": "baseline", "component_ids": ["baseline-storage", "metric"], "execution_witness_ids": []},
+        {"id": "candidate", "component_ids": ["candidate-storage", "metric"], "execution_witness_ids": []}
+      ],
+      "shared_component_ids": ["metric"],
+      "differing_component_ids": ["baseline-storage", "candidate-storage"]
+    }
+  ],
+  "metric_bindings": [
+    {"id": "verdict", "source_artifact_id": "metrics", "json_pointer": "/verdict", "value_type": "enum", "allowed_values": ["pass", "fail"], "layer": "data_plane", "contributing_component_ids": ["baseline-storage", "candidate-storage", "metric"], "execution_witness_ids": []},
+    {"id": "write-p50", "source_artifact_id": "metrics", "json_pointer": "/write_p50_upper_relative_regression", "value_type": "number", "allowed_values": [], "layer": "data_plane", "contributing_component_ids": ["baseline-storage", "candidate-storage", "metric"], "execution_witness_ids": []},
+    {"id": "write-p95", "source_artifact_id": "metrics", "json_pointer": "/write_p95_upper_relative_regression", "value_type": "number", "allowed_values": [], "layer": "data_plane", "contributing_component_ids": ["baseline-storage", "candidate-storage", "metric"], "execution_witness_ids": []},
+    {"id": "open-relative", "source_artifact_id": "metrics", "json_pointer": "/open_upper_relative_regression", "value_type": "number", "allowed_values": [], "layer": "data_plane", "contributing_component_ids": ["baseline-storage", "candidate-storage", "metric"], "execution_witness_ids": []},
+    {"id": "open-absolute", "source_artifact_id": "metrics", "json_pointer": "/open_mean_absolute_regression_ms", "value_type": "number", "allowed_values": [], "layer": "data_plane", "contributing_component_ids": ["baseline-storage", "candidate-storage", "metric"], "execution_witness_ids": []},
+    {"id": "storage-increase", "source_artifact_id": "metrics", "json_pointer": "/maximum_paired_storage_increase_bytes", "value_type": "number", "allowed_values": [], "layer": "data_plane", "contributing_component_ids": ["baseline-storage", "candidate-storage", "metric"], "execution_witness_ids": []}
+  ],
+  "measurement_roots": [
+    {"source_artifact_id": "metrics", "json_pointers": ["/verdict", "/write_p50_upper_relative_regression", "/write_p95_upper_relative_regression", "/open_upper_relative_regression", "/open_mean_absolute_regression_ms", "/maximum_paired_storage_increase_bytes"]}
+  ],
+  "metric_exclusions": [
+    {"source_artifact_id": "metrics", "json_pointer": "/schema_version", "reason": "run_control"},
+    {"source_artifact_id": "metrics", "json_pointer": "/campaign", "reason": "run_control"}
+  ],
+  "claims": [
+    {"id": "common-path-non-regression", "layer": "data_plane", "metric_ids": ["verdict", "write-p50", "write-p95", "open-relative", "open-absolute", "storage-increase"]}
+  ],
+  "execution_witness_bindings": []
+}

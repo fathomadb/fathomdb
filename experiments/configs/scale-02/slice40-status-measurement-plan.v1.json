@@ -1,0 +1,43 @@
+{
+  "schema_version": "measurement.plan.v3",
+  "plan_id": "slice40-status-v1",
+  "components": [
+    {"id": "cpu-storage", "name": "CPU-build FathomDB status path", "kind": "fathomdb_storage"},
+    {"id": "cuda-linked-storage", "name": "CUDA-linked-build FathomDB status path", "kind": "fathomdb_storage"},
+    {"id": "metric", "name": "status bound and parity calculation", "kind": "deterministic_metric"}
+  ],
+  "call_paths": [],
+  "comparisons": [
+    {
+      "id": "status-build-parity",
+      "arms": [
+        {"id": "cpu", "component_ids": ["cpu-storage", "metric"], "execution_witness_ids": []},
+        {"id": "cuda-linked", "component_ids": ["cuda-linked-storage", "metric"], "execution_witness_ids": []}
+      ],
+      "shared_component_ids": ["metric"],
+      "differing_component_ids": ["cpu-storage", "cuda-linked-storage"]
+    }
+  ],
+  "metric_bindings": [
+    {"id": "verdict", "source_artifact_id": "metrics", "json_pointer": "/verdict", "value_type": "enum", "allowed_values": ["pass", "fail"], "layer": "data_plane", "contributing_component_ids": ["cpu-storage", "cuda-linked-storage", "metric"], "execution_witness_ids": []},
+    {"id": "device-p95-difference", "source_artifact_id": "metrics", "json_pointer": "/maximum_cpu_cuda_p95_difference_ms", "value_type": "number", "allowed_values": [], "layer": "data_plane", "contributing_component_ids": ["cpu-storage", "cuda-linked-storage", "metric"], "execution_witness_ids": []},
+    {"id": "generation-p95", "source_artifact_id": "metrics", "json_pointer": "/maximum_generation_p95_ms", "value_type": "number", "allowed_values": [], "layer": "data_plane", "contributing_component_ids": ["cpu-storage", "cuda-linked-storage", "metric"], "execution_witness_ids": []},
+    {"id": "generation-p99", "source_artifact_id": "metrics", "json_pointer": "/maximum_generation_p99_ms", "value_type": "number", "allowed_values": [], "layer": "data_plane", "contributing_component_ids": ["cpu-storage", "cuda-linked-storage", "metric"], "execution_witness_ids": []},
+    {"id": "mutation-p95", "source_artifact_id": "metrics", "json_pointer": "/maximum_mutation_p95_ms", "value_type": "number", "allowed_values": [], "layer": "data_plane", "contributing_component_ids": ["cpu-storage", "cuda-linked-storage", "metric"], "execution_witness_ids": []},
+    {"id": "mutation-p99", "source_artifact_id": "metrics", "json_pointer": "/maximum_mutation_p99_ms", "value_type": "number", "allowed_values": [], "layer": "data_plane", "contributing_component_ids": ["cpu-storage", "cuda-linked-storage", "metric"], "execution_witness_ids": []},
+    {"id": "steady-full-owner-scans", "source_artifact_id": "metrics", "json_pointer": "/maximum_steady_full_owner_scans", "value_type": "number", "allowed_values": [], "layer": "data_plane", "contributing_component_ids": ["cpu-storage", "cuda-linked-storage", "metric"], "execution_witness_ids": []},
+    {"id": "errors", "source_artifact_id": "metrics", "json_pointer": "/total_errors", "value_type": "number", "allowed_values": [], "layer": "data_plane", "contributing_component_ids": ["cpu-storage", "cuda-linked-storage", "metric"], "execution_witness_ids": []},
+    {"id": "timeouts", "source_artifact_id": "metrics", "json_pointer": "/total_timeouts", "value_type": "number", "allowed_values": [], "layer": "data_plane", "contributing_component_ids": ["cpu-storage", "cuda-linked-storage", "metric"], "execution_witness_ids": []}
+  ],
+  "measurement_roots": [
+    {"source_artifact_id": "metrics", "json_pointers": ["/verdict", "/maximum_cpu_cuda_p95_difference_ms", "/maximum_generation_p95_ms", "/maximum_generation_p99_ms", "/maximum_mutation_p95_ms", "/maximum_mutation_p99_ms", "/maximum_steady_full_owner_scans", "/total_errors", "/total_timeouts"]}
+  ],
+  "metric_exclusions": [
+    {"source_artifact_id": "metrics", "json_pointer": "/schema_version", "reason": "run_control"},
+    {"source_artifact_id": "metrics", "json_pointer": "/campaign", "reason": "run_control"}
+  ],
+  "claims": [
+    {"id": "status-bound-and-build-parity", "layer": "data_plane", "metric_ids": ["verdict", "device-p95-difference", "generation-p95", "generation-p99", "mutation-p95", "mutation-p99", "steady-full-owner-scans", "errors", "timeouts"]}
+  ],
+  "execution_witness_bindings": []
+}

@@ -65,7 +65,9 @@ def config() -> dict[str, object]:
 
 def test_config_accepts_only_the_registered_contract() -> None:
     document = config()
-    assert scale_02_slice40.resolve_config(document, validate_repository=False) == document
+    assert (
+        scale_02_slice40.resolve_config(document, validate_repository=False) == document
+    )
 
     unknown = copy.deepcopy(document)
     unknown["surprise"] = True
@@ -126,7 +128,9 @@ def test_decision_metrics_are_compact_and_campaign_specific() -> None:
     assert status["maximum_steady_full_owner_scans"] == 0
 
 
-def test_record_registration_requires_classification_before_index(monkeypatch, tmp_path) -> None:
+def test_record_registration_requires_classification_before_index(
+    monkeypatch, tmp_path
+) -> None:
     order: list[str] = []
 
     def write_record(*args, **kwargs):
@@ -144,6 +148,11 @@ def test_record_registration_requires_classification_before_index(monkeypatch, t
         scale_02_slice40,
         "_write_run_classification",
         lambda **kwargs: order.append("classification"),
+    )
+    monkeypatch.setattr(
+        scale_02_slice40,
+        "_repository_locator",
+        lambda path, label: str(path),
     )
     scale_02_slice40._register_run(
         experiment="fixture",
@@ -296,7 +305,10 @@ def test_status_verdict_requires_five_exact_cpu_cuda_repetitions() -> None:
     cuda = [status_result(device="cuda", generation_p95=0.03) for _ in range(5)]
     assert (
         scale_02_slice40.status_verdict(
-            cpu, cuda, config()["workload"], config()["policy"]  # type: ignore[arg-type]
+            cpu,
+            cuda,
+            config()["workload"],
+            config()["policy"],  # type: ignore[arg-type]
         )
         == "pass"
     )
@@ -304,14 +316,20 @@ def test_status_verdict_requires_five_exact_cpu_cuda_repetitions() -> None:
     cuda[4]["generation_p95_ms"] = 2.03
     assert (
         scale_02_slice40.status_verdict(
-            cpu, cuda, config()["workload"], config()["policy"]  # type: ignore[arg-type]
+            cpu,
+            cuda,
+            config()["workload"],
+            config()["policy"],  # type: ignore[arg-type]
         )
         == "fail"
     )
 
     with pytest.raises(scale_02_slice40.Slice40ScaleError, match="repetitions"):
         scale_02_slice40.status_verdict(
-            cpu[:4], cuda, config()["workload"], config()["policy"]  # type: ignore[arg-type]
+            cpu[:4],
+            cuda,
+            config()["workload"],
+            config()["policy"],  # type: ignore[arg-type]
         )
 
 

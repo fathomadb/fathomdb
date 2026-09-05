@@ -621,7 +621,9 @@ fn encode_optional_i64(bytes: &mut Vec<u8>, value: Option<i64>) {
 
 #[cfg(test)]
 mod tests {
+    use fathomdb_schema::migrate;
     use proptest::prelude::*;
+    use serde_json::Value;
 
     use super::*;
 
@@ -676,5 +678,57 @@ mod tests {
         let left = ReadContextV1::new(ReadView::default(), left_filter).unwrap();
         let right = ReadContextV1::new(ReadView::default(), right_filter).unwrap();
         assert_eq!(encode_context(&left), encode_context(&right));
+    }
+
+    #[test]
+    fn normative_fixture_pins_context_binding_digests_payload_and_token() {
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../../../tests/fixtures/slice35_frozen_context_v1.json"
+        ))
+        .unwrap();
+        let context = ReadContextV1::new(
+            ReadView { valid_as_of: Some(1_700_000_000), ..ReadView::default() },
+            SearchFilter {
+                source_type: Some("node_body".to_string()),
+                kind: Some("doc".to_string()),
+                ..SearchFilter::default()
+            },
+        )
+        .unwrap();
+        let context_bytes = encode_context(&context);
+        assert_eq!(hex_encode(&context_bytes), fixture["context_encoding_hex"].as_str().unwrap());
+        assert_eq!(
+            hex_encode(&digest(CONTEXT_DOMAIN, &context_bytes)),
+            fixture["context_digest"].as_str().unwrap()
+        );
+
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrate(&connection).unwrap();
+        connection
+            .execute(
+                "UPDATE _fathomdb_open_state SET value=?1 \
+                 WHERE key='_fathomdb_database_id'",
+                [fixture["database_id"].as_str().unwrap()],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "UPDATE _fathomdb_open_state SET value=?1 \
+                 WHERE key='_fathomdb_read_context_key'",
+                [fixture["read_context_key"].as_str().unwrap()],
+            )
+            .unwrap();
+        assert_eq!(
+            hex_encode(&projection_registry_digest(&connection).unwrap()),
+            fixture["projection_registry_digest"].as_str().unwrap()
+        );
+        assert_eq!(
+            hex_encode(&projection_serving_digest(&connection).unwrap()),
+            fixture["projection_serving_digest"].as_str().unwrap()
+        );
+        let (frozen, _) = mint(&mut connection, &context).unwrap();
+        let payload_hex = frozen.token.split('.').nth(1).unwrap();
+        assert_eq!(payload_hex, fixture["payload_hex"].as_str().unwrap());
+        assert_eq!(frozen.token, fixture["token"].as_str().unwrap());
     }
 }

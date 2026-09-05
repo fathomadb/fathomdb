@@ -20,7 +20,7 @@ from typing import Any, Mapping, Sequence
 from experiments import _lib, scale_02
 
 
-SCHEMA = "scale-02-slice40.v1"
+SCHEMA = "scale-02-slice40.v2"
 PROGRAM_TRACK = "SCALE-02"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BASELINE_COMMIT = "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403"
@@ -31,10 +31,18 @@ _TOP_KEYS = {
     "approval",
     "baseline",
     "candidate",
+    "execution",
     "workload",
     "policy",
     "artifact_root",
     "claim_boundary",
+}
+_EXECUTION_FILES = {
+    "runner_sha256": Path(__file__),
+    "common_worker_sha256": REPO_ROOT
+    / "experiments/rust/slice40_common_measurement.rs",
+    "status_test_sha256": REPO_ROOT
+    / "src/rust/crates/fathomdb-engine/tests/slice40_status_performance.rs",
 }
 _WORKLOAD = {
     "records": 10_000,
@@ -108,6 +116,16 @@ def _commit(value: object, label: str) -> str:
     return value
 
 
+def _digest(value: object, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise Slice40ScaleError(f"{label} must be a lowercase SHA-256 digest")
+    return value
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -135,9 +153,12 @@ def resolve_config(
         raise Slice40ScaleError("execution is not HITL-approved")
     baseline = _exact(root["baseline"], "baseline", {"source_commit"})
     candidate = _exact(root["candidate"], "candidate", {"source_commit"})
+    execution = _exact(root["execution"], "execution", set(_EXECUTION_FILES))
     if _commit(baseline["source_commit"], "baseline.source_commit") != BASELINE_COMMIT:
         raise Slice40ScaleError("baseline source drifted")
     _commit(candidate["source_commit"], "candidate.source_commit")
+    for label, digest in execution.items():
+        _digest(digest, f"execution.{label}")
     workload = _exact(root["workload"], "workload", set(_WORKLOAD))
     if workload != _WORKLOAD:
         raise Slice40ScaleError("workload drifted from the registered matrix")
@@ -163,7 +184,43 @@ def resolve_config(
             )
             if check.returncode != 0:
                 raise Slice40ScaleError(f"{label} source commit is unavailable")
+        for label, path in _EXECUTION_FILES.items():
+            if _sha256(path) != execution[label]:
+                raise Slice40ScaleError(f"execution.{label} does not match the reviewed source")
     return root
+
+
+def require_clean_execution(
+    config: Mapping[str, Any], *, require_candidate_product_tree: bool
+) -> dict[str, Any]:
+    """Fail closed on dirty, unreviewed, or product-drifted execution source."""
+    code = _lib.git_info()
+    if code["dirty"]:
+        raise Slice40ScaleError("campaign requires a clean execution checkout")
+    for label, path in _EXECUTION_FILES.items():
+        if _sha256(path) != config["execution"][label]:
+            raise Slice40ScaleError(f"execution.{label} drifted after review")
+    if require_candidate_product_tree:
+        comparison = subprocess.run(
+            [
+                "git",
+                "diff",
+                "--quiet",
+                config["candidate"]["source_commit"],
+                "HEAD",
+                "--",
+                "Cargo.toml",
+                "Cargo.lock",
+                "src/rust",
+            ],
+            cwd=REPO_ROOT,
+            check=False,
+        )
+        if comparison.returncode != 0:
+            raise Slice40ScaleError(
+                "status execution product tree differs from the reviewed candidate"
+            )
+    return code
 
 
 def load_config(path: str | Path, *, validate_repository: bool = True) -> dict[str, Any]:
@@ -358,15 +415,74 @@ def status_verdict(
     )
 
 
+def _build_status_test(
+    *, build_variant: str, run_root: Path
+) -> dict[str, str]:
+    features = "test-hooks" if build_variant == "cpu" else "test-hooks,embed-cuda"
+    target_dir = run_root / f"target-{build_variant}"
+    log = run_root / f"build-{build_variant}.jsonl"
+    completed = subprocess.run(
+        [
+            "cargo",
+            "test",
+            "--release",
+            "--no-run",
+            "--message-format=json-render-diagnostics",
+            "-p",
+            "fathomdb-engine",
+            "--features",
+            features,
+            "--test",
+            "slice40_status_performance",
+        ],
+        cwd=REPO_ROOT,
+        env={**os.environ, "CARGO_TARGET_DIR": str(target_dir)},
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    log.write_text(completed.stdout, encoding="utf-8")
+    if completed.returncode != 0:
+        raise Slice40ScaleError(f"status {build_variant} build failed; see {log}")
+    executables = []
+    for line in completed.stdout.splitlines():
+        try:
+            message = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        target = message.get("target", {})
+        executable = message.get("executable")
+        if (
+            message.get("reason") == "compiler-artifact"
+            and target.get("name") == "slice40_status_performance"
+            and isinstance(executable, str)
+        ):
+            executables.append(Path(executable))
+    if len(executables) != 1 or not executables[0].is_file():
+        raise Slice40ScaleError(
+            f"status {build_variant} build did not identify exactly one test executable"
+        )
+    executable = executables[0]
+    return {
+        "build_variant": build_variant,
+        "features": features,
+        "path": str(executable),
+        "sha256": _sha256(executable),
+        "build_log": str(log),
+        "build_log_sha256": _sha256(log),
+    }
+
+
 def _status_test_command(
     *,
+    executable: Path,
     database: Path,
     device: str,
     workload: Mapping[str, Any],
     log: Path,
     seed_only: bool = False,
 ) -> dict[str, Any] | None:
-    features = "test-hooks" if device == "cpu" else "test-hooks,embed-cuda"
     environment = {
         **os.environ,
         "FATHOM_SLICE40_STATUS_DATABASE": str(database),
@@ -379,17 +495,7 @@ def _status_test_command(
         environment["FATHOM_SLICE40_STATUS_SEED_ONLY"] = "1"
     completed = subprocess.run(
         [
-            "cargo",
-            "test",
-            "--release",
-            "-q",
-            "-p",
-            "fathomdb-engine",
-            "--features",
-            features,
-            "--test",
-            "slice40_status_performance",
-            "--",
+            str(executable),
             "--ignored",
             "--nocapture",
         ],
@@ -420,9 +526,7 @@ def run_status(config_path: str | Path) -> dict[str, Any]:
     """Execute the paired CPU/CUDA 50k status campaign and register its receipt."""
     config_path = Path(config_path).resolve()
     config = load_config(config_path)
-    code = _lib.git_info()
-    if code["dirty"] or code["git_sha"] != config["candidate"]["source_commit"]:
-        raise Slice40ScaleError("status campaign requires the clean pinned candidate checkout")
+    code = require_clean_execution(config, require_candidate_product_tree=True)
     nvidia = subprocess.run(
         ["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"],
         check=False,
@@ -438,6 +542,10 @@ def run_status(config_path: str | Path) -> dict[str, Any]:
     run_root.mkdir(parents=True, mode=0o700)
     nvidia_log = run_root / "nvidia-smi.log"
     nvidia_log.write_text(nvidia.stdout, encoding="utf-8")
+    executables = {
+        build_variant: _build_status_test(build_variant=build_variant, run_root=run_root)
+        for build_variant in ("cpu", "cuda")
+    }
     results: dict[str, list[dict[str, Any]]] = {"cpu": [], "cuda": []}
     database_observations: dict[str, list[dict[str, int]]] = {"cpu": [], "cuda": []}
     databases: list[dict[str, str]] = []
@@ -446,6 +554,7 @@ def run_status(config_path: str | Path) -> dict[str, Any]:
         repetition_root.mkdir()
         seed_database = repetition_root / "seed.fathomdb"
         _status_test_command(
+            executable=Path(executables["cpu"]["path"]),
             database=seed_database,
             device="cpu",
             workload=config["workload"],
@@ -462,12 +571,14 @@ def run_status(config_path: str | Path) -> dict[str, Any]:
         if _sha256(cpu_database) != _sha256(cuda_database):
             raise Slice40ScaleError("paired status databases are not byte-identical")
         cpu = _status_test_command(
+            executable=Path(executables["cpu"]["path"]),
             database=cpu_database,
             device="cpu",
             workload=config["workload"],
             log=repetition_root / "cpu.log",
         )
         cuda = _status_test_command(
+            executable=Path(executables["cuda"]["path"]),
             database=cuda_database,
             device="cuda:0",
             workload=config["workload"],
@@ -509,6 +620,7 @@ def run_status(config_path: str | Path) -> dict[str, Any]:
         "treatments": results,
         "paired_database_hashes": databases,
         "database_observations": database_observations,
+        "executed_test_artifacts": executables,
         "runner_sha256": _sha256(Path(__file__)),
         "status_test_source_sha256": _sha256(
             REPO_ROOT
@@ -645,6 +757,7 @@ def run(config_path: str | Path) -> dict[str, Any]:
     """Execute the common-path five-repetition Slice 40 comparison."""
     config_path = Path(config_path).resolve()
     config = load_config(config_path)
+    code = require_clean_execution(config, require_candidate_product_tree=False)
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     run_root = Path(config["artifact_root"]) / f"slice40-{stamp}"
     run_root.mkdir(parents=True, mode=0o700)
@@ -741,7 +854,6 @@ def run(config_path: str | Path) -> dict[str, Any]:
     }
     metrics_path = run_root / "metrics.json"
     metrics_path.write_text(json.dumps(metrics, sort_keys=True) + "\n", encoding="utf-8")
-    code = _lib.git_info()
     run_id, record_dir = _lib.write_record(
         "scale-02-slice40-common",
         ts=datetime.now(UTC),

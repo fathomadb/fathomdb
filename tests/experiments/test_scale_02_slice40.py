@@ -10,7 +10,7 @@ from experiments import scale_02_slice40
 
 def config() -> dict[str, object]:
     return {
-        "schema_version": "scale-02-slice40.v1",
+        "schema_version": "scale-02-slice40.v2",
         "program_track": "SCALE-02",
         "release": "0.8.25",
         "approval": {
@@ -22,6 +22,11 @@ def config() -> dict[str, object]:
             "source_commit": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403",
         },
         "candidate": {"source_commit": "a" * 40},
+        "execution": {
+            "runner_sha256": "b" * 64,
+            "common_worker_sha256": "c" * 64,
+            "status_test_sha256": "d" * 64,
+        },
         "workload": {
             "records": 10_000,
             "batch_size": 128,
@@ -63,6 +68,29 @@ def test_config_accepts_only_the_registered_contract() -> None:
     drifted["workload"]["repetitions"] = 4  # type: ignore[index]
     with pytest.raises(scale_02_slice40.Slice40ScaleError, match="workload"):
         scale_02_slice40.resolve_config(drifted, validate_repository=False)
+
+
+def test_execution_preflight_rejects_dirty_source(monkeypatch, tmp_path) -> None:
+    files = {}
+    execution = {}
+    for index, label in enumerate(
+        ("runner_sha256", "common_worker_sha256", "status_test_sha256")
+    ):
+        path = tmp_path / f"source-{index}"
+        path.write_text(label, encoding="utf-8")
+        files[label] = path
+        execution[label] = scale_02_slice40._sha256(path)
+    monkeypatch.setattr(scale_02_slice40, "_EXECUTION_FILES", files)
+    monkeypatch.setattr(
+        scale_02_slice40._lib,
+        "git_info",
+        lambda: {"git_sha": "a" * 40, "dirty": True, "branch": "release/0.8.25"},
+    )
+    with pytest.raises(scale_02_slice40.Slice40ScaleError, match="clean"):
+        scale_02_slice40.require_clean_execution(
+            {"execution": execution, "candidate": {"source_commit": "a" * 40}},
+            require_candidate_product_tree=False,
+        )
 
 
 def test_write_and_open_verdicts_are_bound_to_registered_limits() -> None:

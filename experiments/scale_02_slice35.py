@@ -1,0 +1,386 @@
+"""Measure Slice 35 legacy-search overhead against its pinned parent commit."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import importlib
+import json
+import os
+import random
+import statistics
+import subprocess
+import sys
+import venv
+from dataclasses import replace
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any, Mapping, Sequence
+
+from experiments import _lib, scale_02
+
+
+SCHEMA = "scale-02-slice35.v1"
+PROGRAM_TRACK = "SCALE-02"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+_TOP_KEYS = {
+    "schema_version",
+    "program_track",
+    "release",
+    "approval",
+    "baseline",
+    "candidate",
+    "inputs",
+    "workload",
+    "policy",
+    "artifact_root",
+    "claim_boundary",
+}
+_RUNTIME_KEYS = {
+    "source_commit",
+    "wheel",
+    "wheel_sha256",
+    "python_extension_sha256",
+    "fathomdb_bin",
+    "fathomdb_bin_sha256",
+}
+
+
+class Slice35ScaleError(ValueError):
+    """Raised when the Slice 35 measurement contract or evidence drifts."""
+
+
+def _exact(value: object, label: str, keys: set[str]) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != keys:
+        actual = set(value) if isinstance(value, dict) else set()
+        raise Slice35ScaleError(
+            f"{label} keys drifted: missing={sorted(keys - actual)}, "
+            f"unknown={sorted(actual - keys)}"
+        )
+    return value
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _digest(value: object, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise Slice35ScaleError(f"{label} must be a lowercase sha256")
+    return value
+
+
+def _path(value: object, label: str) -> Path:
+    if not isinstance(value, str) or not value:
+        raise Slice35ScaleError(f"{label} must be a non-empty path")
+    path = Path(value)
+    return (path if path.is_absolute() else REPO_ROOT / path).resolve()
+
+
+def resolve_config(
+    document: object, *, validate_files: bool = True
+) -> dict[str, Any]:
+    """Strictly validate and resolve the registered comparison contract."""
+    root = _exact(document, "config", _TOP_KEYS)
+    if (
+        root["schema_version"] != SCHEMA
+        or root["program_track"] != PROGRAM_TRACK
+        or root["release"] != "0.8.25"
+        or root["claim_boundary"] != "legacy_search_non_regression_only"
+    ):
+        raise Slice35ScaleError("configuration identity drifted")
+    approval = _exact(
+        root["approval"], "approval", {"state", "approved_by", "approved_at"}
+    )
+    if approval["state"] != "approved" or approval["approved_by"] != "HITL":
+        raise Slice35ScaleError("execution is not HITL-approved")
+    workload = _exact(
+        root["workload"],
+        "workload",
+        {
+            "records",
+            "repetitions",
+            "warmups",
+            "steady_queries",
+            "query_order_seed",
+            "bootstrap_seed",
+            "bootstrap_resamples",
+        },
+    )
+    expected_workload = {
+        "records": 10_000,
+        "repetitions": 5,
+        "warmups": 100,
+        "steady_queries": 1_000,
+        "query_order_seed": "0x5CA1E025350001",
+        "bootstrap_seed": "0x5CA1E02535B007",
+        "bootstrap_resamples": 2_000,
+    }
+    if workload != expected_workload:
+        raise Slice35ScaleError("workload drifted from the registered matrix")
+    policy = _exact(
+        root["policy"],
+        "policy",
+        {"confidence", "max_relative_regression", "metrics"},
+    )
+    if policy != {
+        "confidence": 0.95,
+        "max_relative_regression": 0.03,
+        "metrics": ["p50", "p95"],
+    }:
+        raise Slice35ScaleError("policy drifted from the registered boundary")
+    inputs = _exact(
+        root["inputs"], "inputs", {"base_config", "base_config_sha256"}
+    )
+    _digest(inputs["base_config_sha256"], "inputs.base_config_sha256")
+    for name in ("baseline", "candidate"):
+        runtime = _exact(root[name], name, _RUNTIME_KEYS)
+        commit = runtime["source_commit"]
+        if not isinstance(commit, str) or len(commit) != 40:
+            raise Slice35ScaleError(f"{name}.source_commit must be a full commit")
+        for key in (
+            "wheel_sha256",
+            "python_extension_sha256",
+            "fathomdb_bin_sha256",
+        ):
+            _digest(runtime[key], f"{name}.{key}")
+        if validate_files:
+            for path_key, digest_key in (
+                ("wheel", "wheel_sha256"),
+                ("fathomdb_bin", "fathomdb_bin_sha256"),
+            ):
+                path = _path(runtime[path_key], f"{name}.{path_key}")
+                if not path.is_file() or _sha256(path) != runtime[digest_key]:
+                    raise Slice35ScaleError(f"{name}.{path_key} drifted")
+    if validate_files:
+        base = _path(inputs["base_config"], "inputs.base_config")
+        if not base.is_file() or _sha256(base) != inputs["base_config_sha256"]:
+            raise Slice35ScaleError("base SCALE-02 configuration drifted")
+        artifact_root = _path(root["artifact_root"], "artifact_root")
+        if artifact_root.is_relative_to(REPO_ROOT):
+            raise Slice35ScaleError("artifact root must remain outside the repository")
+    return root
+
+
+def load_config(path: str | Path, *, validate_files: bool = True) -> dict[str, Any]:
+    """Load a Slice 35 comparison configuration."""
+    try:
+        document = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise Slice35ScaleError("configuration is unavailable") from exc
+    return resolve_config(document, validate_files=validate_files)
+
+
+def paired_relative_upper(
+    baseline: Sequence[float],
+    candidate: Sequence[float],
+    *,
+    seed: int,
+    resamples: int,
+) -> float:
+    """Return the one-sided 95% upper bound of paired relative regression."""
+    if len(baseline) != len(candidate) or not baseline:
+        raise Slice35ScaleError("paired samples must be non-empty and equal length")
+    ratios = [(new / old) - 1.0 for old, new in zip(baseline, candidate, strict=True)]
+    randomizer = random.Random(seed)
+    estimates = []
+    for _ in range(resamples):
+        sample = [ratios[randomizer.randrange(len(ratios))] for _ in ratios]
+        estimates.append(statistics.fmean(sample))
+    return scale_02._percentile(estimates, 0.95)
+
+
+def regression_verdict(upper: Mapping[str, float], maximum: float) -> str:
+    """Apply the registered all-metrics non-regression decision."""
+    return "pass" if all(value <= maximum for value in upper.values()) else "fail"
+
+
+def _runtime_scale_config(config: Mapping[str, Any], treatment: str) -> scale_02.Scale02Config:
+    base_path = _path(config["inputs"]["base_config"], "inputs.base_config")
+    base = scale_02.load_config(base_path)
+    runtime = config[treatment]
+    module = importlib.import_module("fathomdb._fathomdb")
+    if module.__file__ is None:
+        raise Slice35ScaleError(f"{treatment} loaded extension has no file")
+    extension = Path(module.__file__).resolve()
+    if _sha256(extension) != runtime["python_extension_sha256"]:
+        raise Slice35ScaleError(f"{treatment} loaded extension drifted")
+    workload = config["workload"]
+    return replace(
+        base,
+        repetitions=workload["repetitions"],
+        cold_query_count=0,
+        warmup_query_count=workload["warmups"],
+        steady_query_count=workload["steady_queries"],
+        query_order_seed=workload["query_order_seed"],
+        python=Path(sys.executable),
+        python_extension=extension,
+        python_extension_sha256=runtime["python_extension_sha256"],
+        fathomdb_bin=_path(runtime["fathomdb_bin"], f"{treatment}.fathomdb_bin"),
+        fathomdb_bin_sha256=runtime["fathomdb_bin_sha256"],
+    )
+
+
+def _worker(config_path: Path, treatment: str, output_root: Path) -> None:
+    config = load_config(config_path)
+    scale_config = _runtime_scale_config(config, treatment)
+    fixture = scale_02.load_fixture(scale_config)
+    rows = scale_02.build_rows(
+        fixture.documents, config["workload"]["records"], seed=scale_config.growth_seed
+    )
+    treatment_root = output_root / treatment
+    treatment_root.mkdir(parents=True, exist_ok=False)
+    repetitions = [
+        scale_02._execute_repetition(
+            scale_config,
+            fixture,
+            rows,
+            point_root=treatment_root,
+            point=config["workload"]["records"],
+            repetition=index,
+        )
+        for index in range(1, config["workload"]["repetitions"] + 1)
+    ]
+    summary = {
+        "schema_version": "scale-02-slice35-treatment.v1",
+        "treatment": treatment,
+        "source_commit": config[treatment]["source_commit"],
+        "repetitions": len(repetitions),
+        "errors": sum(item["errors"] for item in repetitions),
+        "timeouts": sum(item["timeouts"] for item in repetitions),
+        "p50_by_repetition": [
+            scale_02._percentile(item["steady_query_ms"], 0.50)
+            for item in repetitions
+        ],
+        "p95_by_repetition": [
+            scale_02._percentile(item["steady_query_ms"], 0.95)
+            for item in repetitions
+        ],
+    }
+    (treatment_root / "summary.json").write_text(
+        json.dumps(summary, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+
+def _install_runtime(run_root: Path, treatment: str, wheel: Path) -> Path:
+    runtime = run_root / f"{treatment}-runtime"
+    venv.EnvBuilder(with_pip=True, clear=False).create(runtime)
+    python = runtime / "bin" / "python"
+    subprocess.run(
+        [str(python), "-m", "pip", "install", "--no-deps", str(wheel)],
+        check=True,
+    )
+    return python
+
+
+def run(config_path: str | Path) -> dict[str, Any]:
+    """Run both exact-source treatments and register a safe aggregate receipt."""
+    config_path = Path(config_path).resolve()
+    config = load_config(config_path)
+    artifact_root = _path(config["artifact_root"], "artifact_root")
+    run_stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    run_root = artifact_root / f"slice35-{run_stamp}-{os.getpid()}"
+    run_root.mkdir(parents=True, mode=0o700)
+    for treatment in ("baseline", "candidate"):
+        python = _install_runtime(
+            run_root, treatment, _path(config[treatment]["wheel"], f"{treatment}.wheel")
+        )
+        environment = dict(os.environ)
+        environment["PYTHONPATH"] = str(REPO_ROOT)
+        subprocess.run(
+            [
+                str(python),
+                "-m",
+                "experiments.scale_02_slice35",
+                "worker",
+                str(config_path),
+                treatment,
+                str(run_root),
+            ],
+            cwd=run_root,
+            env=environment,
+            check=True,
+        )
+    summaries = {
+        name: json.loads((run_root / name / "summary.json").read_text(encoding="utf-8"))
+        for name in ("baseline", "candidate")
+    }
+    seed = int(config["workload"]["bootstrap_seed"], 16)
+    upper = {
+        metric: paired_relative_upper(
+            summaries["baseline"][f"{metric}_by_repetition"],
+            summaries["candidate"][f"{metric}_by_repetition"],
+            seed=seed + offset,
+            resamples=config["workload"]["bootstrap_resamples"],
+        )
+        for offset, metric in enumerate(("p50", "p95"))
+    }
+    verdict = regression_verdict(upper, config["policy"]["max_relative_regression"])
+    result = {
+        "schema_version": "scale-02-slice35-result.v1",
+        "program_track": PROGRAM_TRACK,
+        "verdict": verdict,
+        "upper_95_relative_regression": upper,
+        "treatments": summaries,
+        "claim_boundary": config["claim_boundary"],
+    }
+    result_path = run_root / "result.json"
+    result_path.write_text(json.dumps(result, sort_keys=True) + "\n", encoding="utf-8")
+    run_id, _ = _lib.write_record(
+        "scale-02-slice35",
+        ts=datetime.now(UTC),
+        config_obj=config,
+        metrics=result,
+        verdict="complete" if verdict == "pass" else "advisory_limit_observed",
+        read=f"Slice 35 legacy search non-regression: {verdict}",
+        code={**_lib.git_info(), "baseline_commit": config["baseline"]["source_commit"]},
+        corpus={"source": "SCALE-02 frozen 10k input pack", "datasets": ["tc5-qualified-real-v2"]},
+        seeds={"query_order": config["workload"]["query_order_seed"], "bootstrap": config["workload"]["bootstrap_seed"]},
+        env=_lib.env_info(key_deps={"fathomdb_baseline": config["baseline"]["source_commit"], "fathomdb_candidate": config["candidate"]["source_commit"]}),
+        cost_usd=0.0,
+        headline={"verdict": verdict, **upper},
+        n=config["workload"]["records"],
+        config_path=str(config_path),
+        tests=["tests/experiments/test_scale_02_slice35.py"],
+        files_changed=[],
+        artifacts=[{"kind": "external_safe_summary", "path": str(result_path), "sha256": _sha256(result_path)}],
+        review=None,
+        open_questions=[] if verdict == "pass" else ["Slice 35 exceeds the registered legacy-search regression bound"],
+    )
+    _lib.regen_index_md()
+    return {"run_id": run_id, "result": result, "external_result": str(result_path)}
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Validate, execute, or run one isolated treatment worker."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    validate_parser = subparsers.add_parser("validate")
+    validate_parser.add_argument("config", type=Path)
+    run_parser = subparsers.add_parser("run")
+    run_parser.add_argument("config", type=Path)
+    worker_parser = subparsers.add_parser("worker")
+    worker_parser.add_argument("config", type=Path)
+    worker_parser.add_argument("treatment", choices=("baseline", "candidate"))
+    worker_parser.add_argument("output_root", type=Path)
+    args = parser.parse_args(argv)
+    if args.command == "validate":
+        load_config(args.config)
+        print("ok")
+    elif args.command == "run":
+        print(json.dumps(run(args.config), sort_keys=True))
+    else:
+        _worker(args.config, args.treatment, args.output_root)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

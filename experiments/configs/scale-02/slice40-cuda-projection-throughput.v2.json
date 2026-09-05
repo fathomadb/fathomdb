@@ -1,7 +1,8 @@
 {
-  "schema_version": "scale-02-slice40-cuda-throughput.v1",
+  "schema_version": "scale-02-slice40-cuda-throughput.v2",
   "program_track": "SCALE-02",
   "release": "0.8.25",
+  "campaign": "cuda-throughput",
   "approval": {
     "state": "approved",
     "approved_by": "HITL",
@@ -9,11 +10,19 @@
   },
   "candidate": {
     "product_commit": "2313fd34ea5ca68346a468d5bba58ba245306c08",
+    "artifact_build_commit": "47afff50ec0e9f906c24c4422186eb407b2ff467",
     "wheel_sha256": "a1f7b571aa9af12641ba839bdd426e6184ba60794e04ffeb8a80d025b4d9df6c"
   },
   "execution": {
-    "runner_sha256": "7e633470bf130f49f90c47e06f39ab7854218950ad987d7d3c0aa301e9f0262f",
-    "measurement_plan_sha256": "abfdff57ff8ce5186738536185ac1770aa94d935c6865be1917332de9561709c"
+    "runner_sha256": "915eb65cf437ead2039b31ff053d6336acef0239f5ec627bbdf6921bbc228480",
+    "record_library_sha256": "4066299e8c2bd989b5374cd86bf51e7a93f1688856ebba9c4951d608503709f8",
+    "classification_library_sha256": "830a9c1db4b29a73d73e58b61b40c6db2aac158fd760e05ba7882e980266f729",
+    "test_setup_library_sha256": "ceebadcf4d319100b8f49916424cc441723ab43c5128327a30411794f5a85c59"
+  },
+  "measurement_plan": {
+    "path": "experiments/configs/scale-02/slice40-cuda-throughput-measurement-plan.v2.json",
+    "sha256": "f4ca3a64c34aec9ff5320338613c4bc17add87cb4301f6f44fa39423b5d80da5",
+    "plan_id": "slice40-cuda-throughput-v2"
   },
   "workload": {
     "records": 1024,
@@ -25,8 +34,12 @@
   "runtime": {
     "embed_device": "cuda:0",
     "cuda_uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
-    "embedder": "fathomdb-bge-small-en-v1.5",
-    "network": "none"
+    "embedder": {
+      "name": "fathomdb-bge-small-en-v1.5",
+      "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+      "dimension": 384
+    },
+    "network": "offline_environment"
   },
   "policy": {
     "classification": "descriptive",

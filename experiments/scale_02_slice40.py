@@ -12,12 +12,17 @@ import shutil
 import sqlite3
 import statistics
 import subprocess
+import sys
 import tarfile
+import time
+import zipfile
+from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from experiments import _lib, measurement_classification, scale_02
+from experiments.fathomdb_test_setup import prepare_test_database
 
 
 SCHEMA = "scale-02-slice40.v3"
@@ -49,6 +54,40 @@ _EXECUTION_FILES = {
     / "experiments/rust/slice40_common_measurement.rs",
     "status_test_sha256": REPO_ROOT
     / "src/rust/crates/fathomdb-engine/tests/slice40_status_performance.rs",
+}
+_THROUGHPUT_EXECUTION_FILES = {
+    "runner_sha256": Path(__file__),
+    "record_library_sha256": REPO_ROOT / "experiments/_lib.py",
+    "classification_library_sha256": REPO_ROOT
+    / "experiments/measurement_classification.py",
+    "test_setup_library_sha256": REPO_ROOT / "experiments/fathomdb_test_setup.py",
+}
+_THROUGHPUT_SCHEMA = "scale-02-slice40-cuda-throughput.v2"
+_THROUGHPUT_PRODUCT_COMMIT = "2313fd34ea5ca68346a468d5bba58ba245306c08"
+_THROUGHPUT_BUILD_COMMIT = "47afff50ec0e9f906c24c4422186eb407b2ff467"
+_THROUGHPUT_UUID = "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b"
+_THROUGHPUT_WORKLOAD = {
+    "records": 1024,
+    "write_batch_size": 128,
+    "repetitions": 5,
+    "warmup_records": 64,
+    "drain_timeout_seconds": 900,
+}
+_THROUGHPUT_RUNTIME = {
+    "embed_device": "cuda:0",
+    "cuda_uuid": _THROUGHPUT_UUID,
+    "embedder": {
+        "name": "fathomdb-bge-small-en-v1.5",
+        "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+        "dimension": 384,
+    },
+    "network": "offline_environment",
+}
+_THROUGHPUT_POLICY = {
+    "classification": "descriptive",
+    "decision_threshold": None,
+    "excluded_time": ["artifact_install", "model_load", "model_warmup"],
+    "included_time": ["configure_projection", "projection_backfill", "drain"],
 }
 _WORKLOAD = {
     "records": 10_000,
@@ -266,6 +305,178 @@ def load_config(
     return resolve_config(document, validate_repository=validate_repository)
 
 
+def resolve_cuda_throughput_config(
+    document: object, *, validate_repository: bool = True
+) -> dict[str, Any]:
+    """Validate the closed Slice 40 CUDA projection-throughput campaign."""
+
+    keys = {
+        "schema_version",
+        "program_track",
+        "release",
+        "campaign",
+        "approval",
+        "candidate",
+        "execution",
+        "measurement_plan",
+        "workload",
+        "runtime",
+        "policy",
+        "artifact_root",
+        "claim_boundary",
+    }
+    root = _exact(document, "throughput config", keys)
+    if (
+        root["schema_version"] != _THROUGHPUT_SCHEMA
+        or root["program_track"] != PROGRAM_TRACK
+        or root["release"] != "0.8.25"
+        or root["campaign"] != "cuda-throughput"
+        or root["claim_boundary"]
+        != "cuda_projection_backfill_throughput_descriptive"
+    ):
+        raise Slice40ScaleError("throughput configuration identity drifted")
+    approval = _exact(
+        root["approval"], "approval", {"state", "approved_by", "approved_at"}
+    )
+    if approval["state"] != "approved" or approval["approved_by"] != "HITL":
+        raise Slice40ScaleError("throughput execution is not HITL-approved")
+    candidate = _exact(
+        root["candidate"],
+        "candidate",
+        {"product_commit", "artifact_build_commit", "wheel_sha256"},
+    )
+    if (
+        candidate["product_commit"] != _THROUGHPUT_PRODUCT_COMMIT
+        or candidate["artifact_build_commit"] != _THROUGHPUT_BUILD_COMMIT
+    ):
+        raise Slice40ScaleError("throughput candidate boundary drifted")
+    _digest(candidate["wheel_sha256"], "candidate.wheel_sha256")
+    execution = _exact(
+        root["execution"], "execution", set(_THROUGHPUT_EXECUTION_FILES)
+    )
+    for label, digest in execution.items():
+        _digest(digest, f"execution.{label}")
+    plan = _exact(
+        root["measurement_plan"],
+        "measurement_plan",
+        {"path", "sha256", "plan_id"},
+    )
+    _digest(plan["sha256"], "measurement_plan.sha256")
+    if plan["plan_id"] != "slice40-cuda-throughput-v2":
+        raise Slice40ScaleError("throughput measurement-plan ID drifted")
+    workload = _exact(
+        root["workload"], "workload", set(_THROUGHPUT_WORKLOAD)
+    )
+    if workload != _THROUGHPUT_WORKLOAD:
+        raise Slice40ScaleError("workload drifted from the registered matrix")
+    runtime = _exact(root["runtime"], "runtime", set(_THROUGHPUT_RUNTIME))
+    if runtime != _THROUGHPUT_RUNTIME:
+        raise Slice40ScaleError("runtime drifted from the registered CUDA policy")
+    policy = _exact(root["policy"], "policy", set(_THROUGHPUT_POLICY))
+    if policy != _THROUGHPUT_POLICY:
+        raise Slice40ScaleError("policy drifted from the descriptive contract")
+    artifact_root = root["artifact_root"]
+    if not isinstance(artifact_root, str) or not Path(artifact_root).is_absolute():
+        raise Slice40ScaleError("artifact_root must be absolute")
+    if Path(artifact_root).resolve().is_relative_to(REPO_ROOT):
+        raise Slice40ScaleError("artifact_root must remain outside the repository")
+    if validate_repository:
+        for label, path in _THROUGHPUT_EXECUTION_FILES.items():
+            if _sha256(path) != execution[label]:
+                raise Slice40ScaleError(f"execution.{label} drifted")
+        plan_path = (REPO_ROOT / plan["path"]).resolve()
+        if not plan_path.is_relative_to(REPO_ROOT):
+            raise Slice40ScaleError("measurement plan must be repository-local")
+        try:
+            authority = json.loads(plan_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise Slice40ScaleError("measurement plan is unavailable") from exc
+        if (
+            measurement_classification.canonical_sha256(authority) != plan["sha256"]
+            or authority.get("plan_id") != plan["plan_id"]
+        ):
+            raise Slice40ScaleError("measurement plan reference drifted")
+    return root
+
+
+def load_cuda_throughput_config(
+    path: str | Path, *, validate_repository: bool = True
+) -> dict[str, Any]:
+    """Load a Slice 40 CUDA projection-throughput contract."""
+
+    try:
+        document = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise Slice40ScaleError("throughput configuration is unavailable") from exc
+    return resolve_cuda_throughput_config(
+        document, validate_repository=validate_repository
+    )
+
+
+def summarize_cuda_throughput_observations(
+    observations: Sequence[Mapping[str, object]], config: Mapping[str, Any]
+) -> dict[str, object]:
+    """Validate complete new-vector observations and return descriptive rates."""
+
+    workload = config["workload"]
+    runtime = config["runtime"]
+    if len(observations) != workload["repetitions"]:
+        raise Slice40ScaleError("throughput repetition count drifted")
+    rates: list[float] = []
+    repetitions: set[int] = set()
+    for observation in observations:
+        repetition = observation.get("repetition")
+        if not isinstance(repetition, int) or repetition in repetitions:
+            raise Slice40ScaleError("throughput repetition IDs must be unique")
+        repetitions.add(repetition)
+        if observation.get("selected_device") != "cuda:0":
+            raise Slice40ScaleError("every throughput cell must execute on cuda:0")
+        if observation.get("selected_cuda_uuid") != runtime["cuda_uuid"]:
+            raise Slice40ScaleError("throughput selected CUDA UUID drifted")
+        if observation.get("records") != workload["records"]:
+            raise Slice40ScaleError("throughput record count drifted")
+        if observation.get("pre_vector_rows") != 0:
+            raise Slice40ScaleError("pre_vector_rows must be zero before timing")
+        delta = observation.get("projection_delta")
+        if not isinstance(delta, dict) or (
+            delta.get("built") != ["slice40_throughput"]
+            or delta.get("deferred") != []
+            or delta.get("unchanged") is not False
+        ):
+            raise Slice40ScaleError(
+                "projection configuration must be a non-noop built transition"
+            )
+        if observation.get("vector_rows") != workload["records"]:
+            raise Slice40ScaleError("vector_rows did not reach the record count")
+        if observation.get("readiness") != "ready":
+            raise Slice40ScaleError("throughput projection did not reach ready")
+        rate = observation.get("records_per_second")
+        elapsed = observation.get("elapsed_seconds")
+        if (
+            isinstance(rate, bool)
+            or not isinstance(rate, (int, float))
+            or rate <= 0
+            or isinstance(elapsed, bool)
+            or not isinstance(elapsed, (int, float))
+            or elapsed <= 0
+        ):
+            raise Slice40ScaleError("throughput timings must be positive")
+        rates.append(float(rate))
+    if repetitions != set(range(1, workload["repetitions"] + 1)):
+        raise Slice40ScaleError("throughput repetition IDs must be exactly 1..5")
+    return {
+        "classification": "descriptive",
+        "repetitions": workload["repetitions"],
+        "records_per_repetition": workload["records"],
+        "throughput_records_per_second": {
+            "minimum": min(rates),
+            "median": statistics.median(rates),
+            "maximum": max(rates),
+        },
+        "verdict": "observed",
+    }
+
+
 def decision_metrics(campaign: str, detail: Mapping[str, Any]) -> dict[str, Any]:
     """Select the preregistered decision leaves from a complete raw result."""
     if campaign == "common":
@@ -305,6 +516,18 @@ def decision_metrics(campaign: str, detail: Mapping[str, Any]) -> dict[str, Any]
             "total_errors": bounds["total_errors"],
             "total_timeouts": bounds["total_timeouts"],
         }
+    if campaign == "cuda-throughput":
+        return {
+            "schema_version": "scale-02-slice40-decision.v1",
+            "campaign": campaign,
+            "classification": detail["classification"],
+            "verdict": detail["verdict"],
+            "records_per_repetition": detail["records_per_repetition"],
+            "repetitions": detail["repetitions"],
+            "throughput_records_per_second": detail[
+                "throughput_records_per_second"
+            ],
+        }
     raise Slice40ScaleError("unknown campaign for decision metrics")
 
 
@@ -343,21 +566,14 @@ def _write_run_classification(
     config: Mapping[str, Any],
     config_path: Path,
     code_git_sha: str,
+    execution_files: Mapping[str, Path] = _EXECUTION_FILES,
+    outcome: str = "complete",
+    blocked_reason: Mapping[str, object] | None = None,
 ) -> None:
     plan_ref = config["measurement_plan"]
     plan_path = (REPO_ROOT / plan_ref["path"]).resolve()
     authority = json.loads(plan_path.read_text(encoding="utf-8"))
     artifacts = [
-        {
-            "id": "metrics",
-            "role": "metrics_payload",
-            "locator_kind": "repository_path",
-            "locator": _repository_locator(run_dir / "metrics.json", "metrics"),
-            "sha256": _sha256(run_dir / "metrics.json"),
-            "measurement_root_json_pointers": authority["measurement_roots"][0][
-                "json_pointers"
-            ],
-        },
         {
             "id": "detail",
             "role": "derivation_spec",
@@ -392,25 +608,39 @@ def _write_run_classification(
         },
         *[
             _git_artifact(code_git_sha, label.removesuffix("_sha256"), path)
-            for label, path in _EXECUTION_FILES.items()
+            for label, path in execution_files.items()
         ],
     ]
+    if outcome == "complete":
+        artifacts.insert(
+            0,
+            {
+                "id": "metrics",
+                "role": "metrics_payload",
+                "locator_kind": "repository_path",
+                "locator": _repository_locator(run_dir / "metrics.json", "metrics"),
+                "sha256": _sha256(run_dir / "metrics.json"),
+                "measurement_root_json_pointers": authority["measurement_roots"][
+                    0
+                ]["json_pointers"],
+            },
+        )
     document = {
         "schema_version": measurement_classification.SCHEMA_VERSION,
         "classifier_version": measurement_classification.CLASSIFIER_VERSION,
         "classification_id": "",
         "run_id": run_id,
-        "outcome": "complete",
-        "blocked_reason": None,
+        "outcome": outcome,
+        "blocked_reason": blocked_reason,
         "measurement_plan_id": authority["plan_id"],
         "source_artifacts": artifacts,
         "components": authority["components"],
         "call_paths": authority["call_paths"],
         "execution_witnesses": [],
-        "metrics": authority["metric_bindings"],
+        "metrics": authority["metric_bindings"] if outcome == "complete" else [],
         "metric_exclusions": authority["metric_exclusions"],
         "comparisons": authority["comparisons"],
-        "claims": authority["claims"],
+        "claims": authority["claims"] if outcome == "complete" else [],
         "migration": {
             "kind": "native",
             "manifest_path": None,
@@ -439,6 +669,9 @@ def _register_run(
     detail: Mapping[str, Any],
     record_arguments: Mapping[str, Any],
     code_git_sha: str,
+    execution_files: Mapping[str, Path] = _EXECUTION_FILES,
+    classification_outcome: str = "complete",
+    blocked_reason: Mapping[str, object] | None = None,
 ) -> tuple[str, Path]:
     """Write detail and classification before making a run discoverable."""
 
@@ -453,6 +686,9 @@ def _register_run(
             config=config,
             config_path=config_path,
             code_git_sha=code_git_sha,
+            execution_files=execution_files,
+            outcome=classification_outcome,
+            blocked_reason=blocked_reason,
         )
 
     return _lib.write_record(
@@ -1193,6 +1429,314 @@ def run(config_path: str | Path) -> dict[str, Any]:
     }
 
 
+def _wheel_member_sha256(wheel: Path, suffix: str) -> tuple[str, str]:
+    with zipfile.ZipFile(wheel) as archive:
+        matches = [name for name in archive.namelist() if name.endswith(suffix)]
+        if len(matches) != 1:
+            raise Slice40ScaleError(
+                f"candidate wheel must contain exactly one {suffix} member"
+            )
+        member = matches[0]
+        return member, hashlib.sha256(archive.read(member)).hexdigest()
+
+
+def _installed_artifact_attestation(
+    wheel: Path, config: Mapping[str, Any]
+) -> dict[str, object]:
+    """Prove the imported Python wrapper and native module came from the wheel."""
+
+    if sys.prefix == sys.base_prefix:
+        raise Slice40ScaleError("throughput execution requires a fresh virtualenv")
+    if _sha256(wheel) != config["candidate"]["wheel_sha256"]:
+        raise Slice40ScaleError("executed wheel SHA-256 drifted")
+    import fathomdb
+    from fathomdb import _fathomdb as native_module
+
+    prefix = Path(sys.prefix).resolve()
+    package_path = Path(fathomdb.__file__).resolve()
+    native_path = Path(native_module.__file__).resolve()
+    if not package_path.is_relative_to(prefix) or not native_path.is_relative_to(prefix):
+        raise Slice40ScaleError("imported FathomDB is outside the fresh virtualenv")
+    package_member, package_digest = _wheel_member_sha256(
+        wheel, "fathomdb/__init__.py"
+    )
+    native_member, native_digest = _wheel_member_sha256(wheel, ".abi3.so")
+    if _sha256(package_path) != package_digest or _sha256(native_path) != native_digest:
+        raise Slice40ScaleError("installed FathomDB files do not match the wheel")
+    return {
+        "wheel_path": str(wheel),
+        "wheel_sha256": _sha256(wheel),
+        "python_prefix": str(prefix),
+        "package_path": str(package_path),
+        "package_member": package_member,
+        "package_sha256": package_digest,
+        "native_path": str(native_path),
+        "native_member": native_member,
+        "native_sha256": native_digest,
+    }
+
+
+def _throughput_document(index: int) -> dict[str, str]:
+    return {
+        "kind": "doc",
+        "logical_id": f"slice40-throughput-{index:05d}",
+        "source_id": "slice40-cuda-throughput-v2",
+        "body": (
+            f"Document {index} records a durable personal-memory observation "
+            f"about project {index % 31}, participant {index % 17}, and day "
+            f"{index % 29}. The distinct sequence token is evidence-{index:05d}."
+        ),
+    }
+
+
+def _vector_row_count(database: Path) -> int:
+    with sqlite3.connect(f"file:{database}?mode=ro", uri=True) as connection:
+        row = connection.execute(
+            "SELECT COUNT(*) FROM _fathomdb_vector_rows WHERE kind='doc'"
+        ).fetchone()
+    if row is None:
+        raise Slice40ScaleError("vector-row observation returned no row")
+    return int(row[0])
+
+
+def _run_cuda_throughput_cells(
+    config: Mapping[str, Any], *, run_root: Path, fathomdb_bin: Path
+) -> tuple[list[dict[str, object]], dict[str, object]]:
+    from fathomdb import Engine, ProjectionRole, ProjectionSpec, read
+
+    runtime = config["runtime"]
+    workload = config["workload"]
+    for name in ("HF_HUB_OFFLINE", "TRANSFORMERS_OFFLINE"):
+        if os.environ.get(name) != "1":
+            raise Slice40ScaleError(f"{name}=1 is required for offline execution")
+    if os.environ.get("FATHOMDB_EMBED_DEVICE") != "cuda:0":
+        raise Slice40ScaleError("FATHOMDB_EMBED_DEVICE must be cuda:0")
+    documents = [
+        _throughput_document(index) for index in range(workload["records"])
+    ]
+    observations: list[dict[str, object]] = []
+    for repetition in range(1, workload["repetitions"] + 1):
+        prepared = prepare_test_database(
+            run_root,
+            test_id=f"repetition-{repetition}",
+            embed_device="cuda:0",
+            rerank_device="cpu",
+            embedder="default",
+            warm_cache=True,
+            check_reranker=False,
+            fathomdb_bin=str(fathomdb_bin),
+        )
+        setup = json.loads(prepared.doctor_path.read_text(encoding="utf-8"))
+        opened = setup["open_report"]
+        if opened["embedder_download_ms"] is not None or any(
+            event.get("kind") == "DefaultEmbedderDownload"
+            for event in opened["embedder_events"]
+        ):
+            raise Slice40ScaleError("offline setup observed a model download")
+        engine = Engine.open(str(prepared.database_path), use_default_embedder=True)
+        try:
+            report = engine.open_report()
+            resolution = report.embedder_device_resolution
+            identity = report.default_embedder
+            if resolution is None:
+                raise Slice40ScaleError("throughput open omitted device resolution")
+            if (
+                resolution.effective_device.kind != "cuda"
+                or resolution.selected_cuda_uuid != runtime["cuda_uuid"]
+                or asdict(identity) != runtime["embedder"]
+                or report.embedder_download_ms is not None
+                or any(
+                    event.get("kind") == "DefaultEmbedderDownload"
+                    for event in report.embedder_events
+                )
+            ):
+                raise Slice40ScaleError("throughput runtime attestation drifted")
+            for offset in range(0, len(documents), workload["write_batch_size"]):
+                engine.write(documents[offset : offset + workload["write_batch_size"]])
+            for index in range(workload["warmup_records"]):
+                if len(engine.embed(f"excluded warmup text {index}")) != 384:
+                    raise Slice40ScaleError("warmup returned wrong vector dimension")
+            pre_vector_rows = _vector_row_count(prepared.database_path)
+            started = time.perf_counter()
+            delta = engine.configure_projections(
+                [
+                    ProjectionSpec(
+                        name="slice40_throughput",
+                        roles=frozenset({ProjectionRole.SEARCHABLE}),
+                        vector=True,
+                    )
+                ]
+            )
+            engine.drain(timeout_s=workload["drain_timeout_seconds"])
+            elapsed = time.perf_counter() - started
+            status = read.projection_generation_status(engine)
+        finally:
+            engine.close()
+        vector_rows = _vector_row_count(prepared.database_path)
+        observations.append(
+            {
+                "repetition": repetition,
+                "elapsed_seconds": elapsed,
+                "records": workload["records"],
+                "records_per_second": workload["records"] / elapsed,
+                "selected_device": "cuda:0",
+                "selected_cuda_uuid": resolution.selected_cuda_uuid,
+                "embedder_identity": asdict(identity),
+                "pre_vector_rows": pre_vector_rows,
+                "projection_delta": {
+                    "built": list(delta.built),
+                    "deferred": list(delta.deferred),
+                    "unchanged": delta.unchanged,
+                },
+                "vector_rows": vector_rows,
+                "readiness": status.readiness,
+                "runtime_state": status.runtime_state,
+                "pending_count": status.pending_count,
+                "failed_count": status.failed_count,
+                "generation_id": status.generation_id,
+                "database_sha256": _sha256(prepared.database_path),
+                "setup_config": str(prepared.config_path.relative_to(run_root)),
+                "setup_config_sha256": _sha256(prepared.config_path),
+                "doctor_evidence": str(prepared.doctor_path.relative_to(run_root)),
+                "doctor_evidence_sha256": _sha256(prepared.doctor_path),
+            }
+        )
+    summary = summarize_cuda_throughput_observations(observations, config)
+    return observations, summary
+
+
+def _blocked_reason(exc: Exception) -> dict[str, object]:
+    return {
+        "code": "database_setup_failed",
+        "stage": "cuda_projection_throughput",
+        "message": "Slice 40 CUDA projection-throughput execution did not complete.",
+        "detail": {"error_type": type(exc).__name__, "error": str(exc)},
+    }
+
+
+def run_cuda_throughput(
+    config_path: str | Path, *, wheel: Path, fathomdb_bin: Path
+) -> dict[str, Any]:
+    """Execute and register the standard descriptive CUDA throughput cell."""
+
+    config_path = Path(config_path).resolve()
+    config = load_cuda_throughput_config(config_path)
+    code = _lib.git_info()
+    if code["dirty"]:
+        raise Slice40ScaleError("throughput campaign requires a clean checkout")
+    artifact_root = Path(config["artifact_root"]).resolve()
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    run_root = artifact_root / f"slice40-cuda-throughput-{stamp}"
+    if run_root.exists() or not run_root.parent.is_relative_to(artifact_root):
+        raise Slice40ScaleError("throughput output must be new beneath artifact_root")
+    attestation = _installed_artifact_attestation(wheel.resolve(), config)
+    run_root.mkdir(parents=True, mode=0o700)
+    blocker: dict[str, object] | None = None
+    try:
+        observations, summary = _run_cuda_throughput_cells(
+            config, run_root=run_root, fathomdb_bin=fathomdb_bin.resolve()
+        )
+        detail: dict[str, Any] = {
+            "schema_version": "scale-02-slice40-cuda-throughput-result.v2",
+            "program_track": PROGRAM_TRACK,
+            "claim_boundary": config["claim_boundary"],
+            "candidate": config["candidate"],
+            "installed_artifact": attestation,
+            "observations": observations,
+            "summary": summary,
+        }
+        metrics = decision_metrics("cuda-throughput", summary)
+        verdict = "complete"
+        read = "Slice 40 CUDA projection backfill throughput observed."
+    except Exception as exc:
+        blocker = _blocked_reason(exc)
+        observations = []
+        detail = {
+            "schema_version": "scale-02-slice40-cuda-throughput-blocked.v1",
+            "program_track": PROGRAM_TRACK,
+            "claim_boundary": "no_performance_claim",
+            "candidate": config["candidate"],
+            "installed_artifact": attestation,
+            "blocked_reason": blocker,
+        }
+        metrics = {
+            "schema_version": "scale-02-slice40-cuda-throughput-blocked.v1",
+            "campaign": "cuda-throughput",
+            "state": "blocked",
+            "blocked_reason": blocker,
+        }
+        verdict = "blocked_execution"
+        read = "Slice 40 CUDA projection backfill throughput blocked."
+    external_detail = run_root / "result-detail.json"
+    external_detail.write_text(
+        json.dumps(detail, ensure_ascii=True, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    run_id, record_dir = _register_run(
+        experiment="scale-02-slice40-cuda-throughput",
+        config=config,
+        config_path=config_path,
+        decision_metrics=metrics,
+        detail=detail,
+        code_git_sha=code["git_sha"],
+        execution_files=_THROUGHPUT_EXECUTION_FILES,
+        classification_outcome="complete" if blocker is None else "blocked",
+        blocked_reason=blocker,
+        record_arguments={
+            "ts": datetime.now(UTC),
+            "verdict": verdict,
+            "read": read,
+            "code": {**code, "baseline_commit": None},
+            "corpus": {
+                "source": "deterministic Slice 40 projection-throughput fixture",
+                "datasets": [],
+            },
+            "seeds": {},
+            "env": _lib.env_info(
+                key_deps={
+                    "fathomdb_product_candidate": config["candidate"][
+                        "product_commit"
+                    ],
+                    "fathomdb_artifact_build": config["candidate"][
+                        "artifact_build_commit"
+                    ],
+                    "candidate_wheel_sha256": config["candidate"]["wheel_sha256"],
+                    "fathomdb_cli_sha256": _sha256(fathomdb_bin.resolve()),
+                    "network_policy": config["runtime"]["network"],
+                }
+            ),
+            "cost_usd": 0.0,
+            "headline": metrics,
+            "n": config["workload"]["records"],
+            "tests": [
+                "tests/experiments/test_scale_02_slice40.py",
+                "tests/experiments/test_slice40_cuda_projection_throughput.py",
+            ],
+            "files_changed": [],
+            "artifacts": [
+                {
+                    "path": str(external_detail),
+                    "sha256": _sha256(external_detail),
+                }
+            ],
+            "review": None,
+            "open_questions": []
+            if blocker is None
+            else ["resolve the blocked CUDA throughput cell before Slice 40 closes"],
+        },
+    )
+    _lib.regen_index_md()
+    result = {
+        "run_id": run_id,
+        "record_dir": str(record_dir),
+        "external_detail": str(external_detail),
+        "verdict": verdict,
+    }
+    if blocker is not None:
+        raise Slice40ScaleError(f"CUDA throughput cell blocked: {blocker['detail']}")
+    return result
+
+
 def main(argv: list[str] | None = None) -> int:
     """Validate or execute the registered campaign."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -1203,14 +1747,34 @@ def main(argv: list[str] | None = None) -> int:
     execute.add_argument("config", type=Path)
     status = subparsers.add_parser("status")
     status.add_argument("config", type=Path)
+    validate_throughput = subparsers.add_parser("validate-throughput")
+    validate_throughput.add_argument("config", type=Path)
+    throughput = subparsers.add_parser("throughput")
+    throughput.add_argument("config", type=Path)
+    throughput.add_argument("--wheel", type=Path, required=True)
+    throughput.add_argument("--fathomdb-bin", type=Path, required=True)
     arguments = parser.parse_args(argv)
     if arguments.command == "validate":
         load_config(arguments.config)
         print("ok")
     elif arguments.command == "run":
         print(json.dumps(run(arguments.config), sort_keys=True))
-    else:
+    elif arguments.command == "status":
         print(json.dumps(run_status(arguments.config), sort_keys=True))
+    elif arguments.command == "validate-throughput":
+        load_cuda_throughput_config(arguments.config)
+        print("ok")
+    else:
+        print(
+            json.dumps(
+                run_cuda_throughput(
+                    arguments.config,
+                    wheel=arguments.wheel,
+                    fathomdb_bin=arguments.fathomdb_bin,
+                ),
+                sort_keys=True,
+            )
+        )
     return 0
 
 

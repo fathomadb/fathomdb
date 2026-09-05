@@ -11,7 +11,7 @@ from experiments import scale_02_slice40 as throughput
 
 def _config() -> dict[str, object]:
     return {
-        "schema_version": "scale-02-slice40-cuda-throughput.v1",
+        "schema_version": "scale-02-slice40-cuda-throughput.v2",
         "program_track": "SCALE-02",
         "release": "0.8.25",
         "campaign": "cuda-throughput",
@@ -78,12 +78,12 @@ def test_config_is_closed_and_hash_bound() -> None:
 
     drift = copy.deepcopy(_config())
     drift["workload"]["repetitions"] = 3  # type: ignore[index]
-    with pytest.raises(throughput.ThroughputContractError, match="workload"):
+    with pytest.raises(throughput.Slice40ScaleError, match="workload"):
         throughput.resolve_cuda_throughput_config(drift, validate_repository=False)
 
     unknown = copy.deepcopy(_config())
     unknown["policy"]["percentile"] = 95  # type: ignore[index]
-    with pytest.raises(throughput.ThroughputContractError, match="policy keys"):
+    with pytest.raises(throughput.Slice40ScaleError, match="policy keys"):
         throughput.resolve_cuda_throughput_config(unknown, validate_repository=False)
 
 
@@ -123,12 +123,12 @@ def test_summary_rejects_non_cuda_or_incomplete_projection() -> None:
     }
 
     observations[2]["selected_device"] = "cpu"
-    with pytest.raises(throughput.ThroughputContractError, match="cuda:0"):
+    with pytest.raises(throughput.Slice40ScaleError, match="cuda:0"):
         throughput.summarize_cuda_throughput_observations(observations, _config())
 
     observations[2]["selected_device"] = "cuda:0"
     observations[2]["vector_rows"] = 1023
-    with pytest.raises(throughput.ThroughputContractError, match="vector_rows"):
+    with pytest.raises(throughput.Slice40ScaleError, match="vector_rows"):
         throughput.summarize_cuda_throughput_observations(observations, _config())
 
     observations[2]["vector_rows"] = 1024

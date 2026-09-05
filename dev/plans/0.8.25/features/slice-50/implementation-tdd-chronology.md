@@ -40,3 +40,17 @@ This increment is not the slice-completion claim. Later RED increments cover
 same-reader-snapshot construction, graph-origin capture and reauthorization,
 artifact/source eligibility, lifecycle and corruption matrices, codec
 properties, default-path invariance, and cross-SDK parity.
+
+## RED 2
+
+The second product test increment adds two reviewed architecture boundaries:
+
+- a graph-arm result must resolve the reached node's canonical source while
+  separately naming the exact traversed edge revision; and
+- canonical source bytes must independently satisfy access-bearing attribute
+  terms from the frozen search filter.
+
+The focused command failed 3 passed / 2 failed. Graph evidence returned
+`evidence_incomplete` at `/results/1/graphOrigin`, while source resolution
+incorrectly disclosed a source whose `owner=bob` did not satisfy the frozen
+`owner=alice` predicate. These are the intended RED failures.

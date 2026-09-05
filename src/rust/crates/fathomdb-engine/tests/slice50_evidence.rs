@@ -1,10 +1,14 @@
 //! 0.8.25 Slice 50 — compact, eligibility-bound source evidence.
 
+use std::collections::BTreeSet;
+
 use fathomdb_engine::{
     ArtifactRevisionId, CanonicalHash, Engine, EngineError, EvidenceArtifactLifecycleV1,
-    EvidenceErrorReasonV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1, InitialState,
-    LifecycleState, PreparedWrite, ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter,
-    SourceId, SourceLocator, SourceRevisionId, SourceVersionId, WriteProvenanceV1,
+    EvidenceErrorReasonV1, EvidenceGraphOriginV1, EvidenceResolveRequestV1,
+    EvidenceSearchRequestV1, InitialState, LifecycleState, PreparedWrite, ProjectionRole,
+    ProjectionSpec, ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter,
+    SoftFallbackBranch, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
+    WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use sha2::{Digest, Sha256};
@@ -46,6 +50,57 @@ fn derived(source_body: &str) -> PreparedWrite {
             SourceVersionId::new("source-version-low-entropy").unwrap(),
             SourceRevisionId::new("source-revision-low-entropy").unwrap(),
             SourceLocator::utf8_bytes(1, 3),
+            CanonicalHash::sha256(digest(source_body)).unwrap(),
+        ),
+    })
+}
+
+fn canonical_named(
+    logical: &str,
+    revision: &str,
+    version: &str,
+    source_id: &str,
+    body: &str,
+) -> PreparedWrite {
+    PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+        kind: "document".into(),
+        body: body.into(),
+        source_id: SourceId::new(source_id).unwrap(),
+        logical_id: Some(logical.into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        provenance: WriteProvenanceV1::canonical(
+            ArtifactRevisionId::new(revision).unwrap(),
+            SourceVersionId::new(version).unwrap(),
+        ),
+    })
+}
+
+fn derived_named(
+    logical: &str,
+    revision: &str,
+    source_revision: &str,
+    version: &str,
+    source_id: &str,
+    source_body: &str,
+    body: &str,
+) -> PreparedWrite {
+    PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+        kind: "entity".into(),
+        body: body.into(),
+        source_id: SourceId::new(source_id).unwrap(),
+        logical_id: Some(logical.into()),
+        state: InitialState::Active,
+        reason: None,
+        valid_from: None,
+        valid_until: None,
+        provenance: WriteProvenanceV1::derived(
+            ArtifactRevisionId::new(revision).unwrap(),
+            SourceVersionId::new(version).unwrap(),
+            SourceRevisionId::new(source_revision).unwrap(),
+            SourceLocator::whole_body(),
             CanonicalHash::sha256(digest(source_body)).unwrap(),
         ),
     })
@@ -189,4 +244,167 @@ fn visible_reference_payload_uses_keyed_not_dictionary_matchable_commitments() {
             .windows(32)
             .any(|window| window == Sha256::digest(secret.as_bytes()).as_slice()));
     }
+}
+
+#[test]
+fn graph_arm_resolves_node_body_source_and_separate_edge_origin() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("graph{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    let node_source = "node source body";
+    let edge_source = "edge source body";
+    opened
+        .engine
+        .write(&[
+            canonical_named(
+                "node-source",
+                "node-source-r1",
+                "node-v1",
+                "node-source-id",
+                node_source,
+            ),
+            canonical_named(
+                "edge-source",
+                "edge-source-r1",
+                "edge-v1",
+                "edge-source-id",
+                edge_source,
+            ),
+            derived_named(
+                "alpha",
+                "alpha-r1",
+                "node-source-r1",
+                "node-v1",
+                "node-source-id",
+                node_source,
+                "alpha entity",
+            ),
+            derived_named(
+                "beta",
+                "beta-r1",
+                "node-source-r1",
+                "node-v1",
+                "node-source-id",
+                node_source,
+                "beta entity",
+            ),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                kind: "related".into(),
+                from: "alpha".into(),
+                to: "beta".into(),
+                source_id: SourceId::new("edge-source-id").unwrap(),
+                logical_id: Some("edge-logical".into()),
+                body: Some("graphneedle relationship".into()),
+                t_valid: None,
+                t_invalid: None,
+                confidence: Some(0.8),
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: WriteProvenanceV1::derived(
+                    ArtifactRevisionId::new("edge-r1").unwrap(),
+                    SourceVersionId::new("edge-v1").unwrap(),
+                    SourceRevisionId::new("edge-source-r1").unwrap(),
+                    SourceLocator::whole_body(),
+                    CanonicalHash::sha256(digest(edge_source)).unwrap(),
+                ),
+            }),
+        ])
+        .unwrap();
+    let frozen = opened
+        .engine
+        .freeze_read_context(
+            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+        )
+        .unwrap();
+    let mut evidence_request = request("graphneedle", frozen.clone());
+    evidence_request.use_graph_arm = true;
+    let result = opened.engine.search_with_evidence(&evidence_request).unwrap();
+    let (index, hit) = result
+        .search_result
+        .results
+        .iter()
+        .enumerate()
+        .find(|(_, hit)| hit.branch == SoftFallbackBranch::GraphArm)
+        .expect("graph arm should return an endpoint node");
+    let resolved = opened
+        .engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: result.evidence[index].evidence_ref.clone(),
+            context: frozen,
+        })
+        .unwrap();
+
+    assert_eq!(resolved.artifact_revision_id, format!("{}-r1", hit.id.value));
+    assert_eq!(resolved.source_revision_id, "node-source-r1");
+    assert_eq!(resolved.canonical_source_body, node_source);
+    assert!(matches!(
+        resolved.projection_origin.graph_origin,
+        Some(EvidenceGraphOriginV1::EdgeSeed { ref edge_artifact_revision_id })
+            if edge_artifact_revision_id == "edge-r1"
+    ));
+}
+
+#[test]
+fn source_bytes_must_match_access_bearing_attribute_terms() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("source-eligibility{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    opened
+        .engine
+        .configure_projections(
+            &[ProjectionSpec {
+                name: "owner".into(),
+                roles: BTreeSet::from([ProjectionRole::Filterable]),
+                fts: None,
+                vector: None,
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+    let source_body = r#"{"owner":"bob","text":"canonical"}"#;
+    opened
+        .engine
+        .write(&[
+            canonical_named(
+                "source",
+                "source-owner-r1",
+                "source-owner-v1",
+                "source-owner-id",
+                source_body,
+            ),
+            derived_named(
+                "claim",
+                "claim-owner-r1",
+                "source-owner-r1",
+                "source-owner-v1",
+                "source-owner-id",
+                source_body,
+                r#"{"owner":"alice","text":"needle"}"#,
+            ),
+        ])
+        .unwrap();
+    let mut filter = SearchFilter::default();
+    filter.attributes = vec![("owner".into(), "alice".into())];
+    let frozen = opened
+        .engine
+        .freeze_read_context(&ReadContextV1::new(ReadView::default(), filter).unwrap())
+        .unwrap();
+    let result = opened.engine.search_with_evidence(&request("needle", frozen.clone())).unwrap();
+    let error = opened
+        .engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: result.evidence[0].evidence_ref.clone(),
+            context: frozen,
+        })
+        .unwrap_err();
+
+    assert!(matches!(
+        error,
+        EngineError::Evidence(ref error)
+            if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
+                && error.field_path == "/evidenceRef"
+    ));
 }

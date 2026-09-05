@@ -236,6 +236,7 @@ pub struct ActuationReceiptV1 {
     pub resulting_write_boundary: Option<u64>,
     pub resulting_dependency_generation: Option<u64>,
     pub pending_projection_write_cursors: Vec<u64>,
+    pub projection_generation_id: Option<super::ProjectionGenerationId>,
     pub closure_operation_ids: Vec<String>,
 }
 
@@ -512,11 +513,12 @@ fn receipt_for_refusal(
         resulting_write_boundary: None,
         resulting_dependency_generation: None,
         pending_projection_write_cursors: Vec::new(),
+        projection_generation_id: None,
         closure_operation_ids: Vec::new(),
     }
 }
 
-fn load_receipt(
+pub(super) fn load_receipt(
     connection: &Connection,
     operation_id: &str,
     digest: &str,
@@ -535,6 +537,7 @@ fn load_receipt(
         Option<i64>,
         String,
         String,
+        Option<String>,
     );
     let row: Option<Row> = connection
         .query_row(
@@ -542,7 +545,8 @@ fn load_receipt(
                     refused_operation_index,refused_field_path,reason_codes_json,\
                     affected_revision_ids_json,resulting_write_boundary,\
                     resulting_dependency_generation,pending_projection_write_cursors_json,\
-                    closure_operation_ids_json FROM _fathomdb_actuation_receipts \
+                    closure_operation_ids_json,projection_generation_id \
+             FROM _fathomdb_actuation_receipts \
              WHERE operation_id=?1",
             [operation_id],
             |row| {
@@ -559,6 +563,7 @@ fn load_receipt(
                     row.get(9)?,
                     row.get(10)?,
                     row.get(11)?,
+                    row.get(12)?,
                 ))
             },
         )
@@ -577,6 +582,7 @@ fn load_receipt(
         generation,
         pending_json,
         closure_json,
+        projection_generation_id,
     )) = row
     else {
         return Ok(None);
@@ -593,6 +599,7 @@ fn load_receipt(
             && generation.is_none()
             && pending_json == "[]"
             && closure_json == "[]"
+            && projection_generation_id.is_none()
             && validate_source_refs(connection, operation_id, 0)? == 0;
         if !erased_is_canonical {
             return Err(EngineError::Storage);
@@ -669,6 +676,49 @@ fn load_receipt(
         .collect::<Result<Vec<_>, _>>()?;
     if pending_projection_write_cursors.windows(2).any(|pair| pair[0] >= pair[1]) {
         return Err(EngineError::Storage);
+    }
+    let projection_generation_id = projection_generation_id
+        .map(super::projection_generation::parse_persisted_generation_id)
+        .transpose()?;
+    if pending_projection_write_cursors.is_empty() && projection_generation_id.is_some() {
+        return Err(EngineError::Storage);
+    }
+    if !pending_projection_write_cursors.is_empty() && projection_generation_id.is_none() {
+        let max_pending = pending_projection_write_cursors.last().copied().unwrap_or(0);
+        let covered_by_legacy: bool = connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM _fathomdb_projection_generations \
+                 WHERE origin='legacy_unverified' AND transition_boundary>=?1)",
+                [max_pending],
+                |row| row.get(0),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        if !covered_by_legacy {
+            return Err(EngineError::Storage);
+        }
+    }
+    if let Some(generation_id) = projection_generation_id.as_ref() {
+        let Some(receipt_boundary) = boundary else {
+            return Err(EngineError::Storage);
+        };
+        let receipt_boundary = u64::try_from(receipt_boundary).map_err(|_| EngineError::Storage)?;
+        let bounds: Option<(u64, Option<u64>)> = connection
+            .query_row(
+                "SELECT transition_boundary,retired_boundary \
+                 FROM _fathomdb_projection_generations WHERE generation_id=?1",
+                [generation_id.as_str()],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()
+            .map_err(|_| EngineError::Storage)?;
+        let Some((transition_boundary, retired_boundary)) = bounds else {
+            return Err(EngineError::Storage);
+        };
+        if receipt_boundary < transition_boundary
+            || retired_boundary.is_some_and(|boundary| receipt_boundary > boundary)
+        {
+            return Err(EngineError::Storage);
+        }
     }
     let closure_operation_ids: Vec<String> =
         serde_json::from_str(&closure_json).map_err(|_| EngineError::Storage)?;
@@ -785,6 +835,7 @@ fn load_receipt(
         resulting_write_boundary,
         resulting_dependency_generation,
         pending_projection_write_cursors,
+        projection_generation_id,
         closure_operation_ids,
     }))
 }
@@ -900,6 +951,8 @@ fn store_receipt(
     let reasons = receipt.reason_codes.iter().map(|reason| reason.as_str()).collect::<Vec<_>>();
     let pending =
         receipt.pending_projection_write_cursors.iter().map(u64::to_string).collect::<Vec<_>>();
+    let projection_generation_id =
+        receipt.projection_generation_id.as_ref().map(super::ProjectionGenerationId::as_str);
     connection
         .execute(
             "INSERT INTO _fathomdb_actuation_receipts(\
@@ -907,8 +960,8 @@ fn store_receipt(
                refused_operation_index,refused_field_path,reason_codes_json,\
                affected_revision_ids_json,resulting_write_boundary,\
                resulting_dependency_generation,pending_projection_write_cursors_json,\
-               closure_operation_ids_json\
-             ) VALUES(?1,1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)",
+               closure_operation_ids_json,projection_generation_id\
+             ) VALUES(?1,1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
             params![
                 receipt.operation_id,
                 receipt.request_sha256,
@@ -924,6 +977,7 @@ fn store_receipt(
                 serde_json::to_string(&pending).map_err(|_| EngineError::Storage)?,
                 serde_json::to_string(&receipt.closure_operation_ids)
                     .map_err(|_| EngineError::Storage)?,
+                projection_generation_id,
             ],
         )
         .map_err(|_| EngineError::Storage)?;
@@ -1080,7 +1134,8 @@ pub(super) fn redact_actuation_receipts_for_refs(
                            refused_operation_index=NULL,refused_field_path=NULL, \
                            reason_codes_json='[]',affected_revision_ids_json='[]', \
                            resulting_write_boundary=NULL,resulting_dependency_generation=NULL, \
-                           pending_projection_write_cursors_json='[]',closure_operation_ids_json='[]' \
+                           pending_projection_write_cursors_json='[]',closure_operation_ids_json='[]', \
+                           projection_generation_id=NULL \
                          WHERE operation_id=?1",
                         [&operation_id],
                     )
@@ -1308,7 +1363,7 @@ fn apply_lifecycle(
     operation: &LifecycleActuationV1,
     index: usize,
     closure_mode: dependency_closure::SoftClosureMode,
-) -> Result<(String, Option<ClosureOperationId>), RefusalOrInfrastructure> {
+) -> Result<(String, Option<ClosureOperationId>, bool), RefusalOrInfrastructure> {
     let current = current_revision_for_logical(connection, &operation.logical_id)
         .map_err(RefusalOrInfrastructure::Infrastructure)?;
     let Some((revision, from_state, role)) = current else {
@@ -1380,7 +1435,26 @@ fn apply_lifecycle(
         refresh_vector_attr_values_for_row(connection, write_cursor, &body)
             .map_err(|_| RefusalOrInfrastructure::Infrastructure(EngineError::Storage))?;
     }
-    Ok((revision, closure_id))
+    let reopened = if operation.to_state == LifecycleState::Active {
+        let (kind, row_kind): (String, String) = connection
+            .query_row(
+                "SELECT kind,row_kind FROM canonical_nodes WHERE write_cursor=?1",
+                [write_cursor],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .map_err(|_| RefusalOrInfrastructure::Infrastructure(EngineError::Storage))?;
+        super::restore_registered_derived_projections(
+            connection,
+            write_cursor,
+            &kind,
+            &body,
+            &row_kind,
+        )
+        .map_err(RefusalOrInfrastructure::Infrastructure)?
+    } else {
+        false
+    };
+    Ok((revision, closure_id, reopened))
 }
 
 enum RefusalOrInfrastructure {
@@ -1780,7 +1854,8 @@ impl Engine {
                         index,
                         dependency_closure::SoftClosureMode::Proving,
                     ) {
-                        Ok((revision, closure_id)) => {
+                        Ok((revision, closure_id, reopened)) => {
+                            unstranded |= reopened;
                             if affected_set.insert(revision.clone()) {
                                 affected.push(revision);
                             }
@@ -1834,6 +1909,11 @@ impl Engine {
         for revision in &affected {
             refs.insert(("artifact_revision_id", revision.clone()));
         }
+        let projection_generation_id = if pending.is_empty() {
+            None
+        } else {
+            Some(super::projection_generation::current_generation_id(&tx)?)
+        };
         let receipt = ActuationReceiptV1 {
             schema_version: 1,
             operation_id: request.operation_id.clone(),
@@ -1850,6 +1930,7 @@ impl Engine {
             resulting_write_boundary: Some(next_cursor),
             resulting_dependency_generation: dependency_generation,
             pending_projection_write_cursors: pending,
+            projection_generation_id,
             closure_operation_ids: closure_operation_ids
                 .iter()
                 .map(|id| id.as_str().to_string())

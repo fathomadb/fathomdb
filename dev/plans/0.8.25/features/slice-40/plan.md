@@ -77,7 +77,8 @@ cargo test -p fathomdb-engine --features test-hooks \
   --test slice35_frozen_read
 cargo test -p fathomdb-py
 cargo test -p fathomdb-napi
-npm test --workspace fathomdb -- slice40-projection-generation
+(cd src/ts && npm run build:native:debug && tsc -p tsconfig.json && \
+  node --test dist/tests/slice40-projection-generation.test.js)
 ```
 
 GREEN implements the smallest contract-complete behavior. Tests remain frozen

@@ -57,6 +57,20 @@ fn fresh_generation_is_stable_across_restart() {
 }
 
 #[test]
+fn backup_copy_preserves_database_local_generation_identity() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("source{SQLITE_SUFFIX}"));
+    let copy = dir.path().join(format!("copy{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    let expected = opened.engine.read_projection_generation_status().unwrap().generation_id;
+    opened.engine.close().unwrap();
+    std::fs::copy(&path, &copy).unwrap();
+
+    let copied = Engine::open(&copy).unwrap();
+    assert_eq!(copied.engine.read_projection_generation_status().unwrap().generation_id, expected);
+}
+
+#[test]
 fn caller_embedder_does_not_make_an_empty_database_legacy() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("caller{SQLITE_SUFFIX}"));

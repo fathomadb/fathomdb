@@ -12,6 +12,10 @@ status: locked
 This file owns the 0.6.0 operator surface for corruption inspection, export,
 and recovery.
 
+0.8.25 projection-generation diagnosis is specified by the additive
+[recovery successor](recovery-0.8.25.md); this locked historical contract is
+otherwise unchanged.
+
 ## Two-root CLI split
 
 0.6.0 recovery tooling splits at the root by mutation semantics:

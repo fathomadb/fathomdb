@@ -85,7 +85,37 @@ export interface NativeActuationReceiptV1 {
   resultingWriteBoundary?: string | null;
   resultingDependencyGeneration?: string | null;
   pendingProjectionWriteCursors: string[];
+  projectionGenerationId?: string | null;
   closureOperationIds: string[];
+}
+
+export interface NativeProjectionGenerationStatusV1 {
+  schemaVersion: number;
+  generationId: string;
+  declarationSha256: string;
+  origin: string;
+  transitionBoundary: string;
+  effectiveAtEpochS: number;
+  observedBoundary: string;
+  readyThrough: string;
+  readiness: string;
+  runtimeState: string;
+  pendingCount: string;
+  failedCount: string;
+}
+
+export interface NativeMutationProjectionStatusV1 {
+  schemaVersion: number;
+  operationId: string;
+  writeCursor: string;
+  generationId: string;
+  effectiveAtEpochS: number;
+  observedBoundary: string;
+  readyThrough: string;
+  readiness: string;
+  runtimeState: string;
+  pendingCount: string;
+  failedCount: string;
 }
 
 export interface NativeDependencyListV1 {
@@ -519,6 +549,8 @@ export interface NativeEngine {
   ): Promise<NativeProjectionDelta>;
   readProjections(): Promise<NativeProjectionSpec[]>;
   readProjectionStatus(): Promise<NativeProjectionRuntimeStatus>;
+  readProjectionGenerationStatus(): Promise<NativeProjectionGenerationStatusV1>;
+  readMutationProjectionStatus(request: unknown): Promise<NativeMutationProjectionStatusV1>;
   readEmbeddingReadiness(): Promise<NativeEmbeddingReadiness>;
   freezeReadContext(context: NativeReadContextV1): Promise<NativeFrozenReadContextV1>;
   validateFrozenReadContext(context: NativeFrozenReadContextV1): Promise<void>;

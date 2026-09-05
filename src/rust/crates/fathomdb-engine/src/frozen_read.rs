@@ -16,10 +16,11 @@ const CONTEXT_MAX_ATTRIBUTES: usize = 64;
 const CONTEXT_DOMAIN: &[u8] = b"fathomdb.read-context.v1\0";
 const TOKEN_DOMAIN: &[u8] = b"fathomdb.frozen-read.v1\0";
 const REGISTRY_DOMAIN: &[u8] = b"fathomdb.projection-registry-binding.v1\0";
-const SERVING_DOMAIN: &[u8] = b"fathomdb.projection-serving-binding.v1\0";
+const SERVING_DOMAIN_V1: &[u8] = b"fathomdb.projection-serving-binding.v1\0";
+const SERVING_DOMAIN_V2: &[u8] = b"fathomdb.projection-serving-binding.v2\0";
 const DATABASE_ID_KEY: &str = "_fathomdb_database_id";
 const READ_CONTEXT_KEY: &str = "_fathomdb_read_context_key";
-const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 14] = [
+const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 16] = [
     ("cn", "canonical_nodes"),
     ("ce", "canonical_edges"),
     ("ar", "_fathomdb_artifact_revisions"),
@@ -34,6 +35,8 @@ const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 14] = [
     ("vk", "_fathomdb_vector_kinds"),
     ("vr", "_fathomdb_vector_rows"),
     ("ep", "_fathomdb_embedder_profiles"),
+    ("pg", "_fathomdb_projection_generations"),
+    ("pc", "_fathomdb_projection_generation_current"),
 ];
 
 /// Versioned search eligibility and validity requested by a caller.
@@ -283,7 +286,12 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
     }
     read_hex_open_state(connection, READ_CONTEXT_KEY, 32).map_err(|error| error.to_string())?;
     load_visibility_generation(connection).map_err(|error| error.to_string())?;
-    for (short, table) in VISIBILITY_TRIGGER_TABLES {
+    let trigger_tables = if schema_version >= 32 {
+        &VISIBILITY_TRIGGER_TABLES[..]
+    } else {
+        &VISIBILITY_TRIGGER_TABLES[..14]
+    };
+    for &(short, table) in trigger_tables {
         for (suffix, operation) in [("ai", "INSERT"), ("au", "UPDATE"), ("ad", "DELETE")] {
             let name = format!("_fathomdb_read_visibility_{short}_{suffix}");
             let sql = connection
@@ -311,7 +319,7 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
         [],
         |row| row.get::<_, i64>(0),
     ).map_err(|error| error.to_string())?;
-    if count != i64::try_from(VISIBILITY_TRIGGER_TABLES.len() * 3).unwrap_or(i64::MAX) {
+    if count != i64::try_from(trigger_tables.len() * 3).unwrap_or(i64::MAX) {
         return Err("unexpected frozen-read visibility trigger".to_string());
     }
     Ok(())
@@ -372,7 +380,26 @@ fn projection_registry_digest(connection: &Connection) -> Result<[u8; 32], Engin
 }
 
 fn projection_serving_digest(connection: &Connection) -> Result<[u8; 32], EngineError> {
-    let mut bytes = Vec::from(SERVING_DOMAIN);
+    Ok(Sha256::digest(projection_serving_encoding(connection)?).into())
+}
+
+fn projection_serving_encoding(connection: &Connection) -> Result<Vec<u8>, EngineError> {
+    let schema_version: u32 = connection
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .map_err(|_| EngineError::Storage)?;
+    let mut bytes = if schema_version >= 32 {
+        Vec::from(SERVING_DOMAIN_V2)
+    } else {
+        Vec::from(SERVING_DOMAIN_V1)
+    };
+    if schema_version >= 32 {
+        let generation = crate::projection_generation::current_generation(connection)?;
+        encode_string(&mut bytes, generation.id.as_str());
+        encode_string(&mut bytes, &generation.digest);
+        encode_u64(&mut bytes, generation.boundary);
+        encode_string(&mut bytes, "serving");
+        encode_string(&mut bytes, generation.origin.as_str());
+    }
     let mut states = connection
         .prepare("SELECT kind,last_enqueued_cursor,updated_at FROM _fathomdb_projection_state ORDER BY kind")
         .map_err(|_| EngineError::Storage)?;
@@ -400,7 +427,7 @@ fn projection_serving_digest(connection: &Connection) -> Result<[u8; 32], Engine
         encode_i64(&mut bytes, cursor);
         encode_string(&mut bytes, &state);
     }
-    Ok(Sha256::digest(bytes).into())
+    Ok(bytes)
 }
 
 fn encode_context(context: &ReadContextV1) -> Vec<u8> {
@@ -621,7 +648,7 @@ fn encode_optional_i64(bytes: &mut Vec<u8>, value: Option<i64>) {
 
 #[cfg(test)]
 mod tests {
-    use fathomdb_schema::migrate;
+    use fathomdb_schema::{migrate, migrate_with_steps, MIGRATIONS};
     use proptest::prelude::*;
     use serde_json::Value;
 
@@ -680,12 +707,7 @@ mod tests {
         assert_eq!(encode_context(&left), encode_context(&right));
     }
 
-    #[test]
-    fn normative_fixture_pins_context_binding_digests_payload_and_token() {
-        let fixture: Value = serde_json::from_str(include_str!(
-            "../../../../../tests/fixtures/slice35_frozen_context_v1.json"
-        ))
-        .unwrap();
+    fn assert_normative_fixture(mut connection: Connection, fixture: &Value) {
         let context = ReadContextV1::new(
             ReadView { valid_as_of: Some(1_700_000_000), ..ReadView::default() },
             SearchFilter {
@@ -702,8 +724,6 @@ mod tests {
             fixture["context_digest"].as_str().unwrap()
         );
 
-        let mut connection = Connection::open_in_memory().unwrap();
-        migrate(&connection).unwrap();
         connection
             .execute(
                 "UPDATE _fathomdb_open_state SET value=?1 \
@@ -718,6 +738,12 @@ mod tests {
                 [fixture["read_context_key"].as_str().unwrap()],
             )
             .unwrap();
+        connection
+            .execute(
+                "UPDATE _fathomdb_read_visibility_state SET generation=0 WHERE singleton=1",
+                [],
+            )
+            .unwrap();
         assert_eq!(
             hex_encode(&projection_registry_digest(&connection).unwrap()),
             fixture["projection_registry_digest"].as_str().unwrap()
@@ -726,9 +752,80 @@ mod tests {
             hex_encode(&projection_serving_digest(&connection).unwrap()),
             fixture["projection_serving_digest"].as_str().unwrap()
         );
+        if let Some(expected) = fixture["projection_serving_encoding_hex"].as_str() {
+            assert_eq!(hex_encode(&projection_serving_encoding(&connection).unwrap()), expected);
+        }
         let (frozen, _) = mint(&mut connection, &context).unwrap();
         let payload_hex = frozen.token.split('.').nth(1).unwrap();
         assert_eq!(payload_hex, fixture["payload_hex"].as_str().unwrap());
         assert_eq!(frozen.token, fixture["token"].as_str().unwrap());
+    }
+
+    #[test]
+    fn normative_v1_fixture_remains_pinned_at_schema_31() {
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../../../tests/fixtures/slice35_frozen_context_v1.json"
+        ))
+        .unwrap();
+        let connection = Connection::open_in_memory().unwrap();
+        migrate_with_steps(&connection, &MIGRATIONS[..31]).unwrap();
+        assert_normative_fixture(connection, &fixture);
+    }
+
+    #[test]
+    fn normative_v2_fixture_pins_projection_generation_binding() {
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../../../tests/fixtures/slice40_frozen_context_v2.json"
+        ))
+        .unwrap();
+        crate::register_sqlite_vec_extension();
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrate(&connection).unwrap();
+        connection
+            .execute(
+                "INSERT INTO _fathomdb_embedder_profiles(\
+                   profile,name,revision,dimension,mean_vec\
+                 ) VALUES('default',?1,?2,?3,NULL)",
+                rusqlite::params![
+                    crate::DEFAULT_EMBEDDER_NAME,
+                    crate::DEFAULT_EMBEDDER_REVISION,
+                    crate::DEFAULT_EMBEDDER_DIMENSION
+                ],
+            )
+            .unwrap();
+        crate::ensure_vector_partition(&mut connection, crate::DEFAULT_EMBEDDER_DIMENSION).unwrap();
+        crate::projection_generation::bootstrap(&mut connection, 32).unwrap();
+        let (old_id, declaration): (String, String) = connection
+            .query_row(
+                "SELECT generation_id,declaration_sha256 \
+                 FROM _fathomdb_projection_generations WHERE role='serving'",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(declaration, fixture["declaration_sha256"].as_str().unwrap());
+        connection
+            .execute(
+                "UPDATE _fathomdb_projection_generations \
+                 SET role='retired',retired_boundary=0 WHERE generation_id=?1",
+                [old_id],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO _fathomdb_projection_generations(\
+                   schema_version,generation_id,declaration_sha256,transition_boundary,role,origin\
+                 ) VALUES(1,?1,?2,0,'serving','fresh')",
+                rusqlite::params![fixture["generation_id"].as_str().unwrap(), declaration],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "UPDATE _fathomdb_projection_generation_current SET generation_id=?1 \
+                 WHERE singleton=1",
+                [fixture["generation_id"].as_str().unwrap()],
+            )
+            .unwrap();
+        assert_normative_fixture(connection, &fixture);
     }
 }

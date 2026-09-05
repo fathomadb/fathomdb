@@ -71,7 +71,35 @@ class ActuationReceiptV1:
     resulting_write_boundary: str | None
     resulting_dependency_generation: str | None
     pending_projection_write_cursors: list[str]
+    projection_generation_id: str | None
     closure_operation_ids: list[str]
+
+class ProjectionGenerationStatusV1:
+    schema_version: int
+    generation_id: str
+    declaration_sha256: str
+    origin: str
+    transition_boundary: str
+    effective_at_epoch_s: int
+    observed_boundary: str
+    ready_through: str
+    readiness: str
+    runtime_state: str
+    pending_count: str
+    failed_count: str
+
+class MutationProjectionStatusV1:
+    schema_version: int
+    operation_id: str
+    write_cursor: str
+    generation_id: str
+    effective_at_epoch_s: int
+    observed_boundary: str
+    ready_through: str
+    readiness: str
+    runtime_state: str
+    pending_count: str
+    failed_count: str
 
 class SoftFallback:
     branch: str
@@ -546,6 +574,10 @@ def configure_projections(
 ) -> ProjectionDelta: ...
 def read_projections(engine: Engine) -> list[ProjectionSpec]: ...
 def read_projection_status(engine: Engine) -> ProjectionRuntimeStatus: ...
+def read_projection_generation_status(engine: Engine) -> ProjectionGenerationStatusV1: ...
+def read_mutation_projection_status(
+    engine: Engine, request: dict[str, object]
+) -> MutationProjectionStatusV1: ...
 def read_embedding_readiness(engine: Engine) -> EmbeddingReadiness: ...
 def read_get(
     engine: Engine, logical_id: str, view: ReadView | None = None
@@ -827,3 +859,10 @@ class ProjectionDestructiveError(EngineError):
     name: str
     delta: str
     def __init__(self, *args: Any, name: str = ..., delta: str = ...) -> None: ...
+
+class ProjectionGenerationError(EngineError):
+    reason: str
+    field_path: str
+    def __init__(
+        self, *args: Any, reason: str = ..., field_path: str = ...
+    ) -> None: ...

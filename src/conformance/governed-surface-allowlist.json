@@ -6,6 +6,7 @@
   "_slice25_actuation_signature": "HITL approved the 0.8.25 Slice 25 plan and implementation. The additive actuate verb applies bounded caller-decided operations atomically and returns a compact terminal receipt; FathomDB makes no semantic decision. The recovery denylist is unchanged.",
   "_slice30_closure_signature": "HITL approved the 0.8.25 Slice 30 plan and execution. The additive read_dependency_closure/readDependencyClosure verb is a keyed, bounded status read for Engine-minted dependency-closure operations; it adds no public resume or list administration. Core membership and the recovery denylist are unchanged.",
   "_slice35_frozen_read_signature": "The approved 0.8.25 Slice 35 plan adds an optional Engine-minted frozen read context and two consumers. Eligibility and validity remain caller policy; FathomDB authenticates and enforces them on one reader transaction. Core membership and the recovery denylist are unchanged.",
+  "_slice40_projection_generation_signature": "The approved 0.8.25 Slice 40 plan adds pure current-generation and receipt-keyed mutation projection-status reads in both SDK naming conventions. The reads expose durable projection identity and physical readiness without a public work manifest. Core membership and the recovery denylist are unchanged.",
   "allowlist": [
     "Engine.open",
     "admin.configure",
@@ -56,7 +57,11 @@
     "read.projections",
     "read.projection_status",
     "read.embedding_readiness",
-    "read.projectionStatus"
+    "read.projectionStatus",
+    "read.projection_generation_status",
+    "read.projectionGenerationStatus",
+    "read.mutation_projection_status",
+    "read.mutationProjectionStatus"
   ],
   "core": [
     "Engine.open",

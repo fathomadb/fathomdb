@@ -21,7 +21,7 @@ use std::time::Instant;
 
 use rusqlite::Connection;
 
-pub const SCHEMA_VERSION: u32 = 31;
+pub const SCHEMA_VERSION: u32 = 32;
 
 /// SQLite `PRAGMA` name carrying the on-disk schema-version sentinel.
 ///
@@ -1185,6 +1185,91 @@ pub const MIGRATIONS: &[Migration] = &[
             ("vr", "_fathomdb_vector_rows"),
             ("ep", "_fathomdb_embedder_profiles"),
         ),
+    },
+    // 0.8.25 Slice 40 — identity and readiness authority for the one in-place
+    // physical serving projection set. Additive shape only: existing records
+    // and projection bytes are deliberately not assigned or rewritten here.
+    Migration {
+        step_id: 32,
+        sql: "-- MIGRATION-ACCRETION-EXEMPTION: Slice-40 projection-generation identity, receipt correlation, and frozen-visibility triggers; additive shape only, no canonical or projection content migration.
+              CREATE TABLE _fathomdb_projection_generations(
+                  schema_version INTEGER NOT NULL CHECK(schema_version = 1),
+                  generation_id TEXT PRIMARY KEY,
+                  declaration_sha256 TEXT NOT NULL,
+                  transition_boundary INTEGER NOT NULL CHECK(transition_boundary >= 0),
+                  role TEXT NOT NULL CHECK(role IN ('serving','retired')),
+                  origin TEXT NOT NULL CHECK(origin IN (
+                      'fresh','legacy_unverified','configuration','rebuild'
+                  )),
+                  retired_boundary INTEGER CHECK(
+                      retired_boundary IS NULL OR
+                      (retired_boundary >= 0 AND retired_boundary >= transition_boundary)
+                  ),
+                  CHECK(
+                      (role='serving' AND retired_boundary IS NULL) OR
+                      (role='retired' AND retired_boundary IS NOT NULL)
+                  )
+              );
+              CREATE UNIQUE INDEX _fathomdb_projection_one_serving
+                  ON _fathomdb_projection_generations((1)) WHERE role='serving';
+              CREATE TABLE _fathomdb_projection_generation_current(
+                  singleton INTEGER PRIMARY KEY CHECK(singleton = 1),
+                  generation_id TEXT NOT NULL UNIQUE
+                      REFERENCES _fathomdb_projection_generations(generation_id)
+              );
+              ALTER TABLE _fathomdb_actuation_receipts
+                  ADD COLUMN projection_generation_id TEXT;
+              CREATE TRIGGER _fathomdb_projection_generation_immutable
+              BEFORE UPDATE ON _fathomdb_projection_generations
+              WHEN OLD.role='retired'
+                OR NEW.generation_id != OLD.generation_id
+                OR NEW.schema_version != OLD.schema_version
+                OR NEW.declaration_sha256 != OLD.declaration_sha256
+                OR NEW.transition_boundary != OLD.transition_boundary
+                OR NEW.origin != OLD.origin
+                OR OLD.role != 'serving'
+                OR NEW.role != 'retired'
+                OR NEW.retired_boundary IS NULL
+              BEGIN SELECT RAISE(ABORT, 'projection generation is immutable'); END;
+              CREATE TRIGGER _fathomdb_projection_generation_retain
+              BEFORE DELETE ON _fathomdb_projection_generations
+              BEGIN SELECT RAISE(ABORT, 'projection generation history is retained'); END;
+              CREATE TRIGGER _fathomdb_read_visibility_pg_ai
+              AFTER INSERT ON _fathomdb_projection_generations
+              BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE
+                  WHEN generation=9223372036854775807
+                  THEN RAISE(ABORT,'read visibility generation exhausted')
+                  ELSE generation+1 END WHERE singleton=1; END;
+              CREATE TRIGGER _fathomdb_read_visibility_pg_au
+              AFTER UPDATE ON _fathomdb_projection_generations
+              BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE
+                  WHEN generation=9223372036854775807
+                  THEN RAISE(ABORT,'read visibility generation exhausted')
+                  ELSE generation+1 END WHERE singleton=1; END;
+              CREATE TRIGGER _fathomdb_read_visibility_pg_ad
+              AFTER DELETE ON _fathomdb_projection_generations
+              BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE
+                  WHEN generation=9223372036854775807
+                  THEN RAISE(ABORT,'read visibility generation exhausted')
+                  ELSE generation+1 END WHERE singleton=1; END;
+              CREATE TRIGGER _fathomdb_read_visibility_pc_ai
+              AFTER INSERT ON _fathomdb_projection_generation_current
+              BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE
+                  WHEN generation=9223372036854775807
+                  THEN RAISE(ABORT,'read visibility generation exhausted')
+                  ELSE generation+1 END WHERE singleton=1; END;
+              CREATE TRIGGER _fathomdb_read_visibility_pc_au
+              AFTER UPDATE ON _fathomdb_projection_generation_current
+              BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE
+                  WHEN generation=9223372036854775807
+                  THEN RAISE(ABORT,'read visibility generation exhausted')
+                  ELSE generation+1 END WHERE singleton=1; END;
+              CREATE TRIGGER _fathomdb_read_visibility_pc_ad
+              AFTER DELETE ON _fathomdb_projection_generation_current
+              BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE
+                  WHEN generation=9223372036854775807
+                  THEN RAISE(ABORT,'read visibility generation exhausted')
+                  ELSE generation+1 END WHERE singleton=1; END;",
     },
 ];
 

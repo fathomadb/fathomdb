@@ -232,6 +232,10 @@ DEFAULT facade, not behind the `operator` feature.
 - `Engine::read_projections() -> Result<Vec<ProjectionSpec>, EngineError>`
 - `Engine::read_projection_status() -> Result<ProjectionRuntimeStatus, EngineError>`
 - `Engine::read_embedding_readiness() -> Result<EmbeddingReadiness, EngineError>`
+- `Engine::read_projection_generation_status() ->
+  Result<ProjectionGenerationStatusV1, EngineError>`
+- `Engine::read_mutation_projection_status(MutationProjectionStatusRequestV1)
+  -> Result<MutationProjectionStatusV1, EngineError>`
 
 See § "Projection registry" below.
 
@@ -687,6 +691,29 @@ The C5 facade types are also public Rust surface:
 `ProjectionRuntimeUnavailabilityReason`, and
 `ProjectionStatusDenseReadiness`. They are deliberately distinct from the
 internal lifecycle `ProjectionStatus` enum.
+
+### Projection generation and mutation readiness (0.8.25 Slice 40)
+
+`Engine::read_projection_generation_status()` is a pure, one-snapshot read of
+the database-local in-place serving-projection epoch. Its versioned result
+contains the `pgen1:<32-lower-hex>` generation ID, declaration digest, origin,
+transition and observed boundaries, `ready_through`, closed readiness/runtime
+states, and pending/failed counts. It does not schedule, repair, or expose a
+work manifest.
+
+`Engine::read_mutation_projection_status(request)` addresses one cursor already
+named by a Slice-25 actuation receipt. The request supplies schema version 1,
+the receipt operation ID, canonical decimal write cursor, and the receipt's
+expected generation ID. The read verifies receipt ownership and generation,
+then reports that member's completion with the same snapshot boundaries.
+Unknown, erased, retired-generation, or no-longer-eligible members fail with
+typed `ProjectionGenerationError`; they are never rebound to the current
+generation.
+
+`ActuationReceiptV1::projection_generation_id` is additive and nullable. It is
+present exactly when the committed receipt contains pending projection cursors
+under schema step 32 or later. Public counters and cursors remain `u64`; SDK
+wire forms use canonical decimal strings.
 
 ### Embedding readiness (0.8.23 Slice 30)
 

@@ -53,9 +53,13 @@ use fathomdb_engine::{
     FilterTerm as RustFilterTerm, FrozenReadContextV1 as RustFrozenReadContextV1,
     IdSpace as RustIdSpace, IngestWithExtractorReceipt as RustIngestWithExtractorReceipt,
     InitialState, LifecycleActuationV1, LifecycleState as RustLifecycleState,
-    NodeRecord as RustNodeRecord, OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport,
-    OpenStage, PerHitExplain as RustPerHitExplain, Predicate as RustPredicate, PreparedWrite,
+    MutationProjectionStatusRequestV1 as RustMutationProjectionStatusRequestV1,
+    MutationProjectionStatusV1 as RustMutationProjectionStatusV1, NodeRecord as RustNodeRecord,
+    OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
+    PerHitExplain as RustPerHitExplain, Predicate as RustPredicate, PreparedWrite,
     ProjectionDelta as RustProjectionDelta, ProjectionFts as RustProjectionFts,
+    ProjectionGenerationId as RustProjectionGenerationId,
+    ProjectionGenerationStatusV1 as RustProjectionGenerationStatusV1,
     ProjectionRole as RustProjectionRole, ProjectionRuntimeStatus as RustProjectionRuntimeStatus,
     ProjectionRuntimeStatusEntry as RustProjectionRuntimeStatusEntry,
     ProjectionSpec as RustProjectionSpec, ProjectionVector as RustProjectionVector,
@@ -82,6 +86,7 @@ use serde_json::{json, Value as JsonValue};
 
 const CODE_STORAGE: &str = "FDB_STORAGE";
 const CODE_PROJECTION: &str = "FDB_PROJECTION";
+const CODE_PROJECTION_GENERATION: &str = "FDB_PROJECTION_GENERATION";
 const CODE_VECTOR: &str = "FDB_VECTOR";
 const CODE_EMBEDDER: &str = "FDB_EMBEDDER";
 const CODE_EMBED_DEVICE_POLICY: &str = "FDB_EMBED_DEVICE_POLICY";
@@ -207,6 +212,14 @@ fn engine_error_to_napi(err: RustEngineError) -> Error {
         RustEngineError::Projection => {
             typed_error(CODE_PROJECTION, "projection error", JsonValue::Null)
         }
+        RustEngineError::ProjectionGeneration(error) => typed_error(
+            CODE_PROJECTION_GENERATION,
+            format!("projection generation {} at {}", error.reason.as_str(), error.field_path),
+            json!({
+                "reason": error.reason.as_str(),
+                "fieldPath": error.field_path,
+            }),
+        ),
         RustEngineError::Vector => typed_error(CODE_VECTOR, "vector error", JsonValue::Null),
         RustEngineError::Embedder => typed_error(CODE_EMBEDDER, "embedder error", JsonValue::Null),
         RustEngineError::RerankerDevicePolicy(error) => reranker_device_policy_error_to_napi(error),
@@ -352,6 +365,7 @@ fn corruption_kind_str(kind: CorruptionKind) -> &'static str {
         CorruptionKind::HeaderMalformed => "HeaderMalformed",
         CorruptionKind::SchemaInconsistent => "SchemaInconsistent",
         CorruptionKind::EmbedderIdentityDrift => "EmbedderIdentityDrift",
+        CorruptionKind::ProjectionGenerationDrift => "ProjectionGenerationDrift",
     }
 }
 
@@ -361,6 +375,7 @@ fn open_stage_str(stage: OpenStage) -> &'static str {
         OpenStage::WalReplay => "WalReplay",
         OpenStage::SchemaProbe => "SchemaProbe",
         OpenStage::EmbedderIdentity => "EmbedderIdentity",
+        OpenStage::ProjectionGeneration => "ProjectionGeneration",
     }
 }
 
@@ -651,6 +666,7 @@ pub struct ActuationReceiptV1 {
     pub resulting_write_boundary: Option<String>,
     pub resulting_dependency_generation: Option<String>,
     pub pending_projection_write_cursors: Vec<String>,
+    pub projection_generation_id: Option<String>,
     pub closure_operation_ids: Vec<String>,
 }
 
@@ -693,9 +709,157 @@ impl TryFrom<RustActuationReceiptV1> for ActuationReceiptV1 {
                 .into_iter()
                 .map(|item| item.to_string())
                 .collect(),
+            projection_generation_id: value
+                .projection_generation_id
+                .map(|item| item.as_str().to_string()),
             closure_operation_ids: value.closure_operation_ids,
         })
     }
+}
+
+#[napi(object)]
+pub struct ProjectionGenerationStatusV1 {
+    pub schema_version: u32,
+    pub generation_id: String,
+    pub declaration_sha256: String,
+    pub origin: String,
+    pub transition_boundary: String,
+    pub effective_at_epoch_s: i64,
+    pub observed_boundary: String,
+    pub ready_through: String,
+    pub readiness: String,
+    pub runtime_state: String,
+    pub pending_count: String,
+    pub failed_count: String,
+}
+
+impl From<RustProjectionGenerationStatusV1> for ProjectionGenerationStatusV1 {
+    fn from(value: RustProjectionGenerationStatusV1) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            generation_id: value.generation_id.as_str().to_string(),
+            declaration_sha256: value.declaration_sha256,
+            origin: value.origin.as_str().to_string(),
+            transition_boundary: value.transition_boundary.to_string(),
+            effective_at_epoch_s: value.effective_at_epoch_s,
+            observed_boundary: value.observed_boundary.to_string(),
+            ready_through: value.ready_through.to_string(),
+            readiness: value.readiness.as_str().to_string(),
+            runtime_state: value.runtime_state.as_str().to_string(),
+            pending_count: value.pending_count.to_string(),
+            failed_count: value.failed_count.to_string(),
+        }
+    }
+}
+
+#[napi(object)]
+pub struct MutationProjectionStatusV1 {
+    pub schema_version: u32,
+    pub operation_id: String,
+    pub write_cursor: String,
+    pub generation_id: String,
+    pub effective_at_epoch_s: i64,
+    pub observed_boundary: String,
+    pub ready_through: String,
+    pub readiness: String,
+    pub runtime_state: String,
+    pub pending_count: String,
+    pub failed_count: String,
+}
+
+impl From<RustMutationProjectionStatusV1> for MutationProjectionStatusV1 {
+    fn from(value: RustMutationProjectionStatusV1) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            operation_id: value.operation_id,
+            write_cursor: value.write_cursor.to_string(),
+            generation_id: value.generation_id.as_str().to_string(),
+            effective_at_epoch_s: value.effective_at_epoch_s,
+            observed_boundary: value.observed_boundary.to_string(),
+            ready_through: value.ready_through.to_string(),
+            readiness: value.readiness.as_str().to_string(),
+            runtime_state: value.runtime_state.as_str().to_string(),
+            pending_count: value.pending_count.to_string(),
+            failed_count: value.failed_count.to_string(),
+        }
+    }
+}
+
+fn translate_mutation_projection_status_request(
+    value: &JsonValue,
+) -> Result<RustMutationProjectionStatusRequestV1> {
+    let object = value.as_object().ok_or_else(|| {
+        typed_error(
+            CODE_PROJECTION_GENERATION,
+            "projection generation unsupported_schema_version at /schemaVersion",
+            json!({"reason":"unsupported_schema_version","fieldPath":"/schemaVersion"}),
+        )
+    })?;
+    let schema_version = object.get("schemaVersion").and_then(JsonValue::as_u64).unwrap_or(0);
+    if schema_version != 1 {
+        return Err(typed_error(
+            CODE_PROJECTION_GENERATION,
+            "projection generation unsupported_schema_version at /schemaVersion",
+            json!({"reason":"unsupported_schema_version","fieldPath":"/schemaVersion"}),
+        ));
+    }
+    let allowed = ["expectedGenerationId", "operationId", "schemaVersion", "writeCursor"];
+    if let Some(key) = object.keys().filter(|key| !allowed.contains(&key.as_str())).min() {
+        let escaped = key.replace('~', "~0").replace('/', "~1");
+        return Err(typed_error(
+            CODE_PROJECTION_GENERATION,
+            format!("projection generation unknown_field at /{escaped}"),
+            json!({"reason":"unknown_field","fieldPath":format!("/{escaped}")}),
+        ));
+    }
+    let operation_id =
+        object.get("operationId").and_then(JsonValue::as_str).unwrap_or_default().to_string();
+    let operation_bytes = operation_id.as_bytes();
+    let operation_valid = !operation_id.starts_with("_fdb:")
+        && (1..=128).contains(&operation_bytes.len())
+        && operation_bytes.first().is_some_and(u8::is_ascii_alphanumeric)
+        && operation_bytes
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-'));
+    if !operation_valid {
+        return Err(typed_error(
+            CODE_PROJECTION_GENERATION,
+            "projection generation invalid_operation_id at /operationId",
+            json!({"reason":"invalid_operation_id","fieldPath":"/operationId"}),
+        ));
+    }
+    let cursor_text = object.get("writeCursor").and_then(JsonValue::as_str).unwrap_or_default();
+    let write_cursor = if !cursor_text.is_empty()
+        && !(cursor_text.len() > 1 && cursor_text.starts_with('0'))
+        && cursor_text.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        cursor_text.parse::<u64>().ok().filter(|value| *value != 0)
+    } else {
+        None
+    }
+    .ok_or_else(|| {
+        typed_error(
+            CODE_PROJECTION_GENERATION,
+            "projection generation invalid_write_cursor at /writeCursor",
+            json!({"reason":"invalid_write_cursor","fieldPath":"/writeCursor"}),
+        )
+    })?;
+    let generation =
+        object.get("expectedGenerationId").and_then(JsonValue::as_str).unwrap_or_default();
+    let expected_generation_id =
+        RustProjectionGenerationId::new(generation.to_string()).map_err(|error| {
+            typed_error(
+                CODE_PROJECTION_GENERATION,
+                format!("projection generation {} at {}", error.reason.as_str(), error.field_path),
+                json!({"reason":error.reason.as_str(),"fieldPath":error.field_path}),
+            )
+        })?;
+    Ok(RustMutationProjectionStatusRequestV1 {
+        schema_version: 1,
+        operation_id,
+        write_cursor,
+        expected_generation_id,
+    })
 }
 
 #[napi(object)]
@@ -2109,6 +2273,22 @@ impl Engine {
         let engine = Arc::clone(&self.inner);
         let status = call_engine(move || engine.read_projection_status()).await?;
         Ok(ProjectionRuntimeStatus::from_rust(&status))
+    }
+
+    #[napi]
+    pub async fn read_projection_generation_status(&self) -> Result<ProjectionGenerationStatusV1> {
+        let engine = Arc::clone(&self.inner);
+        call_engine(move || engine.read_projection_generation_status()).await.map(Into::into)
+    }
+
+    #[napi]
+    pub async fn read_mutation_projection_status(
+        &self,
+        request: JsonValue,
+    ) -> Result<MutationProjectionStatusV1> {
+        let request = translate_mutation_projection_status_request(&request)?;
+        let engine = Arc::clone(&self.inner);
+        call_engine(move || engine.read_mutation_projection_status(request)).await.map(Into::into)
     }
 
     #[napi]
@@ -4063,6 +4243,41 @@ fn call_panicking_engine_for_test() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mutation_projection_request_preserves_u64_max() {
+        let request = json!({
+            "schemaVersion": 1,
+            "operationId": "slice40-max",
+            "writeCursor": u64::MAX.to_string(),
+            "expectedGenerationId": "pgen1:000102030405060708090a0b0c0d0e0f",
+        });
+        let translated = translate_mutation_projection_status_request(&request).unwrap();
+        assert_eq!(translated.write_cursor, u64::MAX);
+    }
+
+    #[test]
+    fn mutation_projection_request_rejects_noncanonical_cursor() {
+        let request = json!({
+            "schemaVersion": 1,
+            "operationId": "slice40-zero",
+            "writeCursor": "00",
+            "expectedGenerationId": "pgen1:000102030405060708090a0b0c0d0e0f",
+        });
+        let error = translate_mutation_projection_status_request(&request).unwrap_err();
+        let envelope: JsonValue = serde_json::from_str(&error.reason).unwrap();
+        assert_eq!(envelope["payload"]["reason"], "invalid_write_cursor");
+        assert_eq!(envelope["payload"]["fieldPath"], "/writeCursor");
+    }
+
+    #[test]
+    fn mutation_projection_request_checks_schema_before_unknown_fields() {
+        let request = json!({"schemaVersion": 2, "zzz": true});
+        let error = translate_mutation_projection_status_request(&request).unwrap_err();
+        let envelope: JsonValue = serde_json::from_str(&error.reason).unwrap();
+        assert_eq!(envelope["payload"]["reason"], "unsupported_schema_version");
+        assert_eq!(envelope["payload"]["fieldPath"], "/schemaVersion");
+    }
 
     #[test]
     fn validate_ffi_string_accepts_plain_ascii() {

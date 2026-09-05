@@ -106,6 +106,17 @@ function seedLegacyRegistryRow(
 ): void {
   const db = new DatabaseSync(path);
   try {
+    // Slice 40 normally treats raw registry changes after generation bootstrap
+    // as corruption.  This fixture represents an actual pre-Slice-40 store,
+    // i.e. step-32 shape committed but generation bootstrap not yet run.
+    db.exec(
+      "DROP TRIGGER _fathomdb_projection_generation_retain;" +
+        "DELETE FROM _fathomdb_projection_generation_current;" +
+        "DELETE FROM _fathomdb_projection_generations;" +
+        "CREATE TRIGGER _fathomdb_projection_generation_retain " +
+        "BEFORE DELETE ON _fathomdb_projection_generations " +
+        "BEGIN SELECT RAISE(ABORT, 'projection generation history is retained'); END;",
+    );
     db.prepare(
       "INSERT INTO _fathomdb_projection_registry" +
         " (name, roles, fts_tokenizer, vector_embedder, vector_declared)" +

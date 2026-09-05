@@ -28,7 +28,7 @@ public dataclasses in ``fathomdb.types``.
 from __future__ import annotations
 
 import builtins
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from fathomdb._fathomdb import NodeRecord as _NativeNodeRecord
 from fathomdb._fathomdb import OpStoreRow as _NativeOpStoreRow
@@ -41,9 +41,16 @@ from fathomdb._fathomdb import read_mutations as _native_mutations
 from fathomdb._fathomdb import crossed_boundary_since as _native_crossed_boundary_since
 from fathomdb._fathomdb import read_projections as _native_read_projections
 from fathomdb._fathomdb import read_projection_status as _native_read_projection_status
+from fathomdb._fathomdb import (
+    read_mutation_projection_status as _native_read_mutation_projection_status,
+)
+from fathomdb._fathomdb import (
+    read_projection_generation_status as _native_read_projection_generation_status,
+)
 from fathomdb._fathomdb import read_embedding_readiness as _native_read_embedding_readiness
 from fathomdb._fathomdb import ReadView as _NativeReadView
 from fathomdb._fathomdb import BoundaryCrossing as _NativeBoundaryCrossing
+from fathomdb.errors import ProjectionGenerationError
 from fathomdb.types import (
     BoundaryCrossing,
     EmbeddingOperation,
@@ -53,9 +60,99 @@ from fathomdb.types import (
     EmbeddingReadiness,
     EmbeddingReadinessState,
     ProjectionRuntimeStatusEntry,
+    MutationProjectionStatusRequestV1,
+    MutationProjectionStatusV1,
+    ProjectionGenerationStatusV1,
+    ProjectionGenerationOriginV1,
+    ProjectionReadinessV1,
+    ProjectionRuntimeStateV1,
     ProjectionSpec,
     ReadView,
 )
+
+_PROJECTION_ORIGINS = frozenset({"fresh", "legacy_unverified", "configuration", "rebuild"})
+_PROJECTION_READINESS = frozenset({"ready", "processing", "blocked", "deferred", "degraded"})
+_PROJECTION_RUNTIME_STATES = frozenset({"absent", "usable", "refused"})
+
+
+def _projection_enum(value: str, allowed: frozenset[str], field_path: str) -> str:
+    if value not in allowed:
+        raise ProjectionGenerationError(
+            f"projection generation projection_generation_corrupt at {field_path}",
+            reason="projection_generation_corrupt",
+            field_path=field_path,
+        )
+    return value
+
+
+def projection_generation_status(engine: "Engine") -> ProjectionGenerationStatusV1:
+    """Return the current serving projection generation and exact completeness."""
+
+    value = _native_read_projection_generation_status(engine._native)
+    if value.schema_version != 1:
+        raise ProjectionGenerationError(
+            "projection generation unsupported_schema_version at /schemaVersion",
+            reason="unsupported_schema_version",
+            field_path="/schemaVersion",
+        )
+    return ProjectionGenerationStatusV1(
+        schema_version=value.schema_version,
+        generation_id=value.generation_id,
+        declaration_sha256=value.declaration_sha256,
+        origin=cast(
+            ProjectionGenerationOriginV1,
+            _projection_enum(value.origin, _PROJECTION_ORIGINS, "/origin"),
+        ),
+        transition_boundary=value.transition_boundary,
+        effective_at_epoch_s=value.effective_at_epoch_s,
+        observed_boundary=value.observed_boundary,
+        ready_through=value.ready_through,
+        readiness=cast(
+            ProjectionReadinessV1,
+            _projection_enum(value.readiness, _PROJECTION_READINESS, "/readiness"),
+        ),
+        runtime_state=cast(
+            ProjectionRuntimeStateV1,
+            _projection_enum(value.runtime_state, _PROJECTION_RUNTIME_STATES, "/runtimeState"),
+        ),
+        pending_count=value.pending_count,
+        failed_count=value.failed_count,
+    )
+
+
+def mutation_projection_status(
+    engine: "Engine", request: MutationProjectionStatusRequestV1
+) -> MutationProjectionStatusV1:
+    """Return completion for one pending cursor from an actuation receipt."""
+
+    value = _native_read_mutation_projection_status(
+        engine._native, cast(dict[str, object], request)
+    )
+    if value.schema_version != 1:
+        raise ProjectionGenerationError(
+            "projection generation unsupported_schema_version at /schemaVersion",
+            reason="unsupported_schema_version",
+            field_path="/schemaVersion",
+        )
+    return MutationProjectionStatusV1(
+        schema_version=value.schema_version,
+        operation_id=value.operation_id,
+        write_cursor=value.write_cursor,
+        generation_id=value.generation_id,
+        effective_at_epoch_s=value.effective_at_epoch_s,
+        observed_boundary=value.observed_boundary,
+        ready_through=value.ready_through,
+        readiness=cast(
+            ProjectionReadinessV1,
+            _projection_enum(value.readiness, _PROJECTION_READINESS, "/readiness"),
+        ),
+        runtime_state=cast(
+            ProjectionRuntimeStateV1,
+            _projection_enum(value.runtime_state, _PROJECTION_RUNTIME_STATES, "/runtimeState"),
+        ),
+        pending_count=value.pending_count,
+        failed_count=value.failed_count,
+    )
 
 if TYPE_CHECKING:
     from fathomdb.engine import Engine
@@ -371,5 +468,7 @@ __all__ = [
     "crossed_boundary_since",
     "projections",
     "projection_status",
+    "projection_generation_status",
+    "mutation_projection_status",
     "embedding_readiness",
 ]

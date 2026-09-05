@@ -148,6 +148,18 @@ fn seed_legacy_registry_row(
     vector_declared: bool,
 ) {
     let conn = rusqlite::Connection::open(path).expect("open rw");
+    // Slice 40 normally rejects a raw post-bootstrap registry mutation as
+    // generation drift. Model the real upgrade state instead: step-32 shape
+    // committed, but its generation bootstrap has not yet installed authority.
+    conn.execute_batch(
+        "DROP TRIGGER _fathomdb_projection_generation_retain;
+         DELETE FROM _fathomdb_projection_generation_current;
+         DELETE FROM _fathomdb_projection_generations;
+         CREATE TRIGGER _fathomdb_projection_generation_retain
+         BEFORE DELETE ON _fathomdb_projection_generations
+         BEGIN SELECT RAISE(ABORT, 'projection generation history is retained'); END;",
+    )
+    .expect("reset generation authority to the pre-Slice-40 upgrade boundary");
     conn.execute(
         "INSERT INTO _fathomdb_projection_registry
              (name, roles, fts_tokenizer, vector_embedder, vector_declared)

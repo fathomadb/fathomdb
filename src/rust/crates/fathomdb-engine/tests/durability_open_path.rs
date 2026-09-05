@@ -1,6 +1,6 @@
 //! Open-path corruption matrix (AC-035a / AC-035b / AC-035c).
 //!
-//! Four fixtures, one per `CorruptionKind` variant. Each fixture seeds a
+//! Five fixtures, one per `CorruptionKind` variant. Each fixture seeds a
 //! clean database, closes it, applies a deterministic corruption via
 //! `tests/support/corruption.rs`, and asserts that `Engine::open`:
 //!
@@ -26,6 +26,7 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 use fathomdb_engine::{
     CorruptionDetail, CorruptionKind, CorruptionLocator, Engine, EngineOpenError, OpenStage,
 };
+use rusqlite::Connection;
 use tempfile::TempDir;
 
 #[path = "support/corruption.rs"]
@@ -74,6 +75,12 @@ const EXPECTED_EMBEDDER: Expected = Expected {
     code: "E_CORRUPT_EMBEDDER_IDENTITY",
     doc_anchor: "design/recovery.md#embedder-identity-drift",
 };
+const EXPECTED_PROJECTION_GENERATION: Expected = Expected {
+    kind: CorruptionKind::ProjectionGenerationDrift,
+    stage: OpenStage::ProjectionGeneration,
+    code: "E_CORRUPT_PROJECTION_GENERATION",
+    doc_anchor: "design/recovery-0.8.25.md#projection-generation",
+};
 
 fn fixture_for(kind: CorruptionKind) -> (TempDir, PathBuf) {
     let dir = TempDir::new().expect("tempdir");
@@ -102,6 +109,16 @@ fn apply_corruption(kind: CorruptionKind, path: &Path) {
         }
         CorruptionKind::EmbedderIdentityDrift => {
             corruption::corrupt_embedder_profile_row(path);
+        }
+        CorruptionKind::ProjectionGenerationDrift => {
+            let connection = Connection::open(path).expect("open generation fixture");
+            connection
+                .execute_batch(
+                    "DROP TRIGGER _fathomdb_projection_generation_immutable; \
+                     UPDATE _fathomdb_projection_generations \
+                     SET declaration_sha256='invalid' WHERE role='serving';",
+                )
+                .expect("corrupt generation digest");
         }
     }
 }
@@ -194,18 +211,27 @@ fn ac_035b_embedder_identity_shape() {
     assert_shape(&detail, &EXPECTED_EMBEDDER);
 }
 
+#[test]
+fn slice40_projection_generation_corruption_shape() {
+    let _guard = serial_guard();
+    let (_dir, path) = fixture_for(CorruptionKind::ProjectionGenerationDrift);
+    let detail = open_and_expect_corruption(&path);
+    assert_shape(&detail, &EXPECTED_PROJECTION_GENERATION);
+}
+
 fn assert_shape(detail: &CorruptionDetail, expected: &Expected) {
     assert_eq!(detail.kind, expected.kind, "kind mismatch");
     assert_eq!(detail.stage, expected.stage, "stage mismatch");
     // AC-035b: `OpenStage` must remain in `{WalReplay, HeaderProbe,
-    // SchemaProbe, EmbedderIdentity}`. Compile-time enforced by
+    // SchemaProbe, EmbedderIdentity, ProjectionGeneration}`. Compile-time enforced by
     // exhaustive match below; any future LockAcquisition-style variant
     // would cause this match to non-exhaustively fail to compile.
     match detail.stage {
         OpenStage::WalReplay
         | OpenStage::HeaderProbe
         | OpenStage::SchemaProbe
-        | OpenStage::EmbedderIdentity => {}
+        | OpenStage::EmbedderIdentity
+        | OpenStage::ProjectionGeneration => {}
     }
     // AC-035b: opaque SQLite paths must surface as OpaqueSqliteError with
     // a typed extended_code; CorruptionLocator must never expose a

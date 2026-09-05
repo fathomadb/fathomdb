@@ -269,7 +269,48 @@ export interface ActuationReceiptV1 {
   resultingWriteBoundary: string | null;
   resultingDependencyGeneration: string | null;
   pendingProjectionWriteCursors: string[];
+  projectionGenerationId: string | null;
   closureOperationIds: string[];
+}
+
+export type ProjectionReadinessV1 = "ready" | "processing" | "blocked" | "deferred" | "degraded";
+export type ProjectionRuntimeStateV1 = "absent" | "usable" | "refused";
+export type ProjectionGenerationOriginV1 = "fresh" | "legacy_unverified" | "configuration" | "rebuild";
+
+export interface ProjectionGenerationStatusV1 {
+  readonly schemaVersion: 1;
+  readonly generationId: string;
+  readonly declarationSha256: string;
+  readonly origin: ProjectionGenerationOriginV1;
+  readonly transitionBoundary: string;
+  readonly effectiveAtEpochS: number;
+  readonly observedBoundary: string;
+  readonly readyThrough: string;
+  readonly readiness: ProjectionReadinessV1;
+  readonly runtimeState: ProjectionRuntimeStateV1;
+  readonly pendingCount: string;
+  readonly failedCount: string;
+}
+
+export interface MutationProjectionStatusRequestV1 {
+  readonly schemaVersion: 1;
+  readonly operationId: string;
+  readonly writeCursor: string;
+  readonly expectedGenerationId: string;
+}
+
+export interface MutationProjectionStatusV1 {
+  readonly schemaVersion: 1;
+  readonly operationId: string;
+  readonly writeCursor: string;
+  readonly generationId: string;
+  readonly effectiveAtEpochS: number;
+  readonly observedBoundary: string;
+  readonly readyThrough: string;
+  readonly readiness: ProjectionReadinessV1;
+  readonly runtimeState: ProjectionRuntimeStateV1;
+  readonly pendingCount: string;
+  readonly failedCount: string;
 }
 
 function closureResponseError(fieldPath: string): never {
@@ -500,6 +541,7 @@ function actuationResponse(value: {
   resultingWriteBoundary?: string | null;
   resultingDependencyGeneration?: string | null;
   pendingProjectionWriteCursors: string[];
+  projectionGenerationId?: string | null;
   closureOperationIds: string[];
 }): ActuationReceiptV1 {
   if (
@@ -520,6 +562,7 @@ function actuationResponse(value: {
     refusedFieldPath: value.refusedFieldPath ?? null,
     resultingWriteBoundary: value.resultingWriteBoundary ?? null,
     resultingDependencyGeneration: value.resultingDependencyGeneration ?? null,
+    projectionGenerationId: value.projectionGenerationId ?? null,
   };
 }
 

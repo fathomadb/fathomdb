@@ -239,7 +239,57 @@ class ActuationReceiptV1:
     resulting_write_boundary: str | None
     resulting_dependency_generation: str | None
     pending_projection_write_cursors: tuple[str, ...]
+    projection_generation_id: str | None
     closure_operation_ids: tuple[str, ...]
+
+
+ProjectionReadinessV1 = Literal["ready", "processing", "blocked", "deferred", "degraded"]
+ProjectionRuntimeStateV1 = Literal["absent", "usable", "refused"]
+ProjectionGenerationOriginV1 = Literal["fresh", "legacy_unverified", "configuration", "rebuild"]
+
+
+@dataclass(frozen=True)
+class ProjectionGenerationStatusV1:
+    """Current serving-generation identity and physical dense completeness."""
+
+    schema_version: int
+    generation_id: str
+    declaration_sha256: str
+    origin: ProjectionGenerationOriginV1
+    transition_boundary: str
+    effective_at_epoch_s: int
+    observed_boundary: str
+    ready_through: str
+    readiness: ProjectionReadinessV1
+    runtime_state: ProjectionRuntimeStateV1
+    pending_count: str
+    failed_count: str
+
+
+class MutationProjectionStatusRequestV1(TypedDict):
+    """Point request for a pending cursor named by an actuation receipt."""
+
+    schemaVersion: Literal[1]
+    operationId: str
+    writeCursor: str
+    expectedGenerationId: str
+
+
+@dataclass(frozen=True)
+class MutationProjectionStatusV1:
+    """Physical completion state for one receipt-owned projection cursor."""
+
+    schema_version: int
+    operation_id: str
+    write_cursor: str
+    generation_id: str
+    effective_at_epoch_s: int
+    observed_boundary: str
+    ready_through: str
+    readiness: ProjectionReadinessV1
+    runtime_state: ProjectionRuntimeStateV1
+    pending_count: str
+    failed_count: str
 
 
 @dataclass(frozen=True)

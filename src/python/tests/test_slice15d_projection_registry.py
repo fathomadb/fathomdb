@@ -120,6 +120,18 @@ def _seed_legacy_registry_row(
     """
     conn = sqlite3.connect(path)
     try:
+        # Slice 40 normally treats a raw registry change after generation
+        # bootstrap as corruption.  Model a real pre-Slice-40 store instead:
+        # step-32 shape exists, but bootstrap has not installed its authority.
+        conn.executescript(
+            "DROP TRIGGER _fathomdb_projection_generation_retain;"
+            "DELETE FROM _fathomdb_projection_generation_current;"
+            "DELETE FROM _fathomdb_projection_generations;"
+            "CREATE TRIGGER _fathomdb_projection_generation_retain "
+            "BEFORE DELETE ON _fathomdb_projection_generations "
+            "BEGIN SELECT RAISE(ABORT, "
+            "'projection generation history is retained'); END;"
+        )
         conn.execute(
             "INSERT INTO _fathomdb_projection_registry"
             "     (name, roles, fts_tokenizer, vector_embedder, vector_declared)"

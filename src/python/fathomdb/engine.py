@@ -514,6 +514,7 @@ class Engine:
             resulting_write_boundary=value.resulting_write_boundary,
             resulting_dependency_generation=value.resulting_dependency_generation,
             pending_projection_write_cursors=tuple(value.pending_projection_write_cursors),
+            projection_generation_id=value.projection_generation_id,
             closure_operation_ids=tuple(value.closure_operation_ids),
         )
 

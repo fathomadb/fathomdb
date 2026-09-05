@@ -49,6 +49,7 @@ mod dependency_closure;
 mod frozen_read;
 pub mod lifecycle;
 mod pcache2;
+mod projection_generation;
 #[cfg(feature = "tc5-benchmark")]
 pub mod tc5_benchmark;
 
@@ -61,6 +62,11 @@ pub use dependency_closure::{
     ClosureRootV1, ClosureStatusV1, DependencyClosureError, DependencyClosureErrorReason,
 };
 pub use frozen_read::{FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, ReadContextV1};
+pub use projection_generation::{
+    MutationProjectionStatusRequestV1, MutationProjectionStatusV1, ProjectionGenerationError,
+    ProjectionGenerationErrorReason, ProjectionGenerationId, ProjectionGenerationOriginV1,
+    ProjectionGenerationStatusV1, ProjectionReadinessV1, ProjectionRuntimeStateV1,
+};
 
 /// Slice 72's private trusted-runner rendezvous. This is compiled only by the
 /// non-shipped characterization feature and exists solely to delimit real CE
@@ -805,6 +811,7 @@ struct ProjectionJob {
     cursor: u64,
     kind: String,
     body: String,
+    generation_id: ProjectionGenerationId,
 }
 
 #[derive(Debug, Default)]
@@ -5941,6 +5948,7 @@ pub enum CorruptionKind {
     HeaderMalformed,
     SchemaInconsistent,
     EmbedderIdentityDrift,
+    ProjectionGenerationDrift,
 }
 
 /// `Engine.open` stage at which corruption was detected.
@@ -5954,6 +5962,7 @@ pub enum OpenStage {
     HeaderProbe,
     SchemaProbe,
     EmbedderIdentity,
+    ProjectionGeneration,
 }
 
 /// Locator pointing at the corrupted region of the database file.
@@ -6134,6 +6143,8 @@ pub enum EngineError {
     /// A frozen read context was malformed, unauthenticated, addressed to a
     /// different database, or no longer matches the database read state.
     FrozenRead(FrozenReadError),
+    /// Projection-generation request or persisted-authority failure.
+    ProjectionGeneration(ProjectionGenerationError),
     Overloaded,
     Closing,
     /// G11 (Slice 15) — BYO-LLM extractor subprocess error (protocol mismatch,
@@ -6255,6 +6266,12 @@ impl From<FrozenReadError> for EngineError {
     }
 }
 
+impl From<ProjectionGenerationError> for EngineError {
+    fn from(error: ProjectionGenerationError) -> Self {
+        Self::ProjectionGeneration(error)
+    }
+}
+
 impl Display for EngineError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -6283,6 +6300,7 @@ impl Display for EngineError {
             Self::DependencyClosure(error) => write!(f, "dependency closure: {error}"),
             Self::Actuation(error) => write!(f, "actuation: {error}"),
             Self::FrozenRead(error) => write!(f, "frozen read: {error}"),
+            Self::ProjectionGeneration(error) => write!(f, "projection generation: {error}"),
             Self::Overloaded => write!(f, "engine overloaded"),
             Self::Closing => write!(f, "engine is closing"),
             Self::Extractor => write!(f, "extractor error"),
@@ -6348,6 +6366,7 @@ impl EngineError {
             Self::DependencyClosure(_) => "DependencyClosureError",
             Self::Actuation(_) => "ActuationError",
             Self::FrozenRead(_) => "FrozenReadError",
+            Self::ProjectionGeneration(_) => "ProjectionGenerationError",
             Self::Overloaded => "OverloadedError",
             Self::Closing => "ClosingError",
             Self::Extractor => "ExtractorError",
@@ -7727,6 +7746,27 @@ impl Engine {
         ensure_vector_partition(&mut connection, embedder_identity.dimension).map_err(|_| {
             EngineOpenError::Io { message: "could not initialize vector partition".to_string() }
         })?;
+        projection_generation::bootstrap(&mut connection, migration.schema_version_after).map_err(
+            |error| match error {
+                EngineError::ProjectionGeneration(_) => {
+                    EngineOpenError::Corruption(CorruptionDetail {
+                        kind: CorruptionKind::ProjectionGenerationDrift,
+                        stage: OpenStage::ProjectionGeneration,
+                        locator: CorruptionLocator::TableRow {
+                            table: "_fathomdb_projection_generation_current",
+                            rowid: 1,
+                        },
+                        recovery_hint: RecoveryHint {
+                            code: "E_CORRUPT_PROJECTION_GENERATION",
+                            doc_anchor: "design/recovery-0.8.25.md#projection-generation",
+                        },
+                    })
+                }
+                _ => EngineOpenError::Io {
+                    message: "could not initialize projection generation".to_string(),
+                },
+            },
+        )?;
 
         // 0.8.20 Slice 15c (TC-33) fix-6 [codex §9 P1] — the step-23
         // `canonical_edges` recreate drops every edge row (NO DATA MIGRATION) and
@@ -11410,6 +11450,57 @@ impl Engine {
         self.projection_runtime.set_frozen(frozen);
     }
 
+    /// Mint a configuration-origin generation without changing declarations.
+    ///
+    /// This test hook isolates the worker's captured-generation publication
+    /// fence. Production transitions remain owned by configuration/rebuild.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn transition_projection_generation_for_test(
+        &self,
+    ) -> Result<ProjectionGenerationId, EngineError> {
+        self.ensure_open()?;
+        let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = guard.as_mut().ok_or(EngineError::Closing)?;
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        let generation =
+            projection_generation::transition(&tx, ProjectionGenerationOriginV1::Configuration)?;
+        tx.commit().map_err(|_| EngineError::Storage)?;
+        Ok(generation)
+    }
+
+    /// Attempt worker-success publication with an explicitly captured epoch.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn publish_projection_success_for_test(
+        &self,
+        cursor: u64,
+        kind: &str,
+        generation_id: ProjectionGenerationId,
+    ) -> Result<(), EngineError> {
+        self.ensure_open()?;
+        let vector =
+            vec![0.25_f32; self.projection_runtime.shared.embedder_identity.dimension as usize];
+        let blob = encode_vector_blob(&vector);
+        let outcome = ProjectionOutcome::Success {
+            cursor,
+            kind: kind.to_string(),
+            blob: blob.clone(),
+            bin_blob: blob,
+            generation_id,
+        };
+        let mut connection = open_runtime_connection(
+            &self.projection_runtime.shared.path,
+            ManagedConnectionCategory::ProjectionWorker,
+            &self.projection_runtime.shared.managed_connections,
+        )
+        .map_err(|_| EngineError::Storage)?;
+        commit_projection_outcomes(&mut connection, &[outcome], &self.projection_runtime.shared, 0)
+            .map_err(|_| EngineError::Storage)
+    }
+
     /// Test-only snapshot of whether the dispatcher has a scan wake pending.
     ///
     /// This exists to prove pure observers do not notify the scheduler. It is
@@ -12485,7 +12576,20 @@ impl Engine {
                     .map_err(|_| EngineError::Storage)?;
             }
         }
+        let reopened = if matches!(to_state, LifecycleState::Active) {
+            match &current {
+                Some((_, cursor, kind, body, row_kind)) => {
+                    restore_registered_derived_projections(&tx, *cursor, kind, body, row_kind)?
+                }
+                None => false,
+            }
+        } else {
+            false
+        };
         tx.commit().map_err(|_| EngineError::Storage)?;
+        if reopened {
+            self.projection_runtime.notify_new_work();
+        }
         self.counters.record_admin();
         Ok(())
     }
@@ -12539,6 +12643,12 @@ impl Engine {
                 .map_err(|_| EngineError::Storage)?;
             dependency_closure::guard_no_pending_physical(&tx)?;
             let applied = apply_projection_config(&tx, specs, drop, dense_arm_live)?;
+            if !applied.0.unchanged {
+                projection_generation::transition(
+                    &tx,
+                    ProjectionGenerationOriginV1::Configuration,
+                )?;
+            }
             tx.commit().map_err(|_| EngineError::Storage)?;
             applied
         };
@@ -14211,6 +14321,7 @@ impl Engine {
                 rows_rebuilt = rows_rebuilt.saturating_add(1);
             }
         }
+        projection_generation::transition(&tx, ProjectionGenerationOriginV1::Rebuild)?;
         let projection_cursor_after =
             load_projection_cursor(&tx).map_err(|_| EngineError::Storage)?;
         tx.commit().map_err(|_| EngineError::Storage)?;
@@ -14224,6 +14335,139 @@ impl Engine {
 
         Ok(())
     }
+}
+
+fn restore_registered_derived_projections(
+    tx: &Connection,
+    cursor: i64,
+    kind: &str,
+    body: &str,
+    row_kind: &str,
+) -> Result<bool, EngineError> {
+    let registered: bool = tx
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions r \
+               JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=r.revision_id \
+               WHERE r.artifact_class='node' AND r.write_cursor=?1)",
+            [cursor],
+            |row| row.get(0),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    if !registered {
+        return Ok(false);
+    }
+    let legacy_fts: Vec<(String, String)> = tx
+        .prepare("SELECT body,kind FROM search_index WHERE write_cursor=?1")
+        .and_then(|mut statement| {
+            statement.query_map([cursor], |row| Ok((row.get(0)?, row.get(1)?)))?.collect()
+        })
+        .map_err(|_| EngineError::Storage)?;
+    let fielded_fts: Vec<(String, String, String)> = tx
+        .prepare("SELECT kind,body,status FROM search_index_v2 WHERE write_cursor=?1")
+        .and_then(|mut statement| {
+            statement
+                .query_map([cursor], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+                .collect()
+        })
+        .map_err(|_| EngineError::Storage)?;
+    let expected_status: String = tx
+        .query_row(
+            "SELECT CASE WHEN json_valid(?1) \
+               THEN COALESCE(json_extract(?1,'$.status'),'') ELSE '' END",
+            [body],
+            |row| row.get(0),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    match (legacy_fts.as_slice(), fielded_fts.as_slice()) {
+        ([(stored_body, stored_kind)], [(stored_kind_v2, stored_body_v2, stored_status)])
+            if stored_body == body
+                && stored_kind == kind
+                && stored_kind_v2 == kind
+                && stored_body_v2 == body
+                && stored_status == &expected_status => {}
+        ([], []) => {
+            let row_kind = match row_kind {
+                "leaf" => RowKind::Leaf,
+                "coverage" => RowKind::Coverage,
+                "graph" => RowKind::Graph,
+                _ => return Err(EngineError::Storage),
+            };
+            project_canonical_node_row(
+                tx,
+                u64::try_from(cursor).map_err(|_| EngineError::Storage)?,
+                kind,
+                body,
+                row_kind,
+                ProjectionPass::FtsOnly,
+                true,
+            )
+            .map_err(|_| EngineError::Storage)?;
+        }
+        _ => return Err(projection_generation::corruption_error()),
+    }
+    if !vector_projection_declared(tx).map_err(|_| EngineError::Storage)?
+        || !matches!(row_kind, "leaf" | "coverage")
+        || !kind_is_vector_committable(kind)
+    {
+        return Ok(false);
+    }
+    let terminal: Option<String> = tx
+        .query_row(
+            "SELECT state FROM _fathomdb_projection_terminal WHERE write_cursor=?1",
+            [cursor],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let sidecar: Option<String> = tx
+        .query_row(
+            "SELECT kind FROM _fathomdb_vector_rows WHERE write_cursor=?1",
+            [cursor],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let physical: Option<(String, String)> = tx
+        .query_row("SELECT source_type,kind FROM vector_default WHERE rowid=?1", [cursor], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let expected_source_type = resolve_source_type(kind)?;
+    if terminal.as_deref() == Some("up_to_date")
+        && sidecar.as_deref() == Some(kind)
+        && physical.as_ref().is_some_and(|(source_type, physical_kind)| {
+            source_type == expected_source_type && physical_kind == kind
+        })
+    {
+        return Ok(false);
+    }
+    if !matches!(terminal.as_deref(), None | Some("up_to_date"))
+        || sidecar.is_some()
+        || physical.is_some()
+    {
+        return Err(projection_generation::corruption_error());
+    }
+    tx.execute(
+        "INSERT OR IGNORE INTO _fathomdb_vector_kinds(kind,profile,created_at) \
+         VALUES(?1,'default',0)",
+        [kind],
+    )
+    .map_err(|_| EngineError::Storage)?;
+    tx.execute("DELETE FROM _fathomdb_projection_terminal WHERE write_cursor=?1", [cursor])
+        .map_err(|_| EngineError::Storage)?;
+    tx.execute(
+        "INSERT INTO _fathomdb_projection_state(kind,last_enqueued_cursor,updated_at) \
+         VALUES(?1,?2,0) ON CONFLICT(kind) DO UPDATE SET \
+         last_enqueued_cursor=MAX(last_enqueued_cursor,excluded.last_enqueued_cursor)",
+        params![kind, cursor],
+    )
+    .map_err(|_| EngineError::Storage)?;
+    let cursor = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
+    if load_projection_cursor(tx).map_err(|_| EngineError::Storage)? >= cursor {
+        store_projection_cursor(tx, cursor.saturating_sub(1)).map_err(|_| EngineError::Storage)?;
+    }
+    Ok(true)
 }
 
 fn batch_is_admin(batch: &[PreparedWrite]) -> bool {
@@ -18351,10 +18595,12 @@ enum ProjectionOutcome {
         kind: String,
         blob: Vec<u8>,
         bin_blob: Vec<u8>,
+        generation_id: ProjectionGenerationId,
     },
     Failure {
         cursor: u64,
         failure_code: &'static str,
+        generation_id: ProjectionGenerationId,
     },
     /// 0.8.20 Slice 20c fix-4 (codex §9 round 3 [P1]) — the ENVIRONMENT could
     /// not serve this row, as distinct from the embed FAILING. Records nothing
@@ -18475,6 +18721,7 @@ fn embed_projection_batch(
             kind: job.kind.clone(),
             blob,
             bin_blob,
+            generation_id: job.generation_id.clone(),
         });
     }
     outcomes
@@ -18494,6 +18741,7 @@ fn commit_projection_panic_failures(
         .map(|job| ProjectionOutcome::Failure {
             cursor: job.cursor,
             failure_code: "ProjectionPanic",
+            generation_id: job.generation_id.clone(),
         })
         .collect();
     commit_projection_outcomes(connection, &outcomes, shared, worker_idx)
@@ -18675,14 +18923,22 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
     // entry check is the fast path; the latch decision itself is made under the
     // embed guard below (race-free against other workers).
     if shared.embed_circuit_open.load(Ordering::Relaxed) {
-        return ProjectionOutcome::Failure { cursor: job.cursor, failure_code: "EmbedderError" };
+        return ProjectionOutcome::Failure {
+            cursor: job.cursor,
+            failure_code: "EmbedderError",
+            generation_id: job.generation_id.clone(),
+        };
     }
     let delays = shared.retry_delays_ms.lock().map(|delays| delays.clone()).unwrap_or_default();
     let mut last_code = "EmbedderError";
     for (attempt, delay_ms) in std::iter::once(0_u64).chain(delays.iter().copied()).enumerate() {
         if attempt > 0 {
             if shared.state.lock().map(|state| state.stopping).unwrap_or(true) {
-                return ProjectionOutcome::Failure { cursor: job.cursor, failure_code: last_code };
+                return ProjectionOutcome::Failure {
+                    cursor: job.cursor,
+                    failure_code: last_code,
+                    generation_id: job.generation_id.clone(),
+                };
             }
             thread::sleep(Duration::from_millis(delay_ms));
         }
@@ -18692,7 +18948,11 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
         // another timeout-bound watchdog thread, so the abandoned-thread leak
         // stays bounded even on the multi-retry path.
         if shared.embed_circuit_open.load(Ordering::Relaxed) {
-            return ProjectionOutcome::Failure { cursor: job.cursor, failure_code: last_code };
+            return ProjectionOutcome::Failure {
+                cursor: job.cursor,
+                failure_code: last_code,
+                generation_id: job.generation_id.clone(),
+            };
         }
         // PR-9 / ADR-0.6.0 Invariant 5 — every embed runs under the per-call
         // watchdog deadline so a hung embed surfaces Timeout instead of
@@ -18728,6 +18988,7 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
                     return ProjectionOutcome::Failure {
                         cursor: job.cursor,
                         failure_code: last_code,
+                        generation_id: job.generation_id.clone(),
                     };
                 }
                 match embed_with_watchdog(
@@ -18776,10 +19037,15 @@ fn run_projection_job(shared: &ProjectionRuntimeShared, job: &ProjectionJob) -> 
             kind: job.kind.clone(),
             blob,
             bin_blob,
+            generation_id: job.generation_id.clone(),
         };
     }
 
-    ProjectionOutcome::Failure { cursor: job.cursor, failure_code: last_code }
+    ProjectionOutcome::Failure {
+        cursor: job.cursor,
+        failure_code: last_code,
+        generation_id: job.generation_id.clone(),
+    }
 }
 
 /// 0.8.20 Slice 20 fix-1 (codex §9 [P2]) — the ONE definition of "a canonical
@@ -18829,6 +19095,113 @@ fn pending_edge_projection_from_where(now_idx: usize) -> String {
     )
 }
 
+const PROJECTION_CANDIDATE_PAGE: usize = 256;
+
+fn pending_projection_candidate_page(
+    connection: &Connection,
+    after_cursor: u64,
+    through_cursor: Option<u64>,
+    effective_at: i64,
+) -> rusqlite::Result<Vec<(u64, String)>> {
+    let sql = format!(
+        "SELECT pending.write_cursor,pending.kind FROM (
+           SELECT n.write_cursor,n.kind
+           FROM canonical_nodes n
+           JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind
+           LEFT JOIN _fathomdb_projection_terminal pt ON pt.write_cursor=n.write_cursor
+           WHERE n.write_cursor>?1 AND (?2 IS NULL OR n.write_cursor<=?2)
+             AND pt.write_cursor IS NULL
+           UNION ALL
+           SELECT ce.write_cursor,'edge_fact'
+           {}
+             AND ce.write_cursor>?1 AND (?2 IS NULL OR ce.write_cursor<=?2)
+         ) AS pending ORDER BY pending.write_cursor LIMIT {PROJECTION_CANDIDATE_PAGE}",
+        pending_edge_projection_from_where(3),
+    );
+    connection
+        .prepare_cached(&sql)?
+        .query_map(params![after_cursor, through_cursor, effective_at], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })?
+        .collect()
+}
+
+fn pending_projection_members_in_range(
+    connection: &Connection,
+    after_cursor: u64,
+    through_cursor: Option<u64>,
+    effective_at: i64,
+) -> rusqlite::Result<Vec<(u64, String)>> {
+    let mut members = Vec::new();
+    let mut page_cursor = after_cursor;
+    loop {
+        let page = pending_projection_candidate_page(
+            connection,
+            page_cursor,
+            through_cursor,
+            effective_at,
+        )?;
+        let page_len = page.len();
+        for (cursor, kind) in page {
+            page_cursor = cursor;
+            if projection_generation::dense_member_kind_at(connection, cursor, effective_at)
+                .map_err(|_| rusqlite::Error::InvalidQuery)?
+                .as_deref()
+                == Some(kind.as_str())
+            {
+                members.push((cursor, kind));
+            }
+        }
+        if page_len < PROJECTION_CANDIDATE_PAGE {
+            break;
+        }
+    }
+    Ok(members)
+}
+
+fn first_pending_projection_member_in_range(
+    connection: &Connection,
+    after_cursor: u64,
+    through_cursor: Option<u64>,
+    effective_at: i64,
+) -> rusqlite::Result<Option<(u64, String)>> {
+    let mut page_cursor = after_cursor;
+    loop {
+        let page = pending_projection_candidate_page(
+            connection,
+            page_cursor,
+            through_cursor,
+            effective_at,
+        )?;
+        let page_len = page.len();
+        for (cursor, kind) in page {
+            page_cursor = cursor;
+            if projection_generation::dense_member_kind_at(connection, cursor, effective_at)
+                .map_err(|_| rusqlite::Error::InvalidQuery)?
+                .as_deref()
+                == Some(kind.as_str())
+            {
+                return Ok(Some((cursor, kind)));
+            }
+        }
+        if page_len < PROJECTION_CANDIDATE_PAGE {
+            return Ok(None);
+        }
+    }
+}
+
+fn lowest_pending_projection_member_at_or_below(
+    connection: &Connection,
+    watermark: u64,
+    effective_at: i64,
+) -> rusqlite::Result<Option<u64>> {
+    if watermark == 0 {
+        return Ok(None);
+    }
+    Ok(first_pending_projection_member_in_range(connection, 0, Some(watermark), effective_at)?
+        .map(|(cursor, _)| cursor))
+}
+
 /// The SCHEDULER's scan: the next `max_jobs` pending projection jobs in
 /// `write_cursor` order.
 ///
@@ -18854,10 +19227,8 @@ fn next_pending_projection_jobs(
     if max_jobs == 0 || !dense_arm_live {
         return Ok(Vec::new());
     }
-    let cursor = load_projection_cursor(connection)?;
-    // Over-fetch by `in_flight.len()` so the post-filter still returns
-    // up to `max_jobs` after skipping cursors already in-flight.
-    let sql_limit = max_jobs.saturating_add(in_flight.len()).min(256);
+    let effective_at = current_epoch_seconds();
+    let persisted_cursor = load_projection_cursor(connection)?;
     // G11 (Slice 15) — UNION extends the projection queue to include edge bodies.
     // Edge bodies use kind `'edge_fact'` so `resolve_source_type` maps them to
     // `source_type = 'edge_fact'` in `vector_default` (partition correctness).
@@ -18865,7 +19236,7 @@ fn next_pending_projection_jobs(
     // insertion order across nodes and edges.
     //
     let sql = format!(
-        "SELECT write_cursor, kind, body FROM (
+        "SELECT pending.write_cursor, pending.kind, pending.body, current.generation_id FROM (
              SELECT canonical_nodes.write_cursor AS write_cursor,
                     canonical_nodes.kind AS kind,
                     canonical_nodes.body AS body
@@ -18884,19 +19255,16 @@ fn next_pending_projection_jobs(
                     ce.body AS body
              {edge_arm}
                AND ce.write_cursor > ?1
-         ) ORDER BY write_cursor
-         LIMIT {sql_limit}",
-        // fix-1 [P2]: the edge arm's row-eligibility predicates come from the
-        // shared fragment so this and `connection_has_pending_projection_work`
-        // cannot disagree about what is outstanding. The `write_cursor > ?1`
-        // watermark is appended here and ONLY here — see the fragment's doc.
-        // TC-33: `?1` is the projection cursor ⇒ the edge `:now` binds at `?2`.
+         ) AS pending
+         CROSS JOIN _fathomdb_projection_generation_current AS current
+         WHERE current.singleton=1
+         ORDER BY pending.write_cursor
+         LIMIT {PROJECTION_CANDIDATE_PAGE}",
+        // The persisted projection cursor remains the healthy fast path. TC-33:
+        // `?1` is the page cursor and the edge validity instant binds at `?2`.
         edge_arm = pending_edge_projection_from_where(2),
     );
     let mut statement = connection.prepare_cached(&sql)?;
-    let rows = statement.query_map(params![cursor, current_epoch_seconds()], |row| {
-        Ok(ProjectionJob { cursor: row.get(0)?, kind: row.get(1)?, body: row.get(2)? })
-    })?;
     // SQLite starts the implicit read transaction at statement execution; do
     // not call this a transaction before `query_map` succeeds.
     let _activity = attribution.enabled.then(|| {
@@ -18907,18 +19275,64 @@ fn next_pending_projection_jobs(
             "snapshot_acquired",
         )
     });
-    let mut jobs = Vec::with_capacity(max_jobs);
-    for row in rows {
-        let job = row?;
-        if in_flight.contains(&job.cursor) {
-            continue;
+    let mut scan_cursor = persisted_cursor;
+    let mut checked_below_watermark = false;
+    loop {
+        let mut jobs = Vec::with_capacity(max_jobs);
+        let mut after_cursor = scan_cursor;
+        loop {
+            let page = statement
+                .query_map(params![after_cursor, effective_at], |row| {
+                    let generation_id =
+                        projection_generation::parse_persisted_generation_id(row.get(3)?)
+                            .map_err(|_| rusqlite::Error::InvalidQuery)?;
+                    Ok(ProjectionJob {
+                        cursor: row.get(0)?,
+                        kind: row.get(1)?,
+                        body: row.get(2)?,
+                        generation_id,
+                    })
+                })?
+                .collect::<rusqlite::Result<Vec<_>>>()?;
+            let page_len = page.len();
+            for job in page {
+                after_cursor = job.cursor;
+                if in_flight.contains(&job.cursor) {
+                    continue;
+                }
+                if projection_generation::dense_member_kind_at(connection, job.cursor, effective_at)
+                    .map_err(|_| rusqlite::Error::InvalidQuery)?
+                    .as_deref()
+                    != Some(job.kind.as_str())
+                {
+                    continue;
+                }
+                jobs.push(job);
+                if jobs.len() >= max_jobs {
+                    return Ok(jobs);
+                }
+            }
+            if page_len < PROJECTION_CANDIDATE_PAGE {
+                break;
+            }
         }
-        jobs.push(job);
-        if jobs.len() >= max_jobs {
-            break;
+        if !jobs.is_empty() || checked_below_watermark {
+            return Ok(jobs);
+        }
+        checked_below_watermark = true;
+        let Some(cursor) = lowest_pending_projection_member_at_or_below(
+            connection,
+            persisted_cursor,
+            effective_at,
+        )?
+        else {
+            return Ok(Vec::new());
+        };
+        scan_cursor = cursor.saturating_sub(1);
+        if scan_cursor < persisted_cursor {
+            store_projection_cursor(connection, scan_cursor)?;
         }
     }
-    Ok(jobs)
 }
 
 fn database_has_pending_projection_work(
@@ -18951,28 +19365,6 @@ fn database_has_pending_projection_work(
 /// for edge bodies the scheduler would never schedule. That was PRE-EXISTING —
 /// it reached `Engine::drain` through `wait_for_idle` before readiness existed.
 fn connection_has_pending_projection_work(connection: &Connection) -> rusqlite::Result<bool> {
-    let cursor = load_projection_cursor(connection)?;
-    // Check canonical_nodes for un-projected work.
-    let has_node_work: bool = connection
-        .query_row(
-            "SELECT 1
-             FROM canonical_nodes
-             JOIN _fathomdb_vector_kinds ON _fathomdb_vector_kinds.kind = canonical_nodes.kind
-             LEFT JOIN _fathomdb_projection_terminal
-               ON _fathomdb_projection_terminal.write_cursor = canonical_nodes.write_cursor
-             WHERE canonical_nodes.write_cursor > ?1
-               AND _fathomdb_projection_terminal.write_cursor IS NULL
-             LIMIT 1",
-            [cursor],
-            |_row| Ok(true),
-        )
-        .or_else(|err| match err {
-            rusqlite::Error::QueryReturnedNoRows => Ok(false),
-            _ => Err(err),
-        })?;
-    if has_node_work {
-        return Ok(true);
-    }
     // G11 (Slice 15) fix-1 [P2] — also check canonical_edges for edge bodies
     // that were not projected before the engine closed. Without this check,
     // drain() returns idle while edge vectors remain unembedded on reopen.
@@ -18990,49 +19382,30 @@ fn connection_has_pending_projection_work(connection: &Connection) -> rusqlite::
     // uses — because the hand-copied mirror had already lost the
     // `_fathomdb_vector_kinds` join and produced exactly the phantom-pending
     // hang described above for edge bodies under an unregistered `edge_fact`.
-    connection
-        .query_row(
-            // TC-33: no other parameter here ⇒ the edge `:now` binds at `?1`.
-            // No `write_cursor > cursor` filter — see the fragment's doc for
-            // why the probe deliberately looks BELOW the watermark too.
-            &format!("SELECT 1 {} LIMIT 1", pending_edge_projection_from_where(1)),
-            params![current_epoch_seconds()],
-            |_row| Ok(true),
-        )
-        .or_else(|err| match err {
-            rusqlite::Error::QueryReturnedNoRows => Ok(false),
-            _ => Err(err),
-        })
+    let effective_at = current_epoch_seconds();
+    let watermark = load_projection_cursor(connection)?;
+    if first_pending_projection_member_in_range(connection, watermark, None, effective_at)?
+        .is_some()
+    {
+        return Ok(true);
+    }
+    Ok(lowest_pending_projection_member_at_or_below(connection, watermark, effective_at)?.is_some())
 }
 
 /// One pure, count-preserving view of the projection rows that are presently
 /// eligible for embedding. It shares the scheduler and drain predicates, so a
 /// readiness report never names work that `drain` does not wait for.
 fn pending_embedding_work(connection: &Connection) -> rusqlite::Result<Vec<(String, u64)>> {
-    let cursor = load_projection_cursor(connection)?;
-    let sql = format!(
-        "SELECT kind, COUNT(*) FROM (
-             SELECT canonical_nodes.kind AS kind
-             FROM canonical_nodes
-             JOIN _fathomdb_vector_kinds
-               ON _fathomdb_vector_kinds.kind = canonical_nodes.kind
-             LEFT JOIN _fathomdb_projection_terminal
-               ON _fathomdb_projection_terminal.write_cursor = canonical_nodes.write_cursor
-             WHERE canonical_nodes.write_cursor > ?1
-               AND _fathomdb_projection_terminal.write_cursor IS NULL
-             UNION ALL
-             SELECT 'edge_fact' AS kind
-             {}
-         ) GROUP BY kind ORDER BY kind",
-        pending_edge_projection_from_where(2)
-    );
-    let mut statement = connection.prepare_cached(&sql)?;
-    let rows = statement
-        .query_map(params![cursor, current_epoch_seconds()], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, u64>(1)?))
-        })?
-        .collect();
-    rows
+    let effective_at = current_epoch_seconds();
+    let watermark = load_projection_cursor(connection)?;
+    let mut rows = pending_projection_members_in_range(connection, watermark, None, effective_at)?;
+    rows.extend(pending_projection_members_in_range(connection, 0, Some(watermark), effective_at)?);
+    let mut counts = BTreeMap::<String, u64>::new();
+    for (_, kind) in rows {
+        let count = counts.entry(kind).or_default();
+        *count = count.saturating_add(1);
+    }
+    Ok(counts.into_iter().collect())
 }
 
 /// 0.8.20 Slice 20 (R-20-DR) — the `dense_readiness` of the `searchable→vector`
@@ -19538,6 +19911,31 @@ fn terminal_state_for_cursor(
         })
 }
 
+fn projection_physical_tuple_is_empty(
+    connection: &Connection,
+    cursor: u64,
+) -> rusqlite::Result<bool> {
+    let sidecar_count: u64 = connection.query_row(
+        "SELECT COUNT(*) FROM _fathomdb_vector_rows \
+         WHERE rowid=?1 OR write_cursor=?1",
+        [cursor],
+        |row| row.get(0),
+    )?;
+    let vector_count: u64 = connection.query_row(
+        "SELECT COUNT(*) FROM vector_default WHERE rowid=?1",
+        [cursor],
+        |row| row.get(0),
+    )?;
+    Ok(sidecar_count == 0 && vector_count == 0)
+}
+
+fn projection_tuple_corruption() -> rusqlite::Error {
+    rusqlite::Error::SqliteFailure(
+        rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CORRUPT),
+        Some("projection physical tuple is partial or mismatched".to_string()),
+    )
+}
+
 fn advance_projection_cursor(connection: &Connection) -> rusqlite::Result<u64> {
     let mut cursor = load_projection_cursor(connection)?;
     loop {
@@ -19619,20 +20017,29 @@ fn commit_projection_outcomes(
     let mut staged_events: Vec<EmbedderEvent> = Vec::new();
     for outcome in outcomes {
         match outcome {
-            ProjectionOutcome::Success { cursor, kind, blob, bin_blob } => {
+            ProjectionOutcome::Success { cursor, kind, blob, bin_blob, generation_id } => {
+                if projection_generation::current_generation_id(&tx)
+                    .map_err(|_| rusqlite::Error::InvalidQuery)?
+                    != *generation_id
+                {
+                    continue;
+                }
+                if projection_generation::dense_member_kind_at(
+                    &tx,
+                    *cursor,
+                    current_epoch_seconds(),
+                )
+                .map_err(|_| rusqlite::Error::InvalidQuery)?
+                .as_deref()
+                    != Some(kind.as_str())
+                {
+                    continue;
+                }
                 if terminal_state_for_cursor(&tx, *cursor)?.is_some() {
                     continue;
                 }
-                if !dependency_closure::projection_owner_is_eligible(&tx, *cursor)
-                    .map_err(|_| rusqlite::Error::InvalidQuery)?
-                {
-                    delete_vector_partition_row(&tx, *cursor as i64)?;
-                    tx.execute(
-                        "DELETE FROM _fathomdb_vector_rows WHERE write_cursor=?1",
-                        [*cursor as i64],
-                    )?;
-                    record_projection_terminal(&tx, *cursor, "up_to_date")?;
-                    continue;
+                if !projection_physical_tuple_is_empty(&tx, *cursor)? {
+                    return Err(projection_tuple_corruption());
                 }
                 // Build the threshold decision in the transaction-local
                 // candidate. The shared accumulator changes only after commit.
@@ -19664,7 +20071,8 @@ fn commit_projection_outcomes(
                     SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
                         as i64;
                 tx.execute(
-                    "INSERT OR IGNORE INTO _fathomdb_vector_rows(rowid, kind, write_cursor) VALUES(?1, ?2, ?3)",
+                    "INSERT INTO _fathomdb_vector_rows(rowid, kind, write_cursor) \
+                     VALUES(?1, ?2, ?3)",
                     params![cursor, kind, cursor],
                 )?;
                 // EU-5a2/EU-5f — sign-quant input is the mean-subtracted
@@ -19692,7 +20100,7 @@ fn commit_projection_outcomes(
                 // NO extra lookup.
                 if actual_vector_attr_columns(&tx)?.is_empty() {
                     tx.execute(
-                        "INSERT OR IGNORE INTO vector_default(
+                        "INSERT INTO vector_default(
                             rowid, embedding, embedding_bin, source_type, kind, created_at, status
                          ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, '')",
                         params![cursor, blob, centered_blob, source_type, kind, now_unix],
@@ -19709,7 +20117,7 @@ fn commit_projection_outcomes(
                     let (cols_sql, ph_sql, attr_vals) =
                         vector_attr_insert_fragments(&tx, &body, 7)?;
                     let sql = format!(
-                        "INSERT OR IGNORE INTO vector_default(
+                        "INSERT INTO vector_default(
                             rowid, embedding, embedding_bin, source_type, kind, created_at, status{cols_sql}
                          ) VALUES(?1, ?2, vec_quantize_binary(?3), ?4, ?5, ?6, ''{ph_sql})"
                     );
@@ -19762,9 +20170,28 @@ fn commit_projection_outcomes(
                     current_mean = Some(mean);
                 }
             }
-            ProjectionOutcome::Failure { cursor, failure_code } => {
+            ProjectionOutcome::Failure { cursor, failure_code, generation_id } => {
+                if projection_generation::current_generation_id(&tx)
+                    .map_err(|_| rusqlite::Error::InvalidQuery)?
+                    != *generation_id
+                {
+                    continue;
+                }
+                if projection_generation::dense_member_kind_at(
+                    &tx,
+                    *cursor,
+                    current_epoch_seconds(),
+                )
+                .map_err(|_| rusqlite::Error::InvalidQuery)?
+                .is_none()
+                {
+                    continue;
+                }
                 if terminal_state_for_cursor(&tx, *cursor)?.is_some() {
                     continue;
+                }
+                if !projection_physical_tuple_is_empty(&tx, *cursor)? {
+                    return Err(projection_tuple_corruption());
                 }
                 let existing: u64 = tx.query_row(
                     "SELECT COUNT(*) FROM operational_mutations
@@ -22273,6 +22700,7 @@ fn collect_projection_jobs(
     batch: &[PreparedWrite],
 ) -> Result<Vec<ProjectionJob>, EngineError> {
     let mut jobs = Vec::new();
+    let generation_id = projection_generation::current_generation_id(connection)?;
     for write in batch {
         let write = storage_write_shape(write);
         if let PreparedWrite::Node { kind, body, .. } = write.as_ref() {
@@ -22280,7 +22708,12 @@ fn collect_projection_jobs(
             // kinds. `write_inner` separately treats every prospective enrolment
             // as pending, then notifies only after the batch transaction commits.
             if kind_is_vector_indexed(connection, kind)? {
-                jobs.push(ProjectionJob { cursor: 0, kind: kind.clone(), body: body.clone() });
+                jobs.push(ProjectionJob {
+                    cursor: 0,
+                    kind: kind.clone(),
+                    body: body.clone(),
+                    generation_id: generation_id.clone(),
+                });
             }
         }
     }
@@ -25462,6 +25895,11 @@ fn rederive_projections_on_boot(conn: &Connection) -> rusqlite::Result<()> {
     if registry.is_empty() {
         return Ok(());
     }
+    let persisted = projection_registry_cache_snapshot(conn)?;
+    let expected = expected_projection_registry_cache_snapshot(conn, &registry)?;
+    if persisted == expected {
+        return Ok(());
+    }
     conn.execute_batch("BEGIN IMMEDIATE")?;
     let result = (|| {
         for (name, stored) in &registry {
@@ -25477,6 +25915,70 @@ fn rederive_projections_on_boot(conn: &Connection) -> rusqlite::Result<()> {
             Err(err)
         }
     }
+}
+
+fn expected_projection_registry_cache_snapshot(
+    conn: &Connection,
+    registry: &BTreeMap<String, StoredProjection>,
+) -> rusqlite::Result<(Vec<(i64, String, Option<String>)>, Vec<(i64, String, String)>)> {
+    let nodes = {
+        let mut statement = conn.prepare(
+            "SELECT write_cursor,body FROM canonical_nodes \
+             WHERE superseded_at IS NULL AND state='active' ORDER BY write_cursor",
+        )?;
+        let rows = statement
+            .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        rows
+    };
+    let mut attributes = Vec::new();
+    let mut property_fts = Vec::new();
+    for (name, stored) in registry {
+        if !stored.wants_eav() {
+            continue;
+        }
+        for (cursor, body) in &nodes {
+            if let Some(value) = extract_scalar_attribute(conn, body, name, stored)? {
+                attributes.push((*cursor, name.clone(), Some(value.clone())));
+                if stored.wants_property_fts() {
+                    property_fts.push((*cursor, name.clone(), value));
+                }
+            }
+        }
+    }
+    attributes.sort_by(|left, right| {
+        left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)).then_with(|| left.2.cmp(&right.2))
+    });
+    property_fts.sort_by(|left, right| {
+        left.0.cmp(&right.0).then_with(|| left.1.cmp(&right.1)).then_with(|| left.2.cmp(&right.2))
+    });
+    Ok((attributes, property_fts))
+}
+
+fn projection_registry_cache_snapshot(
+    conn: &Connection,
+) -> rusqlite::Result<(Vec<(i64, String, Option<String>)>, Vec<(i64, String, String)>)> {
+    let attributes = {
+        let mut statement = conn.prepare(
+            "SELECT write_cursor,attr_name,attr_value FROM canonical_attributes \
+             ORDER BY write_cursor,CAST(attr_name AS BLOB),CAST(attr_value AS BLOB)",
+        )?;
+        let rows = statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        rows
+    };
+    let property_fts = {
+        let mut statement = conn.prepare(
+            "SELECT write_cursor,attr_name,attr_value FROM property_search_index \
+             ORDER BY write_cursor,CAST(attr_name AS BLOB),CAST(attr_value AS BLOB)",
+        )?;
+        let rows = statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        rows
+    };
+    Ok((attributes, property_fts))
 }
 
 /// EXP-S (0.8.14 Slice 5) — the `row_kind -> index-target set` dispatch
@@ -26780,6 +27282,7 @@ fn map_open_sqlite_error(err: rusqlite::Error, stage: OpenStage) -> EngineOpenEr
                     OpenStage::HeaderProbe => CorruptionKind::HeaderMalformed,
                     OpenStage::SchemaProbe => CorruptionKind::SchemaInconsistent,
                     OpenStage::EmbedderIdentity => CorruptionKind::EmbedderIdentityDrift,
+                    OpenStage::ProjectionGeneration => CorruptionKind::ProjectionGenerationDrift,
                 },
                 stage,
                 locator: CorruptionLocator::OpaqueSqliteError {
@@ -26791,12 +27294,16 @@ fn map_open_sqlite_error(err: rusqlite::Error, stage: OpenStage) -> EngineOpenEr
                         OpenStage::HeaderProbe => "E_CORRUPT_HEADER",
                         OpenStage::SchemaProbe => "E_CORRUPT_SCHEMA",
                         OpenStage::EmbedderIdentity => "E_CORRUPT_EMBEDDER_IDENTITY",
+                        OpenStage::ProjectionGeneration => "E_CORRUPT_PROJECTION_GENERATION",
                     },
                     doc_anchor: match stage {
                         OpenStage::WalReplay => "design/recovery.md#wal-replay-failures",
                         OpenStage::HeaderProbe => "design/recovery.md#header-malformed",
                         OpenStage::SchemaProbe => "design/recovery.md#schema-inconsistent",
                         OpenStage::EmbedderIdentity => "design/recovery.md#embedder-identity-drift",
+                        OpenStage::ProjectionGeneration => {
+                            "design/recovery-0.8.25.md#projection-generation"
+                        }
                     },
                 },
             })

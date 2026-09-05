@@ -66,7 +66,7 @@ trap 'rm -rf "$WORK"' EXIT
 python3 -m venv "$WORK/python-venv"
 PYTHON="$WORK/python-venv/bin/python"
 "$PYTHON" -m pip install --no-index --find-links "$WHEEL_DIR" fathomdb
-"$PYTHON" - "$REPO_ROOT/tests/fixtures/slice35_frozen_context_v1.json" \
+"$PYTHON" - "$REPO_ROOT/tests/fixtures/slice40_frozen_context_v2.json" \
   "$WORK/python-frozen-fixture.sqlite" <<'PY'
 import json
 import sqlite3
@@ -79,6 +79,26 @@ fixture = json.load(open(sys.argv[1], encoding="utf-8"))
 database = sys.argv[2]
 Engine.open(database, use_default_embedder=False).close()
 with sqlite3.connect(database) as connection:
+    old_generation, declaration = connection.execute(
+        "SELECT generation_id,declaration_sha256 "
+        "FROM _fathomdb_projection_generations WHERE role='serving'"
+    ).fetchone()
+    assert declaration == fixture["declaration_sha256"]
+    connection.execute(
+        "UPDATE _fathomdb_projection_generations "
+        "SET role='retired',retired_boundary=0 WHERE generation_id=?",
+        (old_generation,),
+    )
+    connection.execute(
+        "INSERT INTO _fathomdb_projection_generations("
+        "schema_version,generation_id,declaration_sha256,transition_boundary,role,origin"
+        ") VALUES(1,?,?,0,'serving','fresh')",
+        (fixture["generation_id"], declaration),
+    )
+    connection.execute(
+        "UPDATE _fathomdb_projection_generation_current SET generation_id=? WHERE singleton=1",
+        (fixture["generation_id"],),
+    )
     connection.execute(
         "UPDATE _fathomdb_open_state SET value=? WHERE key='_fathomdb_database_id'",
         (fixture["database_id"],),
@@ -238,7 +258,7 @@ import { Engine } from "fathomdb";
 const engine = await Engine.open(process.argv[2], { useDefaultEmbedder: false });
 await engine.close();
 JS
-  python3 - "$REPO_ROOT/tests/fixtures/slice35_frozen_context_v1.json" \
+  python3 - "$REPO_ROOT/tests/fixtures/slice40_frozen_context_v2.json" \
     "$WORK/npm-frozen-fixture.sqlite" <<'PY'
 import json
 import sqlite3
@@ -246,6 +266,26 @@ import sys
 
 fixture = json.load(open(sys.argv[1], encoding="utf-8"))
 with sqlite3.connect(sys.argv[2]) as connection:
+    old_generation, declaration = connection.execute(
+        "SELECT generation_id,declaration_sha256 "
+        "FROM _fathomdb_projection_generations WHERE role='serving'"
+    ).fetchone()
+    assert declaration == fixture["declaration_sha256"]
+    connection.execute(
+        "UPDATE _fathomdb_projection_generations "
+        "SET role='retired',retired_boundary=0 WHERE generation_id=?",
+        (old_generation,),
+    )
+    connection.execute(
+        "INSERT INTO _fathomdb_projection_generations("
+        "schema_version,generation_id,declaration_sha256,transition_boundary,role,origin"
+        ") VALUES(1,?,?,0,'serving','fresh')",
+        (fixture["generation_id"], declaration),
+    )
+    connection.execute(
+        "UPDATE _fathomdb_projection_generation_current SET generation_id=? WHERE singleton=1",
+        (fixture["generation_id"],),
+    )
     connection.execute(
         "UPDATE _fathomdb_open_state SET value=? WHERE key='_fathomdb_database_id'",
         (fixture["database_id"],),
@@ -258,7 +298,7 @@ with sqlite3.connect(sys.argv[2]) as connection:
         "UPDATE _fathomdb_read_visibility_state SET generation=0 WHERE singleton=1"
     )
 PY
-  node --input-type=module - "$REPO_ROOT/tests/fixtures/slice35_frozen_context_v1.json" \
+  node --input-type=module - "$REPO_ROOT/tests/fixtures/slice40_frozen_context_v2.json" \
     "$WORK/npm-frozen-fixture.sqlite" <<'JS'
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";

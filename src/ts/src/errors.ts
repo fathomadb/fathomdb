@@ -19,6 +19,17 @@ export class FathomDbError extends Error {
 
 export class StorageError extends FathomDbError {}
 export class ProjectionError extends FathomDbError {}
+export class ProjectionGenerationError extends FathomDbError {
+  readonly code = "FDB_PROJECTION_GENERATION";
+  readonly reason: string;
+  readonly fieldPath: string;
+
+  constructor(message: string, reason: string, fieldPath: string) {
+    super(message);
+    this.reason = reason;
+    this.fieldPath = fieldPath;
+  }
+}
 export class VectorError extends FathomDbError {}
 export class EmbedderError extends FathomDbError {}
 export class SchedulerError extends FathomDbError {}
@@ -313,6 +324,7 @@ export class FathomDbPanicError extends Error {
 type ErrorCode =
   | "FDB_STORAGE"
   | "FDB_PROJECTION"
+  | "FDB_PROJECTION_GENERATION"
   | "FDB_VECTOR"
   | "FDB_EMBEDDER"
   | "FDB_EMBED_DEVICE_POLICY"
@@ -393,6 +405,12 @@ function build(envelope: Envelope): Error {
       return new StorageError(envelope.message);
     case "FDB_PROJECTION":
       return new ProjectionError(envelope.message);
+    case "FDB_PROJECTION_GENERATION":
+      return new ProjectionGenerationError(
+        envelope.message,
+        String(p.reason ?? ""),
+        String(p.fieldPath ?? ""),
+      );
     case "FDB_VECTOR":
       return new VectorError(envelope.message);
     case "FDB_EMBEDDER":

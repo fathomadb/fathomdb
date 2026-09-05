@@ -65,10 +65,15 @@ use fathomdb_engine::{
     ExtractDocument as RustExtractDocument, Filter as RustFilter, FilterTerm as RustFilterTerm,
     FrozenReadContextV1 as RustFrozenReadContextV1, IdSpace as RustIdSpace,
     IngestWithExtractorReceipt as RustIngestWithExtractorReceipt, InitialState,
-    LifecycleActuationV1, LifecycleState as RustLifecycleState, NodeRecord as RustNodeRecord,
+    LifecycleActuationV1, LifecycleState as RustLifecycleState,
+    MutationProjectionStatusRequestV1 as RustMutationProjectionStatusRequestV1,
+    MutationProjectionStatusV1 as RustMutationProjectionStatusV1, NodeRecord as RustNodeRecord,
     OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
     PerHitExplain as RustPerHitExplain, Predicate as RustPredicate, PreparedWrite,
     ProjectionDelta as RustProjectionDelta, ProjectionFts as RustProjectionFts,
+    ProjectionGenerationError as RustProjectionGenerationError,
+    ProjectionGenerationId as RustProjectionGenerationId,
+    ProjectionGenerationStatusV1 as RustProjectionGenerationStatusV1,
     ProjectionRole as RustProjectionRole, ProjectionRuntimeStatus as RustProjectionRuntimeStatus,
     ProjectionRuntimeStatusEntry as RustProjectionRuntimeStatusEntry,
     ProjectionSpec as RustProjectionSpec, ProjectionVector as RustProjectionVector,
@@ -97,6 +102,7 @@ use pyo3::types::{PyDict, PyList};
 create_exception!(_fathomdb, EngineError, PyException);
 create_exception!(_fathomdb, StorageError, EngineError);
 create_exception!(_fathomdb, ProjectionError, EngineError);
+create_exception!(_fathomdb, ProjectionGenerationError, EngineError);
 create_exception!(_fathomdb, VectorError, EngineError);
 create_exception!(_fathomdb, KindNotVectorIndexedError, VectorError);
 create_exception!(_fathomdb, EmbedderError, EngineError);
@@ -210,6 +216,7 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
     match err {
         RustEngineError::Storage => StorageError::new_err("storage error"),
         RustEngineError::Projection => ProjectionError::new_err("projection error"),
+        RustEngineError::ProjectionGeneration(error) => projection_generation_error_to_py(&error),
         RustEngineError::Vector => VectorError::new_err("vector error"),
         RustEngineError::Embedder => EmbedderError::new_err("embedder error"),
         RustEngineError::RerankerDevicePolicy(error) => {
@@ -332,6 +339,20 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
     }
 }
 
+fn projection_generation_error_to_py(error: &RustProjectionGenerationError) -> PyErr {
+    let exc = ProjectionGenerationError::new_err(format!(
+        "projection generation {} at {}",
+        error.reason.as_str(),
+        error.field_path
+    ));
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("reason", error.reason.as_str());
+        let _ = value.setattr("field_path", error.field_path.as_str());
+    });
+    exc
+}
+
 fn provenance_error_to_py(error: &RustProvenanceError) -> PyErr {
     let exc = ProvenanceError::new_err(format!(
         "provenance {} at {}",
@@ -405,6 +426,7 @@ fn corruption_kind_str(kind: CorruptionKind) -> &'static str {
         CorruptionKind::HeaderMalformed => "HeaderMalformed",
         CorruptionKind::SchemaInconsistent => "SchemaInconsistent",
         CorruptionKind::EmbedderIdentityDrift => "EmbedderIdentityDrift",
+        CorruptionKind::ProjectionGenerationDrift => "ProjectionGenerationDrift",
     }
 }
 
@@ -414,6 +436,7 @@ fn open_stage_str(stage: OpenStage) -> &'static str {
         OpenStage::WalReplay => "WalReplay",
         OpenStage::SchemaProbe => "SchemaProbe",
         OpenStage::EmbedderIdentity => "EmbedderIdentity",
+        OpenStage::ProjectionGeneration => "ProjectionGeneration",
     }
 }
 
@@ -607,6 +630,7 @@ struct PyActuationReceiptV1 {
     resulting_write_boundary: Option<String>,
     resulting_dependency_generation: Option<String>,
     pending_projection_write_cursors: Vec<String>,
+    projection_generation_id: Option<String>,
     closure_operation_ids: Vec<String>,
 }
 
@@ -640,7 +664,92 @@ impl From<RustActuationReceiptV1> for PyActuationReceiptV1 {
                 .into_iter()
                 .map(|item| item.to_string())
                 .collect(),
+            projection_generation_id: value
+                .projection_generation_id
+                .map(|item| item.as_str().to_string()),
             closure_operation_ids: value.closure_operation_ids,
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "ProjectionGenerationStatusV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyProjectionGenerationStatusV1 {
+    schema_version: u32,
+    generation_id: String,
+    declaration_sha256: String,
+    origin: String,
+    transition_boundary: String,
+    effective_at_epoch_s: i64,
+    observed_boundary: String,
+    ready_through: String,
+    readiness: String,
+    runtime_state: String,
+    pending_count: String,
+    failed_count: String,
+}
+
+impl From<RustProjectionGenerationStatusV1> for PyProjectionGenerationStatusV1 {
+    fn from(value: RustProjectionGenerationStatusV1) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            generation_id: value.generation_id.as_str().to_string(),
+            declaration_sha256: value.declaration_sha256,
+            origin: value.origin.as_str().to_string(),
+            transition_boundary: value.transition_boundary.to_string(),
+            effective_at_epoch_s: value.effective_at_epoch_s,
+            observed_boundary: value.observed_boundary.to_string(),
+            ready_through: value.ready_through.to_string(),
+            readiness: value.readiness.as_str().to_string(),
+            runtime_state: value.runtime_state.as_str().to_string(),
+            pending_count: value.pending_count.to_string(),
+            failed_count: value.failed_count.to_string(),
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "MutationProjectionStatusV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyMutationProjectionStatusV1 {
+    schema_version: u32,
+    operation_id: String,
+    write_cursor: String,
+    generation_id: String,
+    effective_at_epoch_s: i64,
+    observed_boundary: String,
+    ready_through: String,
+    readiness: String,
+    runtime_state: String,
+    pending_count: String,
+    failed_count: String,
+}
+
+impl From<RustMutationProjectionStatusV1> for PyMutationProjectionStatusV1 {
+    fn from(value: RustMutationProjectionStatusV1) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            operation_id: value.operation_id,
+            write_cursor: value.write_cursor.to_string(),
+            generation_id: value.generation_id.as_str().to_string(),
+            effective_at_epoch_s: value.effective_at_epoch_s,
+            observed_boundary: value.observed_boundary.to_string(),
+            ready_through: value.ready_through.to_string(),
+            readiness: value.readiness.as_str().to_string(),
+            runtime_state: value.runtime_state.as_str().to_string(),
+            pending_count: value.pending_count.to_string(),
+            failed_count: value.failed_count.to_string(),
         }
     }
 }
@@ -2895,6 +3004,128 @@ fn read_projection_status(
 
 #[pyfunction]
 #[pyo3(signature = (engine))]
+fn read_projection_generation_status(
+    py: Python<'_>,
+    engine: &PyEngine,
+) -> PyResult<PyProjectionGenerationStatusV1> {
+    let inner = Arc::clone(&engine.inner);
+    call_engine(py, move || inner.read_projection_generation_status()).map(Into::into)
+}
+
+fn projection_generation_input_error(reason: &str, field_path: impl Into<String>) -> PyErr {
+    let field_path = field_path.into();
+    let exc = ProjectionGenerationError::new_err(format!(
+        "projection generation {reason} at {field_path}"
+    ));
+    Python::attach(|py| {
+        let value = exc.value(py);
+        let _ = value.setattr("reason", reason);
+        let _ = value.setattr("field_path", field_path);
+    });
+    exc
+}
+
+fn canonical_projection_u64(value: &Bound<'_, PyAny>, path: &str) -> PyResult<u64> {
+    let text = value
+        .extract::<String>()
+        .map_err(|_| projection_generation_input_error("invalid_write_cursor", path))?;
+    if text.is_empty()
+        || (text.len() > 1 && text.starts_with('0'))
+        || !text.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return Err(projection_generation_input_error("invalid_write_cursor", path));
+    }
+    text.parse::<u64>()
+        .ok()
+        .filter(|value| *value != 0)
+        .ok_or_else(|| projection_generation_input_error("invalid_write_cursor", path))
+}
+
+fn strict_projection_generation_request_dict<'py>(
+    request: &'py Bound<'py, PyDict>,
+) -> PyResult<&'py Bound<'py, PyDict>> {
+    let allowed = ["expectedGenerationId", "operationId", "schemaVersion", "writeCursor"];
+    let mut unknown = None;
+    for key in request.keys().iter() {
+        let key = key
+            .extract::<String>()
+            .map_err(|_| projection_generation_input_error("unknown_field", ""))?;
+        if !allowed.contains(&key.as_str()) && unknown.as_ref().is_none_or(|current| key < *current)
+        {
+            unknown = Some(key);
+        }
+    }
+    if let Some(key) = unknown {
+        return Err(projection_generation_input_error(
+            "unknown_field",
+            format!("/{}", escape_json_pointer_token(&key)),
+        ));
+    }
+    Ok(request)
+}
+
+#[pyfunction]
+#[pyo3(signature = (engine, request))]
+fn read_mutation_projection_status(
+    py: Python<'_>,
+    engine: &PyEngine,
+    request: &Bound<'_, PyDict>,
+) -> PyResult<PyMutationProjectionStatusV1> {
+    let schema_version = request
+        .get_item("schemaVersion")?
+        .and_then(|value| value.extract::<u32>().ok())
+        .ok_or_else(|| {
+            projection_generation_input_error("unsupported_schema_version", "/schemaVersion")
+        })?;
+    if schema_version != 1 {
+        return Err(projection_generation_input_error(
+            "unsupported_schema_version",
+            "/schemaVersion",
+        ));
+    }
+    let request = strict_projection_generation_request_dict(request)?;
+    let operation_id = request
+        .get_item("operationId")?
+        .and_then(|value| value.extract::<String>().ok())
+        .ok_or_else(|| projection_generation_input_error("invalid_operation_id", "/operationId"))?;
+    let operation_bytes = operation_id.as_bytes();
+    let operation_valid = !operation_id.starts_with("_fdb:")
+        && (1..=128).contains(&operation_bytes.len())
+        && operation_bytes.first().is_some_and(u8::is_ascii_alphanumeric)
+        && operation_bytes
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b':' | b'-'));
+    if !operation_valid {
+        return Err(projection_generation_input_error("invalid_operation_id", "/operationId"));
+    }
+    let write_cursor = canonical_projection_u64(
+        &request.get_item("writeCursor")?.ok_or_else(|| {
+            projection_generation_input_error("invalid_write_cursor", "/writeCursor")
+        })?,
+        "/writeCursor",
+    )?;
+    let generation = request
+        .get_item("expectedGenerationId")?
+        .and_then(|value| value.extract::<String>().ok())
+        .ok_or_else(|| {
+            projection_generation_input_error("invalid_generation_id", "/expectedGenerationId")
+        })?;
+    let expected_generation_id = RustProjectionGenerationId::new(generation)
+        .map_err(|error| projection_generation_error_to_py(&error))?;
+    let inner = Arc::clone(&engine.inner);
+    call_engine(py, move || {
+        inner.read_mutation_projection_status(RustMutationProjectionStatusRequestV1 {
+            schema_version,
+            operation_id,
+            write_cursor,
+            expected_generation_id,
+        })
+    })
+    .map(Into::into)
+}
+
+#[pyfunction]
+#[pyo3(signature = (engine))]
 fn read_embedding_readiness(py: Python<'_>, engine: &PyEngine) -> PyResult<PyEmbeddingReadiness> {
     let inner = Arc::clone(&engine.inner);
     let readiness = call_engine(py, move || inner.read_embedding_readiness())?;
@@ -4366,6 +4597,8 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyOpStoreRow>()?;
     m.add_class::<PySourceDependencyV1>()?;
     m.add_class::<PyActuationReceiptV1>()?;
+    m.add_class::<PyProjectionGenerationStatusV1>()?;
+    m.add_class::<PyMutationProjectionStatusV1>()?;
     m.add_class::<PyDependencyListV1>()?;
     m.add_class::<PyClosureProofV1>()?;
     m.add_class::<PyClosureStatusV1>()?;
@@ -4381,6 +4614,8 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(configure_projections, &m)?)?;
     m.add_function(wrap_pyfunction!(read_projections, &m)?)?;
     m.add_function(wrap_pyfunction!(read_projection_status, &m)?)?;
+    m.add_function(wrap_pyfunction!(read_projection_generation_status, &m)?)?;
+    m.add_function(wrap_pyfunction!(read_mutation_projection_status, &m)?)?;
     m.add_function(wrap_pyfunction!(read_embedding_readiness, &m)?)?;
     m.add_class::<PyProjectionSpec>()?;
     m.add_class::<PyProjectionDelta>()?;
@@ -4449,12 +4684,33 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("NotLifecycleAddressableError", py.get_type::<NotLifecycleAddressableError>())?;
     m.add("ErasureIncompleteError", py.get_type::<ErasureIncompleteError>())?;
     m.add("ProjectionDestructiveError", py.get_type::<ProjectionDestructiveError>())?;
+    m.add("ProjectionGenerationError", py.get_type::<ProjectionGenerationError>())?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mutation_projection_status_rejects_non_string_request_keys() {
+        Python::initialize();
+        Python::attach(|py| {
+            let request = PyDict::new(py);
+            request.set_item("schemaVersion", 1).unwrap();
+            request.set_item(7, "ignored").unwrap();
+            let error = strict_projection_generation_request_dict(&request).unwrap_err();
+            assert!(error.is_instance_of::<ProjectionGenerationError>(py));
+            assert_eq!(
+                error.value(py).getattr("reason").unwrap().extract::<String>().unwrap(),
+                "unknown_field"
+            );
+            assert_eq!(
+                error.value(py).getattr("field_path").unwrap().extract::<String>().unwrap(),
+                ""
+            );
+        });
+    }
 
     #[test]
     fn validate_ffi_string_accepts_plain_ascii() {

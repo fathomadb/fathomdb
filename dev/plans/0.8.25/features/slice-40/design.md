@@ -1,9 +1,10 @@
 ---
 title: 0.8.25 Slice 40 — core projection generation and readiness design
 status: READY
-design_version: 7
+design_version: 8
 review_cycle: 4
 reviewed_commit: 465eb0a5
+implementation_reconciliation: 1
 target_release: 0.8.25
 depends_on: 35
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -297,7 +298,9 @@ A non-erased canonical node is a dense member exactly when all are true:
    restored until the caller explicitly reactivates it;
 3. `row_kind` is `leaf` or `coverage`;
 4. its `kind` is accepted by `kind_is_vector_committable`; and
-5. `vector_projection_declared` is true.
+5. `vector_projection_declared` is true, or the kind is explicitly enrolled
+   through the retained hidden/evaluation vector-kind surface while no
+   registry-owned vector declaration governs that arm.
 
 An ordinary node without a registered source dependency retains the shipped
 lifecycle-independent physical membership for relaxed reads. A registered
@@ -306,10 +309,16 @@ row-owned projections on source soft closure. Strict source eligibility may
 also remove it. Search eligibility still filters remaining rows before ranking
 under Slice 35.
 
-Runtime availability is not identity or applicability. Kind enrolment is
-derived scheduler state, not policy; a declared, committable row remains
-applicable while no runtime exists or before late enrolment. That state is
-`blocked` or `deferred`, never ready.
+Runtime availability is not identity or applicability. For registry-governed
+arms, kind enrolment is derived scheduler state, not policy; a declared,
+committable row remains applicable while no runtime exists or before late
+enrolment. That state is `blocked` or `deferred`, never ready. The shipped
+hidden/evaluation enrolment surface is the one compatibility exception: an
+explicitly enrolled kind remains a physical member and schedulable when no
+registry vector declaration exists. This preserves existing evaluation and
+low-level integration behavior without making enrolment a second production
+declaration authority. If a registry vector declaration exists, its role-aware
+rules remain authoritative and boot reconciliation removes inert enrolments.
 
 ### Dense edge membership
 
@@ -384,6 +393,10 @@ as current work.
 
 The shared membership implementation replaces the hand-copied node and edge
 fragments used by scheduler, pending probe, completion, and worker publication.
+Its node predicate includes the retained hidden/evaluation enrolment exception
+above; the scheduler and drain probe already key that path to the same
+`_fathomdb_vector_kinds` row, so they cannot disagree about whether such work
+exists.
 The scheduler still uses its cursor as an optimization, but the shared pending
 probe must also find scheduler-pending rows below that cursor. A non-empty
 below-watermark set rewinds the cursor before dispatch. The existing

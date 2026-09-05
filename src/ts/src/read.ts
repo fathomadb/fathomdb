@@ -30,7 +30,7 @@ import {
   type NativeProjectionRuntimeStatus,
   type NativeEmbeddingReadiness,
 } from "./binding.js";
-import { InvalidArgumentError, rethrowTyped } from "./errors.js";
+import { InvalidArgumentError, ProjectionGenerationError, rethrowTyped } from "./errors.js";
 import { validateFfiString } from "./validation.js";
 import type {
   DenseReadiness,
@@ -39,6 +39,9 @@ import type {
   FilterTerm,
   ProjectionRole,
   ProjectionRuntimeStatus,
+  MutationProjectionStatusRequestV1,
+  MutationProjectionStatusV1,
+  ProjectionGenerationStatusV1,
   EmbeddingReadiness,
   ProjectionSpec,
 } from "./index.js";
@@ -140,6 +143,21 @@ async function intercept<T>(fn: () => Promise<T>): Promise<T> {
   } catch (err) {
     rethrowTyped(err);
   }
+}
+
+function projectionResponseEnum<T extends string>(
+  value: string,
+  allowed: readonly T[],
+  fieldPath: string,
+): T {
+  if (!allowed.includes(value as T)) {
+    throw new ProjectionGenerationError(
+      `projection generation projection_generation_corrupt at ${fieldPath}`,
+      "projection_generation_corrupt",
+      fieldPath,
+    );
+  }
+  return value as T;
 }
 
 function toNodeRecord(n: NativeNodeRecord): NodeRecord {
@@ -413,6 +431,62 @@ export const read = {
     return toProjectionRuntimeStatus(
       await intercept(() => engine._native.readProjectionStatus()),
     );
+  },
+  async projectionGenerationStatus(engine: Engine): Promise<ProjectionGenerationStatusV1> {
+    const value = await intercept(() => engine._native.readProjectionGenerationStatus());
+    if (value.schemaVersion !== 1) {
+      throw new ProjectionGenerationError(
+        "projection generation unsupported_schema_version at /schemaVersion",
+        "unsupported_schema_version",
+        "/schemaVersion",
+      );
+    }
+    return {
+      ...value,
+      schemaVersion: 1,
+      origin: projectionResponseEnum(
+        value.origin,
+        ["fresh", "legacy_unverified", "configuration", "rebuild"] as const,
+        "/origin",
+      ),
+      readiness: projectionResponseEnum(
+        value.readiness,
+        ["ready", "processing", "blocked", "deferred", "degraded"] as const,
+        "/readiness",
+      ),
+      runtimeState: projectionResponseEnum(
+        value.runtimeState,
+        ["absent", "usable", "refused"] as const,
+        "/runtimeState",
+      ),
+    };
+  },
+  async mutationProjectionStatus(
+    engine: Engine,
+    request: MutationProjectionStatusRequestV1,
+  ): Promise<MutationProjectionStatusV1> {
+    const value = await intercept(() => engine._native.readMutationProjectionStatus(request));
+    if (value.schemaVersion !== 1) {
+      throw new ProjectionGenerationError(
+        "projection generation unsupported_schema_version at /schemaVersion",
+        "unsupported_schema_version",
+        "/schemaVersion",
+      );
+    }
+    return {
+      ...value,
+      schemaVersion: 1,
+      readiness: projectionResponseEnum(
+        value.readiness,
+        ["ready", "processing", "blocked", "deferred", "degraded"] as const,
+        "/readiness",
+      ),
+      runtimeState: projectionResponseEnum(
+        value.runtimeState,
+        ["absent", "usable", "refused"] as const,
+        "/runtimeState",
+      ),
+    };
   },
   async embeddingReadiness(engine: Engine): Promise<EmbeddingReadiness> {
     return toEmbeddingReadiness(await intercept(() => engine._native.readEmbeddingReadiness()));

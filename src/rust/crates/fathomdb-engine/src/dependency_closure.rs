@@ -845,9 +845,10 @@ pub(crate) fn guard_no_pending_physical(connection: &Connection) -> Result<(), E
     Ok(())
 }
 
-pub(crate) fn projection_owner_is_eligible(
+pub(crate) fn projection_owner_is_eligible_at(
     connection: &Connection,
     cursor: u64,
+    effective_at: i64,
 ) -> Result<bool, EngineError> {
     let cursor = i64::try_from(cursor).map_err(|_| EngineError::Storage)?;
     let source: Option<String> = connection
@@ -865,7 +866,7 @@ pub(crate) fn projection_owner_is_eligible(
         return Ok(true);
     };
     Ok(!active_barrier_for_source(connection, &source)?
-        && source_revision_is_strictly_eligible(connection, &source, current_epoch_seconds())?)
+        && source_revision_is_strictly_eligible(connection, &source, effective_at)?)
 }
 
 pub(crate) fn derived_cursor_has_active_barrier(

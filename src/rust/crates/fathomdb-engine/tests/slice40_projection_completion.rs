@@ -1,4 +1,4 @@
-use std::{sync::Arc, thread, time::Duration};
+use std::sync::{Arc, Barrier};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
@@ -178,6 +178,12 @@ fn worker_publication_never_repairs_a_partial_projection_tuple() {
     let opened = open(&path);
     opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
     let (ready, release) = opened.engine.pause_projection_worker_after_wal_transaction_for_test();
+    let failure_reported = Arc::new(Barrier::new(2));
+    let failure_release = Arc::new(Barrier::new(2));
+    opened.engine.pause_projection_commit_failure_cleanup_for_test(
+        Arc::clone(&failure_reported),
+        Arc::clone(&failure_release),
+    );
     Connection::open(&path)
         .unwrap()
         .execute("INSERT INTO _fathomdb_vector_rows(rowid,kind,write_cursor) VALUES(1,'doc',1)", [])
@@ -186,7 +192,21 @@ fn worker_publication_never_repairs_a_partial_projection_tuple() {
     assert_eq!(cursor, 1);
     ready.wait();
     release.wait();
-    thread::sleep(Duration::from_millis(200));
+    failure_reported.wait();
+
+    let connection = Connection::open(&path).unwrap();
+    let state: (u64, u64, u64) = connection
+        .query_row(
+            "SELECT \
+               (SELECT COUNT(*) FROM _fathomdb_vector_rows WHERE rowid=1 AND write_cursor=1),\
+               (SELECT COUNT(*) FROM vector_default WHERE rowid=1),\
+               (SELECT COUNT(*) FROM _fathomdb_projection_terminal WHERE write_cursor=1)",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .unwrap();
+    assert_eq!(state, (1, 0, 0));
 
     assert_generation_corruption(opened.engine.read_projection_generation_status());
+    failure_release.wait();
 }

@@ -27,7 +27,7 @@ The authoritative layout owner remains `architecture.md` § 5.
 ## Schema-version sentinel
 
 The canonical schema-version sentinel is SQLite `PRAGMA user_version`. In the
-0.8.25 development line `fathomdb-schema::SCHEMA_VERSION` is **31**. Step 28
+0.8.25 development line `fathomdb-schema::SCHEMA_VERSION` is **32**. Step 28
 adds the source-dependency registry and generation singleton. Step 29 adds the
 bounded terminal actuation-receipt and source-reference tables without
 backfilling legacy rows. Actuation request bodies and source locators are never
@@ -39,6 +39,11 @@ and synthesizes no closure for historical lifecycle events. Step 31 adds the
 database-local frozen-read identity, signing key, monotonic visibility
 generation, and checked triggers on all real serving-authority tables. It adds
 no canonical or projection backfill.
+
+Step 32 adds retained projection-generation metadata, its current-generation
+singleton, and the nullable actuation-receipt generation correlation. It does
+not rewrite canonical or projection content. The database-local generation ID
+has grammar `pgen1:<32-lower-hex>`.
 
 Ownership split:
 
@@ -76,3 +81,20 @@ stored content, and is not portable to a separately created database. Readers
 must ignore additive response fields but reject an unsupported schema version.
 The refusal envelope uses `FDB_FROZEN_READ` with closed `reason` and
 `fieldPath` members.
+
+## Projection-generation wire objects (0.8.25 Slice 40)
+
+`ProjectionGenerationStatusV1` and `MutationProjectionStatusV1` use
+`schemaVersion: 1`. Generation IDs and declaration hashes are lowercase text;
+all `u64` cursors, boundaries, and counts cross Python/TypeScript native
+boundaries as canonical decimal strings. Readiness is exactly `ready`,
+`processing`, `blocked`, `deferred`, or `degraded`; runtime state is exactly
+`absent`, `usable`, or `refused`; origin is exactly `fresh`,
+`legacy_unverified`, `configuration`, or `rebuild`.
+
+`MutationProjectionStatusRequestV1` contains only `schemaVersion`,
+`operationId`, `writeCursor`, and `expectedGenerationId`. Unknown keys and
+noncanonical values fail closed. The typed envelope code is
+`FDB_PROJECTION_GENERATION`, with closed `reason` and non-disclosing
+`fieldPath`. Readers may accept additive response fields but reject unknown
+schema versions or closed-enum spellings.

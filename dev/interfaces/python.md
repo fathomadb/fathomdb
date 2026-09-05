@@ -414,6 +414,21 @@ signature. Its closed `DenseReadiness` vocabulary is separately
   facade over durable declarations and this open engine session's dense runtime;
   it does not configure projections or schedule, wake, or drain work. It is not
   a decorated `ProjectionSpec` or the internal lifecycle `ProjectionStatus`.
+- `read.projection_generation_status(engine)` →
+  `ProjectionGenerationStatusV1` — pure one-snapshot identity and physical
+  completeness for the current in-place serving generation.
+- `read.mutation_projection_status(engine, request)` →
+  `MutationProjectionStatusV1` — receipt-keyed completion for one pending
+  write cursor. `request` uses `schemaVersion`, `operationId`, `writeCursor`,
+  and `expectedGenerationId`; cursors are canonical decimal strings.
+
+The Slice-40 results expose generation/declaration identity, effective and
+observed boundaries, `ready_through`, closed readiness/runtime values, and
+pending/failed counts. They neither schedule nor repair projection work.
+Unknown, erased, generation-mismatched, and no-longer-eligible receipt members
+raise `ProjectionGenerationError` with closed `reason` and `field_path`.
+`ActuationReceiptV1.projection_generation_id` is nullable and is present only
+when a committed receipt has pending projection cursors in the current schema.
 
 `ProjectionRuntimeStatus` is a frozen record with
 `runtime_embedder_available`, `runtime_unavailability_reason`, `projections`,

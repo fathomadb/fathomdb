@@ -63,6 +63,7 @@ from fathomdb._fathomdb import (
 from fathomdb._fathomdb import (
     ProjectionError as _ProjectionError,
 )
+from fathomdb._fathomdb import ProjectionGenerationError as _ProjectionGenerationError
 from fathomdb._fathomdb import ProvenanceError as _ProvenanceError
 from fathomdb._fathomdb import DependencyError as _DependencyError
 from fathomdb._fathomdb import DependencyClosureError as _DependencyClosureError
@@ -117,6 +118,7 @@ from fathomdb._fathomdb import FrozenReadError as _FrozenReadError
 EngineError = _EngineError
 StorageError = _StorageError
 ProjectionError = _ProjectionError
+ProjectionGenerationError = _ProjectionGenerationError
 ProvenanceError = _ProvenanceError
 DependencyError = _DependencyError
 DependencyClosureError = _DependencyClosureError
@@ -199,6 +201,7 @@ _install_typed_init(NotLifecycleAddressableError, ("id_space",))
 _install_typed_init(ErasureIncompleteError, ("stage", "detail"))
 # 0.8.20 Slice 15d — the destructive-projection refusal carries name/delta.
 _install_typed_init(ProjectionDestructiveError, ("name", "delta"))
+_install_typed_init(ProjectionGenerationError, ("reason", "field_path"))
 _install_typed_init(ProvenanceError, ("reason", "field_path"))
 _install_typed_init(DependencyError, ("reason", "field_path"))
 _install_typed_init(DependencyClosureError, ("reason", "field_path"))
@@ -234,6 +237,7 @@ __all__ = [
     "OverloadedError",
     "ProjectionDestructiveError",
     "ProjectionError",
+    "ProjectionGenerationError",
     "ProvenanceError",
     "DependencyError",
     "DependencyClosureError",

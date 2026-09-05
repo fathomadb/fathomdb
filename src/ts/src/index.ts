@@ -1808,6 +1808,26 @@ export class Engine {
       ["rerankDepth", "useGraphArm", "alpha", "poolN", "explain", "limit"],
       "FrozenSearchOptions",
     );
+    if (options.rerankDepth !== undefined) {
+      if (!Number.isInteger(options.rerankDepth) || options.rerankDepth < 0 || options.rerankDepth > 0xFFFFFFFF) {
+        throw new RangeError(`rerankDepth must be an integer in 0..=4294967295; got ${options.rerankDepth}`);
+      }
+    }
+    if (options.useGraphArm !== undefined && typeof options.useGraphArm !== "boolean") {
+      throw new TypeError(`useGraphArm must be a boolean, got ${typeof options.useGraphArm}`);
+    }
+    if (options.alpha !== undefined && (typeof options.alpha !== "number" || !Number.isFinite(options.alpha))) {
+      throw new RangeError(`alpha must be a finite number, got ${options.alpha}`);
+    }
+    if (options.poolN !== undefined) {
+      if (!Number.isInteger(options.poolN) || options.poolN < 0 || options.poolN > 0xFFFFFFFF) {
+        throw new RangeError(`poolN must be an integer in 0..=4294967295; got ${options.poolN}`);
+      }
+    }
+    if (options.explain !== undefined && typeof options.explain !== "boolean") {
+      throw new TypeError(`explain must be a boolean, got ${typeof options.explain}`);
+    }
+    validateRankedResultLimit("limit", options.limit);
     return mapNativeSearchResult(result);
   }
 
@@ -1834,6 +1854,12 @@ export class Engine {
       "FrozenReadContextV1",
     );
     assertKnownKeys(options, ["searchLimit"], "SearchExpandOptions");
+    if (!Number.isInteger(depth) || depth < 0 || depth > 3) {
+      throw new InvalidArgumentError(
+        `searchExpandFrozen depth must be an integer between 0 and 3; got ${depth}`,
+      );
+    }
+    validateRankedResultLimit("searchLimit", options.searchLimit);
     return {
       searchHits: result.searchHits.map((hit) => ({
         id: { space: hit.id.space, value: hit.id.value },

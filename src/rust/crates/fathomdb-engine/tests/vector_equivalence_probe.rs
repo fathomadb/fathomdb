@@ -18,7 +18,7 @@ use std::sync::{Arc, Once};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{Engine, EngineError};
-use fathomdb_schema::{migrate_with_steps, MIGRATIONS};
+use fathomdb_schema::{migrate_with_steps, MIGRATIONS, SCHEMA_VERSION};
 use tempfile::TempDir;
 
 const DIM: usize = 384;
@@ -838,7 +838,10 @@ fn upgrade_from_v18_with_kind_and_pinned_mean_establishes_baseline_and_checks() 
         "establishing the baseline at the upgrade open is never degraded"
     );
     assert_eq!(opened.report.schema_version_before, 18, "upgrade started at v18");
-    assert_eq!(opened.report.schema_version_after, 30, "upgrade reached head (v30)");
+    assert_eq!(
+        opened.report.schema_version_after, SCHEMA_VERSION,
+        "upgrade reached the current schema head"
+    );
     opened.engine.close().unwrap();
 
     let conn = rusqlite::Connection::open(&path).unwrap();

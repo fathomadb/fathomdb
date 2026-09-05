@@ -661,6 +661,7 @@ fn operational_point_snapshot_linearizes_before_concurrent_replacement() {
 }
 
 #[test]
+#[cfg(feature = "test-hooks")]
 fn page_query_plans_use_governed_indexes_without_mutation_log_or_temp_sort() {
     let dir = TempDir::new().unwrap();
     let opened = open(&dir.path().join(format!("plans{SQLITE_SUFFIX}")));

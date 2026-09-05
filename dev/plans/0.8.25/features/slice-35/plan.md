@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 35 — eligibility and optional frozen reads
-status: IMPLEMENTATION_READY
+status: CLOSEOUT_PENDING_INDEPENDENT_REVIEW
 depends_on: 30
 design: design.md
 design_status: READY

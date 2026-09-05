@@ -68,6 +68,36 @@ This is release-infrastructure work, not a dependency-product change. Design
 review, TDD RED/GREEN, implementation review, and independent verification are
 required with the rest of Slice 75.
 
+## Bulk-ingest visibility-trigger investigation
+
+The Slice 35 legacy-search campaigns exposed a separate write-path signal that
+is outside Slice 35's registered read-latency claim. Across the preserved v1
+and v2 runs, the release candidate's 10k bulk ingest took approximately
+3.95–4.00 seconds versus 2.11–2.14 seconds at the Slice 30 parent. The dominant
+candidate is the 42 per-row read-visibility triggers introduced for frozen-read
+drift detection. Preserve and inspect all four committed Slice 35 receipts and
+their external raw repetition data under
+`data/performance-benchmarking/scale-02/slice35-runs` before changing
+implementation; the first two receipts carry the clearest original signal and
+the final receipt binds the exact product candidate.
+
+- **S75-R-INGEST.** Determine whether the candidate regression is reproducible
+  under isolated release-mode alternating runs, attribute trigger and other
+  costs, and retain frozen-read drift correctness while restoring a bounded
+  mutation cost.
+- **S75-AC-INGEST.** A preregistered comparison uses the same 10k input, write
+  batch, compiler, host, and fresh-database procedure for the Slice 30 parent
+  and final candidate. It records per-repetition ingest time, trigger count,
+  visibility-generation delta, projection drain, and resource observations.
+  If the candidate remains more than 20% slower at the median, Slice 75 stops
+  for a targeted TDD correction; any correction must preserve the Slice 35
+  trigger-manifest, drift, race, and installed-artifact tests. If the signal
+  does not reproduce, record the confounder rather than optimizing it.
+
+This investigation must not weaken visibility invalidation, remove an
+authoritative table from the trigger manifest, coalesce distinct committed
+states, or rewrite the retained Slice 35 performance receipts.
+
 ## Verification routes
 
 Selected: fast, heavy, all, applicable all-feature/operator, Windows CPU/native

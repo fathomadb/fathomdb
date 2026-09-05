@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 
 import fathomdb
+import pytest
 
 
 def test_search_and_resolve_exact_source_evidence(db_path: str) -> None:
@@ -67,4 +68,22 @@ def test_search_and_resolve_exact_source_evidence(db_path: str) -> None:
     assert resolved.evidence_text == source_body
     assert resolved.source_revision_id == "python-source-r1"
     assert resolved.projection_origin.representative_arm == "text"
+    engine.close()
+
+
+def test_unsupported_evidence_schema_is_typed(db_path: str) -> None:
+    engine = fathomdb.Engine.open(db_path, use_default_embedder=False)
+    frozen = engine.freeze_read_context(fathomdb.ReadContextV1())
+
+    with pytest.raises(fathomdb.EvidenceError) as raised:
+        engine.search_with_evidence(
+            fathomdb.EvidenceSearchRequestV1(
+                query="needle",
+                context=frozen,
+                schema_version=2,
+            )
+        )
+
+    assert raised.value.reason == "unsupported_schema_version"
+    assert raised.value.field_path == "/schemaVersion"
     engine.close()

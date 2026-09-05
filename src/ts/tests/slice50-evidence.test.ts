@@ -5,7 +5,7 @@ import { join } from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Engine } from "../src/index.js";
+import { Engine, EvidenceError } from "../src/index.js";
 
 test("search and resolve exact source evidence", async () => {
   const directory = await mkdtemp(join(tmpdir(), "fathomdb-slice50-"));
@@ -69,6 +69,47 @@ test("search and resolve exact source evidence", async () => {
     assert.equal(resolved.canonicalSourceBody, sourceBody);
     assert.equal(resolved.sourceRevisionId, "ts-source-r1");
     assert.equal(resolved.projectionOrigin.representativeArm, "text");
+    await engine.close();
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("evidence request schema and unknown fields are typed", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "fathomdb-slice50-errors-"));
+  try {
+    const engine = await Engine.open(join(directory, "evidence.fathom"), {
+      useDefaultEmbedder: false,
+    });
+    const context = await engine.freezeReadContext({
+      schemaVersion: 1,
+      view: {},
+      eligibility: {},
+    });
+
+    await assert.rejects(
+      engine.searchWithEvidence({
+        schemaVersion: 2,
+        query: "needle",
+        context,
+      } as never),
+      (error: unknown) =>
+        error instanceof EvidenceError &&
+        error.reason === "unsupported_schema_version" &&
+        error.fieldPath === "/schemaVersion",
+    );
+    await assert.rejects(
+      engine.resolveEvidence({
+        schemaVersion: 1,
+        evidenceRef: "opaque",
+        context,
+        unexpected: true,
+      } as never),
+      (error: unknown) =>
+        error instanceof EvidenceError &&
+        error.reason === "unknown_field" &&
+        error.fieldPath === "/unexpected",
+    );
     await engine.close();
   } finally {
     await rm(directory, { recursive: true, force: true });

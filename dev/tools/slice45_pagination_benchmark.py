@@ -61,6 +61,8 @@ def invoke(
     treatment_first: bool = False,
     seed_only: bool = False,
     cold_arm: str | None = None,
+    latency_pair: tuple[str, str] | None = None,
+    effective_valid_at: int | None = None,
     frozen_fixture: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     environment = os.environ.copy()
@@ -78,6 +80,10 @@ def invoke(
         environment["FATHOM_SLICE45_SEED_ONLY"] = "1"
     if cold_arm is not None:
         environment["FATHOM_SLICE45_COLD_ARM"] = cold_arm
+    if latency_pair is not None:
+        environment["FATHOM_SLICE45_LATENCY_PAIR"] = ":".join(latency_pair)
+    if effective_valid_at is not None:
+        environment["FATHOM_SLICE45_FROZEN_EFFECTIVE"] = str(effective_valid_at)
     if frozen_fixture is not None:
         environment.update(
             {
@@ -113,6 +119,20 @@ def invoke(
     return payloads[0]
 
 
+def steady_invocations(
+    repetitions: int,
+) -> list[tuple[int, tuple[str, str], bool]]:
+    return [
+        (repetition, pair, (repetition + pair_index) % 2 == 1)
+        for repetition in range(repetitions)
+        for pair_index, pair in enumerate(LATENCY_PAIRS)
+    ]
+
+
+def rss_requires_frozen_fixture(arm: str) -> bool:
+    return arm in {"frozen_page", "continuation_page", "frozen_state"}
+
+
 def percentile(values: list[float], quantile: float) -> float:
     ordered = sorted(values)
     index = round((len(ordered) - 1) * quantile)
@@ -131,16 +151,19 @@ def bootstrap_median_ci(deltas: list[float]) -> tuple[float, float]:
 def analyze_latency(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     outcomes = []
     for baseline, treatment in LATENCY_PAIRS:
-        baseline_values = [record["result"][baseline][1] for record in records]
-        treatment_values = [record["result"][treatment][1] for record in records]
+        pair_records = [
+            record for record in records if tuple(record["pair"]) == (baseline, treatment)
+        ]
+        baseline_values = [record["result"][baseline][1] for record in pair_records]
+        treatment_values = [record["result"][treatment][1] for record in pair_records]
         deltas = [right - left for left, right in zip(baseline_values, treatment_values)]
         baseline_median = statistics.median(baseline_values)
         treatment_median = statistics.median(treatment_values)
         baseline_throughput = statistics.median(
-            record["result"][baseline][2] for record in records
+            record["result"][baseline][2] for record in pair_records
         )
         treatment_throughput = statistics.median(
-            record["result"][treatment][2] for record in records
+            record["result"][treatment][2] for record in pair_records
         )
         delta = statistics.median(deltas)
         percent = delta / baseline_median * 100.0
@@ -359,16 +382,21 @@ def main() -> None:
             raw.write(json.dumps({"phase": "seed", **seed}, sort_keys=True) + "\n")
             groups = {"latency": [], "cold": [], "rss": []}
             fixture = invoke(args.binary, database, rows, 1, "mint_fixture")
-            for repetition in range(args.latency_repetitions):
+            for repetition, pair, treatment_first in steady_invocations(
+                args.latency_repetitions
+            ):
                 record = invoke(
                     args.binary,
                     database,
                     rows,
                     args.samples,
                     "latency",
-                    treatment_first=repetition % 2 == 1,
+                    treatment_first=treatment_first,
+                    latency_pair=pair,
                 )
-                record.update({"phase": "steady", "repetition": repetition})
+                record.update(
+                    {"phase": "steady", "repetition": repetition, "pair": list(pair)}
+                )
                 groups["latency"].append(record)
                 raw.write(json.dumps(record, sort_keys=True) + "\n")
                 raw.flush()
@@ -391,7 +419,15 @@ def main() -> None:
                         raw.flush()
             for arm in RSS_ARMS:
                 for repetition in range(args.rss_repetitions):
-                    record = invoke(args.binary, database, rows, args.samples, arm)
+                    record = invoke(
+                        args.binary,
+                        database,
+                        rows,
+                        args.samples,
+                        arm,
+                        effective_valid_at=fixture["effective_valid_at"],
+                        frozen_fixture=(fixture if rss_requires_frozen_fixture(arm) else None),
+                    )
                     record.update({"phase": "rss", "repetition": repetition})
                     groups["rss"].append(record)
                     raw.write(json.dumps(record, sort_keys=True) + "\n")
@@ -400,8 +436,18 @@ def main() -> None:
 
     scales = []
     for rows, groups in all_records.items():
-        first_stage_keys = groups["latency"][0]["result"]["first_page_stages"]
-        mint_stage_keys = groups["latency"][0]["result"]["mint_stages"]
+        observations = next(
+            record
+            for record in groups["latency"]
+            if tuple(record["pair"]) == LATENCY_PAIRS[0]
+        )
+        first_stage_keys = observations["result"]["first_page_stages"]
+        mint_stage_keys = observations["result"]["mint_stages"]
+        observation_records = [
+            record
+            for record in groups["latency"]
+            if tuple(record["pair"]) == LATENCY_PAIRS[0]
+        ]
         scales.append(
             {
                 "rows": rows,
@@ -416,14 +462,14 @@ def main() -> None:
                                 if key.startswith("cursor_authentication_")
                                 else "first_page_stages"
                             ][key]
-                            for record in groups["latency"]
+                            for record in observation_records
                         )
                         for key in first_stage_keys
                     },
                     **{
                         f"mint_{key}": statistics.median(
                             record["result"]["mint_stages"][key]
-                            for record in groups["latency"]
+                            for record in observation_records
                         )
                         for key in mint_stage_keys
                     },
@@ -431,11 +477,11 @@ def main() -> None:
                 "public_list_medians": {
                     "p95_ms": statistics.median(
                         record["result"]["public_list"][1]
-                        for record in groups["latency"]
+                        for record in observation_records
                     ),
                     "throughput_ops_s": statistics.median(
                         record["result"]["public_list"][2]
-                        for record in groups["latency"]
+                        for record in observation_records
                     ),
                 },
                 "full_walk_medians": {
@@ -443,7 +489,7 @@ def main() -> None:
                         record["result"][
                             "full_walk"
                         ][key]
-                        for record in groups["latency"]
+                        for record in observation_records
                     )
                     for key in ("elapsed_ms", "pages", "items", "items_per_second")
                 },

@@ -62,12 +62,15 @@ authentication, binding, and query stages. Retain the pre-GREEN O(N) terminal
 digest pilot, then verify the schema-33 compact binding and support indexes
 remove that cost without weakening drift refusal.
 
-Run ten independent paired steady processes per primary cell and scale, at
-least 1,000 operations per process, three additional matched cold repetitions
+Run ten independent paired steady processes per primary cell and scale, with
+each pair/repetition isolated in its own fresh process and at least 1,000
+operations per process, three additional matched cold repetitions
 with every arm in its own fresh process, and five fresh peak-RSS processes per
 arm. Reuse one restart-portable pre-minted frozen-context fixture for matched
-cold operations and report database-open time separately. Alternate each
-steady and cold pair's treatment order. Pin
+cold operations and report database-open time separately. Keep the exact-page
+and current-state RSS controls free of context minting or frozen-page setup;
+reconstruct pre-minted fixtures only for arms that consume them. Independently
+balance each steady pair's order and alternate each cold pair's order. Pin
 host/build/SQLite/configuration, input and runner digests, CPU affinity, reset/
 warm-up procedure, and retain raw/result hashes. Use a fixed-seed 10,000-draw
 paired percentile bootstrap over repetition-level p95 deltas.

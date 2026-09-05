@@ -203,16 +203,21 @@ fn peak_rss_kib() -> u64 {
         .unwrap_or(0)
 }
 
-fn frozen_fixture_from_env() -> FrozenReadContextV1 {
+fn resolved_context_from_env() -> ReadContextV1 {
     let effective_valid_at = std::env::var("FATHOM_SLICE45_FROZEN_EFFECTIVE")
         .expect("FATHOM_SLICE45_FROZEN_EFFECTIVE is required")
         .parse()
         .expect("frozen effective instant");
-    let context = ReadContextV1::new(
+    ReadContextV1::new(
         ReadView { valid_as_of: Some(effective_valid_at), ..ReadView::default() },
         SearchFilter::default(),
     )
-    .unwrap();
+    .unwrap()
+}
+
+fn frozen_fixture_from_env() -> FrozenReadContextV1 {
+    let context = resolved_context_from_env();
+    let effective_valid_at = context.view.valid_as_of.expect("resolved valid instant");
     FrozenReadContextV1 {
         schema_version: 1,
         effective_valid_at,
@@ -328,6 +333,84 @@ fn measure_slice45_pagination_overhead() {
         return;
     }
 
+    if mode != "latency" {
+        let opened = Engine::open(&path).expect("open RSS measurement database");
+        let point_key = format!("slice45:key:{:08}", rows / 2);
+        let measurement = match mode.as_str() {
+            "exact_page" => {
+                let context = resolved_context_from_env();
+                let baseline = FrozenReadContextV1 {
+                    schema_version: 1,
+                    effective_valid_at: context.view.valid_as_of.expect("resolved valid instant"),
+                    context,
+                    token: String::new(),
+                };
+                measure(samples, || {
+                    assert_eq!(
+                        opened
+                            .engine
+                            .read_canonical_page_baseline_for_test(KIND, &baseline, 100)
+                            .unwrap()
+                            .len(),
+                        100
+                    );
+                })
+            }
+            "frozen_page" => {
+                let frozen = frozen_fixture_from_env();
+                measure(samples, || {
+                    opened.engine.read_canonical_page(KIND, &frozen, &page(None)).unwrap();
+                })
+            }
+            "mint_plus_page" => {
+                let context = ReadContextV1::new(ReadView::default(), SearchFilter::default())
+                    .expect("default context");
+                measure(samples, || {
+                    let fresh = opened.engine.freeze_read_context(&context).unwrap();
+                    opened.engine.read_canonical_page(KIND, &fresh, &page(None)).unwrap();
+                })
+            }
+            "continuation_page" => {
+                let frozen = frozen_fixture_from_env();
+                let continuation = PageCursor(
+                    std::env::var("FATHOM_SLICE45_FROZEN_CONTINUATION")
+                        .expect("FATHOM_SLICE45_FROZEN_CONTINUATION is required"),
+                );
+                measure(samples, || {
+                    opened
+                        .engine
+                        .read_canonical_page(KIND, &frozen, &page(Some(continuation.clone())))
+                        .unwrap();
+                })
+            }
+            "current_state" => measure(samples, || {
+                opened.engine.read_operational_state(COLLECTION, &point_key, None).unwrap();
+            }),
+            "frozen_state" => {
+                let frozen = frozen_fixture_from_env();
+                measure(samples, || {
+                    opened
+                        .engine
+                        .read_operational_state(COLLECTION, &point_key, Some(&frozen))
+                        .unwrap();
+                })
+            }
+            _ => panic!("unknown FATHOM_SLICE45_MODE={mode}"),
+        };
+        let peak_rss_kib = peak_rss_kib();
+        println!(
+            "{}",
+            json!({
+                "schema_version":"slice45-pagination-performance.v1",
+                "kind":"rss", "arm":mode, "rows":rows, "samples":samples,
+                "peak_rss_kib":peak_rss_kib,
+                "result":{"arm":mode,"measurement":measurement},
+            })
+        );
+        opened.engine.close().expect("close RSS measurement database");
+        return;
+    }
+
     let opened = Engine::open(&path).expect("open measurement database");
     let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
     let frozen = opened.engine.freeze_read_context(&context).expect("mint context");
@@ -338,6 +421,8 @@ fn measure_slice45_pagination_overhead() {
 
     let result = match mode.as_str() {
         "latency" => {
+            let latency_pair = std::env::var("FATHOM_SLICE45_LATENCY_PAIR")
+                .expect("FATHOM_SLICE45_LATENCY_PAIR is required");
             let mut exact_operation = || {
                 assert_eq!(
                     opened
@@ -360,18 +445,19 @@ fn measure_slice45_pagination_overhead() {
                 );
             };
             let treatment_first = std::env::var_os("FATHOM_SLICE45_TREATMENT_FIRST").is_some();
-            let (exact, frozen_page) = if treatment_first {
-                let frozen_page = measure(samples, &mut frozen_page_operation);
-                let exact = measure(samples, &mut exact_operation);
-                (exact, frozen_page)
+            let exact_pair = if latency_pair == "exact_page:frozen_page" {
+                Some(if treatment_first {
+                    let frozen_page = measure(samples, &mut frozen_page_operation);
+                    let exact = measure(samples, &mut exact_operation);
+                    (exact, frozen_page)
+                } else {
+                    let exact = measure(samples, &mut exact_operation);
+                    let frozen_page = measure(samples, &mut frozen_page_operation);
+                    (exact, frozen_page)
+                })
             } else {
-                let exact = measure(samples, &mut exact_operation);
-                let frozen_page = measure(samples, &mut frozen_page_operation);
-                (exact, frozen_page)
+                None
             };
-            let frozen_validation = measure(samples, || {
-                opened.engine.validate_frozen_read_context_for_binding(&frozen).unwrap();
-            });
             let mut mint_page_operation = || {
                 let fresh = opened.engine.freeze_read_context(&context).unwrap();
                 assert_eq!(
@@ -384,14 +470,18 @@ fn measure_slice45_pagination_overhead() {
                     100
                 );
             };
-            let preminted_page = if treatment_first {
-                let mint_page = measure(samples, &mut mint_page_operation);
-                let preminted = measure(samples, &mut frozen_page_operation);
-                (preminted, mint_page)
+            let preminted_pair = if latency_pair == "preminted_page:mint_plus_page" {
+                Some(if treatment_first {
+                    let mint_page = measure(samples, &mut mint_page_operation);
+                    let preminted = measure(samples, &mut frozen_page_operation);
+                    (preminted, mint_page)
+                } else {
+                    let preminted = measure(samples, &mut frozen_page_operation);
+                    let mint_page = measure(samples, &mut mint_page_operation);
+                    (preminted, mint_page)
+                })
             } else {
-                let preminted = measure(samples, &mut frozen_page_operation);
-                let mint_page = measure(samples, &mut mint_page_operation);
-                (preminted, mint_page)
+                None
             };
             let mut continuation_operation = || {
                 assert_eq!(
@@ -404,14 +494,18 @@ fn measure_slice45_pagination_overhead() {
                     100
                 );
             };
-            let (first_page, continuation_page) = if treatment_first {
-                let continuation = measure(samples, &mut continuation_operation);
-                let first = measure(samples, &mut frozen_page_operation);
-                (first, continuation)
+            let continuation_pair = if latency_pair == "first_page:continuation_page" {
+                Some(if treatment_first {
+                    let continuation = measure(samples, &mut continuation_operation);
+                    let first = measure(samples, &mut frozen_page_operation);
+                    (first, continuation)
+                } else {
+                    let first = measure(samples, &mut frozen_page_operation);
+                    let continuation = measure(samples, &mut continuation_operation);
+                    (first, continuation)
+                })
             } else {
-                let first = measure(samples, &mut frozen_page_operation);
-                let continuation = measure(samples, &mut continuation_operation);
-                (first, continuation)
+                None
             };
             let mut current_state_operation = || {
                 assert!(opened
@@ -427,80 +521,73 @@ fn measure_slice45_pagination_overhead() {
                     .unwrap()
                     .is_some());
             };
-            let (current_state, frozen_state) = if treatment_first {
-                let frozen_state = measure(samples, &mut frozen_state_operation);
-                let current_state = measure(samples, &mut current_state_operation);
-                (current_state, frozen_state)
+            let state_pair = if latency_pair == "current_state:frozen_state" {
+                Some(if treatment_first {
+                    let frozen_state = measure(samples, &mut frozen_state_operation);
+                    let current_state = measure(samples, &mut current_state_operation);
+                    (current_state, frozen_state)
+                } else {
+                    let current_state = measure(samples, &mut current_state_operation);
+                    let frozen_state = measure(samples, &mut frozen_state_operation);
+                    (current_state, frozen_state)
+                })
             } else {
-                let current_state = measure(samples, &mut current_state_operation);
-                let frozen_state = measure(samples, &mut frozen_state_operation);
-                (current_state, frozen_state)
+                None
             };
-            let first_page_stages = measure_stages(&opened.engine, &frozen, &page(None), samples);
-            let continuation_stages =
-                measure_stages(&opened.engine, &frozen, &page(Some(continuation.clone())), samples);
-            let mint_stages = measure_mint_stages(&opened.engine, &context, samples);
-            let public_list = measure(samples, || {
-                assert_eq!(
-                    opened
-                        .engine
-                        .read_list_filter(KIND, &Filter::default(), 100, &ReadView::default())
-                        .unwrap()
-                        .len(),
-                    100
+            let observations = if latency_pair == "exact_page:frozen_page" {
+                let frozen_validation = measure(samples, || {
+                    opened.engine.validate_frozen_read_context_for_binding(&frozen).unwrap();
+                });
+                let first_page_stages =
+                    measure_stages(&opened.engine, &frozen, &page(None), samples);
+                let continuation_stages = measure_stages(
+                    &opened.engine,
+                    &frozen,
+                    &page(Some(continuation.clone())),
+                    samples,
                 );
-            });
-            let full_walk = full_page_walk(&opened.engine, &frozen);
-            json!({
-                "kind":"latency", "exact_page":exact, "frozen_page":frozen_page,
-                "frozen_validation":frozen_validation,
-                "preminted_page":preminted_page.0, "mint_plus_page":preminted_page.1,
-                "first_page":first_page, "continuation_page":continuation_page,
-                "current_state":current_state, "frozen_state":frozen_state,
-                "public_list":public_list, "full_walk":full_walk,
-                "mint_stages":mint_stages,
-                "first_page_stages":first_page_stages,
-                "continuation_stages":continuation_stages,
-            })
-        }
-        arm => {
-            let measurement = match arm {
-                "exact_page" => measure(samples, || {
+                let mint_stages = measure_mint_stages(&opened.engine, &context, samples);
+                let public_list = measure(samples, || {
                     assert_eq!(
                         opened
                             .engine
-                            .read_canonical_page_baseline_for_test(KIND, &frozen, 100)
+                            .read_list_filter(KIND, &Filter::default(), 100, &ReadView::default())
                             .unwrap()
                             .len(),
                         100
                     );
-                }),
-                "frozen_page" => measure(samples, || {
-                    opened.engine.read_canonical_page(KIND, &frozen, &page(None)).unwrap();
-                }),
-                "mint_plus_page" => measure(samples, || {
-                    let fresh = opened.engine.freeze_read_context(&context).unwrap();
-                    opened.engine.read_canonical_page(KIND, &fresh, &page(None)).unwrap();
-                }),
-                "continuation_page" => measure(samples, || {
-                    opened
-                        .engine
-                        .read_canonical_page(KIND, &frozen, &page(Some(continuation.clone())))
-                        .unwrap();
-                }),
-                "current_state" => measure(samples, || {
-                    opened.engine.read_operational_state(COLLECTION, &point_key, None).unwrap();
-                }),
-                "frozen_state" => measure(samples, || {
-                    opened
-                        .engine
-                        .read_operational_state(COLLECTION, &point_key, Some(&frozen))
-                        .unwrap();
-                }),
-                _ => panic!("unknown FATHOM_SLICE45_MODE={arm}"),
+                });
+                let full_walk = full_page_walk(&opened.engine, &frozen);
+                Some((
+                    frozen_validation,
+                    first_page_stages,
+                    continuation_stages,
+                    mint_stages,
+                    public_list,
+                    full_walk,
+                ))
+            } else {
+                None
             };
-            json!({"kind":"rss", "arm":arm, "measurement":measurement})
+            json!({
+                "kind":"latency", "pair":latency_pair,
+                "exact_page":exact_pair.map(|value| value.0),
+                "frozen_page":exact_pair.map(|value| value.1),
+                "preminted_page":preminted_pair.map(|value| value.0),
+                "mint_plus_page":preminted_pair.map(|value| value.1),
+                "first_page":continuation_pair.map(|value| value.0),
+                "continuation_page":continuation_pair.map(|value| value.1),
+                "current_state":state_pair.map(|value| value.0),
+                "frozen_state":state_pair.map(|value| value.1),
+                "frozen_validation":observations.as_ref().map(|value| value.0),
+                "first_page_stages":observations.as_ref().map(|value| &value.1),
+                "continuation_stages":observations.as_ref().map(|value| &value.2),
+                "mint_stages":observations.as_ref().map(|value| &value.3),
+                "public_list":observations.as_ref().map(|value| value.4),
+                "full_walk":observations.as_ref().map(|value| &value.5),
+            })
         }
+        arm => panic!("unknown FATHOM_SLICE45_MODE={arm}"),
     };
 
     let terminal_rows: i64 = sql

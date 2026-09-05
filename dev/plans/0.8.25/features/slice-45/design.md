@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 45 — minimal pagination and operational-state design
 status: READY
-design_version: 9
+design_version: 10
 review_cycle: 4
 target_release: 0.8.25
 depends_on: 40
@@ -355,13 +355,19 @@ update, and delete advances the generation and changes the v3 compact binding
 in O(1).
 
 Each primary steady cell runs ten independent paired processes per scale and
-at least 1,000 operations per process; each of the four pair orders alternates
-independently. Three additional matched cold repetitions run every baseline
+at least 1,000 operations per process. Every pair/repetition occupies its own
+fresh process, and pair-specific order assignments are independently balanced
+rather than reversed in lockstep. Three additional matched cold repetitions
+run every baseline
 and treatment arm in its own fresh process using one restart-portable,
 pre-minted frozen-context fixture; database open time is controlled and
 reported separately from the single measured operation. Peak RSS uses five
 fresh processes per arm and is never inferred from two phases in one process.
-A fixed-seed 10,000-draw paired percentile bootstrap over
+RSS arms branch before common frozen setup: exact-page and current-state
+controls never mint or execute a frozen operation; pre-minted treatments
+reconstruct the restart-portable fixture without minting; mint-plus-page alone
+mints as its measured treatment. A fixed-seed 10,000-draw paired percentile
+bootstrap over
 repetition-level p95 deltas reports the two-sided 95% interval. The
 preregistered materiality boundary is a median paired p95 steady-state increase
 or median paired cold-operation increase of both more than 10% and more than
@@ -376,12 +382,13 @@ comparative policy remains in Slice 75. CUDA, CE, GPU allocation, and
 live-model routes are N/A because this slice executes SQLite reads only.
 
 Independent design review cycle 3 passed at `e8d14d1e` with no unresolved
-P0/P1/P2 finding. Design v9 resolves cycle-4 implementation findings by making
+P0/P1/P2 finding. Design v10 resolves cycle-4 implementation findings by making
 the serving binding branch-sensitive without reintroducing an O(N) terminal
 scan, adding the operational point-read race, preserving explicit historical
-canonical pages while keeping frozen search strict, and defining matched
-separate-process cold arms. It retains the reviewer-requested matched
-throughput, public-list, full-walk, and mint-stage observations without
-changing the materiality policy. Implementation requires committed RED/GREEN
-chronology, independent code review, separate verification, exact evidence
-references, and a Slice 45 status record.
+canonical pages while keeping frozen search strict, defining matched
+separate-process cold arms, isolating every steady pair in a fresh process, and
+keeping RSS controls free of frozen-treatment setup. It retains the
+reviewer-requested matched throughput, public-list, full-walk, and mint-stage
+observations without changing the materiality policy. Implementation requires
+committed RED/GREEN chronology, independent code review, separate
+verification, exact evidence references, and a Slice 45 status record.

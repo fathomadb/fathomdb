@@ -34,7 +34,7 @@ function finite(value: number | null | undefined, fieldPath: string, required = 
 }
 
 function decimalU64(value: string | null | undefined, fieldPath: string): void {
-  if (value === null || value === undefined || !/^(0|[1-9][0-9]*)$/.test(value)) {
+  if (typeof value !== "string" || !/^(0|[1-9][0-9]*)$/.test(value)) {
     fail("evidence_corrupt", fieldPath);
   }
   try {

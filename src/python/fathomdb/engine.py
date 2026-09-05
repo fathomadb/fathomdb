@@ -263,7 +263,11 @@ def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
             ("/locator/startInclusive", value.locator_start_inclusive),
             ("/locator/endExclusive", value.locator_end_exclusive),
         ]:
-            if not isinstance(candidate, int) or isinstance(candidate, bool) or candidate < 0:
+            if (
+                not isinstance(candidate, int)
+                or isinstance(candidate, bool)
+                or not 0 <= candidate <= 2**64 - 1
+            ):
                 _evidence_response_error("evidence_corrupt", field)
         if value.locator_start_inclusive > value.locator_end_exclusive:
             _evidence_response_error("evidence_corrupt", "/locator")

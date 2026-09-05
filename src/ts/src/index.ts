@@ -1122,9 +1122,31 @@ function evidenceRequestError(reason: string, fieldPath: string): never {
   throw new EvidenceError(`${reason} at ${fieldPath}`, reason, fieldPath);
 }
 
-function assertKnownEvidenceKeys(value: object, allowed: readonly string[]): void {
+function evidencePointerSegment(value: string): string {
+  return value.replaceAll("~", "~0").replaceAll("/", "~1");
+}
+
+function assertKnownEvidenceKeys(
+  value: object,
+  allowed: readonly string[],
+  basePath = "",
+): void {
   const unknown = Object.keys(value).filter((key) => !allowed.includes(key)).sort();
-  if (unknown.length > 0) evidenceRequestError("unknown_field", `/${unknown[0]}`);
+  if (unknown.length > 0) {
+    evidenceRequestError(
+      "unknown_field",
+      `${basePath}/${evidencePointerSegment(unknown[0]!)}`,
+    );
+  }
+}
+
+function validateEvidenceFrozenContext(context: FrozenReadContextV1): void {
+  assertKnownEvidenceKeys(
+    context,
+    ["schemaVersion", "effectiveValidAt", "context", "token"],
+    "/context",
+  );
+  validateReadContext(context.context);
 }
 
 function validateReadContext(context: ReadContextV1): void {
@@ -2088,7 +2110,7 @@ export class Engine {
       evidenceRequestError("unsupported_schema_version", "/schemaVersion");
     }
     validateFfiString(request.query);
-    validateReadContext(request.context.context);
+    validateEvidenceFrozenContext(request.context);
     const limit = validateRankedResultLimit("limit", request.limit);
     if (request.rerankDepth !== undefined) {
       if (request.rerankDepth < 0) {
@@ -2154,7 +2176,7 @@ export class Engine {
       evidenceRequestError("unsupported_schema_version", "/schemaVersion");
     }
     validateFfiString(request.evidenceRef);
-    validateReadContext(request.context.context);
+    validateEvidenceFrozenContext(request.context);
     return mapNativeResolvedEvidence(
       await intercept(() =>
         this.#native.resolveEvidence(

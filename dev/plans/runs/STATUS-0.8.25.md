@@ -12,10 +12,12 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 40 (READINESS), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 40 (READINESS), IN_PROGRESS.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
 Prework and Slices 10 through 35 are complete on the durable `release/0.8.25`
-worktree. Slice 40 is next. The owner-approved 2026-09-02
+worktree. Slice 40 is implemented but remains open for its preregistered CUDA
+throughput observation, exact evidence manifest, and final gate. The
+owner-approved 2026-09-02
 scope adjustment removes Slices 65/70 and narrows the retained implementation
 ladder. Direct agents execute this release without Steward or Orchestrator
 roles.
@@ -38,7 +40,7 @@ roles.
 | 25 | Core atomic semantic actuation | Complete on release branch (`131053da`) |
 | 30 | Lifecycle and erasure closure | Complete on release branch (`75617521`) |
 | 35 | Eligibility and optional frozen reads | Complete on release branch (`071ff7d1`) |
-| 40 | Core projection generation/readiness | Not started |
+| 40 | Core projection generation/readiness | In progress; product review passed, closeout evidence pending |
 | 45 | Minimal pagination and operational state | Not started |
 | 50 | Compact source-complete evidence | Not started |
 | 55 | Basic tracing and integrity | Not started |
@@ -68,7 +70,7 @@ roles.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 40 (READINESS)** — core projection generation and readiness correlation. **Remaining ladder:** 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Continue Slice 40 (READINESS)** — core projection generation and readiness correlation. **Remaining ladder:** 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 
@@ -111,6 +113,11 @@ lint, and `git diff --check`. Each Slice 1–5 record is proposal-only.
   `Engine.search_text_only` calls per arm and passes the preregistered 3%
   p50/p95 upper-regression boundary; four false-label historical receipts are
   quarantined without rewriting them.
+- Slice 40 passes independent design review at cycle 4, implementation review
+  at cycle 8, and a separate full-gate fixture-reconciliation review. Its
+  preregistered 10k write/storage/reopen and 50k CPU/CUDA-linked status
+  campaigns pass all bounds; Linux CPU/CUDA and Windows native artifacts pass
+  status/reopen smokes, and real RTX 3090 allocation is separately witnessed.
 - A diagnostic release-wide long gate exposed the pre-existing AC-013 vector
   latency failure and was stopped after that failure. It is release debt, not
   a Slice 10 regression.

@@ -4,7 +4,7 @@ status: READY
 design_version: 8
 review_cycle: 4
 reviewed_commit: 465eb0a5
-implementation_reconciliation: 3
+implementation_reconciliation: 4
 target_release: 0.8.25
 depends_on: 35
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -790,9 +790,12 @@ audit and race/visibility tests as publication and rebuild.
 
 The measurement contract is committed before candidate runs. The runtime
 baseline is Slice-35 product commit `0aff1cb08c61a8bb2a004813bbd5604b6ff1a403`;
-the source closeout boundary is `cb62921f`. The candidate is the reviewed Slice
-40 GREEN commit. Inputs, query order, database seed, and five repetitions are
-identical.
+the source closeout boundary is `cb62921f`; the separately reviewed and
+measured product candidate is
+`2313fd34ea5ca68346a468d5bba58ba245306c08`. Inputs, query order, database
+seed, and five repetitions are identical. The later `ea7a553f` correction only
+reconciles current-head and historical migration/legacy test fixtures; it does
+not change the measured product behavior.
 
 Raw artifacts live under
 `/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs/`.
@@ -829,8 +832,12 @@ Preregistered bounds:
   larger;
 - configuration/rebuild metadata transition cost reported separately from
   existing backfill, with no hidden O(N) assignment rewrite; and
-- CPU/CUDA status p95 difference at most 2 ms on the same database. Embedding
-  throughput is reported but not attributed to status.
+- CPU/CUDA-linked status p95 difference at most 2 ms on the same database. The
+  status fixture uses a fixed CPU embedder in both builds. Actual CUDA device
+  selection and allocation are reported separately. The preregistered
+  descriptive embedding-throughput observation is also retained, but it is
+  not attributed to status. The distinct AC-013 vector-query latency issue
+  remains assigned to Slice 75.
 
 Runs report cold/steady state, failures, timeouts, page/WAL bytes, retained
 generation rows, query plans, full-owner scan count at 50k, exact operation and

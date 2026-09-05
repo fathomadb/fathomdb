@@ -209,10 +209,9 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 
 **Remaining ladder:** 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
-Execute the Slice 40 plan directly. Reconcile projection generation and
-readiness correlation against the completed identity, dependency, actuation,
-lifecycle, eligibility, and frozen-read substrates; then use TDD, independent
-design and implementation review, and read-only verification.
+Complete Slice 40's preregistered descriptive CUDA throughput observation,
+exact evidence manifest, independent closeout review, and clean repository
+gate. Do not begin Slice 45 until Slice 40 is durably closed.
 
 ## Stop gates
 

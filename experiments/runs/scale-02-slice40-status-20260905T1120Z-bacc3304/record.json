@@ -1,0 +1,113 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "scale-02-slice40-status-20260905T1120Z-bacc3304",
+  "experiment": "scale-02-slice40-status",
+  "title": "scale-02-slice40-status",
+  "verdict": "complete",
+  "read": "Slice 40 paired CPU/CUDA status campaign: pass",
+  "code": {
+    "git_sha": "90addf2952ae580d68937fe5b1258490bd2af5a1",
+    "dirty": false,
+    "branch": "release/0.8.25",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "bacc3304be590353a400f5ce7d21ca5faa335b1f0322171f7e6f3ff9254bd202",
+    "path": "experiments/configs/scale-02/slice40-projection-generation-status.v4.json",
+    "resolved": {
+      "schema_version": "scale-02-slice40.v3",
+      "program_track": "SCALE-02",
+      "release": "0.8.25",
+      "campaign": "status",
+      "approval": {
+        "state": "approved",
+        "approved_by": "HITL",
+        "approved_at": "2026-09-05"
+      },
+      "baseline": {
+        "source_commit": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403"
+      },
+      "candidate": {
+        "source_commit": "2313fd34ea5ca68346a468d5bba58ba245306c08"
+      },
+      "execution": {
+        "runner_sha256": "7ba66181fe3e74c4eee26f0520a383aeeedb33510faf0eecdf181c40b27f9954",
+        "record_library_sha256": "4066299e8c2bd989b5374cd86bf51e7a93f1688856ebba9c4951d608503709f8",
+        "statistics_library_sha256": "06445cc043697a63f3279d9ccc369280b9fc23fbba8fbc4cec1ddf9013a7e507",
+        "classification_library_sha256": "830a9c1db4b29a73d73e58b61b40c6db2aac158fd760e05ba7882e980266f729",
+        "common_worker_sha256": "518a78029e9006b2469aa6d2272784293b27dc8f274a7cd49b8df4009e021dc9",
+        "status_test_sha256": "2dcadfa7308c1bd0fb0915a2df04eac1f82cb3c0b45f10f0b9baa795da966c74"
+      },
+      "measurement_plan": {
+        "path": "experiments/configs/scale-02/slice40-status-measurement-plan.v1.json",
+        "sha256": "76ac37fdcba67190d6b309a259d1df0e9a71d24da67dc825efaf509fbdfcefd6",
+        "plan_id": "slice40-status-v1"
+      },
+      "workload": {
+        "records": 10000,
+        "batch_size": 128,
+        "expected_receipts": 79,
+        "repetitions": 5,
+        "status_records": 50000,
+        "status_warmups": 100,
+        "status_samples": 1000,
+        "open_warmups": 5,
+        "open_samples": 20,
+        "bootstrap_seed": "0x5CA1E025400001",
+        "bootstrap_resamples": 2000
+      },
+      "policy": {
+        "confidence": 0.95,
+        "write_max_relative_regression": 0.03,
+        "open_max_relative_regression": 0.1,
+        "open_max_absolute_regression_ms": 25.0,
+        "status_p95_ms": 5.0,
+        "status_p99_ms": 10.0,
+        "storage_max_increase_bytes": 65536,
+        "cpu_cuda_status_p95_max_difference_ms": 2.0
+      },
+      "artifact_root": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs",
+      "claim_boundary": "slice40_projection_generation_readiness"
+    }
+  },
+  "corpus": {
+    "source": "byte-identical paired 50k status fixtures",
+    "manifest_sha256": null,
+    "datasets": []
+  },
+  "seeds": {
+    "bootstrap": "0x5CA1E025400001"
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb_candidate": "2313fd34ea5ca68346a468d5bba58ba245306c08",
+      "cuda_host_witness": "NVIDIA GeForce RTX 3090, 580.173.02\nNVIDIA GeForce RTX 3090, 580.173.02\nQuadro K620, 580.173.02"
+    }
+  },
+  "metrics": {
+    "schema_version": "scale-02-slice40-decision.v1",
+    "campaign": "status",
+    "verdict": "pass",
+    "maximum_cpu_cuda_p95_difference_ms": 0.006180999999999999,
+    "maximum_generation_p95_ms": 0.024426,
+    "maximum_generation_p99_ms": 0.042481,
+    "maximum_mutation_p95_ms": 0.02668,
+    "maximum_mutation_p99_ms": 0.048111,
+    "maximum_steady_full_owner_scans": 0,
+    "total_errors": 0,
+    "total_timeouts": 0
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": [
+    "src/rust/crates/fathomdb-engine/tests/slice40_status_performance.rs",
+    "tests/experiments/test_scale_02_slice40.py"
+  ],
+  "files_changed": [],
+  "artifacts": [],
+  "review": null,
+  "open_questions": []
+}

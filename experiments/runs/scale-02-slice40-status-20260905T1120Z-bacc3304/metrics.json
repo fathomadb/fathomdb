@@ -1,0 +1,13 @@
+{
+  "schema_version": "scale-02-slice40-decision.v1",
+  "campaign": "status",
+  "verdict": "pass",
+  "maximum_cpu_cuda_p95_difference_ms": 0.006180999999999999,
+  "maximum_generation_p95_ms": 0.024426,
+  "maximum_generation_p99_ms": 0.042481,
+  "maximum_mutation_p95_ms": 0.02668,
+  "maximum_mutation_p99_ms": 0.048111,
+  "maximum_steady_full_owner_scans": 0,
+  "total_errors": 0,
+  "total_timeouts": 0
+}

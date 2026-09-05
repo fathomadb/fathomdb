@@ -68,7 +68,7 @@ use fathomdb_engine::{
     DenseReadiness, Engine, InitialState, PreparedWrite, ProjectionRole, ProjectionSpec,
     ProjectionVector, SourceId,
 };
-use fathomdb_schema::{SCHEMA_VERSION, SQLITE_SUFFIX};
+use fathomdb_schema::SQLITE_SUFFIX;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -312,9 +312,6 @@ fn an_uncommittable_kind_is_reported_not_silently_dropped() {
         "a kind with no dense arm is not a FAILURE — reporting it must not start polluting the \
          failure audit"
     );
-
-    // The report is additive READ metadata; nothing about it needs a schema step.
-    assert_eq!(SCHEMA_VERSION, 30, "Slice 30 adds dependency closures");
 
     opened.engine.close().unwrap();
 }

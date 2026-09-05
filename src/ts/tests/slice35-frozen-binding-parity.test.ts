@@ -35,3 +35,38 @@ test("frozen expansion rejects fractional depth and limit after authentication",
     await engine.close();
   }
 });
+
+test("malformed frozen token precedes every JavaScript numeric conversion", async () => {
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  try {
+    const frozen = await engine.freezeReadContext({ schemaVersion: 1, view: {}, eligibility: {} });
+    const malformed = { ...frozen, token: `${frozen.token}0` };
+    for (const options of [
+      { rerankDepth: 1.5 },
+      { rerankDepth: Number.MAX_VALUE },
+      { alpha: "high" as unknown as number },
+      { poolN: 1.5 },
+      { poolN: Number.MAX_VALUE },
+      { limit: 1.5 },
+      { limit: Number.MAX_VALUE },
+    ]) {
+      await assert.rejects(
+        () => engine.searchFrozen("query", malformed, options),
+        (error: unknown) => (error as { reason?: string }).reason === "token_malformed",
+      );
+    }
+    for (const [depth, searchLimit] of [
+      [1.5, 10],
+      [Number.MAX_VALUE, 10],
+      [0, 1.5],
+      [0, Number.MAX_VALUE],
+    ]) {
+      await assert.rejects(
+        () => engine.searchExpandFrozen("query", malformed, depth, { searchLimit }),
+        (error: unknown) => (error as { reason?: string }).reason === "token_malformed",
+      );
+    }
+  } finally {
+    await engine.close();
+  }
+});

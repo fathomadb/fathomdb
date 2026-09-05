@@ -580,3 +580,64 @@ fn resolved_derived_evidence_includes_its_registered_dependency() {
 
     assert_eq!(resolved.dependency, Some(registered));
 }
+
+#[test]
+fn relaxed_validity_view_remains_authorized_during_resolution() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("relaxed-validity{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    let source_body = "future source";
+    let future: i64 = 4_102_444_800;
+    opened
+        .engine
+        .write(&[
+            canonical_named(
+                "future-source-logical",
+                "future-source-r1",
+                "future-v1",
+                "future-source",
+                source_body,
+            ),
+            derived_named(
+                "future-claim",
+                "future-claim-r1",
+                "future-source-r1",
+                "future-v1",
+                "future-source",
+                source_body,
+                "futureevidenceneedle",
+            ),
+        ])
+        .unwrap();
+    drop(opened.engine);
+    let raw = rusqlite::Connection::open(&path).unwrap();
+    raw.execute(
+        "UPDATE canonical_nodes SET valid_from=?1 WHERE logical_id IN (?2,?3)",
+        rusqlite::params![future, "future-source-logical", "future-claim"],
+    )
+    .unwrap();
+    drop(raw);
+    let opened = Engine::open(&path).unwrap();
+    let context = ReadContextV1::new(
+        ReadView { include_out_of_window: true, ..ReadView::default() },
+        SearchFilter::default(),
+    )
+    .unwrap();
+    let frozen = opened.engine.freeze_read_context(&context).unwrap();
+    let result = opened
+        .engine
+        .search_with_evidence(&request("futureevidenceneedle", frozen.clone()))
+        .unwrap();
+
+    let resolved = opened
+        .engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: result.evidence[0].evidence_ref.clone(),
+            context: frozen,
+        })
+        .unwrap();
+
+    assert_eq!(resolved.artifact_revision_id, "future-claim-r1");
+    assert_eq!(resolved.source_revision_id, "future-source-r1");
+}

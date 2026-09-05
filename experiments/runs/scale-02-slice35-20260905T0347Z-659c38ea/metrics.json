@@ -1,0 +1,107 @@
+{
+  "schema_version": "scale-02-slice35-result.v1",
+  "program_track": "SCALE-02",
+  "verdict": "pass",
+  "upper_95_relative_regression": {
+    "p50": 0.012426713819310242,
+    "p95": 0.025360443740352824
+  },
+  "treatments": {
+    "baseline": {
+      "errors": 0,
+      "measured_search_call_count": 5500,
+      "p50_by_repetition": [
+        32.71557699190453,
+        32.69203199306503,
+        32.690237974748015,
+        32.66817599069327,
+        32.52412402071059
+      ],
+      "p95_by_repetition": [
+        35.60670296428725,
+        35.643732000608,
+        35.73631698964164,
+        35.480051999911666,
+        35.46847897814587
+      ],
+      "repetitions": 5,
+      "schema_version": "scale-02-slice35-treatment.v1",
+      "source_commit": "b2bfb1f318f58041144acb2356a6a4c9624068b9",
+      "timeouts": 0,
+      "treatment": "baseline"
+    },
+    "candidate": {
+      "errors": 0,
+      "measured_search_call_count": 5500,
+      "p50_by_repetition": [
+        32.90529298828915,
+        33.08118600398302,
+        33.162879990413785,
+        32.970184984151274,
+        32.87072601960972
+      ],
+      "p95_by_repetition": [
+        36.347971006762236,
+        36.292045027948916,
+        36.66409896686673,
+        36.19668399915099,
+        36.445654986891896
+      ],
+      "repetitions": 5,
+      "schema_version": "scale-02-slice35-treatment.v1",
+      "source_commit": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403",
+      "timeouts": 0,
+      "treatment": "candidate"
+    }
+  },
+  "current_campaign": {
+    "baseline": {
+      "errors": 0,
+      "measured_search_call_count": 5500,
+      "p50_by_repetition": [
+        32.71557699190453,
+        32.69203199306503,
+        32.690237974748015,
+        32.66817599069327,
+        32.52412402071059
+      ],
+      "p95_by_repetition": [
+        35.60670296428725,
+        35.643732000608,
+        35.73631698964164,
+        35.480051999911666,
+        35.46847897814587
+      ],
+      "repetitions": 5,
+      "schema_version": "scale-02-slice35-treatment.v1",
+      "source_commit": "b2bfb1f318f58041144acb2356a6a4c9624068b9",
+      "timeouts": 0,
+      "treatment": "baseline"
+    },
+    "candidate": {
+      "errors": 0,
+      "measured_search_call_count": 5500,
+      "p50_by_repetition": [
+        32.90529298828915,
+        33.08118600398302,
+        33.162879990413785,
+        32.970184984151274,
+        32.87072601960972
+      ],
+      "p95_by_repetition": [
+        36.347971006762236,
+        36.292045027948916,
+        36.66409896686673,
+        36.19668399915099,
+        36.445654986891896
+      ],
+      "repetitions": 5,
+      "schema_version": "scale-02-slice35-treatment.v1",
+      "source_commit": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403",
+      "timeouts": 0,
+      "treatment": "candidate"
+    }
+  },
+  "prior_run_id": null,
+  "claim_boundary": "legacy_search_non_regression_only"
+}

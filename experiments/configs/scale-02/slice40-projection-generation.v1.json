@@ -11,7 +11,7 @@
     "source_commit": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403"
   },
   "candidate": {
-    "source_commit": "a4b732217dda1327d6361afd0dd46493460c14ea"
+    "source_commit": "8352165f3dc9a7ac900788808af756f3773d3f99"
   },
   "workload": {
     "records": 10000,

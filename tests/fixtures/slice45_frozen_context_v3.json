@@ -1,0 +1,20 @@
+{
+  "schema_version": "slice45-frozen-context-fixture.v3",
+  "database_id": "00112233445566778899aabbccddeeff",
+  "read_context_key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "state_nonce": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+  "generation_id": "pgen1:000102030405060708090a0b0c0d0e0f",
+  "declaration_sha256": "07471d9a1c9de95a3df8f62f16237470fb4287eb696f203fb8e1e043d6fef966",
+  "context": {
+    "schema_version": 1,
+    "include_superseded": false,
+    "include_inactive": false,
+    "include_out_of_window": false,
+    "valid_as_of": 1700000000,
+    "source_type": "node_body",
+    "kind": "doc",
+    "created_after": null,
+    "status": null,
+    "attributes": []
+  }
+}

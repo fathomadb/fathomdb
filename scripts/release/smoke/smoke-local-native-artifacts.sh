@@ -66,8 +66,8 @@ trap 'rm -rf "$WORK"' EXIT
 python3 -m venv "$WORK/python-venv"
 PYTHON="$WORK/python-venv/bin/python"
 "$PYTHON" -m pip install --no-index --find-links "$WHEEL_DIR" fathomdb
-"$PYTHON" - "$REPO_ROOT/tests/fixtures/slice40_frozen_context_v2.json" \
-  "$WORK/python-frozen-fixture.sqlite" <<'PY'
+"$PYTHON" - "$REPO_ROOT/tests/fixtures/slice45_frozen_context_v3.json" \
+  "$WORK/python-frozen-fixture.sqlite" "$WORK/python-frozen-token.txt" <<'PY'
 import json
 import sqlite3
 import sys
@@ -77,6 +77,7 @@ from fathomdb.types import ReadContextV1, ReadView, SearchFilter
 
 fixture = json.load(open(sys.argv[1], encoding="utf-8"))
 database = sys.argv[2]
+token_path = sys.argv[3]
 Engine.open(database, use_default_embedder=False).close()
 with sqlite3.connect(database) as connection:
     old_generation, declaration = connection.execute(
@@ -108,7 +109,9 @@ with sqlite3.connect(database) as connection:
         (fixture["read_context_key"],),
     )
     connection.execute(
-        "UPDATE _fathomdb_read_visibility_state SET generation=0 WHERE singleton=1"
+        "UPDATE _fathomdb_read_visibility_state "
+        "SET generation=0,state_nonce=? WHERE singleton=1",
+        (fixture["state_nonce"],),
     )
 raw = fixture["context"]
 engine = Engine.open(database, use_default_embedder=False)
@@ -140,7 +143,8 @@ assert frozen.context.eligibility.kind == raw["kind"]
 assert frozen.context.eligibility.created_after == raw["created_after"]
 assert frozen.context.eligibility.status == raw["status"]
 assert frozen.context.eligibility.attributes == tuple(raw["attributes"])
-assert frozen.token == fixture["token"]
+with open(token_path, "w", encoding="utf-8") as token_file:
+    token_file.write(frozen.token)
 engine.close()
 PY
 "$PYTHON" - "$WORK/python-smoke.fdb" <<'PY'
@@ -253,58 +257,14 @@ EOF
 (
   cd "$CONSUMER"
   npm install --offline --ignore-scripts
-  node --input-type=module - "$WORK/npm-frozen-fixture.sqlite" <<'JS'
-import { Engine } from "fathomdb";
-const engine = await Engine.open(process.argv[2], { useDefaultEmbedder: false });
-await engine.close();
-JS
-  python3 - "$REPO_ROOT/tests/fixtures/slice40_frozen_context_v2.json" \
-    "$WORK/npm-frozen-fixture.sqlite" <<'PY'
-import json
-import sqlite3
-import sys
-
-fixture = json.load(open(sys.argv[1], encoding="utf-8"))
-with sqlite3.connect(sys.argv[2]) as connection:
-    old_generation, declaration = connection.execute(
-        "SELECT generation_id,declaration_sha256 "
-        "FROM _fathomdb_projection_generations WHERE role='serving'"
-    ).fetchone()
-    assert declaration == fixture["declaration_sha256"]
-    connection.execute(
-        "UPDATE _fathomdb_projection_generations "
-        "SET role='retired',retired_boundary=0 WHERE generation_id=?",
-        (old_generation,),
-    )
-    connection.execute(
-        "INSERT INTO _fathomdb_projection_generations("
-        "schema_version,generation_id,declaration_sha256,transition_boundary,role,origin"
-        ") VALUES(1,?,?,0,'serving','fresh')",
-        (fixture["generation_id"], declaration),
-    )
-    connection.execute(
-        "UPDATE _fathomdb_projection_generation_current SET generation_id=? WHERE singleton=1",
-        (fixture["generation_id"],),
-    )
-    connection.execute(
-        "UPDATE _fathomdb_open_state SET value=? WHERE key='_fathomdb_database_id'",
-        (fixture["database_id"],),
-    )
-    connection.execute(
-        "UPDATE _fathomdb_open_state SET value=? WHERE key='_fathomdb_read_context_key'",
-        (fixture["read_context_key"],),
-    )
-    connection.execute(
-        "UPDATE _fathomdb_read_visibility_state SET generation=0 WHERE singleton=1"
-    )
-PY
-  node --input-type=module - "$REPO_ROOT/tests/fixtures/slice40_frozen_context_v2.json" \
-    "$WORK/npm-frozen-fixture.sqlite" <<'JS'
+  node --input-type=module - "$REPO_ROOT/tests/fixtures/slice45_frozen_context_v3.json" \
+    "$WORK/python-frozen-fixture.sqlite" "$WORK/python-frozen-token.txt" <<'JS'
 import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { Engine } from "fathomdb";
 
 const fixture = JSON.parse(readFileSync(process.argv[2], "utf8"));
+const expectedToken = readFileSync(process.argv[4], "utf8");
 const raw = fixture.context;
 const engine = await Engine.open(process.argv[3], { useDefaultEmbedder: false });
 const frozen = await engine.freezeReadContext({
@@ -339,7 +299,7 @@ assert.deepEqual(frozen.context, {
     attributes: raw.attributes,
   },
 });
-assert.equal(frozen.token, fixture.token);
+assert.equal(frozen.token, expectedToken);
 await engine.close();
 JS
   node --input-type=module - "$WORK/npm-smoke.fdb" <<'JS'

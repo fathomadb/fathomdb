@@ -40,7 +40,7 @@ roles.
 | 25 | Core atomic semantic actuation | Complete on release branch (`131053da`) |
 | 30 | Lifecycle and erasure closure | Complete on release branch (`75617521`) |
 | 35 | Eligibility and optional frozen reads | Complete on release branch (`071ff7d1`) |
-| 40 | Core projection generation/readiness | Complete on release branch (`21988535`) |
+| 40 | Core projection generation/readiness | Complete on release branch (`ccf7c695`) |
 | 45 | Minimal pagination and operational state | Not started |
 | 50 | Compact source-complete evidence | Not started |
 | 55 | Basic tracing and integrity | Not started |

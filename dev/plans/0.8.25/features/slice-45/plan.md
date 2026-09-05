@@ -49,21 +49,28 @@ semantic latest-state policy, or client-side filtering.
 
 ## Performance experiment
 
-Use deterministic fresh 10k and 50k databases and fixed 100-item pages. Compare
-the existing indexed `read_list_filter` result with the new canonical page over
-an equivalent view/filter, and compare operational-state point reads with and
-without a pre-minted frozen context. Report context mint, first page,
-continuation, full-walk, and point-read costs separately. Run three process-cold
-and five steady repetitions, with at least 1,000 measured operations in each
-steady cell; alternate treatment order and pin host/build/SQLite/configuration,
-input digest, CPU affinity, and reset/warm-up procedure.
+Use checked-in deterministic fresh 10k and 50k logical-node/state-row corpora
+with fixed 256-byte bodies/payloads and 100-item pages. Primary causal cells
+compare the exact page query without versus with frozen/cursor work, first page
+versus continuation with stage timing, and operational-state point reads
+without versus with one pre-minted context. Keep the existing public list and
+full page walk as separate operational observations. Record terminal-row count
+and frozen parse/authentication/binding/query stages so an O(N) validation cost
+is identified rather than blamed on pagination.
 
-An effect is material when candidate p95 latency increases by both more than
-10% and more than 0.25 ms, or peak RSS increases by both more than 5% and more
-than 8 MiB. Report confidence intervals and raw repetitions even when neither
-threshold is crossed. A material effect keeps the slice open for causal
-analysis and an explicit reviewed disposition; it never justifies weakening
-snapshot, eligibility, or cursor integrity.
+Run ten independent paired steady processes per primary cell and scale, at
+least 1,000 operations per process, three additional process-cold repetitions,
+and five fresh peak-RSS processes per arm. Alternate treatment order. Pin
+host/build/SQLite/configuration, input and runner digests, CPU affinity, reset/
+warm-up procedure, and retain raw/result hashes. Use a fixed-seed 10,000-draw
+paired percentile bootstrap over repetition-level p95 deltas.
+
+An effect is material per primary cell when median paired p95 increases by both
+more than 10% and more than 0.25 ms, or median peak RSS increases by both more
+than 5% and more than 8 MiB. Report intervals and raw repetitions even when
+neither threshold is crossed. A material effect keeps the slice open for
+causal analysis and an explicit reviewed disposition; it never justifies
+weakening snapshot, eligibility, or cursor integrity.
 
 ## Stop gates
 

@@ -12,6 +12,16 @@ fn generation(connection: &Connection) -> i64 {
         .unwrap()
 }
 
+fn state_nonce(connection: &Connection) -> String {
+    connection
+        .query_row(
+            "SELECT state_nonce FROM _fathomdb_read_visibility_state WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap()
+}
+
 #[test]
 fn step33_installs_unique_page_indexes_and_state_visibility_triggers() {
     assert_eq!(SCHEMA_VERSION, 33);
@@ -123,6 +133,26 @@ fn step33_has_exact_trigger_manifest_and_one_generation_cutover() {
         .optional()
         .unwrap();
     assert!(cutover_guard.is_none(), "temporary cutover guard must not persist");
+}
+
+#[test]
+fn step33_mints_branch_sensitive_state_for_every_terminal_mutation() {
+    let connection = Connection::open_in_memory().unwrap();
+    migrate(&connection).unwrap();
+    let mut seen = BTreeSet::from([state_nonce(&connection)]);
+    for sql in [
+        "INSERT INTO _fathomdb_projection_terminal(write_cursor,state) \
+         VALUES(1,'up_to_date')",
+        "UPDATE _fathomdb_projection_terminal SET state='failed' WHERE write_cursor=1",
+        "DELETE FROM _fathomdb_projection_terminal WHERE write_cursor=1",
+    ] {
+        connection.execute(sql, []).unwrap();
+        let nonce = state_nonce(&connection);
+        assert_eq!(nonce.len(), 64);
+        assert!(nonce.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)));
+        assert!(seen.insert(nonce), "each mutation must mint new branch-sensitive state");
+    }
+    assert_eq!(seen.len(), 4);
 }
 
 #[test]

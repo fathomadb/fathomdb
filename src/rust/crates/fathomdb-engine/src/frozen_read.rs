@@ -1052,4 +1052,49 @@ mod tests {
             Err(error) if error.reason == FrozenReadErrorReason::StateDrifted
         ));
     }
+
+    #[test]
+    fn equal_count_terminal_mutations_on_copied_databases_do_not_share_authority() {
+        let directory = tempfile::tempdir().unwrap();
+        let original = directory.path().join("original.fathom.sqlite3");
+        let copied = directory.path().join("copied.fathom.sqlite3");
+        let opened = crate::Engine::open(&original).unwrap();
+        opened
+            .engine
+            .execute_for_test(
+                "INSERT INTO _fathomdb_projection_terminal(write_cursor,state) \
+                 VALUES(1,'up_to_date'),(2,'up_to_date')",
+            )
+            .unwrap();
+        opened.engine.close().unwrap();
+        std::fs::copy(&original, &copied).unwrap();
+
+        let mut left = Connection::open(&original).unwrap();
+        let right = Connection::open(&copied).unwrap();
+        left.execute(
+            "UPDATE _fathomdb_projection_terminal SET state='failed' WHERE write_cursor=1",
+            [],
+        )
+        .unwrap();
+        right
+            .execute(
+                "UPDATE _fathomdb_projection_terminal SET state='failed' WHERE write_cursor=2",
+                [],
+            )
+            .unwrap();
+        assert_eq!(
+            load_visibility_generation(&left).unwrap(),
+            load_visibility_generation(&right).unwrap()
+        );
+        let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+        let (left_frozen, _) = mint(&mut left, &context).unwrap();
+        let left_binding = authenticate(&left, &left_frozen).unwrap();
+        validate_snapshot(&left, &left_binding).unwrap();
+
+        let copied_binding = authenticate(&right, &left_frozen).unwrap();
+        assert!(matches!(
+            validate_snapshot(&right, &copied_binding),
+            Err(error) if error.reason == FrozenReadErrorReason::StateDrifted
+        ));
+    }
 }

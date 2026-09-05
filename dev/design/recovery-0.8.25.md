@@ -3,7 +3,7 @@ title: Recovery design — 0.8.25 projection-generation successor
 date: 2026-09-05
 target_release: 0.8.25
 supersedes: recovery.md only for projection-generation diagnosis
-status: ready
+status: COMPLETE
 ---
 
 # Recovery design — 0.8.25 successor

@@ -313,27 +313,23 @@ def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
         _evidence_response_error("evidence_corrupt", "/projectionOrigin/graphOrigin")
     if graph_kind is not None:
         _require_evidence_variant(
-            graph_kind, {"entity_seed", "edge_seed", "traversal"},
+            graph_kind, {"edge_seed", "traversal"},
             "/projectionOrigin/graphOrigin/kind"
         )
         edge_revision = value.projection_origin.graph_edge_artifact_revision_id
         hop_count = value.projection_origin.graph_hop_count
-        if graph_kind == "entity_seed":
-            if edge_revision is not None or hop_count is not None:
-                _evidence_response_error("evidence_corrupt", "/projectionOrigin/graphOrigin")
-        else:
-            if not edge_revision:
-                _evidence_response_error(
-                    "evidence_corrupt", "/projectionOrigin/graphOrigin/edgeArtifactRevisionId"
-                )
-            if graph_kind == "edge_seed" and hop_count is not None:
-                _evidence_response_error(
-                    "evidence_corrupt", "/projectionOrigin/graphOrigin/hopCount"
-                )
-            if graph_kind == "traversal":
-                _require_u32(
-                    hop_count, "/projectionOrigin/graphOrigin/hopCount", optional=False
-                )
+        if not edge_revision:
+            _evidence_response_error(
+                "evidence_corrupt", "/projectionOrigin/graphOrigin/edgeArtifactRevisionId"
+            )
+        if graph_kind == "edge_seed" and hop_count is not None:
+            _evidence_response_error(
+                "evidence_corrupt", "/projectionOrigin/graphOrigin/hopCount"
+            )
+        if graph_kind == "traversal":
+            _require_u32(
+                hop_count, "/projectionOrigin/graphOrigin/hopCount", optional=False
+            )
     for name, wire_name in [
         ("vector_rank", "vectorRank"),
         ("text_rank", "textRank"),

@@ -125,20 +125,15 @@ export function validateNativeResolvedEvidence(r: NativeResolvedEvidenceV1): voi
   if (graph) {
     variant(
       graph.kind,
-      ["entity_seed", "edge_seed", "traversal"],
+      ["edge_seed", "traversal"],
       "/projectionOrigin/graphOrigin/kind",
     );
-    if (graph.kind === "entity_seed") {
-      if (graph.edgeArtifactRevisionId != null || graph.hopCount != null)
-        fail("evidence_corrupt", "/projectionOrigin/graphOrigin");
-    } else {
-      if (!graph.edgeArtifactRevisionId)
-        fail("evidence_corrupt", "/projectionOrigin/graphOrigin/edgeArtifactRevisionId");
-      if (graph.kind === "edge_seed" && graph.hopCount != null)
-        fail("evidence_corrupt", "/projectionOrigin/graphOrigin/hopCount");
-      if (graph.kind === "traversal") {
-        u32(graph.hopCount, "/projectionOrigin/graphOrigin/hopCount", true);
-      }
+    if (!graph.edgeArtifactRevisionId)
+      fail("evidence_corrupt", "/projectionOrigin/graphOrigin/edgeArtifactRevisionId");
+    if (graph.kind === "edge_seed" && graph.hopCount != null)
+      fail("evidence_corrupt", "/projectionOrigin/graphOrigin/hopCount");
+    if (graph.kind === "traversal") {
+      u32(graph.hopCount, "/projectionOrigin/graphOrigin/hopCount", true);
     }
   }
 

@@ -1627,11 +1627,6 @@ pub struct EvidenceProjectionOriginV1 {
 impl From<RustEvidenceProjectionOriginV1> for EvidenceProjectionOriginV1 {
     fn from(value: RustEvidenceProjectionOriginV1) -> Self {
         let graph_origin = value.graph_origin.map(|origin| match origin {
-            RustEvidenceGraphOriginV1::EntitySeed => EvidenceGraphOriginV1 {
-                kind: "entity_seed".to_string(),
-                edge_artifact_revision_id: None,
-                hop_count: None,
-            },
             RustEvidenceGraphOriginV1::EdgeSeed { edge_artifact_revision_id } => {
                 EvidenceGraphOriginV1 {
                     kind: "edge_seed".to_string(),

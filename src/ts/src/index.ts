@@ -911,7 +911,7 @@ export interface EvidenceContributionV1 {
 }
 
 export interface EvidenceGraphOriginV1 {
-  kind: "entity_seed" | "edge_seed" | "traversal";
+  kind: "edge_seed" | "traversal";
   edgeArtifactRevisionId: string | null;
   hopCount: number | null;
 }

@@ -123,7 +123,6 @@ impl EvidenceArmV1 {
 /// Compact graph origin. Full path replay is outside schema version 1.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EvidenceGraphOriginV1 {
-    EntitySeed,
     EdgeSeed { edge_artifact_revision_id: String },
     Traversal { edge_artifact_revision_id: String, hop_count: u32 },
 }
@@ -374,6 +373,13 @@ pub(crate) fn build_search_result(
         } else {
             None
         };
+        if matches!(graph_origin, Some(crate::CapturedGraphOrigin::EntitySeed)) {
+            return Err(EvidenceErrorV1::new(
+                EvidenceErrorReasonV1::EvidenceCorrupt,
+                format!("/results/{index}/graphOrigin"),
+            )
+            .into());
+        }
         let graph_edge_commitment = match graph_origin.as_ref() {
             Some(crate::CapturedGraphOrigin::EdgeSeed { edge_cursor })
             | Some(crate::CapturedGraphOrigin::Traversal { edge_cursor, .. }) => {
@@ -514,11 +520,6 @@ pub(crate) fn resolve(
     let (graph_origin, graph_provenance) =
         match (&payload.graph_origin, payload.graph_edge_commitment) {
             (None, None) if payload.arm != EvidenceArmV1::GraphArm => (None, None),
-            (Some(crate::CapturedGraphOrigin::EntitySeed), None)
-                if payload.arm == EvidenceArmV1::GraphArm =>
-            {
-                (Some(EvidenceGraphOriginV1::EntitySeed), None)
-            }
             (Some(crate::CapturedGraphOrigin::EdgeSeed { edge_cursor }), Some(commitment))
                 if payload.arm == EvidenceArmV1::GraphArm =>
             {
@@ -1141,7 +1142,9 @@ fn encode_payload(payload: &Payload) -> Vec<u8> {
     encode_optional_f64(&mut bytes, payload.contribution.confidence);
     match (&payload.graph_origin, payload.graph_edge_commitment) {
         (None, None) => bytes.push(0),
-        (Some(crate::CapturedGraphOrigin::EntitySeed), None) => bytes.push(1),
+        (Some(crate::CapturedGraphOrigin::EntitySeed), None) => {
+            unreachable!("query-matched entity seeds remain text/vector representatives")
+        }
         (Some(crate::CapturedGraphOrigin::EdgeSeed { edge_cursor }), Some(commitment)) => {
             bytes.push(2);
             frozen_read::encode_u64(&mut bytes, *edge_cursor);
@@ -1223,7 +1226,6 @@ fn decode_payload(bytes: &[u8]) -> Result<Payload, EngineError> {
     };
     let (graph_origin, graph_edge_commitment) = match cursor.u8()? {
         0 => (None, None),
-        1 => (Some(crate::CapturedGraphOrigin::EntitySeed), None),
         2 => (
             Some(crate::CapturedGraphOrigin::EdgeSeed { edge_cursor: cursor.u64()? }),
             Some(cursor.array32()?),

@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 50 — compact source-complete evidence design
 status: READY
-design_version: 9
+design_version: 10
 target_release: 0.8.25
 depends_on: 45
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -118,7 +118,6 @@ EvidenceArtifactLifecycleV1 =
 EvidenceArmV1 = vector | text | text_edge | graph_arm
 
 EvidenceGraphOriginV1 =
-  entity_seed
   edge_seed { edge_artifact_revision_id: string }
   traversal { edge_artifact_revision_id: string, hop_count: u32 }
 
@@ -160,10 +159,11 @@ artifact whose `body` appears in the associated `SearchHit`. For a graph-arm
 node that is the reached node and its own canonical source. `graph_origin`
 separately identifies the exact edge that introduced the candidate, when an
 edge exists. It does not claim that the edge's source bytes are the body
-evidence, and it is not full path evidence. An entity-FTS seed has no edge and
-uses `entity_seed`. An edge-matched endpoint uses `edge_seed`; a BFS neighbor
-uses `traversal` and the emitted hop count. Slice 60 may add full path evidence
-without changing this distinction.
+evidence, and it is not full path evidence. A query-matched entity seed remains
+the ordinary text/vector representative and is not duplicated as a graph-arm
+hit. An edge-matched endpoint uses `edge_seed`; a BFS neighbor uses `traversal`
+and the emitted hop count. Slice 60 may add full path evidence without changing
+this distinction.
 
 `soft_fallback` is query-level and remains only on the embedded
 `SearchResult`; it is not copied into every contribution. A nullable score is
@@ -188,12 +188,11 @@ native response-contract violation returns `evidence_corrupt` at the exact
 camel-case response path. A whole-body locator forbids offsets; a UTF-8 locator
 requires ordered canonical `u64` offsets. Node lifecycle requires a known state
 and forbids `validAtEffective`; edge lifecycle requires `validAtEffective` and
-forbids state. Graph origin exists exactly for `graph_arm`: `entity_seed` has
-neither edge nor hop, `edge_seed` has an edge and no hop, and `traversal` has an
-edge plus a bounded `u32` hop. All ranks/hops are `u32`; all contribution values
-are finite; dependency generation is canonical `u64`. Validation occurs before
-constructing the public object, so a newer native binary cannot be silently
-downcast by an older facade.
+forbids state. Graph origin exists exactly for `graph_arm`: `edge_seed` has an
+edge and no hop, and `traversal` has an edge plus a bounded `u32` hop. All
+ranks/hops are `u32`; all contribution values are finite; dependency generation
+is canonical `u64`. Validation occurs before constructing the public object, so
+a newer native binary cannot be silently downcast by an older facade.
 
 `Engine::search_with_evidence(&EvidenceSearchRequestV1)` and
 `Engine::resolve_evidence(&EvidenceResolveRequestV1)` are the only new Engine
@@ -301,11 +300,13 @@ remove capture calls, branches, maps, provenance SQL, and allocations from that
 path. A separate `read_search_with_evidence_in_tx` wrapper owns the evidence
 transaction and calls the same core with `EvidenceOriginCapture`. Candidate
 creation records artifact class at node/edge hydration. Graph candidate
-creation additionally records `entity_seed`, or the exact edge cursor and hop
-at the seed/traversal statement. Fusion retains the origin of its existing
-representative hit. This is the required same-snapshot seam: search and
-provenance lookup never run in different transactions. No evidence row, query,
-sidecar, or reference is written to SQLite, WAL, telemetry, or an Engine cache.
+creation records the exact edge cursor and hop at the edge-seed/traversal
+statement. Query-matched entity seeds remain in the ordinary text/vector arm;
+the graph arm suppresses that duplicate candidate. Fusion retains the origin
+of its existing representative hit. This is the required same-snapshot seam:
+search and provenance lookup never run in different transactions. No evidence
+row, query, sidecar, or reference is written to SQLite, WAL, telemetry, or an
+Engine cache.
 
 Content-ID hits may resolve only when their internal cursor has a complete
 Slice 15 provenance row. Legacy `migrated_incomplete` rows make the entire
@@ -390,9 +391,8 @@ Storage failure and Engine closing retain their existing top-level errors.
 ### Graph-origin authorization
 
 `graph_origin` is a third authorization subject, distinct from the returned
-body artifact and its canonical source. `entity_seed` has no edge subject. For
-`edge_seed` or `traversal`, the resolver must, in the same frozen reader
-transaction:
+body artifact and its canonical source. For `edge_seed` or `traversal`, the
+resolver must, in the same frozen reader transaction:
 
 1. locate the captured edge cursor and matching `_fathomdb_artifact_revisions`
    row;
@@ -490,9 +490,10 @@ The preserved RED set includes:
 2. property tests for canonical codec round-trip, single-bit tamper, length,
    noncanonical encodings, finite floats, and privacy markers;
 3. exact sidecar order/association, explanation composition, node-text/vector,
-   edge-text/vector, and graph entity-seed/edge-seed/traversal contribution;
-   graph cases prove body-source versus traversal-edge distinction, and one
-   incomplete hit causes whole-request rollback;
+   edge-text/vector, and graph edge-seed/traversal contribution; graph cases
+   prove body-source versus traversal-edge distinction, prove a query-matched
+   entity stays an ordinary text/vector representative without duplication,
+   and prove one incomplete hit causes whole-request rollback;
 4. wrong database, mismatched/broader/narrower context, supersession,
    lifecycle deletion, erasure, validity, eligibility, closure fence, and
    replacement all producing byte-identical `evidence_unavailable` errors;
@@ -514,6 +515,17 @@ The preserved RED set includes:
 No test mocks SQLite, changes a historical fixture, or uses generated semantic
 oracles. The existing query-plan and connection-attribution invariants remain
 load-bearing for any new test hook.
+
+## Version 10 implementation correction
+
+The version-9 public union included `entity_seed`, but the accepted retrieval
+algorithm intentionally suppresses graph-arm duplicates of query-matched
+entities. Implementation review therefore found that state unreachable without
+changing ranking and duplicate semantics. Version 10 removes the unreachable
+public variant, retains the existing retrieval behavior, and requires a
+regression proving the entity remains represented by its text/vector arm. This
+is a contract correction discovered during implementation, not a new graph
+capability or a fifth design-review cycle.
 
 ## Documentation and completion
 

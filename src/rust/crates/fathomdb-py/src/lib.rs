@@ -1227,9 +1227,6 @@ impl From<RustEvidenceProjectionOriginV1> for PyEvidenceProjectionOriginV1 {
             .graph_origin
         {
             None => (None, None, None),
-            Some(RustEvidenceGraphOriginV1::EntitySeed) => {
-                (Some("entity_seed".to_string()), None, None)
-            }
             Some(RustEvidenceGraphOriginV1::EdgeSeed { edge_artifact_revision_id }) => {
                 (Some("edge_seed".to_string()), Some(edge_artifact_revision_id), None)
             }

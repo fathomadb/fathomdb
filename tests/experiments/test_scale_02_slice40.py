@@ -27,8 +27,9 @@ def config() -> dict[str, object]:
             "runner_sha256": "b" * 64,
             "record_library_sha256": "c" * 64,
             "statistics_library_sha256": "d" * 64,
-            "common_worker_sha256": "e" * 64,
-            "status_test_sha256": "f" * 64,
+            "classification_library_sha256": "e" * 64,
+            "common_worker_sha256": "f" * 64,
+            "status_test_sha256": "0" * 64,
         },
         "measurement_plan": {
             "path": "experiments/configs/scale-02/slice40-common-measurement-plan.v1.json",
@@ -175,6 +176,7 @@ def test_execution_preflight_rejects_dirty_source(monkeypatch, tmp_path) -> None
             "runner_sha256",
             "record_library_sha256",
             "statistics_library_sha256",
+            "classification_library_sha256",
             "common_worker_sha256",
             "status_test_sha256",
         )

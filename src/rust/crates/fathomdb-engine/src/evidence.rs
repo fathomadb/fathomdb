@@ -447,7 +447,6 @@ pub(crate) fn resolve(
         payload.effective_valid_at,
     )
     .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-    let generation = crate::projection_generation::current_generation_id(connection)?;
     if payload.artifact_commitment
         != keyed(&key, ARTIFACT_DOMAIN, stored.artifact_revision_id.as_bytes())
         || payload.source_commitment
@@ -455,11 +454,10 @@ pub(crate) fn resolve(
         || payload.locator_commitment
             != keyed(&key, LOCATOR_DOMAIN, &locator_bytes(&stored.locator))
         || payload.hash_commitment != keyed(&key, HASH_DOMAIN, stored.hash_digest.as_bytes())
-        || payload.generation_commitment
-            != keyed(&key, GENERATION_DOMAIN, generation.as_str().as_bytes())
     {
         return Err(EvidenceErrorV1::unavailable().into());
     }
+    let generation = resolve_generation(connection, &key, &payload.generation_commitment)?;
     let graph_origin = match (&payload.graph_origin, payload.graph_edge_commitment) {
         (None, None) if payload.arm != EvidenceArmV1::GraphArm => None,
         (Some(crate::CapturedGraphOrigin::EntitySeed), None)
@@ -802,6 +800,33 @@ fn load_graph_edge_revision(
         .optional()
         .map_err(|_| EngineError::Storage)?
         .ok_or_else(|| EvidenceErrorV1::unavailable().into())
+}
+
+fn resolve_generation(
+    connection: &Connection,
+    key: &[u8],
+    commitment: &[u8; 32],
+) -> Result<ProjectionGenerationId, EngineError> {
+    let mut statement = connection
+        .prepare("SELECT generation_id FROM _fathomdb_projection_generations")
+        .map_err(|_| EngineError::Storage)?;
+    let rows =
+        statement.query_map([], |row| row.get::<_, String>(0)).map_err(|_| EngineError::Storage)?;
+    let mut matched = None;
+    for row in rows {
+        let generation = row.map_err(|_| EngineError::Storage)?;
+        let candidate = keyed(key, GENERATION_DOMAIN, generation.as_bytes());
+        if frozen_read::constant_time_eq(&candidate, commitment) {
+            if matched.is_some() {
+                return Err(EvidenceErrorV1::unavailable().into());
+            }
+            matched = Some(
+                ProjectionGenerationId::new(generation)
+                    .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?,
+            );
+        }
+    }
+    matched.ok_or_else(|| EvidenceErrorV1::unavailable().into())
 }
 
 fn keyed(key: &[u8], domain: &[u8], value: &[u8]) -> [u8; 32] {

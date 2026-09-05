@@ -84,3 +84,11 @@ The focused command failed 6 passed / 1 failed: the resolver compared the
 reference only with the current serving generation and therefore rejected the
 still-present retired origin. The supersession case already returned the
 required `evidence_unavailable` outcome.
+
+## GREEN 3
+
+Resolution now authenticates the committed originating generation against the
+bounded Engine-owned generation history rather than requiring it to remain the
+current serving generation. It rejects zero or duplicate matches and validates
+the closed generation-ID grammar before disclosure. The focused suite passes
+7/7, including restart, retirement, and supersession.

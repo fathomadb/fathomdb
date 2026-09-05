@@ -468,17 +468,34 @@ classification, and exact point classification for registry-owned kinds.
 introduced by correlation fields; an uncached aggregate may visit the physical
 member set.
 
-Status reads use an exact snapshot cache keyed by the fallibly read
-authoritative boundary, read-visibility generation, SQLite `data_version`,
-effective epoch second, runtime state, and, for mutation status, the complete
-validated request. The boundary key covers same-Engine operational-only
-mutations that do not touch a visibility-triggered table; commits from other
-connections advance `data_version`; visibility-authority changes and an epoch
-change cover the remaining physical and time-bound state. A cache miss
-recomputes the complete status in one reader transaction. A cache hit is
-therefore a reuse of an identical snapshot result, not an approximation or a
-weaker readiness signal. Tests must prove invalidation after worker
-publication, operational-only mutation, and an out-of-band physical mutation.
+The generation-status cache is membership-boundary-aware, not
+wall-clock-second-bound. A cached classification may be reused at a later
+effective instant only when the visibility generation, SQLite data version,
+authoritative write boundary, runtime state, and projection generation remain
+unchanged and no temporal membership boundary lies between the cached instant
+and the requested instant. The next boundary is the minimum future edge
+`t_invalid` or registered canonical source `valid_from`/`valid_until` instant.
+Cache reuse echoes the newly requested `effective_at_epoch_s`; it does not
+replay the earlier timestamp. A backwards clock movement, the boundary instant
+itself, or any ordinary mutation invalidates reuse. This preserves strict
+temporal membership while preventing an O(N) physical-owner rescan every epoch
+second on databases with no approaching temporal boundary.
+
+Status reads use exact snapshot caches keyed by the fallibly read authoritative
+boundary, read-visibility generation, SQLite `data_version`, and runtime state.
+The generation cache additionally binds the membership-valid time interval
+defined above. The mutation point cache also binds the complete validated
+request and exact effective epoch second; a point-cache miss may still reuse
+the boundary-valid generation classification. The authoritative-boundary key
+covers same-Engine operational-only mutations that do not touch a
+visibility-triggered table; commits from other connections advance
+`data_version`; visibility-authority and membership-boundary changes cover the
+remaining physical and time-bound state. A cache miss recomputes the complete
+status in one reader transaction. A cache hit is therefore reuse of the same
+classification under unchanged membership, not an approximation or a weaker
+readiness signal. Tests must prove invalidation after worker publication,
+operational-only mutation, an out-of-band physical mutation, edge expiry, and
+registered-source validity changes.
 
 Before classifying registered physical owners, a status cache miss validates
 that every dependency resolves to a derived artifact and matching source link,
@@ -789,8 +806,14 @@ Preregistered bounds:
   reported before and after checkpoint;
 - steady-state current-generation and mutation-status p95 at most 5 ms and p99
   at most 10 ms at 50k; the first uncached call and every invalidating
-  transition are reported separately as cold/transition observations and may
-  not be included in the steady distribution;
+  transition or temporal membership boundary are reported separately as
+  cold/transition observations and may not be included in the steady
+  distribution; crossing an epoch second without a membership boundary is
+  steady state and may not force a full-owner rescan;
+- fixture construction and projection drain complete before any status sample;
+  their timeout is a setup-failure bound rather than a status-latency metric
+  and must accommodate the full 50k projection workload without changing the
+  registered sample count or decision thresholds;
 - open/restart p95 upper regression at most 10% or 25 ms absolute, whichever is
   larger;
 - configuration/rebuild metadata transition cost reported separately from

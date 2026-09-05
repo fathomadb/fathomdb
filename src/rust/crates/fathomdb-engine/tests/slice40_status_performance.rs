@@ -13,6 +13,8 @@ use fathomdb_schema::SQLITE_SUFFIX;
 use serde_json::json;
 use tempfile::TempDir;
 
+const SEED_DRAIN_TIMEOUT_MS: u64 = 300_000;
+
 #[derive(Debug)]
 struct FixedEmbedder;
 
@@ -111,7 +113,7 @@ fn measure_generation_and_mutation_status_at_50k() {
     let index = records.saturating_sub(1);
     let receipt = setup.engine.actuate(measured_batch(index)).unwrap();
     assert_eq!(receipt.pending_projection_write_cursors.len(), 1);
-    setup.engine.drain(30_000).unwrap();
+    setup.engine.drain(SEED_DRAIN_TIMEOUT_MS).unwrap();
     drop(setup);
     if std::env::var_os("FATHOM_SLICE40_STATUS_SEED_ONLY").is_some() {
         return;

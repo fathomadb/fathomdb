@@ -168,7 +168,8 @@ pub(crate) struct CachedProjectionGenerationStatus {
     visibility_generation: u64,
     data_version: u64,
     authoritative_boundary: u64,
-    effective_at_epoch_s: i64,
+    effective_from_epoch_s: i64,
+    valid_before_epoch_s: Option<i64>,
     runtime_state: ProjectionRuntimeStateV1,
     status: ProjectionGenerationStatusV1,
 }
@@ -1337,6 +1338,44 @@ fn status_in_snapshot(
     })
 }
 
+fn next_status_membership_boundary(
+    connection: &Connection,
+    effective_at_epoch_s: i64,
+) -> Result<Option<i64>, EngineError> {
+    connection
+        .query_row(
+            "WITH boundaries(boundary) AS (\
+               SELECT t_invalid FROM canonical_edges \
+               WHERE body IS NOT NULL AND superseded_at IS NULL \
+                 AND t_invalid>?1 \
+               UNION ALL \
+               SELECT source_node.valid_from \
+               FROM _fathomdb_source_dependencies dependency \
+               JOIN _fathomdb_source_links derived_link \
+                 ON derived_link.artifact_revision_id=dependency.derived_revision_id \
+               JOIN _fathomdb_artifact_revisions source_revision \
+                 ON source_revision.revision_id=derived_link.source_revision_id \
+               JOIN canonical_nodes source_node \
+                 ON source_node.write_cursor=source_revision.write_cursor \
+               WHERE source_node.valid_from>?1 \
+               UNION ALL \
+               SELECT source_node.valid_until \
+               FROM _fathomdb_source_dependencies dependency \
+               JOIN _fathomdb_source_links derived_link \
+                 ON derived_link.artifact_revision_id=dependency.derived_revision_id \
+               JOIN _fathomdb_artifact_revisions source_revision \
+                 ON source_revision.revision_id=derived_link.source_revision_id \
+               JOIN canonical_nodes source_node \
+                 ON source_node.write_cursor=source_revision.write_cursor \
+               WHERE source_node.valid_until>?1\
+             ) \
+             SELECT MIN(boundary) FROM boundaries",
+            [effective_at_epoch_s],
+            |row| row.get(0),
+        )
+        .map_err(|_| EngineError::Storage)
+}
+
 impl Engine {
     fn cached_status_in_snapshot(
         &self,
@@ -1356,30 +1395,38 @@ impl Engine {
             if cached.visibility_generation == visibility_generation
                 && cached.data_version == data_version
                 && cached.authoritative_boundary == boundary
-                && cached.effective_at_epoch_s == effective_at_epoch_s
+                && effective_at_epoch_s >= cached.effective_from_epoch_s
+                && cached
+                    .valid_before_epoch_s
+                    .is_none_or(|boundary| effective_at_epoch_s < boundary)
                 && cached.runtime_state == runtime_state
             {
-                return Ok(cached.status.clone());
+                let mut status = cached.status.clone();
+                status.effective_at_epoch_s = effective_at_epoch_s;
+                return Ok(status);
             }
         }
         #[cfg(feature = "test-hooks")]
         self.projection_generation_status_full_owner_scan_count
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let status = status_in_snapshot(connection, runtime_state, effective_at_epoch_s, boundary)?;
+        let valid_before_epoch_s =
+            next_status_membership_boundary(connection, effective_at_epoch_s)?;
         *cache = Some(CachedProjectionGenerationStatus {
             visibility_generation,
             data_version,
             authoritative_boundary: boundary,
-            effective_at_epoch_s,
+            effective_from_epoch_s: effective_at_epoch_s,
+            valid_before_epoch_s,
             runtime_state,
             status: status.clone(),
         });
         Ok(status)
     }
 
-    /// Read the current serving-generation identity and physical completeness.
-    pub fn read_projection_generation_status(
+    fn read_projection_generation_status_at(
         &self,
+        effective_at_epoch_s: i64,
     ) -> Result<ProjectionGenerationStatusV1, EngineError> {
         self.ensure_open()?;
         let mut guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
@@ -1387,7 +1434,6 @@ impl Engine {
         let tx = connection
             .transaction_with_behavior(TransactionBehavior::Deferred)
             .map_err(|_| EngineError::Storage)?;
-        let effective_at_epoch_s = current_epoch_seconds();
         let runtime_state = if self.runtime_embedder.is_none() {
             ProjectionRuntimeStateV1::Absent
         } else if self.dense_disabled.load(std::sync::atomic::Ordering::SeqCst) {
@@ -1400,6 +1446,22 @@ impl Engine {
             self.cached_status_in_snapshot(&tx, runtime_state, effective_at_epoch_s, boundary)?;
         tx.commit().map_err(|_| EngineError::Storage)?;
         Ok(status)
+    }
+
+    /// Read the current serving-generation identity and physical completeness.
+    pub fn read_projection_generation_status(
+        &self,
+    ) -> Result<ProjectionGenerationStatusV1, EngineError> {
+        self.read_projection_generation_status_at(current_epoch_seconds())
+    }
+
+    /// Read generation status at a controlled effective instant for deterministic tests.
+    #[cfg(feature = "test-hooks")]
+    pub fn read_projection_generation_status_at_for_test(
+        &self,
+        effective_at_epoch_s: i64,
+    ) -> Result<ProjectionGenerationStatusV1, EngineError> {
+        self.read_projection_generation_status_at(effective_at_epoch_s)
     }
 
     /// Read readiness for one cursor already recorded by a Slice-25 receipt.

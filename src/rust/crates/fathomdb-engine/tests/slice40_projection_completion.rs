@@ -364,6 +364,76 @@ fn generation_status_cache_invalidates_at_an_edge_membership_boundary() {
 }
 
 #[test]
+fn generation_status_cache_invalidates_at_a_source_validity_boundary() {
+    const VALID_UNTIL: i64 = 2_000_000_000;
+
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("status-cache-source-validity{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
+    opened.engine.set_projection_scheduler_frozen_for_test(true);
+    let source_body = "future source";
+    opened
+        .engine
+        .write(&[
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                kind: "doc".into(),
+                body: source_body.into(),
+                source_id: SourceId::new("source:slice40-future").unwrap(),
+                logical_id: Some("slice40-future-source".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: Some(VALID_UNTIL),
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("slice40-future-source-r1").unwrap(),
+                    SourceVersionId::new("slice40-future-source-v1").unwrap(),
+                ),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                kind: "doc".into(),
+                body: "future-derived".into(),
+                source_id: SourceId::new("source:slice40-future").unwrap(),
+                logical_id: Some("slice40-future-derived".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::derived(
+                    ArtifactRevisionId::new("slice40-future-derived-r1").unwrap(),
+                    SourceVersionId::new("slice40-future-source-v1").unwrap(),
+                    SourceRevisionId::new("slice40-future-source-r1").unwrap(),
+                    SourceLocator::whole_body(),
+                    CanonicalHash::sha256(sha256(source_body)).unwrap(),
+                ),
+            }),
+        ])
+        .unwrap();
+    opened
+        .engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new(
+                "slice40-future-dependency",
+                "slice40-future-source-r1",
+                "slice40-future-derived-r1",
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+    let before =
+        opened.engine.read_projection_generation_status_at_for_test(VALID_UNTIL - 1).unwrap();
+    let scans_before_validity =
+        opened.engine.projection_generation_status_full_owner_scan_count_for_test();
+    let after = opened.engine.read_projection_generation_status_at_for_test(VALID_UNTIL).unwrap();
+    let scans_after_validity =
+        opened.engine.projection_generation_status_full_owner_scan_count_for_test();
+
+    assert_eq!(after.pending_count + 1, before.pending_count);
+    assert_eq!(scans_after_validity, scans_before_validity + 1);
+}
+
+#[test]
 fn mixed_completion_summary_is_exact_and_boundary_ordered() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("mixed-summary{SQLITE_SUFFIX}"));

@@ -125,4 +125,24 @@ test("unknown unions and invalid numerics in native evidence fail closed", () =>
     () => validateNativeResolvedEvidence(badGeneration),
     "/dependency/registeredDependencyGeneration",
   );
+
+  const numericGeneration = resolvedFixture();
+  numericGeneration.dependency!.registeredDependencyGeneration = 1 as unknown as string;
+  expectCorrupt(
+    () => validateNativeResolvedEvidence(numericGeneration),
+    "/dependency/registeredDependencyGeneration",
+  );
+
+  for (const invalidOffset of [-1, "18446744073709551616", 1] as const) {
+    const badOffset = resolvedFixture();
+    badOffset.locator = {
+      kind: "utf8_bytes",
+      startInclusive: invalidOffset as unknown as string,
+      endExclusive: "18446744073709551615",
+    };
+    expectCorrupt(
+      () => validateNativeResolvedEvidence(badOffset),
+      "/locator/startInclusive",
+    );
+  }
 });

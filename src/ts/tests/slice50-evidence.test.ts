@@ -114,6 +114,29 @@ test("evidence request schema and unknown fields are typed", async () => {
       engine.searchWithEvidence({
         schemaVersion: 1,
         query: "needle",
+        context: { ...context, unexpected: true },
+      } as never),
+      (error: unknown) =>
+        error instanceof EvidenceError &&
+        error.reason === "unknown_field" &&
+        error.fieldPath === "/context/unexpected",
+    );
+    await assert.rejects(
+      engine.resolveEvidence({
+        schemaVersion: 1,
+        evidenceRef: "opaque",
+        context,
+        "unexpected~/field": true,
+      } as never),
+      (error: unknown) =>
+        error instanceof EvidenceError &&
+        error.reason === "unknown_field" &&
+        error.fieldPath === "/unexpected~0~1field",
+    );
+    await assert.rejects(
+      engine.searchWithEvidence({
+        schemaVersion: 1,
+        query: "needle",
         context: { ...context, token: `${context.token}0` },
       }),
       (error: unknown) =>

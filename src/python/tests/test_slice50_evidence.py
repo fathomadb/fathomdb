@@ -209,6 +209,22 @@ def test_unknown_native_evidence_versions_fail_closed() -> None:
             lambda value: setattr(value.dependency, "registered_dependency_generation", "01"),
             "/dependency/registeredDependencyGeneration",
         ),
+        (
+            lambda value: (
+                setattr(value, "locator_kind", "utf8_bytes"),
+                setattr(value, "locator_start_inclusive", 2**64),
+                setattr(value, "locator_end_exclusive", 2**64),
+            ),
+            "/locator/startInclusive",
+        ),
+        (
+            lambda value: (
+                setattr(value, "locator_kind", "utf8_bytes"),
+                setattr(value, "locator_start_inclusive", "1"),
+                setattr(value, "locator_end_exclusive", 2),
+            ),
+            "/locator/startInclusive",
+        ),
     ],
 )
 def test_unknown_unions_and_invalid_numerics_fail_closed(

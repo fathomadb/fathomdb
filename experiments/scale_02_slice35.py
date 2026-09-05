@@ -36,6 +36,7 @@ _TOP_KEYS = {
     "artifact_root",
     "claim_boundary",
 }
+_TOP_KEYS_V2 = _TOP_KEYS | {"campaign_order", "prior_receipt"}
 _RUNTIME_KEYS = {
     "source_commit",
     "wheel",
@@ -89,9 +90,11 @@ def resolve_config(
     document: object, *, validate_files: bool = True
 ) -> dict[str, Any]:
     """Strictly validate and resolve the registered comparison contract."""
-    root = _exact(document, "config", _TOP_KEYS)
+    version = document.get("schema_version") if isinstance(document, dict) else None
+    expected_keys = _TOP_KEYS_V2 if version == "scale-02-slice35.v2" else _TOP_KEYS
+    root = _exact(document, "config", expected_keys)
     if (
-        root["schema_version"] != SCHEMA
+        root["schema_version"] not in {SCHEMA, "scale-02-slice35.v2"}
         or root["program_track"] != PROGRAM_TRACK
         or root["release"] != "0.8.25"
         or root["claim_boundary"] != "legacy_search_non_regression_only"
@@ -160,6 +163,21 @@ def resolve_config(
                 path = _path(runtime[path_key], f"{name}.{path_key}")
                 if not path.is_file() or _sha256(path) != runtime[digest_key]:
                     raise Slice35ScaleError(f"{name}.{path_key} drifted")
+    if root["schema_version"] == "scale-02-slice35.v2":
+        if root["campaign_order"] != ["candidate", "baseline"]:
+            raise Slice35ScaleError("v2 must reverse the v1 campaign order")
+        prior = _exact(
+            root["prior_receipt"],
+            "prior_receipt",
+            {"path", "sha256", "verdict"},
+        )
+        _digest(prior["sha256"], "prior_receipt.sha256")
+        if prior["verdict"] != "advisory_limit_observed":
+            raise Slice35ScaleError("v2 must preserve the measured v1 failure")
+        if validate_files:
+            prior_path = _path(prior["path"], "prior_receipt.path")
+            if not prior_path.is_file() or _sha256(prior_path) != prior["sha256"]:
+                raise Slice35ScaleError("prior receipt drifted")
     if validate_files:
         base = _path(inputs["base_config"], "inputs.base_config")
         if not base.is_file() or _sha256(base) != inputs["base_config_sha256"]:
@@ -201,6 +219,29 @@ def paired_relative_upper(
 def regression_verdict(upper: Mapping[str, float], maximum: float) -> str:
     """Apply the registered all-metrics non-regression decision."""
     return "pass" if all(value <= maximum for value in upper.values()) else "fail"
+
+
+def independent_relative_upper(
+    baseline: Sequence[float],
+    candidate: Sequence[float],
+    *,
+    seed: int,
+    resamples: int,
+) -> float:
+    """Bootstrap the ratio of treatment means for balanced independent runs."""
+    if not baseline or not candidate:
+        raise Slice35ScaleError("independent samples must be non-empty")
+    randomizer = random.Random(seed)
+    estimates = []
+    for _ in range(resamples):
+        old = statistics.fmean(
+            baseline[randomizer.randrange(len(baseline))] for _ in baseline
+        )
+        new = statistics.fmean(
+            candidate[randomizer.randrange(len(candidate))] for _ in candidate
+        )
+        estimates.append((new / old) - 1.0)
+    return scale_02._percentile(estimates, 0.95)
 
 
 def _runtime_scale_config(config: Mapping[str, Any], treatment: str) -> scale_02.Scale02Config:
@@ -289,7 +330,7 @@ def run(config_path: str | Path) -> dict[str, Any]:
     run_stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     run_root = artifact_root / f"slice35-{run_stamp}-{os.getpid()}"
     run_root.mkdir(parents=True, mode=0o700)
-    for treatment in ("baseline", "candidate"):
+    for treatment in config.get("campaign_order", ["baseline", "candidate"]):
         python = _install_runtime(
             run_root, treatment, _path(config[treatment]["wheel"], f"{treatment}.wheel")
         )
@@ -313,11 +354,41 @@ def run(config_path: str | Path) -> dict[str, Any]:
         name: json.loads((run_root / name / "summary.json").read_text(encoding="utf-8"))
         for name in ("baseline", "candidate")
     }
+    analysis_summaries = summaries
+    prior_run_id = None
+    if config["schema_version"] == "scale-02-slice35.v2":
+        prior_record = json.loads(
+            _path(config["prior_receipt"]["path"], "prior_receipt.path").read_text(
+                encoding="utf-8"
+            )
+        )
+        prior_run_id = prior_record["run_id"]
+        prior_treatments = prior_record["metrics"]["treatments"]
+        analysis_summaries = {}
+        for treatment in ("baseline", "candidate"):
+            analysis_summaries[treatment] = {
+                **summaries[treatment],
+                "repetitions": prior_treatments[treatment]["repetitions"]
+                + summaries[treatment]["repetitions"],
+                "errors": prior_treatments[treatment]["errors"]
+                + summaries[treatment]["errors"],
+                "timeouts": prior_treatments[treatment]["timeouts"]
+                + summaries[treatment]["timeouts"],
+                "p50_by_repetition": prior_treatments[treatment]["p50_by_repetition"]
+                + summaries[treatment]["p50_by_repetition"],
+                "p95_by_repetition": prior_treatments[treatment]["p95_by_repetition"]
+                + summaries[treatment]["p95_by_repetition"],
+            }
     seed = int(config["workload"]["bootstrap_seed"], 16)
+    upper_fn = (
+        independent_relative_upper
+        if config["schema_version"] == "scale-02-slice35.v2"
+        else paired_relative_upper
+    )
     upper = {
-        metric: paired_relative_upper(
-            summaries["baseline"][f"{metric}_by_repetition"],
-            summaries["candidate"][f"{metric}_by_repetition"],
+        metric: upper_fn(
+            analysis_summaries["baseline"][f"{metric}_by_repetition"],
+            analysis_summaries["candidate"][f"{metric}_by_repetition"],
             seed=seed + offset,
             resamples=config["workload"]["bootstrap_resamples"],
         )
@@ -329,7 +400,9 @@ def run(config_path: str | Path) -> dict[str, Any]:
         "program_track": PROGRAM_TRACK,
         "verdict": verdict,
         "upper_95_relative_regression": upper,
-        "treatments": summaries,
+        "treatments": analysis_summaries,
+        "current_campaign": summaries,
+        "prior_run_id": prior_run_id,
         "claim_boundary": config["claim_boundary"],
     }
     result_path = run_root / "result.json"

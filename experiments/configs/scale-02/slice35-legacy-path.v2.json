@@ -1,0 +1,52 @@
+{
+  "schema_version": "scale-02-slice35.v2",
+  "program_track": "SCALE-02",
+  "release": "0.8.25",
+  "approval": {
+    "state": "approved",
+    "approved_by": "HITL",
+    "approved_at": "2026-09-04"
+  },
+  "baseline": {
+    "source_commit": "b2bfb1f318f58041144acb2356a6a4c9624068b9",
+    "wheel": "data/performance-benchmarking/scale-02/runtime/slice35/b2bfb1f3/fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl",
+    "wheel_sha256": "f602cf207edc8d522eec7a545fbc41f21dccb042848415d350088640d45998e5",
+    "python_extension_sha256": "7ac2a66181413327bcf851599b1025f3899f37dabcd09ae8f361569cc2440002",
+    "fathomdb_bin": "data/performance-benchmarking/scale-02/runtime/slice35/b2bfb1f3/fathomdb",
+    "fathomdb_bin_sha256": "c22074e4ebacdf5e86976ca2fa20b38c78ef8075767b2568260e3123522c3f2b"
+  },
+  "candidate": {
+    "source_commit": "d49d445d5d4c549d86c9d49acef0fb8ad2876acb",
+    "wheel": "data/performance-benchmarking/scale-02/runtime/slice35/d49d445d/fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl",
+    "wheel_sha256": "741a19ae6ff155aae6c838bb0a9984e7d91b623ba638931a668887b4d3368978",
+    "python_extension_sha256": "f20a7a20222f1775a52c7a85ad49b17a167ffda39806bd38988fd1f5939ecdfe",
+    "fathomdb_bin": "data/performance-benchmarking/scale-02/runtime/slice35/d49d445d/fathomdb",
+    "fathomdb_bin_sha256": "3c160ac8d31376f8b07bd091eeb98bdf6d7ba2a90d0553a80a8608882109fb76"
+  },
+  "inputs": {
+    "base_config": "experiments/configs/scale-02/a0-envelope.v2.json",
+    "base_config_sha256": "eb86d5b41e63b4854bde695200b9a0b9552a5c2474650f7cb0762b862851cd28"
+  },
+  "workload": {
+    "records": 10000,
+    "repetitions": 5,
+    "warmups": 100,
+    "steady_queries": 1000,
+    "query_order_seed": "0x5CA1E025350001",
+    "bootstrap_seed": "0x5CA1E02535B007",
+    "bootstrap_resamples": 2000
+  },
+  "policy": {
+    "confidence": 0.95,
+    "max_relative_regression": 0.03,
+    "metrics": ["p50", "p95"]
+  },
+  "artifact_root": "data/performance-benchmarking/scale-02/slice35-runs",
+  "claim_boundary": "legacy_search_non_regression_only",
+  "campaign_order": ["candidate", "baseline"],
+  "prior_receipt": {
+    "path": "experiments/runs/scale-02-slice35-20260905T0019Z-3756fde2/record.json",
+    "sha256": "cd111e793811ec8c89357273ce7cb0690e4dfefba4e4306a78177d7079ba04bd",
+    "verdict": "advisory_limit_observed"
+  }
+}

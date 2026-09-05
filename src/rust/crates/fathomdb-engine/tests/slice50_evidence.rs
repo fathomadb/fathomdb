@@ -406,6 +406,16 @@ fn graph_arm_resolves_node_body_source_and_separate_edge_origin() {
         &reopened.engine,
         &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
     );
+    let mut corrupt_graph_request = request("graphneedle", equivalent.clone());
+    corrupt_graph_request.use_graph_arm = true;
+    let mint_error = reopened.engine.search_with_evidence(&corrupt_graph_request).unwrap_err();
+    assert!(matches!(
+        mint_error,
+        EngineError::Evidence(ref error)
+            if error.reason == EvidenceErrorReasonV1::EvidenceCorrupt
+                && error.field_path.starts_with("/results/")
+                && error.field_path.ends_with("/graphOrigin")
+    ));
     let error = reopened
         .engine
         .resolve_evidence(&EvidenceResolveRequestV1 {
@@ -953,6 +963,16 @@ fn authorized_source_identity_corruption_is_typed_evidence_corrupt() {
 
     let reopened = Engine::open(&path).unwrap();
     let equivalent = freeze_stable(&reopened.engine, &context);
+    let mint_error = reopened
+        .engine
+        .search_with_evidence(&request("chaincorruptionneedle", equivalent.clone()))
+        .unwrap_err();
+    assert!(matches!(
+        mint_error,
+        EngineError::Evidence(ref error)
+            if error.reason == EvidenceErrorReasonV1::EvidenceCorrupt
+                && error.field_path == "/results/0/provenance"
+    ));
     let error = reopened
         .engine
         .resolve_evidence(&EvidenceResolveRequestV1 {

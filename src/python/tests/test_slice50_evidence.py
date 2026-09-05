@@ -152,7 +152,7 @@ def test_unsupported_evidence_schema_is_typed(db_path: str) -> None:
     assert unavailable.value.reason == "evidence_unavailable"
     assert unavailable.value.field_path == "/evidenceRef"
 
-    with pytest.raises(ValueError, match="rerank_depth must be >= 0"):
+    with pytest.raises(fathomdb.InvalidArgumentError, match="rerank_depth must be >= 0"):
         engine.search_with_evidence(
             fathomdb.EvidenceSearchRequestV1(
                 query="needle",
@@ -160,7 +160,9 @@ def test_unsupported_evidence_schema_is_typed(db_path: str) -> None:
                 rerank_depth=-1,
             )
         )
-    with pytest.raises(ValueError, match="rerank_depth must be <= 4294967295"):
+    with pytest.raises(
+        fathomdb.InvalidArgumentError, match="rerank_depth must be <= 4294967295"
+    ):
         engine.search_with_evidence(
             fathomdb.EvidenceSearchRequestV1(
                 query="needle",
@@ -189,6 +191,18 @@ def test_unknown_native_evidence_versions_fail_closed() -> None:
         (
             lambda value: setattr(value.retrieval_contribution, "fused_score", float("nan")),
             "/retrievalContribution/fusedScore",
+        ),
+        (
+            lambda value: setattr(value.retrieval_contribution, "fused_score", None),
+            "/retrievalContribution/fusedScore",
+        ),
+        (
+            lambda value: setattr(value.retrieval_contribution, "blended_score", None),
+            "/retrievalContribution/blendedScore",
+        ),
+        (
+            lambda value: setattr(value.projection_origin, "artifact_class", "edge"),
+            "/projectionOrigin/artifactClass",
         ),
         (
             lambda value: setattr(value.dependency, "registered_dependency_generation", "01"),

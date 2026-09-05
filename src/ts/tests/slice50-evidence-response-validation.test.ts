@@ -98,6 +98,27 @@ test("unknown unions and invalid numerics in native evidence fail closed", () =>
     "/retrievalContribution/fusedScore",
   );
 
+  const missingFusedScore = resolvedFixture();
+  missingFusedScore.retrievalContribution.fusedScore = null as unknown as number;
+  expectCorrupt(
+    () => validateNativeResolvedEvidence(missingFusedScore),
+    "/retrievalContribution/fusedScore",
+  );
+
+  const missingBlendedScore = resolvedFixture();
+  missingBlendedScore.retrievalContribution.blendedScore = undefined as unknown as number;
+  expectCorrupt(
+    () => validateNativeResolvedEvidence(missingBlendedScore),
+    "/retrievalContribution/blendedScore",
+  );
+
+  const mismatchedArtifactClass = resolvedFixture();
+  mismatchedArtifactClass.projectionOrigin.artifactClass = "edge";
+  expectCorrupt(
+    () => validateNativeResolvedEvidence(mismatchedArtifactClass),
+    "/projectionOrigin/artifactClass",
+  );
+
   const badGeneration = resolvedFixture();
   badGeneration.dependency!.registeredDependencyGeneration = "01";
   expectCorrupt(

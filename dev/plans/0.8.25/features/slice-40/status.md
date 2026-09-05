@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 40 status
-status: IMPLEMENTED-AWAITING-VERIFICATION
+status: COMPLETE
 slice: 40
 updated: 2026-09-05
 ---
@@ -9,7 +9,7 @@ updated: 2026-09-05
 
 ## Current state
 
-Slice 40 is implemented and awaiting final verification on `release/0.8.25`.
+Slice 40 is complete on `release/0.8.25`.
 Schema step 32, one durable
 database-local serving-generation identity, physical-member-qualified
 readiness, compact Slice-25 receipt correlation, frozen-read invalidation, and
@@ -20,7 +20,9 @@ policy, or application-owned cleanup was added.
 Independent design review passed at cycle 4. Independent implementation review
 passed at cycle 8 after closing the temporal-dispatcher progress gap, with no
 remaining P0/P1/P2 finding. A separate review passed the full-gate fixture
-reconciliation at `ea7a553f` without identifying a product regression.
+reconciliation at `ea7a553f` without identifying a product regression. Final
+evidence review passed `ed9776ad`; follow-up review passed the exact receipt
+policy oracle correction at `ccf7c695`.
 
 ## Evidence
 
@@ -31,6 +33,9 @@ reconciliation at `ea7a553f` without identifying a product regression.
 - Fixture-reconciliation review:
   [`implementation-review-fixture-reconciliation.md`](implementation-review-fixture-reconciliation.md).
 - Verification map: [`verification-matrix.md`](verification-matrix.md).
+- Exact evidence manifest:
+  [`evidence-manifest.json`](evidence-manifest.json).
+- Independent closeout verdict: [`closeout-review.md`](closeout-review.md).
 - Common-path receipt:
   `scale-02-slice40-common-20260905T1101Z-0dde4803`.
   The 95-percent upper write regression was 0.319% at p50 and 0.282% at p95;
@@ -42,6 +47,10 @@ reconciliation at `ea7a553f` without identifying a product regression.
   0.006181 ms; generation p95/p99 were at most 0.024426/0.042481 ms and
   mutation p95/p99 at most 0.026680/0.048111 ms. No steady full-owner scan,
   error, or timeout occurred.
+- Descriptive CUDA-throughput receipt:
+  `scale-02-slice40-cuda-throughput-20260905T1421Z-fc632910`.
+  Five fresh 1,024-record repetitions reached ready with no pending or failed
+  work at 278.641/286.096/287.409 records/s minimum/median/maximum.
 - CUDA preflight witness SHA-256 `30d32467…`; Python allocation witness
   `edd276d1…`; N-API allocation witness `0214e71d…`. Both consumers selected
   `cuda:0` on RTX 3090 UUID
@@ -60,6 +69,10 @@ reconciliation at `ea7a553f` without identifying a product regression.
   reranker passed 1,403 Python tests with 28 explicit skips. The ordinary
   shipped wheel intentionally omits the optional reranker and was tested only
   against its actual release surface.
+- The final unconfined fast verifier passed 103 of 103 suites with none skipped
+  or excluded. Its initial RED exposed a stale v2 classification-policy test;
+  the reviewed correction binds all current v3 receipt exceptions to exact
+  hashes, reasons, and artifact shapes.
 
 The status campaign compares the same SQLite status path in CPU and
 CUDA-linked builds using a fixed CPU embedder. It is build-parity evidence, not
@@ -67,8 +80,8 @@ GPU-compute or embedding-throughput evidence. Actual CUDA selection and
 allocation are separately witnessed. Vector latency remains assigned to Slice
 75.
 
-## Remaining closure work
+## Closure
 
-Retain the preregistered descriptive CUDA embedding-throughput observation,
-write the exact evidence manifest, and pass the final documentation/state
-gate. Only then may release state advance to Slice 45.
+All Slice 40 acceptance, review, measurement, platform, and repository gates
+pass. Release state advances to Slice 45. Vector latency remains deliberately
+assigned to Slice 75 rather than being hidden in this closeout.

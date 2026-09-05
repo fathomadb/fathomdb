@@ -1,19 +1,22 @@
 ---
 title: 0.8.25 Slice 40 verification matrix
-status: IN_PROGRESS
+status: COMPLETE
 candidate_product_commit: 2313fd34
 review_candidate_commit: 2313fd34
 implementation_review: PASS_CYCLE_8_FIX_1
 fixture_reconciliation_commit: ea7a553f
 fixture_reconciliation_review: PASS
+closeout_evidence_commit: ed9776ad
+closeout_oracle_fix_commit: ccf7c695
+closeout_review: PASS
 ---
 
 # Slice 40 verification matrix
 
 This record maps every Slice 40 claim to an executable proof or retained
-receipt. A passing unit suite alone does not close the slice. The ancillary
-CUDA throughput observation, final evidence manifest, and clean repository
-gate remain open below.
+receipt. A passing unit suite alone does not close the slice. The exact hashes,
+locators, commands, and platform outcomes are retained in
+[`evidence-manifest.json`](evidence-manifest.json).
 
 ## Acceptance traceability
 
@@ -61,7 +64,7 @@ the generation-specific captured-work seams.
 | Durable indexed correlations | `status_query_plans_bound_correlations_with_durable_indexes` and retained plan strings in each status result | Canonical owner and correlated provenance/terminal/sidecar/kind lookups use durable indexes; vec0 virtual-table lookup is reported, not relabeled | PASS retained |
 | Page, WAL, and generation retention | `database_observations` in the status receipt; common worker storage fields | Page count/size, DB/WAL bytes, one serving generation, and retained generation-history rows | PASS: +28,672 bytes maximum; WAL zero after checkpoint |
 | CUDA selection and allocation | CUDA preflight witness `30d32467…`; Python `edd276d1…`; N-API `0214e71d…` | Proves `cuda:0` on RTX 3090 with 128 MiB observed allocation; makes no embedding-throughput claim | PASS |
-| Embedding throughput | Preregistered bounded CUDA projection-throughput observation | Descriptive only; never attributed to SQLite status calls | PENDING |
+| Embedding throughput | `scale-02-slice40-cuda-throughput-20260905T1421Z-fc632910` | Five 1,024-record repetitions on the exact RTX 3090; descriptive only and never attributed to SQLite status calls | PASS: 286.096 records/s median |
 | Receipt classification | `slice40-common-v1` and `slice40-status-v1` plans; pre-index classification callback; retained-run sidecars | Decision metrics are compact and source-bound; full raw detail and all executing Python/Rust sources are hashed | PASS |
 
 The status campaign compares the SQLite status path in a CPU build with the
@@ -82,7 +85,7 @@ proved separately by the CUDA preflight and fresh-package smoke.
 | CUDA runtime | `nvidia-smi`, exact CUDA features, `cuda-preflight.sh`, reopen/status smoke, allocation witness | PASS; RTX 3090 UUID `GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b` |
 | Windows build | Native Python 3.11.16 wheel and Node 24.18 N-API build; TypeScript output | PASS on `gh-runner-wonl-win11` |
 | Windows native | Fresh installed wheel and native N-API status/reopen smokes | PASS; both report blocked/absent under a no-runtime reopen |
-| Repository | Fast agent verify, applicable heavy routes, full workspace, docs/state checks, `git diff --check` | PENDING final clean rerun |
+| Repository | Fast agent verify, applicable heavy routes, full workspace, docs/state checks, `git diff --check` | PASS: final unconfined fast gate 103/103, zero skipped/excluded |
 
 ## Closure rule
 

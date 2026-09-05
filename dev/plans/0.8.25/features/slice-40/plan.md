@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 40 — projection generation and readiness
-status: IMPLEMENTED-AWAITING-VERIFICATION
+status: COMPLETE
 depends_on: 35
 design: design.md
 design_status: PASS_CYCLE_4
@@ -102,6 +102,8 @@ Slice-35 token bytes, or any false side-by-side activation claim.
 
 ## Closeout
 
-After independent verification, write `status.md`, update the release-state
-JSON and generated views, capture reusable lessons in the external memory
-store, and compact before Slice 45. Retain every run and receipt.
+Independent verification and evidence review pass. The exact retained evidence
+is indexed by [`evidence-manifest.json`](evidence-manifest.json), and the
+closeout verdict is recorded in [`closeout-review.md`](closeout-review.md).
+Every run and receipt remains retained. The generated views and status record
+pass their final consistency gate, so release state advances to Slice 45.

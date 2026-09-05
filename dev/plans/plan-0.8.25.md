@@ -205,9 +205,9 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 40** (`READINESS`) — core projection generation and readiness correlation
+**IMMEDIATE NEXT: Slice 45** (`PAGINATION`) — minimal pagination and operational-state reads
 
-**Remaining ladder:** 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
 Complete Slice 40's preregistered descriptive CUDA throughput observation,
 exact evidence manifest, independent closeout review, and clean repository

@@ -299,3 +299,16 @@ range failures now use `InvalidArgumentError`, matching ordinary frozen
 search. The known-plaintext recovery oracle is the focused Rust unit
 `generation_selector_resists_cross_token_known_plaintext_reuse`; it derives
 the first token's mask and proves that mask cannot recover the second token.
+
+## RED 14
+
+The repository-wide fast gate compiled the CLI after the focused evidence
+crates and found its exhaustive stable error-code mapper did not cover
+`EngineError::Evidence`. A focused CLI regression preserves the required
+public code before the mapper correction.
+
+## GREEN 14
+
+The CLI now maps the additive Engine family to the stable `EvidenceError`
+code. Its existing outcome policy remains unrecoverable and unchanged. The
+focused CLI test and repository-wide fast gate cover the integration seam.

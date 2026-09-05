@@ -1035,7 +1035,10 @@ def _parse_external_locator_amendments(values: Any) -> dict[str, dict[str, Any]]
             {"run_id", "record_sha256", "reason"},
             f"external artifact locator amendments[{index}]",
         )
-        if entry["reason"] != "absolute_external_safe_summary_in_immutable_record":
+        if entry["reason"] not in {
+            "absolute_external_safe_summary_in_immutable_record",
+            "absolute_external_summary_missing_kind_in_immutable_record",
+        }:
             raise ClassificationError("unsupported external locator amendment reason")
         run_id = _nonempty_string(entry["run_id"], "external locator run id")
         _nonempty_string(entry["record_sha256"], "external locator record SHA-256")
@@ -1085,7 +1088,13 @@ def _validate_external_locator_amendment(
         return False
     if amendment is None:
         raise ClassificationError("absolute external artifact locator is not amended")
-    if any(artifact.get("kind") != "external_safe_summary" for artifact in absolute_artifacts):
+    reason = amendment["reason"]
+    allowed_kind = (
+        "external_safe_summary"
+        if reason == "absolute_external_safe_summary_in_immutable_record"
+        else None
+    )
+    if any(artifact.get("kind") != allowed_kind for artifact in absolute_artifacts):
         raise ClassificationError("external locator amendment covers unsupported artifact kind")
     if _sha256_bytes(record_path.read_bytes()) != amendment["record_sha256"]:
         raise ClassificationError("external locator amendment record SHA-256 mismatch")

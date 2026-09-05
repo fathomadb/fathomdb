@@ -47,6 +47,11 @@
       "run_id": "scale-02-slice40-common-20260905T0819Z-12b4530d",
       "record_sha256": "b0ee57797cf7e7427e48a514227e9bbfcc06dcce16b7a6d3404359b656f97066",
       "reason": "absolute_external_safe_summary_in_immutable_record"
+    },
+    {
+      "run_id": "scale-02-slice40-cuda-throughput-20260905T1411Z-dc7e6dbf",
+      "record_sha256": "6d09e0d79c21689eafe9ad0c37a921ad1d632dc8655254b0ee61b40145118ffb",
+      "reason": "absolute_external_summary_missing_kind_in_immutable_record"
     }
   ],
   "misclassified_postcutover_runs": [

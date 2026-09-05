@@ -16,7 +16,7 @@ from experiments import scale_02_slice40 as throughput
 
 def _config() -> dict[str, object]:
     return {
-        "schema_version": "scale-02-slice40-cuda-throughput.v2",
+        "schema_version": "scale-02-slice40-cuda-throughput.v3",
         "program_track": "SCALE-02",
         "release": "0.8.25",
         "campaign": "cuda-throughput",

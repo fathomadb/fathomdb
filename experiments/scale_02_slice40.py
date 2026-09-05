@@ -63,7 +63,7 @@ _THROUGHPUT_EXECUTION_FILES = {
     / "experiments/measurement_classification.py",
     "test_setup_library_sha256": REPO_ROOT / "experiments/fathomdb_test_setup.py",
 }
-_THROUGHPUT_SCHEMA = "scale-02-slice40-cuda-throughput.v2"
+_THROUGHPUT_SCHEMA = "scale-02-slice40-cuda-throughput.v3"
 _THROUGHPUT_PRODUCT_COMMIT = "2313fd34ea5ca68346a468d5bba58ba245306c08"
 _THROUGHPUT_BUILD_COMMIT = "47afff50ec0e9f906c24c4422186eb407b2ff467"
 _THROUGHPUT_CLI_SOURCE_COMMIT = "92faf4b693ad1c5ea6f76acb0f883d9e112793b4"
@@ -1808,6 +1808,7 @@ def run_cuda_throughput(
                 {
                     "path": str(external_detail),
                     "sha256": _sha256(external_detail),
+                    "kind": "external_safe_summary",
                 }
             ],
             "review": None,

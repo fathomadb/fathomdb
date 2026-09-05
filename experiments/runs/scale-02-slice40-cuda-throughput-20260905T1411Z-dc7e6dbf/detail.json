@@ -1,0 +1,269 @@
+{
+  "schema_version": "scale-02-slice40-cuda-throughput-result.v2",
+  "program_track": "SCALE-02",
+  "claim_boundary": "cuda_projection_backfill_throughput_descriptive",
+  "candidate": {
+    "product_commit": "2313fd34ea5ca68346a468d5bba58ba245306c08",
+    "artifact_build_commit": "47afff50ec0e9f906c24c4422186eb407b2ff467",
+    "wheel_sha256": "a1f7b571aa9af12641ba839bdd426e6184ba60794e04ffeb8a80d025b4d9df6c",
+    "cli_source_commit": "92faf4b693ad1c5ea6f76acb0f883d9e112793b4",
+    "cli_sha256": "fd2e26a487b48d8d18d0ed7bdc91497aa3e43ab3d57cb4abdea8b89bde546df9"
+  },
+  "installed_artifact": {
+    "wheel_path": "/input/fathomdb-0.8.24-cp310-abi3-manylinux_2_28_x86_64.whl",
+    "wheel_sha256": "a1f7b571aa9af12641ba839bdd426e6184ba60794e04ffeb8a80d025b4d9df6c",
+    "python_prefix": "/work/venv",
+    "package_path": "/work/venv/lib/python3.11/site-packages/fathomdb/__init__.py",
+    "native_path": "/work/venv/lib/python3.11/site-packages/fathomdb/_fathomdb.abi3.so",
+    "package_files": [
+      {
+        "wheel_member": "fathomdb/__init__.py",
+        "installed_path": "/work/venv/lib/python3.11/site-packages/fathomdb/__init__.py",
+        "sha256": "63577f0f4e7815772c7cd4dcb4c0165080d156f3b9b55c84c07c9b80b216d6f6"
+      },
+      {
+        "wheel_member": "fathomdb/_coinstall.py",
+        "installed_path": "/work/venv/lib/python3.11/site-packages/fathomdb/_coinstall.py",
+        "sha256": "cf9d3e9a55068d94103badf59d2e373825d61bc08b9b283666f2257b54fddd1c"
+      },
+      {
+        "wheel_member": "fathomdb/_fathomdb.abi3.so",
+        "installed_path": "/work/venv/lib/python3.11/site-packages/fathomdb/_fathomdb.abi3.so",
+        "sha256": "3ee640df154ee579009c20369c489f68f38941b144f5491c5e1655148343e3cd"
+      },
+      {
+        "wheel_member": "fathomdb/_fathomdb.pyi",
+        "installed_path": "/work/venv/lib/python3.11/site-packages/fathomdb/_fathomdb.pyi",
+        "sha256": "5a0ceebc195292dd62a0153f9fb398f482b3f2047b98206e5c00e49351dd2dbc"
+      },
+      {
+        "wheel_member": "fathomdb/admin.py",
+        "installed_path": "/work/venv/lib/python3.11/site-packages/fathomdb/admin.py",
+        "sha256": "f39c80d051116dce1b11051d7aa5f736d17f10b943668b5509b1d9a570ddfcd2"
+      },
+      {
+        "wheel_member": "fathomdb/config.py",
+        "installed_path": "/work/venv/lib/python3.11/site-packages/fathomdb/config.py",
+        "sha256": "b5909e817ee8224a280fb58276347dfb9765b327d39cea90413e8d85cff1ef01"
+      },
+      {
+        "wheel_member": "fathomdb/engine.py",
+        "installed_path": "/work/venv/lib/python3.11/site-packages/fathomdb/engine.py",
+        "sha256": "6fdcc80a66c417a6ca85ba25e0f7247d1bd92c18a074c82180357bc9dfecd694"
+      },
+      {
+        "wheel_member": "fathomdb/errors.py",
+        "installed_path": "/work/venv/lib/python3.11/site-packages/fathomdb/errors.py",
+        "sha256": "1a1f3b75c7b49e13832bd6f0a23b98e56490ab7370636f16be43fea5bc1b501e"
+      },
+      {
+        "wheel_member": "fathomdb/filter.py",
+        "installed_path": "/work/venv/lib/python3.11/site-packages/fathomdb/filter.py",
+        "sha256": "6cbe54846286d357c0e59de1a18648830aa47a79ea35d2b72da92235872f5bec"
+      },
+      {
+        "wheel_member": "fathomdb/graph.py",
+        "installed_path": "/work/venv/lib/python3.11/site-packages/fathomdb/graph.py",
+        "sha256": "8511ac2ddbaff95bc13304d0d50b23fe6374f2f79c892fe079a18161bd353425"
+      },
+      {
+        "wheel_member": "fathomdb/read.py",
+        "installed_path": "/work/venv/lib/python3.11/site-packages/fathomdb/read.py",
+        "sha256": "46c714ed557a243d1225a7c033a9a9f973d0355cc2ce44210cf50b9458f4a4dd"
+      },
+      {
+        "wheel_member": "fathomdb/types.py",
+        "installed_path": "/work/venv/lib/python3.11/site-packages/fathomdb/types.py",
+        "sha256": "a0641feace5a340d810a164c43a747aface457e29c8296b0d165d25ee1dd43da"
+      }
+    ]
+  },
+  "cli_artifact": {
+    "cli_path": "/input/fathomdb",
+    "cli_sha256": "fd2e26a487b48d8d18d0ed7bdc91497aa3e43ab3d57cb4abdea8b89bde546df9",
+    "cli_source_commit": "92faf4b693ad1c5ea6f76acb0f883d9e112793b4"
+  },
+  "observations": [
+    {
+      "repetition": 1,
+      "elapsed_seconds": 3.711045491974801,
+      "records": 1024,
+      "records_per_second": 275.933022705978,
+      "selected_device": "cuda:0",
+      "selected_cuda_uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+      "embedder_identity": {
+        "name": "fathomdb-bge-small-en-v1.5",
+        "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+        "dimension": 384
+      },
+      "pre_vector_rows": 0,
+      "projection_delta": {
+        "built": [
+          "slice40_throughput"
+        ],
+        "deferred": [
+          "slice40_throughput"
+        ],
+        "unchanged": false
+      },
+      "vector_rows": 1024,
+      "readiness": "ready",
+      "runtime_state": "usable",
+      "pending_count": "0",
+      "failed_count": "0",
+      "generation_id": "pgen1:e08eb0b01e2de4f173b4e42e899ebabd",
+      "database_sha256": "9af6e293776a981f1ddaf2c806e6a3e92791e6386abc8c33b18d88e2b5510bc4",
+      "setup_config": "repetition-1/fathomdb-config.v1.json",
+      "setup_config_sha256": "7eb6754462e816ef59a1a1029cd6e0f9bcaeda2d02a3f9cabdf930f379a68b62",
+      "doctor_evidence": "repetition-1/fathomdb-doctor.v1.json",
+      "doctor_evidence_sha256": "c30144d9c8a85524cb195611da40f262fd42009f59e423e966484eaf40ebb86c"
+    },
+    {
+      "repetition": 2,
+      "elapsed_seconds": 3.679740631952882,
+      "records": 1024,
+      "records_per_second": 278.2804828982066,
+      "selected_device": "cuda:0",
+      "selected_cuda_uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+      "embedder_identity": {
+        "name": "fathomdb-bge-small-en-v1.5",
+        "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+        "dimension": 384
+      },
+      "pre_vector_rows": 0,
+      "projection_delta": {
+        "built": [
+          "slice40_throughput"
+        ],
+        "deferred": [
+          "slice40_throughput"
+        ],
+        "unchanged": false
+      },
+      "vector_rows": 1024,
+      "readiness": "ready",
+      "runtime_state": "usable",
+      "pending_count": "0",
+      "failed_count": "0",
+      "generation_id": "pgen1:6038aa1b9b963a852a91bf9eafb5d636",
+      "database_sha256": "3ef74eb1543307f7baedac1156685777b027cfd6141fb84e5707f9d21181b1b9",
+      "setup_config": "repetition-2/fathomdb-config.v1.json",
+      "setup_config_sha256": "7eb6754462e816ef59a1a1029cd6e0f9bcaeda2d02a3f9cabdf930f379a68b62",
+      "doctor_evidence": "repetition-2/fathomdb-doctor.v1.json",
+      "doctor_evidence_sha256": "976d99c44053480254c81b93572f25ff821e81be70d312799b3459bd99614df9"
+    },
+    {
+      "repetition": 3,
+      "elapsed_seconds": 3.681034662993625,
+      "records": 1024,
+      "records_per_second": 278.182656168531,
+      "selected_device": "cuda:0",
+      "selected_cuda_uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+      "embedder_identity": {
+        "name": "fathomdb-bge-small-en-v1.5",
+        "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+        "dimension": 384
+      },
+      "pre_vector_rows": 0,
+      "projection_delta": {
+        "built": [
+          "slice40_throughput"
+        ],
+        "deferred": [
+          "slice40_throughput"
+        ],
+        "unchanged": false
+      },
+      "vector_rows": 1024,
+      "readiness": "ready",
+      "runtime_state": "usable",
+      "pending_count": "0",
+      "failed_count": "0",
+      "generation_id": "pgen1:d74e10af831417f690e26eae790f9c13",
+      "database_sha256": "f812bb5ffec20cfebae9e0799a9395d9feaaf2f5f494733d7d6327614c3222da",
+      "setup_config": "repetition-3/fathomdb-config.v1.json",
+      "setup_config_sha256": "7eb6754462e816ef59a1a1029cd6e0f9bcaeda2d02a3f9cabdf930f379a68b62",
+      "doctor_evidence": "repetition-3/fathomdb-doctor.v1.json",
+      "doctor_evidence_sha256": "976d99c44053480254c81b93572f25ff821e81be70d312799b3459bd99614df9"
+    },
+    {
+      "repetition": 4,
+      "elapsed_seconds": 3.66239781701006,
+      "records": 1024,
+      "records_per_second": 279.5982444190025,
+      "selected_device": "cuda:0",
+      "selected_cuda_uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+      "embedder_identity": {
+        "name": "fathomdb-bge-small-en-v1.5",
+        "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+        "dimension": 384
+      },
+      "pre_vector_rows": 0,
+      "projection_delta": {
+        "built": [
+          "slice40_throughput"
+        ],
+        "deferred": [
+          "slice40_throughput"
+        ],
+        "unchanged": false
+      },
+      "vector_rows": 1024,
+      "readiness": "ready",
+      "runtime_state": "usable",
+      "pending_count": "0",
+      "failed_count": "0",
+      "generation_id": "pgen1:fa83e19eedbade5cd05b7d30069bf2ca",
+      "database_sha256": "77543a23f81ebb3b0f28b82396dec3d71e2a97728a47f60767b34f4eb3a282c5",
+      "setup_config": "repetition-4/fathomdb-config.v1.json",
+      "setup_config_sha256": "7eb6754462e816ef59a1a1029cd6e0f9bcaeda2d02a3f9cabdf930f379a68b62",
+      "doctor_evidence": "repetition-4/fathomdb-doctor.v1.json",
+      "doctor_evidence_sha256": "f889062830651977aad17c7b42b1927f7bcdfa8cbd495a0ff1c1f9bd7d157b27"
+    },
+    {
+      "repetition": 5,
+      "elapsed_seconds": 3.6396254199789837,
+      "records": 1024,
+      "records_per_second": 281.34763384686795,
+      "selected_device": "cuda:0",
+      "selected_cuda_uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+      "embedder_identity": {
+        "name": "fathomdb-bge-small-en-v1.5",
+        "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+        "dimension": 384
+      },
+      "pre_vector_rows": 0,
+      "projection_delta": {
+        "built": [
+          "slice40_throughput"
+        ],
+        "deferred": [
+          "slice40_throughput"
+        ],
+        "unchanged": false
+      },
+      "vector_rows": 1024,
+      "readiness": "ready",
+      "runtime_state": "usable",
+      "pending_count": "0",
+      "failed_count": "0",
+      "generation_id": "pgen1:2725cdbd4cd82165390929e3f1e1b98e",
+      "database_sha256": "652d3dda6b8baccf79dcfbd7fa8384cf27dd14cf1f5b72038377c2052a779e1e",
+      "setup_config": "repetition-5/fathomdb-config.v1.json",
+      "setup_config_sha256": "7eb6754462e816ef59a1a1029cd6e0f9bcaeda2d02a3f9cabdf930f379a68b62",
+      "doctor_evidence": "repetition-5/fathomdb-doctor.v1.json",
+      "doctor_evidence_sha256": "976d99c44053480254c81b93572f25ff821e81be70d312799b3459bd99614df9"
+    }
+  ],
+  "summary": {
+    "classification": "descriptive",
+    "repetitions": 5,
+    "records_per_repetition": 1024,
+    "throughput_records_per_second": {
+      "minimum": 275.933022705978,
+      "median": 278.2804828982066,
+      "maximum": 281.34763384686795
+    },
+    "verdict": "observed"
+  }
+}

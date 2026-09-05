@@ -72,3 +72,15 @@ A parallel engine-lib run encountered interference between existing
 WAL-attribution concurrency tests and was stopped after a second test stalled.
 The named failing test passed immediately in exact isolation; this is not used
 as a broad-regression green claim. A serialized package run remains required.
+
+## RED 3
+
+The third test increment fixes the reference lifetime boundary. It requires an
+equivalently reminted context to resolve after restart and after the originating
+projection generation becomes retired, while separately proving that a
+superseded artifact is non-disclosing.
+
+The focused command failed 6 passed / 1 failed: the resolver compared the
+reference only with the current serving generation and therefore rejected the
+still-present retired origin. The supersession case already returned the
+required `evidence_unavailable` outcome.

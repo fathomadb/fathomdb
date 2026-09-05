@@ -408,3 +408,128 @@ fn source_bytes_must_match_access_bearing_attribute_terms() {
                 && error.field_path == "/evidenceRef"
     ));
 }
+
+#[test]
+fn equivalent_context_survives_restart_and_retired_projection_generation() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("restart-generation{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    let source_body = "stable source body";
+    opened
+        .engine
+        .write(&[
+            canonical_named(
+                "source",
+                "restart-source-r1",
+                "restart-v1",
+                "restart-source",
+                source_body,
+            ),
+            derived_named(
+                "claim",
+                "restart-claim-r1",
+                "restart-source-r1",
+                "restart-v1",
+                "restart-source",
+                source_body,
+                "restartneedle",
+            ),
+        ])
+        .unwrap();
+    let mut view = ReadView::default();
+    view.valid_as_of = Some(1_700_000_000);
+    let context = ReadContextV1::new(view, SearchFilter::default()).unwrap();
+    let frozen = opened.engine.freeze_read_context(&context).unwrap();
+    let evidence =
+        opened.engine.search_with_evidence(&request("restartneedle", frozen)).unwrap().evidence[0]
+            .evidence_ref
+            .clone();
+    drop(opened.engine);
+
+    let reopened = Engine::open(&path).unwrap();
+    reopened
+        .engine
+        .configure_projections(
+            &[ProjectionSpec {
+                name: "later_generation".into(),
+                roles: BTreeSet::from([ProjectionRole::Filterable]),
+                fts: None,
+                vector: None,
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+    let equivalent = reopened.engine.freeze_read_context(&context).unwrap();
+    let resolved = reopened
+        .engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: evidence,
+            context: equivalent,
+        })
+        .unwrap();
+
+    assert_eq!(resolved.artifact_revision_id, "restart-claim-r1");
+    assert_eq!(resolved.canonical_source_body, source_body);
+}
+
+#[test]
+fn superseded_artifact_reference_is_nondisclosing() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("superseded{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    let source_body = "supersession source";
+    opened
+        .engine
+        .write(&[
+            canonical_named("source", "sup-source-r1", "sup-v1", "sup-source", source_body),
+            derived_named(
+                "claim",
+                "sup-claim-r1",
+                "sup-source-r1",
+                "sup-v1",
+                "sup-source",
+                source_body,
+                "supersessionneedle old",
+            ),
+        ])
+        .unwrap();
+    let mut view = ReadView::default();
+    view.valid_as_of = Some(1_700_000_000);
+    let context = ReadContextV1::new(view, SearchFilter::default()).unwrap();
+    let first = opened.engine.freeze_read_context(&context).unwrap();
+    let evidence =
+        opened.engine.search_with_evidence(&request("supersessionneedle", first)).unwrap().evidence
+            [0]
+        .evidence_ref
+        .clone();
+    opened
+        .engine
+        .write(&[derived_named(
+            "claim",
+            "sup-claim-r2",
+            "sup-source-r1",
+            "sup-v1",
+            "sup-source",
+            source_body,
+            "supersessionneedle new",
+        )])
+        .unwrap();
+    let current = opened.engine.freeze_read_context(&context).unwrap();
+    let error = opened
+        .engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: evidence,
+            context: current,
+        })
+        .unwrap_err();
+
+    assert!(matches!(
+        error,
+        EngineError::Evidence(ref error)
+            if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
+                && error.field_path == "/evidenceRef"
+    ));
+}

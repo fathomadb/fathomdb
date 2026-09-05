@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import fathomdb
+import pytest
 from fathomdb import read
 
 
@@ -69,5 +72,50 @@ def test_canonical_and_operational_pages_share_frozen_authority(db_path: str) ->
             fathomdb.PageRequestV1(limit=2),
         )
         assert state == state_page.items[0]
+    finally:
+        engine.close()
+
+
+def test_page_request_refusals_retain_page_error_reason_and_path(db_path: str) -> None:
+    engine = fathomdb.Engine.open(db_path, use_default_embedder=False)
+    try:
+        frozen = engine.freeze_read_context(fathomdb.ReadContextV1())
+        for page, reason, field_path in [
+            (fathomdb.PageRequestV1(limit=-1), "invalid_page_limit", "/limit"),
+            (fathomdb.PageRequestV1(limit=0), "invalid_page_limit", "/limit"),
+            (
+                fathomdb.PageRequestV1(limit=1, schema_version=2),
+                "unsupported_schema_version",
+                "/schemaVersion",
+            ),
+        ]:
+            with pytest.raises(fathomdb.PageError) as raised:
+                read.canonical_page(engine, "slice45_doc", frozen, page)
+            assert raised.value.reason == reason
+            assert raised.value.field_path == field_path
+    finally:
+        engine.close()
+
+
+def test_unknown_native_page_response_version_fails_closed(
+    db_path: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    engine = fathomdb.Engine.open(db_path, use_default_embedder=False)
+    try:
+        frozen = engine.freeze_read_context(fathomdb.ReadContextV1())
+        monkeypatch.setattr(
+            read,
+            "_native_canonical_page",
+            lambda *_args: SimpleNamespace(schema_version=2, items=[], next_cursor=None),
+        )
+        with pytest.raises(fathomdb.PageError) as raised:
+            read.canonical_page(
+                engine,
+                "slice45_doc",
+                frozen,
+                fathomdb.PageRequestV1(limit=1),
+            )
+        assert raised.value.reason == "unsupported_schema_version"
+        assert raised.value.field_path == "/schemaVersion"
     finally:
         engine.close()

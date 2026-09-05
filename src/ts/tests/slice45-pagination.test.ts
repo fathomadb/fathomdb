@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Engine, read } from "../src/index.js";
+import { Engine, PageError, read, type PageRequestV1 } from "../src/index.js";
+import { native } from "../src/binding.js";
 import { freshDbPath } from "./helpers.js";
 
 test("canonical and operational pages share frozen authority", async () => {
@@ -60,6 +61,45 @@ test("canonical and operational pages share frozen authority", async () => {
     });
     assert.deepEqual(state, statePage.items[0]);
   } finally {
+    await engine.close();
+  }
+});
+
+test("page request refusals retain PageError reason and field path", async () => {
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  try {
+    const frozen = await engine.freezeReadContext({ schemaVersion: 1, view: {}, eligibility: {} });
+    for (const [page, reason, fieldPath] of [
+      [{ schemaVersion: 2, limit: 1 }, "unsupported_schema_version", "/schemaVersion"],
+      [{ schemaVersion: 1, limit: 0 }, "invalid_page_limit", "/limit"],
+      [{ schemaVersion: 1, limit: 251 }, "invalid_page_limit", "/limit"],
+    ] as const) {
+      await assert.rejects(
+        read.canonicalPage(engine, "slice45_doc", frozen, page as unknown as PageRequestV1),
+        (error: unknown) =>
+          error instanceof PageError && error.reason === reason && error.fieldPath === fieldPath,
+      );
+    }
+  } finally {
+    await engine.close();
+  }
+});
+
+test("unknown native page response versions fail closed", async () => {
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  const original = native.readCanonicalPage;
+  try {
+    const frozen = await engine.freezeReadContext({ schemaVersion: 1, view: {}, eligibility: {} });
+    native.readCanonicalPage = async () => ({ schemaVersion: 2, items: [], nextCursor: null });
+    await assert.rejects(
+      read.canonicalPage(engine, "slice45_doc", frozen, { schemaVersion: 1, limit: 1 }),
+      (error: unknown) =>
+        error instanceof PageError &&
+        error.reason === "unsupported_schema_version" &&
+        error.fieldPath === "/schemaVersion",
+    );
+  } finally {
+    native.readCanonicalPage = original;
     await engine.close();
   }
 });

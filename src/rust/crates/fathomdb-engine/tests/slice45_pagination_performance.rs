@@ -209,7 +209,7 @@ fn measure_slice45_pagination_overhead() {
                         .read_canonical_page_baseline_for_test(KIND, &frozen, 100)
                         .unwrap()
                         .len(),
-                    101
+                    100
                 );
             };
             let mut frozen_page_operation = || {

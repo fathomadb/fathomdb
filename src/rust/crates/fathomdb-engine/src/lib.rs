@@ -988,6 +988,14 @@ struct ProjectionRuntimeShared {
     /// live transaction.
     #[cfg(debug_assertions)]
     projection_worker_transaction_pause: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
+    /// Slice 40: one-shot rendezvous after dispatch has queued a captured-
+    /// generation job and before any worker removes it from the queue.
+    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    projection_worker_queued_pause: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
+    /// Slice 40: one-shot rendezvous after embedding and immediately before
+    /// the worker attempts to acquire SQLite's write lock.
+    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    projection_worker_before_write_lock_pause: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
     /// TC-91 test-only acknowledgement after `stopping` is set and before a
     /// close joins workers, used with `projection_commit_failure_pause`.
     #[cfg(debug_assertions)]
@@ -2769,6 +2777,10 @@ impl ProjectionRuntime {
             projection_commit_failure_pause: Mutex::new(None),
             #[cfg(debug_assertions)]
             projection_worker_transaction_pause: Mutex::new(None),
+            #[cfg(any(debug_assertions, feature = "test-hooks"))]
+            projection_worker_queued_pause: Mutex::new(None),
+            #[cfg(any(debug_assertions, feature = "test-hooks"))]
+            projection_worker_before_write_lock_pause: Mutex::new(None),
             #[cfg(debug_assertions)]
             projection_stop_ack: Mutex::new(None),
         });
@@ -2981,6 +2993,32 @@ impl ProjectionRuntime {
             .unwrap_or_else(|poisoned| poisoned.into_inner()) =
             Some((Arc::clone(&transaction_ready), Arc::clone(&release)));
         (transaction_ready, release)
+    }
+
+    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    fn pause_projection_worker_while_queued_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
+        let queued = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        *self
+            .shared
+            .projection_worker_queued_pause
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) =
+            Some((Arc::clone(&queued), Arc::clone(&release)));
+        (queued, release)
+    }
+
+    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    fn pause_projection_worker_before_write_lock_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
+        let waiting = Arc::new(Barrier::new(2));
+        let release = Arc::new(Barrier::new(2));
+        *self
+            .shared
+            .projection_worker_before_write_lock_pause
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) =
+            Some((Arc::clone(&waiting), Arc::clone(&release)));
+        (waiting, release)
     }
 
     #[cfg(debug_assertions)]
@@ -8485,6 +8523,22 @@ impl Engine {
         &self,
     ) -> (Arc<Barrier>, Arc<Barrier>) {
         self.projection_runtime.pause_projection_worker_after_wal_transaction_for_test()
+    }
+
+    /// Pause one captured-generation job while it remains in the worker queue.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn pause_projection_worker_while_queued_for_test(&self) -> (Arc<Barrier>, Arc<Barrier>) {
+        self.projection_runtime.pause_projection_worker_while_queued_for_test()
+    }
+
+    /// Pause one computed job immediately before SQLite write-lock acquisition.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn pause_projection_worker_before_write_lock_for_test(
+        &self,
+    ) -> (Arc<Barrier>, Arc<Barrier>) {
+        self.projection_runtime.pause_projection_worker_before_write_lock_for_test()
     }
 
     pub fn write(&self, batch: &[PreparedWrite]) -> Result<WriteReceipt, EngineError> {
@@ -18537,6 +18591,18 @@ fn projection_worker_loop(shared: Arc<ProjectionRuntimeShared>, worker_idx: usiz
                 if stopping && queue.is_empty() {
                     return;
                 }
+                #[cfg(any(debug_assertions, feature = "test-hooks"))]
+                if !queue.is_empty() {
+                    if let Some((queued, release)) = shared
+                        .projection_worker_queued_pause
+                        .lock()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner())
+                        .take()
+                    {
+                        queued.wait();
+                        release.wait();
+                    }
+                }
                 if let Some(job) = queue.pop_front() {
                     let mut jobs = vec![job];
                     while jobs.len() < PROJECTION_COMMIT_BATCH {
@@ -19994,6 +20060,16 @@ fn commit_projection_outcomes(
     // EU-5f — serialize the whole commit across workers so the at-pin
     // re-quantize sees a totally-ordered history (see `commit_gate`).
     let _gate = shared.commit_gate.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    #[cfg(any(debug_assertions, feature = "test-hooks"))]
+    if let Some((waiting, release)) = shared
+        .projection_worker_before_write_lock_pause
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .take()
+    {
+        waiting.wait();
+        release.wait();
+    }
     // Take the WAL write lock before the reads below. A deferred transaction
     // would need a read-to-write promotion while a concurrent Engine::write
     // holds its own immediate transaction, which SQLite rejects without

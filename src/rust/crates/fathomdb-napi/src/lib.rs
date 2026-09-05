@@ -2127,6 +2127,14 @@ impl Engine {
         Ok(frozen_context_from_rust(frozen))
     }
 
+    /// Validate a frozen context before JavaScript converts dynamic controls.
+    #[napi]
+    pub async fn validate_frozen_read_context(&self, context: FrozenReadContextV1) -> Result<()> {
+        let context = frozen_context_to_rust(context)?;
+        let engine = Arc::clone(&self.inner);
+        call_engine(move || engine.validate_frozen_read_context_for_binding(&context)).await
+    }
+
     /// Search under a frozen validity and eligibility context.
     #[napi]
     #[allow(clippy::too_many_arguments)]

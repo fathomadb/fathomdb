@@ -1784,18 +1784,8 @@ export class Engine {
     context: FrozenReadContextV1,
     options: FrozenSearchOptions = {},
   ): Promise<SearchResult> {
-    const result = await intercept(() =>
-      this.#native.searchFrozen(
-        query,
-        nativeFrozenContext(context),
-        options.rerankDepth,
-        options.useGraphArm,
-        options.alpha,
-        options.poolN,
-        options.explain,
-        options.limit,
-      ),
-    );
+    const nativeContext = nativeFrozenContext(context);
+    await intercept(() => this.#native.validateFrozenReadContext(nativeContext));
     validateFfiString(query);
     validateReadContext(context.context);
     assertKnownKeys(
@@ -1809,7 +1799,10 @@ export class Engine {
       "FrozenSearchOptions",
     );
     if (options.rerankDepth !== undefined) {
-      if (!Number.isInteger(options.rerankDepth) || options.rerankDepth < 0 || options.rerankDepth > 0xFFFFFFFF) {
+      if (options.rerankDepth < 0) {
+        throw new InvalidArgumentError(`rerankDepth must be >= 0; got ${options.rerankDepth}`);
+      }
+      if (!Number.isInteger(options.rerankDepth) || options.rerankDepth > 0xFFFFFFFF) {
         throw new RangeError(`rerankDepth must be an integer in 0..=4294967295; got ${options.rerankDepth}`);
       }
     }
@@ -1820,7 +1813,10 @@ export class Engine {
       throw new RangeError(`alpha must be a finite number, got ${options.alpha}`);
     }
     if (options.poolN !== undefined) {
-      if (!Number.isInteger(options.poolN) || options.poolN < 0 || options.poolN > 0xFFFFFFFF) {
+      if (options.poolN < 0) {
+        throw new InvalidArgumentError(`poolN must be >= 0; got ${options.poolN}`);
+      }
+      if (!Number.isInteger(options.poolN) || options.poolN > 0xFFFFFFFF) {
         throw new RangeError(`poolN must be an integer in 0..=4294967295; got ${options.poolN}`);
       }
     }
@@ -1828,6 +1824,18 @@ export class Engine {
       throw new TypeError(`explain must be a boolean, got ${typeof options.explain}`);
     }
     validateRankedResultLimit("limit", options.limit);
+    const result = await intercept(() =>
+      this.#native.searchFrozen(
+        query,
+        nativeContext,
+        options.rerankDepth,
+        options.useGraphArm,
+        options.alpha,
+        options.poolN,
+        options.explain,
+        options.limit,
+      ),
+    );
     return mapNativeSearchResult(result);
   }
 
@@ -1838,14 +1846,8 @@ export class Engine {
     depth: number,
     options: SearchExpandOptions = {},
   ): Promise<SearchExpandResult> {
-    const result = await intercept(() =>
-      this.#native.searchExpandFrozen(
-        query,
-        nativeFrozenContext(context),
-        depth,
-        options.searchLimit,
-      ),
-    );
+    const nativeContext = nativeFrozenContext(context);
+    await intercept(() => this.#native.validateFrozenReadContext(nativeContext));
     validateFfiString(query);
     validateReadContext(context.context);
     assertKnownKeys(
@@ -1860,6 +1862,14 @@ export class Engine {
       );
     }
     validateRankedResultLimit("searchLimit", options.searchLimit);
+    const result = await intercept(() =>
+      this.#native.searchExpandFrozen(
+        query,
+        nativeContext,
+        depth,
+        options.searchLimit,
+      ),
+    );
     return {
       searchHits: result.searchHits.map((hit) => ({
         id: { space: hit.id.space, value: hit.id.value },

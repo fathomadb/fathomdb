@@ -939,20 +939,14 @@ class Engine:
                 "context must be a FrozenReadContextV1, "
                 f"got {type(context).__name__!r}"
             )
-        native = self._native.search_frozen(
-            query,
-            _to_native_frozen_context(context),
-            rerank_depth=rerank_depth,
-            use_graph_arm=use_graph_arm,
-            alpha=alpha,
-            pool_n=pool_n,
-            explain=explain,
-            limit=limit,
-        )
+        native_context = _to_native_frozen_context(context)
+        self._native.validate_frozen_read_context(native_context)
         if not isinstance(rerank_depth, int) or isinstance(rerank_depth, bool):
             raise TypeError("rerank_depth must be a non-negative integer")
         if rerank_depth < 0:
-            raise ValueError(f"rerank_depth must be >= 0, got {rerank_depth!r}")
+            raise InvalidArgumentError(
+                f"rerank_depth must be >= 0, got {rerank_depth!r}"
+            )
         if not isinstance(use_graph_arm, bool):
             raise TypeError("use_graph_arm must be a bool")
         if isinstance(alpha, bool) or not isinstance(alpha, (int, float)):
@@ -962,10 +956,20 @@ class Engine:
         if not isinstance(pool_n, int) or isinstance(pool_n, bool):
             raise TypeError("pool_n must be a non-negative integer")
         if pool_n < 0:
-            raise ValueError(f"pool_n must be >= 0, got {pool_n!r}")
+            raise InvalidArgumentError(f"pool_n must be >= 0, got {pool_n!r}")
         if not isinstance(explain, bool):
             raise TypeError("explain must be a bool")
         _validate_ranked_result_limit("limit", limit)
+        native = self._native.search_frozen(
+            query,
+            native_context,
+            rerank_depth=rerank_depth,
+            use_graph_arm=use_graph_arm,
+            alpha=alpha,
+            pool_n=pool_n,
+            explain=explain,
+            limit=limit,
+        )
         return _map_native_search_result(native)
 
     def search_expand_frozen(
@@ -982,17 +986,19 @@ class Engine:
                 "context must be a FrozenReadContextV1, "
                 f"got {type(context).__name__!r}"
             )
-        native = self._native.search_expand_frozen(
-            query,
-            _to_native_frozen_context(context),
-            depth,
-            limit=limit,
-        )
+        native_context = _to_native_frozen_context(context)
+        self._native.validate_frozen_read_context(native_context)
         if not isinstance(depth, int) or isinstance(depth, bool):
             raise TypeError("depth must be an integer in 0..=3")
         if not 0 <= depth <= 3:
             raise InvalidArgumentError(f"depth must be an integer in 0..=3, got {depth!r}")
         _validate_ranked_result_limit("limit", limit)
+        native = self._native.search_expand_frozen(
+            query,
+            native_context,
+            depth,
+            limit=limit,
+        )
         return SearchExpandResult(
             search_hits=[_map_native_search_hit(hit) for hit in native.search_hits],
             expanded=[

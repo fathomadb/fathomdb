@@ -66,6 +66,59 @@ trap 'rm -rf "$WORK"' EXIT
 python3 -m venv "$WORK/python-venv"
 PYTHON="$WORK/python-venv/bin/python"
 "$PYTHON" -m pip install --no-index --find-links "$WHEEL_DIR" fathomdb
+"$PYTHON" - "$REPO_ROOT/tests/fixtures/slice35_frozen_context_v1.json" \
+  "$WORK/python-frozen-fixture.sqlite" <<'PY'
+import json
+import sqlite3
+import sys
+
+from fathomdb import Engine, ReadContextV1, ReadView, SearchFilter
+
+fixture = json.load(open(sys.argv[1], encoding="utf-8"))
+database = sys.argv[2]
+Engine.open(database, use_default_embedder=False).close()
+with sqlite3.connect(database) as connection:
+    connection.execute(
+        "UPDATE _fathomdb_open_state SET value=? WHERE key='_fathomdb_database_id'",
+        (fixture["database_id"],),
+    )
+    connection.execute(
+        "UPDATE _fathomdb_open_state SET value=? WHERE key='_fathomdb_read_context_key'",
+        (fixture["read_context_key"],),
+    )
+raw = fixture["context"]
+engine = Engine.open(database, use_default_embedder=False)
+frozen = engine.freeze_read_context(ReadContextV1(
+    schema_version=raw["schema_version"],
+    view=ReadView(
+        include_superseded=raw["include_superseded"],
+        include_inactive=raw["include_inactive"],
+        include_out_of_window=raw["include_out_of_window"],
+        valid_as_of=raw["valid_as_of"],
+    ),
+    eligibility=SearchFilter(
+        source_type=raw["source_type"],
+        kind=raw["kind"],
+        created_after=raw["created_after"],
+        status=raw["status"],
+        attributes=tuple(raw["attributes"]),
+    ),
+))
+assert frozen.effective_valid_at == raw["valid_as_of"]
+assert frozen.schema_version == raw["schema_version"]
+assert frozen.context.schema_version == raw["schema_version"]
+assert frozen.context.view.include_superseded is raw["include_superseded"]
+assert frozen.context.view.include_inactive is raw["include_inactive"]
+assert frozen.context.view.include_out_of_window is raw["include_out_of_window"]
+assert frozen.context.view.valid_as_of == raw["valid_as_of"]
+assert frozen.context.eligibility.source_type == raw["source_type"]
+assert frozen.context.eligibility.kind == raw["kind"]
+assert frozen.context.eligibility.created_after == raw["created_after"]
+assert frozen.context.eligibility.status == raw["status"]
+assert frozen.context.eligibility.attributes == tuple(raw["attributes"])
+assert frozen.token == fixture["token"]
+engine.close()
+PY
 "$PYTHON" - "$WORK/python-smoke.fdb" <<'PY'
 import sys
 
@@ -176,6 +229,74 @@ EOF
 (
   cd "$CONSUMER"
   npm install --offline --ignore-scripts
+  node --input-type=module - "$WORK/npm-frozen-fixture.sqlite" <<'JS'
+import { Engine } from "fathomdb";
+const engine = await Engine.open(process.argv[2], { useDefaultEmbedder: false });
+await engine.close();
+JS
+  python3 - "$REPO_ROOT/tests/fixtures/slice35_frozen_context_v1.json" \
+    "$WORK/npm-frozen-fixture.sqlite" <<'PY'
+import json
+import sqlite3
+import sys
+
+fixture = json.load(open(sys.argv[1], encoding="utf-8"))
+with sqlite3.connect(sys.argv[2]) as connection:
+    connection.execute(
+        "UPDATE _fathomdb_open_state SET value=? WHERE key='_fathomdb_database_id'",
+        (fixture["database_id"],),
+    )
+    connection.execute(
+        "UPDATE _fathomdb_open_state SET value=? WHERE key='_fathomdb_read_context_key'",
+        (fixture["read_context_key"],),
+    )
+PY
+  node --input-type=module - "$REPO_ROOT/tests/fixtures/slice35_frozen_context_v1.json" \
+    "$WORK/npm-frozen-fixture.sqlite" <<'JS'
+import { readFileSync } from "node:fs";
+import assert from "node:assert/strict";
+import { Engine } from "fathomdb";
+
+const fixture = JSON.parse(readFileSync(process.argv[2], "utf8"));
+const raw = fixture.context;
+const engine = await Engine.open(process.argv[3], { useDefaultEmbedder: false });
+const frozen = await engine.freezeReadContext({
+  schemaVersion: raw.schema_version,
+  view: {
+    includeSuperseded: raw.include_superseded,
+    includeInactive: raw.include_inactive,
+    includeOutOfWindow: raw.include_out_of_window,
+    validAsOf: raw.valid_as_of,
+  },
+  eligibility: {
+    sourceType: raw.source_type,
+    kind: raw.kind,
+    createdAfter: raw.created_after,
+    status: raw.status,
+    attributes: raw.attributes,
+  },
+});
+assert.equal(frozen.schemaVersion, raw.schema_version);
+assert.equal(frozen.effectiveValidAt, String(raw.valid_as_of));
+assert.deepEqual(frozen.context, {
+  schemaVersion: raw.schema_version,
+  view: {
+    includeSuperseded: raw.include_superseded,
+    includeInactive: raw.include_inactive,
+    includeOutOfWindow: raw.include_out_of_window,
+    validAsOf: String(raw.valid_as_of),
+  },
+  eligibility: {
+    sourceType: raw.source_type,
+    kind: raw.kind,
+    createdAfter: raw.created_after,
+    status: raw.status,
+    attributes: raw.attributes,
+  },
+});
+assert.equal(frozen.token, fixture.token);
+await engine.close();
+JS
   node --input-type=module - "$WORK/npm-smoke.fdb" <<'JS'
 import { Engine } from "fathomdb";
 

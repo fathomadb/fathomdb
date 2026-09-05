@@ -521,6 +521,7 @@ export interface NativeEngine {
   readProjectionStatus(): Promise<NativeProjectionRuntimeStatus>;
   readEmbeddingReadiness(): Promise<NativeEmbeddingReadiness>;
   freezeReadContext(context: NativeReadContextV1): Promise<NativeFrozenReadContextV1>;
+  validateFrozenReadContext(context: NativeFrozenReadContextV1): Promise<void>;
   searchFrozen(
     query: string,
     context: NativeFrozenReadContextV1,

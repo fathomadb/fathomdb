@@ -7077,6 +7077,26 @@ impl Engine {
         Ok(frozen)
     }
 
+    /// Binding-only preflight for dynamic-language argument precedence.
+    ///
+    /// This is not a read consumer: it returns no data and does not retain a
+    /// snapshot. Dynamic-language bindings use it before converting ranking
+    /// controls so authenticated frozen-context failures retain the Engine's
+    /// documented precedence. The consuming operation authenticates and
+    /// validates again on its own reader transaction.
+    #[doc(hidden)]
+    pub fn validate_frozen_read_context_for_binding(
+        &self,
+        frozen: &FrozenReadContextV1,
+    ) -> Result<(), EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let binding = frozen_read::authenticate(connection, frozen)?;
+        frozen_read::validate_snapshot(connection, &binding)?;
+        Ok(())
+    }
+
     /// Search using an authenticated frozen context.
     ///
     /// Eligibility and validity come exclusively from `frozen`; callers cannot
@@ -15423,6 +15443,72 @@ fn append_edge_eligibility_sql(
     sql
 }
 
+fn body_fts_rank_sql(
+    validity: &str,
+    lifecycle: &str,
+    eligibility: &str,
+    limit_clause: &str,
+) -> String {
+    format!(
+        "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
+         bm25(search_index), cn.logical_id, cn.source_id FROM search_index \
+         LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
+         WHERE search_index MATCH ?1 \
+           AND cn.superseded_at IS NULL \
+           AND (cn.state = 'active' OR cn.state IS NULL)\
+           {validity}{lifecycle}{eligibility} \
+         ORDER BY bm25(search_index), search_index.write_cursor{limit_clause}"
+    )
+}
+
+fn edge_fts_rank_sql(validity: &str, eligibility: &str) -> String {
+    format!(
+        "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), \
+         ce.logical_id, ce.source_id \
+         FROM search_index_edges sei \
+         JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor \
+         WHERE search_index_edges MATCH ?1 \
+           AND ce.superseded_at IS NULL{validity}{eligibility} \
+         ORDER BY bm25(search_index_edges), sei.write_cursor"
+    )
+}
+
+fn property_fts_rank_sql(validity: &str, eligibility: &str) -> String {
+    format!(
+        "SELECT p.write_cursor, bm25(property_search_index), n.kind, n.body, n.logical_id, n.source_id
+         FROM property_search_index p JOIN canonical_nodes n ON n.write_cursor = p.write_cursor
+         WHERE p.attr_name = ?1 AND property_search_index MATCH ?2
+           {validity}{eligibility}
+         ORDER BY bm25(property_search_index) ASC, p.write_cursor ASC"
+    )
+}
+
+/// Test seam pinning production ranked SQL around the shared eligibility
+/// compiler. Eligibility must precede ranking and any SQL candidate limit.
+#[doc(hidden)]
+#[must_use]
+pub fn slice35_ranked_eligibility_sql_for_test(
+    filter: &SearchFilter,
+) -> [(&'static str, String); 3] {
+    let mut body_params = vec![rusqlite::types::Value::Text("fixture".to_string())];
+    let body_filter = append_node_eligibility_sql(Some(filter), "cn", &mut body_params);
+    let mut edge_params = vec![
+        rusqlite::types::Value::Text("fixture".to_string()),
+        rusqlite::types::Value::Integer(0),
+    ];
+    let edge_filter = append_edge_eligibility_sql(Some(filter), "ce", &mut edge_params);
+    let mut property_params = vec![
+        rusqlite::types::Value::Text("owner".to_string()),
+        rusqlite::types::Value::Text("fixture".to_string()),
+    ];
+    let property_filter = append_node_eligibility_sql(Some(filter), "n", &mut property_params);
+    [
+        ("body_fts", body_fts_rank_sql("", "", &body_filter, " LIMIT 10")),
+        ("edge_fts", edge_fts_rank_sql("", &edge_filter)),
+        ("property_fts", property_fts_rank_sql("", &property_filter)),
+    ]
+}
+
 /// G10 — does a text-branch hit satisfy the filter? The vector branch is
 /// pruned in-SQL; the text branch is constrained here against the same metadata:
 /// `kind` directly, `source_type` via [`resolve_source_type`], and
@@ -15718,13 +15804,7 @@ fn read_projected_text_in_tx(
         params.push(rusqlite::types::Value::Integer(now));
     }
     let filter_predicate = append_node_eligibility_sql(filter, "n", &mut params);
-    let sql = format!(
-        "SELECT p.write_cursor, bm25(property_search_index), n.kind, n.body, n.logical_id, n.source_id
-         FROM property_search_index p JOIN canonical_nodes n ON n.write_cursor = p.write_cursor
-         WHERE p.attr_name = ?1 AND property_search_index MATCH ?2
-           {node_predicate}{filter_predicate}
-         ORDER BY bm25(property_search_index) ASC, p.write_cursor ASC"
-    );
+    let sql = property_fts_rank_sql(&node_predicate, &filter_predicate);
     let mut stmt = tx.prepare(&sql)?;
     let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
         Ok((
@@ -16232,16 +16312,8 @@ fn read_search_in_tx(
             text_params.push(rusqlite::types::Value::Integer(now));
         }
         let text_filter = append_node_eligibility_sql(filter, "cn", &mut text_params);
-        let join_sql = format!(
-            "SELECT search_index.body, search_index.kind, search_index.write_cursor, \
-             bm25(search_index), cn.logical_id, cn.source_id FROM search_index \
-             LEFT JOIN canonical_nodes cn ON cn.write_cursor = search_index.write_cursor \
-             WHERE search_index MATCH ?1 \
-               AND cn.superseded_at IS NULL \
-               AND (cn.state = 'active' OR cn.state IS NULL)\
-               {text_validity}{text_eligibility}{text_filter} \
-             ORDER BY bm25(search_index), search_index.write_cursor{limit_clause}"
-        );
+        let join_sql =
+            body_fts_rank_sql(&text_validity, &text_eligibility, &text_filter, &limit_clause);
         #[cfg(feature = "test-hooks")]
         let force_full_sort =
             std::env::var("FATHOMDB_FTS_FORCE_FULL_SORT_FOR_TEST").is_ok_and(|value| value == "1");
@@ -16432,15 +16504,7 @@ fn read_search_in_tx(
             rusqlite::types::Value::Integer(view.edge_now()),
         ];
         let edge_filter = append_edge_eligibility_sql(filter, "ce", &mut edge_params);
-        let edge_sql = format!(
-            "SELECT sei.body, sei.kind, sei.write_cursor, bm25(search_index_edges), \
-             ce.logical_id, ce.source_id \
-             FROM search_index_edges sei \
-             JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor \
-             WHERE search_index_edges MATCH ?1 \
-               AND ce.superseded_at IS NULL{edge_validity}{edge_filter} \
-             ORDER BY bm25(search_index_edges), sei.write_cursor"
-        );
+        let edge_sql = edge_fts_rank_sql(&edge_validity, &edge_filter);
         // search_index_edges may not exist on very old DBs not yet at step-14;
         // ignore the error gracefully (returns empty slice).
         if let Ok(mut stmt) = tx.prepare(&edge_sql) {

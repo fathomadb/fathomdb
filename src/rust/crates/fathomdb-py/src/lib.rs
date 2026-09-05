@@ -2114,6 +2114,17 @@ impl PyEngine {
             .map(|inner| PyFrozenReadContextV1 { inner })
     }
 
+    /// Validate a frozen context before Python converts dynamic controls.
+    fn validate_frozen_read_context(
+        &self,
+        py: Python<'_>,
+        context: &PyFrozenReadContextV1,
+    ) -> PyResult<()> {
+        let engine = Arc::clone(&self.inner);
+        let context = context.inner.clone();
+        call_engine(py, move || engine.validate_frozen_read_context_for_binding(&context))
+    }
+
     /// Search using eligibility and validity authenticated by a frozen context.
     #[pyo3(signature = (
         query, context, rerank_depth=0, use_graph_arm=false, alpha=0.3,

@@ -24,11 +24,18 @@ RSS_ARMS = (
 )
 LATENCY_PAIRS = (
     ("exact_page", "frozen_page"),
+    ("preminted_page", "mint_plus_page"),
+    ("first_page", "continuation_page"),
+    ("current_state", "frozen_state"),
+)
+COLD_PAIRS = LATENCY_PAIRS
+COLD_ARMS = tuple(dict.fromkeys(arm for pair in COLD_PAIRS for arm in pair))
+RSS_PAIRS = (
+    ("exact_page", "frozen_page"),
     ("frozen_page", "mint_plus_page"),
     ("frozen_page", "continuation_page"),
     ("current_state", "frozen_state"),
 )
-RSS_PAIRS = LATENCY_PAIRS
 BOOTSTRAP_SEED = 450_825
 BOOTSTRAP_DRAWS = 10_000
 
@@ -53,6 +60,8 @@ def invoke(
     mode: str,
     treatment_first: bool = False,
     seed_only: bool = False,
+    cold_arm: str | None = None,
+    frozen_fixture: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     environment = os.environ.copy()
     environment.update(
@@ -67,6 +76,16 @@ def invoke(
         environment["FATHOM_SLICE45_TREATMENT_FIRST"] = "1"
     if seed_only:
         environment["FATHOM_SLICE45_SEED_ONLY"] = "1"
+    if cold_arm is not None:
+        environment["FATHOM_SLICE45_COLD_ARM"] = cold_arm
+    if frozen_fixture is not None:
+        environment.update(
+            {
+                "FATHOM_SLICE45_FROZEN_EFFECTIVE": str(frozen_fixture["effective_valid_at"]),
+                "FATHOM_SLICE45_FROZEN_TOKEN": frozen_fixture["token"],
+                "FATHOM_SLICE45_FROZEN_CONTINUATION": frozen_fixture["continuation"],
+            }
+        )
     completed = subprocess.run(
         [
             "taskset",
@@ -172,12 +191,52 @@ def analyze_rss(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return outcomes
 
 
+def analyze_cold(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    outcomes = []
+    by_arm = {
+        arm: sorted(
+            (record for record in records if record["arm"] == arm),
+            key=lambda record: record["repetition"],
+        )
+        for arm in COLD_ARMS
+    }
+    for baseline, treatment in COLD_PAIRS:
+        baseline_records = by_arm[baseline]
+        treatment_records = by_arm[treatment]
+        baseline_values = [record["operation_ms"] for record in baseline_records]
+        treatment_values = [record["operation_ms"] for record in treatment_records]
+        deltas = [right - left for left, right in zip(baseline_values, treatment_values)]
+        baseline_median = statistics.median(baseline_values)
+        treatment_median = statistics.median(treatment_values)
+        delta = statistics.median(deltas)
+        percent = delta / baseline_median * 100.0
+        outcomes.append(
+            {
+                "baseline": baseline,
+                "treatment": treatment,
+                "baseline_median_ms": baseline_median,
+                "treatment_median_ms": treatment_median,
+                "median_paired_delta_ms": delta,
+                "median_paired_delta_percent": percent,
+                "baseline_median_open_ms": statistics.median(
+                    record["open_ms"] for record in baseline_records
+                ),
+                "treatment_median_open_ms": statistics.median(
+                    record["open_ms"] for record in treatment_records
+                ),
+                "material": delta > 0.25 and percent > 10.0,
+            }
+        )
+    return outcomes
+
+
 def write_markdown(result: dict[str, Any], path: Path) -> None:
     lines = [
         "# Slice 45 pagination performance result",
         "",
         "Material means both >10% and >0.25 ms median paired p95 latency, or both",
-        ">5% and >8 MiB median peak RSS.",
+        ">10% and >0.25 ms median paired cold-operation latency, or both >5% and",
+        ">8 MiB median peak RSS.",
         "",
         "| Scale | Comparison | Baseline p95 ms | Treatment p95 ms | Delta ms | Delta % | Material |",
         "|---:|---|---:|---:|---:|---:|---|",
@@ -223,18 +282,21 @@ def write_markdown(result: dict[str, Any], path: Path) -> None:
     lines.extend(
         [
             "",
-            "| Scale | Cold open ms | Cold mint ms | Cold first page ms | Cold frozen state ms |",
-            "|---:|---:|---:|---:|---:|",
+            "| Scale | Cold comparison | Baseline ms | Treatment ms | Delta ms | Delta % | Baseline open ms | Treatment open ms | Material |",
+            "|---:|---|---:|---:|---:|---:|---:|---:|---|",
         ]
     )
     for scale in result["scales"]:
-        lines.append(
-            f"| {scale['rows']} | "
-            f"{statistics.median(item['open_ms'] for item in scale['cold']):.4f} | "
-            f"{statistics.median(item['mint_ms'] for item in scale['cold']):.4f} | "
-            f"{statistics.median(item['first_page_ms'] for item in scale['cold']):.4f} | "
-            f"{statistics.median(item['frozen_state_ms'] for item in scale['cold']):.4f} |"
-        )
+        for item in scale["cold"]:
+            lines.append(
+                f"| {scale['rows']} | {item['baseline']} → {item['treatment']} | "
+                f"{item['baseline_median_ms']:.4f} | {item['treatment_median_ms']:.4f} | "
+                f"{item['median_paired_delta_ms']:.4f} | "
+                f"{item['median_paired_delta_percent']:.2f} | "
+                f"{item['baseline_median_open_ms']:.4f} | "
+                f"{item['treatment_median_open_ms']:.4f} | "
+                f"{str(item['material']).lower()} |"
+            )
     lines.extend(
         [
             "",
@@ -296,6 +358,7 @@ def main() -> None:
             seed = invoke(args.binary, database, rows, args.samples, "latency", seed_only=True)
             raw.write(json.dumps({"phase": "seed", **seed}, sort_keys=True) + "\n")
             groups = {"latency": [], "cold": [], "rss": []}
+            fixture = invoke(args.binary, database, rows, 1, "mint_fixture")
             for repetition in range(args.latency_repetitions):
                 record = invoke(
                     args.binary,
@@ -310,11 +373,22 @@ def main() -> None:
                 raw.write(json.dumps(record, sort_keys=True) + "\n")
                 raw.flush()
             for repetition in range(args.cold_repetitions):
-                record = invoke(args.binary, database, rows, 1, "cold")
-                record.update({"phase": "cold", "repetition": repetition})
-                groups["cold"].append(record)
-                raw.write(json.dumps(record, sort_keys=True) + "\n")
-                raw.flush()
+                for baseline, treatment in COLD_PAIRS:
+                    arms = (treatment, baseline) if repetition % 2 == 1 else (baseline, treatment)
+                    for arm in arms:
+                        record = invoke(
+                            args.binary,
+                            database,
+                            rows,
+                            1,
+                            "cold",
+                            cold_arm=arm,
+                            frozen_fixture=fixture,
+                        )
+                        record.update({"phase": "cold", "repetition": repetition})
+                        groups["cold"].append(record)
+                        raw.write(json.dumps(record, sort_keys=True) + "\n")
+                        raw.flush()
             for arm in RSS_ARMS:
                 for repetition in range(args.rss_repetitions):
                     record = invoke(args.binary, database, rows, args.samples, arm)
@@ -333,7 +407,7 @@ def main() -> None:
                 "rows": rows,
                 "latency": analyze_latency(groups["latency"]),
                 "rss": analyze_rss(groups["rss"]),
-                "cold": groups["cold"],
+                "cold": analyze_cold(groups["cold"]),
                 "stage_medians": {
                     **{
                         key: statistics.median(
@@ -378,7 +452,7 @@ def main() -> None:
     material = any(
         item["material"]
         for scale in scales
-        for family in ("latency", "rss")
+        for family in ("latency", "cold", "rss")
         for item in scale[family]
     )
     result = {
@@ -395,7 +469,13 @@ def main() -> None:
     result_path = args.output_dir / "result.json"
     result_path.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     write_markdown(result, args.output_dir / "result.md")
-    output_relative = args.output_dir.resolve().relative_to(Path.cwd().resolve())
+    try:
+        output_relative = args.output_dir.resolve().relative_to(Path.cwd().resolve())
+    except ValueError:
+        output_relative = None
+    diff_command = ["git", "diff", "--binary", "--", "."]
+    if output_relative is not None:
+        diff_command.append(f":(exclude){output_relative}/**")
     manifest = {
         "schema_version": "slice45-pagination-manifest.v1",
         "binary": str(args.binary.resolve()),
@@ -405,14 +485,7 @@ def main() -> None:
         "result_sha256": sha256(result_path),
         "git_head": command_output("git", "rev-parse", "HEAD"),
         "git_diff_sha256": hashlib.sha256(
-            command_output(
-                "git",
-                "diff",
-                "--binary",
-                "--",
-                ".",
-                f":(exclude){output_relative}/**",
-            ).encode("utf-8")
+            command_output(*diff_command).encode("utf-8")
         ).hexdigest(),
         "rustc": command_output("rustc", "--version"),
         "kernel": command_output("uname", "-srmo"),

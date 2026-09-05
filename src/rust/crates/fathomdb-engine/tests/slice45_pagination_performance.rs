@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use fathomdb_engine::{
-    Engine, Filter, InitialState, PageRequestV1, PreparedWrite, ReadContextV1, ReadView,
-    SearchFilter, SourceId,
+    Engine, Filter, FrozenReadContextV1, InitialState, PageCursor, PageRequestV1, PreparedWrite,
+    ReadContextV1, ReadView, SearchFilter, SourceId,
 };
 use rusqlite::Connection;
 use serde_json::json;
@@ -203,6 +203,25 @@ fn peak_rss_kib() -> u64 {
         .unwrap_or(0)
 }
 
+fn frozen_fixture_from_env() -> FrozenReadContextV1 {
+    let effective_valid_at = std::env::var("FATHOM_SLICE45_FROZEN_EFFECTIVE")
+        .expect("FATHOM_SLICE45_FROZEN_EFFECTIVE is required")
+        .parse()
+        .expect("frozen effective instant");
+    let context = ReadContextV1::new(
+        ReadView { valid_as_of: Some(effective_valid_at), ..ReadView::default() },
+        SearchFilter::default(),
+    )
+    .unwrap();
+    FrozenReadContextV1 {
+        schema_version: 1,
+        effective_valid_at,
+        context,
+        token: std::env::var("FATHOM_SLICE45_FROZEN_TOKEN")
+            .expect("FATHOM_SLICE45_FROZEN_TOKEN is required"),
+    }
+}
+
 #[test]
 #[ignore = "preregistered Slice 45 10k/50k latency and RSS measurement"]
 fn measure_slice45_pagination_overhead() {
@@ -216,32 +235,92 @@ fn measure_slice45_pagination_overhead() {
     }
 
     let mode = std::env::var("FATHOM_SLICE45_MODE").unwrap_or_else(|_| "latency".into());
-    if mode == "cold" {
-        let open_started = Instant::now();
-        let opened = Engine::open(&path).expect("open cold measurement database");
-        let open_ms = open_started.elapsed().as_secs_f64() * 1_000.0;
+    if mode == "mint_fixture" {
+        let opened = Engine::open(&path).expect("open fixture database");
         let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
-        let mint_started = Instant::now();
-        let frozen = opened.engine.freeze_read_context(&context).expect("mint cold context");
-        let mint_ms = mint_started.elapsed().as_secs_f64() * 1_000.0;
-        let page_started = Instant::now();
+        let frozen = opened.engine.freeze_read_context(&context).expect("mint fixture context");
         let first = opened.engine.read_canonical_page(KIND, &frozen, &page(None)).unwrap();
-        let page_ms = page_started.elapsed().as_secs_f64() * 1_000.0;
-        assert_eq!(first.items.len(), 100);
-        let point_key = format!("slice45:key:{:08}", rows / 2);
-        let state_started = Instant::now();
-        assert!(opened
-            .engine
-            .read_operational_state(COLLECTION, &point_key, Some(&frozen))
-            .unwrap()
-            .is_some());
-        let state_ms = state_started.elapsed().as_secs_f64() * 1_000.0;
         println!(
             "{}",
             json!({
                 "schema_version":"slice45-pagination-performance.v1",
-                "kind":"cold", "rows":rows, "open_ms":open_ms, "mint_ms":mint_ms,
-                "first_page_ms":page_ms, "frozen_state_ms":state_ms,
+                "kind":"mint_fixture",
+                "rows":rows,
+                "effective_valid_at":frozen.effective_valid_at,
+                "token":frozen.token,
+                "continuation":first.next_cursor.expect("continuation fixture").0,
+            })
+        );
+        opened.engine.close().expect("close fixture database");
+        return;
+    }
+    if mode == "cold" {
+        let arm =
+            std::env::var("FATHOM_SLICE45_COLD_ARM").expect("FATHOM_SLICE45_COLD_ARM is required");
+        let open_started = Instant::now();
+        let opened = Engine::open(&path).expect("open cold measurement database");
+        let open_ms = open_started.elapsed().as_secs_f64() * 1_000.0;
+        let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+        let frozen = frozen_fixture_from_env();
+        let point_key = format!("slice45:key:{:08}", rows / 2);
+        let continuation = PageCursor(
+            std::env::var("FATHOM_SLICE45_FROZEN_CONTINUATION")
+                .expect("FATHOM_SLICE45_FROZEN_CONTINUATION is required"),
+        );
+        let operation_started = Instant::now();
+        match arm.as_str() {
+            "exact_page" => assert_eq!(
+                opened
+                    .engine
+                    .read_canonical_page_baseline_for_test(KIND, &frozen, 100)
+                    .unwrap()
+                    .len(),
+                100
+            ),
+            "frozen_page" | "preminted_page" | "first_page" => assert_eq!(
+                opened.engine.read_canonical_page(KIND, &frozen, &page(None)).unwrap().items.len(),
+                100
+            ),
+            "mint_plus_page" => {
+                let fresh = opened.engine.freeze_read_context(&context).unwrap();
+                assert_eq!(
+                    opened
+                        .engine
+                        .read_canonical_page(KIND, &fresh, &page(None))
+                        .unwrap()
+                        .items
+                        .len(),
+                    100
+                );
+            }
+            "continuation_page" => assert_eq!(
+                opened
+                    .engine
+                    .read_canonical_page(KIND, &frozen, &page(Some(continuation)))
+                    .unwrap()
+                    .items
+                    .len(),
+                100
+            ),
+            "current_state" => assert!(opened
+                .engine
+                .read_operational_state(COLLECTION, &point_key, None)
+                .unwrap()
+                .is_some()),
+            "frozen_state" => assert!(opened
+                .engine
+                .read_operational_state(COLLECTION, &point_key, Some(&frozen))
+                .unwrap()
+                .is_some()),
+            _ => panic!("unknown FATHOM_SLICE45_COLD_ARM={arm}"),
+        }
+        let operation_ms = operation_started.elapsed().as_secs_f64() * 1_000.0;
+        println!(
+            "{}",
+            json!({
+                "schema_version":"slice45-pagination-performance.v1",
+                "kind":"cold", "arm":arm, "rows":rows, "open_ms":open_ms,
+                "operation_ms":operation_ms,
                 "peak_rss_kib":peak_rss_kib(),
             })
         );
@@ -293,7 +372,7 @@ fn measure_slice45_pagination_overhead() {
             let frozen_validation = measure(samples, || {
                 opened.engine.validate_frozen_read_context_for_binding(&frozen).unwrap();
             });
-            let mint_page = measure(samples, || {
+            let mut mint_page_operation = || {
                 let fresh = opened.engine.freeze_read_context(&context).unwrap();
                 assert_eq!(
                     opened
@@ -304,8 +383,17 @@ fn measure_slice45_pagination_overhead() {
                         .len(),
                     100
                 );
-            });
-            let continuation_page = measure(samples, || {
+            };
+            let preminted_page = if treatment_first {
+                let mint_page = measure(samples, &mut mint_page_operation);
+                let preminted = measure(samples, &mut frozen_page_operation);
+                (preminted, mint_page)
+            } else {
+                let preminted = measure(samples, &mut frozen_page_operation);
+                let mint_page = measure(samples, &mut mint_page_operation);
+                (preminted, mint_page)
+            };
+            let mut continuation_operation = || {
                 assert_eq!(
                     opened
                         .engine
@@ -315,7 +403,16 @@ fn measure_slice45_pagination_overhead() {
                         .len(),
                     100
                 );
-            });
+            };
+            let (first_page, continuation_page) = if treatment_first {
+                let continuation = measure(samples, &mut continuation_operation);
+                let first = measure(samples, &mut frozen_page_operation);
+                (first, continuation)
+            } else {
+                let first = measure(samples, &mut frozen_page_operation);
+                let continuation = measure(samples, &mut continuation_operation);
+                (first, continuation)
+            };
             let mut current_state_operation = || {
                 assert!(opened
                     .engine
@@ -357,7 +454,8 @@ fn measure_slice45_pagination_overhead() {
             json!({
                 "kind":"latency", "exact_page":exact, "frozen_page":frozen_page,
                 "frozen_validation":frozen_validation,
-                "mint_plus_page":mint_page, "continuation_page":continuation_page,
+                "preminted_page":preminted_page.0, "mint_plus_page":preminted_page.1,
+                "first_page":first_page, "continuation_page":continuation_page,
                 "current_state":current_state, "frozen_state":frozen_state,
                 "public_list":public_list, "full_walk":full_walk,
                 "mint_stages":mint_stages,

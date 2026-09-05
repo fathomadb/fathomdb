@@ -1,5 +1,16 @@
 use fathomdb_schema::{migrate, migrate_with_steps, MIGRATIONS, SCHEMA_VERSION};
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
+use std::collections::BTreeSet;
+
+fn generation(connection: &Connection) -> i64 {
+    connection
+        .query_row(
+            "SELECT generation FROM _fathomdb_read_visibility_state WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap()
+}
 
 #[test]
 fn step33_installs_unique_page_indexes_and_state_visibility_triggers() {
@@ -72,4 +83,93 @@ fn step33_refuses_duplicate_legacy_page_keys_atomically() {
         )
         .unwrap();
     assert_eq!(index_count, 0);
+}
+
+#[test]
+fn step33_has_exact_trigger_manifest_and_one_generation_cutover() {
+    let connection = Connection::open_in_memory().unwrap();
+    migrate_with_steps(&connection, &MIGRATIONS[..32]).unwrap();
+    let before = generation(&connection);
+    migrate(&connection).unwrap();
+    assert_eq!(generation(&connection), before + 1);
+
+    let expected = ["oc", "os"]
+        .into_iter()
+        .flat_map(|table| {
+            ["ai", "au", "ad"]
+                .into_iter()
+                .map(move |event| format!("_fathomdb_read_visibility_{table}_{event}"))
+        })
+        .collect::<BTreeSet<_>>();
+    let actual = connection
+        .prepare(
+            "SELECT name FROM sqlite_master WHERE type='trigger' \
+             AND (name LIKE '_fathomdb_read_visibility_oc_%' \
+                  OR name LIKE '_fathomdb_read_visibility_os_%') ORDER BY name",
+        )
+        .unwrap()
+        .query_map([], |row| row.get::<_, String>(0))
+        .unwrap()
+        .collect::<Result<BTreeSet<_>, _>>()
+        .unwrap();
+    assert_eq!(actual, expected);
+    let cutover_guard: Option<String> = connection
+        .query_row(
+            "SELECT name FROM sqlite_master WHERE type='trigger' \
+             AND name='_fathomdb_read_visibility_step33_cutover_guard'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()
+        .unwrap();
+    assert!(cutover_guard.is_none(), "temporary cutover guard must not persist");
+}
+
+#[test]
+fn step33_generation_exhaustion_rolls_back_every_schema_change() {
+    let connection = Connection::open_in_memory().unwrap();
+    migrate_with_steps(&connection, &MIGRATIONS[..32]).unwrap();
+    connection
+        .execute(
+            "UPDATE _fathomdb_read_visibility_state SET generation=?1 WHERE singleton=1",
+            [i64::MAX],
+        )
+        .unwrap();
+    migrate(&connection).unwrap_err();
+    let version: u32 =
+        connection.pragma_query_value(None, "user_version", |row| row.get(0)).unwrap();
+    assert_eq!(version, 32);
+    assert_eq!(generation(&connection), i64::MAX);
+    for object in [
+        "canonical_nodes_kind_cursor_page_idx",
+        "operational_state_collection_cursor_page_idx",
+        "operational_state_write_cursor_idx",
+        "_fathomdb_artifact_revisions_write_cursor_idx",
+        "_fathomdb_read_visibility_oc_ai",
+        "_fathomdb_read_visibility_os_ai",
+    ] {
+        let present: i64 = connection
+            .query_row("SELECT COUNT(*) FROM sqlite_master WHERE name=?1", [object], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(present, 0, "failed migration left {object}");
+    }
+}
+
+#[test]
+fn step33_rejects_duplicate_canonical_keys_without_partial_schema() {
+    let connection = Connection::open_in_memory().unwrap();
+    migrate_with_steps(&connection, &MIGRATIONS[..32]).unwrap();
+    connection
+        .execute(
+            "INSERT INTO canonical_nodes(write_cursor,kind,body,logical_id) \
+             VALUES(7,'doc','{}','a'),(7,'doc','{}','b')",
+            [],
+        )
+        .unwrap();
+    assert!(migrate(&connection).is_err());
+    let version: u32 =
+        connection.pragma_query_value(None, "user_version", |row| row.get(0)).unwrap();
+    assert_eq!(version, 32);
 }

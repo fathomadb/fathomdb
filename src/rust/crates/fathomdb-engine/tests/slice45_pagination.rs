@@ -524,3 +524,79 @@ fn page_query_plans_use_governed_indexes_without_mutation_log_or_temp_sort() {
     }
     opened.engine.close().unwrap();
 }
+
+#[test]
+fn continuation_survives_restart_only_while_bound_state_is_unchanged() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("restart{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    opened.engine.write(&[node("n-1", "{}"), node("n-2", "{}")]).unwrap();
+    let frozen = opened.engine.freeze_read_context(&strict_context()).unwrap();
+    let first = opened.engine.read_canonical_page("slice45_doc", &frozen, &page(1, None)).unwrap();
+    opened.engine.close().unwrap();
+
+    let reopened = open(&path);
+    let second = reopened
+        .engine
+        .read_canonical_page("slice45_doc", &frozen, &page(1, first.next_cursor))
+        .unwrap();
+    assert_eq!(second.items[0].logical_id, "n-2");
+    assert!(second.next_cursor.is_none());
+    reopened.engine.close().unwrap();
+}
+
+#[test]
+fn open_refuses_missing_page_schema_and_duplicate_post_migration_keys() {
+    for (name, removal) in [
+        ("missing-index", "DROP INDEX canonical_nodes_kind_cursor_page_idx"),
+        ("missing-trigger", "DROP TRIGGER _fathomdb_read_visibility_os_au"),
+    ] {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("{name}{SQLITE_SUFFIX}"));
+        let opened = open(&path);
+        opened.engine.close().unwrap();
+        Connection::open(&path).unwrap().execute_batch(removal).unwrap();
+        assert!(Engine::open(&path).is_err(), "open accepted {name}");
+    }
+
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("duplicate{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    opened.engine.close().unwrap();
+    let connection = Connection::open(&path).unwrap();
+    connection
+        .execute_batch(
+            "DROP INDEX canonical_nodes_kind_cursor_page_idx;
+             INSERT INTO canonical_nodes(write_cursor,kind,body,logical_id)
+             VALUES(7,'doc','{}','a'),(7,'doc','{}','b');",
+        )
+        .unwrap();
+    drop(connection);
+    assert!(Engine::open(&path).is_err(), "open accepted duplicate page keys");
+}
+
+#[test]
+fn unsupported_operational_format_is_a_typed_refusal() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("format{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    opened
+        .engine
+        .write(&[PreparedWrite::AdminSchema {
+            name: "state".to_string(),
+            kind: "latest_state".to_string(),
+            schema_json: "{}".to_string(),
+            retention_json: "{}".to_string(),
+        }])
+        .unwrap();
+    Connection::open(&path)
+        .unwrap()
+        .execute("UPDATE operational_collections SET format_version=2 WHERE name='state'", [])
+        .unwrap();
+    assert!(matches!(
+        opened.engine.read_operational_state("state", "key", None),
+        Err(EngineError::Page(error))
+            if error.reason == PageErrorReason::CollectionFormatUnsupported
+    ));
+    opened.engine.close().unwrap();
+}

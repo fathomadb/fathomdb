@@ -305,6 +305,65 @@ fn generation_status_cache_invalidates_on_worker_and_external_changes() {
 }
 
 #[test]
+fn generation_status_cache_survives_epoch_changes_without_a_membership_boundary() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("status-cache-epoch{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
+    opened.engine.set_projection_scheduler_frozen_for_test(true);
+    opened.engine.write(&[node("epoch-stable")]).unwrap();
+
+    let scans_before = opened.engine.projection_generation_status_full_owner_scan_count_for_test();
+    let first = opened.engine.read_projection_generation_status_at_for_test(100).unwrap();
+    let scans_after_first =
+        opened.engine.projection_generation_status_full_owner_scan_count_for_test();
+    let second = opened.engine.read_projection_generation_status_at_for_test(101).unwrap();
+    let scans_after_second =
+        opened.engine.projection_generation_status_full_owner_scan_count_for_test();
+
+    assert_eq!(first.effective_at_epoch_s, 100);
+    assert_eq!(second.effective_at_epoch_s, 101);
+    assert_eq!(scans_after_first, scans_before + 1);
+    assert_eq!(scans_after_second, scans_after_first);
+}
+
+#[test]
+fn generation_status_cache_invalidates_at_an_edge_membership_boundary() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("status-cache-edge-expiry{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    opened.engine.set_projection_scheduler_frozen_for_test(true);
+    opened
+        .engine
+        .write(&[PreparedWrite::Edge {
+            kind: "supports".into(),
+            from: "a".into(),
+            to: "b".into(),
+            source_id: SourceId::new("slice40-expiring-edge-source").unwrap(),
+            logical_id: Some("expiring-edge".into()),
+            body: Some("expiring edge evidence".into()),
+            t_valid: None,
+            t_invalid: Some(101),
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+        }])
+        .unwrap();
+
+    let before = opened.engine.read_projection_generation_status_at_for_test(100).unwrap();
+    let scans_before_expiry =
+        opened.engine.projection_generation_status_full_owner_scan_count_for_test();
+    let after = opened.engine.read_projection_generation_status_at_for_test(101).unwrap();
+    let scans_after_expiry =
+        opened.engine.projection_generation_status_full_owner_scan_count_for_test();
+
+    assert_eq!(before.pending_count, 1);
+    assert_eq!(after.pending_count, 0);
+    assert_eq!(after.readiness, ProjectionReadinessV1::Ready);
+    assert_eq!(scans_after_expiry, scans_before_expiry + 1);
+}
+
+#[test]
 fn mixed_completion_summary_is_exact_and_boundary_ordered() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("mixed-summary{SQLITE_SUFFIX}"));

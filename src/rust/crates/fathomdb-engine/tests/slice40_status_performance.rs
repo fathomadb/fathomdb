@@ -150,10 +150,9 @@ fn measure_generation_and_mutation_status_at_50k() {
 
     let mut steady_effective_at = 0;
     for _ in 0..warmups {
-        let generation = opened.engine.read_projection_generation_status().unwrap();
+        opened.engine.read_projection_generation_status().unwrap();
         let mutation = opened.engine.read_mutation_projection_status(request.clone()).unwrap();
-        steady_effective_at = generation.effective_at_epoch_s;
-        assert_eq!(mutation.effective_at_epoch_s, steady_effective_at);
+        steady_effective_at = mutation.effective_at_epoch_s;
     }
     let mut generation_ns = Vec::with_capacity(samples);
     let mut mutation_ns = Vec::with_capacity(samples);

@@ -339,6 +339,16 @@ pub(crate) fn load_visibility_generation(connection: &Connection) -> Result<u64,
     u64::try_from(generation).map_err(|_| EngineError::Storage)
 }
 
+fn load_visibility_nonce(connection: &Connection) -> Result<String, EngineError> {
+    connection
+        .query_row(
+            "SELECT state_nonce FROM _fathomdb_read_visibility_state WHERE singleton=1",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .map_err(|_| EngineError::Storage)
+}
+
 pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> Result<(), String> {
     if schema_version < 31 {
         return Ok(());
@@ -350,6 +360,12 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
     }
     read_hex_open_state(connection, READ_CONTEXT_KEY, 32).map_err(|error| error.to_string())?;
     load_visibility_generation(connection).map_err(|error| error.to_string())?;
+    if schema_version >= 33 {
+        let nonce = load_visibility_nonce(connection).map_err(|error| error.to_string())?;
+        if !is_lower_hex(&nonce, 64) {
+            return Err("invalid frozen-read branch-sensitive state".to_string());
+        }
+    }
     let trigger_tables = if schema_version >= 33 {
         &VISIBILITY_TRIGGER_TABLES[..18]
     } else if schema_version >= 32 {
@@ -369,11 +385,13 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
                 .optional()
                 .map_err(|error| error.to_string())?
                 .ok_or_else(|| format!("missing frozen-read visibility trigger {name}"))?;
+            let branch_state =
+                if schema_version >= 33 { ",state_nonce=lower(hex(randomblob(32)))" } else { "" };
             let expected = format!(
                 "CREATE TRIGGER {name} AFTER {operation} ON {table} BEGIN UPDATE \
                  _fathomdb_read_visibility_state SET generation=CASE WHEN \
                  generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation \
-                 exhausted') ELSE generation+1 END WHERE singleton=1; END"
+                 exhausted') ELSE generation+1 END{branch_state} WHERE singleton=1; END"
             );
             if normalize_sql(&sql) != normalize_sql(&expected) {
                 return Err(format!("frozen-read visibility trigger {name} differs from manifest"));
@@ -507,6 +525,9 @@ fn projection_serving_encoding(connection: &Connection) -> Result<Vec<u8>, Engin
     } else {
         Vec::from(SERVING_DOMAIN_V1)
     };
+    if schema_version >= 33 {
+        encode_string(&mut bytes, &load_visibility_nonce(connection)?);
+    }
     if schema_version >= 32 {
         let generation = crate::projection_generation::current_generation(connection)?;
         encode_string(&mut bytes, generation.id.as_str());

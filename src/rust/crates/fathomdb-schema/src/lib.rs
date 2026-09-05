@@ -94,6 +94,32 @@ macro_rules! read_visibility_migration_sql {
     };
 }
 
+// Slice 45 upgrades the monotonic counter to an O(1), branch-sensitive state
+// authority. Every visible-table mutation advances the checked counter and
+// replaces the nonce in the same SQLite statement and transaction.
+macro_rules! read_visibility_nonce_upgrade_sql {
+    ($(($short:literal, $table:literal)),+ $(,)?) => {
+        concat!(
+            "ALTER TABLE _fathomdb_read_visibility_state ADD COLUMN state_nonce TEXT NOT NULL DEFAULT '';\n",
+            "UPDATE _fathomdb_read_visibility_state SET state_nonce=lower(hex(randomblob(32))) WHERE singleton=1;\n",
+            $(
+                "DROP TRIGGER IF EXISTS _fathomdb_read_visibility_", $short, "_ai;\n",
+                "DROP TRIGGER IF EXISTS _fathomdb_read_visibility_", $short, "_au;\n",
+                "DROP TRIGGER IF EXISTS _fathomdb_read_visibility_", $short, "_ad;\n",
+                "CREATE TRIGGER _fathomdb_read_visibility_", $short, "_ai AFTER INSERT ON ", $table,
+                " BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1; END;\n",
+                "CREATE TRIGGER _fathomdb_read_visibility_", $short, "_au AFTER UPDATE ON ", $table,
+                " BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1; END;\n",
+                "CREATE TRIGGER _fathomdb_read_visibility_", $short, "_ad AFTER DELETE ON ", $table,
+                " BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE WHEN generation=9223372036854775807 THEN RAISE(ABORT,'read visibility generation exhausted') ELSE generation+1 END,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1; END;\n",
+            )+
+            "CREATE TRIGGER _fathomdb_read_visibility_step33_cutover_guard BEFORE UPDATE ON _fathomdb_read_visibility_state WHEN OLD.generation=9223372036854775807 BEGIN SELECT RAISE(ABORT,'read visibility generation exhausted'); END;\n",
+            "UPDATE _fathomdb_read_visibility_state SET generation=generation+1,state_nonce=lower(hex(randomblob(32))) WHERE singleton=1;\n",
+            "DROP TRIGGER _fathomdb_read_visibility_step33_cutover_guard;"
+        )
+    };
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MigrationStepReport {
     pub step_id: u32,
@@ -1275,7 +1301,7 @@ pub const MIGRATIONS: &[Migration] = &[
     // state pages, plus frozen-read visibility for the operational authority.
     Migration {
         step_id: 33,
-        sql: "-- MIGRATION-ACCRETION-EXEMPTION: Slice-45 unique page indexes and operational-state frozen-visibility triggers; additive shape only, no canonical or projection content migration.
+        sql: concat!("-- MIGRATION-ACCRETION-EXEMPTION: Slice-45 unique page indexes and O(1) branch-sensitive frozen visibility; additive shape only, no canonical or projection content migration.
               CREATE UNIQUE INDEX canonical_nodes_kind_cursor_page_idx
                   ON canonical_nodes(kind, write_cursor)
                   WHERE logical_id IS NOT NULL;
@@ -1284,50 +1310,28 @@ pub const MIGRATIONS: &[Migration] = &[
               CREATE INDEX operational_state_write_cursor_idx
                   ON operational_state(write_cursor);
               CREATE INDEX _fathomdb_artifact_revisions_write_cursor_idx
-                  ON _fathomdb_artifact_revisions(write_cursor);
-              CREATE TRIGGER _fathomdb_read_visibility_oc_ai
-              AFTER INSERT ON operational_collections
-              BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE
-                  WHEN generation=9223372036854775807
-                  THEN RAISE(ABORT,'read visibility generation exhausted')
-                  ELSE generation+1 END WHERE singleton=1; END;
-              CREATE TRIGGER _fathomdb_read_visibility_oc_au
-              AFTER UPDATE ON operational_collections
-              BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE
-                  WHEN generation=9223372036854775807
-                  THEN RAISE(ABORT,'read visibility generation exhausted')
-                  ELSE generation+1 END WHERE singleton=1; END;
-              CREATE TRIGGER _fathomdb_read_visibility_oc_ad
-              AFTER DELETE ON operational_collections
-              BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE
-                  WHEN generation=9223372036854775807
-                  THEN RAISE(ABORT,'read visibility generation exhausted')
-                  ELSE generation+1 END WHERE singleton=1; END;
-              CREATE TRIGGER _fathomdb_read_visibility_os_ai
-              AFTER INSERT ON operational_state
-              BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE
-                  WHEN generation=9223372036854775807
-                  THEN RAISE(ABORT,'read visibility generation exhausted')
-                  ELSE generation+1 END WHERE singleton=1; END;
-              CREATE TRIGGER _fathomdb_read_visibility_os_au
-              AFTER UPDATE ON operational_state
-              BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE
-                  WHEN generation=9223372036854775807
-                  THEN RAISE(ABORT,'read visibility generation exhausted')
-                  ELSE generation+1 END WHERE singleton=1; END;
-              CREATE TRIGGER _fathomdb_read_visibility_os_ad
-              AFTER DELETE ON operational_state
-              BEGIN UPDATE _fathomdb_read_visibility_state SET generation=CASE
-                  WHEN generation=9223372036854775807
-                  THEN RAISE(ABORT,'read visibility generation exhausted')
-                  ELSE generation+1 END WHERE singleton=1; END;
-              CREATE TRIGGER _fathomdb_read_visibility_step33_cutover_guard
-              BEFORE UPDATE ON _fathomdb_read_visibility_state
-              WHEN OLD.generation=9223372036854775807
-              BEGIN SELECT RAISE(ABORT,'read visibility generation exhausted'); END;
-              UPDATE _fathomdb_read_visibility_state
-              SET generation=generation+1 WHERE singleton=1;
-              DROP TRIGGER _fathomdb_read_visibility_step33_cutover_guard;",
+                  ON _fathomdb_artifact_revisions(write_cursor);\n",
+              read_visibility_nonce_upgrade_sql!(
+                  ("cn", "canonical_nodes"),
+                  ("ce", "canonical_edges"),
+                  ("ar", "_fathomdb_artifact_revisions"),
+                  ("sv", "_fathomdb_source_versions"),
+                  ("sl", "_fathomdb_source_links"),
+                  ("sd", "_fathomdb_source_dependencies"),
+                  ("dc", "_fathomdb_dependency_closures"),
+                  ("pr", "_fathomdb_projection_registry"),
+                  ("ca", "canonical_attributes"),
+                  ("ps", "_fathomdb_projection_state"),
+                  ("pt", "_fathomdb_projection_terminal"),
+                  ("vk", "_fathomdb_vector_kinds"),
+                  ("vr", "_fathomdb_vector_rows"),
+                  ("ep", "_fathomdb_embedder_profiles"),
+                  ("pg", "_fathomdb_projection_generations"),
+                  ("pc", "_fathomdb_projection_generation_current"),
+                  ("oc", "operational_collections"),
+                  ("os", "operational_state"),
+              )
+        ),
     },
 ];
 

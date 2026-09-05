@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import sqlite3
 
 import pytest
 
@@ -129,7 +130,9 @@ def test_worker_result_rejects_wrong_counts() -> None:
 def status_result(*, device: str, generation_p95: float = 0.02) -> dict[str, object]:
     return {
         "schema_version": "scale-02-slice40-status.v1",
-        "device": device,
+        "build_variant": device,
+        "status_compute_device": "cpu",
+        "measurement_embedder": "fixed-test-cpu",
         "records": 50_000,
         "warmups": 100,
         "samples": 1_000,
@@ -146,6 +149,7 @@ def status_result(*, device: str, generation_p95: float = 0.02) -> dict[str, obj
         "mutation_p99_ms": 0.03,
         "steady_full_owner_scans": 0,
         "epoch_rollover_full_owner_scans": 1,
+        "query_plans": ["unregistered_node: SEARCH r USING INDEX example"],
     }
 
 
@@ -185,3 +189,30 @@ def test_parse_status_result_rejects_missing_or_extra_fields() -> None:
     extra = {**result, "unregistered": True}
     with pytest.raises(scale_02_slice40.Slice40ScaleError, match="status result"):
         scale_02_slice40.parse_status_result(extra)
+
+
+def test_status_database_observation_is_exact_and_retained(tmp_path) -> None:
+    path = tmp_path / "status.fathomdb"
+    with sqlite3.connect(path) as connection:
+        connection.executescript(
+            """
+            CREATE TABLE _fathomdb_projection_generations(
+              generation_id TEXT PRIMARY KEY,
+              role TEXT NOT NULL
+            );
+            INSERT INTO _fathomdb_projection_generations VALUES('pgen1:00', 'retired');
+            INSERT INTO _fathomdb_projection_generations VALUES('pgen1:01', 'serving');
+            """
+        )
+
+    observation = scale_02_slice40.inspect_status_database(path)
+    assert observation == {
+        "database_bytes": path.stat().st_size,
+        "generation_history_rows": 2,
+        "page_count": observation["page_count"],
+        "page_size_bytes": observation["page_size_bytes"],
+        "serving_generation_rows": 1,
+        "wal_bytes": 0,
+    }
+    assert observation["page_count"] > 0
+    assert observation["page_size_bytes"] > 0

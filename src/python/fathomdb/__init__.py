@@ -23,6 +23,7 @@ from fathomdb._fathomdb import embed_batch_cls
 from fathomdb._fathomdb import rerank
 from fathomdb.config import EngineConfig
 from fathomdb.engine import Engine
+from fathomdb.errors import PageError
 from fathomdb.filter import Filter
 from fathomdb.types import (
     ActuationBatchV1,
@@ -124,6 +125,7 @@ __all__ = [
     "OpStoreRow",
     "OperationalStateRecordV1",
     "PageCursor",
+    "PageError",
     "PageRequestV1",
     "PageV1",
     "PerHitExplain",

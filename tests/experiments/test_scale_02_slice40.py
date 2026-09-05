@@ -124,3 +124,61 @@ def test_worker_result_rejects_wrong_counts() -> None:
     result["pending_receipt_count"] = 78
     with pytest.raises(scale_02_slice40.Slice40ScaleError, match="counts"):
         scale_02_slice40.validate_worker_counts(result, config()["workload"])  # type: ignore[arg-type]
+
+
+def status_result(*, device: str, generation_p95: float = 0.02) -> dict[str, object]:
+    return {
+        "schema_version": "scale-02-slice40-status.v1",
+        "device": device,
+        "records": 50_000,
+        "warmups": 100,
+        "samples": 1_000,
+        "errors": 0,
+        "timeouts": 0,
+        "cold_generation_ms": 75.0,
+        "cold_mutation_ms": 75.0,
+        "transition_generation_ms": 80.0,
+        "generation_p95_ms": generation_p95,
+        "generation_p99_ms": 0.03,
+        "mutation_p95_ms": 0.02,
+        "mutation_p99_ms": 0.03,
+        "steady_full_owner_scans": 0,
+    }
+
+
+def test_status_verdict_requires_five_exact_cpu_cuda_repetitions() -> None:
+    cpu = [status_result(device="cpu") for _ in range(5)]
+    cuda = [status_result(device="cuda:0", generation_p95=0.03) for _ in range(5)]
+    assert (
+        scale_02_slice40.status_verdict(
+            cpu, cuda, config()["workload"], config()["policy"]  # type: ignore[arg-type]
+        )
+        == "pass"
+    )
+
+    cuda[4]["generation_p95_ms"] = 2.03
+    assert (
+        scale_02_slice40.status_verdict(
+            cpu, cuda, config()["workload"], config()["policy"]  # type: ignore[arg-type]
+        )
+        == "fail"
+    )
+
+    with pytest.raises(scale_02_slice40.Slice40ScaleError, match="repetitions"):
+        scale_02_slice40.status_verdict(
+            cpu[:4], cuda, config()["workload"], config()["policy"]  # type: ignore[arg-type]
+        )
+
+
+def test_parse_status_result_rejects_missing_or_extra_fields() -> None:
+    result = status_result(device="cpu")
+    assert scale_02_slice40.parse_status_result(result) == result
+
+    missing = dict(result)
+    del missing["timeouts"]
+    with pytest.raises(scale_02_slice40.Slice40ScaleError, match="status result"):
+        scale_02_slice40.parse_status_result(missing)
+
+    extra = {**result, "unregistered": True}
+    with pytest.raises(scale_02_slice40.Slice40ScaleError, match="status result"):
+        scale_02_slice40.parse_status_result(extra)

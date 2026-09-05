@@ -363,6 +363,43 @@ fn graph_arm_resolves_node_body_source_and_separate_edge_origin() {
     let evidence_ref = result.evidence[index].evidence_ref.clone();
     drop(opened.engine);
     let raw = rusqlite::Connection::open(&path).unwrap();
+    raw.execute(
+        "UPDATE _fathomdb_source_versions SET source_version_id='edge-corrupt-v2' \
+         WHERE source_revision_id='edge-source-r1'",
+        [],
+    )
+    .unwrap();
+    drop(raw);
+    let reopened = Engine::open(&path).unwrap();
+    let equivalent = reopened
+        .engine
+        .freeze_read_context(
+            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+        )
+        .unwrap();
+    let error = reopened
+        .engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: evidence_ref.clone(),
+            context: equivalent,
+        })
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::Evidence(ref error)
+            if error.reason == EvidenceErrorReasonV1::EvidenceCorrupt
+                && error.field_path == "/projectionOrigin/graphOrigin"
+    ));
+    drop(reopened.engine);
+
+    let raw = rusqlite::Connection::open(&path).unwrap();
+    raw.execute(
+        "UPDATE _fathomdb_source_versions SET source_version_id='edge-v1' \
+         WHERE source_revision_id='edge-source-r1'",
+        [],
+    )
+    .unwrap();
     raw.execute("UPDATE canonical_edges SET superseded_at=1 WHERE logical_id='edge-logical'", [])
         .unwrap();
     drop(raw);

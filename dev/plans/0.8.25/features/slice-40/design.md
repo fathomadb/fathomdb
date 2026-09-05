@@ -1,8 +1,8 @@
 ---
 title: 0.8.25 Slice 40 — core projection generation and readiness design
-status: DRAFT_FIX_3
-design_version: 6
-review_cycle: 3
+status: DRAFT_FIX_4
+design_version: 7
+review_cycle: 4
 target_release: 0.8.25
 depends_on: 35
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -164,12 +164,34 @@ identity continues to fail through the accepted embedder mismatch before
 generation logic runs.
 
 After step 32 and embedder-profile establishment, Engine bootstrap executes in
-one immediate transaction:
+one immediate transaction. `fresh` is allowed only when every entry in the
+closed bootstrap-content manifest is empty and every persisted cursor in
+`load_next_cursor` is zero. The manifest is:
 
-- an empty database receives a `fresh` generation at boundary zero;
-- a non-empty upgraded database receives `legacy_unverified` at the persisted
-  `load_next_cursor` boundary and therefore reports `degraded`; and
-- an existing valid generation is reused unchanged.
+- canonical nodes and edges;
+- artifact revisions, source versions, source links, source dependencies, and
+  dependency closures;
+- projection registry, canonical attributes, projection state and terminal
+  rows, vector-kind enrolment, vector sidecars, and every logical FTS/vec0
+  owner row;
+- actuation receipts, operational mutations, and operational-state rows; and
+- reserved migration and projection cursors.
+
+System schema metadata, the singleton open-state row itself, and the default
+embedder-profile row established immediately before this predicate are not
+content. FTS shadow tables are not inspected independently when their logical
+virtual table has no owner rows.
+
+Therefore an upgraded database containing only schema/default-profile state is
+fresh. A configured-but-ownerless registry, a receipt, an enrolment or terminal
+row, a nonzero cursor, or any orphan physical row is legacy. If both generation
+tables are empty and the predicate is fresh, bootstrap creates `fresh` at
+boundary zero. If both are empty and any manifest entry is nonempty, bootstrap
+creates `legacy_unverified` at `load_next_cursor` and reports `degraded`. If
+either generation table is nonempty, both must form one valid authority;
+partial state—including a crash after step-32 DDL but before bootstrap—fails
+closed rather than being guessed or overwritten. An existing valid authority
+is reused unchanged.
 
 Bootstrap is idempotent. A partial authority row set fails closed. The Engine
 recomputes and compares the serving declaration digest during open and before
@@ -215,16 +237,20 @@ set is reconstructed.
 ## Exact physical membership and completion
 
 Readiness describes the physical projection set, not the strict default read
-view. Slice 40 introduces one internal `projection_membership_v1` relation and
+view. Slice 40 introduces one internal
+`projection_owner_is_eligible_at(connection, cursor, effective_at)` predicate,
+one `projection_membership_v1` relation, and
 one `projection_completion_v1` classifier used by generation status, mutation
 status, scheduler scans, pending probes, publication revalidation, and integrity
 tests. Existing projection writers retain publication ownership but delegate
 membership decisions to these helpers.
 
-Membership is independent of wall-clock visibility for nodes. It covers
-historical, pending, superseded, and currently out-of-window node rows that the
-shipped physical projector retains for legal relaxed `ReadView` calls. Time
-passing alone therefore cannot alter generation readiness.
+The eligibility predicate applies the Slice-30 physical barrier and strict
+source-revision eligibility at the one supplied effective instant. Every node
+and edge scheduler, pending, status, and publication path uses that exact
+predicate. A source-validity boundary can only remove a member: dependency
+admission already required an eligible immutable source revision, so time alone
+cannot introduce new dependency-backed work.
 
 ### Synchronous arms
 
@@ -246,15 +272,16 @@ committed transaction ready because SQLite cannot expose it.
 
 A non-erased canonical node is a dense member exactly when all are true:
 
-1. Slice-30 dependency closure has no active physical barrier for its source;
+1. `projection_owner_is_eligible_at` accepts its source at the status
+   transaction's effective instant;
 2. `row_kind` is `leaf` or `coverage`;
 3. its `kind` is accepted by `kind_is_vector_committable`; and
 4. `vector_projection_declared` is true.
 
-Node lifecycle state, supersession, `valid_from`, `valid_until`, and status-read
-wall clock do not change membership. Search eligibility still filters those
-rows before ranking under Slice 35. This matches the node projector's retained
-physical corpus and supports strict and relaxed read views.
+Node lifecycle state and supersession do not independently change membership;
+strict source eligibility may remove it. Search eligibility still filters the
+remaining rows before ranking under Slice 35. This matches the node projector's
+retained physical corpus while honoring Slice-30 dependency eligibility.
 
 Runtime availability is not identity or applicability. Kind enrolment is
 derived scheduler state, not policy; a declared, committable row remains
@@ -268,7 +295,8 @@ A non-erased canonical edge is a dense member exactly when all are true:
 1. it has a body;
 2. it is not superseded and its `t_invalid` does not exclude it under the
    persisted edge-validity rule;
-3. Slice-30 dependency closure has no active barrier for its source; and
+3. `projection_owner_is_eligible_at` accepts its source at the status
+   transaction's effective instant; and
 4. fixed kind `edge_fact` is committable.
 
 This preserves the shipped edge scheduler/rebuild rule: body-bearing edges
@@ -279,9 +307,14 @@ fallback when the dense arm cannot represent that view. Runtime absence leaves
 the member blocked.
 
 Each status transaction resolves one `effective_at_epoch_s` and echoes it. Edge
-`t_invalid` is evaluated against that value in every scheduler/status arm. A
-clock crossing can only remove an edge from physical membership; it never adds
-new work, so it needs no wake-up path and cannot manufacture false readiness.
+`t_invalid` and strict source eligibility are evaluated against that value in
+every scheduler/status/publication arm. A clock crossing can only remove an
+edge from physical membership; it never adds new work. Existing edge FTS/vector
+rows retained after a future `t_invalid` boundary are legal dormant,
+out-of-membership artifacts—not orphans—and the existing dense path preserves
+its soft fallback when it detects them. Physical residue is corruption only
+after erasure, supersession, or another governed transition that promises
+pruning.
 
 ### Dense state classification
 
@@ -298,12 +331,20 @@ The three are published in the worker transaction. The normative classifier is:
 | `up_to_date` + matching sidecar + matching vec0 | complete | None required. |
 | no terminal + no sidecar + no vec0 + enrolled | scheduler-pending | Usable runtime dispatches it; absent runtime is blocked; refused runtime is deferred. |
 | node only: `up_to_date` + no sidecar + no vec0 + not enrolled | legitimate-stranded | A usable open/configuration graft enrolls the kind, deletes the terminal, rewinds the old scheduler cursor, and notifies. Absent/refused runtime is blocked/deferred. |
+| no terminal + no sidecar + no vec0 + not enrolled | corrupt | A current-generation member must either be enrolled for dispatch or carry the accepted node stranded marker. |
+| `up_to_date` + no sidecar + no vec0 + enrolled | corrupt | Enrolled work cannot use the no-runtime stranded marker. |
 | `failed` + no sidecar + no vec0 | failed | Generation is degraded; only governed rebuild retries it. |
 | `up_to_date` with exactly one physical row | corrupt | No automatic repair; typed corruption. |
 | no terminal with either physical row | corrupt | No automatic repair; typed corruption. |
 | `failed` with either physical row | corrupt | No automatic repair; typed corruption. |
 | matching terminal/sidecar with wrong kind, source type, or row identity | corrupt | No automatic repair; typed corruption. |
+| node only: complete physical triple + not enrolled | complete | Enrolment is scheduler state, not physical-completion authority; this is legal after drop/re-add or equivalent state maintenance. |
 | edge member not enrolled, or usable-runtime node still legitimate-stranded after boot graft | corrupt | Required enrolment/graft did not complete before publication. |
+
+Every other combination of membership, enrolment, terminal state, sidecar,
+vec0 row, kind, source type, and row identity is typed corruption. The state
+table is exercised exhaustively, including the explicitly listed boundary
+cases; no implementation `else` arm may silently classify an unlisted tuple.
 
 `processing` is emitted only for scheduler-pending work with a usable runtime.
 `blocked` and `deferred` apply to scheduler-pending or legitimate-stranded work
@@ -312,9 +353,11 @@ therefore has a deterministic progress path. Structural contradictions return
 typed corruption rather than a state record.
 
 Rows outside physical membership are excluded from readiness. Owner-specific
-physical artifacts that survive erasure/closure are a Slice-30/Slice-55
-integrity failure and are caught by their raw-state/orphan checks; they are not
-reclassified as current work.
+physical artifacts that survive a transition which promises pruning—erasure,
+supersession, or completed dependency closure—are a Slice-30/Slice-55 integrity
+failure and are caught by their raw-state/orphan checks. Dormant artifacts
+explicitly retained by the edge-expiry rule are legal and are not reclassified
+as current work.
 
 The shared membership implementation replaces the hand-copied node and edge
 fragments used by scheduler, pending probe, completion, and worker publication.
@@ -339,8 +382,9 @@ Each status call starts one reader transaction and computes:
 `ready_through = B` means: every physical projection member with cursor at most
 B is complete. It does **not** assert that every integer cursor is a projection
 owner. Erased owners leave no residue. Node membership is lifecycle-independent;
-only erasure or an active Slice-30 physical closure fence removes a node member.
-The explicitly governed edge-closure rule may also remove an edge member.
+strict source eligibility, erasure, or an active Slice-30 physical closure fence
+may remove a node member. The explicitly governed edge-closure and expiry rules
+may also remove an edge member.
 Reserved, rolled-back, operational,
 redaction, closure, consolidation, audit, and migration cursors affect the
 observed high-water but never become phantom projection work.
@@ -361,35 +405,34 @@ and vec0. `EXPLAIN QUERY PLAN` fixtures reject an unindexed canonical-table
 scan introduced by correlation fields; the bounded aggregate itself may visit
 the physical member set.
 
-Existing coarse surfaces map conservatively: `ready` to `ready`, `processing`
-to `embedding`, `blocked`/`deferred` to `unavailable`, and `degraded` to
-`embedding`, never `ready`. `read_embedding_readiness` remains scheduler/session
-availability and is documented as weaker than generation completeness.
+Existing `DenseReadiness` and projection-status coarse surfaces keep their
+accepted runtime-gated derivation unchanged: absent/refused runtime remains
+`Unavailable`, and `Embedding` continues to mean usable runtime with
+outstanding work. They are documented as weaker scheduler/session signals and
+do not expose terminal failure completeness. The new generation status is the
+authoritative completeness surface. Slice 40 adds no mapping that overloads
+the old enum.
 
 ## Mutation-to-ready correlation
 
-Slice 40 strengthens Slice 25's receipt construction without changing the
-meaning of an existing field. After all operations are applied but before the
-receipt is stored, the actuation transaction classifies every affected write
-cursor with `projection_completion_v1`. It includes each physical member that
-is not complete, including no-runtime pre-enrolment nodes and body-bearing
-edges. Newly written rows cannot be partially published before this transaction
-commits; failure/partial-publication cases remain addressable because their
-cursor was already recorded as pending at commit.
-
-The same transaction reads the current generation, constructs the sorted
-deduplicated pending list, and stores that generation whenever the list is
-non-empty. Configuration and worker publication cannot race this check because
-the immediate actuation transaction holds the SQLite writer lock. A no-runtime
-receipt can therefore replay unchanged, report blocked/deferred, and later
-report ready after a usable reopen/graft/drain.
+Slice 40 preserves Slice 25's exact receipt definition:
+`pending_projection_write_cursors` contains only cursors created by that
+request which lack a projection terminal when the request commits. Slice 40
+does not add terminal-marked no-runtime nodes, reinterpret completion, or add
+edges (Slice 25 currently has no edge operation). The same actuation transaction
+reads the current generation and stores it exactly when that already-defined
+pending list is non-empty. Configuration and worker publication cannot race
+this read because the immediate actuation transaction holds the SQLite writer
+lock. Later terminal failure or partial state remains addressable only for a
+cursor that Slice 25 already recorded as pending; generation-wide status covers
+all other physical members.
 
 The public mutation query is:
 
 ```text
 MutationProjectionStatusRequestV1 {
   schema_version: 1,
-  operation_id: OperationId,
+  operation_id: String,
   write_cursor: u64,
   expected_generation_id: ProjectionGenerationId,
 }
@@ -496,7 +539,11 @@ Python, TypeScript, large values, every enum/error, and exact bytes.
 
 `EngineError::ProjectionGeneration` maps to stable code
 `FDB_PROJECTION_GENERATION`, Python `ProjectionGenerationError`, and TypeScript
-`ProjectionGenerationError`. Closed reasons are:
+`ProjectionGenerationError`. Its exact Rust/wire payload is
+`ProjectionGenerationError { reason: ProjectionGenerationErrorReason,
+field_path: String }`; Python exposes read-only `.reason` and `.field_path`, and
+TypeScript exposes readonly `reason` and `fieldPath`. It contains no operation,
+source, record, or generation identifier. Closed reasons are:
 
 - `unsupported_schema_version`;
 - `unknown_field`;
@@ -510,7 +557,21 @@ Python, TypeScript, large values, every enum/error, and exact bytes.
 
 Dynamic validation order is schema version, lexicographically first unknown
 field, operation ID, canonical write cursor, then generation ID. Bindings must
-not allow native conversion to throw before that order.
+not allow native conversion to throw before that order. Input paths are exactly
+`/schemaVersion`, the offending unknown top-level key, `/operationId`,
+`/writeCursor`, and `/expectedGenerationId`; persisted-authority and storage
+corruption uses `/projectionGeneration`. Operation IDs use the existing
+caller-identity string grammar and validator, not a new public newtype. Errors
+are privacy-redacted identically in every binding.
+
+`ActuationReceiptV1` gains one additive field immediately after
+`pending_projection_write_cursors`: Rust
+`projection_generation_id: Option<ProjectionGenerationId>`, Python
+`projection_generation_id: str | None`, TypeScript
+`projectionGenerationId: string | null`, and wire
+`"projectionGenerationId": <string|null>`. Canonical field order follows that
+placement. The field is null under the receipt rules above and response readers
+accept the additive field while rejecting unknown schema versions.
 
 ## Transition and mutation-path classification
 
@@ -521,15 +582,19 @@ adds a closed-source audit so a future unclassified mutator fails tests.
 |---|---|---|
 | Ordinary write/batch/actuation | Reuse | Receipt records current ID when async cursors exist; sync rows and pending dense state commit atomically. |
 | Worker vector publication/failure | Reuse | Revalidate owner, publish terminal/sidecar/vec0 atomically, invalidate visibility. |
-| Exact config replay | Reuse | No write and no visibility change. |
+| Exact config replay, quiescent | Reuse | No write, notification, or visibility change. |
+| Exact config replay, repair needed | Reuse | State-keyed enrolment/unstranding repair may mutate readiness, invalidate frozen visibility, and notify after commit without minting. |
 | Non-noop config or drop | Mint | Retire/install metadata in configuration transaction; synchronous cleanup/backfill and dense re-enrolment are visible under new ID. |
 | Full or vec0 operator rebuild | Mint | Freeze/drain, retire/install metadata in rebuild transaction, rebuild in place, expose processing/degraded until complete. |
-| Boot registry rederive | Reuse | Complete atomically before Engine publication; visibility changes if physical rows change. |
+| Boot registry rederive | Reuse | Compare the exact expected ordered EAV/property-FTS rows with persisted rows; healthy equality performs no transaction or write, while detected drift uses the existing atomic clear/backfill repair and invalidates visibility. |
 | Boot/late runtime graft and unstrand | Reuse | Enrol/reopen pending work atomically, then notify after commit. |
 | Pending to active lifecycle | Reuse | Add sync attributes atomically; retained node dense membership is unchanged. |
 | Supersede/invalidate/close | Reuse | Retain node FTS/dense history for relaxed reads; remove an edge from its current dense membership under the shipped edge rule. |
 | Purge/source erasure | Reuse | Remove owner, terminal, and physical rows under Slice-30 fence; no generation residue. |
 | Historical tokenizer repair | Reuse | Predates generation bootstrap and completes before Engine publication. Any future tokenizer semantic change must mint. |
+| Automatic first mean pin | Reuse | Same-generation physical maintenance rewrites binary vectors atomically and invalidates frozen visibility. |
+| Boot mean recovery | Reuse | Same-generation physical maintenance before publication; invalidates visibility only when bytes change. |
+| `doctor recompute-mean` | Reuse | Operator-gated same-generation physical maintenance; rewrites vectors atomically and invalidates frozen visibility. |
 | Operator projection repair | Mint | Must use governed rebuild. Raw or application-owned repair is prohibited. |
 
 Configuration and rebuild transitions do not rewrite historical receipts.
@@ -600,6 +665,16 @@ commits preserves the old generation and stores; a crash after commit observes
 the new generation and resumes current pending work. Frozen readers linearize
 before or after the transaction; no half-transition is visible.
 
+Boot registry rederive is differential. It computes the exact ordered expected
+attribute EAV and property-FTS owner rows under the current declarations and
+compares them to persisted state before opening a write transaction. Equal
+nonempty state is a true no-write restart and preserves a Slice-35 frozen token.
+Only detected drift enters the existing clear/backfill repair transaction.
+Tests cover a nonempty filterable/searchable projection, repair, crash
+boundaries, and concurrent open exclusion. Automatic mean pinning, boot mean
+recovery, and operator recompute participate in the same closed physical-mutator
+audit and race/visibility tests as publication and rebuild.
+
 ## Performance and storage contract
 
 The measurement contract is committed before candidate runs. The runtime
@@ -618,8 +693,10 @@ Preregistered bounds:
 
 - storage/write fixture: exactly 10,000 canonical node operations, 128
   operations per actuation batch except the final tail (79 receipts), one
-  declared dense projection, no runtime during writes, and therefore 100% of
-  receipts carrying pending cursors and a generation ID; checkpoint WAL with
+  declared dense projection, and a usable deterministic embedder held by a
+  test hook after commit but before dispatcher publication for the entire
+  write phase; therefore both baseline and candidate produce 100% Slice-25
+  pending receipts without changing receipt semantics; checkpoint WAL with
   `PRAGMA wal_checkpoint(TRUNCATE)` before file-size measurement;
 - ordinary synchronous actuation-write p50 and p95 95% upper relative
   regression at most 3%;
@@ -653,7 +730,7 @@ RED is committed separately and uses real SQLite databases.
 | `step32_projection_generation` | Additive shape, checks/indexes/triggers, fresh/upgrade bootstrap, no content migration, partial/corrupt authority rejection. |
 | `slice40_projection_generation` | ID grammar/collision retry, restart/copy/no reuse, declaration digest goldens, no-op stability, config/rebuild mint, legacy degradation. |
 | `slice40_projection_completion` | Exact node/edge physical membership, every state-table row, below-watermark rediscovery, no-runtime, late graft, inactive/superseded/out-of-window nodes, edge expiry, failure, erasure, and unsupported kinds. |
-| `slice40_mutation_projection_status` | Same-predicate pending construction, no-runtime receipt to blocked/deferred/ready, persist/replay, operation/cursor membership, required expected ID, retired/legacy/redacted/erased behavior, canonical wire/property round trips. |
+| `slice40_mutation_projection_status` | Exact Slice-25 pending construction, usable-runtime latched receipt through processing/ready, no-runtime generation-level blocked/deferred behavior, persist/replay, operation/cursor membership, required expected ID, retired/legacy/redacted/erased behavior, canonical wire/property round trips. |
 | `slice40_projection_generation_races` | Write/publication, closure, erasure, configure/rebuild, restart at transition points, duplicate publication, captured-generation stale-job discard at queued/computing/lock/publish seams, and old/new reader linearization. |
 | `slice35_frozen_read` additions | Token codec unchanged, v1-to-v2 drift, generation/readiness drift, restart stability, trigger/source manifest. |
 | Binding/package parity | Rust/Python/TypeScript names, shapes, validation precedence, `u64::MAX`, fresh wheel/npm imports and offline runtime smoke. |

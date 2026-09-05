@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 40 — projection generation and readiness
-status: DESIGN_FIX_3
+status: DESIGN_FIX_4
 depends_on: 35
 design: design.md
-design_status: CHANGES_REQUIRED_CYCLE_3
+design_status: CHANGES_REQUIRED_CYCLE_4
 ---
 
 # Slice 40 plan

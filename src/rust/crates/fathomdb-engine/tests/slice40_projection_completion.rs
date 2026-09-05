@@ -377,3 +377,46 @@ fn valid_derived_provenance_without_registered_dependency_is_ready() {
         ProjectionReadinessV1::Ready
     );
 }
+
+#[test]
+fn status_query_plans_bound_correlations_with_durable_indexes() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("status-query-plan{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
+    let plans = opened.engine.projection_generation_status_query_plans_for_test().unwrap();
+
+    for branch in ["unregistered_node", "unregistered_edge"] {
+        for indexed_alias in ["r", "d", "pt", "vr", "vk"] {
+            assert!(
+                plans.iter().any(|line| {
+                    line.starts_with(branch) && line.contains(&format!("SEARCH {indexed_alias} "))
+                }),
+                "{branch} must index its per-owner {indexed_alias} correlation: {plans:#?}"
+            );
+        }
+    }
+    for branch in ["registered_node", "registered_edge"] {
+        for indexed_alias in ["r", "d", "owner"] {
+            assert!(
+                plans.iter().any(|line| {
+                    line.starts_with(branch) && line.contains(&format!("SEARCH {indexed_alias} "))
+                }),
+                "{branch} must index its {indexed_alias} lookup: {plans:#?}"
+            );
+        }
+    }
+    for indexed_alias in ["derived", "source", "version", "artifact", "node", "edge"] {
+        assert!(
+            plans.iter().any(|line| {
+                line.starts_with("provenance_integrity")
+                    && line.contains(&format!("SEARCH {indexed_alias} "))
+            }),
+            "provenance integrity must index {indexed_alias}: {plans:#?}"
+        );
+    }
+    assert!(
+        plans.iter().all(|line| !line.contains("AUTOMATIC")),
+        "status must rely on governed durable indexes, not transient automatic indexes: {plans:#?}"
+    );
+}

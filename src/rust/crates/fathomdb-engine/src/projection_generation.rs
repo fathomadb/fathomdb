@@ -915,17 +915,13 @@ fn completion_aggregate_row(
     Ok((pending, failed, first_incomplete))
 }
 
-fn aggregate_unregistered_node_completion(
-    connection: &Connection,
-    node_arm_declared: bool,
-    runtime_state: ProjectionRuntimeStateV1,
-) -> Result<(u64, u64, Option<u64>), EngineError> {
+fn unregistered_node_completion_sql() -> String {
     let vocabulary = super::VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES
         .iter()
         .map(|(kind, source_type)| format!("('{kind}','{source_type}')"))
         .collect::<Vec<_>>()
         .join(",");
-    let sql = format!(
+    format!(
         "WITH committable(expected_kind,expected_source_type) AS (VALUES {vocabulary}),
       members AS (
         SELECT n.write_cursor AS cursor,c.expected_kind,c.expected_source_type,
@@ -963,7 +959,15 @@ fn aggregate_unregistered_node_completion(
              MIN(CASE WHEN pending OR failed THEN cursor END),
              COALESCE(SUM(NOT (complete OR failed OR pending)),0)
       FROM classified"
-    );
+    )
+}
+
+fn aggregate_unregistered_node_completion(
+    connection: &Connection,
+    node_arm_declared: bool,
+    runtime_state: ProjectionRuntimeStateV1,
+) -> Result<(u64, u64, Option<u64>), EngineError> {
+    let sql = unregistered_node_completion_sql();
     completion_aggregate_row(
         connection,
         &sql,
@@ -974,11 +978,8 @@ fn aggregate_unregistered_node_completion(
     )
 }
 
-fn aggregate_unregistered_edge_completion(
-    connection: &Connection,
-    effective_at: i64,
-) -> Result<(u64, u64, Option<u64>), EngineError> {
-    let sql = "WITH members AS (
+fn unregistered_edge_completion_sql() -> &'static str {
+    "WITH members AS (
         SELECT e.write_cursor AS cursor,pt.state AS terminal,
                vr.rowid AS sidecar_rowid,vr.kind AS sidecar_kind,
                vd.source_type AS physical_source_type,vd.kind AS physical_kind,
@@ -1009,8 +1010,14 @@ fn aggregate_unregistered_edge_completion(
       SELECT COALESCE(SUM(pending),0),COALESCE(SUM(failed),0),
              MIN(CASE WHEN pending OR failed THEN cursor END),
              COALESCE(SUM(NOT (complete OR failed OR pending)),0)
-      FROM classified";
-    completion_aggregate_row(connection, sql, [effective_at])
+      FROM classified"
+}
+
+fn aggregate_unregistered_edge_completion(
+    connection: &Connection,
+    effective_at: i64,
+) -> Result<(u64, u64, Option<u64>), EngineError> {
+    completion_aggregate_row(connection, unregistered_edge_completion_sql(), [effective_at])
 }
 
 fn add_registered_completion(
@@ -1021,13 +1028,7 @@ fn add_registered_completion(
     accumulator: &mut CompletionAccumulator,
 ) -> Result<(), EngineError> {
     let owner_table = if artifact_class == "node" { "canonical_nodes" } else { "canonical_edges" };
-    let sql = format!(
-        "SELECT DISTINCT owner.write_cursor FROM {owner_table} owner
-         JOIN _fathomdb_artifact_revisions r ON r.write_cursor=owner.write_cursor
-           AND r.artifact_class=?1
-         JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=r.revision_id
-         ORDER BY owner.write_cursor"
-    );
+    let sql = registered_completion_sql(owner_table);
     let mut statement = connection.prepare(&sql).map_err(|_| EngineError::Storage)?;
     let rows = statement
         .query_map([artifact_class], |row| row.get::<_, u64>(0))
@@ -1041,6 +1042,16 @@ fn add_registered_completion(
         }
     }
     Ok(())
+}
+
+fn registered_completion_sql(owner_table: &str) -> String {
+    format!(
+        "SELECT DISTINCT owner.write_cursor FROM {owner_table} owner
+         JOIN _fathomdb_artifact_revisions r ON r.write_cursor=owner.write_cursor
+           AND r.artifact_class=?1
+         JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=r.revision_id
+         ORDER BY owner.write_cursor"
+    )
 }
 
 fn empty_physical_fast_path(
@@ -1110,10 +1121,8 @@ fn empty_physical_fast_path(
     Ok(Some(CompletionAccumulator { pending_count, failed_count: 0, first_incomplete }))
 }
 
-fn validate_registered_provenance_integrity(connection: &Connection) -> Result<(), EngineError> {
-    let corrupt: bool = connection
-        .query_row(
-            "SELECT EXISTS(
+fn registered_provenance_integrity_sql() -> &'static str {
+    "SELECT EXISTS(
                SELECT 1 FROM _fathomdb_source_dependencies d
                LEFT JOIN _fathomdb_artifact_revisions derived
                  ON derived.revision_id=d.derived_revision_id
@@ -1151,15 +1160,71 @@ fn validate_registered_provenance_integrity(connection: &Connection) -> Result<(
                WHERE (artifact.artifact_class='node' AND node.write_cursor IS NULL)
                   OR (artifact.artifact_class='edge' AND edge.write_cursor IS NULL)
                LIMIT 1
-             )",
-            [],
-            |row| row.get(0),
-        )
+             )"
+}
+
+fn validate_registered_provenance_integrity(connection: &Connection) -> Result<(), EngineError> {
+    let corrupt: bool = connection
+        .query_row(registered_provenance_integrity_sql(), [], |row| row.get(0))
         .map_err(|_| EngineError::Storage)?;
     if corrupt {
         return Err(corruption());
     }
     Ok(())
+}
+
+#[cfg(feature = "test-hooks")]
+fn explain_status_query(
+    connection: &Connection,
+    label: &str,
+    sql: &str,
+    parameters: Vec<rusqlite::types::Value>,
+) -> Result<Vec<String>, EngineError> {
+    let explain = format!("EXPLAIN QUERY PLAN {sql}");
+    let mut statement = connection.prepare(&explain).map_err(|_| EngineError::Storage)?;
+    let rows = statement
+        .query_map(rusqlite::params_from_iter(parameters), |row| row.get::<_, String>(3))
+        .map_err(|_| EngineError::Storage)?;
+    rows.map(|row| row.map(|detail| format!("{label}: {detail}")).map_err(|_| EngineError::Storage))
+        .collect()
+}
+
+#[cfg(feature = "test-hooks")]
+pub(crate) fn status_query_plans_for_test(
+    connection: &Connection,
+) -> Result<Vec<String>, EngineError> {
+    let mut plans = Vec::new();
+    plans.extend(explain_status_query(
+        connection,
+        "unregistered_node",
+        &unregistered_node_completion_sql(),
+        vec![1_i64.into(), 1_i64.into()],
+    )?);
+    plans.extend(explain_status_query(
+        connection,
+        "unregistered_edge",
+        unregistered_edge_completion_sql(),
+        vec![current_epoch_seconds().into()],
+    )?);
+    plans.extend(explain_status_query(
+        connection,
+        "registered_node",
+        &registered_completion_sql("canonical_nodes"),
+        vec!["node".to_string().into()],
+    )?);
+    plans.extend(explain_status_query(
+        connection,
+        "registered_edge",
+        &registered_completion_sql("canonical_edges"),
+        vec!["edge".to_string().into()],
+    )?);
+    plans.extend(explain_status_query(
+        connection,
+        "provenance_integrity",
+        registered_provenance_integrity_sql(),
+        vec![],
+    )?);
+    Ok(plans)
 }
 
 fn physical_completion(

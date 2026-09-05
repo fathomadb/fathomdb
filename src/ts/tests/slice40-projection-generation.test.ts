@@ -46,3 +46,72 @@ test("actuation receipt carries the additive nullable generation", async () => {
   assert.equal(receipt.projectionGenerationId, null);
   await engine.close();
 });
+
+test("receipt-keyed mutation status round-trips through TypeScript", async () => {
+  const path = freshDbPath();
+  const configuring = await Engine.open(path, { useDefaultEmbedder: true });
+  await configuring.actuate({
+    schemaVersion: 1,
+    operationId: "slice40-typescript-status-seed",
+    operations: [
+      {
+        type: "put_canonical_node",
+        record: {
+          kind: "doc",
+          body: "seed body",
+          logicalId: "seed-node",
+          sourceId: "source:slice40-typescript-status-seed",
+          provenance: {
+            schemaVersion: 1,
+            artifactRevisionId: "slice40-typescript-status-seed-r1",
+            sourceVersionId: "slice40-typescript-status-seed-v1",
+            role: "canonical",
+          },
+        },
+      },
+    ],
+  });
+  await configuring.configureProjections([
+    { name: "memory", roles: ["searchable"], fts: false, vector: true },
+  ]);
+  await configuring.drain(10_000);
+  await configuring.close();
+
+  const engine = await Engine.open(path, { useDefaultEmbedder: false });
+  const receipt = await engine.actuate({
+    schemaVersion: 1,
+    operationId: "slice40-typescript-mutation-status",
+    operations: [
+      {
+        type: "put_canonical_node",
+        record: {
+          kind: "doc",
+          body: "body",
+          logicalId: "node",
+          sourceId: "source:slice40-typescript-status",
+          provenance: {
+            schemaVersion: 1,
+            artifactRevisionId: "slice40-typescript-status-r1",
+            sourceVersionId: "slice40-typescript-status-v1",
+            role: "canonical",
+          },
+        },
+      },
+    ],
+  });
+  assert.ok(receipt.projectionGenerationId);
+  assert.equal(receipt.pendingProjectionWriteCursors.length, 1);
+  const status = await read.mutationProjectionStatus(engine, {
+    schemaVersion: 1,
+    operationId: receipt.operationId,
+    writeCursor: receipt.pendingProjectionWriteCursors[0],
+    expectedGenerationId: receipt.projectionGenerationId,
+  });
+  assert.equal(status.operationId, receipt.operationId);
+  assert.equal(status.writeCursor, receipt.pendingProjectionWriteCursors[0]);
+  assert.equal(status.generationId, receipt.projectionGenerationId);
+  assert.equal(status.readiness, "blocked");
+  assert.equal(status.runtimeState, "absent");
+  assert.equal(status.pendingCount, "1");
+  await engine.close();
+});

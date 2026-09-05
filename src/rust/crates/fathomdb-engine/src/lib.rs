@@ -11492,6 +11492,18 @@ impl Engine {
         self.projection_generation_status_full_owner_scan_count.load(Ordering::Relaxed)
     }
 
+    /// Return `EXPLAIN QUERY PLAN` details for the production status queries.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn projection_generation_status_query_plans_for_test(
+        &self,
+    ) -> Result<Vec<String>, EngineError> {
+        self.ensure_open()?;
+        let guard = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = guard.as_ref().ok_or(EngineError::Closing)?;
+        projection_generation::status_query_plans_for_test(connection)
+    }
+
     /// Attempt worker-success publication with an explicitly captured epoch.
     #[cfg(feature = "test-hooks")]
     #[doc(hidden)]

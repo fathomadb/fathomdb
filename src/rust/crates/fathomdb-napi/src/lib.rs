@@ -4243,6 +4243,21 @@ fn call_panicking_engine_for_test() -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn mutation_projection_cursor_canonical_decimal_round_trips(write_cursor in 1_u64..) {
+            let request = json!({
+                "schemaVersion": 1,
+                "operationId": "slice40-property",
+                "writeCursor": write_cursor.to_string(),
+                "expectedGenerationId": "pgen1:000102030405060708090a0b0c0d0e0f",
+            });
+            let translated = translate_mutation_projection_status_request(&request).unwrap();
+            prop_assert_eq!(translated.write_cursor, write_cursor);
+        }
+    }
 
     #[test]
     fn mutation_projection_request_preserves_u64_max() {

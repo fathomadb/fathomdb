@@ -23,12 +23,15 @@ from typing import Any, Iterable
 SCHEMA_VERSION = "measurement.classification.v2"
 LEGACY_SCHEMA_VERSION = "measurement.classification.v1"
 PLAN_VERSION = "measurement.plan.v2"
+CURRENT_PLAN_VERSION = "measurement.plan.v3"
 LEGACY_PLAN_VERSION = "measurement.plan.v1"
 CLASSIFIER_VERSION = "1"
 SIDECAR_NAME = "measurement-classification.v2.json"
 LEGACY_SIDECAR_NAME = "measurement-classification.v1.json"
 POLICY_NAME = "measurement-classification-policy.v2.json"
 POLICY_VERSION = "measurement.classification-policy.v2"
+CURRENT_POLICY_NAME = "measurement-classification-policy.v3.json"
+CURRENT_POLICY_VERSION = "measurement.classification-policy.v3"
 HISTORICAL_VERSION = "measurement.classification-historical.v2"
 
 LAYERS = ("data_plane", "semantic_control_plane", "end_to_end")
@@ -54,7 +57,8 @@ ARTIFACT_ROLES = {
     "derivation_spec",
 }
 LOCATOR_KINDS = {"repository_path", "external_path", "git_blob"}
-OPERATIONS = {"Engine.search", "external_retrieval"}
+ENGINE_OPERATIONS = {"Engine.search", "Engine.search_text_only"}
+OPERATIONS = ENGINE_OPERATIONS | {"external_retrieval"}
 EVIDENCE_KINDS = {
     "instrumented_call",
     "source_result",
@@ -117,6 +121,7 @@ PLAN_KEYS = {
     "metric_exclusions",
     "claims",
 }
+CURRENT_PLAN_KEYS = PLAN_KEYS | {"execution_witness_bindings"}
 LEGACY_PLAN_KEYS = PLAN_KEYS - {"measurement_roots", "metric_exclusions"}
 
 
@@ -261,7 +266,9 @@ def _maximum_layer(component_ids: list[str], components: dict[str, dict[str, Any
 
 def _validate_authority(authority: dict[str, Any]) -> None:
     version = authority.get("schema_version") if isinstance(authority, dict) else None
-    if version == PLAN_VERSION:
+    if version == CURRENT_PLAN_VERSION:
+        _closed(authority, CURRENT_PLAN_KEYS, "measurement plan")
+    elif version == PLAN_VERSION:
         _closed(authority, PLAN_KEYS, "measurement plan")
     elif version == LEGACY_PLAN_VERSION:
         _closed(authority, LEGACY_PLAN_KEYS, "legacy measurement plan")
@@ -273,7 +280,7 @@ def _validate_authority(authority: dict[str, Any]) -> None:
     _list(authority["comparisons"], "measurement plan comparisons")
     _list(authority["metric_bindings"], "measurement plan metric_bindings")
     _list(authority["claims"], "measurement plan claims")
-    if version == PLAN_VERSION:
+    if version in {PLAN_VERSION, CURRENT_PLAN_VERSION}:
         roots = _list(authority["measurement_roots"], "measurement plan roots")
         if not roots:
             raise ClassificationError("measurement plan roots cannot be empty")
@@ -300,6 +307,11 @@ def _validate_authority(authority: dict[str, Any]) -> None:
                     raise ClassificationError("measurement plan roots overlap")
                 prior.append(pointer)
         _list(authority["metric_exclusions"], "measurement plan exclusions")
+    if version == CURRENT_PLAN_VERSION:
+        _list(
+            authority["execution_witness_bindings"],
+            "measurement plan execution witness bindings",
+        )
 
 
 def _validate_artifacts(
@@ -446,13 +458,13 @@ def _validate_witnesses(
         semantics = row["count_semantics"]
         operation = paths[row["call_path_id"]]["operation"]
         component_kind = components[row["component_id"]]["kind"]
-        if operation == "Engine.search" and component_kind != "fathomdb_engine_search":
+        if operation in ENGINE_OPERATIONS and component_kind != "fathomdb_engine_search":
             raise ClassificationError(
-                "Engine.search witness must use a FathomDB Engine component"
+                "Engine search witness must use a FathomDB Engine component"
             )
         if state == "executed":
             if (
-                operation != "Engine.search"
+                operation not in ENGINE_OPERATIONS
                 or not isinstance(count, int)
                 or isinstance(count, bool)
                 or count <= 0
@@ -475,6 +487,50 @@ def _validate_witnesses(
             raise ClassificationError("unknown engine_search_state")
         witnesses.append(row)
     return _unique(witnesses, "execution witness")
+
+
+def _validate_witness_count_bindings(
+    authority: dict[str, Any],
+    witnesses: dict[str, dict[str, Any]],
+    artifacts: dict[str, dict[str, Any]],
+    decoded: dict[str, Any],
+) -> None:
+    """Bind exact source-result witness counts to immutable metrics leaves."""
+    if authority["schema_version"] != CURRENT_PLAN_VERSION:
+        return
+    bindings: dict[str, dict[str, Any]] = {}
+    for index, value in enumerate(authority["execution_witness_bindings"]):
+        row = _closed(
+            value,
+            {"witness_id", "source_artifact_id", "json_pointer"},
+            f"execution witness bindings[{index}]",
+        )
+        witness_id = _nonempty_string(row["witness_id"], "binding witness id")
+        if witness_id in bindings:
+            raise ClassificationError("duplicate execution witness binding")
+        if witness_id not in witnesses:
+            raise ClassificationError("execution witness binding is dangling")
+        artifact_id = row["source_artifact_id"]
+        if artifact_id not in decoded or artifacts[artifact_id]["role"] != "metrics_payload":
+            raise ClassificationError("witness count source is not a metrics payload")
+        witness = witnesses[witness_id]
+        if artifact_id not in witness["source_artifact_ids"]:
+            raise ClassificationError("witness count source is not witness evidence")
+        count = _json_pointer(decoded[artifact_id], row["json_pointer"])
+        if not isinstance(count, int) or isinstance(count, bool) or count <= 0:
+            raise ClassificationError("witness count source must be a positive integer")
+        if count != witness["call_count"]:
+            raise ClassificationError("witness count differs from immutable metrics")
+        bindings[witness_id] = row
+    required = {
+        identity
+        for identity, witness in witnesses.items()
+        if witness["engine_search_state"] == "executed"
+        and witness["count_semantics"] == "exact"
+        and witness["evidence_kind"] == "source_result"
+    }
+    if set(bindings) != required:
+        raise ClassificationError("exact source-result witness count binding is incomplete")
 
 
 def _validate_metrics(
@@ -647,7 +703,10 @@ def validate_classification(
         _list(row["source_artifacts"], "source_artifacts"),
         Path(repository_root),
     )
-    strict_authority = authority["schema_version"] == PLAN_VERSION
+    strict_authority = authority["schema_version"] in {
+        PLAN_VERSION,
+        CURRENT_PLAN_VERSION,
+    }
     if legacy != (authority["schema_version"] == LEGACY_PLAN_VERSION):
         raise ClassificationError("classification and plan versions differ")
     if strict_authority and row["outcome"] == "complete":
@@ -715,6 +774,7 @@ def validate_classification(
         set(artifacts),
         arm_ids,
     )
+    _validate_witness_count_bindings(authority, witnesses, artifacts, decoded)
     for comparison in row["comparisons"]:
         for arm in comparison["arms"]:
             arm_witness_ids = arm["execution_witness_ids"]
@@ -942,6 +1002,26 @@ def _parse_external_locator_amendments(values: Any) -> dict[str, dict[str, Any]]
     return amendments
 
 
+def _parse_misclassified_postcutover_runs(values: Any) -> dict[str, dict[str, Any]]:
+    rows = _list(values, "misclassified post-cutover runs")
+    result: dict[str, dict[str, Any]] = {}
+    for index, value in enumerate(rows):
+        entry = _closed(
+            value,
+            {"run_id", "record_sha256", "sidecar_sha256", "reason"},
+            f"misclassified post-cutover runs[{index}]",
+        )
+        if entry["reason"] != "engine_search_text_only_misclassified_as_engine_search":
+            raise ClassificationError("unsupported misclassified run reason")
+        run_id = _nonempty_string(entry["run_id"], "misclassified run id")
+        _nonempty_string(entry["record_sha256"], "misclassified record SHA-256")
+        _nonempty_string(entry["sidecar_sha256"], "misclassified sidecar SHA-256")
+        if run_id in result:
+            raise ClassificationError("duplicate misclassified post-cutover run id")
+        result[run_id] = entry
+    return result
+
+
 def _validate_external_locator_amendment(
     record_path: Path,
     record: dict[str, Any],
@@ -1041,22 +1121,29 @@ def validate_repository(repository_root: str | Path) -> None:
     """Run the portable clean-clone measurement-classification gate."""
     root = Path(repository_root).resolve()
     experiments_dir = root / "experiments"
-    policy = _load_json(experiments_dir / POLICY_NAME, "classification policy")
+    current_policy_path = experiments_dir / CURRENT_POLICY_NAME
+    policy_path = current_policy_path if current_policy_path.is_file() else experiments_dir / POLICY_NAME
+    policy = _load_json(policy_path, "classification policy")
+    policy_v3 = policy.get("schema_version") == CURRENT_POLICY_VERSION
+    policy_keys = {
+        "schema_version",
+        "classifier_version",
+        "index",
+        "historical_manifest_path",
+        "superseded_postcutover_runs",
+        "postcutover_plan_amendments",
+        "external_artifact_locator_amendments",
+    }
+    if policy_v3:
+        policy_keys.add("misclassified_postcutover_runs")
     _closed(
         policy,
-        {
-            "schema_version",
-            "classifier_version",
-            "index",
-            "historical_manifest_path",
-            "superseded_postcutover_runs",
-            "postcutover_plan_amendments",
-            "external_artifact_locator_amendments",
-        },
+        policy_keys,
         "classification policy",
     )
     if (
-        policy["schema_version"] != POLICY_VERSION
+        policy["schema_version"]
+        not in {POLICY_VERSION, CURRENT_POLICY_VERSION}
         or policy["classifier_version"] != CLASSIFIER_VERSION
     ):
         raise ClassificationError("unsupported classification policy version")
@@ -1107,6 +1194,13 @@ def validate_repository(repository_root: str | Path) -> None:
     locator_amendments = _parse_external_locator_amendments(
         policy["external_artifact_locator_amendments"]
     )
+    quarantined = _parse_misclassified_postcutover_runs(
+        policy["misclassified_postcutover_runs"] if policy_v3 else []
+    )
+    correction_ids = set(amendments) | set(locator_amendments)
+    overlap = correction_ids & set(quarantined)
+    if overlap:
+        raise ClassificationError("quarantine overlaps corrective amendment inventory")
 
     validate_post_cutover_presence(
         experiments_dir=experiments_dir,
@@ -1117,6 +1211,7 @@ def validate_repository(repository_root: str | Path) -> None:
     observed_superseded: set[str] = set()
     observed_amendments: set[str] = set()
     observed_locator_amendments: set[str] = set()
+    observed_quarantined: set[str] = set()
     for line in lines[index_policy["prefix_lines"] :]:
         index_row = json.loads(line)
         run_id = index_row["run_id"]
@@ -1125,6 +1220,18 @@ def validate_repository(repository_root: str | Path) -> None:
         record = _load_json(record_path, "post-cutover record")
         if record.get("run_id") != run_id:
             raise ClassificationError("post-cutover record run_id mismatch")
+        quarantine = quarantined.get(run_id)
+        if quarantine is not None:
+            sidecar_path = run_dir / SIDECAR_NAME
+            sidecar = _load_json(sidecar_path, "quarantined post-cutover classification")
+            if sidecar.get("run_id") != run_id:
+                raise ClassificationError("quarantined classification run_id mismatch")
+            if _sha256_bytes(record_path.read_bytes()) != quarantine["record_sha256"]:
+                raise ClassificationError("quarantined record SHA-256 mismatch")
+            if _sha256_bytes(sidecar_path.read_bytes()) != quarantine["sidecar_sha256"]:
+                raise ClassificationError("quarantined sidecar SHA-256 mismatch")
+            observed_quarantined.add(run_id)
+            continue
         if run_id not in superseded and _validate_external_locator_amendment(
             record_path, record, locator_amendments
         ):
@@ -1155,6 +1262,8 @@ def validate_repository(repository_root: str | Path) -> None:
     _validate_closed_amendment_inventory(observed_amendments, amendments)
     if observed_locator_amendments != set(locator_amendments):
         raise ClassificationError("external locator amendment inventory is not closed")
+    if observed_quarantined != set(quarantined):
+        raise ClassificationError("misclassified post-cutover inventory is not closed")
 
 
 def _validate_tree_command(args: argparse.Namespace) -> int:

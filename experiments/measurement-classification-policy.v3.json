@@ -1,0 +1,46 @@
+{
+  "schema_version": "measurement.classification-policy.v3",
+  "classifier_version": "1",
+  "index": {
+    "path": "experiments/index.jsonl",
+    "prefix_bytes": 47742,
+    "prefix_lines": 60,
+    "prefix_sha256": "e42443271ab2b3703fcdfdedbb69c5259304171b1da119b9692eb04d2e1a6a52"
+  },
+  "historical_manifest_path": "experiments/measurement-classification-global-01.v2.json",
+  "superseded_postcutover_runs": [
+    {
+      "run_id": "measurement-classification-native-search-20260903T2255Z-b5f420c4",
+      "record_sha256": "4f393460aab1be0ce7e58765879e0a2718c25ba747c69d8b4241b8c875d740ff",
+      "reason": "invalid_ancillary_locator_quarantined"
+    }
+  ],
+  "postcutover_plan_amendments": [],
+  "external_artifact_locator_amendments": [],
+  "misclassified_postcutover_runs": [
+    {
+      "run_id": "scale-02-slice35-20260905T0019Z-3756fde2",
+      "record_sha256": "cd111e793811ec8c89357273ce7cb0690e4dfefba4e4306a78177d7079ba04bd",
+      "sidecar_sha256": "83cc4d81c5c75f68f7f0eab86f06113729e5ce58577eea32fd8a4fee4102cc2b",
+      "reason": "engine_search_text_only_misclassified_as_engine_search"
+    },
+    {
+      "run_id": "scale-02-slice35-20260905T0031Z-864f6c61",
+      "record_sha256": "5b839620bc58f8fa97416bc70f97c96e0068a6aa04ca08c7d4af99715aeff8a2",
+      "sidecar_sha256": "6e96fe3497454657e2cbe932bb2dcc5eb83864762f6ae4671b0712e7013e6b4a",
+      "reason": "engine_search_text_only_misclassified_as_engine_search"
+    },
+    {
+      "run_id": "scale-02-slice35-20260905T0047Z-a934bd34",
+      "record_sha256": "a78e0b2dc6a6191f6b73f65185d758397297ffa6a894f2620a1f3f4e45a72ce7",
+      "sidecar_sha256": "5b7b7f74e1c19aafd97712d6c03f409304088b55d4f14ddfcd5454d2dcc87014",
+      "reason": "engine_search_text_only_misclassified_as_engine_search"
+    },
+    {
+      "run_id": "scale-02-slice35-20260905T0231Z-cb9bad5b",
+      "record_sha256": "6947b26537bb4b93c6c8e1c4a9f722d8e0e9d4943e75f7687ba280a7289dfb5d",
+      "sidecar_sha256": "27f17b29da036b174059e89ca0b5a61dc4e0adbcd9112827d12c7f34a12e9331",
+      "reason": "engine_search_text_only_misclassified_as_engine_search"
+    }
+  ]
+}

@@ -1076,13 +1076,15 @@ def _ordered_queries(queries: Sequence[str], count: int, seed: int) -> list[str]
 
 def _time_queries(
     engine: Any, queries: Sequence[str], config: Scale02Config
-) -> tuple[list[float], int, int]:
+) -> tuple[list[float], int, int, int]:
     elapsed: list[float] = []
     errors = 0
     timeouts = 0
+    calls = 0
     for query in queries:
         started = time.perf_counter()
         try:
+            calls += 1
             engine.search_text_only(query, limit=config.top_k)
         except Exception:
             errors += 1
@@ -1091,7 +1093,7 @@ def _time_queries(
         elapsed.append(duration)
         if duration > config.query_timeout_ms:
             timeouts += 1
-    return elapsed, errors, timeouts
+    return elapsed, errors, timeouts, calls
 
 
 def _execute_repetition(
@@ -1155,7 +1157,7 @@ def _execute_repetition(
             cold_queries = _ordered_queries(
                 fixture.queries, config.cold_query_count, seed
             )
-            cold, cold_errors, cold_timeouts = _time_queries(
+            cold, cold_errors, cold_timeouts, _ = _time_queries(
                 engine, cold_queries, config
             )
             errors += cold_errors
@@ -1163,13 +1165,15 @@ def _execute_repetition(
             warmup = _ordered_queries(
                 fixture.queries, config.warmup_query_count, seed + 1
             )
-            _, warmup_errors, warmup_timeouts = _time_queries(engine, warmup, config)
+            _, warmup_errors, warmup_timeouts, warmup_calls = _time_queries(
+                engine, warmup, config
+            )
             errors += warmup_errors
             timeouts += warmup_timeouts
             steady_queries = _ordered_queries(
                 fixture.queries, config.steady_query_count, seed + 2
             )
-            steady, steady_errors, steady_timeouts = _time_queries(
+            steady, steady_errors, steady_timeouts, steady_calls = _time_queries(
                 engine, steady_queries, config
             )
             errors += steady_errors
@@ -1215,6 +1219,7 @@ def _execute_repetition(
         "mutation_to_ready_ms": mutation,
         "errors": errors,
         "timeouts": timeouts,
+        "measured_search_call_count": warmup_calls + steady_calls,
         "database_bytes": database_bytes,
         "derived_index_bytes": derived_index_bytes,
         "peak_rss_bytes": resource_metrics["peak_rss_bytes"],

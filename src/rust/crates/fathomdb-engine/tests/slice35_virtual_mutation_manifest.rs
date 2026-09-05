@@ -1,4 +1,5 @@
-//! Closed audit of serving FTS5/vec0 mutations and their real-table owners.
+//! Coupling audit supplementing the whole-crate closed scanner in
+//! `experiments/slice35_virtual_mutation_audit.py`.
 
 const SOURCE: &str = include_str!("../src/lib.rs");
 
@@ -31,6 +32,12 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
         ("\"INSERT INTO property_search_index(", 1),
         ("\"DELETE FROM property_search_index", 1),
         ("\"INSERT INTO vector_default(", 4),
+        ("\"INSERT OR IGNORE INTO vector_default(", 2),
+        ("\"UPDATE {DEFAULT_VECTOR_PARTITION}", 1),
+        ("\"INSERT INTO {DEFAULT_VECTOR_PARTITION}", 1),
+        ("\"CREATE VIRTUAL TABLE {guard}{DEFAULT_VECTOR_PARTITION}", 1),
+        ("DROP TABLE {DEFAULT_VECTOR_PARTITION}", 1),
+        ("DROP TABLE vector_default", 2),
         ("\"DELETE FROM {DEFAULT_VECTOR_PARTITION}", 1),
         ("\"DELETE FROM {} WHERE {}", 1),
         ("\"DELETE FROM {}\"", 1),
@@ -85,6 +92,26 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
     contains_all(
         "run_pin_and_requantize_pass",
         &["delete_vector_partition_row", "INSERT INTO vector_default("],
+    );
+    contains_all(
+        "commit_projection_outcomes",
+        &[
+            "INSERT OR IGNORE INTO _fathomdb_vector_rows",
+            "INSERT OR IGNORE INTO vector_default(",
+            "record_projection_terminal",
+        ],
+    );
+    contains_all(
+        "refresh_vector_attr_values_for_row",
+        &["UPDATE {DEFAULT_VECTOR_PARTITION}", "vector_attr_insert_fragments"],
+    );
+    contains_all(
+        "reshape_vector_partition_nondestructive",
+        &[
+            "DROP TABLE {DEFAULT_VECTOR_PARTITION}",
+            "vector_partition_create_sql",
+            "INSERT INTO {DEFAULT_VECTOR_PARTITION}",
+        ],
     );
     contains_all(
         "erase_row_projections",

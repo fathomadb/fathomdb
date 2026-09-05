@@ -1,0 +1,525 @@
+{
+  "schema_version": "measurement.plan.v3",
+  "plan_id": "slice35-text-only-fix6",
+  "measurement_roots": [
+    {
+      "source_artifact_id": "metrics",
+      "json_pointers": [
+        "/upper_95_relative_regression",
+        "/verdict"
+      ]
+    }
+  ],
+  "metric_exclusions": [
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/claim_boundary",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/errors",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/measured_search_call_count",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/p50_by_repetition/0",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/p50_by_repetition/1",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/p50_by_repetition/2",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/p50_by_repetition/3",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/p50_by_repetition/4",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/p95_by_repetition/0",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/p95_by_repetition/1",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/p95_by_repetition/2",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/p95_by_repetition/3",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/p95_by_repetition/4",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/repetitions",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/schema_version",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/source_commit",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/timeouts",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/baseline/treatment",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/errors",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/measured_search_call_count",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/p50_by_repetition/0",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/p50_by_repetition/1",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/p50_by_repetition/2",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/p50_by_repetition/3",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/p50_by_repetition/4",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/p95_by_repetition/0",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/p95_by_repetition/1",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/p95_by_repetition/2",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/p95_by_repetition/3",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/p95_by_repetition/4",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/repetitions",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/schema_version",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/source_commit",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/timeouts",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/current_campaign/candidate/treatment",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/prior_run_id",
+      "reason": "identifier_or_hash"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/program_track",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/schema_version",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/errors",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/measured_search_call_count",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/p50_by_repetition/0",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/p50_by_repetition/1",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/p50_by_repetition/2",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/p50_by_repetition/3",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/p50_by_repetition/4",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/p95_by_repetition/0",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/p95_by_repetition/1",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/p95_by_repetition/2",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/p95_by_repetition/3",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/p95_by_repetition/4",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/repetitions",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/schema_version",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/source_commit",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/timeouts",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/treatment",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/errors",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/measured_search_call_count",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/p50_by_repetition/0",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/p50_by_repetition/1",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/p50_by_repetition/2",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/p50_by_repetition/3",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/p50_by_repetition/4",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/p95_by_repetition/0",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/p95_by_repetition/1",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/p95_by_repetition/2",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/p95_by_repetition/3",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/p95_by_repetition/4",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/repetitions",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/schema_version",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/source_commit",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/timeouts",
+      "reason": "run_control"
+    },
+    {
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/treatment",
+      "reason": "run_control"
+    }
+  ],
+  "components": [
+    {
+      "id": "baseline-engine",
+      "name": "baseline FathomDB Engine.search_text_only",
+      "kind": "fathomdb_engine_search"
+    },
+    {
+      "id": "candidate-engine",
+      "name": "candidate FathomDB Engine.search_text_only",
+      "kind": "fathomdb_engine_search"
+    },
+    {
+      "id": "metric",
+      "name": "paired bootstrap and non-regression rule",
+      "kind": "deterministic_metric"
+    }
+  ],
+  "call_paths": [
+    {
+      "id": "baseline-search",
+      "operation": "Engine.search_text_only",
+      "source_artifact_ids": [
+        "metrics",
+        "runner",
+        "invocation"
+      ]
+    },
+    {
+      "id": "candidate-search",
+      "operation": "Engine.search_text_only",
+      "source_artifact_ids": [
+        "metrics",
+        "runner",
+        "invocation"
+      ]
+    }
+  ],
+  "comparisons": [
+    {
+      "id": "legacy-search-overhead",
+      "arms": [
+        {
+          "id": "baseline",
+          "component_ids": [
+            "baseline-engine",
+            "metric"
+          ],
+          "execution_witness_ids": [
+            "baseline-calls"
+          ]
+        },
+        {
+          "id": "candidate",
+          "component_ids": [
+            "candidate-engine",
+            "metric"
+          ],
+          "execution_witness_ids": [
+            "candidate-calls"
+          ]
+        }
+      ],
+      "shared_component_ids": [
+        "metric"
+      ],
+      "differing_component_ids": [
+        "baseline-engine",
+        "candidate-engine"
+      ]
+    }
+  ],
+  "metric_bindings": [
+    {
+      "id": "p50-upper-relative-regression",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/upper_95_relative_regression/p50",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "baseline-engine",
+        "candidate-engine",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "baseline-calls",
+        "candidate-calls"
+      ]
+    },
+    {
+      "id": "p95-upper-relative-regression",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/upper_95_relative_regression/p95",
+      "value_type": "number",
+      "allowed_values": [],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "baseline-engine",
+        "candidate-engine",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "baseline-calls",
+        "candidate-calls"
+      ]
+    },
+    {
+      "id": "non-regression-verdict",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/verdict",
+      "value_type": "enum",
+      "allowed_values": [
+        "pass",
+        "fail"
+      ],
+      "layer": "data_plane",
+      "contributing_component_ids": [
+        "baseline-engine",
+        "candidate-engine",
+        "metric"
+      ],
+      "execution_witness_ids": [
+        "baseline-calls",
+        "candidate-calls"
+      ]
+    }
+  ],
+  "claims": [
+    {
+      "id": "legacy-search-non-regression",
+      "layer": "data_plane",
+      "metric_ids": [
+        "p50-upper-relative-regression",
+        "p95-upper-relative-regression",
+        "non-regression-verdict"
+      ]
+    }
+  ],
+  "execution_witness_bindings": [
+    {
+      "witness_id": "baseline-calls",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/baseline/measured_search_call_count"
+    },
+    {
+      "witness_id": "candidate-calls",
+      "source_artifact_id": "metrics",
+      "json_pointer": "/treatments/candidate/measured_search_call_count"
+    }
+  ]
+}

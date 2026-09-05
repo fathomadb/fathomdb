@@ -261,7 +261,7 @@ def classification_document(
     authority: Mapping[str, Any],
     source_artifacts: list[dict[str, Any]],
     measurement_plan_sha256: str,
-    search_call_count: int,
+    search_call_counts: Mapping[str, int],
 ) -> dict[str, Any]:
     """Build the native data-plane classification for one completed campaign."""
     witnesses = [
@@ -271,10 +271,10 @@ def classification_document(
             "component_id": f"{arm}-engine",
             "arm_id": arm,
             "engine_search_state": "executed",
-            "call_count": search_call_count,
+            "call_count": search_call_counts[arm],
             "count_semantics": "exact",
             "evidence_kind": "source_result",
-            "source_artifact_ids": ["implementation", "record"],
+            "source_artifact_ids": ["metrics", "runner", "invocation"],
         }
         for arm in ("baseline", "candidate")
     ]
@@ -319,13 +319,28 @@ def _write_run_classification(
     plan_ref = config["measurement_plan"]
     plan_path = _path(plan_ref["path"], "measurement_plan.path")
     authority = json.loads(plan_path.read_text(encoding="utf-8"))
-    implementation_locator = f"{code_git_sha}:experiments/scale_02_slice35.py"
-    implementation = subprocess.run(
-        ["git", "show", implementation_locator],
-        cwd=REPO_ROOT,
-        check=True,
-        stdout=subprocess.PIPE,
-    ).stdout
+    implementation_artifacts = []
+    for artifact_id, path in (
+        ("runner", "experiments/scale_02_slice35.py"),
+        ("invocation", "experiments/scale_02.py"),
+    ):
+        locator = f"{code_git_sha}:{path}"
+        payload = subprocess.run(
+            ["git", "show", locator],
+            cwd=REPO_ROOT,
+            check=True,
+            stdout=subprocess.PIPE,
+        ).stdout
+        implementation_artifacts.append(
+            {
+                "id": artifact_id,
+                "role": "implementation",
+                "locator_kind": "git_blob",
+                "locator": locator,
+                "sha256": hashlib.sha256(payload).hexdigest(),
+                "measurement_root_json_pointers": [],
+            }
+        )
     artifacts = [
         {
             "id": "metrics",
@@ -362,23 +377,24 @@ def _write_run_classification(
             "sha256": _sha256(plan_path),
             "measurement_root_json_pointers": [],
         },
-        {
-            "id": "implementation",
-            "role": "implementation",
-            "locator_kind": "git_blob",
-            "locator": implementation_locator,
-            "sha256": hashlib.sha256(implementation).hexdigest(),
-            "measurement_root_json_pointers": [],
-        },
+        *implementation_artifacts,
     ]
-    workload = config["workload"]
+    metrics_payload = json.loads((run_dir / "metrics.json").read_text(encoding="utf-8"))
+    search_call_counts = {
+        arm: metrics_payload["treatments"][arm]["measured_search_call_count"]
+        for arm in ("baseline", "candidate")
+    }
+    if any(
+        not isinstance(count, int) or isinstance(count, bool) or count <= 0
+        for count in search_call_counts.values()
+    ):
+        raise Slice35ScaleError("observed search call count is invalid")
     document = classification_document(
         run_id=run_id,
         authority=authority,
         source_artifacts=artifacts,
         measurement_plan_sha256=plan_ref["sha256"],
-        search_call_count=workload["repetitions"]
-        * (workload["warmups"] + workload["steady_queries"]),
+        search_call_counts=search_call_counts,
     )
     measurement_classification.write_classification(
         run_dir,
@@ -464,6 +480,9 @@ def _worker(config_path: Path, treatment: str, output_root: Path) -> None:
         "repetitions": len(repetitions),
         "errors": sum(item["errors"] for item in repetitions),
         "timeouts": sum(item["timeouts"] for item in repetitions),
+        "measured_search_call_count": sum(
+            item["measured_search_call_count"] for item in repetitions
+        ),
         "p50_by_repetition": [
             scale_02._percentile(item["steady_query_ms"], 0.50)
             for item in repetitions

@@ -77,7 +77,7 @@ assert engine.dependency_for_derived({
 engine.search("runtime validation")
 engine.close()
 print("local Python wheel runtime validation: ok")
-'@ | & $python - (Join-Path $work 'python-smoke.fdb')
+'@ | & $python -X utf8 - (Join-Path $work 'python-smoke.fdb')
   if ($LASTEXITCODE -ne 0) { throw 'smoke-local-native-artifacts: local Python wheel runtime smoke failed' }
 
   $main = Join-Path $work 'main'

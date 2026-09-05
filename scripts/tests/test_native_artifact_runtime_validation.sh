@@ -297,6 +297,7 @@ for helper_and_command in \
   "$REPO_ROOT/scripts/release/smoke/smoke-local-native-artifacts.ps1:python -m pip install --no-index" \
   "$REPO_ROOT/scripts/release/smoke/smoke-local-native-artifacts.ps1:npm install --offline" \
   "$REPO_ROOT/scripts/release/smoke/smoke-local-native-artifacts.ps1:Engine.open" \
+  "$REPO_ROOT/scripts/release/smoke/smoke-local-native-artifacts.ps1:\$OutputEncoding = [System.Text.UTF8Encoding]::new(\$false)" \
   "$REPO_ROOT/scripts/release/smoke/smoke-local-native-artifacts.ps1:await engine.search"; do
   helper="${helper_and_command%%:*}"
   command="${helper_and_command#*:}"
@@ -323,7 +324,7 @@ require_ps1_exit_check \
   "  & \$python -m pip install --no-index --find-links \$WheelDirectory fathomdb" \
   || fail 'PowerShell wheel install must immediately propagate its Python exit code'
 require_ps1_exit_check \
-  "'@ | & \$python - (Join-Path \$work 'python-smoke.fdb')" \
+  "'@ | & \$python -X utf8 - (Join-Path \$work 'python-smoke.fdb')" \
   || fail 'PowerShell Python smoke must immediately propagate its Python exit code'
 
 for forbidden in \
@@ -528,7 +529,7 @@ if [ "${NATIVE_RUNTIME_VALIDATION_FIXTURE:-0}" != "1" ]; then
   fi
 
   awk '
-    $0 == "'"'"'@ | & $python - (Join-Path $work '\''python-smoke.fdb'\'')" { after_python_smoke = 1 }
+    $0 == "'"'"'@ | & $python -X utf8 - (Join-Path $work '\''python-smoke.fdb'\'')" { after_python_smoke = 1 }
     after_python_smoke && /\$LASTEXITCODE -ne 0/ && !removed { removed = 1; next }
     { print }
     END { exit !removed }

@@ -1,0 +1,107 @@
+{
+  "schema_version": "scale-02-slice35-result.v1",
+  "program_track": "SCALE-02",
+  "verdict": "pass",
+  "upper_95_relative_regression": {
+    "p50": 0.016226676514197534,
+    "p95": 0.021209454676104356
+  },
+  "treatments": {
+    "baseline": {
+      "errors": 0,
+      "measured_search_call_count": 5500,
+      "p50_by_repetition": [
+        32.66750497277826,
+        32.7676740125753,
+        32.691619999241084,
+        32.62240899493918,
+        32.615183969028294
+      ],
+      "p95_by_repetition": [
+        35.80997500102967,
+        35.631217004265636,
+        35.82356998231262,
+        35.88826203485951,
+        35.6518950429745
+      ],
+      "repetitions": 5,
+      "schema_version": "scale-02-slice35-treatment.v1",
+      "source_commit": "b2bfb1f318f58041144acb2356a6a4c9624068b9",
+      "timeouts": 0,
+      "treatment": "baseline"
+    },
+    "candidate": {
+      "errors": 0,
+      "measured_search_call_count": 5500,
+      "p50_by_repetition": [
+        32.8898029983975,
+        33.24498498113826,
+        33.152299001812935,
+        33.24849100317806,
+        32.93861501151696
+      ],
+      "p95_by_repetition": [
+        36.0755660221912,
+        36.43938299501315,
+        36.22926597017795,
+        36.79449396440759,
+        36.106512998230755
+      ],
+      "repetitions": 5,
+      "schema_version": "scale-02-slice35-treatment.v1",
+      "source_commit": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403",
+      "timeouts": 0,
+      "treatment": "candidate"
+    }
+  },
+  "current_campaign": {
+    "baseline": {
+      "errors": 0,
+      "measured_search_call_count": 5500,
+      "p50_by_repetition": [
+        32.66750497277826,
+        32.7676740125753,
+        32.691619999241084,
+        32.62240899493918,
+        32.615183969028294
+      ],
+      "p95_by_repetition": [
+        35.80997500102967,
+        35.631217004265636,
+        35.82356998231262,
+        35.88826203485951,
+        35.6518950429745
+      ],
+      "repetitions": 5,
+      "schema_version": "scale-02-slice35-treatment.v1",
+      "source_commit": "b2bfb1f318f58041144acb2356a6a4c9624068b9",
+      "timeouts": 0,
+      "treatment": "baseline"
+    },
+    "candidate": {
+      "errors": 0,
+      "measured_search_call_count": 5500,
+      "p50_by_repetition": [
+        32.8898029983975,
+        33.24498498113826,
+        33.152299001812935,
+        33.24849100317806,
+        32.93861501151696
+      ],
+      "p95_by_repetition": [
+        36.0755660221912,
+        36.43938299501315,
+        36.22926597017795,
+        36.79449396440759,
+        36.106512998230755
+      ],
+      "repetitions": 5,
+      "schema_version": "scale-02-slice35-treatment.v1",
+      "source_commit": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403",
+      "timeouts": 0,
+      "treatment": "candidate"
+    }
+  },
+  "prior_run_id": null,
+  "claim_boundary": "legacy_search_non_regression_only"
+}

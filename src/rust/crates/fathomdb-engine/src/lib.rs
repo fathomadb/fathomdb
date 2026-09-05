@@ -27077,9 +27077,10 @@ mod tests {
         derive_stable_id, legacy_revision_id, native_connection_state_for_test,
         resolve_source_type, retain_complete_rank_boundary_candidates, DeviceResolution,
         EmbedderChoice, Engine, EngineError, IdSpace, IdSpaceKind, InitialState, LoaderInfo,
-        ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, RuntimeProbeConnection,
-        SearchHit, SoftFallbackBranch, SourceId, WalAttributionRole, ERASURE_WAL_TRUNCATE_ATTEMPTS,
-        KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS, READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
+        ManagedConnectionRegistry, NativeTransactionState, PreparedWrite, ReaderRequest,
+        RuntimeProbeConnection, SearchHit, SoftFallbackBranch, SourceId, WalAttributionRole,
+        ERASURE_WAL_TRUNCATE_ATTEMPTS, KIND_TO_SOURCE_TYPE_CASE_SQL, PROJECTION_WORKERS,
+        READER_POOL_SIZE, ROW_OWNED_PROJECTIONS,
     };
     use fathomdb_embedder::{
         DeviceResolutionReason, EffectiveEmbedDevice, EmbedDevicePolicy, NoopEmbedder,
@@ -27094,6 +27095,15 @@ mod tests {
     use std::thread;
     use std::time::{Duration, Instant};
     use tempfile::TempDir;
+
+    #[test]
+    fn reader_request_envelope_stays_bounded_as_search_capabilities_grow() {
+        assert!(
+            std::mem::size_of::<ReaderRequest>() <= 128,
+            "reader requests cross a bounded channel on every query; box capability payloads instead of inflating the envelope (actual={} bytes)",
+            std::mem::size_of::<ReaderRequest>()
+        );
+    }
 
     #[test]
     fn legacy_revision_derivation_is_stable_and_tuple_sensitive_without_persisting_an_owner() {

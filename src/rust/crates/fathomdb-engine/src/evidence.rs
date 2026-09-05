@@ -322,6 +322,7 @@ struct Payload {
     source_commitment: [u8; 32],
     locator_commitment: [u8; 32],
     hash_commitment: [u8; 32],
+    generation_nonce: [u8; 16],
     generation_ciphertext: Vec<u8>,
     arm: EvidenceArmV1,
     contribution: EvidenceContributionV1,
@@ -402,6 +403,7 @@ pub(crate) fn build_search_result(
         }
         let locator_bytes = locator_bytes(&stored.locator);
         let contribution = contribution(per_hit)?;
+        let generation_nonce = random_nonce(connection)?;
         let payload = Payload {
             artifact_class,
             write_cursor: hit.write_cursor,
@@ -416,7 +418,12 @@ pub(crate) fn build_search_result(
             source_commitment: keyed(&key, SOURCE_DOMAIN, stored.source_revision_id.as_bytes()),
             locator_commitment: keyed(&key, LOCATOR_DOMAIN, &locator_bytes),
             hash_commitment: keyed(&key, HASH_DOMAIN, stored.hash_digest.as_bytes()),
-            generation_ciphertext: protect_generation(&key, generation.as_str().as_bytes()),
+            generation_nonce,
+            generation_ciphertext: protect_generation(
+                &key,
+                &generation_nonce,
+                generation.as_str().as_bytes(),
+            ),
             arm: EvidenceArmV1::from_branch(hit.branch),
             contribution,
             graph_origin,
@@ -474,7 +481,12 @@ pub(crate) fn resolve(
     {
         return Err(EvidenceErrorV1::unavailable().into());
     }
-    let generation = resolve_generation(connection, &key, &payload.generation_ciphertext)?;
+    let generation = resolve_generation(
+        connection,
+        &key,
+        &payload.generation_nonce,
+        &payload.generation_ciphertext,
+    )?;
     let (graph_origin, graph_provenance) =
         match (&payload.graph_origin, payload.graph_edge_commitment) {
             (None, None) if payload.arm != EvidenceArmV1::GraphArm => (None, None),
@@ -914,9 +926,10 @@ fn source_revision_is_eligible(
 fn resolve_generation(
     connection: &Connection,
     key: &[u8],
+    nonce: &[u8; 16],
     ciphertext: &[u8],
 ) -> Result<ProjectionGenerationId, EngineError> {
-    let plaintext = protect_generation(key, ciphertext);
+    let plaintext = protect_generation(key, nonce, ciphertext);
     let generation = String::from_utf8(plaintext).map_err(|_| EvidenceErrorV1::unavailable())?;
     let generation = ProjectionGenerationId::new(generation)
         .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
@@ -934,10 +947,17 @@ fn resolve_generation(
     Ok(generation)
 }
 
-fn protect_generation(key: &[u8], value: &[u8]) -> Vec<u8> {
-    let first = frozen_read::hmac_sha256(key, GENERATION_DOMAIN, b"selector");
-    let second = frozen_read::hmac_sha256(key, GENERATION_TAIL_DOMAIN, b"selector");
+fn protect_generation(key: &[u8], nonce: &[u8; 16], value: &[u8]) -> Vec<u8> {
+    let first = frozen_read::hmac_sha256(key, GENERATION_DOMAIN, nonce);
+    let second = frozen_read::hmac_sha256(key, GENERATION_TAIL_DOMAIN, nonce);
     value.iter().zip(first.iter().chain(second.iter())).map(|(value, mask)| value ^ mask).collect()
+}
+
+fn random_nonce(connection: &Connection) -> Result<[u8; 16], EngineError> {
+    let bytes: Vec<u8> = connection
+        .query_row("SELECT randomblob(16)", [], |row| row.get(0))
+        .map_err(|_| EngineError::Storage)?;
+    bytes.try_into().map_err(|_| EngineError::Storage)
 }
 
 fn validate_full_provenance(
@@ -1079,6 +1099,7 @@ fn encode_payload(payload: &Payload) -> Vec<u8> {
     ] {
         bytes.extend_from_slice(&commitment);
     }
+    bytes.extend_from_slice(&payload.generation_nonce);
     frozen_read::encode_u32(
         &mut bytes,
         u32::try_from(payload.generation_ciphertext.len())
@@ -1157,6 +1178,7 @@ fn decode_payload(bytes: &[u8]) -> Result<Payload, EngineError> {
     let source_commitment = cursor.array32()?;
     let locator_commitment = cursor.array32()?;
     let hash_commitment = cursor.array32()?;
+    let generation_nonce = cursor.array16()?;
     let generation_length =
         usize::try_from(cursor.u32()?).map_err(|_| EvidenceErrorV1::unavailable())?;
     if generation_length == 0 || generation_length > 64 {
@@ -1204,6 +1226,7 @@ fn decode_payload(bytes: &[u8]) -> Result<Payload, EngineError> {
         source_commitment,
         locator_commitment,
         hash_commitment,
+        generation_nonce,
         generation_ciphertext,
         arm,
         contribution,
@@ -1275,6 +1298,10 @@ impl PayloadCursor<'_> {
         self.take(32)?.try_into().map_err(|_| EvidenceErrorV1::unavailable().into())
     }
 
+    fn array16(&mut self) -> Result<[u8; 16], EngineError> {
+        self.take(16)?.try_into().map_err(|_| EvidenceErrorV1::unavailable().into())
+    }
+
     fn optional_u32(&mut self) -> Result<Option<u32>, EngineError> {
         match self.u8()? {
             0 => Ok(None),
@@ -1327,8 +1354,10 @@ mod tests {
                 source_commitment: keyed(&key, b"test-source", &seed),
                 locator_commitment: keyed(&key, b"test-locator", &seed),
                 hash_commitment: keyed(&key, b"test-hash", &seed),
+                generation_nonce: seed[..16].try_into().unwrap(),
                 generation_ciphertext: protect_generation(
                     &key,
+                    &seed[..16].try_into().unwrap(),
                     b"pgen1:00000000000000000000000000000000",
                 ),
                 arm: EvidenceArmV1::Text,
@@ -1365,5 +1394,29 @@ mod tests {
             );
             prop_assert!(is_unavailable);
         }
+    }
+
+    #[test]
+    fn generation_selector_resists_cross_token_known_plaintext_reuse() {
+        let key = [0x31; 32];
+        let generation = b"pgen1:00000000000000000000000000000000";
+        let nonce_a = [0x41; 16];
+        let nonce_b = [0x42; 16];
+        let cipher_a = protect_generation(&key, &nonce_a, generation);
+        let cipher_b = protect_generation(&key, &nonce_b, generation);
+        assert_ne!(cipher_a, cipher_b);
+        assert_eq!(protect_generation(&key, &nonce_a, &cipher_a), generation);
+
+        let recovered_mask = cipher_a
+            .iter()
+            .zip(generation.iter())
+            .map(|(cipher, plain)| cipher ^ plain)
+            .collect::<Vec<_>>();
+        let cross_token_guess = cipher_b
+            .iter()
+            .zip(recovered_mask)
+            .map(|(cipher, mask)| cipher ^ mask)
+            .collect::<Vec<_>>();
+        assert_ne!(cross_token_guess, generation);
     }
 }

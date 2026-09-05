@@ -2666,16 +2666,31 @@ impl Engine {
         include_explanation: Option<bool>,
         limit: Option<i64>,
     ) -> Result<EvidenceSearchResultV1> {
+        let rerank_depth = u32::try_from(rerank_depth.unwrap_or(0)).map_err(|_| {
+            engine_error_to_napi(RustEngineError::InvalidArgument {
+                msg: "rerank_depth must be in 0..=4294967295".to_string(),
+            })
+        })?;
+        let pool_n = u32::try_from(pool_n.unwrap_or(0)).map_err(|_| {
+            engine_error_to_napi(RustEngineError::InvalidArgument {
+                msg: "pool_n must be in 0..=4294967295".to_string(),
+            })
+        })?;
+        let limit = u32::try_from(limit.unwrap_or(10)).map_err(|_| {
+            engine_error_to_napi(RustEngineError::InvalidArgument {
+                msg: "limit must be in 0..=4294967295".to_string(),
+            })
+        })?;
         let request = RustEvidenceSearchRequestV1 {
             schema_version: 1,
             query,
             context: frozen_context_to_rust(context)?,
-            rerank_depth: u32::try_from(rerank_depth.unwrap_or(0)).unwrap_or(u32::MAX),
+            rerank_depth,
             use_graph_arm: use_graph_arm.unwrap_or(false),
             alpha: alpha.unwrap_or(0.3),
-            pool_n: u32::try_from(pool_n.unwrap_or(0)).unwrap_or(u32::MAX),
+            pool_n,
             include_explanation: include_explanation.unwrap_or(false),
-            limit: u32::try_from(limit.unwrap_or(10)).unwrap_or(u32::MAX),
+            limit,
         };
         let engine = Arc::clone(&self.inner);
         call_engine(move || engine.search_with_evidence(&request)).await.map(Into::into)

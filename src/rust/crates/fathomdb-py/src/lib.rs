@@ -2615,16 +2615,31 @@ impl PyEngine {
         include_explanation: bool,
         limit: i64,
     ) -> PyResult<PyEvidenceSearchResultV1> {
+        let rerank_depth = u32::try_from(rerank_depth).map_err(|_| {
+            engine_error_to_py(RustEngineError::InvalidArgument {
+                msg: "rerank_depth must be in 0..=4294967295".to_string(),
+            })
+        })?;
+        let pool_n = u32::try_from(pool_n).map_err(|_| {
+            engine_error_to_py(RustEngineError::InvalidArgument {
+                msg: "pool_n must be in 0..=4294967295".to_string(),
+            })
+        })?;
+        let limit = u32::try_from(limit).map_err(|_| {
+            engine_error_to_py(RustEngineError::InvalidArgument {
+                msg: "limit must be in 0..=4294967295".to_string(),
+            })
+        })?;
         let request = RustEvidenceSearchRequestV1 {
             schema_version: 1,
             query: query.to_string(),
             context: context.inner.clone(),
-            rerank_depth: u32::try_from(rerank_depth).unwrap_or(u32::MAX),
+            rerank_depth,
             use_graph_arm,
             alpha,
-            pool_n: u32::try_from(pool_n).unwrap_or(u32::MAX),
+            pool_n,
             include_explanation,
-            limit: u32::try_from(limit).unwrap_or(u32::MAX),
+            limit,
         };
         let engine = Arc::clone(&self.inner);
         call_engine(py, move || engine.search_with_evidence(&request)).map(Into::into)

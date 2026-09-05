@@ -44,8 +44,9 @@ table, lease, retained snapshot, answer verifier, semantic judgment, or
 multi-source provenance. Semantic citation policy remains outside FathomDB.
 
 Retired projection-generation identity is retained and resolvable across
-restart. Its authenticated key-protected selector resolves with a direct
-primary-key probe rather than a retained-history scan. Existing provenance,
+restart. Its outer-HMAC-authenticated selector uses a fresh per-reference
+128-bit nonce and domain-separated HMAC-derived stream protection, then resolves
+with a direct primary-key probe rather than a retained-history scan. Existing provenance,
 frozen-read, dependency, lifecycle, and graph
 mechanisms remain authoritative; this ADR defines their compact retrieval
 composition.

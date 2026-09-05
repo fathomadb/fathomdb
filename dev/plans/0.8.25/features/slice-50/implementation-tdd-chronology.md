@@ -236,3 +236,43 @@ nondisclosing eligibility and lifecycle checks. Authorized corruption returns
 `evidence_corrupt` at `/projectionOrigin/graphOrigin`; subsequent edge
 supersession remains indistinguishable `evidence_unavailable`. The full focused
 suite remains 16/16 green.
+
+## RED 11
+
+Design review of v8 identified that the initial protected selector reused a
+fixed database-wide XOR stream. A new privacy oracle mints the same evidence
+twice and requires distinct references. It failed because the references were
+byte-identical, confirming the known-plaintext cross-token weakness.
+
+## GREEN 11 — design-review FIX-1
+
+Every reference now carries a fresh 128-bit nonce. Two domain-separated
+HMAC-SHA-256 blocks derive a nonce-specific selector stream, and the existing
+outer HMAC authenticates nonce and ciphertext. A focused known-plaintext test
+proves that a mask recovered from one known generation/token cannot decrypt a
+second token. Direct primary-key generation lookup and the no-schema contract
+are preserved.
+
+## RED 12
+
+The dynamic SDK response boundary accepted any native schema version and did
+not exhaustively validate closed unions or numeric encodings before building
+public objects. New Python and TypeScript fixtures require unknown versions,
+locator variants, missing traversal hop counts, non-finite scores, and
+non-canonical dependency generations to fail closed. Python additionally
+requires both ranking controls above `u32::MAX` to reject before FFI.
+
+## GREEN 12 — design-review FIX-1
+
+Python and TypeScript now validate every evidence response schema, closed
+locator/lifecycle/arm/graph union, rank width, finite score, sidecar position,
+and canonical dependency generation before constructing public values. Both
+FFI layers use checked `u32` conversion instead of saturation. Focused SDK
+type/lint checks, TypeScript native tests, and a freshly built and installed
+Python wheel pass.
+
+The real-database Rust fixtures now drain projection work before freezing each
+ordinary test view, eliminating scheduling-dependent generation drift. The
+graph fixture supplies a deterministic test embedder so its edge-body
+projection also reaches readiness rather than suppressing the readiness error.
+Two consecutive serialized 16-test runs pass.

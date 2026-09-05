@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 use std::sync::{Arc, Barrier};
 use std::thread;
 
+use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
     arm_frozen_after_validation_hook_for_test, arm_reader_search_hook_for_test, ArtifactRevisionId,
     CanonicalHash, Engine, EngineError, EvidenceArtifactLifecycleV1, EvidenceErrorReasonV1,
@@ -16,6 +17,30 @@ use fathomdb_engine::{
 use fathomdb_schema::SQLITE_SUFFIX;
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
+
+#[derive(Clone, Debug)]
+struct FixedEmbedder;
+
+impl Embedder for FixedEmbedder {
+    fn identity(&self) -> EmbedderIdentity {
+        EmbedderIdentity::new("slice50-fixed", "v1", 8)
+    }
+
+    fn embed(&self, text: &str) -> Result<Vector, EmbedderError> {
+        let mut vector = vec![0.0; 8];
+        for (index, byte) in text.bytes().enumerate() {
+            vector[index % 8] += f32::from(byte) / 255.0;
+        }
+        if vector.iter().all(|value| *value == 0.0) {
+            vector[0] = 1.0;
+        }
+        Ok(vector)
+    }
+}
+
+fn open_with_fixed_embedder(path: &std::path::Path) -> fathomdb_engine::OpenedEngine {
+    Engine::open_with_embedder_for_test(path, Arc::new(FixedEmbedder)).unwrap()
+}
 
 fn digest(body: &str) -> String {
     Sha256::digest(body.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect()
@@ -123,6 +148,11 @@ fn request(query: &str, context: fathomdb_engine::FrozenReadContextV1) -> Eviden
     }
 }
 
+fn freeze_stable(engine: &Engine, context: &ReadContextV1) -> fathomdb_engine::FrozenReadContextV1 {
+    engine.drain(30_000).unwrap();
+    engine.freeze_read_context(context).unwrap()
+}
+
 #[test]
 fn resolves_exact_utf8_source_span_and_associates_sidecar_by_position() {
     let dir = TempDir::new().unwrap();
@@ -132,7 +162,7 @@ fn resolves_exact_utf8_source_span_and_associates_sidecar_by_position() {
     opened.engine.write(&[canonical(source_body), derived(source_body)]).unwrap();
 
     let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
-    let frozen = opened.engine.freeze_read_context(&context).unwrap();
+    let frozen = freeze_stable(&opened.engine, &context);
     let result = opened.engine.search_with_evidence(&request("needle", frozen.clone())).unwrap();
 
     assert_eq!(result.schema_version, 1);
@@ -172,7 +202,7 @@ fn tamper_and_context_mismatch_share_the_exact_nondisclosure_error() {
     opened.engine.write(&[canonical(source_body), derived(source_body)]).unwrap();
 
     let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
-    let frozen = opened.engine.freeze_read_context(&context).unwrap();
+    let frozen = freeze_stable(&opened.engine, &context);
     let result = opened.engine.search_with_evidence(&request("needle", frozen.clone())).unwrap();
     let reference = &result.evidence[0].evidence_ref;
 
@@ -183,10 +213,10 @@ fn tamper_and_context_mismatch_share_the_exact_nondisclosure_error() {
 
     let mut different_filter = SearchFilter::default();
     different_filter.kind = Some("claim".into());
-    let different = opened
-        .engine
-        .freeze_read_context(&ReadContextV1::new(ReadView::default(), different_filter).unwrap())
-        .unwrap();
+    let different = freeze_stable(
+        &opened.engine,
+        &ReadContextV1::new(ReadView::default(), different_filter).unwrap(),
+    );
 
     let errors = [tampered, reference.clone()]
         .into_iter()
@@ -221,12 +251,10 @@ fn visible_reference_payload_uses_keyed_not_dictionary_matchable_commitments() {
     let source_body = "AéB canonical source";
     let opened = Engine::open(&path).unwrap();
     opened.engine.write(&[canonical(source_body), derived(source_body)]).unwrap();
-    let frozen = opened
-        .engine
-        .freeze_read_context(
-            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
-        )
-        .unwrap();
+    let frozen = freeze_stable(
+        &opened.engine,
+        &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+    );
 
     let result = opened.engine.search_with_evidence(&request("needle", frozen.clone())).unwrap();
     let second = opened.engine.search_with_evidence(&request("needle", frozen)).unwrap();
@@ -271,7 +299,7 @@ fn visible_reference_payload_uses_keyed_not_dictionary_matchable_commitments() {
 fn graph_arm_resolves_node_body_source_and_separate_edge_origin() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("graph{SQLITE_SUFFIX}"));
-    let opened = Engine::open(&path).unwrap();
+    let opened = open_with_fixed_embedder(&path);
     let node_source = "node source body";
     let edge_source = "edge source body";
     opened
@@ -331,12 +359,10 @@ fn graph_arm_resolves_node_body_source_and_separate_edge_origin() {
             }),
         ])
         .unwrap();
-    let frozen = opened
-        .engine
-        .freeze_read_context(
-            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
-        )
-        .unwrap();
+    let frozen = freeze_stable(
+        &opened.engine,
+        &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+    );
     let mut evidence_request = request("graphneedle", frozen.clone());
     evidence_request.use_graph_arm = true;
     let result = opened.engine.search_with_evidence(&evidence_request).unwrap();
@@ -375,13 +401,11 @@ fn graph_arm_resolves_node_body_source_and_separate_edge_origin() {
     )
     .unwrap();
     drop(raw);
-    let reopened = Engine::open(&path).unwrap();
-    let equivalent = reopened
-        .engine
-        .freeze_read_context(
-            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
-        )
-        .unwrap();
+    let reopened = open_with_fixed_embedder(&path);
+    let equivalent = freeze_stable(
+        &reopened.engine,
+        &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+    );
     let error = reopened
         .engine
         .resolve_evidence(&EvidenceResolveRequestV1 {
@@ -411,13 +435,11 @@ fn graph_arm_resolves_node_body_source_and_separate_edge_origin() {
     raw.execute("UPDATE canonical_edges SET superseded_at=1 WHERE logical_id='edge-logical'", [])
         .unwrap();
     drop(raw);
-    let reopened = Engine::open(&path).unwrap();
-    let equivalent = reopened
-        .engine
-        .freeze_read_context(
-            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
-        )
-        .unwrap();
+    let reopened = open_with_fixed_embedder(&path);
+    let equivalent = freeze_stable(
+        &reopened.engine,
+        &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+    );
     let error = reopened
         .engine
         .resolve_evidence(&EvidenceResolveRequestV1 {
@@ -476,10 +498,8 @@ fn source_bytes_must_match_access_bearing_attribute_terms() {
         .unwrap();
     let mut filter = SearchFilter::default();
     filter.attributes = vec![("owner".into(), "alice".into())];
-    let frozen = opened
-        .engine
-        .freeze_read_context(&ReadContextV1::new(ReadView::default(), filter).unwrap())
-        .unwrap();
+    let frozen =
+        freeze_stable(&opened.engine, &ReadContextV1::new(ReadView::default(), filter).unwrap());
     let result = opened.engine.search_with_evidence(&request("needle", frozen.clone())).unwrap();
     let error = opened
         .engine
@@ -527,7 +547,7 @@ fn equivalent_context_survives_restart_and_retired_projection_generation() {
         .unwrap();
     let view = ReadView { valid_as_of: Some(1_700_000_000), ..ReadView::default() };
     let context = ReadContextV1::new(view, SearchFilter::default()).unwrap();
-    let frozen = opened.engine.freeze_read_context(&context).unwrap();
+    let frozen = freeze_stable(&opened.engine, &context);
     let evidence =
         opened.engine.search_with_evidence(&request("restartneedle", frozen)).unwrap().evidence[0]
             .evidence_ref
@@ -548,7 +568,7 @@ fn equivalent_context_survives_restart_and_retired_projection_generation() {
             &[],
         )
         .unwrap();
-    let equivalent = reopened.engine.freeze_read_context(&context).unwrap();
+    let equivalent = freeze_stable(&reopened.engine, &context);
     let resolved = reopened
         .engine
         .resolve_evidence(&EvidenceResolveRequestV1 {
@@ -585,7 +605,7 @@ fn superseded_artifact_reference_is_nondisclosing() {
         .unwrap();
     let view = ReadView { valid_as_of: Some(1_700_000_000), ..ReadView::default() };
     let context = ReadContextV1::new(view, SearchFilter::default()).unwrap();
-    let first = opened.engine.freeze_read_context(&context).unwrap();
+    let first = freeze_stable(&opened.engine, &context);
     let evidence =
         opened.engine.search_with_evidence(&request("supersessionneedle", first)).unwrap().evidence
             [0]
@@ -603,7 +623,7 @@ fn superseded_artifact_reference_is_nondisclosing() {
             "supersessionneedle new",
         )])
         .unwrap();
-    let current = opened.engine.freeze_read_context(&context).unwrap();
+    let current = freeze_stable(&opened.engine, &context);
     let error = opened
         .engine
         .resolve_evidence(&EvidenceResolveRequestV1 {
@@ -648,12 +668,10 @@ fn resolved_derived_evidence_includes_its_registered_dependency() {
             SourceDependencyRegistrationV1::new("dep-1", "dep-source-r1", "dep-claim-r1").unwrap(),
         )
         .unwrap();
-    let frozen = opened
-        .engine
-        .freeze_read_context(
-            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
-        )
-        .unwrap();
+    let frozen = freeze_stable(
+        &opened.engine,
+        &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+    );
     let result =
         opened.engine.search_with_evidence(&request("dependencyneedle", frozen.clone())).unwrap();
     let resolved = opened
@@ -710,7 +728,7 @@ fn relaxed_validity_view_remains_authorized_during_resolution() {
         SearchFilter::default(),
     )
     .unwrap();
-    let frozen = opened.engine.freeze_read_context(&context).unwrap();
+    let frozen = freeze_stable(&opened.engine, &context);
     let result = opened
         .engine
         .search_with_evidence(&request("futureevidenceneedle", frozen.clone()))
@@ -772,7 +790,7 @@ fn incomplete_detail_is_disclosed_only_after_current_source_authorization() {
     let mut filter = SearchFilter::default();
     filter.attributes = vec![("owner".into(), "alice".into())];
     let context = ReadContextV1::new(ReadView::default(), filter).unwrap();
-    let frozen = opened.engine.freeze_read_context(&context).unwrap();
+    let frozen = freeze_stable(&opened.engine, &context);
     let evidence =
         opened.engine.search_with_evidence(&request("precedenceneedle", frozen)).unwrap().evidence
             [0]
@@ -795,7 +813,7 @@ fn incomplete_detail_is_disclosed_only_after_current_source_authorization() {
     drop(raw);
 
     let reopened = Engine::open(&path).unwrap();
-    let hidden_context = reopened.engine.freeze_read_context(&context).unwrap();
+    let hidden_context = freeze_stable(&reopened.engine, &context);
     let hidden = reopened
         .engine
         .resolve_evidence(&EvidenceResolveRequestV1 {
@@ -820,7 +838,7 @@ fn incomplete_detail_is_disclosed_only_after_current_source_authorization() {
     .unwrap();
     drop(raw);
     let reopened = Engine::open(&path).unwrap();
-    let visible_context = reopened.engine.freeze_read_context(&context).unwrap();
+    let visible_context = freeze_stable(&reopened.engine, &context);
     let visible = reopened
         .engine
         .resolve_evidence(&EvidenceResolveRequestV1 {
@@ -842,12 +860,10 @@ fn evidence_search_collapses_frozen_context_failure_to_nondisclosure() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("search-context-error{SQLITE_SUFFIX}"));
     let opened = Engine::open(&path).unwrap();
-    let mut frozen = opened
-        .engine
-        .freeze_read_context(
-            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
-        )
-        .unwrap();
+    let mut frozen = freeze_stable(
+        &opened.engine,
+        &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+    );
     frozen.token.push('0');
 
     let error = opened.engine.search_with_evidence(&request("needle", frozen)).unwrap_err();
@@ -865,12 +881,10 @@ fn unsupported_resolve_schema_precedes_context_authentication() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("resolve-schema-precedence{SQLITE_SUFFIX}"));
     let opened = Engine::open(&path).unwrap();
-    let mut frozen = opened
-        .engine
-        .freeze_read_context(
-            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
-        )
-        .unwrap();
+    let mut frozen = freeze_stable(
+        &opened.engine,
+        &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+    );
     frozen.token.push('0');
 
     let error = opened
@@ -918,7 +932,7 @@ fn authorized_source_identity_corruption_is_typed_evidence_corrupt() {
         ])
         .unwrap();
     let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
-    let frozen = opened.engine.freeze_read_context(&context).unwrap();
+    let frozen = freeze_stable(&opened.engine, &context);
     let evidence = opened
         .engine
         .search_with_evidence(&request("chaincorruptionneedle", frozen))
@@ -938,7 +952,7 @@ fn authorized_source_identity_corruption_is_typed_evidence_corrupt() {
     drop(raw);
 
     let reopened = Engine::open(&path).unwrap();
-    let equivalent = reopened.engine.freeze_read_context(&context).unwrap();
+    let equivalent = freeze_stable(&reopened.engine, &context);
     let error = reopened
         .engine
         .resolve_evidence(&EvidenceResolveRequestV1 {
@@ -995,7 +1009,7 @@ fn authorized_dependency_corruption_is_typed_evidence_corrupt() {
         )
         .unwrap();
     let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
-    let frozen = opened.engine.freeze_read_context(&context).unwrap();
+    let frozen = freeze_stable(&opened.engine, &context);
     let evidence = opened
         .engine
         .search_with_evidence(&request("dependencycorruptionneedle", frozen))
@@ -1016,7 +1030,7 @@ fn authorized_dependency_corruption_is_typed_evidence_corrupt() {
     drop(raw);
 
     let reopened = Engine::open(&path).unwrap();
-    let equivalent = reopened.engine.freeze_read_context(&context).unwrap();
+    let equivalent = freeze_stable(&reopened.engine, &context);
     let error = reopened
         .engine
         .resolve_evidence(&EvidenceResolveRequestV1 {
@@ -1064,7 +1078,7 @@ fn lifecycle_deletion_and_source_erasure_revoke_evidence() {
             ])
             .unwrap();
         let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
-        let frozen = opened.engine.freeze_read_context(&context).unwrap();
+        let frozen = freeze_stable(&opened.engine, &context);
         let evidence = opened
             .engine
             .search_with_evidence(&request("revocationneedle", frozen))
@@ -1077,7 +1091,7 @@ fn lifecycle_deletion_and_source_erasure_revoke_evidence() {
         } else {
             opened.engine.transition("revocation-source", LifecycleState::Deleted, None).unwrap();
         }
-        let equivalent = opened.engine.freeze_read_context(&context).unwrap();
+        let equivalent = freeze_stable(&opened.engine, &context);
         let error = opened
             .engine
             .resolve_evidence(&EvidenceResolveRequestV1 {
@@ -1104,7 +1118,7 @@ fn evidence_search_races_are_snapshot_atomic_or_wholly_refused() {
     engine.write(&[canonical("race needle")]).unwrap();
     let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
 
-    let frozen = engine.freeze_read_context(&context).unwrap();
+    let frozen = freeze_stable(&engine, &context);
     let ready = Arc::new(Barrier::new(2));
     let release = Arc::new(Barrier::new(2));
     let hook_ready = Arc::clone(&ready);
@@ -1134,7 +1148,7 @@ fn evidence_search_races_are_snapshot_atomic_or_wholly_refused() {
             if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
     ));
 
-    let frozen = engine.freeze_read_context(&context).unwrap();
+    let frozen = freeze_stable(&engine, &context);
     let ready = Arc::new(Barrier::new(2));
     let release = Arc::new(Barrier::new(2));
     let hook_ready = Arc::clone(&ready);

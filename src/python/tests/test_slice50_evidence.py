@@ -3,11 +3,62 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Callable
 from types import SimpleNamespace
 
 import fathomdb
 import pytest  # pyright: ignore[reportMissingImports]
 from fathomdb.engine import _map_native_evidence_search, _map_native_resolved_evidence
+
+
+def _native_resolved_fixture() -> SimpleNamespace:
+    return SimpleNamespace(
+        schema_version=1,
+        logical_id="claim",
+        artifact_revision_id="claim-r1",
+        source_id="source",
+        source_version_id="source-v1",
+        source_revision_id="source-r1",
+        locator_kind="whole_body",
+        locator_start_inclusive=None,
+        locator_end_exclusive=None,
+        canonical_source_body="source bytes",
+        evidence_text="source bytes",
+        canonical_source_hash="00",
+        effective_valid_at=1,
+        artifact_lifecycle_kind="node",
+        artifact_lifecycle_state="active",
+        artifact_superseded=False,
+        artifact_valid_at_effective=None,
+        source_lifecycle_state="active",
+        projection_origin=SimpleNamespace(
+            schema_version=1,
+            artifact_class="node",
+            representative_arm="text",
+            projection_generation_id="generation",
+            graph_origin_kind=None,
+            graph_edge_artifact_revision_id=None,
+            graph_hop_count=None,
+        ),
+        retrieval_contribution=SimpleNamespace(
+            schema_version=1,
+            vector_rank=None,
+            text_rank=0,
+            graph_rank=None,
+            fused_score=1.0,
+            ce_score=None,
+            blended_score=1.0,
+            importance=None,
+            confidence=None,
+        ),
+        dependency=SimpleNamespace(
+            schema_version=1,
+            dependency_id="dependency",
+            source_revision_id="source-r1",
+            derived_revision_id="claim-r1",
+            registered_dependency_generation="1",
+        ),
+    )
 
 
 def test_search_and_resolve_exact_source_evidence(db_path: str) -> None:
@@ -129,3 +180,28 @@ def test_unknown_native_evidence_versions_fail_closed() -> None:
             mapper(native)
         assert raised.value.reason == "unsupported_schema_version"
         assert raised.value.field_path == "/schemaVersion"
+
+
+@pytest.mark.parametrize(
+    ("mutate", "field_path"),
+    [
+        (lambda value: setattr(value, "locator_kind", "words"), "/locator/kind"),
+        (
+            lambda value: setattr(value.retrieval_contribution, "fused_score", float("nan")),
+            "/retrievalContribution/fusedScore",
+        ),
+        (
+            lambda value: setattr(value.dependency, "registered_dependency_generation", "01"),
+            "/dependency/registeredDependencyGeneration",
+        ),
+    ],
+)
+def test_unknown_unions_and_invalid_numerics_fail_closed(
+    mutate: Callable[[SimpleNamespace], None], field_path: str
+) -> None:
+    value = _native_resolved_fixture()
+    mutate(value)
+    with pytest.raises(fathomdb.EvidenceError) as raised:
+        _map_native_resolved_evidence(value)
+    assert raised.value.reason == "evidence_corrupt"
+    assert raised.value.field_path == field_path

@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Sequence
-from typing import Any, Literal, cast
+from typing import Any, Literal, Never, cast
 
 from fathomdb._fathomdb import ConsolidateReceipt
 from fathomdb._fathomdb import Engine as _NativeEngine
@@ -177,7 +177,59 @@ def _map_native_node(node: Any) -> NodeRecord:
     )
 
 
+def _evidence_response_error(reason: str, path: str) -> Never:
+    raise EvidenceError(f"{reason} at {path}", reason=reason, field_path=path)
+
+
+def _require_evidence_schema(value: object, path: str) -> None:
+    if value != 1:
+        _evidence_response_error("unsupported_schema_version", path)
+
+
+def _require_evidence_variant(
+    value: object, allowed: set[str], path: str
+) -> None:
+    if not isinstance(value, str) or value not in allowed:
+        _evidence_response_error("evidence_corrupt", path)
+
+
+def _require_u32(value: object, path: str, *, optional: bool = True) -> None:
+    if optional and value is None:
+        return
+    if (
+        not isinstance(value, int)
+        or isinstance(value, bool)
+        or not 0 <= value <= 2**32 - 1
+    ):
+        _evidence_response_error("evidence_corrupt", path)
+
+
+def _require_finite(value: object, path: str, *, optional: bool = True) -> None:
+    if optional and value is None:
+        return
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        _evidence_response_error("evidence_corrupt", path)
+    if not math.isfinite(value):
+        _evidence_response_error("evidence_corrupt", path)
+
+
 def _map_native_evidence_search(result: Any) -> EvidenceSearchResultV1:
+    _require_evidence_schema(result.schema_version, "/schemaVersion")
+    if len(result.evidence) != len(result.search_result.results):
+        _evidence_response_error("evidence_corrupt", "/evidence")
+    for index, item in enumerate(result.evidence):
+        _require_evidence_schema(item.schema_version, f"/evidence/{index}/schemaVersion")
+        _require_u32(item.result_index, f"/evidence/{index}/resultIndex", optional=False)
+        if item.result_index != index:
+            _evidence_response_error("evidence_corrupt", f"/evidence/{index}/resultIndex")
+    for index, hit in enumerate(result.search_result.results):
+        _require_evidence_variant(
+            hit.branch,
+            {"vector", "text", "text_edge", "graph_arm"},
+            f"/searchResult/results/{index}/branch",
+        )
+        _require_finite(hit.score, f"/searchResult/results/{index}/score", optional=False)
+        _require_finite(hit.ce_score, f"/searchResult/results/{index}/ceScore")
     return EvidenceSearchResultV1(
         schema_version=result.schema_version,
         search_result=_map_native_search_result(result.search_result),
@@ -194,43 +246,114 @@ def _map_native_evidence_search(result: Any) -> EvidenceSearchResultV1:
 
 
 def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
-    def require_variant(candidate: str | None, allowed: set[str], path: str) -> None:
-        if candidate not in allowed:
-            raise EvidenceError(
-                f"evidence_corrupt at {path}",
-                reason="evidence_corrupt",
-                field_path=path,
-            )
+    _require_evidence_schema(value.schema_version, "/schemaVersion")
+    _require_evidence_schema(value.projection_origin.schema_version, "/projectionOrigin/schemaVersion")
+    contribution = value.retrieval_contribution
+    _require_evidence_schema(contribution.schema_version, "/retrievalContribution/schemaVersion")
+    dependency = value.dependency
+    if dependency is not None:
+        _require_evidence_schema(dependency.schema_version, "/dependency/schemaVersion")
 
-    require_variant(value.locator_kind, {"whole_body", "utf8_bytes"}, "/locator/kind")
-    require_variant(value.artifact_lifecycle_kind, {"node", "edge"}, "/artifactLifecycle/kind")
-    if value.artifact_lifecycle_state is not None:
-        require_variant(
+    _require_evidence_variant(value.locator_kind, {"whole_body", "utf8_bytes"}, "/locator/kind")
+    if value.locator_kind == "whole_body":
+        if value.locator_start_inclusive is not None or value.locator_end_exclusive is not None:
+            _evidence_response_error("evidence_corrupt", "/locator")
+    else:
+        for field, candidate in [
+            ("/locator/startInclusive", value.locator_start_inclusive),
+            ("/locator/endExclusive", value.locator_end_exclusive),
+        ]:
+            if not isinstance(candidate, int) or isinstance(candidate, bool) or candidate < 0:
+                _evidence_response_error("evidence_corrupt", field)
+        if value.locator_start_inclusive > value.locator_end_exclusive:
+            _evidence_response_error("evidence_corrupt", "/locator")
+
+    _require_evidence_variant(
+        value.artifact_lifecycle_kind, {"node", "edge"}, "/artifactLifecycle/kind"
+    )
+    if value.artifact_lifecycle_kind == "node":
+        _require_evidence_variant(
             value.artifact_lifecycle_state,
             {"pending", "active", "deleted", "purged"},
             "/artifactLifecycle/state",
         )
-    require_variant(
+        if value.artifact_valid_at_effective is not None:
+            _evidence_response_error("evidence_corrupt", "/artifactLifecycle/validAtEffective")
+    else:
+        if value.artifact_lifecycle_state is not None:
+            _evidence_response_error("evidence_corrupt", "/artifactLifecycle/state")
+        if not isinstance(value.artifact_valid_at_effective, bool):
+            _evidence_response_error("evidence_corrupt", "/artifactLifecycle/validAtEffective")
+    _require_evidence_variant(
         value.source_lifecycle_state,
         {"pending", "active", "deleted", "purged"},
         "/sourceLifecycleState",
     )
-    require_variant(
+    _require_evidence_variant(
         value.projection_origin.artifact_class,
         {"node", "edge"},
         "/projectionOrigin/artifactClass",
     )
-    require_variant(
+    _require_evidence_variant(
         value.projection_origin.representative_arm,
         {"vector", "text", "text_edge", "graph_arm"},
         "/projectionOrigin/representativeArm",
     )
-    if value.projection_origin.graph_origin_kind is not None:
-        require_variant(
-            value.projection_origin.graph_origin_kind,
-            {"entity_seed", "edge_seed", "traversal"},
-            "/projectionOrigin/graphOrigin/kind",
+    graph_kind = value.projection_origin.graph_origin_kind
+    if value.projection_origin.representative_arm == "graph_arm":
+        if graph_kind is None:
+            _evidence_response_error("evidence_corrupt", "/projectionOrigin/graphOrigin")
+    elif graph_kind is not None:
+        _evidence_response_error("evidence_corrupt", "/projectionOrigin/graphOrigin")
+    if graph_kind is not None:
+        _require_evidence_variant(
+            graph_kind, {"entity_seed", "edge_seed", "traversal"},
+            "/projectionOrigin/graphOrigin/kind"
         )
+        edge_revision = value.projection_origin.graph_edge_artifact_revision_id
+        hop_count = value.projection_origin.graph_hop_count
+        if graph_kind == "entity_seed":
+            if edge_revision is not None or hop_count is not None:
+                _evidence_response_error("evidence_corrupt", "/projectionOrigin/graphOrigin")
+        else:
+            if not edge_revision:
+                _evidence_response_error(
+                    "evidence_corrupt", "/projectionOrigin/graphOrigin/edgeArtifactRevisionId"
+                )
+            if graph_kind == "edge_seed" and hop_count is not None:
+                _evidence_response_error(
+                    "evidence_corrupt", "/projectionOrigin/graphOrigin/hopCount"
+                )
+            if graph_kind == "traversal":
+                _require_u32(
+                    hop_count, "/projectionOrigin/graphOrigin/hopCount", optional=False
+                )
+    for name, wire_name in [
+        ("vector_rank", "vectorRank"),
+        ("text_rank", "textRank"),
+        ("graph_rank", "graphRank"),
+    ]:
+        _require_u32(getattr(contribution, name), f"/retrievalContribution/{wire_name}")
+    for name, wire_name in [
+        ("fused_score", "fusedScore"),
+        ("ce_score", "ceScore"),
+        ("blended_score", "blendedScore"),
+        ("importance", "importance"),
+        ("confidence", "confidence"),
+    ]:
+        _require_finite(getattr(contribution, name), f"/retrievalContribution/{wire_name}")
+    if dependency is not None:
+        generation_text = dependency.registered_dependency_generation
+        if (
+            not isinstance(generation_text, str)
+            or not generation_text.isascii()
+            or not generation_text.isdecimal()
+            or (generation_text != "0" and generation_text.startswith("0"))
+            or int(generation_text) > 2**64 - 1
+        ):
+            _evidence_response_error(
+                "evidence_corrupt", "/dependency/registeredDependencyGeneration"
+            )
     locator: Any = {"kind": value.locator_kind}
     if value.locator_kind == "utf8_bytes":
         locator.update(
@@ -248,8 +371,6 @@ def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
             hop_count=value.projection_origin.graph_hop_count,
         )
     )
-    contribution = value.retrieval_contribution
-    dependency = value.dependency
     return ResolvedEvidenceV1(
         schema_version=value.schema_version,
         logical_id=value.logical_id,
@@ -1128,6 +1249,10 @@ class Engine:
             raise TypeError("rerank_depth must be a non-negative integer")
         if request.rerank_depth < 0:
             raise ValueError(f"rerank_depth must be >= 0, got {request.rerank_depth!r}")
+        if request.rerank_depth > 2**32 - 1:
+            raise ValueError(
+                f"rerank_depth must be <= 4294967295, got {request.rerank_depth!r}"
+            )
         if not isinstance(request.use_graph_arm, bool):
             raise TypeError("use_graph_arm must be a bool")
         if isinstance(request.alpha, bool) or not isinstance(
@@ -1140,6 +1265,8 @@ class Engine:
             raise TypeError("pool_n must be a non-negative integer")
         if request.pool_n < 0:
             raise ValueError(f"pool_n must be >= 0, got {request.pool_n!r}")
+        if request.pool_n > 2**32 - 1:
+            raise ValueError(f"pool_n must be <= 4294967295, got {request.pool_n!r}")
         if not isinstance(request.include_explanation, bool):
             raise TypeError("include_explanation must be a bool")
         native_context = _to_native_frozen_context(request.context)

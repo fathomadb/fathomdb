@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 50 — compact source-complete evidence design
 status: REVIEW_PENDING
-design_version: 8
+design_version: 9
 target_release: 0.8.25
 depends_on: 45
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -179,6 +179,22 @@ ignored; unknown response variants reject. Unsupported request schemas use
 payload variants intentionally collapse to `evidence_unavailable` at
 `/evidenceRef` so the reference cannot become a disclosure oracle.
 
+Dynamic SDK response decoding is strict in this order: top-level schema,
+nested sidecar/projection/contribution/dependency schemas, closed
+discriminants, union payload coherence, unsigned integer bounds, finite scores,
+and positional sidecar agreement. Unknown schemas return
+`unsupported_schema_version` at their exact `/.../schemaVersion`; every other
+native response-contract violation returns `evidence_corrupt` at the exact
+camel-case response path. A whole-body locator forbids offsets; a UTF-8 locator
+requires ordered canonical `u64` offsets. Node lifecycle requires a known state
+and forbids `validAtEffective`; edge lifecycle requires `validAtEffective` and
+forbids state. Graph origin exists exactly for `graph_arm`: `entity_seed` has
+neither edge nor hop, `edge_seed` has an edge and no hop, and `traversal` has an
+edge plus a bounded `u32` hop. All ranks/hops are `u32`; all contribution values
+are finite; dependency generation is canonical `u64`. Validation occurs before
+constructing the public object, so a newer native binary cannot be silently
+downcast by an older facade.
+
 `Engine::search_with_evidence(&EvidenceSearchRequestV1)` and
 `Engine::resolve_evidence(&EvidenceResolveRequestV1)` are the only new Engine
 operations. The facade re-exports all public evidence types. High-level Python
@@ -208,8 +224,9 @@ The payload contains only:
 3. artifact class plus internal numeric `write_cursor`;
 4. domain-separated keyed commitments to artifact revision, source revision,
    locator columns, and canonical source hash;
-5. an authenticated, key-protected projection-generation selector that permits
-   a direct primary-key probe without exposing the generation identity;
+5. a fresh 128-bit nonce plus authenticated, nonce-bound encrypted
+   projection-generation selector that permits a direct primary-key probe
+   without exposing the generation identity;
 6. closed retrieval-arm discriminant; and
 7. fixed nullable vector/text/graph ranks plus finite fused, CE, blended,
    importance, and confidence values copied from `PerHitExplain`; for graph
@@ -225,6 +242,13 @@ their keyed commitments. Each commitment is
 different fixed domain for database, context, artifact revision, source
 revision, locator, source hash, protected projection generation, and graph
 edge revision. No unkeyed digest of a private value appears in the reference.
+The generation selector is encrypted by XOR with two domain-separated
+HMAC-SHA-256 stream blocks derived from the database-local key and a fresh
+SQLite `randomblob(16)` nonce. The nonce is visible and the ciphertext is
+covered by the reference's outer HMAC. A nonce is minted independently per
+reference, so knowledge of a current public generation ID and one token cannot
+recover another token's stream or retired generation ID. Tests include this
+known-plaintext cross-token case in addition to plaintext/dictionary scans.
 Fixed contribution fields eliminate truncation and the prior
 arbitrary 16-component ambiguity. Nonfinite scores, ranks above `u32`, unknown
 arms, oversized payloads, or noncanonical option encodings fail the entire
@@ -258,8 +282,8 @@ verifiable without the database-local key.
    same transaction. Never infer it from the hit's legacy `source_id`.
 4. Validate that the hit, explanation entry, revision row, source link,
    projection generation, graph origin, and dependency agree. Decrypt the
-   authenticated generation selector and perform one primary-key lookup; never
-   scan retained generation history. The existing
+   authenticated nonce-bound generation selector and perform one primary-key
+   lookup; never scan retained generation history. The existing
    GraphArm `SearchHit.source_id` remains the traversed edge's source for
    compatibility and may differ from the node body source returned by evidence;
    that difference is expected and is not an agreement condition. Build the

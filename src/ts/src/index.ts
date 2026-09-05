@@ -36,6 +36,10 @@ import {
 } from "./errors.js";
 import type { NodeRecord, Predicate, ReadView } from "./read.js";
 import {
+  validateNativeEvidenceSearch,
+  validateNativeResolvedEvidence,
+} from "./evidence-validation.js";
+import {
   validateFfiString,
   validateFfiTree,
   sanitizeActuationFfiTree,
@@ -1029,11 +1033,12 @@ function mapNativeSearchResult(r: NativeSearchResult): SearchResult {
 }
 
 function mapNativeEvidenceSearch(r: NativeEvidenceSearchResultV1): EvidenceSearchResultV1 {
+  validateNativeEvidenceSearch(r);
   return {
-    schemaVersion: 1,
+    schemaVersion: r.schemaVersion as 1,
     searchResult: mapNativeSearchResult(r.searchResult),
     evidence: r.evidence.map((item) => ({
-      schemaVersion: 1,
+      schemaVersion: item.schemaVersion as 1,
       resultIndex: item.resultIndex,
       artifactRevisionId: item.artifactRevisionId,
       evidenceRef: item.evidenceRef,
@@ -1041,53 +1046,9 @@ function mapNativeEvidenceSearch(r: NativeEvidenceSearchResultV1): EvidenceSearc
   };
 }
 
-function requireEvidenceVariant(
-  value: string | null | undefined,
-  allowed: readonly string[],
-  fieldPath: string,
-): void {
-  if (value === null || value === undefined || !allowed.includes(value)) {
-    throw new EvidenceError(
-      `evidence_corrupt at ${fieldPath}`,
-      "evidence_corrupt",
-      fieldPath,
-    );
-  }
-}
-
 function mapNativeResolvedEvidence(r: NativeResolvedEvidenceV1): ResolvedEvidenceV1 {
+  validateNativeResolvedEvidence(r);
   const graph = r.projectionOrigin.graphOrigin;
-  requireEvidenceVariant(r.locator.kind, ["whole_body", "utf8_bytes"], "/locator/kind");
-  requireEvidenceVariant(r.artifactLifecycle.kind, ["node", "edge"], "/artifactLifecycle/kind");
-  if (r.artifactLifecycle.state !== null && r.artifactLifecycle.state !== undefined) {
-    requireEvidenceVariant(
-      r.artifactLifecycle.state,
-      ["pending", "active", "deleted", "purged"],
-      "/artifactLifecycle/state",
-    );
-  }
-  requireEvidenceVariant(
-    r.sourceLifecycleState,
-    ["pending", "active", "deleted", "purged"],
-    "/sourceLifecycleState",
-  );
-  requireEvidenceVariant(
-    r.projectionOrigin.artifactClass,
-    ["node", "edge"],
-    "/projectionOrigin/artifactClass",
-  );
-  requireEvidenceVariant(
-    r.projectionOrigin.representativeArm,
-    ["vector", "text", "text_edge", "graph_arm"],
-    "/projectionOrigin/representativeArm",
-  );
-  if (graph) {
-    requireEvidenceVariant(
-      graph.kind,
-      ["entity_seed", "edge_seed", "traversal"],
-      "/projectionOrigin/graphOrigin/kind",
-    );
-  }
   const locator: ResolvedEvidenceV1["locator"] = r.locator.kind === "utf8_bytes"
     ? {
         kind: "utf8_bytes",
@@ -1096,7 +1057,7 @@ function mapNativeResolvedEvidence(r: NativeResolvedEvidenceV1): ResolvedEvidenc
       }
     : { kind: "whole_body" };
   return {
-    schemaVersion: 1,
+    schemaVersion: r.schemaVersion as 1,
     logicalId: r.logicalId ?? null,
     artifactRevisionId: r.artifactRevisionId,
     sourceId: r.sourceId,
@@ -1115,7 +1076,7 @@ function mapNativeResolvedEvidence(r: NativeResolvedEvidenceV1): ResolvedEvidenc
     },
     sourceLifecycleState: r.sourceLifecycleState as LifecycleState,
     projectionOrigin: {
-      schemaVersion: 1,
+      schemaVersion: r.projectionOrigin.schemaVersion as 1,
       artifactClass: r.projectionOrigin.artifactClass as "node" | "edge",
       representativeArm: r.projectionOrigin.representativeArm as SoftFallbackBranch,
       projectionGenerationId: r.projectionOrigin.projectionGenerationId,
@@ -1128,7 +1089,7 @@ function mapNativeResolvedEvidence(r: NativeResolvedEvidenceV1): ResolvedEvidenc
         : null,
     },
     retrievalContribution: {
-      schemaVersion: 1,
+      schemaVersion: r.retrievalContribution.schemaVersion as 1,
       vectorRank: r.retrievalContribution.vectorRank ?? null,
       textRank: r.retrievalContribution.textRank ?? null,
       graphRank: r.retrievalContribution.graphRank ?? null,
@@ -1140,7 +1101,7 @@ function mapNativeResolvedEvidence(r: NativeResolvedEvidenceV1): ResolvedEvidenc
     },
     dependency: r.dependency
       ? {
-          schemaVersion: 1,
+          schemaVersion: r.dependency.schemaVersion as 1,
           dependencyId: r.dependency.dependencyId,
           sourceRevisionId: r.dependency.sourceRevisionId,
           derivedRevisionId: r.dependency.derivedRevisionId,

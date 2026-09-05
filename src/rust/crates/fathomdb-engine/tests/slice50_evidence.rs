@@ -641,3 +641,111 @@ fn relaxed_validity_view_remains_authorized_during_resolution() {
     assert_eq!(resolved.artifact_revision_id, "future-claim-r1");
     assert_eq!(resolved.source_revision_id, "future-source-r1");
 }
+
+#[test]
+fn incomplete_detail_is_disclosed_only_after_current_source_authorization() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("incomplete-precedence{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    opened
+        .engine
+        .configure_projections(
+            &[ProjectionSpec {
+                name: "owner".into(),
+                roles: BTreeSet::from([ProjectionRole::Filterable]),
+                fts: None,
+                vector: None,
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+    let source_body = r#"{"owner":"alice","text":"canonical"}"#;
+    opened
+        .engine
+        .write(&[
+            canonical_named(
+                "precedence-source",
+                "precedence-source-r1",
+                "precedence-v1",
+                "precedence-source-id",
+                source_body,
+            ),
+            derived_named(
+                "precedence-claim",
+                "precedence-claim-r1",
+                "precedence-source-r1",
+                "precedence-v1",
+                "precedence-source-id",
+                source_body,
+                r#"{"owner":"alice","text":"precedenceneedle"}"#,
+            ),
+        ])
+        .unwrap();
+    let mut filter = SearchFilter::default();
+    filter.attributes = vec![("owner".into(), "alice".into())];
+    let context = ReadContextV1::new(ReadView::default(), filter).unwrap();
+    let frozen = opened.engine.freeze_read_context(&context).unwrap();
+    let evidence =
+        opened.engine.search_with_evidence(&request("precedenceneedle", frozen)).unwrap().evidence
+            [0]
+        .evidence_ref
+        .clone();
+    drop(opened.engine);
+
+    let raw = rusqlite::Connection::open(&path).unwrap();
+    raw.execute(
+        "UPDATE _fathomdb_artifact_revisions SET completeness='migrated_incomplete' \
+         WHERE revision_id='precedence-claim-r1'",
+        [],
+    )
+    .unwrap();
+    raw.execute(
+        "UPDATE canonical_nodes SET body=?1 WHERE logical_id='precedence-source'",
+        [r#"{"owner":"bob","text":"canonical"}"#],
+    )
+    .unwrap();
+    drop(raw);
+
+    let reopened = Engine::open(&path).unwrap();
+    let hidden_context = reopened.engine.freeze_read_context(&context).unwrap();
+    let hidden = reopened
+        .engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: evidence.clone(),
+            context: hidden_context,
+        })
+        .unwrap_err();
+    assert!(matches!(
+        hidden,
+        EngineError::Evidence(ref error)
+            if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
+                && error.field_path == "/evidenceRef"
+    ));
+    drop(reopened.engine);
+
+    let raw = rusqlite::Connection::open(&path).unwrap();
+    raw.execute(
+        "UPDATE canonical_nodes SET body=?1 WHERE logical_id='precedence-source'",
+        [source_body],
+    )
+    .unwrap();
+    drop(raw);
+    let reopened = Engine::open(&path).unwrap();
+    let visible_context = reopened.engine.freeze_read_context(&context).unwrap();
+    let visible = reopened
+        .engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: evidence,
+            context: visible_context,
+        })
+        .unwrap_err();
+    assert!(matches!(
+        visible,
+        EngineError::Evidence(ref error)
+            if error.reason == EvidenceErrorReasonV1::EvidenceIncomplete
+                && error.field_path == "/provenance"
+    ));
+}

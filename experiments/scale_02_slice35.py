@@ -37,6 +37,7 @@ _TOP_KEYS = {
     "claim_boundary",
 }
 _TOP_KEYS_V2 = _TOP_KEYS | {"campaign_order", "prior_receipt"}
+_TOP_KEYS_V3 = _TOP_KEYS | {"measurement_plan"}
 _RUNTIME_KEYS = {
     "source_commit",
     "wheel",
@@ -79,6 +80,13 @@ def _digest(value: object, label: str) -> str:
     return value
 
 
+def _canonical_sha256(value: object) -> str:
+    payload = json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
 def _path(value: object, label: str) -> Path:
     if not isinstance(value, str) or not value:
         raise Slice35ScaleError(f"{label} must be a non-empty path")
@@ -91,10 +99,16 @@ def resolve_config(
 ) -> dict[str, Any]:
     """Strictly validate and resolve the registered comparison contract."""
     version = document.get("schema_version") if isinstance(document, dict) else None
-    expected_keys = _TOP_KEYS_V2 if version == "scale-02-slice35.v2" else _TOP_KEYS
+    if version == "scale-02-slice35.v2":
+        expected_keys = _TOP_KEYS_V2
+    elif version == "scale-02-slice35.v3":
+        expected_keys = _TOP_KEYS_V3
+    else:
+        expected_keys = _TOP_KEYS
     root = _exact(document, "config", expected_keys)
     if (
-        root["schema_version"] not in {SCHEMA, "scale-02-slice35.v2"}
+        root["schema_version"]
+        not in {SCHEMA, "scale-02-slice35.v2", "scale-02-slice35.v3"}
         or root["program_track"] != PROGRAM_TRACK
         or root["release"] != "0.8.25"
         or root["claim_boundary"] != "legacy_search_non_regression_only"
@@ -178,6 +192,26 @@ def resolve_config(
             prior_path = _path(prior["path"], "prior_receipt.path")
             if not prior_path.is_file() or _sha256(prior_path) != prior["sha256"]:
                 raise Slice35ScaleError("prior receipt drifted")
+    if root["schema_version"] == "scale-02-slice35.v3":
+        plan = _exact(
+            root["measurement_plan"],
+            "measurement_plan",
+            {"path", "sha256", "plan_id"},
+        )
+        _digest(plan["sha256"], "measurement_plan.sha256")
+        if not isinstance(plan["plan_id"], str) or not plan["plan_id"]:
+            raise Slice35ScaleError("measurement_plan.plan_id must be non-empty")
+        if validate_files:
+            plan_path = _path(plan["path"], "measurement_plan.path")
+            try:
+                plan_document = json.loads(plan_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as exc:
+                raise Slice35ScaleError("measurement plan is unavailable") from exc
+            if (
+                _canonical_sha256(plan_document) != plan["sha256"]
+                or plan_document.get("plan_id") != plan["plan_id"]
+            ):
+                raise Slice35ScaleError("measurement plan reference drifted")
     if validate_files:
         base = _path(inputs["base_config"], "inputs.base_config")
         if not base.is_file() or _sha256(base) != inputs["base_config_sha256"]:

@@ -869,6 +869,60 @@ def _load_measurement_plan(
     return plan
 
 
+def _resolve_postcutover_plan_reference(
+    record_path: Path,
+    record: dict[str, Any],
+    amendments: dict[str, dict[str, Any]],
+) -> Any:
+    run_id = record.get("run_id")
+    embedded = None
+    try:
+        embedded = record["config"]["resolved"].get("measurement_plan")
+    except (KeyError, TypeError, AttributeError):
+        pass
+    amendment = amendments.get(run_id) if isinstance(run_id, str) else None
+    if embedded is not None:
+        if amendment is not None:
+            raise ClassificationError("unnecessary post-cutover plan amendment")
+        return embedded
+    if amendment is None:
+        raise ClassificationError("post-cutover measurement plan is missing")
+    if _sha256_bytes(record_path.read_bytes()) != amendment["record_sha256"]:
+        raise ClassificationError("post-cutover plan amendment record SHA-256 mismatch")
+    return amendment["measurement_plan"]
+
+
+def _parse_postcutover_plan_amendments(values: Any) -> dict[str, dict[str, Any]]:
+    amendment_values = _list(values, "post-cutover plan amendments")
+    amendments: dict[str, dict[str, Any]] = {}
+    for index, value in enumerate(amendment_values):
+        entry = _closed(
+            value,
+            {"run_id", "record_sha256", "reason", "measurement_plan"},
+            f"post-cutover plan amendments[{index}]",
+        )
+        if entry["reason"] != "missing_plan_in_immutable_postcutover_record":
+            raise ClassificationError("unsupported post-cutover plan amendment reason")
+        run_id = _nonempty_string(entry["run_id"], "plan amendment run id")
+        _nonempty_string(entry["record_sha256"], "plan amendment record SHA-256")
+        _closed(
+            entry["measurement_plan"],
+            {"path", "sha256", "plan_id"},
+            "plan amendment measurement_plan",
+        )
+        if run_id in amendments:
+            raise ClassificationError("duplicate post-cutover plan amendment run id")
+        amendments[run_id] = entry
+    return amendments
+
+
+def _validate_closed_amendment_inventory(
+    observed: set[str], amendments: dict[str, dict[str, Any]]
+) -> None:
+    if observed != set(amendments):
+        raise ClassificationError("post-cutover plan amendment inventory is not closed")
+
+
 def _validate_historical_manifest(
     repository_root: Path,
     experiments_dir: Path,
@@ -950,6 +1004,7 @@ def validate_repository(repository_root: str | Path) -> None:
             "index",
             "historical_manifest_path",
             "superseded_postcutover_runs",
+            "postcutover_plan_amendments",
         },
         "classification policy",
     )
@@ -999,6 +1054,10 @@ def validate_repository(repository_root: str | Path) -> None:
     if len(superseded) != len(superseded_values):
         raise ClassificationError("duplicate superseded post-cutover run id")
 
+    amendments = _parse_postcutover_plan_amendments(
+        policy["postcutover_plan_amendments"]
+    )
+
     validate_post_cutover_presence(
         experiments_dir=experiments_dir,
         index_path=index_path,
@@ -1006,6 +1065,7 @@ def validate_repository(repository_root: str | Path) -> None:
         superseded_run_ids=superseded,
     )
     observed_superseded: set[str] = set()
+    observed_amendments: set[str] = set()
     for line in lines[index_policy["prefix_lines"] :]:
         index_row = json.loads(line)
         run_id = index_row["run_id"]
@@ -1014,10 +1074,9 @@ def validate_repository(repository_root: str | Path) -> None:
         record = _load_json(record_path, "post-cutover record")
         if record.get("run_id") != run_id:
             raise ClassificationError("post-cutover record run_id mismatch")
-        try:
-            plan_ref = record["config"]["resolved"]["measurement_plan"]
-        except (KeyError, TypeError) as exc:
-            raise ClassificationError("post-cutover measurement plan is missing") from exc
+        plan_ref = _resolve_postcutover_plan_reference(record_path, record, amendments)
+        if run_id in amendments:
+            observed_amendments.add(run_id)
         authority = _load_measurement_plan(root, plan_ref)
         legacy = run_id in superseded
         if legacy:
@@ -1038,6 +1097,7 @@ def validate_repository(repository_root: str | Path) -> None:
         )
     if observed_superseded != superseded:
         raise ClassificationError("superseded post-cutover inventory is not closed")
+    _validate_closed_amendment_inventory(observed_amendments, amendments)
 
 
 def _validate_tree_command(args: argparse.Namespace) -> int:
@@ -1690,6 +1750,7 @@ def materialize_historical(
                 "reason": "invalid_ancillary_locator_quarantined",
             }
         ],
+        "postcutover_plan_amendments": [],
     }
     _write_generated_json(experiments_dir / POLICY_NAME, policy)
 

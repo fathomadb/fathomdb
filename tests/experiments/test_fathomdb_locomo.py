@@ -144,7 +144,11 @@ def test_committed_receipts_use_only_logical_artifact_names():
     superseded = {
         row["run_id"] for row in policy["superseded_postcutover_runs"]
     }
+    amended = {
+        row["run_id"] for row in policy["external_artifact_locator_amendments"]
+    }
     observed_superseded = set()
+    observed_amended = set()
     for receipt_path in sorted((_lib.EXPERIMENTS_DIR / "runs").glob("*/record.json")):
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
         if receipt["run_id"] in superseded:
@@ -155,7 +159,16 @@ def test_committed_receipts_use_only_logical_artifact_names():
                 if "path" in artifact
             )
             continue
+        if receipt["run_id"] in amended:
+            observed_amended.add(receipt["run_id"])
+            assert all(
+                artifact["kind"] == "external_safe_summary"
+                for artifact in receipt["artifacts"]
+                if "path" in artifact and Path(artifact["path"]).is_absolute()
+            )
+            continue
         for artifact in receipt["artifacts"]:
             if "path" in artifact:
                 assert not Path(artifact["path"]).is_absolute(), receipt_path
     assert observed_superseded == superseded
+    assert observed_amended == amended

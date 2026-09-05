@@ -619,6 +619,7 @@ def test_portable_repository_gate_loads_post_cutover_plan_and_sidecar(tmp_path):
             "historical_manifest_path": str(manifest_path.relative_to(tmp_path)),
             "superseded_postcutover_runs": [],
             "postcutover_plan_amendments": [],
+            "external_artifact_locator_amendments": [],
         },
     )
 
@@ -707,6 +708,48 @@ def test_source_bound_plan_amendment_inventory_rejects_duplicate_and_dangling_en
     with pytest.raises(mc.ClassificationError, match="inventory is not closed"):
         mc._validate_closed_amendment_inventory(  # noqa: SLF001 - policy contract
             set(), amendments
+        )
+
+
+def test_external_locator_amendment_is_hash_bound_closed_and_narrow(tmp_path):
+    record_path = tmp_path / "record.json"
+    record = {
+        "run_id": "immutable",
+        "artifacts": [
+            {
+                "kind": "external_safe_summary",
+                "path": "/external/result.json",
+            }
+        ],
+    }
+    _write_json(record_path, record)
+    entry = {
+        "run_id": "immutable",
+        "record_sha256": _sha(record_path),
+        "reason": "absolute_external_safe_summary_in_immutable_record",
+    }
+    amendments = mc._parse_external_locator_amendments(  # noqa: SLF001
+        [entry]
+    )
+    assert mc._validate_external_locator_amendment(  # noqa: SLF001
+        record_path, record, amendments
+    )
+
+    with pytest.raises(mc.ClassificationError, match="duplicate"):
+        mc._parse_external_locator_amendments(  # noqa: SLF001
+            [entry, copy.deepcopy(entry)]
+        )
+    entry["record_sha256"] = "0" * 64
+    with pytest.raises(mc.ClassificationError, match="record SHA-256"):
+        mc._validate_external_locator_amendment(  # noqa: SLF001
+            record_path, record, {"immutable": entry}
+        )
+
+    relative_record = {"run_id": "immutable", "artifacts": []}
+    _write_json(record_path, relative_record)
+    with pytest.raises(mc.ClassificationError, match="unnecessary"):
+        mc._validate_external_locator_amendment(  # noqa: SLF001
+            record_path, relative_record, {"immutable": entry}
         )
 
 

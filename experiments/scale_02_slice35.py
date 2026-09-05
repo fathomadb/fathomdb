@@ -592,7 +592,13 @@ def run(config_path: str | Path) -> dict[str, Any]:
         config_path=str(config_path),
         tests=["tests/experiments/test_scale_02_slice35.py"],
         files_changed=[],
-        artifacts=[{"kind": "external_safe_summary", "path": str(result_path), "sha256": _sha256(result_path)}],
+        artifacts=[
+            {
+                "kind": "external_safe_summary",
+                "path": "result.json",
+                "sha256": _sha256(result_path),
+            }
+        ],
         review=None,
         open_questions=[] if verdict == "pass" else ["Slice 35 exceeds the registered legacy-search regression bound"],
     )

@@ -46,5 +46,27 @@
         "plan_id": "slice35-legacy-search-a934bd34"
       }
     }
+  ],
+  "external_artifact_locator_amendments": [
+    {
+      "run_id": "scale-02-slice35-20260905T0019Z-3756fde2",
+      "record_sha256": "cd111e793811ec8c89357273ce7cb0690e4dfefba4e4306a78177d7079ba04bd",
+      "reason": "absolute_external_safe_summary_in_immutable_record"
+    },
+    {
+      "run_id": "scale-02-slice35-20260905T0031Z-864f6c61",
+      "record_sha256": "5b839620bc58f8fa97416bc70f97c96e0068a6aa04ca08c7d4af99715aeff8a2",
+      "reason": "absolute_external_safe_summary_in_immutable_record"
+    },
+    {
+      "run_id": "scale-02-slice35-20260905T0047Z-a934bd34",
+      "record_sha256": "a78e0b2dc6a6191f6b73f65185d758397297ffa6a894f2620a1f3f4e45a72ce7",
+      "reason": "absolute_external_safe_summary_in_immutable_record"
+    },
+    {
+      "run_id": "scale-02-slice35-20260905T0231Z-cb9bad5b",
+      "record_sha256": "6947b26537bb4b93c6c8e1c4a9f722d8e0e9d4943e75f7687ba280a7289dfb5d",
+      "reason": "absolute_external_safe_summary_in_immutable_record"
+    }
   ]
 }

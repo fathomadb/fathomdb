@@ -923,6 +923,52 @@ def _validate_closed_amendment_inventory(
         raise ClassificationError("post-cutover plan amendment inventory is not closed")
 
 
+def _parse_external_locator_amendments(values: Any) -> dict[str, dict[str, Any]]:
+    amendment_values = _list(values, "external artifact locator amendments")
+    amendments: dict[str, dict[str, Any]] = {}
+    for index, value in enumerate(amendment_values):
+        entry = _closed(
+            value,
+            {"run_id", "record_sha256", "reason"},
+            f"external artifact locator amendments[{index}]",
+        )
+        if entry["reason"] != "absolute_external_safe_summary_in_immutable_record":
+            raise ClassificationError("unsupported external locator amendment reason")
+        run_id = _nonempty_string(entry["run_id"], "external locator run id")
+        _nonempty_string(entry["record_sha256"], "external locator record SHA-256")
+        if run_id in amendments:
+            raise ClassificationError("duplicate external locator amendment run id")
+        amendments[run_id] = entry
+    return amendments
+
+
+def _validate_external_locator_amendment(
+    record_path: Path,
+    record: dict[str, Any],
+    amendments: dict[str, dict[str, Any]],
+) -> bool:
+    run_id = record.get("run_id")
+    amendment = amendments.get(run_id) if isinstance(run_id, str) else None
+    absolute_artifacts = [
+        artifact
+        for artifact in record.get("artifacts", [])
+        if isinstance(artifact, dict)
+        and isinstance(artifact.get("path"), str)
+        and Path(artifact["path"]).is_absolute()
+    ]
+    if not absolute_artifacts:
+        if amendment is not None:
+            raise ClassificationError("unnecessary external locator amendment")
+        return False
+    if amendment is None:
+        raise ClassificationError("absolute external artifact locator is not amended")
+    if any(artifact.get("kind") != "external_safe_summary" for artifact in absolute_artifacts):
+        raise ClassificationError("external locator amendment covers unsupported artifact kind")
+    if _sha256_bytes(record_path.read_bytes()) != amendment["record_sha256"]:
+        raise ClassificationError("external locator amendment record SHA-256 mismatch")
+    return True
+
+
 def _validate_historical_manifest(
     repository_root: Path,
     experiments_dir: Path,
@@ -1005,6 +1051,7 @@ def validate_repository(repository_root: str | Path) -> None:
             "historical_manifest_path",
             "superseded_postcutover_runs",
             "postcutover_plan_amendments",
+            "external_artifact_locator_amendments",
         },
         "classification policy",
     )
@@ -1057,6 +1104,9 @@ def validate_repository(repository_root: str | Path) -> None:
     amendments = _parse_postcutover_plan_amendments(
         policy["postcutover_plan_amendments"]
     )
+    locator_amendments = _parse_external_locator_amendments(
+        policy["external_artifact_locator_amendments"]
+    )
 
     validate_post_cutover_presence(
         experiments_dir=experiments_dir,
@@ -1066,6 +1116,7 @@ def validate_repository(repository_root: str | Path) -> None:
     )
     observed_superseded: set[str] = set()
     observed_amendments: set[str] = set()
+    observed_locator_amendments: set[str] = set()
     for line in lines[index_policy["prefix_lines"] :]:
         index_row = json.loads(line)
         run_id = index_row["run_id"]
@@ -1074,6 +1125,10 @@ def validate_repository(repository_root: str | Path) -> None:
         record = _load_json(record_path, "post-cutover record")
         if record.get("run_id") != run_id:
             raise ClassificationError("post-cutover record run_id mismatch")
+        if run_id not in superseded and _validate_external_locator_amendment(
+            record_path, record, locator_amendments
+        ):
+            observed_locator_amendments.add(run_id)
         plan_ref = _resolve_postcutover_plan_reference(record_path, record, amendments)
         if run_id in amendments:
             observed_amendments.add(run_id)
@@ -1098,6 +1153,8 @@ def validate_repository(repository_root: str | Path) -> None:
     if observed_superseded != superseded:
         raise ClassificationError("superseded post-cutover inventory is not closed")
     _validate_closed_amendment_inventory(observed_amendments, amendments)
+    if observed_locator_amendments != set(locator_amendments):
+        raise ClassificationError("external locator amendment inventory is not closed")
 
 
 def _validate_tree_command(args: argparse.Namespace) -> int:
@@ -1751,6 +1808,7 @@ def materialize_historical(
             }
         ],
         "postcutover_plan_amendments": [],
+        "external_artifact_locator_amendments": [],
     }
     _write_generated_json(experiments_dir / POLICY_NAME, policy)
 

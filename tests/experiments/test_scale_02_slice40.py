@@ -145,6 +145,7 @@ def status_result(*, device: str, generation_p95: float = 0.02) -> dict[str, obj
         "mutation_p95_ms": 0.02,
         "mutation_p99_ms": 0.03,
         "steady_full_owner_scans": 0,
+        "epoch_rollover_full_owner_scans": 1,
     }
 
 

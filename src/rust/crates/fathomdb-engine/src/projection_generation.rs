@@ -1298,7 +1298,7 @@ impl Engine {
             }
         }
         #[cfg(feature = "test-hooks")]
-        self.projection_generation_status_slow_path_count
+        self.projection_generation_status_full_owner_scan_count
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let status = status_in_snapshot(connection, runtime_state, effective_at_epoch_s, boundary)?;
         *cache = Some(CachedProjectionGenerationStatus {

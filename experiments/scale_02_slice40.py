@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import io
 import json
+import os
 import random
 import shutil
 import statistics
@@ -75,6 +76,7 @@ _STATUS_RESULT_KEYS = {
     "mutation_p95_ms",
     "mutation_p99_ms",
     "steady_full_owner_scans",
+    "epoch_rollover_full_owner_scans",
 }
 
 
@@ -243,6 +245,7 @@ def parse_status_result(document: object) -> dict[str, Any]:
         "errors",
         "timeouts",
         "steady_full_owner_scans",
+        "epoch_rollover_full_owner_scans",
     ):
         value = result[field]
         if isinstance(value, bool) or not isinstance(value, int) or value < 0:
@@ -256,6 +259,7 @@ def parse_status_result(document: object) -> dict[str, Any]:
         "errors",
         "timeouts",
         "steady_full_owner_scans",
+        "epoch_rollover_full_owner_scans",
     }:
         value = result[field]
         if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
@@ -305,6 +309,200 @@ def status_verdict(
     )
 
 
+def _status_test_command(
+    *,
+    database: Path,
+    device: str,
+    workload: Mapping[str, Any],
+    log: Path,
+    seed_only: bool = False,
+) -> dict[str, Any] | None:
+    features = "test-hooks" if device == "cpu" else "test-hooks,embed-cuda"
+    environment = {
+        **os.environ,
+        "FATHOM_SLICE40_STATUS_DATABASE": str(database),
+        "FATHOM_SLICE40_STATUS_DEVICE": device,
+        "FATHOM_SLICE40_STATUS_RECORDS": str(workload["status_records"]),
+        "FATHOM_SLICE40_STATUS_WARMUPS": str(workload["status_warmups"]),
+        "FATHOM_SLICE40_STATUS_SAMPLES": str(workload["status_samples"]),
+    }
+    if seed_only:
+        environment["FATHOM_SLICE40_STATUS_SEED_ONLY"] = "1"
+    if device == "cuda:0":
+        environment["FATHOMDB_EMBED_DEVICE"] = "cuda:0"
+    completed = subprocess.run(
+        [
+            "cargo",
+            "test",
+            "--release",
+            "-q",
+            "-p",
+            "fathomdb-engine",
+            "--features",
+            features,
+            "--test",
+            "slice40_status_performance",
+            "--",
+            "--ignored",
+            "--nocapture",
+        ],
+        cwd=REPO_ROOT,
+        env=environment,
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    log.write_text(completed.stdout, encoding="utf-8")
+    if completed.returncode != 0:
+        raise Slice40ScaleError(f"status worker failed; see {log}")
+    result_lines = [line for line in completed.stdout.splitlines() if line.startswith("{")]
+    if seed_only:
+        if result_lines:
+            raise Slice40ScaleError("seed-only status worker emitted a measurement")
+        return None
+    if len(result_lines) != 1:
+        raise Slice40ScaleError("status worker did not emit exactly one JSON result")
+    try:
+        return parse_status_result(json.loads(result_lines[0]))
+    except json.JSONDecodeError as exc:
+        raise Slice40ScaleError("status worker emitted malformed JSON") from exc
+
+
+def run_status(config_path: str | Path) -> dict[str, Any]:
+    """Execute the paired CPU/CUDA 50k status campaign and register its receipt."""
+    config_path = Path(config_path).resolve()
+    config = load_config(config_path)
+    code = _lib.git_info()
+    if code["dirty"] or code["git_sha"] != config["candidate"]["source_commit"]:
+        raise Slice40ScaleError("status campaign requires the clean pinned candidate checkout")
+    nvidia = subprocess.run(
+        ["nvidia-smi", "--query-gpu=name,driver_version", "--format=csv,noheader"],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    if nvidia.returncode != 0 or not nvidia.stdout.strip():
+        raise Slice40ScaleError("CUDA device witness is unavailable")
+
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    run_root = Path(config["artifact_root"]) / f"slice40-status-{stamp}"
+    run_root.mkdir(parents=True, mode=0o700)
+    nvidia_log = run_root / "nvidia-smi.log"
+    nvidia_log.write_text(nvidia.stdout, encoding="utf-8")
+    results: dict[str, list[dict[str, Any]]] = {"cpu": [], "cuda": []}
+    databases: list[dict[str, str]] = []
+    for repetition in range(1, config["workload"]["repetitions"] + 1):
+        repetition_root = run_root / f"repetition-{repetition}"
+        repetition_root.mkdir()
+        seed_database = repetition_root / "seed.fathomdb"
+        _status_test_command(
+            database=seed_database,
+            device="cpu",
+            workload=config["workload"],
+            log=repetition_root / "seed.log",
+            seed_only=True,
+        )
+        for suffix in ("-wal", "-shm"):
+            if seed_database.with_name(seed_database.name + suffix).exists():
+                raise Slice40ScaleError("status seed retained an uncheckpointed SQLite sidecar")
+        cpu_database = repetition_root / "cpu.fathomdb"
+        cuda_database = repetition_root / "cuda.fathomdb"
+        shutil.copy2(seed_database, cpu_database)
+        shutil.copy2(seed_database, cuda_database)
+        if _sha256(cpu_database) != _sha256(cuda_database):
+            raise Slice40ScaleError("paired status databases are not byte-identical")
+        cpu = _status_test_command(
+            database=cpu_database,
+            device="cpu",
+            workload=config["workload"],
+            log=repetition_root / "cpu.log",
+        )
+        cuda = _status_test_command(
+            database=cuda_database,
+            device="cuda:0",
+            workload=config["workload"],
+            log=repetition_root / "cuda.log",
+        )
+        assert cpu is not None and cuda is not None
+        results["cpu"].append(cpu)
+        results["cuda"].append(cuda)
+        databases.append(
+            {
+                "seed_sha256": _sha256(seed_database),
+                "cpu_after_sha256": _sha256(cpu_database),
+                "cuda_after_sha256": _sha256(cuda_database),
+            }
+        )
+
+    verdict = status_verdict(
+        results["cpu"], results["cuda"], config["workload"], config["policy"]
+    )
+    maximum_device_p95_difference_ms = max(
+        abs(left[field] - right[field])
+        for left, right in zip(results["cpu"], results["cuda"], strict=True)
+        for field in ("generation_p95_ms", "mutation_p95_ms")
+    )
+    metrics = {
+        "schema_version": "scale-02-slice40-status-result.v1",
+        "program_track": PROGRAM_TRACK,
+        "claim_boundary": config["claim_boundary"],
+        "verdict": verdict,
+        "runtime_device_witness": nvidia.stdout.strip(),
+        "maximum_cpu_cuda_p95_difference_ms": maximum_device_p95_difference_ms,
+        "treatments": results,
+        "paired_database_hashes": databases,
+        "runner_sha256": _sha256(Path(__file__)),
+        "status_test_source_sha256": _sha256(
+            REPO_ROOT
+            / "src/rust/crates/fathomdb-engine/tests/slice40_status_performance.rs"
+        ),
+    }
+    metrics_path = run_root / "metrics.json"
+    metrics_path.write_text(json.dumps(metrics, sort_keys=True) + "\n", encoding="utf-8")
+    run_id, record_dir = _lib.write_record(
+        "scale-02-slice40-status",
+        ts=datetime.now(UTC),
+        config_obj=config,
+        metrics=metrics,
+        verdict="complete" if verdict == "pass" else "advisory_limit_observed",
+        read=f"Slice 40 paired CPU/CUDA status campaign: {verdict}",
+        code=code,
+        corpus={"source": "byte-identical paired 50k status fixtures", "datasets": []},
+        seeds={"bootstrap": config["workload"]["bootstrap_seed"]},
+        env=_lib.env_info(
+            key_deps={
+                "fathomdb_candidate": config["candidate"]["source_commit"],
+                "cuda_witness": nvidia.stdout.strip(),
+            }
+        ),
+        cost_usd=0.0,
+        headline={
+            "verdict": verdict,
+            "maximum_cpu_cuda_p95_difference_ms": maximum_device_p95_difference_ms,
+        },
+        n=config["workload"]["status_records"],
+        config_path=str(config_path),
+        tests=[
+            "src/rust/crates/fathomdb-engine/tests/slice40_status_performance.rs",
+            "tests/experiments/test_scale_02_slice40.py",
+        ],
+        files_changed=[],
+        artifacts=[
+            {"kind": "external_safe_summary", "path": str(metrics_path), "sha256": _sha256(metrics_path)},
+            {"kind": "cuda_device_witness", "path": str(nvidia_log), "sha256": _sha256(nvidia_log)},
+        ],
+        review=None,
+        open_questions=[] if verdict == "pass" else ["A registered status bound missed"],
+    )
+    _lib.regen_index_md()
+    return {
+        "run_id": run_id,
+        "record_dir": str(record_dir),
+        "external_metrics": str(metrics_path),
+        "verdict": verdict,
+    }
 def _extract_source(commit: str, destination: Path) -> None:
     archive = subprocess.run(
         ["git", "archive", "--format=tar", commit],
@@ -521,12 +719,16 @@ def main(argv: list[str] | None = None) -> int:
     validate.add_argument("config", type=Path)
     execute = subparsers.add_parser("run")
     execute.add_argument("config", type=Path)
+    status = subparsers.add_parser("status")
+    status.add_argument("config", type=Path)
     arguments = parser.parse_args(argv)
     if arguments.command == "validate":
         load_config(arguments.config)
         print("ok")
-    else:
+    elif arguments.command == "run":
         print(json.dumps(run(arguments.config), sort_keys=True))
+    else:
+        print(json.dumps(run_status(arguments.config), sort_keys=True))
     return 0
 
 

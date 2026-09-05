@@ -86,7 +86,6 @@ fn measure_generation_and_mutation_status_at_50k() {
     });
     let needs_seed = !path.exists();
     let setup = Engine::open_with_embedder_for_test(&path, Arc::new(FixedEmbedder)).unwrap();
-    setup.engine.set_projection_scheduler_frozen_for_test(true);
     setup.engine.configure_projections(&[vector_spec()], &[]).unwrap();
 
     if needs_seed {
@@ -111,7 +110,32 @@ fn measure_generation_and_mutation_status_at_50k() {
     let index = records.saturating_sub(1);
     let receipt = setup.engine.actuate(measured_batch(index)).unwrap();
     assert_eq!(receipt.pending_projection_write_cursors.len(), 1);
+    setup.engine.drain(30_000).unwrap();
     drop(setup);
+    if std::env::var_os("FATHOM_SLICE40_STATUS_SEED_ONLY").is_some() {
+        return;
+    }
+
+    let generation_opened =
+        Engine::open_with_embedder_for_test(&path, Arc::new(FixedEmbedder)).unwrap();
+    let started = Instant::now();
+    generation_opened.engine.read_projection_generation_status().unwrap();
+    let cold_generation_ms = started.elapsed().as_secs_f64() * 1_000.0;
+    drop(generation_opened);
+
+    let mutation_opened =
+        Engine::open_with_embedder_for_test(&path, Arc::new(FixedEmbedder)).unwrap();
+    let receipt = mutation_opened.engine.actuate(measured_batch(index)).unwrap();
+    let cold_request = MutationProjectionStatusRequestV1 {
+        schema_version: 1,
+        operation_id: receipt.operation_id,
+        write_cursor: receipt.pending_projection_write_cursors[0],
+        expected_generation_id: receipt.projection_generation_id.unwrap(),
+    };
+    let started = Instant::now();
+    mutation_opened.engine.read_mutation_projection_status(cold_request).unwrap();
+    let cold_mutation_ms = started.elapsed().as_secs_f64() * 1_000.0;
+    drop(mutation_opened);
 
     let opened = Engine::open_with_embedder_for_test(&path, Arc::new(FixedEmbedder)).unwrap();
     opened.engine.set_projection_scheduler_frozen_for_test(true);
@@ -123,33 +147,43 @@ fn measure_generation_and_mutation_status_at_50k() {
         expected_generation_id: receipt.projection_generation_id.unwrap(),
     };
 
-    let started = Instant::now();
-    opened.engine.read_projection_generation_status().unwrap();
-    let cold_generation_ms = started.elapsed().as_secs_f64() * 1_000.0;
-    let started = Instant::now();
-    opened.engine.read_mutation_projection_status(request.clone()).unwrap();
-    let cold_mutation_ms = started.elapsed().as_secs_f64() * 1_000.0;
-
+    let mut steady_effective_at = 0;
     for _ in 0..warmups {
-        opened.engine.read_projection_generation_status().unwrap();
-        opened.engine.read_mutation_projection_status(request.clone()).unwrap();
+        let generation = opened.engine.read_projection_generation_status().unwrap();
+        let mutation = opened.engine.read_mutation_projection_status(request.clone()).unwrap();
+        steady_effective_at = generation.effective_at_epoch_s;
+        assert_eq!(mutation.effective_at_epoch_s, steady_effective_at);
     }
-    let slow_path_before = opened.engine.projection_generation_status_slow_path_count_for_test();
     let mut generation_ns = Vec::with_capacity(samples);
     let mut mutation_ns = Vec::with_capacity(samples);
-    for _ in 0..samples {
+    let mut steady_full_owner_scans = 0;
+    let mut epoch_rollover_full_owner_scans = 0;
+    while generation_ns.len() < samples {
+        let scans_before =
+            opened.engine.projection_generation_status_full_owner_scan_count_for_test();
         let started = Instant::now();
         let generation = opened.engine.read_projection_generation_status().unwrap();
-        generation_ns.push(started.elapsed().as_nanos());
-        assert_eq!(generation.pending_count, u64::try_from(records).unwrap());
+        let generation_elapsed = started.elapsed().as_nanos();
+        assert_eq!(generation.pending_count, 0);
 
         let started = Instant::now();
         let mutation = opened.engine.read_mutation_projection_status(request.clone()).unwrap();
-        mutation_ns.push(started.elapsed().as_nanos());
-        assert_eq!(mutation.pending_count, 1);
+        let mutation_elapsed = started.elapsed().as_nanos();
+        assert_eq!(mutation.pending_count, 0);
+        let scan_delta =
+            opened.engine.projection_generation_status_full_owner_scan_count_for_test()
+                - scans_before;
+        if generation.effective_at_epoch_s != steady_effective_at
+            || mutation.effective_at_epoch_s != steady_effective_at
+        {
+            epoch_rollover_full_owner_scans += scan_delta;
+            steady_effective_at = mutation.effective_at_epoch_s;
+            continue;
+        }
+        steady_full_owner_scans += scan_delta;
+        generation_ns.push(generation_elapsed);
+        mutation_ns.push(mutation_elapsed);
     }
-    let steady_full_owner_scans =
-        opened.engine.projection_generation_status_slow_path_count_for_test() - slow_path_before;
     let generation_p95_ms = percentile_ns(&mut generation_ns, 95) as f64 / 1_000_000.0;
     let generation_p99_ms = percentile_ns(&mut generation_ns, 99) as f64 / 1_000_000.0;
     let mutation_p95_ms = percentile_ns(&mut mutation_ns, 95) as f64 / 1_000_000.0;
@@ -166,7 +200,7 @@ fn measure_generation_and_mutation_status_at_50k() {
     let post_transition_mutation_ms = started.elapsed().as_secs_f64() * 1_000.0;
     let device = std::env::var("FATHOM_SLICE40_STATUS_DEVICE").unwrap_or_else(|_| "cpu".into());
     println!(
-        "{{\"schema_version\":\"scale-02-slice40-status.v1\",\"device\":\"{device}\",\"records\":{records},\"warmups\":{warmups},\"samples\":{samples},\"errors\":0,\"timeouts\":0,\"cold_generation_ms\":{cold_generation_ms:.6},\"cold_mutation_ms\":{cold_mutation_ms:.6},\"configuration_transition_ms\":{configuration_transition_ms:.6},\"post_transition_generation_ms\":{post_transition_generation_ms:.6},\"post_transition_mutation_ms\":{post_transition_mutation_ms:.6},\"generation_p95_ms\":{:.6},\"generation_p99_ms\":{:.6},\"mutation_p95_ms\":{:.6},\"mutation_p99_ms\":{:.6},\"steady_full_owner_scans\":{steady_full_owner_scans}}}",
+        "{{\"schema_version\":\"scale-02-slice40-status.v1\",\"device\":\"{device}\",\"records\":{records},\"warmups\":{warmups},\"samples\":{samples},\"errors\":0,\"timeouts\":0,\"cold_generation_ms\":{cold_generation_ms:.6},\"cold_mutation_ms\":{cold_mutation_ms:.6},\"configuration_transition_ms\":{configuration_transition_ms:.6},\"post_transition_generation_ms\":{post_transition_generation_ms:.6},\"post_transition_mutation_ms\":{post_transition_mutation_ms:.6},\"generation_p95_ms\":{:.6},\"generation_p99_ms\":{:.6},\"mutation_p95_ms\":{:.6},\"mutation_p99_ms\":{:.6},\"steady_full_owner_scans\":{steady_full_owner_scans},\"epoch_rollover_full_owner_scans\":{epoch_rollover_full_owner_scans}}}",
         generation_p95_ms,
         generation_p99_ms,
         mutation_p95_ms,
@@ -176,4 +210,5 @@ fn measure_generation_and_mutation_status_at_50k() {
     assert!(generation_p99_ms <= 10.0, "generation status p99 exceeded 10 ms");
     assert!(mutation_p95_ms <= 5.0, "mutation status p95 exceeded 5 ms");
     assert!(mutation_p99_ms <= 10.0, "mutation status p99 exceeded 10 ms");
+    assert_eq!(steady_full_owner_scans, 0, "steady calls may not rescan every owner");
 }

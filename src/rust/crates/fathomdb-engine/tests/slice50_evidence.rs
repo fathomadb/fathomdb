@@ -8,12 +8,12 @@ use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
     arm_evidence_before_resolve_return_hook_for_test, arm_evidence_before_sidecar_hook_for_test,
     arm_frozen_after_validation_hook_for_test, arm_reader_search_hook_for_test, ArtifactRevisionId,
-    CanonicalHash, Engine, EngineError, EvidenceArtifactLifecycleV1, EvidenceErrorReasonV1,
-    EvidenceGraphOriginV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1, InitialState,
-    LifecycleState, PreparedWrite, ProjectionRole, ProjectionSpec, ProvenancedEdgeV1,
-    ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter, SoftFallbackBranch,
-    SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
-    WriteProvenanceV1,
+    CanonicalHash, Engine, EngineError, EvidenceArmV1, EvidenceArtifactLifecycleV1,
+    EvidenceErrorReasonV1, EvidenceGraphOriginV1, EvidenceResolveRequestV1,
+    EvidenceSearchRequestV1, EvidenceSearchResultV1, InitialState, LifecycleState, PreparedWrite,
+    ProjectionRole, ProjectionSpec, ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView,
+    ResolvedEvidenceV1, SearchFilter, SoftFallbackBranch, SourceDependencyRegistrationV1, SourceId,
+    SourceLocator, SourceRevisionId, SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use sha2::{Digest, Sha256};
@@ -116,8 +116,31 @@ fn derived_named(
     source_body: &str,
     body: &str,
 ) -> PreparedWrite {
+    derived_kind_named(
+        "entity",
+        logical,
+        revision,
+        source_revision,
+        version,
+        source_id,
+        source_body,
+        body,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn derived_kind_named(
+    kind: &str,
+    logical: &str,
+    revision: &str,
+    source_revision: &str,
+    version: &str,
+    source_id: &str,
+    source_body: &str,
+    body: &str,
+) -> PreparedWrite {
     PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
-        kind: "entity".into(),
+        kind: kind.into(),
         body: body.into(),
         source_id: SourceId::new(source_id).unwrap(),
         logical_id: Some(logical.into()),
@@ -152,6 +175,183 @@ fn request(query: &str, context: fathomdb_engine::FrozenReadContextV1) -> Eviden
 fn freeze_stable(engine: &Engine, context: &ReadContextV1) -> fathomdb_engine::FrozenReadContextV1 {
     engine.drain(30_000).unwrap();
     engine.freeze_read_context(context).unwrap()
+}
+
+fn assert_unavailable(error: EngineError) {
+    assert!(
+        matches!(
+            error,
+            EngineError::Evidence(ref evidence)
+                if evidence.reason == EvidenceErrorReasonV1::EvidenceUnavailable
+                    && evidence.field_path == "/evidenceRef"
+                    && evidence.to_string() == "evidence_unavailable at /evidenceRef"
+        ),
+        "expected the canonical non-disclosure outcome, got {error:?}",
+    );
+}
+
+fn insert_active_closure_barrier(path: &std::path::Path, source_revision: &str, sequence: u64) {
+    let connection = rusqlite::Connection::open(path).unwrap();
+    connection
+        .execute(
+            "UPDATE _fathomdb_open_state SET value=?1 \
+             WHERE key='_fathomdb_closure_sequence'",
+            [sequence.to_string()],
+        )
+        .unwrap();
+    connection
+        .execute(
+            "INSERT INTO _fathomdb_dependency_closures(\
+               schema_version,closure_operation_id,root_kind,root_value,cause,\
+               effective_at_epoch_s,admitted_write_boundary,admitted_dependency_generation,\
+               closure_sequence,retry_fingerprint,phase,affected_count,blocker_code,\
+               structural_proof_write_boundary,proof_json\
+             ) VALUES(1,?1,'source_revision',?2,'soft_deleted',0,100,0,?3,?4,\
+                      'proving',1,NULL,NULL,NULL)",
+            rusqlite::params![
+                format!("_fdb:c:{}", format!("{sequence:064x}")),
+                source_revision,
+                sequence,
+                format!("{sequence:064x}"),
+            ],
+        )
+        .unwrap();
+}
+
+fn seed_graph_matrix(engine: &Engine) {
+    let node_source = r#"{"owner":"alice","text":"node source"}"#;
+    let edge_source = r#"{"owner":"alice","text":"edge source"}"#;
+    engine
+        .configure_projections(
+            &[ProjectionSpec {
+                name: "owner".into(),
+                roles: BTreeSet::from([ProjectionRole::Filterable]),
+                fts: None,
+                vector: None,
+                source: None,
+            }],
+            &[],
+        )
+        .unwrap();
+    engine
+        .write(&[
+            canonical_named(
+                "graph-node-source",
+                "graph-node-source-r1",
+                "graph-node-v1",
+                "graph-node-source-id",
+                node_source,
+            ),
+            canonical_named(
+                "graph-edge-source",
+                "graph-edge-source-r1",
+                "graph-edge-v1",
+                "graph-edge-source-id",
+                edge_source,
+            ),
+            derived_named(
+                "graph-alpha",
+                "graph-alpha-r1",
+                "graph-node-source-r1",
+                "graph-node-v1",
+                "graph-node-source-id",
+                node_source,
+                r#"{"owner":"alice","text":"alpha endpoint"}"#,
+            ),
+            derived_named(
+                "graph-beta",
+                "graph-beta-r1",
+                "graph-node-source-r1",
+                "graph-node-v1",
+                "graph-node-source-id",
+                node_source,
+                r#"{"owner":"alice","text":"beta endpoint"}"#,
+            ),
+            PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                kind: "related".into(),
+                from: "graph-alpha".into(),
+                to: "graph-beta".into(),
+                source_id: SourceId::new("graph-edge-source-id").unwrap(),
+                logical_id: Some("graph-edge".into()),
+                body: Some(r#"{"owner":"alice","text":"graphmatrixneedle"}"#.into()),
+                t_valid: None,
+                t_invalid: None,
+                confidence: Some(0.8),
+                extractor_model_id: None,
+                temporal_fallback: None,
+                provenance: WriteProvenanceV1::derived(
+                    ArtifactRevisionId::new("graph-edge-r1").unwrap(),
+                    SourceVersionId::new("graph-edge-v1").unwrap(),
+                    SourceRevisionId::new("graph-edge-source-r1").unwrap(),
+                    SourceLocator::whole_body(),
+                    CanonicalHash::sha256(digest(edge_source)).unwrap(),
+                ),
+            }),
+        ])
+        .unwrap();
+}
+
+fn graph_matrix_context() -> ReadContextV1 {
+    let mut filter = SearchFilter::default();
+    filter.attributes = vec![("owner".into(), "alice".into())];
+    ReadContextV1::new(ReadView { valid_as_of: Some(1_000), ..ReadView::default() }, filter)
+        .unwrap()
+}
+
+fn mint_graph_matrix_reference(
+    engine: &Engine,
+    context: &ReadContextV1,
+) -> (fathomdb_engine::EvidenceRefV1, String) {
+    let frozen = freeze_stable(engine, context);
+    let mut evidence_request = request("graphmatrixneedle", frozen);
+    evidence_request.use_graph_arm = true;
+    let result = engine.search_with_evidence(&evidence_request).unwrap();
+    let (index, hit) = result
+        .search_result
+        .results
+        .iter()
+        .enumerate()
+        .find(|(_, hit)| hit.branch == SoftFallbackBranch::GraphArm)
+        .expect("edge-body seed must return a graph endpoint");
+    (result.evidence[index].evidence_ref.clone(), hit.id.value.clone())
+}
+
+fn assert_contribution_matches_explanation(
+    engine: &Engine,
+    result: &EvidenceSearchResultV1,
+    context: &fathomdb_engine::FrozenReadContextV1,
+    index: usize,
+) -> ResolvedEvidenceV1 {
+    let hit = &result.search_result.results[index];
+    let sidecar = &result.evidence[index];
+    let per_hit = &result.search_result.explanation.as_ref().unwrap().per_hit[index];
+    assert_eq!(sidecar.result_index as usize, index);
+    assert_eq!(per_hit.id, hit.write_cursor);
+    assert_eq!(per_hit.arm, hit.branch);
+    let resolved = engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: sidecar.evidence_ref.clone(),
+            context: context.clone(),
+        })
+        .unwrap();
+    assert_eq!(resolved.artifact_revision_id, sidecar.artifact_revision_id);
+    assert_eq!(resolved.retrieval_contribution.vector_rank, per_hit.vector_rank);
+    assert_eq!(resolved.retrieval_contribution.text_rank, per_hit.text_rank);
+    assert_eq!(resolved.retrieval_contribution.graph_rank, per_hit.graph_rank);
+    assert_eq!(resolved.retrieval_contribution.fused_score, per_hit.fused_score);
+    assert_eq!(resolved.retrieval_contribution.ce_score, per_hit.ce_score);
+    assert_eq!(resolved.retrieval_contribution.blended_score, per_hit.blended);
+    assert_eq!(resolved.retrieval_contribution.importance, per_hit.importance);
+    assert_eq!(resolved.retrieval_contribution.confidence, per_hit.confidence);
+    let expected_arm = match hit.branch {
+        SoftFallbackBranch::Vector => EvidenceArmV1::Vector,
+        SoftFallbackBranch::Text => EvidenceArmV1::Text,
+        SoftFallbackBranch::TextEdge => EvidenceArmV1::TextEdge,
+        SoftFallbackBranch::GraphArm => EvidenceArmV1::GraphArm,
+    };
+    assert_eq!(resolved.projection_origin.representative_arm, expected_arm);
+    resolved
 }
 
 #[test]
@@ -1289,4 +1489,676 @@ fn evidence_linearizes_at_sidecar_and_resolver_return_seams() {
     let resolved = resolve_worker.join().unwrap().unwrap();
     assert_eq!(resolved.canonical_source_body, source_body);
     assert_eq!(resolved.evidence_text, source_body);
+}
+
+#[test]
+fn ordinary_authorization_revocation_matrix_is_indistinguishable() {
+    let context = ReadContextV1::new(
+        ReadView { valid_as_of: Some(1_000), ..ReadView::default() },
+        SearchFilter::default(),
+    )
+    .unwrap();
+
+    // A reference and even an equivalent-looking context from another database
+    // convey no authority.
+    {
+        let dir = TempDir::new().unwrap();
+        let first_path = dir.path().join(format!("foreign-a{SQLITE_SUFFIX}"));
+        let second_path = dir.path().join(format!("foreign-b{SQLITE_SUFFIX}"));
+        let first = Engine::open(&first_path).unwrap();
+        let source_body = "foreign source";
+        first
+            .engine
+            .write(&[
+                canonical_named(
+                    "matrix-source",
+                    "matrix-source-r1",
+                    "matrix-v1",
+                    "matrix-id",
+                    source_body,
+                ),
+                derived_named(
+                    "matrix-claim",
+                    "matrix-claim-r1",
+                    "matrix-source-r1",
+                    "matrix-v1",
+                    "matrix-id",
+                    source_body,
+                    "matrixneedle",
+                ),
+            ])
+            .unwrap();
+        let frozen = freeze_stable(&first.engine, &context);
+        let reference =
+            first.engine.search_with_evidence(&request("matrixneedle", frozen)).unwrap().evidence
+                [0]
+            .evidence_ref
+            .clone();
+        let second = Engine::open(&second_path).unwrap();
+        let foreign_context = freeze_stable(&second.engine, &context);
+        assert_unavailable(
+            second
+                .engine
+                .resolve_evidence(&EvidenceResolveRequestV1 {
+                    schema_version: 1,
+                    evidence_ref: reference,
+                    context: foreign_context,
+                })
+                .unwrap_err(),
+        );
+    }
+
+    // Both broader and narrower envelopes differ from the originating policy,
+    // even when all three would admit the same current row.
+    {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("context-width{SQLITE_SUFFIX}"));
+        let opened = Engine::open(&path).unwrap();
+        let source_body = "context source";
+        opened
+            .engine
+            .write(&[
+                canonical_named(
+                    "matrix-source",
+                    "matrix-source-r1",
+                    "matrix-v1",
+                    "matrix-id",
+                    source_body,
+                ),
+                derived_named(
+                    "matrix-claim",
+                    "matrix-claim-r1",
+                    "matrix-source-r1",
+                    "matrix-v1",
+                    "matrix-id",
+                    source_body,
+                    "matrixneedle",
+                ),
+            ])
+            .unwrap();
+        let mut origin_filter = SearchFilter::default();
+        origin_filter.kind = Some("entity".into());
+        let origin = ReadContextV1::new(context.view, origin_filter.clone()).unwrap();
+        let frozen = freeze_stable(&opened.engine, &origin);
+        let reference =
+            opened.engine.search_with_evidence(&request("matrixneedle", frozen)).unwrap().evidence
+                [0]
+            .evidence_ref
+            .clone();
+        let broader = ReadContextV1::new(context.view, SearchFilter::default()).unwrap();
+        origin_filter.created_after = Some(0);
+        let narrower = ReadContextV1::new(context.view, origin_filter).unwrap();
+        for replacement in [broader, narrower] {
+            let mismatch = freeze_stable(&opened.engine, &replacement);
+            assert_unavailable(
+                opened
+                    .engine
+                    .resolve_evidence(&EvidenceResolveRequestV1 {
+                        schema_version: 1,
+                        evidence_ref: reference.clone(),
+                        context: mismatch,
+                    })
+                    .unwrap_err(),
+            );
+        }
+    }
+
+    for case in ["validity", "closure", "replacement"] {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("ordinary-{case}{SQLITE_SUFFIX}"));
+        let opened = Engine::open(&path).unwrap();
+        let source_body = "ordinary authority source";
+        opened
+            .engine
+            .write(&[
+                canonical_named(
+                    "matrix-source",
+                    "matrix-source-r1",
+                    "matrix-v1",
+                    "matrix-id",
+                    source_body,
+                ),
+                derived_named(
+                    "matrix-claim",
+                    "matrix-claim-r1",
+                    "matrix-source-r1",
+                    "matrix-v1",
+                    "matrix-id",
+                    source_body,
+                    "matrixneedle",
+                ),
+            ])
+            .unwrap();
+        opened
+            .engine
+            .register_source_dependency(
+                SourceDependencyRegistrationV1::new(
+                    "matrix-dependency",
+                    "matrix-source-r1",
+                    "matrix-claim-r1",
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        let frozen = freeze_stable(&opened.engine, &context);
+        let reference =
+            opened.engine.search_with_evidence(&request("matrixneedle", frozen)).unwrap().evidence
+                [0]
+            .evidence_ref
+            .clone();
+        match case {
+            "validity" => {
+                let raw = rusqlite::Connection::open(&path).unwrap();
+                raw.execute(
+                    "UPDATE canonical_nodes SET valid_until=1000 \
+                     WHERE logical_id='matrix-claim'",
+                    [],
+                )
+                .unwrap();
+            }
+            "closure" => insert_active_closure_barrier(&path, "matrix-source-r1", 1),
+            "replacement" => {
+                opened
+                    .engine
+                    .write(&[canonical_named(
+                        "matrix-source",
+                        "matrix-source-r2",
+                        "matrix-v2",
+                        "matrix-id",
+                        "replacement source",
+                    )])
+                    .unwrap();
+            }
+            _ => unreachable!(),
+        }
+        let equivalent = freeze_stable(&opened.engine, &context);
+        assert_unavailable(
+            opened
+                .engine
+                .resolve_evidence(&EvidenceResolveRequestV1 {
+                    schema_version: 1,
+                    evidence_ref: reference,
+                    context: equivalent,
+                })
+                .unwrap_err(),
+        );
+    }
+
+    // An access-bearing attribute missing on the source denies bytes even when
+    // the returned artifact itself carries the required value.
+    {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("missing-source-attribute{SQLITE_SUFFIX}"));
+        let opened = Engine::open(&path).unwrap();
+        opened
+            .engine
+            .configure_projections(
+                &[ProjectionSpec {
+                    name: "owner".into(),
+                    roles: BTreeSet::from([ProjectionRole::Filterable]),
+                    fts: None,
+                    vector: None,
+                    source: None,
+                }],
+                &[],
+            )
+            .unwrap();
+        let source_body = r#"{"text":"source without owner"}"#;
+        opened
+            .engine
+            .write(&[
+                canonical_named(
+                    "matrix-source",
+                    "matrix-source-r1",
+                    "matrix-v1",
+                    "matrix-id",
+                    source_body,
+                ),
+                derived_named(
+                    "matrix-claim",
+                    "matrix-claim-r1",
+                    "matrix-source-r1",
+                    "matrix-v1",
+                    "matrix-id",
+                    source_body,
+                    r#"{"owner":"alice","text":"missingattributeneedle"}"#,
+                ),
+            ])
+            .unwrap();
+        let mut filter = SearchFilter::default();
+        filter.attributes = vec![("owner".into(), "alice".into())];
+        let filtered = ReadContextV1::new(context.view, filter).unwrap();
+        let frozen = freeze_stable(&opened.engine, &filtered);
+        let reference = opened
+            .engine
+            .search_with_evidence(&request("missingattributeneedle", frozen.clone()))
+            .unwrap()
+            .evidence[0]
+            .evidence_ref
+            .clone();
+        assert_unavailable(
+            opened
+                .engine
+                .resolve_evidence(&EvidenceResolveRequestV1 {
+                    schema_version: 1,
+                    evidence_ref: reference,
+                    context: frozen,
+                })
+                .unwrap_err(),
+        );
+    }
+}
+
+#[test]
+fn graph_origin_revocation_matrix_is_indistinguishable() {
+    let context = graph_matrix_context();
+    for case in ["erasure", "replacement", "validity", "endpoint", "closure"] {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("graph-revocation-{case}{SQLITE_SUFFIX}"));
+        let opened = open_with_fixed_embedder(&path);
+        seed_graph_matrix(&opened.engine);
+        let (reference, endpoint) = mint_graph_matrix_reference(&opened.engine, &context);
+
+        match case {
+            "erasure" => {
+                opened.engine.erase_source("graph-edge-source-id").unwrap();
+            }
+            "replacement" => {
+                let edge_source = r#"{"owner":"alice","text":"edge source"}"#;
+                opened
+                    .engine
+                    .write(&[PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                        kind: "related".into(),
+                        from: "graph-alpha".into(),
+                        to: "graph-beta".into(),
+                        source_id: SourceId::new("graph-edge-source-id").unwrap(),
+                        logical_id: Some("graph-edge".into()),
+                        body: Some("replacement relationship".into()),
+                        t_valid: None,
+                        t_invalid: None,
+                        confidence: Some(0.9),
+                        extractor_model_id: None,
+                        temporal_fallback: None,
+                        provenance: WriteProvenanceV1::derived(
+                            ArtifactRevisionId::new("graph-edge-r2").unwrap(),
+                            SourceVersionId::new("graph-edge-v1").unwrap(),
+                            SourceRevisionId::new("graph-edge-source-r1").unwrap(),
+                            SourceLocator::whole_body(),
+                            CanonicalHash::sha256(digest(edge_source)).unwrap(),
+                        ),
+                    })])
+                    .unwrap();
+            }
+            "validity" => {
+                let raw = rusqlite::Connection::open(&path).unwrap();
+                raw.execute(
+                    "UPDATE canonical_edges SET t_invalid=1000 WHERE logical_id='graph-edge'",
+                    [],
+                )
+                .unwrap();
+            }
+            "endpoint" => {
+                let raw = rusqlite::Connection::open(&path).unwrap();
+                raw.execute(
+                    "UPDATE canonical_attributes SET attr_value='bob' \
+                     WHERE attr_name='owner' AND write_cursor=(\
+                       SELECT write_cursor FROM canonical_nodes WHERE logical_id=?1\
+                     )",
+                    [endpoint],
+                )
+                .unwrap();
+            }
+            "closure" => insert_active_closure_barrier(&path, "graph-edge-source-r1", 2),
+            _ => unreachable!(),
+        }
+
+        let equivalent = freeze_stable(&opened.engine, &context);
+        assert_unavailable(
+            opened
+                .engine
+                .resolve_evidence(&EvidenceResolveRequestV1 {
+                    schema_version: 1,
+                    evidence_ref: reference,
+                    context: equivalent,
+                })
+                .unwrap_err(),
+        );
+    }
+}
+
+#[test]
+fn all_reachable_origin_contributions_and_atomic_sidecars() {
+    // Node FTS.
+    {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("origin-node-text{SQLITE_SUFFIX}"));
+        let opened = Engine::open(&path).unwrap();
+        let source_body = "node text source";
+        opened
+            .engine
+            .write(&[
+                canonical_named(
+                    "node-text-source",
+                    "node-text-source-r1",
+                    "node-text-v1",
+                    "node-text-source-id",
+                    source_body,
+                ),
+                derived_named(
+                    "node-text",
+                    "node-text-r1",
+                    "node-text-source-r1",
+                    "node-text-v1",
+                    "node-text-source-id",
+                    source_body,
+                    "nodetextneedle",
+                ),
+            ])
+            .unwrap();
+        let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+        let frozen = freeze_stable(&opened.engine, &context);
+        let mut evidence_request = request("nodetextneedle", frozen.clone());
+        evidence_request.include_explanation = true;
+        let result = opened.engine.search_with_evidence(&evidence_request).unwrap();
+        let index = result
+            .search_result
+            .results
+            .iter()
+            .position(|hit| hit.branch == SoftFallbackBranch::Text)
+            .unwrap();
+        let resolved =
+            assert_contribution_matches_explanation(&opened.engine, &result, &frozen, index);
+        assert_eq!(resolved.projection_origin.graph_origin, None);
+    }
+
+    // Node vector; only the entity kind is enrolled, so the source document
+    // cannot consume the single vector result.
+    {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("origin-node-vector{SQLITE_SUFFIX}"));
+        let opened = open_with_fixed_embedder(&path);
+        let source_body = "vector source";
+        opened
+            .engine
+            .write(&[canonical_named(
+                "node-vector-source",
+                "node-vector-source-r1",
+                "node-vector-v1",
+                "node-vector-source-id",
+                source_body,
+            )])
+            .unwrap();
+        opened.engine.configure_vector_kind_for_test("doc").unwrap();
+        opened
+            .engine
+            .write(&[derived_kind_named(
+                "doc",
+                "node-vector",
+                "node-vector-r1",
+                "node-vector-source-r1",
+                "node-vector-v1",
+                "node-vector-source-id",
+                source_body,
+                "semantic candidate without lexical overlap",
+            )])
+            .unwrap();
+        let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+        let frozen = freeze_stable(&opened.engine, &context);
+        let mut evidence_request = request("unrelated vector query", frozen.clone());
+        evidence_request.include_explanation = true;
+        let result = opened.engine.search_with_evidence(&evidence_request).unwrap();
+        let index = result
+            .search_result
+            .results
+            .iter()
+            .position(|hit| hit.branch == SoftFallbackBranch::Vector)
+            .unwrap_or_else(|| {
+                panic!(
+                    "expected vector origin; hits={:?}, explanation={:?}",
+                    result.search_result.results, result.search_result.explanation
+                )
+            });
+        let resolved =
+            assert_contribution_matches_explanation(&opened.engine, &result, &frozen, index);
+        assert!(resolved.retrieval_contribution.vector_rank.is_some());
+    }
+
+    // Edge FTS and edge-vector hydration share the stable `text_edge` artifact
+    // arm; their contribution ranks distinguish the producing candidate arm.
+    {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("origin-edge{SQLITE_SUFFIX}"));
+        let opened = open_with_fixed_embedder(&path);
+        opened.engine.configure_vector_kind_for_test("edge_fact").unwrap();
+        seed_graph_matrix(&opened.engine);
+        let context = ReadContextV1::new(
+            ReadView { valid_as_of: Some(1_000), ..ReadView::default() },
+            SearchFilter::default(),
+        )
+        .unwrap();
+        let frozen = freeze_stable(&opened.engine, &context);
+        let mut fts_request = request("graphmatrixneedle", frozen.clone());
+        fts_request.include_explanation = true;
+        let fts = opened.engine.search_with_evidence(&fts_request).unwrap();
+        let fts_index = fts
+            .search_result
+            .results
+            .iter()
+            .position(|hit| hit.branch == SoftFallbackBranch::TextEdge)
+            .unwrap();
+        let fts_resolved =
+            assert_contribution_matches_explanation(&opened.engine, &fts, &frozen, fts_index);
+        assert!(fts_resolved.retrieval_contribution.text_rank.is_some());
+
+        let vector_context = freeze_stable(&opened.engine, &context);
+        opened.engine.set_vector_stage_only_for_test(true);
+        let mut vector_request = request("no lexical edge overlap", vector_context.clone());
+        vector_request.include_explanation = true;
+        let vector = opened.engine.search_with_evidence(&vector_request).unwrap();
+        opened.engine.set_vector_stage_only_for_test(false);
+        let vector_index = vector
+            .search_result
+            .results
+            .iter()
+            .position(|hit| hit.branch == SoftFallbackBranch::TextEdge)
+            .unwrap();
+        let vector_resolved = assert_contribution_matches_explanation(
+            &opened.engine,
+            &vector,
+            &vector_context,
+            vector_index,
+        );
+        assert!(vector_resolved.retrieval_contribution.vector_rank.is_some());
+        assert_eq!(vector_resolved.retrieval_contribution.text_rank, None);
+    }
+
+    // Edge seed and multi-hop traversal origins.
+    {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("origin-graph-edge{SQLITE_SUFFIX}"));
+        let opened = open_with_fixed_embedder(&path);
+        seed_graph_matrix(&opened.engine);
+        let context = graph_matrix_context();
+        let frozen = freeze_stable(&opened.engine, &context);
+        let mut evidence_request = request("graphmatrixneedle", frozen.clone());
+        evidence_request.use_graph_arm = true;
+        evidence_request.include_explanation = true;
+        let result = opened.engine.search_with_evidence(&evidence_request).unwrap();
+        let index = result
+            .search_result
+            .results
+            .iter()
+            .position(|hit| hit.branch == SoftFallbackBranch::GraphArm)
+            .unwrap();
+        let resolved =
+            assert_contribution_matches_explanation(&opened.engine, &result, &frozen, index);
+        assert!(matches!(
+            resolved.projection_origin.graph_origin,
+            Some(EvidenceGraphOriginV1::EdgeSeed { .. })
+        ));
+    }
+
+    {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("origin-graph-traversal{SQLITE_SUFFIX}"));
+        let opened = open_with_fixed_embedder(&path);
+        let source_body = "traversal source";
+        opened
+            .engine
+            .write(&[
+                canonical_named(
+                    "traversal-source",
+                    "traversal-source-r1",
+                    "traversal-v1",
+                    "traversal-source-id",
+                    source_body,
+                ),
+                derived_named(
+                    "traversal-a",
+                    "traversal-a-r1",
+                    "traversal-source-r1",
+                    "traversal-v1",
+                    "traversal-source-id",
+                    source_body,
+                    "traversalseedneedle",
+                ),
+                derived_named(
+                    "traversal-b",
+                    "traversal-b-r1",
+                    "traversal-source-r1",
+                    "traversal-v1",
+                    "traversal-source-id",
+                    source_body,
+                    "middle endpoint",
+                ),
+                derived_named(
+                    "traversal-c",
+                    "traversal-c-r1",
+                    "traversal-source-r1",
+                    "traversal-v1",
+                    "traversal-source-id",
+                    source_body,
+                    "far endpoint",
+                ),
+                PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                    kind: "related".into(),
+                    from: "traversal-a".into(),
+                    to: "traversal-b".into(),
+                    source_id: SourceId::new("traversal-source-id").unwrap(),
+                    logical_id: Some("traversal-edge-1".into()),
+                    body: Some("first relation".into()),
+                    t_valid: None,
+                    t_invalid: None,
+                    confidence: None,
+                    extractor_model_id: None,
+                    temporal_fallback: None,
+                    provenance: WriteProvenanceV1::derived(
+                        ArtifactRevisionId::new("traversal-edge-r1").unwrap(),
+                        SourceVersionId::new("traversal-v1").unwrap(),
+                        SourceRevisionId::new("traversal-source-r1").unwrap(),
+                        SourceLocator::whole_body(),
+                        CanonicalHash::sha256(digest(source_body)).unwrap(),
+                    ),
+                }),
+                PreparedWrite::ProvenancedEdge(ProvenancedEdgeV1 {
+                    kind: "related".into(),
+                    from: "traversal-b".into(),
+                    to: "traversal-c".into(),
+                    source_id: SourceId::new("traversal-source-id").unwrap(),
+                    logical_id: Some("traversal-edge-2".into()),
+                    body: Some("second relation".into()),
+                    t_valid: None,
+                    t_invalid: None,
+                    confidence: None,
+                    extractor_model_id: None,
+                    temporal_fallback: None,
+                    provenance: WriteProvenanceV1::derived(
+                        ArtifactRevisionId::new("traversal-edge-r2").unwrap(),
+                        SourceVersionId::new("traversal-v1").unwrap(),
+                        SourceRevisionId::new("traversal-source-r1").unwrap(),
+                        SourceLocator::whole_body(),
+                        CanonicalHash::sha256(digest(source_body)).unwrap(),
+                    ),
+                }),
+            ])
+            .unwrap();
+        let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+        let frozen = freeze_stable(&opened.engine, &context);
+        let mut evidence_request = request("traversalseedneedle", frozen.clone());
+        evidence_request.use_graph_arm = true;
+        evidence_request.include_explanation = true;
+        let result = opened.engine.search_with_evidence(&evidence_request).unwrap();
+        assert!(result.search_result.results.iter().any(|hit| {
+            hit.id.value == "traversal-a" && hit.branch != SoftFallbackBranch::GraphArm
+        }));
+        assert!(!result.search_result.results.iter().any(|hit| {
+            hit.id.value == "traversal-a" && hit.branch == SoftFallbackBranch::GraphArm
+        }));
+        let index = result
+            .search_result
+            .results
+            .iter()
+            .position(|hit| {
+                hit.branch == SoftFallbackBranch::GraphArm && hit.id.value == "traversal-c"
+            })
+            .unwrap();
+        let resolved =
+            assert_contribution_matches_explanation(&opened.engine, &result, &frozen, index);
+        assert!(matches!(
+            resolved.projection_origin.graph_origin,
+            Some(EvidenceGraphOriginV1::Traversal { hop_count: 2, .. })
+        ));
+    }
+
+    // One unrepresentable hit rejects the whole opt-in operation; the Result
+    // type exposes no partial sidecar or hit prefix.
+    {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("origin-atomic{SQLITE_SUFFIX}"));
+        let opened = Engine::open(&path).unwrap();
+        for suffix in ["a", "b"] {
+            let source_body = format!("atomic source {suffix}");
+            opened
+                .engine
+                .write(&[
+                    canonical_named(
+                        &format!("atomic-source-{suffix}"),
+                        &format!("atomic-source-{suffix}-r1"),
+                        &format!("atomic-{suffix}-v1"),
+                        &format!("atomic-source-{suffix}-id"),
+                        &source_body,
+                    ),
+                    derived_named(
+                        &format!("atomic-claim-{suffix}"),
+                        &format!("atomic-claim-{suffix}-r1"),
+                        &format!("atomic-source-{suffix}-r1"),
+                        &format!("atomic-{suffix}-v1"),
+                        &format!("atomic-source-{suffix}-id"),
+                        &source_body,
+                        &format!("atomicsidecarneedle {suffix}"),
+                    ),
+                ])
+                .unwrap();
+        }
+        opened.engine.drain(30_000).unwrap();
+        let raw = rusqlite::Connection::open(&path).unwrap();
+        raw.execute(
+            "UPDATE _fathomdb_artifact_revisions SET completeness='migrated_incomplete' \
+             WHERE revision_id='atomic-claim-b-r1'",
+            [],
+        )
+        .unwrap();
+        let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+        let frozen = opened.engine.freeze_read_context(&context).unwrap();
+        let error = opened
+            .engine
+            .search_with_evidence(&request("atomicsidecarneedle", frozen))
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            EngineError::Evidence(ref evidence)
+                if evidence.reason == EvidenceErrorReasonV1::EvidenceIncomplete
+                    && evidence.field_path.starts_with("/results/")
+        ));
+    }
 }

@@ -206,6 +206,13 @@ def test_unknown_native_evidence_versions_fail_closed() -> None:
             "/projectionOrigin/artifactClass",
         ),
         (
+            lambda value: (
+                setattr(value.projection_origin, "representative_arm", "graph_arm"),
+                setattr(value.projection_origin, "graph_origin_kind", "entity_seed"),
+            ),
+            "/projectionOrigin/graphOrigin/kind",
+        ),
+        (
             lambda value: setattr(value.dependency, "registered_dependency_generation", "01"),
             "/dependency/registeredDependencyGeneration",
         ),

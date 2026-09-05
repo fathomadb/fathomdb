@@ -91,6 +91,16 @@ test("unknown unions and invalid numerics in native evidence fail closed", () =>
     "/projectionOrigin/graphOrigin/hopCount",
   );
 
+  const unreachableEntitySeed = resolvedFixture();
+  unreachableEntitySeed.projectionOrigin.representativeArm = "graph_arm";
+  unreachableEntitySeed.projectionOrigin.graphOrigin = {
+    kind: "entity_seed",
+  } as never;
+  expectCorrupt(
+    () => validateNativeResolvedEvidence(unreachableEntitySeed),
+    "/projectionOrigin/graphOrigin/kind",
+  );
+
   const badScore = resolvedFixture();
   badScore.retrievalContribution.fusedScore = Number.NaN;
   expectCorrupt(

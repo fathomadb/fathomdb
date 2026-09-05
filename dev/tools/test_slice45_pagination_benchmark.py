@@ -31,10 +31,7 @@ def test_rss_controls_do_not_require_frozen_setup() -> None:
     assert not BENCHMARK.rss_requires_frozen_fixture("exact_page")
     assert not BENCHMARK.rss_requires_frozen_fixture("current_state")
 
-    for arm in (
-        "frozen_page",
-        "mint_plus_page",
-        "continuation_page",
-        "frozen_state",
-    ):
+    assert not BENCHMARK.rss_requires_frozen_fixture("mint_plus_page")
+
+    for arm in ("frozen_page", "continuation_page", "frozen_state"):
         assert BENCHMARK.rss_requires_frozen_fixture(arm)

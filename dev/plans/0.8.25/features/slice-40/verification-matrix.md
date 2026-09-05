@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 40 verification matrix
 status: IN_PROGRESS
-candidate_product_commit: ad7d2824
-review_candidate_commit: d3548e07
-implementation_review: PASS_CYCLE_7
+candidate_product_commit: 2313fd34
+review_candidate_commit: 2313fd34
+implementation_review: PASS_CYCLE_8_FIX_1
 ---
 
 # Slice 40 verification matrix
@@ -39,6 +39,7 @@ platform-unavailable record permitted by the design.
 | Erasure drains/fences publication | `erase_source_drains_before_freezing`; `excise_source_drains_before_freezing`; `erase_source_removes_no_embedder_pending_edge_work` | PASS predecessor |
 | Old/new reader linearization and token drift | `frozen_context_rejects_tamper_database_mismatch_context_change_and_state_drift`; generation/readiness additions in `slice35_frozen_read` | PASS focused |
 | Direct old-generation or duplicate physical publication | `worker_publication_never_repairs_a_partial_projection_tuple`; `stale_worker_result_cannot_publish_into_a_new_generation` | PASS |
+| Temporal membership changes while dispatcher is idle | `dispatcher_rechecks_pending_member_at_source_valid_from_without_external_notification`; boundary and clock-rollback cache tests | PASS |
 
 The Slice 30 tests remain authoritative for dependency closure and erasure;
 Slice 40 does not duplicate them under new names. The Slice 40 tests add only
@@ -52,7 +53,7 @@ the generation-specific captured-work seams.
 | Per-receipt amplification | Candidate-only one-operation observation in the common campaign | Exact logical, provenance, receipt, generation, terminal, sidecar, and vec0 row counts; descriptive, not a threshold | PENDING final candidate rerun |
 | Reopen regression | Same common campaign | Five paired databases and registered relative-or-absolute policy | PENDING final candidate rerun |
 | Cold status cost | `scale-02-slice40-status` | First generation and mutation calls use separate reopens and are excluded from steady samples | PENDING |
-| Steady status bounds | Same status campaign | Five CPU-build and five CUDA-linked-build runs at 50,000 owners; p95/p99 policy; epoch rollovers excluded and counted | PENDING |
+| Steady status bounds | Same status campaign | Five CPU-build and five CUDA-linked-build runs at 50,000 owners; p95/p99 policy; temporal boundaries excluded and counted, while boundary-free epoch changes remain steady | PENDING |
 | Transition cost | Same status campaign | Metadata transition, first post-transition generation status, and rejected old-generation mutation status are separate observations | PENDING |
 | No steady O(N) scan | `steady_full_owner_scans == 0` plus cache-invalidation tests | Counter increments only on completion-cache misses; epoch-rollover scans are reported separately | PASS smoke; formal pending |
 | Durable indexed correlations | `status_query_plans_bound_correlations_with_durable_indexes` and retained plan strings in each status result | Canonical owner and correlated provenance/terminal/sidecar/kind lookups use durable indexes; vec0 virtual-table lookup is reported, not relabeled | PASS focused; formal retention pending |

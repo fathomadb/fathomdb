@@ -82,8 +82,10 @@ cargo test -p fathomdb-napi
 ```
 
 GREEN implements the smallest contract-complete behavior. Tests remain frozen
-during each fix-to-spec cycle. Independent implementation review may use up to
-seven FIX-n cycles, with owner-authorized later cycles only if genuinely needed.
+during each fix-to-spec cycle. Independent implementation review used the
+owner-authorized eighth cycle to close the final temporal-cache and dispatcher
+progress findings; its durable verdict is
+[`implementation-review-cycle8.md`](implementation-review-cycle8.md).
 
 ## Verification routes
 

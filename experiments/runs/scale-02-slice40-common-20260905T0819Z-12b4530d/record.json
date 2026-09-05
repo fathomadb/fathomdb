@@ -1,0 +1,334 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "scale-02-slice40-common-20260905T0819Z-12b4530d",
+  "experiment": "scale-02-slice40-common",
+  "title": "scale-02-slice40-common",
+  "verdict": "complete",
+  "read": "Slice 40 write/storage/reopen comparison: pass",
+  "code": {
+    "git_sha": "6b2c4da1cb8215580611161134528c4ada6443e5",
+    "dirty": false,
+    "branch": "release/0.8.25",
+    "baseline_commit": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403"
+  },
+  "config": {
+    "sha256": "12b4530d5d663b2aea9806ab3d4b5251ec38278ccb166226c8bfa2eece7cd609",
+    "path": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/experiments/configs/scale-02/slice40-projection-generation.v1.json",
+    "resolved": {
+      "schema_version": "scale-02-slice40.v1",
+      "program_track": "SCALE-02",
+      "release": "0.8.25",
+      "approval": {
+        "state": "approved",
+        "approved_by": "HITL",
+        "approved_at": "2026-09-05"
+      },
+      "baseline": {
+        "source_commit": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403"
+      },
+      "candidate": {
+        "source_commit": "8352165f3dc9a7ac900788808af756f3773d3f99"
+      },
+      "workload": {
+        "records": 10000,
+        "batch_size": 128,
+        "expected_receipts": 79,
+        "repetitions": 5,
+        "status_records": 50000,
+        "status_warmups": 100,
+        "status_samples": 1000,
+        "open_warmups": 5,
+        "open_samples": 20,
+        "bootstrap_seed": "0x5CA1E025400001",
+        "bootstrap_resamples": 2000
+      },
+      "policy": {
+        "confidence": 0.95,
+        "write_max_relative_regression": 0.03,
+        "open_max_relative_regression": 0.1,
+        "open_max_absolute_regression_ms": 25.0,
+        "status_p95_ms": 5.0,
+        "status_p99_ms": 10.0,
+        "storage_max_increase_bytes": 65536,
+        "cpu_cuda_status_p95_max_difference_ms": 2.0
+      },
+      "artifact_root": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs",
+      "claim_boundary": "slice40_projection_generation_readiness"
+    }
+  },
+  "corpus": {
+    "source": "deterministic Slice 40 representative fixture",
+    "manifest_sha256": null,
+    "datasets": []
+  },
+  "seeds": {
+    "bootstrap": "0x5CA1E025400001"
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb_baseline": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403",
+      "fathomdb_candidate": "8352165f3dc9a7ac900788808af756f3773d3f99"
+    }
+  },
+  "metrics": {
+    "schema_version": "scale-02-slice40-common-result.v1",
+    "program_track": "SCALE-02",
+    "claim_boundary": "slice40_projection_generation_readiness",
+    "verdict": "pass",
+    "write_upper_95_relative_regression": {
+      "p50": 0.010040356177754384,
+      "p95": 0.012267583975957485
+    },
+    "open_upper_95_relative_regression": 0.06758446960931667,
+    "open_mean_absolute_regression_ms": 3.309164799999998,
+    "maximum_paired_storage_increase_bytes": 28672,
+    "treatments": {
+      "baseline": [
+        {
+          "batch_size": 128,
+          "database_bytes_after_checkpoint": 14995456,
+          "errors": 0,
+          "generation_table_bytes": null,
+          "open_p95_ms": 57.19042,
+          "operation_count": 10000,
+          "pending_cursor_count": 10000,
+          "pending_receipt_count": 79,
+          "receipt_count": 79,
+          "receipt_generation_payload_bytes": null,
+          "receipt_table_bytes": 327680,
+          "records": 10000,
+          "schema_version": "scale-02-slice40-worker.v1",
+          "timeouts": 0,
+          "treatment": "baseline",
+          "wal_bytes_after_checkpoint": 0,
+          "wal_bytes_before_checkpoint": 4659752,
+          "write_p50_ms": 96.914179,
+          "write_p95_ms": 108.05965
+        },
+        {
+          "batch_size": 128,
+          "database_bytes_after_checkpoint": 14995456,
+          "errors": 0,
+          "generation_table_bytes": null,
+          "open_p95_ms": 57.262697,
+          "operation_count": 10000,
+          "pending_cursor_count": 10000,
+          "pending_receipt_count": 79,
+          "receipt_count": 79,
+          "receipt_generation_payload_bytes": null,
+          "receipt_table_bytes": 327680,
+          "records": 10000,
+          "schema_version": "scale-02-slice40-worker.v1",
+          "timeouts": 0,
+          "treatment": "baseline",
+          "wal_bytes_after_checkpoint": 0,
+          "wal_bytes_before_checkpoint": 4659752,
+          "write_p50_ms": 93.977207,
+          "write_p95_ms": 104.524106
+        },
+        {
+          "batch_size": 128,
+          "database_bytes_after_checkpoint": 14995456,
+          "errors": 0,
+          "generation_table_bytes": null,
+          "open_p95_ms": 57.818246,
+          "operation_count": 10000,
+          "pending_cursor_count": 10000,
+          "pending_receipt_count": 79,
+          "receipt_count": 79,
+          "receipt_generation_payload_bytes": null,
+          "receipt_table_bytes": 327680,
+          "records": 10000,
+          "schema_version": "scale-02-slice40-worker.v1",
+          "timeouts": 0,
+          "treatment": "baseline",
+          "wal_bytes_after_checkpoint": 0,
+          "wal_bytes_before_checkpoint": 4659752,
+          "write_p50_ms": 95.446263,
+          "write_p95_ms": 107.135713
+        },
+        {
+          "batch_size": 128,
+          "database_bytes_after_checkpoint": 14995456,
+          "errors": 0,
+          "generation_table_bytes": null,
+          "open_p95_ms": 58.140596,
+          "operation_count": 10000,
+          "pending_cursor_count": 10000,
+          "pending_receipt_count": 79,
+          "receipt_count": 79,
+          "receipt_generation_payload_bytes": null,
+          "receipt_table_bytes": 327680,
+          "records": 10000,
+          "schema_version": "scale-02-slice40-worker.v1",
+          "timeouts": 0,
+          "treatment": "baseline",
+          "wal_bytes_after_checkpoint": 0,
+          "wal_bytes_before_checkpoint": 4659752,
+          "write_p50_ms": 95.353728,
+          "write_p95_ms": 106.836117
+        },
+        {
+          "batch_size": 128,
+          "database_bytes_after_checkpoint": 14995456,
+          "errors": 0,
+          "generation_table_bytes": null,
+          "open_p95_ms": 57.573243,
+          "operation_count": 10000,
+          "pending_cursor_count": 10000,
+          "pending_receipt_count": 79,
+          "receipt_count": 79,
+          "receipt_generation_payload_bytes": null,
+          "receipt_table_bytes": 327680,
+          "records": 10000,
+          "schema_version": "scale-02-slice40-worker.v1",
+          "timeouts": 0,
+          "treatment": "baseline",
+          "wal_bytes_after_checkpoint": 0,
+          "wal_bytes_before_checkpoint": 4659752,
+          "write_p50_ms": 95.233541,
+          "write_p95_ms": 106.678097
+        }
+      ],
+      "candidate": [
+        {
+          "batch_size": 128,
+          "database_bytes_after_checkpoint": 15024128,
+          "errors": 0,
+          "generation_table_bytes": 8192,
+          "open_p95_ms": 59.883199,
+          "operation_count": 10000,
+          "pending_cursor_count": 10000,
+          "pending_receipt_count": 79,
+          "receipt_count": 79,
+          "receipt_generation_payload_bytes": 3002,
+          "receipt_table_bytes": 327680,
+          "records": 10000,
+          "schema_version": "scale-02-slice40-worker.v1",
+          "timeouts": 0,
+          "treatment": "candidate",
+          "wal_bytes_after_checkpoint": 0,
+          "wal_bytes_before_checkpoint": 4659752,
+          "write_p50_ms": 96.208723,
+          "write_p95_ms": 107.254195
+        },
+        {
+          "batch_size": 128,
+          "database_bytes_after_checkpoint": 15024128,
+          "errors": 0,
+          "generation_table_bytes": 8192,
+          "open_p95_ms": 61.326588,
+          "operation_count": 10000,
+          "pending_cursor_count": 10000,
+          "pending_receipt_count": 79,
+          "receipt_count": 79,
+          "receipt_generation_payload_bytes": 3002,
+          "receipt_table_bytes": 327680,
+          "records": 10000,
+          "schema_version": "scale-02-slice40-worker.v1",
+          "timeouts": 0,
+          "treatment": "candidate",
+          "wal_bytes_after_checkpoint": 0,
+          "wal_bytes_before_checkpoint": 4659752,
+          "write_p50_ms": 96.020257,
+          "write_p95_ms": 107.414197
+        },
+        {
+          "batch_size": 128,
+          "database_bytes_after_checkpoint": 15024128,
+          "errors": 0,
+          "generation_table_bytes": 8192,
+          "open_p95_ms": 59.885073,
+          "operation_count": 10000,
+          "pending_cursor_count": 10000,
+          "pending_receipt_count": 79,
+          "receipt_count": 79,
+          "receipt_generation_payload_bytes": 3002,
+          "receipt_table_bytes": 327680,
+          "records": 10000,
+          "schema_version": "scale-02-slice40-worker.v1",
+          "timeouts": 0,
+          "treatment": "candidate",
+          "wal_bytes_after_checkpoint": 0,
+          "wal_bytes_before_checkpoint": 4659752,
+          "write_p50_ms": 94.707645,
+          "write_p95_ms": 105.254454
+        },
+        {
+          "batch_size": 128,
+          "database_bytes_after_checkpoint": 15024128,
+          "errors": 0,
+          "generation_table_bytes": 8192,
+          "open_p95_ms": 61.998789,
+          "operation_count": 10000,
+          "pending_cursor_count": 10000,
+          "pending_receipt_count": 79,
+          "receipt_count": 79,
+          "receipt_generation_payload_bytes": 3002,
+          "receipt_table_bytes": 327680,
+          "records": 10000,
+          "schema_version": "scale-02-slice40-worker.v1",
+          "timeouts": 0,
+          "treatment": "candidate",
+          "wal_bytes_after_checkpoint": 0,
+          "wal_bytes_before_checkpoint": 4659752,
+          "write_p50_ms": 95.805019,
+          "write_p95_ms": 107.05114
+        },
+        {
+          "batch_size": 128,
+          "database_bytes_after_checkpoint": 15024128,
+          "errors": 0,
+          "generation_table_bytes": 8192,
+          "open_p95_ms": 61.437377,
+          "operation_count": 10000,
+          "pending_cursor_count": 10000,
+          "pending_receipt_count": 79,
+          "receipt_count": 79,
+          "receipt_generation_payload_bytes": 3002,
+          "receipt_table_bytes": 327680,
+          "records": 10000,
+          "schema_version": "scale-02-slice40-worker.v1",
+          "timeouts": 0,
+          "treatment": "candidate",
+          "wal_bytes_after_checkpoint": 0,
+          "wal_bytes_before_checkpoint": 4659752,
+          "write_p50_ms": 94.506765,
+          "write_p95_ms": 106.779586
+        }
+      ]
+    },
+    "binaries": {
+      "baseline": {
+        "path": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs/slice40-20260905T081546Z/baseline/target/release/examples/slice40_common_measurement",
+        "sha256": "7d85dd3d122937d3b7e04c654d3ec9214bb15a83a5f47296d00eb8fd6721fb00",
+        "source_commit": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403"
+      },
+      "candidate": {
+        "path": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs/slice40-20260905T081546Z/candidate/target/release/examples/slice40_common_measurement",
+        "sha256": "9a9af478f04c60684fdaa55a800452cdadbbdf6d664632b2f548247f60e06419",
+        "source_commit": "8352165f3dc9a7ac900788808af756f3773d3f99"
+      }
+    },
+    "runner_sha256": "8040ad5c89f632a40a57327e7ae54f281730d18afb911e5f2f0b5a466d2d5ced",
+    "worker_source_sha256": "c04c22ba2ada1f796b3f29f739796b67c7e11d6bf19574c36fa23cef1c349da4"
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": [
+    "tests/experiments/test_scale_02_slice40.py"
+  ],
+  "files_changed": [],
+  "artifacts": [
+    {
+      "kind": "external_safe_summary",
+      "path": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs/slice40-20260905T081546Z/metrics.json",
+      "sha256": "ad3afd7a17865c1fabc441b4a69c140176e003a0b1654ac4a57ef61839d59922"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

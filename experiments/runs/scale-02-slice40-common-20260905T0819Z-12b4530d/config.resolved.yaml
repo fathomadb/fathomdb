@@ -1,0 +1,34 @@
+approval:
+  approved_at: '2026-09-05'
+  approved_by: HITL
+  state: approved
+artifact_root: /home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs
+baseline:
+  source_commit: 0aff1cb08c61a8bb2a004813bbd5604b6ff1a403
+candidate:
+  source_commit: 8352165f3dc9a7ac900788808af756f3773d3f99
+claim_boundary: slice40_projection_generation_readiness
+policy:
+  confidence: 0.95
+  cpu_cuda_status_p95_max_difference_ms: 2.0
+  open_max_absolute_regression_ms: 25.0
+  open_max_relative_regression: 0.1
+  status_p95_ms: 5.0
+  status_p99_ms: 10.0
+  storage_max_increase_bytes: 65536
+  write_max_relative_regression: 0.03
+program_track: SCALE-02
+release: 0.8.25
+schema_version: scale-02-slice40.v1
+workload:
+  batch_size: 128
+  bootstrap_resamples: 2000
+  bootstrap_seed: '0x5CA1E025400001'
+  expected_receipts: 79
+  open_samples: 20
+  open_warmups: 5
+  records: 10000
+  repetitions: 5
+  status_records: 50000
+  status_samples: 1000
+  status_warmups: 100

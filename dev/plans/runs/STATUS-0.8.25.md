@@ -12,11 +12,11 @@ there, then regenerate this board's fenced view. The release plan is
 
 ## Current state
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 45 (PAGINATION), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 50 (EVIDENCE), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
-Prework and Slices 10 through 40 are complete on the durable `release/0.8.25`
-worktree. Slice 40 closed with its preregistered CUDA throughput observation,
-exact evidence manifest, independent closeout review, and clean fast gate. The
+Prework and Slices 10 through 45 are complete on the durable `release/0.8.25`
+worktree. Slice 45 closed with stable frozen pagination, cross-SDK and Windows
+verification, and a preregistered 10k/50k latency and memory receipt. The
 owner-approved 2026-09-02
 scope adjustment removes Slices 65/70 and narrows the retained implementation
 ladder. Direct agents execute this release without Steward or Orchestrator
@@ -41,7 +41,7 @@ roles.
 | 30 | Lifecycle and erasure closure | Complete on release branch (`75617521`) |
 | 35 | Eligibility and optional frozen reads | Complete on release branch (`071ff7d1`) |
 | 40 | Core projection generation/readiness | Complete on release branch (`ccf7c695`) |
-| 45 | Minimal pagination and operational state | Not started |
+| 45 | Minimal pagination and operational state | Complete on release branch (`2f48e657`) |
 | 50 | Compact source-complete evidence | Not started |
 | 55 | Basic tracing and integrity | Not started |
 | 60 | Minimal constrained graph parity | Not started |
@@ -70,7 +70,7 @@ roles.
 
 ## Immediate next action
 
-<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 45 (PAGINATION)** — minimal pagination and operational-state reads. **Remaining ladder:** 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
+<!-- BEGIN GENERATED release-state:0.8.25:status-next-action -->**Commission Slice 50 (EVIDENCE)** — compact source-complete evidence. **Remaining ladder:** 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:status-next-action -->
 
 ## Verification
 
@@ -118,6 +118,12 @@ lint, and `git diff --check`. Each Slice 1–5 record is proposal-only.
   preregistered 10k write/storage/reopen and 50k CPU/CUDA-linked status
   campaigns pass all bounds; Linux CPU/CUDA and Windows native artifacts pass
   status/reopen smokes, and real RTX 3090 allocation is separately witnessed.
+- Slice 45 passes independent design review at cycle 4, implementation review
+  at cycle 6, and separate Linux/Windows verification. Its authenticated
+  frozen pages and operational-state reads pass all functional gates. The
+  registered 10k/50k receipt finds no material latency or memory effect; the
+  largest steady p95 increase is 0.116 ms and the largest median peak-RSS
+  increase is 1.17 MiB. The final unconfined fast gate passes 103/103 suites.
 - A diagnostic release-wide long gate exposed the pre-existing AC-013 vector
   latency failure and was stopped after that failure. It is release debt, not
   a Slice 10 regression.

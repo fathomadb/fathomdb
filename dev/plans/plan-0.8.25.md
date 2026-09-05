@@ -205,13 +205,14 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 45** (`PAGINATION`) — minimal pagination and operational-state reads
+**IMMEDIATE NEXT: Slice 50** (`EVIDENCE`) — compact source-complete evidence
 
-**Remaining ladder:** 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
-Slice 40 is durably closed. Reconcile Slice 45's minimal pagination and
-operational-state design against the implemented Slice 35 frozen-read and Slice
-40 generation contracts before beginning its RED tests.
+Slice 45 is durably closed. Reconcile Slice 50's compact evidence design
+against the implemented provenance, dependency, lifecycle, eligibility,
+generation, frozen-read, and pagination contracts before beginning its RED
+tests.
 
 ## Stop gates
 

@@ -1,0 +1,39 @@
+{
+  "schema_version": "scale-02-slice40-cuda-throughput.v1",
+  "program_track": "SCALE-02",
+  "release": "0.8.25",
+  "approval": {
+    "state": "approved",
+    "approved_by": "HITL",
+    "approved_at": "2026-09-05"
+  },
+  "candidate": {
+    "product_commit": "2313fd34ea5ca68346a468d5bba58ba245306c08",
+    "wheel_sha256": "a1f7b571aa9af12641ba839bdd426e6184ba60794e04ffeb8a80d025b4d9df6c"
+  },
+  "execution": {
+    "runner_sha256": "7e633470bf130f49f90c47e06f39ab7854218950ad987d7d3c0aa301e9f0262f",
+    "measurement_plan_sha256": "abfdff57ff8ce5186738536185ac1770aa94d935c6865be1917332de9561709c"
+  },
+  "workload": {
+    "records": 1024,
+    "write_batch_size": 128,
+    "repetitions": 5,
+    "warmup_records": 64,
+    "drain_timeout_seconds": 900
+  },
+  "runtime": {
+    "embed_device": "cuda:0",
+    "cuda_uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+    "embedder": "fathomdb-bge-small-en-v1.5",
+    "network": "none"
+  },
+  "policy": {
+    "classification": "descriptive",
+    "decision_threshold": null,
+    "excluded_time": ["artifact_install", "model_load", "model_warmup"],
+    "included_time": ["configure_projection", "projection_backfill", "drain"]
+  },
+  "artifact_root": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs",
+  "claim_boundary": "cuda_projection_backfill_throughput_descriptive"
+}

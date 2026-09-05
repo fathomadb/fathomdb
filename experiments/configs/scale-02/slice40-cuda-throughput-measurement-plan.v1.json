@@ -1,0 +1,29 @@
+{
+  "schema_version": "measurement.plan.v3",
+  "plan_id": "slice40-cuda-throughput-v1",
+  "components": [
+    {"id": "wheel", "name": "installed CUDA-capable FathomDB wheel", "kind": "fathomdb_storage"},
+    {"id": "gpu", "name": "forced RTX 3090 CUDA execution", "kind": "external_compute"},
+    {"id": "metric", "name": "projection backfill throughput calculation", "kind": "deterministic_metric"}
+  ],
+  "call_paths": [
+    {"id": "projection-backfill", "path": "Engine.configure_projections -> projection worker -> Engine.drain", "component_ids": ["wheel", "gpu"]}
+  ],
+  "comparisons": [],
+  "metric_bindings": [
+    {"id": "throughput-minimum", "source_artifact_id": "metrics", "json_pointer": "/throughput_records_per_second/minimum", "value_type": "number", "allowed_values": [], "layer": "data_plane", "contributing_component_ids": ["wheel", "gpu", "metric"], "execution_witness_ids": []},
+    {"id": "throughput-median", "source_artifact_id": "metrics", "json_pointer": "/throughput_records_per_second/median", "value_type": "number", "allowed_values": [], "layer": "data_plane", "contributing_component_ids": ["wheel", "gpu", "metric"], "execution_witness_ids": []},
+    {"id": "throughput-maximum", "source_artifact_id": "metrics", "json_pointer": "/throughput_records_per_second/maximum", "value_type": "number", "allowed_values": [], "layer": "data_plane", "contributing_component_ids": ["wheel", "gpu", "metric"], "execution_witness_ids": []}
+  ],
+  "measurement_roots": [
+    {"source_artifact_id": "metrics", "json_pointers": ["/throughput_records_per_second/minimum", "/throughput_records_per_second/median", "/throughput_records_per_second/maximum"]}
+  ],
+  "metric_exclusions": [
+    {"source_artifact_id": "metrics", "json_pointer": "/classification", "reason": "run_control"},
+    {"source_artifact_id": "metrics", "json_pointer": "/verdict", "reason": "descriptive_observation_only"}
+  ],
+  "claims": [
+    {"id": "cuda-projection-backfill-throughput", "layer": "data_plane", "metric_ids": ["throughput-minimum", "throughput-median", "throughput-maximum"]}
+  ],
+  "execution_witness_bindings": []
+}

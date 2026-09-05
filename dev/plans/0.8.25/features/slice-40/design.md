@@ -4,7 +4,7 @@ status: READY
 design_version: 8
 review_cycle: 4
 reviewed_commit: 465eb0a5
-implementation_reconciliation: 2
+implementation_reconciliation: 3
 target_release: 0.8.25
 depends_on: 35
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -468,15 +468,25 @@ classification, and exact point classification for registry-owned kinds.
 introduced by correlation fields; an uncached aggregate may visit the physical
 member set.
 
-Status reads use an exact snapshot cache keyed by the read-visibility
-generation, SQLite `data_version`, effective epoch second, runtime state, and,
-for mutation status, the complete validated request. Same-connection Engine
-mutations advance read visibility; commits from other connections advance
-`data_version`; an epoch change invalidates time-bound eligibility. A cache
-miss recomputes the complete status in one reader transaction. A cache hit is
+Status reads use an exact snapshot cache keyed by the fallibly read
+authoritative boundary, read-visibility generation, SQLite `data_version`,
+effective epoch second, runtime state, and, for mutation status, the complete
+validated request. The boundary key covers same-Engine operational-only
+mutations that do not touch a visibility-triggered table; commits from other
+connections advance `data_version`; visibility-authority changes and an epoch
+change cover the remaining physical and time-bound state. A cache miss
+recomputes the complete status in one reader transaction. A cache hit is
 therefore a reuse of an identical snapshot result, not an approximation or a
-weaker readiness signal. Tests must prove invalidation after worker publication
-and an out-of-band physical mutation.
+weaker readiness signal. Tests must prove invalidation after worker
+publication, operational-only mutation, and an out-of-band physical mutation.
+
+Before classifying registered physical owners, a status cache miss validates
+that every dependency resolves to a derived artifact and matching source link,
+that its source revision is canonical and source-version-backed, that no source
+link is orphaned, and that every artifact revision resolves to its canonical
+node or edge owner. Any partial registered-provenance authority is typed
+`projection_generation_corrupt`; it is never reclassified as an unregistered
+legacy owner.
 
 Existing `DenseReadiness` and projection-status coarse surfaces keep their
 accepted runtime-gated derivation unchanged: absent/refused runtime remains

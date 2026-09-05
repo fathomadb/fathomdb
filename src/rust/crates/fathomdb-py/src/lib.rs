@@ -3073,6 +3073,7 @@ fn read_mutation_projection_status(
 ) -> PyResult<PyMutationProjectionStatusV1> {
     let schema_version = request
         .get_item("schemaVersion")?
+        .filter(|value| !value.is_instance_of::<pyo3::types::PyBool>())
         .and_then(|value| value.extract::<u32>().ok())
         .ok_or_else(|| {
             projection_generation_input_error("unsupported_schema_version", "/schemaVersion")

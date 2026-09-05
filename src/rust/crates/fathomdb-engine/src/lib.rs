@@ -22220,21 +22220,27 @@ fn hamming_bytes(a: &[u8], b: &[u8]) -> u64 {
 /// (`fathomdb-schema/src/lib.rs`); the drift-detection unit test in
 /// this module's `tests` mod enforces that. Per
 /// `dev/design/0.7.0-vector-quant-pack1.md` D3.
+const VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES: [(&str, &str); 7] = [
+    ("email", "email"),
+    ("article", "article"),
+    ("paper", "paper"),
+    ("meeting", "meeting"),
+    ("note", "note"),
+    ("todo", "todo"),
+    // Synthetic AC-013 test fixture; coerced so the 6-value HITL lock holds.
+    ("doc", "article"),
+];
+
 fn resolve_source_type(kind: &str) -> Result<&'static str, EngineError> {
-    Ok(match kind {
-        "email" => "email",
-        "article" => "article",
-        "paper" => "paper",
-        "meeting" => "meeting",
-        "note" => "note",
-        "todo" => "todo",
-        // Synthetic AC-013 test fixture; coerced so the 6-value HITL lock holds.
-        "doc" => "article",
+    if kind == "edge_fact" {
         // G11 (Slice 15) — edge-body projection; separate `source_type` partition
         // key distinguishes edge vectors from node vectors in `vector_default`.
-        "edge_fact" => "edge_fact",
-        _ => return Err(EngineError::Storage),
-    })
+        return Ok("edge_fact");
+    }
+    VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES
+        .iter()
+        .find_map(|(candidate, source_type)| (*candidate == kind).then_some(*source_type))
+        .ok_or(EngineError::Storage)
 }
 
 /// 0.8.20 Slice 20c fix-2 (codex §9 [P1]) — **can the vector writer COMMIT a row

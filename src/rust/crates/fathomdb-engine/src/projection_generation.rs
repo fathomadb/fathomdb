@@ -167,6 +167,7 @@ pub struct MutationProjectionStatusV1 {
 pub(crate) struct CachedProjectionGenerationStatus {
     visibility_generation: u64,
     data_version: u64,
+    authoritative_boundary: u64,
     effective_at_epoch_s: i64,
     runtime_state: ProjectionRuntimeStateV1,
     status: ProjectionGenerationStatusV1,
@@ -176,6 +177,7 @@ pub(crate) struct CachedProjectionGenerationStatus {
 pub(crate) struct CachedMutationProjectionStatus {
     visibility_generation: u64,
     data_version: u64,
+    authoritative_boundary: u64,
     effective_at_epoch_s: i64,
     runtime_state: ProjectionRuntimeStateV1,
     request: MutationProjectionStatusRequestV1,
@@ -918,17 +920,20 @@ fn aggregate_unregistered_node_completion(
     node_arm_declared: bool,
     runtime_state: ProjectionRuntimeStateV1,
 ) -> Result<(u64, u64, Option<u64>), EngineError> {
-    let sql = "WITH members AS (
-        SELECT n.write_cursor AS cursor,n.kind AS expected_kind,
-               CASE n.kind
-                 WHEN 'email' THEN 'email' WHEN 'article' THEN 'article'
-                 WHEN 'paper' THEN 'paper' WHEN 'meeting' THEN 'meeting'
-                 WHEN 'note' THEN 'note' WHEN 'todo' THEN 'todo'
-                 WHEN 'doc' THEN 'article' END AS expected_source_type,
+    let vocabulary = super::VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES
+        .iter()
+        .map(|(kind, source_type)| format!("('{kind}','{source_type}')"))
+        .collect::<Vec<_>>()
+        .join(",");
+    let sql = format!(
+        "WITH committable(expected_kind,expected_source_type) AS (VALUES {vocabulary}),
+      members AS (
+        SELECT n.write_cursor AS cursor,c.expected_kind,c.expected_source_type,
                pt.state AS terminal,vr.rowid AS sidecar_rowid,vr.kind AS sidecar_kind,
                vd.source_type AS physical_source_type,vd.kind AS physical_kind,
                (vk.kind IS NOT NULL) AS enrolled
         FROM canonical_nodes n
+        JOIN committable c ON c.expected_kind=n.kind
         LEFT JOIN _fathomdb_projection_terminal pt ON pt.write_cursor=n.write_cursor
         LEFT JOIN _fathomdb_vector_rows vr ON vr.write_cursor=n.write_cursor
         LEFT JOIN vector_default vd ON vd.rowid=n.write_cursor
@@ -958,10 +963,11 @@ fn aggregate_unregistered_node_completion(
       SELECT COALESCE(SUM(pending),0),COALESCE(SUM(failed),0),
              MIN(CASE WHEN pending OR failed THEN cursor END),
              COALESCE(SUM(NOT (complete OR failed OR pending)),0)
-      FROM classified";
+      FROM classified"
+    );
     completion_aggregate_row(
         connection,
-        sql,
+        &sql,
         params![
             i64::from(node_arm_declared),
             i64::from(runtime_state == ProjectionRuntimeStateV1::Usable)
@@ -1062,17 +1068,24 @@ fn empty_physical_fast_path(
         return Ok(None);
     }
 
+    let vocabulary = super::VECTOR_COMMITTABLE_NODE_KIND_SOURCE_TYPES
+        .iter()
+        .map(|(kind, _)| format!("('{kind}')"))
+        .collect::<Vec<_>>()
+        .join(",");
+    let node_sql = format!(
+        "WITH committable(kind) AS (VALUES {vocabulary})
+         SELECT COUNT(*),MIN(n.write_cursor),COALESCE(SUM(vk.kind IS NULL),0)
+         FROM canonical_nodes n
+         JOIN committable c ON c.kind=n.kind
+         LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind
+         WHERE n.row_kind IN ('leaf','coverage')
+           AND (?1!=0 OR vk.kind IS NOT NULL)"
+    );
     let (node_count, first_node, unenrolled_nodes): (u64, Option<u64>, u64) = connection
-        .query_row(
-            "SELECT COUNT(*),MIN(n.write_cursor),COALESCE(SUM(vk.kind IS NULL),0)
-             FROM canonical_nodes n
-             LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind
-             WHERE n.row_kind IN ('leaf','coverage')
-               AND n.kind IN ('email','article','paper','meeting','note','todo','doc')
-               AND (?1!=0 OR vk.kind IS NOT NULL)",
-            [i64::from(node_arm_declared)],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        )
+        .query_row(&node_sql, [i64::from(node_arm_declared)], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })
         .map_err(|_| EngineError::Storage)?;
     let (edge_count, first_edge): (u64, Option<u64>) = connection
         .query_row(
@@ -1098,12 +1111,65 @@ fn empty_physical_fast_path(
     Ok(Some(CompletionAccumulator { pending_count, failed_count: 0, first_incomplete }))
 }
 
+fn validate_registered_provenance_integrity(connection: &Connection) -> Result<(), EngineError> {
+    let corrupt: bool = connection
+        .query_row(
+            "SELECT EXISTS(
+               SELECT 1 FROM _fathomdb_source_dependencies d
+               LEFT JOIN _fathomdb_artifact_revisions derived
+                 ON derived.revision_id=d.derived_revision_id
+               LEFT JOIN _fathomdb_source_links link
+                 ON link.artifact_revision_id=d.derived_revision_id
+               LEFT JOIN _fathomdb_artifact_revisions source
+                 ON source.revision_id=link.source_revision_id
+               LEFT JOIN _fathomdb_source_versions version
+                 ON version.source_id=link.source_id
+                AND version.source_version_id=link.source_version_id
+                AND version.source_revision_id=link.source_revision_id
+               WHERE derived.revision_id IS NULL
+                  OR derived.artifact_role!='derived_semantic'
+                  OR link.artifact_revision_id IS NULL
+                  OR source.revision_id IS NULL
+                  OR source.artifact_role!='canonical_source'
+                  OR version.source_revision_id IS NULL
+               LIMIT 1
+             ) OR EXISTS(
+               SELECT 1 FROM _fathomdb_source_links link
+               LEFT JOIN _fathomdb_artifact_revisions artifact
+                 ON artifact.revision_id=link.artifact_revision_id
+               LEFT JOIN _fathomdb_artifact_revisions source
+                 ON source.revision_id=link.source_revision_id
+               WHERE artifact.revision_id IS NULL OR source.revision_id IS NULL
+               LIMIT 1
+             ) OR EXISTS(
+               SELECT 1 FROM _fathomdb_artifact_revisions artifact
+               LEFT JOIN canonical_nodes node
+                 ON artifact.artifact_class='node'
+                AND node.write_cursor=artifact.write_cursor
+               LEFT JOIN canonical_edges edge
+                 ON artifact.artifact_class='edge'
+                AND edge.write_cursor=artifact.write_cursor
+               WHERE (artifact.artifact_class='node' AND node.write_cursor IS NULL)
+                  OR (artifact.artifact_class='edge' AND edge.write_cursor IS NULL)
+               LIMIT 1
+             )",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    if corrupt {
+        return Err(corruption());
+    }
+    Ok(())
+}
+
 fn physical_completion(
     connection: &Connection,
     effective_at: i64,
     runtime_state: ProjectionRuntimeStateV1,
+    observed_boundary: u64,
 ) -> Result<CompletionSummary, EngineError> {
-    let observed_boundary = authoritative_boundary(connection)?;
+    validate_registered_provenance_integrity(connection)?;
     let cross_owner_cursor: bool = connection
         .query_row(
             "SELECT EXISTS(SELECT 1 FROM canonical_nodes n \
@@ -1173,9 +1239,11 @@ fn status_in_snapshot(
     connection: &Connection,
     runtime_state: ProjectionRuntimeStateV1,
     effective_at_epoch_s: i64,
+    observed_boundary: u64,
 ) -> Result<ProjectionGenerationStatusV1, EngineError> {
     let generation = current_generation(connection)?;
-    let completion = physical_completion(connection, effective_at_epoch_s, runtime_state)?;
+    let completion =
+        physical_completion(connection, effective_at_epoch_s, runtime_state, observed_boundary)?;
     let readiness = if generation.origin == ProjectionGenerationOriginV1::LegacyUnverified
         || completion.failed_count != 0
     {
@@ -1211,6 +1279,7 @@ impl Engine {
         connection: &Connection,
         runtime_state: ProjectionRuntimeStateV1,
         effective_at_epoch_s: i64,
+        boundary: u64,
     ) -> Result<ProjectionGenerationStatusV1, EngineError> {
         let visibility_generation = super::frozen_read::load_visibility_generation(connection)
             .map_err(|_| EngineError::Storage)?;
@@ -1222,16 +1291,18 @@ impl Engine {
         if let Some(cached) = cache.as_ref() {
             if cached.visibility_generation == visibility_generation
                 && cached.data_version == data_version
+                && cached.authoritative_boundary == boundary
                 && cached.effective_at_epoch_s == effective_at_epoch_s
                 && cached.runtime_state == runtime_state
             {
                 return Ok(cached.status.clone());
             }
         }
-        let status = status_in_snapshot(connection, runtime_state, effective_at_epoch_s)?;
+        let status = status_in_snapshot(connection, runtime_state, effective_at_epoch_s, boundary)?;
         *cache = Some(CachedProjectionGenerationStatus {
             visibility_generation,
             data_version,
+            authoritative_boundary: boundary,
             effective_at_epoch_s,
             runtime_state,
             status: status.clone(),
@@ -1257,7 +1328,9 @@ impl Engine {
         } else {
             ProjectionRuntimeStateV1::Usable
         };
-        let status = self.cached_status_in_snapshot(&tx, runtime_state, effective_at_epoch_s)?;
+        let boundary = authoritative_boundary(&tx)?;
+        let status =
+            self.cached_status_in_snapshot(&tx, runtime_state, effective_at_epoch_s, boundary)?;
         tx.commit().map_err(|_| EngineError::Storage)?;
         Ok(status)
     }
@@ -1307,12 +1380,14 @@ impl Engine {
         let data_version: u64 = tx
             .query_row("PRAGMA data_version", [], |row| row.get(0))
             .map_err(|_| EngineError::Storage)?;
+        let boundary = authoritative_boundary(&tx)?;
         {
             let cache =
                 self.mutation_projection_status_cache.lock().map_err(|_| EngineError::Storage)?;
             if let Some(cached) = cache.as_ref() {
                 if cached.visibility_generation == visibility_generation
                     && cached.data_version == data_version
+                    && cached.authoritative_boundary == boundary
                     && cached.effective_at_epoch_s == effective_at_epoch_s
                     && cached.runtime_state == runtime_state
                     && cached.request == request
@@ -1389,7 +1464,6 @@ impl Engine {
             )
             .into());
         }
-        let status = self.cached_status_in_snapshot(&tx, runtime_state, effective_at_epoch_s)?;
         let owner_completion = physical_member_completion_at(
             &tx,
             request.write_cursor,
@@ -1402,6 +1476,8 @@ impl Engine {
                 "/projectionGeneration",
             ))
         })?;
+        let status =
+            self.cached_status_in_snapshot(&tx, runtime_state, effective_at_epoch_s, boundary)?;
         let (owner_readiness, owner_pending, owner_failed) = match owner_completion {
             Completion::Complete => (ProjectionReadinessV1::Ready, false, false),
             Completion::Failed => (ProjectionReadinessV1::Degraded, false, true),
@@ -1432,6 +1508,7 @@ impl Engine {
             Some(CachedMutationProjectionStatus {
                 visibility_generation,
                 data_version,
+                authoritative_boundary: boundary,
                 effective_at_epoch_s,
                 runtime_state,
                 request: cache_request,

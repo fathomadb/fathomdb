@@ -162,7 +162,7 @@ fi
 # explicit here: it is the reviewable test oracle for the Slice 30 commission
 # plus the approved 0.8.25 Slice 20/25/30 additions.
 set +e
-SLICE30_SHAPE="$(python3 - "$REAL_FILE" "$REAL_PIN" <<'PY'
+SLICE50_SHAPE="$(python3 - "$REAL_FILE" "$REAL_PIN" <<'PY'
 import json
 import sys
 
@@ -232,7 +232,7 @@ expected_allowlist = [
     "read.mutation_projection_status",
     "read.mutationProjectionStatus",
 ]
-expected_counts = {"allowlist": 54, "core": 5, "recovery_denylist": 5}
+expected_counts = {"allowlist": 58, "core": 5, "recovery_denylist": 5}
 expected_denylist = ["recover", "restore", "repair", "fix", "rebuild"]
 expected_ac_provenance = "0.8.23 Slice 30"
 expected_comment_provenance = "RE-ISSUED 2026-08-16 (HITL explicit Slice 30 commission)."
@@ -247,9 +247,9 @@ expected_slice40_comment = "RE-ISSUED 2026-09-05 (HITL-approved 0.8.25 Slice 40 
 
 problems = []
 if allowlist.get("allowlist") != expected_allowlist:
-    problems.append("allowlist is not the exact approved 54-member accumulated shape")
+    problems.append("allowlist is not the exact approved 58-member accumulated shape")
 if pin.get("allowlist") != expected_allowlist:
-    problems.append("pin allowlist is not the exact approved 54-member accumulated shape")
+    problems.append("pin allowlist is not the exact approved 58-member accumulated shape")
 if pin.get("counts") != expected_counts:
     problems.append(f"pin counts are {pin.get('counts')!r}, not {expected_counts!r}")
 if allowlist.get("recovery_denylist") != expected_denylist:
@@ -279,15 +279,15 @@ if expected_slice40_comment not in "\n".join(pin.get("_comment", [])):
 
 if problems:
     raise SystemExit("; ".join(problems))
-print("exact approved 54-member accumulated shape and explicit provenance")
+print("exact approved 58-member accumulated shape and explicit provenance")
 PY
 )"
-SLICE30_SHAPE_RC=$?
+SLICE50_SHAPE_RC=$?
 set -e
-if [ "$SLICE30_SHAPE_RC" -eq 0 ]; then
-  pass "$SLICE30_SHAPE"
+if [ "$SLICE50_SHAPE_RC" -eq 0 ]; then
+  pass "$SLICE50_SHAPE"
 else
-  fail "the pin must retain the exact approved 54-member accumulated shape and explicit provenance: $SLICE30_SHAPE"
+  fail "the pin must retain the exact approved 58-member accumulated shape and explicit provenance: $SLICE50_SHAPE"
 fi
 
 # The pin must really describe the allowlist at its own provenance commit. Reading
@@ -335,10 +335,10 @@ expect_rc 0 "an unmodified COPY of the allowlist passes"
 F="$(copy_file added-member)"
 mutate "$F" 'd["allowlist"].append("shiny.new_verb")'
 check_fixture "$F"
-expect_rc 1 "an ADDED allowlist member (55) HARD-fails"
+expect_rc 1 "an ADDED allowlist member (59) HARD-fails"
 expect_out "'allowlist' diverges from the pin" "added-member names the diverging key"
 expect_out 'ADDED shiny.new_verb' "added-member NAMES the member that appeared"
-expect_out 'Pinned 54 member\(s\), on disk 55' "added-member states pinned-vs-on-disk counts"
+expect_out 'Pinned 58 member\(s\), on disk 59' "added-member states pinned-vs-on-disk counts"
 expect_out 'content differs from the pin' "added-member reports the content-hash divergence too"
 expect_routes_to_hitl "added-member"
 
@@ -346,9 +346,9 @@ expect_routes_to_hitl "added-member"
 F="$(copy_file removed-member)"
 mutate "$F" 'd["allowlist"].remove("purge")'
 check_fixture "$F"
-expect_rc 1 "a REMOVED allowlist member (53) HARD-fails"
+expect_rc 1 "a REMOVED allowlist member (57) HARD-fails"
 expect_out 'REMOVED purge' "removed-member NAMES the member that vanished"
-expect_out 'Pinned 54 member\(s\), on disk 53' "removed-member states pinned-vs-on-disk counts"
+expect_out 'Pinned 58 member\(s\), on disk 57' "removed-member states pinned-vs-on-disk counts"
 expect_routes_to_hitl "removed-member"
 
 # =================== Arm 3 (RED): recovery_denylist widened ===================
@@ -433,7 +433,7 @@ PY
 check_fixture "$F" "$LAZY_PIN"
 expect_rc 1 "a LAZY RE-PIN (hashes updated, signed member list untouched) still HARD-fails"
 expect_out 'ADDED smuggled.verb' "lazy-repin names the smuggled member"
-expect_out 'counts block says 54' "lazy-repin is also caught by the counts assertion"
+expect_out 'counts block says 58' "lazy-repin is also caught by the counts assertion"
 if printf '%s' "$OUT" | grep -q 'content differs from the pin'; then
   fail "lazy-repin's hashes DO match by construction; a hash complaint means the arm is not testing what it claims: $OUT"
 else

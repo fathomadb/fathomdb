@@ -939,7 +939,6 @@ fn aggregate_unregistered_node_completion(
         LEFT JOIN vector_default vd ON vd.rowid=n.write_cursor
         LEFT JOIN _fathomdb_vector_kinds vk ON vk.kind=n.kind
         WHERE n.row_kind IN ('leaf','coverage')
-          AND n.kind IN ('email','article','paper','meeting','note','todo','doc')
           AND (?1!=0 OR vk.kind IS NOT NULL)
           AND NOT EXISTS(
             SELECT 1 FROM _fathomdb_artifact_revisions r

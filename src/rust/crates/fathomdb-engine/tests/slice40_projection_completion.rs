@@ -67,7 +67,7 @@ fn sha256(body: &str) -> String {
     Sha256::digest(body.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-fn seed_registered_dense_owner(engine: &Engine, suffix: &str) {
+fn seed_dense_owner_provenance(engine: &Engine, suffix: &str, register_dependency: bool) {
     let source_body = format!("source body {suffix}");
     let source_revision = format!("slice40-source-r-{suffix}");
     let derived_revision = format!("slice40-derived-r-{suffix}");
@@ -107,16 +107,18 @@ fn seed_registered_dense_owner(engine: &Engine, suffix: &str) {
             }),
         ])
         .unwrap();
-    engine
-        .register_source_dependency(
-            SourceDependencyRegistrationV1::new(
-                format!("slice40-dependency-{suffix}"),
-                source_revision,
-                derived_revision,
+    if register_dependency {
+        engine
+            .register_source_dependency(
+                SourceDependencyRegistrationV1::new(
+                    format!("slice40-dependency-{suffix}"),
+                    source_revision,
+                    derived_revision,
+                )
+                .unwrap(),
             )
-            .unwrap(),
-        )
-        .unwrap();
+            .unwrap();
+    }
     engine.drain(10_000).unwrap();
     assert_eq!(
         engine.read_projection_generation_status().unwrap().readiness,
@@ -334,7 +336,7 @@ fn registered_owner_with_missing_source_link_is_corrupt() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("missing-source-link{SQLITE_SUFFIX}"));
     let opened = open(&path);
-    seed_registered_dense_owner(&opened.engine, "missing-link");
+    seed_dense_owner_provenance(&opened.engine, "missing-link", true);
     Connection::open(&path)
         .unwrap()
         .execute(
@@ -351,7 +353,7 @@ fn orphan_dependency_and_source_link_are_corrupt() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("orphan-dependency{SQLITE_SUFFIX}"));
     let opened = open(&path);
-    seed_registered_dense_owner(&opened.engine, "orphan");
+    seed_dense_owner_provenance(&opened.engine, "orphan", true);
     Connection::open(&path)
         .unwrap()
         .execute(
@@ -361,4 +363,17 @@ fn orphan_dependency_and_source_link_are_corrupt() {
         .unwrap();
 
     assert_generation_corruption(opened.engine.read_projection_generation_status());
+}
+
+#[test]
+fn valid_derived_provenance_without_registered_dependency_is_ready() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("unregistered-derived{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    seed_dense_owner_provenance(&opened.engine, "unregistered", false);
+
+    assert_eq!(
+        opened.engine.read_projection_generation_status().unwrap().readiness,
+        ProjectionReadinessV1::Ready
+    );
 }

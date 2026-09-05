@@ -88,6 +88,35 @@ def test_v3_requires_a_closed_measurement_plan_reference() -> None:
         scale_02_slice35.resolve_config(document, validate_files=False)
 
 
+def test_v3_classification_is_complete_and_exactly_counts_search_calls() -> None:
+    authority = {
+        "plan_id": "slice35-final",
+        "components": [{"id": "component"}],
+        "call_paths": [{"id": "path"}],
+        "comparisons": [{"id": "comparison"}],
+        "metric_bindings": [{"id": "metric"}],
+        "metric_exclusions": [{"json_pointer": "/control"}],
+        "claims": [{"id": "claim"}],
+    }
+    artifacts = [{"id": "metrics"}]
+
+    document = scale_02_slice35.classification_document(
+        run_id="run-id",
+        authority=authority,
+        source_artifacts=artifacts,
+        measurement_plan_sha256="4" * 64,
+        search_call_count=5_500,
+    )
+
+    assert document["outcome"] == "complete"
+    assert document["source_artifacts"] == artifacts
+    assert [item["call_count"] for item in document["execution_witnesses"]] == [
+        5_500,
+        5_500,
+    ]
+    assert document["classification_id"]
+
+
 def test_paired_bootstrap_upper_and_verdict_are_deterministic() -> None:
     baseline = [10.0, 10.1, 9.9, 10.2, 9.8]
     candidate = [10.1, 10.2, 10.0, 10.3, 9.9]

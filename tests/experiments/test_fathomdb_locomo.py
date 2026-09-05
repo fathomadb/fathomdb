@@ -158,7 +158,9 @@ def test_committed_receipts_use_only_logical_artifact_names():
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
         if receipt["run_id"] in superseded:
             observed_superseded.add(receipt["run_id"])
-            assert _sha(receipt_path) == superseded[receipt["run_id"]]["record_sha256"]
+            supersession = superseded[receipt["run_id"]]
+            assert _sha(receipt_path) == supersession["record_sha256"]
+            assert supersession["reason"] == "invalid_ancillary_locator_quarantined"
             assert any(
                 Path(artifact["path"]).is_absolute()
                 for artifact in receipt["artifacts"]
@@ -169,6 +171,9 @@ def test_committed_receipts_use_only_logical_artifact_names():
             observed_quarantined.add(receipt["run_id"])
             quarantine = quarantined[receipt["run_id"]]
             assert _sha(receipt_path) == quarantine["record_sha256"]
+            assert _sha(receipt_path.parent / "measurement-classification.v2.json") == (
+                quarantine["sidecar_sha256"]
+            )
             assert quarantine["reason"] == (
                 "engine_search_text_only_misclassified_as_engine_search"
             )

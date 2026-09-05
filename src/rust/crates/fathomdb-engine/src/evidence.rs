@@ -534,11 +534,6 @@ pub(crate) fn resolve(
         }
         _ => return Err(EvidenceErrorV1::unavailable().into()),
     };
-    if stored.completeness != "complete" {
-        return Err(
-            EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceIncomplete, "/provenance").into()
-        );
-    }
     if stored.artifact_superseded || stored.source_superseded {
         return Err(EvidenceErrorV1::unavailable().into());
     }
@@ -601,6 +596,11 @@ pub(crate) fn resolve(
             EvidenceArtifactLifecycleV1::Edge { superseded: false, valid_at_effective: true }
         }
     };
+    if stored.completeness != "complete" {
+        return Err(
+            EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceIncomplete, "/provenance").into()
+        );
+    }
     let canonical_source_hash =
         CanonicalHash::sha256(stored.hash_digest.clone()).map_err(|_| {
             EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceCorrupt, "/canonicalSourceHash")

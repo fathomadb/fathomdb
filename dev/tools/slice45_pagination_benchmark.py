@@ -117,6 +117,12 @@ def analyze_latency(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
         deltas = [right - left for left, right in zip(baseline_values, treatment_values)]
         baseline_median = statistics.median(baseline_values)
         treatment_median = statistics.median(treatment_values)
+        baseline_throughput = statistics.median(
+            record["result"][baseline][2] for record in records
+        )
+        treatment_throughput = statistics.median(
+            record["result"][treatment][2] for record in records
+        )
         delta = statistics.median(deltas)
         percent = delta / baseline_median * 100.0
         low, high = bootstrap_median_ci(deltas)
@@ -126,6 +132,13 @@ def analyze_latency(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "treatment": treatment,
                 "baseline_median_p95_ms": baseline_median,
                 "treatment_median_p95_ms": treatment_median,
+                "baseline_median_throughput_ops_s": baseline_throughput,
+                "treatment_median_throughput_ops_s": treatment_throughput,
+                "throughput_delta_percent": (
+                    (treatment_throughput - baseline_throughput)
+                    / baseline_throughput
+                    * 100.0
+                ),
                 "median_paired_delta_ms": delta,
                 "median_paired_delta_percent": percent,
                 "paired_bootstrap_95_ci_ms": [low, high],
@@ -180,6 +193,21 @@ def write_markdown(result: dict[str, Any], path: Path) -> None:
     lines.extend(
         [
             "",
+            "| Scale | Comparison | Baseline ops/s | Treatment ops/s | Delta % |",
+            "|---:|---|---:|---:|---:|",
+        ]
+    )
+    for scale in result["scales"]:
+        for item in scale["latency"]:
+            lines.append(
+                f"| {scale['rows']} | {item['baseline']} → {item['treatment']} | "
+                f"{item['baseline_median_throughput_ops_s']:.1f} | "
+                f"{item['treatment_median_throughput_ops_s']:.1f} | "
+                f"{item['throughput_delta_percent']:.2f} |"
+            )
+    lines.extend(
+        [
+            "",
             "| Scale | RSS comparison | Baseline MiB | Treatment MiB | Delta MiB | Delta % | Material |",
             "|---:|---|---:|---:|---:|---:|---|",
         ]
@@ -210,16 +238,36 @@ def write_markdown(result: dict[str, Any], path: Path) -> None:
     lines.extend(
         [
             "",
-            "| Scale | Token auth p95 ms | Snapshot binding p95 ms | Cursor auth p95 ms |",
-            "|---:|---:|---:|---:|",
+            "| Scale | Mint context p95 ms | Mint snapshot p95 ms | Mint binding p95 ms | Mint codec p95 ms | Page token auth p95 ms | Page binding p95 ms | Cursor auth p95 ms |",
+            "|---:|---:|---:|---:|---:|---:|---:|---:|",
         ]
     )
     for scale in result["scales"]:
         stages = scale["stage_medians"]
         lines.append(
-            f"| {scale['rows']} | {stages['token_authentication_p95_ms']:.4f} | "
+            f"| {scale['rows']} | {stages['mint_context_validation_p95_ms']:.4f} | "
+            f"{stages['mint_snapshot_validation_p95_ms']:.4f} | "
+            f"{stages['mint_binding_p95_ms']:.4f} | "
+            f"{stages['mint_token_codec_p95_ms']:.4f} | "
+            f"{stages['token_authentication_p95_ms']:.4f} | "
             f"{stages['snapshot_binding_p95_ms']:.4f} | "
             f"{stages['cursor_authentication_p95_ms']:.4f} |"
+        )
+    lines.extend(
+        [
+            "",
+            "| Scale | Public list p95 ms | Public list ops/s | Full walk ms | Pages | Items | Walk items/s |",
+            "|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+    )
+    for scale in result["scales"]:
+        public_list = scale["public_list_medians"]
+        full_walk = scale["full_walk_medians"]
+        lines.append(
+            f"| {scale['rows']} | {public_list['p95_ms']:.4f} | "
+            f"{public_list['throughput_ops_s']:.1f} | {full_walk['elapsed_ms']:.2f} | "
+            f"{full_walk['pages']:.0f} | {full_walk['items']:.0f} | "
+            f"{full_walk['items_per_second']:.1f} |"
         )
     lines.extend(["", f"Overall material: **{str(result['material']).lower()}**", ""])
     path.write_text("\n".join(lines), encoding="utf-8")
@@ -278,6 +326,8 @@ def main() -> None:
 
     scales = []
     for rows, groups in all_records.items():
+        first_stage_keys = groups["latency"][0]["result"]["first_page_stages"]
+        mint_stage_keys = groups["latency"][0]["result"]["mint_stages"]
         scales.append(
             {
                 "rows": rows,
@@ -285,15 +335,43 @@ def main() -> None:
                 "rss": analyze_rss(groups["rss"]),
                 "cold": groups["cold"],
                 "stage_medians": {
+                    **{
+                        key: statistics.median(
+                            record["result"][
+                                "continuation_stages"
+                                if key.startswith("cursor_authentication_")
+                                else "first_page_stages"
+                            ][key]
+                            for record in groups["latency"]
+                        )
+                        for key in first_stage_keys
+                    },
+                    **{
+                        f"mint_{key}": statistics.median(
+                            record["result"]["mint_stages"][key]
+                            for record in groups["latency"]
+                        )
+                        for key in mint_stage_keys
+                    },
+                },
+                "public_list_medians": {
+                    "p95_ms": statistics.median(
+                        record["result"]["public_list"][1]
+                        for record in groups["latency"]
+                    ),
+                    "throughput_ops_s": statistics.median(
+                        record["result"]["public_list"][2]
+                        for record in groups["latency"]
+                    ),
+                },
+                "full_walk_medians": {
                     key: statistics.median(
                         record["result"][
-                            "continuation_stages"
-                            if key.startswith("cursor_authentication_")
-                            else "first_page_stages"
+                            "full_walk"
                         ][key]
                         for record in groups["latency"]
                     )
-                    for key in groups["latency"][0]["result"]["first_page_stages"]
+                    for key in ("elapsed_ms", "pages", "items", "items_per_second")
                 },
             }
         )

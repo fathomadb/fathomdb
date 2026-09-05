@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 45 — minimal pagination and operational state
-status: DRAFT_REVIEW
+status: READY
 depends_on: 40
 design: design.md
-design_status: FORMAL_REVIEW_REQUIRED
+design_status: READY
 ---
 
 # Slice 45 plan

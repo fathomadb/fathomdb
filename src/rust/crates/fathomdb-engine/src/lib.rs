@@ -4417,6 +4417,17 @@ pub struct Slice45FrozenStageTiming {
     pub snapshot_binding_ns: u128,
 }
 
+/// Test-only Slice 45 attribution for frozen-context minting.
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Copy, Debug)]
+#[doc(hidden)]
+pub struct Slice45MintStageTiming {
+    pub context_validation_ns: u128,
+    pub snapshot_validation_ns: u128,
+    pub binding_ns: u128,
+    pub token_codec_ns: u128,
+}
+
 /// Hybrid `search` result. `results` carries structured [`SearchHit`]s in
 /// vector-first, dedup-on-body order. Derives `Clone, Debug, PartialEq` but
 /// **not `Eq`** — each hit carries a `score: f64`.
@@ -11311,6 +11322,27 @@ impl Engine {
             cursor_authentication_ns,
             token_authentication_ns,
             snapshot_binding_ns,
+        })
+    }
+
+    /// Test-only stage attribution for one Slice 45 frozen-context mint.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn measure_slice45_mint_stages_for_test(
+        &self,
+        context: &ReadContextV1,
+    ) -> Result<Slice45MintStageTiming, EngineError> {
+        self.ensure_open()?;
+        context.view.reject_existence_relaxation_on_search()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let (_, generation, timing) = frozen_read::mint_measured(connection, context)?;
+        self.read_visibility_generation.fetch_max(generation, Ordering::AcqRel);
+        Ok(Slice45MintStageTiming {
+            context_validation_ns: timing.context_validation_ns,
+            snapshot_validation_ns: timing.snapshot_validation_ns,
+            binding_ns: timing.binding_ns,
+            token_codec_ns: timing.token_codec_ns,
         })
     }
 

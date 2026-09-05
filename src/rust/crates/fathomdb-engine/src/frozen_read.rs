@@ -1,4 +1,6 @@
 use std::fmt::{Display, Formatter};
+#[cfg(feature = "test-hooks")]
+use std::time::Instant;
 
 use rusqlite::{Connection, OptionalExtension};
 use sha2::{Digest, Sha256};
@@ -142,6 +144,14 @@ pub(crate) struct FrozenReadBinding {
     context_digest: [u8; 32],
 }
 
+#[cfg(feature = "test-hooks")]
+pub(crate) struct MintStageTiming {
+    pub context_validation_ns: u128,
+    pub snapshot_validation_ns: u128,
+    pub binding_ns: u128,
+    pub token_codec_ns: u128,
+}
+
 pub(crate) fn validate_context(context: &ReadContextV1) -> Result<Vec<u8>, FrozenReadError> {
     if context.schema_version != FROZEN_READ_SCHEMA_VERSION {
         return Err(FrozenReadError::new(
@@ -166,11 +176,44 @@ pub(crate) fn mint(
     connection: &mut Connection,
     context: &ReadContextV1,
 ) -> Result<(FrozenReadContextV1, u64), EngineError> {
+    mint_inner(connection, context).map(|(frozen, generation, _)| (frozen, generation))
+}
+
+#[cfg(feature = "test-hooks")]
+pub(crate) fn mint_measured(
+    connection: &mut Connection,
+    context: &ReadContextV1,
+) -> Result<(FrozenReadContextV1, u64, MintStageTiming), EngineError> {
+    let (frozen, generation, timing) = mint_inner(connection, context)?;
+    Ok((
+        frozen,
+        generation,
+        MintStageTiming {
+            context_validation_ns: timing[0],
+            snapshot_validation_ns: timing[1],
+            binding_ns: timing[2],
+            token_codec_ns: timing[3],
+        },
+    ))
+}
+
+fn mint_inner(
+    connection: &mut Connection,
+    context: &ReadContextV1,
+) -> Result<(FrozenReadContextV1, u64, [u128; 4]), EngineError> {
+    #[cfg(feature = "test-hooks")]
+    let context_started = Instant::now();
     validate_context(context)?;
     let mut resolved = context.clone();
     let effective_valid_at = resolved.view.valid_as_of.unwrap_or_else(current_epoch_seconds);
     resolved.view.valid_as_of = Some(effective_valid_at);
     let context_bytes = validate_context(&resolved)?;
+    #[cfg(feature = "test-hooks")]
+    let context_validation_ns = context_started.elapsed().as_nanos();
+    #[cfg(not(feature = "test-hooks"))]
+    let context_validation_ns = 0;
+    #[cfg(feature = "test-hooks")]
+    let snapshot_started = Instant::now();
     let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
     tx.query_row("SELECT COUNT(*) FROM canonical_nodes", [], |row| row.get::<_, i64>(0))
         .map_err(|_| EngineError::Storage)?;
@@ -182,8 +225,20 @@ pub(crate) fn mint(
             _ => EngineError::Storage,
         }
     })?;
+    #[cfg(feature = "test-hooks")]
+    let snapshot_validation_ns = snapshot_started.elapsed().as_nanos();
+    #[cfg(not(feature = "test-hooks"))]
+    let snapshot_validation_ns = 0;
+    #[cfg(feature = "test-hooks")]
+    let binding_started = Instant::now();
     let mut binding =
         binding_for_snapshot(&tx, effective_valid_at, digest(CONTEXT_DOMAIN, &context_bytes))?;
+    #[cfg(feature = "test-hooks")]
+    let binding_ns = binding_started.elapsed().as_nanos();
+    #[cfg(not(feature = "test-hooks"))]
+    let binding_ns = 0;
+    #[cfg(feature = "test-hooks")]
+    let codec_started = Instant::now();
     let key = read_hex_open_state(&tx, READ_CONTEXT_KEY, 32)?;
     let payload = encode_binding(&binding);
     let mac = hmac_sha256(&key, TOKEN_DOMAIN, &payload);
@@ -191,6 +246,10 @@ pub(crate) fn mint(
     if token.len() > TOKEN_MAX_BYTES {
         return Err(FrozenReadError::new(FrozenReadErrorReason::TokenTooLarge, "/token").into());
     }
+    #[cfg(feature = "test-hooks")]
+    let token_codec_ns = codec_started.elapsed().as_nanos();
+    #[cfg(not(feature = "test-hooks"))]
+    let token_codec_ns = 0;
     tx.commit().map_err(|_| EngineError::Storage)?;
     binding.context_digest = digest(CONTEXT_DOMAIN, &context_bytes);
     Ok((
@@ -201,6 +260,7 @@ pub(crate) fn mint(
             token,
         },
         binding.read_visibility_generation,
+        [context_validation_ns, snapshot_validation_ns, binding_ns, token_codec_ns],
     ))
 }
 
@@ -730,7 +790,7 @@ pub(crate) fn page_context_digest(frozen: &FrozenReadContextV1) -> Result<[u8; 3
 
 #[cfg(test)]
 mod tests {
-    use fathomdb_schema::{migrate_with_steps, MIGRATIONS};
+    use fathomdb_schema::{migrate, migrate_with_steps, MIGRATIONS};
     use proptest::prelude::*;
     use serde_json::Value;
 
@@ -937,5 +997,59 @@ mod tests {
             before_generation + 100,
             "terminal drift remains authenticated by the monotonic visibility generation"
         );
+    }
+
+    #[test]
+    fn schema33_cutover_rejects_a_schema32_token_after_untracked_state_mutation() {
+        crate::register_sqlite_vec_extension();
+        let mut connection = Connection::open_in_memory().unwrap();
+        migrate_with_steps(&connection, &MIGRATIONS[..32]).unwrap();
+        connection
+            .execute(
+                "INSERT INTO _fathomdb_embedder_profiles(\
+                   profile,name,revision,dimension,mean_vec\
+                 ) VALUES('default',?1,?2,?3,NULL)",
+                rusqlite::params![
+                    crate::DEFAULT_EMBEDDER_NAME,
+                    crate::DEFAULT_EMBEDDER_REVISION,
+                    crate::DEFAULT_EMBEDDER_DIMENSION
+                ],
+            )
+            .unwrap();
+        crate::ensure_vector_partition(&mut connection, crate::DEFAULT_EMBEDDER_DIMENSION).unwrap();
+        crate::projection_generation::bootstrap(&mut connection, 32).unwrap();
+        connection
+            .execute(
+                "INSERT INTO operational_collections(\
+                   name,kind,schema_json,retention_json,format_version,created_at\
+                 ) VALUES('state','latest_state','{}','{}',1,0)",
+                [],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO operational_state(\
+                   collection_name,record_key,payload_json,schema_id,write_cursor\
+                 ) VALUES('state','key','{\"value\":1}',NULL,1)",
+                [],
+            )
+            .unwrap();
+        let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+        let (frozen, _) = mint(&mut connection, &context).unwrap();
+
+        connection
+            .execute(
+                "UPDATE operational_state SET payload_json='{\"value\":2}' \
+                 WHERE collection_name='state' AND record_key='key'",
+                [],
+            )
+            .unwrap();
+        migrate(&connection).unwrap();
+
+        let binding = authenticate(&connection, &frozen).unwrap();
+        assert!(matches!(
+            validate_snapshot(&connection, &binding),
+            Err(error) if error.reason == FrozenReadErrorReason::StateDrifted
+        ));
     }
 }

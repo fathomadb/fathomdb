@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use fathomdb_engine::{
-    Engine, InitialState, PageRequestV1, PreparedWrite, ReadContextV1, ReadView, SearchFilter,
-    SourceId,
+    Engine, Filter, InitialState, PageRequestV1, PreparedWrite, ReadContextV1, ReadView,
+    SearchFilter, SourceId,
 };
 use rusqlite::Connection;
 use serde_json::json;
@@ -130,6 +130,63 @@ fn measure_stages(
         "token_authentication_p95_ms":percentile_ms(&mut token, 95),
         "snapshot_binding_p50_ms":percentile_ms(&mut binding, 50),
         "snapshot_binding_p95_ms":percentile_ms(&mut binding, 95),
+    })
+}
+
+fn measure_mint_stages(
+    engine: &Engine,
+    context: &ReadContextV1,
+    samples: usize,
+) -> serde_json::Value {
+    for _ in 0..100.min(samples) {
+        engine.measure_slice45_mint_stages_for_test(context).unwrap();
+    }
+    let mut context_validation = Vec::with_capacity(samples);
+    let mut snapshot_validation = Vec::with_capacity(samples);
+    let mut binding = Vec::with_capacity(samples);
+    let mut token_codec = Vec::with_capacity(samples);
+    for _ in 0..samples {
+        let timing = engine.measure_slice45_mint_stages_for_test(context).unwrap();
+        context_validation.push(timing.context_validation_ns);
+        snapshot_validation.push(timing.snapshot_validation_ns);
+        binding.push(timing.binding_ns);
+        token_codec.push(timing.token_codec_ns);
+    }
+    json!({
+        "context_validation_p50_ms":percentile_ms(&mut context_validation, 50),
+        "context_validation_p95_ms":percentile_ms(&mut context_validation, 95),
+        "snapshot_validation_p50_ms":percentile_ms(&mut snapshot_validation, 50),
+        "snapshot_validation_p95_ms":percentile_ms(&mut snapshot_validation, 95),
+        "binding_p50_ms":percentile_ms(&mut binding, 50),
+        "binding_p95_ms":percentile_ms(&mut binding, 95),
+        "token_codec_p50_ms":percentile_ms(&mut token_codec, 50),
+        "token_codec_p95_ms":percentile_ms(&mut token_codec, 95),
+    })
+}
+
+fn full_page_walk(
+    engine: &Engine,
+    frozen: &fathomdb_engine::FrozenReadContextV1,
+) -> serde_json::Value {
+    let started = Instant::now();
+    let mut cursor = None;
+    let mut pages = 0usize;
+    let mut items = 0usize;
+    loop {
+        let result = engine.read_canonical_page(KIND, frozen, &page(cursor)).unwrap();
+        pages += 1;
+        items += result.items.len();
+        match result.next_cursor {
+            Some(next) => cursor = Some(next),
+            None => break,
+        }
+    }
+    let elapsed = started.elapsed();
+    json!({
+        "elapsed_ms": elapsed.as_secs_f64() * 1_000.0,
+        "pages": pages,
+        "items": items,
+        "items_per_second": items as f64 / elapsed.as_secs_f64(),
     })
 }
 
@@ -285,11 +342,25 @@ fn measure_slice45_pagination_overhead() {
             let first_page_stages = measure_stages(&opened.engine, &frozen, &page(None), samples);
             let continuation_stages =
                 measure_stages(&opened.engine, &frozen, &page(Some(continuation.clone())), samples);
+            let mint_stages = measure_mint_stages(&opened.engine, &context, samples);
+            let public_list = measure(samples, || {
+                assert_eq!(
+                    opened
+                        .engine
+                        .read_list_filter(KIND, &Filter::default(), 100, &ReadView::default())
+                        .unwrap()
+                        .len(),
+                    100
+                );
+            });
+            let full_walk = full_page_walk(&opened.engine, &frozen);
             json!({
                 "kind":"latency", "exact_page":exact, "frozen_page":frozen_page,
                 "frozen_validation":frozen_validation,
                 "mint_plus_page":mint_page, "continuation_page":continuation_page,
                 "current_state":current_state, "frozen_state":frozen_state,
+                "public_list":public_list, "full_walk":full_walk,
+                "mint_stages":mint_stages,
                 "first_page_stages":first_page_stages,
                 "continuation_stages":continuation_stages,
             })
@@ -303,7 +374,7 @@ fn measure_slice45_pagination_overhead() {
                             .read_canonical_page_baseline_for_test(KIND, &frozen, 100)
                             .unwrap()
                             .len(),
-                        101
+                        100
                     );
                 }),
                 "frozen_page" => measure(samples, || {

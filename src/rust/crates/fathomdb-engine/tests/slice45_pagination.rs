@@ -508,6 +508,61 @@ fn page_reader_snapshot_linearizes_before_concurrent_write() {
 }
 
 #[test]
+fn operational_page_snapshot_linearizes_before_concurrent_replacement() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("state-race{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    let engine = Arc::new(opened.engine);
+    engine
+        .write(&[PreparedWrite::AdminSchema {
+            name: "state".to_string(),
+            kind: "latest_state".to_string(),
+            schema_json: "{}".to_string(),
+            retention_json: "{}".to_string(),
+        }])
+        .unwrap();
+    engine
+        .write(&[PreparedWrite::OpStore {
+            collection: "state".to_string(),
+            record_key: "key".to_string(),
+            schema_id: None,
+            body: r#"{"value":1}"#.to_string(),
+        }])
+        .unwrap();
+    let frozen = engine.freeze_read_context(&strict_context()).unwrap();
+    let ready = Arc::new(Barrier::new(2));
+    let release = Arc::new(Barrier::new(2));
+    let hook_ready = Arc::clone(&ready);
+    let hook_release = Arc::clone(&release);
+    arm_page_after_validation_hook_for_test(Box::new(move || {
+        hook_ready.wait();
+        hook_release.wait();
+    }));
+    let worker = {
+        let engine = Arc::clone(&engine);
+        let frozen = frozen.clone();
+        thread::spawn(move || engine.read_operational_state_page("state", &frozen, &page(1, None)))
+    };
+    ready.wait();
+    engine
+        .write(&[PreparedWrite::OpStore {
+            collection: "state".to_string(),
+            record_key: "key".to_string(),
+            schema_id: None,
+            body: r#"{"value":2}"#.to_string(),
+        }])
+        .unwrap();
+    release.wait();
+    let result = worker.join().unwrap().unwrap();
+    assert_eq!(result.items[0].payload, r#"{"value":1}"#);
+    assert!(matches!(
+        engine.read_operational_state_page("state", &frozen, &page(1, None)),
+        Err(EngineError::FrozenRead(error)) if error.reason == FrozenReadErrorReason::StateDrifted
+    ));
+    engine.close().unwrap();
+}
+
+#[test]
 fn page_query_plans_use_governed_indexes_without_mutation_log_or_temp_sort() {
     let dir = TempDir::new().unwrap();
     let opened = open(&dir.path().join(format!("plans{SQLITE_SUFFIX}")));

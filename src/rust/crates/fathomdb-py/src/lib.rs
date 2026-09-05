@@ -432,6 +432,16 @@ fn frozen_read_error_to_py(error: &fathomdb_engine::FrozenReadError) -> PyErr {
     exception
 }
 
+fn page_error(reason: &'static str, field_path: &'static str) -> PyErr {
+    let exception = PageError::new_err(format!("{reason} at {field_path}"));
+    Python::attach(|py| {
+        let value = exception.value(py);
+        let _ = value.setattr("reason", reason);
+        let _ = value.setattr("field_path", field_path);
+    });
+    exception
+}
+
 fn corruption_kind_str(kind: CorruptionKind) -> &'static str {
     match kind {
         CorruptionKind::WalReplayFailure => "WalReplayFailure",
@@ -3418,8 +3428,7 @@ fn read_canonical_page(
     if let Some(value) = &cursor {
         validate_ffi_string_py(value)?;
     }
-    let limit =
-        usize::try_from(limit).map_err(|_| PageError::new_err("invalid_page_limit at /limit"))?;
+    let limit = usize::try_from(limit).map_err(|_| page_error("invalid_page_limit", "/limit"))?;
     let page = RustPageRequestV1 { schema_version, limit, cursor: cursor.map(RustPageCursor) };
     let frozen = context.inner.clone();
     let inner = Arc::clone(&engine.inner);
@@ -3459,8 +3468,7 @@ fn read_operational_state_page(
     if let Some(value) = &cursor {
         validate_ffi_string_py(value)?;
     }
-    let limit =
-        usize::try_from(limit).map_err(|_| PageError::new_err("invalid_page_limit at /limit"))?;
+    let limit = usize::try_from(limit).map_err(|_| page_error("invalid_page_limit", "/limit"))?;
     let page = RustPageRequestV1 { schema_version, limit, cursor: cursor.map(RustPageCursor) };
     let frozen = context.inner.clone();
     let inner = Arc::clone(&engine.inner);

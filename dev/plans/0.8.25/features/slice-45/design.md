@@ -1,8 +1,8 @@
 ---
 title: 0.8.25 Slice 45 — minimal pagination and operational-state design
 status: READY
-design_version: 7
-review_cycle: 3
+design_version: 8
+review_cycle: 4
 target_release: 0.8.25
 depends_on: 40
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -303,7 +303,7 @@ RED tests are committed before implementation and use real SQLite databases:
 | `slice45_page_codec` | property round-trip; canonical fixture; tamper, noncanonical, size, version, database, operation, selector, context and limit mismatch; caller-text absence scan. |
 | `slice45_canonical_pages` | limit bounds; empty/terminal/repeated cursor; active/history write-cursor order; anonymous exclusion; kind and every Slice 35 eligibility term before limit; exact concatenation with existing `NodeRecord` shape. |
 | `slice45_operational_state` | registered format-v1 latest-state point/page; missing key; missing/wrong-kind/unsupported-format collection; replacement; exact payload; point/page agreement; no mutation-log fallback. |
-| `slice45_page_races` | concurrent insert, supersede, lifecycle, dependency closure, erasure, attribute/projection change, state replace/excise, collection change, close/reopen; bound result or exact whole-call failure. |
+| `slice45_page_races` plus inherited Slice 35 authority suites | Page-specific post-validation races cover canonical insert and operational-state replacement. `slice35_after_validation_races`, `slice35_frozen_read_races`, and the step-31 visibility-trigger matrix remain the non-duplicated authority proofs for lifecycle, dependency closure, erasure, attributes/projections, excision, and collection drift because page reads call the same `frozen_read::validate_snapshot` inside the pinned reader transaction. Restart continuation and schema/open tests cover close/reopen. Together they prove a bound result or exact whole-call failure; Slice 45 does not clone every Slice 35 mutation fixture through a second facade. |
 | `slice45_query_plans` | canonical composite and revision-cursor indexes, operational PK, no OFFSET/temp-order/mutation-log scan. |
 | `step33_pagination` | two unique page indexes, two support indexes, six exact triggers, 14/16/18 manifest branches, one cutover increment, exhaustion rollback, pre-upgrade duplicate-key migration refusal, post-upgrade duplicate-key open refusal, and schema-32-token/raw-state-mutation/upgrade refusal. |
 | binding suites | strict request/response/error wire, canonical fixture, Python/TypeScript parity, source-independent packaged smoke. |
@@ -336,8 +336,9 @@ Primary causal cells are:
 
 Empty eligibility/default validity is used in the matched cells; a separate
 non-gating eligibility cell proves filters but is not pooled into overhead.
-The existing public `read_list_filter` and a complete page walk are reported as
-separate operational observations, not causal baselines. Frozen validation
+The existing public `read_list_filter` path with an empty unified filter and a
+complete page walk are reported as separate operational observations, not
+causal baselines. Frozen validation
 records projection-state and terminal row counts plus parse, authentication,
 binding, and query stage times. The pre-GREEN pilot retains the observed
 O(number-of-terminal-rows) digest cost. Schema 33 then uses serving-binding v3:
@@ -364,6 +365,10 @@ comparative policy remains in Slice 75. CUDA, CE, GPU allocation, and
 live-model routes are N/A because this slice executes SQLite reads only.
 
 Independent design review cycle 3 passed at `e8d14d1e` with no unresolved
-P0/P1/P2 finding. Implementation requires committed RED/GREEN chronology,
+P0/P1/P2 finding. Design v8 is the cycle-4 implementation reconciliation: it
+makes the page-specific versus inherited frozen-authority proof boundary
+explicit and adds the reviewer-requested matched throughput, public-list,
+full-walk, and mint-stage observations without changing product behavior or
+materiality policy. Implementation requires committed RED/GREEN chronology,
 independent code review, separate verification, exact evidence references, and
 a Slice 45 status record.

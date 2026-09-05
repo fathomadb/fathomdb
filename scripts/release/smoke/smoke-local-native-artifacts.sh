@@ -72,7 +72,8 @@ import json
 import sqlite3
 import sys
 
-from fathomdb import Engine, ReadContextV1, ReadView, SearchFilter
+from fathomdb import Engine
+from fathomdb.types import ReadContextV1, ReadView, SearchFilter
 
 fixture = json.load(open(sys.argv[1], encoding="utf-8"))
 database = sys.argv[2]
@@ -85,6 +86,9 @@ with sqlite3.connect(database) as connection:
     connection.execute(
         "UPDATE _fathomdb_open_state SET value=? WHERE key='_fathomdb_read_context_key'",
         (fixture["read_context_key"],),
+    )
+    connection.execute(
+        "UPDATE _fathomdb_read_visibility_state SET generation=0 WHERE singleton=1"
     )
 raw = fixture["context"]
 engine = Engine.open(database, use_default_embedder=False)
@@ -250,6 +254,9 @@ with sqlite3.connect(sys.argv[2]) as connection:
         "UPDATE _fathomdb_open_state SET value=? WHERE key='_fathomdb_read_context_key'",
         (fixture["read_context_key"],),
     )
+    connection.execute(
+        "UPDATE _fathomdb_read_visibility_state SET generation=0 WHERE singleton=1"
+    )
 PY
   node --input-type=module - "$REPO_ROOT/tests/fixtures/slice35_frozen_context_v1.json" \
     "$WORK/npm-frozen-fixture.sqlite" <<'JS'
@@ -271,26 +278,24 @@ const frozen = await engine.freezeReadContext({
   eligibility: {
     sourceType: raw.source_type,
     kind: raw.kind,
-    createdAfter: raw.created_after,
-    status: raw.status,
     attributes: raw.attributes,
   },
 });
 assert.equal(frozen.schemaVersion, raw.schema_version);
-assert.equal(frozen.effectiveValidAt, String(raw.valid_as_of));
+assert.equal(frozen.effectiveValidAt, raw.valid_as_of);
 assert.deepEqual(frozen.context, {
   schemaVersion: raw.schema_version,
   view: {
     includeSuperseded: raw.include_superseded,
     includeInactive: raw.include_inactive,
     includeOutOfWindow: raw.include_out_of_window,
-    validAsOf: String(raw.valid_as_of),
+    validAsOf: raw.valid_as_of,
   },
   eligibility: {
     sourceType: raw.source_type,
     kind: raw.kind,
-    createdAfter: raw.created_after,
-    status: raw.status,
+    createdAfter: undefined,
+    status: undefined,
     attributes: raw.attributes,
   },
 });

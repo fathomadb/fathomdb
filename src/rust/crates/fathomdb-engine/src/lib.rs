@@ -11354,7 +11354,12 @@ impl Engine {
         kind: &str,
     ) -> Result<Vec<(String, Vec<String>)>, EngineError> {
         self.ensure_open()?;
-        let connection = Connection::open(&self.path).map_err(|_| EngineError::Storage)?;
+        let connection = open_managed_connection(
+            &self.path,
+            ManagedConnectionCategory::RuntimeProbe,
+            &self.managed_connections,
+        )
+        .map_err(|_| EngineError::Storage)?;
         let (canonical_sql, canonical_binds) =
             canonical_page_query(kind, &ReadView::default(), &SearchFilter::default(), 0, 100)
                 .map_err(|_| EngineError::Storage)?;

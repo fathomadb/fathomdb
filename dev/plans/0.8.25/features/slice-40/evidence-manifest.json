@@ -1,0 +1,126 @@
+{
+  "schema_version": "slice40.evidence-manifest.v1",
+  "release": "0.8.25",
+  "slice": 40,
+  "captured_at": "2026-09-05",
+  "claim_boundary": {
+    "product_candidate_commit": "2313fd34ea5ca68346a468d5bba58ba245306c08",
+    "fixture_reconciliation_commit": "ea7a553fb816e117c77c4a1ac23e2f131596a8a8",
+    "cuda_artifact_build_commit": "47afff50ec0e9f906c24c4422186eb407b2ff467",
+    "status_cuda_linked_is_gpu_compute": false,
+    "cuda_throughput_is_decision_threshold_evidence": false,
+    "interpretation": "Status measurements prove CPU/CUDA-linked build parity on the same SQLite status path. CUDA allocation and embedding throughput are separate evidence. The throughput result is descriptive."
+  },
+  "repository_receipts": [
+    {
+      "run_id": "scale-02-slice40-common-20260905T1101Z-0dde4803",
+      "record": "experiments/runs/scale-02-slice40-common-20260905T1101Z-0dde4803/record.json",
+      "record_sha256": "6e58a3841d5e6ac3c10fb3e2a7f3c23a7a37d7365614ad7c6372a2867c204df7",
+      "result": "pass",
+      "external_detail": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs/slice40-20260905T105746Z/metrics.json",
+      "external_detail_sha256": "2f36b049a5ea98b6e819ed074f481a706b89de502dcdcca3181726691ab5b4a6"
+    },
+    {
+      "run_id": "scale-02-slice40-status-20260905T1120Z-bacc3304",
+      "record": "experiments/runs/scale-02-slice40-status-20260905T1120Z-bacc3304/record.json",
+      "record_sha256": "660b56a07f89a2e04766b73848beddebdca0d03f78b6ee3de86e19747edc6a97",
+      "result": "pass",
+      "external_detail": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs/slice40-status-20260905T110338Z/metrics.json",
+      "external_detail_sha256": "16cde8727402003ae17be18b5fdead396ac017c398f955aafdd10ed2a1eee28a"
+    },
+    {
+      "run_id": "scale-02-slice40-cuda-throughput-20260905T1421Z-fc632910",
+      "record": "experiments/runs/scale-02-slice40-cuda-throughput-20260905T1421Z-fc632910/record.json",
+      "record_sha256": "7469be197e855c7b1f59ae3375792826640ebdd45896f31e441ec84e775d4d36",
+      "result": "observed",
+      "classification": "descriptive",
+      "external_detail": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs/slice40-cuda-throughput-20260905T142128Z/result-detail.json",
+      "external_detail_sha256": "5d50b4951b1d5b3b158634ac606a5380ec11f179a9ca97b91edb33ddcce9a6cf",
+      "throughput_records_per_second": {
+        "minimum": 278.6414271962893,
+        "median": 286.0955270024662,
+        "maximum": 287.4093927133429
+      }
+    }
+  ],
+  "retained_nonprimary_receipt": {
+    "run_id": "scale-02-slice40-cuda-throughput-20260905T1411Z-dc7e6dbf",
+    "record_sha256": "6d09e0d79c21689eafe9ad0c37a921ad1d632dc8655254b0ee61b40145118ffb",
+    "disposition": "not_primary_missing_artifact_kind_corrected_by_hash_bound_policy_amendment",
+    "reason": "The immutable first receipt omitted artifact.kind. It remains retained and classifiable through the exact-record amendment, but the corrected v3 receipt is the primary observation."
+  },
+  "cuda_preflight": {
+    "command": "FATHOMDB_CUDA_GPU_UUID=GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b bash scripts/release/cuda-preflight.sh /home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs/slice40-cuda-preflight-20260905T1125Z",
+    "transcript_ordinal": 94064,
+    "witness": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs/slice40-cuda-preflight-20260905T1125Z/cuda-preflight-witness.json",
+    "witness_sha256": "30d3246772ca8cbc0c8ad4cae54af7a147a38e6540f89e1a1e344c4b57aaa1b8",
+    "python_allocation_witness_sha256": "edd276d1c976043146072486d97cf9e1b12b595dae2cd8f45008737eb8b26b80",
+    "napi_allocation_witness_sha256": "0214e71d72022dac43507caa235c9ecf2523fe34571335e33daf5d7298b0f4df",
+    "gpu": {
+      "name": "NVIDIA GeForce RTX 3090",
+      "uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+      "observed_allocation_mib": 128
+    },
+    "artifacts": {
+      "python_wheel_sha256": "a1f7b571aa9af12641ba839bdd426e6184ba60794e04ffeb8a80d025b4d9df6c",
+      "npm_main_sha256": "84189b38fef40f788715360388b306b18541ca194b7f2aa793219fddab717b19",
+      "node_platform_package_sha256": "eff0145e91e0780a9b2b4b32fec4fb77390917fd04c9e42ffca21ca29921a56b"
+    }
+  },
+  "cuda_throughput_execution": {
+    "normalized_inner_command": "python -m venv /work/venv && /work/venv/bin/python -m pip install --no-index --no-deps --no-cache-dir /input/fathomdb-0.8.24-cp310-abi3-manylinux_2_28_x86_64.whl && /work/venv/bin/python -m experiments.scale_02_slice40 throughput experiments/configs/scale-02/slice40-cuda-projection-throughput.v3.json --wheel /input/fathomdb-0.8.24-cp310-abi3-manylinux_2_28_x86_64.whl --fathomdb-bin /input/fathomdb",
+    "transcript_ordinal_with_exact_docker_command": 97836,
+    "execution_environment": "python:3.11-slim container, network disabled, exact GPU UUID, read-only model cache",
+    "cli_source_commit": "92faf4b693ad1c5ea6f76acb0f883d9e112793b4",
+    "cli_sha256": "fd2e26a487b48d8d18d0ed7bdc91497aa3e43ab3d57cb4abdea8b89bde546df9",
+    "model_revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+    "repetitions": 5,
+    "records_per_repetition": 1024
+  },
+  "linux_cpu_packages": {
+    "root": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs/slice40-cpu-artifacts-20260905T1130Z-v2",
+    "python_wheel_sha256": "db7f4b5f3a520b1caefd1dea7e9b7a87fa2464cc72c04a036108f80b81d2f350",
+    "npm_main_sha256": "84189b38fef40f788715360388b306b18541ca194b7f2aa793219fddab717b19",
+    "node_platform_package_sha256": "e8866d2f34d5d0f2eaebdf0ffdc0b1b7e2275e0d563d7f3c3c5713f8bd8f0907",
+    "disallowed_predecessor": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs/slice40-cpu-artifacts-20260905T1130Z"
+  },
+  "windows_native": {
+    "host": "gh-runner-wonl-win11",
+    "source_commit": "47afff50ec0e9f906c24c4422186eb407b2ff467",
+    "python": "3.11.16",
+    "node": "24.18.0",
+    "wheel_sha256": "bb6d4d92dc0d74d7966e94cba4e7324993466fed868d7a42e676df7019b11cab",
+    "node_native_binary_sha256": "83c822a35d2f41d168bce28c059cd600b4ee5a0a43d05e901bd89303e7f458ae",
+    "package_smoke_command": "scp scripts/release/smoke/smoke-local-native-artifacts.ps1 gh-runner-wonl-win11:C:/projects/fathomdb-slice40-47afff50/scripts/release/smoke/smoke-local-native-artifacts.ps1 && ssh gh-runner-wonl-win11 'cmd /c C:\\Users\\runner\\fathomdb-slice40-windows-smoke.cmd'",
+    "package_smoke_outcome": "local Python wheel runtime validation: ok; local N-API package runtime validation: ok; slice40-windows-native-smoke: ok",
+    "status_smoke_command": "powershell -NoProfile -Command \"$ErrorActionPreference='Stop'; $root='C:\\projects\\fathomdb-slice40-47afff50'; $tmp='C:\\Users\\runner\\AppData\\Local\\Temp'; $vpy=Join-Path $tmp 'fathomdb-slice40-ea7a553f\\Scripts\\python.exe'; & $vpy (Join-Path $tmp 'slice40-windows-python-smoke.py') (Join-Path $tmp 'slice40-python-status-v2.fdb'); if($LASTEXITCODE -ne 0){throw 'python smoke failed'}; $node='C:\\actions-runner\\externals\\node24\\bin\\node.exe'; & $node (Join-Path $tmp 'slice40-windows-napi-smoke.mjs') (Join-Path $root 'src\\ts\\dist\\index.js') (Join-Path $tmp 'slice40-napi-status-v2.fdb'); if($LASTEXITCODE -ne 0){throw 'napi smoke failed'}\"",
+    "fixtures": [
+      {
+        "path": "dev/plans/0.8.25/features/slice-40/evidence/windows-python-status-smoke.py",
+        "sha256": "892790c612b68f66566c9cbb2e438c76e5015d8692ed85a0aa39e83247ece8ce",
+        "outcome": {
+          "consumer": "python-wheel",
+          "generation_id": "pgen1:6ebe67889c56768b1bea02904ddda569",
+          "mutation_readiness": "blocked",
+          "runtime_state": "absent"
+        }
+      },
+      {
+        "path": "dev/plans/0.8.25/features/slice-40/evidence/windows-napi-status-smoke.mjs",
+        "sha256": "f0875a6d0e3f9006ac048f459b91ec43f7e882b0530b0530572c32290e221a50",
+        "outcome": {
+          "consumer": "napi-native",
+          "generation_id": "pgen1:7112123c17e58ee718294949edb90e3c",
+          "mutation_readiness": "blocked",
+          "runtime_state": "absent"
+        }
+      }
+    ],
+    "transcript_provenance": {
+      "path": "/home/coreyt/.codex/sessions/2026/08/30/rollout-2026-08-30T20-10-05-01a01126-bfd8-7fd3-9340-9ed1bc444726_01a0555d-caaa-7ca2-8b23-9b71a465fa28.jsonl",
+      "package_smoke_ordinal": 94705,
+      "artifact_hash_ordinal": 94713,
+      "status_smoke_ordinal": 96195
+    }
+  }
+}

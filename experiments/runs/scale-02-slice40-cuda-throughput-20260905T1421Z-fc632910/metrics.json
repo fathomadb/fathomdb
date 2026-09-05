@@ -1,0 +1,13 @@
+{
+  "schema_version": "scale-02-slice40-decision.v1",
+  "campaign": "cuda-throughput",
+  "classification": "descriptive",
+  "verdict": "observed",
+  "records_per_repetition": 1024,
+  "repetitions": 5,
+  "throughput_records_per_second": {
+    "minimum": 278.6414271962893,
+    "median": 286.0955270024662,
+    "maximum": 287.4093927133429
+  }
+}

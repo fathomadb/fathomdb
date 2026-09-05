@@ -1,0 +1,128 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "scale-02-slice40-cuda-throughput-20260905T1421Z-fc632910",
+  "experiment": "scale-02-slice40-cuda-throughput",
+  "title": "scale-02-slice40-cuda-throughput",
+  "verdict": "complete",
+  "read": "Slice 40 CUDA projection backfill throughput observed.",
+  "code": {
+    "git_sha": "674fba727b350ca496430b7f7d385367c7b3a9a9",
+    "dirty": false,
+    "branch": "release/0.8.25",
+    "baseline_commit": null
+  },
+  "config": {
+    "sha256": "fc63291016f0f6b1cc5491d3c7937df3bb8a626780ef9c06175aedce7c1c5333",
+    "path": "experiments/configs/scale-02/slice40-cuda-projection-throughput.v3.json",
+    "resolved": {
+      "schema_version": "scale-02-slice40-cuda-throughput.v3",
+      "program_track": "SCALE-02",
+      "release": "0.8.25",
+      "campaign": "cuda-throughput",
+      "approval": {
+        "state": "approved",
+        "approved_by": "HITL",
+        "approved_at": "2026-09-05"
+      },
+      "candidate": {
+        "product_commit": "2313fd34ea5ca68346a468d5bba58ba245306c08",
+        "artifact_build_commit": "47afff50ec0e9f906c24c4422186eb407b2ff467",
+        "wheel_sha256": "a1f7b571aa9af12641ba839bdd426e6184ba60794e04ffeb8a80d025b4d9df6c",
+        "cli_source_commit": "92faf4b693ad1c5ea6f76acb0f883d9e112793b4",
+        "cli_sha256": "fd2e26a487b48d8d18d0ed7bdc91497aa3e43ab3d57cb4abdea8b89bde546df9"
+      },
+      "execution": {
+        "runner_sha256": "6ce91f614b7d7e6a8f4f4cfb902c37777c9f2cf56e731dac0d9e33fa49ebc9bb",
+        "record_library_sha256": "4066299e8c2bd989b5374cd86bf51e7a93f1688856ebba9c4951d608503709f8",
+        "classification_library_sha256": "912a9043047549fed55bf3d707661b074a56daab7b1ff7ad138f7b697b6233a6",
+        "test_setup_library_sha256": "ceebadcf4d319100b8f49916424cc441723ab43c5128327a30411794f5a85c59"
+      },
+      "measurement_plan": {
+        "path": "experiments/configs/scale-02/slice40-cuda-throughput-measurement-plan.v2.json",
+        "sha256": "f4ca3a64c34aec9ff5320338613c4bc17add87cb4301f6f44fa39423b5d80da5",
+        "plan_id": "slice40-cuda-throughput-v2"
+      },
+      "workload": {
+        "records": 1024,
+        "write_batch_size": 128,
+        "repetitions": 5,
+        "warmup_records": 64,
+        "drain_timeout_seconds": 900
+      },
+      "runtime": {
+        "embed_device": "cuda:0",
+        "cuda_uuid": "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b",
+        "embedder": {
+          "name": "fathomdb-bge-small-en-v1.5",
+          "revision": "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a",
+          "dimension": 384
+        },
+        "network": "offline_environment"
+      },
+      "policy": {
+        "classification": "descriptive",
+        "decision_threshold": null,
+        "excluded_time": [
+          "artifact_install",
+          "model_load",
+          "model_warmup"
+        ],
+        "included_time": [
+          "configure_projection",
+          "projection_backfill",
+          "drain"
+        ]
+      },
+      "artifact_root": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs",
+      "claim_boundary": "cuda_projection_backfill_throughput_descriptive"
+    }
+  },
+  "corpus": {
+    "source": "deterministic Slice 40 projection-throughput fixture",
+    "manifest_sha256": null,
+    "datasets": []
+  },
+  "seeds": {},
+  "env": {
+    "python": "3.11.15",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb_product_candidate": "2313fd34ea5ca68346a468d5bba58ba245306c08",
+      "fathomdb_artifact_build": "47afff50ec0e9f906c24c4422186eb407b2ff467",
+      "candidate_wheel_sha256": "a1f7b571aa9af12641ba839bdd426e6184ba60794e04ffeb8a80d025b4d9df6c",
+      "fathomdb_cli_source_commit": "92faf4b693ad1c5ea6f76acb0f883d9e112793b4",
+      "fathomdb_cli_sha256": "fd2e26a487b48d8d18d0ed7bdc91497aa3e43ab3d57cb4abdea8b89bde546df9",
+      "network_policy": "offline_environment"
+    }
+  },
+  "metrics": {
+    "schema_version": "scale-02-slice40-decision.v1",
+    "campaign": "cuda-throughput",
+    "classification": "descriptive",
+    "verdict": "observed",
+    "records_per_repetition": 1024,
+    "repetitions": 5,
+    "throughput_records_per_second": {
+      "minimum": 278.6414271962893,
+      "median": 286.0955270024662,
+      "maximum": 287.4093927133429
+    }
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": [
+    "tests/experiments/test_scale_02_slice40.py",
+    "tests/experiments/test_slice40_cuda_projection_throughput.py"
+  ],
+  "files_changed": [],
+  "artifacts": [
+    {
+      "path": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs/slice40-cuda-throughput-20260905T142128Z/result-detail.json",
+      "sha256": "5d50b4951b1d5b3b158634ac606a5380ec11f179a9ca97b91edb33ddcce9a6cf",
+      "kind": "external_safe_summary"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

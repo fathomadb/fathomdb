@@ -14,9 +14,9 @@ there, then regenerate this board's fenced view. The release plan is
 
 <!-- BEGIN GENERATED release-state:0.8.25:status-current-state -->**Next is Slice 45 (PAGINATION), NOT_STARTED.** Landed on `origin/main`:  — verified reachable, not asserted.<!-- END GENERATED release-state:0.8.25:status-current-state -->
 
-Prework and Slices 10 through 35 are complete on the durable `release/0.8.25`
-worktree. Slice 40 is implemented but remains open for its preregistered CUDA
-throughput observation, exact evidence manifest, and final gate. The
+Prework and Slices 10 through 40 are complete on the durable `release/0.8.25`
+worktree. Slice 40 closed with its preregistered CUDA throughput observation,
+exact evidence manifest, independent closeout review, and clean fast gate. The
 owner-approved 2026-09-02
 scope adjustment removes Slices 65/70 and narrows the retained implementation
 ladder. Direct agents execute this release without Steward or Orchestrator
@@ -40,7 +40,7 @@ roles.
 | 25 | Core atomic semantic actuation | Complete on release branch (`131053da`) |
 | 30 | Lifecycle and erasure closure | Complete on release branch (`75617521`) |
 | 35 | Eligibility and optional frozen reads | Complete on release branch (`071ff7d1`) |
-| 40 | Core projection generation/readiness | In progress; product review passed, closeout evidence pending |
+| 40 | Core projection generation/readiness | Complete on release branch (`21988535`) |
 | 45 | Minimal pagination and operational state | Not started |
 | 50 | Compact source-complete evidence | Not started |
 | 55 | Basic tracing and integrity | Not started |

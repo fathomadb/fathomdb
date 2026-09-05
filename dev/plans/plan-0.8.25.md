@@ -209,9 +209,9 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 
 **Remaining ladder:** 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
-Complete Slice 40's preregistered descriptive CUDA throughput observation,
-exact evidence manifest, independent closeout review, and clean repository
-gate. Do not begin Slice 45 until Slice 40 is durably closed.
+Slice 40 is durably closed. Reconcile Slice 45's minimal pagination and
+operational-state design against the implemented Slice 35 frozen-read and Slice
+40 generation contracts before beginning its RED tests.
 
 ## Stop gates
 

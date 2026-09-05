@@ -1,10 +1,38 @@
+use std::sync::Arc;
+
+use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
     ActuationBatchV1, ActuationOperationV1, ArtifactRevisionId, Engine, EngineError, InitialState,
-    MutationProjectionStatusRequestV1, ProjectionGenerationErrorReason, ProvenancedNodeV1,
-    SourceId, SourceVersionId, WriteProvenanceV1,
+    MutationProjectionStatusRequestV1, ProjectionGenerationErrorReason, ProjectionRole,
+    ProjectionSpec, ProjectionVector, ProvenancedNodeV1, SourceId, SourceVersionId,
+    WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
+use rusqlite::Connection;
 use tempfile::TempDir;
+
+#[derive(Debug)]
+struct TestEmbedder;
+
+impl Embedder for TestEmbedder {
+    fn identity(&self) -> EmbedderIdentity {
+        EmbedderIdentity::new("slice40-receipt", "r1", 8)
+    }
+
+    fn embed(&self, _text: &str) -> Result<Vector, EmbedderError> {
+        Ok(vec![0.5; 8])
+    }
+}
+
+fn vector_spec() -> ProjectionSpec {
+    ProjectionSpec {
+        name: "memory".into(),
+        roles: [ProjectionRole::Searchable].into_iter().collect(),
+        fts: None,
+        vector: Some(ProjectionVector { embedder: None, dense_readiness: None }),
+        source: None,
+    }
+}
 
 fn canonical() -> ProvenancedNodeV1 {
     ProvenancedNodeV1 {
@@ -58,5 +86,70 @@ fn mutation_status_rejects_invalid_operation_id_with_exact_path() {
         Err(EngineError::ProjectionGeneration(error))
             if error.reason == ProjectionGenerationErrorReason::InvalidOperationId
                 && error.field_path == "/operationId"
+    ));
+}
+
+#[test]
+fn pending_receipt_is_bound_to_commit_generation_and_can_be_polled() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("pending{SQLITE_SUFFIX}"));
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(TestEmbedder)).unwrap();
+    opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
+    let request = ActuationBatchV1::new(
+        "slice40-pending-operation",
+        vec![ActuationOperationV1::PutCanonicalNode(canonical())],
+    )
+    .unwrap();
+    let receipt = opened.engine.actuate(request).unwrap();
+    let generation = receipt.projection_generation_id.clone().expect("pending generation");
+    let cursor = *receipt.pending_projection_write_cursors.first().expect("pending cursor");
+    let status = opened
+        .engine
+        .read_mutation_projection_status(MutationProjectionStatusRequestV1 {
+            schema_version: 1,
+            operation_id: receipt.operation_id,
+            write_cursor: cursor,
+            expected_generation_id: generation.clone(),
+        })
+        .unwrap();
+    assert_eq!(status.generation_id, generation);
+    assert_eq!(status.write_cursor, cursor);
+    assert!(status.pending_count + status.failed_count <= 1);
+}
+
+#[test]
+fn tracked_cursor_without_a_current_physical_member_is_unavailable_not_ready() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("unavailable{SQLITE_SUFFIX}"));
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(TestEmbedder)).unwrap();
+    opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
+    let receipt = opened
+        .engine
+        .actuate(
+            ActuationBatchV1::new(
+                "slice40-unavailable-operation",
+                vec![ActuationOperationV1::PutCanonicalNode(canonical())],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let generation = receipt.projection_generation_id.expect("pending generation");
+    let cursor = receipt.pending_projection_write_cursors[0];
+    Connection::open(&path)
+        .unwrap()
+        .execute("DELETE FROM canonical_nodes WHERE write_cursor=?1", [cursor])
+        .unwrap();
+
+    assert!(matches!(
+        opened.engine.read_mutation_projection_status(MutationProjectionStatusRequestV1 {
+            schema_version: 1,
+            operation_id: receipt.operation_id,
+            write_cursor: cursor,
+            expected_generation_id: generation,
+        }),
+        Err(EngineError::ProjectionGeneration(error))
+            if error.reason
+                == ProjectionGenerationErrorReason::ProjectionGenerationUnavailable
+                && error.field_path == "/projectionGeneration"
     ));
 }

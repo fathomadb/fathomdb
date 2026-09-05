@@ -630,7 +630,12 @@ fn affected_and_pending_collection_bounds_accept_maxima_and_reject_one_over() {
     connection
         .execute(
             "UPDATE _fathomdb_actuation_receipts \
-             SET pending_projection_write_cursors_json=?1 WHERE operation_id='bounds-primary'",
+             SET pending_projection_write_cursors_json=?1, \
+                 projection_generation_id=( \
+                   SELECT generation_id FROM _fathomdb_projection_generation_current \
+                   WHERE singleton=1 \
+                 ) \
+             WHERE operation_id='bounds-primary'",
             [&pending_json],
         )
         .unwrap();

@@ -780,7 +780,7 @@ mod tests {
         .unwrap();
         crate::register_sqlite_vec_extension();
         let mut connection = Connection::open_in_memory().unwrap();
-        migrate(&connection).unwrap();
+        migrate_with_steps(&connection, &MIGRATIONS[..32]).unwrap();
         connection
             .execute(
                 "INSERT INTO _fathomdb_embedder_profiles(\
@@ -827,5 +827,33 @@ mod tests {
             )
             .unwrap();
         assert_normative_fixture(connection, &fixture);
+    }
+
+    #[test]
+    fn schema33_serving_binding_uses_visibility_generation_instead_of_terminal_scan() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("compact-serving.fathom.sqlite3");
+        let opened = crate::Engine::open(&path).unwrap();
+        opened.engine.close().unwrap();
+        let connection = Connection::open(path).unwrap();
+        let before_encoding = projection_serving_encoding(&connection).unwrap();
+        let before_generation = load_visibility_generation(&connection).unwrap();
+
+        for cursor in 1..=100 {
+            connection
+                .execute(
+                    "INSERT INTO _fathomdb_projection_terminal(write_cursor,state) \
+                     VALUES(?1,'up_to_date')",
+                    [cursor],
+                )
+                .unwrap();
+        }
+
+        assert_eq!(projection_serving_encoding(&connection).unwrap(), before_encoding);
+        assert_eq!(
+            load_visibility_generation(&connection).unwrap(),
+            before_generation + 100,
+            "terminal drift remains authenticated by the monotonic visibility generation"
+        );
     }
 }

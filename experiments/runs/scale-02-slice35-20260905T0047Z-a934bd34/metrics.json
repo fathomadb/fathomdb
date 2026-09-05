@@ -1,0 +1,103 @@
+{
+  "schema_version": "scale-02-slice35-result.v1",
+  "program_track": "SCALE-02",
+  "verdict": "pass",
+  "upper_95_relative_regression": {
+    "p50": 0.01656054807803491,
+    "p95": 0.019834771851853717
+  },
+  "treatments": {
+    "baseline": {
+      "errors": 0,
+      "p50_by_repetition": [
+        33.09047699440271,
+        32.60980302002281,
+        32.78345300350338,
+        32.57548896363005,
+        32.316835946403444
+      ],
+      "p95_by_repetition": [
+        36.39848600141704,
+        35.408589988946915,
+        36.14989505149424,
+        35.498254001140594,
+        35.28554498916492
+      ],
+      "repetitions": 5,
+      "schema_version": "scale-02-slice35-treatment.v1",
+      "source_commit": "b2bfb1f318f58041144acb2356a6a4c9624068b9",
+      "timeouts": 0,
+      "treatment": "baseline"
+    },
+    "candidate": {
+      "errors": 0,
+      "p50_by_repetition": [
+        33.1283489940688,
+        33.00459397723898,
+        33.10472401790321,
+        33.15796400420368,
+        32.918597979005426
+      ],
+      "p95_by_repetition": [
+        36.30453301593661,
+        36.06244700495154,
+        36.17177903652191,
+        36.261658009607345,
+        36.01762297330424
+      ],
+      "repetitions": 5,
+      "schema_version": "scale-02-slice35-treatment.v1",
+      "source_commit": "1dfe0a166d15168a3bdf31830967c034d3dcc477",
+      "timeouts": 0,
+      "treatment": "candidate"
+    }
+  },
+  "current_campaign": {
+    "baseline": {
+      "errors": 0,
+      "p50_by_repetition": [
+        33.09047699440271,
+        32.60980302002281,
+        32.78345300350338,
+        32.57548896363005,
+        32.316835946403444
+      ],
+      "p95_by_repetition": [
+        36.39848600141704,
+        35.408589988946915,
+        36.14989505149424,
+        35.498254001140594,
+        35.28554498916492
+      ],
+      "repetitions": 5,
+      "schema_version": "scale-02-slice35-treatment.v1",
+      "source_commit": "b2bfb1f318f58041144acb2356a6a4c9624068b9",
+      "timeouts": 0,
+      "treatment": "baseline"
+    },
+    "candidate": {
+      "errors": 0,
+      "p50_by_repetition": [
+        33.1283489940688,
+        33.00459397723898,
+        33.10472401790321,
+        33.15796400420368,
+        32.918597979005426
+      ],
+      "p95_by_repetition": [
+        36.30453301593661,
+        36.06244700495154,
+        36.17177903652191,
+        36.261658009607345,
+        36.01762297330424
+      ],
+      "repetitions": 5,
+      "schema_version": "scale-02-slice35-treatment.v1",
+      "source_commit": "1dfe0a166d15168a3bdf31830967c034d3dcc477",
+      "timeouts": 0,
+      "treatment": "candidate"
+    }
+  },
+  "prior_run_id": null,
+  "claim_boundary": "legacy_search_non_regression_only"
+}

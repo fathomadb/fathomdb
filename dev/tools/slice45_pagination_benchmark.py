@@ -192,6 +192,35 @@ def write_markdown(result: dict[str, Any], path: Path) -> None:
                 f"{item['treatment_median_peak_rss_mib']:.2f} | {item['delta_mib']:.2f} | "
                 f"{item['delta_percent']:.2f} | {str(item['material']).lower()} |"
             )
+    lines.extend(
+        [
+            "",
+            "| Scale | Cold open ms | Cold mint ms | Cold first page ms | Cold frozen state ms |",
+            "|---:|---:|---:|---:|---:|",
+        ]
+    )
+    for scale in result["scales"]:
+        lines.append(
+            f"| {scale['rows']} | "
+            f"{statistics.median(item['open_ms'] for item in scale['cold']):.4f} | "
+            f"{statistics.median(item['mint_ms'] for item in scale['cold']):.4f} | "
+            f"{statistics.median(item['first_page_ms'] for item in scale['cold']):.4f} | "
+            f"{statistics.median(item['frozen_state_ms'] for item in scale['cold']):.4f} |"
+        )
+    lines.extend(
+        [
+            "",
+            "| Scale | Token auth p95 ms | Snapshot binding p95 ms | Cursor auth p95 ms |",
+            "|---:|---:|---:|---:|",
+        ]
+    )
+    for scale in result["scales"]:
+        stages = scale["stage_medians"]
+        lines.append(
+            f"| {scale['rows']} | {stages['token_authentication_p95_ms']:.4f} | "
+            f"{stages['snapshot_binding_p95_ms']:.4f} | "
+            f"{stages['cursor_authentication_p95_ms']:.4f} |"
+        )
     lines.extend(["", f"Overall material: **{str(result['material']).lower()}**", ""])
     path.write_text("\n".join(lines), encoding="utf-8")
 

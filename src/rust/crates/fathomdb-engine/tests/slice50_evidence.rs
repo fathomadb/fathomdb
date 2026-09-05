@@ -1,6 +1,7 @@
 //! 0.8.25 Slice 50 — compact, eligibility-bound source evidence.
 
 use std::collections::BTreeSet;
+use std::fs;
 use std::sync::{Arc, Barrier};
 use std::thread;
 
@@ -1266,6 +1267,228 @@ fn authorized_dependency_corruption_is_typed_evidence_corrupt() {
             if error.reason == EvidenceErrorReasonV1::EvidenceCorrupt
                 && error.field_path == "/dependency"
     ));
+}
+
+#[test]
+fn authorized_hash_locator_and_generation_corruption_is_typed() {
+    // A body mutation that leaves the committed source-link hash untouched is
+    // visible only as post-authorization structural corruption.
+    {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("hash-corruption{SQLITE_SUFFIX}"));
+        let source_body = "hash authority source";
+        let opened = Engine::open(&path).unwrap();
+        opened
+            .engine
+            .write(&[
+                canonical_named(
+                    "hash-source",
+                    "hash-source-r1",
+                    "hash-v1",
+                    "hash-source-id",
+                    source_body,
+                ),
+                derived_named(
+                    "hash-claim",
+                    "hash-claim-r1",
+                    "hash-source-r1",
+                    "hash-v1",
+                    "hash-source-id",
+                    source_body,
+                    "hashcorruptionneedle",
+                ),
+            ])
+            .unwrap();
+        let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+        let frozen = freeze_stable(&opened.engine, &context);
+        let evidence = opened
+            .engine
+            .search_with_evidence(&request("hashcorruptionneedle", frozen))
+            .unwrap()
+            .evidence
+            .into_iter()
+            .find(|entry| entry.artifact_revision_id == "hash-claim-r1")
+            .unwrap()
+            .evidence_ref;
+        let raw = rusqlite::Connection::open(&path).unwrap();
+        raw.execute(
+            "UPDATE canonical_nodes SET body='tampered source bytes' \
+             WHERE logical_id='hash-source'",
+            [],
+        )
+        .unwrap();
+        drop(raw);
+        let equivalent = freeze_stable(&opened.engine, &context);
+        let error = opened
+            .engine
+            .resolve_evidence(&EvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: evidence,
+                context: equivalent,
+            })
+            .unwrap_err();
+        assert!(
+            matches!(
+                error,
+                EngineError::Evidence(ref evidence)
+                    if evidence.reason == EvidenceErrorReasonV1::EvidenceCorrupt
+                        && evidence.field_path == "/canonicalSourceHash"
+            ),
+            "unexpected hash-corruption outcome: {error:?}"
+        );
+    }
+
+    // Minting refuses an already-visible locator whose exact UTF-8 slice
+    // cannot be resolved. No malformed reference is allowed to escape.
+    {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("locator-corruption{SQLITE_SUFFIX}"));
+        let source_body = "locator authority source";
+        let opened = Engine::open(&path).unwrap();
+        opened
+            .engine
+            .write(&[
+                canonical_named(
+                    "locator-source",
+                    "locator-source-r1",
+                    "locator-v1",
+                    "locator-source-id",
+                    source_body,
+                ),
+                derived_named(
+                    "locator-claim",
+                    "locator-claim-r1",
+                    "locator-source-r1",
+                    "locator-v1",
+                    "locator-source-id",
+                    source_body,
+                    "locatorcorruptionneedle",
+                ),
+            ])
+            .unwrap();
+        let raw = rusqlite::Connection::open(&path).unwrap();
+        raw.execute(
+            "UPDATE _fathomdb_source_links \
+             SET locator_kind='utf8_bytes',start_byte=1,end_byte=999 \
+             WHERE artifact_revision_id='locator-claim-r1'",
+            [],
+        )
+        .unwrap();
+        drop(raw);
+        let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+        let frozen = freeze_stable(&opened.engine, &context);
+        let error = opened
+            .engine
+            .search_with_evidence(&request("locatorcorruptionneedle", frozen))
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            EngineError::Evidence(ref evidence)
+                if evidence.reason == EvidenceErrorReasonV1::EvidenceCorrupt
+                    && evidence.field_path == "/results/0/provenance"
+        ));
+    }
+
+    // A generation selector is authorized by the reference, but the selected
+    // row must still satisfy the persisted generation grammar. Disable only
+    // the raw-fault visibility triggers so the originating frozen authority
+    // remains valid and the resolver reaches that structural check.
+    {
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join(format!("generation-corruption{SQLITE_SUFFIX}"));
+        let opened = Engine::open(&path).unwrap();
+        opened.engine.write(&[canonical("generationcorruptionneedle")]).unwrap();
+        let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+        let frozen = freeze_stable(&opened.engine, &context);
+        let evidence = opened
+            .engine
+            .search_with_evidence(&request("generationcorruptionneedle", frozen.clone()))
+            .unwrap()
+            .evidence[0]
+            .evidence_ref
+            .clone();
+        let raw = rusqlite::Connection::open(&path).unwrap();
+        raw.execute_batch(
+            "DROP TRIGGER _fathomdb_projection_generation_immutable;
+             DROP TRIGGER _fathomdb_read_visibility_pg_au;
+             UPDATE _fathomdb_projection_generations
+                SET declaration_sha256='not-a-sha256'
+              WHERE role='serving';",
+        )
+        .unwrap();
+        drop(raw);
+        let error = opened
+            .engine
+            .resolve_evidence(&EvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: evidence,
+                context: frozen,
+            })
+            .unwrap_err();
+        assert!(matches!(
+            error,
+            EngineError::Evidence(ref evidence)
+                if evidence.reason == EvidenceErrorReasonV1::EvidenceCorrupt
+                    && evidence.field_path
+                        == "/projectionOrigin/projectionGenerationId"
+        ));
+    }
+}
+
+#[test]
+fn ordinary_search_is_equivalent_and_evidence_is_stateless() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("stateless{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    opened.engine.write(&[canonical("statelessneedle")]).unwrap();
+    let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+    let frozen = freeze_stable(&opened.engine, &context);
+    let wal_path = std::path::PathBuf::from(format!("{}-wal", path.display()));
+    let database_before = fs::read(&path).unwrap();
+    let wal_before = fs::read(&wal_path).ok();
+    let evidence_tables_before: Vec<String> = {
+        let raw = rusqlite::Connection::open(&path).unwrap();
+        let mut statement = raw
+            .prepare(
+                "SELECT name FROM sqlite_master WHERE lower(name) LIKE '%evidence%' ORDER BY name",
+            )
+            .unwrap();
+        statement.query_map([], |row| row.get(0)).unwrap().collect::<Result<_, _>>().unwrap()
+    };
+
+    let ordinary = opened.engine.search("statelessneedle").unwrap();
+    let frozen_ordinary = opened
+        .engine
+        .search_frozen("statelessneedle", &frozen, 0, false, 0.3, 0, false, 10)
+        .unwrap();
+    let with_evidence =
+        opened.engine.search_with_evidence(&request("statelessneedle", frozen.clone())).unwrap();
+    assert_eq!(ordinary.results, frozen_ordinary.results);
+    assert_eq!(frozen_ordinary, with_evidence.search_result);
+    assert_eq!(with_evidence.evidence.len(), with_evidence.search_result.results.len());
+    for entry in with_evidence.evidence {
+        opened
+            .engine
+            .resolve_evidence(&EvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref: entry.evidence_ref,
+                context: frozen.clone(),
+            })
+            .unwrap();
+    }
+
+    let evidence_tables_after: Vec<String> = {
+        let raw = rusqlite::Connection::open(&path).unwrap();
+        let mut statement = raw
+            .prepare(
+                "SELECT name FROM sqlite_master WHERE lower(name) LIKE '%evidence%' ORDER BY name",
+            )
+            .unwrap();
+        statement.query_map([], |row| row.get(0)).unwrap().collect::<Result<_, _>>().unwrap()
+    };
+    assert_eq!(evidence_tables_before, evidence_tables_after);
+    assert_eq!(fs::read(&path).unwrap(), database_before);
+    assert_eq!(fs::read(&wal_path).ok(), wal_before);
 }
 
 #[test]

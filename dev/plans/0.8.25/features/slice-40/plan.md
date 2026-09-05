@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 40 — projection generation and readiness
-status: DESIGN_FIX_2
+status: DESIGN_FIX_3
 depends_on: 35
 design: design.md
-design_status: CHANGES_REQUIRED_CYCLE_2
+design_status: CHANGES_REQUIRED_CYCLE_3
 ---
 
 # Slice 40 plan
@@ -29,7 +29,7 @@ work administration remain after 0.8.25.
 |---|---|
 | S40-R1 Generation identity | S40-AC1 proves Engine-minted `pgen1:<32-lower-hex>` identity is database-local, immutable for one serving epoch, preserved across restart/backup copy, never reused, and changed exactly on configuration or in-place rebuild transition. |
 | S40-R2 Boundary-qualified readiness | S40-AC2 reports `observed_boundary` and `ready_through`; no response says ready when an applicable earlier cursor is pending or failed, including after restart. |
-| S40-R3 Compact mutation correlation | S40-AC3 resolves every Slice-25 `pending_projection_write_cursor` through the receipt's indexed `operation_id`, required expected generation, and current owner state without a per-record work manifest or reinterpretation of the Slice-20 dependency generation. |
+| S40-R3 Compact mutation correlation | S40-AC3 resolves every Slice-25 `pending_projection_write_cursor` through the receipt's indexed `operation_id`, required expected generation, and physical-member state without a per-record work manifest or reinterpretation of the Slice-20 dependency generation. |
 | S40-R4 Honest in-place transition | S40-AC4 configuration/rebuild retires the prior metadata epoch, installs one new serving epoch, and exposes processing/degraded state until existing physical stores catch up; no API claims an unavailable side-by-side store. |
 | S40-R5 Frozen-read and lifecycle closure | S40-AC5 changes to generation/readiness authority invalidate Slice-35 frozen reads, and erasure/lifecycle races cannot publish an ineligible projection or leave source-bearing generation artifacts. |
 | S40-R6 Additive parity and bounded cost | S40-AC6 proves Rust/Python/TypeScript/wire parity, conservative compatibility mapping, Windows source/build coverage, packaged CPU/CUDA status behavior, indexed bounds, and the preregistered latency/storage limits. |
@@ -51,8 +51,9 @@ Commit RED separately. Use real SQLite databases and preserved fixtures:
 - schema/open tests for ID grammar, uniqueness, fresh/upgrade state, corruption,
   backup copy, and no reuse;
 - Engine property/fault tests for non-owner cursor gaps, three-part physical
-  completion, terminal failure, state transitions, restart at each transition,
-  duplicate publication, and configuration/rebuild epochs;
+  completion, the full incomplete/corrupt state table, terminal failure, state
+  transitions, restart at each transition, duplicate/stale publication, and
+  configuration/rebuild epochs;
 - concurrency tests for write, worker publication, lifecycle closure, erasure,
   and rebuild races;
 - Slice-35 frozen-read tests for pre-migration drift, generation/readiness

@@ -972,13 +972,13 @@ mod tests {
     }
 
     #[test]
-    fn schema33_serving_binding_uses_visibility_generation_instead_of_terminal_scan() {
+    fn schema33_serving_binding_is_compact_and_branch_sensitive() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("compact-serving.fathom.sqlite3");
         let opened = crate::Engine::open(&path).unwrap();
         opened.engine.close().unwrap();
         let connection = Connection::open(path).unwrap();
-        let before_encoding = projection_serving_encoding(&connection).unwrap();
+        let mut prior_encoding = projection_serving_encoding(&connection).unwrap();
         let before_generation = load_visibility_generation(&connection).unwrap();
 
         for cursor in 1..=100 {
@@ -989,9 +989,11 @@ mod tests {
                     [cursor],
                 )
                 .unwrap();
+            let next_encoding = projection_serving_encoding(&connection).unwrap();
+            assert_ne!(next_encoding, prior_encoding);
+            prior_encoding = next_encoding;
         }
 
-        assert_eq!(projection_serving_encoding(&connection).unwrap(), before_encoding);
         assert_eq!(
             load_visibility_generation(&connection).unwrap(),
             before_generation + 100,

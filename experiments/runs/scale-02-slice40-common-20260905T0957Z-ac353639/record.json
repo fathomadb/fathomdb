@@ -1,0 +1,111 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "scale-02-slice40-common-20260905T0957Z-ac353639",
+  "experiment": "scale-02-slice40-common",
+  "title": "scale-02-slice40-common",
+  "verdict": "advisory_limit_observed",
+  "read": "Slice 40 write/storage/reopen comparison: fail",
+  "code": {
+    "git_sha": "caf09c0465ed5079a2ac13abd6f28c4060d575d0",
+    "dirty": false,
+    "branch": "release/0.8.25",
+    "baseline_commit": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403"
+  },
+  "config": {
+    "sha256": "ac353639ed2492774d61fbc1bf47b1c1c020ac365e9296b6d8236b69da433be8",
+    "path": "experiments/configs/scale-02/slice40-projection-generation-common.v3.json",
+    "resolved": {
+      "schema_version": "scale-02-slice40.v3",
+      "program_track": "SCALE-02",
+      "release": "0.8.25",
+      "campaign": "common",
+      "approval": {
+        "state": "approved",
+        "approved_by": "HITL",
+        "approved_at": "2026-09-05"
+      },
+      "baseline": {
+        "source_commit": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403"
+      },
+      "candidate": {
+        "source_commit": "d3548e070f61c78d618d2887adabfa30c166704a"
+      },
+      "execution": {
+        "runner_sha256": "7ba66181fe3e74c4eee26f0520a383aeeedb33510faf0eecdf181c40b27f9954",
+        "record_library_sha256": "4066299e8c2bd989b5374cd86bf51e7a93f1688856ebba9c4951d608503709f8",
+        "statistics_library_sha256": "06445cc043697a63f3279d9ccc369280b9fc23fbba8fbc4cec1ddf9013a7e507",
+        "classification_library_sha256": "830a9c1db4b29a73d73e58b61b40c6db2aac158fd760e05ba7882e980266f729",
+        "common_worker_sha256": "518a78029e9006b2469aa6d2272784293b27dc8f274a7cd49b8df4009e021dc9",
+        "status_test_sha256": "ee12c83af9edbadbbfd7f95cd4d4f80e75e3ad9f6ae9d54a4a2f8b1729b367c3"
+      },
+      "measurement_plan": {
+        "path": "experiments/configs/scale-02/slice40-common-measurement-plan.v1.json",
+        "sha256": "5d8b3204bdb451a87b61fe96389d6f1553a11f072937d12ccaf3e4cca3eaf15d",
+        "plan_id": "slice40-common-v1"
+      },
+      "workload": {
+        "records": 10000,
+        "batch_size": 128,
+        "expected_receipts": 79,
+        "repetitions": 5,
+        "status_records": 50000,
+        "status_warmups": 100,
+        "status_samples": 1000,
+        "open_warmups": 5,
+        "open_samples": 20,
+        "bootstrap_seed": "0x5CA1E025400001",
+        "bootstrap_resamples": 2000
+      },
+      "policy": {
+        "confidence": 0.95,
+        "write_max_relative_regression": 0.03,
+        "open_max_relative_regression": 0.1,
+        "open_max_absolute_regression_ms": 25.0,
+        "status_p95_ms": 5.0,
+        "status_p99_ms": 10.0,
+        "storage_max_increase_bytes": 65536,
+        "cpu_cuda_status_p95_max_difference_ms": 2.0
+      },
+      "artifact_root": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice40-runs",
+      "claim_boundary": "slice40_projection_generation_readiness"
+    }
+  },
+  "corpus": {
+    "source": "deterministic Slice 40 representative fixture",
+    "manifest_sha256": null,
+    "datasets": []
+  },
+  "seeds": {
+    "bootstrap": "0x5CA1E025400001"
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb_baseline": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403",
+      "fathomdb_candidate": "d3548e070f61c78d618d2887adabfa30c166704a"
+    }
+  },
+  "metrics": {
+    "schema_version": "scale-02-slice40-decision.v1",
+    "campaign": "common",
+    "verdict": "fail",
+    "write_p50_upper_relative_regression": 0.003355082566593115,
+    "write_p95_upper_relative_regression": 0.03109158766884712,
+    "open_upper_relative_regression": 0.10717083902159788,
+    "open_mean_absolute_regression_ms": 5.1923895999999985,
+    "maximum_paired_storage_increase_bytes": 28672
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": [
+    "tests/experiments/test_scale_02_slice40.py"
+  ],
+  "files_changed": [],
+  "artifacts": [],
+  "review": null,
+  "open_questions": [
+    "A registered Slice 40 bound missed"
+  ]
+}

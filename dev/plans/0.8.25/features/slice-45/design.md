@@ -1,8 +1,8 @@
 ---
 title: 0.8.25 Slice 45 — minimal pagination and operational-state design
-status: DRAFT_REVIEW_FIX_1
-design_version: 5
-review_cycle: 1
+status: DRAFT_REVIEW_FIX_2
+design_version: 6
+review_cycle: 2
 target_release: 0.8.25
 depends_on: 40
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -36,7 +36,7 @@ designs remain historical evidence.
 
 | Requirement | Acceptance criterion |
 | --- | --- |
-| S45-R1 Stable canonical pages | S45-AC1 concatenating all pages equals one reference query in `(logical_id, write_cursor)` order, with no duplicate or omission. |
+| S45-R1 Stable canonical pages | S45-AC1 concatenating all pages equals one reference query in `write_cursor` order, with no duplicate or omission; schema and open validation refuse duplicate page keys. |
 | S45-R2 Frozen continuation | S45-AC2 every page requires one valid Slice 35 frozen context; unchanged state succeeds across restart, while relevant drift refuses before returning any item. |
 | S45-R3 Bound opaque cursor | S45-AC3 tamper, another database, operation/selector/context/limit mismatch, noncanonical encoding, and unsupported version fail typed; cursor bytes contain no record, filter value, source, logical ID, record key, or other caller text. |
 | S45-R4 Governed operational state | S45-AC4 only a registered `latest_state` collection can be read; point and page results agree in one frozen context and never scan `operational_mutations`. |
@@ -148,11 +148,11 @@ Schema step 33 is one atomic additive migration. It adds these two page
 indexes:
 
 ```sql
-CREATE INDEX canonical_nodes_kind_cursor_page_idx
+CREATE UNIQUE INDEX canonical_nodes_kind_cursor_page_idx
 ON canonical_nodes(kind, write_cursor)
 WHERE logical_id IS NOT NULL;
 
-CREATE INDEX operational_state_collection_cursor_page_idx
+CREATE UNIQUE INDEX operational_state_collection_cursor_page_idx
 ON operational_state(collection_name, write_cursor);
 ```
 
@@ -163,6 +163,15 @@ increment invalidates every token minted under the narrower step-32 manifest;
 at `i64::MAX` it aborts and rolls back the whole migration with
 `read visibility generation exhausted`. Frozen open validation uses exactly 14
 tables at schema 31, 16 at schema 32, and 18 at schema 33 or later.
+
+The Engine already allocates `write_cursor` from one global monotonic sequence,
+but the legacy tables did not encode that invariant. The unique page indexes
+make the per-selector continuation coordinate a database-enforced total order.
+Migration refuses and rolls back if legacy logical nodes or operational-state
+rows contain duplicate `(selector, write_cursor)` keys. Post-migration open
+validation independently detects either duplicate-key condition so a database
+whose index or rows were changed outside the Engine fails closed rather than
+serving an omitting walk.
 
 Query-plan tests require the canonical page index, the operational primary key
 for point reads, the operational page index for pages, and no temp-order B-tree
@@ -289,7 +298,7 @@ RED tests are committed before implementation and use real SQLite databases:
 | `slice45_operational_state` | registered format-v1 latest-state point/page; missing key; missing/wrong-kind/unsupported-format collection; replacement; exact payload; point/page agreement; no mutation-log fallback. |
 | `slice45_page_races` | concurrent insert, supersede, lifecycle, dependency closure, erasure, attribute/projection change, state replace/excise, collection change, close/reopen; bound result or exact whole-call failure. |
 | `slice45_query_plans` | canonical composite index, operational PK, no OFFSET/temp-order/mutation-log scan. |
-| `step33_pagination` | two indexes, six exact triggers, 14/16/18 manifest branches, one cutover increment, exhaustion rollback, and schema-32-token/raw-state-mutation/upgrade refusal. |
+| `step33_pagination` | two unique indexes, six exact triggers, 14/16/18 manifest branches, one cutover increment, exhaustion rollback, pre-upgrade duplicate-key migration refusal, post-upgrade duplicate-key open refusal, and schema-32-token/raw-state-mutation/upgrade refusal. |
 | binding suites | strict request/response/error wire, canonical fixture, Python/TypeScript parity, source-independent packaged smoke. |
 
 Implementation order is codec/types and RED properties; schema/index/trigger
@@ -308,11 +317,15 @@ environment hashes under `dev/plans/runs/0.8.25-slice-45-pagination/`.
 
 Primary causal cells are:
 
-1. the exact canonical page SQL without frozen/cursor work versus the same
+1. mint one context plus the first canonical page versus the same first page
+   using a pre-minted context, with mint validation, snapshot,
+   binding/terminal-scan, token-codec, and page-query stages reported
+   separately;
+2. the exact canonical page SQL without frozen/cursor work versus the same
    `PageV1<NodeRecord>` query with one pre-minted context and no cursor;
-2. first page versus continuation, with cursor codec and frozen validation
+3. first page versus continuation, with cursor codec and frozen validation
    stage timings reported separately; and
-3. operational-state point read without versus with one pre-minted context.
+4. operational-state point read without versus with one pre-minted context.
 
 Empty eligibility/default validity is used in the matched cells; a separate
 non-gating eligibility cell proves filters but is not pooled into overhead.

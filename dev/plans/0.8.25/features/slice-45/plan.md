@@ -51,12 +51,15 @@ semantic latest-state policy, or client-side filtering.
 
 Use checked-in deterministic fresh 10k and 50k logical-node/state-row corpora
 with fixed 256-byte bodies/payloads and 100-item pages. Primary causal cells
-compare the exact page query without versus with frozen/cursor work, first page
-versus continuation with stage timing, and operational-state point reads
-without versus with one pre-minted context. Keep the existing public list and
-full page walk as separate operational observations. Record terminal-row count
-and frozen parse/authentication/binding/query stages so an O(N) validation cost
-is identified rather than blamed on pagination.
+compare mint-plus-first-page versus the same first page with a pre-minted
+context, the exact page query without versus with frozen/cursor work, first
+page versus continuation with stage timing, and operational-state point reads
+without versus with one pre-minted context. The context-mint cell reports mint
+validation, snapshot, binding/terminal-scan, token-codec, and page-query stages
+separately. Keep the existing public list and full page walk as separate
+operational observations. Record terminal-row count and frozen parse/
+authentication/binding/query stages so an O(N) validation cost is identified
+rather than blamed on pagination.
 
 Run ten independent paired steady processes per primary cell and scale, at
 least 1,000 operations per process, three additional process-cold repetitions,

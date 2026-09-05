@@ -1,8 +1,8 @@
 ---
 title: 0.8.25 Slice 45 — minimal pagination and operational-state design
-status: DRAFT_REVIEW_FIX_2
+status: READY
 design_version: 6
-review_cycle: 2
+review_cycle: 3
 target_release: 0.8.25
 depends_on: 40
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -352,7 +352,7 @@ frozen validation, eligibility, or cursor authentication. Release-wide
 comparative policy remains in Slice 75. CUDA, CE, GPU allocation, and
 live-model routes are N/A because this slice executes SQLite reads only.
 
-The design becomes READY only after an independent review has no unresolved
-P1/P2 implementation-shaping finding. Implementation then requires committed
-RED/GREEN chronology, independent code review, separate verification, exact
-evidence references, and a Slice 45 status record.
+Independent design review cycle 3 passed at `e8d14d1e` with no unresolved
+P0/P1/P2 finding. Implementation requires committed RED/GREEN chronology,
+independent code review, separate verification, exact evidence references, and
+a Slice 45 status record.

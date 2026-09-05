@@ -15,8 +15,40 @@
       "reason": "invalid_ancillary_locator_quarantined"
     }
   ],
-  "postcutover_plan_amendments": [],
-  "external_artifact_locator_amendments": [],
+  "postcutover_plan_amendments": [
+    {
+      "run_id": "scale-02-slice40-common-20260905T0754Z-c1feccdf",
+      "record_sha256": "a8bc7c1810a761eaceb6ac3972dfaa791be221420c9395b5b3791f0808d1c5bb",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/scale-02/slice40-common-measurement-plan.v1.json",
+        "sha256": "5d8b3204bdb451a87b61fe96389d6f1553a11f072937d12ccaf3e4cca3eaf15d",
+        "plan_id": "slice40-common-v1"
+      }
+    },
+    {
+      "run_id": "scale-02-slice40-common-20260905T0819Z-12b4530d",
+      "record_sha256": "b0ee57797cf7e7427e48a514227e9bbfcc06dcce16b7a6d3404359b656f97066",
+      "reason": "missing_plan_in_immutable_postcutover_record",
+      "measurement_plan": {
+        "path": "experiments/configs/scale-02/slice40-common-measurement-plan.v1.json",
+        "sha256": "5d8b3204bdb451a87b61fe96389d6f1553a11f072937d12ccaf3e4cca3eaf15d",
+        "plan_id": "slice40-common-v1"
+      }
+    }
+  ],
+  "external_artifact_locator_amendments": [
+    {
+      "run_id": "scale-02-slice40-common-20260905T0754Z-c1feccdf",
+      "record_sha256": "a8bc7c1810a761eaceb6ac3972dfaa791be221420c9395b5b3791f0808d1c5bb",
+      "reason": "absolute_external_safe_summary_in_immutable_record"
+    },
+    {
+      "run_id": "scale-02-slice40-common-20260905T0819Z-12b4530d",
+      "record_sha256": "b0ee57797cf7e7427e48a514227e9bbfcc06dcce16b7a6d3404359b656f97066",
+      "reason": "absolute_external_safe_summary_in_immutable_record"
+    }
+  ],
   "misclassified_postcutover_runs": [
     {
       "run_id": "scale-02-slice35-20260905T0019Z-3756fde2",

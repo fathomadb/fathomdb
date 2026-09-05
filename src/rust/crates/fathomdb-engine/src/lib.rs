@@ -1765,7 +1765,7 @@ impl std::fmt::Debug for ReaderWorkerPool {
 
 /// Capability payload kept behind one pointer so adding optional search state
 /// cannot inflate every request crossing the bounded reader channel.
-struct SearchReaderRequest {
+struct SearchReaderWork {
     compiled: Option<fathomdb_query::CompiledQuery>,
     /// Un-centered f32 query vector serialized for `vec_f32`. Phase 2
     /// f32 rerank uses this verbatim.
@@ -1838,7 +1838,18 @@ struct SearchReaderRequest {
     /// When present, produce bounded graph expansion from the final search
     /// hits before committing the same reader transaction.
     expand_depth: Option<u32>,
+}
+
+struct SearchReaderRequest {
+    work: SearchReaderWork,
     respond: SyncSender<ReaderResponse>,
+}
+
+struct EvidenceSearchReaderRequest {
+    work: SearchReaderWork,
+    frozen: FrozenReadContextV1,
+    include_explanation: bool,
+    respond: SyncSender<EvidenceReaderResponse>,
 }
 
 struct CanonicalPageReaderRequest {
@@ -1894,6 +1905,10 @@ enum ReaderRequest {
         respond: SyncSender<ProjectedTextReaderResponse>,
     },
     Search(Box<SearchReaderRequest>),
+    /// Slice 50 — opt-in evidence capture uses the same search algorithm but a
+    /// distinct response channel and compile-time capture strategy. Ordinary
+    /// search therefore carries no evidence branch or allocation.
+    SearchEvidence(Box<EvidenceSearchReaderRequest>),
     /// Slice 30 (G2) — active-only point lookup by `logical_id`. Returns one
     /// slot per requested id, in request order, `None` where no active row
     /// carries that id. Its own typed `respond` channel keeps the `Search`
@@ -2061,6 +2076,8 @@ type ReaderResponse = Result<
     SearchReaderError,
 >;
 
+type EvidenceReaderResponse = Result<EvidenceSearchResultV1, SearchReaderError>;
+
 type ProjectedTextReaderResponse = Result<SearchResult, SearchReaderError>;
 
 /// 0.8.20 keystone closeout fix-3 (codex §9 [P2], TOCTOU) — the error a Search
@@ -2084,6 +2101,7 @@ type ProjectedTextReaderResponse = Result<SearchResult, SearchReaderError>;
 /// back through this variant keeps the outcome `InvalidFilter`, never `Storage`.
 enum SearchReaderError {
     Sqlite(rusqlite::Error),
+    Evidence(EngineError),
     InvalidFilter(String),
     RerankerDevicePolicy(RerankerDevicePolicyError),
     FrozenRead(FrozenReadError),
@@ -2446,59 +2464,32 @@ fn reader_worker_loop(
                 let _ = respond.send(result);
             }
             ReaderRequest::Search(request) => {
-                let SearchReaderRequest {
-                    compiled,
-                    query_vector,
-                    query_vector_bin,
-                    result_limit,
-                    candidate_limit,
-                    direct_text_candidate_limit,
-                    filter,
-                    recency_enabled,
-                    importance_enabled,
-                    vector_stage_only,
-                    raw_query,
-                    rerank_depth,
-                    use_graph_arm,
-                    alpha,
-                    pool_n,
-                    explain,
-                    view,
-                    frozen_binding,
-                    frozen_query_runtime,
-                    expand_depth,
-                    respond,
-                } = *request;
+                let SearchReaderRequest { work, respond } = *request;
                 #[cfg(feature = "tc5-benchmark")]
                 tc5_benchmark::record_search_route();
-                let result = read_search_in_tx(
+                let result = read_search_work_in_tx(
                     &mut connection,
-                    compiled.as_ref(),
-                    query_vector.as_deref(),
-                    query_vector_bin.as_deref(),
-                    result_limit,
-                    candidate_limit,
-                    direct_text_candidate_limit,
-                    filter.as_deref(),
-                    recency_enabled,
-                    importance_enabled,
-                    vector_stage_only,
-                    &raw_query,
-                    rerank_depth,
-                    use_graph_arm,
-                    alpha,
-                    pool_n,
-                    explain,
-                    view,
-                    frozen_binding.as_deref(),
-                    frozen_query_runtime.as_deref(),
-                    expand_depth,
+                    work,
+                    NoEvidenceCapture,
                     &wal_attribution,
                     worker_idx,
                 );
                 finish_reader_request(&connection, &wal_attribution, worker_idx);
                 // Receiver may have been dropped if the caller went
                 // away; nothing to do in that case.
+                let _ = respond.send(result);
+            }
+            ReaderRequest::SearchEvidence(request) => {
+                let EvidenceSearchReaderRequest { work, frozen, include_explanation, respond } =
+                    *request;
+                let result = read_search_work_in_tx(
+                    &mut connection,
+                    work,
+                    EvidenceCapture { frozen, include_explanation, graph_origins: HashMap::new() },
+                    &wal_attribution,
+                    worker_idx,
+                );
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
             ReaderRequest::GetById { logical_ids, view, respond } => {
@@ -7398,29 +7389,105 @@ impl Engine {
             )
             .into());
         }
-        let result = self.search_frozen(
-            &request.query,
-            &request.context,
-            request.rerank_depth as usize,
-            request.use_graph_arm,
-            request.alpha,
-            request.pool_n as usize,
-            true,
-            request.limit as usize,
-        )?;
-        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
-        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
-        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
-        let binding = frozen_read::authenticate(&tx, &request.context)?;
-        frozen_read::validate_snapshot(&tx, &binding)?;
-        let result = evidence::build_search_result(
-            &tx,
-            &request.context,
-            result,
-            request.include_explanation,
-        )?;
-        frozen_read::validate_snapshot(&tx, &binding)?;
-        tx.commit().map_err(|_| EngineError::Storage)?;
+        self.ensure_open()?;
+        request.context.context.view.reject_existence_relaxation_on_search()?;
+        let binding = {
+            let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+            let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+            frozen_read::authenticate(connection, &request.context)?
+        };
+        let dense_disabled_reason = self.dense_disabled.load(Ordering::Acquire).then(|| {
+            self.dense_disabled_reason
+                .lock()
+                .ok()
+                .and_then(|guard| guard.clone())
+                .unwrap_or_else(|| "open-time #5 vector-equivalence self-check failed".to_string())
+        });
+        let result_limit = request.limit as usize;
+        let candidate_limit = self
+            .projection_runtime
+            .shared
+            .search_limit_override
+            .load(Ordering::SeqCst)
+            .max(result_limit);
+        let work = SearchReaderWork {
+            compiled: None,
+            query_vector: None,
+            query_vector_bin: None,
+            result_limit,
+            candidate_limit,
+            direct_text_candidate_limit: None,
+            filter: Some(Box::new(request.context.context.eligibility.clone())),
+            recency_enabled: self
+                .projection_runtime
+                .shared
+                .recency_reweight_enabled
+                .load(Ordering::SeqCst),
+            importance_enabled: self
+                .projection_runtime
+                .shared
+                .importance_reweight_enabled
+                .load(Ordering::SeqCst),
+            vector_stage_only: self
+                .projection_runtime
+                .shared
+                .vector_stage_only_for_test
+                .load(Ordering::SeqCst),
+            raw_query: Box::from(request.query.as_str()),
+            rerank_depth: request.rerank_depth as usize,
+            use_graph_arm: request.use_graph_arm,
+            alpha: request.alpha,
+            pool_n: request.pool_n as usize,
+            explain: true,
+            view: request.context.context.view,
+            frozen_binding: Some(Box::new(binding)),
+            frozen_query_runtime: Some(Box::new(FrozenQueryRuntime {
+                embedder: self.runtime_embedder.clone(),
+                embedder_identity: self.runtime_embedder_identity.clone(),
+                dense_disabled_reason,
+                observed_generation: Arc::clone(&self.read_visibility_generation),
+            })),
+            expand_depth: None,
+        };
+        let (response_tx, response_rx) = mpsc::sync_channel::<EvidenceReaderResponse>(1);
+        self.reader_pool
+            .dispatch(ReaderRequest::SearchEvidence(Box::new(EvidenceSearchReaderRequest {
+                work,
+                frozen: request.context.clone(),
+                include_explanation: request.include_explanation,
+                respond: response_tx,
+            })))
+            .map_err(|_| EngineError::Closing)?;
+        let mut result = match response_rx.recv().map_err(|_| EngineError::Storage)? {
+            Ok(result) => result,
+            Err(SearchReaderError::Evidence(error)) => return Err(error),
+            Err(SearchReaderError::InvalidFilter(reason)) => {
+                return Err(EngineError::InvalidFilter { reason });
+            }
+            Err(SearchReaderError::RerankerDevicePolicy(error)) => {
+                return Err(EngineError::RerankerDevicePolicy(error));
+            }
+            Err(SearchReaderError::FrozenRead(error)) => {
+                return Err(EngineError::FrozenRead(error))
+            }
+            Err(SearchReaderError::VectorEquivalenceMismatch(reason)) => {
+                self.vector_equivalence_refusals.fetch_add(1, Ordering::Relaxed);
+                return Err(EngineError::VectorEquivalenceMismatch { reason });
+            }
+            Err(SearchReaderError::WriteValidation) => return Err(EngineError::WriteValidation),
+            Err(SearchReaderError::InvalidArgument(msg)) => {
+                return Err(EngineError::InvalidArgument { msg });
+            }
+            Err(SearchReaderError::Sqlite(error)) => {
+                self.emit_sqlite_internal_error(&error);
+                return Err(EngineError::Storage);
+            }
+        };
+        if let Some(explanation) = result.search_result.explanation.as_mut() {
+            let identity = &self.runtime_embedder_identity;
+            explanation.trace.embedder_id =
+                format!("{}@{} (dim={})", identity.name, identity.revision, identity.dimension);
+        }
         Ok(result)
     }
 
@@ -10294,26 +10361,28 @@ impl Engine {
         // request whose embedder yields no vector. Only the direct path gets the
         // fixed node candidate bound before node/edge body deduplication and RRF.
         let request = ReaderRequest::Search(Box::new(SearchReaderRequest {
-            compiled: Some(compiled),
-            query_vector: None,
-            query_vector_bin: None,
-            result_limit: limit,
-            candidate_limit,
-            direct_text_candidate_limit: Some(MAX_SEARCH_RESULT_LIMIT),
-            filter: None,
-            recency_enabled: false,
-            importance_enabled: false,
-            vector_stage_only: false,
-            raw_query: Box::from(query),
-            rerank_depth: 0,
-            use_graph_arm: false,
-            alpha: 0.3,
-            pool_n: 0,
-            explain: false,
-            view: *view,
-            frozen_binding: None,
-            frozen_query_runtime: None,
-            expand_depth: None,
+            work: SearchReaderWork {
+                compiled: Some(compiled),
+                query_vector: None,
+                query_vector_bin: None,
+                result_limit: limit,
+                candidate_limit,
+                direct_text_candidate_limit: Some(MAX_SEARCH_RESULT_LIMIT),
+                filter: None,
+                recency_enabled: false,
+                importance_enabled: false,
+                vector_stage_only: false,
+                raw_query: Box::from(query),
+                rerank_depth: 0,
+                use_graph_arm: false,
+                alpha: 0.3,
+                pool_n: 0,
+                explain: false,
+                view: *view,
+                frozen_binding: None,
+                frozen_query_runtime: None,
+                expand_depth: None,
+            },
             respond: response_tx,
         }));
         if self.reader_pool.dispatch(request).is_err() {
@@ -10330,6 +10399,7 @@ impl Engine {
                 Err(SearchReaderError::InvalidFilter(reason)) => {
                     return Err(EngineError::InvalidFilter { reason });
                 }
+                Err(SearchReaderError::Evidence(error)) => return Err(error),
                 Err(SearchReaderError::RerankerDevicePolicy(error)) => {
                     return Err(EngineError::RerankerDevicePolicy(error));
                 }
@@ -10403,6 +10473,7 @@ impl Engine {
         }
         match response_rx.recv().map_err(|_| EngineError::Storage)? {
             Ok(result) => Ok(result),
+            Err(SearchReaderError::Evidence(error)) => Err(error),
             Err(SearchReaderError::InvalidFilter(reason)) => {
                 Err(EngineError::InvalidFilter { reason })
             }
@@ -10904,26 +10975,28 @@ impl Engine {
             self.projection_runtime.shared.vector_stage_only_for_test.load(Ordering::SeqCst);
         let (response_tx, response_rx) = mpsc::sync_channel::<ReaderResponse>(1);
         let request = ReaderRequest::Search(Box::new(SearchReaderRequest {
-            compiled,
-            query_vector,
-            query_vector_bin,
-            result_limit,
-            candidate_limit,
-            direct_text_candidate_limit: None,
-            filter: filter.map(Box::new),
-            recency_enabled,
-            importance_enabled,
-            vector_stage_only,
-            raw_query: Box::from(query), // FIX-4: Box<str> (16B) not String (24B)
-            rerank_depth,
-            use_graph_arm,
-            alpha,
-            pool_n,
-            explain,
-            view,
-            frozen_binding: frozen_binding.map(Box::new),
-            frozen_query_runtime,
-            expand_depth,
+            work: SearchReaderWork {
+                compiled,
+                query_vector,
+                query_vector_bin,
+                result_limit,
+                candidate_limit,
+                direct_text_candidate_limit: None,
+                filter: filter.map(Box::new),
+                recency_enabled,
+                importance_enabled,
+                vector_stage_only,
+                raw_query: Box::from(query), // FIX-4: Box<str> (16B) not String (24B)
+                rerank_depth,
+                use_graph_arm,
+                alpha,
+                pool_n,
+                explain,
+                view,
+                frozen_binding: frozen_binding.map(Box::new),
+                frozen_query_runtime,
+                expand_depth,
+            },
             respond: response_tx,
         }));
         if self.reader_pool.dispatch(request).is_err() {
@@ -10940,6 +11013,7 @@ impl Engine {
                 Err(SearchReaderError::InvalidFilter(reason)) => {
                     return Err(EngineError::InvalidFilter { reason });
                 }
+                Err(SearchReaderError::Evidence(error)) => return Err(error),
                 Err(SearchReaderError::RerankerDevicePolicy(error)) => {
                     return Err(EngineError::RerankerDevicePolicy(error));
                 }
@@ -11160,6 +11234,7 @@ impl Engine {
         }
         match response_rx.recv().map_err(|_| EngineError::Storage)? {
             Ok(result) => Ok(result),
+            Err(SearchReaderError::Evidence(error)) => Err(error),
             Err(SearchReaderError::InvalidFilter(reason)) => {
                 Err(EngineError::InvalidFilter { reason })
             }
@@ -16344,7 +16419,7 @@ pub fn slice35_ranked_eligibility_sql_for_test(
 /// search is a vector-metadata capability.
 #[allow(dead_code)]
 fn text_hit_passes_filter(
-    tx: &rusqlite::Transaction<'_>,
+    tx: &Connection,
     id: u64,
     kind: &str,
     filter: Option<&SearchFilter>,
@@ -16443,7 +16518,7 @@ fn text_hit_passes_filter(
 /// other reserved options. None are implemented in 0.8.20 — do not add a per-query
 /// flag; a widening is a deliberate, separately-governed later slice.
 fn hit_attributes_pass_filter(
-    tx: &rusqlite::Transaction<'_>,
+    tx: &Connection,
     id: u64,
     filter: &SearchFilter,
 ) -> rusqlite::Result<bool> {
@@ -16494,7 +16569,7 @@ fn hit_attributes_pass_filter(
 ///   predicate and is excluded.
 #[allow(dead_code)]
 fn edge_fts_hit_passes_filter(
-    tx: &rusqlite::Transaction<'_>,
+    tx: &Connection,
     write_cursor: u64,
     row_kind: &str,
     filter: Option<&SearchFilter>,
@@ -16667,8 +16742,130 @@ fn read_projected_text_in_tx(
 // measurement seam; the reader-worker call site threads each field through
 // explicitly (mirroring the existing `recency_enabled` plumbing), so a wrapper
 // struct would only obscure that 1:1 mapping for a test-only flag.
+#[derive(Clone, Debug)]
+pub(crate) enum CapturedGraphOrigin {
+    EntitySeed,
+    EdgeSeed { edge_cursor: u64 },
+    Traversal { edge_cursor: u64, hop_count: u32 },
+}
+
+trait SearchOriginCapture: Sized {
+    type Output;
+
+    fn record_graph_origin(&mut self, _node_cursor: u64, _origin: CapturedGraphOrigin) {}
+
+    #[allow(clippy::too_many_arguments)]
+    fn finish(
+        self,
+        connection: &Connection,
+        cursor: u64,
+        soft_fallback: Option<SoftFallback>,
+        results: Vec<SearchHit>,
+        graph_stats: GraphFrontierStats,
+        explanation: Option<Explanation>,
+        expanded: Option<SearchExpandResult>,
+    ) -> Result<Self::Output, SearchReaderError>;
+}
+
+struct NoEvidenceCapture;
+
+impl SearchOriginCapture for NoEvidenceCapture {
+    type Output = (
+        u64,
+        Option<SoftFallback>,
+        Vec<SearchHit>,
+        GraphFrontierStats,
+        Option<Explanation>,
+        Option<SearchExpandResult>,
+    );
+
+    fn finish(
+        self,
+        _connection: &Connection,
+        cursor: u64,
+        soft_fallback: Option<SoftFallback>,
+        results: Vec<SearchHit>,
+        graph_stats: GraphFrontierStats,
+        explanation: Option<Explanation>,
+        expanded: Option<SearchExpandResult>,
+    ) -> Result<Self::Output, SearchReaderError> {
+        Ok((cursor, soft_fallback, results, graph_stats, explanation, expanded))
+    }
+}
+
+struct EvidenceCapture {
+    frozen: FrozenReadContextV1,
+    include_explanation: bool,
+    graph_origins: HashMap<u64, CapturedGraphOrigin>,
+}
+
+impl SearchOriginCapture for EvidenceCapture {
+    type Output = EvidenceSearchResultV1;
+
+    fn record_graph_origin(&mut self, node_cursor: u64, origin: CapturedGraphOrigin) {
+        self.graph_origins.entry(node_cursor).or_insert(origin);
+    }
+
+    fn finish(
+        self,
+        connection: &Connection,
+        cursor: u64,
+        soft_fallback: Option<SoftFallback>,
+        results: Vec<SearchHit>,
+        _graph_stats: GraphFrontierStats,
+        explanation: Option<Explanation>,
+        _expanded: Option<SearchExpandResult>,
+    ) -> Result<Self::Output, SearchReaderError> {
+        let search_result =
+            SearchResult { projection_cursor: cursor, soft_fallback, results, explanation };
+        evidence::build_search_result(
+            connection,
+            &self.frozen,
+            search_result,
+            self.include_explanation,
+            &self.graph_origins,
+        )
+        .map_err(SearchReaderError::Evidence)
+    }
+}
+
+fn read_search_work_in_tx<C: SearchOriginCapture>(
+    reader: &mut Connection,
+    work: SearchReaderWork,
+    capture: C,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
+) -> Result<C::Output, SearchReaderError> {
+    read_search_in_tx(
+        reader,
+        work.compiled.as_ref(),
+        work.query_vector.as_deref(),
+        work.query_vector_bin.as_deref(),
+        work.result_limit,
+        work.candidate_limit,
+        work.direct_text_candidate_limit,
+        work.filter.as_deref(),
+        work.recency_enabled,
+        work.importance_enabled,
+        work.vector_stage_only,
+        &work.raw_query,
+        work.rerank_depth,
+        work.use_graph_arm,
+        work.alpha,
+        work.pool_n,
+        work.explain,
+        work.view,
+        work.frozen_binding.as_deref(),
+        work.frozen_query_runtime.as_deref(),
+        work.expand_depth,
+        attribution,
+        worker_idx,
+        capture,
+    )
+}
+
 #[allow(clippy::too_many_arguments)]
-fn read_search_in_tx(
+fn read_search_in_tx<C: SearchOriginCapture>(
     reader: &mut Connection,
     compiled: Option<&fathomdb_query::CompiledQuery>,
     query_vector: Option<&str>,
@@ -16692,7 +16889,8 @@ fn read_search_in_tx(
     expand_depth: Option<u32>,
     attribution: &Arc<WalAttributionCollector>,
     worker_idx: usize,
-) -> ReaderResponse {
+    mut capture: C,
+) -> Result<C::Output, SearchReaderError> {
     // 0.8.20 Slice 15b fix-2 (R-20-NV) — the `:now` instant is read HERE, in
     // Rust, ONCE per query, and bound positionally into every node-hydration
     // SELECT. Never `datetime('now')` / `strftime('%s','now')`: an inline clock
@@ -17476,6 +17674,7 @@ fn read_search_in_tx(
             50,
             view,
             filter,
+            &mut capture,
         )?;
         graph_stats = stats;
         if explain {
@@ -17590,8 +17789,10 @@ fn read_search_in_tx(
     let expanded = expand_depth
         .map(|depth| search_expand_on_snapshot(&tx, &results, depth, view, filter))
         .transpose()?;
+    let output =
+        capture.finish(&tx, cursor, soft_fallback, results, graph_stats, explanation, expanded)?;
     tx.commit()?;
-    Ok((cursor, soft_fallback, results, graph_stats, explanation, expanded))
+    Ok(output)
 }
 
 fn filter_barriered_search_hits(
@@ -17771,7 +17972,7 @@ fn record_fts_query_plan_for_test(
 /// produced the node's winning `bfs_rank` (seeds are considered before Phase-2
 /// neighbors; within a phase, `ORDER BY write_cursor` makes the earliest-written
 /// edge win). A NULL edge confidence is simply not inserted ⇒ neutral (1.0).
-fn bfs_graph_arm_candidates(
+fn bfs_graph_arm_candidates<C: SearchOriginCapture>(
     tx: &Connection,
     fused_hits: &[SearchHit],
     match_expression: &str,
@@ -17779,6 +17980,7 @@ fn bfs_graph_arm_candidates(
     cap: usize,
     view: FrozenView,
     filter: Option<&SearchFilter>,
+    capture: &mut C,
 ) -> rusqlite::Result<(Vec<SearchHit>, GraphFrontierStats, HashMap<u64, f64>)> {
     // fix-2 (codex §9 [P2]): the opt-in graph arm hydrates NODES too, so it takes
     // the same validity conjunct as the vector and FTS branches — otherwise
@@ -17815,19 +18017,25 @@ fn bfs_graph_arm_candidates(
         // matched edge's `source_id` (source A) or the entity node's own (source B).
         // F9: each seed carries the confidence of the edge that surfaced it
         // (`None` for entity-FTS seeds, which have no traversing edge).
-        let mut candidate_seeds: Vec<(String, Option<String>, Option<f64>)> = Vec::new();
+        let mut candidate_seeds: Vec<(String, Option<String>, Option<f64>, CapturedGraphOrigin)> =
+            Vec::new();
         let mut seen_candidates: std::collections::HashSet<String> =
             std::collections::HashSet::new();
-        let push_candidate =
-            |lid: String,
-             source_id: Option<String>,
-             confidence: Option<f64>,
-             seen: &mut std::collections::HashSet<String>,
-             out: &mut Vec<(String, Option<String>, Option<f64>)>| {
-                if seen.insert(lid.clone()) {
-                    out.push((lid, source_id, confidence));
-                }
-            };
+        let push_candidate = |lid: String,
+                              source_id: Option<String>,
+                              confidence: Option<f64>,
+                              origin: CapturedGraphOrigin,
+                              seen: &mut std::collections::HashSet<String>,
+                              out: &mut Vec<(
+            String,
+            Option<String>,
+            Option<f64>,
+            CapturedGraphOrigin,
+        )>| {
+            if seen.insert(lid.clone()) {
+                out.push((lid, source_id, confidence, origin));
+            }
+        };
 
         // Seed source A — edge-fact endpoints (primary). Both endpoints of each
         // matched, temporally-live, non-fallback edge are candidate seeds, tagged with
@@ -17863,7 +18071,7 @@ fn bfs_graph_arm_candidates(
             endpoint_now_index,
         );
         if let Ok(mut edge_seed_stmt) = tx.prepare(&format!(
-            "SELECT ce.from_id, ce.to_id, ce.source_id, ce.confidence \
+            "SELECT ce.from_id, ce.to_id, ce.source_id, ce.confidence, ce.write_cursor \
              FROM search_index_edges sei \
              JOIN canonical_edges ce ON ce.write_cursor = sei.write_cursor \
              WHERE search_index_edges MATCH ?1 \
@@ -17887,15 +18095,17 @@ fn bfs_graph_arm_candidates(
                         row.get::<_, String>(1)?,
                         row.get::<_, Option<String>>(2)?,
                         row.get::<_, Option<f64>>(3)?,
+                        row.get::<_, i64>(4)?,
                     ))
                 },
             )?;
-            for quad in rows {
-                let (from_id, to_id, source_id, confidence) = quad?;
+            for quintuple in rows {
+                let (from_id, to_id, source_id, confidence, edge_cursor) = quintuple?;
                 push_candidate(
                     from_id,
                     source_id.clone(),
                     confidence,
+                    CapturedGraphOrigin::EdgeSeed { edge_cursor: edge_cursor as u64 },
                     &mut seen_candidates,
                     &mut candidate_seeds,
                 );
@@ -17903,6 +18113,7 @@ fn bfs_graph_arm_candidates(
                     to_id,
                     source_id,
                     confidence,
+                    CapturedGraphOrigin::EdgeSeed { edge_cursor: edge_cursor as u64 },
                     &mut seen_candidates,
                     &mut candidate_seeds,
                 );
@@ -17949,7 +18160,14 @@ fn bfs_graph_arm_candidates(
             for pair in rows {
                 let (lid, source_id) = pair?;
                 // Entity-FTS seed: no traversing edge ⇒ no edge confidence (neutral).
-                push_candidate(lid, source_id, None, &mut seen_candidates, &mut candidate_seeds);
+                push_candidate(
+                    lid,
+                    source_id,
+                    None,
+                    CapturedGraphOrigin::EntitySeed,
+                    &mut seen_candidates,
+                    &mut candidate_seeds,
+                );
             }
         }
 
@@ -17978,7 +18196,7 @@ fn bfs_graph_arm_candidates(
              WHERE logical_id = ?1 AND superseded_at IS NULL AND state = 'active'\
              {active_validity}{active_eligibility}{active_filter} LIMIT 1"
         ))?;
-        for (lid, source_id, seed_confidence) in candidate_seeds {
+        for (lid, source_id, seed_confidence, graph_origin) in candidate_seeds {
             stats.seeds_considered += 1;
             let mut active_params = active_params_template.clone();
             active_params[0] = rusqlite::types::Value::Text(lid.clone());
@@ -18003,6 +18221,7 @@ fn bfs_graph_arm_candidates(
                         if let Some(c) = seed_confidence {
                             edge_confidence_by_cursor.insert(write_cursor as u64, c);
                         }
+                        capture.record_graph_origin(write_cursor as u64, graph_origin);
                         candidates.push(SearchHit {
                             id,
                             write_cursor: write_cursor as u64,
@@ -18048,7 +18267,7 @@ fn bfs_graph_arm_candidates(
         // dedup, so the reached node's confidence is the winning-`bfs_rank` edge's.
         // TC-33: `?1` is the anchor logical_id ⇒ the edge `:now` binds at `?2`.
         &format!(
-            "SELECT e.from_id, e.to_id, e.source_id, e.confidence \
+            "SELECT e.from_id, e.to_id, e.source_id, e.confidence, e.write_cursor \
              FROM canonical_edges e \
              JOIN canonical_nodes target ON target.logical_id = \
                CASE WHEN e.from_id = ?1 THEN e.to_id ELSE e.from_id END \
@@ -18095,7 +18314,7 @@ fn bfs_graph_arm_candidates(
         // Fetch temporal-live neighbors via edges, each paired with the
         // traversing edge's `source_id` (BLOCK-2 provenance carry) and (F9)
         // `confidence` (the reweight input for the reached node).
-        let neighbors: Vec<(String, Option<String>, Option<f64>)> = {
+        let neighbors: Vec<(String, Option<String>, Option<f64>, u64)> = {
             let mut edge_params = edge_params_template.clone();
             edge_params[0] = rusqlite::types::Value::Text(lid.clone());
             let rows =
@@ -18105,17 +18324,18 @@ fn bfs_graph_arm_candidates(
                         row.get::<_, String>(1)?,
                         row.get::<_, Option<String>>(2)?,
                         row.get::<_, Option<f64>>(3)?,
+                        row.get::<_, i64>(4)? as u64,
                     ))
                 })?;
             rows.flatten()
-                .map(|(from_id, to_id, source_id, confidence)| {
+                .map(|(from_id, to_id, source_id, confidence, edge_cursor)| {
                     let neighbor = if from_id == lid { to_id } else { from_id };
-                    (neighbor, source_id, confidence)
+                    (neighbor, source_id, confidence, edge_cursor)
                 })
                 .collect()
         };
 
-        for (neighbor, edge_source_id, edge_confidence) in neighbors {
+        for (neighbor, edge_source_id, edge_confidence, edge_cursor) in neighbors {
             if visited.contains(&neighbor) {
                 continue;
             }
@@ -18145,6 +18365,10 @@ fn bfs_graph_arm_candidates(
                     if let Some(c) = edge_confidence {
                         edge_confidence_by_cursor.insert(write_cursor as u64, c);
                     }
+                    capture.record_graph_origin(
+                        write_cursor as u64,
+                        CapturedGraphOrigin::Traversal { edge_cursor, hop_count: depth + 1 },
+                    );
                     candidates.push(SearchHit {
                         id,
                         write_cursor: write_cursor as u64,

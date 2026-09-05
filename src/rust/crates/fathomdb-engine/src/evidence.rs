@@ -18,6 +18,7 @@ const SOURCE_DOMAIN: &[u8] = b"fathomdb.evidence.source.v1\0";
 const LOCATOR_DOMAIN: &[u8] = b"fathomdb.evidence.locator.v1\0";
 const HASH_DOMAIN: &[u8] = b"fathomdb.evidence.hash.v1\0";
 const GENERATION_DOMAIN: &[u8] = b"fathomdb.evidence.generation.v1\0";
+const GRAPH_EDGE_DOMAIN: &[u8] = b"fathomdb.evidence.graph-edge.v1\0";
 
 /// Closed canonical artifact class carried by source evidence.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -287,6 +288,7 @@ struct StoredEvidence {
     artifact_revision_id: String,
     completeness: String,
     logical_id: Option<String>,
+    artifact_kind: String,
     artifact_state: Option<String>,
     artifact_superseded: bool,
     edge_valid: bool,
@@ -296,6 +298,8 @@ struct StoredEvidence {
     locator: SourceLocator,
     hash_digest: String,
     source_body: String,
+    source_cursor: u64,
+    source_kind: String,
     source_state: String,
     source_superseded: bool,
 }
@@ -314,6 +318,8 @@ struct Payload {
     generation_commitment: [u8; 32],
     arm: EvidenceArmV1,
     contribution: EvidenceContributionV1,
+    graph_origin: Option<crate::CapturedGraphOrigin>,
+    graph_edge_commitment: Option<[u8; 32]>,
 }
 
 pub(crate) fn build_search_result(
@@ -321,6 +327,7 @@ pub(crate) fn build_search_result(
     frozen: &FrozenReadContextV1,
     mut search_result: SearchResult,
     include_explanation: bool,
+    graph_origins: &std::collections::HashMap<u64, crate::CapturedGraphOrigin>,
 ) -> Result<EvidenceSearchResultV1, EngineError> {
     let explanation = search_result.explanation.as_ref().ok_or_else(|| {
         EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceCorrupt, "/explanation")
@@ -349,13 +356,25 @@ pub(crate) fn build_search_result(
             .into());
         }
         let artifact_class = EvidenceArtifactClassV1::from_hit_branch(hit.branch);
-        if hit.branch == SoftFallbackBranch::GraphArm {
-            return Err(EvidenceErrorV1::new(
-                EvidenceErrorReasonV1::EvidenceIncomplete,
-                format!("/results/{index}/graphOrigin"),
-            )
-            .into());
-        }
+        let graph_origin = if hit.branch == SoftFallbackBranch::GraphArm {
+            Some(graph_origins.get(&hit.write_cursor).cloned().ok_or_else(|| {
+                EvidenceErrorV1::new(
+                    EvidenceErrorReasonV1::EvidenceIncomplete,
+                    format!("/results/{index}/graphOrigin"),
+                )
+            })?)
+        } else {
+            None
+        };
+        let graph_edge_commitment = match graph_origin.as_ref() {
+            Some(crate::CapturedGraphOrigin::EdgeSeed { edge_cursor })
+            | Some(crate::CapturedGraphOrigin::Traversal { edge_cursor, .. }) => {
+                let (revision, _, _, _) =
+                    load_graph_edge_revision(connection, *edge_cursor, frozen.effective_valid_at)?;
+                Some(keyed(&key, GRAPH_EDGE_DOMAIN, revision.as_bytes()))
+            }
+            _ => None,
+        };
         let stored =
             load_stored(connection, artifact_class, hit.write_cursor, frozen.effective_valid_at)?;
         if stored.completeness != "complete" {
@@ -384,6 +403,8 @@ pub(crate) fn build_search_result(
             generation_commitment: keyed(&key, GENERATION_DOMAIN, generation.as_str().as_bytes()),
             arm: EvidenceArmV1::from_branch(hit.branch),
             contribution,
+            graph_origin,
+            graph_edge_commitment,
         };
         let token = encode_token(&key, &payload)?;
         evidence.push(EvidenceSidecarEntryV1 {
@@ -439,12 +460,92 @@ pub(crate) fn resolve(
     {
         return Err(EvidenceErrorV1::unavailable().into());
     }
+    let graph_origin = match (&payload.graph_origin, payload.graph_edge_commitment) {
+        (None, None) if payload.arm != EvidenceArmV1::GraphArm => None,
+        (Some(crate::CapturedGraphOrigin::EntitySeed), None)
+            if payload.arm == EvidenceArmV1::GraphArm =>
+        {
+            Some(EvidenceGraphOriginV1::EntitySeed)
+        }
+        (Some(crate::CapturedGraphOrigin::EdgeSeed { edge_cursor }), Some(commitment))
+            if payload.arm == EvidenceArmV1::GraphArm =>
+        {
+            let (revision, from_id, to_id, _) =
+                load_graph_edge_revision(connection, *edge_cursor, payload.effective_valid_at)
+                    .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+            if commitment != keyed(&key, GRAPH_EDGE_DOMAIN, revision.as_bytes())
+                || stored
+                    .logical_id
+                    .as_ref()
+                    .is_none_or(|logical| logical != &from_id && logical != &to_id)
+            {
+                return Err(EvidenceErrorV1::unavailable().into());
+            }
+            Some(EvidenceGraphOriginV1::EdgeSeed { edge_artifact_revision_id: revision })
+        }
+        (
+            Some(crate::CapturedGraphOrigin::Traversal { edge_cursor, hop_count }),
+            Some(commitment),
+        ) if payload.arm == EvidenceArmV1::GraphArm => {
+            let (revision, from_id, to_id, _) =
+                load_graph_edge_revision(connection, *edge_cursor, payload.effective_valid_at)
+                    .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+            if commitment != keyed(&key, GRAPH_EDGE_DOMAIN, revision.as_bytes())
+                || stored
+                    .logical_id
+                    .as_ref()
+                    .is_none_or(|logical| logical != &from_id && logical != &to_id)
+            {
+                return Err(EvidenceErrorV1::unavailable().into());
+            }
+            Some(EvidenceGraphOriginV1::Traversal {
+                edge_artifact_revision_id: revision,
+                hop_count: *hop_count,
+            })
+        }
+        _ => return Err(EvidenceErrorV1::unavailable().into()),
+    };
     if stored.completeness != "complete" {
         return Err(
             EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceIncomplete, "/provenance").into()
         );
     }
     if stored.artifact_superseded || stored.source_superseded {
+        return Err(EvidenceErrorV1::unavailable().into());
+    }
+    let eligibility = &request.context.context.eligibility;
+    let artifact_eligible = match payload.artifact_class {
+        EvidenceArtifactClassV1::Node => crate::text_hit_passes_filter(
+            connection,
+            payload.write_cursor,
+            &stored.artifact_kind,
+            Some(eligibility),
+        ),
+        EvidenceArtifactClassV1::Edge => crate::edge_fts_hit_passes_filter(
+            connection,
+            payload.write_cursor,
+            &stored.artifact_kind,
+            Some(eligibility),
+        ),
+    }
+    .map_err(|_| EngineError::Storage)?;
+    if !artifact_eligible {
+        return Err(EvidenceErrorV1::unavailable().into());
+    }
+    // A source is a separately authorized canonical artifact. Domain-oriented
+    // kind/source-type constraints select the returned artifact, while access-
+    // bearing metadata and declared attributes constrain both artifact and bytes.
+    let mut source_filter = eligibility.clone();
+    source_filter.kind = None;
+    source_filter.source_type = None;
+    if !crate::text_hit_passes_filter(
+        connection,
+        stored.source_cursor,
+        &stored.source_kind,
+        Some(&source_filter),
+    )
+    .map_err(|_| EngineError::Storage)?
+    {
         return Err(EvidenceErrorV1::unavailable().into());
     }
     let source_state = LifecycleState::from_str_opt(&stored.source_state)
@@ -499,7 +600,7 @@ pub(crate) fn resolve(
             artifact_class: payload.artifact_class,
             representative_arm: payload.arm,
             projection_generation_id: generation,
-            graph_origin: None,
+            graph_origin,
         },
         retrieval_contribution: payload.contribution,
         dependency: None,
@@ -589,61 +690,81 @@ fn load_stored(
             .into())
         }
     };
-    let source: Option<(String, String, Option<i64>)> = connection
+    let source: Option<(String, String, Option<i64>, i64, String)> = connection
         .query_row(
-            "SELECT n.body,n.state,n.superseded_at FROM _fathomdb_artifact_revisions ar \
+            "SELECT n.body,n.state,n.superseded_at,n.write_cursor,n.kind \
+             FROM _fathomdb_artifact_revisions ar \
              JOIN canonical_nodes n ON n.write_cursor=ar.write_cursor \
              WHERE ar.revision_id=?1 AND ar.artifact_class='node' \
                AND ar.artifact_role='canonical_source'",
             [&source_revision_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
         )
         .optional()
         .map_err(|_| EngineError::Storage)?;
-    let (source_body, source_state, source_superseded_at) =
+    let (source_body, source_state, source_superseded_at, source_cursor, source_kind) =
         source.ok_or_else(EvidenceErrorV1::unavailable)?;
-    let (logical_id, artifact_state, artifact_superseded, edge_valid) = match class {
+    let (logical_id, artifact_kind, artifact_state, artifact_superseded, edge_valid) = match class {
         EvidenceArtifactClassV1::Node => {
-            let row: Option<(Option<String>, String, Option<i64>, Option<i64>, Option<i64>)> =
-                connection
-                    .query_row(
-                        "SELECT logical_id,state,superseded_at,valid_from,valid_until \
+            let row: Option<(
+                Option<String>,
+                String,
+                String,
+                Option<i64>,
+                Option<i64>,
+                Option<i64>,
+            )> = connection
+                .query_row(
+                    "SELECT logical_id,kind,state,superseded_at,valid_from,valid_until \
                          FROM canonical_nodes WHERE write_cursor=?1",
-                        [cursor],
-                        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
-                    )
-                    .optional()
-                    .map_err(|_| EngineError::Storage)?;
-            let (logical, state, superseded, valid_from, valid_until) =
+                    [cursor],
+                    |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                            row.get(5)?,
+                        ))
+                    },
+                )
+                .optional()
+                .map_err(|_| EngineError::Storage)?;
+            let (logical, kind, state, superseded, valid_from, valid_until) =
                 row.ok_or_else(EvidenceErrorV1::unavailable)?;
             let valid = valid_from.is_none_or(|start| start <= effective)
                 && valid_until.is_none_or(|end| end > effective);
             if !valid {
                 return Err(EvidenceErrorV1::unavailable().into());
             }
-            (logical, Some(state), superseded.is_some(), true)
+            (logical, kind, Some(state), superseded.is_some(), true)
         }
         EvidenceArtifactClassV1::Edge => {
-            let row: Option<(Option<String>, Option<i64>, Option<i64>, Option<i64>)> = connection
+            let row: Option<(Option<String>, String, Option<i64>, Option<i64>, Option<i64>)> =
+                connection
                 .query_row(
-                    "SELECT logical_id,superseded_at,t_valid,t_invalid FROM canonical_edges \
+                    "SELECT logical_id,kind,superseded_at,t_valid,t_invalid FROM canonical_edges \
                      WHERE write_cursor=?1",
                     [cursor],
-                    |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                    |row| {
+                        Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?))
+                    },
                 )
                 .optional()
                 .map_err(|_| EngineError::Storage)?;
-            let (logical, superseded, valid_from, valid_until) =
+            let (logical, kind, superseded, valid_from, valid_until) =
                 row.ok_or_else(EvidenceErrorV1::unavailable)?;
             let valid = valid_from.is_none_or(|start| start <= effective)
                 && valid_until.is_none_or(|end| end > effective);
-            (logical, None, superseded.is_some(), valid)
+            (logical, kind, None, superseded.is_some(), valid)
         }
     };
     Ok(StoredEvidence {
         artifact_revision_id,
         completeness,
         logical_id,
+        artifact_kind,
         artifact_state,
         artifact_superseded,
         edge_valid,
@@ -653,9 +774,34 @@ fn load_stored(
         locator,
         hash_digest,
         source_body,
+        source_cursor: u64::try_from(source_cursor).map_err(|_| EngineError::Storage)?,
+        source_kind,
         source_state,
         source_superseded: source_superseded_at.is_some(),
     })
+}
+
+fn load_graph_edge_revision(
+    connection: &Connection,
+    cursor: u64,
+    effective: i64,
+) -> Result<(String, String, String, String), EngineError> {
+    let cursor = i64::try_from(cursor).map_err(|_| EvidenceErrorV1::unavailable())?;
+    connection
+        .query_row(
+            "SELECT ar.revision_id,e.from_id,e.to_id,e.kind FROM canonical_edges e \
+             JOIN _fathomdb_artifact_revisions ar \
+               ON ar.write_cursor=e.write_cursor AND ar.artifact_class='edge' \
+             WHERE e.write_cursor=?1 AND e.superseded_at IS NULL \
+               AND (e.t_valid IS NULL OR e.t_valid<=?2) \
+               AND (e.t_invalid IS NULL OR e.t_invalid>?2) \
+               AND (e.temporal_fallback IS NULL OR e.temporal_fallback=0)",
+            rusqlite::params![cursor, effective],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?
+        .ok_or_else(|| EvidenceErrorV1::unavailable().into())
 }
 
 fn keyed(key: &[u8], domain: &[u8], value: &[u8]) -> [u8; 32] {
@@ -729,7 +875,25 @@ fn encode_payload(payload: &Payload) -> Vec<u8> {
     encode_f64(&mut bytes, payload.contribution.blended_score);
     encode_optional_f64(&mut bytes, payload.contribution.importance);
     encode_optional_f64(&mut bytes, payload.contribution.confidence);
-    bytes.push(0); // graph origin: none in the first GREEN increment
+    match (&payload.graph_origin, payload.graph_edge_commitment) {
+        (None, None) => bytes.push(0),
+        (Some(crate::CapturedGraphOrigin::EntitySeed), None) => bytes.push(1),
+        (Some(crate::CapturedGraphOrigin::EdgeSeed { edge_cursor }), Some(commitment)) => {
+            bytes.push(2);
+            frozen_read::encode_u64(&mut bytes, *edge_cursor);
+            bytes.extend_from_slice(&commitment);
+        }
+        (
+            Some(crate::CapturedGraphOrigin::Traversal { edge_cursor, hop_count }),
+            Some(commitment),
+        ) => {
+            bytes.push(3);
+            frozen_read::encode_u64(&mut bytes, *edge_cursor);
+            frozen_read::encode_u32(&mut bytes, *hop_count);
+            bytes.extend_from_slice(&commitment);
+        }
+        _ => unreachable!("graph edge origin and commitment are constructed together"),
+    }
     bytes
 }
 
@@ -787,7 +951,23 @@ fn decode_payload(bytes: &[u8]) -> Result<Payload, EngineError> {
         importance: cursor.optional_f64()?,
         confidence: cursor.optional_f64()?,
     };
-    if cursor.u8()? != 0 || cursor.offset != bytes.len() {
+    let (graph_origin, graph_edge_commitment) = match cursor.u8()? {
+        0 => (None, None),
+        1 => (Some(crate::CapturedGraphOrigin::EntitySeed), None),
+        2 => (
+            Some(crate::CapturedGraphOrigin::EdgeSeed { edge_cursor: cursor.u64()? }),
+            Some(cursor.array32()?),
+        ),
+        3 => (
+            Some(crate::CapturedGraphOrigin::Traversal {
+                edge_cursor: cursor.u64()?,
+                hop_count: cursor.u32()?,
+            }),
+            Some(cursor.array32()?),
+        ),
+        _ => return Err(EvidenceErrorV1::unavailable().into()),
+    };
+    if cursor.offset != bytes.len() {
         return Err(EvidenceErrorV1::unavailable().into());
     }
     Ok(Payload {
@@ -803,6 +983,8 @@ fn decode_payload(bytes: &[u8]) -> Result<Payload, EngineError> {
         generation_commitment,
         arm,
         contribution,
+        graph_origin,
+        graph_edge_commitment,
     })
 }
 

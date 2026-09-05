@@ -54,3 +54,21 @@ The focused command failed 3 passed / 2 failed. Graph evidence returned
 `evidence_incomplete` at `/results/1/graphOrigin`, while source resolution
 incorrectly disclosed a source whose `owner=bob` did not satisfy the frozen
 `owner=alice` predicate. These are the intended RED failures.
+
+## GREEN 2
+
+The second implementation increment introduced a distinct evidence request on
+the owned reader pool and a monomorphized capture strategy shared by the search
+algorithm. The no-evidence strategy is zero-sized and records nothing; the
+evidence strategy captures the winning BFS edge cursor, constructs references,
+and validates the frozen snapshot before the same reader transaction commits.
+
+Resolution now independently applies access-bearing eligibility to canonical
+source bytes, verifies that a graph origin is an active exact edge revision
+connected to the returned node, and discloses the reached node's source rather
+than substituting the edge's source. The focused suite passes 5/5.
+
+A parallel engine-lib run encountered interference between existing
+WAL-attribution concurrency tests and was stopped after a second test stalled.
+The named failing test passed immediately in exact isolation; this is not used
+as a broad-regression green claim. A serialized package run remains required.

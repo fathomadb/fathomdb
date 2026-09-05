@@ -6,20 +6,15 @@
 //! can leak) but in the WRONG PLACE for correctness-of-RECALL, and it resolved
 //! the instant TWICE for a graph-arm query.
 //!
-//! **F1 — validity must participate BEFORE the vector cutoff.** The vector arm
-//! is two-stage: phase 1 is a bit-KNN over the `vector_default` vec0 table
-//! (`LIMIT TOP_K_BIT_CANDIDATES`), phase 2 is an ordinary rowid JOIN that
-//! reranks by exact L2. fix-2 filtered validity while HYDRATING the phase-2
-//! output, i.e. AFTER the `LIMIT final_limit` cutoff. So if the `final_limit`
-//! nearest neighbours are all out-of-window they consume every slot, get
-//! dropped at hydration, and the valid rows ranked just below the cutoff are
-//! never considered — a default search returns too few hits, or NONE at all,
-//! for a query that should return plenty. This is a silent RECALL defect: no
-//! error, no soft-fallback signal, just a short result set.
+//! **F1 — validity must participate BEFORE the vector cutoff.** Slice 35
+//! supersedes the original overfetch-and-hydrate treatment: validity is not a
+//! native vec0 metadata predicate, so a partition containing an ineligible row
+//! declines the entire vector arm before KNN and emits `SoftFallback(Vector)`.
+//! The lexical arm then recovers eligible rows with its own pre-limit SQL.
 //!
-//! `F1` pins the fixed behaviour: with the ten nearest neighbours expired and
-//! two valid rows immediately below them, a default search must still return
-//! the two valid rows.
+//! `F1` pins both halves of that contract: the isolated vector arm returns no
+//! post-filtered candidates and declares its fallback, while ordinary hybrid
+//! search still returns the two eligible rows.
 //!
 //! **F2 — one query, one instant.** For the default view (`valid_as_of ==
 //! None`) the graph arm re-resolved *now* instead of reusing the instant
@@ -42,8 +37,8 @@ use std::sync::Arc;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    clock_reads_for_test, Engine, InitialState, PreparedWrite, SearchResult, SourceId,
-    SEARCH_RERANK_LIMIT,
+    clock_reads_for_test, Engine, InitialState, PreparedWrite, SearchResult, SoftFallbackBranch,
+    SourceId, SEARCH_RERANK_LIMIT,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use tempfile::TempDir;
@@ -167,14 +162,12 @@ fn expired_row_count(path: &std::path::Path) -> i64 {
 // F1 — validity must participate before the vector `LIMIT` cutoff
 // ---------------------------------------------------------------------------
 
-/// **fix-3 keystone (F1).** The `SEARCH_RERANK_LIMIT` nearest vector
-/// neighbours are ALL expired; two valid rows sit immediately below the cutoff.
-/// A default search must still return those two valid rows.
-///
-/// Before the fix the expired rows consumed every slot in the phase-2 `LIMIT`
-/// and were then dropped at hydration, so this search returned ZERO hits.
+/// **fix-3 keystone (F1), superseded by Slice 35.** The
+/// `SEARCH_RERANK_LIMIT` nearest vector neighbours are all expired; two valid
+/// rows sit immediately below the cutoff. Slice 35 must decline the vector arm
+/// before KNN and let the eligibility-first lexical arm recover the valid rows.
 #[test]
-fn expired_nearest_neighbours_do_not_starve_valid_vector_hits() {
+fn expired_vector_state_declines_arm_and_hybrid_recovers_valid_hits() {
     let _meter = clock_meter_guard();
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("f1_cutoff{SQLITE_SUFFIX}"));
@@ -217,12 +210,24 @@ fn expired_nearest_neighbours_do_not_starve_valid_vector_hits() {
     // (fix-2), and fusing it in would mask the vector-arm recall defect.
     engine.set_vector_stage_only_for_test(true);
 
-    let hits = engine.search("telemetry").expect("search");
+    let vector_only = engine.search("telemetry").expect("vector-only search");
     assert_eq!(
-        bodies(&hits),
+        bodies(&vector_only),
+        Vec::<String>::new(),
+        "an arm with non-native lifecycle eligibility must be declined before KNN"
+    );
+    assert_eq!(
+        vector_only.soft_fallback.map(|fallback| fallback.branch),
+        Some(SoftFallbackBranch::Vector),
+        "declining the vector arm must be observable"
+    );
+
+    engine.set_vector_stage_only_for_test(false);
+    let hybrid = engine.search("telemetry").expect("hybrid search");
+    assert_eq!(
+        bodies(&hybrid),
         vec!["r11 telemetry rollup".to_string(), "r12 telemetry rollup".to_string()],
-        "valid rows ranked just below the cutoff must not be starved by expired \
-         nearer neighbours — validity has to participate BEFORE the LIMIT"
+        "the eligibility-first lexical arm must recover valid rows"
     );
 
     opened.engine.close().unwrap();

@@ -385,12 +385,15 @@ fn graph_arm_resolves_node_body_source_and_separate_edge_origin() {
             context: equivalent,
         })
         .unwrap_err();
-    assert!(matches!(
-        error,
-        EngineError::Evidence(ref error)
-            if error.reason == EvidenceErrorReasonV1::EvidenceCorrupt
-                && error.field_path == "/projectionOrigin/graphOrigin"
-    ));
+    assert!(
+        matches!(
+            error,
+            EngineError::Evidence(ref error)
+                if error.reason == EvidenceErrorReasonV1::EvidenceCorrupt
+                    && error.field_path == "/projectionOrigin/graphOrigin"
+        ),
+        "unexpected graph corruption error: {error:?}"
+    );
     drop(reopened.engine);
 
     let raw = rusqlite::Connection::open(&path).unwrap();

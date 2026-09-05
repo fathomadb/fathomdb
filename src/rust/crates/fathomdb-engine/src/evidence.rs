@@ -475,71 +475,80 @@ pub(crate) fn resolve(
         return Err(EvidenceErrorV1::unavailable().into());
     }
     let generation = resolve_generation(connection, &key, &payload.generation_ciphertext)?;
-    let graph_origin = match (&payload.graph_origin, payload.graph_edge_commitment) {
-        (None, None) if payload.arm != EvidenceArmV1::GraphArm => None,
-        (Some(crate::CapturedGraphOrigin::EntitySeed), None)
-            if payload.arm == EvidenceArmV1::GraphArm =>
-        {
-            Some(EvidenceGraphOriginV1::EntitySeed)
-        }
-        (Some(crate::CapturedGraphOrigin::EdgeSeed { edge_cursor }), Some(commitment))
-            if payload.arm == EvidenceArmV1::GraphArm =>
-        {
-            let (revision, from_id, to_id, _, source_revision_id) = load_graph_edge_revision(
-                connection,
-                *edge_cursor,
-                payload.effective_valid_at,
-                request.context.context.view.include_out_of_window,
-            )
-            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-            if commitment != keyed(&key, GRAPH_EDGE_DOMAIN, revision.as_bytes())
-                || stored
-                    .logical_id
-                    .as_ref()
-                    .is_none_or(|logical| logical != &from_id && logical != &to_id)
-                || !source_revision_is_eligible(
+    let (graph_origin, graph_provenance) =
+        match (&payload.graph_origin, payload.graph_edge_commitment) {
+            (None, None) if payload.arm != EvidenceArmV1::GraphArm => (None, None),
+            (Some(crate::CapturedGraphOrigin::EntitySeed), None)
+                if payload.arm == EvidenceArmV1::GraphArm =>
+            {
+                (Some(EvidenceGraphOriginV1::EntitySeed), None)
+            }
+            (Some(crate::CapturedGraphOrigin::EdgeSeed { edge_cursor }), Some(commitment))
+                if payload.arm == EvidenceArmV1::GraphArm =>
+            {
+                let (revision, from_id, to_id, _, source_revision_id) = load_graph_edge_revision(
                     connection,
-                    &source_revision_id,
+                    *edge_cursor,
                     payload.effective_valid_at,
                     request.context.context.view.include_out_of_window,
-                )?
-            {
-                return Err(EvidenceErrorV1::unavailable().into());
+                )
+                .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+                if commitment != keyed(&key, GRAPH_EDGE_DOMAIN, revision.as_bytes())
+                    || stored
+                        .logical_id
+                        .as_ref()
+                        .is_none_or(|logical| logical != &from_id && logical != &to_id)
+                    || !source_revision_is_eligible(
+                        connection,
+                        &source_revision_id,
+                        payload.effective_valid_at,
+                        request.context.context.view.include_out_of_window,
+                    )?
+                {
+                    return Err(EvidenceErrorV1::unavailable().into());
+                }
+                (
+                    Some(EvidenceGraphOriginV1::EdgeSeed {
+                        edge_artifact_revision_id: revision.clone(),
+                    }),
+                    Some((revision, source_revision_id)),
+                )
             }
-            Some(EvidenceGraphOriginV1::EdgeSeed { edge_artifact_revision_id: revision })
-        }
-        (
-            Some(crate::CapturedGraphOrigin::Traversal { edge_cursor, hop_count }),
-            Some(commitment),
-        ) if payload.arm == EvidenceArmV1::GraphArm => {
-            let (revision, from_id, to_id, _, source_revision_id) = load_graph_edge_revision(
-                connection,
-                *edge_cursor,
-                payload.effective_valid_at,
-                request.context.context.view.include_out_of_window,
-            )
-            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
-            if commitment != keyed(&key, GRAPH_EDGE_DOMAIN, revision.as_bytes())
-                || stored
-                    .logical_id
-                    .as_ref()
-                    .is_none_or(|logical| logical != &from_id && logical != &to_id)
-                || !source_revision_is_eligible(
+            (
+                Some(crate::CapturedGraphOrigin::Traversal { edge_cursor, hop_count }),
+                Some(commitment),
+            ) if payload.arm == EvidenceArmV1::GraphArm => {
+                let (revision, from_id, to_id, _, source_revision_id) = load_graph_edge_revision(
                     connection,
-                    &source_revision_id,
+                    *edge_cursor,
                     payload.effective_valid_at,
                     request.context.context.view.include_out_of_window,
-                )?
-            {
-                return Err(EvidenceErrorV1::unavailable().into());
+                )
+                .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+                if commitment != keyed(&key, GRAPH_EDGE_DOMAIN, revision.as_bytes())
+                    || stored
+                        .logical_id
+                        .as_ref()
+                        .is_none_or(|logical| logical != &from_id && logical != &to_id)
+                    || !source_revision_is_eligible(
+                        connection,
+                        &source_revision_id,
+                        payload.effective_valid_at,
+                        request.context.context.view.include_out_of_window,
+                    )?
+                {
+                    return Err(EvidenceErrorV1::unavailable().into());
+                }
+                (
+                    Some(EvidenceGraphOriginV1::Traversal {
+                        edge_artifact_revision_id: revision.clone(),
+                        hop_count: *hop_count,
+                    }),
+                    Some((revision, source_revision_id)),
+                )
             }
-            Some(EvidenceGraphOriginV1::Traversal {
-                edge_artifact_revision_id: revision,
-                hop_count: *hop_count,
-            })
-        }
-        _ => return Err(EvidenceErrorV1::unavailable().into()),
-    };
+            _ => return Err(EvidenceErrorV1::unavailable().into()),
+        };
     if stored.artifact_superseded || stored.source_superseded {
         return Err(EvidenceErrorV1::unavailable().into());
     }
@@ -608,6 +617,20 @@ pub(crate) fn resolve(
         );
     }
     validate_full_provenance(connection, &stored)?;
+    if let Some((edge_revision, source_revision)) = graph_provenance {
+        crate::validate_dependency_chain(
+            connection,
+            &source_revision,
+            &edge_revision,
+            crate::DependencyValidationMode::Persisted,
+        )
+        .map_err(|_| {
+            EngineError::Evidence(EvidenceErrorV1::new(
+                EvidenceErrorReasonV1::EvidenceCorrupt,
+                "/projectionOrigin/graphOrigin",
+            ))
+        })?;
+    }
     let canonical_source_hash =
         CanonicalHash::sha256(stored.hash_digest.clone()).map_err(|_| {
             EvidenceErrorV1::new(EvidenceErrorReasonV1::EvidenceCorrupt, "/canonicalSourceHash")

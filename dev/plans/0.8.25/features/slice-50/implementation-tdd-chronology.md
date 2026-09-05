@@ -220,3 +220,19 @@ deletion and erasure, graph-edge retirement, both frozen-search race windows,
 and expanded low-entropy privacy markers. The focused Rust suite passes 16/16;
 strict Clippy is green; TypeScript and a freshly built/installed Python wheel
 pass the corrected evidence routes.
+
+## RED 10
+
+The graph-origin fixture next corrupted the captured edge's authoritative
+source-version row without changing the returned node or edge revision.
+Resolution incorrectly succeeded, proving that the main body provenance was
+fully checked while the independently authorizing graph subject was not.
+
+## GREEN 10
+
+Graph edge-seed and traversal resolution now retain the authorized edge/source
+pair and validate its complete Slice 15 provenance chain only after all
+nondisclosing eligibility and lifecycle checks. Authorized corruption returns
+`evidence_corrupt` at `/projectionOrigin/graphOrigin`; subsequent edge
+supersession remains indistinguishable `evidence_unavailable`. The full focused
+suite remains 16/16 green.

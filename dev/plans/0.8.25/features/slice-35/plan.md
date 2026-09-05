@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 35 — eligibility and optional frozen reads
-status: CLOSEOUT_PENDING_INDEPENDENT_REVIEW
+status: COMPLETE_ON_RELEASE_BRANCH
 depends_on: 30
 design: design.md
 design_status: READY
@@ -35,3 +35,8 @@ property RED tests before GREEN code, complete up to seven code-review FIX
 cycles, independently verify, and write `status.md`. Stop on post-truncation
 filtering, a mutable visibility path missing from the generation, or ambiguous
 snapshot boundaries.
+
+## Closeout
+
+Complete on `release/0.8.25`. The durable outcome and verification boundaries
+are recorded in [`status.md`](status.md). Slice 40 is next.

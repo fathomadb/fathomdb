@@ -305,6 +305,20 @@ def test_repetition_uses_fresh_cpu_setup_and_counts_warmup_errors(tmp_path):
     assert all(engine.closed for engine in engines)
     assert "peak_host_cpu_fraction" in result
     assert "effective_cpu_cores" in result
+    assert "measured_search_call_count" not in result
+
+    observed = scale_02._execute_repetition(
+        config,
+        fixture,
+        scale_02.build_rows(fixture.documents, 3, seed=config.growth_seed),
+        point_root=tmp_path / "observed",
+        point=3,
+        repetition=1,
+        engine_factory=engine_factory,
+        prepare=prepare,
+        observe_measured_search_calls=True,
+    )
+    assert observed["measured_search_call_count"] == 3
 
 
 def test_run_point_rejects_repository_artifact_root_before_loading_fixture(

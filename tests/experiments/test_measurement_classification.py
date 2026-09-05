@@ -184,6 +184,42 @@ def test_plan_v3_binds_exact_source_result_count_to_immutable_metrics(tmp_path):
         mc.validate_classification(document, repository_root=tmp_path, authority=authority)
 
 
+def test_blocked_plan_v3_rejects_duplicate_dangling_witness_bindings(tmp_path):
+    document, authority = _complete_document(tmp_path)
+    authority["schema_version"] = "measurement.plan.v3"
+    authority["execution_witness_bindings"] = [
+        {
+            "witness_id": "missing",
+            "source_artifact_id": "missing-metrics",
+            "json_pointer": "/calls",
+        },
+        {
+            "witness_id": "missing",
+            "source_artifact_id": "missing-metrics",
+            "json_pointer": "/calls",
+        },
+    ]
+    document.update(
+        {
+            "outcome": "blocked",
+            "blocked_reason": {
+                "code": "engine_search_failed",
+                "stage": "search",
+                "message": "typed refusal",
+                "detail": {},
+            },
+            "execution_witnesses": [],
+            "metrics": [],
+            "claims": [],
+        }
+    )
+    document["migration"]["measurement_plan_sha256"] = mc.canonical_sha256(authority)
+    document["classification_id"] = mc.classification_id(document)
+
+    with pytest.raises(mc.ClassificationError, match="witness binding"):
+        mc.validate_classification(document, repository_root=tmp_path, authority=authority)
+
+
 def test_engine_search_text_only_is_a_distinct_supported_operation(tmp_path):
     document, authority = _complete_document(tmp_path)
     authority["call_paths"][0]["operation"] = "Engine.search_text_only"

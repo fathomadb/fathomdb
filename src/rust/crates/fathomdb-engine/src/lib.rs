@@ -11717,6 +11717,36 @@ impl Engine {
         Ok(())
     }
 
+    /// Install the pre-Slice-23 inert vector-subobject shape for compatibility tests.
+    ///
+    /// The mutation and a matching projection-generation transition are atomic,
+    /// so tests can exercise legacy reconciliation without manufacturing the
+    /// declaration-digest corruption that Slice 40 must reject.
+    #[cfg(debug_assertions)]
+    #[doc(hidden)]
+    pub fn set_legacy_projection_vector_declared_for_test(
+        &self,
+        name: &str,
+    ) -> Result<(), EngineError> {
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let tx = connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .map_err(|_| EngineError::Storage)?;
+        let changed = tx
+            .execute(
+                "UPDATE _fathomdb_projection_registry SET vector_declared = 1 WHERE name = ?1",
+                [name],
+            )
+            .map_err(|_| EngineError::Storage)?;
+        if changed != 1 {
+            return Err(EngineError::Storage);
+        }
+        projection_generation::transition(&tx, ProjectionGenerationOriginV1::Configuration)?;
+        tx.commit().map_err(|_| EngineError::Storage)
+    }
+
     /// OPP-12 Phase-1 (0.8.19 Slice 10) — read the writer connection's
     /// `PRAGMA secure_delete` (design §3 gap-4). `true` iff the standing
     /// connection-open PRAGMA is in effect, so `purge` freelist erasure is

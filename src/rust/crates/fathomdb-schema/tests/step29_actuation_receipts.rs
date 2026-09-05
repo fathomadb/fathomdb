@@ -1,4 +1,4 @@
-use fathomdb_schema::{migrate, migrate_with_steps, MIGRATIONS, SCHEMA_VERSION};
+use fathomdb_schema::{migrate, migrate_with_steps, MIGRATIONS};
 use rusqlite::Connection;
 
 fn user_version(connection: &Connection) -> u32 {
@@ -7,12 +7,11 @@ fn user_version(connection: &Connection) -> u32 {
 
 #[test]
 fn step29_adds_only_bounded_terminal_actuation_receipts() {
-    assert_eq!(SCHEMA_VERSION, 31);
     let connection = Connection::open_in_memory().unwrap();
     migrate_with_steps(&connection, &MIGRATIONS[..28]).unwrap();
 
-    migrate(&connection).unwrap();
-    assert_eq!(user_version(&connection), 31);
+    migrate_with_steps(&connection, &MIGRATIONS[..29]).unwrap();
+    assert_eq!(user_version(&connection), 29);
     for name in ["_fathomdb_actuation_receipts", "_fathomdb_actuation_receipt_source_refs"] {
         let count: i64 = connection
             .query_row(

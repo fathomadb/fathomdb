@@ -48,11 +48,10 @@ fn table_exists(conn: &Connection, name: &str) -> bool {
         > 0
 }
 
-/// R-SUB-3 — after the full migration set the head is 17 and step-17 is last;
-/// the coexisting `search_index_v2` FTS5 table is present alongside the retained
-/// single-column `search_index`.
+/// R-SUB-3 — after the full migration set, the coexisting `search_index_v2`
+/// FTS5 table remains present alongside the retained single-column index.
 #[test]
-fn s17_search_index_v2_present_and_schema_version_is_17() {
+fn s17_search_index_v2_remains_present_at_current_head() {
     register_sqlite_vec_once();
     let conn = Connection::open_in_memory().unwrap();
     set_user_version(&conn, 1);
@@ -62,12 +61,6 @@ fn s17_search_index_v2_present_and_schema_version_is_17() {
     assert!(table_exists(&conn, "search_index"), "single-column search_index must be RETAINED");
 
     assert_eq!(user_version(&conn), SCHEMA_VERSION);
-    assert_eq!(SCHEMA_VERSION, 31, "SCHEMA_VERSION must include Slice 35 step 31");
-    assert_eq!(
-        MIGRATIONS.last().expect("at least one migration").step_id,
-        31,
-        "step-31 (frozen reads, Slice 35) must be the last (head) migration"
-    );
 
     // The v2 table carries the three BM25F fields kind/body/status (+ the
     // UNINDEXED write_cursor join column).

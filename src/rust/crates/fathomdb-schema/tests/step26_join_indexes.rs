@@ -51,10 +51,9 @@ fn fresh_database_installs_both_unconditional_cursor_indexes() {
 
     migrate(&connection).unwrap();
 
-    assert_eq!(SCHEMA_VERSION, 31);
     assert_eq!(
         connection.pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0)).unwrap(),
-        31
+        SCHEMA_VERSION
     );
     assert_join_indexes(&connection);
 }
@@ -69,13 +68,13 @@ fn schema_25_upgrade_installs_both_unconditional_cursor_indexes() {
         25
     );
 
-    let report = migrate(&connection).unwrap();
+    let report = migrate_with_steps(&connection, &steps_through(26)).unwrap();
 
     assert_eq!(report.schema_version_before, 25);
-    assert_eq!(report.schema_version_after, 31);
+    assert_eq!(report.schema_version_after, 26);
     assert_eq!(
         report.migration_steps.iter().map(|step| step.step_id).collect::<Vec<_>>(),
-        vec![26, 27, 28, 29, 30, 31]
+        vec![26]
     );
     assert_join_indexes(&connection);
 }

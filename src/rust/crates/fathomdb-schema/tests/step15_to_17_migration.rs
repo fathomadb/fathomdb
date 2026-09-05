@@ -21,7 +21,7 @@
 
 use fathomdb_schema::{
     check_migration_accretion, migrate_with_event_sink, migrate_with_steps, MigrationStepReport,
-    MIGRATIONS, SCHEMA_VERSION,
+    MIGRATIONS,
 };
 use rusqlite::Connection;
 use std::sync::Once;
@@ -90,7 +90,9 @@ fn s15_to_17_full_path_migrates_legacy_db_without_loss() {
     // Run the FULL migration set from v15, capturing each applied step via the
     // event sink (the same driver the engine uses).
     let mut applied: Vec<u32> = Vec::new();
-    let report = migrate_with_event_sink(&conn, MIGRATIONS, |step: &MigrationStepReport| {
+    let through_17: Vec<_> =
+        MIGRATIONS.iter().filter(|migration| migration.step_id <= 17).cloned().collect();
+    let report = migrate_with_event_sink(&conn, &through_17, |step: &MigrationStepReport| {
         assert!(!step.failed, "no step may fail on the v15->v17 path (step {})", step.step_id);
         applied.push(step.step_id);
     })
@@ -99,20 +101,11 @@ fn s15_to_17_full_path_migrates_legacy_db_without_loss() {
     // Forward-only + contiguous: exactly steps 16 then 17 ran, in order, with no
     // skips and nothing at/below 15 re-run.
     assert_eq!(report.schema_version_before, 15);
-    assert_eq!(report.schema_version_after, 31);
-    assert_eq!(user_version(&conn), SCHEMA_VERSION);
-    assert_eq!(SCHEMA_VERSION, 31, "current head must be 31");
-    assert_eq!(
-        applied,
-        vec![16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31],
-        "only steps 16..=31 may run from v15 (forward-only)"
-    );
+    assert_eq!(report.schema_version_after, 17);
+    assert_eq!(user_version(&conn), 17);
+    assert_eq!(applied, vec![16, 17], "only steps 16 and 17 may run from v15 (forward-only)");
     let ran_in_report: Vec<u32> = report.migration_steps.iter().map(|s| s.step_id).collect();
-    assert_eq!(
-        ran_in_report,
-        vec![16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31],
-        "report step order must match the emitted order"
-    );
+    assert_eq!(ran_in_report, vec![16, 17], "report step order must match the emitted order");
 
     // No data loss — the legacy row is still there and back-filled to the
     // step-16 `row_kind='leaf'` default (in-place, == current behavior).

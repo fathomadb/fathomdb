@@ -7,7 +7,6 @@ fn user_version(connection: &Connection) -> u32 {
 
 #[test]
 fn step28_adds_dependency_shape_generation_and_join_index_without_backfill() {
-    assert_eq!(SCHEMA_VERSION, 31);
     let connection = Connection::open_in_memory().unwrap();
     migrate_with_steps(&connection, &MIGRATIONS[..27]).unwrap();
     connection
@@ -17,8 +16,8 @@ fn step28_adds_dependency_shape_generation_and_join_index_without_backfill() {
         )
         .unwrap();
 
-    migrate(&connection).unwrap();
-    assert_eq!(user_version(&connection), 31);
+    migrate_with_steps(&connection, &MIGRATIONS[..28]).unwrap();
+    assert_eq!(user_version(&connection), 28);
     assert_eq!(
         connection
             .query_row("SELECT COUNT(*) FROM _fathomdb_source_dependencies", [], |row| row
@@ -63,5 +62,5 @@ fn step28_is_atomic_and_idempotent() {
     assert!(format!("{report}").contains("schema migration failed at step 29"));
     assert_eq!(user_version(&connection), 28);
     migrate(&connection).unwrap();
-    assert_eq!(user_version(&connection), 31);
+    assert_eq!(user_version(&connection), SCHEMA_VERSION);
 }

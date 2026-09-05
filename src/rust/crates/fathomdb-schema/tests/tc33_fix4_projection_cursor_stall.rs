@@ -147,9 +147,9 @@ fn seed_v22_with_pending_edge() -> Connection {
 fn fix4_dropped_pending_edge_does_not_strand_the_projection_cursor() {
     let conn = seed_v22_with_pending_edge();
 
-    // Apply step 23 (v22 -> head).
-    migrate_with_steps(&conn, MIGRATIONS).expect("migrate v22 -> head (step 23)");
-    assert_eq!(user_version(&conn), 31, "migrations must have applied to head");
+    // Apply step 23 only (v22 -> v23).
+    migrate_with_steps(&conn, &steps_through(23)).expect("migrate v22 -> step 23");
+    assert_eq!(user_version(&conn), 23, "step 23 must have applied");
 
     // The dropped edge's cursor must now carry a terminal so the walk can pass it.
     assert!(
@@ -186,7 +186,7 @@ fn fix4_backfill_touches_only_edge_cursors_not_node_cursors() {
     )
     .unwrap();
 
-    migrate_with_steps(&conn, MIGRATIONS).expect("migrate v22 -> head (step 23)");
+    migrate_with_steps(&conn, &steps_through(23)).expect("migrate v22 -> step 23");
 
     assert!(has_terminal(&conn, 5), "edge cursor 5 must be backfilled");
     assert!(

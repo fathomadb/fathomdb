@@ -1,4 +1,4 @@
-use fathomdb_schema::{migrate, migrate_with_steps, MIGRATIONS, SCHEMA_VERSION};
+use fathomdb_schema::{migrate, migrate_with_steps, MIGRATIONS};
 use rusqlite::{params, Connection};
 
 fn user_version(connection: &Connection) -> u32 {
@@ -31,7 +31,6 @@ fn insert_closure(connection: &Connection, id_digit: char, phase: &str) -> rusql
 
 #[test]
 fn step30_adds_content_free_closure_state_and_checked_sequence() {
-    assert_eq!(SCHEMA_VERSION, 31);
     let connection = Connection::open_in_memory().unwrap();
     migrate_with_steps(&connection, &MIGRATIONS[..29]).unwrap();
     migrate_with_steps(&connection, &MIGRATIONS[..30]).unwrap();

@@ -47,13 +47,10 @@ fn column_names(conn: &Connection, table: &str) -> Vec<String> {
         .collect()
 }
 
-/// R-SUB-1 — after the full migration set, `canonical_nodes` has `row_kind`.
-/// R-SUB-3 — the migration reaches head `SCHEMA_VERSION`. `row_kind` lands at
-/// step 16; the head pin below tracks the current head (bumped to 17 when F5's
-/// step-17 `search_index_v2` co-landed, then 18 when F9's step-18 `importance`
-/// landed).
+/// R-SUB-1 — after the full migration set, `canonical_nodes` retains `row_kind`.
+/// R-SUB-3 — the migration reaches the current `SCHEMA_VERSION`.
 #[test]
-fn s16_row_kind_column_present_and_schema_version_is_head() {
+fn s16_row_kind_remains_present_at_current_head() {
     register_sqlite_vec_once();
     let conn = Connection::open_in_memory().unwrap();
     set_user_version(&conn, 1);
@@ -66,12 +63,6 @@ fn s16_row_kind_column_present_and_schema_version_is_head() {
     );
 
     assert_eq!(user_version(&conn), SCHEMA_VERSION);
-    assert_eq!(SCHEMA_VERSION, 31, "SCHEMA_VERSION must include Slice 35 step 31");
-    assert_eq!(
-        MIGRATIONS.last().expect("at least one migration").step_id,
-        31,
-        "step-31 (frozen reads, Slice 35) must be the last (head) migration"
-    );
 }
 
 /// R-SUB-3 (forward-only) — open a DB at the OLD schema (version 15) with a

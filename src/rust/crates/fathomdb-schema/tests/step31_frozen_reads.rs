@@ -1,4 +1,4 @@
-use fathomdb_schema::{migrate, migrate_with_steps, MIGRATIONS, SCHEMA_VERSION};
+use fathomdb_schema::{migrate, migrate_with_steps, MIGRATIONS};
 use rusqlite::{Connection, OptionalExtension};
 use std::collections::BTreeSet;
 
@@ -21,8 +21,7 @@ fn step31_adds_identity_key_generation_and_exact_trigger_manifest() {
         30
     );
 
-    migrate(&connection).unwrap();
-    assert_eq!(SCHEMA_VERSION, 31);
+    migrate_with_steps(&connection, &MIGRATIONS[..31]).unwrap();
     assert_eq!(
         connection.pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0)).unwrap(),
         31

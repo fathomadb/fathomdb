@@ -1,8 +1,6 @@
 //! 0.8.21 Slice 45 — the nested-source declaration migration is additive-only.
 
-use fathomdb_schema::{
-    check_migration_accretion, migrate_with_steps, Migration, MIGRATIONS, SCHEMA_VERSION,
-};
+use fathomdb_schema::{check_migration_accretion, migrate_with_steps, Migration, MIGRATIONS};
 use rusqlite::Connection;
 use std::sync::Once;
 
@@ -35,8 +33,11 @@ fn step25_adds_nullable_source_without_rewriting_registry_rows() {
     )
     .unwrap();
 
-    migrate_with_steps(&conn, MIGRATIONS).unwrap();
-    assert_eq!(SCHEMA_VERSION, 31);
+    migrate_with_steps(&conn, &steps_through(25)).unwrap();
+    assert_eq!(
+        conn.pragma_query_value(None, "user_version", |row| row.get::<_, u32>(0)).unwrap(),
+        25
+    );
     let source: Option<String> = conn
         .query_row(
             "SELECT source FROM _fathomdb_projection_registry WHERE name = 'status'",

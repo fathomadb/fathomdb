@@ -1,6 +1,6 @@
 //! 0.8.25 Slice 15 — additive identity/provenance registry migration.
 
-use fathomdb_schema::{migrate_with_steps, Migration, MIGRATIONS, SCHEMA_VERSION};
+use fathomdb_schema::{migrate_with_steps, Migration, MIGRATIONS};
 use rusqlite::Connection;
 use std::sync::Once;
 
@@ -35,7 +35,6 @@ fn step27_adds_closed_versioned_registries_without_backfill() {
 
     let report = migrate_with_steps(&connection, &steps_through(27)).unwrap();
 
-    assert_eq!(SCHEMA_VERSION, 31);
     assert_eq!(report.schema_version_before, 26);
     assert_eq!(report.schema_version_after, 27);
     assert_eq!(report.migration_steps.iter().map(|s| s.step_id).collect::<Vec<_>>(), vec![27]);

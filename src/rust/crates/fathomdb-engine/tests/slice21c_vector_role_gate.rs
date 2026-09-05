@@ -194,7 +194,6 @@ fn filterable_only_spec(name: &str) -> ProjectionSpec {
 /// back door and pins the front door shut at the same time.
 fn declare_legacy_filterable_vector(
     engine: &Engine,
-    path: &Path,
     name: &str,
 ) -> fathomdb_engine::ProjectionDelta {
     // Front door, pinned shut.
@@ -208,7 +207,7 @@ fn declare_legacy_filterable_vector(
     let delta = engine
         .configure_projections(&[filterable_only_spec(name)], &[])
         .expect("the `filterable` half is still a valid declaration");
-    legacy_add_vector_subobject(path, name);
+    legacy_add_vector_subobject(engine, name);
     delta
 }
 
@@ -217,15 +216,19 @@ fn declare_legacy_filterable_vector(
 /// out for the tests that need it applied to a row declared some other way.
 /// This is the exact column `persist_projection_row` set for the same
 /// declaration before Slice 23 refused it.
-fn legacy_add_vector_subobject(path: &Path, name: &str) {
-    let conn = rusqlite::Connection::open(path).expect("open rw");
-    let n = conn
-        .execute(
-            "UPDATE _fathomdb_projection_registry SET vector_declared = 1 WHERE name = ?1",
-            [name],
-        )
-        .expect("legacy vector sub-object");
-    assert_eq!(n, 1, "the registry row must exist before the legacy sub-object is added");
+fn legacy_add_vector_subobject(engine: &Engine, name: &str) {
+    let before = engine
+        .read_projection_generation_status()
+        .expect("generation before legacy fixture")
+        .generation_id;
+    engine
+        .set_legacy_projection_vector_declared_for_test(name)
+        .expect("legacy vector sub-object with coherent generation authority");
+    let after = engine
+        .read_projection_generation_status()
+        .expect("legacy fixture remains an authoritative generation")
+        .generation_id;
+    assert_ne!(after, before, "the test-only declaration transition must mint an epoch");
 }
 
 /// The legitimate dense-arm declaration — the control. Every assertion that the
@@ -362,7 +365,7 @@ fn a_filterable_vector_declaration_backfills_nothing_and_embeds_nothing() {
     delay_ms.store(8_000, Ordering::SeqCst);
 
     let spec = filterable_vector_spec("summary");
-    let delta = declare_legacy_filterable_vector(engine, &path, "summary");
+    let delta = declare_legacy_filterable_vector(engine, "summary");
 
     // (5a) INERT, NOT ABSENT — the `filterable` half still builds.
     assert_eq!(
@@ -491,7 +494,7 @@ fn a_write_under_a_filterable_vector_declaration_enqueues_no_embedding() {
     // predicate. Whatever happens next is the WRITE path's doing alone.
     // (0.8.20 Slice 23 — via the legacy back door; see
     // [`declare_legacy_filterable_vector`].)
-    declare_legacy_filterable_vector(engine, &path, "summary");
+    declare_legacy_filterable_vector(engine, "summary");
     let conn = ro(&path);
     assert!(
         !vector_kind_registered(&conn, "doc"),
@@ -616,7 +619,7 @@ fn demoting_a_searchable_vector_projection_to_filterable_un_enrols_the_kind() {
         .expect("drop-then-redeclare is the documented path for a destructive role change");
     assert!(delta.dropped.contains(&"summary".to_string()), "the drop half is reported");
     assert!(delta.built.contains(&"summary".to_string()), "the fresh `filterable` half is built");
-    legacy_add_vector_subobject(&path, "summary");
+    legacy_add_vector_subobject(engine, "summary");
     // …and a LATER governed call must not let the surviving `vector_declared = 1`
     // row switch the arm back on.
     engine.configure_projections(&[], &[]).expect("a later governed call is a no-op");
@@ -708,7 +711,7 @@ fn dropping_the_last_searchable_vector_projection_un_enrols_past_an_inert_siblin
     // is settled. Deliberately AFTER the drain: a raw RW connection opened while
     // embed work is in flight perturbs the dispatcher's timing, and this suite's
     // embed-count oracles must not depend on that.
-    legacy_add_vector_subobject(&path, "tag");
+    legacy_add_vector_subobject(engine, "tag");
     let conn = ro(&path);
     let c1 = active_cursor(&conn, "N1");
     assert!(vector_kind_registered(&conn, "doc"), "fixture: the SEARCHABLE one enrolled `doc`");
@@ -775,7 +778,7 @@ fn a_filterable_vector_declaration_round_trips_verbatim_without_an_embedder() {
     engine.write(&[node("doc", "N1", r#"{"summary":"a dense meaning"}"#)]).expect("write N1");
 
     let spec = filterable_vector_spec("summary");
-    let delta = declare_legacy_filterable_vector(engine, &path, "summary");
+    let delta = declare_legacy_filterable_vector(engine, "summary");
     assert_eq!(delta.built, vec!["summary".to_string()]);
 
     assert_eq!(

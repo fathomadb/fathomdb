@@ -72,21 +72,15 @@ fn index_set(conn: &Connection, table: &str) -> Vec<(String, Option<String>)> {
 
 /// R-EX-1 / R-MIG-1 — after the full migration set `canonical_nodes` carries
 /// `state` (NOT NULL DEFAULT 'active') + `reason` (nullable) with the
-/// active-only partial index. The head pin moved to step-21 in 0.8.20 Slice 5c
-/// (legacy provenance backfill, R-20-E8); step-20's columns are unaffected.
+/// active-only partial index.
 #[test]
-fn s20_existence_columns_present_and_schema_version_is_head() {
+fn s20_existence_columns_remain_present_at_current_head() {
     register_sqlite_vec_once();
     let conn = Connection::open_in_memory().unwrap();
     set_user_version(&conn, 1);
     migrate_with_steps(&conn, MIGRATIONS).expect("migration must succeed");
 
     assert_eq!(user_version(&conn), SCHEMA_VERSION);
-    assert_eq!(
-        MIGRATIONS.last().expect("at least one migration").step_id,
-        31,
-        "step-31 (frozen reads, Slice 35) must be the last (head) migration"
-    );
 
     let shape = table_shape(&conn, "canonical_nodes");
     let state = shape.iter().find(|c| c.0 == "state").expect("canonical_nodes must have `state`");

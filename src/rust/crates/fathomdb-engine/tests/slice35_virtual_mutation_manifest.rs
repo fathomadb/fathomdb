@@ -31,8 +31,8 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
         ("\"INSERT INTO search_index_edges(", 1),
         ("\"INSERT INTO property_search_index(", 1),
         ("\"DELETE FROM property_search_index", 1),
-        ("\"INSERT INTO vector_default(", 4),
-        ("\"INSERT OR IGNORE INTO vector_default(", 2),
+        ("\"INSERT INTO vector_default(", 6),
+        ("\"INSERT OR IGNORE INTO vector_default(", 0),
         ("\"UPDATE {DEFAULT_VECTOR_PARTITION}", 1),
         ("\"INSERT INTO {DEFAULT_VECTOR_PARTITION}", 1),
         ("\"CREATE VIRTUAL TABLE {guard}{DEFAULT_VECTOR_PARTITION}", 1),
@@ -96,8 +96,8 @@ fn production_virtual_mutation_sites_remain_closed_and_owner_coupled() {
     contains_all(
         "commit_projection_outcomes",
         &[
-            "INSERT OR IGNORE INTO _fathomdb_vector_rows",
-            "INSERT OR IGNORE INTO vector_default(",
+            "INSERT INTO _fathomdb_vector_rows",
+            "INSERT INTO vector_default(",
             "record_projection_terminal",
         ],
     );

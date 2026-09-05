@@ -308,21 +308,17 @@ fn s22_failed_step_rolls_back_columns_and_version_together() {
     assert!(column_info(&conn, "canonical_nodes", "valid_from").is_some());
 }
 
-/// Step 22 is head and `SCHEMA_VERSION` tracks it.
+/// Step 22's validity-window columns remain present at current head.
 #[test]
-fn s22_is_head_and_schema_version_is_22() {
+fn s22_validity_columns_remain_present_at_current_head() {
     register_sqlite_vec_once();
     let conn = Connection::open_in_memory().unwrap();
     set_user_version(&conn, 1);
     migrate_with_steps(&conn, MIGRATIONS).expect("migration must succeed");
 
     assert_eq!(user_version(&conn), SCHEMA_VERSION);
-    assert_eq!(SCHEMA_VERSION, 31, "SCHEMA_VERSION must include Slice 35 step 31");
-    assert_eq!(
-        MIGRATIONS.last().expect("at least one migration").step_id,
-        31,
-        "step-31 (frozen reads, Slice 35) must be the last (head) migration"
-    );
+    assert!(column_info(&conn, "canonical_nodes", "valid_from").is_some());
+    assert!(column_info(&conn, "canonical_nodes", "valid_until").is_some());
 }
 
 /// The accretion guard: step 22 adds schema without a DROP, so it REQUIRES the

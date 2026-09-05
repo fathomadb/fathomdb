@@ -150,7 +150,7 @@ fn filterable_vector_spec(name: &str) -> ProjectionSpec {
 /// `vector_declared = 1` with the raw UPDATE the pre-Slice-23
 /// `persist_projection_row` wrote for the same declaration — and asserts the
 /// front door is shut on the way past.
-fn declare_legacy_filterable_vector(engine: &Engine, path: &Path, name: &str) {
+fn declare_legacy_filterable_vector(engine: &Engine, name: &str) {
     assert_eq!(
         engine.configure_projections(&[filterable_vector_spec(name)], &[]).expect_err(
             "R-20-SV: a `vector` sub-object without `searchable` is now an invalid spec"
@@ -160,14 +160,32 @@ fn declare_legacy_filterable_vector(engine: &Engine, path: &Path, name: &str) {
     engine
         .configure_projections(&[filterable_only_spec(name)], &[])
         .expect("the `filterable` half is still a valid declaration");
-    let conn = rusqlite::Connection::open(path).expect("open rw");
-    let n = conn
-        .execute(
-            "UPDATE _fathomdb_projection_registry SET vector_declared = 1 WHERE name = ?1",
-            [name],
+    let before = engine
+        .read_projection_generation_status()
+        .expect("generation before legacy fixture")
+        .generation_id;
+    engine
+        .set_legacy_projection_vector_declared_for_test(name)
+        .expect("legacy vector sub-object with coherent generation authority");
+    let after = engine
+        .read_projection_generation_status()
+        .expect("legacy fixture remains an authoritative generation")
+        .generation_id;
+    assert_ne!(after, before, "the test-only declaration transition must mint an epoch");
+}
+
+fn reset_generation_authority_for_upgrade(path: &Path) {
+    let connection = rusqlite::Connection::open(path).expect("open upgrade fixture");
+    connection
+        .execute_batch(
+            "DROP TRIGGER _fathomdb_projection_generation_retain;
+             DELETE FROM _fathomdb_projection_generation_current;
+             DELETE FROM _fathomdb_projection_generations;
+             CREATE TRIGGER _fathomdb_projection_generation_retain
+             BEFORE DELETE ON _fathomdb_projection_generations
+             BEGIN SELECT RAISE(ABORT, 'projection generation history is retained'); END;",
         )
-        .expect("legacy vector sub-object");
-    assert_eq!(n, 1, "the registry row must exist before the legacy sub-object is added");
+        .expect("reset authority to the pre-Slice-40 bootstrap boundary");
 }
 
 /// The legitimate dense-arm declaration — the control.
@@ -327,7 +345,7 @@ fn an_already_enrolled_inert_vector_kind_is_un_enrolled_on_reopen() {
         let opened = Engine::open_with_embedder_for_test(&path, Arc::new(embedder)).expect("open");
         let engine = &opened.engine;
 
-        declare_legacy_filterable_vector(engine, &path, "summary");
+        declare_legacy_filterable_vector(engine, "summary");
         // What the OLD `vector_projection_declared` did on that declaration:
         // enrol the node kind. The `#[doc(hidden)]` hook reproduces the resulting
         // at-rest state exactly (`INSERT OR REPLACE` into `_fathomdb_vector_kinds`
@@ -353,6 +371,7 @@ fn an_already_enrolled_inert_vector_kind_is_un_enrolled_on_reopen() {
         opened.engine.close().unwrap();
         c1
     };
+    reset_generation_authority_for_upgrade(&path);
 
     // ---- session 2: the upgrade. Reopening must self-heal. ----
     let embedder = CountingEmbedder::new();
@@ -509,6 +528,7 @@ fn a_registry_with_no_vector_subobject_leaves_a_pre_registry_enrolment_untouched
         opened.engine.close().unwrap();
         c1
     };
+    reset_generation_authority_for_upgrade(&path);
 
     let conn = ro(&path);
     let before = enrolled_kinds(&conn);
@@ -626,7 +646,7 @@ fn edge_fact_survives_the_reconciliation_which_is_idempotent_across_reopens() {
         let embedder = CountingEmbedder::new();
         let opened = Engine::open_with_embedder_for_test(&path, Arc::new(embedder)).expect("open");
         let engine = &opened.engine;
-        declare_legacy_filterable_vector(engine, &path, "summary");
+        declare_legacy_filterable_vector(engine, "summary");
         engine.configure_vector_kind_for_test("doc").expect("enrol as the old code did");
         engine.configure_vector_kind_for_test("note").expect("a second affected node kind");
         engine.configure_vector_kind_for_test("edge_fact").expect("the G11 edge enrolment");
@@ -644,6 +664,7 @@ fn edge_fact_survives_the_reconciliation_which_is_idempotent_across_reopens() {
     };
 
     // ---- reopen 1: reconciles ----
+    reset_generation_authority_for_upgrade(&path);
     let rows_after_reconcile = {
         let embedder = CountingEmbedder::new();
         let opened =
@@ -708,7 +729,7 @@ fn a_configure_projections_call_reconciles_an_already_enrolled_inert_kind() {
     let opened = Engine::open_with_embedder_for_test(&path, Arc::new(embedder)).expect("open");
     let engine = &opened.engine;
 
-    declare_legacy_filterable_vector(engine, &path, "summary");
+    declare_legacy_filterable_vector(engine, "summary");
     engine.configure_vector_kind_for_test("doc").expect("enrol as the old code did");
     engine.configure_vector_kind_for_test("edge_fact").expect("the G11 edge enrolment");
 

@@ -48,23 +48,17 @@ fn column_names(conn: &Connection, table: &str) -> Vec<String> {
         .collect()
 }
 
-/// R-VEQ-1 — after the full migration set, the head is 19, step-19 is last, and
-/// `_fathomdb_embed_probe` has the frozen shape (probe text + f32 reference +
-/// identity + dim), with NO persisted-bits column.
+/// R-VEQ-1 — after the full migration set, `_fathomdb_embed_probe` retains the
+/// frozen shape (probe text + f32 reference + identity + dim), with no
+/// persisted-bits column.
 #[test]
-fn s19_embed_probe_table_present_and_schema_version_is_19() {
+fn s19_embed_probe_table_remains_present_at_current_head() {
     register_sqlite_vec_once();
     let conn = Connection::open_in_memory().unwrap();
     set_user_version(&conn, 1);
     migrate_with_steps(&conn, MIGRATIONS).expect("migration must succeed");
 
     assert_eq!(user_version(&conn), SCHEMA_VERSION);
-    assert_eq!(SCHEMA_VERSION, 31, "SCHEMA_VERSION must include Slice 35 step 31");
-    assert_eq!(
-        MIGRATIONS.last().expect("at least one migration").step_id,
-        31,
-        "step-31 (frozen reads, Slice 35) must be the last (head) migration"
-    );
 
     let cols = column_names(&conn, "_fathomdb_embed_probe");
     for expected in [

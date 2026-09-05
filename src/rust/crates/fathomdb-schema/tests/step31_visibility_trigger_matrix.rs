@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use fathomdb_schema::migrate;
+use fathomdb_schema::{migrate_with_steps, MIGRATIONS};
 use rusqlite::Connection;
 
 fn generation(connection: &Connection) -> i64 {
@@ -16,7 +16,7 @@ fn generation(connection: &Connection) -> i64 {
 #[test]
 fn every_serving_authority_table_advances_visibility_for_all_three_mutations() {
     let connection = Connection::open_in_memory().unwrap();
-    migrate(&connection).unwrap();
+    migrate_with_steps(&connection, &MIGRATIONS[..31]).unwrap();
 
     let expected_tables = [
         ("cn", "canonical_nodes"),
@@ -75,7 +75,7 @@ fn every_serving_authority_table_advances_visibility_for_all_three_mutations() {
 #[test]
 fn every_serving_authority_trigger_executes_for_insert_update_and_delete() {
     let connection = Connection::open_in_memory().unwrap();
-    migrate(&connection).unwrap();
+    migrate_with_steps(&connection, &MIGRATIONS[..31]).unwrap();
     let cases = [
         (
             "canonical_nodes",

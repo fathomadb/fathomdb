@@ -186,16 +186,8 @@ fn s24_carries_the_accretion_exemption_marker() {
 /// additive nested-source declaration migration.
 #[test]
 fn s24_precedes_the_nested_source_head_migration() {
-    register_sqlite_vec_once();
-    let conn = Connection::open_in_memory().unwrap();
-    set_user_version(&conn, 1);
-    migrate_with_steps(&conn, MIGRATIONS).expect("migration must succeed");
-
-    assert_eq!(user_version(&conn), SCHEMA_VERSION);
-    assert_eq!(SCHEMA_VERSION, 31, "SCHEMA_VERSION must include Slice 35 step 31");
-    assert_eq!(
-        MIGRATIONS.last().expect("at least one migration").step_id,
-        31,
-        "step-31 (frozen reads, Slice 35) must be the last (head) migration"
+    assert!(
+        MIGRATIONS.windows(2).any(|pair| pair[0].step_id == 24 && pair[1].step_id == 25),
+        "step 24 must immediately precede the nested-source step 25"
     );
 }

@@ -92,13 +92,12 @@ fn engine_open_emits_migration_step_events() {
     opened.engine.close().unwrap();
 
     let step_ids: Vec<u32> = events.iter().map(|event| event.step_id).collect();
-    assert_eq!(
-        step_ids,
-        vec![
-            2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,
-            26, 27, 28, 29, 30, 31
-        ]
-    );
+    let expected: Vec<u32> = fathomdb_schema::MIGRATIONS
+        .iter()
+        .filter(|migration| migration.step_id > 1)
+        .map(|migration| migration.step_id)
+        .collect();
+    assert_eq!(step_ids, expected);
     assert!(events.iter().all(|event| event.duration_ms.is_some()));
     assert!(events.iter().all(|event| !event.failed));
     assert_eq!(opened.report.migration_steps, events);

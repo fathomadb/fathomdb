@@ -6,6 +6,7 @@ use std::thread;
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
+    arm_evidence_before_resolve_return_hook_for_test, arm_evidence_before_sidecar_hook_for_test,
     arm_frozen_after_validation_hook_for_test, arm_reader_search_hook_for_test, ArtifactRevisionId,
     CanonicalHash, Engine, EngineError, EvidenceArtifactLifecycleV1, EvidenceErrorReasonV1,
     EvidenceGraphOriginV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1, InitialState,
@@ -1195,4 +1196,97 @@ fn evidence_search_races_are_snapshot_atomic_or_wholly_refused() {
     let result = worker.join().unwrap().unwrap();
     assert_eq!(result.search_result.results.len(), result.evidence.len());
     assert!(!result.evidence.is_empty());
+}
+
+#[test]
+fn evidence_linearizes_at_sidecar_and_resolver_return_seams() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("evidence-linearization{SQLITE_SUFFIX}"));
+    let source_body = "linearization source body";
+    let opened = Engine::open(&path).unwrap();
+    let engine = Arc::new(opened.engine);
+    engine
+        .write(&[
+            canonical_named(
+                "linear-source",
+                "linear-source-r1",
+                "linear-v1",
+                "linear-source-id",
+                source_body,
+            ),
+            derived_named(
+                "linear-claim",
+                "linear-claim-r1",
+                "linear-source-r1",
+                "linear-v1",
+                "linear-source-id",
+                source_body,
+                "linearizationneedle",
+            ),
+        ])
+        .unwrap();
+    let context = ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap();
+
+    let frozen = freeze_stable(&engine, &context);
+    let ready = Arc::new(Barrier::new(2));
+    let release = Arc::new(Barrier::new(2));
+    let hook_ready = Arc::clone(&ready);
+    let hook_release = Arc::clone(&release);
+    arm_evidence_before_sidecar_hook_for_test(Box::new(move || {
+        hook_ready.wait();
+        hook_release.wait();
+    }));
+    let search_worker = {
+        let engine = Arc::clone(&engine);
+        thread::spawn(move || engine.search_with_evidence(&request("linearizationneedle", frozen)))
+    };
+    ready.wait();
+    engine
+        .write(&[canonical_named(
+            "linear-unrelated",
+            "linear-unrelated-r1",
+            "linear-unrelated-v1",
+            "linear-unrelated-source",
+            "committed after ranked results",
+        )])
+        .unwrap();
+    release.wait();
+    let search = search_worker.join().unwrap().unwrap();
+    assert_eq!(search.search_result.results.len(), search.evidence.len());
+    assert_eq!(search.evidence[0].artifact_revision_id, "linear-claim-r1");
+
+    let equivalent = freeze_stable(&engine, &context);
+    let evidence_ref = search.evidence[0].evidence_ref.clone();
+    let ready = Arc::new(Barrier::new(2));
+    let release = Arc::new(Barrier::new(2));
+    let hook_ready = Arc::clone(&ready);
+    let hook_release = Arc::clone(&release);
+    arm_evidence_before_resolve_return_hook_for_test(Box::new(move || {
+        hook_ready.wait();
+        hook_release.wait();
+    }));
+    let resolve_worker = {
+        let engine = Arc::clone(&engine);
+        thread::spawn(move || {
+            engine.resolve_evidence(&EvidenceResolveRequestV1 {
+                schema_version: 1,
+                evidence_ref,
+                context: equivalent,
+            })
+        })
+    };
+    ready.wait();
+    let external = rusqlite::Connection::open(&path).unwrap();
+    external
+        .execute(
+            "UPDATE canonical_nodes SET body='changed after resolution' \
+             WHERE logical_id='linear-source'",
+            [],
+        )
+        .unwrap();
+    drop(external);
+    release.wait();
+    let resolved = resolve_worker.join().unwrap().unwrap();
+    assert_eq!(resolved.canonical_source_body, source_body);
+    assert_eq!(resolved.evidence_text, source_body);
 }

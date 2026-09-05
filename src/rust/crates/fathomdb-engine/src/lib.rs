@@ -709,6 +709,8 @@ pub struct Engine {
         Mutex<Option<projection_generation::CachedProjectionGenerationStatus>>,
     mutation_projection_status_cache:
         Mutex<Option<projection_generation::CachedMutationProjectionStatus>>,
+    #[cfg(feature = "test-hooks")]
+    projection_generation_status_slow_path_count: AtomicU64,
     closed: AtomicBool,
     lock: Mutex<Option<File>>,
     connection: Mutex<Option<Connection>>,
@@ -7578,6 +7580,8 @@ impl Engine {
                         )),
                         projection_generation_status_cache: Mutex::new(None),
                         mutation_projection_status_cache: Mutex::new(None),
+                        #[cfg(feature = "test-hooks")]
+                        projection_generation_status_slow_path_count: AtomicU64::new(0),
                         closed: AtomicBool::new(false),
                         lock: Mutex::new(Some(lock)),
                         connection: Mutex::new(Some(connection)),
@@ -11475,6 +11479,13 @@ impl Engine {
             projection_generation::transition(&tx, ProjectionGenerationOriginV1::Configuration)?;
         tx.commit().map_err(|_| EngineError::Storage)?;
         Ok(generation)
+    }
+
+    /// Return the number of generation-status cache misses for measurement.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn projection_generation_status_slow_path_count_for_test(&self) -> u64 {
+        self.projection_generation_status_slow_path_count.load(Ordering::Relaxed)
     }
 
     /// Attempt worker-success publication with an explicitly captured epoch.

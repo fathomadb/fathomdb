@@ -57,6 +57,25 @@ _POLICY = {
     "storage_max_increase_bytes": 65_536,
     "cpu_cuda_status_p95_max_difference_ms": 2.0,
 }
+_STATUS_RESULT_KEYS = {
+    "schema_version",
+    "device",
+    "records",
+    "warmups",
+    "samples",
+    "errors",
+    "timeouts",
+    "cold_generation_ms",
+    "cold_mutation_ms",
+    "configuration_transition_ms",
+    "post_transition_generation_ms",
+    "post_transition_mutation_ms",
+    "generation_p95_ms",
+    "generation_p99_ms",
+    "mutation_p95_ms",
+    "mutation_p99_ms",
+    "steady_full_owner_scans",
+}
 
 
 class Slice40ScaleError(ValueError):
@@ -207,6 +226,83 @@ def validate_worker_counts(
     }
     if any(result.get(key) != value for key, value in expected.items()):
         raise Slice40ScaleError("worker counts drifted from the registered workload")
+
+
+def parse_status_result(document: object) -> dict[str, Any]:
+    """Validate one exact CPU or CUDA status-measurement result."""
+    result = _exact(document, "status result", _STATUS_RESULT_KEYS)
+    if result["schema_version"] != "scale-02-slice40-status.v1":
+        raise Slice40ScaleError("status result schema drifted")
+    device = result["device"]
+    if device not in {"cpu", "cuda:0"}:
+        raise Slice40ScaleError("status result device drifted")
+    for field in (
+        "records",
+        "warmups",
+        "samples",
+        "errors",
+        "timeouts",
+        "steady_full_owner_scans",
+    ):
+        value = result[field]
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise Slice40ScaleError(f"status result {field} must be a nonnegative integer")
+    for field in _STATUS_RESULT_KEYS - {
+        "schema_version",
+        "device",
+        "records",
+        "warmups",
+        "samples",
+        "errors",
+        "timeouts",
+        "steady_full_owner_scans",
+    }:
+        value = result[field]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+            raise Slice40ScaleError(f"status result {field} must be nonnegative")
+    return result
+
+
+def status_verdict(
+    cpu_runs: Sequence[object],
+    cuda_runs: Sequence[object],
+    workload: Mapping[str, Any],
+    policy: Mapping[str, Any],
+) -> str:
+    """Apply registered status bounds to five paired CPU/CUDA observations."""
+    repetitions = workload["repetitions"]
+    if len(cpu_runs) != repetitions or len(cuda_runs) != repetitions:
+        raise Slice40ScaleError("status repetitions drifted from the registered workload")
+    cpu = [parse_status_result(run) for run in cpu_runs]
+    cuda = [parse_status_result(run) for run in cuda_runs]
+    expected_shape = {
+        "records": workload["status_records"],
+        "warmups": workload["status_warmups"],
+        "samples": workload["status_samples"],
+        "errors": 0,
+        "timeouts": 0,
+    }
+    for run, device in [*((value, "cpu") for value in cpu), *((value, "cuda:0") for value in cuda)]:
+        if run["device"] != device or any(run[key] != value for key, value in expected_shape.items()):
+            raise Slice40ScaleError("status result counts or device drifted")
+    bounded = all(
+        run["generation_p95_ms"] <= policy["status_p95_ms"]
+        and run["mutation_p95_ms"] <= policy["status_p95_ms"]
+        and run["generation_p99_ms"] <= policy["status_p99_ms"]
+        and run["mutation_p99_ms"] <= policy["status_p99_ms"]
+        for run in [*cpu, *cuda]
+    )
+    device_difference = max(
+        abs(left[field] - right[field])
+        for left, right in zip(cpu, cuda, strict=True)
+        for field in ("generation_p95_ms", "mutation_p95_ms")
+    )
+    return (
+        "pass"
+        if bounded
+        and device_difference <= policy["cpu_cuda_status_p95_max_difference_ms"]
+        else "fail"
+    )
 
 
 def _extract_source(commit: str, destination: Path) -> None:

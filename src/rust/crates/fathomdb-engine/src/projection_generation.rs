@@ -1297,6 +1297,9 @@ impl Engine {
                 return Ok(cached.status.clone());
             }
         }
+        #[cfg(feature = "test-hooks")]
+        self.projection_generation_status_slow_path_count
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         let status = status_in_snapshot(connection, runtime_state, effective_at_epoch_s, boundary)?;
         *cache = Some(CachedProjectionGenerationStatus {
             visibility_generation,

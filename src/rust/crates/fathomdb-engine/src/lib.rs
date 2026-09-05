@@ -1731,6 +1731,84 @@ impl std::fmt::Debug for ReaderWorkerPool {
     }
 }
 
+/// Capability payload kept behind one pointer so adding optional search state
+/// cannot inflate every request crossing the bounded reader channel.
+struct SearchReaderRequest {
+    compiled: Option<fathomdb_query::CompiledQuery>,
+    /// Un-centered f32 query vector serialized for `vec_f32`. Phase 2
+    /// f32 rerank uses this verbatim.
+    query_vector: Option<String>,
+    /// EU-5a2 — (possibly centered) f32 query vector for the phase 1
+    /// `vec_quantize_binary` sign-quant. Equal to `query_vector` for
+    /// non-MC-required identities (the EU-5a2 default).
+    query_vector_bin: Option<String>,
+    /// Public limit applied after ranking and filtering.
+    result_limit: usize,
+    /// Vector candidate fanout. The private test seam may raise this above
+    /// `result_limit`, but never changes caller-visible cardinality.
+    candidate_limit: usize,
+    /// `Some` only for the explicit direct text-only public API. Its fixed
+    /// bound keeps the node FTS input independent of the caller's final
+    /// result limit before node/edge body deduplication and ranking.
+    direct_text_candidate_limit: Option<usize>,
+    /// G10 — optional closed metadata filter (`None` = unfiltered, the
+    /// byte-identical-to-0.7.2 path). Applied in the phase-1 candidates
+    /// statement (vector branch) and as a Rust post-filter (text branch).
+    /// Boxed so the `ReaderRequest::Search` variant stays small (the request
+    /// rides a `Result<(), ReaderRequest>` retry channel).
+    filter: Option<Box<SearchFilter>>,
+    /// G12-recency — whether the dedicated recency reweight is enabled for
+    /// this request (read from `recency_reweight_enabled`, off by default).
+    recency_enabled: bool,
+    /// F9 (0.8.16 Slice 5) — whether the dedicated importance/confidence
+    /// reweight is enabled for this request (read from
+    /// `importance_reweight_enabled`, off by default).
+    importance_enabled: bool,
+    /// GA-2 / Slice-40 (◆ B-1) measurement seam — when true the worker
+    /// returns the pre-fusion vector-branch ranking instead of the fused
+    /// result (read from `vector_stage_only_for_test`, off by default).
+    vector_stage_only: bool,
+    /// 0.8.1 Slice 10 (R1) — raw query text for the CE reranker. Passed
+    /// from `search_inner` to `read_search_in_tx` → `rerank_fused`.
+    /// FIX-4: `Box<str>` (16 bytes) instead of `String` (24 bytes) to keep
+    /// the Search variant smaller (mirroring the boxed `filter` field).
+    raw_query: Box<str>,
+    /// 0.8.1 Slice 10 (R1) — per-request rerank depth (snapshot of
+    /// `ProjectionRuntimeShared::rerank_depth`). `0` = identity path.
+    rerank_depth: usize,
+    /// 0.8.1 Slice 30 (R3) — when `true`, run the graph-BFS arm (seeded
+    /// from top-10 fused hits, depth ≤ 3, cap 50, temporal filter) and
+    /// fuse its candidates into the final ranking via `fuse_three_arms`.
+    /// When `false` (the default), the graph arm pool is `vec![]` and
+    /// results are byte-identical to the pre-Slice-30 two-arm pipeline.
+    use_graph_arm: bool,
+    /// 0.8.5 (EXP-0) — CE-blend weight (clamped to `[0,1]` in `ce_rerank`).
+    /// `0.3` is the byte-identical default; `1.0` is the measured-parity config.
+    alpha: f64,
+    /// 0.8.5 (EXP-0) — reranked-pool size (clamped to the hit count). The
+    /// binding resolves `pool_n.unwrap_or(rerank_depth)` before dispatch.
+    pool_n: usize,
+    /// 0.8.8 EXP-OBS (Slice 5) — when `true`, capture per-arm ranks + the
+    /// fused/CE score breakdown + query trace into a `SearchResult`
+    /// `Explanation` sidecar. `false` (the default for `search`/`search_filtered`/
+    /// `search_reranked`) does ZERO extra work and returns `explanation = None`
+    /// (R-OBS-2 zero-cost; byte-identical `results`).
+    explain: bool,
+    /// 0.8.20 Slice 15b fix-2 (R-20-NV / R-20-RV) — the VALIDITY view the
+    /// node-hydration SELECTs filter by. `ReadView::default()` reproduces
+    /// the pre-fix predicate on any corpus that never authored a window
+    /// (step 22 back-filled NULL/NULL with no DEFAULT, and `validity_sql`
+    /// treats NULL as unbounded ⇒ the conjunct is a provable no-op there).
+    /// The existence axis is refused upstream, never carried here.
+    view: ReadView,
+    frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
+    frozen_query_runtime: Option<Box<FrozenQueryRuntime>>,
+    /// When present, produce bounded graph expansion from the final search
+    /// hits before committing the same reader transaction.
+    expand_depth: Option<u32>,
+    respond: SyncSender<ReaderResponse>,
+}
+
 /// One request handled by exactly one reader worker. The response is
 /// returned through a fresh oneshot channel so requests cannot be
 /// routed to or duplicated across workers.
@@ -1754,81 +1832,7 @@ enum ReaderRequest {
         view: ReadView,
         respond: SyncSender<ProjectedTextReaderResponse>,
     },
-    Search {
-        compiled: Option<fathomdb_query::CompiledQuery>,
-        /// Un-centered f32 query vector serialized for `vec_f32`. Phase 2
-        /// f32 rerank uses this verbatim.
-        query_vector: Option<String>,
-        /// EU-5a2 — (possibly centered) f32 query vector for the phase 1
-        /// `vec_quantize_binary` sign-quant. Equal to `query_vector` for
-        /// non-MC-required identities (the EU-5a2 default).
-        query_vector_bin: Option<String>,
-        /// Public limit applied after ranking and filtering.
-        result_limit: usize,
-        /// Vector candidate fanout. The private test seam may raise this above
-        /// `result_limit`, but never changes caller-visible cardinality.
-        candidate_limit: usize,
-        /// `Some` only for the explicit direct text-only public API. Its fixed
-        /// bound keeps the node FTS input independent of the caller's final
-        /// result limit before node/edge body deduplication and ranking.
-        direct_text_candidate_limit: Option<usize>,
-        /// G10 — optional closed metadata filter (`None` = unfiltered, the
-        /// byte-identical-to-0.7.2 path). Applied in the phase-1 candidates
-        /// statement (vector branch) and as a Rust post-filter (text branch).
-        /// Boxed so the `ReaderRequest::Search` variant stays small (the request
-        /// rides a `Result<(), ReaderRequest>` retry channel).
-        filter: Option<Box<SearchFilter>>,
-        /// G12-recency — whether the dedicated recency reweight is enabled for
-        /// this request (read from `recency_reweight_enabled`, off by default).
-        recency_enabled: bool,
-        /// F9 (0.8.16 Slice 5) — whether the dedicated importance/confidence
-        /// reweight is enabled for this request (read from
-        /// `importance_reweight_enabled`, off by default).
-        importance_enabled: bool,
-        /// GA-2 / Slice-40 (◆ B-1) measurement seam — when true the worker
-        /// returns the pre-fusion vector-branch ranking instead of the fused
-        /// result (read from `vector_stage_only_for_test`, off by default).
-        vector_stage_only: bool,
-        /// 0.8.1 Slice 10 (R1) — raw query text for the CE reranker. Passed
-        /// from `search_inner` to `read_search_in_tx` → `rerank_fused`.
-        /// FIX-4: `Box<str>` (16 bytes) instead of `String` (24 bytes) to keep
-        /// the Search variant smaller (mirroring the boxed `filter` field).
-        raw_query: Box<str>,
-        /// 0.8.1 Slice 10 (R1) — per-request rerank depth (snapshot of
-        /// `ProjectionRuntimeShared::rerank_depth`). `0` = identity path.
-        rerank_depth: usize,
-        /// 0.8.1 Slice 30 (R3) — when `true`, run the graph-BFS arm (seeded
-        /// from top-10 fused hits, depth ≤ 3, cap 50, temporal filter) and
-        /// fuse its candidates into the final ranking via `fuse_three_arms`.
-        /// When `false` (the default), the graph arm pool is `vec![]` and
-        /// results are byte-identical to the pre-Slice-30 two-arm pipeline.
-        use_graph_arm: bool,
-        /// 0.8.5 (EXP-0) — CE-blend weight (clamped to `[0,1]` in `ce_rerank`).
-        /// `0.3` is the byte-identical default; `1.0` is the measured-parity config.
-        alpha: f64,
-        /// 0.8.5 (EXP-0) — reranked-pool size (clamped to the hit count). The
-        /// binding resolves `pool_n.unwrap_or(rerank_depth)` before dispatch.
-        pool_n: usize,
-        /// 0.8.8 EXP-OBS (Slice 5) — when `true`, capture per-arm ranks + the
-        /// fused/CE score breakdown + query trace into a `SearchResult`
-        /// `Explanation` sidecar. `false` (the default for `search`/`search_filtered`/
-        /// `search_reranked`) does ZERO extra work and returns `explanation = None`
-        /// (R-OBS-2 zero-cost; byte-identical `results`).
-        explain: bool,
-        /// 0.8.20 Slice 15b fix-2 (R-20-NV / R-20-RV) — the VALIDITY view the
-        /// node-hydration SELECTs filter by. `ReadView::default()` reproduces
-        /// the pre-fix predicate on any corpus that never authored a window
-        /// (step 22 back-filled NULL/NULL with no DEFAULT, and `validity_sql`
-        /// treats NULL as unbounded ⇒ the conjunct is a provable no-op there).
-        /// The existence axis is refused upstream, never carried here.
-        view: ReadView,
-        frozen_binding: Option<Box<frozen_read::FrozenReadBinding>>,
-        frozen_query_runtime: Option<Box<FrozenQueryRuntime>>,
-        /// When present, produce bounded graph expansion from the final search
-        /// hits before committing the same reader transaction.
-        expand_depth: Option<u32>,
-        respond: SyncSender<ReaderResponse>,
-    },
+    Search(Box<SearchReaderRequest>),
     /// Slice 30 (G2) — active-only point lookup by `logical_id`. Returns one
     /// slot per requested id, in request order, `None` where no active row
     /// carries that id. Its own typed `respond` channel keeps the `Search`
@@ -2352,29 +2356,30 @@ fn reader_worker_loop(
                 finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
             }
-            ReaderRequest::Search {
-                compiled,
-                query_vector,
-                query_vector_bin,
-                result_limit,
-                candidate_limit,
-                direct_text_candidate_limit,
-                filter,
-                recency_enabled,
-                importance_enabled,
-                vector_stage_only,
-                raw_query,
-                rerank_depth,
-                use_graph_arm,
-                alpha,
-                pool_n,
-                explain,
-                view,
-                frozen_binding,
-                frozen_query_runtime,
-                expand_depth,
-                respond,
-            } => {
+            ReaderRequest::Search(request) => {
+                let SearchReaderRequest {
+                    compiled,
+                    query_vector,
+                    query_vector_bin,
+                    result_limit,
+                    candidate_limit,
+                    direct_text_candidate_limit,
+                    filter,
+                    recency_enabled,
+                    importance_enabled,
+                    vector_stage_only,
+                    raw_query,
+                    rerank_depth,
+                    use_graph_arm,
+                    alpha,
+                    pool_n,
+                    explain,
+                    view,
+                    frozen_binding,
+                    frozen_query_runtime,
+                    expand_depth,
+                    respond,
+                } = *request;
                 #[cfg(feature = "tc5-benchmark")]
                 tc5_benchmark::record_search_route();
                 let result = read_search_in_tx(
@@ -9912,7 +9917,7 @@ impl Engine {
         // This explicit marker distinguishes direct text-only search from a hybrid
         // request whose embedder yields no vector. Only the direct path gets the
         // fixed node candidate bound before node/edge body deduplication and RRF.
-        let request = ReaderRequest::Search {
+        let request = ReaderRequest::Search(Box::new(SearchReaderRequest {
             compiled: Some(compiled),
             query_vector: None,
             query_vector_bin: None,
@@ -9934,7 +9939,7 @@ impl Engine {
             frozen_query_runtime: None,
             expand_depth: None,
             respond: response_tx,
-        };
+        }));
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }
@@ -10522,7 +10527,7 @@ impl Engine {
         let vector_stage_only =
             self.projection_runtime.shared.vector_stage_only_for_test.load(Ordering::SeqCst);
         let (response_tx, response_rx) = mpsc::sync_channel::<ReaderResponse>(1);
-        let request = ReaderRequest::Search {
+        let request = ReaderRequest::Search(Box::new(SearchReaderRequest {
             compiled,
             query_vector,
             query_vector_bin,
@@ -10544,7 +10549,7 @@ impl Engine {
             frozen_query_runtime,
             expand_depth,
             respond: response_tx,
-        };
+        }));
         if self.reader_pool.dispatch(request).is_err() {
             return Err(EngineError::Closing);
         }

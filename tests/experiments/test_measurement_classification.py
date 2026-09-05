@@ -628,6 +628,34 @@ def test_portable_repository_gate_loads_post_cutover_plan_and_sidecar(tmp_path):
         mc.validate_repository(tmp_path)
 
 
+def test_source_bound_plan_amendment_preserves_immutable_post_cutover_record(tmp_path):
+    record_path = tmp_path / "record.json"
+    _write_json(record_path, {"run_id": "immutable", "config": {"resolved": {}}})
+    plan_ref = {"path": "plan.json", "sha256": "a" * 64, "plan_id": "plan"}
+    amendment = {
+        "run_id": "immutable",
+        "record_sha256": _sha(record_path),
+        "measurement_plan": plan_ref,
+    }
+
+    assert (
+        mc._resolve_postcutover_plan_reference(  # noqa: SLF001 - receipt contract
+            record_path,
+            {"run_id": "immutable", "config": {"resolved": {}}},
+            {"immutable": amendment},
+        )
+        == plan_ref
+    )
+
+    amendment["record_sha256"] = "0" * 64
+    with pytest.raises(mc.ClassificationError, match="amendment record SHA-256"):
+        mc._resolve_postcutover_plan_reference(  # noqa: SLF001 - receipt contract
+            record_path,
+            {"run_id": "immutable", "config": {"resolved": {}}},
+            {"immutable": amendment},
+        )
+
+
 def test_every_indexed_run_has_its_canonical_record():
     root = Path(mc.__file__).resolve().parents[1]
     for line in (root / "experiments" / "index.jsonl").read_text().splitlines():

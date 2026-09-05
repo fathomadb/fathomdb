@@ -1,23 +1,23 @@
 {
   "binary": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/target/release/deps/slice45_pagination_performance-36916f18217c11b7",
-  "binary_sha256": "14095b4da6e7dd35974c3b3de49fde54e14d905ad27f14bdb7ae3f65adb5dfc7",
+  "binary_sha256": "896241e91f579f70b449034ca40e815ec643f9c58cf9b5940fc080258fecf23d",
   "cpu_affinity": "0",
   "databases": {
     "10000": {
-      "path": "/tmp/slice45-formal-branch-state-25afde8b/slice45-10000.fathom.sqlite3",
-      "sha256": "b186694a4420faf12c09715c19168bcb1de28e4b7b00766e229349938fcf8610"
+      "path": "/tmp/slice45-formal-isolated-f6c42bda/slice45-10000.fathom.sqlite3",
+      "sha256": "14dbd4a2ef61cad4f6aa726aba4601c2d52923864a509752418a1802279242b2"
     },
     "50000": {
-      "path": "/tmp/slice45-formal-branch-state-25afde8b/slice45-50000.fathom.sqlite3",
-      "sha256": "44b26aee0ed11d24a966edbedd6c00f85ae56ac35ae9f66a193f37a43d5fdb5c"
+      "path": "/tmp/slice45-formal-isolated-f6c42bda/slice45-50000.fathom.sqlite3",
+      "sha256": "8bf84ddcb12ace83157fd56a4c1017e0e53d7b26aef0f31ffa683ad6c40f1103"
     }
   },
   "git_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "git_head": "25afde8b0b95d3335497cbcb031bb5493596e17c",
+  "git_head": "f6c42bdac84ffd4da01b0ae239d3633b3494da8e",
   "kernel": "Linux 7.0.0-30-generic x86_64 GNU/Linux",
-  "raw_sha256": "54ff9dca0b545889b14d5c4cf9bfc6f70f4ec0452301337dc4f39a75ed7284cb",
-  "result_sha256": "31471a527404569cb9152fefca03a5f6c7578d4a6b6ae62873ff67674b44baa6",
-  "runner_sha256": "126f8a492d9eb568df589c51ccf6238b34d9caf669b5f5da85bb4686477a24d8",
+  "raw_sha256": "3e8887c07fc9e35a91595b97d8db11a0c489f79c6c8606059dab9816d04e51da",
+  "result_sha256": "96cb5583ff5c9dbba2ec8a45172c0cdbfdf1c90b3bf75911e955061347168415",
+  "runner_sha256": "b49539595b2c2feff2cc6b0a6aaf9f9f0ef7265d012b1c5373176bb97716d31d",
   "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
   "schema_version": "slice45-pagination-manifest.v1"
 }

@@ -35,13 +35,13 @@
 //!      and
 //!   3. NO projection satisfies `StoredProjection::wants_vector`.
 //!
-//! Condition 2 is load-bearing and is what [`a_registry_with_no_vector_subobject_leaves_a_pre_registry_enrolment_untouched`]
-//! and [`a_database_with_no_projection_registry_is_left_untouched_on_reopen`]
-//! guard. The naive rule "`!vector_projection_declared` ⇒ un-enrol" would fire on
-//! every LEGACY database — the predicate answers `false` when the registry is
-//! absent or empty — and would silently switch off a dense arm enrolled by other
-//! means. That would be a far worse regression than TC-71 itself, so the two
-//! no-op tests below are treated as first-class assertions, not filler.
+//! Condition 2 is load-bearing and is what
+//! [`a_registry_with_no_vector_subobject_leaves_a_pre_registry_enrolment_untouched`]
+//! guards. The naive rule "`!vector_projection_declared` ⇒ un-enrol" would fire
+//! on an empty registry and silently switch off a dense arm enrolled by other
+//! means. Slice 35 now rejects a current-schema database whose registry table
+//! was removed, so that corrupt shape is tested as a fail-closed case rather
+//! than as a boot-time no-op.
 //!
 //! `'edge_fact'` is auto-registered by `project_canonical_edge_row` (G11),
 //! independently of the projection registry, and must never be un-enrolled —
@@ -54,7 +54,8 @@
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    Engine, InitialState, PreparedWrite, ProjectionRole, ProjectionSpec, ProjectionVector, SourceId,
+    Engine, EngineOpenError, InitialState, PreparedWrite, ProjectionRole, ProjectionSpec,
+    ProjectionVector, SourceId,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use std::collections::BTreeSet;
@@ -285,13 +286,11 @@ fn calls_since(calls: &AtomicUsize, baseline: usize) -> usize {
     calls.load(Ordering::SeqCst) - baseline
 }
 
-/// Physically REMOVE `_fathomdb_projection_registry` from a closed database.
+/// Physically remove `_fathomdb_projection_registry` from a current database.
 ///
-/// Schema step 24 creates the table, and migrations are gated on `user_version`,
-/// which is already 24 here — so the table stays absent across the reopen. This
-/// is the only way to reach the genuine pre-step-24 state (`sqlite_master` has no
-/// registry row) from a test, and it is the state the `table_exists` guard in
-/// `vector_projection_declared` / `load_projection_registry` exists for.
+/// This deliberately creates corruption: Slice 35's trigger manifest makes the
+/// registry an authoritative serving-state table, so a current-schema reopen
+/// must reject the shape before any boot reconciliation can mutate it.
 fn drop_projection_registry(path: &Path) {
     let conn = rusqlite::Connection::open(path).expect("open rw");
     conn.execute_batch("DROP TABLE IF EXISTS _fathomdb_projection_registry")
@@ -416,26 +415,19 @@ fn an_already_enrolled_inert_vector_kind_is_un_enrolled_on_reopen() {
 }
 
 // ===========================================================================
-// (2) THE TRAP — a legacy database must be left COMPLETELY untouched
+// (2) A missing current-schema registry is corruption, not a legacy shape
 // ===========================================================================
 
-/// **The destructive failure mode, guarded.** `vector_projection_declared`
-/// answers `false` when `_fathomdb_projection_registry` does not exist. Every
-/// pre-step-24 database is in that state, and many have a legitimately working
-/// dense arm enrolled by other means. A blanket
-/// "`!vector_projection_declared` ⇒ un-enrol" would silently switch vector search
-/// off for all of them.
-///
-/// This test builds a database with a working dense arm and NO registry table at
-/// all, reopens it, and asserts the enrolment table is byte-for-byte the same and
-/// the dense arm still embeds.
+/// Slice 35 validates the exact visibility-trigger manifest at open. Removing
+/// the registry from a schema-31 database therefore must fail closed without
+/// changing the existing dense enrolment.
 #[test]
-fn a_database_with_no_projection_registry_is_left_untouched_on_reopen() {
+fn a_current_database_missing_projection_registry_is_rejected_without_mutation() {
     let dir = TempDir::new().unwrap();
     let path = db_path(&dir, "tc71_fix1_legacy_no_registry");
 
     // ---- session 1: a legacy dense arm, enrolled with no registry involved ----
-    let c1 = {
+    {
         let embedder = CountingEmbedder::new();
         let calls = Arc::clone(&embedder.calls);
         let opened = Engine::open_with_embedder_for_test(&path, Arc::new(embedder)).expect("open");
@@ -449,11 +441,9 @@ fn a_database_with_no_projection_registry_is_left_untouched_on_reopen() {
         assert!(vector_row_exists(&conn, c1), "fixture: the legacy dense arm works");
         assert_eq!(calls.load(Ordering::SeqCst), 1, "fixture: one embed");
         opened.engine.close().unwrap();
-        c1
-    };
+    }
 
-    // Now make it a genuine pre-step-24 shape: no registry table in
-    // `sqlite_master` at all.
+    // Corrupt the current shape after close.
     drop_projection_registry(&path);
     let conn = ro(&path);
     let before = enrolled_kinds(&conn);
@@ -464,37 +454,21 @@ fn a_database_with_no_projection_registry_is_left_untouched_on_reopen() {
     );
     drop(conn);
 
-    // ---- session 2: the reopen must be a TOTAL no-op on the enrolment table ----
+    // The reopen must reject before boot reconciliation changes enrolment.
     let embedder = CountingEmbedder::new();
-    let calls = Arc::clone(&embedder.calls);
-    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(embedder)).expect("reopen");
-    let engine = &opened.engine;
-    let after_open = calls.load(Ordering::SeqCst);
+    let error = Engine::open_with_embedder_for_test(&path, Arc::new(embedder))
+        .expect_err("a current schema missing an authoritative table must fail closed");
+    assert!(
+        matches!(
+            error,
+            EngineOpenError::Io { ref message }
+                if message.contains("missing frozen-read visibility trigger")
+        ),
+        "unexpected open error: {error:?}"
+    );
 
     let conn = ro(&path);
-    assert_eq!(
-        enrolled_kinds(&conn),
-        before,
-        "THE TRAP: a LEGACY database (no `_fathomdb_projection_registry`) must be left completely \
-         untouched. `vector_projection_declared` returns false for it, so a naive \
-         '!declared ⇒ un-enrol' reconciliation would silently kill a working dense arm — a far \
-         worse regression than TC-71 itself"
-    );
-    assert!(vector_row_exists(&conn, c1), "…and the existing embedding survives");
-    drop(conn);
-
-    // …and the dense arm still WORKS, which whole-table equality alone cannot show.
-    engine.write(&[node("doc", "N2", r#"{"summary":"still embedding"}"#)]).expect("N2");
-    engine.drain(30_000).expect("drain");
-    assert_eq!(
-        calls_since(&calls, after_open),
-        1,
-        "the legacy dense arm must still embed after the reopen"
-    );
-    let conn = ro(&path);
-    assert!(vector_row_exists(&conn, active_cursor(&conn, "N2")), "…with a real vector at rest");
-
-    opened.engine.close().unwrap();
+    assert_eq!(enrolled_kinds(&conn), before, "failed open must not mutate dense enrolment");
 }
 
 // ===========================================================================

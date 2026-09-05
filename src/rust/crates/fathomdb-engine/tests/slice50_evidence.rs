@@ -7,8 +7,8 @@ use fathomdb_engine::{
     EvidenceErrorReasonV1, EvidenceGraphOriginV1, EvidenceResolveRequestV1,
     EvidenceSearchRequestV1, InitialState, LifecycleState, PreparedWrite, ProjectionRole,
     ProjectionSpec, ProvenancedEdgeV1, ProvenancedNodeV1, ReadContextV1, ReadView, SearchFilter,
-    SoftFallbackBranch, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
-    WriteProvenanceV1,
+    SoftFallbackBranch, SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId,
+    SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use sha2::{Digest, Sha256};
@@ -532,4 +532,51 @@ fn superseded_artifact_reference_is_nondisclosing() {
             if error.reason == EvidenceErrorReasonV1::EvidenceUnavailable
                 && error.field_path == "/evidenceRef"
     ));
+}
+
+#[test]
+fn resolved_derived_evidence_includes_its_registered_dependency() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("dependency{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    let source_body = "dependency source";
+    opened
+        .engine
+        .write(&[
+            canonical_named("source", "dep-source-r1", "dep-v1", "dep-source", source_body),
+            derived_named(
+                "claim",
+                "dep-claim-r1",
+                "dep-source-r1",
+                "dep-v1",
+                "dep-source",
+                source_body,
+                "dependencyneedle",
+            ),
+        ])
+        .unwrap();
+    let registered = opened
+        .engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new("dep-1", "dep-source-r1", "dep-claim-r1").unwrap(),
+        )
+        .unwrap();
+    let frozen = opened
+        .engine
+        .freeze_read_context(
+            &ReadContextV1::new(ReadView::default(), SearchFilter::default()).unwrap(),
+        )
+        .unwrap();
+    let result =
+        opened.engine.search_with_evidence(&request("dependencyneedle", frozen.clone())).unwrap();
+    let resolved = opened
+        .engine
+        .resolve_evidence(&EvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: result.evidence[0].evidence_ref.clone(),
+            context: frozen,
+        })
+        .unwrap();
+
+    assert_eq!(resolved.dependency, Some(registered));
 }

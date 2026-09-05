@@ -92,3 +92,10 @@ bounded Engine-owned generation history rather than requiring it to remain the
 current serving generation. It rejects zero or duplicate matches and validates
 the closed generation-ID grammar before disclosure. The focused suite passes
 7/7, including restart, retirement, and supersession.
+
+## RED 4
+
+The fourth test increment requires a derived result to return its existing
+zero-or-one Slice 20 source dependency. The focused command failed 7 passed /
+1 failed because successful resolution still returned `dependency=None` for a
+registered dependency.

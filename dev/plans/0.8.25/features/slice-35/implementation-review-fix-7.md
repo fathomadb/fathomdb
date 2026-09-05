@@ -29,10 +29,16 @@ The authoritative clean-tree measurement is
 `scale-02-slice35-20260905T0404Z-659c38ea`. It binds the runner and invocation
 blobs at `386783e9c27386552a6ecca6326a3c9dd59df7be`, identifies both arms as
 `Engine.search_text_only`, and records exactly 5,500 measured calls per arm.
-The candidate product commit remains
+The measured executable/native candidate remains
 `0aff1cb08c61a8bb2a004813bbd5604b6ff1a403`. It passed the preregistered
 three-percent non-regression boundary with 95-percent upper relative regression
 of 1.623% at p50 and 2.121% at p95, with zero errors and zero timeouts.
+
+The release source additionally contains the post-measurement public Python
+type-stub correction at `67f708fb`. That commit changes no executable Rust,
+Python, or TypeScript implementation bytes, so it cannot affect the measured
+runtime path; it does change the shipped source contract and is therefore not
+misidentified as part of the measured candidate.
 
 Earlier Slice 35 receipts remain immutable historical evidence. Policy version
 3 quarantines the four receipts whose operation label was not supported by

@@ -27,7 +27,7 @@ fn hit(id: u64, body: &str, score: f64) -> SearchHit {
         body: body.to_string(),
         score,
         branch: SoftFallbackBranch::Vector,
-        source_id: fathomdb_engine::SourceId::new("test:fixture").expect("test source id"),
+        source_id: Some("test:fixture".to_string()),
         // 0.8.5 — additive CE score; None until set inside `ce_rerank` for in-pool hits.
         ce_score: None,
     }
@@ -85,19 +85,19 @@ fn default_alpha_0_3_preserves_blend_and_order() {
         return;
     }
     assert_eq!(
-        out.iter().map(|h| h.id).collect::<Vec<_>>(),
+        out.iter().map(|h| h.write_cursor).collect::<Vec<_>>(),
         vec![2, 1, 3],
         "α=0.3 default order must stay [B, A, C] (C6 guard)"
     );
     for h in &out {
         let ce = h.ce_score.expect("in-pool hit must carry ce_score at depth==pool==len");
         // recover the raw score for this id from the input to compute rrf_norm.
-        let original = raw[(h.id - 1) as usize];
+        let original = raw[(h.write_cursor - 1) as usize];
         let expected = 0.3 * ce + 0.7 * rrf_norm(&raw, original);
         assert!(
             (h.score - expected).abs() < 1e-9,
             "id={} blended score {} != 0.3*ce({}) + 0.7*rrf; expected {}",
-            h.id,
+            h.write_cursor,
             h.score,
             ce,
             expected
@@ -124,7 +124,7 @@ fn alpha_1_0_is_pure_ce_order() {
     for w in out.windows(2) {
         assert!(w[0].score >= w[1].score, "α=1.0 pool must be sorted by ce_norm desc");
     }
-    assert_eq!(out[0].id, 2, "the population fact (B) must top a pure-CE ranking");
+    assert_eq!(out[0].write_cursor, 2, "the population fact (B) must top a pure-CE ranking");
 }
 
 /// α=0.0 → pure RRF: the CE weight vanishes so the order is the input RRF order
@@ -139,7 +139,7 @@ fn alpha_0_0_is_pure_rrf_order() {
         return;
     }
     assert_eq!(
-        out.iter().map(|h| h.id).collect::<Vec<_>>(),
+        out.iter().map(|h| h.write_cursor).collect::<Vec<_>>(),
         vec![1, 2, 3],
         "α=0.0 must reproduce the input RRF order"
     );
@@ -172,7 +172,7 @@ fn pool_n_clamps_and_bounds_the_reranked_pool() {
     }
     assert_eq!(out.len(), 3);
     let last = out.last().unwrap();
-    assert_eq!(last.id, 3, "the out-of-pool filler stays last");
+    assert_eq!(last.write_cursor, 3, "the out-of-pool filler stays last");
     assert_eq!(last.ce_score, None, "remainder hit must keep ce_score == None");
     assert!((last.score - raw_c).abs() < 1e-12, "remainder keeps its original RRF score");
     assert!(out[0].ce_score.is_some() && out[1].ce_score.is_some(), "in-pool hits carry ce_score");
@@ -228,8 +228,8 @@ fn ce_rerank_reorders_when_ce_disagrees_with_rrf() {
 
     let input = vec![a.clone(), b.clone(), c.clone()];
     // Sanity: A is first, B second in the RRF order we feed in.
-    assert_eq!(input[0].id, 1);
-    assert_eq!(input[1].id, 2);
+    assert_eq!(input[0].write_cursor, 1);
+    assert_eq!(input[1].write_cursor, 2);
 
     let out = rerank_fused(query, input.clone(), 3, 0.3, 3);
 
@@ -240,9 +240,9 @@ fn ce_rerank_reorders_when_ce_disagrees_with_rrf() {
          could not load — re-run with network access to fetch the pinned reranker weights."
     );
     assert_eq!(
-        out[0].id, 2,
+        out[0].write_cursor, 2,
         "the relevant passage (B, id=2) must rank first after CE rerank; got id={}",
-        out[0].id
+        out[0].write_cursor
     );
 }
 
@@ -296,8 +296,8 @@ fn nonfinite_alpha_falls_back_to_default() {
             "α={bad} produced a non-finite blended score"
         );
         assert_eq!(
-            out.iter().map(|h| h.id).collect::<Vec<_>>(),
-            out_default.iter().map(|h| h.id).collect::<Vec<_>>(),
+            out.iter().map(|h| h.write_cursor).collect::<Vec<_>>(),
+            out_default.iter().map(|h| h.write_cursor).collect::<Vec<_>>(),
             "α={bad} must fall back to the α=0.3 default order"
         );
     }

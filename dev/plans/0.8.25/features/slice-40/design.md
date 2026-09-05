@@ -185,13 +185,12 @@ virtual table has no owner rows.
 Therefore an upgraded database containing only schema/default-profile state is
 fresh. A configured-but-ownerless registry, a receipt, an enrolment or terminal
 row, a nonzero cursor, or any orphan physical row is legacy. If both generation
-tables are empty and the predicate is fresh, bootstrap creates `fresh` at
-boundary zero. If both are empty and any manifest entry is nonempty, bootstrap
-creates `legacy_unverified` at `load_next_cursor` and reports `degraded`. If
-either generation table is nonempty, both must form one valid authority;
-partial state—including a crash after step-32 DDL but before bootstrap—fails
-closed rather than being guessed or overwritten. An existing valid authority
-is reused unchanged.
+tables are empty—including restart after a crash that committed step-32 DDL but
+not bootstrap—the closed predicate selects `fresh` at boundary zero or
+`legacy_unverified` at `load_next_cursor`; the latter reports `degraded`. If
+either table is nonempty, both must form one valid authority. A one-sided,
+malformed, or contradictory authority fails closed rather than being guessed or
+overwritten. An existing valid authority is reused unchanged.
 
 Bootstrap is idempotent. A partial authority row set fails closed. The Engine
 recomputes and compares the serving declaration digest during open and before

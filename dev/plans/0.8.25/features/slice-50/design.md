@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 50 — compact source-complete evidence design
-status: DRAFT_RECONCILED_REVIEW_PENDING
-design_version: 5
+status: DRAFT_FIX_1_REVIEW_PENDING
+design_version: 6
 target_release: 0.8.25
 depends_on: 45
 architecture: dev/design/fathomdb-data-plane-architecture-v2.md
@@ -39,7 +39,7 @@ wording are allocated after 0.8.25.
 | S50-R1 opt-in carrier | S50-AC1 an evidence search returns one sidecar entry per hit, in result order, with matching index and artifact revision; any unrepresentable hit fails the whole call. Existing search results are unchanged. |
 | S50-R2 content-free reference | S50-AC2 the canonical reference is authenticated, database-scoped, at most 2 KiB, and contains no query/body/span/source/logical/natural identity, locator text, or eligibility value. Tamper and noncanonical encodings fail closed. |
 | S50-R3 exact one-source resolution | S50-AC3 success returns the exact artifact revision, source/version/revision, whole canonical UTF-8 body, selected byte-aligned span, SHA-256, validity/lifecycle state, projection origin, retrieval contribution, and optional registered dependency. |
-| S50-R4 eligibility-bound authorization | S50-AC4 resolution requires a valid newly supplied frozen context whose canonical resolved `ReadContextV1` exactly matches the originating envelope and whose current snapshot authorizes both artifact and source. A reference never grants access. |
+| S50-R4 eligibility-bound authorization | S50-AC4 resolution requires a valid newly supplied frozen context whose canonical resolved `ReadContextV1` exactly matches the originating envelope; the current snapshot applies the full filter to the artifact and the defined source-byte subset to the source. A reference never grants access. |
 | S50-R5 non-disclosure and lifecycle | S50-AC5 malformed, foreign, mismatched, invisible, stale, inactive, superseded, erased, missing, or closure-fenced cases return the same `evidence_unavailable` reason/path with no identity or state detail. Only an authenticated, visible row may return corruption/incomplete detail. |
 | S50-R6 atomicity and compatibility | S50-AC6 search, provenance resolution, and reference creation use one validated reader snapshot; no partial sidecar or persistence occurs. Existing APIs, schema 33, default SQL/hit shape, database, and WAL remain unchanged. |
 | S50-R7 parity | S50-AC7 Rust, Python, TypeScript, canonical JSON fixtures, fresh packages, restart, and Windows native builds agree on versions, u64/f64 encoding, errors, and exact bytes. |
@@ -98,14 +98,86 @@ ResolvedEvidenceV1 {
   evidence_text: string,
   canonical_source_hash: CanonicalHash,
   effective_valid_at: i64,
-  artifact_lifecycle_state: LifecycleState,
+  artifact_lifecycle: EvidenceArtifactLifecycleV1,
   source_lifecycle_state: LifecycleState,
-  superseded: bool,
   projection_origin: EvidenceProjectionOriginV1,
   retrieval_contribution: EvidenceContributionV1,
   dependency: SourceDependencyV1?
 }
 ```
+
+The nested types are closed and versioned:
+
+```text
+EvidenceArtifactClassV1 = node | edge
+
+EvidenceArtifactLifecycleV1 =
+  node { state: active | invalidated | deleted, superseded: bool }
+  edge { superseded: bool, valid_at_effective: bool }
+
+EvidenceArmV1 = vector | text | text_edge | graph_arm
+
+EvidenceGraphOriginV1 =
+  entity_seed
+  edge_seed { edge_artifact_revision_id: string }
+  traversal { edge_artifact_revision_id: string, hop_count: u32 }
+
+EvidenceProjectionOriginV1 {
+  schema_version: 1,
+  artifact_class: EvidenceArtifactClassV1,
+  representative_arm: EvidenceArmV1,
+  projection_generation_id: string,
+  graph_origin: EvidenceGraphOriginV1?
+}
+
+EvidenceContributionV1 {
+  schema_version: 1,
+  vector_rank: u32?,
+  text_rank: u32?,
+  graph_rank: u32?,
+  fused_score: finite f64,
+  ce_score: finite f64?,
+  blended_score: finite f64,
+  importance: finite f64?,
+  confidence: finite f64?
+}
+
+EvidenceErrorReasonV1 =
+  unsupported_schema_version
+  unknown_field
+  evidence_unavailable
+  evidence_incomplete
+  evidence_corrupt
+
+EvidenceErrorV1 {
+  reason: EvidenceErrorReasonV1,
+  field_path: RFC-6901 string
+}
+```
+
+`artifact_revision_id` and the resolved source fields always describe the
+artifact whose `body` appears in the associated `SearchHit`. For a graph-arm
+node that is the reached node and its own canonical source. `graph_origin`
+separately identifies the exact edge that introduced the candidate, when an
+edge exists. It does not claim that the edge's source bytes are the body
+evidence, and it is not full path evidence. An entity-FTS seed has no edge and
+uses `entity_seed`. An edge-matched endpoint uses `edge_seed`; a BFS neighbor
+uses `traversal` and the emitted hop count. Slice 60 may add full path evidence
+without changing this distinction.
+
+`soft_fallback` is query-level and remains only on the embedded
+`SearchResult`; it is not copied into every contribution. A nullable score is
+encoded as JSON `null`, never NaN or infinity. Rust `u64` values exposed to
+dynamic SDKs use canonical decimal strings; `u32` ranks and indexes use JSON
+numbers. Finite `f64` values use JSON numbers and the existing canonical JSON
+fixture spelling. Enum values use the lower-snake-case spellings above. An
+unknown request field, schema, enum, or identity/visibility/contribution
+variant rejects before execution. Additive unknown response fields may be
+ignored; unknown response variants reject. Unsupported request schemas use
+`unsupported_schema_version` at `/schemaVersion`; unknown request fields use
+`unknown_field` at the exact request field. Malformed or unknown reference
+payload variants intentionally collapse to `evidence_unavailable` at
+`/evidenceRef` so the reference cannot become a disclosure oracle.
 
 `Engine::search_with_evidence(&EvidenceSearchRequestV1)` and
 `Engine::resolve_evidence(&EvidenceResolveRequestV1)` are the only new Engine
@@ -129,47 +201,84 @@ read-context key.
 
 The payload contains only:
 
-1. format version and Engine-minted database identity;
-2. canonical originating `ReadContextV1` digest and effective validity instant;
+1. format version and a keyed commitment to the Engine-minted database
+   identity;
+2. a keyed commitment to the canonical originating `ReadContextV1` plus the
+   effective validity instant;
 3. artifact class plus internal numeric `write_cursor`;
-4. SHA-256 digests of artifact revision, source revision, locator columns, and
-   canonical source hash;
-5. Engine-minted projection-generation identity;
+4. domain-separated keyed commitments to artifact revision, source revision,
+   locator columns, and canonical source hash;
+5. a keyed commitment to Engine-minted projection-generation identity;
 6. closed retrieval-arm discriminant; and
 7. fixed nullable vector/text/graph ranks plus finite fused, CE, blended,
-   importance, and confidence values copied from `PerHitExplain`.
+   importance, and confidence values copied from `PerHitExplain`; for graph
+   candidates, a graph-origin discriminant, optional internal edge cursor,
+   keyed edge-revision commitment, and hop count.
 
 It never contains the query; artifact/source/logical/public identity text;
 body/span bytes; source/owner/scope/attribute value; locator/path text; or
 caller-defined projection name. Artifact and source revision IDs are returned
 in the sidecar/result only after authorization; the opaque reference stores
-their digests. Fixed contribution fields eliminate truncation and the prior
+their keyed commitments. Each commitment is
+`HMAC-SHA-256(database_key, field_domain || canonical_field_bytes)`, with a
+different fixed domain for database, context, artifact revision, source
+revision, locator, source hash, projection generation, and graph edge
+revision. No unkeyed digest of a private value appears in the reference.
+Fixed contribution fields eliminate truncation and the prior
 arbitrary 16-component ambiguity. Nonfinite scores, ranks above `u32`, unknown
 arms, oversized payloads, or noncanonical option encodings fail the entire
 opt-in search.
 
+Deliberately visible token metadata is limited to the format version,
+artifact class, internal numeric artifact cursor, arm/ranks/scores, effective
+validity instant, and—only for graph candidates—the internal edge cursor,
+origin kind, and hop count. These values are needed to locate and validate
+state or are authorized retrieval metadata; none is a caller identity or
+source/body commitment. The privacy suite tests not only plaintext markers but
+low-entropy candidate dictionaries: raw SHA-256 values for guessed source,
+revision, locator, hash, context, and generation values must not occur or be
+verifiable without the database-local key.
+
 ## Search and sidecar construction
 
 1. Validate the request and authenticate its frozen context.
-2. Dispatch the existing frozen search with `explain=true` on one reader
-   transaction. Eligibility remains before every retrieval-arm truncation.
+2. Dispatch the evidence-only reader request. Its transaction-owning wrapper
+   opens and validates one frozen reader transaction, then calls the shared
+   search-on-snapshot core with `explain=true` and a private
+   `EvidenceOriginCapture` implementation. Eligibility remains before every
+   retrieval-arm truncation.
 3. Before that transaction closes, validate the bound frozen snapshot again.
-   For each result, join `(artifact_class, write_cursor)` to exactly one
+   For each result, use its captured `(artifact_class, write_cursor)` to join
+   exactly one
    `_fathomdb_artifact_revisions` row and exactly one complete
    `_fathomdb_source_links` row. A derived artifact may additionally join one
-   Slice 20 dependency.
+   Slice 20 dependency. A graph origin carries the edge cursor captured at the
+   exact seed/traversal site; resolve and validate that edge revision in the
+   same transaction. Never infer it from the hit's legacy `source_id`.
 4. Validate that the hit, explanation entry, revision row, source link,
-   projection generation, and dependency agree. Build the sidecar and HMAC
+   projection generation, graph origin, and dependency agree. The existing
+   GraphArm `SearchHit.source_id` remains the traversed edge's source for
+   compatibility and may differ from the node body source returned by evidence;
+   that difference is expected and is not an agreement condition. Build the
+   sidecar and HMAC
    references in memory. Any missing, duplicate, incomplete, over-cap, or
    inconsistent row fails the whole operation.
 5. Revalidate the frozen binding on the same transaction, commit the read, and
    return. Strip `SearchResult.explanation` when `include_explanation=false`.
 
-The implementation extends the existing reader request/result only for this
-new operation. It must not run search and provenance lookup on different
-snapshots, and it must not add provenance work or a feature branch to any
-existing search call. No evidence row, query, sidecar, or reference is written
-to SQLite, WAL, telemetry, or an Engine cache.
+The implementation factors the current transaction body into a private
+`read_search_on_snapshot<C: SearchOriginCapture>` core. The existing
+`read_search_in_tx` remains the transaction-owning ordinary wrapper and calls
+the core with a zero-sized `NoEvidenceCapture`; monomorphization and inlining
+remove capture calls, branches, maps, provenance SQL, and allocations from that
+path. A separate `read_search_with_evidence_in_tx` wrapper owns the evidence
+transaction and calls the same core with `EvidenceOriginCapture`. Candidate
+creation records artifact class at node/edge hydration. Graph candidate
+creation additionally records `entity_seed`, or the exact edge cursor and hop
+at the seed/traversal statement. Fusion retains the origin of its existing
+representative hit. This is the required same-snapshot seam: search and
+provenance lookup never run in different transactions. No evidence row, query,
+sidecar, or reference is written to SQLite, WAL, telemetry, or an Engine cache.
 
 Content-ID hits may resolve only when their internal cursor has a complete
 Slice 15 provenance row. Legacy `migrated_incomplete` rows make the entire
@@ -187,7 +296,8 @@ change only when:
 - its frozen snapshot validates now;
 - its effective validity instant and canonical context digest exactly equal
   the origin; and
-- its view and eligibility currently admit both artifact and canonical source.
+- its view and eligibility currently admit the artifact, while the source-byte
+  authorization subset below admits the canonical source.
 
 Callers re-mint equivalently by passing the original resolved
 `frozen.context`, including its concrete `valid_as_of`. A broader, narrower, or
@@ -209,9 +319,10 @@ Resolution runs in one reader transaction and uses this fixed order:
 3. authenticate and validate the supplied frozen context;
 4. authenticate and canonically decode the reference/database identity;
 5. compare the exact context digest and effective validity instant;
-6. locate the artifact/source rows by internal cursor, verify all identity
-   digests, and apply the supplied view and eligibility to both rows before
-   returning any field;
+6. locate the artifact/source rows by internal cursor, verify all keyed
+   commitments, apply the full supplied view and eligibility to the artifact,
+   and apply the source-byte authorization subset below before returning any
+   field;
 7. recheck Slice 30 source/dependent closure barriers and current lifecycle,
    erasure, validity, and supersession state;
 8. only after current authorization, validate provenance completeness,
@@ -246,6 +357,28 @@ may escape:
 
 Storage failure and Engine closing retain their existing top-level errors.
 
+### Eligibility subjects
+
+The origin search and current resolution apply the complete `SearchFilter` to
+the returned artifact. Predicates do not silently change subjects:
+
+| Predicate | Hit artifact | Canonical source bytes |
+| --- | --- | --- |
+| `source_type` | Apply using existing node/edge search semantics. | Do not apply; it classifies the candidate artifact. |
+| `kind` | Apply to the node kind or edge relation exactly as search does. | Do not apply; a derived claim and its source document legitimately differ. |
+| `created_after` | Apply using the existing indexed candidate metadata. | Apply to the canonical source's indexed metadata. |
+| `status` | Apply using the existing indexed candidate metadata. | Apply to the canonical source's indexed metadata. |
+| every declared attribute equality | Apply before candidate truncation. | Apply to the source's own `canonical_attributes` row; missing or unequal denies bytes. |
+
+The supplied `ReadView`, source lifecycle/supersession state, validity at the
+effective instant, erasure state, and dependency-closure barrier always apply
+to the canonical source. Thus a derived `kind=claim` may resolve a canonical
+`kind=document` when their access-bearing metadata agrees, while an owner/scope
+attribute mismatch or absence returns only `evidence_unavailable`. FathomDB
+does not assign semantic meaning to attribute names; conservatively applying
+every caller-supplied attribute term prevents an eligible derived row from
+bypassing source-byte eligibility.
+
 ## Exact bytes and lifecycle semantics
 
 The canonical source is the node named by `source_revision_id`. Resolution
@@ -254,9 +387,14 @@ bytes, and compares the stored whole-source hash. `WholeBody` returns that body
 as `evidence_text`; `Utf8Bytes` returns the half-open byte slice only if both
 bounds are ordered, in range, and code-point aligned.
 
-`artifact_lifecycle_state` and `source_lifecycle_state` are parsed from their
-current canonical rows. `superseded` is false on strict search origins; a
-valid-as-of request may resolve historical world-time content, but this slice
+`artifact_lifecycle` is total by captured class. A node reports its closed
+`LifecycleState` and `superseded` flag. An edge reports its `superseded` flag
+and whether its validity interval contains the effective instant; edges do not
+fabricate the node-only `state` axis. The canonical source is always a node and
+reports `source_lifecycle_state`. Successful strict resolution reports an
+active, nonsuperseded, valid artifact and source; the fields remain explicit so
+the evidence is self-describing. A valid-as-of request may resolve historical
+world-time content, but this slice
 does not make search version-complete and continues to reject
 `include_superseded`/`include_inactive` on search. Transaction-history access is
 not implied.
@@ -265,8 +403,8 @@ Physical erasure removes the revision/link/source bytes. A retained reference
 then returns only `evidence_unavailable`. Supersession, deletion, invalidation,
 or closure fencing does the same under a strict origin envelope. Reactivation
 may make a still-matching revision resolvable again only if all original
-identity digests and the exact context remain valid; a replaced revision does
-not inherit the old reference.
+keyed identity commitments and the exact context remain valid; a replaced
+revision does not inherit the old reference.
 
 ## Compatibility, privacy, and performance
 
@@ -275,7 +413,8 @@ not inherit the old reference.
 - Reference creation is opt-in and stateless. A before/after database, WAL,
   query-log, and telemetry witness proves no new persistence.
 - A privacy fixture uses unique query, source, logical, revision, owner, and
-  body markers and scans decoded reference payload/string output for each.
+  body markers, scans decoded reference payload/string output for each, and
+  attempts low-entropy SHA-256 dictionary matches against every keyed field.
 - The 2 KiB limit and fixed contribution shape bound per-hit memory. The result
   limit remains 100, bounding one response to 100 references.
 - Slice 75 measures evidence create/resolve latency and memory in its integrated
@@ -293,11 +432,15 @@ The preserved RED set includes:
    and valid-as-of cases;
 2. property tests for canonical codec round-trip, single-bit tamper, length,
    noncanonical encodings, finite floats, and privacy markers;
-3. exact sidecar order/association, explanation composition, graph/text/vector
-   contribution, and whole-request rollback on one incomplete hit;
+3. exact sidecar order/association, explanation composition, node-text/vector,
+   edge-text/vector, and graph entity-seed/edge-seed/traversal contribution;
+   graph cases prove body-source versus traversal-edge distinction, and one
+   incomplete hit causes whole-request rollback;
 4. wrong database, mismatched/broader/narrower context, supersession,
    lifecycle deletion, erasure, validity, eligibility, closure fence, and
    replacement all producing byte-identical `evidence_unavailable` errors;
+   derived-source fixtures prove different artifact/source kinds can succeed,
+   while missing or different owner/scope-style attributes deny bytes;
 5. authorized locator/hash/link/dependency/generation corruption producing only
    `evidence_corrupt`, and visible legacy rows producing
    `evidence_incomplete`;

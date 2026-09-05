@@ -28,3 +28,19 @@ routes, but found nine remaining implementation-shaping gaps.
 | DR40-55 fresh-versus-legacy predicate undefined | P2 | Define a closed bootstrap manifest covering content, registry, receipts, enrolment, terminals, physical rows, and cursors. |
 
 No implementation begins until the cycle-4 reviewer verifies these corrections.
+
+## Correction verification follow-up
+
+Verification of the first correction at `f1261481` closed DR40-46, DR40-48,
+DR40-49, and DR40-51 through DR40-54. It kept DR40-47/50 open because source
+restoration must not implicitly re-admit a dependency-closed derived node, and
+kept DR40-55 open because the bootstrap manifest omitted receipt-source
+references and did not dispose every system/config table.
+
+Design v7 now makes registered-derived membership lifecycle-aware, defines one
+complete explicit-reactivation projection path shared by ordinary and actuation
+transitions, adds both restoration sequences to tests, includes receipt-source
+references and the remaining content-bearing tables, and gives open-state,
+read-visibility, default-profile, and seeded collection rows exact baseline
+dispositions. A final exact-commit verification of this same cycle remains
+required.

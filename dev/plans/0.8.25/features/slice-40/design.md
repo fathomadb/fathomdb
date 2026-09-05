@@ -171,16 +171,32 @@ closed bootstrap-content manifest is empty and every persisted cursor in
 - canonical nodes and edges;
 - artifact revisions, source versions, source links, source dependencies, and
   dependency closures;
+- actuation receipts and `_fathomdb_actuation_receipt_source_refs`, including
+  ownerless receipt-reference rows;
 - projection registry, canonical attributes, projection state and terminal
   rows, vector-kind enrolment, vector sidecars, and every logical FTS/vec0
   owner row;
-- actuation receipts, operational mutations, and operational-state rows; and
+- embed-probe rows, operational mutations, operational-state rows, and every
+  operational collection except the exact seeded `projection_failures`
+  declaration; and
 - reserved migration and projection cursors.
 
 System schema metadata, the singleton open-state row itself, and the default
 embedder-profile row established immediately before this predicate are not
-content. FTS shadow tables are not inspected independently when their logical
-virtual table has no owner rows.
+content only when their shape and values equal the release defaults and the
+profile has no pinned mean. The one-row `_fathomdb_read_visibility_state` is
+validated as well-formed but its counter value is excluded because it is an
+internal invalidation clock, not content.
+
+The `_fathomdb_open_state` disposition is closed: valid database-ID and
+read-context-key rows are excluded; dependency generation, closure sequence,
+projection cursor, and TC-33 reserved cursor are excluded only at canonical
+zero/absence; completed tokenizer-reproject and edge-vector-prune markers are
+excluded only at their exact value `1`; a vector-equivalence verdict cache row
+is included; and any unknown key or nonbaseline value is included. Malformed
+values already rejected by their owning open-time validator remain corruption,
+not merely legacy. FTS shadow tables are not inspected independently when their
+logical virtual table has no owner rows.
 
 Therefore an upgraded database containing only schema/default-profile state is
 fresh. A configured-but-ownerless registry, a receipt, an enrolment or terminal
@@ -273,14 +289,19 @@ A non-erased canonical node is a dense member exactly when all are true:
 
 1. `projection_owner_is_eligible_at` accepts its source at the status
    transaction's effective instant;
-2. `row_kind` is `leaf` or `coverage`;
-3. its `kind` is accepted by `kind_is_vector_committable`; and
-4. `vector_projection_declared` is true.
+2. if it has a registered source dependency, its own lifecycle state is
+   `active`; a soft-closed derived node remains excluded after its source is
+   restored until the caller explicitly reactivates it;
+3. `row_kind` is `leaf` or `coverage`;
+4. its `kind` is accepted by `kind_is_vector_committable`; and
+5. `vector_projection_declared` is true.
 
-Node lifecycle state and supersession do not independently change membership;
-strict source eligibility may remove it. Search eligibility still filters the
-remaining rows before ranking under Slice 35. This matches the node projector's
-retained physical corpus while honoring Slice-30 dependency eligibility.
+An ordinary node without a registered source dependency retains the shipped
+lifecycle-independent physical membership for relaxed reads. A registered
+derived node is lifecycle-aware because Slice 30 deliberately erases all of its
+row-owned projections on source soft closure. Strict source eligibility may
+also remove it. Search eligibility still filters remaining rows before ranking
+under Slice 35.
 
 Runtime availability is not identity or applicability. Kind enrolment is
 derived scheduler state, not policy; a declared, committable row remains
@@ -365,6 +386,28 @@ probe must also find scheduler-pending rows below that cursor. A non-empty
 below-watermark set rewinds the cursor before dispatch. The existing
 `reenqueue_stranded_vector_rows` path remains the legitimate-stranded repair.
 
+Explicit `deleted -> active` transition of a registered derived node is the
+only re-admission path after dependency soft closure; restoring the source alone
+does not reactivate or reproject its dependents. Both ordinary transition and
+Slice-25 actuation call one transactional helper after the accepted Slice-30
+reactivation guard. The helper:
+
+1. validates the exact expected node FTS rows and rebuilds any missing node FTS
+   synchronously from canonical body;
+2. applies the existing attribute/property restoration;
+3. leaves a valid complete dense triple unchanged;
+4. for all-missing dense state or a terminalized no-vector state, ensures kind
+   enrolment, removes the terminal, rewinds the scheduler cursor below the
+   owner, and records post-commit notification; and
+5. rejects every partial or mismatched dense tuple as typed corruption before
+   changing lifecycle state.
+
+This is deterministic projection repair attached to explicit lifecycle
+actuation, not automatic semantic reactivation. Tests cover source delete,
+source restore with the dependent still deleted and out of membership, explicit
+dependent reactivation rebuilding FTS and reopening dense work, and equivalent
+ordinary/actuation behavior.
+
 ## Boundary-qualified readiness
 
 Each status call starts one reader transaction and computes:
@@ -380,10 +423,11 @@ Each status call starts one reader transaction and computes:
 
 `ready_through = B` means: every physical projection member with cursor at most
 B is complete. It does **not** assert that every integer cursor is a projection
-owner. Erased owners leave no residue. Node membership is lifecycle-independent;
-strict source eligibility, erasure, or an active Slice-30 physical closure fence
-may remove a node member. The explicitly governed edge-closure and expiry rules
-may also remove an edge member.
+owner. Erased owners leave no residue. Ordinary-node lifecycle does not remove
+membership; registered derived-node lifecycle, strict source eligibility,
+erasure, or an active Slice-30 physical closure fence may remove it. The
+explicitly governed edge-closure and expiry rules may also remove an edge
+member.
 Reserved, rolled-back, operational,
 redaction, closure, consolidation, audit, and migration cursors affect the
 observed high-water but never become phantom projection work.
@@ -587,7 +631,7 @@ adds a closed-source audit so a future unclassified mutator fails tests.
 | Full or vec0 operator rebuild | Mint | Freeze/drain, retire/install metadata in rebuild transaction, rebuild in place, expose processing/degraded until complete. |
 | Boot registry rederive | Reuse | Compare the exact expected ordered EAV/property-FTS rows with persisted rows; healthy equality performs no transaction or write, while detected drift uses the existing atomic clear/backfill repair and invalidates visibility. |
 | Boot/late runtime graft and unstrand | Reuse | Enrol/reopen pending work atomically, then notify after commit. |
-| Pending to active lifecycle | Reuse | Add sync attributes atomically; retained node dense membership is unchanged. |
+| Pending/deleted to active lifecycle | Reuse | Restore sync attributes; for a dependency-closed derived node also restore missing FTS and transactionally reopen all-missing or terminalized-no-vector dense work, then notify after commit. |
 | Supersede/invalidate/close | Reuse | Retain node FTS/dense history for relaxed reads; remove an edge from its current dense membership under the shipped edge rule. |
 | Purge/source erasure | Reuse | Remove owner, terminal, and physical rows under Slice-30 fence; no generation residue. |
 | Historical tokenizer repair | Reuse | Predates generation bootstrap and completes before Engine publication. Any future tokenizer semantic change must mint. |
@@ -728,7 +772,7 @@ RED is committed separately and uses real SQLite databases.
 |---|---|
 | `step32_projection_generation` | Additive shape, checks/indexes/triggers, fresh/upgrade bootstrap, no content migration, partial/corrupt authority rejection. |
 | `slice40_projection_generation` | ID grammar/collision retry, restart/copy/no reuse, declaration digest goldens, no-op stability, config/rebuild mint, legacy degradation. |
-| `slice40_projection_completion` | Exact node/edge physical membership, every state-table row, below-watermark rediscovery, no-runtime, late graft, inactive/superseded/out-of-window nodes, edge expiry, failure, erasure, and unsupported kinds. |
+| `slice40_projection_completion` | Exact node/edge physical membership, every state-table row, below-watermark rediscovery, no-runtime, late graft, inactive/superseded/out-of-window nodes, source delete/restore without dependent re-admission, explicit derived reactivation, edge expiry, failure, erasure, and unsupported kinds. |
 | `slice40_mutation_projection_status` | Exact Slice-25 pending construction, usable-runtime latched receipt through processing/ready, no-runtime generation-level blocked/deferred behavior, persist/replay, operation/cursor membership, required expected ID, retired/legacy/redacted/erased behavior, canonical wire/property round trips. |
 | `slice40_projection_generation_races` | Write/publication, closure, erasure, configure/rebuild, restart at transition points, duplicate publication, captured-generation stale-job discard at queued/computing/lock/publish seams, and old/new reader linearization. |
 | `slice35_frozen_read` additions | Token codec unchanged, v1-to-v2 drift, generation/readiness drift, restart stability, trigger/source manifest. |

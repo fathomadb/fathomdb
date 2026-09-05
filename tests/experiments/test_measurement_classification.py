@@ -618,6 +618,7 @@ def test_portable_repository_gate_loads_post_cutover_plan_and_sidecar(tmp_path):
             },
             "historical_manifest_path": str(manifest_path.relative_to(tmp_path)),
             "superseded_postcutover_runs": [],
+            "postcutover_plan_amendments": [],
         },
     )
 
@@ -653,6 +654,59 @@ def test_source_bound_plan_amendment_preserves_immutable_post_cutover_record(tmp
             record_path,
             {"run_id": "immutable", "config": {"resolved": {}}},
             {"immutable": amendment},
+        )
+
+
+def test_source_bound_plan_amendment_is_required_only_for_missing_embedded_plan(
+    tmp_path,
+):
+    record_path = tmp_path / "record.json"
+    embedded = {"path": "plan.json", "sha256": "a" * 64, "plan_id": "plan"}
+    record = {
+        "run_id": "immutable",
+        "config": {"resolved": {"measurement_plan": embedded}},
+    }
+    _write_json(record_path, record)
+    amendment = {
+        "run_id": "immutable",
+        "record_sha256": _sha(record_path),
+        "reason": "missing_plan_in_immutable_postcutover_record",
+        "measurement_plan": embedded,
+    }
+
+    with pytest.raises(mc.ClassificationError, match="unnecessary"):
+        mc._resolve_postcutover_plan_reference(  # noqa: SLF001 - receipt contract
+            record_path, record, {"immutable": amendment}
+        )
+
+    record["config"]["resolved"].pop("measurement_plan")
+    _write_json(record_path, record)
+    with pytest.raises(mc.ClassificationError, match="measurement plan is missing"):
+        mc._resolve_postcutover_plan_reference(  # noqa: SLF001 - receipt contract
+            record_path, record, {}
+        )
+
+
+def test_source_bound_plan_amendment_inventory_rejects_duplicate_and_dangling_entries():
+    plan_ref = {"path": "plan.json", "sha256": "a" * 64, "plan_id": "plan"}
+    entry = {
+        "run_id": "immutable",
+        "record_sha256": "b" * 64,
+        "reason": "missing_plan_in_immutable_postcutover_record",
+        "measurement_plan": plan_ref,
+    }
+
+    with pytest.raises(mc.ClassificationError, match="duplicate"):
+        mc._parse_postcutover_plan_amendments(  # noqa: SLF001 - policy contract
+            [entry, copy.deepcopy(entry)]
+        )
+
+    amendments = mc._parse_postcutover_plan_amendments(  # noqa: SLF001
+        [entry]
+    )
+    with pytest.raises(mc.ClassificationError, match="inventory is not closed"):
+        mc._validate_closed_amendment_inventory(  # noqa: SLF001 - policy contract
+            set(), amendments
         )
 
 

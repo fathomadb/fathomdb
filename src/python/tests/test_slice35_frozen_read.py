@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 
 import fathomdb
@@ -10,15 +12,26 @@ import fathomdb
 def _doc(logical_id: str, body: str, owner: str) -> dict[str, object]:
     return {
         "kind": "doc",
-        "body": body,
+        "body": json.dumps({"text": body, "owner": owner}),
         "logical_id": logical_id,
         "source_id": f"slice35:{logical_id}",
-        "properties": {"owner": owner},
     }
+
+
+def _configure_owner_filter(engine: fathomdb.Engine) -> None:
+    engine.configure_projections(
+        [
+            fathomdb.ProjectionSpec(
+                name="owner",
+                roles=frozenset({fathomdb.ProjectionRole.FILTERABLE}),
+            )
+        ]
+    )
 
 
 def test_frozen_search_preserves_context_and_filters_before_ranking(db_path: str) -> None:
     engine = fathomdb.Engine.open(db_path, use_default_embedder=False)
+    _configure_owner_filter(engine)
     engine.write(
         [
             _doc("allowed", "needle allowed", "alice"),
@@ -52,6 +65,7 @@ def test_frozen_context_rejects_state_drift(db_path: str) -> None:
 
 def test_frozen_search_expand_uses_the_same_context(db_path: str) -> None:
     engine = fathomdb.Engine.open(db_path, use_default_embedder=False)
+    _configure_owner_filter(engine)
     engine.write([_doc("root", "expand needle", "alice")])
     frozen = engine.freeze_read_context(
         fathomdb.ReadContextV1(

@@ -18,6 +18,15 @@ fn step33_installs_unique_page_indexes_and_state_visibility_triggers() {
             .unwrap();
         assert_eq!(unique, 1, "{name}");
     }
+    let state_cursor_index: i64 = connection
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_index_list('operational_state') \
+             WHERE name='operational_state_write_cursor_idx' AND [unique]=0",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(state_cursor_index, 1, "frozen boundary lookup must not scan latest state");
     for short in ["oc", "os"] {
         for suffix in ["ai", "au", "ad"] {
             let name = format!("_fathomdb_read_visibility_{short}_{suffix}");

@@ -26,8 +26,8 @@ The successor architecture and delivery plan are
 and [`fathomdb-data-plane-foldback-v2.md`](fathomdb-data-plane-foldback-v2.md).
 Architecture v2.1 is the active implementation authority following the completed
 Slice 4–6 review/decision work and the S7-07 architecture package. Slices 7
-through 30 are complete on the release branch; the canonical release state
-below now commissions Slice 35.
+through 35 are complete on the release branch; the canonical release state
+below now commissions Slice 40.
 
 ## Setup record
 
@@ -108,13 +108,13 @@ backward dependency.
 | 4 | Review proposed architecture against Slices 0–3 and high-level code alignment; write change proposals only. | 3 | Complete (`51043e20`) |
 | 5 | Review verification adequacy from needs through requirements, acceptance criteria, tests, critical paths, and release goals. | 4 | Complete (`51043e20`) |
 | 6 | Consolidate and score proposals, conduct interactive HITL decisions, write/review the Slice 7 plan, and update the release plan. | 5 | Complete on release branch (`3a35c1e6`; approved `seq-274`) |
-| 7 | Implement only HITL-approved repository-preparation work from Slices 0–6 with TDD/review/independent verification; write status and clean isolated worktrees. | 6 | Ready |
-| 10 | Make measurement-layer classification executable, including whether `Engine.search` ran and which compared components differed. | 7 | Not started |
-| 15 | Add immutable record-revision identity, caller source-version identity, exact source locators, canonical hashes, and missing Rust-facade identity exports. | 10 | Not started |
-| 20 | Add core queryable canonical-source-to-derived dependency registration, bounded lookup, validation, and cycle rejection. | 15 | Not started |
-| 25 | Add a bounded model-free atomic batch for caller-decided records, core dependencies, and lifecycle actions with compact idempotent receipts. | 20 | Not started |
-| 30 | Close lifecycle and erasure across registered dependencies with visibility fencing, idempotent propagation, and no-active-orphan proof. | 25 | Not started |
-| 35 | Add uniform indexed eligibility before lexical, vector, or graph truncation plus an optional Engine-minted frozen read context. | 30 | Not started |
+| 7 | Implement only HITL-approved repository-preparation work from Slices 0–6 with TDD/review/independent verification; write status and clean isolated worktrees. | 6 | Complete (`fdbae48a`) |
+| 10 | Make measurement-layer classification executable, including whether `Engine.search` ran and which compared components differed. | 7 | Complete (`f383ec82`) |
+| 15 | Add immutable record-revision identity, caller source-version identity, exact source locators, canonical hashes, and missing Rust-facade identity exports. | 10 | Complete (`9a53e26a`) |
+| 20 | Add core queryable canonical-source-to-derived dependency registration, bounded lookup, validation, and cycle rejection. | 15 | Complete (`7766d4c4`) |
+| 25 | Add a bounded model-free atomic batch for caller-decided records, core dependencies, and lifecycle actions with compact idempotent receipts. | 20 | Complete (`131053da`) |
+| 30 | Close lifecycle and erasure across registered dependencies with visibility fencing, idempotent propagation, and no-active-orphan proof. | 25 | Complete (`75617521`) |
+| 35 | Add uniform indexed eligibility before lexical, vector, or graph truncation plus an optional Engine-minted frozen read context. | 30 | Complete (`071ff7d1`) |
 | 40 | Add core durable projection-generation identity, false-readiness prevention, restart-safe advancement, and compact mutation-to-ready correlation. | 35 | Not started |
 | 45 | Add minimal stable canonical pagination plus governed `operational_state` point/page reads while keeping `latest_state` a consumer concept. | 40 | Not started |
 | 50 | Add compact opt-in source-complete evidence resolution under the original or equivalent eligibility envelope. | 45 | Not started |
@@ -205,14 +205,14 @@ review after two bounded FIX cycles and was approved at `seq-274`.
 ## Immediate next slice
 
 <!-- BEGIN GENERATED release-state:0.8.25:plan-immediate-next -->
-**IMMEDIATE NEXT: Slice 35** (`ELIGIBILITY`) — eligibility-before-ranking and optional frozen reads
+**IMMEDIATE NEXT: Slice 40** (`READINESS`) — core projection generation and readiness correlation
 
-**Remaining ladder:** 35 → 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
+**Remaining ladder:** 40 → 45 → 50 → 55 → 60 → 75.<!-- END GENERATED release-state:0.8.25:plan-immediate-next -->
 
-Execute the Slice 35 plan directly. Reconcile eligibility and optional frozen
-reads against the completed identity, dependency, actuation, and lifecycle
-substrates; then use TDD, independent design and implementation review, and
-read-only verification.
+Execute the Slice 40 plan directly. Reconcile projection generation and
+readiness correlation against the completed identity, dependency, actuation,
+lifecycle, eligibility, and frozen-read substrates; then use TDD, independent
+design and implementation review, and read-only verification.
 
 ## Stop gates
 

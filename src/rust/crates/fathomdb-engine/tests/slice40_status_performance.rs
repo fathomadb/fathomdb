@@ -10,6 +10,7 @@ use fathomdb_engine::{
     ProjectionVector, ProvenancedNodeV1, SourceId, SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
+use serde_json::json;
 use tempfile::TempDir;
 
 #[derive(Debug)]
@@ -198,13 +199,34 @@ fn measure_generation_and_mutation_status_at_50k() {
     let started = Instant::now();
     assert!(opened.engine.read_mutation_projection_status(request).is_err());
     let post_transition_mutation_ms = started.elapsed().as_secs_f64() * 1_000.0;
-    let device = std::env::var("FATHOM_SLICE40_STATUS_DEVICE").unwrap_or_else(|_| "cpu".into());
+    let build_variant =
+        std::env::var("FATHOM_SLICE40_STATUS_BUILD_VARIANT").unwrap_or_else(|_| "cpu".into());
+    let query_plans = opened.engine.projection_generation_status_query_plans_for_test().unwrap();
     println!(
-        "{{\"schema_version\":\"scale-02-slice40-status.v1\",\"device\":\"{device}\",\"records\":{records},\"warmups\":{warmups},\"samples\":{samples},\"errors\":0,\"timeouts\":0,\"cold_generation_ms\":{cold_generation_ms:.6},\"cold_mutation_ms\":{cold_mutation_ms:.6},\"configuration_transition_ms\":{configuration_transition_ms:.6},\"post_transition_generation_ms\":{post_transition_generation_ms:.6},\"post_transition_mutation_ms\":{post_transition_mutation_ms:.6},\"generation_p95_ms\":{:.6},\"generation_p99_ms\":{:.6},\"mutation_p95_ms\":{:.6},\"mutation_p99_ms\":{:.6},\"steady_full_owner_scans\":{steady_full_owner_scans},\"epoch_rollover_full_owner_scans\":{epoch_rollover_full_owner_scans}}}",
-        generation_p95_ms,
-        generation_p99_ms,
-        mutation_p95_ms,
-        mutation_p99_ms,
+        "{}",
+        json!({
+            "schema_version": "scale-02-slice40-status.v2",
+            "build_variant": build_variant,
+            "status_compute_device": "cpu",
+            "measurement_embedder": "fixed-test-cpu",
+            "records": records,
+            "warmups": warmups,
+            "samples": samples,
+            "errors": 0,
+            "timeouts": 0,
+            "cold_generation_ms": cold_generation_ms,
+            "cold_mutation_ms": cold_mutation_ms,
+            "configuration_transition_ms": configuration_transition_ms,
+            "post_transition_generation_ms": post_transition_generation_ms,
+            "post_transition_mutation_ms": post_transition_mutation_ms,
+            "generation_p95_ms": generation_p95_ms,
+            "generation_p99_ms": generation_p99_ms,
+            "mutation_p95_ms": mutation_p95_ms,
+            "mutation_p99_ms": mutation_p99_ms,
+            "steady_full_owner_scans": steady_full_owner_scans,
+            "epoch_rollover_full_owner_scans": epoch_rollover_full_owner_scans,
+            "query_plans": query_plans,
+        })
     );
     assert!(generation_p95_ms <= 5.0, "generation status p95 exceeded 5 ms");
     assert!(generation_p99_ms <= 10.0, "generation status p99 exceeded 10 ms");

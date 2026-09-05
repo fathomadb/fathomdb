@@ -126,10 +126,26 @@ def test_worker_result_rejects_wrong_counts() -> None:
     with pytest.raises(scale_02_slice40.Slice40ScaleError, match="counts"):
         scale_02_slice40.validate_worker_counts(result, config()["workload"])  # type: ignore[arg-type]
 
+    one_operation = {
+        **config()["workload"],  # type: ignore[dict-item]
+        "records": 1,
+        "batch_size": 1,
+        "expected_receipts": 1,
+    }
+    result.update(
+        records=1,
+        batch_size=1,
+        receipt_count=1,
+        operation_count=1,
+        pending_receipt_count=1,
+        pending_cursor_count=1,
+    )
+    scale_02_slice40.validate_worker_counts(result, one_operation)
+
 
 def status_result(*, device: str, generation_p95: float = 0.02) -> dict[str, object]:
     return {
-        "schema_version": "scale-02-slice40-status.v1",
+        "schema_version": "scale-02-slice40-status.v2",
         "build_variant": device,
         "status_compute_device": "cpu",
         "measurement_embedder": "fixed-test-cpu",
@@ -155,7 +171,7 @@ def status_result(*, device: str, generation_p95: float = 0.02) -> dict[str, obj
 
 def test_status_verdict_requires_five_exact_cpu_cuda_repetitions() -> None:
     cpu = [status_result(device="cpu") for _ in range(5)]
-    cuda = [status_result(device="cuda:0", generation_p95=0.03) for _ in range(5)]
+    cuda = [status_result(device="cuda", generation_p95=0.03) for _ in range(5)]
     assert (
         scale_02_slice40.status_verdict(
             cpu, cuda, config()["workload"], config()["policy"]  # type: ignore[arg-type]

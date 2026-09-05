@@ -69,6 +69,21 @@ fn file_len(path: &Path) -> u64 {
     fs::metadata(path).map_or(0, |metadata| metadata.len())
 }
 
+fn table_rows(connection: &Connection, table: &str) -> Option<u64> {
+    let exists: bool = connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name=?1)",
+            [table],
+            |row| row.get(0),
+        )
+        .expect("inspect table existence");
+    exists.then(|| {
+        connection
+            .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row.get(0))
+            .expect("count measurement table")
+    })
+}
+
 fn main() {
     let arguments = std::env::args().collect::<Vec<_>>();
     assert_eq!(
@@ -164,6 +179,22 @@ fn main() {
         .expect("reopen for projection completion");
     settled.engine.drain(120_000).expect("complete pending projections");
     drop(settled);
+    let settled_connection = Connection::open(&path).expect("inspect settled database");
+    let settled_row_counts = [
+        "canonical_nodes",
+        "_fathomdb_artifact_revisions",
+        "_fathomdb_source_versions",
+        "_fathomdb_source_links",
+        "_fathomdb_actuation_receipts",
+        "_fathomdb_projection_generations",
+        "_fathomdb_projection_terminal",
+        "_fathomdb_vector_rows",
+        "vector_default",
+    ]
+    .into_iter()
+    .map(|table| (table.to_string(), json!(table_rows(&settled_connection, table))))
+    .collect::<serde_json::Map<_, _>>();
+    drop(settled_connection);
 
     let mut open_ns = Vec::with_capacity(open_samples);
     for index in 0..(open_warmups + open_samples) {
@@ -199,6 +230,7 @@ fn main() {
             "generation_table_bytes": generation_table_bytes,
             "receipt_table_bytes": receipt_table_bytes,
             "receipt_generation_payload_bytes": receipt_generation_payload_bytes,
+            "settled_row_counts": settled_row_counts,
             "errors": 0,
             "timeouts": 0,
         })

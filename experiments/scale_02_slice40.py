@@ -9,6 +9,7 @@ import json
 import os
 import random
 import shutil
+import sqlite3
 import statistics
 import subprocess
 import tarfile
@@ -60,7 +61,9 @@ _POLICY = {
 }
 _STATUS_RESULT_KEYS = {
     "schema_version",
-    "device",
+    "build_variant",
+    "status_compute_device",
+    "measurement_embedder",
     "records",
     "warmups",
     "samples",
@@ -77,6 +80,7 @@ _STATUS_RESULT_KEYS = {
     "mutation_p99_ms",
     "steady_full_owner_scans",
     "epoch_rollover_full_owner_scans",
+    "query_plans",
 }
 
 
@@ -233,11 +237,21 @@ def validate_worker_counts(
 def parse_status_result(document: object) -> dict[str, Any]:
     """Validate one exact CPU or CUDA status-measurement result."""
     result = _exact(document, "status result", _STATUS_RESULT_KEYS)
-    if result["schema_version"] != "scale-02-slice40-status.v1":
+    if result["schema_version"] != "scale-02-slice40-status.v2":
         raise Slice40ScaleError("status result schema drifted")
-    device = result["device"]
-    if device not in {"cpu", "cuda:0"}:
-        raise Slice40ScaleError("status result device drifted")
+    if result["build_variant"] not in {"cpu", "cuda"}:
+        raise Slice40ScaleError("status result build variant drifted")
+    if result["status_compute_device"] != "cpu":
+        raise Slice40ScaleError("SQLite status computation must be identified as CPU")
+    if result["measurement_embedder"] != "fixed-test-cpu":
+        raise Slice40ScaleError("status fixture embedder identity drifted")
+    query_plans = result["query_plans"]
+    if (
+        not isinstance(query_plans, list)
+        or not query_plans
+        or any(not isinstance(value, str) or not value for value in query_plans)
+    ):
+        raise Slice40ScaleError("status query plans must be a non-empty string list")
     for field in (
         "records",
         "warmups",
@@ -252,7 +266,10 @@ def parse_status_result(document: object) -> dict[str, Any]:
             raise Slice40ScaleError(f"status result {field} must be a nonnegative integer")
     for field in _STATUS_RESULT_KEYS - {
         "schema_version",
-        "device",
+        "build_variant",
+        "status_compute_device",
+        "measurement_embedder",
+        "query_plans",
         "records",
         "warmups",
         "samples",
@@ -265,6 +282,33 @@ def parse_status_result(document: object) -> dict[str, Any]:
         if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
             raise Slice40ScaleError(f"status result {field} must be nonnegative")
     return result
+
+
+def inspect_status_database(path: Path) -> dict[str, int]:
+    """Return closed-database storage and retained-generation observations."""
+    wal = path.with_name(path.name + "-wal")
+    with sqlite3.connect(f"file:{path}?mode=ro", uri=True) as connection:
+        page_count = int(connection.execute("PRAGMA page_count").fetchone()[0])
+        page_size = int(connection.execute("PRAGMA page_size").fetchone()[0])
+        generations = int(
+            connection.execute(
+                "SELECT COUNT(*) FROM _fathomdb_projection_generations"
+            ).fetchone()[0]
+        )
+        serving = int(
+            connection.execute(
+                "SELECT COUNT(*) FROM _fathomdb_projection_generations "
+                "WHERE role='serving'"
+            ).fetchone()[0]
+        )
+    return {
+        "database_bytes": path.stat().st_size,
+        "generation_history_rows": generations,
+        "page_count": page_count,
+        "page_size_bytes": page_size,
+        "serving_generation_rows": serving,
+        "wal_bytes": wal.stat().st_size if wal.exists() else 0,
+    }
 
 
 def status_verdict(
@@ -286,9 +330,14 @@ def status_verdict(
         "errors": 0,
         "timeouts": 0,
     }
-    for run, device in [*((value, "cpu") for value in cpu), *((value, "cuda:0") for value in cuda)]:
-        if run["device"] != device or any(run[key] != value for key, value in expected_shape.items()):
-            raise Slice40ScaleError("status result counts or device drifted")
+    for run, build_variant in [
+        *((value, "cpu") for value in cpu),
+        *((value, "cuda") for value in cuda),
+    ]:
+        if run["build_variant"] != build_variant or any(
+            run[key] != value for key, value in expected_shape.items()
+        ):
+            raise Slice40ScaleError("status result counts or build variant drifted")
     bounded = all(
         run["generation_p95_ms"] <= policy["status_p95_ms"]
         and run["mutation_p95_ms"] <= policy["status_p95_ms"]
@@ -321,15 +370,13 @@ def _status_test_command(
     environment = {
         **os.environ,
         "FATHOM_SLICE40_STATUS_DATABASE": str(database),
-        "FATHOM_SLICE40_STATUS_DEVICE": device,
+        "FATHOM_SLICE40_STATUS_BUILD_VARIANT": "cpu" if device == "cpu" else "cuda",
         "FATHOM_SLICE40_STATUS_RECORDS": str(workload["status_records"]),
         "FATHOM_SLICE40_STATUS_WARMUPS": str(workload["status_warmups"]),
         "FATHOM_SLICE40_STATUS_SAMPLES": str(workload["status_samples"]),
     }
     if seed_only:
         environment["FATHOM_SLICE40_STATUS_SEED_ONLY"] = "1"
-    if device == "cuda:0":
-        environment["FATHOMDB_EMBED_DEVICE"] = "cuda:0"
     completed = subprocess.run(
         [
             "cargo",
@@ -392,6 +439,7 @@ def run_status(config_path: str | Path) -> dict[str, Any]:
     nvidia_log = run_root / "nvidia-smi.log"
     nvidia_log.write_text(nvidia.stdout, encoding="utf-8")
     results: dict[str, list[dict[str, Any]]] = {"cpu": [], "cuda": []}
+    database_observations: dict[str, list[dict[str, int]]] = {"cpu": [], "cuda": []}
     databases: list[dict[str, str]] = []
     for repetition in range(1, config["workload"]["repetitions"] + 1):
         repetition_root = run_root / f"repetition-{repetition}"
@@ -428,6 +476,8 @@ def run_status(config_path: str | Path) -> dict[str, Any]:
         assert cpu is not None and cuda is not None
         results["cpu"].append(cpu)
         results["cuda"].append(cuda)
+        database_observations["cpu"].append(inspect_status_database(cpu_database))
+        database_observations["cuda"].append(inspect_status_database(cuda_database))
         databases.append(
             {
                 "seed_sha256": _sha256(seed_database),
@@ -449,10 +499,16 @@ def run_status(config_path: str | Path) -> dict[str, Any]:
         "program_track": PROGRAM_TRACK,
         "claim_boundary": config["claim_boundary"],
         "verdict": verdict,
-        "runtime_device_witness": nvidia.stdout.strip(),
+        "cuda_host_witness": nvidia.stdout.strip(),
+        "measurement_boundary": {
+            "status_compute_device": "cpu",
+            "fixture_embedder": "fixed-test-cpu",
+            "cuda_interpretation": "CUDA-linked build parity; real GPU execution is verified by the separate CUDA preflight and package smoke",
+        },
         "maximum_cpu_cuda_p95_difference_ms": maximum_device_p95_difference_ms,
         "treatments": results,
         "paired_database_hashes": databases,
+        "database_observations": database_observations,
         "runner_sha256": _sha256(Path(__file__)),
         "status_test_source_sha256": _sha256(
             REPO_ROOT
@@ -474,7 +530,7 @@ def run_status(config_path: str | Path) -> dict[str, Any]:
         env=_lib.env_info(
             key_deps={
                 "fathomdb_candidate": config["candidate"]["source_commit"],
-                "cuda_witness": nvidia.stdout.strip(),
+                "cuda_host_witness": nvidia.stdout.strip(),
             }
         ),
         cost_usd=0.0,
@@ -594,6 +650,7 @@ def run(config_path: str | Path) -> dict[str, Any]:
     run_root.mkdir(parents=True, mode=0o700)
     results: dict[str, list[dict[str, Any]]] = {"baseline": [], "candidate": []}
     binaries: dict[str, dict[str, str]] = {}
+    one_operation_observation: dict[str, Any] | None = None
     for treatment in ("baseline", "candidate"):
         treatment_root = run_root / treatment
         source = treatment_root / "source"
@@ -614,6 +671,20 @@ def run(config_path: str | Path) -> dict[str, Any]:
                     config["workload"],
                     result_path,
                 )
+            )
+        if treatment == "candidate":
+            one_workload = {
+                **config["workload"],
+                "records": 1,
+                "batch_size": 1,
+                "expected_receipts": 1,
+            }
+            one_operation_observation = _worker_result(
+                executable,
+                "candidate_one_operation",
+                treatment_root / "one-operation.fathomdb",
+                one_workload,
+                treatment_root / "one-operation.json",
             )
 
     seed = int(config["workload"]["bootstrap_seed"], 16)
@@ -662,6 +733,7 @@ def run(config_path: str | Path) -> dict[str, Any]:
         "maximum_paired_storage_increase_bytes": storage_increase,
         "treatments": results,
         "binaries": binaries,
+        "one_operation_candidate_observation": one_operation_observation,
         "runner_sha256": _sha256(Path(__file__)),
         "worker_source_sha256": _sha256(
             REPO_ROOT / "experiments/rust/slice40_common_measurement.rs"

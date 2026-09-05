@@ -1,6 +1,8 @@
 #![cfg(feature = "test-hooks")]
 
 use std::sync::{Arc, Barrier};
+use std::thread;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
@@ -328,6 +330,26 @@ fn generation_status_cache_survives_epoch_changes_without_a_membership_boundary(
 }
 
 #[test]
+fn generation_status_cache_invalidates_when_the_clock_moves_backwards() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("status-cache-clock-rollback{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
+    opened.engine.set_projection_scheduler_frozen_for_test(true);
+    opened.engine.write(&[node("clock-rollback")]).unwrap();
+
+    opened.engine.read_projection_generation_status_at_for_test(101).unwrap();
+    let scans_before_rollback =
+        opened.engine.projection_generation_status_full_owner_scan_count_for_test();
+    let rolled_back = opened.engine.read_projection_generation_status_at_for_test(100).unwrap();
+    let scans_after_rollback =
+        opened.engine.projection_generation_status_full_owner_scan_count_for_test();
+
+    assert_eq!(rolled_back.effective_at_epoch_s, 100);
+    assert_eq!(scans_after_rollback, scans_before_rollback + 1);
+}
+
+#[test]
 fn generation_status_cache_invalidates_at_an_edge_membership_boundary() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("status-cache-edge-expiry{SQLITE_SUFFIX}"));
@@ -431,6 +453,107 @@ fn generation_status_cache_invalidates_at_a_source_validity_boundary() {
 
     assert_eq!(after.pending_count + 1, before.pending_count);
     assert_eq!(scans_after_validity, scans_before_validity + 1);
+}
+
+#[test]
+fn dispatcher_rechecks_pending_member_at_source_valid_from_without_external_notification() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("dispatcher-source-validity{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
+    opened.engine.set_projection_scheduler_frozen_for_test(true);
+    let source_body = "clock-rollback source";
+    let cursors = opened
+        .engine
+        .write(&[
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                kind: "doc".into(),
+                body: source_body.into(),
+                source_id: SourceId::new("source:slice40-clock-rollback").unwrap(),
+                logical_id: Some("slice40-clock-rollback-source".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new("slice40-clock-rollback-source-r1").unwrap(),
+                    SourceVersionId::new("slice40-clock-rollback-source-v1").unwrap(),
+                ),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                kind: "doc".into(),
+                body: "clock-rollback derived".into(),
+                source_id: SourceId::new("source:slice40-clock-rollback").unwrap(),
+                logical_id: Some("slice40-clock-rollback-derived".into()),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::derived(
+                    ArtifactRevisionId::new("slice40-clock-rollback-derived-r1").unwrap(),
+                    SourceVersionId::new("slice40-clock-rollback-source-v1").unwrap(),
+                    SourceRevisionId::new("slice40-clock-rollback-source-r1").unwrap(),
+                    SourceLocator::whole_body(),
+                    CanonicalHash::sha256(sha256(source_body)).unwrap(),
+                ),
+            }),
+        ])
+        .unwrap()
+        .row_cursors;
+    opened
+        .engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new(
+                "slice40-clock-rollback-dependency",
+                "slice40-clock-rollback-source-r1",
+                "slice40-clock-rollback-derived-r1",
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+    let activation = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64 + 3;
+    Connection::open(&path)
+        .unwrap()
+        .execute(
+            "UPDATE canonical_nodes SET valid_from=?1 WHERE write_cursor=?2",
+            rusqlite::params![activation, cursors[0]],
+        )
+        .unwrap();
+    opened.engine.set_projection_scheduler_frozen_for_test(false);
+
+    let settled_deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        let source_is_projected: bool = Connection::open(&path)
+            .unwrap()
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM _fathomdb_projection_terminal \
+                 WHERE write_cursor=?1 AND state='up_to_date')",
+                [cursors[0]],
+                |row| row.get(0),
+            )
+            .unwrap();
+        if source_is_projected && !opened.engine.projection_scheduler_pending_scan_for_test() {
+            break;
+        }
+        assert!(Instant::now() < settled_deadline, "dispatcher did not settle before boundary");
+        thread::sleep(Duration::from_millis(10));
+    }
+    while SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() < activation as u64 {
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    opened.engine.drain(5_000).unwrap();
+    let derived_is_projected: bool = Connection::open(&path)
+        .unwrap()
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_projection_terminal \
+             WHERE write_cursor=?1 AND state='up_to_date')",
+            [cursors[1]],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert!(derived_is_projected);
 }
 
 #[test]

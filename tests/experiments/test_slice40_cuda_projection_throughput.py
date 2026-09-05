@@ -312,6 +312,9 @@ def test_attestation_failure_is_registered_as_blocked(
 
     assert captured["classification_outcome"] == "blocked"
     assert captured["blocked_reason"]["detail"]["error"] == "mixed install"  # type: ignore[index]
+    assert captured["record_arguments"]["artifacts"][0]["kind"] == (  # type: ignore[index]
+        "external_safe_summary"
+    )
     assert regenerated
     details = list(tmp_path.glob("slice40-cuda-throughput-*/result-detail.json"))
     assert len(details) == 1

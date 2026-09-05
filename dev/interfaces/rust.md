@@ -1106,3 +1106,15 @@ object and reject tampering, another database, unsupported versions, or state
 drift with `EngineError::FrozenRead`. Frozen combined search and expansion run
 on one reader transaction. Eligibility is applied before candidate limits in
 the lexical, dense, and graph paths.
+
+## Frozen pagination and operational state (0.8.25 Slice 45)
+
+`Engine::read_canonical_page` returns `PageV1<NodeRecord>` in ascending
+`write_cursor` order under one `FrozenReadContextV1`. `PageRequestV1` accepts a
+limit from 1 through 250 and an optional opaque `PageCursor`; a continuation is
+bound to the database, operation, kind, context, limit, and ordering version.
+`Engine::read_operational_state` reads one registered `latest_state` key with
+an optional frozen context. `Engine::read_operational_state_page` pages that
+same current-state table under a mandatory frozen context. Refusals use
+`EngineError::Page(PageError)`; stale authority remains
+`EngineError::FrozenRead`.

@@ -48,6 +48,7 @@ mod actuation;
 mod dependency_closure;
 mod frozen_read;
 pub mod lifecycle;
+mod pagination;
 mod pcache2;
 mod projection_generation;
 #[cfg(feature = "tc5-benchmark")]
@@ -62,6 +63,7 @@ pub use dependency_closure::{
     ClosureRootV1, ClosureStatusV1, DependencyClosureError, DependencyClosureErrorReason,
 };
 pub use frozen_read::{FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, ReadContextV1};
+pub use pagination::{PageCursor, PageError, PageErrorReason, PageRequestV1, PageV1};
 pub use projection_generation::{
     MutationProjectionStatusRequestV1, MutationProjectionStatusV1, ProjectionGenerationError,
     ProjectionGenerationErrorReason, ProjectionGenerationId, ProjectionGenerationOriginV1,
@@ -1832,6 +1834,35 @@ struct SearchReaderRequest {
     respond: SyncSender<ReaderResponse>,
 }
 
+struct CanonicalPageReaderRequest {
+    kind: String,
+    frozen: FrozenReadContextV1,
+    page: PageRequestV1,
+    respond: SyncSender<Result<PageV1<NodeRecord>, PageReaderError>>,
+}
+
+struct OperationalStateReaderRequest {
+    collection: String,
+    record_key: String,
+    frozen: Option<FrozenReadContextV1>,
+    respond: SyncSender<Result<Option<OperationalStateRecordV1>, PageReaderError>>,
+}
+
+struct OperationalStatePageReaderRequest {
+    collection: String,
+    frozen: FrozenReadContextV1,
+    page: PageRequestV1,
+    respond: SyncSender<Result<PageV1<OperationalStateRecordV1>, PageReaderError>>,
+}
+
+#[cfg(feature = "test-hooks")]
+struct CanonicalPageBaselineReaderRequest {
+    kind: String,
+    context: FrozenReadContextV1,
+    limit: usize,
+    respond: SyncSender<Result<Vec<NodeRecord>, PageReaderError>>,
+}
+
 /// One request handled by exactly one reader worker. The response is
 /// returned through a fresh oneshot channel so requests cannot be
 /// routed to or duplicated across workers.
@@ -1888,6 +1919,11 @@ enum ReaderRequest {
         view: ReadView,
         respond: SyncSender<rusqlite::Result<Vec<NodeRecord>>>,
     },
+    ReadCanonicalPage(Box<CanonicalPageReaderRequest>),
+    ReadOperationalState(Box<OperationalStateReaderRequest>),
+    ReadOperationalStatePage(Box<OperationalStatePageReaderRequest>),
+    #[cfg(feature = "test-hooks")]
+    ReadCanonicalPageBaseline(Box<CanonicalPageBaselineReaderRequest>),
     /// Slice 20 (G5) — bounded BFS from a single root node over
     /// `canonical_edges`. Returns the set of reachable nodes (excluding the
     /// root) within `depth` hops, limited to the hard cap 50.
@@ -2047,6 +2083,29 @@ enum SearchReaderError {
     VectorEquivalenceMismatch(String),
     WriteValidation,
     InvalidArgument(String),
+}
+
+enum PageReaderError {
+    Sqlite(rusqlite::Error),
+    Engine(EngineError),
+}
+
+impl From<rusqlite::Error> for PageReaderError {
+    fn from(error: rusqlite::Error) -> Self {
+        Self::Sqlite(error)
+    }
+}
+
+impl From<EngineError> for PageReaderError {
+    fn from(error: EngineError) -> Self {
+        Self::Engine(error)
+    }
+}
+
+impl From<FrozenReadError> for PageReaderError {
+    fn from(error: FrozenReadError) -> Self {
+        Self::Engine(EngineError::FrozenRead(error))
+    }
 }
 
 impl From<rusqlite::Error> for SearchReaderError {
@@ -2470,6 +2529,55 @@ fn reader_worker_loop(
                 );
                 finish_reader_request(&connection, &wal_attribution, worker_idx);
                 let _ = respond.send(result);
+            }
+            ReaderRequest::ReadCanonicalPage(request) => {
+                let result = read_canonical_page_in_tx(
+                    &mut connection,
+                    &request.kind,
+                    &request.frozen,
+                    &request.page,
+                    &wal_attribution,
+                    worker_idx,
+                );
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                let _ = request.respond.send(result);
+            }
+            ReaderRequest::ReadOperationalState(request) => {
+                let result = read_operational_state_in_tx(
+                    &mut connection,
+                    &request.collection,
+                    &request.record_key,
+                    request.frozen.as_ref(),
+                    &wal_attribution,
+                    worker_idx,
+                );
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                let _ = request.respond.send(result);
+            }
+            ReaderRequest::ReadOperationalStatePage(request) => {
+                let result = read_operational_state_page_in_tx(
+                    &mut connection,
+                    &request.collection,
+                    &request.frozen,
+                    &request.page,
+                    &wal_attribution,
+                    worker_idx,
+                );
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                let _ = request.respond.send(result);
+            }
+            #[cfg(feature = "test-hooks")]
+            ReaderRequest::ReadCanonicalPageBaseline(request) => {
+                let result = read_canonical_page_baseline_in_tx(
+                    &mut connection,
+                    &request.kind,
+                    &request.context,
+                    request.limit,
+                    &wal_attribution,
+                    worker_idx,
+                );
+                finish_reader_request(&connection, &wal_attribution, worker_idx);
+                let _ = request.respond.send(result);
             }
             ReaderRequest::GraphNeighbors { root_logical_id, depth, direction, view, respond } => {
                 let result = graph_neighbors_in_tx(
@@ -4274,6 +4382,33 @@ pub struct OpStoreRow {
     pub payload: String,
     pub schema_id: Option<String>,
     pub write_cursor: u64,
+}
+
+/// Current value from a governed `latest_state` operational collection.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OperationalStateRecordV1 {
+    /// Wire schema version. Always 1 in this release.
+    pub schema_version: u32,
+    /// Registered operational collection name.
+    pub collection: String,
+    /// Caller-owned record key within the collection.
+    pub record_key: String,
+    /// Exact stored JSON payload text.
+    pub payload: String,
+    /// Optional registered schema identity carried by the mutation.
+    pub schema_id: Option<String>,
+    /// Engine-minted total-order coordinate for this current value.
+    pub write_cursor: u64,
+}
+
+/// Test-only Slice 45 attribution for authenticated frozen-page setup.
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Copy, Debug)]
+#[doc(hidden)]
+pub struct Slice45FrozenStageTiming {
+    pub cursor_authentication_ns: u128,
+    pub token_authentication_ns: u128,
+    pub snapshot_binding_ns: u128,
 }
 
 /// Hybrid `search` result. `results` carries structured [`SearchHit`]s in
@@ -6191,6 +6326,8 @@ pub enum EngineError {
     /// A frozen read context was malformed, unauthenticated, addressed to a
     /// different database, or no longer matches the database read state.
     FrozenRead(FrozenReadError),
+    /// A governed page request or operational-state selector was invalid.
+    Page(PageError),
     /// Projection-generation request or persisted-authority failure.
     ProjectionGeneration(ProjectionGenerationError),
     Overloaded,
@@ -6314,6 +6451,12 @@ impl From<FrozenReadError> for EngineError {
     }
 }
 
+impl From<PageError> for EngineError {
+    fn from(error: PageError) -> Self {
+        Self::Page(error)
+    }
+}
+
 impl From<ProjectionGenerationError> for EngineError {
     fn from(error: ProjectionGenerationError) -> Self {
         Self::ProjectionGeneration(error)
@@ -6348,6 +6491,7 @@ impl Display for EngineError {
             Self::DependencyClosure(error) => write!(f, "dependency closure: {error}"),
             Self::Actuation(error) => write!(f, "actuation: {error}"),
             Self::FrozenRead(error) => write!(f, "frozen read: {error}"),
+            Self::Page(error) => write!(f, "page: {error}"),
             Self::ProjectionGeneration(error) => write!(f, "projection generation: {error}"),
             Self::Overloaded => write!(f, "engine overloaded"),
             Self::Closing => write!(f, "engine is closing"),
@@ -6414,6 +6558,7 @@ impl EngineError {
             Self::DependencyClosure(_) => "DependencyClosureError",
             Self::Actuation(_) => "ActuationError",
             Self::FrozenRead(_) => "FrozenReadError",
+            Self::Page(_) => "PageError",
             Self::ProjectionGeneration(_) => "ProjectionGenerationError",
             Self::Overloaded => "OverloadedError",
             Self::Closing => "ClosingError",
@@ -11082,6 +11227,146 @@ impl Engine {
         match filter.lower_for_read_list(kind)? {
             None => Ok(Vec::new()),
             Some(preds) => self.read_list(kind, &preds, limit, view),
+        }
+    }
+
+    /// Read one stable keyset page of canonical logical nodes.
+    ///
+    /// The authenticated frozen context supplies validity and eligibility.
+    /// Continuations are database-, selector-, context-, and limit-bound and
+    /// refuse after relevant state drift.
+    pub fn read_canonical_page(
+        &self,
+        kind: &str,
+        context: &FrozenReadContextV1,
+        page: &PageRequestV1,
+    ) -> Result<PageV1<NodeRecord>, EngineError> {
+        self.ensure_open()?;
+        pagination::validate_request(page)?;
+        let (respond, receive) = mpsc::sync_channel(1);
+        self.reader_pool
+            .dispatch(ReaderRequest::ReadCanonicalPage(Box::new(CanonicalPageReaderRequest {
+                kind: kind.to_string(),
+                frozen: context.clone(),
+                page: page.clone(),
+                respond,
+            })))
+            .map_err(|_| EngineError::Closing)?;
+        self.receive_page_result(receive)
+    }
+
+    /// Test-only matched-shape canonical query without frozen-token or cursor
+    /// work. Slice 45 uses this to attribute overhead without removing
+    /// lifecycle, dependency, validity, or eligibility predicates.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn read_canonical_page_baseline_for_test(
+        &self,
+        kind: &str,
+        context: &FrozenReadContextV1,
+        limit: usize,
+    ) -> Result<Vec<NodeRecord>, EngineError> {
+        self.ensure_open()?;
+        let (respond, receive) = mpsc::sync_channel(1);
+        self.reader_pool
+            .dispatch(ReaderRequest::ReadCanonicalPageBaseline(Box::new(
+                CanonicalPageBaselineReaderRequest {
+                    kind: kind.to_string(),
+                    context: context.clone(),
+                    limit,
+                    respond,
+                },
+            )))
+            .map_err(|_| EngineError::Closing)?;
+        self.receive_page_result(receive)
+    }
+
+    /// Test-only stage attribution for the Slice 45 performance receipt.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn measure_slice45_frozen_stages_for_test(
+        &self,
+        context: &FrozenReadContextV1,
+        page: &PageRequestV1,
+    ) -> Result<Slice45FrozenStageTiming, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let started = Instant::now();
+        pagination::authenticate_cursor(connection, page)?;
+        let cursor_authentication_ns = started.elapsed().as_nanos();
+        let started = Instant::now();
+        let binding = frozen_read::authenticate(connection, context)?;
+        let token_authentication_ns = started.elapsed().as_nanos();
+        let started = Instant::now();
+        frozen_read::validate_snapshot(connection, &binding)?;
+        let snapshot_binding_ns = started.elapsed().as_nanos();
+        Ok(Slice45FrozenStageTiming {
+            cursor_authentication_ns,
+            token_authentication_ns,
+            snapshot_binding_ns,
+        })
+    }
+
+    /// Read the current value of one governed `latest_state` record.
+    ///
+    /// Supplying a frozen context binds this point read to the same authority
+    /// used by a page walk. A context is optional for an ordinary current read.
+    pub fn read_operational_state(
+        &self,
+        collection: &str,
+        record_key: &str,
+        context: Option<&FrozenReadContextV1>,
+    ) -> Result<Option<OperationalStateRecordV1>, EngineError> {
+        self.ensure_open()?;
+        let (respond, receive) = mpsc::sync_channel(1);
+        self.reader_pool
+            .dispatch(ReaderRequest::ReadOperationalState(Box::new(
+                OperationalStateReaderRequest {
+                    collection: collection.to_string(),
+                    record_key: record_key.to_string(),
+                    frozen: context.cloned(),
+                    respond,
+                },
+            )))
+            .map_err(|_| EngineError::Closing)?;
+        self.receive_page_result(receive)
+    }
+
+    /// Read one stable keyset page of a governed `latest_state` collection.
+    pub fn read_operational_state_page(
+        &self,
+        collection: &str,
+        context: &FrozenReadContextV1,
+        page: &PageRequestV1,
+    ) -> Result<PageV1<OperationalStateRecordV1>, EngineError> {
+        self.ensure_open()?;
+        pagination::validate_request(page)?;
+        let (respond, receive) = mpsc::sync_channel(1);
+        self.reader_pool
+            .dispatch(ReaderRequest::ReadOperationalStatePage(Box::new(
+                OperationalStatePageReaderRequest {
+                    collection: collection.to_string(),
+                    frozen: context.clone(),
+                    page: page.clone(),
+                    respond,
+                },
+            )))
+            .map_err(|_| EngineError::Closing)?;
+        self.receive_page_result(receive)
+    }
+
+    fn receive_page_result<T>(
+        &self,
+        receive: Receiver<Result<T, PageReaderError>>,
+    ) -> Result<T, EngineError> {
+        match receive.recv().map_err(|_| EngineError::Storage)? {
+            Ok(value) => Ok(value),
+            Err(PageReaderError::Engine(error)) => Err(error),
+            Err(PageReaderError::Sqlite(error)) => {
+                self.emit_sqlite_internal_error(&error);
+                Err(EngineError::Storage)
+            }
         }
     }
 
@@ -17924,6 +18209,284 @@ fn read_list_in_tx(
         out.push(row?);
     }
     Ok(out)
+}
+
+fn read_canonical_page_in_tx(
+    reader: &mut Connection,
+    kind: &str,
+    frozen: &FrozenReadContextV1,
+    page: &PageRequestV1,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
+) -> Result<PageV1<NodeRecord>, PageReaderError> {
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
+    let cursor = pagination::authenticate_cursor(&tx, page)?;
+    let binding = frozen_read::authenticate(&tx, frozen)?;
+    let after = pagination::resume_after(
+        cursor.as_ref(),
+        pagination::PageOperation::CanonicalNode,
+        kind,
+        frozen,
+        page,
+    )?;
+    frozen_read::validate_snapshot(&tx, &binding)?;
+    validate_filter_attributes_on_snapshot(&tx, &frozen.context.eligibility)
+        .map_err(page_search_error)?;
+
+    let (mut items, has_more) = query_canonical_page_rows(
+        &tx,
+        kind,
+        &frozen.context.view,
+        &frozen.context.eligibility,
+        after,
+        page.limit,
+    )?;
+    if has_more {
+        items.pop();
+    }
+    let next_cursor = if has_more {
+        let last = items.last().ok_or(EngineError::Storage)?.write_cursor;
+        Some(pagination::continuation(
+            &tx,
+            pagination::PageOperation::CanonicalNode,
+            kind,
+            frozen,
+            page.limit,
+            last,
+        )?)
+    } else {
+        None
+    };
+    tx.commit()?;
+    Ok(PageV1 { schema_version: 1, items, next_cursor })
+}
+
+#[cfg(feature = "test-hooks")]
+fn read_canonical_page_baseline_in_tx(
+    reader: &mut Connection,
+    kind: &str,
+    context: &FrozenReadContextV1,
+    limit: usize,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
+) -> Result<Vec<NodeRecord>, PageReaderError> {
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
+    validate_filter_attributes_on_snapshot(&tx, &context.context.eligibility)
+        .map_err(page_search_error)?;
+    let (items, _) = query_canonical_page_rows(
+        &tx,
+        kind,
+        &context.context.view,
+        &context.context.eligibility,
+        0,
+        limit,
+    )?;
+    tx.commit()?;
+    Ok(items)
+}
+
+fn query_canonical_page_rows(
+    connection: &Connection,
+    kind: &str,
+    view: &ReadView,
+    filter: &SearchFilter,
+    after: u64,
+    limit: usize,
+) -> rusqlite::Result<(Vec<NodeRecord>, bool)> {
+    let mut binds = vec![
+        rusqlite::types::Value::Text(kind.to_string()),
+        rusqlite::types::Value::Integer(
+            i64::try_from(after)
+                .map_err(|_| rusqlite::Error::IntegralValueOutOfRange(0, i64::MAX))?,
+        ),
+    ];
+    let now_idx = binds.len() + 1;
+    let visibility = view.node_sql("n", now_idx);
+    if let Some(now) = view.now_param() {
+        binds.push(rusqlite::types::Value::Integer(now));
+    }
+    let eligibility = append_node_eligibility_sql(Some(filter), "n", &mut binds);
+    let limit_idx = binds.len() + 1;
+    let query_limit = limit.checked_add(1).ok_or(rusqlite::Error::InvalidQuery)?;
+    binds.push(rusqlite::types::Value::Integer(
+        i64::try_from(query_limit)
+            .map_err(|_| rusqlite::Error::IntegralValueOutOfRange(0, i64::MAX))?,
+    ));
+    let sql = format!(
+        "SELECT n.logical_id,n.kind,n.body,n.write_cursor \
+         FROM canonical_nodes n \
+         WHERE n.kind=?1 AND n.write_cursor>?2 AND n.logical_id IS NOT NULL \
+         {visibility}{eligibility} \
+         ORDER BY n.write_cursor ASC LIMIT ?{limit_idx}"
+    );
+    let mut statement = connection.prepare(&sql)?;
+    let rows = statement.query_map(rusqlite::params_from_iter(binds.iter()), |row| {
+        Ok(NodeRecord {
+            logical_id: row.get(0)?,
+            kind: row.get(1)?,
+            body: row.get(2)?,
+            write_cursor: row.get::<_, i64>(3)? as u64,
+        })
+    })?;
+    let items = rows.collect::<Result<Vec<_>, _>>()?;
+    let has_more = items.len() > limit;
+    Ok((items, has_more))
+}
+
+fn read_operational_state_in_tx(
+    reader: &mut Connection,
+    collection: &str,
+    record_key: &str,
+    frozen: Option<&FrozenReadContextV1>,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
+) -> Result<Option<OperationalStateRecordV1>, PageReaderError> {
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
+    if let Some(frozen) = frozen {
+        let binding = frozen_read::authenticate(&tx, frozen)?;
+        frozen_read::validate_snapshot(&tx, &binding)?;
+        validate_operational_context(frozen)?;
+    }
+    validate_operational_collection(&tx, collection)?;
+    let record = tx
+        .query_row(
+            "SELECT collection_name,record_key,payload_json,schema_id,write_cursor \
+             FROM operational_state WHERE collection_name=?1 AND record_key=?2",
+            params![collection, record_key],
+            |row| {
+                Ok(OperationalStateRecordV1 {
+                    schema_version: 1,
+                    collection: row.get(0)?,
+                    record_key: row.get(1)?,
+                    payload: row.get(2)?,
+                    schema_id: row.get(3)?,
+                    write_cursor: row.get::<_, i64>(4)? as u64,
+                })
+            },
+        )
+        .optional()?;
+    tx.commit()?;
+    Ok(record)
+}
+
+fn read_operational_state_page_in_tx(
+    reader: &mut Connection,
+    collection: &str,
+    frozen: &FrozenReadContextV1,
+    page: &PageRequestV1,
+    attribution: &Arc<WalAttributionCollector>,
+    worker_idx: usize,
+) -> Result<PageV1<OperationalStateRecordV1>, PageReaderError> {
+    let tx = begin_attributed_reader_tx(reader, attribution, worker_idx)?;
+    let cursor = pagination::authenticate_cursor(&tx, page)?;
+    let binding = frozen_read::authenticate(&tx, frozen)?;
+    let after = pagination::resume_after(
+        cursor.as_ref(),
+        pagination::PageOperation::OperationalState,
+        collection,
+        frozen,
+        page,
+    )?;
+    frozen_read::validate_snapshot(&tx, &binding)?;
+    validate_operational_context(frozen)?;
+    validate_operational_collection(&tx, collection)?;
+    let limit = i64::try_from(page.limit + 1).map_err(|_| EngineError::Storage)?;
+    let after = i64::try_from(after).map_err(|_| EngineError::Storage)?;
+    let mut statement = tx.prepare(
+        "SELECT collection_name,record_key,payload_json,schema_id,write_cursor \
+         FROM operational_state \
+         WHERE collection_name=?1 AND write_cursor>?2 \
+         ORDER BY write_cursor ASC LIMIT ?3",
+    )?;
+    let rows = statement.query_map(params![collection, after, limit], |row| {
+        Ok(OperationalStateRecordV1 {
+            schema_version: 1,
+            collection: row.get(0)?,
+            record_key: row.get(1)?,
+            payload: row.get(2)?,
+            schema_id: row.get(3)?,
+            write_cursor: row.get::<_, i64>(4)? as u64,
+        })
+    })?;
+    let mut items = rows.collect::<Result<Vec<_>, _>>()?;
+    let has_more = items.len() > page.limit;
+    if has_more {
+        items.pop();
+    }
+    let next_cursor = if has_more {
+        let last = items.last().ok_or(EngineError::Storage)?.write_cursor;
+        Some(pagination::continuation(
+            &tx,
+            pagination::PageOperation::OperationalState,
+            collection,
+            frozen,
+            page.limit,
+            last,
+        )?)
+    } else {
+        None
+    };
+    drop(statement);
+    tx.commit()?;
+    Ok(PageV1 { schema_version: 1, items, next_cursor })
+}
+
+fn validate_operational_context(frozen: &FrozenReadContextV1) -> Result<(), EngineError> {
+    let view = frozen.context.view;
+    if view.include_superseded
+        || view.include_inactive
+        || view.include_out_of_window
+        || !frozen.context.eligibility.is_unfiltered()
+    {
+        return Err(
+            pagination::PageError::new(PageErrorReason::ContextNotApplicable, "/context").into()
+        );
+    }
+    Ok(())
+}
+
+fn validate_operational_collection(
+    connection: &Connection,
+    collection: &str,
+) -> Result<(), EngineError> {
+    let registration = connection
+        .query_row(
+            "SELECT kind,format_version FROM operational_collections WHERE name=?1",
+            [collection],
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let Some((kind, format_version)) = registration else {
+        return Err(
+            pagination::PageError::new(PageErrorReason::CollectionNotFound, "/collection").into()
+        );
+    };
+    if kind != "latest_state" {
+        return Err(pagination::PageError::new(
+            PageErrorReason::CollectionKindMismatch,
+            "/collection",
+        )
+        .into());
+    }
+    if format_version != 1 {
+        return Err(pagination::PageError::new(
+            PageErrorReason::CollectionFormatUnsupported,
+            "/collection",
+        )
+        .into());
+    }
+    Ok(())
+}
+
+fn page_search_error(error: SearchReaderError) -> PageReaderError {
+    match error {
+        SearchReaderError::Sqlite(error) => PageReaderError::Sqlite(error),
+        SearchReaderError::InvalidFilter(reason) => {
+            PageReaderError::Engine(EngineError::InvalidFilter { reason })
+        }
+        _ => PageReaderError::Engine(EngineError::Storage),
+    }
 }
 
 // ---------------------------------------------------------------------------

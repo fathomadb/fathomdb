@@ -15,12 +15,14 @@ const CONTEXT_MAX_BYTES: usize = 64 * 1024;
 const CONTEXT_MAX_ATTRIBUTES: usize = 64;
 const CONTEXT_DOMAIN: &[u8] = b"fathomdb.read-context.v1\0";
 const TOKEN_DOMAIN: &[u8] = b"fathomdb.frozen-read.v1\0";
+pub(crate) const PAGE_CURSOR_DOMAIN: &[u8] = b"fathomdb.page-cursor.v1\0";
 const REGISTRY_DOMAIN: &[u8] = b"fathomdb.projection-registry-binding.v1\0";
 const SERVING_DOMAIN_V1: &[u8] = b"fathomdb.projection-serving-binding.v1\0";
 const SERVING_DOMAIN_V2: &[u8] = b"fathomdb.projection-serving-binding.v2\0";
+const SERVING_DOMAIN_V3: &[u8] = b"fathomdb.projection-serving-binding.v3\0";
 const DATABASE_ID_KEY: &str = "_fathomdb_database_id";
 const READ_CONTEXT_KEY: &str = "_fathomdb_read_context_key";
-const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 16] = [
+const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 18] = [
     ("cn", "canonical_nodes"),
     ("ce", "canonical_edges"),
     ("ar", "_fathomdb_artifact_revisions"),
@@ -37,6 +39,8 @@ const VISIBILITY_TRIGGER_TABLES: [(&str, &str); 16] = [
     ("ep", "_fathomdb_embedder_profiles"),
     ("pg", "_fathomdb_projection_generations"),
     ("pc", "_fathomdb_projection_generation_current"),
+    ("oc", "operational_collections"),
+    ("os", "operational_state"),
 ];
 
 /// Versioned search eligibility and validity requested by a caller.
@@ -286,8 +290,10 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
     }
     read_hex_open_state(connection, READ_CONTEXT_KEY, 32).map_err(|error| error.to_string())?;
     load_visibility_generation(connection).map_err(|error| error.to_string())?;
-    let trigger_tables = if schema_version >= 32 {
-        &VISIBILITY_TRIGGER_TABLES[..]
+    let trigger_tables = if schema_version >= 33 {
+        &VISIBILITY_TRIGGER_TABLES[..18]
+    } else if schema_version >= 32 {
+        &VISIBILITY_TRIGGER_TABLES[..16]
     } else {
         &VISIBILITY_TRIGGER_TABLES[..14]
     };
@@ -321,6 +327,53 @@ pub(crate) fn validate_on_open(connection: &Connection, schema_version: u32) -> 
     ).map_err(|error| error.to_string())?;
     if count != i64::try_from(trigger_tables.len() * 3).unwrap_or(i64::MAX) {
         return Err("unexpected frozen-read visibility trigger".to_string());
+    }
+    if schema_version >= 33 {
+        validate_page_index(
+            connection,
+            "canonical_nodes_kind_cursor_page_idx",
+            "canonical_nodes",
+            "CREATE UNIQUE INDEX canonical_nodes_kind_cursor_page_idx ON canonical_nodes(kind, write_cursor) WHERE logical_id IS NOT NULL",
+        )?;
+        validate_page_index(
+            connection,
+            "operational_state_collection_cursor_page_idx",
+            "operational_state",
+            "CREATE UNIQUE INDEX operational_state_collection_cursor_page_idx ON operational_state(collection_name, write_cursor)",
+        )?;
+        validate_page_index(
+            connection,
+            "operational_state_write_cursor_idx",
+            "operational_state",
+            "CREATE INDEX operational_state_write_cursor_idx ON operational_state(write_cursor)",
+        )?;
+        validate_page_index(
+            connection,
+            "_fathomdb_artifact_revisions_write_cursor_idx",
+            "_fathomdb_artifact_revisions",
+            "CREATE INDEX _fathomdb_artifact_revisions_write_cursor_idx ON _fathomdb_artifact_revisions(write_cursor)",
+        )?;
+    }
+    Ok(())
+}
+
+fn validate_page_index(
+    connection: &Connection,
+    name: &str,
+    table: &str,
+    expected: &str,
+) -> Result<(), String> {
+    let sql = connection
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type='index' AND name=?1 AND tbl_name=?2",
+            [name, table],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| error.to_string())?
+        .ok_or_else(|| format!("missing pagination index {name}"))?;
+    if normalize_sql(&sql) != normalize_sql(expected) {
+        return Err(format!("pagination index {name} differs from manifest"));
     }
     Ok(())
 }
@@ -387,7 +440,9 @@ fn projection_serving_encoding(connection: &Connection) -> Result<Vec<u8>, Engin
     let schema_version: u32 = connection
         .query_row("PRAGMA user_version", [], |row| row.get(0))
         .map_err(|_| EngineError::Storage)?;
-    let mut bytes = if schema_version >= 32 {
+    let mut bytes = if schema_version >= 33 {
+        Vec::from(SERVING_DOMAIN_V3)
+    } else if schema_version >= 32 {
         Vec::from(SERVING_DOMAIN_V2)
     } else {
         Vec::from(SERVING_DOMAIN_V1)
@@ -414,18 +469,25 @@ fn projection_serving_encoding(connection: &Connection) -> Result<Vec<u8>, Engin
         encode_i64(&mut bytes, cursor);
         encode_i64(&mut bytes, updated_at);
     }
-    let mut terminals = connection
-        .prepare(
-            "SELECT write_cursor,state FROM _fathomdb_projection_terminal ORDER BY write_cursor",
-        )
-        .map_err(|_| EngineError::Storage)?;
-    let rows = terminals
-        .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)))
-        .map_err(|_| EngineError::Storage)?;
-    for row in rows {
-        let (cursor, state) = row.map_err(|_| EngineError::Storage)?;
-        encode_i64(&mut bytes, cursor);
-        encode_string(&mut bytes, &state);
+    // Schema 33 visibility triggers make the monotonic generation in the outer
+    // binding authoritative for every terminal insert/update/delete. Retaining
+    // the historical row-by-row digest would add O(terminal rows) work to every
+    // frozen read while providing no additional drift signal. Schema 31/32
+    // retain their exact encoding for pinned historical fixtures.
+    if schema_version < 33 {
+        let mut terminals = connection
+            .prepare(
+                "SELECT write_cursor,state FROM _fathomdb_projection_terminal ORDER BY write_cursor",
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let rows = terminals
+            .query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?)))
+            .map_err(|_| EngineError::Storage)?;
+        for row in rows {
+            let (cursor, state) = row.map_err(|_| EngineError::Storage)?;
+            encode_i64(&mut bytes, cursor);
+            encode_string(&mut bytes, &state);
+        }
     }
     Ok(bytes)
 }
@@ -532,7 +594,7 @@ fn token_malformed() -> EngineError {
     FrozenReadError::new(FrozenReadErrorReason::TokenMalformed, "/token").into()
 }
 
-fn read_open_state(connection: &Connection, key: &str) -> Result<String, EngineError> {
+pub(crate) fn read_open_state(connection: &Connection, key: &str) -> Result<String, EngineError> {
     connection
         .query_row("SELECT value FROM _fathomdb_open_state WHERE key=?1", [key], |row| row.get(0))
         .optional()
@@ -540,7 +602,7 @@ fn read_open_state(connection: &Connection, key: &str) -> Result<String, EngineE
         .ok_or(EngineError::Storage)
 }
 
-fn read_hex_open_state(
+pub(crate) fn read_hex_open_state(
     connection: &Connection,
     key: &str,
     expected_bytes: usize,
@@ -557,14 +619,14 @@ fn is_lower_hex(value: &str, expected_len: usize) -> bool {
         && value.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
-fn digest(domain: &[u8], payload: &[u8]) -> [u8; 32] {
+pub(crate) fn digest(domain: &[u8], payload: &[u8]) -> [u8; 32] {
     let mut hasher = Sha256::new();
     hasher.update(domain);
     hasher.update(payload);
     hasher.finalize().into()
 }
 
-fn hmac_sha256(key: &[u8], domain: &[u8], payload: &[u8]) -> [u8; 32] {
+pub(crate) fn hmac_sha256(key: &[u8], domain: &[u8], payload: &[u8]) -> [u8; 32] {
     let mut block = [0_u8; 64];
     block[..key.len()].copy_from_slice(key);
     let mut inner_pad = [0x36_u8; 64];
@@ -584,14 +646,14 @@ fn hmac_sha256(key: &[u8], domain: &[u8], payload: &[u8]) -> [u8; 32] {
     outer.finalize().into()
 }
 
-fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
+pub(crate) fn constant_time_eq(left: &[u8], right: &[u8]) -> bool {
     if left.len() != right.len() {
         return false;
     }
     left.iter().zip(right).fold(0_u8, |diff, (a, b)| diff | (a ^ b)) == 0
 }
 
-fn hex_encode(bytes: &[u8]) -> String {
+pub(crate) fn hex_encode(bytes: &[u8]) -> String {
     let mut value = String::with_capacity(bytes.len() * 2);
     for byte in bytes {
         value.push_str(&format!("{byte:02x}"));
@@ -599,7 +661,7 @@ fn hex_encode(bytes: &[u8]) -> String {
     value
 }
 
-fn hex_decode(value: &str) -> Option<Vec<u8>> {
+pub(crate) fn hex_decode(value: &str) -> Option<Vec<u8>> {
     if !value.len().is_multiple_of(2) || !is_lower_hex(value, value.len()) {
         return None;
     }
@@ -609,19 +671,19 @@ fn hex_decode(value: &str) -> Option<Vec<u8>> {
         .collect()
 }
 
-fn encode_u32(bytes: &mut Vec<u8>, value: u32) {
+pub(crate) fn encode_u32(bytes: &mut Vec<u8>, value: u32) {
     bytes.extend_from_slice(&value.to_be_bytes());
 }
 
-fn encode_u64(bytes: &mut Vec<u8>, value: u64) {
+pub(crate) fn encode_u64(bytes: &mut Vec<u8>, value: u64) {
     bytes.extend_from_slice(&value.to_be_bytes());
 }
 
-fn encode_i64(bytes: &mut Vec<u8>, value: i64) {
+pub(crate) fn encode_i64(bytes: &mut Vec<u8>, value: i64) {
     bytes.extend_from_slice(&value.to_be_bytes());
 }
 
-fn encode_string(bytes: &mut Vec<u8>, value: &str) {
+pub(crate) fn encode_string(bytes: &mut Vec<u8>, value: &str) {
     encode_u32(bytes, u32::try_from(value.len()).unwrap_or(u32::MAX));
     bytes.extend_from_slice(value.as_bytes());
 }
@@ -646,9 +708,29 @@ fn encode_optional_i64(bytes: &mut Vec<u8>, value: Option<i64>) {
     }
 }
 
+pub(crate) fn page_cursor_material(
+    connection: &Connection,
+) -> Result<(String, Vec<u8>), EngineError> {
+    Ok((
+        read_open_state(connection, DATABASE_ID_KEY)?,
+        read_hex_open_state(connection, READ_CONTEXT_KEY, 32)?,
+    ))
+}
+
+pub(crate) fn page_context_digest(frozen: &FrozenReadContextV1) -> Result<[u8; 32], EngineError> {
+    let context = validate_context(&frozen.context)?;
+    let mut bytes = Vec::new();
+    encode_u32(&mut bytes, frozen.schema_version);
+    encode_i64(&mut bytes, frozen.effective_valid_at);
+    encode_u32(&mut bytes, u32::try_from(context.len()).unwrap_or(u32::MAX));
+    bytes.extend_from_slice(&context);
+    encode_string(&mut bytes, &frozen.token);
+    Ok(digest(b"fathomdb.page-context.v1\0", &bytes))
+}
+
 #[cfg(test)]
 mod tests {
-    use fathomdb_schema::{migrate, migrate_with_steps, MIGRATIONS};
+    use fathomdb_schema::{migrate_with_steps, MIGRATIONS};
     use proptest::prelude::*;
     use serde_json::Value;
 

@@ -240,6 +240,24 @@ class OpStoreRow:
     schema_id: str | None
     write_cursor: int
 
+class OperationalStateRecordV1:
+    schema_version: int
+    collection: str
+    record_key: str
+    payload: str
+    schema_id: str | None
+    write_cursor: int
+
+class NodePageV1:
+    schema_version: int
+    items: list[NodeRecord]
+    next_cursor: str | None
+
+class OperationalStatePageV1:
+    schema_version: int
+    items: list[OperationalStateRecordV1]
+    next_cursor: str | None
+
 class IngestWithExtractorReceipt:
     """G11 (Slice 15) — BYO-LLM ingest receipt."""
     nodes_written: int
@@ -611,6 +629,28 @@ def read_list_filter(
     limit: int = ...,
     view: ReadView | None = ...,
 ) -> list[NodeRecord]: ...
+def read_canonical_page(
+    engine: Engine,
+    kind: str,
+    context: FrozenReadContextV1,
+    limit: int,
+    cursor: str | None = ...,
+    schema_version: int = ...,
+) -> NodePageV1: ...
+def read_operational_state(
+    engine: Engine,
+    collection: str,
+    record_key: str,
+    context: FrozenReadContextV1 | None = ...,
+) -> OperationalStateRecordV1 | None: ...
+def read_operational_state_page(
+    engine: Engine,
+    collection: str,
+    context: FrozenReadContextV1,
+    limit: int,
+    cursor: str | None = ...,
+    schema_version: int = ...,
+) -> OperationalStatePageV1: ...
 def crossed_boundary_since(
     engine: Engine,
     since: int,
@@ -694,6 +734,10 @@ def force_panic_for_test() -> None: ...
 
 class EngineError(Exception): ...
 class FrozenReadError(EngineError):
+    reason: str
+    field_path: str
+    def __init__(self, message: str, *, reason: str, field_path: str) -> None: ...
+class PageError(EngineError):
     reason: str
     field_path: str
     def __init__(self, message: str, *, reason: str, field_path: str) -> None: ...

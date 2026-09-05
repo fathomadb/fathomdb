@@ -69,9 +69,10 @@ use fathomdb_engine::{
     MutationProjectionStatusRequestV1 as RustMutationProjectionStatusRequestV1,
     MutationProjectionStatusV1 as RustMutationProjectionStatusV1, NodeRecord as RustNodeRecord,
     OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
-    PerHitExplain as RustPerHitExplain, Predicate as RustPredicate, PreparedWrite,
-    ProjectionDelta as RustProjectionDelta, ProjectionFts as RustProjectionFts,
-    ProjectionGenerationError as RustProjectionGenerationError,
+    OperationalStateRecordV1 as RustOperationalStateRecordV1, PageCursor as RustPageCursor,
+    PageRequestV1 as RustPageRequestV1, PageV1 as RustPageV1, PerHitExplain as RustPerHitExplain,
+    Predicate as RustPredicate, PreparedWrite, ProjectionDelta as RustProjectionDelta,
+    ProjectionFts as RustProjectionFts, ProjectionGenerationError as RustProjectionGenerationError,
     ProjectionGenerationId as RustProjectionGenerationId,
     ProjectionGenerationStatusV1 as RustProjectionGenerationStatusV1,
     ProjectionRole as RustProjectionRole, ProjectionRuntimeStatus as RustProjectionRuntimeStatus,
@@ -133,6 +134,7 @@ create_exception!(_fathomdb, ConsolidatorError, EngineError);
 // G4 (Slice 35) — filter predicate construction error (non-allowlisted path).
 create_exception!(_fathomdb, InvalidFilterError, EngineError);
 create_exception!(_fathomdb, FrozenReadError, EngineError);
+create_exception!(_fathomdb, PageError, EngineError);
 // 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense-refusal leaf.
 create_exception!(_fathomdb, VectorEquivalenceMismatchError, EngineError);
 // Slice 20 (G5/G6) — traversal depth > 3 or other out-of-range argument.
@@ -276,6 +278,16 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
             InvalidFilterError::new_err(format!("invalid filter: {reason}"))
         }
         RustEngineError::FrozenRead(error) => frozen_read_error_to_py(&error),
+        RustEngineError::Page(error) => {
+            let exc =
+                PageError::new_err(format!("{} at {}", error.reason.as_str(), error.field_path));
+            Python::attach(|py| {
+                let value = exc.value(py);
+                let _ = value.setattr("reason", error.reason.as_str());
+                let _ = value.setattr("field_path", error.field_path);
+            });
+            exc
+        }
         RustEngineError::InvalidArgument { msg } => InvalidArgumentError::new_err(msg),
         RustEngineError::VectorEquivalenceMismatch { reason } => {
             let exc = VectorEquivalenceMismatchError::new_err(format!(
@@ -1724,6 +1736,78 @@ impl PyOpStoreRow {
             payload: r.payload.clone(),
             schema_id: r.schema_id.clone(),
             write_cursor: r.write_cursor,
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "OperationalStateRecordV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyOperationalStateRecordV1 {
+    schema_version: u32,
+    collection: String,
+    record_key: String,
+    payload: String,
+    schema_id: Option<String>,
+    write_cursor: u64,
+}
+
+impl PyOperationalStateRecordV1 {
+    fn from_rust(record: &RustOperationalStateRecordV1) -> Self {
+        Self {
+            schema_version: record.schema_version,
+            collection: record.collection.clone(),
+            record_key: record.record_key.clone(),
+            payload: record.payload.clone(),
+            schema_id: record.schema_id.clone(),
+            write_cursor: record.write_cursor,
+        }
+    }
+}
+
+#[pyclass(module = "fathomdb._fathomdb", name = "NodePageV1", frozen, get_all, skip_from_py_object)]
+#[derive(Clone)]
+struct PyNodePageV1 {
+    schema_version: u32,
+    items: Vec<PyNodeRecord>,
+    next_cursor: Option<String>,
+}
+
+impl PyNodePageV1 {
+    fn from_rust(page: RustPageV1<RustNodeRecord>) -> Self {
+        Self {
+            schema_version: page.schema_version,
+            items: page.items.iter().map(PyNodeRecord::from_rust).collect(),
+            next_cursor: page.next_cursor.map(|cursor| cursor.0),
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "OperationalStatePageV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyOperationalStatePageV1 {
+    schema_version: u32,
+    items: Vec<PyOperationalStateRecordV1>,
+    next_cursor: Option<String>,
+}
+
+impl PyOperationalStatePageV1 {
+    fn from_rust(page: RustPageV1<RustOperationalStateRecordV1>) -> Self {
+        Self {
+            schema_version: page.schema_version,
+            items: page.items.iter().map(PyOperationalStateRecordV1::from_rust).collect(),
+            next_cursor: page.next_cursor.map(|cursor| cursor.0),
         }
     }
 }
@@ -3319,6 +3403,71 @@ fn read_list_filter(
     Ok(rows.iter().map(PyNodeRecord::from_rust).collect())
 }
 
+#[pyfunction]
+#[pyo3(signature = (engine, kind, context, limit, cursor=None, schema_version=1))]
+fn read_canonical_page(
+    py: Python<'_>,
+    engine: &PyEngine,
+    kind: &Bound<'_, PyAny>,
+    context: &PyFrozenReadContextV1,
+    limit: u64,
+    cursor: Option<String>,
+    schema_version: u32,
+) -> PyResult<PyNodePageV1> {
+    let kind = extract_validated_str(kind)?;
+    if let Some(value) = &cursor {
+        validate_ffi_string_py(value)?;
+    }
+    let limit =
+        usize::try_from(limit).map_err(|_| PageError::new_err("invalid_page_limit at /limit"))?;
+    let page = RustPageRequestV1 { schema_version, limit, cursor: cursor.map(RustPageCursor) };
+    let frozen = context.inner.clone();
+    let inner = Arc::clone(&engine.inner);
+    call_engine(py, move || inner.read_canonical_page(&kind, &frozen, &page))
+        .map(PyNodePageV1::from_rust)
+}
+
+#[pyfunction]
+#[pyo3(signature = (engine, collection, record_key, context=None))]
+fn read_operational_state(
+    py: Python<'_>,
+    engine: &PyEngine,
+    collection: &Bound<'_, PyAny>,
+    record_key: &Bound<'_, PyAny>,
+    context: Option<&PyFrozenReadContextV1>,
+) -> PyResult<Option<PyOperationalStateRecordV1>> {
+    let collection = extract_validated_str(collection)?;
+    let record_key = extract_validated_str(record_key)?;
+    let frozen = context.map(|value| value.inner.clone());
+    let inner = Arc::clone(&engine.inner);
+    call_engine(py, move || inner.read_operational_state(&collection, &record_key, frozen.as_ref()))
+        .map(|value| value.as_ref().map(PyOperationalStateRecordV1::from_rust))
+}
+
+#[pyfunction]
+#[pyo3(signature = (engine, collection, context, limit, cursor=None, schema_version=1))]
+fn read_operational_state_page(
+    py: Python<'_>,
+    engine: &PyEngine,
+    collection: &Bound<'_, PyAny>,
+    context: &PyFrozenReadContextV1,
+    limit: u64,
+    cursor: Option<String>,
+    schema_version: u32,
+) -> PyResult<PyOperationalStatePageV1> {
+    let collection = extract_validated_str(collection)?;
+    if let Some(value) = &cursor {
+        validate_ffi_string_py(value)?;
+    }
+    let limit =
+        usize::try_from(limit).map_err(|_| PageError::new_err("invalid_page_limit at /limit"))?;
+    let page = RustPageRequestV1 { schema_version, limit, cursor: cursor.map(RustPageCursor) };
+    let frozen = context.inner.clone();
+    let inner = Arc::clone(&engine.inner);
+    call_engine(py, move || inner.read_operational_state_page(&collection, &frozen, &page))
+        .map(PyOperationalStatePageV1::from_rust)
+}
+
 // ===== Batch translation ==============================================
 
 fn translate_batch(batch: &Bound<'_, PyList>) -> PyResult<Vec<PreparedWrite>> {
@@ -4596,6 +4745,9 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyOpenReport>()?;
     m.add_class::<PyNodeRecord>()?;
     m.add_class::<PyOpStoreRow>()?;
+    m.add_class::<PyOperationalStateRecordV1>()?;
+    m.add_class::<PyNodePageV1>()?;
+    m.add_class::<PyOperationalStatePageV1>()?;
     m.add_class::<PySourceDependencyV1>()?;
     m.add_class::<PyActuationReceiptV1>()?;
     m.add_class::<PyProjectionGenerationStatusV1>()?;
@@ -4632,6 +4784,9 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(read_list, &m)?)?;
     // 0.8.11 Slice 40 — unified Filter → read.list backend (#17).
     m.add_function(wrap_pyfunction!(read_list_filter, &m)?)?;
+    m.add_function(wrap_pyfunction!(read_canonical_page, &m)?)?;
+    m.add_function(wrap_pyfunction!(read_operational_state, &m)?)?;
+    m.add_function(wrap_pyfunction!(read_operational_state_page, &m)?)?;
     // Slice 20 — G5/G6 graph traversal fns.
     m.add_function(wrap_pyfunction!(graph_neighbors, &m)?)?;
     m.add_function(wrap_pyfunction!(crossed_boundary_since, &m)?)?;
@@ -4679,6 +4834,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("ConsolidatorError", py.get_type::<ConsolidatorError>())?;
     m.add("InvalidFilterError", py.get_type::<InvalidFilterError>())?;
     m.add("FrozenReadError", py.get_type::<FrozenReadError>())?;
+    m.add("PageError", py.get_type::<PageError>())?;
     m.add("InvalidArgumentError", py.get_type::<InvalidArgumentError>())?;
     m.add("VectorEquivalenceMismatchError", py.get_type::<VectorEquivalenceMismatchError>())?;
     m.add("IllegalTransitionError", py.get_type::<IllegalTransitionError>())?;

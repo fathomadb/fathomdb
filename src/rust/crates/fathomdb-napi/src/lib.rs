@@ -56,9 +56,10 @@ use fathomdb_engine::{
     MutationProjectionStatusRequestV1 as RustMutationProjectionStatusRequestV1,
     MutationProjectionStatusV1 as RustMutationProjectionStatusV1, NodeRecord as RustNodeRecord,
     OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
-    PerHitExplain as RustPerHitExplain, Predicate as RustPredicate, PreparedWrite,
-    ProjectionDelta as RustProjectionDelta, ProjectionFts as RustProjectionFts,
-    ProjectionGenerationId as RustProjectionGenerationId,
+    OperationalStateRecordV1 as RustOperationalStateRecordV1, PageCursor as RustPageCursor,
+    PageRequestV1 as RustPageRequestV1, PageV1 as RustPageV1, PerHitExplain as RustPerHitExplain,
+    Predicate as RustPredicate, PreparedWrite, ProjectionDelta as RustProjectionDelta,
+    ProjectionFts as RustProjectionFts, ProjectionGenerationId as RustProjectionGenerationId,
     ProjectionGenerationStatusV1 as RustProjectionGenerationStatusV1,
     ProjectionRole as RustProjectionRole, ProjectionRuntimeStatus as RustProjectionRuntimeStatus,
     ProjectionRuntimeStatusEntry as RustProjectionRuntimeStatusEntry,
@@ -130,6 +131,7 @@ const CODE_ERASURE_INCOMPLETE: &str = "FDB_ERASURE_INCOMPLETE";
 // change without an explicit drop.
 const CODE_PROJECTION_DESTRUCTIVE: &str = "FDB_PROJECTION_DESTRUCTIVE";
 const CODE_FROZEN_READ: &str = "FDB_FROZEN_READ";
+const CODE_PAGE: &str = "FDB_PAGE";
 const CODE_PANIC: &str = "FDB_PANIC";
 
 // ===== Typed-error encoder ============================================
@@ -290,6 +292,14 @@ fn engine_error_to_napi(err: RustEngineError) -> Error {
         ),
         RustEngineError::FrozenRead(error) => typed_error(
             CODE_FROZEN_READ,
+            format!("{} at {}", error.reason.as_str(), error.field_path),
+            json!({
+                "reason": error.reason.as_str(),
+                "fieldPath": error.field_path,
+            }),
+        ),
+        RustEngineError::Page(error) => typed_error(
+            CODE_PAGE,
             format!("{} at {}", error.reason.as_str(), error.field_path),
             json!({
                 "reason": error.reason.as_str(),
@@ -1350,6 +1360,83 @@ impl OpStoreRow {
             payload: r.payload.clone(),
             schema_id: r.schema_id.clone(),
             write_cursor: r.write_cursor as i64,
+        }
+    }
+}
+
+#[napi(object)]
+pub struct OperationalStateRecordV1 {
+    pub schema_version: u32,
+    pub collection: String,
+    pub record_key: String,
+    pub payload: String,
+    pub schema_id: Option<String>,
+    pub write_cursor: i64,
+}
+
+impl OperationalStateRecordV1 {
+    fn from_rust(record: &RustOperationalStateRecordV1) -> Self {
+        Self {
+            schema_version: record.schema_version,
+            collection: record.collection.clone(),
+            record_key: record.record_key.clone(),
+            payload: record.payload.clone(),
+            schema_id: record.schema_id.clone(),
+            write_cursor: record.write_cursor as i64,
+        }
+    }
+}
+
+#[napi(object)]
+pub struct PageRequestV1 {
+    pub schema_version: u32,
+    pub limit: i64,
+    pub cursor: Option<String>,
+}
+
+impl PageRequestV1 {
+    fn into_rust(self) -> Result<RustPageRequestV1> {
+        if let Some(value) = &self.cursor {
+            validate_ffi_string_napi(value)?;
+        }
+        Ok(RustPageRequestV1 {
+            schema_version: self.schema_version,
+            limit: usize::try_from(self.limit).unwrap_or(0),
+            cursor: self.cursor.map(RustPageCursor),
+        })
+    }
+}
+
+#[napi(object)]
+pub struct NodePageV1 {
+    pub schema_version: u32,
+    pub items: Vec<NodeRecord>,
+    pub next_cursor: Option<String>,
+}
+
+impl NodePageV1 {
+    fn from_rust(page: RustPageV1<RustNodeRecord>) -> Self {
+        Self {
+            schema_version: page.schema_version,
+            items: page.items.iter().map(NodeRecord::from_rust).collect(),
+            next_cursor: page.next_cursor.map(|cursor| cursor.0),
+        }
+    }
+}
+
+#[napi(object)]
+pub struct OperationalStatePageV1 {
+    pub schema_version: u32,
+    pub items: Vec<OperationalStateRecordV1>,
+    pub next_cursor: Option<String>,
+}
+
+impl OperationalStatePageV1 {
+    fn from_rust(page: RustPageV1<RustOperationalStateRecordV1>) -> Self {
+        Self {
+            schema_version: page.schema_version,
+            items: page.items.iter().map(OperationalStateRecordV1::from_rust).collect(),
+            next_cursor: page.next_cursor.map(|cursor| cursor.0),
         }
     }
 }
@@ -3129,6 +3216,56 @@ pub async fn read_list_filter(
     let view = read_view_or_default(view);
     let rows = call_engine(move || inner.read_list_filter(&kind, &filter, limit, &view)).await?;
     Ok(rows.iter().map(NodeRecord::from_rust).collect())
+}
+
+#[napi(js_name = "readCanonicalPage")]
+pub async fn read_canonical_page(
+    engine: &Engine,
+    kind: String,
+    context: FrozenReadContextV1,
+    page: PageRequestV1,
+) -> Result<NodePageV1> {
+    validate_ffi_string_napi(&kind)?;
+    let frozen = frozen_context_to_rust(context)?;
+    let page = page.into_rust()?;
+    let inner = Arc::clone(&engine.inner);
+    call_engine(move || inner.read_canonical_page(&kind, &frozen, &page))
+        .await
+        .map(NodePageV1::from_rust)
+}
+
+#[napi(js_name = "readOperationalState")]
+pub async fn read_operational_state(
+    engine: &Engine,
+    collection: String,
+    record_key: String,
+    context: Option<FrozenReadContextV1>,
+) -> Result<Option<OperationalStateRecordV1>> {
+    validate_ffi_string_napi(&collection)?;
+    validate_ffi_string_napi(&record_key)?;
+    let frozen = context.map(frozen_context_to_rust).transpose()?;
+    let inner = Arc::clone(&engine.inner);
+    let record = call_engine(move || {
+        inner.read_operational_state(&collection, &record_key, frozen.as_ref())
+    })
+    .await?;
+    Ok(record.as_ref().map(OperationalStateRecordV1::from_rust))
+}
+
+#[napi(js_name = "readOperationalStatePage")]
+pub async fn read_operational_state_page(
+    engine: &Engine,
+    collection: String,
+    context: FrozenReadContextV1,
+    page: PageRequestV1,
+) -> Result<OperationalStatePageV1> {
+    validate_ffi_string_napi(&collection)?;
+    let frozen = frozen_context_to_rust(context)?;
+    let page = page.into_rust()?;
+    let inner = Arc::clone(&engine.inner);
+    call_engine(move || inner.read_operational_state_page(&collection, &frozen, &page))
+        .await
+        .map(OperationalStatePageV1::from_rust)
 }
 
 // ===== Slice 20 (G5/G6) — graph traversal ==============================

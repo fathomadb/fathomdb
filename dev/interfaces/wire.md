@@ -98,3 +98,13 @@ noncanonical values fail closed. The typed envelope code is
 `FDB_PROJECTION_GENERATION`, with closed `reason` and non-disclosing
 `fieldPath`. Readers may accept additive response fields but reject unknown
 schema versions or closed-enum spellings.
+
+## Pagination wire objects (0.8.25 Slice 45)
+
+`PageRequestV1` contains `schemaVersion: 1`, `limit`, and optional opaque
+`cursor`. `PageV1<T>` contains `schemaVersion: 1`, ordered `items`, and nullable
+`nextCursor`. Cursors are bounded to 2 KiB and authenticate database,
+operation, selector, frozen-context digest, limit, ordering version, and last
+write cursor without containing caller selectors or stored content. The typed
+envelope code is `FDB_PAGE`; its closed refusal object contains `reason` and
+non-disclosing `fieldPath`.

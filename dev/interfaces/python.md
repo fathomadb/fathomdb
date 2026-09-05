@@ -926,3 +926,12 @@ object and raise `errors.FrozenReadError` with `reason` and `field_path` on a
 tampered, foreign, unsupported, unavailable, or drifted context. Search
 controls may change ranking or result count but cannot weaken the bound view or
 eligibility.
+
+## Frozen pagination and operational state (0.8.25 Slice 45)
+
+`fathomdb.read.canonical_page(engine, kind, context, PageRequestV1(...))`
+returns `PageV1[NodeRecord]`. `fathomdb.read.operational_state` provides a
+current or frozen point read, and `fathomdb.read.operational_state_page`
+provides frozen pagination for a registered `latest_state` collection. Limits
+are 1 through 250. Pagination refusals raise `errors.PageError` with stable
+`reason` and `field_path`; frozen drift continues to raise `FrozenReadError`.

@@ -26,6 +26,10 @@ import {
   type NativeFilterTermInput,
   type NativeNodeRecord,
   type NativeOpStoreRow,
+  type NativeNodePageV1,
+  type NativeOperationalStatePageV1,
+  type NativeOperationalStateRecordV1,
+  type NativePageRequestV1,
   type NativePredicateInput,
   type NativeProjectionRuntimeStatus,
   type NativeEmbeddingReadiness,
@@ -43,6 +47,7 @@ import type {
   MutationProjectionStatusV1,
   ProjectionGenerationStatusV1,
   EmbeddingReadiness,
+  FrozenReadContextV1,
   ProjectionSpec,
 } from "./index.js";
 
@@ -110,6 +115,33 @@ export interface OpStoreRow {
   recordKey: string;
   opKind: string;
   /** The stored `payload_json`. */
+  payload: string;
+  schemaId: string | null;
+  writeCursor: number;
+}
+
+/** Opaque authenticated continuation. Its contents are not a public contract. */
+export type PageCursor = string;
+
+/** Versioned bounded page request. */
+export interface PageRequestV1 {
+  schemaVersion: 1;
+  limit: number;
+  cursor?: PageCursor | null;
+}
+
+/** Stable keyset page under one frozen read context. */
+export interface PageV1<T> {
+  schemaVersion: 1;
+  items: T[];
+  nextCursor: PageCursor | null;
+}
+
+/** Current record from a governed `latest_state` collection. */
+export interface OperationalStateRecordV1 {
+  schemaVersion: 1;
+  collection: string;
+  recordKey: string;
   payload: string;
   schemaId: string | null;
   writeCursor: number;
@@ -202,6 +234,60 @@ function validateLimit(limit: number): void {
   if (!Number.isInteger(limit) || limit < 0) {
     throw new RangeError("read.collection/read.mutations require a non-negative integer limit");
   }
+}
+
+function nativePageRequest(page: PageRequestV1): NativePageRequestV1 {
+  const unknown = Object.keys(page).filter(
+    (key) => !["schemaVersion", "limit", "cursor"].includes(key),
+  );
+  if (unknown.length > 0) {
+    throw new InvalidArgumentError(`PageRequestV1 has unknown field ${unknown.sort()[0]}`);
+  }
+  if (page.schemaVersion !== 1) {
+    throw new InvalidArgumentError("PageRequestV1.schemaVersion must be 1");
+  }
+  if (!Number.isInteger(page.limit) || page.limit < 1 || page.limit > 250) {
+    throw new RangeError("PageRequestV1.limit must be an integer in 1..=250");
+  }
+  if (page.cursor !== undefined && page.cursor !== null) {
+    validateFfiString(page.cursor);
+  }
+  return {
+    schemaVersion: page.schemaVersion,
+    limit: page.limit,
+    cursor: page.cursor ?? undefined,
+  };
+}
+
+function toOperationalStateRecord(
+  record: NativeOperationalStateRecordV1,
+): OperationalStateRecordV1 {
+  return {
+    schemaVersion: 1,
+    collection: record.collection,
+    recordKey: record.recordKey,
+    payload: record.payload,
+    schemaId: record.schemaId ?? null,
+    writeCursor: record.writeCursor,
+  };
+}
+
+function toNodePage(page: NativeNodePageV1): PageV1<NodeRecord> {
+  return {
+    schemaVersion: 1,
+    items: page.items.map(toNodeRecord),
+    nextCursor: page.nextCursor ?? null,
+  };
+}
+
+function toOperationalStatePage(
+  page: NativeOperationalStatePageV1,
+): PageV1<OperationalStateRecordV1> {
+  return {
+    schemaVersion: 1,
+    items: page.items.map(toOperationalStateRecord),
+    nextCursor: page.nextCursor ?? null,
+  };
 }
 
 /** Convert a public `Predicate` to the native `NativePredicateInput` shape. */
@@ -354,6 +440,56 @@ export const read = {
       native.readList(engine._native, kind, nativePredicates, limit, view),
     );
     return rows.map(toNodeRecord);
+  },
+
+  /** Read one stable page of canonical logical nodes under `context`. */
+  async canonicalPage(
+    engine: Engine,
+    kind: string,
+    context: FrozenReadContextV1,
+    page: PageRequestV1,
+  ): Promise<PageV1<NodeRecord>> {
+    validateFfiString(kind);
+    return toNodePage(
+      await intercept(() =>
+        native.readCanonicalPage(engine._native, kind, context, nativePageRequest(page)),
+      ),
+    );
+  },
+
+  /** Read one current value from a governed `latest_state` collection. */
+  async operationalState(
+    engine: Engine,
+    collection: string,
+    recordKey: string,
+    context?: FrozenReadContextV1,
+  ): Promise<OperationalStateRecordV1 | null> {
+    validateFfiString(collection);
+    validateFfiString(recordKey);
+    const record = await intercept(() =>
+      native.readOperationalState(engine._native, collection, recordKey, context),
+    );
+    return record === null ? null : toOperationalStateRecord(record);
+  },
+
+  /** Read one stable page from a governed `latest_state` collection. */
+  async operationalStatePage(
+    engine: Engine,
+    collection: string,
+    context: FrozenReadContextV1,
+    page: PageRequestV1,
+  ): Promise<PageV1<OperationalStateRecordV1>> {
+    validateFfiString(collection);
+    return toOperationalStatePage(
+      await intercept(() =>
+        native.readOperationalStatePage(
+          engine._native,
+          collection,
+          context,
+          nativePageRequest(page),
+        ),
+      ),
+    );
   },
 
   /**

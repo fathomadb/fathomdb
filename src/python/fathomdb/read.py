@@ -37,6 +37,11 @@ from fathomdb._fathomdb import read_get as _native_get
 from fathomdb._fathomdb import read_get_many as _native_get_many
 from fathomdb._fathomdb import read_list as _native_list
 from fathomdb._fathomdb import read_list_filter as _native_list_filter
+from fathomdb._fathomdb import read_canonical_page as _native_canonical_page
+from fathomdb._fathomdb import read_operational_state as _native_operational_state
+from fathomdb._fathomdb import (
+    read_operational_state_page as _native_operational_state_page,
+)
 from fathomdb._fathomdb import read_mutations as _native_mutations
 from fathomdb._fathomdb import crossed_boundary_since as _native_crossed_boundary_since
 from fathomdb._fathomdb import read_projections as _native_read_projections
@@ -49,13 +54,19 @@ from fathomdb._fathomdb import (
 )
 from fathomdb._fathomdb import read_embedding_readiness as _native_read_embedding_readiness
 from fathomdb._fathomdb import ReadView as _NativeReadView
+from fathomdb._fathomdb import ReadContextV1 as _NativeReadContextV1
+from fathomdb._fathomdb import FrozenReadContextV1 as _NativeFrozenReadContextV1
 from fathomdb._fathomdb import BoundaryCrossing as _NativeBoundaryCrossing
 from fathomdb.errors import ProjectionGenerationError
 from fathomdb.types import (
     BoundaryCrossing,
     EmbeddingOperation,
+    FrozenReadContextV1,
     NodeRecord,
+    OperationalStateRecordV1,
     OpStoreRow,
+    PageRequestV1,
+    PageV1,
     ProjectionRuntimeStatus,
     EmbeddingReadiness,
     EmbeddingReadinessState,
@@ -185,6 +196,25 @@ def _to_native_view(view: ReadView | None) -> _NativeReadView | None:
     )
 
 
+def _to_native_frozen_context(context: FrozenReadContextV1) -> _NativeFrozenReadContextV1:
+    eligibility = context.context.eligibility
+    native_context = _NativeReadContextV1(
+        view=_to_native_view(context.context.view),
+        source_type=eligibility.source_type,
+        kind=eligibility.kind,
+        created_after=eligibility.created_after,
+        status=eligibility.status,
+        attributes=builtins.list(eligibility.attributes),
+        schema_version=context.context.schema_version,
+    )
+    return _NativeFrozenReadContextV1(
+        context.effective_valid_at,
+        native_context,
+        context.token,
+        schema_version=context.schema_version,
+    )
+
+
 def _to_boundary_crossing(native: _NativeBoundaryCrossing) -> BoundaryCrossing:
     return BoundaryCrossing(
         node=_to_node_record(native.node),
@@ -199,6 +229,17 @@ def _to_op_store_row(native: _NativeOpStoreRow) -> OpStoreRow:
         collection=native.collection,
         record_key=native.record_key,
         op_kind=native.op_kind,
+        payload=native.payload,
+        schema_id=native.schema_id,
+        write_cursor=native.write_cursor,
+    )
+
+
+def _to_operational_state_record(native: Any) -> OperationalStateRecordV1:
+    return OperationalStateRecordV1(
+        schema_version=native.schema_version,
+        collection=native.collection,
+        record_key=native.record_key,
         payload=native.payload,
         schema_id=native.schema_id,
         write_cursor=native.write_cursor,
@@ -312,6 +353,69 @@ def list(  # noqa: A001 — shadows builtin; public API requires this name
     else:
         rows = _native_list(engine._native, kind, predicates or None, limit, _to_native_view(view))
     return [_to_node_record(row) for row in rows]
+
+
+def canonical_page(
+    engine: "Engine",
+    kind: str,
+    context: FrozenReadContextV1,
+    page: PageRequestV1,
+) -> PageV1[NodeRecord]:
+    """Read one stable page of canonical logical nodes under ``context``."""
+
+    native = _native_canonical_page(
+        engine._native,
+        kind,
+        _to_native_frozen_context(context),
+        page.limit,
+        page.cursor,
+        page.schema_version,
+    )
+    return PageV1(
+        schema_version=native.schema_version,
+        items=[_to_node_record(item) for item in native.items],
+        next_cursor=native.next_cursor,
+    )
+
+
+def operational_state(
+    engine: "Engine",
+    collection: str,
+    record_key: str,
+    context: FrozenReadContextV1 | None = None,
+) -> OperationalStateRecordV1 | None:
+    """Read one current record from a governed ``latest_state`` collection."""
+
+    native = _native_operational_state(
+        engine._native,
+        collection,
+        record_key,
+        None if context is None else _to_native_frozen_context(context),
+    )
+    return None if native is None else _to_operational_state_record(native)
+
+
+def operational_state_page(
+    engine: "Engine",
+    collection: str,
+    context: FrozenReadContextV1,
+    page: PageRequestV1,
+) -> PageV1[OperationalStateRecordV1]:
+    """Read one stable page from a governed ``latest_state`` collection."""
+
+    native = _native_operational_state_page(
+        engine._native,
+        collection,
+        _to_native_frozen_context(context),
+        page.limit,
+        page.cursor,
+        page.schema_version,
+    )
+    return PageV1(
+        schema_version=native.schema_version,
+        items=[_to_operational_state_record(item) for item in native.items],
+        next_cursor=native.next_cursor,
+    )
 
 
 def crossed_boundary_since(
@@ -465,6 +569,9 @@ __all__ = [
     "collection",
     "mutations",
     "list",
+    "canonical_page",
+    "operational_state",
+    "operational_state_page",
     "crossed_boundary_since",
     "projections",
     "projection_status",

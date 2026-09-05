@@ -963,3 +963,12 @@ token must be echoed to `engine.searchFrozen` or
 `engine.searchExpandFrozen`. Refusals surface as `FrozenReadError` with stable
 `reason` and `fieldPath`. Frozen search options can affect ranking and result
 count only; they cannot weaken the authenticated view or eligibility.
+
+## Frozen pagination and operational state (0.8.25 Slice 45)
+
+`read.canonicalPage(engine, kind, context, request)` returns
+`PageV1<NodeRecord>`. `read.operationalState` provides a current or frozen
+point read, while `read.operationalStatePage` provides frozen pagination for a
+registered `latest_state` collection. Limits are 1 through 250. Pagination
+refusals are `PageError` values with stable `reason` and `fieldPath`; frozen
+drift remains `FrozenReadError`.

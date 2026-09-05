@@ -44,7 +44,11 @@ export { read } from "./read.js";
 export type {
   BoundaryCrossing,
   NodeRecord,
+  OperationalStateRecordV1,
   OpStoreRow,
+  PageCursor,
+  PageRequestV1,
+  PageV1,
   Predicate,
   ReadCollectionOptions,
   ReadView,

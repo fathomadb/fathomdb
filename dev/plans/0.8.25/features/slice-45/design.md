@@ -1,7 +1,7 @@
 ---
 title: 0.8.25 Slice 45 — minimal pagination and operational-state design
 status: READY
-design_version: 6
+design_version: 7
 review_cycle: 3
 target_release: 0.8.25
 depends_on: 40
@@ -178,6 +178,13 @@ for point reads, the operational page index for pages, and no temp-order B-tree
 or `operational_mutations` access. Exact-attribute eligibility may add indexed
 semi-joins but must still execute before keyset truncation.
 
+Implementation measurement added two non-semantic support indexes in schema
+step 33: `operational_state(write_cursor)` keeps the frozen canonical-write
+boundary lookup logarithmic, and
+`_fathomdb_artifact_revisions(write_cursor)` prevents the inherited dependency
+eligibility predicate from scanning all revisions for every page row. Both are
+open-time manifest checked. They change no result, ordering, or authority.
+
 ## Cursor and frozen-state binding
 
 Stable pagination composes with Slice 35 rather than creating another snapshot
@@ -297,8 +304,8 @@ RED tests are committed before implementation and use real SQLite databases:
 | `slice45_canonical_pages` | limit bounds; empty/terminal/repeated cursor; active/history write-cursor order; anonymous exclusion; kind and every Slice 35 eligibility term before limit; exact concatenation with existing `NodeRecord` shape. |
 | `slice45_operational_state` | registered format-v1 latest-state point/page; missing key; missing/wrong-kind/unsupported-format collection; replacement; exact payload; point/page agreement; no mutation-log fallback. |
 | `slice45_page_races` | concurrent insert, supersede, lifecycle, dependency closure, erasure, attribute/projection change, state replace/excise, collection change, close/reopen; bound result or exact whole-call failure. |
-| `slice45_query_plans` | canonical composite index, operational PK, no OFFSET/temp-order/mutation-log scan. |
-| `step33_pagination` | two unique indexes, six exact triggers, 14/16/18 manifest branches, one cutover increment, exhaustion rollback, pre-upgrade duplicate-key migration refusal, post-upgrade duplicate-key open refusal, and schema-32-token/raw-state-mutation/upgrade refusal. |
+| `slice45_query_plans` | canonical composite and revision-cursor indexes, operational PK, no OFFSET/temp-order/mutation-log scan. |
+| `step33_pagination` | two unique page indexes, two support indexes, six exact triggers, 14/16/18 manifest branches, one cutover increment, exhaustion rollback, pre-upgrade duplicate-key migration refusal, post-upgrade duplicate-key open refusal, and schema-32-token/raw-state-mutation/upgrade refusal. |
 | binding suites | strict request/response/error wire, canonical fixture, Python/TypeScript parity, source-independent packaged smoke. |
 
 Implementation order is codec/types and RED properties; schema/index/trigger
@@ -332,8 +339,12 @@ non-gating eligibility cell proves filters but is not pooled into overhead.
 The existing public `read_list_filter` and a complete page walk are reported as
 separate operational observations, not causal baselines. Frozen validation
 records projection-state and terminal row counts plus parse, authentication,
-binding, and query stage times so its current O(number-of-terminal-rows) digest
-scan cannot be misattributed to keyset pagination.
+binding, and query stage times. The pre-GREEN pilot retains the observed
+O(number-of-terminal-rows) digest cost. Schema 33 then uses serving-binding v3:
+terminal mutations are authenticated by the already-bound monotonic visibility
+generation instead of re-hashing every terminal row. Schema 31/32 encodings
+remain exact historical fixtures; a regression test proves every terminal
+mutation advances the generation while leaving the v3 compact encoding stable.
 
 Each primary steady cell runs ten independent paired processes per scale and
 at least 1,000 operations per process; treatment order alternates. Three

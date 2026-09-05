@@ -6,7 +6,9 @@ Field names owned by `dev/interfaces/python.md` § Caller-visible data shapes.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal, TypedDict, TypeGuard, Union
+from typing import Generic, Literal, TypeVar, TypedDict, TypeGuard, Union
+
+T = TypeVar("T")
 
 #: Typed soft-fallback branch values per `dev/design/retrieval.md`.
 #: ``"text_edge"`` added in Slice 15 (G11) for edge-body hits from
@@ -608,6 +610,39 @@ class OpStoreRow:
     write_cursor: int
 
 
+PageCursor = str
+
+
+@dataclass(frozen=True)
+class PageRequestV1:
+    """Bounded version-1 request for a stable keyset page."""
+
+    limit: int
+    cursor: PageCursor | None = None
+    schema_version: int = 1
+
+
+@dataclass(frozen=True)
+class PageV1(Generic[T]):
+    """One stable keyset page under an authenticated frozen context."""
+
+    items: list[T]
+    next_cursor: PageCursor | None
+    schema_version: int = 1
+
+
+@dataclass(frozen=True)
+class OperationalStateRecordV1:
+    """Current value from a governed ``latest_state`` collection."""
+
+    collection: str
+    record_key: str
+    payload: str
+    schema_id: str | None
+    write_cursor: int
+    schema_version: int = 1
+
+
 @dataclass(frozen=True)
 class SearchFilter:
     """G10 — closed metadata filter for `engine.search(query, filter=...)`.
@@ -1032,6 +1067,10 @@ __all__ = [
     "MigrationStepReport",
     "NodeRecord",
     "OpStoreRow",
+    "OperationalStateRecordV1",
+    "PageCursor",
+    "PageRequestV1",
+    "PageV1",
     "OpenReport",
     "PerHitExplain",
     "QueryTrace",

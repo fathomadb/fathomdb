@@ -1,4 +1,4 @@
-use fathomdb_schema::{migrate, migrate_with_steps, MIGRATIONS, SCHEMA_VERSION};
+use fathomdb_schema::{migrate, migrate_with_steps, MIGRATIONS};
 use rusqlite::Connection;
 
 fn table_exists(connection: &Connection, name: &str) -> bool {
@@ -23,9 +23,10 @@ fn step32_adds_generation_authority_and_receipt_correlation_without_moving_conte
         )
         .unwrap();
 
-    migrate(&connection).unwrap();
+    migrate_with_steps(&connection, &MIGRATIONS[..32]).unwrap();
 
-    assert_eq!(SCHEMA_VERSION, 32);
+    let version: u32 = connection.query_row("PRAGMA user_version", [], |row| row.get(0)).unwrap();
+    assert_eq!(version, 32);
     assert!(table_exists(&connection, "_fathomdb_projection_generations"));
     assert!(table_exists(&connection, "_fathomdb_projection_generation_current"));
     let body: String = connection

@@ -296,6 +296,33 @@ export interface NativeNodeRecord {
   writeCursor: number;
 }
 
+export interface NativeOperationalStateRecordV1 {
+  schemaVersion: number;
+  collection: string;
+  recordKey: string;
+  payload: string;
+  schemaId?: string | null;
+  writeCursor: number;
+}
+
+export interface NativePageRequestV1 {
+  schemaVersion: number;
+  limit: number;
+  cursor?: string | null;
+}
+
+export interface NativeNodePageV1 {
+  schemaVersion: number;
+  items: NativeNodeRecord[];
+  nextCursor?: string | null;
+}
+
+export interface NativeOperationalStatePageV1 {
+  schemaVersion: number;
+  items: NativeOperationalStateRecordV1[];
+  nextCursor?: string | null;
+}
+
 /** 0.8.20 Slice 10b (R-20-RV / R-20-NV) — native read-view input. */
 export interface NativeReadView {
   includeSuperseded?: boolean;
@@ -690,6 +717,24 @@ export interface NativeModule {
     limit?: number,
     view?: NativeReadView,
   ): Promise<NativeNodeRecord[]>;
+  readCanonicalPage(
+    engine: NativeEngine,
+    kind: string,
+    context: NativeFrozenReadContextV1,
+    page: NativePageRequestV1,
+  ): Promise<NativeNodePageV1>;
+  readOperationalState(
+    engine: NativeEngine,
+    collection: string,
+    recordKey: string,
+    context?: NativeFrozenReadContextV1,
+  ): Promise<NativeOperationalStateRecordV1 | null>;
+  readOperationalStatePage(
+    engine: NativeEngine,
+    collection: string,
+    context: NativeFrozenReadContextV1,
+    page: NativePageRequestV1,
+  ): Promise<NativeOperationalStatePageV1>;
   // Slice 20 — G5/G6 graph traversal fns.
   graphNeighbors(
     engine: NativeEngine,

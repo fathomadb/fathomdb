@@ -470,6 +470,7 @@ def _worker(config_path: Path, treatment: str, output_root: Path) -> None:
             point_root=treatment_root,
             point=config["workload"]["records"],
             repetition=index,
+            observe_measured_search_calls=True,
         )
         for index in range(1, config["workload"]["repetitions"] + 1)
     ]

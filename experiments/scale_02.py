@@ -1106,6 +1106,7 @@ def _execute_repetition(
     repetition: int,
     engine_factory: Callable[[str], Any] | None = None,
     prepare: Callable[..., PreparedDatabase] = prepare_test_database,
+    observe_measured_search_calls: bool = False,
 ) -> dict[str, Any]:
     prepared = prepare(
         point_root,
@@ -1219,7 +1220,6 @@ def _execute_repetition(
         "mutation_to_ready_ms": mutation,
         "errors": errors,
         "timeouts": timeouts,
-        "measured_search_call_count": warmup_calls + steady_calls,
         "database_bytes": database_bytes,
         "derived_index_bytes": derived_index_bytes,
         "peak_rss_bytes": resource_metrics["peak_rss_bytes"],
@@ -1235,6 +1235,8 @@ def _execute_repetition(
         },
         "doctor_sha256": _sha_file(prepared.doctor_path),
     }
+    if observe_measured_search_calls:
+        result["measured_search_call_count"] = warmup_calls + steady_calls
     output_path = prepared.database_path.parent / "scale-02-repetition.v1.json"
     output_path.write_text(json.dumps(result, sort_keys=True) + "\n", encoding="utf-8")
     output_path.chmod(0o600)

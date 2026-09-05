@@ -84,7 +84,7 @@ and `truncate_row_projections_in` and fails when the source call-site set
 changes. The current caller classifications are:
 
 - canonical edge pruning: `prune_edge_projection_shadows` and the G0/G11 edge
-  supersession arms in `apply_prepared_batch_in_transaction`, each paired with
+  supersession arms in `apply_batch_in_transaction`, each paired with
   canonical lifecycle updates, vector-owner deletion, and terminal readiness;
 - vector publication maintenance: `run_pin_and_requantize_pass` and
   `commit_projection_outcomes`, each within its vector-owner transaction;

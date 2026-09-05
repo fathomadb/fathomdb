@@ -308,10 +308,53 @@ def _validate_authority(authority: dict[str, Any]) -> None:
                 prior.append(pointer)
         _list(authority["metric_exclusions"], "measurement plan exclusions")
     if version == CURRENT_PLAN_VERSION:
-        _list(
+        binding_rows = _list(
             authority["execution_witness_bindings"],
             "measurement plan execution witness bindings",
         )
+        planned_witnesses = {
+            witness_id
+            for metric in authority["metric_bindings"]
+            for witness_id in _list(
+                metric.get("execution_witness_ids"),
+                "measurement plan metric witness ids",
+            )
+        }
+        for comparison in authority["comparisons"]:
+            for arm in _list(comparison.get("arms"), "measurement plan comparison arms"):
+                planned_witnesses.update(
+                    _list(
+                        arm.get("execution_witness_ids"),
+                        "measurement plan comparison witness ids",
+                    )
+                )
+        metrics_artifacts = {
+            root["source_artifact_id"] for root in authority["measurement_roots"]
+        }
+        seen_bindings: set[str] = set()
+        for index, value in enumerate(binding_rows):
+            binding = _closed(
+                value,
+                {"witness_id", "source_artifact_id", "json_pointer"},
+                f"measurement plan witness binding[{index}]",
+            )
+            witness_id = _nonempty_string(
+                binding["witness_id"], "measurement plan witness binding id"
+            )
+            if witness_id in seen_bindings:
+                raise ClassificationError("duplicate measurement plan witness binding")
+            if witness_id not in planned_witnesses:
+                raise ClassificationError("measurement plan witness binding is dangling")
+            if binding["source_artifact_id"] not in metrics_artifacts:
+                raise ClassificationError(
+                    "measurement plan witness binding source is not a metrics artifact"
+                )
+            pointer = binding["json_pointer"]
+            if not isinstance(pointer, str) or not pointer.startswith("/"):
+                raise ClassificationError(
+                    "measurement plan witness binding JSON Pointer is invalid"
+                )
+            seen_bindings.add(witness_id)
 
 
 def _validate_artifacts(

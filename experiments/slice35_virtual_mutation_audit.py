@@ -113,18 +113,36 @@ def _string_literals(source: str) -> list[tuple[int, str]]:
             result.append((start, "".join(body)))
             continue
         if source[index] == "'":
-            index += 1
-            while index < length:
-                if source[index] == "\\":
-                    index += 2
-                elif source[index] == "'":
-                    index += 1
-                    break
-                else:
-                    index += 1
-            continue
+            char_end = _char_literal_end(source, index)
+            if char_end is not None:
+                index = char_end
+                continue
         index += 1
     return result
+
+
+def _char_literal_end(source: str, start: int) -> int | None:
+    """Return the end of a Rust char literal, but never consume a lifetime."""
+    index = start + 1
+    if index >= len(source):
+        return None
+    if source[index] != "\\":
+        return index + 2 if index + 1 < len(source) and source[index + 1] == "'" else None
+    index += 1
+    if index >= len(source):
+        return None
+    if source[index] == "x":
+        index += 3
+    elif source[index] == "u" and index + 1 < len(source) and source[index + 1] == "{":
+        close = source.find("}", index + 2)
+        if close < 0:
+            return None
+        index = close + 1
+    else:
+        index += 1
+    if index < len(source) and source[index] == "'":
+        return index + 1
+    return None
 
 
 def _enclosing_function(source: str, offset: int) -> str:
@@ -276,6 +294,7 @@ PRODUCTION_INVENTORY = [
         ("migrate_vector_partition_to_pack1", "DROP TABLE", "vector_default"),
         ("migrate_vector_partition_to_pack1", "INSERT INTO", "vector_default"),
         ("project_canonical_edge_row", "INSERT INTO", "search_index_edges"),
+        ("prune_edge_projection_shadows", "DELETE FROM", "search_index_edges"),
         ("project_canonical_node_row", "INSERT INTO", "search_index"),
         ("project_canonical_node_row", "INSERT INTO", "search_index_v2"),
         ("project_one_attribute", "INSERT INTO", "property_search_index"),

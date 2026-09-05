@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, thread, time::Duration};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
@@ -148,6 +148,45 @@ fn sidecar_row_identity_must_match_the_projection_owner() {
             [cursor, cursor + 10_000],
         )
         .unwrap();
+
+    assert_generation_corruption(opened.engine.read_projection_generation_status());
+}
+
+#[test]
+fn global_status_rejects_a_cursor_owned_by_both_node_and_edge() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("cross-owner-cursor{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    let cursor = opened.engine.write(&[node("node-owner")]).unwrap().row_cursors[0];
+    Connection::open(&path)
+        .unwrap()
+        .execute(
+            "INSERT INTO canonical_edges(\
+               write_cursor,kind,from_id,to_id,source_id,logical_id,body\
+             ) VALUES(?1,'supports','a','b','slice40-cross-owner','edge-owner',NULL)",
+            [cursor],
+        )
+        .unwrap();
+
+    assert_generation_corruption(opened.engine.read_projection_generation_status());
+}
+
+#[test]
+fn worker_publication_never_repairs_a_partial_projection_tuple() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("partial-publication{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
+    let (ready, release) = opened.engine.pause_projection_worker_after_wal_transaction_for_test();
+    Connection::open(&path)
+        .unwrap()
+        .execute("INSERT INTO _fathomdb_vector_rows(rowid,kind,write_cursor) VALUES(1,'doc',1)", [])
+        .unwrap();
+    let cursor = opened.engine.write(&[node("partial-before-publication")]).unwrap().row_cursors[0];
+    assert_eq!(cursor, 1);
+    ready.wait();
+    release.wait();
+    thread::sleep(Duration::from_millis(200));
 
     assert_generation_corruption(opened.engine.read_projection_generation_status());
 }

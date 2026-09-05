@@ -1,0 +1,438 @@
+"""Run the preregistered Slice 40 write, storage, reopen, and status campaign."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import io
+import json
+import random
+import shutil
+import statistics
+import subprocess
+import tarfile
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any, Mapping, Sequence
+
+from experiments import _lib, scale_02
+
+
+SCHEMA = "scale-02-slice40.v1"
+PROGRAM_TRACK = "SCALE-02"
+REPO_ROOT = Path(__file__).resolve().parent.parent
+BASELINE_COMMIT = "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403"
+_TOP_KEYS = {
+    "schema_version",
+    "program_track",
+    "release",
+    "approval",
+    "baseline",
+    "candidate",
+    "workload",
+    "policy",
+    "artifact_root",
+    "claim_boundary",
+}
+_WORKLOAD = {
+    "records": 10_000,
+    "batch_size": 128,
+    "expected_receipts": 79,
+    "repetitions": 5,
+    "status_records": 50_000,
+    "status_warmups": 100,
+    "status_samples": 1_000,
+    "open_warmups": 5,
+    "open_samples": 20,
+    "bootstrap_seed": "0x5CA1E025400001",
+    "bootstrap_resamples": 2_000,
+}
+_POLICY = {
+    "confidence": 0.95,
+    "write_max_relative_regression": 0.03,
+    "open_max_relative_regression": 0.10,
+    "open_max_absolute_regression_ms": 25.0,
+    "status_p95_ms": 5.0,
+    "status_p99_ms": 10.0,
+    "storage_max_increase_bytes": 65_536,
+    "cpu_cuda_status_p95_max_difference_ms": 2.0,
+}
+
+
+class Slice40ScaleError(ValueError):
+    """Raised when the Slice 40 contract or observed evidence is invalid."""
+
+
+def _exact(value: object, label: str, keys: set[str]) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != keys:
+        actual = set(value) if isinstance(value, dict) else set()
+        raise Slice40ScaleError(
+            f"{label} keys drifted: missing={sorted(keys - actual)}, "
+            f"unknown={sorted(actual - keys)}"
+        )
+    return value
+
+
+def _commit(value: object, label: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 40
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise Slice40ScaleError(f"{label} must be a full lowercase commit")
+    return value
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def resolve_config(
+    document: object, *, validate_repository: bool = True
+) -> dict[str, Any]:
+    """Validate the exact preregistered Slice 40 campaign contract."""
+    root = _exact(document, "config", _TOP_KEYS)
+    if (
+        root["schema_version"] != SCHEMA
+        or root["program_track"] != PROGRAM_TRACK
+        or root["release"] != "0.8.25"
+        or root["claim_boundary"] != "slice40_projection_generation_readiness"
+    ):
+        raise Slice40ScaleError("configuration identity drifted")
+    approval = _exact(
+        root["approval"], "approval", {"state", "approved_by", "approved_at"}
+    )
+    if approval["state"] != "approved" or approval["approved_by"] != "HITL":
+        raise Slice40ScaleError("execution is not HITL-approved")
+    baseline = _exact(root["baseline"], "baseline", {"source_commit"})
+    candidate = _exact(root["candidate"], "candidate", {"source_commit"})
+    if _commit(baseline["source_commit"], "baseline.source_commit") != BASELINE_COMMIT:
+        raise Slice40ScaleError("baseline source drifted")
+    _commit(candidate["source_commit"], "candidate.source_commit")
+    workload = _exact(root["workload"], "workload", set(_WORKLOAD))
+    if workload != _WORKLOAD:
+        raise Slice40ScaleError("workload drifted from the registered matrix")
+    policy = _exact(root["policy"], "policy", set(_POLICY))
+    if policy != _POLICY:
+        raise Slice40ScaleError("policy drifted from the registered limits")
+    artifact_root = root["artifact_root"]
+    if not isinstance(artifact_root, str) or not Path(artifact_root).is_absolute():
+        raise Slice40ScaleError("artifact_root must be absolute and outside the repository")
+    if Path(artifact_root).resolve().is_relative_to(REPO_ROOT):
+        raise Slice40ScaleError("artifact_root must remain outside the repository")
+    if validate_repository:
+        for label, commit in (
+            ("baseline", baseline["source_commit"]),
+            ("candidate", candidate["source_commit"]),
+        ):
+            check = subprocess.run(
+                ["git", "cat-file", "-e", f"{commit}^{{commit}}"],
+                cwd=REPO_ROOT,
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            if check.returncode != 0:
+                raise Slice40ScaleError(f"{label} source commit is unavailable")
+    return root
+
+
+def load_config(path: str | Path, *, validate_repository: bool = True) -> dict[str, Any]:
+    """Load a Slice 40 campaign contract."""
+    try:
+        document = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise Slice40ScaleError("configuration is unavailable") from exc
+    return resolve_config(document, validate_repository=validate_repository)
+
+
+def paired_relative_upper(
+    baseline: Sequence[float],
+    candidate: Sequence[float],
+    *,
+    seed: int,
+    resamples: int,
+) -> float:
+    """Return the one-sided paired-bootstrap upper relative regression."""
+    if len(baseline) != len(candidate) or not baseline:
+        raise Slice40ScaleError("paired samples must be non-empty and equal length")
+    ratios = [(new / old) - 1.0 for old, new in zip(baseline, candidate, strict=True)]
+    randomizer = random.Random(seed)
+    estimates = [
+        statistics.fmean(ratios[randomizer.randrange(len(ratios))] for _ in ratios)
+        for _ in range(resamples)
+    ]
+    return scale_02._percentile(estimates, 0.95)
+
+
+def comparison_verdict(
+    *,
+    write_upper: Mapping[str, float],
+    open_upper_relative: float,
+    open_absolute_regression_ms: float,
+    storage_increase_bytes: int,
+    policy: Mapping[str, Any],
+) -> str:
+    """Apply all preregistered common-path comparison limits."""
+    write_pass = all(
+        value <= policy["write_max_relative_regression"]
+        for value in write_upper.values()
+    )
+    open_pass = (
+        open_upper_relative <= policy["open_max_relative_regression"]
+        or open_absolute_regression_ms
+        <= policy["open_max_absolute_regression_ms"]
+    )
+    storage_pass = storage_increase_bytes <= policy["storage_max_increase_bytes"]
+    return "pass" if write_pass and open_pass and storage_pass else "fail"
+
+
+def validate_worker_counts(
+    result: Mapping[str, Any], workload: Mapping[str, Any]
+) -> None:
+    """Reject a worker that did not execute the exact registered workload."""
+    expected = {
+        "records": workload["records"],
+        "batch_size": workload["batch_size"],
+        "receipt_count": workload["expected_receipts"],
+        "operation_count": workload["records"],
+        "pending_receipt_count": workload["expected_receipts"],
+        "pending_cursor_count": workload["records"],
+        "errors": 0,
+        "timeouts": 0,
+    }
+    if any(result.get(key) != value for key, value in expected.items()):
+        raise Slice40ScaleError("worker counts drifted from the registered workload")
+
+
+def _extract_source(commit: str, destination: Path) -> None:
+    archive = subprocess.run(
+        ["git", "archive", "--format=tar", commit],
+        cwd=REPO_ROOT,
+        check=True,
+        stdout=subprocess.PIPE,
+    ).stdout
+    destination.mkdir(parents=True)
+    with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as bundle:
+        bundle.extractall(destination, filter="data")
+
+
+def _build_worker(source: Path, treatment_root: Path) -> Path:
+    helper = REPO_ROOT / "experiments/rust/slice40_common_measurement.rs"
+    example = source / "src/rust/crates/fathomdb-engine/examples/slice40_common_measurement.rs"
+    example.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(helper, example)
+    target = treatment_root / "target"
+    log = treatment_root / "build.log"
+    completed = subprocess.run(
+        [
+            "cargo",
+            "build",
+            "--release",
+            "-p",
+            "fathomdb-engine",
+            "--features",
+            "test-hooks",
+            "--example",
+            "slice40_common_measurement",
+        ],
+        cwd=source,
+        env={**__import__("os").environ, "CARGO_TARGET_DIR": str(target)},
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    log.write_text(completed.stdout, encoding="utf-8")
+    if completed.returncode != 0:
+        raise Slice40ScaleError(f"worker build failed; see {log}")
+    executable = target / "release/examples/slice40_common_measurement"
+    if not executable.is_file():
+        raise Slice40ScaleError("worker executable is unavailable")
+    return executable
+
+
+def _worker_result(
+    executable: Path,
+    treatment: str,
+    database: Path,
+    workload: Mapping[str, Any],
+    output: Path,
+) -> dict[str, Any]:
+    completed = subprocess.run(
+        [
+            str(executable),
+            treatment,
+            str(database),
+            str(workload["records"]),
+            str(workload["batch_size"]),
+            str(workload["open_warmups"]),
+            str(workload["open_samples"]),
+        ],
+        check=False,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    output.with_suffix(".stdout.log").write_text(completed.stdout, encoding="utf-8")
+    output.with_suffix(".stderr.log").write_text(completed.stderr, encoding="utf-8")
+    if completed.returncode != 0:
+        raise Slice40ScaleError(f"worker failed; see {output.with_suffix('.stderr.log')}")
+    try:
+        result = json.loads(completed.stdout.splitlines()[-1])
+    except (IndexError, json.JSONDecodeError) as exc:
+        raise Slice40ScaleError("worker did not emit valid JSON") from exc
+    validate_worker_counts(result, workload)
+    output.write_text(json.dumps(result, sort_keys=True) + "\n", encoding="utf-8")
+    return result
+
+
+def run(config_path: str | Path) -> dict[str, Any]:
+    """Execute the common-path five-repetition Slice 40 comparison."""
+    config_path = Path(config_path).resolve()
+    config = load_config(config_path)
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    run_root = Path(config["artifact_root"]) / f"slice40-{stamp}"
+    run_root.mkdir(parents=True, mode=0o700)
+    results: dict[str, list[dict[str, Any]]] = {"baseline": [], "candidate": []}
+    binaries: dict[str, dict[str, str]] = {}
+    for treatment in ("baseline", "candidate"):
+        treatment_root = run_root / treatment
+        source = treatment_root / "source"
+        _extract_source(config[treatment]["source_commit"], source)
+        executable = _build_worker(source, treatment_root)
+        binaries[treatment] = {
+            "path": str(executable),
+            "sha256": _sha256(executable),
+            "source_commit": config[treatment]["source_commit"],
+        }
+        for repetition in range(1, config["workload"]["repetitions"] + 1):
+            result_path = treatment_root / f"repetition-{repetition}.json"
+            results[treatment].append(
+                _worker_result(
+                    executable,
+                    treatment,
+                    treatment_root / f"repetition-{repetition}.fathomdb",
+                    config["workload"],
+                    result_path,
+                )
+            )
+
+    seed = int(config["workload"]["bootstrap_seed"], 16)
+    write_upper = {
+        metric: paired_relative_upper(
+            [item[f"write_{metric}_ms"] for item in results["baseline"]],
+            [item[f"write_{metric}_ms"] for item in results["candidate"]],
+            seed=seed + offset,
+            resamples=config["workload"]["bootstrap_resamples"],
+        )
+        for offset, metric in enumerate(("p50", "p95"))
+    }
+    baseline_open = [item["open_p95_ms"] for item in results["baseline"]]
+    candidate_open = [item["open_p95_ms"] for item in results["candidate"]]
+    open_upper = paired_relative_upper(
+        baseline_open,
+        candidate_open,
+        seed=seed + 2,
+        resamples=config["workload"]["bootstrap_resamples"],
+    )
+    open_absolute = max(
+        0.0, statistics.fmean(candidate_open) - statistics.fmean(baseline_open)
+    )
+    storage_increase = max(
+        candidate["database_bytes_after_checkpoint"]
+        - baseline["database_bytes_after_checkpoint"]
+        for baseline, candidate in zip(
+            results["baseline"], results["candidate"], strict=True
+        )
+    )
+    verdict = comparison_verdict(
+        write_upper=write_upper,
+        open_upper_relative=open_upper,
+        open_absolute_regression_ms=open_absolute,
+        storage_increase_bytes=storage_increase,
+        policy=config["policy"],
+    )
+    metrics = {
+        "schema_version": "scale-02-slice40-common-result.v1",
+        "program_track": PROGRAM_TRACK,
+        "claim_boundary": config["claim_boundary"],
+        "verdict": verdict,
+        "write_upper_95_relative_regression": write_upper,
+        "open_upper_95_relative_regression": open_upper,
+        "open_mean_absolute_regression_ms": open_absolute,
+        "maximum_paired_storage_increase_bytes": storage_increase,
+        "treatments": results,
+        "binaries": binaries,
+        "runner_sha256": _sha256(Path(__file__)),
+        "worker_source_sha256": _sha256(
+            REPO_ROOT / "experiments/rust/slice40_common_measurement.rs"
+        ),
+    }
+    metrics_path = run_root / "metrics.json"
+    metrics_path.write_text(json.dumps(metrics, sort_keys=True) + "\n", encoding="utf-8")
+    code = _lib.git_info()
+    run_id, record_dir = _lib.write_record(
+        "scale-02-slice40-common",
+        ts=datetime.now(UTC),
+        config_obj=config,
+        metrics=metrics,
+        verdict="complete" if verdict == "pass" else "advisory_limit_observed",
+        read=f"Slice 40 write/storage/reopen comparison: {verdict}",
+        code={**code, "baseline_commit": BASELINE_COMMIT},
+        corpus={"source": "deterministic Slice 40 representative fixture", "datasets": []},
+        seeds={"bootstrap": config["workload"]["bootstrap_seed"]},
+        env=_lib.env_info(
+            key_deps={
+                "fathomdb_baseline": BASELINE_COMMIT,
+                "fathomdb_candidate": config["candidate"]["source_commit"],
+            }
+        ),
+        cost_usd=0.0,
+        headline={"verdict": verdict, **write_upper},
+        n=config["workload"]["records"],
+        config_path=str(config_path),
+        tests=["tests/experiments/test_scale_02_slice40.py"],
+        files_changed=[],
+        artifacts=[
+            {
+                "kind": "external_safe_summary",
+                "path": str(metrics_path),
+                "sha256": _sha256(metrics_path),
+            }
+        ],
+        review=None,
+        open_questions=[] if verdict == "pass" else ["A registered Slice 40 bound missed"],
+    )
+    _lib.regen_index_md()
+    return {
+        "run_id": run_id,
+        "record_dir": str(record_dir),
+        "external_metrics": str(metrics_path),
+        "verdict": verdict,
+    }
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Validate or execute the registered campaign."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    validate = subparsers.add_parser("validate")
+    validate.add_argument("config", type=Path)
+    execute = subparsers.add_parser("run")
+    execute.add_argument("config", type=Path)
+    arguments = parser.parse_args(argv)
+    if arguments.command == "validate":
+        load_config(arguments.config)
+        print("ok")
+    else:
+        print(json.dumps(run(arguments.config), sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

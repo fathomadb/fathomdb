@@ -28,3 +28,15 @@ missing evidence request/result/lifecycle/error types, `EvidenceRefV1`,
 The test file is frozen during GREEN corrections except when a later reviewed
 requirement adds a new test; existing assertions will not be weakened to make
 the implementation pass.
+
+## GREEN 1
+
+The first implementation increment added the public Rust evidence types, a
+canonical authenticated reference codec with field-domain keyed commitments,
+exact provenance loading, and the two Engine operations. The focused test now
+passes 3/3 with no warning.
+
+This increment is not the slice-completion claim. Later RED increments cover
+same-reader-snapshot construction, graph-origin capture and reauthorization,
+artifact/source eligibility, lifecycle and corruption matrices, codec
+properties, default-path invariance, and cross-SDK parity.

@@ -46,6 +46,7 @@
 
 mod actuation;
 mod dependency_closure;
+mod evidence;
 mod frozen_read;
 pub mod lifecycle;
 mod pagination;
@@ -61,6 +62,12 @@ pub use actuation::{
 pub use dependency_closure::{
     ClosureCauseV1, ClosureLookupV1, ClosureOperationId, ClosurePhaseV1, ClosureProofV1,
     ClosureRootV1, ClosureStatusV1, DependencyClosureError, DependencyClosureErrorReason,
+};
+pub use evidence::{
+    EvidenceArmV1, EvidenceArtifactClassV1, EvidenceArtifactLifecycleV1, EvidenceContributionV1,
+    EvidenceErrorReasonV1, EvidenceErrorV1, EvidenceGraphOriginV1, EvidenceProjectionOriginV1,
+    EvidenceRefV1, EvidenceResolveRequestV1, EvidenceSearchRequestV1, EvidenceSearchResultV1,
+    EvidenceSidecarEntryV1, ResolvedEvidenceV1,
 };
 pub use frozen_read::{FrozenReadContextV1, FrozenReadError, FrozenReadErrorReason, ReadContextV1};
 pub use pagination::{PageCursor, PageError, PageErrorReason, PageRequestV1, PageV1};
@@ -6347,6 +6354,8 @@ pub enum EngineError {
     Page(PageError),
     /// Projection-generation request or persisted-authority failure.
     ProjectionGeneration(ProjectionGenerationError),
+    /// An evidence request was invalid, unavailable, incomplete, or corrupt.
+    Evidence(EvidenceErrorV1),
     Overloaded,
     Closing,
     /// G11 (Slice 15) — BYO-LLM extractor subprocess error (protocol mismatch,
@@ -6480,6 +6489,12 @@ impl From<ProjectionGenerationError> for EngineError {
     }
 }
 
+impl From<EvidenceErrorV1> for EngineError {
+    fn from(error: EvidenceErrorV1) -> Self {
+        Self::Evidence(error)
+    }
+}
+
 impl Display for EngineError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -6510,6 +6525,7 @@ impl Display for EngineError {
             Self::FrozenRead(error) => write!(f, "frozen read: {error}"),
             Self::Page(error) => write!(f, "page: {error}"),
             Self::ProjectionGeneration(error) => write!(f, "projection generation: {error}"),
+            Self::Evidence(error) => write!(f, "evidence: {error}"),
             Self::Overloaded => write!(f, "engine overloaded"),
             Self::Closing => write!(f, "engine is closing"),
             Self::Extractor => write!(f, "extractor error"),
@@ -6577,6 +6593,7 @@ impl EngineError {
             Self::FrozenRead(_) => "FrozenReadError",
             Self::Page(_) => "PageError",
             Self::ProjectionGeneration(_) => "ProjectionGenerationError",
+            Self::Evidence(_) => "EvidenceError",
             Self::Overloaded => "OverloadedError",
             Self::Closing => "ClosingError",
             Self::Extractor => "ExtractorError",
@@ -7362,6 +7379,74 @@ impl Engine {
             Some(binding),
         )
         .map(|(result, _stats, _expanded)| result)
+    }
+
+    /// Run an opt-in frozen search and return one authenticated evidence
+    /// reference for every result.
+    ///
+    /// The ordinary [`SearchHit`] and [`SearchResult`] contracts are unchanged.
+    /// Evidence creation fails as a whole if any returned artifact lacks complete
+    /// source provenance.
+    pub fn search_with_evidence(
+        &self,
+        request: &EvidenceSearchRequestV1,
+    ) -> Result<EvidenceSearchResultV1, EngineError> {
+        if request.schema_version != 1 {
+            return Err(EvidenceErrorV1::new(
+                EvidenceErrorReasonV1::UnsupportedSchemaVersion,
+                "/schemaVersion",
+            )
+            .into());
+        }
+        let result = self.search_frozen(
+            &request.query,
+            &request.context,
+            request.rerank_depth as usize,
+            request.use_graph_arm,
+            request.alpha,
+            request.pool_n as usize,
+            true,
+            request.limit as usize,
+        )?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+        let binding = frozen_read::authenticate(&tx, &request.context)?;
+        frozen_read::validate_snapshot(&tx, &binding)?;
+        let result = evidence::build_search_result(
+            &tx,
+            &request.context,
+            result,
+            request.include_explanation,
+        )?;
+        frozen_read::validate_snapshot(&tx, &binding)?;
+        tx.commit().map_err(|_| EngineError::Storage)?;
+        Ok(result)
+    }
+
+    /// Resolve one evidence reference under a newly supplied equivalent frozen
+    /// context.
+    ///
+    /// A reference is never authority. Malformed, foreign, mismatched, stale,
+    /// invisible, superseded, erased, or closure-fenced state returns the same
+    /// privacy-preserving `evidence_unavailable` outcome.
+    pub fn resolve_evidence(
+        &self,
+        request: &EvidenceResolveRequestV1,
+    ) -> Result<ResolvedEvidenceV1, EngineError> {
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+        let binding = frozen_read::authenticate(&tx, &request.context)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        frozen_read::validate_snapshot(&tx, &binding)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        let result = evidence::resolve(&tx, request)?;
+        frozen_read::validate_snapshot(&tx, &binding)
+            .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?;
+        tx.commit().map_err(|_| EngineError::Storage)?;
+        Ok(result)
     }
 
     /// Hybrid search plus bounded expansion on one reader transaction under an

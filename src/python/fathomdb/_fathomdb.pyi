@@ -167,6 +167,60 @@ class SearchResult:
     # 0.8.8 EXP-OBS (Slice 10) — opt-in; None unless search(..., explain=True).
     explanation: Explanation | None
 
+class EvidenceSidecarEntryV1:
+    schema_version: int
+    result_index: int
+    artifact_revision_id: str
+    evidence_ref: str
+
+class EvidenceSearchResultV1:
+    schema_version: int
+    search_result: SearchResult
+    evidence: list[EvidenceSidecarEntryV1]
+
+class EvidenceContributionV1:
+    schema_version: int
+    vector_rank: int | None
+    text_rank: int | None
+    graph_rank: int | None
+    fused_score: float
+    ce_score: float | None
+    blended_score: float
+    importance: float | None
+    confidence: float | None
+
+class EvidenceProjectionOriginV1:
+    schema_version: int
+    artifact_class: str
+    representative_arm: str
+    projection_generation_id: str
+    graph_origin_kind: str | None
+    graph_edge_artifact_revision_id: str | None
+    graph_hop_count: int | None
+
+class ResolvedEvidenceV1:
+    schema_version: int
+    logical_id: str | None
+    artifact_revision_id: str
+    source_id: str
+    source_version_id: str
+    source_revision_id: str
+    locator_kind: str
+    locator_start_inclusive: int | None
+    locator_end_exclusive: int | None
+    canonical_source_body: str
+    evidence_text: str
+    canonical_source_hash: str
+    effective_valid_at: int
+    artifact_lifecycle_kind: str
+    artifact_lifecycle_state: str | None
+    artifact_superseded: bool
+    artifact_valid_at_effective: bool | None
+    source_lifecycle_state: str
+    projection_origin: EvidenceProjectionOriginV1
+    retrieval_contribution: EvidenceContributionV1
+    dependency: SourceDependencyV1 | None
+
 class CounterSnapshot:
     queries: int
     writes: int
@@ -376,6 +430,22 @@ class Engine:
         explain: bool = ...,
         limit: int = ...,
     ) -> SearchResult: ...
+    def search_with_evidence(
+        self,
+        query: str,
+        context: FrozenReadContextV1,
+        rerank_depth: int = ...,
+        use_graph_arm: bool = ...,
+        alpha: float = ...,
+        pool_n: int = ...,
+        include_explanation: bool = ...,
+        limit: int = ...,
+    ) -> EvidenceSearchResultV1: ...
+    def resolve_evidence(
+        self,
+        evidence_ref: str,
+        context: FrozenReadContextV1,
+    ) -> ResolvedEvidenceV1: ...
     def search_expand_frozen(
         self,
         query: str,
@@ -734,6 +804,11 @@ def force_panic_for_test() -> None: ...
 
 class EngineError(Exception): ...
 class FrozenReadError(EngineError):
+    reason: str
+    field_path: str
+    def __init__(self, message: str, *, reason: str, field_path: str) -> None: ...
+
+class EvidenceError(EngineError):
     reason: str
     field_path: str
     def __init__(self, message: str, *, reason: str, field_path: str) -> None: ...

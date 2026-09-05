@@ -61,11 +61,18 @@ use fathomdb_engine::{
     DependencyError as RustDependencyError, DependencyListV1 as RustDependencyListV1,
     DependencySourceLookupV1, EmbedderChoice, EmbeddingReadiness as RustEmbeddingReadiness,
     Engine as RustEngine, EngineError as RustEngineError, EngineOpenError,
-    ExciseReport as RustExciseReport, Explanation as RustExplanation,
-    ExtractDocument as RustExtractDocument, Filter as RustFilter, FilterTerm as RustFilterTerm,
-    FrozenReadContextV1 as RustFrozenReadContextV1, IdSpace as RustIdSpace,
-    IngestWithExtractorReceipt as RustIngestWithExtractorReceipt, InitialState,
-    LifecycleActuationV1, LifecycleState as RustLifecycleState,
+    EvidenceArtifactLifecycleV1 as RustEvidenceArtifactLifecycleV1,
+    EvidenceContributionV1 as RustEvidenceContributionV1,
+    EvidenceGraphOriginV1 as RustEvidenceGraphOriginV1,
+    EvidenceProjectionOriginV1 as RustEvidenceProjectionOriginV1,
+    EvidenceRefV1 as RustEvidenceRefV1, EvidenceResolveRequestV1 as RustEvidenceResolveRequestV1,
+    EvidenceSearchRequestV1 as RustEvidenceSearchRequestV1,
+    EvidenceSearchResultV1 as RustEvidenceSearchResultV1,
+    EvidenceSidecarEntryV1 as RustEvidenceSidecarEntryV1, ExciseReport as RustExciseReport,
+    Explanation as RustExplanation, ExtractDocument as RustExtractDocument, Filter as RustFilter,
+    FilterTerm as RustFilterTerm, FrozenReadContextV1 as RustFrozenReadContextV1,
+    IdSpace as RustIdSpace, IngestWithExtractorReceipt as RustIngestWithExtractorReceipt,
+    InitialState, LifecycleActuationV1, LifecycleState as RustLifecycleState,
     MutationProjectionStatusRequestV1 as RustMutationProjectionStatusRequestV1,
     MutationProjectionStatusV1 as RustMutationProjectionStatusV1, NodeRecord as RustNodeRecord,
     OpStoreRow as RustOpStoreRow, OpenReport as RustOpenReport, OpenStage,
@@ -80,9 +87,10 @@ use fathomdb_engine::{
     ProjectionSpec as RustProjectionSpec, ProjectionVector as RustProjectionVector,
     ProvenanceError as RustProvenanceError, ProvenancedEdgeV1, ProvenancedNodeV1,
     QueryTrace as RustQueryTrace, ReadContextV1 as RustReadContextV1, ReadView as RustReadView,
-    ScalarValue as RustScalarValue, SearchExpandResult as RustSearchExpandResult,
-    SearchFilter as RustSearchFilter, SearchHit as RustSearchHit, SearchResult as RustSearchResult,
-    SoftFallback as RustSoftFallback, SoftFallbackBranch, SourceDependencyRegistrationV1,
+    ResolvedEvidenceV1 as RustResolvedEvidenceV1, ScalarValue as RustScalarValue,
+    SearchExpandResult as RustSearchExpandResult, SearchFilter as RustSearchFilter,
+    SearchHit as RustSearchHit, SearchResult as RustSearchResult, SoftFallback as RustSoftFallback,
+    SoftFallbackBranch, SourceDependencyRegistrationV1,
     SourceDependencyV1 as RustSourceDependencyV1, SourceId, SourceLocator, SourceRevisionId,
     SourceVersionId, TraversalDirection as RustTraversalDirection, WriteProvenanceV1,
     WriteReceipt as RustWriteReceipt,
@@ -134,6 +142,7 @@ create_exception!(_fathomdb, ConsolidatorError, EngineError);
 // G4 (Slice 35) — filter predicate construction error (non-allowlisted path).
 create_exception!(_fathomdb, InvalidFilterError, EngineError);
 create_exception!(_fathomdb, FrozenReadError, EngineError);
+create_exception!(_fathomdb, EvidenceError, EngineError);
 create_exception!(_fathomdb, PageError, EngineError);
 // 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense-refusal leaf.
 create_exception!(_fathomdb, VectorEquivalenceMismatchError, EngineError);
@@ -278,6 +287,19 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
             InvalidFilterError::new_err(format!("invalid filter: {reason}"))
         }
         RustEngineError::FrozenRead(error) => frozen_read_error_to_py(&error),
+        RustEngineError::Evidence(error) => {
+            let exc = EvidenceError::new_err(format!(
+                "{} at {}",
+                error.reason.as_str(),
+                error.field_path
+            ));
+            Python::attach(|py| {
+                let value = exc.value(py);
+                let _ = value.setattr("reason", error.reason.as_str());
+                let _ = value.setattr("field_path", &error.field_path);
+            });
+            exc
+        }
         RustEngineError::Page(error) => {
             let exc =
                 PageError::new_err(format!("{} at {}", error.reason.as_str(), error.field_path));
@@ -1091,6 +1113,217 @@ impl PySearchResult {
             soft_fallback: r.soft_fallback.as_ref().map(PySoftFallback::from_rust),
             results: r.results.iter().map(PySearchHit::from_rust).collect(),
             explanation: r.explanation.as_ref().map(PyExplanation::from_rust),
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "EvidenceSidecarEntryV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyEvidenceSidecarEntryV1 {
+    schema_version: u32,
+    result_index: u32,
+    artifact_revision_id: String,
+    evidence_ref: String,
+}
+
+impl From<&RustEvidenceSidecarEntryV1> for PyEvidenceSidecarEntryV1 {
+    fn from(value: &RustEvidenceSidecarEntryV1) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            result_index: value.result_index,
+            artifact_revision_id: value.artifact_revision_id.clone(),
+            evidence_ref: value.evidence_ref.as_str().to_string(),
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "EvidenceSearchResultV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyEvidenceSearchResultV1 {
+    schema_version: u32,
+    search_result: PySearchResult,
+    evidence: Vec<PyEvidenceSidecarEntryV1>,
+}
+
+impl From<RustEvidenceSearchResultV1> for PyEvidenceSearchResultV1 {
+    fn from(value: RustEvidenceSearchResultV1) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            search_result: PySearchResult::from_rust(value.search_result),
+            evidence: value.evidence.iter().map(Into::into).collect(),
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "EvidenceContributionV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyEvidenceContributionV1 {
+    schema_version: u32,
+    vector_rank: Option<u32>,
+    text_rank: Option<u32>,
+    graph_rank: Option<u32>,
+    fused_score: f64,
+    ce_score: Option<f64>,
+    blended_score: f64,
+    importance: Option<f64>,
+    confidence: Option<f64>,
+}
+
+impl From<RustEvidenceContributionV1> for PyEvidenceContributionV1 {
+    fn from(value: RustEvidenceContributionV1) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            vector_rank: value.vector_rank,
+            text_rank: value.text_rank,
+            graph_rank: value.graph_rank,
+            fused_score: value.fused_score,
+            ce_score: value.ce_score,
+            blended_score: value.blended_score,
+            importance: value.importance,
+            confidence: value.confidence,
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "EvidenceProjectionOriginV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyEvidenceProjectionOriginV1 {
+    schema_version: u32,
+    artifact_class: String,
+    representative_arm: String,
+    projection_generation_id: String,
+    graph_origin_kind: Option<String>,
+    graph_edge_artifact_revision_id: Option<String>,
+    graph_hop_count: Option<u32>,
+}
+
+impl From<RustEvidenceProjectionOriginV1> for PyEvidenceProjectionOriginV1 {
+    fn from(value: RustEvidenceProjectionOriginV1) -> Self {
+        let (graph_origin_kind, graph_edge_artifact_revision_id, graph_hop_count) = match value
+            .graph_origin
+        {
+            None => (None, None, None),
+            Some(RustEvidenceGraphOriginV1::EntitySeed) => {
+                (Some("entity_seed".to_string()), None, None)
+            }
+            Some(RustEvidenceGraphOriginV1::EdgeSeed { edge_artifact_revision_id }) => {
+                (Some("edge_seed".to_string()), Some(edge_artifact_revision_id), None)
+            }
+            Some(RustEvidenceGraphOriginV1::Traversal { edge_artifact_revision_id, hop_count }) => {
+                (Some("traversal".to_string()), Some(edge_artifact_revision_id), Some(hop_count))
+            }
+        };
+        Self {
+            schema_version: value.schema_version,
+            artifact_class: value.artifact_class.as_str().to_string(),
+            representative_arm: value.representative_arm.as_str().to_string(),
+            projection_generation_id: value.projection_generation_id.as_str().to_string(),
+            graph_origin_kind,
+            graph_edge_artifact_revision_id,
+            graph_hop_count,
+        }
+    }
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "ResolvedEvidenceV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyResolvedEvidenceV1 {
+    schema_version: u32,
+    logical_id: Option<String>,
+    artifact_revision_id: String,
+    source_id: String,
+    source_version_id: String,
+    source_revision_id: String,
+    locator_kind: String,
+    locator_start_inclusive: Option<u64>,
+    locator_end_exclusive: Option<u64>,
+    canonical_source_body: String,
+    evidence_text: String,
+    canonical_source_hash: String,
+    effective_valid_at: i64,
+    artifact_lifecycle_kind: String,
+    artifact_lifecycle_state: Option<String>,
+    artifact_superseded: bool,
+    artifact_valid_at_effective: Option<bool>,
+    source_lifecycle_state: String,
+    projection_origin: PyEvidenceProjectionOriginV1,
+    retrieval_contribution: PyEvidenceContributionV1,
+    dependency: Option<PySourceDependencyV1>,
+}
+
+impl From<RustResolvedEvidenceV1> for PyResolvedEvidenceV1 {
+    fn from(value: RustResolvedEvidenceV1) -> Self {
+        let (locator_kind, locator_start_inclusive, locator_end_exclusive) = match value.locator {
+            SourceLocator::WholeBody => ("whole_body".to_string(), None, None),
+            SourceLocator::Utf8Bytes { start_inclusive, end_exclusive } => {
+                ("utf8_bytes".to_string(), Some(start_inclusive), Some(end_exclusive))
+            }
+        };
+        let (
+            artifact_lifecycle_kind,
+            artifact_lifecycle_state,
+            artifact_superseded,
+            artifact_valid_at_effective,
+        ) = match value.artifact_lifecycle {
+            RustEvidenceArtifactLifecycleV1::Node { state, superseded } => {
+                ("node".to_string(), Some(state.as_str().to_string()), superseded, None)
+            }
+            RustEvidenceArtifactLifecycleV1::Edge { superseded, valid_at_effective } => {
+                ("edge".to_string(), None, superseded, Some(valid_at_effective))
+            }
+        };
+        Self {
+            schema_version: value.schema_version,
+            logical_id: value.logical_id,
+            artifact_revision_id: value.artifact_revision_id,
+            source_id: value.source_id,
+            source_version_id: value.source_version_id,
+            source_revision_id: value.source_revision_id,
+            locator_kind,
+            locator_start_inclusive,
+            locator_end_exclusive,
+            canonical_source_body: value.canonical_source_body,
+            evidence_text: value.evidence_text,
+            canonical_source_hash: value.canonical_source_hash.digest_hex().to_string(),
+            effective_valid_at: value.effective_valid_at,
+            artifact_lifecycle_kind,
+            artifact_lifecycle_state,
+            artifact_superseded,
+            artifact_valid_at_effective,
+            source_lifecycle_state: value.source_lifecycle_state.as_str().to_string(),
+            projection_origin: value.projection_origin.into(),
+            retrieval_contribution: value.retrieval_contribution.into(),
+            dependency: value.dependency.map(Into::into),
         }
     }
 }
@@ -2362,6 +2595,56 @@ impl PyEngine {
             )
         })
         .map(PySearchResult::from_rust)
+    }
+
+    /// Search and attach one authenticated evidence reference per result.
+    #[pyo3(signature = (
+        query, context, rerank_depth=0, use_graph_arm=false, alpha=0.3,
+        pool_n=0, include_explanation=false, limit=10
+    ))]
+    #[allow(clippy::too_many_arguments)]
+    fn search_with_evidence(
+        &self,
+        py: Python<'_>,
+        query: &str,
+        context: &PyFrozenReadContextV1,
+        rerank_depth: i64,
+        use_graph_arm: bool,
+        alpha: f64,
+        pool_n: i64,
+        include_explanation: bool,
+        limit: i64,
+    ) -> PyResult<PyEvidenceSearchResultV1> {
+        let request = RustEvidenceSearchRequestV1 {
+            schema_version: 1,
+            query: query.to_string(),
+            context: context.inner.clone(),
+            rerank_depth: u32::try_from(rerank_depth).unwrap_or(u32::MAX),
+            use_graph_arm,
+            alpha,
+            pool_n: u32::try_from(pool_n).unwrap_or(u32::MAX),
+            include_explanation,
+            limit: u32::try_from(limit).unwrap_or(u32::MAX),
+        };
+        let engine = Arc::clone(&self.inner);
+        call_engine(py, move || engine.search_with_evidence(&request)).map(Into::into)
+    }
+
+    /// Resolve one authenticated evidence reference under an equivalent context.
+    fn resolve_evidence(
+        &self,
+        py: Python<'_>,
+        evidence_ref: &str,
+        context: &PyFrozenReadContextV1,
+    ) -> PyResult<PyResolvedEvidenceV1> {
+        let request = RustEvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: RustEvidenceRefV1::new(evidence_ref)
+                .map_err(|error| engine_error_to_py(RustEngineError::Evidence(error)))?,
+            context: context.inner.clone(),
+        };
+        let engine = Arc::clone(&self.inner);
+        call_engine(py, move || engine.resolve_evidence(&request)).map(Into::into)
     }
 
     /// Search and expand under a frozen context.
@@ -4738,6 +5021,11 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyIdSpace>()?;
     m.add_class::<PySearchHit>()?;
     m.add_class::<PySearchResult>()?;
+    m.add_class::<PyEvidenceSidecarEntryV1>()?;
+    m.add_class::<PyEvidenceSearchResultV1>()?;
+    m.add_class::<PyEvidenceContributionV1>()?;
+    m.add_class::<PyEvidenceProjectionOriginV1>()?;
+    m.add_class::<PyResolvedEvidenceV1>()?;
     // 0.8.8 EXP-OBS (Slice 10) — explanation sidecar types.
     m.add_class::<PyQueryTrace>()?;
     m.add_class::<PyPerHitExplain>()?;
@@ -4842,6 +5130,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("ConsolidatorError", py.get_type::<ConsolidatorError>())?;
     m.add("InvalidFilterError", py.get_type::<InvalidFilterError>())?;
     m.add("FrozenReadError", py.get_type::<FrozenReadError>())?;
+    m.add("EvidenceError", py.get_type::<EvidenceError>())?;
     m.add("PageError", py.get_type::<PageError>())?;
     m.add("InvalidArgumentError", py.get_type::<InvalidArgumentError>())?;
     m.add("VectorEquivalenceMismatchError", py.get_type::<VectorEquivalenceMismatchError>())?;

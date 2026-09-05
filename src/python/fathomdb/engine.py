@@ -39,6 +39,14 @@ from fathomdb.types import (
     DeviceResolution,
     EmbedderIdentity,
     EffectiveEmbedDevice,
+    EvidenceArtifactLifecycleV1,
+    EvidenceContributionV1,
+    EvidenceGraphOriginV1,
+    EvidenceProjectionOriginV1,
+    EvidenceResolveRequestV1,
+    EvidenceSearchRequestV1,
+    EvidenceSearchResultV1,
+    EvidenceSidecarEntryV1,
     Explanation,
     ExpandedNode,
     FrozenReadContextV1,
@@ -53,6 +61,7 @@ from fathomdb.types import (
     QueryTrace,
     ReadContextV1,
     ReadView,
+    ResolvedEvidenceV1,
     SearchExpandResult,
     SearchFilter,
     SearchHit,
@@ -67,7 +76,7 @@ from fathomdb.types import (
     DependencyListV1,
 )
 from fathomdb.filter import Filter
-from fathomdb.errors import FrozenReadError, InvalidArgumentError
+from fathomdb.errors import EvidenceError, FrozenReadError, InvalidArgumentError
 
 # 0.8.20 Slice 15b fix-2 — reuse the read namespace's dataclass -> native
 # ReadView translator rather than duplicating it here, so the two search entry
@@ -165,6 +174,95 @@ def _map_native_node(node: Any) -> NodeRecord:
         kind=node.kind,
         body=node.body,
         write_cursor=node.write_cursor,
+    )
+
+
+def _map_native_evidence_search(result: Any) -> EvidenceSearchResultV1:
+    return EvidenceSearchResultV1(
+        schema_version=result.schema_version,
+        search_result=_map_native_search_result(result.search_result),
+        evidence=tuple(
+            EvidenceSidecarEntryV1(
+                schema_version=item.schema_version,
+                result_index=item.result_index,
+                artifact_revision_id=item.artifact_revision_id,
+                evidence_ref=item.evidence_ref,
+            )
+            for item in result.evidence
+        ),
+    )
+
+
+def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
+    locator: Any = {"kind": value.locator_kind}
+    if value.locator_kind == "utf8_bytes":
+        locator.update(
+            start_inclusive=value.locator_start_inclusive,
+            end_exclusive=value.locator_end_exclusive,
+        )
+    graph_origin = (
+        None
+        if value.projection_origin.graph_origin_kind is None
+        else EvidenceGraphOriginV1(
+            kind=value.projection_origin.graph_origin_kind,
+            edge_artifact_revision_id=(
+                value.projection_origin.graph_edge_artifact_revision_id
+            ),
+            hop_count=value.projection_origin.graph_hop_count,
+        )
+    )
+    contribution = value.retrieval_contribution
+    dependency = value.dependency
+    return ResolvedEvidenceV1(
+        schema_version=value.schema_version,
+        logical_id=value.logical_id,
+        artifact_revision_id=value.artifact_revision_id,
+        source_id=value.source_id,
+        source_version_id=value.source_version_id,
+        source_revision_id=value.source_revision_id,
+        locator=locator,
+        canonical_source_body=value.canonical_source_body,
+        evidence_text=value.evidence_text,
+        canonical_source_hash=value.canonical_source_hash,
+        effective_valid_at=value.effective_valid_at,
+        artifact_lifecycle=EvidenceArtifactLifecycleV1(
+            kind=value.artifact_lifecycle_kind,
+            state=value.artifact_lifecycle_state,
+            superseded=value.artifact_superseded,
+            valid_at_effective=value.artifact_valid_at_effective,
+        ),
+        source_lifecycle_state=value.source_lifecycle_state,
+        projection_origin=EvidenceProjectionOriginV1(
+            schema_version=value.projection_origin.schema_version,
+            artifact_class=value.projection_origin.artifact_class,
+            representative_arm=value.projection_origin.representative_arm,
+            projection_generation_id=value.projection_origin.projection_generation_id,
+            graph_origin=graph_origin,
+        ),
+        retrieval_contribution=EvidenceContributionV1(
+            schema_version=contribution.schema_version,
+            vector_rank=contribution.vector_rank,
+            text_rank=contribution.text_rank,
+            graph_rank=contribution.graph_rank,
+            fused_score=contribution.fused_score,
+            ce_score=contribution.ce_score,
+            blended_score=contribution.blended_score,
+            importance=contribution.importance,
+            confidence=contribution.confidence,
+        ),
+        dependency=(
+            None
+            if dependency is None
+            else SourceDependencyV1(
+                schema_version=dependency.schema_version,
+                dependency_id=dependency.dependency_id,
+                source_revision_id=dependency.source_revision_id,
+                derived_revision_id=dependency.derived_revision_id,
+                registered_dependency_generation=(
+                    dependency.registered_dependency_generation
+                ),
+            )
+        ),
     )
 
 _KWARG_FIELDS = {
@@ -972,6 +1070,50 @@ class Engine:
             limit=limit,
         )
         return _map_native_search_result(native)
+
+    def search_with_evidence(
+        self,
+        request: EvidenceSearchRequestV1,
+    ) -> EvidenceSearchResultV1:
+        """Search under a frozen context and attach one evidence reference per hit."""
+        if not isinstance(request, EvidenceSearchRequestV1):
+            raise TypeError("request must be an EvidenceSearchRequestV1")
+        if request.schema_version != 1:
+            raise EvidenceError(
+                "unsupported_schema_version at /schemaVersion",
+                reason="unsupported_schema_version",
+                field_path="/schemaVersion",
+            )
+        _validate_ranked_result_limit("limit", request.limit)
+        native_context = _to_native_frozen_context(request.context)
+        self._native.validate_frozen_read_context(native_context)
+        native = self._native.search_with_evidence(
+            request.query,
+            native_context,
+            rerank_depth=request.rerank_depth,
+            use_graph_arm=request.use_graph_arm,
+            alpha=request.alpha,
+            pool_n=request.pool_n,
+            include_explanation=request.include_explanation,
+            limit=request.limit,
+        )
+        return _map_native_evidence_search(native)
+
+    def resolve_evidence(self, request: EvidenceResolveRequestV1) -> ResolvedEvidenceV1:
+        """Resolve exact source bytes under an equivalent frozen context."""
+        if not isinstance(request, EvidenceResolveRequestV1):
+            raise TypeError("request must be an EvidenceResolveRequestV1")
+        if request.schema_version != 1:
+            raise EvidenceError(
+                "unsupported_schema_version at /schemaVersion",
+                reason="unsupported_schema_version",
+                field_path="/schemaVersion",
+            )
+        native_context = _to_native_frozen_context(request.context)
+        self._native.validate_frozen_read_context(native_context)
+        return _map_native_resolved_evidence(
+            self._native.resolve_evidence(request.evidence_ref, native_context)
+        )
 
     def search_expand_frozen(
         self,

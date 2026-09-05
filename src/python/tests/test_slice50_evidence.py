@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 
 import fathomdb
-import pytest
+import pytest  # pyright: ignore[reportMissingImports]
 
 
 def test_search_and_resolve_exact_source_evidence(db_path: str) -> None:

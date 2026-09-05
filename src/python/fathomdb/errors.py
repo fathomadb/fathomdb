@@ -114,6 +114,7 @@ from fathomdb._fathomdb import (
     ProjectionDestructiveError as _ProjectionDestructiveError,
 )
 from fathomdb._fathomdb import FrozenReadError as _FrozenReadError
+from fathomdb._fathomdb import EvidenceError as _EvidenceError
 from fathomdb._fathomdb import PageError as _PageError
 
 EngineError = _EngineError
@@ -165,6 +166,7 @@ ErasureIncompleteError = _ErasureIncompleteError
 # change to a live projection without an explicit `drop`; carries `name`/`delta`.
 ProjectionDestructiveError = _ProjectionDestructiveError
 FrozenReadError = _FrozenReadError
+EvidenceError = _EvidenceError
 PageError = _PageError
 
 
@@ -209,6 +211,7 @@ _install_typed_init(DependencyError, ("reason", "field_path"))
 _install_typed_init(DependencyClosureError, ("reason", "field_path"))
 _install_typed_init(ActuationError, ("reason", "field_path"))
 _install_typed_init(FrozenReadError, ("reason", "field_path"))
+_install_typed_init(EvidenceError, ("reason", "field_path"))
 _install_typed_init(PageError, ("reason", "field_path"))
 
 
@@ -227,6 +230,7 @@ __all__ = [
     "ConsolidatorError",
     "EngineError",
     "ErasureIncompleteError",
+    "EvidenceError",
     "ExtractorError",
     "FrozenReadError",
     "PageError",

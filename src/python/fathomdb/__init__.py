@@ -23,7 +23,7 @@ from fathomdb._fathomdb import embed_batch_cls
 from fathomdb._fathomdb import rerank
 from fathomdb.config import EngineConfig
 from fathomdb.engine import Engine
-from fathomdb.errors import PageError
+from fathomdb.errors import EvidenceError, PageError
 from fathomdb.filter import Filter
 from fathomdb.types import (
     ActuationBatchV1,
@@ -47,6 +47,14 @@ from fathomdb.types import (
     EmbeddingReadiness,
     EmbeddingReadinessState,
     EffectiveEmbedDevice,
+    EvidenceArtifactLifecycleV1,
+    EvidenceContributionV1,
+    EvidenceGraphOriginV1,
+    EvidenceProjectionOriginV1,
+    EvidenceResolveRequestV1,
+    EvidenceSearchRequestV1,
+    EvidenceSearchResultV1,
+    EvidenceSidecarEntryV1,
     ExpandedNode,
     Explanation,
     FrozenReadContextV1,
@@ -74,6 +82,7 @@ from fathomdb.types import (
     ProjectionStatusDenseReadiness,
     QueryTrace,
     ReadContextV1,
+    ResolvedEvidenceV1,
     SearchExpandResult,
     SearchFilter,
     SearchHit,
@@ -112,6 +121,15 @@ __all__ = [
     "EmbeddingReadiness",
     "EmbeddingReadinessState",
     "EffectiveEmbedDevice",
+    "EvidenceArtifactLifecycleV1",
+    "EvidenceContributionV1",
+    "EvidenceError",
+    "EvidenceGraphOriginV1",
+    "EvidenceProjectionOriginV1",
+    "EvidenceResolveRequestV1",
+    "EvidenceSearchRequestV1",
+    "EvidenceSearchResultV1",
+    "EvidenceSidecarEntryV1",
     "Engine",
     "EngineConfig",
     "Filter",
@@ -144,6 +162,7 @@ __all__ = [
     "ProjectionStatusDenseReadiness",
     "QueryTrace",
     "ReadContextV1",
+    "ResolvedEvidenceV1",
     "SearchExpandResult",
     "SearchFilter",
     "SearchHit",

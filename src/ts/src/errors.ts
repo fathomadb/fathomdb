@@ -234,6 +234,17 @@ export class FrozenReadError extends FathomDbError {
   }
 }
 
+/** Evidence reference, authorization, provenance, or integrity refusal. */
+export class EvidenceError extends FathomDbError {
+  readonly reason: string;
+  readonly fieldPath: string;
+  constructor(message: string, reason: string, fieldPath: string) {
+    super(message);
+    this.reason = reason;
+    this.fieldPath = fieldPath;
+  }
+}
+
 /** Pagination cursor, selector, context, or operational-state refusal. */
 export class PageError extends FathomDbError {
   readonly reason: string;
@@ -366,6 +377,7 @@ type ErrorCode =
   // G4 (Slice 35) — filter predicate construction error.
   | "FDB_INVALID_FILTER"
   | "FDB_FROZEN_READ"
+  | "FDB_EVIDENCE"
   | "FDB_PAGE"
   // Slice 20 — depth > 3 or invalid argument (G5/G6).
   | "FDB_INVALID_ARGUMENT"
@@ -514,6 +526,12 @@ function build(envelope: Envelope): Error {
       return new InvalidFilterError(envelope.message);
     case "FDB_FROZEN_READ":
       return new FrozenReadError(
+        envelope.message,
+        String(p.reason ?? ""),
+        String(p.fieldPath ?? ""),
+      );
+    case "FDB_EVIDENCE":
+      return new EvidenceError(
         envelope.message,
         String(p.reason ?? ""),
         String(p.fieldPath ?? ""),

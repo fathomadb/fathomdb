@@ -8,7 +8,7 @@
 # Slice 22 C5 pair, the explicitly commissioned Slice 30 addition, and the
 # owner-approved 0.8.25 Slice 20/25/30 additions — pinned to the exact content of
 # src/conformance/governed-surface-allowlist.json at the provenance commit
-# recorded in the pin (54 allowlist members, 5 core, recovery_denylist unchanged
+# recorded in the pin (58 allowlist members, 5 core, recovery_denylist unchanged
 # at the five REQ-054 names). A signature keyed to specific content is worth
 # exactly as much as the mechanism that notices when that content moves.
 #
@@ -145,7 +145,7 @@ expect_routes_to_hitl() {
 run_checker
 expect_rc 0 "the real repo's governed surface matches the pin (default args)"
 expect_out 'ok +governed-surface-pin' "the passing run says ok"
-expect_out '54 allowlist / 5 core / 5 recovery_denylist' \
+expect_out '58 allowlist / 5 core / 5 recovery_denylist' \
   "the passing run states the pinned counts it verified"
 
 PIN_SHA="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["sha256"])' "$REAL_PIN")"
@@ -156,7 +156,7 @@ else
   fail "the real allowlist json no longer matches the pin's sha256 ($REAL_SHA vs $PIN_SHA)"
 fi
 
-# The accumulated signed/approved surface is an exact 54-member shape, not
+# The accumulated signed/approved surface is an exact 58-member shape, not
 # merely a count increase. This rejects a stale pin and a re-pin that swaps an
 # unrelated name while retaining the same count. The full list is deliberately
 # explicit here: it is the reviewable test oracle for the Slice 30 commission
@@ -200,6 +200,10 @@ expected_allowlist = [
     "searchTextOnly",
     "search_projected_text",
     "searchProjectedText",
+    "search_with_evidence",
+    "searchWithEvidence",
+    "resolve_evidence",
+    "resolveEvidence",
     "close",
     "read.get",
     "read.get_many",

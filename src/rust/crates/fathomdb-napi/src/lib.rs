@@ -48,7 +48,15 @@ use fathomdb_engine::{
     CorruptionDetail, CorruptionKind, DenseReadiness as RustDenseReadiness,
     DependencyDerivedLookupV1, DependencyListV1 as RustDependencyListV1, DependencySourceLookupV1,
     EmbedderChoice, EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
-    EngineError as RustEngineError, EngineOpenError, ExciseReport as RustExciseReport,
+    EngineError as RustEngineError, EngineOpenError,
+    EvidenceArtifactLifecycleV1 as RustEvidenceArtifactLifecycleV1,
+    EvidenceContributionV1 as RustEvidenceContributionV1,
+    EvidenceGraphOriginV1 as RustEvidenceGraphOriginV1,
+    EvidenceProjectionOriginV1 as RustEvidenceProjectionOriginV1,
+    EvidenceRefV1 as RustEvidenceRefV1, EvidenceResolveRequestV1 as RustEvidenceResolveRequestV1,
+    EvidenceSearchRequestV1 as RustEvidenceSearchRequestV1,
+    EvidenceSearchResultV1 as RustEvidenceSearchResultV1,
+    EvidenceSidecarEntryV1 as RustEvidenceSidecarEntryV1, ExciseReport as RustExciseReport,
     Explanation as RustExplanation, ExtractDocument as RustExtractDocument, Filter as RustFilter,
     FilterTerm as RustFilterTerm, FrozenReadContextV1 as RustFrozenReadContextV1,
     IdSpace as RustIdSpace, IngestWithExtractorReceipt as RustIngestWithExtractorReceipt,
@@ -65,7 +73,8 @@ use fathomdb_engine::{
     ProjectionRuntimeStatusEntry as RustProjectionRuntimeStatusEntry,
     ProjectionSpec as RustProjectionSpec, ProjectionVector as RustProjectionVector,
     ProvenancedEdgeV1, ProvenancedNodeV1, QueryTrace as RustQueryTrace,
-    ReadContextV1 as RustReadContextV1, ReadView as RustReadView, ScalarValue as RustScalarValue,
+    ReadContextV1 as RustReadContextV1, ReadView as RustReadView,
+    ResolvedEvidenceV1 as RustResolvedEvidenceV1, ScalarValue as RustScalarValue,
     SearchExpandResult as RustSearchExpandResult, SearchFilter as RustSearchFilter,
     SearchHit as RustSearchHit, SearchResult as RustSearchResult, SoftFallbackBranch,
     SourceDependencyRegistrationV1, SourceDependencyV1 as RustSourceDependencyV1, SourceId,
@@ -131,6 +140,7 @@ const CODE_ERASURE_INCOMPLETE: &str = "FDB_ERASURE_INCOMPLETE";
 // change without an explicit drop.
 const CODE_PROJECTION_DESTRUCTIVE: &str = "FDB_PROJECTION_DESTRUCTIVE";
 const CODE_FROZEN_READ: &str = "FDB_FROZEN_READ";
+const CODE_EVIDENCE: &str = "FDB_EVIDENCE";
 const CODE_PAGE: &str = "FDB_PAGE";
 const CODE_PANIC: &str = "FDB_PANIC";
 
@@ -292,6 +302,14 @@ fn engine_error_to_napi(err: RustEngineError) -> Error {
         ),
         RustEngineError::FrozenRead(error) => typed_error(
             CODE_FROZEN_READ,
+            format!("{} at {}", error.reason.as_str(), error.field_path),
+            json!({
+                "reason": error.reason.as_str(),
+                "fieldPath": error.field_path,
+            }),
+        ),
+        RustEngineError::Evidence(error) => typed_error(
+            CODE_EVIDENCE,
             format!("{} at {}", error.reason.as_str(), error.field_path),
             json!({
                 "reason": error.reason.as_str(),
@@ -1525,6 +1543,208 @@ impl SearchResult {
     }
 }
 
+#[napi(object)]
+pub struct EvidenceSidecarEntryV1 {
+    pub schema_version: u32,
+    pub result_index: u32,
+    pub artifact_revision_id: String,
+    pub evidence_ref: String,
+}
+
+impl From<&RustEvidenceSidecarEntryV1> for EvidenceSidecarEntryV1 {
+    fn from(value: &RustEvidenceSidecarEntryV1) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            result_index: value.result_index,
+            artifact_revision_id: value.artifact_revision_id.clone(),
+            evidence_ref: value.evidence_ref.as_str().to_string(),
+        }
+    }
+}
+
+#[napi(object)]
+pub struct EvidenceSearchResultV1 {
+    pub schema_version: u32,
+    pub search_result: SearchResult,
+    pub evidence: Vec<EvidenceSidecarEntryV1>,
+}
+
+impl From<RustEvidenceSearchResultV1> for EvidenceSearchResultV1 {
+    fn from(value: RustEvidenceSearchResultV1) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            search_result: SearchResult::from_rust(value.search_result),
+            evidence: value.evidence.iter().map(Into::into).collect(),
+        }
+    }
+}
+
+#[napi(object)]
+pub struct EvidenceContributionV1 {
+    pub schema_version: u32,
+    pub vector_rank: Option<u32>,
+    pub text_rank: Option<u32>,
+    pub graph_rank: Option<u32>,
+    pub fused_score: f64,
+    pub ce_score: Option<f64>,
+    pub blended_score: f64,
+    pub importance: Option<f64>,
+    pub confidence: Option<f64>,
+}
+
+impl From<RustEvidenceContributionV1> for EvidenceContributionV1 {
+    fn from(value: RustEvidenceContributionV1) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            vector_rank: value.vector_rank,
+            text_rank: value.text_rank,
+            graph_rank: value.graph_rank,
+            fused_score: value.fused_score,
+            ce_score: value.ce_score,
+            blended_score: value.blended_score,
+            importance: value.importance,
+            confidence: value.confidence,
+        }
+    }
+}
+
+#[napi(object)]
+pub struct EvidenceGraphOriginV1 {
+    pub kind: String,
+    pub edge_artifact_revision_id: Option<String>,
+    pub hop_count: Option<u32>,
+}
+
+#[napi(object)]
+pub struct EvidenceProjectionOriginV1 {
+    pub schema_version: u32,
+    pub artifact_class: String,
+    pub representative_arm: String,
+    pub projection_generation_id: String,
+    pub graph_origin: Option<EvidenceGraphOriginV1>,
+}
+
+impl From<RustEvidenceProjectionOriginV1> for EvidenceProjectionOriginV1 {
+    fn from(value: RustEvidenceProjectionOriginV1) -> Self {
+        let graph_origin = value.graph_origin.map(|origin| match origin {
+            RustEvidenceGraphOriginV1::EntitySeed => EvidenceGraphOriginV1 {
+                kind: "entity_seed".to_string(),
+                edge_artifact_revision_id: None,
+                hop_count: None,
+            },
+            RustEvidenceGraphOriginV1::EdgeSeed { edge_artifact_revision_id } => {
+                EvidenceGraphOriginV1 {
+                    kind: "edge_seed".to_string(),
+                    edge_artifact_revision_id: Some(edge_artifact_revision_id),
+                    hop_count: None,
+                }
+            }
+            RustEvidenceGraphOriginV1::Traversal { edge_artifact_revision_id, hop_count } => {
+                EvidenceGraphOriginV1 {
+                    kind: "traversal".to_string(),
+                    edge_artifact_revision_id: Some(edge_artifact_revision_id),
+                    hop_count: Some(hop_count),
+                }
+            }
+        });
+        Self {
+            schema_version: value.schema_version,
+            artifact_class: value.artifact_class.as_str().to_string(),
+            representative_arm: value.representative_arm.as_str().to_string(),
+            projection_generation_id: value.projection_generation_id.as_str().to_string(),
+            graph_origin,
+        }
+    }
+}
+
+#[napi(object)]
+pub struct EvidenceLocatorV1 {
+    pub kind: String,
+    pub start_inclusive: Option<String>,
+    pub end_exclusive: Option<String>,
+}
+
+#[napi(object)]
+pub struct EvidenceArtifactLifecycleV1 {
+    pub kind: String,
+    pub state: Option<String>,
+    pub superseded: bool,
+    pub valid_at_effective: Option<bool>,
+}
+
+#[napi(object)]
+pub struct ResolvedEvidenceV1 {
+    pub schema_version: u32,
+    pub logical_id: Option<String>,
+    pub artifact_revision_id: String,
+    pub source_id: String,
+    pub source_version_id: String,
+    pub source_revision_id: String,
+    pub locator: EvidenceLocatorV1,
+    pub canonical_source_body: String,
+    pub evidence_text: String,
+    pub canonical_source_hash: String,
+    pub effective_valid_at: i64,
+    pub artifact_lifecycle: EvidenceArtifactLifecycleV1,
+    pub source_lifecycle_state: String,
+    pub projection_origin: EvidenceProjectionOriginV1,
+    pub retrieval_contribution: EvidenceContributionV1,
+    pub dependency: Option<SourceDependencyV1>,
+}
+
+impl From<RustResolvedEvidenceV1> for ResolvedEvidenceV1 {
+    fn from(value: RustResolvedEvidenceV1) -> Self {
+        let locator = match value.locator {
+            SourceLocator::WholeBody => EvidenceLocatorV1 {
+                kind: "whole_body".to_string(),
+                start_inclusive: None,
+                end_exclusive: None,
+            },
+            SourceLocator::Utf8Bytes { start_inclusive, end_exclusive } => EvidenceLocatorV1 {
+                kind: "utf8_bytes".to_string(),
+                start_inclusive: Some(start_inclusive.to_string()),
+                end_exclusive: Some(end_exclusive.to_string()),
+            },
+        };
+        let artifact_lifecycle = match value.artifact_lifecycle {
+            RustEvidenceArtifactLifecycleV1::Node { state, superseded } => {
+                EvidenceArtifactLifecycleV1 {
+                    kind: "node".to_string(),
+                    state: Some(state.as_str().to_string()),
+                    superseded,
+                    valid_at_effective: None,
+                }
+            }
+            RustEvidenceArtifactLifecycleV1::Edge { superseded, valid_at_effective } => {
+                EvidenceArtifactLifecycleV1 {
+                    kind: "edge".to_string(),
+                    state: None,
+                    superseded,
+                    valid_at_effective: Some(valid_at_effective),
+                }
+            }
+        };
+        Self {
+            schema_version: value.schema_version,
+            logical_id: value.logical_id,
+            artifact_revision_id: value.artifact_revision_id,
+            source_id: value.source_id,
+            source_version_id: value.source_version_id,
+            source_revision_id: value.source_revision_id,
+            locator,
+            canonical_source_body: value.canonical_source_body,
+            evidence_text: value.evidence_text,
+            canonical_source_hash: value.canonical_source_hash.digest_hex().to_string(),
+            effective_valid_at: value.effective_valid_at,
+            artifact_lifecycle,
+            source_lifecycle_state: value.source_lifecycle_state.as_str().to_string(),
+            projection_origin: value.projection_origin.into(),
+            retrieval_contribution: value.retrieval_contribution.into(),
+            dependency: value.dependency.map(Into::into),
+        }
+    }
+}
+
 /// 0.8.8 EXP-OBS (Slice 10) — query-level retrieval trace (mirror of engine
 /// `QueryTrace`). napi maps snake_case → camelCase JS (`queryChars`,
 /// `rerankDepth`, `useGraphArm`, `embedderId`, `ceActive`, `vectorHits`, …).
@@ -2430,6 +2650,52 @@ impl Engine {
         })
         .await?;
         Ok(SearchResult::from_rust(result))
+    }
+
+    /// Search under a frozen context and attach one evidence reference per hit.
+    #[napi]
+    #[allow(clippy::too_many_arguments)]
+    pub async fn search_with_evidence(
+        &self,
+        query: String,
+        context: FrozenReadContextV1,
+        rerank_depth: Option<i64>,
+        use_graph_arm: Option<bool>,
+        alpha: Option<f64>,
+        pool_n: Option<i64>,
+        include_explanation: Option<bool>,
+        limit: Option<i64>,
+    ) -> Result<EvidenceSearchResultV1> {
+        let request = RustEvidenceSearchRequestV1 {
+            schema_version: 1,
+            query,
+            context: frozen_context_to_rust(context)?,
+            rerank_depth: u32::try_from(rerank_depth.unwrap_or(0)).unwrap_or(u32::MAX),
+            use_graph_arm: use_graph_arm.unwrap_or(false),
+            alpha: alpha.unwrap_or(0.3),
+            pool_n: u32::try_from(pool_n.unwrap_or(0)).unwrap_or(u32::MAX),
+            include_explanation: include_explanation.unwrap_or(false),
+            limit: u32::try_from(limit.unwrap_or(10)).unwrap_or(u32::MAX),
+        };
+        let engine = Arc::clone(&self.inner);
+        call_engine(move || engine.search_with_evidence(&request)).await.map(Into::into)
+    }
+
+    /// Resolve exact source bytes under an equivalent frozen context.
+    #[napi]
+    pub async fn resolve_evidence(
+        &self,
+        evidence_ref: String,
+        context: FrozenReadContextV1,
+    ) -> Result<ResolvedEvidenceV1> {
+        let request = RustEvidenceResolveRequestV1 {
+            schema_version: 1,
+            evidence_ref: RustEvidenceRefV1::new(evidence_ref)
+                .map_err(|error| engine_error_to_napi(RustEngineError::Evidence(error)))?,
+            context: frozen_context_to_rust(context)?,
+        };
+        let engine = Arc::clone(&self.inner);
+        call_engine(move || engine.resolve_evidence(&request)).await.map(Into::into)
     }
 
     /// Search and expand on one frozen reader transaction.

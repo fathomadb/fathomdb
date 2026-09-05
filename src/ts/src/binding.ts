@@ -268,6 +268,73 @@ export interface NativeSearchResult {
   explanation?: NativeExplanation | null;
 }
 
+export interface NativeEvidenceSidecarEntryV1 {
+  schemaVersion: number;
+  resultIndex: number;
+  artifactRevisionId: string;
+  evidenceRef: string;
+}
+
+export interface NativeEvidenceSearchResultV1 {
+  schemaVersion: number;
+  searchResult: NativeSearchResult;
+  evidence: NativeEvidenceSidecarEntryV1[];
+}
+
+export interface NativeEvidenceContributionV1 {
+  schemaVersion: number;
+  vectorRank?: number | null;
+  textRank?: number | null;
+  graphRank?: number | null;
+  fusedScore: number;
+  ceScore?: number | null;
+  blendedScore: number;
+  importance?: number | null;
+  confidence?: number | null;
+}
+
+export interface NativeEvidenceGraphOriginV1 {
+  kind: string;
+  edgeArtifactRevisionId?: string | null;
+  hopCount?: number | null;
+}
+
+export interface NativeEvidenceProjectionOriginV1 {
+  schemaVersion: number;
+  artifactClass: string;
+  representativeArm: string;
+  projectionGenerationId: string;
+  graphOrigin?: NativeEvidenceGraphOriginV1 | null;
+}
+
+export interface NativeResolvedEvidenceV1 {
+  schemaVersion: number;
+  logicalId?: string | null;
+  artifactRevisionId: string;
+  sourceId: string;
+  sourceVersionId: string;
+  sourceRevisionId: string;
+  locator: {
+    kind: string;
+    startInclusive?: string | null;
+    endExclusive?: string | null;
+  };
+  canonicalSourceBody: string;
+  evidenceText: string;
+  canonicalSourceHash: string;
+  effectiveValidAt: number;
+  artifactLifecycle: {
+    kind: string;
+    state?: string | null;
+    superseded: boolean;
+    validAtEffective?: boolean | null;
+  };
+  sourceLifecycleState: string;
+  projectionOrigin: NativeEvidenceProjectionOriginV1;
+  retrievalContribution: NativeEvidenceContributionV1;
+  dependency?: NativeSourceDependencyV1 | null;
+}
+
 interface NativeSearchFilter {
   sourceType?: string;
   kind?: string;
@@ -591,6 +658,20 @@ export interface NativeEngine {
     explain?: boolean,
     limit?: number,
   ): Promise<NativeSearchResult>;
+  searchWithEvidence(
+    query: string,
+    context: NativeFrozenReadContextV1,
+    rerankDepth?: number,
+    useGraphArm?: boolean,
+    alpha?: number,
+    poolN?: number,
+    includeExplanation?: boolean,
+    limit?: number,
+  ): Promise<NativeEvidenceSearchResultV1>;
+  resolveEvidence(
+    evidenceRef: string,
+    context: NativeFrozenReadContextV1,
+  ): Promise<NativeResolvedEvidenceV1>;
   searchExpandFrozen(
     query: string,
     context: NativeFrozenReadContextV1,

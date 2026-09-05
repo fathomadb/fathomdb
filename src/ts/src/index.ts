@@ -16,16 +16,19 @@ import {
   type NativeEmbedderDeviceResolution,
   type NativeEmbedderEvent,
   type NativeEngine,
+  type NativeEvidenceSearchResultV1,
   type NativeFrozenReadContextV1,
   type NativeGpuAllocationWitness,
   type NativeOpenReport,
   type NativePerHitExplain,
+  type NativeResolvedEvidenceV1,
   type NativeSearchResult,
 } from "./binding.js";
 import {
   ActuationError,
   DependencyClosureError,
   DependencyError,
+  EvidenceError,
   FrozenReadError,
   InvalidArgumentError,
   InvalidFilterError,
@@ -866,6 +869,91 @@ export interface FrozenSearchOptions {
   limit?: number;
 }
 
+export interface EvidenceSearchRequestV1 {
+  schemaVersion: 1;
+  query: string;
+  context: FrozenReadContextV1;
+  rerankDepth?: number;
+  useGraphArm?: boolean;
+  alpha?: number;
+  poolN?: number;
+  includeExplanation?: boolean;
+  limit?: number;
+}
+
+export interface EvidenceResolveRequestV1 {
+  schemaVersion: 1;
+  evidenceRef: string;
+  context: FrozenReadContextV1;
+}
+
+export interface EvidenceSidecarEntryV1 {
+  schemaVersion: 1;
+  resultIndex: number;
+  artifactRevisionId: string;
+  evidenceRef: string;
+}
+
+export interface EvidenceContributionV1 {
+  schemaVersion: 1;
+  vectorRank: number | null;
+  textRank: number | null;
+  graphRank: number | null;
+  fusedScore: number;
+  ceScore: number | null;
+  blendedScore: number;
+  importance: number | null;
+  confidence: number | null;
+}
+
+export interface EvidenceGraphOriginV1 {
+  kind: "entity_seed" | "edge_seed" | "traversal";
+  edgeArtifactRevisionId: string | null;
+  hopCount: number | null;
+}
+
+export interface EvidenceProjectionOriginV1 {
+  schemaVersion: 1;
+  artifactClass: "node" | "edge";
+  representativeArm: SoftFallbackBranch;
+  projectionGenerationId: string;
+  graphOrigin: EvidenceGraphOriginV1 | null;
+}
+
+export interface EvidenceArtifactLifecycleV1 {
+  kind: "node" | "edge";
+  state: LifecycleState | null;
+  superseded: boolean;
+  validAtEffective: boolean | null;
+}
+
+export interface EvidenceSearchResultV1 {
+  schemaVersion: 1;
+  searchResult: SearchResult;
+  evidence: EvidenceSidecarEntryV1[];
+}
+
+export interface ResolvedEvidenceV1 {
+  schemaVersion: 1;
+  logicalId: string | null;
+  artifactRevisionId: string;
+  sourceId: string;
+  sourceVersionId: string;
+  sourceRevisionId: string;
+  locator:
+    | { kind: "whole_body" }
+    | { kind: "utf8_bytes"; startInclusive: string; endExclusive: string };
+  canonicalSourceBody: string;
+  evidenceText: string;
+  canonicalSourceHash: string;
+  effectiveValidAt: number;
+  artifactLifecycle: EvidenceArtifactLifecycleV1;
+  sourceLifecycleState: LifecycleState;
+  projectionOrigin: EvidenceProjectionOriginV1;
+  retrievalContribution: EvidenceContributionV1;
+  dependency: SourceDependencyV1 | null;
+}
+
 /** Options shared by ranked search methods. `limit` defaults to 10 and is 1–100. */
 export type SearchOptions = ReadView & {
   limit?: number;
@@ -940,11 +1028,97 @@ function mapNativeSearchResult(r: NativeSearchResult): SearchResult {
   };
 }
 
+function mapNativeEvidenceSearch(r: NativeEvidenceSearchResultV1): EvidenceSearchResultV1 {
+  return {
+    schemaVersion: 1,
+    searchResult: mapNativeSearchResult(r.searchResult),
+    evidence: r.evidence.map((item) => ({
+      schemaVersion: 1,
+      resultIndex: item.resultIndex,
+      artifactRevisionId: item.artifactRevisionId,
+      evidenceRef: item.evidenceRef,
+    })),
+  };
+}
+
+function mapNativeResolvedEvidence(r: NativeResolvedEvidenceV1): ResolvedEvidenceV1 {
+  const graph = r.projectionOrigin.graphOrigin;
+  const locator: ResolvedEvidenceV1["locator"] = r.locator.kind === "utf8_bytes"
+    ? {
+        kind: "utf8_bytes",
+        startInclusive: r.locator.startInclusive!,
+        endExclusive: r.locator.endExclusive!,
+      }
+    : { kind: "whole_body" };
+  return {
+    schemaVersion: 1,
+    logicalId: r.logicalId ?? null,
+    artifactRevisionId: r.artifactRevisionId,
+    sourceId: r.sourceId,
+    sourceVersionId: r.sourceVersionId,
+    sourceRevisionId: r.sourceRevisionId,
+    locator,
+    canonicalSourceBody: r.canonicalSourceBody,
+    evidenceText: r.evidenceText,
+    canonicalSourceHash: r.canonicalSourceHash,
+    effectiveValidAt: r.effectiveValidAt,
+    artifactLifecycle: {
+      kind: r.artifactLifecycle.kind as "node" | "edge",
+      state: (r.artifactLifecycle.state ?? null) as LifecycleState | null,
+      superseded: r.artifactLifecycle.superseded,
+      validAtEffective: r.artifactLifecycle.validAtEffective ?? null,
+    },
+    sourceLifecycleState: r.sourceLifecycleState as LifecycleState,
+    projectionOrigin: {
+      schemaVersion: 1,
+      artifactClass: r.projectionOrigin.artifactClass as "node" | "edge",
+      representativeArm: r.projectionOrigin.representativeArm as SoftFallbackBranch,
+      projectionGenerationId: r.projectionOrigin.projectionGenerationId,
+      graphOrigin: graph
+        ? {
+            kind: graph.kind as EvidenceGraphOriginV1["kind"],
+            edgeArtifactRevisionId: graph.edgeArtifactRevisionId ?? null,
+            hopCount: graph.hopCount ?? null,
+          }
+        : null,
+    },
+    retrievalContribution: {
+      schemaVersion: 1,
+      vectorRank: r.retrievalContribution.vectorRank ?? null,
+      textRank: r.retrievalContribution.textRank ?? null,
+      graphRank: r.retrievalContribution.graphRank ?? null,
+      fusedScore: r.retrievalContribution.fusedScore,
+      ceScore: r.retrievalContribution.ceScore ?? null,
+      blendedScore: r.retrievalContribution.blendedScore,
+      importance: r.retrievalContribution.importance ?? null,
+      confidence: r.retrievalContribution.confidence ?? null,
+    },
+    dependency: r.dependency
+      ? {
+          schemaVersion: 1,
+          dependencyId: r.dependency.dependencyId,
+          sourceRevisionId: r.dependency.sourceRevisionId,
+          derivedRevisionId: r.dependency.derivedRevisionId,
+          registeredDependencyGeneration: r.dependency.registeredDependencyGeneration,
+        }
+      : null,
+  };
+}
+
 function assertKnownKeys(value: object, allowed: readonly string[], name: string): void {
   const unknown = Object.keys(value).filter((key) => !allowed.includes(key)).sort();
   if (unknown.length > 0) {
     throw new InvalidArgumentError(`${name} has unknown field ${unknown[0]}`);
   }
+}
+
+function evidenceRequestError(reason: string, fieldPath: string): never {
+  throw new EvidenceError(`${reason} at ${fieldPath}`, reason, fieldPath);
+}
+
+function assertKnownEvidenceKeys(value: object, allowed: readonly string[]): void {
+  const unknown = Object.keys(value).filter((key) => !allowed.includes(key)).sort();
+  if (unknown.length > 0) evidenceRequestError("unknown_field", `/${unknown[0]}`);
 }
 
 function validateReadContext(context: ReadContextV1): void {
@@ -1884,6 +2058,66 @@ export class Engine {
       ),
     );
     return mapNativeSearchResult(result);
+  }
+
+  /** Search under a frozen context and attach one evidence reference per hit. */
+  async searchWithEvidence(
+    request: EvidenceSearchRequestV1,
+  ): Promise<EvidenceSearchResultV1> {
+    assertKnownEvidenceKeys(
+      request,
+      [
+        "schemaVersion",
+        "query",
+        "context",
+        "rerankDepth",
+        "useGraphArm",
+        "alpha",
+        "poolN",
+        "includeExplanation",
+        "limit",
+      ],
+    );
+    if (request.schemaVersion !== 1) {
+      evidenceRequestError("unsupported_schema_version", "/schemaVersion");
+    }
+    validateFfiString(request.query);
+    validateReadContext(request.context.context);
+    const limit = validateRankedResultLimit("limit", request.limit);
+    const result = await intercept(() =>
+      this.#native.searchWithEvidence(
+        request.query,
+        nativeFrozenContext(request.context),
+        request.rerankDepth,
+        request.useGraphArm,
+        request.alpha,
+        request.poolN,
+        request.includeExplanation,
+        limit,
+      ),
+    );
+    return mapNativeEvidenceSearch(result);
+  }
+
+  /** Resolve exact source bytes under an equivalent frozen context. */
+  async resolveEvidence(request: EvidenceResolveRequestV1): Promise<ResolvedEvidenceV1> {
+    assertKnownEvidenceKeys(
+      request,
+      ["schemaVersion", "evidenceRef", "context"],
+    );
+    if (request.schemaVersion !== 1) {
+      evidenceRequestError("unsupported_schema_version", "/schemaVersion");
+    }
+    validateFfiString(request.evidenceRef);
+    validateReadContext(request.context.context);
+    return mapNativeResolvedEvidence(
+      await intercept(() =>
+        this.#native.resolveEvidence(
+          request.evidenceRef,
+          nativeFrozenContext(request.context),
+        ),
+      ),
+    );
   }
 
   /** Search and graph-expand on one frozen reader transaction. */

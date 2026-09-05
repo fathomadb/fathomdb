@@ -7,6 +7,7 @@
   "_slice30_closure_signature": "HITL approved the 0.8.25 Slice 30 plan and execution. The additive read_dependency_closure/readDependencyClosure verb is a keyed, bounded status read for Engine-minted dependency-closure operations; it adds no public resume or list administration. Core membership and the recovery denylist are unchanged.",
   "_slice35_frozen_read_signature": "The approved 0.8.25 Slice 35 plan adds an optional Engine-minted frozen read context and two consumers. Eligibility and validity remain caller policy; FathomDB authenticates and enforces them on one reader transaction. Core membership and the recovery denylist are unchanged.",
   "_slice40_projection_generation_signature": "The approved 0.8.25 Slice 40 plan adds pure current-generation and receipt-keyed mutation projection-status reads in both SDK naming conventions. The reads expose durable projection identity and physical readiness without a public work manifest. Core membership and the recovery denylist are unchanged.",
+  "_slice50_evidence_signature": "The approved 0.8.25 Slice 50 plan adds opt-in search_with_evidence/searchWithEvidence and resolve_evidence/resolveEvidence reads. They mint and resolve compact, authenticated, source-bound evidence references under the supplied frozen read context. Core membership and the recovery denylist are unchanged.",
   "allowlist": [
     "Engine.open",
     "admin.configure",
@@ -35,6 +36,10 @@
     "searchTextOnly",
     "search_projected_text",
     "searchProjectedText",
+    "search_with_evidence",
+    "searchWithEvidence",
+    "resolve_evidence",
+    "resolveEvidence",
     "close",
     "read.get",
     "read.get_many",

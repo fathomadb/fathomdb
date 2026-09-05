@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 50 implementation TDD chronology
-status: RED
+status: GREEN
 ---
 
 # Slice 50 implementation TDD chronology
@@ -116,3 +116,51 @@ two missing methods and request types. TypeScript checking failed only on the
 two missing Engine methods. The local Python binary is stale before this
 increment, so native Python execution is reserved for the rebuilt-package
 GREEN route rather than misreported as a product diagnostic.
+
+## GREEN 5
+
+The Rust facade now re-exports the evidence contract. The PyO3/Python and
+napi-rs/TypeScript bindings expose request-object search and resolution with
+the same nested result vocabulary and typed `FDB_EVIDENCE` error family. The
+focused TypeScript real-database route passed. A wheel built from this exact
+worktree and installed into a fresh temporary environment passed an installed
+open/write/search-with-evidence/resolve/error smoke.
+
+The first full TypeScript run passed 402/404 tests and correctly stopped only
+on the governed-surface pin because the two new reads had not yet been added to
+the approved Slice 50 surface record. The allowlist and its explicit shape
+oracle now carry `search_with_evidence`/`searchWithEvidence` and
+`resolve_evidence`/`resolveEvidence`; the pin is intentionally refreshed only
+after the implementation commit supplies immutable provenance.
+
+## RED 6
+
+The sixth increment required a result minted with
+`include_out_of_window=true` to resolve under the exact same relaxed frozen
+view. The focused Rust test failed with `evidence_unavailable`: resolution was
+unconditionally enforcing the validity window even though origin search had
+lawfully relaxed that axis.
+
+## GREEN 6
+
+Artifact, canonical-source, and graph-origin validity checks now honor the
+originating view's explicit validity relaxation while retaining active-state,
+supersession, provenance, and dependency-closure barriers. Graph-origin
+resolution additionally revalidates its edge source revision. The focused
+Rust suite passes 9/9.
+
+## RED 7
+
+The seventh increment required unsupported evidence request schemas and
+unknown TypeScript request fields to use the evidence-specific typed error
+contract. The focused TypeScript test caught `InvalidArgumentError` for the
+schema case instead of `EvidenceError`; the installed Python smoke also showed
+that `EvidenceError` was not exported at package top level.
+
+## GREEN 7
+
+Both SDKs now expose `EvidenceError` and return
+`unsupported_schema_version` at `/schemaVersion`; TypeScript additionally
+returns `unknown_field` at the exact unknown request-field pointer. TypeScript
+passes both focused real-database tests. The rebuilt, freshly installed Python
+wheel passes exact source resolution and the typed schema-refusal smoke.

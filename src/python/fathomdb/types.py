@@ -466,6 +466,116 @@ class FrozenReadContextV1:
     schema_version: int = 1
 
 
+@dataclass(frozen=True)
+class EvidenceSearchRequestV1:
+    """Opt-in frozen search that requests one evidence reference per hit."""
+
+    query: str
+    context: FrozenReadContextV1
+    rerank_depth: int = 0
+    use_graph_arm: bool = False
+    alpha: float = 0.3
+    pool_n: int = 0
+    include_explanation: bool = False
+    limit: int = 10
+    schema_version: int = 1
+
+
+@dataclass(frozen=True)
+class EvidenceResolveRequestV1:
+    """Resolve an opaque reference under an equivalent frozen context."""
+
+    evidence_ref: str
+    context: FrozenReadContextV1
+    schema_version: int = 1
+
+
+@dataclass(frozen=True)
+class EvidenceSidecarEntryV1:
+    """Position-preserving evidence reference for one search hit."""
+
+    result_index: int
+    artifact_revision_id: str
+    evidence_ref: str
+    schema_version: int = 1
+
+
+@dataclass(frozen=True)
+class EvidenceContributionV1:
+    """Ranking contribution attached to resolved evidence."""
+
+    vector_rank: int | None
+    text_rank: int | None
+    graph_rank: int | None
+    fused_score: float
+    ce_score: float | None
+    blended_score: float
+    importance: float | None
+    confidence: float | None
+    schema_version: int = 1
+
+
+@dataclass(frozen=True)
+class EvidenceGraphOriginV1:
+    """Compact graph origin for a graph-arm result."""
+
+    kind: str
+    edge_artifact_revision_id: str | None = None
+    hop_count: int | None = None
+
+
+@dataclass(frozen=True)
+class EvidenceProjectionOriginV1:
+    """Projection generation and retrieval arm that produced evidence."""
+
+    artifact_class: str
+    representative_arm: str
+    projection_generation_id: str
+    graph_origin: EvidenceGraphOriginV1 | None = None
+    schema_version: int = 1
+
+
+@dataclass(frozen=True)
+class EvidenceArtifactLifecycleV1:
+    """Current authorized lifecycle facts for an evidence artifact."""
+
+    kind: str
+    state: str | None
+    superseded: bool
+    valid_at_effective: bool | None = None
+
+
+@dataclass(frozen=True)
+class EvidenceSearchResultV1:
+    """Ordinary search result plus one evidence reference per hit."""
+
+    search_result: "SearchResult"
+    evidence: tuple[EvidenceSidecarEntryV1, ...]
+    schema_version: int = 1
+
+
+@dataclass(frozen=True)
+class ResolvedEvidenceV1:
+    """Exact canonical bytes and structural evidence metadata."""
+
+    logical_id: str | None
+    artifact_revision_id: str
+    source_id: str
+    source_version_id: str
+    source_revision_id: str
+    locator: SourceLocator
+    canonical_source_body: str
+    evidence_text: str
+    canonical_source_hash: str
+    effective_valid_at: int
+    artifact_lifecycle: EvidenceArtifactLifecycleV1
+    source_lifecycle_state: str
+    projection_origin: EvidenceProjectionOriginV1
+    retrieval_contribution: EvidenceContributionV1
+    dependency: SourceDependencyV1 | None
+    schema_version: int = 1
+
+
 class ProjectionRole:
     """0.8.20 Slice 15d (R-20-PR) — the three projection roles (set members).
 
@@ -1060,6 +1170,14 @@ __all__ = [
     "EmbedderEvent",
     "EmbedderIdentity",
     "EffectiveEmbedDevice",
+    "EvidenceArtifactLifecycleV1",
+    "EvidenceContributionV1",
+    "EvidenceGraphOriginV1",
+    "EvidenceProjectionOriginV1",
+    "EvidenceResolveRequestV1",
+    "EvidenceSearchRequestV1",
+    "EvidenceSearchResultV1",
+    "EvidenceSidecarEntryV1",
     "ExpandedNode",
     "Explanation",
     "GpuAllocationWitness",
@@ -1074,6 +1192,7 @@ __all__ = [
     "OpenReport",
     "PerHitExplain",
     "QueryTrace",
+    "ResolvedEvidenceV1",
     "SearchExpandResult",
     "SearchFilter",
     "SearchHit",

@@ -13,11 +13,11 @@
     }
   },
   "git_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-  "git_head": "996a76f2d0b25b923effcd2a0c423b61ecaa1192",
+  "git_head": "283f94f78db60194e632ed08b91e2bd695b3a4cf",
   "kernel": "Linux 7.0.0-30-generic x86_64 GNU/Linux",
-  "raw_sha256": "ae28d53631dcf9379b251993c4e6666f549acd71805ab0dc60433f31528eb44b",
-  "result_sha256": "73d4660a6addf664f256faec49df1ff68af0fdbb6404b8c758872f31a0d69280",
-  "runner_sha256": "1d45b2732c63427076313ac8b2ff060a9fb7502788136c54dddd2c9e991526e5",
+  "raw_sha256": "380af5eed3c8b968308e32f63d23e2d422fd87796ac6e4444ac9a4da834beb23",
+  "result_sha256": "cb3b5e4774d48601c4d5af76380f31e12ae5a5f401ad87b6b30f6518d78cb574",
+  "runner_sha256": "cd93260ea75738a42912685985c3fa12f1bb0257ee5de959bdfd670a49a0c821",
   "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
   "schema_version": "slice45-pagination-manifest.v1"
 }

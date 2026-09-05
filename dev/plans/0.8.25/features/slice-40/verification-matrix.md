@@ -2,7 +2,8 @@
 title: 0.8.25 Slice 40 verification matrix
 status: IN_PROGRESS
 candidate_product_commit: ad7d2824
-review_candidate_commit: PENDING_CYCLE_7
+review_candidate_commit: d3548e07
+implementation_review: PASS_CYCLE_7
 ---
 
 # Slice 40 verification matrix

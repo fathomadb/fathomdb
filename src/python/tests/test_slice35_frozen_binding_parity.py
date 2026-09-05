@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 import pytest
 
 import fathomdb
@@ -49,9 +51,7 @@ def test_frozen_expansion_rejects_python_coercions_after_authentication(
     engine = fathomdb.Engine.open(db_path, use_default_embedder=False)
     frozen = engine.freeze_read_context(fathomdb.ReadContextV1())
     with pytest.raises(TypeError):
-        engine.search_expand_frozen(  # type: ignore[arg-type]
-            "query", frozen, depth, limit=limit
-        )
+        cast(Any, engine.search_expand_frozen)("query", frozen, depth, limit=limit)
     engine.close()
 
 
@@ -97,7 +97,7 @@ def test_frozen_expansion_authenticates_before_native_argument_conversion(
     malformed = _malformed_context(engine)
 
     with pytest.raises(fathomdb.errors.FrozenReadError, match="token_malformed"):
-        engine.search_expand_frozen(  # type: ignore[arg-type]
+        cast(Any, engine.search_expand_frozen)(
             "query", malformed, depth, limit=limit
         )
     engine.close()

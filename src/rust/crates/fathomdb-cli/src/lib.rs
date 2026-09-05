@@ -1775,6 +1775,15 @@ mod tests {
     }
 
     #[test]
+    fn evidence_refusal_uses_the_stable_cli_error_code() {
+        let error = EngineError::Evidence(fathomdb::EvidenceErrorV1 {
+            reason: fathomdb::EvidenceErrorReasonV1::EvidenceUnavailable,
+            field_path: "/evidenceRef".to_owned(),
+        });
+        assert_eq!(engine_error_code(&error), "EvidenceError");
+    }
+
+    #[test]
     fn engine_open_database_locked_maps_to_lock_held() {
         let err = EngineOpenError::DatabaseLocked { holder_pid: Some(1234) };
         assert_eq!(engine_open_error_to_outcome(&err), CliOutcome::LockHeld);

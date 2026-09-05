@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from experiments import _lib, scale_02
+from experiments import _lib, measurement_classification, scale_02
 
 
 SCHEMA = "scale-02-slice35.v1"
@@ -255,6 +255,139 @@ def regression_verdict(upper: Mapping[str, float], maximum: float) -> str:
     return "pass" if all(value <= maximum for value in upper.values()) else "fail"
 
 
+def classification_document(
+    *,
+    run_id: str,
+    authority: Mapping[str, Any],
+    source_artifacts: list[dict[str, Any]],
+    measurement_plan_sha256: str,
+    search_call_count: int,
+) -> dict[str, Any]:
+    """Build the native data-plane classification for one completed campaign."""
+    witnesses = [
+        {
+            "id": f"{arm}-calls",
+            "call_path_id": f"{arm}-search",
+            "component_id": f"{arm}-engine",
+            "arm_id": arm,
+            "engine_search_state": "executed",
+            "call_count": search_call_count,
+            "count_semantics": "exact",
+            "evidence_kind": "source_result",
+            "source_artifact_ids": ["implementation", "record"],
+        }
+        for arm in ("baseline", "candidate")
+    ]
+    document = {
+        "schema_version": measurement_classification.SCHEMA_VERSION,
+        "classifier_version": measurement_classification.CLASSIFIER_VERSION,
+        "classification_id": "",
+        "run_id": run_id,
+        "outcome": "complete",
+        "blocked_reason": None,
+        "measurement_plan_id": authority["plan_id"],
+        "source_artifacts": source_artifacts,
+        "components": authority["components"],
+        "call_paths": authority["call_paths"],
+        "execution_witnesses": witnesses,
+        "metrics": authority["metric_bindings"],
+        "metric_exclusions": authority["metric_exclusions"],
+        "comparisons": authority["comparisons"],
+        "claims": authority["claims"],
+        "migration": {
+            "kind": "native",
+            "manifest_entry_sha256": None,
+            "manifest_path": None,
+            "measurement_plan_id": authority["plan_id"],
+            "measurement_plan_sha256": measurement_plan_sha256,
+        },
+    }
+    document["classification_id"] = measurement_classification.classification_id(
+        document
+    )
+    return document
+
+
+def _write_run_classification(
+    *,
+    run_id: str,
+    run_dir: Path,
+    config_path: Path,
+    config: Mapping[str, Any],
+    code_git_sha: str,
+) -> None:
+    plan_ref = config["measurement_plan"]
+    plan_path = _path(plan_ref["path"], "measurement_plan.path")
+    authority = json.loads(plan_path.read_text(encoding="utf-8"))
+    implementation_locator = f"{code_git_sha}:experiments/scale_02_slice35.py"
+    implementation = subprocess.run(
+        ["git", "show", implementation_locator],
+        cwd=REPO_ROOT,
+        check=True,
+        stdout=subprocess.PIPE,
+    ).stdout
+    artifacts = [
+        {
+            "id": "metrics",
+            "role": "metrics_payload",
+            "locator_kind": "repository_path",
+            "locator": str((run_dir / "metrics.json").relative_to(REPO_ROOT)),
+            "sha256": _sha256(run_dir / "metrics.json"),
+            "measurement_root_json_pointers": [
+                "/upper_95_relative_regression",
+                "/verdict",
+            ],
+        },
+        {
+            "id": "record",
+            "role": "record",
+            "locator_kind": "repository_path",
+            "locator": str((run_dir / "record.json").relative_to(REPO_ROOT)),
+            "sha256": _sha256(run_dir / "record.json"),
+            "measurement_root_json_pointers": [],
+        },
+        {
+            "id": "configuration",
+            "role": "configuration",
+            "locator_kind": "repository_path",
+            "locator": str(config_path.relative_to(REPO_ROOT)),
+            "sha256": _sha256(config_path),
+            "measurement_root_json_pointers": [],
+        },
+        {
+            "id": "plan",
+            "role": "configuration",
+            "locator_kind": "repository_path",
+            "locator": str(plan_path.relative_to(REPO_ROOT)),
+            "sha256": _sha256(plan_path),
+            "measurement_root_json_pointers": [],
+        },
+        {
+            "id": "implementation",
+            "role": "implementation",
+            "locator_kind": "git_blob",
+            "locator": implementation_locator,
+            "sha256": hashlib.sha256(implementation).hexdigest(),
+            "measurement_root_json_pointers": [],
+        },
+    ]
+    workload = config["workload"]
+    document = classification_document(
+        run_id=run_id,
+        authority=authority,
+        source_artifacts=artifacts,
+        measurement_plan_sha256=plan_ref["sha256"],
+        search_call_count=workload["repetitions"]
+        * (workload["warmups"] + workload["steady_queries"]),
+    )
+    measurement_classification.write_classification(
+        run_dir,
+        document,
+        repository_root=REPO_ROOT,
+        authority=authority,
+    )
+
+
 def independent_relative_upper(
     baseline: Sequence[float],
     candidate: Sequence[float],
@@ -441,14 +574,15 @@ def run(config_path: str | Path) -> dict[str, Any]:
     }
     result_path = run_root / "result.json"
     result_path.write_text(json.dumps(result, sort_keys=True) + "\n", encoding="utf-8")
-    run_id, _ = _lib.write_record(
+    code_info = _lib.git_info()
+    run_id, record_dir = _lib.write_record(
         "scale-02-slice35",
         ts=datetime.now(UTC),
         config_obj=config,
         metrics=result,
         verdict="complete" if verdict == "pass" else "advisory_limit_observed",
         read=f"Slice 35 legacy search non-regression: {verdict}",
-        code={**_lib.git_info(), "baseline_commit": config["baseline"]["source_commit"]},
+        code={**code_info, "baseline_commit": config["baseline"]["source_commit"]},
         corpus={"source": "SCALE-02 frozen 10k input pack", "datasets": ["tc5-qualified-real-v2"]},
         seeds={"query_order": config["workload"]["query_order_seed"], "bootstrap": config["workload"]["bootstrap_seed"]},
         env=_lib.env_info(key_deps={"fathomdb_baseline": config["baseline"]["source_commit"], "fathomdb_candidate": config["candidate"]["source_commit"]}),
@@ -462,6 +596,14 @@ def run(config_path: str | Path) -> dict[str, Any]:
         review=None,
         open_questions=[] if verdict == "pass" else ["Slice 35 exceeds the registered legacy-search regression bound"],
     )
+    if config["schema_version"] == "scale-02-slice35.v3":
+        _write_run_classification(
+            run_id=run_id,
+            run_dir=record_dir,
+            config_path=config_path,
+            config=config,
+            code_git_sha=code_info["git_sha"],
+        )
     _lib.regen_index_md()
     return {"run_id": run_id, "result": result, "external_result": str(result_path)}
 

@@ -1,0 +1,44 @@
+approval:
+  approved_at: '2026-09-04'
+  approved_by: HITL
+  state: approved
+artifact_root: data/performance-benchmarking/scale-02/slice35-runs
+baseline:
+  fathomdb_bin: data/performance-benchmarking/scale-02/runtime/slice35/b2bfb1f3/fathomdb
+  fathomdb_bin_sha256: c22074e4ebacdf5e86976ca2fa20b38c78ef8075767b2568260e3123522c3f2b
+  python_extension_sha256: 7ac2a66181413327bcf851599b1025f3899f37dabcd09ae8f361569cc2440002
+  source_commit: b2bfb1f318f58041144acb2356a6a4c9624068b9
+  wheel: data/performance-benchmarking/scale-02/runtime/slice35/b2bfb1f3/fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl
+  wheel_sha256: f602cf207edc8d522eec7a545fbc41f21dccb042848415d350088640d45998e5
+candidate:
+  fathomdb_bin: data/performance-benchmarking/scale-02/runtime/slice35/0aff1cb0/fathomdb
+  fathomdb_bin_sha256: 2907fe709463f0752fb4b1690e3f451404d35b017040f1a58b60ebb1edbab7bb
+  python_extension_sha256: ecb818de21331253cbcf9f6e7c1565f4fbf0a0cd4ff0b8237e21502281057421
+  source_commit: 0aff1cb08c61a8bb2a004813bbd5604b6ff1a403
+  wheel: data/performance-benchmarking/scale-02/runtime/slice35/0aff1cb0/fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl
+  wheel_sha256: 878d7792b8f74f79481658473cc8e8b3308618fb0f4ec463e60a1e0aa82af663
+claim_boundary: legacy_search_non_regression_only
+inputs:
+  base_config: experiments/configs/scale-02/a0-envelope.v2.json
+  base_config_sha256: eb86d5b41e63b4854bde695200b9a0b9552a5c2474650f7cb0762b862851cd28
+measurement_plan:
+  path: experiments/configs/scale-02/slice35-measurement-plan-a934bd34.v2.json
+  plan_id: slice35-legacy-search-a934bd34
+  sha256: 10cbfdbbb4d914041800cbe16b16929bebec8927d99e46b927cddd11943fd859
+policy:
+  confidence: 0.95
+  max_relative_regression: 0.03
+  metrics:
+  - p50
+  - p95
+program_track: SCALE-02
+release: 0.8.25
+schema_version: scale-02-slice35.v3
+workload:
+  bootstrap_resamples: 2000
+  bootstrap_seed: '0x5CA1E02535B007'
+  query_order_seed: '0x5CA1E025350001'
+  records: 10000
+  repetitions: 5
+  steady_queries: 1000
+  warmups: 100

@@ -1,0 +1,210 @@
+{
+  "schema_version": "experiments.record.v1",
+  "run_id": "scale-02-slice35-20260905T0231Z-cb9bad5b",
+  "experiment": "scale-02-slice35",
+  "title": "scale-02-slice35",
+  "verdict": "complete",
+  "read": "Slice 35 legacy search non-regression: pass",
+  "code": {
+    "git_sha": "ec05b02edabe767fdb6f8f3bfb78392d50d51b88",
+    "dirty": true,
+    "branch": "release/0.8.25",
+    "baseline_commit": "b2bfb1f318f58041144acb2356a6a4c9624068b9"
+  },
+  "config": {
+    "sha256": "cb9bad5bb21f164ceef370f0ef06e235bfc311256979d4ea3ae5bb378cf52c0b",
+    "path": "/home/coreyt/projects/fathomdb-worktrees/release-0.8.25/experiments/configs/scale-02/slice35-legacy-path.v4.json",
+    "resolved": {
+      "schema_version": "scale-02-slice35.v3",
+      "program_track": "SCALE-02",
+      "release": "0.8.25",
+      "approval": {
+        "state": "approved",
+        "approved_by": "HITL",
+        "approved_at": "2026-09-04"
+      },
+      "baseline": {
+        "source_commit": "b2bfb1f318f58041144acb2356a6a4c9624068b9",
+        "wheel": "data/performance-benchmarking/scale-02/runtime/slice35/b2bfb1f3/fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl",
+        "wheel_sha256": "f602cf207edc8d522eec7a545fbc41f21dccb042848415d350088640d45998e5",
+        "python_extension_sha256": "7ac2a66181413327bcf851599b1025f3899f37dabcd09ae8f361569cc2440002",
+        "fathomdb_bin": "data/performance-benchmarking/scale-02/runtime/slice35/b2bfb1f3/fathomdb",
+        "fathomdb_bin_sha256": "c22074e4ebacdf5e86976ca2fa20b38c78ef8075767b2568260e3123522c3f2b"
+      },
+      "candidate": {
+        "source_commit": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403",
+        "wheel": "data/performance-benchmarking/scale-02/runtime/slice35/0aff1cb0/fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl",
+        "wheel_sha256": "878d7792b8f74f79481658473cc8e8b3308618fb0f4ec463e60a1e0aa82af663",
+        "python_extension_sha256": "ecb818de21331253cbcf9f6e7c1565f4fbf0a0cd4ff0b8237e21502281057421",
+        "fathomdb_bin": "data/performance-benchmarking/scale-02/runtime/slice35/0aff1cb0/fathomdb",
+        "fathomdb_bin_sha256": "2907fe709463f0752fb4b1690e3f451404d35b017040f1a58b60ebb1edbab7bb"
+      },
+      "inputs": {
+        "base_config": "experiments/configs/scale-02/a0-envelope.v2.json",
+        "base_config_sha256": "eb86d5b41e63b4854bde695200b9a0b9552a5c2474650f7cb0762b862851cd28"
+      },
+      "workload": {
+        "records": 10000,
+        "repetitions": 5,
+        "warmups": 100,
+        "steady_queries": 1000,
+        "query_order_seed": "0x5CA1E025350001",
+        "bootstrap_seed": "0x5CA1E02535B007",
+        "bootstrap_resamples": 2000
+      },
+      "policy": {
+        "confidence": 0.95,
+        "max_relative_regression": 0.03,
+        "metrics": [
+          "p50",
+          "p95"
+        ]
+      },
+      "measurement_plan": {
+        "path": "experiments/configs/scale-02/slice35-measurement-plan-a934bd34.v2.json",
+        "sha256": "10cbfdbbb4d914041800cbe16b16929bebec8927d99e46b927cddd11943fd859",
+        "plan_id": "slice35-legacy-search-a934bd34"
+      },
+      "artifact_root": "data/performance-benchmarking/scale-02/slice35-runs",
+      "claim_boundary": "legacy_search_non_regression_only"
+    }
+  },
+  "corpus": {
+    "source": "SCALE-02 frozen 10k input pack",
+    "manifest_sha256": null,
+    "datasets": [
+      "tc5-qualified-real-v2"
+    ]
+  },
+  "seeds": {
+    "query_order": "0x5CA1E025350001",
+    "bootstrap": "0x5CA1E02535B007"
+  },
+  "env": {
+    "python": "3.12.3",
+    "lockfile_sha256": null,
+    "gpu": null,
+    "key_deps": {
+      "fathomdb_baseline": "b2bfb1f318f58041144acb2356a6a4c9624068b9",
+      "fathomdb_candidate": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403"
+    }
+  },
+  "metrics": {
+    "schema_version": "scale-02-slice35-result.v1",
+    "program_track": "SCALE-02",
+    "verdict": "pass",
+    "upper_95_relative_regression": {
+      "p50": 0.008519441839195618,
+      "p95": 0.01421644494704748
+    },
+    "treatments": {
+      "baseline": {
+        "errors": 0,
+        "p50_by_repetition": [
+          32.845454989001155,
+          32.862714026123285,
+          32.964062003884465,
+          32.86214801482856,
+          32.92806097306311
+        ],
+        "p95_by_repetition": [
+          36.26660298323259,
+          35.97800497664139,
+          36.07249102788046,
+          35.98811902338639,
+          36.22470499249175
+        ],
+        "repetitions": 5,
+        "schema_version": "scale-02-slice35-treatment.v1",
+        "source_commit": "b2bfb1f318f58041144acb2356a6a4c9624068b9",
+        "timeouts": 0,
+        "treatment": "baseline"
+      },
+      "candidate": {
+        "errors": 0,
+        "p50_by_repetition": [
+          33.00118702463806,
+          33.190332003869116,
+          33.173208008520305,
+          33.0248280079104,
+          33.206227992195636
+        ],
+        "p95_by_repetition": [
+          36.09251196030527,
+          36.63739905459806,
+          36.22312500374392,
+          36.16974299075082,
+          36.772620980627835
+        ],
+        "repetitions": 5,
+        "schema_version": "scale-02-slice35-treatment.v1",
+        "source_commit": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403",
+        "timeouts": 0,
+        "treatment": "candidate"
+      }
+    },
+    "current_campaign": {
+      "baseline": {
+        "errors": 0,
+        "p50_by_repetition": [
+          32.845454989001155,
+          32.862714026123285,
+          32.964062003884465,
+          32.86214801482856,
+          32.92806097306311
+        ],
+        "p95_by_repetition": [
+          36.26660298323259,
+          35.97800497664139,
+          36.07249102788046,
+          35.98811902338639,
+          36.22470499249175
+        ],
+        "repetitions": 5,
+        "schema_version": "scale-02-slice35-treatment.v1",
+        "source_commit": "b2bfb1f318f58041144acb2356a6a4c9624068b9",
+        "timeouts": 0,
+        "treatment": "baseline"
+      },
+      "candidate": {
+        "errors": 0,
+        "p50_by_repetition": [
+          33.00118702463806,
+          33.190332003869116,
+          33.173208008520305,
+          33.0248280079104,
+          33.206227992195636
+        ],
+        "p95_by_repetition": [
+          36.09251196030527,
+          36.63739905459806,
+          36.22312500374392,
+          36.16974299075082,
+          36.772620980627835
+        ],
+        "repetitions": 5,
+        "schema_version": "scale-02-slice35-treatment.v1",
+        "source_commit": "0aff1cb08c61a8bb2a004813bbd5604b6ff1a403",
+        "timeouts": 0,
+        "treatment": "candidate"
+      }
+    },
+    "prior_run_id": null,
+    "claim_boundary": "legacy_search_non_regression_only"
+  },
+  "cost_usd": 0.0,
+  "tdd_evidence": {},
+  "tests": [
+    "tests/experiments/test_scale_02_slice35.py"
+  ],
+  "files_changed": [],
+  "artifacts": [
+    {
+      "kind": "external_safe_summary",
+      "path": "/home/coreyt/projects/fathomdb/data/performance-benchmarking/scale-02/slice35-runs/slice35-20260905T022430Z-538908/result.json",
+      "sha256": "0f8d73c2bc3e9c5d40e3f27a311324864d7d21ab51aee12ec4e14bef15d44dac"
+    }
+  ],
+  "review": null,
+  "open_questions": []
+}

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import hashlib
+from types import SimpleNamespace
 
 import fathomdb
 import pytest  # pyright: ignore[reportMissingImports]
+from fathomdb.engine import _map_native_evidence_search, _map_native_resolved_evidence
 
 
 def test_search_and_resolve_exact_source_evidence(db_path: str) -> None:
@@ -107,4 +109,23 @@ def test_unsupported_evidence_schema_is_typed(db_path: str) -> None:
                 rerank_depth=-1,
             )
         )
+    with pytest.raises(ValueError, match="rerank_depth must be <= 4294967295"):
+        engine.search_with_evidence(
+            fathomdb.EvidenceSearchRequestV1(
+                query="needle",
+                context=frozen,
+                rerank_depth=2**32,
+            )
+        )
     engine.close()
+
+
+def test_unknown_native_evidence_versions_fail_closed() -> None:
+    for mapper, native in [
+        (_map_native_evidence_search, SimpleNamespace(schema_version=2)),
+        (_map_native_resolved_evidence, SimpleNamespace(schema_version=2)),
+    ]:
+        with pytest.raises(fathomdb.EvidenceError) as raised:
+            mapper(native)
+        assert raised.value.reason == "unsupported_schema_version"
+        assert raised.value.field_path == "/schemaVersion"

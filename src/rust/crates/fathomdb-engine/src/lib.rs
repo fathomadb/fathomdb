@@ -7291,7 +7291,6 @@ impl Engine {
         context: &ReadContextV1,
     ) -> Result<FrozenReadContextV1, EngineError> {
         self.ensure_open()?;
-        context.view.reject_existence_relaxation_on_search()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let (frozen, generation) = frozen_read::mint(connection, context)?;
@@ -7349,6 +7348,7 @@ impl Engine {
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             frozen_read::authenticate(connection, frozen)?
         };
+        frozen.context.view.reject_existence_relaxation_on_search()?;
         self.search_inner_with_frozen_binding_and_stats(
             query,
             Some(frozen.context.eligibility.clone()),
@@ -7379,6 +7379,7 @@ impl Engine {
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             frozen_read::authenticate(connection, frozen)?
         };
+        frozen.context.view.reject_existence_relaxation_on_search()?;
         let (_search, _stats, expanded) = self.search_inner_with_frozen_binding_and_expansion(
             query,
             Some(frozen.context.eligibility.clone()),
@@ -11333,7 +11334,6 @@ impl Engine {
         context: &ReadContextV1,
     ) -> Result<Slice45MintStageTiming, EngineError> {
         self.ensure_open()?;
-        context.view.reject_existence_relaxation_on_search()?;
         let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_mut().ok_or(EngineError::Closing)?;
         let (_, generation, timing) = frozen_read::mint_measured(connection, context)?;

@@ -256,6 +256,30 @@ def _require_page_response_v1(schema_version: int) -> None:
         )
 
 
+def _validate_page_request(page: PageRequestV1) -> None:
+    if (
+        not isinstance(page.schema_version, int)
+        or isinstance(page.schema_version, bool)
+        or page.schema_version != 1
+    ):
+        raise PageError(
+            "unsupported_schema_version at /schemaVersion",
+            reason="unsupported_schema_version",
+            field_path="/schemaVersion",
+        )
+    if (
+        not isinstance(page.limit, int)
+        or isinstance(page.limit, bool)
+        or page.limit < 1
+        or page.limit > 250
+    ):
+        raise PageError(
+            "invalid_page_limit at /limit",
+            reason="invalid_page_limit",
+            field_path="/limit",
+        )
+
+
 def get(engine: "Engine", logical_id: str, *, view: ReadView | None = None) -> NodeRecord | None:
     """Return the ACTIVE node carrying ``logical_id``, or ``None`` if absent.
 
@@ -373,6 +397,7 @@ def canonical_page(
 ) -> PageV1[NodeRecord]:
     """Read one stable page of canonical logical nodes under ``context``."""
 
+    _validate_page_request(page)
     native = _native_canonical_page(
         engine._native,
         kind,
@@ -414,6 +439,7 @@ def operational_state_page(
 ) -> PageV1[OperationalStateRecordV1]:
     """Read one stable page from a governed ``latest_state`` collection."""
 
+    _validate_page_request(page)
     native = _native_operational_state_page(
         engine._native,
         collection,

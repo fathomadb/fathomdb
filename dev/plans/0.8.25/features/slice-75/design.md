@@ -106,6 +106,48 @@ returns its specified typed stale/unavailable outcome. Mixed visibility,
 duplicate/omitted pages, stale evidence bytes, searchable erased dependents,
 untyped busy/timeout, or a false-ready projection is a correctness failure.
 
+## Workload 2a — CE-present correctness and performance
+
+CE-present is a first-class release-verification profile even though the
+ordinary published Python wheel deliberately omits `default-reranker`. Build
+two isolated, source-independent candidate artifacts from the exact release
+commit:
+
+1. CPU with `default-reranker`; and
+2. Linux CUDA with `rerank-cuda`.
+
+Both use the same pinned model-cache manifest and checked-in fixture containing
+a deterministic relevance-reorder canary plus representative short and long
+passage pools. The manifest fixes query bytes, passage bytes and order, base
+scores, `rerank_depth`, `pool_n`, alpha, result limit, thread/affinity policy,
+model identity, candidate corpus, and candidate-selection digest. A
+degeneracy guard requires finite, non-null CE scores with nonzero spread and a
+known rank change before measurements can pass. Feature-off identity behavior
+is tested separately and cannot satisfy this guard.
+
+The CPU and CUDA routes first prove accepted score/rank equivalence under a
+preregistered floating-point tolerance. They then measure separately:
+
+- package/import/open and first model-load latency;
+- standalone reranker inference over the fixed candidate pools;
+- end-to-end `Engine.search` with the same retrieved candidate pool;
+- steady p50/p95/p99, throughput, errors and timeouts over at least five
+  repetitions; and
+- peak RSS, CUDA allocation and peak VRAM, package bytes, and model-cache bytes.
+
+At least three process-cold repetitions are retained. Model download is never
+inside a steady interval: a missing cache is either acquired before the timed
+run with time/bytes recorded, or the environment is invalid. The receipt names
+the device requested and resolved and includes a real allocation witness for
+CUDA. Candidate steady p95 is compared with the 0.8.25 branch-point baseline
+under the same host, build mode, feature set, model bytes, corpus, and process
+policy; more than 10% regression is a release stop. Absolute performance is
+descriptive unless an earlier accepted policy is stricter, but raw repetitions
+and summarized numbers are mandatory.
+
+This workload is LLM-free. It distinguishes cross-encoder inference time from
+retrieval and projection time and makes no answer-quality claim.
+
 ## Workload 3 — focused lifecycle and overhead regressions
 
 At 10,000 records, run paired fresh-database baseline/new-operation cells for
@@ -160,7 +202,8 @@ CUDA path.
 
 Run repository fast, heavy, all, applicable all-feature/operator, locally
 packed Rust/Python/npm/native/CLI, Windows CPU/native, strict ptrace stress,
-and focused Linux CUDA only where selected. Live-model, Windows CUDA,
+installed CPU/CUDA CE-reranker profiles, and focused Linux CUDA where selected.
+Live-model, Windows CUDA,
 pre-publication registry-installed, and exhaustive matrices are N/A. A formal
 independent READY review remains required after Slice 7 and every Slice 10–60
 verification record is complete.

@@ -98,12 +98,49 @@ This investigation must not weaken visibility invalidation, remove an
 authoritative table from the trigger manifest, coalesce distinct committed
 states, or rewrite the retained Slice 35 performance receipts.
 
+## Commonly deployed CE-reranker profile
+
+The ordinary PyPI wheel is intentionally built without `default-reranker`, but
+the optional cross-encoder is a commonly deployed FathomDB configuration and
+the CUDA package route supports `rerank-cuda`. Release confidence therefore
+needs an explicit feature-present profile rather than treating feature-off
+wheel coverage as representative of reranked search.
+
+- **S75-R-CE.** Verify installed, source-independent CPU
+  (`default-reranker`) and Linux CUDA (`rerank-cuda`) candidates with the pinned
+  reranker model. Prove the cross-encoder is active, not an identity fallback;
+  keep the candidate pool and request fixed; disclose feature set, model/cache
+  identity, resolved device, allocation, cold model-load time, steady query
+  latency, throughput, RSS/VRAM, and package size. The ordinary feature-off
+  wheel remains a separate supported profile and must continue to behave
+  truthfully.
+- **S75-AC-CE.** A checked-in manifest runs one deterministic semantic reorder
+  canary and a representative reranked-search workload on CPU and CUDA. Every
+  successful reranked result has non-degenerate CE scores; CPU/CUDA rank order
+  and scores satisfy a preregistered numerical-equivalence tolerance. At least
+  three process-cold and five steady repetitions report p50/p95/p99 and
+  throughput, with model acquisition excluded from steady timing and recorded
+  separately when needed. Compare the candidate with the pinned 0.8.25
+  branch-point baseline under identical hardware and configuration. Any
+  correctness divergence, silent feature fallback, missing allocation proof,
+  or candidate steady p95 regression greater than 10% stops release closure.
+  Absolute latency and resource values are descriptive unless an accepted
+  pre-existing policy supplies a stricter gate; they must still be retained as
+  the release's CE-enabled performance numbers.
+
+The CPU and CUDA cells must use the same checked-in query/passage fixture,
+rerank depth, pool size, alpha, thread policy, and warmed model bytes. They
+record standalone rerank and end-to-end `Engine.search` timing separately so
+model inference cannot be confused with retrieval, SQLite, or projection cost.
+No live-model provider or LLM judge is involved.
+
 ## Verification routes
 
 Selected: fast, heavy, all, applicable all-feature/operator, Windows CPU/native
 Rust/Python/Node, packaged Python/npm/native/CLI, final packaged-candidate
 native `Engine.search` witness, the isolated release-mode AC-013 comparison,
-and focused CUDA only where a retained dense/graph contract changed.
+installed CPU/CUDA CE-reranker profiles, and focused CUDA where a retained
+dense/graph contract changed.
 Live-model, Windows CUDA, pre-publication
 registry-installed, and exhaustive scale-by-feature-by-CUDA matrices are N/A.
 Actual registry-installed smokes remain a separately authorized
@@ -114,7 +151,8 @@ post-publication close gate.
 Define receipt-presence and agreement criteria, installed wire fixtures,
 representative concurrency, evidence/page/dependency overhead,
 mutation-to-ready, erasure propagation, selected rebuild/resource regressions,
-classification gates, and generic release-state preflight; design a
+CE-present correctness and performance, classification gates, and generic
+release-state preflight; design a
 proportionate workload matrix without semantic answer claims; review; implement
 RED/GREEN harness checks; review; execute all selected routes; and record final
 release evidence. Stop when an owning slice lacks proof or a data-plane claim

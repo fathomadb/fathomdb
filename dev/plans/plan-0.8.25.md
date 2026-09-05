@@ -120,7 +120,7 @@ backward dependency.
 | 50 | Add compact opt-in source-complete evidence resolution under the original or equivalent eligibility envelope. | 45 | Not started |
 | 55 | Add basic reciprocal provenance tracing, orphan/projection integrity checks, and compact inclusion/degradation explanation. | 50 | Not started |
 | 60 | Make combined graph expansion honor typed seed, direction, edge/target, bound, eligibility, and read-context constraints with deterministic one-page results. | 55 | Not started |
-| 75 | Audit installed cross-SDK/wire parity, representative concurrency/lifecycle/evidence paths, selected regression performance, and retrieval-only measurement. | 60 | Not started |
+| 75 | Audit installed cross-SDK/wire parity, representative concurrency/lifecycle/evidence paths, CE-present correctness/performance, selected regressions, and retrieval-only measurement. | 60 | Not started |
 
 ## Requirements and acceptance criteria
 

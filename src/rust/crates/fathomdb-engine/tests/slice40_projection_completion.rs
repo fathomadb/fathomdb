@@ -132,3 +132,22 @@ fn missing_member_below_the_watermark_is_rediscovered_before_drain_returns() {
     assert_eq!(status.readiness, ProjectionReadinessV1::Ready);
     assert_eq!(status.pending_count, 0);
 }
+
+#[test]
+fn sidecar_row_identity_must_match_the_projection_owner() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("sidecar-row-identity{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
+    let cursor = opened.engine.write(&[node("sidecar-owner")]).unwrap().row_cursors[0];
+    opened.engine.drain(10_000).unwrap();
+    Connection::open(&path)
+        .unwrap()
+        .execute(
+            "UPDATE _fathomdb_vector_rows SET rowid=?2 WHERE write_cursor=?1",
+            [cursor, cursor + 10_000],
+        )
+        .unwrap();
+
+    assert_generation_corruption(opened.engine.read_projection_generation_status());
+}

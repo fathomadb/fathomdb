@@ -11,10 +11,12 @@
   "candidate": {
     "product_commit": "2313fd34ea5ca68346a468d5bba58ba245306c08",
     "artifact_build_commit": "47afff50ec0e9f906c24c4422186eb407b2ff467",
-    "wheel_sha256": "a1f7b571aa9af12641ba839bdd426e6184ba60794e04ffeb8a80d025b4d9df6c"
+    "wheel_sha256": "a1f7b571aa9af12641ba839bdd426e6184ba60794e04ffeb8a80d025b4d9df6c",
+    "cli_source_commit": "92faf4b693ad1c5ea6f76acb0f883d9e112793b4",
+    "cli_sha256": "fd2e26a487b48d8d18d0ed7bdc91497aa3e43ab3d57cb4abdea8b89bde546df9"
   },
   "execution": {
-    "runner_sha256": "915eb65cf437ead2039b31ff053d6336acef0239f5ec627bbdf6921bbc228480",
+    "runner_sha256": "595e1a023f7a88c66ff972ed731566f47b97f702ef7167ce75bfd7db6d3dd13e",
     "record_library_sha256": "4066299e8c2bd989b5374cd86bf51e7a93f1688856ebba9c4951d608503709f8",
     "classification_library_sha256": "830a9c1db4b29a73d73e58b61b40c6db2aac158fd760e05ba7882e980266f729",
     "test_setup_library_sha256": "ceebadcf4d319100b8f49916424cc441723ab43c5128327a30411794f5a85c59"

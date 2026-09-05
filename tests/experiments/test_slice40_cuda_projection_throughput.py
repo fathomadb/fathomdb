@@ -30,7 +30,9 @@ def _config() -> dict[str, object]:
             "artifact_build_commit": "47afff50ec0e9f906c24c4422186eb407b2ff467",
             "wheel_sha256": "a" * 64,
             "cli_source_commit": "92faf4b693ad1c5ea6f76acb0f883d9e112793b4",
-            "cli_sha256": "f" * 64,
+            "cli_sha256": (
+                "fd2e26a487b48d8d18d0ed7bdc91497aa3e43ab3d57cb4abdea8b89bde546df9"
+            ),
         },
         "execution": {
             "runner_sha256": "b" * 64,

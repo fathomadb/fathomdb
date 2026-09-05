@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import io
 import json
+import math
 import os
 import random
 import shutil
@@ -65,6 +66,10 @@ _THROUGHPUT_EXECUTION_FILES = {
 _THROUGHPUT_SCHEMA = "scale-02-slice40-cuda-throughput.v2"
 _THROUGHPUT_PRODUCT_COMMIT = "2313fd34ea5ca68346a468d5bba58ba245306c08"
 _THROUGHPUT_BUILD_COMMIT = "47afff50ec0e9f906c24c4422186eb407b2ff467"
+_THROUGHPUT_CLI_SOURCE_COMMIT = "92faf4b693ad1c5ea6f76acb0f883d9e112793b4"
+_THROUGHPUT_CLI_SHA256 = (
+    "fd2e26a487b48d8d18d0ed7bdc91497aa3e43ab3d57cb4abdea8b89bde546df9"
+)
 _THROUGHPUT_UUID = "GPU-5f9cfc90-2be1-06a7-ce39-5a6d294b209b"
 _THROUGHPUT_WORKLOAD = {
     "records": 1024,
@@ -343,14 +348,24 @@ def resolve_cuda_throughput_config(
     candidate = _exact(
         root["candidate"],
         "candidate",
-        {"product_commit", "artifact_build_commit", "wheel_sha256"},
+        {
+            "product_commit",
+            "artifact_build_commit",
+            "wheel_sha256",
+            "cli_source_commit",
+            "cli_sha256",
+        },
     )
     if (
         candidate["product_commit"] != _THROUGHPUT_PRODUCT_COMMIT
         or candidate["artifact_build_commit"] != _THROUGHPUT_BUILD_COMMIT
+        or candidate["cli_source_commit"] != _THROUGHPUT_CLI_SOURCE_COMMIT
+        or candidate["cli_sha256"] != _THROUGHPUT_CLI_SHA256
     ):
         raise Slice40ScaleError("throughput candidate boundary drifted")
+    _commit(candidate["cli_source_commit"], "candidate.cli_source_commit")
     _digest(candidate["wheel_sha256"], "candidate.wheel_sha256")
+    _digest(candidate["cli_sha256"], "candidate.cli_sha256")
     execution = _exact(
         root["execution"], "execution", set(_THROUGHPUT_EXECUTION_FILES)
     )
@@ -440,7 +455,7 @@ def summarize_cuda_throughput_observations(
         delta = observation.get("projection_delta")
         if not isinstance(delta, dict) or (
             delta.get("built") != ["slice40_throughput"]
-            or delta.get("deferred") != []
+            or delta.get("deferred") != ["slice40_throughput"]
             or delta.get("unchanged") is not False
         ):
             raise Slice40ScaleError(
@@ -455,13 +470,23 @@ def summarize_cuda_throughput_observations(
         if (
             isinstance(rate, bool)
             or not isinstance(rate, (int, float))
+            or not math.isfinite(rate)
             or rate <= 0
-            or isinstance(elapsed, bool)
+        ):
+            raise Slice40ScaleError("throughput rate must be finite and positive")
+        if (
+            isinstance(elapsed, bool)
             or not isinstance(elapsed, (int, float))
+            or not math.isfinite(elapsed)
             or elapsed <= 0
         ):
-            raise Slice40ScaleError("throughput timings must be positive")
-        rates.append(float(rate))
+            raise Slice40ScaleError("throughput elapsed time must be finite and positive")
+        derived_rate = workload["records"] / float(elapsed)
+        if not math.isclose(float(rate), derived_rate, rel_tol=1e-12, abs_tol=0.0):
+            raise Slice40ScaleError(
+                "reported throughput rate must equal records / elapsed_seconds"
+            )
+        rates.append(derived_rate)
     if repetitions != set(range(1, workload["repetitions"] + 1)):
         raise Slice40ScaleError("throughput repetition IDs must be exactly 1..5")
     return {
@@ -1429,15 +1454,60 @@ def run(config_path: str | Path) -> dict[str, Any]:
     }
 
 
-def _wheel_member_sha256(wheel: Path, suffix: str) -> tuple[str, str]:
+_ATTESTED_PACKAGE_SUFFIXES = (".py", ".pyi", ".so", ".pyd", ".dll", ".dylib")
+
+
+def _wheel_package_manifest(wheel: Path) -> dict[str, str]:
     with zipfile.ZipFile(wheel) as archive:
-        matches = [name for name in archive.namelist() if name.endswith(suffix)]
-        if len(matches) != 1:
-            raise Slice40ScaleError(
-                f"candidate wheel must contain exactly one {suffix} member"
-            )
-        member = matches[0]
-        return member, hashlib.sha256(archive.read(member)).hexdigest()
+        members = {
+            name: hashlib.sha256(archive.read(name)).hexdigest()
+            for name in archive.namelist()
+            if name.startswith("fathomdb/")
+            and not name.endswith("/")
+            and name.endswith(_ATTESTED_PACKAGE_SUFFIXES)
+        }
+    if not members or not any(name.endswith((".so", ".pyd")) for name in members):
+        raise Slice40ScaleError("candidate wheel omitted its FathomDB package")
+    return members
+
+
+def _verify_installed_package_files(
+    wheel: Path, package_dir: Path, *, prefix: Path
+) -> list[dict[str, str]]:
+    """Prove every executable package file is exactly from the pinned wheel."""
+
+    prefix = prefix.resolve()
+    package_dir = package_dir.resolve()
+    if not package_dir.is_relative_to(prefix):
+        raise Slice40ScaleError("imported FathomDB is outside the fresh virtualenv")
+    site_root = package_dir.parent
+    manifest = _wheel_package_manifest(wheel)
+    actual = {
+        str(path.relative_to(site_root))
+        for path in package_dir.rglob("*")
+        if path.is_file() and path.name.endswith(_ATTESTED_PACKAGE_SUFFIXES)
+    }
+    expected = set(manifest)
+    extra = sorted(actual - expected)
+    if extra:
+        raise Slice40ScaleError(
+            f"installed FathomDB contains extra executable files: {extra}"
+        )
+    if expected - actual:
+        raise Slice40ScaleError("installed FathomDB files do not match the wheel")
+    attested: list[dict[str, str]] = []
+    for member, digest in sorted(manifest.items()):
+        installed = (site_root / member).resolve()
+        if not installed.is_relative_to(package_dir) or _sha256(installed) != digest:
+            raise Slice40ScaleError("installed FathomDB files do not match the wheel")
+        attested.append(
+            {
+                "wheel_member": member,
+                "installed_path": str(installed),
+                "sha256": digest,
+            }
+        )
+    return attested
 
 
 def _installed_artifact_attestation(
@@ -1455,24 +1525,37 @@ def _installed_artifact_attestation(
     prefix = Path(sys.prefix).resolve()
     package_path = Path(fathomdb.__file__).resolve()
     native_path = Path(native_module.__file__).resolve()
-    if not package_path.is_relative_to(prefix) or not native_path.is_relative_to(prefix):
-        raise Slice40ScaleError("imported FathomDB is outside the fresh virtualenv")
-    package_member, package_digest = _wheel_member_sha256(
-        wheel, "fathomdb/__init__.py"
+    package_files = _verify_installed_package_files(
+        wheel, package_path.parent, prefix=prefix
     )
-    native_member, native_digest = _wheel_member_sha256(wheel, ".abi3.so")
-    if _sha256(package_path) != package_digest or _sha256(native_path) != native_digest:
-        raise Slice40ScaleError("installed FathomDB files do not match the wheel")
+    attested_paths = {item["installed_path"] for item in package_files}
+    if str(package_path) not in attested_paths or str(native_path) not in attested_paths:
+        raise Slice40ScaleError("loaded FathomDB files do not match the wheel")
     return {
         "wheel_path": str(wheel),
         "wheel_sha256": _sha256(wheel),
         "python_prefix": str(prefix),
         "package_path": str(package_path),
-        "package_member": package_member,
-        "package_sha256": package_digest,
         "native_path": str(native_path),
-        "native_member": native_member,
-        "native_sha256": native_digest,
+        "package_files": package_files,
+    }
+
+
+def _cli_artifact_attestation(
+    fathomdb_bin: Path, config: Mapping[str, Any]
+) -> dict[str, str]:
+    """Bind setup and doctor execution to the preregistered CLI artifact."""
+
+    binary = fathomdb_bin.resolve()
+    if not binary.is_file() or not os.access(binary, os.X_OK):
+        raise Slice40ScaleError("preregistered FathomDB CLI is not executable")
+    digest = _sha256(binary)
+    if digest != config["candidate"]["cli_sha256"]:
+        raise Slice40ScaleError("executed CLI SHA-256 drifted")
+    return {
+        "cli_path": str(binary),
+        "cli_sha256": digest,
+        "cli_source_commit": config["candidate"]["cli_source_commit"],
     }
 
 
@@ -1629,10 +1712,13 @@ def run_cuda_throughput(
     run_root = artifact_root / f"slice40-cuda-throughput-{stamp}"
     if run_root.exists() or not run_root.parent.is_relative_to(artifact_root):
         raise Slice40ScaleError("throughput output must be new beneath artifact_root")
-    attestation = _installed_artifact_attestation(wheel.resolve(), config)
     run_root.mkdir(parents=True, mode=0o700)
     blocker: dict[str, object] | None = None
+    attestation: dict[str, object] | None = None
+    cli_attestation: dict[str, str] | None = None
     try:
+        attestation = _installed_artifact_attestation(wheel.resolve(), config)
+        cli_attestation = _cli_artifact_attestation(fathomdb_bin, config)
         observations, summary = _run_cuda_throughput_cells(
             config, run_root=run_root, fathomdb_bin=fathomdb_bin.resolve()
         )
@@ -1642,6 +1728,7 @@ def run_cuda_throughput(
             "claim_boundary": config["claim_boundary"],
             "candidate": config["candidate"],
             "installed_artifact": attestation,
+            "cli_artifact": cli_attestation,
             "observations": observations,
             "summary": summary,
         }
@@ -1657,6 +1744,7 @@ def run_cuda_throughput(
             "claim_boundary": "no_performance_claim",
             "candidate": config["candidate"],
             "installed_artifact": attestation,
+            "cli_artifact": cli_attestation,
             "blocked_reason": blocker,
         }
         metrics = {
@@ -1701,7 +1789,10 @@ def run_cuda_throughput(
                         "artifact_build_commit"
                     ],
                     "candidate_wheel_sha256": config["candidate"]["wheel_sha256"],
-                    "fathomdb_cli_sha256": _sha256(fathomdb_bin.resolve()),
+                    "fathomdb_cli_source_commit": config["candidate"][
+                        "cli_source_commit"
+                    ],
+                    "fathomdb_cli_sha256": config["candidate"]["cli_sha256"],
                     "network_policy": config["runtime"]["network"],
                 }
             ),

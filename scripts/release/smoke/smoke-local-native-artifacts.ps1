@@ -6,6 +6,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 otherwise transcodes here-strings through its legacy
+# native-pipeline encoding. Keep the Unicode provenance fixture byte-stable
+# when Python and Node consume their scripts from stdin.
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 $wheel = Get-ChildItem -Path $WheelDirectory -Filter '*.whl'
 if ($wheel.Count -ne 1) {
   throw "smoke-local-native-artifacts: expected exactly one wheel in $WheelDirectory"

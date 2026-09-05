@@ -1,9 +1,9 @@
 ---
 title: 0.8.25 Slice 50 — compact source-complete evidence
-status: DESIGN_FIX_2_REVIEW_PENDING
+status: IMPLEMENTATION_PENDING
 depends_on: 45
 design: design.md
-design_status: DRAFT_FIX_2_REVIEW_PENDING
+design_status: READY
 ---
 
 # Slice 50 plan

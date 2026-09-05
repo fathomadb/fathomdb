@@ -83,7 +83,12 @@ def invoke(
         capture_output=True,
         env=environment,
     )
-    payloads = [json.loads(line) for line in completed.stdout.splitlines() if line.startswith("{")]
+    payloads = []
+    for line in completed.stdout.splitlines():
+        start = line.find("{")
+        end = line.rfind("}")
+        if start >= 0 and end > start:
+            payloads.append(json.loads(line[start : end + 1]))
     if len(payloads) != 1:
         raise RuntimeError(f"expected one JSON payload, got {len(payloads)}: {completed.stdout}")
     return payloads[0]

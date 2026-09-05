@@ -1,0 +1,10 @@
+{
+  "schema_version": "scale-02-slice40-decision.v1",
+  "campaign": "common",
+  "verdict": "pass",
+  "write_p50_upper_relative_regression": 0.0031941224030714423,
+  "write_p95_upper_relative_regression": 0.0028183800564766104,
+  "open_upper_relative_regression": 0.07931207807195344,
+  "open_mean_absolute_regression_ms": 3.825960000000009,
+  "maximum_paired_storage_increase_bytes": 28672
+}

@@ -3,8 +3,8 @@ use std::sync::Arc;
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
     ActuationBatchV1, ActuationOperationV1, ArtifactRevisionId, Engine, EngineError, InitialState,
-    MutationProjectionStatusRequestV1, ProjectionGenerationErrorReason, ProjectionRole,
-    ProjectionSpec, ProjectionVector, ProvenancedNodeV1, SourceId, SourceVersionId,
+    MutationProjectionStatusRequestV1, PreparedWrite, ProjectionGenerationErrorReason,
+    ProjectionRole, ProjectionSpec, ProjectionVector, ProvenancedNodeV1, SourceId, SourceVersionId,
     WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
@@ -188,4 +188,71 @@ fn mutation_status_cache_invalidates_after_worker_publication() {
         opened.engine.read_mutation_projection_status(request).unwrap().readiness,
         fathomdb_engine::ProjectionReadinessV1::Ready
     );
+}
+
+#[cfg(feature = "operator")]
+#[test]
+fn both_status_caches_invalidate_after_same_engine_operational_only_erasure() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("operational-cache{SQLITE_SUFFIX}"));
+    let opened = Engine::open_with_embedder_for_test(&path, Arc::new(TestEmbedder)).unwrap();
+    opened.engine.configure_projections(&[vector_spec()], &[]).unwrap();
+    opened.engine.set_projection_scheduler_frozen_for_test(true);
+    let receipt = opened
+        .engine
+        .actuate(
+            ActuationBatchV1::new(
+                "slice40-operational-cache",
+                vec![ActuationOperationV1::PutCanonicalNode(canonical())],
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let request = MutationProjectionStatusRequestV1 {
+        schema_version: 1,
+        operation_id: receipt.operation_id,
+        write_cursor: receipt.pending_projection_write_cursors[0],
+        expected_generation_id: receipt.projection_generation_id.unwrap(),
+    };
+    opened
+        .engine
+        .write(&[PreparedWrite::AdminSchema {
+            name: "slice40-events".into(),
+            kind: "latest_state".into(),
+            schema_json: "{}".into(),
+            retention_json: "{}".into(),
+        }])
+        .unwrap();
+    opened
+        .engine
+        .write(
+            &(0..8)
+                .map(|attempt| PreparedWrite::OpStore {
+                    collection: "slice40-events".into(),
+                    record_key: format!("subject-{attempt}"),
+                    schema_id: None,
+                    body: r#"{"state":"present"}"#.into(),
+                })
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+
+    for attempt in 0..8 {
+        let generation_before = opened.engine.read_projection_generation_status().unwrap();
+        let mutation_before =
+            opened.engine.read_mutation_projection_status(request.clone()).unwrap();
+        let key = format!("subject-{attempt}");
+        opened.engine.excise_collection_record("slice40-events", &key).unwrap();
+        let generation_after = opened.engine.read_projection_generation_status().unwrap();
+        let mutation_after =
+            opened.engine.read_mutation_projection_status(request.clone()).unwrap();
+        if generation_before.effective_at_epoch_s == generation_after.effective_at_epoch_s
+            && mutation_before.effective_at_epoch_s == mutation_after.effective_at_epoch_s
+        {
+            assert!(generation_after.observed_boundary > generation_before.observed_boundary);
+            assert!(mutation_after.observed_boundary > mutation_before.observed_boundary);
+            return;
+        }
+    }
+    panic!("could not exercise the operational-only mutation within one epoch second");
 }

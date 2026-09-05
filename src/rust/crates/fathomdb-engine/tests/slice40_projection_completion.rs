@@ -2,8 +2,10 @@ use std::sync::{Arc, Barrier};
 
 use fathomdb_embedder_api::{Embedder, EmbedderError, EmbedderIdentity, Vector};
 use fathomdb_engine::{
-    Engine, EngineError, InitialState, PreparedWrite, ProjectionGenerationErrorReason,
-    ProjectionReadinessV1, ProjectionRole, ProjectionSpec, ProjectionVector, SourceId,
+    ArtifactRevisionId, CanonicalHash, Engine, EngineError, InitialState, PreparedWrite,
+    ProjectionGenerationErrorReason, ProjectionReadinessV1, ProjectionRole, ProjectionSpec,
+    ProjectionVector, ProvenancedNodeV1, SourceDependencyRegistrationV1, SourceId, SourceLocator,
+    SourceRevisionId, SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use rusqlite::Connection;
@@ -58,6 +60,68 @@ fn assert_generation_corruption(
             if error.reason == ProjectionGenerationErrorReason::ProjectionGenerationCorrupt
                 && error.field_path == "/projectionGeneration"
     ));
+}
+
+fn sha256(body: &str) -> String {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(body.as_bytes()).iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn seed_registered_dense_owner(engine: &Engine, suffix: &str) {
+    let source_body = format!("source body {suffix}");
+    let source_revision = format!("slice40-source-r-{suffix}");
+    let derived_revision = format!("slice40-derived-r-{suffix}");
+    engine.configure_projections(&[vector_spec()], &[]).unwrap();
+    engine
+        .write(&[
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                kind: "doc".into(),
+                body: source_body.clone(),
+                source_id: SourceId::new(format!("source:slice40-{suffix}")).unwrap(),
+                logical_id: Some(format!("slice40-source-{suffix}")),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::canonical(
+                    ArtifactRevisionId::new(source_revision.clone()).unwrap(),
+                    SourceVersionId::new(format!("slice40-source-v-{suffix}")).unwrap(),
+                ),
+            }),
+            PreparedWrite::ProvenancedNode(ProvenancedNodeV1 {
+                kind: "doc".into(),
+                body: format!("derived body {suffix}"),
+                source_id: SourceId::new(format!("source:slice40-{suffix}")).unwrap(),
+                logical_id: Some(format!("slice40-derived-{suffix}")),
+                state: InitialState::Active,
+                reason: None,
+                valid_from: None,
+                valid_until: None,
+                provenance: WriteProvenanceV1::derived(
+                    ArtifactRevisionId::new(derived_revision.clone()).unwrap(),
+                    SourceVersionId::new(format!("slice40-source-v-{suffix}")).unwrap(),
+                    SourceRevisionId::new(source_revision.clone()).unwrap(),
+                    SourceLocator::whole_body(),
+                    CanonicalHash::sha256(sha256(&source_body)).unwrap(),
+                ),
+            }),
+        ])
+        .unwrap();
+    engine
+        .register_source_dependency(
+            SourceDependencyRegistrationV1::new(
+                format!("slice40-dependency-{suffix}"),
+                source_revision,
+                derived_revision,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    engine.drain(10_000).unwrap();
+    assert_eq!(
+        engine.read_projection_generation_status().unwrap().readiness,
+        ProjectionReadinessV1::Ready
+    );
 }
 
 #[test]
@@ -263,4 +327,38 @@ fn mixed_completion_summary_is_exact_and_boundary_ordered() {
     assert_eq!(status.pending_count, 1);
     assert_eq!(status.failed_count, 1);
     assert_eq!(status.ready_through, cursors[0]);
+}
+
+#[test]
+fn registered_owner_with_missing_source_link_is_corrupt() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("missing-source-link{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    seed_registered_dense_owner(&opened.engine, "missing-link");
+    Connection::open(&path)
+        .unwrap()
+        .execute(
+            "DELETE FROM _fathomdb_source_links WHERE artifact_revision_id='slice40-derived-r-missing-link'",
+            [],
+        )
+        .unwrap();
+
+    assert_generation_corruption(opened.engine.read_projection_generation_status());
+}
+
+#[test]
+fn orphan_dependency_and_source_link_are_corrupt() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("orphan-dependency{SQLITE_SUFFIX}"));
+    let opened = open(&path);
+    seed_registered_dense_owner(&opened.engine, "orphan");
+    Connection::open(&path)
+        .unwrap()
+        .execute(
+            "DELETE FROM _fathomdb_artifact_revisions WHERE revision_id='slice40-derived-r-orphan'",
+            [],
+        )
+        .unwrap();
+
+    assert_generation_corruption(opened.engine.read_projection_generation_status());
 }

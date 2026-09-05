@@ -4713,6 +4713,38 @@ mod tests {
     }
 
     #[test]
+    fn mutation_projection_status_rejects_boolean_schema_version() {
+        Python::initialize();
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join(format!("bool-schema{}", fathomdb_schema::SQLITE_SUFFIX));
+        let opened = RustEngine::open(&path).unwrap();
+        let engine =
+            PyEngine { inner: Arc::new(opened.engine), open_report: Arc::new(opened.report) };
+        Python::attach(|py| {
+            let request = PyDict::new(py);
+            request.set_item("schemaVersion", true).unwrap();
+            request.set_item("operationId", "slice40-bool").unwrap();
+            request.set_item("writeCursor", "1").unwrap();
+            request
+                .set_item("expectedGenerationId", "pgen1:000102030405060708090a0b0c0d0e0f")
+                .unwrap();
+            let error = match read_mutation_projection_status(py, &engine, &request) {
+                Err(error) => error,
+                Ok(_) => panic!("boolean schemaVersion must be rejected"),
+            };
+            assert!(error.is_instance_of::<ProjectionGenerationError>(py));
+            assert_eq!(
+                error.value(py).getattr("reason").unwrap().extract::<String>().unwrap(),
+                "unsupported_schema_version"
+            );
+            assert_eq!(
+                error.value(py).getattr("field_path").unwrap().extract::<String>().unwrap(),
+                "/schemaVersion"
+            );
+        });
+    }
+
+    #[test]
     fn validate_ffi_string_accepts_plain_ascii() {
         assert!(validate_ffi_string("hello").is_ok());
     }

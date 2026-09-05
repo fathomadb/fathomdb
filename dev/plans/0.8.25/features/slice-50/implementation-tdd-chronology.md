@@ -106,3 +106,13 @@ The resolver now loads and validates the Slice 20 dependency row and complete
 source-link chain on the same reader snapshot, returning the typed dependency
 only after the artifact and source are authorized. The focused suite passes
 8/8.
+
+## RED 5
+
+The fifth test increment defines installed-surface parity with one facade
+compile test and real-database Python/TypeScript search-and-resolve tests. Rust
+failed on the missing facade re-exports. Python static checking failed on the
+two missing methods and request types. TypeScript checking failed only on the
+two missing Engine methods. The local Python binary is stale before this
+increment, so native Python execution is reserved for the rebuilt-package
+GREEN route rather than misreported as a product diagnostic.

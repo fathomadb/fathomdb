@@ -1,0 +1,76 @@
+import { createHash } from "node:crypto";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { Engine } from "../src/index.js";
+
+test("search and resolve exact source evidence", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "fathomdb-slice50-"));
+  try {
+    const engine = await Engine.open(join(directory, "evidence.fathom"), {
+      useDefaultEmbedder: false,
+    });
+    const sourceBody = "canonical evidence bytes";
+    await engine.write([
+      {
+        kind: "document",
+        body: sourceBody,
+        sourceId: "ts-evidence-source",
+        logicalId: "ts-source",
+        provenance: {
+          schemaVersion: 1,
+          role: "canonical",
+          artifactRevisionId: "ts-source-r1",
+          sourceVersionId: "ts-version-r1",
+        },
+      },
+      {
+        kind: "fact",
+        body: "tsevidenceneedle",
+        sourceId: "ts-evidence-source",
+        logicalId: "ts-claim",
+        provenance: {
+          schemaVersion: 1,
+          role: "derived",
+          artifactRevisionId: "ts-claim-r1",
+          sourceVersionId: "ts-version-r1",
+          sourceRevisionId: "ts-source-r1",
+          sourceLocator: { kind: "whole_body" },
+          canonicalSourceHash: {
+            algorithm: "sha256",
+            digestHex: createHash("sha256").update(sourceBody).digest("hex"),
+          },
+        },
+      },
+    ]);
+    const context = await engine.freezeReadContext({
+      schemaVersion: 1,
+      view: {},
+      eligibility: {},
+    });
+    const result = await engine.searchWithEvidence({
+      schemaVersion: 1,
+      query: "tsevidenceneedle",
+      context,
+      includeExplanation: false,
+    });
+    assert.equal(result.searchResult.results[0]?.body, "tsevidenceneedle");
+    assert.equal(result.searchResult.explanation, null);
+    assert.equal(result.evidence[0]?.artifactRevisionId, "ts-claim-r1");
+
+    const resolved = await engine.resolveEvidence({
+      schemaVersion: 1,
+      evidenceRef: result.evidence[0]!.evidenceRef,
+      context,
+    });
+    assert.equal(resolved.canonicalSourceBody, sourceBody);
+    assert.equal(resolved.sourceRevisionId, "ts-source-r1");
+    assert.equal(resolved.projectionOrigin.representativeArm, "text");
+    await engine.close();
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

@@ -353,6 +353,34 @@ fn slice55_trace_hidden_corruption_is_filtered_before_decode_and_limit() {
 }
 
 #[test]
+fn slice55_trace_invalid_chain_precedes_relation_blob_decode_and_cap() {
+    let (_dir, opened) = seeded();
+    add_hidden_dependent(&opened.engine, "aaa-chain-r1", "aaa-chain", "aaa-chain-dep");
+    opened
+        .engine
+        .execute_for_test(
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE canonical_nodes SET state='active' WHERE write_cursor=-101; \
+             UPDATE _fathomdb_source_dependencies SET dependency_id=zeroblob(32) \
+             WHERE derived_revision_id='aaa-chain-r1'",
+        )
+        .unwrap();
+    let result =
+        fixed_trace(&opened.engine, "source-r1", DependencyTraceDirectionV1::ToDependents).unwrap();
+    assert_eq!(result.dependency_edges.len(), 1);
+    assert_eq!(result.dependency_edges[0].dependency_id, "dep-1");
+    assert_eq!(result.checked_work_units, 2);
+    let reverse = fixed_trace(&opened.engine, "aaa-chain-r1", DependencyTraceDirectionV1::ToSource)
+        .unwrap_err();
+    assert!(matches!(
+        reverse,
+        EngineError::DependencyTrace(ref value)
+            if value.reason == DependencyTraceErrorReasonV1::TraceUnavailable
+                && value.field_path == "/rootRevisionId"
+    ));
+}
+
+#[test]
 fn slice55_trace_corrupt_requires_two_eligible_endpoints() {
     let (_dir, opened) = seeded();
     opened

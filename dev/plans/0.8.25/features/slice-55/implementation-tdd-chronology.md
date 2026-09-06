@@ -544,6 +544,12 @@ The exact SDK RED commit is
 schemas and validates both frozen-context schema layers with the established
 `FrozenReadError` reason and nested field paths. Ruff and Pyright pass.
 
+The trace predecode RED makes an endpoint lifecycle-visible while its derived
+source-link hash is invalid and its selected dependency ID is a BLOB. The
+bounded forward trace returned `Storage` instead of ignoring the unauthorized
+candidate and returning the one valid relation; reverse trace requires the
+same nondisclosing unavailable result as an absent root.
+
 The SDK strictness RED covers Python's bool-as-schema, invalid root,
 direction, and context construction in declaration order; TypeScript's null
 context; and unknown explanation arms/nonfinite or invalid scalar fields in

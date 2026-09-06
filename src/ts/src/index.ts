@@ -1640,6 +1640,27 @@ export function validateDependencyTraceResponse(value: unknown): DependencyTrace
   ) {
     dependencyTraceRequestError("trace_corrupt", "/readBoundary/projectionGenerationId");
   }
+  const effectiveAtEpochS = traceI64(
+    traceField(boundaryValue, "effectiveAtEpochS", "/readBoundary/effectiveAtEpochS"),
+    "/readBoundary/effectiveAtEpochS",
+  );
+  const observedWriteBoundary = traceU64(
+    traceField(boundaryValue, "observedWriteBoundary", "/readBoundary/observedWriteBoundary"),
+    "/readBoundary/observedWriteBoundary",
+  );
+  const dependencyGeneration = traceU64(
+    traceField(boundaryValue, "dependencyGeneration", "/readBoundary/dependencyGeneration"),
+    "/readBoundary/dependencyGeneration",
+  );
+  for (let index = 0; index < dependencyEdges.length; index += 1) {
+    const edgeGeneration = BigInt(dependencyEdges[index]!.registeredDependencyGeneration);
+    if (edgeGeneration === 0n || edgeGeneration > BigInt(dependencyGeneration)) {
+      dependencyTraceRequestError(
+        "trace_corrupt",
+        `/dependencyEdges/${index}/registeredDependencyGeneration`,
+      );
+    }
+  }
   return {
     schemaVersion: 1,
     rootRevisionId,
@@ -1650,18 +1671,9 @@ export function validateDependencyTraceResponse(value: unknown): DependencyTrace
     complete: true,
     readBoundary: {
       schemaVersion: 1,
-      effectiveAtEpochS: traceI64(
-        traceField(boundaryValue, "effectiveAtEpochS", "/readBoundary/effectiveAtEpochS"),
-        "/readBoundary/effectiveAtEpochS",
-      ),
-      observedWriteBoundary: traceU64(
-        traceField(boundaryValue, "observedWriteBoundary", "/readBoundary/observedWriteBoundary"),
-        "/readBoundary/observedWriteBoundary",
-      ),
-      dependencyGeneration: traceU64(
-        traceField(boundaryValue, "dependencyGeneration", "/readBoundary/dependencyGeneration"),
-        "/readBoundary/dependencyGeneration",
-      ),
+      effectiveAtEpochS,
+      observedWriteBoundary,
+      dependencyGeneration,
       projectionGenerationId,
     },
   };

@@ -498,6 +498,15 @@ def _decode_dependency_trace_response(encoded: str) -> DependencyTraceResultV1:
         ),
         projection_generation_id=projection_generation_id,
     )
+    for index, edge in enumerate(edges):
+        if (
+            edge.registered_dependency_generation == 0
+            or edge.registered_dependency_generation > boundary.dependency_generation
+        ):
+            _trace_response_error(
+                "trace_corrupt",
+                f"/dependencyEdges/{index}/registeredDependencyGeneration",
+            )
     return DependencyTraceResultV1(
         schema_version=1,
         root_revision_id=root,

@@ -1008,10 +1008,29 @@ pub(crate) fn execute(
     })
 }
 
+fn validate_edge_generations(
+    edges: &[DependencyTraceEdgeV1],
+    dependency_generation: u64,
+) -> Result<(), DependencyTraceErrorV1> {
+    for (index, edge) in edges.iter().enumerate() {
+        if edge.registered_dependency_generation == 0
+            || edge.registered_dependency_generation > dependency_generation
+        {
+            return Err(DependencyTraceErrorV1::new(
+                DependencyTraceErrorReasonV1::TraceCorrupt,
+                format!("/dependencyEdges/{index}/registeredDependencyGeneration"),
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Encode a trace response into canonical declaration-order JSON bytes.
 pub fn encode_dependency_trace_result_v1(
     value: &DependencyTraceResultV1,
 ) -> Result<Vec<u8>, DependencyTraceErrorV1> {
+    validate_edge_generations(&value.dependency_edges, value.read_boundary.dependency_generation)?;
+
     #[derive(Serialize)]
     #[serde(rename_all = "camelCase")]
     struct NodeLifecycleWire<'a> {
@@ -1425,6 +1444,19 @@ pub fn decode_dependency_trace_result_v1(
             })
             .ok_or_else(|| corrupt("/readBoundary/projectionGenerationId"))?
             .to_string();
+    let effective_at_epoch_s =
+        required(boundary, "effectiveAtEpochS", "/readBoundary/effectiveAtEpochS")?
+            .as_i64()
+            .ok_or_else(|| corrupt("/readBoundary/effectiveAtEpochS"))?;
+    let observed_write_boundary = canonical_u64(
+        required(boundary, "observedWriteBoundary", "/readBoundary/observedWriteBoundary")?,
+        "/readBoundary/observedWriteBoundary",
+    )?;
+    let dependency_generation = canonical_u64(
+        required(boundary, "dependencyGeneration", "/readBoundary/dependencyGeneration")?,
+        "/readBoundary/dependencyGeneration",
+    )?;
+    validate_edge_generations(&dependency_edges, dependency_generation)?;
     Ok(DependencyTraceResultV1 {
         schema_version: 1,
         root_revision_id,
@@ -1435,21 +1467,9 @@ pub fn decode_dependency_trace_result_v1(
         complete: true,
         read_boundary: TraceReadBoundaryV1 {
             schema_version: 1,
-            effective_at_epoch_s: required(
-                boundary,
-                "effectiveAtEpochS",
-                "/readBoundary/effectiveAtEpochS",
-            )?
-            .as_i64()
-            .ok_or_else(|| corrupt("/readBoundary/effectiveAtEpochS"))?,
-            observed_write_boundary: canonical_u64(
-                required(boundary, "observedWriteBoundary", "/readBoundary/observedWriteBoundary")?,
-                "/readBoundary/observedWriteBoundary",
-            )?,
-            dependency_generation: canonical_u64(
-                required(boundary, "dependencyGeneration", "/readBoundary/dependencyGeneration")?,
-                "/readBoundary/dependencyGeneration",
-            )?,
+            effective_at_epoch_s,
+            observed_write_boundary,
+            dependency_generation,
             projection_generation_id,
         },
     })

@@ -573,3 +573,38 @@ Per the orchestrator's explicit direction, the 13-minute aggregate
 owns the final aggregate gate. No source test required a skip or weakening, no
 worktree Python native artifact was changed, and no package was staged,
 uploaded, tagged, or published.
+
+## Implementation review FIX-2 chronology
+
+Cycle-2 verdict `FAIL` is recorded at `fd4b94f3`. Execution-boundary RED
+`43178a92` proved public struct literals bypassed constructor validation for
+integrity schema/check/cap invariants and trace schema/root/cap invariants.
+GREEN `23b6ed00` revalidates before opening the reader transaction, reports the
+duplicate at `/checks/1`, and restores canonical check order.
+
+Bounded-registry RED `ee6fc53a` placed malformed JSON in an unselected row and
+proved the former full registry load returned storage failure before the work
+cap. GREEN `b2298a54` selects cap-plus-one names in primary-key order, reserves
+each unit, and only then point-loads the selected declaration.
+
+Trace-authority RED `0e23cbf1` captured malformed lifecycle leaking as storage
+failure and shape-valid but byte-invalid hashes remaining visible. The false
+source-version happy-path oracle was strengthened separately at `fb9cafc1`.
+GREEN `5e5c3bc2` collapses malformed lifecycle to absence and authenticates the
+source-version, canonical owner/body, UTF-8 locator boundaries, and SHA-256
+bytes. Focused trace result: 16 passed, 1 ignored.
+
+Receipt RED `52e3d16c` proved malformed pending cursors were parsed and reported
+despite no aggregate capacity for the two pending units. GREEN `366a917e`
+reads only guarded array length first and returns the bound before fetching or
+decoding the pending list.
+
+The prior `trace-v1.json` was an incomplete agent-created seed that contradicted
+the mandatory nonempty nodes and read-boundary schema. With explicit HITL
+authorization, test-only RED `dea48b0a` replaced it with the supplied
+design-derived one-line canonical bytes, without a trailing newline, and made
+the test consume the file by exact byte equality. GREEN `6364a9cd` replaces
+nested `serde_json::Value` maps with explicit declaration-order serializers.
+Semantic RED `cdb4bca2` then covered root role, edge endpoint, and revision
+uniqueness; GREEN `f8e19639` enforces those invariants and hard response maxima.
+Focused wire result: 6 passed.

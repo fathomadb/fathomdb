@@ -331,6 +331,46 @@ fn slice55_graph_bound_reached_is_produced_by_live_traversal() {
 }
 
 #[test]
+fn slice55_graph_bound_is_absent_at_exact_eligible_cap() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("explanation-graph-exact-cap{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    let mut writes = Vec::new();
+    for index in 0..51 {
+        writes.push(PreparedWrite::Node {
+            logical_id: Some(format!("exact-cap-node-{index:02}")),
+            kind: "entity".into(),
+            body: format!("exact cap graph node {index:02}"),
+            source_id: SourceId::new("slice55-graph-exact-cap").unwrap(),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        });
+    }
+    for index in 0..50 {
+        writes.push(PreparedWrite::Edge {
+            kind: "linked".into(),
+            from: if index == 0 { "exact-cap-node-00".into() } else { "exact-cap-node-01".into() },
+            to: format!("exact-cap-node-{:02}", index + 1),
+            source_id: SourceId::new("slice55-graph-exact-cap").unwrap(),
+            logical_id: Some(format!("exact-cap-edge-{index:02}")),
+            body: (index == 0).then(|| "slice55 exactgraphcap seed".into()),
+            t_valid: None,
+            t_invalid: None,
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+        });
+    }
+    opened.engine.write(&writes).unwrap();
+    let result = opened.engine.search_explained("exactgraphcap", None, 0, true, 0.3, 0).unwrap();
+    assert!(result.explanation.unwrap().per_hit.iter().all(|hit| {
+        !hit.structural.degradation_codes.contains(&StructuralDegradationCodeV1::GraphBoundReached)
+    }));
+}
+
+#[test]
 fn slice55_enable_before_finalization_uses_only_telemetry_identity() {
     let _serial = explanation_hook_test_mutex().lock().unwrap();
     let (_dir, opened, _first) = explained();

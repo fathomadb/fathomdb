@@ -786,6 +786,15 @@ cargo test -p fathomdb-engine --features test-hooks \
 test result: ok. 19 passed; 0 failed; 1 ignored
 ```
 
+The graph-bound RED builds a live 50-candidate traversal, exactly equal to the
+closed graph-arm cap, and requires no degradation. The old traversal marked
+the cap-th accepted candidate as omitted work:
+
+```text
+slice55_graph_bound_is_absent_at_exact_eligible_cap
+assertion failed: ... !...contains(&GraphBoundReached)
+```
+
 Full writer gates passed at the same product commit:
 
 ```text

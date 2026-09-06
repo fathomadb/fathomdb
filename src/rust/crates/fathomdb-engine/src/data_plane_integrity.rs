@@ -1096,16 +1096,17 @@ fn active_projection_findings(
         || connection
             .query_row("SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_kinds)", [], |row| row.get(0))
             .map_err(|_| EngineError::Storage)?;
-    for (table, class) in if dense_authority_enabled {
-        &[("canonical_nodes", "node"), ("canonical_edges", "edge")][..]
+    for (sql, class) in if dense_authority_enabled {
+        &[(NODE_BODY_OWNER_QUERY, "node"), (EDGE_BODY_OWNER_QUERY, "edge")][..]
     } else {
         &[]
     } {
         let remaining = max_work_units.saturating_sub(*aggregate_checked);
-        let sql = format!("SELECT write_cursor FROM {table} ORDER BY write_cursor LIMIT ?1");
-        let mut statement = connection.prepare(&sql).map_err(|_| EngineError::Storage)?;
+        let mut statement = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
         let cursors = statement
-            .query_map([i64::from(remaining) + 1], |row| row.get::<_, i64>(0))
+            .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
+                row.get::<_, i64>(0)
+            })
             .map_err(|_| EngineError::Storage)?
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(|_| EngineError::Storage)?;

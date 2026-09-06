@@ -345,11 +345,14 @@ fn slice55_trace_requires_complete_source_provenance_chain() {
             "DELETE FROM _fathomdb_source_versions WHERE source_revision_id='source-r1'",
         )
         .unwrap();
-    let result =
-        fixed_trace(&opened.engine, "derived-r1", DependencyTraceDirectionV1::ToSource).unwrap();
-    assert!(result.dependency_edges.is_empty());
-    assert_eq!(result.nodes.len(), 1);
-    assert_eq!(result.checked_work_units, 1);
+    let error = fixed_trace(&opened.engine, "derived-r1", DependencyTraceDirectionV1::ToSource)
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::DependencyTrace(ref value)
+            if value.reason == DependencyTraceErrorReasonV1::TraceUnavailable
+                && value.field_path == "/rootRevisionId"
+    ));
 }
 
 #[test]

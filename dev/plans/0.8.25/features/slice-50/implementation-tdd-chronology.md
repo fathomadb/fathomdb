@@ -324,3 +324,90 @@ did not narrow the generic native numeric value before `math.isfinite`.
 The validator uses the Python-3.10-compatible `NoReturn` spelling and an
 explicit post-guard numeric cast. Runtime behavior is unchanged; the canonical
 repository Python typecheck is green.
+
+## RED 16
+
+The second implementation review found that the dynamic SDK boundary still
+accepted malformed native evidence values that cannot be represented by the
+public contract. New Python and TypeScript tests require rejection of an
+out-of-range result index, non-finite or wrongly typed score values, and
+malformed request-side nested values and fields. The fixtures failed before
+the SDK validators were tightened.
+
+## GREEN 16 — implementation-review FIX-2
+
+Python and TypeScript now validate evidence indexes, numeric values, and nested
+request fields before constructing public values or crossing FFI. The focused
+SDK suites pass with the exact evidence-specific error family and field paths.
+
+## RED 17
+
+The review also found that atomicity was inferred from broad races rather than
+tested at both implementation-defined linearization seams. New real-database
+fixtures pause after the ranked result but before sidecar completion and again
+immediately before resolver return. They require each operation to observe one
+coherent reader snapshot or fail wholly, never return a partial or stale
+evidence result. The hooks did not exist before this RED increment.
+
+## GREEN 17 — implementation-review FIX-2
+
+Test-only, barrier-controlled hooks now expose the exact sidecar and resolver
+return seams without changing production behavior. Both deterministic races
+prove snapshot atomicity at those locations, while the earlier broad race
+fixtures remain green.
+
+## RED 18
+
+The second review required an exhaustive reachable-origin and authorization
+matrix. New tests exercise node text/vector, edge text/vector, graph edge-seed,
+and graph traversal contributions, plus ordinary and graph-specific
+revocation. This work also showed that the designed public `entity_seed`
+origin was unreachable: query-matched entities remain ordinary text/vector
+candidates and the graph arm suppresses duplicates.
+
+## GREEN 18 — implementation-review FIX-2
+
+Every reachable origin now has a real-database oracle for positional sidecar
+association, contribution agreement, resolution, and revocation. Design v10
+removes only the unreachable public `entity_seed` variant while retaining the
+internal capture bookkeeping. This is a contract correction, not a narrower
+implementation: all executable graph origins remain represented.
+
+## RED 19
+
+The final matrix expansion added authenticated corruption cases for source
+hashes and locators, source identity/linkage, dependency rows, and projection
+generation history. It also compares ordinary and evidence search results and
+database/WAL bytes before and after evidence operations. One fixture proved
+that malformed canonical source bytes could be used to mint a reference and
+fail only during later resolution.
+
+## GREEN 19 — implementation-review FIX-2
+
+Evidence search now validates the canonical hash and UTF-8 locator inside the
+minting reader transaction. The complete corruption matrix returns detail only
+after authorization, ordinary and evidence search results remain identical,
+and evidence creation/resolution leaves no table or database/WAL mutation.
+The focused Rust suite reaches 23/23.
+
+## RED 20
+
+The third implementation review identified four remaining boundary failures.
+New tests require frozen-context authentication to precede rejection of
+unsupported existence-axis relaxations; exact nested TypeScript unknown-field
+paths; strict boolean artifact supersession values; and non-empty string graph
+edge revision identities. A diagnostic adjustment first demonstrated that the
+generation-history corruption case correctly fails at frozen-authority
+validation rather than disclosing later row detail.
+
+## GREEN 20 — implementation-review FIX-3
+
+Rust now authenticates the supplied frozen context before applying the
+existence-axis evidence restriction. TypeScript preserves exact recursive
+unknown-field pointers while deferring nested schema meaning to Engine
+authentication and nondisclosure. Python and TypeScript reject non-boolean
+supersession values and invalid graph edge revision strings. The stable test
+context helper now supplies a deterministic validity instant only when the
+test did not explicitly choose one, eliminating wall-clock context drift
+without weakening any explicit validity fixture. Independent implementation
+review cycle 4 passes at `e741542d` with no unresolved P0, P1, or P2 finding.

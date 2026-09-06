@@ -1072,7 +1072,7 @@ fn slice55_receipt_generation_must_be_current_authority() {
 fn slice55_receipt_rejects_retired_generation_even_with_historical_boundary() {
     let (_dir, opened) = opened();
     actuate_pending(&opened, "retired-generation-receipt", "retired-generation-r1");
-    opened.engine.configure_vector_kind_for_test("note").unwrap();
+    opened.engine.configure_projections(&[property_spec()], &[]).unwrap();
     let result = opened
         .engine
         .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::MutationReadiness, 10))

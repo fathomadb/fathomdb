@@ -1282,3 +1282,10 @@ three dense member scans, joined current-generation authority, and receipt
 guard scan. No query-plan, index, after-key, or no-temporary-sort assertion was
 changed. This HITL-authorized test-only correction was committed separately
 while production remained unstaged.
+
+The retired-generation test initially used a test-only kind-enrolment helper,
+which does not transition generation authority. The HITL authorized replacing
+only that setup call with public `configure_projections`, which performs a real
+generation transition. The receipt and expected corruption assertions were
+unchanged; the test-and-chronology correction was committed separately while
+production remained unstaged.

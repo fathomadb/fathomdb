@@ -94,7 +94,8 @@ absent-native compatibility checks, and direct candidate-native structural
 presence fixtures. It precedes every binding, wrapper, and codec production
 edit.
 
-Second RED commit: pending until this test-only commit completes.
+Second RED commit:
+`cadb9774298ab18f32d3cb917aa877a90d51824e`.
 
 Python source-only command (exit 1):
 
@@ -156,6 +157,15 @@ baseline and post-call high-water delta in bytes. Fixture construction,
 database open, and frozen-context minting are outside the measurement window.
 The verification record must retain the exact release command, callback
 interval, baseline/reset treatment, kernel/platform, and measured values.
+
+## Mechanical RED witness correction
+
+After production compilation reached the integrity test, Rust could not infer
+the target type of its unannotated `Iterator::sum()` because the workspace's
+`serde_json` dependency contributes cross-type numeric `PartialEq`
+implementations. The orchestrator authorized the exact non-oracle annotation
+`.sum::<u32>()`: expected values, fixtures, cases, and assertions are unchanged.
+This test-only correction was committed separately before GREEN resumed.
 
 ## GREEN chronology
 

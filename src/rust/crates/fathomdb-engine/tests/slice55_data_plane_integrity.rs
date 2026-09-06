@@ -47,7 +47,10 @@ fn slice55_integrity_uses_one_reader_snapshot() {
         .engine
         .check_data_plane_integrity(DataPlaneIntegrityRequestV1::all(10_000, 100).unwrap())
         .unwrap();
-    assert_eq!(result.checked_count, result.check_counts.iter().map(|c| c.checked_count).sum());
+    assert_eq!(
+        result.checked_count,
+        result.check_counts.iter().map(|c| c.checked_count).sum::<u32>()
+    );
 }
 
 #[test]

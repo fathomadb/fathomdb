@@ -17,6 +17,52 @@ const MAX_WORK_UNITS: u32 = 10_000;
 const MAX_FINDINGS: u32 = 100;
 
 #[cfg(feature = "operator")]
+const NODE_BODY_OWNER_QUERY: &str =
+    "SELECT n.write_cursor,r.revision_id,n.body,n.kind FROM canonical_nodes n \
+     INDEXED BY canonical_nodes_write_cursor_idx \
+     LEFT JOIN _fathomdb_artifact_revisions r \
+       ON r.artifact_class='node' AND r.write_cursor=n.write_cursor \
+     WHERE n.write_cursor>?1 ORDER BY n.write_cursor LIMIT ?2";
+#[cfg(feature = "operator")]
+const EDGE_BODY_OWNER_QUERY: &str =
+    "SELECT e.write_cursor,r.revision_id,e.body,e.kind FROM canonical_edges e \
+     INDEXED BY canonical_edges_write_cursor_idx \
+     LEFT JOIN _fathomdb_artifact_revisions r \
+       ON r.artifact_class='edge' AND r.write_cursor=e.write_cursor \
+     WHERE e.write_cursor>?1 AND e.body IS NOT NULL ORDER BY e.write_cursor LIMIT ?2";
+#[cfg(feature = "operator")]
+const SEARCH_V1_MEMBER_QUERY: &str = "SELECT rowid,write_cursor,body,kind FROM search_index \
+     WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
+#[cfg(feature = "operator")]
+const SEARCH_V2_MEMBER_QUERY: &str = "SELECT rowid,write_cursor,body,kind FROM search_index_v2 \
+     WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
+#[cfg(feature = "operator")]
+const EDGE_SEARCH_MEMBER_QUERY: &str =
+    "SELECT rowid,write_cursor,body,kind FROM search_index_edges \
+     WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
+#[cfg(feature = "operator")]
+const ATTRIBUTE_MEMBER_QUERY: &str =
+    "SELECT rowid,write_cursor,attr_name,attr_value FROM canonical_attributes \
+     WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
+#[cfg(feature = "operator")]
+const PROPERTY_MEMBER_QUERY: &str =
+    "SELECT rowid,write_cursor,attr_name,attr_value FROM property_search_index \
+     WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
+
+#[cfg(all(feature = "operator", feature = "test-hooks"))]
+pub(crate) fn candidate_queries_for_test() -> [&'static str; 7] {
+    [
+        NODE_BODY_OWNER_QUERY,
+        EDGE_BODY_OWNER_QUERY,
+        SEARCH_V1_MEMBER_QUERY,
+        SEARCH_V2_MEMBER_QUERY,
+        EDGE_SEARCH_MEMBER_QUERY,
+        ATTRIBUTE_MEMBER_QUERY,
+        PROPERTY_MEMBER_QUERY,
+    ]
+}
+
+#[cfg(feature = "operator")]
 type StoredSourceLink =
     (i64, String, String, String, String, Option<i64>, Option<i64>, String, String);
 
@@ -629,21 +675,15 @@ fn active_projection_findings(
     }
     drop(registry);
 
-    for (table, code) in [
-        ("search_index", DataPlaneIntegrityFindingCodeV1::NodeBodyFtsMissing),
-        ("search_index_v2", DataPlaneIntegrityFindingCodeV1::NodeBodyFtsV2Missing),
+    for (physical_query, code) in [
+        (SEARCH_V1_MEMBER_QUERY, DataPlaneIntegrityFindingCodeV1::NodeBodyFtsMissing),
+        (SEARCH_V2_MEMBER_QUERY, DataPlaneIntegrityFindingCodeV1::NodeBodyFtsV2Missing),
     ] {
         let remaining = max_work_units.saturating_sub(*aggregate_checked);
-        let mut expected = connection
-            .prepare(
-                "SELECT n.write_cursor,r.revision_id,n.body,n.kind FROM canonical_nodes n \
-                 LEFT JOIN _fathomdb_artifact_revisions r \
-                   ON r.artifact_class='node' AND r.write_cursor=n.write_cursor \
-                 ORDER BY n.write_cursor LIMIT ?1",
-            )
-            .map_err(|_| EngineError::Storage)?;
+        let mut expected =
+            connection.prepare(NODE_BODY_OWNER_QUERY).map_err(|_| EngineError::Storage)?;
         let entries = expected
-            .query_map([i64::from(remaining) + 1], |row| {
+            .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
                 Ok((
                     row.get::<_, i64>(0)?,
                     row.get::<_, Option<String>>(1)?,
@@ -660,11 +700,10 @@ fn active_projection_findings(
             expected_by_cursor.insert(cursor, (revision, body, kind));
         }
         let remaining = max_work_units.saturating_sub(*aggregate_checked);
-        let sql =
-            format!("SELECT rowid,write_cursor,body,kind FROM {table} ORDER BY rowid LIMIT ?1");
-        let mut physical_statement = connection.prepare(&sql).map_err(|_| EngineError::Storage)?;
+        let mut physical_statement =
+            connection.prepare(physical_query).map_err(|_| EngineError::Storage)?;
         let physical = physical_statement
-            .query_map([i64::from(remaining) + 1], |row| {
+            .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
                 Ok((
                     row.get::<_, i64>(0)?,
                     row.get::<_, i64>(1)?,
@@ -712,16 +751,10 @@ fn active_projection_findings(
     }
 
     let remaining = max_work_units.saturating_sub(*aggregate_checked);
-    let mut edge_statement = connection
-        .prepare(
-            "SELECT e.write_cursor,r.revision_id,e.body,e.kind FROM canonical_edges e \
-             LEFT JOIN _fathomdb_artifact_revisions r \
-               ON r.artifact_class='edge' AND r.write_cursor=e.write_cursor \
-             WHERE e.body IS NOT NULL ORDER BY e.write_cursor LIMIT ?1",
-        )
-        .map_err(|_| EngineError::Storage)?;
+    let mut edge_statement =
+        connection.prepare(EDGE_BODY_OWNER_QUERY).map_err(|_| EngineError::Storage)?;
     let edge_entries = edge_statement
-        .query_map([i64::from(remaining) + 1], |row| {
+        .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
             Ok((
                 row.get::<_, i64>(0)?,
                 row.get::<_, Option<String>>(1)?,
@@ -738,14 +771,10 @@ fn active_projection_findings(
         expected_edges.insert(cursor, (revision, body, kind));
     }
     let remaining = max_work_units.saturating_sub(*aggregate_checked);
-    let mut edge_physical_statement = connection
-        .prepare(
-            "SELECT rowid,write_cursor,body,kind FROM search_index_edges \
-             ORDER BY rowid LIMIT ?1",
-        )
-        .map_err(|_| EngineError::Storage)?;
+    let mut edge_physical_statement =
+        connection.prepare(EDGE_SEARCH_MEMBER_QUERY).map_err(|_| EngineError::Storage)?;
     let edge_physical = edge_physical_statement
-        .query_map([i64::from(remaining) + 1], |row| {
+        .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
             Ok((
                 row.get::<_, i64>(0)?,
                 row.get::<_, i64>(1)?,
@@ -953,25 +982,23 @@ fn active_projection_findings(
             }
         }
     }
-    for (table, missing_code, expected_members) in [
+    for (physical_query, missing_code, expected_members) in [
         (
-            "canonical_attributes",
+            ATTRIBUTE_MEMBER_QUERY,
             DataPlaneIntegrityFindingCodeV1::CanonicalAttributeMissing,
             &expected_attributes,
         ),
         (
-            "property_search_index",
+            PROPERTY_MEMBER_QUERY,
             DataPlaneIntegrityFindingCodeV1::PropertyFtsMissing,
             &expected_properties,
         ),
     ] {
         let remaining = max_work_units.saturating_sub(*aggregate_checked);
-        let sql = format!(
-            "SELECT rowid,write_cursor,attr_name,attr_value FROM {table} ORDER BY rowid LIMIT ?1"
-        );
-        let mut physical_statement = connection.prepare(&sql).map_err(|_| EngineError::Storage)?;
+        let mut physical_statement =
+            connection.prepare(physical_query).map_err(|_| EngineError::Storage)?;
         let physical = physical_statement
-            .query_map([i64::from(remaining) + 1], |row| {
+            .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
                 Ok((
                     row.get::<_, i64>(0)?,
                     row.get::<_, i64>(1)?,

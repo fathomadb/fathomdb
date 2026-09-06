@@ -895,3 +895,16 @@ production query set existed, the focused target failed to compile with:
 error[E0599]: no method named `data_plane_integrity_candidate_queries_for_test`
 found for struct `Engine` in the current scope
 ```
+
+The exact query-identity RED commit is
+`ca694c030670a7cf0aab4fcbba85e5e2b8849f1b`. GREEN moves those statements
+into the integrity execution module, uses them for the owner and physical
+scans, and makes both the candidate hook and `EXPLAIN QUERY PLAN` hook consume
+that same set. The focused plan oracle passes:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity \
+  slice55_projection_scan_plans_use_indexed_order -- --exact --nocapture
+test result: ok. 1 passed; 0 failed
+```

@@ -13914,15 +13914,7 @@ impl Engine {
         self.ensure_open()?;
         let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
         let connection = connection.as_ref().ok_or(EngineError::Closing)?;
-        let statements = [
-            "SELECT write_cursor FROM canonical_nodes INDEXED BY canonical_nodes_write_cursor_idx WHERE write_cursor>?1 ORDER BY write_cursor LIMIT ?2",
-            "SELECT write_cursor FROM canonical_edges INDEXED BY canonical_edges_write_cursor_idx WHERE write_cursor>?1 ORDER BY write_cursor LIMIT ?2",
-            "SELECT rowid FROM search_index WHERE rowid>?1 ORDER BY rowid LIMIT ?2",
-            "SELECT rowid FROM search_index_v2 WHERE rowid>?1 ORDER BY rowid LIMIT ?2",
-            "SELECT rowid FROM search_index_edges WHERE rowid>?1 ORDER BY rowid LIMIT ?2",
-            "SELECT rowid FROM canonical_attributes WHERE rowid>?1 ORDER BY rowid LIMIT ?2",
-            "SELECT rowid FROM property_search_index WHERE rowid>?1 ORDER BY rowid LIMIT ?2",
-        ];
+        let statements = data_plane_integrity::candidate_queries_for_test();
         let mut plans = Vec::new();
         for sql in statements {
             let mut statement = connection
@@ -13937,6 +13929,13 @@ impl Engine {
             );
         }
         Ok(plans)
+    }
+
+    /// Candidate SQL executed by the bounded Slice 55 integrity scans.
+    #[cfg(all(feature = "operator", feature = "test-hooks"))]
+    #[doc(hidden)]
+    pub fn data_plane_integrity_candidate_queries_for_test(&self) -> [&'static str; 7] {
+        data_plane_integrity::candidate_queries_for_test()
     }
 
     /// Measure SQLite VM-step quanta, wall time, and process peak-RSS delta.

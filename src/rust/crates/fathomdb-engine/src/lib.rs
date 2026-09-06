@@ -1876,6 +1876,7 @@ struct SearchReaderWork {
     /// `search_reranked`) does ZERO extra work and returns `explanation = None`
     /// (R-OBS-2 zero-cost; byte-identical `results`).
     explain: bool,
+    projection_runtime_state: ProjectionRuntimeStateV1,
     /// 0.8.20 Slice 15b fix-2 (R-20-NV / R-20-RV) — the VALIDITY view the
     /// node-hydration SELECTs filter by. `ReadView::default()` reproduces
     /// the pre-fix predicate on any corpus that never authored a window
@@ -7649,6 +7650,13 @@ impl Engine {
             alpha: request.alpha,
             pool_n: request.pool_n as usize,
             explain: true,
+            projection_runtime_state: if self.runtime_embedder.is_none() {
+                ProjectionRuntimeStateV1::Absent
+            } else if self.dense_disabled.load(Ordering::Acquire) {
+                ProjectionRuntimeStateV1::Refused
+            } else {
+                ProjectionRuntimeStateV1::Usable
+            },
             view: request.context.context.view,
             frozen_binding: Some(Box::new(binding)),
             frozen_query_runtime: Some(Box::new(FrozenQueryRuntime {
@@ -10598,6 +10606,7 @@ impl Engine {
                 alpha: 0.3,
                 pool_n: 0,
                 explain: false,
+                projection_runtime_state: ProjectionRuntimeStateV1::Absent,
                 view: *view,
                 frozen_binding: None,
                 frozen_query_runtime: None,
@@ -11244,6 +11253,13 @@ impl Engine {
                 alpha,
                 pool_n,
                 explain,
+                projection_runtime_state: if self.runtime_embedder.is_none() {
+                    ProjectionRuntimeStateV1::Absent
+                } else if self.dense_disabled.load(Ordering::Acquire) {
+                    ProjectionRuntimeStateV1::Refused
+                } else {
+                    ProjectionRuntimeStateV1::Usable
+                },
                 view,
                 frozen_binding: frozen_binding.map(Box::new),
                 frozen_query_runtime,
@@ -17329,6 +17345,7 @@ fn read_search_work_in_tx<C: SearchOriginCapture>(
         work.alpha,
         work.pool_n,
         work.explain,
+        work.projection_runtime_state,
         work.view,
         work.frozen_binding.as_deref(),
         work.frozen_query_runtime.as_deref(),
@@ -17358,6 +17375,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
     alpha: f64,
     pool_n: usize,
     explain: bool,
+    projection_runtime_state: ProjectionRuntimeStateV1,
     view: ReadView,
     frozen_binding: Option<&frozen_read::FrozenReadBinding>,
     frozen_query_runtime: Option<&FrozenQueryRuntime>,
@@ -18214,6 +18232,18 @@ fn read_search_in_tx<C: SearchOriginCapture>(
 
     results.truncate(final_limit);
 
+    let projection_status = explain
+        .then(|| {
+            projection_generation::status_in_snapshot(
+                &tx,
+                projection_runtime_state,
+                view.edge_now(),
+                load_next_cursor(&tx),
+            )
+        })
+        .transpose()
+        .map_err(SearchReaderError::Evidence)?;
+
     // 0.8.8 EXP-OBS — assemble the sidecar `Explanation` from the captured maps +
     // the final `results`. `embedder_id` is left empty here (the worker has no
     // identity) and filled by `search_inner_with_stats`.
@@ -18258,7 +18288,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                         } else {
                             StructuralLifecycleStateV1::NodeActive
                         };
-                        let degradation_codes = match (&soft_fallback, h.branch) {
+                        let mut degradation_codes = match (&soft_fallback, h.branch) {
                             (Some(_), SoftFallbackBranch::Text) => {
                                 vec![StructuralDegradationCodeV1::SoftFallbackText]
                             }
@@ -18267,6 +18297,28 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                             }
                             _ => Vec::new(),
                         };
+                        if let Some(status) = projection_status.as_ref() {
+                            let code = if status.origin
+                                == ProjectionGenerationOriginV1::LegacyUnverified
+                            {
+                                Some(StructuralDegradationCodeV1::ProjectionLegacyUnverified)
+                            } else {
+                                match status.readiness {
+                                    ProjectionReadinessV1::Blocked => {
+                                        Some(StructuralDegradationCodeV1::ProjectionBlocked)
+                                    }
+                                    ProjectionReadinessV1::Deferred => {
+                                        Some(StructuralDegradationCodeV1::ProjectionDeferred)
+                                    }
+                                    _ => None,
+                                }
+                            };
+                            if let Some(code) = code {
+                                degradation_codes.push(code);
+                            }
+                        }
+                        degradation_codes.sort_unstable();
+                        degradation_codes.dedup();
                         StructuralInclusionV1 {
                             schema_version: 1,
                             inclusion_state: if degradation_codes.is_empty() {

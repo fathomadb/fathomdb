@@ -211,6 +211,7 @@ name = "slice55_wire"
 required-features = ["operator", "test-hooks"]
 
 [dev-dependencies]
+libc = "0.2"
 proptest = "1"
 rusqlite = { version = "0.40", features = ["bundled", "fallible_uint"] }
 serde_json = "1"

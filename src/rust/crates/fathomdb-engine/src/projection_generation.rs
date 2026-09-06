@@ -1300,7 +1300,7 @@ fn physical_completion(
     })
 }
 
-fn status_in_snapshot(
+pub(crate) fn status_in_snapshot(
     connection: &Connection,
     runtime_state: ProjectionRuntimeStateV1,
     effective_at_epoch_s: i64,

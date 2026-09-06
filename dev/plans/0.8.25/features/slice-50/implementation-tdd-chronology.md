@@ -434,3 +434,17 @@ TypeScript spellings and carries the missing Slice 45 signature. No product
 method or test changed. The focused TypeScript surface test and the Python
 surface suite against the fresh installed wheel pass. The governed pin is
 reissued from the committed allowlist bytes before rerunning the heavy gate.
+
+## RED 22 — independent review FIX-1
+
+Independent review of the governance correction found that the gate's own
+description still claimed coverage ended at Slice 40 and counted 54 allowlist
+members. The enforced pin already covered the approved Slice 45 and Slice 50
+surface and all 64 members, so the executable predicate was correct while its
+self-description was stale.
+
+## GREEN 22 — independent review FIX-1
+
+The checker header now names Slices 45 and 50 and records the exact 64-member
+allowlist. No predicate, pin, governed surface, product implementation, or test
+changed.

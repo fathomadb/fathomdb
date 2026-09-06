@@ -1226,6 +1226,10 @@ function dependencyTraceRequestError(reason: string, fieldPath: string): never {
   throw new DependencyTraceError(`${reason} at ${fieldPath}`, reason, fieldPath);
 }
 
+function frozenTraceRequestError(reason: string, fieldPath: string): never {
+  throw new FrozenReadError(`${reason} at ${fieldPath}`, reason, fieldPath);
+}
+
 function escapeTracePointerToken(value: string): string {
   return value.replaceAll("~", "~0").replaceAll("/", "~1");
 }
@@ -1268,10 +1272,10 @@ function validateDependencyTraceRequest(request: DependencyTraceRequestV1): void
     dependencyTraceRequestError("trace_corrupt", "/context");
   }
   if (request.context.schemaVersion !== 1) {
-    dependencyTraceRequestError("unsupported_schema_version", "/context/schemaVersion");
+    frozenTraceRequestError("unsupported_schema_version", "/context/schemaVersion");
   }
   if (request.context.context.schemaVersion !== 1) {
-    dependencyTraceRequestError(
+    frozenTraceRequestError(
       "unsupported_schema_version",
       "/context/context/schemaVersion",
     );

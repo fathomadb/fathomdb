@@ -520,6 +520,39 @@ fn slice55_mutation_readiness_receipt_matrix() {
         [DataPlaneIntegrityFindingCodeV1::MutationReadinessCorrupt]
     );
 }
+
+#[test]
+fn slice55_receipt_reserves_pending_work_before_fetch_and_parse() {
+    let (_dir, opened) = opened();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    let operations = [("reserve-r1", "reserve-1"), ("reserve-r2", "reserve-2")]
+        .into_iter()
+        .map(|(revision, logical)| {
+            ActuationOperationV1::PutCanonicalNode(match canonical(revision, logical, "body") {
+                PreparedWrite::ProvenancedNode(node) => node,
+                _ => unreachable!(),
+            })
+        })
+        .collect();
+    opened.engine.actuate(ActuationBatchV1::new("slice55-reserve", operations).unwrap()).unwrap();
+    opened
+        .engine
+        .execute_for_test(
+            "UPDATE _fathomdb_actuation_receipts \
+             SET pending_projection_write_cursors_json='[\"1\",\"not-a-cursor\"]' \
+             WHERE operation_id='slice55-reserve'",
+        )
+        .unwrap();
+    let error = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::MutationReadiness, 1))
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::DataPlaneIntegrity(ref value)
+            if value.reason == DataPlaneIntegrityErrorReasonV1::IntegrityBoundExceeded
+    ));
+}
 clean_projection_case!(
     slice55_mutation_readiness_selects_only_bounded_subset,
     DataPlaneIntegrityCheckV1::MutationReadiness

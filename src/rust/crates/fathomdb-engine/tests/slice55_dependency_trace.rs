@@ -355,7 +355,25 @@ fn slice55_trace_hidden_corruption_is_filtered_before_decode_and_limit() {
 #[test]
 fn slice55_trace_corrupt_requires_two_eligible_endpoints() {
     let (_dir, opened) = seeded();
-    assert!(trace(&opened.engine, "derived-r1", DependencyTraceDirectionV1::ToSource).is_ok());
+    opened
+        .engine
+        .execute_for_test(
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE _fathomdb_source_dependencies SET registered_dependency_generation=0 \
+             WHERE dependency_id='dep-1'",
+        )
+        .unwrap();
+    for (root, direction) in [
+        ("source-r1", DependencyTraceDirectionV1::ToDependents),
+        ("derived-r1", DependencyTraceDirectionV1::ToSource),
+    ] {
+        assert!(matches!(
+            trace(&opened.engine, root, direction),
+            Err(EngineError::DependencyTrace(ref error))
+                if error.reason == DependencyTraceErrorReasonV1::TraceCorrupt
+                    && error.field_path.is_empty()
+        ));
+    }
 }
 
 #[test]

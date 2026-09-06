@@ -611,6 +611,36 @@ fn slice55_sparse_attribute_owners_cannot_hide_later_required_members() {
 }
 
 #[test]
+fn slice55_projection_residue_reports_resolvable_revision_in_class_order() {
+    let (_dir, opened) = opened();
+    opened.engine.configure_projections(&[property_spec()], &[]).unwrap();
+    opened
+        .engine
+        .write(&[canonical("residue-owner-r1", "residue-owner", r#"{"title":"residue"}"#)])
+        .unwrap();
+    opened
+        .engine
+        .execute_for_test("UPDATE canonical_nodes SET state='deleted' WHERE write_cursor=1")
+        .unwrap();
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(
+            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+            10_000,
+        ))
+        .unwrap();
+    let residue = result
+        .findings
+        .iter()
+        .filter(|finding| {
+            finding.code == DataPlaneIntegrityFindingCodeV1::SearchProjectionOutsideMembership
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(residue.len(), 2, "{result:#?}");
+    assert!(residue.iter().all(|finding| finding.artifact_revision_ids == ["residue-owner-r1"]));
+}
+
+#[test]
 fn slice55_dense_state_reuses_slice40_classifier() {
     let (_dir, opened) = opened();
     opened.engine.configure_vector_kind_for_test("doc").unwrap();

@@ -568,6 +568,15 @@ excluded from import resolution, passed `18 passed in 3.58s`. This artifact is
 local verification evidence only and was not staged, tagged, uploaded, or
 published.
 
+The closure audit confirmed the searchable-orphan, missing-member,
+generation-authority, guarded-receipt, boundary property, hidden-corruption,
+and multi-edge codec cases now mutate real database/wire authority. The one
+remaining happy-only trace oracle is replaced with a zero-generation
+corruption asserted reciprocally after both endpoints remain authorized. A new
+integrity RED leaves real EAV and property-FTS residue behind a resolvable
+deleted owner and requires both class-ordered findings to carry its revision
+ID. The old physical direction emitted empty `artifact_revision_ids`.
+
 The trace-authorization RED places a malformed BLOB dependency identity on an
 inactive derived endpoint that sorts before the one eligible relation, then
 runs with exactly one relation and two work units. Because the old query

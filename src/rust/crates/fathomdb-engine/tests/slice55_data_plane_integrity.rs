@@ -3,7 +3,8 @@
 use fathomdb_engine::{
     ActuationBatchV1, ActuationOperationV1, ArtifactRevisionId, CanonicalHash,
     DataPlaneIntegrityCheckV1, DataPlaneIntegrityErrorReasonV1, DataPlaneIntegrityFindingCodeV1,
-    DataPlaneIntegrityRequestV1, Engine, EngineError, InitialState, PreparedWrite, ProjectionFts,
+    DataPlaneIntegrityRequestV1, DataPlaneIntegritySeverityV1, DependencyDerivedLookupV1,
+    DependencySourceLookupV1, Engine, EngineError, InitialState, PreparedWrite, ProjectionFts,
     ProjectionRole, ProjectionSpec, ProvenancedNodeV1, SourceDependencyRegistrationV1, SourceId,
     SourceLocator, SourceRevisionId, SourceVersionId, WriteProvenanceV1,
 };
@@ -379,19 +380,120 @@ fn slice55_integrity_finding_overflow_names_max_findings() {
 
 #[test]
 fn slice55_dependency_chain_fault_matrix() {
-    let (_dir, opened) = dependency_seeded();
-    opened
-        .engine
-        .execute_for_test(
+    let cases = [
+        (
+            "dependency_row_invalid",
             "PRAGMA ignore_check_constraints=ON; \
              UPDATE _fathomdb_source_dependencies SET schema_version=2 \
              WHERE dependency_id='integrity-dep-1'",
-        )
-        .unwrap();
-    assert_eq!(
-        finding_codes(&opened, DataPlaneIntegrityCheckV1::DependencyChain),
-        [DataPlaneIntegrityFindingCodeV1::DependencyRowInvalid]
-    );
+            DataPlaneIntegrityFindingCodeV1::DependencyRowInvalid,
+            DataPlaneIntegritySeverityV1::Error,
+            &[][..],
+        ),
+        (
+            "dependency_derived_owner_missing",
+            "DELETE FROM _fathomdb_artifact_revisions \
+             WHERE revision_id='integrity-derived-r1'",
+            DataPlaneIntegrityFindingCodeV1::DependencyDerivedOwnerMissing,
+            DataPlaneIntegritySeverityV1::Critical,
+            &["integrity-derived-r1"][..],
+        ),
+        (
+            "dependency_derived_role_invalid",
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE _fathomdb_artifact_revisions SET artifact_role=zeroblob(4) \
+             WHERE revision_id='integrity-derived-r1'",
+            DataPlaneIntegrityFindingCodeV1::DependencyDerivedRoleInvalid,
+            DataPlaneIntegritySeverityV1::Error,
+            &["integrity-derived-r1"][..],
+        ),
+        (
+            "dependency_source_link_missing",
+            "DELETE FROM _fathomdb_source_links \
+             WHERE artifact_revision_id='integrity-derived-r1'",
+            DataPlaneIntegrityFindingCodeV1::DependencySourceLinkMissing,
+            DataPlaneIntegritySeverityV1::Critical,
+            &["integrity-derived-r1"][..],
+        ),
+        (
+            "dependency_source_link_mismatch",
+            "UPDATE _fathomdb_source_links SET source_id='other-source' \
+             WHERE artifact_revision_id='integrity-derived-r1'",
+            DataPlaneIntegrityFindingCodeV1::DependencySourceLinkMismatch,
+            DataPlaneIntegritySeverityV1::Critical,
+            &["integrity-derived-r1", "integrity-source-r1"][..],
+        ),
+        (
+            "dependency_source_owner_missing",
+            "DELETE FROM _fathomdb_artifact_revisions \
+             WHERE revision_id='integrity-source-r1'",
+            DataPlaneIntegrityFindingCodeV1::DependencySourceOwnerMissing,
+            DataPlaneIntegritySeverityV1::Critical,
+            &["integrity-source-r1"][..],
+        ),
+        (
+            "dependency_source_role_invalid",
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE _fathomdb_artifact_revisions SET artifact_role=zeroblob(4) \
+             WHERE revision_id='integrity-source-r1'",
+            DataPlaneIntegrityFindingCodeV1::DependencySourceRoleInvalid,
+            DataPlaneIntegritySeverityV1::Error,
+            &["integrity-source-r1"][..],
+        ),
+        (
+            "dependency_source_version_mismatch",
+            "DELETE FROM _fathomdb_source_versions \
+             WHERE source_revision_id='integrity-source-r1'",
+            DataPlaneIntegrityFindingCodeV1::DependencySourceVersionMismatch,
+            DataPlaneIntegritySeverityV1::Critical,
+            &["integrity-source-r1"][..],
+        ),
+        (
+            "dependency_source_self_link_mismatch",
+            "DELETE FROM _fathomdb_source_links \
+             WHERE artifact_revision_id='integrity-source-r1'",
+            DataPlaneIntegrityFindingCodeV1::DependencySourceSelfLinkMismatch,
+            DataPlaneIntegritySeverityV1::Critical,
+            &["integrity-source-r1"][..],
+        ),
+        (
+            "dependency_generation_mismatch",
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE _fathomdb_source_dependencies SET registered_dependency_generation=0 \
+             WHERE dependency_id='integrity-dep-1'",
+            DataPlaneIntegrityFindingCodeV1::DependencyGenerationMismatch,
+            DataPlaneIntegritySeverityV1::Critical,
+            &[][..],
+        ),
+    ];
+
+    let fixture: serde_json::Value =
+        serde_json::from_slice(include_bytes!("fixtures/slice55/dependency-corruption-v1.json"))
+            .unwrap();
+    assert_eq!(fixture.pointer("/schemaVersion"), Some(&serde_json::json!(1)));
+    let fixture_faults = fixture["faults"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|value| value.as_str().unwrap())
+        .collect::<BTreeSet<_>>();
+    let covered = cases.iter().map(|case| case.0).collect::<BTreeSet<_>>();
+    assert!(fixture_faults.is_subset(&covered));
+
+    for (label, mutation, code, severity, expected_revisions) in cases {
+        let (_dir, opened) = dependency_seeded();
+        opened.engine.execute_for_test(mutation).unwrap();
+        let result = opened
+            .engine
+            .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::DependencyChain, 10_000))
+            .unwrap_or_else(|error| panic!("{label} escaped as {error:?}"));
+        assert_eq!(result.findings.len(), 1, "{label}: {result:#?}");
+        let finding = &result.findings[0];
+        assert_eq!(finding.code, code, "{label}: {result:#?}");
+        assert_eq!(finding.severity, severity, "{label}: {result:#?}");
+        assert_eq!(finding.dependency_id.as_deref(), Some("integrity-dep-1"));
+        assert_eq!(finding.artifact_revision_ids, expected_revisions, "{label}: {result:#?}");
+    }
 }
 
 #[test]
@@ -411,7 +513,7 @@ fn slice55_dependency_chain_missing_owner_is_critical() {
 }
 
 #[test]
-fn slice55_dependency_source_finding_names_both_revisions() {
+fn slice55_dependency_source_finding_emits_only_the_source_revision() {
     let (_dir, opened) = dependency_seeded();
     opened
         .engine
@@ -429,10 +531,7 @@ fn slice55_dependency_source_finding_names_both_revisions() {
         result.findings[0].code,
         DataPlaneIntegrityFindingCodeV1::DependencySourceOwnerMissing
     );
-    assert_eq!(
-        result.findings[0].artifact_revision_ids,
-        ["integrity-derived-r1", "integrity-source-r1"]
-    );
+    assert_eq!(result.findings[0].artifact_revision_ids, ["integrity-source-r1"]);
 }
 
 #[test]
@@ -511,6 +610,21 @@ fn slice55_missing_synchronous_projection_matrix() {
     assert_eq!(
         finding_codes(&opened, DataPlaneIntegrityCheckV1::ActiveSearchableOrphans),
         [DataPlaneIntegrityFindingCodeV1::NodeBodyFtsMissing]
+    );
+
+    let fixture: serde_json::Value =
+        serde_json::from_slice(include_bytes!("fixtures/slice55/projection-corruption-v1.json"))
+            .unwrap();
+    assert_eq!(fixture.pointer("/schemaVersion"), Some(&serde_json::json!(1)));
+    assert_eq!(
+        fixture["faults"],
+        serde_json::json!([
+            "node_body_fts_missing",
+            "node_body_fts_v2_missing",
+            "edge_body_fts_missing",
+            "canonical_attribute_missing",
+            "property_fts_missing"
+        ])
     );
 }
 
@@ -617,7 +731,18 @@ fn slice55_projection_scan_plans_use_indexed_order() {
             .iter()
             .find(|sql| sql.contains(&format!("FROM {table}")))
             .unwrap_or_else(|| panic!("missing production candidate query for {table}"));
-        assert!(sql.contains(">?1"), "missing after-key bound: {sql}");
+        if matches!(
+            table,
+            "search_index"
+                | "search_index_v2"
+                | "search_index_edges"
+                | "canonical_attributes"
+                | "property_search_index"
+        ) {
+            assert!(sql.contains("rowid>=?1"), "missing inclusive signed start: {sql}");
+        } else {
+            assert!(sql.contains(">?1"), "missing after-key bound: {sql}");
+        }
         assert!(sql.contains("LIMIT ?2"), "missing remaining+1 bound: {sql}");
         if table.starts_with("canonical_") && !table.ends_with("attributes") {
             assert!(sql.contains(&format!("INDEXED BY {index}")), "missing {index}: {sql}");
@@ -647,6 +772,7 @@ fn slice55_integrity_plan_hook_covers_dense_generation_and_receipts() {
     for authority in [
         "_fathomdb_projection_terminal",
         "_fathomdb_vector_rows",
+        "vector_default",
         "_fathomdb_projection_generations",
         "_fathomdb_actuation_receipts",
     ] {
@@ -655,6 +781,9 @@ fn slice55_integrity_plan_hook_covers_dense_generation_and_receipts() {
             .find(|sql| sql.contains(authority))
             .unwrap_or_else(|| panic!("missing production candidate query for {authority}"));
         assert!(sql.contains("LIMIT"), "missing bounded limit: {sql}");
+        if authority != "_fathomdb_projection_generations" {
+            assert!(sql.contains("rowid>=?1"), "missing inclusive signed start: {sql}");
+        }
     }
 }
 
@@ -1767,8 +1896,150 @@ fn slice55_fix6_null_receipt_key_is_counted_ordered_bounded_and_private() {
     assert_eq!(result.findings[1].operation_id.as_deref(), Some("z-corrupt-receipt"));
 }
 
+#[test]
+fn slice55_physical_member_scans_cover_the_full_signed_rowid_domain() {
+    let (_dir, opened) = opened();
+    opened
+        .engine
+        .execute_for_test(
+            "INSERT INTO search_index(rowid,body,kind,write_cursor) VALUES \
+               (-9223372036854775808,'v1-min','doc',101),(-1,'v1-neg-one','doc',102); \
+             INSERT INTO search_index_v2(rowid,body,kind,status,write_cursor) VALUES \
+               (-9223372036854775808,'v2-min','doc','',201),(-1,'v2-neg-one','doc','',202); \
+             INSERT INTO search_index_edges(rowid,body,kind,write_cursor) VALUES \
+               (-9223372036854775808,'edge-min','edge_fact',301), \
+               (-1,'edge-neg-one','edge_fact',302); \
+             INSERT INTO canonical_attributes(rowid,write_cursor,attr_name,attr_value) VALUES \
+               (-9223372036854775808,401,'title','attr-min'),(-1,402,'title','attr-neg-one'); \
+             INSERT INTO property_search_index(rowid,attr_value,attr_name,write_cursor) VALUES \
+               (-9223372036854775808,'property-min','title',501), \
+               (-1,'property-neg-one','title',502)",
+        )
+        .unwrap();
+
+    let bounded = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::ActiveSearchableOrphans, 9))
+        .unwrap_err();
+    assert!(matches!(
+        bounded,
+        EngineError::DataPlaneIntegrity(ref value)
+            if value.reason == DataPlaneIntegrityErrorReasonV1::IntegrityBoundExceeded
+                && value.field_path == "/maxWorkUnits"
+    ));
+
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::ActiveSearchableOrphans, 10))
+        .unwrap();
+    assert_eq!(result.checked_count, 10, "{result:#?}");
+    assert_eq!(
+        result.findings.iter().map(|finding| finding.write_cursor).collect::<Vec<_>>(),
+        [
+            Some(101),
+            Some(102),
+            Some(201),
+            Some(202),
+            Some(301),
+            Some(302),
+            Some(401),
+            Some(402),
+            Some(501),
+            Some(502),
+        ],
+        "{result:#?}"
+    );
+    assert!(result.findings.iter().all(|finding| {
+        finding.code == DataPlaneIntegrityFindingCodeV1::SearchProjectionOwnerMissing
+            && finding.artifact_revision_ids.is_empty()
+    }));
+}
+
+#[test]
+fn slice55_dense_generation_scans_cover_the_full_signed_rowid_domain() {
+    let (_dir, opened) = opened();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened
+        .engine
+        .execute_for_test(
+            "INSERT INTO _fathomdb_projection_terminal(write_cursor,state) VALUES \
+               (-9223372036854775808,'up_to_date'),(-1,'up_to_date')",
+        )
+        .expect("terminal accepts the signed SQLite rowid domain");
+    opened
+        .engine
+        .execute_for_test(
+            "INSERT INTO _fathomdb_vector_rows(rowid,kind,write_cursor) VALUES \
+               (-9223372036854775808,'doc',601),(-1,'doc',602)",
+        )
+        .expect("sidecar accepts the signed SQLite rowid domain");
+    for (check, expected_checked, expected_code) in [
+        (
+            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+            4,
+            DataPlaneIntegrityFindingCodeV1::DenseProjectionIdentityMismatch,
+        ),
+        (
+            DataPlaneIntegrityCheckV1::ProjectionGeneration,
+            5,
+            DataPlaneIntegrityFindingCodeV1::ProjectionMemberCorrupt,
+        ),
+    ] {
+        let result = opened
+            .engine
+            .check_data_plane_integrity(request(check, expected_checked))
+            .unwrap_or_else(|error| panic!("{check:?} escaped as {error:?}"));
+        assert_eq!(result.checked_count, expected_checked, "{check:?}: {result:#?}");
+        assert_eq!(result.findings.len(), 4, "{check:?}: {result:#?}");
+        assert!(result.findings.iter().all(|finding| {
+            finding.code == expected_code
+                && finding.write_cursor.is_none()
+                && finding.artifact_revision_ids.is_empty()
+        }));
+    }
+}
+
+#[test]
+fn slice55_mutation_receipts_cover_the_full_signed_rowid_domain_in_order() {
+    let (_dir, opened) = opened();
+    actuate_without_pending(&opened, "rowid-later", "rowid-later-r1");
+    actuate_without_pending(&opened, "rowid-first", "rowid-first-r1");
+    opened
+        .engine
+        .execute_for_test(
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE _fathomdb_actuation_receipts \
+               SET rowid=-9223372036854775808,outcome='bad-first' \
+               WHERE operation_id='rowid-first'; \
+             UPDATE _fathomdb_actuation_receipts SET rowid=-1,outcome='bad-later' \
+               WHERE operation_id='rowid-later'",
+        )
+        .unwrap();
+
+    let bounded = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::MutationReadiness, 1))
+        .unwrap_err();
+    assert!(matches!(bounded, EngineError::DataPlaneIntegrity(_)));
+
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::MutationReadiness, 2))
+        .unwrap();
+    assert_eq!(result.checked_count, 2, "{result:#?}");
+    assert_eq!(
+        result.findings.iter().map(|finding| finding.operation_id.as_deref()).collect::<Vec<_>>(),
+        [Some("rowid-first"), Some("rowid-later")],
+        "{result:#?}"
+    );
+}
+
 proptest! {
-    #![proptest_config(ProptestConfig::with_cases(8))]
+    #![proptest_config(ProptestConfig {
+        cases: 8,
+        failure_persistence: None,
+        ..ProptestConfig::default()
+    })]
     #[test]
     fn slice55_receipt_boundary_property(
         count in 1u8..=4,
@@ -1814,5 +2085,67 @@ proptest! {
             result.findings[0].code,
             DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt
         );
+    }
+
+    #[test]
+    fn slice55_normalized_chain_round_trip(
+        suffix in "[a-z0-9]{1,8}",
+        fault in 0u8..=2,
+    ) {
+        let source_revision = format!("prop-{suffix}-source-r1");
+        let derived_revision = format!("prop-{suffix}-derived-r1");
+        let dependency_id = format!("prop-{suffix}-dependency");
+        let (_dir, opened) = opened();
+        opened.engine.write(&[
+            canonical(&source_revision, &format!("prop-{suffix}-source"), "slice55 integrity canonical"),
+            derived(
+                &derived_revision,
+                &format!("prop-{suffix}-derived"),
+                &source_revision,
+                "slice55 integrity derived",
+            ),
+        ]).unwrap();
+        let registered = opened.engine.register_source_dependency(
+            SourceDependencyRegistrationV1::new(
+                dependency_id.clone(),
+                source_revision.clone(),
+                derived_revision.clone(),
+            ).unwrap(),
+        ).unwrap();
+
+        let source_lookup = opened.engine.dependencies_for_source(
+            DependencySourceLookupV1::new(source_revision.clone()).unwrap(),
+        ).unwrap();
+        let derived_lookup = opened.engine.dependency_for_derived(
+            DependencyDerivedLookupV1::new(derived_revision.clone()).unwrap(),
+        ).unwrap();
+        prop_assert_eq!(source_lookup.items, vec![registered.clone()]);
+        prop_assert_eq!(derived_lookup, Some(registered));
+
+        let expected = match fault {
+            0 => None,
+            1 => {
+                opened.engine.execute_for_test(&format!(
+                    "PRAGMA ignore_check_constraints=ON; \
+                     UPDATE _fathomdb_artifact_revisions SET artifact_role=zeroblob(4) \
+                     WHERE revision_id='{derived_revision}'"
+                )).unwrap();
+                Some(DataPlaneIntegrityFindingCodeV1::DependencyDerivedRoleInvalid)
+            }
+            2 => {
+                opened.engine.execute_for_test(&format!(
+                    "PRAGMA ignore_check_constraints=ON; \
+                     UPDATE _fathomdb_source_dependencies SET registered_dependency_generation=0 \
+                     WHERE dependency_id='{dependency_id}'"
+                )).unwrap();
+                Some(DataPlaneIntegrityFindingCodeV1::DependencyGenerationMismatch)
+            }
+            _ => unreachable!(),
+        };
+        let result = opened.engine.check_data_plane_integrity(request(
+            DataPlaneIntegrityCheckV1::DependencyChain,
+            10_000,
+        )).unwrap();
+        prop_assert_eq!(result.findings.iter().map(|finding| finding.code).collect::<Vec<_>>(), expected.into_iter().collect::<Vec<_>>());
     }
 }

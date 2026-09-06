@@ -10,7 +10,8 @@ use fathomdb_engine::{
     InitialState, PreparedWrite, ProjectionFts, ProjectionRole, ProjectionSpec, ProjectionVector,
     ProvenancedNodeV1, SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId,
     SourceVersionId, StructuralDegradationCodeV1, StructuralDependencyStateV1,
-    StructuralLifecycleStateV1, WriteProvenanceV1,
+    StructuralInclusionStateV1, StructuralLifecycleStateV1, StructuralProjectionOriginV1,
+    WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use sha2::{Digest, Sha256};
@@ -95,6 +96,41 @@ fn slice55_explanation_is_positional_and_structural() {
     assert!(!explanation.correlation_id.is_empty());
     assert_eq!(explanation.per_hit.len(), result.results.len());
     assert!(explanation.per_hit.iter().all(|hit| hit.structural.schema_version == 1));
+
+    let fixture: serde_json::Value =
+        serde_json::from_slice(include_bytes!("fixtures/slice55/explanation-v1.json")).unwrap();
+    assert_eq!(
+        fixture.pointer("/correlationId").and_then(serde_json::Value::as_str),
+        Some("x00000000000000000000000000000000-0")
+    );
+    assert_eq!(fixture.pointer("/structural/schemaVersion"), Some(&serde_json::json!(1)));
+    assert_eq!(
+        fixture.pointer("/structural/inclusionState").and_then(serde_json::Value::as_str),
+        Some("included")
+    );
+    assert_eq!(
+        fixture.pointer("/structural/projectionOrigin").and_then(serde_json::Value::as_str),
+        Some("synchronous_body_fts")
+    );
+    assert_eq!(
+        fixture.pointer("/structural/dependencyState").and_then(serde_json::Value::as_str),
+        Some("not_applicable")
+    );
+    assert_eq!(
+        fixture.pointer("/structural/lifecycleState").and_then(serde_json::Value::as_str),
+        Some("node_active")
+    );
+    assert_eq!(fixture.pointer("/structural/degradationCodes"), Some(&serde_json::json!([])));
+    let structural = &explanation.per_hit[0].structural;
+    assert_eq!(
+        u64::from(structural.schema_version),
+        fixture["structural"]["schemaVersion"].as_u64().unwrap()
+    );
+    assert_eq!(structural.inclusion_state, StructuralInclusionStateV1::Included);
+    assert_eq!(structural.projection_origin, StructuralProjectionOriginV1::SynchronousBodyFts);
+    assert_eq!(structural.dependency_state, StructuralDependencyStateV1::NotApplicable);
+    assert_eq!(structural.lifecycle_state, StructuralLifecycleStateV1::NodeActive);
+    assert!(structural.degradation_codes.is_empty());
 }
 
 #[test]

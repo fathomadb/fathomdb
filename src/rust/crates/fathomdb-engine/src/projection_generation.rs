@@ -247,7 +247,7 @@ pub(crate) struct GenerationRow {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum Completion {
+pub(crate) enum Completion {
     Complete,
     Pending,
     Failed,
@@ -812,7 +812,7 @@ fn classify_completion(
     Err(corruption())
 }
 
-fn physical_member_completion_at(
+pub(crate) fn physical_member_completion_at(
     connection: &Connection,
     cursor: u64,
     effective_at: i64,

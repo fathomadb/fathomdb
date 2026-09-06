@@ -124,7 +124,7 @@ not evidence that the new surface exists. The ignored release-mode test creates
 ```text
 PYTHONPATH=src/python .venv/bin/python -m pytest src/python/tests/test_slice55_wrapper_compat.py -q
 .venv/bin/ruff check src/python/fathomdb src/python/tests/test_slice55_trace_explanation.py
-.venv/bin/pyright src/python/fathomdb src/python/tests/test_slice55_trace_explanation.py
+.venv/bin/pyright -p src/python
 cd src/ts
 npm run build:debug
 node --test --test-name-pattern slice55 dist/tests/*.test.js
@@ -172,10 +172,12 @@ origin mismatch invalidates the result; no registry artifact is fetched.
 ./scripts/agent-verify.sh --tier=fast
 ./scripts/agent-verify.sh --tier=heavy
 ./scripts/agent-verify.sh --tier=all
-cargo test -p fathomdb-engine --features operator,test-hooks,default-embedder,default-reranker
-cargo test --workspace --all-targets --all-features
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo check --workspace --all-targets --all-features
+cargo test -p fathomdb-engine \
+  --features operator,test-hooks,default-embedder,default-reranker \
+  -- --test-threads=1
+cargo test --workspace --all-targets
+cargo clippy --workspace --all-targets -- -D warnings -A missing-docs
+cargo check --workspace --all-targets
 ```
 
 The full applicable-feature route runs serially if the documented shared
@@ -183,24 +185,39 @@ projection/WAL race fixtures interfere under the parallel harness. The exact
 focused oracle must pass unchanged before serialization is accepted. A ptrace
 denial is rerun unchanged outside the sandbox; no gate is disabled.
 
+The workspace commands above are the cross-platform default-feature gate.
+CUDA and Metal remain separate platform routes, exactly as in Slice 40; a
+single `--all-features` command is invalid because it selects both backends.
+Neither platform backend is a Slice 55 acceptance route because this slice
+does not alter embedding, reranking, dense dispatch, or model loading.
+
 ### Fresh Linux packages
 
 From an exact-source disposable checkout/environment, retain the wheel result
-from the exact-candidate command above, then build a packed N-API package,
-record its SHA-256, install offline, and run the local artifact smokes:
+from the exact-candidate command above, build the exact-source N-API artifact,
+and run only local/offline artifact and CLI routes:
 
 ```text
-./scripts/release/smoke/smoke-npm-package.sh <package.tgz>
-./scripts/release/smoke/smoke-crates-cli.sh
+cd src/ts
+npm run build:debug
+node --test --test-name-pattern slice55 dist/tests/*.test.js
+cd ../..
+bash scripts/release/smoke/smoke-local-native-artifacts.sh \
+  "$wheel_root/dist" "$PWD/src/ts" \
+  "$PWD/src/ts/npm/linux-x64-gnu" linux-x64-gnu
+cargo test -p fathomdb-cli --test slice55_data_plane_integrity_cli
 ```
 
-The package-specific smokes open a real database and exercise
-`trace_dependency`, explain correlation/structure, typed trace refusal, and
-`doctor data-plane-integrity --json`. The SDK package smokes also prove that
-Python/TypeScript still have no doctor integrity method. Package hashes,
-source archive hash, toolchain versions, commands, and results are recorded in
-`verification-review.md`. These are local ephemeral artifacts only; no release
-packaging, registry staging, tag, or publication occurs.
+The installed-wheel smoke above exercises `trace_dependency`, explain
+correlation/structure, typed trace refusal, immediate post-close deletion, and
+Python doctor-method absence. The package-local TypeScript tests exercise the
+same N-API contract and doctor-method absence. The local native-artifact
+harness installs the wheel and matched N-API platform package from local files
+only, while the CLI target exercises `doctor data-plane-integrity --json`.
+Artifact hashes, source archive hash, toolchain versions, commands, and results
+are recorded in `verification-review.md`. These are disposable verification
+artifacts only; no registry is contacted and no release artifact is staged,
+tagged, uploaded, or published.
 
 ### Windows jobs and native artifacts
 
@@ -209,16 +226,18 @@ focused test files plus the existing cross-build. The documented Windows VM,
 when reachable, builds from the same source archive and runs:
 
 ```text
-pwsh -File scripts/release/smoke/smoke-local-native-artifacts.ps1
-pwsh -File scripts/release/smoke/smoke-pypi-wheel.ps1 -WheelPath <wheel>
-pwsh -File scripts/release/smoke/smoke-npm-package.ps1 -PackagePath <package.tgz>
+pwsh -File scripts/release/smoke/smoke-local-native-artifacts.ps1 -WheelDirectory <wheel-directory> -TsDirectory <typescript-directory> -PlatformPackageDirectory <win32-x64-msvc-package-directory> -NapiLabel win32-x64-msvc
+& <fresh-venv>\Scripts\python.exe src/python/tests/smoke_slice55_installed.py
+cargo test -p fathomdb-cli --test slice55_data_plane_integrity_cli
 ```
 
-The native smoke includes reciprocal trace, explanation, invalid wire, and CLI
-integrity cases. Windows source/artifact hashes and Rust/Python/Node versions
-go in `verification-review.md`. VM unavailability is recorded and is not
-misreported as a native pass; the mandatory `windows-latest` cross-build still
-must pass.
+The local native harness consumes only the freshly built wheel and matched
+N-API package. The installed-wheel script adds reciprocal trace, explanation,
+typed invalid-wire, and immediate post-close deletion coverage; the focused
+CLI target covers integrity. Windows source/artifact hashes and
+Rust/Python/Node versions go in `verification-review.md`. VM unavailability is
+recorded and is not misreported as a native pass; the mandatory
+`windows-latest` cross-build still must pass.
 
 CUDA/GPU and live-model routes are N/A because this slice changes CPU-local
 read/diagnostic and explanation metadata only; it does not alter embedding,

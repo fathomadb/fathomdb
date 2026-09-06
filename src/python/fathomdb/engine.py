@@ -108,25 +108,7 @@ def _map_native_search_result(result: Any) -> SearchResult:
     )
     native_exp = result.explanation
     explanation = (
-        Explanation(
-            trace=QueryTrace(
-                query_chars=native_exp.trace.query_chars,
-                k=native_exp.trace.k,
-                rerank_depth=native_exp.trace.rerank_depth,
-                pool_n=native_exp.trace.pool_n,
-                alpha=native_exp.trace.alpha,
-                use_graph_arm=native_exp.trace.use_graph_arm,
-                recency=native_exp.trace.recency,
-                embedder_id=native_exp.trace.embedder_id,
-                ce_active=native_exp.trace.ce_active,
-                vector_hits=native_exp.trace.vector_hits,
-                text_hits=native_exp.trace.text_hits,
-                graph_hits=native_exp.trace.graph_hits,
-                dropped_edge_hits=native_exp.trace.dropped_edge_hits,
-            ),
-            per_hit=[_map_per_hit_explain(item) for item in native_exp.per_hit],
-            correlation_id=getattr(native_exp, "correlation_id", ""),
-        )
+        _map_candidate_native_explanation(native_exp, result.results)
         if native_exp is not None
         else None
     )
@@ -876,6 +858,120 @@ def _invalid_explanation(path: str) -> NoReturn:
     raise ValueError(f"invalid explanation response at {path}")
 
 
+def _map_candidate_native_explanation(
+    value: Any, native_results: Sequence[Any]
+) -> Explanation:
+    def require_u32(candidate: object, path: str, *, positive: bool = False) -> int:
+        if (
+            not isinstance(candidate, int)
+            or isinstance(candidate, bool)
+            or not 0 <= candidate <= 2**32 - 1
+            or (positive and candidate == 0)
+        ):
+            _invalid_explanation(path)
+        return candidate
+
+    trace = getattr(value, "trace", None)
+    if trace is None:
+        _invalid_explanation("/trace")
+    query_chars = require_u32(getattr(trace, "query_chars", None), "/trace/queryChars")
+    k = require_u32(getattr(trace, "k", None), "/trace/k", positive=True)
+    if k > 100:
+        _invalid_explanation("/trace/k")
+    rerank_depth = require_u32(getattr(trace, "rerank_depth", None), "/trace/rerankDepth")
+    pool_n = require_u32(getattr(trace, "pool_n", None), "/trace/poolN")
+    alpha = getattr(trace, "alpha", None)
+    if isinstance(alpha, bool) or not isinstance(alpha, (int, float)) or not math.isfinite(alpha):
+        _invalid_explanation("/trace/alpha")
+    for name, path in (
+        ("use_graph_arm", "/trace/useGraphArm"),
+        ("recency", "/trace/recency"),
+        ("ce_active", "/trace/ceActive"),
+    ):
+        if not isinstance(getattr(trace, name, None), bool):
+            _invalid_explanation(path)
+    embedder_id = getattr(trace, "embedder_id", None)
+    if not isinstance(embedder_id, str):
+        _invalid_explanation("/trace/embedderId")
+    counts = [
+        require_u32(getattr(trace, name, None), path)
+        for name, path in (
+            ("vector_hits", "/trace/vectorHits"),
+            ("text_hits", "/trace/textHits"),
+            ("graph_hits", "/trace/graphHits"),
+            ("dropped_edge_hits", "/trace/droppedEdgeHits"),
+        )
+    ]
+    correlation = getattr(value, "correlation_id", None)
+    if not isinstance(correlation, str) or not re.fullmatch(
+        r"(?:q[0-9]+|x[0-9a-f]{32})-(?:0|[1-9][0-9]*)", correlation
+    ):
+        _invalid_explanation("/correlationId")
+    native_per_hit = getattr(value, "per_hit", None)
+    if not isinstance(native_per_hit, (list, tuple)) or len(native_per_hit) != len(native_results):
+        _invalid_explanation("/perHit")
+    mapped: list[PerHitExplain] = []
+    seen_ids: set[int] = set()
+    allowed_arms = ("vector", "text", "text_edge", "graph_arm")
+    for index, (native_explain, native_hit) in enumerate(zip(native_per_hit, native_results)):
+        prefix = f"/perHit/{index}"
+        if not hasattr(native_explain, "structural") or native_explain.structural is None:
+            _invalid_explanation(f"{prefix}/structural")
+        try:
+            item = _map_per_hit_explain(native_explain)
+        except ValueError as error:
+            marker = "invalid explanation response at "
+            suffix = str(error).removeprefix(marker)
+            _invalid_explanation(f"{prefix}{suffix}")
+        if item.id in seen_ids:
+            _invalid_explanation(f"{prefix}/id")
+        seen_ids.add(item.id)
+        hit_branch = getattr(native_hit, "branch", None)
+        if hit_branch not in allowed_arms:
+            _invalid_explanation(f"/results/{index}/branch")
+        hit_score = getattr(native_hit, "score", None)
+        if (
+            isinstance(hit_score, bool)
+            or not isinstance(hit_score, (int, float))
+            or not math.isfinite(hit_score)
+        ):
+            _invalid_explanation(f"/results/{index}/score")
+        hit_ce_score = getattr(native_hit, "ce_score", None)
+        if hit_ce_score is not None and (
+            isinstance(hit_ce_score, bool)
+            or not isinstance(hit_ce_score, (int, float))
+            or not math.isfinite(hit_ce_score)
+            or not 0 <= hit_ce_score <= 1
+        ):
+            _invalid_explanation(f"/results/{index}/ceScore")
+        if item.arm != hit_branch:
+            _invalid_explanation(f"{prefix}/arm")
+        if item.blended != hit_score:
+            _invalid_explanation(f"{prefix}/blended")
+        if item.ce_score != hit_ce_score:
+            _invalid_explanation(f"{prefix}/ceScore")
+        mapped.append(item)
+    return Explanation(
+        trace=QueryTrace(
+            query_chars=query_chars,
+            k=k,
+            rerank_depth=rerank_depth,
+            pool_n=pool_n,
+            alpha=float(alpha),
+            use_graph_arm=trace.use_graph_arm,
+            recency=trace.recency,
+            embedder_id=embedder_id,
+            ce_active=trace.ce_active,
+            vector_hits=counts[0],
+            text_hits=counts[1],
+            graph_hits=counts[2],
+            dropped_edge_hits=counts[3],
+        ),
+        per_hit=mapped,
+        correlation_id=correlation,
+    )
+
+
 def _map_structural_explanation(value: Any) -> StructuralInclusionV1:
     if getattr(value, "schema_version", None) != 1:
         _invalid_explanation("/structural/schemaVersion")
@@ -1536,25 +1632,7 @@ class Engine:
         # into dataclasses; `None` (default explain=False) stays `None`.
         native_exp = result.explanation
         explanation = (
-            Explanation(
-                trace=QueryTrace(
-                    query_chars=native_exp.trace.query_chars,
-                    k=native_exp.trace.k,
-                    rerank_depth=native_exp.trace.rerank_depth,
-                    pool_n=native_exp.trace.pool_n,
-                    alpha=native_exp.trace.alpha,
-                    use_graph_arm=native_exp.trace.use_graph_arm,
-                    recency=native_exp.trace.recency,
-                    embedder_id=native_exp.trace.embedder_id,
-                    ce_active=native_exp.trace.ce_active,
-                    vector_hits=native_exp.trace.vector_hits,
-                    text_hits=native_exp.trace.text_hits,
-                    graph_hits=native_exp.trace.graph_hits,
-                    dropped_edge_hits=native_exp.trace.dropped_edge_hits,
-                ),
-                per_hit=[_map_per_hit_explain(p) for p in native_exp.per_hit],
-                correlation_id=getattr(native_exp, "correlation_id", ""),
-            )
+            _map_candidate_native_explanation(native_exp, result.results)
             if native_exp is not None
             else None
         )

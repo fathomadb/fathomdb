@@ -1045,7 +1045,7 @@ function splitSearchOptions(options: SearchOptions | undefined): {
   };
 }
 
-function mapNativeSearchResult(r: NativeSearchResult): SearchResult {
+export function mapNativeSearchResult(r: NativeSearchResult): SearchResult {
   const branch = r.softFallback?.branch;
   const e = r.explanation;
   return {
@@ -1066,27 +1066,7 @@ function mapNativeSearchResult(r: NativeSearchResult): SearchResult {
       sourceId: hit.sourceId ?? null,
       ceScore: hit.ceScore ?? null,
     })),
-    explanation: e
-      ? {
-          trace: {
-            queryChars: e.trace.queryChars,
-            k: e.trace.k,
-            rerankDepth: e.trace.rerankDepth,
-            poolN: e.trace.poolN,
-            alpha: e.trace.alpha,
-            useGraphArm: e.trace.useGraphArm,
-            recency: e.trace.recency,
-            embedderId: e.trace.embedderId,
-            ceActive: e.trace.ceActive,
-            vectorHits: e.trace.vectorHits,
-            textHits: e.trace.textHits,
-            graphHits: e.trace.graphHits,
-            droppedEdgeHits: e.trace.droppedEdgeHits,
-          },
-          perHit: e.perHit.map(mapPerHitExplain),
-          ...(e.correlationId !== undefined ? { correlationId: e.correlationId } : {}),
-        }
-      : null,
+    explanation: e ? mapCandidateNativeExplanation(e, r.results) : null,
   };
 }
 
@@ -1846,6 +1826,111 @@ export function mapPerHitExplain(p: NativePerHitExplain): PerHitExplain {
     };
   }
   return result;
+}
+
+function mapCandidateNativeExplanation(
+  value: NonNullable<NativeSearchResult["explanation"]>,
+  nativeResults: NativeSearchResult["results"],
+): Explanation {
+  const invalid = (path: string): never => {
+    throw new FathomDbError(`invalid explanation response at ${path}`);
+  };
+  const u32 = (candidate: unknown, path: string, positive = false): number => {
+    if (
+      !Number.isInteger(candidate) ||
+      (candidate as number) < 0 ||
+      (candidate as number) > 0xffff_ffff ||
+      (positive && candidate === 0)
+    ) {
+      invalid(path);
+    }
+    return candidate as number;
+  };
+  const trace = value.trace;
+  if (trace === null || typeof trace !== "object") invalid("/trace");
+  const queryChars = u32(trace.queryChars, "/trace/queryChars");
+  const k = u32(trace.k, "/trace/k", true);
+  if (k > 100) invalid("/trace/k");
+  const rerankDepth = u32(trace.rerankDepth, "/trace/rerankDepth");
+  const poolN = u32(trace.poolN, "/trace/poolN");
+  if (typeof trace.alpha !== "number" || !Number.isFinite(trace.alpha)) {
+    invalid("/trace/alpha");
+  }
+  if (typeof trace.useGraphArm !== "boolean") invalid("/trace/useGraphArm");
+  if (typeof trace.recency !== "boolean") invalid("/trace/recency");
+  if (typeof trace.embedderId !== "string") invalid("/trace/embedderId");
+  if (typeof trace.ceActive !== "boolean") invalid("/trace/ceActive");
+  const vectorHits = u32(trace.vectorHits, "/trace/vectorHits");
+  const textHits = u32(trace.textHits, "/trace/textHits");
+  const graphHits = u32(trace.graphHits, "/trace/graphHits");
+  const droppedEdgeHits = u32(trace.droppedEdgeHits, "/trace/droppedEdgeHits");
+  if (
+    typeof value.correlationId !== "string" ||
+    !/^(?:q[0-9]+|x[0-9a-f]{32})-(?:0|[1-9][0-9]*)$/.test(value.correlationId)
+  ) {
+    invalid("/correlationId");
+  }
+  if (!Array.isArray(value.perHit) || value.perHit.length !== nativeResults.length) {
+    invalid("/perHit");
+  }
+  const seenIds = new Set<number>();
+  const allowedArms = new Set(["vector", "text", "text_edge", "graph_arm"]);
+  const perHit = value.perHit.map((nativeExplain, index) => {
+    const prefix = `/perHit/${index}`;
+    if (nativeExplain.structural === undefined || nativeExplain.structural === null) {
+      invalid(`${prefix}/structural`);
+    }
+    let mapped: PerHitExplain;
+    try {
+      mapped = mapPerHitExplain(nativeExplain);
+    } catch (error) {
+      const marker = "invalid explanation response at ";
+      if (error instanceof FathomDbError && error.message.startsWith(marker)) {
+        invalid(`${prefix}${error.message.slice(marker.length)}`);
+      }
+      throw error;
+    }
+    if (seenIds.has(mapped.id)) invalid(`${prefix}/id`);
+    seenIds.add(mapped.id);
+    const nativeHit = nativeResults[index]!;
+    if (!allowedArms.has(nativeHit.branch)) invalid(`/results/${index}/branch`);
+    if (typeof nativeHit.score !== "number" || !Number.isFinite(nativeHit.score)) {
+      invalid(`/results/${index}/score`);
+    }
+    const hitCeScore = nativeHit.ceScore ?? null;
+    if (
+      hitCeScore !== null &&
+      (typeof hitCeScore !== "number" ||
+        !Number.isFinite(hitCeScore) ||
+        hitCeScore < 0 ||
+        hitCeScore > 1)
+    ) {
+      invalid(`/results/${index}/ceScore`);
+    }
+    if (mapped.arm !== nativeHit.branch) invalid(`${prefix}/arm`);
+    if (mapped.blended !== nativeHit.score) invalid(`${prefix}/blended`);
+    if (mapped.ceScore !== hitCeScore) invalid(`${prefix}/ceScore`);
+    return mapped;
+  });
+  return {
+    trace: {
+      queryChars,
+      k,
+      rerankDepth,
+      poolN,
+      alpha: trace.alpha,
+      useGraphArm: trace.useGraphArm,
+      recency: trace.recency,
+      embedderId: trace.embedderId,
+      ceActive: trace.ceActive,
+      vectorHits,
+      textHits,
+      graphHits,
+      droppedEdgeHits,
+    },
+    perHit,
+    correlationId: value.correlationId,
+  };
 }
 
 /**
@@ -2892,49 +2977,7 @@ export class Engine {
         searchOptions.limit,
       ),
     );
-    const branch = r.softFallback?.branch;
-    // 0.8.8 EXP-OBS: map the opt-in explanation sidecar; `null` (default) stays null.
-    const e = r.explanation;
-    const explanation: Explanation | null = e
-      ? {
-          trace: {
-            queryChars: e.trace.queryChars,
-            k: e.trace.k,
-            rerankDepth: e.trace.rerankDepth,
-            poolN: e.trace.poolN,
-            alpha: e.trace.alpha,
-            useGraphArm: e.trace.useGraphArm,
-            recency: e.trace.recency,
-            embedderId: e.trace.embedderId,
-            ceActive: e.trace.ceActive,
-            vectorHits: e.trace.vectorHits,
-            textHits: e.trace.textHits,
-            graphHits: e.trace.graphHits,
-            droppedEdgeHits: e.trace.droppedEdgeHits,
-          },
-          perHit: e.perHit.map(mapPerHitExplain),
-          ...(e.correlationId !== undefined ? { correlationId: e.correlationId } : {}),
-        }
-      : null;
-    return {
-      projectionCursor: r.projectionCursor,
-      softFallback:
-        branch === "vector" || branch === "text" || branch === "text_edge" || branch === "graph_arm"
-          ? { branch: branch as SoftFallbackBranch }
-          : null,
-      results: r.results.map((h) => ({
-        id: { space: h.id.space, value: h.id.value },
-        kind: h.kind,
-        body: h.body,
-        score: h.score,
-        branch: (h.branch === "vector" || h.branch === "text_edge" || h.branch === "graph_arm")
-          ? (h.branch as SoftFallbackBranch)
-          : "text",
-        sourceId: h.sourceId ?? null,
-        ceScore: h.ceScore ?? null,
-      })),
-      explanation,
-    };
+    return mapNativeSearchResult(r);
   }
 
   /**

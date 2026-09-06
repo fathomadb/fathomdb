@@ -448,3 +448,19 @@ self-description was stale.
 The checker header now names Slices 45 and 50 and records the exact 64-member
 allowlist. No predicate, pin, governed surface, product implementation, or test
 changed.
+
+## RED 23 — final repository verification
+
+The final fast gate proved that the checker's adversarial self-test still
+pinned the pre-Slice-45 58-member oracle. It rejected the correct 64-member pin
+and expected added/removed fixtures to contain 59/57 members. The production
+checker, pin, and independently reviewed allowlist remained correct.
+
+## GREEN 23 — final repository verification correction
+
+The adversarial test now enumerates the exact approved 64-member surface,
+including all six Slice 45 spellings, verifies Slice 45 and Slice 50 provenance,
+and expects 65/63 members in its added/removed controls. All checker self-tests
+pass. Independent review also aligned the oracle's own scope description with
+the complete accumulated surface through Slice 50. No product, public API,
+allowlist, pin, or production predicate changed.

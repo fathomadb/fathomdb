@@ -64,6 +64,11 @@ not a Slice 50 product failure:
    `6fc3258e`; its follow-up independent review passes at `3a3b1571` and
    confirms no executable predicate or product behavior changed.
 
+The final fast gate then found that the checker's adversarial self-test still
+expected the prior 58-member pin. Its exact member, provenance, and added or
+removed count oracles were updated to the reviewed 64-member surface; the
+focused self-test passes without changing the production checker or pin.
+
 The pin checker, fresh-wheel Python surface suite (17/17), and TypeScript
 surface suite pass after that correction. The selected
 `operator,test-hooks,default-embedder,default-reranker` Rust route also passes

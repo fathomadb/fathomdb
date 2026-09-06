@@ -550,7 +550,7 @@ fn run_doctor(cmd: DoctorCommand) -> i32 {
                 None
             } else {
                 let mut parsed = Vec::with_capacity(args.checks.len());
-                for check in &args.checks {
+                for (index, check) in args.checks.iter().enumerate() {
                     parsed.push(match check.as_str() {
                         "dependency_chain" => DataPlaneIntegrityCheckV1::DependencyChain,
                         "active_searchable_orphans" => {
@@ -567,7 +567,7 @@ fn run_doctor(cmd: DoctorCommand) -> i32 {
                                     "verb": "data-plane-integrity",
                                     "code": "FDB_DATA_PLANE_INTEGRITY",
                                     "reason": "integrity_check_invalid",
-                                    "fieldPath": "/checks",
+                                    "fieldPath": format!("/checks/{index}"),
                                 })
                             );
                             return exit_code::UNRECOVERABLE;

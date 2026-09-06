@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 import math
 import json
+import re
 from collections.abc import Sequence
 from typing import Any, Literal, NoReturn, cast
 
@@ -84,7 +85,12 @@ from fathomdb.types import (
     TraceReadBoundaryV1,
 )
 from fathomdb.filter import Filter
-from fathomdb.errors import EvidenceError, FrozenReadError, InvalidArgumentError
+from fathomdb.errors import (
+    DependencyTraceError,
+    EvidenceError,
+    FrozenReadError,
+    InvalidArgumentError,
+)
 
 # 0.8.20 Slice 15b fix-2 — reuse the read namespace's dataclass -> native
 # ReadView translator rather than duplicating it here, so the two search entry
@@ -225,6 +231,300 @@ def _require_finite(value: object, path: str, *, optional: bool = True) -> None:
 def _require_nonempty_string(value: object, path: str) -> None:
     if not isinstance(value, str) or not value:
         _evidence_response_error("evidence_corrupt", path)
+
+
+def _trace_response_error(reason: str, path: str) -> NoReturn:
+    raise DependencyTraceError(
+        f"{reason} at {path}", reason=reason, field_path=path
+    )
+
+
+def _trace_object(value: object, path: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        _trace_response_error("trace_corrupt", path)
+    return cast(dict[str, Any], value)
+
+
+def _trace_array(value: object, path: str) -> list[Any]:
+    if not isinstance(value, list):
+        _trace_response_error("trace_corrupt", path)
+    return cast(list[Any], value)
+
+
+def _trace_required(value: dict[str, Any], name: str, path: str) -> Any:
+    if name not in value:
+        _trace_response_error("trace_corrupt", path)
+    return value[name]
+
+
+def _trace_schema(value: dict[str, Any], path: str) -> None:
+    if _trace_required(value, "schemaVersion", path) != 1:
+        _trace_response_error("unsupported_schema_version", path)
+
+
+def _trace_id(value: object, path: str) -> str:
+    if (
+        not isinstance(value, str)
+        or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", value) is None
+        or value.startswith("_fdb:")
+    ):
+        _trace_response_error("trace_corrupt", path)
+    return value
+
+
+def _trace_u32(value: object, path: str) -> int:
+    if (
+        not isinstance(value, int)
+        or isinstance(value, bool)
+        or not 0 <= value <= 2**32 - 1
+    ):
+        _trace_response_error("trace_corrupt", path)
+    return value
+
+
+def _trace_i64(value: object, path: str) -> int:
+    if (
+        not isinstance(value, int)
+        or isinstance(value, bool)
+        or not -(2**63) <= value <= 2**63 - 1
+    ):
+        _trace_response_error("trace_corrupt", path)
+    return value
+
+
+def _trace_u64(value: object, path: str) -> str:
+    if (
+        not isinstance(value, str)
+        or re.fullmatch(r"0|[1-9][0-9]*", value) is None
+        or int(value) > 2**64 - 1
+    ):
+        _trace_response_error("trace_corrupt", path)
+    return value
+
+
+def _trace_bool(value: object, path: str) -> bool:
+    if not isinstance(value, bool):
+        _trace_response_error("trace_corrupt", path)
+    return value
+
+
+def _decode_dependency_trace_response(encoded: str) -> DependencyTraceResultV1:
+    """Decode and recursively validate one native dependency-trace response."""
+    try:
+        raw = json.loads(encoded)
+    except (TypeError, ValueError):
+        _trace_response_error("trace_corrupt", "")
+    value = _trace_object(raw, "")
+    _trace_schema(value, "/schemaVersion")
+    root = _trace_id(
+        _trace_required(value, "rootRevisionId", "/rootRevisionId"),
+        "/rootRevisionId",
+    )
+    direction = _trace_required(value, "direction", "/direction")
+    if direction not in ("to_source", "to_dependents"):
+        _trace_response_error("trace_corrupt", "/direction")
+
+    node_values = _trace_array(_trace_required(value, "nodes", "/nodes"), "/nodes")
+    if not node_values or len(node_values) > 101:
+        _trace_response_error("trace_corrupt", "/nodes")
+    nodes: list[DependencyTraceNodeV1] = []
+    revision_ids: set[str] = set()
+    for index, raw_node in enumerate(node_values):
+        base = f"/nodes/{index}"
+        node = _trace_object(raw_node, base)
+        _trace_schema(node, f"{base}/schemaVersion")
+        revision = _trace_id(
+            _trace_required(node, "artifactRevisionId", f"{base}/artifactRevisionId"),
+            f"{base}/artifactRevisionId",
+        )
+        if revision in revision_ids:
+            _trace_response_error("trace_corrupt", f"{base}/artifactRevisionId")
+        revision_ids.add(revision)
+        artifact_class = _trace_required(node, "artifactClass", f"{base}/artifactClass")
+        if artifact_class not in ("node", "edge"):
+            _trace_response_error("trace_corrupt", f"{base}/artifactClass")
+        role = _trace_required(node, "role", f"{base}/role")
+        if role not in ("canonical_source", "derived"):
+            _trace_response_error("trace_corrupt", f"{base}/role")
+        depth = _trace_u32(_trace_required(node, "depth", f"{base}/depth"), f"{base}/depth")
+        lifecycle_path = f"{base}/lifecycle"
+        lifecycle = _trace_object(
+            _trace_required(node, "lifecycle", lifecycle_path), lifecycle_path
+        )
+        _trace_schema(lifecycle, f"{lifecycle_path}/schemaVersion")
+        if _trace_required(
+            lifecycle, "artifactClass", f"{lifecycle_path}/artifactClass"
+        ) != artifact_class:
+            _trace_response_error("trace_corrupt", f"{lifecycle_path}/artifactClass")
+        state = lifecycle.get("state")
+        if artifact_class == "node":
+            if state not in ("pending", "active", "deleted"):
+                _trace_response_error("trace_corrupt", f"{lifecycle_path}/state")
+        elif "state" in lifecycle:
+            _trace_response_error("trace_corrupt", f"{lifecycle_path}/state")
+        nodes.append(
+            DependencyTraceNodeV1(
+                schema_version=1,
+                artifact_revision_id=revision,
+                artifact_class=artifact_class,
+                role=role,
+                depth=depth,
+                lifecycle=TraceNodeLifecycleV1(
+                    schema_version=1,
+                    artifact_class=artifact_class,
+                    state=state,
+                    superseded=_trace_bool(
+                        _trace_required(
+                            lifecycle, "superseded", f"{lifecycle_path}/superseded"
+                        ),
+                        f"{lifecycle_path}/superseded",
+                    ),
+                    valid_at_effective=_trace_bool(
+                        _trace_required(
+                            lifecycle,
+                            "validAtEffective",
+                            f"{lifecycle_path}/validAtEffective",
+                        ),
+                        f"{lifecycle_path}/validAtEffective",
+                    ),
+                ),
+            )
+        )
+
+    edge_values = _trace_array(
+        _trace_required(value, "dependencyEdges", "/dependencyEdges"),
+        "/dependencyEdges",
+    )
+    if len(edge_values) > 100:
+        _trace_response_error("trace_corrupt", "/dependencyEdges")
+    edges: list[DependencyTraceEdgeV1] = []
+    dependency_ids: set[str] = set()
+    for index, raw_edge in enumerate(edge_values):
+        base = f"/dependencyEdges/{index}"
+        edge = _trace_object(raw_edge, base)
+        _trace_schema(edge, f"{base}/schemaVersion")
+        dependency_id = _trace_id(
+            _trace_required(edge, "dependencyId", f"{base}/dependencyId"),
+            f"{base}/dependencyId",
+        )
+        if dependency_id in dependency_ids:
+            _trace_response_error("trace_corrupt", f"{base}/dependencyId")
+        dependency_ids.add(dependency_id)
+        edges.append(
+            DependencyTraceEdgeV1(
+                schema_version=1,
+                dependency_id=dependency_id,
+                source_revision_id=_trace_id(
+                    _trace_required(edge, "sourceRevisionId", f"{base}/sourceRevisionId"),
+                    f"{base}/sourceRevisionId",
+                ),
+                derived_revision_id=_trace_id(
+                    _trace_required(edge, "derivedRevisionId", f"{base}/derivedRevisionId"),
+                    f"{base}/derivedRevisionId",
+                ),
+                registered_dependency_generation=_trace_u64(
+                    _trace_required(
+                        edge,
+                        "registeredDependencyGeneration",
+                        f"{base}/registeredDependencyGeneration",
+                    ),
+                    f"{base}/registeredDependencyGeneration",
+                ),
+            )
+        )
+
+    checked = _trace_u32(
+        _trace_required(value, "checkedWorkUnits", "/checkedWorkUnits"),
+        "/checkedWorkUnits",
+    )
+    if checked != len(edges) + 1 or len(nodes) != len(edges) + 1:
+        _trace_response_error("trace_corrupt", "/checkedWorkUnits")
+    if _trace_required(value, "complete", "/complete") is not True:
+        _trace_response_error("trace_corrupt", "/complete")
+    expected_root_role = "derived" if direction == "to_source" else "canonical_source"
+    if nodes[0].artifact_revision_id != root or nodes[0].depth != 0:
+        _trace_response_error("trace_corrupt", "/nodes/0")
+    if nodes[0].role != expected_root_role:
+        _trace_response_error("trace_corrupt", "/nodes/0/role")
+    for index, (node, edge) in enumerate(zip(nodes[1:], edges, strict=True)):
+        if node.depth != 1:
+            _trace_response_error("trace_corrupt", f"/nodes/{index + 1}/depth")
+        if direction == "to_dependents":
+            if node.role != "derived":
+                _trace_response_error("trace_corrupt", f"/nodes/{index + 1}/role")
+            if edge.source_revision_id != root:
+                _trace_response_error(
+                    "trace_corrupt", f"/dependencyEdges/{index}/sourceRevisionId"
+                )
+            if edge.derived_revision_id != node.artifact_revision_id:
+                _trace_response_error(
+                    "trace_corrupt", f"/dependencyEdges/{index}/derivedRevisionId"
+                )
+        else:
+            if node.role != "canonical_source":
+                _trace_response_error("trace_corrupt", f"/nodes/{index + 1}/role")
+            if edge.derived_revision_id != root:
+                _trace_response_error(
+                    "trace_corrupt", f"/dependencyEdges/{index}/derivedRevisionId"
+                )
+            if edge.source_revision_id != node.artifact_revision_id:
+                _trace_response_error(
+                    "trace_corrupt", f"/dependencyEdges/{index}/sourceRevisionId"
+                )
+    if nodes[1:] != sorted(nodes[1:], key=lambda item: item.artifact_revision_id):
+        _trace_response_error("trace_corrupt", "/nodes")
+    if edges != sorted(
+        edges, key=lambda item: (item.derived_revision_id, item.dependency_id)
+    ):
+        _trace_response_error("trace_corrupt", "/dependencyEdges")
+
+    boundary_value = _trace_object(
+        _trace_required(value, "readBoundary", "/readBoundary"), "/readBoundary"
+    )
+    _trace_schema(boundary_value, "/readBoundary/schemaVersion")
+    projection_generation_id = _trace_required(
+        boundary_value, "projectionGenerationId", "/readBoundary/projectionGenerationId"
+    )
+    if not isinstance(projection_generation_id, str) or re.fullmatch(
+        r"pgen1:[0-9a-f]{32}", projection_generation_id
+    ) is None:
+        _trace_response_error("trace_corrupt", "/readBoundary/projectionGenerationId")
+    boundary = TraceReadBoundaryV1(
+        schema_version=1,
+        effective_at_epoch_s=_trace_i64(
+            _trace_required(
+                boundary_value, "effectiveAtEpochS", "/readBoundary/effectiveAtEpochS"
+            ),
+            "/readBoundary/effectiveAtEpochS",
+        ),
+        observed_write_boundary=_trace_u64(
+            _trace_required(
+                boundary_value,
+                "observedWriteBoundary",
+                "/readBoundary/observedWriteBoundary",
+            ),
+            "/readBoundary/observedWriteBoundary",
+        ),
+        dependency_generation=_trace_u64(
+            _trace_required(
+                boundary_value,
+                "dependencyGeneration",
+                "/readBoundary/dependencyGeneration",
+            ),
+            "/readBoundary/dependencyGeneration",
+        ),
+        projection_generation_id=projection_generation_id,
+    )
+    return DependencyTraceResultV1(
+        schema_version=1,
+        root_revision_id=root,
+        direction=cast(Any, direction),
+        nodes=tuple(nodes),
+        dependency_edges=tuple(edges),
+        checked_work_units=checked,
+        complete=True,
+        read_boundary=boundary,
+    )
 
 
 def _map_native_evidence_search(result: Any) -> EvidenceSearchResultV1:
@@ -1223,6 +1523,16 @@ class Engine:
         """Trace one reciprocal registered dependency under a frozen context."""
         if not isinstance(request, DependencyTraceRequestV1):
             raise TypeError("request must be a DependencyTraceRequestV1")
+        if request.schema_version != 1:
+            _trace_response_error("unsupported_schema_version", "/schemaVersion")
+        if not isinstance(request.max_relations, int) or isinstance(
+            request.max_relations, bool
+        ) or not 1 <= request.max_relations <= 100:
+            _trace_response_error("trace_limit_invalid", "/maxRelations")
+        if not isinstance(request.max_work_units, int) or isinstance(
+            request.max_work_units, bool
+        ) or not 1 <= request.max_work_units <= 101:
+            _trace_response_error("trace_limit_invalid", "/maxWorkUnits")
         encoded = self._native.trace_dependency(
             request.root_revision_id,
             request.direction,
@@ -1230,53 +1540,7 @@ class Engine:
             request.max_relations,
             request.max_work_units,
         )
-        value = json.loads(encoded)
-        nodes = tuple(
-            DependencyTraceNodeV1(
-                schema_version=node["schemaVersion"],
-                artifact_revision_id=node["artifactRevisionId"],
-                artifact_class=node["artifactClass"],
-                role=node["role"],
-                depth=node["depth"],
-                lifecycle=TraceNodeLifecycleV1(
-                    schema_version=node["lifecycle"]["schemaVersion"],
-                    artifact_class=node["lifecycle"]["artifactClass"],
-                    state=node["lifecycle"].get("state"),
-                    superseded=node["lifecycle"]["superseded"],
-                    valid_at_effective=node["lifecycle"]["validAtEffective"],
-                ),
-            )
-            for node in value["nodes"]
-        )
-        edges = tuple(
-            DependencyTraceEdgeV1(
-                schema_version=edge["schemaVersion"],
-                dependency_id=edge["dependencyId"],
-                source_revision_id=edge["sourceRevisionId"],
-                derived_revision_id=edge["derivedRevisionId"],
-                registered_dependency_generation=edge[
-                    "registeredDependencyGeneration"
-                ],
-            )
-            for edge in value["dependencyEdges"]
-        )
-        boundary = value["readBoundary"]
-        return DependencyTraceResultV1(
-            schema_version=value["schemaVersion"],
-            root_revision_id=value["rootRevisionId"],
-            direction=value["direction"],
-            nodes=nodes,
-            dependency_edges=edges,
-            checked_work_units=value["checkedWorkUnits"],
-            complete=value["complete"],
-            read_boundary=TraceReadBoundaryV1(
-                schema_version=boundary["schemaVersion"],
-                effective_at_epoch_s=boundary["effectiveAtEpochS"],
-                observed_write_boundary=boundary["observedWriteBoundary"],
-                dependency_generation=boundary["dependencyGeneration"],
-                projection_generation_id=boundary["projectionGenerationId"],
-            ),
-        )
+        return _decode_dependency_trace_response(encoded)
 
     def search_frozen(
         self,

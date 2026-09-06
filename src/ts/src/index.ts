@@ -1245,6 +1245,10 @@ function dependencyTraceRequestError(reason: string, fieldPath: string): never {
   throw new DependencyTraceError(`${reason} at ${fieldPath}`, reason, fieldPath);
 }
 
+function escapeTracePointerToken(value: string): string {
+  return value.replaceAll("~", "~0").replaceAll("/", "~1");
+}
+
 function validateDependencyTraceRequest(request: DependencyTraceRequestV1): void {
   if (request.schemaVersion !== 1) {
     dependencyTraceRequestError("unsupported_schema_version", "/schemaVersion");
@@ -1263,7 +1267,7 @@ function validateDependencyTraceRequest(request: DependencyTraceRequestV1): void
     )
     .sort()[0];
   if (unknown !== undefined) {
-    dependencyTraceRequestError("unknown_field", `/${unknown}`);
+    dependencyTraceRequestError("unknown_field", `/${escapeTracePointerToken(unknown)}`);
   }
   if (
     typeof request.rootRevisionId !== "string" ||
@@ -1300,6 +1304,272 @@ function validateDependencyTraceRequest(request: DependencyTraceRequestV1): void
   ) {
     dependencyTraceRequestError("trace_limit_invalid", "/maxWorkUnits");
   }
+}
+
+function traceRecord(value: unknown, path: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    dependencyTraceRequestError("trace_corrupt", path);
+  }
+  return value as Record<string, unknown>;
+}
+
+function traceArray(value: unknown, path: string): unknown[] {
+  if (!Array.isArray(value)) dependencyTraceRequestError("trace_corrupt", path);
+  return value;
+}
+
+function traceField(
+  value: Record<string, unknown>,
+  name: string,
+  path: string,
+): unknown {
+  if (!(name in value)) dependencyTraceRequestError("trace_corrupt", path);
+  return value[name];
+}
+
+function traceSchema(value: Record<string, unknown>, path: string): void {
+  if (traceField(value, "schemaVersion", path) !== 1) {
+    dependencyTraceRequestError("unsupported_schema_version", path);
+  }
+}
+
+function traceId(value: unknown, path: string): string {
+  if (
+    typeof value !== "string" ||
+    !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value) ||
+    value.startsWith("_fdb:")
+  ) {
+    dependencyTraceRequestError("trace_corrupt", path);
+  }
+  return value;
+}
+
+function traceU32(value: unknown, path: string): number {
+  if (!Number.isInteger(value) || (value as number) < 0 || (value as number) > 0xffff_ffff) {
+    dependencyTraceRequestError("trace_corrupt", path);
+  }
+  return value as number;
+}
+
+function traceI64(value: unknown, path: string): number {
+  if (!Number.isSafeInteger(value)) dependencyTraceRequestError("trace_corrupt", path);
+  return value as number;
+}
+
+function traceU64(value: unknown, path: string): string {
+  if (typeof value !== "string" || !/^(0|[1-9][0-9]*)$/.test(value)) {
+    dependencyTraceRequestError("trace_corrupt", path);
+  }
+  try {
+    if (BigInt(value) > 0xffff_ffff_ffff_ffffn) {
+      dependencyTraceRequestError("trace_corrupt", path);
+    }
+  } catch {
+    dependencyTraceRequestError("trace_corrupt", path);
+  }
+  return value;
+}
+
+function traceBoolean(value: unknown, path: string): boolean {
+  if (typeof value !== "boolean") dependencyTraceRequestError("trace_corrupt", path);
+  return value;
+}
+
+/** @internal Recursively validate one decoded native dependency-trace response. */
+export function validateDependencyTraceResponse(value: unknown): DependencyTraceResultV1 {
+  const rootValue = traceRecord(value, "");
+  traceSchema(rootValue, "/schemaVersion");
+  const rootRevisionId = traceId(
+    traceField(rootValue, "rootRevisionId", "/rootRevisionId"),
+    "/rootRevisionId",
+  );
+  const direction = traceField(rootValue, "direction", "/direction");
+  if (direction !== "to_source" && direction !== "to_dependents") {
+    dependencyTraceRequestError("trace_corrupt", "/direction");
+  }
+  const rawNodes = traceArray(traceField(rootValue, "nodes", "/nodes"), "/nodes");
+  if (rawNodes.length < 1 || rawNodes.length > 101) {
+    dependencyTraceRequestError("trace_corrupt", "/nodes");
+  }
+  const revisionIds = new Set<string>();
+  const nodes = rawNodes.map((rawNode, index): DependencyTraceNodeV1 => {
+    const base = `/nodes/${index}`;
+    const node = traceRecord(rawNode, base);
+    traceSchema(node, `${base}/schemaVersion`);
+    const artifactRevisionId = traceId(
+      traceField(node, "artifactRevisionId", `${base}/artifactRevisionId`),
+      `${base}/artifactRevisionId`,
+    );
+    if (revisionIds.has(artifactRevisionId)) {
+      dependencyTraceRequestError("trace_corrupt", `${base}/artifactRevisionId`);
+    }
+    revisionIds.add(artifactRevisionId);
+    const artifactClass = traceField(node, "artifactClass", `${base}/artifactClass`);
+    if (artifactClass !== "node" && artifactClass !== "edge") {
+      dependencyTraceRequestError("trace_corrupt", `${base}/artifactClass`);
+    }
+    const role = traceField(node, "role", `${base}/role`);
+    if (role !== "canonical_source" && role !== "derived") {
+      dependencyTraceRequestError("trace_corrupt", `${base}/role`);
+    }
+    const lifecyclePath = `${base}/lifecycle`;
+    const lifecycle = traceRecord(traceField(node, "lifecycle", lifecyclePath), lifecyclePath);
+    traceSchema(lifecycle, `${lifecyclePath}/schemaVersion`);
+    if (traceField(lifecycle, "artifactClass", `${lifecyclePath}/artifactClass`) !== artifactClass) {
+      dependencyTraceRequestError("trace_corrupt", `${lifecyclePath}/artifactClass`);
+    }
+    const state = lifecycle.state;
+    if (artifactClass === "node") {
+      if (state !== "pending" && state !== "active" && state !== "deleted") {
+        dependencyTraceRequestError("trace_corrupt", `${lifecyclePath}/state`);
+      }
+    } else if ("state" in lifecycle) {
+      dependencyTraceRequestError("trace_corrupt", `${lifecyclePath}/state`);
+    }
+    return {
+      schemaVersion: 1,
+      artifactRevisionId,
+      artifactClass,
+      role,
+      depth: traceU32(traceField(node, "depth", `${base}/depth`), `${base}/depth`),
+      lifecycle: {
+        schemaVersion: 1,
+        artifactClass,
+        ...(artifactClass === "node" ? { state: state as "pending" | "active" | "deleted" } : {}),
+        superseded: traceBoolean(
+          traceField(lifecycle, "superseded", `${lifecyclePath}/superseded`),
+          `${lifecyclePath}/superseded`,
+        ),
+        validAtEffective: traceBoolean(
+          traceField(lifecycle, "validAtEffective", `${lifecyclePath}/validAtEffective`),
+          `${lifecyclePath}/validAtEffective`,
+        ),
+      },
+    };
+  });
+  const rawEdges = traceArray(
+    traceField(rootValue, "dependencyEdges", "/dependencyEdges"),
+    "/dependencyEdges",
+  );
+  if (rawEdges.length > 100) dependencyTraceRequestError("trace_corrupt", "/dependencyEdges");
+  const dependencyIds = new Set<string>();
+  const dependencyEdges = rawEdges.map((rawEdge, index): DependencyTraceEdgeV1 => {
+    const base = `/dependencyEdges/${index}`;
+    const edge = traceRecord(rawEdge, base);
+    traceSchema(edge, `${base}/schemaVersion`);
+    const dependencyId = traceId(
+      traceField(edge, "dependencyId", `${base}/dependencyId`),
+      `${base}/dependencyId`,
+    );
+    if (dependencyIds.has(dependencyId)) {
+      dependencyTraceRequestError("trace_corrupt", `${base}/dependencyId`);
+    }
+    dependencyIds.add(dependencyId);
+    return {
+      schemaVersion: 1,
+      dependencyId,
+      sourceRevisionId: traceId(
+        traceField(edge, "sourceRevisionId", `${base}/sourceRevisionId`),
+        `${base}/sourceRevisionId`,
+      ),
+      derivedRevisionId: traceId(
+        traceField(edge, "derivedRevisionId", `${base}/derivedRevisionId`),
+        `${base}/derivedRevisionId`,
+      ),
+      registeredDependencyGeneration: traceU64(
+        traceField(
+          edge,
+          "registeredDependencyGeneration",
+          `${base}/registeredDependencyGeneration`,
+        ),
+        `${base}/registeredDependencyGeneration`,
+      ),
+    };
+  });
+  const checkedWorkUnits = traceU32(
+    traceField(rootValue, "checkedWorkUnits", "/checkedWorkUnits"),
+    "/checkedWorkUnits",
+  );
+  if (checkedWorkUnits !== dependencyEdges.length + 1 || nodes.length !== dependencyEdges.length + 1) {
+    dependencyTraceRequestError("trace_corrupt", "/checkedWorkUnits");
+  }
+  if (traceField(rootValue, "complete", "/complete") !== true) {
+    dependencyTraceRequestError("trace_corrupt", "/complete");
+  }
+  const expectedRootRole = direction === "to_source" ? "derived" : "canonical_source";
+  if (nodes[0]!.artifactRevisionId !== rootRevisionId || nodes[0]!.depth !== 0) {
+    dependencyTraceRequestError("trace_corrupt", "/nodes/0");
+  }
+  if (nodes[0]!.role !== expectedRootRole) {
+    dependencyTraceRequestError("trace_corrupt", "/nodes/0/role");
+  }
+  for (let index = 0; index < dependencyEdges.length; index += 1) {
+    const node = nodes[index + 1]!;
+    const edge = dependencyEdges[index]!;
+    if (node.depth !== 1) dependencyTraceRequestError("trace_corrupt", `/nodes/${index + 1}/depth`);
+    if (direction === "to_dependents") {
+      if (node.role !== "derived") dependencyTraceRequestError("trace_corrupt", `/nodes/${index + 1}/role`);
+      if (edge.sourceRevisionId !== rootRevisionId) dependencyTraceRequestError("trace_corrupt", `/dependencyEdges/${index}/sourceRevisionId`);
+      if (edge.derivedRevisionId !== node.artifactRevisionId) dependencyTraceRequestError("trace_corrupt", `/dependencyEdges/${index}/derivedRevisionId`);
+    } else {
+      if (node.role !== "canonical_source") dependencyTraceRequestError("trace_corrupt", `/nodes/${index + 1}/role`);
+      if (edge.derivedRevisionId !== rootRevisionId) dependencyTraceRequestError("trace_corrupt", `/dependencyEdges/${index}/derivedRevisionId`);
+      if (edge.sourceRevisionId !== node.artifactRevisionId) dependencyTraceRequestError("trace_corrupt", `/dependencyEdges/${index}/sourceRevisionId`);
+    }
+  }
+  for (let index = 2; index < nodes.length; index += 1) {
+    if (nodes[index - 1]!.artifactRevisionId > nodes[index]!.artifactRevisionId) {
+      dependencyTraceRequestError("trace_corrupt", "/nodes");
+    }
+  }
+  for (let index = 1; index < dependencyEdges.length; index += 1) {
+    const previous = dependencyEdges[index - 1]!;
+    const current = dependencyEdges[index]!;
+    if (`${previous.derivedRevisionId}\0${previous.dependencyId}` > `${current.derivedRevisionId}\0${current.dependencyId}`) {
+      dependencyTraceRequestError("trace_corrupt", "/dependencyEdges");
+    }
+  }
+  const boundaryValue = traceRecord(
+    traceField(rootValue, "readBoundary", "/readBoundary"),
+    "/readBoundary",
+  );
+  traceSchema(boundaryValue, "/readBoundary/schemaVersion");
+  const projectionGenerationId = traceField(
+    boundaryValue,
+    "projectionGenerationId",
+    "/readBoundary/projectionGenerationId",
+  );
+  if (
+    typeof projectionGenerationId !== "string" ||
+    !/^pgen1:[0-9a-f]{32}$/.test(projectionGenerationId)
+  ) {
+    dependencyTraceRequestError("trace_corrupt", "/readBoundary/projectionGenerationId");
+  }
+  return {
+    schemaVersion: 1,
+    rootRevisionId,
+    direction,
+    nodes,
+    dependencyEdges,
+    checkedWorkUnits,
+    complete: true,
+    readBoundary: {
+      schemaVersion: 1,
+      effectiveAtEpochS: traceI64(
+        traceField(boundaryValue, "effectiveAtEpochS", "/readBoundary/effectiveAtEpochS"),
+        "/readBoundary/effectiveAtEpochS",
+      ),
+      observedWriteBoundary: traceU64(
+        traceField(boundaryValue, "observedWriteBoundary", "/readBoundary/observedWriteBoundary"),
+        "/readBoundary/observedWriteBoundary",
+      ),
+      dependencyGeneration: traceU64(
+        traceField(boundaryValue, "dependencyGeneration", "/readBoundary/dependencyGeneration"),
+        "/readBoundary/dependencyGeneration",
+      ),
+      projectionGenerationId,
+    },
+  };
 }
 
 /**
@@ -2215,11 +2485,13 @@ export class Engine {
         request.maxWorkUnits,
       ),
     );
-    const value = JSON.parse(encoded) as DependencyTraceResultV1;
-    if (value.schemaVersion !== 1 || value.complete !== true) {
-      throw new TypeError("invalid DependencyTraceResultV1 response");
+    let value: unknown;
+    try {
+      value = JSON.parse(encoded);
+    } catch {
+      dependencyTraceRequestError("trace_corrupt", "");
     }
-    return value;
+    return validateDependencyTraceResponse(value);
   }
 
   /** Search under an Engine-authenticated frozen validity/eligibility context. */

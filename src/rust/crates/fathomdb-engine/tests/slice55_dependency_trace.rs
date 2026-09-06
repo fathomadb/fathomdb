@@ -74,6 +74,30 @@ fn seeded() -> (TempDir, fathomdb_engine::OpenedEngine) {
     (dir, opened)
 }
 
+fn insert_active_closure(engine: &Engine, source_revision: &str, cause: &str, sequence: u64) {
+    let closure_id = format!("_fdb:c:{sequence:064x}");
+    let fingerprint = format!("{sequence:064x}");
+    let (phase, proof_boundary, proof_json) = if matches!(cause, "purged" | "source_erased") {
+        ("at_rest_pending", "100", "'{}'")
+    } else {
+        ("proving", "NULL", "NULL")
+    };
+    engine
+        .execute_for_test(&format!(
+            "UPDATE _fathomdb_open_state SET value='{sequence}' \
+             WHERE key='_fathomdb_closure_sequence'; \
+             INSERT INTO _fathomdb_dependency_closures(\
+               schema_version,closure_operation_id,root_kind,root_value,cause,\
+               effective_at_epoch_s,admitted_write_boundary,admitted_dependency_generation,\
+               closure_sequence,retry_fingerprint,phase,affected_count,blocker_code,\
+               structural_proof_write_boundary,proof_json\
+             ) VALUES(1,'{closure_id}','source_revision','{source_revision}','{cause}',\
+                      0,100,0,{sequence},'{fingerprint}','{phase}',1,NULL,\
+                      {proof_boundary},{proof_json})"
+        ))
+        .unwrap();
+}
+
 #[cfg(feature = "test-hooks")]
 fn source_only() -> (TempDir, fathomdb_engine::OpenedEngine) {
     let dir = TempDir::new().unwrap();
@@ -260,6 +284,35 @@ fn slice55_trace_hidden_relations_do_not_trip_caps() {
 fn slice55_trace_corrupt_requires_two_eligible_endpoints() {
     let (_dir, opened) = seeded();
     assert!(trace(&opened.engine, "derived-r1", DependencyTraceDirectionV1::ToSource).is_ok());
+}
+
+#[test]
+fn slice55_trace_closure_fences_are_endpoint_specific() {
+    let (_dir, opened) = seeded();
+    insert_active_closure(&opened.engine, "unrelated-r1", "source_erased", 1);
+
+    let result =
+        fixed_trace(&opened.engine, "source-r1", DependencyTraceDirectionV1::ToDependents).unwrap();
+    assert_eq!(result.dependency_edges.len(), 1);
+    assert_eq!(result.checked_work_units, 2);
+}
+
+#[test]
+fn slice55_trace_closure_fences_each_relation_endpoint() {
+    let (_dir, opened) = seeded();
+    insert_active_closure(&opened.engine, "source-r1", "soft_deleted", 1);
+
+    for (root, direction) in [
+        ("source-r1", DependencyTraceDirectionV1::ToDependents),
+        ("derived-r1", DependencyTraceDirectionV1::ToSource),
+    ] {
+        assert!(matches!(
+            fixed_trace(&opened.engine, root, direction),
+            Err(EngineError::DependencyTrace(ref error))
+                if error.reason == DependencyTraceErrorReasonV1::TraceUnavailable
+                    && error.field_path == "/rootRevisionId"
+        ));
+    }
 }
 
 #[test]

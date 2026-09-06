@@ -304,8 +304,8 @@ fn slice55_integrity_constructor_uses_declared_precedence_and_duplicate_path() {
         1,
     )
     .unwrap_err();
-    assert_eq!(error.reason, DataPlaneIntegrityErrorReasonV1::IntegrityLimitInvalid);
-    assert_eq!(error.field_path, "/maxWorkUnits");
+    assert_eq!(error.reason, DataPlaneIntegrityErrorReasonV1::DuplicateCheck);
+    assert_eq!(error.field_path, "/checks/1");
 }
 
 #[test]
@@ -1069,7 +1069,7 @@ fn slice55_receipt_generation_must_be_current_authority() {
 }
 
 #[test]
-fn slice55_receipt_rejects_retired_generation_even_with_historical_boundary() {
+fn slice55_receipt_maps_retired_generation_to_unavailable() {
     let (_dir, opened) = opened();
     actuate_pending(&opened, "retired-generation-receipt", "retired-generation-r1");
     opened.engine.configure_projections(&[property_spec()], &[]).unwrap();
@@ -1078,7 +1078,10 @@ fn slice55_receipt_rejects_retired_generation_even_with_historical_boundary() {
         .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::MutationReadiness, 10))
         .unwrap();
     assert_eq!(result.findings.len(), 1, "{result:#?}");
-    assert_eq!(result.findings[0].code, DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt);
+    assert_eq!(
+        result.findings[0].code,
+        DataPlaneIntegrityFindingCodeV1::MutationReadinessUnavailable
+    );
     assert_eq!(result.findings[0].operation_id.as_deref(), Some("retired-generation-receipt"));
 }
 

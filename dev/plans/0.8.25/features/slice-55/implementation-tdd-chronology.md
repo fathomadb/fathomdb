@@ -626,3 +626,10 @@ search thread. The new test-only RED records the failure directly: the
 unrelated search ran on `ThreadId(2)`, consumed a hook armed by `ThreadId(14)`,
 and failed with `an unrelated thread consumed the armed hook`. Assertions and
 the telemetry/explanation race outcomes remain unchanged.
+
+The prior `slice55_concurrent_explain_telemetry_ids_unique` was a single-call
+nonempty-string assertion. Its test-only replacement starts explained and
+ordinary searches at one barrier against an enabled real JSONL sink, then
+requires exactly two events, the exact identity set `q0-0`/`q0-1`, and the
+explained result's identity in that set. It exercises the mixed finalization
+path without accepting alternate event counts or identifier shapes.

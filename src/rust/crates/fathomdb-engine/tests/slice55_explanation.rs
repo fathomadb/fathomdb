@@ -128,8 +128,48 @@ fn slice55_explain_enable_race_has_one_id_source() {
 
 #[test]
 fn slice55_concurrent_explain_telemetry_ids_unique() {
-    let (_dir, _opened, first) = explained();
-    assert!(!first.explanation.unwrap().correlation_id.is_empty());
+    let (_dir, opened, _first) = explained();
+    let sink = opened.engine.path().with_extension("mixed-telemetry.jsonl");
+    opened.engine.enable_telemetry(sink.to_str().unwrap()).unwrap();
+    let engine = Arc::new(opened.engine);
+    let barrier = Arc::new(Barrier::new(3));
+    let explained_search = {
+        let engine = Arc::clone(&engine);
+        let barrier = Arc::clone(&barrier);
+        std::thread::spawn(move || {
+            barrier.wait();
+            engine
+                .search_explained("slice55", None, 0, false, 0.3, 0)
+                .unwrap()
+                .explanation
+                .unwrap()
+                .correlation_id
+        })
+    };
+    let ordinary_search = {
+        let engine = Arc::clone(&engine);
+        let barrier = Arc::clone(&barrier);
+        std::thread::spawn(move || {
+            barrier.wait();
+            engine.search("slice55").unwrap();
+        })
+    };
+    barrier.wait();
+    let explained_id = explained_search.join().unwrap();
+    ordinary_search.join().unwrap();
+    let events = std::fs::read_to_string(sink)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(events.len(), 2);
+    let ids = events
+        .iter()
+        .map(|event| event["query_id"].as_str().unwrap().to_string())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(ids, BTreeSet::from(["q0-0".to_string(), "q0-1".to_string()]));
+    assert!(ids.contains(&explained_id));
+    assert_eq!(events.iter().filter(|event| event["query_chars"] == 7).count(), 2);
 }
 
 #[test]

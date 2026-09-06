@@ -232,7 +232,7 @@ def test_slice55_python_accepts_valid_trace_generation_boundary() -> None:
         json.dumps(_trace_response())
     )
     assert decoded.dependency_edges[0].registered_dependency_generation == "1"
-    assert decoded.read_boundary.dependency_generation == 1
+    assert decoded.read_boundary.dependency_generation == "1"
 
 
 def test_slice55_python_malformed_trace_json_never_leaks_decoder_errors() -> None:

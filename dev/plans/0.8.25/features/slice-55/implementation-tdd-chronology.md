@@ -798,6 +798,34 @@ slice55 trace measurement: hidden_rows=50000 vm_steps=1000000 \
 test result: ok. 1 passed; 0 failed
 ```
 
+The final cycle-3 oracle audit replaced the remaining trace endpoint
+happy-path-only case with reciprocal corruption refusals and added a physical
+EAV/property residue case that requires a resolvable owner revision ID and
+canonical attribute-before-property ordering. The exact test-only RED commit
+is `71a7357d97e7dcd365a6b1086e6b7fc5ca123d86`. Its intended failure was:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity \
+  slice55_projection_residue_reports_resolvable_revision_in_class_order \
+  -- --exact --nocapture
+assertion `left == right` failed
+  left: [[], []]
+ right: [["node-r1"], ["node-r1"]]
+```
+
+GREEN resolves the physical member's canonical node revision only after the
+owner-existence classifier succeeds, preserving nondisclosure for owner-missing
+residue. The unchanged focused oracle passes:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity \
+  slice55_projection_residue_reports_resolvable_revision_in_class_order \
+  -- --exact --nocapture
+test result: ok. 1 passed; 0 failed
+```
+
 The next RED creates 200 genuine active nodes whose configured attribute path
 does not resolve, followed by one node whose scalar attribute is required. It
 deletes only that final node's generated EAV and property-FTS members. With a

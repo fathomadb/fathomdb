@@ -1105,6 +1105,18 @@ fn active_projection_findings(
                     DataPlaneIntegritySeverityV1::Critical,
                 );
                 item.write_cursor = u64::try_from(*cursor).ok();
+                if owner_exists {
+                    let revision: Option<String> = connection
+                        .query_row(
+                            "SELECT revision_id FROM _fathomdb_artifact_revisions \
+                             WHERE artifact_class='node' AND write_cursor=?1",
+                            [cursor],
+                            |row| row.get(0),
+                        )
+                        .optional()
+                        .map_err(|_| EngineError::Storage)?;
+                    item.artifact_revision_ids = revision.into_iter().collect();
+                }
                 push_finding(findings, item, max_findings)?;
             }
         }

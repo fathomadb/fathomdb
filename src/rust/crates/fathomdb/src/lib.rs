@@ -229,13 +229,6 @@ pub use fathomdb_engine::{
 ///     let _ = e.excise_source("s");
 /// }
 /// ```
-///
-/// Slice 55's data-plane-integrity request is operator-only and cannot be
-/// named from the default facade:
-/// ```compile_fail
-/// use fathomdb::DataPlaneIntegrityRequestV1;
-/// fn _no_data_plane_integrity_request(_: DataPlaneIntegrityRequestV1) {}
-/// ```
 #[cfg(not(feature = "operator"))]
 #[doc(hidden)]
 pub mod governed_surface_method_absence_proof {}

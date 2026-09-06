@@ -26451,6 +26451,43 @@ fn load_projection_registry(
     Ok(out)
 }
 
+fn load_projection_registry_row(
+    conn: &Connection,
+    name: &str,
+) -> rusqlite::Result<Option<StoredProjection>> {
+    conn.query_row(
+        "SELECT roles,fts_tokenizer,vector_embedder,vector_declared,source \
+         FROM _fathomdb_projection_registry WHERE name=?1",
+        [name],
+        |row| {
+            let roles_json: String = row.get(0)?;
+            let fts_column: Option<String> = row.get(1)?;
+            let vector_embedder: Option<String> = row.get(2)?;
+            let vector_declared: i64 = row.get(3)?;
+            let source_json: Option<String> = row.get(4)?;
+            let source = source_json
+                .map(|encoded| serde_json::from_str::<Vec<String>>(&encoded))
+                .transpose()
+                .map_err(|error| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        4,
+                        rusqlite::types::Type::Text,
+                        Box::new(error),
+                    )
+                })?;
+            Ok(StoredProjection {
+                roles: parse_roles_json(&roles_json),
+                fts_present: fts_column.is_some(),
+                fts_tokenizer: fts_column.filter(|value| !value.is_empty()),
+                vector_declared: vector_declared != 0,
+                vector_embedder,
+                source,
+            })
+        },
+    )
+    .optional()
+}
+
 /// Roles are persisted as a compact, sorted, comma-separated list (set
 /// semantics; order-independent). Unknown tokens are ignored (forward-compat).
 fn parse_roles_json(s: &str) -> BTreeSet<ProjectionRole> {

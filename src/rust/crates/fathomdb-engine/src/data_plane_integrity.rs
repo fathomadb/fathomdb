@@ -610,17 +610,23 @@ fn active_projection_findings(
     findings: &mut Vec<DataPlaneIntegrityFindingV1>,
 ) -> Result<u32, EngineError> {
     let start = *aggregate_checked;
-    let registry_snapshot =
-        crate::load_projection_registry(connection).map_err(|_| EngineError::Storage)?;
     let remaining = max_work_units.saturating_sub(*aggregate_checked);
     let mut registry = connection
         .prepare("SELECT name FROM _fathomdb_projection_registry ORDER BY name LIMIT ?1")
         .map_err(|_| EngineError::Storage)?;
-    let mut rows = registry.query([i64::from(remaining) + 1]).map_err(|_| EngineError::Storage)?;
-    while rows.next().map_err(|_| EngineError::Storage)?.is_some() {
+    let names = registry
+        .query_map([i64::from(remaining) + 1], |row| row.get::<_, String>(0))
+        .map_err(|_| EngineError::Storage)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(|_| EngineError::Storage)?;
+    let mut registry_snapshot = BTreeMap::new();
+    for name in names {
         take_work(aggregate_checked, max_work_units)?;
+        let stored = crate::load_projection_registry_row(connection, &name)
+            .map_err(|_| EngineError::Storage)?
+            .ok_or(EngineError::Storage)?;
+        registry_snapshot.insert(name, stored);
     }
-    drop(rows);
     drop(registry);
 
     for (table, code) in [

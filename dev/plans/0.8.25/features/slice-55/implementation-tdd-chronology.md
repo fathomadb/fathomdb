@@ -529,6 +529,15 @@ context; and unknown explanation arms/nonfinite or invalid scalar fields in
 both wrappers. The old paths either accepted the value, leaked `AttributeError`
 or native `TypeError`, defaulted an unknown arm to text, or propagated NaN.
 
+The first installed-candidate full module exposed that its pre-existing native
+refusal test intentionally constructs an invalid direction before entering the
+exception assertion. HITL therefore authorized preserving constructor
+compatibility: bool/schema remains a constructor RED, while the three new
+root/direction/context cases mutate a valid frozen request immediately before
+`Engine.trace_dependency`. Reasons, paths, and declaration-order precedence are
+unchanged; validation remains before the native argument conversion that had
+leaked Python/PyO3 type errors.
+
 The trace-authorization RED places a malformed BLOB dependency identity on an
 inactive derived endpoint that sorts before the one eligible relation, then
 runs with exactly one relation and two work units. Because the old query

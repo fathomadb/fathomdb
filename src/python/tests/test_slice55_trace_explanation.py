@@ -107,32 +107,53 @@ def test_slice55_python_request_rejects_schema_before_semantics() -> None:
     assert caught.value.field_path == "/schemaVersion"
 
 
+def test_slice55_python_request_rejects_bool_schema() -> None:
+    with pytest.raises(fathomdb.DependencyTraceError) as caught:
+        fathomdb.DependencyTraceRequestV1(
+            root_revision_id="source-r1",
+            direction="to_dependents",
+            context=fathomdb.FrozenReadContextV1(
+                effective_valid_at=1,
+                context=fathomdb.ReadContextV1(),
+                token="opaque",
+            ),
+            schema_version=True,
+        )
+    assert caught.value.reason == "unsupported_schema_version"
+    assert caught.value.field_path == "/schemaVersion"
+
+
 @pytest.mark.parametrize(
-    ("overrides", "reason", "path"),
+    ("field", "value", "reason", "path"),
     [
-        ({"schema_version": True}, "unsupported_schema_version", "/schemaVersion"),
-        ({"root_revision_id": "!"}, "trace_root_invalid", "/rootRevisionId"),
-        ({"direction": "sideways"}, "trace_direction_invalid", "/direction"),
-        ({"context": None}, "trace_corrupt", "/context"),
+        ("root_revision_id", "!", "trace_root_invalid", "/rootRevisionId"),
+        ("direction", "sideways", "trace_direction_invalid", "/direction"),
+        ("context", None, "trace_corrupt", "/context"),
     ],
 )
 def test_slice55_python_request_validates_declared_fields_in_order(
-    overrides: dict[str, Any], reason: str, path: str
+    tmp_path: Any, field: str, value: Any, reason: str, path: str
 ) -> None:
-    values: dict[str, Any] = {
-        "root_revision_id": "source-r1",
-        "direction": "to_dependents",
-        "context": fathomdb.FrozenReadContextV1(
+    engine = fathomdb.Engine.open(
+        str(tmp_path / f"slice55-{field}.fathom"), use_default_embedder=False
+    )
+    try:
+        request = fathomdb.DependencyTraceRequestV1(
+            root_revision_id="source-r1",
+            direction="to_dependents",
+            context=fathomdb.FrozenReadContextV1(
             effective_valid_at=1,
             context=fathomdb.ReadContextV1(),
             token="opaque",
-        ),
-    }
-    values.update(overrides)
-    with pytest.raises(fathomdb.DependencyTraceError) as caught:
-        fathomdb.DependencyTraceRequestV1(**values)
-    assert caught.value.reason == reason
-    assert caught.value.field_path == path
+            ),
+        )
+        object.__setattr__(request, field, value)
+        with pytest.raises(fathomdb.DependencyTraceError) as caught:
+            engine.trace_dependency(request)
+        assert caught.value.reason == reason
+        assert caught.value.field_path == path
+    finally:
+        engine.close()
 
 
 def test_slice55_python_catches_actual_native_trace_refusal(tmp_path) -> None:

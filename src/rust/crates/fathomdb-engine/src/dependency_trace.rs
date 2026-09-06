@@ -471,6 +471,30 @@ fn canonical_source_chain_valid(
         .map_err(|_| EngineError::Storage)
 }
 
+fn endpoint_closure_fenced(
+    connection: &Connection,
+    revision_id: &str,
+    role: TraceArtifactRoleV1,
+) -> Result<bool, EngineError> {
+    let source_revision_id = match role {
+        TraceArtifactRoleV1::CanonicalSource => revision_id.to_string(),
+        TraceArtifactRoleV1::Derived => {
+            let source_revision_id = connection
+                .query_row(
+                    "SELECT source_revision_id FROM _fathomdb_source_links \
+                     WHERE artifact_revision_id=?1",
+                    [revision_id],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()
+                .map_err(|_| EngineError::Storage)?;
+            let Some(source_revision_id) = source_revision_id else { return Ok(true) };
+            source_revision_id
+        }
+    };
+    crate::dependency_closure::active_barrier_for_source(connection, &source_revision_id)
+}
+
 fn include_candidate(
     connection: &Connection,
     request: &DependencyTraceRequestV1,
@@ -495,6 +519,7 @@ fn include_candidate(
         || derived.role != TraceArtifactRoleV1::Derived
         || !canonical_source_chain_valid(connection, &source_revision_id)?
         || !source_link_valid(connection, &derived_revision_id, Some(&source_revision_id))?
+        || crate::dependency_closure::active_barrier_for_source(connection, &source_revision_id)?
     {
         return Ok(());
     }
@@ -574,11 +599,11 @@ pub(crate) fn execute(
     else {
         return Err(unavailable());
     };
-    if crate::dependency_closure::guard_no_pending_physical(&tx).is_err()
-        || (root.role == TraceArtifactRoleV1::CanonicalSource
-            && !canonical_source_chain_valid(&tx, &request.root_revision_id)?)
+    if (root.role == TraceArtifactRoleV1::CanonicalSource
+        && !canonical_source_chain_valid(&tx, &request.root_revision_id)?)
         || (root.role == TraceArtifactRoleV1::Derived
             && !source_link_valid(&tx, &request.root_revision_id, None)?)
+        || endpoint_closure_fenced(&tx, &request.root_revision_id, root.role)?
     {
         return Err(unavailable());
     }

@@ -266,7 +266,7 @@ fn slice55_integrity_execution_boundary_revalidates_public_struct_literals() {
         assert!(matches!(
             error,
             EngineError::DataPlaneIntegrity(ref value)
-                if value.reason == reason && value.field_path == path
+                if value.schema_version == 1 && value.reason == reason && value.field_path == path
         ));
     }
 }

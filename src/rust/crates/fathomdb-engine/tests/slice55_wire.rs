@@ -118,6 +118,37 @@ fn slice55_wire_rejects_role_endpoint_and_uniqueness_invariants() {
     assert_eq!(corrupt(&value).field_path, "/nodes/1/artifactRevisionId");
 }
 
+#[test]
+fn slice55_wire_rejects_duplicate_dependency_ids_and_noncanonical_order() {
+    let fixture: serde_json::Value =
+        serde_json::from_slice(include_bytes!("fixtures/slice55/trace-v1.json")).unwrap();
+    let mut value = fixture;
+    let mut second_node = value["nodes"][1].clone();
+    second_node["artifactRevisionId"] = "z-derived-r1".into();
+    let mut second_edge = value["dependencyEdges"][0].clone();
+    second_edge["dependencyId"] = "dep-2".into();
+    second_edge["derivedRevisionId"] = "z-derived-r1".into();
+    value["nodes"].as_array_mut().unwrap().push(second_node);
+    value["dependencyEdges"].as_array_mut().unwrap().push(second_edge);
+    value["checkedWorkUnits"] = 3.into();
+
+    let mut duplicate = value.clone();
+    duplicate["dependencyEdges"][1]["dependencyId"] = "dep-1".into();
+    assert_eq!(corrupt(&duplicate).field_path, "/dependencyEdges/1/dependencyId");
+
+    value["nodes"].as_array_mut().unwrap().swap(1, 2);
+    value["dependencyEdges"].as_array_mut().unwrap().swap(0, 1);
+    assert_eq!(corrupt(&value).field_path, "/dependencyEdges/1");
+}
+
+#[test]
+fn slice55_wire_errors_carry_schema_version() {
+    let mut value: serde_json::Value =
+        serde_json::from_slice(include_bytes!("fixtures/slice55/trace-v1.json")).unwrap();
+    value["complete"] = false.into();
+    assert_eq!(corrupt(&value).schema_version, 1);
+}
+
 proptest! {
     #[test]
     fn slice55_trace_codec_round_trip(revision in "[A-Za-z0-9][A-Za-z0-9._:-]{0,31}") {

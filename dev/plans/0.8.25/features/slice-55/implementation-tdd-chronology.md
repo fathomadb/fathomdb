@@ -818,6 +818,13 @@ cargo test -p fathomdb-engine --features test-hooks \
 test result: ok. 17 passed; 0 failed
 ```
 
+The strict Rust wire RED adds a real two-relation response shape and requires
+duplicate dependency identities and noncanonical relation order to fail at
+stable nested paths. It also requires both public Slice 55 error records to
+carry their version discriminator. Before production changes, the targets fail
+to compile on the absent `schema_version` fields and the decoder accepts both
+duplicate and reordered relation arrays.
+
 Full writer gates passed at the same product commit:
 
 ```text

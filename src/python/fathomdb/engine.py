@@ -1829,6 +1829,8 @@ class Engine:
             _trace_response_error("trace_root_invalid", "/rootRevisionId")
         if request.direction not in ("to_source", "to_dependents"):
             _trace_response_error("trace_direction_invalid", "/direction")
+        if not isinstance(request.context, FrozenReadContextV1):
+            _trace_response_error("trace_corrupt", "/context")
         context = _validate_frozen_trace_context(request.context)
         if not isinstance(request.max_relations, int) or isinstance(
             request.max_relations, bool

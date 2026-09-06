@@ -956,6 +956,7 @@ dependencies = [
  "libc",
  "proptest",
  "rusqlite",
+ "serde",
  "serde_json",
  "sha2 0.11.0",
  "sqlite-vec",

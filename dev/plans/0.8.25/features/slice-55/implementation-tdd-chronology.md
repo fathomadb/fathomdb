@@ -1,6 +1,6 @@
 ---
 title: 0.8.25 Slice 55 implementation TDD chronology
-status: RED
+status: GREEN
 ---
 
 # Slice 55 implementation TDD chronology
@@ -166,7 +166,97 @@ the target type of its unannotated `Iterator::sum()` because the workspace's
 implementations. The orchestrator authorized the exact non-oracle annotation
 `.sum::<u32>()`: expected values, fixtures, cases, and assertions are unchanged.
 This test-only correction was committed separately before GREEN resumed.
+Correction commit:
+`65ecd3a1758e1e5ca5df4674661f0e8aed84a1f9`.
 
 ## GREEN chronology
 
-Pending.
+Production GREEN adds the governed one-hop trace, canonical codec, operator
+integrity request/report and CLI, structural explanation/correlation,
+PyO3/Python and N-API/TypeScript mirrors, the successor ADR, five interface
+records, and the approved governed-surface delta. No migration, reverse state,
+release artifact, tag, registry staging, or publication was created.
+
+Focused GREEN commands:
+
+```text
+cargo test -p fathomdb-engine --test slice55_dependency_trace
+test result: ok. 7 passed; 0 failed
+
+cargo test -p fathomdb-engine --features test-hooks --test slice55_dependency_trace
+test result: ok. 9 passed; 0 failed; 1 ignored
+
+cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_data_plane_integrity
+test result: ok. 22 passed; 0 failed
+
+cargo test -p fathomdb-engine --test slice55_explanation
+test result: ok. 7 passed; 0 failed
+
+cargo test -p fathomdb --test slice55_governed_surface
+test result: ok. 1 passed; 0 failed
+
+cargo test -p fathomdb-cli --test slice55_data_plane_integrity_cli
+test result: ok. 2 passed; 0 failed
+
+cargo test -p fathomdb-engine --features operator,test-hooks --test check_integrity
+test result: ok. 3 passed; 0 failed
+
+cargo test -p fathomdb-engine --features operator,test-hooks --test trace_source_ref
+test result: ok. 3 passed; 0 failed
+
+cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_wire
+test result: ok. 2 passed; 0 failed
+
+cargo test --release -p fathomdb-engine --features test-hooks --test \
+  slice55_dependency_trace slice55_trace_hidden_dependents_performance_ceiling \
+  -- --ignored --exact
+test result: ok. 1 passed; 0 failed
+
+.venv/bin/pyright src/python/tests/test_slice55_wrapper_compat.py \
+  src/python/tests/test_slice55_trace_explanation.py src/python/fathomdb/engine.py
+0 errors, 0 warnings, 0 informations
+
+npm run typecheck
+> tsc --noEmit -p tsconfig.json
+
+node --test dist/tests/slice55-old-object-literals.test.js \
+  dist/tests/slice55-absent-native-fields-use-legacy-defaults.test.js
+tests 2; pass 2; fail 0
+```
+
+The first TypeScript native-build attempt inside the restricted sandbox failed
+before Cargo with `spawnSync /bin/sh EPERM`. The unchanged command was rerun on
+the authorized executor and built the candidate N-API library; the two focused
+compiled Slice 55 tests then passed. This is an execution-route deviation, not
+a product/test failure.
+
+Repository gates before the product commit:
+
+```text
+./scripts/agent-lint-md.sh
+exit 0
+
+./scripts/agent-lint.sh
+exit 0
+
+./scripts/agent-typecheck.sh
+exit 0
+```
+
+The first lint run failed on two Clippy `type_complexity` diagnostics in the
+new trace module. Factoring the stored node/edge tuples into named private
+aliases fixed the diagnostics; the unchanged full lint command then passed.
+There was no second occurrence of that failure mode.
+
+The first restricted `./scripts/agent-test.sh` run could not finish as a valid
+repository-gate observation. Repository fixture tests were denied writes to
+the canonical Git tag lock and npm cache, local HTTP fixture servers could not
+bind, and the expected pre-reissue governed-surface pin mismatch was present.
+After the process continued without progress beyond normal runtime, it was
+interrupted with exit 130. The exact environment diagnostics remain in
+`/tmp/fathomdb-agent-test-*.log`; the unchanged gate is rerun outside the
+restricted sandbox after the product commit and approved pin reissue.
+
+GREEN implementation commit: pending until commit completes. The governed
+surface pin will be reissued in a separate, reviewable follow-up from the exact
+committed allowlist bytes, matching the established Slice 50 mechanism.

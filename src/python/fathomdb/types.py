@@ -16,6 +16,23 @@ T = TypeVar("T")
 #: added in 0.8.8 (Slice 10) to match Rust/TS — it surfaces via
 #: ``PerHitExplain.arm`` (and, for graph-arm hits, ``SearchHit.branch``).
 SoftFallbackBranch = Literal["vector", "text", "text_edge", "graph_arm"]
+DependencyTraceDirectionV1 = Literal["to_source", "to_dependents"]
+StructuralInclusionStateV1 = Literal["included", "degraded"]
+StructuralProjectionOriginV1 = Literal[
+    "synchronous_body_fts", "current_dense_generation", "graph_traversal"
+]
+StructuralDependencyStateV1 = Literal["not_applicable", "not_registered", "registered"]
+StructuralLifecycleStateV1 = Literal[
+    "node_pending", "node_active", "node_deleted", "edge_valid"
+]
+StructuralDegradationCodeV1 = Literal[
+    "soft_fallback_text",
+    "soft_fallback_text_edge",
+    "projection_legacy_unverified",
+    "projection_blocked",
+    "projection_deferred",
+    "graph_bound_reached",
+]
 
 #: Engine-set dense-projection readiness values. ``"unavailable"`` means an
 #: absent or equivalence-refused runtime; ``"embedding"`` / ``"ready"`` apply
@@ -467,6 +484,67 @@ class FrozenReadContextV1:
 
 
 @dataclass(frozen=True)
+class DependencyTraceRequestV1:
+    """One-page, one-hop dependency trace under a frozen read context."""
+
+    root_revision_id: str
+    direction: DependencyTraceDirectionV1
+    context: FrozenReadContextV1
+    max_relations: int = 100
+    max_work_units: int = 101
+    schema_version: int = 1
+
+
+@dataclass(frozen=True)
+class TraceNodeLifecycleV1:
+    schema_version: int
+    artifact_class: Literal["node", "edge"]
+    superseded: bool
+    valid_at_effective: bool
+    state: Literal["pending", "active", "deleted"] | None = None
+
+
+@dataclass(frozen=True)
+class DependencyTraceNodeV1:
+    schema_version: int
+    artifact_revision_id: str
+    artifact_class: Literal["node", "edge"]
+    role: Literal["canonical_source", "derived"]
+    depth: int
+    lifecycle: TraceNodeLifecycleV1
+
+
+@dataclass(frozen=True)
+class DependencyTraceEdgeV1:
+    schema_version: int
+    dependency_id: str
+    source_revision_id: str
+    derived_revision_id: str
+    registered_dependency_generation: str
+
+
+@dataclass(frozen=True)
+class TraceReadBoundaryV1:
+    schema_version: int
+    effective_at_epoch_s: int
+    observed_write_boundary: str
+    dependency_generation: str
+    projection_generation_id: str
+
+
+@dataclass(frozen=True)
+class DependencyTraceResultV1:
+    schema_version: int
+    root_revision_id: str
+    direction: DependencyTraceDirectionV1
+    nodes: tuple[DependencyTraceNodeV1, ...]
+    dependency_edges: tuple[DependencyTraceEdgeV1, ...]
+    checked_work_units: int
+    complete: bool
+    read_boundary: TraceReadBoundaryV1
+
+
+@dataclass(frozen=True)
 class EvidenceSearchRequestV1:
     """Opt-in frozen search that requests one evidence reference per hit."""
 
@@ -829,6 +907,19 @@ class PerHitExplain:
     #: (cross-binding parity). Appended with defaults (the Python evolution rule).
     importance: float | None = None
     confidence: float | None = None
+    structural: StructuralInclusionV1 | None = None
+
+
+@dataclass(frozen=True)
+class StructuralInclusionV1:
+    """Content-free structural classification of one explained hit."""
+
+    schema_version: int
+    inclusion_state: StructuralInclusionStateV1
+    projection_origin: StructuralProjectionOriginV1
+    dependency_state: StructuralDependencyStateV1
+    lifecycle_state: StructuralLifecycleStateV1
+    degradation_codes: tuple[StructuralDegradationCodeV1, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -842,6 +933,7 @@ class Explanation:
 
     trace: QueryTrace
     per_hit: list[PerHitExplain] = field(default_factory=list)
+    correlation_id: str = ""
 
 
 @dataclass(frozen=True)

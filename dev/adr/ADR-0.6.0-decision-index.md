@@ -135,6 +135,7 @@ Slice-0 gate before Slices 15 and 25 open.
 | 46 | interface | Apply the existing ranked-search eligibility vocabulary before every bounded retrieval stage and add an optional stateless reproduce-or-fail frozen context | accepted by approved 0.8.25 scope and Slice 35 execution authorization | ADR-0.8.25-eligibility-and-frozen-reads.md |
 | 47 | interface | Add frozen keyset pages for canonical logical nodes and governed current/frozen reads for registered latest-state collections | accepted by approved 0.8.25 scope and Slice 45 execution authorization | ADR-0.8.25-frozen-pagination-and-operational-state.md |
 | 48 | interface | Add stateless, content-free evidence references and an eligibility-bound exact one-source resolver without changing ordinary search | accepted by approved 0.8.25 scope and Slice 50 execution authorization | ADR-0.8.25-compact-source-evidence.md |
+| 49 | interface | Add an eligibility-bound one-hop dependency trace, bounded operator integrity, and additive content-free explained-search structure/correlation | accepted by approved 0.8.25 scope and Slice 55 execution authorization | ADR-0.8.25-governed-dependency-trace-and-integrity.md |
 
 ## Categories
 

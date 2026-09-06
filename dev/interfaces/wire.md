@@ -125,3 +125,18 @@ fields and unsupported request schemas fail closed. Additive response fields
 may be ignored, but unknown closed variants must be rejected. The typed
 envelope is `FDB_EVIDENCE`; non-authorized cases expose only
 `evidence_unavailable` at `/evidenceRef`.
+
+## Dependency trace and explanation wire (0.8.25 Slice 55)
+
+Trace request and response objects use `schemaVersion: 1`, camel-case fields,
+lower-snake enum values, canonical unsigned-decimal strings for every new
+`u64`, and declaration-order canonical JSON. Requests are closed; responses
+ignore additive unknown object members but reject unknown closed variants and
+incoherent lifecycle unions. Optional response values are present as `null`.
+
+`Explanation.correlationId` follows `perHit`; `PerHitExplain.structural`
+follows `confidence`. New native responses require both. The structural object
+contains only schema, inclusion, projection-origin, dependency-state,
+lifecycle-state, and degradation enums. Trace errors use
+`FDB_DEPENDENCY_TRACE`; integrity CLI errors use
+`FDB_DATA_PLANE_INTEGRITY`.

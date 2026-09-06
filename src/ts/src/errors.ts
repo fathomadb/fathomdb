@@ -245,6 +245,18 @@ export class EvidenceError extends FathomDbError {
   }
 }
 
+/** Governed reciprocal dependency trace refusal. */
+export class DependencyTraceError extends FathomDbError {
+  static readonly code = "FDB_DEPENDENCY_TRACE";
+  readonly reason: string;
+  readonly fieldPath: string;
+  constructor(message: string, reason: string, fieldPath: string) {
+    super(message);
+    this.reason = reason;
+    this.fieldPath = fieldPath;
+  }
+}
+
 /** Pagination cursor, selector, context, or operational-state refusal. */
 export class PageError extends FathomDbError {
   readonly reason: string;
@@ -378,6 +390,8 @@ type ErrorCode =
   | "FDB_INVALID_FILTER"
   | "FDB_FROZEN_READ"
   | "FDB_EVIDENCE"
+  | "FDB_DEPENDENCY_TRACE"
+  | "FDB_DATA_PLANE_INTEGRITY"
   | "FDB_PAGE"
   // Slice 20 — depth > 3 or invalid argument (G5/G6).
   | "FDB_INVALID_ARGUMENT"
@@ -536,6 +550,14 @@ function build(envelope: Envelope): Error {
         String(p.reason ?? ""),
         String(p.fieldPath ?? ""),
       );
+    case "FDB_DEPENDENCY_TRACE":
+      return new DependencyTraceError(
+        envelope.message,
+        String(p.reason ?? ""),
+        String(p.fieldPath ?? ""),
+      );
+    case "FDB_DATA_PLANE_INTEGRITY":
+      return new FathomDbError(envelope.message);
     case "FDB_PAGE":
       return new PageError(
         envelope.message,

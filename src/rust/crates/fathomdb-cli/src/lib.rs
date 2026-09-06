@@ -45,11 +45,12 @@ use std::{
 
 use clap::{Args, Parser, Subcommand};
 use fathomdb::{
-    CheckIntegrityOpts, CorruptionLocator, DumpProfileReport, DumpRowCountsReport,
-    DumpSchemaReport, Engine, EngineError, EngineOpenError, ExciseRecordReport, ExciseReport,
-    Finding, IntegrityReport, MeanRecomputeReport, OrphanProvenanceReport, RebuildKind,
-    RebuildReport, SafeExportArtifact, SchemaObject, Section, TraceReport, TruncateWalReport,
-    TruncateWalStatus, VerifyEmbedderReport, VerifyEmbedderStatus,
+    CheckIntegrityOpts, CorruptionLocator, DataPlaneIntegrityCheckV1, DataPlaneIntegrityRequestV1,
+    DataPlaneIntegrityResultV1, DumpProfileReport, DumpRowCountsReport, DumpSchemaReport, Engine,
+    EngineError, EngineOpenError, ExciseRecordReport, ExciseReport, Finding, IntegrityReport,
+    MeanRecomputeReport, OrphanProvenanceReport, RebuildKind, RebuildReport, SafeExportArtifact,
+    SchemaObject, Section, TraceReport, TruncateWalReport, TruncateWalStatus, VerifyEmbedderReport,
+    VerifyEmbedderStatus,
 };
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -164,6 +165,8 @@ pub enum DoctorCommand {
     RerankerGpu(GpuDoctorArgs),
     /// Run a structural integrity check against the database.
     CheckIntegrity(CheckIntegrityArgs),
+    /// Run bounded integrity checks over dependency and serving-projection authority.
+    DataPlaneIntegrity(DataPlaneIntegrityArgs),
     /// Materialize a safe export of the database.
     SafeExport(SafeExportArgs),
     /// Verify the embedder identity recorded in the database.
@@ -309,6 +312,29 @@ pub struct CheckIntegrityArgs {
     /// Format human output.
     #[arg(long)]
     pub pretty: bool,
+
+    /// Emit machine-readable JSON output.
+    #[arg(long)]
+    pub json: bool,
+
+    /// Path to the database file to inspect.
+    pub db_path: PathBuf,
+}
+
+/// Per-verb arguments for `doctor data-plane-integrity`.
+#[derive(Debug, Args)]
+pub struct DataPlaneIntegrityArgs {
+    /// Check to run; repeat to select more than one. Omission selects all.
+    #[arg(long = "check")]
+    pub checks: Vec<String>,
+
+    /// Aggregate authority-row classification ceiling.
+    #[arg(long = "max-work", default_value_t = 10_000)]
+    pub max_work_units: u32,
+
+    /// Maximum content-free findings returned.
+    #[arg(long = "max-findings", default_value_t = 100)]
+    pub max_findings: u32,
 
     /// Emit machine-readable JSON output.
     #[arg(long)]
@@ -517,6 +543,64 @@ fn run_doctor(cmd: DoctorCommand) -> i32 {
             };
             run_doctor_verb(&args.db_path, "check-integrity", |e| {
                 e.check_integrity(opts).map(|r| integrity_report_outcome(&r))
+            })
+        }
+        DoctorCommand::DataPlaneIntegrity(args) => {
+            let checks = if args.checks.is_empty() {
+                None
+            } else {
+                let mut parsed = Vec::with_capacity(args.checks.len());
+                for check in &args.checks {
+                    parsed.push(match check.as_str() {
+                        "dependency_chain" => DataPlaneIntegrityCheckV1::DependencyChain,
+                        "active_searchable_orphans" => {
+                            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans
+                        }
+                        "projection_generation" => DataPlaneIntegrityCheckV1::ProjectionGeneration,
+                        "mutation_readiness" => DataPlaneIntegrityCheckV1::MutationReadiness,
+                        _ => {
+                            println!(
+                                "{}",
+                                json!({
+                                    "schemaVersion": "fathomdb.doctor.data-plane-integrity.v1",
+                                    "status": "error",
+                                    "verb": "data-plane-integrity",
+                                    "code": "FDB_DATA_PLANE_INTEGRITY",
+                                    "reason": "integrity_check_invalid",
+                                    "fieldPath": "/checks",
+                                })
+                            );
+                            return exit_code::UNRECOVERABLE;
+                        }
+                    });
+                }
+                Some(parsed)
+            };
+            let request_result = match checks {
+                Some(checks) => {
+                    DataPlaneIntegrityRequestV1::new(checks, args.max_work_units, args.max_findings)
+                }
+                None => DataPlaneIntegrityRequestV1::all(args.max_work_units, args.max_findings),
+            };
+            let request = match request_result {
+                Ok(request) => request,
+                Err(error) => {
+                    println!(
+                        "{}",
+                        json!({
+                            "schemaVersion": "fathomdb.doctor.data-plane-integrity.v1",
+                            "status": "error",
+                            "verb": "data-plane-integrity",
+                            "code": "FDB_DATA_PLANE_INTEGRITY",
+                            "reason": error.reason.as_str(),
+                            "fieldPath": error.field_path,
+                        })
+                    );
+                    return exit_code::UNRECOVERABLE;
+                }
+            };
+            run_doctor_verb(&args.db_path, "data-plane-integrity", |engine| {
+                engine.check_data_plane_integrity(request).map(data_plane_integrity_outcome)
             })
         }
         DoctorCommand::SafeExport(args) => {
@@ -1369,6 +1453,8 @@ fn engine_error_code(err: &EngineError) -> &'static str {
         EngineError::FrozenRead(_) => "FrozenReadError",
         EngineError::Page(_) => "PageError",
         EngineError::Evidence(_) => "EvidenceError",
+        EngineError::DependencyTrace(_) => "FDB_DEPENDENCY_TRACE",
+        EngineError::DataPlaneIntegrity(_) => "FDB_DATA_PLANE_INTEGRITY",
         EngineError::InvalidArgument { .. } => "InvalidArgumentError",
         // 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense refusal.
         EngineError::VectorEquivalenceMismatch { .. } => "VectorEquivalenceMismatchError",
@@ -1399,6 +1485,58 @@ fn engine_open_error_code(err: &EngineOpenError) -> &'static str {
 }
 
 // ---- JSON serializers for engine report types ----
+
+fn data_plane_integrity_outcome(report: DataPlaneIntegrityResultV1) -> (Value, CliOutcome) {
+    let has_findings = !report.findings.is_empty();
+    let status = if has_findings { "findings" } else { "clean" };
+    let check_counts = report
+        .check_counts
+        .iter()
+        .map(|count| {
+            json!({
+                "schemaVersion": count.schema_version,
+                "check": count.check.as_str(),
+                "checkedCount": count.checked_count,
+                "findingCount": count.finding_count,
+            })
+        })
+        .collect::<Vec<_>>();
+    let findings = report
+        .findings
+        .iter()
+        .map(|finding| {
+            json!({
+                "schemaVersion": finding.schema_version,
+                "code": finding.code.as_str(),
+                "severity": finding.severity.as_str(),
+                "artifactRevisionIds": finding.artifact_revision_ids,
+                "dependencyId": finding.dependency_id,
+                "projectionGenerationId": finding.projection_generation_id,
+                "operationId": finding.operation_id,
+                "writeCursor": finding.write_cursor.map(|value| value.to_string()),
+            })
+        })
+        .collect::<Vec<_>>();
+    let body = json!({
+        "schemaVersion": "fathomdb.doctor.data-plane-integrity.v1",
+        "status": status,
+        "report": {
+            "schemaVersion": report.schema_version,
+            "readBoundary": {
+                "schemaVersion": report.read_boundary.schema_version,
+                "effectiveAtEpochS": report.read_boundary.effective_at_epoch_s,
+                "observedWriteBoundary": report.read_boundary.observed_write_boundary.to_string(),
+                "dependencyGeneration": report.read_boundary.dependency_generation.to_string(),
+                "projectionGenerationId": report.read_boundary.projection_generation_id,
+            },
+            "checkCounts": check_counts,
+            "checkedCount": report.checked_count,
+            "findings": findings,
+            "complete": report.complete,
+        },
+    });
+    (body, if has_findings { CliOutcome::Findings } else { CliOutcome::Clean })
+}
 
 fn integrity_report_outcome(report: &IntegrityReport) -> (Value, CliOutcome) {
     let any_findings = matches!(report.physical, Section::Findings(_))

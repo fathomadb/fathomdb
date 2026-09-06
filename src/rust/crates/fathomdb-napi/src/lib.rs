@@ -40,14 +40,16 @@ use fathomdb_embedder::{
 };
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
-    ActuationBatchV1, ActuationOperationV1, ActuationOutcomeV1,
+    encode_dependency_trace_result_v1, ActuationBatchV1, ActuationOperationV1, ActuationOutcomeV1,
     ActuationReceiptV1 as RustActuationReceiptV1, ArtifactRevisionId,
     BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ClosureLookupV1, ClosureRootV1,
     ClosureStatusV1 as RustClosureStatusV1, ComparisonOp as RustComparisonOp,
     ConsolidateAxis as RustConsolidateAxis, ConsolidateReceipt as RustConsolidateReceipt,
     CorruptionDetail, CorruptionKind, DenseReadiness as RustDenseReadiness,
     DependencyDerivedLookupV1, DependencyListV1 as RustDependencyListV1, DependencySourceLookupV1,
-    EmbedderChoice, EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
+    DependencyTraceDirectionV1 as RustDependencyTraceDirectionV1,
+    DependencyTraceRequestV1 as RustDependencyTraceRequestV1, EmbedderChoice,
+    EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
     EngineError as RustEngineError, EngineOpenError,
     EvidenceArtifactLifecycleV1 as RustEvidenceArtifactLifecycleV1,
     EvidenceContributionV1 as RustEvidenceContributionV1,
@@ -78,8 +80,15 @@ use fathomdb_engine::{
     SearchExpandResult as RustSearchExpandResult, SearchFilter as RustSearchFilter,
     SearchHit as RustSearchHit, SearchResult as RustSearchResult, SoftFallbackBranch,
     SourceDependencyRegistrationV1, SourceDependencyV1 as RustSourceDependencyV1, SourceId,
-    SourceLocator, SourceRevisionId, SourceVersionId, TraversalDirection as RustTraversalDirection,
-    WriteProvenanceV1, WriteReceipt as RustWriteReceipt,
+    SourceLocator, SourceRevisionId, SourceVersionId,
+    StructuralDegradationCodeV1 as RustStructuralDegradationCodeV1,
+    StructuralDependencyStateV1 as RustStructuralDependencyStateV1,
+    StructuralInclusionStateV1 as RustStructuralInclusionStateV1,
+    StructuralInclusionV1 as RustStructuralInclusionV1,
+    StructuralLifecycleStateV1 as RustStructuralLifecycleStateV1,
+    StructuralProjectionOriginV1 as RustStructuralProjectionOriginV1,
+    TraversalDirection as RustTraversalDirection, WriteProvenanceV1,
+    WriteReceipt as RustWriteReceipt,
 };
 use fathomdb_schema::MigrationStepReport as RustMigrationStepReport;
 use napi::{Error, JsUnknown, Result, Status};
@@ -142,6 +151,8 @@ const CODE_PROJECTION_DESTRUCTIVE: &str = "FDB_PROJECTION_DESTRUCTIVE";
 const CODE_FROZEN_READ: &str = "FDB_FROZEN_READ";
 const CODE_EVIDENCE: &str = "FDB_EVIDENCE";
 const CODE_PAGE: &str = "FDB_PAGE";
+const CODE_DEPENDENCY_TRACE: &str = "FDB_DEPENDENCY_TRACE";
+const CODE_DATA_PLANE_INTEGRITY: &str = "FDB_DATA_PLANE_INTEGRITY";
 const CODE_PANIC: &str = "FDB_PANIC";
 
 // ===== Typed-error encoder ============================================
@@ -318,6 +329,22 @@ fn engine_error_to_napi(err: RustEngineError) -> Error {
         ),
         RustEngineError::Page(error) => typed_error(
             CODE_PAGE,
+            format!("{} at {}", error.reason.as_str(), error.field_path),
+            json!({
+                "reason": error.reason.as_str(),
+                "fieldPath": error.field_path,
+            }),
+        ),
+        RustEngineError::DependencyTrace(error) => typed_error(
+            CODE_DEPENDENCY_TRACE,
+            format!("{} at {}", error.reason.as_str(), error.field_path),
+            json!({
+                "reason": error.reason.as_str(),
+                "fieldPath": error.field_path,
+            }),
+        ),
+        RustEngineError::DataPlaneIntegrity(error) => typed_error(
+            CODE_DATA_PLANE_INTEGRITY,
             format!("{} at {}", error.reason.as_str(), error.field_path),
             json!({
                 "reason": error.reason.as_str(),
@@ -1802,6 +1829,72 @@ pub struct PerHitExplain {
     /// engine `PerHitExplain` additive fields (napi → `importance`, `confidence`).
     pub importance: Option<f64>,
     pub confidence: Option<f64>,
+    pub structural: StructuralInclusionV1,
+}
+
+#[napi(object)]
+pub struct StructuralInclusionV1 {
+    pub schema_version: u32,
+    pub inclusion_state: String,
+    pub projection_origin: String,
+    pub dependency_state: String,
+    pub lifecycle_state: String,
+    pub degradation_codes: Vec<String>,
+}
+
+impl StructuralInclusionV1 {
+    fn from_rust(value: &RustStructuralInclusionV1) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            inclusion_state: match value.inclusion_state {
+                RustStructuralInclusionStateV1::Included => "included",
+                RustStructuralInclusionStateV1::Degraded => "degraded",
+            }
+            .to_string(),
+            projection_origin: match value.projection_origin {
+                RustStructuralProjectionOriginV1::SynchronousBodyFts => "synchronous_body_fts",
+                RustStructuralProjectionOriginV1::CurrentDenseGeneration => {
+                    "current_dense_generation"
+                }
+                RustStructuralProjectionOriginV1::GraphTraversal => "graph_traversal",
+            }
+            .to_string(),
+            dependency_state: match value.dependency_state {
+                RustStructuralDependencyStateV1::NotApplicable => "not_applicable",
+                RustStructuralDependencyStateV1::NotRegistered => "not_registered",
+                RustStructuralDependencyStateV1::Registered => "registered",
+            }
+            .to_string(),
+            lifecycle_state: match value.lifecycle_state {
+                RustStructuralLifecycleStateV1::NodePending => "node_pending",
+                RustStructuralLifecycleStateV1::NodeActive => "node_active",
+                RustStructuralLifecycleStateV1::NodeDeleted => "node_deleted",
+                RustStructuralLifecycleStateV1::EdgeValid => "edge_valid",
+            }
+            .to_string(),
+            degradation_codes: value
+                .degradation_codes
+                .iter()
+                .map(|code| {
+                    match code {
+                        RustStructuralDegradationCodeV1::SoftFallbackText => "soft_fallback_text",
+                        RustStructuralDegradationCodeV1::SoftFallbackTextEdge => {
+                            "soft_fallback_text_edge"
+                        }
+                        RustStructuralDegradationCodeV1::ProjectionLegacyUnverified => {
+                            "projection_legacy_unverified"
+                        }
+                        RustStructuralDegradationCodeV1::ProjectionBlocked => "projection_blocked",
+                        RustStructuralDegradationCodeV1::ProjectionDeferred => {
+                            "projection_deferred"
+                        }
+                        RustStructuralDegradationCodeV1::GraphBoundReached => "graph_bound_reached",
+                    }
+                    .to_string()
+                })
+                .collect(),
+        }
+    }
 }
 
 impl PerHitExplain {
@@ -1822,6 +1915,7 @@ impl PerHitExplain {
             blended: p.blended,
             importance: p.importance,
             confidence: p.confidence,
+            structural: StructuralInclusionV1::from_rust(&p.structural),
         }
     }
 }
@@ -1916,6 +2010,7 @@ mod per_hit_explain_tests {
 pub struct Explanation {
     pub trace: QueryTrace,
     pub per_hit: Vec<PerHitExplain>,
+    pub correlation_id: String,
 }
 
 impl Explanation {
@@ -1923,6 +2018,7 @@ impl Explanation {
         Self {
             trace: QueryTrace::from_rust(&e.trace),
             per_hit: e.per_hit.iter().map(PerHitExplain::from_rust).collect(),
+            correlation_id: e.correlation_id.clone(),
         }
     }
 }
@@ -2615,6 +2711,45 @@ impl Engine {
         let context = frozen_context_to_rust(context)?;
         let engine = Arc::clone(&self.inner);
         call_engine(move || engine.validate_frozen_read_context_for_binding(&context)).await
+    }
+
+    /// Return canonical version-1 JSON for one governed dependency trace.
+    #[napi]
+    pub async fn trace_dependency(
+        &self,
+        root_revision_id: String,
+        direction: String,
+        context: FrozenReadContextV1,
+        max_relations: Option<u32>,
+        max_work_units: Option<u32>,
+    ) -> Result<String> {
+        validate_ffi_string_napi(&root_revision_id)?;
+        let direction = match direction.as_str() {
+            "to_source" => RustDependencyTraceDirectionV1::ToSource,
+            "to_dependents" => RustDependencyTraceDirectionV1::ToDependents,
+            _ => {
+                return Err(typed_error(
+                    CODE_DEPENDENCY_TRACE,
+                    "trace_direction_invalid at /direction",
+                    json!({ "reason": "trace_direction_invalid", "fieldPath": "/direction" }),
+                ));
+            }
+        };
+        let request = RustDependencyTraceRequestV1::new(
+            root_revision_id,
+            direction,
+            frozen_context_to_rust(context)?,
+        )
+        .and_then(|request| {
+            request.with_bounds(max_relations.unwrap_or(100), max_work_units.unwrap_or(101))
+        })
+        .map_err(|error| engine_error_to_napi(error.into()))?;
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(move || engine.trace_dependency(request)).await?;
+        let bytes = encode_dependency_trace_result_v1(&result)
+            .map_err(|error| engine_error_to_napi(error.into()))?;
+        String::from_utf8(bytes)
+            .map_err(|_| typed_error(CODE_DEPENDENCY_TRACE, "trace codec failure", JsonValue::Null))
     }
 
     /// Search under a frozen validity and eligibility context.

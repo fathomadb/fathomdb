@@ -330,3 +330,17 @@ typed report structs; the CLI serializes them under a `verb` discriminator.
 - Field name policy: serde default `snake_case`. Any divergence from engine
   field spellings lives in the CLI serialization layer; the engine report
   structs are not renamed to satisfy CLI spelling requirements.
+
+## Data-plane integrity (0.8.25 Slice 55)
+
+`fathomdb doctor data-plane-integrity --check <kind>... --max-work <1..10000>
+--max-findings <1..100> [--json] <db_path>` runs the four checks in canonical
+order; omitting `--check` selects all. It is read-only and returns no partial
+report. Clean exits 0, findings exit 65, request/bound/integrity failure exits
+70, and an open-time lock exits 71.
+
+JSON success is
+`{schemaVersion:"fathomdb.doctor.data-plane-integrity.v1",status,report}`.
+Errors use the same schema, `status:"error"`, `verb:"data-plane-integrity"`,
+`code:"FDB_DATA_PLANE_INTEGRITY"`, lower-snake `reason`, and RFC 6901
+`fieldPath`. Existing doctor verbs and their envelopes are unchanged.

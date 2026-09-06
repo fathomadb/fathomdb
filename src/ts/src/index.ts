@@ -863,6 +863,61 @@ export interface FrozenReadContextV1 {
   token: string;
 }
 
+export type DependencyTraceDirectionV1 = "to_source" | "to_dependents";
+
+export interface DependencyTraceRequestV1 {
+  schemaVersion: 1;
+  rootRevisionId: string;
+  direction: DependencyTraceDirectionV1;
+  context: FrozenReadContextV1;
+  maxRelations?: number;
+  maxWorkUnits?: number;
+}
+
+export interface TraceNodeLifecycleV1 {
+  schemaVersion: 1;
+  artifactClass: "node" | "edge";
+  state?: "pending" | "active" | "deleted";
+  superseded: boolean;
+  validAtEffective: boolean;
+}
+
+export interface DependencyTraceNodeV1 {
+  schemaVersion: 1;
+  artifactRevisionId: string;
+  artifactClass: "node" | "edge";
+  role: "canonical_source" | "derived";
+  depth: number;
+  lifecycle: TraceNodeLifecycleV1;
+}
+
+export interface DependencyTraceEdgeV1 {
+  schemaVersion: 1;
+  dependencyId: string;
+  sourceRevisionId: string;
+  derivedRevisionId: string;
+  registeredDependencyGeneration: string;
+}
+
+export interface TraceReadBoundaryV1 {
+  schemaVersion: 1;
+  effectiveAtEpochS: number;
+  observedWriteBoundary: string;
+  dependencyGeneration: string;
+  projectionGenerationId: string;
+}
+
+export interface DependencyTraceResultV1 {
+  schemaVersion: 1;
+  rootRevisionId: string;
+  direction: DependencyTraceDirectionV1;
+  nodes: DependencyTraceNodeV1[];
+  dependencyEdges: DependencyTraceEdgeV1[];
+  checkedWorkUnits: number;
+  complete: true;
+  readBoundary: TraceReadBoundaryV1;
+}
+
 /** Per-call ranked-search controls that cannot weaken a frozen context. */
 export interface FrozenSearchOptions {
   rerankDepth?: number;
@@ -1027,6 +1082,7 @@ function mapNativeSearchResult(r: NativeSearchResult): SearchResult {
             droppedEdgeHits: e.trace.droppedEdgeHits,
           },
           perHit: e.perHit.map(mapPerHitExplain),
+          ...(e.correlationId !== undefined ? { correlationId: e.correlationId } : {}),
         }
       : null,
   };
@@ -1309,6 +1365,35 @@ export interface PerHitExplain {
   blended: number;
   importance: number | null;
   confidence: number | null;
+  structural?: StructuralInclusionV1;
+}
+
+export type StructuralInclusionStateV1 = "included" | "degraded";
+export type StructuralProjectionOriginV1 =
+  | "synchronous_body_fts"
+  | "current_dense_generation"
+  | "graph_traversal";
+export type StructuralDependencyStateV1 = "not_applicable" | "not_registered" | "registered";
+export type StructuralLifecycleStateV1 =
+  | "node_pending"
+  | "node_active"
+  | "node_deleted"
+  | "edge_valid";
+export type StructuralDegradationCodeV1 =
+  | "soft_fallback_text"
+  | "soft_fallback_text_edge"
+  | "projection_legacy_unverified"
+  | "projection_blocked"
+  | "projection_deferred"
+  | "graph_bound_reached";
+
+export interface StructuralInclusionV1 {
+  schemaVersion: 1;
+  inclusionState: StructuralInclusionStateV1;
+  projectionOrigin: StructuralProjectionOriginV1;
+  dependencyState: StructuralDependencyStateV1;
+  lifecycleState: StructuralLifecycleStateV1;
+  degradationCodes: StructuralDegradationCodeV1[];
 }
 
 /**
@@ -1325,7 +1410,7 @@ export function mapPerHitExplain(p: NativePerHitExplain): PerHitExplain {
     a === "vector" || a === "text" || a === "text_edge" || a === "graph_arm"
       ? (a as SoftFallbackBranch)
       : "text";
-  return {
+  const result: PerHitExplain = {
     id: p.id,
     arm: armOf(p.arm),
     vectorRank: p.vectorRank ?? null,
@@ -1337,6 +1422,18 @@ export function mapPerHitExplain(p: NativePerHitExplain): PerHitExplain {
     importance: p.importance ?? null,
     confidence: p.confidence ?? null,
   };
+  if (p.structural !== undefined) {
+    const structural = p.structural;
+    result.structural = {
+      schemaVersion: structural.schemaVersion as 1,
+      inclusionState: structural.inclusionState as StructuralInclusionStateV1,
+      projectionOrigin: structural.projectionOrigin as StructuralProjectionOriginV1,
+      dependencyState: structural.dependencyState as StructuralDependencyStateV1,
+      lifecycleState: structural.lifecycleState as StructuralLifecycleStateV1,
+      degradationCodes: structural.degradationCodes as StructuralDegradationCodeV1[],
+    };
+  }
+  return result;
 }
 
 /**
@@ -1348,6 +1445,7 @@ export function mapPerHitExplain(p: NativePerHitExplain): PerHitExplain {
 export interface Explanation {
   trace: QueryTrace;
   perHit: PerHitExplain[];
+  correlationId?: string;
 }
 
 export interface SearchResult {
@@ -2041,6 +2139,39 @@ export class Engine {
     };
   }
 
+  /** Trace one reciprocal registered dependency under a frozen context. */
+  async traceDependency(
+    request: DependencyTraceRequestV1,
+  ): Promise<DependencyTraceResultV1> {
+    assertKnownKeys(
+      request,
+      [
+        "schemaVersion",
+        "rootRevisionId",
+        "direction",
+        "context",
+        "maxRelations",
+        "maxWorkUnits",
+      ],
+      "DependencyTraceRequestV1",
+    );
+    validateFfiString(request.rootRevisionId);
+    const encoded = await intercept(() =>
+      this.#native.traceDependency(
+        request.rootRevisionId,
+        request.direction,
+        nativeFrozenContext(request.context),
+        request.maxRelations,
+        request.maxWorkUnits,
+      ),
+    );
+    const value = JSON.parse(encoded) as DependencyTraceResultV1;
+    if (value.schemaVersion !== 1 || value.complete !== true) {
+      throw new TypeError("invalid DependencyTraceResultV1 response");
+    }
+    return value;
+  }
+
   /** Search under an Engine-authenticated frozen validity/eligibility context. */
   async searchFrozen(
     query: string,
@@ -2380,6 +2511,7 @@ export class Engine {
             droppedEdgeHits: e.trace.droppedEdgeHits,
           },
           perHit: e.perHit.map(mapPerHitExplain),
+          ...(e.correlationId !== undefined ? { correlationId: e.correlationId } : {}),
         }
       : null;
     return {

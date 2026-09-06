@@ -1133,3 +1133,18 @@ Resolution is stateless and uses one reader transaction. Ordinary search,
 schema 33, and existing result types are unchanged. Failures use
 `EngineError::Evidence(EvidenceErrorV1)` with the closed reason vocabulary in
 `ADR-0.8.25-compact-source-evidence.md`.
+
+## Dependency trace and structural explanation (0.8.25 Slice 55)
+
+`Engine::trace_dependency(DependencyTraceRequestV1)` is a governed, read-only,
+one-hop trace under an authenticated `FrozenReadContextV1`. It accepts only
+`to_source` or `to_dependents`, returns the eligible root plus at most 100
+registered relations, and fails without a partial result above 101 work units.
+All `DependencyTrace*V1`, `Trace*V1`, and `DependencyTraceError*` types are
+default-facade exports.
+
+Explained search appends `Explanation.correlation_id` and
+`PerHitExplain.structural: StructuralInclusionV1`. Ordinary search remains
+unchanged. The operator feature separately exposes
+`check_data_plane_integrity(DataPlaneIntegrityRequestV1)` and its report types;
+it is not a governed SDK method.

@@ -948,3 +948,16 @@ Both requests require an Engine-minted `FrozenReadContextV1`. Failures use the
 exported `EvidenceError` with `reason` and `field_path`; unauthorized states
 collapse to `evidence_unavailable` at `/evidenceRef`. Existing `Engine.search`
 and `SearchHit` are unchanged.
+
+## Dependency trace and structural explanation (0.8.25 Slice 55)
+
+`Engine.trace_dependency(DependencyTraceRequestV1)` returns a typed one-page
+`DependencyTraceResultV1` under the supplied frozen context. Bounds default to
+100 relations and 101 work units. Refusals raise `DependencyTraceError` with
+code `FDB_DEPENDENCY_TRACE`, `reason`, and `field_path`.
+
+New Engine-produced explained results always populate `correlation_id` and a
+`StructuralInclusionV1` for every per-hit entry. For construction compatibility,
+`Explanation.correlation_id` defaults to `""` and
+`PerHitExplain.structural` defaults to `None`. No doctor or data-plane-integrity
+method is exposed.

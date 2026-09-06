@@ -9,6 +9,7 @@
   "_slice40_projection_generation_signature": "The approved 0.8.25 Slice 40 plan adds pure current-generation and receipt-keyed mutation projection-status reads in both SDK naming conventions. The reads expose durable projection identity and physical readiness without a public work manifest. Core membership and the recovery denylist are unchanged.",
   "_slice45_pagination_signature": "The approved 0.8.25 Slice 45 plan adds canonical pagination plus point and paginated operational-state reads in both SDK naming conventions. The reads are bounded, use authenticated continuation or frozen authority, and add no list administration or mutation. Core membership and the recovery denylist are unchanged.",
   "_slice50_evidence_signature": "The approved 0.8.25 Slice 50 plan adds opt-in search_with_evidence/searchWithEvidence and resolve_evidence/resolveEvidence reads. They mint and resolve compact, authenticated, source-bound evidence references under the supplied frozen read context. Core membership and the recovery denylist are unchanged.",
+  "_slice55_trace_signature": "The approved 0.8.25 Slice 55 plan adds trace_dependency/traceDependency as a bounded, one-hop governed read under an authenticated frozen context. It adds no reverse state or SDK doctor surface. Core membership and the recovery denylist are unchanged.",
   "allowlist": [
     "Engine.open",
     "admin.configure",
@@ -41,6 +42,8 @@
     "searchWithEvidence",
     "resolve_evidence",
     "resolveEvidence",
+    "trace_dependency",
+    "traceDependency",
     "close",
     "read.get",
     "read.get_many",

@@ -50,7 +50,7 @@ use fathomdb_embedder::{
 };
 use fathomdb_embedder_api::EmbedderIdentity as RustEmbedderIdentity;
 use fathomdb_engine::{
-    rerank_passages as rust_rerank_passages, ActuationBatchV1,
+    encode_dependency_trace_result_v1, rerank_passages as rust_rerank_passages, ActuationBatchV1,
     ActuationError as RustActuationError, ActuationOperationV1, ActuationOutcomeV1,
     ActuationReceiptV1 as RustActuationReceiptV1, ArtifactRevisionId,
     BoundaryCrossing as RustBoundaryCrossing, CanonicalHash, ClosureLookupV1, ClosureRootV1,
@@ -59,8 +59,10 @@ use fathomdb_engine::{
     CorruptionDetail, CorruptionKind, DenseReadiness as RustDenseReadiness,
     DependencyClosureError as RustDependencyClosureError, DependencyDerivedLookupV1,
     DependencyError as RustDependencyError, DependencyListV1 as RustDependencyListV1,
-    DependencySourceLookupV1, EmbedderChoice, EmbeddingReadiness as RustEmbeddingReadiness,
-    Engine as RustEngine, EngineError as RustEngineError, EngineOpenError,
+    DependencySourceLookupV1, DependencyTraceDirectionV1 as RustDependencyTraceDirectionV1,
+    DependencyTraceRequestV1 as RustDependencyTraceRequestV1, EmbedderChoice,
+    EmbeddingReadiness as RustEmbeddingReadiness, Engine as RustEngine,
+    EngineError as RustEngineError, EngineOpenError,
     EvidenceArtifactLifecycleV1 as RustEvidenceArtifactLifecycleV1,
     EvidenceContributionV1 as RustEvidenceContributionV1,
     EvidenceGraphOriginV1 as RustEvidenceGraphOriginV1,
@@ -92,7 +94,13 @@ use fathomdb_engine::{
     SearchHit as RustSearchHit, SearchResult as RustSearchResult, SoftFallback as RustSoftFallback,
     SoftFallbackBranch, SourceDependencyRegistrationV1,
     SourceDependencyV1 as RustSourceDependencyV1, SourceId, SourceLocator, SourceRevisionId,
-    SourceVersionId, TraversalDirection as RustTraversalDirection, WriteProvenanceV1,
+    SourceVersionId, StructuralDegradationCodeV1 as RustStructuralDegradationCodeV1,
+    StructuralDependencyStateV1 as RustStructuralDependencyStateV1,
+    StructuralInclusionStateV1 as RustStructuralInclusionStateV1,
+    StructuralInclusionV1 as RustStructuralInclusionV1,
+    StructuralLifecycleStateV1 as RustStructuralLifecycleStateV1,
+    StructuralProjectionOriginV1 as RustStructuralProjectionOriginV1,
+    TraversalDirection as RustTraversalDirection, WriteProvenanceV1,
     WriteReceipt as RustWriteReceipt,
 };
 use fathomdb_schema::MigrationStepReport as RustMigrationStepReport;
@@ -144,6 +152,7 @@ create_exception!(_fathomdb, InvalidFilterError, EngineError);
 create_exception!(_fathomdb, FrozenReadError, EngineError);
 create_exception!(_fathomdb, EvidenceError, EngineError);
 create_exception!(_fathomdb, PageError, EngineError);
+create_exception!(_fathomdb, DependencyTraceError, EngineError);
 // 0.8.18 Slice 5 (#5 vector-equivalence probe) — query-time dense-refusal leaf.
 create_exception!(_fathomdb, VectorEquivalenceMismatchError, EngineError);
 // Slice 20 (G5/G6) — traversal depth > 3 or other out-of-range argument.
@@ -299,6 +308,23 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
                 let _ = value.setattr("field_path", &error.field_path);
             });
             exc
+        }
+        RustEngineError::DependencyTrace(error) => {
+            let exc = DependencyTraceError::new_err(format!(
+                "{} at {}",
+                error.reason.as_str(),
+                error.field_path
+            ));
+            Python::attach(|py| {
+                let value = exc.value(py);
+                let _ = value.setattr("code", "FDB_DEPENDENCY_TRACE");
+                let _ = value.setattr("reason", error.reason.as_str());
+                let _ = value.setattr("field_path", error.field_path);
+            });
+            exc
+        }
+        RustEngineError::DataPlaneIntegrity(error) => {
+            EngineError::new_err(format!("data-plane integrity: {error}"))
         }
         RustEngineError::Page(error) => {
             let exc =
@@ -1395,6 +1421,79 @@ struct PyPerHitExplain {
     /// attributes, symmetric with the N-API mirror.
     importance: Option<f64>,
     confidence: Option<f64>,
+    structural: PyStructuralInclusionV1,
+}
+
+#[pyclass(
+    module = "fathomdb._fathomdb",
+    name = "StructuralInclusionV1",
+    frozen,
+    get_all,
+    skip_from_py_object
+)]
+#[derive(Clone)]
+struct PyStructuralInclusionV1 {
+    schema_version: u32,
+    inclusion_state: String,
+    projection_origin: String,
+    dependency_state: String,
+    lifecycle_state: String,
+    degradation_codes: Vec<String>,
+}
+
+impl PyStructuralInclusionV1 {
+    fn from_rust(value: &RustStructuralInclusionV1) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            inclusion_state: match value.inclusion_state {
+                RustStructuralInclusionStateV1::Included => "included",
+                RustStructuralInclusionStateV1::Degraded => "degraded",
+            }
+            .to_string(),
+            projection_origin: match value.projection_origin {
+                RustStructuralProjectionOriginV1::SynchronousBodyFts => "synchronous_body_fts",
+                RustStructuralProjectionOriginV1::CurrentDenseGeneration => {
+                    "current_dense_generation"
+                }
+                RustStructuralProjectionOriginV1::GraphTraversal => "graph_traversal",
+            }
+            .to_string(),
+            dependency_state: match value.dependency_state {
+                RustStructuralDependencyStateV1::NotApplicable => "not_applicable",
+                RustStructuralDependencyStateV1::NotRegistered => "not_registered",
+                RustStructuralDependencyStateV1::Registered => "registered",
+            }
+            .to_string(),
+            lifecycle_state: match value.lifecycle_state {
+                RustStructuralLifecycleStateV1::NodePending => "node_pending",
+                RustStructuralLifecycleStateV1::NodeActive => "node_active",
+                RustStructuralLifecycleStateV1::NodeDeleted => "node_deleted",
+                RustStructuralLifecycleStateV1::EdgeValid => "edge_valid",
+            }
+            .to_string(),
+            degradation_codes: value
+                .degradation_codes
+                .iter()
+                .map(|code| {
+                    match code {
+                        RustStructuralDegradationCodeV1::SoftFallbackText => "soft_fallback_text",
+                        RustStructuralDegradationCodeV1::SoftFallbackTextEdge => {
+                            "soft_fallback_text_edge"
+                        }
+                        RustStructuralDegradationCodeV1::ProjectionLegacyUnverified => {
+                            "projection_legacy_unverified"
+                        }
+                        RustStructuralDegradationCodeV1::ProjectionBlocked => "projection_blocked",
+                        RustStructuralDegradationCodeV1::ProjectionDeferred => {
+                            "projection_deferred"
+                        }
+                        RustStructuralDegradationCodeV1::GraphBoundReached => "graph_bound_reached",
+                    }
+                    .to_string()
+                })
+                .collect(),
+        }
+    }
 }
 
 impl PyPerHitExplain {
@@ -1415,6 +1514,7 @@ impl PyPerHitExplain {
             blended: p.blended,
             importance: p.importance,
             confidence: p.confidence,
+            structural: PyStructuralInclusionV1::from_rust(&p.structural),
         }
     }
 }
@@ -1433,6 +1533,7 @@ impl PyPerHitExplain {
 struct PyExplanation {
     trace: PyQueryTrace,
     per_hit: Vec<PyPerHitExplain>,
+    correlation_id: String,
 }
 
 impl PyExplanation {
@@ -1440,6 +1541,7 @@ impl PyExplanation {
         Self {
             trace: PyQueryTrace::from_rust(&e.trace),
             per_hit: e.per_hit.iter().map(PyPerHitExplain::from_rust).collect(),
+            correlation_id: e.correlation_id.clone(),
         }
     }
 }
@@ -2556,6 +2658,36 @@ impl PyEngine {
         let engine = Arc::clone(&self.inner);
         let context = context.inner.clone();
         call_engine(py, move || engine.validate_frozen_read_context_for_binding(&context))
+    }
+
+    /// Return canonical version-1 JSON for one governed dependency trace.
+    #[pyo3(signature = (root_revision_id, direction, context, max_relations=100, max_work_units=101))]
+    fn trace_dependency(
+        &self,
+        py: Python<'_>,
+        root_revision_id: String,
+        direction: &str,
+        context: &PyFrozenReadContextV1,
+        max_relations: u32,
+        max_work_units: u32,
+    ) -> PyResult<String> {
+        validate_ffi_string_py(&root_revision_id)?;
+        let direction = match direction {
+            "to_source" => RustDependencyTraceDirectionV1::ToSource,
+            "to_dependents" => RustDependencyTraceDirectionV1::ToDependents,
+            _ => {
+                return Err(DependencyTraceError::new_err("trace_direction_invalid at /direction"));
+            }
+        };
+        let request =
+            RustDependencyTraceRequestV1::new(root_revision_id, direction, context.inner.clone())
+                .and_then(|request| request.with_bounds(max_relations, max_work_units))
+                .map_err(|error| engine_error_to_py(error.into()))?;
+        let engine = Arc::clone(&self.inner);
+        let result = call_engine(py, move || engine.trace_dependency(request))?;
+        let bytes = encode_dependency_trace_result_v1(&result)
+            .map_err(|error| engine_error_to_py(error.into()))?;
+        String::from_utf8(bytes).map_err(|_| EngineError::new_err("trace codec failure"))
     }
 
     /// Search using eligibility and validity authenticated by a frozen context.
@@ -5041,6 +5173,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     // 0.8.8 EXP-OBS (Slice 10) — explanation sidecar types.
     m.add_class::<PyQueryTrace>()?;
     m.add_class::<PyPerHitExplain>()?;
+    m.add_class::<PyStructuralInclusionV1>()?;
     m.add_class::<PyExplanation>()?;
     m.add_class::<PyCounterSnapshot>()?;
     m.add_class::<PyMigrationStepReport>()?;
@@ -5144,6 +5277,7 @@ fn _fathomdb(py: Python<'_>, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add("FrozenReadError", py.get_type::<FrozenReadError>())?;
     m.add("EvidenceError", py.get_type::<EvidenceError>())?;
     m.add("PageError", py.get_type::<PageError>())?;
+    m.add("DependencyTraceError", py.get_type::<DependencyTraceError>())?;
     m.add("InvalidArgumentError", py.get_type::<InvalidArgumentError>())?;
     m.add("VectorEquivalenceMismatchError", py.get_type::<VectorEquivalenceMismatchError>())?;
     m.add("IllegalTransitionError", py.get_type::<IllegalTransitionError>())?;

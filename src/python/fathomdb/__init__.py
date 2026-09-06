@@ -23,7 +23,7 @@ from fathomdb._fathomdb import embed_batch_cls
 from fathomdb._fathomdb import rerank
 from fathomdb.config import EngineConfig
 from fathomdb.engine import Engine
-from fathomdb.errors import EvidenceError, PageError
+from fathomdb.errors import DependencyTraceError, EvidenceError, PageError
 from fathomdb.filter import Filter
 from fathomdb.types import (
     ActuationBatchV1,
@@ -43,6 +43,10 @@ from fathomdb.types import (
     DependencyDerivedLookupV1,
     DependencyListV1,
     DependencySourceLookupV1,
+    DependencyTraceRequestV1,
+    DependencyTraceEdgeV1,
+    DependencyTraceNodeV1,
+    DependencyTraceResultV1,
     EmbeddingOperation,
     EmbeddingReadiness,
     EmbeddingReadinessState,
@@ -94,6 +98,9 @@ from fathomdb.types import (
     WholeBodySourceLocator,
     SoftFallback,
     SoftFallbackBranch,
+    StructuralInclusionV1,
+    TraceNodeLifecycleV1,
+    TraceReadBoundaryV1,
     WriteReceipt,
     WriteProvenanceV1,
 )
@@ -117,6 +124,11 @@ __all__ = [
     "DependencyDerivedLookupV1",
     "DependencyListV1",
     "DependencySourceLookupV1",
+    "DependencyTraceError",
+    "DependencyTraceRequestV1",
+    "DependencyTraceEdgeV1",
+    "DependencyTraceNodeV1",
+    "DependencyTraceResultV1",
     "EmbeddingOperation",
     "EmbeddingReadiness",
     "EmbeddingReadinessState",
@@ -174,6 +186,9 @@ __all__ = [
     "WholeBodySourceLocator",
     "SoftFallback",
     "SoftFallbackBranch",
+    "StructuralInclusionV1",
+    "TraceNodeLifecycleV1",
+    "TraceReadBoundaryV1",
     "WriteReceipt",
     "WriteProvenanceV1",
     "__version__",

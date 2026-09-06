@@ -170,6 +170,12 @@ EvidenceError = _EvidenceError
 PageError = _PageError
 
 
+class DependencyTraceError(EngineError):
+    """Typed dependency-trace refusal with a stable binding code."""
+
+    code = "FDB_DEPENDENCY_TRACE"
+
+
 def _install_typed_init(cls: type, fields: tuple[str, ...]) -> None:
     def __init__(self, *args, **kwargs):  # type: ignore[no-untyped-def]
         payload = {name: kwargs.pop(name, None) for name in fields}

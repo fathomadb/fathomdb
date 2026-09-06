@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import math
+import json
 from collections.abc import Sequence
 from typing import Any, Literal, NoReturn, cast
 
@@ -73,7 +74,14 @@ from fathomdb.types import (
     DependencySourceLookupV1,
     DependencyDerivedLookupV1,
     SourceDependencyV1,
+    StructuralInclusionV1,
     DependencyListV1,
+    DependencyTraceEdgeV1,
+    DependencyTraceNodeV1,
+    DependencyTraceRequestV1,
+    DependencyTraceResultV1,
+    TraceNodeLifecycleV1,
+    TraceReadBoundaryV1,
 )
 from fathomdb.filter import Filter
 from fathomdb.errors import EvidenceError, FrozenReadError, InvalidArgumentError
@@ -111,6 +119,7 @@ def _map_native_search_result(result: Any) -> SearchResult:
                 dropped_edge_hits=native_exp.trace.dropped_edge_hits,
             ),
             per_hit=[_map_per_hit_explain(item) for item in native_exp.per_hit],
+            correlation_id=getattr(native_exp, "correlation_id", ""),
         )
         if native_exp is not None
         else None
@@ -499,6 +508,19 @@ def _map_per_hit_explain(p: Any) -> PerHitExplain:
     hit's contribution; ``None`` = graceful-absent / neutral), symmetric with the
     TypeScript ``perHit`` mapping.
     """
+    native_structural = getattr(p, "structural", None)
+    structural = (
+        StructuralInclusionV1(
+            schema_version=native_structural.schema_version,
+            inclusion_state=native_structural.inclusion_state,
+            projection_origin=native_structural.projection_origin,
+            dependency_state=native_structural.dependency_state,
+            lifecycle_state=native_structural.lifecycle_state,
+            degradation_codes=tuple(native_structural.degradation_codes),
+        )
+        if native_structural is not None
+        else None
+    )
     return PerHitExplain(
         id=p.id,
         arm=cast(SoftFallbackBranch, p.arm),
@@ -510,6 +532,7 @@ def _map_per_hit_explain(p: Any) -> PerHitExplain:
         blended=p.blended,
         importance=p.importance,
         confidence=p.confidence,
+        structural=structural,
     )
 
 
@@ -1140,6 +1163,7 @@ class Engine:
                     dropped_edge_hits=native_exp.trace.dropped_edge_hits,
                 ),
                 per_hit=[_map_per_hit_explain(p) for p in native_exp.per_hit],
+                correlation_id=getattr(native_exp, "correlation_id", ""),
             )
             if native_exp is not None
             else None
@@ -1191,6 +1215,67 @@ class Engine:
             context=resolved_context,
             token=native.token,
             schema_version=native.schema_version,
+        )
+
+    def trace_dependency(
+        self, request: DependencyTraceRequestV1
+    ) -> DependencyTraceResultV1:
+        """Trace one reciprocal registered dependency under a frozen context."""
+        if not isinstance(request, DependencyTraceRequestV1):
+            raise TypeError("request must be a DependencyTraceRequestV1")
+        encoded = self._native.trace_dependency(
+            request.root_revision_id,
+            request.direction,
+            _to_native_frozen_context(request.context),
+            request.max_relations,
+            request.max_work_units,
+        )
+        value = json.loads(encoded)
+        nodes = tuple(
+            DependencyTraceNodeV1(
+                schema_version=node["schemaVersion"],
+                artifact_revision_id=node["artifactRevisionId"],
+                artifact_class=node["artifactClass"],
+                role=node["role"],
+                depth=node["depth"],
+                lifecycle=TraceNodeLifecycleV1(
+                    schema_version=node["lifecycle"]["schemaVersion"],
+                    artifact_class=node["lifecycle"]["artifactClass"],
+                    state=node["lifecycle"].get("state"),
+                    superseded=node["lifecycle"]["superseded"],
+                    valid_at_effective=node["lifecycle"]["validAtEffective"],
+                ),
+            )
+            for node in value["nodes"]
+        )
+        edges = tuple(
+            DependencyTraceEdgeV1(
+                schema_version=edge["schemaVersion"],
+                dependency_id=edge["dependencyId"],
+                source_revision_id=edge["sourceRevisionId"],
+                derived_revision_id=edge["derivedRevisionId"],
+                registered_dependency_generation=edge[
+                    "registeredDependencyGeneration"
+                ],
+            )
+            for edge in value["dependencyEdges"]
+        )
+        boundary = value["readBoundary"]
+        return DependencyTraceResultV1(
+            schema_version=value["schemaVersion"],
+            root_revision_id=value["rootRevisionId"],
+            direction=value["direction"],
+            nodes=nodes,
+            dependency_edges=edges,
+            checked_work_units=value["checkedWorkUnits"],
+            complete=value["complete"],
+            read_boundary=TraceReadBoundaryV1(
+                schema_version=boundary["schemaVersion"],
+                effective_at_epoch_s=boundary["effectiveAtEpochS"],
+                observed_write_boundary=boundary["observedWriteBoundary"],
+                dependency_generation=boundary["dependencyGeneration"],
+                projection_generation_id=boundary["projectionGenerationId"],
+            ),
         )
 
     def search_frozen(

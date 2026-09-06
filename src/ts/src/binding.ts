@@ -253,11 +253,22 @@ export interface NativePerHitExplain {
   // `PerHitExplain` additive fields.
   importance?: number | null;
   confidence?: number | null;
+  structural?: NativeStructuralInclusionV1;
+}
+
+interface NativeStructuralInclusionV1 {
+  schemaVersion: number;
+  inclusionState: string;
+  projectionOrigin: string;
+  dependencyState: string;
+  lifecycleState: string;
+  degradationCodes: string[];
 }
 
 interface NativeExplanation {
   trace: NativeQueryTrace;
   perHit: NativePerHitExplain[];
+  correlationId?: string;
 }
 
 export interface NativeSearchResult {
@@ -648,6 +659,13 @@ export interface NativeEngine {
   readEmbeddingReadiness(): Promise<NativeEmbeddingReadiness>;
   freezeReadContext(context: NativeReadContextV1): Promise<NativeFrozenReadContextV1>;
   validateFrozenReadContext(context: NativeFrozenReadContextV1): Promise<void>;
+  traceDependency(
+    rootRevisionId: string,
+    direction: string,
+    context: NativeFrozenReadContextV1,
+    maxRelations?: number,
+    maxWorkUnits?: number,
+  ): Promise<string>;
   searchFrozen(
     query: string,
     context: NativeFrozenReadContextV1,

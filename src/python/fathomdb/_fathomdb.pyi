@@ -154,11 +154,21 @@ class PerHitExplain:
     # hit's contribution (None = graceful-absent / neutral).
     importance: float | None
     confidence: float | None
+    structural: StructuralInclusionV1
+
+class StructuralInclusionV1:
+    schema_version: int
+    inclusion_state: str
+    projection_origin: str
+    dependency_state: str
+    lifecycle_state: str
+    degradation_codes: list[str]
 
 class Explanation:
     # 0.8.8 EXP-OBS (Slice 10) — opt-in explanation sidecar.
     trace: QueryTrace
     per_hit: list[PerHitExplain]
+    correlation_id: str
 
 class SearchResult:
     projection_cursor: int
@@ -418,6 +428,14 @@ class Engine:
     # which is false.
     def open_report(self) -> OpenReport: ...
     def freeze_read_context(self, context: ReadContextV1) -> FrozenReadContextV1: ...
+    def trace_dependency(
+        self,
+        root_revision_id: str,
+        direction: str,
+        context: FrozenReadContextV1,
+        max_relations: int = 100,
+        max_work_units: int = 101,
+    ) -> str: ...
     def validate_frozen_read_context(self, context: FrozenReadContextV1) -> None: ...
     def search_frozen(
         self,

@@ -45,7 +45,9 @@
 //! `EngineError` are `#[non_exhaustive]` or documented as additive.
 
 mod actuation;
+mod data_plane_integrity;
 mod dependency_closure;
+mod dependency_trace;
 mod evidence;
 mod frozen_read;
 pub mod lifecycle;
@@ -59,9 +61,26 @@ pub use actuation::{
     ActuationBatchV1, ActuationError, ActuationErrorReason, ActuationOperationV1,
     ActuationOutcomeV1, ActuationReceiptV1, ActuationRefusalReasonV1, LifecycleActuationV1,
 };
+pub use data_plane_integrity::{
+    DataPlaneIntegrityBoundaryV1, DataPlaneIntegrityCheckCountV1, DataPlaneIntegrityCheckV1,
+    DataPlaneIntegrityErrorReasonV1, DataPlaneIntegrityErrorV1, DataPlaneIntegrityFindingCodeV1,
+    DataPlaneIntegrityFindingV1, DataPlaneIntegrityRequestV1, DataPlaneIntegrityResultV1,
+    DataPlaneIntegritySeverityV1,
+};
 pub use dependency_closure::{
     ClosureCauseV1, ClosureLookupV1, ClosureOperationId, ClosurePhaseV1, ClosureProofV1,
     ClosureRootV1, ClosureStatusV1, DependencyClosureError, DependencyClosureErrorReason,
+};
+pub use dependency_trace::{
+    decode_dependency_trace_result_v1, encode_dependency_trace_result_v1,
+    DependencyTraceDirectionV1, DependencyTraceEdgeV1, DependencyTraceErrorReasonV1,
+    DependencyTraceErrorV1, DependencyTraceNodeV1, DependencyTraceRequestV1,
+    DependencyTraceResultV1, TraceArtifactClassV1, TraceArtifactRoleV1, TraceNodeLifecycleV1,
+    TraceReadBoundaryV1,
+};
+#[cfg(feature = "test-hooks")]
+pub use dependency_trace::{
+    decode_dependency_trace_root_for_test, encode_dependency_trace_root_for_test,
 };
 pub use evidence::{
     EvidenceArmV1, EvidenceArtifactClassV1, EvidenceArtifactLifecycleV1, EvidenceContributionV1,
@@ -711,6 +730,33 @@ const READER_LOOKASIDE_SLOT_SIZE: std::os::raw::c_int = 1200;
 /// falling back to the glibc malloc-arena mutex.
 const READER_LOOKASIDE_SLOT_COUNT: std::os::raw::c_int = 500;
 
+static EXPLANATION_OPEN_NONCE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+
+fn mint_explanation_open_nonce() -> u128 {
+    let time = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let sequence = EXPLANATION_OPEN_NONCE_SEQUENCE.fetch_add(1, Ordering::Relaxed) as u128;
+    time.rotate_left(17) ^ sequence
+}
+
+#[cfg(all(feature = "test-hooks", target_os = "linux"))]
+fn process_peak_rss_bytes() -> u64 {
+    let mut usage = std::mem::MaybeUninit::<libc::rusage>::zeroed();
+    // SAFETY: `getrusage` initializes the supplied `rusage` on a zero return.
+    let result = unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) };
+    if result == 0 {
+        // SAFETY: guarded by the successful `getrusage` return above.
+        let kilobytes = unsafe { usage.assume_init() }.ru_maxrss;
+        u64::try_from(kilobytes).unwrap_or(0).saturating_mul(1024)
+    } else {
+        0
+    }
+}
+
+#[cfg(all(feature = "test-hooks", not(target_os = "linux")))]
+fn process_peak_rss_bytes() -> u64 {
+    0
+}
+
 pub struct Engine {
     path: PathBuf,
     next_cursor: AtomicU64,
@@ -783,6 +829,8 @@ pub struct Engine {
     /// `enable_telemetry` after the sink is installed; the `telemetry` mutex is only
     /// ever taken when this flag is set.
     telemetry_enabled: AtomicBool,
+    explanation_open_nonce: u128,
+    explanation_sequence: AtomicU64,
     /// 0.8.18 Slice 5 (#5 vector-equivalence probe, R-VEQ-4/6) — degraded-open
     /// latch, re-derived at every open by the #5 self-check. `true` ⇒ every
     /// vector-dependent arm refuses at the `search_inner_with_stats` choke point
@@ -4480,6 +4528,16 @@ pub struct Slice45FrozenStageTiming {
     pub snapshot_binding_ns: u128,
 }
 
+/// Test-only bounded trace measurement captured around the trace call itself.
+#[cfg(feature = "test-hooks")]
+#[derive(Clone, Copy, Debug)]
+#[doc(hidden)]
+pub struct DependencyTraceMeasurement {
+    pub vm_steps: u64,
+    pub elapsed: Duration,
+    pub peak_rss_delta_bytes: u64,
+}
+
 /// Test-only Slice 45 attribution for frozen-context minting.
 #[cfg(feature = "test-hooks")]
 #[derive(Clone, Copy, Debug)]
@@ -4527,6 +4585,62 @@ pub struct SearchResult {
 pub struct Explanation {
     pub trace: QueryTrace,
     pub per_hit: Vec<PerHitExplain>,
+    /// Engine-minted content-free identity shared with telemetry when enabled.
+    pub correlation_id: String,
+}
+
+/// Whether a returned hit used only its representative healthy origin.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StructuralInclusionStateV1 {
+    Included,
+    Degraded,
+}
+
+/// Representative physical origin of a returned hit.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StructuralProjectionOriginV1 {
+    SynchronousBodyFts,
+    CurrentDenseGeneration,
+    GraphTraversal,
+}
+
+/// Dependency-registry state observable without exposing dependency identity.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StructuralDependencyStateV1 {
+    NotApplicable,
+    NotRegistered,
+    Registered,
+}
+
+/// Class-correct lifecycle state of a returned hit.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StructuralLifecycleStateV1 {
+    NodePending,
+    NodeActive,
+    NodeDeleted,
+    EdgeValid,
+}
+
+/// Closed reason why an included hit used a degraded retrieval route.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum StructuralDegradationCodeV1 {
+    SoftFallbackText,
+    SoftFallbackTextEdge,
+    ProjectionLegacyUnverified,
+    ProjectionBlocked,
+    ProjectionDeferred,
+    GraphBoundReached,
+}
+
+/// Content-free structural classification for one returned explained hit.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StructuralInclusionV1 {
+    pub schema_version: u32,
+    pub inclusion_state: StructuralInclusionStateV1,
+    pub projection_origin: StructuralProjectionOriginV1,
+    pub dependency_state: StructuralDependencyStateV1,
+    pub lifecycle_state: StructuralLifecycleStateV1,
+    pub degradation_codes: Vec<StructuralDegradationCodeV1>,
 }
 
 /// 0.8.8 EXP-OBS (Slice 5) — query-level retrieval trace. Reuses the existing
@@ -4601,6 +4715,8 @@ pub struct PerHitExplain {
     /// stored value. `None` for node hits / edges without a confidence
     /// (graceful-absent, ranks NEUTRAL).
     pub confidence: Option<f64>,
+    /// Content-free inclusion classification from the same search snapshot.
+    pub structural: StructuralInclusionV1,
 }
 
 // ===== G4 filter grammar types (Slice 35) ===============================
@@ -6412,6 +6528,10 @@ pub enum EngineError {
     ProjectionGeneration(ProjectionGenerationError),
     /// An evidence request was invalid, unavailable, incomplete, or corrupt.
     Evidence(EvidenceErrorV1),
+    /// A governed dependency trace request was invalid, unavailable, bounded, or corrupt.
+    DependencyTrace(DependencyTraceErrorV1),
+    /// An operator-only bounded data-plane integrity request failed.
+    DataPlaneIntegrity(DataPlaneIntegrityErrorV1),
     Overloaded,
     Closing,
     /// G11 (Slice 15) — BYO-LLM extractor subprocess error (protocol mismatch,
@@ -6551,6 +6671,18 @@ impl From<EvidenceErrorV1> for EngineError {
     }
 }
 
+impl From<DependencyTraceErrorV1> for EngineError {
+    fn from(error: DependencyTraceErrorV1) -> Self {
+        Self::DependencyTrace(error)
+    }
+}
+
+impl From<DataPlaneIntegrityErrorV1> for EngineError {
+    fn from(error: DataPlaneIntegrityErrorV1) -> Self {
+        Self::DataPlaneIntegrity(error)
+    }
+}
+
 impl Display for EngineError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -6582,6 +6714,8 @@ impl Display for EngineError {
             Self::Page(error) => write!(f, "page: {error}"),
             Self::ProjectionGeneration(error) => write!(f, "projection generation: {error}"),
             Self::Evidence(error) => write!(f, "evidence: {error}"),
+            Self::DependencyTrace(error) => write!(f, "dependency trace: {error}"),
+            Self::DataPlaneIntegrity(error) => write!(f, "data-plane integrity: {error}"),
             Self::Overloaded => write!(f, "engine overloaded"),
             Self::Closing => write!(f, "engine is closing"),
             Self::Extractor => write!(f, "extractor error"),
@@ -6650,6 +6784,8 @@ impl EngineError {
             Self::Page(_) => "PageError",
             Self::ProjectionGeneration(_) => "ProjectionGenerationError",
             Self::Evidence(_) => "EvidenceError",
+            Self::DependencyTrace(_) => "DependencyTraceError",
+            Self::DataPlaneIntegrity(_) => "DataPlaneIntegrityError",
             Self::Overloaded => "OverloadedError",
             Self::Closing => "ClosingError",
             Self::Extractor => "ExtractorError",
@@ -8045,6 +8181,8 @@ impl Engine {
                         reader_lookaside_rcs,
                         telemetry: Mutex::new(None),
                         telemetry_enabled: AtomicBool::new(false),
+                        explanation_open_nonce: mint_explanation_open_nonce(),
+                        explanation_sequence: AtomicU64::new(0),
                         dense_disabled: AtomicBool::new(veq.dense_disabled),
                         dense_disabled_reason: Mutex::new(veq.reason),
                         vector_equivalence_refusals: AtomicU64::new(0),
@@ -10629,11 +10767,9 @@ impl Engine {
         );
         self.detect_slow(started, lifecycle::EventCategory::Search);
         match outcome {
-            Ok(result) => {
+            Ok(mut result) => {
                 self.counters.record_query();
-                // 0.8.8 Slice 15 (OPP-9) — opt-in telemetry capture. No-op + no
-                // allocation when telemetry is OFF (the default).
-                self.capture_telemetry(query, &result);
+                self.finalize_search_observability(query, &mut result);
                 self.emit_event(lifecycle::Phase::Finished, lifecycle::EventCategory::Search, None);
                 Ok(result)
             }
@@ -10712,6 +10848,39 @@ impl Engine {
         }
         let Ok(mut guard) = self.telemetry.lock() else { return };
         let Some(sink) = guard.as_mut() else { return };
+        Self::capture_telemetry_with_sink(query, result, sink);
+    }
+
+    fn finalize_search_observability(&self, query: &str, result: &mut SearchResult) {
+        if result.explanation.is_none() {
+            self.capture_telemetry(query, result);
+            return;
+        }
+
+        let correlation_id = if let Ok(mut guard) = self.telemetry.lock() {
+            if let Some(sink) = guard.as_mut() {
+                Self::capture_telemetry_with_sink(query, result, sink)
+            } else {
+                self.mint_explanation_correlation_id()
+            }
+        } else {
+            self.mint_explanation_correlation_id()
+        };
+        if let Some(explanation) = result.explanation.as_mut() {
+            explanation.correlation_id = correlation_id;
+        }
+    }
+
+    fn mint_explanation_correlation_id(&self) -> String {
+        let sequence = self.explanation_sequence.fetch_add(1, Ordering::Relaxed);
+        format!("x{:032x}-{sequence}", self.explanation_open_nonce)
+    }
+
+    fn capture_telemetry_with_sink(
+        query: &str,
+        result: &SearchResult,
+        sink: &mut TelemetrySink,
+    ) -> String {
         let query_id = format!("q{}-{}", sink.nonce, sink.seq);
         let ts_monotonic_ms = sink.base.elapsed().as_millis() as u64;
         let mut arm_of = serde_json::Map::new();
@@ -10743,7 +10912,8 @@ impl Engine {
         });
         let _ = append_jsonl(&sink.path, &event);
         sink.seq += 1;
-        sink.last_query_id = Some(query_id);
+        sink.last_query_id = Some(query_id.clone());
+        query_id
     }
 
     /// 0.8.8 Slice 15 — append an agent-supplied relevance-label record for a
@@ -13579,6 +13749,121 @@ impl Engine {
             return Err(EngineError::Storage);
         };
         Ok(source_dependency_from_request(request, generation))
+    }
+
+    /// Trace one reciprocal source-to-derived dependency page under an authenticated frozen view.
+    ///
+    /// The read is one SQLite snapshot, never mutates durable state, and returns no partial page.
+    pub fn trace_dependency(
+        &self,
+        request: DependencyTraceRequestV1,
+    ) -> Result<DependencyTraceResultV1, EngineError> {
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        dependency_trace::execute(connection, request)
+    }
+
+    /// Query-plan details for both indexed dependency-trace directions.
+    #[cfg(feature = "test-hooks")]
+    pub fn dependency_trace_query_plans_for_test(&self) -> Result<Vec<String>, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let statements = [
+            ("EXPLAIN QUERY PLAN SELECT dependency_id FROM _fathomdb_source_dependencies WHERE derived_revision_id=?1 ORDER BY derived_revision_id, dependency_id LIMIT 2", "derived-r1"),
+            ("EXPLAIN QUERY PLAN SELECT artifact_revision_id FROM _fathomdb_source_links WHERE source_revision_id=?1 ORDER BY artifact_revision_id LIMIT 2", "source-r1"),
+        ];
+        let mut plans = Vec::new();
+        for (sql, parameter) in statements {
+            let mut statement = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
+            plans.extend(
+                statement
+                    .query_map([parameter], |row| row.get::<_, String>(3))
+                    .map_err(|_| EngineError::Storage)?
+                    .collect::<rusqlite::Result<Vec<_>>>()
+                    .map_err(|_| EngineError::Storage)?,
+            );
+        }
+        Ok(plans)
+    }
+
+    /// Measure SQLite VM-step quanta, wall time, and process peak-RSS delta.
+    #[cfg(feature = "test-hooks")]
+    pub fn measure_dependency_trace_for_test(
+        &self,
+    ) -> Result<DependencyTraceMeasurement, EngineError> {
+        let context = self.freeze_read_context(&ReadContextV1::new(
+            ReadView::default(),
+            SearchFilter::default(),
+        )?)?;
+        let request = DependencyTraceRequestV1::new(
+            "source-r1",
+            DependencyTraceDirectionV1::ToDependents,
+            context,
+        )?
+        .with_bounds(1, 2)?;
+        let callbacks = Arc::new(AtomicU64::new(0));
+        let callback_counter = Arc::clone(&callbacks);
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        connection
+            .progress_handler(
+                1_000,
+                Some(move || {
+                    callback_counter.fetch_add(1, Ordering::Relaxed);
+                    false
+                }),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let rss_before = process_peak_rss_bytes();
+        let started = Instant::now();
+        let outcome = dependency_trace::execute(connection, request);
+        let elapsed = started.elapsed();
+        let rss_after = process_peak_rss_bytes();
+        connection
+            .progress_handler(0, Option::<fn() -> bool>::None)
+            .map_err(|_| EngineError::Storage)?;
+        outcome?;
+        Ok(DependencyTraceMeasurement {
+            vm_steps: callbacks.load(Ordering::Relaxed).saturating_mul(1_000),
+            elapsed,
+            peak_rss_delta_bytes: rss_after.saturating_sub(rss_before),
+        })
+    }
+
+    /// Run bounded, read-only operator integrity checks in one SQLite snapshot.
+    #[cfg(feature = "operator")]
+    pub fn check_data_plane_integrity(
+        &self,
+        request: DataPlaneIntegrityRequestV1,
+    ) -> Result<DataPlaneIntegrityResultV1, EngineError> {
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        data_plane_integrity::execute(connection, request)
+    }
+
+    /// Enumerate schema objects for the no-reverse-table contract test.
+    #[cfg(feature = "test-hooks")]
+    pub fn schema_objects_for_test(&self) -> Result<Vec<String>, EngineError> {
+        self.ensure_open()?;
+        let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_ref().ok_or(EngineError::Closing)?;
+        let mut statement = connection
+            .prepare("SELECT name FROM sqlite_master ORDER BY name")
+            .map_err(|_| EngineError::Storage)?;
+        let objects = statement
+            .query_map([], |row| row.get(0))
+            .map_err(|_| EngineError::Storage)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(|_| EngineError::Storage)?;
+        // Slice 25's accepted actuation receipt lookup index predates the
+        // Slice 55 no-new-reverse-state rule and is outside dependency trace.
+        Ok(objects
+            .into_iter()
+            .filter(|name| name != "_fathomdb_actuation_receipt_refs_reverse")
+            .collect())
     }
 
     /// Return at most 100 dependencies pinned to one source revision.
@@ -16743,6 +17028,38 @@ fn begin_attributed_reader_tx<'a>(
     Ok(tx)
 }
 
+fn structural_dependency_state(
+    tx: &Connection,
+    write_cursor: u64,
+) -> rusqlite::Result<StructuralDependencyStateV1> {
+    let owner: Option<(String, String)> = tx
+        .query_row(
+            "SELECT artifact_role, completeness FROM _fathomdb_artifact_revisions \
+             WHERE write_cursor=?1 AND schema_version=1",
+            [i64::try_from(write_cursor).map_err(|_| rusqlite::Error::InvalidQuery)?],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let Some((role, completeness)) = owner else {
+        return Ok(StructuralDependencyStateV1::NotApplicable);
+    };
+    if role != "derived_semantic" || completeness != "complete" {
+        return Ok(StructuralDependencyStateV1::NotApplicable);
+    }
+    let registered = tx.query_row(
+        "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_dependencies d \
+         JOIN _fathomdb_artifact_revisions r ON r.revision_id=d.derived_revision_id \
+         WHERE r.write_cursor=?1)",
+        [i64::try_from(write_cursor).map_err(|_| rusqlite::Error::InvalidQuery)?],
+        |row| row.get::<_, bool>(0),
+    )?;
+    Ok(if registered {
+        StructuralDependencyStateV1::Registered
+    } else {
+        StructuralDependencyStateV1::NotRegistered
+    })
+}
+
 /// Read projection cursor and matching body rows inside one read tx.
 #[allow(clippy::too_many_arguments)]
 fn read_projected_text_in_tx(
@@ -17825,23 +18142,68 @@ fn read_search_in_tx<C: SearchOriginCapture>(
         let fused_scores = exp_fused_scores.unwrap_or_default();
         let per_hit: Vec<PerHitExplain> = results
             .iter()
-            .map(|h| PerHitExplain {
-                // `PerHitExplain.id` carries the engine-internal positional
-                // `write_cursor` (the pre-C-2 `SearchHit.id`), matching the
-                // telemetry `result_ids` / importance-map key space; the typed
-                // `SearchHit.id` is the separate caller-facing identity.
-                id: h.write_cursor,
-                arm: h.branch,
-                vector_rank: exp_vector_ranks.as_ref().and_then(|m| m.get(&h.body).copied()),
-                text_rank: exp_text_ranks.as_ref().and_then(|m| m.get(&h.body).copied()),
-                graph_rank: exp_graph_ranks.as_ref().and_then(|m| m.get(&h.body).copied()),
-                fused_score: fused_scores.get(&h.body).copied().unwrap_or(h.score),
-                ce_score: h.ce_score,
-                blended: h.score,
-                importance: exp_importance.as_ref().and_then(|m| m.get(&h.write_cursor).copied()),
-                confidence: exp_confidence.as_ref().and_then(|m| m.get(&h.write_cursor).copied()),
+            .map(|h| -> rusqlite::Result<PerHitExplain> {
+                Ok(PerHitExplain {
+                    // `PerHitExplain.id` carries the engine-internal positional
+                    // `write_cursor` (the pre-C-2 `SearchHit.id`), matching the
+                    // telemetry `result_ids` / importance-map key space; the typed
+                    // `SearchHit.id` is the separate caller-facing identity.
+                    id: h.write_cursor,
+                    arm: h.branch,
+                    vector_rank: exp_vector_ranks.as_ref().and_then(|m| m.get(&h.body).copied()),
+                    text_rank: exp_text_ranks.as_ref().and_then(|m| m.get(&h.body).copied()),
+                    graph_rank: exp_graph_ranks.as_ref().and_then(|m| m.get(&h.body).copied()),
+                    fused_score: fused_scores.get(&h.body).copied().unwrap_or(h.score),
+                    ce_score: h.ce_score,
+                    blended: h.score,
+                    importance: exp_importance
+                        .as_ref()
+                        .and_then(|m| m.get(&h.write_cursor).copied()),
+                    confidence: exp_confidence
+                        .as_ref()
+                        .and_then(|m| m.get(&h.write_cursor).copied()),
+                    structural: {
+                        let projection_origin = match h.branch {
+                            SoftFallbackBranch::Vector => {
+                                StructuralProjectionOriginV1::CurrentDenseGeneration
+                            }
+                            SoftFallbackBranch::GraphArm => {
+                                StructuralProjectionOriginV1::GraphTraversal
+                            }
+                            SoftFallbackBranch::Text | SoftFallbackBranch::TextEdge => {
+                                StructuralProjectionOriginV1::SynchronousBodyFts
+                            }
+                        };
+                        let lifecycle_state = if h.branch == SoftFallbackBranch::TextEdge {
+                            StructuralLifecycleStateV1::EdgeValid
+                        } else {
+                            StructuralLifecycleStateV1::NodeActive
+                        };
+                        let degradation_codes = match (&soft_fallback, h.branch) {
+                            (Some(_), SoftFallbackBranch::Text) => {
+                                vec![StructuralDegradationCodeV1::SoftFallbackText]
+                            }
+                            (Some(_), SoftFallbackBranch::TextEdge) => {
+                                vec![StructuralDegradationCodeV1::SoftFallbackTextEdge]
+                            }
+                            _ => Vec::new(),
+                        };
+                        StructuralInclusionV1 {
+                            schema_version: 1,
+                            inclusion_state: if degradation_codes.is_empty() {
+                                StructuralInclusionStateV1::Included
+                            } else {
+                                StructuralInclusionStateV1::Degraded
+                            },
+                            projection_origin,
+                            dependency_state: structural_dependency_state(&tx, h.write_cursor)?,
+                            lifecycle_state,
+                            degradation_codes,
+                        }
+                    },
+                })
             })
-            .collect();
+            .collect::<rusqlite::Result<Vec<_>>>()?;
         let ce_active = rerank_depth > 0 && per_hit.iter().any(|p| p.ce_score.is_some());
         Some(Explanation {
             trace: QueryTrace {
@@ -17860,6 +18222,7 @@ fn read_search_in_tx<C: SearchOriginCapture>(
                 dropped_edge_hits,
             },
             per_hit,
+            correlation_id: String::new(),
         })
     } else {
         None

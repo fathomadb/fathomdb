@@ -984,3 +984,15 @@ The two methods are additive governed reads. Failures are mapped through
 `FDB_EVIDENCE` to `EvidenceError` with `reason` and `fieldPath`; unauthorized
 states expose only `evidence_unavailable` at `/evidenceRef`. Existing
 `Engine.search` and `SearchHit` are unchanged.
+
+## Dependency trace and structural explanation (0.8.25 Slice 55)
+
+`Engine.traceDependency(request)` returns `DependencyTraceResultV1` under the
+request's frozen context. Optional `maxRelations` and `maxWorkUnits` default to
+100 and 101. `FDB_DEPENDENCY_TRACE` maps to `DependencyTraceError` with
+`reason` and `fieldPath`.
+
+New native explained results always contain a nonempty `correlationId` and one
+`StructuralInclusionV1` per hit. User object literals remain compatible because
+`Explanation.correlationId` and `PerHitExplain.structural` are optional. No
+doctor or data-plane-integrity method is exposed.

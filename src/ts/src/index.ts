@@ -1230,6 +1230,117 @@ function frozenTraceRequestError(reason: string, fieldPath: string): never {
   throw new FrozenReadError(`${reason} at ${fieldPath}`, reason, fieldPath);
 }
 
+function frozenTraceRecord(value: unknown, path: string): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    frozenTraceRequestError("context_invalid", path);
+  }
+  return value as Record<string, unknown>;
+}
+
+function validateFrozenTraceKeys(
+  value: Record<string, unknown>,
+  allowed: readonly string[],
+  path: string,
+): void {
+  const unknown = Object.keys(value).filter((key) => !allowed.includes(key)).sort()[0];
+  if (unknown !== undefined) {
+    frozenTraceRequestError(
+      "context_invalid",
+      `${path}/${escapeTracePointerToken(unknown)}`,
+    );
+  }
+}
+
+function validateFrozenTraceContext(value: unknown): FrozenReadContextV1 {
+  const frozen = frozenTraceRecord(value, "/context");
+  validateFrozenTraceKeys(
+    frozen,
+    ["schemaVersion", "effectiveValidAt", "context", "token"],
+    "/context",
+  );
+  if (frozen.schemaVersion !== 1) {
+    frozenTraceRequestError("unsupported_schema_version", "/context/schemaVersion");
+  }
+  if (!Number.isSafeInteger(frozen.effectiveValidAt)) {
+    frozenTraceRequestError("context_invalid", "/context/effectiveValidAt");
+  }
+  if (typeof frozen.token !== "string") {
+    frozenTraceRequestError("token_malformed", "/context/token");
+  }
+  if (new TextEncoder().encode(frozen.token).length > 1024) {
+    frozenTraceRequestError("token_too_large", "/context/token");
+  }
+  const context = frozenTraceRecord(frozen.context, "/context/context");
+  validateFrozenTraceKeys(
+    context,
+    ["schemaVersion", "view", "eligibility"],
+    "/context/context",
+  );
+  if (context.schemaVersion !== 1) {
+    frozenTraceRequestError(
+      "unsupported_schema_version",
+      "/context/context/schemaVersion",
+    );
+  }
+  const view = frozenTraceRecord(context.view, "/context/context/view");
+  validateFrozenTraceKeys(
+    view,
+    ["includeSuperseded", "includeInactive", "includeOutOfWindow", "validAsOf"],
+    "/context/context/view",
+  );
+  for (const field of ["includeSuperseded", "includeInactive", "includeOutOfWindow"] as const) {
+    if (view[field] !== undefined && typeof view[field] !== "boolean") {
+      frozenTraceRequestError("context_invalid", `/context/context/view/${field}`);
+    }
+  }
+  if (view.validAsOf !== undefined && view.validAsOf !== null && !Number.isSafeInteger(view.validAsOf)) {
+    frozenTraceRequestError("context_invalid", "/context/context/view/validAsOf");
+  }
+  const eligibility = frozenTraceRecord(
+    context.eligibility,
+    "/context/context/eligibility",
+  );
+  validateFrozenTraceKeys(
+    eligibility,
+    ["sourceType", "kind", "createdAfter", "status", "attributes"],
+    "/context/context/eligibility",
+  );
+  for (const field of ["sourceType", "kind", "status"] as const) {
+    if (eligibility[field] !== undefined && typeof eligibility[field] !== "string") {
+      frozenTraceRequestError(
+        "context_invalid",
+        `/context/context/eligibility/${field}`,
+      );
+    }
+  }
+  if (
+    eligibility.createdAfter !== undefined &&
+    eligibility.createdAfter !== null &&
+    !Number.isSafeInteger(eligibility.createdAfter)
+  ) {
+    frozenTraceRequestError("context_invalid", "/context/context/eligibility/createdAfter");
+  }
+  if (eligibility.attributes !== undefined) {
+    if (!Array.isArray(eligibility.attributes) || eligibility.attributes.length > 64) {
+      frozenTraceRequestError("context_invalid", "/context/context/eligibility/attributes");
+    }
+    eligibility.attributes.forEach((pair, index) => {
+      if (
+        !Array.isArray(pair) ||
+        pair.length !== 2 ||
+        typeof pair[0] !== "string" ||
+        typeof pair[1] !== "string"
+      ) {
+        frozenTraceRequestError(
+          "context_invalid",
+          `/context/context/eligibility/attributes/${index}`,
+        );
+      }
+    });
+  }
+  return value as FrozenReadContextV1;
+}
+
 function escapeTracePointerToken(value: string): string {
   return value.replaceAll("~", "~0").replaceAll("/", "~1");
 }
@@ -1271,15 +1382,7 @@ function validateDependencyTraceRequest(request: DependencyTraceRequestV1): void
   ) {
     dependencyTraceRequestError("trace_corrupt", "/context");
   }
-  if (request.context.schemaVersion !== 1) {
-    frozenTraceRequestError("unsupported_schema_version", "/context/schemaVersion");
-  }
-  if (request.context.context.schemaVersion !== 1) {
-    frozenTraceRequestError(
-      "unsupported_schema_version",
-      "/context/context/schemaVersion",
-    );
-  }
+  validateFrozenTraceContext(request.context);
   if (
     request.maxRelations !== undefined &&
     (!Number.isInteger(request.maxRelations) ||
@@ -1869,8 +1972,9 @@ function mapCandidateNativeExplanation(
   const graphHits = u32(trace.graphHits, "/trace/graphHits");
   const droppedEdgeHits = u32(trace.droppedEdgeHits, "/trace/droppedEdgeHits");
   if (
-    typeof value.correlationId !== "string" ||
-    !/^(?:q[0-9]+|x[0-9a-f]{32})-(?:0|[1-9][0-9]*)$/.test(value.correlationId)
+    value.correlationId !== undefined &&
+    (typeof value.correlationId !== "string" ||
+      !/^(?:q[0-9]+|x[0-9a-f]{32})-(?:0|[1-9][0-9]*)$/.test(value.correlationId))
   ) {
     invalid("/correlationId");
   }
@@ -1881,9 +1985,6 @@ function mapCandidateNativeExplanation(
   const allowedArms = new Set(["vector", "text", "text_edge", "graph_arm"]);
   const perHit = value.perHit.map((nativeExplain, index) => {
     const prefix = `/perHit/${index}`;
-    if (nativeExplain.structural === undefined || nativeExplain.structural === null) {
-      invalid(`${prefix}/structural`);
-    }
     let mapped: PerHitExplain;
     try {
       mapped = mapPerHitExplain(nativeExplain);

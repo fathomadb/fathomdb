@@ -25,11 +25,12 @@ const NODE_BODY_OWNER_QUERY: &str =
      WHERE n.write_cursor>?1 ORDER BY n.write_cursor LIMIT ?2";
 #[cfg(feature = "operator")]
 const EDGE_BODY_OWNER_QUERY: &str =
-    "SELECT e.write_cursor,r.revision_id,e.body,e.kind FROM canonical_edges e \
+    "SELECT e.write_cursor,r.revision_id,e.body,e.kind,e.superseded_at,e.t_invalid \
+     FROM canonical_edges e \
      INDEXED BY canonical_edges_write_cursor_idx \
      LEFT JOIN _fathomdb_artifact_revisions r \
        ON r.artifact_class='edge' AND r.write_cursor=e.write_cursor \
-     WHERE e.write_cursor>?1 AND e.body IS NOT NULL ORDER BY e.write_cursor LIMIT ?2";
+     WHERE e.write_cursor>?1 ORDER BY e.write_cursor LIMIT ?2";
 #[cfg(feature = "operator")]
 const SEARCH_V1_MEMBER_QUERY: &str = "SELECT rowid,write_cursor,body,kind FROM search_index \
      WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
@@ -50,12 +51,11 @@ const PROPERTY_MEMBER_QUERY: &str =
      WHERE rowid>?1 ORDER BY rowid LIMIT ?2";
 #[cfg(feature = "operator")]
 const ATTRIBUTE_OWNER_QUERY: &str =
-    "SELECT n.write_cursor,r.revision_id,n.body FROM canonical_nodes n \
+    "SELECT n.write_cursor,r.revision_id,n.body,n.state,n.superseded_at FROM canonical_nodes n \
      INDEXED BY canonical_nodes_write_cursor_idx \
      LEFT JOIN _fathomdb_artifact_revisions r \
        ON r.artifact_class='node' AND r.write_cursor=n.write_cursor \
-     WHERE n.write_cursor>?1 AND n.state='active' AND n.superseded_at IS NULL \
-     ORDER BY n.write_cursor LIMIT ?2";
+     WHERE n.write_cursor>?1 ORDER BY n.write_cursor LIMIT ?2";
 #[cfg(feature = "operator")]
 const DENSE_TERMINAL_MEMBER_QUERY: &str = "SELECT write_cursor FROM _fathomdb_projection_terminal \
      WHERE write_cursor>?1 ORDER BY write_cursor LIMIT ?2";
@@ -119,11 +119,13 @@ pub(crate) fn candidate_queries_for_test() -> [&'static str; 12] {
 #[cfg(feature = "operator")]
 fn physical_dense_candidates(
     connection: &Connection,
-    remaining: u32,
+    max_work_units: u32,
+    aggregate_checked: &mut u32,
 ) -> Result<BTreeSet<u64>, EngineError> {
     let mut candidates = BTreeSet::new();
     for sql in [DENSE_TERMINAL_MEMBER_QUERY, DENSE_SIDECAR_MEMBER_QUERY, DENSE_VECTOR_MEMBER_QUERY]
     {
+        let remaining = max_work_units.saturating_sub(*aggregate_checked);
         let mut statement = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
         let rows = statement
             .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
@@ -131,6 +133,7 @@ fn physical_dense_candidates(
             })
             .map_err(|_| EngineError::Storage)?;
         for cursor in rows {
+            take_work(aggregate_checked, max_work_units)?;
             candidates.insert(
                 u64::try_from(cursor.map_err(|_| EngineError::Storage)?)
                     .map_err(|_| EngineError::Storage)?,
@@ -162,14 +165,20 @@ fn expected_attribute_members(
                     row.get::<_, i64>(0)?,
                     row.get::<_, Option<String>>(1)?,
                     row.get::<_, String>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, Option<i64>>(4)?,
                 ))
             })
             .map_err(|_| EngineError::Storage)?
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(|_| EngineError::Storage)?;
         let exhausted = owners.len() < usize::try_from(limit).unwrap_or(usize::MAX);
-        for (cursor, revision, body) in owners {
+        for (cursor, revision, body, state, superseded_at) in owners {
             after_cursor = cursor;
+            take_work(aggregate_checked, max_work_units)?;
+            if state != "active" || superseded_at.is_some() {
+                continue;
+            }
             let cursor_u64 = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
             if !crate::dependency_closure::projection_owner_is_eligible_at(
                 connection,
@@ -183,7 +192,6 @@ fn expected_attribute_members(
             else {
                 continue;
             };
-            take_work(aggregate_checked, max_work_units)?;
             members.push((cursor, revision, value));
         }
         if exhausted {
@@ -364,6 +372,15 @@ impl DataPlaneIntegrityRequestV1 {
                 "/checks",
             ));
         }
+        let mut seen = BTreeSet::new();
+        for (index, check) in checks.iter().copied().enumerate() {
+            if !seen.insert(check) {
+                return Err(DataPlaneIntegrityErrorV1::new(
+                    DataPlaneIntegrityErrorReasonV1::DuplicateCheck,
+                    format!("/checks/{index}"),
+                ));
+            }
+        }
         if !(1..=MAX_WORK_UNITS).contains(&max_work_units) {
             return Err(DataPlaneIntegrityErrorV1::new(
                 DataPlaneIntegrityErrorReasonV1::IntegrityLimitInvalid,
@@ -375,15 +392,6 @@ impl DataPlaneIntegrityRequestV1 {
                 DataPlaneIntegrityErrorReasonV1::IntegrityLimitInvalid,
                 "/maxFindings",
             ));
-        }
-        let mut seen = BTreeSet::new();
-        for (index, check) in checks.iter().copied().enumerate() {
-            if !seen.insert(check) {
-                return Err(DataPlaneIntegrityErrorV1::new(
-                    DataPlaneIntegrityErrorReasonV1::DuplicateCheck,
-                    format!("/checks/{index}"),
-                ));
-            }
         }
         checks.sort_unstable();
         Ok(Self { schema_version: SCHEMA_VERSION, checks, max_work_units, max_findings })
@@ -483,12 +491,18 @@ fn take_work(checked: &mut u32, limit: u32) -> Result<(), EngineError> {
 #[cfg(feature = "operator")]
 fn push_finding(
     findings: &mut Vec<DataPlaneIntegrityFindingV1>,
-    finding: DataPlaneIntegrityFindingV1,
+    mut finding: DataPlaneIntegrityFindingV1,
     max_findings: u32,
 ) -> Result<(), EngineError> {
     if findings.len() >= max_findings as usize {
         return Err(finding_bound_error());
     }
+    finding.artifact_revision_ids.retain(|value| crate::valid_caller_identity(value));
+    finding.dependency_id =
+        finding.dependency_id.filter(|value| crate::valid_caller_identity(value));
+    finding.projection_generation_id =
+        finding.projection_generation_id.filter(|value| valid_generation_id(value));
+    finding.operation_id = finding.operation_id.filter(|value| crate::valid_caller_identity(value));
     findings.push(finding);
     Ok(())
 }
@@ -808,6 +822,77 @@ fn dependency_findings(
 }
 
 #[cfg(feature = "operator")]
+fn body_residue_finding(
+    connection: &Connection,
+    artifact_class: &str,
+    cursor: i64,
+    effective_at_epoch_s: i64,
+) -> Result<DataPlaneIntegrityFindingV1, EngineError> {
+    let revision: Option<String> = connection
+        .query_row(
+            "SELECT revision_id FROM _fathomdb_artifact_revisions \
+             WHERE artifact_class=?1 AND write_cursor=?2",
+            rusqlite::params![artifact_class, cursor],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let cursor_u64 = u64::try_from(cursor).map_err(|_| EngineError::Storage)?;
+    let in_membership = if artifact_class == "node" {
+        let exists: bool = connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1)",
+                [cursor],
+                |row| row.get(0),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        exists
+            && crate::dependency_closure::projection_owner_is_eligible_at(
+                connection,
+                cursor_u64,
+                effective_at_epoch_s,
+            )?
+    } else {
+        let owner: Option<(Option<String>, Option<i64>, Option<i64>)> = connection
+            .query_row(
+                "SELECT body,superseded_at,t_invalid FROM canonical_edges WHERE write_cursor=?1",
+                [cursor],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()
+            .map_err(|_| EngineError::Storage)?;
+        owner.is_some_and(|(body, superseded, t_invalid)| {
+            body.is_some()
+                && superseded.is_none()
+                && t_invalid.is_none_or(|end| end > effective_at_epoch_s)
+        }) && crate::dependency_closure::projection_owner_is_eligible_at(
+            connection,
+            cursor_u64,
+            effective_at_epoch_s,
+        )?
+    };
+    let mut item = finding(
+        if revision.is_some() {
+            if in_membership {
+                DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch
+            } else {
+                DataPlaneIntegrityFindingCodeV1::SearchProjectionOutsideMembership
+            }
+        } else {
+            DataPlaneIntegrityFindingCodeV1::SearchProjectionOwnerMissing
+        },
+        if revision.is_some() && in_membership {
+            DataPlaneIntegritySeverityV1::Error
+        } else {
+            DataPlaneIntegritySeverityV1::Critical
+        },
+    );
+    item.write_cursor = Some(cursor_u64);
+    item.artifact_revision_ids = revision.into_iter().collect();
+    Ok(item)
+}
+
+#[cfg(feature = "operator")]
 fn active_projection_findings(
     connection: &Connection,
     effective_at_epoch_s: i64,
@@ -882,10 +967,10 @@ fn active_projection_findings(
             .map_err(|_| EngineError::Storage)?
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(|_| EngineError::Storage)?;
-        let mut physical_by_cursor: BTreeMap<i64, Vec<(String, String)>> = BTreeMap::new();
-        for (_rowid, cursor, body, kind) in physical {
+        let mut physical_by_cursor: BTreeMap<i64, Vec<(i64, String, String)>> = BTreeMap::new();
+        for (rowid, cursor, body, kind) in physical {
             take_work(aggregate_checked, max_work_units)?;
-            physical_by_cursor.entry(cursor).or_default().push((body, kind));
+            physical_by_cursor.entry(cursor).or_default().push((rowid, body, kind));
         }
         for (cursor, (revision, body, kind)) in &expected_by_cursor {
             let candidates = physical_by_cursor.get(cursor);
@@ -895,7 +980,7 @@ fn active_projection_findings(
                 item.artifact_revision_ids = revision.iter().cloned().collect();
                 push_finding(findings, item, max_findings)?;
             } else if candidates
-                .is_none_or(|rows| rows.len() != 1 || rows[0].0 != *body || rows[0].1 != *kind)
+                .is_none_or(|rows| rows.len() != 1 || rows[0].1 != *body || rows[0].2 != *kind)
             {
                 let mut item = finding(
                     DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
@@ -906,15 +991,15 @@ fn active_projection_findings(
                 push_finding(findings, item, max_findings)?;
             }
         }
-        for cursor in physical_by_cursor.keys() {
-            if !expected_by_cursor.contains_key(cursor) {
-                let mut item = finding(
-                    DataPlaneIntegrityFindingCodeV1::SearchProjectionOwnerMissing,
-                    DataPlaneIntegritySeverityV1::Critical,
-                );
-                item.write_cursor = u64::try_from(*cursor).ok();
-                push_finding(findings, item, max_findings)?;
-            }
+        let mut residue = physical_by_cursor
+            .iter()
+            .filter(|(cursor, _)| !expected_by_cursor.contains_key(cursor))
+            .flat_map(|(cursor, rows)| rows.iter().map(move |row| (row.0, *cursor)))
+            .collect::<Vec<_>>();
+        residue.sort_unstable();
+        for (_, cursor) in residue {
+            let item = body_residue_finding(connection, "node", cursor, effective_at_epoch_s)?;
+            push_finding(findings, item, max_findings)?;
         }
     }
 
@@ -926,24 +1011,30 @@ fn active_projection_findings(
             Ok((
                 row.get::<_, i64>(0)?,
                 row.get::<_, Option<String>>(1)?,
-                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(2)?,
                 row.get::<_, String>(3)?,
+                row.get::<_, Option<i64>>(4)?,
+                row.get::<_, Option<i64>>(5)?,
             ))
         })
         .map_err(|_| EngineError::Storage)?
         .collect::<rusqlite::Result<Vec<_>>>()
         .map_err(|_| EngineError::Storage)?;
     let mut expected_edges = BTreeMap::new();
-    for (cursor, revision, body, kind) in edge_entries {
+    for (cursor, revision, body, kind, superseded_at, t_invalid) in edge_entries {
         take_work(aggregate_checked, max_work_units)?;
-        if !crate::dependency_closure::projection_owner_is_eligible_at(
-            connection,
-            u64::try_from(cursor).map_err(|_| EngineError::Storage)?,
-            effective_at_epoch_s,
-        )? {
+        if body.is_none()
+            || superseded_at.is_some()
+            || t_invalid.is_some_and(|end| end <= effective_at_epoch_s)
+            || !crate::dependency_closure::projection_owner_is_eligible_at(
+                connection,
+                u64::try_from(cursor).map_err(|_| EngineError::Storage)?,
+                effective_at_epoch_s,
+            )?
+        {
             continue;
         }
-        expected_edges.insert(cursor, (revision, body, kind));
+        expected_edges.insert(cursor, (revision, body.expect("checked above"), kind));
     }
     let remaining = max_work_units.saturating_sub(*aggregate_checked);
     let mut edge_physical_statement =
@@ -960,10 +1051,10 @@ fn active_projection_findings(
         .map_err(|_| EngineError::Storage)?
         .collect::<rusqlite::Result<Vec<_>>>()
         .map_err(|_| EngineError::Storage)?;
-    let mut physical_edges: BTreeMap<i64, Vec<(String, String)>> = BTreeMap::new();
-    for (_rowid, cursor, body, kind) in edge_physical {
+    let mut physical_edges: BTreeMap<i64, Vec<(i64, String, String)>> = BTreeMap::new();
+    for (rowid, cursor, body, kind) in edge_physical {
         take_work(aggregate_checked, max_work_units)?;
-        physical_edges.entry(cursor).or_default().push((body, kind));
+        physical_edges.entry(cursor).or_default().push((rowid, body, kind));
     }
     for (cursor, (revision, body, kind)) in &expected_edges {
         match physical_edges.get(cursor) {
@@ -976,7 +1067,7 @@ fn active_projection_findings(
                 item.artifact_revision_ids = revision.iter().cloned().collect();
                 push_finding(findings, item, max_findings)?;
             }
-            Some(rows) if rows.len() != 1 || rows[0].0 != *body || rows[0].1 != *kind => {
+            Some(rows) if rows.len() != 1 || rows[0].1 != *body || rows[0].2 != *kind => {
                 let mut item = finding(
                     DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
                     DataPlaneIntegritySeverityV1::Error,
@@ -988,15 +1079,15 @@ fn active_projection_findings(
             Some(_) => {}
         }
     }
-    for cursor in physical_edges.keys() {
-        if !expected_edges.contains_key(cursor) {
-            let mut item = finding(
-                DataPlaneIntegrityFindingCodeV1::SearchProjectionOwnerMissing,
-                DataPlaneIntegritySeverityV1::Critical,
-            );
-            item.write_cursor = u64::try_from(*cursor).ok();
-            push_finding(findings, item, max_findings)?;
-        }
+    let mut edge_residue = physical_edges
+        .iter()
+        .filter(|(cursor, _)| !expected_edges.contains_key(cursor))
+        .flat_map(|(cursor, rows)| rows.iter().map(move |row| (row.0, *cursor)))
+        .collect::<Vec<_>>();
+    edge_residue.sort_unstable();
+    for (_, cursor) in edge_residue {
+        let item = body_residue_finding(connection, "edge", cursor, effective_at_epoch_s)?;
+        push_finding(findings, item, max_findings)?;
     }
 
     let mut expected_dense = BTreeMap::new();
@@ -1075,10 +1166,8 @@ fn active_projection_findings(
             push_finding(findings, item, max_findings)?;
         }
     }
-    let remaining = max_work_units.saturating_sub(*aggregate_checked);
-    let physical_dense = physical_dense_candidates(connection, remaining)?;
+    let physical_dense = physical_dense_candidates(connection, max_work_units, aggregate_checked)?;
     for cursor in physical_dense {
-        take_work(aggregate_checked, max_work_units)?;
         if !expected_dense.contains_key(&cursor) {
             let cursor_i64 = i64::try_from(cursor).map_err(|_| EngineError::Storage)?;
             let (owner_exists, terminal, sidecar, vector): (bool, bool, bool, bool) = connection
@@ -1180,10 +1269,10 @@ fn active_projection_findings(
             .map_err(|_| EngineError::Storage)?
             .collect::<rusqlite::Result<Vec<_>>>()
             .map_err(|_| EngineError::Storage)?;
-        let mut physical_members: BTreeMap<(String, i64), Vec<String>> = BTreeMap::new();
-        for (_rowid, cursor, name, value) in physical {
+        let mut physical_members: BTreeMap<(String, i64), Vec<(i64, String)>> = BTreeMap::new();
+        for (rowid, cursor, name, value) in physical {
             take_work(aggregate_checked, max_work_units)?;
-            physical_members.entry((name, cursor)).or_default().push(value);
+            physical_members.entry((name, cursor)).or_default().push((rowid, value));
         }
         for ((name, cursor), (expected_value, revision)) in expected_members {
             match physical_members.get(&((*name).clone(), *cursor)) {
@@ -1193,7 +1282,7 @@ fn active_projection_findings(
                     item.artifact_revision_ids = revision.iter().cloned().collect();
                     push_finding(findings, item, max_findings)?;
                 }
-                Some(values) if values.len() != 1 || values[0] != *expected_value => {
+                Some(values) if values.len() != 1 || values[0].1 != *expected_value => {
                     let mut item = finding(
                         DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
                         DataPlaneIntegritySeverityV1::Error,
@@ -1205,38 +1294,44 @@ fn active_projection_findings(
                 Some(_) => {}
             }
         }
-        for (name, cursor) in physical_members.keys() {
-            if !expected_members.contains_key(&((*name).clone(), *cursor)) {
-                let owner_exists: bool = connection
+        let mut residue = physical_members
+            .iter()
+            .filter(|(key, _)| !expected_members.contains_key(*key))
+            .flat_map(|((name, cursor), rows)| {
+                rows.iter().map(move |(rowid, _)| (*rowid, name.clone(), *cursor))
+            })
+            .collect::<Vec<_>>();
+        residue.sort_unstable_by_key(|entry| entry.0);
+        for (_, _name, cursor) in residue {
+            let owner_exists: bool = connection
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1)",
+                    [cursor],
+                    |row| row.get(0),
+                )
+                .map_err(|_| EngineError::Storage)?;
+            let mut item = finding(
+                if owner_exists {
+                    DataPlaneIntegrityFindingCodeV1::SearchProjectionOutsideMembership
+                } else {
+                    DataPlaneIntegrityFindingCodeV1::SearchProjectionOwnerMissing
+                },
+                DataPlaneIntegritySeverityV1::Critical,
+            );
+            item.write_cursor = u64::try_from(cursor).ok();
+            if owner_exists {
+                let revision: Option<String> = connection
                     .query_row(
-                        "SELECT EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1)",
+                        "SELECT revision_id FROM _fathomdb_artifact_revisions \
+                             WHERE artifact_class='node' AND write_cursor=?1",
                         [cursor],
                         |row| row.get(0),
                     )
+                    .optional()
                     .map_err(|_| EngineError::Storage)?;
-                let mut item = finding(
-                    if owner_exists {
-                        DataPlaneIntegrityFindingCodeV1::SearchProjectionOutsideMembership
-                    } else {
-                        DataPlaneIntegrityFindingCodeV1::SearchProjectionOwnerMissing
-                    },
-                    DataPlaneIntegritySeverityV1::Critical,
-                );
-                item.write_cursor = u64::try_from(*cursor).ok();
-                if owner_exists {
-                    let revision: Option<String> = connection
-                        .query_row(
-                            "SELECT revision_id FROM _fathomdb_artifact_revisions \
-                             WHERE artifact_class='node' AND write_cursor=?1",
-                            [cursor],
-                            |row| row.get(0),
-                        )
-                        .optional()
-                        .map_err(|_| EngineError::Storage)?;
-                    item.artifact_revision_ids = revision.into_iter().collect();
-                }
-                push_finding(findings, item, max_findings)?;
+                item.artifact_revision_ids = revision.into_iter().collect();
             }
+            push_finding(findings, item, max_findings)?;
         }
     }
     Ok(*aggregate_checked - start)
@@ -1284,8 +1379,8 @@ fn projection_generation_findings(
         push_finding(findings, item, max_findings)?;
     } else {
         let generation_id = current.as_ref().expect("validated current generation");
-        let remaining = max_work_units.saturating_sub(*aggregate_checked);
-        let mut candidates = physical_dense_candidates(connection, remaining)?;
+        let mut candidates =
+            physical_dense_candidates(connection, max_work_units, aggregate_checked)?;
         let dense_authority_enabled = crate::vector_projection_declared(connection)
             .map_err(|_| EngineError::Storage)?
             || connection
@@ -1295,6 +1390,7 @@ fn projection_generation_findings(
                 .map_err(|_| EngineError::Storage)?;
         if dense_authority_enabled {
             for sql in [NODE_BODY_OWNER_QUERY, EDGE_BODY_OWNER_QUERY] {
+                let remaining = max_work_units.saturating_sub(*aggregate_checked);
                 let mut statement = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
                 let rows = statement
                     .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
@@ -1302,6 +1398,7 @@ fn projection_generation_findings(
                     })
                     .map_err(|_| EngineError::Storage)?;
                 for cursor in rows {
+                    take_work(aggregate_checked, max_work_units)?;
                     candidates.insert(
                         u64::try_from(cursor.map_err(|_| EngineError::Storage)?)
                             .map_err(|_| EngineError::Storage)?,
@@ -1310,7 +1407,6 @@ fn projection_generation_findings(
             }
         }
         for cursor_u64 in candidates {
-            take_work(aggregate_checked, max_work_units)?;
             let cursor = i64::try_from(cursor_u64).map_err(|_| EngineError::Storage)?;
             let expected = crate::projection_generation::dense_member_kind_at(
                 connection,
@@ -1498,9 +1594,6 @@ fn mutation_readiness_findings(
                 })
             };
         let max_pending = cursors.as_ref().and_then(|items| items.last()).copied();
-        let current_generation = crate::projection_generation::current_generation_id(connection)
-            .map(|id| id.as_str().to_owned())
-            .ok();
         let generation_coherent = match (max_pending, generation.as_deref()) {
             (None, None) => true,
             (None, Some(_)) => false,
@@ -1512,9 +1605,14 @@ fn mutation_readiness_findings(
                     |row| row.get(0),
                 )
                 .map_err(|_| EngineError::Storage)?,
-            (Some(_), Some(generation_id)) if valid_generation_id(generation_id) => {
-                current_generation.as_deref() == Some(generation_id)
-            }
+            (Some(_), Some(generation_id)) if valid_generation_id(generation_id) => connection
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM _fathomdb_projection_generations \
+                     WHERE generation_id=?1)",
+                    [generation_id],
+                    |row| row.get(0),
+                )
+                .map_err(|_| EngineError::Storage)?,
             (Some(_), Some(_)) => false,
         };
         let coherent = coherent && generation_coherent;
@@ -1557,23 +1655,22 @@ fn mutation_readiness_findings(
                 item.write_cursor = Some(cursor);
                 push_finding(findings, item, max_findings)?;
             } else {
-                match crate::projection_generation::physical_member_completion_at(
+                let expected_generation = crate::ProjectionGenerationId::new(
+                    generation.as_ref().expect("validated nonempty generation").clone(),
+                )
+                .map_err(|_| EngineError::Storage)?;
+                match crate::projection_generation::receipt_point_completion_at(
                     connection,
+                    &operation_id,
                     cursor,
+                    &expected_generation,
                     effective_at_epoch_s,
                     crate::ProjectionRuntimeStateV1::Absent,
                 ) {
-                    Err(_) => {
-                        let mut item = finding(
-                            DataPlaneIntegrityFindingCodeV1::MutationReadinessCorrupt,
-                            DataPlaneIntegritySeverityV1::Error,
-                        );
-                        item.operation_id = Some(operation_id.clone());
-                        item.projection_generation_id = generation.clone();
-                        item.write_cursor = Some(cursor);
-                        push_finding(findings, item, max_findings)?;
-                    }
-                    Ok(None) => {
+                    Err(EngineError::ProjectionGeneration(error))
+                        if error.reason
+                            == crate::ProjectionGenerationErrorReason::ProjectionGenerationUnavailable =>
+                    {
                         let mut item = finding(
                             DataPlaneIntegrityFindingCodeV1::MutationReadinessUnavailable,
                             DataPlaneIntegritySeverityV1::Error,
@@ -1583,7 +1680,35 @@ fn mutation_readiness_findings(
                         item.write_cursor = Some(cursor);
                         push_finding(findings, item, max_findings)?;
                     }
-                    Ok(Some(_)) => {}
+                    Err(EngineError::ProjectionGeneration(error))
+                        if error.reason
+                            == crate::ProjectionGenerationErrorReason::ProjectionGenerationCorrupt =>
+                    {
+                        let mut item = finding(
+                            DataPlaneIntegrityFindingCodeV1::MutationReadinessCorrupt,
+                            DataPlaneIntegritySeverityV1::Error,
+                        );
+                        item.operation_id = Some(operation_id.clone());
+                        item.projection_generation_id = generation.clone();
+                        item.write_cursor = Some(cursor);
+                        push_finding(findings, item, max_findings)?;
+                    }
+                    Err(EngineError::ProjectionGeneration(_)) => {
+                        let mut item = finding(
+                            DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt,
+                            DataPlaneIntegritySeverityV1::Error,
+                        );
+                        item.operation_id = Some(operation_id.clone());
+                        item.projection_generation_id = generation.clone();
+                        item.write_cursor = Some(cursor);
+                        push_finding(findings, item, max_findings)?;
+                    }
+                    Err(_) => return Err(DataPlaneIntegrityErrorV1::new(
+                        DataPlaneIntegrityErrorReasonV1::IntegrityCorrupt,
+                        "",
+                    )
+                    .into()),
+                    Ok(_) => {}
                 }
             }
         }

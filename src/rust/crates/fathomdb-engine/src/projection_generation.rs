@@ -831,6 +831,55 @@ pub(crate) fn physical_member_completion_at(
     member_completion(connection, cursor, &kind, is_edge, runtime_state).map(Some)
 }
 
+pub(crate) fn receipt_point_completion_at(
+    connection: &Connection,
+    operation_id: &str,
+    cursor: u64,
+    expected_generation: &ProjectionGenerationId,
+    effective_at: i64,
+    runtime_state: ProjectionRuntimeStateV1,
+) -> Result<Completion, EngineError> {
+    let stored_generation: Option<Option<String>> = connection
+        .query_row(
+            "SELECT projection_generation_id FROM _fathomdb_actuation_receipts \
+             WHERE operation_id=?1",
+            [operation_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let Some(Some(stored_generation)) = stored_generation else {
+        return Err(ProjectionGenerationError::new(
+            ProjectionGenerationErrorReason::ProjectionGenerationUnavailable,
+            "/projectionGeneration",
+        )
+        .into());
+    };
+    if stored_generation != expected_generation.as_str() {
+        return Err(ProjectionGenerationError::new(
+            ProjectionGenerationErrorReason::WrongProjectionGeneration,
+            "/expectedGenerationId",
+        )
+        .into());
+    }
+    if current_generation(connection)?.id != *expected_generation {
+        return Err(ProjectionGenerationError::new(
+            ProjectionGenerationErrorReason::ProjectionGenerationUnavailable,
+            "/projectionGeneration",
+        )
+        .into());
+    }
+    physical_member_completion_at(connection, cursor, effective_at, runtime_state)?.ok_or_else(
+        || {
+            ProjectionGenerationError::new(
+                ProjectionGenerationErrorReason::ProjectionGenerationUnavailable,
+                "/projectionGeneration",
+            )
+            .into()
+        },
+    )
+}
+
 pub(crate) fn dense_member_kind_at(
     connection: &Connection,
     cursor: u64,
@@ -1585,26 +1634,14 @@ impl Engine {
             )
             .into());
         }
-        let generation = current_generation(&tx)?;
-        if generation.id != stored_generation {
-            return Err(ProjectionGenerationError::new(
-                ProjectionGenerationErrorReason::ProjectionGenerationUnavailable,
-                "/projectionGeneration",
-            )
-            .into());
-        }
-        let owner_completion = physical_member_completion_at(
+        let owner_completion = receipt_point_completion_at(
             &tx,
+            &request.operation_id,
             request.write_cursor,
+            &stored_generation,
             effective_at_epoch_s,
             runtime_state,
-        )?
-        .ok_or_else(|| {
-            EngineError::from(ProjectionGenerationError::new(
-                ProjectionGenerationErrorReason::ProjectionGenerationUnavailable,
-                "/projectionGeneration",
-            ))
-        })?;
+        )?;
         let status =
             self.cached_status_in_snapshot(&tx, runtime_state, effective_at_epoch_s, boundary)?;
         let (owner_readiness, owner_pending, owner_failed) = match owner_completion {

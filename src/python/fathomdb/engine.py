@@ -902,9 +902,12 @@ def _map_candidate_native_explanation(
             ("dropped_edge_hits", "/trace/droppedEdgeHits"),
         )
     ]
-    correlation = getattr(value, "correlation_id", None)
-    if not isinstance(correlation, str) or not re.fullmatch(
-        r"(?:q[0-9]+|x[0-9a-f]{32})-(?:0|[1-9][0-9]*)", correlation
+    correlation = getattr(value, "correlation_id", "")
+    if hasattr(value, "correlation_id") and (
+        not isinstance(correlation, str)
+        or not re.fullmatch(
+            r"(?:q[0-9]+|x[0-9a-f]{32})-(?:0|[1-9][0-9]*)", correlation
+        )
     ):
         _invalid_explanation("/correlationId")
     native_per_hit = getattr(value, "per_hit", None)
@@ -915,8 +918,6 @@ def _map_candidate_native_explanation(
     allowed_arms = ("vector", "text", "text_edge", "graph_arm")
     for index, (native_explain, native_hit) in enumerate(zip(native_per_hit, native_results)):
         prefix = f"/perHit/{index}"
-        if not hasattr(native_explain, "structural") or native_explain.structural is None:
-            _invalid_explanation(f"{prefix}/structural")
         try:
             item = _map_per_hit_explain(native_explain)
         except ValueError as error:
@@ -970,6 +971,131 @@ def _map_candidate_native_explanation(
         per_hit=mapped,
         correlation_id=correlation,
     )
+
+
+def _frozen_trace_error(reason: str, path: str) -> NoReturn:
+    raise FrozenReadError(f"{reason} at {path}", reason=reason, field_path=path)
+
+
+def _validate_frozen_trace_keys(value: Any, allowed: set[str], path: str) -> None:
+    unknown = sorted(set(vars(value)) - allowed)
+    if unknown:
+        escaped = unknown[0].replace("~", "~0").replace("/", "~1")
+        _frozen_trace_error("context_invalid", f"{path}/{escaped}")
+
+
+def _validate_frozen_trace_context(value: Any) -> FrozenReadContextV1:
+    if not isinstance(value, FrozenReadContextV1):
+        _frozen_trace_error("context_invalid", "/context")
+    _validate_frozen_trace_keys(
+        value,
+        {"schema_version", "effective_valid_at", "context", "token"},
+        "/context",
+    )
+    if (
+        not isinstance(value.schema_version, int)
+        or isinstance(value.schema_version, bool)
+        or value.schema_version != 1
+    ):
+        _frozen_trace_error("unsupported_schema_version", "/context/schemaVersion")
+    if (
+        not isinstance(value.effective_valid_at, int)
+        or isinstance(value.effective_valid_at, bool)
+        or not -(2**63) <= value.effective_valid_at < 2**63
+    ):
+        _frozen_trace_error("context_invalid", "/context/effectiveValidAt")
+    if not isinstance(value.token, str):
+        _frozen_trace_error("token_malformed", "/context/token")
+    if len(value.token.encode("utf-8")) > 1024:
+        _frozen_trace_error("token_too_large", "/context/token")
+    context = value.context
+    if not isinstance(context, ReadContextV1):
+        _frozen_trace_error("context_invalid", "/context/context")
+    _validate_frozen_trace_keys(
+        context,
+        {"schema_version", "view", "eligibility"},
+        "/context/context",
+    )
+    if (
+        not isinstance(context.schema_version, int)
+        or isinstance(context.schema_version, bool)
+        or context.schema_version != 1
+    ):
+        _frozen_trace_error(
+            "unsupported_schema_version", "/context/context/schemaVersion"
+        )
+    view = context.view
+    if not isinstance(view, ReadView):
+        _frozen_trace_error("context_invalid", "/context/context/view")
+    _validate_frozen_trace_keys(
+        view,
+        {
+            "include_superseded",
+            "include_inactive",
+            "include_out_of_window",
+            "valid_as_of",
+        },
+        "/context/context/view",
+    )
+    for name, path in (
+        ("include_superseded", "includeSuperseded"),
+        ("include_inactive", "includeInactive"),
+        ("include_out_of_window", "includeOutOfWindow"),
+    ):
+        if not isinstance(getattr(view, name, None), bool):
+            _frozen_trace_error("context_invalid", f"/context/context/view/{path}")
+    if view.valid_as_of is not None and (
+        not isinstance(view.valid_as_of, int)
+        or isinstance(view.valid_as_of, bool)
+        or not -(2**63) <= view.valid_as_of < 2**63
+    ):
+        _frozen_trace_error("context_invalid", "/context/context/view/validAsOf")
+    eligibility = context.eligibility
+    if not isinstance(eligibility, SearchFilter):
+        _frozen_trace_error("context_invalid", "/context/context/eligibility")
+    _validate_frozen_trace_keys(
+        eligibility,
+        {"source_type", "kind", "created_after", "status", "attributes"},
+        "/context/context/eligibility",
+    )
+    for name, path in (
+        ("source_type", "sourceType"),
+        ("kind", "kind"),
+        ("status", "status"),
+    ):
+        candidate = getattr(eligibility, name, None)
+        if candidate is not None and not isinstance(candidate, str):
+            _frozen_trace_error(
+                "context_invalid", f"/context/context/eligibility/{path}"
+            )
+    if eligibility.created_after is not None and (
+        not isinstance(eligibility.created_after, int)
+        or isinstance(eligibility.created_after, bool)
+        or not -(2**63) <= eligibility.created_after < 2**63
+    ):
+        _frozen_trace_error(
+            "context_invalid", "/context/context/eligibility/createdAfter"
+        )
+    attributes = eligibility.attributes
+    if not isinstance(attributes, (list, tuple)):
+        _frozen_trace_error(
+            "context_invalid", "/context/context/eligibility/attributes"
+        )
+    if len(attributes) > 64:
+        _frozen_trace_error(
+            "context_invalid", "/context/context/eligibility/attributes"
+        )
+    for index, pair in enumerate(attributes):
+        if (
+            not isinstance(pair, (list, tuple))
+            or len(pair) != 2
+            or not all(isinstance(item, str) for item in pair)
+        ):
+            _frozen_trace_error(
+                "context_invalid",
+                f"/context/context/eligibility/attributes/{index}",
+            )
+    return value
 
 
 def _map_structural_explanation(value: Any) -> StructuralInclusionV1:
@@ -1703,29 +1829,7 @@ class Engine:
             _trace_response_error("trace_root_invalid", "/rootRevisionId")
         if request.direction not in ("to_source", "to_dependents"):
             _trace_response_error("trace_direction_invalid", "/direction")
-        if not isinstance(request.context, FrozenReadContextV1):
-            _trace_response_error("trace_corrupt", "/context")
-        if (
-            not isinstance(request.context.schema_version, int)
-            or isinstance(request.context.schema_version, bool)
-            or request.context.schema_version != 1
-        ):
-            raise FrozenReadError(
-                "unsupported_schema_version at /context/schemaVersion",
-                reason="unsupported_schema_version",
-                field_path="/context/schemaVersion",
-            )
-        if (
-            not isinstance(request.context.context, ReadContextV1)
-            or not isinstance(request.context.context.schema_version, int)
-            or isinstance(request.context.context.schema_version, bool)
-            or request.context.context.schema_version != 1
-        ):
-            raise FrozenReadError(
-                "unsupported_schema_version at /context/context/schemaVersion",
-                reason="unsupported_schema_version",
-                field_path="/context/context/schemaVersion",
-            )
+        context = _validate_frozen_trace_context(request.context)
         if not isinstance(request.max_relations, int) or isinstance(
             request.max_relations, bool
         ) or not 1 <= request.max_relations <= 100:
@@ -1737,7 +1841,7 @@ class Engine:
         encoded = self._native.trace_dependency(
             request.root_revision_id,
             request.direction,
-            _to_native_frozen_context(request.context),
+            _to_native_frozen_context(context),
             request.max_relations,
             request.max_work_units,
         )

@@ -813,6 +813,26 @@ assertion `left == right` failed
  right: ["dense-residue-r1"]
 ```
 
+The exact dense-residue RED commit is
+`8a98c198af89c30ae8a2ec3728e5ba375af87b4c`. GREEN resolves the revision only
+after proving that a canonical owner exists. Focused and aggregate results:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity \
+  slice55_dense_residue_reports_resolvable_revision \
+  -- --exact --nocapture
+test result: ok. 1 passed; 0 failed
+
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity
+test result: ok. 36 passed; 0 failed
+
+cargo test -p fathomdb-engine --features test-hooks \
+  --test slice55_dependency_trace
+test result: ok. 19 passed; 0 failed; 1 ignored
+```
+
 The final cycle-3 oracle audit replaced the remaining trace endpoint
 happy-path-only case with reciprocal corruption refusals and added a physical
 EAV/property residue case that requires a resolvable owner revision ID and

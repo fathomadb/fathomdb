@@ -999,6 +999,18 @@ fn active_projection_findings(
                 DataPlaneIntegritySeverityV1::Critical,
             );
             item.write_cursor = Some(cursor);
+            if owner_exists {
+                let revision: Option<String> = connection
+                    .query_row(
+                        "SELECT revision_id FROM _fathomdb_artifact_revisions \
+                         WHERE write_cursor=?1 ORDER BY artifact_class LIMIT 1",
+                        [cursor_i64],
+                        |row| row.get(0),
+                    )
+                    .optional()
+                    .map_err(|_| EngineError::Storage)?;
+                item.artifact_revision_ids = revision.into_iter().collect();
+            }
             push_finding(findings, item, max_findings)?;
         }
     }

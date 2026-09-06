@@ -402,6 +402,11 @@ fn engine_error_to_napi(err: RustEngineError) -> Error {
             ),
             json!({ "name": name, "delta": delta }),
         ),
+        // Cargo unifies dependency features across a workspace build. The CLI
+        // can therefore add the operator-only engine variant while this SDK
+        // still has no operator surface capable of producing it.
+        #[allow(unreachable_patterns)]
+        operator_only => typed_error(CODE_STORAGE, operator_only.to_string(), JsonValue::Null),
     }
 }
 

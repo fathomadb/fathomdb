@@ -67,6 +67,7 @@ from fathomdb._fathomdb import ProjectionGenerationError as _ProjectionGeneratio
 from fathomdb._fathomdb import ProvenanceError as _ProvenanceError
 from fathomdb._fathomdb import DependencyError as _DependencyError
 from fathomdb._fathomdb import DependencyClosureError as _DependencyClosureError
+from fathomdb._fathomdb import DependencyTraceError as _DependencyTraceError
 from fathomdb._fathomdb import ActuationError as _ActuationError
 from fathomdb._fathomdb import (
     SchedulerError as _SchedulerError,
@@ -168,12 +169,8 @@ ProjectionDestructiveError = _ProjectionDestructiveError
 FrozenReadError = _FrozenReadError
 EvidenceError = _EvidenceError
 PageError = _PageError
-
-
-class DependencyTraceError(EngineError):
-    """Typed dependency-trace refusal with a stable binding code."""
-
-    code = "FDB_DEPENDENCY_TRACE"
+DependencyTraceError = _DependencyTraceError
+setattr(DependencyTraceError, "code", "FDB_DEPENDENCY_TRACE")
 
 
 def _install_typed_init(cls: type, fields: tuple[str, ...]) -> None:
@@ -218,6 +215,7 @@ _install_typed_init(DependencyClosureError, ("reason", "field_path"))
 _install_typed_init(ActuationError, ("reason", "field_path"))
 _install_typed_init(FrozenReadError, ("reason", "field_path"))
 _install_typed_init(EvidenceError, ("reason", "field_path"))
+_install_typed_init(DependencyTraceError, ("reason", "field_path"))
 _install_typed_init(PageError, ("reason", "field_path"))
 
 

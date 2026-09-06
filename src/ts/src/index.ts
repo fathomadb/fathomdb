@@ -28,6 +28,7 @@ import {
   ActuationError,
   DependencyClosureError,
   DependencyError,
+  DependencyTraceError,
   EvidenceError,
   FrozenReadError,
   InvalidArgumentError,
@@ -1240,6 +1241,67 @@ function nativeFrozenContext(context: FrozenReadContextV1): NativeFrozenReadCont
   return context;
 }
 
+function dependencyTraceRequestError(reason: string, fieldPath: string): never {
+  throw new DependencyTraceError(`${reason} at ${fieldPath}`, reason, fieldPath);
+}
+
+function validateDependencyTraceRequest(request: DependencyTraceRequestV1): void {
+  if (request.schemaVersion !== 1) {
+    dependencyTraceRequestError("unsupported_schema_version", "/schemaVersion");
+  }
+  const unknown = Object.keys(request)
+    .filter(
+      (key) =>
+        ![
+          "schemaVersion",
+          "rootRevisionId",
+          "direction",
+          "context",
+          "maxRelations",
+          "maxWorkUnits",
+        ].includes(key),
+    )
+    .sort()[0];
+  if (unknown !== undefined) {
+    dependencyTraceRequestError("unknown_field", `/${unknown}`);
+  }
+  if (
+    typeof request.rootRevisionId !== "string" ||
+    !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(request.rootRevisionId) ||
+    request.rootRevisionId.startsWith("_fdb:")
+  ) {
+    dependencyTraceRequestError("trace_root_invalid", "/rootRevisionId");
+  }
+  if (request.direction !== "to_source" && request.direction !== "to_dependents") {
+    dependencyTraceRequestError("trace_direction_invalid", "/direction");
+  }
+  if (request.context.schemaVersion !== 1) {
+    dependencyTraceRequestError("unsupported_schema_version", "/context/schemaVersion");
+  }
+  if (request.context.context.schemaVersion !== 1) {
+    dependencyTraceRequestError(
+      "unsupported_schema_version",
+      "/context/context/schemaVersion",
+    );
+  }
+  if (
+    request.maxRelations !== undefined &&
+    (!Number.isInteger(request.maxRelations) ||
+      request.maxRelations < 1 ||
+      request.maxRelations > 100)
+  ) {
+    dependencyTraceRequestError("trace_limit_invalid", "/maxRelations");
+  }
+  if (
+    request.maxWorkUnits !== undefined &&
+    (!Number.isInteger(request.maxWorkUnits) ||
+      request.maxWorkUnits < 1 ||
+      request.maxWorkUnits > 101)
+  ) {
+    dependencyTraceRequestError("trace_limit_invalid", "/maxWorkUnits");
+  }
+}
+
 /**
  * 0.8.11 Slice 40 (#17) — one term of the unified `Filter` grammar (G4 + G10),
  * a discriminated union mirroring `fathomdb_engine::FilterTerm`
@@ -2143,19 +2205,7 @@ export class Engine {
   async traceDependency(
     request: DependencyTraceRequestV1,
   ): Promise<DependencyTraceResultV1> {
-    assertKnownKeys(
-      request,
-      [
-        "schemaVersion",
-        "rootRevisionId",
-        "direction",
-        "context",
-        "maxRelations",
-        "maxWorkUnits",
-      ],
-      "DependencyTraceRequestV1",
-    );
-    validateFfiString(request.rootRevisionId);
+    validateDependencyTraceRequest(request);
     const encoded = await intercept(() =>
       this.#native.traceDependency(
         request.rootRevisionId,

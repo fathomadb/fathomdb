@@ -830,6 +830,11 @@ class EvidenceError(EngineError):
     reason: str
     field_path: str
     def __init__(self, message: str, *, reason: str, field_path: str) -> None: ...
+class DependencyTraceError(EngineError):
+    code: str
+    reason: str
+    field_path: str
+    def __init__(self, message: str, *, reason: str, field_path: str) -> None: ...
 class PageError(EngineError):
     reason: str
     field_path: str

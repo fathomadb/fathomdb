@@ -310,18 +310,7 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
             exc
         }
         RustEngineError::DependencyTrace(error) => {
-            let exc = DependencyTraceError::new_err(format!(
-                "{} at {}",
-                error.reason.as_str(),
-                error.field_path
-            ));
-            Python::attach(|py| {
-                let value = exc.value(py);
-                let _ = value.setattr("code", "FDB_DEPENDENCY_TRACE");
-                let _ = value.setattr("reason", error.reason.as_str());
-                let _ = value.setattr("field_path", error.field_path);
-            });
-            exc
+            dependency_trace_error(error.reason.as_str(), &error.field_path)
         }
         RustEngineError::Page(error) => {
             let exc =
@@ -393,6 +382,11 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
             });
             exc
         }
+        // Cargo unifies dependency features across a workspace build. The CLI
+        // can therefore add the operator-only engine variant while this SDK
+        // still has no operator surface capable of producing it.
+        #[allow(unreachable_patterns)]
+        operator_only => EngineError::new_err(operator_only.to_string()),
     }
 }
 
@@ -473,6 +467,17 @@ fn frozen_read_error_to_py(error: &fathomdb_engine::FrozenReadError) -> PyErr {
         let value = exception.value(py);
         let _ = value.setattr("reason", error.reason.as_str());
         let _ = value.setattr("field_path", &error.field_path);
+    });
+    exception
+}
+
+fn dependency_trace_error(reason: &str, field_path: &str) -> PyErr {
+    let exception = DependencyTraceError::new_err(format!("{reason} at {field_path}"));
+    Python::attach(|py| {
+        let value = exception.value(py);
+        let _ = value.setattr("code", "FDB_DEPENDENCY_TRACE");
+        let _ = value.setattr("reason", reason);
+        let _ = value.setattr("field_path", field_path);
     });
     exception
 }
@@ -2672,9 +2677,7 @@ impl PyEngine {
         let direction = match direction {
             "to_source" => RustDependencyTraceDirectionV1::ToSource,
             "to_dependents" => RustDependencyTraceDirectionV1::ToDependents,
-            _ => {
-                return Err(DependencyTraceError::new_err("trace_direction_invalid at /direction"));
-            }
+            _ => return Err(dependency_trace_error("trace_direction_invalid", "/direction")),
         };
         let request =
             RustDependencyTraceRequestV1::new(root_revision_id, direction, context.inner.clone())

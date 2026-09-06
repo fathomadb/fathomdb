@@ -494,6 +494,16 @@ class DependencyTraceRequestV1:
     max_work_units: int = 101
     schema_version: int = 1
 
+    def __post_init__(self) -> None:
+        if self.schema_version != 1:
+            from fathomdb.errors import DependencyTraceError
+
+            raise DependencyTraceError(
+                "unsupported_schema_version at /schemaVersion",
+                reason="unsupported_schema_version",
+                field_path="/schemaVersion",
+            )
+
 
 @dataclass(frozen=True)
 class TraceNodeLifecycleV1:

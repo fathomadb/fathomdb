@@ -1343,3 +1343,168 @@ cargo clippy -p fathomdb-engine --features operator,test-hooks \
   --test slice55_data_plane_integrity -- -D warnings
 Finished `dev` profile
 ```
+
+### FIX-4 normalized trace-chain authorization
+
+The trace test-only RED constructs a lifecycle- and filter-visible derived
+endpoint whose normalized source-link hash is invalid and whose selected
+relation carries a BLOB `dependency_id`. Forward tracing originally disclosed
+the corrupt relation as `Storage`; reverse tracing had to remain
+nondisclosing. The exact RED commit is
+`002b40a595378dda857145170ef092ab0e94792d`.
+
+GREEN `a0828528e416121c45bf2ed4e671ac9fc8582e4a` selects only guarded
+`(rowid, endpoint)` keys during candidate enumeration. Before decoding any
+selected relation field, counting an eligible edge, or applying `LIMIT`, it
+proves the canonical self link, source version, exact SHA-256 source link,
+endpoint visibility and role, and closure chain. Root preflight applies the
+same proof before lifecycle and filter decoding. After-key paging and the
+indexed candidate query plans are unchanged.
+
+The first implementation attempt still reached a negative cursor through the
+visibility helper before rejecting the invalid hash. Reordering the complete
+chain proof fixed forward tracing. The next focused run exposed the distinct
+reverse root-preflight ordering defect; moving root chain proof before
+visibility made the reverse result nondisclosing. The retry cap was not
+exceeded. The focused and aggregate checks then passed:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_dependency_trace \
+  slice55_trace_invalid_chain_precedes_relation_blob_decode_and_cap \
+  -- --exact --nocapture
+test result: ok. 1 passed; 0 failed
+
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_dependency_trace
+test result: ok. 20 passed; 0 failed; 1 ignored
+
+cargo clippy -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_dependency_trace -- -D warnings
+Finished `dev` profile
+```
+
+### FIX-4 strict candidate-native SDK explanations
+
+Test-only RED `4273669eb212eae05cc5669b5794c211f94b8cf8` requires both SDKs to
+reject candidate-native explanations unless query-level integer and finite
+ranged fields are valid, correlation is nonempty and canonical, structural
+explanation is present on every hit, `perHit` and results have coherent counts,
+positions, and identities, result arms are known, and arm, blended score, and
+candidate-exact scores agree. Existing simulated old-native tests continue to
+permit absent new fields and apply their legacy defaults.
+
+The exact RED wheel produced the intended ten new Python failures while six
+legacy compatibility cases passed. TypeScript failed at the new exported
+candidate mapping seam. No production file was part of this commit.
+
+```text
+wheel=/tmp/fathomdb-s55-fix4-red.CRPnU9/dist/\
+fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl
+sha256=0ebd6619b1cc8c53700c40a70dad922065b0d2a79f6d2c0e06422844885a5c4c
+Python: 6 legacy passed; 10 intended strict candidate cases failed
+TypeScript: missing exported mapNativeSearchResult
+```
+
+The fixture-only typing commit
+`0a85d75383b75f6c0fd35d04c3f2ca49eb6469de` initially cast the deliberately
+malformed frozen request to its intended structural type. Exact N-API runtime
+testing later showed that the fixture still failed at an earlier top-level
+schema check and had never exercised its asserted nested frozen boundary. At
+the retry boundary the `ReadContext` contract was reread. Test-only RED
+`a798ed646e24f3097ee98286f32e488e2d74e7d6` supplies `view: {}` so the unchanged
+assertion reaches the malformed nested context and genuinely fails with
+`DependencyTraceError` instead of the required `FrozenReadError`.
+
+Python and TypeScript explanation GREEN
+`6f3e451d2ea2924f5b91626dcc9b75bcca96813b` centralizes strict mapping for
+candidate-native search results while leaving direct legacy per-hit mapping
+permissive for absent additions. Frozen-boundary GREEN
+`ff1d43f12f0be720eb8709f804365d8374e3efa2` maps nested frozen request schema
+failures to `FrozenReadError`. The corrected focused TypeScript fixture passes
+all eight cases.
+
+### FIX-4 closing verification
+
+The closing focused matrix at exact product commit
+`ff1d43f12f0be720eb8709f804365d8374e3efa2` passed:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_explanation --test slice55_wire \
+  --test slice55_dependency_trace --test slice55_data_plane_integrity
+integrity: 43 passed; trace: 20 passed, 1 ignored;
+explanation: 17 passed; wire: 8 passed
+
+cargo clippy -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_explanation --test slice55_wire \
+  --test slice55_dependency_trace --test slice55_data_plane_integrity \
+  -- -D warnings
+Finished `dev` profile
+
+cargo test -p fathomdb --test slice55_governed_surface
+test result: ok. 2 passed; 0 failed
+cargo test -p fathomdb-cli --test slice55_data_plane_integrity_cli
+test result: ok. 3 passed; 0 failed
+cargo test -p fathomdb-engine --test check_integrity
+test result: ok. 3 passed; 0 failed
+cargo test -p fathomdb-engine --test trace_source_ref
+test result: ok. 3 passed; 0 failed
+
+cargo test --release -p fathomdb-engine --features test-hooks \
+  --test slice55_dependency_trace \
+  slice55_trace_hidden_dependents_performance_ceiling \
+  -- --ignored --exact --nocapture
+hidden_rows=50000 vm_steps=3200000 elapsed_ms=51 peak_rss_delta_bytes=0
+test result: ok. 1 passed; 0 failed
+
+./scripts/agent-lint.sh
+exit 0
+./scripts/agent-typecheck.sh
+exit 0
+```
+
+The disposable wheel was built and verified from that exact product commit;
+version `0.8.24` remains the expected pre-release package version. No artifact
+was staged or published, and the stale worktree `_fathomdb.abi3.so` was not
+mutated.
+
+```text
+env -u PYTHONPATH ./scripts/verify-release-python-wheel.sh \
+  --python /usr/bin/python3 \
+  --wheel-dir /tmp/fathomdb-s55-fix4-final.ES9qCH/dist \
+  --venv-dir /tmp/fathomdb-s55-fix4-final.ES9qCH/venv
+wheel smoke: ok
+23b216e4a4127b3ea1a9052c921c83e47626a708b1aafc5daebb614ce08c11ab  \
+  fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl
+module=/tmp/fathomdb-s55-fix4-final.ES9qCH/venv/lib/python3.12/\
+  site-packages/fathomdb/__init__.py
+native=/tmp/fathomdb-s55-fix4-final.ES9qCH/venv/lib/python3.12/\
+  site-packages/fathomdb/_fathomdb.abi3.so
+
+env -u PYTHONPATH /tmp/fathomdb-s55-fix4-final.ES9qCH/venv/bin/python \
+  src/python/tests/smoke_slice55_installed.py
+slice55 installed native smoke: ok
+
+PYTHONPATH=/tmp/fathomdb-s55-fix4-final.ES9qCH/venv/lib/python3.12/\
+site-packages:/home/coreyt/projects/fathomdb/.venv/lib/python3.12/site-packages \
+  /usr/bin/python3 -P -m pytest -o pythonpath= \
+  /tmp/fathomdb-s55-fix4-final.ES9qCH/test_slice55_trace_explanation.py \
+  /tmp/fathomdb-s55-fix4-final.ES9qCH/test_slice55_wrapper_compat.py -q
+36 passed
+```
+
+The exact-source N-API build initially hit the known restricted-sandbox
+`spawnSync /bin/sh EPERM`; one unchanged unconfined retry passed:
+
+```text
+cd src/ts
+npm run build:debug
+./node_modules/.bin/tsc -p tsconfig.json
+node --test --test-name-pattern slice55 dist/tests/*.test.js
+tests 65; pass 65; fail 0
+```
+
+That test creates `src/ts/slice55-malformed-frozen-context` and its lock file.
+Both were confirmed generated by the exact test invocation and removed after
+the run; they were never staged.

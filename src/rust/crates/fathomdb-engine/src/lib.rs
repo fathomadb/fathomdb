@@ -1048,7 +1048,7 @@ struct ProjectionRuntimeShared {
     /// real `BEGIN IMMEDIATE` transaction. It must not report queued work as a
     /// live transaction.
     #[cfg(debug_assertions)]
-    projection_worker_transaction_pause: Mutex<Option<(Arc<Barrier>, Arc<Barrier>)>>,
+    projection_worker_transaction_pause: Mutex<Option<(mpsc::Sender<()>, Receiver<()>)>>,
     /// Slice 40: one-shot rendezvous after dispatch has queued a captured-
     /// generation job and before any worker removes it from the queue.
     #[cfg(feature = "test-hooks")]
@@ -1077,6 +1077,96 @@ struct ProjectionRuntime {
     shared: Arc<ProjectionRuntimeShared>,
     dispatcher: Mutex<Option<JoinHandle<()>>>,
     workers: Mutex<Vec<JoinHandle<()>>>,
+}
+
+#[cfg(debug_assertions)]
+const PROJECTION_TRANSACTION_TEST_PAUSE_RELEASE_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Failure to observe an armed projection-worker transaction pause.
+#[cfg(debug_assertions)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[doc(hidden)]
+pub enum ProjectionWorkerPauseReadyError {
+    /// The worker did not reach the armed pause before the supplied deadline.
+    Timeout(Duration),
+    /// The worker dropped its readiness sender without reaching the pause.
+    WorkerDisconnected,
+}
+
+#[cfg(debug_assertions)]
+impl Display for ProjectionWorkerPauseReadyError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Timeout(timeout) => write!(
+                f,
+                "projection worker did not reach transaction pause within {}ms",
+                timeout.as_millis()
+            ),
+            Self::WorkerDisconnected => {
+                f.write_str("projection worker transaction pause disconnected before readiness")
+            }
+        }
+    }
+}
+
+#[cfg(debug_assertions)]
+impl Error for ProjectionWorkerPauseReadyError {}
+
+/// Cancellation-safe handle for the test-only projection transaction pause.
+#[cfg(debug_assertions)]
+#[derive(Debug)]
+#[doc(hidden)]
+pub struct ProjectionWorkerTransactionPauseForTest {
+    ready: Option<Receiver<()>>,
+    release: Option<mpsc::Sender<()>>,
+    ready_observed: bool,
+}
+
+#[cfg(debug_assertions)]
+impl ProjectionWorkerTransactionPauseForTest {
+    /// Wait at most `timeout` for the worker to acquire its WAL transaction.
+    /// A timeout or disconnected worker cancels the pause before returning.
+    pub fn wait_ready(&mut self, timeout: Duration) -> Result<(), ProjectionWorkerPauseReadyError> {
+        if self.ready_observed {
+            return Ok(());
+        }
+        let outcome = self
+            .ready
+            .as_ref()
+            .ok_or(ProjectionWorkerPauseReadyError::WorkerDisconnected)?
+            .recv_timeout(timeout);
+        match outcome {
+            Ok(()) => {
+                self.ready.take();
+                self.ready_observed = true;
+                Ok(())
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                self.ready.take();
+                self.release();
+                Err(ProjectionWorkerPauseReadyError::Timeout(timeout))
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                self.ready.take();
+                self.release();
+                Err(ProjectionWorkerPauseReadyError::WorkerDisconnected)
+            }
+        }
+    }
+
+    /// Release the paused worker. Repeated calls are harmless.
+    pub fn release(&mut self) {
+        if let Some(release) = self.release.take() {
+            let _ = release.send(());
+        }
+    }
+}
+
+#[cfg(debug_assertions)]
+impl Drop for ProjectionWorkerTransactionPauseForTest {
+    fn drop(&mut self) {
+        self.release();
+    }
 }
 
 /// Test-only live-connection audit. Each long-lived Engine connection acquires
@@ -3289,16 +3379,20 @@ impl ProjectionRuntime {
     #[allow(dead_code)]
     fn pause_projection_worker_after_wal_transaction_for_test(
         &self,
-    ) -> (Arc<Barrier>, Arc<Barrier>) {
-        let transaction_ready = Arc::new(Barrier::new(2));
-        let release = Arc::new(Barrier::new(2));
+    ) -> ProjectionWorkerTransactionPauseForTest {
+        let (transaction_ready_tx, transaction_ready_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
         *self
             .shared
             .projection_worker_transaction_pause
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner()) =
-            Some((Arc::clone(&transaction_ready), Arc::clone(&release)));
-        (transaction_ready, release)
+            Some((transaction_ready_tx, release_rx));
+        ProjectionWorkerTransactionPauseForTest {
+            ready: Some(transaction_ready_rx),
+            release: Some(release_tx),
+            ready_observed: false,
+        }
     }
 
     #[cfg(feature = "test-hooks")]
@@ -9144,7 +9238,7 @@ impl Engine {
     #[doc(hidden)]
     pub fn pause_projection_worker_after_wal_transaction_for_test(
         &self,
-    ) -> (Arc<Barrier>, Arc<Barrier>) {
+    ) -> ProjectionWorkerTransactionPauseForTest {
         self.projection_runtime.pause_projection_worker_after_wal_transaction_for_test()
     }
 
@@ -21909,8 +22003,9 @@ fn commit_projection_outcomes(
         // WAL write lock. The rendezvous must therefore report that SQLite fact
         // directly; WAL attribution is optional in integration builds and is
         // neither necessary nor sufficient to establish transaction ownership.
-        transaction_ready.wait();
-        release.wait();
+        if transaction_ready.send(()).is_ok() {
+            let _ = release.recv_timeout(PROJECTION_TRANSACTION_TEST_PAUSE_RELEASE_TIMEOUT);
+        }
     }
     // The accumulator is mutable process state coupled to this transaction.
     // Keep the shared value untouched while building a candidate so rollback

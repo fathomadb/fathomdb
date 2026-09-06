@@ -2407,3 +2407,82 @@ The host used Python 3.12.3, cargo 1.95.0, rustc 1.95.0, and Linux x86-64
 Disposable copies and wheels remained under `/tmp`; no release package was
 staged, tagged, uploaded, or published. These are focused FIX-10 writer checks,
 not a broad repository-gate or independent-review verdict.
+
+## 2026-09-06 — FIX-11: deterministic verifier-owned SQLite lifetime
+
+The owner authorized correction and re-review cycles through cycle 15 after
+the separate verifier reproduced two Windows cleanup failures against the
+reviewed candidate. Both unmodified traces remain durable in
+`verification-windows-wheel-failure.log` and
+`verification-windows-wheel-failure-retry.log`: every typed Slice 55 assertion
+completed, including `trace_corrupt` and explicit `Engine.close()`, before
+`TemporaryDirectory` failed to unlink `corrupt.fathom` with `WinError 32`.
+
+Read-only diagnosis found that this was false product attribution in the smoke
+fixture. Python's `sqlite3.Connection` context manager owns transaction commit
+or rollback but does not close the connection on exit. The fixture's
+corruption injector therefore retained an external stdlib SQLite handle until
+implementation-dependent object finalization. Windows correctly refused to
+unlink the database while that verifier-owned handle remained open; Linux had
+masked the ownership bug because it permits unlinking an open file.
+
+Fixture-only commit
+`adfb7228ceaf142ca185010eaadcd01f7df7a877` wraps the injector connection in
+`contextlib.closing` outside its nested transaction context, so the transaction
+finishes before deterministic connection close. Immediately after the typed
+`trace_corrupt` assertion and `corrupt.close()`, the smoke now calls
+`corrupt_path.unlink()`. That deletion is the decisive Windows close-return
+oracle. The typed exception reason/path assertions are unchanged; no `del`,
+garbage-collection workaround, retry, ignored cleanup error, or production
+source change was introduced.
+
+Documentation-only commit
+`8e9956b05bdd3d9dbc7b51f00c7cf841b54d4ace` corrects the three verifier-found
+plan defects:
+
+- Pyright now selects the canonical `src/python` project;
+- default workspace and serial selected-feature routes replace the invalid
+  CUDA-plus-Metal `--all-features` aggregate while retaining the Slice 40
+  platform separation; and
+- registry/semver smokes are replaced by the existing disposable wheel,
+  package-local N-API, offline local-native-artifact, and focused CLI routes.
+  The Windows local-native command now supplies its four declared arguments,
+  and registry-backed PyPI/npm commands are absent.
+
+The referenced script contracts were checked directly before the plan edit:
+`verify-release-python-wheel.sh` requires `--python`, `--wheel-dir`, and
+`--venv-dir`; `smoke-local-native-artifacts.sh` requires wheel directory,
+TypeScript directory, matched platform-package directory, and N-API label; its
+PowerShell peer requires the equivalent four named parameters. The local
+harnesses install only from local files. The focused CLI test runs the real
+`doctor data-plane-integrity --json` binary contract.
+
+No product rebuild was performed. Focused Linux verification reused the exact
+cycle-11 installed candidate wheel, SHA-256
+`4f0574acbf150332beead15a35de7a97d381ca623db20170c65216ca22fd76db`:
+
+```text
+.venv/bin/ruff check src/python/tests/smoke_slice55_installed.py
+All checks passed!
+
+.venv/bin/python -m py_compile src/python/tests/smoke_slice55_installed.py
+exit 0
+
+env -u PYTHONPATH \
+  /tmp/fathomdb-s55-review11-20260906/venv/bin/python \
+  src/python/tests/smoke_slice55_installed.py
+slice55 installed native smoke: ok
+
+.venv/bin/pyright -p src/python
+0 errors, 0 warnings, 0 informations
+
+./scripts/agent-lint-md.sh
+exit 0
+```
+
+The Linux smoke proves the corrected fixture executes against installed
+candidate behavior but does not claim Windows success; Windows must rerun the
+same immediate-unlink oracle. The only files changed since blocked baseline
+`ec07bf6174f7012f8d6c850a84088ceb562a258a` are the installed-candidate smoke,
+the verification plan, and this chronology. No production code, package,
+release staging, registry state, tag, upload, or publication changed.

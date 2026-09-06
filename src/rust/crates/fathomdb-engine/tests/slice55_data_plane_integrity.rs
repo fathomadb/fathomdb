@@ -420,10 +420,25 @@ macro_rules! clean_projection_case {
     };
 }
 
-clean_projection_case!(
-    slice55_projection_scan_plans_use_indexed_order,
-    DataPlaneIntegrityCheckV1::ActiveSearchableOrphans
-);
+#[test]
+fn slice55_projection_scan_plans_use_indexed_order() {
+    let (_dir, opened) = opened();
+    let plans = opened.engine.data_plane_integrity_query_plans_for_test().unwrap();
+    for required in [
+        "canonical_nodes_write_cursor_idx",
+        "canonical_edges_write_cursor_idx",
+        "search_index",
+        "search_index_v2",
+        "search_index_edges",
+        "canonical_attributes",
+        "property_search_index",
+    ] {
+        assert!(plans.iter().any(|plan| plan.contains(required)), "missing {required}: {plans:#?}");
+    }
+    assert!(plans
+        .iter()
+        .all(|plan| { !plan.contains("USE TEMP B-TREE") && !plan.contains("MATERIALIZE") }));
+}
 
 #[test]
 fn slice55_projection_registry_cap_precedes_unselected_row_decode() {

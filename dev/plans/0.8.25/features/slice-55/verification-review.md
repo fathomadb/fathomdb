@@ -12,6 +12,15 @@ Independent verification cannot close candidate
 green on Linux and in focused Windows Rust tests, but a fresh Windows wheel
 reproducibly retains a corrupt database file after explicit `Engine.close()`.
 
+> **FIX-11 amendment.** Subsequent read-only diagnosis proved that this file's
+> product attribution was wrong. The smoke's verifier-owned stdlib
+> `sqlite3.Connection` remained open because its transaction context did not
+> close it. FIX-11 closes that external handle and adds an immediate post-close
+> unlink oracle. Independent review cycle 12 passed, and two exact fresh
+> Windows-wheel reruns passed. The superseding verification result is
+> `verification-fix11-review.md`; the original failure traces remain here as
+> historical fixture-lifetime evidence.
+
 The exact source archive SHA-256 was
 `6a605d11160186e8432a68cf0f4a4c75c038fb96778d5c308f280a352705d415`.
 Linux verification ran on x86_64 `windchill3`, kernel `7.0.0-30-generic`,

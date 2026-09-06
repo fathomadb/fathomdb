@@ -10,43 +10,48 @@ updated: 2026-09-06
 ## Current state
 
 Slice 55 is blocked in independent verification on `release/0.8.25` at
-candidate `b9d965756909c6a7bedad02fde5c8b58e257ec8a`. Design review passed at
-cycle 4 and implementation review passed at cycle 11 with no P1, P2, or
-material P3 finding. The two latest owner-authorized correction cycles are
-consumed by FIX-9 and FIX-10.
+candidate `b92eabe5fe0fcf9d847a59b14a2e4a263ed703cc`. Design review passed at
+cycle 4. Implementation review passed at cycle 12 with no P1, P2, or material
+P3 finding. The owner has authorized correction and review cycles through 15.
 
 The release-state authority therefore remains unchanged: Slice 55 is not
 complete, `next_slice` remains 55, and Slice 60 must not start.
 
 ## Blocking verification findings
 
-1. A fresh Windows installed wheel reproducibly leaves `corrupt.fathom` open
-   after the typed `trace_corrupt` path and explicit `Engine.close()`. Both
-   attempts fail temporary-directory cleanup with `WinError 32`.
-2. The verification plan contains invalid Pyright, cross-platform
-   `--all-features`, and registry-backed smoke commands that must be corrected
-   to the already-proven canonical project, platform-separated, and
-   local-artifact routes.
+The required parallel `cargo test --workspace --all-targets` route first
+failed a scheduling-sensitive WAL checkpoint invariant, then deadlocked all 11
+threads in the projection-worker WAL-attribution rendezvous on its single
+bounded retry. Focused and serial controls pass, but serialization does not
+waive the required parallel gate.
+
+FIX-11 closed the earlier findings:
+
+- the Windows failure was a verifier-owned stdlib SQLite handle, not a product
+  leak; two exact fresh-wheel Windows reruns now pass the immediate unlink
+  oracle; and
+- the Pyright, platform-feature, and local-artifact plan commands now match
+  their actual contracts and the no-registry boundary.
 
 ## Passed evidence
 
 - Final design review: `design-review-cycle4.md`.
-- Final implementation review: `implementation-review-cycle11.md`.
+- Final implementation review: `implementation-review-cycle12.md`.
 - TDD chronology: `implementation-tdd-chronology.md`.
 - Independent Linux focused, performance, wheel, N-API, fast, heavy, all,
-  workspace, and selected-feature gates pass.
-- Windows focused Rust, facade, and CLI tests pass.
-- No prior WAL deadlock reproduced.
+  selected-feature, Clippy, and check gates pass.
+- Windows wheel, N-API, focused Rust, facade, and CLI routes pass.
+- The parallel workspace gate reproduced the prior futex deadlock signature.
 
 The detailed evidence and retained failure traces are in
-`verification-review.md` and the two
+`verification-fix11-review.md`, `verification-review.md`, and the two
 `verification-windows-wheel-failure*.log` files.
 
 ## Required next action
 
-Obtain owner authority for another bounded correction and re-review cycle.
-Preserve a genuine Windows installed-wheel RED for the post-corruption close
-handle leak, implement the smallest lifecycle fix, correct the three plan
-commands, obtain an independent implementation review, and rerun the separate
-Windows and repository verification gates. Do not push or start Slice 60 until
-that verification passes and Slice 55 is durably closed.
+Use authorized FIX-12 to preserve a liveness RED for the unbounded
+projection-worker test rendezvous, implement the smallest deterministic test
+harness correction without weakening its WAL assertions, classify the
+parallel erasure BUSY symptom, obtain independent review, and rerun the exact
+parallel workspace gate. Do not push or start Slice 60 until verification
+passes and Slice 55 is durably closed.

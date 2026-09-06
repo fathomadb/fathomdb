@@ -206,6 +206,22 @@ def test_unknown_native_evidence_versions_fail_closed() -> None:
             "/projectionOrigin/artifactClass",
         ),
         (
+            lambda value: setattr(value, "artifact_superseded", 1),
+            "/artifactLifecycle/superseded",
+        ),
+        (
+            lambda value: (
+                setattr(value.projection_origin, "representative_arm", "graph_arm"),
+                setattr(value.projection_origin, "graph_origin_kind", "edge_seed"),
+                setattr(
+                    value.projection_origin,
+                    "graph_edge_artifact_revision_id",
+                    1,
+                ),
+            ),
+            "/projectionOrigin/graphOrigin/edgeArtifactRevisionId",
+        ),
+        (
             lambda value: (
                 setattr(value.projection_origin, "representative_arm", "graph_arm"),
                 setattr(value.projection_origin, "graph_origin_kind", "entity_seed"),

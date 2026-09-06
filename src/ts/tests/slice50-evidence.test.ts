@@ -121,6 +121,58 @@ test("evidence request schema and unknown fields are typed", async () => {
         error.reason === "unknown_field" &&
         error.fieldPath === "/context/unexpected",
     );
+    for (const [nestedContext, expectedPath] of [
+      [
+        { ...context, context: { ...context.context, unexpected: true } },
+        "/context/context/unexpected",
+      ],
+      [
+        {
+          ...context,
+          context: {
+            ...context.context,
+            view: { ...context.context.view, unexpected: true },
+          },
+        },
+        "/context/context/view/unexpected",
+      ],
+      [
+        {
+          ...context,
+          context: {
+            ...context.context,
+            eligibility: { ...context.context.eligibility, unexpected: true },
+          },
+        },
+        "/context/context/eligibility/unexpected",
+      ],
+    ] as const) {
+      await assert.rejects(
+        engine.searchWithEvidence({
+          schemaVersion: 1,
+          query: "needle",
+          context: nestedContext,
+        } as never),
+        (error: unknown) =>
+          error instanceof EvidenceError &&
+          error.reason === "unknown_field" &&
+          error.fieldPath === expectedPath,
+      );
+    }
+    await assert.rejects(
+      engine.searchWithEvidence({
+        schemaVersion: 1,
+        query: "needle",
+        context: {
+          ...context,
+          context: { ...context.context, schemaVersion: 2 },
+        },
+      } as never),
+      (error: unknown) =>
+        error instanceof EvidenceError &&
+        error.reason === "evidence_unavailable" &&
+        error.fieldPath === "/evidenceRef",
+    );
     await assert.rejects(
       engine.resolveEvidence({
         schemaVersion: 1,

@@ -129,6 +129,24 @@ test("unknown unions and invalid numerics in native evidence fail closed", () =>
     "/projectionOrigin/artifactClass",
   );
 
+  const nonBooleanSuperseded = resolvedFixture();
+  nonBooleanSuperseded.artifactLifecycle.superseded = 1 as unknown as boolean;
+  expectCorrupt(
+    () => validateNativeResolvedEvidence(nonBooleanSuperseded),
+    "/artifactLifecycle/superseded",
+  );
+
+  const nonStringGraphEdge = resolvedFixture();
+  nonStringGraphEdge.projectionOrigin.representativeArm = "graph_arm";
+  nonStringGraphEdge.projectionOrigin.graphOrigin = {
+    kind: "edge_seed",
+    edgeArtifactRevisionId: 1 as unknown as string,
+  };
+  expectCorrupt(
+    () => validateNativeResolvedEvidence(nonStringGraphEdge),
+    "/projectionOrigin/graphOrigin/edgeArtifactRevisionId",
+  );
+
   const badGeneration = resolvedFixture();
   badGeneration.dependency!.registeredDependencyGeneration = "01";
   expectCorrupt(

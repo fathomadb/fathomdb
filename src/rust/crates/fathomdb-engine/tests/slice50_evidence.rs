@@ -1092,6 +1092,30 @@ fn evidence_search_collapses_frozen_context_failure_to_nondisclosure() {
 }
 
 #[test]
+fn evidence_search_authenticates_before_existence_axis_refusal() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("search-precedence{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+
+    for existence_view in [
+        ReadView { include_superseded: true, ..ReadView::default() },
+        ReadView { include_inactive: true, ..ReadView::default() },
+    ] {
+        let context = ReadContextV1::new(existence_view, SearchFilter::default()).unwrap();
+        let frozen = freeze_stable(&opened.engine, &context);
+
+        let authenticated =
+            opened.engine.search_with_evidence(&request("needle", frozen.clone())).unwrap_err();
+        assert!(matches!(authenticated, EngineError::InvalidArgument { .. }));
+
+        let mut forged = frozen;
+        forged.token.push('0');
+        let error = opened.engine.search_with_evidence(&request("needle", forged)).unwrap_err();
+        assert_unavailable(error);
+    }
+}
+
+#[test]
 fn unsupported_resolve_schema_precedes_context_authentication() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join(format!("resolve-schema-precedence{SQLITE_SUFFIX}"));

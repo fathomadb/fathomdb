@@ -258,7 +258,8 @@ def _trace_required(value: dict[str, Any], name: str, path: str) -> Any:
 
 
 def _trace_schema(value: dict[str, Any], path: str) -> None:
-    if _trace_required(value, "schemaVersion", path) != 1:
+    schema = _trace_required(value, "schemaVersion", path)
+    if not isinstance(schema, int) or isinstance(schema, bool) or schema != 1:
         _trace_response_error("unsupported_schema_version", path)
 
 
@@ -1626,6 +1627,27 @@ class Engine:
             _trace_response_error("trace_direction_invalid", "/direction")
         if not isinstance(request.context, FrozenReadContextV1):
             _trace_response_error("trace_corrupt", "/context")
+        if (
+            not isinstance(request.context.schema_version, int)
+            or isinstance(request.context.schema_version, bool)
+            or request.context.schema_version != 1
+        ):
+            raise FrozenReadError(
+                "unsupported_schema_version at /context/schemaVersion",
+                reason="unsupported_schema_version",
+                field_path="/context/schemaVersion",
+            )
+        if (
+            not isinstance(request.context.context, ReadContextV1)
+            or not isinstance(request.context.context.schema_version, int)
+            or isinstance(request.context.context.schema_version, bool)
+            or request.context.context.schema_version != 1
+        ):
+            raise FrozenReadError(
+                "unsupported_schema_version at /context/context/schemaVersion",
+                reason="unsupported_schema_version",
+                field_path="/context/context/schemaVersion",
+            )
         if not isinstance(request.max_relations, int) or isinstance(
             request.max_relations, bool
         ) or not 1 <= request.max_relations <= 100:

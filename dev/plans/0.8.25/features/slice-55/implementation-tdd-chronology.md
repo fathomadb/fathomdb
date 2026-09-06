@@ -539,6 +539,11 @@ expected FrozenReadError
 The equivalent TypeScript nested-context case already preserved
 `FrozenReadError`; it is retained as an explicit cross-SDK nonregression case.
 
+The exact SDK RED commit is
+`872d8216cd8ad9b122c6d85551d00fe0531b9a1a`. GREEN rejects bool response
+schemas and validates both frozen-context schema layers with the established
+`FrozenReadError` reason and nested field paths. Ruff and Pyright pass.
+
 The SDK strictness RED covers Python's bool-as-schema, invalid root,
 direction, and context construction in declaration order; TypeScript's null
 context; and unknown explanation arms/nonfinite or invalid scalar fields in

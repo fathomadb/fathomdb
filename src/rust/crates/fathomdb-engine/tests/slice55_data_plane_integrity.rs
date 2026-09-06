@@ -11,6 +11,7 @@ use fathomdb_schema::SQLITE_SUFFIX;
 use proptest::prelude::*;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeSet;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tempfile::TempDir;
 
 fn opened() -> (TempDir, fathomdb_engine::OpenedEngine) {
@@ -156,6 +157,45 @@ fn actuate_pending(opened: &fathomdb_engine::OpenedEngine, operation_id: &str, r
     )
     .unwrap();
     opened.engine.actuate(batch).unwrap();
+}
+
+fn edge_with_expiry(from: &str, to: &str, body: &str, t_invalid: i64) -> PreparedWrite {
+    PreparedWrite::Edge {
+        kind: "mentions".into(),
+        from: from.into(),
+        to: to.into(),
+        source_id: SourceId::new("slice55-integrity-source").unwrap(),
+        logical_id: Some(format!("integrity-expiring-edge-{from}-{to}")),
+        body: Some(body.into()),
+        t_valid: None,
+        t_invalid: Some(t_invalid),
+        confidence: None,
+        extractor_model_id: None,
+        temporal_fallback: None,
+    }
+}
+
+fn dense_node_seeded() -> (TempDir, fathomdb_engine::OpenedEngine) {
+    let (dir, opened) = opened();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened.engine.write(&[canonical("fix6-dense-r1", "fix6-dense", "dense body")]).unwrap();
+    let generation = opened.engine.read_projection_generation_status().unwrap().generation_id;
+    opened.engine.publish_projection_success_for_test(1, "doc", generation).unwrap();
+    (dir, opened)
+}
+
+fn actuate_without_pending(
+    opened: &fathomdb_engine::OpenedEngine,
+    operation_id: &str,
+    revision: &str,
+) {
+    let operation = ActuationOperationV1::PutCanonicalNode(
+        match canonical(revision, operation_id, "receipt body") {
+            PreparedWrite::ProvenancedNode(node) => node,
+            _ => unreachable!(),
+        },
+    );
+    opened.engine.actuate(ActuationBatchV1::new(operation_id, vec![operation]).unwrap()).unwrap();
 }
 
 #[test]
@@ -1239,6 +1279,487 @@ fn slice55_integrity_receipt_malformed_oversized_and_cap_plus_one() {
         finding_codes(&opened, DataPlaneIntegrityCheckV1::MutationReadiness),
         [DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt]
     );
+}
+
+#[test]
+fn slice55_fix6_clock_expired_edge_retains_fts_and_dense_without_a_finding() {
+    let (_dir, opened) = opened();
+    opened.engine.configure_vector_kind_for_test("edge_fact").unwrap();
+    let future = i64::try_from(
+        SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().saturating_add(3600),
+    )
+    .unwrap();
+    opened
+        .engine
+        .write(&[edge_with_expiry("from", "to", "retained expired edge", future)])
+        .unwrap();
+    let generation = opened.engine.read_projection_generation_status().unwrap().generation_id;
+    opened.engine.publish_projection_success_for_test(1, "edge_fact", generation).unwrap();
+    opened
+        .engine
+        .execute_for_test("UPDATE canonical_edges SET t_invalid=1 WHERE write_cursor=1")
+        .unwrap();
+
+    for check in [
+        DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+        DataPlaneIntegrityCheckV1::ProjectionGeneration,
+    ] {
+        let result = opened.engine.check_data_plane_integrity(request(check, 10_000)).unwrap();
+        assert!(result.findings.is_empty(), "{check:?}: {result:#?}");
+    }
+}
+
+#[test]
+fn slice55_fix6_deleted_canonical_owner_with_retained_revision_is_missing() {
+    for (is_edge, expected_count) in [(false, 2), (true, 1)] {
+        let (_dir, opened) = opened();
+        if is_edge {
+            opened.engine.write(&[edge("from", "to", "deleted edge owner")]).unwrap();
+            opened
+                .engine
+                .execute_for_test("DELETE FROM canonical_edges WHERE write_cursor=1")
+                .unwrap();
+        } else {
+            opened.engine.write(&[canonical("deleted-owner-r1", "deleted-owner", "body")]).unwrap();
+            opened
+                .engine
+                .execute_for_test("DELETE FROM canonical_nodes WHERE write_cursor=1")
+                .unwrap();
+        }
+        let result = opened
+            .engine
+            .check_data_plane_integrity(request(
+                DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+                10_000,
+            ))
+            .unwrap();
+        let retained = result
+            .findings
+            .iter()
+            .filter(|finding| {
+                finding.write_cursor == Some(1)
+                    && matches!(
+                        finding.code,
+                        DataPlaneIntegrityFindingCodeV1::SearchProjectionOwnerMissing
+                            | DataPlaneIntegrityFindingCodeV1::SearchProjectionOutsideMembership
+                    )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(retained.len(), expected_count, "{result:#?}");
+        assert!(
+            retained.iter().all(|finding| {
+                finding.code == DataPlaneIntegrityFindingCodeV1::SearchProjectionOwnerMissing
+            }),
+            "{result:#?}"
+        );
+    }
+}
+
+#[test]
+fn slice55_fix6_dependency_dynamic_types_map_to_invalid_without_identity_leakage() {
+    let mut failures = Vec::new();
+    for (label, sql) in [
+        (
+            "blob schema",
+            "PRAGMA ignore_check_constraints=ON; UPDATE _fathomdb_source_dependencies \
+             SET schema_version=zeroblob(1) WHERE dependency_id='integrity-dep-1'",
+        ),
+        (
+            "blob dependency id",
+            "UPDATE _fathomdb_source_dependencies SET dependency_id=zeroblob(8) \
+             WHERE dependency_id='integrity-dep-1'",
+        ),
+        (
+            "null dependency id",
+            "UPDATE _fathomdb_source_dependencies SET dependency_id=NULL \
+             WHERE dependency_id='integrity-dep-1'",
+        ),
+        (
+            "blob derived revision",
+            "UPDATE _fathomdb_source_dependencies SET derived_revision_id=zeroblob(8) \
+             WHERE dependency_id='integrity-dep-1'",
+        ),
+        (
+            "blob registered generation",
+            "PRAGMA ignore_check_constraints=ON; UPDATE _fathomdb_source_dependencies \
+             SET registered_dependency_generation=zeroblob(1) \
+             WHERE dependency_id='integrity-dep-1'",
+        ),
+    ] {
+        let (_dir, opened) = dependency_seeded();
+        opened.engine.execute_for_test(sql).unwrap();
+        match opened
+            .engine
+            .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::DependencyChain, 10_000))
+        {
+            Err(error) => failures.push(format!("{label} escaped as {error:?}")),
+            Ok(result) => {
+                let valid = result.findings.len() == 1
+                    && result.findings[0].code
+                        == DataPlaneIntegrityFindingCodeV1::DependencyRowInvalid
+                    && result.findings[0].dependency_id.is_none()
+                    && result.findings[0].artifact_revision_ids.is_empty();
+                if !valid {
+                    failures.push(format!("{label} returned {result:#?}"));
+                }
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{failures:#?}");
+}
+
+#[test]
+fn slice55_fix6_source_link_dynamic_types_map_to_mismatch_and_omit_invalid_ids() {
+    let mut failures = Vec::new();
+    for (label, assignment, expects_source_revision) in [
+        ("schema", "schema_version=zeroblob(1)", true),
+        ("source id", "source_id=zeroblob(4)", true),
+        ("source version", "source_version_id=zeroblob(4)", true),
+        ("source revision", "source_revision_id=zeroblob(4)", false),
+        ("locator", "locator_kind=zeroblob(4)", true),
+        ("start byte", "locator_kind='utf8_bytes',start_byte=zeroblob(1),end_byte=1", true),
+        ("end byte", "locator_kind='utf8_bytes',start_byte=0,end_byte=zeroblob(1)", true),
+        ("hash algorithm", "hash_algorithm=zeroblob(4)", true),
+        ("hash digest", "hash_digest=zeroblob(4)", true),
+    ] {
+        let (_dir, opened) = dependency_seeded();
+        opened
+            .engine
+            .execute_for_test(&format!(
+                "PRAGMA ignore_check_constraints=ON; UPDATE _fathomdb_source_links \
+                 SET {assignment} WHERE artifact_revision_id='integrity-derived-r1'"
+            ))
+            .unwrap();
+        let expected = if expects_source_revision {
+            vec!["integrity-derived-r1".to_owned(), "integrity-source-r1".to_owned()]
+        } else {
+            vec!["integrity-derived-r1".to_owned()]
+        };
+        match opened
+            .engine
+            .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::DependencyChain, 10_000))
+        {
+            Err(error) => failures.push(format!("{label} escaped as {error:?}")),
+            Ok(result) => {
+                let valid = result.findings.len() == 1
+                    && result.findings[0].code
+                        == DataPlaneIntegrityFindingCodeV1::DependencySourceLinkMismatch
+                    && result.findings[0].artifact_revision_ids == expected;
+                if !valid {
+                    failures.push(format!("{label} returned {result:#?}"));
+                }
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{failures:#?}");
+}
+
+#[test]
+fn slice55_fix6_malformed_dependency_singleton_is_a_generation_finding() {
+    let (_dir, opened) = dependency_seeded();
+    opened
+        .engine
+        .execute_for_test(
+            "UPDATE _fathomdb_open_state SET value=zeroblob(1) \
+             WHERE key='_fathomdb_dependency_generation'",
+        )
+        .unwrap();
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::DependencyChain, 10_000))
+        .expect("malformed dependency singleton must not escape as storage");
+    assert_eq!(result.read_boundary.dependency_generation, 0);
+    assert_eq!(result.findings.len(), 1, "{result:#?}");
+    assert_eq!(
+        result.findings[0].code,
+        DataPlaneIntegrityFindingCodeV1::DependencyGenerationMismatch
+    );
+    assert!(result.findings[0].dependency_id.is_none());
+}
+
+#[test]
+fn slice55_fix6_generation_authority_dynamic_types_are_typed_findings() {
+    let mut failures = Vec::new();
+    for (label, sql, id_is_valid) in [
+        (
+            "current id blob",
+            "PRAGMA foreign_keys=OFF; UPDATE _fathomdb_projection_generation_current \
+             SET generation_id=zeroblob(38) WHERE singleton=1",
+            false,
+        ),
+        (
+            "generation schema blob",
+            "DROP TRIGGER _fathomdb_projection_generation_immutable; \
+             PRAGMA ignore_check_constraints=ON; UPDATE _fathomdb_projection_generations \
+             SET schema_version=zeroblob(1) WHERE role='serving'",
+            true,
+        ),
+        (
+            "generation role blob",
+            "DROP TRIGGER _fathomdb_projection_generation_immutable; \
+             PRAGMA ignore_check_constraints=ON; UPDATE _fathomdb_projection_generations \
+             SET role=zeroblob(1) WHERE role='serving'",
+            true,
+        ),
+        (
+            "generation retired boundary blob",
+            "DROP TRIGGER _fathomdb_projection_generation_immutable; \
+             PRAGMA ignore_check_constraints=ON; UPDATE _fathomdb_projection_generations \
+             SET retired_boundary=zeroblob(1) WHERE role='serving'",
+            true,
+        ),
+        (
+            "generation transition blob",
+            "DROP TRIGGER _fathomdb_projection_generation_immutable; \
+             PRAGMA ignore_check_constraints=ON; UPDATE _fathomdb_projection_generations \
+             SET transition_boundary=zeroblob(1) WHERE role='serving'",
+            true,
+        ),
+        (
+            "generation digest blob",
+            "DROP TRIGGER _fathomdb_projection_generation_immutable; \
+             PRAGMA ignore_check_constraints=ON; UPDATE _fathomdb_projection_generations \
+             SET declaration_sha256=zeroblob(64) WHERE role='serving'",
+            true,
+        ),
+    ] {
+        let (_dir, opened) = opened();
+        opened.engine.execute_for_test(sql).unwrap();
+        match opened.engine.check_data_plane_integrity(request(
+            DataPlaneIntegrityCheckV1::ProjectionGeneration,
+            10_000,
+        )) {
+            Err(error) => failures.push(format!("{label} escaped as {error:?}")),
+            Ok(result) => {
+                let valid = result.findings.len() == 1
+                    && result.findings[0].code
+                        == DataPlaneIntegrityFindingCodeV1::ProjectionGenerationCorrupt
+                    && result.findings[0].projection_generation_id.is_some() == id_is_valid;
+                if !valid {
+                    failures.push(format!("{label} returned {result:#?}"));
+                }
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{failures:#?}");
+}
+
+#[test]
+fn slice55_fix6_physical_fts_dynamic_types_preserve_matrix_order_and_privacy() {
+    let mut failures = Vec::new();
+    for (label, setup, mutation, expected) in [
+        (
+            "node body",
+            "node",
+            "UPDATE search_index SET body=zeroblob(4) WHERE write_cursor=1",
+            vec![DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch],
+        ),
+        (
+            "node cursor",
+            "node",
+            "UPDATE search_index SET write_cursor=zeroblob(4) WHERE write_cursor=1",
+            vec![
+                DataPlaneIntegrityFindingCodeV1::NodeBodyFtsMissing,
+                DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
+            ],
+        ),
+        (
+            "edge kind",
+            "edge",
+            "UPDATE search_index_edges SET kind=zeroblob(4) WHERE write_cursor=1",
+            vec![DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch],
+        ),
+        (
+            "attribute name",
+            "attribute",
+            "UPDATE canonical_attributes SET attr_name=zeroblob(4) WHERE write_cursor=1",
+            vec![
+                DataPlaneIntegrityFindingCodeV1::CanonicalAttributeMissing,
+                DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
+            ],
+        ),
+        (
+            "property value",
+            "attribute",
+            "UPDATE property_search_index SET attr_value=zeroblob(4) WHERE write_cursor=1",
+            vec![DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch],
+        ),
+    ] {
+        let (_dir, opened) = opened();
+        match setup {
+            "node" => {
+                opened.engine.write(&[canonical("fix6-node-r1", "fix6-node", "body")]).unwrap();
+            }
+            "edge" => {
+                opened.engine.write(&[edge("from", "to", "edge body")]).unwrap();
+            }
+            "attribute" => {
+                opened.engine.configure_projections(&[property_spec()], &[]).unwrap();
+                opened
+                    .engine
+                    .write(&[canonical(
+                        "fix6-attribute-r1",
+                        "fix6-attribute",
+                        r#"{"title":"value"}"#,
+                    )])
+                    .unwrap();
+            }
+            _ => unreachable!(),
+        }
+        opened.engine.execute_for_test(mutation).unwrap();
+        match opened.engine.check_data_plane_integrity(request(
+            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+            10_000,
+        )) {
+            Err(error) => failures.push(format!("{label} escaped as {error:?}")),
+            Ok(result) => {
+                let codes = result.findings.iter().map(|finding| finding.code).collect::<Vec<_>>();
+                let private_invalid_cursor = label != "node cursor"
+                    || result.findings.get(1).is_some_and(|finding| {
+                        finding.write_cursor.is_none() && finding.artifact_revision_ids.is_empty()
+                    });
+                if codes != expected || !private_invalid_cursor {
+                    failures.push(format!("{label} returned {result:#?}"));
+                }
+            }
+        }
+    }
+    assert!(failures.is_empty(), "{failures:#?}");
+}
+
+#[test]
+fn slice55_fix6_dense_dynamic_types_map_in_both_integrity_directions() {
+    for (label, mutation) in [
+        (
+            "sidecar kind blob",
+            "UPDATE _fathomdb_vector_rows SET kind=zeroblob(4) WHERE write_cursor=1",
+        ),
+        (
+            "terminal state blob",
+            "PRAGMA ignore_check_constraints=ON; UPDATE _fathomdb_projection_terminal \
+             SET state=zeroblob(4) WHERE write_cursor=1",
+        ),
+    ] {
+        let (_dir, opened) = dense_node_seeded();
+        opened.engine.execute_for_test(mutation).unwrap();
+        let active = opened
+            .engine
+            .check_data_plane_integrity(request(
+                DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+                10_000,
+            ))
+            .unwrap_or_else(|error| panic!("{label} active escaped as {error:?}"));
+        assert_eq!(active.findings.len(), 1, "{label}: {active:#?}");
+        assert_eq!(
+            active.findings[0].code,
+            DataPlaneIntegrityFindingCodeV1::DenseProjectionIdentityMismatch,
+            "{label}: {active:#?}"
+        );
+
+        let generation = opened
+            .engine
+            .check_data_plane_integrity(request(
+                DataPlaneIntegrityCheckV1::ProjectionGeneration,
+                10_000,
+            ))
+            .unwrap_or_else(|error| panic!("{label} generation escaped as {error:?}"));
+        assert_eq!(generation.findings.len(), 1, "{label}: {generation:#?}");
+        assert_eq!(
+            generation.findings[0].code,
+            DataPlaneIntegrityFindingCodeV1::ProjectionMemberCorrupt,
+            "{label}: {generation:#?}"
+        );
+    }
+}
+
+#[test]
+fn slice55_fix6_malformed_dense_cursor_is_classified_without_decoding_it() {
+    let (_dir, opened) = dense_node_seeded();
+    opened
+        .engine
+        .execute_for_test(
+            "UPDATE _fathomdb_vector_rows SET write_cursor=zeroblob(4) WHERE write_cursor=1",
+        )
+        .unwrap();
+
+    let active = opened
+        .engine
+        .check_data_plane_integrity(request(
+            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+            10_000,
+        ))
+        .expect("malformed dense cursor must not escape as storage");
+    assert_eq!(
+        active.findings.iter().map(|finding| finding.code).collect::<Vec<_>>(),
+        vec![
+            DataPlaneIntegrityFindingCodeV1::DenseProjectionPartial,
+            DataPlaneIntegrityFindingCodeV1::DenseProjectionIdentityMismatch,
+        ],
+        "{active:#?}"
+    );
+    assert_eq!(active.findings[1].write_cursor, None, "{active:#?}");
+    assert!(active.findings[1].artifact_revision_ids.is_empty(), "{active:#?}");
+
+    let generation = opened
+        .engine
+        .check_data_plane_integrity(request(
+            DataPlaneIntegrityCheckV1::ProjectionGeneration,
+            10_000,
+        ))
+        .expect("malformed dense cursor must be a generation member finding");
+    assert_eq!(
+        generation.findings.iter().map(|finding| finding.code).collect::<Vec<_>>(),
+        vec![
+            DataPlaneIntegrityFindingCodeV1::ProjectionMemberCorrupt,
+            DataPlaneIntegrityFindingCodeV1::ProjectionMemberCorrupt,
+        ],
+        "{generation:#?}"
+    );
+    assert_eq!(generation.findings[1].write_cursor, None, "{generation:#?}");
+}
+
+#[test]
+fn slice55_fix6_null_receipt_key_is_counted_ordered_bounded_and_private() {
+    let (_dir, opened) = opened();
+    actuate_without_pending(&opened, "a-null-receipt", "fix6-receipt-a-r1");
+    actuate_without_pending(&opened, "z-corrupt-receipt", "fix6-receipt-z-r1");
+    opened
+        .engine
+        .execute_for_test(
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE _fathomdb_actuation_receipts SET operation_id=NULL \
+               WHERE operation_id='a-null-receipt'; \
+             UPDATE _fathomdb_actuation_receipts SET outcome='not-an-outcome' \
+               WHERE operation_id='z-corrupt-receipt'",
+        )
+        .unwrap();
+
+    let bounded = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::MutationReadiness, 1))
+        .unwrap_err();
+    assert!(matches!(
+        bounded,
+        EngineError::DataPlaneIntegrity(ref value)
+            if value.reason == DataPlaneIntegrityErrorReasonV1::IntegrityBoundExceeded
+                && value.field_path == "/maxWorkUnits"
+    ));
+
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::MutationReadiness, 10))
+        .expect("NULL operation_id must be enumerated instead of skipped");
+    assert_eq!(result.checked_count, 2, "{result:#?}");
+    assert_eq!(
+        result.findings.iter().map(|finding| finding.code).collect::<Vec<_>>(),
+        vec![
+            DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt,
+            DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt,
+        ],
+        "{result:#?}"
+    );
+    assert_eq!(result.findings[0].operation_id, None, "{result:#?}");
+    assert_eq!(result.findings[1].operation_id.as_deref(), Some("z-corrupt-receipt"));
 }
 
 proptest! {

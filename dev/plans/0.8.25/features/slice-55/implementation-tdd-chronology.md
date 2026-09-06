@@ -2293,3 +2293,117 @@ files were removed and never staged.
 Available disk remained 170 GiB and `target/` remained 7.9 GiB. These are
 focused FIX-9 writer checks, not a broad repository-gate or independent-review
 verdict. No package was staged, tagged, uploaded, or published.
+
+## 2026-09-06 — FIX-10: bounded Python trace u64 decoding
+
+Independent implementation review cycle 10 found that Python's strict
+dependency-trace decoder passed an arbitrary-length canonical decimal string
+to `int()`. Python 3.12's 4,300-digit conversion limit therefore leaked a raw
+`ValueError` instead of the stable native `DependencyTraceError` contract. The
+owner authorized one final remediation and re-review cycle, bounded to this
+decoder defect.
+
+### RED
+
+Test-only commit `a35b0efc116b39dc7260f79d5717f263b0d75e9a` adds a
+strict-decoder boundary test for all three response fields that share the u64
+helper:
+
+- `/dependencyEdges/0/registeredDependencyGeneration`;
+- `/readBoundary/observedWriteBoundary`; and
+- `/readBoundary/dependencyGeneration`.
+
+Each case supplies a syntactically canonical 5,000-digit decimal string and
+requires `DependencyTraceError(reason="trace_corrupt", field_path=<path>)`.
+The first worktree-source invocation encountered the known stale native-module
+binding before collection and was not used as RED evidence. A byte copy of the
+committed test was instead run with the exact FIX-9 wheel's site-packages first
+and repository source excluded. The wheel SHA-256 was
+`349ade9d33ea5e9e29f3405d758f004d201ee07a9a97c17f78bd1ee9a1503acf`.
+
+```text
+env PYTHONPATH=<fix9-site-packages> .venv/bin/python -m pytest \
+  -o pythonpath= <copied-test> -q \
+  -k overlong_u64_never_leaks_decoder_errors
+FFF
+E ValueError: Exceeds the limit (4300 digits) for integer string conversion: value has 5000 digits; use sys.set_int_max_str_digits() to increase the limit
+3 failed, 30 deselected
+```
+
+All three paths leaked the same raw conversion exception.
+
+### GREEN
+
+Product commit `5dfd267859a39112e56206503c0a4b0b84a36db6`
+replaces unbounded integer conversion in `_trace_u64` with canonical decimal
+width and lexical comparison against `18446744073709551615`. It does not
+change the public string representation. The maximum valid u64 remains
+accepted; max-plus-one, malformed spelling, and arbitrary-length strings are
+rejected before any conversion. The later edge-versus-boundary integer
+comparison remains safe because both inputs have already been limited to at
+most 20 digits.
+
+The exact source-overlay focused checks passed against the last installed
+native artifact:
+
+```text
+pytest test_slice55_trace_explanation.py \
+  -k 'overlong_u64_never_leaks_decoder_errors or \
+      rejects_edge_generation_outside_read_boundary or \
+      accepts_valid_trace_generation_boundary or \
+      recursively_validates_trace_responses'
+9 passed, 24 deselected
+
+pytest test_slice55_wrapper_compat.py test_slice55_trace_explanation.py
+49 passed
+
+ruff check src/python/fathomdb/engine.py \
+  src/python/tests/test_slice55_trace_explanation.py
+All checks passed!
+
+pyright src/python/fathomdb/engine.py
+0 errors, 0 warnings, 0 informations
+```
+
+An explicit strict-decoder matrix accepted canonical u64 max simultaneously
+at all three paths and rejected both `18446744073709551616` and `01` with the
+typed error and exact path at every field. The complete committed Python test
+module also retains its zero/ahead edge-generation refusal cases.
+
+The bounded Rust wire nonregression remained green:
+
+```text
+timeout 600s cargo test -p fathomdb-engine \
+  --features operator,test-hooks --test slice55_wire -- --test-threads=1
+test result: ok. 10 passed; 0 failed
+```
+
+### Exact disposable installed-wheel evidence
+
+A fresh wheel was built from exact clean product commit
+`5dfd267859a39112e56206503c0a4b0b84a36db6` without `PYTHONPATH`:
+
+```text
+env -u PYTHONPATH ./scripts/verify-release-python-wheel.sh \
+  --python /usr/bin/python3 \
+  --wheel-dir /tmp/fathomdb-s55-fix10-wheel.OR7YWM/dist \
+  --venv-dir /tmp/fathomdb-s55-fix10-wheel.OR7YWM/venv
+wheel smoke: ok
+c4d78651b4a2445d1f2b0d1b30a8b6a6d792a3b115cb9768b88497199aab6690  \
+  fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl
+```
+
+The installed native smoke passed. Byte copies of the two Slice 55 Python
+test modules then ran with candidate site-packages first and repository source
+excluded: 49 passed in 0.62 seconds. The installed and repository `engine.py`
+files had the identical SHA-256
+`d3e7353ccb8958492925af8ebb14de2e5555cfaf37929eb458e1ba920273019e`.
+The explicit installed-decoder u64 matrix also passed, including valid max,
+max-plus-one, malformed, and exact typed-path checks for all three shared
+fields.
+
+The host used Python 3.12.3, cargo 1.95.0, rustc 1.95.0, and Linux x86-64
+7.0.0-30-generic. Available disk remained 169 GiB and `target/` was 8.7 GiB.
+Disposable copies and wheels remained under `/tmp`; no release package was
+staged, tagged, uploaded, or published. These are focused FIX-10 writer checks,
+not a broad repository-gate or independent-review verdict.

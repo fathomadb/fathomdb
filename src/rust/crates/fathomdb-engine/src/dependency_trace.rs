@@ -491,6 +491,27 @@ pub(crate) fn execute(
         )
         .into());
     }
+    if !valid_caller_identity(&request.root_revision_id) {
+        return Err(DependencyTraceErrorV1::new(
+            DependencyTraceErrorReasonV1::TraceRootInvalid,
+            "/rootRevisionId",
+        )
+        .into());
+    }
+    if !(1..=DEFAULT_MAX_RELATIONS).contains(&request.max_relations) {
+        return Err(DependencyTraceErrorV1::new(
+            DependencyTraceErrorReasonV1::TraceLimitInvalid,
+            "/maxRelations",
+        )
+        .into());
+    }
+    if !(1..=DEFAULT_MAX_WORK_UNITS).contains(&request.max_work_units) {
+        return Err(DependencyTraceErrorV1::new(
+            DependencyTraceErrorReasonV1::TraceLimitInvalid,
+            "/maxWorkUnits",
+        )
+        .into());
+    }
     let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
     let binding = frozen_read::authenticate(&tx, &request.context)?;
     frozen_read::validate_snapshot(&tx, &binding)?;

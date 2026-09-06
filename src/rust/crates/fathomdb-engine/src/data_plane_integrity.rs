@@ -1245,8 +1245,47 @@ fn mutation_readiness_findings(
 #[cfg(feature = "operator")]
 pub(crate) fn execute(
     connection: &mut Connection,
-    request: DataPlaneIntegrityRequestV1,
+    mut request: DataPlaneIntegrityRequestV1,
 ) -> Result<DataPlaneIntegrityResultV1, EngineError> {
+    if request.schema_version != SCHEMA_VERSION {
+        return Err(DataPlaneIntegrityErrorV1::new(
+            DataPlaneIntegrityErrorReasonV1::UnsupportedSchemaVersion,
+            "/schemaVersion",
+        )
+        .into());
+    }
+    if request.checks.is_empty() {
+        return Err(DataPlaneIntegrityErrorV1::new(
+            DataPlaneIntegrityErrorReasonV1::ChecksEmpty,
+            "/checks",
+        )
+        .into());
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    for (index, check) in request.checks.iter().copied().enumerate() {
+        if !seen.insert(check) {
+            return Err(DataPlaneIntegrityErrorV1::new(
+                DataPlaneIntegrityErrorReasonV1::DuplicateCheck,
+                format!("/checks/{index}"),
+            )
+            .into());
+        }
+    }
+    if !(1..=MAX_WORK_UNITS).contains(&request.max_work_units) {
+        return Err(DataPlaneIntegrityErrorV1::new(
+            DataPlaneIntegrityErrorReasonV1::IntegrityLimitInvalid,
+            "/maxWorkUnits",
+        )
+        .into());
+    }
+    if !(1..=MAX_FINDINGS).contains(&request.max_findings) {
+        return Err(DataPlaneIntegrityErrorV1::new(
+            DataPlaneIntegrityErrorReasonV1::IntegrityLimitInvalid,
+            "/maxFindings",
+        )
+        .into());
+    }
+    request.checks.sort_unstable();
     let transaction = connection.transaction().map_err(|_| EngineError::Storage)?;
     let effective_at_epoch_s = current_epoch_seconds();
     let observed_write_boundary = load_next_cursor(&transaction);

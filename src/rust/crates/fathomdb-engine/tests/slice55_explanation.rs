@@ -394,6 +394,35 @@ fn slice55_enable_after_finalization_uses_only_explanation_identity() {
 }
 
 #[test]
+fn slice55_after_finalization_hook_runs_outside_telemetry_lock() {
+    let _serial = explanation_hook_test_mutex().lock().unwrap_or_else(|error| error.into_inner());
+    let (_dir, opened, _first) = explained();
+    let sink = opened.engine.path().with_extension("reentrant-finalize.jsonl");
+    let engine = Arc::new(opened.engine);
+    let (completed_tx, completed_rx) = std::sync::mpsc::channel();
+    arm_explanation_after_telemetry_lock_hook_for_test(Box::new({
+        let engine = Arc::clone(&engine);
+        let sink = sink.clone();
+        move || {
+            let completed_tx = completed_tx.clone();
+            let engine = Arc::clone(&engine);
+            let sink = sink.clone();
+            std::thread::spawn(move || {
+                engine.enable_telemetry(sink.to_str().unwrap()).unwrap();
+                completed_tx.send(()).unwrap();
+            });
+            completed_rx
+                .recv_timeout(std::time::Duration::from_secs(1))
+                .expect("after-finalization callback ran while telemetry lock was held");
+        }
+    }));
+
+    let result = engine.search_explained("slice55", None, 0, false, 0.3, 0).unwrap();
+    assert!(result.explanation.unwrap().correlation_id.starts_with('x'));
+    assert!(sink.is_file());
+}
+
+#[test]
 fn slice55_explanation_hook_is_consumed_only_by_its_armed_thread() {
     let _serial = explanation_hook_test_mutex().lock().unwrap_or_else(|error| error.into_inner());
     let (_dir, opened, _first) = explained();

@@ -786,3 +786,36 @@ unchanged two test files were copied to the disposable directory and run there
 with no repository package path; the installed candidate then passed all 16
 cases in 0.23 seconds. No local artifact was staged, uploaded, tagged, or
 published.
+
+## Implementation review FIX-3 chronology
+
+Cycle-3 verdict `FAIL` is recorded in docs-only commit
+`65ac12b168d7097da7f3f4c8cfbc6c6e19816a3a`.
+
+The first test-only increment proves both sides of the explanation-hook safety
+boundary. A disposable default-feature consumer compiled successfully when it
+imported both test rendezvous functions, producing the intended RED:
+
+```text
+cargo test -p fathomdb-engine --test slice55_explanation_hook_surface \
+  -- --nocapture
+default consumer compiled test-only hooks
+test result: FAILED. 0 passed; 1 failed
+```
+
+The runtime RED makes the after-finalization callback re-enter
+`enable_telemetry` from another thread and requires completion within one
+second. It timed out because the callback ran while the search thread retained
+the telemetry mutex:
+
+```text
+cargo test -p fathomdb-engine --test slice55_explanation \
+  slice55_after_finalization_hook_runs_outside_telemetry_lock \
+  -- --exact --nocapture
+after-finalization callback ran while telemetry lock was held: Timeout
+test result: FAILED. 0 passed; 1 failed
+```
+
+The compile-surface command required an unconfined rerun after the sandbox
+could not extract a cached Cargo dependency into the read-only registry. The
+unchanged unconfined run produced the intended product failure above.

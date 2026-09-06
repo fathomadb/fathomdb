@@ -1998,3 +1998,152 @@ tests 65; pass 65; fail 0
 The two named disposable Node database files were removed afterward and were
 never staged. These are focused FIX-7 writer checks; independent implementation
 review and the broader verifier remain separate gates.
+
+## 2026-09-06 — FIX-8: exact generation work and dependency corruption
+
+Independent implementation review cycle 8 examined clean candidate
+`31bef1768df6af62080ef108c32d605371d0f6b3` and product commit
+`f70cc5c31c3294a53d5dfa0f6b39a7e94280feb8`. Its complete FAIL was persisted
+in `implementation-review-cycle8.md` and committed alone as
+`22c6c4bcd77db7954be9c63eb5ad30b1965f2e2b` before any test or production
+change.
+
+### FIX-8 authorized oracle correction and RED
+
+READY design lines 397-399 charge exactly the current-generation singleton,
+the current generation record, and each physical member. The release owner
+authorized only two existing projection-generation expectations to stop
+charging canonical owners: the corrupt-member fixture changed from four to
+three work units, and the canonical-owners-only fixture changed from a bound
+error to success with `checked_count=2`. Test-only commit
+`68b3a2eec107c1c7351a834804409eace533d10b` contains only those mechanical
+corrections.
+
+Test-only commit `e4e62917d3cd008fb1887b69f7d552eb7c0f10e4` then added real-database
+coverage for the remaining cycle-8 requirements:
+
+- canonical owners cannot consume projection-generation work or invent a
+  missing physical-member candidate;
+- schema-version-2 derived and canonical source owners map to the exact READY
+  role findings, severities, and minimum IDs;
+- a derived source self-reference maps to
+  `dependency_derived_role_invalid`/error before source-link mismatch and emits
+  exactly one derived revision ID; and
+- canonical singleton text at `i64::MAX + 1` and `u64::MAX` maps to the global
+  `dependency_generation_mismatch`/critical finding and never becomes the read
+  boundary.
+
+Against the unchanged cycle-7 product, the complete integrity target produced
+exactly the expected six failures: the two corrected work-count tests and the
+four new regressions.
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity -- --test-threads=1
+test result: FAILED. 60 passed; 6 failed
+```
+
+The failures were `slice55_projection_generation_enumerates_and_attributes_corrupt_members`,
+`slice55_projection_generation_member_cap_is_all_or_error`,
+`slice55_canonical_owners_do_not_become_projection_generation_candidates`,
+`slice55_owner_schema_versions_follow_the_dependency_role_matrix`,
+`slice55_derived_self_reference_precedes_source_link_mismatch`, and
+`slice55_dependency_generation_rejects_canonical_u64_above_i64_max`.
+
+### FIX-8 GREEN
+
+Product commit `87f6c707c761e0693c739241e1b97fd173d15df8` implements only the reviewed
+corrections:
+
+- projection-generation enumeration now uses only its two generation
+  authorities and bounded physical dense-member rows; it no longer enumerates,
+  merges, or charges canonical owners;
+- `StoredArtifactOwner` loads `schema_version` through the existing
+  corruption-safe `ValueRef` path and validates it in both the derived and
+  canonical-source role branches;
+- derived source self-reference classification precedes the general
+  source-link mismatch and therefore uses the READY error severity and minimum
+  derived-side ID set; and
+- dependency-generation singleton text is constrained to
+  `0..=i64::MAX` before it can populate the read boundary.
+
+Focused integrity, query-plan, property, fixture, trace, explanation, wire,
+legacy, facade, and CLI verification passed:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity --test slice55_dependency_trace \
+  --test slice55_explanation --test slice55_wire --test check_integrity \
+  --test trace_source_ref -- --test-threads=1
+integrity: 66 passed
+dependency trace: 20 passed; 1 ignored
+explanation: 17 passed
+wire: 8 passed
+legacy check_integrity: 3 passed
+legacy trace_source_ref: 3 passed
+
+cargo test -p fathomdb --test slice55_governed_surface
+test result: ok. 2 passed; 0 failed
+
+cargo test -p fathomdb-cli --test slice55_data_plane_integrity_cli
+test result: ok. 3 passed; 0 failed
+
+cargo clippy -p fathomdb-engine --all-targets \
+  --features operator,test-hooks -- -D warnings
+exit 0
+```
+
+The preregistered release trace ceiling also remained green:
+
+```text
+cargo test --release -p fathomdb-engine --features test-hooks \
+  --test slice55_dependency_trace \
+  slice55_trace_hidden_dependents_performance_ceiling \
+  -- --ignored --exact --nocapture
+hidden_rows=50000 vm_steps=3200000 elapsed_ms=51 peak_rss_delta_bytes=0
+test result: ok. 1 passed; 0 failed
+```
+
+### FIX-8 exact artifact evidence
+
+A fresh disposable wheel was built from exact clean product commit
+`87f6c707c761e0693c739241e1b97fd173d15df8` with no `PYTHONPATH`:
+
+```text
+env -u PYTHONPATH ./scripts/verify-release-python-wheel.sh \
+  --python /usr/bin/python3 \
+  --wheel-dir /tmp/fathomdb-s55-fix8-wheel.G2wwHT/dist \
+  --venv-dir /tmp/fathomdb-s55-fix8-wheel.G2wwHT/venv
+wheel smoke: ok
+e542899d35383ac936f4da242076013a4df785afc6799d298a85d58ad0eca1f9  \
+  fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl
+module=/tmp/fathomdb-s55-fix8-wheel.G2wwHT/venv/lib/python3.12/\
+  site-packages/fathomdb/__init__.py
+native=/tmp/fathomdb-s55-fix8-wheel.G2wwHT/venv/lib/python3.12/\
+  site-packages/fathomdb/_fathomdb.abi3.so
+
+env -u PYTHONPATH /tmp/fathomdb-s55-fix8-wheel.G2wwHT/venv/bin/python \
+  src/python/tests/smoke_slice55_installed.py
+slice55 installed native smoke: ok
+```
+
+The plan's root-level `npm run build:debug --workspace fathomdb` invocation
+first exited with `No workspaces found`; the package is not declared as a root
+npm workspace. The established exact-source package-directory route then
+passed without changing source:
+
+```text
+cd src/ts
+npm run build:debug
+./node_modules/.bin/tsc -p tsconfig.json
+node --test --test-name-pattern slice55 dist/tests/*.test.js
+tests 65; pass 65; fail 0
+f6a2214706aee4b3763c0d9cfd9b6d34076b014389dfcf63f9918509caad1241  \
+  fathomdb.linux-x64-gnu.node
+```
+
+The N-API run generated only
+`src/ts/slice55-malformed-frozen-context{,.lock}`; both disposable files were
+removed and were never staged. Available disk remained 171 GiB and `target/`
+remained at the 8.0-GiB cleanup target. These are focused FIX-8 writer checks,
+not a broad repository-gate or independent-review verdict.

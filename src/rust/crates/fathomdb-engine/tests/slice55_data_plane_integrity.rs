@@ -379,10 +379,23 @@ fn slice55_missing_property_fts() {
         [DataPlaneIntegrityFindingCodeV1::PropertyFtsMissing]
     );
 }
-clean_projection_case!(
-    slice55_dense_state_reuses_slice40_classifier,
-    DataPlaneIntegrityCheckV1::ProjectionGeneration
-);
+#[test]
+fn slice55_dense_state_reuses_slice40_classifier() {
+    let (_dir, opened) = opened();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened.engine.write(&[canonical("dense-r1", "dense", "dense body")]).unwrap();
+    opened
+        .engine
+        .execute_for_test(
+            "INSERT OR REPLACE INTO _fathomdb_vector_rows(rowid,kind,write_cursor) \
+             VALUES(1,'doc',1); DELETE FROM _fathomdb_projection_terminal WHERE write_cursor=1",
+        )
+        .unwrap();
+    assert_eq!(
+        finding_codes(&opened, DataPlaneIntegrityCheckV1::ActiveSearchableOrphans),
+        [DataPlaneIntegrityFindingCodeV1::DenseProjectionPartial]
+    );
+}
 clean_projection_case!(
     slice55_projection_generation_error_mapping,
     DataPlaneIntegrityCheckV1::ProjectionGeneration

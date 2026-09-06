@@ -1664,3 +1664,156 @@ The initial FIX-5 exact wheel at `e3366d01` passed the verifier, the 43 copied
 Slice-55 Python tests, and the installed native smoke. Because the later
 integrity plan refactor changes Rust source, closing artifact evidence is
 recorded only after rebuilding from the final product commit.
+
+## Implementation review FIX-6 chronology
+
+Review cycle 6 was persisted before test or production changes in docs-only
+commit `5b6e8787b557a21433304a8de6903ec31b681fac`. It records the independent
+`FAIL` against `b754e8fe3703645edb242e9baee5b5792089a58e`: dormant expired-edge
+artifacts were misclassified, retained revisions stood in for canonical-owner
+existence, malformed SQLite storage classes escaped as `Storage`, null receipt
+keys were invisible, and the corresponding real-database coverage was absent.
+
+### FIX-6 RED and authorized oracle correction
+
+Test-only commit `2807baa55ac30b57227e31629ce26a6a79973f10` added ten real-database
+fixtures. Against the cycle-5 product, nine failed and the existing dense
+state-classifier regression remained green. The failures reproduced:
+
+- retained expired-edge body FTS and dense state reported as outside
+  membership or corrupt;
+- a deleted canonical owner with a retained revision reported as outside
+  membership instead of owner-missing;
+- malformed dependency row, normalized source-link, dependency singleton,
+  generation authority, body/attribute FTS, and dense storage classes escaping
+  as `EngineError::Storage`;
+- a malformed dense cursor escaping in both integrity directions; and
+- a null receipt operation ID being skipped, so the cap did not fail.
+
+The exact RED command was:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity slice55_fix6_ -- --nocapture
+test result: FAILED. 1 passed; 9 failed; 48 filtered out
+```
+
+The first production run made nine of ten new cases green. The remaining test
+expected every malformed dependency row to omit `dependency_id`, but the READY
+matrix in `design.md` lines 470-472 requires a grammar-valid dependency ID to
+remain present when another dependency-row field is malformed. With explicit
+review authorization, isolated test-only commit
+`0c01cefef03c924cf707c992fc635f94bfdf7c3b` parameterized only that presence:
+valid IDs remain for malformed schema, derived revision, or generation, while
+malformed/null IDs remain omitted. Finding kind, revision privacy, and product
+code were unchanged in that commit.
+
+### FIX-6 GREEN
+
+Product commit `06aa3b89b7b555716066cf798b99abcbf2e3abd7` implements the review
+requirements:
+
+- one owner-retention classifier distinguishes required membership,
+  historical/dormant retention, governed-pruning residue, and absent canonical
+  owners across expected and physical body, dense, and generation directions;
+- dormant expired-edge FTS and complete or accepted terminal-only dense state
+  remain legal, while erased, superseded, completed-closure, and otherwise
+  pruning-governed residue retain the outside-membership findings;
+- bounded candidate scans preserve aggregate remaining-plus-one accounting and
+  indexed ordering while carrying rowid separately from guarded dynamic values;
+- dependency, source-link, singleton, generation, FTS, attribute, and dense
+  values are inspected through SQLite `ValueRef` metadata before decoding;
+- malformed rows map to the READY typed finding and omit malformed optional
+  identities; and
+- receipt enumeration uses stable rowid ordering, so a null operation ID costs
+  work, trips the same aggregate bound, and emits private
+  `mutation_receipt_corrupt` rather than disappearing.
+
+The first complete 58-test run exposed two production-only regressions without
+changing tests: a live node whose kind had become noncommittable reached source
+type resolution instead of governed-pruning residue, and explicit vec0 rowid
+ordering introduced a forbidden temporary B-tree. The classifier now treats
+that node as governed residue, and the vec0 rowid range scan relies on its
+indexed iteration without the redundant sort. The complete target then passed.
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity
+test result: ok. 58 passed; 0 failed
+
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_dependency_trace
+test result: ok. 20 passed; 0 failed; 1 ignored
+
+cargo test -p fathomdb-engine --features test-hooks --test slice55_explanation
+test result: ok. 17 passed; 0 failed
+cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_wire
+test result: ok. 8 passed; 0 failed
+
+cargo test -p fathomdb --test slice55_governed_surface
+test result: ok. 2 passed; 0 failed
+cargo test -p fathomdb-cli --test slice55_data_plane_integrity_cli
+test result: ok. 3 passed; 0 failed
+cargo test -p fathomdb-engine --features operator,test-hooks --test check_integrity
+test result: ok. 3 passed; 0 failed
+cargo test -p fathomdb-engine --features operator,test-hooks --test trace_source_ref
+test result: ok. 3 passed; 0 failed
+
+cargo clippy -p fathomdb-engine --all-targets \
+  --features operator,test-hooks -- -D warnings
+exit 0
+```
+
+The preregistered release trace ceiling remained green:
+
+```text
+hidden_rows=50000 vm_steps=3200000 elapsed_ms=51 peak_rss_delta_bytes=0
+test result: ok. 1 passed; 0 failed
+```
+
+### FIX-6 exact artifact evidence
+
+The source-wrapper pytest command was attempted first and rejected the stale
+worktree `_fathomdb.abi3.so` during collection because it predates the current
+native API. That is not candidate evidence and the stale module was not
+modified. A fresh disposable wheel was therefore built from exact clean
+product commit `06aa3b89b7b555716066cf798b99abcbf2e3abd7`:
+
+```text
+env -u PYTHONPATH ./scripts/verify-release-python-wheel.sh \
+  --python /usr/bin/python3 \
+  --wheel-dir /tmp/fathomdb-s55-fix6-final.b2TRJ4/dist \
+  --venv-dir /tmp/fathomdb-s55-fix6-final.b2TRJ4/venv
+wheel smoke: ok
+f940b60b357c926cb9ec5add82408d5631c86a2a43ff4e15c0d777e339f6392b  \
+  fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl
+module=/tmp/fathomdb-s55-fix6-final.b2TRJ4/venv/lib/python3.12/\
+  site-packages/fathomdb/__init__.py
+native=/tmp/fathomdb-s55-fix6-final.b2TRJ4/venv/lib/python3.12/\
+  site-packages/fathomdb/_fathomdb.abi3.so
+
+env -u PYTHONPATH /tmp/fathomdb-s55-fix6-final.b2TRJ4/venv/bin/python \
+  src/python/tests/smoke_slice55_installed.py
+slice55 installed native smoke: ok
+```
+
+Byte-identical copies of both checked-in Slice 55 Python modules were run with
+the candidate site-packages first and repository source excluded. Their
+SHA-256 pairs matched (`1341189e...40a3` and `1463f7f5...56dc`), and all 43
+parameterized cases passed in 0.62 seconds.
+
+The exact-source N-API build first encountered the expected restricted-sandbox
+`spawnSync /bin/sh EPERM`; the unchanged unconfined retry passed. TypeScript
+checking and the Slice 55-filtered Node run also passed:
+
+```text
+cd src/ts
+npm run build:debug
+./node_modules/.bin/tsc -p tsconfig.json
+node --test --test-name-pattern slice55 dist/tests/*.test.js
+tests 65; pass 65; fail 0
+```
+
+The Node run's two named disposable database files were removed afterward and
+were never staged. These are focused writer checks only; the independent
+implementation reviewer owns the broader acceptance verdict.

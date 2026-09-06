@@ -1981,7 +1981,7 @@ fn slice55_dense_generation_scans_cover_the_full_signed_rowid_domain() {
         ),
         (
             DataPlaneIntegrityCheckV1::ProjectionGeneration,
-            5,
+            6,
             DataPlaneIntegrityFindingCodeV1::ProjectionMemberCorrupt,
         ),
     ] {

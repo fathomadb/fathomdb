@@ -773,6 +773,19 @@ cargo clippy -p fathomdb-engine --features operator,test-hooks \
 Finished `dev` profile
 ```
 
+The exact hidden-corruption RED commit is
+`4e966062b59285f471ab78a3eace5c6ba94bb153`. GREEN moves both endpoint
+lifecycle, validity, metadata-filter, attribute-filter, role, and completeness
+authorization into the indexed candidate SQL ahead of projection, decoding,
+and `LIMIT`. The existing full normalized-chain verifier remains the second
+stage for already-authorized candidates. The full focused result is:
+
+```text
+cargo test -p fathomdb-engine --features test-hooks \
+  --test slice55_dependency_trace
+test result: ok. 19 passed; 0 failed; 1 ignored
+```
+
 Full writer gates passed at the same product commit:
 
 ```text

@@ -13881,7 +13881,22 @@ impl Engine {
             let mut statement = connection.prepare(&sql).map_err(|_| EngineError::Storage)?;
             plans.extend(
                 statement
-                    .query_map(rusqlite::params!["derived-r1", 2], |row| row.get::<_, String>(3))
+                    .query_map(
+                        rusqlite::params![
+                            "derived-r1",
+                            2_i64,
+                            false,
+                            false,
+                            false,
+                            1_i64,
+                            Option::<&str>::None,
+                            Option::<&str>::None,
+                            Option::<i64>::None,
+                            Option::<&str>::None,
+                            "[]",
+                        ],
+                        |row| row.get::<_, String>(3),
+                    )
                     .map_err(|_| EngineError::Storage)?
                     .collect::<rusqlite::Result<Vec<_>>>()
                     .map_err(|_| EngineError::Storage)?,
@@ -13892,7 +13907,23 @@ impl Engine {
             let mut statement = connection.prepare(&sql).map_err(|_| EngineError::Storage)?;
             plans.extend(
                 statement
-                    .query_map(rusqlite::params!["source-r1", "", 2], |row| row.get::<_, String>(3))
+                    .query_map(
+                        rusqlite::params![
+                            "source-r1",
+                            "",
+                            2_i64,
+                            false,
+                            false,
+                            false,
+                            1_i64,
+                            Option::<&str>::None,
+                            Option::<&str>::None,
+                            Option::<i64>::None,
+                            Option::<&str>::None,
+                            "[]",
+                        ],
+                        |row| row.get::<_, String>(3),
+                    )
                     .map_err(|_| EngineError::Storage)?
                     .collect::<rusqlite::Result<Vec<_>>>()
                     .map_err(|_| EngineError::Storage)?,

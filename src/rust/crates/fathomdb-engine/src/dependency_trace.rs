@@ -22,7 +22,28 @@ const TO_SOURCE_CANDIDATE_QUERY: &str =
             d.registered_dependency_generation,d.schema_version \
      FROM _fathomdb_source_dependencies d \
      JOIN _fathomdb_source_links l ON l.artifact_revision_id=d.derived_revision_id \
-     WHERE d.derived_revision_id=?1 \
+     JOIN _fathomdb_artifact_revisions sr ON sr.revision_id=l.source_revision_id \
+     JOIN canonical_nodes sn ON sn.write_cursor=sr.write_cursor \
+     WHERE d.derived_revision_id=?1 AND sr.schema_version=1 \
+       AND sr.artifact_class='node' AND sr.artifact_role='canonical_source' \
+       AND sr.completeness='complete' \
+       AND sn.state IN ('active','pending','deleted','purged') \
+       AND (?3 OR sn.state='active') AND (?4 OR sn.superseded_at IS NULL) \
+       AND (?5 OR ((sn.valid_from IS NULL OR sn.valid_from<=?6) \
+                   AND (sn.valid_until IS NULL OR sn.valid_until>?6))) \
+       AND (?7 IS NULL OR sn.kind=?7) \
+       AND (?8 IS NULL OR CASE sn.kind WHEN 'email' THEN 'email' \
+            WHEN 'article' THEN 'article' WHEN 'paper' THEN 'paper' \
+            WHEN 'meeting' THEN 'meeting' WHEN 'note' THEN 'note' \
+            WHEN 'todo' THEN 'todo' WHEN 'doc' THEN 'article' END=?8) \
+       AND (?9 IS NULL OR EXISTS(SELECT 1 FROM vector_default vm \
+            WHERE vm.rowid=sn.write_cursor AND vm.created_at>=?9)) \
+       AND (?10 IS NULL OR EXISTS(SELECT 1 FROM vector_default vm \
+            WHERE vm.rowid=sn.write_cursor AND vm.status=?10)) \
+       AND NOT EXISTS(SELECT 1 FROM json_each(?11) f WHERE NOT EXISTS(\
+            SELECT 1 FROM canonical_attributes ca WHERE ca.write_cursor=sn.write_cursor \
+              AND ca.attr_name=json_extract(f.value,'$[0]') \
+              AND ca.attr_value=json_extract(f.value,'$[1]'))) \
      ORDER BY d.derived_revision_id,d.dependency_id LIMIT ?2";
 
 const TO_DEPENDENTS_CANDIDATE_QUERY: &str =
@@ -30,7 +51,41 @@ const TO_DEPENDENTS_CANDIDATE_QUERY: &str =
             d.registered_dependency_generation,d.schema_version \
      FROM _fathomdb_source_links l INDEXED BY _fathomdb_source_links_source_derived_idx \
      JOIN _fathomdb_source_dependencies d ON d.derived_revision_id=l.artifact_revision_id \
+     JOIN _fathomdb_artifact_revisions dr ON dr.revision_id=d.derived_revision_id \
+     LEFT JOIN canonical_nodes dn ON dr.artifact_class='node' AND dn.write_cursor=dr.write_cursor \
+     LEFT JOIN canonical_edges de ON dr.artifact_class='edge' AND de.write_cursor=dr.write_cursor \
      WHERE l.source_revision_id=?1 AND l.artifact_revision_id>?2 \
+       AND dr.schema_version=1 AND dr.artifact_role='derived_semantic' \
+       AND dr.completeness='complete' AND (\
+         (dr.artifact_class='node' AND dn.state IN ('active','pending','deleted','purged') \
+          AND (?4 OR dn.state='active') AND (?5 OR dn.superseded_at IS NULL) \
+          AND (?6 OR ((dn.valid_from IS NULL OR dn.valid_from<=?7) \
+                      AND (dn.valid_until IS NULL OR dn.valid_until>?7))) \
+          AND (?8 IS NULL OR dn.kind=?8) \
+          AND (?9 IS NULL OR CASE dn.kind WHEN 'email' THEN 'email' \
+               WHEN 'article' THEN 'article' WHEN 'paper' THEN 'paper' \
+               WHEN 'meeting' THEN 'meeting' WHEN 'note' THEN 'note' \
+               WHEN 'todo' THEN 'todo' WHEN 'doc' THEN 'article' END=?9) \
+          AND (?10 IS NULL OR EXISTS(SELECT 1 FROM vector_default vm \
+               WHERE vm.rowid=dn.write_cursor AND vm.created_at>=?10)) \
+          AND (?11 IS NULL OR EXISTS(SELECT 1 FROM vector_default vm \
+               WHERE vm.rowid=dn.write_cursor AND vm.status=?11)) \
+          AND NOT EXISTS(SELECT 1 FROM json_each(?12) f WHERE NOT EXISTS(\
+               SELECT 1 FROM canonical_attributes ca WHERE ca.write_cursor=dn.write_cursor \
+                 AND ca.attr_name=json_extract(f.value,'$[0]') \
+                 AND ca.attr_value=json_extract(f.value,'$[1]')))) OR \
+         (dr.artifact_class='edge' AND (?5 OR de.superseded_at IS NULL) \
+          AND (?6 OR ((de.t_valid IS NULL OR de.t_valid<=?7) \
+                      AND (de.t_invalid IS NULL OR de.t_invalid>?7))) \
+          AND (?8 IS NULL OR de.kind=?8) AND (?9 IS NULL OR ?9='edge_fact') \
+          AND (?10 IS NULL OR EXISTS(SELECT 1 FROM vector_default vm \
+               WHERE vm.rowid=de.write_cursor AND vm.created_at>=?10)) \
+          AND (?11 IS NULL OR EXISTS(SELECT 1 FROM vector_default vm \
+               WHERE vm.rowid=de.write_cursor AND vm.status=?11)) \
+          AND NOT EXISTS(SELECT 1 FROM json_each(?12) f WHERE NOT EXISTS(\
+               SELECT 1 FROM canonical_attributes ca WHERE ca.write_cursor=de.write_cursor \
+                 AND ca.attr_name=json_extract(f.value,'$[0]') \
+                 AND ca.attr_value=json_extract(f.value,'$[1]'))))) \
      ORDER BY l.source_revision_id,l.artifact_revision_id LIMIT ?3";
 
 type StoredNodeLifecycle = (String, String, Option<i64>, Option<i64>, Option<i64>);
@@ -695,12 +750,29 @@ pub(crate) fn execute(
     let dependency_generation = load_dependency_generation(&tx)?;
     let mut nodes = vec![root];
     let mut edges = Vec::new();
+    let context = &request.context.context;
+    let view = &context.view;
+    let filter = &context.eligibility;
+    let attribute_filter =
+        serde_json::to_string(&filter.attributes).map_err(|_| EngineError::Storage)?;
     match request.direction {
         DependencyTraceDirectionV1::ToSource => {
             let candidate = tx
                 .query_row(
                     TO_SOURCE_CANDIDATE_QUERY,
-                    rusqlite::params![&request.root_revision_id, 2],
+                    rusqlite::params![
+                        &request.root_revision_id,
+                        2,
+                        view.include_inactive,
+                        view.include_superseded,
+                        view.include_out_of_window,
+                        effective,
+                        filter.kind.as_deref(),
+                        filter.source_type.as_deref(),
+                        filter.created_after,
+                        filter.status.as_deref(),
+                        &attribute_filter,
+                    ],
                     |row| {
                         Ok((
                             row.get::<_, String>(0)?,
@@ -738,7 +810,20 @@ pub(crate) fn execute(
                         .map_err(|_| EngineError::Storage)?;
                     let rows = statement
                         .query_map(
-                            rusqlite::params![&request.root_revision_id, &after_key, page_limit],
+                            rusqlite::params![
+                                &request.root_revision_id,
+                                &after_key,
+                                page_limit,
+                                view.include_inactive,
+                                view.include_superseded,
+                                view.include_out_of_window,
+                                effective,
+                                filter.kind.as_deref(),
+                                filter.source_type.as_deref(),
+                                filter.created_after,
+                                filter.status.as_deref(),
+                                &attribute_filter,
+                            ],
                             |row| {
                                 Ok((
                                     row.get::<_, String>(0)?,

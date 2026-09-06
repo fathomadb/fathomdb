@@ -54,7 +54,7 @@ fn result() -> DependencyTraceResultV1 {
             schema_version: 1,
             effective_at_epoch_s: 1,
             observed_write_boundary: 1,
-            dependency_generation: 0,
+            dependency_generation: 1,
             projection_generation_id: "pgen1:00000000000000000000000000000000".into(),
         },
     }

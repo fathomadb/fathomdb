@@ -1138,3 +1138,89 @@ cargo test -p fathomdb-engine --features operator,test-hooks \
   slice55_projection_scan_plans_use_indexed_order -- --exact --nocapture
 test result: ok. 1 passed; 0 failed
 ```
+
+The remaining cycle-3 serial RED/GREEN commits are:
+
+- sparse projection owner paging: RED
+  `e29df0b496b7e3476dfbcd348c09cdebbbac9fb7`, GREEN
+  `4878329d9d2b9a245cac629227fe721bc72b03eb`;
+- hidden trace corruption filtered before decode and eligible limit: RED
+  `4e966062b59285f471ab78a3eace5c6ba94bb153`, GREEN
+  `f713e184fbce261334789e1ff9b57c683cfda424`;
+- exact-cap graph traversal: RED
+  `82cf64038f8c4a7e117e281d48ac1dcec68c934f`, approved topology-only fixture
+  correction `9a8bdc0c1bd5e4fbd3b8f4c620729ea6c8bedaf7`, GREEN
+  `e39fc20b3438318b5b9a32260a8d8e86c52f980c`;
+- Rust error schema, duplicate dependency identity, and canonical ordering:
+  RED `ec83ce9666c39cc748be63cf9747409792f65872`, GREEN
+  `ff91c61411184d59ece4a2c559c9f13d4ebdcde0`;
+- recursive Python/TypeScript request, trace, and explanation validation: RED
+  `39a766b07999f1c9dcd120710ab359fc116be327`, compatibility-preserving
+  test correction `fe4d3f9d48a98aa24974d1a9caa7d783e7ddc21c`, GREEN
+  `f425aa90e04e6f857564767fb9793c0448bf2cc6`;
+- physical projection residue source identities: RED
+  `71a7357d97e7dcd365a6b1086e6b7fc5ca123d86`, GREEN
+  `8246a0ae74d041a7cf64e7916320452a8bffaaa7`, followed by the dense-member
+  RED/GREEN pair recorded above.
+
+The closing focused matrix at product commit
+`14a997d3fb58a17d2ec20a2f352cc8aa8f6e9724` passed:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_explanation --test slice55_wire \
+  --test slice55_dependency_trace --test slice55_data_plane_integrity
+integrity: 36 passed; trace: 19 passed, 1 ignored;
+explanation: 17 passed; wire: 8 passed
+
+cargo clippy -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_explanation --test slice55_wire \
+  --test slice55_dependency_trace --test slice55_data_plane_integrity \
+  -- -D warnings
+Finished `dev` profile
+
+./scripts/agent-lint.sh
+exit 0
+./scripts/agent-typecheck.sh
+exit 0
+```
+
+The first lint tool session closed without returning its final status. One
+unchanged unconfined rerun completed with exit 0; this was an evidence-channel
+retry, not a product diagnostic or a test retry.
+
+### FIX-3 exact installed-candidate evidence
+
+The disposable wheel was built from exact clean product commit
+`14a997d3fb58a17d2ec20a2f352cc8aa8f6e9724`; version `0.8.24` remains the
+expected pre-release package version. No artifact was staged or published.
+
+```text
+env -u PYTHONPATH ./scripts/verify-release-python-wheel.sh \
+  --python /usr/bin/python3 \
+  --wheel-dir /tmp/fathomdb-s55-fix3-final.4nJJDA/dist \
+  --venv-dir /tmp/fathomdb-s55-fix3-final.4nJJDA/venv
+wheel smoke: ok
+12af4d88c537ebb22d45fcf155b12904cf93ee7a41e8d82a9f46a71ca80c2e5f  \
+  fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl
+module=/tmp/fathomdb-s55-fix3-final.4nJJDA/venv/lib/python3.12/site-packages/fathomdb/__init__.py
+native=/tmp/fathomdb-s55-fix3-final.4nJJDA/venv/lib/python3.12/site-packages/fathomdb/_fathomdb.abi3.so
+
+env -u PYTHONPATH /tmp/fathomdb-s55-fix3-final.4nJJDA/venv/bin/python \
+  src/python/tests/smoke_slice55_installed.py
+slice55 installed native smoke: ok
+
+pytest -o pythonpath= test_slice55_trace_explanation.py \
+  test_slice55_wrapper_compat.py -q
+24 passed in 0.33s
+```
+
+The exact-source N-API candidate also passed:
+
+```text
+cd src/ts
+npm run build:debug
+./node_modules/.bin/tsc -p tsconfig.json
+node --test --test-name-pattern slice55 dist/tests/*.test.js
+tests 73; pass 73; fail 0
+```

@@ -1142,6 +1142,8 @@ one-hop trace under an authenticated `FrozenReadContextV1`. It accepts only
 registered relations, and fails without a partial result above 101 work units.
 All `DependencyTrace*V1`, `Trace*V1`, and `DependencyTraceError*` types are
 default-facade exports.
+`DependencyTraceErrorV1` and the operator-only `DataPlaneIntegrityErrorV1`
+carry `schema_version == 1`, a closed reason enum, and an RFC 6901 field path.
 
 Explained search appends `Explanation.correlation_id` and
 `PerHitExplain.structural: StructuralInclusionV1`. Ordinary search remains

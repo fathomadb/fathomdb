@@ -659,6 +659,36 @@ fn slice55_dense_state_reuses_slice40_classifier() {
 }
 
 #[test]
+fn slice55_dense_residue_reports_resolvable_revision() {
+    let (_dir, opened) = opened();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened.engine.write(&[canonical("dense-residue-r1", "dense-residue", "body")]).unwrap();
+    opened
+        .engine
+        .execute_for_test(
+            "INSERT OR REPLACE INTO _fathomdb_vector_rows(rowid,kind,write_cursor) \
+             VALUES(1,'doc',1); \
+             UPDATE canonical_nodes SET kind='unregistered' WHERE write_cursor=1",
+        )
+        .unwrap();
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(
+            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans,
+            10_000,
+        ))
+        .unwrap();
+    let finding = result
+        .findings
+        .iter()
+        .find(|finding| {
+            finding.code == DataPlaneIntegrityFindingCodeV1::DenseProjectionOutsideMembership
+        })
+        .unwrap_or_else(|| panic!("missing dense residue finding: {result:#?}"));
+    assert_eq!(finding.artifact_revision_ids, ["dense-residue-r1"]);
+}
+
+#[test]
 fn slice55_terminal_only_residue_is_enumerated_by_both_integrity_checks() {
     let (_dir, opened) = opened();
     opened

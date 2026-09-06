@@ -798,6 +798,21 @@ slice55 trace measurement: hidden_rows=50000 vm_steps=1000000 \
 test result: ok. 1 passed; 0 failed
 ```
 
+A serial physical-dense residue RED changes a previously enrolled node to an
+unregistered kind only after its terminal and sidecar members exist. The
+integrity classifier correctly reports `DenseProjectionOutsideMembership`,
+but the finding loses the still-resolvable source revision:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity \
+  slice55_dense_residue_reports_resolvable_revision \
+  -- --exact --nocapture
+assertion `left == right` failed
+  left: []
+ right: ["dense-residue-r1"]
+```
+
 The final cycle-3 oracle audit replaced the remaining trace endpoint
 happy-path-only case with reciprocal corruption refusals and added a physical
 EAV/property residue case that requires a resolvable owner revision ID and

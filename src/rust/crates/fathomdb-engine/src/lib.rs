@@ -45,6 +45,7 @@
 //! `EngineError` are `#[non_exhaustive]` or documented as additive.
 
 mod actuation;
+#[cfg(feature = "operator")]
 mod data_plane_integrity;
 mod dependency_closure;
 mod dependency_trace;
@@ -61,6 +62,7 @@ pub use actuation::{
     ActuationBatchV1, ActuationError, ActuationErrorReason, ActuationOperationV1,
     ActuationOutcomeV1, ActuationReceiptV1, ActuationRefusalReasonV1, LifecycleActuationV1,
 };
+#[cfg(feature = "operator")]
 pub use data_plane_integrity::{
     DataPlaneIntegrityBoundaryV1, DataPlaneIntegrityCheckCountV1, DataPlaneIntegrityCheckV1,
     DataPlaneIntegrityErrorReasonV1, DataPlaneIntegrityErrorV1, DataPlaneIntegrityFindingCodeV1,
@@ -6531,6 +6533,7 @@ pub enum EngineError {
     /// A governed dependency trace request was invalid, unavailable, bounded, or corrupt.
     DependencyTrace(DependencyTraceErrorV1),
     /// An operator-only bounded data-plane integrity request failed.
+    #[cfg(feature = "operator")]
     DataPlaneIntegrity(DataPlaneIntegrityErrorV1),
     Overloaded,
     Closing,
@@ -6677,6 +6680,7 @@ impl From<DependencyTraceErrorV1> for EngineError {
     }
 }
 
+#[cfg(feature = "operator")]
 impl From<DataPlaneIntegrityErrorV1> for EngineError {
     fn from(error: DataPlaneIntegrityErrorV1) -> Self {
         Self::DataPlaneIntegrity(error)
@@ -6715,6 +6719,7 @@ impl Display for EngineError {
             Self::ProjectionGeneration(error) => write!(f, "projection generation: {error}"),
             Self::Evidence(error) => write!(f, "evidence: {error}"),
             Self::DependencyTrace(error) => write!(f, "dependency trace: {error}"),
+            #[cfg(feature = "operator")]
             Self::DataPlaneIntegrity(error) => write!(f, "data-plane integrity: {error}"),
             Self::Overloaded => write!(f, "engine overloaded"),
             Self::Closing => write!(f, "engine is closing"),
@@ -6785,6 +6790,7 @@ impl EngineError {
             Self::ProjectionGeneration(_) => "ProjectionGenerationError",
             Self::Evidence(_) => "EvidenceError",
             Self::DependencyTrace(_) => "DependencyTraceError",
+            #[cfg(feature = "operator")]
             Self::DataPlaneIntegrity(_) => "DataPlaneIntegrityError",
             Self::Overloaded => "OverloadedError",
             Self::Closing => "ClosingError",

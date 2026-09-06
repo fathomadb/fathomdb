@@ -152,7 +152,6 @@ const CODE_FROZEN_READ: &str = "FDB_FROZEN_READ";
 const CODE_EVIDENCE: &str = "FDB_EVIDENCE";
 const CODE_PAGE: &str = "FDB_PAGE";
 const CODE_DEPENDENCY_TRACE: &str = "FDB_DEPENDENCY_TRACE";
-const CODE_DATA_PLANE_INTEGRITY: &str = "FDB_DATA_PLANE_INTEGRITY";
 const CODE_PANIC: &str = "FDB_PANIC";
 
 // ===== Typed-error encoder ============================================
@@ -337,14 +336,6 @@ fn engine_error_to_napi(err: RustEngineError) -> Error {
         ),
         RustEngineError::DependencyTrace(error) => typed_error(
             CODE_DEPENDENCY_TRACE,
-            format!("{} at {}", error.reason.as_str(), error.field_path),
-            json!({
-                "reason": error.reason.as_str(),
-                "fieldPath": error.field_path,
-            }),
-        ),
-        RustEngineError::DataPlaneIntegrity(error) => typed_error(
-            CODE_DATA_PLANE_INTEGRITY,
             format!("{} at {}", error.reason.as_str(), error.field_path),
             json!({
                 "reason": error.reason.as_str(),

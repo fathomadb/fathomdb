@@ -1,17 +1,18 @@
 use std::fmt::{Display, Formatter};
 
 #[cfg(feature = "operator")]
-use rusqlite::Connection;
+use rusqlite::{Connection, OptionalExtension};
 
 #[cfg(feature = "operator")]
-use crate::{
-    current_epoch_seconds, load_dependency_generation, load_next_cursor, projection_generation,
-    EngineError,
-};
+use crate::{current_epoch_seconds, load_dependency_generation, load_next_cursor, EngineError};
 
 const SCHEMA_VERSION: u32 = 1;
 const MAX_WORK_UNITS: u32 = 10_000;
 const MAX_FINDINGS: u32 = 100;
+
+#[cfg(feature = "operator")]
+type StoredSourceLink =
+    (i64, String, String, String, String, Option<i64>, Option<i64>, String, String);
 
 /// Closed set of operator integrity checks.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -275,11 +276,526 @@ fn bound_error() -> EngineError {
 }
 
 #[cfg(feature = "operator")]
-fn scalar_count(connection: &Connection, table: &str) -> Result<u32, EngineError> {
-    let sql = format!("SELECT count(*) FROM {table}");
-    let count: i64 =
-        connection.query_row(&sql, [], |row| row.get(0)).map_err(|_| EngineError::Storage)?;
-    u32::try_from(count).map_err(|_| bound_error())
+fn take_work(checked: &mut u32, limit: u32) -> Result<(), EngineError> {
+    *checked = checked.checked_add(1).ok_or_else(bound_error)?;
+    if *checked > limit {
+        return Err(bound_error());
+    }
+    Ok(())
+}
+
+#[cfg(feature = "operator")]
+fn push_finding(
+    findings: &mut Vec<DataPlaneIntegrityFindingV1>,
+    finding: DataPlaneIntegrityFindingV1,
+    max_findings: u32,
+) -> Result<(), EngineError> {
+    if findings.len() >= max_findings as usize {
+        return Err(bound_error());
+    }
+    findings.push(finding);
+    Ok(())
+}
+
+#[cfg(feature = "operator")]
+fn finding(
+    code: DataPlaneIntegrityFindingCodeV1,
+    severity: DataPlaneIntegritySeverityV1,
+) -> DataPlaneIntegrityFindingV1 {
+    DataPlaneIntegrityFindingV1 {
+        schema_version: SCHEMA_VERSION,
+        code,
+        severity,
+        artifact_revision_ids: Vec::new(),
+        dependency_id: None,
+        projection_generation_id: None,
+        operation_id: None,
+        write_cursor: None,
+    }
+}
+
+#[cfg(feature = "operator")]
+fn valid_generation_id(value: &str) -> bool {
+    value.len() == 38
+        && value.starts_with("pgen1:")
+        && value[6..].bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+#[cfg(feature = "operator")]
+fn canonical_u64(value: &str) -> Option<u64> {
+    if value.is_empty()
+        || (value.len() > 1 && value.starts_with('0'))
+        || !value.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return None;
+    }
+    value.parse().ok()
+}
+
+#[cfg(feature = "operator")]
+fn dependency_findings(
+    connection: &Connection,
+    max_work_units: u32,
+    max_findings: u32,
+    aggregate_checked: &mut u32,
+    findings: &mut Vec<DataPlaneIntegrityFindingV1>,
+) -> Result<u32, EngineError> {
+    let start = *aggregate_checked;
+    take_work(aggregate_checked, max_work_units)?;
+    let generation = load_dependency_generation(connection)?;
+    let remaining = max_work_units.saturating_sub(*aggregate_checked);
+    let sql =
+        "SELECT schema_version,dependency_id,derived_revision_id,registered_dependency_generation \
+               FROM _fathomdb_source_dependencies ORDER BY dependency_id LIMIT ?1";
+    let mut statement = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
+    let mut rows = statement.query([i64::from(remaining) + 1]).map_err(|_| EngineError::Storage)?;
+    while let Some(row) = rows.next().map_err(|_| EngineError::Storage)? {
+        take_work(aggregate_checked, max_work_units)?;
+        let schema: i64 = row.get(0).map_err(|_| EngineError::Storage)?;
+        let dependency_id: String = row.get(1).map_err(|_| EngineError::Storage)?;
+        let derived_revision: String = row.get(2).map_err(|_| EngineError::Storage)?;
+        let registered_generation: i64 = row.get(3).map_err(|_| EngineError::Storage)?;
+        let mut item = if schema != 1
+            || !crate::valid_caller_identity(&dependency_id)
+            || registered_generation <= 0
+        {
+            Some(finding(
+                DataPlaneIntegrityFindingCodeV1::DependencyRowInvalid,
+                DataPlaneIntegritySeverityV1::Error,
+            ))
+        } else {
+            None
+        };
+        let derived_owner: Option<(String, String, String, i64)> = connection
+            .query_row(
+                "SELECT artifact_class,artifact_role,completeness,write_cursor \
+                 FROM _fathomdb_artifact_revisions WHERE revision_id=?1",
+                [&derived_revision],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .optional()
+            .map_err(|_| EngineError::Storage)?;
+        if item.is_none() && derived_owner.is_none() {
+            item = Some(finding(
+                DataPlaneIntegrityFindingCodeV1::DependencyDerivedOwnerMissing,
+                DataPlaneIntegritySeverityV1::Critical,
+            ));
+        }
+        if item.is_none() {
+            let (class, role, completeness, cursor) = derived_owner.as_ref().unwrap();
+            let owner_exists: bool = connection
+                .query_row(
+                    if class == "node" {
+                        "SELECT EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1)"
+                    } else {
+                        "SELECT EXISTS(SELECT 1 FROM canonical_edges WHERE write_cursor=?1)"
+                    },
+                    [cursor],
+                    |row| row.get(0),
+                )
+                .map_err(|_| EngineError::Storage)?;
+            if !matches!(class.as_str(), "node" | "edge") || !owner_exists {
+                item = Some(finding(
+                    DataPlaneIntegrityFindingCodeV1::DependencyDerivedOwnerMissing,
+                    DataPlaneIntegritySeverityV1::Critical,
+                ));
+            } else if role != "derived_semantic" || completeness != "complete" {
+                item = Some(finding(
+                    DataPlaneIntegrityFindingCodeV1::DependencyDerivedRoleInvalid,
+                    DataPlaneIntegritySeverityV1::Error,
+                ));
+            }
+        }
+        let link: Option<StoredSourceLink> = connection
+                .query_row(
+                    "SELECT schema_version,source_id,source_version_id,source_revision_id,locator_kind,\
+                            start_byte,end_byte,hash_algorithm,hash_digest \
+                     FROM _fathomdb_source_links WHERE artifact_revision_id=?1",
+                    [&derived_revision],
+                    |row| {
+                        Ok((
+                            row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?,
+                            row.get(5)?, row.get(6)?, row.get(7)?, row.get(8)?,
+                        ))
+                    },
+                )
+                .optional()
+                .map_err(|_| EngineError::Storage)?;
+        if item.is_none() && link.is_none() {
+            item = Some(finding(
+                DataPlaneIntegrityFindingCodeV1::DependencySourceLinkMissing,
+                DataPlaneIntegritySeverityV1::Critical,
+            ));
+        }
+        if item.is_none() {
+            let (
+                link_schema,
+                source_id,
+                version_id,
+                source_revision,
+                locator,
+                start,
+                end,
+                algo,
+                digest,
+            ) = link.as_ref().unwrap();
+            let link_valid = *link_schema == 1
+                && crate::valid_caller_identity(source_id)
+                && crate::valid_caller_identity(version_id)
+                && crate::valid_caller_identity(source_revision)
+                && ((*locator == "whole_body" && start.is_none() && end.is_none())
+                    || (*locator == "utf8_bytes"
+                        && start.is_some_and(|value| value >= 0)
+                        && end.is_some_and(|value| value >= 0)
+                        && start < end))
+                && algo == "sha256"
+                && digest.len() == 64
+                && digest
+                    .bytes()
+                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+                && source_revision != &derived_revision;
+            if !link_valid {
+                item = Some(finding(
+                    DataPlaneIntegrityFindingCodeV1::DependencySourceLinkMismatch,
+                    DataPlaneIntegritySeverityV1::Critical,
+                ));
+            } else {
+                let source_owner: Option<(String, String, String, i64)> = connection
+                    .query_row(
+                        "SELECT artifact_class,artifact_role,completeness,write_cursor \
+                         FROM _fathomdb_artifact_revisions WHERE revision_id=?1",
+                        [source_revision],
+                        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+                    )
+                    .optional()
+                    .map_err(|_| EngineError::Storage)?;
+                if let Some((class, role, completeness, cursor)) = source_owner {
+                    let node_exists: bool = connection
+                        .query_row(
+                            "SELECT EXISTS(SELECT 1 FROM canonical_nodes WHERE write_cursor=?1)",
+                            [cursor],
+                            |row| row.get(0),
+                        )
+                        .map_err(|_| EngineError::Storage)?;
+                    if class != "node" || !node_exists {
+                        item = Some(finding(
+                            DataPlaneIntegrityFindingCodeV1::DependencySourceOwnerMissing,
+                            DataPlaneIntegritySeverityV1::Critical,
+                        ));
+                    } else if role != "canonical_source" || completeness != "complete" {
+                        item = Some(finding(
+                            DataPlaneIntegrityFindingCodeV1::DependencySourceRoleInvalid,
+                            DataPlaneIntegritySeverityV1::Error,
+                        ));
+                    } else {
+                        let version_matches: bool = connection
+                            .query_row(
+                                "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_versions \
+                                 WHERE source_revision_id=?1 AND source_id=?2 AND source_version_id=?3 \
+                                 AND schema_version=1)",
+                                rusqlite::params![source_revision, source_id, version_id],
+                                |row| row.get(0),
+                            )
+                            .map_err(|_| EngineError::Storage)?;
+                        if !version_matches {
+                            item = Some(finding(
+                                DataPlaneIntegrityFindingCodeV1::DependencySourceVersionMismatch,
+                                DataPlaneIntegritySeverityV1::Critical,
+                            ));
+                        } else {
+                            let self_matches: bool = connection
+                                .query_row(
+                                    "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_links \
+                                     WHERE artifact_revision_id=?1 AND source_revision_id=?1 \
+                                     AND source_id=?2 AND source_version_id=?3 AND schema_version=1 \
+                                     AND locator_kind='whole_body' AND start_byte IS NULL \
+                                     AND end_byte IS NULL AND hash_algorithm='sha256')",
+                                    rusqlite::params![source_revision, source_id, version_id],
+                                    |row| row.get(0),
+                                )
+                                .map_err(|_| EngineError::Storage)?;
+                            if !self_matches {
+                                item = Some(finding(
+                                    DataPlaneIntegrityFindingCodeV1::DependencySourceSelfLinkMismatch,
+                                    DataPlaneIntegritySeverityV1::Critical,
+                                ));
+                            }
+                        }
+                    }
+                } else {
+                    item = Some(finding(
+                        DataPlaneIntegrityFindingCodeV1::DependencySourceOwnerMissing,
+                        DataPlaneIntegritySeverityV1::Critical,
+                    ));
+                }
+            }
+        }
+        if item.is_none()
+            && u64::try_from(registered_generation).ok().is_none_or(|value| value > generation)
+        {
+            item = Some(finding(
+                DataPlaneIntegrityFindingCodeV1::DependencyGenerationMismatch,
+                DataPlaneIntegritySeverityV1::Critical,
+            ));
+        }
+        if let Some(mut item) = item {
+            if crate::valid_caller_identity(&dependency_id) {
+                item.dependency_id = Some(dependency_id);
+            }
+            if crate::valid_caller_identity(&derived_revision) {
+                item.artifact_revision_ids.push(derived_revision);
+            }
+            push_finding(findings, item, max_findings)?;
+        }
+    }
+    Ok(*aggregate_checked - start)
+}
+
+#[cfg(feature = "operator")]
+fn active_projection_findings(
+    connection: &Connection,
+    max_work_units: u32,
+    max_findings: u32,
+    aggregate_checked: &mut u32,
+    findings: &mut Vec<DataPlaneIntegrityFindingV1>,
+) -> Result<u32, EngineError> {
+    let start = *aggregate_checked;
+    let remaining = max_work_units.saturating_sub(*aggregate_checked);
+    let mut registry = connection
+        .prepare("SELECT name FROM _fathomdb_projection_registry ORDER BY name LIMIT ?1")
+        .map_err(|_| EngineError::Storage)?;
+    let mut rows = registry.query([i64::from(remaining) + 1]).map_err(|_| EngineError::Storage)?;
+    while rows.next().map_err(|_| EngineError::Storage)?.is_some() {
+        take_work(aggregate_checked, max_work_units)?;
+    }
+    drop(rows);
+    drop(registry);
+
+    for (table, code) in [
+        ("search_index", DataPlaneIntegrityFindingCodeV1::NodeBodyFtsMissing),
+        ("search_index_v2", DataPlaneIntegrityFindingCodeV1::NodeBodyFtsV2Missing),
+    ] {
+        let remaining = max_work_units.saturating_sub(*aggregate_checked);
+        let mut expected = connection
+            .prepare(
+                "SELECT n.write_cursor,r.revision_id FROM canonical_nodes n \
+                 LEFT JOIN _fathomdb_artifact_revisions r \
+                   ON r.artifact_class='node' AND r.write_cursor=n.write_cursor \
+                 ORDER BY n.write_cursor LIMIT ?1",
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let entries = expected
+            .query_map([i64::from(remaining) + 1], |row| {
+                Ok((row.get::<_, i64>(0)?, row.get::<_, Option<String>>(1)?))
+            })
+            .map_err(|_| EngineError::Storage)?
+            .collect::<rusqlite::Result<Vec<_>>>()
+            .map_err(|_| EngineError::Storage)?;
+        for (cursor, revision) in entries {
+            take_work(aggregate_checked, max_work_units)?;
+            let sql = format!("SELECT count(*) FROM {table} WHERE write_cursor=?1");
+            let count: i64 = connection
+                .query_row(&sql, [cursor], |row| row.get(0))
+                .map_err(|_| EngineError::Storage)?;
+            if count == 0 {
+                let mut item = finding(code, DataPlaneIntegritySeverityV1::Critical);
+                item.write_cursor = u64::try_from(cursor).ok();
+                item.artifact_revision_ids = revision.into_iter().collect();
+                push_finding(findings, item, max_findings)?;
+            } else if count != 1 {
+                let mut item = finding(
+                    DataPlaneIntegrityFindingCodeV1::SearchProjectionIdentityMismatch,
+                    DataPlaneIntegritySeverityV1::Error,
+                );
+                item.write_cursor = u64::try_from(cursor).ok();
+                item.artifact_revision_ids = revision.into_iter().collect();
+                push_finding(findings, item, max_findings)?;
+            }
+        }
+    }
+    Ok(*aggregate_checked - start)
+}
+
+#[cfg(feature = "operator")]
+fn projection_generation_findings(
+    connection: &Connection,
+    max_work_units: u32,
+    max_findings: u32,
+    aggregate_checked: &mut u32,
+    findings: &mut Vec<DataPlaneIntegrityFindingV1>,
+) -> Result<(u32, String), EngineError> {
+    let start = *aggregate_checked;
+    take_work(aggregate_checked, max_work_units)?;
+    let current: Option<String> = connection
+        .query_row(
+            "SELECT generation_id FROM _fathomdb_projection_generation_current WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let mut valid = current.as_deref().is_some_and(valid_generation_id);
+    if let Some(id) = current.as_ref() {
+        take_work(aggregate_checked, max_work_units)?;
+        let generation_valid: bool = connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM _fathomdb_projection_generations \
+                 WHERE generation_id=?1 AND schema_version=1 AND role='serving' \
+                 AND retired_boundary IS NULL AND transition_boundary>=0 \
+                 AND length(declaration_sha256)=64 \
+                 AND declaration_sha256 NOT GLOB '*[^0-9a-f]*')",
+                [id],
+                |row| row.get(0),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        valid &= generation_valid;
+    }
+    if !valid {
+        let mut item = finding(
+            DataPlaneIntegrityFindingCodeV1::ProjectionGenerationCorrupt,
+            DataPlaneIntegritySeverityV1::Critical,
+        );
+        item.projection_generation_id = current.clone().filter(|id| valid_generation_id(id));
+        push_finding(findings, item, max_findings)?;
+    }
+    Ok((*aggregate_checked - start, current.unwrap_or_default()))
+}
+
+#[cfg(feature = "operator")]
+fn mutation_readiness_findings(
+    connection: &Connection,
+    max_work_units: u32,
+    max_findings: u32,
+    aggregate_checked: &mut u32,
+    findings: &mut Vec<DataPlaneIntegrityFindingV1>,
+) -> Result<u32, EngineError> {
+    let start = *aggregate_checked;
+    let remaining = max_work_units.saturating_sub(*aggregate_checked);
+    let mut statement = connection
+        .prepare(
+            "SELECT rowid,operation_id, \
+                    typeof(schema_version)='integer' AND schema_version=1, \
+                    typeof(operations_count) IN ('integer','null'), \
+                    typeof(outcome)='text' AND length(outcome)<=25 \
+                      AND outcome IN ('committed','committed_closure_pending','refused','erased'), \
+                    typeof(resulting_write_boundary) IN ('integer','null'), \
+                    typeof(pending_projection_write_cursors_json)='text' \
+                      AND length(pending_projection_write_cursors_json)<=2945 \
+                      AND json_valid(pending_projection_write_cursors_json) \
+                      AND json_type(pending_projection_write_cursors_json)='array' \
+                      AND json_array_length(pending_projection_write_cursors_json)<=128, \
+                    typeof(projection_generation_id) IN ('text','null') \
+                      AND (projection_generation_id IS NULL OR \
+                           (length(projection_generation_id)=38 \
+                            AND projection_generation_id GLOB 'pgen1:[0-9a-f]*')) \
+             FROM _fathomdb_actuation_receipts ORDER BY operation_id LIMIT ?1",
+        )
+        .map_err(|_| EngineError::Storage)?;
+    let guarded = statement
+        .query_map([i64::from(remaining) + 1], |row| {
+            Ok((
+                row.get::<_, i64>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, bool>(2)?,
+                row.get::<_, bool>(3)?,
+                row.get::<_, bool>(4)?,
+                row.get::<_, bool>(5)?,
+                row.get::<_, bool>(6)?,
+                row.get::<_, bool>(7)?,
+            ))
+        })
+        .map_err(|_| EngineError::Storage)?
+        .collect::<rusqlite::Result<Vec<_>>>()
+        .map_err(|_| EngineError::Storage)?;
+    for (rowid, operation_id, schema_ok, count_ok, outcome_ok, boundary_ok, json_ok, gen_ok) in
+        guarded
+    {
+        take_work(aggregate_checked, max_work_units)?;
+        if !(schema_ok
+            && count_ok
+            && outcome_ok
+            && boundary_ok
+            && json_ok
+            && gen_ok
+            && crate::valid_caller_identity(&operation_id))
+        {
+            let mut item = finding(
+                DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt,
+                DataPlaneIntegritySeverityV1::Error,
+            );
+            if crate::valid_caller_identity(&operation_id) {
+                item.operation_id = Some(operation_id);
+            }
+            push_finding(findings, item, max_findings)?;
+            continue;
+        }
+        let (operations_count, outcome, boundary, json, generation): (
+            Option<i64>,
+            String,
+            Option<i64>,
+            String,
+            Option<String>,
+        ) = connection
+            .query_row(
+                "SELECT operations_count,outcome,resulting_write_boundary,\
+                        pending_projection_write_cursors_json,projection_generation_id \
+                 FROM _fathomdb_actuation_receipts WHERE rowid=?1",
+                [rowid],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            )
+            .map_err(|_| EngineError::Storage)?;
+        let values: Vec<String> = serde_json::from_str(&json).map_err(|_| EngineError::Storage)?;
+        let cursors = values.iter().map(|value| canonical_u64(value)).collect::<Option<Vec<_>>>();
+        let coherent = operations_count.is_some_and(|value| (1..=128).contains(&value))
+            || (outcome == "erased" && operations_count.is_none());
+        let coherent = coherent
+            && cursors.as_ref().is_some_and(|items| {
+                items.windows(2).all(|pair| pair[0] < pair[1])
+                    && items.iter().all(|cursor| *cursor > 0)
+                    && operations_count.is_none_or(|count| items.len() <= count as usize)
+            })
+            && if values.is_empty() {
+                generation.is_none()
+            } else {
+                generation.as_deref().is_some_and(valid_generation_id)
+            }
+            && if matches!(outcome.as_str(), "refused" | "erased") {
+                values.is_empty() && boundary.is_none()
+            } else {
+                boundary.is_some_and(|value| value >= 0)
+            };
+        if !coherent {
+            let mut item = finding(
+                DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt,
+                DataPlaneIntegritySeverityV1::Error,
+            );
+            item.operation_id = Some(operation_id);
+            push_finding(findings, item, max_findings)?;
+            continue;
+        }
+        for cursor in cursors.unwrap_or_default() {
+            take_work(aggregate_checked, max_work_units)?;
+            let owner_exists: bool = connection
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM _fathomdb_artifact_revisions \
+                     WHERE write_cursor=?1)",
+                    [i64::try_from(cursor).map_err(|_| EngineError::Storage)?],
+                    |row| row.get(0),
+                )
+                .map_err(|_| EngineError::Storage)?;
+            if !owner_exists {
+                let mut item = finding(
+                    DataPlaneIntegrityFindingCodeV1::MutationReceiptCorrupt,
+                    DataPlaneIntegritySeverityV1::Error,
+                );
+                item.operation_id = Some(operation_id.clone());
+                item.projection_generation_id = generation.clone();
+                item.write_cursor = Some(cursor);
+                push_finding(findings, item, max_findings)?;
+            }
+        }
+    }
+    Ok(*aggregate_checked - start)
 }
 
 #[cfg(feature = "operator")]
@@ -291,37 +807,61 @@ pub(crate) fn execute(
     let effective_at_epoch_s = current_epoch_seconds();
     let observed_write_boundary = load_next_cursor(&transaction);
     let dependency_generation = load_dependency_generation(&transaction)?;
-    let projection_generation_id =
-        projection_generation::current_generation_id(&transaction)?.as_str().to_owned();
+    let mut projection_generation_id: String = transaction
+        .query_row(
+            "SELECT generation_id FROM _fathomdb_projection_generation_current WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?
+        .unwrap_or_default();
 
     let mut checked_count = 0u32;
     let mut check_counts = Vec::with_capacity(request.checks.len());
+    let mut findings = Vec::new();
     for check in request.checks {
+        let finding_start = findings.len();
         let count = match check {
-            DataPlaneIntegrityCheckV1::DependencyChain => 1u32
-                .checked_add(scalar_count(&transaction, "_fathomdb_source_dependencies")?)
-                .ok_or_else(bound_error)?,
-            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans => {
-                scalar_count(&transaction, "_fathomdb_projection_registry")?
-            }
+            DataPlaneIntegrityCheckV1::DependencyChain => dependency_findings(
+                &transaction,
+                request.max_work_units,
+                request.max_findings,
+                &mut checked_count,
+                &mut findings,
+            )?,
+            DataPlaneIntegrityCheckV1::ActiveSearchableOrphans => active_projection_findings(
+                &transaction,
+                request.max_work_units,
+                request.max_findings,
+                &mut checked_count,
+                &mut findings,
+            )?,
             DataPlaneIntegrityCheckV1::ProjectionGeneration => {
-                scalar_count(&transaction, "_fathomdb_projection_generation_current")?
-                    .checked_add(scalar_count(&transaction, "_fathomdb_projection_generations")?)
-                    .ok_or_else(bound_error)?
+                let (count, observed) = projection_generation_findings(
+                    &transaction,
+                    request.max_work_units,
+                    request.max_findings,
+                    &mut checked_count,
+                    &mut findings,
+                )?;
+                projection_generation_id = observed;
+                count
             }
-            DataPlaneIntegrityCheckV1::MutationReadiness => {
-                scalar_count(&transaction, "_fathomdb_actuation_receipts")?
-            }
+            DataPlaneIntegrityCheckV1::MutationReadiness => mutation_readiness_findings(
+                &transaction,
+                request.max_work_units,
+                request.max_findings,
+                &mut checked_count,
+                &mut findings,
+            )?,
         };
-        checked_count = checked_count.checked_add(count).ok_or_else(bound_error)?;
-        if checked_count > request.max_work_units {
-            return Err(bound_error());
-        }
         check_counts.push(DataPlaneIntegrityCheckCountV1 {
             schema_version: SCHEMA_VERSION,
             check,
             checked_count: count,
-            finding_count: 0,
+            finding_count: u32::try_from(findings.len() - finding_start)
+                .map_err(|_| bound_error())?,
         });
     }
     transaction.commit().map_err(|_| EngineError::Storage)?;
@@ -336,7 +876,7 @@ pub(crate) fn execute(
         },
         check_counts,
         checked_count,
-        findings: Vec::new(),
+        findings,
         complete: true,
     })
 }

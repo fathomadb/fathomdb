@@ -323,9 +323,6 @@ fn engine_error_to_py(err: RustEngineError) -> PyErr {
             });
             exc
         }
-        RustEngineError::DataPlaneIntegrity(error) => {
-            EngineError::new_err(format!("data-plane integrity: {error}"))
-        }
         RustEngineError::Page(error) => {
             let exc =
                 PageError::new_err(format!("{} at {}", error.reason.as_str(), error.field_path));

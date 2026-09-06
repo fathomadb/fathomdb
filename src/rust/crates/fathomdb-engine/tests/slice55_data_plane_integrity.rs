@@ -535,6 +535,94 @@ fn slice55_dependency_source_finding_emits_only_the_source_revision() {
 }
 
 #[test]
+fn slice55_owner_schema_versions_follow_the_dependency_role_matrix() {
+    for (revision_id, expected_code, expected_revisions) in [
+        (
+            "integrity-derived-r1",
+            DataPlaneIntegrityFindingCodeV1::DependencyDerivedRoleInvalid,
+            &["integrity-derived-r1"][..],
+        ),
+        (
+            "integrity-source-r1",
+            DataPlaneIntegrityFindingCodeV1::DependencySourceRoleInvalid,
+            &["integrity-source-r1"][..],
+        ),
+    ] {
+        let (_dir, opened) = dependency_seeded();
+        opened
+            .engine
+            .execute_for_test(&format!(
+                "PRAGMA ignore_check_constraints=ON; \
+                 UPDATE _fathomdb_artifact_revisions SET schema_version=2 \
+                 WHERE revision_id='{revision_id}'"
+            ))
+            .unwrap();
+        let result = opened
+            .engine
+            .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::DependencyChain, 10_000))
+            .unwrap();
+        assert_eq!(result.findings.len(), 1, "{revision_id}: {result:#?}");
+        let finding = &result.findings[0];
+        assert_eq!(finding.code, expected_code, "{revision_id}: {result:#?}");
+        assert_eq!(finding.severity, DataPlaneIntegritySeverityV1::Error);
+        assert_eq!(finding.dependency_id.as_deref(), Some("integrity-dep-1"));
+        assert_eq!(finding.artifact_revision_ids, expected_revisions);
+    }
+}
+
+#[test]
+fn slice55_derived_self_reference_precedes_source_link_mismatch() {
+    let (_dir, opened) = dependency_seeded();
+    opened
+        .engine
+        .execute_for_test(
+            "UPDATE _fathomdb_source_links \
+             SET source_revision_id='integrity-derived-r1' \
+             WHERE artifact_revision_id='integrity-derived-r1'",
+        )
+        .unwrap();
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::DependencyChain, 10_000))
+        .unwrap();
+    assert_eq!(result.findings.len(), 1, "{result:#?}");
+    let finding = &result.findings[0];
+    assert_eq!(finding.code, DataPlaneIntegrityFindingCodeV1::DependencyDerivedRoleInvalid);
+    assert_eq!(finding.severity, DataPlaneIntegritySeverityV1::Error);
+    assert_eq!(finding.dependency_id.as_deref(), Some("integrity-dep-1"));
+    assert_eq!(finding.artifact_revision_ids, ["integrity-derived-r1"]);
+}
+
+#[test]
+fn slice55_dependency_generation_rejects_canonical_u64_above_i64_max() {
+    for value in ["9223372036854775808", "18446744073709551615"] {
+        let (_dir, opened) = dependency_seeded();
+        opened
+            .engine
+            .execute_for_test(&format!(
+                "UPDATE _fathomdb_open_state SET value='{value}' \
+                 WHERE key='_fathomdb_dependency_generation'"
+            ))
+            .unwrap();
+        let result = opened
+            .engine
+            .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::DependencyChain, 10_000))
+            .unwrap();
+        assert_eq!(result.read_boundary.dependency_generation, 0, "{value}: {result:#?}");
+        assert_eq!(result.findings.len(), 1, "{value}: {result:#?}");
+        let finding = &result.findings[0];
+        assert_eq!(
+            finding.code,
+            DataPlaneIntegrityFindingCodeV1::DependencyGenerationMismatch,
+            "{value}: {result:#?}"
+        );
+        assert_eq!(finding.severity, DataPlaneIntegritySeverityV1::Critical);
+        assert!(finding.dependency_id.is_none());
+        assert!(finding.artifact_revision_ids.is_empty());
+    }
+}
+
+#[test]
 fn slice55_attribute_findings_follow_declaration_then_cursor_order() {
     let (_dir, opened) = opened();
     opened.engine.configure_projections(&[filter_spec("zeta"), filter_spec("alpha")], &[]).unwrap();
@@ -679,6 +767,25 @@ fn slice55_projection_generation_member_cap_is_all_or_error() {
         .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::ProjectionGeneration, 3))
         .unwrap();
     assert_eq!(result.checked_count, 2);
+}
+
+#[test]
+fn slice55_canonical_owners_do_not_become_projection_generation_candidates() {
+    let (_dir, opened) = opened();
+    opened.engine.configure_vector_kind_for_test("doc").unwrap();
+    opened
+        .engine
+        .write(&[
+            canonical("generation-owner-r1", "generation-owner-1", "one"),
+            canonical("generation-owner-r2", "generation-owner-2", "two"),
+        ])
+        .unwrap();
+    let result = opened
+        .engine
+        .check_data_plane_integrity(request(DataPlaneIntegrityCheckV1::ProjectionGeneration, 2))
+        .unwrap();
+    assert_eq!(result.checked_count, 2);
+    assert!(result.findings.is_empty(), "{result:#?}");
 }
 
 #[test]

@@ -4,11 +4,12 @@ use std::collections::BTreeSet;
 use std::sync::{Arc, Barrier};
 
 use fathomdb_engine::{
-    ArtifactRevisionId, CanonicalHash, Engine, InitialState, PreparedWrite, ProjectionFts,
-    ProjectionRole, ProjectionSpec, ProjectionVector, ProvenancedNodeV1,
-    SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId, SourceVersionId,
-    StructuralDegradationCodeV1, StructuralDependencyStateV1, StructuralLifecycleStateV1,
-    WriteProvenanceV1,
+    arm_explanation_after_telemetry_lock_hook_for_test,
+    arm_explanation_before_telemetry_lock_hook_for_test, ArtifactRevisionId, CanonicalHash, Engine,
+    InitialState, PreparedWrite, ProjectionFts, ProjectionRole, ProjectionSpec, ProjectionVector,
+    ProvenancedNodeV1, SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId,
+    SourceVersionId, StructuralDegradationCodeV1, StructuralDependencyStateV1,
+    StructuralLifecycleStateV1, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use sha2::{Digest, Sha256};
@@ -207,6 +208,145 @@ fn slice55_structural_dependency_matrix_uses_live_rows() {
         let result = opened.engine.search_explained(query, None, 0, false, 0.3, 0).unwrap();
         assert_eq!(result.explanation.unwrap().per_hit[0].structural.dependency_state, expected);
     }
+
+    opened
+        .engine
+        .execute_for_test(
+            "UPDATE _fathomdb_source_links SET hash_digest=\
+             '0000000000000000000000000000000000000000000000000000000000000000' \
+             WHERE artifact_revision_id='explain-registered-r1'",
+        )
+        .unwrap();
+    let corrupt_hash =
+        opened.engine.search_explained("registered", None, 0, false, 0.3, 0).unwrap();
+    assert_eq!(
+        corrupt_hash.explanation.unwrap().per_hit[0].structural.dependency_state,
+        StructuralDependencyStateV1::NotRegistered
+    );
+
+    opened
+        .engine
+        .execute_for_test(&format!(
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE _fathomdb_source_links SET hash_digest='{}' \
+             WHERE artifact_revision_id='explain-registered-r1'; \
+             UPDATE _fathomdb_source_dependencies SET schema_version=2 \
+             WHERE dependency_id='explain-dependency'",
+            digest("structural authority source")
+        ))
+        .unwrap();
+    let corrupt_registration =
+        opened.engine.search_explained("registered", None, 0, false, 0.3, 0).unwrap();
+    assert_eq!(
+        corrupt_registration.explanation.unwrap().per_hit[0].structural.dependency_state,
+        StructuralDependencyStateV1::NotRegistered
+    );
+}
+
+#[test]
+fn slice55_graph_bound_reached_is_produced_by_live_traversal() {
+    let dir = TempDir::new().unwrap();
+    let path = dir.path().join(format!("explanation-graph-bound{SQLITE_SUFFIX}"));
+    let opened = Engine::open(&path).unwrap();
+    let mut writes = Vec::new();
+    for index in 0..64 {
+        writes.push(PreparedWrite::Node {
+            logical_id: Some(format!("graph-node-{index:02}")),
+            kind: "entity".into(),
+            body: format!("bounded graph node {index:02}"),
+            source_id: SourceId::new("slice55-graph-bound").unwrap(),
+            state: InitialState::Active,
+            reason: None,
+            valid_from: None,
+            valid_until: None,
+        });
+    }
+    for index in 0..63 {
+        writes.push(PreparedWrite::Edge {
+            kind: "linked".into(),
+            from: format!("graph-node-{index:02}"),
+            to: format!("graph-node-{:02}", index + 1),
+            source_id: SourceId::new("slice55-graph-bound").unwrap(),
+            logical_id: Some(format!("graph-edge-{index:02}")),
+            body: (index == 0).then(|| "slice55 graphbound seed".into()),
+            t_valid: None,
+            t_invalid: None,
+            confidence: None,
+            extractor_model_id: None,
+            temporal_fallback: None,
+        });
+    }
+    opened.engine.write(&writes).unwrap();
+    let result = opened.engine.search_explained("graphbound", None, 0, true, 0.3, 0).unwrap();
+    let explanation = result.explanation.unwrap();
+    assert!(explanation.per_hit.iter().any(|hit| {
+        hit.structural.degradation_codes.contains(&StructuralDegradationCodeV1::GraphBoundReached)
+    }));
+}
+
+#[test]
+fn slice55_enable_before_finalization_uses_only_telemetry_identity() {
+    let (_dir, opened, _first) = explained();
+    let sink = opened.engine.path().with_extension("before-finalize.jsonl");
+    let engine = Arc::new(opened.engine);
+    let ready = Arc::new(Barrier::new(2));
+    let release = Arc::new(Barrier::new(2));
+    arm_explanation_before_telemetry_lock_hook_for_test(Box::new({
+        let ready = Arc::clone(&ready);
+        let release = Arc::clone(&release);
+        move || {
+            ready.wait();
+            release.wait();
+        }
+    }));
+    let search = {
+        let engine = Arc::clone(&engine);
+        std::thread::spawn(move || {
+            engine.search_explained("slice55", None, 0, false, 0.3, 0).unwrap()
+        })
+    };
+    ready.wait();
+    engine.enable_telemetry(sink.to_str().unwrap()).unwrap();
+    release.wait();
+    let id = search.join().unwrap().explanation.unwrap().correlation_id;
+    assert_eq!(id, "q0-0");
+    assert_eq!(engine.last_telemetry_query_id().as_deref(), Some("q0-0"));
+    assert_eq!(std::fs::read_to_string(sink).unwrap().lines().count(), 1);
+}
+
+#[test]
+fn slice55_enable_after_finalization_uses_only_explanation_identity() {
+    let (_dir, opened, _first) = explained();
+    let sink = opened.engine.path().with_extension("after-finalize.jsonl");
+    let engine = Arc::new(opened.engine);
+    let ready = Arc::new(Barrier::new(2));
+    let release = Arc::new(Barrier::new(2));
+    arm_explanation_after_telemetry_lock_hook_for_test(Box::new({
+        let ready = Arc::clone(&ready);
+        let release = Arc::clone(&release);
+        move || {
+            ready.wait();
+            release.wait();
+        }
+    }));
+    let search = {
+        let engine = Arc::clone(&engine);
+        std::thread::spawn(move || {
+            engine.search_explained("slice55", None, 0, false, 0.3, 0).unwrap()
+        })
+    };
+    ready.wait();
+    let enable = {
+        let engine = Arc::clone(&engine);
+        let sink = sink.clone();
+        std::thread::spawn(move || engine.enable_telemetry(sink.to_str().unwrap()).unwrap())
+    };
+    release.wait();
+    let id = search.join().unwrap().explanation.unwrap().correlation_id;
+    enable.join().unwrap();
+    assert!(id.starts_with('x'));
+    assert!(engine.last_telemetry_query_id().is_none());
+    assert!(std::fs::read_to_string(sink).unwrap().is_empty());
 }
 
 #[test]

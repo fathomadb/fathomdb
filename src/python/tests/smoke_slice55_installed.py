@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import sqlite3
 import tempfile
+from contextlib import closing
 from pathlib import Path
 
 import fathomdb
@@ -134,12 +135,13 @@ def main() -> None:
         corrupt = fathomdb.Engine.open(str(corrupt_path), use_default_embedder=False)
         _seed(corrupt)
         corrupt.close()
-        with sqlite3.connect(corrupt_path) as connection:
-            connection.execute("PRAGMA ignore_check_constraints=ON")
-            connection.execute(
-                "UPDATE _fathomdb_source_dependencies SET schema_version=2 "
-                "WHERE dependency_id='dep-0'"
-            )
+        with closing(sqlite3.connect(corrupt_path)) as connection:
+            with connection:
+                connection.execute("PRAGMA ignore_check_constraints=ON")
+                connection.execute(
+                    "UPDATE _fathomdb_source_dependencies SET schema_version=2 "
+                    "WHERE dependency_id='dep-0'"
+                )
         corrupt = fathomdb.Engine.open(str(corrupt_path), use_default_embedder=False)
         _expect_trace_error(
             corrupt,
@@ -148,6 +150,7 @@ def main() -> None:
             "",
         )
         corrupt.close()
+        corrupt_path.unlink()
 
     print("slice55 installed native smoke: ok")
 

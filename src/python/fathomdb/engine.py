@@ -808,6 +808,48 @@ def _map_per_hit_explain(p: Any) -> PerHitExplain:
     hit's contribution; ``None`` = graceful-absent / neutral), symmetric with the
     TypeScript ``perHit`` mapping.
     """
+    def require_u64(value: object, path: str, *, optional: bool = False) -> None:
+        if optional and value is None:
+            return
+        if (
+            not isinstance(value, int)
+            or isinstance(value, bool)
+            or not 0 <= value <= 2**64 - 1
+        ):
+            _invalid_explanation(path)
+
+    def require_u32(value: object, path: str) -> None:
+        if value is None:
+            return
+        if (
+            not isinstance(value, int)
+            or isinstance(value, bool)
+            or not 0 <= value <= 2**32 - 1
+        ):
+            _invalid_explanation(path)
+
+    def require_finite(value: object, path: str, *, optional: bool = False) -> None:
+        if optional and value is None:
+            return
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+        ):
+            _invalid_explanation(path)
+
+    require_u64(getattr(p, "id", None), "/id")
+    arm = getattr(p, "arm", None)
+    if arm not in ("vector", "text", "text_edge", "graph_arm"):
+        _invalid_explanation("/arm")
+    require_u32(getattr(p, "vector_rank", None), "/vectorRank")
+    require_u32(getattr(p, "text_rank", None), "/textRank")
+    require_u32(getattr(p, "graph_rank", None), "/graphRank")
+    require_finite(getattr(p, "fused_score", None), "/fusedScore")
+    require_finite(getattr(p, "ce_score", None), "/ceScore", optional=True)
+    require_finite(getattr(p, "blended", None), "/blended")
+    require_finite(getattr(p, "importance", None), "/importance", optional=True)
+    require_finite(getattr(p, "confidence", None), "/confidence", optional=True)
     native_structural = getattr(p, "structural", None)
     structural = (
         _map_structural_explanation(native_structural)
@@ -1570,8 +1612,20 @@ class Engine:
         """Trace one reciprocal registered dependency under a frozen context."""
         if not isinstance(request, DependencyTraceRequestV1):
             raise TypeError("request must be a DependencyTraceRequestV1")
-        if request.schema_version != 1:
-            _trace_response_error("unsupported_schema_version", "/schemaVersion")
+        request.__post_init__()
+        if (
+            not isinstance(request.root_revision_id, str)
+            or re.fullmatch(
+                r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", request.root_revision_id
+            )
+            is None
+            or request.root_revision_id.startswith("_fdb:")
+        ):
+            _trace_response_error("trace_root_invalid", "/rootRevisionId")
+        if request.direction not in ("to_source", "to_dependents"):
+            _trace_response_error("trace_direction_invalid", "/direction")
+        if not isinstance(request.context, FrozenReadContextV1):
+            _trace_response_error("trace_corrupt", "/context")
         if not isinstance(request.max_relations, int) or isinstance(
             request.max_relations, bool
         ) or not 1 <= request.max_relations <= 100:

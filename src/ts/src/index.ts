@@ -1280,6 +1280,13 @@ function validateDependencyTraceRequest(request: DependencyTraceRequestV1): void
   if (request.direction !== "to_source" && request.direction !== "to_dependents") {
     dependencyTraceRequestError("trace_direction_invalid", "/direction");
   }
+  if (
+    typeof request.context !== "object" ||
+    request.context === null ||
+    Array.isArray(request.context)
+  ) {
+    dependencyTraceRequestError("trace_corrupt", "/context");
+  }
   if (request.context.schemaVersion !== 1) {
     dependencyTraceRequestError("unsupported_schema_version", "/context/schemaVersion");
   }
@@ -1739,13 +1746,33 @@ export interface StructuralInclusionV1 {
  * `_map_per_hit_explain` wrapper.
  */
 export function mapPerHitExplain(p: NativePerHitExplain): PerHitExplain {
-  const armOf = (a: string): SoftFallbackBranch =>
-    a === "vector" || a === "text" || a === "text_edge" || a === "graph_arm"
-      ? (a as SoftFallbackBranch)
-      : "text";
+  const invalid = (path: string): never => {
+    throw new FathomDbError(`invalid explanation response at ${path}`);
+  };
+  const optionalU32 = (value: number | null | undefined, path: string): void => {
+    if (value !== null && value !== undefined && (!Number.isInteger(value) || value < 0 || value > 0xffff_ffff)) {
+      invalid(path);
+    }
+  };
+  const finite = (value: number | null | undefined, path: string, optional = false): void => {
+    if (optional && (value === null || value === undefined)) return;
+    if (typeof value !== "number" || !Number.isFinite(value)) invalid(path);
+  };
+  if (!Number.isSafeInteger(p.id) || p.id < 0) invalid("/id");
+  if (p.arm !== "vector" && p.arm !== "text" && p.arm !== "text_edge" && p.arm !== "graph_arm") {
+    invalid("/arm");
+  }
+  optionalU32(p.vectorRank, "/vectorRank");
+  optionalU32(p.textRank, "/textRank");
+  optionalU32(p.graphRank, "/graphRank");
+  finite(p.fusedScore, "/fusedScore");
+  finite(p.ceScore, "/ceScore", true);
+  finite(p.blended, "/blended");
+  finite(p.importance, "/importance", true);
+  finite(p.confidence, "/confidence", true);
   const result: PerHitExplain = {
     id: p.id,
-    arm: armOf(p.arm),
+    arm: p.arm as SoftFallbackBranch,
     vectorRank: p.vectorRank ?? null,
     textRank: p.textRank ?? null,
     graphRank: p.graphRank ?? null,
@@ -1757,9 +1784,7 @@ export function mapPerHitExplain(p: NativePerHitExplain): PerHitExplain {
   };
   if (p.structural !== undefined) {
     const structural = p.structural;
-    const invalid = (path: string): never => {
-      throw new FathomDbError(`invalid explanation response at ${path}`);
-    };
+    if (structural === null || typeof structural !== "object") invalid("/structural");
     if (structural.schemaVersion !== 1) invalid("/structural/schemaVersion");
     if (structural.inclusionState !== "included" && structural.inclusionState !== "degraded") {
       invalid("/structural/inclusionState");

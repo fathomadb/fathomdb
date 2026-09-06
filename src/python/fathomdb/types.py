@@ -495,14 +495,17 @@ class DependencyTraceRequestV1:
     schema_version: int = 1
 
     def __post_init__(self) -> None:
-        if self.schema_version != 1:
-            from fathomdb.errors import DependencyTraceError
+        from fathomdb.errors import DependencyTraceError
 
+        def reject(reason: str, path: str) -> None:
             raise DependencyTraceError(
-                "unsupported_schema_version at /schemaVersion",
-                reason="unsupported_schema_version",
-                field_path="/schemaVersion",
+                f"{reason} at {path}", reason=reason, field_path=path
             )
+
+        if not isinstance(self.schema_version, int) or isinstance(
+            self.schema_version, bool
+        ) or self.schema_version != 1:
+            reject("unsupported_schema_version", "/schemaVersion")
 
 
 @dataclass(frozen=True)

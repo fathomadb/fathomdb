@@ -538,6 +538,36 @@ root/direction/context cases mutate a valid frozen request immediately before
 unchanged; validation remains before the native argument conversion that had
 leaked Python/PyO3 type errors.
 
+The exact cross-SDK RED is
+`39a766b07999f1c9dcd120710ab359fc116be327`; the authorized compatibility
+correction is `fe4d3f9d48a98aa24974d1a9caa7d783e7ddc21c`. GREEN applies the same
+schema/root/direction/context/bounds precedence before Python native conversion,
+rejects TypeScript null context at `/context`, and validates every per-hit
+integer, rank, branch, and finite score before mapping. Focused results:
+
+```text
+node --test dist/tests/slice55-request-validation.test.js \
+  dist/tests/slice55-absent-native-fields-use-legacy-defaults.test.js
+tests 11; pass 11; fail 0
+
+.venv/bin/ruff check src/python/fathomdb/types.py \
+  src/python/fathomdb/engine.py src/python/tests/test_slice55_trace_explanation.py
+All checks passed!
+
+.venv/bin/pyright src/python/fathomdb/types.py \
+  src/python/fathomdb/engine.py src/python/tests/test_slice55_trace_explanation.py
+0 errors, 0 warnings, 0 informations
+```
+
+The verification-only exact candidate wheel is
+`fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl`, SHA-256
+`df3371bf825e131e4674541f9c38ad63ba449917dbee144baba01b77af560186`.
+It was installed under `/tmp/fathomdb-s55-fix3-sdk-green.3UJKZS/venv`; the
+wheel smoke passed and the copied focused module, with repository source
+excluded from import resolution, passed `18 passed in 3.58s`. This artifact is
+local verification evidence only and was not staged, tagged, uploaded, or
+published.
+
 The trace-authorization RED places a malformed BLOB dependency identity on an
 inactive derived endpoint that sorts before the one eligible relation, then
 runs with exactly one relation and two work units. Because the old query

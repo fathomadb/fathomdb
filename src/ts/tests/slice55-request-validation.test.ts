@@ -97,7 +97,7 @@ test("slice55 malformed nested frozen context preserves FrozenReadError", async 
   try {
     const context = await engine.freezeReadContext({
       schemaVersion: 1,
-      view: { schemaVersion: 1 },
+      view: { schemaVersion: 1 } as never,
       eligibility: {},
     });
     (context.context as { schemaVersion: number }).schemaVersion = 2;

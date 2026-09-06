@@ -3,13 +3,14 @@
 use fathomdb_engine::{
     ActuationBatchV1, ActuationOperationV1, ArtifactRevisionId, CanonicalHash,
     DataPlaneIntegrityCheckV1, DataPlaneIntegrityErrorReasonV1, DataPlaneIntegrityFindingCodeV1,
-    DataPlaneIntegrityRequestV1, Engine, EngineError, InitialState, PreparedWrite,
-    ProvenancedNodeV1, SourceDependencyRegistrationV1, SourceId, SourceLocator, SourceRevisionId,
-    SourceVersionId, WriteProvenanceV1,
+    DataPlaneIntegrityRequestV1, Engine, EngineError, InitialState, PreparedWrite, ProjectionFts,
+    ProjectionRole, ProjectionSpec, ProvenancedNodeV1, SourceDependencyRegistrationV1, SourceId,
+    SourceLocator, SourceRevisionId, SourceVersionId, WriteProvenanceV1,
 };
 use fathomdb_schema::SQLITE_SUFFIX;
 use proptest::prelude::*;
 use sha2::{Digest, Sha256};
+use std::collections::BTreeSet;
 use tempfile::TempDir;
 
 fn opened() -> (TempDir, fathomdb_engine::OpenedEngine) {
@@ -62,6 +63,32 @@ fn derived(revision: &str, logical: &str, source_revision: &str, body: &str) -> 
             CanonicalHash::sha256(digest("slice55 integrity canonical")).unwrap(),
         ),
     })
+}
+
+fn edge(from: &str, to: &str, body: &str) -> PreparedWrite {
+    PreparedWrite::Edge {
+        kind: "mentions".into(),
+        from: from.into(),
+        to: to.into(),
+        source_id: SourceId::new("slice55-integrity-source").unwrap(),
+        logical_id: Some("integrity-edge".into()),
+        body: Some(body.into()),
+        t_valid: None,
+        t_invalid: None,
+        confidence: None,
+        extractor_model_id: None,
+        temporal_fallback: None,
+    }
+}
+
+fn property_spec() -> ProjectionSpec {
+    ProjectionSpec {
+        name: "title".into(),
+        roles: BTreeSet::from([ProjectionRole::Filterable, ProjectionRole::Searchable]),
+        fts: Some(ProjectionFts { tokenizer: None }),
+        vector: None,
+        source: None,
+    }
 }
 
 fn dependency_seeded() -> (TempDir, fathomdb_engine::OpenedEngine) {
@@ -282,26 +309,76 @@ clean_projection_case!(
     slice55_projection_scan_plans_use_indexed_order,
     DataPlaneIntegrityCheckV1::ActiveSearchableOrphans
 );
-clean_projection_case!(
-    slice55_missing_node_body_fts,
-    DataPlaneIntegrityCheckV1::ActiveSearchableOrphans
-);
-clean_projection_case!(
-    slice55_missing_node_body_fts_v2,
-    DataPlaneIntegrityCheckV1::ActiveSearchableOrphans
-);
-clean_projection_case!(
-    slice55_missing_edge_body_fts,
-    DataPlaneIntegrityCheckV1::ActiveSearchableOrphans
-);
-clean_projection_case!(
-    slice55_missing_canonical_attribute,
-    DataPlaneIntegrityCheckV1::ActiveSearchableOrphans
-);
-clean_projection_case!(
-    slice55_missing_property_fts,
-    DataPlaneIntegrityCheckV1::ActiveSearchableOrphans
-);
+
+#[test]
+fn slice55_missing_node_body_fts() {
+    let (_dir, opened) = opened();
+    opened.engine.write(&[canonical("node-fts-r1", "node-fts", "node fts")]).unwrap();
+    opened.engine.execute_for_test("DELETE FROM search_index").unwrap();
+    assert_eq!(
+        finding_codes(&opened, DataPlaneIntegrityCheckV1::ActiveSearchableOrphans),
+        [DataPlaneIntegrityFindingCodeV1::NodeBodyFtsMissing]
+    );
+}
+
+#[test]
+fn slice55_missing_node_body_fts_v2() {
+    let (_dir, opened) = opened();
+    opened.engine.write(&[canonical("node-fts-v2-r1", "node-fts-v2", "node fts v2")]).unwrap();
+    opened.engine.execute_for_test("DELETE FROM search_index_v2").unwrap();
+    assert_eq!(
+        finding_codes(&opened, DataPlaneIntegrityCheckV1::ActiveSearchableOrphans),
+        [DataPlaneIntegrityFindingCodeV1::NodeBodyFtsV2Missing]
+    );
+}
+
+#[test]
+fn slice55_missing_edge_body_fts() {
+    let (_dir, opened) = opened();
+    opened
+        .engine
+        .write(&[
+            canonical("edge-from-r1", "edge-from", "edge from"),
+            canonical("edge-to-r1", "edge-to", "edge to"),
+            edge("edge-from", "edge-to", "edge relation"),
+        ])
+        .unwrap();
+    opened.engine.execute_for_test("DELETE FROM search_index_edges").unwrap();
+    assert_eq!(
+        finding_codes(&opened, DataPlaneIntegrityCheckV1::ActiveSearchableOrphans),
+        [DataPlaneIntegrityFindingCodeV1::EdgeBodyFtsMissing]
+    );
+}
+
+#[test]
+fn slice55_missing_canonical_attribute() {
+    let (_dir, opened) = opened();
+    opened.engine.configure_projections(&[property_spec()], &[]).unwrap();
+    opened
+        .engine
+        .write(&[canonical("attribute-r1", "attribute", r#"{"title":"integrity"}"#)])
+        .unwrap();
+    opened.engine.execute_for_test("DELETE FROM canonical_attributes").unwrap();
+    assert_eq!(
+        finding_codes(&opened, DataPlaneIntegrityCheckV1::ActiveSearchableOrphans),
+        [DataPlaneIntegrityFindingCodeV1::CanonicalAttributeMissing]
+    );
+}
+
+#[test]
+fn slice55_missing_property_fts() {
+    let (_dir, opened) = opened();
+    opened.engine.configure_projections(&[property_spec()], &[]).unwrap();
+    opened
+        .engine
+        .write(&[canonical("property-r1", "property", r#"{"title":"integrity"}"#)])
+        .unwrap();
+    opened.engine.execute_for_test("DELETE FROM property_search_index").unwrap();
+    assert_eq!(
+        finding_codes(&opened, DataPlaneIntegrityCheckV1::ActiveSearchableOrphans),
+        [DataPlaneIntegrityFindingCodeV1::PropertyFtsMissing]
+    );
+}
 clean_projection_case!(
     slice55_dense_state_reuses_slice40_classifier,
     DataPlaneIntegrityCheckV1::ProjectionGeneration

@@ -1817,3 +1817,184 @@ tests 65; pass 65; fail 0
 The Node run's two named disposable database files were removed afterward and
 were never staged. These are focused writer checks only; the independent
 implementation reviewer owns the broader acceptance verdict.
+
+## 2026-09-06 — FIX-7: full signed rowids and normalized-chain matrix
+
+Independent implementation review cycle 7 examined clean candidate
+`e590fd4a93e30ef89350a4c65499d57d0c6d05c5` and product commit
+`06aa3b89b7b555716066cf798b99abcbf2e3abd7`. Its complete FAIL was persisted
+unchanged in `implementation-review-cycle7.md` and committed alone as
+`edf39567a1b958cc60a51449b4a11815d2076689` before any test or production
+change.
+
+### FIX-7 RED and fixture reconciliation
+
+Test-only commit `103204612b32fa55309a400b210aeedf9b4b7283` added real-database
+coverage for the cycle-7 findings:
+
+- the full signed SQLite rowid domain, including `i64::MIN` and `-1`, across
+  physical body FTS, attribute/property, dense terminal/sidecar, generation,
+  and receipt checks, with exact aggregate bounds and stable finding order;
+- all ten READY dependency-chain classifications, including BLOB owner roles,
+  generation zero, exact severities, and each finding's minimum revision-ID
+  set;
+- the nontrivial proptest `slice55_normalized_chain_round_trip`, which writes
+  randomized valid source/derived identities to a real database, registers and
+  reads the normalized dependency through both public lookup directions, then
+  checks the clean, BLOB-derived-role, and zero-generation integrity outcomes;
+  and
+- semantic consumption of the checked-in dependency, projection, and
+  explanation fixtures.
+
+The fixtures were reconciled without edits. The dependency fixture's schema
+and declared-code subset are checked against the live ten-case matrix; the
+projection fixture's schema and exact required-code list are checked; and the
+explanation fixture's JSON-pointer values are checked before the real explained
+search result is compared with the corresponding structural enums. None was
+stale against READY.
+
+The first complete real-database RED was genuine:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity -- --test-threads=1
+test result: FAILED. 54 passed; 8 failed
+```
+
+The eight failures were the signed dense/generation scan, dependency fault
+matrix, source-only minimum-ID contract, dense/generation/receipt plan hook,
+signed receipt scan, normalized-chain proptest, signed physical-member scan,
+and indexed-plan test. The physical scan observed zero work for negative rows;
+the BLOB-derived-role matrix case and the proptest minimal case
+`suffix = "0", fault = 1` escaped as generic `Storage`; generation zero and
+source-side IDs had the old classifications; and the plan hooks still exposed
+the lossy `rowid>?1` start. Proptest failure persistence was disabled for this
+test, and its generated local regression file was removed rather than promoted
+to an oracle.
+
+The dense projection-generation RED initially encoded five work units. READY
+states that projection generation costs one current-generation singleton, one
+current generation record, and one unit per physical member. This fixture has
+four physical rows, so its exact total is six. The release owner authorized
+only the `5` to `6` correction; test-only commit
+`6ebc6bbbc6f3c836cb9a8705cef2b82dbc3aeb84` contains that one-line change and
+had no production change staged. No other assertion or fixture changed.
+
+### FIX-7 GREEN
+
+Product commit `f70cc5c31c3294a53d5dfa0f6b39a7e94280feb8` implements the
+cycle-7 requirements:
+
+- every physical rowid range starts inclusively at `i64::MIN`; ordinary and
+  FTS tables retain indexed rowid traversal, and the bounded vec0 scan avoids
+  an `ORDER BY` that SQLite would implement with a temporary B-tree while the
+  successful at-cap result is canonicalized by the existing ordered set;
+- dense candidates retain rowid and cursor separately, so negative or
+  dynamically malformed identities are counted and classified without lossy
+  conversion;
+- artifact owners, canonical nodes, and canonical self-links inspect stored
+  values through SQLite `ValueRef` guards before decoding; all remaining typed
+  `row.get` calls in the dependency path read SQL-generated `EXISTS` booleans,
+  not variable stored fields;
+- registered generation zero maps to
+  `dependency_generation_mismatch`/critical; and
+- findings attach exactly the READY minimum IDs: derived-side findings use the
+  derived revision, source-side findings use the valid source revision,
+  link-mismatch uses both, and generation findings use neither.
+
+The exact focused and nonregression results were:
+
+```text
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_data_plane_integrity -- --test-threads=1
+test result: ok. 62 passed; 0 failed
+
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test slice55_dependency_trace
+test result: ok. 20 passed; 0 failed; 1 ignored
+cargo test -p fathomdb-engine --features test-hooks --test slice55_explanation
+test result: ok. 17 passed; 0 failed
+cargo test -p fathomdb-engine --features operator,test-hooks --test slice55_wire
+test result: ok. 8 passed; 0 failed
+
+cargo test -p fathomdb --test slice55_governed_surface
+test result: ok. 2 passed; 0 failed
+cargo test -p fathomdb-cli --test slice55_data_plane_integrity_cli
+test result: ok. 3 passed; 0 failed
+cargo test -p fathomdb-engine --features operator,test-hooks \
+  --test check_integrity --test trace_source_ref
+test result: ok. 3 passed; 0 failed
+test result: ok. 3 passed; 0 failed
+
+cargo clippy -p fathomdb-engine --all-targets \
+  --features operator,test-hooks -- -D warnings
+exit 0
+```
+
+The preregistered release trace ceiling remained green:
+
+```text
+hidden_rows=50000 vm_steps=3200000 elapsed_ms=51 peak_rss_delta_bytes=0
+test result: ok. 1 passed; 0 failed
+```
+
+### FIX-7 exact artifact evidence
+
+As in FIX-6, the documented source-wrapper pytest first rejected the stale
+worktree `_fathomdb.abi3.so`, which predates the native API and is not candidate
+evidence. Ruff passed, and Pyright passed from `src/python`, where its declared
+venv and extra paths resolve:
+
+```text
+.venv/bin/ruff check src/python/fathomdb \
+  src/python/tests/test_slice55_trace_explanation.py
+All checks passed!
+
+cd src/python
+../../.venv/bin/pyright fathomdb tests/test_slice55_trace_explanation.py
+0 errors, 0 warnings, 0 informations
+```
+
+A fresh disposable wheel was built from exact clean product commit
+`f70cc5c31c3294a53d5dfa0f6b39a7e94280feb8`:
+
+```text
+env -u PYTHONPATH ./scripts/verify-release-python-wheel.sh \
+  --python /usr/bin/python3 \
+  --wheel-dir /tmp/fathomdb-s55-fix7-wheel.Jr9VCI/dist \
+  --venv-dir /tmp/fathomdb-s55-fix7-wheel.Jr9VCI/venv
+wheel smoke: ok
+f0d99b68c8df6bfeb72a11f187c425eb4e5de3b544d550e52426ef67b6024763  \
+  fathomdb-0.8.24-cp310-abi3-manylinux_2_39_x86_64.whl
+module=/tmp/fathomdb-s55-fix7-wheel.Jr9VCI/venv/lib/python3.12/\
+  site-packages/fathomdb/__init__.py
+native=/tmp/fathomdb-s55-fix7-wheel.Jr9VCI/venv/lib/python3.12/\
+  site-packages/fathomdb/_fathomdb.abi3.so
+
+env -u PYTHONPATH /tmp/fathomdb-s55-fix7-wheel.Jr9VCI/venv/bin/python \
+  src/python/tests/smoke_slice55_installed.py
+slice55 installed native smoke: ok
+```
+
+Byte-identical copies of the two Slice 55 Python test modules were run from the
+named wheel directory with candidate site-packages first and repository source
+excluded. The SHA-256 pairs matched
+`1463f7f5591eb6280ed4014c7595e8c2d7acd09934159815943e4bf4b97256dc`
+and `1341189e548bd027c929d45c9d3a3af26c757318ab3c1db04cb6fa94b64640a3`;
+all 43 parameterized cases passed in 0.64 seconds.
+
+The exact-source N-API build first encountered restricted-sandbox
+`spawnSync /bin/sh EPERM`; the unchanged unconfined retry passed. TypeScript
+checking and the Slice 55-filtered Node run also passed:
+
+```text
+cd src/ts
+npm run build:debug
+./node_modules/.bin/tsc -p tsconfig.json
+node --test --test-name-pattern slice55 dist/tests/*.test.js
+tests 65; pass 65; fail 0
+```
+
+The two named disposable Node database files were removed afterward and were
+never staged. These are focused FIX-7 writer checks; independent implementation
+review and the broader verifier remain separate gates.

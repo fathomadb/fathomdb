@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter};
 
 use rusqlite::{Connection, OptionalExtension};
 use serde::ser::{SerializeMap, Serializer as _};
+use sha2::{Digest, Sha256};
 
 use crate::{
     edge_fts_hit_passes_filter, frozen_read, load_dependency_generation, load_next_cursor,
@@ -270,7 +271,9 @@ fn visible_artifact(
         let Some((kind, state, superseded, valid_from, valid_until)) = state else {
             return Ok(None);
         };
-        let state = LifecycleState::from_str_opt(&state).ok_or(EngineError::Storage)?;
+        let Some(state) = LifecycleState::from_str_opt(&state) else {
+            return Ok(None);
+        };
         let valid = valid_from.is_none_or(|start| start <= effective)
             && valid_until.is_none_or(|end| end > effective);
         let visible = (context.view.include_inactive || state == LifecycleState::Active)
@@ -381,7 +384,7 @@ fn source_link_valid(
     else {
         return Ok(false);
     };
-    Ok(schema == 1
+    let shape_valid = schema == 1
         && valid_caller_identity(&source_id)
         && valid_caller_identity(&version_id)
         && valid_caller_identity(&source_revision)
@@ -392,7 +395,54 @@ fn source_link_valid(
                 && end.is_some_and(|value| value >= 0)
                 && start < end))
         && algo == "sha256"
-        && valid_hash(&digest))
+        && valid_hash(&digest);
+    if !shape_valid {
+        return Ok(false);
+    }
+    let canonical: Option<(String, String)> = connection
+        .query_row(
+            "SELECT n.source_id,n.body FROM _fathomdb_artifact_revisions r \
+             JOIN canonical_nodes n ON n.write_cursor=r.write_cursor \
+             WHERE r.revision_id=?1 AND r.schema_version=1 \
+               AND r.artifact_class='node' AND r.artifact_role='canonical_source' \
+               AND r.completeness='complete'",
+            [&source_revision],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()
+        .map_err(|_| EngineError::Storage)?;
+    let Some((canonical_source_id, canonical_body)) = canonical else {
+        return Ok(false);
+    };
+    if canonical_source_id != source_id {
+        return Ok(false);
+    }
+    let version_valid: bool = connection
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM _fathomdb_source_versions \
+             WHERE schema_version=1 AND source_revision_id=?1 \
+               AND source_id=?2 AND source_version_id=?3)",
+            rusqlite::params![source_revision, source_id, version_id],
+            |row| row.get(0),
+        )
+        .map_err(|_| EngineError::Storage)?;
+    if !version_valid {
+        return Ok(false);
+    }
+    let selected = match (locator.as_str(), start, end) {
+        ("whole_body", None, None) => Some(canonical_body.as_bytes()),
+        ("utf8_bytes", Some(start), Some(end)) => {
+            usize::try_from(start).ok().zip(usize::try_from(end).ok()).and_then(|(start, end)| {
+                (canonical_body.is_char_boundary(start) && canonical_body.is_char_boundary(end))
+                    .then(|| canonical_body.as_bytes().get(start..end))
+                    .flatten()
+            })
+        }
+        _ => None,
+    };
+    Ok(selected.is_some_and(|bytes| {
+        Sha256::digest(bytes).iter().map(|byte| format!("{byte:02x}")).collect::<String>() == digest
+    }))
 }
 
 fn canonical_source_chain_valid(

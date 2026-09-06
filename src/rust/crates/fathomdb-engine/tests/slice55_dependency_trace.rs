@@ -74,6 +74,28 @@ fn seeded() -> (TempDir, fathomdb_engine::OpenedEngine) {
     (dir, opened)
 }
 
+fn add_hidden_dependent(engine: &Engine, revision: &str, logical: &str, dependency: &str) {
+    let cursor = if logical.starts_with("aaa") { -101 } else { -102 };
+    engine
+        .execute_for_test(&format!(
+            "INSERT INTO canonical_nodes(write_cursor,kind,body,source_id,state) \
+               VALUES({cursor},'hidden','hidden','slice55-source','deleted'); \
+             INSERT INTO _fathomdb_artifact_revisions(\
+               schema_version,revision_id,artifact_class,write_cursor,artifact_role,completeness\
+             ) VALUES(1,'{revision}','node',{cursor},'derived_semantic','complete'); \
+             INSERT INTO _fathomdb_source_links(\
+               schema_version,artifact_revision_id,source_id,source_version_id,\
+               source_revision_id,locator_kind,start_byte,end_byte,hash_algorithm,hash_digest\
+             ) VALUES(1,'{revision}','slice55-source','slice55-v1','source-r1',\
+                      'whole_body',NULL,NULL,'sha256',\
+                      '0000000000000000000000000000000000000000000000000000000000000000'); \
+             INSERT INTO _fathomdb_source_dependencies(\
+               schema_version,dependency_id,derived_revision_id,registered_dependency_generation\
+             ) VALUES(1,'{dependency}','{revision}',1)"
+        ))
+        .unwrap();
+}
+
 fn insert_active_closure(engine: &Engine, source_revision: &str, cause: &str, sequence: u64) {
     let closure_id = format!("_fdb:c:{sequence:064x}");
     let fingerprint = format!("{sequence:064x}");
@@ -259,15 +281,35 @@ fn slice55_trace_execution_boundary_revalidates_public_struct_literals() {
 
 #[test]
 fn slice55_trace_hidden_relations_match_absence() {
-    let (_dir, opened) = seeded();
-    let source_only =
-        trace(&opened.engine, "source-r1", DependencyTraceDirectionV1::ToDependents).unwrap();
-    assert_eq!(source_only.dependency_edges.len(), 1);
+    let (dir, opened) = seeded();
+    let original = dir.path().join(format!("trace{SQLITE_SUFFIX}"));
+    opened.engine.close().unwrap();
+    let baseline_path = dir.path().join(format!("trace-baseline{SQLITE_SUFFIX}"));
+    let hidden_path = dir.path().join(format!("trace-hidden{SQLITE_SUFFIX}"));
+    std::fs::copy(&original, &baseline_path).unwrap();
+    std::fs::copy(&original, &hidden_path).unwrap();
+    let baseline = Engine::open(baseline_path).unwrap();
+    let hidden = Engine::open(hidden_path).unwrap();
+    add_hidden_dependent(&hidden.engine, "aaa-hidden-r1", "aaa-hidden", "aaa-hidden-dep");
+    add_hidden_dependent(&hidden.engine, "zzz-hidden-r1", "zzz-hidden", "zzz-hidden-dep");
+
+    let baseline =
+        fixed_trace(&baseline.engine, "source-r1", DependencyTraceDirectionV1::ToDependents)
+            .unwrap();
+    let hidden =
+        fixed_trace(&hidden.engine, "source-r1", DependencyTraceDirectionV1::ToDependents).unwrap();
+    assert_eq!(
+        encode_dependency_trace_result_v1(&hidden),
+        encode_dependency_trace_result_v1(&baseline)
+    );
+    assert_eq!(hidden.checked_work_units, 2);
 }
 
 #[test]
 fn slice55_trace_hidden_relations_do_not_trip_caps() {
     let (_dir, opened) = seeded();
+    add_hidden_dependent(&opened.engine, "aaa-hidden-r1", "aaa-hidden", "aaa-hidden-dep");
+    add_hidden_dependent(&opened.engine, "zzz-hidden-r1", "zzz-hidden", "zzz-hidden-dep");
     let context = opened.engine.freeze_read_context(&read_context()).unwrap();
     let request = DependencyTraceRequestV1::new(
         "source-r1",
@@ -277,7 +319,10 @@ fn slice55_trace_hidden_relations_do_not_trip_caps() {
     .unwrap()
     .with_bounds(1, 2)
     .unwrap();
-    assert!(opened.engine.trace_dependency(request).is_ok());
+    let result = opened.engine.trace_dependency(request).unwrap();
+    assert_eq!(result.dependency_edges.len(), 1);
+    assert_eq!(result.dependency_edges[0].dependency_id, "dep-1");
+    assert_eq!(result.checked_work_units, 2);
 }
 
 #[test]
@@ -474,6 +519,11 @@ fn slice55_trace_query_plans_use_existing_indexes() {
     assert!(plans.iter().any(|plan| plan.contains("derived_revision_id")));
     assert!(plans.iter().any(|plan| plan.contains("_fathomdb_source_links_source_derived_idx")));
     assert!(plans.iter().all(|plan| !plan.contains("USE TEMP B-TREE")));
+    assert!(plans.iter().all(|plan| !plan.contains("MATERIALIZE")));
+    let queries = opened.engine.dependency_trace_candidate_queries_for_test();
+    assert!(queries[0].contains("LIMIT ?2"));
+    assert!(queries[1].contains("l.artifact_revision_id>?2"));
+    assert!(queries[1].contains("LIMIT ?3"));
 }
 
 #[cfg(feature = "test-hooks")]

@@ -4532,12 +4532,14 @@ pub struct Slice45FrozenStageTiming {
 
 /// Test-only bounded trace measurement captured around the trace call itself.
 #[cfg(feature = "test-hooks")]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 #[doc(hidden)]
 pub struct DependencyTraceMeasurement {
     pub vm_steps: u64,
     pub elapsed: Duration,
     pub peak_rss_delta_bytes: u64,
+    pub response_bytes: Vec<u8>,
+    pub bound_exceeded: bool,
 }
 
 /// Test-only Slice 45 attribution for frozen-context minting.
@@ -12194,7 +12196,7 @@ impl Engine {
     /// Test-only helper for the deterministic-slow-cte fixture used by
     /// AC-007a / AC-007b. Not part of the public 0.6.0 surface; gated on
     /// `debug_assertions` so release builds do not expose it.
-    #[cfg(debug_assertions)]
+    #[cfg(any(debug_assertions, feature = "test-hooks"))]
     #[doc(hidden)]
     pub fn execute_for_test(&self, sql: &str) -> Result<(), EngineError> {
         self.ensure_open()?;
@@ -13800,7 +13802,7 @@ impl Engine {
         &self,
     ) -> Result<DependencyTraceMeasurement, EngineError> {
         let context = self.freeze_read_context(&ReadContextV1::new(
-            ReadView::default(),
+            ReadView { valid_as_of: Some(1), ..ReadView::default() },
             SearchFilter::default(),
         )?)?;
         let request = DependencyTraceRequestV1::new(
@@ -13817,8 +13819,7 @@ impl Engine {
             .progress_handler(
                 1_000,
                 Some(move || {
-                    callback_counter.fetch_add(1, Ordering::Relaxed);
-                    false
+                    callback_counter.fetch_add(1, Ordering::Relaxed).saturating_add(1) > 10_000
                 }),
             )
             .map_err(|_| EngineError::Storage)?;
@@ -13830,12 +13831,84 @@ impl Engine {
         connection
             .progress_handler(0, Option::<fn() -> bool>::None)
             .map_err(|_| EngineError::Storage)?;
-        outcome?;
+        let (response_bytes, bound_exceeded) = match outcome {
+            Ok(result) => (encode_dependency_trace_result_v1(&result)?, false),
+            Err(EngineError::DependencyTrace(error))
+                if error.reason == DependencyTraceErrorReasonV1::TraceBoundExceeded =>
+            {
+                (Vec::new(), true)
+            }
+            Err(error) => return Err(error),
+        };
         Ok(DependencyTraceMeasurement {
             vm_steps: callbacks.load(Ordering::Relaxed).saturating_mul(1_000),
             elapsed,
             peak_rss_delta_bytes: rss_after.saturating_sub(rss_before),
+            response_bytes,
+            bound_exceeded,
         })
+    }
+
+    /// Seed a real hidden-dependent performance fixture outside measurement.
+    #[cfg(feature = "test-hooks")]
+    #[doc(hidden)]
+    pub fn seed_hidden_dependency_trace_fixture_for_test(
+        &self,
+        count: u32,
+    ) -> Result<(), EngineError> {
+        self.ensure_open()?;
+        let mut connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
+        let connection = connection.as_mut().ok_or(EngineError::Closing)?;
+        let tx = connection.transaction().map_err(|_| EngineError::Storage)?;
+        {
+            let mut nodes = tx
+                .prepare_cached(
+                    "INSERT INTO canonical_nodes(write_cursor,kind,body,source_id,state) \
+                     VALUES(?1,'hidden','hidden','slice55-source','deleted')",
+                )
+                .map_err(|_| EngineError::Storage)?;
+            let mut owners = tx
+                .prepare_cached(
+                    "INSERT INTO _fathomdb_artifact_revisions(\
+                         schema_version,revision_id,artifact_class,write_cursor,artifact_role,completeness) \
+                     VALUES(1,?1,'node',?2,'derived_semantic','complete')",
+                )
+                .map_err(|_| EngineError::Storage)?;
+            let mut links = tx
+                .prepare_cached(
+                    "INSERT INTO _fathomdb_source_links(\
+                         schema_version,artifact_revision_id,source_id,source_version_id,\
+                         source_revision_id,locator_kind,start_byte,end_byte,hash_algorithm,hash_digest) \
+                     VALUES(1,?1,'slice55-source','slice55-v1','source-r1','whole_body',\
+                            NULL,NULL,'sha256',?2)",
+                )
+                .map_err(|_| EngineError::Storage)?;
+            let mut dependencies = tx
+                .prepare_cached(
+                    "INSERT INTO _fathomdb_source_dependencies(\
+                         schema_version,dependency_id,derived_revision_id,registered_dependency_generation) \
+                     VALUES(1,?1,?2,1)",
+                )
+                .map_err(|_| EngineError::Storage)?;
+            for index in 0..count {
+                // Negative corrupt-fixture cursors remain below the source's
+                // real high-water mark, preserving the observable boundary.
+                let cursor = -i64::from(index) - 1;
+                let revision = format!("hidden-r{index:05}");
+                let dependency = format!("hidden-dep-{index:05}");
+                nodes.execute([cursor]).map_err(|_| EngineError::Storage)?;
+                owners
+                    .execute(rusqlite::params![revision, cursor])
+                    .map_err(|_| EngineError::Storage)?;
+                links
+                    .execute(rusqlite::params![revision, "0".repeat(64)])
+                    .map_err(|_| EngineError::Storage)?;
+                dependencies
+                    .execute(rusqlite::params![dependency, revision])
+                    .map_err(|_| EngineError::Storage)?;
+            }
+        }
+        tx.commit().map_err(|_| EngineError::Storage)
     }
 
     /// Run bounded, read-only operator integrity checks in one SQLite snapshot.

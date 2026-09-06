@@ -16,11 +16,11 @@ fathomdb-embedder.workspace = true
 fathomdb-embedder-api.workspace = true
 fathomdb-query.workspace = true
 fathomdb-schema.workspace = true
-rusqlite = { version = "0.40", features = ["bundled", "fallible_uint", "hooks"] }
+rusqlite = { version = "0.40", features = ["bundled", "fallible_uint"] }
 jsonschema = { version = "0.18", default-features = false }
 serde_json = "1"
 serde = "1"
-libc = "0.2"
+libc = { version = "0.2", optional = true }
 sha2 = "0.11"
 sqlite-vec = "=0.1.9"
 
@@ -31,7 +31,7 @@ default = []
 tc5-benchmark = []
 # Slice 65: test-only rendezvous used by the disposable Python control wheel.
 # This feature is intentionally absent from every shipped-wheel feature list.
-test-hooks = []
+test-hooks = ["rusqlite/hooks", "dep:libc"]
 # Slice 27 fix-1 (Q5=BIND-RUST, AC-074): the operator/recovery seam
 # (rebuild_*, excise_source, dump_*, trace_source_ref, truncate_wal,
 # verify_embedder, check_integrity, safe_export, recompute_mean + their

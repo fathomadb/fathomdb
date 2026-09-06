@@ -175,7 +175,9 @@ fn request(query: &str, context: fathomdb_engine::FrozenReadContextV1) -> Eviden
 
 fn freeze_stable(engine: &Engine, context: &ReadContextV1) -> fathomdb_engine::FrozenReadContextV1 {
     engine.drain(30_000).unwrap();
-    engine.freeze_read_context(context).unwrap()
+    let mut deterministic = context.clone();
+    deterministic.view.valid_as_of.get_or_insert(1_800_000_000);
+    engine.freeze_read_context(&deterministic).unwrap()
 }
 
 fn assert_unavailable(error: EngineError) {

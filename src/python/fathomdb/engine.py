@@ -213,6 +213,11 @@ def _require_finite(value: object, path: str, *, optional: bool = True) -> None:
         _evidence_response_error("evidence_corrupt", path)
 
 
+def _require_nonempty_string(value: object, path: str) -> None:
+    if not isinstance(value, str) or not value:
+        _evidence_response_error("evidence_corrupt", path)
+
+
 def _map_native_evidence_search(result: Any) -> EvidenceSearchResultV1:
     _require_evidence_schema(result.schema_version, "/schemaVersion")
     if len(result.evidence) != len(result.search_result.results):
@@ -275,6 +280,8 @@ def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
     _require_evidence_variant(
         value.artifact_lifecycle_kind, {"node", "edge"}, "/artifactLifecycle/kind"
     )
+    if not isinstance(value.artifact_superseded, bool):
+        _evidence_response_error("evidence_corrupt", "/artifactLifecycle/superseded")
     if value.artifact_lifecycle_kind == "node":
         _require_evidence_variant(
             value.artifact_lifecycle_state,
@@ -318,10 +325,9 @@ def _map_native_resolved_evidence(value: Any) -> ResolvedEvidenceV1:
         )
         edge_revision = value.projection_origin.graph_edge_artifact_revision_id
         hop_count = value.projection_origin.graph_hop_count
-        if not edge_revision:
-            _evidence_response_error(
-                "evidence_corrupt", "/projectionOrigin/graphOrigin/edgeArtifactRevisionId"
-            )
+        _require_nonempty_string(
+            edge_revision, "/projectionOrigin/graphOrigin/edgeArtifactRevisionId"
+        )
         if graph_kind == "edge_seed" and hop_count is not None:
             _evidence_response_error(
                 "evidence_corrupt", "/projectionOrigin/graphOrigin/hopCount"

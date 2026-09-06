@@ -1146,7 +1146,21 @@ function validateEvidenceFrozenContext(context: FrozenReadContextV1): void {
     ["schemaVersion", "effectiveValidAt", "context", "token"],
     "/context",
   );
-  validateReadContext(context.context);
+  assertKnownEvidenceKeys(
+    context.context,
+    ["schemaVersion", "view", "eligibility"],
+    "/context/context",
+  );
+  assertKnownEvidenceKeys(
+    context.context.view,
+    ["includeSuperseded", "includeInactive", "includeOutOfWindow", "validAsOf"],
+    "/context/context/view",
+  );
+  assertKnownEvidenceKeys(
+    context.context.eligibility,
+    ["sourceType", "kind", "createdAfter", "status", "attributes"],
+    "/context/context/eligibility",
+  );
 }
 
 function validateReadContext(context: ReadContextV1): void {

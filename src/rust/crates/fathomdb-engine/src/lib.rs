@@ -7455,13 +7455,13 @@ impl Engine {
             .into());
         }
         self.ensure_open()?;
-        request.context.context.view.reject_existence_relaxation_on_search()?;
         let binding = {
             let connection = self.connection.lock().map_err(|_| EngineError::Storage)?;
             let connection = connection.as_ref().ok_or(EngineError::Closing)?;
             frozen_read::authenticate(connection, &request.context)
                 .map_err(|_| EngineError::Evidence(EvidenceErrorV1::unavailable()))?
         };
+        request.context.context.view.reject_existence_relaxation_on_search()?;
         let dense_disabled_reason = self.dense_disabled.load(Ordering::Acquire).then(|| {
             self.dense_disabled_reason
                 .lock()

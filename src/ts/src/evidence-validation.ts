@@ -44,6 +44,16 @@ function decimalU64(value: string | null | undefined, fieldPath: string): void {
   }
 }
 
+function boolean(value: unknown, fieldPath: string): void {
+  if (typeof value !== "boolean") fail("evidence_corrupt", fieldPath);
+}
+
+function nonEmptyString(value: unknown, fieldPath: string): void {
+  if (typeof value !== "string" || value.length === 0) {
+    fail("evidence_corrupt", fieldPath);
+  }
+}
+
 /** Validate the closed native response before constructing public SDK values. */
 export function validateNativeEvidenceSearch(r: NativeEvidenceSearchResultV1): void {
   schema(r.schemaVersion, "/schemaVersion");
@@ -87,6 +97,7 @@ export function validateNativeResolvedEvidence(r: NativeResolvedEvidenceV1): voi
   }
 
   variant(r.artifactLifecycle.kind, ["node", "edge"], "/artifactLifecycle/kind");
+  boolean(r.artifactLifecycle.superseded, "/artifactLifecycle/superseded");
   if (r.artifactLifecycle.kind === "node") {
     variant(
       r.artifactLifecycle.state ?? "",
@@ -128,8 +139,10 @@ export function validateNativeResolvedEvidence(r: NativeResolvedEvidenceV1): voi
       ["edge_seed", "traversal"],
       "/projectionOrigin/graphOrigin/kind",
     );
-    if (!graph.edgeArtifactRevisionId)
-      fail("evidence_corrupt", "/projectionOrigin/graphOrigin/edgeArtifactRevisionId");
+    nonEmptyString(
+      graph.edgeArtifactRevisionId,
+      "/projectionOrigin/graphOrigin/edgeArtifactRevisionId",
+    );
     if (graph.kind === "edge_seed" && graph.hopCount != null)
       fail("evidence_corrupt", "/projectionOrigin/graphOrigin/hopCount");
     if (graph.kind === "traversal") {

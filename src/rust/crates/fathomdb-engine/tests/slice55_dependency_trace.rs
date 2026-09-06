@@ -263,6 +263,47 @@ fn slice55_trace_corrupt_requires_two_eligible_endpoints() {
 }
 
 #[test]
+fn slice55_trace_malformed_lifecycle_collapses_to_absence() {
+    let (_dir, opened) = seeded();
+    opened
+        .engine
+        .execute_for_test(
+            "PRAGMA ignore_check_constraints=ON; \
+             UPDATE canonical_nodes SET state='not-a-state' WHERE write_cursor=1",
+        )
+        .unwrap();
+    let error = fixed_trace(&opened.engine, "source-r1", DependencyTraceDirectionV1::ToDependents)
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::DependencyTrace(ref value)
+            if value.reason == DependencyTraceErrorReasonV1::TraceUnavailable
+                && value.field_path == "/rootRevisionId"
+    ));
+}
+
+#[test]
+fn slice55_trace_digest_chain_authenticates_canonical_bytes() {
+    let (_dir, opened) = seeded();
+    opened
+        .engine
+        .execute_for_test(
+            "UPDATE _fathomdb_source_links SET hash_digest=\
+             'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' \
+             WHERE artifact_revision_id IN ('source-r1','derived-r1')",
+        )
+        .unwrap();
+    let error = fixed_trace(&opened.engine, "source-r1", DependencyTraceDirectionV1::ToDependents)
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        EngineError::DependencyTrace(ref value)
+            if value.reason == DependencyTraceErrorReasonV1::TraceUnavailable
+                && value.field_path == "/rootRevisionId"
+    ));
+}
+
+#[test]
 fn slice55_trace_hidden_chain_corruption_is_byte_equal_to_absence() {
     let (dir, seeded) = seeded();
     let original = dir.path().join(format!("trace{SQLITE_SUFFIX}"));

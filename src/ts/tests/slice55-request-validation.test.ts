@@ -5,6 +5,7 @@ import {
   DependencyTraceError,
   Engine,
   type DependencyTraceRequestV1,
+  validateDependencyTraceResponse,
 } from "../src/index.js";
 import { freshDbPath } from "./helpers.js";
 
@@ -57,4 +58,101 @@ test("slice55 request validation rejects canonical integer bounds before native"
   } finally {
     await engine.close();
   }
+});
+
+test("slice55 unknown trace request fields use escaped RFC 6901 paths", async () => {
+  const engine = await Engine.open(freshDbPath(), { useDefaultEmbedder: false });
+  try {
+    await assert.rejects(
+      engine.traceDependency(malformedRequest({ "a/b~c": true })),
+      (error: unknown) =>
+        error instanceof DependencyTraceError &&
+        error.reason === "unknown_field" &&
+        error.fieldPath === "/a~1b~0c",
+    );
+  } finally {
+    await engine.close();
+  }
+});
+
+function response(): Record<string, unknown> {
+  return {
+    schemaVersion: 1,
+    rootRevisionId: "source-r1",
+    direction: "to_dependents",
+    nodes: [
+      {
+        schemaVersion: 1,
+        artifactRevisionId: "source-r1",
+        artifactClass: "node",
+        role: "canonical_source",
+        depth: 0,
+        lifecycle: {
+          schemaVersion: 1,
+          artifactClass: "node",
+          state: "active",
+          superseded: false,
+          validAtEffective: true,
+        },
+      },
+      {
+        schemaVersion: 1,
+        artifactRevisionId: "derived-r1",
+        artifactClass: "node",
+        role: "derived",
+        depth: 1,
+        lifecycle: {
+          schemaVersion: 1,
+          artifactClass: "node",
+          state: "active",
+          superseded: false,
+          validAtEffective: true,
+        },
+      },
+    ],
+    dependencyEdges: [
+      {
+        schemaVersion: 1,
+        dependencyId: "dep-1",
+        sourceRevisionId: "source-r1",
+        derivedRevisionId: "derived-r1",
+        registeredDependencyGeneration: "1",
+      },
+    ],
+    checkedWorkUnits: 2,
+    complete: true,
+    readBoundary: {
+      schemaVersion: 1,
+      effectiveAtEpochS: 1,
+      observedWriteBoundary: "1",
+      dependencyGeneration: "1",
+      projectionGenerationId: "pgen1:00000000000000000000000000000000",
+    },
+  };
+}
+
+test("slice55 TypeScript recursively validates dependency trace responses", () => {
+  const value = response();
+  const nodes = value.nodes as Array<Record<string, unknown>>;
+  (nodes[1]!.lifecycle as Record<string, unknown>).schemaVersion = 2;
+  assert.throws(
+    () => validateDependencyTraceResponse(value),
+    (error: unknown) =>
+      error instanceof DependencyTraceError &&
+      error.reason === "unsupported_schema_version" &&
+      error.fieldPath === "/nodes/1/lifecycle/schemaVersion",
+  );
+});
+
+test("slice55 TypeScript rejects noncanonical trace integers at exact paths", () => {
+  const value = response();
+  const edges = value.dependencyEdges as Array<Record<string, unknown>>;
+  edges[0]!.registeredDependencyGeneration = "01";
+  assert.throws(
+    () => validateDependencyTraceResponse(value),
+    (error: unknown) =>
+      error instanceof DependencyTraceError &&
+      error.reason === "trace_corrupt" &&
+      error.fieldPath === "/dependencyEdges/0/registeredDependencyGeneration",
+  );
 });

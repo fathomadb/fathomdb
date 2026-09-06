@@ -1,8 +1,69 @@
 """Slice 55 RED public trace and structural explanation surface."""
 
+import copy
+import json
+from typing import Any
+
 import fathomdb
 import pytest
 from fathomdb import _fathomdb
+from fathomdb import engine as engine_module
+
+
+def _trace_response() -> dict[str, Any]:
+    return {
+        "schemaVersion": 1,
+        "rootRevisionId": "source-r1",
+        "direction": "to_dependents",
+        "nodes": [
+            {
+                "schemaVersion": 1,
+                "artifactRevisionId": "source-r1",
+                "artifactClass": "node",
+                "role": "canonical_source",
+                "depth": 0,
+                "lifecycle": {
+                    "schemaVersion": 1,
+                    "artifactClass": "node",
+                    "state": "active",
+                    "superseded": False,
+                    "validAtEffective": True,
+                },
+            },
+            {
+                "schemaVersion": 1,
+                "artifactRevisionId": "derived-r1",
+                "artifactClass": "node",
+                "role": "derived",
+                "depth": 1,
+                "lifecycle": {
+                    "schemaVersion": 1,
+                    "artifactClass": "node",
+                    "state": "active",
+                    "superseded": False,
+                    "validAtEffective": True,
+                },
+            },
+        ],
+        "dependencyEdges": [
+            {
+                "schemaVersion": 1,
+                "dependencyId": "dep-1",
+                "sourceRevisionId": "source-r1",
+                "derivedRevisionId": "derived-r1",
+                "registeredDependencyGeneration": "1",
+            }
+        ],
+        "checkedWorkUnits": 2,
+        "complete": True,
+        "readBoundary": {
+            "schemaVersion": 1,
+            "effectiveAtEpochS": 1,
+            "observedWriteBoundary": "1",
+            "dependencyGeneration": "1",
+            "projectionGenerationId": "pgen1:00000000000000000000000000000000",
+        },
+    }
 
 
 def test_slice55_trace_types_are_public() -> None:
@@ -60,5 +121,69 @@ def test_slice55_python_catches_actual_native_trace_refusal(tmp_path) -> None:
             engine.trace_dependency(request)
         assert caught.value.reason == "trace_direction_invalid"
         assert caught.value.field_path == "/direction"
+    finally:
+        engine.close()
+
+
+@pytest.mark.parametrize(
+    ("mutate", "reason", "path"),
+    [
+        (
+            lambda value: value["nodes"][1]["lifecycle"].__setitem__(
+                "schemaVersion", 2
+            ),
+            "unsupported_schema_version",
+            "/nodes/1/lifecycle/schemaVersion",
+        ),
+        (
+            lambda value: value["nodes"][1].__setitem__(
+                "artifactRevisionId", "source-r1"
+            ),
+            "trace_corrupt",
+            "/nodes/1/artifactRevisionId",
+        ),
+        (
+            lambda value: value["dependencyEdges"][0].__setitem__(
+                "registeredDependencyGeneration", "01"
+            ),
+            "trace_corrupt",
+            "/dependencyEdges/0/registeredDependencyGeneration",
+        ),
+    ],
+)
+def test_slice55_python_recursively_validates_trace_responses(
+    mutate: Any, reason: str, path: str
+) -> None:
+    value = copy.deepcopy(_trace_response())
+    mutate(value)
+    with pytest.raises(fathomdb.DependencyTraceError) as caught:
+        engine_module._decode_dependency_trace_response(json.dumps(value))
+    assert caught.value.reason == reason
+    assert caught.value.field_path == path
+
+
+def test_slice55_python_malformed_trace_json_never_leaks_decoder_errors() -> None:
+    with pytest.raises(fathomdb.DependencyTraceError) as caught:
+        engine_module._decode_dependency_trace_response("{")
+    assert caught.value.reason == "trace_corrupt"
+    assert caught.value.field_path == ""
+
+
+def test_slice55_python_noncanonical_bound_never_leaks_native_type_error(tmp_path) -> None:
+    engine = fathomdb.Engine.open(
+        str(tmp_path / "slice55-bound-error.fathom"), use_default_embedder=False
+    )
+    try:
+        context = engine.freeze_read_context(fathomdb.ReadContextV1())
+        request = fathomdb.DependencyTraceRequestV1(
+            root_revision_id="source-r1",
+            direction="to_dependents",
+            context=context,
+        )
+        object.__setattr__(request, "max_relations", 1.5)
+        with pytest.raises(fathomdb.DependencyTraceError) as caught:
+            engine.trace_dependency(request)
+        assert caught.value.reason == "trace_limit_invalid"
+        assert caught.value.field_path == "/maxRelations"
     finally:
         engine.close()

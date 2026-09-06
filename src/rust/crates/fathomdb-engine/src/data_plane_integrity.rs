@@ -286,6 +286,7 @@ struct StoredSourceLink {
 
 #[cfg(feature = "operator")]
 struct StoredArtifactOwner {
+    schema: Option<i64>,
     class: Option<String>,
     role: Option<String>,
     completeness: Option<String>,
@@ -305,15 +306,16 @@ fn load_artifact_owner(
 ) -> Result<Option<StoredArtifactOwner>, EngineError> {
     connection
         .query_row(
-            "SELECT artifact_class,artifact_role,completeness,write_cursor \
+            "SELECT schema_version,artifact_class,artifact_role,completeness,write_cursor \
              FROM _fathomdb_artifact_revisions WHERE revision_id=?1",
             [revision_id],
             |row| {
                 Ok(StoredArtifactOwner {
-                    class: text_value(row, 0),
-                    role: text_value(row, 1),
-                    completeness: text_value(row, 2),
-                    cursor: integer_value(row, 3),
+                    schema: integer_value(row, 0),
+                    class: text_value(row, 1),
+                    role: text_value(row, 2),
+                    completeness: text_value(row, 3),
+                    cursor: integer_value(row, 4),
                 })
             },
         )
@@ -704,7 +706,11 @@ fn integrity_dependency_generation(connection: &Connection) -> Result<Option<u64
             "SELECT value FROM _fathomdb_open_state \
              WHERE key='_fathomdb_dependency_generation'",
             [],
-            |row| Ok(text_value(row, 0).and_then(|value| canonical_u64(&value))),
+            |row| {
+                Ok(text_value(row, 0)
+                    .and_then(|value| canonical_u64(&value))
+                    .filter(|value| *value <= i64::MAX as u64))
+            },
         )
         .optional()
         .map(|value| value.flatten())
@@ -790,7 +796,8 @@ fn dependency_findings(
                     DataPlaneIntegrityFindingCodeV1::DependencyDerivedOwnerMissing,
                     DataPlaneIntegritySeverityV1::Critical,
                 ));
-            } else if owner.role.as_deref() != Some("derived_semantic")
+            } else if owner.schema != Some(1)
+                || owner.role.as_deref() != Some("derived_semantic")
                 || owner.completeness.as_deref() != Some("complete")
             {
                 item = Some(finding(
@@ -832,6 +839,15 @@ fn dependency_findings(
         }
         if item.is_none() {
             let link = link.as_ref().unwrap();
+            if link.source_revision.as_deref() == Some(derived_revision.as_str()) {
+                item = Some(finding(
+                    DataPlaneIntegrityFindingCodeV1::DependencyDerivedRoleInvalid,
+                    DataPlaneIntegritySeverityV1::Error,
+                ));
+            }
+        }
+        if item.is_none() {
+            let link = link.as_ref().unwrap();
             let whole_body = link.locator.as_deref() == Some("whole_body")
                 && link.start == NullableValue::Null
                 && link.end == NullableValue::Null;
@@ -854,8 +870,7 @@ fn dependency_findings(
                     digest
                         .bytes()
                         .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
-                })
-                && link.source_revision.as_deref() != Some(derived_revision.as_str());
+                });
             if !link_valid {
                 item = Some(finding(
                     DataPlaneIntegrityFindingCodeV1::DependencySourceLinkMismatch,
@@ -883,7 +898,8 @@ fn dependency_findings(
                         _ => None,
                     };
                     if let Some(canonical_node) = canonical_node {
-                        if owner.role.as_deref() != Some("canonical_source")
+                        if owner.schema != Some(1)
+                            || owner.role.as_deref() != Some("canonical_source")
                             || owner.completeness.as_deref() != Some("complete")
                         {
                             item = Some(finding(
@@ -1925,32 +1941,7 @@ fn projection_generation_findings(
         let physical_dense =
             physical_dense_candidates(connection, max_work_units, aggregate_checked)?;
         let invalid_dense = physical_dense.invalid;
-        let mut candidates = physical_dense.valid;
-        let dense_authority_enabled = crate::vector_projection_declared(connection)
-            .map_err(|_| EngineError::Storage)?
-            || connection
-                .query_row("SELECT EXISTS(SELECT 1 FROM _fathomdb_vector_kinds)", [], |row| {
-                    row.get(0)
-                })
-                .map_err(|_| EngineError::Storage)?;
-        if dense_authority_enabled {
-            for sql in [NODE_BODY_OWNER_QUERY, EDGE_BODY_OWNER_QUERY] {
-                let remaining = max_work_units.saturating_sub(*aggregate_checked);
-                let mut statement = connection.prepare(sql).map_err(|_| EngineError::Storage)?;
-                let rows = statement
-                    .query_map(rusqlite::params![0_i64, i64::from(remaining) + 1], |row| {
-                        row.get::<_, i64>(0)
-                    })
-                    .map_err(|_| EngineError::Storage)?;
-                for cursor in rows {
-                    take_work(aggregate_checked, max_work_units)?;
-                    candidates.insert(
-                        u64::try_from(cursor.map_err(|_| EngineError::Storage)?)
-                            .map_err(|_| EngineError::Storage)?,
-                    );
-                }
-            }
-        }
+        let candidates = physical_dense.valid;
         for cursor_u64 in candidates {
             let cursor = i64::try_from(cursor_u64).map_err(|_| EngineError::Storage)?;
             let expected = crate::projection_generation::dense_member_kind_at(

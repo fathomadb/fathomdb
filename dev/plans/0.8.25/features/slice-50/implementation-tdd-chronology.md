@@ -411,3 +411,26 @@ context helper now supplies a deterministic validity instant only when the
 test did not explicitly choose one, eliminating wall-clock context drift
 without weakening any explicit validity fixture. Independent implementation
 review cycle 4 passes at `e741542d` with no unresolved P0, P1, or P2 finding.
+
+## RED 21 — release verification
+
+The heavy repository gate exercised the complete live TypeScript surface after
+the focused Slice 50 suites. Its two governed-surface oracles failed because
+`read.canonical_page`, `read.operational_state`, and
+`read.operational_state_page` were live but absent from the shared allowlist.
+The TypeScript camel-case spellings were absent as well. Product code and the
+Slice 45 interface documents agreed; the stale governance record had skipped
+Slice 45 when it was next reissued for Slice 50.
+
+The same heavy run's Python route independently failed collection because it
+loaded the known stale worktree native extension. Fresh Linux and Windows
+wheels execute the Slice 50 suite successfully, so that setup failure is not
+used as the governed-surface RED oracle.
+
+## GREEN 21 — release verification correction
+
+The shared allowlist now records all six already-approved Slice 45 Python and
+TypeScript spellings and carries the missing Slice 45 signature. No product
+method or test changed. The focused TypeScript surface test and the Python
+surface suite against the fresh installed wheel pass. The governed pin is
+reissued from the committed allowlist bytes before rerunning the heavy gate.

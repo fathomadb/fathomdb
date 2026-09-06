@@ -145,7 +145,7 @@ def main() -> None:
             corrupt,
             _request(corrupt),
             "trace_corrupt",
-            "/dependencyEdges",
+            "",
         )
         corrupt.close()
 
